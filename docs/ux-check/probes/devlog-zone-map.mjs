@@ -5,7 +5,7 @@
 
 const ROUTE = '/devlog/fallow';
 const PASSAGE = 'generated straight from';
-const LEGEND_ROWS = 4;
+const LEGEND_ROWS = 5;
 
 export default {
   name: 'devlog-zone-map',

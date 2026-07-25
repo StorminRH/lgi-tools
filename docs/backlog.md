@@ -703,3 +703,21 @@ so both need a real design decision, not a constraint.
   M. *Trigger:* operator request, or the first incident where the SLI panel shows
   a degraded indicator without saying which capability caused it. *Requested by
   the operator on 2026-07-25 during 3.10.3.1.1 planning.*
+
+- **Contain the app-shell backdrop so mobile pages stop scrolling sideways.**
+  *What:* on a 390px-wide viewport every `/devlog` route reports
+  `documentElement.clientWidth` 390 against `scrollWidth` 435, so the page
+  carries 45px of horizontal scroll. The overflowing element is
+  `div.page-backdrop`, measured at 435px wide. Reproduced identically on
+  `/devlog/fallow`, `/devlog/neon`, and `/devlog/introduction`, so it belongs to
+  the shared shell rather than to any document or its content. *Impact:* a small
+  sideways rubber-band on every affected mobile page; nothing is clipped or
+  unreachable, which is why it went unnoticed. *Fix direction:* find the
+  `page-backdrop` owner and stop it exceeding the viewport, then confirm whether
+  the other route families (`/sites`, `/industry`, `/changelog`) show the same
+  45px overhang — if they do this is one shell fix, not a devlog one. *Size:* S.
+  *Trigger:* the next mobile-layout pass, or any report of horizontal drift.
+  *Found during 3.10.3.3.1 while probing the zone map, and deliberately left out
+  of scope: that session's hard constraints allowed no application behaviour
+  change beyond its own devlog block. The map's own figure contains its overflow
+  and does not contribute to this measurement.*

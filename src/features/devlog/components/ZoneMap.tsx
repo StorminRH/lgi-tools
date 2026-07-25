@@ -24,6 +24,8 @@ const MARK_STYLE: Record<ZoneMapLegendKind, MarkStyle> = {
   allow: { className: 'fill-isk', rotate: 0 },
   exception: { className: 'fill-none stroke-isk', rotate: 0 },
   'carve-out': { className: 'fill-tone-orange', rotate: 45 },
+  // Matches the diagonal line's own tint, so the legend row reads as that diagonal.
+  'same-zone': { className: 'fill-none stroke-isk-dim', rotate: 0 },
   forbidden: { className: 'fill-none stroke-border-active', rotate: 0 },
 };
 
@@ -178,10 +180,9 @@ export function ZoneMap() {
           height={layout.height}
           viewBox={`0 0 ${layout.width} ${layout.height}`}
           role="img"
-          className="max-w-none"
         >
           <title>
-            {`Zone dependency matrix: ${layout.order.length} zones and ${layout.cells.length} declared permissions. Each row may import the zones lit along it; an empty cell is forbidden.`}
+            {`Zone dependency matrix: ${layout.order.length} zones and ${layout.cells.length} declared permissions. Each row may import the zones lit along it; an empty cell between two different zones is forbidden. The diagonal is a zone with itself, which the rules never restrict.`}
           </title>
           <ZoneMapGrid layout={layout} />
           <ZoneMapCells layout={layout} />

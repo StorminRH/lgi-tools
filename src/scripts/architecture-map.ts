@@ -19,30 +19,26 @@ export const ARCHITECTURE_MAP_ARTIFACTS = {
 
 const REGENERATE_COMMAND = 'pnpm generate:architecture-map';
 
-/**
- * How a zone earns its files: an explicit pattern list, an `autoDiscover` group whose
- * child directories each become a slice, or a referenced child of such a group.
- */
-export type ZoneKind = 'zone' | 'group' | 'reference-core';
+// How a zone earns its files: an explicit pattern list, an `autoDiscover` group whose
+// child directories each become a slice, or a referenced child of such a group.
+type ZoneKind = 'zone' | 'group' | 'reference-core';
 
-/**
- * The three mechanically derived relations. `allow` is a declared permission between two
- * zones; `exception` is a permission naming a child of an `autoDiscover` group rather than
- * a declared zone; `carve-out` is not a permission at all but first-match classification
- * precedence, where an earlier zone's patterns are fully covered by a later zone's.
- */
-export type EdgeKind = 'allow' | 'exception' | 'carve-out';
+// The three mechanically derived relations. `allow` is a declared permission between two
+// zones; `exception` is a permission naming a child of an `autoDiscover` group rather than
+// a declared zone; `carve-out` is not a permission at all but first-match classification
+// precedence, where an earlier zone's patterns are fully covered by a later zone's.
+type EdgeKind = 'allow' | 'exception' | 'carve-out';
 
-/** One zone in the graph, with its longest-path layer above the sinks. */
-export type ArchitectureNode = {
+// One zone in the graph, with its longest-path layer above the sinks.
+type ArchitectureNode = {
   id: string;
   label: string;
   layer: number;
   kind: ZoneKind;
 };
 
-/** One classified relation between two zones, addressed by node id. */
-export type ArchitectureEdge = { from: string; to: string; kind: EdgeKind };
+// One classified relation between two zones, addressed by node id.
+type ArchitectureEdge = { from: string; to: string; kind: EdgeKind };
 
 /** The complete derived zone graph: nodes in declaration order, edges grouped by class. */
 export type ArchitectureMap = {
@@ -113,7 +109,15 @@ function parseRule(raw: unknown, index: number): RuleDeclaration {
   const record = asRecord(raw, what);
   const from = record['from'];
   if (typeof from !== 'string' || from === '') fail(`${what}.from must be a non-empty string`);
-  return { from, allow: asStringArray(record['allow'], `${what}.allow`) };
+  const allow = asStringArray(record['allow'], `${what}.allow`);
+  // An allow target that names no declared zone becomes a reference-core node, and its
+  // raw text is that node's label in both emitters — so the alphabet is pinned here too,
+  // not just on declared zone names.
+  const unnamed = allow.find((target) => !ZONE_NAME.test(target));
+  if (unnamed !== undefined) {
+    fail(`${what}.allow names "${unnamed}", which does not match ${String(ZONE_NAME)}`);
+  }
+  return { from, allow };
 }
 
 function parseBoundaries(config: unknown): { zones: ZoneDeclaration[]; rules: RuleDeclaration[] } {
@@ -153,9 +157,30 @@ function classifyTarget(zones: ZoneDeclaration[], declared: Set<string>, from: s
   );
 }
 
+// zoneId is lossy, so two different names can reduce to one id. Every node id has to stay
+// unique: the devlog indexes the matrix by id, so a collision would silently draw one
+// zone's permissions on another zone's row instead of failing.
+function assertUniqueIds(drafts: NodeDraft[]): void {
+  const owner = new Map<string, string>();
+  for (const draft of drafts) {
+    const existing = owner.get(draft.id);
+    if (existing !== undefined) {
+      fail(`zones "${existing}" and "${draft.label}" both reduce to node id "${draft.id}"`);
+    }
+    owner.set(draft.id, draft.label);
+  }
+}
+
 function appendReferenceCore(drafts: NodeDraft[], name: string): void {
   const id = zoneId(name);
-  if (drafts.some((draft) => draft.id === id)) return;
+  const existing = drafts.find((draft) => draft.id === id);
+  if (existing) {
+    // Referenced twice is fine; colliding with a different name is not.
+    if (existing.label !== name) {
+      fail(`reference core "${name}" and zone "${existing.label}" both reduce to node id "${id}"`);
+    }
+    return;
+  }
   drafts.push({ id, label: name, kind: 'reference-core' });
 }
 
@@ -264,6 +289,7 @@ function byEdgeClass(edges: ArchitectureEdge[]): ArchitectureEdge[] {
 export function buildArchitectureMap(config: unknown): ArchitectureMap {
   const { zones, rules } = parseBoundaries(config);
   const drafts = baseDrafts(zones);
+  assertUniqueIds(drafts);
   const dependencies = classifyDependencies(zones, rules, drafts);
   return {
     nodes: withLayers(drafts, dependencies),

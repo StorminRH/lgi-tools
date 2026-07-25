@@ -107,10 +107,13 @@ describe('architecture map — the live graph is complete and one-directional', 
   });
 
   it('groups the emitted relations by class: allow, then exception, then carve-out', () => {
-    const order = liveMap().edges.map((edge) => edge.kind);
-    expect([...order].sort()).toEqual(order.slice().sort());
-    expect(order.indexOf('exception')).toBeGreaterThan(order.lastIndexOf('allow'));
-    expect(order.indexOf('carve-out')).toBeGreaterThan(order.lastIndexOf('exception'));
+    const rank: Record<string, number> = { allow: 0, exception: 1, 'carve-out': 2 };
+    const ranks = liveMap().edges.map((edge) => rank[edge.kind]!);
+    // Monotonically non-decreasing: any interleaved class would break this.
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    expect(ranks).toContain(0);
+    expect(ranks).toContain(1);
+    expect(ranks).toContain(2);
   });
 });
 
@@ -201,6 +204,67 @@ describe('architecture map — malformed configuration fails loudly', () => {
   it('rejects a zone name that could not survive the emitters intact', () => {
     const config = { boundaries: { zones: [{ name: "od'd", patterns: ['x/**'] }], rules: [] } };
     expect(() => buildArchitectureMap(config)).toThrow(/boundaries\.zones\[0\]\.name/);
+  });
+
+  it('refuses two zone names that reduce to one node id', () => {
+    // zoneId maps every non-word character to '_', so these two distinct zones would both
+    // become "owner_sync". The devlog indexes the matrix by id, so a collision would draw
+    // one zone's permissions on the other zone's row.
+    const config = {
+      boundaries: {
+        zones: [
+          { name: 'owner-sync', patterns: ['a/**'] },
+          { name: 'owner_sync', patterns: ['b/**'] },
+        ],
+        rules: [],
+      },
+    };
+    expect(() => buildArchitectureMap(config)).toThrow(
+      /zones "owner-sync" and "owner_sync" both reduce to node id "owner_sync"/,
+    );
+  });
+
+  it('refuses a reference core that collides with a declared zone id', () => {
+    const config = {
+      boundaries: {
+        zones: [
+          { name: 'data', autoDiscover: ['src/data'] },
+          { name: 'data__eve_data', patterns: ['b/**'] },
+        ],
+        rules: [{ from: 'data', allow: ['data/eve-data'] }],
+      },
+    };
+    expect(() => buildArchitectureMap(config)).toThrow(/both reduce to node id "data__eve_data"/);
+  });
+
+  it('keeps every live node id unique', () => {
+    const ids = liveMap().nodes.map((node) => node.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('rejects an allow target that could not survive the emitters intact', () => {
+    // A target naming no declared zone becomes a reference-core node whose label is that
+    // raw text, so an apostrophe would emit a generated module that does not parse and a
+    // quote would break the Mermaid label. Both are refused at the boundary.
+    for (const target of ["data/it's", 'data/say"hi"', 'data/semi;colon']) {
+      const config = {
+        boundaries: {
+          zones: [{ name: 'data', autoDiscover: ['src/data'] }],
+          rules: [{ from: 'data', allow: [target] }],
+        },
+      };
+      expect(() => buildArchitectureMap(config)).toThrow(/boundaries\.rules\[0\]\.allow names/);
+    }
+  });
+
+  it('still emits a valid module and flowchart for every live label', () => {
+    // The positive half of the boundary check: nothing the live config produces needs
+    // escaping, so both emitted texts stay parseable.
+    const map = liveMap();
+    for (const node of map.nodes) {
+      expect(node.label).not.toMatch(/['"`;]/);
+    }
+    expect(renderGeneratedModule(map)).not.toMatch(/label: '[^']*'[^,]/);
   });
 });
 

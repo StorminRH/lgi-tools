@@ -80,25 +80,33 @@ describe('zoneLabels', () => {
   it('marks the carved-out row beside its measured label width', () => {
     const { carveOutMarkers } = zoneLabels(graph);
     // 'api' is 3 mono characters wide at 6px each, left of the label's right edge.
-    expect(carveOutMarkers).toEqual([
-      { id: 'api', over: 'app', x: 140 - 18 - 9, y: 148 + 18 + 9 },
-    ]);
+    expect(carveOutMarkers).toEqual([{ id: 'api', x: 140 - 18 - 9, y: 148 + 18 + 9 }]);
+  });
+
+  it('marks exactly the rows the graph declares as carve-outs', () => {
+    const carvedOut = graph.edges.filter((edge) => edge.kind === 'carve-out').map((e) => e.from);
+    expect(zoneLabels(graph).carveOutMarkers.map((marker) => marker.id)).toEqual(carvedOut);
   });
 });
 
 describe('zoneLegend', () => {
-  it('reads allow, exception, carve-out, then the deny-by-default rule', () => {
+  it('reads allow, exception, carve-out, the diagonal, then the deny-by-default rule', () => {
     expect(zoneLegend(graph).map((entry) => entry.kind)).toEqual([
       'allow',
       'exception',
       'carve-out',
+      'same-zone',
       'forbidden',
     ]);
   });
 
-  it('states that an empty cell is forbidden', () => {
-    const forbidden = zoneLegend(graph).find((entry) => entry.kind === 'forbidden');
-    expect(forbidden?.label).toMatch(/deny-by-default/);
+  it('scopes deny-by-default to pairs of different zones', () => {
+    // Fallow only checks CROSS-zone imports, so the diagonal is not "forbidden" and the
+    // legend must not claim it is.
+    const byKind = new Map(zoneLegend(graph).map((entry) => [entry.kind, entry.label]));
+    expect(byKind.get('forbidden')).toMatch(/between zones/);
+    expect(byKind.get('forbidden')).toMatch(/deny-by-default/);
+    expect(byKind.get('same-zone')).toMatch(/never restrict/);
   });
 
   it('stacks the rows below the grid', () => {
@@ -112,7 +120,7 @@ describe('layoutZoneMap', () => {
   it('sizes the canvas around the grid, the labels, and the legend', () => {
     const layout = layoutZoneMap(graph);
     expect(layout.width).toBe(148 + 5 * 18 + 4);
-    expect(layout.height).toBe(148 + 5 * 18 + 30 + 4 * 18);
+    expect(layout.height).toBe(148 + 5 * 18 + 30 + 5 * 18);
   });
 
   it('draws one grid line per boundary on each axis', () => {
@@ -123,9 +131,9 @@ describe('layoutZoneMap', () => {
     expect(layoutZoneMap(graph).diagonal).toEqual({ x1: 148, y1: 148, x2: 238, y2: 238 });
   });
 
-  it('centres the lit square inside its cell', () => {
+  it('keeps the lit square smaller than its cell so the grid stays readable', () => {
     const layout = layoutZoneMap(graph);
-    expect(layout.litInset * 2 + layout.litSize).toBe(layout.pitch);
+    expect(layout.litSize).toBeLessThan(layout.pitch);
   });
 });
 
@@ -146,14 +154,26 @@ describe('layoutZoneMap — the committed generated graph', () => {
   });
 
   it('marks the api row as the one first-match carve-out', () => {
-    expect(layout.carveOutMarkers.map((marker) => [marker.id, marker.over])).toEqual([
-      ['api', 'app'],
-    ]);
+    expect(layout.carveOutMarkers.map((marker) => marker.id)).toEqual(['api']);
   });
 
-  it('keeps every label inside the gutter the layout reserves for it', () => {
+  it('fits every label and marker inside the canvas, so nothing is clipped', () => {
+    // Row labels are right-aligned AT row.x and extend left, so the real bound is row.x
+    // itself — not gridX, which is 8px further right. Column labels rotate up from
+    // column.y and extend toward y=0 under the same measurement.
     for (const row of layout.rowLabels) {
-      expect(row.label.length * 6).toBeLessThan(layout.gridX);
+      expect(row.x - row.label.length * 6).toBeGreaterThanOrEqual(0);
+    }
+    for (const column of layout.columnLabels) {
+      expect(column.y - column.label.length * 6).toBeGreaterThanOrEqual(0);
+    }
+    // A carve-out marker sits further left again, past its own row label.
+    for (const marker of layout.carveOutMarkers) {
+      expect(marker.x).toBeGreaterThan(0);
+    }
+    // The widest legend row has to fit the canvas too.
+    for (const entry of layout.legend) {
+      expect(entry.x + layout.litSize + 8 + entry.label.length * 6).toBeLessThanOrEqual(layout.width);
     }
   });
 });

@@ -16,17 +16,15 @@ import { architectureMap } from './architecture-map.generated';
 
 type GeneratedMap = typeof architectureMap;
 
-/** How a zone earns its files, as classified by the generator. */
-export type ZoneNodeKind = GeneratedMap['nodes'][number]['kind'];
+// How a zone earns its files, as classified by the generator.
+type ZoneNodeKind = GeneratedMap['nodes'][number]['kind'];
 
-/** The generator's three relation classes. */
-export type ZoneEdgeKind = GeneratedMap['edges'][number]['kind'];
+// The generator's three relation classes.
+type ZoneEdgeKind = GeneratedMap['edges'][number]['kind'];
 
-/**
- * The relation classes that become matrix cells. A carve-out is classification
- * precedence, not a permission, so it annotates a row label instead.
- */
-export type ZoneCellKind = Exclude<ZoneEdgeKind, 'carve-out'>;
+// The relation classes that become matrix cells. A carve-out is classification
+// precedence, not a permission, so it annotates a row label instead.
+type ZoneCellKind = Exclude<ZoneEdgeKind, 'carve-out'>;
 
 type ZoneMapNode = { id: string; label: string; layer: number; kind: ZoneNodeKind };
 type ZoneMapEdge = { from: string; to: string; kind: ZoneEdgeKind };
@@ -37,8 +35,8 @@ export type ZoneMapGraph = {
   edges: readonly ZoneMapEdge[];
 };
 
-/** One lit cell: the row zone holds a declared permission on the column zone. */
-export type ZoneMapCell = {
+// One lit cell: the row zone holds a declared permission on the column zone.
+type ZoneMapCell = {
   from: string;
   to: string;
   kind: ZoneCellKind;
@@ -46,17 +44,21 @@ export type ZoneMapCell = {
   y: number;
 };
 
-/** One axis label, positioned for its row or column. */
-export type ZoneMapLabel = { id: string; label: string; x: number; y: number };
+// One axis label, positioned for its row or column.
+type ZoneMapLabel = { id: string; label: string; x: number; y: number };
 
-/** A marker beside the row label of a zone carved out of a later zone's patterns. */
-export type ZoneMapMarker = { id: string; over: string; x: number; y: number };
+// A marker beside the row label of a zone carved out of a later zone's patterns.
+type ZoneMapMarker = { id: string; x: number; y: number };
 
-/** What a legend row explains. `forbidden` is the empty cell — the deny-by-default rule. */
-export type ZoneMapLegendKind = ZoneCellKind | 'carve-out' | 'forbidden';
+/**
+ * What a legend row explains. `forbidden` is an empty cell between two different zones —
+ * the deny-by-default rule; `same-zone` is the diagonal, which the rules never restrict
+ * because the boundary check only governs cross-zone imports.
+ */
+export type ZoneMapLegendKind = ZoneCellKind | 'carve-out' | 'same-zone' | 'forbidden';
 
-/** One legend row: its swatch kind, its text, and where both sit. */
-export type ZoneMapLegendEntry = {
+// One legend row: its swatch kind, its text, and where both sit.
+type ZoneMapLegendEntry = {
   kind: ZoneMapLegendKind;
   label: string;
   x: number;
@@ -71,7 +73,6 @@ export type ZoneMapLayout = {
   gridY: number;
   pitch: number;
   litSize: number;
-  litInset: number;
   order: string[];
   cells: ZoneMapCell[];
   rowLabels: ZoneMapLabel[];
@@ -84,7 +85,10 @@ export type ZoneMapLayout = {
 
 const PITCH = 18;
 const LIT_SIZE = 12;
-const LIT_INSET = (PITCH - LIT_SIZE) / 2;
+// The label gutters have to clear the longest zone name: 22 characters at
+// MONO_CHAR_WIDTH is 132px, plus LABEL_GAP, so 148 leaves a small margin on both axes.
+// The layout test asserts every label and marker still fits, so shortening a gutter below
+// what the live names need fails rather than clipping silently.
 const GRID_X = 148;
 const GRID_Y = 148;
 const LABEL_GAP = 8;
@@ -103,10 +107,17 @@ const LEGEND_TEXT: Record<ZoneMapLegendKind, string> = {
   allow: 'declared permission — the row zone may import the column zone',
   exception: 'sanctioned reference-core exception',
   'carve-out': 'first-match carve-out — classifies ahead of the covering zone',
-  forbidden: 'empty cell — forbidden, because the map is deny-by-default',
+  'same-zone': 'the diagonal — a zone with itself, which the rules never restrict',
+  forbidden: 'empty cell — forbidden: between zones the rules are deny-by-default',
 };
 
-const LEGEND_ORDER: readonly ZoneMapLegendKind[] = ['allow', 'exception', 'carve-out', 'forbidden'];
+const LEGEND_ORDER: readonly ZoneMapLegendKind[] = [
+  'allow',
+  'exception',
+  'carve-out',
+  'same-zone',
+  'forbidden',
+];
 
 function orderedNodes(graph: ZoneMapGraph): ZoneMapNode[] {
   // Stable sort, so nodes sharing a layer keep the generator's declaration order.
@@ -178,12 +189,7 @@ function carveOutMarkers(graph: ZoneMapGraph, rowLabels: ZoneMapLabel[]): ZoneMa
       // Row labels cover every node and the generator only emits edges between nodes,
       // so the carved-out zone always has a row.
       const row = rows.get(edge.from)!;
-      return {
-        id: edge.from,
-        over: edge.to,
-        x: row.x - labelWidth(row.label) - MARKER_GAP,
-        y: row.y,
-      };
+      return { id: edge.from, x: row.x - labelWidth(row.label) - MARKER_GAP, y: row.y };
     });
 }
 
@@ -210,7 +216,6 @@ export function layoutZoneMap(graph: ZoneMapGraph): ZoneMapLayout {
     gridY: GRID_Y,
     pitch: PITCH,
     litSize: LIT_SIZE,
-    litInset: LIT_INSET,
     order: zoneOrder(graph),
     cells: zoneCells(graph),
     ...zoneLabels(graph),

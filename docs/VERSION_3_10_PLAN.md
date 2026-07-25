@@ -162,7 +162,7 @@ and no separate elective campaign is scheduled.
 | 3.10.2.4 | Vendor resilience registry (timeouts, retries, idempotency) (§3.10.2.4) | 1 | SHIPPED |
 | **Phase 3 — Operability** | | | |
 | 3.10.3.1 | Capability telemetry, SLIs & idempotency inventory (§3.10.3.1 + §3.10.3.2) | 1 | SHIPPED |
-| 3.10.3.3 | Generated architecture map & devlog flowchart, UX gate: Yes (§3.10.3.3) | 1 | PLANNED |
+| 3.10.3.3 | Generated architecture map & devlog flowchart, UX gate: Yes (§3.10.3.3) | 1 | SHIPPED |
 | **Phase 4 — Presentation-system completion** | Outcome groups below are inputs to adversarial decomposition, not fixed delivery boundaries | Set by `plan-version` after its live adoption survey | PLANNED |
 
 ## Phase 0 — Documentation & lifecycle consolidation (3.10.0.x)

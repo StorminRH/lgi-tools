@@ -372,11 +372,16 @@ describe('parseDevlog — the zone-map marker seam', () => {
     ]);
   });
 
-  it('leaves an indented or partial marker as ordinary prose', () => {
-    // Only the exact trimmed line is a marker, so near-misses stay visible as text
-    // instead of silently rendering a map in the wrong place.
+  it('leaves a marker with trailing text or a mistyped marker as ordinary prose', () => {
+    // Only a line that is nothing but the marker counts, so near-misses stay visible as
+    // text instead of silently rendering a map in the wrong place.
     expect(doc('<!-- uth:zone-map --> trailing').blocks.map((b) => b.type)).toEqual(['paragraph']);
     expect(doc('<!-- uth:zone -->').blocks.map((b) => b.type)).toEqual(['paragraph']);
+  });
+
+  it('still recognises the marker when the source line is indented', () => {
+    // The seam matches the TRIMMED line, so leading whitespace is insignificant.
+    expect(doc('   <!-- uth:zone-map -->').blocks.map((b) => b.type)).toEqual(['zone-map']);
   });
 });
 
