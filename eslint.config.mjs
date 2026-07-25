@@ -861,15 +861,20 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The three client-addressable vendor homes. These sit in the
-  // client-addressable block above, so their exemptions MUST re-list
-  // serverRootImportPatterns — dropping it here would silently let a client
-  // module import a server root. Each mounts exactly one provider or client.
+  // The client-addressable vendor homes. These sit in the client-addressable
+  // block above, so their exemptions MUST re-list serverRootImportPatterns —
+  // dropping it here would silently let a client module import a server root.
+  // Split by vendor rather than grouped: one block lifting both better-auth and
+  // convex/react for all of them would let the auth client import Convex and the
+  // Convex provider import Better Auth, which is wider than each home owns.
+  //
+  // The auth client and its providers own Better Auth's client surface. The
+  // Convex provider lives here too because it composes Better Auth identity into
+  // the Convex client, so it is the one file that legitimately needs both.
   {
     files: [
       "src/platform/auth/auth-client.ts",
       "src/platform/auth/components/**/*.{ts,tsx,mts}",
-      "src/components/OnlineStatusProvider.tsx",
     ],
     rules: {
       "no-restricted-imports": [
@@ -880,6 +885,31 @@ const eslintConfig = defineConfig([
             ...upstashRedisImportPatterns,
             ...upstashRatelimitImportPatterns,
             ...databaseDriverImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // The online-status provider mounts the Convex client only; Better Auth stays
+  // banned here.
+  {
+    files: ["src/components/OnlineStatusProvider.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
             ...googleAuthImportPatterns,
             ...stalenessImportPatterns,
             ...baseUiImportPatterns,

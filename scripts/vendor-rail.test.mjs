@@ -82,6 +82,9 @@ describe('vendor rail', () => {
       ['src/data/gsc/source.ts', 'postgres'],
       ['src/data/convex/client.ts', 'better-auth'],
       ['src/platform/auth/auth.ts', 'convex/react'],
+      // The client-addressable homes are split per vendor, so neither inherits
+      // the other's exemption: the online-status provider owns Convex only.
+      ['src/components/OnlineStatusProvider.tsx', 'better-auth'],
     ])('still rejects %s importing another vendor (%s)', async (filePath, packageName) => {
       expect(await importMessages(filePath, packageName)).not.toEqual([]);
     });

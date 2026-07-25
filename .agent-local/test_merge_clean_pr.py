@@ -196,8 +196,11 @@ class CodeRabbitFallback(unittest.TestCase):
     def test_resolved_finding_does_not_block(self) -> None:
         self.assertEqual(fallback_blockers(frozenset({10}), inline_comments=[cr_root()]), [])
 
-    def test_finding_on_an_older_head_does_not_block(self) -> None:
-        self.assertEqual(fallback_blockers(inline_comments=[cr_root(commit="old")]), [])
+    def test_unresolved_finding_on_an_older_commit_still_blocks(self) -> None:
+        # CodeRabbit never re-anchors a finding, so its commit is the one it was
+        # found on. Filtering by head would drop every finding after any push.
+        reasons = fallback_blockers(inline_comments=[cr_root(commit="old")])
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
 
     def test_bot_reply_is_not_a_finding(self) -> None:
         reply = cr_root(11) | {"in_reply_to_id": 10}
@@ -300,19 +303,36 @@ class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
         human = {"user": {"login": "StorminRH"}, "id": 11, "body": f"Addressed in commit {HEAD}"}
         self.assertFalse(coderabbit_reviewed_head([], HEAD, [human]))
 
-    def test_marker_in_an_issue_comment_counts(self) -> None:
-        ack = {"user": {"login": CODERABBIT}, "id": 12, "body": f"Addressed in commit {HEAD[:7]}"}
-        self.assertTrue(coderabbit_reviewed_head([], HEAD, [], [ack]))
+    def test_marker_only_counts_on_an_inline_finding_root(self) -> None:
+        # Closes the prompt-echo channel: a conversational reply carries the same
+        # author, so only a finding root may supply the marker.
+        reply = self.cr_comment(f"Addressed in commit {HEAD[:7]}") | {"in_reply_to_id": 9}
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [reply]))
 
     def test_too_short_a_sha_is_rejected(self) -> None:
         self.assertFalse(coderabbit_reviewed_head([], HEAD, [self.cr_comment(f"Addressed in commit {HEAD[:6]}")]))
 
     def test_acknowledgement_does_not_waive_a_live_finding(self) -> None:
-        # Head evidence and "no finding left standing" stay independent gates.
+        # Head evidence and "no finding left standing" stay independent gates: the
+        # fixed finding is acknowledged and resolved, a second one is neither.
         ack = self.cr_comment(f"Addressed in commit {HEAD[:7]}")
-        reasons = fallback_blockers(reviews=[], inline_comments=[ack, cr_root()])
+        still_open = cr_root(11, commit="older")
+        reasons = fallback_blockers(
+            frozenset({10}), reviews=[], inline_comments=[ack, still_open]
+        )
         self.assertFalse(any("no CodeRabbit review" in r for r in reasons))
         self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
+
+    def test_the_reported_hole_stays_closed(self) -> None:
+        # The regression this suite exists for: an unresolved finding anchored to
+        # an earlier commit must not vanish just because a later commit was
+        # acknowledged. Before the fix this returned no blockers at all.
+        ack = self.cr_comment(f"Addressed in commit {HEAD[:7]}")
+        forgotten = cr_root(11, commit="older")
+        reasons = fallback_blockers(
+            frozenset({10}), reviews=[], inline_comments=[ack, forgotten]
+        )
+        self.assertNotEqual(reasons, [])
 
     def test_acknowledgement_never_substitutes_for_greptile(self) -> None:
         # Greptile reviewed, so the fallback path must not be reachable at all.
@@ -333,11 +353,11 @@ class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
 
 class LiveCodeRabbitFindings(unittest.TestCase):
     def test_ignores_non_dict_items(self) -> None:
-        self.assertEqual(live_coderabbit_findings([None, "x"], HEAD, frozenset()), [])
+        self.assertEqual(live_coderabbit_findings([None, "x"], frozenset()), [])
 
     def test_ignores_other_authors(self) -> None:
         other = cr_root() | {"user": {"login": GREPTILE}}
-        self.assertEqual(live_coderabbit_findings([other], HEAD, frozenset()), [])
+        self.assertEqual(live_coderabbit_findings([other], frozenset()), [])
 
 
 if __name__ == "__main__":

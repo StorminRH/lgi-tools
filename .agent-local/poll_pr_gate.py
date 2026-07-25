@@ -298,6 +298,16 @@ def main() -> int:
             # registered its run yet must not read as "no review on this head".
             if key is not None and key == review_marker:
                 print(detail)
+                if not blockers and detail.get("gate") == "coderabbit":
+                    # Greptile's total absence is what selects the fallback, and a
+                    # merely slow Greptile looks identical to an exhausted one at
+                    # this moment. Say so, so a ready verdict is never read as
+                    # "the primary reviewer passed it".
+                    print(
+                        "\nNOTE: ready under the CodeRabbit fallback — Greptile "
+                        "posted no summary and no check. If Greptile was only "
+                        "slow, re-run before merging."
+                    )
                 if blockers:
                     print("\nBLOCKERS\n")
                     for reason in blockers:
