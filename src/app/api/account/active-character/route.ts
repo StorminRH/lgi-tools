@@ -17,14 +17,17 @@ import { parseFormBody } from '@/transport/route-body';
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  // Per-IP rate limit, checked before the session read so a flood is rejected
-  // at the cheapest point. Every accepted switch writes the DB; 30/min covers
-  // any real pilot flipping characters and cuts a scripted loop off fast.
-  const limit = await checkRateLimit(request, { name: 'account-switch', perMinute: 30 });
-  if (!limit.ok) return problemResponse(limit.failure);
-
   return runMutationRoute(request, {
     capability: 'account.switch-active-character',
+    // Per-IP rate limit, still checked before the session read so a flood is
+    // rejected at the cheapest point. Every accepted switch writes the DB;
+    // 30/min covers any real pilot flipping characters and cuts a scripted loop
+    // off fast. Runs as the shell's preflight so a 429 is recorded rather than
+    // rejected outside the capability scope.
+    preflight: async () => {
+      const limit = await checkRateLimit(request, { name: 'account-switch', perMinute: 30 });
+      return limit.ok ? null : problemResponse(limit.failure);
+    },
     authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,

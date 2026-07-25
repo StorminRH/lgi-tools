@@ -32,17 +32,19 @@ function redirectWithError(request: NextRequest, code: string): Response {
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  // Per-IP rate limit, checked before the session read so a flood is rejected
-  // at the cheapest point. Unlinking is rare and deliberate — 10/min is plenty
-  // for a human and stops scripted hammering of the unlink + token deletion.
-  const limit = await checkRateLimit(request, {
-    name: 'account-unlink',
-    perMinute: 10,
-  });
-  if (!limit.ok) return problemResponse(limit.failure);
-
   return runMutationRoute(request, {
     capability: 'account.unlink-character',
+    // Per-IP rate limit, still checked before the session read so a flood is
+    // rejected at the cheapest point. Unlinking is rare and deliberate — 10/min
+    // is plenty for a human and stops scripted hammering of the unlink + token
+    // deletion. Runs as the shell's preflight so a 429 is recorded.
+    preflight: async () => {
+      const limit = await checkRateLimit(request, {
+        name: 'account-unlink',
+        perMinute: 10,
+      });
+      return limit.ok ? null : problemResponse(limit.failure);
+    },
     authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,

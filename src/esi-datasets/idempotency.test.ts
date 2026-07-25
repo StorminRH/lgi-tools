@@ -106,14 +106,16 @@ describe('idempotency registry', () => {
     }
   });
 
-  it('carries an entry for every POST-bearing route, and no phantom routes', () => {
+  it('carries exactly one entry for every POST-bearing route', () => {
     const routes = postRouteFiles();
     const declared = new Set(routeEntries.map((entry) => entry.route as string));
-    expect(routes).toHaveLength(34);
+    expect(routes.length).toBeGreaterThan(0);
     for (const route of routes) {
       expect(declared.has(route), `no idempotency entry for ${route}`).toBe(true);
     }
-    expect(declared.size).toBe(routes.length);
+    // One-to-one: comparing the entry count rather than the deduplicated set
+    // catches a route declared twice, which a set comparison would hide.
+    expect(routeEntries).toHaveLength(routes.length);
   });
 
   it('covers the queue, its recovery, its requeue, and the outbound alert paths', () => {

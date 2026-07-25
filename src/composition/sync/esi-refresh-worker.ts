@@ -17,6 +17,7 @@ import {
 import { writeBackPendingWorkSignal } from '@/data/esi-refresh-jobs/pending-signal';
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import {
+  capabilityResultForError,
   recordCapabilityOutcome,
   type CapabilityResult,
   type CapabilityRetry,
@@ -154,13 +155,31 @@ function jobRetry(outcome: ProcessJobOutcome): CapabilityRetry {
 function processJob(job: EsiRefreshJob, now: Date): Promise<ProcessJobOutcome> {
   return withCorrelationScope(async () => {
     const startedAt = performance.now();
-    const outcome = await runJob(job, now);
-    recordCapabilityOutcome('sync.process-esi-refresh-job', {
-      ...capabilityResultForJob(outcome),
-      durationMs: performance.now() - startedAt,
-      retry: jobRetry(outcome),
-    });
-    return outcome;
+    try {
+      const outcome = await runJob(job, now);
+      recordCapabilityOutcome('sync.process-esi-refresh-job', {
+        ...capabilityResultForJob(outcome),
+        durationMs: performance.now() - startedAt,
+        retry: jobRetry(outcome),
+      });
+      return outcome;
+    } catch (error) {
+      // `runJob`'s own status writes can throw — Neon being unavailable is the
+      // obvious case — and the drain swallows that to isolate the job. Recording
+      // before rethrowing keeps the runs where the queue is failing hardest in
+      // the capability stream; without it the job and ESI indicators would read
+      // clean through exactly the outage they exist to surface.
+      recordCapabilityOutcome('sync.process-esi-refresh-job', {
+        ...capabilityResultForError(error),
+        durationMs: performance.now() - startedAt,
+        retry: {
+          attempt: job.attemptCount + 1,
+          maxAttempts: ESI_REFRESH_JOB_MAX_ATTEMPTS,
+          rateLimited: false,
+        },
+      });
+      throw error;
+    }
   });
 }
 

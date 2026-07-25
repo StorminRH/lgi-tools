@@ -384,4 +384,39 @@ describe('queued-job capability recording', () => {
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2);
   });
+
+  it('records a thrown job before the drain swallows it', async () => {
+    // The drain isolates a failing job by catching. Without a record here the
+    // capability stream would be empty during exactly the outage — Neon
+    // unavailable while marking status — that the job indicator exists to show.
+    mocks.claim.mockResolvedValue([job(1, 'skills')]);
+    mocks.runSkills.mockResolvedValue({ kind: 'succeeded' });
+    mocks.markSucceeded.mockRejectedValueOnce(new Error('neon unavailable'));
+
+    await drainEsiRefreshJobs();
+
+    const rows = capabilityRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.metadata).toMatchObject({
+      feature: 'sync',
+      operation: 'process-esi-refresh-job',
+      outcome: 'unexpected',
+      code: 'unexpected',
+      retry: { attempt: 1, maxAttempts: 5, rateLimited: false },
+    });
+  });
+
+  it('still isolates the thrown job from the rest of the drain', async () => {
+    mocks.claim.mockResolvedValue([job(1, 'skills'), job(2, 'owned_assets')]);
+    mocks.runSkills.mockResolvedValue({ kind: 'succeeded' });
+    mocks.runAssets.mockResolvedValue({ kind: 'succeeded' });
+    mocks.markSucceeded.mockRejectedValueOnce(new Error('neon unavailable'));
+
+    const summary = await drainEsiRefreshJobs();
+
+    // The second job still ran and its row still landed; recording the throw
+    // must not change the drain's own error isolation.
+    expect(summary.succeeded).toBe(1);
+    expect(capabilityRows()).toHaveLength(2);
+  });
 });

@@ -13,11 +13,12 @@ import { requireSameOrigin } from '@/platform/auth/same-origin';
  * enforced Origin/Referer mismatch check is the server-side line. Seven guarded form routes accept
  * form encodings, so their defense rests on those two lines rather than content type.
  *
- * This shared pipeline owns identity → same-origin → parse → handler; callers retain rate limits
- * before the boundary, and handlers own object authorization, transactions, and telemetry. The five
- * direct routes keep their established positions: account deletion checks after rate limit and
- * identity; the three admin form routes check after identity; feedback checks after parse and rate
- * limit.
+ * This shared pipeline owns preflight → identity → same-origin → parse → handler; handlers own
+ * object authorization, transactions, and telemetry. Rate limits keep their position ahead of
+ * identity but now run as the `preflight` stage, inside the capability scope, so a throttled
+ * request is recorded rather than rejected invisibly. The five direct routes keep their established
+ * positions: account deletion checks after rate limit and identity; the three admin form routes
+ * check after identity; feedback checks after parse and rate limit.
  *
  * Requests with neither Origin nor Referer remain allowed. The observer did not record that class,
  * so the decision rests on modern-browser Origin behavior and SameSite=Lax, not telemetry. A
@@ -36,9 +37,16 @@ type AuthorizationResult<T extends AuthorizationSuccess> = T | FailureResult;
 /**
  * Every mutation names the capability it serves. Required rather than optional so a new mutation
  * route cannot ship unrecorded: omitting it is a compile error, not a silent gap.
+ *
+ * `preflight` runs before authorization, inside the capability scope, and short-circuits the
+ * mutation when it returns a Response. Rate limits belong here rather than ahead of the shell: a
+ * caller-owned check that ran outside the scope would reject without ever recording an outcome, so
+ * a throttled surface would look idle rather than busy. It returns the Response rather than a
+ * failure so each route keeps its own declared 429 shape.
  */
 interface CapabilityOption {
   capability: CapabilityId;
+  preflight?: () => Promise<Response | null>;
 }
 
 interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess>
@@ -67,6 +75,11 @@ async function runStages(
   request: Request,
   runtime: RuntimeMutationOptions,
 ): Promise<Response> {
+  if (runtime.preflight) {
+    const shortCircuit = await runtime.preflight();
+    if (shortCircuit) return shortCircuit;
+  }
+
   const authorization = await runtime.authorize();
   if (!authorization.ok) return problemResponse(authorization.failure);
 
@@ -83,9 +96,8 @@ async function runStages(
 }
 
 /**
- * Runs authorize, same-origin enforcement, optional parsing, then the handler.
- * Guard and parser failures map through the problem owner; unexpected errors propagate.
- * Caller-owned rate limits run before this boundary.
+ * Runs the optional preflight, authorize, same-origin enforcement, optional parsing, then the
+ * handler. Guard and parser failures map through the problem owner; unexpected errors propagate.
  */
 export function runMutationRoute<TAuthorization extends AuthorizationSuccess, TBody>(
   request: Request,

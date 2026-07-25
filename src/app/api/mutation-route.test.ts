@@ -169,3 +169,57 @@ describe('runMutationRoute', () => {
     })).rejects.toBe(error);
   });
 });
+
+describe('runMutationRoute preflight', () => {
+  beforeEach(() => {
+    h.requireSameOriginMock.mockReset().mockReturnValue({ ok: true });
+  });
+
+  it('runs preflight before authorization and short-circuits on its response', async () => {
+    const calls: string[] = [];
+    const authorize = vi.fn(async () => {
+      calls.push('authorize');
+      return { ok: true as const };
+    });
+    const throttled = new Response(null, { status: 429 });
+
+    const result = await runMutationRoute(request(), {
+      capability: 'account.switch-active-character',
+      preflight: async () => {
+        calls.push('preflight');
+        return throttled;
+      },
+      authorize,
+      handle: () => new Response(null, { status: 204 }),
+    });
+
+    expect(result).toBe(throttled);
+    expect(calls).toEqual(['preflight']);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(h.requireSameOriginMock).not.toHaveBeenCalled();
+  });
+
+  it('proceeds through the normal stages when preflight returns null', async () => {
+    const calls: string[] = [];
+    const response = new Response(null, { status: 204 });
+
+    const result = await runMutationRoute(request(), {
+      capability: 'account.switch-active-character',
+      preflight: async () => {
+        calls.push('preflight');
+        return null;
+      },
+      authorize: async () => {
+        calls.push('authorize');
+        return { ok: true as const };
+      },
+      handle: () => {
+        calls.push('handle');
+        return response;
+      },
+    });
+
+    expect(result).toBe(response);
+    expect(calls).toEqual(['preflight', 'authorize', 'handle']);
+  });
+});

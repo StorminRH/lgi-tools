@@ -16,16 +16,17 @@ import { apiResponse } from '@/transport/api-response';
 // authz: auth
 // input: none
 export async function POST(request: NextRequest): Promise<Response> {
-  const limit = await checkRateLimit(request, {
-    name: 'account-logout-everywhere',
-    perMinute: 10,
-  });
-  if (!limit.ok) {
-    return apiResponse(sessionsRevokeEndpoint, 429, limit.failure);
-  }
-
   return runMutationRoute(request, {
     capability: 'account.revoke-own-sessions',
+    // Runs as the shell's preflight, keeping its position ahead of identity
+    // while placing the 429 inside the capability scope so it is recorded.
+    preflight: async () => {
+      const limit = await checkRateLimit(request, {
+        name: 'account-logout-everywhere',
+        perMinute: 10,
+      });
+      return limit.ok ? null : apiResponse(sessionsRevokeEndpoint, 429, limit.failure);
+    },
     authorize: checkSession,
     handle: async ({ session }) => {
       const revoked = await revokeUserSessions(session.user.id);

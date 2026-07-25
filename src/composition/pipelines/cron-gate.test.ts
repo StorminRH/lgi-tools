@@ -469,7 +469,7 @@ describe('defineCronRoute capability recording', () => {
       .filter((input) => input.action === 'capability_outcome');
   }
 
-  it('records a work-completing run as succeeded with its dependency time', async () => {
+  it('records a work-completing run as succeeded', async () => {
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron/prices',
       action: 'cron_prices',
@@ -478,7 +478,9 @@ describe('defineCronRoute capability recording', () => {
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test' },
       work: async (ctx) => {
-        // A statement on the shared direct client, exactly as a real cron runs.
+        // The client is mocked in this suite, so no real dependency time
+        // accrues; dependency accumulation is covered in correlation.test.ts
+        // and the per-seam suites.
         await ctx.client.reserve();
         return { outcome: 'refreshed', workDone: true, body: { status: 'ok' } };
       },
