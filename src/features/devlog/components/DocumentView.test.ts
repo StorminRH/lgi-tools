@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Block, Excerpt, InlineToken } from '../types';
 import { CodeExcerpt } from './CodeExcerpt';
 import { renderBlock } from './DocumentView';
+import { ZoneMap } from './ZoneMap';
 import { InlineTokens } from './InlineTokens';
 
 // React elements are plain objects, so a renderer's output can be inspected without
@@ -50,6 +51,14 @@ describe('renderBlock', () => {
     const el = block({ type: 'excerpt', excerpt });
     expect(el.type).toBe(CodeExcerpt);
     expect(el.props.excerpt).toBe(excerpt);
+  });
+
+  it('renders a zone-map block through ZoneMap, which needs no payload', () => {
+    const el = block({ type: 'zone-map' }, 4);
+    expect(el.type).toBe(ZoneMap);
+    expect(el.key).toBe('4');
+    // The committed generated graph is ZoneMap's only source, so the block carries no props.
+    expect(Object.keys(el.props)).toEqual([]);
   });
 
   it('keys each block by its index', () => {

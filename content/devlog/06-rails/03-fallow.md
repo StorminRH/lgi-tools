@@ -1,5 +1,5 @@
 ## Fallow
-<!-- updated: 2026-06-30 -->
+<!-- updated: 2026-07-25 -->
 
 ESLint catches sharp edges while I am working. TypeScript catches type mistakes. Tests catch behavior I remembered to pin down.
 
@@ -24,6 +24,10 @@ Complexity is where I had to be careful. It is easy to say “no complex functio
 Duplication gets the same treatment. Some duplication is a mistake. Some is a deliberate seam. The audit blocks new duplicate code aggressively, but it carries a baseline ledger for existing sanctioned clones. That lets the tool distinguish “this was already accepted” from “this branch copied another helper instead of extracting the right boundary.” In an AI workflow, that distinction matters because copied code is one of the easiest ways for an agent to appear productive while making the repo harder to maintain.<sup><a href="#code-fallow-duplicates">5</a></sup><sup><a href="#code-fallow-dup-baseline">6</a></sup>
 
 The architecture boundaries are the part that most directly protects the shape of LGI.tools. The repo is split into zones: auth surface, UI, features, data, lib, and shared code. Fallow encodes which directions are allowed. Feature code can depend on its own slice and sanctioned shared layers. Data slices should not reach back into feature UI. Shared code should stay boring. The few exceptions are written down, like the NPC stats dependency on the EVE data slice. That is the standard I want: if the exception is real, name it; do not let it appear as an accidental import.<sup><a href="#code-fallow-boundaries">7</a></sup>
+
+That configuration is now also the diagram. The grid below is generated straight from `.fallowrc.json` — never drawn by hand — and a test fails whenever the committed map no longer matches the live rules. Each lit cell is a declared permission: the row zone may import the column zone, and an empty cell between two different zones is forbidden, because the rules are deny-by-default. The diagonal is a zone with itself, which the rules never restrict — the boundary check governs crossings, not what a zone does internally. Every lit cell sits on one side of that diagonal because the dependency graph is one-directional. The ringed cell is the data band's single sanctioned reference-core exception, and the marked row is the one first-match pattern carve-out, where route handlers classify ahead of the page tree. [The full flowchart source is committed alongside the rules](https://github.com/StorminRH/lgi-tools/blob/main/docs/architecture-map.md).
+
+<!-- uth:zone-map -->
 
 Fallow is doing for the codebase what the ESI gate does for outbound API calls. The ESI gate protects a shared external budget. Fallow protects a shared internal budget: review attention, maintainability, architectural clarity, and future change capacity. Neither one makes the app more exciting on its own. Both keep the app from quietly spending something important.
 

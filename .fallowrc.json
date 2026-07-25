@@ -10,6 +10,7 @@
     "src/scripts/ingest-sde.ts",
     "src/scripts/refresh-prices.ts",
     "src/scripts/refresh-sde.ts",
+    "src/scripts/generate-architecture-map.ts",
     "scripts/validate-resolver-output.ts",
     "scripts/assert-route-classification.mjs",
     "scripts/ux-capture.mjs",
