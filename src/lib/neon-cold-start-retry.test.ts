@@ -74,6 +74,34 @@ describe('isNeonColdStartError', () => {
       expect(isNeonColdStartError(wrapped)).toBe(true);
       expect(isNeonColdStartError(drizzleWrapped(wrapped))).toBe(true);
     });
+
+    // A linear `cause ?? sourceError` walk would take `cause` and never reach
+    // the timeout on `sourceError`, retrying a bounded abort as a cold start.
+    it('finds the timeout when a non-timeout cause sits alongside it', () => {
+      const wrapped = neonError(`Error connecting to database: ${abort()}`, {
+        cause: new TypeError('some other detail'),
+        sourceError: abort(),
+      });
+      expect(isNeonColdStartError(wrapped)).toBe(false);
+      expect(isNeonColdStartError(drizzleWrapped(wrapped))).toBe(false);
+    });
+
+    it('finds the timeout when it hides behind the cause branch', () => {
+      const wrapped = neonError(`Error connecting to database: ${abort()}`, {
+        cause: neonError('inner', { sourceError: abort() }),
+        sourceError: new TypeError('some other detail'),
+      });
+      expect(isNeonColdStartError(wrapped)).toBe(false);
+    });
+
+    it('terminates on a cycle across both links', () => {
+      const a = neonError(COLD_START);
+      const b = neonError('inner');
+      Object.assign(a, { cause: b, sourceError: b });
+      Object.assign(b, { cause: a, sourceError: a });
+      // No timeout anywhere in the cycle, so the genuine cold-start match stands.
+      expect(isNeonColdStartError(a)).toBe(true);
+    });
   });
 });
 

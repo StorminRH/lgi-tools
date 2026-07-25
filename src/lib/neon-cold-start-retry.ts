@@ -68,17 +68,31 @@ async function retryDelayFor(
   return BASE_DELAY_MS * 2 ** (attempt - 1);
 }
 
-// Walks the same cause/sourceError chain looking for our own timeout abort. The
-// reason is a `TimeoutError` DOMException, matched by name rather than by
-// instance so it holds across runtimes (Convex, Node, the edge runtime) that
-// each construct their own DOMException.
+// Budget of error-chain nodes the timeout search may visit. It branches rather
+// than walking a single line, so this bounds total work (and any cycle) instead
+// of depth.
+const MAX_TIMEOUT_SEARCH_NODES = 16;
+
+// Looks for our own timeout abort anywhere in the error's cause/sourceError
+// graph. The reason is a `TimeoutError` DOMException, matched by name rather
+// than by instance so it holds across runtimes (Convex, Node, the edge runtime)
+// that each construct their own DOMException.
+//
+// Deliberately breadth-first across BOTH links rather than `cause ?? sourceError`:
+// a wrapper carrying a non-timeout `cause` alongside a timeout-bearing
+// `sourceError` would otherwise hide the abort and be retried as a cold start —
+// the precise envelope multiplication this carve-out exists to prevent. Erring
+// toward finding a timeout is the safe direction here, because a false positive
+// only fails one query fast while a false negative costs the full retry envelope.
 function hasTimeoutAbort(err: unknown): boolean {
-  let node: unknown = err;
-  for (let depth = 0; depth < MAX_CHAIN_DEPTH && node != null; depth++) {
+  const pending: unknown[] = [err];
+  for (let visited = 0; visited < MAX_TIMEOUT_SEARCH_NODES && visited < pending.length; visited++) {
+    const node = pending[visited];
+    if (node == null) continue;
     if ((node as { name?: unknown }).name === 'TimeoutError') return true;
-    node =
-      (node as { cause?: unknown }).cause ??
-      (node as { sourceError?: unknown }).sourceError;
+    const { cause, sourceError } = node as { cause?: unknown; sourceError?: unknown };
+    if (cause != null) pending.push(cause);
+    if (sourceError != null) pending.push(sourceError);
   }
   return false;
 }
