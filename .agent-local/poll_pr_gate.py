@@ -17,10 +17,11 @@ before the next push — and 1 on timeout, leaving the pass/fail verdict to the
 `greptile` gate and the merge helper.
 
 `review` is the end-to-end watch: it waits for the same stability and then
-evaluates the merge helper's own blocker predicate, so it reports ready only for a
-head the merge helper will accept. It returns 0 when nothing blocks the merge, 2
-with the blocker list when the head is settled but something does, and 1 on
-timeout. It inherits whichever reviewer is gate of record, and so covers inline
+evaluates the merge helper's own blocker predicate against that observation. A
+ready result means the gate was clear at the last stable poll, not a promise about
+the merge — the PR can change afterwards, and the helper re-validates live before
+acting. It returns 0 when nothing blocked the merge at that observation, 2 with
+the blocker list when the head is settled but something does, and 1 on timeout. It inherits whichever reviewer is gate of record, and so covers inline
 findings and the incremental reviewer's head-exact acknowledgement without
 duplicating either rule. It never merges; that stays with the helper, which
 re-validates live before acting.
@@ -217,7 +218,8 @@ def review_state(
     covers both inline findings and the incremental reviewer's head-exact
     acknowledgement without knowing anything about either.
 
-    This only reports. Merging stays with the helper, which re-validates live.
+    The verdict describes one observation, not the merge: a reviewer can post a
+    finding moments later. This only reports; the helper re-validates live.
     """
     pull = get(f"/repos/{repo}/pulls/{number}", token)
     assert isinstance(pull, dict)
@@ -238,7 +240,7 @@ def review_state(
     if fallback:
         # Thread resolution and review records only matter on the fallback path,
         # and both cost an extra request, so they are fetched only when needed.
-        resolved_roots = resolved_thread_roots(number, token)
+        resolved_roots = resolved_thread_roots(number, token, repo)
         reviews_body = get(f"/repos/{repo}/pulls/{number}/reviews?per_page=100", token)
         assert isinstance(reviews_body, list)
         reviews = reviews_body

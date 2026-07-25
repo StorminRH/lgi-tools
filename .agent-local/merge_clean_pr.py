@@ -70,13 +70,21 @@ def get(path: str, token: str) -> object:
     return body
 
 
-def resolved_thread_roots(pr_number: int, token: str) -> frozenset[int]:
+def resolved_thread_roots(
+    pr_number: int, token: str, repo: str | None = None
+) -> frozenset[int]:
     """Database ids of the first comment in every resolved review thread.
 
     Review-thread resolution is GraphQL-only; REST comment payloads carry no
     resolved flag. Any transport or shape failure propagates so the gate fails
     closed rather than treating unknown threads as resolved.
+
+    `repo` accepts an `owner/name` pair for callers that address a repository by
+    argument rather than by this module's constants. Without it, a caller polling
+    another repository would read resolutions from this one and could treat its
+    unresolved findings as resolved — the one way this function can fail open.
     """
+    owner, name = (repo.split("/", 1) if repo else (OWNER, REPO))
     resolved: set[int] = set()
     cursor: str | None = None
     while True:
@@ -87,8 +95,8 @@ def resolved_thread_roots(pr_number: int, token: str) -> frozenset[int]:
             {
                 "query": RESOLVED_THREADS_QUERY,
                 "variables": {
-                    "owner": OWNER,
-                    "repo": REPO,
+                    "owner": owner,
+                    "repo": name,
                     "pr": pr_number,
                     "cursor": cursor,
                 },

@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import unittest
 
+import merge_clean_pr
 from merge_clean_pr import (
     CODERABBIT,
     FALLBACK_REQUIRED_CHECKS,
@@ -259,6 +260,40 @@ class CodeRabbitReviewedHead(unittest.TestCase):
     def test_no_reviews_at_all_blocks_the_merge(self) -> None:
         reasons = fallback_blockers(reviews=[])
         self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
+
+
+class ResolvedThreadRootsRepo(unittest.TestCase):
+    """Thread resolution must be read from the repository actually being polled.
+
+    This is the one way the function can fail open: reading another repository's
+    resolutions would mark unresolved findings resolved and clear a real blocker.
+    """
+
+    def query_variables(self, **kwargs) -> dict:
+        seen: dict = {}
+
+        def fake_request(method, path, token, payload):
+            seen.update(payload["variables"])
+            return {"data": {"repository": {"pullRequest": {"reviewThreads": {
+                "nodes": [], "pageInfo": {"hasNextPage": False}}}}}}, {}
+
+        original = merge_clean_pr.request
+        merge_clean_pr.request = fake_request
+        try:
+            merge_clean_pr.resolved_thread_roots(306, "t", **kwargs)
+        finally:
+            merge_clean_pr.request = original
+        return seen
+
+    def test_defaults_to_the_module_constants(self) -> None:
+        variables = self.query_variables()
+        self.assertEqual(variables["owner"], merge_clean_pr.OWNER)
+        self.assertEqual(variables["repo"], merge_clean_pr.REPO)
+
+    def test_an_explicit_repo_overrides_the_constants(self) -> None:
+        variables = self.query_variables(repo="other-owner/other-repo")
+        self.assertEqual(variables["owner"], "other-owner")
+        self.assertEqual(variables["repo"], "other-repo")
 
 
 class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
