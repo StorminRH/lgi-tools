@@ -11,13 +11,20 @@ import { withQueryTiming } from './timed-postgres';
 // promise from `then` (postgres-js does the same via `Symbol.species`).
 class FakeQuery implements PromiseLike<unknown> {
   executed = 0;
+  private settled?: Promise<unknown>;
   constructor(private readonly settle: () => Promise<unknown>) {}
   then<A, B>(
     onOk?: ((value: unknown) => A | PromiseLike<A>) | null,
     onErr?: ((reason: unknown) => B | PromiseLike<B>) | null,
   ): Promise<A | B> {
-    this.executed += 1;
-    return this.settle().then(onOk, onErr);
+    // Runs the statement at most once, the way postgres-js's own `executed`
+    // flag does; the production safety argument rests on that guard, so the
+    // double has to model it rather than merely count calls.
+    if (this.settled === undefined) {
+      this.executed += 1;
+      this.settled = this.settle();
+    }
+    return this.settled.then(onOk, onErr);
   }
   values(): this {
     return this;
@@ -135,5 +142,20 @@ describe('withQueryTiming', () => {
     expect(recorded).toEqual([]);
     // The hook itself stays callable with no listener installed.
     expect(() => addDependencyTiming('neon', 1)).not.toThrow();
+  });
+});
+
+describe('lifecycle methods', () => {
+  it('does not count connection lifecycle calls as query cost', async () => {
+    const client = fakeClient();
+    (client as unknown as Record<string, unknown>).end = async (): Promise<string> => 'ended';
+    const sql = withQueryTiming(client);
+
+    await expect(
+      (sql as unknown as { end: () => Promise<string> }).end(),
+    ).resolves.toBe('ended');
+
+    // `end()` drains the pool; counting it would dominate a run's p95.
+    expect(recorded).toEqual([]);
   });
 });

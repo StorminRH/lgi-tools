@@ -4,10 +4,7 @@ import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionHeader } from '@/components/ui/section-header';
-import {
-  getEsiRefreshQueueStats,
-  listDeadLetteredJobs,
-} from '@/data/esi-refresh-jobs/queries';
+import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
 import {
   getHistorySourceSplit,
   getPriceSourceSplit,
@@ -40,6 +37,7 @@ import {
   getFallbackRateShared,
 } from './esi-source-shared';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
+import { getEsiRefreshQueueStatsShared } from './queue-stats-shared';
 import {
   deriveBudgetView,
   deriveCostLensView,
@@ -99,7 +97,7 @@ async function SliPanel({ range }: { range: DateRange }) {
       getMutationSuccessRate(range),
       getCriticalLatencyP95(range),
       getEsiSuccessRate(range),
-      getEsiRefreshQueueStats(),
+      getEsiRefreshQueueStatsShared(),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Service indicators" />;
@@ -151,7 +149,7 @@ async function BudgetPanel() {
 
 async function QueuePanel({ rangeKey }: { rangeKey: RangeKey }) {
   const fetched = await loadSection('esi-refresh-queue', () =>
-    Promise.all([getEsiRefreshQueueStats(), listDeadLetteredJobs(20)]),
+    Promise.all([getEsiRefreshQueueStatsShared(), listDeadLetteredJobs(20)]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Deferred refresh queue" />;
   const [stats, deadLetters] = fetched;

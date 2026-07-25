@@ -19,6 +19,8 @@ import { addDependencyTiming } from '@/lib/dependency-timing';
 
 const OBSERVED = Symbol('db.query-timed');
 
+const LIFECYCLE_METHODS = new Set<string | symbol>(['end', 'listen', 'unlisten']);
+
 type AnyFunction = (...args: unknown[]) => unknown;
 
 function isThenable(value: unknown): value is PromiseLike<unknown> {
@@ -104,6 +106,9 @@ export function withQueryTiming<T extends object>(client: T): T {
       const value = Reflect.get(target, prop) as unknown;
       if (typeof value !== 'function') return value;
       const method = value.bind(target) as AnyFunction;
+      // Connection lifecycle, not statement cost. `end()` drains the pool and
+      // would dominate a run's p95 if it were counted as query time.
+      if (LIFECYCLE_METHODS.has(prop)) return method;
       if (prop === 'reserve') return timedReserve(method);
       if (prop === 'begin' || prop === 'savepoint') return timedTransaction(method);
       return (...args: unknown[]): unknown => observeQuery(method(...args));
