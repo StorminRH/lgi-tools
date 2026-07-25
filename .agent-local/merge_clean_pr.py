@@ -44,11 +44,21 @@ REQUIRED_CHECKS = BASE_REQUIRED_CHECKS | {GREPTILE_CHECK}
 # review happened from the review record itself, not from a named check.
 FALLBACK_REQUIRED_CHECKS = BASE_REQUIRED_CHECKS
 PASSING_CONCLUSIONS = {"success", "neutral", "skipped"}
-# CodeRabbit's machine-emitted verification marker, appended to a finding when an
-# incremental pass confirms the commit that fixed it. Its sha is abbreviated, so
-# it is matched as a prefix of the full head sha.
-ADDRESSED_MARKER = re.compile(r"Addressed in commit\s+`?([0-9a-fA-F]{7,40})`?")
+# CodeRabbit's machine-emitted verification marker, appended to a finding as its
+# own trailing line when an incremental pass confirms the commit that fixed it.
+# Its sha is abbreviated, so it is matched as a prefix of the full head sha.
+#
+# Anchored to a whole line on purpose. An unanchored search would also match the
+# phrase quoted mid-sentence or inside a fenced code block — and this repository's
+# own source and tests contain that literal string, so a review of this very file
+# could otherwise quote a sha back and mint head evidence no pass produced. The
+# optional leading run covers the emoji CodeRabbit prefixes the line with.
 MIN_ABBREVIATED_SHA = 7
+ADDRESSED_MARKER = re.compile(
+    r"^[^\w\n]{0,4}\s*Addressed in commit\s+`?"
+    rf"([0-9a-fA-F]{{{MIN_ABBREVIATED_SHA},40}})`?\s*$",
+    re.MULTILINE,
+)
 
 
 RESOLVED_THREADS_QUERY = """
@@ -271,13 +281,15 @@ def coderabbit_acknowledged_head(inline_comments: list[object], head_sha: str) -
     """
     if not head_sha:
         return False
+    head = head_sha.lower()
     for item in inline_comments:
         if not isinstance(item, dict) or actor_login(item) != CODERABBIT:
             continue
         if item.get("in_reply_to_id") is not None:
             continue
+        # The pattern already enforces the minimum abbreviation length.
         for sha in ADDRESSED_MARKER.findall(str(item.get("body", ""))):
-            if len(sha) >= MIN_ABBREVIATED_SHA and head_sha.startswith(sha.lower()):
+            if head.startswith(sha.lower()):
                 return True
     return False
 

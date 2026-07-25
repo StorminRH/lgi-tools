@@ -5,7 +5,13 @@ from __future__ import annotations
 
 import unittest
 
-from poll_pr_gate import coderabbit_rate_limited, quiescence, review_key, stable_key
+from poll_pr_gate import (
+    CODERABBIT_CHECK,
+    coderabbit_rate_limited,
+    quiescence,
+    review_key,
+    stable_key,
+)
 
 
 def run(name: str, status: str) -> dict:
@@ -120,8 +126,11 @@ class ReviewKey(unittest.TestCase):
 class CodeRabbitRateLimited(unittest.TestCase):
     """CodeRabbit reports success even when it declined, so only the description tells."""
 
-    def status(self, description: str, context: str = "CodeRabbit") -> dict:
-        return {"state": "success", "statuses": [{"context": context, "description": description}]}
+    def status(self, description: str, context: str | None = None) -> dict:
+        # Derived from the production constant so renaming it cannot turn the
+        # positive case green-by-accident and the negative case vacuous.
+        resolved = CODERABBIT_CHECK if context is None else context
+        return {"state": "success", "statuses": [{"context": resolved, "description": description}]}
 
     def test_rate_limited_description_is_detected(self) -> None:
         self.assertTrue(coderabbit_rate_limited(self.status("Review rate limited")))

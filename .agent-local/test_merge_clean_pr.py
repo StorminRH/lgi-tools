@@ -359,15 +359,29 @@ class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
         self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
 
     def test_the_reported_hole_stays_closed(self) -> None:
-        # The regression this suite exists for: an unresolved finding anchored to
-        # an earlier commit must not vanish just because a later commit was
-        # acknowledged. Before the fix this returned no blockers at all.
-        ack = self.cr_comment(f"Addressed in commit {HEAD[:7]}")
-        forgotten = cr_root(11, commit="older")
-        reasons = fallback_blockers(
-            frozenset({10}), reviews=[], inline_comments=[ack, forgotten]
+        # The minimal shape of the regression, distinct from the test above: ONE
+        # root on an earlier commit, carrying head evidence but never resolved.
+        # Head evidence is therefore satisfied while the finding still stands, and
+        # before the fix the head filter dropped it and returned no blockers.
+        only_root = self.cr_comment(f"finding\n\nAddressed in commit {HEAD[:7]}")
+        reasons = fallback_blockers(reviews=[], inline_comments=[only_root])
+        self.assertFalse(any("no CodeRabbit review" in r for r in reasons))
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
+
+    def test_a_quoted_marker_is_not_head_evidence(self) -> None:
+        # The marker must be its own line. This file and the gate's own source
+        # contain the literal phrase, so a review quoting them mid-sentence or in
+        # a code block must not mint evidence no pass produced.
+        quoted = self.cr_comment(
+            f"The check looks for `Addressed in commit {HEAD[:7]}` inside a body, "
+            "which is too loose.\n\n```python\nif 'Addressed in commit "
+            f"{HEAD[:7]}' in body:\n    pass\n```"
         )
-        self.assertNotEqual(reasons, [])
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [quoted]))
+
+    def test_the_real_appended_marker_line_still_counts(self) -> None:
+        emoji_line = self.cr_comment(f"finding text\n\n✅ Addressed in commit {HEAD[:7]}")
+        self.assertTrue(coderabbit_reviewed_head([], HEAD, [emoji_line]))
 
     def test_acknowledgement_never_substitutes_for_greptile(self) -> None:
         # Greptile reviewed, so the fallback path must not be reachable at all.

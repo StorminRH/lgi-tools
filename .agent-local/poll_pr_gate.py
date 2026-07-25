@@ -21,10 +21,10 @@ evaluates the merge helper's own blocker predicate against that observation. A
 ready result means the gate was clear at the last stable poll, not a promise about
 the merge — the PR can change afterwards, and the helper re-validates live before
 acting. It returns 0 when nothing blocked the merge at that observation, 2 with
-the blocker list when the head is settled but something does, and 1 on timeout. It inherits whichever reviewer is gate of record, and so covers inline
-findings and the incremental reviewer's head-exact acknowledgement without
-duplicating either rule. It never merges; that stays with the helper, which
-re-validates live before acting.
+the blocker list when the head is settled but something does, and 1 on timeout.
+It inherits whichever reviewer is gate of record, and so covers inline findings
+and the incremental reviewer's head-exact acknowledgement without duplicating
+either rule. It never merges; that stays with the helper.
 """
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ from merge_clean_pr import (
     CODERABBIT_CHECK,
     greptile_reviewed,
     merge_blockers,
+    require,
     resolved_thread_roots,
 )
 
@@ -221,17 +222,23 @@ def review_state(
     The verdict describes one observation, not the merge: a reviewer can post a
     finding moments later. This only reports; the helper re-validates live.
     """
+    # Shape-validated with `require`, like the merge helper: a bare `assert`
+    # vanishes under `python -O` and reports nothing actionable when it fires.
     pull = get(f"/repos/{repo}/pulls/{number}", token)
-    assert isinstance(pull, dict)
-    head_sha = str(pull["head"]["sha"])
+    require(isinstance(pull, dict), "pull request response was not an object")
+    head = pull.get("head")
+    require(isinstance(head, dict), "pull request has no head data")
+    head_sha = str(head.get("sha", ""))
     issue_comments = get(f"/repos/{repo}/issues/{number}/comments?per_page=100", token)
     inline_comments = get(f"/repos/{repo}/pulls/{number}/comments?per_page=100", token)
     checks = get(f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token)
     status = get(f"/repos/{repo}/commits/{head_sha}/status", token)
-    assert isinstance(issue_comments, list) and isinstance(inline_comments, list)
-    assert isinstance(checks, dict) and isinstance(status, dict)
+    require(isinstance(issue_comments, list), "issue comments response was not a list")
+    require(isinstance(inline_comments, list), "inline comments response was not a list")
+    require(isinstance(checks, dict), "check-runs response was not an object")
+    require(isinstance(status, dict), "commit status response was not an object")
     runs = checks.get("check_runs", [])
-    assert isinstance(runs, list)
+    require(isinstance(runs, list), "check-runs response had no run list")
 
     names, settled = quiescence(runs, status)
     fallback = not greptile_reviewed(issue_comments, runs)
@@ -242,7 +249,7 @@ def review_state(
         # and both cost an extra request, so they are fetched only when needed.
         resolved_roots = resolved_thread_roots(number, token, repo)
         reviews_body = get(f"/repos/{repo}/pulls/{number}/reviews?per_page=100", token)
-        assert isinstance(reviews_body, list)
+        require(isinstance(reviews_body, list), "reviews response was not a list")
         reviews = reviews_body
 
     blockers = merge_blockers(
