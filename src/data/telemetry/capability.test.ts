@@ -13,9 +13,9 @@ vi.mock('next/server', () => ({ after: (fn: () => unknown) => fn() }));
 import {
   CAPABILITIES,
   CAPABILITY_FEATURES,
-  buildCapabilityRecord,
   recordCapabilityOutcome,
   type CapabilityId,
+  type CapabilityOutcomeInput,
 } from './capability';
 import { USAGE_ACTIONS } from './types';
 
@@ -28,6 +28,19 @@ afterEach(() => {
 });
 
 const ids = Object.keys(CAPABILITIES) as CapabilityId[];
+
+/** Records one outcome and returns the metadata that reached the telemetry writer. */
+function recordedMetadata(
+  id: CapabilityId,
+  outcome: CapabilityOutcomeInput,
+): Record<string, unknown> {
+  logUsageEventMock.mockClear();
+  recordCapabilityOutcome(id, outcome);
+  const [event] = logUsageEventMock.mock.calls.at(-1) as unknown as [
+    { metadata: Record<string, unknown> },
+  ];
+  return event.metadata;
+}
 
 describe('capability catalogue', () => {
   it('names all 38 instrumented operations exactly once', () => {
@@ -125,26 +138,26 @@ describe('recordCapabilityOutcome', () => {
   it('only ever records an outcome drawn from the 3.10.2.1 taxonomy', () => {
     const allowed = new Set<string>([...FAILURE_CATEGORIES, 'succeeded']);
     for (const outcome of [...FAILURE_CATEGORIES, 'succeeded'] as const) {
-      const record = buildCapabilityRecord('admin.set-user-role', {
+      const metadata = recordedMetadata('admin.set-user-role', {
         outcome,
         code: 'any_code',
         durationMs: 1,
         retry: null,
       });
-      expect(allowed.has(record.outcome)).toBe(true);
+      expect(allowed.has(metadata.outcome as string)).toBe(true);
     }
   });
 
   it('records an empty dependency map outside any correlation scope', () => {
-    const record = buildCapabilityRecord('cron.refresh-sde', {
+    const metadata = recordedMetadata('cron.refresh-sde', {
       outcome: 'succeeded',
       code: 'ok',
       durationMs: 5,
       retry: null,
     });
 
-    expect(record.dependencies).toEqual({});
-    expect(record.correlationId).not.toBe('');
+    expect(metadata.dependencies).toEqual({});
+    expect(metadata.correlationId).not.toBe('');
   });
 
   it('does not let a telemetry write failure reach the caller', async () => {
@@ -200,7 +213,7 @@ describe('metric label cardinality', () => {
   });
 
   it('keeps the high-cardinality fields as recorded values, not labels', () => {
-    const record = buildCapabilityRecord('planner.create-saved-plan', {
+    const metadata = recordedMetadata('planner.create-saved-plan', {
       outcome: 'succeeded',
       code: 'ok',
       durationMs: 5,
@@ -208,7 +221,7 @@ describe('metric label cardinality', () => {
     });
     // Present in the record...
     for (const field of HIGH_CARDINALITY_FIELDS) {
-      expect(Object.keys(record)).toContain(field);
+      expect(Object.keys(metadata)).toContain(field);
     }
     // ...but never part of the identity the record is grouped by.
     expect(Object.keys(CAPABILITIES[ 'planner.create-saved-plan' ])).toEqual([

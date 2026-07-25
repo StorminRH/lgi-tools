@@ -37,7 +37,7 @@ export type SliUnit = 'percent' | 'milliseconds' | 'count';
 
 /**
  * One user-centered service indicator: what it measures, who owns it, and the exact action taken
- * when it degrades. `query` names the `sli-queries` export returning its live value.
+ * when it degrades. The admin panel keys each indicator's live value by `id`.
  */
 export interface SliDefinition {
   id: SliId;
@@ -45,7 +45,6 @@ export interface SliDefinition {
   measures: string;
   owner: SliOwner;
   responseAction: string;
-  query: SliId;
   unit: SliUnit;
 }
 
@@ -59,7 +58,6 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     owner: 'operator',
     responseAction:
       'Read the failing capability’s recorded code and correlation id, then fix the failing read path before shipping anything else.',
-    query: 'read_success_rate',
     unit: 'percent',
   },
   {
@@ -70,7 +68,6 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     owner: 'operator',
     responseAction:
       'Identify the failing mutation capability and roll back or fix it; a sustained drop here means users cannot save their work.',
-    query: 'mutation_success_rate',
     unit: 'percent',
   },
   {
@@ -81,7 +78,6 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     owner: 'operator',
     responseAction:
       'Compare the recorded per-dependency durations to find whether Neon, ESI, or our own work grew, and address that dependency.',
-    query: 'critical_latency_p95',
     unit: 'milliseconds',
   },
   {
@@ -92,7 +88,6 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     owner: 'ccp-upstream',
     responseAction:
       'Wait out CCP’s budget window; do not raise call volume. Confirm the shared budget gate is degrading as designed rather than retrying harder.',
-    query: 'esi_success_rate',
     unit: 'percent',
   },
   {
@@ -103,7 +98,6 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
     owner: 'operator',
     responseAction:
       'Inspect the dead-letter reasons on the admin queue panel and requeue once the underlying cause is fixed; a rising backlog means owner data is going stale.',
-    query: 'job_backlog',
     unit: 'count',
   },
 ];

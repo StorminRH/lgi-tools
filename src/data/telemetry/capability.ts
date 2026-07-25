@@ -182,10 +182,9 @@ export type CapabilityOutcomeInput = Pick<
 
 /**
  * Builds the durable record for one completed operation, reading the ambient correlation id and
- * accumulated dependency durations. Exported for the shells' own assertions; callers that only
- * need to record should use `recordCapabilityOutcome`.
+ * accumulated dependency durations.
  */
-export function buildCapabilityRecord(
+function buildCapabilityRecord(
   id: CapabilityId,
   outcome: CapabilityOutcomeInput,
 ): CapabilityOutcomeRecord {

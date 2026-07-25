@@ -81,7 +81,7 @@ export function deriveQueueView(stats: EsiRefreshQueueStat[], now: Date) {
     count: row.count,
     oldestAge: elapsedLabel(row.oldestCreatedAt, now),
   }));
-  const active = new Set(['queued', 'running', 'deferred_for_budget', 'failed_retryable']);
+  const active = new Set<string>(LIVE_ESI_REFRESH_JOB_STATUSES);
   return {
     rows,
     activeDepth: rows.reduce((total, row) => total + (active.has(row.status) ? row.count : 0), 0),
@@ -194,7 +194,6 @@ export interface SliRow {
   label: string;
   value: string;
   owner: string;
-  measures: string;
   responseAction: string;
 }
 
@@ -250,7 +249,6 @@ export function deriveSliView(values: Record<SliId, SliValue>): SliRow[] {
     label: sli.title,
     value: formatSliValue(sli.unit, values[sli.id]),
     owner: sli.owner,
-    measures: sli.measures,
     responseAction: sli.responseAction,
   }));
 }

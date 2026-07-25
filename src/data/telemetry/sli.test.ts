@@ -27,10 +27,11 @@ describe('SLI definitions', () => {
     }
   });
 
-  it('names a live query for every indicator', () => {
+  it('gives every indicator a stable id the admin panel can key its value by', () => {
     for (const sli of SLI_DEFINITIONS) {
-      expect(SLI_IDS).toContain(sli.query);
+      expect(SLI_IDS).toContain(sli.id);
     }
+    expect(new Set(SLI_DEFINITIONS.map((sli) => sli.id)).size).toBe(SLI_DEFINITIONS.length);
   });
 
   it('routes the ESI indicator to the upstream owner with a do-not-retry action', () => {
