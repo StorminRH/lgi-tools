@@ -75,6 +75,17 @@ describe('buildSymbolTable', () => {
     expect(symbols.get('schema.marketPrices')).toBe('market_prices');
   });
 
+  it('is not thrown off by a side-effect import preceding a schema import', () => {
+    const source = [
+      "import 'server-only';",
+      "import { ownedAssets } from './schema';",
+      'await db.delete(ownedAssets);',
+    ].join('\n');
+
+    expect(buildSymbolTable(CALLER, source, EXPORTS).get('ownedAssets')).toBe('owned_assets');
+    expect(findWrittenTables(CALLER, source, EXPORTS)).toEqual(['owned_assets']);
+  });
+
   it('ignores type-only imports and non-schema modules', () => {
     const source = [
       "import type { ownedAssets } from './schema';",

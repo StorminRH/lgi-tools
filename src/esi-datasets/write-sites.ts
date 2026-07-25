@@ -70,7 +70,11 @@ export function resolveImportPath(fromFile: string, specifier: string): string |
   return `${normalizeModulePath(`${directory}/${specifier}`)}.ts`;
 }
 
-const IMPORT_PATTERN = /import\s+([\s\S]*?)\s+from\s*['"]([^'"]+)['"]/g;
+// The clause excludes quotes and semicolons so a side-effect import
+// (`import './globals.css';`) cannot be swallowed by the lazy match and joined to
+// the next statement's `from`. A real import clause never contains either
+// character, so multi-line named imports still match.
+const IMPORT_PATTERN = /import\s+([^;'"]*?)\s+from\s*['"]([^'"]+)['"]/g;
 const NAMESPACE_PATTERN = /^\*\s+as\s+([A-Za-z_$][\w$]*)$/;
 
 function addNamedBindings(
