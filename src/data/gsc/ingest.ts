@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import type postgres from 'postgres';
+import type { Sql } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import {
   GSC_INSPECTION_BATCH_SIZE,
@@ -18,8 +18,6 @@ import type {
   SearchAnalyticsApiRow,
   SitemapApiEntry,
 } from './types';
-
-type Sql = ReturnType<typeof postgres>;
 
 // EXCLUDED is the proposed-but-conflicted row inside ON CONFLICT.
 function excluded(column: string) {

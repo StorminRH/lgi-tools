@@ -169,9 +169,18 @@ These are load-bearing constraints, several **lint-enforced**:
 - **Server env.** Read server-side env through `readEnv`/`requireEnv`
   (`src/lib/env.ts`), the one validated registry — never `process.env` directly.
   (`NODE_ENV` and `NEXT_PUBLIC_*` stay direct reads.)
-- **The ESI gate.** Every call to EVE's ESI API routes through the single
-  `esiFetch` in `src/platform/esi/` and its shared rate-limit budget — never a second
-  wrapper. Build URLs with `esiUrl()`.
+- **Bounded vendor calls.** Every external call goes through the wrapper declared
+  for its integration in `src/composition/vendor-resilience-registry.ts`, with an
+  explicit timeout — never an SDK default. The registry records each
+  integration's timeout, retry, idempotency, and degradation behavior; a lint
+  rail bans bare `fetch` in production source (only
+  `src/lib/fetch-with-timeout.ts` and `src/transport/api-client.ts` may call it)
+  and confines each vendor SDK import to its owning module, while
+  `src/esi-datasets/vendor-resilience.test.ts` checks the registry against the
+  real tree.
+- **The ESI gate.** The exemplar of the rule above: every call to EVE's ESI API
+  routes through the single `esiFetch` in `src/platform/esi/` and its shared
+  rate-limit budget — never a second wrapper. Build URLs with `esiUrl()`.
 - **One source of truth for config.** Postgres enums are driven from TypeScript
   `as const` arrays; types/variants are constants defined in one place. Adding one
   is a config change, not a code change.

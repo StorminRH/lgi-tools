@@ -223,6 +223,45 @@ const esiHostSelectors = [
   },
 ];
 
+// Vendor-call resilience rail (3.10.2.4): every outbound HTTP call routes
+// through a wrapper that attaches an explicit timeout, so a bare `fetch` in
+// production source is banned outside the two transport owners
+// (src/lib/fetch-with-timeout.ts and src/transport/api-client.ts, exempted
+// below). Without a bound, one hung upstream stalls a serverless invocation
+// toward the 300s platform limit instead of failing into the degradation path
+// the caller already has. Same altitude as the apiFetch/ESI-host selectors
+// above: an indirected call (`globalThis.fetch`, or a fetch held in a variable)
+// slips through — accepted, because the vendor-resilience census pins the
+// production found-set as well. Test files ride the base block and stay exempt,
+// since they stub `fetch` freely.
+const bareFetchSelectors = [
+  {
+    selector: "CallExpression[callee.name='fetch']",
+    message:
+      "No bare `fetch` in production source — call fetchWithTimeout (@/lib/fetch-with-timeout) so the request carries an explicit timeout, or apiFetch for a first-party route. The declared policy per integration lives in src/composition/vendor-resilience-registry.ts.",
+  },
+];
+
+// EVE SSO host ownership (3.10.2.4): mirrors the ESI host ban above. Banning the
+// literal outside its owners means the only way to target EVE SSO is through the
+// constants module and the bounded wrapper that consumes it. Three sanctioned
+// owners are exempted below: the constants module, eve-sso.ts (which sets the
+// literal Host header), and src/proxy.ts (whose CSP `connect-src` names the host
+// in a header source list, not a vendor call — the runtime Fallow zone cannot
+// import `platform`, so deriving it from the constants is unavailable).
+const ssoHostSelectors = [
+  {
+    selector: String.raw`Literal[value=/login\.eveonline\.com/]`,
+    message:
+      "Don't hand-write EVE SSO URLs — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
+  },
+  {
+    selector: String.raw`TemplateElement[value.raw=/login\.eveonline\.com/]`,
+    message:
+      "Don't hand-write EVE SSO URLs (template literal) — import the endpoint constants from @/platform/auth/eve-sso-constants and dispatch through the bounded wrapper in @/platform/auth/eve-sso.",
+  },
+];
+
 // EVE type-image rendition ownership (3.9.3.2): callers state intent through
 // the resolver instead of choosing CCP endpoint variants at render sites. Both
 // JSX props and descriptor object literals are covered; the resolver module and
@@ -317,6 +356,94 @@ const sonnerImportPatterns = [
   },
 ];
 
+// The two rails every source block keeps regardless of which vendor exemption it
+// carries. Factored out for the same reason as the selector families above:
+// flat-config rule options REPLACE per matching file, and the vendor rail below
+// adds enough exemption blocks that an inline copy in each one would be the
+// likeliest place for a ban to be dropped silently.
+const nextImageImportPaths = [
+  {
+    name: "next/image",
+    message:
+      "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
+  },
+];
+
+const stalenessImportPatterns = [
+  {
+    group: ["**/staleness"],
+    message:
+      "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+  },
+];
+
+// Vendor package ownership (3.10.2.4): each integration's SDK is importable only
+// by the module that owns its declared resilience policy, so no call site can
+// bypass the wrapper and its explicit timeout. Declared per vendor rather than as
+// one blob so an exemption block can lift exactly one and re-list the rest.
+//
+// Type imports are covered deliberately — the core rule does not distinguish
+// them, and the owned aliases (`Sql`/`ReservedConnection` from @/db,
+// `UpstashRedis` from @/lib/upstash) mean a consumer never needs the package to
+// type a field. A blanket `allowTypeImports` escape would be exactly the fuzzy
+// exception this rail exists to prevent.
+const upstashRedisImportPatterns = [
+  {
+    group: ["@upstash/redis"],
+    message:
+      "Construct Upstash Redis clients through createUpstashClient / resolveUpstashClient (@/lib/upstash), the single construction owner; import the `UpstashRedis` type from there instead of the package.",
+  },
+];
+
+const upstashRatelimitImportPatterns = [
+  {
+    group: ["@upstash/ratelimit"],
+    message:
+      "The sliding-window limiter is owned by @/lib/rate-limit — call checkRateLimit / rateLimit instead of building a second limiter.",
+  },
+];
+
+const databaseDriverImportPatterns = [
+  {
+    group: ["@neondatabase/serverless", "postgres"],
+    message:
+      "Database drivers are constructed only in @/db (and the src/scripts CLI band), which owns the query and connection bounds; import `db`, `directClient`, or the owned `Sql`/`ReservedConnection` types from @/db.",
+  },
+];
+
+const betterAuthImportPatterns = [
+  {
+    group: ["better-auth", "better-auth/*", "better-auth/**"],
+    message:
+      "Better Auth is consumed through @/platform/auth, which owns the session, adapter, and EVE token wiring; feature code imports that slice, not the package.",
+  },
+];
+
+const convexReactImportPatterns = [
+  {
+    group: ["convex/react"],
+    message:
+      "The Convex browser client is owned by @/data/convex/client (and the two provider components); import `convexClient` or a slice hook instead of the package.",
+  },
+];
+
+const googleAuthImportPatterns = [
+  {
+    group: ["google-auth-library"],
+    message:
+      "Google auth clients are constructed only in @/data/gsc, which owns the token-fetch timeout; import that slice's source functions instead.",
+  },
+];
+
+const vendorImportPatterns = [
+  ...upstashRedisImportPatterns,
+  ...upstashRatelimitImportPatterns,
+  ...databaseDriverImportPatterns,
+  ...betterAuthImportPatterns,
+  ...convexReactImportPatterns,
+  ...googleAuthImportPatterns,
+];
+
 const serverRootImportPatterns = [
   {
     group: [
@@ -378,18 +505,11 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [
-            {
-              name: "next/image",
-              message:
-                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
-            },
+            ...nextImageImportPaths,
           ],
           patterns: [
-            {
-              group: ["**/staleness"],
-              message:
-                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
-            },
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -416,18 +536,11 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [
-            {
-              name: "next/image",
-              message:
-                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
-            },
+            ...nextImageImportPaths,
           ],
           patterns: [
-            {
-              group: ["**/staleness"],
-              message:
-                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
-            },
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -446,11 +559,8 @@ const eslintConfig = defineConfig([
         "error",
         {
           patterns: [
-            {
-              group: ["**/staleness"],
-              message:
-                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
-            },
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -469,18 +579,11 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [
-            {
-              name: "next/image",
-              message:
-                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
-            },
+            ...nextImageImportPaths,
           ],
           patterns: [
-            {
-              group: ["**/staleness"],
-              message:
-                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
-            },
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
             ...serverRootImportPatterns,
@@ -497,18 +600,11 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [
-            {
-              name: "next/image",
-              message:
-                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
-            },
+            ...nextImageImportPaths,
           ],
           patterns: [
-            {
-              group: ["**/staleness"],
-              message:
-                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
-            },
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...serverRootImportPatterns,
@@ -526,13 +622,10 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [
-            {
-              name: "next/image",
-              message:
-                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
-            },
+            ...nextImageImportPaths,
           ],
           patterns: [
+            ...vendorImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -552,11 +645,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [
-            {
-              name: "next/image",
-              message:
-                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
-            },
+            ...nextImageImportPaths,
             {
               name: "@/transport/cron",
               importNames: ["requireCronAuth"],
@@ -583,14 +672,276 @@ const eslintConfig = defineConfig([
             },
           ],
           patterns: [
-            {
-              group: ["**/staleness"],
-              message:
-                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
-            },
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // Convex had no import rail before 3.10.2.4; its isolate can reach the same
+  // vendors, so it gets the vendor rail in a block of its own. The generated
+  // client is globally ignored and Convex is outside every UI/server-root rail,
+  // so the vendor patterns are the only bans this block carries.
+  {
+    files: ["convex/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [...vendorImportPatterns] }],
+    },
+  },
+  // --- Vendor rail exemptions (3.10.2.4). Each block below is the declared home
+  // for exactly one vendor and re-lists every other ban it keeps, because
+  // flat-config rule options REPLACE rather than merge. Each is an enumerated
+  // file or directory with a stated reason, never a pattern-shaped escape.
+  //
+  // @/lib/upstash owns every Upstash Redis client construction.
+  {
+    files: ["src/lib/upstash.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // @/lib/rate-limit owns the sliding-window limiter; its Redis client comes
+  // from the factory, so the @upstash/redis ban still applies here.
+  {
+    files: ["src/lib/rate-limit.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // @/db owns both database drivers and their bounds; the src/scripts CLI band
+  // runs outside the Next runtime and constructs its own short-lived clients.
+  // The DB test harness owns disposable-schema steering for the real-Postgres
+  // suites, and the concurrency suite deliberately opens two competing
+  // connections to prove advisory-lock serialization.
+  {
+    files: [
+      "src/db/index.ts",
+      "src/scripts/**/*.{ts,mts}",
+      "src/db/test-support/db-test-harness.ts",
+      "src/db/advisory-lock.concurrency.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // @/platform/auth owns the Better Auth instance, its adapter, and the EVE
+  // token wiring; the auth catch-all route mounts its handler, the industry
+  // helper narrows a BetterAuthError, and its co-located suite exercises the
+  // same surfaces. The auth route is globbed as its directory because its real
+  // path is `[...all]/route.ts`, and a literal bracket segment reads as a
+  // minimatch character class rather than as itself; that directory holds only
+  // the catch-all route and its co-located suite.
+  {
+    files: [
+      "src/platform/auth/**/*.{ts,tsx,mts}",
+      "src/app/api/auth/**/route.{ts,tsx}",
+      "src/app/industry/active-job-character-ids.ts",
+      "src/app/industry/active-job-character-ids.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // @/data/convex owns the browser Convex client and its hooks. This slice is
+  // client-addressable — `use-sync-subject.ts` is matched by the `use-*` glob in
+  // the client block above — so this replacement MUST re-list
+  // serverRootImportPatterns; without it the hook would silently lose its
+  // server-root protection while lint stayed green.
+  {
+    files: ["src/data/convex/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // @/data/gsc owns the Google auth client and its token-fetch bound.
+  {
+    files: ["src/data/gsc/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
+            ...convexReactImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // The client-addressable vendor homes. These sit in the client-addressable
+  // block above, so their exemptions MUST re-list serverRootImportPatterns —
+  // dropping it here would silently let a client module import a server root.
+  // Split by vendor rather than grouped: one block lifting both better-auth and
+  // convex/react for all of them would let the auth client import Convex and the
+  // Convex provider import Better Auth, which is wider than each home owns.
+  //
+  // The auth client and its providers own Better Auth's client surface only;
+  // convex/react stays banned here so this grant cannot quietly create a second
+  // Convex consumer.
+  {
+    files: [
+      "src/platform/auth/auth-client.ts",
+      "src/platform/auth/components/**/*.{ts,tsx,mts}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // The Convex provider is the one file that legitimately needs both: it
+  // composes Better Auth identity into the Convex client. Ordered after the
+  // block above so its narrower grant wins.
+  {
+    files: ["src/platform/auth/components/ConvexClientProvider.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // The online-status provider mounts the Convex client only; Better Auth stays
+  // banned here.
+  {
+    files: ["src/components/OnlineStatusProvider.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...betterAuthImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
           ],
         },
       ],
@@ -668,6 +1019,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
         ...cspSelectors,
         ...hexColorSelectors,
         ...rgbaColorSelectors,
@@ -692,6 +1045,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
         ...cspSelectors,
         ...hexColorSelectors,
         ...rgbaColorSelectors,
@@ -713,6 +1068,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
         ...cspSelectors,
         ...hexColorSelectors,
         ...rgbaColorSelectors,
@@ -735,6 +1092,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
         ...cspSelectors,
         ...rgbaColorSelectors,
         ...apiFetchSelectors,
@@ -756,6 +1115,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
         ...cspSelectors,
         ...rgbaColorSelectors,
         ...apiFetchSelectors,
@@ -775,6 +1136,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
         ...rawHtmlSelectors,
         ...hexColorSelectors,
         ...rgbaColorSelectors,
@@ -798,6 +1161,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
         ...cspSelectors,
         ...hexColorSelectors,
         ...rgbaColorSelectors,
@@ -834,6 +1199,8 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
         ...cspSelectors,
         ...hexColorSelectors,
         ...rgbaColorSelectors,
@@ -860,6 +1227,79 @@ const eslintConfig = defineConfig([
         ...rgbaColorSelectors,
         ...apiFetchSelectors,
         ...datasetTtlSelectors,
+      ],
+    },
+  },
+  // Convex production modules had no syntax rail beyond the repository-wide base
+  // block. They can call out of the isolate, so they take the bare-fetch and SSO
+  // host bans, re-listing the base families this block replaces. Deliberately no
+  // process.env ban: Convex reads its own environment directly, unlike src/.
+  {
+    files: ["convex/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...bareFetchSelectors,
+        ...ssoHostSelectors,
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+      ],
+    },
+  },
+  // The two sanctioned outbound-HTTP owners: fetch-with-timeout.ts IS the bound,
+  // and api-client.ts is the typed first-party transport (its own call is a
+  // variable path, so the apiFetch selectors never fired on it). Every other
+  // production-source ban is re-listed.
+  {
+    files: ["src/lib/fetch-with-timeout.ts", "src/transport/api-client.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...ssoHostSelectors,
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+        ...esiHostSelectors,
+        ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
+        ...datasetTtlSelectors,
+        ...imageVariantSelectors,
+      ],
+    },
+  },
+  // The three sanctioned EVE SSO host owners: the constants module that declares
+  // every endpoint, the bounded wrapper that sets the literal Host header, and
+  // the proxy's CSP connect-src source list. Every other production-source ban is
+  // re-listed, including the bare-fetch rail.
+  {
+    files: [
+      "src/platform/auth/eve-sso-constants.ts",
+      "src/platform/auth/eve-sso.ts",
+      "src/proxy.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...bareFetchSelectors,
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+        ...esiHostSelectors,
+        ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
+        ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },

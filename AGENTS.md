@@ -161,8 +161,22 @@ registration rules.
   routes carry none of them.
 - Read server environment through `readEnv` or `requireEnv`; direct access is
   limited to `NODE_ENV` and `NEXT_PUBLIC_*`.
-- Every EVE ESI request uses `esiFetch` and `esiUrl` through the shared Redis
-  budget. Do not create another wrapper or embed the ESI host elsewhere.
+- Every external vendor call routes through the wrapper declared for its
+  integration in `src/composition/vendor-resilience-registry.ts` and carries an
+  explicit timeout; an implicit or SDK-default timeout is not an acceptable end
+  state. That registry records each integration's wrapper, timeout, retryable
+  errors, backoff, rate-limit behavior, idempotency stance, degradation, and
+  telemetry fields, and an integration with no programmatic call surface records
+  that absence. Lint rails plus the census in
+  `src/esi-datasets/vendor-resilience.test.ts` enforce it: bare `fetch` is banned
+  in production source outside `src/lib/fetch-with-timeout.ts` and
+  `src/transport/api-client.ts`, and each vendor SDK is importable only from its
+  declared home. Adding a vendor means adding its registry entry and its rail
+  exemption.
+- EVE ESI remains the exemplar of that pattern: every request uses `esiFetch` and
+  `esiUrl` through the shared Redis budget. Do not create another wrapper or
+  embed the ESI host elsewhere. The EVE SSO host is owned the same way, by
+  `src/platform/auth/eve-sso-constants.ts`.
 - One Better Auth user represents one human. Linked EVE characters are account
   rows; admin authority belongs to the user. EVE SSO is the only login path.
 - Application AES-256-GCM encryption protects EVE tokens in Neon. Better Auth

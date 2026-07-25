@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis';
+import { createUpstashClient, type UpstashRedis } from '@/lib/upstash';
 import {
   echoTtl,
   epochMinute,
@@ -28,8 +28,11 @@ import {
 // Hard timeout on every Redis REST call — the scoreboard sits on the go/no-go
 // path of every ESI call and must fail fast, not stall it.
 const REDIS_TIMEOUT_MS = 1500;
+// Zero retries: a retry would spend another caller's request budget on a
+// scoreboard read whose fallback is already cheap.
+const REDIS_RETRIES = 0;
 
-type Pipeline = ReturnType<Redis['pipeline']>;
+type Pipeline = ReturnType<UpstashRedis['pipeline']>;
 
 function queueBudgetReads(pipeline: Pipeline, minute: number): void {
   pipeline.get(keyErrorCount(minute));
@@ -53,29 +56,17 @@ function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'sourc
 // Upstash Redis (REST over plain fetch, so it runs anywhere the gate runs —
 // Vercel functions today, Convex actions later). The shared, real scoreboard.
 class RedisScoreboard implements EsiScoreboard {
-  private readonly redis: Redis;
+  private readonly redis: UpstashRedis;
 
   constructor(url: string, token: string) {
-    this.redis = new Redis({
+    this.redis = createUpstashClient({
       url,
       token,
       // Stored values are raw strings (JSON we encode ourselves, body text);
       // the SDK's default JSON round-trip would corrupt them.
       automaticDeserialization: false,
-      // Portable timeout (no AbortSignal.timeout — absent from Convex's
-      // default runtime, and this slice must stay runtime-portable per
-      // Decision Record 11). The factory has no settle hook to clear the
-      // timer, so it fires regardless; aborting an already-settled request
-      // is a no-op.
-      signal: () => {
-        const controller = new AbortController();
-        setTimeout(
-          () => controller.abort(new DOMException('signal timed out', 'TimeoutError')),
-          REDIS_TIMEOUT_MS,
-        );
-        return controller.signal;
-      },
-      retry: { retries: 0 },
+      timeoutMs: REDIS_TIMEOUT_MS,
+      retries: REDIS_RETRIES,
     });
   }
 

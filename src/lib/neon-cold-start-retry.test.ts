@@ -50,6 +50,59 @@ describe('isNeonColdStartError', () => {
     Object.assign(a, { cause: b });
     expect(isNeonColdStartError(a)).toBe(false);
   });
+
+  // The per-query bound in src/db/index.ts aborts a hung fetch, and the driver
+  // wraps that abort with the same "Error connecting to database" prefix a real
+  // cold start uses. Retrying it would turn one bounded 30s wait into the full
+  // ~123s envelope, so the abort must be declined while the genuine wrap is not.
+  describe('timeout-abort carve-out', () => {
+    const abort = (): Error =>
+      new DOMException('signal timed out', 'TimeoutError') as unknown as Error;
+
+    it('declines a wrap caused by our own timeout abort', () => {
+      const wrapped = neonError(`Error connecting to database: ${abort()}`, {
+        sourceError: abort(),
+      });
+      expect(isNeonColdStartError(wrapped)).toBe(false);
+      expect(isNeonColdStartError(drizzleWrapped(wrapped))).toBe(false);
+    });
+
+    it('still matches a genuine fetch-failure wrap', () => {
+      const wrapped = neonError(COLD_START, {
+        sourceError: new TypeError('fetch failed'),
+      });
+      expect(isNeonColdStartError(wrapped)).toBe(true);
+      expect(isNeonColdStartError(drizzleWrapped(wrapped))).toBe(true);
+    });
+
+    // A linear `cause ?? sourceError` walk would take `cause` and never reach
+    // the timeout on `sourceError`, retrying a bounded abort as a cold start.
+    it('finds the timeout when a non-timeout cause sits alongside it', () => {
+      const wrapped = neonError(`Error connecting to database: ${abort()}`, {
+        cause: new TypeError('some other detail'),
+        sourceError: abort(),
+      });
+      expect(isNeonColdStartError(wrapped)).toBe(false);
+      expect(isNeonColdStartError(drizzleWrapped(wrapped))).toBe(false);
+    });
+
+    it('finds the timeout when it hides behind the cause branch', () => {
+      const wrapped = neonError(`Error connecting to database: ${abort()}`, {
+        cause: neonError('inner', { sourceError: abort() }),
+        sourceError: new TypeError('some other detail'),
+      });
+      expect(isNeonColdStartError(wrapped)).toBe(false);
+    });
+
+    it('terminates on a cycle across both links', () => {
+      const a = neonError(COLD_START);
+      const b = neonError('inner');
+      Object.assign(a, { cause: b, sourceError: b });
+      Object.assign(b, { cause: a, sourceError: a });
+      // No timeout anywhere in the cycle, so the genuine cold-start match stands.
+      expect(isNeonColdStartError(a)).toBe(true);
+    });
+  });
 });
 
 describe('withColdStartRetry', () => {
@@ -67,6 +120,19 @@ describe('withColdStartRetry', () => {
   it('passes a first-attempt success through untouched', async () => {
     const read = vi.fn().mockResolvedValue('rows');
     await expect(withColdStartRetry(read)).resolves.toBe('rows');
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it('fails a timed-out query on the first attempt without multiplying the bound', async () => {
+    const read = vi.fn().mockRejectedValue(
+      neonError('Error connecting to database: TimeoutError: signal timed out', {
+        sourceError: new DOMException('signal timed out', 'TimeoutError'),
+      }),
+    );
+    await expect(withColdStartRetry(read)).rejects.toThrow(
+      'Error connecting to database',
+    );
     expect(read).toHaveBeenCalledTimes(1);
     expect(console.warn).not.toHaveBeenCalled();
   });

@@ -90,17 +90,16 @@ const VENDOR_OWNER_RULES: readonly VendorOwnerRule[] = [
     name: 'postgres',
     matches: (specifier) =>
       specifier === 'postgres' || specifier === '@neondatabase/serverless',
-    owners: ['src/db/', 'src/scripts/', 'src/composition/pipelines/cron-gate.ts'],
+    owners: ['src/db/', 'src/scripts/'],
   },
   {
     name: 'upstash',
     matches: (specifier) =>
       specifier === '@upstash/redis' || specifier === '@upstash/ratelimit',
-    owners: [
-      'src/lib/rate-limit.ts',
-      'src/platform/esi/',
-      'src/data/esi-refresh-jobs/pending-signal.ts',
-    ],
+    // src/lib/upstash.ts is the sole @upstash/redis value importer (it owns
+    // every client construction); src/lib/rate-limit.ts remains an owner for
+    // its @upstash/ratelimit value import alone.
+    owners: ['src/lib/upstash.ts', 'src/lib/rate-limit.ts'],
   },
   {
     name: 'google-auth-library',

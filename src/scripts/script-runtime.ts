@@ -4,9 +4,7 @@
 // must not fail the build). One implementation so the close-then-exit ordering
 // can't drift between scripts. The script's testable logic lives in
 // import-safe sibling modules; this keeps the entry file a thin boot + call.
-import type postgres from 'postgres';
-
-type Sql = ReturnType<typeof postgres>;
+import type { Sql } from '@/db';
 
 /**
  * Runs a database maintenance script with standardized success and failure reporting, closing the

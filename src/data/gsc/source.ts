@@ -3,6 +3,10 @@ import 'server-only';
 import { JWT } from 'google-auth-library';
 import { requireEnv } from '@/lib/env';
 import {
+  fetchWithTimeout,
+  OUTBOUND_FETCH_TIMEOUT_MS,
+} from '@/lib/fetch-with-timeout';
+import {
   GSC_SCOPE,
   SEARCH_ANALYTICS_ROW_LIMIT,
   URL_INSPECTION_ENDPOINT,
@@ -11,9 +15,12 @@ import {
 import type { IndexStatusApiResult, SearchAnalyticsApiRow, SitemapApiEntry } from './types';
 
 // External calls to the Google Search Console API. Like the market-prices
-// source layer, this uses plain `fetch` with no transaction open and no DB
-// connection pinned — the ingest layer owns persistence. The data slice never
-// imports telemetry; the cron threads sync outcomes into usage_logs itself.
+// source layer, this holds no transaction open and pins no DB connection — the
+// ingest layer owns persistence. The data slice never imports telemetry; the
+// cron threads sync outcomes into usage_logs itself. Both outbound legs — the
+// API request and the SDK's own token acquisition — carry the shared outbound
+// bound; the declared policy lives in
+// src/composition/vendor-resilience-registry.ts.
 
 // Lazily-built, module-scoped JWT client. google-auth-library caches and
 // auto-refreshes the access token internally, so one client per process is
@@ -38,7 +45,15 @@ function getJwt(): JWT {
   if (_jwt) return _jwt;
   const raw = requireEnv('GSC_SERVICE_ACCOUNT_JSON');
   const { client_email, private_key } = parseServiceAccount(raw);
-  _jwt = new JWT({ email: client_email, key: private_key, scopes: [GSC_SCOPE] });
+  _jwt = new JWT({
+    email: client_email,
+    key: private_key,
+    scopes: [GSC_SCOPE],
+    // The SDK fetches and refreshes the access token through its own
+    // transporter, which is unbounded by default; this is the only injection
+    // point for that leg.
+    transporterOptions: { timeout: OUTBOUND_FETCH_TIMEOUT_MS },
+  });
   return _jwt;
 }
 
@@ -50,7 +65,7 @@ export function siteUrl(): string {
 async function authedFetch(url: string, init?: RequestInit): Promise<Response> {
   const { token } = await getJwt().getAccessToken();
   if (!token) throw new Error('Failed to obtain a Google access token');
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     ...init,
     headers: { ...init?.headers, Authorization: `Bearer ${token}` },
   });

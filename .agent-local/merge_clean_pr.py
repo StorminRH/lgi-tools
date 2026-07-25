@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import urllib.parse
 
@@ -43,6 +44,21 @@ REQUIRED_CHECKS = BASE_REQUIRED_CHECKS | {GREPTILE_CHECK}
 # review happened from the review record itself, not from a named check.
 FALLBACK_REQUIRED_CHECKS = BASE_REQUIRED_CHECKS
 PASSING_CONCLUSIONS = {"success", "neutral", "skipped"}
+# CodeRabbit's machine-emitted verification marker, appended to a finding as its
+# own trailing line when an incremental pass confirms the commit that fixed it.
+# Its sha is abbreviated, so it is matched as a prefix of the full head sha.
+#
+# Anchored to a whole line on purpose. An unanchored search would also match the
+# phrase quoted mid-sentence or inside a fenced code block — and this repository's
+# own source and tests contain that literal string, so a review of this very file
+# could otherwise quote a sha back and mint head evidence no pass produced. The
+# optional leading run covers the emoji CodeRabbit prefixes the line with.
+MIN_ABBREVIATED_SHA = 7
+ADDRESSED_MARKER = re.compile(
+    r"^[^\w\n]{0,4}\s*Addressed in commit\s+`?"
+    rf"([0-9a-fA-F]{{{MIN_ABBREVIATED_SHA},40}})`?\s*$",
+    re.MULTILINE,
+)
 
 
 RESOLVED_THREADS_QUERY = """
@@ -64,13 +80,21 @@ def get(path: str, token: str) -> object:
     return body
 
 
-def resolved_thread_roots(pr_number: int, token: str) -> frozenset[int]:
+def resolved_thread_roots(
+    pr_number: int, token: str, repo: str | None = None
+) -> frozenset[int]:
     """Database ids of the first comment in every resolved review thread.
 
     Review-thread resolution is GraphQL-only; REST comment payloads carry no
     resolved flag. Any transport or shape failure propagates so the gate fails
     closed rather than treating unknown threads as resolved.
+
+    `repo` accepts an `owner/name` pair for callers that address a repository by
+    argument rather than by this module's constants. Without it, a caller polling
+    another repository would read resolutions from this one and could treat its
+    unresolved findings as resolved — the one way this function can fail open.
     """
+    owner, name = (repo.split("/", 1) if repo else (OWNER, REPO))
     resolved: set[int] = set()
     cursor: str | None = None
     while True:
@@ -81,8 +105,8 @@ def resolved_thread_roots(pr_number: int, token: str) -> frozenset[int]:
             {
                 "query": RESOLVED_THREADS_QUERY,
                 "variables": {
-                    "owner": OWNER,
-                    "repo": REPO,
+                    "owner": owner,
+                    "repo": name,
                     "pr": pr_number,
                     "cursor": cursor,
                 },
@@ -143,15 +167,21 @@ def live_inline_findings(
 
 def live_coderabbit_findings(
     inline_comments: list[object],
-    head_sha: str,
     resolved_roots: frozenset[int],
 ) -> list[dict[str, object]]:
-    """CodeRabbit inline findings that still apply and are not resolved.
+    """CodeRabbit inline findings that are not resolved, at any anchor commit.
 
     Only thread roots count: CodeRabbit's replies (including its own "addressed"
     and "withdrawing" notes) hang off a root and are not separate findings. A
     root stops blocking once its review thread is resolved on the PR, which is
     the same "no finding left standing" bar the Greptile path enforces.
+
+    Deliberately NOT filtered to the current head, unlike `live_inline_findings`.
+    That filter is correct for Greptile, which re-anchors a still-live finding to
+    each new head, and silently wrong for CodeRabbit, whose comment keeps the
+    commit it was first anchored to forever. Filtering by head would drop every
+    CodeRabbit finding the moment any commit landed after it, so resolution is
+    the only honest signal here.
     """
     return [
         item
@@ -159,7 +189,6 @@ def live_coderabbit_findings(
         if isinstance(item, dict)
         and actor_login(item) == CODERABBIT
         and item.get("in_reply_to_id") is None
-        and str(item.get("commit_id", "")) == head_sha
         and int(item.get("id", 0)) not in resolved_roots
     ]
 
@@ -227,19 +256,71 @@ def greptile_blockers(
     return reasons
 
 
-def coderabbit_reviewed_head(reviews: list[object], head_sha: str) -> bool:
-    """True when CodeRabbit filed a review against the exact current head.
+def coderabbit_acknowledged_head(inline_comments: list[object], head_sha: str) -> bool:
+    """True when CodeRabbit's own verification marker names the exact current head.
+
+    CodeRabbit is an incremental reviewer: it does not re-review a commit it has
+    already seen, and it does not file a fresh review object for a fix push.
+    Instead its incremental pass edits the existing finding in place, appending
+    its machine-emitted marker (``Addressed in commit <abbreviated sha>``) and
+    resolving the thread. That marker is the pass's own statement that it read
+    that exact commit, so it is head-exact review evidence even though the
+    comment's ``commit_id`` stays pinned to the commit the finding was anchored
+    to and never moves.
+
+    Scoped to inline finding roots on purpose. The marker is only ever written by
+    editing a finding, so widening the scan to issue comments would add nothing
+    real while opening a prompt-echo channel: CodeRabbit's conversational replies
+    are authored by the same bot, so a reply induced to repeat the phrase would
+    otherwise mint review evidence no pass produced.
+
+    Keyed to the marker rather than to a bare sha for the same reason — a bare
+    sha may just be the bot quoting a request back. A rate-limited pass emits no
+    marker, so the "review rate limited" hole this gate exists to close stays
+    closed.
+    """
+    if not head_sha:
+        return False
+    head = head_sha.lower()
+    for item in inline_comments:
+        if not isinstance(item, dict) or actor_login(item) != CODERABBIT:
+            continue
+        if item.get("in_reply_to_id") is not None:
+            continue
+        # The pattern already enforces the minimum abbreviation length.
+        for sha in ADDRESSED_MARKER.findall(str(item.get("body", ""))):
+            if head.startswith(sha.lower()):
+                return True
+    return False
+
+
+def coderabbit_reviewed_head(
+    reviews: list[object],
+    head_sha: str,
+    inline_comments: list[object] | None = None,
+) -> bool:
+    """True when CodeRabbit demonstrably examined the exact current head.
 
     This is the fallback's proof that a review actually happened. CodeRabbit's
     commit status reports `success` even when its body says "Review rate
     limited", so the status alone would let an unreviewed head merge.
+
+    Two forms of head-exact evidence are accepted, matching how CodeRabbit
+    actually reports. A review object pinned to the head covers its first pass
+    over a PR. An incremental pass over a later push covers the rest: it files no
+    new review object, so its own ``Addressed in commit <sha>`` marker naming the
+    head is the equivalent proof (see ``coderabbit_acknowledged_head``). Without
+    the second form the gate is unsatisfiable for any PR that needed a fix round,
+    which is not a stricter gate — it is a stuck one.
     """
-    return any(
+    if any(
         isinstance(item, dict)
         and actor_login(item) == CODERABBIT
         and str(item.get("commit_id", "")) == head_sha
         for item in reviews
-    )
+    ):
+        return True
+    return coderabbit_acknowledged_head(inline_comments or [], head_sha)
 
 
 def coderabbit_blockers(
@@ -250,9 +331,9 @@ def coderabbit_blockers(
 ) -> list[str]:
     """Fallback reasons, used only when Greptile did not review this PR."""
     reasons: list[str] = []
-    if not coderabbit_reviewed_head(reviews, head_sha):
+    if not coderabbit_reviewed_head(reviews, head_sha, inline_comments):
         reasons.append("no CodeRabbit review on the current head")
-    findings = live_coderabbit_findings(inline_comments, head_sha, resolved_roots)
+    findings = live_coderabbit_findings(inline_comments, resolved_roots)
     if findings:
         reasons.append(f"CodeRabbit has {len(findings)} unresolved inline finding(s)")
     return reasons

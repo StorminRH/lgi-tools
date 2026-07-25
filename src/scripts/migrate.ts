@@ -7,6 +7,7 @@ import { runScript } from './script-runtime';
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
+import { PG_CONNECT_TIMEOUT_SECONDS } from '@/db';
 
 // DDL runs under the schema-owner credential (DATABASE_MIGRATION_URL), falling
 // back to DATABASE_URL where the runtime and owner role are still one identity.
@@ -15,7 +16,7 @@ const databaseUrl = resolveMigrationUrl({
   DATABASE_URL: readEnv('DATABASE_URL'),
 });
 
-const client = postgres(databaseUrl, { max: 1 });
+const client = postgres(databaseUrl, { max: 1, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
 
 async function main() {
   await migrate(drizzle(client), { migrationsFolder: './drizzle' });

@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import unittest
 
+import merge_clean_pr
 from merge_clean_pr import (
     CODERABBIT,
     FALLBACK_REQUIRED_CHECKS,
@@ -196,8 +197,11 @@ class CodeRabbitFallback(unittest.TestCase):
     def test_resolved_finding_does_not_block(self) -> None:
         self.assertEqual(fallback_blockers(frozenset({10}), inline_comments=[cr_root()]), [])
 
-    def test_finding_on_an_older_head_does_not_block(self) -> None:
-        self.assertEqual(fallback_blockers(inline_comments=[cr_root(commit="old")]), [])
+    def test_unresolved_finding_on_an_older_commit_still_blocks(self) -> None:
+        # CodeRabbit never re-anchors a finding, so its commit is the one it was
+        # found on. Filtering by head would drop every finding after any push.
+        reasons = fallback_blockers(inline_comments=[cr_root(commit="old")])
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
 
     def test_bot_reply_is_not_a_finding(self) -> None:
         reply = cr_root(11) | {"in_reply_to_id": 10}
@@ -258,13 +262,151 @@ class CodeRabbitReviewedHead(unittest.TestCase):
         self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
 
 
+class ResolvedThreadRootsRepo(unittest.TestCase):
+    """Thread resolution must be read from the repository actually being polled.
+
+    This is the one way the function can fail open: reading another repository's
+    resolutions would mark unresolved findings resolved and clear a real blocker.
+    """
+
+    def query_variables(self, **kwargs) -> dict:
+        seen: dict = {}
+
+        def fake_request(method, path, token, payload):
+            seen.update(payload["variables"])
+            return {"data": {"repository": {"pullRequest": {"reviewThreads": {
+                "nodes": [], "pageInfo": {"hasNextPage": False}}}}}}, {}
+
+        original = merge_clean_pr.request
+        merge_clean_pr.request = fake_request
+        try:
+            merge_clean_pr.resolved_thread_roots(306, "t", **kwargs)
+        finally:
+            merge_clean_pr.request = original
+        return seen
+
+    def test_defaults_to_the_module_constants(self) -> None:
+        variables = self.query_variables()
+        self.assertEqual(variables["owner"], merge_clean_pr.OWNER)
+        self.assertEqual(variables["repo"], merge_clean_pr.REPO)
+
+    def test_an_explicit_repo_overrides_the_constants(self) -> None:
+        variables = self.query_variables(repo="other-owner/other-repo")
+        self.assertEqual(variables["owner"], "other-owner")
+        self.assertEqual(variables["repo"], "other-repo")
+
+
+class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
+    """CodeRabbit files no new review object for a fix push.
+
+    It is an incremental reviewer: it edits the existing finding in place,
+    appending `Addressed in commit <sha>` and resolving the thread. Requiring a
+    head-pinned review object therefore makes the gate unsatisfiable for any PR
+    that needed a fix round, so its own marker is accepted as equivalent proof —
+    while a rate-limited pass, which emits no marker, must still block.
+    """
+
+    def cr_comment(self, body: str, commit: str = "older") -> dict:
+        return {"user": {"login": CODERABBIT}, "id": 10, "commit_id": commit, "body": body}
+
+    def test_abbreviated_marker_counts_as_head_evidence(self) -> None:
+        # The real shape: comment still anchored to the old commit, body appended.
+        comment = self.cr_comment(f"finding text\n\n✅ Addressed in commit {HEAD[:7]}")
+        self.assertTrue(coderabbit_reviewed_head([], HEAD, [comment]))
+
+    def test_backticked_and_full_length_markers_count(self) -> None:
+        self.assertTrue(
+            coderabbit_reviewed_head([], HEAD, [self.cr_comment(f"Addressed in commit `{HEAD[:8]}`")])
+        )
+        self.assertTrue(
+            coderabbit_reviewed_head([], HEAD, [self.cr_comment(f"Addressed in commit {HEAD}")])
+        )
+
+    def test_marker_naming_another_commit_does_not_count(self) -> None:
+        # An acknowledgement of an earlier push is not evidence for this head.
+        stale = self.cr_comment("Addressed in commit 0837eb2")
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [stale]))
+
+    def test_rate_limited_pass_still_blocks(self) -> None:
+        # The hole this gate exists to close: a green status with no real review.
+        limited = self.cr_comment("Review rate limited. Please try again later.")
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [limited]))
+        reasons = fallback_blockers(reviews=[], inline_comments=[limited])
+        self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
+
+    def test_a_human_cannot_supply_the_marker(self) -> None:
+        human = {"user": {"login": "StorminRH"}, "id": 11, "body": f"Addressed in commit {HEAD}"}
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [human]))
+
+    def test_marker_only_counts_on_an_inline_finding_root(self) -> None:
+        # Closes the prompt-echo channel: a conversational reply carries the same
+        # author, so only a finding root may supply the marker.
+        reply = self.cr_comment(f"Addressed in commit {HEAD[:7]}") | {"in_reply_to_id": 9}
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [reply]))
+
+    def test_too_short_a_sha_is_rejected(self) -> None:
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [self.cr_comment(f"Addressed in commit {HEAD[:6]}")]))
+
+    def test_acknowledgement_does_not_waive_a_live_finding(self) -> None:
+        # Head evidence and "no finding left standing" stay independent gates: the
+        # fixed finding is acknowledged and resolved, a second one is neither.
+        ack = self.cr_comment(f"Addressed in commit {HEAD[:7]}")
+        still_open = cr_root(11, commit="older")
+        reasons = fallback_blockers(
+            frozenset({10}), reviews=[], inline_comments=[ack, still_open]
+        )
+        self.assertFalse(any("no CodeRabbit review" in r for r in reasons))
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
+
+    def test_the_reported_hole_stays_closed(self) -> None:
+        # The minimal shape of the regression, distinct from the test above: ONE
+        # root on an earlier commit, carrying head evidence but never resolved.
+        # Head evidence is therefore satisfied while the finding still stands, and
+        # before the fix the head filter dropped it and returned no blockers.
+        only_root = self.cr_comment(f"finding\n\nAddressed in commit {HEAD[:7]}")
+        reasons = fallback_blockers(reviews=[], inline_comments=[only_root])
+        self.assertFalse(any("no CodeRabbit review" in r for r in reasons))
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
+
+    def test_a_quoted_marker_is_not_head_evidence(self) -> None:
+        # The marker must be its own line. This file and the gate's own source
+        # contain the literal phrase, so a review quoting them mid-sentence or in
+        # a code block must not mint evidence no pass produced.
+        quoted = self.cr_comment(
+            f"The check looks for `Addressed in commit {HEAD[:7]}` inside a body, "
+            "which is too loose.\n\n```python\nif 'Addressed in commit "
+            f"{HEAD[:7]}' in body:\n    pass\n```"
+        )
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [quoted]))
+
+    def test_the_real_appended_marker_line_still_counts(self) -> None:
+        emoji_line = self.cr_comment(f"finding text\n\n✅ Addressed in commit {HEAD[:7]}")
+        self.assertTrue(coderabbit_reviewed_head([], HEAD, [emoji_line]))
+
+    def test_acknowledgement_never_substitutes_for_greptile(self) -> None:
+        # Greptile reviewed, so the fallback path must not be reachable at all.
+        data = clean_inputs()
+        reasons = merge_blockers(
+            data["pr"],
+            data["issue_comments"],
+            [
+                {"user": {"login": GREPTILE}, "commit_id": HEAD, "line": 5},
+                self.cr_comment(f"Addressed in commit {HEAD[:7]}"),
+            ],
+            data["runs"],
+            data["expected_head"],
+            frozenset(),
+        )
+        self.assertTrue(any("Greptile has 1 inline finding" in r for r in reasons))
+
+
 class LiveCodeRabbitFindings(unittest.TestCase):
     def test_ignores_non_dict_items(self) -> None:
-        self.assertEqual(live_coderabbit_findings([None, "x"], HEAD, frozenset()), [])
+        self.assertEqual(live_coderabbit_findings([None, "x"], frozenset()), [])
 
     def test_ignores_other_authors(self) -> None:
         other = cr_root() | {"user": {"login": GREPTILE}}
-        self.assertEqual(live_coderabbit_findings([other], HEAD, frozenset()), [])
+        self.assertEqual(live_coderabbit_findings([other], frozenset()), [])
 
 
 if __name__ == "__main__":

@@ -1,7 +1,11 @@
-import { Redis } from '@upstash/redis';
-import { resolveUpstashRest } from '@/lib/upstash';
+import { resolveUpstashClient, type UpstashRedis } from '@/lib/upstash';
 
 const PENDING_WORK_KEY = 'lgi:esi-refresh:next-due';
+// These are optimization hints over a durable Neon queue, so a slow Redis must
+// never hold up the enqueue or drain that owns the real state. Zero retries:
+// the next successful drain or the daily heal repairs a lost hint.
+const SIGNAL_TIMEOUT_MS = 2000;
+const SIGNAL_RETRIES = 0;
 const WRITE_IF_LOWER_LUA = `
 local current = redis.call("GET", KEYS[1])
 local current_number = current and tonumber(current) or nil
@@ -12,9 +16,11 @@ end
 return 0
 `;
 
-function resolveRedis(): Redis | null {
-  const upstash = resolveUpstashRest();
-  return upstash ? new Redis(upstash) : null;
+function resolveRedis(): UpstashRedis | null {
+  return resolveUpstashClient({
+    timeoutMs: SIGNAL_TIMEOUT_MS,
+    retries: SIGNAL_RETRIES,
+  });
 }
 
 /**
