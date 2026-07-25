@@ -182,3 +182,10 @@ routed to the backlog, alongside the explicit decision of whether RLS is
 defense-in-depth or a formal tenant boundary. Until then, **application
 authorization (Better Auth + Drizzle predicates) remains the sole tenant
 boundary**, and the Data API stays disabled (§3).
+
+Since 3.10.2.3 that deferral is recorded per data class rather than only in
+prose: `DATA_CLASS_DECISIONS` in `src/composition/data-ownership-registry.ts`
+carries each class's authorization decision, its justification against the role
+model above, and the trigger that would reopen it, and the dataset-declaration
+census fails if RLS ever appears in a migration or table without a decision
+justifying it.

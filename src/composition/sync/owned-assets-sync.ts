@@ -55,8 +55,10 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
 }
 
 /**
- * Persists one validated owned-assets source snapshot and replaces the owner's current projection
- * in the same database transaction.
+ * Persists one validated owned-assets source snapshot and replaces the owner's current projection.
+ * The snapshot insert and the projection write are NOT atomic — the request path has no transaction
+ * — so this compensates instead: if the projection write does not stand, the snapshot row it was
+ * retained for is deleted and no domain event is emitted.
  */
 export async function saveOwnedAssetsFromSource(
   owner: OwnerKey,
@@ -79,25 +81,40 @@ export async function saveOwnedAssetsFromSource(
     sourceVersion: ESI_COMPATIBILITY_DATE,
     bodyCiphertext: encryptSnapshotBody(source.items),
   });
+  let outcome: Awaited<ReturnType<typeof saveOwnedAssets>>;
   try {
-    await saveOwnedAssets(owner, rows, etags, snapshotId);
-    emitDomainEvent({
-      eventType: 'esi_snapshot_pulled',
-      metadata: {
-        snapshotId,
-        dataset: 'owned_assets',
-        ownerType: 'corporation',
-        ownerId: owner.ownerId,
-        itemCount: source.items.length,
-      },
-    });
+    outcome = await saveOwnedAssets(owner, rows, etags, snapshotId);
   } catch (error) {
-    try {
-      await deleteEsiSnapshot(snapshotId);
-    } catch (cleanupError) {
-      console.warn('[esi-snapshots] orphan cleanup failed', cleanupError);
-    }
+    await discardSnapshot(snapshotId);
     throw error;
+  }
+  // A concurrent refresh already replaced this owner's set, so these rows never
+  // landed and this snapshot documents nothing: drop it and stay silent. Emitting
+  // the event here would claim a pull that the winner already reported.
+  if (outcome === 'superseded') {
+    await discardSnapshot(snapshotId);
+    return;
+  }
+  emitDomainEvent({
+    eventType: 'esi_snapshot_pulled',
+    metadata: {
+      snapshotId,
+      dataset: 'owned_assets',
+      ownerType: 'corporation',
+      ownerId: owner.ownerId,
+      itemCount: source.items.length,
+    },
+  });
+}
+
+// Cleanup is best-effort on purpose: the caller's own outcome (a thrown error or
+// a superseded write) is the real result, and the retention prune sweeps any row
+// this fails to remove.
+async function discardSnapshot(snapshotId: number): Promise<void> {
+  try {
+    await deleteEsiSnapshot(snapshotId);
+  } catch (cleanupError) {
+    console.warn('[esi-snapshots] orphan cleanup failed', cleanupError);
   }
 }
 

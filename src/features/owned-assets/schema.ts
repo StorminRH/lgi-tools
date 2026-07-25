@@ -12,7 +12,17 @@
 // The owner axis collapses character + corporation into a single discriminated
 // pair: owner_type ∈ {character, corporation}, owner_id the character or
 // corporation id.
-import { bigint, bigserial, index, integer, pgEnum, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  bigserial,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { ownerSyncStateColumns } from '@/lib/db-columns';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
 
@@ -35,11 +45,19 @@ export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', OWNED_AS
  * verbatim plus the owner key. The projection AGGREGATES the raw ESI asset list
  * by (type_id, location_id, location_flag, location_type), summing quantity — so
  * a row here is "this owner holds N units of this type at this location", not a
- * raw per-item stack. A refresh REPLACES the whole set for an owner
- * (delete-then-insert), so there is no natural unique key to reconcile against;
- * a synthetic `id` keeps each row addressable. The (owner_type, owner_id,
- * type_id) index serves the per-owner read AND the bounded per-type lookup the
- * planner's asset ledger makes.
+ * raw per-item stack. That aggregation IS the natural key: together with the
+ * owner pair it is unique by construction on every write path, so
+ * `owned_assets_natural_key_unique` enforces it in Postgres. The synthetic `id`
+ * stays as the addressable primary key. The unique index leads with
+ * (owner_type, owner_id, type_id), so it also serves the per-owner read and the
+ * bounded per-type lookup the planner's asset ledger makes — it replaces the
+ * former `owned_assets_owner_idx` rather than sitting beside it.
+ *
+ * The constraint is load-bearing, not decorative: a refresh REPLACES the whole
+ * set for an owner (delete-then-insert) on the transaction-free neon-http
+ * driver, so two concurrent refreshes for one owner can interleave and double
+ * the ledger the planner sums. The unique index turns that silent corruption
+ * into a caught unique violation the writer reports as 'superseded'.
  *
  * No foreign key on owner_id: for a corporation owner it is a corp id with no
  * `characters` row, so the column can't FK uniformly — the same FK-less posture
@@ -71,7 +89,14 @@ export const ownedAssets = pgTable(
     snapshotId: bigint('snapshot_id', { mode: 'number' }).references(() => esiSnapshots.id),
   },
   (t) => [
-    index('owned_assets_owner_idx').on(t.ownerType, t.ownerId, t.typeId),
+    uniqueIndex('owned_assets_natural_key_unique').on(
+      t.ownerType,
+      t.ownerId,
+      t.typeId,
+      t.locationId,
+      t.locationFlag,
+      t.locationType,
+    ),
     index('owned_assets_snapshot_idx').on(t.snapshotId),
   ],
 );

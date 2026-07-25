@@ -8,6 +8,7 @@
 import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
+import { isUniqueViolation } from '@/db/pg-errors';
 import { type AssetMapInput, buildOwnedAssetMap, type OwnedAssetMap } from './asset-map';
 import type { OwnedAsset } from './esi-projection';
 import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
@@ -76,30 +77,42 @@ export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyn
  * the neon-http driver, which has none): delete the owner's rows, insert the fresh
  * set, then stamp the sync row LAST. Stamping last means a partial failure leaves
  * the owner stale, so the next view simply refetches (self-healing).
+ *
+ * Returns `'superseded'` when a concurrent refresh for the same owner won the
+ * insert race: the natural-key unique index rejects the interleaved rows, and
+ * this call stamps nothing and revalidates nothing, because the winner's set is
+ * the current truth. The caller must then discard anything it staged for this
+ * attempt (its snapshot row) and emit no domain event. `'saved'` is the ordinary
+ * path.
  */
 export async function saveOwnedAssets(
   owner: OwnerKey,
   rows: OwnedAsset[],
   etags: string[],
   snapshotId: number | null = null,
-): Promise<void> {
+): Promise<'saved' | 'superseded'> {
   const now = new Date();
   await db
     .delete(ownedAssets)
     .where(and(eq(ownedAssets.ownerType, owner.ownerType), eq(ownedAssets.ownerId, owner.ownerId)));
   if (rows.length > 0) {
-    await db.insert(ownedAssets).values(
-      rows.map((r) => ({
-        ownerType: owner.ownerType,
-        ownerId: owner.ownerId,
-        typeId: r.type_id,
-        quantity: r.quantity,
-        locationId: r.location_id,
-        locationFlag: r.location_flag,
-        locationType: r.location_type,
-        snapshotId,
-      })),
-    );
+    try {
+      await db.insert(ownedAssets).values(
+        rows.map((r) => ({
+          ownerType: owner.ownerType,
+          ownerId: owner.ownerId,
+          typeId: r.type_id,
+          quantity: r.quantity,
+          locationId: r.location_id,
+          locationFlag: r.location_flag,
+          locationType: r.location_type,
+          snapshotId,
+        })),
+      );
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      return 'superseded';
+    }
   }
   await db
     .insert(ownedAssetSyncs)
@@ -109,6 +122,7 @@ export async function saveOwnedAssets(
       set: { lastRefreshedAt: now, pageEtags: etags },
     });
   revalidateTag(ownedAssetsTag(owner), 'max');
+  return 'saved';
 }
 
 /**

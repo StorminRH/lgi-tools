@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
-import type { AnyPgDb } from '@/lib/db-types';
+import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { readEnv } from '@/lib/env';
 import {
   INDUSTRY_ACTIVITY_NAMES,
@@ -586,8 +586,14 @@ export function makeBatchInserter<T>(
  * when the stored tree-resolver hash matches the current SDE shape.
  * Set LGI_FORCE_TREE_REBUILD=1 to override (for when the resolver's
  * own code changes).
+ *
+ * Takes the postgres-js-concrete handle rather than the dual-driver
+ * `AnyPgDb`: the rebuild runs inside an interactive `.transaction`,
+ * which the neon-http request-path driver does not have. Both callers
+ * already pass a postgres-js handle; the narrower type makes that a
+ * compile-time guarantee instead of a convention.
  */
-export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
+export async function resolveAllTrees(db: PostgresJsDb): Promise<ResolveSummary> {
   const start = Date.now();
   const forceRebuild = readEnv('LGI_FORCE_TREE_REBUILD') === '1';
 
@@ -645,12 +651,17 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
       sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}`,
     );
 
-    const flat = makeBatchInserter<FlatMaterialRow>(FLAT_BATCH_SIZE, (batch) =>
-      tx.insert(blueprintFlatMaterials).values(batch),
-    );
+    // The inserters report progress, not rows, so each batch discards the
+    // driver's result. postgres-js types its insert result concretely, unlike
+    // the dual-driver base type this used to accept.
+    const flat = makeBatchInserter<FlatMaterialRow>(FLAT_BATCH_SIZE, async (batch) => {
+      await tx.insert(blueprintFlatMaterials).values(batch);
+    });
     const tree = makeBatchInserter<{ blueprintTypeId: number; treeJson: TreeNode[]; computedAt: Date }>(
       TREE_BATCH_SIZE,
-      (batch) => tx.insert(blueprintTrees).values(batch),
+      async (batch) => {
+        await tx.insert(blueprintTrees).values(batch);
+      },
     );
 
     for (const { id } of allBlueprintIds) {
