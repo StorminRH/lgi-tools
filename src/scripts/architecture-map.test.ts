@@ -66,7 +66,10 @@ describe('architecture map — committed artifacts match the live configuration'
       boundaries: { rules: { from: string; allow: string[] }[] };
     };
     const target = seeded.boundaries.rules.find((rule) => rule.from === 'transport');
-    target!.allow.push('config');
+    // Depends on the live config, not on anything provable here, so say so plainly
+    // rather than failing later with a bare TypeError.
+    if (!target) throw new Error('fixture assumption broken: no "transport" rule in the live config');
+    target.allow.push('config');
 
     expect(renderMermaid(buildArchitectureMap(seeded))).not.toBe(
       readArtifact(ARCHITECTURE_MAP_ARTIFACTS.mermaid),
@@ -90,6 +93,7 @@ describe('architecture map — the live graph is complete and one-directional', 
     const permissions = [...kindsOf(map, 'allow'), ...kindsOf(map, 'exception')];
     expect(permissions.length).toBeGreaterThan(0);
     for (const edge of permissions) {
+      // Both endpoints are graph nodes, so layerOf resolves for each.
       expect(layerOf(map, edge.from)).toBeGreaterThan(layerOf(map, edge.to)!);
     }
   });
@@ -108,6 +112,7 @@ describe('architecture map — the live graph is complete and one-directional', 
 
   it('groups the emitted relations by class: allow, then exception, then carve-out', () => {
     const rank: Record<string, number> = { allow: 0, exception: 1, 'carve-out': 2 };
+    // EdgeKind has exactly these three members, so every kind has a rank here.
     const ranks = liveMap().edges.map((edge) => rank[edge.kind]!);
     // Monotonically non-decreasing: any interleaved class would break this.
     expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
@@ -169,6 +174,7 @@ describe('architecture map — malformed configuration fails loudly', () => {
 
   it('throws when a rule allows a target that is no zone and no auto-discovered child', () => {
     const config = fixtureConfig();
+    // fixtureConfig declares four rules in this file, so index 0 exists by construction.
     config.boundaries.rules[0]!.allow.push('nowhere');
     expect(() => buildArchitectureMap(config)).toThrow(
       /rule "app" allows "nowhere", which is neither a declared zone nor a child/,
@@ -185,7 +191,7 @@ describe('architecture map — malformed configuration fails loudly', () => {
     const config = fixtureConfig();
     // lib is the sink; letting it reach back up to app closes a loop through
     // app → data → lib → app. The walk reports the edge it re-enters on, naming
-    // both ends of that back edge.
+    // both ends of that back edge. Index 3 is fixtureConfig's own lib rule.
     config.boundaries.rules[3]!.allow.push('app');
     expect(() => buildArchitectureMap(config)).toThrow(
       /dependency cycle — "app" allows "data", which already depends on "app"/,
