@@ -122,12 +122,19 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
   });
 
   it('coalesces a refresh that loses the insert race to superseded, stamping nothing', async () => {
-    // Establish the baseline the loser will delete, with an etag we can watch.
-    await saveOwnedAssets(owner, [asset()], ['"winner"']);
+    // The baseline exists so the loser has something to delete and a sync stamp we
+    // can watch. It deliberately uses a DIFFERENT natural key (type 35) from the one
+    // the race is fought over (type 34): a baseline sharing the contested key would
+    // make the winner's own insert collide with the committed baseline instead, which
+    // is a different scenario entirely.
+    await saveOwnedAssets(owner, [asset({ type_id: 35 })], ['"winner"']);
 
-    // A concurrent refresh that has inserted its row but not yet committed. It
-    // holds the natural key, so the loser's own insert must block on it.
+    // A concurrent refresh that has inserted the contested key but not yet committed.
+    let signalInserted!: () => void;
     let releaseWinner!: () => void;
+    const winnerHasInserted = new Promise<void>((resolve) => {
+      signalInserted = resolve;
+    });
     const winnerMayCommit = new Promise<void>((resolve) => {
       releaseWinner = resolve;
     });
@@ -138,13 +145,18 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
         VALUES
           (${owner.ownerType}, ${owner.ownerId}, 34, 100, 60003760, 'Hangar', 'station')
       `;
+      signalInserted();
       await winnerMayCommit;
     });
 
+    // Barrier, not a sleep: the winner provably holds the contested key before the
+    // loser starts, so the loser cannot win this race by scheduling luck.
+    await winnerHasInserted;
+
     const loser = saveOwnedAssets(owner, [asset()], ['"loser"']);
-    // The loser's DELETE removes the committed baseline but cannot see the
-    // winner's uncommitted row; once the committed set is empty its INSERT has
-    // been issued and is blocked on the winner's key.
+    // The loser's DELETE removes the committed baseline but cannot see the winner's
+    // uncommitted row; once the committed set is empty its INSERT has been issued and
+    // is blocked on the winner's key.
     await waitFor(async () => (await committedRowCount()) === 0);
     releaseWinner();
     await winner;
