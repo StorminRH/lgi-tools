@@ -2,11 +2,13 @@
 
 **Report:** LGI.tools Security Deep-Research Report, 2026-07-19, code snapshot
 `141e914` (findings LGI-01…LGI-12).
-**This register:** session 3.9.4.1. Every finding was verified against live code
-(Phase-A `gpt-5.6-sol` verification fan-out, reconciled and spot-re-checked by
-the session). **Only LGI-08 was acted on** (database privilege separation — see
-[db-privilege-runbook.md](db-privilege-runbook.md)); all other confirmed findings
-are verify-and-route only, with no behavior change, and are recorded in
+**This register:** session 3.9.4.1, updated by session 3.10.2.2.1. Every finding
+was verified against live code (Phase-A `gpt-5.6-sol` verification fan-out,
+reconciled and spot-re-checked by the session). **LGI-08 was acted on** through
+database privilege separation (see
+[db-privilege-runbook.md](db-privilege-runbook.md)); **LGI-03 was acted on** by
+enforcing explicit cross-origin mutation mismatches. All other confirmed
+findings remain verify-and-route only and are recorded in
 [`docs/backlog.md`](../backlog.md).
 
 Verdict vocabulary: `confirmed | partially-confirmed | refuted | not-applicable`.
@@ -17,7 +19,7 @@ writes), there are **no payments**, and there is effectively a **single admin**.
 | --- | --- | --- | --- | --- |
 | LGI-01 | High (P0) | confirmed | No (verify + backlog) | backlog · L |
 | LGI-02 | High (P0) | confirmed | No | backlog · L |
-| LGI-03 | Medium (P0/P1) | confirmed | No | backlog · M |
+| **LGI-03** | **Medium (P0/P1)** | **confirmed** | **Yes — session 3.10.2.2.1** | enforced mutation contract |
 | LGI-04 | Medium (P1) | confirmed | No | backlog · M |
 | LGI-05 | Medium (P1) | confirmed | No | backlog · M |
 | LGI-06 | Medium (P1) | confirmed | No | backlog · M |
@@ -58,16 +60,20 @@ High impact, moderated likelihood (read-only scopes, single admin).
 short-lived action-bound step-up; bypass cookie cache on sensitive validation;
 negative tests. (Group with LGI-03.)
 
-## LGI-03 — Same-origin mutation guard observes but does not enforce — **confirmed**
+## LGI-03 — Same-origin mutation guard enforces explicit mismatches — **confirmed, acted on**
 
-`requireSameOrigin` logs cross-origin/invalid provenance and accepts missing
-provenance; it never returns 403 or throws (`same-origin.ts:34-61`), and tests
-pin that observe-only contract. The shared mutation wrapper calls it and continues
-into the handler (`mutation-route.ts`); account deletion and all current admin
-mutations share this path. SameSite=Lax + HttpOnly/Secure cookies reduce ordinary
-CSRF but do not make it enforcement. **Routing:** M — convert explicit mismatches
-to 403 in the central wrapper after reviewing telemetry; add Fetch-Metadata /
-content-type policy for missing provenance; negative tests. (Group with LGI-02.)
+Session 3.10.2.2.1 reviewed the observe-only production window from 2026-07-13
+through 2026-07-24 and found zero `cross_origin_mutation` rows, confirming zero
+legitimate cross-origin callers at the post-authorization observation point.
+`requireSameOrigin` now returns a typed `forbidden`/`cross_origin` failure for
+explicit `Origin` or `Referer` mismatches while continuing to log the event.
+The shared mutation pipeline and all five direct guarded routes translate that
+failure through the existing RFC 9457 problem mapper; same-origin and
+missing-provenance requests continue, and cron/service routes remain outside
+the browser boundary. Discovery coverage requires every mutating route to be
+classified as pipeline, direct, or exempt-with-reason. A Fetch-Metadata or
+content-type policy for missing provenance remains deferred in
+[`docs/backlog.md`](../backlog.md) until its recorded trigger fires.
 
 ## LGI-04 — Public name resolution can amplify shared ESI consumption — **confirmed**
 

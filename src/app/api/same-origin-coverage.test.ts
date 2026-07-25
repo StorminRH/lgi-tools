@@ -33,7 +33,59 @@ const DIRECT_MUTATIONS = [
   'feedback/route.ts',
 ] as const;
 
-const GUARDED_MUTATIONS = [...PIPELINE_MUTATIONS, ...DIRECT_MUTATIONS];
+const EXEMPT_MUTATIONS = {
+  'internal/eve-characters/route.ts': {
+    authz: 'service',
+    reason: 'service-authenticated internal character enumeration',
+  },
+  'internal/eve-token/route.ts': {
+    authz: 'service',
+    reason: 'service-authenticated internal token vending',
+  },
+  'market-history/refresh/route.ts': {
+    authz: 'public',
+    reason: 'rate-limited public read-through refresh',
+  },
+  'market-prices/refresh/route.ts': {
+    authz: 'public',
+    reason: 'rate-limited public read-through refresh',
+  },
+  'eve/names/route.ts': {
+    authz: 'public',
+    reason: 'public stateless name resolution',
+  },
+  'industry/build-location/route.ts': {
+    authz: 'public',
+    reason: 'public stateless planner computation',
+  },
+  'account/custom-structures/parse-fit/route.ts': {
+    authz: 'auth',
+    reason: 'authenticated stateless fit parsing',
+  },
+  'telemetry/route.ts': {
+    authz: 'public',
+    reason: 'public telemetry beacon',
+  },
+  'auth/[...all]/route.ts': {
+    authz: 'public',
+    reason: 'Better Auth library-owned CSRF protection',
+  },
+  'industry/owned-assets/route.ts': {
+    authz: 'auth',
+    reason: 'authenticated personal-data refresh trigger',
+  },
+  'industry/owned-blueprints/route.ts': {
+    authz: 'auth',
+    reason: 'authenticated personal-data refresh trigger',
+  },
+  'industry/skill-levels/route.ts': {
+    authz: 'auth',
+    reason: 'authenticated personal-data refresh trigger',
+  },
+} as const;
+
+const MUTATING_METHOD_RE =
+  /\bexport\s+(?:(?:async\s+)?function\s+(?:POST|PUT|PATCH|DELETE)\b|const\s+(?:POST|PUT|PATCH|DELETE)\b)/;
 
 function findRouteFiles(dir: string): string[] {
   const routes: string[] = [];
@@ -49,20 +101,25 @@ function findRouteFiles(dir: string): string[] {
 }
 
 describe('same-origin mutation coverage', () => {
-  it('pins the exact 22-route browser-mutation inventory', () => {
-    const guardedRoutes = findRouteFiles(API_DIR)
+  it('classifies every mutating route exactly once', () => {
+    const mutatingRoutes = findRouteFiles(API_DIR)
       .filter((file) => {
         const source = readFileSync(file, 'utf8');
-        return (
-          source.includes('runMutationRoute(request') ||
-          source.includes('requireSameOrigin(request);')
-        );
+        return MUTATING_METHOD_RE.test(source);
       })
       .map((file) => relative(API_DIR, file))
       .sort();
+    const classifiedRoutes = [
+      ...PIPELINE_MUTATIONS,
+      ...DIRECT_MUTATIONS,
+      ...Object.keys(EXEMPT_MUTATIONS),
+    ];
 
-    expect(GUARDED_MUTATIONS).toHaveLength(22);
-    expect(guardedRoutes).toEqual([...GUARDED_MUTATIONS].sort());
+    expect(PIPELINE_MUTATIONS).toHaveLength(17);
+    expect(DIRECT_MUTATIONS).toHaveLength(5);
+    expect(Object.keys(EXEMPT_MUTATIONS)).toHaveLength(12);
+    expect(new Set(classifiedRoutes).size).toBe(classifiedRoutes.length);
+    expect(mutatingRoutes).toEqual(classifiedRoutes.sort());
   });
 
   it.each(PIPELINE_MUTATIONS)('%s uses the mutation pipeline', (route) => {
@@ -72,21 +129,37 @@ describe('same-origin mutation coverage', () => {
     expect(source).toContain('runMutationRoute(request');
   });
 
-  it.each(DIRECT_MUTATIONS)('%s invokes the shared observer directly', (route) => {
+  it.each(DIRECT_MUTATIONS)('%s invokes the shared gate directly', (route) => {
     const source = readFileSync(join(API_DIR, route), 'utf8');
 
     expect(source).toContain(
       "import { requireSameOrigin } from '@/platform/auth/same-origin';",
     );
-    expect(source).toContain('requireSameOrigin(request);');
+    expect(source).toContain('const originCheck = requireSameOrigin(request);');
   });
 
-  it('the mutation pipeline invokes the shared observer', () => {
+  it.each(Object.entries(EXEMPT_MUTATIONS))(
+    '%s records its exemption: $reason',
+    (route, exemption) => {
+      const source = readFileSync(join(API_DIR, route), 'utf8');
+
+      expect(exemption.reason).not.toHaveLength(0);
+      expect(source).toContain(`// authz: ${exemption.authz}`);
+      expect(source).not.toContain(
+        "from '@/platform/auth/same-origin';",
+      );
+      expect(source).not.toContain(
+        "from '@/app/api/mutation-route';",
+      );
+    },
+  );
+
+  it('the mutation pipeline invokes the shared gate', () => {
     const source = readFileSync(join(API_DIR, 'mutation-route.ts'), 'utf8');
 
     expect(source).toContain(
       "import { requireSameOrigin } from '@/platform/auth/same-origin';",
     );
-    expect(source).toContain('requireSameOrigin(request);');
+    expect(source).toContain('const originCheck = requireSameOrigin(request);');
   });
 });

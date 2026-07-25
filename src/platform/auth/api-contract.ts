@@ -236,6 +236,7 @@ export const purgeCharacterEndpoint = defineEndpoint({
     200: jsonBody(purgeCharacterResponseSchema),
     400: problem('invalid_json', 'invalid_body', 'not_linked'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
     429: problem('rate_limited'),
   },
 });
@@ -254,6 +255,7 @@ export const accountDeleteEndpoint = defineEndpoint({
   responses: {
     200: jsonBody(accountDeleteResponseSchema),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
     429: problem('rate_limited'),
   },
 });
@@ -276,6 +278,7 @@ export const sessionsRevokeEndpoint = defineEndpoint({
   responses: {
     200: jsonBody(sessionsRevokeResponseSchema),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
     429: problem('rate_limited'),
   },
 });

@@ -4,6 +4,7 @@ const h = vi.hoisted(() => ({
   requireUserIdMock: vi.fn(),
   getPreferencesForUserMock: vi.fn(),
   upsertPreferenceMock: vi.fn(),
+  logUsageEventMock: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
@@ -16,15 +17,24 @@ vi.mock('@/data/preferences/queries', () => ({
   getPreferencesForUser: (...args: unknown[]) => h.getPreferencesForUserMock(...args),
   upsertPreference: (...args: unknown[]) => h.upsertPreferenceMock(...args),
 }));
+vi.mock('@/data/telemetry/queries', () => ({
+  logUsageEvent: (...args: unknown[]) => h.logUsageEventMock(...args),
+}));
 
 import type { NextRequest } from 'next/server';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
-function makeRequest(body: unknown): NextRequest {
+function makeRequest(
+  body: unknown,
+  origin?: string,
+): NextRequest {
   return new Request('http://localhost:3000/api/preferences', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(origin === undefined ? {} : { Origin: origin }),
+    },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   }) as unknown as NextRequest;
 }
@@ -36,6 +46,7 @@ describe('POST /api/preferences', () => {
     h.requireUserIdMock.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
     h.getPreferencesForUserMock.mockReset();
     h.upsertPreferenceMock.mockReset().mockResolvedValue(undefined);
+    h.logUsageEventMock.mockReset().mockResolvedValue(undefined);
   });
 
   it('returns 401 for an anonymous caller', async () => {
@@ -80,10 +91,33 @@ describe('POST /api/preferences', () => {
   });
 
   it('upserts the caller preference and returns 204', async () => {
-    const res = await POST(makeRequest(VALID_BODY));
+    const res = await POST(
+      makeRequest(VALID_BODY, 'http://localhost:3000'),
+    );
 
     expect(res.status).toBe(204);
     expect(await res.text()).toBe('');
     expect(h.upsertPreferenceMock).toHaveBeenCalledWith('user-1', 'sites.view', 'table');
+  });
+
+  it('allows a missing-provenance request', async () => {
+    const res = await POST(makeRequest(VALID_BODY));
+
+    expect(res.status).toBe(204);
+    expect(h.upsertPreferenceMock).toHaveBeenCalledOnce();
+  });
+
+  it('returns a mapped 403 for a cross-origin request', async () => {
+    const res = await POST(
+      makeRequest(VALID_BODY, 'https://foreign.example'),
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.headers.get('Content-Type')).toBe('application/problem+json');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      type: 'https://lgi.tools/problems/forbidden',
+      code: 'cross_origin',
+    });
+    expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
   });
 });

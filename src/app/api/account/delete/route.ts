@@ -30,7 +30,10 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!gate.ok) {
     return apiResponse(accountDeleteEndpoint, 401, gate.failure);
   }
-  requireSameOrigin(request);
+  const originCheck = requireSameOrigin(request);
+  if (!originCheck.ok) {
+    return apiResponse(accountDeleteEndpoint, 403, originCheck.failure);
+  }
   const session = gate.session;
 
   await nukeAccount(session.user.id);

@@ -32,6 +32,7 @@ export const feedbackEndpoint = defineEndpoint({
   responses: {
     204: emptyBody(),
     400: problem('invalid_json', 'invalid_body', 'message_empty', 'path_invalid'),
+    403: problem('cross_origin'),
     429: problem('rate_limited'),
     502: problem('discord_failed'),
     503: problem('feedback_unconfigured'),

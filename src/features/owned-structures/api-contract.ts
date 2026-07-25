@@ -102,7 +102,7 @@ export const setCorpStructureSharingEndpoint = defineEndpoint({
     200: jsonBody(corpStructureSharingResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
-    403: problem('not_corp_member', 'not_station_manager'),
+    403: problem('not_corp_member', 'not_station_manager', 'cross_origin'),
   },
 });
 
@@ -164,6 +164,6 @@ export const setCorpStructureRigsEndpoint = defineEndpoint({
     200: jsonBody(corpStructureRigsResponseSchema),
     400: problem('invalid_json', 'invalid_body', 'invalid_structure'),
     401: problem('unauthenticated'),
-    403: problem('not_corp_member', 'not_station_manager'),
+    403: problem('not_corp_member', 'not_station_manager', 'cross_origin'),
   },
 });

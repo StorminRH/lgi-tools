@@ -39,10 +39,16 @@ async function importRoute() {
   return await import('./route');
 }
 
-function buildRequest(body: unknown): NextRequest {
+function buildRequest(
+  body: unknown,
+  origin?: string,
+): NextRequest {
   return new NextRequest('http://localhost:3000/api/feedback', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      ...(origin === undefined ? {} : { origin }),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -96,7 +102,10 @@ describe('POST /api/feedback', () => {
 
     const { POST } = await importRoute();
     const res = await POST(
-      buildRequest({ message: 'sites browser is broken on C3 relic', path: '/sites?class=c3' }),
+      buildRequest(
+        { message: 'sites browser is broken on C3 relic', path: '/sites?class=c3' },
+        'http://localhost:3000',
+      ),
     );
 
     expect(res.status).toBe(204);
@@ -142,6 +151,25 @@ describe('POST /api/feedback', () => {
       characterId: null,
       metadata: { messageLength: 'love the changelog'.length, path: '/changelog' },
     });
+  });
+
+  it('returns a mapped 403 for a cross-origin request', async () => {
+    const { POST } = await importRoute();
+    const res = await POST(
+      buildRequest(
+        { message: 'hello', path: '/sites' },
+        'https://foreign.example',
+      ),
+    );
+
+    await expectProblem(
+      res,
+      403,
+      'cross_origin',
+      'Cross-origin requests are not allowed',
+    );
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 when message is empty after trim', async () => {

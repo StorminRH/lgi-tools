@@ -175,7 +175,7 @@ describe('POST /api/account/saved-plans', () => {
     expect(h.deleteSavedPlanMock).not.toHaveBeenCalled();
   });
 
-  it('keeps a cross-origin mutation successful when telemetry fails', async () => {
+  it('rejects a cross-origin mutation when telemetry fails', async () => {
     h.countSavedPlansMock
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER - 1)
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER);
@@ -184,8 +184,13 @@ describe('POST /api/account/saved-plans', () => {
 
     const res = await POST(makeRequest(VALID_BODY, 'https://foreign.example/private'));
 
-    expect(res.status).toBe(201);
-    expect(h.createSavedPlanMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(403);
+    expect(res.headers.get('Content-Type')).toBe('application/problem+json');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      type: 'https://lgi.tools/problems/forbidden',
+      code: 'cross_origin',
+    });
+    expect(h.createSavedPlanMock).not.toHaveBeenCalled();
     expect(h.logUsageEventMock).toHaveBeenCalledWith({
       action: 'cross_origin_mutation',
       metadata: {
