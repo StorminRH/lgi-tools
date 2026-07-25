@@ -39,6 +39,7 @@ export async function GET(): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
+    capability: 'account.save-preferences',
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, putPreferenceRequestSchema),
     handle: async ({ userId }, { key, value }) => {

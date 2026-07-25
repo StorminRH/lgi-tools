@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { getStructureFitNameIndex } from '@/data/eve-data/queries';
 import {
   parseStructureFitEndpoint,
@@ -18,7 +19,9 @@ import { readJsonBody } from '@/transport/route-body';
  * the clipboard has no resolvable structure header.
  */
 // authz: auth
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('structures.parse-structure-fit', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const gate = await checkUserId();
   if (!gate.ok) return apiResponse(parseStructureFitEndpoint, 401, gate.failure);
 

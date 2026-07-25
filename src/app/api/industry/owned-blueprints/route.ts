@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { getOwnedBlueprintDetailOnView } from '@/composition/sync/owned-blueprints-sync';
 import {
   ownedBlueprintsEndpoint,
@@ -22,7 +23,9 @@ import { readJsonBody } from '@/transport/route-body';
  * blueprints among those requested — an unowned one is simply absent.
  */
 // authz: auth
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('planner.read-owned-blueprints', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const parsed = await readJsonBody(request, ownedBlueprintsRequestSchema);
   if (!parsed.ok) return apiResponse(ownedBlueprintsEndpoint, 400, parsed.failure);
 

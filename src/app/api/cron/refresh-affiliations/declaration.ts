@@ -13,6 +13,7 @@ import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 export const refreshAffiliationsDeclaration: CronRouteDeclaration<CronRefreshAffiliationsResponse> = {
   name: 'cron:affiliations',
   action: 'cron_affiliations',
+  capability: 'cron.refresh-affiliations',
   wakeClass: 'batch',
   record: {
     policy: 'always',

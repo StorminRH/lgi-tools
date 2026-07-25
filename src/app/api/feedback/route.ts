@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/platform/auth/session';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
@@ -63,7 +64,9 @@ function buildEmbed({
  * happen.
  */
 // authz: public
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('feedback.submit-feedback', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const parsed = await readJsonBody(request, feedbackRequestSchema);
   if (!parsed.ok) return apiResponse(feedbackEndpoint, 400, parsed.failure);
 

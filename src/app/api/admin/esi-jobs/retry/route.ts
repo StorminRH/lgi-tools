@@ -1,9 +1,10 @@
 import type { NextRequest } from 'next/server';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contract';
 import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import { parseRange } from '@/composition/admin-period';
 import { checkAdmin } from '@/platform/auth/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
@@ -15,7 +16,9 @@ import { parseFormBody } from '@/transport/route-body';
  * idempotent superseded outcome.
  */
 // authz: admin
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('admin.requeue-esi-job', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const gate = await checkAdmin();
   if (!gate.ok) return problemResponse(gate.failure);
   const originCheck = requireSameOrigin(request);

@@ -9,7 +9,7 @@ import {
   unexpectedFailure,
   validationFailure,
 } from './failure';
-import { problemBody, problemBodySchema, problemResponse } from './problem';
+import { problemBody, problemBodySchema, serializeProblem } from './problem';
 
 describe('problem mapper', () => {
   it('maps every failure category to the complete stable problem shape', () => {
@@ -53,35 +53,36 @@ describe('problem mapper', () => {
     ).toBe(502);
   });
 
-  it('mints a fresh correlation id for each response', async () => {
-    const first = problemBodySchema.parse(await problemResponse(forbiddenFailure()).json());
-    const second = problemBodySchema.parse(await problemResponse(forbiddenFailure()).json());
-    expect(first.correlationId).not.toBe(second.correlationId);
-  });
-
-  it('keeps causes, stack traces, and raw dependency messages out of the body', async () => {
+  it('keeps causes, stack traces, and raw dependency messages out of the body', () => {
     const secret = 'internal-secret-dependency-message';
-    const response = problemResponse(unexpectedFailure('unexpected', new Error(secret)));
-    const body = await response.text();
+    const body = problemBody(
+      unexpectedFailure('unexpected', new Error(secret)),
+      'correlation-id',
+    );
 
-    expect(response.headers.get('Content-Type')).toBe('application/problem+json');
-    expect(body).not.toContain(secret);
-    expect(body).not.toContain('stack');
-    expect(problemBodySchema.parse(JSON.parse(body))).toEqual({
+    expect(JSON.stringify(body)).not.toContain(secret);
+    expect(JSON.stringify(body)).not.toContain('stack');
+    expect(problemBodySchema.parse(body)).toEqual({
       type: 'https://lgi.tools/problems/unexpected',
       title: 'Unexpected error',
       status: 500,
       code: 'unexpected',
-      correlationId: expect.any(String),
+      correlationId: 'correlation-id',
     });
   });
 
-  it('keeps Retry-After aligned with the problem body', async () => {
-    const response = problemResponse(rateLimitedFailure(14));
+  it('serializes with the problem content type and an aligned Retry-After header', async () => {
+    const response = serializeProblem(problemBody(rateLimitedFailure(14), 'correlation-id'));
     const body = problemBodySchema.parse(await response.json());
     expect(response.status).toBe(429);
+    expect(response.headers.get('Content-Type')).toBe('application/problem+json');
     expect(response.headers.get('Retry-After')).toBe('14');
     expect(body.retryAfterSeconds).toBe(14);
+  });
+
+  it('omits Retry-After when the failure declares none', () => {
+    const response = serializeProblem(problemBody(forbiddenFailure(), 'correlation-id'));
+    expect(response.headers.get('Retry-After')).toBeNull();
   });
 
   it.each([0, -1, 1.5])(

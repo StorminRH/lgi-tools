@@ -11,6 +11,7 @@ import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 export const refreshIndustryIndicesDeclaration: CronRouteDeclaration<CronRefreshIndustryIndicesResponse> = {
   name: 'cron:industry-indices',
   action: 'cron_industry_indices',
+  capability: 'cron.refresh-industry-indices',
   wakeClass: 'batch',
   record: {
     policy: 'always',

@@ -25,6 +25,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   return runMutationRoute(request, {
+    capability: 'account.revoke-own-sessions',
     authorize: checkSession,
     handle: async ({ session }) => {
       const revoked = await revokeUserSessions(session.user.id);

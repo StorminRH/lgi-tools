@@ -1,5 +1,7 @@
+import { runCapabilityRoute } from '@/app/api/capability-route';
+import type { CapabilityId } from '@/data/telemetry/capability';
 import type { AppFailure } from '@/lib/failure';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 
 /**
@@ -31,12 +33,22 @@ type ParseFunction = (
 ) => Promise<{ ok: true; data: unknown } | FailureResult>;
 type AuthorizationResult<T extends AuthorizationSuccess> = T | FailureResult;
 
-interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess> {
+/**
+ * Every mutation names the capability it serves. Required rather than optional so a new mutation
+ * route cannot ship unrecorded: omitting it is a compile error, not a silent gap.
+ */
+interface CapabilityOption {
+  capability: CapabilityId;
+}
+
+interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess>
+  extends CapabilityOption {
   authorize: () => Promise<AuthorizationResult<TAuthorization>>;
   handle: (authorization: TAuthorization) => MaybePromise<Response>;
 }
 
-interface BodyfulMutationOptions<TAuthorization extends AuthorizationSuccess, TBody> {
+interface BodyfulMutationOptions<TAuthorization extends AuthorizationSuccess, TBody>
+  extends CapabilityOption {
   authorize: () => Promise<AuthorizationResult<TAuthorization>>;
   parse: (
     request: Request,
@@ -44,10 +56,30 @@ interface BodyfulMutationOptions<TAuthorization extends AuthorizationSuccess, TB
   handle: (authorization: TAuthorization, body: TBody) => MaybePromise<Response>;
 }
 
-interface RuntimeMutationOptions {
+interface RuntimeMutationOptions extends CapabilityOption {
   authorize: AuthorizationFunction;
   parse?: ParseFunction;
   handle: (authorization: AuthorizationSuccess, body?: unknown) => MaybePromise<Response>;
+}
+
+// The stage ordering, extracted so the recording wrapper below adds no nesting.
+async function runStages(
+  request: Request,
+  runtime: RuntimeMutationOptions,
+): Promise<Response> {
+  const authorization = await runtime.authorize();
+  if (!authorization.ok) return problemResponse(authorization.failure);
+
+  const originCheck = requireSameOrigin(request);
+  if (!originCheck.ok) return problemResponse(originCheck.failure);
+
+  if (runtime.parse) {
+    const parsed = await runtime.parse(request);
+    if (!parsed.ok) return problemResponse(parsed.failure);
+    return runtime.handle(authorization, parsed.data);
+  }
+
+  return runtime.handle(authorization);
 }
 
 /**
@@ -67,21 +99,9 @@ export function runMutationRoute<TAuthorization extends AuthorizationSuccess>(
   request: Request,
   options: BodylessMutationOptions<TAuthorization>,
 ): Promise<Response>;
-export async function runMutationRoute(request: Request, options: unknown): Promise<Response> {
+export function runMutationRoute(request: Request, options: unknown): Promise<Response> {
   // The public signature couples each handler to its own guard and parser; this
   // runtime view only erases those generics after the caller has been checked.
   const runtime = options as RuntimeMutationOptions;
-  const authorization = await runtime.authorize();
-  if (!authorization.ok) return problemResponse(authorization.failure);
-
-  const originCheck = requireSameOrigin(request);
-  if (!originCheck.ok) return problemResponse(originCheck.failure);
-
-  if (runtime.parse) {
-    const parsed = await runtime.parse(request);
-    if (!parsed.ok) return problemResponse(parsed.failure);
-    return runtime.handle(authorization, parsed.data);
-  }
-
-  return runtime.handle(authorization);
+  return runCapabilityRoute(runtime.capability, () => runStages(request, runtime));
 }

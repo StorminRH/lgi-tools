@@ -10,6 +10,22 @@ vi.mock('@upstash/redis', () => ({
     constructor(opts: unknown) {
       redisCtorSpy(opts);
     }
+
+    async get(key: string): Promise<string> {
+      return `value:${key}`;
+    }
+
+    async fails(): Promise<never> {
+      throw new Error('redis down');
+    }
+
+    pipeline(): { get: () => unknown; exec: () => Promise<string[]> } {
+      const builder = {
+        get: () => builder,
+        exec: async () => ['piped'],
+      };
+      return builder;
+    }
   },
 }));
 
@@ -171,5 +187,67 @@ describe('resolveUpstashRest', () => {
     const { resolveUpstashRest } = await importUpstash();
 
     expect(resolveUpstashRest()).toBeNull();
+  });
+});
+
+describe('Redis command timing', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    redisCtorSpy.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  async function timedClient() {
+    const { createUpstashClient } = await importUpstash();
+    const { setDependencyTimingSink } = await import('./dependency-timing');
+    const recorded: Array<[string, number]> = [];
+    setDependencyTimingSink((kind, ms) => {
+      recorded.push([kind, ms]);
+    });
+    const client = createUpstashClient({
+      url: 'https://example.upstash.io',
+      token: 'token',
+      timeoutMs: 1_000,
+      retries: 0,
+    }) as unknown as {
+      get: (key: string) => Promise<string>;
+      fails: () => Promise<never>;
+      pipeline: () => { get: () => unknown; exec: () => Promise<string[]> };
+    };
+    return { client, recorded, setDependencyTimingSink };
+  }
+
+  it('records one redis timing per command and returns the real value', async () => {
+    const { client, recorded } = await timedClient();
+
+    await expect(client.get('k')).resolves.toBe('value:k');
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]?.[0]).toBe('redis');
+    expect(recorded[0]?.[1]).toBeGreaterThanOrEqual(0);
+  });
+
+  it('records a failed command and still rejects for the caller', async () => {
+    const { client, recorded } = await timedClient();
+
+    await expect(client.fails()).rejects.toThrow('redis down');
+
+    expect(recorded.map(([kind]) => kind)).toEqual(['redis']);
+  });
+
+  it('times a pipeline on exec rather than on each chained command', async () => {
+    const { client, recorded } = await timedClient();
+
+    const pipeline = client.pipeline();
+    pipeline.get();
+    pipeline.get();
+    expect(recorded).toEqual([]);
+
+    await expect(pipeline.exec()).resolves.toEqual(['piped']);
+    expect(recorded.map(([kind]) => kind)).toEqual(['redis']);
   });
 });

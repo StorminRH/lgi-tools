@@ -20,8 +20,11 @@ vi.mock('@/db/advisory-lock', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
+// `after` runs inline so the capability row this shell schedules is observable
+// on the same `logUsageEvent` mock as its UsageAction row.
 vi.mock('next/server', () => ({
   connection: (...args: unknown[]) => connectionMock(...args),
+  after: (fn: () => unknown) => fn(),
 }));
 
 import { defineCronRoute } from './cron-gate';
@@ -53,6 +56,7 @@ describe('defineCronRoute', () => {
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron:test',
       action: 'cron_prices',
+      capability: 'cron.refresh-prices' as const,
       wakeClass: 'batch',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test route is lock-free' },
@@ -89,12 +93,13 @@ describe('defineCronRoute', () => {
         return { busy: false, result: await work(reservedTag) };
       },
     );
-    logUsageEventMock.mockImplementation(async () => {
-      order.push('telemetry');
+    logUsageEventMock.mockImplementation(async (input: { action: string }) => {
+      order.push(input.action === 'capability_outcome' ? 'capability' : 'telemetry');
     });
     const GET = defineCronRoute<{ status: string }, string>({
       name: 'cron:test',
       action: 'cron_prices',
+      capability: 'cron.refresh-prices' as const,
       wakeClass: 'batch',
       record: {
         policy: 'always',
@@ -137,6 +142,7 @@ describe('defineCronRoute', () => {
       'preLock',
       'lock',
       'work',
+      'capability',
       'telemetry',
     ]);
   });
@@ -151,6 +157,7 @@ describe('defineCronRoute', () => {
     }>({
       name: 'cron:test',
       action: 'cron_sync_sweeper',
+      capability: 'cron.sync-sweeper' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: {
@@ -204,6 +211,7 @@ describe('defineCronRoute', () => {
     }>({
       name: 'cron:test',
       action: 'cron_prices',
+      capability: 'cron.refresh-prices' as const,
       wakeClass: 'batch',
       record: {
         policy: 'always',
@@ -241,6 +249,7 @@ describe('defineCronRoute', () => {
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron:test',
       action: 'cron_sync_sweeper',
+      capability: 'cron.sync-sweeper' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: {
@@ -263,6 +272,7 @@ describe('defineCronRoute', () => {
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron:test',
       action: 'cron_prices',
+      capability: 'cron.refresh-prices' as const,
       wakeClass: 'batch',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test route is lock-free' },
@@ -288,6 +298,7 @@ describe('defineCronRoute', () => {
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron:test',
       action: 'cron_sde',
+      capability: 'cron.refresh-sde' as const,
       wakeClass: 'batch',
       record: {
         policy: 'always',
@@ -328,6 +339,7 @@ describe('defineCronRoute', () => {
     const GET = defineCronRoute({
       name: 'cron:test',
       action: 'cron_sync_sweeper',
+      capability: 'cron.sync-sweeper' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'watchdog has no Neon lock' },
@@ -358,6 +370,7 @@ describe('defineCronRoute', () => {
     const GET = defineCronRoute({
       name: 'cron:test',
       action: 'cron_sync_sweeper',
+      capability: 'cron.sync-sweeper' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'watchdog has no Neon lock' },
@@ -386,6 +399,7 @@ describe('defineCronRoute', () => {
     const GET = defineCronRoute({
       name: 'cron:test',
       action: 'cron_sync_sweeper',
+      capability: 'cron.sync-sweeper' as const,
       wakeClass: 'idle-silent',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'watchdog has no Neon lock' },
@@ -409,6 +423,7 @@ describe('defineCronRoute', () => {
     const GET = defineCronRoute({
       name: 'cron:test',
       action: 'cron_prices',
+      capability: 'cron.refresh-prices' as const,
       wakeClass: 'batch',
       record: { policy: 'noteworthy' },
       lock: { mode: 'none', justification: 'test route is lock-free' },
@@ -430,5 +445,113 @@ describe('defineCronRoute', () => {
       '[cron:test] telemetry write failed',
       expect.any(Error),
     );
+  });
+});
+
+describe('defineCronRoute capability recording', () => {
+  beforeEach(() => {
+    withAdvisoryLockMock.mockReset();
+    logUsageEventMock.mockReset().mockResolvedValue(undefined);
+    connectionMock.mockReset().mockResolvedValue(undefined);
+    vi.stubEnv('CRON_SECRET', 'test-secret');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  function capabilityRows() {
+    return logUsageEventMock.mock.calls
+      .map(([input]) => input as { action: string; metadata: Record<string, unknown> })
+      .filter((input) => input.action === 'capability_outcome');
+  }
+
+  it('records a work-completing run as succeeded with its dependency time', async () => {
+    const GET = defineCronRoute<{ status: string }>({
+      name: 'cron/prices',
+      action: 'cron_prices',
+      capability: 'cron.refresh-prices' as const,
+      wakeClass: 'batch',
+      record: { policy: 'noteworthy' },
+      lock: { mode: 'none', justification: 'test' },
+      work: async (ctx) => {
+        // A statement on the shared direct client, exactly as a real cron runs.
+        await ctx.client.reserve();
+        return { outcome: 'refreshed', workDone: true, body: { status: 'ok' } };
+      },
+    });
+
+    await GET(authedRequest());
+
+    const rows = capabilityRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.metadata).toMatchObject({
+      feature: 'cron',
+      operation: 'refresh-prices',
+      outcome: 'succeeded',
+      code: 'ok',
+      retry: null,
+    });
+    expect(rows[0]?.metadata.durationMs).toEqual(expect.any(Number));
+  });
+
+  it('records a thrown stage with its mapped failure category', async () => {
+    const GET = defineCronRoute<unknown>({
+      name: 'cron/sweeper',
+      action: 'cron_sync_sweeper',
+      capability: 'cron.sync-sweeper' as const,
+      wakeClass: 'idle-silent',
+      record: { policy: 'noteworthy' },
+      lock: { mode: 'none', justification: 'test' },
+      work: async () => {
+        throw new Error('stage exploded');
+      },
+    });
+
+    await expect(GET(authedRequest())).rejects.toThrow('stage exploded');
+
+    const rows = capabilityRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.metadata).toMatchObject({ outcome: 'unexpected', code: 'unexpected' });
+  });
+
+  it('writes zero rows for an idle run, preserving the idle-silent contract', async () => {
+    const GET = defineCronRoute<{ status: string }>({
+      name: 'cron/sweeper',
+      action: 'cron_sync_sweeper',
+      capability: 'cron.sync-sweeper' as const,
+      wakeClass: 'idle-silent',
+      record: { policy: 'noteworthy' },
+      lock: { mode: 'none', justification: 'test' },
+      idle: {
+        probe: async () => ({ idle: true }),
+        body: () => ({ status: 'idle' }),
+      },
+      work: async () => ({ outcome: 'refreshed', workDone: true, body: { status: 'ok' } }),
+    });
+
+    await GET(authedRequest());
+
+    expect(logUsageEventMock).not.toHaveBeenCalled();
+  });
+
+  it('writes zero rows for a busy (lock-contended) run', async () => {
+    withAdvisoryLockMock.mockResolvedValue({ busy: true });
+    const GET = defineCronRoute<{ status: string }>({
+      name: 'cron/sweeper',
+      action: 'cron_sync_sweeper',
+      capability: 'cron.sync-sweeper' as const,
+      wakeClass: 'idle-silent',
+      record: { policy: 'noteworthy' },
+      lock: { key: 42, busyBody: () => ({ status: 'busy' }) },
+      work: async () => ({ outcome: 'refreshed', workDone: true, body: { status: 'ok' } }),
+    });
+
+    await GET(authedRequest());
+
+    expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 });

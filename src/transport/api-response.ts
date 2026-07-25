@@ -1,5 +1,6 @@
 import { isAppFailure, type AppFailure } from '@/lib/failure';
 import { problemBody, serializeProblem } from '@/lib/problem';
+import { currentCorrelationId, stashFailure } from './correlation';
 import type {
   DeclaredStatus,
   EmptyCodec,
@@ -61,11 +62,21 @@ export function apiResponse(
   if (codec.codes.length > 0 && !codec.codes.includes(value.code)) {
     throw new Error(`Status ${status} does not declare problem code ${value.code}`);
   }
-  const mapped = problemBody(value, crypto.randomUUID());
+  const mapped = problemBody(value, currentCorrelationId());
   if (mapped.status !== status) {
     throw new Error(
       `Failure ${value.category} maps to ${mapped.status}, not declared status ${status}`,
     );
   }
+  stashFailure(value);
   return serializeProblem(mapped);
+}
+
+/**
+ * Maps one typed failure to its safe delivery-boundary problem response, reusing the operation's
+ * ambient correlation id so the id the user is shown is the id recorded against the operation.
+ */
+export function problemResponse(failure: AppFailure): Response {
+  stashFailure(failure);
+  return serializeProblem(problemBody(failure, currentCorrelationId()));
 }

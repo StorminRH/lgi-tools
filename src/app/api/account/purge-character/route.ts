@@ -34,6 +34,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   return runMutationRoute(request, {
+    capability: 'account.purge-character',
     authorize: checkSession,
     parse: async (incoming) => {
       const parsed = await readJsonBody(incoming, purgeCharacterRequestSchema);

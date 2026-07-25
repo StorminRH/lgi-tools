@@ -2,10 +2,17 @@
 // work → telemetry ordering. Routes declare policy and supply domain work;
 // none reassemble the lifecycle or reach its lower-level primitives directly.
 import type { Sql } from '@/db';
+import {
+  capabilityResultForError,
+  recordCapabilityOutcome,
+  type CapabilityId,
+  type CapabilityResult,
+} from '@/data/telemetry/capability';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
 import { directClient } from '@/db';
 import { requireCronAuth } from '@/transport/cron';
+import { withCorrelationScope } from '@/transport/correlation';
 import {
   withAdvisoryLock,
   type ReservedConnection,
@@ -63,6 +70,7 @@ export type CronRunOutcome<Body> = {
 export type CronRouteDeclaration<Body, Pre = void> = {
   name: string;
   action: UsageAction;
+  capability: CapabilityId;
   wakeClass: CronWakeClass;
   record:
     | { policy: 'noteworthy' }
@@ -112,7 +120,7 @@ function workContext(
 
 type CronRecordingDeclaration = Pick<
   CronRouteDeclaration<unknown, unknown>,
-  'name' | 'action' | 'record'
+  'name' | 'action' | 'record' | 'capability'
 >;
 
 type CronRecordedOutcome = Pick<
@@ -120,10 +128,18 @@ type CronRecordedOutcome = Pick<
   'outcome' | 'workDone' | 'telemetry'
 >;
 
+/**
+ * Emits one run's boundary line, then its durable rows under the declared recording policy. The
+ * capability row obeys that same policy rather than firing per run, so an `idle` or `busy` no-op
+ * still touches zero Neon and the `idle-silent` wake-class contract holds. The cron's own outcome
+ * vocabulary (`idle`, `busy`, `refreshed`, …) stays in the `UsageAction` row's metadata; the
+ * capability record's `outcome` is closed to the shared failure taxonomy plus `succeeded`.
+ */
 async function emitRun(
   declaration: CronRecordingDeclaration,
   outcome: CronRecordedOutcome,
   durationMs: number,
+  capabilityResult: CapabilityResult = { outcome: 'succeeded', code: 'ok' },
   forceRecord = false,
 ): Promise<void> {
   const metadata = {
@@ -138,6 +154,11 @@ async function emitRun(
     || declaration.record.policy === 'always'
     || outcome.workDone
   ) {
+    recordCapabilityOutcome(declaration.capability, {
+      ...capabilityResult,
+      durationMs,
+      retry: null,
+    });
     await recordUsage(declaration.name, declaration.action, metadata);
   }
 }
@@ -151,13 +172,100 @@ async function finishRun<Body, Pre>(
   return Response.json(outcome.body);
 }
 
+// Owns stage ordering, duration capture, the every-run structured boundary line,
+// the recording-policy-gated durable rows, the busy response, and failure
+// recording. Extracted from the returned handler so wrapping the run in a
+// correlation scope adds no nesting to the ordering below.
+async function runDeclaredCron<Body, Pre>(
+  declaration: CronRouteDeclaration<Body, Pre>,
+): Promise<Response> {
+  const started = Date.now();
+
+  try {
+    if (declaration.idle) {
+      const idle = await declaration.idle.probe();
+      if (idle.idle) {
+        const durationMs = Date.now() - started;
+        return finishRun(
+          declaration,
+          {
+            outcome: 'idle',
+            workDone: false,
+            telemetry: idle.telemetry,
+            body: declaration.idle.body(durationMs),
+          },
+          durationMs,
+        );
+      }
+    }
+
+    const baseContext = workContext(declaration.name);
+    let pre = undefined as Pre;
+    if (declaration.preLock) {
+      const gate = await declaration.preLock(baseContext);
+      if ('done' in gate) {
+        return finishRun(
+          declaration,
+          gate.done,
+          Date.now() - started,
+        );
+      }
+      pre = gate.proceed;
+    }
+
+    if ('mode' in declaration.lock) {
+      const outcome = await declaration.work(baseContext, pre);
+      return finishRun(
+        declaration,
+        outcome,
+        Date.now() - started,
+      );
+    }
+
+    const lockOutcome = await withAdvisoryLock(
+      directClient,
+      declaration.lock.key,
+      (reserved) =>
+        declaration.work(
+          workContext(declaration.name, reserved),
+          pre,
+        ),
+    );
+    const durationMs = Date.now() - started;
+    if (lockOutcome.busy) {
+      return finishRun(
+        declaration,
+        {
+          outcome: 'busy',
+          workDone: false,
+          body: declaration.lock.busyBody(durationMs),
+        },
+        durationMs,
+      );
+    }
+    return finishRun(
+      declaration,
+      lockOutcome.result,
+      durationMs,
+    );
+  } catch (err) {
+    await emitRun(
+      declaration,
+      {
+        outcome: 'failed',
+        workDone: false,
+      },
+      Date.now() - started,
+      capabilityResultForError(err),
+      true,
+    );
+    throw err;
+  }
+}
+
 /**
- * Builds the GET handler for one declared cron route. Owns bearer auth, stage
- * ordering, duration capture, the every-run structured boundary line, the
- * recording-policy-gated durable telemetry row, the busy response, and failure
- * recording. A thrown stage is recorded as a failure and then rethrown so the
- * platform response remains a 500. Route files keep only their static segment
- * config and export the returned handler as `GET`.
+ * Builds the GET handler for one declared cron route. Bearer auth runs outside the correlation
+ * scope so an unauthenticated probe never records a run.
  */
 export function defineCronRoute<Body, Pre = void>(
   declaration: CronRouteDeclaration<Body, Pre>,
@@ -165,87 +273,6 @@ export function defineCronRoute<Body, Pre = void>(
   return async (req) => {
     const denied = await requireCronAuth(req);
     if (denied) return denied;
-
-    const started = Date.now();
-
-    try {
-      if (declaration.idle) {
-        const idle = await declaration.idle.probe();
-        if (idle.idle) {
-          const durationMs = Date.now() - started;
-          return finishRun(
-            declaration,
-            {
-              outcome: 'idle',
-              workDone: false,
-              telemetry: idle.telemetry,
-              body: declaration.idle.body(durationMs),
-            },
-            durationMs,
-          );
-        }
-      }
-
-      const baseContext = workContext(declaration.name);
-      let pre = undefined as Pre;
-      if (declaration.preLock) {
-        const gate = await declaration.preLock(baseContext);
-        if ('done' in gate) {
-          return finishRun(
-            declaration,
-            gate.done,
-            Date.now() - started,
-          );
-        }
-        pre = gate.proceed;
-      }
-
-      if ('mode' in declaration.lock) {
-        const outcome = await declaration.work(baseContext, pre);
-        return finishRun(
-          declaration,
-          outcome,
-          Date.now() - started,
-        );
-      }
-
-      const lockOutcome = await withAdvisoryLock(
-        directClient,
-        declaration.lock.key,
-        (reserved) =>
-          declaration.work(
-            workContext(declaration.name, reserved),
-            pre,
-          ),
-      );
-      const durationMs = Date.now() - started;
-      if (lockOutcome.busy) {
-        return finishRun(
-          declaration,
-          {
-            outcome: 'busy',
-            workDone: false,
-            body: declaration.lock.busyBody(durationMs),
-          },
-          durationMs,
-        );
-      }
-      return finishRun(
-        declaration,
-        lockOutcome.result,
-        durationMs,
-      );
-    } catch (err) {
-      await emitRun(
-        declaration,
-        {
-          outcome: 'failed',
-          workDone: false,
-        },
-        Date.now() - started,
-        true,
-      );
-      throw err;
-    }
+    return withCorrelationScope(() => runDeclaredCron(declaration));
   };
 }

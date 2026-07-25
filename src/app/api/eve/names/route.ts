@@ -8,6 +8,7 @@ import {
   entityNamesEndpoint,
   entityNamesRequestSchema,
 } from '@/data/eve-data/api-contract';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
@@ -16,7 +17,9 @@ import { readJsonBody } from '@/transport/route-body';
  * Handles POST requests for /api/eve/names; this route owns its authorization, boundary
  * validation, and typed response mapping.
  */
-export async function POST(req: Request): Promise<Response> {
+export const POST = capabilityRoute('planner.resolve-entity-names', handlePost);
+
+async function handlePost(req: Request): Promise<Response> {
   const parsed = await readJsonBody(req, entityNamesRequestSchema);
   if (!parsed.ok) return apiResponse(entityNamesEndpoint, 400, parsed.failure);
 

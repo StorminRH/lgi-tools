@@ -20,7 +20,7 @@ const CORE_EXPORTS = new Map([
 ]);
 
 const DELIVERY_WRAPPERS = new Set([
-  'src/lib/service-auth.ts:requireBearerSecret',
+  'src/transport/cron.ts:requireBearerSecret',
   'src/transport/cron.ts:requireCronAuth',
 ]);
 
@@ -28,7 +28,7 @@ const PROTECTED_RESPONSE_EXPORTS = new Set([
   ...DELIVERY_WRAPPERS,
   'src/lib/discord.ts:postDiscordWebhook',
   'src/lib/fetch-with-timeout.ts:fetchWithTimeout',
-  'src/lib/problem.ts:problemResponse',
+  'src/transport/api-response.ts:problemResponse',
   'src/lib/problem.ts:serializeProblem',
   'src/platform/auth/absorb-redirect.ts:decorateAbsorbRedirect',
   'src/transport/api-response.ts:apiResponse',
@@ -357,7 +357,7 @@ const appFailureType = declaredType(
 describe('guard and parser emission boundaries', () => {
   it('pins the exact delivery-wrapper allowlist', () => {
     expect([...DELIVERY_WRAPPERS].sort()).toEqual([
-      'src/lib/service-auth.ts:requireBearerSecret',
+      'src/transport/cron.ts:requireBearerSecret',
       'src/transport/cron.ts:requireCronAuth',
     ]);
   });

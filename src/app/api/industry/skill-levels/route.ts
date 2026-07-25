@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { getSkillLevelsForCharacterOnView } from '@/composition/sync/skills-sync';
 import { getCurrentUserId } from '@/platform/auth/session';
 import {
@@ -22,7 +23,9 @@ import { readJsonBody } from '@/transport/route-body';
  * `levels: null` (200): the planner fails open to the no-skill baseline.
  */
 // authz: auth
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('planner.read-skill-levels', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const parsed = await readJsonBody(request, skillLevelsRequestSchema);
   if (!parsed.ok) return apiResponse(skillLevelsEndpoint, 400, parsed.failure);
 

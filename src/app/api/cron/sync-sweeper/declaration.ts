@@ -14,6 +14,7 @@ import { isNoteworthySweep } from './noteworthy';
 export const syncSweeperDeclaration: CronRouteDeclaration<CronSyncSweeperResponse> = {
   name: 'cron:sync-sweeper',
   action: 'cron_sync_sweeper',
+  capability: 'cron.sync-sweeper',
   wakeClass: 'idle-silent',
   record: { policy: 'noteworthy' },
   lock: {

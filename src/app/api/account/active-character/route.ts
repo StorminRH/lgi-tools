@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { switchCharacterFormSchema } from '@/platform/auth/api-contract';
 import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked-characters';
@@ -24,6 +24,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!limit.ok) return problemResponse(limit.failure);
 
   return runMutationRoute(request, {
+    capability: 'account.switch-active-character',
     authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,

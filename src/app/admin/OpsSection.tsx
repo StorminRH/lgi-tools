@@ -21,6 +21,12 @@ import {
   fallbackSummary,
 } from '@/data/telemetry/health-metrics';
 import { getDegradationByCaller } from '@/data/telemetry/queries';
+import {
+  getCriticalLatencyP95,
+  getEsiSuccessRate,
+  getMutationSuccessRate,
+  getReadSuccessRate,
+} from '@/data/telemetry/sli-queries';
 import type {
   DateRange,
   DegradationCallerCount,
@@ -38,7 +44,9 @@ import {
   deriveBudgetView,
   deriveCostLensView,
   deriveDeadLetterView,
+  deriveJobBacklog,
   deriveQueueView,
+  deriveSliView,
   summarizeDomainEvent,
   type OpsMetricRow,
 } from './ops-view';
@@ -81,6 +89,48 @@ function DetailBlock({ label, children }: { label: string; children: ReactNode }
       <div className="mb-2 text-label tracking-display uppercase text-muted">{label}</div>
       {children}
     </div>
+  );
+}
+
+async function SliPanel({ range }: { range: DateRange }) {
+  const fetched = await loadSection('service-indicators', () =>
+    Promise.all([
+      getReadSuccessRate(range),
+      getMutationSuccessRate(range),
+      getCriticalLatencyP95(range),
+      getEsiSuccessRate(range),
+      getEsiRefreshQueueStats(),
+    ]),
+  );
+  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Service indicators" />;
+  const [readRate, mutationRate, latencyP95, esiRate, queueStats] = fetched;
+  const rows = deriveSliView({
+    read_success_rate: readRate,
+    mutation_success_rate: mutationRate,
+    critical_latency_p95: latencyP95,
+    esi_success_rate: esiRate,
+    job_backlog: deriveJobBacklog(queueStats),
+  });
+  return (
+    <Card>
+      <SectionHeader size="md" label="Service indicators" hint="owner and response action" />
+      <table className="w-full font-mono text-ui tabular-nums">
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className="border-t border-border-soft first:border-t-0">
+              <th scope="row" className="px-3.5 py-2 text-left font-normal align-top">
+                <span className="block text-text">{row.label}</span>
+                <span className="block text-micro text-muted">{row.responseAction}</span>
+              </th>
+              <td className="px-3.5 py-2 text-right align-top text-name">{row.value}</td>
+              <td className="px-3.5 py-2 text-right align-top text-micro text-muted hidden md:table-cell">
+                {row.owner}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
   );
 }
 
@@ -285,6 +335,9 @@ async function EventPanel() {
 export function OpsSection({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Suspense fallback={<OpsCardFallback label="Service indicators" />}>
+        <SliPanel range={range} />
+      </Suspense>
       <Suspense fallback={<OpsCardFallback label="ESI error budget" />}>
         <BudgetPanel />
       </Suspense>

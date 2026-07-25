@@ -30,6 +30,7 @@ describe('runMutationRoute', () => {
     const handle = vi.fn();
 
     const result = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
       authorize: async () => ({
         ok: false,
         failure: unauthenticatedFailure(),
@@ -57,6 +58,7 @@ describe('runMutationRoute', () => {
     });
 
     const result = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
       authorize: async () => {
         calls.push('authorize');
         return authorization;
@@ -84,6 +86,7 @@ describe('runMutationRoute', () => {
     });
 
     const result = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
       authorize: async () => ({ ok: true as const, userId: 'user-1' }),
       parse,
       handle,
@@ -104,6 +107,7 @@ describe('runMutationRoute', () => {
     const handle = vi.fn();
 
     const result = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
       authorize: async () => ({ ok: true as const, userId: 'user-1' }),
       parse: async () => ({
         ok: false,
@@ -132,6 +136,7 @@ describe('runMutationRoute', () => {
     });
 
     const result = await runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
       authorize: async () => {
         calls.push('authorize');
         return authorization;
@@ -156,6 +161,7 @@ describe('runMutationRoute', () => {
     const error = new Error('mutation failed');
 
     await expect(runMutationRoute(request(), {
+      capability: 'planner.create-saved-plan',
       authorize: async () => ({ ok: true as const, userId: 'user-1' }),
       handle: () => {
         throw error;

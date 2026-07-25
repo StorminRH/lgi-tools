@@ -16,6 +16,7 @@ import { swallow } from '@/transport/cron';
 export const refreshPricesDeclaration: CronRouteDeclaration<CronRefreshPricesResponse> = {
   name: 'cron:prices',
   action: 'cron_prices',
+  capability: 'cron.refresh-prices',
   wakeClass: 'batch',
   record: {
     policy: 'always',

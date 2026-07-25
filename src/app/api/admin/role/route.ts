@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import {
   ADMIN_ACCESS_QUERY_MAX_LENGTH,
   adminRoleFormSchema,
@@ -33,7 +34,9 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
  * of truth for who can mutate roles.
  */
 // authz: admin
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('admin.set-user-role', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const gate = await checkAdmin();
   if (!gate.ok) return problemResponse(gate.failure);
   const viewerUserId = gate.session.user.id;

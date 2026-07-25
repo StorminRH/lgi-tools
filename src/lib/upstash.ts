@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { addDependencyTiming } from '@/lib/dependency-timing';
 import { readEnv } from '@/lib/env';
 
 // The single Upstash Redis construction owner. Every consumer resolves its
@@ -56,22 +57,71 @@ function timeoutSignal(timeoutMs: number): AbortSignal {
   return controller.signal;
 }
 
+// The SDK exposes no per-command completion hook and no injectable fetch, so
+// Redis cost is measured by wrapping the client handle. `Date.now()` rather than
+// `performance.now()` because this module is reachable from the Convex isolate,
+// whose runtime this code must not assume beyond the ES basics — these are
+// network round-trips, so millisecond resolution loses nothing. In Convex no
+// sink is installed, so `addDependencyTiming` is a no-op there.
+function timeRedisSettlement<T>(result: T, startedAt: number): T {
+  if (
+    typeof result !== 'object'
+    || result === null
+    || typeof (result as { then?: unknown }).then !== 'function'
+  ) {
+    return result;
+  }
+  const record = (): void => {
+    addDependencyTiming('redis', Date.now() - startedAt);
+  };
+  void (result as unknown as PromiseLike<unknown>).then(record, record);
+  return result;
+}
+
+/**
+ * Wraps a Redis handle so every command's elapsed milliseconds are recorded against the active
+ * operation. `pipeline()` and `multi()` hand back a builder whose commands chain by returning the
+ * builder itself and whose cost lands entirely on `exec()`, so the builder is wrapped too and a
+ * self-returning chain call is answered with the wrapper rather than the bare handle.
+ */
+function withCommandTiming<T extends object>(client: T): T {
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop) as unknown;
+      if (typeof value !== 'function') return value;
+      const method = value.bind(target) as (...args: unknown[]) => unknown;
+      return (...args: unknown[]): unknown => {
+        const startedAt = Date.now();
+        const result = method(...args);
+        if (result === target) return receiver;
+        if (prop === 'pipeline' || prop === 'multi') {
+          return withCommandTiming(result as object);
+        }
+        return timeRedisSettlement(result, startedAt);
+      };
+    },
+  });
+}
+
 /**
  * Constructs the app's only Upstash Redis client shape: a per-request timeout
  * signal and an explicit retry count. A timed-out command rejects with the
  * SDK's `TimeoutError` — the SDK rethrows a function-form signal's abort
  * immediately, so `retries` covers transient non-abort network errors only.
+ * The returned handle records each command's duration as `redis` dependency cost.
  */
 export function createUpstashClient(config: UpstashClientConfig): UpstashRedis {
-  return new Redis({
-    url: config.url,
-    token: config.token,
-    automaticDeserialization: config.automaticDeserialization,
-    // Invoked once per request, outside the SDK's retry loop, so the bound
-    // spans the whole attempt sequence rather than each attempt.
-    signal: () => timeoutSignal(config.timeoutMs),
-    retry: { retries: config.retries },
-  });
+  return withCommandTiming(
+    new Redis({
+      url: config.url,
+      token: config.token,
+      automaticDeserialization: config.automaticDeserialization,
+      // Invoked once per request, outside the SDK's retry loop, so the bound
+      // spans the whole attempt sequence rather than each attempt.
+      signal: () => timeoutSignal(config.timeoutMs),
+      retry: { retries: config.retries },
+    }),
+  );
 }
 
 /**
