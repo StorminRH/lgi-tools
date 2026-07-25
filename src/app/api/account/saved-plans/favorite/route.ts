@@ -20,6 +20,7 @@ import { readJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
+    capability: 'planner.favorite-saved-plan',
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, favoriteSavedPlanRequestSchema),
     handle: async ({ userId }, { id, favorite }) => {

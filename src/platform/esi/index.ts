@@ -1,3 +1,4 @@
+import { addDependencyTiming } from '@/lib/dependency-timing';
 import {
   consultPreDispatch,
   dispatch,
@@ -103,5 +104,14 @@ export async function esiFetch(
     if (cached !== null) return cached;
   }
 
-  return dispatch(url, init, wantEtag, liveSb, etagMeta);
+  // Only the dispatch is ESI cost: a cache-window serve above performs no
+  // upstream round-trip, so recording it would overstate the dependency. The
+  // clock is `Date.now()` because this module is reachable from the Convex
+  // isolate, where the timing hook is an installed-sink-free no-op anyway.
+  const startedAt = Date.now();
+  try {
+    return await dispatch(url, init, wantEtag, liveSb, etagMeta);
+  } finally {
+    addDependencyTiming('esi', Date.now() - startedAt);
+  }
 }

@@ -23,6 +23,7 @@ import { readJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
+    capability: 'structures.set-corp-structure-sharing',
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, setCorpStructureSharingRequestSchema),
     handle: async ({ userId }, { corporationId, enabled }) => {

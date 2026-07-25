@@ -35,6 +35,7 @@ import { swallow } from '@/transport/cron';
 export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse> = {
   name: 'cron:gsc',
   action: 'cron_gsc',
+  capability: 'cron.refresh-gsc',
   wakeClass: 'batch',
   record: {
     policy: 'always',

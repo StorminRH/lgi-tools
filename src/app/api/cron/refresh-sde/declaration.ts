@@ -31,6 +31,7 @@ export const refreshSdeDeclaration: CronRouteDeclaration<
 > = {
   name: 'cron:sde',
   action: 'cron_sde',
+  capability: 'cron.refresh-sde',
   wakeClass: 'batch',
   record: {
     policy: 'always',

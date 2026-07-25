@@ -4,7 +4,7 @@ import { runWithAbsorbTracking } from '@/platform/auth/absorb-context';
 import { decorateAbsorbRedirect } from '@/platform/auth/absorb-redirect';
 import { auth } from '@/platform/auth/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 
 // Better Auth's catch-all: login (EVE OAuth start + callback), sign-out, and
 // get-session all mount under /api/auth/*. These are public auth endpoints —

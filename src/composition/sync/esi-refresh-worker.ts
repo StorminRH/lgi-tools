@@ -16,6 +16,13 @@ import {
 } from '@/data/esi-refresh-jobs/queries';
 import { writeBackPendingWorkSignal } from '@/data/esi-refresh-jobs/pending-signal';
 import { emitDomainEvent } from '@/data/domain-events/queries';
+import {
+  capabilityResultForError,
+  recordCapabilityOutcome,
+  type CapabilityResult,
+  type CapabilityRetry,
+} from '@/data/telemetry/capability';
+import { withCorrelationScope } from '@/transport/correlation';
 import type { EsiRefreshWorkerSummary } from '@/data/esi-refresh-jobs/api-contract';
 import type {
   EsiRefreshDataset,
@@ -112,7 +119,71 @@ async function alertDeadLetter(
   );
 }
 
-async function processJob(
+// The queue's own outcome vocabulary mapped onto the shared failure taxonomy.
+// The queue statuses stay authoritative for retry scheduling; this is only how
+// the run is described in the capability record.
+function capabilityResultForJob(outcome: ProcessJobOutcome): CapabilityResult {
+  switch (outcome.status) {
+    case 'succeeded':
+      return { outcome: 'succeeded', code: 'ok' };
+    case 'deferred_for_budget':
+      return { outcome: 'rate_limited', code: 'deferred_for_budget' };
+    case 'failed_permanent':
+      return { outcome: 'unexpected', code: outcome.failureCode ?? 'unexpected' };
+    case 'failed_retryable':
+    case 'dead_lettered':
+      return {
+        outcome: 'dependency_unavailable',
+        code: outcome.failureCode ?? 'unexpected',
+      };
+  }
+}
+
+function jobRetry(outcome: ProcessJobOutcome): CapabilityRetry {
+  return {
+    attempt: outcome.status === 'deferred_for_budget' ? 0 : outcome.attemptCount,
+    maxAttempts: ESI_REFRESH_JOB_MAX_ATTEMPTS,
+    rateLimited: outcome.status === 'deferred_for_budget',
+  };
+}
+
+/**
+ * Runs one job inside its own correlation scope so the ESI and Neon time it spends is attributed to
+ * that job alone, and records exactly one capability row for it. Retry, recovery, and alerting
+ * behavior is unchanged: the record describes the run, it does not decide it.
+ */
+function processJob(job: EsiRefreshJob, now: Date): Promise<ProcessJobOutcome> {
+  return withCorrelationScope(async () => {
+    const startedAt = performance.now();
+    try {
+      const outcome = await runJob(job, now);
+      recordCapabilityOutcome('sync.process-esi-refresh-job', {
+        ...capabilityResultForJob(outcome),
+        durationMs: performance.now() - startedAt,
+        retry: jobRetry(outcome),
+      });
+      return outcome;
+    } catch (error) {
+      // `runJob`'s own status writes can throw — Neon being unavailable is the
+      // obvious case — and the drain swallows that to isolate the job. Recording
+      // before rethrowing keeps the runs where the queue is failing hardest in
+      // the capability stream; without it the job and ESI indicators would read
+      // clean through exactly the outage they exist to surface.
+      recordCapabilityOutcome('sync.process-esi-refresh-job', {
+        ...capabilityResultForError(error),
+        durationMs: performance.now() - startedAt,
+        retry: {
+          attempt: job.attemptCount + 1,
+          maxAttempts: ESI_REFRESH_JOB_MAX_ATTEMPTS,
+          rateLimited: false,
+        },
+      });
+      throw error;
+    }
+  });
+}
+
+async function runJob(
   job: EsiRefreshJob,
   now: Date,
 ): Promise<ProcessJobOutcome> {

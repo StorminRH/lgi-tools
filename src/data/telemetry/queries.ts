@@ -9,6 +9,7 @@ import {
   inArray,
   isNotNull,
   lt,
+  ne,
   or,
   sql,
 } from 'drizzle-orm';
@@ -93,7 +94,13 @@ export async function pruneUsageLogs(retentionDays: number, now: Date = new Date
   await db.delete(usageLogs).where(lt(usageLogs.timestamp, cutoff));
 }
 
-/** Returns day-bucketed telemetry counts for the requested action and half-open date range. */
+/**
+ * Returns day-bucketed telemetry counts for the requested action and half-open date range.
+ *
+ * `capability_outcome` rows are excluded: they are the server observing itself, one per instrumented
+ * operation, so counting them here would blend server self-observation into the user-activity panel
+ * this feeds and inflate it by an order of magnitude.
+ */
 export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
   const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
   const rows = await db
@@ -105,7 +112,7 @@ export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
         sql<number>`count(*) filter (where ${usageLogs.characterId} is null)`.mapWith(Number),
     })
     .from(usageLogs)
-    .where(inRange(range))
+    .where(and(inRange(range), ne(usageLogs.action, 'capability_outcome')))
     .groupBy(day)
     .orderBy(day);
 

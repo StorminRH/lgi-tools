@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { dependencyUnavailableFailure, validationFailure } from '@/lib/failure';
+import {
+  dependencyUnavailableFailure,
+  forbiddenFailure,
+  rateLimitedFailure,
+  unexpectedFailure,
+  validationFailure,
+} from '@/lib/failure';
 import { problemBodySchema } from '@/lib/problem';
-import { apiResponse } from './api-response';
+import { apiResponse, problemResponse } from './api-response';
 import { defineEndpoint, emptyBody, jsonBody, problem, textBody } from './endpoint';
 
 const endpoint = defineEndpoint({
@@ -83,5 +89,38 @@ describe('apiResponse', () => {
       apiResponse(otherEndpoint, 200, { id: 'abc' });
     }
     expect(true).toBe(true);
+  });
+});
+
+describe('problemResponse', () => {
+  it('mints a fresh correlation id for each response', async () => {
+    const first = problemBodySchema.parse(await problemResponse(forbiddenFailure()).json());
+    const second = problemBodySchema.parse(await problemResponse(forbiddenFailure()).json());
+    expect(first.correlationId).not.toBe(second.correlationId);
+  });
+
+  it('keeps causes, stack traces, and raw dependency messages out of the body', async () => {
+    const secret = 'internal-secret-dependency-message';
+    const response = problemResponse(unexpectedFailure('unexpected', new Error(secret)));
+    const body = await response.text();
+
+    expect(response.headers.get('Content-Type')).toBe('application/problem+json');
+    expect(body).not.toContain(secret);
+    expect(body).not.toContain('stack');
+    expect(problemBodySchema.parse(JSON.parse(body))).toEqual({
+      type: 'https://lgi.tools/problems/unexpected',
+      title: 'Unexpected error',
+      status: 500,
+      code: 'unexpected',
+      correlationId: expect.any(String),
+    });
+  });
+
+  it('keeps Retry-After aligned with the problem body', async () => {
+    const response = problemResponse(rateLimitedFailure(14));
+    const body = problemBodySchema.parse(await response.json());
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('14');
+    expect(body.retryAfterSeconds).toBe(14);
   });
 });

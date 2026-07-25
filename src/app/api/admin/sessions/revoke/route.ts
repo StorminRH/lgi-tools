@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import { adminRevokeSessionsFormSchema } from '@/platform/auth/api-contract';
 import { getUserById, revokeUserSessions } from '@/platform/auth/admin-users';
 import { checkAdmin } from '@/platform/auth/route-guards';
@@ -18,6 +18,7 @@ import { parseFormBody } from '@/transport/route-body';
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
+    capability: 'admin.revoke-user-sessions',
     authorize: checkAdmin,
     parse: (incoming) =>
       parseFormBody(

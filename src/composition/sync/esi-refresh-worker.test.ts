@@ -33,6 +33,9 @@ const mocks = vi.hoisted(() => ({
   runCorporationJobs: vi.fn(),
   runSkills: vi.fn(),
   writeBackPendingWorkSignal: vi.fn(async () => {}),
+  logUsageEvent: vi.fn<(input: { action: string; metadata: Record<string, unknown> }) => Promise<void>>(
+    async () => {},
+  ),
 }));
 vi.mock('@/data/domain-events/queries', () => ({
   emitDomainEvent: mocks.emitDomainEvent,
@@ -63,6 +66,14 @@ vi.mock('./owned-blueprints-sync', () => ({
   runOwnedBlueprintsRefreshJob: mocks.runBlueprints,
 }));
 vi.mock('./skills-sync', () => ({ runSkillsRefreshJob: mocks.runSkills }));
+
+// Observe the capability row the runner schedules: `after` runs inline and the
+// telemetry writer is the same `logUsageEvent` owner the rest of the app uses.
+vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: mocks.logUsageEvent }));
+vi.mock('next/server', () => ({
+  connection: async () => {},
+  after: (fn: () => unknown) => fn(),
+}));
 
 import { drainEsiRefreshJobs } from './esi-refresh-worker';
 
@@ -296,5 +307,116 @@ describe('drainEsiRefreshJobs', () => {
         failureCode: 'worker_interrupted',
       },
     });
+  });
+});
+
+describe('queued-job capability recording', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.recover.mockResolvedValue({ recovered: 0, retryable: [], deadLettered: [] });
+    mocks.residual.mockResolvedValue({ dueCount: 0, earliestNextAttemptAt: null });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  function capabilityRows() {
+    return mocks.logUsageEvent.mock.calls
+      .map(([input]) => input)
+      .filter((input) => input.action === 'capability_outcome');
+  }
+
+  it('records a budget-deferred job as rate limited', async () => {
+    mocks.claim.mockResolvedValue([job(1, 'skills')]);
+    mocks.runSkills.mockResolvedValue({
+      kind: 'deferred_for_budget',
+      error: new EsiBudgetExhaustedError(12, 'rate_limited', 900),
+    });
+
+    await drainEsiRefreshJobs();
+
+    const rows = capabilityRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.metadata).toMatchObject({
+      feature: 'sync',
+      operation: 'process-esi-refresh-job',
+      outcome: 'rate_limited',
+      code: 'deferred_for_budget',
+      retry: { attempt: 0, maxAttempts: 5, rateLimited: true },
+    });
+  });
+
+  it('records a final-attempt failure at the declared attempt ceiling', async () => {
+    // attemptCount 4 → this run is attempt 5, the dead-letter boundary.
+    mocks.claim.mockResolvedValue([job(1, 'skills', 4)]);
+    mocks.runSkills.mockResolvedValue({ kind: 'failed_retryable', code: 'timeout' });
+
+    await drainEsiRefreshJobs();
+
+    const rows = capabilityRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.metadata).toMatchObject({
+      outcome: 'dependency_unavailable',
+      code: 'timeout',
+      retry: { attempt: 5, maxAttempts: 5, rateLimited: false },
+    });
+  });
+
+  it('records a successful job once, as succeeded', async () => {
+    mocks.claim.mockResolvedValue([job(1, 'skills')]);
+    mocks.runSkills.mockResolvedValue({ kind: 'succeeded' });
+
+    await drainEsiRefreshJobs();
+
+    const rows = capabilityRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.metadata).toMatchObject({ outcome: 'succeeded', code: 'ok' });
+    expect(rows[0]?.metadata.durationMs).toEqual(expect.any(Number));
+  });
+
+  it('gives each job in one drain its own correlation id', async () => {
+    mocks.claim.mockResolvedValue([job(1, 'skills'), job(2, 'owned_assets')]);
+    mocks.runSkills.mockResolvedValue({ kind: 'succeeded' });
+    mocks.runAssets.mockResolvedValue({ kind: 'succeeded' });
+
+    await drainEsiRefreshJobs();
+
+    const ids = capabilityRows().map((row) => row.metadata.correlationId);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('records a thrown job before the drain swallows it', async () => {
+    // The drain isolates a failing job by catching. Without a record here the
+    // capability stream would be empty during exactly the outage — Neon
+    // unavailable while marking status — that the job indicator exists to show.
+    mocks.claim.mockResolvedValue([job(1, 'skills')]);
+    mocks.runSkills.mockResolvedValue({ kind: 'succeeded' });
+    mocks.markSucceeded.mockRejectedValueOnce(new Error('neon unavailable'));
+
+    await drainEsiRefreshJobs();
+
+    const rows = capabilityRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.metadata).toMatchObject({
+      feature: 'sync',
+      operation: 'process-esi-refresh-job',
+      outcome: 'unexpected',
+      code: 'unexpected',
+      retry: { attempt: 1, maxAttempts: 5, rateLimited: false },
+    });
+  });
+
+  it('still isolates the thrown job from the rest of the drain', async () => {
+    mocks.claim.mockResolvedValue([job(1, 'skills'), job(2, 'owned_assets')]);
+    mocks.runSkills.mockResolvedValue({ kind: 'succeeded' });
+    mocks.runAssets.mockResolvedValue({ kind: 'succeeded' });
+    mocks.markSucceeded.mockRejectedValueOnce(new Error('neon unavailable'));
+
+    const summary = await drainEsiRefreshJobs();
+
+    // The second job still ran and its row still landed; recording the throw
+    // must not change the drain's own error isolation.
+    expect(summary.succeeded).toBe(1);
+    expect(capabilityRows()).toHaveLength(2);
   });
 });

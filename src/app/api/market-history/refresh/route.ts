@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import {
   refreshHistoryEndpoint,
 } from '@/data/market-history/api-contract';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { ON_DEMAND_HISTORY_LIMIT_PER_MINUTE } from '@/data/market-history/constants';
 import { getLiveHistory } from '@/data/market-history/refresh-on-view';
 import { emitCostMetric } from '@/data/telemetry/cost-metrics';
@@ -39,7 +40,9 @@ export const maxDuration = 60;
  * Handles POST requests for /api/market-history/refresh; this route owns its authorization,
  * boundary validation, and typed response mapping.
  */
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('market.refresh-market-history', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const parsed = await readJsonBody(request, refreshHistoryEndpoint.request);
   if (!parsed.ok) return apiResponse(refreshHistoryEndpoint, 400, parsed.failure);
 

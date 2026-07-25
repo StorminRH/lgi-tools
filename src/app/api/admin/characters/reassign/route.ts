@@ -1,7 +1,8 @@
 import type { NextRequest } from 'next/server';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import { adminReassignFormSchema } from '@/platform/auth/api-contract';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
@@ -20,7 +21,9 @@ import { parseFormBody } from '@/transport/route-body';
  * belongs to `fromUserId` first.
  */
 // authz: admin
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('admin.reassign-character', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const gate = await checkAdmin();
   if (!gate.ok) return problemResponse(gate.failure);
   const session = gate.session;

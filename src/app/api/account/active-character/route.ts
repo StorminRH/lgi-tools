@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { switchCharacterFormSchema } from '@/platform/auth/api-contract';
 import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked-characters';
@@ -17,13 +17,17 @@ import { parseFormBody } from '@/transport/route-body';
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  // Per-IP rate limit, checked before the session read so a flood is rejected
-  // at the cheapest point. Every accepted switch writes the DB; 30/min covers
-  // any real pilot flipping characters and cuts a scripted loop off fast.
-  const limit = await checkRateLimit(request, { name: 'account-switch', perMinute: 30 });
-  if (!limit.ok) return problemResponse(limit.failure);
-
   return runMutationRoute(request, {
+    capability: 'account.switch-active-character',
+    // Per-IP rate limit, still checked before the session read so a flood is
+    // rejected at the cheapest point. Every accepted switch writes the DB;
+    // 30/min covers any real pilot flipping characters and cuts a scripted loop
+    // off fast. Runs as the shell's preflight so a 429 is recorded rather than
+    // rejected outside the capability scope.
+    preflight: async () => {
+      const limit = await checkRateLimit(request, { name: 'account-switch', perMinute: 30 });
+      return limit.ok ? null : problemResponse(limit.failure);
+    },
     authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,

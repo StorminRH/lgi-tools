@@ -91,8 +91,3 @@ export function serializeProblem(body: ProblemBody): Response {
     },
   });
 }
-
-/** Maps one typed failure to its safe delivery-boundary problem response. */
-export function problemResponse(failure: AppFailure): Response {
-  return serializeProblem(problemBody(failure, crypto.randomUUID()));
-}

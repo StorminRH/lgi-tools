@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import { adminUnlinkFormSchema } from '@/platform/auth/api-contract';
 import { checkAdmin } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/transport/route-body';
@@ -33,6 +33,7 @@ function redirectTo(request: NextRequest, userId: string, error?: string): Respo
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
+    capability: 'admin.unlink-character',
     authorize: checkAdmin,
     parse: (incoming) =>
       parseFormBody(

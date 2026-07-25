@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { capabilityRoute } from '@/app/api/capability-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { accountDeleteEndpoint } from '@/platform/auth/api-contract';
 import '@/composition/account-lifecycle/register-owner-reconciler';
@@ -17,7 +18,9 @@ import { apiResponse } from '@/transport/api-response';
  */
 // authz: auth
 // input: none
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('account.delete-account', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const limit = await checkRateLimit(request, {
     name: 'account-delete',
     perMinute: 5,

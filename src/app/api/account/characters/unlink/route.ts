@@ -4,7 +4,7 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { problemResponse } from '@/lib/problem';
+import { problemResponse } from '@/transport/api-response';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
 import { auth } from '@/platform/auth/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
@@ -32,16 +32,19 @@ function redirectWithError(request: NextRequest, code: string): Response {
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  // Per-IP rate limit, checked before the session read so a flood is rejected
-  // at the cheapest point. Unlinking is rare and deliberate — 10/min is plenty
-  // for a human and stops scripted hammering of the unlink + token deletion.
-  const limit = await checkRateLimit(request, {
-    name: 'account-unlink',
-    perMinute: 10,
-  });
-  if (!limit.ok) return problemResponse(limit.failure);
-
   return runMutationRoute(request, {
+    capability: 'account.unlink-character',
+    // Per-IP rate limit, still checked before the session read so a flood is
+    // rejected at the cheapest point. Unlinking is rare and deliberate — 10/min
+    // is plenty for a human and stops scripted hammering of the unlink + token
+    // deletion. Runs as the shell's preflight so a 429 is recorded.
+    preflight: async () => {
+      const limit = await checkRateLimit(request, {
+        name: 'account-unlink',
+        perMinute: 10,
+      });
+      return limit.ok ? null : problemResponse(limit.failure);
+    },
     authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,

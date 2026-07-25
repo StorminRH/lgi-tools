@@ -23,17 +23,18 @@ import { readJsonBody } from '@/transport/route-body';
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  // Per-IP rate limit, checked before the session read so a flood is rejected at
-  // the cheapest point. A purge is a rare, deliberate action — 10/min is generous.
-  const limit = await checkRateLimit(request, {
-    name: 'account-purge-character',
-    perMinute: 10,
-  });
-  if (!limit.ok) {
-    return apiResponse(purgeCharacterEndpoint, 429, limit.failure);
-  }
-
   return runMutationRoute(request, {
+    capability: 'account.purge-character',
+    // Per-IP rate limit, still checked before the session read so a flood is
+    // rejected at the cheapest point. A purge is a rare, deliberate action —
+    // 10/min is generous. Runs as the shell's preflight so a 429 is recorded.
+    preflight: async () => {
+      const limit = await checkRateLimit(request, {
+        name: 'account-purge-character',
+        perMinute: 10,
+      });
+      return limit.ok ? null : apiResponse(purgeCharacterEndpoint, 429, limit.failure);
+    },
     authorize: checkSession,
     parse: async (incoming) => {
       const parsed = await readJsonBody(incoming, purgeCharacterRequestSchema);

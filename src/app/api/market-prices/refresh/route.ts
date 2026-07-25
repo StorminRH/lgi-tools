@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import {
   refreshPricesEndpoint,
 } from "@/data/market-prices/api-contract";
+import { capabilityRoute } from "@/app/api/capability-route";
 import { ON_DEMAND_REFRESH_LIMIT_PER_MINUTE } from "@/data/market-prices/constants";
 import { getLivePrices } from "@/data/market-prices/refresh-on-view";
 import { emitCostMetric } from "@/data/telemetry/cost-metrics";
@@ -37,7 +38,9 @@ export const maxDuration = 60;
  * Handles POST requests for /api/market-prices/refresh; this route owns its authorization,
  * boundary validation, and typed response mapping.
  */
-export async function POST(request: NextRequest): Promise<Response> {
+export const POST = capabilityRoute('market.refresh-market-prices', handlePost);
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const parsed = await readJsonBody(request, refreshPricesEndpoint.request);
   if (!parsed.ok) return apiResponse(refreshPricesEndpoint, 400, parsed.failure);
 

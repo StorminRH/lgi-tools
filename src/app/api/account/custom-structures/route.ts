@@ -29,6 +29,7 @@ import { readJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
+    capability: 'structures.create-custom-structure',
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, createCustomStructureRequestSchema),
     handle: async ({ userId }, body) => {

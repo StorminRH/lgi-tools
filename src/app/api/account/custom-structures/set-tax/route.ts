@@ -20,6 +20,7 @@ import { readJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
+    capability: 'structures.set-custom-structure-tax',
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, setCustomStructureTaxRequestSchema),
     handle: async ({ userId }, { id, taxPct }) => {

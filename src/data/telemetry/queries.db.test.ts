@@ -326,3 +326,55 @@ describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute a
     await expect(hasPublicEsiBudgetAlertForWindow(windowStartedAt)).resolves.toBe(true);
   });
 });
+
+// The capability rows added in 3.10.3.1 are the server observing itself, one per
+// instrumented operation. They live in the same table as user activity, so
+// getDailyCounts must exclude them or the admin traffic panel would silently
+// change meaning the moment the instrumentation shipped.
+describe.skipIf(!harness.reachable)('traffic-panel neutrality against capability rows', () => {
+  // A window of its own, so the seeds above cannot mask a leak.
+  const NEUTRALITY_RANGE = {
+    from: new Date('2021-05-01T00:00:00Z'),
+    to: new Date('2021-05-08T00:00:00Z'),
+  };
+  const AT = new Date('2021-05-03T09:00:00Z');
+
+  it('returns byte-identical counts with and without capability rows present', async () => {
+    await harness.db.insert(usageLogs).values([
+      { timestamp: AT, action: 'page_view', characterId: CHAR_OLD, metadata: { path: '/' } },
+      { timestamp: AT, action: 'page_view', characterId: null, metadata: { path: '/sites' } },
+      { timestamp: AT, action: 'terminal_search', characterId: CHAR_NEW, metadata: { query: 'x' } },
+    ]);
+
+    const before = await getDailyCounts(NEUTRALITY_RANGE);
+
+    await harness.db.insert(usageLogs).values(
+      Array.from({ length: 25 }, () => ({
+        timestamp: AT,
+        action: 'capability_outcome',
+        characterId: null,
+        metadata: {
+          feature: 'planner',
+          operation: 'create-saved-plan',
+          outcome: 'succeeded',
+          code: 'ok',
+          durationMs: 12,
+          dependencies: {},
+          retry: null,
+          correlationId: 'neutrality',
+          appVersion: 'test',
+        },
+      })),
+    );
+
+    const after = await getDailyCounts(NEUTRALITY_RANGE);
+
+    expect(after).toEqual(before);
+    expect(before).toHaveLength(1);
+    expect(before[0]).toMatchObject({
+      totalEvents: 3,
+      uniqueCharacters: 2,
+      anonymousEvents: 1,
+    });
+  });
+});

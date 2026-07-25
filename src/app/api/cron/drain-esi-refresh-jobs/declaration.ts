@@ -42,6 +42,7 @@ export function isDailyHealWindow(now: Date): boolean {
 export const drainEsiRefreshJobsDeclaration: CronRouteDeclaration<EsiRefreshWorkerSummary> = {
   name: 'cron:esi-refresh-jobs',
   action: 'cron_esi_refresh_jobs',
+  capability: 'cron.drain-esi-refresh-jobs',
   wakeClass: 'idle-silent',
   record: { policy: 'noteworthy' },
   lock: {

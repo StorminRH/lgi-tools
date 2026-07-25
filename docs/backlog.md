@@ -684,3 +684,22 @@ so both need a real design decision, not a constraint.
   the cap, chosen by a deterministic ordering) or replace the count-then-insert
   with a conditional insert. *Size:* S. *Trigger:* any change to saved-plan
   quota behaviour, or a report of a save silently vanishing.
+
+- **Surface the capability telemetry on the admin dashboard.** *What:* session
+  3.10.3.1.1 records a `capability_outcome` row for all 38 instrumented
+  operations — feature, operation, outcome category, stable code, total and
+  per-dependency durations, retry/rate-limit result, correlation id, app version
+  (`src/data/telemetry/capability.ts`) — but only the five SLI headline values
+  reach `/admin` through that session's `SliPanel`. The per-capability detail is
+  written and retained for 180 days with no reader. *Impact:* the data needed to
+  answer "which operation is slow, which is failing, and against which
+  dependency" exists but can only be reached by hand-querying Postgres. *Fix
+  direction:* an operations view over the existing rows — per-capability outcome
+  and latency breakdown, dependency-time split, and a correlation-id lookup that
+  takes the id from a user's error report and returns that operation's recorded
+  row. Reuse the established `loadSection` / `Card` / `MetricsTable` idiom in
+  `OpsSection`, and keep any new SQL in `sli-queries.ts` or a sibling so
+  `src/data/telemetry/queries.ts` stays under the AF-006 export trigger. *Size:*
+  M. *Trigger:* operator request, or the first incident where the SLI panel shows
+  a degraded indicator without saying which capability caused it. *Requested by
+  the operator on 2026-07-25 during 3.10.3.1.1 planning.*

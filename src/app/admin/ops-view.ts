@@ -7,6 +7,8 @@ import type {
 } from '@/data/telemetry/cost-queries';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import type { DomainEventRow } from '@/data/domain-events/types';
+import { LIVE_ESI_REFRESH_JOB_STATUSES } from '@/data/esi-refresh-jobs/constants';
+import { SLI_DEFINITIONS, type SliId, type SliUnit } from '@/data/telemetry/sli';
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 
@@ -79,7 +81,7 @@ export function deriveQueueView(stats: EsiRefreshQueueStat[], now: Date) {
     count: row.count,
     oldestAge: elapsedLabel(row.oldestCreatedAt, now),
   }));
-  const active = new Set(['queued', 'running', 'deferred_for_budget', 'failed_retryable']);
+  const active = new Set<string>(LIVE_ESI_REFRESH_JOB_STATUSES);
   return {
     rows,
     activeDepth: rows.reduce((total, row) => total + (active.has(row.status) ? row.count : 0), 0),
@@ -184,4 +186,69 @@ export function summarizeDomainEvent(event: DomainEventRow): string {
     case 'esi_budget_guard_exhausted':
       return `Public ESI budget exhausted ${event.metadata.count} times in ${event.metadata.windowMinutes}m`;
   }
+}
+
+/** One service indicator prepared for display: its live value, owner, and response action. */
+export interface SliRow {
+  id: SliId;
+  label: string;
+  value: string;
+  owner: string;
+  responseAction: string;
+}
+
+/** Live backlog for the queued-work indicator. */
+export interface JobBacklog {
+  pending: number;
+  deadLettered: number;
+}
+
+/** Live value for one indicator: a ratio, a duration, the queue backlog, or nothing recorded. */
+export type SliValue = number | JobBacklog | null;
+
+/**
+ * Reduces the queue's own status rollup to the backlog indicator's two numbers. This lives here
+ * rather than in the telemetry slice because reading the refresh queue from `data/telemetry` would
+ * be a peer-slice import; the admin page already owns both reads, so the composition belongs above
+ * them.
+ */
+export function deriveJobBacklog(stats: EsiRefreshQueueStat[]): JobBacklog {
+  const countFor = (statuses: readonly string[]) =>
+    stats
+      .filter((stat) => statuses.includes(stat.status))
+      .reduce((total, stat) => total + stat.count, 0);
+  return {
+    // The live set is the queue's own declaration, so a status added there is
+    // counted here without a second edit.
+    pending: countFor(LIVE_ESI_REFRESH_JOB_STATUSES),
+    deadLettered: countFor(['dead_lettered']),
+  };
+}
+
+function formatSliValue(unit: SliUnit, value: SliValue): string {
+  // An empty window renders as an em dash, never 0%, so an idle period is not
+  // misread as total failure.
+  if (value === null) return '—';
+  if (unit === 'count') {
+    const backlog = value as JobBacklog;
+    return `${backlog.pending} due · ${backlog.deadLettered} dead`;
+  }
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+  if (unit === 'percent') return `${(value * 100).toFixed(1)}%`;
+  return `${Math.round(value)} ms`;
+}
+
+/**
+ * Derives the service-indicator view under the App Router policy without transferring ownership of
+ * caller-provided inputs. Reads the declared indicator list rather than restating it, so an
+ * indicator added to `sli.ts` appears here without a second edit.
+ */
+export function deriveSliView(values: Record<SliId, SliValue>): SliRow[] {
+  return SLI_DEFINITIONS.map((sli) => ({
+    id: sli.id,
+    label: sli.title,
+    value: formatSliValue(sli.unit, values[sli.id]),
+    owner: sli.owner,
+    responseAction: sli.responseAction,
+  }));
 }

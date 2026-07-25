@@ -2,8 +2,10 @@ import { neon, neonConfig } from '@neondatabase/serverless';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { addDependencyTiming } from '@/lib/dependency-timing';
 import { readEnv, requireEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { withQueryTiming } from './timed-postgres';
 
 type Db = ReturnType<typeof drizzleHttp>;
 type HttpClient = ReturnType<typeof neon>;
@@ -28,6 +30,15 @@ const NEON_HTTP_TIMEOUT_MS = 30_000;
  */
 export const PG_CONNECT_TIMEOUT_SECONDS = 30;
 
+/**
+ * Constructs a postgres-js client already wrapped for per-operation Neon timing. Both `postgres()`
+ * construction sites go through here so neither can silently lose its measurement, and both stay
+ * lazy so this module remains import-side-effect-free.
+ */
+function timedPostgres(url: string, options: Parameters<typeof postgres>[1]): Sql {
+  return withQueryTiming(postgres(url, options));
+}
+
 let _client: HttpClient | undefined;
 let _db: Db | undefined;
 let _directClient: Sql | undefined;
@@ -39,8 +50,16 @@ function getClient(): HttpClient {
   // global-only), so the bound is assigned here rather than at module scope:
   // this module must stay import-side-effect-free, and there is exactly one
   // `neon()` consumer in the tree, so the global's blast radius is this client.
-  neonConfig.fetchFunction = (input: string | URL, init?: RequestInit) =>
-    fetchWithTimeout(input, init, NEON_HTTP_TIMEOUT_MS);
+  // The same assignment is also the neon-http timing seam: one fetch per query
+  // means fetch duration is query duration.
+  neonConfig.fetchFunction = async (input: string | URL, init?: RequestInit) => {
+    const startedAt = performance.now();
+    try {
+      return await fetchWithTimeout(input, init, NEON_HTTP_TIMEOUT_MS);
+    } finally {
+      addDependencyTiming('neon', performance.now() - startedAt);
+    }
+  };
   // Neon HTTP driver: one `fetch` per query, no TCP connection held. A Neon
   // compute that has scaled to zero slows the first query instead of erroring
   // it on a dead socket — that's the production-outage fix.
@@ -60,7 +79,7 @@ function getDb(): Db {
   if (readEnv('LOCAL_DB_DRIVER') === 'postgres-js') {
     const url = requireEnv('DATABASE_URL');
     _db = drizzlePg(
-      postgres(url, { connect_timeout: PG_CONNECT_TIMEOUT_SECONDS }),
+      timedPostgres(url, { connect_timeout: PG_CONNECT_TIMEOUT_SECONDS }),
     ) as unknown as Db;
     return _db;
   }
@@ -114,7 +133,7 @@ function getDirectClient(): Sql {
   // max: 3 — one connection reserved for the advisory lock, headroom for the
   // data ops the lock protects. Direct endpoints have a lower connection
   // ceiling than the pooler and the lock holders (cron/CLI) are infrequent.
-  _directClient = postgres(resolveLockConnectionUrl(), {
+  _directClient = timedPostgres(resolveLockConnectionUrl(), {
     max: 3,
     connect_timeout: PG_CONNECT_TIMEOUT_SECONDS,
   });
