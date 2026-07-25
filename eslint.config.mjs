@@ -868,14 +868,40 @@ const eslintConfig = defineConfig([
   // convex/react for all of them would let the auth client import Convex and the
   // Convex provider import Better Auth, which is wider than each home owns.
   //
-  // The auth client and its providers own Better Auth's client surface. The
-  // Convex provider lives here too because it composes Better Auth identity into
-  // the Convex client, so it is the one file that legitimately needs both.
+  // The auth client and its providers own Better Auth's client surface only;
+  // convex/react stays banned here so this grant cannot quietly create a second
+  // Convex consumer.
   {
     files: [
       "src/platform/auth/auth-client.ts",
       "src/platform/auth/components/**/*.{ts,tsx,mts}",
     ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...nextImageImportPaths],
+          patterns: [
+            ...upstashRedisImportPatterns,
+            ...upstashRatelimitImportPatterns,
+            ...databaseDriverImportPatterns,
+            ...convexReactImportPatterns,
+            ...googleAuthImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // The Convex provider is the one file that legitimately needs both: it
+  // composes Better Auth identity into the Convex client. Ordered after the
+  // block above so its narrower grant wins.
+  {
+    files: ["src/platform/auth/components/ConvexClientProvider.tsx"],
     rules: {
       "no-restricted-imports": [
         "error",
