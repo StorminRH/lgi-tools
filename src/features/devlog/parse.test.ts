@@ -12,7 +12,7 @@ import {
   parseStartLine,
   slugify,
 } from './parse';
-import type { Block } from './types';
+import type { Block, InlineToken } from './types';
 
 // Assembled from the per-document files under content/devlog/ exactly as the loader
 // does, then parsed — the durable guard that segmentation didn't disturb the tree.
@@ -235,6 +235,22 @@ describe('parseDevlog — the real dev log source', () => {
     }
   });
 
+  it('draws the generated zone map exactly once, in the Fallow document', () => {
+    const hosts = flattenDocuments(tree).filter((document) =>
+      document.blocks.some((block) => block.type === 'zone-map'),
+    );
+    expect(hosts.map((document) => document.slug)).toEqual(['fallow']);
+    expect(hosts[0]!.blocks.filter((block) => block.type === 'zone-map')).toHaveLength(1);
+  });
+
+  it('introduces the map with the passage that explains it', () => {
+    const fallow = findDocument(tree, 'fallow')!;
+    const mapIndex = fallow.blocks.findIndex((block) => block.type === 'zone-map');
+    const intro = fallow.blocks[mapIndex - 1]!;
+    expect(intro.type).toBe('paragraph');
+    expect(documentSummary({ ...fallow, blocks: [intro] })).toMatch(/generated straight from/);
+  });
+
   it('renders every excerpt inline (no orphan defs left to append)', () => {
     // Every definition is wired to a <sup>, so each excerpt block sits directly
     // after the paragraph that references it — the block before it is a paragraph.
@@ -323,5 +339,65 @@ describe('excerpt line + permalink helpers', () => {
     expect(githubUrl({ ref: '', file: 'x.ts', lines: '1-2' })).toBeNull();
     expect(githubUrl({ ref: 'main', file: 'x.ts', lines: '1-2' })).toBeNull();
     expect(githubUrl({ ref: '5d16c05', file: 'x.ts', lines: '1-2' })).toBeNull();
+  });
+});
+
+describe('parseDevlog — the zone-map marker seam', () => {
+  const doc = (...body: string[]) =>
+    parseDevlog(['## Doc', '<!-- updated: 2026-07-25 -->', '', ...body].join('\n'))
+      .looseDocuments[0]!;
+
+  it('resolves the marker into its own text-free block', () => {
+    const blocks = doc('Before.', '', '<!-- uth:zone-map -->', '', 'After.').blocks;
+    expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'zone-map', 'paragraph']);
+    expect(blocks[1]).toEqual({ type: 'zone-map' });
+  });
+
+  it('is a block boundary even with no blank line around it', () => {
+    // The pinned behaviour: parseProse joins consecutive prose lines into one
+    // paragraph, so without this seam an adjacent marker would be swept into the
+    // text and rendered as literal HTML-comment prose.
+    const blocks = doc('Before.', '<!-- uth:zone-map -->', 'After.').blocks;
+    expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'zone-map', 'paragraph']);
+  });
+
+  it('flushes a list or blockquote before the map rather than swallowing it', () => {
+    expect(doc('- one', '<!-- uth:zone-map -->').blocks.map((b) => b.type)).toEqual([
+      'list',
+      'zone-map',
+    ]);
+    expect(doc('> quoted', '<!-- uth:zone-map -->').blocks.map((b) => b.type)).toEqual([
+      'blockquote',
+      'zone-map',
+    ]);
+  });
+
+  it('leaves an indented or partial marker as ordinary prose', () => {
+    // Only the exact trimmed line is a marker, so near-misses stay visible as text
+    // instead of silently rendering a map in the wrong place.
+    expect(doc('<!-- uth:zone-map --> trailing').blocks.map((b) => b.type)).toEqual(['paragraph']);
+    expect(doc('<!-- uth:zone -->').blocks.map((b) => b.type)).toEqual(['paragraph']);
+  });
+});
+
+describe('parseDevlog — no marker residue reaches the reader', () => {
+  const tokenText = (token: InlineToken): string =>
+    token.type === 'link' ? token.text : token.value;
+
+  const proseText = (block: Block): string => {
+    if (block.type === 'paragraph' || block.type === 'blockquote') {
+      return block.tokens.map(tokenText).join('');
+    }
+    if (block.type === 'list') return block.items.flat().map(tokenText).join('');
+    return '';
+  };
+
+  it('renders no `uth:` comment literal in any prose block of the real dev log', () => {
+    // A regression in the marker seam (or a mistyped marker in the source) would
+    // surface here as a raw comment in the reading column.
+    const leaked = flattenDocuments(realTree).flatMap((document) =>
+      document.blocks.filter((block) => proseText(block).includes('uth:')),
+    );
+    expect(leaked).toEqual([]);
   });
 });

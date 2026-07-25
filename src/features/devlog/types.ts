@@ -48,13 +48,16 @@ export type Excerpt = {
  * A document's ordered content. An `excerpt` block is an inline-collapsed code
  * excerpt rendered where its `<sup>` reference sat (always at a paragraph's end in
  * the source), or — the safety net — appended when a definition is never
- * referenced so no snapshot is ever silently dropped.
+ * referenced so no snapshot is ever silently dropped. A `zone-map` block carries no
+ * text: it marks where the generated architecture map is drawn, and its content comes
+ * from the committed generated graph rather than the source document.
  */
 export type Block =
   | { type: 'paragraph'; tokens: InlineToken[] }
   | { type: 'list'; ordered: boolean; items: InlineToken[][] }
   | { type: 'blockquote'; tokens: InlineToken[] }
-  | { type: 'excerpt'; excerpt: Excerpt };
+  | { type: 'excerpt'; excerpt: Excerpt }
+  | { type: 'zone-map' };
 
 /** Parsed devlog document with stable slug, title, update date, and renderable blocks. */
 export type DevlogDocument = {

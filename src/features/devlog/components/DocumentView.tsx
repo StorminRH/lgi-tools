@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Block } from '../types';
 import { CodeExcerpt } from './CodeExcerpt';
 import { InlineTokens } from './InlineTokens';
+import { ZoneMap } from './ZoneMap';
 
 type BlockRenderer = (block: Block, key: number) => ReactNode;
 
@@ -30,6 +31,7 @@ const BLOCK_RENDERERS: {
     return block.ordered ? <ol key={key}>{items}</ol> : <ul key={key}>{items}</ul>;
   },
   excerpt: (block, key) => <CodeExcerpt key={key} excerpt={block.excerpt} />,
+  'zone-map': (_block, key) => <ZoneMap key={key} />,
 };
 
 /** Renders one block by dispatching to its type's renderer. */

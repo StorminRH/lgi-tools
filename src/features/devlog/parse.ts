@@ -41,6 +41,10 @@ const QUOTE = /^\s*>\s?(.*)$/;
 const EXCERPTS_START = 'uth:code-excerpts:start';
 const EXCERPTS_END = 'uth:code-excerpts:end';
 const CODE_HEADER = /uth:code\s+id=/;
+// Marks where the generated architecture map is drawn. Matched as a whole trimmed
+// line, so it is a block boundary in its own right rather than prose to be swept into
+// a neighbouring paragraph.
+const ZONE_MAP_MARKER = '<!-- uth:zone-map -->';
 
 const ATTR_ID = /id="(code-[a-z0-9-]+)"/;
 const ATTR_FILE = /file="([^"]*)"/;
@@ -202,7 +206,8 @@ function parseAttrs(line: string): Omit<Excerpt, 'code' | 'tokens'> | null {
 type RawBlock =
   | { k: 'para'; text: string }
   | { k: 'list'; ordered: boolean; items: string[] }
-  | { k: 'quote'; text: string };
+  | { k: 'quote'; text: string }
+  | { k: 'zone-map' };
 
 type Entry = { kind: 'folder'; title: string } | { kind: 'doc'; title: string; body: string[] };
 
@@ -309,14 +314,20 @@ function parseProse(lines: string[]): RawBlock[] {
     if (quote.length) raw.push({ k: 'quote', text: quote.join(' ') });
     quote = [];
   };
+  const flushAll = () => {
+    flushPara();
+    flushList();
+    flushQuote();
+  };
   for (const line of lines) {
     const bullet = line.match(BULLET);
     const numbered = line.match(NUMBERED);
     const quoted = line.match(QUOTE);
-    if (line.trim() === '') {
-      flushPara();
-      flushList();
-      flushQuote();
+    if (line.trim() === ZONE_MAP_MARKER) {
+      flushAll();
+      raw.push({ k: 'zone-map' });
+    } else if (line.trim() === '') {
+      flushAll();
     } else if (bullet || numbered) {
       flushPara();
       flushQuote();
@@ -334,9 +345,7 @@ function parseProse(lines: string[]): RawBlock[] {
       para.push(line);
     }
   }
-  flushPara();
-  flushList();
-  flushQuote();
+  flushAll();
   return raw;
 }
 
@@ -352,6 +361,10 @@ function resolveBlock(
   }
   if (rb.k === 'quote') {
     out.push({ type: 'blockquote', tokens: parseInline(rb.text) });
+    return;
+  }
+  if (rb.k === 'zone-map') {
+    out.push({ type: 'zone-map' });
     return;
   }
   const { clean, ids } = extractRefs(rb.text);
