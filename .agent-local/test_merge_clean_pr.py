@@ -258,6 +258,79 @@ class CodeRabbitReviewedHead(unittest.TestCase):
         self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
 
 
+class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
+    """CodeRabbit files no new review object for a fix push.
+
+    It is an incremental reviewer: it edits the existing finding in place,
+    appending `Addressed in commit <sha>` and resolving the thread. Requiring a
+    head-pinned review object therefore makes the gate unsatisfiable for any PR
+    that needed a fix round, so its own marker is accepted as equivalent proof —
+    while a rate-limited pass, which emits no marker, must still block.
+    """
+
+    def cr_comment(self, body: str, commit: str = "older") -> dict:
+        return {"user": {"login": CODERABBIT}, "id": 10, "commit_id": commit, "body": body}
+
+    def test_abbreviated_marker_counts_as_head_evidence(self) -> None:
+        # The real shape: comment still anchored to the old commit, body appended.
+        comment = self.cr_comment(f"finding text\n\n✅ Addressed in commit {HEAD[:7]}")
+        self.assertTrue(coderabbit_reviewed_head([], HEAD, [comment]))
+
+    def test_backticked_and_full_length_markers_count(self) -> None:
+        self.assertTrue(
+            coderabbit_reviewed_head([], HEAD, [self.cr_comment(f"Addressed in commit `{HEAD[:8]}`")])
+        )
+        self.assertTrue(
+            coderabbit_reviewed_head([], HEAD, [self.cr_comment(f"Addressed in commit {HEAD}")])
+        )
+
+    def test_marker_naming_another_commit_does_not_count(self) -> None:
+        # An acknowledgement of an earlier push is not evidence for this head.
+        stale = self.cr_comment("Addressed in commit 0837eb2")
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [stale]))
+
+    def test_rate_limited_pass_still_blocks(self) -> None:
+        # The hole this gate exists to close: a green status with no real review.
+        limited = self.cr_comment("Review rate limited. Please try again later.")
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [limited]))
+        reasons = fallback_blockers(reviews=[], inline_comments=[limited])
+        self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
+
+    def test_a_human_cannot_supply_the_marker(self) -> None:
+        human = {"user": {"login": "StorminRH"}, "id": 11, "body": f"Addressed in commit {HEAD}"}
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [human]))
+
+    def test_marker_in_an_issue_comment_counts(self) -> None:
+        ack = {"user": {"login": CODERABBIT}, "id": 12, "body": f"Addressed in commit {HEAD[:7]}"}
+        self.assertTrue(coderabbit_reviewed_head([], HEAD, [], [ack]))
+
+    def test_too_short_a_sha_is_rejected(self) -> None:
+        self.assertFalse(coderabbit_reviewed_head([], HEAD, [self.cr_comment(f"Addressed in commit {HEAD[:6]}")]))
+
+    def test_acknowledgement_does_not_waive_a_live_finding(self) -> None:
+        # Head evidence and "no finding left standing" stay independent gates.
+        ack = self.cr_comment(f"Addressed in commit {HEAD[:7]}")
+        reasons = fallback_blockers(reviews=[], inline_comments=[ack, cr_root()])
+        self.assertFalse(any("no CodeRabbit review" in r for r in reasons))
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
+
+    def test_acknowledgement_never_substitutes_for_greptile(self) -> None:
+        # Greptile reviewed, so the fallback path must not be reachable at all.
+        data = clean_inputs()
+        reasons = merge_blockers(
+            data["pr"],
+            data["issue_comments"],
+            [
+                {"user": {"login": GREPTILE}, "commit_id": HEAD, "line": 5},
+                self.cr_comment(f"Addressed in commit {HEAD[:7]}"),
+            ],
+            data["runs"],
+            data["expected_head"],
+            frozenset(),
+        )
+        self.assertTrue(any("Greptile has 1 inline finding" in r for r in reasons))
+
+
 class LiveCodeRabbitFindings(unittest.TestCase):
     def test_ignores_non_dict_items(self) -> None:
         self.assertEqual(live_coderabbit_findings([None, "x"], HEAD, frozenset()), [])

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import urllib.parse
 
@@ -43,6 +44,11 @@ REQUIRED_CHECKS = BASE_REQUIRED_CHECKS | {GREPTILE_CHECK}
 # review happened from the review record itself, not from a named check.
 FALLBACK_REQUIRED_CHECKS = BASE_REQUIRED_CHECKS
 PASSING_CONCLUSIONS = {"success", "neutral", "skipped"}
+# CodeRabbit's machine-emitted verification marker, appended to a finding when an
+# incremental pass confirms the commit that fixed it. Its sha is abbreviated, so
+# it is matched as a prefix of the full head sha.
+ADDRESSED_MARKER = re.compile(r"Addressed in commit\s+`?([0-9a-fA-F]{7,40})`?")
+MIN_ABBREVIATED_SHA = 7
 
 
 RESOLVED_THREADS_QUERY = """
@@ -227,18 +233,64 @@ def greptile_blockers(
     return reasons
 
 
-def coderabbit_reviewed_head(reviews: list[object], head_sha: str) -> bool:
-    """True when CodeRabbit filed a review against the exact current head.
+def coderabbit_acknowledged_head(comments: list[object], head_sha: str) -> bool:
+    """True when CodeRabbit's own verification marker names the exact current head.
+
+    CodeRabbit is an incremental reviewer: it does not re-review a commit it has
+    already seen, and it does not file a fresh review object for a fix push.
+    Instead its incremental pass edits the existing finding in place, appending
+    its machine-emitted marker (``Addressed in commit <abbreviated sha>``) and
+    resolving the thread. That marker is the pass's own statement that it read
+    that exact commit, so it is head-exact review evidence even though the
+    comment's ``commit_id`` stays pinned to the commit the finding was anchored
+    to and never moves.
+
+    Deliberately keyed to the marker rather than to the sha appearing anywhere in
+    the body: a bare sha may just be CodeRabbit quoting a request back, while the
+    marker is only emitted after a pass verified the commit. A rate-limited pass
+    emits no marker, so the "review rate limited" hole this gate exists to close
+    stays closed.
+    """
+    if not head_sha:
+        return False
+    for item in comments:
+        if not isinstance(item, dict) or actor_login(item) != CODERABBIT:
+            continue
+        for sha in ADDRESSED_MARKER.findall(str(item.get("body", ""))):
+            if len(sha) >= MIN_ABBREVIATED_SHA and head_sha.startswith(sha.lower()):
+                return True
+    return False
+
+
+def coderabbit_reviewed_head(
+    reviews: list[object],
+    head_sha: str,
+    inline_comments: list[object] | None = None,
+    issue_comments: list[object] | None = None,
+) -> bool:
+    """True when CodeRabbit demonstrably examined the exact current head.
 
     This is the fallback's proof that a review actually happened. CodeRabbit's
     commit status reports `success` even when its body says "Review rate
     limited", so the status alone would let an unreviewed head merge.
+
+    Two forms of head-exact evidence are accepted, matching how CodeRabbit
+    actually reports. A review object pinned to the head covers its first pass
+    over a PR. An incremental pass over a later push covers the rest: it files no
+    new review object, so its own ``Addressed in commit <sha>`` marker naming the
+    head is the equivalent proof (see ``coderabbit_acknowledged_head``). Without
+    the second form the gate is unsatisfiable for any PR that needed a fix round,
+    which is not a stricter gate — it is a stuck one.
     """
-    return any(
+    if any(
         isinstance(item, dict)
         and actor_login(item) == CODERABBIT
         and str(item.get("commit_id", "")) == head_sha
         for item in reviews
+    ):
+        return True
+    return coderabbit_acknowledged_head(
+        [*(inline_comments or []), *(issue_comments or [])], head_sha
     )
 
 
@@ -247,10 +299,11 @@ def coderabbit_blockers(
     inline_comments: list[object],
     head_sha: str,
     resolved_roots: frozenset[int],
+    issue_comments: list[object] | None = None,
 ) -> list[str]:
     """Fallback reasons, used only when Greptile did not review this PR."""
     reasons: list[str] = []
-    if not coderabbit_reviewed_head(reviews, head_sha):
+    if not coderabbit_reviewed_head(reviews, head_sha, inline_comments, issue_comments):
         reasons.append("no CodeRabbit review on the current head")
     findings = live_coderabbit_findings(inline_comments, head_sha, resolved_roots)
     if findings:
@@ -291,7 +344,9 @@ def merge_blockers(
         required = REQUIRED_CHECKS
     else:
         reasons.extend(
-            coderabbit_blockers(reviews or [], inline_comments, head_sha, resolved_roots)
+            coderabbit_blockers(
+                reviews or [], inline_comments, head_sha, resolved_roots, issue_comments
+            )
         )
         required = FALLBACK_REQUIRED_CHECKS
 
