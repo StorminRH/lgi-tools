@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { isUniqueViolation } from '@/db/pg-errors';
 import type { AnyPgDb } from '@/lib/db-types';
 import {
   ESI_REFRESH_JOB_RETENTION_DAYS,
@@ -16,17 +17,6 @@ import type {
   EsiRefreshJobStatus,
   RequeueDeadLetterOutcome,
 } from './types';
-
-const UNIQUE_VIOLATION = '23505';
-
-function isUniqueViolation(error: unknown): boolean {
-  let node = error;
-  for (let depth = 0; depth < 5 && node instanceof Error; depth++) {
-    if ((node as { code?: unknown }).code === UNIQUE_VIOLATION) return true;
-    node = (node as { cause?: unknown }).cause;
-  }
-  return false;
-}
 
 function idempotencyKey(input: EnqueueEsiRefreshJobInput): string {
   return [

@@ -4,7 +4,12 @@ const encryptSnapshotBodyMock = vi.fn((_body: unknown[]) => 'v1:iv:tag:ciphertex
 const insertEsiSnapshotMock = vi.fn(async (_input: unknown) => 44);
 const deleteEsiSnapshotMock = vi.fn(async (_id: number) => {});
 const saveOwnedAssetsMock = vi.fn(
-  async (_owner: unknown, _rows: unknown, _etags: unknown, _snapshotId?: unknown) => {},
+  async (
+    _owner: unknown,
+    _rows: unknown,
+    _etags: unknown,
+    _snapshotId?: unknown,
+  ): Promise<'saved' | 'superseded'> => 'saved',
 );
 const emitDomainEventMock = vi.fn();
 
@@ -67,7 +72,7 @@ describe('saveOwnedAssetsFromSource', () => {
     deleteEsiSnapshotMock.mockClear();
     saveOwnedAssetsMock.mockReset();
     emitDomainEventMock.mockReset();
-    saveOwnedAssetsMock.mockResolvedValue(undefined);
+    saveOwnedAssetsMock.mockResolvedValue('saved');
   });
 
   it('keeps character saves on the existing path with no snapshot', async () => {
@@ -129,5 +134,32 @@ describe('saveOwnedAssetsFromSource', () => {
 
     expect(deleteEsiSnapshotMock).toHaveBeenCalledWith(44);
     expect(emitDomainEventMock).not.toHaveBeenCalled();
+  });
+
+  it('discards the snapshot and emits nothing when a concurrent refresh supersedes the save', async () => {
+    const save = await loadSave();
+    saveOwnedAssetsMock.mockResolvedValueOnce('superseded');
+
+    await expect(
+      save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source),
+    ).resolves.toBeUndefined();
+
+    expect(deleteEsiSnapshotMock).toHaveBeenCalledWith(44);
+    expect(emitDomainEventMock).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the save when discarding a superseded snapshot fails', async () => {
+    const save = await loadSave();
+    saveOwnedAssetsMock.mockResolvedValueOnce('superseded');
+    deleteEsiSnapshotMock.mockRejectedValueOnce(new Error('cleanup failed'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(
+      save({ ownerType: 'corporation', ownerId: 5000 }, rows, [], source),
+    ).resolves.toBeUndefined();
+
+    expect(warn).toHaveBeenCalled();
+    expect(emitDomainEventMock).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

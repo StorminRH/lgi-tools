@@ -158,7 +158,7 @@ and no separate elective campaign is scheduled.
 | **Phase 2 — Production flow contracts** | | | |
 | 3.10.2.1 | Typed error contract & RFC 9457 problem mapper (§3.10.2.1) | 3 | SHIPPED |
 | 3.10.2.2 | Mutation pipeline: declared order & same-origin enforcement (LGI-03) (§3.10.2.2) | 1 | SHIPPED |
-| 3.10.2.3 | Data ownership, transaction & RLS registry (§3.10.2.3) | 1 | PLANNED |
+| 3.10.2.3 | Data ownership, transaction & RLS registry (§3.10.2.3) | 1 | SHIPPED |
 | 3.10.2.4 | Vendor resilience registry (timeouts, retries, idempotency) (§3.10.2.4) | 1 | PLANNED |
 | **Phase 3 — Operability** | | | |
 | 3.10.3.1 | Capability telemetry, SLIs & idempotency inventory (§3.10.3.1 + §3.10.3.2) | 1 | PLANNED |

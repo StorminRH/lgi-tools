@@ -13,9 +13,9 @@
 
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
-| Production TS/TSX files | 762 | 776 | +14 |
-| Production TS/TSX LOC | 73,072 | 73,972 | +900 |
-| Test files | 368 | 388 | +20 |
+| Production TS/TSX files | 762 | 780 | +18 |
+| Production TS/TSX LOC | 73,072 | 75,255 | +2183 |
+| Test files | 368 | 391 | +23 |
 | Coverage — statements | 86.90% | 86.90% | — |
 | Coverage — branches | 84.25% | 84.25% | — |
 | Coverage — functions | 82.84% | 82.84% | — |
@@ -33,8 +33,8 @@
 | ESI dataset registry entries | 13 | 13 | 0 |
 | Freshness leaf breadth | 3 functions / 15 production importers | 3 functions / 15 production importers | — |
 | Cron shell declarations | 7 | 7 | 0 |
-| Real-Postgres harness consumers | 17 | 17 | 0 |
-| Dataset declaration census | 56 tables / 4 index tests | 56 tables / 4 index tests | — |
+| Real-Postgres harness consumers | 17 | 18 | +1 |
+| Dataset declaration census | 56 tables / 4 index tests | 56 tables / 14 index tests | — |
 | API contract completeness | 52 routes / 17 contract modules | 52 routes / 17 contract modules | — |
 | EVE type-image resolver breadth | 8 exports / 6 functions / 16 production importers | 8 exports / 6 functions / 16 production importers | — |
 | Threshold overrides | 0 | 0 | 0 |

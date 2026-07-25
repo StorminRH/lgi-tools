@@ -649,3 +649,38 @@ is reprioritized.
   dedicated future version. **Standing invariant meanwhile:** application
   authorization is the sole tenant boundary and the Neon Data API stays disabled
   (enabling it without RLS would expose tables to client queries).
+
+## Per-user cap races (surfaced by the 3.10.2.3 ownership registry)
+
+Both entries are application-behaviour defects the 3.10.2.3 contract explicitly
+forbade fixing in that session (HC-4: no application behaviour changes beyond
+what the authorized constraint required). Neither is expressible as a plain
+Postgres constraint — a cardinality rule needs a trigger or a counter column —
+so both need a real design decision, not a constraint.
+
+- **Custom-structure cap has no compensating recount.** *What:*
+  `POST /api/account/custom-structures` enforces
+  `MAX_CUSTOM_STRUCTURES_PER_USER` with a count-then-insert on the
+  transaction-free neon-http request path
+  (`src/app/api/account/custom-structures/route.ts`), and unlike the sibling
+  saved-plans route it never recounts after inserting. Two concurrent saves at
+  the cap both pass the pre-check and both insert, leaving the user permanently
+  one over. *Impact:* low — the overshoot is bounded by concurrency and the cap
+  is a product limit, not a safety one. *Fix direction:* either mirror the
+  saved-plans compensation (after fixing the defect below) or add a counter
+  column the insert increments conditionally. *Size:* S. *Trigger:* any change
+  to custom-structure quota behaviour, or a report of a user exceeding the cap.
+
+- **Saved-plan cap compensation over-corrects and can delete user data.**
+  *What:* `POST /api/account/saved-plans` compensates for the same race by
+  recounting after its insert and deleting **its own** row when the total
+  exceeds the cap (`src/app/api/account/saved-plans/route.ts`). With the cap at
+  50, two concurrent saves that both pre-check at 49 both insert (total 51),
+  then both recount, both see 51 > 50, and both delete their own row — the user
+  loses both saves and receives "template limit reached" while sitting at 49.
+  The compensation is worse than the overshoot it prevents. *Impact:* low
+  frequency, but it destroys work the user submitted successfully. *Fix
+  direction:* make the compensation converge (delete only the newest row over
+  the cap, chosen by a deterministic ordering) or replace the count-then-insert
+  with a conditional insert. *Size:* S. *Trigger:* any change to saved-plan
+  quota behaviour, or a report of a save silently vanishing.
