@@ -1,4 +1,6 @@
 import { cn } from '@/components/ui/cn';
+import { Dot } from '@/components/ui/dot';
+import { Card } from '@/components/ui/card';
 import { SectionLabel } from '@/components/ui/section-label';
 import { getCachedBlueprintCount } from '@/data/eve-data/queries';
 import { getCachedSdeVersion } from '@/data/eve-data/meta';
@@ -39,7 +41,7 @@ export async function HomeLiveStats() {
         className="mb-4"
         meta={
           <span className="inline-flex items-center gap-2 font-mono text-label uppercase tracking-wide text-muted">
-            <span className="size-[6px] rounded-full bg-isk shadow-home-live" />
+            <Dot tone="green" />
             Updated on demand
           </span>
         }
@@ -47,7 +49,7 @@ export async function HomeLiveStats() {
         Live data
       </SectionLabel>
 
-      <div className="rounded-card border border-border bg-section overflow-hidden">
+      <Card className="overflow-hidden">
         <dl className="grid grid-cols-2">
           {stats.map((stat, i) => (
             <div
@@ -87,7 +89,7 @@ export async function HomeLiveStats() {
             ) : null}
           </span>
         </div>
-      </div>
+      </Card>
     </section>
   );
 }

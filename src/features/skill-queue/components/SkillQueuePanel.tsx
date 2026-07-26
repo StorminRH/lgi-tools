@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { EntityRow } from '@/components/ui/row';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 import { formatRemaining } from '@/lib/format/time';
 import type { SkillQueueEntry } from '../esi-projection';
@@ -181,18 +182,19 @@ function QueueEntryRow({
 }) {
   const model = entryRowModel(entry, now);
   return (
-    <div className="border-t border-border-soft px-3.5 py-[6px]">
-      <div className="grid grid-cols-[26px_minmax(0,1fr)_auto_auto] items-center gap-[6px] text-ui">
-        <span className="text-micro text-muted">{entry.queue_position + 1}</span>
-        <span className="text-name truncate leading-[1.5]">
+    <div>
+      <EntityRow
+        colsClass="grid-cols-[26px_minmax(0,1fr)_auto_auto]"
+        leading={entry.queue_position + 1}
+        name={
+          <>
           {name ?? `Skill #${entry.skill_id}`}{' '}
           <span className="text-muted">{romanLevel(entry.finished_level)}</span>
-        </span>
-        <span className="text-micro text-muted shrink-0">
-          {model.remainingMs !== null ? formatRemaining(model.remainingMs) : ''}
-        </span>
-        <Pill tone={model.meta.tone}>{model.meta.label}</Pill>
-      </div>
+          </>
+        }
+        chips={<Pill tone={model.meta.tone}>{model.meta.label}</Pill>}
+        trailing={model.remainingMs !== null ? formatRemaining(model.remainingMs) : ''}
+      />
       {model.showBar && (
         <div className="mt-[4px]">
           <ProgressBar pct={model.pct} />

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { RunAsFrame } from '@/components/RunAsFrame';
 import { cn } from '@/components/ui/cn';
+import { Card } from '@/components/ui/card';
 import { Stepper } from '@/components/ui/stepper';
 import { TypeIcon } from '@/components/type-icon';
 import { heroImage } from '@/data/eve-data/type-images';
@@ -107,12 +108,13 @@ function HeroSteppers({
         </StepperRow>
       )}
       <StepperRow label="Runs">
-        <span className="inline-flex items-center gap-1">
-          <Stepper value={runs} onChange={setRuns} min={1} ariaLabel="Runs" />
-          {/* Match the ME/TE rows' reserved revert slot so the three boxes stay
-              flush whether or not a ↺ is showing. */}
-          <span aria-hidden className="w-3.5 shrink-0" />
-        </span>
+        <Stepper
+          value={runs}
+          onChange={setRuns}
+          min={1}
+          ariaLabel="Runs"
+          reserveTrailing
+        />
       </StepperRow>
     </div>
   );
@@ -133,10 +135,10 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
 
   return (
-    <div
+    <Card
       className={cn(
         'mb-3.5 mt-3.5 flex flex-wrap items-stretch gap-x-6 gap-y-3',
-        'rounded-md border border-border bg-section px-[18px] py-4',
+        'px-[18px] py-4',
       )}
     >
       {/* The item render's boxed square. The building-character column shares
@@ -170,6 +172,6 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
         <BuildLocationSelector />
         <ReactionStructureSelect />
       </div>
-    </div>
+    </Card>
   );
 }

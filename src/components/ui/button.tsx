@@ -53,7 +53,19 @@ export function Button({
   type = 'button',
   className,
   ...props
-}: VariantProps<typeof buttonVariants> & ComponentPropsWithRef<'button'>) {
+}: Omit<VariantProps<typeof buttonVariants>, 'variant'> &
+  ComponentPropsWithRef<'button'> & {
+    variant?: NonNullable<VariantProps<typeof buttonVariants>['variant']> | 'bare';
+  }) {
+  if (variant === 'bare') {
+    return (
+      <button
+        type={type}
+        className={cn('inline-flex items-center', className)}
+        {...props}
+      />
+    );
+  }
   return (
     <button type={type} className={cn(buttonVariants({ variant, size }), className)} {...props} />
   );

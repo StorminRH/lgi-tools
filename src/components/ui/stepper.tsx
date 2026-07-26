@@ -1,6 +1,7 @@
 'use client';
 
 import { NumberField } from '@base-ui/react/number-field';
+import type { ReactNode } from 'react';
 import { cn } from './cn';
 
 /**
@@ -18,6 +19,9 @@ export function Stepper({
   min = 0,
   max,
   ariaLabel,
+  variant = 'default',
+  trailing,
+  reserveTrailing = false,
   className,
 }: {
   value: number;
@@ -25,10 +29,15 @@ export function Stepper({
   min?: number;
   max?: number;
   ariaLabel: string;
+  variant?: 'default' | 'inline';
+  trailing?: ReactNode;
+  reserveTrailing?: boolean;
   className?: string;
 }) {
-  const btn =
-    'h-7 w-[26px] text-ui leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
+  const inline = variant === 'inline';
+  const btn = inline
+    ? 'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-ctl text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer'
+    : 'h-7 w-[26px] text-ui leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
   return (
     <NumberField.Root
       value={value}
@@ -48,20 +57,39 @@ export function Stepper({
       smallStep={1}
       largeStep={10}
       format={{ maximumFractionDigits: 0 }}
-      className={cn('inline-flex', className)}
+      className={cn(
+        'inline-flex items-center',
+        (trailing != null || reserveTrailing) && 'gap-1',
+        className,
+      )}
     >
-      <NumberField.Group className="inline-flex items-center overflow-hidden rounded-ctl border border-border bg-bg">
+      <NumberField.Group
+        className={cn(
+          'inline-flex items-center',
+          !inline && 'overflow-hidden rounded-ctl border border-border bg-bg',
+        )}
+      >
         <NumberField.Decrement aria-label={`Decrease ${ariaLabel}`} className={btn}>
-          –
+          {inline ? '▼' : '–'}
         </NumberField.Decrement>
         <NumberField.Input
           aria-label={ariaLabel}
-          className="h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-ui text-name outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className={cn(
+            'bg-transparent text-center font-mono text-ui text-name outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+            inline
+              ? 'w-[22px] tabular-nums'
+              : 'h-7 w-12 border-x border-border-soft focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub',
+          )}
         />
         <NumberField.Increment aria-label={`Increase ${ariaLabel}`} className={btn}>
-          +
+          {inline ? '▲' : '+'}
         </NumberField.Increment>
       </NumberField.Group>
+      {(trailing != null || reserveTrailing) && (
+        <span className="inline-flex w-3.5 shrink-0 items-center justify-center">
+          {trailing}
+        </span>
+      )}
     </NumberField.Root>
   );
 }

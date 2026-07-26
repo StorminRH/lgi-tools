@@ -31,6 +31,10 @@ const segment = cva(
         true: '',
         false: 'text-muted hover:text-text',
       },
+      density: {
+        default: 'px-3 py-1 text-label tracking-label',
+        compact: 'px-2 py-0.5 text-micro tracking-control',
+      },
     },
     compoundVariants: [
       {
@@ -39,7 +43,7 @@ const segment = cva(
         className: 'border-isk-dim bg-section text-isk shadow-btn-bezel',
       },
     ],
-    defaultVariants: { tone: 'green', active: false },
+    defaultVariants: { tone: 'green', active: false, density: 'default' },
   },
 );
 
@@ -54,8 +58,18 @@ export interface SegmentedOption {
   href?: string;
 }
 
-const track =
-  'inline-flex gap-0.5 rounded-ctl border border-border-soft bg-bg-deep p-[3px] shadow-field-inset';
+const track = cva(
+  'inline-flex rounded-ctl border border-border-soft bg-bg-deep shadow-field-inset',
+  {
+    variants: {
+      density: {
+        default: 'gap-0.5 p-[3px]',
+        compact: 'gap-0 overflow-hidden p-0',
+      },
+    },
+    defaultVariants: { density: 'default' },
+  },
+);
 
 /**
  * Renders the domain-neutral segmented control with house behavior and tokens; callers own
@@ -67,6 +81,7 @@ export function SegmentedControl({
   onChange,
   label,
   tone = 'green',
+  density = 'default',
   className,
 }: {
   options: readonly SegmentedOption[];
@@ -76,18 +91,19 @@ export function SegmentedControl({
   // is being chosen (the house rule — a control is never unnamed).
   label: string;
   tone?: SegmentedTone;
+  density?: 'default' | 'compact';
   className?: string;
 }) {
   const linkMode = options.some((option) => option.href !== undefined);
   if (linkMode) {
     return (
-      <div role="group" aria-label={label} className={cn(track, className)}>
+      <div role="group" aria-label={label} className={cn(track({ density }), className)}>
         {options.map((option) => (
           <a
             key={option.value}
             href={option.href}
             aria-current={value === option.value ? 'page' : undefined}
-            className={segment({ tone, active: value === option.value })}
+            className={segment({ tone, active: value === option.value, density })}
           >
             {option.label}
           </a>
@@ -104,14 +120,14 @@ export function SegmentedControl({
         if (selected !== undefined) onChange?.(selected);
       }}
       aria-label={label}
-      className={cn(track, className)}
+      className={cn(track({ density }), className)}
     >
       {options.map((option) => (
         <Toggle
           key={option.value}
           value={option.value}
           disabled={option.disabled}
-          className={segment({ tone, active: value === option.value })}
+          className={segment({ tone, active: value === option.value, density })}
         >
           {option.label}
         </Toggle>

@@ -13,6 +13,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
+import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
 import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
 import { requireAdminPage } from '@/platform/auth/route-guards';
@@ -115,24 +116,24 @@ function AdminUserRow({
   );
 }
 
-function AuditRow({ view }: { view: ReturnType<typeof deriveAuditRowView> }) {
-  return (
-    <tr className="border-t border-border-soft">
-      <td className="py-1.5 text-text">{view.timestamp}</td>
-      <td className="py-1.5 text-text">{view.actorLabel}</td>
-      <td className="py-1.5 text-text">{view.targetLabel}</td>
-      <td className="py-1.5">
-        <span className="flex items-center gap-1.5">
-          <Pill tone={view.fromTone}>{view.fromLabel}</Pill>
-          <span className="text-muted">→</span>
-          <Pill tone={view.toTone}>{view.toLabel}</Pill>
-        </span>
-      </td>
-    </tr>
-  );
-}
-
 function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleChangeAudit>> }) {
+  const rows = audit.map(deriveAuditRowView);
+  const columns = [
+    { key: 'timestamp', label: 'Timestamp (UTC)', render: (row) => row.timestamp, className: 'text-text' },
+    { key: 'actor', label: 'Actor', render: (row) => row.actorLabel, className: 'text-text' },
+    { key: 'target', label: 'Target', render: (row) => row.targetLabel, className: 'text-text' },
+    {
+      key: 'change',
+      label: 'Change',
+      render: (row) => (
+        <span className="flex items-center gap-1.5">
+          <Pill tone={row.fromTone}>{row.fromLabel}</Pill>
+          <span className="text-muted">→</span>
+          <Pill tone={row.toTone}>{row.toLabel}</Pill>
+        </span>
+      ),
+    },
+  ] satisfies readonly StaticTableColumn<ReturnType<typeof deriveAuditRowView>>[];
   return (
     <Card>
       <SectionHeader
@@ -144,21 +145,7 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
         <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
       ) : (
         <div className="px-3.5 py-2">
-          <table className="w-full font-mono text-ui">
-            <thead>
-              <tr className="text-label tracking-wide uppercase text-muted">
-                <th className="text-left py-1.5 font-normal">Timestamp (UTC)</th>
-                <th className="text-left py-1.5 font-normal">Actor</th>
-                <th className="text-left py-1.5 font-normal">Target</th>
-                <th className="text-left py-1.5 font-normal">Change</th>
-              </tr>
-            </thead>
-            <tbody>
-              {audit.map((row, idx) => (
-                <AuditRow key={`${row.timestamp.toISOString()}-${idx}`} view={deriveAuditRowView(row)} />
-              ))}
-            </tbody>
-          </table>
+          <StaticTable columns={columns} rows={rows} getRowKey={(row, index) => `${row.timestamp}-${index}`} />
         </div>
       )}
     </Card>

@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 
 /**
@@ -46,15 +48,9 @@ export default function Error({
       </header>
 
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => unstable_retry()}
-          className="inline-flex"
-        >
-          <Pill tone="green">Try again</Pill>
-        </button>
-        <Link href="/" className="inline-flex">
-          <Pill tone="neutral">Warp to home</Pill>
+        <Button type="button" onClick={() => unstable_retry()}>Try again</Button>
+        <Link href="/" className={cn(buttonVariants({ variant: 'secondary' }))}>
+          Warp to home
         </Link>
       </div>
     </div>

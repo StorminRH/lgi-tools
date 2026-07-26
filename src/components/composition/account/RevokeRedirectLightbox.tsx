@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { authClient } from '@/platform/auth/auth-client';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 
@@ -54,13 +55,14 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
           signed out.
         </p>
         <p className="text-ui text-muted">Redirecting in {seconds}s…</p>
-        <button
+        <Button
+          variant="bare"
           type="button"
           onClick={handoff}
           className="self-start text-label uppercase tracking-wide text-tone-blue hover:underline"
         >
           Go now
-        </button>
+        </Button>
       </div>
     </Dialog>
   );

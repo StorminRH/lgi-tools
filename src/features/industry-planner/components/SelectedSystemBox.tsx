@@ -1,4 +1,6 @@
 import { formatSec } from '@/data/eve-data/systems-search';
+import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 
 /**
  * The picked/locked SYSTEM readout of a location group — the exact fixed box
@@ -25,20 +27,20 @@ export function SelectedSystemBox({
         {name} {formatSec(security)}
       </span>
       {locked ? (
-        <span
-          title={`Locked to ${locked}`}
-          className="ml-auto shrink-0 font-mono text-label uppercase tracking-wide text-muted"
-        >
-          locked
-        </span>
+        <Tooltip content={`Locked to ${locked}`}>
+          <span className="ml-auto shrink-0 font-mono text-label uppercase tracking-wide text-muted">
+            locked
+          </span>
+        </Tooltip>
       ) : onClear ? (
-        <button
+        <Button
+          variant="bare"
           type="button"
           onClick={onClear}
           className="ml-auto shrink-0 cursor-pointer text-label uppercase tracking-wide text-muted hover:text-text"
         >
           Clear
-        </button>
+        </Button>
       ) : null}
     </div>
   );

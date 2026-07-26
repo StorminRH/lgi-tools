@@ -180,9 +180,7 @@ function GscPerformanceDetail({
           </MultiplesCell>
         ))}
       </MultiplesGrid>
-      <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-y border-border-soft">
-        Top pages in search
-      </div>
+      <SectionHeader variant="sub" label="Top pages in search" className="border-y border-border-soft px-3.5 py-2" />
       {topPages.length === 0 ? (
         <EmptyState>No search-landing pages in this range.</EmptyState>
       ) : (
@@ -190,9 +188,7 @@ function GscPerformanceDetail({
           <GscTermRow key={p.key} term={p} max={view.topPagesMax} total={totalClicks} />
         ))
       )}
-      <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-b border-border-soft">
-        Indexing &amp; sitemap
-      </div>
+      <SectionHeader variant="sub" label="Indexing & sitemap" className="border-b border-border-soft px-3.5 py-2" />
       {sitemaps.length === 0 ? (
         <EmptyState>No sitemap data synced yet.</EmptyState>
       ) : (
@@ -422,9 +418,7 @@ export async function TrafficSection({
         />
         {searchVsDirect.referred + searchVsDirect.direct > 0 && (
           <div className="px-3.5 py-3 border-b border-border-soft">
-            <div className="text-label tracking-display uppercase text-muted mb-2">
-              Referred vs direct page views
-            </div>
+            <SectionHeader variant="sub" label="Referred vs direct page views" className="mb-2" />
             <StackedShareBar
               segments={[
                 { label: 'Referred', value: searchVsDirect.referred, tone: 'blue' },
@@ -436,9 +430,7 @@ export async function TrafficSection({
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border-soft">
           <div className="bg-bg">
-            <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-b border-border-soft">
-              Top referrers
-            </div>
+            <SectionHeader variant="sub" label="Top referrers" className="border-b border-border-soft px-3.5 py-2" />
             <BarList
               data={view.topReferrers}
               empty="No external referrers in this range."
@@ -446,9 +438,7 @@ export async function TrafficSection({
             />
           </div>
           <div className="bg-bg">
-            <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-b border-border-soft">
-              Top entry pages
-            </div>
+            <SectionHeader variant="sub" label="Top entry pages" className="border-b border-border-soft px-3.5 py-2" />
             <BarList
               data={view.topEntryPages}
               empty="No session entry events in this range."

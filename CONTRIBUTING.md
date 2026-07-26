@@ -137,12 +137,25 @@ Form fields and action buttons are shared primitives, not hand-styled per call
 site (**lint-enforced**):
 
 - **Button** (`@/components/ui/button`) — `variant` (primary / secondary / ghost /
-  danger) × `size` (md / sm). A link or anchor that must look like a button borrows
-  the exported `buttonVariants` as its `className` rather than restyling it.
+  danger / bare) × `size` (md / sm). A link or anchor that must look like a button
+  borrows the exported `buttonVariants` as its `className` rather than restyling
+  it. Raw buttons and hand-authored button semantics are lint-enforced exceptions,
+  not alternate styling APIs.
 - **Input / Select / Textarea** (`@/components/ui/input`) — the engraved inset-well
-  fields. A raw `<select>` is banned (use `Select`, whose own native `<select>`
-  lives in the exempted `input.tsx`); an ad-hoc `inputClass`-style field constant is
-  banned (the primitives own the field look). The native checkbox stays native.
+  fields. Visible raw inputs, textareas, and selects are banned outside their
+  owning primitives; hidden server-action fields remain the narrow raw-input
+  carve-out. An ad-hoc `inputClass`-style field constant is also banned.
+- **Stepper / Segmented / ChipToggle** — use their Base UI interaction and keyboard
+  behavior. Product surfaces may vary the surrounding layout, but do not recreate
+  their state model with raw controls.
+- **StaticTable / Collapsible** — own semantic table and disclosure HTML. The
+  adoption census records the two native-details contracts that cannot use the
+  shared list-style Collapsible.
+
+The UI adoption rail also protects primitive-owned status, empty, pill/chip,
+skeleton, and progress tokens. Its exact surviving exemptions and CSS-family
+allowlist live in `src/composition/ui-adoption-registry.ts` and are checked by the
+repeatable census in `src/esi-datasets/ui-adoption.test.ts`.
 
 ## UI components & overlays
 

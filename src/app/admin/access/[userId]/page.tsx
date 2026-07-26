@@ -8,7 +8,7 @@ import { Chip } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
-import { Breadcrumb } from '@/components/ui/page-head';
+import { Breadcrumb, PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
@@ -112,12 +112,9 @@ function CharacterAdminRow({
 function NotFound() {
   return (
     <>
-      <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
-        <Breadcrumb crumb="access" />
-        <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase text-name">
-          User not found
-        </h1>
-      </header>
+      <div className="w-full max-w-[760px]">
+        <PageHead crumb="access" title="User not found" />
+      </div>
       <div className="w-full max-w-[760px]">
         <Card>
           <EmptyState>No account matches that id.</EmptyState>

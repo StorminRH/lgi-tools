@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Card } from '@/components/ui/card';
 import type { SiteSearchEntry } from '../queries';
 import { SITE_TYPE_LABEL } from './wormhole-styles';
 
@@ -16,10 +17,10 @@ export function RelatedSites({ sites }: { sites: SiteSearchEntry[] }) {
       </h2>
       <div className="grid gap-2 sm:grid-cols-3">
         {sites.map((site) => (
+          <Card key={site.id} hover>
           <Link
-            key={site.id}
             href={`/sites/${site.id}`}
-            className="rounded-ctl border border-border-idle bg-section px-3 py-2 hover:border-border-active hover:bg-row-hover"
+            className="block px-3 py-2"
           >
             <span className="block font-semibold text-name">{site.name}</span>
             <span className="mt-0.5 block font-mono text-label tracking-label uppercase text-muted">
@@ -27,6 +28,7 @@ export function RelatedSites({ sites }: { sites: SiteSearchEntry[] }) {
               {SITE_TYPE_LABEL[site.siteType]}
             </span>
           </Link>
+          </Card>
         ))}
       </div>
     </section>

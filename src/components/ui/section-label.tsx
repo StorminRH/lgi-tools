@@ -13,10 +13,12 @@ import { cn } from './cn';
 export function SectionLabel({
   children,
   meta,
+  prefix = true,
   className,
 }: {
   children: ReactNode;
   meta?: ReactNode;
+  prefix?: boolean;
   className?: string;
 }) {
   return (
@@ -24,7 +26,7 @@ export function SectionLabel({
       className={cn('flex items-baseline gap-2', meta != null && 'justify-between', className)}
     >
       <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold tracking-display uppercase text-muted">
-        <span className="text-isk tracking-normal">{'//'}</span>
+        {prefix && <span className="text-isk tracking-normal">{'//'}</span>}
         {children}
       </span>
       {meta}

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Card } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
 
@@ -15,16 +16,20 @@ export function HomeFeatureCards() {
        * style keeps the column template in a class so it renders server-side,
        * not just after hydration. */}
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
+        <Card
+          hover
+          className="hover-bob group flex"
+        >
         <Link
           href="/sites"
-          className="tool-tile tool-tile-live hover-bob no-underline group"
+          className="flex flex-1 flex-col gap-3 p-5 no-underline"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="font-display font-bold text-h3 tracking-[0.01em] leading-[1.15] text-name">
               Wormhole Sites
             </div>
           </div>
-          <p className="body-copy text-body text-text leading-[1.65] flex-1">
+          <p className="flex-1 font-body text-body leading-[1.65] text-text">
             Browse wormhole anomalies and signatures by class, site type, and ISK
             value. Live Jita prices on ore and gas resources.
           </p>
@@ -39,17 +44,19 @@ export function HomeFeatureCards() {
             </span>
           </div>
         </Link>
+        </Card>
 
+        <Card hover className="hover-bob group flex">
         <Link
           href="/industry"
-          className="tool-tile tool-tile-live hover-bob no-underline group"
+          className="flex flex-1 flex-col gap-3 p-5 no-underline"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="font-display font-bold text-h3 tracking-[0.01em] leading-[1.15] text-name">
               Industry Planner
             </div>
           </div>
-          <p className="body-copy text-body text-text leading-[1.65] flex-1">
+          <p className="flex-1 font-body text-body leading-[1.65] text-text">
             Manufacturing profitability for blueprints and reactions — build cost,
             margin, and price confidence at live Jita rates.
           </p>
@@ -65,6 +72,7 @@ export function HomeFeatureCards() {
             </span>
           </div>
         </Link>
+        </Card>
       </div>
     </section>
   );

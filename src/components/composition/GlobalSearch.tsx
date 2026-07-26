@@ -189,9 +189,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
 }
 
 function SearchHints({ active }: { active: boolean }) {
-  const chip =
-    'shrink-0 rounded-ctl border border-border bg-surface-raised px-[5px] py-px font-mono text-micro text-muted';
-  return <span className={chip}>{active ? 'esc' : '⌘K'}</span>;
+  return <Kbd>{active ? 'esc' : '⌘K'}</Kbd>;
 }
 
 // The row's leading icon: the type's rendered image (falling back to a mono glyph

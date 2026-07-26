@@ -41,9 +41,7 @@ export async function UsersSection({ range }: { range: DateRange }) {
       />
       {totalUsers > 0 && (
         <div className="px-3.5 py-3 border-b border-border-soft">
-          <div className="text-label tracking-display uppercase text-muted mb-2">
-            New vs returning
-          </div>
+          <SectionHeader variant="sub" label="New vs returning" className="mb-2" />
           <StackedShareBar
             segments={[
               { label: 'New', value: returningVsNew.newUsers, tone: 'blue' },
@@ -57,9 +55,7 @@ export async function UsersSection({ range }: { range: DateRange }) {
         <EmptyState>No sign-ins in this range.</EmptyState>
       ) : (
         <div className="pt-1">
-          <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted">
-            Users by login count
-          </div>
+          <SectionHeader variant="sub" label="Users by login count" className="px-3.5 py-2" />
           <DistributionBars
             rows={buckets.map((b) => ({ key: b.label, label: b.label, count: b.users }))}
             formatCount={pluralUsers}

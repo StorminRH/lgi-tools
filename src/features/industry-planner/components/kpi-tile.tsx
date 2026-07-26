@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Popover } from '@/components/ui/popover';
+import { Card } from '@/components/ui/card';
 
 // Shared chrome for the Cockpit KPI tile row (`.kpi` in the handoff). A bordered
 // section-bg panel with a uniform border (no per-tile accent) sized to its
@@ -21,14 +22,14 @@ export function KpiTile({
   children: ReactNode;
 }) {
   return (
-    <div
+    <Card
       className={cn(
-        'flex flex-col rounded-md border border-border bg-section px-[15px] pb-[13px] pt-[14px]',
+        'flex flex-col px-[15px] pb-[13px] pt-[14px]',
         span2 && 'col-span-2',
       )}
     >
       {children}
-    </div>
+    </Card>
   );
 }
 

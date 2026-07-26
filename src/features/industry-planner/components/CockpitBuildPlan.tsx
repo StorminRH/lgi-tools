@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { SectionLabel } from '@/components/ui/section-label';
 import { nodeImage } from '@/data/eve-data/type-images';
@@ -228,13 +229,14 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
   }
   return (
     <span className="inline-flex items-center gap-2 font-mono text-ui text-muted">
-      <button
+      <Button
+        variant="bare"
         type="button"
         onClick={onClear}
         className="cursor-pointer uppercase tracking-wide text-muted hover:text-name"
       >
         ✕ Clear
-      </button>
+      </Button>
       <span>
         Tracing <span className="text-name">{focus.name}</span> down its chain
       </span>
@@ -254,7 +256,8 @@ function RawLedgerToggle({
   onToggle: () => void;
 }) {
   return (
-    <button
+    <Button
+      variant="bare"
       type="button"
       onClick={onToggle}
       aria-expanded={open}
@@ -270,7 +273,7 @@ function RawLedgerToggle({
       <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>
         ▾
       </span>
-    </button>
+    </Button>
   );
 }
 

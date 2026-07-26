@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
+import { Prose } from '@/components/ui/prose';
 import { SectionLabel } from '@/components/ui/section-label';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { buildPageMetadata } from '@/lib/page-metadata';
@@ -16,9 +17,6 @@ export const metadata = buildPageMetadata({
 
 // Major-section heading inside the reading column — Barlow display, one tier
 // below the page H1, above the "// label" SectionLabel sub-heads.
-const SECTION_HEAD =
-  'font-display font-bold uppercase text-name text-h3 leading-none tracking-[0.02em]';
-
 // One "// label" sub-head + its prose body — the reading column's repeated unit.
 function LegalSection({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
@@ -47,8 +45,8 @@ export default function LegalPage() {
       />
 
       <div className="pb-16">
-        <div className="legal-prose">
-          <h2 className={`${SECTION_HEAD} mb-3`}>Site Usage</h2>
+        <Prose variant="legal">
+          <h2 className="mb-3 font-display text-h3 font-bold uppercase leading-none tracking-[0.02em] text-name">Site Usage</h2>
           <p className="mb-7">What the site records about your visit.</p>
 
           <LegalSection label="In-house telemetry">
@@ -90,7 +88,7 @@ export default function LegalPage() {
             </p>
           </LegalSection>
 
-          <h2 className={`${SECTION_HEAD} mt-12 pt-10 border-t border-border-soft mb-3`}>
+          <h2 className="mb-3 mt-12 border-t border-border-soft pt-10 font-display text-h3 font-bold uppercase leading-none tracking-[0.02em] text-name">
             EVE Data
           </h2>
           <p className="mb-7">
@@ -163,7 +161,7 @@ export default function LegalPage() {
             </p>
           </LegalSection>
 
-          <h2 className={`${SECTION_HEAD} mt-12 pt-10 border-t border-border-soft mb-7`}>
+          <h2 className="mb-7 mt-12 border-t border-border-soft pt-10 font-display text-h3 font-bold uppercase leading-none tracking-[0.02em] text-name">
             Our Privacy Stance
           </h2>
 
@@ -228,7 +226,7 @@ export default function LegalPage() {
               developer license.
             </p>
           </div>
-        </div>
+        </Prose>
       </div>
     </PageShell>
   );

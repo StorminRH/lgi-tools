@@ -5,7 +5,8 @@ import type { ChipTone } from './tones';
 
 export type { ChipTone };
 
-const chipVariants = cva(
+/** Shared static and pressable chip presentation variants. */
+export const chipVariants = cva(
   'inline-flex items-center font-mono text-label font-semibold px-[5px] py-px rounded-ctl tracking-label uppercase border leading-[1.5] shrink-0',
   {
     variants: {

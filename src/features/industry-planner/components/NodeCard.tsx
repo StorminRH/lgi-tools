@@ -1,7 +1,9 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { QtyRing } from '@/components/ui/qty-ring';
 import { TypeIcon } from '@/components/type-icon';
@@ -139,7 +141,7 @@ function HeldByList({ heldBy }: { heldBy?: AssetHolding[] }) {
       </>
     );
   }
-  return <div className="font-mono text-ui text-faint">No holdings tracked yet</div>;
+  return <EmptyState>No holdings tracked yet</EmptyState>;
 }
 
 function QtyRingCell({
@@ -263,33 +265,31 @@ export function NodeCard({
   const view = nodeCardView({ onSelect, icon, typeId, selected, related, faded });
   return (
     <div
-      role={view.role}
-      tabIndex={view.tabIndex}
-      aria-pressed={view.ariaPressed}
-      onClick={onSelect}
-      onKeyDown={
-        view.interactive
-          ? (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onSelect?.();
-              }
-            }
-          : undefined
-      }
       className={view.className}
     >
+      {view.interactive && (
+        <Button
+          variant="bare"
+          type="button"
+          aria-label={`Trace ${name}`}
+          aria-pressed={selected}
+          onClick={onSelect}
+          className="absolute inset-0 z-0"
+        />
+      )}
       {/* The framed icon — a tinted click-popover for buildables, a plain (transparent
           frame) icon on the same footprint for raws/reactions. */}
-      {efficiency ? (
-        <BuildableIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
-      ) : (
-        <span className={cn(FRAME, 'border-transparent')}>
-          <TypeIcon {...view.iconDesc} size={30} mono={name.slice(0, 2)} />
-        </span>
-      )}
+      <span className="relative z-10 pointer-events-none [&_button]:pointer-events-auto">
+        {efficiency ? (
+          <BuildableIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
+        ) : (
+          <span className={cn(FRAME, 'border-transparent')}>
+            <TypeIcon {...view.iconDesc} size={30} mono={name.slice(0, 2)} />
+          </span>
+        )}
+      </span>
       {/* Name + type. */}
-      <div className="flex min-w-0 flex-1 flex-col gap-px">
+      <div className="relative z-10 pointer-events-none flex min-w-0 flex-1 flex-col gap-px">
         <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
           {name}
         </span>
@@ -298,7 +298,9 @@ export function NodeCard({
         </span>
       </div>
       {/* Quantity ring — its popover is the asset-tracking ledger (needed/owned/remaining). */}
-      <QtyRingCell name={name} qty={qty} value={value} ownedQty={ownedQty} heldBy={heldBy} />
+      <span className="relative z-10 pointer-events-none [&_button]:pointer-events-auto">
+        <QtyRingCell name={name} qty={qty} value={value} ownedQty={ownedQty} heldBy={heldBy} />
+      </span>
     </div>
   );
 }

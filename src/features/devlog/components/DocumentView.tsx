@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Block } from '../types';
+import { Prose } from '@/components/ui/prose';
 import { CodeExcerpt } from './CodeExcerpt';
 import { InlineTokens } from './InlineTokens';
 import { ZoneMap } from './ZoneMap';
@@ -45,9 +46,11 @@ export function renderBlock(block: Block, key: number): ReactNode {
  */
 export function DocumentView({ title, blocks }: { title: string; blocks: Block[] }) {
   return (
-    <article className="devlog-prose">
-      <h2 className="devlog-doc-title">{title}</h2>
+    <Prose variant="devlog">
+      <article>
+      <h2 className="mb-5 mt-0.5 font-display text-h2 font-bold leading-[1.1] tracking-[0.01em] text-name">{title}</h2>
       {blocks.map((block, i) => renderBlock(block, i))}
-    </article>
+      </article>
+    </Prose>
   );
 }

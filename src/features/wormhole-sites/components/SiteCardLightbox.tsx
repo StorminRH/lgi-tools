@@ -91,7 +91,7 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
               </DialogClose>
             </div>
             <div className="sites-lightbox-zoom pb-3">
-              <div className="sites-card-summary">
+              <div className="flex flex-col gap-2 px-[17px] pb-[13px] pt-[15px]">
                 <SiteCardHeader site={site} nameId={nameId} />
               </div>
               <SiteDetailsBody site={site} />

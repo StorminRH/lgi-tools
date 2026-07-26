@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { Tooltip } from '@/components/ui/tooltip';
 import { GemIcon, HourglassIcon } from './MeAdjuster';
 import { structureBonusRows, type StructureBonusRow } from '../structure-bonus-view';
 import type { StructureReadout } from '../structure-factors';
@@ -9,12 +10,14 @@ import type { StructureReadout } from '../structure-factors';
 // words, in their ISK-green bonus tone.
 function Metric({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
   return (
-    <span title={title} className="inline-flex items-center gap-1 font-mono text-micro leading-none text-isk">
+    <Tooltip content={title}>
+    <span className="inline-flex items-center gap-1 font-mono text-micro leading-none text-isk">
       <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
         {icon}
       </span>
       −{value}
     </span>
+    </Tooltip>
   );
 }
 
@@ -28,9 +31,11 @@ const BONUS_ROW: {
     <Metric icon={<HourglassIcon state="bonus" />} title={`Structure TE −${row.pct}`} value={row.pct} />
   ),
   cost: (row) => (
-    <span title={`Structure job cost −${row.pct}`} className="font-mono text-micro leading-none text-isk">
+    <Tooltip content={`Structure job cost −${row.pct}`}>
+    <span className="font-mono text-micro leading-none text-isk">
       cost −{row.pct}
     </span>
+    </Tooltip>
   ),
   'rxn-te': (row) => (
     <span className="inline-flex items-center gap-1">
@@ -41,9 +46,11 @@ const BONUS_ROW: {
     </span>
   ),
   tax: (row) => (
-    <span title={`Owner-set facility tax ${row.taxPct}%`} className="font-mono text-micro leading-none text-muted">
+    <Tooltip content={`Owner-set facility tax ${row.taxPct}%`}>
+    <span className="font-mono text-micro leading-none text-muted">
       tax {row.taxPct}%
     </span>
+    </Tooltip>
   ),
 };
 

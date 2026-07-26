@@ -8,6 +8,7 @@
 // and the cursor doesn't blink (the keyframe is gated off in globals.css).
 import { useEffect, useMemo, useState } from 'react';
 import { Kbd } from '@/components/ui/kbd';
+import { Button } from '@/components/ui/button';
 
 const HINT = 'search for any blueprint or reaction to get started';
 const STEP_MS = 26;
@@ -53,10 +54,15 @@ export function IndustryTypedHint() {
   const done = shown >= HINT.length;
 
   return (
-    <button type="button" className="industry-hint" onClick={focusNavSearch}>
-      <span className="pr">{'>'}</span>
-      <span className="txt">{HINT.slice(0, shown)}</span>
-      <span className="cur" aria-hidden="true" />
+    <Button
+      variant="bare"
+      type="button"
+      className="inline-flex items-center gap-[9px] py-1 text-left font-mono text-ui tracking-[0.03em] text-muted"
+      onClick={focusNavSearch}
+    >
+      <span className="shrink-0 text-ui font-bold text-isk">{'>'}</span>
+      <span className="whitespace-normal text-text transition-colors hover:text-name sm:whitespace-nowrap">{HINT.slice(0, shown)}</span>
+      <span className="industry-cur h-3.5 w-[7px] shrink-0 bg-isk" aria-hidden="true" />
       <Kbd
         className={
           `tracking-wide uppercase transition-opacity duration-fast motion-reduce:transition-none ${done ? 'opacity-100' : 'opacity-0'}`
@@ -64,6 +70,6 @@ export function IndustryTypedHint() {
       >
         ⌘K
       </Kbd>
-    </button>
+    </Button>
   );
 }

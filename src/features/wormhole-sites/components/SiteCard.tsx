@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
+import { Collapsible } from '@/components/ui/collapsible';
 import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
 import { LazySiteDetails } from './LazySiteDetails';
@@ -50,17 +51,18 @@ export function SiteCard({
     // Geist prose, `hover` the catalogue glow.
     <Card font="body" hover data-site-card>
       <SiteLiveProvider resources={liveResources}>
-        <details data-collapsible {...(defaultOpen ? { open: true } : {})}>
-          <summary className="sites-card-summary list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
-            <SiteCardHeader site={site} />
-          </summary>
-
+        <Collapsible
+          defaultOpen={defaultOpen}
+          className="border-b-0"
+          headerClassName="flex-col items-stretch gap-2 px-[17px] pb-[13px] pt-[15px]"
+          header={<SiteCardHeader site={site} />}
+        >
           {defaultOpen ? (
             <SiteDetailsBody site={site} />
           ) : (
             <LazySiteDetails site={site} zoom />
           )}
-        </details>
+        </Collapsible>
         {!defaultOpen && <CatalogueCardExtras site={site} />}
       </SiteLiveProvider>
     </Card>

@@ -7,6 +7,7 @@
 // it renders the same static pill it always did.
 import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatQuantity } from '@/lib/format/number';
@@ -79,7 +80,7 @@ function SpLine({ vm }: { vm: RosterViewModel }) {
 
 function TrainingLine({ vm }: { vm: RosterViewModel }) {
   if (!vm.hasData) {
-    return <div className="mt-1 text-micro text-empty">No queue synced yet</div>;
+    return <EmptyState>No queue synced yet</EmptyState>;
   }
   const t = vm.training;
   if (t.kind === 'empty' || t.kind === 'complete') {

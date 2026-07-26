@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
+import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { getSitemapEntries } from '@/composition/sitemap';
 import { isGscConfigured } from '@/data/gsc/constants';
 import { getCoverageTrend, getLatestUrlCoverage } from '@/data/gsc/queries';
@@ -26,43 +27,35 @@ function shareLabel(value: number, total: number): string {
 }
 
 function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
+  const columns = [
+    { key: 'url', label: 'URL', render: (row) => row.url, className: 'break-all text-text' },
+    {
+      key: 'verdict',
+      label: 'Verdict',
+      render: (row) => <Pill tone={coverageTone(row.verdict)}>{row.verdict ?? 'UNKNOWN'}</Pill>,
+    },
+    { key: 'reason', label: 'Coverage reason', render: (row) => row.reason, className: 'text-muted' },
+    {
+      key: 'inspected',
+      label: 'Inspected',
+      render: (row) => row.inspectionDate ?? 'Never',
+      className: 'whitespace-nowrap text-muted',
+    },
+    {
+      key: 'crawl',
+      label: 'Last crawl',
+      render: (row) => row.lastCrawlTime ? formatIsoDay(row.lastCrawlTime) : 'Unknown',
+      className: 'whitespace-nowrap text-muted',
+    },
+  ] satisfies readonly StaticTableColumn<GscCoverageRow>[];
   return (
     <div className="max-h-96 overflow-auto border-t border-border-soft">
-      <table className="min-w-full border-collapse text-left">
-        <caption className="sr-only">
-          Latest Google Search Console inspection result for every sitemap URL
-        </caption>
-        <thead className="sticky top-0 bg-section z-sticky">
-          <tr className="border-b border-border-soft">
-            {['URL', 'Verdict', 'Coverage reason', 'Inspected', 'Last crawl'].map((label) => (
-              <th
-                key={label}
-                scope="col"
-                className="px-3.5 py-2 text-label tracking-display uppercase text-muted whitespace-nowrap"
-              >
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.url} className="border-b border-border-soft last:border-b-0 align-top">
-              <td className="px-3.5 py-2 font-mono text-ui text-text break-all">{row.url}</td>
-              <td className="px-3.5 py-2 whitespace-nowrap">
-                <Pill tone={coverageTone(row.verdict)}>{row.verdict ?? 'UNKNOWN'}</Pill>
-              </td>
-              <td className="px-3.5 py-2 font-mono text-ui text-muted">{row.reason}</td>
-              <td className="px-3.5 py-2 font-mono text-ui text-muted whitespace-nowrap">
-                {row.inspectionDate ?? 'Never'}
-              </td>
-              <td className="px-3.5 py-2 font-mono text-ui text-muted whitespace-nowrap">
-                {row.lastCrawlTime ? formatIsoDay(row.lastCrawlTime) : 'Unknown'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <StaticTable
+        ariaLabel="Latest Google Search Console inspection result for every sitemap URL"
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.url}
+      />
     </div>
   );
 }
@@ -132,13 +125,9 @@ export async function GscCoverageSection({ range }: { range: GscRange }) {
               />
             </MultiplesCell>
           </MultiplesGrid>
-          <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-y border-border-soft">
-            Latest coverage reasons
-          </div>
+          <SectionHeader variant="sub" label="Latest coverage reasons" className="border-y border-border-soft px-3.5 py-2" />
           <DistributionBars rows={view.reasons} ariaLabel="Latest URL coverage reasons" />
-          <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-t border-border-soft">
-            Latest URL status · non-indexed first
-          </div>
+          <SectionHeader variant="sub" label="Latest URL status · non-indexed first" className="border-t border-border-soft px-3.5 py-2" />
           <CoverageTable rows={view.rows} />
         </>
       )}

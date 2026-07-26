@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { RigSupply } from '@/components/RigSupply';
 import { Button } from '@/components/ui/button';
+import { Banner } from '@/components/ui/banner';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
@@ -80,13 +82,14 @@ function PinField({
         <Pill tone="blue">
           {pin.name} {formatSec(pin.security)}
         </Pill>
-        <button
+        <Button
+          variant="bare"
           type="button"
           onClick={onClear}
           className="text-label uppercase tracking-wide text-muted hover:text-text"
         >
           Clear
-        </button>
+        </Button>
       </div>
     );
   }
@@ -153,7 +156,8 @@ function InlineTaxEditor({
         aria-label={`Facility tax percent for ${name}`}
         className="w-full"
       />
-      <button
+      <Button
+        variant="bare"
         type="button"
         onClick={() => {
           const tax = parseFacilityTaxDraft(draft);
@@ -167,7 +171,7 @@ function InlineTaxEditor({
         className="text-label uppercase tracking-wide text-tone-green hover:underline disabled:text-muted disabled:no-underline"
       >
         Set
-      </button>
+      </Button>
     </div>
   );
 }
@@ -206,46 +210,50 @@ function SavedStructureRow({
   onError: (message: string) => void;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-2 border border-border bg-section px-3 py-2">
+    <Card as="li" className="flex flex-wrap items-center gap-2 px-3 py-2">
       <span className="font-mono text-ui text-text">{view.name}</span>
       <Pill tone="neutral">{view.typeLabel}</Pill>
       <StructureMetaPills view={view} />
       <span className="ml-auto flex items-center gap-3">
-        <button
+        <Button
+          variant="bare"
           type="button"
           onClick={onToggleTax}
           disabled={busy}
           className="text-label uppercase tracking-wide text-muted hover:text-text disabled:text-muted"
         >
           Tax…
-        </button>
+        </Button>
         {view.isPinned ? (
-          <button
+          <Button
+            variant="bare"
             type="button"
             onClick={() => onSetPin(null)}
             disabled={busy}
             className="text-label uppercase tracking-wide text-muted hover:text-text disabled:text-muted"
           >
             Unpin
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
+            variant="bare"
             type="button"
             onClick={onTogglePin}
             disabled={busy}
             className="text-label uppercase tracking-wide text-muted hover:text-text disabled:text-muted"
           >
             Pin…
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          variant="bare"
           type="button"
           onClick={onDelete}
           disabled={busy}
           className="text-label uppercase tracking-wide text-muted hover:text-tone-red disabled:text-muted"
         >
           Delete
-        </button>
+        </Button>
       </span>
       {showPinPicker && (
         <div className="w-full max-w-[320px]">
@@ -271,7 +279,7 @@ function SavedStructureRow({
           onError={onError}
         />
       )}
-    </li>
+    </Card>
   );
 }
 
@@ -534,14 +542,15 @@ export function CustomStructureBuilder({
           />
         </Field>
         <div className="flex flex-col gap-1">
-          <button
+          <Button
+            variant="bare"
             type="button"
             onClick={onParse}
             disabled={!canReadFit(paste, busy)}
             className="self-start text-label uppercase tracking-wide text-tone-blue hover:underline disabled:text-muted disabled:no-underline"
           >
             Read fit →
-          </button>
+          </Button>
         </div>
 
         <StructureTypeSelect value={structureTypeId} types={structureTypes} onChange={chooseStructure} />
@@ -603,7 +612,7 @@ export function CustomStructureBuilder({
           />
         </div>
 
-        {error && <p className="text-ui text-tone-red">{error}</p>}
+        {error && <Banner tone="warn">{error}</Banner>}
 
         <Button variant="primary" onClick={onSave} disabled={!canSave} className="self-start">
           Save structure

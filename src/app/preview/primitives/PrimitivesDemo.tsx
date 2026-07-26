@@ -5,17 +5,32 @@ import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ChipToggle, ChipToggleGroup } from '@/components/ui/chip-toggle';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CopyButton } from '@/components/ui/copy-button';
+import { Dot } from '@/components/ui/dot';
 import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Kbd } from '@/components/ui/kbd';
 import { Pagination } from '@/components/ui/pagination';
+import { Prose } from '@/components/ui/prose';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
+import { Stepper } from '@/components/ui/stepper';
 import { Tabs } from '@/components/ui/tabs';
 import { Tooltip } from '@/components/ui/tooltip';
+
+const TABLE_COLUMNS = [
+  { key: 'material', label: 'Material', render: (row) => row.material },
+  {
+    key: 'quantity',
+    label: 'Quantity',
+    align: 'right',
+    render: (row) => row.quantity.toLocaleString(),
+  },
+] satisfies readonly StaticTableColumn<{ material: string; quantity: number }>[];
 
 function DemoSection({
   index,
@@ -49,6 +64,8 @@ export function PrimitivesDemo() {
   const [checks, setChecks] = useState({ gas: true, ore: true, shattered: false });
   const [basis, setBasis] = useState('sell');
   const [unit, setUnit] = useState('isk');
+  const [siteTypes, setSiteTypes] = useState(['gas']);
+  const [efficiency, setEfficiency] = useState(8);
   const [bannerVisible, setBannerVisible] = useState(true);
   const [page, setPage] = useState(1);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -66,7 +83,7 @@ export function PrimitivesDemo() {
             <Input defaultValue="Sotiyo — Deklein" />
           </Field>
           <Field label="ESI callback URL" error="Must start with https://">
-            <Input defaultValue="htp://lgi.tools/api" className="border-pill-red-border" />
+            <Input defaultValue="htp://lgi.tools/api" className="border-tone-red" />
           </Field>
           <Field label="Feedback" hint="Markdown not supported · 500 char max">
             <Textarea
@@ -154,9 +171,13 @@ export function PrimitivesDemo() {
         why="Supplemental hover/focus assistance only; touch-critical question-mark help remains Popover."
       >
         <Tooltip content="How fresh the Jita snapshot behind this value is. High means synced within the last hour.">
-          <button type="button" className="w-fit border-b border-dotted border-border-active text-ui text-text">
+          <Button
+            variant="bare"
+            size="sm"
+            className="w-fit border-b border-dotted border-border-active text-ui text-text"
+          >
             Price confidence
-          </button>
+          </Button>
         </Tooltip>
       </DemoSection>
 
@@ -244,6 +265,62 @@ export function PrimitivesDemo() {
           finalFocus={confirmTriggerRef}
           className="w-[min(440px,calc(100vw-2rem))]"
         />
+      </DemoSection>
+
+      <DemoSection
+        index="11"
+        title="Chip toggles + status dots"
+        why="Pressable filters keep their domain tone while Base UI owns keyboard and pressed semantics."
+      >
+        <ChipToggleGroup
+          value={siteTypes}
+          onValueChange={setSiteTypes}
+          label="Wormhole site types"
+        >
+          <ChipToggle value="gas" tone="orange"><Dot tone="orange" size="sm" /> Gas</ChipToggle>
+          <ChipToggle value="ore" tone="blue"><Dot tone="blue" size="sm" /> Ore</ChipToggle>
+          <ChipToggle value="relic" tone="green"><Dot tone="green" size="sm" /> Relic</ChipToggle>
+        </ChipToggleGroup>
+      </DemoSection>
+
+      <DemoSection
+        index="12"
+        title="Stepper + static table"
+        why="Base UI owns numeric editing while a shared semantic table keeps compact read-only data consistent."
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <Stepper
+            ariaLabel="Material efficiency"
+            value={efficiency}
+            onChange={setEfficiency}
+            variant="inline"
+            trailing={<span className="text-faint">ME</span>}
+          />
+          <Card className="overflow-hidden">
+            <StaticTable
+              ariaLabel="Example material requirements"
+              columns={TABLE_COLUMNS}
+              rows={[
+                { material: 'Tritanium', quantity: 124000 },
+                { material: 'Mexallon', quantity: 8400 },
+              ]}
+              getRowKey={(row) => row.material}
+            />
+          </Card>
+        </div>
+      </DemoSection>
+
+      <DemoSection
+        index="13"
+        title="Prose"
+        why="Long-form legal and development writing shares one readable descendant-style vocabulary."
+      >
+        <Card className="p-5">
+          <Prose>
+            <h2>Data use</h2>
+            <p>LGI.tools stores only the account and ESI data needed to provide the requested tools.</p>
+          </Prose>
+        </Card>
       </DemoSection>
     </div>
   );

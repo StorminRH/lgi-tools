@@ -13,6 +13,7 @@
 // planner feature composes it via @/components/RunAsFrame, threading the selection
 // props from its pricing context.
 import { CharacterPortrait } from '@/components/character-portrait';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Menu,
   MenuRadioGroup,
@@ -52,7 +53,7 @@ function InertRunAsFrame({ loading }: { loading: boolean }) {
     <div role="img" className={FRAME_CLASSES} aria-label="Building character">
       {HEADING}
       {loading ? (
-        <span aria-hidden className="size-16 rounded-full border border-border-idle bg-bg-deep" />
+        <Skeleton label="Loading build character" className="size-16 rounded-full" />
       ) : (
         <>
           <span

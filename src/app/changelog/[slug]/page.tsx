@@ -60,7 +60,7 @@ export default async function ChangelogMasterPage({
   const document = await findOlderChangelogDocument(slug);
   if (!document) notFound();
   return (
-    <div className="changelog">
+    <div className="max-w-[820px]">
       <MasterSection master={document.master} />
     </div>
   );
