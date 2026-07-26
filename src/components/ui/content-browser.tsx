@@ -1,7 +1,9 @@
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { cn } from './cn';
 import { ContentBrowserNav, ContentBrowserNavTree } from './content-browser-nav';
 import type { ContentNavModel } from './content-browser-view';
+import { scrollArea } from './scroll-area';
 
 export type { ContentNavGroup, ContentNavItem, ContentNavModel } from './content-browser-view';
 export { landingContentSlug } from './content-browser-view';
@@ -40,7 +42,10 @@ export function ContentBrowser({
         </summary>
         <div
           data-content-browser-rail-body
-          className="lg:max-h-[calc(100dvh-48px)] lg:overflow-y-auto lg:overscroll-y-auto"
+          className={cn(
+            scrollArea,
+            'lg:max-h-[calc(100dvh-48px)] lg:overflow-y-auto lg:overscroll-y-auto',
+          )}
         >
           <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
             <ContentBrowserNav {...navProps} />

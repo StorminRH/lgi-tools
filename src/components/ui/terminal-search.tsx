@@ -17,6 +17,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Callout } from './callout';
 import * as Combobox from './combobox';
+import { scrollArea } from './scroll-area';
 import { deriveTerminalDropdown } from './terminal-search-view';
 import { eyebrow } from './type-roles';
 
@@ -172,7 +173,10 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
           }}
         />
         {visibleSuggestions.length > 0 && (
-          <Combobox.Panel className="max-h-[240px] w-[var(--anchor-width)] overflow-y-auto" sideOffset={4}>
+          <Combobox.Panel
+            className={`${scrollArea} max-h-[240px] w-[var(--anchor-width)] overflow-y-auto`}
+            sideOffset={4}
+          >
             <Combobox.List>
               {visibleSuggestions.map((s) => (
                 <Combobox.Item

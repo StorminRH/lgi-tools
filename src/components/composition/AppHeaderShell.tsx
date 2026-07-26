@@ -48,10 +48,16 @@ export function AppHeaderShell({
         siteIndex={siteIndex}
       />
       <NavTools />
-      <div className="ml-auto flex shrink-0 items-stretch border-l border-border">
+      <div
+        data-server-status-slot
+        className="flex shrink-0 items-stretch border-l border-border"
+      >
         <ServerStatus status={serverStatus} />
       </div>
-      <div className="flex shrink-0 items-center border-l border-border px-3 max-lg:hidden">
+      <div
+        data-account-slot
+        className="flex shrink-0 items-center border-l border-border px-3 max-lg:hidden"
+      >
         <LoginButton />
       </div>
       <NavMenu />

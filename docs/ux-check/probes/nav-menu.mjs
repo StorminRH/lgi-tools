@@ -1,12 +1,14 @@
 export default {
   name: 'nav-menu',
   route: '/',
-  viewports: ['mobile', 'tablet'],
+  viewports: ['mobile', 'tablet', 'desktop'],
   settle: 1200,
   async run({ page, viewport, check, shot }) {
     const expectedViewport = viewport === 'mobile'
       ? { width: 390, height: 844 }
-      : { width: 768, height: 1024 };
+      : viewport === 'tablet'
+        ? { width: 768, height: 1024 }
+        : { width: 1440, height: 900 };
     const configuredViewport = page.viewportSize();
     check(
       `browser context matches ${viewport} matrix dimensions`,
@@ -26,6 +28,43 @@ export default {
     }
 
     const toggle = page.locator('[data-nav-menu-toggle]');
+    if (viewport === 'desktop') {
+      check('collapsed nav trigger is hidden', !(await toggle.isVisible()));
+      const toolNav = page.locator('nav[aria-label="Tools"]');
+      const statusSlot = page.locator('[data-server-status-slot]');
+      const accountSlot = page.locator('[data-account-slot]');
+      check('desktop tool navigation is visible', await toolNav.isVisible());
+      check('desktop account slot is visible', await accountSlot.isVisible());
+
+      const [navBox, statusBox, accountBox] = await Promise.all([
+        toolNav.boundingBox(),
+        statusSlot.boundingBox(),
+        accountSlot.boundingBox(),
+      ]);
+      check(
+        'tool navigation is right-aligned against the status and account cluster',
+        navBox !== null
+          && statusBox !== null
+          && accountBox !== null
+          && Math.abs(navBox.x + navBox.width - statusBox.x) <= 1
+          && Math.abs(statusBox.x + statusBox.width - accountBox.x) <= 1,
+      );
+
+      const divider = await toolNav.locator('li').nth(0).evaluate((item) => {
+        const style = getComputedStyle(item);
+        return {
+          width: style.borderInlineEndWidth,
+          color: style.borderInlineEndColor,
+        };
+      });
+      check(
+        'desktop tool cells retain a visible divider',
+        divider.width === '1px' && divider.color !== 'rgba(0, 0, 0, 0)',
+      );
+      await shot('desktop-aligned');
+      return;
+    }
+
     const isOpen = async () => (await toggle.getAttribute('data-popup-open')) !== null;
     check('collapsed nav trigger is visible', await toggle.isVisible());
 

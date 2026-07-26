@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover } from '@/components/ui/popover';
+import { scrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
 import { createSavedPlanEndpoint, MAX_SAVED_PLAN_NAME_LEN } from '../api-contract';
@@ -116,7 +117,7 @@ export function TemplatesMenu({
       </div>
 
       {plans !== null && plans.length > 0 ? (
-        <ul className="flex max-h-[264px] flex-col gap-1.5 overflow-y-auto">
+        <ul className={`${scrollArea} flex max-h-[264px] flex-col gap-1.5 overflow-y-auto`}>
           <SavedPlanRows plans={plans} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
         </ul>
       ) : (

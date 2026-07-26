@@ -3,6 +3,7 @@ import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { Pill, type PillTone } from '@/components/ui/pill';
+import { scrollArea } from '@/components/ui/scroll-area';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { getSitemapEntries } from '@/composition/sitemap';
@@ -49,7 +50,7 @@ function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
     },
   ] satisfies readonly StaticTableColumn<GscCoverageRow>[];
   return (
-    <div className="max-h-96 overflow-auto border-t border-border-soft">
+    <div className={`${scrollArea} max-h-96 overflow-auto border-t border-border-soft`}>
       <StaticTable
         ariaLabel="Latest Google Search Console inspection result for every sitemap URL"
         theadClassName="sticky top-0 z-[1] bg-section"

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { navigationMenuLink } from './navigation-menu';
 
 describe('navigationMenuLink', () => {
-  it('uses sentence-case interface typography without cell dividers', () => {
+  it('uses sentence-case interface typography while the parent list owns dividers', () => {
     const classes = navigationMenuLink();
     expect(classes).toContain('font-ui');
     expect(classes).toContain('text-nav');

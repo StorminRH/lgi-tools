@@ -22,7 +22,7 @@ import type { Tone } from './tones';
 export type NavigationMenuTone = Extract<Tone, 'neutral'>;
 
 // The list is the flex row; reset the <ul> defaults.
-const list = cva('flex items-stretch list-none m-0 p-0', {
+const list = cva('flex items-stretch divide-x divide-border list-none m-0 p-0', {
   variants: {
     tone: {
       neutral: '',

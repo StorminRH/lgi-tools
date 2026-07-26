@@ -6,6 +6,7 @@ import { PriceConfidence } from '@/components/ui/price-confidence';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { Pill } from '@/components/ui/pill';
 import { SegmentedControl } from '@/components/ui/segmented';
+import { scrollArea } from '@/components/ui/scroll-area';
 import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
@@ -222,7 +223,7 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
     <KpiHelp label="How total job time is calculated">
       <PopoverHeading>Total job time — whole tree</PopoverHeading>
       <div className="flex flex-col">
-        <div className="flex max-h-[240px] flex-col gap-1 overflow-y-auto pr-1">
+        <div className={cn(scrollArea, 'flex max-h-[240px] flex-col gap-1 overflow-y-auto pr-1')}>
           {buildTimes.breakdown.map((line) => (
             <div
               key={line.typeId}

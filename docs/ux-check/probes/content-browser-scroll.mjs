@@ -26,6 +26,8 @@ async function metrics(page) {
       bodyMaxHeight: bodyStyle.maxHeight,
       bodyOverflowY: bodyStyle.overflowY,
       bodyOverscrollY: bodyStyle.overscrollBehaviorY,
+      bodyHasScrollArea: body.classList.contains('scroll-area'),
+      bodyScrollbarGutter: bodyStyle.scrollbarGutter,
     };
   });
 }
@@ -55,6 +57,11 @@ export default {
     check('desktop rail is sticky', initial.railPosition === 'sticky');
     check('desktop rail owns internal scrolling', initial.bodyOverflowY === 'auto' && initial.bodyOverscrollY === 'auto');
     check('desktop rail content overflows', initial.bodyScrollHeight > initial.bodyClientHeight);
+    check(
+      'desktop rail advertises overflow with a stable visible scrollbar',
+      initial.bodyScrollbarGutter === 'stable'
+        && initial.bodyHasScrollArea,
+    );
     check('rail begins below its sticky stop', initial.railTop > STICKY_INSET + TOLERANCE);
 
     const followDistance = Math.min(40, (initial.railTop - STICKY_INSET) / 2);
