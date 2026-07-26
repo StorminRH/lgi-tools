@@ -2,7 +2,7 @@
 
 import { Menu as Base } from '@base-ui/react/menu';
 import { cva } from 'class-variance-authority';
-import type { ComponentPropsWithRef, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from './cn';
 import {
   menuControlRow,
@@ -51,16 +51,6 @@ type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
 type DataAttributes = {
   [key: `data-${string}`]: string | number | boolean | undefined;
 };
-type MenuElementProps = Omit<
-  ComponentPropsWithRef<'button'>,
-  'aria-label' | 'children' | 'className' | 'type'
-> &
-  DataAttributes;
-type MenuPopupProps = Omit<
-  ComponentPropsWithRef<'div'>,
-  'aria-label' | 'children' | 'className'
-> &
-  DataAttributes;
 
 /**
  * Renders the domain-neutral menu with house behavior and tokens; callers own semantic meaning and
@@ -102,10 +92,10 @@ export function Menu({
   // Classes for the trigger button (the glyph/badge styling lives at the call
   // site, like the abstract-tone pattern across the UI primitives).
   triggerClassName?: string;
-  // Stable data hooks or other native trigger attributes for automation.
-  triggerProps?: MenuElementProps;
-  // Stable data hooks or other native popup attributes for automation.
-  popupProps?: MenuPopupProps;
+  // Stable trigger hooks for automation; behavior remains owned here.
+  triggerProps?: DataAttributes;
+  // Stable popup hooks for automation; behavior remains owned here.
+  popupProps?: DataAttributes;
   // Extra classes merged onto the popup (the surface look + sizing).
   className?: string;
 }) {

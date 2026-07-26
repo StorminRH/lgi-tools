@@ -39,11 +39,11 @@ export default {
   async run({ page, viewport, check, shot }) {
     if (viewport === 'mobile') {
       const rail = page.locator('[data-content-browser-rail]');
-      const trigger = page.locator('[data-content-drawer-trigger]');
+      const trigger = page.locator('[data-drawer-trigger]');
       check('desktop rail is hidden on mobile', !(await rail.isVisible()));
       check('mobile chapter bar is visible', await trigger.isVisible());
       await trigger.tap();
-      check('mobile contents drawer opens', await page.locator('[data-content-drawer-popup]').isVisible());
+      check('mobile contents drawer opens', await page.locator('[data-drawer-popup]').isVisible());
       await shot('mobile-drawer-open');
       return;
     }

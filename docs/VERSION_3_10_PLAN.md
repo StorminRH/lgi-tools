@@ -165,7 +165,7 @@ and no separate elective campaign is scheduled.
 | 3.10.3.3 | Generated architecture map & devlog flowchart, UX gate: Yes (§3.10.3.3) | 1 | SHIPPED |
 | **Phase 4 — Presentation-system completion** | Topology approved 2026-07-25 from the live adoption survey (`docs/version-audits/3.10/PHASE_4_ADOPTION_SURVEY.md`) | | |
 | 3.10.4.1 | Universal primitive adoption & rails: every approved survey row migrated look-preservingly with a same-PR rail, primitive capability additions, ~650 lines of legacy CSS retired, repeatable census gate (§3.10.4.1) | 1 | SHIPPED |
-| 3.10.4.2 | Refinement & responsive modes: outcome groups B + C as one bundle, completing group A's census allowlist (§3.10.4.2) | 1 | PLANNED |
+| 3.10.4.2 | Refinement & responsive modes: outcome groups B + C as one bundle, completing group A's census allowlist (§3.10.4.2) | 1 | SHIPPED |
 | 3.10.4.3 | Operator punch list, clean adoption re-audit & version closure (§3.10.4.3) | 1 | PLANNED |
 
 ## Phase 0 — Documentation & lifecycle consolidation (3.10.0.x)

@@ -26,19 +26,19 @@ export function Drawer({
     <Base.Root swipeDirection="down">
       <Base.Trigger
         type="button"
-        data-content-drawer-trigger
+        data-drawer-trigger
         className={triggerClassName}
       >
         {trigger}
       </Base.Trigger>
       <Base.Portal>
         <Base.Backdrop
-          data-content-drawer-backdrop
+          data-drawer-backdrop
           className="fixed inset-0 z-overlay min-h-dvh bg-backdrop-dim opacity-[calc(1-var(--drawer-swipe-progress))] transition-opacity duration-panel ease-panel data-swiping:transition-none data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:duration-0 motion-reduce:transition-none supports-[-webkit-touch-callout:none]:absolute"
         />
         <Base.Viewport className="fixed inset-0 z-overlay flex items-end justify-center">
           <Base.Popup
-            data-content-drawer-popup
+            data-drawer-popup
             className={cn(
               scrollArea,
               'max-h-[75dvh] w-full overflow-y-auto overscroll-contain rounded-t-card border border-b-0 border-border bg-section px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 text-text shadow-dd outline-none touch-auto',
@@ -51,7 +51,7 @@ export function Drawer({
               className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-active"
               aria-hidden="true"
             />
-            <Base.Content data-content-drawer-content>
+            <Base.Content data-drawer-content>
               <Base.Title className="mb-3 font-ui text-h3 font-semibold text-name">
                 {title}
               </Base.Title>

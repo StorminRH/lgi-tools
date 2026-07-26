@@ -1,11 +1,11 @@
 async function openDrawer(page) {
-  const trigger = page.locator('[data-content-drawer-trigger]');
+  const trigger = page.locator('[data-drawer-trigger]');
   await trigger.tap();
   await page.waitForTimeout(200);
   return {
     trigger,
-    popup: page.locator('[data-content-drawer-popup]'),
-    backdrop: page.locator('[data-content-drawer-backdrop]'),
+    popup: page.locator('[data-drawer-popup]'),
+    backdrop: page.locator('[data-drawer-backdrop]'),
   };
 }
 

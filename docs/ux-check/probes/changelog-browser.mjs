@@ -18,11 +18,11 @@ export default {
       });
       await page.waitForTimeout(300);
       const rail = page.locator('[data-content-browser-rail]');
-      const trigger = page.locator('[data-content-drawer-trigger]');
+      const trigger = page.locator('[data-drawer-trigger]');
       check('desktop changelog rail is hidden on mobile', !(await rail.isVisible()));
       check('mobile version chapter bar is visible', await trigger.isVisible());
       await trigger.tap();
-      const popup = page.locator('[data-content-drawer-popup]');
+      const popup = page.locator('[data-drawer-popup]');
       check('mobile version drawer opens', await popup.isVisible());
       check(
         'v3.8 is active on its canonical route',
