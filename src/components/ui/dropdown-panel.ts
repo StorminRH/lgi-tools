@@ -40,14 +40,14 @@ export const dropdownGroupLabel =
 
 /** A full-width language-first row shared by account and navigation menus. */
 export const menuRow =
-  'flex w-full items-center gap-2 px-3 py-2 font-ui text-nav text-text outline-none ' +
+  'flex w-full cursor-pointer items-center gap-2 px-3 py-2 font-ui text-nav text-muted outline-none ' +
   'data-[highlighted]:bg-row-active data-[highlighted]:text-name';
 
 /** The quiet divider between menu sections. */
 export const menuSeparator = 'h-px bg-border-soft';
 
 /** A grouped run of related menu rows. */
-export const menuSection = 'flex flex-col py-1';
+export const menuSection = 'flex flex-col border-t border-border-soft pb-1';
 
 /** The eyebrow heading for a menu section. */
 export const menuSectionLabel = `px-3 pb-1 pt-2 ${eyebrow({

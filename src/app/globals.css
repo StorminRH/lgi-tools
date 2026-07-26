@@ -607,74 +607,6 @@ a:hover {
   flex-shrink: 0;
 }
 
-/* Nav tool strip (3.6.3, handoff §2) — better-auth-style full-height cells
- * separated by vertical hairlines that touch the header's top/bottom edges.
- * Quiet uppercase mono at rest; hover brightens the text, adds a faint tint,
- * and lights a 1px ISK-green rule along the bottom edge; the active page shows
- * that rule at full opacity. The strip is `ml-auto` so it sits right-aligned
- * with a gap after the search bar, and carries its own `border-l` hairline
- * (set in NavTools' className) to close that gap; the last cell drops its
- * border-right because the price-freshness slot's border-l draws that seam. */
-.nav-tool {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 24px;
-  border-right: 1px solid var(--color-border-soft);
-  font-family: var(--font-ui);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  white-space: nowrap;
-  transition: color var(--transition-duration-fast), background var(--transition-duration-fast);
-}
-.nav-tool::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 1px;
-  background: var(--color-isk);
-  opacity: 0;
-  transition: opacity var(--transition-duration-fast);
-}
-/* Hover is scoped away from .soon so the disabled "coming soon" cell stays
- * inert (§2: "no hover") while keeping its title tooltip — pointer-events:none
- * would suppress the hover but also drop the tooltip the other cells keep.
- * The exclusion uses :where() (zero specificity) so the hover rule stays at the
- * same specificity as .nav-tool.active below — the later active rule then wins
- * on hover, keeping the active cell's green rule at full opacity (the standard
- * later-same-specificity-rule-wins pattern). */
-.nav-tool:where(:not(.soon)):hover {
-  color: var(--color-name);
-  background: var(--color-row-hover);
-}
-.nav-tool:where(:not(.soon)):hover::after { opacity: 0.8; }
-.nav-tool.active { color: var(--color-name); }
-.nav-tool.active::after { opacity: 1; }
-.nav-tool.soon { opacity: 0.4; cursor: default; }
-/* The strip is now a NavigationMenu (<nav><ul><li><a class="nav-tool">), so the
- * last cell is reached via its <li> — a bare `.nav-tool:last-child` would match
- * every cell (each is the only child of its own <li>) and drop all separators. */
-.nav-tools li:last-child .nav-tool { border-right: none; }
-
-/* ── Responsive defensive layer (v2.9.6) ───────────────────────────────
- * LGI.tools is desktop-first; this block is the Level-1 floor that keeps
- * the site usable on laptop (1366×768) and tablet (1024×768) viewports
- * without overlap or horizontal scroll. Full mobile UX defers to a
- * post-Phase-3 version. Breakpoints: 1500 / 1024 / 900 / 700 / 640. */
-
-/* Below this floor the wordmark + search + right-aligned strip leave less room,
- * so tighten the tool cells (padding / size) to keep the two full labels and the
- * search bar fitting without overflow. The strip no longer clips (no
- * overflow-hidden), so this floor, not a clip, is what prevents overflow. */
-@media (max-width: 1380px) {
-  .nav-tool { padding: 0 10px; font-size: var(--text-ui); letter-spacing: 0.08em; }
-}
-
 /* Tranquility status chip (NAV-TQ). A passive indicator: a coloured LED keyed
  * to server state + a compact "TQ · <count>" label. Online pulses green; the
  * VIP-only window after downtime shows a static amber dot; an unreachable
@@ -707,121 +639,10 @@ a:hover {
   .status-led { animation: none; }
 }
 
-/* Hamburger menu (NavMenu) — the mobile counterpart to the inline tool strip +
- * login cluster. The trigger <button> is hidden by default; the <1024px block
- * below reveals it on the bar. The panel is a Base UI Menu popup, portaled to
- * <body> and positioned by Floating UI against .app-header (so it drops below
- * the whole wrapped header). It carries its own surface here; the vertical stack
- * of full-width tap targets comes from the primitive's `flex flex-col`. The
- * inline strip + login are hidden on mobile by the rule further down. */
-.nav-menu-toggle {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0 16px;
-  border-left: 1px solid var(--color-border);
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: color var(--transition-duration-fast), background var(--transition-duration-fast);
-}
-.nav-menu-toggle:hover,
-.nav-menu-toggle[data-popup-open] {
-  color: var(--color-name);
-  background: var(--color-row-hover);
-}
-.nav-menu-icon { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; }
-.nav-menu-panel {
-  min-width: 224px;
-  /* Surface (bg/border/shadow) comes from the Menu primitive's shared panel; this
-   * keeps only the header-flush override so the panel meets the header seam. */
-  border-top: none;
-}
-/* the link rows, restacked vertically into full-width tap targets */
-.nav-menu-panel .nav-tool {
-  padding: 12px 16px;
-  border-right: none;
-  border-bottom: 1px solid var(--color-border-soft);
-}
-.nav-menu-panel .nav-tool::after { display: none; }
-.nav-menu-login {
-  display: flex;
-  padding: 12px 16px;
-  border-top: 1px solid var(--color-border);
-}
-
-/* Account menu (AccountMenu) — the signed-in portrait's dropdown (ACCOUNT.5),
- * on the same Base UI Menu primitive + surface as the hamburger panel above,
- * anchored to .app-header so it drops flush under the header's right edge.
- * Rows keep a padding rhythm with no per-row borders; the two structural
- * dividers (before the page-settings section, before Log out) come from the
- * section's and the separator's border-top, so no route ever shows a double
- * line. Desktop-only by construction: the login cluster is hidden <1024px. */
-.account-menu-panel {
-  min-width: 240px;
-  /* Surface comes from the shared Menu panel; keep only the header-flush override. */
-  border-top: none;
-}
-.account-menu-item {
-  padding: 12px 16px;
-  font-family: var(--font-ui);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: color var(--transition-duration-fast), background var(--transition-duration-fast);
-}
-.account-menu-item[data-highlighted],
-.account-menu-item:hover {
-  color: var(--color-name);
-  background: var(--color-row-active);
-}
-.account-menu-separator {
-  border-top: 1px solid var(--color-border-soft);
-}
-.account-menu-section {
-  border-top: 1px solid var(--color-border-soft);
-  padding-bottom: 6px;
-}
-.account-menu-group-label {
-  padding: 10px 16px 4px;
-  font-family: var(--font-ui);
-  font-size: var(--text-label);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.account-menu-control {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 16px;
-}
-.account-menu-control-label {
-  font-family: var(--font-ui);
-  font-size: var(--text-label);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-/* Run-As build-character menu (ACCOUNT.8) — the planner hero frame's dropdown.
- * Wears the shared Menu panel surface; unlike the header-flush hamburger/account
- * panels it keeps ALL four border edges (no `border-top: none` override) because it
- * anchors to a mid-page trigger. Rows reuse .account-menu-item / .account-menu-separator. */
-.run-as-menu-panel {
-  min-width: 240px;
-}
-
-/* Mobile nav (<1024px). Below here the inline tool strip + login cluster don't
- * fit alongside the always-on Tranquility status chip, so they collapse into
- * the hamburger above; the status chip stays glanceable on the bar and the
- * search input wraps to a full-width second row. (Replaced the old 1024/800/640
- * shrink-and-hide ladder, which hid the chip and squeezed the search box.) */
-@media (max-width: 1024px) {
-  .app-header { position: relative; flex-wrap: wrap; height: auto; }
+/* The search host keeps its unlayered mobile overrides because those declarations
+ * must outrank the Tailwind layer's fixed desktop width. Header slots and menu
+ * visibility use component utilities now that no legacy selectors contest them. */
+@media (width < 64rem) {
   .app-header .nav-host {
     order: 99;
     flex-basis: 100%;
@@ -835,10 +656,6 @@ a:hover {
     flex-shrink: 1;
     min-width: 0;
   }
-  .app-header > .nav-tools,
-  .app-header > .login-cluster { display: none; }
-  .server-status-slot { margin-left: auto; }
-  .nav-menu-toggle { display: inline-flex; }
 }
 
 /* ── Sortable table block (v2.9.7) ─────────────────────────────────────

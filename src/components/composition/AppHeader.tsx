@@ -25,7 +25,7 @@ export async function AppHeader() {
   ]);
 
   return (
-    <header className="app-header flex items-stretch h-[50px] text-ui border-b border-border bg-section">
+    <header className="app-header flex h-[50px] items-stretch border-b border-border bg-section text-ui max-lg:h-auto max-lg:flex-wrap">
       <div className="flex items-center shrink-0 px-4 border-r border-border">
         <Link
           href="/"

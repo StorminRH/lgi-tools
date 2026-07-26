@@ -25,7 +25,7 @@ export default {
       );
     }
 
-    const toggle = page.locator('button.nav-menu-toggle');
+    const toggle = page.locator('[data-nav-menu-toggle]');
     const isOpen = async () => (await toggle.getAttribute('data-popup-open')) !== null;
     check('collapsed nav trigger is visible', await toggle.isVisible());
 
@@ -33,10 +33,11 @@ export default {
     else await toggle.click();
     await page.waitForTimeout(350);
     check(`${viewport === 'mobile' ? 'tap' : 'click'} opens the menu`, await isOpen());
-    check('menu panel is visible', await page.locator('.nav-menu-panel').isVisible());
+    const panel = page.locator('[data-nav-menu-panel]');
+    check('menu panel is visible', await panel.isVisible());
     await shot('open');
 
-    const sitesLink = page.locator('.nav-menu-panel a.nav-tool', { hasText: 'Wormhole Sites' });
+    const sitesLink = panel.locator('a', { hasText: 'Wormhole Sites' });
     check('Wormhole Sites link is present', (await sitesLink.count()) > 0);
     if (viewport === 'mobile') await sitesLink.first().tap();
     else await sitesLink.first().click();
@@ -44,7 +45,7 @@ export default {
     await page.waitForTimeout(500);
     check('link activation navigates to /sites', new URL(page.url()).pathname === '/sites');
     check('menu closes after navigation', !(await isOpen()));
-    check('menu panel unmounts after navigation', (await page.locator('.nav-menu-panel').count()) === 0);
+    check('menu panel unmounts after navigation', (await page.locator('[data-nav-menu-panel]').count()) === 0);
     await shot('after-link-tap');
 
     await toggle.focus();
