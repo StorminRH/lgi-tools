@@ -4,6 +4,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { EntityRow } from '@/components/ui/row';
+import { eyebrow } from '@/components/ui/type-roles';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
 /** Static search and social metadata for the /contact route. */
@@ -36,7 +37,7 @@ export default function ContactPage() {
         crumb="contact"
         title="Contact"
         meta={
-          <span>
+          <span className={eyebrow()}>
             Replies usually within <b className="text-name font-semibold">a day or two</b>
           </span>
         }

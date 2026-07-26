@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ContentBrowser, landingContentSlug } from '@/components/ui/content-browser';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
+import { eyebrow } from '@/components/ui/type-roles';
 import { loadDevlog } from '@/features/devlog/load';
 import { toNavModel } from '@/features/devlog/parse';
 
@@ -20,7 +21,7 @@ export default async function DevlogLayout({ children }: { children: ReactNode }
         size="hero"
         crumb="devlog"
         title="Under the Hood"
-        meta={<span>a dev log</span>}
+        meta={<span className={eyebrow()}>a dev log</span>}
       />
       <ContentBrowser
         basePath="/devlog"

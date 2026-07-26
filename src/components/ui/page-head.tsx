@@ -1,7 +1,6 @@
 import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
-import { eyebrow } from './type-roles';
 
 type PageTitleSize = 'hero' | 'page' | 'compact';
 
@@ -69,7 +68,8 @@ export function PageTitle({
  * `meta` slot. The ONE page-title system: every inner page (public + signed-in)
  * opens with this exact scaffold so titles can't drift page-to-page. The
  * `subtitle` carries a page's descriptive sentence; the terse `meta` slot is for
- * short uppercase tags or header controls.
+ * short metadata or header controls. The slot owns layout only: text call sites
+ * opt into their type role, while interactive children retain their own casing.
  */
 export function PageHead({
   crumb,
@@ -97,7 +97,7 @@ export function PageHead({
         )}
       </div>
       {meta != null && (
-        <div className={eyebrow({ className: 'flex items-baseline gap-[18px] pb-[3px]' })}>
+        <div className="flex items-baseline gap-[18px] pb-[3px]">
           {meta}
         </div>
       )}

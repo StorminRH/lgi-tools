@@ -156,7 +156,9 @@ function validateDefinition(definition, filename) {
     || viewports.length === 0
     || viewports.some((viewport) => !(viewport in VIEWPORTS))
   ) {
-    throw new Error(`${filename}: viewports must contain desktop and/or mobile`);
+    throw new Error(
+      `${filename}: viewports must contain one or more of: ${Object.keys(VIEWPORTS).join(', ')}`,
+    );
   }
   const allowConsole = definition.allowConsole ?? [];
   if (!Array.isArray(allowConsole) || allowConsole.some((pattern) => !(pattern instanceof RegExp))) {

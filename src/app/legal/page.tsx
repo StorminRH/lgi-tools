@@ -4,6 +4,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Prose } from '@/components/ui/prose';
 import { SectionLabel } from '@/components/ui/section-label';
+import { eyebrow } from '@/components/ui/type-roles';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
@@ -38,7 +39,7 @@ export default function LegalPage() {
         crumb="privacy"
         title="Privacy"
         meta={
-          <span>
+          <span className={eyebrow()}>
             Last updated <b className="text-name font-semibold">19 Jul 2026</b>
           </span>
         }

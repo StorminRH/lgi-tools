@@ -39,7 +39,12 @@ export default {
     ).first();
     const destinationHref = await destination.getAttribute('href');
     check('drawer offers another document', destinationHref !== null && destinationHref !== currentHref);
-    await destination.tap();
+    await destination.focus();
+    check(
+      'keyboard focus reaches a non-current document',
+      await destination.evaluate((element) => element === document.activeElement),
+    );
+    await page.keyboard.press('Enter');
     if (destinationHref) await page.waitForURL(`**${destinationHref}`, { timeout: 15000 });
     await page.waitForTimeout(300);
     check('document navigation closes the drawer', !(await popup.isVisible()));

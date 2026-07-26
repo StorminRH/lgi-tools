@@ -19,6 +19,7 @@ import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
 import { SegmentedControl } from '@/components/ui/segmented';
+import { eyebrow } from '@/components/ui/type-roles';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
 import type { SiteType, WormholeClass } from '../types';
@@ -115,10 +116,10 @@ export function SitesFilterLayout({
         title="Wormhole Sites"
         meta={
           <>
-            <span aria-live="polite">
+            <span className={eyebrow()} aria-live="polite">
               <b className="text-name font-semibold">{filteredCount}</b> of {total} sites
             </span>
-            <span>
+            <span className={eyebrow()}>
               jita <b className="text-isk font-semibold">live</b>
             </span>
           </>

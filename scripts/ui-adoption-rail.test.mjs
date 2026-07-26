@@ -203,6 +203,11 @@ describe('UI adoption syntax rail', () => {
       "const className = `text-ui tracking-emphasis`; export default className;",
       'No retired font or tracking utility',
     ],
+    [
+      'variant-prefixed retired font role',
+      "const className = 'md:hover:font-body'; export default className;",
+      'No retired font or tracking utility',
+    ],
   ])('rejects %s in production and preview source', async (_name, code, message) => {
     for (const filePath of [productionProbe, previewProbe]) {
       const messages = await restrictedMessages(filePath, code);

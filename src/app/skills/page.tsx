@@ -65,15 +65,17 @@ function SkillsLoading() {
 export default function SkillsPage() {
   return (
     <PageShell mode="reading">
-      <div className="flex flex-col items-center pb-20">
+      <div className="flex w-full flex-col items-center pb-20">
         <PageHead
           crumb="skills"
           title="Skill Queues"
           subtitle="Live training queues for every linked character · synced from ESI on view"
         />
-        <Suspense fallback={<SkillsLoading />}>
-          <SkillsContent />
-        </Suspense>
+        <div className="w-full">
+          <Suspense fallback={<SkillsLoading />}>
+            <SkillsContent />
+          </Suspense>
+        </div>
       </div>
     </PageShell>
   );

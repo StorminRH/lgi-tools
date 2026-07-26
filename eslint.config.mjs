@@ -106,13 +106,13 @@ const textSizeSelectors = [
 const legacyTypeRoleSelectors = [
   {
     selector:
-      "Literal[value=/(?:^|\\s)(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
+      "Literal[value=/(?:^|\\s)(?:\\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
     message:
       "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
   },
   {
     selector:
-      "TemplateElement[value.raw=/(?:^|\\s)(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
+      "TemplateElement[value.raw=/(?:^|\\s)(?:\\S+:)*(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
     message:
       "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
   },
