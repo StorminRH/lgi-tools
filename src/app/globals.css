@@ -31,6 +31,8 @@
   --color-row-sites-on: rgba(255,255,255,0.035);
   --color-row-job-head: rgba(255,255,255,0.012);
   --color-row-job-hover: rgba(255,255,255,0.014);
+  --color-nav-guide: #1a2029;
+  --color-nav-wash: rgba(255,255,255,0.012);
   --color-focus-ring: rgba(61,214,140,0.55);
   --color-backdrop-clear: rgba(6,7,8,0);
   --color-backdrop-floor: rgba(6,7,8,0.78);
@@ -202,34 +204,29 @@
   --text-micro:   10px;     --text-micro--line-height:   1.4;  /* dot sublabels, unit suffixes, superscripts, fine-print */
   --text-label:   11.5px;  --text-label--line-height:   1.4;  /* uppercase tracked labels, table headers, breadcrumbs */
   --text-ui:      13px;     --text-ui--line-height:      1.5;  /* nav, table cells, pills, buttons, form controls */
-  --text-body:    15.5px;  --text-body--line-height:    1.7;  /* prose, card descriptions, devlog text */
+  --text-nav:     14px;     --text-nav--line-height:     1.6;  /* navigation, menu rows, everyday action language */
+  --text-body:    16px;     --text-body--line-height:    1.7;  /* prose, card descriptions, devlog text */
   --text-lead:    17px;     --text-lead--line-height:    1.6;  /* hero pitch line, section intros */
   --text-h3:      19px;     --text-h3--line-height:      1.2;  /* small headings: card titles, dialog/section sub-heads */
-  --text-stat:    26px;     --text-stat--line-height:    1.1;  /* KPI numerals — + font-jb tabular-nums at call site */
+  --text-stat:    26px;     --text-stat--line-height:    1.1;  /* KPI numerals — + font-data tabular-nums at call site */
   --text-h2:      26px;     --text-h2--line-height:      1.15; /* section headings — + font-display at call site */
+  --text-title:   clamp(28px, 2.6vw, 36px); --text-title--line-height: 1.08; /* routine page titles */
   --text-display: clamp(30px, 3.4vw, 42px); --text-display--line-height: 1.05; /* page titles / PageHead (Barlow) */
   --text-hero:    clamp(44px, 6.5vw, 68px); /* landing wordmark + error/404 titles */
 
   /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ──
-   * The canonical three-family roster and its role map — the single source of
+   * The canonical three-role roster — the single source of
    * truth the "no stray family" check reads against (3.6.11 F1):
-   *   --font-body    (Geist)         → body / content prose
-   *   --font-display (Barlow Cond.)  → display: page titles / PageHead
-   *   --font-mono    (JetBrains Mono)→ UI + terminal chrome (breadcrumbs, nav
-   *                                    labels, readouts, toasts); the default face
-   *   --font-jb      (JetBrains Mono)→ ALIAS of the same face, marking the
-   *                                    [Lo-Gang] wordmark + tabular numerals that
-   *                                    column-align in ISK/quantity tables
-   * JetBrains Mono is the single monospace face now (IBM Plex Mono was retired in
-   * 3.8.2.1): it carries both the default UI chrome and — via the --font-jb alias —
-   * the branded wordmark and tabular figures. The alias is kept (not folded) so the
-   * branded/tabular intent stays marked at its call sites and can re-split from the
-   * chrome face later without call-site archaeology.
+   *   --font-ui      (Geist)         → everyday interface language and prose
+   *   --font-data    (JetBrains Mono)→ values, status, code, metadata and identity
+   *   --font-display (Barlow Cond.)  → page titles and display identity
+   * `--font-mono: initial` retires Tailwind's legacy `font-mono` utility so a
+   * stale class cannot silently keep the old page-default role.
    */
-  --font-mono:    var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: initial;
+  --font-ui:      var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-data:    var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-display: var(--font-barlow), system-ui, sans-serif;
-  --font-jb:      var(--font-jetbrains), ui-monospace, monospace;
-  --font-body:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
   /* ── Radii (3.8.2.2 "Inset Instrument") ──
    * Two jobs, collapsing the old 1/2/3/4/5/6/11px spread. `--radius-*` generates
@@ -242,13 +239,10 @@
   --radius-card: 6px;  /* cards, panels, dropdown panels, dialogs */
 
   /* ── Micro scales (3.8.2.8) ── */
+  --tracking-optical: 0.01em;
   --tracking-copy: 0.04em;
-  --tracking-ui: 0.06em;
   --tracking-label: 0.08em;
-  --tracking-control: 0.1em;
   --tracking-wide: 0.12em;
-  --tracking-emphasis: 0.14em;
-  --tracking-display: 0.16em;
   --tracking-eyebrow: 0.18em;
   --transition-duration-fast: 150ms;
   --transition-duration-panel: 200ms;
@@ -261,6 +255,15 @@
   --spacing-icon-sm: 14px;
   --spacing-icon-md: 18px;
   --spacing-icon-lg: 22px;
+  --spacing-cluster: 0.75rem;
+  --spacing-section: 2rem;
+  --spacing-region: 3rem;
+  --spacing-page: 4rem;
+  --container-reading: 47.5rem;
+  --container-frame: 80rem;
+  --breakpoint-split: 56.25rem;
+  --breakpoint-cockpit: 67.5rem;
+  --breakpoint-nav: 86.25rem;
 
   /* ── Elevation (3.8.2.2 "Inset Instrument") ──
    * `--shadow-*` generates `shadow-*` utilities (shadow-field-inset, …); registered
@@ -284,7 +287,6 @@
   --shadow-toast: 0 0 18px -7px rgba(61,214,140,0.18), 0 10px 30px -10px rgba(0,0,0,0.85);
   --shadow-status-info: 0 0 8px rgba(61,214,140,0.5);
   --shadow-status-warn: 0 0 8px rgba(255,170,34,0.45);
-  --shadow-home-live: 0 0 8px var(--color-card-glow-shadow);
   --shadow-dot-orange: 0 0 4px var(--color-dot-orange-glow);
   --shadow-dot-blue: 0 0 4px var(--color-dot-blue-glow);
   --shadow-selected-rail: inset 2px 0 0 var(--color-isk);
@@ -300,7 +302,7 @@ html {
 
 html, body {
   color: var(--color-text);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
 }
 
 body {
@@ -311,6 +313,13 @@ body {
    * descriptive copy; dense chrome that needs tighter stacking sets its own
    * leading at the call site. */
   line-height: 1.65;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-data);
 }
 
 /* Universal link hover vocabulary — every <a> transitions toward the green
@@ -483,7 +492,7 @@ a:hover {
 
 /* ── Static pages — /legal, /contact, /changelog (handoff §6) ────────────
  * The three footer pages share the .OGP page-head scaffold (PageHead) plus
- * these blocks. Descriptive prose is Geist (--font-body); labels, values, and
+ * these blocks. Descriptive prose uses the interface role; labels, values, and
  * version tags stay mono. No new tokens. */
 
 /* Shared long-form reading surface; the Prose primitive selects only the
@@ -496,7 +505,7 @@ a:hover {
   margin-inline: auto;
 }
 .prose-copy p {
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
   line-height: 1.72;
   letter-spacing: 0.01em;
@@ -527,7 +536,7 @@ a:hover {
 .prose-copy li {
   position: relative;
   padding-left: 18px;
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
   line-height: 1.65;
   letter-spacing: 0.01em;
@@ -540,7 +549,7 @@ a:hover {
   border-radius: 4px;
   background: var(--color-section);
   padding: 1px 5px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-ui);
   color: var(--color-name);
 }
@@ -548,7 +557,7 @@ a:hover {
   margin: 0 0 14px;
   border-left: 2px solid var(--color-isk-dim);
   padding: 2px 0 2px 16px;
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
   font-style: italic;
   line-height: 1.7;
@@ -563,7 +572,7 @@ a:hover {
   padding: 16px 18px;
 }
 .legal-note p {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-body);
   line-height: 1.7;
   letter-spacing: 0.02em;
@@ -612,7 +621,7 @@ a:hover {
   align-items: center;
   padding: 0 24px;
   border-right: 1px solid var(--color-border-soft);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: var(--text-ui);
   font-weight: 500;
   letter-spacing: 0.13em;
@@ -754,7 +763,7 @@ a:hover {
 }
 .account-menu-item {
   padding: 12px 16px;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: var(--text-ui);
   font-weight: 500;
   letter-spacing: 0.13em;
@@ -777,7 +786,7 @@ a:hover {
 }
 .account-menu-group-label {
   padding: 10px 16px 4px;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: var(--text-label);
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -791,7 +800,7 @@ a:hover {
   padding: 6px 16px;
 }
 .account-menu-control-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: var(--text-label);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -864,7 +873,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-jb);
+  font-family: var(--font-data);
   font-weight: 800;
   font-size: var(--text-ui);
   color: var(--color-isk);
@@ -1096,7 +1105,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: var(--text-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1108,7 +1117,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 }
 .content-browser-rail-toggle::after { content: '▾'; margin-left: auto; font-size: var(--text-micro); }
 
-.content-browser-nav { font-family: var(--font-mono); }
+.content-browser-nav { font-family: var(--font-ui); }
 .content-browser-nav-items { list-style: none; margin: 0 0 14px; padding: 0; }
 .content-browser-nav-item {
   display: block;
@@ -1162,7 +1171,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   gap: 8px;
   cursor: pointer;
   padding: 7px 12px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-ui);
   letter-spacing: 0.02em;
 }
@@ -1182,7 +1191,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-deep);
   overflow-x: auto;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-ui);
   line-height: 1.6;
   color: var(--color-text);
