@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import unittest
 
+from merge_clean_pr import CODERABBIT
 from poll_pr_gate import (
     CODERABBIT_CHECK,
     coderabbit_rate_limited,
+    coderabbit_waiting_for_review,
     cursor_bugbot_signal,
     quiescence,
     review_key,
@@ -149,6 +151,47 @@ class CodeRabbitRateLimited(unittest.TestCase):
     def test_missing_statuses_is_not_rate_limited(self) -> None:
         self.assertFalse(coderabbit_rate_limited({"state": "pending", "statuses": []}))
         self.assertFalse(coderabbit_rate_limited({}))
+
+    def test_rate_limit_waits_without_exact_head_evidence(self) -> None:
+        self.assertTrue(
+            coderabbit_waiting_for_review(
+                self.status("Review rate limited"),
+                [],
+                "abcdef123456",
+                [],
+            )
+        )
+
+    def test_current_head_review_overrides_stale_rate_limit_text(self) -> None:
+        head = "abcdef123456"
+        reviews = [{"user": {"login": CODERABBIT}, "commit_id": head}]
+        self.assertFalse(
+            coderabbit_waiting_for_review(
+                self.status("Review rate limited"),
+                reviews,
+                head,
+                [],
+            )
+        )
+
+    def test_addressed_marker_overrides_stale_rate_limit_text(self) -> None:
+        head = "abcdef123456"
+        comments = [
+            {
+                "user": {"login": CODERABBIT},
+                "id": 10,
+                "commit_id": "older",
+                "body": "Finding\n\n✅ Addressed in commit abcdef1",
+            }
+        ]
+        self.assertFalse(
+            coderabbit_waiting_for_review(
+                self.status("Review rate limited"),
+                [],
+                head,
+                comments,
+            )
+        )
 
 
 class CursorBugbotSignal(unittest.TestCase):

@@ -39,6 +39,7 @@ import time
 from github_api import github_token, request
 from merge_clean_pr import (
     CODERABBIT_CHECK,
+    coderabbit_reviewed_head,
     greptile_reviewed,
     merge_blockers,
     require,
@@ -69,6 +70,23 @@ def coderabbit_rate_limited(status: dict[str, object]) -> bool:
         if RATE_LIMIT_HINT in str(item.get("description", "")).lower():
             return True
     return False
+
+
+def coderabbit_waiting_for_review(
+    status: dict[str, object],
+    reviews: list[object],
+    head_sha: str,
+    inline_comments: list[object],
+) -> bool:
+    """True when a rate-limited status still lacks exact-head review evidence.
+
+    CodeRabbit's legacy status can remain rate-limited after its incremental pass
+    acknowledges the current head in an addressed-finding marker. Match the merge
+    helper's evidence rule so stale status text cannot hang the watch.
+    """
+    return coderabbit_rate_limited(status) and not coderabbit_reviewed_head(
+        reviews, head_sha, inline_comments
+    )
 
 
 def cursor_bugbot_signal(runs: list[object]) -> str:
@@ -302,7 +320,9 @@ def review_state(
     cursor_signal = cursor_bugbot_signal(runs)
     # A declined review is not a stable state: keep waiting rather than reporting
     # a blocker whose only remedy is time.
-    limited = fallback and coderabbit_rate_limited(status)
+    limited = fallback and coderabbit_waiting_for_review(
+        status, reviews, head_sha, inline_comments
+    )
     label = (
         f"head={head_sha[:8]} gate={gate} settled={settled} "
         f"blockers={len(blockers)} cursor={cursor_signal}"
