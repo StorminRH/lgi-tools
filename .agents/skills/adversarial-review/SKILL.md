@@ -37,12 +37,29 @@ fix, commit, open a PR, merge, deploy, or mutate lifecycle state.
     --model cursor-grok-4.5-medium \
     --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
     < "$ADVERSARIAL_HOLISTIC_BRIEF"
+
+  ADVERSARIAL_COLLECTION_PROMPT='Return the review verdict now as plain text in the required format. Do not perform more investigation, edit files, or refer me to a plan artifact. Output only the Verdict, Findings, and Load-bearing checks sections.'
+
+  cursor-agent --print --output-format json --mode plan --sandbox enabled \
+    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    --resume "$ADVERSARIAL_EXECUTION_SESSION_ID" \
+    "$ADVERSARIAL_COLLECTION_PROMPT"
+
+  cursor-agent --print --output-format json --mode plan --sandbox enabled \
+    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    --resume "$ADVERSARIAL_HOLISTIC_SESSION_ID" \
+    "$ADVERSARIAL_COLLECTION_PROMPT"
   ```
 
-- Use separate background jobs and capture each complete JSON result. Do not add
-  `--force`, `--yolo`, `--trust`, or `--approve-mcps`.
+- Use separate background jobs and capture each complete JSON result. Resolve
+  each collection variable from the corresponding investigation result's
+  `session_id`; the collection result text is the verdict of record.
+- Do not add `--force`, `--yolo`, or `--approve-mcps`. Only an operator's
+  explicit per-run authorization permits `--trust`; an interactive operator
+  trust grant is the normal first-run path.
 - For a canonical escalation trigger only, run one fresh targeted brief with
-  `--model cursor-grok-4.5-high` and the same read-only flags.
+  `--model cursor-grok-4.5-high` and the same read-only flags, then collect its
+  verdict with the same-session `--resume` turn.
 - Continue the orchestrator's source review while the model reviews run. Verify
   every accepted claim personally and fail if the subject changes.
 

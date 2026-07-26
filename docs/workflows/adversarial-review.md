@@ -137,6 +137,31 @@ is Codex or Claude. Composer's narrower role and standard speed tier are
 deliberate cost and context controls; do not replace the two defaults with a
 fan-out of native subagents.
 
+Treat each reviewer run as two turns in one Cursor session:
+
+1. Run the plan-mode investigation and capture its complete JSON result,
+   including `session_id`.
+2. Resume that session once with this fixed collection prompt:
+
+   ```text
+   Return the review verdict now as plain text in the required format. Do not perform more investigation, edit files, or refer me to a plan artifact. Output only the Verdict, Findings, and Load-bearing checks sections.
+   ```
+
+The collection turn's JSON `result` text is the verdict of record. Some models
+write their verdict into a plan artifact instead of the initial transcript, so
+a completed investigation alone is not evidence that the verdict was
+collected.
+
+On the first Cursor run in a repository, allow workspace trust only through an
+operator's interactive grant or the operator's explicit authorization to use
+`--trust` for that single invocation. Never add the flag silently or infer
+ongoing authorization from a prior run.
+
+When both turns complete without a parseable verdict, diagnose the invocation
+against the captured JSON, installed CLI help, and current primary documentation
+before spending another run. Allow at most one diagnosed rerun per reviewer
+seat. If that rerun still produces no verdict, return `BLOCKED`.
+
 Run at most one escalation review, and only when:
 
 - the default reviewers disagree about a high-blast-radius claim;
@@ -152,8 +177,9 @@ claim, return `BLOCKED` for an operator-approved frontier-model review rather
 than silently spending Codex or Claude capacity. Do not escalate merely because
 a default reviewer found an ordinary actionable defect.
 
-Evidence: each model id, assigned role and scope, completion state, raw verdict,
-and the exact escalation trigger or `Not used`.
+Evidence: each model id, assigned role and scope, investigation and collection
+completion states, collected verdict, and the exact escalation trigger or `Not
+used`.
 
 ## 4. Verify and reconcile
 

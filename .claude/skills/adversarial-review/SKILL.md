@@ -38,12 +38,29 @@ delivery, and lifecycle mutations remain outside this invocation.
     --model cursor-grok-4.5-medium \
     --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
     < "$ADVERSARIAL_HOLISTIC_BRIEF"
+
+  ADVERSARIAL_COLLECTION_PROMPT='Return the review verdict now as plain text in the required format. Do not perform more investigation, edit files, or refer me to a plan artifact. Output only the Verdict, Findings, and Load-bearing checks sections.'
+
+  cursor-agent --print --output-format json --mode plan --sandbox enabled \
+    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    --resume "$ADVERSARIAL_EXECUTION_SESSION_ID" \
+    "$ADVERSARIAL_COLLECTION_PROMPT"
+
+  cursor-agent --print --output-format json --mode plan --sandbox enabled \
+    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    --resume "$ADVERSARIAL_HOLISTIC_SESSION_ID" \
+    "$ADVERSARIAL_COLLECTION_PROMPT"
   ```
 
-- Capture each complete JSON result. Do not add `--force`, `--yolo`, `--trust`,
-  or `--approve-mcps`.
+- Capture each complete JSON result. Read `session_id` from each investigation
+  response into its matching collection variable, and treat the resumed
+  response's text as that seat's recorded verdict.
+- Do not add `--force`, `--yolo`, or `--approve-mcps`. An operator's explicit
+  authorization permits `--trust` for one run only; otherwise let the operator
+  grant workspace trust through Cursor's interactive prompt.
 - If the canonical escalation rule fires, use the same read-only flags for one
-  fresh targeted `--model cursor-grok-4.5-high` run.
+  fresh targeted `--model cursor-grok-4.5-high` run, then collect its verdict
+  with the same-session `--resume` turn.
 - Keep reviewing the highest-blast-radius owner while the model reviews run.
   Verify every accepted claim directly and fail if the subject changes.
 

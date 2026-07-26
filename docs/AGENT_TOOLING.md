@@ -60,15 +60,26 @@ Before embedding or changing a Cursor command in either runtime adapter:
    `find-docs` procedure.
 
 Both adapters run fresh Cursor sessions with `--mode plan`, sandboxing, explicit
-workspace selection, and JSON output. Never add `--force`, `--yolo`, `--trust`,
-or automatic MCP approval to a reviewer. A missing CLI, authentication failure,
-or unavailable required model blocks the adversarial review; do not silently
-fall back to Codex or Claude and spend a different capacity pool.
+workspace selection, and JSON output. Each reviewer uses two turns in one
+session: the investigation, followed by a `--resume` collection turn whose JSON
+`result` text is the verdict of record. On a repository's first run, satisfy the
+workspace-trust prompt through an interactive operator grant or pause for the
+operator's explicit authorization to use `--trust` for that invocation.
+
+Never add `--force`, `--yolo`, `--trust`, or automatic MCP approval silently;
+the per-run operator authorization above is the only exception for `--trust`.
+A missing CLI, authentication failure, or unavailable required model blocks the
+adversarial review; do not silently fall back to Codex or Claude and spend a
+different capacity pool.
 
 Current reviewed defaults are Composer 2.5 Standard for the bounded execution
 role, Cursor Grok 4.5 Medium for the holistic role, and Cursor Grok 4.5 High for
 one canonical escalation trigger. Treat model availability, context limits, and
 pricing as runtime facts to recheck, not permanent product guarantees.
+
+Runtime decision, 2026-07-26: adversarial reviewers use repository CLIs in plan
+mode. Cursor has no configured MCP servers; the Codegraph MCP installation was
+reverted and six stale Smithery entries were removed.
 
 ## Commands
 

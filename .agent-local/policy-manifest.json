@@ -230,6 +230,8 @@
         "cursor-agent",
         "composer-2\\.5",
         "cursor-grok-4\\.5-medium",
+        "--resume",
+        "authorization permits.*--trust",
         "runtime mechanics",
         "Return|result"
       ],
@@ -540,7 +542,7 @@
         "docs/workflows/adversarial-review.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "d457e2f155022bf05ef85a3358b4facb616ca37696bb472c422e5b8fc7c46cb9"
+      "reconciledHash": "9a4be5074aee996cf95c10cd236caa9ba3c4208e03b9984cd82f652a57533cbc"
     },
     "agent-policy-audit": {
       "deps": [
@@ -550,7 +552,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "f5cbe81cdd2b0492fdf1d685afb9dc62086ab0d57337ed31829559f18d98cc2f"
+      "reconciledHash": "3578a657fbf27665f1e8e6474ca957fc6a5a34822dd4e1e362947a8d457e62e9"
     }
   },
   "procedurePolicies": {
@@ -584,6 +586,7 @@
         "Build context-budgeted reviewer briefs",
         "Composer 2\\.5 Standard",
         "Cursor Grok 4\\.5 Medium",
+        "two turns in one Cursor session",
         "Run at most one escalation review",
         "Verify and reconcile",
         "Build the fix prompt"

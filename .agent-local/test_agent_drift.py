@@ -650,6 +650,17 @@ class LiveAdversarialReviewPolicy(unittest.TestCase):
             }.issubset(required)
         )
 
+    def test_same_session_verdict_collection_and_trust_gate_are_pinned(self) -> None:
+        required = set(
+            self.manifest["pairedSkills"]["adversarial-review"]["required"]
+        )
+        self.assertTrue(
+            {
+                "--resume",
+                "authorization permits.*--trust",
+            }.issubset(required)
+        )
+
     def test_retired_cross_runtime_fan_out_is_forbidden(self) -> None:
         forbidden = set(
             self.manifest["pairedSkills"]["adversarial-review"]["forbidden"]
