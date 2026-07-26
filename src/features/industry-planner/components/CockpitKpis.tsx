@@ -4,6 +4,8 @@ import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { PriceConfidence } from '@/components/ui/price-confidence';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
+import { Pill } from '@/components/ui/pill';
+import { SegmentedControl } from '@/components/ui/segmented';
 import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
@@ -42,33 +44,17 @@ function GrossNetToggle({
   netAvailable: boolean;
   setMode: (m: MarginMode) => void;
 }) {
-  const btn =
-    'px-2 py-0.5 font-mono text-micro uppercase tracking-control cursor-pointer transition-colors';
-  const on = 'text-name bg-row-on';
   return (
-    <span className="inline-flex overflow-hidden rounded-ctl border border-border-soft">
-      <button
-        type="button"
-        onClick={() => setMode('gross')}
-        aria-pressed={!showNet}
-        className={cn(btn, !showNet ? on : 'text-faint hover:text-muted')}
-      >
-        Gross
-      </button>
-      <button
-        type="button"
-        onClick={() => netAvailable && setMode('net')}
-        disabled={!netAvailable}
-        aria-pressed={showNet}
-        className={cn(
-          btn,
-          showNet ? on : 'text-faint hover:text-muted',
-          !netAvailable && 'cursor-not-allowed opacity-40 hover:text-faint',
-        )}
-      >
-        Net
-      </button>
-    </span>
+    <SegmentedControl
+      label="Margin basis"
+      density="compact"
+      value={showNet ? 'net' : 'gross'}
+      onChange={(value) => setMode(value as MarginMode)}
+      options={[
+        { value: 'gross', label: 'Gross' },
+        { value: 'net', label: 'Net', disabled: !netAvailable },
+      ]}
+    />
   );
 }
 
@@ -82,28 +68,17 @@ function RawItemToggle({
   basis: CostBasis;
   setBasis: (b: CostBasis) => void;
 }) {
-  const btn =
-    'px-2 py-0.5 font-mono text-micro uppercase tracking-control cursor-pointer transition-colors';
-  const on = 'text-name bg-row-on';
   return (
-    <span className="inline-flex overflow-hidden rounded-ctl border border-border-soft">
-      <button
-        type="button"
-        onClick={() => setBasis('batched')}
-        aria-pressed={basis === 'batched'}
-        className={cn(btn, basis === 'batched' ? on : 'text-faint hover:text-muted')}
-      >
-        Raw
-      </button>
-      <button
-        type="button"
-        onClick={() => setBasis('marginal')}
-        aria-pressed={basis === 'marginal'}
-        className={cn(btn, basis === 'marginal' ? on : 'text-faint hover:text-muted')}
-      >
-        Item
-      </button>
-    </span>
+    <SegmentedControl
+      label="Input cost basis"
+      density="compact"
+      value={basis}
+      onChange={(value) => setBasis(value as CostBasis)}
+      options={[
+        { value: 'batched', label: 'Raw' },
+        { value: 'marginal', label: 'Item' },
+      ]}
+    />
   );
 }
 
@@ -161,8 +136,7 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
   return (
     <Popover
       label="Regional discount available"
-      trigger={`−${callout.pct}%`}
-      triggerClassName="inline-flex h-[15px] cursor-help items-center rounded-full border border-isk-dim bg-bg px-1.5 font-mono text-ui font-bold tabular-nums text-isk hover:border-isk"
+      trigger={<Pill tone="green">−{callout.pct}%</Pill>}
     >
       <PopoverHeading>Regional discount</PopoverHeading>
       <p className="max-w-[240px] font-body text-body leading-snug text-muted">

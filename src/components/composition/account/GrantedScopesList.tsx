@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Chip } from '@/components/ui/chip';
+import { EntityRow } from '@/components/ui/row';
 import type { GrantedScope } from '@/platform/auth/scope-health';
 
 /**
@@ -14,22 +15,23 @@ export function GrantedScopesList({ scopes }: { scopes: GrantedScope[] }): React
   return (
     <div>
       {scopes.map((scope) => (
-        <div
+        <EntityRow
           key={scope.id}
-          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3.5 py-[5px] border-t border-border-soft"
-        >
-          <span className="min-w-0">
+          colsClass="grid-cols-[minmax(0,1fr)_auto]"
+          name={
+            <span className="min-w-0">
             <span className="block font-mono text-ui text-name truncate">{scope.id}</span>
             {scope.gloss ? (
               <span className="block text-micro text-muted">{scope.gloss}</span>
             ) : null}
-          </span>
-          {scope.status === 'active' ? (
+            </span>
+          }
+          trailing={scope.status === 'active' ? (
             <Chip tone="green">Active</Chip>
           ) : (
             <Chip tone="orange">Legacy</Chip>
           )}
-        </div>
+        />
       ))}
       {hasLegacy ? (
         <div className="px-3.5 py-2 border-t border-border-soft text-micro text-muted">

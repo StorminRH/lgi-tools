@@ -20,6 +20,7 @@ import type { PanelCharacter } from '@/components/live-character-card';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import type { CharacterStripSpec } from '@/platform/page-settings/types';
 
 /**
@@ -53,9 +54,11 @@ export function CharacterStripSection({
         <CharacterStrip characters={characters} dimmedIds={dimmedIds} onChange={setDimmedIds} />
       )}
       <div className="flex items-center">
-        <span className="text-label tracking-wide uppercase text-muted">
-          {view.syncCaption}
-        </span>
+        {loading ? (
+          <LoadingLabel label={view.syncCaption} />
+        ) : (
+          <span className="text-label tracking-wide uppercase text-muted">{view.syncCaption}</span>
+        )}
       </div>
       {view.showEmptyNotice && (
         <Card>

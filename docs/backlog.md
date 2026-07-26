@@ -153,6 +153,20 @@
 
 ## Navigation
 
+- **Scroll-aware section links in the content rail** (operator-deferred at the
+  2026-07-25 Phase 4 `plan-version` disposition; cited in
+  `docs/version-audits/3.10/PHASE_4_ADOPTION_SURVEY.md` decision 1 and master
+  plan §Outcome group B). *What:* extend ContentBrowser with the
+  UploadThing-style section model — stable heading IDs registered by long
+  documents, an `IntersectionObserver` visible-section store, nested section
+  links under the active document, and the active wash tracking the visible
+  range. The static layered rail (guide + marker + active-page wash) ships in
+  3.10.4.2 without it. *Why deferred:* the heading-registration model is the
+  complexity tail (parser changes, a provider, per-consumer wiring) while the
+  static rail delivers most of the visual value. *Size:* M. *Trigger:* demand
+  for in-chapter navigation on long devlog chapters, or the next content-rail
+  pass.
+
 - **Clear dismissed global-search results synchronously.** *What:* cancel the
   pending 120 ms query and clear rendered sections when Escape or outside-press
   dismisses the combobox, so an immediate refocus cannot briefly reopen results
@@ -271,6 +285,18 @@
   bootstrap/recovery documentation is reprioritized.
 
 ## Infra & bundle
+
+- **Relocate primitive-serving CSS into its owning primitives** (operator-deferred
+  at the 2026-07-25 Phase 4 `plan-version` disposition; survey row AD-039 in
+  `docs/version-audits/3.10/PHASE_4_ADOPTION_SURVEY.md`). *What:* move the
+  ~278 `globals.css` lines that back a single `src/components/ui/*` primitive
+  (`.skeleton-shimmer`, `.status-led`, `.progress-fill`, `.price-confidence-*`,
+  `.price-flash`, `.content-browser-*` remnants, …) into their primitives as
+  class strings, the way `dropdown-panel.ts` already did; keyframes and CSSOM
+  variable rules stay in the stylesheet. *Why deferred:* pure housekeeping —
+  each family already has exactly one consumer, so there is no enforcement or
+  propagation value today. *Size:* M. *Trigger:* the next time one of these
+  families needs a second consumer or a behavior change.
 
 - **Dev-log shared-cache write is rejected in production** (found during the 3.9.3.8
   production smoke). *What:* `/devlog` still returns and renders HTTP 200, but the
@@ -423,6 +449,17 @@ genuinely un-extractable from the DOM, where a render/interaction test earns the
 > Small planner-UI deferrals. (The T2 margin-semantics track — the Raw | Item toggle, the
 > Legion price note, and the 700-item catalog audit — all shipped as 3.7.21.1; the `docs/margin-audit/`
 > harnesses live in git.)
+
+- **Treat a cleared planner build location as preference deletion, not a null value.**
+  *What:* the signed-in planner can POST `planner.buildLocation: null` while
+  initializing without a saved location, but `user_preferences.value` is
+  non-null; the local API consequently returns 500 and retries the same invalid
+  upsert. Define absence at the preference boundary (delete the key or encode a
+  valid non-null empty state) and cover the client/server round trip. *Why
+  deferred:* this is a pre-existing persistence bug discovered during the
+  3.10.4.1 visual review, outside that session's presentation-only contract.
+  *Size:* S. *Trigger:* the next planner/preferences resilience pass or any
+  report that build-location persistence is failing in production.
 
 **Multibuy panel: make the always-built product visible** (surfaced in the 3.7.22.1 review — with
 every tier unchecked the list still holds the product's direct inputs, which read as surprising).

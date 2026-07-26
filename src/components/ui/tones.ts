@@ -30,11 +30,8 @@ export type PillTone = Tone;
  */
 export type ChipTone = Extract<Tone, 'blue' | 'red' | 'purple' | 'green' | 'orange'>;
 
-/**
- * Dot is a smaller subset still — hackable container indicators use the
- * cool / warm split today.
- */
-export type DotTone = Extract<Tone, 'orange' | 'blue'>;
+/** Dot tones cover the shared cool, warm, success, failure, and neutral status vocabulary. */
+export type DotTone = Extract<Tone, 'orange' | 'blue' | 'green' | 'red' | 'neutral'>;
 
 /**
  * Tone → hex, for SVG fills/strokes where colour is a presentation attribute,

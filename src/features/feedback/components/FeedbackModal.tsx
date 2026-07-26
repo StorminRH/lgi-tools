@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
+import { Banner } from '@/components/ui/banner';
 import { Dialog } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/input';
@@ -79,9 +80,9 @@ function FeedbackBody({
 }) {
   if (state.kind === 'success') {
     return (
-      <div role="status" aria-live="polite" className="py-6 text-center text-ui text-isk">
+      <Banner tone="info" className="my-4">
         Thanks — your feedback was sent.
-      </div>
+      </Banner>
     );
   }
   return (
@@ -213,14 +214,15 @@ export function FeedbackModal({
           >
             Send feedback
           </h2>
-          <button
+          <Button
+            variant="bare"
             type="button"
             onClick={onClose}
             aria-label="Close"
             className="text-muted hover:text-text text-ui leading-none px-2 py-1"
           >
             ×
-          </button>
+          </Button>
         </header>
 
         <div className="px-4 py-3 flex flex-col gap-3">

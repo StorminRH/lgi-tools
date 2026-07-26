@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { arrowStep, parseEfficiencyInput, shownEfficiency, stepValue } from '../efficiency-input';
+import { Stepper } from '@/components/ui/stepper';
 import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
 import { MAX_TE } from '../te-overrides';
 import type { OwnedComponentDetail } from '../types';
@@ -10,11 +11,11 @@ import type { OwnedComponentDetail } from '../types';
 // The interactive per-node efficiency controls (3.7.5.4 ME, 3.7.5.6 TE, 3.7.5.8
 // steppers + icon popover). Each manufacturable node carries EVE's material-efficiency
 // GEM and its time-efficiency HOURGLASS as editable fields: a number you scroll, arrow,
-// type, or (with `steppers`) step with ▲/▼ (clamped ME 0-10 / TE 0-20). The VALUE's
+// type, or step with ▲/▼ (clamped ME 0-10 / TE 0-20). The VALUE's
 // colour is the state — blue owned, orange a manual what-if, faint/empty unowned — so
 // the field needs no extra baseline text; a ↺ appears only when overridden. ME drives
 // the cost ledger; TE drives the build time. `NodeAdjusters` lays both fields out for a
-// node's icon popover (steppers on); the hero card renders the `boxed` variant (the
+// node's icon popover; the hero card renders the `boxed` variant (the
 // −/[value]/+ box, visually identical to the Runs Stepper, icon handled by the row
 // label). The owner/location readout (`ProvenanceRows`) appears in that icon popover,
 // after the adjusters.
@@ -171,29 +172,10 @@ export function ProvenanceRows({ detail }: { detail: OwnedComponentDetail }) {
 
 type Derived = ReturnType<typeof deriveAdjust>;
 
-// The value's text colour IS the node's state — owned (blue), manual override
-// (orange), unowned (faint) — so the field needs no separate baseline text.
-function valueToneClass(state: NodeMeState): string {
-  if (state === 'manual') return 'text-[var(--color-dps-mid)]';
-  if (state === 'owned') return 'text-evb-bright';
-  return 'text-faint';
-}
-
-// The up/down step buttons shown in the popover stepper layout (`steppers`). Small
-// hover-lit tap targets flanking the typeable field, the Stepper primitive's idiom.
-const STEP_BTN =
-  'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-ctl text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
-
-// The −/+ buttons of the boxed (hero) layout — the Runs Stepper's exact button
-// style, so the three hero rows read as one control family.
-const BOX_BTN =
-  'h-7 w-[26px] text-ui leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
-
-// One inline efficiency control: the icon + an editable number you scroll, arrow, or
-// type (clamped 0–max). The value's colour is the state; a ↺ appears only when it's a
-// manual override (click resets to owned). Empty when unowned-and-unset. The field
-// stops its own clicks/keys so the node card's drill-down doesn't fire. Shared by the
-// gem (ME) and hourglass (TE) configs.
+// One efficiency control: Base UI owns typing, clamping, arrow keys, wheel
+// behavior, and commit semantics. Operator direction on 2026-07-26 explicitly
+// chose the shared primitive behavior for empty unowned fields and other small
+// interaction differences during the adoption pass.
 function EfficiencyField({
   icon,
   ariaUnit,
@@ -202,7 +184,6 @@ function EfficiencyField({
   d,
   onCommit,
   onRevert,
-  steppers = false,
   boxed = false,
 }: {
   icon: ReactNode;
@@ -212,81 +193,13 @@ function EfficiencyField({
   d: Derived;
   onCommit: (n: number) => void;
   onRevert: () => void;
-  // Show the up/down step buttons flanking the field (the popover layout). The inline
-  // header field omits them (the wheel + arrow keys still step it).
-  steppers?: boolean;
   // The hero-card layout: a −/[value]/+ box visually identical to the Runs Stepper.
   // The icon is NOT rendered here — the hero row shows it beside its ME/TE label.
   boxed?: boolean;
 }) {
-  // Shown value: empty when unowned-and-unset, else the effective number.
-  const shown = shownEfficiency(d.state, d.isOverridden, d.effective);
-  const [draft, setDraft] = useState(shown);
-  // Reflect external changes (a revert / another field) without an effect — the
-  // Stepper's adjust-state-during-render sync.
-  const [lastShown, setLastShown] = useState(shown);
-  if (shown !== lastShown) {
-    setLastShown(shown);
-    setDraft(shown);
-  }
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const commit = (raw: string) => {
-    setDraft(raw);
-    if (raw === '') return; // cleared → revert handled on blur
-    const n = parseEfficiencyInput(raw, max);
-    if (n !== null) onCommit(n);
-  };
-  const step = (delta: number) => {
-    const n = stepValue(d.effective, delta, max);
-    onCommit(n);
-    setDraft(String(n));
-  };
-  // React registers `onWheel` as a PASSIVE root listener, so an `e.preventDefault()`
-  // there is silently ignored — a focused field would step AND scroll the page. A
-  // native non-passive listener lets preventDefault suppress the page scroll; the
-  // focus gate keeps scrolling past an unfocused field from nudging it. The step is
-  // inlined (not a call to `step`) so the listener's deps stay stable values, not the
-  // per-render closure.
-  useEffect(() => {
-    const el = inputRef.current;
-    if (el === null) return;
-    const onWheel = (e: WheelEvent) => {
-      if (document.activeElement !== el) return;
-      e.preventDefault();
-      const next = stepValue(d.effective, e.deltaY < 0 ? 1 : -1, max);
-      onCommit(next);
-      setDraft(String(next));
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [d.effective, max, onCommit]);
-  const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const delta = arrowStep(e.key);
-    if (delta !== 0) {
-      e.preventDefault();
-      step(delta);
-    }
-  };
-  const onInputBlur = () => {
-    if (draft === '' && d.isOverridden) onRevert();
-    setDraft(shown);
-  };
-  // The typeable field, shared VERBATIM by the boxed and inline layouts (only the
-  // shell + the field's size classes differ) — one source so the two can't drift.
-  const inputProps: ComponentProps<'input'> = {
-    ref: inputRef,
-    type: 'text',
-    inputMode: 'numeric',
-    value: draft,
-    placeholder: '–',
-    'aria-label': `${name} ${ariaUnit}`,
-    onChange: (e) => commit(e.target.value),
-    onKeyDown: onInputKeyDown,
-    onBlur: onInputBlur,
-  };
   const revertButton = d.isOverridden ? (
-    <button
+    <Button
+      variant="bare"
       type="button"
       aria-label={`Reset ${name} ${ariaUnit}`}
       onClick={(e) => {
@@ -298,121 +211,25 @@ function EfficiencyField({
       className="cursor-pointer font-mono text-ui leading-none text-isk hover:text-name"
     >
       ↺
-    </button>
+    </Button>
   ) : null;
-  const shared = {
-    inputProps,
-    revertButton,
-    name,
-    ariaUnit,
-    toneClass: valueToneClass(d.state),
-    onStep: step,
-  };
-  return boxed ? (
-    <BoxedField {...shared} />
-  ) : (
-    <InlineField {...shared} icon={icon} steppers={steppers} />
-  );
-}
-
-interface FieldLayoutProps {
-  inputProps: ComponentProps<'input'>;
-  revertButton: ReactNode;
-  name: string;
-  ariaUnit: string;
-  toneClass: string;
-  onStep: (delta: number) => void;
-}
-
-// A step button that stops its click from reaching the node card (editing must
-// never drill the cascade) — shared by both layouts.
-function StepButton({
-  label,
-  glyph,
-  className,
-  onStep,
-}: {
-  label: string;
-  glyph: string;
-  className: string;
-  onStep: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={(e) => {
-        e.stopPropagation();
-        onStep();
-      }}
-      className={className}
-    >
-      {glyph}
-    </button>
-  );
-}
-
-// The hero-card layout: a −/[value]/+ box visually identical to the Runs Stepper,
-// with a fixed ↺ slot so an appearing override never shifts the row.
-function BoxedField({ inputProps, revertButton, name, ariaUnit, toneClass, onStep }: FieldLayoutProps) {
   return (
     <span
       className="inline-flex items-center gap-1"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <span className="inline-flex items-center overflow-hidden rounded-ctl border border-border bg-bg">
-        <StepButton label={`Decrease ${name} ${ariaUnit}`} glyph="–" className={BOX_BTN} onStep={() => onStep(-1)} />
-        <input
-          {...inputProps}
-          className={cn(
-            'h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-ui outline-none',
-            'placeholder:text-faint focus:placeholder:text-transparent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
-            toneClass,
-          )}
-        />
-        <StepButton label={`Increase ${name} ${ariaUnit}`} glyph="+" className={BOX_BTN} onStep={() => onStep(1)} />
-      </span>
-      <span className="inline-flex w-3.5 shrink-0 items-center justify-center">{revertButton}</span>
-    </span>
-  );
-}
-
-// The inline (node-row / popover) layout: the icon, the field, and — with
-// `steppers` — the ▲/▼ buttons flanking it.
-function InlineField({
-  inputProps,
-  revertButton,
-  name,
-  ariaUnit,
-  toneClass,
-  onStep,
-  icon,
-  steppers,
-}: FieldLayoutProps & { icon: ReactNode; steppers: boolean }) {
-  return (
-    // Stop clicks/keys reaching the node card so editing never triggers its drill-down.
-    <span
-      className="inline-flex items-center gap-1"
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.stopPropagation()}
-    >
-      <span className="inline-flex h-3 w-3 shrink-0">{icon}</span>
-      {steppers && (
-        <StepButton label={`Increase ${name} ${ariaUnit}`} glyph="▲" className={STEP_BTN} onStep={() => onStep(1)} />
-      )}
-      <input
-        {...inputProps}
-        className={cn(
-          'w-[22px] bg-transparent text-center font-mono text-ui tabular-nums outline-none',
-          'placeholder:text-faint focus:placeholder:text-transparent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
-          toneClass,
-        )}
+      {!boxed && <span className="inline-flex h-3 w-3 shrink-0">{icon}</span>}
+      <Stepper
+        value={d.effective}
+        onChange={onCommit}
+        min={0}
+        max={max}
+        ariaLabel={`${name} ${ariaUnit}`}
+        variant={boxed ? 'default' : 'inline'}
+        trailing={revertButton}
+        reserveTrailing={boxed}
       />
-      {steppers && (
-        <StepButton label={`Decrease ${name} ${ariaUnit}`} glyph="▼" className={STEP_BTN} onStep={() => onStep(-1)} />
-      )}
-      {revertButton}
     </span>
   );
 }
@@ -421,7 +238,7 @@ function InlineField({
  * The material-efficiency inline field for a node (or the hero card, `boxed`). `name`
  * is "main blueprint" in the hero.
  */
-export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, steppers, boxed }: MeProps & { steppers?: boolean; boxed?: boolean }) {
+export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, boxed }: MeProps & { boxed?: boolean }) {
   const d = deriveAdjust(ownedMe, meOverrides, blueprintTypeId);
   // Stable callbacks so the field's native wheel listener re-registers only on a
   // value change, not on every render.
@@ -436,14 +253,13 @@ export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOver
       d={d}
       onCommit={onCommit}
       onRevert={onRevert}
-      steppers={steppers}
       boxed={boxed}
     />
   );
 }
 
 /** The time-efficiency inline field — the time-side twin of MeField. */
-export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, steppers, boxed }: TeProps & { steppers?: boolean; boxed?: boolean }) {
+export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, boxed }: TeProps & { boxed?: boolean }) {
   const d = deriveAdjust(ownedTe, teOverrides, blueprintTypeId);
   const onCommit = useCallback((n: number) => setTeOverride(blueprintTypeId, n), [setTeOverride, blueprintTypeId]);
   const onRevert = useCallback(() => resetTeOverride(blueprintTypeId), [resetTeOverride, blueprintTypeId]);
@@ -456,7 +272,6 @@ export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOver
       d={d}
       onCommit={onCommit}
       onRevert={onRevert}
-      steppers={steppers}
       boxed={boxed}
     />
   );
@@ -500,7 +315,6 @@ export function NodeAdjusters({
           meOverrides={meOverrides}
           setMeOverride={setMeOverride}
           resetMeOverride={resetMeOverride}
-          steppers
         />
       </AdjusterRow>
       <AdjusterRow label="Time Efficiency">
@@ -511,7 +325,6 @@ export function NodeAdjusters({
           teOverrides={teOverrides}
           setTeOverride={setTeOverride}
           resetTeOverride={resetTeOverride}
-          steppers
         />
       </AdjusterRow>
     </div>

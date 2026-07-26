@@ -19,6 +19,7 @@
 
 import { cva } from 'class-variance-authority';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { CharacterPortrait } from '@/components/character-portrait';
 import type { PanelCharacter } from '@/components/live-character-card';
 import { startCharacterLink } from '@/platform/auth/link-character';
@@ -69,29 +70,30 @@ export function CharacterStrip({
               ? `Show ${character.name}`
               : `Hide ${character.name}`;
           return (
-            <button
-              key={character.characterId}
-              type="button"
-              onClick={() => {
-                if (isLocked) {
-                  startCharacterLink(window.location.pathname);
-                  return;
-                }
-                const next = toggleDimmed(dimmedIds, character);
-                if (next !== null) onChange(next);
-              }}
-              aria-pressed={isLocked ? undefined : state === 'lit'}
-              aria-label={actionLabel}
-              title={actionLabel}
-              className={portraitButton({ state })}
-            >
-              <CharacterPortrait
-                characterId={character.characterId}
-                name={character.name}
-                size={32}
-                src={character.portraitUrl}
-              />
-            </button>
+            <Tooltip key={character.characterId} content={actionLabel}>
+              <Button
+                variant="bare"
+                type="button"
+                onClick={() => {
+                  if (isLocked) {
+                    startCharacterLink(window.location.pathname);
+                    return;
+                  }
+                  const next = toggleDimmed(dimmedIds, character);
+                  if (next !== null) onChange(next);
+                }}
+                aria-pressed={isLocked ? undefined : state === 'lit'}
+                aria-label={actionLabel}
+                className={portraitButton({ state })}
+              >
+                <CharacterPortrait
+                  characterId={character.characterId}
+                  name={character.name}
+                  size={32}
+                  src={character.portraitUrl}
+                />
+              </Button>
+            </Tooltip>
           );
         })}
       </div>

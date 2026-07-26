@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { TypeIcon } from '@/components/type-icon';
+import { Chip } from '@/components/ui/chip';
+import { EntityRow } from '@/components/ui/row';
 import type { EveImageDescriptor } from '@/data/eve-data/type-images';
 import { initials } from '@/lib/format/names';
 
@@ -27,14 +29,19 @@ export function IndustryRow({
   return (
     <Link
       href={href}
-      className="grid grid-cols-[26px_minmax(0,1fr)] items-center gap-3 px-3.5 py-[11px] border-t border-border-soft first:border-t-0 border-l-2 border-l-transparent no-underline transition-colors hover:bg-isk-hover hover:border-l-isk"
+      className="block border-l-2 border-l-transparent no-underline transition-colors hover:border-l-isk hover:bg-isk-hover"
     >
-      {icon ? (
+      <EntityRow
+        colsClass="grid-cols-[26px_minmax(0,1fr)]"
+        className="py-[11px]"
+        leading={icon ? (
         <TypeIcon {...icon} size={26} mono={initials(name)} />
       ) : (
-        <span className="industry-mono">{initials(name)}</span>
+        <Chip tone="green" className="size-[26px] justify-center p-0 font-jb text-ui font-extrabold">
+          {initials(name)}
+        </Chip>
       )}
-      <span className="min-w-0">
+        name={<span className="min-w-0">
         <span className="flex min-w-0 items-center gap-1.5 text-ui font-semibold text-name">
           <span className="truncate">{name}</span>
           {fav && (
@@ -48,7 +55,8 @@ export function IndustryRow({
             {group}
           </span>
         )}
-      </span>
+      </span>}
+      />
     </Link>
   );
 }

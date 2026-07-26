@@ -8,7 +8,7 @@ export function HeroBanner() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex w-fit flex-col gap-2 text-center">
-        <h1 className="hero-wordmark font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
+        <h1 className="font-jb text-hero font-extrabold uppercase leading-none tracking-[-0.02em] text-name">
           <span className="text-isk mr-[0.18em]">[</span>
           Lo-Gang
           <span className="text-isk ml-[0.18em]">]</span>

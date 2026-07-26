@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Pill } from '@/components/ui/pill';
+import { buttonVariants } from '@/components/ui/button';
 
 /**
  * Framework-load-bearing: Next 16's not-found file convention honours a
@@ -32,9 +32,7 @@ export default function NotFound() {
         </p>
       </header>
 
-      <Link href="/" className="inline-flex">
-        <Pill tone="green">Warp to home</Pill>
-      </Link>
+      <Link href="/" className={buttonVariants()}>Warp to home</Link>
     </div>
   );
 }

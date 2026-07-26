@@ -5,20 +5,14 @@ import { nodeCardView } from './node-card-view';
 const base = { typeId: 34, selected: false, related: false, faded: false };
 
 describe('nodeCardView', () => {
-  it('is non-interactive with no onSelect — no a11y button props', () => {
+  it('is non-interactive with no onSelect', () => {
     const view = nodeCardView(base);
     expect(view.interactive).toBe(false);
-    expect(view.role).toBeUndefined();
-    expect(view.tabIndex).toBeUndefined();
-    expect(view.ariaPressed).toBeUndefined();
   });
 
-  it('is an interactive button when onSelect is set, aria-pressed tracking selected', () => {
+  it('is interactive when onSelect is set', () => {
     const view = nodeCardView({ ...base, selected: true, onSelect: () => {} });
     expect(view.interactive).toBe(true);
-    expect(view.role).toBe('button');
-    expect(view.tabIndex).toBe(0);
-    expect(view.ariaPressed).toBe(true);
   });
 
   it('defaults the icon to the item itself, or forwards a provided rendition', () => {

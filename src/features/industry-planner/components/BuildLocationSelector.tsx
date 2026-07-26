@@ -4,8 +4,10 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Select } from '@/components/ui/select';
+import { SectionLabel } from '@/components/ui/section-label';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { toneTextClass } from '@/components/ui/tones';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   buildSystemRefOf,
   deriveBuildLocationView,
@@ -44,12 +46,11 @@ function StructureReadout({
   // (3.7.9.1.5) carries its own security and shows a bonus with no planner location.
   if (readout.mfg === null && readout.rxn === null) {
     return (
-      <span
-        title="Select a build system to apply this structure's bonus"
-        className="min-w-0 truncate text-micro text-muted"
-      >
-        Select a system to apply its bonus
-      </span>
+      <Tooltip content="Select a build system to apply this structure's bonus">
+        <span tabIndex={0} className="min-w-0 truncate text-micro text-muted">
+          Select a system to apply its bonus
+        </span>
+      </Tooltip>
     );
   }
   return <StructureBonusReadout readout={readout} taxPct={selectedStructure.taxPct} />;
@@ -106,7 +107,7 @@ function BuildFacilitySelect({
   };
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-label uppercase tracking-wide text-muted">Station</span>
+      <SectionLabel prefix={false} className="w-[64px] shrink-0">Station</SectionLabel>
       {/* Fixed width + shrink-0 keeps the control from shifting as the selected
           label changes, so the hero plane never reflows. */}
       <Select
@@ -225,7 +226,7 @@ function BuildSystemControl({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-[64px] shrink-0 text-label uppercase tracking-wide text-muted">System</span>
+      <SectionLabel prefix={false} className="w-[64px] shrink-0">System</SectionLabel>
       {lockedStructure ? (
         <LockedSystemBox deducedSystem={deducedSystem} lockedName={lockedStructure.name} />
       ) : (

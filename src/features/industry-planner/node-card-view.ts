@@ -18,9 +18,6 @@ const CARD =
 export interface NodeCardView {
   interactive: boolean;
   iconDesc: EveImageDescriptor;
-  role: 'button' | undefined;
-  tabIndex: 0 | undefined;
-  ariaPressed: boolean | undefined;
   className: string;
 }
 
@@ -42,11 +39,9 @@ export function nodeCardView(args: {
   return {
     interactive,
     iconDesc: args.icon ?? itemImage(args.typeId),
-    role: interactive ? 'button' : undefined,
-    tabIndex: interactive ? 0 : undefined,
-    ariaPressed: interactive ? args.selected : undefined,
     className: cn(
       CARD,
+      'relative',
       args.faded && 'opacity-25',
       args.related && 'bg-row-related',
       args.selected && 'bg-isk-selected shadow-selected-rail',

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
+import { Dot } from '@/components/ui/dot';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { marketScoreView } from '../market-score-inputs';
 import type { BlueprintStructure } from '../types';
@@ -63,7 +64,7 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
       </div>
       {view.staleAge && (
         <div className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-micro text-muted">
-          <span aria-hidden className="h-[5px] w-[5px] rounded-full bg-tone-orange" />
+          <Dot tone="orange" size="sm" />
           history {view.staleAge} old
         </div>
       )}

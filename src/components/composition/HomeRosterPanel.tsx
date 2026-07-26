@@ -13,6 +13,9 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import type { PanelCharacter } from '@/components/live-character-card';
 import { SectionLabel } from '@/components/ui/section-label';
+import { Banner } from '@/components/ui/banner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { RosterCard } from '@/features/skill-queue/components/RosterCard';
@@ -85,20 +88,20 @@ function LiveRoster() {
   }, []);
 
   if (state === 'loading') {
-    return <p className="text-ui text-muted">Loading characters…</p>;
+    return <LoadingLabel label="Loading characters…" />;
   }
   if (state === 'error') {
     return (
-      <p className="text-ui text-muted">
+      <Banner tone="warn">
         Could not load your characters — reload the page to try again.
-      </p>
+      </Banner>
     );
   }
   if (state.characters.length === 0) {
     return (
-      <p className="text-ui text-muted">
+      <EmptyState>
         No characters linked yet — add one below to see its skill queue here.
-      </p>
+      </EmptyState>
     );
   }
   return <LiveRosterCards characters={state.characters} />;

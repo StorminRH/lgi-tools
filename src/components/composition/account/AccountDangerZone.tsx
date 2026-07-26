@@ -196,7 +196,7 @@ function PurgeCharacterControl({
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 border border-border bg-section px-3 py-2">
+    <Card className="flex items-center justify-between gap-2 px-3 py-2">
       <span className="min-w-0 truncate font-mono text-ui text-text">{characterName}</span>
       <DangerButton triggerRef={triggerRef} onClick={gate.request} label="Purge" />
       <ConfirmDialog
@@ -224,7 +224,7 @@ function PurgeCharacterControl({
         finalFocus={triggerRef}
         className="w-[min(380px,calc(100vw-2rem))]"
       />
-    </div>
+    </Card>
   );
 }
 

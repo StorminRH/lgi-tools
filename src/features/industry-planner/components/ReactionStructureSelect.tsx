@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 import { Select } from '@/components/ui/select';
+import { SectionLabel } from '@/components/ui/section-label';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { facilityValueFor, parseFacilityValue, structureById } from '../facility-value';
 import { deriveReactionSlotView, lockTransition } from '../structure-slots';
@@ -41,7 +42,7 @@ function ReactionSystemRow({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="w-[64px] shrink-0 text-label uppercase tracking-wide text-muted">System</span>
+      <SectionLabel prefix={false} className="w-[64px] shrink-0">System</SectionLabel>
       {lockedTo ? (
         deducedSystem ? (
           <SelectedSystemBox name={deducedSystem.name} security={deducedSystem.security} locked={lockedTo} />
@@ -153,7 +154,7 @@ export function ReactionStructureSelect() {
         setReactionSystem={setReactionSystem}
       />
       <div className="flex items-center gap-2">
-        <span className="w-[64px] shrink-0 text-label uppercase tracking-wide text-muted">Station</span>
+        <SectionLabel prefix={false} className="w-[64px] shrink-0">Station</SectionLabel>
         <Select
           value={facilityValueFor(reactionStructure, null)}
           onValueChange={(v) => {

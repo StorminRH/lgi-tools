@@ -9,6 +9,8 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
+import { SectionHeader } from '@/components/ui/section-header';
 import { formatIsoDay } from '@/lib/format/time';
 import { getSession, isAdmin } from '@/platform/auth/session';
 import { MetricsSection } from './MetricsSection';
@@ -41,16 +43,12 @@ function RangeSelector({ range }: { range: RangeKey }) {
 }
 
 function GroupHeading({ children }: { children: ReactNode }) {
-  return (
-    <h2 className="font-mono text-label font-semibold tracking-[0.2em] uppercase text-muted mb-2">
-      {children}
-    </h2>
-  );
+  return <SectionHeader variant="sub" label={children} className="mb-2 tracking-[0.2em]" />;
 }
 
 function SectionFallback() {
   return (
-    <div className="rounded-card border border-border bg-section shadow-card-edge">
+    <Card>
       {[0, 1, 2].map((row) => (
         <div
           key={row}
@@ -60,7 +58,7 @@ function SectionFallback() {
           <Skeleton className="h-3 w-16" />
         </div>
       ))}
-    </div>
+    </Card>
   );
 }
 

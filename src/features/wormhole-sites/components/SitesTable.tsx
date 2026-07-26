@@ -114,7 +114,8 @@ export function SitesTable({
           className="border-b border-border-soft last:border-b-0"
         >
           <details
-            className="sites-table-row"
+            data-sites-row
+            className="[&[open]>summary]:bg-row-active [&>summary>*]:min-w-0"
             data-site-type={row.siteType}
             data-site-cls={siteClassSet(row).join(',')}
           >

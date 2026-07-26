@@ -11,8 +11,7 @@ export function Skeleton({
   ...props
 }: { label?: string } & ComponentProps<'span'>) {
   return (
-    <span
-      role="status"
+    <span role="status"
       aria-label={label}
       className={cn('skeleton-shimmer block rounded-ctl', className)}
       {...props}

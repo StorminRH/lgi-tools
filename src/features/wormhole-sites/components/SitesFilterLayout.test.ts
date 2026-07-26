@@ -43,4 +43,5 @@ describe('SitesFilterLayout a11y', () => {
   it('makes the result count a polite live region', () => {
     expect(markup()).toContain('aria-live="polite"');
   });
+
 });

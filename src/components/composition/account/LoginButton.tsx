@@ -2,7 +2,9 @@
 
 import { CharacterPortrait } from '@/components/character-portrait';
 import { EveImage } from '@/components/eve-image';
-import { Chip } from '@/components/ui/chip';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip } from '@/components/ui/tooltip';
 import { authClient } from '@/platform/auth/auth-client';
 import { AccountMenu } from './AccountMenu';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
@@ -14,8 +16,8 @@ type SignedInSession = NonNullable<ReturnType<typeof useAuth>['session']>;
 function AdminChip({ show }: { show: boolean }) {
   if (!show) return null;
   return (
-    <a href="/admin" title="Open the admin dashboard">
-      <Chip tone="purple">Admin</Chip>
+    <a href="/admin" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+      Admin
     </a>
   );
 }
@@ -63,21 +65,23 @@ function SignedInCluster({
     return (
       <div className="flex items-center gap-3">
         <AdminChip show={showAdminLink} />
-        <a
-          href="/characters"
-          title={session.name}
-          aria-label={`${session.name} — manage your characters`}
-          className="flex items-center hover:opacity-80 transition-opacity"
-        >
-          <CharacterPortrait
-            characterId={session.characterId}
-            name={session.name}
-            size={32}
-            src={session.portraitUrl}
-            preload
-          />
-        </a>
-        <button
+        <Tooltip content={session.name}>
+          <a
+            href="/characters"
+            aria-label={`${session.name} — manage your characters`}
+            className="flex items-center transition-opacity hover:opacity-80"
+          >
+            <CharacterPortrait
+              characterId={session.characterId}
+              name={session.name}
+              size={32}
+              src={session.portraitUrl}
+              preload
+            />
+          </a>
+        </Tooltip>
+        <Button
+          variant="bare"
           type="button"
           onClick={() => {
             // Clear the session, then hard-navigate home so cached server-component
@@ -89,7 +93,7 @@ function SignedInCluster({
           className="font-mono text-label uppercase tracking-wide text-muted hover:text-text px-2 py-1 transition-colors"
         >
           Log out
-        </button>
+        </Button>
       </div>
     );
   }
@@ -117,8 +121,8 @@ export function LoginButton({ variant = 'menu' }: { variant?: 'menu' | 'flat' })
   // no "Log in" → portrait flash for logged-in viewers.
   if (loading) {
     return (
-      <div className="flex items-center gap-3" aria-hidden="true">
-        <div className="w-8 h-8 rounded-full border border-border-idle" />
+      <div className="flex items-center gap-3">
+        <Skeleton label="Loading account" className="size-8 rounded-full" />
       </div>
     );
   }

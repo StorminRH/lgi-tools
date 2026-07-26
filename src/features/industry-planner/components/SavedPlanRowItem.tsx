@@ -6,15 +6,12 @@
 // side actions are favorite, rename (inline edit), and the two-step delete —
 // ✕ arms the row into a red "confirm?" and only the second press deletes.
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TypeIcon } from '@/components/type-icon';
 import { blueprintImage } from '@/data/eve-data/type-images';
 import { MAX_SAVED_PLAN_NAME_LEN, type SavedPlanRow } from '../api-contract';
 import { savedPlanRowLabels } from '../saved-plans-view';
-
-const actionClass =
-  'cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name ' +
-  'disabled:cursor-not-allowed disabled:opacity-40';
 
 /** Renders one saved-plan row with load, favorite, rename, and delete actions supplied by its controller. */
 export function SavedPlanRowItem({
@@ -42,16 +39,17 @@ export function SavedPlanRowItem({
   const labels = savedPlanRowLabels(row, armed);
   return (
     <li className="flex items-center gap-2">
-      <button
+      <Button
+        variant="bare"
         type="button"
         onClick={onFavorite}
         disabled={busy}
         aria-label={labels.favoriteAria}
         aria-pressed={row.favorite}
-        className={`${actionClass} ${labels.favoriteClass}`}
+        className={`cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40 ${labels.favoriteClass}`}
       >
         {labels.favoriteGlyph}
-      </button>
+      </Button>
       {editing ? (
         <Input
           type="text"
@@ -69,7 +67,8 @@ export function SavedPlanRowItem({
           className="h-6 min-w-0 flex-1"
         />
       ) : (
-        <button
+        <Button
+          variant="bare"
           type="button"
           onClick={onLoad}
           disabled={busy}
@@ -82,26 +81,28 @@ export function SavedPlanRowItem({
           <span className="ml-auto shrink-0 truncate font-mono text-micro text-faint">
             {row.productName}
           </span>
-        </button>
+        </Button>
       )}
-      <button
+      <Button
+        variant="bare"
         type="button"
         onClick={onStartRename}
         disabled={busy || editing}
         aria-label={`Rename ${row.name}`}
-        className={actionClass}
+        className="cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40"
       >
         ✎
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="bare"
         type="button"
         onClick={onDelete}
         disabled={busy}
         aria-label={labels.deleteAria}
-        className={`${actionClass} ${labels.deleteClass}`}
+        className={`cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40 ${labels.deleteClass}`}
       >
         {armed ? <span className="text-ui">confirm?</span> : '✕'}
-      </button>
+      </Button>
     </li>
   );
 }

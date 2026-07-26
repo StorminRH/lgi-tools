@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Collapsible } from '@/components/ui/collapsible';
+import { Dot } from '@/components/ui/dot';
 import type { StatusLevel, SubsystemStatus } from '@/data/telemetry/health-metrics';
 
 // One subsystem line in the status strip: colored dot + name + plain-English
@@ -7,11 +8,11 @@ import type { StatusLevel, SubsystemStatus } from '@/data/telemetry/health-metri
 // client state). Green/amber/red are reserved for status here and on KPI
 // deltas; charts elsewhere stay blue.
 
-const DOT_CLASS: Record<StatusLevel, string> = {
-  green: 'bg-isk',
-  amber: 'bg-tone-orange',
-  red: 'bg-tone-red',
-  neutral: 'bg-muted',
+const DOT_TONE: Record<StatusLevel, 'green' | 'orange' | 'red' | 'neutral'> = {
+  green: 'green',
+  amber: 'orange',
+  red: 'red',
+  neutral: 'neutral',
 };
 
 /**
@@ -28,10 +29,7 @@ export function StatusRow({
 }) {
   const header = (
     <span className="flex items-center gap-3 min-w-0 flex-1 py-1">
-      <span
-        aria-hidden
-        className={`size-2 rounded-full shrink-0 ${DOT_CLASS[status.level]}`}
-      />
+      <Dot tone={DOT_TONE[status.level]} size="lg" />
       <span className="font-mono text-ui text-name w-[110px] shrink-0">{name}</span>
       <span className="font-mono text-ui text-muted truncate">{status.headline}</span>
       {children && (

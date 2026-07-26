@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
+import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { isGscConfigured } from '@/data/gsc/constants';
 import {
   deriveCronStatus,
@@ -51,7 +52,7 @@ function DetailCaption({ children }: { children: ReactNode }) {
 function ChartBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <div className="text-label tracking-display uppercase text-muted mb-2">{label}</div>
+      <SectionHeader variant="sub" label={label} className="mb-2" />
       {children}
     </div>
   );
@@ -59,20 +60,24 @@ function ChartBlock({ label, children }: { label: string; children: ReactNode })
 
 function DurationTable({ rows }: { rows: CronOutcomeCount[] }) {
   if (rows.length === 0) return null;
+  const columns = [
+    { key: 'outcome', label: 'Outcome', render: (row) => row.outcome, className: 'text-text' },
+    {
+      key: 'duration',
+      label: 'Average duration',
+      align: 'right',
+      render: (row) => `${row.avgDurationMs.toLocaleString()} ms`,
+      className: 'text-muted tabular-nums',
+    },
+  ] satisfies readonly StaticTableColumn<CronOutcomeCount>[];
   return (
     <ChartBlock label="Average duration by outcome">
-      <table className="w-full font-mono text-ui">
-        <tbody>
-          {rows.map((o) => (
-            <tr key={o.outcome} className="border-t border-border-soft">
-              <td className="py-1 text-text">{o.outcome}</td>
-              <td className="py-1 text-right text-muted tabular-nums">
-                {o.avgDurationMs.toLocaleString()} ms
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <StaticTable
+        ariaLabel="Average duration by outcome"
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.outcome}
+      />
     </ChartBlock>
   );
 }

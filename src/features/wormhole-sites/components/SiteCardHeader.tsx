@@ -41,16 +41,16 @@ export function SiteCardHeader({ site, nameId }: { site: SiteDetail; nameId?: st
 
   return (
     <>
-      <div className="sites-card-top">
-        <span className="sites-card-name" id={nameId}>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="min-w-0 font-body text-lead font-bold leading-[1.15] tracking-[0.01em] text-name" id={nameId}>
           {site.name}
         </span>
-        <span className="sites-card-val">
+        <span className="whitespace-nowrap text-ui font-semibold tabular-nums text-isk [&_i]:ml-0.5 [&_i]:text-micro [&_i]:not-italic [&_i]:text-muted">
           <SiteCardValue view={view} resources={liveResources} />
         </span>
       </div>
-      {view.subLine && <div className="sites-card-sub">{view.subLine}</div>}
-      <div className="sites-card-pills">
+      {view.subLine && <div className="text-micro tracking-[0.04em] text-muted">{view.subLine}</div>}
+      <div className="mt-0.5 flex flex-wrap items-center gap-1">
         {view.classPill && <Pill tone={view.classPill.tone}>{view.classPill.label}</Pill>}
         <Pill tone={view.typePill.tone}>{view.typePill.label}</Pill>
         {view.ewarPills.map((p) => (

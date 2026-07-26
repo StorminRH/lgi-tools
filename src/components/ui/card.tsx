@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import { createElement, type ComponentProps } from 'react';
 import { cn } from './cn';
 
 /**
@@ -9,27 +9,33 @@ import { cn } from './cn';
  *   - `font` defaults to 'mono' (the terminal chrome); sites cards pass 'body'
  *     (Geist) so their prose doesn't regress to monospace.
  * Extra div props (data-*, onClick, id, …) forward through — the sites lightbox
- * keys off a `data-*` hook on this element.
+ * keys off a `data-*` hook on this element. `as` supports the default `div` and
+ * semantic `li` rendering while preserving the same card surface and forwarded props.
  */
 export function Card({
   hover,
   font = 'mono',
+  as = 'div',
   className,
   children,
   ...rest
-}: { hover?: boolean; font?: 'mono' | 'body' } & ComponentProps<'div'>) {
-  return (
-    <div
-      className={cn(
+}: {
+  hover?: boolean;
+  font?: 'mono' | 'body';
+  as?: 'div' | 'li';
+} & ComponentProps<'div'>) {
+  return createElement(
+    as,
+    {
+      className: cn(
         'border border-border bg-section text-text rounded-card shadow-card-edge',
         font === 'body' ? 'font-body' : 'font-mono',
         hover &&
           'transition-[border-color,box-shadow] hover:border-card-glow-border hover:shadow-card-hover',
         className,
-      )}
-      {...rest}
-    >
-      {children}
-    </div>
+      ),
+      ...rest,
+    },
+    children,
   );
 }

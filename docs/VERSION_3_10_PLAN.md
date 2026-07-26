@@ -163,7 +163,10 @@ and no separate elective campaign is scheduled.
 | **Phase 3 — Operability** | | | |
 | 3.10.3.1 | Capability telemetry, SLIs & idempotency inventory (§3.10.3.1 + §3.10.3.2) | 1 | SHIPPED |
 | 3.10.3.3 | Generated architecture map & devlog flowchart, UX gate: Yes (§3.10.3.3) | 1 | SHIPPED |
-| **Phase 4 — Presentation-system completion** | Outcome groups below are inputs to adversarial decomposition, not fixed delivery boundaries | Set by `plan-version` after its live adoption survey | PLANNED |
+| **Phase 4 — Presentation-system completion** | Topology approved 2026-07-25 from the live adoption survey (`docs/version-audits/3.10/PHASE_4_ADOPTION_SURVEY.md`) | | |
+| 3.10.4.1 | Universal primitive adoption & rails: every approved survey row migrated look-preservingly with a same-PR rail, primitive capability additions, ~650 lines of legacy CSS retired, repeatable census gate (§3.10.4.1) | 1 | SHIPPED |
+| 3.10.4.2 | Refinement & responsive modes: outcome groups B + C as one bundle, completing group A's census allowlist (§3.10.4.2) | 1 | PLANNED |
+| 3.10.4.3 | Operator punch list, clean adoption re-audit & version closure (§3.10.4.3) | 1 | PLANNED |
 
 ## Phase 0 — Documentation & lifecycle consolidation (3.10.0.x)
 
@@ -1262,6 +1265,66 @@ boundaries. Otherwise neutral.
 **Delivery evidence.** Per-item punch-list dispositions and operator approval;
 the clean recorded adoption re-audit; terminal Phase 4 roadmap state; standard
 version-close handoff.
+
+### Approved Phase 4 delivery topology (plan-version, 2026-07-25)
+
+The pre-contract adoption survey ran on 2026-07-25 (five recorded-method
+sweeps; 43 `AD-NNN` rows; persisted with operator dispositions at
+`docs/version-audits/3.10/PHASE_4_ADOPTION_SURVEY.md`). The operator approved
+the dispositions, the eight named decisions (compact Segmented variant,
+pressable Chip variant, StaticTable primitive, shared Prose primitive,
+feature-owned changelog conversion, disabled-control `title` exemption,
+scroll-aware section links to backlog with citation, primitive-serving CSS
+relocation to backlog), and the following three-bundle topology after an
+adversarial review (ACCEPT-WITH-CHANGES, all findings reconciled). Outcome
+groups A–D decompose into three execution bundles — three sub-versions, three
+sessions, three PRs.
+
+### 3.10.4.1 — Universal primitive adoption & rails
+
+Covers outcome group A (part one of two): every survey row dispositioned into
+this bundle is migrated onto its owning primitive or tone map without changing
+the intended look; the primitive capability gaps that forced bypasses are
+closed as shared decisions (widened Dot, inline Stepper, compact Segmented,
+pressable Chip, Card polymorphism, SectionHeader sub-header variant,
+SectionLabel prefix opt-out, StaticTable, shared Prose); ~650 lines of
+page-scoped CSS retire; every migrated family lands its strongest reliable
+rail in the same PR with narrowly encoded exemptions; a repeatable adoption
+census (including a CSS-family checker) joins the verification gates, with
+`.account-menu-*`, `.nav-tool*`/`.nav-menu*`, and `.content-browser-*` on a
+declared temporary allowlist that 3.10.4.2 must shrink; the preview-scope lint
+drift and the untrue "lint-enforced" contributor claim are corrected. Boundary
+reason versus 3.10.4.2: one diff cannot prove both "visually unchanged" and
+"deliberately restyled" for the same surfaces, and refinement is a
+taste-risk domain the operator may redirect at its UX gate while adoption is
+unconditional. Dependencies: Phases 1–3 (shipped). UX gate: Yes.
+
+### 3.10.4.2 — Refinement & responsive modes
+
+Covers outcome groups B and C as ordered internal phases and completes group
+A: typography roles, header restraint (retiring the header-cluster CSS
+families and shrinking the census allowlist), PageHead and PageShell modes,
+Card/section hierarchy and rhythm, the content-rail layered state model, the
+mobile contents drawer on every ContentBrowser consumer, mobile page-settings
+reachability, the declared breakpoint ladder, and the width/zoom matrix. It
+carries the phase-wide obligations itself: any surface it migrates lands its
+rail in the same PR, and every new token family registers with `cn.ts` in the
+same commit. Two in-session UX pauses (post-chrome, post-responsive).
+Scroll-aware section links are backlogged by operator decision. Boundary
+reason versus 3.10.4.3: group D is unbounded discovery gated on a real soak of
+the shipped refined site. Dependencies: 3.10.4.1. UX gate: Yes.
+
+### 3.10.4.3 — Operator punch list & clean closure
+
+Covers outcome group D: the operator's live-use punch lists resolved within
+the fixed vocabulary (existing primitives, feature tone maps, registered
+tokens — never a one-off style), the seed planner items, the recorded-method
+adoption re-audit re-run clean with every exemption listed and every survey
+row terminal, terminal Phase 4 roadmap rows, and version-ship finalization —
+its PR is the version-final PR publishing `APP_VERSION`, the changelog entry
+with absorbed pending fragments, and complete lifecycle state. Multi-sitting
+resumption is contract-sanctioned; a sitting is not a new contract.
+Dependencies: 3.10.4.1 and 3.10.4.2 shipped to production. UX gate: Yes.
 
 ### Phase 4 ship claim
 

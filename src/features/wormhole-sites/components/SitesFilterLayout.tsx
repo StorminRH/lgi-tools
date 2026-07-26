@@ -12,13 +12,22 @@
 // stays static and the selection survives the table's sort navigations.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ChipToggle, ChipToggleGroup } from '@/components/ui/chip-toggle';
+import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
 import type { SiteType, WormholeClass } from '../types';
-import { SITE_TYPE_LABEL } from './wormhole-styles';
+import {
+  CLASS_CHIP_TONE,
+  SITE_TYPE_CHIP_TONE,
+  SITE_TYPE_DOT_TONE,
+  SITE_TYPE_LABEL,
+} from './wormhole-styles';
 
 const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
 const CLASS_CHIPS: WormholeClass[] = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
@@ -46,10 +55,6 @@ export interface SiteFilterMeta {
 export interface SiteCardItem {
   meta: SiteFilterMeta;
   node: ReactNode;
-}
-
-function toggle<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
 }
 
 /** Owns client catalogue filtering and layout state while rendering the supplied immutable site cards. */
@@ -87,7 +92,7 @@ export function SitesFilterLayout({
   useEffect(() => {
     const root = tableRef.current;
     if (!root) return;
-    root.querySelectorAll<HTMLElement>('.sites-table-row').forEach((details) => {
+    root.querySelectorAll<HTMLElement>('[data-sites-row]').forEach((details) => {
       const rowType = details.getAttribute('data-site-type') as SiteType | null;
       const rowCls = (details.getAttribute('data-site-cls') ?? '')
         .split(',')
@@ -121,50 +126,66 @@ export function SitesFilterLayout({
       />
 
       <div className="pb-16">
-        <div className="sites-rail-layout">
-          <aside className="sites-rail-pane">
-            <div className="sites-rail-groups">
-              <div role="group" aria-label="Filter by class">
-                <span className="sites-fl">Class</span>
-                <div className="sites-cls">
+        <div className="grid items-start gap-[22px] min-[901px]:grid-cols-[224px_1fr]">
+          <Card className="p-4 min-[901px]:sticky min-[901px]:top-[110px]">
+            <div className="flex flex-col gap-5">
+              <div>
+                <span className="font-mono text-label uppercase tracking-wide text-muted">Class</span>
+                <ChipToggleGroup
+                  label="Filter by class"
+                  value={cls}
+                  onValueChange={(next) => setCls(next as WormholeClass[])}
+                  className="mt-2 grid grid-cols-3 gap-2"
+                >
                   {CLASS_CHIPS.map((c) => (
-                    <button
+                    <ChipToggle
                       key={c}
-                      type="button"
-                      aria-pressed={cls.includes(c)}
-                      className={`sites-chip ${c.toLowerCase()}${cls.includes(c) ? ' on' : ''}`}
-                      onClick={() => setCls(toggle(cls, c))}
+                      value={c}
+                      tone={CLASS_CHIP_TONE[c]}
+                      appearance="filter"
+                      className="w-full justify-center px-2 py-1.5 text-ui"
                     >
                       {c}
-                    </button>
+                    </ChipToggle>
                   ))}
-                </div>
+                </ChipToggleGroup>
               </div>
 
-              <div role="group" aria-label="Filter by site type">
-                <span className="sites-fl">Type</span>
-                <div className="sites-types">
+              <div>
+                <span className="font-mono text-label uppercase tracking-wide text-muted">Type</span>
+                <ChipToggleGroup
+                  label="Filter by site type"
+                  value={types}
+                  onValueChange={(next) => setTypes(next as SiteType[])}
+                  className="mt-2 flex-col items-stretch"
+                >
                   {TYPE_ROWS.map((t) => (
-                    <button
+                    <ChipToggle
                       key={t}
-                      type="button"
-                      aria-pressed={types.includes(t)}
-                      className={`sites-type ${t}${types.includes(t) ? ' on' : ''}`}
-                      onClick={() => setTypes(toggle(types, t))}
+                      value={t}
+                      tone={SITE_TYPE_CHIP_TONE[t]}
+                      appearance="row"
+                      className="w-full gap-2"
                     >
-                      <span className="dot" />
-                      <span className="tl">{SITE_TYPE_LABEL[t]}</span>
-                      <span className="count">{typeCount(t)}</span>
-                    </button>
+                      <Dot
+                        tone={SITE_TYPE_DOT_TONE[t]}
+                        size="md"
+                        className={`shadow-none transition-opacity ${
+                          types.includes(t) ? 'opacity-100' : 'opacity-[0.45]'
+                        }`}
+                      />
+                      <span className="flex-1 text-left">{SITE_TYPE_LABEL[t]}</span>
+                      <span className="text-faint">{typeCount(t)}</span>
+                    </ChipToggle>
                   ))}
-                </div>
+                </ChipToggleGroup>
               </div>
 
-              <button type="button" className="sites-reset" onClick={reset}>
+              <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
                 reset filters
-              </button>
+              </Button>
             </div>
-          </aside>
+          </Card>
 
           <div>
             <div className="flex justify-end items-center gap-3 mb-4">
@@ -187,9 +208,9 @@ export function SitesFilterLayout({
             {filteredCount === 0 ? (
               <EmptyState>
                 No sites match —{' '}
-                <button type="button" className="sites-reset" onClick={reset}>
+                <Button variant="bare" type="button" className="text-ui text-faint underline underline-offset-3 hover:text-isk" onClick={reset}>
                   reset filters
-                </button>
+                </Button>
               </EmptyState>
             ) : view === 'cards' ? (
               SECTION_ORDER.map((type) => {
@@ -203,7 +224,7 @@ export function SitesFilterLayout({
                       </span>
                       <div className="flex-1 h-px bg-border" />
                     </div>
-                    <div className="sites-grid">{sectionCards.map((c) => c.node)}</div>
+                    <div className="grid items-start gap-4 min-[901px]:grid-cols-2">{sectionCards.map((c) => c.node)}</div>
                   </section>
                 );
               })

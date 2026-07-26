@@ -1,4 +1,6 @@
 import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { EntityRow } from '@/components/ui/row';
 import { TypeIcon } from '@/components/type-icon';
 import { itemImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
@@ -16,9 +18,6 @@ import type { BlueprintPricing, BlueprintStructure, MaterialCostRow } from '../t
 // recomputed.
 
 // Mirrors the build-plan TierRow grid/typography so the two read as one system.
-const ROW =
-  'grid grid-cols-[30px_minmax(0,1fr)_auto_14px] items-center gap-2.5 px-3 py-[9px] min-h-[44px] border-t border-border-soft first:border-t-0';
-
 interface CategoryGroup {
   label: string;
   rows: MaterialCostRow[];
@@ -69,26 +68,28 @@ function CategoryColumn({ group }: { group: CategoryGroup }) {
       </div>
       <Card>
         {group.rows.map((row) => (
-          <div key={row.typeId} className={ROW}>
-            <TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name.slice(0, 2)} />
-            <div className="flex min-w-0 flex-col gap-px">
+          <EntityRow
+            key={row.typeId}
+            colsClass="grid-cols-[30px_minmax(0,1fr)_auto]"
+            className="min-h-[44px] px-3 py-[9px]"
+            leading={<TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name.slice(0, 2)} />}
+            name={<div className="flex min-w-0 flex-col gap-px">
               <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
                 {row.name}
               </span>
               <span className="truncate font-mono text-label uppercase tracking-control text-muted">
                 {row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
               </span>
-            </div>
-            <span className="flex flex-col items-end gap-px text-right">
+            </div>}
+            trailing={<span className="flex flex-col items-end gap-px text-right">
               <span className="whitespace-nowrap font-mono text-ui tabular-nums text-muted">
                 × {formatQuantity(row.quantity)}
               </span>
               <span className="whitespace-nowrap font-mono text-ui tabular-nums text-text">
                 {row.extendedCost !== null ? formatIsk(row.extendedCost) : '—'}
               </span>
-            </span>
-            <span aria-hidden />
-          </div>
+            </span>}
+          />
         ))}
       </Card>
     </div>
@@ -106,7 +107,7 @@ export function CockpitRawLedger({
   const groups = pricing ? groupByCategory(pricing, structure) : [];
 
   if (groups.length === 0) {
-    return <p className="font-body text-ui text-muted">No priced raw materials yet.</p>;
+    return <EmptyState>No priced raw materials yet.</EmptyState>;
   }
 
   return (

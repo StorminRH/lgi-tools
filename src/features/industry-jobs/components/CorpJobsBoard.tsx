@@ -303,7 +303,6 @@ function JobRunner({
             family="corporation-logo"
             src={corp.logo}
             alt=""
-            title={corp.name}
             width={14}
             height={14}
             className="absolute -bottom-1 -left-1 w-3.5 h-3.5 rounded-full border border-border-soft bg-section"

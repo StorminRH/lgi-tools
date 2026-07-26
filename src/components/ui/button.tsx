@@ -2,6 +2,10 @@ import type { ComponentPropsWithRef } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './cn';
 
+const buttonStateClasses =
+  'transition-colors disabled:cursor-not-allowed disabled:opacity-50 ' +
+  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-isk-sub';
+
 /**
  * The action-button primitive ("Inset Instrument", 3.8.2.2). Four intents mapped
  * to tokens via cva; two sizes. `buttonVariants` is exported so a navigational
@@ -11,8 +15,7 @@ import { cn } from './cn';
  */
 export const buttonVariants = cva(
   'inline-flex items-center justify-center font-mono uppercase tracking-ui text-ui ' +
-    'rounded-ctl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ' +
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-isk-sub',
+    `rounded-ctl ${buttonStateClasses}`,
   {
     variants: {
       variant: {
@@ -40,9 +43,19 @@ export const buttonVariants = cva(
   },
 );
 
+type StyledButtonProps = Omit<VariantProps<typeof buttonVariants>, 'variant'> & {
+  variant?: NonNullable<VariantProps<typeof buttonVariants>['variant']>;
+};
+
+type BareButtonProps = Omit<VariantProps<typeof buttonVariants>, 'variant' | 'size'> & {
+  variant: 'bare';
+  size?: never;
+};
+
 /**
- * Renders the domain-neutral button with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
+ * Renders a non-submitting button by default. The `bare` variant keeps the shared focus and
+ * disabled behavior while omitting size, bezel, typography, and intent chrome for caller-owned
+ * visual surfaces.
  */
 export function Button({
   variant,
@@ -53,7 +66,16 @@ export function Button({
   type = 'button',
   className,
   ...props
-}: VariantProps<typeof buttonVariants> & ComponentPropsWithRef<'button'>) {
+}: ComponentPropsWithRef<'button'> & (StyledButtonProps | BareButtonProps)) {
+  if (variant === 'bare') {
+    return (
+      <button
+        type={type}
+        className={cn('inline-flex items-center', buttonStateClasses, className)}
+        {...props}
+      />
+    );
+  }
   return (
     <button type={type} className={cn(buttonVariants({ variant, size }), className)} {...props} />
   );

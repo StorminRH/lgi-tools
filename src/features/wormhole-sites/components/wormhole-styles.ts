@@ -18,6 +18,16 @@ export const CLASS_TONE: Record<WormholeClass, PillTone> = {
   C6: 'purple',
 };
 
+/** Class tones narrowed to the shared pressable-chip palette. */
+export const CLASS_CHIP_TONE: Record<WormholeClass, ChipTone> = {
+  C1: 'green',
+  C2: 'green',
+  C3: 'orange',
+  C4: 'purple',
+  C5: 'red',
+  C6: 'purple',
+};
+
 /** Authoritative mapping from site families to abstract UI tones. */
 export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   combat: 'red-soft',
@@ -25,6 +35,24 @@ export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   gas:    'teal',
   relic:  'orange-soft',
   data:   'blue',
+};
+
+/** Site-family tones narrowed to the shared pressable-chip palette. */
+export const SITE_TYPE_CHIP_TONE: Record<SiteType, ChipTone> = {
+  combat: 'red',
+  ore: 'orange',
+  gas: 'green',
+  relic: 'orange',
+  data: 'blue',
+};
+
+/** Site-family tones for filter-row status dots. */
+export const SITE_TYPE_DOT_TONE: Record<SiteType, DotTone> = {
+  combat: 'red',
+  ore: 'orange',
+  gas: 'green',
+  relic: 'orange',
+  data: 'blue',
 };
 
 /** Authoritative user-facing labels for canonical site families. */
@@ -68,4 +96,3 @@ export const HACKING_DOT_TONE: Record<'relic' | 'data', DotTone> = {
   relic: 'orange',
   data:  'blue',
 };
-

@@ -133,7 +133,7 @@ function CorpStructureItem({
   const view = deriveCorpStructureItemView(structure, { structureTypes, structureRigs });
 
   return (
-    <li className="flex flex-col gap-2 border border-border bg-section px-3 py-2.5">
+    <Card as="li" className="flex flex-col gap-2 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-ui text-text">{view.displayName}</span>
         <Pill tone="neutral">{view.typeName}</Pill>
@@ -149,7 +149,7 @@ function CorpStructureItem({
       ) : (
         <span className="text-micro text-muted">no rigs recorded</span>
       )}
-    </li>
+    </Card>
   );
 }
 

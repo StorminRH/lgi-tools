@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from './cn';
 
 /**
  * `size` widens the header for dense dashboard cards: 'sm' is the sitewide
@@ -9,17 +10,28 @@ export function SectionHeader({
   label,
   hint,
   size = 'sm',
+  variant = 'bar',
+  className,
 }: {
   label: ReactNode;
   hint?: ReactNode;
   size?: 'sm' | 'md';
+  variant?: 'bar' | 'sub';
+  className?: string;
 }) {
   const sizing =
     size === 'md' ? 'px-3.5 py-2 text-label' : 'px-3.5 py-[5px] text-micro';
   const hintSizing = 'text-micro';
   return (
     <div
-      className={`flex items-center justify-between bg-section border-b border-border-soft border-t border-t-border font-semibold tracking-display uppercase text-muted ${sizing}`}
+      className={cn(
+        'flex items-center justify-between font-semibold tracking-display uppercase text-muted',
+        variant === 'bar'
+          ? 'bg-section border-b border-border-soft border-t border-t-border'
+          : 'text-label',
+        variant === 'bar' && sizing,
+        className,
+      )}
     >
       <span>{label}</span>
       {hint && <span className={`${hintSizing} font-normal text-muted`}>{hint}</span>}

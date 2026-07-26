@@ -16,18 +16,18 @@ const TYPE_TONE: Record<ChangeType, PillTone> = {
 /** Renders one changelog entry's date, type, title, and structured detail content. */
 export function EntryCard({ entry }: { entry: ChangelogEntry }) {
   return (
-    <div className="changelog-entry">
-      <div className="changelog-rail">
-        <div className="changelog-ver">v{entry.version}</div>
-        <div className="changelog-date">{formatUtcDate(entry.date)}</div>
+    <div className="grid grid-cols-1 gap-0 sm:grid-cols-[116px_1fr]">
+      <div className="pb-3 text-left sm:pr-[26px] sm:pt-0.5 sm:text-right">
+        <div className="font-jb text-lead font-extrabold tracking-[0.01em] text-name">v{entry.version}</div>
+        <div className="mt-1.5 font-mono text-label uppercase tracking-[0.08em] text-muted">{formatUtcDate(entry.date)}</div>
       </div>
-      <div className="changelog-changes">
+      <div className="relative pb-[34px] sm:border-l sm:border-border sm:pl-7 sm:before:absolute sm:before:-left-[5px] sm:before:top-1 sm:before:size-[9px] sm:before:rounded-full sm:before:bg-isk sm:before:shadow-[0_0_0_3px_var(--color-bg-deep),0_0_10px_var(--color-card-glow-shadow)] sm:before:content-['']">
         {entry.groups.map((group) => (
-          <div key={group.type} className="changelog-group">
+          <div key={group.type} className="mb-4 last:mb-0">
             <Pill tone={TYPE_TONE[group.type]}>{group.type}</Pill>
-            <ul className="changelog-list">
+            <ul className="mt-2 flex list-none flex-col gap-2 p-0">
               {group.items.map((item, i) => (
-                <li key={i}>{item}</li>
+                <li key={i} className="relative pl-4 font-body text-body leading-[1.6] tracking-[0.01em] text-text before:absolute before:left-px before:text-isk before:content-['-']">{item}</li>
               ))}
             </ul>
           </div>

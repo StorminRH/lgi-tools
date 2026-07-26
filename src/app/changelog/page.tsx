@@ -18,7 +18,7 @@ export default async function ChangelogPage() {
   const master = (await loadChangelog())[0];
   if (!master) return <EmptyState>No changelog entries yet.</EmptyState>;
   return (
-    <div className="changelog">
+    <div className="max-w-[820px]">
       <MasterSection master={master} />
     </div>
   );

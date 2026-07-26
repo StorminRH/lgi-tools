@@ -4,6 +4,7 @@ import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionHeader } from '@/components/ui/section-header';
+import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
 import { listDeadLetteredJobs } from '@/data/esi-refresh-jobs/queries';
 import {
   getHistorySourceSplit,
@@ -61,30 +62,39 @@ function OpsCardFallback({ label }: { label: string }) {
   );
 }
 
-function MetricsTable({ rows }: { rows: OpsMetricRow[] }) {
+function MetricsTable({ rows, ariaLabel }: { rows: OpsMetricRow[]; ariaLabel: string }) {
+  const columns = [
+    {
+      key: 'metric',
+      label: 'Metric',
+      rowHeader: true,
+      render: (row) => row.label,
+      className: 'text-text',
+    },
+    { key: 'value', label: 'Value', align: 'right', render: (row) => row.value, className: 'text-name' },
+    {
+      key: 'note',
+      label: 'Note',
+      align: 'right',
+      render: (row) => row.note,
+      className: 'hidden text-micro text-muted md:table-cell',
+      headerClassName: 'hidden md:table-cell',
+    },
+  ] satisfies readonly StaticTableColumn<OpsMetricRow>[];
   return (
-    <table className="w-full font-mono text-ui tabular-nums">
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.label} className="border-t border-border-soft first:border-t-0">
-            <th scope="row" className="px-3.5 py-2 text-left font-normal text-text">
-              {row.label}
-            </th>
-            <td className="px-3.5 py-2 text-right text-name">{row.value}</td>
-            <td className="px-3.5 py-2 text-right text-micro text-muted hidden md:table-cell">
-              {row.note}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <StaticTable
+      ariaLabel={ariaLabel}
+      columns={columns}
+      rows={rows}
+      getRowKey={(row) => row.label}
+    />
   );
 }
 
 function DetailBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="border-t border-border-soft px-3.5 py-3">
-      <div className="mb-2 text-label tracking-display uppercase text-muted">{label}</div>
+      <SectionHeader variant="sub" label={label} className="mb-2" />
       {children}
     </div>
   );
@@ -109,25 +119,37 @@ async function SliPanel({ range }: { range: DateRange }) {
     esi_success_rate: esiRate,
     job_backlog: deriveJobBacklog(queueStats),
   });
+  const columns = [
+    {
+      key: 'indicator',
+      label: 'Indicator',
+      rowHeader: true,
+      render: (row) => (
+        <>
+          <span className="block text-text">{row.label}</span>
+          <span className="block text-micro text-muted">{row.responseAction}</span>
+        </>
+      ),
+    },
+    { key: 'value', label: 'Value', align: 'right', render: (row) => row.value, className: 'text-name' },
+    {
+      key: 'owner',
+      label: 'Owner',
+      align: 'right',
+      render: (row) => row.owner,
+      className: 'hidden text-micro text-muted md:table-cell',
+      headerClassName: 'hidden md:table-cell',
+    },
+  ] satisfies readonly StaticTableColumn<(typeof rows)[number]>[];
   return (
     <Card>
       <SectionHeader size="md" label="Service indicators" hint="owner and response action" />
-      <table className="w-full font-mono text-ui tabular-nums">
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-t border-border-soft first:border-t-0">
-              <th scope="row" className="px-3.5 py-2 text-left font-normal align-top">
-                <span className="block text-text">{row.label}</span>
-                <span className="block text-micro text-muted">{row.responseAction}</span>
-              </th>
-              <td className="px-3.5 py-2 text-right align-top text-name">{row.value}</td>
-              <td className="px-3.5 py-2 text-right align-top text-micro text-muted hidden md:table-cell">
-                {row.owner}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <StaticTable
+        ariaLabel="Service indicators"
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.id}
+      />
     </Card>
   );
 }
@@ -142,7 +164,9 @@ async function BudgetPanel() {
       <div className={view.level === 'red' ? 'px-3.5 py-2 text-ui text-tone-red' : 'px-3.5 py-2 text-ui text-isk'}>
         {view.headline}
       </div>
-      {view.metrics.length > 0 && <MetricsTable rows={view.metrics} />}
+      {view.metrics.length > 0 && (
+        <MetricsTable ariaLabel="ESI error budget metrics" rows={view.metrics} />
+      )}
     </Card>
   );
 }
@@ -155,6 +179,17 @@ async function QueuePanel({ rangeKey }: { rangeKey: RangeKey }) {
   const [stats, deadLetters] = fetched;
   const queue = deriveQueueView(stats, new Date());
   const dead = deriveDeadLetterView(deadLetters);
+  const columns = [
+    {
+      key: 'status',
+      label: 'Status',
+      rowHeader: true,
+      render: (row) => row.label,
+      className: 'text-text',
+    },
+    { key: 'count', label: 'Count', align: 'right', render: (row) => row.count.toLocaleString(), className: 'text-name' },
+    { key: 'oldest', label: 'Oldest', align: 'right', render: (row) => row.oldestAge, className: 'text-muted' },
+  ] satisfies readonly StaticTableColumn<(typeof queue.rows)[number]>[];
   return (
     <Card>
       <SectionHeader
@@ -165,28 +200,16 @@ async function QueuePanel({ rangeKey }: { rangeKey: RangeKey }) {
       {queue.empty ? (
         <EmptyState>No queued or retained refresh jobs.</EmptyState>
       ) : (
-        <table className="w-full font-mono text-ui tabular-nums">
-          <thead>
-            <tr className="border-b border-border-soft text-label tracking-display uppercase text-muted">
-              <th scope="col" className="px-3.5 py-2 text-left font-medium">Status</th>
-              <th scope="col" className="px-3.5 py-2 text-right font-medium">Count</th>
-              <th scope="col" className="px-3.5 py-2 text-right font-medium">Oldest</th>
-            </tr>
-          </thead>
-          <tbody>
-            {queue.rows.map((row) => (
-              <tr key={row.status} className="border-b border-border-soft last:border-b-0">
-                <th scope="row" className="px-3.5 py-2 text-left font-normal text-text">{row.label}</th>
-                <td className="px-3.5 py-2 text-right text-name">{row.count.toLocaleString()}</td>
-                <td className="px-3.5 py-2 text-right text-muted">{row.oldestAge}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <StaticTable
+          ariaLabel="Deferred refresh queue"
+          columns={columns}
+          rows={queue.rows}
+          getRowKey={(row) => row.status}
+        />
       )}
       <DetailBlock label={`Dead letters · ${dead.length}`}>
         {dead.length === 0 ? (
-          <div className="font-mono text-ui text-muted">No dead-lettered refresh jobs.</div>
+          <EmptyState>No dead-lettered refresh jobs.</EmptyState>
         ) : (
           <ul className="-mx-3.5 -mb-3">
             {dead.map((row) => (
@@ -233,7 +256,7 @@ async function CostPanel({ range }: { range: DateRange }) {
   return (
     <Card>
       <SectionHeader size="md" label="ESI cost lens" hint="selected range" />
-      <MetricsTable rows={view.metrics} />
+      <MetricsTable ariaLabel="ESI cost lens metrics" rows={view.metrics} />
       <PriceSourceHealth
         fallback={fallback}
         budgetExhaustions={budgetExhaustions}
@@ -294,7 +317,7 @@ function EndpointUsage({
   return (
     <DetailBlock label="Most-used owned-data endpoints">
       {endpoints.length === 0 ? (
-        <div className="font-mono text-ui text-muted">No owned-data reads in this range.</div>
+        <EmptyState>No owned-data reads in this range.</EmptyState>
       ) : (
         <DistributionBars rows={endpoints} ariaLabel="Owned-data endpoint requests" />
       )}

@@ -142,6 +142,171 @@ const inputClassSelectors = [
   },
 ];
 
+// UI-adoption enforcement (3.10.4.1): production call sites consume the shared
+// primitive layer instead of re-implementing its HTML, ARIA, recipes, or
+// primitive-owned styling tokens. The few necessary raw-element owners and
+// recorded exceptions use exact flat-config blocks below; the adoption rail
+// test proves each lifted selector while keeping a neighboring ban active.
+const rawButtonSelector = {
+  selector: "JSXOpeningElement[name.name='button']",
+  message:
+    "No raw <button> in production UI — use Button or buttonVariants from @/components/ui/button.",
+};
+const visibleInputSelector = {
+  selector:
+    "JSXOpeningElement[name.name='input']:not(:has(JSXAttribute[name.name='type'][value.value='hidden']))",
+  message:
+    "No visible raw <input> in production UI — use Input, Checkbox, RadioGroup, Switch, Stepper, or the owning primitive.",
+};
+const textareaSelector = {
+  selector: "JSXOpeningElement[name.name='textarea']",
+  message:
+    "No raw <textarea> in production UI — use Textarea from @/components/ui/input.",
+};
+const tableSelector = {
+  selector: "JSXOpeningElement[name.name='table']",
+  message:
+    "No raw <table> in production UI — use StaticTable or SortableTable from @/components/ui.",
+};
+const detailsSelector = {
+  selector: "JSXOpeningElement[name.name='details']",
+  message:
+    "No raw <details> in production UI — use Collapsible unless the local exception documents an owning native-details contract.",
+};
+
+const nativeTitleSelector = {
+  selector:
+    "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='title']",
+  message:
+    "No native title attribute on lowercase JSX elements — use Tooltip or Popover so the hint is focusable and touch-accessible.",
+};
+const buttonTitleSelector = {
+  selector:
+    "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='title']",
+  message:
+    "No native title forwarded through Button — use Tooltip or Popover unless this is an approved disabled-control exception.",
+};
+const jsxButtonRoleSelector = {
+  selector:
+    "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='role'][value.value='button']",
+  message:
+    "No role='button' reimplementation — use the Button primitive and its native keyboard semantics.",
+};
+const objectButtonRoleSelector = {
+  selector: "Property[key.name='role'][value.value='button']",
+  message:
+    "No object-authored role='button' reimplementation — use the Button primitive and its native keyboard semantics.",
+};
+const rawPressedSelector = {
+  selector:
+    "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='aria-pressed']",
+  message:
+    "No raw pressed-button semantics — use Button, Segmented, ChipToggle, or another owning primitive.",
+};
+const liveRegionSelector = {
+  selector:
+    "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='role'][value.value=/^(alert|status)$/]",
+  message:
+    "No hand-built alert/status region — use Banner, Callout, EmptyState, LoadingLabel, or Skeleton.",
+};
+const actionClassSelector = {
+  selector:
+    "VariableDeclarator[id.name=/[bB]utton(Class|Classes)$|[aA]ction(Class|Classes)$|[hH]eader(Class|Classes)$|[hH]eading(Class|Classes)$|[tT]itle(Class|Classes)$|_(BTN|BOX)$|^SECTION_HEAD$/]",
+  message:
+    "No ad-hoc action or heading class constants — use the owning Button, SectionHeader, SectionLabel, or PageHead primitive.",
+};
+
+const uiElementSelectors = [
+  rawButtonSelector,
+  visibleInputSelector,
+  textareaSelector,
+  tableSelector,
+  detailsSelector,
+];
+
+const uiSemanticSelectors = [
+  nativeTitleSelector,
+  buttonTitleSelector,
+  jsxButtonRoleSelector,
+  objectButtonRoleSelector,
+  rawPressedSelector,
+  liveRegionSelector,
+  actionClassSelector,
+];
+
+const emptyStateTokenSelectors = [
+  {
+    selector: "Literal[value=/text-empty/]",
+    message:
+      "No empty-state token at a call site — consume the EmptyState primitive.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/text-empty/]",
+    message:
+      "No empty-state token at a call site — consume the EmptyState primitive.",
+  },
+];
+
+const toneTokenSelectors = [
+  {
+    selector: "Literal[value=/(?:bg|text|border)-(?:pill|chip)-/]",
+    message:
+      "No pill/chip tone token at a call site — consume the owning tone primitive.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/(?:bg|text|border)-(?:pill|chip)-/]",
+    message:
+      "No pill/chip tone token at a call site — consume the owning tone primitive.",
+  },
+];
+
+const skeletonTokenSelectors = [
+  {
+    selector: "Literal[value=/skeleton-shimmer/]",
+    message:
+      "No skeleton token at a call site — consume the Skeleton primitive.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/skeleton-shimmer/]",
+    message:
+      "No skeleton token at a call site — consume the Skeleton primitive.",
+  },
+];
+
+const progressTokenSelectors = [
+  {
+    selector: "Literal[value=/--pct/]",
+    message:
+      "No progress custom property at a call site — consume the ProgressBar primitive.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/--pct/]",
+    message:
+      "No progress custom property at a call site — consume the ProgressBar primitive.",
+  },
+];
+
+const loadingToastSelector = {
+  selector:
+    "CallExpression[callee.object.name='toast'][callee.property.name='loading']",
+  message:
+    "Do not call toast.loading directly — use the shared loading-toast primitive.",
+};
+
+const uiTokenSelectors = [
+  ...emptyStateTokenSelectors,
+  ...toneTokenSelectors,
+  ...skeletonTokenSelectors,
+  ...progressTokenSelectors,
+  loadingToastSelector,
+];
+
+const uiAdoptionSelectors = [
+  ...uiElementSelectors,
+  ...uiSemanticSelectors,
+  ...uiTokenSelectors,
+];
+
 // Typed-API-call enforcement (3.4.T): a literal fetch('/api/…') bypasses the
 // shared contracts, so client code must go through apiFetch with the owning
 // slice's endpoint object instead. The selectors match only a string/template
@@ -324,6 +489,7 @@ const baseUiWrapperFiles = [
   "src/components/ui/popover.tsx",
   "src/components/ui/radio-group.tsx",
   "src/components/ui/segmented.tsx",
+  "src/components/ui/chip-toggle.tsx",
   "src/components/ui/select.tsx",
   "src/components/ui/stepper.tsx",
   "src/components/ui/switch.tsx",
@@ -464,6 +630,50 @@ const serverRootImportPatterns = [
       "Client modules cannot import server roots. Move the read behind a server boundary or import a client-safe contract.",
   },
 ];
+
+function selectorsWithout(selectors, exemptions) {
+  return selectors.filter((selector) => !exemptions.includes(selector));
+}
+
+function productionSyntaxSelectorsExcept(...exemptions) {
+  return [
+    ...bareFetchSelectors,
+    ...ssoHostSelectors,
+    ...cspSelectors,
+    ...hexColorSelectors,
+    ...rgbaColorSelectors,
+    ...apiFetchSelectors,
+    ...processEnvSelectors,
+    ...esiHostSelectors,
+    ...textSizeSelectors,
+    ...roundedSizeSelectors,
+    ...selectElementSelectors,
+    ...inputClassSelectors,
+    ...selectorsWithout(uiAdoptionSelectors, exemptions),
+    ...datasetTtlSelectors,
+    ...imageVariantSelectors,
+  ];
+}
+
+function primitiveSyntaxSelectorsExcept(...exemptions) {
+  return [
+    ...bareFetchSelectors,
+    ...ssoHostSelectors,
+    ...cspSelectors,
+    ...hexColorSelectors,
+    ...rgbaColorSelectors,
+    ...apiFetchSelectors,
+    ...processEnvSelectors,
+    ...esiHostSelectors,
+    ...textSizeSelectors,
+    ...roundedSizeSelectors,
+    ...selectElementSelectors,
+    ...inputClassSelectors,
+    ...selectorsWithout(uiAdoptionSelectors, exemptions),
+    ...datasetTtlSelectors,
+    ...imageVariantSelectors,
+  ];
+}
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -1031,6 +1241,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
         ...imageVariantSelectors,
       ],
@@ -1056,6 +1267,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
         ...imageVariantSelectors,
       ],
@@ -1079,6 +1291,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
         ...imageVariantSelectors,
       ],
@@ -1103,6 +1316,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
         ...imageVariantSelectors,
       ],
@@ -1122,6 +1336,9 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
         ...imageVariantSelectors,
       ],
@@ -1148,6 +1365,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
         ...imageVariantSelectors,
       ],
@@ -1173,6 +1391,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...imageVariantSelectors,
       ],
     },
@@ -1211,6 +1430,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
       ],
     },
@@ -1269,6 +1489,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
         ...imageVariantSelectors,
       ],
@@ -1298,8 +1519,188 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...uiAdoptionSelectors,
         ...datasetTtlSelectors,
         ...imageVariantSelectors,
+      ],
+    },
+  },
+  // Primitive modules are the sanctioned owners of their own styling tokens.
+  // They retain every element and semantic adoption rail by default.
+  {
+    files: ["src/components/ui/**/*.{ts,tsx,mts}"],
+    ignores: ["**/*.test.{ts,tsx}", "src/components/ui/tones.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(),
+      ],
+    },
+  },
+  // Exact UI-adoption owner seams. Each block lifts only the selector family
+  // the named component owns and re-states every neighboring syntax rail.
+  {
+    files: [
+      "src/components/ui/banner.tsx",
+      "src/components/ui/button.tsx",
+      "src/components/ui/pagination.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(rawButtonSelector, ...toneTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/copy-button.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(
+          rawButtonSelector,
+          liveRegionSelector,
+          ...toneTokenSelectors,
+        ),
+      ],
+    },
+  },
+  {
+    files: [
+      "src/components/ui/collapsible.tsx",
+      "src/components/ui/content-browser-nav.tsx",
+      "src/components/ui/content-browser.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(detailsSelector),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/confirm-dialog.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(liveRegionSelector, ...toneTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/skeleton.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(liveRegionSelector, ...skeletonTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/input.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(visibleInputSelector, textareaSelector),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/static-table.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(tableSelector),
+      ],
+    },
+  },
+  {
+    files: [
+      "src/components/ui/access-gate.tsx",
+      "src/components/ui/checkbox.tsx",
+      "src/components/ui/chip-toggle.tsx",
+      "src/components/ui/chip.tsx",
+      "src/components/ui/dropdown-panel.ts",
+      "src/components/ui/field.tsx",
+      "src/components/ui/pill.tsx",
+      "src/components/ui/switch.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(...toneTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/empty-state.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(...emptyStateTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/progress-bar.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(...progressTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/loading-toast.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(loadingToastSelector),
+      ],
+    },
+  },
+  {
+    files: ["src/components/composition/NavTools.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...productionSyntaxSelectorsExcept(nativeTitleSelector),
+      ],
+    },
+  },
+  {
+    files: ["src/components/composition/account/LoginButton.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...productionSyntaxSelectorsExcept(rawButtonSelector),
+      ],
+    },
+  },
+  {
+    files: [
+      "src/components/composition/account/AdminForceLogoutForm.tsx",
+      "src/components/composition/account/AdminReassignCharacterForm.tsx",
+      "src/components/composition/account/AdminUnlinkCharacterForm.tsx",
+      "src/components/composition/account/RoleToggleForm.tsx",
+      "src/components/composition/account/UnlinkCharacterForm.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...productionSyntaxSelectorsExcept(buttonTitleSelector),
+      ],
+    },
+  },
+  {
+    files: [
+      "src/features/devlog/components/CodeExcerpt.tsx",
+      "src/features/wormhole-sites/components/SitesTable.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...productionSyntaxSelectorsExcept(detailsSelector),
       ],
     },
   },
