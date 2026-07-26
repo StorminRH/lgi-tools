@@ -49,8 +49,8 @@ export default function ContactPage() {
         </p>
 
         <div className="grid items-stretch gap-4 md:grid-cols-2">
-          <Card className="p-5">
-            <SectionLabel className="mb-2">Get in touch</SectionLabel>
+          <Card>
+            <SectionLabel className="mb-2 px-3.5 pt-3.5">Get in touch</SectionLabel>
             <EntityRow
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Email"
@@ -89,8 +89,8 @@ export default function ContactPage() {
             />
           </Card>
 
-          <Card className="p-5">
-            <SectionLabel className="mb-2">In-game</SectionLabel>
+          <Card>
+            <SectionLabel className="mb-2 px-3.5 pt-3.5">In-game</SectionLabel>
             <EntityRow
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Character"

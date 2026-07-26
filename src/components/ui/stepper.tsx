@@ -36,7 +36,7 @@ export function Stepper({
 }) {
   const inline = variant === 'inline';
   const btn = inline
-    ? 'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-ctl text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer'
+    ? "relative inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-ctl text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer after:absolute after:-inset-1 after:content-['']"
     : 'h-7 w-[26px] text-ui leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
   return (
     <NumberField.Root

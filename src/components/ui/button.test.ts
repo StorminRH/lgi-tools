@@ -44,10 +44,13 @@ describe('Button', () => {
     expect(el.props.className).toContain('fixed');
   });
 
-  it('renders bare semantic buttons without shared chrome', () => {
+  it('renders bare semantic buttons with shared states but without chrome', () => {
     const el = Button({ variant: 'bare', className: 'absolute inset-0' });
     expect(el.props.className).toContain('inline-flex');
     expect(el.props.className).toContain('absolute');
+    expect(el.props.className).toContain('focus-visible:ring-1');
+    expect(el.props.className).toContain('disabled:opacity-50');
     expect(el.props.className).not.toContain('border-border-idle');
+    expect(el.props.className).not.toContain('px-4');
   });
 });

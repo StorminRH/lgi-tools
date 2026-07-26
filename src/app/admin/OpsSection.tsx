@@ -62,9 +62,15 @@ function OpsCardFallback({ label }: { label: string }) {
   );
 }
 
-function MetricsTable({ rows }: { rows: OpsMetricRow[] }) {
+function MetricsTable({ rows, ariaLabel }: { rows: OpsMetricRow[]; ariaLabel: string }) {
   const columns = [
-    { key: 'metric', label: 'Metric', render: (row) => row.label, className: 'text-text' },
+    {
+      key: 'metric',
+      label: 'Metric',
+      rowHeader: true,
+      render: (row) => row.label,
+      className: 'text-text',
+    },
     { key: 'value', label: 'Value', align: 'right', render: (row) => row.value, className: 'text-name' },
     {
       key: 'note',
@@ -76,7 +82,12 @@ function MetricsTable({ rows }: { rows: OpsMetricRow[] }) {
     },
   ] satisfies readonly StaticTableColumn<OpsMetricRow>[];
   return (
-    <StaticTable columns={columns} rows={rows} getRowKey={(row) => row.label} />
+    <StaticTable
+      ariaLabel={ariaLabel}
+      columns={columns}
+      rows={rows}
+      getRowKey={(row) => row.label}
+    />
   );
 }
 
@@ -112,6 +123,7 @@ async function SliPanel({ range }: { range: DateRange }) {
     {
       key: 'indicator',
       label: 'Indicator',
+      rowHeader: true,
       render: (row) => (
         <>
           <span className="block text-text">{row.label}</span>
@@ -132,7 +144,12 @@ async function SliPanel({ range }: { range: DateRange }) {
   return (
     <Card>
       <SectionHeader size="md" label="Service indicators" hint="owner and response action" />
-      <StaticTable columns={columns} rows={rows} getRowKey={(row) => row.id} />
+      <StaticTable
+        ariaLabel="Service indicators"
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.id}
+      />
     </Card>
   );
 }
@@ -147,7 +164,9 @@ async function BudgetPanel() {
       <div className={view.level === 'red' ? 'px-3.5 py-2 text-ui text-tone-red' : 'px-3.5 py-2 text-ui text-isk'}>
         {view.headline}
       </div>
-      {view.metrics.length > 0 && <MetricsTable rows={view.metrics} />}
+      {view.metrics.length > 0 && (
+        <MetricsTable ariaLabel="ESI error budget metrics" rows={view.metrics} />
+      )}
     </Card>
   );
 }
@@ -161,7 +180,13 @@ async function QueuePanel({ rangeKey }: { rangeKey: RangeKey }) {
   const queue = deriveQueueView(stats, new Date());
   const dead = deriveDeadLetterView(deadLetters);
   const columns = [
-    { key: 'status', label: 'Status', render: (row) => row.label, className: 'text-text' },
+    {
+      key: 'status',
+      label: 'Status',
+      rowHeader: true,
+      render: (row) => row.label,
+      className: 'text-text',
+    },
     { key: 'count', label: 'Count', align: 'right', render: (row) => row.count.toLocaleString(), className: 'text-name' },
     { key: 'oldest', label: 'Oldest', align: 'right', render: (row) => row.oldestAge, className: 'text-muted' },
   ] satisfies readonly StaticTableColumn<(typeof queue.rows)[number]>[];
@@ -175,7 +200,12 @@ async function QueuePanel({ rangeKey }: { rangeKey: RangeKey }) {
       {queue.empty ? (
         <EmptyState>No queued or retained refresh jobs.</EmptyState>
       ) : (
-        <StaticTable columns={columns} rows={queue.rows} getRowKey={(row) => row.status} />
+        <StaticTable
+          ariaLabel="Deferred refresh queue"
+          columns={columns}
+          rows={queue.rows}
+          getRowKey={(row) => row.status}
+        />
       )}
       <DetailBlock label={`Dead letters · ${dead.length}`}>
         {dead.length === 0 ? (
@@ -226,7 +256,7 @@ async function CostPanel({ range }: { range: DateRange }) {
   return (
     <Card>
       <SectionHeader size="md" label="ESI cost lens" hint="selected range" />
-      <MetricsTable rows={view.metrics} />
+      <MetricsTable ariaLabel="ESI cost lens metrics" rows={view.metrics} />
       <PriceSourceHealth
         fallback={fallback}
         budgetExhaustions={budgetExhaustions}

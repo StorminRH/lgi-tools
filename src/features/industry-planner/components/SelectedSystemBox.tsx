@@ -28,7 +28,10 @@ export function SelectedSystemBox({
       </span>
       {locked ? (
         <Tooltip content={`Locked to ${locked}`}>
-          <span className="ml-auto shrink-0 font-mono text-label uppercase tracking-wide text-muted">
+          <span
+            tabIndex={0}
+            className="ml-auto shrink-0 font-mono text-label uppercase tracking-wide text-muted"
+          >
             locked
           </span>
         </Tooltip>

@@ -180,6 +180,12 @@ const nativeTitleSelector = {
   message:
     "No native title attribute on lowercase JSX elements — use Tooltip or Popover so the hint is focusable and touch-accessible.",
 };
+const buttonTitleSelector = {
+  selector:
+    "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='title']",
+  message:
+    "No native title forwarded through Button — use Tooltip or Popover unless this is an approved disabled-control exception.",
+};
 const jsxButtonRoleSelector = {
   selector:
     "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='role'][value.value='button']",
@@ -205,7 +211,7 @@ const liveRegionSelector = {
 };
 const actionClassSelector = {
   selector:
-    "VariableDeclarator[id.name=/[bB]utton(Class|Classes)$|[aA]ction(Class|Classes)$|[hH]eader(Class|Classes)$|[hH]eading(Class|Classes)$|[tT]itle(Class|Classes)$/]",
+    "VariableDeclarator[id.name=/[bB]utton(Class|Classes)$|[aA]ction(Class|Classes)$|[hH]eader(Class|Classes)$|[hH]eading(Class|Classes)$|[tT]itle(Class|Classes)$|_(BTN|BOX)$|^SECTION_HEAD$/]",
   message:
     "No ad-hoc action or heading class constants — use the owning Button, SectionHeader, SectionLabel, or PageHead primitive.",
 };
@@ -220,6 +226,7 @@ const uiElementSelectors = [
 
 const uiSemanticSelectors = [
   nativeTitleSelector,
+  buttonTitleSelector,
   jsxButtonRoleSelector,
   objectButtonRoleSelector,
   rawPressedSelector,
@@ -227,25 +234,71 @@ const uiSemanticSelectors = [
   actionClassSelector,
 ];
 
+const emptyStateTokenSelectors = [
+  {
+    selector: "Literal[value=/text-empty/]",
+    message:
+      "No empty-state token at a call site — consume the EmptyState primitive.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/text-empty/]",
+    message:
+      "No empty-state token at a call site — consume the EmptyState primitive.",
+  },
+];
+
+const toneTokenSelectors = [
+  {
+    selector: "Literal[value=/(?:bg|text|border)-(?:pill|chip)-/]",
+    message:
+      "No pill/chip tone token at a call site — consume the owning tone primitive.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/(?:bg|text|border)-(?:pill|chip)-/]",
+    message:
+      "No pill/chip tone token at a call site — consume the owning tone primitive.",
+  },
+];
+
+const skeletonTokenSelectors = [
+  {
+    selector: "Literal[value=/skeleton-shimmer/]",
+    message:
+      "No skeleton token at a call site — consume the Skeleton primitive.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/skeleton-shimmer/]",
+    message:
+      "No skeleton token at a call site — consume the Skeleton primitive.",
+  },
+];
+
+const progressTokenSelectors = [
+  {
+    selector: "Literal[value=/--pct/]",
+    message:
+      "No progress custom property at a call site — consume the ProgressBar primitive.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/--pct/]",
+    message:
+      "No progress custom property at a call site — consume the ProgressBar primitive.",
+  },
+];
+
+const loadingToastSelector = {
+  selector:
+    "CallExpression[callee.object.name='toast'][callee.property.name='loading']",
+  message:
+    "Do not call toast.loading directly — use the shared loading-toast primitive.",
+};
+
 const uiTokenSelectors = [
-  {
-    selector:
-      "Literal[value=/(text-empty|(?:bg|text|border)-(?:pill|chip)-|skeleton-shimmer|--pct)/]",
-    message:
-      "No primitive-owned UI token at a call site — consume the primitive that owns this empty, pill/chip, skeleton, or progress treatment.",
-  },
-  {
-    selector:
-      "TemplateElement[value.raw=/(text-empty|(?:bg|text|border)-(?:pill|chip)-|skeleton-shimmer|--pct)/]",
-    message:
-      "No primitive-owned UI token at a call site — consume the primitive that owns this empty, pill/chip, skeleton, or progress treatment.",
-  },
-  {
-    selector:
-      "CallExpression[callee.object.name='toast'][callee.property.name='loading']",
-    message:
-      "Do not call toast.loading directly — use the shared loading-toast primitive.",
-  },
+  ...emptyStateTokenSelectors,
+  ...toneTokenSelectors,
+  ...skeletonTokenSelectors,
+  ...progressTokenSelectors,
+  loadingToastSelector,
 ];
 
 const uiAdoptionSelectors = [
@@ -616,7 +669,7 @@ function primitiveSyntaxSelectorsExcept(...exemptions) {
     ...roundedSizeSelectors,
     ...selectElementSelectors,
     ...inputClassSelectors,
-    ...selectorsWithout([...uiElementSelectors, ...uiSemanticSelectors], exemptions),
+    ...selectorsWithout(uiAdoptionSelectors, exemptions),
     ...datasetTtlSelectors,
     ...imageVariantSelectors,
   ];
@@ -1495,7 +1548,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(rawButtonSelector),
+        ...primitiveSyntaxSelectorsExcept(rawButtonSelector, ...toneTokenSelectors),
       ],
     },
   },
@@ -1504,7 +1557,11 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(rawButtonSelector, liveRegionSelector),
+        ...primitiveSyntaxSelectorsExcept(
+          rawButtonSelector,
+          liveRegionSelector,
+          ...toneTokenSelectors,
+        ),
       ],
     },
   },
@@ -1522,14 +1579,20 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: [
-      "src/components/ui/confirm-dialog.tsx",
-      "src/components/ui/skeleton.tsx",
-    ],
+    files: ["src/components/ui/confirm-dialog.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...primitiveSyntaxSelectorsExcept(liveRegionSelector),
+        ...primitiveSyntaxSelectorsExcept(liveRegionSelector, ...toneTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/skeleton.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(liveRegionSelector, ...skeletonTokenSelectors),
       ],
     },
   },
@@ -1552,6 +1615,51 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    files: [
+      "src/components/ui/access-gate.tsx",
+      "src/components/ui/checkbox.tsx",
+      "src/components/ui/chip-toggle.tsx",
+      "src/components/ui/chip.tsx",
+      "src/components/ui/dropdown-panel.ts",
+      "src/components/ui/field.tsx",
+      "src/components/ui/pill.tsx",
+      "src/components/ui/switch.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(...toneTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/empty-state.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(...emptyStateTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/progress-bar.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(...progressTokenSelectors),
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/loading-toast.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...primitiveSyntaxSelectorsExcept(loadingToastSelector),
+      ],
+    },
+  },
+  {
     files: ["src/components/composition/NavTools.tsx"],
     rules: {
       "no-restricted-syntax": [
@@ -1566,6 +1674,21 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": [
         "error",
         ...productionSyntaxSelectorsExcept(rawButtonSelector),
+      ],
+    },
+  },
+  {
+    files: [
+      "src/components/composition/account/AdminForceLogoutForm.tsx",
+      "src/components/composition/account/AdminReassignCharacterForm.tsx",
+      "src/components/composition/account/AdminUnlinkCharacterForm.tsx",
+      "src/components/composition/account/RoleToggleForm.tsx",
+      "src/components/composition/account/UnlinkCharacterForm.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...productionSyntaxSelectorsExcept(buttonTitleSelector),
       ],
     },
   },

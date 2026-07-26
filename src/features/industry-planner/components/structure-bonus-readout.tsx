@@ -11,12 +11,15 @@ import type { StructureReadout } from '../structure-factors';
 function Metric({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
   return (
     <Tooltip content={title}>
-    <span className="inline-flex items-center gap-1 font-mono text-micro leading-none text-isk">
-      <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
-        {icon}
+      <span
+        tabIndex={0}
+        className="inline-flex items-center gap-1 font-mono text-micro leading-none text-isk"
+      >
+        <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
+          {icon}
+        </span>
+        −{value}
       </span>
-      −{value}
-    </span>
     </Tooltip>
   );
 }
@@ -32,9 +35,9 @@ const BONUS_ROW: {
   ),
   cost: (row) => (
     <Tooltip content={`Structure job cost −${row.pct}`}>
-    <span className="font-mono text-micro leading-none text-isk">
-      cost −{row.pct}
-    </span>
+      <span tabIndex={0} className="font-mono text-micro leading-none text-isk">
+        cost −{row.pct}
+      </span>
     </Tooltip>
   ),
   'rxn-te': (row) => (
@@ -47,9 +50,9 @@ const BONUS_ROW: {
   ),
   tax: (row) => (
     <Tooltip content={`Owner-set facility tax ${row.taxPct}%`}>
-    <span className="font-mono text-micro leading-none text-muted">
-      tax {row.taxPct}%
-    </span>
+      <span tabIndex={0} className="font-mono text-micro leading-none text-muted">
+        tax {row.taxPct}%
+      </span>
     </Tooltip>
   ),
 };

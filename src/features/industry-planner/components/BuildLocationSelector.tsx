@@ -47,7 +47,7 @@ function StructureReadout({
   if (readout.mfg === null && readout.rxn === null) {
     return (
       <Tooltip content="Select a build system to apply this structure's bonus">
-        <span className="min-w-0 truncate text-micro text-muted">
+        <span tabIndex={0} className="min-w-0 truncate text-micro text-muted">
           Select a system to apply its bonus
         </span>
       </Tooltip>

@@ -141,10 +141,11 @@ site (**lint-enforced**):
   borrows the exported `buttonVariants` as its `className` rather than restyling
   it. Raw buttons and hand-authored button semantics are lint-enforced exceptions,
   not alternate styling APIs.
-- **Input / Select / Textarea** (`@/components/ui/input`) — the engraved inset-well
-  fields. Visible raw inputs, textareas, and selects are banned outside their
-  owning primitives; hidden server-action fields remain the narrow raw-input
-  carve-out. An ad-hoc `inputClass`-style field constant is also banned.
+- **Input / Textarea** (`@/components/ui/input`) and **Select**
+  (`@/components/ui/select`) — the engraved inset-well fields. Visible raw
+  inputs, textareas, and selects are banned outside their owning primitives;
+  hidden server-action fields remain the narrow raw-input carve-out. An ad-hoc
+  `inputClass`-style field constant is also banned.
 - **Stepper / Segmented / ChipToggle** — use their Base UI interaction and keyboard
   behavior. Product surfaces may vary the surrounding layout, but do not recreate
   their state model with raw controls.

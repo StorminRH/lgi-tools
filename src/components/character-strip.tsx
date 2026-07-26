@@ -73,7 +73,6 @@ export function CharacterStrip({
             <Tooltip key={character.characterId} content={actionLabel}>
               <Button
                 variant="bare"
-                size="sm"
                 type="button"
                 onClick={() => {
                   if (isLocked) {

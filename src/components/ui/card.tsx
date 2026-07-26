@@ -9,7 +9,8 @@ import { cn } from './cn';
  *   - `font` defaults to 'mono' (the terminal chrome); sites cards pass 'body'
  *     (Geist) so their prose doesn't regress to monospace.
  * Extra div props (data-*, onClick, id, …) forward through — the sites lightbox
- * keys off a `data-*` hook on this element.
+ * keys off a `data-*` hook on this element. `as` supports the default `div` and
+ * semantic `li` rendering while preserving the same card surface and forwarded props.
  */
 export function Card({
   hover,

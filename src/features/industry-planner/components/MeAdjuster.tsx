@@ -11,11 +11,11 @@ import type { OwnedComponentDetail } from '../types';
 // The interactive per-node efficiency controls (3.7.5.4 ME, 3.7.5.6 TE, 3.7.5.8
 // steppers + icon popover). Each manufacturable node carries EVE's material-efficiency
 // GEM and its time-efficiency HOURGLASS as editable fields: a number you scroll, arrow,
-// type, or (with `steppers`) step with ▲/▼ (clamped ME 0-10 / TE 0-20). The VALUE's
+// type, or step with ▲/▼ (clamped ME 0-10 / TE 0-20). The VALUE's
 // colour is the state — blue owned, orange a manual what-if, faint/empty unowned — so
 // the field needs no extra baseline text; a ↺ appears only when overridden. ME drives
 // the cost ledger; TE drives the build time. `NodeAdjusters` lays both fields out for a
-// node's icon popover (steppers on); the hero card renders the `boxed` variant (the
+// node's icon popover; the hero card renders the `boxed` variant (the
 // −/[value]/+ box, visually identical to the Runs Stepper, icon handled by the row
 // label). The owner/location readout (`ProvenanceRows`) appears in that icon popover,
 // after the adjusters.
@@ -193,9 +193,6 @@ function EfficiencyField({
   d: Derived;
   onCommit: (n: number) => void;
   onRevert: () => void;
-  // Show the up/down step buttons flanking the field (the popover layout). The inline
-  // header field omits them (the wheel + arrow keys still step it).
-  steppers?: boolean;
   // The hero-card layout: a −/[value]/+ box visually identical to the Runs Stepper.
   // The icon is NOT rendered here — the hero row shows it beside its ME/TE label.
   boxed?: boolean;
@@ -241,7 +238,7 @@ function EfficiencyField({
  * The material-efficiency inline field for a node (or the hero card, `boxed`). `name`
  * is "main blueprint" in the hero.
  */
-export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, steppers, boxed }: MeProps & { steppers?: boolean; boxed?: boolean }) {
+export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, boxed }: MeProps & { boxed?: boolean }) {
   const d = deriveAdjust(ownedMe, meOverrides, blueprintTypeId);
   // Stable callbacks so the field's native wheel listener re-registers only on a
   // value change, not on every render.
@@ -256,14 +253,13 @@ export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOver
       d={d}
       onCommit={onCommit}
       onRevert={onRevert}
-      steppers={steppers}
       boxed={boxed}
     />
   );
 }
 
 /** The time-efficiency inline field — the time-side twin of MeField. */
-export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, steppers, boxed }: TeProps & { steppers?: boolean; boxed?: boolean }) {
+export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, boxed }: TeProps & { boxed?: boolean }) {
   const d = deriveAdjust(ownedTe, teOverrides, blueprintTypeId);
   const onCommit = useCallback((n: number) => setTeOverride(blueprintTypeId, n), [setTeOverride, blueprintTypeId]);
   const onRevert = useCallback(() => resetTeOverride(blueprintTypeId), [resetTeOverride, blueprintTypeId]);
@@ -276,7 +272,6 @@ export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOver
       d={d}
       onCommit={onCommit}
       onRevert={onRevert}
-      steppers={steppers}
       boxed={boxed}
     />
   );
@@ -320,7 +315,6 @@ export function NodeAdjusters({
           meOverrides={meOverrides}
           setMeOverride={setMeOverride}
           resetMeOverride={resetMeOverride}
-          steppers
         />
       </AdjusterRow>
       <AdjusterRow label="Time Efficiency">
@@ -331,7 +325,6 @@ export function NodeAdjusters({
           teOverrides={teOverrides}
           setTeOverride={setTeOverride}
           resetTeOverride={resetTeOverride}
-          steppers
         />
       </AdjusterRow>
     </div>

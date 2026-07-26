@@ -21,6 +21,7 @@ describe('Stepper', () => {
     const [group, slot] = root.props.children;
     expect(group.props.className).not.toContain('border-border');
     expect(group.props.children[0].props.children).toBe('▼');
+    expect(group.props.children[0].props.className).toContain('after:-inset-1');
     expect(group.props.children[2].props.children).toBe('▲');
     expect(slot.props.children).toBe(trailing);
   });

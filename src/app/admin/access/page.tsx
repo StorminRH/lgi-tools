@@ -145,7 +145,12 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
         <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
       ) : (
         <div className="px-3.5 py-2">
-          <StaticTable columns={columns} rows={rows} getRowKey={(row, index) => `${row.timestamp}-${index}`} />
+          <StaticTable
+            ariaLabel="Role change audit"
+            columns={columns}
+            rows={rows}
+            getRowKey={(row, index) => `${row.timestamp}-${index}`}
+          />
         </div>
       )}
     </Card>

@@ -69,5 +69,12 @@ export function IndustryActiveJobs({
     },
     { key: 'end', label: 'End date', render: (job) => formatEndDate(job.end_date), className: 'whitespace-nowrap text-muted' },
   ] satisfies readonly StaticTableColumn<IndustryJob>[];
-  return <StaticTable columns={columns} rows={jobs} getRowKey={(job) => job.job_id} />;
+  return (
+    <StaticTable
+      ariaLabel="Active industry jobs"
+      columns={columns}
+      rows={jobs}
+      getRowKey={(job) => job.job_id}
+    />
+  );
 }

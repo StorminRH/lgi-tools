@@ -72,7 +72,12 @@ function DurationTable({ rows }: { rows: CronOutcomeCount[] }) {
   ] satisfies readonly StaticTableColumn<CronOutcomeCount>[];
   return (
     <ChartBlock label="Average duration by outcome">
-      <StaticTable columns={columns} rows={rows} getRowKey={(row) => row.outcome} />
+      <StaticTable
+        ariaLabel="Average duration by outcome"
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.outcome}
+      />
     </ChartBlock>
   );
 }

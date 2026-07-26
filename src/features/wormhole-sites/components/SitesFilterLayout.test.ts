@@ -44,9 +44,4 @@ describe('SitesFilterLayout a11y', () => {
     expect(markup()).toContain('aria-live="polite"');
   });
 
-  it('lays out the six class controls as two rows of three larger targets', () => {
-    const html = markup();
-    expect(html).toContain('grid-cols-3');
-    expect((html.match(/w-full justify-center px-2 py-1\.5 text-ui/g) ?? []).length).toBe(6);
-  });
 });

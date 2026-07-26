@@ -28,7 +28,7 @@ const TABLE_COLUMNS = [
     key: 'quantity',
     label: 'Quantity',
     align: 'right',
-    render: (row) => row.quantity.toLocaleString(),
+    render: (row) => row.quantity.toLocaleString('en-US'),
   },
 ] satisfies readonly StaticTableColumn<{ material: string; quantity: number }>[];
 
@@ -173,7 +173,6 @@ export function PrimitivesDemo() {
         <Tooltip content="How fresh the Jita snapshot behind this value is. High means synced within the last hour.">
           <Button
             variant="bare"
-            size="sm"
             className="w-fit border-b border-dotted border-border-active text-ui text-text"
           >
             Price confidence

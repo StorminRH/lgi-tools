@@ -57,6 +57,17 @@ const exemptionHomes = [
     '<button type="button">Log in</button>',
     'No raw <button>',
   ],
+  ...[
+    'src/components/composition/account/AdminForceLogoutForm.tsx',
+    'src/components/composition/account/AdminReassignCharacterForm.tsx',
+    'src/components/composition/account/AdminUnlinkCharacterForm.tsx',
+    'src/components/composition/account/RoleToggleForm.tsx',
+    'src/components/composition/account/UnlinkCharacterForm.tsx',
+  ].map((filePath) => [
+    filePath,
+    '<Button title="Disabled reason">Action</Button>',
+    'No native title forwarded through Button',
+  ]),
   [
     'src/features/devlog/components/CodeExcerpt.tsx',
     '<details><summary>Code</summary></details>',
@@ -66,6 +77,58 @@ const exemptionHomes = [
     'src/features/wormhole-sites/components/SitesTable.tsx',
     '<details><summary>Site</summary></details>',
     'No raw <details>',
+  ],
+];
+
+const tokenExemptionHomes = [
+  ...[
+    'src/components/ui/access-gate.tsx',
+    'src/components/ui/banner.tsx',
+    'src/components/ui/button.tsx',
+    'src/components/ui/checkbox.tsx',
+    'src/components/ui/chip-toggle.tsx',
+    'src/components/ui/chip.tsx',
+    'src/components/ui/confirm-dialog.tsx',
+    'src/components/ui/copy-button.tsx',
+    'src/components/ui/dropdown-panel.ts',
+    'src/components/ui/field.tsx',
+    'src/components/ui/pagination.tsx',
+    'src/components/ui/pill.tsx',
+    'src/components/ui/switch.tsx',
+  ].map((filePath) => [
+    filePath,
+    "export const recipe = 'bg-pill-green-bg';",
+    'No pill/chip tone token',
+    "export const foreignRecipe = 'text-empty';",
+    'No empty-state token',
+  ]),
+  [
+    'src/components/ui/empty-state.tsx',
+    "export const recipe = 'text-empty';",
+    'No empty-state token',
+    "export const foreignRecipe = 'skeleton-shimmer';",
+    'No skeleton token',
+  ],
+  [
+    'src/components/ui/skeleton.tsx',
+    "export const recipe = 'skeleton-shimmer';",
+    'No skeleton token',
+    "export const foreignRecipe = 'text-empty';",
+    'No empty-state token',
+  ],
+  [
+    'src/components/ui/progress-bar.tsx',
+    "export const recipe = '--pct';",
+    'No progress custom property',
+    "export const foreignRecipe = 'text-empty';",
+    'No empty-state token',
+  ],
+  [
+    'src/components/ui/loading-toast.tsx',
+    "toast.loading('Loading');",
+    'Do not call toast.loading directly',
+    "export const foreignRecipe = 'text-empty';",
+    'No empty-state token',
   ],
 ];
 
@@ -82,6 +145,11 @@ describe('UI adoption syntax rail', () => {
     ['table', '<table><tbody /></table>', 'No raw <table>'],
     ['details', '<details><summary>Open</summary></details>', 'No raw <details>'],
     ['native title', '<span title="Hint">Label</span>', 'No native title attribute'],
+    [
+      'button title',
+      '<Button title="Hint">Action</Button>',
+      'No native title forwarded through Button',
+    ],
     ['button role', '<div role="button" />', "No role='button'"],
     [
       'object button role',
@@ -96,14 +164,34 @@ describe('UI adoption syntax rail', () => {
       'No ad-hoc action or heading class constants',
     ],
     [
+      'uppercase button recipe constant',
+      "const STEP_BTN = 'text-ui'; export default STEP_BTN;",
+      'No ad-hoc action or heading class constants',
+    ],
+    [
+      'uppercase box recipe constant',
+      "const BOX_BTN = 'text-ui'; export default BOX_BTN;",
+      'No ad-hoc action or heading class constants',
+    ],
+    [
+      'uppercase section recipe constant',
+      "const SECTION_HEAD = 'text-ui'; export default SECTION_HEAD;",
+      'No ad-hoc action or heading class constants',
+    ],
+    [
       'empty-state token',
       "const className = 'text-empty'; export default className;",
-      'No primitive-owned UI token',
+      'No empty-state token',
+    ],
+    [
+      'pill token',
+      "const className = 'bg-pill-green-bg'; export default className;",
+      'No pill/chip tone token',
     ],
     [
       'progress token',
       "const className = 'progress-fill [--pct:50%]'; export default className;",
-      'No primitive-owned UI token',
+      'No progress custom property',
     ],
     [
       'loading toast',
@@ -136,14 +224,7 @@ describe('UI adoption syntax rail', () => {
     ).toBe(true);
   });
 
-  it('lets primitive modules own tokens without lifting neighboring element rails', async () => {
-    expect(
-      await restrictedMessages(
-        'src/components/ui/empty-state.tsx',
-        "export const recipe = 'text-empty';",
-      ),
-    ).toEqual([]);
-
+  it('keeps neighboring element rails active in token-owning primitives', async () => {
     const messages = await restrictedMessages(
       'src/components/ui/empty-state.tsx',
       '<button type="button">Wrong owner</button>',
@@ -165,6 +246,21 @@ describe('UI adoption syntax rail', () => {
       );
       expect(
         neighboringMessages.some((entry) => entry.message.includes("No role='button'")),
+      ).toBe(true);
+    },
+  );
+
+  it.each(tokenExemptionHomes)(
+    'keeps the token exemption owner-specific in %s',
+    async (filePath, allowedCode, allowedMessage, foreignCode, foreignMessage) => {
+      const allowedMessages = await restrictedMessages(filePath, allowedCode);
+      expect(
+        allowedMessages.some((entry) => entry.message.includes(allowedMessage)),
+      ).toBe(false);
+
+      const foreignMessages = await restrictedMessages(filePath, foreignCode);
+      expect(
+        foreignMessages.some((entry) => entry.message.includes(foreignMessage)),
       ).toBe(true);
     },
   );

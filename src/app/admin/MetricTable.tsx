@@ -17,7 +17,13 @@ import type { MetricRow } from './metric-view';
  */
 export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }) {
   const columns = [
-    { key: 'metric', label: 'Metric', render: (row) => row.label, className: 'text-text' },
+    {
+      key: 'metric',
+      label: 'Metric',
+      rowHeader: true,
+      render: (row) => row.label,
+      className: 'text-text',
+    },
     { key: 'current', label: 'Current', align: 'right', render: (row) => row.value, className: 'text-name' },
     { key: 'average', label: 'Avg / day', align: 'right', render: (row) => row.avg ?? '—', className: 'text-muted' },
     {
@@ -43,7 +49,12 @@ export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }
     <Card>
       <SectionHeader size="md" label="Headline metrics" hint={hint} />
       <div className="overflow-x-auto">
-        <StaticTable columns={columns} rows={rows} getRowKey={(row) => row.label} />
+        <StaticTable
+          ariaLabel="Headline metrics"
+          columns={columns}
+          rows={rows}
+          getRowKey={(row) => row.label}
+        />
       </div>
     </Card>
   );

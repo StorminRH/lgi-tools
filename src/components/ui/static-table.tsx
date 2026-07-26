@@ -6,6 +6,7 @@ export interface StaticTableColumn<Row> {
   key: string;
   label: ReactNode;
   align?: 'left' | 'right';
+  rowHeader?: boolean;
   headerClassName?: string;
   className?: string;
   render: (row: Row) => ReactNode;
@@ -42,16 +43,18 @@ export function StaticTable<Row>({
   getRowKey,
   ariaLabel,
   className,
+  theadClassName,
 }: {
   columns: readonly StaticTableColumn<Row>[];
   rows: readonly Row[];
   getRowKey: (row: Row, index: number) => Key;
-  ariaLabel?: string;
+  ariaLabel: string;
   className?: string;
+  theadClassName?: string;
 }) {
   return (
     <table aria-label={ariaLabel} className={cn('w-full border-collapse font-mono text-ui', className)}>
-      <thead>
+      <thead className={theadClassName}>
         <tr className="border-b border-border-soft">
           {columns.map((column) => (
             <th
@@ -67,14 +70,21 @@ export function StaticTable<Row>({
       <tbody>
         {rows.map((row, index) => (
           <tr key={getRowKey(row, index)} className="border-b border-border-soft last:border-b-0">
-            {columns.map((column) => (
-              <td
-                key={column.key}
-                className={cellClass(column.align, column.className)}
-              >
-                {column.render(row)}
-              </td>
-            ))}
+            {columns.map((column) => {
+              const Cell = column.rowHeader ? 'th' : 'td';
+              return (
+                <Cell
+                  key={column.key}
+                  scope={column.rowHeader ? 'row' : undefined}
+                  className={cellClass(
+                    column.align,
+                    cn(column.rowHeader && 'font-normal', column.className),
+                  )}
+                >
+                  {column.render(row)}
+                </Cell>
+              );
+            })}
           </tr>
         ))}
       </tbody>

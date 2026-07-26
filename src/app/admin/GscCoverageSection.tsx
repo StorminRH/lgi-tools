@@ -52,6 +52,7 @@ function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
     <div className="max-h-96 overflow-auto border-t border-border-soft">
       <StaticTable
         ariaLabel="Latest Google Search Console inspection result for every sitemap URL"
+        theadClassName="sticky top-0 z-[1] bg-section"
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.url}
