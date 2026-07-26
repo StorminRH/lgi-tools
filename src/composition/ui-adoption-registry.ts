@@ -33,7 +33,7 @@ export const uiAdoptionRegistry = {
   nativeTitles: [
     {
       file: 'src/components/composition/NavTools.tsx',
-      reason: 'Temporary navigation-restraint exception owned by 3.10.4.2.',
+      reason: 'Owned by the deferred Category-dropdown top nav + module expansion backlog item.',
     },
   ],
   disabledControlTitles: [
@@ -43,7 +43,7 @@ export const uiAdoptionRegistry = {
     'src/components/composition/account/RoleToggleForm.tsx',
     'src/components/composition/account/UnlinkCharacterForm.tsx',
   ],
-  temporaryCssFamilies: ['account-menu', 'nav-menu', 'nav-tool', 'content-browser'],
+  temporaryCssFamilies: [],
   retainedCssFamilies: [
     'industry-bar-fill',
     'industry-cur',

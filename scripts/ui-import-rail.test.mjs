@@ -45,6 +45,7 @@ describe('UI package import rail', () => {
 
   it.each([
     ['src/components/ui/dialog.tsx', '@base-ui/react/dialog'],
+    ['src/components/ui/drawer.tsx', '@base-ui/react/drawer'],
     ['src/components/ui/toast.tsx', 'sonner'],
   ])('allows %s importing %s', async (filePath, packageName) => {
     expect(await restrictedImportMessages(filePath, packageName)).toEqual([]);

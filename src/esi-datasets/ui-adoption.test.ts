@@ -1,5 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import {
+  deadAllowlistEntries,
+  unexpectedFamilies,
+} from '@/composition/ui-adoption-census';
 import { uiAdoptionRegistry } from '@/composition/ui-adoption-registry';
 
 const SKIPPED_DIRECTORIES = new Set(['node_modules', '__fixtures__', '_generated', 'ui']);
@@ -88,12 +92,17 @@ describe('UI adoption CSS-family census', () => {
       'body-copy',
       'changelog-',
       'contact-',
+      'content-browser',
       'devlog-prose',
       'hero-wordmark',
       'industry-hint',
       'industry-jobs',
       'industry-mono',
       'legal-prose',
+      'account-menu',
+      'nav-menu',
+      'nav-tool',
+      'run-as-menu-panel',
       'sites-card-',
       'sites-chip',
       'sites-filter',
@@ -111,18 +120,22 @@ describe('UI adoption CSS-family census', () => {
 
   it('allows only the recorded surviving page-family prefixes', () => {
     const css = readFileSync('src/app/globals.css', 'utf8');
-    const candidate = /(?:^|\n)\s*\.((?:account|nav|content-browser|industry|prose|sites)[\w-]*)/g;
-    const found = [...css.matchAll(candidate)].flatMap((match) =>
-      match[1] === undefined ? [] : [match[1]],
-    );
     const allowed = [
       ...uiAdoptionRegistry.temporaryCssFamilies,
       ...uiAdoptionRegistry.retainedCssFamilies,
     ];
-    const unexpected = found.filter(
-      (className) => !allowed.some((family) => className.startsWith(family)),
-    );
 
-    expect([...new Set(unexpected)].sort()).toEqual([]);
+    expect(unexpectedFamilies(css, allowed)).toEqual([]);
+    expect(deadAllowlistEntries(css, allowed)).toEqual([]);
+  });
+
+  it('detects unrecorded families and stale allowlist entries', () => {
+    const css = '.nav-host {}\n.sites-detail-zoom {}\n.nav-unrecorded {}';
+
+    expect(unexpectedFamilies(css, ['nav-host', 'sites-detail-zoom'])).toEqual([
+      'nav-unrecorded',
+    ]);
+    expect(deadAllowlistEntries(css, ['nav-host', 'sites-detail-zoom', 'prose-copy']))
+      .toEqual(['prose-copy']);
   });
 });

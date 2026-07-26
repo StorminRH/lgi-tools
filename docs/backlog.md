@@ -194,15 +194,6 @@
   tiles are separate hardcoded JSX and won't auto-follow. *Why deferred:*
   feature/architecture work, well beyond copy/visual polish; explicitly its own branch.
   *Size:* L. *Trigger:* the nav/module-foundation session.
-- **Mobile access to page settings** (deferred at 3.7.15.1). *What:* the account menu
-  (and its per-page settings section) is desktop-only — the header login cluster is
-  hidden <1024px and the hamburger footer keeps the flat portrait cluster (a menu can't
-  nest inside the hamburger popup). Mobile users can't reach page settings from the
-  menu; the /sites on-page toggles remain their only path. Needs its own affordance
-  (e.g. a settings block inside the hamburger panel). *Why deferred:* out of the .5
-  shell's scope; interacts with .6/.7 surface decisions. *Size:* S–M. *Trigger:*
-  ACCOUNT.6/.7, or the first mobile-only settings complaint.
-
 ## Character roster
 
 - **Roster Phase B — sec status · location · corp/faction badge** (deferred from 3.6 at the

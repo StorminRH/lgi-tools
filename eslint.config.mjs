@@ -99,6 +99,25 @@ const textSizeSelectors = [
   },
 ];
 
+// Retired type-role utilities compile to no CSS after their theme keys disappear,
+// which would otherwise leave a silent inheritance bug. Match complete class
+// tokens only so CSS custom-property references such as var(--font-body) remain
+// legal evidence in tests and documentation helpers.
+const legacyTypeRoleSelectors = [
+  {
+    selector:
+      "Literal[value=/(?:^|\\s)(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
+    message:
+      "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
+  },
+  {
+    selector:
+      "TemplateElement[value.raw=/(?:^|\\s)(?:font-(?:mono|jb|body)|tracking-(?:ui|control|emphasis|display))(?:\\s|$)/]",
+    message:
+      "No retired font or tracking utility — use font-ui/font-data/font-display and the registered tracking scale.",
+  },
+];
+
 // Radius-scale enforcement (3.8.2.2): raw bracketed pixel radii belong on the two
 // named tokens — `--radius-ctl` / `--radius-card` in globals.css `@theme` (surfaced
 // as `rounded-ctl` / `rounded-card`). Mirrors the type-scale ban: a plain className
@@ -647,6 +666,7 @@ function productionSyntaxSelectorsExcept(...exemptions) {
     ...processEnvSelectors,
     ...esiHostSelectors,
     ...textSizeSelectors,
+    ...legacyTypeRoleSelectors,
     ...roundedSizeSelectors,
     ...selectElementSelectors,
     ...inputClassSelectors,
@@ -667,6 +687,7 @@ function primitiveSyntaxSelectorsExcept(...exemptions) {
     ...processEnvSelectors,
     ...esiHostSelectors,
     ...textSizeSelectors,
+    ...legacyTypeRoleSelectors,
     ...roundedSizeSelectors,
     ...selectElementSelectors,
     ...inputClassSelectors,
@@ -1239,6 +1260,7 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
@@ -1265,6 +1287,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
@@ -1289,6 +1312,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
@@ -1314,6 +1338,7 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
@@ -1337,6 +1362,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
+        ...legacyTypeRoleSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
         ...uiAdoptionSelectors,
@@ -1363,6 +1389,7 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
@@ -1389,6 +1416,7 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
@@ -1428,6 +1456,7 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
@@ -1487,6 +1516,7 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
@@ -1517,6 +1547,7 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...legacyTypeRoleSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,

@@ -193,10 +193,36 @@ describe('UI adoption syntax rail', () => {
       "import { toast } from 'sonner'; toast.loading('Loading');",
       'Do not call toast.loading directly',
     ],
+    [
+      'retired font role',
+      "const className = 'font-mono'; export default className;",
+      'No retired font or tracking utility',
+    ],
+    [
+      'retired tracking step',
+      "const className = `text-ui tracking-emphasis`; export default className;",
+      'No retired font or tracking utility',
+    ],
   ])('rejects %s in production and preview source', async (_name, code, message) => {
     for (const filePath of [productionProbe, previewProbe]) {
       const messages = await restrictedMessages(filePath, code);
       expect(messages.some((entry) => entry.message.includes(message))).toBe(true);
+    }
+  });
+
+  it('accepts current type roles, current tracking, and similarly named CSS properties', async () => {
+    const code = [
+      "const className = 'font-ui font-data font-display tracking-label tracking-optical';",
+      "const property = 'var(--font-body)';",
+      'export { className, property };',
+    ].join('\n');
+
+    for (const filePath of [productionProbe, previewProbe]) {
+      const messages = await restrictedMessages(filePath, code);
+      expect(
+        messages.some((entry) =>
+          entry.message.includes('No retired font or tracking utility')),
+      ).toBe(false);
     }
   });
 
