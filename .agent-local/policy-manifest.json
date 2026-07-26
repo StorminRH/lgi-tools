@@ -227,6 +227,9 @@
       "required": [
         "docs/workflows/adversarial-review\\.md",
         "Invocation authority|Authorization",
+        "cursor-agent",
+        "composer-2\\.5",
+        "cursor-grok-4\\.5-medium",
         "runtime mechanics",
         "Return|result"
       ],
@@ -234,7 +237,12 @@
         "docs/DESIGN_PRINCIPLES\\.md",
         "docs/PRE_PR_DESIGN_REVIEW\\.md",
         "docs/VERSION_AUDIT\\.md",
-        "SESSION_PLANNING"
+        "SESSION_PLANNING",
+        "cross-runtime",
+        "codex exec",
+        "claude -p",
+        "Codex subagents",
+        "general-purpose.*subagents"
       ],
       "procedure": "docs/workflows/adversarial-review.md"
     },
@@ -420,7 +428,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "c86869dfe0aceffb5b29006804668d9fa6aab20485740ad1d5e4bd6fb755ab78"
+      "reconciledHash": "4c8ba7e9b5b3d1e5ad918cc6e7cda13d4e09ad6bf5ff9583d69a2a43b5c95299"
     },
     "plan-session": {
       "deps": [
@@ -430,7 +438,7 @@
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "e0f9a14f75ada5ef2373effbb46b4a733616aaad39bb0e6cedcfbb622b67f86c"
+      "reconciledHash": "3b9bf7f5d5dc4cc3155f07a83e0750b1db524b87666c7564b859fcb5b6b8e512"
     },
     "start-session": {
       "deps": [
@@ -439,7 +447,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "9a06d412bd08080d5b11ad0ed7e4180c288ec1c8351b192bea469f4eefa1bc12"
+      "reconciledHash": "75b580022699cb58654adb60c2dbb05867cb86529b6a0078c82e639b90bb02eb"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -460,7 +468,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "a41469c855e52f8f0b32e8bae9dd448a34a03c3ed53de299a3337dee9a2a1752"
+      "reconciledHash": "64fa2e6d56787ba07bdc55dbd2f48cb21334a39acff5b6186034a3025048f368"
     },
     "plan-version-audit": {
       "deps": [
@@ -469,7 +477,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "e15bdba76a4825e103b02f35ac1df237e7f20e18360d31538feafe231f2c4fef"
+      "reconciledHash": "ebb696ac06a7e42e6db7976068fd3c86fc0a72966832a8db8d1f6d4de9e79d3f"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -480,7 +488,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "23496270afe78cb8273160f1247456531f2561832937aa55c98ca329f5d2b707"
+      "reconciledHash": "17d343bdb01846c341d94695a55d495b80f7cb3884d23f08f10885f76e6da25e"
     },
     "version-audit": {
       "deps": [
@@ -489,7 +497,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "e15bdba76a4825e103b02f35ac1df237e7f20e18360d31538feafe231f2c4fef"
+      "reconciledHash": "ebb696ac06a7e42e6db7976068fd3c86fc0a72966832a8db8d1f6d4de9e79d3f"
     },
     "triage-issue": {
       "deps": [
@@ -523,15 +531,16 @@
         "docs/workflows/resolve-update-watch.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "c492142f4ea6da5aff1a92e2e47b214dac0e9669a592b530780ecaee0f5836dd"
+      "reconciledHash": "ea0a30c35bb79472f14f69a2938a6f5bbd4dbb07a43fa4428813ad76c5a208ac"
     },
     "adversarial-review": {
       "deps": [
         "AGENTS.md",
+        "docs/AGENT_TOOLING.md",
         "docs/workflows/adversarial-review.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "d6f6b8c734ab7fedce390f548acd0805eefc743180254ebb51ab8ed6ad965d42"
+      "reconciledHash": "d457e2f155022bf05ef85a3358b4facb616ca37696bb472c422e5b8fc7c46cb9"
     },
     "agent-policy-audit": {
       "deps": [
@@ -541,7 +550,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "db6cbe779cc1e4e379e7c034952df9a93c1fe1ed9fd237bcce01eab6044f3263"
+      "reconciledHash": "f5cbe81cdd2b0492fdf1d685afb9dc62086ab0d57337ed31829559f18d98cc2f"
     }
   },
   "procedurePolicies": {
@@ -551,7 +560,7 @@
         "Record and challenge the current topology",
         "Attempt to combine every adjacent or tightly coupled slice",
         "Produce the minimum safe bundles",
-        "fresh read-only high-effort\\s+adversarial reviewer",
+        "adversarial-review.*Plan mode",
         "Obtain operator approval",
         "update the master plan's delivery topology first",
         "Create one schema-complete contract per approved bundle"
@@ -563,8 +572,33 @@
         "Do not split it",
         "recorded split trigger",
         "Draft and review",
+        "adversarial-review.*Plan mode",
         "operator approval",
         "Persist the approved plan"
+      ]
+    },
+    "docs/workflows/adversarial-review.md": {
+      "orderedRequired": [
+        "Select exactly one review mode",
+        "Freeze the subject and evidence",
+        "Build context-budgeted reviewer briefs",
+        "Composer 2\\.5 Standard",
+        "Cursor Grok 4\\.5 Medium",
+        "Run at most one escalation review",
+        "Verify and reconcile",
+        "Build the fix prompt"
+      ]
+    },
+    "docs/workflows/close-out.md": {
+      "orderedRequired": [
+        "Pre-PR design-review gate",
+        "Adversarial implementation-review gate",
+        "Finalize and verify the current head",
+        "Open one \\*\\*draft\\*\\* PR",
+        "mark it ready for review exactly once",
+        "poll_pr_gate\\.py",
+        "Merge \\(shared\\)",
+        "After merge and production proof"
       ]
     }
   },

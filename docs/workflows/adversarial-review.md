@@ -1,24 +1,25 @@
 # Adversarial-review procedure
 
-Review one completed implementation diff before its PR. Establish truthful
-current-head evidence, obtain independent reviews from both supported runtimes,
-verify every claim, and return one reconciled report plus one executable fix
-prompt when defects remain. Keep the review read-only.
+Review one complete plan, implementation diff, or pull request with independent
+models, verify every reported defect, and return one reconciled result plus one
+executable fix prompt when work remains. Keep the review read-only.
 
-This procedure is an on-demand review outside `close-out`. It does not replace
-the required `pre-pr-design-review` gate, Greptile, or any close-out phase.
+Planning workflows may invoke **Plan mode** before approval. `close-out` invokes
+**Diff mode** before its final definition-of-done checkpoint. An operator may
+invoke any mode on demand. This procedure does not replace
+`pre-pr-design-review`, the external PR-review gate, implementation, approval,
+or delivery.
 
 ## Execution contract
 
-Required inputs:
+Select exactly one review mode:
 
-1. An unambiguous merge base and the complete diff from that base to the current
-   head.
-2. The direct request or frozen contract-and-plan chain that authorizes the
-   diff.
-3. Current-head verification evidence, or authority to run the applicable
-   repository gates.
-4. Any operator-specified review emphasis.
+- **Plan:** one complete draft plan plus its authority, schema, source evidence,
+  and content digest.
+- **Diff:** one complete committed diff or a stable working-tree snapshot plus
+  its base, authority, changed-surface inventory, and available verification.
+- **PR:** one pull request at an exact head SHA plus its complete diff,
+  authority, description, review context, and available verification.
 
 Required outputs:
 
@@ -26,123 +27,152 @@ Required outputs:
 2. One reconciled ledger containing only verified findings and explicit
    rejections.
 3. When an actionable defect remains, exactly one fenced, self-contained prompt
-   for a separately authorized fixing agent.
+   for the owning planning or implementation workflow.
 
-Return `BLOCKED` when the base or authority is ambiguous, a required reviewer
-cannot run, or current-head evidence cannot be established. A red gate is a
-finding when its cause is in the diff; it is a blocker only when the agent
-cannot diagnose or attribute it. This procedure grants no edit, commit, PR,
-merge, deployment, or lifecycle authority.
+Return `BLOCKED` when the subject is incomplete or changes during review, its
+authority is ambiguous, the required Cursor reviewers cannot run, or evidence
+needed to verify a load-bearing claim cannot be established. A red gate is a
+finding when its cause is in the subject; it is a blocker only when the
+orchestrator cannot diagnose or attribute it. This procedure grants no edit,
+approval, commit, PR, merge, deployment, lifecycle, or outward-action
+authority.
 
 ## Review rules
 
-- Judge the implementation against live behavior, repository policy, current
-  primary documentation, and the authorized outcome. Treat contracts and plans
-  as frozen prompts whose claims must be verified, not as substitutes for live
-  evidence.
-- Record a plan-faithful technical defect as a finding. Record a technically
-  sound divergence as justified and require its later disclosure; never regress
-  the implementation merely to reproduce stale prompt text.
-- Require every finding to name a repository location, the violated contract or
-  invariant, a concrete failure scenario, and the smallest sufficient fix.
-  Unsupported style preferences are not findings.
+- Judge the subject against live behavior, repository policy, current primary
+  documentation, and its authorized outcome. Treat contracts and plans as
+  frozen prompts whose live-code claims still require verification.
+- For a plan, test decision completeness, authority, ownership, sequencing,
+  failure behavior, and command-plus-observable proof. Do not invent product
+  scope or redesign an approved outcome.
+- For a diff or PR, test behavior, cross-file consistency, failure paths,
+  contracts, tests, and divergence from the approved plan. Record a technically
+  sound divergence as justified rather than regressing live code to stale prose.
+- Require every finding to name a subject location, violated contract or
+  invariant, concrete failure scenario, and smallest sufficient correction.
+  Unsupported preferences are not findings.
 - Preserve deliberate behavior by recording rejected findings with the exact
-  reason they must not be "helpfully" changed.
-- Do not accept reviewer consensus as proof. Verify every accepted claim against
-  source, tests, or observable behavior.
+  reason they must not be changed.
+- Independent model agreement raises confidence but never replaces source,
+  test, documentation, or observable-behavior verification.
 
-## 1. Establish the boundary and evidence
+## 1. Freeze the subject and evidence
 
-1. Resolve and record the full base and head SHAs. Inspect the complete diff,
-   name-status view, and stat view.
-2. Map every logical change group to its direct request or owning lifecycle
-   artifact. Stop if any group lacks authority.
-3. Inventory the changed production surfaces, tests, executable tooling,
-   configuration, and prose. Assign each changed file a primary area-review
-   owner while retaining one holistic reviewer over the full diff.
-4. Reuse a supplied gate result only when it names the current head and its
-   command matches the repository's current requirement.
-5. When application, test, executable, dependency, or verification
-   configuration changed and no reusable result exists, run the single
-   coverage-backed checkpoint:
+1. Record the mode, authority, repository, and operator emphasis.
+2. Freeze the review subject:
+   - **Plan:** record every reviewed path and its SHA-256 digest.
+   - **Committed diff:** record the full base and head SHAs.
+   - **Working-tree diff:** write the complete tracked patch and untracked-file
+     inventory to temporary storage outside the repository, record the base SHA
+     and patch SHA-256, and require the worktree to remain unchanged until both
+     reviewers finish.
+   - **PR:** record the repository, PR number, base SHA, and exact head SHA.
+3. Map each plan outcome or logical change group to its direct request or owning
+   lifecycle artifact. Stop if any group lacks authority.
+4. Inventory only the source, tests, tooling, configuration, and prose relevant
+   to the subject. Identify the highest-risk logical area for the execution
+   reviewer.
+5. Reuse supplied verification only when it names the frozen subject and still
+   matches the repository's current command. Run a gate only when the invoking
+   workflow authorizes it; otherwise record the evidence gap for verification.
 
-   ```bash
-   FALLOW_AUDIT_BASE="$(git rev-parse origin/main)" pnpm verify
-   ```
+Evidence: mode, stable subject identity, authority map, logical inventory,
+highest-risk area, and current verification or an explicit not-run reason.
 
-6. When TypeScript strictness is a load-bearing review claim, also run:
+## 2. Build context-budgeted reviewer briefs
 
-   ```bash
-   npx tsc --noEmit --incremental false
-   ```
+Write two fresh briefs to a temporary directory outside the repository. Both
+briefs include:
 
-7. For a prose-only or policy-only diff, run the applicable cheap document,
-   skill, privacy, and drift checks instead of manufacturing an application
-   verification cycle. Never run the lifecycle resolver or release-consistency
-   checker for ordinary work.
-
-Evidence: base and head SHAs, authority map, changed-surface inventory, and each
-gate command with its current-head result or explicit not-applicable reason.
-
-## 2. Build one reviewer brief
-
-Write one brief to a temporary directory outside the repository. Include:
-
-- the absolute repository path and exact base/head SHAs;
-- the authority map and operator emphasis;
-- the review rules above;
-- the changed-file inventory and each area reviewer's assigned files;
+- the absolute repository path, review mode, stable subject identity, authority,
+  and operator emphasis;
+- the applicable review rules above;
 - read-only instructions and a Codegraph-first investigation requirement;
-- the current-head gate evidence; and
-- this required reviewer response:
+- current verification evidence; and
+- this required response:
 
 ```text
 Verdict: CLEAN | FINDINGS
 
 Findings:
-1. [BLOCKER|MAJOR|MINOR] path:line — violated invariant; concrete failure
-   scenario; smallest sufficient fix.
+1. [BLOCKER|MAJOR|MINOR] path-or-section — violated invariant; concrete
+   failure scenario; smallest sufficient correction.
 
 Load-bearing checks that held:
-- path or behavior — evidence.
+- path, section, or behavior — evidence.
 ```
 
-Require `Findings: None` for a clean review. Do not give reviewers expected
-defects or the orchestrator's conclusions.
+Require `Findings: None` for a clean review. Do not disclose expected defects,
+the other reviewer's output, or the orchestrator's conclusions.
 
-## 3. Run independent reviews
+Keep the briefs surgical:
 
-Launch the following reviewers concurrently when the runtime supports it:
+1. Never paste the repository, dependency trees, generated output, or the full
+   contents of every changed file into a prompt. Supply paths, hashes, and
+   logical inventories so reviewers retrieve relevant evidence with tools.
+2. Give the **execution reviewer** the complete plan or change inventory, then
+   assign one bounded primary scope:
+   - in Plan mode, implementation feasibility, live-code assertions, ordered
+     work, and verification proof;
+   - in Diff or PR mode, the highest-risk logical area, its callers, contracts,
+     and tests.
+3. Give the **holistic reviewer** the complete subject identity and authority.
+   Focus it on missing outcomes, cross-area contradictions, failure paths,
+   behavior drift, and stale-prompt implementation.
+4. Start fresh sessions. Do not resume an authoring session or carry unrelated
+   conversation history into either review.
 
-1. Same-runtime area reviewers with disjoint primary file ownership. Choose the
-   smallest split that covers the diff; do not create empty or artificial
-   specialties.
-2. One cross-runtime holistic reviewer over the entire diff, focused on
-   cross-file inconsistency, behavior drift, missing tests, and implementation
-   changes made only to satisfy stale prose.
+## 3. Run the independent model reviews
 
-Run each reviewer fresh, read-only, and at high reasoning effort. An initial
-review is one round. After a material implementation revision, a later explicit
-invocation starts a new round; do not loop reviewers against an unchanged diff.
+Run exactly these default reviews concurrently:
 
-Evidence: reviewer identity, assigned scope, completion state, and raw verdict.
+1. **Execution reviewer:** Cursor Composer 2.5 Standard, using the bounded scope
+   above.
+2. **Holistic reviewer:** Cursor Grok 4.5 Medium, covering the complete subject
+   through targeted retrieval.
+
+Both run through Cursor Agent in read-only mode, sandboxed, with structured
+output. They are independent fresh model sessions even when the invoking agent
+is Codex or Claude. Composer's narrower role and standard speed tier are
+deliberate cost and context controls; do not replace the two defaults with a
+fan-out of native subagents.
+
+Run at most one escalation review, and only when:
+
+- the default reviewers disagree about a high-blast-radius claim;
+- a security, identity, destructive-data, migration, concurrency, or public
+  contract finding cannot be verified directly;
+- the holistic reviewer reports that the complete subject exceeded reliable
+  context; or
+- the subject was authored primarily by one default model and the other
+  reviewer cannot provide sufficient independent coverage.
+
+Use Cursor Grok 4.5 High for that targeted escalation. If it cannot settle the
+claim, return `BLOCKED` for an operator-approved frontier-model review rather
+than silently spending Codex or Claude capacity. Do not escalate merely because
+a default reviewer found an ordinary actionable defect.
+
+Evidence: each model id, assigned role and scope, completion state, raw verdict,
+and the exact escalation trigger or `Not used`.
 
 ## 4. Verify and reconcile
 
 The orchestrating agent must:
 
-1. Personally inspect the highest-blast-radius changed owner before accepting
-   reviewer conclusions.
-2. Reproduce or disprove every reported failure against current source,
-   primary documentation, tests, or observable behavior.
-3. Deduplicate findings by root cause. Convergence raises confidence but never
-   replaces verification.
-4. Classify each accepted item exactly once as `BLOCKER`, `MAJOR`, or `MINOR`.
-   Reject false positives explicitly and preserve deliberate behavior in the
+1. Personally inspect the highest-blast-radius owner before accepting reviewer
+   conclusions.
+2. Reproduce or disprove every reported failure against current source, primary
+   documentation, tests, or observable behavior.
+3. Deduplicate findings by root cause. Classify each accepted item exactly once
+   as `BLOCKER`, `MAJOR`, or `MINOR`.
+4. Reject false positives explicitly and preserve deliberate behavior in the
    rejection ledger.
-5. Confirm the proposed fix is within the authorized boundary and does not
-   create a second owner, widen a public surface, or weaken a gate.
-6. Record which verification evidence a future fix will invalidate.
+5. Confirm the smallest correction remains within the invoking workflow's
+   authority and does not create a second owner, widen a public surface, weaken
+   a gate, or change an approved outcome.
+6. Record which evidence a correction invalidates.
+7. Recheck the subject identity. Any unaccounted change during review invalidates
+   both verdicts and returns `BLOCKED`.
 
 Return `CLEAN` only when no verified actionable finding remains and all required
 evidence is current. Return `FIX_ROUND_REQUIRED` when at least one verified,
@@ -153,14 +183,17 @@ in-scope defect remains.
 For `FIX_ROUND_REQUIRED`, write exactly one fenced `text` block that an agent
 with no conversation context can execute. Include:
 
-1. the repository path, base/head SHAs, authority, and intended outcome;
-2. numbered fixes with exact paths, failure scenarios, and required end states;
+1. repository, review mode, stable subject identity, authority, and intended
+   outcome;
+2. numbered corrections with exact locations, failure scenarios, and required
+   end states;
 3. the explicit rejected/do-not-change ledger;
-4. the focused checks and every invalidated gate to rerun; and
-5. a stop condition for any scope, architecture, or authority conflict.
+4. focused checks and every invalidated gate to rerun; and
+5. a stop condition for scope, architecture, authority, or subject drift.
 
-Do not authorize a commit, PR, merge, deployment, lifecycle mutation, or
-outward action in the prompt. Those require separate operator authority.
+Address the prompt to the owning planning or implementation workflow. Do not
+authorize approval, commit, PR, merge, deployment, lifecycle mutation, or
+outward action.
 
 ## Return the result
 
@@ -169,22 +202,23 @@ Apply `docs/workflows/schema/chat-result.md` to this exact field set:
 ```markdown
 ## Adversarial review: `CLEAN` | `FIX_ROUND_REQUIRED` | `BLOCKED`
 
-- **Diff:** <full base SHA>...<full head SHA>
-- **Files:** <count and logical groups>
+- **Mode:** Plan | Diff | PR
+- **Subject:** <paths and digest, diff identity, or PR and exact head>
 - **Authority:** <direct request or owning artifacts>
 
 ### Review evidence
 
-- **Gates:** <current-head commands and results>
-- **Area reviewers:** <assignments and verdicts>
-- **Cross-runtime reviewer:** <runtime and verdict>
+- **Verification:** <current commands/results or explicit not-run reason>
+- **Execution reviewer:** <model, bounded scope, and verdict>
+- **Holistic reviewer:** <model, complete-subject verdict>
+- **Escalation:** <model, trigger, and verdict or Not used>
 - **Load-bearing checks:** <verified properties that held>
 
 ### Findings
 
 - **Accepted:** <numbered severity ledger or None>
 - **Rejected:** <finding and reason or None>
-- **Invalidated verification:** <checks a fix must rerun or None>
+- **Invalidated verification:** <checks a correction must rerun or None>
 
 ### Fix prompt
 
@@ -192,7 +226,6 @@ Apply `docs/workflows/schema/chat-result.md` to this exact field set:
 
 ### Next state
 
-- **Handoff:** <Send the prompt to a separately authorized fixing agent, continue
-  to the owning workflow, or stop for operator action>
+- **Handoff:** <owning planning/implementation workflow or operator action>
 - **Blocker:** <exact blocker or None>
 ```

@@ -52,10 +52,10 @@ create session implementation plans here.
    size or risk concern.
 3. Present current versus proposed counts and a complete current-to-proposed
    bundle map.
-4. Give the proposal and source evidence to one fresh read-only high-effort
-   adversarial reviewer. The reviewer must hold outcomes fixed, attempt every
-   sensible merge, and reject boundaries justified only by headings or ordinary
-   implementation order. Reconcile every finding; permit at most one rerun after
+4. Invoke `adversarial-review` in Plan mode with the complete proposal, fixed
+   outcomes, and source evidence. The review must attempt every sensible merge
+   and reject boundaries justified only by headings or ordinary implementation
+   order. Reconcile every verified finding; permit at most one rerun after
    material reconciliation.
 
 ## Approve before writing

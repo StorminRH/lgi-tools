@@ -2,12 +2,13 @@
 name: close-out
 description: >-
   Run LGI.tools' end-of-session delivery in ordinary or planned mode: verify and
-  commit the change, run the required pre-PR design review before the shared
-  PR/Greptile loop, clean merge, and production proof, and for a planned
-  sub-version publish the version and hand back to start-session. Use for
-  "close out", "do the session end", "wrap up", "ship it", "run the Greptile
-  loop", "finish up and merge", or "take this to merge". Invocation is
-  conditional per-run authorization to merge only after every clean gate passes.
+  commit the change, run the required design and economical adversarial reviews,
+  stage a draft PR before the batched external-review loop, clean merge, and
+  production proof, and for a planned sub-version publish the version and hand
+  back to start-session. Use for "close out", "do the session end", "wrap up",
+  "ship it", "run the Greptile loop", "finish up and merge", or "take this to
+  merge". Invocation is conditional per-run authorization to merge only after
+  every clean gate passes.
 ---
 
 # Close out an LGI.tools session

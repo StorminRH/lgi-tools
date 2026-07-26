@@ -98,22 +98,26 @@ same branch and PR.
    `docs/workflows/schema/changelog-pending.md`. Do not edit `APP_VERSION`, a
    public version heading, roadmap state, or session execution state.
 8. Invoke `pre-pr-design-review` against the complete diff and fix every
-   in-scope finding. Then apply the ordinary-mode finalization rules from
+   in-scope finding. Invoke `adversarial-review` in Diff mode and reconcile its
+   verified findings. Then apply the ordinary-mode finalization rules from
    `docs/workflows/close-out.md`: run every applicable cheap checker, the focused
    collector tests, and the sole `origin/main`-pinned `pnpm verify` checkpoint;
    screen tracked content for private information; commit in plain English; and
    push. Do not rerun unchanged evidence at the PR boundary.
-9. Open one PR whose body states what was fixed, what was deferred and why, and
-   what was absorbed. Put `Closes #<issue>` in the body so the digest closes only
-   when a later `close-out` run merges. Apply the close-out PR privacy scrub and
-   Greptile/current-head review loop, but do not enter its merge or production
-   proof sections. Post a disposition comment on the digest issue that links the
-   PR and repeats the fixed, deferred, and absorbed breakdown. State in both
-   places that every deferred advisory will re-surface until patched.
-10. Stop at `REVIEW_READY`. Report the PR, current-head CI and Greptile evidence,
-    pending-fragment path, and finding disposition. Leave the PR open for the
-    operator's review; a later `close-out` invocation reuses this PR and any
-    still-current evidence.
+9. Open one draft PR whose body states what was fixed, what was deferred and
+   why, and what was absorbed. Put `Closes #<issue>` in the body so the digest
+   closes only when a later `close-out` run merges. Apply the close-out PR
+   privacy scrub, confirm the draft head and body are final, mark it ready once,
+   and run the shared batched external-review loop, but do not enter its merge
+   or production-proof sections. Post a disposition comment on the digest issue
+   that links the PR and repeats the fixed, deferred, and absorbed breakdown.
+   State in both places that every deferred advisory will re-surface until
+   patched.
+10. Stop at `REVIEW_READY`. Report the PR, draft-to-ready transition,
+    current-head CI and gate-of-record evidence, Cursor signal, pending-fragment
+    path, and every finding disposition. Leave the PR open for the operator's
+    review; a later `close-out` invocation reuses this PR and any still-current
+    evidence.
 
 ## Issue lifecycle
 
