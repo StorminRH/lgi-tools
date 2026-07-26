@@ -22,6 +22,7 @@
 
 import { usePageSettings } from '@/components/composition/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';
+import { menuControlRow, menuSection, menuSectionLabel } from '@/components/ui/menu';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { resolveMenuControls, type MenuControlModel } from '@/platform/page-settings/controls';
 
@@ -29,8 +30,8 @@ import { resolveMenuControls, type MenuControlModel } from '@/platform/page-sett
 function ControlRow({ model }: { model: MenuControlModel }) {
   const [value, setValue] = usePreference(model.def);
   return (
-    <div className="account-menu-control">
-      <span className="account-menu-control-label">{model.label}</span>
+    <div className={menuControlRow}>
+      <span className="text-label">{model.label}</span>
       <SegmentedControl
         options={model.options.map((option) => ({ value: option, label: option }))}
         value={value}
@@ -52,8 +53,8 @@ export function PageMenuSection() {
 
   const title = spec?.title ?? 'Page settings';
   return (
-    <div className="account-menu-section" role="group" aria-label={title}>
-      <div className="account-menu-group-label" aria-hidden="true">
+    <div data-page-menu-section className={menuSection} role="group" aria-label={title}>
+      <div className={menuSectionLabel} aria-hidden="true">
         {title}
       </div>
       {models.map((model) => (

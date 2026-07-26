@@ -119,10 +119,10 @@ function renderJobsCard(
   return {
     isEmpty: model.isEmpty,
     subtitle: model.subtitle !== null && (
-      <div className="text-label text-muted tracking-ui">{model.subtitle}</div>
+      <div className="text-label text-muted tracking-copy">{model.subtitle}</div>
     ),
     headerRight: model.nextDoneMs !== null && (
-      <span className="text-micro text-muted tracking-ui shrink-0">
+      <span className="shrink-0 font-data text-micro tracking-copy text-muted">
         next done in {formatRemaining(model.nextDoneMs)}
       </span>
     ),

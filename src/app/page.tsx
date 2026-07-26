@@ -91,7 +91,7 @@ async function RosterDemo({
   const roster = buildDemoRoster(params.demo === 'one');
   return (
     <div className="w-full max-w-[360px] mb-8 border border-border-soft p-3">
-      <p className="font-mono text-label uppercase tracking-wide text-muted mb-3">
+      <p className="text-label uppercase tracking-wide text-muted mb-3">
         Demo · sample data
       </p>
       <HomeRosterPanel demo={roster} />
@@ -109,7 +109,7 @@ export default function Home({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   return (
-    <PageShell className="pt-10 pb-24">
+    <PageShell mode="detail">
       <JsonLd data={HOME_JSON_LD} />
       <Suspense fallback={null}>
         <AuthErrorNotice searchParams={searchParams} />

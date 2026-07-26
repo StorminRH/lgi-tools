@@ -72,8 +72,8 @@ export function DistributionBars({
       {bars.map((bar) => (
         <li key={bar.key} className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
           <div className="flex items-center justify-between mb-1">
-            <span className="font-mono text-ui text-text break-all">{bar.label}</span>
-            <span className="font-mono text-ui text-muted tabular-nums shrink-0 ml-3">
+            <span className="font-data text-ui text-text break-all">{bar.label}</span>
+            <span className="font-data text-ui text-muted tabular-nums shrink-0 ml-3">
               {formatCount(bar.count)} · {shareLabel(bar.sharePct)}
             </span>
           </div>

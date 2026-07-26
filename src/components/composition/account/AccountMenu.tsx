@@ -15,7 +15,14 @@
 import Link from 'next/link';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { PageMenuSection } from '@/components/composition/PageMenuSection';
-import { Menu, MenuItem, MenuLinkItem, MenuSeparator } from '@/components/ui/menu';
+import {
+  Menu,
+  MenuItem,
+  MenuLinkItem,
+  MenuSeparator,
+  menuRow,
+  menuSeparator,
+} from '@/components/ui/menu';
 import { authClient } from '@/platform/auth/auth-client';
 import type { Session } from '@/platform/auth/types';
 import { startCharacterLink } from '@/platform/auth/link-character';
@@ -38,22 +45,22 @@ export function AccountMenu({ session }: { session: Session }) {
         />
       }
       triggerClassName="flex items-center cursor-pointer transition-opacity hover:opacity-80 data-[popup-open]:opacity-80"
-      className="account-menu-panel"
+      className="min-w-60 border-t-0"
       anchor={() => document.querySelector('.app-header')}
     >
-      <MenuLinkItem closeOnClick className="account-menu-item" render={<Link href="/characters" />}>
+      <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/characters" />}>
         Manage characters
       </MenuLinkItem>
-      <MenuItem className="account-menu-item" onClick={() => startCharacterLink()}>
+      <MenuItem className={menuRow} onClick={() => startCharacterLink()}>
         Add character
       </MenuItem>
-      <MenuLinkItem closeOnClick className="account-menu-item" render={<Link href="/settings" />}>
+      <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/settings" />}>
         Account settings
       </MenuLinkItem>
       <PageMenuSection />
-      <MenuSeparator className="account-menu-separator" />
+      <MenuSeparator className={menuSeparator} />
       <MenuItem
-        className="account-menu-item"
+        className={menuRow}
         onClick={() => {
           // Clear the CURRENT session only, then hard-navigate home so cached
           // server-component output that referenced the now-gone session is

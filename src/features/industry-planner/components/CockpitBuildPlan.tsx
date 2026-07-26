@@ -44,19 +44,18 @@ import { useBuildPlan, useMarketData } from './planner-contexts';
 // fit however many build depths a blueprint has (up to 7 for the deepest
 // capitals). Static class maps (indexed by tier count) so Tailwind's JIT emits
 // them: a 2-column layout on tablets, a single column on mobile. The breakpoints
-// are arbitrary `min-[…]` consistently — mixing a named `sm:` with `min-[1080px]:`
-// flips Tailwind's cascade order so the wider one loses.
-const COLS_TABLET = ['', 'min-[640px]:grid-cols-1', 'min-[640px]:grid-cols-2'];
+// are named against the declared ladder so Tailwind keeps their cascade order.
+const COLS_TABLET = ['', 'sm:grid-cols-1', 'sm:grid-cols-2'];
 const COLS_DESKTOP = [
   '',
-  'min-[1080px]:grid-cols-1',
-  'min-[1080px]:grid-cols-2',
-  'min-[1080px]:grid-cols-3',
-  'min-[1080px]:grid-cols-4',
-  'min-[1080px]:grid-cols-5',
-  'min-[1080px]:grid-cols-6',
-  'min-[1080px]:grid-cols-7',
-  'min-[1080px]:grid-cols-8',
+  'cockpit:grid-cols-1',
+  'cockpit:grid-cols-2',
+  'cockpit:grid-cols-3',
+  'cockpit:grid-cols-4',
+  'cockpit:grid-cols-5',
+  'cockpit:grid-cols-6',
+  'cockpit:grid-cols-7',
+  'cockpit:grid-cols-8',
 ];
 
 interface Focus {
@@ -193,11 +192,11 @@ function TierColumn({
   const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
   return (
     <div className="min-w-0">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-display text-muted">
+      <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
         Tier {tier.depth}
         <span className="text-faint">· {tier.items.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
-        <span className="text-ui font-semibold tabular-nums tracking-normal text-isk">
+        <span className="font-data text-ui font-semibold tabular-nums tracking-normal text-isk">
           {formatIsk(subtotal)}
         </span>
       </div>
@@ -222,13 +221,13 @@ function TierColumn({
 function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => void }) {
   if (!focus) {
     return (
-      <span className="font-mono text-ui text-muted">
+      <span className="text-ui text-muted">
         Consolidated · by tier · click a ▸ component to trace its sub-tree
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-2 font-mono text-ui text-muted">
+    <span className="inline-flex items-center gap-2 text-ui text-muted">
       <Button
         variant="bare"
         type="button"
@@ -263,11 +262,11 @@ function RawLedgerToggle({
       aria-expanded={open}
       className="group inline-flex cursor-pointer items-baseline gap-2"
     >
-      <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-display text-muted group-hover:text-name">
+      <span className="inline-flex items-baseline gap-2 text-label font-semibold uppercase tracking-eyebrow text-muted group-hover:text-name">
         <span className="tracking-normal text-isk">{'//'}</span>
         Raw ledger
       </span>
-      <span className="font-mono text-ui font-semibold tabular-nums text-isk">
+      <span className="font-data text-ui font-semibold tabular-nums text-isk">
         {grandTotal !== null ? formatIsk(grandTotal) : '—'}
       </span>
       <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>

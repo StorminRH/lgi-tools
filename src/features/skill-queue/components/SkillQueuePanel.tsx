@@ -144,7 +144,7 @@ function renderQueueCard(
   return {
     isEmpty: model.isEmpty,
     subtitle: model.subtitle !== null && (
-      <div className="text-micro text-muted tracking-ui">{model.subtitle}</div>
+      <div className="text-micro text-muted tracking-copy">{model.subtitle}</div>
     ),
     headerRight: model.header !== null && <QueueHeaderSlot header={model.header} />,
     rows:
@@ -163,7 +163,7 @@ function renderQueueCard(
 function QueueHeaderSlot({ header }: { header: NonNullable<QueueHeader> }) {
   if (header.kind === 'ends-in') {
     return (
-      <span className="text-micro text-muted tracking-ui shrink-0">
+      <span className="shrink-0 font-data text-micro tracking-copy text-muted">
         queue ends in {formatRemaining(header.ms)}
       </span>
     );
@@ -187,13 +187,19 @@ function QueueEntryRow({
         colsClass="grid-cols-[26px_minmax(0,1fr)_auto_auto]"
         leading={entry.queue_position + 1}
         name={
-          <>
-          {name ?? `Skill #${entry.skill_id}`}{' '}
-          <span className="text-muted">{romanLevel(entry.finished_level)}</span>
-          </>
+          <span className="font-data">
+            {name ?? `Skill #${entry.skill_id}`}{' '}
+            <span className="text-muted">{romanLevel(entry.finished_level)}</span>
+          </span>
         }
         chips={<Pill tone={model.meta.tone}>{model.meta.label}</Pill>}
-        trailing={model.remainingMs !== null ? formatRemaining(model.remainingMs) : ''}
+        trailing={
+          model.remainingMs !== null ? (
+            <span className="font-data">{formatRemaining(model.remainingMs)}</span>
+          ) : (
+            ''
+          )
+        }
       />
       {model.showBar && (
         <div className="mt-[4px]">

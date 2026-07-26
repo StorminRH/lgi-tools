@@ -20,6 +20,8 @@ import {
   MenuRadioItem,
   MenuRadioItemIndicator,
   MenuSeparator,
+  menuRow,
+  menuSeparator,
 } from '@/components/ui/menu';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import {
@@ -40,7 +42,7 @@ const FRAME_CLASSES =
 // nowrap: the label is a touch wider than the 108px column and centers over it,
 // spilling harmlessly into the band's cluster gaps rather than wrapping tall.
 const HEADING = (
-  <span className="whitespace-nowrap font-mono text-label uppercase tracking-emphasis text-muted">
+  <span className="whitespace-nowrap text-label uppercase tracking-wide text-muted">
     Build character
   </span>
 );
@@ -66,7 +68,7 @@ function InertRunAsFrame({ loading }: { loading: boolean }) {
           >
             —
           </span>
-          <span className="text-label uppercase tracking-emphasis text-muted">Sign in</span>
+          <span className="text-label uppercase tracking-wide text-muted">Sign in</span>
         </>
       )}
     </div>
@@ -84,7 +86,7 @@ function RunAsCharacterItems({ characters }: { characters: BuildCharacter[] | nu
           key={c.characterId}
           value={c.characterId}
           closeOnClick
-          className="account-menu-item flex items-center gap-2"
+          className={menuRow}
         >
           <CharacterPortrait characterId={c.characterId} name={c.name} src={c.portraitUrl} size={28} />
           <span className="truncate">{c.name}</span>
@@ -137,7 +139,7 @@ export function RunAsFrame({
             src={view.portraitUrl}
             size={64}
           />
-          <span className="flex max-w-full items-center gap-1 font-mono text-label uppercase tracking-label text-muted">
+          <span className="flex max-w-full items-center gap-1 font-data text-label uppercase tracking-label text-muted">
             <span className="truncate">{view.name}</span>
             <span aria-hidden className="text-micro leading-none">
               ▾
@@ -146,7 +148,7 @@ export function RunAsFrame({
         </>
       }
       triggerClassName={`${FRAME_CLASSES} cursor-pointer transition-opacity hover:opacity-80 data-[popup-open]:opacity-80`}
-      className="run-as-menu-panel"
+      className="min-w-60"
       align="start"
       sideOffset={4}
     >
@@ -156,13 +158,13 @@ export function RunAsFrame({
       >
         {/* value 0 is unreachable as a character id (ids are positive ints) —
             the sentinel for "no explicit pick". */}
-        <MenuRadioItem value={0} closeOnClick className="account-menu-item flex items-center">
+        <MenuRadioItem value={0} closeOnClick className={menuRow}>
           <span className="truncate">Default (active character)</span>
           <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
             ✓
           </MenuRadioItemIndicator>
         </MenuRadioItem>
-        <MenuSeparator className="account-menu-separator" />
+        <MenuSeparator className={menuSeparator} />
         <RunAsCharacterItems characters={buildCharacters} />
       </MenuRadioGroup>
     </Menu>

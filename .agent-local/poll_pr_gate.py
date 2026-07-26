@@ -14,7 +14,9 @@ when a completed gate contains findings or failures. `quiescent` waits until the
 head's reviewer set is complete and stable (so a late-registering bot is never
 missed); it returns 0 once every reviewer is done — so fixes can be batched
 before the next push — and 1 on timeout, leaving the pass/fail verdict to the
-`greptile` gate and the merge helper.
+`greptile` gate and the merge helper. Cursor Bugbot remains non-gating, but its
+provider-specific neutral/skipped conclusion is reported as `cursor=comments`
+so its findings are included in that batched review.
 
 `review` is the end-to-end watch: it waits for the same stability and then
 evaluates the merge helper's own blocker predicate against that observation. A
@@ -37,6 +39,7 @@ import time
 from github_api import github_token, request
 from merge_clean_pr import (
     CODERABBIT_CHECK,
+    coderabbit_reviewed_head,
     greptile_reviewed,
     merge_blockers,
     require,
@@ -49,6 +52,8 @@ GOOD_CONCLUSIONS = {"success", "neutral", "skipped"}
 # reason only in the status description. This substring is the one visible
 # difference between "reviewed and clean" and "did not review".
 RATE_LIMIT_HINT = "rate limit"
+CURSOR_BUGBOT_CHECK = "Cursor Bugbot"
+CURSOR_COMMENT_CONCLUSIONS = {"neutral", "skipped"}
 
 
 def coderabbit_rate_limited(status: dict[str, object]) -> bool:
@@ -65,6 +70,52 @@ def coderabbit_rate_limited(status: dict[str, object]) -> bool:
         if RATE_LIMIT_HINT in str(item.get("description", "")).lower():
             return True
     return False
+
+
+def coderabbit_waiting_for_review(
+    status: dict[str, object],
+    reviews: list[object],
+    head_sha: str,
+    inline_comments: list[object],
+) -> bool:
+    """True when a rate-limited status still lacks exact-head review evidence.
+
+    CodeRabbit's legacy status can remain rate-limited after its incremental pass
+    acknowledges the current head in an addressed-finding marker. Match the merge
+    helper's evidence rule so stale status text cannot hang the watch.
+    """
+    return coderabbit_rate_limited(status) and not coderabbit_reviewed_head(
+        reviews, head_sha, inline_comments
+    )
+
+
+def cursor_bugbot_signal(runs: list[object]) -> str:
+    """Summarize Cursor Bugbot for review collection without making it a gate.
+
+    Cursor reports a clean review as `success`. A review with inline findings
+    arrives as GitHub conclusion `neutral`, which `gh pr checks` displays as
+    "skipping"; tolerate a literal `skipped` conclusion as the same provider
+    signal. Other checks keep GitHub's ordinary conclusion semantics.
+    """
+    matches = [
+        run
+        for run in runs
+        if isinstance(run, dict)
+        and str(run.get("name", "")).lower() == CURSOR_BUGBOT_CHECK.lower()
+    ]
+    if not matches:
+        return "unregistered"
+    if any(run.get("status") != "completed" for run in matches):
+        return "pending"
+    conclusions = {
+        str(run.get("conclusion", "")).lower()
+        for run in matches
+    }
+    if conclusions & CURSOR_COMMENT_CONCLUSIONS:
+        return "comments"
+    if conclusions == {"success"}:
+        return "clean"
+    return "attention"
 
 
 def get(path: str, token: str) -> object:
@@ -120,6 +171,7 @@ def checks_state(repo: str, number: int, token: str) -> tuple[str, bool, bool, d
     legacy_clean = not has_legacy_statuses or legacy_state == "success"
     clean = runs_clean and legacy_clean
     done = completed and (not has_legacy_statuses or legacy_state != "pending")
+    cursor_signal = cursor_bugbot_signal(runs)
     detail = {
         "head": head_sha,
         "runs": [
@@ -127,8 +179,12 @@ def checks_state(repo: str, number: int, token: str) -> tuple[str, bool, bool, d
             for run in runs
         ],
         "legacy_state": legacy_state,
+        "reviewSignals": {"cursorBugbot": cursor_signal},
     }
-    label = f"head={head_sha[:8]} completed={completed} clean={clean} legacy={legacy_state}"
+    label = (
+        f"head={head_sha[:8]} completed={completed} clean={clean} "
+        f"legacy={legacy_state} cursor={cursor_signal}"
+    )
     return label, done, clean, detail
 
 
@@ -178,6 +234,7 @@ def quiescent_state(repo: str, number: int, token: str) -> tuple[str, frozenset[
     runs = checks.get("check_runs", [])
     assert isinstance(runs, list)
     names, settled = quiescence(runs, status)
+    cursor_signal = cursor_bugbot_signal(runs)
     detail = {
         "head": head_sha,
         "runs": [
@@ -185,8 +242,12 @@ def quiescent_state(repo: str, number: int, token: str) -> tuple[str, frozenset[
             for run in runs
         ],
         "legacy_state": status.get("state"),
+        "reviewSignals": {"cursorBugbot": cursor_signal},
     }
-    label = f"head={head_sha[:8]} reviewers={len(names)} settled={settled}"
+    label = (
+        f"head={head_sha[:8]} reviewers={len(names)} settled={settled} "
+        f"cursor={cursor_signal}"
+    )
     return label, names, settled, detail
 
 
@@ -256,14 +317,24 @@ def review_state(
         pull, issue_comments, inline_comments, runs, head_sha, resolved_roots, reviews
     )
     gate = "coderabbit" if fallback else "greptile"
+    cursor_signal = cursor_bugbot_signal(runs)
     # A declined review is not a stable state: keep waiting rather than reporting
     # a blocker whose only remedy is time.
-    limited = fallback and coderabbit_rate_limited(status)
+    limited = fallback and coderabbit_waiting_for_review(
+        status, reviews, head_sha, inline_comments
+    )
     label = (
         f"head={head_sha[:8]} gate={gate} settled={settled} "
-        f"blockers={len(blockers)}{' rate-limited' if limited else ''}"
+        f"blockers={len(blockers)} cursor={cursor_signal}"
+        f"{' rate-limited' if limited else ''}"
     )
-    detail = {"head": head_sha, "gate": gate, "blockers": blockers, "rateLimited": limited}
+    detail = {
+        "head": head_sha,
+        "gate": gate,
+        "blockers": blockers,
+        "rateLimited": limited,
+        "reviewSignals": {"cursorBugbot": cursor_signal},
+    }
     key = None if limited else review_key(head_sha, names, blockers, settled)
     return label, key, blockers, detail
 

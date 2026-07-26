@@ -66,9 +66,10 @@ feature checks:
 export default {
   name: 'feedback-dialog',
   route: '/',
-  viewports: ['desktop', 'mobile'], // optional; defaults to both
-  settle: 1200,                    // optional milliseconds; defaults to 1000
-  allowConsole: [/expected noise/], // optional extra RegExp filters
+  viewports: ['desktop', 'mobile'],  // optional; defaults to both
+  reducedMotion: true,               // optional; emulates prefers-reduced-motion
+  settle: 1200,                      // optional milliseconds; defaults to 1000
+  allowConsole: [/expected noise/],  // optional extra RegExp filters
   async setup({ page, baseUrl }) {
     // Optional pre-navigation route mocks, permissions, or init scripts.
   },
@@ -85,7 +86,7 @@ Context members:
 | Member | Contract |
 | --- | --- |
 | `page` | The raw Playwright page for feature-specific navigation and interaction |
-| `viewport` | `'desktop'` or `'mobile'` |
+| `viewport` | One of `mobile`, `tablet`, `laptop`, `hd`, `desktop`, `wide`, or `zoom200` |
 | `baseUrl` | The selected local origin |
 | `check(label, condition)` | Records a pass/fail result without throwing, so later checks still run |
 | `shot(tag)` | Writes a full-page PNG to `captures/probes/<name>--<viewport>--<tag>.png` |
@@ -95,16 +96,25 @@ Use `setup` only when behavior must exist before the first navigation, such as a
 definition intentionally creates; Convex/HMR/Speed-Insights development noise is
 owned centrally by the runner.
 
+The shared viewport matrix is 390×844 (`mobile`), 768×1024 (`tablet`),
+1024×768 (`laptop`), 1366×768 (`hd`), 1440×900 (`desktop`), 1920×1080
+(`wide`), and 640×450 (`zoom200`). `zoom200` is the CSS viewport exposed by a
+1280×900 window at 200% browser zoom; the harness records it as a responsive
+layout proxy rather than claiming to emulate browser zoom. Only `mobile` uses
+touch and mobile-device emulation. Set `reducedMotion: true` on a definition to
+run all of its declared viewports with `prefers-reduced-motion: reduce`.
+
 ## Durable definition index
 
 | Name | Recurring proof |
 | --- | --- |
 | `asset-ledger` | Logged-out asset ledger open state and totals |
 | `asset-ring-mock` | Mocked complete/partial ownership rings and holding details |
-| `changelog-browser` | Canonical routes, sitemap entries, soft navigation, sticky rail, mobile disclosure |
+| `changelog-browser` | Canonical routes, sitemap entries, soft navigation, sticky rail, and mobile drawer |
 | `combobox-global` | Header search focus, options, keyboard navigation, selection, and dismissal |
 | `combobox-terminal` | Planner system search focus, suggestions, selection, and dismissal |
-| `content-browser-scroll` | Shared sticky rail, internal scroll, boundary chaining, and mobile disclosure |
+| `content-browser-scroll` | Shared sticky rail, internal scroll, boundary chaining, and mobile drawer |
+| `contents-drawer` | Mobile chapter context, focus, navigation close, Escape close, and reduced motion |
 | `cost-basis` | Raw/Item input-cost toggle and explanatory popover |
 | `devlog-excerpt-open` | Open Shiki excerpts, gutters, colored tokens, and permalinks |
 | `dialog-open` | Sites lightbox click/tap open and Escape close |
@@ -113,7 +123,9 @@ owned centrally by the runner.
 | `me-planner` | Mocked owned research, component adjuster popover, and ME recomputation |
 | `multibuy-panel` | Tier toggles, nested help, toast, and clipboard payload |
 | `nav-menu` | Mobile open, navigation close, Enter open, and Escape close |
+| `nav-page-settings` | Mobile page controls, persistent menu adjustment, and routes without settings |
 | `overlay-open` | Desktop hover/keyboard and mobile tap for planner help overlays |
+| `page-modes` | Shared shell frame, reading width, region spacing, and narrow overflow across seven viewports |
 | `sites-lazy-detail` | Cards/table summary parity and first-open-only lazy detail mounting |
 | `templates-menu` | Signed-out saved-template panel, 401 toast, and unknown-plan cleanup |
 

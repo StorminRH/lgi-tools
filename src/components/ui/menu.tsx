@@ -4,7 +4,14 @@ import { Menu as Base } from '@base-ui/react/menu';
 import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
-import { panelSurface } from './dropdown-panel';
+import {
+  menuControlRow,
+  menuRow,
+  menuSection,
+  menuSectionLabel,
+  menuSeparator,
+  panelSurface,
+} from './dropdown-panel';
 import type { Tone } from './tones';
 
 // The platform's one click/tap-toggled dropdown-menu primitive — the idiomatic
@@ -27,8 +34,8 @@ export type MenuTone = Extract<Tone, 'neutral'>;
 // Abstract tone → token classes. The base owns the shared dropdown-panel SURFACE
 // (bg-deep well + idle border + the dd shadow, from dropdown-panel.ts) so every menu
 // matches the Select popup and the Popover. The call site's `className` supplies only
-// structure — the per-panel min-width, the header-flush `border-top: none`, and the
-// row rules (globals.css `.nav-menu-panel` / `.account-menu-panel` / `.run-as-menu-panel`).
+// structure — the per-panel min-width, header-flush border override, and any
+// placement-specific row composition.
 // Menus stay square with full-width rows, so they take the surface atom, not the full
 // dropdownPanel (which adds card radius + a 5px inset the Select popup wants).
 const popup = cva(`flex flex-col outline-none ${panelSurface}`, {
@@ -41,6 +48,9 @@ const popup = cva(`flex flex-col outline-none ${panelSurface}`, {
 });
 
 type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
+type DataAttributes = {
+  [key: `data-${string}`]: string | number | boolean | undefined;
+};
 
 /**
  * Renders the domain-neutral menu with house behavior and tokens; callers own semantic meaning and
@@ -57,6 +67,8 @@ export function Menu({
   anchor,
   modal = false,
   triggerClassName,
+  triggerProps,
+  popupProps,
   className,
 }: {
   // The visible content of the trigger button (e.g. the hamburger glyph).
@@ -80,12 +92,16 @@ export function Menu({
   // Classes for the trigger button (the glyph/badge styling lives at the call
   // site, like the abstract-tone pattern across the UI primitives).
   triggerClassName?: string;
+  // Stable trigger hooks for automation; behavior remains owned here.
+  triggerProps?: DataAttributes;
+  // Stable popup hooks for automation; behavior remains owned here.
+  popupProps?: DataAttributes;
   // Extra classes merged onto the popup (the surface look + sizing).
   className?: string;
 }) {
   return (
     <Base.Root modal={modal}>
-      <Base.Trigger type="button" aria-label={label} className={triggerClassName}>
+      <Base.Trigger {...triggerProps} type="button" aria-label={label} className={triggerClassName}>
         {trigger}
       </Base.Trigger>
       <Base.Portal>
@@ -96,7 +112,11 @@ export function Menu({
           anchor={anchor}
           className="z-dropdown"
         >
-          <Base.Popup aria-label={label} className={cn(popup({ tone }), className)}>
+          <Base.Popup
+            {...popupProps}
+            aria-label={label}
+            className={cn(popup({ tone }), className)}
+          >
             {children}
           </Base.Popup>
         </Base.Positioner>
@@ -142,3 +162,6 @@ export const MenuRadioItem = Base.RadioItem;
  * consumers compose it only within this primitive family.
  */
 export const MenuRadioItemIndicator = Base.RadioItemIndicator;
+
+/** Shared domain-neutral layout recipes for composing menu rows, sections, and separators. */
+export { menuControlRow, menuRow, menuSection, menuSectionLabel, menuSeparator };

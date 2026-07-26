@@ -57,7 +57,7 @@ export function IndustryTypedHint() {
     <Button
       variant="bare"
       type="button"
-      className="inline-flex items-center gap-[9px] py-1 text-left font-mono text-ui tracking-[0.03em] text-muted"
+      className="inline-flex items-center gap-[9px] py-1 text-left font-ui text-ui tracking-[0.03em] text-muted"
       onClick={focusNavSearch}
     >
       <span className="shrink-0 text-ui font-bold text-isk">{'>'}</span>

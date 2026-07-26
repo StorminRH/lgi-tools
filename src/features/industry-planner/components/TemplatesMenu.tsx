@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover } from '@/components/ui/popover';
+import { scrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
 import { createSavedPlanEndpoint, MAX_SAVED_PLAN_NAME_LEN } from '../api-contract';
@@ -80,14 +81,14 @@ export function TemplatesMenu({
       className="w-[320px]"
       triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
       trigger={
-        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-display text-muted group-hover:text-name">
+        <span className="inline-flex items-baseline gap-2 text-label font-semibold uppercase tracking-eyebrow text-muted group-hover:text-name">
           <span className="tracking-normal text-isk">{'//'}</span>
           Templates
           <span className="inline-block text-micro text-muted">▾</span>
         </span>
       }
     >
-      <span className="font-mono text-label font-semibold uppercase tracking-display text-isk">
+      <span className="text-label font-semibold uppercase tracking-eyebrow text-isk">
         Saved templates
       </span>
 
@@ -116,7 +117,7 @@ export function TemplatesMenu({
       </div>
 
       {plans !== null && plans.length > 0 ? (
-        <ul className="flex max-h-[264px] flex-col gap-1.5 overflow-y-auto">
+        <ul className={`${scrollArea} flex max-h-[264px] flex-col gap-1.5 overflow-y-auto`}>
           <SavedPlanRows plans={plans} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
         </ul>
       ) : (

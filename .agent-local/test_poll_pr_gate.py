@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import unittest
 
+from merge_clean_pr import CODERABBIT
 from poll_pr_gate import (
     CODERABBIT_CHECK,
     coderabbit_rate_limited,
+    coderabbit_waiting_for_review,
+    cursor_bugbot_signal,
     quiescence,
     review_key,
     stable_key,
@@ -148,6 +151,92 @@ class CodeRabbitRateLimited(unittest.TestCase):
     def test_missing_statuses_is_not_rate_limited(self) -> None:
         self.assertFalse(coderabbit_rate_limited({"state": "pending", "statuses": []}))
         self.assertFalse(coderabbit_rate_limited({}))
+
+    def test_rate_limit_waits_without_exact_head_evidence(self) -> None:
+        self.assertTrue(
+            coderabbit_waiting_for_review(
+                self.status("Review rate limited"),
+                [],
+                "abcdef123456",
+                [],
+            )
+        )
+
+    def test_current_head_review_overrides_stale_rate_limit_text(self) -> None:
+        head = "abcdef123456"
+        reviews = [{"user": {"login": CODERABBIT}, "commit_id": head}]
+        self.assertFalse(
+            coderabbit_waiting_for_review(
+                self.status("Review rate limited"),
+                reviews,
+                head,
+                [],
+            )
+        )
+
+    def test_addressed_marker_overrides_stale_rate_limit_text(self) -> None:
+        head = "abcdef123456"
+        comments = [
+            {
+                "user": {"login": CODERABBIT},
+                "id": 10,
+                "commit_id": "older",
+                "body": "Finding\n\n✅ Addressed in commit abcdef1",
+            }
+        ]
+        self.assertFalse(
+            coderabbit_waiting_for_review(
+                self.status("Review rate limited"),
+                [],
+                head,
+                comments,
+            )
+        )
+
+
+class CursorBugbotSignal(unittest.TestCase):
+    """Cursor's informational check tells the monitor whether comments exist."""
+
+    def cursor_run(self, status: str, conclusion: str | None) -> dict:
+        return {
+            "name": "Cursor Bugbot",
+            "status": status,
+            "conclusion": conclusion,
+        }
+
+    def test_neutral_means_comments_need_review(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("completed", "neutral")]),
+            "comments",
+        )
+
+    def test_skipped_is_tolerated_as_the_same_provider_signal(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("completed", "skipped")]),
+            "comments",
+        )
+
+    def test_success_means_clean(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("completed", "success")]),
+            "clean",
+        )
+
+    def test_in_progress_means_pending(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("in_progress", None)]),
+            "pending",
+        )
+
+    def test_unrelated_skipped_check_is_ignored(self) -> None:
+        unrelated = {"name": "docs", "status": "completed", "conclusion": "skipped"}
+        self.assertEqual(cursor_bugbot_signal([unrelated]), "unregistered")
+
+    def test_unexpected_conclusion_requests_attention(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("completed", "failure")]),
+            "attention",
+        )
 
 
 if __name__ == "__main__":

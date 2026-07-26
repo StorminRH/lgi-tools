@@ -19,8 +19,8 @@ export function SiteShipClasses({ site }: { site: SiteDetail }) {
       {classes.map((c) => (
         <span key={c.code} className="inline-flex items-center gap-1.5">
           <ShipClassIcon code={c.code} size={18} />
-          <span className="text-ui tracking-[0.02em] text-name">{SLEEPER_CLASS_LABEL[c.code]}</span>
-          <span className="font-jb text-ui tabular-nums text-muted">{c.count}</span>
+          <span className="text-ui tracking-optical text-name">{SLEEPER_CLASS_LABEL[c.code]}</span>
+          <span className="font-data text-ui tabular-nums text-muted">{c.count}</span>
         </span>
       ))}
     </div>

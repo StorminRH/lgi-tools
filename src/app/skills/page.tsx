@@ -64,16 +64,14 @@ function SkillsLoading() {
  */
 export default function SkillsPage() {
   return (
-    <PageShell>
-      <div className="flex flex-col items-center pb-20">
-        <div className="w-full max-w-[760px]">
-          <PageHead
-            crumb="skills"
-            title="Skill Queues"
-            subtitle="Live training queues for every linked character · synced from ESI on view"
-          />
-        </div>
-        <div className="w-full max-w-[760px]">
+    <PageShell mode="reading">
+      <div className="flex w-full flex-col items-center pb-20">
+        <PageHead
+          crumb="skills"
+          title="Skill Queues"
+          subtitle="Live training queues for every linked character · synced from ESI on view"
+        />
+        <div className="w-full">
           <Suspense fallback={<SkillsLoading />}>
             <SkillsContent />
           </Suspense>

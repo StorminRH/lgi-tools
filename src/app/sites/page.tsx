@@ -133,7 +133,7 @@ export default function SitesPage({
   searchParams: Promise<SitesSearchParams>;
 }) {
   return (
-    <PageShell>
+    <PageShell mode="workspace">
       <Suspense fallback={<SitesLoading />}>
         <SitesContent searchParams={searchParams} />
       </Suspense>

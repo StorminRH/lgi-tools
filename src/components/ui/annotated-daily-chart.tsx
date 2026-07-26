@@ -155,7 +155,7 @@ function ReferenceLine({
         strokeWidth={1}
         strokeDasharray="4 3"
       />
-      <text x={left + 3} y={y - 3} className="fill-[var(--color-muted)] font-mono text-micro">
+      <text x={left + 3} y={y - 3} className="fill-[var(--color-muted)] font-data text-micro">
         {reference.label}
       </text>
     </g>
@@ -195,7 +195,7 @@ function ChartEndLabel({ endLabel, x, y }: { endLabel: EndLabel | undefined; x: 
       <text
         x={x}
         y={y}
-        className="fill-[var(--color-text)] font-mono text-label"
+        className="fill-[var(--color-text)] font-data text-label"
         dominantBaseline="middle"
       >
         {endLabel.valueText}
@@ -205,7 +205,7 @@ function ChartEndLabel({ endLabel, x, y }: { endLabel: EndLabel | undefined; x: 
           x={x}
           y={y + 13}
           fill={endLabel.deltaHex ?? undefined}
-          className="font-mono text-micro"
+          className="font-data text-micro"
           dominantBaseline="middle"
         >
           {endLabel.deltaText}
@@ -237,7 +237,7 @@ function DailyXAxis({
           x={xScale(i)}
           y={y}
           textAnchor="middle"
-          className="fill-[var(--color-muted)] font-mono text-micro"
+          className="fill-[var(--color-muted)] font-data text-micro"
         >
           {formatTick(labels[i] ?? '')}
         </text>

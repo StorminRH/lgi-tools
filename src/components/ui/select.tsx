@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { dropdownGroupLabel, dropdownItem, dropdownPanel } from './dropdown-panel';
 import { fieldText, fieldVariants, focusWell, type FieldSize } from './input';
+import { scrollArea } from './scroll-area';
 
 // The platform's one dropdown-select primitive — the idiomatic Base UI Select,
 // wearing the C1 field WELL as its closed trigger (so a shut select is
@@ -112,7 +113,7 @@ export function Select({
         <Base.Positioner side="bottom" sideOffset={4} alignItemWithTrigger={false} className="z-dropdown">
           <Base.Popup
             aria-label={ariaLabel}
-            className={cn(dropdownPanel, 'max-h-80 overflow-y-auto')}
+            className={cn(dropdownPanel, scrollArea, 'max-h-80 overflow-y-auto')}
           >
             <Base.List>
               {items.map((entry, index) =>

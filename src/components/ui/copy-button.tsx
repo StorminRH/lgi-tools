@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { cn } from './cn';
+import { eyebrow } from './type-roles';
 
 type CopyState = 'idle' | 'copied' | 'unavailable';
 
@@ -69,7 +70,7 @@ export function CopyButton({
     <span
       className={cn(
         'inline-flex items-center gap-2 rounded-ctl border border-border-soft bg-bg-deep px-2.5 py-1.5 ' +
-          'font-mono text-ui text-name shadow-field-inset',
+          'font-data text-ui text-name shadow-field-inset',
         className,
       )}
     >
@@ -78,8 +79,8 @@ export function CopyButton({
         type="button"
         onClick={() => void copy()}
         className={cn(
-          'rounded-ctl border border-border-idle bg-section px-2 py-0.5 font-mono text-micro tracking-label uppercase ' +
-            'text-muted shadow-btn-bezel hover:border-isk-dim hover:text-isk',
+          'rounded-ctl border border-border-idle bg-section px-2 py-0.5 shadow-btn-bezel hover:border-isk-dim hover:text-isk ' +
+            eyebrow({ size: 'micro' }),
           STATE_CLASS[state],
         )}
       >

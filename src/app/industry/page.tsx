@@ -70,7 +70,7 @@ async function SlotMeta() {
 // re-ranks once section data settles (empties sink as slim headers).
 function DashboardSkeleton() {
   return (
-    <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 items-start">
+    <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
       {(
         [
           ['Recents', 'panel'],
@@ -80,7 +80,7 @@ function DashboardSkeleton() {
         ] as const
       ).map(([label, kind]) => (
         <section key={label}>
-          <SectionLabel className="mb-3">{label}</SectionLabel>
+          <SectionLabel className="mb-cluster">{label}</SectionLabel>
           {kind === 'panel' ? (
             <Card className="overflow-hidden">
               <EmptyState> </EmptyState>
@@ -104,8 +104,9 @@ function DashboardSkeleton() {
  */
 export default function IndustryDashboardPage() {
   return (
-    <PageShell>
+    <PageShell mode="workspace">
       <PageHead
+        size="hero"
         crumb="industry"
         title="Industry"
         meta={

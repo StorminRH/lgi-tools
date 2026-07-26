@@ -46,10 +46,10 @@ function DemoSection({
   return (
     <section className="flex flex-col gap-3">
       <div>
-        <h2 className="font-mono text-label tracking-wide uppercase text-isk-sub">
+        <h2 className="text-label tracking-wide uppercase text-isk-sub">
           {index} · {title}
         </h2>
-        <p className="mt-1 max-w-[760px] font-mono text-label leading-relaxed text-faint">{why}</p>
+        <p className="mt-1 max-w-[760px] text-label leading-relaxed text-faint">{why}</p>
       </div>
       {children}
     </section>

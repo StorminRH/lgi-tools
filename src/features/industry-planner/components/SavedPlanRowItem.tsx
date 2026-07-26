@@ -46,7 +46,7 @@ export function SavedPlanRowItem({
         disabled={busy}
         aria-label={labels.favoriteAria}
         aria-pressed={row.favorite}
-        className={`cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40 ${labels.favoriteClass}`}
+        className={`cursor-pointer text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40 ${labels.favoriteClass}`}
       >
         {labels.favoriteGlyph}
       </Button>
@@ -75,10 +75,10 @@ export function SavedPlanRowItem({
           className="group/load flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left disabled:cursor-not-allowed"
         >
           <TypeIcon {...blueprintImage(row.blueprintTypeId)} size={16} />
-          <span className="truncate font-mono text-ui text-text transition-colors group-hover/load:text-isk">
+          <span className="truncate font-data text-ui text-text transition-colors group-hover/load:text-isk">
             {row.name}
           </span>
-          <span className="ml-auto shrink-0 truncate font-mono text-micro text-faint">
+          <span className="ml-auto shrink-0 truncate font-data text-micro text-faint">
             {row.productName}
           </span>
         </Button>
@@ -89,7 +89,7 @@ export function SavedPlanRowItem({
         onClick={onStartRename}
         disabled={busy || editing}
         aria-label={`Rename ${row.name}`}
-        className="cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40"
+        className="cursor-pointer text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40"
       >
         ✎
       </Button>
@@ -99,7 +99,7 @@ export function SavedPlanRowItem({
         onClick={onDelete}
         disabled={busy}
         aria-label={labels.deleteAria}
-        className={`cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40 ${labels.deleteClass}`}
+        className={`cursor-pointer text-ui leading-none text-faint transition-colors hover:text-name disabled:cursor-not-allowed disabled:opacity-40 ${labels.deleteClass}`}
       >
         {armed ? <span className="text-ui">confirm?</span> : '✕'}
       </Button>

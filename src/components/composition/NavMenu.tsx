@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 import { LoginButton } from '@/components/composition/account/LoginButton';
+import { PageMenuSection } from '@/components/composition/PageMenuSection';
 import { Menu, MenuLinkItem } from '@/components/ui/menu';
-import { cn } from '@/components/ui/cn';
+import { navigationMenuLink } from '@/components/ui/navigation-menu';
 import { deriveNavToolItem, visibleNavTools } from '@/data/tools/registry';
 
 // Mobile-only hamburger (globals.css reveals the trigger below 1024px and hides
@@ -21,7 +22,12 @@ import { deriveNavToolItem, visibleNavTools } from '@/data/tools/registry';
 // than the trigger.
 
 const HAMBURGER = (
-  <svg className="nav-menu-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+  <svg
+    className="size-[18px] stroke-current stroke-[1.5]"
+    viewBox="0 0 18 18"
+    fill="none"
+    aria-hidden="true"
+  >
     <line x1="2" y1="5" x2="16" y2="5" />
     <line x1="2" y1="9" x2="16" y2="9" />
     <line x1="2" y1="13" x2="16" y2="13" />
@@ -42,7 +48,10 @@ function NavMenuItems() {
         const item = deriveNavToolItem(tool, pathname);
         if (item.kind === 'soon') {
           return (
-            <span key={item.label} className="nav-tool soon">
+            <span
+              key={item.label}
+              className={navigationMenuLink({ placement: 'menu', disabled: true })}
+            >
               {item.label}
             </span>
           );
@@ -53,7 +62,7 @@ function NavMenuItems() {
             key={item.label}
             closeOnClick
             aria-current={item.active ? 'page' : undefined}
-            className={cn('nav-tool', item.active && 'active')}
+            className={navigationMenuLink({ placement: 'menu', active: item.active })}
             render={<Link href={item.href} />}
           >
             {item.label}
@@ -73,14 +82,17 @@ export function NavMenu() {
     <Menu
       label="Menu"
       trigger={HAMBURGER}
-      triggerClassName="nav-menu-toggle"
-      className="nav-menu-panel"
+      triggerClassName="hidden cursor-pointer items-center justify-center border-l border-border px-4 text-muted transition-colors hover:bg-row-hover hover:text-name data-[popup-open]:bg-row-hover data-[popup-open]:text-name max-lg:inline-flex"
+      triggerProps={{ 'data-nav-menu-toggle': '' }}
+      popupProps={{ 'data-nav-menu-panel': '' }}
+      className="min-w-56 border-t-0"
       anchor={() => document.querySelector('.app-header')}
     >
       <Suspense fallback={null}>
         <NavMenuItems />
       </Suspense>
-      <div className="nav-menu-login">
+      <PageMenuSection />
+      <div data-nav-login-footer className="flex border-t border-border px-4 py-3">
         {/* The flat cluster on purpose: the account-menu variant would nest a
             Menu trigger inside this popup. */}
         <LoginButton variant="flat" />

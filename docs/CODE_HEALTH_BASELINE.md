@@ -13,13 +13,13 @@
 
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
-| Production TS/TSX files | 762 | 789 | +27 |
-| Production TS/TSX LOC | 73,072 | 77,268 | +4196 |
-| Test files | 368 | 404 | +36 |
-| Coverage — statements | 86.90% | 86.90% | — |
-| Coverage — branches | 84.25% | 84.25% | — |
-| Coverage — functions | 82.84% | 82.84% | — |
-| Coverage — lines | 87.90% | 87.90% | — |
+| Production TS/TSX files | 762 | 804 | +42 |
+| Production TS/TSX LOC | 73,072 | 79,152 | +6080 |
+| Test files | 368 | 424 | +56 |
+| Coverage — statements | 86.90% | 87.07% | — |
+| Coverage — branches | 84.25% | 83.99% | — |
+| Coverage — functions | 82.84% | 83.23% | — |
+| Coverage — lines | 87.90% | 88.11% | — |
 | Fallow health score | 78 (B) | 78 (B) | — |
 | Functions above health thresholds | 0 | 0 | 0 |
 | Auth query-hub exports | 0 | 0 | 0 |
@@ -39,7 +39,7 @@
 | EVE type-image resolver breadth | 8 exports / 6 functions / 16 production importers | 8 exports / 6 functions / 16 production importers | — |
 | Threshold overrides | 0 | 0 | 0 |
 | Source suppressions | 21 | 42 | +21 |
-| Whole-version Fallow clone groups | 0 | 0 | 0 |
+| Whole-version Fallow clone groups | 0 | 1 | +1 |
 | Accepted duplication baseline clone groups | 0 | 0 | 0 |
 | Version-start-pinned Fallow verdict | Pass | Pass | — |
 | `src/data/telemetry/queries.ts` | 25 exports | 25 exports | — |

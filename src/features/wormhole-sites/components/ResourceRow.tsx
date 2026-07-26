@@ -19,7 +19,7 @@ function ResourceValue({ resource }: { resource: SiteResource }) {
   const live = useSiteLive();
 
   if (!resourceValueEligible(resource)) {
-    return <span>{formatIsk(resourceLiveIsk(resource, live))}</span>;
+    return <span className="font-data">{formatIsk(resourceLiveIsk(resource, live))}</span>;
   }
 
   const pending = live.isPending(resource.typeId as number);
@@ -55,7 +55,7 @@ export function SiteResourceRow({
     <ResourceRowPrimitive
       colsClass={view.colsClass}
       name={name}
-      meta={view.meta ?? undefined}
+      meta={view.meta ? <span className="font-data">{view.meta}</span> : undefined}
       value={<ResourceValue resource={resource} />}
     />
   );

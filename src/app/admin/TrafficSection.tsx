@@ -53,7 +53,7 @@ function pctLabel(part: number, total: number): string {
 function CollapsedDetailHeader({ label }: { label: string }) {
   return (
     <>
-      <span className="font-mono text-label uppercase tracking-wide text-muted">
+      <span className="text-label uppercase tracking-wide text-muted">
         {label}
       </span>
       <span
@@ -80,13 +80,13 @@ function GscTermRow({ term, max, total }: { term: GscTermStat; max: number; tota
   return (
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-ui text-text break-all">{term.key}</span>
-        <span className="font-mono text-ui text-muted tabular-nums shrink-0 ml-3">
+        <span className="font-data text-ui text-text break-all">{term.key}</span>
+        <span className="font-data text-ui text-muted tabular-nums shrink-0 ml-3">
           {term.clicks.toLocaleString()} clk{share === null ? '' : ` · ${share}%`}
         </span>
       </div>
       <ProgressBar pct={pct} />
-      <div className="mt-1 font-mono text-micro text-muted tabular-nums">
+      <div className="mt-1 font-data text-micro text-muted tabular-nums">
         {term.impressions.toLocaleString()} impr · {(term.ctr * 100).toFixed(1)}% CTR · pos{' '}
         {term.position.toFixed(1)}
       </div>
@@ -98,12 +98,12 @@ function GscSitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
   return (
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-ui text-text break-all">{sitemap.path}</span>
-        <span className="font-mono text-ui text-muted tabular-nums shrink-0 ml-3">
+        <span className="font-data text-ui text-text break-all">{sitemap.path}</span>
+        <span className="font-data text-ui text-muted tabular-nums shrink-0 ml-3">
           {sitemap.indexed.toLocaleString()} / {sitemap.submitted.toLocaleString()} indexed
         </span>
       </div>
-      <div className="font-mono text-micro text-muted">
+      <div className="font-data text-micro text-muted">
         {sitemap.submitted === 0
           ? 'no URLs submitted'
           : `${pctLabel(sitemap.indexed, sitemap.submitted)} coverage`}{' '}
@@ -214,7 +214,7 @@ function GscPerformanceCardBody({
   return (
     <Card>
       <SectionHeader size="md" label="Search performance" hint="Google Search Console" />
-      <div className="px-3.5 py-2 font-mono text-ui text-muted border-b border-border-soft">
+      <div className="px-3.5 py-2 text-ui text-muted border-b border-border-soft">
         Google data lags ~2–3 days · last synced {view.asOf}
       </div>
       {view.hasTrend ? (
@@ -312,10 +312,10 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
               scroller — the fixed-width chart's own end label sits off-screen on a
               narrow card, so the at-rest readout lives here. */}
           <div className="px-3.5 pt-1 flex items-baseline gap-2">
-            <span className="font-mono text-lead text-name tabular-nums">
+            <span className="font-data text-lead text-name tabular-nums">
               {activity.endValue.toLocaleString()}
             </span>
-            <span className="font-mono text-micro text-muted uppercase tracking-wide">
+            <span className="text-micro text-muted uppercase tracking-wide">
               latest day
             </span>
             {activity.endDelta && <DeltaBadge delta={activity.endDelta} />}

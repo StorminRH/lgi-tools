@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { panelSurface } from './dropdown-panel';
 import type { Tone } from './tones';
+import { eyebrow } from './type-roles';
 
 // The platform's one hover/tap/focus help-panel primitive — the idiomatic Base
 // UI Popover, styled to the existing tone tokens. A Popover (not a Tooltip) is
@@ -114,7 +115,7 @@ export function Popover({
  */
 export function PopoverHeading({ children }: { children: ReactNode }) {
   return (
-    <div className="font-mono text-label font-semibold uppercase tracking-display text-isk">
+    <div className={eyebrow({ tone: 'isk', weight: 'semibold', emphasis: 'strong' })}>
       {children}
     </div>
   );
@@ -127,8 +128,9 @@ export function PopoverHeading({ children }: { children: ReactNode }) {
  */
 export function PopoverRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <p className="font-body text-body leading-snug text-muted">
-      <span className="font-semibold text-text">{label}</span> — {children}
+    <p className="font-ui text-body leading-snug text-muted">
+      <span className="font-semibold text-text">{label}</span> —{' '}
+      <span className="font-data">{children}</span>
     </p>
   );
 }

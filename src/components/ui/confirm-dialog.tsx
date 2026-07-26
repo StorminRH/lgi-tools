@@ -17,7 +17,7 @@ const TONE = {
 function DialogError({ children }: { children?: ReactNode }) {
   if (!children) return null;
   return (
-    <p role="alert" className="font-mono text-ui text-tone-red">
+    <p role="alert" className="font-ui text-ui text-tone-red">
       {children}
     </p>
   );
@@ -77,7 +77,7 @@ export function ConfirmDialog({
         {title}
       </DialogTitle>
       <div className="flex flex-col gap-3 px-4 py-4">
-        <DialogDescription className="font-mono text-ui leading-relaxed text-text">
+        <DialogDescription className="font-ui text-ui leading-relaxed text-text">
           {consequence}
         </DialogDescription>
         {children}

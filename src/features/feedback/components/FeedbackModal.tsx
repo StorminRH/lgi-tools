@@ -55,7 +55,7 @@ function FeedbackMeta({
       {path && (
         <div className="truncate">
           <span>From</span>{' '}
-          <span className="text-text font-mono normal-case tracking-normal">{path}</span>
+          <span className="font-data text-text normal-case tracking-normal">{path}</span>
         </div>
       )}
     </div>
@@ -210,7 +210,7 @@ export function FeedbackModal({
         <header className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
           <h2
             id={titleId}
-            className="font-display font-bold text-h3 tracking-ui uppercase text-name"
+            className="font-display font-bold text-h3 tracking-copy uppercase text-name"
           >
             Send feedback
           </h2>

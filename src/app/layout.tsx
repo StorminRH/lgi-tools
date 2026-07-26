@@ -24,12 +24,8 @@ const barlow = Barlow_Condensed({
 });
 
 const jetBrainsMono = JetBrains_Mono({
-  // The mono face for the whole app: `--font-mono` (default UI/terminal chrome)
-  // and the `--font-jb` alias (branded wordmark + tabular figures) both resolve to
-  // this via the theme tokens in globals.css — kept distinct from the next/font var
-  // so a token references the face, not itself. Carries 500/600 (the mono
-  // mid-weights the chrome uses, previously served by IBM Plex Mono) on top of its
-  // own 700/800 for the wordmark and tabular version labels.
+  // The data face for values, status, compact metadata and the wordmark.
+  // The semantic theme token resolves to this next/font variable.
   variable: "--font-jetbrains",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],

@@ -40,6 +40,25 @@ describe('cn', () => {
 
     // two named sizes still conflict → last wins
     expect(cn('text-ui', 'text-label')).toBe('text-label');
+    expect(cn('text-title', 'text-isk')).toBe('text-title text-isk');
+    expect(cn('text-nav', 'text-title')).toBe('text-title');
+  });
+
+  it('resolves the semantic font roles without conflating family and weight', () => {
+    expect(cn('font-ui', 'font-data')).toBe('font-data');
+    expect(cn('font-data', 'font-display')).toBe('font-display');
+    expect(cn('font-data', 'font-semibold')).toBe('font-data font-semibold');
+  });
+
+  it('resolves the registered tracking scale — last wins', () => {
+    expect(cn('tracking-copy', 'tracking-eyebrow')).toBe('tracking-eyebrow');
+    expect(cn('tracking-wide', 'tracking-optical')).toBe('tracking-optical');
+  });
+
+  it('resolves the shared spacing and container scales', () => {
+    expect(cn('mb-cluster', 'mb-section')).toBe('mb-section');
+    expect(cn('size-icon-sm', 'size-icon-lg')).toBe('size-icon-lg');
+    expect(cn('max-w-reading', 'max-w-frame')).toBe('max-w-frame');
   });
 
   // Regression (3.8.2.2): the named shadow tokens (shadow-field-inset/btn-bezel/…)

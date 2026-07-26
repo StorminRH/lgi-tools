@@ -13,6 +13,7 @@
 // Renders nothing until every feed lands, or when the viewer has no characters
 // (signed out / none linked).
 import { useMemo } from 'react';
+import { eyebrow } from '@/components/ui/type-roles';
 import { flattenJobs } from '../flatten-jobs';
 import { slotMetaTotals } from '../slots';
 import { useCorpJobsLive } from '../use-corp-jobs-live';
@@ -55,19 +56,19 @@ export function IndustrySlotMeta({
 
   return (
     <>
-      <span>
+      <span className={eyebrow()}>
         manufacturing{' '}
         <b className="text-evb-bright font-semibold">
           {model.manufacturing.used}/{model.manufacturing.total}
         </b>
       </span>
-      <span>
+      <span className={eyebrow()}>
         science{' '}
         <b className="text-evb-bright font-semibold">
           {model.science.used}/{model.science.total}
         </b>
       </span>
-      <span>
+      <span className={eyebrow()}>
         reactions{' '}
         <b className="text-evb-bright font-semibold">
           {model.reactions.used}/{model.reactions.total}

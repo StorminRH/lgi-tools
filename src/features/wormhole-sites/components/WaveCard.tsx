@@ -25,7 +25,7 @@ export function WaveCard({
       headerClassName="bg-bg border-t border-border border-b border-border py-[10px]"
       header={
         <>
-          <span className="text-label font-bold tracking-display uppercase text-text shrink-0">
+          <span className="text-label font-bold tracking-eyebrow uppercase text-text shrink-0">
             {displayLabel}
           </span>
           <span className="ml-auto text-micro font-semibold tracking-label text-text">

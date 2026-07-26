@@ -2,12 +2,15 @@ import type { ReactNode } from 'react';
 import { cva } from 'class-variance-authority';
 import { cn } from './cn';
 import type { ChipTone } from './tones';
+import { eyebrow } from './type-roles';
 
 export type { ChipTone };
 
 /** Shared static and pressable chip presentation variants. */
 export const chipVariants = cva(
-  'inline-flex items-center font-mono text-label font-semibold px-[5px] py-px rounded-ctl tracking-label uppercase border leading-[1.5] shrink-0',
+  `inline-flex items-center px-[5px] py-px rounded-ctl border leading-[1.5] shrink-0 ${eyebrow({
+    weight: 'semibold',
+  })}`,
   {
     variants: {
       tone: {

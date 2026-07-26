@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { eyebrow } from './type-roles';
 import { deriveRowLayout } from './row-layout';
 
 /**
@@ -129,7 +130,7 @@ export function LabeledChipRow({
 }) {
   return (
     <div className="px-3.5 py-[5px] border-b border-border-soft bg-bg flex items-center gap-[7px] flex-wrap">
-      <span className="text-label tracking-wide uppercase text-muted">{label}</span>
+      <span className={eyebrow()}>{label}</span>
       {children}
     </div>
   );

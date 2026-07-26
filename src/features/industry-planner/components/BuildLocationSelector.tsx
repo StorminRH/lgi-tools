@@ -333,7 +333,7 @@ export function BuildLocationSelector() {
           prompt) on its own fixed-height line, right of the title — beside the
           controls it would push them; below them it would stretch the group. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
-        <span className="shrink-0 font-mono text-label uppercase tracking-display text-text">Manufacturing</span>
+        <span className="shrink-0 text-label uppercase tracking-eyebrow text-text">Manufacturing</span>
         <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
       </div>
       <BuildSystemControl

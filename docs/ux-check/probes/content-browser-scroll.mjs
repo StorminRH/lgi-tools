@@ -7,8 +7,8 @@ function near(actual, expected) {
 
 async function metrics(page) {
   return page.evaluate(() => {
-    const rail = document.querySelector('.content-browser-rail');
-    const body = document.querySelector('.content-browser-rail-body');
+    const rail = document.querySelector('[data-content-browser-rail]');
+    const body = document.querySelector('[data-content-browser-rail-body]');
     if (!(rail instanceof HTMLElement) || !(body instanceof HTMLElement)) {
       throw new Error('content-browser rail not found');
     }
@@ -26,6 +26,8 @@ async function metrics(page) {
       bodyMaxHeight: bodyStyle.maxHeight,
       bodyOverflowY: bodyStyle.overflowY,
       bodyOverscrollY: bodyStyle.overscrollBehaviorY,
+      bodyHasScrollArea: body.classList.contains('scroll-area'),
+      bodyScrollbarGutter: bodyStyle.scrollbarGutter,
     };
   });
 }
@@ -36,18 +38,13 @@ export default {
   viewports: ['desktop', 'mobile'],
   async run({ page, viewport, check, shot }) {
     if (viewport === 'mobile') {
-      const initial = await metrics(page);
-      check('mobile rail is static', initial.railPosition === 'static');
-      check('mobile rail body is fully visible', initial.bodyOverflowY === 'visible' && initial.bodyMaxHeight === 'none');
-      const rail = page.locator('.content-browser-rail');
-      const toggle = page.locator('.content-browser-rail-toggle');
-      check('mobile rail toggle is visible', await toggle.isVisible());
-      check('mobile rail starts open', (await rail.getAttribute('open')) === '');
-      await toggle.click();
-      check('mobile rail closes', (await rail.getAttribute('open')) === null);
-      await toggle.click();
-      check('mobile rail reopens', (await rail.getAttribute('open')) === '');
-      await shot('mobile-open');
+      const rail = page.locator('[data-content-browser-rail]');
+      const trigger = page.locator('[data-drawer-trigger]');
+      check('desktop rail is hidden on mobile', !(await rail.isVisible()));
+      check('mobile chapter bar is visible', await trigger.isVisible());
+      await trigger.tap();
+      check('mobile contents drawer opens', await page.locator('[data-drawer-popup]').isVisible());
+      await shot('mobile-drawer-open');
       return;
     }
 
@@ -55,6 +52,11 @@ export default {
     check('desktop rail is sticky', initial.railPosition === 'sticky');
     check('desktop rail owns internal scrolling', initial.bodyOverflowY === 'auto' && initial.bodyOverscrollY === 'auto');
     check('desktop rail content overflows', initial.bodyScrollHeight > initial.bodyClientHeight);
+    check(
+      'desktop rail advertises overflow with a stable visible scrollbar',
+      initial.bodyScrollbarGutter === 'stable'
+        && initial.bodyHasScrollArea,
+    );
     check('rail begins below its sticky stop', initial.railTop > STICKY_INSET + TOLERANCE);
 
     const followDistance = Math.min(40, (initial.railTop - STICKY_INSET) / 2);
@@ -72,7 +74,7 @@ export default {
     check('tall rail sticks at the top inset', near(stuck.railTop, STICKY_INSET));
     check('stuck rail remains inside the viewport', stuck.railBottom <= stuck.viewportHeight - STICKY_INSET + TOLERANCE);
 
-    const body = page.locator('.content-browser-rail-body');
+    const body = page.locator('[data-content-browser-rail-body]');
     await body.hover();
     const beforeInternal = await metrics(page);
     await page.mouse.wheel(0, 500);
@@ -85,8 +87,8 @@ export default {
     await body.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
-    const lastLinkVisible = await page.locator('.content-browser-nav-item').last().evaluate((link) => {
-      const bodyElement = link.closest('.content-browser-rail-body');
+    const lastLinkVisible = await page.locator('[data-content-browser-nav-item]').last().evaluate((link) => {
+      const bodyElement = link.closest('[data-content-browser-rail-body]');
       if (!(bodyElement instanceof HTMLElement)) return false;
       const linkRect = link.getBoundingClientRect();
       const bodyRect = bodyElement.getBoundingClientRect();
@@ -99,7 +101,7 @@ export default {
     await page.waitForTimeout(250);
     check('rail boundary chains scrolling to the page', (await metrics(page)).windowY > beforeChain.windowY);
 
-    await page.locator('.content-browser-nav-group').evaluateAll((groups) => {
+    await page.locator('[data-content-browser-nav-group]').evaluateAll((groups) => {
       for (const group of groups) group.open = false;
     });
     await body.evaluate((element) => {

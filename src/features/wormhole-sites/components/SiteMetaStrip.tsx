@@ -18,13 +18,13 @@ export function SiteMetaStrip({
         <span className="text-label tracking-eyebrow uppercase text-muted">
           Source
         </span>
-        <span className="text-name font-mono">{source}</span>
+        <span className="text-name font-data">{source}</span>
       </div>
       <div className="flex items-baseline gap-2">
         <span className="text-label tracking-eyebrow uppercase text-muted">
           Last price update
         </span>
-        <span className="text-name font-mono">{formatRelativeTime(lastPriceUpdate)}</span>
+        <span className="text-name font-data">{formatRelativeTime(lastPriceUpdate)}</span>
       </div>
     </div>
   );

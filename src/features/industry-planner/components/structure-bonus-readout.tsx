@@ -13,7 +13,7 @@ function Metric({ icon, title, value }: { icon: ReactNode; title: string; value:
     <Tooltip content={title}>
       <span
         tabIndex={0}
-        className="inline-flex items-center gap-1 font-mono text-micro leading-none text-isk"
+        className="inline-flex items-center gap-1 font-data text-micro leading-none text-isk"
       >
         <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
           {icon}
@@ -35,7 +35,7 @@ const BONUS_ROW: {
   ),
   cost: (row) => (
     <Tooltip content={`Structure job cost −${row.pct}`}>
-      <span tabIndex={0} className="font-mono text-micro leading-none text-isk">
+      <span tabIndex={0} className="font-data text-micro leading-none text-isk">
         cost −{row.pct}
       </span>
     </Tooltip>
@@ -43,14 +43,14 @@ const BONUS_ROW: {
   'rxn-te': (row) => (
     <span className="inline-flex items-center gap-1">
       {row.withMarker && (
-        <span className="font-mono text-label uppercase leading-none tracking-control text-muted">rxn</span>
+        <span className="font-data text-label uppercase leading-none tracking-label text-muted">rxn</span>
       )}
       <Metric icon={<HourglassIcon state="bonus" />} title={`Reaction TE −${row.pct}`} value={row.pct} />
     </span>
   ),
   tax: (row) => (
     <Tooltip content={`Owner-set facility tax ${row.taxPct}%`}>
-      <span tabIndex={0} className="font-mono text-micro leading-none text-muted">
+      <span tabIndex={0} className="font-data text-micro leading-none text-muted">
         tax {row.taxPct}%
       </span>
     </Tooltip>

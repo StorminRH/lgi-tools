@@ -148,7 +148,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           data-search-input
           aria-label="Search"
           className="nav-search w-[480px] max-lg:w-full"
-          prompt={<span className="shrink-0 font-mono text-ui font-bold text-isk">&gt;</span>}
+          prompt={<span className="shrink-0 font-data text-ui font-bold text-isk">&gt;</span>}
           trailing={<SearchHints active={active} />}
           type="text"
           spellCheck={false}
@@ -208,7 +208,7 @@ function SearchRowIcon({ row }: { row: SearchResult }) {
   return (
     <span
       className={cn(
-        'flex size-icon-lg shrink-0 items-center justify-center rounded-ctl border font-mono text-ui font-bold',
+        'flex size-icon-lg shrink-0 items-center justify-center rounded-ctl border font-data text-ui font-bold',
         searchIconClass(row.iconTone),
       )}
     >
@@ -237,11 +237,11 @@ function SearchRow({
     >
       <SearchRowIcon row={row} />
       <span className="flex min-w-0 flex-1 flex-col gap-px">
-        <span className="truncate font-mono text-ui text-name">
+        <span className="truncate font-data text-ui text-name">
           {renderLabel(row.label, row.matchIndices)}
         </span>
         {row.sub && (
-          <span className="truncate font-mono text-label uppercase tracking-[0.07em] text-muted">
+          <span className="truncate font-data text-label uppercase tracking-[0.07em] text-muted">
             {row.sub}
           </span>
         )}
@@ -271,7 +271,7 @@ function renderLabel(label: string, indices?: number[]) {
 
 function SearchFooter() {
   return (
-    <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-control text-faint">
+    <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-label text-faint">
       <span>
         Scope: <span className="text-isk">all</span> · sites · tools · commands
       </span>

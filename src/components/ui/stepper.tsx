@@ -75,7 +75,7 @@ export function Stepper({
         <NumberField.Input
           aria-label={ariaLabel}
           className={cn(
-            'bg-transparent text-center font-mono text-ui text-name outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+            'bg-transparent text-center font-data text-ui text-name outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
             inline
               ? 'w-[22px] tabular-nums'
               : 'h-7 w-12 border-x border-border-soft focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub',

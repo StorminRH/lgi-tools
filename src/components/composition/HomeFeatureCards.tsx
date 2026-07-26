@@ -11,7 +11,7 @@ import { SectionLabel } from '@/components/ui/section-label';
 export function HomeFeatureCards() {
   return (
     <section>
-      <SectionLabel className="mb-4">Tools</SectionLabel>
+      <SectionLabel className="mb-cluster">Tools</SectionLabel>
       {/* Tailwind arbitrary-value class, not an inline `style` prop — house
        * style keeps the column template in a class so it renders server-side,
        * not just after hydration. */}
@@ -25,11 +25,11 @@ export function HomeFeatureCards() {
           className="flex flex-1 flex-col gap-3 p-5 no-underline"
         >
           <div className="flex items-start justify-between gap-2">
-            <div className="font-display font-bold text-h3 tracking-[0.01em] leading-[1.15] text-name">
+            <div className="font-display font-bold text-h3 tracking-optical leading-[1.15] text-name">
               Wormhole Sites
             </div>
           </div>
-          <p className="flex-1 font-body text-body leading-[1.65] text-text">
+          <p className="flex-1 text-body leading-[1.65] text-text">
             Browse wormhole anomalies and signatures by class, site type, and ISK
             value. Live Jita prices on ore and gas resources.
           </p>
@@ -39,7 +39,7 @@ export function HomeFeatureCards() {
               <Pill tone="teal">Gas</Pill>
               <Pill tone="yellow">Ore</Pill>
             </div>
-            <span className="font-mono text-label tracking-ui text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
+            <span className="text-label tracking-copy text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
               open →
             </span>
           </div>
@@ -52,11 +52,11 @@ export function HomeFeatureCards() {
           className="flex flex-1 flex-col gap-3 p-5 no-underline"
         >
           <div className="flex items-start justify-between gap-2">
-            <div className="font-display font-bold text-h3 tracking-[0.01em] leading-[1.15] text-name">
+            <div className="font-display font-bold text-h3 tracking-optical leading-[1.15] text-name">
               Industry Planner
             </div>
           </div>
-          <p className="flex-1 font-body text-body leading-[1.65] text-text">
+          <p className="flex-1 text-body leading-[1.65] text-text">
             Manufacturing profitability for blueprints and reactions — build cost,
             margin, and price confidence at live Jita rates.
           </p>
@@ -67,7 +67,7 @@ export function HomeFeatureCards() {
               <Pill tone="purple">T3</Pill>
               <Pill tone="teal">Reactions</Pill>
             </div>
-            <span className="font-mono text-label tracking-ui text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
+            <span className="text-label tracking-copy text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
               open →
             </span>
           </div>

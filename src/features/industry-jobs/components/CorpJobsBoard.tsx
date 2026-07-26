@@ -59,7 +59,7 @@ export function CorpJobsBoard({
 
   return (
     <section>
-      <SectionLabel className="mb-3">Corporation industry jobs</SectionLabel>
+      <SectionLabel className="mb-cluster">Corporation industry jobs</SectionLabel>
       {eligibleCharacterIds.length === 0 ? (
         <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
           {null}
@@ -169,7 +169,7 @@ function CorpGroupHeader({ corpId, label }: { corpId: number; label: string }) {
       />
       <div className="min-w-0 flex-1">
         <div className="font-display font-bold text-h3 text-name truncate">{label}</div>
-        <div className="text-label text-muted tracking-ui">Corporation industry jobs</div>
+        <div className="text-label text-muted tracking-copy">Corporation industry jobs</div>
       </div>
     </div>
   );

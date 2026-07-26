@@ -3,13 +3,15 @@ import { extendTailwindMerge } from 'tailwind-merge';
 
 export type { ClassValue };
 
-// The named type-scale tokens (globals.css `@theme` --text-*). tailwind-merge
+// The named type-scale and semantic font-role tokens in globals.css. tailwind-merge
 // ships knowing only the default `text-xs…9xl` sizes, so without registering
 // these it misclassifies `text-ui`/`text-label`/… as text-COLOR utilities — and
 // when a size token and a tone color meet in one cn() call it drops one, so a
-// pill silently loses its color (or its size). Registering them in the font-size
-// group keeps size and color as separate, both-surviving groups. Keep this list
-// in sync with the `--text-*` scale in globals.css.
+// pill silently loses its color (or its size). The font, spacing, and container
+// theme extensions likewise teach every consuming class group about the house
+// values. Tracking has no exposed theme scale in tailwind-merge, so its house
+// values are enumerated in the class group below. Keep both registration forms
+// in sync with globals.css.
 //
 // The named radius/shadow tokens (--radius-* / --shadow-*, 3.8.2.2) need the same
 // treatment: the shadow tokens misfile into the `shadow-COLOR` group by default,
@@ -19,6 +21,20 @@ export type { ClassValue };
 // Keep both lists in sync with the `--radius-*`/`--shadow-*` tokens in globals.css.
 const twMerge = extendTailwindMerge({
   extend: {
+    theme: {
+      font: ['ui', 'data', 'display'],
+      spacing: [
+        'icon-xs',
+        'icon-sm',
+        'icon-md',
+        'icon-lg',
+        'cluster',
+        'section',
+        'region',
+        'page',
+      ],
+      container: ['reading', 'frame'],
+    },
     classGroups: {
       'font-size': [
         {
@@ -26,14 +42,21 @@ const twMerge = extendTailwindMerge({
             'micro',
             'label',
             'ui',
+            'nav',
             'body',
             'lead',
             'h3',
             'stat',
             'h2',
+            'title',
             'display',
             'hero',
           ],
+        },
+      ],
+      tracking: [
+        {
+          tracking: ['optical', 'copy', 'label', 'wide', 'eyebrow'],
         },
       ],
       rounded: [{ rounded: ['ctl', 'card'] }],
@@ -50,7 +73,6 @@ const twMerge = extendTailwindMerge({
             'toast',
             'status-info',
             'status-warn',
-            'home-live',
             'dot-orange',
             'dot-blue',
             'selected-rail',

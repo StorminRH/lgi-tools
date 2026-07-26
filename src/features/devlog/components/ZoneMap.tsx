@@ -110,7 +110,7 @@ function ZoneMapCells({ layout }: { layout: ZoneMapLayout }) {
 
 function ZoneMapAxes({ layout }: { layout: ZoneMapLayout }) {
   return (
-    <g className="fill-muted font-mono text-micro">
+    <g className="fill-muted font-data text-micro">
       {layout.rowLabels.map((row) => (
         <text key={row.id} x={row.x} y={row.y} textAnchor="end" dominantBaseline="middle">
           {row.label}
@@ -144,7 +144,7 @@ function ZoneMapAxes({ layout }: { layout: ZoneMapLayout }) {
 function ZoneMapLegend({ layout }: { layout: ZoneMapLayout }) {
   const half = layout.litSize / 2;
   return (
-    <g className="fill-faint font-mono text-micro">
+    <g className="fill-faint font-data text-micro">
       {layout.legend.map((entry) => (
         <text key={entry.kind} x={entry.x + layout.litSize + 8} y={entry.y} dominantBaseline="middle">
           {entry.label}

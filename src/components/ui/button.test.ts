@@ -25,6 +25,13 @@ describe('buttonVariants', () => {
     expect(buttonVariants({})).toContain('border-border-idle');
     expect(buttonVariants({})).toContain('px-4');
   });
+
+  it('uses the sentence-case navigation role', () => {
+    const classes = buttonVariants({});
+    expect(classes).toContain('font-ui');
+    expect(classes).toContain('text-nav');
+    expect(classes).not.toContain('uppercase');
+  });
 });
 
 describe('Button', () => {

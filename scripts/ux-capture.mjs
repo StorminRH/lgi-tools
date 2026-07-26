@@ -51,11 +51,11 @@ function watchPage(page) {
   return diag;
 }
 
-// Mobile-only: open the global hamburger (revealed below 1024px) and capture it
-// expanded. Best-effort — returns null where the toggle isn't present.
+// Open the global hamburger wherever the active viewport reveals it and capture
+// the expanded state. Best-effort — returns null where the toggle isn't present.
 async function captureNavOpen(page, slug, viewport) {
   try {
-    const toggle = page.locator('button.nav-menu-toggle');
+    const toggle = page.locator('[data-nav-menu-toggle]');
     if (!(await toggle.isVisible())) return null;
     await toggle.click();
     await page.waitForTimeout(250);
@@ -80,19 +80,17 @@ async function gotoAndSettle(page, url, settle) {
   }
 }
 
-// Take the base screenshot (+ mobile nav-open shot). Returns the shot paths and a
-// screenshot error message if one occurred — one route's failure never aborts the
-// sweep.
+// Take the base screenshot plus a nav-open shot wherever the responsive header
+// exposes its toggle. Returns the shot paths and a screenshot error message if
+// one occurred — one route's failure never aborts the sweep.
 async function captureShots(page, slug, viewport) {
   const shots = [];
   try {
     const baseShot = path.join(OUT_DIR, `${slug}--${viewport}.png`);
     await page.screenshot({ path: baseShot, fullPage: true });
     shots.push(baseShot);
-    if (viewport === 'mobile') {
-      const navShot = await captureNavOpen(page, slug, viewport);
-      if (navShot) shots.push(navShot);
-    }
+    const navShot = await captureNavOpen(page, slug, viewport);
+    if (navShot) shots.push(navShot);
     return { shots, shotError: null };
   } catch (err) {
     return { shots, shotError: `screenshot failed: ${err.message}` };

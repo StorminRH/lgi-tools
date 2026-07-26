@@ -6,6 +6,7 @@ import { PriceConfidence } from '@/components/ui/price-confidence';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { Pill } from '@/components/ui/pill';
 import { SegmentedControl } from '@/components/ui/segmented';
+import { scrollArea } from '@/components/ui/scroll-area';
 import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
@@ -90,7 +91,7 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
       <PopoverHeading>Input cost</PopoverHeading>
       <PopoverRow label="Raw">{bases ? formatIsk(bases.batched) : '—'}</PopoverRow>
       <PopoverRow label="Item">{bases ? formatIsk(bases.marginal) : '—'}</PopoverRow>
-      <p className="max-w-[240px] font-body text-body leading-snug text-muted">
+      <p className="max-w-[240px] text-body leading-snug text-muted">
         Raw is the full production line, including the excess that whole batches produce.
         Item is only what this build consumes.
       </p>
@@ -139,7 +140,7 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
       trigger={<Pill tone="green">−{callout.pct}%</Pill>}
     >
       <PopoverHeading>Regional discount</PopoverHeading>
-      <p className="max-w-[240px] font-body text-body leading-snug text-muted">
+      <p className="max-w-[240px] text-body leading-snug text-muted">
         Available at <span className="text-text">{systemName}</span> for {article}{' '}
         <span className="text-isk">{callout.pct}%</span> discount —{' '}
         {callout.units.toLocaleString('en-US')} units.
@@ -199,13 +200,13 @@ function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string 
   return (
     <KpiHelp label="Fee breakdown">
       <PopoverHeading>{`Fees${systemName ? ` · ${systemName}` : ''}`}</PopoverHeading>
-      <div className="flex flex-col gap-1 font-body text-ui leading-snug">
-        <div className="font-mono text-label uppercase tracking-wide text-faint">Install</div>
+      <div className="flex flex-col gap-1 text-ui leading-snug">
+        <div className="text-label uppercase tracking-wide text-faint">Install</div>
         {fees.install.map(row)}
         {subtotal('Install fee', fees.installTotal)}
       </div>
-      <div className="flex flex-col gap-1 font-body text-ui leading-snug">
-        <div className="font-mono text-label uppercase tracking-wide text-faint">Sell</div>
+      <div className="flex flex-col gap-1 text-ui leading-snug">
+        <div className="text-label uppercase tracking-wide text-faint">Sell</div>
         {fees.sell.map(row)}
         {subtotal('Sell fees', fees.sellTotal)}
       </div>
@@ -222,11 +223,11 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
     <KpiHelp label="How total job time is calculated">
       <PopoverHeading>Total job time — whole tree</PopoverHeading>
       <div className="flex flex-col">
-        <div className="flex max-h-[240px] flex-col gap-1 overflow-y-auto pr-1">
+        <div className={cn(scrollArea, 'flex max-h-[240px] flex-col gap-1 overflow-y-auto pr-1')}>
           {buildTimes.breakdown.map((line) => (
             <div
               key={line.typeId}
-              className="flex items-baseline justify-between gap-3 font-mono text-ui"
+              className="flex items-baseline justify-between gap-3 text-ui"
             >
               <span className="truncate text-muted">{line.name}</span>
               <span className="shrink-0 whitespace-nowrap tabular-nums text-faint">
@@ -236,14 +237,14 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
             </div>
           ))}
         </div>
-        <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-ui">
-          <span className="uppercase tracking-emphasis text-muted">Total</span>
+        <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 text-ui">
+          <span className="uppercase tracking-wide text-muted">Total</span>
           <span className="tabular-nums font-semibold text-evb-bright">
             {buildTimes.totalProduction ?? '—'}
           </span>
         </div>
       </div>
-      <p className="font-mono text-micro leading-snug tracking-copy text-faint">
+      <p className="text-micro leading-snug tracking-copy text-faint">
         Sequential — one job at a time. TE applied per blueprint; structure and build-character
         skills applied when selected; parallel slots not counted.
       </p>
@@ -390,7 +391,7 @@ export function CockpitKpis({
   });
 
   return (
-    <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 cockpit:grid-cols-6">
       <InputCostTile />
       <SellTile />
       <NetMarginTile view={margin} pricing={pricing} seeded={seeded} setMarginMode={setMarginMode} />

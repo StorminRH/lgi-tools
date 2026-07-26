@@ -38,9 +38,9 @@ export async function HomeLiveStats() {
   return (
     <section aria-label="Live dataset status">
       <SectionLabel
-        className="mb-4"
+        className="mb-cluster"
         meta={
-          <span className="inline-flex items-center gap-2 font-mono text-label uppercase tracking-wide text-muted">
+          <span className="inline-flex items-center gap-2 font-data text-label uppercase tracking-wide text-muted">
             <Dot tone="green" />
             Updated on demand
           </span>
@@ -63,12 +63,12 @@ export async function HomeLiveStats() {
               {/* DOM order is <dt> then <dd> — valid <dl> semantics and natural
                   reading order ("label, value"); `order` flips the visual so the
                   value still sits on top. */}
-              <dt className="order-2 font-mono text-label uppercase tracking-control text-muted">
+              <dt className="order-2 font-data text-label uppercase tracking-label text-muted">
                 {stat.label}
               </dt>
               <dd
                 className={cn(
-                  'order-1 font-jb font-semibold text-name tabular-nums',
+                  'order-1 font-data font-semibold text-name tabular-nums',
                   stat.compact ? 'text-lead leading-[26px]' : 'text-stat leading-none',
                 )}
               >
@@ -79,10 +79,10 @@ export async function HomeLiveStats() {
         </dl>
 
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-border-soft bg-bg-deep/40">
-          <span className="font-mono text-label uppercase tracking-wide text-muted">
+          <span className="font-data text-label uppercase tracking-wide text-muted">
             EVE SDE
           </span>
-          <span className="text-right font-mono text-micro text-muted">
+          <span className="text-right font-data text-micro text-muted">
             <span className="text-name">{sde.version ?? '—'}</span>
             {sde.ingestedAt ? (
               <span className="text-muted"> · ingested {formatUtcDate(sde.ingestedAt)}</span>

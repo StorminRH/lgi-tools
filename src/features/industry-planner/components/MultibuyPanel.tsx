@@ -101,7 +101,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       className="w-[320px]"
       triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
       trigger={
-        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-display text-muted group-hover:text-name">
+        <span className="inline-flex items-baseline gap-2 text-label font-semibold uppercase tracking-eyebrow text-muted group-hover:text-name">
           <span className="tracking-normal text-isk">{'//'}</span>
           Multibuy
           <span className="inline-block text-micro text-muted">▾</span>
@@ -109,11 +109,11 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       }
     >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-label font-semibold uppercase tracking-display text-isk">
+        <span className="text-label font-semibold uppercase tracking-eyebrow text-isk">
           Multibuy export
         </span>
         <KpiHelp label="What the multibuy export copies">
-          <p className="font-body text-body leading-snug text-muted">
+          <p className="text-body leading-snug text-muted">
             Check the tiers you&rsquo;ll build yourself.
           </p>
           <PopoverRow label="Total">
@@ -149,8 +149,8 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
               onCheckedChange={(build) => toggleTier(depth, build)}
               label={`Build tier ${depth}`}
             />
-            <span className="font-mono text-ui text-text">Tier {depth}</span>
-            <span className="font-mono text-micro text-faint">· {pluralCount(count, 'type', 'types')}</span>
+            <span className="text-ui text-text">Tier {depth}</span>
+            <span className="text-micro text-faint">· {pluralCount(count, 'type', 'types')}</span>
           </label>
         ))}
       </div>
@@ -159,7 +159,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
         <Button variant="primary" size="sm" onClick={copy} disabled={entries.length === 0}>
           Copy
         </Button>
-        <span className="font-mono text-micro tabular-nums text-muted">
+        <span className="font-data text-micro tabular-nums text-muted">
           {pluralCount(entries.length, 'item', 'items')} · {effectiveMode}
         </span>
       </div>

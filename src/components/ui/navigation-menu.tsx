@@ -12,9 +12,8 @@ import type { Tone } from './tones';
 // a bare <nav> so a tool can later grow a dropdown panel: a `NavigationMenuItem`
 // gains a Base UI `Trigger` + `Content` without restructuring the bar. Nothing
 // dropdown-related is wired yet — this is the open seam. `NavigationMenuLink`
-// carries a native `active` (current page → `aria-current`). The cell look lives
-// at the call site (globals.css `.nav-tool`), abstract-tone style; the primitive
-// owns only layout (a full-height flex row).
+// carries a native `active` (current page → `aria-current`). The shared cell
+// recipe below owns both the desktop strip and hamburger rows.
 
 /**
  * Closed presentation vocabulary for navigation menu tone; feature callers map domain meaning to
@@ -22,9 +21,8 @@ import type { Tone } from './tones';
  */
 export type NavigationMenuTone = Extract<Tone, 'neutral'>;
 
-// The list is the flex row. Structural-only tone (the cell surface is the call
-// site's `.nav-tool`), matching `menu.tsx`'s lean tone; reset the <ul> defaults.
-const list = cva('flex items-stretch list-none m-0 p-0', {
+// The list is the flex row; reset the <ul> defaults.
+const list = cva('flex items-stretch divide-x divide-border list-none m-0 p-0', {
   variants: {
     tone: {
       neutral: '',
@@ -32,6 +30,52 @@ const list = cva('flex items-stretch list-none m-0 p-0', {
   },
   defaultVariants: { tone: 'neutral' },
 });
+
+/**
+ * Shared navigation-cell presentation for the desktop strip and hamburger menu.
+ * Callers provide only active/disabled state and the structural placement.
+ */
+export const navigationMenuLink = cva(
+  'inline-flex items-center whitespace-nowrap font-ui text-nav font-medium text-muted ' +
+    'transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset ' +
+    'focus-visible:ring-isk-sub motion-reduce:transition-none',
+  {
+    variants: {
+      placement: {
+        desktop:
+          'relative px-6 ' +
+          'after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-isk after:opacity-0 ' +
+          'after:transition-opacity motion-reduce:after:transition-none',
+        menu: 'w-full border-b border-border-soft px-4 py-3',
+      },
+      active: {
+        true: 'text-name after:opacity-100',
+        false: '',
+      },
+      disabled: {
+        true: 'cursor-default opacity-40',
+        false: 'cursor-pointer',
+      },
+    },
+    compoundVariants: [
+      {
+        placement: 'desktop',
+        disabled: false,
+        className: 'hover:bg-row-hover hover:text-name hover:after:opacity-80',
+      },
+      {
+        placement: 'menu',
+        disabled: false,
+        className: 'hover:bg-row-active hover:text-name',
+      },
+    ],
+    defaultVariants: {
+      placement: 'desktop',
+      active: false,
+      disabled: false,
+    },
+  },
+);
 
 /**
  * Renders the domain-neutral navigation menu with house behavior and tokens; callers own semantic

@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/components/ui/cn';
 import type { ContentNavItem, ContentNavModel } from './content-browser-view';
 import { contentBrowserHref, deriveActiveContentSlug } from './content-browser-view';
 
@@ -32,10 +31,8 @@ function ContentItemLink({
       href={contentBrowserHref(basePath, item.slug, landingSlug)}
       prefetch={false}
       aria-current={active ? 'page' : undefined}
-      className={cn(
-        'content-browser-nav-item',
-        active && 'content-browser-nav-item-active',
-      )}
+      data-content-browser-nav-item
+      className="relative block py-1.5 pl-3 pr-2 font-ui text-ui tracking-optical text-muted no-underline transition-colors before:absolute before:-left-px before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-transparent before:content-[''] hover:bg-row-hover hover:text-text aria-[current=page]:bg-row-hover aria-[current=page]:text-isk aria-[current=page]:before:bg-isk motion-reduce:transition-none"
     >
       {item.title}
     </Link>
@@ -54,8 +51,8 @@ export function ContentBrowserNavTree({
   activeSlug,
 }: ContentBrowserNavProps & { activeSlug: string | null }) {
   return (
-    <nav className="content-browser-nav" aria-label={navigationLabel}>
-      <ul className="content-browser-nav-items">
+    <nav className="font-ui" aria-label={navigationLabel}>
+      <ul className="mb-3.5 list-none border-l border-nav-guide">
         {model.items.map((item) => (
           <li key={item.slug}>
             <ContentItemLink
@@ -71,16 +68,21 @@ export function ContentBrowserNavTree({
         <details
           key={group.slug}
           data-collapsible
+          data-content-browser-nav-group
           open
-          className="content-browser-nav-group group"
+          className="group mb-1 rounded-ctl py-1 has-[[aria-current=page]]:bg-nav-wash"
         >
-          <summary className="content-browser-nav-group-summary list-none [&::-webkit-details-marker]:hidden">
-            <span data-chevron className="content-browser-nav-chevron" aria-hidden>
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1.5 font-ui text-label tracking-label uppercase text-faint hover:text-muted [&::-webkit-details-marker]:hidden">
+            <span
+              data-chevron
+              className="inline-block w-2 text-micro text-faint transition-transform group-open:rotate-90 motion-reduce:transition-none"
+              aria-hidden
+            >
               ▸
             </span>
-            <span className="content-browser-nav-group-name">{group.title}</span>
+            <span>{group.title}</span>
           </summary>
-          <ul className="content-browser-nav-group-items">
+          <ul className="ml-4 list-none border-l border-nav-guide">
             {group.items.map((item) => (
               <li key={item.slug}>
                 <ContentItemLink

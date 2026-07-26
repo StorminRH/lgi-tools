@@ -40,8 +40,8 @@ function PlannerHead({
 }) {
   return (
     <header className="grid grid-cols-1 items-end gap-x-6 gap-y-2 pt-[26px] pb-1 sm:grid-cols-[1fr_auto_1fr]">
-      <div className="inline-flex items-baseline gap-5 justify-self-start font-mono text-label tracking-label text-muted">
-        <span>
+      <div className="inline-flex items-baseline gap-5 justify-self-start text-label tracking-label text-muted">
+        <span className="font-data">
           <span className="text-isk">lgi://</span>
           <Link href="/industry" className="hover:text-isk">
             industry
@@ -49,10 +49,10 @@ function PlannerHead({
         </span>
         <TemplatesMenu blueprintTypeId={blueprintTypeId} productName={name} />
       </div>
-      <h1 className="text-center font-display text-display font-bold uppercase leading-none tracking-[0.01em] text-name">
+      <h1 className="text-center font-display text-display font-bold uppercase leading-none tracking-optical text-name">
         {name}
       </h1>
-      <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 font-mono text-label uppercase tracking-label text-muted">
+      <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 text-label uppercase tracking-label text-muted">
         {group && <span>{group}</span>}
         <Pill tone="blue">{activity}</Pill>
         <Pill tone="neutral">{perRun} per Run</Pill>

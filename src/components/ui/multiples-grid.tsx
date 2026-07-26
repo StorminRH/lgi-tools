@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { eyebrow } from './type-roles';
 
 // A small-multiples layout: N equal cells, three-up on desktop and stacked on
 // mobile, sharing one hairline grid. Layout only — each cell's header (title,
@@ -48,12 +49,12 @@ export function MultiplesCell({
 }) {
   return (
     <div className="bg-bg px-3 py-3 flex flex-col gap-1.5">
-      <div className="text-label tracking-emphasis uppercase text-muted">{title}</div>
+      <div className={eyebrow({ emphasis: 'strong' })}>{title}</div>
       <div className="flex items-baseline gap-2">
-        <span className="font-mono text-lead text-name tabular-nums">{value}</span>
+        <span className="font-data text-lead text-name tabular-nums">{value}</span>
         {delta}
       </div>
-      {note && <div className="font-mono text-micro text-muted">{note}</div>}
+      {note && <div className="font-data text-micro text-muted">{note}</div>}
       <div className="mt-1">{children}</div>
     </div>
   );

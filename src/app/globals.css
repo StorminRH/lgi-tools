@@ -31,6 +31,11 @@
   --color-row-sites-on: rgba(255,255,255,0.035);
   --color-row-job-head: rgba(255,255,255,0.012);
   --color-row-job-hover: rgba(255,255,255,0.014);
+  --color-nav-guide: #1a2029;
+  --color-nav-wash: rgba(255,255,255,0.012);
+  --color-scroll-track: #0b0f14;
+  --color-scroll-thumb: #465362;
+  --color-scroll-thumb-hover: #657487;
   --color-focus-ring: rgba(61,214,140,0.55);
   --color-backdrop-clear: rgba(6,7,8,0);
   --color-backdrop-floor: rgba(6,7,8,0.78);
@@ -202,34 +207,29 @@
   --text-micro:   10px;     --text-micro--line-height:   1.4;  /* dot sublabels, unit suffixes, superscripts, fine-print */
   --text-label:   11.5px;  --text-label--line-height:   1.4;  /* uppercase tracked labels, table headers, breadcrumbs */
   --text-ui:      13px;     --text-ui--line-height:      1.5;  /* nav, table cells, pills, buttons, form controls */
-  --text-body:    15.5px;  --text-body--line-height:    1.7;  /* prose, card descriptions, devlog text */
+  --text-nav:     14px;     --text-nav--line-height:     1.6;  /* navigation, menu rows, everyday action language */
+  --text-body:    16px;     --text-body--line-height:    1.7;  /* prose, card descriptions, devlog text */
   --text-lead:    17px;     --text-lead--line-height:    1.6;  /* hero pitch line, section intros */
   --text-h3:      19px;     --text-h3--line-height:      1.2;  /* small headings: card titles, dialog/section sub-heads */
-  --text-stat:    26px;     --text-stat--line-height:    1.1;  /* KPI numerals — + font-jb tabular-nums at call site */
+  --text-stat:    26px;     --text-stat--line-height:    1.1;  /* KPI numerals — + font-data tabular-nums at call site */
   --text-h2:      26px;     --text-h2--line-height:      1.15; /* section headings — + font-display at call site */
+  --text-title:   clamp(28px, 2.6vw, 36px); --text-title--line-height: 1.08; /* routine page titles */
   --text-display: clamp(30px, 3.4vw, 42px); --text-display--line-height: 1.05; /* page titles / PageHead (Barlow) */
   --text-hero:    clamp(44px, 6.5vw, 68px); /* landing wordmark + error/404 titles */
 
   /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ──
-   * The canonical three-family roster and its role map — the single source of
+   * The canonical three-role roster — the single source of
    * truth the "no stray family" check reads against (3.6.11 F1):
-   *   --font-body    (Geist)         → body / content prose
-   *   --font-display (Barlow Cond.)  → display: page titles / PageHead
-   *   --font-mono    (JetBrains Mono)→ UI + terminal chrome (breadcrumbs, nav
-   *                                    labels, readouts, toasts); the default face
-   *   --font-jb      (JetBrains Mono)→ ALIAS of the same face, marking the
-   *                                    [Lo-Gang] wordmark + tabular numerals that
-   *                                    column-align in ISK/quantity tables
-   * JetBrains Mono is the single monospace face now (IBM Plex Mono was retired in
-   * 3.8.2.1): it carries both the default UI chrome and — via the --font-jb alias —
-   * the branded wordmark and tabular figures. The alias is kept (not folded) so the
-   * branded/tabular intent stays marked at its call sites and can re-split from the
-   * chrome face later without call-site archaeology.
+   *   --font-ui      (Geist)         → everyday interface language and prose
+   *   --font-data    (JetBrains Mono)→ values, status, code, metadata and identity
+   *   --font-display (Barlow Cond.)  → page titles and display identity
+   * `--font-mono: initial` retires Tailwind's legacy `font-mono` utility so a
+   * stale class cannot silently keep the old page-default role.
    */
-  --font-mono:    var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: initial;
+  --font-ui:      var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-data:    var(--font-jetbrains), ui-monospace, "SFMono-Regular", "Menlo", monospace;
   --font-display: var(--font-barlow), system-ui, sans-serif;
-  --font-jb:      var(--font-jetbrains), ui-monospace, monospace;
-  --font-body:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
   /* ── Radii (3.8.2.2 "Inset Instrument") ──
    * Two jobs, collapsing the old 1/2/3/4/5/6/11px spread. `--radius-*` generates
@@ -242,13 +242,10 @@
   --radius-card: 6px;  /* cards, panels, dropdown panels, dialogs */
 
   /* ── Micro scales (3.8.2.8) ── */
+  --tracking-optical: 0.01em;
   --tracking-copy: 0.04em;
-  --tracking-ui: 0.06em;
   --tracking-label: 0.08em;
-  --tracking-control: 0.1em;
   --tracking-wide: 0.12em;
-  --tracking-emphasis: 0.14em;
-  --tracking-display: 0.16em;
   --tracking-eyebrow: 0.18em;
   --transition-duration-fast: 150ms;
   --transition-duration-panel: 200ms;
@@ -261,6 +258,15 @@
   --spacing-icon-sm: 14px;
   --spacing-icon-md: 18px;
   --spacing-icon-lg: 22px;
+  --spacing-cluster: 0.75rem;
+  --spacing-section: 2rem;
+  --spacing-region: 3rem;
+  --spacing-page: 4rem;
+  --container-reading: 47.5rem;
+  --container-frame: 80rem;
+  --breakpoint-split: 56.25rem;
+  --breakpoint-cockpit: 67.5rem;
+  --breakpoint-nav: 86.25rem;
 
   /* ── Elevation (3.8.2.2 "Inset Instrument") ──
    * `--shadow-*` generates `shadow-*` utilities (shadow-field-inset, …); registered
@@ -277,14 +283,13 @@
   --shadow-btn-bezel:   0 1px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --shadow-card-edge:   inset 0 1px 0 rgba(255, 255, 255, 0.025);
   --shadow-dd:          inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 10px 26px rgba(0, 0, 0, 0.5);
-  /* Card's opt-in hover — reproduces the .sites-card:hover ring/lift exactly so the
-   * wormhole-site cards don't regress when they move onto the Card primitive. */
+  /* Card's opt-in hover preserves the prior wormhole-card ring/lift so the
+   * catalogue does not regress when those surfaces use the Card primitive. */
   --shadow-card-hover:  0 0 0 1px var(--color-card-glow-ring), 0 8px 26px -10px var(--color-card-glow-shadow);
   --shadow-popover-green: 0 0 0 1px rgba(61,214,140,0.12), 0 8px 24px -8px rgba(61,214,140,0.2);
   --shadow-toast: 0 0 18px -7px rgba(61,214,140,0.18), 0 10px 30px -10px rgba(0,0,0,0.85);
   --shadow-status-info: 0 0 8px rgba(61,214,140,0.5);
   --shadow-status-warn: 0 0 8px rgba(255,170,34,0.45);
-  --shadow-home-live: 0 0 8px var(--color-card-glow-shadow);
   --shadow-dot-orange: 0 0 4px var(--color-dot-orange-glow);
   --shadow-dot-blue: 0 0 4px var(--color-dot-blue-glow);
   --shadow-selected-rail: inset 2px 0 0 var(--color-isk);
@@ -300,7 +305,7 @@ html {
 
 html, body {
   color: var(--color-text);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
 }
 
 body {
@@ -311,6 +316,48 @@ body {
    * descriptive copy; dense chrome that needs tighter stacking sets its own
    * leading at the call site. */
   line-height: 1.65;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-data);
+}
+
+/* Shared bounded-scroll affordance (`components/ui/scroll-area.ts`).
+ * The stable gutter and painted track make overflow discoverable before the
+ * first wheel gesture; both browser scrollbar engines use the same neutral
+ * palette instead of the near-black system overlay. */
+.scroll-area {
+  scrollbar-gutter: stable;
+}
+/* Firefox uses the standardized color/width properties. Chromium/WebKit stay
+ * on the explicitly painted pseudo-elements below: on macOS that opts bounded
+ * regions out of the disappearing system-overlay treatment. */
+@supports not selector(::-webkit-scrollbar) {
+  .scroll-area {
+    scrollbar-color: var(--color-scroll-thumb) var(--color-scroll-track);
+    scrollbar-width: thin;
+  }
+}
+.scroll-area::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.scroll-area::-webkit-scrollbar-track {
+  background: var(--color-scroll-track);
+  border-left: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+}
+.scroll-area::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  background: var(--color-scroll-thumb);
+  border: 2px solid var(--color-scroll-track);
+  border-radius: 999px;
+}
+.scroll-area::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scroll-thumb-hover);
 }
 
 /* Universal link hover vocabulary — every <a> transitions toward the green
@@ -483,7 +530,7 @@ a:hover {
 
 /* ── Static pages — /legal, /contact, /changelog (handoff §6) ────────────
  * The three footer pages share the .OGP page-head scaffold (PageHead) plus
- * these blocks. Descriptive prose is Geist (--font-body); labels, values, and
+ * these blocks. Descriptive prose uses the interface role; labels, values, and
  * version tags stay mono. No new tokens. */
 
 /* Shared long-form reading surface; the Prose primitive selects only the
@@ -496,7 +543,7 @@ a:hover {
   margin-inline: auto;
 }
 .prose-copy p {
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
   line-height: 1.72;
   letter-spacing: 0.01em;
@@ -527,7 +574,7 @@ a:hover {
 .prose-copy li {
   position: relative;
   padding-left: 18px;
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
   line-height: 1.65;
   letter-spacing: 0.01em;
@@ -540,7 +587,7 @@ a:hover {
   border-radius: 4px;
   background: var(--color-section);
   padding: 1px 5px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-ui);
   color: var(--color-name);
 }
@@ -548,7 +595,7 @@ a:hover {
   margin: 0 0 14px;
   border-left: 2px solid var(--color-isk-dim);
   padding: 2px 0 2px 16px;
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: var(--text-body);
   font-style: italic;
   line-height: 1.7;
@@ -563,7 +610,7 @@ a:hover {
   padding: 16px 18px;
 }
 .legal-note p {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-body);
   line-height: 1.7;
   letter-spacing: 0.02em;
@@ -598,74 +645,6 @@ a:hover {
   flex-shrink: 0;
 }
 
-/* Nav tool strip (3.6.3, handoff §2) — better-auth-style full-height cells
- * separated by vertical hairlines that touch the header's top/bottom edges.
- * Quiet uppercase mono at rest; hover brightens the text, adds a faint tint,
- * and lights a 1px ISK-green rule along the bottom edge; the active page shows
- * that rule at full opacity. The strip is `ml-auto` so it sits right-aligned
- * with a gap after the search bar, and carries its own `border-l` hairline
- * (set in NavTools' className) to close that gap; the last cell drops its
- * border-right because the price-freshness slot's border-l draws that seam. */
-.nav-tool {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 24px;
-  border-right: 1px solid var(--color-border-soft);
-  font-family: var(--font-mono);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  white-space: nowrap;
-  transition: color var(--transition-duration-fast), background var(--transition-duration-fast);
-}
-.nav-tool::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 1px;
-  background: var(--color-isk);
-  opacity: 0;
-  transition: opacity var(--transition-duration-fast);
-}
-/* Hover is scoped away from .soon so the disabled "coming soon" cell stays
- * inert (§2: "no hover") while keeping its title tooltip — pointer-events:none
- * would suppress the hover but also drop the tooltip the other cells keep.
- * The exclusion uses :where() (zero specificity) so the hover rule stays at the
- * same specificity as .nav-tool.active below — the later active rule then wins
- * on hover, keeping the active cell's green rule at full opacity (the standard
- * later-same-specificity-rule-wins pattern). */
-.nav-tool:where(:not(.soon)):hover {
-  color: var(--color-name);
-  background: var(--color-row-hover);
-}
-.nav-tool:where(:not(.soon)):hover::after { opacity: 0.8; }
-.nav-tool.active { color: var(--color-name); }
-.nav-tool.active::after { opacity: 1; }
-.nav-tool.soon { opacity: 0.4; cursor: default; }
-/* The strip is now a NavigationMenu (<nav><ul><li><a class="nav-tool">), so the
- * last cell is reached via its <li> — a bare `.nav-tool:last-child` would match
- * every cell (each is the only child of its own <li>) and drop all separators. */
-.nav-tools li:last-child .nav-tool { border-right: none; }
-
-/* ── Responsive defensive layer (v2.9.6) ───────────────────────────────
- * LGI.tools is desktop-first; this block is the Level-1 floor that keeps
- * the site usable on laptop (1366×768) and tablet (1024×768) viewports
- * without overlap or horizontal scroll. Full mobile UX defers to a
- * post-Phase-3 version. Breakpoints: 1500 / 1024 / 900 / 700 / 640. */
-
-/* Below this floor the wordmark + search + right-aligned strip leave less room,
- * so tighten the tool cells (padding / size) to keep the two full labels and the
- * search bar fitting without overflow. The strip no longer clips (no
- * overflow-hidden), so this floor, not a clip, is what prevents overflow. */
-@media (max-width: 1380px) {
-  .nav-tool { padding: 0 10px; font-size: var(--text-ui); letter-spacing: 0.08em; }
-}
-
 /* Tranquility status chip (NAV-TQ). A passive indicator: a coloured LED keyed
  * to server state + a compact "TQ · <count>" label. Online pulses green; the
  * VIP-only window after downtime shows a static amber dot; an unreachable
@@ -698,121 +677,10 @@ a:hover {
   .status-led { animation: none; }
 }
 
-/* Hamburger menu (NavMenu) — the mobile counterpart to the inline tool strip +
- * login cluster. The trigger <button> is hidden by default; the <1024px block
- * below reveals it on the bar. The panel is a Base UI Menu popup, portaled to
- * <body> and positioned by Floating UI against .app-header (so it drops below
- * the whole wrapped header). It carries its own surface here; the vertical stack
- * of full-width tap targets comes from the primitive's `flex flex-col`. The
- * inline strip + login are hidden on mobile by the rule further down. */
-.nav-menu-toggle {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0 16px;
-  border-left: 1px solid var(--color-border);
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: color var(--transition-duration-fast), background var(--transition-duration-fast);
-}
-.nav-menu-toggle:hover,
-.nav-menu-toggle[data-popup-open] {
-  color: var(--color-name);
-  background: var(--color-row-hover);
-}
-.nav-menu-icon { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; }
-.nav-menu-panel {
-  min-width: 224px;
-  /* Surface (bg/border/shadow) comes from the Menu primitive's shared panel; this
-   * keeps only the header-flush override so the panel meets the header seam. */
-  border-top: none;
-}
-/* the link rows, restacked vertically into full-width tap targets */
-.nav-menu-panel .nav-tool {
-  padding: 12px 16px;
-  border-right: none;
-  border-bottom: 1px solid var(--color-border-soft);
-}
-.nav-menu-panel .nav-tool::after { display: none; }
-.nav-menu-login {
-  display: flex;
-  padding: 12px 16px;
-  border-top: 1px solid var(--color-border);
-}
-
-/* Account menu (AccountMenu) — the signed-in portrait's dropdown (ACCOUNT.5),
- * on the same Base UI Menu primitive + surface as the hamburger panel above,
- * anchored to .app-header so it drops flush under the header's right edge.
- * Rows keep a padding rhythm with no per-row borders; the two structural
- * dividers (before the page-settings section, before Log out) come from the
- * section's and the separator's border-top, so no route ever shows a double
- * line. Desktop-only by construction: the login cluster is hidden <1024px. */
-.account-menu-panel {
-  min-width: 240px;
-  /* Surface comes from the shared Menu panel; keep only the header-flush override. */
-  border-top: none;
-}
-.account-menu-item {
-  padding: 12px 16px;
-  font-family: var(--font-mono);
-  font-size: var(--text-ui);
-  font-weight: 500;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: color var(--transition-duration-fast), background var(--transition-duration-fast);
-}
-.account-menu-item[data-highlighted],
-.account-menu-item:hover {
-  color: var(--color-name);
-  background: var(--color-row-active);
-}
-.account-menu-separator {
-  border-top: 1px solid var(--color-border-soft);
-}
-.account-menu-section {
-  border-top: 1px solid var(--color-border-soft);
-  padding-bottom: 6px;
-}
-.account-menu-group-label {
-  padding: 10px 16px 4px;
-  font-family: var(--font-mono);
-  font-size: var(--text-label);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-.account-menu-control {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 16px;
-}
-.account-menu-control-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-label);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-/* Run-As build-character menu (ACCOUNT.8) — the planner hero frame's dropdown.
- * Wears the shared Menu panel surface; unlike the header-flush hamburger/account
- * panels it keeps ALL four border edges (no `border-top: none` override) because it
- * anchors to a mid-page trigger. Rows reuse .account-menu-item / .account-menu-separator. */
-.run-as-menu-panel {
-  min-width: 240px;
-}
-
-/* Mobile nav (<1024px). Below here the inline tool strip + login cluster don't
- * fit alongside the always-on Tranquility status chip, so they collapse into
- * the hamburger above; the status chip stays glanceable on the bar and the
- * search input wraps to a full-width second row. (Replaced the old 1024/800/640
- * shrink-and-hide ladder, which hid the chip and squeezed the search box.) */
-@media (max-width: 1024px) {
-  .app-header { position: relative; flex-wrap: wrap; height: auto; }
+/* The search host keeps its unlayered mobile overrides because those declarations
+ * must outrank the Tailwind layer's fixed desktop width. Header slots and menu
+ * visibility use component utilities now that no legacy selectors contest them. */
+@media (width < --theme(--breakpoint-lg)) {
   .app-header .nav-host {
     order: 99;
     flex-basis: 100%;
@@ -826,10 +694,6 @@ a:hover {
     flex-shrink: 1;
     min-width: 0;
   }
-  .app-header > .nav-tools,
-  .app-header > .login-cluster { display: none; }
-  .server-status-slot { margin-left: auto; }
-  .nav-menu-toggle { display: inline-flex; }
 }
 
 /* ── Sortable table block (v2.9.7) ─────────────────────────────────────
@@ -864,7 +728,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-jb);
+  font-family: var(--font-data);
   font-weight: 800;
   font-size: var(--text-ui);
   color: var(--color-isk);
@@ -980,7 +844,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 /* Phone: a full-bleed sheet at native scale — the narrow sheet is already as
  * readable as it gets, and scaling a full-screen sheet reads oddly, so fade only
  * (opacity still transitions; the scale is pinned) and drop the zoom. */
-@media (max-width: 640px) {
+@media (width < --theme(--breakpoint-sm)) {
   .sites-lightbox-dialog {
     width: 100vw;
     max-width: none;
@@ -1077,77 +941,6 @@ details[data-collapsible][open] > summary [data-chevron] {
   }
 }
 
-/* Dev log (/devlog) — a file-browser rail beside a reading column, with code
- * excerpts as inline collapsibles. Prose mirrors the legal page's measure. */
-.content-browser-layout {
-  display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
-  gap: 40px;
-  align-items: start;
-}
-.content-browser-content { min-width: 0; }
-
-/* The shared content-browser rail: a persistent left column on desktop; a
- * collapsible disclosure on narrow screens (the summary is hidden on desktop,
- * so the always-open <details> just renders the tree). */
-.content-browser-rail { min-width: 0; }
-.content-browser-rail-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: var(--text-label);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  margin-bottom: 12px;
-}
-.content-browser-rail-toggle::after { content: '▾'; margin-left: auto; font-size: var(--text-micro); }
-
-.content-browser-nav { font-family: var(--font-mono); }
-.content-browser-nav-items { list-style: none; margin: 0 0 14px; padding: 0; }
-.content-browser-nav-item {
-  display: block;
-  padding: 5px 10px;
-  font-size: var(--text-ui);
-  letter-spacing: 0.01em;
-  color: var(--color-muted);
-  border-left: 2px solid transparent;
-  text-decoration: none;
-  transition: color 0.12s, background 0.12s, border-color 0.12s;
-}
-.content-browser-nav-item:hover { color: var(--color-text); background: var(--color-row-hover); }
-.content-browser-nav-item-active {
-  color: var(--color-isk);
-  border-left-color: var(--color-isk);
-  background: var(--color-row-hover);
-}
-.content-browser-nav-group { margin-bottom: 4px; }
-.content-browser-nav-group-summary {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  padding: 5px 8px;
-  font-size: var(--text-label);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-faint);
-}
-.content-browser-nav-group-summary:hover { color: var(--color-muted); }
-.content-browser-nav-chevron {
-  display: inline-block;
-  width: 8px;
-  font-size: var(--text-micro);
-  color: var(--color-faint);
-  transition: transform var(--transition-duration-fast);
-}
-.content-browser-nav-group-items { list-style: none; margin: 0 0 6px; padding: 0 0 0 15px; }
-
 /* Inline code excerpt — a collapsed mono file:lines label expanding the snapshot. */
 .devlog-excerpt {
   border: 1px solid var(--color-border);
@@ -1162,7 +955,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   gap: 8px;
   cursor: pointer;
   padding: 7px 12px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-ui);
   letter-spacing: 0.02em;
 }
@@ -1182,7 +975,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-deep);
   overflow-x: auto;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--text-ui);
   line-height: 1.6;
   color: var(--color-text);
@@ -1216,17 +1009,3 @@ details[data-collapsible][open] > summary [data-chevron] {
   background: var(--color-bg-deep);
 }
 .devlog-excerpt-code-line { white-space: pre; }
-
-@media (min-width: 861px) {
-  .content-browser-rail { position: sticky; top: 24px; }
-  .content-browser-rail-body {
-    max-height: calc(100vh - 48px);
-    max-height: calc(100dvh - 48px);
-    overflow-y: auto;
-    overscroll-behavior-y: auto;
-  }
-  .content-browser-rail-toggle { display: none; }
-}
-@media (max-width: 860px) {
-  .content-browser-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-}

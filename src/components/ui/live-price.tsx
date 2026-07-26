@@ -47,7 +47,7 @@ export function LivePrice({
   }, [value]);
 
   return (
-    <span ref={ref} className={cn('tabular-nums', className)}>
+    <span ref={ref} className={cn('font-data tabular-nums', className)}>
       {value}
     </span>
   );

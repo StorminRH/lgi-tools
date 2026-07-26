@@ -28,13 +28,13 @@ export const metadata: Metadata = {
  */
 export default function BuildTemplatesPage() {
   return (
-    <PageShell>
+    <PageShell mode="reading">
       <PageHead
         crumb="industry/templates"
         title="Templates"
         subtitle="Load a template into the planner — favorites lead the list"
       />
-      <div className="pb-16 max-w-[720px]">
+      <div className="pb-16">
         <SavedPlansManager />
       </div>
     </PageShell>

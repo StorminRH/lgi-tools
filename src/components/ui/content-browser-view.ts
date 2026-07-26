@@ -36,6 +36,21 @@ export function landingContentSlug(model: ContentNavModel): string | null {
   return model.items[0]?.slug ?? model.groups[0]?.items[0]?.slug ?? null;
 }
 
+/**
+ * Resolves the display title for one content slug, or null when the active route is not present in
+ * the navigation model.
+ */
+export function titleForSlug(model: ContentNavModel, slug: string | null): string | null {
+  if (slug === null) return null;
+  const flat = model.items.find((item) => item.slug === slug);
+  if (flat) return flat.title;
+  for (const group of model.groups) {
+    const nested = group.items.find((item) => item.slug === slug);
+    if (nested) return nested.title;
+  }
+  return null;
+}
+
 /** Builds the stable browser URL for a content slug, collapsing the landing document to the section root. */
 export function contentBrowserHref(
   basePath: `/${string}`,

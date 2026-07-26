@@ -135,7 +135,7 @@ function CorpStructureItem({
   return (
     <Card as="li" className="flex flex-col gap-2 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-ui text-text">{view.displayName}</span>
+        <span className="font-data text-ui text-text">{view.displayName}</span>
         <Pill tone="neutral">{view.typeName}</Pill>
       </div>
       {canEdit ? (

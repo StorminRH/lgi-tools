@@ -42,7 +42,7 @@ export function SiteCardHeader({ site, nameId }: { site: SiteDetail; nameId?: st
   return (
     <>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 font-body text-lead font-bold leading-[1.15] tracking-[0.01em] text-name" id={nameId}>
+        <span className="min-w-0 text-lead font-bold leading-[1.15] tracking-optical text-name" id={nameId}>
           {site.name}
         </span>
         <span className="whitespace-nowrap text-ui font-semibold tabular-nums text-isk [&_i]:ml-0.5 [&_i]:text-micro [&_i]:not-italic [&_i]:text-muted">

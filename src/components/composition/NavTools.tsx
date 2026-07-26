@@ -8,6 +8,7 @@ import {
   NavigationMenu,
   NavigationMenuItem,
   NavigationMenuLink,
+  navigationMenuLink,
 } from '@/components/ui/navigation-menu';
 import { cn } from '@/components/ui/cn';
 
@@ -26,13 +27,16 @@ import { cn } from '@/components/ui/cn';
 
 function NavStrip({ pathname }: { pathname: string | null }) {
   return (
-    <NavigationMenu label="Tools" className="nav-tools ml-auto border-l border-border-soft">
+    <NavigationMenu label="Tools" className="ml-auto max-lg:hidden">
       {visibleNavTools().map((tool) => {
         const item = deriveNavToolItem(tool, pathname);
         if (item.kind === 'soon') {
           return (
             <NavigationMenuItem key={item.label} className="flex items-stretch">
-              <span title={item.title} className="nav-tool soon">
+              <span
+                title={item.title}
+                className={navigationMenuLink({ disabled: true })}
+              >
                 {item.label}
               </span>
             </NavigationMenuItem>
@@ -44,7 +48,7 @@ function NavStrip({ pathname }: { pathname: string | null }) {
             <NavigationMenuLink
               active={item.active}
               title={item.title}
-              className={cn('nav-tool', item.active && 'active')}
+              className={cn(navigationMenuLink({ active: item.active }))}
               render={<Link href={item.href} />}
             >
               {item.label}

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Fragment, type ReactNode } from 'react';
 import { cn } from './cn';
 import { deriveSortHeaderCells, type SortHeaderCellModel } from './sortable-table-view';
+import { eyebrow } from './type-roles';
 
 /**
  * Column contract for the shared sortable table: header content, value accessor, and optional
@@ -69,7 +70,7 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
     return (
       <span
         className={cn(
-          'font-jb text-label uppercase tracking-wide text-muted inline-flex items-center gap-1',
+          eyebrow({ className: 'inline-flex items-center gap-1 font-data' }),
           cell.alignClass,
         )}
       >
@@ -83,7 +84,10 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
       href={cell.href}
       scroll={false}
       className={cn(
-        'font-jb text-label uppercase tracking-wide inline-flex items-center gap-1 transition-colors',
+        eyebrow({
+          tone: 'inherit',
+          className: 'inline-flex items-center gap-1 font-data transition-colors',
+        }),
         cell.alignClass,
         cell.isActive ? 'text-name' : 'text-muted hover:text-text',
       )}
@@ -143,7 +147,7 @@ export function SortableTable<Row>({
         <div
           key={col.key}
           className={cn(
-            'font-mono text-ui text-text min-w-0',
+            'font-data text-ui text-text min-w-0',
             col.align === 'right' ? 'text-right' : 'text-left',
           )}
         >

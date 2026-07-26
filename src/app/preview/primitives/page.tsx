@@ -25,8 +25,9 @@ async function AdminPrimitiveReference() {
  */
 export default function PrimitiveReferencePage() {
   return (
-    <PageShell>
+    <PageShell mode="workspace">
       <PageHead
+        size="compact"
         crumb="admin / primitive reference"
         title="Future primitives"
         subtitle="Inset Instrument · rendered system reference"

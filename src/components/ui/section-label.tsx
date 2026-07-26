@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { eyebrow } from './type-roles';
 
 /**
  * Standalone "// Label" section heading — recreates the prototype's
@@ -7,7 +8,7 @@ import { cn } from './cn';
  * sits free above a grid or list (homepage tools, /industry sections, the
  * static-page sections), with the leading `//` slashes in ISK-green. An
  * optional `meta` node renders right-aligned (e.g. `// Active jobs` paired with
- * a `1 complete · 4 in progress` count). The label text stays the mono face;
+ * a `1 complete · 4 in progress` count). The label text uses the eyebrow role;
  * `meta` is rendered as-is so the caller owns its styling.
  */
 export function SectionLabel({
@@ -25,7 +26,13 @@ export function SectionLabel({
     <div
       className={cn('flex items-baseline gap-2', meta != null && 'justify-between', className)}
     >
-      <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold tracking-display uppercase text-muted">
+      <span
+        className={eyebrow({
+          weight: 'semibold',
+          emphasis: 'strong',
+          className: 'inline-flex items-baseline gap-2',
+        })}
+      >
         {prefix && <span className="text-isk tracking-normal">{'//'}</span>}
         {children}
       </span>
