@@ -103,7 +103,7 @@ function GscSitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
           {sitemap.indexed.toLocaleString()} / {sitemap.submitted.toLocaleString()} indexed
         </span>
       </div>
-      <div className="text-micro text-muted">
+      <div className="font-data text-micro text-muted">
         {sitemap.submitted === 0
           ? 'no URLs submitted'
           : `${pctLabel(sitemap.indexed, sitemap.submitted)} coverage`}{' '}

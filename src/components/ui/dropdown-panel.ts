@@ -30,7 +30,7 @@ export const dropdownPanel = `${panelSurface} rounded-card p-[5px] outline-none`
  */
 export const dropdownItem =
   'flex cursor-default select-none items-center justify-between gap-2 rounded-ctl px-2.5 py-2 ' +
-  'text-ui font-ui text-text outline-none ' +
+  'text-ui font-data text-text outline-none ' +
   'data-[highlighted]:bg-row-active data-[highlighted]:text-name ' +
   'data-[selected]:bg-pill-green-bg data-[selected]:text-isk';
 

@@ -16,7 +16,7 @@ const roman = (level: number) => ROMAN[level] ?? String(level);
 // the TotalJobHover row idiom, so every skills panel reads the same way.
 function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 text-micro">
+    <div className="flex items-baseline justify-between gap-3 font-data text-micro">
       <span className="truncate text-muted">
         {skill.name} {roman(skill.level)}
       </span>
@@ -28,7 +28,7 @@ function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
 // Divider + compound total — the popover's bottom line, toned to its icon.
 function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: number; toneClass: string }) {
   return (
-    <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 text-micro">
+    <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-data text-micro">
       <span className="uppercase tracking-wide text-muted">{label}</span>
       <span className={`tabular-nums font-semibold ${toneClass}`}>−{formatBonusPct(totalPct)} time</span>
     </div>

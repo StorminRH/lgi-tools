@@ -78,13 +78,17 @@ async function AdminContent({
 
   return (
     <>
-      <div className="print-only text-label tracking-wide uppercase text-muted mb-1">
+      <div className="print-only mb-1 font-data text-label tracking-wide uppercase text-muted">
         Admin report — {formatIsoDay(range.from)} to {formatIsoDay(range.to)}
       </div>
       <PageHead
         crumb="admin"
         title="Admin"
-        subtitle={`${formatIsoDay(range.from)} → ${formatIsoDay(range.to)}`}
+        subtitle={
+          <span className="font-data">
+            {formatIsoDay(range.from)} → {formatIsoDay(range.to)}
+          </span>
+        }
         meta={
           <div className="flex items-center gap-3">
             <RangeSelector range={rangeKey} />

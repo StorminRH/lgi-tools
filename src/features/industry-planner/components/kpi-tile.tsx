@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 // it without a circular import (CockpitKpis renders MarketScorePanel).
 
 /** Shared numeric typography classes for cockpit KPI figures. */
-export const KPI_FIG = 'mt-2.5 text-stat font-semibold leading-[1.02] tabular-nums';
+export const KPI_FIG = 'mt-2.5 font-data text-stat font-semibold leading-[1.02] tabular-nums';
 const KPI_LABEL = 'text-label font-semibold uppercase tracking-wide text-muted';
 
 /** Renders one cockpit KPI value, comparison, confidence, and supporting hint. */

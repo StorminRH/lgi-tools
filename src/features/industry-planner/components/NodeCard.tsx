@@ -89,7 +89,7 @@ function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | nu
 // quantity right-aligned. Mirrors the MeAdjuster ProvenanceRows idiom.
 function HoldingLine({ holding }: { holding: AssetHolding }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 text-ui">
+    <div className="flex items-baseline justify-between gap-3 font-data text-ui">
       <span className="min-w-0">
         <span className="text-name">{holding.ownerName}</span>
         <span className="block text-micro tracking-copy text-muted">

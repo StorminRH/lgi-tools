@@ -31,7 +31,7 @@ export function JobRowFrame({
         colsClass="grid-cols-[minmax(0,1fr)_auto_auto]"
         className="border-t-0 px-0 py-0 hover:bg-transparent"
         name={
-          <span className="flex min-w-0 items-center gap-2">
+          <span className="flex min-w-0 items-center gap-2 font-data">
             <TypeIcon {...icon} size={22} mono={initials(headlineName)} />
             <span className="truncate">
               {headlineName}{' '}
@@ -41,7 +41,7 @@ export function JobRowFrame({
             </span>
           </span>
         }
-        trailing={remainingLabel}
+        trailing={<span className="font-data">{remainingLabel}</span>}
         chips={<Pill tone={meta.tone}>{meta.label}</Pill>}
       />
       {showBar && (

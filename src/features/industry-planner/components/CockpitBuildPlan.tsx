@@ -197,7 +197,7 @@ function TierColumn({
         Tier {tier.depth}
         <span className="text-faint">· {tier.items.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
-        <span className="text-ui font-semibold tabular-nums tracking-normal text-isk">
+        <span className="font-data text-ui font-semibold tabular-nums tracking-normal text-isk">
           {formatIsk(subtotal)}
         </span>
       </div>

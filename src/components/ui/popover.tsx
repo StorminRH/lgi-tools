@@ -129,7 +129,8 @@ export function PopoverHeading({ children }: { children: ReactNode }) {
 export function PopoverRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <p className="font-ui text-body leading-snug text-muted">
-      <span className="font-semibold text-text">{label}</span> — {children}
+      <span className="font-semibold text-text">{label}</span> —{' '}
+      <span className="font-data">{children}</span>
     </p>
   );
 }
