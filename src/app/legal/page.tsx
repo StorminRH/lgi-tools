@@ -21,7 +21,7 @@ export const metadata = buildPageMetadata({
 function LegalSection({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <section className="mb-8">
-      <SectionLabel className="mb-3">{label}</SectionLabel>
+      <SectionLabel className="mb-cluster">{label}</SectionLabel>
       {children}
     </section>
   );
@@ -33,7 +33,7 @@ function LegalSection({ label, children }: { label: ReactNode; children: ReactNo
  */
 export default function LegalPage() {
   return (
-    <PageShell>
+    <PageShell mode="reading">
       <PageHead
         crumb="privacy"
         title="Privacy"

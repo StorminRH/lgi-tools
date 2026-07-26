@@ -89,20 +89,16 @@ function JobsLoading() {
  */
 export default function JobsPage() {
   return (
-    <PageShell>
+    <PageShell mode="reading">
       <div className="flex flex-col items-center pb-20">
-        <div className="w-full max-w-[760px]">
-          <PageHead
-            crumb="jobs"
-            title="Industry Jobs"
-            subtitle="Live job board for every linked character · flips to ready on schedule"
-          />
-        </div>
-        <div className="w-full max-w-[760px]">
-          <Suspense fallback={<JobsLoading />}>
-            <JobsContent />
-          </Suspense>
-        </div>
+        <PageHead
+          crumb="jobs"
+          title="Industry Jobs"
+          subtitle="Live job board for every linked character · flips to ready on schedule"
+        />
+        <Suspense fallback={<JobsLoading />}>
+          <JobsContent />
+        </Suspense>
       </div>
     </PageShell>
   );

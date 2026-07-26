@@ -32,26 +32,22 @@ async function StructuresContent() {
 
   return (
     <>
-      <div className="w-full max-w-[760px]">
-        <PageHead
-          crumb="structures"
-          title="Structures"
-          subtitle="Build a custom structure to place a build in, or share your corporation’s structures with every member — pick a type and rigs to apply their bonuses in the planner."
-        />
-      </div>
+      <PageHead
+        crumb="structures"
+        title="Structures"
+        subtitle="Build a custom structure to place a build in, or share your corporation’s structures with every member — pick a type and rigs to apply their bonuses in the planner."
+      />
 
-      <div className="w-full max-w-[760px]">
-        <Card>
-          <SectionHeader size="md" label="Custom structures" hint={`${saved.length} saved`} />
-          <div className="px-3.5 py-3.5">
-            <CustomStructureBuilder
-              structureTypes={structureTypes}
-              structureRigs={structureRigs}
-              initial={saved}
-            />
-          </div>
-        </Card>
-      </div>
+      <Card>
+        <SectionHeader size="md" label="Custom structures" hint={`${saved.length} saved`} />
+        <div className="px-3.5 py-3.5">
+          <CustomStructureBuilder
+            structureTypes={structureTypes}
+            structureRigs={structureRigs}
+            initial={saved}
+          />
+        </div>
+      </Card>
 
       <CorpStructureSection corps={corps} structureTypes={structureTypes} structureRigs={structureRigs} />
     </>
@@ -64,7 +60,7 @@ async function StructuresContent() {
  */
 export default function StructuresPage() {
   return (
-    <PageShell>
+    <PageShell mode="reading">
       <div className="flex flex-col items-center gap-0 pb-20">
         <Suspense fallback={<LoadingLabel />}>
           <StructuresContent />

@@ -8,7 +8,7 @@ import { Chip } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
-import { Breadcrumb, PageHead } from '@/components/ui/page-head';
+import { Breadcrumb, PageHead, PageTitle } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
@@ -113,7 +113,7 @@ function NotFound() {
   return (
     <>
       <div className="w-full max-w-[760px]">
-        <PageHead crumb="access" title="User not found" />
+        <PageHead size="compact" crumb="access" title="User not found" />
       </div>
       <div className="w-full max-w-[760px]">
         <Card>
@@ -182,9 +182,9 @@ async function UserDetailContent({
               className="rounded-ctl border border-border-idle shrink-0"
             />
             <div className="min-w-0">
-              <h1 className="font-display font-bold text-display leading-none tracking-optical uppercase mb-1 truncate text-name">
+              <PageTitle size="compact" className="mb-1 truncate">
                 {targetUser.name}
-              </h1>
+              </PageTitle>
               <span className="flex items-center gap-[6px]">
                 <Pill tone="neutral">ID {view.characterIdLabel}</Pill>
                 {view.identityChips.map((chip) => (
@@ -206,9 +206,7 @@ async function UserDetailContent({
 
       <div className="w-full max-w-[760px] flex flex-col gap-6">
         {error ? (
-          <Card>
-            <Callout label="Heads up">{error}</Callout>
-          </Card>
+          <Callout label="Heads up">{error}</Callout>
         ) : null}
 
         <Card>
@@ -273,7 +271,7 @@ export default function UserDetailPage({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   return (
-    <PageShell>
+    <PageShell mode="detail">
       <div className="flex flex-col items-center pt-12 pb-20 gap-0">
         <Suspense fallback={<DetailLoading />}>
           <UserDetailContent params={params} searchParams={searchParams} />

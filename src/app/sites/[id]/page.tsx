@@ -152,7 +152,7 @@ export default async function SiteDetailPage({
   ]);
 
   return (
-    <PageShell>
+    <PageShell mode="detail">
       <div className="flex flex-col items-center pt-12 pb-20 gap-0">
         <JsonLd data={breadcrumbJsonLd} />
         {/* Entity-detail pages self-title: they open content-first (no visible

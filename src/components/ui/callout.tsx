@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from './cn';
 import { eyebrow } from './type-roles';
 
 /**
@@ -8,12 +9,19 @@ import { eyebrow } from './type-roles';
 export function Callout({
   label,
   children,
+  className,
 }: {
   label: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="mx-3.5 mb-2 mt-2 px-2.5 py-[5px] bg-callout-bg border border-callout-border border-l-2 border-l-callout-rule text-label text-dps-mid tracking-[0.03em] flex items-center gap-2">
+    <div
+      className={cn(
+        'flex items-center gap-2 border border-l-2 border-callout-border border-l-callout-rule bg-callout-bg px-2.5 py-[5px] text-label tracking-[0.03em] text-dps-mid',
+        className,
+      )}
+    >
       <span className={`${eyebrow({ tone: 'callout', weight: 'semibold' })} shrink-0`}>
         {label}
       </span>

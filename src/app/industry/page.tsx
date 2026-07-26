@@ -80,7 +80,7 @@ function DashboardSkeleton() {
         ] as const
       ).map(([label, kind]) => (
         <section key={label}>
-          <SectionLabel className="mb-3">{label}</SectionLabel>
+          <SectionLabel className="mb-cluster">{label}</SectionLabel>
           {kind === 'panel' ? (
             <Card className="overflow-hidden">
               <EmptyState> </EmptyState>
@@ -104,8 +104,9 @@ function DashboardSkeleton() {
  */
 export default function IndustryDashboardPage() {
   return (
-    <PageShell>
+    <PageShell mode="workspace">
       <PageHead
+        size="hero"
         crumb="industry"
         title="Industry"
         meta={

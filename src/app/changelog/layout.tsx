@@ -13,8 +13,9 @@ import { loadChangelog } from '@/features/changelog/load';
 export default async function ChangelogLayout({ children }: { children: ReactNode }) {
   const model = toChangelogNavModel(toChangelogDocuments(await loadChangelog()));
   return (
-    <PageShell>
+    <PageShell mode="workspace">
       <PageHead
+        size="hero"
         crumb="changelog"
         title="Changelog"
         meta={

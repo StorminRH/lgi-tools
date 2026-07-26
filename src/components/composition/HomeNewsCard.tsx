@@ -24,7 +24,7 @@ export async function HomeNewsCard() {
 
   return (
     <section>
-      <SectionLabel className="mb-4">EVE News</SectionLabel>
+      <SectionLabel className="mb-cluster">EVE News</SectionLabel>
       <Card>
         {items.length === 0 ? (
           <EmptyState>EVE news is unavailable right now — check back shortly.</EmptyState>

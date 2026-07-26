@@ -11,7 +11,7 @@ import { SectionLabel } from '@/components/ui/section-label';
 export function HomeFeatureCards() {
   return (
     <section>
-      <SectionLabel className="mb-4">Tools</SectionLabel>
+      <SectionLabel className="mb-cluster">Tools</SectionLabel>
       {/* Tailwind arbitrary-value class, not an inline `style` prop — house
        * style keeps the column template in a class so it renders server-side,
        * not just after hydration. */}

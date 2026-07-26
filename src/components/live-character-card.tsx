@@ -78,7 +78,7 @@ export function LiveCharacterCard({
   const grantedContent = (
     <>
       {!character.needsReconnect && syncError != null && (
-        <Callout label={syncErrorMeta(syncError).label}>
+        <Callout className="mx-3.5 my-2" label={syncErrorMeta(syncError).label}>
           {hasData && lastSyncedAt != null
             ? `Couldn't refresh — showing data as of ${new Date(lastSyncedAt).toLocaleTimeString()}.`
             : `Couldn't fetch this character's ${noun} yet.`}
@@ -134,7 +134,7 @@ export function LiveCharacterCard({
       ) : (
         <>
           {character.needsReconnect && (
-            <Callout label="Reconnect">
+            <Callout className="mx-3.5 my-2" label="Reconnect">
               This character is missing {scopePhrase} —{' '}
               <a href="/characters" className="underline text-name">
                 reconnect it on the Characters page

@@ -30,8 +30,9 @@ const CONTACT_EMAIL = 'lgi.tools@pm.me';
  */
 export default function ContactPage() {
   return (
-    <PageShell>
+    <PageShell mode="reading">
       <PageHead
+        size="hero"
         crumb="contact"
         title="Contact"
         meta={
@@ -50,7 +51,7 @@ export default function ContactPage() {
 
         <div className="grid items-stretch gap-4 md:grid-cols-2">
           <Card>
-            <SectionLabel className="mb-2 px-3.5 pt-3.5">Get in touch</SectionLabel>
+            <SectionLabel className="mb-cluster px-3.5 pt-3.5">Get in touch</SectionLabel>
             <EntityRow
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Email"
@@ -90,7 +91,7 @@ export default function ContactPage() {
           </Card>
 
           <Card>
-            <SectionLabel className="mb-2 px-3.5 pt-3.5">In-game</SectionLabel>
+            <SectionLabel className="mb-cluster px-3.5 pt-3.5">In-game</SectionLabel>
             <EntityRow
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Character"

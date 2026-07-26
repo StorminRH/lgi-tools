@@ -77,15 +77,13 @@ async function SettingsContent() {
 
   return (
     <>
-      <div className="w-full max-w-[760px]">
-        <PageHead
-          crumb="settings"
-          title="Account settings"
-          subtitle="Account-wide settings — they apply to every character on this account"
-        />
-      </div>
+      <PageHead
+        crumb="settings"
+        title="Account settings"
+        subtitle="Account-wide settings — they apply to every character on this account"
+      />
 
-      <div className="w-full max-w-[760px] flex flex-col gap-6">
+      <div className="flex w-full flex-col gap-6">
         <SettingsSections view={view} />
       </div>
     </>
@@ -98,7 +96,7 @@ async function SettingsContent() {
  */
 export default function SettingsPage() {
   return (
-    <PageShell>
+    <PageShell mode="reading">
       <div className="flex flex-col items-center gap-0 pb-20">
         <Suspense fallback={<LoadingLabel />}>
           <SettingsContent />

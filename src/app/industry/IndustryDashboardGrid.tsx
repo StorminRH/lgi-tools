@@ -57,7 +57,7 @@ function DashboardSection({ status, cell }: { status: SectionStatus; cell: Secti
   const render = deriveSectionRender(status, cell.hint);
   return (
     <section>
-      <SectionLabel className="mb-3" meta={render.meta ? cell.meta : undefined}>
+      <SectionLabel className="mb-cluster" meta={render.meta ? cell.meta : undefined}>
         {cell.label}
       </SectionLabel>
       {render.hint !== null && <p className="text-ui text-muted">{render.hint}</p>}

@@ -59,7 +59,7 @@ export function CorpJobsBoard({
 
   return (
     <section>
-      <SectionLabel className="mb-3">Corporation industry jobs</SectionLabel>
+      <SectionLabel className="mb-cluster">Corporation industry jobs</SectionLabel>
       {eligibleCharacterIds.length === 0 ? (
         <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
           {null}

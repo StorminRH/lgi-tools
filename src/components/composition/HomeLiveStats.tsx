@@ -38,7 +38,7 @@ export async function HomeLiveStats() {
   return (
     <section aria-label="Live dataset status">
       <SectionLabel
-        className="mb-4"
+        className="mb-cluster"
         meta={
           <span className="inline-flex items-center gap-2 font-data text-label uppercase tracking-wide text-muted">
             <Dot tone="green" />

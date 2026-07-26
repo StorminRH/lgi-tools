@@ -15,8 +15,13 @@ import { toNavModel } from '@/features/devlog/parse';
 export default async function DevlogLayout({ children }: { children: ReactNode }) {
   const model = toNavModel(await loadDevlog());
   return (
-    <PageShell>
-      <PageHead crumb="devlog" title="Under the Hood" meta={<span>a dev log</span>} />
+    <PageShell mode="workspace">
+      <PageHead
+        size="hero"
+        crumb="devlog"
+        title="Under the Hood"
+        meta={<span>a dev log</span>}
+      />
       <ContentBrowser
         basePath="/devlog"
         railLabel="Documents"

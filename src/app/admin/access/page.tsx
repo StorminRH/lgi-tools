@@ -267,6 +267,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
   return (
     <>
       <PageHead
+        size="compact"
         crumb="access"
         title="Access"
         subtitle={
@@ -319,7 +320,7 @@ export default function AccessPage({
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
   return (
-    <PageShell>
+    <PageShell mode="workspace">
       <div className="flex flex-col items-center pb-20 gap-0">
         <Suspense fallback={<AccessLoading />}>
           <AccessContent searchParams={searchParams} />

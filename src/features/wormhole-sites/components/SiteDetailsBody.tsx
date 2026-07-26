@@ -23,7 +23,11 @@ function ResourceSection({ site, view }: { site: SiteDetail; view: SiteDetailsVi
   return (
     <>
       <SectionHeader label={view.sectionLabel} hint={view.sectionHint} />
-      {view.isGas && <Callout label="Spawn">Sleeper wave arrives ~20 min after warp-in</Callout>}
+      {view.isGas && (
+        <Callout className="mx-3.5 my-2" label="Spawn">
+          Sleeper wave arrives ~20 min after warp-in
+        </Callout>
+      )}
       <SiteResourcesLive
         resources={displayableResources(site.resources)}
         siteType={site.siteType}

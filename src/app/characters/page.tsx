@@ -145,17 +145,13 @@ function CharacterNotices({
   return (
     <>
       {absorbedCharacter ? (
-        <Card>
-          <Callout label="Character moved">
-            {absorbedCharacter.name} was already linked to a separate account, so LGI.tools
-            moved it into this one. Everything tracked for that character came along.
-          </Callout>
-        </Card>
+        <Callout label="Character moved">
+          {absorbedCharacter.name} was already linked to a separate account, so LGI.tools
+          moved it into this one. Everything tracked for that character came along.
+        </Callout>
       ) : null}
       {error ? (
-        <Card>
-          <Callout label="Heads up">{error}</Callout>
-        </Card>
+        <Callout label="Heads up">{error}</Callout>
       ) : null}
     </>
   );
@@ -188,15 +184,13 @@ async function CharactersContent({
 
   return (
     <>
-      <div className="w-full max-w-[760px]">
-        <PageHead
-          crumb="characters"
-          title="Characters"
-          subtitle={`${characters.length} linked · the active character is who the site acts as`}
-        />
-      </div>
+      <PageHead
+        crumb="characters"
+        title="Characters"
+        subtitle={`${characters.length} linked · the active character is who the site acts as`}
+      />
 
-      <div className="w-full max-w-[760px] flex flex-col gap-6">
+      <div className="flex w-full flex-col gap-6">
         <CharacterNotices absorbedCharacter={absorbedCharacter} error={error} />
 
         <Card>
@@ -262,7 +256,7 @@ export default function CharactersPage({
   searchParams: Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
 }) {
   return (
-    <PageShell>
+    <PageShell mode="reading">
       <div className="flex flex-col items-center pb-20 gap-0">
         <Suspense fallback={<CharactersLoading />}>
           <CharactersContent searchParams={searchParams} />

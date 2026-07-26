@@ -82,6 +82,7 @@ async function AdminContent({
         Admin report — {formatIsoDay(range.from)} to {formatIsoDay(range.to)}
       </div>
       <PageHead
+        size="compact"
         crumb="admin"
         title="Admin"
         subtitle={
@@ -156,7 +157,7 @@ export default function AdminPage({
   searchParams: Promise<{ range?: string | string[] }>;
 }) {
   return (
-    <PageShell>
+    <PageShell mode="workspace">
       <div className="flex flex-col items-center pb-20 gap-0">
         <Suspense fallback={<AdminLoading />}>
           <AdminContent searchParams={searchParams} />
