@@ -76,6 +76,9 @@ export interface MarketDataValue {
   // loading" (false) from "resolved, but no pricing available" (true +
   // pricing === null), so consumers don't show a perpetual loading state.
   seeded: boolean;
+  // True while the on-view market batch is confirming the displayed seed.
+  // Display-only state: it never starts or changes a fetch.
+  refreshing: boolean;
   // History-derived score inputs keyed by type ID (3.5.3a). Seeded from the
   // server (warm) and refreshed on view; the product type is always present
   // once it has stored history. 3.5.3b's Market Score reads this from here.

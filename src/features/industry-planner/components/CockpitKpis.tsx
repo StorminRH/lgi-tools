@@ -104,7 +104,7 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
 // composition; the toggle reflects the user's intent immediately while the
 // figure carries the summary's own basis stamp.
 function InputCostTile() {
-  const { pricing } = useMarketData();
+  const { pricing, refreshing } = useMarketData();
   const { costBasis, setCostBasis } = usePlannerConfig();
   const view = inputCostView(pricing);
   return (
@@ -119,7 +119,7 @@ function InputCostTile() {
         }
       />
       <div className={cn(KPI_FIG, 'text-name')}>
-        <LivePrice value={view.inputCost} />
+        <LivePrice value={view.inputCost} pending={refreshing} />
       </div>
     </KpiTile>
   );
@@ -157,7 +157,7 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
 // Self-contained on the pricing context (the InputCostTile shape) so the KPI
 // row stays a thin composition; the verdicts are the pure mappers.
 function SellTile() {
-  const { pricing } = useMarketData();
+  const { pricing, refreshing } = useMarketData();
   const view = sellTileView(pricing);
   return (
     <SimpleTile
@@ -172,7 +172,7 @@ function SellTile() {
           </span>
         )
       }
-      value={<LivePrice value={view.revenue} />}
+      value={<LivePrice value={view.revenue} pending={refreshing} />}
       valueClass="text-isk"
     />
   );
@@ -258,17 +258,19 @@ function MarginFigure({
   view,
   summary,
   seeded,
+  refreshing,
 }: {
   view: CockpitMarginView;
   summary: BlueprintPricing['summary'] | null;
   seeded: boolean;
+  refreshing: boolean;
 }) {
   if (!summary) {
     return <div className={cn(KPI_FIG, 'text-muted')}>{seeded ? 'Pricing unavailable' : 'Calculating…'}</div>;
   }
   return (
     <div className={cn(KPI_FIG, marginToneClass(view.marginPct))}>
-      <LivePrice value={`${view.sign}${formatIsk(view.margin)}`} />
+      <LivePrice value={`${view.sign}${formatIsk(view.margin)}`} pending={refreshing} />
       {view.marginPct !== null && <span className="ml-1.5 text-ui">({formatPct(view.marginPct)})</span>}
     </div>
   );
@@ -281,11 +283,13 @@ function NetMarginTile({
   view,
   pricing,
   seeded,
+  refreshing,
   setMarginMode,
 }: {
   view: CockpitMarginView;
   pricing: BlueprintPricing | null;
   seeded: boolean;
+  refreshing: boolean;
   setMarginMode: (m: MarginMode) => void;
 }) {
   return (
@@ -299,7 +303,12 @@ function NetMarginTile({
           </span>
         }
       />
-      <MarginFigure view={view} summary={pricing?.summary ?? null} seeded={seeded} />
+      <MarginFigure
+        view={view}
+        summary={pricing?.summary ?? null}
+        seeded={seeded}
+        refreshing={refreshing}
+      />
     </KpiTile>
   );
 }
@@ -362,7 +371,7 @@ export function CockpitKpis({
   marginMode: MarginMode;
   setMarginMode: (m: MarginMode) => void;
 }) {
-  const { pricing, seeded } = useMarketData();
+  const { pricing, seeded, refreshing } = useMarketData();
   const { runs } = usePlannerConfig();
   const { buildTimes } = useBuildPlan();
   const { buildCharacter, skillTimeFactors } = useBuildCharacter();
@@ -394,7 +403,13 @@ export function CockpitKpis({
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 cockpit:grid-cols-6">
       <InputCostTile />
       <SellTile />
-      <NetMarginTile view={margin} pricing={pricing} seeded={seeded} setMarginMode={setMarginMode} />
+      <NetMarginTile
+        view={margin}
+        pricing={pricing}
+        seeded={seeded}
+        refreshing={refreshing}
+        setMarginMode={setMarginMode}
+      />
       <MarketScorePanel structure={structure} />
       <BuildTimeTile runs={runs} buildTimes={buildTimes} leverRows={leverRows} />
       <TotalJobTile buildTimes={buildTimes} />

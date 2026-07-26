@@ -10,6 +10,7 @@ import { TypeIcon } from '@/components/type-icon';
 import type { EveImageDescriptor } from '@/data/eve-data/type-images';
 import { formatQuantity } from '@/lib/format/number';
 import { ProvenanceRows } from './MeAdjuster';
+import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
 import type { NodeMeState } from '../me-overrides';
 import { assetLedgerView, qtyRingView, ringQty, type LedgerCell } from '../node-card-ledger';
 import { nodeCardView } from '../node-card-view';
@@ -19,7 +20,7 @@ import type { AssetHolding, OwnedComponentDetail } from '../types';
 // fixed-size framed icon, the name/type, then a QTY ring — all on one centreline, so a
 // card's height never depends on what controls it carries (the inline ME/TE row that
 // used to vary the height is gone). For a manufacturable buildable the icon sits in a
-// box frame tinted by ownership (hollow unowned / blue owned / orange a manual
+// box frame tinted by ownership (hollow unowned / green owned / orange a manual
 // what-if) and CLICKING it opens the Blueprint Research Adjusters popover (the ME/TE
 // adjusters plus, for an owned blueprint, its owner/location); raws and reactions get a
 // plain icon in the SAME 40px footprint (a transparent frame) so every icon and ring
@@ -40,11 +41,6 @@ export interface NodeEfficiency {
 // 2.5px border matches the ring's stroke; its tone is the node's combined ME/TE state.
 // A transparent frame keeps raws/reactions on the identical footprint so icons align.
 const FRAME = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-card border-[2.5px]';
-const FRAME_TONE: Record<NodeMeState, string> = {
-  unowned: 'border-border-soft',
-  owned: 'border-evb-bright',
-  manual: 'border-[var(--color-dps-mid)]',
-};
 
 // One owned/remaining ledger cell pair — the real qty·ISK when synced, else the
 // "—" placeholders (logged-out / owns-none).
@@ -211,7 +207,11 @@ function BuildableIcon({
         label={`${name} — efficiency`}
         side="bottom"
         openOnHover={false}
-        triggerClassName={cn(FRAME, FRAME_TONE[efficiency.state], 'cursor-pointer')}
+        triggerClassName={cn(
+          FRAME,
+          EFFICIENCY_TONE_CLASSES[efficiency.state].frame,
+          'cursor-pointer',
+        )}
         trigger={<TypeIcon {...icon} size={30} mono={name.slice(0, 2)} />}
       >
         <PopoverHeading>Blueprint Research Adjusters</PopoverHeading>

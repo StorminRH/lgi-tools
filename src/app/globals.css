@@ -249,6 +249,8 @@
   --tracking-eyebrow: 0.18em;
   --transition-duration-fast: 150ms;
   --transition-duration-panel: 200ms;
+  --transition-duration-price-confirm: 1100ms;
+  --transition-duration-price-pending: 780ms;
   --ease-panel: cubic-bezier(0.2,0.85,0.25,1);
   --z-index-base: 0;
   --z-index-sticky: 10;
@@ -776,21 +778,67 @@ details[data-collapsible][open] > summary [data-chevron] {
   .price-confidence--loading::after { animation: none; opacity: 0.6; }
 }
 
-/* ── Live price flash (LivePrice) ────────────────────────────────────
- * The quieter successor to the odometer dim + slide: when a live figure
- * changes, a brief brightness pulse settles it in. Restarted per-change by
- * the remove → reflow → re-add trick in live-price.tsx. CSP-clean: class
- * only, never an inline style. brightness() is a filter multiplier, not a
- * color literal, so the hex-color rule doesn't fire. */
+/* ── Live price confirmation (LivePrice) ─────────────────────────────
+ * Pending prices visibly pulse between dim and bright. Confirmation lands with
+ * one high-energy green signal burst and a short overshoot before settling.
+ * Both durations are tokens, classes are CSP-clean, and reduced motion preserves
+ * a clear static pending state without movement. */
+.price-live {
+  display: inline-block;
+}
+.price-pending {
+  animation: price-pending var(--transition-duration-price-pending) ease-in-out infinite;
+}
 .price-flash {
-  animation: price-flash 0.7s ease-out;
+  animation: price-flash var(--transition-duration-price-confirm) ease-out;
+}
+@keyframes price-pending {
+  0%,
+  100% {
+    filter: brightness(0.72);
+    opacity: 0.58;
+    text-shadow: 0 0 0 transparent;
+    transform: translateY(0);
+  }
+  50% {
+    filter: brightness(1.7);
+    opacity: 1;
+    text-shadow: 0 0 10px var(--color-tool-ring);
+    transform: translateY(-1px);
+  }
 }
 @keyframes price-flash {
-  0% { filter: brightness(1.8); }
-  40% { filter: brightness(1.3); }
-  100% { filter: brightness(1); }
+  0%,
+  18% {
+    filter: brightness(2.5);
+    text-shadow: 0 0 16px var(--color-tool-ring), 0 0 5px var(--color-isk);
+    transform: scale(1.08);
+  }
+  42% {
+    filter: brightness(1.45);
+    text-shadow: 0 0 8px var(--color-tool-ring);
+    transform: scale(0.98);
+  }
+  68% {
+    filter: brightness(1.2);
+    text-shadow: 0 0 3px var(--color-tool-ring);
+    transform: scale(1.025);
+  }
+  100% {
+    filter: brightness(1);
+    text-shadow: 0 0 0 transparent;
+    transform: scale(1);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
+  .price-pending {
+    animation: none;
+    filter: brightness(1.25);
+    opacity: 0.72;
+    text-decoration: underline;
+    text-decoration-color: var(--color-isk);
+    text-underline-offset: 0.18em;
+  }
   .price-flash {
     animation: none;
   }

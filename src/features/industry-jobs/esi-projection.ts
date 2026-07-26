@@ -47,7 +47,8 @@ export const industryJobSchema = z.object({
   installer_id: z.number().int().optional(),
   activity_id: z.number().int(),
   blueprint_type_id: z.number().int(),
-  // Absent on copying/research jobs — the blueprint is the headline there.
+  // Personal jobs may omit this for copying/research; live corp jobs may instead
+  // repeat the blueprint id. The activity-aware image intent handles both forms.
   product_type_id: z.number().int().optional(),
   runs: z.number().int(),
   status: z.enum(JOB_STATUSES),

@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { chipVariants } from '@/components/ui/chip';
+import { cn } from '@/components/ui/cn';
 import { Input } from '@/components/ui/input';
 import { Popover } from '@/components/ui/popover';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
 import { createSavedPlanEndpoint, MAX_SAVED_PLAN_NAME_LEN } from '../api-contract';
+import { PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
 import { saveErrorCopy, templatesEmptyLine } from '../saved-plans-view';
 import { captureTemplate } from '../template-manifest';
 import { useManagedRowMenu } from '../use-managed-row-menu';
@@ -79,13 +82,16 @@ export function TemplatesMenu({
       openOnHover={false}
       onOpenChange={onOpenChange}
       className="w-[320px]"
-      triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
+      triggerClassName={cn(
+        chipVariants({ tone: 'green' }),
+        PLANNER_DISCLOSURE_TRIGGER_CLASS,
+        'group cursor-pointer gap-1.5 py-1 transition-colors',
+      )}
       trigger={
-        <span className="inline-flex items-baseline gap-2 text-label font-semibold uppercase tracking-eyebrow text-muted group-hover:text-name">
-          <span className="tracking-normal text-isk">{'//'}</span>
+        <>
           Templates
           <span className="inline-block text-micro text-muted">▾</span>
-        </span>
+        </>
       }
     >
       <span className="text-label font-semibold uppercase tracking-eyebrow text-isk">

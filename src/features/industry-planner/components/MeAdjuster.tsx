@@ -4,6 +4,7 @@ import { useCallback, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Stepper } from '@/components/ui/stepper';
+import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
 import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
 import { MAX_TE } from '../te-overrides';
 import type { OwnedComponentDetail } from '../types';
@@ -61,52 +62,41 @@ function deriveAdjust(owned: Map<number, number> | null, overrides: Map<number, 
 // readout (3.7.19.1), telling reaction time apart from manufacturing time.
 type IconState = NodeMeState | 'bonus' | 'reaction';
 
-// Shared fill + glow for a filled efficiency glyph.
-function iconTone(state: Exclude<IconState, 'unowned'>): { fill: string; glow: string } {
-  if (state === 'bonus') {
-    return { fill: 'fill-[var(--color-isk)]', glow: 'drop-shadow-[0_0_4px_var(--color-isk)]' };
-  }
-  if (state === 'reaction') {
-    return {
-      fill: 'fill-[var(--color-reaction-purple)]',
-      glow: 'drop-shadow-[0_0_4px_var(--color-reaction-purple)]',
-    };
-  }
-  return state === 'manual'
-    ? { fill: 'fill-[var(--color-dps-mid)]', glow: 'drop-shadow-[0_0_4px_var(--color-dps-mid)]' }
-    : { fill: 'fill-evb-bright', glow: 'drop-shadow-[0_0_4px_var(--color-evb-glow)]' };
-}
-
 /**
  * EVE's material-efficiency gem. Sized by its container. Exported so the UX sandbox
  * renders the same glyph (one source, no duplicate).
  */
 export function GemIcon({ state }: { state: IconState }) {
+  const tone = EFFICIENCY_TONE_CLASSES[state];
   if (state === 'unowned') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full">
-        <path
-          d="M6 3h12l4 6-10 13L2 9Z"
-          className="fill-none stroke-muted"
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
+        <g transform="translate(-0.5 0)">
+          <path
+            d="M6 3h12l4 6-10 13L2 9Z"
+            className={cn(tone.fill, tone.stroke)}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+        </g>
       </svg>
     );
   }
-  const { fill, glow } = iconTone(state);
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={cn('h-full w-full', glow)}>
-      <path d="M6 3h12l4 6-10 13L2 9Z" className={fill} strokeLinejoin="round" />
-      {/* The gem's facet lines — dark over the bright fill so it reads as cut stone. */}
-      <path
-        d="M11 3 8 9l4 13 4-13-3-6M2 9h20"
-        fill="none"
-        className="stroke-bg"
-        strokeWidth={1.3}
-        strokeOpacity={0.5}
-        strokeLinejoin="round"
-      />
+    <svg viewBox="0 0 24 24" aria-hidden className={cn('h-full w-full', tone.glow)}>
+      {/* The half-pixel optical correction shares the hourglass's visible centreline. */}
+      <g transform="translate(-0.5 0)">
+        <path d="M6 3h12l4 6-10 13L2 9Z" className={tone.fill} strokeLinejoin="round" />
+        {/* The gem's facet lines — dark over the bright fill so it reads as cut stone. */}
+        <path
+          d="M11 3 8 9l4 13 4-13-3-6M2 9h20"
+          fill="none"
+          className="stroke-bg"
+          strokeWidth={1.3}
+          strokeOpacity={0.5}
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   );
 }
@@ -116,12 +106,13 @@ export function GemIcon({ state }: { state: IconState }) {
  * A bowtie silhouette with cap bars top and bottom.
  */
 export function HourglassIcon({ state }: { state: IconState }) {
+  const tone = EFFICIENCY_TONE_CLASSES[state];
   if (state === 'unowned') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full">
         <path
           d="M5 3h14l-7 9 7 9H5l7-9Z"
-          className="fill-none stroke-muted"
+          className={cn(tone.fill, tone.stroke)}
           strokeWidth={2}
           strokeLinejoin="round"
         />
@@ -129,10 +120,9 @@ export function HourglassIcon({ state }: { state: IconState }) {
       </svg>
     );
   }
-  const { fill, glow } = iconTone(state);
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={cn('h-full w-full', glow)}>
-      <path d="M5 3h14l-7 9 7 9H5l7-9Z" className={fill} strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" aria-hidden className={cn('h-full w-full', tone.glow)}>
+      <path d="M5 3h14l-7 9 7 9H5l7-9Z" className={tone.fill} strokeLinejoin="round" />
       {/* Cap bars — dark over the bright fill, echoing the gem's facet treatment. */}
       <path d="M4 3h16M4 21h16" className="stroke-bg" strokeWidth={1.6} strokeLinecap="round" />
     </svg>
@@ -229,6 +219,7 @@ function EfficiencyField({
         variant={boxed ? 'default' : 'inline'}
         trailing={revertButton}
         reserveTrailing={boxed}
+        valueClassName={EFFICIENCY_TONE_CLASSES[d.state].text}
       />
     </span>
   );

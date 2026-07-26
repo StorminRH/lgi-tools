@@ -38,4 +38,16 @@ describe('Stepper', () => {
     expect(group.props.children).toHaveLength(3);
     expect(slot.props.className).toContain('w-3.5');
   });
+
+  it('allows a caller-owned semantic tone on the value only', () => {
+    const root = Stepper({
+      value: 10,
+      onChange: vi.fn(),
+      ariaLabel: 'Material efficiency',
+      valueClassName: 'text-evb-bright',
+    });
+    const [group] = root.props.children;
+    expect(group.props.children[1].props.className).toContain('text-evb-bright');
+    expect(group.props.children[0].props.className).not.toContain('text-evb-bright');
+  });
 });

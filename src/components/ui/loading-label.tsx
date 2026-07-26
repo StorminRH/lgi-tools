@@ -8,8 +8,9 @@ import { eyebrow } from './type-roles';
  * (caption size, tracked uppercase, muted interface face) lives here so wording
  * and markup can't drift per call site (audit C4). Pass `label` for a
  * context-specific line; `className` extends the wrapper (e.g. `block` + padding
- * to seat it inside a card or under a page head). It is NOT a skeleton box — a
- * section placeholder that needs to occupy space keeps its own bordered shell.
+ * to seat it inside a card or under a page head). It is for compact inline
+ * status only. A portrait, row, card, figure, or section fallback uses Skeleton
+ * shapes that reserve the content's geometry and preserve the shell's rhythm.
  */
 export function LoadingLabel({
   label = 'Loading…',

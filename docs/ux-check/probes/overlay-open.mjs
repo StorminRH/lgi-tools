@@ -16,8 +16,10 @@ export default {
       check(`trigger present: ${label}`, present);
       if (!present) continue;
 
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
       await trigger.scrollIntoViewIfNeeded();
-      if (viewport === 'mobile') await trigger.tap();
+      if (viewport === 'mobile') await trigger.tap({ force: true });
       else await trigger.hover();
       await page.waitForTimeout(1000);
       const openedByPointer = (await trigger.getAttribute('data-popup-open')) !== null;
@@ -29,8 +31,12 @@ export default {
         opened += 1;
         await shot(label);
         if (viewport === 'mobile') {
-          await page.touchscreen.tap(5, 5);
+          await page.keyboard.press('Escape');
           await page.waitForTimeout(300);
+          check(
+            `Escape closes after tap: ${label}`,
+            (await trigger.getAttribute('data-popup-open')) === null,
+          );
         }
       }
 

@@ -128,6 +128,7 @@ run all of its declared viewports with `prefers-reduced-motion: reduce`.
 | `page-modes` | Shared shell frame, reading width, region spacing, and narrow overflow across seven viewports |
 | `sites-lazy-detail` | Cards/table summary parity and first-open-only lazy detail mounting |
 | `templates-menu` | Signed-out saved-template panel, 401 toast, and unknown-plan cleanup |
+| `toast-stack` | Template-loaded feedback concurrent with the keyed market-sync toast |
 
 ## Add or explore a probe
 

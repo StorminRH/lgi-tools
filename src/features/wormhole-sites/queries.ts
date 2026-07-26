@@ -459,6 +459,16 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
 }
 
 /**
+ * Loads the complete site catalogue with the hourly price snapshot used by its prerendered shell.
+ */
+export async function listPricedSiteDetails(): Promise<SiteDetail[]> {
+  'use cache';
+  cacheLife('hours');
+  cacheTag(PRICES_FRESHNESS_TAG);
+  return overlayLivePrices(await listSiteDetails({}));
+}
+
+/**
  * Price-overlaid site detail, cached for the static prerender shell. The site
  * structure is deploy-static (getSiteDetail, cacheLife 'max'); live Jita prices
  * only change on the hourly cron, so we cache the overlaid result under the same

@@ -2,8 +2,9 @@ import type { ComponentProps } from 'react';
 import { cn } from './cn';
 
 /**
- * Renders the domain-neutral skeleton with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
+ * Reserves the geometry of content that has not arrived yet. Use it for portraits, cards, rows,
+ * figures, and other content-shaped fallbacks so the static shell paints the page's real rhythm;
+ * use LoadingLabel only for compact inline status that has no meaningful geometry to reserve.
  */
 export function Skeleton({
   label = 'Loading',

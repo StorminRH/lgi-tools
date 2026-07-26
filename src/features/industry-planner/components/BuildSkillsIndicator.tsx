@@ -40,13 +40,11 @@ function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: nu
 function SkillMetric({
   label,
   icon,
-  value,
   toneClass,
   children,
 }: {
   label: string;
   icon: ReactNode;
-  value: string;
   toneClass: string;
   children: ReactNode;
 }) {
@@ -54,14 +52,11 @@ function SkillMetric({
     <Popover
       label={label}
       trigger={
-        <>
-          <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
-            {icon}
-          </span>
-          {value}
-        </>
+        <span aria-hidden className="inline-flex h-3.5 w-3.5 shrink-0">
+          {icon}
+        </span>
       }
-      triggerClassName={`inline-flex cursor-pointer items-center gap-1 text-micro leading-none transition-opacity hover:opacity-80 data-[popup-open]:opacity-80 ${toneClass}`}
+      triggerClassName={`inline-flex size-5 cursor-pointer items-center justify-center rounded-ctl border border-current/35 bg-surface-sunk transition-colors hover:bg-row-active focus-visible:ring-1 focus-visible:ring-current ${toneClass}`}
     >
       {children}
     </Popover>
@@ -87,17 +82,14 @@ function SkillMetric({
 function MfgSkillMetric({
   characterName,
   breakdown,
-  headline,
 }: {
   characterName: string;
   breakdown: SkillTimeBreakdown;
-  headline: string;
 }) {
   return (
     <SkillMetric
       label={`${characterName}'s manufacturing skills`}
       icon={<HourglassIcon state="owned" />}
-      value={headline}
       toneClass="text-evb-bright"
     >
       <PopoverHeading>{characterName} — manufacturing</PopoverHeading>
@@ -136,7 +128,6 @@ function RxnSkillMetric({
     <SkillMetric
       label={`${characterName}'s reaction skills`}
       icon={<HourglassIcon state="reaction" />}
-      value={`−${formatBonusPct(breakdown.reaction.totalPct)}`}
       toneClass="text-[var(--color-reaction-purple)]"
     >
       <PopoverHeading>{characterName} — reactions</PopoverHeading>
@@ -162,7 +153,7 @@ export function BuildSkillsIndicator({ structure }: { structure: BlueprintStruct
   return (
     <div className="absolute left-full top-1/2 ml-2 flex -translate-y-1/2 flex-col items-start gap-3">
       {view.showMfg && (
-        <MfgSkillMetric characterName={view.characterName} breakdown={view.breakdown} headline={view.mfgHeadline} />
+        <MfgSkillMetric characterName={view.characterName} breakdown={view.breakdown} />
       )}
       {view.showRxn && <RxnSkillMetric characterName={view.characterName} breakdown={view.breakdown} />}
     </div>

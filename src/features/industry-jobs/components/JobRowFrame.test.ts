@@ -9,7 +9,7 @@ describe('JobRowFrame', () => {
     const html = renderToStaticMarkup(
       createElement(JobRowFrame, {
         headlineName: 'Scourge Heavy Missile',
-        icon: jobImage(209, 165),
+        icon: jobImage(1, 209, 165),
         runs: 10,
         activityLabel: 'Manufacturing',
         remainingLabel: 'done in 1h',

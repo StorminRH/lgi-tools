@@ -23,6 +23,7 @@ export function Stepper({
   trailing,
   reserveTrailing = false,
   className,
+  valueClassName,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -33,6 +34,7 @@ export function Stepper({
   trailing?: ReactNode;
   reserveTrailing?: boolean;
   className?: string;
+  valueClassName?: string;
 }) {
   const inline = variant === 'inline';
   const btn = inline
@@ -79,6 +81,7 @@ export function Stepper({
             inline
               ? 'w-[22px] tabular-nums'
               : 'h-7 w-12 border-x border-border-soft focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub',
+            valueClassName,
           )}
         />
         <NumberField.Increment aria-label={`Increase ${ariaLabel}`} className={btn}>
