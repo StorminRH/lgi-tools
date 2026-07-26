@@ -1,25 +1,48 @@
 export default {
   name: 'nav-menu',
   route: '/',
-  viewports: ['mobile'],
+  viewports: ['mobile', 'tablet'],
   settle: 1200,
-  async run({ page, check, shot }) {
+  async run({ page, viewport, check, shot }) {
+    const expectedViewport = viewport === 'mobile'
+      ? { width: 390, height: 844 }
+      : { width: 768, height: 1024 };
+    const configuredViewport = page.viewportSize();
+    check(
+      `browser context matches ${viewport} matrix dimensions`,
+      configuredViewport?.width === expectedViewport.width
+        && configuredViewport.height === expectedViewport.height,
+    );
+    const browserWindow = await page.evaluate(() => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }));
+    if (viewport === 'tablet') {
+      check(
+        'tablet window reports the declared non-desktop dimensions',
+        browserWindow.width === expectedViewport.width
+          && browserWindow.height === expectedViewport.height,
+      );
+    }
+
     const toggle = page.locator('button.nav-menu-toggle');
     const isOpen = async () => (await toggle.getAttribute('data-popup-open')) !== null;
-    check('mobile nav trigger is visible', await toggle.isVisible());
+    check('collapsed nav trigger is visible', await toggle.isVisible());
 
-    await toggle.tap();
+    if (viewport === 'mobile') await toggle.tap();
+    else await toggle.click();
     await page.waitForTimeout(350);
-    check('tap opens the menu', await isOpen());
+    check(`${viewport === 'mobile' ? 'tap' : 'click'} opens the menu`, await isOpen());
     check('menu panel is visible', await page.locator('.nav-menu-panel').isVisible());
     await shot('open');
 
     const sitesLink = page.locator('.nav-menu-panel a.nav-tool', { hasText: 'Wormhole Sites' });
     check('Wormhole Sites link is present', (await sitesLink.count()) > 0);
-    await sitesLink.first().tap();
+    if (viewport === 'mobile') await sitesLink.first().tap();
+    else await sitesLink.first().click();
     await page.waitForURL('**/sites', { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(500);
-    check('link tap navigates to /sites', new URL(page.url()).pathname === '/sites');
+    check('link activation navigates to /sites', new URL(page.url()).pathname === '/sites');
     check('menu closes after navigation', !(await isOpen()));
     check('menu panel unmounts after navigation', (await page.locator('.nav-menu-panel').count()) === 0);
     await shot('after-link-tap');

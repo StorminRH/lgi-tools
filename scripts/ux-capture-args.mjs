@@ -4,8 +4,15 @@
 // effects, no top-level execution.
 
 export const VIEWPORTS = {
-  desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
+  tablet: { width: 768, height: 1024 },
+  laptop: { width: 1024, height: 768 },
+  hd: { width: 1366, height: 768 },
+  desktop: { width: 1440, height: 900 },
+  wide: { width: 1920, height: 1080 },
+  // A 1280×900 browser window at 200% zoom exposes a 640×450 CSS viewport.
+  // This is a layout proxy, not browser-level zoom emulation.
+  zoom200: { width: 640, height: 450 },
 };
 
 // --- args -------------------------------------------------------------------

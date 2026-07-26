@@ -117,16 +117,24 @@ async function installCspCollector(page) {
   });
 }
 
-function contextOptions(viewport) {
+function contextOptions(viewport, reducedMotion) {
+  const motion = reducedMotion ? 'reduce' : 'no-preference';
   if (viewport === 'mobile') {
     return {
       ...devices['Pixel 7'],
       viewport: VIEWPORTS.mobile,
+      screen: VIEWPORTS.mobile,
       hasTouch: true,
       isMobile: true,
+      reducedMotion: motion,
     };
   }
-  return { viewport: VIEWPORTS.desktop };
+  return {
+    viewport: VIEWPORTS[viewport],
+    hasTouch: false,
+    isMobile: false,
+    reducedMotion: motion,
+  };
 }
 
 function validateDefinition(definition, filename) {
@@ -160,7 +168,15 @@ function validateDefinition(definition, filename) {
   if (definition.settle !== undefined && (!Number.isFinite(definition.settle) || definition.settle < 0)) {
     throw new Error(`${filename}: settle must be a non-negative number of milliseconds`);
   }
-  return { ...definition, allowConsole, viewports };
+  if (definition.reducedMotion !== undefined && typeof definition.reducedMotion !== 'boolean') {
+    throw new Error(`${filename}: reducedMotion must be a boolean when present`);
+  }
+  return {
+    ...definition,
+    allowConsole,
+    viewports,
+    reducedMotion: definition.reducedMotion ?? false,
+  };
 }
 
 async function loadDefinitions() {
@@ -244,7 +260,7 @@ async function runViewport(browser, definition, viewport, baseUrl) {
   };
 
   try {
-    context = await browser.newContext(contextOptions(viewport));
+    context = await browser.newContext(contextOptions(viewport, definition.reducedMotion));
     page = await context.newPage();
     diagnostics = watchPage(page, definition.allowConsole);
     await installCspCollector(page);

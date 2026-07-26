@@ -66,9 +66,10 @@ feature checks:
 export default {
   name: 'feedback-dialog',
   route: '/',
-  viewports: ['desktop', 'mobile'], // optional; defaults to both
-  settle: 1200,                    // optional milliseconds; defaults to 1000
-  allowConsole: [/expected noise/], // optional extra RegExp filters
+  viewports: ['desktop', 'mobile'],  // optional; defaults to both
+  reducedMotion: true,               // optional; emulates prefers-reduced-motion
+  settle: 1200,                      // optional milliseconds; defaults to 1000
+  allowConsole: [/expected noise/],  // optional extra RegExp filters
   async setup({ page, baseUrl }) {
     // Optional pre-navigation route mocks, permissions, or init scripts.
   },
@@ -85,7 +86,7 @@ Context members:
 | Member | Contract |
 | --- | --- |
 | `page` | The raw Playwright page for feature-specific navigation and interaction |
-| `viewport` | `'desktop'` or `'mobile'` |
+| `viewport` | One of `mobile`, `tablet`, `laptop`, `hd`, `desktop`, `wide`, or `zoom200` |
 | `baseUrl` | The selected local origin |
 | `check(label, condition)` | Records a pass/fail result without throwing, so later checks still run |
 | `shot(tag)` | Writes a full-page PNG to `captures/probes/<name>--<viewport>--<tag>.png` |
@@ -94,6 +95,14 @@ Use `setup` only when behavior must exist before the first navigation, such as a
 `page.route` mock or clipboard permission. Use `allowConsole` only for noise the
 definition intentionally creates; Convex/HMR/Speed-Insights development noise is
 owned centrally by the runner.
+
+The shared viewport matrix is 390×844 (`mobile`), 768×1024 (`tablet`),
+1024×768 (`laptop`), 1366×768 (`hd`), 1440×900 (`desktop`), 1920×1080
+(`wide`), and 640×450 (`zoom200`). `zoom200` is the CSS viewport exposed by a
+1280×900 window at 200% browser zoom; the harness records it as a responsive
+layout proxy rather than claiming to emulate browser zoom. Only `mobile` uses
+touch and mobile-device emulation. Set `reducedMotion: true` on a definition to
+run all of its declared viewports with `prefers-reduced-motion: reduce`.
 
 ## Durable definition index
 
