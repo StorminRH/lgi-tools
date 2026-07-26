@@ -1,5 +1,6 @@
 import type { Key, ReactNode } from 'react';
 import { cn } from './cn';
+import { eyebrow } from './type-roles';
 
 /** One declarative column in a semantic, non-sortable static table. */
 export interface StaticTableColumn<Row> {
@@ -17,7 +18,7 @@ function cellClass(
   className?: string,
 ): string {
   return cn(
-    'px-3.5 py-2 font-mono text-ui',
+    'px-3.5 py-2 font-data text-ui',
     align === 'right' ? 'text-right' : 'text-left',
     className,
   );
@@ -28,7 +29,10 @@ function headerClass(
   className?: string,
 ): string {
   return cn(
-    'px-3.5 py-2 font-mono text-label tracking-display uppercase text-muted',
+    eyebrow({
+      emphasis: 'strong',
+      className: 'px-3.5 py-2 font-data',
+    }),
     align === 'right' ? 'text-right' : 'text-left',
     className,
   );
@@ -53,7 +57,7 @@ export function StaticTable<Row>({
   theadClassName?: string;
 }) {
   return (
-    <table aria-label={ariaLabel} className={cn('w-full border-collapse font-mono text-ui', className)}>
+    <table aria-label={ariaLabel} className={cn('w-full border-collapse font-data text-ui', className)}>
       <thead className={theadClassName}>
         <tr className="border-b border-border-soft">
           {columns.map((column) => (

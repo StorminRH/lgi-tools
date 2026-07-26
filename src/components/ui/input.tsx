@@ -27,7 +27,7 @@ export const fieldVariants = cva(
  * Shared text classes for field contents; wrappers reuse this token so native and library-backed
  * controls keep identical typography.
  */
-export const fieldText = 'text-ui font-mono text-text placeholder:text-muted';
+export const fieldText = 'text-ui font-data text-text placeholder:text-muted';
 /**
  * Shared focus and inset-well classes for field controls that own their visible focus border
  * instead of the global outline.
@@ -57,7 +57,7 @@ export function Input({
   return (
     <div className={cn(fieldVariants({ size }), focusWell, 'flex items-center gap-1.5', className)}>
       {prompt ? (
-        <span aria-hidden className="select-none font-mono text-ui text-isk">
+        <span aria-hidden className="select-none font-data text-ui text-isk">
           {'>'}
         </span>
       ) : null}

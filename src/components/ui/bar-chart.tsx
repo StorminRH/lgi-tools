@@ -138,7 +138,7 @@ export function BarChart({
               x={bandX + barW / 2}
               y={height - 6}
               textAnchor="middle"
-              className="fill-[var(--color-muted)] font-mono text-micro"
+              className="fill-[var(--color-muted)] font-data text-micro"
             >
               {formatLabel(d.label)}
             </text>

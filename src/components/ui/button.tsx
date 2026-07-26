@@ -14,7 +14,7 @@ const buttonStateClasses =
  * gives every intent except `ghost` a subtle physical raise.
  */
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center font-mono uppercase tracking-ui text-ui ' +
+  'inline-flex items-center justify-center font-ui text-nav ' +
     `rounded-ctl ${buttonStateClasses}`,
   {
     variants: {

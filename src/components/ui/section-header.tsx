@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { eyebrow } from './type-roles';
 
 /**
  * `size` widens the header for dense dashboard cards: 'sm' is the sitewide
@@ -19,13 +20,17 @@ export function SectionHeader({
   variant?: 'bar' | 'sub';
   className?: string;
 }) {
-  const sizing =
-    size === 'md' ? 'px-3.5 py-2 text-label' : 'px-3.5 py-[5px] text-micro';
+  const sizing = size === 'md' ? 'px-3.5 py-2' : 'px-3.5 py-[5px]';
   const hintSizing = 'text-micro';
   return (
     <div
       className={cn(
-        'flex items-center justify-between font-semibold tracking-display uppercase text-muted',
+        eyebrow({
+          size: size === 'md' ? 'label' : 'micro',
+          weight: 'semibold',
+          emphasis: 'strong',
+          className: 'flex items-center justify-between',
+        }),
         variant === 'bar'
           ? 'bg-section border-b border-border-soft border-t border-t-border'
           : 'text-label',

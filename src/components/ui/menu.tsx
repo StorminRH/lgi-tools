@@ -4,7 +4,14 @@ import { Menu as Base } from '@base-ui/react/menu';
 import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
-import { panelSurface } from './dropdown-panel';
+import {
+  menuControlRow,
+  menuRow,
+  menuSection,
+  menuSectionLabel,
+  menuSeparator,
+  panelSurface,
+} from './dropdown-panel';
 import type { Tone } from './tones';
 
 // The platform's one click/tap-toggled dropdown-menu primitive — the idiomatic
@@ -142,3 +149,5 @@ export const MenuRadioItem = Base.RadioItem;
  * consumers compose it only within this primitive family.
  */
 export const MenuRadioItemIndicator = Base.RadioItemIndicator;
+
+export { menuControlRow, menuRow, menuSection, menuSectionLabel, menuSeparator };

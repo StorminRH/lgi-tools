@@ -46,7 +46,7 @@ export function Toaster() {
           // single colour utility lands on each toast — no Tailwind conflict.
           toast:
             'flex w-full items-center gap-2.5 rounded-ctl border bg-bg-deep ' +
-            'px-3.5 py-2.5 font-mono text-ui tracking-ui shadow-toast',
+            'px-3.5 py-2.5 font-ui text-ui tracking-copy shadow-toast',
           icon: 'relative flex h-4 w-4 shrink-0 items-center justify-center',
           content: 'flex flex-col gap-0.5',
           title: 'leading-snug',

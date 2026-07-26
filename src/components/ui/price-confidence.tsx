@@ -77,7 +77,7 @@ export function PriceConfidence({
       triggerClassName={cn('price-confidence', `price-confidence--${level}`, className)}
     >
       <PopoverHeading>{name}</PopoverHeading>
-      <ul className="flex flex-col gap-1 font-body text-body leading-snug text-muted">
+      <ul className="flex flex-col gap-1 font-ui text-body leading-snug text-muted">
         {reasons.map((reason) => (
           <li key={reason}>{reason}</li>
         ))}

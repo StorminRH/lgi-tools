@@ -35,7 +35,7 @@ export function Tooltip({
             <Base.Popup
               className={cn(
                 panelSurface,
-                'max-w-[260px] rounded-card px-3 py-2 font-mono text-label leading-relaxed text-text outline-none ' +
+                'max-w-[260px] rounded-card px-3 py-2 font-ui text-label leading-relaxed text-text outline-none ' +
                   'origin-[var(--transform-origin)] transition-[opacity,transform] duration-fast ' +
                   'data-[starting-style]:scale-95 data-[starting-style]:opacity-0 ' +
                   'data-[ending-style]:scale-95 data-[ending-style]:opacity-0 motion-reduce:transition-none',

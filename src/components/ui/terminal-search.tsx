@@ -18,6 +18,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Callout } from './callout';
 import * as Combobox from './combobox';
 import { deriveTerminalDropdown } from './terminal-search-view';
+import { eyebrow } from './type-roles';
 
 type ParseOk<Params> = { ok: true; params: Params };
 type ParseErr<Err> = { ok: false; error: Err };
@@ -181,7 +182,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
                     setValue(s);
                     submitParsedString(s);
                   }}
-                  className="w-full px-2.5 py-2 text-ui font-mono text-text"
+                  className="w-full px-2.5 py-2 text-ui font-data text-text"
                 >
                   {s}
                 </Combobox.Item>
@@ -217,7 +218,7 @@ function SearchFooter<Err extends { kind: string }>({
         </div>
       )}
       {!error && hint && (
-        <div className="mt-1 font-mono text-label text-muted tracking-wide uppercase">
+        <div className={eyebrow({ className: 'mt-1' })}>
           {hint}
         </div>
       )}

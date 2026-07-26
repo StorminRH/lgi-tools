@@ -20,7 +20,7 @@ export type SegmentedTone = Extract<Tone, 'green'>;
 // Abstract tone → active-segment token classes, the menu.tsx single-tone cva
 // pattern; add a richer tone when a real second consumer needs one.
 const segment = cva(
-  'rounded-ctl border border-transparent font-mono uppercase ' +
+  'rounded-ctl border border-transparent font-ui ' +
     'transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted',
   {
     variants: {
@@ -32,8 +32,8 @@ const segment = cva(
         false: 'text-muted hover:text-text',
       },
       density: {
-        default: 'px-3 py-1 text-label tracking-label',
-        compact: 'px-2 py-0.5 text-micro tracking-control',
+        default: 'px-3 py-1 text-nav',
+        compact: 'px-2 py-0.5 text-label',
       },
     },
     compoundVariants: [

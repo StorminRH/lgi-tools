@@ -22,8 +22,10 @@ describe('SegmentedControl', () => {
     });
     expect(root.props.className).toContain('p-0');
     expect(root.props.children[0].props.className).toContain('px-2');
-    expect(root.props.children[0].props.className).toContain('text-micro');
+    expect(root.props.children[0].props.className).toContain('text-label');
+    expect(root.props.children[0].props.className).toContain('font-ui');
+    expect(root.props.children[0].props.className).not.toContain('uppercase');
     expect(root.props.children[0].props.className).not.toContain('px-3');
-    expect(root.props.children[0].props.className).not.toContain('text-label');
+    expect(root.props.children[0].props.className).not.toContain('text-micro');
   });
 });

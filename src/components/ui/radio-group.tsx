@@ -51,7 +51,7 @@ export function RadioGroup({
       {options.map((option) => (
         <label
           key={option.value}
-          className="flex cursor-pointer items-start gap-2.5 font-mono text-ui text-text has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:opacity-50"
+          className="flex cursor-pointer items-start gap-2.5 font-ui text-ui text-text has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:opacity-50"
         >
           <Radio.Root
             value={option.value}

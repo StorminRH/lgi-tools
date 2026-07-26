@@ -31,7 +31,7 @@ export const pillToneClasses = {
 } satisfies Record<PillTone, string>;
 
 const pillVariants = cva(
-  'font-mono font-semibold border inline-flex items-center',
+  'font-data font-semibold border inline-flex items-center',
   {
     variants: {
       tone: pillToneClasses,

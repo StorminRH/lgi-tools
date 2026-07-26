@@ -58,7 +58,7 @@ export function ChipToggle({
       className={(state) =>
         cn(
           appearance === 'row'
-            ? 'inline-flex items-center rounded-ctl px-2 py-1.5 font-mono text-ui text-muted'
+            ? 'inline-flex items-center rounded-ctl px-2 py-1.5 font-ui text-ui text-muted'
             : chipVariants({ tone }),
           'cursor-pointer transition-colors motion-reduce:transition-none',
           appearance === 'filter' &&

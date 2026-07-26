@@ -102,7 +102,7 @@ export function StackedShareBar({
           y={barH + 15}
           textAnchor={part.labelAnchor}
           fill={toneHex[part.tone]}
-          className="font-mono text-micro"
+          className="font-data text-micro"
         >
           {part.label} {part.value.toLocaleString()} · {Math.round(part.pct)}%
         </text>

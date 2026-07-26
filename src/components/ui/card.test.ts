@@ -6,6 +6,11 @@ describe('Card', () => {
     const el = Card({ children: 'content' });
     expect(el.type).toBe('div');
     expect(el.props.className).toContain('bg-section');
+    expect(el.props.className).toContain('font-ui');
+  });
+
+  it('accepts the explicit data role', () => {
+    expect(Card({ font: 'data', children: 'content' }).props.className).toContain('font-data');
   });
 
   it('supports list-item card semantics', () => {

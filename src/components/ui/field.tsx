@@ -3,6 +3,7 @@
 import { Field as Base } from '@base-ui/react/field';
 import { cloneElement, useId, type ReactElement, type ReactNode } from 'react';
 import { cn } from './cn';
+import { eyebrow } from './type-roles';
 
 type FieldControlElement = ReactElement<{
   id?: string;
@@ -30,7 +31,7 @@ function describedId(content: ReactNode, id: string) {
 function FieldDescription({ id, children }: { id: string; children?: ReactNode }) {
   if (!children) return null;
   return (
-    <Base.Description id={id} className="font-mono text-label text-faint">
+    <Base.Description id={id} className="font-ui text-label text-faint">
       {children}
     </Base.Description>
   );
@@ -39,7 +40,7 @@ function FieldDescription({ id, children }: { id: string; children?: ReactNode }
 function FieldError({ id, children }: { id: string; children?: ReactNode }) {
   if (!children) return null;
   return (
-    <Base.Error id={id} match className="font-mono text-label text-pill-red-text">
+    <Base.Error id={id} match className="font-ui text-label text-pill-red-text">
       {children}
     </Base.Error>
   );
@@ -85,10 +86,7 @@ export function Field({
       disabled={disabled}
       className={cn('flex min-w-0 flex-col gap-1.5', className)}
     >
-      <Base.Label
-        htmlFor={controlId}
-        className="font-mono text-label tracking-wide uppercase text-muted"
-      >
+      <Base.Label htmlFor={controlId} className={eyebrow()}>
         {label}
       </Base.Label>
       {cloneElement(children, {

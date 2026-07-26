@@ -5,7 +5,7 @@ import { paginationItems } from './pagination-model';
 
 const itemClass =
   'inline-flex min-w-[30px] items-center justify-center rounded-ctl border border-border-idle px-2 py-1 ' +
-  'font-mono text-label text-text shadow-btn-bezel hover:border-border-active hover:text-name';
+  'font-ui text-label text-text shadow-btn-bezel hover:border-border-active hover:text-name';
 
 interface PageControlProps {
   target: number;
@@ -144,7 +144,7 @@ export function Pagination({
         hrefForPage={hrefForPage}
         onPageChange={onPageChange}
       />
-      <span className="ml-2 font-mono text-label text-faint">
+      <span className="ml-2 font-ui text-label text-faint">
         {total} rows · {pageSize}/page
       </span>
     </nav>

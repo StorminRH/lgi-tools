@@ -47,9 +47,9 @@ export function SiteCard({
 
   return (
     // `data-site-card` is the lightbox's DOM hook (it walks from the summary up to
-    // this element, then down to the <details>); `font="body"` keeps the card's
-    // Geist prose, `hover` the catalogue glow.
-    <Card font="body" hover data-site-card>
+    // this element, then down to the <details>); `font="ui"` states the prose
+    // role, while `hover` keeps the catalogue glow.
+    <Card font="ui" hover data-site-card>
       <SiteLiveProvider resources={liveResources}>
         <Collapsible
           defaultOpen={defaultOpen}

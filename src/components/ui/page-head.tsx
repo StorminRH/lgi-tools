@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { eyebrow } from './type-roles';
 
 /**
  * The terminal-style `lgi://<crumb>` breadcrumb line, on its own so a page that
@@ -8,7 +9,7 @@ import type { ReactNode } from 'react';
  */
 export function Breadcrumb({ crumb }: { crumb: string }) {
   return (
-    <div className="font-mono text-label tracking-label text-muted mb-2">
+    <div className="mb-2 font-data text-label tracking-label text-muted">
       <span className="text-isk">lgi://</span>
       {crumb}
     </div>
@@ -42,17 +43,17 @@ export function PageHead({
     <header className="w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap">
       <div>
         <Breadcrumb crumb={crumb} />
-        <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase text-name">
+        <h1 className="font-display font-bold text-display leading-none tracking-optical uppercase text-name">
           {title}
         </h1>
         {subtitle != null && (
-          <p className="mt-2 font-mono text-label tracking-label uppercase text-muted">
+          <p className="mt-2 font-ui text-label text-muted">
             {subtitle}
           </p>
         )}
       </div>
       {meta != null && (
-        <div className="flex items-baseline gap-[18px] font-mono text-label tracking-label uppercase text-muted pb-[3px]">
+        <div className={eyebrow({ className: 'flex items-baseline gap-[18px] pb-[3px]' })}>
           {meta}
         </div>
       )}
