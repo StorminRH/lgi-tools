@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 import { LoginButton } from '@/components/composition/account/LoginButton';
+import { PageMenuSection } from '@/components/composition/PageMenuSection';
 import { Menu, MenuLinkItem } from '@/components/ui/menu';
 import { navigationMenuLink } from '@/components/ui/navigation-menu';
 import { deriveNavToolItem, visibleNavTools } from '@/data/tools/registry';
@@ -90,7 +91,8 @@ export function NavMenu() {
       <Suspense fallback={null}>
         <NavMenuItems />
       </Suspense>
-      <div className="flex border-t border-border px-4 py-3">
+      <PageMenuSection />
+      <div data-nav-login-footer className="flex border-t border-border px-4 py-3">
         {/* The flat cluster on purpose: the account-menu variant would nest a
             Menu trigger inside this popup. */}
         <LoginButton variant="flat" />

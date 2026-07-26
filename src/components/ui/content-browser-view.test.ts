@@ -4,6 +4,7 @@ import {
   contentBrowserHref,
   deriveActiveContentSlug,
   landingContentSlug,
+  titleForSlug,
 } from './content-browser-view';
 
 describe('content browser navigation', () => {
@@ -31,6 +32,23 @@ describe('content browser navigation', () => {
 
   it('returns null when the model has no documents', () => {
     expect(landingContentSlug({ items: [], groups: [] })).toBeNull();
+  });
+
+  it('looks up flat and grouped document titles without inventing missing routes', () => {
+    const model: ContentNavModel = {
+      items: [{ slug: 'intro', title: 'Introduction' }],
+      groups: [
+        {
+          slug: 'platform',
+          title: 'Platform',
+          items: [{ slug: 'vercel', title: 'Vercel' }],
+        },
+      ],
+    };
+    expect(titleForSlug(model, 'intro')).toBe('Introduction');
+    expect(titleForSlug(model, 'vercel')).toBe('Vercel');
+    expect(titleForSlug(model, 'missing')).toBeNull();
+    expect(titleForSlug(model, null)).toBeNull();
   });
 
   it('resolves base routes and their trailing slash to the landing document', () => {

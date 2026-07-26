@@ -18,14 +18,16 @@ export default {
       });
       await page.waitForTimeout(300);
       const rail = page.locator('[data-content-browser-rail]');
-      const toggle = page.locator('[data-content-browser-rail-toggle]');
-      check('mobile changelog rail is static', await rail.evaluate((element) => getComputedStyle(element).position === 'static'));
-      check('mobile version disclosure is visible', await toggle.isVisible());
-      await toggle.click();
-      check('mobile disclosure closes', (await rail.getAttribute('open')) === null);
-      await toggle.click();
-      check('mobile disclosure reopens', (await rail.getAttribute('open')) === '');
-      check('v3.8 is active on its canonical route', /^v3\.8\b/.test((await page.locator('[aria-current="page"]').textContent()) ?? ''));
+      const trigger = page.locator('[data-content-drawer-trigger]');
+      check('desktop changelog rail is hidden on mobile', !(await rail.isVisible()));
+      check('mobile version chapter bar is visible', await trigger.isVisible());
+      await trigger.tap();
+      const popup = page.locator('[data-content-drawer-popup]');
+      check('mobile version drawer opens', await popup.isVisible());
+      check(
+        'v3.8 is active on its canonical route',
+        /^v3\.8\b/.test((await popup.locator('[aria-current="page"]').textContent()) ?? ''),
+      );
       await shot('mobile-v3-8');
       return;
     }

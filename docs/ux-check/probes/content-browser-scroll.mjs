@@ -38,18 +38,13 @@ export default {
   viewports: ['desktop', 'mobile'],
   async run({ page, viewport, check, shot }) {
     if (viewport === 'mobile') {
-      const initial = await metrics(page);
-      check('mobile rail is static', initial.railPosition === 'static');
-      check('mobile rail body is fully visible', initial.bodyOverflowY === 'visible' && initial.bodyMaxHeight === 'none');
       const rail = page.locator('[data-content-browser-rail]');
-      const toggle = page.locator('[data-content-browser-rail-toggle]');
-      check('mobile rail toggle is visible', await toggle.isVisible());
-      check('mobile rail starts open', (await rail.getAttribute('open')) === '');
-      await toggle.click();
-      check('mobile rail closes', (await rail.getAttribute('open')) === null);
-      await toggle.click();
-      check('mobile rail reopens', (await rail.getAttribute('open')) === '');
-      await shot('mobile-open');
+      const trigger = page.locator('[data-content-drawer-trigger]');
+      check('desktop rail is hidden on mobile', !(await rail.isVisible()));
+      check('mobile chapter bar is visible', await trigger.isVisible());
+      await trigger.tap();
+      check('mobile contents drawer opens', await page.locator('[data-content-drawer-popup]').isVisible());
+      await shot('mobile-drawer-open');
       return;
     }
 

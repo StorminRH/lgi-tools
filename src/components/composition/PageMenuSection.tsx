@@ -53,7 +53,7 @@ export function PageMenuSection() {
 
   const title = spec?.title ?? 'Page settings';
   return (
-    <div className={menuSection} role="group" aria-label={title}>
+    <div data-page-menu-section className={menuSection} role="group" aria-label={title}>
       <div className={menuSectionLabel} aria-hidden="true">
         {title}
       </div>

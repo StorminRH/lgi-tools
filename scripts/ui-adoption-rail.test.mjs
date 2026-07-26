@@ -23,11 +23,6 @@ const exemptionHomes = [
     'No raw <details>',
   ],
   [
-    'src/components/ui/content-browser.tsx',
-    '<details><summary>Browse</summary></details>',
-    'No raw <details>',
-  ],
-  [
     'src/components/ui/confirm-dialog.tsx',
     '<p role="alert">Problem</p>',
     'No hand-built alert/status region',

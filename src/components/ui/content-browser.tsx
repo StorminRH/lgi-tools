@@ -1,8 +1,13 @@
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import {
+  ContentBrowserChapterTitle,
+  ContentBrowserDrawerNavigation,
+} from './content-browser-drawer';
 import { ContentBrowserNav, ContentBrowserNavTree } from './content-browser-nav';
 import type { ContentNavModel } from './content-browser-view';
+import { Drawer } from './drawer';
 import { scrollArea } from './scroll-area';
 
 export type { ContentNavGroup, ContentNavItem, ContentNavModel } from './content-browser-view';
@@ -28,18 +33,52 @@ export function ContentBrowser({
   children: ReactNode;
 }) {
   const navProps = { basePath, navigationLabel, landingSlug, model };
+  const chapterBar = (
+    <span className="flex min-w-0 flex-1 items-center gap-3">
+      <span className="shrink-0 font-ui text-label font-semibold tracking-label uppercase text-faint">
+        {railLabel}
+      </span>
+      <Suspense
+        fallback={
+          <span
+            data-content-drawer-current-title
+            className="min-w-0 flex-1 truncate text-left text-nav text-text"
+          />
+        }
+      >
+        <ContentBrowserChapterTitle
+          basePath={basePath}
+          landingSlug={landingSlug}
+          model={model}
+        />
+      </Suspense>
+      <span className="shrink-0 text-label text-muted" aria-hidden="true">
+        ↑
+      </span>
+    </span>
+  );
   return (
     <div
       data-content-browser-layout
       className="grid items-start gap-5 pb-16 lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-10"
     >
-      <details data-content-browser-rail className="min-w-0 lg:sticky lg:top-6" open>
-        <summary
-          data-content-browser-rail-toggle
-          className="mb-3 flex cursor-pointer list-none items-center gap-2 rounded-card border border-border px-3 py-2.5 font-ui text-label tracking-label uppercase text-muted after:ml-auto after:text-micro after:content-['▾'] [&::-webkit-details-marker]:hidden lg:hidden"
+      <div data-content-browser-mobile className="min-w-0 lg:hidden">
+        <Drawer
+          title={railLabel}
+          trigger={chapterBar}
+          triggerClassName="flex w-full cursor-pointer items-center rounded-card border border-border bg-section px-3 py-2.5 text-muted shadow-card-edge transition-colors hover:border-border-active hover:text-name data-[popup-open]:border-border-active data-[popup-open]:text-name motion-reduce:transition-none"
         >
-          {railLabel}
-        </summary>
+          <ContentBrowserDrawerNavigation>
+            <Suspense fallback={<ContentBrowserNavTree {...navProps} activeSlug={null} />}>
+              <ContentBrowserNav {...navProps} />
+            </Suspense>
+          </ContentBrowserDrawerNavigation>
+        </Drawer>
+      </div>
+      <div
+        data-content-browser-rail
+        className="hidden min-w-0 lg:sticky lg:top-6 lg:block"
+      >
         <div
           data-content-browser-rail-body
           className={cn(
@@ -51,7 +90,7 @@ export function ContentBrowser({
             <ContentBrowserNav {...navProps} />
           </Suspense>
         </div>
-      </details>
+      </div>
       <div className="min-w-0">{children}</div>
     </div>
   );

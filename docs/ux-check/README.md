@@ -110,10 +110,11 @@ run all of its declared viewports with `prefers-reduced-motion: reduce`.
 | --- | --- |
 | `asset-ledger` | Logged-out asset ledger open state and totals |
 | `asset-ring-mock` | Mocked complete/partial ownership rings and holding details |
-| `changelog-browser` | Canonical routes, sitemap entries, soft navigation, sticky rail, mobile disclosure |
+| `changelog-browser` | Canonical routes, sitemap entries, soft navigation, sticky rail, and mobile drawer |
 | `combobox-global` | Header search focus, options, keyboard navigation, selection, and dismissal |
 | `combobox-terminal` | Planner system search focus, suggestions, selection, and dismissal |
-| `content-browser-scroll` | Shared sticky rail, internal scroll, boundary chaining, and mobile disclosure |
+| `content-browser-scroll` | Shared sticky rail, internal scroll, boundary chaining, and mobile drawer |
+| `contents-drawer` | Mobile chapter context, focus, navigation close, Escape close, and reduced motion |
 | `cost-basis` | Raw/Item input-cost toggle and explanatory popover |
 | `devlog-excerpt-open` | Open Shiki excerpts, gutters, colored tokens, and permalinks |
 | `dialog-open` | Sites lightbox click/tap open and Escape close |
@@ -122,7 +123,9 @@ run all of its declared viewports with `prefers-reduced-motion: reduce`.
 | `me-planner` | Mocked owned research, component adjuster popover, and ME recomputation |
 | `multibuy-panel` | Tier toggles, nested help, toast, and clipboard payload |
 | `nav-menu` | Mobile open, navigation close, Enter open, and Escape close |
+| `nav-page-settings` | Mobile page controls, persistent menu adjustment, and routes without settings |
 | `overlay-open` | Desktop hover/keyboard and mobile tap for planner help overlays |
+| `page-modes` | Shared shell frame, reading width, region spacing, and narrow overflow across seven viewports |
 | `sites-lazy-detail` | Cards/table summary parity and first-open-only lazy detail mounting |
 | `templates-menu` | Signed-out saved-template panel, 401 toast, and unknown-plan cleanup |
 

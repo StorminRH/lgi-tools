@@ -483,6 +483,7 @@ const baseUiWrapperFiles = [
   "src/components/ui/checkbox.tsx",
   "src/components/ui/combobox.tsx",
   "src/components/ui/dialog.tsx",
+  "src/components/ui/drawer.tsx",
   "src/components/ui/field.tsx",
   "src/components/ui/menu.tsx",
   "src/components/ui/navigation-menu.tsx",
@@ -1569,7 +1570,6 @@ const eslintConfig = defineConfig([
     files: [
       "src/components/ui/collapsible.tsx",
       "src/components/ui/content-browser-nav.tsx",
-      "src/components/ui/content-browser.tsx",
     ],
     rules: {
       "no-restricted-syntax": [
