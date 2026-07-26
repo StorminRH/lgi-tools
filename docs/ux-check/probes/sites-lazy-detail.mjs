@@ -63,10 +63,10 @@ export default {
       return;
     }
     await activate(tableButton, viewport);
-    const rows = page.locator('details.sites-table-row');
+    const rows = page.locator('details[data-sites-row]');
     await rows.first().waitFor({ state: 'visible' });
-    const rowSummaries = page.locator('details.sites-table-row > summary');
-    const tableWrappers = page.locator('details.sites-table-row [data-lazy-details]');
+    const rowSummaries = page.locator('details[data-sites-row] > summary');
+    const tableWrappers = page.locator('details[data-sites-row] [data-lazy-details]');
     const rowCount = await rows.count();
     check(
       'table outer summary count equals row count',
@@ -81,7 +81,7 @@ export default {
       await firstRowSummary.scrollIntoViewIfNeeded();
       await activate(firstRowSummary, viewport);
       await page.waitForFunction(() => (
-        document.querySelector('details.sites-table-row [data-lazy-details]')?.childElementCount ?? 0
+        document.querySelector('details[data-sites-row] [data-lazy-details]')?.childElementCount ?? 0
       ) > 0);
       check(
         'opening the first table row mounts only its lazy wrapper',
