@@ -52,7 +52,7 @@ async function JobsContent() {
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex w-full flex-col gap-10">
       <IndustryJobsPanel
         characters={characters.map((character) => toPanelCharacter(character, canSyncIndustryJobs))}
         strip={jobsPageSettings.strip}
