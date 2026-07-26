@@ -11,8 +11,15 @@ describe('navigationMenuLink', () => {
   });
 
   it('shares state across desktop and menu placements', () => {
-    expect(navigationMenuLink({ active: true })).toContain('after:opacity-100');
-    expect(navigationMenuLink({ placement: 'menu' })).toContain('w-full');
-    expect(navigationMenuLink({ placement: 'menu', disabled: true })).toContain('opacity-40');
+    const activeDesktop = navigationMenuLink({ active: true });
+    const enabledMenu = navigationMenuLink({ placement: 'menu' });
+    const disabledMenu = navigationMenuLink({ placement: 'menu', disabled: true });
+
+    expect(activeDesktop).toContain('after:opacity-100');
+    expect(activeDesktop).toContain('focus-visible:ring-isk-sub');
+    expect(enabledMenu).toContain('w-full');
+    expect(enabledMenu).toContain('hover:bg-row-active');
+    expect(disabledMenu).toContain('opacity-40');
+    expect(disabledMenu).not.toContain('hover:');
   });
 });

@@ -272,7 +272,7 @@ export default function UserDetailPage({
 }) {
   return (
     <PageShell mode="detail">
-      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+      <div className="flex flex-col items-center pb-20 gap-0">
         <Suspense fallback={<DetailLoading />}>
           <UserDetailContent params={params} searchParams={searchParams} />
         </Suspense>

@@ -90,7 +90,7 @@ function JobsLoading() {
 export default function JobsPage() {
   return (
     <PageShell mode="reading">
-      <div className="flex flex-col items-center pb-20">
+      <div className="flex w-full flex-col items-center pb-20">
         <PageHead
           crumb="jobs"
           title="Industry Jobs"

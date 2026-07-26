@@ -130,11 +130,15 @@ describe('UI adoption CSS-family census', () => {
   });
 
   it('detects unrecorded families and stale allowlist entries', () => {
-    const css = '.nav-host {}\n.sites-detail-zoom {}\n.nav-unrecorded {}';
+    const css = [
+      '.nav-host, .nav-unrecorded {}',
+      '.shell > .sites-combinator {}',
+      '.sites-detail-zoom {}',
+    ].join('\n');
 
-    expect(unexpectedFamilies(css, ['nav-host', 'sites-detail-zoom'])).toEqual([
-      'nav-unrecorded',
-    ]);
+    expect(unexpectedFamilies(css, ['nav-host', 'sites-detail-zoom'])).toEqual(
+      ['nav-unrecorded', 'sites-combinator'],
+    );
     expect(deadAllowlistEntries(css, ['nav-host', 'sites-detail-zoom', 'prose-copy']))
       .toEqual(['prose-copy']);
   });

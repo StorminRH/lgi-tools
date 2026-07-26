@@ -40,7 +40,7 @@ export default {
     const destinationHref = await destination.getAttribute('href');
     check('drawer offers another document', destinationHref !== null && destinationHref !== currentHref);
     await destination.tap();
-    if (destinationHref) await page.waitForURL(`**${destinationHref}`, { timeout: 15000 }).catch(() => {});
+    if (destinationHref) await page.waitForURL(`**${destinationHref}`, { timeout: 15000 });
     await page.waitForTimeout(300);
     check('document navigation closes the drawer', !(await popup.isVisible()));
     check(

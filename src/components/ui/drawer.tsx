@@ -41,7 +41,7 @@ export function Drawer({
             data-drawer-popup
             className={cn(
               scrollArea,
-              'max-h-[75dvh] w-full overflow-y-auto overscroll-contain rounded-t-card border border-b-0 border-border bg-section px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 text-text shadow-dd outline-none touch-auto',
+              'max-h-[75dvh] w-full overflow-y-auto overscroll-contain rounded-t-card border border-b-0 border-border bg-section px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 text-text shadow-dd outline-hidden touch-auto',
               '[transform:translateY(var(--drawer-swipe-movement-y))] transition-transform duration-panel ease-panel data-swiping:select-none data-swiping:transition-none',
               'data-ending-style:[transform:translateY(calc(100%+2px))] data-starting-style:[transform:translateY(calc(100%+2px))] motion-reduce:duration-0 motion-reduce:transition-none',
               className,

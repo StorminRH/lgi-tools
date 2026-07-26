@@ -7,9 +7,10 @@ export type { ClassValue };
 // ships knowing only the default `text-xs…9xl` sizes, so without registering
 // these it misclassifies `text-ui`/`text-label`/… as text-COLOR utilities — and
 // when a size token and a tone color meet in one cn() call it drops one, so a
-// pill silently loses its color (or its size). The font, spacing, container and
-// tracking theme extensions likewise teach every consuming class group about
-// the house values instead of enumerating each utility form. Keep these scales
+// pill silently loses its color (or its size). The font, spacing, and container
+// theme extensions likewise teach every consuming class group about the house
+// values. Tracking has no exposed theme scale in tailwind-merge, so its house
+// values are enumerated in the class group below. Keep both registration forms
 // in sync with globals.css.
 //
 // The named radius/shadow tokens (--radius-* / --shadow-*, 3.8.2.2) need the same

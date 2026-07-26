@@ -1,5 +1,5 @@
 const PAGE_FAMILY =
-  /(?:^|\n)\s*\.((?:account|nav|content-browser|industry|prose|sites)[\w-]*)/g;
+  /\.((?:account|nav|content-browser|industry|prose|sites)[\w-]*)/g;
 
 function cssFamilies(css: string): string[] {
   return [...new Set(

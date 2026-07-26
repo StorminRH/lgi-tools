@@ -163,4 +163,5 @@ export const MenuRadioItem = Base.RadioItem;
  */
 export const MenuRadioItemIndicator = Base.RadioItemIndicator;
 
+/** Shared domain-neutral layout recipes for composing menu rows, sections, and separators. */
 export { menuControlRow, menuRow, menuSection, menuSectionLabel, menuSeparator };

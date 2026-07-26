@@ -50,7 +50,7 @@ export function AppHeaderShell({
       <NavTools />
       <div
         data-server-status-slot
-        className="flex shrink-0 items-stretch border-l border-border"
+        className="flex shrink-0 items-stretch border-l border-border max-lg:ml-auto"
       >
         <ServerStatus status={serverStatus} />
       </div>

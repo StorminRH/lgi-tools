@@ -173,7 +173,7 @@ export default function BlueprintPlannerPage({
 }) {
   return (
     <PageShell mode="detail">
-      <div className="flex flex-col items-center pt-12 pb-20">
+      <div className="flex flex-col items-center pb-20">
         <Suspense fallback={<PlannerSkeleton />}>
           <PlannerContent params={params} />
         </Suspense>
