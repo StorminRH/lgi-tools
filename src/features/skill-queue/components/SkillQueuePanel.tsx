@@ -144,7 +144,7 @@ function renderQueueCard(
   return {
     isEmpty: model.isEmpty,
     subtitle: model.subtitle !== null && (
-      <div className="text-micro text-muted tracking-ui">{model.subtitle}</div>
+      <div className="text-micro text-muted tracking-copy">{model.subtitle}</div>
     ),
     headerRight: model.header !== null && <QueueHeaderSlot header={model.header} />,
     rows:
@@ -163,7 +163,7 @@ function renderQueueCard(
 function QueueHeaderSlot({ header }: { header: NonNullable<QueueHeader> }) {
   if (header.kind === 'ends-in') {
     return (
-      <span className="text-micro text-muted tracking-ui shrink-0">
+      <span className="text-micro text-muted tracking-copy shrink-0">
         queue ends in {formatRemaining(header.ms)}
       </span>
     );

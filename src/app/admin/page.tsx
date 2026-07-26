@@ -78,7 +78,7 @@ async function AdminContent({
 
   return (
     <>
-      <div className="print-only font-mono text-label tracking-wide uppercase text-muted mb-1">
+      <div className="print-only text-label tracking-wide uppercase text-muted mb-1">
         Admin report — {formatIsoDay(range.from)} to {formatIsoDay(range.to)}
       </div>
       <PageHead

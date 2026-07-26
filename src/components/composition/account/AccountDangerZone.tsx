@@ -197,7 +197,7 @@ function PurgeCharacterControl({
 
   return (
     <Card className="flex items-center justify-between gap-2 px-3 py-2">
-      <span className="min-w-0 truncate font-mono text-ui text-text">{characterName}</span>
+      <span className="min-w-0 truncate font-data text-ui text-text">{characterName}</span>
       <DangerButton triggerRef={triggerRef} onClick={gate.request} label="Purge" />
       <ConfirmDialog
         open={gate.open}
@@ -249,7 +249,7 @@ function LogoutEverywhereControl() {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <p className="font-mono text-ui text-text">Log out everywhere</p>
+        <p className="text-ui text-text">Log out everywhere</p>
         <p className="text-ui text-muted">Ends every active session, including this device.</p>
       </div>
       <Button
@@ -304,7 +304,7 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <p className="font-mono text-ui text-text">Delete account</p>
+        <p className="text-ui text-text">Delete account</p>
         <p className="text-ui text-muted">
           Permanently removes your account and every character’s data.
         </p>

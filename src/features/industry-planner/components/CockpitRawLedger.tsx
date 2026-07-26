@@ -58,7 +58,7 @@ function groupByCategory(
 function CategoryColumn({ group }: { group: CategoryGroup }) {
   return (
     <div className="mb-4 break-inside-avoid">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-display text-muted">
+      <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
         {group.label}
         <span className="text-faint">· {group.rows.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
@@ -74,18 +74,18 @@ function CategoryColumn({ group }: { group: CategoryGroup }) {
             className="min-h-[44px] px-3 py-[9px]"
             leading={<TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name.slice(0, 2)} />}
             name={<div className="flex min-w-0 flex-col gap-px">
-              <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
+              <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
                 {row.name}
               </span>
-              <span className="truncate font-mono text-label uppercase tracking-control text-muted">
+              <span className="truncate font-data text-label uppercase tracking-label text-muted">
                 {row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
               </span>
             </div>}
             trailing={<span className="flex flex-col items-end gap-px text-right">
-              <span className="whitespace-nowrap font-mono text-ui tabular-nums text-muted">
+              <span className="whitespace-nowrap font-data text-ui tabular-nums text-muted">
                 × {formatQuantity(row.quantity)}
               </span>
-              <span className="whitespace-nowrap font-mono text-ui tabular-nums text-text">
+              <span className="whitespace-nowrap font-data text-ui tabular-nums text-text">
                 {row.extendedCost !== null ? formatIsk(row.extendedCost) : '—'}
               </span>
             </span>}

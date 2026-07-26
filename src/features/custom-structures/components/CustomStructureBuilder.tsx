@@ -211,7 +211,7 @@ function SavedStructureRow({
 }) {
   return (
     <Card as="li" className="flex flex-wrap items-center gap-2 px-3 py-2">
-      <span className="font-mono text-ui text-text">{view.name}</span>
+      <span className="font-data text-ui text-text">{view.name}</span>
       <Pill tone="neutral">{view.typeLabel}</Pill>
       <StructureMetaPills view={view} />
       <span className="ml-auto flex items-center gap-3">

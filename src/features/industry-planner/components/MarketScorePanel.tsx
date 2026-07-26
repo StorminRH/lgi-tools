@@ -44,7 +44,7 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
       <PopoverRow label="Price stability">recent swing in sell price ({view.signals.stability})</PopoverRow>
       <PopoverRow label="Demand depth">buy volume vs. listed supply ({view.signals.demand})</PopoverRow>
       {view.staleNote && (
-        <p className="font-body text-body leading-snug text-tone-orange">
+        <p className="text-body leading-snug text-tone-orange">
           Latest trade {view.staleNote.latestDate} ({view.staleNote.age} ago) — reflects that period, not
           today.
         </p>

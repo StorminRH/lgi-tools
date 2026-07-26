@@ -47,7 +47,7 @@ export async function HomeNewsCard() {
                   {item.publishedAt ? (
                     <time
                       dateTime={item.publishedAt}
-                      className="mt-1 block font-mono text-micro text-muted"
+                      className="mt-1 block font-data text-micro text-muted"
                     >
                       {formatUtcDate(item.publishedAt)}
                     </time>

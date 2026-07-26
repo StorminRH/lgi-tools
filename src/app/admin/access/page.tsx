@@ -174,7 +174,7 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
       {query ? (
         <Link
           href="/admin/access"
-          className="font-mono text-ui uppercase tracking-wide text-muted px-2 py-1"
+          className="text-ui uppercase tracking-wide text-muted px-2 py-1"
         >
           Clear
         </Link>

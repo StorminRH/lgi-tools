@@ -72,7 +72,7 @@ function LedgerCells({ cell }: { cell: LedgerCell | null }) {
 function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | null; ownedQty?: number }) {
   const view = assetLedgerView(qty, value, ownedQty);
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 border-t border-border-soft pt-2 font-mono text-ui tabular-nums">
+    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 border-t border-border-soft pt-2 font-data text-ui tabular-nums">
       <span className="text-muted">Total Needed</span>
       <span className="text-right text-name">{view.neededQty}</span>
       <span className="text-right text-isk">{view.neededIsk}</span>
@@ -89,7 +89,7 @@ function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | nu
 // quantity right-aligned. Mirrors the MeAdjuster ProvenanceRows idiom.
 function HoldingLine({ holding }: { holding: AssetHolding }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 font-mono text-ui">
+    <div className="flex items-baseline justify-between gap-3 text-ui">
       <span className="min-w-0">
         <span className="text-name">{holding.ownerName}</span>
         <span className="block text-micro tracking-copy text-muted">
@@ -173,14 +173,14 @@ function QtyRingCell({
             {view.complete ? (
               <RingCheck />
             ) : (
-              <span className="font-mono text-ui tabular-nums text-name">{ringQty(view.remaining)}</span>
+              <span className="font-data text-ui tabular-nums text-name">{ringQty(view.remaining)}</span>
             )}
           </QtyRing>
         }
       >
         <PopoverHeading>Asset Tracking</PopoverHeading>
         <div className="flex flex-col gap-1">
-          <div className="font-mono text-label uppercase tracking-emphasis text-muted">Item held by</div>
+          <div className="text-label uppercase tracking-wide text-muted">Item held by</div>
           <HeldByList heldBy={heldBy} />
         </div>
         <AssetLedger qty={qty} value={value} ownedQty={ownedQty} />
@@ -290,10 +290,10 @@ export function NodeCard({
       </span>
       {/* Name + type. */}
       <div className="relative z-10 pointer-events-none flex min-w-0 flex-1 flex-col gap-px">
-        <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
+        <span className="line-clamp-2 break-words font-data text-ui font-medium leading-[1.28] text-name">
           {name}
         </span>
-        <span className="truncate font-mono text-label uppercase tracking-control text-muted">
+        <span className="truncate font-data text-label uppercase tracking-label text-muted">
           {label}
         </span>
       </div>

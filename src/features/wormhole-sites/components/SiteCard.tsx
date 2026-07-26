@@ -15,7 +15,7 @@ function CatalogueCardExtras({ site }: { site: SiteDetail }) {
       <div className="border-t border-border-idle px-3 py-2 text-right">
         <Link
           href={`/sites/${site.id}`}
-          className="font-mono text-label tracking-label uppercase text-muted hover:text-name"
+          className="text-label tracking-label uppercase text-muted hover:text-name"
         >
           View full page →
         </Link>

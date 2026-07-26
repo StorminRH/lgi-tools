@@ -48,7 +48,7 @@ export function DocumentView({ title, blocks }: { title: string; blocks: Block[]
   return (
     <Prose variant="devlog">
       <article>
-      <h2 className="mb-5 mt-0.5 font-display text-h2 font-bold leading-[1.1] tracking-[0.01em] text-name">{title}</h2>
+      <h2 className="mb-5 mt-0.5 font-display text-h2 font-bold leading-[1.1] tracking-optical text-name">{title}</h2>
       {blocks.map((block, i) => renderBlock(block, i))}
       </article>
     </Prose>

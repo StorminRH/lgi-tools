@@ -193,7 +193,7 @@ function TierColumn({
   const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
   return (
     <div className="min-w-0">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-display text-muted">
+      <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
         Tier {tier.depth}
         <span className="text-faint">· {tier.items.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
@@ -222,13 +222,13 @@ function TierColumn({
 function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => void }) {
   if (!focus) {
     return (
-      <span className="font-mono text-ui text-muted">
+      <span className="text-ui text-muted">
         Consolidated · by tier · click a ▸ component to trace its sub-tree
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-2 font-mono text-ui text-muted">
+    <span className="inline-flex items-center gap-2 text-ui text-muted">
       <Button
         variant="bare"
         type="button"
@@ -263,11 +263,11 @@ function RawLedgerToggle({
       aria-expanded={open}
       className="group inline-flex cursor-pointer items-baseline gap-2"
     >
-      <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-display text-muted group-hover:text-name">
+      <span className="inline-flex items-baseline gap-2 text-label font-semibold uppercase tracking-eyebrow text-muted group-hover:text-name">
         <span className="tracking-normal text-isk">{'//'}</span>
         Raw ledger
       </span>
-      <span className="font-mono text-ui font-semibold tabular-nums text-isk">
+      <span className="font-data text-ui font-semibold tabular-nums text-isk">
         {grandTotal !== null ? formatIsk(grandTotal) : '—'}
       </span>
       <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>

@@ -130,7 +130,7 @@ export function SitesFilterLayout({
           <Card className="p-4 min-[901px]:sticky min-[901px]:top-[110px]">
             <div className="flex flex-col gap-5">
               <div>
-                <span className="font-mono text-label uppercase tracking-wide text-muted">Class</span>
+                <span className="text-label uppercase tracking-wide text-muted">Class</span>
                 <ChipToggleGroup
                   label="Filter by class"
                   value={cls}
@@ -152,7 +152,7 @@ export function SitesFilterLayout({
               </div>
 
               <div>
-                <span className="font-mono text-label uppercase tracking-wide text-muted">Type</span>
+                <span className="text-label uppercase tracking-wide text-muted">Type</span>
                 <ChipToggleGroup
                   label="Filter by site type"
                   value={types}

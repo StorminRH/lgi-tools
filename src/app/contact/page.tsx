@@ -42,7 +42,7 @@ export default function ContactPage() {
       />
 
       <div className="pb-16">
-        <p className="mb-[26px] max-w-[640px] text-pretty font-body text-body leading-[1.72] tracking-[0.01em] text-text">
+        <p className="mb-[26px] max-w-[640px] text-pretty text-body leading-[1.72] tracking-optical text-text">
           Found a bug, have data that looks wrong, or want a tool added? Email{' '}
           <b>Lo-Gang Industries</b>{' '}directly, or open a GitHub issue for anything you&apos;d like
           tracked.
@@ -55,7 +55,7 @@ export default function ContactPage() {
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Email"
               name={
-                <span className="font-mono text-ui text-text">
+                <span className="font-data text-ui text-text">
                 <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
                 <span className="mt-1 block text-micro text-muted">Bug reports, ideas, and data corrections</span>
               </span>
@@ -65,7 +65,7 @@ export default function ContactPage() {
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="GitHub"
               name={
-                <span className="font-mono text-ui text-text">
+                <span className="font-data text-ui text-text">
                 <a
                   href="https://github.com/StorminRH/lgi-tools"
                   target="_blank"
@@ -81,7 +81,7 @@ export default function ContactPage() {
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Discord"
               name={
-                <span className="font-mono text-ui text-text">
+                <span className="text-ui text-text">
                 Coming soon
                 <span className="mt-1 block text-micro text-muted">A community server is in the works</span>
               </span>
@@ -119,7 +119,7 @@ export default function ContactPage() {
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Corps"
               name={
-                <span className="font-mono text-ui text-text">
+                <span className="font-data text-ui text-text">
                 {MAINTAINER_CORPS.map((corp, i) => (
                   <span key={corp.id}>
                     {i > 0 && ' / '}
@@ -140,7 +140,7 @@ export default function ContactPage() {
               colsClass="grid-cols-[96px_minmax(0,1fr)]"
               leading="Support"
               name={
-                <span className="font-mono text-ui text-text">
+                <span className="text-ui text-text">
                 ISK &amp; PLEX donations
                 <span className="mt-1 block text-micro text-muted">
                   Keeps the lights on — send to the Lo-Gang corp wallet

@@ -21,7 +21,7 @@ export function ServerStatus({ status }: { status: ServerStatusValue }) {
     <span aria-label={ariaLabel} className="h-full">
       <Pill
         tone={reachable ? 'green' : 'neutral'}
-        className={`h-full gap-2 whitespace-nowrap border-transparent bg-transparent px-3 uppercase tracking-control ${
+        className={`h-full gap-2 whitespace-nowrap border-transparent bg-transparent px-3 uppercase tracking-label ${
           reachable ? '' : 'text-muted'
         }`}
       >

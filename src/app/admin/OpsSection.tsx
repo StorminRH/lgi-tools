@@ -215,8 +215,8 @@ async function QueuePanel({ rangeKey }: { rangeKey: RangeKey }) {
             {dead.map((row) => (
               <li key={row.id} className="flex flex-col gap-2 border-t border-border-soft px-3.5 py-3 first:border-t-0 sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
-                  <div className="font-mono text-ui text-text">{row.title}</div>
-                  <div className="font-mono text-micro text-muted break-all">
+                  <div className="text-ui text-text">{row.title}</div>
+                  <div className="font-data text-micro text-muted break-all">
                     {row.failureClass} · {row.endpointClass} · {row.attempts} attempts · {row.timing}
                   </div>
                 </div>
@@ -282,7 +282,7 @@ function PriceSourceHealth({
   );
   return (
     <DetailBlock label="Price-source health">
-      <div className="flex flex-col gap-2 font-mono text-ui text-muted">
+      <div className="flex flex-col gap-2 text-ui text-muted">
         <div>{fallbackSummary(fallback)}</div>
         <div>{budgetSummary(budgetExhaustions)}</div>
         <div>{degradationCallerSummary(degradation)}</div>
@@ -337,8 +337,8 @@ async function EventPanel() {
         <ol>
           {fetched.map((event) => (
             <li key={event.id} className="border-b border-border-soft px-3.5 py-2 last:border-b-0">
-              <div className="font-mono text-ui text-text">{summarizeDomainEvent(event)}</div>
-              <div className="font-mono text-micro text-muted">
+              <div className="text-ui text-text">{summarizeDomainEvent(event)}</div>
+              <div className="text-micro text-muted">
                 {event.occurredAt.toISOString().replace('T', ' ').slice(0, 19)} UTC
               </div>
             </li>

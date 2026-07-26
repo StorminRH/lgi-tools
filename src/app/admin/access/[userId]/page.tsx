@@ -182,7 +182,7 @@ async function UserDetailContent({
               className="rounded-ctl border border-border-idle shrink-0"
             />
             <div className="min-w-0">
-              <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
+              <h1 className="font-display font-bold text-display leading-none tracking-optical uppercase mb-1 truncate text-name">
                 {targetUser.name}
               </h1>
               <span className="flex items-center gap-[6px]">

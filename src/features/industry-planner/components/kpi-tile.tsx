@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/card';
 
 /** Shared numeric typography classes for cockpit KPI figures. */
 export const KPI_FIG = 'mt-2.5 text-stat font-semibold leading-[1.02] tabular-nums';
-const KPI_LABEL = 'font-mono text-label font-semibold uppercase tracking-emphasis text-muted';
+const KPI_LABEL = 'text-label font-semibold uppercase tracking-wide text-muted';
 
 /** Renders one cockpit KPI value, comparison, confidence, and supporting hint. */
 export function KpiTile({
@@ -43,7 +43,7 @@ export function KpiHelp({ label, children }: { label: string; children: ReactNod
     <Popover
       label={label}
       trigger="?"
-      triggerClassName="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg font-mono text-micro font-bold text-muted hover:border-isk-dim hover:text-isk"
+      triggerClassName="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg text-micro font-bold text-muted hover:border-isk-dim hover:text-isk"
     >
       {children}
     </Popover>

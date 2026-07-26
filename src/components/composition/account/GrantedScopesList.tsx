@@ -20,7 +20,7 @@ export function GrantedScopesList({ scopes }: { scopes: GrantedScope[] }): React
           colsClass="grid-cols-[minmax(0,1fr)_auto]"
           name={
             <span className="min-w-0">
-            <span className="block font-mono text-ui text-name truncate">{scope.id}</span>
+            <span className="block truncate font-data text-ui text-name">{scope.id}</span>
             {scope.gloss ? (
               <span className="block text-micro text-muted">{scope.gloss}</span>
             ) : null}

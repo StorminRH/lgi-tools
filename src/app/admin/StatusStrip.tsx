@@ -46,7 +46,7 @@ function DetailBody({ children }: { children: ReactNode }) {
 }
 
 function DetailCaption({ children }: { children: ReactNode }) {
-  return <div className="font-mono text-ui text-muted">{children}</div>;
+  return <div className="font-data text-ui text-muted">{children}</div>;
 }
 
 function ChartBlock({ label, children }: { label: string; children: ReactNode }) {

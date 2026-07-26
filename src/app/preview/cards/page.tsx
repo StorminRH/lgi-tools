@@ -32,7 +32,7 @@ export default function PreviewCardsPage() {
     <PageShell>
       <div className="flex flex-col items-center pt-12 pb-20 gap-0">
         <header className="w-full max-w-[1100px] mb-10 pb-4 border-b border-[#1a2535]">
-        <div className="font-display font-bold text-[22px] text-name tracking-ui uppercase mb-1">
+        <div className="font-display font-bold text-[22px] text-name tracking-copy uppercase mb-1">
           Site Card Reference
         </div>
         <div className="text-[10px] text-[#2a4050] tracking-wide uppercase">

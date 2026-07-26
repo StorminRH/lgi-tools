@@ -144,7 +144,7 @@ export function ReactionStructureSelect() {
       {/* The group header carries the bonus readout on its own fixed-height
           line, right of the title. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
-        <span className="shrink-0 font-mono text-label uppercase tracking-display text-text">Reactions</span>
+        <span className="shrink-0 text-label uppercase tracking-eyebrow text-text">Reactions</span>
         <StructureBonusReadout readout={reactionStructureReadout} taxPct={taxPct} />
       </div>
       <ReactionSystemRow

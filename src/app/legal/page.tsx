@@ -46,7 +46,7 @@ export default function LegalPage() {
 
       <div className="pb-16">
         <Prose variant="legal">
-          <h2 className="mb-3 font-display text-h3 font-bold uppercase leading-none tracking-[0.02em] text-name">Site Usage</h2>
+          <h2 className="mb-3 font-display text-h3 font-bold uppercase leading-none tracking-optical text-name">Site Usage</h2>
           <p className="mb-7">What the site records about your visit.</p>
 
           <LegalSection label="In-house telemetry">
@@ -88,7 +88,7 @@ export default function LegalPage() {
             </p>
           </LegalSection>
 
-          <h2 className="mb-3 mt-12 border-t border-border-soft pt-10 font-display text-h3 font-bold uppercase leading-none tracking-[0.02em] text-name">
+          <h2 className="mb-3 mt-12 border-t border-border-soft pt-10 font-display text-h3 font-bold uppercase leading-none tracking-optical text-name">
             EVE Data
           </h2>
           <p className="mb-7">
@@ -161,7 +161,7 @@ export default function LegalPage() {
             </p>
           </LegalSection>
 
-          <h2 className="mb-7 mt-12 border-t border-border-soft pt-10 font-display text-h3 font-bold uppercase leading-none tracking-[0.02em] text-name">
+          <h2 className="mb-7 mt-12 border-t border-border-soft pt-10 font-display text-h3 font-bold uppercase leading-none tracking-optical text-name">
             Our Privacy Stance
           </h2>
 

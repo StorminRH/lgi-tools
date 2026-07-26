@@ -67,11 +67,11 @@ export function RosterCard({
 
 function SpLine({ vm }: { vm: RosterViewModel }) {
   if (vm.totalSp === null) {
-    return <div className="font-mono text-micro leading-tight text-muted">{rosterSpFallback(vm)}</div>;
+    return <div className="font-data text-micro leading-tight text-muted">{rosterSpFallback(vm)}</div>;
   }
   const free = rosterFreeSp(vm);
   return (
-    <div className="font-mono text-micro leading-tight text-muted">
+    <div className="font-data text-micro leading-tight text-muted">
       {formatQuantity(vm.totalSp)} SP
       {free !== null && <span className="text-isk"> · {formatQuantity(free)} free</span>}
     </div>
@@ -121,7 +121,7 @@ function ActiveOrPausedLine({
         <PlayGlyph />
         {skillLabel}
         {vm.remainingLabel !== null && (
-          <span className="font-mono text-micro text-muted shrink-0">{vm.remainingLabel}</span>
+          <span className="font-data text-micro text-muted shrink-0">{vm.remainingLabel}</span>
         )}
       </div>
       <div className="mt-1">

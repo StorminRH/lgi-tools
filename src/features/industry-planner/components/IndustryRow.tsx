@@ -37,7 +37,7 @@ export function IndustryRow({
         leading={icon ? (
         <TypeIcon {...icon} size={26} mono={initials(name)} />
       ) : (
-        <Chip tone="green" className="size-[26px] justify-center p-0 font-jb text-ui font-extrabold">
+        <Chip tone="green" className="size-[26px] justify-center p-0 font-data text-ui font-extrabold">
           {initials(name)}
         </Chip>
       )}

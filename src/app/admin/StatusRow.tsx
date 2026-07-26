@@ -30,8 +30,8 @@ export function StatusRow({
   const header = (
     <span className="flex items-center gap-3 min-w-0 flex-1 py-1">
       <Dot tone={DOT_TONE[status.level]} size="lg" />
-      <span className="font-mono text-ui text-name w-[110px] shrink-0">{name}</span>
-      <span className="font-mono text-ui text-muted truncate">{status.headline}</span>
+      <span className="font-data text-ui text-name w-[110px] shrink-0">{name}</span>
+      <span className="font-data text-ui text-muted truncate">{status.headline}</span>
       {children && (
         <span
           data-chevron

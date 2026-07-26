@@ -23,14 +23,14 @@ export function SelectedSystemBox({
 }) {
   return (
     <div className="flex h-[30px] w-[260px] shrink-0 items-center gap-2 border border-border bg-bg px-2">
-      <span className="min-w-0 truncate font-mono text-ui text-tone-blue">
+      <span className="min-w-0 truncate font-data text-ui text-tone-blue">
         {name} {formatSec(security)}
       </span>
       {locked ? (
         <Tooltip content={`Locked to ${locked}`}>
           <span
             tabIndex={0}
-            className="ml-auto shrink-0 font-mono text-label uppercase tracking-wide text-muted"
+            className="ml-auto shrink-0 text-label uppercase tracking-wide text-muted"
           >
             locked
           </span>
