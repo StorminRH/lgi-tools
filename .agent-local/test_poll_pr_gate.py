@@ -8,6 +8,7 @@ import unittest
 from poll_pr_gate import (
     CODERABBIT_CHECK,
     coderabbit_rate_limited,
+    cursor_bugbot_signal,
     quiescence,
     review_key,
     stable_key,
@@ -148,6 +149,51 @@ class CodeRabbitRateLimited(unittest.TestCase):
     def test_missing_statuses_is_not_rate_limited(self) -> None:
         self.assertFalse(coderabbit_rate_limited({"state": "pending", "statuses": []}))
         self.assertFalse(coderabbit_rate_limited({}))
+
+
+class CursorBugbotSignal(unittest.TestCase):
+    """Cursor's informational check tells the monitor whether comments exist."""
+
+    def cursor_run(self, status: str, conclusion: str | None) -> dict:
+        return {
+            "name": "Cursor Bugbot",
+            "status": status,
+            "conclusion": conclusion,
+        }
+
+    def test_neutral_means_comments_need_review(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("completed", "neutral")]),
+            "comments",
+        )
+
+    def test_skipped_is_tolerated_as_the_same_provider_signal(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("completed", "skipped")]),
+            "comments",
+        )
+
+    def test_success_means_clean(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("completed", "success")]),
+            "clean",
+        )
+
+    def test_in_progress_means_pending(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("in_progress", None)]),
+            "pending",
+        )
+
+    def test_unrelated_skipped_check_is_ignored(self) -> None:
+        unrelated = {"name": "docs", "status": "completed", "conclusion": "skipped"}
+        self.assertEqual(cursor_bugbot_signal([unrelated]), "unregistered")
+
+    def test_unexpected_conclusion_requests_attention(self) -> None:
+        self.assertEqual(
+            cursor_bugbot_signal([self.cursor_run("completed", "failure")]),
+            "attention",
+        )
 
 
 if __name__ == "__main__":
