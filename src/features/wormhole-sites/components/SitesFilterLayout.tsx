@@ -126,8 +126,8 @@ export function SitesFilterLayout({
       />
 
       <div className="pb-16">
-        <div className="grid items-start gap-[22px] min-[901px]:grid-cols-[224px_1fr]">
-          <Card className="p-4 min-[901px]:sticky min-[901px]:top-[110px]">
+        <div className="grid items-start gap-[22px] split:grid-cols-[224px_1fr]">
+          <Card className="p-4 split:sticky split:top-[110px]">
             <div className="flex flex-col gap-5">
               <div>
                 <span className="text-label uppercase tracking-wide text-muted">Class</span>
@@ -224,7 +224,7 @@ export function SitesFilterLayout({
                       </span>
                       <div className="flex-1 h-px bg-border" />
                     </div>
-                    <div className="grid items-start gap-4 min-[901px]:grid-cols-2">{sectionCards.map((c) => c.node)}</div>
+                    <div className="grid items-start gap-4 split:grid-cols-2">{sectionCards.map((c) => c.node)}</div>
                   </section>
                 );
               })

@@ -680,7 +680,7 @@ a:hover {
 /* The search host keeps its unlayered mobile overrides because those declarations
  * must outrank the Tailwind layer's fixed desktop width. Header slots and menu
  * visibility use component utilities now that no legacy selectors contest them. */
-@media (width < 64rem) {
+@media (width < --theme(--breakpoint-lg)) {
   .app-header .nav-host {
     order: 99;
     flex-basis: 100%;
@@ -844,7 +844,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 /* Phone: a full-bleed sheet at native scale — the narrow sheet is already as
  * readable as it gets, and scaling a full-screen sheet reads oddly, so fade only
  * (opacity still transitions; the scale is pinned) and drop the zoom. */
-@media (max-width: 640px) {
+@media (width < --theme(--breakpoint-sm)) {
   .sites-lightbox-dialog {
     width: 100vw;
     max-width: none;

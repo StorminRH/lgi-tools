@@ -242,7 +242,7 @@ export function IndustryDashboardGrid({
   };
 
   return (
-    <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 items-start">
+    <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
       {orderSections(status).map((id) => (
         <DashboardSection key={id} status={status[id]} cell={cells[id]} />
       ))}

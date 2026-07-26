@@ -391,7 +391,7 @@ export function CockpitKpis({
   });
 
   return (
-    <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 cockpit:grid-cols-6">
       <InputCostTile />
       <SellTile />
       <NetMarginTile view={margin} pricing={pricing} seeded={seeded} setMarginMode={setMarginMode} />

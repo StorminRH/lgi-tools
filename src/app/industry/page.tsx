@@ -70,7 +70,7 @@ async function SlotMeta() {
 // re-ranks once section data settles (empties sink as slim headers).
 function DashboardSkeleton() {
   return (
-    <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 items-start">
+    <div className="grid grid-cols-1 items-start gap-4 split:grid-cols-2">
       {(
         [
           ['Recents', 'panel'],
