@@ -24,6 +24,12 @@ export const PLANNER_DISCLOSURE_TRIGGER_CLASS =
   'border-border-soft bg-bg-deep text-isk shadow-field-inset hover:border-border-idle hover:bg-row-active hover:text-isk data-[popup-open]:border-border-idle data-[popup-open]:bg-row-active';
 
 /**
+ * Planner trace treatment for an input related to the selected build node.
+ * The inset border preserves the tier-row geometry while sharpening the existing dim wash.
+ */
+export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
+
+/**
  * Sole presentation owner for planner efficiency states across icon glyphs, editable
  * values, hero labels, and build-node frames.
  */

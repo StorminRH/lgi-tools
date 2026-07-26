@@ -1,7 +1,7 @@
 # Phase 4 punch ledger
 
 Session: `3.10.4.3.1`
-Operator resolution declaration: **Pending**
+Operator resolution declaration: **Resolved — the operator approved every delivered punch item across the planner, site-wide, and final related-input sittings**
 
 This is the live disposition record for the final presentation pass. `Pending
 operator review` is intentionally non-terminal: the operator must keep, revise,
@@ -27,7 +27,7 @@ revert, backlog, or approve each experiment at its sitting gate.
 | PL-014 | Planner templates | Templates trigger reads as plain text. | Pressable Chip structure with the shared recessed field/dropdown surface, neutral border, and green text. | `TemplatesMenu.tsx` | Operator approved the control with the darker token revision |
 | PL-015 | Planner glyphs | Gem sits optically right of the hourglass. | Gem geometry receives a half-pixel optical correction. | `MeAdjuster.tsx` | Fixed; first-sitting operator approved |
 | PL-016 | Planner skill bonus | The whole icon/value string obscures that the breakdown is interactive. | Icon-only hourglass buttons open the existing manufacturing and reaction breakdowns. | `BuildSkillsIndicator.tsx` | Kept after percentage removal; first-sitting operator approved |
-| PL-017 | Related inputs | A thin related-row border may improve chain scanning; connector lines would require new overlay machinery. | Sequenced for the final sitting by the approved plan. | `CockpitBuildPlan.tsx` | Not started; final-sitting experiment |
+| PL-017 | Related inputs | A thin related-row border may improve chain scanning; connector lines would require new overlay machinery. | The existing `related` state now adds a one-pixel inset ISK-green border through the planner tone-map owner without changing row geometry; unrelated rows deepen from 25% to 20% opacity by operator direction. | `industry-styles.ts`, `node-card-view.ts` | Kept; final-sitting operator approved border and stronger fade; connector-line expansion not pursued |
 | PL-018 | Header account slot | A broad mobile capture rendered the signed-out login button on the server and the pending account skeleton during hydration. | `/sites/3` mobile emitted one React hydration mismatch; six immediate repeats were clean, while `AuthProvider` source confirmed the server/client store-state race. | `AuthProvider.tsx` | Fixed; site-wide sitting operator approved |
 | PL-019 | Root scrolling | The viewport rubber-bands when scrolling past the top or bottom boundary. | The document root owns page scrolling; its existing Tailwind utility now sets `overscroll-behavior: none` without changing bounded internal scrollers. | `layout.tsx` | Fixed; operator approved the firm boundary behavior |
 

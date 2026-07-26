@@ -5,6 +5,7 @@
 
 import { cn } from '@/components/ui/cn';
 import { itemImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
+import { RELATED_NODE_ROW_CLASS } from './industry-styles';
 
 // A `min-h` floor keeps every card the same height whatever its name length; the
 // icon + ring centre on the same line — the uniformity the layout is for.
@@ -42,8 +43,8 @@ export function nodeCardView(args: {
     className: cn(
       CARD,
       'relative',
-      args.faded && 'opacity-25',
-      args.related && 'bg-row-related',
+      args.faded && 'opacity-20',
+      args.related && cn('bg-row-related', RELATED_NODE_ROW_CLASS),
       args.selected && 'bg-isk-selected shadow-selected-rail',
       interactive && 'cursor-pointer hover:bg-row-hover',
     ),

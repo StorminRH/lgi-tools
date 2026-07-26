@@ -23,8 +23,10 @@ describe('nodeCardView', () => {
   });
 
   it('reflects the visual state in the class list', () => {
-    expect(nodeCardView({ ...base, faded: true }).className).toContain('opacity-25');
-    expect(nodeCardView({ ...base, related: true }).className).toContain('bg-row-related');
+    expect(nodeCardView({ ...base, faded: true }).className).toContain('opacity-20');
+    const related = nodeCardView({ ...base, related: true }).className;
+    expect(related).toContain('bg-row-related');
+    expect(related).toContain('ring-isk');
     expect(nodeCardView({ ...base, selected: true }).className).toContain('bg-isk-selected');
     expect(nodeCardView({ ...base, onSelect: () => {} }).className).toContain('cursor-pointer');
     // A plain card carries none of the state modifiers.
