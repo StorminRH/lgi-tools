@@ -10,7 +10,12 @@ export function MasterSection({ master }: { master: ChangelogMaster }) {
   return (
     <section className="mb-11 last:mb-0">
       <div className="mb-[22px] flex flex-wrap items-baseline gap-x-3.5 gap-y-1 border-b border-border pb-3">
-        <span className="font-display text-stat font-bold uppercase leading-none tracking-optical text-name">v{master.version}</span>
+        <span
+          data-changelog-master-version
+          className="font-display text-stat font-bold uppercase leading-none tracking-optical text-name"
+        >
+          v{master.version}
+        </span>
         {master.title && (
           <>
             <span className="hidden font-display text-h2 font-semibold leading-[1.2] text-muted sm:inline" aria-hidden="true">

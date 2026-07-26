@@ -903,77 +903,6 @@ details[data-collapsible][open] > summary [data-chevron] {
   }
 }
 
-/* Dev log (/devlog) — a file-browser rail beside a reading column, with code
- * excerpts as inline collapsibles. Prose mirrors the legal page's measure. */
-.content-browser-layout {
-  display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
-  gap: 40px;
-  align-items: start;
-}
-.content-browser-content { min-width: 0; }
-
-/* The shared content-browser rail: a persistent left column on desktop; a
- * collapsible disclosure on narrow screens (the summary is hidden on desktop,
- * so the always-open <details> just renders the tree). */
-.content-browser-rail { min-width: 0; }
-.content-browser-rail-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-family: var(--font-ui);
-  font-size: var(--text-label);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  margin-bottom: 12px;
-}
-.content-browser-rail-toggle::after { content: '▾'; margin-left: auto; font-size: var(--text-micro); }
-
-.content-browser-nav { font-family: var(--font-ui); }
-.content-browser-nav-items { list-style: none; margin: 0 0 14px; padding: 0; }
-.content-browser-nav-item {
-  display: block;
-  padding: 5px 10px;
-  font-size: var(--text-ui);
-  letter-spacing: 0.01em;
-  color: var(--color-muted);
-  border-left: 2px solid transparent;
-  text-decoration: none;
-  transition: color 0.12s, background 0.12s, border-color 0.12s;
-}
-.content-browser-nav-item:hover { color: var(--color-text); background: var(--color-row-hover); }
-.content-browser-nav-item-active {
-  color: var(--color-isk);
-  border-left-color: var(--color-isk);
-  background: var(--color-row-hover);
-}
-.content-browser-nav-group { margin-bottom: 4px; }
-.content-browser-nav-group-summary {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  padding: 5px 8px;
-  font-size: var(--text-label);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-faint);
-}
-.content-browser-nav-group-summary:hover { color: var(--color-muted); }
-.content-browser-nav-chevron {
-  display: inline-block;
-  width: 8px;
-  font-size: var(--text-micro);
-  color: var(--color-faint);
-  transition: transform var(--transition-duration-fast);
-}
-.content-browser-nav-group-items { list-style: none; margin: 0 0 6px; padding: 0 0 0 15px; }
-
 /* Inline code excerpt — a collapsed mono file:lines label expanding the snapshot. */
 .devlog-excerpt {
   border: 1px solid var(--color-border);
@@ -1042,17 +971,3 @@ details[data-collapsible][open] > summary [data-chevron] {
   background: var(--color-bg-deep);
 }
 .devlog-excerpt-code-line { white-space: pre; }
-
-@media (min-width: 861px) {
-  .content-browser-rail { position: sticky; top: 24px; }
-  .content-browser-rail-body {
-    max-height: calc(100vh - 48px);
-    max-height: calc(100dvh - 48px);
-    overflow-y: auto;
-    overscroll-behavior-y: auto;
-  }
-  .content-browser-rail-toggle { display: none; }
-}
-@media (max-width: 860px) {
-  .content-browser-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-}
