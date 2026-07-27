@@ -280,9 +280,10 @@ For version close with any Floss or Campaign:
    master version;
 5. after `plan-audit-remediation` maps approved work, use normal session plans,
    branches, PRs, design review, and close-out;
-6. after every mapped sub-version merges, mark its finding Delivered; when all
-   rows are terminal, rerun the resolver and let its directive start the next
-   full cycle.
+6. in every mapped sub-version's delivering PR, mark its finding Delivered so
+   the marker is already authoritative when that PR merges; when all rows are
+   terminal on `main`, rerun the resolver and let its directive start the next
+   full cycle. Never defer the Delivered edit to post-merge reconciliation.
 
 For a clean version close:
 

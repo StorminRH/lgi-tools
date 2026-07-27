@@ -479,7 +479,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "ebb696ac06a7e42e6db7976068fd3c86fc0a72966832a8db8d1f6d4de9e79d3f"
+      "reconciledHash": "26ebc36641036a7f024903116cf539e2b026b82330c1b4e7ae584093f8015345"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -490,7 +490,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "17d343bdb01846c341d94695a55d495b80f7cb3884d23f08f10885f76e6da25e"
+      "reconciledHash": "dc664f85850823e2d6fa070f5143d7ead0cd6f3ba96aa9a2c75cd4956e55b99f"
     },
     "version-audit": {
       "deps": [
@@ -499,7 +499,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "ebb696ac06a7e42e6db7976068fd3c86fc0a72966832a8db8d1f6d4de9e79d3f"
+      "reconciledHash": "26ebc36641036a7f024903116cf539e2b026b82330c1b4e7ae584093f8015345"
     },
     "triage-issue": {
       "deps": [
@@ -602,6 +602,11 @@
         "poll_pr_gate\\.py",
         "Merge \\(shared\\)",
         "After merge and production proof"
+      ]
+    },
+    "docs/workflows/version-audit.md": {
+      "orderedRequired": [
+        "in every mapped sub-version's delivering PR, mark its finding Delivered"
       ]
     }
   },

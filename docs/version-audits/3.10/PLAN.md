@@ -7,7 +7,7 @@
 **Audit cycle:** 1
 **Audited ref:** `ba4828841a53de992e995c034a470efed50e3d6d`
 **Procedure:** `docs/workflows/version-audit.md`
-**Procedure digest:** `sha256:6b291e99cf3ef6a074c2273788dc20ce36de959a4693ec3a56951ea9dc5572e3`
+**Procedure digest:** `sha256:2e788e7e609cbc6a7d00b0488caaee1d8e993e82cba8a7b95805cd668b0e8091`
 
 > **Expected shape: a short close, plausibly single-cycle.** v3.10 was a
 > hardening version — docs/lifecycle consolidation, boundary/layer completion,
@@ -605,7 +605,7 @@ original id.
 | AF-006 | 1 | Watch | Telemetry query module (carried from v3.8) broad enough to monitor for another change axis; 3.10.3.1 deliberately extended the module and stayed below trigger. | Promote on a 26th export or renewed multi-session growth. | — | Watch |
 | AF-007 | 1 | Watch | Refresh-job query module (carried from v3.8) large but cohesive around one queue lifecycle. | Promote above 15 exports or on a second persistence concern. | — | Watch |
 | AF-008 | 1 | Watch | Auth platform contract (carried from v3.8; paths remapped by 3.10.1.2 to `src/platform/auth/`) is a deliberate exact three-file exception. | Promote if any work proposes a fourth matching file; prefer a real platform module. | — | Watch |
-| AF-016 | 1 | Floss | Committed public/workspace documents describe the system untruthfully in eight places (wrong file paths, wrong zone/schema-ownership claims, the surviving public intra-zone deny-by-default wording; full set in Step 4 above). | Every claim corrected to live reality at its owning site; architecture-map fix flows through the generator + regeneration under the existing drift test; no behavior change. | 3.10.5.1 | Planned |
+| AF-016 | 1 | Floss | Committed public/workspace documents describe the system untruthfully in eight places (wrong file paths, wrong zone/schema-ownership claims, the surviving public intra-zone deny-by-default wording; full set in Step 4 above). | Every claim corrected to live reality at its owning site; architecture-map fix flows through the generator + regeneration under the existing drift test; no behavior change. | 3.10.5.1 | Delivered |
 
 At the audited ref: telemetry 25 exports (< 26), refresh-jobs 13 (≤ 15), auth
 contract 3 files (< 4) — all below trigger; execution re-checks each, decides

@@ -362,6 +362,22 @@ class AgentDriftTests(unittest.TestCase):
             self.check_procedures(),
         )
 
+    def test_procedure_checkpoint_rejects_post_merge_delivery_marking(self) -> None:
+        self.fixture.manifest["procedurePolicies"]["docs/workflows/demo.md"][
+            "orderedRequired"
+        ] = ["delivering PR, mark its finding Delivered"]
+        self.fixture.write(
+            "docs/workflows/demo.md",
+            "After every mapped sub-version merges, mark its finding Delivered.\n",
+        )
+        self.assertEqual(
+            [
+                "docs/workflows/demo.md: missing or reordered procedure checkpoint "
+                "/delivering PR, mark its finding Delivered/"
+            ],
+            self.check_procedures(),
+        )
+
     def test_normalized_prose_duplicates_are_sorted_and_substantive(self) -> None:
         self.fixture.manifest["proseOwnership"]["paths"] = [
             "docs/zeta.md",
