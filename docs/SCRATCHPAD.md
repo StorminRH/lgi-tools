@@ -9,9 +9,25 @@ Version 3.10, “Hull Integrity + SKIN,” is closed and archived. Its roadmap,
 contracts, plans, as-built records, audit evidence, and close record live in
 `../LGI Tools Document Archive/versions/3.10/`.
 
-The next planned version is **4.0**. Its master plan has not been created. Start
-it only through `start-session`; the opening obligations carried
-from the 3.10 close audit remain in `docs/backlog.md`.
+Version **4.0, “The Living Map,”** is the active master version. Its plan is
+`docs/VERSION_4_0_PLAN.md` and its approved delivery topology — 14 sub-versions
+across 16 sessions — is the `## Status` table there. Every session is
+contracted in `docs/session-contracts/4.0/`. Continue only through
+`start-session`; the resolver owns stage selection and the deterministic
+`lifecycle/<sub-version>` branch.
+
+Two topology facts that are easy to misread. Sub-version identifiers keep the
+phase narratives' original numbers, so merged bundles absorb adjacent numbers
+and the sequence contains deliberate gaps; the resolver orders by table row, not
+by arithmetic. Sub-versions 4.0.4.2 and 4.0.4.3 are the only ones whose sessions
+each ship their own PR — every other sub-version ships one PR for the
+sub-version.
+
+The four v4.0 opening obligations from the 3.10 close audit are now scheduled as
+sub-version 4.0.0.1 and must ship before any feature slice, because the
+baseline's write-once rule freezes the registered-row set at the version's first
+shipped session. Their `docs/backlog.md` entry stays until that sub-version
+delivers them, and removing it is part of that session's scope.
 
 `docs/CODE_HEALTH_BASELINE.md` and `docs/UPDATE_WATCH_BASELINE.md` remain the
 active health and update-watch state. The full scratchpad as it stood at the
