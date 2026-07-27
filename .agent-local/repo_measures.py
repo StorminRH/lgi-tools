@@ -361,6 +361,68 @@ def _top_level_keys(body: str) -> list[str]:
     return keys
 
 
+def _array_body(body: str, key: str, *, rel_path: str) -> str:
+    """Return one named bracket-balanced array body."""
+    match = re.search(rf"\b{re.escape(key)}\s*:\s*\[", body)
+    if match is None:
+        raise MeasureError(f"missing {key} array in {rel_path}")
+    start = match.end() - 1
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(body[start:], start):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in ("'", '"', "`"):
+            quote = char
+        elif char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+            if depth == 0:
+                return body[start + 1 : index]
+    raise MeasureError(f"unbalanced {key} array in {rel_path}")
+
+
+def _top_level_array_entries(body: str) -> list[str]:
+    """Return comma-delimited top-level array entries across mixed shapes."""
+    entries: list[str] = []
+    start = 0
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(body):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in ("'", '"', "`"):
+            quote = char
+        elif char in "{[(":
+            depth += 1
+        elif char in "}])":
+            depth -= 1
+        elif char == "," and depth == 0:
+            entry = body[start:index].strip()
+            if entry:
+                entries.append(entry)
+            start = index + 1
+    entry = body[start:].strip()
+    if entry:
+        entries.append(entry)
+    return entries
+
+
 def vendor_integration_count(root: Path) -> int:
     """Count top-level keys of ``vendorResilienceRegistry``."""
     rel_path = "src/composition/vendor-resilience-registry.ts"
@@ -434,28 +496,8 @@ def ui_adoption_exemption_count(root: Path) -> int:
     )
     total = 0
     for family in _UI_EXEMPTION_FAMILIES:
-        match = re.search(rf"{family}\s*:\s*\[", body)
-        if match is None:
-            raise MeasureError(f"missing {family} array in {rel_path}")
-        start = match.end() - 1
-        depth = 0
-        end = None
-        for index, char in enumerate(body[start:], start):
-            if char == "[":
-                depth += 1
-            elif char == "]":
-                depth -= 1
-                if depth == 0:
-                    end = index
-                    break
-        if end is None:
-            raise MeasureError(f"unbalanced {family} array in {rel_path}")
-        array_body = body[start + 1 : end]
-        objects = len(re.findall(r"\{\s*file\s*:", array_body))
-        if objects:
-            total += objects
-        else:
-            total += len(re.findall(r"'[^']+'", array_body))
+        array_body = _array_body(body, family, rel_path=rel_path)
+        total += len(_top_level_array_entries(array_body))
     if total == 0:
         raise MeasureError(f"no UI adoption exemptions found in {rel_path}")
     return total
@@ -472,23 +514,9 @@ def retained_css_family_count(root: Path) -> int:
         r"export const uiAdoptionRegistry\b",
         rel_path=rel_path,
     )
-    match = re.search(r"retainedCssFamilies\s*:\s*\[", body)
-    if match is None:
-        raise MeasureError(f"missing retainedCssFamilies array in {rel_path}")
-    start = match.end() - 1
-    depth = 0
-    end = None
-    for index, char in enumerate(body[start:], start):
-        if char == "[":
-            depth += 1
-        elif char == "]":
-            depth -= 1
-            if depth == 0:
-                end = index
-                break
-    if end is None:
-        raise MeasureError(f"unbalanced retainedCssFamilies array in {rel_path}")
-    entries = re.findall(r"'[^']+'", body[start + 1 : end])
+    entries = _top_level_array_entries(
+        _array_body(body, "retainedCssFamilies", rel_path=rel_path)
+    )
     if not entries:
         raise MeasureError(f"no retained CSS families found in {rel_path}")
     return len(entries)

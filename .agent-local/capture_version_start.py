@@ -21,6 +21,7 @@ from check_baseline_claims import (
     _code_ref_sha,
     _derived_delta,
     _is_separator,
+    _normalized_metric_key,
     _snapshot_values,
     parse_baseline_schema,
 )
@@ -81,11 +82,12 @@ def _main_metric_currents(text: str) -> dict[str, str]:
             continue
         if len(cells) != 4:
             raise MeasureError("origin/main baseline has a malformed Metrics row")
-        if not cells[0] or cells[0] in values:
+        key = _normalized_metric_key(cells[0])
+        if not key or key in values:
             raise MeasureError(
                 "origin/main baseline has an empty or duplicate Metrics key"
             )
-        values[cells[0]] = cells[2]
+        values[key] = cells[2]
     if not values:
         raise MeasureError("origin/main baseline Metrics table is empty")
     return values

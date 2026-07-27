@@ -55,6 +55,11 @@ AUTH_CONTRACT_METRIC = (
 LEGACY_AUTH_SURFACE_METRIC = "`auth-surface` files"
 
 
+def _normalized_metric_key(key: str) -> str:
+    """Return the canonical key for a current or legacy baseline metric."""
+    return AUTH_CONTRACT_METRIC if key == LEGACY_AUTH_SURFACE_METRIC else key
+
+
 @dataclass(frozen=True)
 class BaselineSchema:
     """Structured vocabulary derived from the canonical baseline form."""
@@ -433,11 +438,7 @@ def _anchor_values(
             continue
         if len(cells) != 4:
             return (), ()
-        key = (
-            AUTH_CONTRACT_METRIC
-            if cells[0] == LEGACY_AUTH_SURFACE_METRIC
-            else cells[0]
-        )
+        key = _normalized_metric_key(cells[0])
         if not key or any(saved == key for saved, _value in version_start_values):
             return (), ()
         version_start_values.append((key, cells[1]))

@@ -200,7 +200,7 @@ class RepoMeasureTests(unittest.TestCase):
         self.fixture.write(
             "src/composition/ui-adoption-registry.ts",
             "export const uiAdoptionRegistry = {\n"
-            "  rawButtons: [{ file: 'a.tsx', reason: 'x' }],\n"
+            "  rawButtons: [{ reason: 'x', file: 'a.tsx' }, 'aa.tsx'],\n"
             "  rawDetails: [{ file: 'b.tsx', reason: 'y' }, { file: 'c.tsx', reason: 'z' }],\n"
             "  hiddenInputs: ['d.tsx', 'e.tsx'],\n"
             "  nativeTitles: [{ file: 'f.tsx', reason: 'g' }],\n"
@@ -209,7 +209,7 @@ class RepoMeasureTests(unittest.TestCase):
             "  retainedCssFamilies: ['one', 'two', 'three'],\n"
             "} as const;\n",
         )
-        self.assertEqual(7, ui_adoption_exemption_count(self.fixture.root))
+        self.assertEqual(8, ui_adoption_exemption_count(self.fixture.root))
         self.assertEqual(3, retained_css_family_count(self.fixture.root))
 
     def test_ui_adoption_missing_family_is_a_measure_error(self) -> None:

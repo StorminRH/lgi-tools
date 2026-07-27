@@ -210,6 +210,35 @@ class CaptureVersionStartTests(unittest.TestCase):
                 ensure_fidelity=lambda _root, _ref: None,
             )
 
+    def test_legacy_auth_metric_promotes_into_canonical_row(self) -> None:
+        legacy = _main_baseline().replace(
+            "Auth contract paths (`src/platform/auth/types.ts`, "
+            "`src/db/auth-schema.ts`, `src/platform/auth/api-contract.ts`)",
+            "`auth-surface` files",
+        )
+        text = render_capture(
+            self.fixture.root,
+            read_main=lambda _root: legacy,
+            measure=lambda _root: {
+                "Diagnostic suppressions": "18",
+                "Test contract suppressions": "24",
+                "Fallow boundary zones (configured)": "22",
+                "Vendor-resilience integrations": "14",
+                "Instrumented capability operations": "38",
+                "Owned service-level indicators": "5",
+                "UI adoption exemptions": "16",
+                "Retained legacy CSS families": "8",
+            },
+            ensure_fidelity=lambda _root, _ref: None,
+        )
+        self.assertIn(
+            "| Auth contract paths (`src/platform/auth/types.ts`, "
+            "`src/db/auth-schema.ts`, `src/platform/auth/api-contract.ts`) "
+            "| 3 | 3 | 0 |",
+            text,
+        )
+        self.assertNotIn("`auth-surface` files", text)
+
 
 if __name__ == "__main__":
     unittest.main()
