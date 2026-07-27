@@ -440,8 +440,9 @@ genuinely un-extractable from the DOM, where a render/interaction test earns the
 ## Industry planner — UI
 
 > Small planner-UI deferrals. (The T2 margin-semantics track — the Raw | Item toggle, the
-> Legion price note, and the 700-item catalog audit — all shipped as 3.7.21.1; the `docs/margin-audit/`
-> harnesses live in git.)
+> Legion price note, and the 700-item catalog audit — all shipped as 3.7.21.1;
+> the historical harnesses live at
+> `../LGI Tools Document Archive/pre-3.8/margin-audit/`.)
 
 - **Treat a cleared planner build location as preference deletion, not a null value.**
   *What:* the signed-in planner can POST `planner.buildLocation: null` while
@@ -475,11 +476,11 @@ is reprioritized.
 
 ## Workflow & docs
 
-- **v3.11 opening obligations** (recorded by the v3.10 close audit, cycle 1,
+- **v4.0 opening obligations** (recorded by the v3.10 close audit, cycle 1,
   2026-07-27; source decisions: contract 3.10.0.2.2 PD-2 and
   `../LGI Tools Document Archive/versions/3.10/version-audits/PLAN.md` §4).
   *What:* four deferred lifecycle-tooling
-  items the v3.11 opening owns. (1) The adoption-time `Version-start` capture
+  items the v4.0 opening owns. (1) The adoption-time `Version-start` capture
   mechanism (PD-2): when a master version is adopted, freeze that ref's measured
   values into the baseline's `Version-start` column; v3.10 ran its whole life on
   the v3.9-start column because the mechanism does not exist yet. (2) Register
@@ -498,7 +499,7 @@ is reprioritized.
   compensates with an explicit recorded `diff -r`. *Why deferred:* all four are
   baseline-schema or lifecycle-tooling changes barred mid-version by the HC-1
   write-once rule and the frozen registered-row set. *Size:* S total. *Trigger:*
-  the v3.11 `plan-version` opening, before its first session ships.
+  the v4.0 `plan-version` opening, before its first session ships.
 
 - **Rationale-free carried suppressions** (enumerated by the v3.10 close audit's
   suppression review). *What:* six pre-v3.9 `@typescript-eslint/no-explicit-any`

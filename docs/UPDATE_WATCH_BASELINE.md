@@ -124,7 +124,7 @@ tooling).
       "name": "Vercel / Next.js",
       "watch": ["https://vercel.com/atom", "https://nextjs.org/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-22",
+      "scanSince": "2026-07-25",
       "acknowledgedItems": [
         "https://vercel.com/blog/how-searchable-ships-customer-requested-features-in-30-minutes-on-vercel",
         "https://vercel.com/blog/vercel-agent",
@@ -136,6 +136,17 @@ tooling).
         "https://vercel.com/changelog/service-tiers-now-available-on-ai-gateway",
         "https://vercel.com/changelog/configure-where-run-state-lives-in-vercel-workflows",
         "https://vercel.com/changelog/purge-your-remote-caches-build-and-ci-artifacts",
+        "https://vercel.com/changelog/ai-gateway-now-supports-streaming-transcription",
+        "https://vercel.com/changelog/eve-extensions",
+        "https://vercel.com/changelog/evaluation-metrics-for-vercel-flags",
+        "https://vercel.com/changelog/connect-to-and-manage-sandboxes-from-the-dashboard",
+        "https://vercel.com/changelog/inspect-feature-flag-history-with-vercel-cli",
+        "https://vercel.com/changelog/github-tools-eve-extension",
+        "https://vercel.com/changelog/ling-3-0-flash-is-now-available-on-ai-gateway",
+        "https://vercel.com/changelog/vercel-mcp-can-now-deploy-code",
+        "https://vercel.com/changelog/vercel-waf-for-blob-is-now-in-beta",
+        "https://vercel.com/changelog/workflow-steps-now-support-extended-function-durations",
+        "https://vercel.com/changelog/claude-opus-5-now-available-on-ai-gateway",
         "https://nextjs.org/blog/july-2026-security-release"
       ]
     },
@@ -143,8 +154,10 @@ tooling).
       "name": "Neon",
       "watch": ["https://neon.com/docs/changelog/rss.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-22",
-      "acknowledgedItems": []
+      "scanSince": "2026-07-25",
+      "acknowledgedItems": [
+        "https://neon.com/docs/changelog/2026-07-24"
+      ]
     },
     {
       "name": "Convex",

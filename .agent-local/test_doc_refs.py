@@ -187,6 +187,50 @@ class DocRefsTests(unittest.TestCase):
             self.rendered(),
         )
 
+    def test_root_filename_prefix_is_not_a_path_claim(self) -> None:
+        self.fixture.write("guide.md", "The rendered source is README.mdx.\n")
+        self.assertEqual([], self.rendered())
+
+    def test_markdown_link_path_is_bounded_and_reported_once(self) -> None:
+        self.fixture.write(
+            "guide.md",
+            "See [src/missing/file.ts](src/missing/file.ts).\n",
+        )
+        self.assertEqual(
+            [
+                (
+                    "error",
+                    "docs/guide.md:1: repository path does not resolve: "
+                    "src/missing/file.ts",
+                )
+            ],
+            self.rendered(),
+        )
+
+    def test_external_markdown_url_is_not_a_repository_path_claim(self) -> None:
+        self.fixture.write(
+            "guide.md",
+            "See [external](https://example.test/?file=docs/missing.md) and "
+            "[cdn](//example.test/docs/missing.md).\n",
+        )
+        self.assertEqual([], self.rendered())
+
+    def test_local_markdown_link_ignores_query_and_fragment(self) -> None:
+        self.fixture.write(
+            "guide.md",
+            "See [missing](src/missing/file.ts?view=1#L2).\n",
+        )
+        self.assertEqual(
+            [
+                (
+                    "error",
+                    "docs/guide.md:1: repository path does not resolve: "
+                    "src/missing/file.ts",
+                )
+            ],
+            self.rendered(),
+        )
+
     def test_reasoned_legacy_reference_is_allowlisted(self) -> None:
         self.fixture.write(
             "DESIGN_PRINCIPLES.md",
@@ -219,7 +263,7 @@ class DocRefsTests(unittest.TestCase):
                 (
                     "warn",
                     "docs/VERSION_3_10_PLAN.md:1: archive reference does not resolve: "
-                    "../LGI Tools Document Archive/SCALING_AUDIT_FINDINGS.md",
+                    "../LGI Tools Document Archive/pre-3.8/SCALING_AUDIT_FINDINGS.md",
                 )
             ],
             self.rendered(),

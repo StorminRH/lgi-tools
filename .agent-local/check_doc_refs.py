@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 import re
 import sys
+from urllib.parse import urlsplit
 
 from checker_common import Finding, run_checker
 
@@ -57,12 +58,13 @@ _ROOT_FILES = {
 }
 _SKIP_PREFIXES = ("dup:", "zone:", "sha256:")
 _INLINE_CODE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
-_LINE_SUFFIX = re.compile(r":\d+(?:[-–—]\d+)?$")
+_MARKDOWN_LINK = re.compile(r"\[([^\]\n]+)\]\(([^)\n]+)\)")
+_LINE_SUFFIX = re.compile(r":\d+(?:[-\u2013\u2014]\d+)?$")
 _BARE_PATH = re.compile(
     rf"(?<![\w./-])(?:"
     rf"{re.escape('../LGI Tools Document Archive/')}[^\n`\"'<>),;]+"
     rf"|(?:{'|'.join(re.escape(root) for root in _PATH_ROOTS)})[^\s`\"'<>]+"
-    rf"|(?:{'|'.join(re.escape(name) for name in sorted(_ROOT_FILES, key=len, reverse=True))})"
+    rf"|(?:{'|'.join(re.escape(name) for name in sorted(_ROOT_FILES, key=len, reverse=True))})(?![\w./-])"
     rf")"
 )
 
@@ -198,31 +200,31 @@ _ARCHIVE_REDIRECTS = (
     (
         "docs/**",
         "docs/SCALING_AUDIT_FINDINGS.md",
-        "../LGI Tools Document Archive/SCALING_AUDIT_FINDINGS.md",
+        "../LGI Tools Document Archive/pre-3.8/SCALING_AUDIT_FINDINGS.md",
         "completed scaling audit was archived",
     ),
     (
         "docs/**",
         "docs/3.7.9_VERIFIED_CONSTANTS.md",
-        "../LGI Tools Document Archive/3.7.9_VERIFIED_CONSTANTS.md",
+        "../LGI Tools Document Archive/pre-3.8/3.7.9_VERIFIED_CONSTANTS.md",
         "completed constants evidence was archived",
     ),
     (
         "docs/**",
         "docs/DEV_PERF_DIAGNOSIS.md",
-        "../LGI Tools Document Archive/DEV_PERF_DIAGNOSIS.md",
+        "../LGI Tools Document Archive/pre-3.8/DEV_PERF_DIAGNOSIS.md",
         "dev-performance diagnosis was archived and remains future-session evidence",
     ),
     (
         "docs/**",
         "docs/3.6.7a-AUDIT-FINDINGS.md",
-        "../LGI Tools Document Archive/3.6.7a-AUDIT-FINDINGS.md",
+        "../LGI Tools Document Archive/pre-3.8/3.6.7a-AUDIT-FINDINGS.md",
         "completed audit findings were archived",
     ),
     (
         "docs/**",
         "docs/HUB_SCOPED_MARKET_DATA.md",
-        "../LGI Tools Document Archive/HUB_SCOPED_MARKET_DATA.md",
+        "../LGI Tools Document Archive/pre-3.8/HUB_SCOPED_MARKET_DATA.md",
         "completed market-data ruling evidence was archived",
     ),
     (
@@ -282,9 +284,17 @@ def _normalized_path_claim(token: str) -> str | None:
     return None
 
 
+def _markdown_link_text(match: re.Match[str]) -> str:
+    """Return visible link text plus a local destination path, if present."""
+    target = urlsplit(match.group(2))
+    local_path = "" if target.scheme or target.netloc else target.path
+    return f"{match.group(1)} {local_path}"
+
+
 def _bare_path_claims(line: str) -> list[str]:
     """Return de-duplicated bare repository-path candidates from one line."""
     claims: list[str] = []
+    line = _MARKDOWN_LINK.sub(_markdown_link_text, line)
     for match in _BARE_PATH.finditer(line):
         candidate = match.group(0).rstrip(".,;:)")
         basename = candidate.rsplit("/", maxsplit=1)[-1]
