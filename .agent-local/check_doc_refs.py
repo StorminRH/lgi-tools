@@ -57,12 +57,13 @@ _ROOT_FILES = {
 }
 _SKIP_PREFIXES = ("dup:", "zone:", "sha256:")
 _INLINE_CODE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
+_MARKDOWN_LINK = re.compile(r"\[([^\]\n]+)\]\(([^)\n]+)\)")
 _LINE_SUFFIX = re.compile(r":\d+(?:[-–—]\d+)?$")
 _BARE_PATH = re.compile(
     rf"(?<![\w./-])(?:"
     rf"{re.escape('../LGI Tools Document Archive/')}[^\n`\"'<>),;]+"
     rf"|(?:{'|'.join(re.escape(root) for root in _PATH_ROOTS)})[^\s`\"'<>]+"
-    rf"|(?:{'|'.join(re.escape(name) for name in sorted(_ROOT_FILES, key=len, reverse=True))})"
+    rf"|(?:{'|'.join(re.escape(name) for name in sorted(_ROOT_FILES, key=len, reverse=True))})(?![\w./-])"
     rf")"
 )
 
@@ -285,6 +286,7 @@ def _normalized_path_claim(token: str) -> str | None:
 def _bare_path_claims(line: str) -> list[str]:
     """Return de-duplicated bare repository-path candidates from one line."""
     claims: list[str] = []
+    line = _MARKDOWN_LINK.sub(r"\1 \2", line)
     for match in _BARE_PATH.finditer(line):
         candidate = match.group(0).rstrip(".,;:)")
         basename = candidate.rsplit("/", maxsplit=1)[-1]
