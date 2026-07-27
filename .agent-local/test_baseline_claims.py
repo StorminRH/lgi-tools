@@ -22,9 +22,10 @@ from check_baseline_claims import (
     parse_baseline_schema,
 )
 from repo_measures import (
+    diagnostic_suppression_count,
     production_file_count,
     production_loc,
-    suppression_count,
+    test_contract_suppression_count,
     test_file_count,
 )
 
@@ -40,13 +41,8 @@ CANONICAL_METRICS = (
     "Coverage — lines",
     "Fallow health score",
     "Functions above health thresholds",
-    "Auth query-hub exports",
-    "`PricingContextValue` fields",
-    "`usePricing()` call sites",
     "Planner concern-context fields",
     "Concern-hook consumers",
-    "Telemetry query breadth",
-    "ESI refresh-job query exports",
     AUTH_CONTRACT_METRIC,
     "ESI dataset registry entries",
     "Freshness leaf breadth",
@@ -56,23 +52,33 @@ CANONICAL_METRICS = (
     "API contract completeness",
     "EVE type-image resolver breadth",
     "Threshold overrides",
-    "Source suppressions",
+    "Diagnostic suppressions",
+    "Test contract suppressions",
     "Whole-version Fallow clone groups",
     "Accepted duplication baseline clone groups",
     "Version-start-pinned Fallow verdict",
+    "Fallow boundary zones (configured)",
+    "Vendor-resilience integrations",
+    "Instrumented capability operations",
+    "Owned service-level indicators",
+    "UI adoption exemptions",
+    "Retained legacy CSS families",
     "`src/data/telemetry/queries.ts`",
     "`src/data/esi-refresh-jobs/queries.ts`",
 )
 CANONICAL_SCHEMA = BaselineSchema(
     sections=("Snapshot", "Metrics", "Watch findings"),
     identity_columns=("Field", "Value"),
-    identity_keys=("Date", "App version", "Code ref", "Measurement scope"),
+    identity_keys=("Date", "App version", "Code ref", "Measurement scope", "Version-start ref"),
     metric_columns=("Metric", "Version-start", "Current", "Delta"),
     metric_keys=CANONICAL_METRICS,
 )
 
 
 class BaselineFixture:
+    CODE_REF = "0123456789abcdef0123456789abcdef01234567"
+    PRIOR_VERSION_REF = "abcdef0123456789abcdef0123456789abcdef01"
+
     def __init__(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
@@ -105,8 +111,15 @@ class BaselineFixture:
                 "Production TS/TSX files": str(production_file_count(self.root)),
                 "Production TS/TSX LOC": f"{production_loc(self.root):,}",
                 "Test files": str(test_file_count(self.root)),
-                "Source suppressions": str(suppression_count(self.root)),
+                "Diagnostic suppressions": str(diagnostic_suppression_count(self.root)),
+                "Test contract suppressions": str(test_contract_suppression_count(self.root)),
                 "Whole-version Fallow clone groups": "1",
+                "Fallow boundary zones (configured)": "1",
+                "Vendor-resilience integrations": "1",
+                "Instrumented capability operations": "1",
+                "Owned service-level indicators": "1",
+                "UI adoption exemptions": "1",
+                "Retained legacy CSS families": "1",
                 AUTH_CONTRACT_METRIC: "3",
                 "`src/data/telemetry/queries.ts`": "1 exports",
                 "`src/data/esi-refresh-jobs/queries.ts`": "1 exports",
@@ -125,6 +138,8 @@ class BaselineFixture:
         free_prose: str = "",
         extra_section: str = "",
         wrong_delta_key: str | None = None,
+        code_ref: str = CODE_REF,
+        version_start_ref: str | None = CODE_REF,
     ) -> str:
         current_values = self.default_values()
         current_values.update(current or {})
@@ -140,6 +155,11 @@ class BaselineFixture:
             delta = "99" if original_key == wrong_delta_key else _derived_delta(start, live)
             rows.append(f"| {key} | {start} | {live} | {delta} |")
         metric_text = "\n".join(rows)
+        version_ref_row = (
+            f"| Version-start ref | {version_start_ref} |\n"
+            if version_start_ref is not None
+            else ""
+        )
         text = (
             "# Code Health Baseline (LGI.tools)\n\n"
             "## Snapshot\n\n"
@@ -147,9 +167,10 @@ class BaselineFixture:
             "| --- | --- |\n"
             "| Date | 2026-07-20 |\n"
             "| App version | 3.10.0.2 |\n"
-            "| Code ref | `0123456789abcdef0123456789abcdef01234567` |\n"
-            "| Measurement scope | Fixture |\n\n"
-            "## Metrics\n\n"
+            f"| Code ref | `{code_ref}` |\n"
+            "| Measurement scope | Fixture |\n"
+            f"{version_ref_row}"
+            "\n## Metrics\n\n"
             "| Metric | Version-start | Current | Delta |\n"
             "| --- | ---: | ---: | ---: |\n"
             f"{metric_text}\n"
@@ -165,6 +186,12 @@ class BaselineFixture:
         selected_anchor = anchor or BaselineAnchor("bootstrap")
         with (
             patch("check_baseline_claims.clone_file_counts", return_value={"dup:one": 2}),
+            patch("check_baseline_claims.fallow_zone_entry_count", return_value=1),
+            patch("check_baseline_claims.vendor_integration_count", return_value=1),
+            patch("check_baseline_claims.capability_operation_count", return_value=1),
+            patch("check_baseline_claims.sli_count", return_value=1),
+            patch("check_baseline_claims.ui_adoption_exemption_count", return_value=1),
+            patch("check_baseline_claims.retained_css_family_count", return_value=1),
             patch("check_baseline_claims.frozen_version_start", return_value=selected_anchor),
         ):
             return collect_findings(self.root)
@@ -218,9 +245,9 @@ class BaselineClaimTests(unittest.TestCase):
         )
 
     def test_missing_required_metric_is_an_error(self) -> None:
-        self.fixture.baseline(omit_key="Source suppressions")
+        self.fixture.baseline(omit_key="Diagnostic suppressions")
         self.assertTrue(
-            any("missing required metric: Source suppressions" in finding.message for finding in self.fixture.findings())
+            any("missing required metric: Diagnostic suppressions" in finding.message for finding in self.fixture.findings())
         )
 
     def test_missing_template_blocks_enforcement(self) -> None:
@@ -311,14 +338,118 @@ class BaselineClaimTests(unittest.TestCase):
     def test_renamed_version_start_key_is_an_error(self) -> None:
         main_text = self.fixture.baseline()
         anchor = self._strict_anchor(main_text)
-        self.fixture.baseline(rename_key=("Source suppressions", "Renamed suppressions"))
+        self.fixture.baseline(rename_key=("Diagnostic suppressions", "Renamed suppressions"))
         self.assertTrue(any("version-start metric keys differ" in message for message in self.fixture.messages(anchor)))
 
     def test_deleted_version_start_key_is_an_error(self) -> None:
         main_text = self.fixture.baseline()
         anchor = self._strict_anchor(main_text)
-        self.fixture.baseline(omit_key="Source suppressions")
+        self.fixture.baseline(omit_key="Diagnostic suppressions")
         self.assertTrue(any("version-start metric keys differ" in message for message in self.fixture.messages(anchor)))
+
+    def test_transition_promotes_origin_main_current_values(self) -> None:
+        main_text = self.fixture.baseline(version_start_ref=self.fixture.PRIOR_VERSION_REF)
+        anchor = self._strict_anchor(main_text)
+        self.fixture.baseline(version_start_ref=self.fixture.CODE_REF)
+        self.assertEqual([], self.fixture.messages(anchor))
+
+    def test_first_adoption_transition_without_main_ref_is_clean(self) -> None:
+        main_text = self.fixture.baseline(version_start_ref=None)
+        anchor = self._strict_anchor(main_text)
+        self.fixture.baseline(version_start_ref=self.fixture.CODE_REF)
+        self.assertEqual([], self.fixture.messages(anchor))
+
+    def test_transition_permits_metric_key_additions_and_removals(self) -> None:
+        main_text = self.fixture.baseline(version_start_ref=self.fixture.PRIOR_VERSION_REF)
+        main_text = "\n".join(
+            line
+            for line in main_text.splitlines()
+            if not line.startswith("| Diagnostic suppressions |")
+        )
+        anchor = self._strict_anchor(main_text)
+        self.fixture.baseline(version_start_ref=self.fixture.CODE_REF)
+        self.assertFalse(
+            any("version-start metric keys differ" in message for message in self.fixture.messages(anchor))
+        )
+
+        main_text = self.fixture.baseline(version_start_ref=self.fixture.PRIOR_VERSION_REF)
+        anchor = self._strict_anchor(main_text)
+        self.fixture.baseline(
+            omit_key="Diagnostic suppressions",
+            version_start_ref=self.fixture.CODE_REF,
+        )
+        self.assertFalse(
+            any("version-start metric keys differ" in message for message in self.fixture.messages(anchor))
+        )
+
+    def test_transition_rejects_value_not_equal_to_origin_main_current(self) -> None:
+        main_text = self.fixture.baseline(
+            current={"Production TS/TSX files": "9"},
+            version_start_ref=self.fixture.PRIOR_VERSION_REF,
+        )
+        anchor = self._strict_anchor(main_text)
+        self.fixture.baseline(version_start_ref=self.fixture.CODE_REF)
+        self.assertTrue(
+            any(
+                "transition Version-start for Production TS/TSX files must equal "
+                "origin/main Current '9'" in message
+                for message in self.fixture.messages(anchor)
+            )
+        )
+
+    def test_transition_rejects_new_metric_start_not_equal_to_current(self) -> None:
+        main_text = self.fixture.baseline(version_start_ref=self.fixture.PRIOR_VERSION_REF)
+        main_text = "\n".join(
+            line
+            for line in main_text.splitlines()
+            if not line.startswith("| Diagnostic suppressions |")
+        )
+        anchor = self._strict_anchor(main_text)
+        self.fixture.baseline(
+            version_start={"Diagnostic suppressions": "99"},
+            version_start_ref=self.fixture.CODE_REF,
+        )
+        self.assertTrue(
+            any(
+                "transition Version-start for new metric Diagnostic suppressions "
+                "must equal working Current" in message
+                for message in self.fixture.messages(anchor)
+            )
+        )
+
+    def test_transition_ref_must_equal_origin_main_code_ref(self) -> None:
+        main_text = self.fixture.baseline(version_start_ref=self.fixture.PRIOR_VERSION_REF)
+        anchor = self._strict_anchor(main_text)
+        wrong_ref = "1111111111111111111111111111111111111111"
+        self.fixture.baseline(version_start_ref=wrong_ref)
+        self.assertTrue(
+            any("transition Version-start ref must equal origin/main Code ref" in message for message in self.fixture.messages(anchor))
+        )
+
+    def test_working_ref_cannot_disappear_after_adoption(self) -> None:
+        main_text = self.fixture.baseline()
+        anchor = self._strict_anchor(main_text)
+        self.fixture.baseline(version_start_ref=None)
+        self.assertTrue(
+            any("working baseline is missing Version-start ref" in message for message in self.fixture.messages(anchor))
+        )
+
+    def test_working_ref_must_be_a_full_lowercase_sha(self) -> None:
+        main_text = self.fixture.baseline(version_start_ref=None)
+        anchor = self._strict_anchor(main_text)
+        self.fixture.baseline(version_start_ref="not-a-sha")
+        self.assertTrue(
+            any("must be a full lowercase SHA" in message for message in self.fixture.messages(anchor))
+        )
+
+    def test_origin_main_code_ref_accepts_a_leading_unwrapped_sha(self) -> None:
+        main_text = self.fixture.baseline(version_start_ref=self.fixture.PRIOR_VERSION_REF)
+        main_text = main_text.replace(
+            f"| Code ref | `{self.fixture.CODE_REF}` |",
+            f"| Code ref | {self.fixture.CODE_REF} on main |",
+        )
+        anchor = self._strict_anchor(main_text)
+        self.assertEqual(self.fixture.CODE_REF, anchor.code_ref)
 
     def test_old_format_anchor_permits_bootstrap(self) -> None:
         anchor = frozen_version_start(

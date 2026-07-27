@@ -4,4 +4,4 @@
  * when shipping a new sub-version; the footer surfaces this as a link to
  * /changelog.
  */
-export const APP_VERSION = '3.10.5.1';
+export const APP_VERSION = '4.0.0.1';

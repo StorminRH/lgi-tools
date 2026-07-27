@@ -81,21 +81,43 @@ def production_loc(root: Path) -> int:
     )
 
 
-def suppression_count(root: Path) -> int:
-    """Count suppression markers across ``src`` and ``convex`` source files.
+_SUPPRESSION_MARKERS = re.compile(r"eslint-disable|@ts-expect-error|fallow-ignore")
+_TS_EXPECT_ERROR = re.compile(r"@ts-expect-error")
 
-    Generated Convex JavaScript is included because its checked-in headers are
-    part of the baseline's suppression inventory.
-    """
-    pattern = re.compile(r"eslint-disable|@ts-expect-error|fallow-ignore")
+
+def _suppression_source_files(root: Path) -> list[Path]:
+    """Return the file set shared by both suppression partitions."""
     source_files = set(_typescript_files(root))
     for directory in (root / "src", root / "convex"):
         if directory.is_dir():
             source_files.update(path for path in directory.rglob("*.js") if path.is_file())
             source_files.update(path for path in directory.rglob("*.jsx") if path.is_file())
+    return sorted(source_files)
+
+
+def diagnostic_suppression_count(root: Path) -> int:
+    """Count diagnostic suppression markers; partitions sum to the old total.
+
+    Every ``eslint-disable`` and ``fallow-ignore`` marker counts here, including
+    those in test files. ``@ts-expect-error`` counts only outside ``*.test.ts``
+    and ``*.test.tsx`` files.
+    """
+    total = 0
+    for path in _suppression_source_files(root):
+        text = _read_utf8(path, root)
+        if _is_test(path):
+            total += len(_SUPPRESSION_MARKERS.findall(text)) - len(_TS_EXPECT_ERROR.findall(text))
+        else:
+            total += len(_SUPPRESSION_MARKERS.findall(text))
+    return total
+
+
+def test_contract_suppression_count(root: Path) -> int:
+    """Count test-file ``@ts-expect-error`` markers; partitions sum to the old total."""
     return sum(
-        len(pattern.findall(_read_utf8(path, root)))
-        for path in source_files
+        len(_TS_EXPECT_ERROR.findall(_read_utf8(path, root)))
+        for path in _suppression_source_files(root)
+        if _is_test(path)
     )
 
 
@@ -278,3 +300,269 @@ def clone_file_counts(
         files = {instance["file"] for instance in instances}
         counts[fingerprint] = len(files)
     return counts
+
+def fallow_zone_entry_count(root: Path) -> int:
+    """Count configured Fallow boundary zones in ``.fallowrc.json``."""
+    config_path = root / ".fallowrc.json"
+    if not config_path.is_file():
+        raise MeasureError("missing file: .fallowrc.json")
+    try:
+        config = json.loads(_read_utf8(config_path, root))
+        zones = config["boundaries"]["zones"]
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        raise MeasureError(".fallowrc.json has no parseable boundary zones") from error
+    if not isinstance(zones, list) or not zones:
+        raise MeasureError(".fallowrc.json boundary zones must be a nonempty list")
+    return len(zones)
+
+
+def _object_body_after(text: str, anchor: str, *, rel_path: str) -> str:
+    """Return the brace-balanced object body immediately after ``anchor``."""
+    match = re.search(anchor, text)
+    if match is None:
+        raise MeasureError(f"missing anchor in {rel_path}")
+    start = text.find("{", match.end())
+    if start < 0:
+        raise MeasureError(f"missing object body after anchor in {rel_path}")
+    depth = 0
+    for index, char in enumerate(text[start:], start):
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start + 1 : index]
+    raise MeasureError(f"unbalanced object body in {rel_path}")
+
+
+def _top_level_keys(body: str) -> list[str]:
+    """Return top-level object keys, accepting quoted and bare identifiers."""
+    keys: list[str] = []
+    depth = 0
+    index = 0
+    key_pattern = re.compile(r"\s*(?:'([^']+)'|([A-Za-z_][\w-]*))\s*:")
+    while index < len(body):
+        char = body[index]
+        if char in "{[":
+            depth += 1
+            index += 1
+            continue
+        if char in "}]":
+            depth -= 1
+            index += 1
+            continue
+        if depth == 0:
+            match = key_pattern.match(body, index)
+            if match:
+                keys.append(match.group(1) or match.group(2))
+                index = match.end()
+                continue
+        index += 1
+    return keys
+
+
+def _without_comments(source: str) -> str:
+    """Blank TypeScript comments while preserving quoted text and newlines."""
+    result: list[str] = []
+    index = 0
+    quote: str | None = None
+    escaped = False
+    while index < len(source):
+        char = source[index]
+        if quote is not None:
+            result.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            index += 1
+            continue
+        if char in ("'", '"', "`"):
+            quote = char
+            result.append(char)
+            index += 1
+            continue
+        pair = source[index : index + 2]
+        if pair == "//":
+            while index < len(source) and source[index] != "\n":
+                result.append(" ")
+                index += 1
+            continue
+        if pair == "/*":
+            result.extend((" ", " "))
+            index += 2
+            while index < len(source):
+                if source[index : index + 2] == "*/":
+                    result.extend((" ", " "))
+                    index += 2
+                    break
+                result.append("\n" if source[index] == "\n" else " ")
+                index += 1
+            continue
+        result.append(char)
+        index += 1
+    return "".join(result)
+
+
+def _array_body(body: str, key: str, *, rel_path: str) -> str:
+    """Return one named bracket-balanced array body."""
+    body = _without_comments(body)
+    match = re.search(rf"\b{re.escape(key)}\s*:\s*\[", body)
+    if match is None:
+        raise MeasureError(f"missing {key} array in {rel_path}")
+    start = match.end() - 1
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(body[start:], start):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in ("'", '"', "`"):
+            quote = char
+        elif char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+            if depth == 0:
+                return body[start + 1 : index]
+    raise MeasureError(f"unbalanced {key} array in {rel_path}")
+
+
+def _top_level_array_entries(body: str) -> list[str]:
+    """Return comma-delimited top-level array entries across mixed shapes."""
+    entries: list[str] = []
+    start = 0
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    for index, char in enumerate(body):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in ("'", '"', "`"):
+            quote = char
+        elif char in "{[(":
+            depth += 1
+        elif char in "}])":
+            depth -= 1
+        elif char == "," and depth == 0:
+            entry = body[start:index].strip()
+            if entry:
+                entries.append(entry)
+            start = index + 1
+    entry = body[start:].strip()
+    if entry:
+        entries.append(entry)
+    return entries
+
+
+def vendor_integration_count(root: Path) -> int:
+    """Count top-level keys of ``vendorResilienceRegistry``."""
+    rel_path = "src/composition/vendor-resilience-registry.ts"
+    path = root / rel_path
+    if not path.is_file():
+        raise MeasureError(f"missing file: {rel_path}")
+    body = _object_body_after(
+        _read_utf8(path, root),
+        r"export const vendorResilienceRegistry\b",
+        rel_path=rel_path,
+    )
+    keys = _top_level_keys(body)
+    if not keys:
+        raise MeasureError(f"no vendor integrations found in {rel_path}")
+    return len(keys)
+
+
+def capability_operation_count(root: Path) -> int:
+    """Count top-level keys of ``CAPABILITIES``."""
+    rel_path = "src/data/telemetry/capability.ts"
+    path = root / rel_path
+    if not path.is_file():
+        raise MeasureError(f"missing file: {rel_path}")
+    body = _object_body_after(
+        _read_utf8(path, root),
+        r"export const CAPABILITIES\b",
+        rel_path=rel_path,
+    )
+    keys = _top_level_keys(body)
+    if not keys:
+        raise MeasureError(f"no capability operations found in {rel_path}")
+    return len(keys)
+
+
+def sli_count(root: Path) -> int:
+    """Count entries of the ``SLI_IDS`` array."""
+    rel_path = "src/data/telemetry/sli.ts"
+    path = root / rel_path
+    if not path.is_file():
+        raise MeasureError(f"missing file: {rel_path}")
+    text = _read_utf8(path, root)
+    match = re.search(r"export const SLI_IDS\s*=\s*\[([^\]]*)\]", text, re.S)
+    if match is None:
+        raise MeasureError(f"missing SLI_IDS array in {rel_path}")
+    entries = re.findall(r"'([^']+)'", match.group(1))
+    if not entries:
+        raise MeasureError(f"no SLI entries found in {rel_path}")
+    return len(entries)
+
+
+_UI_EXEMPTION_FAMILIES = (
+    "rawButtons",
+    "rawDetails",
+    "hiddenInputs",
+    "nativeTitles",
+    "disabledControlTitles",
+)
+
+
+def ui_adoption_exemption_count(root: Path) -> int:
+    """Sum entries across the five UI adoption exemption families."""
+    rel_path = "src/composition/ui-adoption-registry.ts"
+    path = root / rel_path
+    if not path.is_file():
+        raise MeasureError(f"missing file: {rel_path}")
+    text = _read_utf8(path, root)
+    body = _object_body_after(
+        text,
+        r"export const uiAdoptionRegistry\b",
+        rel_path=rel_path,
+    )
+    total = 0
+    for family in _UI_EXEMPTION_FAMILIES:
+        array_body = _array_body(body, family, rel_path=rel_path)
+        total += len(_top_level_array_entries(array_body))
+    if total == 0:
+        raise MeasureError(f"no UI adoption exemptions found in {rel_path}")
+    return total
+
+
+def retained_css_family_count(root: Path) -> int:
+    """Count entries of ``retainedCssFamilies`` in the UI adoption registry."""
+    rel_path = "src/composition/ui-adoption-registry.ts"
+    path = root / rel_path
+    if not path.is_file():
+        raise MeasureError(f"missing file: {rel_path}")
+    body = _object_body_after(
+        _read_utf8(path, root),
+        r"export const uiAdoptionRegistry\b",
+        rel_path=rel_path,
+    )
+    entries = _top_level_array_entries(
+        _array_body(body, "retainedCssFamilies", rel_path=rel_path)
+    )
+    if not entries:
+        raise MeasureError(f"no retained CSS families found in {rel_path}")
+    return len(entries)

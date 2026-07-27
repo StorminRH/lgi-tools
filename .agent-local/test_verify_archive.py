@@ -45,6 +45,7 @@ class ArchiveFixture:
         self.write("docs/session-contracts/9.9/INDEX.md", "contract index\n")
         self.write("docs/session-contracts/9.9/9.9.1.1.md", "contract\n")
         self.write("docs/session-plans/9.9/9.9.1.1.md", "plan\n")
+        self.write("docs/session-as-built/9.9/9.9.1.1.md", "as-built\n")
         self.write(
             "docs/version-audits/9.9/PLAN.md",
             "**Audit status:** Complete\n"
@@ -70,7 +71,7 @@ class ArchiveFixture:
         destination = self.archive_root / "versions/9.9"
         destination.mkdir(parents=True, exist_ok=True)
         shutil.copy2(self.root / "docs/VERSION_9_9_PLAN.md", destination)
-        for name in ("session-contracts", "session-plans", "version-audits"):
+        for name in ("session-contracts", "session-plans", "session-as-built", "version-audits"):
             shutil.copytree(
                 self.root / "docs" / name / "9.9",
                 destination / name,
@@ -125,6 +126,33 @@ class VerifyArchiveTests(unittest.TestCase):
         self.assertTrue(
             any(
                 "docs/session-plans/9.9:1: archive source set is missing or empty"
+                in message
+                for message in self.fixture.messages("post")
+            )
+        )
+
+    def test_post_reports_corrupted_as_built_copy(self) -> None:
+        destination = self.fixture.copy_bundle()
+        (destination / "session-as-built/9.9.1.1.md").write_text(
+            "tampered\n",
+            encoding="utf-8",
+        )
+        self.assertTrue(
+            any("archive copy differs" in message for message in self.fixture.messages("post"))
+        )
+
+    def test_post_reports_missing_as_built_copy(self) -> None:
+        destination = self.fixture.copy_bundle()
+        (destination / "session-as-built/9.9.1.1.md").unlink()
+        self.assertTrue(
+            any("archive copy is missing" in message for message in self.fixture.messages("post"))
+        )
+
+    def test_post_reports_missing_active_as_built_directory(self) -> None:
+        shutil.rmtree(self.fixture.root / "docs/session-as-built/9.9")
+        self.assertTrue(
+            any(
+                "docs/session-as-built/9.9:1: archive source set is missing or empty"
                 in message
                 for message in self.fixture.messages("post")
             )
