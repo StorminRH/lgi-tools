@@ -128,7 +128,7 @@ Run exactly these default reviews concurrently:
 
 1. **Execution reviewer:** Cursor Composer 2.5 Standard, using the bounded scope
    above.
-2. **Holistic reviewer:** Cursor Grok 4.5 Medium, covering the complete subject
+2. **Holistic reviewer:** Cursor Grok 4.5 High, covering the complete subject
    through targeted retrieval.
 
 Both run through Cursor Agent in read-only mode, sandboxed, with structured
@@ -162,7 +162,8 @@ against the captured JSON, installed CLI help, and current primary documentation
 before spending another run. Allow at most one diagnosed rerun per reviewer
 seat. If that rerun still produces no verdict, return `BLOCKED`.
 
-Run at most one escalation review, and only when:
+Do not launch a duplicate automatic escalation review after the default Grok
+High seat. Treat these conditions as escalation triggers:
 
 - the default reviewers disagree about a high-blast-radius claim;
 - a security, identity, destructive-data, migration, concurrency, or public
@@ -172,14 +173,15 @@ Run at most one escalation review, and only when:
 - the subject was authored primarily by one default model and the other
   reviewer cannot provide sufficient independent coverage.
 
-Use Cursor Grok 4.5 High for that targeted escalation. If it cannot settle the
-claim, return `BLOCKED` for an operator-approved frontier-model review rather
-than silently spending Codex or Claude capacity. Do not escalate merely because
-a default reviewer found an ordinary actionable defect.
+First attempt to settle the claim from current source, primary documentation,
+tests, or observable behavior. If that evidence cannot settle it, return
+`BLOCKED` for an operator-approved frontier-model review rather than silently
+spending Codex or Claude capacity or rerunning the same Grok tier. Do not
+escalate merely because a default reviewer found an ordinary actionable defect.
 
 Evidence: each model id, assigned role and scope, investigation and collection
-completion states, collected verdict, and the exact escalation trigger or `Not
-used`.
+completion states, collected verdict, and the exact escalation trigger and
+blocker or `Not used`.
 
 ## 4. Verify and reconcile
 

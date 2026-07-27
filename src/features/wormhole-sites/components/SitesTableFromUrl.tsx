@@ -1,15 +1,30 @@
-'use client';
-
-import { useSearchParams } from 'next/navigation';
 import type { SiteDetail } from '../types';
 import { parseSortDir, parseSortKey } from '../sort';
 import { SitesTable } from './SitesTable';
 
-/** Resolves the catalogue table's small URL-backed sort hole around an otherwise cached dataset. */
-export function SitesTableFromUrl({ sites }: { sites: SiteDetail[] }) {
-  const searchParams = useSearchParams();
-  const sortKey = parseSortKey(searchParams.get('sort') ?? undefined);
-  const sortDir = parseSortDir(searchParams.get('dir') ?? undefined);
+type SitesSearchParams = {
+  sort?: string | string[];
+  dir?: string | string[];
+};
+
+function scalarParam(value: string | string[] | undefined): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Resolves the catalogue table's small request-time URL-sort hole around an otherwise cached
+ * dataset, so shared HTML carries the requested first-paint order.
+ */
+export async function SitesTableFromUrl({
+  sites,
+  searchParams,
+}: {
+  sites: SiteDetail[];
+  searchParams: Promise<SitesSearchParams>;
+}) {
+  const raw = await searchParams;
+  const sortKey = parseSortKey(scalarParam(raw.sort));
+  const sortDir = parseSortDir(scalarParam(raw.dir));
 
   return (
     <SitesTable

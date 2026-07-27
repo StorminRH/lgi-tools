@@ -35,7 +35,7 @@ delivery, and lifecycle mutations remain outside this invocation.
     < "$ADVERSARIAL_EXECUTION_BRIEF"
 
   cursor-agent --print --output-format json --mode plan --sandbox enabled \
-    --model cursor-grok-4.5-medium \
+    --model cursor-grok-4.5-high \
     --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
     < "$ADVERSARIAL_HOLISTIC_BRIEF"
 
@@ -58,9 +58,9 @@ delivery, and lifecycle mutations remain outside this invocation.
 - Do not add `--force`, `--yolo`, or `--approve-mcps`. An operator's explicit
   authorization permits `--trust` for one run only; otherwise let the operator
   grant workspace trust through Cursor's interactive prompt.
-- If the canonical escalation rule fires, use the same read-only flags for one
-  fresh targeted `--model cursor-grok-4.5-high` run, then collect its verdict
-  with the same-session `--resume` turn.
+- A canonical escalation trigger does not start another Grok background job.
+  Reconcile it from direct evidence; if a frontier review is still required,
+  stop as `BLOCKED` for the operator instead of rerunning the current tier.
 - Keep reviewing the highest-blast-radius owner while the model reviews run.
   Verify every accepted claim directly and fail if the subject changes.
 

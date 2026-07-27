@@ -60,7 +60,7 @@ partial-render hole.
 | `/preview/primitives` | `partial` | Keep — meaningful shell exists; request state stays isolated |
 | `/robots.txt` | `static` | Keep — full meaningful content already prerenders |
 | `/sitemap.xml` | `static` | Keep — full meaningful content already prerenders |
-| `/sites` | `partial` | Fix — cached catalogue shell; URL sort only remains a hole |
+| `/sites` | `partial` | Fix — cached catalogue supplies the page/filter shell and streamed results; saved-view cookie and nested URL sort remain request-time holes |
 | `/sites/[id]` | `partial` | Keep — meaningful shell exists; request state stays isolated |
 | `/sites/[id]/opengraph-image` | `dynamic` | Keep — metadata image handler is honestly dynamic |
 | `/characters` | `partial` | Fix — preserve content geometry with Skeleton fallbacks |

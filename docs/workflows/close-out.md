@@ -214,9 +214,10 @@ second coverage cycle.
    UX evidence, and the finalized delivery records from the preceding phase.
 2. Keep the worktree stable while the two Cursor reviewers run. The
    adversarial-review procedure owns its context-bounded Composer execution
-   review, Grok holistic review, optional targeted escalation, and verified
-   finding ledger; do not add native review subagents or another model fan-out
-   here.
+   review, Grok High holistic review, evidence-first reconciliation, and
+   verified finding ledger. An escalation trigger that direct evidence cannot
+   settle returns `BLOCKED`; do not add native review subagents or another model
+   fan-out here.
 3. Fix every accepted in-scope finding through the authority already held by
    close-out. Preserve the rejection/do-not-change ledger. A scope, architecture,
    public-surface, or authority conflict returns `BLOCKED`.
@@ -229,8 +230,9 @@ second coverage cycle.
    final bytes.
 
 Phase evidence: reviewed working-tree base and patch digest, both default model
-verdicts, escalation result or `Not used`, accepted and rejected dispositions,
-and the final clean/corrected boundary verdict.
+verdicts, escalation trigger plus direct-evidence disposition or `Not used`,
+accepted and rejected dispositions, and the final clean/corrected boundary
+verdict.
 
 ## Finalize and verify the current head (shared)
 

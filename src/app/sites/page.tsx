@@ -1,18 +1,26 @@
+import { cookies } from 'next/headers';
 import { Suspense } from 'react';
 import { Banner } from '@/components/ui/banner';
 import { PageShell } from '@/components/ui/page-shell';
+import { Skeleton } from '@/components/ui/skeleton';
 import { UrlSync } from '@/components/ui/url-sync';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import {
   SitesFilterLayout,
+  SitesResults,
   type SiteCardItem,
 } from '@/features/wormhole-sites/components/SitesFilterLayout';
-import { SitesTable } from '@/features/wormhole-sites/components/SitesTable';
 import { SitesTableFromUrl } from '@/features/wormhole-sites/components/SitesTableFromUrl';
 import { selectDevSampleSites } from '@/features/wormhole-sites/dev-sample';
 import { listPricedSiteDetails } from '@/features/wormhole-sites/queries';
 import { siteClassSet } from '@/features/wormhole-sites/site-filter';
 import { buildPageMetadata } from '@/lib/page-metadata';
+import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
+
+type SitesSearchParams = {
+  sort?: string | string[];
+  dir?: string | string[];
+};
 
 /** Static search and social metadata for the /sites route. */
 export const metadata = buildPageMetadata({
@@ -43,11 +51,28 @@ function DevSampleBanner({
   );
 }
 
-// Cached shell region: catalogue structure and the hourly price seed are shared,
-// so the page head, filter rail, cards, and default table all prerender. Only the
-// table's URL sort is a request-time leaf; the view preference reconciles through
-// PreferencesProvider after hydration without withholding the meaningful shell.
-async function SitesCatalogue() {
+async function SitesResultsFromCookie({
+  cards,
+  table,
+}: {
+  cards: SiteCardItem[];
+  table: React.ReactNode;
+}) {
+  const initialView = readPreferenceCookieValue(
+    (await cookies()).get(cookieNameFor(sitesView))?.value,
+    sitesView,
+  );
+  return <SitesResults cards={cards} table={table} initialView={initialView} />;
+}
+
+// Cached catalogue region: structure and the hourly price seed are shared, so
+// the slow read never joins request time. PageHead and filter chrome render
+// before the saved-view result branch; URL sorting stays nested inside it.
+async function SitesCatalogue({
+  searchParams,
+}: {
+  searchParams: Promise<SitesSearchParams>;
+}) {
   const allSites = await listPricedSiteDetails();
   const sample = selectDevSampleSites(allSites);
   const sites = sample ?? allSites;
@@ -66,39 +91,48 @@ async function SitesCatalogue() {
   const table = (
     <Suspense
       fallback={
-        <SitesTable
-          sites={sites}
-          sortKey={null}
-          sortDir="desc"
-          currentParams={{}}
+        <Skeleton
+          label="Loading sorted sites"
+          className="h-[640px] w-full rounded-card"
         />
       }
     >
-      <SitesTableFromUrl sites={sites} />
+      <SitesTableFromUrl sites={sites} searchParams={searchParams} />
     </Suspense>
+  );
+  const fallback = (
+    <div className="pt-[34px]">
+      <Skeleton
+        label="Loading saved sites view"
+        className="h-[720px] w-full rounded-card"
+      />
+    </div>
   );
 
   return (
     <>
       <DevSampleBanner sampled={sampled} shown={sites.length} total={fullCount} />
-      <SitesFilterLayout
-        cards={cards}
-        table={table}
-        total={sites.length}
-        initialView="cards"
-      />
+      <SitesFilterLayout sites={cards.map((card) => card.meta)} total={sites.length}>
+        <Suspense fallback={fallback}>
+          <SitesResultsFromCookie cards={cards} table={table} />
+        </Suspense>
+      </SitesFilterLayout>
     </>
   );
 }
 
 /**
- * The cached shell carries the catalogue and its filter chrome; only URL-backed sorting is a
- * request-time leaf inside the table.
+ * The cached catalogue carries stable chrome; the saved result mode and nested URL sort stream
+ * from their smallest truthful request-time boundaries.
  */
-export default function SitesPage() {
+export default function SitesPage({
+  searchParams,
+}: {
+  searchParams: Promise<SitesSearchParams>;
+}) {
   return (
     <PageShell mode="workspace">
-      <SitesCatalogue />
+      <SitesCatalogue searchParams={searchParams} />
     </PageShell>
   );
 }

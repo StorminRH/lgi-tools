@@ -25,7 +25,7 @@
 | Auth query-hub exports | 0 | 0 | 0 |
 | `PricingContextValue` fields | 0 | 0 | 0 |
 | `usePricing()` call sites | 0 | 0 | 0 |
-| Planner concern-context fields | 4 / 10 / 18 / 6 / 13 | 5 / 10 / 18 / 6 / 13 | +1 / 0 / 0 / 0 / 0 |
+| Planner concern-context fields | 4 / 10 / 18 / 6 / 13 | 5 / 10 / 18 / 6 / 13 | — |
 | Concern-hook consumers | 22 calls / 11 files | 22 calls / 11 files | — |
 | Telemetry query breadth | 25 exports / 50 fan-in files | 25 exports / 50 fan-in files | — |
 | ESI refresh-job query exports | 13 | 13 | 0 |

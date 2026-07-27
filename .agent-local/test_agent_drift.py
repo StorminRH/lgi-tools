@@ -631,7 +631,7 @@ class AgentDriftTests(unittest.TestCase):
 
 
 class LiveAdversarialReviewPolicy(unittest.TestCase):
-    """Pin the economical Cursor lane and prevent the retired runtime fan-out."""
+    """Pin the Cursor review lane and prevent the retired runtime fan-out."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -646,7 +646,7 @@ class LiveAdversarialReviewPolicy(unittest.TestCase):
             {
                 "cursor-agent",
                 "composer-2\\.5",
-                "cursor-grok-4\\.5-medium",
+                "cursor-grok-4\\.5-high",
             }.issubset(required)
         )
 

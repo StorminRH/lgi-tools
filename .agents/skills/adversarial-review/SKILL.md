@@ -34,7 +34,7 @@ fix, commit, open a PR, merge, deploy, or mutate lifecycle state.
     < "$ADVERSARIAL_EXECUTION_BRIEF"
 
   cursor-agent --print --output-format json --mode plan --sandbox enabled \
-    --model cursor-grok-4.5-medium \
+    --model cursor-grok-4.5-high \
     --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
     < "$ADVERSARIAL_HOLISTIC_BRIEF"
 
@@ -57,9 +57,9 @@ fix, commit, open a PR, merge, deploy, or mutate lifecycle state.
 - Do not add `--force`, `--yolo`, or `--approve-mcps`. Only an operator's
   explicit per-run authorization permits `--trust`; an interactive operator
   trust grant is the normal first-run path.
-- For a canonical escalation trigger only, run one fresh targeted brief with
-  `--model cursor-grok-4.5-high` and the same read-only flags, then collect its
-  verdict with the same-session `--resume` turn.
+- Do not launch a duplicate Grok seat for a canonical escalation trigger.
+  Follow the procedure's evidence-first reconciliation and return `BLOCKED`
+  when an unresolved trigger needs an operator-approved frontier-model review.
 - Continue the orchestrator's source review while the model reviews run. Verify
   every accepted claim personally and fail if the subject changes.
 

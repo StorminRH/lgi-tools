@@ -20,12 +20,14 @@ export default {
   async setup({ page }) {
     await page.addInitScript(() => {
       try {
+        if (sessionStorage.getItem('lgi:probe:sites-initialized') === 'true') return;
+        sessionStorage.setItem('lgi:probe:sites-initialized', 'true');
         localStorage.setItem('lgi:pref:sites.detailMode', '"expand"');
         localStorage.setItem('lgi:pref:sites.view', '"cards"');
       } catch {}
     });
   },
-  async run({ page, viewport, check, shot }) {
+  async run({ page, viewport, baseUrl, check, shot }) {
     const cards = page.locator('[data-site-card]');
     const cardSummaries = page.locator('[data-site-card] details[data-collapsible] > summary');
     const cardWrappers = page.locator('[data-site-card] [data-lazy-details]');
@@ -91,5 +93,50 @@ export default {
     } else {
       check('opening the first table row mounts only its lazy wrapper', false);
     }
+
+    await page.evaluate(() => {
+      localStorage.removeItem('lgi:pref:sites.view');
+      document.cookie = 'lgi_pref_sites_view=%22table%22; Path=/; SameSite=Lax';
+    });
+    await page.goto(new URL('/sites', baseUrl).href, { waitUntil: 'domcontentloaded' });
+    const firstPressedView = await page
+      .locator('[aria-label="Sites view"] [aria-pressed="true"]')
+      .textContent()
+      .catch(() => null);
+    check(
+      'reload never exposes the wrong saved view',
+      firstPressedView === null || firstPressedView.trim() === 'Table',
+    );
+    const reloadedTableButton = page
+      .getByRole('group', { name: 'Sites view' })
+      .getByRole('button', { name: 'Table' });
+    await page.waitForFunction(() => {
+      const pressed = document.querySelector('[aria-label="Sites view"] [aria-pressed="true"]');
+      return pressed?.textContent?.trim() === 'Table';
+    });
+    check(
+      'server-readable table view survives reload without localStorage',
+      (await reloadedTableButton.getAttribute('aria-pressed')) === 'true',
+    );
+
+    await page.goto(new URL('/sites?sort=name&dir=asc', baseUrl).href, {
+      waitUntil: 'domcontentloaded',
+    });
+    const nameCells = page.locator('details[data-sites-row] summary .truncate.text-name');
+    const firstNames = await nameCells.allTextContents();
+    const firstSortedNames = [...firstNames].sort((left, right) => left.localeCompare(right));
+    check(
+      'sorted navigation never exposes unsorted rows',
+      firstNames.length === 0
+        || firstNames.every((name, index) => name === firstSortedNames[index]),
+    );
+    await nameCells.first().waitFor({ state: 'visible' });
+    const names = await nameCells.allTextContents();
+    const sortedNames = [...names].sort((left, right) => left.localeCompare(right));
+    check(
+      'request-time name sort is correct on the first rendered table',
+      names.length > 0 && names.every((name, index) => name === sortedNames[index]),
+    );
+    await shot('request-state');
   },
 };

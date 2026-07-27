@@ -229,7 +229,7 @@
         "Invocation authority|Authorization",
         "cursor-agent",
         "composer-2\\.5",
-        "cursor-grok-4\\.5-medium",
+        "cursor-grok-4\\.5-high",
         "--resume",
         "authorization permits.*--trust",
         "runtime mechanics",
@@ -449,7 +449,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "75b580022699cb58654adb60c2dbb05867cb86529b6a0078c82e639b90bb02eb"
+      "reconciledHash": "f85484b62e35456291b0238ccac969ea2749a3f702752bd4369e00fb92249b02"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -470,7 +470,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "64fa2e6d56787ba07bdc55dbd2f48cb21334a39acff5b6186034a3025048f368"
+      "reconciledHash": "8fd4607ef1d543b64775bde6fef5e24873092a6267c00252af9055073e0e9a63"
     },
     "plan-version-audit": {
       "deps": [
@@ -542,7 +542,7 @@
         "docs/workflows/adversarial-review.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "9a4be5074aee996cf95c10cd236caa9ba3c4208e03b9984cd82f652a57533cbc"
+      "reconciledHash": "0a67f31b414ff7a9147e3d7ee9f6b647e96a02ae320c9a15213b15fa4649ae83"
     },
     "agent-policy-audit": {
       "deps": [
@@ -552,7 +552,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "a4ad5ab888240c53c87cf9d42f31c05554dbd2917606829b35361a9105c2c9a4"
+      "reconciledHash": "162f08082344ff9d48804aa16737aded1bd1272690830514a7bc32da2801c4b4"
     }
   },
   "procedurePolicies": {
@@ -585,9 +585,9 @@
         "Freeze the subject and evidence",
         "Build context-budgeted reviewer briefs",
         "Composer 2\\.5 Standard",
-        "Cursor Grok 4\\.5 Medium",
+        "Cursor Grok 4\\.5 High",
         "two turns in one Cursor session",
-        "Run at most one escalation review",
+        "Do not launch a duplicate automatic escalation review",
         "Verify and reconcile",
         "Build the fix prompt"
       ]

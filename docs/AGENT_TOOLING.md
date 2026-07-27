@@ -73,9 +73,11 @@ adversarial review; do not silently fall back to Codex or Claude and spend a
 different capacity pool.
 
 Current reviewed defaults are Composer 2.5 Standard for the bounded execution
-role, Cursor Grok 4.5 Medium for the holistic role, and Cursor Grok 4.5 High for
-one canonical escalation trigger. Treat model availability, context limits, and
-pricing as runtime facts to recheck, not permanent product guarantees.
+role and Cursor Grok 4.5 High for the holistic role. There is no automatic third
+seat: an escalation trigger that direct evidence cannot settle blocks for an
+operator-approved frontier-model review. Treat model availability, context
+limits, and pricing as runtime facts to recheck, not permanent product
+guarantees.
 
 Runtime decision, 2026-07-26: adversarial reviewers use repository CLIs in plan
 mode. Cursor has no configured MCP servers; the Codegraph MCP installation was
