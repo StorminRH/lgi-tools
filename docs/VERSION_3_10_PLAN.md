@@ -167,6 +167,8 @@ and no separate elective campaign is scheduled.
 | 3.10.4.1 | Universal primitive adoption & rails: every approved survey row migrated look-preservingly with a same-PR rail, primitive capability additions, ~650 lines of legacy CSS retired, repeatable census gate (§3.10.4.1) | 1 | SHIPPED |
 | 3.10.4.2 | Refinement & responsive modes: outcome groups B + C as one bundle, completing group A's census allowlist (§3.10.4.2) | 1 | SHIPPED |
 | 3.10.4.3 | Operator punch list, clean adoption re-audit & version closure (§3.10.4.3) | 1 | SHIPPED |
+| **Phase 5 — Audit remediation** | Opened 2026-07-27 by the cycle-1 close audit (`docs/version-audits/3.10/PLAN.md`) | | |
+| 3.10.5.1 | Documentation-truth remediation: AF-016's eight untrue committed claims, plus the two admitted related observations and the cycle-1 audit records (§3.10.5.1) | 1 | PLANNED |
 
 ## Phase 0 — Documentation & lifecycle consolidation (3.10.0.x)
 
@@ -1334,6 +1336,81 @@ primitives carry the approved type, chrome, surface, and navigation treatment;
 mobile is an intentional mode verified across the width matrix; the operator's
 punch lists are resolved; and the repeatable re-audit is clean. Presentation
 drift then becomes a build failure, not a future version.
+
+## Phase 5 — Audit remediation (3.10.5.x)
+
+**Arc thesis.** The v3.10 close audit (cycle 1, audited ref `ba48288`) found the
+mechanical surface healthy — every gate green, hotspots stable, suppression
+growth justified, boundaries and rails intact — and exactly one actionable
+defect: committed documents that describe a system this repository no longer is.
+That is precisely the residue this version's thesis predicts, because converting
+intended design into enforced design moves the ground under every hand-written
+description of it. This phase is the lifecycle-sanctioned reopening of a
+terminal roadmap to repair that residue before a clean cycle-2 audit archives
+the version. It is not an elective campaign; the no-campaign decision stands.
+No product API, schema, route, configuration, or UI behavior changes.
+
+---
+
+### 3.10.5.1 — Documentation-truth remediation (AF-016)
+
+**Objective.** Every committed claim AF-016 confirmed as untrue states live
+reality at the site that owns it, and the cycle-1 audit's own records reach
+production, so the version can be re-audited against an advanced `main`.
+
+**Done means.** The five committed public-document claims are true:
+`CONTRIBUTING.md`'s UI-primitive import rule (the `ui` zone's imports are denied
+outright by `boundaries.rules`, not narrowed to `src/lib`), `.env.example`'s
+migration-script attribution and its `EVE_SCOPES` home, `README.md`'s
+schema-source location claim, and `README.md`'s `pnpm build` audience (the
+production build is Vercel-only and post-merge; CI runs no build step).
+`docs/CONVEX.md` no longer cites a document absent from the live tree. No live
+guidance document, generated artifact, or source comment claims deny-by-default
+forbids imports *within* a zone: the generator's mermaid legend line is
+corrected and both declared artifacts are regenerated under the existing
+byte-for-byte drift test, and `ZoneMap.tsx`'s header comment is qualified. The
+two related observations the operator admitted on 2026-07-27 are delivered:
+`README.md`'s architecture overview names the v3.10 responsibility layers, and
+`CONTRIBUTING.md`'s invariant list carries the typed problem contract and the
+same-origin mutation rail. The cycle-1 audit's outputs — the replaced baseline
+at the audited ref, the audit plan with its cycle-1 evidence, the reconciled
+backlog, and the SCRATCHPAD state — are committed on this branch.
+
+**In scope.** `README.md`, `CONTRIBUTING.md`, `.env.example`, `docs/CONVEX.md`;
+`src/scripts/architecture-map.ts`'s emitted legend line plus a regeneration run;
+`src/features/devlog/components/ZoneMap.tsx`'s header comment; the cycle-1 audit
+records; this sub-version's lifecycle and release records.
+
+**Out of scope.** The four v3.11 opening obligations and the six rationale-free
+carried suppressions, both already recorded in `docs/backlog.md`. The Watch
+findings AF-006/AF-007/AF-008 and their baseline carriers. Any behavior,
+configuration, boundary, or rendered-output change — a correction that would
+require one is a stop, not a licence. Frozen RECORD documents, which are never
+rewritten to satisfy a truth sweep even where they quote a corrected claim. The
+cycle-2 re-audit and the version archive.
+
+**Dependencies.** The cycle-1 audit plan's Step 4 finding set, whose live
+figures are re-verified rather than trusted; 3.10.3.3.1's already-correct
+rendered legend row and SVG `<title>`, which must not change.
+
+**Decisions the session plan must resolve.** The exact truthful wording for each
+claim, including how precisely `README.md` describes the real schema layout
+without becoming a file inventory that restales; whether the `docs/CONVEX.md`
+citation takes a sanctioned archived-reference form or drops the path; the
+placement and wording of the two admitted observations; whether the corrected
+generator line touches any pinned test expectation.
+
+**Baseline & hotspot note.** Neutral: prose, one generated string, and one
+source comment cannot move a metric. The baseline's frozen `Version-start`
+column stays byte-identical to `origin/main`.
+
+**Delivery evidence.** One session, one `lifecycle/3.10.5.1` branch, one
+sub-version PR publishing `APP_VERSION` 3.10.5.1, the changelog entry, and the
+as-built record. UX gate: No. Standard planned close-out; the merge gate stays
+operator-reserved. AF-016 becomes `Delivered` on terminal merge evidence, after
+which the resolver starts the cycle-2 audit.
+
+---
 
 ## Explicit non-goals
 

@@ -8,7 +8,8 @@ sequence, dependencies, and delivery status. The canonical contract form is
 > `plan-version` run from the approved live adoption survey
 > (`docs/version-audits/3.10/PHASE_4_ADOPTION_SURVEY.md`) and its approved
 > three-bundle topology; see the master plan's §Approved Phase 4 delivery
-> topology.
+> topology. Phase 5 was contracted by the 2026-07-27 `plan-audit-remediation`
+> run from the cycle-1 close audit's AF-016 finding.
 
 | Session | Sub-version | Contract |
 | --- | --- | --- |
@@ -31,3 +32,4 @@ sequence, dependencies, and delivery status. The canonical contract form is
 | 3.10.4.1.1 | 3.10.4.1 | `3.10.4.1.1.md` |
 | 3.10.4.2.1 | 3.10.4.2 | `3.10.4.2.1.md` |
 | 3.10.4.3.1 | 3.10.4.3 | `3.10.4.3.1.md` |
+| 3.10.5.1.1 | 3.10.5.1 | `3.10.5.1.1.md` |
