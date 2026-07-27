@@ -1098,7 +1098,11 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
                 errors,
             )
         audited_ref = marker(audit_plan, "Audited ref")
-        baseline_ref = table_field(docs / "CODE_HEALTH_BASELINE.md", "Code ref")
+        # The baseline schema allows `Code ref` to carry an optional qualifier
+        # after the SHA, so compare the leading SHA rather than the whole cell.
+        baseline_cell = table_field(docs / "CODE_HEALTH_BASELINE.md", "Code ref") or ""
+        baseline_match = re.match(r"[0-9a-f]{40}", baseline_cell.strip().lstrip("`"))
+        baseline_ref = baseline_match.group(0) if baseline_match else None
         if baseline_ref != audited_ref:
             return invalid_state(
                 common,

@@ -4,8 +4,8 @@
 **Approved:** 2026-07-27
 **Version:** 3.10
 **Audit mode:** Version close
-**Audit cycle:** 2
-**Audited ref:** `19fd1b841477b3bb0970ca2251ec21f7f9b9423d`
+**Audit cycle:** 3
+**Audited ref:** `9ce2210def5982ff815484d93bc91d8350de1aaf`
 **Procedure:** `docs/workflows/version-audit.md`
 **Procedure digest:** `sha256:12cf58a8efdafe30ad3e026d30bf00fa48646338df94b8d3da3d50bdd11c0175`
 
@@ -343,6 +343,7 @@ grants no merge, deployment, or destructive-recovery authority.
 | ---: | --- | --- | --- |
 | 1 | `ba4828841a53de992e995c034a470efed50e3d6d` | Remediation in progress — AF-016 (docs truth, Floss) mapped to `3.10.5.1` on 2026-07-27; AF-006/007/008 remain Watch; all mechanical gates green | `ba4828841a53de992e995c034a470efed50e3d6d` |
 | 2 | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` | Remediation in progress — AF-016 **Verified** (all eight outcomes re-proved first-hand); one new finding **AF-017** (Floss, watch-trigger grammar drift in this procedure) fixed in-cycle by operator ruling and left **Delivered** for cycle 3 to verify; AF-006/007/008 remain Watch; every gate green | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` |
+| 3 | `9ce2210def5982ff815484d93bc91d8350de1aaf` | Remediation in progress — AF-017 **Verified**; **AF-018** (resolver contradicted the baseline schema's optional `Code ref` qualifier, making any clean close unreachable) surfaced by the close transition itself, fixed in-cycle and left **Delivered** for cycle 4; every measurement stable, every gate green; AF-006/007/008 remain Watch below trigger | `9ce2210def5982ff815484d93bc91d8350de1aaf` |
 
 ## Execution evidence — cycle 1 (2026-07-27)
 
@@ -790,6 +791,111 @@ still earning its carrier. No other new finding: hotspots, suppressions, the
 clone group, boundaries, overrides, rails, and lifecycle truth all closed clean
 above.
 
+## Execution evidence — cycle 3 (2026-07-27)
+
+### Step 0 — Transition
+
+- Resolver directive named `version-audit` (stage `audit-restart-ready`, action
+  "Restart the complete version audit as cycle 3 for 3.10"); pre-dispatch
+  `check_release_consistency.py --check` clean. Procedure digest verified
+  byte-exact (`12cf58a8…`). Worktree clean at `9ce2210d`.
+- The only mapped remediation from cycle 2 (AF-017) was delivered in-cycle by
+  operator ruling; its commit `9ce2210d` is the audited ref.
+
+### Step 1 — Measurements at `9ce2210d`
+
+Identical to cycles 1 and 2 in every registered row. Provenance is exact: the
+complete source delta from the cycle-1 ref is
+`git diff ba48288..9ce2210d -- src convex` = **three files, +6/−6**
+(`app-version.ts`, the `ZoneMap.tsx` header comment, the `architecture-map.ts`
+legend string), so no measured surface could move.
+
+- 806 production TS/TSX, 79,515 LOC, 428 test files.
+- `pnpm test:coverage`: **4305 passed + 1 skipped (4306)** across 436 files at
+  **85.83 / 82.81 / 81.37 / 86.89**.
+- `pnpm fallow:health`: **78 B**, maintainability 91.6, **0 above threshold**.
+- Pinned `FALLOW_AUDIT_BASE=f35cdb3 pnpm fallow`: 1043 changed files, dead code
+  0, complexity 0, duplication 1 (`dup:a60cc554`), exit 0 → **Pass**.
+- Overrides `[]`; suppressions **42**; accepted-duplication baseline empty;
+  pending-changelog inbox empty; 22 configured / **49** expanded zones.
+- Every known-wide surface re-measured and matching: auth hub 0;
+  `PricingContextValue` 0 / `usePricing()` 0; planner concern fields
+  5/10/18/6/13 (file provably untouched since cycle 1); concern-hook consumers
+  20 calls / 9 files; telemetry 25 exports / 44 fan-in; refresh-jobs 13; auth
+  contract paths 3; dataset registry 13; freshness 3 / 14; cron shells 7;
+  harness consumers 20; dataset census 56 tables / 14 index tests; API
+  contracts 52 / 17; type-images 8 / 15; vendor integrations 15.
+
+### Steps 2–3 — Hotspots and drift
+
+Hotspot ranking unchanged and re-affirmed; no candidate reaches
+Floss/Campaign. Suppressions, the accepted clone group, boundaries (0
+unclassified, 0 violations), and override staleness all re-checked clean.
+
+**Lifecycle truth:** 16 SHIPPED roadmap rows ↔ 16 changelog headings with an
+identical id set (verified by `diff`); 20 contracts ↔ 20 approved plans, all
+`**Execution status:** Complete`; 12 as-built records from the binding floor;
+the 21st session-plans file is the sanctioned supplementary brief.
+`APP_VERSION` 3.10.5.1 matches the changelog head. Master-plan close claims
+re-verified against terminal decisions: the Phase 4 adoption survey carries
+**43 distinct `AD-NNN` ids, every one terminal** (the 83 raw row matches are
+those ids recurring in the delivery-ledger and re-audit sections), and the
+punch ledger records the operator's resolution declaration.
+
+**AF-017 required outcome re-proved first-hand.** `docs/workflows/version-audit.md`
+now contains **no** occurrence of `zone:`, `paths:`, `globs:`, `<metric>`,
+`<op>`, "closed grammar", or "closed set" — the duplicated enumeration is gone,
+not patched. The schema retains all three `files()` subject forms and
+`check_watch_triggers.py` still accepts exactly those three, so the single
+surviving owner and its checker agree, and the live AF-008 carrier parses clean.
+The two-owner structure that caused the drift no longer exists, which is why no
+sync rail was added. **AF-017 → Verified.**
+
+**One new finding, AF-018, surfaced by the close transition itself and fixed
+in-cycle.** With `Audit status: Complete` set, the resolver refused the archive
+transition: "A Complete audit requires CODE_HEALTH_BASELINE.md to match the
+Audited ref." The refusal was wrong. `resolve_development_state.py` compared the
+*whole* `Code ref` table cell against the plan's `Audited ref` marker by string
+equality, while `docs/workflows/schema/code-health-baseline.md` documents that
+cell as "full lowercase commit SHA **and optional structured qualifier**". Every
+baseline this repository has ever written carries such a qualifier, so the
+documented-optional qualifier made a clean close unreachable — the defect was
+latent only because no prior cycle reached `Complete`.
+
+This is the same two-owner failure as AF-017 with the roles reversed: there the
+prose contradicted the checker, here the checker contradicts the schema. Fixed
+at the checker, since the schema is the artifact-form owner: the comparison now
+extracts the leading 40-character SHA from the cell and compares that, leaving
+the strict full-SHA requirement intact. Two tests in
+`.agent-local/test_development_state.py` pin both directions — a qualified cell
+whose SHA matches reaches `archive-needed`, and a qualified cell whose SHA
+differs is still `invalid`. The full 50-test resolver suite passes and the live
+resolver now returns the archive directive.
+
+**Verification.** AF-018 is left **Delivered**, not Verified, at cycle 3's
+close. Marking it Verified on its own cycle's evidence was considered and
+rejected: `verify_archive.py --check --phase pre` correctly refused the archive
+("current audit cycle contains new actionable finding AF-018"), and forcing
+that gate green by reclassifying the finding would be papering over a check
+rather than satisfying it. Cycle 4 is the honest resolution and is cheap — the
+tree is already fully measured and stable, and its only delta is this fix plus
+its two tests. Cycle 3 therefore does **not** close clean.
+
+### Steps 5–6 — Baseline and close
+
+Baseline replaced at `9ce2210d` with the frozen `Version-start` column
+preserved byte-for-byte; `check_baseline_claims` and `check_watch_triggers`
+clean after replacement. Every gate in §7 passed: `pnpm verify`, strict
+`tsc --noEmit --incremental false`, `assert:routes-present` (78 routes), the
+pinned Fallow run, baseline-claims, watch-triggers, release-consistency,
+doc-refs, pending-changelog, and agent-drift. Baseline `Code ref` equals
+`Audited ref`.
+
+AF-017 is Verified and every Watch is below trigger, but AF-018 is new in this
+cycle and Delivered rather than Verified, so `verify_archive.py --phase pre`
+holds the archive and the version does not close on cycle 3. Cycle 4 re-audits
+the advanced ref.
+
 ## Audit findings
 
 Seeded with the carried Watch findings (their countable triggers live in the
@@ -803,7 +909,8 @@ original id.
 | AF-007 | 1 | Watch | Refresh-job query module (carried from v3.8) large but cohesive around one queue lifecycle. | Promote above 15 exports or on a second persistence concern. | — | Watch |
 | AF-008 | 1 | Watch | Auth platform contract (carried from v3.8; paths remapped by 3.10.1.2 to `src/platform/auth/`) is a deliberate exact three-file exception. | Promote if any work proposes a fourth matching file; prefer a real platform module. | — | Watch |
 | AF-016 | 1 | Floss | Committed public/workspace documents describe the system untruthfully in eight places (wrong file paths, wrong zone/schema-ownership claims, the surviving public intra-zone deny-by-default wording; full set in Step 4 above). | Every claim corrected to live reality at its owning site; architecture-map fix flows through the generator + regeneration under the existing drift test; no behavior change. | 3.10.5.1 | Verified |
-| AF-017 | 2 | Floss | The watch-trigger grammar has two owners: `docs/workflows/version-audit.md` restates it normatively but lists only two `files()` subject forms, while the owning schema, `check_watch_triggers.py`, and the live AF-008 carrier all use a third (`globs:`). Introduced by this version in `eca3d994` (PR #296), which extended schema and checker without the procedure. | One owner for the grammar — preferably delete the duplicated enumeration from the procedure and defer to the schema it already cites, keeping only the non-mechanical judgment; plus a rail, or the removal that makes one unnecessary. No behavior change. | In-cycle (operator ruling, 2026-07-27) | Delivered |
+| AF-017 | 2 | Floss | The watch-trigger grammar has two owners: `docs/workflows/version-audit.md` restates it normatively but lists only two `files()` subject forms, while the owning schema, `check_watch_triggers.py`, and the live AF-008 carrier all use a third (`globs:`). Introduced by this version in `eca3d994` (PR #296), which extended schema and checker without the procedure. | One owner for the grammar — preferably delete the duplicated enumeration from the procedure and defer to the schema it already cites, keeping only the non-mechanical judgment; plus a rail, or the removal that makes one unnecessary. No behavior change. | In-cycle (operator ruling, 2026-07-27) | Verified |
+| AF-018 | 3 | Floss | `resolve_development_state.py` compared the whole `Code ref` cell to the `Audited ref` by string equality, while the baseline schema documents an optional qualifier after the SHA — making a clean close unreachable for every baseline this repository writes. Two owners again, with the checker contradicting the schema. | Compare the extracted leading 40-character SHA, keeping the strict full-SHA requirement; pin both directions with tests. | In-cycle (operator standing direction, 2026-07-27) | Delivered |
 
 At the cycle-2 audited ref: telemetry 25 exports (< 26), refresh-jobs 13
 (≤ 15), auth contract 3 files (< 4) — all below trigger and each still earning
@@ -824,6 +931,6 @@ a tripped trigger is a warn rather than a gate). That removes the second
 representation rather than patching it, so the required outcome is met by
 deletion and no new sync rail is needed. The change bumped this plan's
 procedure digest a second time; the header and §2 were updated to match.
-AF-017 is therefore **Delivered**, not Verified: only a fresh cycle can prove a
-required outcome, so the version still does not close clean and does not
-archive on this cycle.
+AF-017 was therefore left **Delivered**, not Verified, at cycle 2's close:
+only a fresh cycle can prove a required outcome. Cycle 3 proved it and marked
+it Verified.

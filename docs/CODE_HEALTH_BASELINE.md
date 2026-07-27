@@ -6,7 +6,7 @@
 | --- | --- |
 | Date | 2026-07-27 |
 | App version | 3.10.5.1 |
-| Code ref | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` on `main` (the v3.10 cycle-2 audited ref) |
+| Code ref | `9ce2210def5982ff815484d93bc91d8350de1aaf` on `main` (the v3.10 cycle-3 audited ref; clean close) |
 | Measurement scope | Full audit |
 
 ## Metrics
