@@ -361,8 +361,54 @@ def _top_level_keys(body: str) -> list[str]:
     return keys
 
 
+def _without_comments(source: str) -> str:
+    """Blank TypeScript comments while preserving quoted text and newlines."""
+    result: list[str] = []
+    index = 0
+    quote: str | None = None
+    escaped = False
+    while index < len(source):
+        char = source[index]
+        if quote is not None:
+            result.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            index += 1
+            continue
+        if char in ("'", '"', "`"):
+            quote = char
+            result.append(char)
+            index += 1
+            continue
+        pair = source[index : index + 2]
+        if pair == "//":
+            while index < len(source) and source[index] != "\n":
+                result.append(" ")
+                index += 1
+            continue
+        if pair == "/*":
+            result.extend((" ", " "))
+            index += 2
+            while index < len(source):
+                if source[index : index + 2] == "*/":
+                    result.extend((" ", " "))
+                    index += 2
+                    break
+                result.append("\n" if source[index] == "\n" else " ")
+                index += 1
+            continue
+        result.append(char)
+        index += 1
+    return "".join(result)
+
+
 def _array_body(body: str, key: str, *, rel_path: str) -> str:
     """Return one named bracket-balanced array body."""
+    body = _without_comments(body)
     match = re.search(rf"\b{re.escape(key)}\s*:\s*\[", body)
     if match is None:
         raise MeasureError(f"missing {key} array in {rel_path}")

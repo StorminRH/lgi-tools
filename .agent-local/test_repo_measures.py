@@ -200,7 +200,11 @@ class RepoMeasureTests(unittest.TestCase):
         self.fixture.write(
             "src/composition/ui-adoption-registry.ts",
             "export const uiAdoptionRegistry = {\n"
-            "  rawButtons: [{ reason: 'x', file: 'a.tsx' }, 'aa.tsx'],\n"
+            "  rawButtons: [\n"
+            "    // don't count 'commented.tsx'\n"
+            "    { reason: 'x', file: 'a.tsx' },\n"
+            "    /* or 'blocked.tsx' */ 'aa.tsx',\n"
+            "  ],\n"
             "  rawDetails: [{ file: 'b.tsx', reason: 'y' }, { file: 'c.tsx', reason: 'z' }],\n"
             "  hiddenInputs: ['d.tsx', 'e.tsx'],\n"
             "  nativeTitles: [{ file: 'f.tsx', reason: 'g' }],\n"
