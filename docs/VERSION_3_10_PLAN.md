@@ -168,7 +168,7 @@ and no separate elective campaign is scheduled.
 | 3.10.4.2 | Refinement & responsive modes: outcome groups B + C as one bundle, completing group A's census allowlist (§3.10.4.2) | 1 | SHIPPED |
 | 3.10.4.3 | Operator punch list, clean adoption re-audit & version closure (§3.10.4.3) | 1 | SHIPPED |
 | **Phase 5 — Audit remediation** | Opened 2026-07-27 by the cycle-1 close audit (`docs/version-audits/3.10/PLAN.md`) | | |
-| 3.10.5.1 | Documentation-truth remediation: AF-016's eight untrue committed claims, plus the two admitted related observations and the cycle-1 audit records (§3.10.5.1) | 1 | PLANNED |
+| 3.10.5.1 | Documentation-truth remediation: AF-016's eight untrue committed claims, plus the two admitted related observations and the cycle-1 audit records (§3.10.5.1) | 1 | SHIPPED |
 
 ## Phase 0 — Documentation & lifecycle consolidation (3.10.0.x)
 
