@@ -31,12 +31,28 @@ fix, commit, open a PR, merge, deploy, or mutate lifecycle state.
   ```bash
   cursor-agent --print --output-format json --mode plan --sandbox enabled \
     --model composer-2.5 --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
-    < "$ADVERSARIAL_EXECUTION_BRIEF"
+    < "$ADVERSARIAL_EXECUTION_BRIEF" \
+    > "$ADVERSARIAL_EXECUTION_BRIEF.result.json" &
+  ADVERSARIAL_EXECUTION_PID=$!
 
   cursor-agent --print --output-format json --mode plan --sandbox enabled \
     --model cursor-grok-4.5-high \
     --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
-    < "$ADVERSARIAL_HOLISTIC_BRIEF"
+    < "$ADVERSARIAL_HOLISTIC_BRIEF" \
+    > "$ADVERSARIAL_HOLISTIC_BRIEF.result.json" &
+  ADVERSARIAL_HOLISTIC_PID=$!
+
+  ADVERSARIAL_REVIEW_FAILURE=0
+  wait "$ADVERSARIAL_EXECUTION_PID" || ADVERSARIAL_REVIEW_FAILURE=1
+  wait "$ADVERSARIAL_HOLISTIC_PID" || ADVERSARIAL_REVIEW_FAILURE=1
+  if [ "$ADVERSARIAL_REVIEW_FAILURE" -ne 0 ]; then exit 1; fi
+
+  ADVERSARIAL_EXECUTION_SESSION_ID=$(
+    jq -er '.session_id' "$ADVERSARIAL_EXECUTION_BRIEF.result.json"
+  )
+  ADVERSARIAL_HOLISTIC_SESSION_ID=$(
+    jq -er '.session_id' "$ADVERSARIAL_HOLISTIC_BRIEF.result.json"
+  )
 
   ADVERSARIAL_COLLECTION_PROMPT='Return the review verdict now as plain text in the required format. Do not perform more investigation, edit files, or refer me to a plan artifact. Output only the Verdict, Findings, and Load-bearing checks sections.'
 

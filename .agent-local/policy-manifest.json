@@ -231,7 +231,7 @@
         "composer-2\\.5",
         "cursor-grok-4\\.5-high",
         "--resume",
-        "authorization permits.*--trust",
+        "authorization permits[^\\n]*--trust",
         "runtime mechanics",
         "Return|result"
       ],
@@ -533,7 +533,7 @@
         "docs/workflows/resolve-update-watch.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "ea0a30c35bb79472f14f69a2938a6f5bbd4dbb07a43fa4428813ad76c5a208ac"
+      "reconciledHash": "30b4dc3426bdf85a4139dd38bea905b27b5e290f16208b2a79cb05f3a8242985"
     },
     "adversarial-review": {
       "deps": [
@@ -562,7 +562,7 @@
         "Record and challenge the current topology",
         "Attempt to combine every adjacent or tightly coupled slice",
         "Produce the minimum safe bundles",
-        "adversarial-review.*Plan mode",
+        "Invoke `adversarial-review` in Plan mode",
         "Obtain operator approval",
         "update the master plan's delivery topology first",
         "Create one schema-complete contract per approved bundle"
@@ -574,7 +574,7 @@
         "Do not split it",
         "recorded split trigger",
         "Draft and review",
-        "adversarial-review.*Plan mode",
+        "Invoke `adversarial-review` in Plan mode",
         "operator approval",
         "Persist the approved plan"
       ]

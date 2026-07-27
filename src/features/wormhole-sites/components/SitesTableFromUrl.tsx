@@ -2,7 +2,8 @@ import type { SiteDetail } from '../types';
 import { parseSortDir, parseSortKey } from '../sort';
 import { SitesTable } from './SitesTable';
 
-type SitesSearchParams = {
+/** Request-time URL state that controls the first rendered catalogue-table order. */
+export type SitesSearchParams = {
   sort?: string | string[];
   dir?: string | string[];
 };

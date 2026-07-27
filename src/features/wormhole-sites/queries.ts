@@ -465,7 +465,10 @@ export async function listPricedSiteDetails(): Promise<SiteDetail[]> {
   'use cache';
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
-  return overlayLivePrices(await listSiteDetails({}));
+  const raw = await listSiteDetails({});
+  // listSiteDetails carries its own cold-start retry; keep the independent
+  // price overlay read inside its own retry budget.
+  return withColdStartRetry(() => overlayLivePrices(raw));
 }
 
 /**

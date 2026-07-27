@@ -657,8 +657,16 @@ class LiveAdversarialReviewPolicy(unittest.TestCase):
         self.assertTrue(
             {
                 "--resume",
-                "authorization permits.*--trust",
+                "authorization permits[^\\n]*--trust",
             }.issubset(required)
+        )
+
+    def test_required_policy_patterns_do_not_cross_line_boundaries(self) -> None:
+        self.assertFalse(
+            check_agent_drift.matches(
+                "explicit authorization permits a review\n--trust",
+                r"authorization permits.*--trust",
+            )
         )
 
     def test_retired_cross_runtime_fan_out_is_forbidden(self) -> None:

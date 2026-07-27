@@ -2,7 +2,7 @@
 name: close-out
 description: >-
   Run LGI.tools' end-of-session delivery in ordinary or planned mode: verify and
-  commit the change, run the required design and economical adversarial reviews,
+  commit the change, run the applicable design and adversarial reviews,
   stage a draft PR before the batched external-review loop, clean merge, and
   production proof, and for a planned sub-version publish the version and hand
   back to start-session. Use for "close out", "do the session end", "wrap up",

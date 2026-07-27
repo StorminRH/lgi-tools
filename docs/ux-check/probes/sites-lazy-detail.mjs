@@ -122,7 +122,7 @@ export default {
     await page.goto(new URL('/sites?sort=name&dir=asc', baseUrl).href, {
       waitUntil: 'domcontentloaded',
     });
-    const nameCells = page.locator('details[data-sites-row] summary .truncate.text-name');
+    const nameCells = page.locator('details[data-sites-row] summary [data-site-name]');
     const firstNames = await nameCells.allTextContents();
     const firstSortedNames = [...firstNames].sort((left, right) => left.localeCompare(right));
     check(

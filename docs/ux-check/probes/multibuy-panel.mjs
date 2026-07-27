@@ -68,5 +68,32 @@ export default {
     const lines = clipboard.split('\n').filter(Boolean);
     check('clipboard contains Name<TAB>integer rows', lines.length > 0 && lines.every((line) => /^.+\t\d+$/.test(line)));
     check('clipboard quantities have no thousand separators', !clipboard.includes(','));
+
+    await page.getByRole('button', { name: 'Copy', exact: true }).waitFor();
+    const clipboardFailureInjected = await page.evaluate(async () => {
+      Object.defineProperty(Object.getPrototypeOf(navigator.clipboard), 'writeText', {
+        configurable: true,
+        value: async () => {
+          throw new Error('clipboard unavailable');
+        },
+      });
+      return navigator.clipboard.writeText('probe').then(
+        () => false,
+        () => true,
+      );
+    });
+    check('clipboard failure path is active', clipboardFailureInjected);
+    await copyButton.click();
+    await page.waitForTimeout(300);
+    check(
+      'copy control shows its unavailable state when clipboard write fails',
+      (await page.getByRole('button', { name: 'Unavailable', exact: true }).count()) > 0,
+    );
+    check(
+      'copy control announces the unavailable fallback',
+      (await page.locator('[role="status"]', {
+        hasText: 'Clipboard unavailable for this export',
+      }).count()) > 0,
+    );
   },
 };

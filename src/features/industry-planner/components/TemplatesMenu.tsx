@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { Input } from '@/components/ui/input';
-import { LoadingLabel } from '@/components/ui/loading-label';
 import { Popover } from '@/components/ui/popover';
 import { scrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
 import { createSavedPlanEndpoint, MAX_SAVED_PLAN_NAME_LEN } from '../api-contract';
@@ -37,7 +37,9 @@ function TemplatesListState({
   emptyLine: string;
   children: ReactNode;
 }) {
-  if (plans === null) return <LoadingLabel label={emptyLine} />;
+  if (plans === null) {
+    return <Skeleton label={emptyLine} className="h-24 w-full rounded-card" />;
+  }
   if (plans.length === 0) {
     return <p className="text-micro leading-snug text-muted">{emptyLine}</p>;
   }

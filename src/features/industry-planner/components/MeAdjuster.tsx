@@ -90,8 +90,7 @@ export function GemIcon({ state }: { state: IconState }) {
         {/* The gem's facet lines — dark over the bright fill so it reads as cut stone. */}
         <path
           d="M11 3 8 9l4 13 4-13-3-6M2 9h20"
-          fill="none"
-          className="stroke-bg"
+          className="fill-none stroke-bg"
           strokeWidth={1.3}
           strokeOpacity={0.5}
           strokeLinejoin="round"

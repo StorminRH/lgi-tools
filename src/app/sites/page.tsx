@@ -10,17 +10,15 @@ import {
   SitesResults,
   type SiteCardItem,
 } from '@/features/wormhole-sites/components/SitesFilterLayout';
-import { SitesTableFromUrl } from '@/features/wormhole-sites/components/SitesTableFromUrl';
+import {
+  SitesTableFromUrl,
+  type SitesSearchParams,
+} from '@/features/wormhole-sites/components/SitesTableFromUrl';
 import { selectDevSampleSites } from '@/features/wormhole-sites/dev-sample';
 import { listPricedSiteDetails } from '@/features/wormhole-sites/queries';
 import { siteClassSet } from '@/features/wormhole-sites/site-filter';
 import { buildPageMetadata } from '@/lib/page-metadata';
 import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
-
-type SitesSearchParams = {
-  sort?: string | string[];
-  dir?: string | string[];
-};
 
 /** Static search and social metadata for the /sites route. */
 export const metadata = buildPageMetadata({

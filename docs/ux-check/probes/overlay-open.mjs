@@ -31,6 +31,14 @@ export default {
         opened += 1;
         await shot(label);
         if (viewport === 'mobile') {
+          await page.touchscreen.tap(5, 5);
+          await page.waitForTimeout(300);
+          check(
+            `outside tap closes: ${label}`,
+            (await trigger.getAttribute('data-popup-open')) === null,
+          );
+          await trigger.tap({ force: true });
+          await page.waitForTimeout(300);
           await page.keyboard.press('Escape');
           await page.waitForTimeout(300);
           check(

@@ -47,6 +47,7 @@ describe('jobImage', () => {
   });
 
   it('shows the blueprint rendition when ESI omitted the product', () => {
+    expect(jobImage(1, undefined, 691)).toEqual({ typeId: 691, variant: 'bp' });
     expect(jobImage(3, undefined, 691)).toEqual({ typeId: 691, variant: 'bp' });
   });
 

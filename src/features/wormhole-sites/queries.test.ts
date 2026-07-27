@@ -138,6 +138,7 @@ describe('listPricedSiteDetails', () => {
     expect(h.overlayLivePrices).toHaveBeenCalledWith([]);
     expect(h.cacheLife).toHaveBeenCalledWith('hours');
     expect(h.cacheTag).toHaveBeenCalledWith('market-prices-freshness');
+    expect(h.withColdStartRetry).toHaveBeenCalledTimes(2);
   });
 });
 

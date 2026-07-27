@@ -160,17 +160,18 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
 function PlannerSkeleton() {
   return (
-    <div className="flex w-full flex-col gap-6" aria-label="Loading blueprint">
+    <div className="flex w-full flex-col gap-6">
+      <Skeleton label="Loading blueprint" className="sr-only" />
       <div className="grid gap-4 split:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
-        <Skeleton className="h-44 w-full" />
-        <Skeleton className="h-44 w-full" />
+        <Skeleton aria-hidden="true" className="h-44 w-full" />
+        <Skeleton aria-hidden="true" className="h-44 w-full" />
       </div>
       <div className="grid grid-cols-2 gap-3 split:grid-cols-6">
         {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} className="h-24 w-full" />
+          <Skeleton key={index} aria-hidden="true" className="h-24 w-full" />
         ))}
       </div>
-      <Skeleton className="h-64 w-full" />
+      <Skeleton aria-hidden="true" className="h-64 w-full" />
     </div>
   );
 }

@@ -164,7 +164,8 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 
 - **Verification:** <commands and results or Not reached>
 - **CI:** <result or Not reached>
-- **Greptile:** <score and findings or Not reached>
+- **Gate of record:** <reviewer, current-head evidence, and findings or Not reached>
+- **Cursor:** <clean signal, findings, or Not reached>
 - **Issue comment:** <URL or Not posted>
 
 ### Next state
