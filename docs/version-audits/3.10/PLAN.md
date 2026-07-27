@@ -1,11 +1,11 @@
 # Version 3.10 "Hull Integrity + SKIN" Whole-Version Close Audit Plan
 
-**Audit status:** Remediation in progress
+**Audit status:** Remediation required
 **Approved:** 2026-07-27
 **Version:** 3.10
 **Audit mode:** Version close
-**Audit cycle:** 1
-**Audited ref:** `ba4828841a53de992e995c034a470efed50e3d6d`
+**Audit cycle:** 2
+**Audited ref:** `19fd1b841477b3bb0970ca2251ec21f7f9b9423d`
 **Procedure:** `docs/workflows/version-audit.md`
 **Procedure digest:** `sha256:2e788e7e609cbc6a7d00b0488caaee1d8e993e82cba8a7b95805cd668b0e8091`
 
@@ -71,8 +71,10 @@
   archive transition by the directive's action.
 - Verify this plan's `Procedure digest` is the SHA-256 of the current exact
   `docs/workflows/version-audit.md`
-  (`6b291e99cf3ef6a074c2273788dc20ce36de959a4693ec3a56951ea9dc5572e3`); a
-  mismatch returns to `plan-version-audit`.
+  (`2e788e7e609cbc6a7d00b0488caaee1d8e993e82cba8a7b95805cd668b0e8091`); a
+  mismatch returns to `plan-version-audit`. The cycle-1 value was
+  `6b291e99cf3ef6a074c2273788dc20ce36de959a4693ec3a56951ea9dc5572e3`; the
+  Step-6 delivered-marker wording change bumped it before cycle 2.
 - On a complete-restart directive: verify every mapped remediation sub-version
   has terminal merge evidence, advance `Audit cycle`, set `Audited ref` to
   current canonical `main`, rerun every measurement and gate. A targeted diff
@@ -339,6 +341,7 @@ grants no merge, deployment, or destructive-recovery authority.
 | Cycle | Audited ref | Result | Baseline ref |
 | ---: | --- | --- | --- |
 | 1 | `ba4828841a53de992e995c034a470efed50e3d6d` | Remediation in progress — AF-016 (docs truth, Floss) mapped to `3.10.5.1` on 2026-07-27; AF-006/007/008 remain Watch; all mechanical gates green | `ba4828841a53de992e995c034a470efed50e3d6d` |
+| 2 | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` | Remediation required — AF-016 **Verified** (all eight outcomes re-proved first-hand); one new finding **AF-017** (Floss, watch-trigger grammar drift in this procedure); AF-006/007/008 remain Watch; every gate green | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` |
 
 ## Execution evidence — cycle 1 (2026-07-27)
 
@@ -593,6 +596,199 @@ quotes the pre-correction devlog wording verbatim. It is frozen RECORD and is
 never rewritten to satisfy this remediation's wording sweep; the contract's
 OOS-7 owns that exemption.
 
+## Execution evidence — cycle 2 (2026-07-27)
+
+### Step 0 — Transition and pre-overwrite capture
+
+- Resolver directive named `version-audit` (stage `audit-restart-ready`, mode
+  execute, action "Restart the complete version audit as cycle 2 for 3.10");
+  pre-dispatch `check_release_consistency.py --check` returned zero
+  errors/warnings. Procedure digest verified byte-exact against the current
+  `docs/workflows/version-audit.md`
+  (`2e788e7e609cbc6a7d00b0488caaee1d8e993e82cba8a7b95805cd668b0e8091`).
+- Terminal merge evidence for the one mapped remediation sub-version
+  (`3.10.5.1`) confirmed: roadmap row SHIPPED, as-built
+  `docs/session-as-built/3.10/3.10.5.1.1.md` carrying `**PR:** #313`,
+  `APP_VERSION` 3.10.5.1, and the published `v3.10.5.1` changelog entry.
+- **Audited-ref note.** The audited ref `19fd1b84` is local `main`, one commit
+  ahead of `origin/main` (`aeceea36`). That commit is the audit-adjacent
+  documentation fix described below, committed locally by explicit operator
+  direction on 2026-07-27 rather than shipped as its own PR; it and the audit's
+  own outputs carry forward to the next PR or the next version. Every
+  measurement and gate in this cycle ran against `19fd1b84`.
+- Outgoing baseline captured before overwrite: Snapshot `2026-07-27 / 3.10.4.3
+  / ba48288`, Metrics table as published at cycle 1.
+
+**Entry-state defect corrected before dispatch.** Cycle 1 closed with AF-016's
+remediation merged (PR #313) but its ledger row still reading `Planned`, which
+left the resolver in `stage: invalid` on committed `main` ("the remediation
+roadmap is terminal but findings are not Delivered"). The row was marked
+`Delivered` and procedure Step 6 was amended so the marker lands *in* the
+delivering PR rather than in a post-merge reconciliation step, with a
+`policy-manifest.json` ordered checkpoint and a `test_agent_drift.py` case
+holding the new wording. That change is what bumped this plan's procedure
+digest; §2's inline citation was updated to match.
+
+### Step 1 — Measurements at `19fd1b84`
+
+Every value is unchanged from cycle 1, as expected: PR #313 touched three
+source files for six insertions and six deletions (`app-version.ts`,
+`ZoneMap.tsx` comment, `architecture-map.ts` legend string), so the shape,
+coverage, and breadth surfaces could not move.
+
+- Files/LOC/tests: **806** production TS/TSX, **79,515** LOC, **428** test
+  files. Largest production files unchanged in rank: `PricingProvider.tsx` 906,
+  `data-ownership-registry.ts` 855, `tree-resolver.ts` 693.
+- Fresh full-Postgres `pnpm test:coverage`: **4305 passed + 1 skipped (4306)**
+  across 436 test files at **85.83 / 82.81 / 81.37 / 86.89**. DB suites ran.
+- `pnpm fallow:health`: **Health score 78 B** (hotspots −10.0, unit size −10.0,
+  coupling −2.5), maintainability 91.6, **0 functions above thresholds**.
+- Pinned `FALLOW_AUDIT_BASE=f35cdb3 pnpm fallow`: 1043 changed files, dead code
+  0, complexity 0, duplication **1 clone group** (`dup:a60cc554`, unchanged),
+  exit 0 → verdict **Pass**.
+- Threshold overrides **0** (`"thresholdOverrides": []`); accepted-duplication
+  baseline **empty**; source suppressions **42**; pending-changelog inbox
+  **empty** (README only).
+- Churn, version lens `f35cdb3..19fd1b84` (31 commits): unchanged top band —
+  `app-version.ts` 16, then the 3.10.2.x mutation-route sweep at 5 touches per
+  route. No new churn concentration.
+- Known-wide surfaces (all re-measured, all matching the baseline's `Current`):
+  auth hub 0; `PricingContextValue` 0 / `usePricing()` 0; planner concern
+  fields 5/10/18/6/13; concern-hook consumers 20 calls / 9 files; telemetry 25
+  exports / 44 fan-in; refresh-jobs 13; auth contract paths 3; dataset registry
+  entries 13; freshness leaf 3 functions / 14 importers; cron shells 7;
+  harness consumers 20; dataset census 56 tables / 14 index tests; API
+  contracts 52 routes / 17 modules; type-images 8 exports / 15 importers.
+- New v3.10 surfaces (evidence only, registration still deferred to the v3.11
+  opening): boundary coverage **22 configured zones / 49 expanded / 0
+  unclassified / 0 violations**; vendor-resilience registry **15 declared
+  integrations**; capability instrumentation and the Phase 4 adoption census
+  unchanged and green.
+- Two measurement-definition traps recorded so a later cycle does not misread
+  them as drift: counting `BuildSetupValue` members with a naive
+  "`name:` at brace depth 0" rule yields **20** because it also counts
+  `applyBuildSystem`'s multi-line `sys`/`opts` parameters — the correct member
+  count is **18**; and `grep -c "table:"` on `data-ownership-registry.ts`
+  yields **58** because it catches a function parameter and a `readonly table:`
+  type field — the declaration count is `grep -cE "^\s+table:"` = **56**.
+  Likewise the expanded zone count is the `fallow list --boundaries` header
+  (**49**), not the number of printed rule rows (45).
+- `check_baseline_claims` clean before **and** after the replacement (cycle 1
+  already published current values, so no stale-Current warnings existed this
+  cycle); `check_watch_triggers` clean before and after.
+
+### Step 2 — Hotspot re-rank
+
+Re-run against the same inputs, the cycle-1 ranking stands unchanged and is
+re-affirmed rather than copied: the composition census-registry band remains
+declarative single-axis row files; `src/data/telemetry/queries.ts` stays at 25
+exports on one telemetry-read axis (AF-006 Watch retained); the mutation
+pipeline seam has no residual pressure; `PricingProvider.tsx` concern contexts
+are stable at 5/10/18/6/13 with consumers at 20/9; `globals.css` pressure
+stayed resolved; and `tree-resolver.ts`, `convex/engine.ts`, `dispatch.ts`,
+`api-client.ts`, and `env.ts` keep their protected-deep-module verdict. The
+health tool's two ROI suggestions (`src/lib/format/time.ts`,
+`scripts/profile-parse.mjs`) are rejected by the same judgment as cycle 1: a
+65-LOC single-axis formatting leaf with high fan-in is a stable deep leaf, and
+fragmenting it would violate the design creed. **No candidate reaches
+Floss/Campaign:** nowhere does interface-breadth growth coincide with unrelated
+change axes and churn.
+
+### Step 3 — Drift review
+
+- **AF-016 re-verified first-hand, all eight sites.** (1) `CONTRIBUTING.md:34`
+  now states UI primitives import no other zone and cites the `.fallowrc.json`
+  rule, explicitly allowing sibling primitives; (2) `.env.example:20` names
+  `src/scripts/migrate.ts`; (3) `.env.example:45-46` names
+  `src/platform/auth/eve-sso-constants.ts`; (4) `docs/architecture-map.md` and
+  its generator `src/scripts/architecture-map.ts:325` both read "Any pair of
+  **different zones** with no link is forbidden: deny-by-default applies
+  between zones, and imports within a single zone are unconstrained", byte-for-
+  byte identical under the drift test; (5) `ZoneMap.tsx`'s header comment and
+  its line-185 SVG `<title>` both qualify the empty cell as "between two
+  different zones" and state the diagonal is never restricted; (6)
+  `README.md:141` now says schema sources live beside the owning slice, which
+  the live census confirms — `src/composition/drizzle-schema.ts` re-exports
+  **19** modules: 10 `src/data/`, 8 `src/features/`, 1 `src/db/auth-schema.ts`;
+  (7) `docs/CONVEX.md` no longer cites a path, saying the scaling audit was
+  "completed and archived out of tree" (the file is genuinely archived, at
+  `../LGI Tools Document Archive/pre-3.8/SCALING_AUDIT_FINDINGS.md`); (8)
+  `README.md:111` reads "Production build — Vercel only, after merge; never run
+  locally". **Required outcome met in full → AF-016 Verified.**
+- **Suppressions** hold at 42 with no new site; cycle 1's attribution (22 new
+  single-line `@ts-expect-error` negative type assertions in the transport
+  suites, self-invalidating under `tsc`, true diagnostic suppressions down
+  21 → 20) is unchanged and its "justified, no finding" verdict stands.
+- **Clone group** `dup:a60cc554` unchanged; the accepted boring-shape rationale
+  (a deliberate viewport-matrix pin in dev tooling) still holds.
+- **Boundary drift:** 22 configured zones / 49 expanded, zero unclassified,
+  zero violations, cycles at error, no new `allow` entries.
+- **Override staleness:** zero threshold overrides, empty dupes baseline.
+- **Lifecycle truth:** 16 SHIPPED roadmap rows ↔ 16 changelog headings with an
+  **identical id set** (verified by `diff`); 20 contracts ↔ 20 approved session
+  plans one-to-one, all `**Execution status:** Complete`; 12 as-built records
+  covering every session from the `3.10.2.1.1` binding floor; the 21st
+  session-plans file remains the sanctioned `3.10.2.1-e2e-type-safety-brief.md`
+  supplementary brief, which archives with that directory.
+- **Docs truth:** the public and workspace sweep is otherwise clean. The
+  retired Phase 0 documents stay retired — every surviving mention is the
+  master plan's own historical account of retiring them, not a live reference.
+  `check_doc_refs` exits 0; its eight warnings are unresolvable *archive*
+  references inside frozen RECORD documents, including two in
+  `docs/session-plans/3.10/3.10.5.1.1.md` that point at the archive root while
+  the file actually sits under `pre-3.8/`. Frozen records are never rewritten
+  (the OOS-7 rule), and the checker treats these as warnings, so no finding
+  arises. **One new untruth was confirmed and is classified as AF-017** — see
+  Step 4.
+- **Rails:** every v3.9 and v3.10 rail re-ran green in the §7 battery.
+  **Rails-gap (carried):** `verify_archive.py` still does not fidelity-check
+  `session-as-built`; the compensating explicit `diff -r` remains required at
+  archive time, and the one-line bundle-list extension stays routed to the
+  v3.11 opening. **Rails-gap (new, owned by AF-017):** nothing mechanically
+  ties this procedure's restatement of the watch-trigger grammar to the schema
+  and checker that actually implement it.
+
+### Step 4 — Classification
+
+**AF-017 (Floss, new, Open) — this procedure's watch-trigger grammar omits a
+subject form that the schema, the checker, and the live baseline all use.**
+`docs/workflows/version-audit.md` Step 4 introduces the trigger grammar as a
+specification ("this closed grammar", "The grammar is a closed set") and
+enumerates the `files` metric's subject as *either* `zone:<name>` *or*
+`paths:<path>,...` — two forms. But
+`docs/workflows/schema/code-health-baseline.md` defines **three**, adding
+`files(globs:<pattern>,...)`; `.agent-local/check_watch_triggers.py:90` accepts
+it and names all three in its own error text; and the live baseline's **AF-008
+carrier uses `globs:`**. A reader following the procedure alone would judge the
+repository's own Watch carrier invalid.
+
+The divergence was introduced by this version: `globs:` entered the schema and
+the checker together in `eca3d994` (PR #296, the 3.10.1.2 responsibility-layer
+restructure, which remapped the auth contract paths and needed a growable
+pattern family), and `docs/workflows/version-audit.md` has never mentioned it
+in any revision. Principle diagnosis: the grammar has **two owners** — the
+schema owns the exact artifact form per `AGENTS.md`, yet the procedure restates
+it normatively, so an extension to one representation silently falsified the
+other. This is the "second enforcement representation" red flag from
+`docs/workflows/pre-pr-design-review.md` §6.4, and it is the same class of
+defect as AF-016: a committed document that describes the system untruthfully.
+
+Required outcome: one owner for the trigger grammar. The preferred shape is to
+delete the duplicated enumeration from the procedure and defer wholly to the
+schema it already names in the same sentence, keeping in the procedure only the
+non-mechanical judgment (trip-form semantics, warn-not-gate, "adding a metric
+kind is a specification change"). Merely appending `globs:` to the procedure's
+list would restore truth today while preserving the two-owner structure that
+caused the drift, so it is the weaker fix. Bounded documentation work, size XS,
+no behavior change. A rail keeping the two in sync — or the removal that makes
+a rail unnecessary — should land with it.
+
+AF-006, AF-007, and AF-008 were re-checked and remain below their triggers
+(telemetry 25 < 26; refresh-jobs 13 ≤ 15; auth contract exactly 3 < 4), each
+still earning its carrier. No other new finding: hotspots, suppressions, the
+clone group, boundaries, overrides, rails, and lifecycle truth all closed clean
+above.
+
 ## Audit findings
 
 Seeded with the carried Watch findings (their countable triggers live in the
@@ -605,9 +801,11 @@ original id.
 | AF-006 | 1 | Watch | Telemetry query module (carried from v3.8) broad enough to monitor for another change axis; 3.10.3.1 deliberately extended the module and stayed below trigger. | Promote on a 26th export or renewed multi-session growth. | — | Watch |
 | AF-007 | 1 | Watch | Refresh-job query module (carried from v3.8) large but cohesive around one queue lifecycle. | Promote above 15 exports or on a second persistence concern. | — | Watch |
 | AF-008 | 1 | Watch | Auth platform contract (carried from v3.8; paths remapped by 3.10.1.2 to `src/platform/auth/`) is a deliberate exact three-file exception. | Promote if any work proposes a fourth matching file; prefer a real platform module. | — | Watch |
-| AF-016 | 1 | Floss | Committed public/workspace documents describe the system untruthfully in eight places (wrong file paths, wrong zone/schema-ownership claims, the surviving public intra-zone deny-by-default wording; full set in Step 4 above). | Every claim corrected to live reality at its owning site; architecture-map fix flows through the generator + regeneration under the existing drift test; no behavior change. | 3.10.5.1 | Delivered |
+| AF-016 | 1 | Floss | Committed public/workspace documents describe the system untruthfully in eight places (wrong file paths, wrong zone/schema-ownership claims, the surviving public intra-zone deny-by-default wording; full set in Step 4 above). | Every claim corrected to live reality at its owning site; architecture-map fix flows through the generator + regeneration under the existing drift test; no behavior change. | 3.10.5.1 | Verified |
+| AF-017 | 2 | Floss | The watch-trigger grammar has two owners: `docs/workflows/version-audit.md` restates it normatively but lists only two `files()` subject forms, while the owning schema, `check_watch_triggers.py`, and the live AF-008 carrier all use a third (`globs:`). Introduced by this version in `eca3d994` (PR #296), which extended schema and checker without the procedure. | One owner for the grammar — preferably delete the duplicated enumeration from the procedure and defer to the schema it already cites, keeping only the non-mechanical judgment; plus a rail, or the removal that makes one unnecessary. No behavior change. | — | Open |
 
-At the audited ref: telemetry 25 exports (< 26), refresh-jobs 13 (≤ 15), auth
-contract 3 files (< 4) — all below trigger; execution re-checks each, decides
-whether each Watch is still earning its carrier, and appends AF-016+ for newly
-confirmed findings.
+At the cycle-2 audited ref: telemetry 25 exports (< 26), refresh-jobs 13
+(≤ 15), auth contract 3 files (< 4) — all below trigger and each still earning
+its carrier. AF-016's eight required outcomes were re-proved first-hand this
+cycle and it is **Verified**. AF-017 is the cycle's one new actionable finding
+and is **Open**, so the version does not close clean and does not archive.

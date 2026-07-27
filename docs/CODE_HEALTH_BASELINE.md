@@ -5,8 +5,8 @@
 | Field | Value |
 | --- | --- |
 | Date | 2026-07-27 |
-| App version | 3.10.4.3 |
-| Code ref | `ba4828841a53de992e995c034a470efed50e3d6d` on `main` (the v3.10 cycle-1 audited ref; measured from the byte-identical clean worktree) |
+| App version | 3.10.5.1 |
+| Code ref | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` on `main` (the v3.10 cycle-2 audited ref) |
 | Measurement scope | Full audit |
 
 ## Metrics
