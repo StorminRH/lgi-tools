@@ -1,7 +1,7 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { LoadingLabel } from '@/components/ui/loading-label';
+import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/platform/auth/auth';
@@ -75,7 +75,10 @@ async function JobsContent() {
 
 function JobsLoading() {
   return (
-    <LoadingLabel />
+    <div className="flex w-full flex-col gap-10">
+      <CharacterPanelSkeleton label="Loading personal jobs" />
+      <CharacterPanelSkeleton rows={1} label="Loading corporation jobs" />
+    </div>
   );
 }
 

@@ -1303,6 +1303,20 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual("archive-needed", self.stage())
         self.assertEqual("version-audit", self.handler())
 
+    def test_complete_audit_accepts_a_qualified_baseline_code_ref(self) -> None:
+        # The baseline schema documents the `Code ref` qualifier as optional, so a
+        # cell carrying one must still satisfy the Complete-audit ref match.
+        self.fixture.write_audit("Complete", "Verified")
+        self.fixture.write_baseline(f"{SHA}` on `main` (clean close)")
+        self.assertEqual("archive-needed", self.stage())
+
+    def test_complete_audit_rejects_a_mismatched_qualified_code_ref(self) -> None:
+        self.fixture.write_audit("Complete", "Verified")
+        self.fixture.write_baseline(f"{'b' * 40}` on `main` (clean close)")
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual("invalid", state["stage"])
+        self.assertTrue(errors)
+
     def test_stale_procedure_requires_plan_reconciliation(self) -> None:
         self.fixture.write_audit("Remediation required", "Open", digest="0" * 64)
         before = (self.fixture.docs / "version-audits/9.9/PLAN.md").read_text(encoding="utf-8")

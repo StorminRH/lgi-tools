@@ -3,7 +3,9 @@
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
+import { LivePrice } from '@/components/ui/live-price';
 import { SectionLabel } from '@/components/ui/section-label';
 import { nodeImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
@@ -16,6 +18,7 @@ import {
   type TierRowView,
 } from '../build-plan-view';
 import { batchedCostOfRows } from '../cost-basis-view';
+import { PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
 import {
   chainLevelsFrom,
   consolidateBuild,
@@ -166,6 +169,7 @@ function TierColumn({
   focus,
   inChain,
   actualLevel,
+  refreshing,
   onToggle,
 }: {
   tier: ConsolidatedTier;
@@ -183,6 +187,7 @@ function TierColumn({
   focus: Focus | null;
   inChain: Set<number> | null;
   actualLevel: Map<number, number> | null;
+  refreshing: boolean;
   onToggle: (depth: number, item: ConsolidatedItem) => void;
 }) {
   // `tier` carries whole-run batched quantities (runs already baked in by
@@ -196,9 +201,11 @@ function TierColumn({
         Tier {tier.depth}
         <span className="text-faint">· {tier.items.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
-        <span className="font-data text-ui font-semibold tabular-nums tracking-normal text-isk">
-          {formatIsk(subtotal)}
-        </span>
+        <LivePrice
+          value={formatIsk(subtotal)}
+          pending={refreshing}
+          className="text-ui font-semibold tracking-normal text-isk"
+        />
       </div>
       <Card>
         {rows.map((row) => (
@@ -248,10 +255,12 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
 function RawLedgerToggle({
   grandTotal,
   open,
+  refreshing,
   onToggle,
 }: {
   grandTotal: number | null;
   open: boolean;
+  refreshing: boolean;
   onToggle: () => void;
 }) {
   return (
@@ -260,15 +269,18 @@ function RawLedgerToggle({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="group inline-flex cursor-pointer items-baseline gap-2"
+      className={cn(
+        chipVariants({ tone: 'green' }),
+        PLANNER_DISCLOSURE_TRIGGER_CLASS,
+        'group cursor-pointer gap-2 py-1 transition-colors',
+      )}
     >
-      <span className="inline-flex items-baseline gap-2 text-label font-semibold uppercase tracking-eyebrow text-muted group-hover:text-name">
-        <span className="tracking-normal text-isk">{'//'}</span>
-        Raw ledger
-      </span>
-      <span className="font-data text-ui font-semibold tabular-nums text-isk">
-        {grandTotal !== null ? formatIsk(grandTotal) : '—'}
-      </span>
+      <span>Raw ledger</span>
+      <LivePrice
+        value={grandTotal !== null ? formatIsk(grandTotal) : '—'}
+        pending={refreshing}
+        className="text-ui font-semibold text-isk"
+      />
       <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>
         ▾
       </span>
@@ -281,7 +293,7 @@ function RawLedgerToggle({
  * planner calculation.
  */
 export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
-  const { pricing } = useMarketData();
+  const { pricing, refreshing } = useMarketData();
   const {
     ownedMe,
     ownedDetail,
@@ -406,6 +418,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
           <RawLedgerToggle
             grandTotal={grandTotal}
             open={ledgerOpen}
+            refreshing={refreshing}
             onToggle={() => setLedgerOpen((o) => !o)}
           />
         </div>
@@ -413,7 +426,11 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
 
       {ledgerOpen && (
         <div className="mb-5">
-          <CockpitRawLedger pricing={pricing} structure={structure} />
+          <CockpitRawLedger
+            pricing={pricing}
+            structure={structure}
+            refreshing={refreshing}
+          />
         </div>
       )}
 
@@ -436,6 +453,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             focus={focus}
             inChain={levelAt(chainLevels, focus, tier.depth)}
             actualLevel={levelAt(chainActuals, focus, tier.depth)}
+            refreshing={refreshing}
             onToggle={toggleFocus}
           />
         ))}

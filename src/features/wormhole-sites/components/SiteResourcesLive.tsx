@@ -61,6 +61,15 @@ export function SiteLiveProvider({
   return <SiteLiveContext.Provider value={value}>{children}</SiteLiveContext.Provider>;
 }
 
+function LiveSiteTotal({ resources }: { resources: SiteResource[] }) {
+  const live = useSiteLive();
+  const total = resources.reduce((sum, resource) => sum + (resourceLiveIsk(resource, live) ?? 0), 0);
+  const pending = resources.some((resource) =>
+    resource.typeId === null ? false : live.isPending(resource.typeId),
+  );
+  return <LivePrice value={formatIskHeader(total)} pending={pending} />;
+}
+
 // Zero-height marker placed at the top of the (collapsed-hidden) body. Fires the
 // provider's `requestEnable` the first time it's on screen — i.e. once the card
 // is opened and scrolled into view.
@@ -87,9 +96,7 @@ function ViewSentinel() {
  * the server seed until the refresh lands, then flashes in the live sum.
  */
 export function SiteHeaderTotal({ resources }: { resources: SiteResource[] }) {
-  const live = useSiteLive();
-  const total = resources.reduce((sum, r) => sum + (resourceLiveIsk(r, live) ?? 0), 0);
-  return <LivePrice value={formatIskHeader(total)} />;
+  return <LiveSiteTotal resources={resources} />;
 }
 
 /**
@@ -125,12 +132,10 @@ function LiveResourceFooter({
   resources: SiteResource[];
   label: string;
 }) {
-  const live = useSiteLive();
-  const total = resources.reduce((sum, r) => sum + (resourceLiveIsk(r, live) ?? 0), 0);
   return (
     <SectionFooter
       label={label}
-      value={<LivePrice value={formatIskHeader(total)} />}
+      value={<LiveSiteTotal resources={resources} />}
     />
   );
 }

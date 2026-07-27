@@ -322,7 +322,7 @@ function mermaidSource(map: ArchitectureMap): string[] {
     '    %% A --> B: A may import B, because the boundary rules declare that permission.',
     '    %% A -.-> B: sanctioned reference-core exception into an auto-discovered band.',
     '    %% A -. .- B: first-match carve-out — files under A classify before B claims them.',
-    '    %% Any pair with no link is forbidden: the graph is deny-by-default.',
+    '    %% Any pair of different zones with no link is forbidden: deny-by-default applies between zones, and imports within a single zone are unconstrained.',
     ...map.nodes.map((node) => `    ${node.id}["${node.label}"]`),
     '',
     ...map.edges.map((edge) => MERMAID_LINKS[edge.kind](edge)),

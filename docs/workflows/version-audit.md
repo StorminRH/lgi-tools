@@ -36,9 +36,10 @@ transition.
 3. Design exact measurements, commands, artifact inventory, hotspot and drift
    questions, baseline replacement, verification, and any version-close archive
    destination.
-4. Present the shape before drafting, give the complete plan to one fresh
-   read-only high-effort adversarial reviewer, reconcile every finding, and
-   obtain operator approval. Permit at most one rerun after material change.
+4. Present the shape before drafting, invoke `adversarial-review` in Plan mode
+   with the complete plan and its source evidence, reconcile every verified
+   finding, and obtain operator approval. Permit at most one rerun after
+   material change.
 5. Persist a new Approved cycle-1 plan with full audited ref and procedure
    digest. When a procedure change made an in-progress plan stale, preserve its
    cycle history, AF ledger, statuses, and mappings while reconciling scope.
@@ -55,8 +56,9 @@ transition.
 3. Apply the plan-version topology audit to the complete finding set. Group the
    findings into the fewest safe execution bundles, map every open AF id, and
    map no unaudited scope.
-4. Present the topology before drafting, run one fresh read-only adversarial
-   review, reconcile findings, and obtain operator approval before mutation.
+4. Present the topology before drafting, invoke `adversarial-review` in Plan
+   mode with the complete topology and source evidence, reconcile verified
+   findings, and obtain operator approval before mutation.
 5. Update the roadmap topology first, then contracts/index, then mark mapped
    findings Planned and set Remediation in progress. Do not create session plans.
 6. Rerun the resolver and drift gate, report the new directive, and stop.
@@ -199,21 +201,16 @@ Put every finding in exactly one bucket:
    **Watch promotion triggers have one owner: the baseline's Watch findings.** The
    ledger row records `Watch` status and cites the AF id only — it never
    restates the trigger. Each Watch finding's countable trigger is written as
-   one fenced `watch-trigger` block beneath its baseline Watch carrier, using
-   the canonical form in `docs/workflows/schema/code-health-baseline.md` and this
-   closed grammar:
+   one fenced `watch-trigger` block beneath its baseline Watch carrier.
 
-   ```text
-   AF-NNN: <metric>(<arg>) <op> <integer>
-   ```
+   `docs/workflows/schema/code-health-baseline.md` is the sole owner of that
+   block's grammar: its metrics, each metric's subject forms, and the permitted
+   operators. Do not restate that grammar here. Extending it is a change to
+   that schema, made together with `.agent-local/check_watch_triggers.py`, and
+   never a checker feature alone.
 
-   - `<metric>` is exactly one of: `exports` (count of `^export` lines in the
-     named repo file), `files` (either files assigned to the named Fallow zone,
-     written `zone:<name>`, or existing files in a fixed repository-relative
-     set, written `paths:<path>,<path>,...`), or `clones` (count of files in the
-     named clone group, written with its Fallow `dup:` id, from a whole-version
-     pinned Fallow run).
-   - `<op>` is one of `>=`, `>`, `<=`, `<`, `==`.
+   This procedure owns only the judgment around the trigger:
+
    - Semantics are **trip-form**: the expression evaluating true means the
      trigger fired. A block may hold multiple lines for one AF id; any line
      true trips it.
@@ -221,8 +218,6 @@ Put every finding in exactly one bucket:
      classification remains an audit decision. Judgment conditions that are not
      countable ("a new change axis", "renewed growth") stay in the audit plan's
      finding diagnosis and never enter the data-only baseline.
-   - The grammar is a closed set. Adding a metric kind is a change to this
-     specification, not a checker feature.
 
 Maintain one stable table in the audit plan:
 
@@ -278,9 +273,10 @@ For version close with any Floss or Campaign:
    master version;
 5. after `plan-audit-remediation` maps approved work, use normal session plans,
    branches, PRs, design review, and close-out;
-6. after every mapped sub-version merges, mark its finding Delivered; when all
-   rows are terminal, rerun the resolver and let its directive start the next
-   full cycle.
+6. in every mapped sub-version's delivering PR, mark its finding Delivered so
+   the marker is already authoritative when that PR merges; when all rows are
+   terminal on `main`, rerun the resolver and let its directive start the next
+   full cycle. Never defer the Delivered edit to post-merge reconciliation.
 
 For a clean version close:
 

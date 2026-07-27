@@ -74,7 +74,7 @@ def parse_skill(path: Path, root: Path, errors: list[str]) -> tuple[str, str]:
 
 
 def matches(text: str, pattern: str) -> bool:
-    return re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL) is not None
+    return re.search(pattern, text, flags=re.IGNORECASE) is not None
 
 
 def derived_session_contracts(root: Path) -> tuple[list[str], str | None]:

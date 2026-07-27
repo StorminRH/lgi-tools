@@ -2,7 +2,6 @@
 
 import { Dot } from '@/components/ui/dot';
 import { LivePrice } from '@/components/ui/live-price';
-import { PriceConfidence } from '@/components/ui/price-confidence';
 import { ResourceRow as ResourceRowPrimitive } from '@/components/ui/row';
 import { formatIsk } from '../format';
 import type { SiteResource, SiteType } from '../types';
@@ -24,12 +23,7 @@ function ResourceValue({ resource }: { resource: SiteResource }) {
 
   const pending = live.isPending(resource.typeId as number);
   const figure = formatIsk(pending ? resource.effectiveIsk : resourceLiveIsk(resource, live));
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      {pending && <PriceConfidence level="unknown" loading />}
-      <LivePrice value={figure} />
-    </span>
-  );
+  return <LivePrice value={figure} pending={pending} />;
 }
 
 /** Renders one site resource's quantity, volume in cubic metres, and live ISK value. */

@@ -1,12 +1,14 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { chipVariants } from '@/components/ui/chip';
+import { cn } from '@/components/ui/cn';
+import { CopyButton } from '@/components/ui/copy-button';
 import { Popover, PopoverRow } from '@/components/ui/popover';
 import { SegmentedControl } from '@/components/ui/segmented';
-import { toast } from '@/components/ui/toast';
 import { computeMultibuyDemand } from '../build-batch';
+import { PLANNER_DISCLOSURE_TRIGGER_CLASS } from '../industry-styles';
 import {
   assignBuildTiers,
   buildMultibuyText,
@@ -82,30 +84,24 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
     setUncheckedTiers(next);
   };
 
-  const copy = () => {
-    const text = buildMultibuyText(entries);
-    if (!navigator.clipboard) {
-      toast.error('Clipboard unavailable — copy needs a secure (https) context');
-      return;
-    }
-    navigator.clipboard.writeText(text).then(
-      () => toast(`Copied ${pluralCount(entries.length, 'item', 'items')} to clipboard`),
-      () => toast.error('Copy failed — check the browser clipboard permission'),
-    );
-  };
+  const copyValue = buildMultibuyText(entries);
+  const entryCount = pluralCount(entries.length, 'item', 'items');
 
   return (
     <Popover
       label="Multibuy export"
       openOnHover={false}
       className="w-[320px]"
-      triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
+      triggerClassName={cn(
+        chipVariants({ tone: 'green' }),
+        PLANNER_DISCLOSURE_TRIGGER_CLASS,
+        'group cursor-pointer gap-1.5 py-1 transition-colors',
+      )}
       trigger={
-        <span className="inline-flex items-baseline gap-2 text-label font-semibold uppercase tracking-eyebrow text-muted group-hover:text-name">
-          <span className="tracking-normal text-isk">{'//'}</span>
+        <>
           Multibuy
           <span className="inline-block text-micro text-muted">▾</span>
-        </span>
+        </>
       }
     >
       <div className="flex items-center justify-between">
@@ -156,11 +152,16 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <Button variant="primary" size="sm" onClick={copy} disabled={entries.length === 0}>
-          Copy
-        </Button>
+        <CopyButton
+          value={copyValue}
+          displayValue={entryCount}
+          feedbackLabel={entryCount}
+          unavailableLabel="Unavailable"
+          unavailableAnnouncement="Clipboard unavailable for this export"
+          disabled={entries.length === 0}
+        />
         <span className="font-data text-micro tabular-nums text-muted">
-          {pluralCount(entries.length, 'item', 'items')} · {effectiveMode}
+          {effectiveMode}
         </span>
       </div>
     </Popover>

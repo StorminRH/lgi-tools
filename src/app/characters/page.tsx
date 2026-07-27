@@ -3,12 +3,12 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
+import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Collapsible } from '@/components/ui/collapsible';
 import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
@@ -242,7 +242,14 @@ async function CharactersContent({
 
 function CharactersLoading() {
   return (
-    <LoadingLabel />
+    <>
+      <PageHead
+        crumb="characters"
+        title="Characters"
+        subtitle="Linked pilots and their account access"
+      />
+      <CharacterPanelSkeleton label="Loading linked characters" />
+    </>
   );
 }
 

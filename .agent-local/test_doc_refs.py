@@ -27,6 +27,10 @@ class DocRefsFixture:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
+    def write_root(self, name: str, text: str) -> None:
+        path = self.root / name
+        path.write_text(text, encoding="utf-8")
+
 
 class DocRefsTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -125,7 +129,7 @@ class DocRefsTests(unittest.TestCase):
         self.fixture.write(
             "guide.md",
             "Run `python3 scripts/missing.py --check`; inspect `dup:abc`, "
-            "`zone:auth`, `sha256:abc`, and `membership.ts`.\n",
+            "`zone:auth`, `sha256:abc`, `membership.ts`, and public/anonymous.\n",
         )
         self.assertEqual([], self.rendered())
 
@@ -133,9 +137,55 @@ class DocRefsTests(unittest.TestCase):
         self.fixture.write(
             "guide.md",
             "Templates: `docs/session-plans/X.Y/<session>.md`, "
-            "`docs/VERSION_X_Y_PLAN.md`, and `content/changelog/vX.Y.md`.\n",
+            "`docs/VERSION_X_Y_PLAN.md`, `content/changelog/vX.Y.md`, "
+            "and exports(src/path/to/owner.ts).\n",
         )
         self.assertEqual([], self.rendered())
+
+    def test_bare_unresolved_path_in_env_example_is_an_error(self) -> None:
+        self.fixture.write_root(
+            ".env.example",
+            "# Migration owner: src/scripts/missing.ts, then continue.\n",
+        )
+        self.assertEqual(
+            [
+                (
+                    "error",
+                    ".env.example:1: repository path does not resolve: "
+                    "src/scripts/missing.ts",
+                )
+            ],
+            self.rendered(),
+        )
+
+    def test_backticked_unresolved_path_in_readme_is_an_error(self) -> None:
+        self.fixture.write_root("README.md", "See `src/scripts/missing.ts`.\n")
+        self.assertEqual(
+            [
+                (
+                    "error",
+                    "README.md:1: repository path does not resolve: "
+                    "src/scripts/missing.ts",
+                )
+            ],
+            self.rendered(),
+        )
+
+    def test_inline_and_bare_forms_of_one_dead_path_report_once(self) -> None:
+        self.fixture.write(
+            "guide.md",
+            "See [`src/dead/file.ts`](src/dead/file.ts).\n",
+        )
+        self.assertEqual(
+            [
+                (
+                    "error",
+                    "docs/guide.md:1: repository path does not resolve: "
+                    "src/dead/file.ts",
+                )
+            ],
+            self.rendered(),
+        )
 
     def test_reasoned_legacy_reference_is_allowlisted(self) -> None:
         self.fixture.write(
@@ -176,12 +226,16 @@ class DocRefsTests(unittest.TestCase):
         )
 
     def test_record_source_relative_reference_still_warns(self) -> None:
-        self.fixture.write("backlog.md", "Future archive: `../missing`.\n")
+        self.fixture.write(
+            "backlog.md",
+            "Future archive: ../LGI Tools Document Archive/missing.\n",
+        )
         self.assertEqual(
             [
                 (
                     "warn",
-                    "docs/backlog.md:1: archive reference does not resolve: ../missing",
+                    "docs/backlog.md:1: archive reference does not resolve: "
+                    "../LGI Tools Document Archive/missing",
                 )
             ],
             self.rendered(),

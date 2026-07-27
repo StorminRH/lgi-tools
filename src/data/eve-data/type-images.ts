@@ -1,3 +1,5 @@
+import { ACTIVITY_NAME_TO_ID } from './constants';
+
 /**
  * Closed rendition vocabulary served by CCP's type-image endpoint. Owned here so every
  * rendition decision has one home; render plumbing (TypeIcon) consumes it, and call
@@ -35,13 +37,11 @@ export function blueprintImage(blueprintTypeId: number): EveImageDescriptor {
 }
 
 /**
- * Hero intent: the large product hero upgrades to the 3D `render` only when the
- * product's SDE category is renderable (isRenderableCategory, computed where the
- * category name lives — at query time — and threaded as this flag). Anything else
- * keeps `icon`, never issuing a /render that would 400.
+ * Hero intent: the large planner hero shows the blueprint scroll for the blueprint
+ * being configured. This is the operator-reviewed alternative to the product render.
  */
-export function heroImage(typeId: number, renderable: boolean): EveImageDescriptor {
-  return { typeId, variant: renderable ? 'render' : 'icon' };
+export function heroImage(blueprintTypeId: number): EveImageDescriptor {
+  return blueprintImage(blueprintTypeId);
 }
 
 /**
@@ -59,14 +59,23 @@ export function nodeImage(
 }
 
 /**
- * Industry-job intent: a job row shows the product's `icon` when ESI reported a
- * product, else the blueprint being run as `bp` — never a bare blueprint `icon`
- * request (blueprints serve no icon rendition).
+ * Industry-job intent: research, copying, and invention outputs are blueprints even
+ * when ESI supplies product_type_id, so they use `bp`; manufacturing and reactions
+ * show their product inventory icon. A missing product falls back to the input blueprint.
  */
 export function jobImage(
+  activityId: number,
   productTypeId: number | undefined,
   blueprintTypeId: number,
 ): EveImageDescriptor {
+  const blueprintOutput =
+    activityId === ACTIVITY_NAME_TO_ID.research_time ||
+    activityId === ACTIVITY_NAME_TO_ID.research_material ||
+    activityId === ACTIVITY_NAME_TO_ID.copying ||
+    activityId === ACTIVITY_NAME_TO_ID.invention;
+  if (blueprintOutput) {
+    return blueprintImage(productTypeId ?? blueprintTypeId);
+  }
   return productTypeId !== undefined
     ? itemImage(productTypeId)
     : blueprintImage(blueprintTypeId);

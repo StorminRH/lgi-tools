@@ -24,7 +24,11 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
   {
     key: 'name',
     label: 'Name',
-    render: (s) => <span className="truncate text-name">{s.name}</span>,
+    render: (s) => (
+      <span data-site-name className="truncate text-name">
+        {s.name}
+      </span>
+    ),
   },
   {
     key: 'type',

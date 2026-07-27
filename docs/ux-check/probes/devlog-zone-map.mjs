@@ -37,7 +37,7 @@ export default {
     const title = await page.$eval('svg[data-zone-map] > title', (node) => node.textContent ?? '');
     check(`${viewport} names the matrix for assistive technology`, title.includes('zones'));
 
-    const passage = await page.locator('.devlog-prose p', { hasText: PASSAGE }).count();
+    const passage = await page.locator('.prose-copy-devlog p', { hasText: PASSAGE }).count();
     check(`${viewport} shows the introducing passage`, passage > 0);
 
     // The figure must own its own overflow: its box stays inside the viewport and the

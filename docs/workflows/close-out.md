@@ -129,15 +129,15 @@ final-vs-non-final fork — it always proceeds toward a single PR; skip to
    plan whether another approved session remains in the sub-version. Record the
    next session id or `Final session`; do not infer from branch age or filenames.
 2. If more sessions remain under the one-sub-version-PR delivery unit, skip the
-   pre-PR design review and continue at **Finalize and verify the current
-   head**. After that section's commit-and-push evidence exists, change the
-   approved plan's `Execution status` from `Pending` to `Complete`, author the
-   session's as-built record per `docs/workflows/schema/session-as-built.md`
-   (its `PR` marker defers to the sub-version's final session), point the
-   durable handoff (`docs/SCRATCHPAD.md`) at the next session, and make the
-   required lifecycle commit and push to the lifecycle branch. A lifecycle-only
-   status commit does not rerun application tests. Stop without opening a PR
-   (`SESSION_HANDOFF`).
+   pre-PR design review and continue at **Adversarial implementation-review
+   gate**. After that review and **Finalize and verify the current head** produce
+   commit-and-push evidence, change the approved plan's `Execution status` from
+   `Pending` to `Complete`, author the session's as-built record per
+   `docs/workflows/schema/session-as-built.md` (its `PR` marker defers to the
+   sub-version's final session), point the durable handoff
+   (`docs/SCRATCHPAD.md`) at the next session, and make the required lifecycle
+   commit and push to the lifecycle branch. A lifecycle-only status commit does
+   not rerun application tests. Stop without opening a PR (`SESSION_HANDOFF`).
 3. If this is the final session, the sub-version's remaining state ships inside
    its PR. Continue only when the sub-version works end to end, depends on
    nothing unmerged, and the PR is reviewable as one cohesive change. The final
@@ -202,16 +202,49 @@ per mode — the created pending fragment path (ordinary) or the finalized
 changelog, absorbed-fragment list, `APP_VERSION`, terminal roadmap row, final
 session status, and PR design notes (planned).
 
+## Adversarial implementation-review gate (shared)
+
+Run the economical independent review before the sole full verification
+checkpoint, so accepted fixes join the finalized head without manufacturing a
+second coverage cycle.
+
+1. Invoke `adversarial-review` in Diff mode against the complete working-tree
+   change. Supply the direct request or frozen contract-and-plan chain, the
+   current base, the complete tracked patch and untracked inventory, focused and
+   UX evidence, and the finalized delivery records from the preceding phase.
+2. Keep the worktree stable while the two Cursor reviewers run. The
+   adversarial-review procedure owns its context-bounded Composer execution
+   review, Grok High holistic review, evidence-first reconciliation, and
+   verified finding ledger. An escalation trigger that direct evidence cannot
+   settle returns `BLOCKED`; do not add native review subagents or another model
+   fan-out here.
+3. Fix every accepted in-scope finding through the authority already held by
+   close-out. Preserve the rejection/do-not-change ledger. A scope, architecture,
+   public-surface, or authority conflict returns `BLOCKED`.
+4. Permit one fresh adversarial-review rerun only after a material correction to
+   behavior, architecture, scope, or verification. An ordinary localized fix is
+   verified by the orchestrator and the applicable focused check without buying
+   another model round.
+5. Continue only with `CLEAN` or with every accepted finding corrected and
+   personally verified. The following full checkpoint validates the resulting
+   final bytes.
+
+Phase evidence: reviewed working-tree base and patch digest, both default model
+verdicts, escalation trigger plus direct-evidence disposition or `Not used`,
+accepted and rejected dispositions, and the final clean/corrected boundary
+verdict.
+
 ## Finalize and verify the current head (shared)
 
 This is the single full verification checkpoint for the completed head. Do not
 repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
 
-1. Inspect the finalized diff against the change's scope — the session contract
-   and approved plan in planned mode, or the direct request in ordinary mode —
-   plus prohibited surfaces. Remove anything outside those boundaries, confirm
-   every required surface is present, and screen all tracked content for personal
-   information before mechanical verification begins.
+1. Confirm the finalized diff still matches the adversarially reviewed subject
+   plus its recorded corrections. Inspect it against the change's scope — the
+   session contract and approved plan in planned mode, or the direct request in
+   ordinary mode — plus prohibited surfaces. Remove anything outside those
+   boundaries, confirm every required surface is present, and screen all tracked
+   content for personal information before mechanical verification begins.
 2. Reconcile durable memory before any final mechanical gate can be invalidated
    by another documentation edit. **(ordinary and planned final session)** update
    `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and contract
@@ -274,13 +307,17 @@ the lifecycle-memory disposition.
 1. Before opening the PR, confirm the verification evidence names the current
    head. If the head has not changed since **Finalize and verify the current
    head**, reuse that evidence and do not rerun the test suite or coverage.
-2. Open one PR from the branch to `main`, or reuse the one open PR already owned
-   by a canonical review-only workflow. Describe the coherent project outcome,
-   not a file list, using these headings in order: `## What this does`, `## Why`,
-   `## Notes`, and `## Test plan`. Record the existing verification as past-tense
-   evidence. **(planned)** With the PR number known, author the session's
-   as-built record per `docs/workflows/schema/session-as-built.md` carrying
-   that number, commit, and push it before the first review round begins.
+2. Open one **draft** PR from the branch to `main`, or reuse the one open PR
+   already owned by a canonical review-only workflow. A reused ready PR does not
+   move backward to draft; settle any active review before another push and
+   retain its current-head evidence. Describe the coherent project outcome, not
+   a file list, using these headings in order:
+   `## What this does`, `## Why`, `## Notes`, and `## Test plan`. Record the
+   existing verification as past-tense evidence. Do not manually trigger a
+   reviewer while the PR is a draft. **(planned)** With the PR number known,
+   author the session's as-built record per
+   `docs/workflows/schema/session-as-built.md` carrying that number, commit, and
+   push it while the PR remains draft, before the first review round begins.
 3. Privacy-scrub the title and body. Exclude personal names, email addresses,
    account handles, machine names, local paths, browser-profile details, and
    private identifiers; describe human review role-neutrally.
@@ -299,28 +336,37 @@ the lifecycle-memory disposition.
    — the final PR already carries the delivered sub-version's terminal roadmap
    row and matching `APP_VERSION`, so its release identity is `reconciled`.
    Ordinary mode does not run release consistency. After publishing, read the
-   GitHub body back into a temporary file and run the scrub again before polling.
+   GitHub body back into a temporary file and run the scrub again. Confirm the
+   new draft's exact head, body, delivery records, and verification are final,
+   then mark it ready for review exactly once. A reused ready PR remains ready.
+   Greptile and CodeRabbit skip drafts by default, and Cursor Bugbot does not
+   automatically review them; if a reviewer nevertheless registers because
+   external configuration changed, let that run settle before any later push.
    PR-body edits do not invalidate repository verification.
-5. Drive the review as batched rounds and never push while a reviewer is
+5. Drive the ready PR as batched rounds and never push while a reviewer is
    mid-pass — a push to the head cancels an in-flight Greptile or CodeRabbit
-   review before it reports. Begin each round by waiting for the head to go quiet
-   with the runtime's background poll helper. Resolve the repository into
-   `PR_REPOSITORY` and the PR number into `PR_NUMBER`, then run:
+   review before it reports. Begin each round with the merge gate's own
+   end-to-end background monitor. Resolve the repository into `PR_REPOSITORY`
+   and the PR number into `PR_NUMBER`, then run:
 
    ```bash
    python3 .agent-local/poll_pr_gate.py \
-     "$PR_REPOSITORY" "$PR_NUMBER" quiescent
+     "$PR_REPOSITORY" "$PR_NUMBER" review
    ```
 
-   The helper returns once every check run on the head — Greptile, CodeRabbit,
-   semgrep, CI — has completed and the set is stable. Continue useful close-out
-   work while it runs.
-6. On that quiet head, collect every finding from all reviewers at once: the
-   Greptile summary with its current-head inline findings, the gate of record,
-   and CodeRabbit's advisory findings. If no current-head finding remains and the
-   Greptile summary is 5/5 on the current head, the loop is done — go to
-   **Merge**. Otherwise triage every collected finding together, without widening
-   the branch:
+   The helper imports the merge predicate, waits for a stable current-head
+   result, keeps waiting through CodeRabbit's rate-limited status, and prints
+   Cursor Bugbot's non-gating signal. `cursor=comments` means Bugbot concluded
+   `neutral` or `skipped` and left comments to collect; `cursor=clean` means its
+   conclusion was `success`. Continue useful close-out work while it runs, but
+   do not push or re-trigger a bot merely to escape a rate limit.
+6. On that stable head, collect every finding from all reviewers at once: the
+   Greptile summary and current-head inline findings, CodeRabbit review bodies
+   and inline threads, and any Cursor Bugbot comments signaled by the monitor.
+   Cursor remains advisory and never becomes the merge gate, but every comment
+   receives an explicit disposition. If the gate of record is clean and every
+   advisory comment has been triaged, the loop is done — go to **Merge**.
+   Otherwise triage the complete batch without widening the branch:
    1. **Fix** an in-scope problem on the branch.
    2. **Justify** a deliberate choice by replying `@greptileai` (or the owning
       bot) with the reasoning; a justification that leaves a live current-head
@@ -329,20 +375,22 @@ the lifecycle-memory disposition.
    3. **Defer** only genuinely out-of-scope work to `docs/backlog.md` with its
       reason, size, and trigger.
 7. Batch the round's whole disposition — every fix, justification reply,
-   re-trigger, and backlog entry — then make exactly one push, and only after the
-   evidence a fix invalidated is green again. Production or test code, executable
-   scripts, package or lockfile changes, and TypeScript, ESLint, Vitest,
-   coverage, or Fallow configuration invalidate the full checkpoint; a prose-only
-   workflow document, lifecycle record, or PR-metadata change runs only its
-   applicable document, release, drift, privacy, pending-changelog, or diff
-   checks. That push opens the next round; repeat until a quiet head carries zero
-   findings and a 5/5 Greptile summary. Later passes may raise new findings, so
-   judge each round on its own live result.
+   necessary re-trigger, and backlog entry — then make exactly one push, and
+   only after the evidence a fix invalidated is green again. Production or test
+   code, executable scripts, package or lockfile changes, and TypeScript,
+   ESLint, Vitest, coverage, or Fallow configuration invalidate the full
+   checkpoint; a prose-only workflow document, lifecycle record, or PR-metadata
+   change runs only its applicable document, release, drift, privacy,
+   pending-changelog, or diff checks. That push opens the next round; repeat
+   until the gate of record is clean and all advisory findings are disposed.
+   Later passes may raise new findings, so judge each round on its own live
+   result.
 
-Phase evidence: PR URL, published title/body scrub result, current head SHA, the
-quiescent check set per round, green CI result, current-head Greptile score,
-unresolved-finding count across all reviewers, and the disposition of every
-finding. Any pending justification returns `BLOCKED`.
+Phase evidence: draft PR URL, ready transition, published title/body scrub
+result, current head SHA, stable review set per round, green CI result,
+gate-of-record result, Cursor signal, unresolved-finding count across all
+reviewers, and the disposition of every finding. Any pending justification
+returns `BLOCKED`.
 
 ## Merge (shared)
 
@@ -418,11 +466,13 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 - **Session review:** <evidence summary>
 - **Focused/local/UX:** <evidence summary or Not applicable>
 - **Design review:** <PASS result or Not applicable>
+- **Adversarial review:** <models, verdict, and finding disposition or Not applicable>
 - **Final verification:** <command and result or Not reached>
 
 ### Delivery
 
-- **PR and review:** <URL, head, CI, Greptile, findings or Not opened>
+- **PR and review:** <URL, draft/ready transition, head, CI, gate of record,
+  Cursor signal, and finding dispositions or Not opened>
 - **Merge:** <merge SHA or Not merged>
 - **Production:** <deployment and browser proof or Not reached>
 - **Lifecycle state:** <pending fragment path in ordinary mode, or committed

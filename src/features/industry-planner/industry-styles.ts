@@ -8,10 +8,71 @@ import { toneTextClass, type Tone } from '@/components/ui/tones';
 import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
 import type { PriceSource } from '@/data/market-prices/types';
 import { isBoundaryStaleMs } from '@/lib/esi-datasets/freshness';
+import type { NodeMeState } from './me-overrides';
 
 // Below this percentage a positive margin is "thin" (orange) rather than
 // healthy (green). A rough cut for at-a-glance scanning, not a trading signal.
 const THIN_MARGIN_PCT = 5;
+
+type EfficiencyToneState = NodeMeState | 'bonus' | 'reaction';
+
+/**
+ * Shared planner disclosure treatment: the same recessed black well and neutral border as search
+ * fields and dropdowns, with green reserved for the label rather than the whole control.
+ */
+export const PLANNER_DISCLOSURE_TRIGGER_CLASS =
+  'border-border-soft bg-bg-deep text-isk shadow-field-inset hover:border-border-idle hover:bg-row-active hover:text-isk data-[popup-open]:border-border-idle data-[popup-open]:bg-row-active';
+
+/**
+ * Planner trace treatment for an input related to the selected build node.
+ * The inset border preserves the tier-row geometry while sharpening the existing dim wash.
+ */
+export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
+
+/**
+ * Sole presentation owner for planner efficiency states across icon glyphs, editable
+ * values, hero labels, and build-node frames.
+ */
+export const EFFICIENCY_TONE_CLASSES: Record<
+  EfficiencyToneState,
+  { fill: string; glow: string; stroke: string; text: string; frame: string }
+> = {
+  unowned: {
+    fill: 'fill-none',
+    glow: '',
+    stroke: 'stroke-muted',
+    text: 'text-muted',
+    frame: 'border-border-soft',
+  },
+  owned: {
+    fill: 'fill-evb-bright',
+    glow: 'drop-shadow-[0_0_4px_var(--color-evb-glow)]',
+    stroke: 'stroke-evb-bright',
+    text: 'text-evb-bright',
+    frame: 'border-isk',
+  },
+  manual: {
+    fill: 'fill-[var(--color-dps-mid)]',
+    glow: 'drop-shadow-[0_0_4px_var(--color-dps-mid)]',
+    stroke: 'stroke-[var(--color-dps-mid)]',
+    text: 'text-[var(--color-dps-mid)]',
+    frame: 'border-[var(--color-dps-mid)]',
+  },
+  bonus: {
+    fill: 'fill-[var(--color-isk)]',
+    glow: 'drop-shadow-[0_0_4px_var(--color-isk)]',
+    stroke: 'stroke-[var(--color-isk)]',
+    text: 'text-isk',
+    frame: 'border-isk',
+  },
+  reaction: {
+    fill: 'fill-[var(--color-reaction-purple)]',
+    glow: 'drop-shadow-[0_0_4px_var(--color-reaction-purple)]',
+    stroke: 'stroke-[var(--color-reaction-purple)]',
+    text: 'text-[var(--color-reaction-purple)]',
+    frame: 'border-[var(--color-reaction-purple)]',
+  },
+};
 
 /**
  * Text-colour class for a margin figure. Loss → red, thin → orange, healthy →

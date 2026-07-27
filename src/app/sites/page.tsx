@@ -1,22 +1,24 @@
 import { cookies } from 'next/headers';
-import { cache, Suspense } from 'react';
-import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
+import { Suspense } from 'react';
 import { Banner } from '@/components/ui/banner';
-import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
+import { Skeleton } from '@/components/ui/skeleton';
 import { UrlSync } from '@/components/ui/url-sync';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import {
   SitesFilterLayout,
+  SitesResults,
   type SiteCardItem,
 } from '@/features/wormhole-sites/components/SitesFilterLayout';
-import { SitesTable } from '@/features/wormhole-sites/components/SitesTable';
+import {
+  SitesTableFromUrl,
+  type SitesSearchParams,
+} from '@/features/wormhole-sites/components/SitesTableFromUrl';
 import { selectDevSampleSites } from '@/features/wormhole-sites/dev-sample';
-import { overlayLivePrices } from '@/features/wormhole-sites/live-prices';
-import { listSiteDetails } from '@/features/wormhole-sites/queries';
+import { listPricedSiteDetails } from '@/features/wormhole-sites/queries';
 import { siteClassSet } from '@/features/wormhole-sites/site-filter';
-import { parseSortDir, parseSortKey } from '@/features/wormhole-sites/sort';
 import { buildPageMetadata } from '@/lib/page-metadata';
+import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
 
 /** Static search and social metadata for the /sites route. */
 export const metadata = buildPageMetadata({
@@ -24,23 +26,6 @@ export const metadata = buildPageMetadata({
   description:
     'Eve Online wormhole sites — combat, ore, gas, relic, and data — filterable by class and type, with live Jita prices on ore and gas resources and full NPC wave breakdowns.',
   canonical: '/sites',
-});
-
-// Only the table's sort survives in the URL; the Class/Type filters and the
-// Cards/Table toggle are client-side state (SitesFilterLayout).
-type SitesSearchParams = {
-  sort?: string;
-  dir?: string;
-};
-
-// Per-request memo for the whole priced catalogue. Filtering moved client-side,
-// so the server loads ALL sites once (no type/class searchParams) and overlays
-// live prices in a single pass shared by the cards and the table.
-const loadAllSites = cache(async () => {
-  const rawSites = await listSiteDetails({});
-  const sample = selectDevSampleSites(rawSites);
-  const sites = await overlayLivePrices(sample ?? rawSites);
-  return { sites, fullCount: rawSites.length, sampled: sample !== null };
 });
 
 function DevSampleBanner({
@@ -64,24 +49,33 @@ function DevSampleBanner({
   );
 }
 
-// Request-time region: reads the table sort from the URL, loads the priced
-// catalogue, and builds the server-rendered card + table nodes for the client
-// filter layout. Streams into the static shell's <Suspense> hole.
-async function SitesContent({
-  searchParams,
+async function SitesResultsFromCookie({
+  cards,
+  table,
 }: {
-  searchParams: Promise<SitesSearchParams>;
+  cards: SiteCardItem[];
+  table: React.ReactNode;
 }) {
-  const raw = await searchParams;
-  const sortKey = parseSortKey(raw.sort);
-  const sortDir = parseSortDir(raw.dir);
-  // The saved cards/table view (F4) — read here, inside the request-time hole, so
-  // the streamed HTML already shows the right view (flash-free). Defaults to cards.
   const initialView = readPreferenceCookieValue(
     (await cookies()).get(cookieNameFor(sitesView))?.value,
     sitesView,
   );
-  const { sites, fullCount, sampled } = await loadAllSites();
+  return <SitesResults cards={cards} table={table} initialView={initialView} />;
+}
+
+// Cached catalogue region: structure and the hourly price seed are shared, so
+// the slow read never joins request time. PageHead and filter chrome render
+// before the saved-view result branch; URL sorting stays nested inside it.
+async function SitesCatalogue({
+  searchParams,
+}: {
+  searchParams: Promise<SitesSearchParams>;
+}) {
+  const allSites = await listPricedSiteDetails();
+  const sample = selectDevSampleSites(allSites);
+  const sites = sample ?? allSites;
+  const fullCount = allSites.length;
+  const sampled = sample !== null;
 
   const cards: SiteCardItem[] = sites.map((site) => ({
     meta: { id: site.id, type: site.siteType, clsSet: siteClassSet(site) },
@@ -93,39 +87,41 @@ async function SitesContent({
   }));
 
   const table = (
-    <SitesTable
-      sites={sites}
-      sortKey={sortKey}
-      sortDir={sortDir}
-      currentParams={{ sort: sortKey ?? undefined, dir: sortKey ? sortDir : undefined }}
-    />
+    <Suspense
+      fallback={
+        <Skeleton
+          label="Loading sorted sites"
+          className="h-[640px] w-full rounded-card"
+        />
+      }
+    >
+      <SitesTableFromUrl sites={sites} searchParams={searchParams} />
+    </Suspense>
+  );
+  const fallback = (
+    <div className="pt-[34px]">
+      <Skeleton
+        label="Loading saved sites view"
+        className="h-[720px] w-full rounded-card"
+      />
+    </div>
   );
 
   return (
     <>
       <DevSampleBanner sampled={sampled} shown={sites.length} total={fullCount} />
-      <SitesFilterLayout
-        cards={cards}
-        table={table}
-        total={sites.length}
-        initialView={initialView}
-      />
+      <SitesFilterLayout sites={cards.map((card) => card.meta)} total={sites.length}>
+        <Suspense fallback={fallback}>
+          <SitesResultsFromCookie cards={cards} table={table} />
+        </Suspense>
+      </SitesFilterLayout>
     </>
   );
 }
 
-function SitesLoading() {
-  return (
-    <div className="pt-[34px]">
-      <LoadingLabel label="Loading sites…" />
-    </div>
-  );
-}
-
 /**
- * The static shell — just the page background. The header, filter rail, and
- * results all stream in from the <Suspense> hole once the priced catalogue
- * resolves; the rail + view toggle are then client-interactive.
+ * The cached catalogue carries stable chrome; the saved result mode and nested URL sort stream
+ * from their smallest truthful request-time boundaries.
  */
 export default function SitesPage({
   searchParams,
@@ -134,9 +130,7 @@ export default function SitesPage({
 }) {
   return (
     <PageShell mode="workspace">
-      <Suspense fallback={<SitesLoading />}>
-        <SitesContent searchParams={searchParams} />
-      </Suspense>
+      <SitesCatalogue searchParams={searchParams} />
     </PageShell>
   );
 }

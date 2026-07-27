@@ -3,11 +3,24 @@
 import { useEffect, useRef } from 'react';
 import { cn } from './cn';
 
+type LivePriceSnapshot = { value: string; pending: boolean };
+
 /**
- * A live ISK/percent figure rendered as plain tabular text. When the value
- * changes (a live price lands), a brief brightness pulse "flashes the new value
- * in" — the quieter successor to the odometer's dim + digit-slide. No pulse on
- * the initial mount; only genuine value changes flash.
+ * Classifies a live-price commit without depending on the DOM so the first-mount and confirmation
+ * contracts remain explicit.
+ */
+export function livePriceTransition(
+  previous: LivePriceSnapshot | null,
+  next: LivePriceSnapshot,
+): 'none' | 'confirm' {
+  if (previous === null || next.pending) return 'none';
+  return previous.pending || previous.value !== next.value ? 'confirm' : 'none';
+}
+
+/**
+ * A live ISK/percent figure rendered as plain tabular text. Pending confirmation
+ * visibly pulses the seed; the confirmed value lands through a bright green
+ * signal burst and short scale bounce. No replay occurs on initial mount.
  *
  * CSP-clean: the pulse is a stylesheet \@keyframes (`.price-flash` in
  * globals.css) applied via className and restarted on each change with the
@@ -22,32 +35,35 @@ import { cn } from './cn';
  */
 export function LivePrice({
   value,
+  pending = false,
   className,
 }: {
   value: string;
+  pending?: boolean;
   className?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const prev = useRef<string | null>(null);
+  const previous = useRef<LivePriceSnapshot | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // First commit: record the value, don't flash (figures shouldn't pulse on
-    // load/navigation — the pulse is reserved for genuine value changes).
-    if (prev.current === null) {
-      prev.current = value;
-      return;
-    }
-    if (prev.current === value) return;
-    prev.current = value;
+    const next = { value, pending };
+    const transition = livePriceTransition(previous.current, next);
+    previous.current = next;
+    if (transition !== 'confirm') return;
     el.classList.remove('price-flash');
     void el.offsetWidth;
     el.classList.add('price-flash');
-  }, [value]);
+  }, [pending, value]);
 
   return (
-    <span ref={ref} className={cn('font-data tabular-nums', className)}>
+    <span
+      ref={ref}
+      data-price-state={pending ? 'pending' : 'settled'}
+      aria-busy={pending || undefined}
+      className={cn('price-live font-data tabular-nums', pending && 'price-pending', className)}
+    >
       {value}
     </span>
   );
