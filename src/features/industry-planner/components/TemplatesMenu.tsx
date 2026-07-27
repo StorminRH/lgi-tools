@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { chipVariants } from '@/components/ui/chip';
 import { cn } from '@/components/ui/cn';
 import { Input } from '@/components/ui/input';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { Popover } from '@/components/ui/popover';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/components/ui/toast';
@@ -26,6 +27,22 @@ import { SavedPlanRows } from './SavedPlanRows';
 // mutations live in the shared useSavedPlans hook (3.7.24 — shared with the
 // dashboard's Templates section and /industry/templates); every mutating endpoint
 // echoes the full updated list, so the panel re-renders without a refetch.
+
+function TemplatesListState({
+  plans,
+  emptyLine,
+  children,
+}: {
+  plans: readonly unknown[] | null;
+  emptyLine: string;
+  children: ReactNode;
+}) {
+  if (plans === null) return <LoadingLabel label={emptyLine} />;
+  if (plans.length === 0) {
+    return <p className="text-micro leading-snug text-muted">{emptyLine}</p>;
+  }
+  return <ul className={`${scrollArea} flex max-h-[264px] flex-col gap-1.5 overflow-y-auto`}>{children}</ul>;
+}
 
 /** Renders saved template choices in the planner menu and forwards the selected snapshot for application. */
 export function TemplatesMenu({
@@ -122,13 +139,9 @@ export function TemplatesMenu({
         </Button>
       </div>
 
-      {plans !== null && plans.length > 0 ? (
-        <ul className={`${scrollArea} flex max-h-[264px] flex-col gap-1.5 overflow-y-auto`}>
-          <SavedPlanRows plans={plans} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
-        </ul>
-      ) : (
-        <p className="text-micro leading-snug text-muted">{emptyLine}</p>
-      )}
+      <TemplatesListState plans={plans} emptyLine={emptyLine}>
+        <SavedPlanRows plans={plans ?? []} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
+      </TemplatesListState>
     </Popover>
   );
 }
