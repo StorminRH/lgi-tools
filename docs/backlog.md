@@ -476,30 +476,13 @@ is reprioritized.
 
 ## Workflow & docs
 
-- **v4.0 opening obligations** (recorded by the v3.10 close audit, cycle 1,
-  2026-07-27; source decisions: contract 3.10.0.2.2 PD-2 and
-  `../LGI Tools Document Archive/versions/3.10/version-audits/PLAN.md` §4).
-  *What:* four deferred lifecycle-tooling
-  items the v4.0 opening owns. (1) The adoption-time `Version-start` capture
-  mechanism (PD-2): when a master version is adopted, freeze that ref's measured
-  values into the baseline's `Version-start` column; v3.10 ran its whole life on
-  the v3.9-start column because the mechanism does not exist yet. (2) Register
-  the v3.10-created wide surfaces as baseline metric rows (schema + registered-row
-  change): Fallow boundary coverage (22 configured zones / 49 expanded; zero
-  unclassified), vendor-resilience registry (15 declared integrations),
-  capability instrumentation (38 instrumented operations, 5 owned SLIs), and the
-  Phase 4 adoption census families. (3) Split the `Source suppressions` metric:
-  count self-invalidating `@ts-expect-error` negative type assertions in test
-  files separately from true diagnostic suppressions — the v3.10 21→42 jump was
-  entirely 22 compile-time contract assertions in `src/transport/*.test.ts`,
-  while true suppressions fell 21→20 (production 9→8); the merged metric will
-  misreport debt every time contract coverage grows. (4) Extend
-  `.agent-local/verify_archive.py`'s fidelity check to cover the
-  `session-as-built` directory (one bundle-list entry); the v3.10 archive
-  compensates with an explicit recorded `diff -r`. *Why deferred:* all four are
-  baseline-schema or lifecycle-tooling changes barred mid-version by the HC-1
-  write-once rule and the frozen registered-row set. *Size:* S total. *Trigger:*
-  the v4.0 `plan-version` opening, before its first session ships.
+- **Revisit the version-audit lifecycle for bloat** (operator ruling 2026-07-27).
+  *What:* before the next version audit, review the version-audit lifecycle for
+  process bloat — planning/evidence ceremony that does not change the audit's
+  findings or the baseline it writes — and cut or merge steps that no longer
+  earn their keep. *Why deferred:* the 4.0 opening froze the registered-row set
+  and capture rule first; process-shape changes belong with the next audit, not
+  mid-version. *Size:* S. *Trigger:* before the next version audit begins.
 
 - **Rationale-free carried suppressions** (enumerated by the v3.10 close audit's
   suppression review). *What:* six pre-v3.9 `@typescript-eslint/no-explicit-any`

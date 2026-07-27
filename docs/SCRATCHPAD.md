@@ -23,11 +23,10 @@ by arithmetic. Sub-versions 4.0.4.2 and 4.0.4.3 are the only ones whose sessions
 each ship their own PR — every other sub-version ships one PR for the
 sub-version.
 
-The four v4.0 opening obligations from the 3.10 close audit are now scheduled as
-sub-version 4.0.0.1 and must ship before any feature slice, because the
-baseline's write-once rule freezes the registered-row set at the version's first
-shipped session. Their `docs/backlog.md` entry stays until that sub-version
-delivers them, and removing it is part of that session's scope.
+Sub-version 4.0.0.1 delivers Phase 0: the baseline captures each master
+version's starting ref, measures the expanded registered-row set, and archives
+session as-built records with the rest of a version bundle. Its merge advances
+the resolver to Phase 1 planning for 4.0.1.1.
 
 `docs/CODE_HEALTH_BASELINE.md` and `docs/UPDATE_WATCH_BASELINE.md` remain the
 active health and update-watch state. The full scratchpad as it stood at the
@@ -38,7 +37,7 @@ active health and update-watch state. The full scratchpad as it stood at the
 
 - Repository rules and invariants: `AGENTS.md`, `src/AGENTS.md`, and the owning
   workflow or schema under `docs/workflows/`.
-- Deferred, unassigned work and 4.0 opening obligations: `docs/backlog.md`.
+- Deferred, unassigned work: `docs/backlog.md`.
 - User-facing and internal ship history: `content/changelog/` and git history.
 - Per-session planned delivery truth from the 3.10 binding floor:
   `../LGI Tools Document Archive/versions/3.10/session-as-built/`.

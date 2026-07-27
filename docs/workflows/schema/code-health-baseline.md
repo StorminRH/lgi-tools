@@ -11,6 +11,14 @@ is frozen for that version. Ordinary sessions may update only `Current`.
 `Delta` is derived: use the signed integer difference for two bare integer
 values (`0` when equal), and an em dash (`—`) for every other value shape.
 
+At master-version adoption, promote the committed baseline's `Current` column
+into `Version-start` for every shared registered row, record the committed
+baseline's own Code ref SHA as `Version-start ref`, and freeze both for the
+version. New registered rows introduced in that same adoption fill
+`Version-start` from live measurement at that ref. The claims checker owns the
+one legal transition keyed on `Version-start ref`; invoke the read-only
+`.agent-local/capture_version_start.py` reporter when applying the capture.
+
 ## Snapshot
 
 | Field | Value |
@@ -19,6 +27,7 @@ values (`0` when equal), and an em dash (`—`) for every other value shape.
 | App version | `X.Y.N` |
 | Code ref | `<full lowercase commit SHA and optional structured qualifier>` |
 | Measurement scope | `<scope>` |
+| Version-start ref | `<full lowercase commit SHA>` |
 
 ## Metrics
 
@@ -33,13 +42,8 @@ values (`0` when equal), and an em dash (`—`) for every other value shape.
 | Coverage — lines | `<value>` | `<value>` | `<derived>` |
 | Fallow health score | `<value>` | `<value>` | `<derived>` |
 | Functions above health thresholds | `<value>` | `<value>` | `<derived>` |
-| Auth query-hub exports | `<value>` | `<value>` | `<derived>` |
-| `PricingContextValue` fields | `<value>` | `<value>` | `<derived>` |
-| `usePricing()` call sites | `<value>` | `<value>` | `<derived>` |
 | Planner concern-context fields | `<value>` | `<value>` | `<derived>` |
 | Concern-hook consumers | `<value>` | `<value>` | `<derived>` |
-| Telemetry query breadth | `<value>` | `<value>` | `<derived>` |
-| ESI refresh-job query exports | `<value>` | `<value>` | `<derived>` |
 | Auth contract paths (`src/platform/auth/types.ts`, `src/db/auth-schema.ts`, `src/platform/auth/api-contract.ts`) | `<value>` | `<value>` | `<derived>` |
 | ESI dataset registry entries | `<value>` | `<value>` | `<derived>` |
 | Freshness leaf breadth | `<value>` | `<value>` | `<derived>` |
@@ -49,10 +53,17 @@ values (`0` when equal), and an em dash (`—`) for every other value shape.
 | API contract completeness | `<value>` | `<value>` | `<derived>` |
 | EVE type-image resolver breadth | `<value>` | `<value>` | `<derived>` |
 | Threshold overrides | `<value>` | `<value>` | `<derived>` |
-| Source suppressions | `<value>` | `<value>` | `<derived>` |
+| Diagnostic suppressions | `<value>` | `<value>` | `<derived>` |
+| Test contract suppressions | `<value>` | `<value>` | `<derived>` |
 | Whole-version Fallow clone groups | `<value>` | `<value>` | `<derived>` |
 | Accepted duplication baseline clone groups | `<value>` | `<value>` | `<derived>` |
 | Version-start-pinned Fallow verdict | `<value>` | `<value>` | `<derived>` |
+| Fallow boundary zones (configured) | `<value>` | `<value>` | `<derived>` |
+| Vendor-resilience integrations | `<value>` | `<value>` | `<derived>` |
+| Instrumented capability operations | `<value>` | `<value>` | `<derived>` |
+| Owned service-level indicators | `<value>` | `<value>` | `<derived>` |
+| UI adoption exemptions | `<value>` | `<value>` | `<derived>` |
+| Retained legacy CSS families | `<value>` | `<value>` | `<derived>` |
 | `src/data/telemetry/queries.ts` | `<export count> exports` | `<export count> exports` | `<derived>` |
 | `src/data/esi-refresh-jobs/queries.ts` | `<export count> exports` | `<export count> exports` | `<derived>` |
 

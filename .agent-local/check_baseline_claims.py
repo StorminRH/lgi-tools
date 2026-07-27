@@ -19,13 +19,20 @@ import sys
 from checker_common import Finding, find_line, run_checker
 from repo_measures import (
     MeasureError,
+    capability_operation_count,
     clone_file_counts,
+    diagnostic_suppression_count,
     export_count,
+    fallow_zone_entry_count,
     named_file_count,
     production_file_count,
     production_loc,
-    suppression_count,
+    retained_css_family_count,
+    sli_count,
+    test_contract_suppression_count,
     test_file_count,
+    ui_adoption_exemption_count,
+    vendor_integration_count,
 )
 
 
@@ -34,6 +41,8 @@ BASELINE_TEMPLATE_RELPATH = "docs/workflows/schema/code-health-baseline.md"
 NAMED_FILE = re.compile(r"`((?:src|convex)/[^`]+\.[A-Za-z0-9]+)`")
 EXPORTS = re.compile(r"\b(\d[\d,]*)\s+exports\b")
 WATCH_CARRIER = re.compile(r"^- Watch \(AF-\d{3}\)$")
+FULL_SHA = re.compile(r"[0-9a-f]{40}")
+BACKTICK_SHA = re.compile(r"`([0-9a-f]{40})`")
 AUTH_CONTRACT_PATHS = (
     "src/platform/auth/types.ts",
     "src/db/auth-schema.ts",
@@ -59,10 +68,13 @@ class BaselineSchema:
 
 @dataclass(frozen=True)
 class BaselineAnchor:
-    """Ordered version-start values and their enforcement availability state."""
+    """Origin/main identity and metric values used to enforce the version floor."""
 
     state: str
     values: tuple[tuple[str, str], ...] = ()
+    current_values: tuple[tuple[str, str], ...] = ()
+    code_ref: str | None = None
+    version_start_ref: str | None = None
 
 
 def _cells(row: str) -> list[str]:
@@ -349,8 +361,53 @@ def _git_show_main(root: Path) -> str | None:
     return result.stdout if result.returncode == 0 and result.stdout else None
 
 
-def _anchor_values(text: str) -> tuple[tuple[str, str], ...] | None:
-    """Parse ordered metric/version-start pairs from strict baseline text."""
+def _snapshot_values(text: str) -> dict[str, str] | None:
+    """Parse unique Snapshot identity rows from baseline text."""
+    lines = text.splitlines()
+    entries = _section_entries(lines)
+    snapshot = next(
+        ((start, end) for title, start, end in entries if title == "Snapshot"),
+        None,
+    )
+    if snapshot is None:
+        return None
+    rows = _section_rows(lines, *snapshot)
+    if (
+        len(rows) < 2
+        or rows[0][1] != ["Field", "Value"]
+        or not _is_separator(rows[1][1])
+    ):
+        return None
+    values: dict[str, str] = {}
+    for _line, cells in rows[2:]:
+        if len(cells) != 2 or not cells[0] or cells[0] in values:
+            return None
+        values[cells[0]] = cells[1]
+    return values
+
+
+def _code_ref_sha(value: str | None) -> str | None:
+    """Extract the first backtick-wrapped or leading full SHA from Code ref."""
+    if value is None:
+        return None
+    wrapped = BACKTICK_SHA.search(value)
+    if wrapped is not None:
+        return wrapped.group(1)
+    leading = re.match(r"([0-9a-f]{40})(?:\b|$)", value)
+    return leading.group(1) if leading is not None else None
+
+
+def _version_start_ref(value: str | None) -> str | None:
+    """Return a full lowercase Version-start ref SHA."""
+    if value is None:
+        return None
+    return value if FULL_SHA.fullmatch(value) else None
+
+
+def _anchor_values(
+    text: str,
+) -> tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]] | None:
+    """Parse ordered metric Version-start and Current pairs from baseline text."""
     lines = text.splitlines()
     header_index = next(
         (
@@ -364,7 +421,8 @@ def _anchor_values(text: str) -> tuple[tuple[str, str], ...] | None:
     )
     if header_index is None:
         return None
-    values: list[tuple[str, str]] = []
+    version_start_values: list[tuple[str, str]] = []
+    current_values: list[tuple[str, str]] = []
     for line in lines[header_index + 1 :]:
         if line.startswith("## "):
             break
@@ -374,16 +432,17 @@ def _anchor_values(text: str) -> tuple[tuple[str, str], ...] | None:
         if _is_separator(cells):
             continue
         if len(cells) != 4:
-            return ()
+            return (), ()
         key = (
             AUTH_CONTRACT_METRIC
             if cells[0] == LEGACY_AUTH_SURFACE_METRIC
             else cells[0]
         )
-        if not key or any(saved == key for saved, _value in values):
-            return ()
-        values.append((key, cells[1]))
-    return tuple(values)
+        if not key or any(saved == key for saved, _value in version_start_values):
+            return (), ()
+        version_start_values.append((key, cells[1]))
+        current_values.append((key, cells[2]))
+    return tuple(version_start_values), tuple(current_values)
 
 
 def frozen_version_start(
@@ -401,47 +460,116 @@ def frozen_version_start(
     text = read(root)
     if text is None:
         return BaselineAnchor("unavailable")
-    values = _anchor_values(text)
-    if values is None:
+    metric_values = _anchor_values(text)
+    if metric_values is None:
         return BaselineAnchor("bootstrap")
-    if not values:
+    if not metric_values[0]:
         return BaselineAnchor("unavailable")
-    return BaselineAnchor("enforced", values)
+    identity = _snapshot_values(text)
+    if identity is None:
+        return BaselineAnchor("unavailable")
+    code_ref = _code_ref_sha(identity.get("Code ref"))
+    if code_ref is None:
+        return BaselineAnchor("unavailable")
+    raw_version_start_ref = identity.get("Version-start ref")
+    version_start_ref = _version_start_ref(raw_version_start_ref)
+    if raw_version_start_ref is not None and version_start_ref is None:
+        return BaselineAnchor("unavailable")
+    return BaselineAnchor(
+        "enforced",
+        metric_values[0],
+        metric_values[1],
+        code_ref,
+        version_start_ref,
+    )
 
 
 def _working_version_start(
     lines: list[str],
     schema: BaselineSchema,
-) -> tuple[tuple[str, str, int], ...]:
-    """Return registered working metric keys, version-start cells, and lines."""
-    rows: list[tuple[str, str, int]] = []
+) -> tuple[tuple[str, str, str, int], ...]:
+    """Return registered working metric keys, start/current cells, and lines."""
+    rows: list[tuple[str, str, str, int]] = []
     key_index = schema.metric_columns.index("Metric")
     start_index = schema.metric_columns.index("Version-start")
+    current_index = schema.metric_columns.index("Current")
     for line_number, row in _table_rows(lines):
         cells = _cells(row)
         if len(cells) == len(schema.metric_columns) and cells[key_index] in schema.metric_keys:
-            rows.append((cells[key_index], cells[start_index], line_number))
+            rows.append(
+                (
+                    cells[key_index],
+                    cells[start_index],
+                    cells[current_index],
+                    line_number,
+                )
+            )
     return tuple(rows)
 
 
 def _version_start_findings(
     root: Path,
-    rows: tuple[tuple[str, str, int], ...],
+    rows: tuple[tuple[str, str, str, int], ...],
+    working_ref: str | None,
+    has_working_ref: bool,
     anchor: BaselineAnchor,
 ) -> list[Finding]:
-    """Reject working version-start key or value drift from origin/main."""
+    """Enforce strict version floors or the one legal adoption transition."""
     del root
     if anchor.state == "bootstrap":
         return []
     if anchor.state == "unavailable":
         return [Finding(BASELINE, 1, "version-start anchor from origin/main is unavailable", "error")]
 
+    working_start = {key: start for key, start, _current, _line in rows}
+    working_current = {key: current for key, _start, current, _line in rows}
+    line_by_key = {key: line for key, _start, _current, line in rows}
+    if has_working_ref and working_ref is None:
+        return [Finding(BASELINE, 1, "working Version-start ref must be a full lowercase SHA", "error")]
+    if anchor.version_start_ref is not None and not has_working_ref:
+        return [Finding(BASELINE, 1, "working baseline is missing Version-start ref", "error")]
+
+    if working_ref != anchor.version_start_ref:
+        findings: list[Finding] = []
+        if working_ref != anchor.code_ref:
+            findings.append(
+                Finding(
+                    BASELINE,
+                    1,
+                    f"transition Version-start ref must equal origin/main Code ref {anchor.code_ref!r}, got {working_ref!r}",
+                    "error",
+                )
+            )
+        expected_current = dict(anchor.current_values)
+        for key in sorted(set(expected_current) & set(working_start)):
+            if expected_current[key] != working_start[key]:
+                findings.append(
+                    Finding(
+                        BASELINE,
+                        line_by_key[key],
+                        f"transition Version-start for {key} must equal origin/main Current "
+                        f"{expected_current[key]!r}, got {working_start[key]!r}",
+                        "error",
+                    )
+                )
+        for key in sorted(set(working_start) - set(expected_current)):
+            if working_start[key] != working_current[key]:
+                findings.append(
+                    Finding(
+                        BASELINE,
+                        line_by_key[key],
+                        f"transition Version-start for new metric {key} must equal "
+                        f"working Current {working_current[key]!r}, got "
+                        f"{working_start[key]!r}",
+                        "error",
+                    )
+                )
+        return findings
+
     expected = dict(anchor.values)
-    current = {key: value for key, value, _line in rows}
-    line_by_key = {key: line for key, _value, line in rows}
     findings: list[Finding] = []
-    missing = sorted(set(expected) - set(current))
-    added = sorted(set(current) - set(expected))
+    missing = sorted(set(expected) - set(working_start))
+    added = sorted(set(working_start) - set(expected))
     if missing or added:
         findings.append(
             Finding(
@@ -451,13 +579,14 @@ def _version_start_findings(
                 "error",
             )
         )
-    for key in sorted(set(expected) & set(current)):
-        if expected[key] != current[key]:
+    for key in sorted(set(expected) & set(working_start)):
+        if expected[key] != working_start[key]:
             findings.append(
                 Finding(
                     BASELINE,
                     line_by_key[key],
-                    f"version-start value changed for {key}: expected {expected[key]!r}, got {current[key]!r}",
+                    f"version-start value changed for {key}: expected "
+                    f"{expected[key]!r}, got {working_start[key]!r}",
                     "error",
                 )
             )
@@ -469,7 +598,7 @@ def _step_one_claims(
     rows: list[tuple[int, str]],
     schema: BaselineSchema,
 ) -> list[Finding]:
-    """Diff the five required Step 1 count rows against live measurements."""
+    """Diff every required live count row against its measurement."""
     clone_count: int | MeasureError
     try:
         clone_count = len(clone_file_counts(root))
@@ -479,8 +608,15 @@ def _step_one_claims(
         "Production TS/TSX files": lambda: production_file_count(root),
         "Production TS/TSX LOC": lambda: production_loc(root),
         "Test files": lambda: test_file_count(root),
-        "Source suppressions": lambda: suppression_count(root),
+        "Diagnostic suppressions": lambda: diagnostic_suppression_count(root),
+        "Test contract suppressions": lambda: test_contract_suppression_count(root),
         "Whole-version Fallow clone groups": clone_count,
+        "Fallow boundary zones (configured)": lambda: fallow_zone_entry_count(root),
+        "Vendor-resilience integrations": lambda: vendor_integration_count(root),
+        "Instrumented capability operations": lambda: capability_operation_count(root),
+        "Owned service-level indicators": lambda: sli_count(root),
+        "UI adoption exemptions": lambda: ui_adoption_exemption_count(root),
+        "Retained legacy CSS families": lambda: retained_css_family_count(root),
     }
     findings: list[Finding] = []
     step_line = find_line(root / BASELINE, "## Metrics")
@@ -494,19 +630,23 @@ def _step_one_claims(
             None,
         )
         if matched is None:
-            findings.append(Finding(BASELINE, step_line, f"missing required Step 1 row: {label}", "error"))
+            findings.append(Finding(BASELINE, step_line, f"missing required live-measured row: {label}", "error"))
             continue
         line_number, row = matched
         asserted = _integer(_current_cell(row, schema))
         if asserted is None:
             findings.append(
-                Finding(BASELINE, line_number, f"unparseable current value for Step 1 row: {label}", "error")
+                Finding(BASELINE, line_number, f"unparseable current value for live-measured row: {label}", "error")
             )
             continue
         if isinstance(measurement, MeasureError):
             findings.append(Finding(BASELINE, line_number, f"cannot measure {label}: {measurement}", "error"))
             continue
-        measured = measurement() if callable(measurement) else measurement
+        try:
+            measured = measurement() if callable(measurement) else measurement
+        except MeasureError as error:
+            findings.append(Finding(BASELINE, line_number, f"cannot measure {label}: {error}", "error"))
+            continue
         if asserted != measured:
             findings.append(
                 Finding(BASELINE, line_number, f"{label} asserted {asserted}, measured {measured}", "warn")
@@ -599,12 +739,21 @@ def collect_findings(root: Path) -> list[Finding]:
     lines = path.read_text(encoding="utf-8").splitlines()
     rows = _table_rows(lines)
     working = _working_version_start(lines, schema)
+    identity = _snapshot_values("\n".join(lines))
+    raw_working_ref = identity.get("Version-start ref") if identity is not None else None
+    working_ref = _version_start_ref(raw_working_ref)
     return [
         *_step_one_claims(root, rows, schema),
         *_named_file_claims(root, rows, schema),
         *_auth_contract_paths_claim(root, rows, schema),
         *_schema_only_findings(root, lines, schema),
-        *_version_start_findings(root, working, anchor),
+        *_version_start_findings(
+            root,
+            working,
+            working_ref,
+            raw_working_ref is not None,
+            anchor,
+        ),
     ]
 
 

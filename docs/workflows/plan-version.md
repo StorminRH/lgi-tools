@@ -66,10 +66,14 @@ create session implementation plans here.
 2. Obtain operator approval for the revised topology while all repository
    artifacts remain unchanged.
 3. After approval, update the master plan's delivery topology first.
-4. Reconcile stale unexecuted contracts and index entries second.
-5. Create one schema-complete contract per approved bundle last. A contract may
+4. At topology approval, run `python3 .agent-local/capture_version_start.py` and
+   apply its promoted Snapshot/Metrics output to `docs/CODE_HEALTH_BASELINE.md`
+   when this adoption opens a new master version; skip when the baseline's
+   `Version-start ref` already matches the committed Code ref.
+5. Reconcile stale unexecuted contracts and index entries next.
+6. Create one schema-complete contract per approved bundle last. A contract may
    cover several roadmap sections and must include the execution frame.
-6. Rerun the resolver and agent drift check, report the new directive, and stop.
+7. Rerun the resolver and agent drift check, report the new directive, and stop.
    Material topology or contract changes require renewed approval.
 
 ## Return the result

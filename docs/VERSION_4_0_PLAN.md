@@ -80,7 +80,7 @@ by hand where needed, and never see a refresh control.
 | Sub-version | Theme | Covers | Sessions | Status |
 |---|---|---|---|---|
 | **Phase 0 — Version opening** | | | | |
-| 4.0.0.1 | Version-opening obligations (baseline capture, metric split, archive fidelity) | backlog | 1 | PLANNED |
+| 4.0.0.1 | Version-opening obligations (baseline capture, metric split, archive fidelity) | backlog | 1 | COMPLETE |
 | **Phase 1 — Groundwork** | | | | |
 | 4.0.1.1 | Map access foundation + corp membership resolution | §4.0.1.1, §4.0.1.2 | 1 | PLANNED |
 | 4.0.1.3 | Client universe assets, wormhole codex, sites card widget export | §4.0.1.3, §4.0.1.4, §4.0.1.5 | 1 | PLANNED |

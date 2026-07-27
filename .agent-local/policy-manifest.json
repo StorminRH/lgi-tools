@@ -299,6 +299,7 @@
     ".agent-local/verify_archive.py",
     ".agent-local/repo_measures.py",
     ".agent-local/check_baseline_claims.py",
+    ".agent-local/capture_version_start.py",
     ".agent-local/check_watch_triggers.py",
     ".agent-local/test_env_example.py",
     ".agent-local/test_doc_refs.py",
@@ -310,6 +311,7 @@
     ".agent-local/test_verify_archive.py",
     ".agent-local/test_repo_measures.py",
     ".agent-local/test_baseline_claims.py",
+    ".agent-local/test_capture_version_start.py",
     ".agent-local/test_watch_triggers.py",
     ".agent-local/codegraph_guard.py",
     ".agent-local/audit_tooling_parity.py",
@@ -420,7 +422,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "4c8ba7e9b5b3d1e5ad918cc6e7cda13d4e09ad6bf5ff9583d69a2a43b5c95299"
+      "reconciledHash": "60ea5262334118f6b35dd23c7b86cae82d36d74acff6c2b89f4955419298c663"
     },
     "plan-session": {
       "deps": [
@@ -448,7 +450,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "a217e8bc39cf4c96fdd08435d2c3f4f7b7ac554a8b46352e901bf55e95c2012a"
+      "reconciledHash": "208f719a3f99d5cb91183c97bbb83db5c46f2df1d766aa195d592afb5a4a9546"
     },
     "close-out": {
       "deps": [
@@ -469,7 +471,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "c91d7ea46b49cc98689338fcff126d4d241289312997f772dff0cfb1a7a0619d"
+      "reconciledHash": "b8993bb063be78b16aca0c5042a8f68e0fc099f604900086e57b53b69e2cdfc0"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -480,7 +482,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "dc2142dc4783689cd1a31b80a89891c2bbb31135d0827cfc9aef4379713b9ce3"
+      "reconciledHash": "c67bd0c5ef4de5fc15a8680dd6cea8a32498c5fa46c560a3473ecf97c829473c"
     },
     "version-audit": {
       "deps": [
@@ -489,7 +491,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "c91d7ea46b49cc98689338fcff126d4d241289312997f772dff0cfb1a7a0619d"
+      "reconciledHash": "b8993bb063be78b16aca0c5042a8f68e0fc099f604900086e57b53b69e2cdfc0"
     },
     "triage-issue": {
       "deps": [

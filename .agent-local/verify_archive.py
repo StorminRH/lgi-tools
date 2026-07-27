@@ -2,8 +2,9 @@
 """Verify the resolver-owned version-archive transition.
 
 The pre phase checks the four file-state preconditions for archival. The post
-phase also proves that the copied roadmap, contract set, session plans, and
-audit plan are byte-identical to their active sources. Copying and deletion
+phase also proves that the copied roadmap, contract set, session plans,
+session as-built records, and audit plan are byte-identical to their active
+sources. Copying and deletion
 remain operator or skill actions; this checker is read-only.
 """
 
@@ -54,7 +55,7 @@ def _active_bundle_files(
 ) -> tuple[list[tuple[Path, Path]], list[Finding]]:
     files = [(Path(roadmap_path.name), roadmap_path)]
     findings: list[Finding] = []
-    for name in ("session-contracts", "session-plans", "version-audits"):
+    for name in ("session-contracts", "session-plans", "session-as-built", "version-audits"):
         source_dir = root / "docs" / name / version
         source_files = (
             sorted(path for path in source_dir.rglob("*") if path.is_file())
