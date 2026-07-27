@@ -16,8 +16,8 @@ conventions and workflow for working in the repo. For local setup, see the
 
 The codebase is organized into self-contained slices. The import direction
 between them is **enforced in CI** by `pnpm fallow`: every production source
-file must belong to a named zone, and a violating cross-zone import fails the
-build. The complete ownership map and dependency directions live in
+file must belong to a named zone, and a violating cross-zone import fails that
+gate. The complete ownership map and dependency directions live in
 [`docs/architecture-boundaries.md`](docs/architecture-boundaries.md);
 [`.fallowrc.json`](.fallowrc.json) is the mechanical authority.
 
@@ -31,9 +31,14 @@ build. The complete ownership map and dependency directions live in
   a layer *above* both.
 - `src/components/ui/` — domain-agnostic UI primitives. These accept abstract
   `tone` props (`green`, `red`, …); only feature-level style maps know that, say,
-  "C5 is red". UI primitives import only from `src/lib`.
-- `src/lib/` — cross-cutting helpers importable from anywhere; `lib` imports only
-  `lib` and application configuration, never a feature, data, or ui module.
+  "C5 is red". UI primitives import no other zone: `.fallowrc.json`'s
+  `boundaries.rules` gives `ui` an empty allow-list, so a primitive composes with
+  its sibling primitives and third-party packages, never with `lib`, `data`, or
+  a feature.
+- `src/lib/` — cross-cutting helpers importable from any zone whose allow-list
+  includes `lib`; empty-allow-list leaves such as `ui` do not import it. `lib`
+  imports only `lib` and application configuration, never a feature, data, or ui
+  module.
 - `src/app/` owns routes and API handlers. `src/composition/` and
   `src/components/composition/` own server and UI composition;
   `src/platform/` owns reusable capabilities; `src/transport/` and `src/db/`
@@ -198,6 +203,23 @@ These are load-bearing constraints, several **lint-enforced**:
 - **One source of truth for config.** Postgres enums are driven from TypeScript
   `as const` arrays; types/variants are constants defined in one place. Adding one
   is a config change, not a code change.
+- **Typed failures at JSON delivery boundaries.** A JSON endpoint-contract route
+  that returns an application failure maps an `AppFailure`
+  (`src/lib/failure.ts`) through `problemResponse`
+  (`src/transport/api-response.ts`) — an RFC 9457-compatible
+  `application/problem+json` body built in `src/lib/problem.ts`, carrying the
+  request's correlation id — so clients decode one shape. HTML form mutations
+  may instead return a 303 redirect carrying a stable error code, and the Better
+  Auth catch-all returns the library-owned response shapes. (Lower layers may
+  still throw; the rule governs what a JSON handler returns.)
+- **Same-origin mutations.** Every mutating route classified as pipeline or
+  direct by `src/app/api/same-origin-coverage.test.ts` rejects a cross-origin
+  caller with 403 through `requireSameOrigin`
+  (`src/platform/auth/same-origin.ts`), applied by the shared `runMutationRoute`
+  shell or called directly. The test's `EXEMPT_MUTATIONS` map is the exhaustive
+  owner of every deliberate exception and records its authorization class and
+  reason; the fail-closed route census ensures a new mutation cannot land
+  unclassified.
 
 ## Testing
 

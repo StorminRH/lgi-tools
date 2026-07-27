@@ -6,7 +6,7 @@
 > conflict.
 >
 > This doc also carries the **cost & I/O discipline** distilled from the v3.7
-> scaling audit (`docs/SCALING_AUDIT_FINDINGS.md`): the binding constraint at scale
+> scaling audit (completed and archived out of tree; the discipline below is the live authority): the binding constraint at scale
 > is Convex **DB I/O**, not function calls. The platform-limit numbers below
 > (per-mutation read ceiling, doc size) drift — **verify-live via `ctx7` / current
 > Convex docs at design time**; the figures here are correct as of the audit
@@ -303,7 +303,7 @@ trackers' departure so the mapper can rebuild on it.
 - **Env split.** The service secret (`CONVEX_SERVICE_SECRET`) lives in Convex env —
   EVE credentials never do; identity and token secrets stay on the Neon side.
   `CONVEX_DEPLOY_KEY` lives in Vercel, and deploys use the shipped form
-  `npx convex deploy --cmd 'pnpm build:vercel' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL`
+  `pnpm exec convex deploy --cmd 'pnpm build:vercel' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL`
   — every preview gets its own isolated Convex deployment. **Retire abandoned
   previews** — each runs the 30s scan and burns calls (86% of absolute call volume in
   the audit window came from abandoned preview deployments).

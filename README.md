@@ -41,7 +41,7 @@ for the full project conventions.
 
 ## Local development
 
-You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
+You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
 
 1. **Install dependencies.**
    ```
@@ -108,7 +108,7 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
 | --- | --- |
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
-| `pnpm build` | Production build (CI/Vercel only — do not run locally) |
+| `pnpm build` | Production build — Vercel only, after merge; never run locally |
 | `pnpm verify` | Coverage-backed definition-of-done bundle: typecheck + lint + Vitest coverage + fallow |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Run the non-coverage Vitest suite once; focused Vitest arguments are supported |
@@ -130,14 +130,15 @@ See `package.json` for the full set.
   queries, types, tests). Features never import from each other.
 - `src/components/ui/` — reusable presentational primitives shared by
   every feature.
-- `src/data/` — shared data layers (EVE SDE, market prices, search
-  registry).
+- `src/data/` — shared data layers (EVE SDE, market prices, telemetry).
+- `src/composition/` — server-side orchestration for work that spans slices (pipelines, registries, purge, sync); it sits above the slices it composes.
+- `src/platform/` — reusable capabilities shared across features: authentication, ESI access, owner sync, search, purge, and page settings.
+- `src/transport/` — the shared request/response core: the typed API client, endpoint definitions, and response decoding.
 - `src/app/api/` — Next.js route handlers (auth, telemetry, feedback,
   cron).
 - `convex/` — the derived, regenerable live online-status projection, authenticated
   with a Better Auth-issued JWT. Neon remains authoritative.
-- `drizzle/` — generated migrations. Schema sources live in each
-  feature slice.
+- `drizzle/` — generated migrations. Schema sources live beside the slice that owns them — feature slices, `src/data/` slices, and `src/db/auth-schema.ts` — and `src/composition/drizzle-schema.ts` re-exports them all so drizzle-kit sees one schema.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for the working conventions (slice
 boundaries, commit style, testing policy, etc.).

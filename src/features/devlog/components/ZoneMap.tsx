@@ -6,10 +6,10 @@ import {
 } from '../zone-map-geometry';
 
 // The devlog's architecture map: a static permission matrix drawn from the committed
-// generated graph. Rows are importing zones, columns are the zones they may import, and
-// a lit cell is a declared permission — so an empty cell is the deny-by-default rule
-// made visible. Both axes share one layer-descending order, which is why every lit cell
-// sits above the diagonal.
+// generated graph. Rows are importing zones, columns are the zones they may import, and a
+// lit cell is a declared permission — so an empty cell between two different zones is the
+// deny-by-default rule made visible, while the diagonal (a zone with itself) is never
+// restricted. Both axes share one layer-descending order, so every lit cell sits above it.
 //
 // Deliberately a dumb server component: it takes every coordinate from the tested pure
 // layout helper and every colour from a theme token, holds no state, adds no client

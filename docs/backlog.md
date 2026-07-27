@@ -473,6 +473,41 @@ is reprioritized.
 
 ## Workflow & docs
 
+- **v3.11 opening obligations** (recorded by the v3.10 close audit, cycle 1,
+  2026-07-27; source decisions: contract 3.10.0.2.2 PD-2 and
+  `docs/version-audits/3.10/PLAN.md` §4). *What:* four deferred lifecycle-tooling
+  items the v3.11 opening owns. (1) The adoption-time `Version-start` capture
+  mechanism (PD-2): when a master version is adopted, freeze that ref's measured
+  values into the baseline's `Version-start` column; v3.10 ran its whole life on
+  the v3.9-start column because the mechanism does not exist yet. (2) Register
+  the v3.10-created wide surfaces as baseline metric rows (schema + registered-row
+  change): Fallow boundary coverage (22 configured zones / 49 expanded; zero
+  unclassified), vendor-resilience registry (15 declared integrations),
+  capability instrumentation (38 instrumented operations, 5 owned SLIs), and the
+  Phase 4 adoption census families. (3) Split the `Source suppressions` metric:
+  count self-invalidating `@ts-expect-error` negative type assertions in test
+  files separately from true diagnostic suppressions — the v3.10 21→42 jump was
+  entirely 22 compile-time contract assertions in `src/transport/*.test.ts`,
+  while true suppressions fell 21→20 (production 9→8); the merged metric will
+  misreport debt every time contract coverage grows. (4) Extend
+  `.agent-local/verify_archive.py`'s fidelity check to cover the
+  `session-as-built` directory (one bundle-list entry); the v3.10 archive
+  compensates with an explicit recorded `diff -r`. *Why deferred:* all four are
+  baseline-schema or lifecycle-tooling changes barred mid-version by the HC-1
+  write-once rule and the frozen registered-row set. *Size:* S total. *Trigger:*
+  the v3.11 `plan-version` opening, before its first session ships.
+
+- **Rationale-free carried suppressions** (enumerated by the v3.10 close audit's
+  suppression review). *What:* six pre-v3.9 `@typescript-eslint/no-explicit-any`
+  disables carry no adjacent why-comment: `src/lib/db-types.ts:13` (the only
+  production site), `src/app/api/cron/refresh-sde/route.test.ts:15`,
+  `src/composition/pipelines/cron-gate.test.ts:10`,
+  `src/db/advisory-lock.test.ts:22`, and `src/data/eve-data/universe.db.test.ts:57`
+  and `:92`. Repay each with a one-line rationale or remove the need. *Why
+  deferred:* carried unchanged from before v3.9; outside the close audit's
+  growth question and not worth a remediation cycle alone. *Size:* XS.
+  *Trigger:* the next touch of each file, or any suppression-hygiene pass.
+
 - **Fail-closed merge helper counts resolved Greptile replies as findings** (found during
   the 3.9.3.8 close-out). *What:* `.agent-local/merge_clean_pr.py` treats every
   Greptile-authored inline comment as an open finding, so an accepted justification thread
@@ -574,7 +609,7 @@ is reprioritized.
 > From the external Security Deep-Research Report (snapshot `141e914`, findings
 > LGI-01…LGI-12), verified against live code in session 3.9.4.1. Full verdicts +
 > evidence: `docs/security/disposition-register.md`. **LGI-08 was acted on in
-> that session** (see `docs/security/db-privilege-runbook.md), and **LGI-03 was
+> that session** (see `docs/security/db-privilege-runbook.md`), and **LGI-03 was
 > completed in session 3.10.2.2.1** by enforcing explicit Origin/Referer
 > mismatches; neither remains a backlog item. Everything below is
 > confirmed-but-deferred.

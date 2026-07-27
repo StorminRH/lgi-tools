@@ -58,7 +58,7 @@ responsible for auditing itself.
 | `platform/purge` | Purge contributor contracts | No cross-zone dependencies |
 | `platform/page-settings` | Page-setting contracts | `lib` |
 | `transport` | HTTP/API transport helpers | `lib` |
-| `db` | Database connection, schema aggregation, and harness foundations | `lib`, `config` |
+| `db` | Database connection, auth schema, and harness foundations | `lib`, `config` |
 | `lib` | Cross-cutting leaf utilities | `config` |
 | `config` | Authoritative application configuration | No cross-zone dependencies |
 | `convex` | Regenerable live projections and synchronization | `platform/esi`, `platform/auth`, `data`, `lib` |

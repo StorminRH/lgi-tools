@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Verify backticked repository paths in docs, guides, and skill trees.
+"""Verify repository paths in docs, guides, and skill trees.
 
-Only spans that start with a known repository root, name a known root file, or
-declare an ``../`` archive reference are path claims. Line suffixes are
-stripped, globs must match, deliberately ignored local outputs may be described
-before they exist, and missing operator-machine archive paths warn. Basename-only
-references are deliberately outside this first version.
+Only backticked or bare spans that start with a known repository root, name a
+known root file, or declare an ``../`` archive reference are path claims. Line
+suffixes are stripped, globs must match, deliberately ignored local outputs may
+be described before they exist, and missing operator-machine archive paths warn.
+Basename-only references are deliberately outside this checker.
+Double-backtick spans are not treated as inline-code shields; no live source
+uses that form for a repository path.
 """
 
 from __future__ import annotations
@@ -56,6 +58,13 @@ _ROOT_FILES = {
 _SKIP_PREFIXES = ("dup:", "zone:", "sha256:")
 _INLINE_CODE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
 _LINE_SUFFIX = re.compile(r":\d+(?:[-–—]\d+)?$")
+_BARE_PATH = re.compile(
+    rf"(?<![\w./-])(?:"
+    rf"{re.escape('../LGI Tools Document Archive/')}[^\n`\"'<>),;]+"
+    rf"|(?:{'|'.join(re.escape(root) for root in _PATH_ROOTS)})[^\s`\"'<>]+"
+    rf"|(?:{'|'.join(re.escape(name) for name in sorted(_ROOT_FILES, key=len, reverse=True))})"
+    rf")"
+)
 
 # Deliberate historical references remain useful prose and are frozen by the
 # owning version. Every entry is (source glob, normalized token, reason).
@@ -232,11 +241,20 @@ _ARCHIVE_REDIRECTS = (
 
 
 def _source_paths(root: Path) -> list[Path]:
-    """Return the markdown surfaces whose inline path claims are authoritative."""
+    """Return the repository surfaces whose path claims are authoritative."""
     candidates = list((root / "docs").rglob("*.md"))
     candidates.extend(
         root / raw_path
-        for raw_path in ("AGENTS.md", "src/AGENTS.md", "CLAUDE.md", "src/CLAUDE.md")
+        for raw_path in (
+            "AGENTS.md",
+            "src/AGENTS.md",
+            "CLAUDE.md",
+            "src/CLAUDE.md",
+            "README.md",
+            "CONTRIBUTING.md",
+            "SECURITY.md",
+            ".env.example",
+        )
     )
     for skill_root in (root / ".agents/skills", root / ".claude/skills"):
         candidates.extend(skill_root.glob("*/SKILL.md"))
@@ -250,6 +268,8 @@ def _normalized_path_claim(token: str) -> str | None:
         return None
     if any(marker in token for marker in ("<", ">", "{", "}", "…")):
         return None
+    if re.search(r"(?:^|/)path/to/", token):
+        return None
     if re.search(r"(?:^|[/_.-])(?:X\.Y|X_Y|vX\.Y)(?:[/_.-]|$)", token):
         return None
     if token.startswith("../"):
@@ -260,6 +280,23 @@ def _normalized_path_claim(token: str) -> str | None:
         without_line = _LINE_SUFFIX.sub("", token)
         return without_line.partition("#")[0]
     return None
+
+
+def _bare_path_claims(line: str) -> list[str]:
+    """Return de-duplicated bare repository-path candidates from one line."""
+    claims: list[str] = []
+    for match in _BARE_PATH.finditer(line):
+        candidate = match.group(0).rstrip(".,;:)")
+        basename = candidate.rsplit("/", maxsplit=1)[-1]
+        if not (
+            candidate.startswith("../")
+            or candidate.endswith("/")
+            or "." in basename
+            or any(character in candidate for character in "*?[")
+        ):
+            continue
+        claims.append(candidate)
+    return list(dict.fromkeys(claims))
 
 
 def _allowlisted(source: str, token: str) -> bool:
@@ -350,11 +387,17 @@ def collect_findings(root: Path) -> list[Finding]:
             path.read_text(encoding="utf-8").splitlines(),
             start=1,
         ):
-            for match in _INLINE_CODE.finditer(line):
-                token = _normalized_path_claim(match.group(1))
+            inline_claims = [match.group(1) for match in _INLINE_CODE.finditer(line)]
+            bare_claims = _bare_path_claims(_INLINE_CODE.sub("", line))
+            normalized_claims = (
+                _normalized_path_claim(claim)
+                for claim in (*inline_claims, *bare_claims)
+            )
+            for token in dict.fromkeys(
+                claim for claim in normalized_claims if claim is not None
+            ):
                 if (
-                    token is None
-                    or _allowlisted(source, token)
+                    _allowlisted(source, token)
                     or _declared_ignored(token, ignored_paths)
                 ):
                     continue
