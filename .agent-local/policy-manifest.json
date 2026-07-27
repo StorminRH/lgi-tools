@@ -479,7 +479,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "26ebc36641036a7f024903116cf539e2b026b82330c1b4e7ae584093f8015345"
+      "reconciledHash": "c91d7ea46b49cc98689338fcff126d4d241289312997f772dff0cfb1a7a0619d"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -490,7 +490,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "dc664f85850823e2d6fa070f5143d7ead0cd6f3ba96aa9a2c75cd4956e55b99f"
+      "reconciledHash": "dc2142dc4783689cd1a31b80a89891c2bbb31135d0827cfc9aef4379713b9ce3"
     },
     "version-audit": {
       "deps": [
@@ -499,7 +499,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "26ebc36641036a7f024903116cf539e2b026b82330c1b4e7ae584093f8015345"
+      "reconciledHash": "c91d7ea46b49cc98689338fcff126d4d241289312997f772dff0cfb1a7a0619d"
     },
     "triage-issue": {
       "deps": [

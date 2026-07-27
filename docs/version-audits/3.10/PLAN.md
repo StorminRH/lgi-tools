@@ -1,13 +1,13 @@
 # Version 3.10 "Hull Integrity + SKIN" Whole-Version Close Audit Plan
 
-**Audit status:** Remediation required
+**Audit status:** Remediation in progress
 **Approved:** 2026-07-27
 **Version:** 3.10
 **Audit mode:** Version close
 **Audit cycle:** 2
 **Audited ref:** `19fd1b841477b3bb0970ca2251ec21f7f9b9423d`
 **Procedure:** `docs/workflows/version-audit.md`
-**Procedure digest:** `sha256:2e788e7e609cbc6a7d00b0488caaee1d8e993e82cba8a7b95805cd668b0e8091`
+**Procedure digest:** `sha256:12cf58a8efdafe30ad3e026d30bf00fa48646338df94b8d3da3d50bdd11c0175`
 
 > **Expected shape: a short close, plausibly single-cycle.** v3.10 was a
 > hardening version — docs/lifecycle consolidation, boundary/layer completion,
@@ -71,10 +71,11 @@
   archive transition by the directive's action.
 - Verify this plan's `Procedure digest` is the SHA-256 of the current exact
   `docs/workflows/version-audit.md`
-  (`2e788e7e609cbc6a7d00b0488caaee1d8e993e82cba8a7b95805cd668b0e8091`); a
-  mismatch returns to `plan-version-audit`. The cycle-1 value was
-  `6b291e99cf3ef6a074c2273788dc20ce36de959a4693ec3a56951ea9dc5572e3`; the
-  Step-6 delivered-marker wording change bumped it before cycle 2.
+  (`12cf58a8efdafe30ad3e026d30bf00fa48646338df94b8d3da3d50bdd11c0175`); a
+  mismatch returns to `plan-version-audit`. The value moved twice around cycle
+  2: `6b291e99…` at cycle 1, `2e788e7e…` after the Step-6 delivered-marker
+  wording change that opened cycle 2, and the current value after AF-017's
+  in-cycle fix removed the duplicated watch-trigger grammar from Step 4.
 - On a complete-restart directive: verify every mapped remediation sub-version
   has terminal merge evidence, advance `Audit cycle`, set `Audited ref` to
   current canonical `main`, rerun every measurement and gate. A targeted diff
@@ -341,7 +342,7 @@ grants no merge, deployment, or destructive-recovery authority.
 | Cycle | Audited ref | Result | Baseline ref |
 | ---: | --- | --- | --- |
 | 1 | `ba4828841a53de992e995c034a470efed50e3d6d` | Remediation in progress — AF-016 (docs truth, Floss) mapped to `3.10.5.1` on 2026-07-27; AF-006/007/008 remain Watch; all mechanical gates green | `ba4828841a53de992e995c034a470efed50e3d6d` |
-| 2 | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` | Remediation required — AF-016 **Verified** (all eight outcomes re-proved first-hand); one new finding **AF-017** (Floss, watch-trigger grammar drift in this procedure); AF-006/007/008 remain Watch; every gate green | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` |
+| 2 | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` | Remediation in progress — AF-016 **Verified** (all eight outcomes re-proved first-hand); one new finding **AF-017** (Floss, watch-trigger grammar drift in this procedure) fixed in-cycle by operator ruling and left **Delivered** for cycle 3 to verify; AF-006/007/008 remain Watch; every gate green | `19fd1b841477b3bb0970ca2251ec21f7f9b9423d` |
 
 ## Execution evidence — cycle 1 (2026-07-27)
 
@@ -802,10 +803,27 @@ original id.
 | AF-007 | 1 | Watch | Refresh-job query module (carried from v3.8) large but cohesive around one queue lifecycle. | Promote above 15 exports or on a second persistence concern. | — | Watch |
 | AF-008 | 1 | Watch | Auth platform contract (carried from v3.8; paths remapped by 3.10.1.2 to `src/platform/auth/`) is a deliberate exact three-file exception. | Promote if any work proposes a fourth matching file; prefer a real platform module. | — | Watch |
 | AF-016 | 1 | Floss | Committed public/workspace documents describe the system untruthfully in eight places (wrong file paths, wrong zone/schema-ownership claims, the surviving public intra-zone deny-by-default wording; full set in Step 4 above). | Every claim corrected to live reality at its owning site; architecture-map fix flows through the generator + regeneration under the existing drift test; no behavior change. | 3.10.5.1 | Verified |
-| AF-017 | 2 | Floss | The watch-trigger grammar has two owners: `docs/workflows/version-audit.md` restates it normatively but lists only two `files()` subject forms, while the owning schema, `check_watch_triggers.py`, and the live AF-008 carrier all use a third (`globs:`). Introduced by this version in `eca3d994` (PR #296), which extended schema and checker without the procedure. | One owner for the grammar — preferably delete the duplicated enumeration from the procedure and defer to the schema it already cites, keeping only the non-mechanical judgment; plus a rail, or the removal that makes one unnecessary. No behavior change. | — | Open |
+| AF-017 | 2 | Floss | The watch-trigger grammar has two owners: `docs/workflows/version-audit.md` restates it normatively but lists only two `files()` subject forms, while the owning schema, `check_watch_triggers.py`, and the live AF-008 carrier all use a third (`globs:`). Introduced by this version in `eca3d994` (PR #296), which extended schema and checker without the procedure. | One owner for the grammar — preferably delete the duplicated enumeration from the procedure and defer to the schema it already cites, keeping only the non-mechanical judgment; plus a rail, or the removal that makes one unnecessary. No behavior change. | In-cycle (operator ruling, 2026-07-27) | Delivered |
 
 At the cycle-2 audited ref: telemetry 25 exports (< 26), refresh-jobs 13
 (≤ 15), auth contract 3 files (< 4) — all below trigger and each still earning
 its carrier. AF-016's eight required outcomes were re-proved first-hand this
-cycle and it is **Verified**. AF-017 is the cycle's one new actionable finding
-and is **Open**, so the version does not close clean and does not archive.
+cycle and it is **Verified**.
+
+**AF-017 remediation — in-cycle, by explicit operator ruling (2026-07-27).**
+The operator judged a full `plan-audit-remediation` extension — sub-version,
+contract, session plan, and PR — disproportionate to a one-paragraph
+documentation defect, and directed the fix be folded into the same local
+commits that carry this audit. Step 4 of `docs/workflows/version-audit.md` no
+longer restates the trigger grammar: it names
+`docs/workflows/schema/code-health-baseline.md` as the sole owner of the
+metrics, subject forms, and operators, states that extending the grammar is a
+change to that schema made together with `check_watch_triggers.py`, and keeps
+only the judgment this procedure genuinely owns (trip-form semantics, and that
+a tripped trigger is a warn rather than a gate). That removes the second
+representation rather than patching it, so the required outcome is met by
+deletion and no new sync rail is needed. The change bumped this plan's
+procedure digest a second time; the header and §2 were updated to match.
+AF-017 is therefore **Delivered**, not Verified: only a fresh cycle can prove a
+required outcome, so the version still does not close clean and does not
+archive on this cycle.
