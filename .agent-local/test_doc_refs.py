@@ -226,12 +226,16 @@ class DocRefsTests(unittest.TestCase):
         )
 
     def test_record_source_relative_reference_still_warns(self) -> None:
-        self.fixture.write("backlog.md", "Future archive: `../missing`.\n")
+        self.fixture.write(
+            "backlog.md",
+            "Future archive: ../LGI Tools Document Archive/missing.\n",
+        )
         self.assertEqual(
             [
                 (
                     "warn",
-                    "docs/backlog.md:1: archive reference does not resolve: ../missing",
+                    "docs/backlog.md:1: archive reference does not resolve: "
+                    "../LGI Tools Document Archive/missing",
                 )
             ],
             self.rendered(),

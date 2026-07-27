@@ -60,7 +60,8 @@ _INLINE_CODE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
 _LINE_SUFFIX = re.compile(r":\d+(?:[-–—]\d+)?$")
 _BARE_PATH = re.compile(
     rf"(?<![\w./-])(?:"
-    rf"(?:{'|'.join(re.escape(root) for root in _PATH_ROOTS)})[^\s`\"'<>]+"
+    rf"{re.escape('../LGI Tools Document Archive/')}[^\n`\"'<>),;]+"
+    rf"|(?:{'|'.join(re.escape(root) for root in _PATH_ROOTS)})[^\s`\"'<>]+"
     rf"|(?:{'|'.join(re.escape(name) for name in sorted(_ROOT_FILES, key=len, reverse=True))})"
     rf")"
 )
@@ -288,7 +289,8 @@ def _bare_path_claims(line: str) -> list[str]:
         candidate = match.group(0).rstrip(".,;:)")
         basename = candidate.rsplit("/", maxsplit=1)[-1]
         if not (
-            candidate.endswith("/")
+            candidate.startswith("../")
+            or candidate.endswith("/")
             or "." in basename
             or any(character in candidate for character in "*?[")
         ):
