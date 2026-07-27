@@ -51,12 +51,13 @@ export function KpiHelp({ label, children }: { label: string; children: ReactNod
 }
 
 /**
- * The label row. The figure sits directly beneath it (KPI_FIG's own top margin
- * is the only gap), so the tile is as short as its content.
+ * The fixed-height label row keeps every sibling figure on one internal plane,
+ * including labels that wrap beside controls. KPI_FIG's own margin is the only
+ * gap beneath that shared row.
  */
 export function KpiHead({ label, right }: { label: string; right?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-1.5">
+    <div className="flex h-8 items-center justify-between gap-1.5">
       <span className={KPI_LABEL}>{label}</span>
       {right}
     </div>

@@ -13,7 +13,7 @@
 // customSession plugin (its superadmin branch reads an env var) and arrives via
 // useSession().
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 import { authClient } from '../auth-client';
 import type { Session } from '../types';
 
@@ -25,6 +25,9 @@ export interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+const subscribeHydration = () => () => undefined;
+const clientHydrationSnapshot = () => true;
+const serverHydrationSnapshot = () => false;
 
 /**
  * Publishes auth state to descendants; the provider owns subscription and update lifecycle while
@@ -32,6 +35,11 @@ const AuthContext = createContext<AuthState | null>(null);
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data, isPending } = authClient.useSession();
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    clientHydrationSnapshot,
+    serverHydrationSnapshot,
+  );
 
   // A real session always carries an active character (one per user in 3.4.1a).
   let session: Session | null = null;
@@ -46,7 +54,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin = data.isAdmin;
   }
 
-  const state: AuthState = { session, isAdmin, loading: isPending };
+  // Better Auth may expose a settled empty store during server rendering but a
+  // pending fetch on the first browser render. Keep both hydration snapshots on
+  // the same neutral shell; the client snapshot releases it after hydration.
+  const state: AuthState = { session, isAdmin, loading: !hydrated || isPending };
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
 }

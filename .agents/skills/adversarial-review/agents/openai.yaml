@@ -1,4 +1,4 @@
 interface:
   display_name: "Adversarial Review"
-  short_description: "Verify a diff with independent reviewers"
-  default_prompt: "Use $adversarial-review to review the current LGI.tools diff and return one verified report plus a fix prompt when needed."
+  short_description: "Challenge a plan, diff, or PR independently"
+  default_prompt: "Use $adversarial-review to review this LGI.tools plan, diff, or PR and return one verified report plus a fix prompt when needed."

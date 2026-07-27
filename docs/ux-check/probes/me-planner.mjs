@@ -58,10 +58,13 @@ export default {
           .join('|'),
       );
     const before = await quantities();
-    await main.fill('0');
-    await main.press('Tab');
-    await page.waitForTimeout(700);
+    const decrement = page.getByRole('button', {
+      name: 'Decrease main blueprint material efficiency',
+    });
+    for (let step = 0; step < 10; step += 1) await decrement.click();
+    await page.waitForTimeout(1200);
     const after = await quantities();
+    check('ME override commits through the shared stepper', (await main.inputValue()) === '0');
     check('ME override recomputes material quantities', before.length > 0 && before !== after);
     await shot('planner-orbs');
   },

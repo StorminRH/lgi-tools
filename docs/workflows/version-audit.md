@@ -36,9 +36,10 @@ transition.
 3. Design exact measurements, commands, artifact inventory, hotspot and drift
    questions, baseline replacement, verification, and any version-close archive
    destination.
-4. Present the shape before drafting, give the complete plan to one fresh
-   read-only high-effort adversarial reviewer, reconcile every finding, and
-   obtain operator approval. Permit at most one rerun after material change.
+4. Present the shape before drafting, invoke `adversarial-review` in Plan mode
+   with the complete plan and its source evidence, reconcile every verified
+   finding, and obtain operator approval. Permit at most one rerun after
+   material change.
 5. Persist a new Approved cycle-1 plan with full audited ref and procedure
    digest. When a procedure change made an in-progress plan stale, preserve its
    cycle history, AF ledger, statuses, and mappings while reconciling scope.
@@ -55,8 +56,9 @@ transition.
 3. Apply the plan-version topology audit to the complete finding set. Group the
    findings into the fewest safe execution bundles, map every open AF id, and
    map no unaudited scope.
-4. Present the topology before drafting, run one fresh read-only adversarial
-   review, reconcile findings, and obtain operator approval before mutation.
+4. Present the topology before drafting, invoke `adversarial-review` in Plan
+   mode with the complete topology and source evidence, reconcile verified
+   findings, and obtain operator approval before mutation.
 5. Update the roadmap topology first, then contracts/index, then mark mapped
    findings Planned and set Remediation in progress. Do not create session plans.
 6. Rerun the resolver and drift gate, report the new directive, and stop.

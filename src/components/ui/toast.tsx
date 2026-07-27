@@ -31,6 +31,13 @@ export function Toaster() {
   return (
     <SonnerToaster
       position="top-center"
+      // Concurrent feedback is meaningful (for example a template result while
+      // the keyed market sync remains active). Keep every visible toast expanded
+      // so Sonner applies its measured-height offsets instead of collapsing the
+      // later card behind the front one.
+      expand
+      visibleToasts={4}
+      gap={8}
       theme="dark"
       // Clear the 50px flow header so a top-centred toast floats below the nav
       // as a distinct card (viewport-fixed via sonner's portal — decoupled from

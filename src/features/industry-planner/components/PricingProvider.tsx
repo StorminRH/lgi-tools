@@ -764,8 +764,8 @@ export function PricingProvider({
   });
 
   const marketDataValue = useMemo<MarketDataValue>(
-    () => ({ pricing, seeded, marketHistory, marketScore }),
-    [pricing, seeded, marketHistory, marketScore],
+    () => ({ pricing, seeded, refreshing, marketHistory, marketScore }),
+    [pricing, seeded, refreshing, marketHistory, marketScore],
   );
   const plannerConfigValue = useMemo<PlannerConfigValue>(
     () => ({

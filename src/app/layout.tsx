@@ -80,7 +80,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full`}
+      className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full overscroll-none`}
     >
       <body className="min-h-full flex flex-col">
         {/* Sitewide dot-lattice backdrop (3.6.11 F1) — a fixed full-viewport

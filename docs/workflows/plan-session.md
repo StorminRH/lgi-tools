@@ -46,10 +46,10 @@ to the executor.
    statement, edge/failure behavior, ordered work item, and command-plus-output
    success criterion. No Blocking prerequisite or unresolved placeholder may
    remain.
-4. Give the complete draft, contract, and evidence to one fresh read-only
-   high-effort adversarial reviewer. Reconcile every finding and permit at most
-   one rerun after a material architecture, scope, or verification change. Do
-   not persist reviewer transcripts or superseded drafts.
+4. Invoke `adversarial-review` in Plan mode with the complete draft, contract,
+   schema, and source evidence. Reconcile every verified finding and permit at
+   most one rerun after a material architecture, scope, or verification change.
+   Do not persist reviewer transcripts or superseded drafts.
 
 ## Approve, persist, and stop
 

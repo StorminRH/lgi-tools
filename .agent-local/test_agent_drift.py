@@ -630,5 +630,59 @@ class AgentDriftTests(unittest.TestCase):
         )
 
 
+class LiveAdversarialReviewPolicy(unittest.TestCase):
+    """Pin the Cursor review lane and prevent the retired runtime fan-out."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        manifest_path = Path(__file__).with_name("policy-manifest.json")
+        cls.manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    def test_required_cursor_reviewers_are_pinned(self) -> None:
+        required = set(
+            self.manifest["pairedSkills"]["adversarial-review"]["required"]
+        )
+        self.assertTrue(
+            {
+                "cursor-agent",
+                "composer-2\\.5",
+                "cursor-grok-4\\.5-high",
+            }.issubset(required)
+        )
+
+    def test_same_session_verdict_collection_and_trust_gate_are_pinned(self) -> None:
+        required = set(
+            self.manifest["pairedSkills"]["adversarial-review"]["required"]
+        )
+        self.assertTrue(
+            {
+                "--resume",
+                "authorization permits[^\\n]*--trust",
+            }.issubset(required)
+        )
+
+    def test_required_policy_patterns_do_not_cross_line_boundaries(self) -> None:
+        self.assertFalse(
+            check_agent_drift.matches(
+                "explicit authorization permits a review\n--trust",
+                r"authorization permits.*--trust",
+            )
+        )
+
+    def test_retired_cross_runtime_fan_out_is_forbidden(self) -> None:
+        forbidden = set(
+            self.manifest["pairedSkills"]["adversarial-review"]["forbidden"]
+        )
+        self.assertTrue(
+            {
+                "cross-runtime",
+                "codex exec",
+                "claude -p",
+                "Codex subagents",
+                "general-purpose.*subagents",
+            }.issubset(forbidden)
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -33,7 +33,7 @@ export function jobRowModel(job: IndustryJob, now: number): JobRowModel {
   const end = Date.parse(job.end_date);
   return {
     headlineId: job.product_type_id ?? job.blueprint_type_id,
-    icon: jobImage(job.product_type_id, job.blueprint_type_id),
+    icon: jobImage(job.activity_id, job.product_type_id, job.blueprint_type_id),
     remainingMs: job.status === 'active' && Number.isFinite(end) ? end - now : null,
     showBar: job.status === 'active' || job.status === 'paused',
   };

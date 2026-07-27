@@ -21,12 +21,8 @@ describe('blueprintImage', () => {
 });
 
 describe('heroImage', () => {
-  it('uses a 3D render only for a product known to be renderable', () => {
-    expect(heroImage(587, true)).toEqual({ typeId: 587, variant: 'render' });
-  });
-
-  it('degrades a non-renderable product to its inventory icon', () => {
-    expect(heroImage(34, false)).toEqual({ typeId: 34, variant: 'icon' });
+  it('shows the blueprint being configured in the hero experiment', () => {
+    expect(heroImage(691)).toEqual({ typeId: 691, variant: 'bp' });
   });
 });
 
@@ -45,12 +41,21 @@ describe('nodeImage', () => {
 });
 
 describe('jobImage', () => {
-  it('shows the product icon when ESI reported a product', () => {
-    expect(jobImage(587, 691)).toEqual({ typeId: 587, variant: 'icon' });
+  it('shows a manufacturing or reaction product as an inventory icon', () => {
+    expect(jobImage(1, 587, 691)).toEqual({ typeId: 587, variant: 'icon' });
+    expect(jobImage(9, 16666, 46175)).toEqual({ typeId: 16666, variant: 'icon' });
   });
 
   it('shows the blueprint rendition when ESI omitted the product', () => {
-    expect(jobImage(undefined, 691)).toEqual({ typeId: 691, variant: 'bp' });
+    expect(jobImage(1, undefined, 691)).toEqual({ typeId: 691, variant: 'bp' });
+    expect(jobImage(3, undefined, 691)).toEqual({ typeId: 691, variant: 'bp' });
+  });
+
+  it('uses a blueprint rendition for science outputs even when ESI reports a product id', () => {
+    expect(jobImage(3, 692, 692)).toEqual({ typeId: 692, variant: 'bp' });
+    expect(jobImage(4, 32879, 32879)).toEqual({ typeId: 32879, variant: 'bp' });
+    expect(jobImage(5, 4313, 4313)).toEqual({ typeId: 4313, variant: 'bp' });
+    expect(jobImage(8, 11401, 11400)).toEqual({ typeId: 11401, variant: 'bp' });
   });
 });
 

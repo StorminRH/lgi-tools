@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { Stepper } from './stepper';
 
@@ -37,5 +39,16 @@ describe('Stepper', () => {
     expect(group.props.className).toContain('border-border');
     expect(group.props.children).toHaveLength(3);
     expect(slot.props.className).toContain('w-3.5');
+  });
+
+  it('allows a caller-owned semantic tone on the value only', () => {
+    const markup = renderToStaticMarkup(createElement(Stepper, {
+      value: 10,
+      onChange: vi.fn(),
+      ariaLabel: 'Material efficiency',
+      valueClassName: 'text-evb-bright',
+    }));
+    expect(markup.match(/text-evb-bright/g)).toHaveLength(1);
+    expect(markup).toMatch(/<input[^>]*class="[^"]*text-evb-bright/);
   });
 });

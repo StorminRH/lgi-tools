@@ -3,11 +3,29 @@ import {
   aggregateConfidence,
   aggregateConfidenceFromCounts,
   deriveMarginFigures,
+  EFFICIENCY_TONE_CLASSES,
   priceConfidence,
   regionalDiscountCallout,
   sellAnchorConfidence,
   type ConfidenceInput,
 } from './industry-styles';
+
+describe('EFFICIENCY_TONE_CLASSES', () => {
+  it('keeps state meaning in one map and gives owned frames the ISK-green outline', () => {
+    expect(EFFICIENCY_TONE_CLASSES.owned).toMatchObject({
+      fill: 'fill-evb-bright',
+      text: 'text-evb-bright',
+      frame: 'border-isk',
+    });
+    expect(EFFICIENCY_TONE_CLASSES.manual.frame).toContain('--color-dps-mid');
+    expect(EFFICIENCY_TONE_CLASSES.unowned.frame).toBe('border-border-soft');
+  });
+
+  it('owns the structure-bonus and reaction glyph tones too', () => {
+    expect(EFFICIENCY_TONE_CLASSES.bonus.fill).toContain('--color-isk');
+    expect(EFFICIENCY_TONE_CLASSES.reaction.fill).toContain('--color-reaction-purple');
+  });
+});
 
 // Fixed clock so freshness is deterministic.
 const NOW = 1_700_000_000_000;

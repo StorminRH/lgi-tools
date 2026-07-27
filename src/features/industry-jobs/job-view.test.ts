@@ -33,11 +33,11 @@ describe('jobRowModel', () => {
   it('prefers the product as the headline, falling back to the blueprint', () => {
     const product = jobRowModel(job({}), NOW);
     expect(product.headlineId).toBe(587);
-    expect(product.icon).toEqual(jobImage(587, 691));
+    expect(product.icon).toEqual(jobImage(1, 587, 691));
 
     const blueprint = jobRowModel(job({ product_type_id: undefined }), NOW);
     expect(blueprint.headlineId).toBe(691);
-    expect(blueprint.icon).toEqual(jobImage(undefined, 691));
+    expect(blueprint.icon).toEqual(jobImage(1, undefined, 691));
   });
 
   it('reports remaining ms only while active with a finite end', () => {
@@ -57,7 +57,7 @@ describe('jobRowFrameData', () => {
   it('builds the resolved-name row bundle, or a Type# fallback', () => {
     const data = jobRowFrameData(job({ end_date: '2026-06-12T13:00:00Z' }), { '587': 'Ishkur' }, NOW);
     expect(data.headlineName).toBe('Ishkur');
-    expect(data.icon).toEqual(jobImage(587, 691));
+    expect(data.icon).toEqual(jobImage(1, 587, 691));
     expect(data.runs).toBe(10);
     expect(data.remainingLabel).toMatch(/^done in /);
     expect(data.meta.label).toBe('Active');

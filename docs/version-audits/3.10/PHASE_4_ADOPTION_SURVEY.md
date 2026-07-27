@@ -225,6 +225,41 @@ remain owned by their recorded later slice or exemption.
 | AD-042 | Delivered | Preview restores select/input-class rails and carries all new adoption bans. |
 | AD-043 | Delivered | CONTRIBUTING now describes the enforced primitive contract truthfully. |
 
+## 3.10.4.3 adoption re-audit — 2026-07-26
+
+The closing audit used the approved PD-3 supersession map: mechanical rails
+replace the greps they now own, while the judgment-grade appendix searches were
+rerun against current production source. Deliberate 3.10.4.2 presentation
+changes to the retained header, content browser, and hover treatments are
+approved evolution, not adoption drift.
+
+| Family | Method | Current result | Diff against the approved survey |
+|---|---|---|---|
+| Syntax and token adoption | `pnpm lint`; `pnpm test scripts/ui-adoption-rail.test.mjs` | Pass: zero lint warnings; 62/62 syntax-rail tests pass in production and preview scopes. | Supersedes the raw button/input/table/details, native-title, semantic-role, action-recipe, and primitive-token greps. No rail weakened. |
+| Exception and CSS-family census | `pnpm test src/esi-datasets/ui-adoption.test.ts` | Pass: 9/9 census tests; no unexpected or dead CSS family, and every surviving exception exactly matches the registry. | Temporary CSS allowlist is empty. The exact surviving set is one provider-owned raw button, two native-details owners, seven hidden-input owners, one native-title owner, five disabled-control title owners, and eight retained CSS families. |
+| Loading language | Recorded loading-literal grep, excluding tests and primitive internals | 35 candidates inspected; zero actionable residue. They are primitive consumers, content-shaped fallback labels, state/view-model vocabulary consumed by a primitive, accessibility labels, or comments. | RA-001 restored the Templates popover to AD-011's delivered `LoadingLabel` state; no other new bypass. |
+| Heading chrome | Recorded `<h1>`…`<h6>` grep | 16 candidates inspected; zero residue. They are the recorded route alternatives, prose/content headings, dialog semantics, preview examples, or screen-reader-only page identities. | PageHead adoption remains at the approved destination; no ad-hoc heading family returned. |
+| Arbitrary grid signatures | Recorded `grid-cols-[` grep | 27 candidates inspected; zero residue. Row consumers use the shared row/table APIs; survivors are unique layout geometry, primitive parameters, or the NodeCard asset sub-ledger. | AD-020 remains delivered; no repeated row recipe reappeared. |
+| Authored ARIA roles | Recorded role sweeps | One production candidate outside primitives: the labelled PageMenu settings `role="group"`; zero residue. | No hand-built action, alert/status, overlay, table, or tab semantics returned. |
+| Suspense boundaries | Recorded `Suspense` census plus fallback inspection | 35/35 conformant: 24 content-shaped fallbacks, 2 compact `LoadingLabel` fallbacks, 8 deliberate `null` holes, and 1 real-component stand-in. | The former 32-boundary census grew by three honest holes while the stronger shape-preserving policy replaced most compact labels; no shell regressed. |
+| Rails inventory | ESLint rail plus both census suites above | Zero unrailed bypass and zero silent exemption change. | AD-040, AD-041, AD-042, and AD-043 remain delivered. |
+
+Terminal marks carried forward:
+
+- **AD-034 / AD-035 — Delivered:** 3.10.4.2 retired the account/nav family
+  bypasses; the CSS-family census proves they did not return.
+- **AD-039 — Backlogged:** primitive-serving CSS relocation remains deferred
+  under the approved survey decision; no re-disposition occurred.
+- **AD-018 EX subset — Reconfirmed:** the five disabled-control title owners
+  remain exact, and the separate `NavTools` native-title exemption remains
+  registry-pinned to its cited navigation backlog.
+
+### Re-audit residue
+
+| ID | Family / survey row | Evidence | Required disposition | Status |
+|---|---|---|---|---|
+| RA-001 | Loading presentation / AD-011 | `TemplatesMenu` rendered `templatesEmptyLine(...plans: null)` as a plain muted `<p>`, although AD-011 records this site as migrated to `LoadingLabel`. | Operator directed the existing-primitive fix; the in-flight branch now renders `LoadingLabel`, while settled empty/error copy retains the paragraph treatment. | Fixed; zero accepted residue |
+
 ## Appendix — recorded detection methods (re-audit contract)
 
 Run from the repository root. Quote `--include` patterns under zsh. Suffix

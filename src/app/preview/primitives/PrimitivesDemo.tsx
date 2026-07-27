@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Dot } from '@/components/ui/dot';
 import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Kbd } from '@/components/ui/kbd';
+import { LivePrice } from '@/components/ui/live-price';
 import { Pagination } from '@/components/ui/pagination';
 import { Prose } from '@/components/ui/prose';
 import { RadioGroup } from '@/components/ui/radio-group';
@@ -69,7 +70,17 @@ export function PrimitivesDemo() {
   const [bannerVisible, setBannerVisible] = useState(true);
   const [page, setPage] = useState(1);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pricePending, setPricePending] = useState(false);
+  const [previewPrice, setPreviewPrice] = useState('312.4M ISK');
   const confirmTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const priceTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (priceTimerRef.current !== null) window.clearTimeout(priceTimerRef.current);
+    },
+    [],
+  );
 
   return (
     <div className="flex flex-col gap-9 pb-16">
@@ -311,6 +322,31 @@ export function PrimitivesDemo() {
 
       <DemoSection
         index="13"
+        title="Live price"
+        why="A visible pulse marks the refresh before the confirmed value lands with a bright signal burst."
+      >
+        <Card className="flex items-center justify-between gap-4 p-4">
+          <LivePrice value={previewPrice} pending={pricePending} className="text-xl text-isk" />
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={pricePending}
+            onClick={() => {
+              setPricePending(true);
+              priceTimerRef.current = window.setTimeout(() => {
+                setPreviewPrice((value) => (value === '312.4M ISK' ? '314.1M ISK' : '312.4M ISK'));
+                setPricePending(false);
+                priceTimerRef.current = null;
+              }, 1400);
+            }}
+          >
+            Refresh sample
+          </Button>
+        </Card>
+      </DemoSection>
+
+      <DemoSection
+        index="14"
         title="Prose"
         why="Long-form legal and development writing shares one readable descendant-style vocabulary."
       >

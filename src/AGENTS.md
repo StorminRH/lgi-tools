@@ -143,8 +143,22 @@ Choose the most static honest mode:
 
 Cache global, slow-changing reads with `'use cache'`, `cacheLife`, and
 `cacheTag`; do not use `unstable_cache` or `experimental.useCache`. Keep request
-data inside Suspense children. In route handlers that must remain dynamic, call
-`connection()` before reading secrets or environment state.
+data inside the smallest Suspense children honesty allows. The static shell must
+carry the page's meaningful chrome and every piece of content that is not
+genuinely request-scoped; a background-only wrapper with the page head and
+results hidden behind one hole is not a useful shell. Prefer
+prerendered-then-in-view refresh for live figures over withholding the whole
+surface for a request-time stream. Suspense fallbacks follow the loading
+primitive contracts: content-shaped regions reserve their geometry with
+`Skeleton`, while `LoadingLabel` is only compact inline status. In route
+handlers that must remain dynamic, call `connection()` before reading secrets
+or environment state.
 
 Do not contort a genuinely dynamic screen into a fake static shell. Record the
 chosen mode and a one-line justification in the route classification file.
+
+Content aligned with a frame aligns inside that frame. A row of sibling cards
+shares one internal content plane even when labels or controls differ in height;
+mixed-height headers must reserve space instead of pushing figures up and down.
+The planner KPI label row is the reference implementation of this invisible
+grid principle.

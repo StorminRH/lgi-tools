@@ -24,6 +24,7 @@ const h = vi.hoisted(() => {
     cacheLife: vi.fn(),
     cacheTag: vi.fn(),
     getCombatStatsBatch: vi.fn(),
+    overlayLivePrices: vi.fn(),
     withColdStartRetry: vi.fn(),
   };
 });
@@ -45,7 +46,11 @@ vi.mock('@/lib/neon-cold-start-retry', () => ({
   withColdStartRetry: h.withColdStartRetry,
 }));
 
-import { listSiteDetails } from './queries';
+vi.mock('./live-prices', () => ({
+  overlayLivePrices: h.overlayLivePrices,
+}));
+
+import { listPricedSiteDetails, listSiteDetails } from './queries';
 
 function siteRow(
   id: number,
@@ -116,10 +121,25 @@ beforeEach(() => {
   h.cacheLife.mockReset();
   h.cacheTag.mockReset();
   h.getCombatStatsBatch.mockReset();
+  h.overlayLivePrices.mockReset();
+  h.overlayLivePrices.mockImplementation(async (sites: unknown[]) => sites);
   h.withColdStartRetry.mockReset();
   h.withColdStartRetry.mockImplementation(
     (read: () => Promise<unknown>) => read(),
   );
+});
+
+describe('listPricedSiteDetails', () => {
+  it('caches the complete price-overlaid catalogue at hourly freshness', async () => {
+    h.state.results = [[]];
+
+    await expect(listPricedSiteDetails()).resolves.toEqual([]);
+
+    expect(h.overlayLivePrices).toHaveBeenCalledWith([]);
+    expect(h.cacheLife).toHaveBeenCalledWith('hours');
+    expect(h.cacheTag).toHaveBeenCalledWith('market-prices-freshness');
+    expect(h.withColdStartRetry).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('listSiteDetails', () => {

@@ -8,6 +8,7 @@ import { Stepper } from '@/components/ui/stepper';
 import { TypeIcon } from '@/components/type-icon';
 import { heroImage } from '@/data/eve-data/type-images';
 import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
+import { EFFICIENCY_TONE_CLASSES } from '../industry-styles';
 import { nodeMeState } from '../me-overrides';
 import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
@@ -37,10 +38,25 @@ function RunAsSelector() {
 // One stacked stepper row: a mono label (with the row's gem/hourglass glyph
 // directly after it) + its control. Shared by ME, TE and Runs so the three read
 // as a single vertical group of identical boxed controls.
-function StepperRow({ label, icon, children }: { label: string; icon?: ReactNode; children: ReactNode }) {
+function StepperRow({
+  label,
+  icon,
+  labelClassName,
+  children,
+}: {
+  label: string;
+  icon?: ReactNode;
+  labelClassName?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="inline-flex items-center gap-1.5 text-label uppercase tracking-wide text-muted">
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-label uppercase tracking-wide text-muted',
+          labelClassName,
+        )}
+      >
         {label}
         {icon && (
           <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
@@ -82,7 +98,11 @@ function HeroSteppers({
   return (
     <div className="flex flex-col justify-center gap-2">
       {isManufacturing && (
-        <StepperRow label="ME" icon={<GemIcon state={meState} />}>
+        <StepperRow
+          label="ME"
+          icon={<GemIcon state={meState} />}
+          labelClassName={EFFICIENCY_TONE_CLASSES[meState].text}
+        >
           <MeField
             blueprintTypeId={blueprintTypeId}
             name="main blueprint"
@@ -95,7 +115,11 @@ function HeroSteppers({
         </StepperRow>
       )}
       {isManufacturing && (
-        <StepperRow label="TE" icon={<HourglassIcon state={teState} />}>
+        <StepperRow
+          label="TE"
+          icon={<HourglassIcon state={teState} />}
+          labelClassName={EFFICIENCY_TONE_CLASSES[teState].text}
+        >
           <TeField
             blueprintTypeId={blueprintTypeId}
             name="main blueprint"
@@ -146,7 +170,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
           one plane (the character side is borderless by design). */}
       <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-ctl border border-border p-2">
         <TypeIcon
-          {...heroImage(structure.product.typeId, structure.product.renderable)}
+          {...heroImage(structure.blueprintTypeId)}
           size={88}
           alt={structure.product.name}
           mono={structure.product.name.slice(0, 2)}

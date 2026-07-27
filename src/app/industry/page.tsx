@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
-import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SITE_URL } from '@/config/site-url';
 import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
 import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
@@ -81,13 +80,17 @@ function DashboardSkeleton() {
       ).map(([label, kind]) => (
         <section key={label}>
           <SectionLabel className="mb-cluster">{label}</SectionLabel>
-          {kind === 'panel' ? (
-            <Card className="overflow-hidden">
-              <EmptyState> </EmptyState>
-            </Card>
-          ) : (
-            <LoadingLabel label="Loading…" />
-          )}
+          <Card className="overflow-hidden" aria-label={`Loading ${label.toLowerCase()}`}>
+            <div className="flex items-center gap-3 px-3.5 py-3">
+              {kind === 'loading' ? (
+                <Skeleton className="size-9 rounded-full" />
+              ) : null}
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <Skeleton className={kind === 'panel' ? 'h-3 w-3/5' : 'h-3 w-2/5'} />
+                <Skeleton className="h-2.5 w-1/3" />
+              </div>
+            </div>
+          </Card>
         </section>
       ))}
     </div>

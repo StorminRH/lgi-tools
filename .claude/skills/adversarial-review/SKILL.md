@@ -1,12 +1,12 @@
 ---
 name: adversarial-review
 description: >-
-  Run a read-only, cross-runtime adversarial review of a completed LGI.tools
-  implementation diff before its PR. Use when the operator asks to
-  adversarially review a branch, obtain independent area and cross-model
-  findings, validate a completed implementation, or produce one executable fix
-  prompt. Do not use inside close-out or as a replacement for pre-PR design
-  review, Greptile, implementation, or delivery.
+  Run a read-only adversarial review of an LGI.tools plan, implementation diff,
+  or pull request with independent Cursor models and verified findings. Use
+  when the operator asks to challenge a plan, review a branch or PR, validate a
+  completed implementation, or produce one executable fix prompt. Also runs
+  from planning workflows and close-out without replacing approval, pre-PR
+  design review, the external PR gate, implementation, or delivery.
 ---
 
 # Run the adversarial review
@@ -22,20 +22,63 @@ delivery, and lifecycle mutations remain outside this invocation.
 
 - Represent the canonical phases with native Claude tasks and keep exactly one
   task active.
-- Store the shared brief in session-local temporary storage, never in the
-  repository.
-- Launch parallel read-only `general-purpose` area subagents through the Agent
-  tool at high effort, with disjoint primary file assignments.
-- Run the holistic cross-runtime reviewer in background Bash after setting
-  `ADVERSARIAL_REVIEW_BRIEF` to the brief's absolute path:
+- Store both context-budgeted briefs in session-local temporary storage, never
+  in the repository.
+- Export the resolved repository and brief paths as
+  `ADVERSARIAL_REVIEW_REPOSITORY`, `ADVERSARIAL_EXECUTION_BRIEF`, and
+  `ADVERSARIAL_HOLISTIC_BRIEF`.
+- Run the default reviewers concurrently in background Bash:
 
   ```bash
-  codex exec -c model_reasoning_effort='"high"' --sandbox read-only \
-    --ephemeral - < "$ADVERSARIAL_REVIEW_BRIEF"
+  cursor-agent --print --output-format json --mode plan --sandbox enabled \
+    --model composer-2.5 --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    < "$ADVERSARIAL_EXECUTION_BRIEF" \
+    > "$ADVERSARIAL_EXECUTION_BRIEF.result.json" &
+  ADVERSARIAL_EXECUTION_PID=$!
+
+  cursor-agent --print --output-format json --mode plan --sandbox enabled \
+    --model cursor-grok-4.5-high \
+    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    < "$ADVERSARIAL_HOLISTIC_BRIEF" \
+    > "$ADVERSARIAL_HOLISTIC_BRIEF.result.json" &
+  ADVERSARIAL_HOLISTIC_PID=$!
+
+  ADVERSARIAL_REVIEW_FAILURE=0
+  wait "$ADVERSARIAL_EXECUTION_PID" || ADVERSARIAL_REVIEW_FAILURE=1
+  wait "$ADVERSARIAL_HOLISTIC_PID" || ADVERSARIAL_REVIEW_FAILURE=1
+  if [ "$ADVERSARIAL_REVIEW_FAILURE" -ne 0 ]; then exit 1; fi
+
+  ADVERSARIAL_EXECUTION_SESSION_ID=$(
+    jq -er '.session_id' "$ADVERSARIAL_EXECUTION_BRIEF.result.json"
+  )
+  ADVERSARIAL_HOLISTIC_SESSION_ID=$(
+    jq -er '.session_id' "$ADVERSARIAL_HOLISTIC_BRIEF.result.json"
+  )
+
+  ADVERSARIAL_COLLECTION_PROMPT='Return the review verdict now as plain text in the required format. Do not perform more investigation, edit files, or refer me to a plan artifact. Output only the Verdict, Findings, and Load-bearing checks sections.'
+
+  cursor-agent --print --output-format json --mode plan --sandbox enabled \
+    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    --resume "$ADVERSARIAL_EXECUTION_SESSION_ID" \
+    "$ADVERSARIAL_COLLECTION_PROMPT"
+
+  cursor-agent --print --output-format json --mode plan --sandbox enabled \
+    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    --resume "$ADVERSARIAL_HOLISTIC_SESSION_ID" \
+    "$ADVERSARIAL_COLLECTION_PROMPT"
   ```
 
-- Keep reviewing the highest-blast-radius owner while background work runs.
-  Verify every accepted claim directly.
+- Capture each complete JSON result. Read `session_id` from each investigation
+  response into its matching collection variable, and treat the resumed
+  response's text as that seat's recorded verdict.
+- Do not add `--force`, `--yolo`, or `--approve-mcps`. An operator's explicit
+  authorization permits `--trust` for one run only; otherwise let the operator
+  grant workspace trust through Cursor's interactive prompt.
+- A canonical escalation trigger does not start another Grok background job.
+  Reconcile it from direct evidence; if a frontier review is still required,
+  stop as `BLOCKED` for the operator instead of rerunning the current tier.
+- Keep reviewing the highest-blast-radius owner while the model reviews run.
+  Verify every accepted claim directly and fail if the subject changes.
 
 ## Return
 

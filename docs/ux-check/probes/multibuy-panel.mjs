@@ -23,7 +23,8 @@ export default {
     check('Total is active by default', (await totalButton.getAttribute('aria-pressed')) === 'true');
     check('Remaining is disabled while logged out', await remainingButton.isDisabled());
 
-    const summaryText = async () => (await page.getByText(/\d+ items? · /).first().textContent()) ?? '';
+    const summaryText = async () =>
+      (await page.getByText(/^\d+ items?$/).first().textContent()) ?? '';
     const before = await summaryText();
     const boxes = page.getByRole('checkbox', { name: /Build tier \d+/ });
     const boxCount = await boxes.count();
@@ -57,11 +58,42 @@ export default {
     }
     await copyButton.click();
     await page.waitForTimeout(400);
-    check('copy shows a confirmation toast', (await page.getByText(/Copied \d+ items? to clipboard/).count()) > 0);
-    await shot('copied-toast');
+    check('copy control shows its copied state', (await page.getByRole('button', { name: 'Copied' }).count()) > 0);
+    check(
+      'copy control announces the exported item count',
+      (await page.locator('[role="status"]', { hasText: /items? copied to clipboard/ }).count()) > 0,
+    );
+    await shot('copied-state');
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
     const lines = clipboard.split('\n').filter(Boolean);
     check('clipboard contains Name<TAB>integer rows', lines.length > 0 && lines.every((line) => /^.+\t\d+$/.test(line)));
     check('clipboard quantities have no thousand separators', !clipboard.includes(','));
+
+    await page.getByRole('button', { name: 'Copy', exact: true }).waitFor();
+    const clipboardFailureInjected = await page.evaluate(async () => {
+      Object.defineProperty(Object.getPrototypeOf(navigator.clipboard), 'writeText', {
+        configurable: true,
+        value: async () => {
+          throw new Error('clipboard unavailable');
+        },
+      });
+      return navigator.clipboard.writeText('probe').then(
+        () => false,
+        () => true,
+      );
+    });
+    check('clipboard failure path is active', clipboardFailureInjected);
+    await copyButton.click();
+    await page.waitForTimeout(300);
+    check(
+      'copy control shows its unavailable state when clipboard write fails',
+      (await page.getByRole('button', { name: 'Unavailable', exact: true }).count()) > 0,
+    );
+    check(
+      'copy control announces the unavailable fallback',
+      (await page.locator('[role="status"]', {
+        hasText: 'Clipboard unavailable for this export',
+      }).count()) > 0,
+    );
   },
 };

@@ -46,24 +46,32 @@ export function CopyButton({
   displayValue,
   label = 'Copy',
   copiedLabel = 'Copied',
+  unavailableLabel = 'Select text',
+  feedbackLabel,
+  unavailableAnnouncement = 'Clipboard unavailable; select the value manually',
+  disabled = false,
   className,
 }: {
   value: string;
   displayValue?: ReactNode;
   label?: string;
   copiedLabel?: string;
+  unavailableLabel?: string;
+  feedbackLabel?: string;
+  unavailableAnnouncement?: string;
+  disabled?: boolean;
   className?: string;
 }) {
   const { state, copy } = useCopyFeedback(value);
   const labels: Record<CopyState, ReactNode> = {
     idle: label,
     copied: copiedLabel,
-    unavailable: 'Select text',
+    unavailable: unavailableLabel,
   };
   const announcements: Record<CopyState, string> = {
     idle: '',
-    copied: `${value} copied to clipboard`,
-    unavailable: 'Clipboard unavailable; select the value manually',
+    copied: `${feedbackLabel ?? value} copied to clipboard`,
+    unavailable: unavailableAnnouncement,
   };
 
   return (
@@ -77,10 +85,12 @@ export function CopyButton({
       <span className="select-text tabular-nums text-isk">{displayValue ?? value}</span>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => void copy()}
         className={cn(
           'rounded-ctl border border-border-idle bg-section px-2 py-0.5 shadow-btn-bezel hover:border-isk-dim hover:text-isk ' +
             eyebrow({ size: 'micro' }),
+          'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border-idle disabled:hover:text-name',
           STATE_CLASS[state],
         )}
       >

@@ -17,6 +17,10 @@ runtime implements the other's plugin surface.
   `latest`).
 - Context7 is a user-level CLI (`ctx7`) shared by both apps. The paired
   `find-docs` skills must remain byte-identical.
+- Cursor Agent is a user-level CLI (`cursor-agent`) shared by both apps for the
+  repository's economical independent adversarial-review lane. The canonical
+  workflow owns reviewer roles and escalation; the paired runtime adapters own
+  current Cursor model ids and exact command flags.
 - PyYAML is a user-level Python tooling dependency used by the official skill
   validators and the Vercel adapter generator. It is not an LGI.tools runtime
   dependency.
@@ -44,6 +48,40 @@ capabilities as follows:
 
 Every generated skill and agent adds LGI.tools' explicit-production-approval and
 Greptile-review constraints. The source Vercel content otherwise remains intact.
+
+## Adversarial-review runtime
+
+Before embedding or changing a Cursor command in either runtime adapter:
+
+1. inspect `cursor-agent --version`, `cursor-agent --help`, and
+   `cursor-agent --list-models`;
+2. confirm the configured model ids exist for the authenticated account; and
+3. verify current context, pricing, and read-only behavior through the
+   `find-docs` procedure.
+
+Both adapters run fresh Cursor sessions with `--mode plan`, sandboxing, explicit
+workspace selection, and JSON output. Each reviewer uses two turns in one
+session: the investigation, followed by a `--resume` collection turn whose JSON
+`result` text is the verdict of record. On a repository's first run, satisfy the
+workspace-trust prompt through an interactive operator grant or pause for the
+operator's explicit authorization to use `--trust` for that invocation.
+
+Never add `--force`, `--yolo`, `--trust`, or automatic MCP approval silently;
+the per-run operator authorization above is the only exception for `--trust`.
+A missing CLI, authentication failure, or unavailable required model blocks the
+adversarial review; do not silently fall back to Codex or Claude and spend a
+different capacity pool.
+
+Current reviewed defaults are Composer 2.5 Standard for the bounded execution
+role and Cursor Grok 4.5 High for the holistic role. There is no automatic third
+seat: an escalation trigger that direct evidence cannot settle blocks for an
+operator-approved frontier-model review. Treat model availability, context
+limits, and pricing as runtime facts to recheck, not permanent product
+guarantees.
+
+Runtime decision, 2026-07-26: adversarial reviewers use repository CLIs in plan
+mode. Cursor has no configured MCP servers; the Codegraph MCP installation was
+reverted and six stale Smithery entries were removed.
 
 ## Commands
 

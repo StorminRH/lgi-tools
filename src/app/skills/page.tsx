@@ -1,7 +1,7 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { LoadingLabel } from '@/components/ui/loading-label';
+import { CharacterPanelSkeleton } from '@/components/composition/CharacterPanelSkeleton';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/platform/auth/auth';
@@ -51,9 +51,7 @@ async function SkillsContent() {
 }
 
 function SkillsLoading() {
-  return (
-    <LoadingLabel />
-  );
+  return <CharacterPanelSkeleton label="Loading skill queues" />;
 }
 
 /**

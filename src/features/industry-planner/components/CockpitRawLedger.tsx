@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LivePrice } from '@/components/ui/live-price';
 import { EntityRow } from '@/components/ui/row';
 import { TypeIcon } from '@/components/type-icon';
 import { itemImage } from '@/data/eve-data/type-images';
@@ -55,16 +56,18 @@ function groupByCategory(
     });
 }
 
-function CategoryColumn({ group }: { group: CategoryGroup }) {
+function CategoryColumn({ group, refreshing }: { group: CategoryGroup; refreshing: boolean }) {
   return (
     <div className="mb-4 break-inside-avoid">
       <div className="mb-2 flex items-center gap-2 whitespace-nowrap text-label font-semibold uppercase tracking-eyebrow text-muted">
         {group.label}
         <span className="text-faint">· {group.rows.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
-        <span className="text-ui font-semibold tabular-nums tracking-normal text-isk">
-          {formatIsk(group.total)}
-        </span>
+        <LivePrice
+          value={formatIsk(group.total)}
+          pending={refreshing}
+          className="text-ui font-semibold tracking-normal text-isk"
+        />
       </div>
       <Card>
         {group.rows.map((row) => (
@@ -85,9 +88,11 @@ function CategoryColumn({ group }: { group: CategoryGroup }) {
               <span className="whitespace-nowrap font-data text-ui tabular-nums text-muted">
                 × {formatQuantity(row.quantity)}
               </span>
-              <span className="whitespace-nowrap font-data text-ui tabular-nums text-text">
-                {row.extendedCost !== null ? formatIsk(row.extendedCost) : '—'}
-              </span>
+              <LivePrice
+                value={row.extendedCost !== null ? formatIsk(row.extendedCost) : '—'}
+                pending={refreshing}
+                className="whitespace-nowrap text-ui text-text"
+              />
             </span>}
           />
         ))}
@@ -100,9 +105,11 @@ function CategoryColumn({ group }: { group: CategoryGroup }) {
 export function CockpitRawLedger({
   pricing,
   structure,
+  refreshing,
 }: {
   pricing: BlueprintPricing | null;
   structure: BlueprintStructure;
+  refreshing: boolean;
 }) {
   const groups = pricing ? groupByCategory(pricing, structure) : [];
 
@@ -113,7 +120,7 @@ export function CockpitRawLedger({
   return (
     <div className="columns-[260px] gap-x-5">
       {groups.map((g) => (
-        <CategoryColumn key={g.label} group={g} />
+        <CategoryColumn key={g.label} group={g} refreshing={refreshing} />
       ))}
     </div>
   );
