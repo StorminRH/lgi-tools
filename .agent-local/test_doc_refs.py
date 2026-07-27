@@ -207,6 +207,30 @@ class DocRefsTests(unittest.TestCase):
             self.rendered(),
         )
 
+    def test_external_markdown_url_is_not_a_repository_path_claim(self) -> None:
+        self.fixture.write(
+            "guide.md",
+            "See [external](https://example.test/?file=docs/missing.md) and "
+            "[cdn](//example.test/docs/missing.md).\n",
+        )
+        self.assertEqual([], self.rendered())
+
+    def test_local_markdown_link_ignores_query_and_fragment(self) -> None:
+        self.fixture.write(
+            "guide.md",
+            "See [missing](src/missing/file.ts?view=1#L2).\n",
+        )
+        self.assertEqual(
+            [
+                (
+                    "error",
+                    "docs/guide.md:1: repository path does not resolve: "
+                    "src/missing/file.ts",
+                )
+            ],
+            self.rendered(),
+        )
+
     def test_reasoned_legacy_reference_is_allowlisted(self) -> None:
         self.fixture.write(
             "DESIGN_PRINCIPLES.md",
