@@ -410,17 +410,7 @@
       "preDispatchGate"
     ],
     "preDispatchGate": "python3 .agent-local/check_release_consistency.py --check",
-    "legacySchemaArtifacts": [
-      "docs/session-contracts/3.10/3.10.0.1.md",
-      "docs/session-plans/3.10/3.10.0.1.md",
-      "docs/session-contracts/3.10/3.10.0.2.1.md",
-      "docs/session-plans/3.10/3.10.0.2.1.md",
-      "docs/session-contracts/3.10/3.10.0.2.2.md",
-      "docs/session-contracts/3.10/3.10.0.3.1.md",
-      "docs/session-contracts/3.10/3.10.0.3.2.md",
-      "docs/session-contracts/3.10/3.10.0.4.1.md",
-      "docs/session-plans/3.10/3.10.0.4.1.md"
-    ]
+    "legacySchemaArtifacts": []
   },
   "skillReconciliation": {
     "plan-version": {

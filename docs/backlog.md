@@ -155,7 +155,8 @@
 
 - **Scroll-aware section links in the content rail** (operator-deferred at the
   2026-07-25 Phase 4 `plan-version` disposition; cited in
-  `docs/version-audits/3.10/PHASE_4_ADOPTION_SURVEY.md` decision 1 and master
+  `../LGI Tools Document Archive/versions/3.10/version-audits/PHASE_4_ADOPTION_SURVEY.md`
+  decision 1 and master
   plan §Outcome group B). *What:* extend ContentBrowser with the
   UploadThing-style section model — stable heading IDs registered by long
   documents, an `IntersectionObserver` visible-section store, nested section
@@ -279,7 +280,8 @@
 
 - **Relocate primitive-serving CSS into its owning primitives** (operator-deferred
   at the 2026-07-25 Phase 4 `plan-version` disposition; survey row AD-039 in
-  `docs/version-audits/3.10/PHASE_4_ADOPTION_SURVEY.md`). *What:* move the
+  `../LGI Tools Document Archive/versions/3.10/version-audits/PHASE_4_ADOPTION_SURVEY.md`).
+  *What:* move the
   ~278 `globals.css` lines that back a single `src/components/ui/*` primitive
   (`.skeleton-shimmer`, `.status-led`, `.progress-fill`, `.price-confidence-*`,
   `.price-flash`, `.content-browser-*` remnants, …) into their primitives as
@@ -475,7 +477,8 @@ is reprioritized.
 
 - **v3.11 opening obligations** (recorded by the v3.10 close audit, cycle 1,
   2026-07-27; source decisions: contract 3.10.0.2.2 PD-2 and
-  `docs/version-audits/3.10/PLAN.md` §4). *What:* four deferred lifecycle-tooling
+  `../LGI Tools Document Archive/versions/3.10/version-audits/PLAN.md` §4).
+  *What:* four deferred lifecycle-tooling
   items the v3.11 opening owns. (1) The adoption-time `Version-start` capture
   mechanism (PD-2): when a master version is adopted, freeze that ref's measured
   values into the baseline's `Version-start` column; v3.10 ran its whole life on
