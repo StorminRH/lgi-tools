@@ -198,31 +198,31 @@ _ARCHIVE_REDIRECTS = (
     (
         "docs/**",
         "docs/SCALING_AUDIT_FINDINGS.md",
-        "../LGI Tools Document Archive/SCALING_AUDIT_FINDINGS.md",
+        "../LGI Tools Document Archive/pre-3.8/SCALING_AUDIT_FINDINGS.md",
         "completed scaling audit was archived",
     ),
     (
         "docs/**",
         "docs/3.7.9_VERIFIED_CONSTANTS.md",
-        "../LGI Tools Document Archive/3.7.9_VERIFIED_CONSTANTS.md",
+        "../LGI Tools Document Archive/pre-3.8/3.7.9_VERIFIED_CONSTANTS.md",
         "completed constants evidence was archived",
     ),
     (
         "docs/**",
         "docs/DEV_PERF_DIAGNOSIS.md",
-        "../LGI Tools Document Archive/DEV_PERF_DIAGNOSIS.md",
+        "../LGI Tools Document Archive/pre-3.8/DEV_PERF_DIAGNOSIS.md",
         "dev-performance diagnosis was archived and remains future-session evidence",
     ),
     (
         "docs/**",
         "docs/3.6.7a-AUDIT-FINDINGS.md",
-        "../LGI Tools Document Archive/3.6.7a-AUDIT-FINDINGS.md",
+        "../LGI Tools Document Archive/pre-3.8/3.6.7a-AUDIT-FINDINGS.md",
         "completed audit findings were archived",
     ),
     (
         "docs/**",
         "docs/HUB_SCOPED_MARKET_DATA.md",
-        "../LGI Tools Document Archive/HUB_SCOPED_MARKET_DATA.md",
+        "../LGI Tools Document Archive/pre-3.8/HUB_SCOPED_MARKET_DATA.md",
         "completed market-data ruling evidence was archived",
     ),
     (

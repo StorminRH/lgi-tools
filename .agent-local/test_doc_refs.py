@@ -219,7 +219,7 @@ class DocRefsTests(unittest.TestCase):
                 (
                     "warn",
                     "docs/VERSION_3_10_PLAN.md:1: archive reference does not resolve: "
-                    "../LGI Tools Document Archive/SCALING_AUDIT_FINDINGS.md",
+                    "../LGI Tools Document Archive/pre-3.8/SCALING_AUDIT_FINDINGS.md",
                 )
             ],
             self.rendered(),
