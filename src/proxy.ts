@@ -111,14 +111,14 @@ export function proxy(request: NextRequest): NextResponse {
 
 /**
  * Skip API routes (JSON responses don't need CSP), Next.js static + image
- * optimizer paths, the favicon, and prefetch requests. Prefetches re-use the
+ * optimizer paths, the tab icons, and prefetch requests. Prefetches re-use the
  * initial document's CSP header, so adding it per-prefetch would only burn CPU.
  * Same pattern recommended in the Next 16 CSP guide.
  */
 export const config = {
   matcher: [
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

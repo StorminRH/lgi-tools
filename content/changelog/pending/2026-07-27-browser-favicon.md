@@ -4,4 +4,4 @@ source: customize-browser-favicon
 ---
 
 #### Changed
-- Replaced the default Vercel scaffold favicon with an LGI stamp-box tab icon.
+- Browser tabs and bookmarks now show the LGI mark instead of the placeholder icon the site shipped with.
