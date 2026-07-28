@@ -61,12 +61,14 @@ async function requirePendingSnapshot(
   snapshotId: number,
 ): Promise<{
   status: WhStaticsSnapshotStatus;
+  feedVersion: string;
   systemCount: number;
   entries: readonly WhStaticEntry[];
 }> {
   const [snapshot] = await database
     .select({
       status: whStaticsSnapshots.status,
+      feedVersion: whStaticsSnapshots.feedVersion,
       systemCount: whStaticsSnapshots.systemCount,
       entries: whStaticsSnapshots.entries,
     })
@@ -134,6 +136,7 @@ export async function promoteSnapshot(
         snapshot.entries.map((entry) => ({
           systemId: entry.systemId,
           code: entry.code,
+          feedVersion: snapshot.feedVersion,
           sourceSnapshotId: snapshotId,
         })),
       );

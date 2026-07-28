@@ -16,6 +16,7 @@ CREATE TABLE "wh_statics_snapshots" (
 CREATE TABLE "wh_system_statics" (
 	"system_id" integer NOT NULL,
 	"code" text NOT NULL,
+	"feed_version" text NOT NULL,
 	"source_snapshot_id" bigint NOT NULL,
 	CONSTRAINT "wh_system_statics_system_id_code_pk" PRIMARY KEY("system_id","code")
 );

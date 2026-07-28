@@ -116,6 +116,12 @@ describe.skipIf(!harness.reachable)(
         },
         {
           table_name: 'wh_system_statics',
+          column_name: 'feed_version',
+          data_type: 'text',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'wh_system_statics',
           column_name: 'source_snapshot_id',
           data_type: 'bigint',
           is_nullable: 'NO',
@@ -193,12 +199,14 @@ describe.skipIf(!harness.reachable)(
       await harness.db.insert(whSystemStatics).values({
         systemId: 31_000_001,
         code: 'A001',
+        feedVersion: '11',
         sourceSnapshotId: snapshot.id,
       });
       await expect(
         harness.db.insert(whSystemStatics).values({
           systemId: 31_000_001,
           code: 'A001',
+          feedVersion: '11',
           sourceSnapshotId: snapshot.id,
         }),
       ).rejects.toThrow();

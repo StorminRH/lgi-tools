@@ -88,6 +88,7 @@ export const whSystemStatics = pgTable(
   {
     systemId: integer('system_id').notNull(),
     code: text('code').notNull(),
+    feedVersion: text('feed_version').notNull(),
     sourceSnapshotId: bigint('source_snapshot_id', { mode: 'number' })
       .notNull()
       .references(() => whStaticsSnapshots.id),

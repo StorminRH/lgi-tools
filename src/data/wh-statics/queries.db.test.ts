@@ -142,8 +142,18 @@ describe.skipIf(!harness.reachable)(
           .from(whSystemStatics)
           .orderBy(asc(whSystemStatics.systemId)),
       ).toEqual([
-        { systemId: 31_000_001, code: 'A001', sourceSnapshotId: snapshotId },
-        { systemId: 31_000_002, code: 'B002', sourceSnapshotId: snapshotId },
+        {
+          systemId: 31_000_001,
+          code: 'A001',
+          feedVersion: '11',
+          sourceSnapshotId: snapshotId,
+        },
+        {
+          systemId: 31_000_002,
+          code: 'B002',
+          feedVersion: '11',
+          sourceSnapshotId: snapshotId,
+        },
       ]);
 
       await expect(promoteSnapshot(harness.db, snapshotId)).rejects.toEqual(
@@ -198,6 +208,7 @@ describe.skipIf(!harness.reachable)(
       await harness.db.insert(whSystemStatics).values({
         systemId: 31_000_001,
         code: 'A001',
+        feedVersion: '11',
         sourceSnapshotId: currentPromoted,
       });
 
