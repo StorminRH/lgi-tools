@@ -1,5 +1,5 @@
 /** Community feed endpoint for per-system wormhole statics. */
-export const WH_STATICS_FEED_URL = 'https://anoik.is/static.json';
+export const WH_STATICS_FEED_URL = 'https://anoik.is/static/static.json';
 
 /** Maximum time allowed for the small community feed request. */
 export const WH_STATICS_FETCH_TIMEOUT_MS = 10_000;
