@@ -3,6 +3,7 @@
   "_reasons": {
     "/": "Transient auth_error query param renders in a Suspense dynamic hole; hero + tiles are static.",
     "/opengraph-image": "Next 16 classifies the generated metadata-image handler as dynamic because it resolves bundled font files inside the handler; the file convention caches the resulting response by default.",
+    "/icon.svg": "The tab icon is a literal src/app/icon.svg file, not a generated handler, so the metadata route prerenders to a static asset with no request-time input — unlike /opengraph-image, which is dynamic only because its handler resolves fonts. The sibling src/app/favicon.ico is the legacy fallback and is filtered out of this check by assert-route-classification.mjs.",
     "/sites": "The hourly cached priced catalogue supplies the prerendered page head and filter chrome; the saved-view cookie selects the streamed result branch, with the table's searchParams-driven sort nested inside it, while client in-view refresh keeps price figures current.",
     "/sites/[id]": "Per-site detail (params + DB + live prices) streams from a dynamic hole.",
     "/sites/[id]/opengraph-image": "Parameterized metadata-image handler; Next 16 classifies it as dynamic while its only data dependency remains the hourly cached, price-tagged site detail and the file convention caches the response by default.",
@@ -29,6 +30,7 @@
   "routes": {
     "/": "partial",
     "/opengraph-image": "dynamic",
+    "/icon.svg": "static",
     "/admin": "partial",
     "/admin/access": "partial",
     "/admin/access/[userId]": "partial",

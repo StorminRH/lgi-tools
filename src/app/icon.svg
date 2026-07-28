@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- A favicon renders isolated from the app stylesheet, so it cannot read the
+       color tokens and has to restate them. Keep these in step with their
+       owners: #060708 is color-bg-deep, #0b0d10 is color-bg, #f1f5f9 is
+       color-name (globals.css custom properties), #3dd68c is green in tones.ts.
+       The sibling favicon.ico carries the same mark for Safari before 26 and for
+       clients that request /favicon.ico directly; regenerate both together. -->
+  <rect width="32" height="32" rx="4" fill="#060708"/>
+  <rect x="5" y="5" width="22" height="22" rx="2" stroke="#3dd68c" stroke-width="1.5" fill="#0b0d10"/>
+  <text x="16" y="20" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" font-weight="800" fill="#f1f5f9">LGI</text>
+</svg>

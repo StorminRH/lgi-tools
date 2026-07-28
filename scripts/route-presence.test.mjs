@@ -12,6 +12,9 @@ describe('isRouteFile', () => {
       'robots.tsx',
       'opengraph-image.tsx',
       'twitter-image.js',
+      'icon.svg',
+      'icon.png',
+      'icon2.ico',
     ]) {
       expect(isRouteFile(base)).toBe(true);
     }
@@ -21,6 +24,12 @@ describe('isRouteFile', () => {
     for (const base of ['layout.tsx', 'helpers.ts', 'page.css', 'not-found.tsx']) {
       expect(isRouteFile(base)).toBe(false);
     }
+  });
+
+  it('rejects favicon.ico, which the post-build check filters instead', () => {
+    // Discovering it would report a false missing route: it deliberately has no
+    // entry in route-classification.json.
+    expect(isRouteFile('favicon.ico')).toBe(false);
   });
 });
 
@@ -44,6 +53,11 @@ describe('routeKey', () => {
     expect(routeKey('opengraph-image.tsx')).toBe('/opengraph-image');
     expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe('/sites/[id]/opengraph-image');
     expect(routeKey('docs/twitter-image.js')).toBe('/docs/twitter-image');
+  });
+
+  it('keeps the extension when mapping icon images, unlike social images', () => {
+    expect(routeKey('icon.svg')).toBe('/icon.svg');
+    expect(routeKey('docs/icon.png')).toBe('/docs/icon.png');
   });
 });
 
