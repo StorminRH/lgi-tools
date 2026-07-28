@@ -29,6 +29,12 @@ type EsiDatasetCommon = {
   name: string;
   upstream: EsiUpstream;
   mirrorTables: readonly string[];
+  derivedClientAssets?: readonly {
+    name: string;
+    route: string;
+    placement: 'versioned-immutable-route';
+    refresh: 'sde-refresh-cron-tag-bust';
+  }[];
   ttlOverride?: {
     milliseconds: number;
     rationale: string;

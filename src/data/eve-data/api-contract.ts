@@ -12,6 +12,12 @@ import {
 import type { IngestSummary } from './ingest';
 import type { ResolveSummary } from './tree-resolver';
 import type { SystemSearchEntry } from './systems-search';
+import type {
+  AdjacencyAsset,
+  SystemDirectoryAsset,
+  WormholeCodexAsset,
+  WormholeCodexEntry,
+} from './universe-assets';
 
 // ── POST /api/eve/names (authz: none — public ESI read) ─────────────────
 // Bulk entity-id → name resolution for characters + corporations (3.7.3.4),
@@ -115,5 +121,124 @@ export const systemsEndpoint = defineEndpoint({
   request: null,
   responses: {
     200: jsonBody(systemsResponseSchema),
+  },
+});
+
+// ── GET /api/universe/assets[/[version]/…] (authz: public) ─────────────
+
+const universeAssetVersionSchema = z.string().min(1).max(64);
+
+/** Cache policy shared by successful immutable universe-asset responses. */
+export const UNIVERSE_ASSET_CACHE_CONTROL =
+  'public, max-age=31536000, immutable';
+
+/** Path boundary shared by every immutable version-addressed universe asset. */
+export const universeAssetVersionParamsSchema = z.object({
+  version: universeAssetVersionSchema,
+});
+
+/** Current SDE build identifier used to address immutable universe assets. */
+export const universeAssetManifestResponseSchema = z.object({
+  version: universeAssetVersionSchema,
+});
+
+const systemDirectoryEntrySchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  whClassId: z.number().int().nullable(),
+  security: z.number().nullable(),
+});
+
+/** Versioned solar-system directory response. */
+export const systemDirectoryResponseSchema = z.object({
+  version: universeAssetVersionSchema,
+  systems: z.array(systemDirectoryEntrySchema),
+}) satisfies z.ZodType<SystemDirectoryAsset>;
+
+const adjacencyEntrySchema = z.tuple([
+  z.number().int(),
+  z.array(z.number().int()),
+]);
+
+/** Versioned stargate-adjacency response. */
+export const adjacencyResponseSchema = z.object({
+  version: universeAssetVersionSchema,
+  adjacency: z.array(adjacencyEntrySchema),
+}) satisfies z.ZodType<AdjacencyAsset>;
+
+const typedWormholeCodexEntrySchema = z.object({
+  code: z.string().regex(/^[A-Z]\d{3}$/),
+  typeId: z.number().int().positive(),
+  farSide: z.literal(false),
+  totalMass: z.number(),
+  maxJumpMass: z.number(),
+  massRegen: z.number(),
+  lifetimeMinutes: z.number(),
+  sizeClass: z.enum(['S', 'M', 'L', 'XL']),
+  targetClass: z.number(),
+});
+
+const farSideWormholeCodexEntrySchema = z.object({
+  code: z.literal('K162'),
+  typeId: z.number().int().positive(),
+  farSide: z.literal(true),
+});
+
+/** Boundary validator for every typed or far-side wormhole codex row. */
+export const wormholeCodexEntrySchema = z.discriminatedUnion('farSide', [
+  typedWormholeCodexEntrySchema,
+  farSideWormholeCodexEntrySchema,
+]) satisfies z.ZodType<WormholeCodexEntry>;
+
+/** Versioned wormhole-type codex response. */
+export const wormholeCodexResponseSchema = z.object({
+  version: universeAssetVersionSchema,
+  types: z.array(wormholeCodexEntrySchema),
+}) satisfies z.ZodType<WormholeCodexAsset>;
+
+/** Uncached discovery endpoint for the current immutable universe-asset version. */
+export const universeAssetManifestEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/universe/assets',
+  request: null,
+  responses: {
+    200: jsonBody(universeAssetManifestResponseSchema),
+    503: problem('sde_unavailable'),
+  },
+});
+
+/** Immutable version-addressed system-directory endpoint. */
+export const systemDirectoryEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/universe/assets/[version]/systems',
+  request: null,
+  params: universeAssetVersionParamsSchema,
+  responses: {
+    200: jsonBody(systemDirectoryResponseSchema),
+    404: problem('asset_version_not_found'),
+  },
+});
+
+/** Immutable version-addressed stargate-adjacency endpoint. */
+export const adjacencyEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/universe/assets/[version]/adjacency',
+  request: null,
+  params: universeAssetVersionParamsSchema,
+  responses: {
+    200: jsonBody(adjacencyResponseSchema),
+    404: problem('asset_version_not_found'),
+  },
+});
+
+/** Immutable version-addressed wormhole-type codex endpoint. */
+export const wormholeCodexEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/universe/assets/[version]/wormholes',
+  request: null,
+  params: universeAssetVersionParamsSchema,
+  responses: {
+    200: jsonBody(wormholeCodexResponseSchema),
+    404: problem('asset_version_not_found'),
   },
 });

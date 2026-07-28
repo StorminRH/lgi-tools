@@ -80,3 +80,9 @@ export function problemResponse(failure: AppFailure): Response {
   stashFailure(failure);
   return serializeProblem(problemBody(failure, currentCorrelationId()));
 }
+
+/** Stamps one Cache-Control value on an apiResponse-built response. */
+export function withCacheControl(response: Response, value: string): Response {
+  response.headers.set('Cache-Control', value);
+  return response;
+}

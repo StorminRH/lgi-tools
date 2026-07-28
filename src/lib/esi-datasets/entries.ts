@@ -184,6 +184,26 @@ export const ESI_DATASET_ENTRIES = [
     freshnessModel: 'cron-cadence',
     refreshOwner: { kind: 'cron', route: '/api/cron/refresh-sde' },
     upstream: { kind: 'ccp-sde-manifest' },
+    derivedClientAssets: [
+      {
+        name: 'universe-system-directory',
+        route: '/api/universe/assets/[version]/systems',
+        placement: 'versioned-immutable-route',
+        refresh: 'sde-refresh-cron-tag-bust',
+      },
+      {
+        name: 'universe-adjacency-graph',
+        route: '/api/universe/assets/[version]/adjacency',
+        placement: 'versioned-immutable-route',
+        refresh: 'sde-refresh-cron-tag-bust',
+      },
+      {
+        name: 'wormhole-codex',
+        route: '/api/universe/assets/[version]/wormholes',
+        placement: 'versioned-immutable-route',
+        refresh: 'sde-refresh-cron-tag-bust',
+      },
+    ],
     mirrorTables: [
       'eve_categories',
       'eve_groups',

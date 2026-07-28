@@ -58,6 +58,7 @@ const REDIS_CONSTRUCTION_SITES = ['src/lib/upstash.ts'];
 const PRODUCTION_POSTGRES_SITES = [
   'src/db/index.ts',
   'src/scripts/backfill-users-if-empty.ts',
+  'src/scripts/check-universe-assets.ts',
   'src/scripts/ingest-sde-if-empty.ts',
   'src/scripts/ingest-sde.ts',
   'src/scripts/migrate.ts',
