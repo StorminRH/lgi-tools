@@ -172,6 +172,30 @@ function isSameObservation(
   return latest.etag === etag && latest.digest === digest;
 }
 
+/**
+ * Decides whether the newest recorded row settles this write: the identical
+ * observation is reused, and a row newer than the probe baseline means this
+ * response was overtaken in flight. Null means the write should proceed.
+ */
+function settledByLatestSnapshot(
+  latest: LatestSnapshotRow,
+  input: RecordWhStaticsSnapshotInput,
+  digest: string,
+): RecordWhStaticsSnapshotResult | null {
+  if (isSameObservation(latest, input.etag, digest)) {
+    return { recorded: 'duplicate', snapshotId: latest.id };
+  }
+  // Snapshot ids are monotonic, so a higher id means another refresh recorded
+  // a newer observation while this response was in flight and this older body
+  // must not supersede it. A lower id only means retention pruned history,
+  // which leaves this observation current.
+  const observed = input.baseline.latestSnapshotId ?? 0;
+  if (latest.id > observed) {
+    return { recorded: 'stale', snapshotId: latest.id };
+  }
+  return null;
+}
+
 function insertedSnapshotId(inserted: { id: number } | undefined): number {
   if (inserted === undefined) {
     throw new Error('Statics snapshot insert returned no id.');
@@ -205,17 +229,8 @@ export function recordSnapshot(
       .orderBy(desc(whStaticsSnapshots.id))
       .limit(1);
     if (latest !== undefined) {
-      if (isSameObservation(latest, input.etag, digest)) {
-        return { recorded: 'duplicate', snapshotId: latest.id };
-      }
-      // Compare and swap on the probe's baseline. Snapshot ids are monotonic,
-      // so a higher id means another refresh recorded a newer observation
-      // while this response was in flight and this older body must not
-      // supersede it. A lower id only means retention pruned history, which
-      // leaves this observation current.
-      if (latest.id > (input.baseline.latestSnapshotId ?? 0)) {
-        return { recorded: 'stale', snapshotId: latest.id };
-      }
+      const settled = settledByLatestSnapshot(latest, input, digest);
+      if (settled !== null) return settled;
     }
     await transaction
       .update(whStaticsSnapshots)
@@ -260,9 +275,11 @@ export async function getSnapshotProbeBaseline(
       .orderBy(desc(whStaticsSnapshots.id))
       .limit(1),
   ]);
+  const [latest] = latestRows;
+  const [conditional] = conditionalRows;
   return {
-    etag: conditionalRows[0]?.etag ?? null,
-    latestSnapshotId: latestRows[0]?.id ?? null,
+    etag: conditional === undefined ? null : conditional.etag,
+    latestSnapshotId: latest === undefined ? null : latest.id,
   };
 }
 
