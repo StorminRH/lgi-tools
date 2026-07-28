@@ -83,7 +83,7 @@ by hand where needed, and never see a refresh control.
 | 4.0.0.1 | Version-opening obligations (baseline capture, metric split, archive fidelity) | backlog | 1 | COMPLETE |
 | **Phase 1 — Groundwork** | | | | |
 | 4.0.1.1 | Map access foundation + corp membership resolution | §4.0.1.1, §4.0.1.2 | 1 | COMPLETE |
-| 4.0.1.3 | Client universe assets, wormhole codex, sites card widget export | §4.0.1.3, §4.0.1.4, §4.0.1.5 | 1 | PLANNED |
+| 4.0.1.3 | Client universe assets, wormhole codex, sites card widget export | §4.0.1.3, §4.0.1.4, §4.0.1.5 | 1 | COMPLETE |
 | 4.0.1.6 | Statics dataset ingest (anoik.is feed) | §4.0.1.6 | 1 | PLANNED |
 | **Phase 2 — Shell & live core** | | | | |
 | 4.0.2.1 | Map shell (dev wall, host layer, floating chrome) | §4.0.2.1 | 1 | PLANNED |

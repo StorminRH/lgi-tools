@@ -73,6 +73,21 @@ The data band's only peer edge is its shared reference core:
 `data/<name> -> data/eve-data`. Fallow's auto-discovered child zones keep every
 other data-to-data import forbidden.
 
+## Feature widget surfaces
+
+A feature that can be embedded by a host exposes exactly one
+`src/features/<name>/widget.tsx` module. That module exports the widget component
+and its props contract; hosts import the widget only through that path. The
+widget receives its entity identifier, loads through the owning feature's
+existing endpoint, and fills the container box the host supplies. It does not
+receive host window dimensions or import the host layer.
+
+This is a narrow embeddable surface, not a general feature barrel. Existing
+deep-path imports remain unchanged, and other feature internals are not
+re-exported through `widget.tsx`. The wormhole-sites `SiteCardWidget` is the
+first instance; the mapper may consume it once the mapper zone lands, while the
+feature never imports the mapper.
+
 ## Inversion and runtime seams
 
 Authentication exposes the owner-reconciliation hook at

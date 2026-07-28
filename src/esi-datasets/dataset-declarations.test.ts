@@ -7,7 +7,7 @@
 // -> growth story -> ESI entry or infrastructure claim when externally fed.
 // The membership overlap with sibling gates is deliberate: those gates own
 // registry semantics, while this index owns the complete new-dataset checklist.
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import {
   getTableConfig,
   integer,
@@ -151,6 +151,40 @@ describe('dataset declaration index', () => {
     expect(findIdentityFkLeaks([undeclaredIdentityKey])).toEqual([
       'synthetic_identity_leak.created_by references user through an unsanctioned identity column',
     ]);
+  });
+
+  it('declares every SDE-derived client asset and its live route file', () => {
+    const sde = ESI_DATASET_ENTRIES.find((entry) => entry.name === 'sde');
+    expect(sde).toBeDefined();
+    const assets = sde?.derivedClientAssets ?? [];
+    const expectedRoutes = new Map([
+      [
+        'universe-system-directory',
+        '/api/universe/assets/[version]/systems',
+      ],
+      [
+        'universe-adjacency-graph',
+        '/api/universe/assets/[version]/adjacency',
+      ],
+      ['wormhole-codex', '/api/universe/assets/[version]/wormholes'],
+    ]);
+    expect(assets.map((asset) => asset.name).sort()).toEqual([
+      'universe-adjacency-graph',
+      'universe-system-directory',
+      'wormhole-codex',
+    ]);
+    for (const asset of assets) {
+      expect(asset).toEqual({
+        name: asset.name,
+        route: expectedRoutes.get(asset.name),
+        placement: 'versioned-immutable-route',
+        refresh: 'sde-refresh-cron-tag-bust',
+      });
+      expect(
+        existsSync(`src/app${asset.route}/route.ts`),
+        `${asset.name} route file is missing`,
+      ).toBe(true);
+    }
   });
 });
 

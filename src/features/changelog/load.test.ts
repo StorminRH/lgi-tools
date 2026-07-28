@@ -27,7 +27,7 @@ describe('readChangelogSource', () => {
       '2.9',
     ]);
     // The preamble file is read first, so the leading master still carries its title.
-    expect(masters[0]?.title).toBe('The Living Map');
+    expect(masters[0]?.title).toBe('Atlas of Worlds');
   });
 
   it('projects every real entry into exactly one browser document', async () => {
