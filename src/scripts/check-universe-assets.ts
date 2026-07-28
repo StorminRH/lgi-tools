@@ -1,3 +1,4 @@
+import { deepStrictEqual, strictEqual } from 'node:assert';
 import { gzipSync } from 'node:zlib';
 import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -152,12 +153,33 @@ function buildReport(
     directory.systems.map((system) => [system.id, system]),
   );
   const { b274, regenerating, k162 } = requireCodexProof(codex);
+  const jitaDegree = requireReciprocalJitaPerimeter(adjacency);
+  strictEqual(jitaDegree, 7, 'Jita degree does not match the expected SDE contract.');
+  deepStrictEqual(
+    {
+      lifetimeMinutes: b274.lifetimeMinutes,
+      totalMass: b274.totalMass,
+      maxJumpMass: b274.maxJumpMass,
+      massRegen: b274.massRegen,
+      sizeClass: b274.sizeClass,
+      targetClass: b274.targetClass,
+    },
+    {
+      lifetimeMinutes: 1_440,
+      totalMass: 2_000_000_000,
+      maxJumpMass: 375_000_000,
+      massRegen: 0,
+      sizeClass: 'L',
+      targetClass: 7,
+    },
+    'B274 codex values do not match the expected SDE contract.',
+  );
   return {
     version: directory.version,
     systems: {
       jita: requireSystem(systemById, JITA_ID),
       perimeter: requireSystem(systemById, PERIMETER_ID),
-      jitaDegree: requireReciprocalJitaPerimeter(adjacency),
+      jitaDegree,
       reciprocalJitaPerimeter: true,
     },
     classCounts: namedClassCounts(countSystemClasses(directory)),

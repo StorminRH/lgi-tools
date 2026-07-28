@@ -129,6 +129,33 @@ describe('universe asset client loaders', () => {
     expect(apiFetchMock).toHaveBeenCalledTimes(6);
   });
 
+  it('rejects and clears the universe memo when both asset attempts are stale', async () => {
+    apiFetchMock.mockImplementation((endpoint: { path: string }) => {
+      if (endpoint.path === '/api/universe/assets') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: { version: 'stale' },
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        kind: 'api',
+        status: 404,
+        error: {},
+      });
+    });
+    const assetModule = await freshModule();
+
+    await expect(assetModule.loadUniverseAssets()).rejects.toThrow(
+      'universe assets remained stale after one manifest refresh',
+    );
+    await expect(assetModule.loadUniverseAssets()).rejects.toThrow(
+      'universe assets remained stale after one manifest refresh',
+    );
+    expect(apiFetchMock).toHaveBeenCalledTimes(12);
+  });
+
   it('clears a rejected memo so the next call can heal', async () => {
     apiFetchMock.mockResolvedValueOnce({
       ok: false,
@@ -166,5 +193,71 @@ describe('universe asset client loaders', () => {
       farSide: true,
     });
     expect(first.byCode('NOPE')).toBeNull();
+  });
+
+  it('refetches the manifest once when the codex version is stale', async () => {
+    let manifestCalls = 0;
+    apiFetchMock.mockImplementation(
+      (
+        endpoint: { path: string },
+        init?: { params?: { version?: string } },
+      ) => {
+        if (endpoint.path === '/api/universe/assets') {
+          manifestCalls += 1;
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            data: { version: manifestCalls === 1 ? 'old' : 'new' },
+          });
+        }
+        if (init?.params?.version === 'old') {
+          return Promise.resolve({
+            ok: false,
+            kind: 'api',
+            status: 404,
+            error: {},
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: { version: 'new', types: CODEX },
+        });
+      },
+    );
+    const assetModule = await freshModule();
+
+    await expect(assetModule.loadWormholeCodex()).resolves.toMatchObject({
+      version: 'new',
+    });
+    expect(manifestCalls).toBe(2);
+    expect(apiFetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('rejects and clears the codex memo when both attempts are stale', async () => {
+    apiFetchMock.mockImplementation((endpoint: { path: string }) => {
+      if (endpoint.path === '/api/universe/assets') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: { version: 'stale' },
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        kind: 'api',
+        status: 404,
+        error: {},
+      });
+    });
+    const assetModule = await freshModule();
+
+    await expect(assetModule.loadWormholeCodex()).rejects.toThrow(
+      'wormhole codex remained stale after one manifest refresh',
+    );
+    await expect(assetModule.loadWormholeCodex()).rejects.toThrow(
+      'wormhole codex remained stale after one manifest refresh',
+    );
+    expect(apiFetchMock).toHaveBeenCalledTimes(8);
   });
 });

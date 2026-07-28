@@ -157,6 +157,17 @@ describe('dataset declaration index', () => {
     const sde = ESI_DATASET_ENTRIES.find((entry) => entry.name === 'sde');
     expect(sde).toBeDefined();
     const assets = sde?.derivedClientAssets ?? [];
+    const expectedRoutes = new Map([
+      [
+        'universe-system-directory',
+        '/api/universe/assets/[version]/systems',
+      ],
+      [
+        'universe-adjacency-graph',
+        '/api/universe/assets/[version]/adjacency',
+      ],
+      ['wormhole-codex', '/api/universe/assets/[version]/wormholes'],
+    ]);
     expect(assets.map((asset) => asset.name).sort()).toEqual([
       'universe-adjacency-graph',
       'universe-system-directory',
@@ -164,8 +175,8 @@ describe('dataset declaration index', () => {
     ]);
     for (const asset of assets) {
       expect(asset).toEqual({
-        name: expect.any(String),
-        route: expect.stringMatching(/^\/api\/universe\/assets\/\[version\]\//),
+        name: asset.name,
+        route: expectedRoutes.get(asset.name),
         placement: 'versioned-immutable-route',
         refresh: 'sde-refresh-cron-tag-bust',
       });
