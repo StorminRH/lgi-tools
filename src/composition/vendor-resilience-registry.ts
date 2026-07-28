@@ -32,7 +32,8 @@ export type VendorIntegrationId =
   | 'fuzzwork'
   | 'ccp-static-data'
   | 'eve-news-feed'
-  | 'ccp-image-cdn';
+  | 'ccp-image-cdn'
+  | 'anoik-statics';
 
 /**
  * One integration's declared resilience policy — the eight recorded facts. `wrapper` names the
@@ -260,5 +261,19 @@ export const vendorResilienceRegistry: Record<
     degradation:
       'A failed load renders as a broken or empty image inside the wrapper’s reserved layout box; no data path depends on it.',
     telemetryFields: 'None; client-side asset loading is not instrumented.',
+  },
+  'anoik-statics': {
+    wrapper: { module: 'src/data/wh-statics/source.ts', symbol: 'fetchStaticsFeed' },
+    timeout: '10s per request (WH_STATICS_FETCH_TIMEOUT_MS via fetchWithTimeout).',
+    retryableErrors:
+      'None. An unreachable, timed-out, or non-200 feed resolves to unavailable rather than retrying.',
+    backoff: 'None.',
+    rateLimit:
+      'Weekly cron plus operator-triggered on-demand only; the unchanged path is a conditional GET that transfers zero body bytes.',
+    idempotency:
+      'Read-only conditional GET. A repeat with the same ETag is safe and normally returns 304.',
+    degradation:
+      'A failed refresh records feed-unavailable and leaves the promoted Neon copy untouched; serving never calls anoik.is.',
+    telemetryFields: "'cron_wh_statics' (unchanged / feed-unavailable / snapshot-pending).",
   },
 };

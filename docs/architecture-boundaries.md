@@ -97,13 +97,14 @@ implementation by importing
 authentication pointed downward while composition wires the participating
 capabilities above it.
 
-Server-only ownership is declared with the `server-only` marker in exactly four
+Server-only ownership is declared with the `server-only` marker in exactly five
 modules:
 
 - `src/platform/auth/auth.ts`
 - `src/platform/auth/eve-sso.ts`
 - `src/lib/rate-limit.ts`
 - `src/data/gsc/source.ts`
+- `src/data/wh-statics/source.ts`
 
 The marker protects client import graphs. The lint policy carries narrow
 runtime exemptions where a server module is owned by a different executable

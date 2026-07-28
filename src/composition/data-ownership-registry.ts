@@ -29,6 +29,7 @@ type SliceId =
   | 'data/maps'
   | 'data/preferences'
   | 'data/telemetry'
+  | 'data/wh-statics'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
@@ -877,5 +878,28 @@ export const DATA_OWNERSHIP = [
       note: 'Append-only: one insert per emitted event, plus the retention prune. Emission is deliberately outside the emitting write\'s failure path, so an event is only emitted once that write has stood.',
     },
     dataClass: 'operational',
+  },
+
+  // ---------------------------------------------------------------------------
+  // data/wh-statics — community wormhole statics holding pen + promoted copy.
+  // ---------------------------------------------------------------------------
+  {
+    table: schema.whStaticsSnapshots,
+    owner: 'data/wh-statics',
+    reads: 'open',
+    invariants: ['pk(id)'],
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'Inserting a pending snapshot supersedes every prior pending row in the same transaction, then inserts the new pending row. Promote and reject each update one pending row in a single statement; prune deletes aged non-pending rows.',
+    },
+    dataClass: 'operational',
+  },
+  {
+    table: schema.whSystemStatics,
+    owner: 'data/wh-statics',
+    reads: 'open',
+    invariants: ['pk(system_id,code)'],
+    boundary: REPLACE_ALL,
+    dataClass: 'global-reference',
   },
 ] as const satisfies readonly DataOwnershipEntry[];
