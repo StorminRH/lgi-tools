@@ -16,6 +16,8 @@ import {
 } from '@/data/gsc/queries';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { pruneUsageLogs } from '@/data/telemetry/queries';
+import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
+import { pruneWhStaticsSnapshots } from '@/data/wh-statics/queries';
 import { db } from '@/db';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { pruneEsiSnapshots } from '@/composition/pipelines/esi-snapshot-retention';
@@ -85,6 +87,10 @@ export const refreshGscDeclaration: CronRouteDeclaration<CronRefreshGscResponse>
     await swallow(
       '[cron:gsc] ESI refresh job prune failed',
       pruneEsiRefreshJobs(db, ESI_REFRESH_JOB_RETENTION_DAYS),
+    );
+    await swallow(
+      '[cron:gsc] wormhole statics snapshot prune failed',
+      pruneWhStaticsSnapshots(db, WH_STATICS_SNAPSHOT_RETENTION_DAYS),
     );
 
     const sitemapUrls = (await getSitemapEntries()).map((entry) => entry.url);

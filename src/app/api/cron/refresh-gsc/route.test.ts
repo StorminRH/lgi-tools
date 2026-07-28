@@ -9,6 +9,7 @@ const pruneAuditMock = vi.fn();
 const pruneVerificationMock = vi.fn();
 const pruneSnapshotsMock = vi.fn();
 const pruneRefreshJobsMock = vi.fn();
+const pruneWhStaticsMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const getSitemapEntriesMock = vi.fn();
 
@@ -44,6 +45,10 @@ vi.mock('@/composition/pipelines/esi-snapshot-retention', () => ({
 
 vi.mock('@/data/esi-refresh-jobs/queries', () => ({
   pruneEsiRefreshJobs: (...args: unknown[]) => pruneRefreshJobsMock(...args),
+}));
+
+vi.mock('@/data/wh-statics/queries', () => ({
+  pruneWhStaticsSnapshots: (...args: unknown[]) => pruneWhStaticsMock(...args),
 }));
 
 vi.mock('@/db', () => ({ db: {}, directClient: {} }));
@@ -88,6 +93,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     pruneVerificationMock.mockReset();
     pruneSnapshotsMock.mockReset();
     pruneRefreshJobsMock.mockReset();
+    pruneWhStaticsMock.mockReset();
     logUsageEventMock.mockReset();
     getSitemapEntriesMock.mockReset();
     syncGscMock.mockResolvedValue({
@@ -107,6 +113,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     pruneVerificationMock.mockResolvedValue(undefined);
     pruneSnapshotsMock.mockResolvedValue(undefined);
     pruneRefreshJobsMock.mockResolvedValue(undefined);
+    pruneWhStaticsMock.mockResolvedValue(undefined);
     logUsageEventMock.mockResolvedValue(undefined);
     getSitemapEntriesMock.mockResolvedValue([{ url: 'https://lgi.tools/' }]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -133,6 +140,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     expect(pruneVerificationMock).toHaveBeenCalledOnce();
     expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
     expect(pruneRefreshJobsMock).toHaveBeenCalledOnce();
+    expect(pruneWhStaticsMock).toHaveBeenCalledOnce();
   });
 
   it('runs every prune before an upstream sitemap failure escapes', async () => {
@@ -151,6 +159,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     expect(pruneVerificationMock).toHaveBeenCalledOnce();
     expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
     expect(pruneRefreshJobsMock).toHaveBeenCalledOnce();
+    expect(pruneWhStaticsMock).toHaveBeenCalledOnce();
     expect(syncGscMock).not.toHaveBeenCalled();
   });
 });
