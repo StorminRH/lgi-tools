@@ -70,6 +70,12 @@ async function importRoute() {
   return import('./route');
 }
 
+const BASELINE = { etag: '"feed-10"', latestSnapshotId: 11 } as const;
+
+function probeResolves(feed: unknown): void {
+  probeMock.mockResolvedValue({ feed, baseline: BASELINE });
+}
+
 describe('GET /api/cron/refresh-wh-statics', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -90,7 +96,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
   });
 
   it('finishes an unchanged conditional probe before reserving the lock', async () => {
-    probeMock.mockResolvedValue({ status: 'unchanged' });
+    probeResolves({ status: 'unchanged' });
     const { GET } = await importRoute();
     const response = await GET(authedRequest());
 
@@ -104,7 +110,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
   });
 
   it('records feed unavailability without touching the promoted copy', async () => {
-    probeMock.mockResolvedValue({
+    probeResolves({
       status: 'unavailable',
       reason: 'anoik.is request failed: offline',
     });
@@ -169,7 +175,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
         sourceSnapshotId: snapshot.id,
       });
       const before = await readSystemStatics(harness.db);
-      probeMock.mockResolvedValue({
+      probeResolves({
         status: 'unavailable',
         reason: 'anoik.is request failed: offline',
       });
@@ -202,7 +208,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       totalDifferences: 0,
       disagreementCount: 0,
     } as const;
-    probeMock.mockResolvedValue(feed);
+    probeResolves(feed);
     recordChangedMock.mockResolvedValue(result);
     const { GET } = await importRoute();
     const response = await GET(authedRequest());
@@ -211,6 +217,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     expect(recordChangedMock).toHaveBeenCalledWith(
       { client: { reserve: expect.any(Function) } },
       feed,
+      BASELINE,
     );
     expect(releaseMock).toHaveBeenCalledOnce();
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -231,7 +238,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       etag: '"feed-11"',
       lastModified: 'Sun, 05 Jan 2025 10:21:29 GMT',
     } as const;
-    probeMock.mockResolvedValue(feed);
+    probeResolves(feed);
     recordChangedMock.mockResolvedValue({ status: 'unchanged' });
     const { GET } = await importRoute();
     const response = await GET(authedRequest());
@@ -240,6 +247,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     expect(recordChangedMock).toHaveBeenCalledWith(
       { client: { reserve: expect.any(Function) } },
       feed,
+      BASELINE,
     );
     expect(releaseMock).toHaveBeenCalledOnce();
     expect(logUsageEventMock).toHaveBeenCalledWith({
@@ -248,9 +256,28 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     });
   });
 
+  it('reports a stale observation when a newer snapshot was recorded first', async () => {
+    const feed = {
+      status: 'changed',
+      body: '{"version":10}',
+      etag: '"feed-10"',
+      lastModified: null,
+    } as const;
+    probeResolves(feed);
+    recordChangedMock.mockResolvedValue({ status: 'stale-observation' });
+    const { GET } = await importRoute();
+    const response = await GET(authedRequest());
+
+    expect(await response.json()).toEqual({ status: 'stale-observation' });
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'cron_wh_statics',
+      metadata: expect.objectContaining({ outcome: 'stale-observation' }),
+    });
+  });
+
   it('returns busy without writing when another refresh holds the lock', async () => {
     lockGot = false;
-    probeMock.mockResolvedValue({
+    probeResolves({
       status: 'changed',
       body: '{}',
       etag: '"changed"',

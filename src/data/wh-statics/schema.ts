@@ -44,10 +44,19 @@ export interface WhStaticsChangedSystem {
   readonly after: readonly string[];
 }
 
+/**
+ * One system present on only one side of a difference, carrying the complete
+ * code set the operator is authorizing or losing.
+ */
+export interface WhStaticsSystemCodes {
+  readonly systemId: number;
+  readonly codes: readonly string[];
+}
+
 /** Complete difference summary stored with a pending statics snapshot. */
 export interface WhStaticsDiff {
-  readonly systemsAdded: readonly number[];
-  readonly systemsRemoved: readonly number[];
+  readonly systemsAdded: readonly WhStaticsSystemCodes[];
+  readonly systemsRemoved: readonly WhStaticsSystemCodes[];
   readonly systemsChanged: readonly WhStaticsChangedSystem[];
   readonly codesAdded: readonly string[];
   readonly codesRemoved: readonly string[];

@@ -14,12 +14,13 @@ import { diffStatics } from '@/data/wh-statics/diff';
 import { readPathfinderLineage } from '@/data/wh-statics/lineage';
 import { parseStaticsPayload } from '@/data/wh-statics/parse';
 import {
-  getLatestSnapshotEtag,
   getPendingWhStaticsReview,
+  getSnapshotProbeBaseline,
   promoteSnapshot,
   readPromotedWhStaticsAssignments,
   recordSnapshot,
   rejectSnapshot,
+  type WhStaticsProbeBaseline,
 } from '@/data/wh-statics/queries';
 import {
   fetchStaticsFeed,
@@ -32,13 +33,21 @@ export type ChangedWhStaticsFeed = Extract<
   { status: 'changed' }
 >;
 
+/** One pre-lock probe: the feed response and the snapshot state it was read against. */
+export interface WhStaticsProbe {
+  readonly feed: StaticsFeedResult;
+  readonly baseline: WhStaticsProbeBaseline;
+}
+
 /**
- * Performs the shared conditional feed probe before any advisory lock is held.
+ * Performs the shared conditional feed probe before any advisory lock is held,
+ * retaining the snapshot baseline the response must still match to be recorded.
  */
 export async function probeWhStaticsRefresh(
   database: AnyPgDb,
-): Promise<StaticsFeedResult> {
-  return fetchStaticsFeed(await getLatestSnapshotEtag(database));
+): Promise<WhStaticsProbe> {
+  const baseline = await getSnapshotProbeBaseline(database);
+  return { feed: await fetchStaticsFeed(baseline.etag), baseline };
 }
 
 /**
@@ -48,8 +57,12 @@ export async function probeWhStaticsRefresh(
 export async function recordChangedWhStaticsFeed(
   database: PostgresJsDb,
   feed: ChangedWhStaticsFeed,
+  baseline: WhStaticsProbeBaseline,
 ): Promise<
-  Extract<WhStaticsRefreshResult, { status: 'snapshot-pending' | 'unchanged' }>
+  Extract<
+    WhStaticsRefreshResult,
+    { status: 'snapshot-pending' | 'unchanged' | 'stale-observation' }
+  >
 > {
   const parsed = parseStaticsPayload(feed.body);
   const [promoted, lineage, codex] = await Promise.all([
@@ -59,15 +72,18 @@ export async function recordChangedWhStaticsFeed(
   ]);
   const difference = diffStatics(promoted, parsed.entries);
   const crossCheck = crossCheckStatics(parsed.entries, lineage, codex);
-  const { snapshotId, created } = await recordSnapshot(database, {
+  const record = await recordSnapshot(database, {
     feedVersion: parsed.feedVersion,
     etag: feed.etag,
     lastModified: feed.lastModified,
+    baseline,
     entries: parsed.entries,
     difference,
     crossCheck,
   });
-  if (!created) return { status: 'unchanged' };
+  if (record.recorded === 'duplicate') return { status: 'unchanged' };
+  if (record.recorded === 'stale') return { status: 'stale-observation' };
+  const { snapshotId } = record;
   return {
     status: 'snapshot-pending',
     snapshotId,
@@ -85,7 +101,7 @@ export async function recordChangedWhStaticsFeed(
  */
 export async function refreshWhStaticsOnDemand(): Promise<WhStaticsRefreshResult> {
   const probeDatabase = drizzle(directClient);
-  const feed = await probeWhStaticsRefresh(probeDatabase);
+  const { feed, baseline } = await probeWhStaticsRefresh(probeDatabase);
   if (feed.status === 'unchanged') return { status: 'unchanged' };
   if (feed.status === 'unavailable') {
     return { status: 'feed-unavailable', reason: feed.reason };
@@ -94,7 +110,7 @@ export async function refreshWhStaticsOnDemand(): Promise<WhStaticsRefreshResult
   const outcome = await withAdvisoryLock(
     directClient,
     ADVISORY_LOCK_WH_STATICS_REFRESH,
-    () => recordChangedWhStaticsFeed(drizzle(directClient), feed),
+    () => recordChangedWhStaticsFeed(drizzle(directClient), feed, baseline),
   );
   return outcome.busy ? { status: 'busy' } : outcome.result;
 }

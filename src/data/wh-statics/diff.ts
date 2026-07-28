@@ -40,8 +40,8 @@ export function diffStatics(
 ): WhStaticsDiff {
   const promotedBySystem = codesBySystem(promoted);
   const incomingBySystem = codesBySystem(incoming);
-  const systemsAdded: number[] = [];
-  const systemsRemoved: number[] = [];
+  const systemsAdded: WhStaticsDiff['systemsAdded'][number][] = [];
+  const systemsRemoved: WhStaticsDiff['systemsRemoved'][number][] = [];
   const systemsChanged: WhStaticsDiff['systemsChanged'][number][] = [];
   const systemIds = new Set([
     ...promotedBySystem.keys(),
@@ -52,9 +52,10 @@ export function diffStatics(
     const before = promotedBySystem.get(systemId);
     const after = incomingBySystem.get(systemId);
     if (before === undefined) {
-      systemsAdded.push(systemId);
+      // `after` is defined by construction: the id came from one of the two maps.
+      systemsAdded.push({ systemId, codes: sortedCodes(after!) });
     } else if (after === undefined) {
-      systemsRemoved.push(systemId);
+      systemsRemoved.push({ systemId, codes: sortedCodes(before) });
     } else if (!sameCodes(before, after)) {
       systemsChanged.push({
         systemId,

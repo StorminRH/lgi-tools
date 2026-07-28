@@ -21,6 +21,7 @@ export type WhStaticsRefreshResult =
   | { readonly status: 'unchanged' }
   | { readonly status: 'feed-unavailable'; readonly reason: string }
   | { readonly status: 'busy' }
+  | { readonly status: 'stale-observation' }
   | {
       readonly status: 'snapshot-pending';
       readonly snapshotId: number;

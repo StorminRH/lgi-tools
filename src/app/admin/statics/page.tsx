@@ -14,6 +14,7 @@ import {
   getSystemStatics,
   type PendingWhStaticsReview,
 } from '@/data/wh-statics/queries';
+import type { WhStaticsSystemCodes } from '@/data/wh-statics/schema';
 import { requireAdminPage } from '@/platform/auth/route-guards';
 
 const OUTCOME_LABELS: Readonly<Record<string, string>> = {
@@ -22,6 +23,8 @@ const OUTCOME_LABELS: Readonly<Record<string, string>> = {
   promoted: 'The pending statics snapshot was promoted.',
   rejected: 'The pending statics snapshot was rejected.',
   'snapshot-pending': 'A changed feed was recorded for review.',
+  'stale-observation':
+    'A newer feed observation was already recorded; the pending snapshot was left alone.',
   unchanged: 'The community feed is unchanged.',
 };
 
@@ -77,6 +80,24 @@ function NumberList({ values }: { values: readonly number[] }) {
   );
 }
 
+function SystemCodeList({
+  systems,
+}: {
+  systems: readonly WhStaticsSystemCodes[];
+}) {
+  return systems.length === 0 ? (
+    <p className="font-ui text-ui text-muted">None.</p>
+  ) : (
+    <ul className="max-h-64 space-y-1 overflow-y-auto font-data text-ui text-text">
+      {systems.map((system) => (
+        <li key={system.systemId}>
+          {system.systemId}: {system.codes.join(', ') || 'none'}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function DifferenceDetails({
   snapshot,
 }: {
@@ -85,6 +106,7 @@ function DifferenceDetails({
   const { difference } = snapshot;
   return (
     <Collapsible
+      defaultOpen
       header={
         <span className="font-ui text-ui text-text">
           Complete assignment difference ({difference.totalDifferences})
@@ -93,12 +115,16 @@ function DifferenceDetails({
     >
       <div className="grid gap-5 px-4 py-4 md:grid-cols-2">
         <div>
-          <h3 className="mb-2 font-ui text-ui text-muted">Systems added</h3>
-          <NumberList values={difference.systemsAdded} />
+          <h3 className="mb-2 font-ui text-ui text-muted">
+            Systems added, with the codes they gain
+          </h3>
+          <SystemCodeList systems={difference.systemsAdded} />
         </div>
         <div>
-          <h3 className="mb-2 font-ui text-ui text-muted">Systems removed</h3>
-          <NumberList values={difference.systemsRemoved} />
+          <h3 className="mb-2 font-ui text-ui text-muted">
+            Systems removed, with the codes they lose
+          </h3>
+          <SystemCodeList systems={difference.systemsRemoved} />
         </div>
         <div className="md:col-span-2">
           <h3 className="mb-2 font-ui text-ui text-muted">Systems changed</h3>
@@ -140,6 +166,7 @@ function LineageDetails({
   const { crossCheck } = snapshot;
   return (
     <Collapsible
+      defaultOpen
       header={
         <span className="font-ui text-ui text-text">
           Complete lineage comparison (

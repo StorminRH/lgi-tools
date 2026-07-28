@@ -7,10 +7,12 @@ import {
 } from '@/composition/wh-statics-refresh';
 import type { CronRefreshWhStaticsResponse } from '@/data/wh-statics/api-contract';
 import { ADVISORY_LOCK_WH_STATICS_REFRESH } from '@/data/wh-statics/constants';
+import type { WhStaticsProbeBaseline } from '@/data/wh-statics/queries';
 
 /** Changed feed state passed from the pre-lock probe into locked cron work. */
 export interface WhStaticsPreLock {
   readonly feed: ChangedWhStaticsFeed;
+  readonly baseline: WhStaticsProbeBaseline;
 }
 
 /**
@@ -28,14 +30,14 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
   record: {
     policy: 'always',
     justification:
-      'weekly batch preserves every unchanged, feed-unavailable, and snapshot-pending outcome for operator review',
+      'weekly batch preserves every unchanged, feed-unavailable, stale-observation, and snapshot-pending outcome for operator review',
   },
   lock: {
     key: ADVISORY_LOCK_WH_STATICS_REFRESH,
     busyBody: () => ({ status: 'busy' }),
   },
   preLock: async ({ client }) => {
-    const feed = await probeWhStaticsRefresh(drizzle(client));
+    const { feed, baseline } = await probeWhStaticsRefresh(drizzle(client));
     if (feed.status === 'unchanged') {
       return {
         done: {
@@ -55,18 +57,22 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
         },
       };
     }
-    return { proceed: { feed } };
+    return { proceed: { feed, baseline } };
   },
-  work: async ({ client, reserved }, { feed }) => {
+  work: async ({ client, reserved }, { feed, baseline }) => {
     if (reserved === undefined) {
       throw new Error('Statics refresh reached work without a reserved lock connection.');
     }
     // The shell holds the advisory lock on its reserved session while the
     // transactional snapshot write uses the shared direct postgres-js pool.
-    const result = await recordChangedWhStaticsFeed(drizzle(client), feed);
-    if (result.status === 'unchanged') {
+    const result = await recordChangedWhStaticsFeed(
+      drizzle(client),
+      feed,
+      baseline,
+    );
+    if (result.status !== 'snapshot-pending') {
       return {
-        outcome: 'unchanged',
+        outcome: result.status,
         workDone: false,
         body: result,
       };

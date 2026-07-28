@@ -18,8 +18,11 @@ describe('diffStatics', () => {
         ],
       ),
     ).toEqual({
-      systemsAdded: [3],
-      systemsRemoved: [2, 4],
+      systemsAdded: [{ systemId: 3, codes: ['D004'] }],
+      systemsRemoved: [
+        { systemId: 2, codes: ['C003'] },
+        { systemId: 4, codes: ['X999'] },
+      ],
       systemsChanged: [
         {
           systemId: 1,
@@ -31,6 +34,26 @@ describe('diffStatics', () => {
       codesRemoved: ['B002', 'X999'],
       totalDifferences: 4,
     });
+  });
+
+  it('carries every code an added or removed system gains or loses', () => {
+    const difference = diffStatics(
+      [
+        { systemId: 1, code: 'B449' },
+        { systemId: 1, code: 'A641' },
+      ],
+      [
+        { systemId: 2, code: 'N766' },
+        { systemId: 2, code: 'C247' },
+      ],
+    );
+
+    expect(difference.systemsAdded).toEqual([
+      { systemId: 2, codes: ['C247', 'N766'] },
+    ]);
+    expect(difference.systemsRemoved).toEqual([
+      { systemId: 1, codes: ['A641', 'B449'] },
+    ]);
   });
 
   it('deduplicates assignments and returns zero for equivalent sets', () => {

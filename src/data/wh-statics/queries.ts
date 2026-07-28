@@ -24,15 +24,35 @@ import {
   type WhStaticsSnapshotStatus,
 } from './schema';
 
+/**
+ * Snapshot-table state observed by the pre-lock probe. The ETag conditions the
+ * feed request; the newest snapshot id is the compare-and-swap baseline that
+ * keeps a slow refresh from superseding a newer observation.
+ */
+export interface WhStaticsProbeBaseline {
+  readonly etag: string | null;
+  readonly latestSnapshotId: number | null;
+}
+
 /** Complete validated material required to record one pending statics snapshot. */
 export interface RecordWhStaticsSnapshotInput {
   readonly feedVersion: string;
   readonly etag: string | null;
   readonly lastModified: string | null;
+  readonly baseline: WhStaticsProbeBaseline;
   readonly entries: readonly WhStaticEntry[];
   readonly difference: WhStaticsDiff;
   readonly crossCheck: WhStaticsCrossCheck;
 }
+
+/**
+ * Outcome of one snapshot write: a new pending row, the identical observation
+ * already on record, or a response older than the recorded snapshot table.
+ */
+export type RecordWhStaticsSnapshotResult =
+  | { readonly recorded: 'created'; readonly snapshotId: number }
+  | { readonly recorded: 'duplicate'; readonly snapshotId: number }
+  | { readonly recorded: 'stale'; readonly snapshotId: number };
 
 /** Summary of one operator-approved snapshot promotion. */
 export interface PromoteWhStaticsResult {
@@ -132,24 +152,22 @@ function pendingSnapshotOrThrow<T extends { status: WhStaticsSnapshotStatus }>(
   return snapshot;
 }
 
+interface LatestSnapshotRow {
+  readonly id: number;
+  readonly etag: string | null;
+  readonly digest: string;
+  readonly status: WhStaticsSnapshotStatus;
+}
+
+/**
+ * Whether the newest row already holds this observation. A rejected row never
+ * matches, so the operator can reconsider the same feed body later.
+ */
 function isSameObservation(
-  latest:
-    | {
-        id: number;
-        etag: string | null;
-        digest: string;
-        status: WhStaticsSnapshotStatus;
-      }
-    | undefined,
+  latest: LatestSnapshotRow,
   etag: string | null,
   digest: string,
-): latest is {
-  id: number;
-  etag: string | null;
-  digest: string;
-  status: WhStaticsSnapshotStatus;
-} {
-  if (latest === undefined) return false;
+): boolean {
   if (latest.status === 'rejected') return false;
   return latest.etag === etag && latest.digest === digest;
 }
@@ -162,13 +180,14 @@ function insertedSnapshotId(inserted: { id: number } | undefined): number {
 }
 
 /**
- * Serializes writers, reuses an identical latest observation, or supersedes
- * the prior pending snapshot and inserts one canonical replacement atomically.
+ * Serializes writers, reuses an identical latest observation, refuses a
+ * response older than the recorded table, or supersedes the prior pending
+ * snapshot and inserts one canonical replacement atomically.
  */
 export function recordSnapshot(
   database: PostgresJsDb,
   input: RecordWhStaticsSnapshotInput,
-): Promise<{ snapshotId: number; created: boolean }> {
+): Promise<RecordWhStaticsSnapshotResult> {
   const entries = canonicalEntries(input.entries);
   const digest = entriesDigest(entries);
   return database.transaction(async (transaction) => {
@@ -185,8 +204,18 @@ export function recordSnapshot(
       .from(whStaticsSnapshots)
       .orderBy(desc(whStaticsSnapshots.id))
       .limit(1);
-    if (isSameObservation(latest, input.etag, digest)) {
-      return { snapshotId: latest.id, created: false };
+    if (latest !== undefined) {
+      if (isSameObservation(latest, input.etag, digest)) {
+        return { recorded: 'duplicate', snapshotId: latest.id };
+      }
+      // Compare and swap on the probe's baseline. Snapshot ids are monotonic,
+      // so a higher id means another refresh recorded a newer observation
+      // while this response was in flight and this older body must not
+      // supersede it. A lower id only means retention pruned history, which
+      // leaves this observation current.
+      if (latest.id > (input.baseline.latestSnapshotId ?? 0)) {
+        return { recorded: 'stale', snapshotId: latest.id };
+      }
     }
     await transaction
       .update(whStaticsSnapshots)
@@ -206,21 +235,35 @@ export function recordSnapshot(
         crossCheck: input.crossCheck,
       })
       .returning({ id: whStaticsSnapshots.id });
-    return { snapshotId: insertedSnapshotId(inserted), created: true };
+    return { recorded: 'created', snapshotId: insertedSnapshotId(inserted) };
   });
 }
 
-/** Returns the newest observed feed ETag for the next conditional refresh probe. */
-export async function getLatestSnapshotEtag(
+/**
+ * Reads the conditional-request ETag and the compare-and-swap baseline in one
+ * pass. The ETag ignores rejected rows so a rejected feed stays reviewable,
+ * while the baseline id tracks every row so any concurrent write is visible.
+ */
+export async function getSnapshotProbeBaseline(
   database: AnyPgDb,
-): Promise<string | null> {
-  const [snapshot] = await database
-    .select({ etag: whStaticsSnapshots.etag })
-    .from(whStaticsSnapshots)
-    .where(ne(whStaticsSnapshots.status, 'rejected'))
-    .orderBy(desc(whStaticsSnapshots.id))
-    .limit(1);
-  return snapshot?.etag ?? null;
+): Promise<WhStaticsProbeBaseline> {
+  const [latestRows, conditionalRows] = await Promise.all([
+    database
+      .select({ id: whStaticsSnapshots.id })
+      .from(whStaticsSnapshots)
+      .orderBy(desc(whStaticsSnapshots.id))
+      .limit(1),
+    database
+      .select({ etag: whStaticsSnapshots.etag })
+      .from(whStaticsSnapshots)
+      .where(ne(whStaticsSnapshots.status, 'rejected'))
+      .orderBy(desc(whStaticsSnapshots.id))
+      .limit(1),
+  ]);
+  return {
+    etag: conditionalRows[0]?.etag ?? null,
+    latestSnapshotId: latestRows[0]?.id ?? null,
+  };
 }
 
 /** Returns the single pending snapshot, if any, for operator review. */

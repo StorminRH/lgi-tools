@@ -4,7 +4,7 @@ import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 import {
   promoteSnapshot,
   pruneWhStaticsSnapshots,
-  getLatestSnapshotEtag,
+  getSnapshotProbeBaseline,
   readSystemStatics,
   recordSnapshot,
   rejectSnapshot,
@@ -86,6 +86,7 @@ describe.skipIf(!harness.reachable)(
         feedVersion: '10',
         etag: '"old"',
         lastModified: null,
+        baseline: { etag: null, latestSnapshotId: null },
         entries: [
           { systemId: 2, systemName: 'J000002', code: 'B002' },
         ],
@@ -96,6 +97,7 @@ describe.skipIf(!harness.reachable)(
         feedVersion: '11',
         etag: '"new"',
         lastModified: 'Sun, 05 Jan 2025 10:21:29 GMT',
+        baseline: { etag: '"old"', latestSnapshotId: first.snapshotId },
         entries: [
           { systemId: 2, systemName: 'J000002', code: 'B002' },
           { systemId: 1, systemName: 'J000001', code: 'A001' },
@@ -136,6 +138,7 @@ describe.skipIf(!harness.reachable)(
         feedVersion: '11',
         etag: '"same"',
         lastModified: 'Sun, 05 Jan 2025 10:21:29 GMT',
+        baseline: { etag: null, latestSnapshotId: null },
         entries: [
           { systemId: 1, systemName: 'J000001', code: 'A001' },
           { systemId: 2, systemName: 'J000002', code: 'B002' },
@@ -150,13 +153,82 @@ describe.skipIf(!harness.reachable)(
       ]);
 
       expect(new Set(results.map((result) => result.snapshotId)).size).toBe(1);
-      expect(results.map((result) => result.created).sort()).toEqual([
-        false,
-        true,
+      expect(results.map((result) => result.recorded).sort()).toEqual([
+        'created',
+        'duplicate',
       ]);
       await expect(
         harness.db.select().from(whStaticsSnapshots),
       ).resolves.toHaveLength(1);
+    });
+
+    it('refuses to supersede a snapshot recorded after the probe baseline', async () => {
+      const staleBaseline = { etag: null, latestSnapshotId: null } as const;
+      const newer = await recordSnapshot(harness.db, {
+        feedVersion: '12',
+        etag: '"newer"',
+        lastModified: null,
+        baseline: staleBaseline,
+        entries: [{ systemId: 1, systemName: 'J000001', code: 'A001' }],
+        difference: EMPTY_DIFF,
+        crossCheck: AGREEMENT,
+      });
+
+      // A refresh that probed before `newer` existed now tries to record an
+      // older feed body against the same baseline.
+      await expect(
+        recordSnapshot(harness.db, {
+          feedVersion: '11',
+          etag: '"older"',
+          lastModified: null,
+          baseline: staleBaseline,
+          entries: [{ systemId: 2, systemName: 'J000002', code: 'B002' }],
+          difference: EMPTY_DIFF,
+          crossCheck: AGREEMENT,
+        }),
+      ).resolves.toEqual({ recorded: 'stale', snapshotId: newer.snapshotId });
+
+      const snapshots = await harness.db
+        .select({
+          id: whStaticsSnapshots.id,
+          status: whStaticsSnapshots.status,
+          etag: whStaticsSnapshots.etag,
+        })
+        .from(whStaticsSnapshots);
+      expect(snapshots).toEqual([
+        { id: newer.snapshotId, status: 'pending', etag: '"newer"' },
+      ]);
+      await expect(getSnapshotProbeBaseline(harness.db)).resolves.toEqual({
+        etag: '"newer"',
+        latestSnapshotId: newer.snapshotId,
+      });
+    });
+
+    it('still records when retention pruned the baseline snapshot away', async () => {
+      const prunedId = await insertSnapshot({
+        status: 'superseded',
+        etag: '"pruned"',
+      });
+      await harness.db
+        .delete(whStaticsSnapshots)
+        .where(eq(whStaticsSnapshots.id, prunedId));
+
+      await expect(
+        recordSnapshot(harness.db, {
+          feedVersion: '11',
+          etag: '"current"',
+          lastModified: null,
+          baseline: { etag: '"pruned"', latestSnapshotId: prunedId },
+          entries: [
+            { systemId: 31_000_001, systemName: 'J000001', code: 'A001' },
+          ],
+          difference: EMPTY_DIFF,
+          crossCheck: AGREEMENT,
+        }),
+      ).resolves.toEqual({
+        recorded: 'created',
+        snapshotId: expect.any(Number),
+      });
     });
 
     it('promotes once, replaces the serving copy, and refuses a second promote', async () => {
@@ -250,14 +322,18 @@ describe.skipIf(!harness.reachable)(
       await expect(rejectSnapshot(harness.db, snapshotId)).rejects.toBeInstanceOf(
         WhStaticsSnapshotStateError,
       );
-      await expect(getLatestSnapshotEtag(harness.db)).resolves.toBe(
-        '"accepted"',
-      );
+      // The conditional ETag skips the rejected row, but the baseline id still
+      // tracks it so a genuinely concurrent write stays detectable.
+      await expect(getSnapshotProbeBaseline(harness.db)).resolves.toEqual({
+        etag: '"accepted"',
+        latestSnapshotId: snapshotId,
+      });
       await expect(
         recordSnapshot(harness.db, {
           feedVersion: '11',
           etag: '"rejected"',
           lastModified: null,
+          baseline: { etag: '"accepted"', latestSnapshotId: snapshotId },
           entries: [
             { systemId: 31_000_001, systemName: 'J000001', code: 'A001' },
           ],
@@ -265,8 +341,8 @@ describe.skipIf(!harness.reachable)(
           crossCheck: AGREEMENT,
         }),
       ).resolves.toEqual({
+        recorded: 'created',
         snapshotId: expect.any(Number),
-        created: true,
       });
       expect(await harness.db.select().from(whSystemStatics)).toEqual([]);
     });

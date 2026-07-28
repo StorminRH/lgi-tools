@@ -279,6 +279,6 @@ export const vendorResilienceRegistry: Record<
     degradation:
       'Network, timeout and non-200 outcomes become feed-unavailable while the last promoted Neon copy keeps serving.',
     telemetryFields:
-      "'cron_wh_statics' outcomes (unchanged, feed-unavailable, snapshot-pending).",
+      "'cron_wh_statics' outcomes (unchanged, feed-unavailable, stale-observation, snapshot-pending).",
   },
 };
