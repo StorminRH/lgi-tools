@@ -1,8 +1,8 @@
 # Adversarial-review procedure
 
 Review one complete plan, implementation diff, or pull request with independent
-models, verify every reported defect, and return one reconciled result plus one
-executable fix prompt when work remains. Keep the review read-only.
+models, verify every reported defect, and return one concise reconciled result.
+Keep the review read-only.
 
 Planning workflows may invoke **Plan mode** before approval. `close-out` invokes
 **Diff mode** before its final definition-of-done checkpoint. An operator may
@@ -24,10 +24,8 @@ Select exactly one review mode:
 Required outputs:
 
 1. One result using the exact form under **Return the result**.
-2. One reconciled ledger containing only verified findings and explicit
-   rejections.
-3. When an actionable defect remains, exactly one fenced, self-contained prompt
-   for the owning planning or implementation workflow.
+2. One compact reconciled ledger containing only verified root causes and the
+   explicit rejections needed to preserve deliberate behavior.
 
 Return `BLOCKED` when the subject is incomplete or changes during review, its
 authority is ambiguous, the required Cursor reviewers cannot run, or evidence
@@ -64,14 +62,13 @@ authority.
    - **Committed diff:** record the full base and head SHAs.
    - **Working-tree diff:** write the complete tracked patch and untracked-file
      inventory to temporary storage outside the repository, record the base SHA
-     and patch SHA-256, and require the worktree to remain unchanged until both
-     reviewers finish.
+     and patch SHA-256, and require the worktree to remain unchanged until all
+     selected reviewers finish.
    - **PR:** record the repository, PR number, base SHA, and exact head SHA.
 3. Map each plan outcome or logical change group to its direct request or owning
    lifecycle artifact. Stop if any group lacks authority.
 4. Inventory only the source, tests, tooling, configuration, and prose relevant
-   to the subject. Identify the highest-risk logical area for the execution
-   reviewer.
+   to the subject. Rank the logical areas by risk for Composer scope selection.
 5. Reuse supplied verification only when it names the frozen subject and still
    matches the repository's current command. Run a gate only when the invoking
    workflow authorizes it; otherwise record the evidence gap for verification.
@@ -79,10 +76,22 @@ authority.
 Evidence: mode, stable subject identity, authority map, logical inventory,
 highest-risk area, and current verification or an explicit not-run reason.
 
-## 2. Build context-budgeted reviewer briefs
+## 2. Select scopes and build context-budgeted reviewer briefs
 
-Write two fresh briefs to a temporary directory outside the repository. Both
-briefs include:
+Choose one to three bounded Composer scopes from the logical inventory:
+
+- Use one for one small cohesive subject.
+- Use two when two materially distinct areas or risk classes exist.
+- Prefer three whenever the subject has at least three meaningful areas, is
+  cross-cutting, or is otherwise broad enough to give every seat a distinct
+  investigation.
+- Never add a seat that would merely repeat another Composer's primary scope.
+
+Freeze the selected count and scopes before launch. Once selected, every seat is
+required; a failed seat does not retroactively justify a smaller review.
+
+Write one fresh Grok brief and one fresh brief per selected Composer scope to a
+temporary directory outside the repository. Every brief includes:
 
 - the absolute repository path, review mode, stable subject identity, authority,
   and operator emphasis;
@@ -103,41 +112,44 @@ Load-bearing checks that held:
 ```
 
 Require `Findings: None` for a clean review. Do not disclose expected defects,
-the other reviewer's output, or the orchestrator's conclusions.
+another reviewer's output, or the orchestrator's conclusions.
 
-Keep the briefs surgical:
+Keep every brief surgical:
 
 1. Never paste the repository, dependency trees, generated output, or the full
    contents of every changed file into a prompt. Supply paths, hashes, and
    logical inventories so reviewers retrieve relevant evidence with tools.
-2. Give the **execution reviewer** the complete plan or change inventory, then
-   assign one bounded primary scope:
+2. Give each **Composer reviewer** the complete plan or change inventory, then
+   assign its one non-overlapping bounded primary scope:
    - in Plan mode, implementation feasibility, live-code assertions, ordered
      work, and verification proof;
    - in Diff or PR mode, the highest-risk logical area, its callers, contracts,
      and tests.
-3. Give the **holistic reviewer** the complete subject identity and authority.
+   Partition those concerns according to the subject instead of assigning fixed
+   generic roles that do not fit the change.
+3. Give the **Grok reviewer** the complete subject identity and authority.
    Focus it on missing outcomes, cross-area contradictions, failure paths,
    behavior drift, and stale-prompt implementation.
 4. Start fresh sessions. Do not resume an authoring session or carry unrelated
-   conversation history into either review.
+   conversation history into any review.
 
 ## 3. Run the independent model reviews
 
-Run exactly these default reviews concurrently:
+Run the selected reviews concurrently:
 
-1. **Execution reviewer:** Cursor Composer 2.5 Standard, using the bounded scope
-   above.
-2. **Holistic reviewer:** Cursor Grok 4.5 High, covering the complete subject
-   through targeted retrieval.
+1. **Scoped reviewers:** one to three independent Cursor Composer 2.5 Standard
+   sessions, each using one frozen bounded scope.
+2. **Holistic reviewer:** one Cursor Grok 4.5 High session covering the complete
+   subject through targeted retrieval.
 
-Both run through Cursor Agent in read-only mode, sandboxed, with structured
+All seats run through Cursor Agent in read-only mode, sandboxed, with structured
 output. They are independent fresh model sessions even when the invoking agent
-is Codex or Claude. Composer's narrower role and standard speed tier are
-deliberate cost and context controls; do not replace the two defaults with a
-fan-out of native subagents.
+is Codex or Claude. Composer's narrower roles and standard speed tier are
+deliberate cost and context controls. Do not replace or supplement these Cursor
+seats with native Codex or Claude subagents. The shared runner bounds each
+Cursor turn to 30 minutes and returns a blocking failure if a seat stalls.
 
-Treat each reviewer run as two turns in one Cursor session:
+Treat every reviewer seat as two turns in one Cursor session:
 
 1. Run the plan-mode investigation and capture its complete JSON result,
    including `session_id`.
@@ -152,12 +164,27 @@ write their verdict into a plan artifact instead of the initial transcript, so
 a completed investigation alone is not evidence that the verdict was
 collected.
 
+After all selected verdicts are collected, render exactly one compact receipt
+table before triage:
+
+```markdown
+| Reviewer | Assigned scope | Reported |
+|---|---|---:|
+| Grok 4.5 High | Holistic | <severity counts or Clean> |
+| Composer 2.5 #1 | <scope> | <severity counts or Clean> |
+```
+
+Add one sentence that triage is beginning. Report only each seat's `CLEAN` state
+or severity counts; do not quote, paraphrase, or enumerate its raw findings in
+chat. The raw collected verdicts remain review-local evidence for the
+orchestrator.
+
 On the first Cursor run in a repository, allow workspace trust only through an
 operator's interactive grant or the operator's explicit authorization to use
 `--trust` for that single invocation. Never add the flag silently or infer
 ongoing authorization from a prior run.
 
-When both turns complete without a parseable verdict, diagnose the invocation
+When either turn completes without a parseable result, diagnose the invocation
 against the captured JSON, installed CLI help, and current primary documentation
 before spending another run. Allow at most one diagnosed rerun per reviewer
 seat. If that rerun still produces no verdict, return `BLOCKED`.
@@ -165,13 +192,13 @@ seat. If that rerun still produces no verdict, return `BLOCKED`.
 Do not launch a duplicate automatic escalation review after the default Grok
 High seat. Treat these conditions as escalation triggers:
 
-- the default reviewers disagree about a high-blast-radius claim;
+- the selected reviewers disagree about a high-blast-radius claim;
 - a security, identity, destructive-data, migration, concurrency, or public
   contract finding cannot be verified directly;
 - the holistic reviewer reports that the complete subject exceeded reliable
   context; or
-- the subject was authored primarily by one default model and the other
-  reviewer cannot provide sufficient independent coverage.
+- the subject was authored primarily by one selected model family and the other
+  model family cannot provide sufficient independent coverage.
 
 First attempt to settle the claim from current source, primary documentation,
 tests, or observable behavior. If that evidence cannot settle it, return
@@ -179,9 +206,9 @@ tests, or observable behavior. If that evidence cannot settle it, return
 spending Codex or Claude capacity or rerunning the same Grok tier. Do not
 escalate merely because a default reviewer found an ordinary actionable defect.
 
-Evidence: each model id, assigned role and scope, investigation and collection
-completion states, collected verdict, and the exact escalation trigger and
-blocker or `Not used`.
+Evidence: selected seat count, each model id and scope, investigation and
+collection completion states, compact reported counts, and the exact escalation
+trigger and blocker or `Not used`.
 
 ## 4. Verify and reconcile
 
@@ -193,42 +220,28 @@ The orchestrating agent must:
    documentation, tests, or observable behavior.
 3. Deduplicate findings by root cause. Classify each accepted item exactly once
    as `BLOCKER`, `MAJOR`, or `MINOR`.
-4. Reject false positives explicitly and preserve deliberate behavior in the
-   rejection ledger.
+4. Reject false positives explicitly. Keep the full working ledger
+   review-local; carry a rejection into chat only when its concise do-not-change
+   reason is needed to preserve deliberate behavior.
 5. Confirm the smallest correction remains within the invoking workflow's
    authority and does not create a second owner, widen a public surface, weaken
    a gate, or change an approved outcome.
 6. Record which evidence a correction invalidates.
 7. Recheck the subject identity. Any unaccounted change during review invalidates
-   both verdicts and returns `BLOCKED`.
+   every verdict and returns `BLOCKED`.
 
 Return `CLEAN` only when no verified actionable finding remains and all required
-evidence is current. Return `FIX_ROUND_REQUIRED` when at least one verified,
-in-scope defect remains.
-
-## 5. Build the fix prompt
-
-For `FIX_ROUND_REQUIRED`, write exactly one fenced `text` block that an agent
-with no conversation context can execute. Include:
-
-1. repository, review mode, stable subject identity, authority, and intended
-   outcome;
-2. numbered corrections with exact locations, failure scenarios, and required
-   end states;
-3. the explicit rejected/do-not-change ledger;
-4. focused checks and every invalidated gate to rerun; and
-5. a stop condition for scope, architecture, authority, or subject drift.
-
-Address the prompt to the owning planning or implementation workflow. Do not
-authorize approval, commit, PR, merge, deployment, lifecycle mutation, or
-outward action.
+evidence is current. Return `CORRECTIONS_REQUIRED` when at least one verified,
+in-scope defect remains. In chat, list each accepted root cause once in a compact
+table; never repeat findings by reviewer. The invoking workflow retains the
+detailed review context and owns the correction directly.
 
 ## Return the result
 
 Apply `docs/workflows/schema/chat-result.md` to this exact field set:
 
 ```markdown
-## Adversarial review: `CLEAN` | `FIX_ROUND_REQUIRED` | `BLOCKED`
+## Adversarial review: `CLEAN` | `CORRECTIONS_REQUIRED` | `BLOCKED`
 
 - **Mode:** Plan | Diff | PR
 - **Subject:** <paths and digest, diff identity, or PR and exact head>
@@ -237,23 +250,28 @@ Apply `docs/workflows/schema/chat-result.md` to this exact field set:
 ### Review evidence
 
 - **Verification:** <current commands/results or explicit not-run reason>
-- **Execution reviewer:** <model, bounded scope, and verdict>
-- **Holistic reviewer:** <model, complete-subject verdict>
+- **Selected seats:** <one Grok plus one-to-three Composers and selection reason>
 - **Escalation:** <model, trigger, and verdict or Not used>
 - **Load-bearing checks:** <verified properties that held>
 
-### Findings
+| Reviewer | Assigned scope | Reported |
+|---|---|---:|
+| <model and seat> | <scope> | <severity counts or Clean> |
 
-- **Accepted:** <numbered severity ledger or None>
-- **Rejected:** <finding and reason or None>
+### Triage
+
+- **Disposition:** <reported count → accepted root causes, rejected reports, and deduplicated reports>
+
+| Severity | Location | Verified correction |
+|---|---|---|
+| <severity> | <subject location> | <smallest sufficient correction> |
+
+- **Rejected:** <concise do-not-change reasons needed to preserve deliberate behavior or None>
 - **Invalidated verification:** <checks a correction must rerun or None>
-
-### Fix prompt
-
-<one fenced text block or Not required>
 
 ### Next state
 
-- **Handoff:** <owning planning/implementation workflow or operator action>
+- **Caller action:** <continue, correct accepted root causes, or operator action>
+- **Review rerun:** <material-change trigger or Not required>
 - **Blocker:** <exact blocker or None>
 ```

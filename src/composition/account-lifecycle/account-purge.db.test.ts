@@ -2,6 +2,7 @@ import { eq, isNull } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usageLogs } from '@/data/telemetry/schema';
 import { userPreferences } from '@/data/preferences/schema';
+import { mapAccess, maps } from '@/data/maps/schema';
 import {
   createDbTestHarness,
   seedCharacter as insertCharacter,
@@ -25,6 +26,8 @@ const SECOND_CHAR = 90000042;
 
 const TABLE_NAMES = [
   'user',
+  'maps',
+  'map_access',
   'account',
   'characters',
   'session',
@@ -51,6 +54,20 @@ const harness = await createDbTestHarness({
   schema: SCHEMA,
   tables: TABLE_NAMES,
   foreignKeys: [
+    {
+      table: 'maps',
+      column: 'user_id',
+      refTable: 'user',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_access',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
     {
       table: 'account',
       column: 'user_id',
@@ -120,6 +137,25 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   }
 
   async function seedUserData() {
+    await harness.db.insert(maps).values({
+      id: '11111111-1111-4111-8111-111111111111',
+      userId: USER_ID,
+      name: 'Purge map',
+    });
+    await harness.db.insert(mapAccess).values([
+      {
+        mapId: '11111111-1111-4111-8111-111111111111',
+        ownerType: 'character',
+        ownerId: FIRST_CHAR,
+        role: 'editor',
+      },
+      {
+        mapId: '11111111-1111-4111-8111-111111111111',
+        ownerType: 'corporation',
+        ownerId: 98000041,
+        role: 'viewer',
+      },
+    ]);
     await harness.db.insert(userPreferences).values({
       userId: USER_ID,
       key: 'planner.default',
@@ -225,6 +261,10 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await harness.db.select().from(userPreferences)).toHaveLength(1);
     expect(await countClonedRows('custom_structures')).toBe(1);
     expect(await countClonedRows('saved_plans')).toBe(1);
+    expect(await harness.db.select().from(maps)).toHaveLength(1);
+    expect(await harness.db.select().from(mapAccess)).toMatchObject([
+      { ownerType: 'corporation', ownerId: 98000041 },
+    ]);
     expect(await harness.db.select().from(corpAccessAudit)).toHaveLength(1);
   });
 
@@ -274,6 +314,8 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
     expect(await harness.db.select().from(userPreferences)).toHaveLength(0);
     expect(await countClonedRows('custom_structures')).toBe(0);
     expect(await countClonedRows('saved_plans')).toBe(0);
+    expect(await harness.db.select().from(maps)).toHaveLength(0);
+    expect(await harness.db.select().from(mapAccess)).toHaveLength(0);
     expect(await harness.db.select().from(session)).toHaveLength(0);
     expect(await harness.db.select().from(user)).toHaveLength(0);
     expect(await harness.db.select().from(corpAccessAudit)).toHaveLength(1);

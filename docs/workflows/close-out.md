@@ -212,12 +212,12 @@ second coverage cycle.
    change. Supply the direct request or frozen contract-and-plan chain, the
    current base, the complete tracked patch and untracked inventory, focused and
    UX evidence, and the finalized delivery records from the preceding phase.
-2. Keep the worktree stable while the two Cursor reviewers run. The
-   adversarial-review procedure owns its context-bounded Composer execution
-   review, Grok High holistic review, evidence-first reconciliation, and
-   verified finding ledger. An escalation trigger that direct evidence cannot
-   settle returns `BLOCKED`; do not add native review subagents or another model
-   fan-out here.
+2. Keep the worktree stable while the selected Cursor reviewers run. The
+   adversarial-review procedure owns its one-to-three scoped Composer reviews,
+   Grok High holistic review, compact receipt, evidence-first reconciliation,
+   and verified root-cause ledger. An escalation trigger that direct evidence
+   cannot settle returns `BLOCKED`; do not add native review subagents or
+   another model fan-out here.
 3. Fix every accepted in-scope finding through the authority already held by
    close-out. Preserve the rejection/do-not-change ledger. A scope, architecture,
    public-surface, or authority conflict returns `BLOCKED`.
@@ -229,10 +229,10 @@ second coverage cycle.
    personally verified. The following full checkpoint validates the resulting
    final bytes.
 
-Phase evidence: reviewed working-tree base and patch digest, both default model
-verdicts, escalation trigger plus direct-evidence disposition or `Not used`,
-accepted and rejected dispositions, and the final clean/corrected boundary
-verdict.
+Phase evidence: reviewed working-tree base and patch digest, every selected
+reviewer verdict and compact count, escalation trigger plus direct-evidence
+disposition or `Not used`, accepted and rejected dispositions, and the final
+clean/corrected boundary verdict.
 
 ## Finalize and verify the current head (shared)
 

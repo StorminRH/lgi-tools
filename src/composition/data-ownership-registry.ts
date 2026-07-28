@@ -26,6 +26,7 @@ type SliceId =
   | 'data/industry-indices'
   | 'data/market-history'
   | 'data/market-prices'
+  | 'data/maps'
   | 'data/preferences'
   | 'data/telemetry'
   | 'features/custom-structures'
@@ -627,6 +628,31 @@ export const DATA_OWNERSHIP = [
   // ---------------------------------------------------------------------------
   // Personal per-character and per-user datasets.
   // ---------------------------------------------------------------------------
+  {
+    table: schema.maps,
+    owner: 'data/maps',
+    reads: [],
+    invariants: ['fk(user_id→user.id)', 'pk(id)'],
+    boundary: {
+      kind: 'single-statement',
+      note: 'The current runtime write surface is credential-tier deletion during account teardown. Map creation and archive writes remain deferred to 4.0.4.4; the authorization gate is read-only.',
+    },
+    dataClass: 'personal',
+  },
+  {
+    table: schema.mapAccess,
+    owner: 'data/maps',
+    reads: [],
+    invariants: [
+      'fk(map_id→maps.id)',
+      'unique(map_id,owner_type,owner_id)',
+    ],
+    boundary: {
+      kind: 'single-statement',
+      note: 'The current runtime write surface is credential-tier deletion of one character grant, plus cascade deletion with its map. Grant creation and editing remain deferred to 4.0.4.4.',
+    },
+    dataClass: 'personal',
+  },
   {
     table: schema.characterSkills,
     owner: 'features/skill-queue',
