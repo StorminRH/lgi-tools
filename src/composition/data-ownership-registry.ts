@@ -29,6 +29,7 @@ type SliceId =
   | 'data/maps'
   | 'data/preferences'
   | 'data/telemetry'
+  | 'data/wh-statics'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
@@ -525,6 +526,32 @@ export const DATA_OWNERSHIP = [
     invariants: ['pk(inspection_date,url)'],
     boundary: KEYED_UPSERT,
     dataClass: 'global-reference',
+  },
+
+  // ---------------------------------------------------------------------------
+  // data/wh-statics — community wormhole statics holding pen and promoted copy.
+  // ---------------------------------------------------------------------------
+  {
+    table: schema.whSystemStatics,
+    owner: 'data/wh-statics',
+    reads: 'open',
+    invariants: ['pk(system_id,code)'],
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'Operator-only promotion deletes the prior serving rows, inserts the snapshot\'s assignments, and marks the source snapshot promoted in one postgres-js transaction; there is no sync stamp row.',
+    },
+    dataClass: 'global-reference',
+  },
+  {
+    table: schema.whStaticsSnapshots,
+    owner: 'data/wh-statics',
+    reads: 'open',
+    invariants: ['pk(id)'],
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'Recording a snapshot marks every existing pending row superseded and inserts the new pending row in one postgres-js transaction so at most one snapshot is ever pending. Promote and reject are single status updates against a pending row; prune deletes aged non-pending rows while preserving any pending row and the currently promoted snapshot.',
+    },
+    dataClass: 'operational',
   },
 
   // ---------------------------------------------------------------------------
