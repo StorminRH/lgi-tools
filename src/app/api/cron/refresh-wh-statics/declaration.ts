@@ -57,11 +57,13 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
     }
     return { proceed: { feed } };
   },
-  work: async ({ reserved }, { feed }) => {
+  work: async ({ client, reserved }, { feed }) => {
     if (reserved === undefined) {
       throw new Error('Statics refresh reached work without a reserved lock connection.');
     }
-    const result = await recordChangedWhStaticsFeed(drizzle(reserved), feed);
+    // The shell holds the advisory lock on its reserved session while the
+    // transactional snapshot write uses the shared direct postgres-js pool.
+    const result = await recordChangedWhStaticsFeed(drizzle(client), feed);
     return {
       outcome: 'snapshot-pending',
       workDone: true,

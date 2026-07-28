@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
-import { and, desc, eq, inArray, lt, notInArray } from 'drizzle-orm';
-import { revalidateTag } from 'next/cache';
+import { and, asc, desc, eq, inArray, lt, notInArray } from 'drizzle-orm';
+import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
+import { db } from '@/db';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
+import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { WH_STATICS_TAG } from './constants';
 import {
   whStaticsSnapshots,
@@ -38,6 +40,15 @@ export interface PendingWhStaticsReview {
   readonly difference: WhStaticsDiff;
   readonly crossCheck: WhStaticsCrossCheck;
   readonly createdAt: Date;
+}
+
+/** Versioned serving projection returned to future statics consumers. */
+export interface PromotedStatics {
+  readonly version: string;
+  readonly systems: readonly {
+    readonly systemId: number;
+    readonly codes: readonly string[];
+  }[];
 }
 
 /** Typed refusal for a missing or no-longer-pending snapshot. */
@@ -172,6 +183,41 @@ export function readPromotedWhStaticsAssignments(
       code: whSystemStatics.code,
     })
     .from(whSystemStatics);
+}
+
+/**
+ * Reads and groups the promoted serving table only, preserving deterministic
+ * system-id and code order and carrying its denormalized feed version.
+ */
+export async function readSystemStatics(
+  database: AnyPgDb,
+): Promise<PromotedStatics> {
+  const rows = await database
+    .select({
+      systemId: whSystemStatics.systemId,
+      code: whSystemStatics.code,
+      feedVersion: whSystemStatics.feedVersion,
+    })
+    .from(whSystemStatics)
+    .orderBy(asc(whSystemStatics.systemId), asc(whSystemStatics.code));
+  const systems: Array<{ systemId: number; codes: string[] }> = [];
+  for (const row of rows) {
+    const current = systems.at(-1);
+    if (current?.systemId === row.systemId) {
+      current.codes.push(row.code);
+    } else {
+      systems.push({ systemId: row.systemId, codes: [row.code] });
+    }
+  }
+  return { version: rows[0]?.feedVersion ?? '', systems };
+}
+
+/** Returns the tag-cached promoted statics copy without consulting the feed or snapshot table. */
+export async function getSystemStatics(): Promise<PromotedStatics> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(WH_STATICS_TAG);
+  return withColdStartRetry(() => readSystemStatics(db));
 }
 
 /**

@@ -120,7 +120,7 @@ describe('GET /api/cron/refresh-wh-statics', () => {
 
     expect(await response.json()).toEqual(result);
     expect(recordChangedMock).toHaveBeenCalledWith(
-      { client: reservedTag },
+      { client: { reserve: expect.any(Function) } },
       feed,
     );
     expect(releaseMock).toHaveBeenCalledOnce();

@@ -90,7 +90,7 @@ export async function refreshWhStaticsOnDemand(): Promise<WhStaticsRefreshResult
   const outcome = await withAdvisoryLock(
     directClient,
     ADVISORY_LOCK_WH_STATICS_REFRESH,
-    (reserved) => recordChangedWhStaticsFeed(drizzle(reserved), feed),
+    () => recordChangedWhStaticsFeed(drizzle(directClient), feed),
   );
   return outcome.busy ? { status: 'busy' } : outcome.result;
 }

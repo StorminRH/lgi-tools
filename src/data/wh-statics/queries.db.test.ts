@@ -4,6 +4,7 @@ import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 import {
   promoteSnapshot,
   pruneWhStaticsSnapshots,
+  readSystemStatics,
   recordSnapshot,
   rejectSnapshot,
   WhStaticsSnapshotStateError,
@@ -71,6 +72,13 @@ async function insertSnapshot(
 describe.skipIf(!harness.reachable)(
   'wormhole statics snapshot writes (real Postgres)',
   () => {
+    it('returns an empty serving projection before the first promotion', async () => {
+      await expect(readSystemStatics(harness.db)).resolves.toEqual({
+        version: '',
+        systems: [],
+      });
+    });
+
     it('keeps exactly one pending snapshot and leaves the promoted copy untouched', async () => {
       const first = await recordSnapshot(harness.db, {
         feedVersion: '10',
@@ -155,6 +163,13 @@ describe.skipIf(!harness.reachable)(
           sourceSnapshotId: snapshotId,
         },
       ]);
+      await expect(readSystemStatics(harness.db)).resolves.toEqual({
+        version: '11',
+        systems: [
+          { systemId: 31_000_001, codes: ['A001'] },
+          { systemId: 31_000_002, codes: ['B002'] },
+        ],
+      });
 
       await expect(promoteSnapshot(harness.db, snapshotId)).rejects.toEqual(
         expect.objectContaining<Partial<WhStaticsSnapshotStateError>>({

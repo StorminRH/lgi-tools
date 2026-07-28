@@ -14,7 +14,7 @@ const STATIC_FALSE_CODES = [
 
 function payload(
   statics: readonly string[],
-  wormholes: Record<string, { static: boolean }>,
+  wormholes: Record<string, { static: boolean | null }>,
 ): string {
   return JSON.stringify({
     version: 11,
@@ -54,6 +54,31 @@ describe('parseStaticsPayload', () => {
           systemName: 'J000001',
           code,
         })),
+        {
+          systemId: 31_000_002,
+          systemName: 'J000002',
+          code: 'Z006',
+        },
+      ],
+    });
+  });
+
+  it('accepts a null upstream static flag because the flag is non-authoritative', () => {
+    expect(
+      parseStaticsPayload(
+        payload(['A001'], {
+          A001: { static: null },
+          Z006: { static: false },
+        }),
+      ),
+    ).toMatchObject({
+      feedVersion: '11',
+      entries: [
+        {
+          systemId: 31_000_001,
+          systemName: 'J000001',
+          code: 'A001',
+        },
         {
           systemId: 31_000_002,
           systemName: 'J000002',

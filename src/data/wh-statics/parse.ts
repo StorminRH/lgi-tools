@@ -8,7 +8,7 @@ const systemSchema = z.object({
 });
 
 const wormholeSchema = z.object({
-  static: z.boolean(),
+  static: z.boolean().nullable(),
 });
 
 const staticsPayloadSchema = z.object({
