@@ -647,24 +647,24 @@ class AgentDriftTests(unittest.TestCase):
 
 
 class LiveAdversarialReviewPolicy(unittest.TestCase):
-    """Pin the Cursor review lane and prevent the retired runtime fan-out."""
+    """Pin the Cursor review lane and prevent native-runtime review fan-out."""
 
     @classmethod
     def setUpClass(cls) -> None:
         manifest_path = Path(__file__).with_name("policy-manifest.json")
         cls.manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        cls.runner = Path(__file__).with_name(
+            "run_adversarial_review.py"
+        ).read_text(encoding="utf-8")
 
     def test_required_cursor_reviewers_are_pinned(self) -> None:
-        required = set(
-            self.manifest["pairedSkills"]["adversarial-review"]["required"]
-        )
-        self.assertTrue(
-            {
-                "cursor-agent",
-                "composer-2\\.5",
-                "cursor-grok-4\\.5-high",
-            }.issubset(required)
-        )
+        for marker in (
+            'model="cursor-grok-4.5-high"',
+            'model="composer-2.5"',
+            "if not 1 <= len(specs) <= 3:",
+            "ThreadPoolExecutor(max_workers=len(seats))",
+        ):
+            self.assertIn(marker, self.runner)
 
     def test_same_session_verdict_collection_and_trust_gate_are_pinned(self) -> None:
         required = set(
@@ -672,10 +672,28 @@ class LiveAdversarialReviewPolicy(unittest.TestCase):
         )
         self.assertTrue(
             {
-                "--resume",
+                "run_adversarial_review\\.py",
+                "--composer-brief",
                 "authorization permits[^\\n]*--trust",
             }.issubset(required)
         )
+        self.assertIn('"--resume"', self.runner)
+        self.assertIn('command.append("--trust")', self.runner)
+
+    def test_compact_receipt_is_pinned_without_a_fix_prompt(self) -> None:
+        required = set(
+            self.manifest["pairedSkills"]["adversarial-review"]["required"]
+        )
+        self.assertIn("compact", required)
+        workflow = (
+            Path(__file__).resolve().parents[1]
+            / "docs"
+            / "workflows"
+            / "adversarial-review.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("| Reviewer | Assigned scope | Reported |", workflow)
+        self.assertNotIn("Build the fix prompt", workflow)
+        self.assertNotIn("### Fix prompt", workflow)
 
     def test_required_policy_patterns_do_not_cross_line_boundaries(self) -> None:
         self.assertFalse(
