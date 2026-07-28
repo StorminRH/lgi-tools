@@ -26,14 +26,14 @@ class FoldPendingChangelogTests(unittest.TestCase):
     def test_missing_inbox_folds_to_nothing(self) -> None:
         empty = Path(self.temporary.name) / "none"
         self.assertEqual([], read_fragments(empty))
-        self.assertEqual("", render(fold(read_fragments(empty), "1.0")))
+        self.assertEqual("", render(fold(read_fragments(empty))))
 
     def test_fold_orders_by_date_then_filename_and_groups_by_category(self) -> None:
         # Deliberately out of order on disk; the fold must be deterministic.
         self.write("z-late.md", "2026-07-22", "#### Changed\n- Third change.\n")
         self.write("a-early.md", "2026-07-20", "#### Changed\n- First change.\n#### Fixed\n- A fix.\n")
         self.write("m-mid.md", "2026-07-20", "#### Changed\n- Second change.\n")
-        folded = fold(read_fragments(self.root), "3.10.0.4")
+        folded = fold(read_fragments(self.root))
         categories = [category for category, _ in folded]
         # Canonical category order: Changed before Fixed.
         self.assertEqual(["Changed", "Fixed"], categories)
@@ -41,18 +41,18 @@ class FoldPendingChangelogTests(unittest.TestCase):
         # Ordering: (2026-07-20, a-early), (2026-07-20, m-mid), (2026-07-22, z-late).
         self.assertEqual(
             [
-                "First change. — included since v3.10.0.4",
-                "Second change. — included since v3.10.0.4",
-                "Third change. — included since v3.10.0.4",
+                "First change.",
+                "Second change.",
+                "Third change.",
             ],
             changed,
         )
-        self.assertEqual(["A fix. — included since v3.10.0.4"], dict(folded)["Fixed"])
+        self.assertEqual(["A fix."], dict(folded)["Fixed"])
 
     def test_render_produces_changelog_entry_markdown(self) -> None:
         self.write("a.md", "2026-07-20", "#### Added\n- A feature.\n")
-        rendered = render(fold(read_fragments(self.root), "3.10.0.4"))
-        self.assertEqual("#### Added\n- A feature. — included since v3.10.0.4", rendered)
+        rendered = render(fold(read_fragments(self.root)))
+        self.assertEqual("#### Added\n- A feature.", rendered)
 
     def test_readme_is_not_a_fragment(self) -> None:
         (self.pending / "README.md").write_text("# Inbox\n", encoding="utf-8")

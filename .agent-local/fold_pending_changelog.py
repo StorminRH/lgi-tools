@@ -4,9 +4,9 @@
 Planned close-out calls this to absorb ``content/changelog/pending/*.md`` into the
 new public version entry. Ordering is a pure function of the inbox contents —
 fragments sort by ``date`` then file name, and bullets group by the canonical
-category order — so the same inbox always folds the same way. Each folded bullet
-keeps a provenance clause (``— included since v<prior-version>``) so the site does
-not imply the change first deployed with the rollup.
+category order — so the same inbox always folds the same way. Bullets fold
+verbatim: a changelog entry carries user-facing information, and the version a
+change originally shipped under is not part of that.
 
 Fragment shape validation is owned by ``check_pending_changelog.py``; this reader
 assumes valid fragments. It is read-only: it reports the folded Markdown and the
@@ -80,18 +80,16 @@ def read_fragments(root: Path) -> list[Fragment]:
     return fragments
 
 
-def fold(fragments: list[Fragment], prior_version: str) -> list[tuple[str, list[str]]]:
-    """Return absorbed bullets grouped by canonical category, with provenance.
+def fold(fragments: list[Fragment]) -> list[tuple[str, list[str]]]:
+    """Return absorbed bullets grouped by canonical category.
 
     Categories keep their canonical order; within a category the bullets follow
-    the deterministic fragment order. Each bullet gains a plain-text provenance
-    clause so a reader can see it shipped out-of-band before the rollup.
+    the deterministic fragment order. Bullets carry over verbatim.
     """
-    suffix = f" — included since v{prior_version}"
     folded: list[tuple[str, list[str]]] = []
     for category in CATEGORIES:
         bullets = [
-            bullet + suffix
+            bullet
             for fragment in fragments
             for bullet in fragment.groups.get(category, [])
         ]
@@ -112,11 +110,10 @@ def render(folded: list[tuple[str, list[str]]]) -> str:
 def main() -> int:
     """Print the deterministic folded Markdown and the consumed fragment files."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prior-version", required=True, help="Last published version before this rollup.")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     args = parser.parse_args()
     fragments = read_fragments(args.root.resolve())
-    print(render(fold(fragments, args.prior_version)))
+    print(render(fold(fragments)))
     print()
     print("# consumed fragments (delete in the release PR):")
     for fragment in fragments:

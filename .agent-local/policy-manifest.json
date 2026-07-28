@@ -463,7 +463,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "4af65569167e86e70cfd7eea142d9d38cc8bd70fa72d7c0f00db13b0a354a039"
+      "reconciledHash": "cf6514e2f159bef51989af2feebe3eb3928475cc940df814f3d06242a208977d"
     },
     "plan-version-audit": {
       "deps": [
@@ -501,7 +501,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "307b94f19ede393bb2908ab62156151d891cf7fa7a9db720680e64391392bf21"
+      "reconciledHash": "950ed7418f70f455c4a860cbe82b2f9f725302347e58328856b1b5c68d1e4295"
     },
     "ux-check": {
       "deps": [
