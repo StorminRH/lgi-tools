@@ -29,6 +29,7 @@ type SliceId =
   | 'data/maps'
   | 'data/preferences'
   | 'data/telemetry'
+  | 'data/wh-statics'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
@@ -251,6 +252,16 @@ const APP_SINGLE = {
 
 const SNAPSHOT_ID_FK =
   'The owned-assets snapshot foreign key is the retention pipeline\'s reference check.';
+
+const WH_STATICS_SNAPSHOT_BATCH = {
+  kind: 'transactional-batch',
+  note: 'Snapshot creation supersedes the previous pending row and inserts its replacement in one postgres-js transaction. Promotion replaces the serving copy and marks its source snapshot promoted in one transaction; reject and retention paths change only snapshot state or remove eligible history.',
+} as const satisfies TransactionBoundary;
+
+const WH_STATICS_PROMOTE_BATCH = {
+  kind: 'transactional-batch',
+  note: 'Operator-only promotion deletes the prior serving copy, inserts every normalized assignment bound to the selected snapshot, and marks that snapshot promoted in one postgres-js transaction.',
+} as const satisfies TransactionBoundary;
 
 /**
  * Every persisted Neon table's owning slice, cross-owner access contract, database-enforced
@@ -524,6 +535,29 @@ export const DATA_OWNERSHIP = [
     reads: 'open',
     invariants: ['pk(inspection_date,url)'],
     boundary: KEYED_UPSERT,
+    dataClass: 'global-reference',
+  },
+
+  // ---------------------------------------------------------------------------
+  // data/wh-statics — community reference data with an operational holding pen.
+  // ---------------------------------------------------------------------------
+  {
+    table: schema.whStaticsSnapshots,
+    owner: 'data/wh-statics',
+    reads: 'open',
+    invariants: ['pk(id)'],
+    boundary: WH_STATICS_SNAPSHOT_BATCH,
+    dataClass: 'operational',
+  },
+  {
+    table: schema.whSystemStatics,
+    owner: 'data/wh-statics',
+    reads: 'open',
+    invariants: [
+      'fk(source_snapshot_id→wh_statics_snapshots.id)',
+      'pk(system_id,code)',
+    ],
+    boundary: WH_STATICS_PROMOTE_BATCH,
     dataClass: 'global-reference',
   },
 
