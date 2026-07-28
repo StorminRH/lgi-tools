@@ -156,6 +156,38 @@ describe('universe asset client loaders', () => {
     expect(apiFetchMock).toHaveBeenCalledTimes(12);
   });
 
+  it('surfaces a parallel asset failure instead of masking it as stale', async () => {
+    apiFetchMock.mockImplementation((endpoint: { path: string }) => {
+      if (endpoint.path === '/api/universe/assets') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: { version: 'current' },
+        });
+      }
+      if (endpoint.path.endsWith('/systems')) {
+        return Promise.resolve({
+          ok: false,
+          kind: 'api',
+          status: 404,
+          error: {},
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        kind: 'api',
+        status: 500,
+        error: {},
+      });
+    });
+    const assetModule = await freshModule();
+
+    await expect(assetModule.loadUniverseAssets()).rejects.toThrow(
+      'universe assets api 500',
+    );
+    expect(apiFetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it('clears a rejected memo so the next call can heal', async () => {
     apiFetchMock.mockResolvedValueOnce({
       ok: false,

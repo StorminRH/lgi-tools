@@ -49,14 +49,19 @@ async function fetchUniverseAssets(
     apiFetch(systemDirectoryEndpoint, { params: { version } }),
     apiFetch(adjacencyEndpoint, { params: { version } }),
   ]);
-  if (!systemsResult.ok) {
-    if ('status' in systemsResult && systemsResult.status === 404) return null;
+  if (
+    !systemsResult.ok &&
+    (!('status' in systemsResult) || systemsResult.status !== 404)
+  ) {
     throw new Error(`universe assets ${failureLabel(systemsResult)}`);
   }
-  if (!adjacencyResult.ok) {
-    if ('status' in adjacencyResult && adjacencyResult.status === 404) return null;
+  if (
+    !adjacencyResult.ok &&
+    (!('status' in adjacencyResult) || adjacencyResult.status !== 404)
+  ) {
     throw new Error(`universe assets ${failureLabel(adjacencyResult)}`);
   }
+  if (!systemsResult.ok || !adjacencyResult.ok) return null;
 
   const systemById = new Map(
     systemsResult.data.systems.map((system) => [system.id, system]),
