@@ -43,9 +43,9 @@ function recordedMetadata(
 }
 
 describe('capability catalogue', () => {
-  it('names all 39 instrumented operations exactly once', () => {
-    expect(ids).toHaveLength(39);
-    expect(new Set(ids).size).toBe(39);
+  it('names all 40 instrumented operations exactly once', () => {
+    expect(ids).toHaveLength(40);
+    expect(new Set(ids).size).toBe(40);
   });
 
   it('gives every capability a closed feature and a non-empty operation', () => {

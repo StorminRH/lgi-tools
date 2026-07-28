@@ -8,6 +8,7 @@ import { refreshGscDeclaration } from './refresh-gsc/declaration';
 import { refreshIndustryIndicesDeclaration } from './refresh-industry-indices/declaration';
 import { refreshPricesDeclaration } from './refresh-prices/declaration';
 import { refreshSdeDeclaration } from './refresh-sde/declaration';
+import { refreshWhStaticsDeclaration } from './refresh-wh-statics/declaration';
 import { syncSweeperDeclaration } from './sync-sweeper/declaration';
 
 type CronSpec = {
@@ -32,6 +33,9 @@ const cronRegistry = {
   },
   '/api/cron/refresh-prices': { declaration: refreshPricesDeclaration },
   '/api/cron/refresh-sde': { declaration: refreshSdeDeclaration },
+  '/api/cron/refresh-wh-statics': {
+    declaration: refreshWhStaticsDeclaration,
+  },
   '/api/cron/sync-sweeper': { declaration: syncSweeperDeclaration },
 } satisfies Record<string, CronRegistryEntry>;
 

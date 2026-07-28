@@ -134,6 +134,17 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
       'Guarded by the ADVISORY_LOCK_SDE_INGEST session advisory lock; the ingest is a full replace keyed on the published SDE checksum, so a repeat of the same build is a no-op.',
   },
   {
+    id: 'cron/refresh-wh-statics',
+    workKind: 'vercel-cron',
+    cronPath: '/api/cron/refresh-wh-statics',
+    module: 'src/app/api/cron/refresh-wh-statics/declaration.ts',
+    redeliverySource: VERCEL_CRON_REDELIVERY,
+    verdict: 'key-protected',
+    vendor: 'anoik-statics',
+    evidence:
+      'The conditional probe runs before the shared ADVISORY_LOCK_WH_STATICS_REFRESH lock; a changed body is serialized, and recordSnapshot atomically supersedes any prior pending snapshot.',
+  },
+  {
     id: 'cron/refresh-gsc',
     workKind: 'vercel-cron',
     cronPath: '/api/cron/refresh-gsc',

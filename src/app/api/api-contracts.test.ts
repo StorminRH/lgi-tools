@@ -20,6 +20,7 @@ const CRON_ROUTES = new Set([
   'cron/refresh-industry-indices/route.ts',
   'cron/refresh-prices/route.ts',
   'cron/refresh-sde/route.ts',
+  'cron/refresh-wh-statics/route.ts',
   'cron/sync-sweeper/route.ts',
 ]);
 
@@ -31,6 +32,7 @@ const FORM_ROUTES = new Set([
   'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'admin/sessions/revoke/route.ts',
+  'admin/wh-statics/route.ts',
 ]);
 
 const LIBRARY_OWNED = new Set(['auth/[...all]/route.ts']);
@@ -344,10 +346,10 @@ respond(endpoint, 200, { ok: true });`);
 
 describe('API route inventories', () => {
   it('pins the complete route and exemption totals', () => {
-    expect(ALL_ROUTE_FILES).toHaveLength(56);
-    expect(FIRST_PARTY_ROUTE_FILES).toHaveLength(55);
-    expect(CRON_ROUTES.size).toBe(7);
-    expect(FORM_ROUTES.size).toBe(7);
+    expect(ALL_ROUTE_FILES).toHaveLength(58);
+    expect(FIRST_PARTY_ROUTE_FILES).toHaveLength(57);
+    expect(CRON_ROUTES.size).toBe(8);
+    expect(FORM_ROUTES.size).toBe(8);
     expect(LIBRARY_OWNED.size).toBe(1);
     expect(V2_ROUTE_FILES).toHaveLength(41);
     expect(countV2Endpoints()).toBe(43);

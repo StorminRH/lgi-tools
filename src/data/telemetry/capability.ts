@@ -46,8 +46,8 @@ export type CapabilityFeature = (typeof CAPABILITY_FEATURES)[number];
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
 /**
- * Closed catalogue of the 39 instrumented operations: 17 mutation routes through `runMutationRoute`,
- * 7 cron routes through `defineCronRoute`, 7 direct mutation routes that deliberately sit outside
+ * Closed catalogue of the 40 instrumented operations: 17 mutation routes through `runMutationRoute`,
+ * 8 cron routes through `defineCronRoute`, 7 direct mutation routes that deliberately sit outside
  * the mutation shell, one admin statics mutation, 6 POST-bodied tool reads, and the queued
  * ESI-refresh job runner. Adding a
  * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
@@ -97,13 +97,14 @@ export const CAPABILITIES = {
   'admin.unlink-character': { feature: 'admin', operation: 'unlink-character', kind: 'mutation' },
   'admin.revoke-user-sessions': { feature: 'admin', operation: 'revoke-user-sessions', kind: 'mutation' },
 
-  // ── Cron routes through `defineCronRoute` (7) ──────────────────────────
+  // ── Cron routes through `defineCronRoute` (8) ──────────────────────────
   'cron.drain-esi-refresh-jobs': { feature: 'cron', operation: 'drain-esi-refresh-jobs', kind: 'cron' },
   'cron.refresh-affiliations': { feature: 'cron', operation: 'refresh-affiliations', kind: 'cron' },
   'cron.refresh-gsc': { feature: 'cron', operation: 'refresh-gsc', kind: 'cron' },
   'cron.refresh-industry-indices': { feature: 'cron', operation: 'refresh-industry-indices', kind: 'cron' },
   'cron.refresh-prices': { feature: 'cron', operation: 'refresh-prices', kind: 'cron' },
   'cron.refresh-sde': { feature: 'cron', operation: 'refresh-sde', kind: 'cron' },
+  'cron.refresh-wh-statics': { feature: 'cron', operation: 'refresh-wh-statics', kind: 'cron' },
   'cron.sync-sweeper': { feature: 'cron', operation: 'sync-sweeper', kind: 'cron' },
 
   // ── Direct mutation routes outside the mutation shell (7) ──────────────
