@@ -46,9 +46,10 @@ export type CapabilityFeature = (typeof CAPABILITY_FEATURES)[number];
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
 /**
- * Closed catalogue of the 38 instrumented operations: 17 mutation routes through `runMutationRoute`,
+ * Closed catalogue of the 39 instrumented operations: 17 mutation routes through `runMutationRoute`,
  * 7 cron routes through `defineCronRoute`, 7 direct mutation routes that deliberately sit outside
- * the mutation shell, 6 POST-bodied tool reads, and the queued ESI-refresh job runner. Adding a
+ * the mutation shell, one admin statics mutation, 6 POST-bodied tool reads, and the queued
+ * ESI-refresh job runner. Adding a
  * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
  * census covers the rest, so an operation cannot ship unnamed.
  */
@@ -110,6 +111,7 @@ export const CAPABILITIES = {
   'admin.reassign-character': { feature: 'admin', operation: 'reassign-character', kind: 'mutation' },
   'admin.requeue-esi-job': { feature: 'admin', operation: 'requeue-esi-job', kind: 'mutation' },
   'admin.set-user-role': { feature: 'admin', operation: 'set-user-role', kind: 'mutation' },
+  'admin.wh-statics-review': { feature: 'admin', operation: 'wh-statics-review', kind: 'mutation' },
   'market.refresh-market-prices': { feature: 'market', operation: 'refresh-market-prices', kind: 'mutation' },
   'market.refresh-market-history': { feature: 'market', operation: 'refresh-market-history', kind: 'mutation' },
   'feedback.submit-feedback': { feature: 'feedback', operation: 'submit-feedback', kind: 'mutation' },

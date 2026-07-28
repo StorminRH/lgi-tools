@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, eq, inArray, lt, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, notInArray } from 'drizzle-orm';
 import { revalidateTag } from 'next/cache';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
 import { WH_STATICS_TAG } from './constants';
@@ -27,6 +27,17 @@ export interface PromoteWhStaticsResult {
   readonly snapshotId: number;
   readonly systemCount: number;
   readonly assignmentCount: number;
+}
+
+/** Pending snapshot projection rendered by the operator review screen. */
+export interface PendingWhStaticsReview {
+  readonly id: number;
+  readonly feedVersion: string;
+  readonly etag: string | null;
+  readonly systemCount: number;
+  readonly difference: WhStaticsDiff;
+  readonly crossCheck: WhStaticsCrossCheck;
+  readonly createdAt: Date;
 }
 
 /** Typed refusal for a missing or no-longer-pending snapshot. */
@@ -117,6 +128,50 @@ export function recordSnapshot(
     }
     return { snapshotId: inserted.id };
   });
+}
+
+/** Returns the newest observed feed ETag for the next conditional refresh probe. */
+export async function getLatestSnapshotEtag(
+  database: AnyPgDb,
+): Promise<string | null> {
+  const [snapshot] = await database
+    .select({ etag: whStaticsSnapshots.etag })
+    .from(whStaticsSnapshots)
+    .orderBy(desc(whStaticsSnapshots.id))
+    .limit(1);
+  return snapshot?.etag ?? null;
+}
+
+/** Returns the single pending snapshot, if any, for operator review. */
+export async function getPendingWhStaticsReview(
+  database: AnyPgDb,
+): Promise<PendingWhStaticsReview | null> {
+  const [snapshot] = await database
+    .select({
+      id: whStaticsSnapshots.id,
+      feedVersion: whStaticsSnapshots.feedVersion,
+      etag: whStaticsSnapshots.etag,
+      systemCount: whStaticsSnapshots.systemCount,
+      difference: whStaticsSnapshots.difference,
+      crossCheck: whStaticsSnapshots.crossCheck,
+      createdAt: whStaticsSnapshots.createdAt,
+    })
+    .from(whStaticsSnapshots)
+    .where(eq(whStaticsSnapshots.status, 'pending'))
+    .limit(1);
+  return snapshot ?? null;
+}
+
+/** Returns the current promoted assignments without consulting a snapshot row. */
+export function readPromotedWhStaticsAssignments(
+  database: AnyPgDb,
+): Promise<Array<{ systemId: number; code: string }>> {
+  return database
+    .select({
+      systemId: whSystemStatics.systemId,
+      code: whSystemStatics.code,
+    })
+    .from(whSystemStatics);
 }
 
 /**
