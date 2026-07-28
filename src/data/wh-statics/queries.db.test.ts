@@ -4,6 +4,7 @@ import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 import {
   promoteSnapshot,
   pruneWhStaticsSnapshots,
+  getLatestSnapshotEtag,
   readSystemStatics,
   recordSnapshot,
   rejectSnapshot,
@@ -237,7 +238,8 @@ describe.skipIf(!harness.reachable)(
     });
 
     it('rejects only a pending snapshot and leaves the serving copy untouched', async () => {
-      const snapshotId = await insertSnapshot();
+      await insertSnapshot({ status: 'promoted', etag: '"accepted"' });
+      const snapshotId = await insertSnapshot({ etag: '"rejected"' });
 
       await expect(rejectSnapshot(harness.db, snapshotId)).resolves.toBeUndefined();
       const [snapshot] = await harness.db
@@ -248,6 +250,24 @@ describe.skipIf(!harness.reachable)(
       await expect(rejectSnapshot(harness.db, snapshotId)).rejects.toBeInstanceOf(
         WhStaticsSnapshotStateError,
       );
+      await expect(getLatestSnapshotEtag(harness.db)).resolves.toBe(
+        '"accepted"',
+      );
+      await expect(
+        recordSnapshot(harness.db, {
+          feedVersion: '11',
+          etag: '"rejected"',
+          lastModified: null,
+          entries: [
+            { systemId: 31_000_001, systemName: 'J000001', code: 'A001' },
+          ],
+          difference: EMPTY_DIFF,
+          crossCheck: AGREEMENT,
+        }),
+      ).resolves.toEqual({
+        snapshotId: expect.any(Number),
+        created: true,
+      });
       expect(await harness.db.select().from(whSystemStatics)).toEqual([]);
     });
 

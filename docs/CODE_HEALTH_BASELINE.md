@@ -15,12 +15,12 @@
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
 | Production TS/TSX files | 806 | 836 | +30 |
-| Production TS/TSX LOC | 79,515 | 82,742 | +3227 |
+| Production TS/TSX LOC | 79,515 | 82,776 | +3261 |
 | Test files | 428 | 447 | +19 |
-| Coverage — statements | 85.83% | 86.02% | — |
-| Coverage — branches | 82.81% | 82.92% | — |
-| Coverage — functions | 81.37% | 81.61% | — |
-| Coverage — lines | 86.89% | 87.07% | — |
+| Coverage — statements | 85.83% | 86.03% | — |
+| Coverage — branches | 82.81% | 82.94% | — |
+| Coverage — functions | 81.37% | 81.65% | — |
+| Coverage — lines | 86.89% | 87.09% | — |
 | Fallow health score | 78 (B) | 78 (B) | — |
 | Functions above health thresholds | 0 | 0 | 0 |
 | Planner concern-context fields | 5 / 10 / 18 / 6 / 13 | 5 / 10 / 18 / 6 / 13 | — |

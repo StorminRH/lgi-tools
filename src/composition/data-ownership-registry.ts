@@ -255,7 +255,7 @@ const SNAPSHOT_ID_FK =
 
 const WH_STATICS_SNAPSHOT_BATCH = {
   kind: 'transactional-batch',
-  note: 'Snapshot creation takes a table lock, reuses an identical latest ETag and digest, or supersedes the previous pending row and inserts its replacement in one postgres-js transaction. Promotion replaces the serving copy and marks its source snapshot promoted in one transaction; reject and retention paths change only snapshot state or remove eligible history.',
+  note: 'Snapshot creation takes a table lock, reuses an identical latest non-rejected ETag and digest, or supersedes the previous pending row and inserts its replacement in one postgres-js transaction. A rejected observation remains eligible for a later pending review. Promotion replaces the serving copy and marks its source snapshot promoted in one transaction; reject and retention paths change only snapshot state or remove eligible history.',
 } as const satisfies TransactionBoundary;
 
 const WH_STATICS_PROMOTE_BATCH = {

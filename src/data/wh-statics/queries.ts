@@ -1,5 +1,15 @@
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, inArray, lt, notInArray, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  lt,
+  ne,
+  notInArray,
+  sql,
+} from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
@@ -113,13 +123,42 @@ function pendingSnapshotOrThrow<T extends { status: WhStaticsSnapshotStatus }>(
   snapshotId: number,
   snapshot: T | undefined,
 ): T {
-  if (snapshot === undefined || snapshot.status !== 'pending') {
-    throw new WhStaticsSnapshotStateError(
-      snapshotId,
-      snapshot?.status ?? 'missing',
-    );
+  if (snapshot === undefined) {
+    throw new WhStaticsSnapshotStateError(snapshotId, 'missing');
+  }
+  if (snapshot.status !== 'pending') {
+    throw new WhStaticsSnapshotStateError(snapshotId, snapshot.status);
   }
   return snapshot;
+}
+
+function isSameObservation(
+  latest:
+    | {
+        id: number;
+        etag: string | null;
+        digest: string;
+        status: WhStaticsSnapshotStatus;
+      }
+    | undefined,
+  etag: string | null,
+  digest: string,
+): latest is {
+  id: number;
+  etag: string | null;
+  digest: string;
+  status: WhStaticsSnapshotStatus;
+} {
+  if (latest === undefined) return false;
+  if (latest.status === 'rejected') return false;
+  return latest.etag === etag && latest.digest === digest;
+}
+
+function insertedSnapshotId(inserted: { id: number } | undefined): number {
+  if (inserted === undefined) {
+    throw new Error('Statics snapshot insert returned no id.');
+  }
+  return inserted.id;
 }
 
 /**
@@ -141,15 +180,12 @@ export function recordSnapshot(
         id: whStaticsSnapshots.id,
         etag: whStaticsSnapshots.etag,
         digest: whStaticsSnapshots.digest,
+        status: whStaticsSnapshots.status,
       })
       .from(whStaticsSnapshots)
       .orderBy(desc(whStaticsSnapshots.id))
       .limit(1);
-    if (
-      latest !== undefined &&
-      latest.etag === input.etag &&
-      latest.digest === digest
-    ) {
+    if (isSameObservation(latest, input.etag, digest)) {
       return { snapshotId: latest.id, created: false };
     }
     await transaction
@@ -170,10 +206,7 @@ export function recordSnapshot(
         crossCheck: input.crossCheck,
       })
       .returning({ id: whStaticsSnapshots.id });
-    if (inserted === undefined) {
-      throw new Error('Statics snapshot insert returned no id.');
-    }
-    return { snapshotId: inserted.id, created: true };
+    return { snapshotId: insertedSnapshotId(inserted), created: true };
   });
 }
 
@@ -184,6 +217,7 @@ export async function getLatestSnapshotEtag(
   const [snapshot] = await database
     .select({ etag: whStaticsSnapshots.etag })
     .from(whStaticsSnapshots)
+    .where(ne(whStaticsSnapshots.status, 'rejected'))
     .orderBy(desc(whStaticsSnapshots.id))
     .limit(1);
   return snapshot?.etag ?? null;
