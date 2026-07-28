@@ -1,8 +1,20 @@
-import { describe, expect, it } from 'vitest';
-import { asc } from 'drizzle-orm';
+import { describe, expect, it, vi } from 'vitest';
+import { asc, eq } from 'drizzle-orm';
 import { createDbTestHarness } from '@/db/test-support/db-test-harness';
-import { recordSnapshot } from './queries';
+import {
+  promoteSnapshot,
+  pruneWhStaticsSnapshots,
+  recordSnapshot,
+  rejectSnapshot,
+  WhStaticsSnapshotStateError,
+} from './queries';
 import { whStaticsSnapshots, whSystemStatics } from './schema';
+
+const cacheMocks = vi.hoisted(() => ({
+  revalidateTag: vi.fn(),
+}));
+
+vi.mock('next/cache', () => cacheMocks);
 
 const harness = await createDbTestHarness({
   schema: 'test_wh_statics_queries',
@@ -34,6 +46,27 @@ const AGREEMENT = {
   lineageOnlySystems: [],
   feedOnlySystems: [],
 } as const;
+
+async function insertSnapshot(
+  overrides: Partial<typeof whStaticsSnapshots.$inferInsert> = {},
+): Promise<number> {
+  const [snapshot] = await harness.db
+    .insert(whStaticsSnapshots)
+    .values({
+      feedVersion: '11',
+      digest: 'digest',
+      systemCount: 1,
+      entries: [
+        { systemId: 31_000_001, systemName: 'J000001', code: 'A001' },
+      ],
+      difference: EMPTY_DIFF,
+      crossCheck: AGREEMENT,
+      ...overrides,
+    })
+    .returning({ id: whStaticsSnapshots.id });
+  if (snapshot === undefined) throw new Error('Snapshot seed returned no id.');
+  return snapshot.id;
+}
 
 describe.skipIf(!harness.reachable)(
   'wormhole statics snapshot writes (real Postgres)',
@@ -86,6 +119,103 @@ describe.skipIf(!harness.reachable)(
         }),
       ]);
       expect(await harness.db.select().from(whSystemStatics)).toEqual([]);
+    });
+
+    it('promotes once, replaces the serving copy, and refuses a second promote', async () => {
+      const snapshotId = await insertSnapshot({
+        systemCount: 2,
+        entries: [
+          { systemId: 31_000_002, systemName: 'J000002', code: 'B002' },
+          { systemId: 31_000_001, systemName: 'J000001', code: 'A001' },
+        ],
+      });
+
+      await expect(promoteSnapshot(harness.db, snapshotId)).resolves.toEqual({
+        snapshotId,
+        systemCount: 2,
+        assignmentCount: 2,
+      });
+      expect(cacheMocks.revalidateTag).toHaveBeenCalledWith('wh-statics', 'max');
+      expect(
+        await harness.db
+          .select()
+          .from(whSystemStatics)
+          .orderBy(asc(whSystemStatics.systemId)),
+      ).toEqual([
+        { systemId: 31_000_001, code: 'A001', sourceSnapshotId: snapshotId },
+        { systemId: 31_000_002, code: 'B002', sourceSnapshotId: snapshotId },
+      ]);
+
+      await expect(promoteSnapshot(harness.db, snapshotId)).rejects.toEqual(
+        expect.objectContaining<Partial<WhStaticsSnapshotStateError>>({
+          snapshotId,
+          status: 'promoted',
+        }),
+      );
+      expect(await harness.db.select().from(whSystemStatics)).toHaveLength(2);
+    });
+
+    it('rejects only a pending snapshot and leaves the serving copy untouched', async () => {
+      const snapshotId = await insertSnapshot();
+
+      await expect(rejectSnapshot(harness.db, snapshotId)).resolves.toBeUndefined();
+      const [snapshot] = await harness.db
+        .select({ status: whStaticsSnapshots.status })
+        .from(whStaticsSnapshots)
+        .where(eq(whStaticsSnapshots.id, snapshotId));
+      expect(snapshot?.status).toBe('rejected');
+      await expect(rejectSnapshot(harness.db, snapshotId)).rejects.toBeInstanceOf(
+        WhStaticsSnapshotStateError,
+      );
+      expect(await harness.db.select().from(whSystemStatics)).toEqual([]);
+    });
+
+    it('prunes old history while preserving pending, current promoted, and recent rows', async () => {
+      const now = new Date('2026-07-28T12:00:00Z');
+      const old = new Date('2026-01-01T00:00:00Z');
+      const recent = new Date('2026-07-01T00:00:00Z');
+      const currentPromoted = await insertSnapshot({
+        status: 'promoted',
+        createdAt: old,
+      });
+      const stalePromoted = await insertSnapshot({
+        status: 'promoted',
+        createdAt: old,
+      });
+      const staleRejected = await insertSnapshot({
+        status: 'rejected',
+        createdAt: old,
+      });
+      const staleSuperseded = await insertSnapshot({
+        status: 'superseded',
+        createdAt: old,
+      });
+      const pending = await insertSnapshot({ status: 'pending', createdAt: old });
+      const recentRejected = await insertSnapshot({
+        status: 'rejected',
+        createdAt: recent,
+      });
+      await harness.db.insert(whSystemStatics).values({
+        systemId: 31_000_001,
+        code: 'A001',
+        sourceSnapshotId: currentPromoted,
+      });
+
+      await expect(
+        pruneWhStaticsSnapshots(harness.db, 90, now),
+      ).resolves.toBe(3);
+      const remaining = await harness.db
+        .select({ id: whStaticsSnapshots.id })
+        .from(whStaticsSnapshots)
+        .orderBy(asc(whStaticsSnapshots.id));
+      expect(remaining.map((row) => row.id)).toEqual([
+        currentPromoted,
+        pending,
+        recentRejected,
+      ]);
+      expect(remaining.map((row) => row.id)).not.toContain(stalePromoted);
+      expect(remaining.map((row) => row.id)).not.toContain(staleRejected);
+      expect(remaining.map((row) => row.id)).not.toContain(staleSuperseded);
     });
   },
 );
