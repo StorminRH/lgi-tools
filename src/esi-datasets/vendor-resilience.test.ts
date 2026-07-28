@@ -49,6 +49,7 @@ const EXPECTED_INTEGRATIONS: readonly VendorIntegrationId[] = [
   'ccp-static-data',
   'eve-news-feed',
   'ccp-image-cdn',
+  'anoik-statics',
 ];
 
 /** The one Upstash Redis construction site. */

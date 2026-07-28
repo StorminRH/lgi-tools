@@ -59,6 +59,11 @@ const SERVER_ROOTS: readonly ServerRoot[] = [
     lintPatterns: ['@/data/gsc/source'],
   },
   {
+    path: 'src/data/wh-statics/source.ts',
+    kind: 'file',
+    lintPatterns: ['@/data/wh-statics/source'],
+  },
+  {
     path: 'src/data/eve-data/source.ts',
     kind: 'file',
     lintPatterns: ['@/data/eve-data/source'],
@@ -74,6 +79,7 @@ const SERVER_ROOTS: readonly ServerRoot[] = [
 
 const EXPECTED_MARKERS = [
   'src/data/gsc/source.ts',
+  'src/data/wh-statics/source.ts',
   'src/lib/rate-limit.ts',
   'src/platform/auth/auth.ts',
   'src/platform/auth/eve-sso.ts',
