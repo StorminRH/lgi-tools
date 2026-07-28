@@ -21,3 +21,4 @@ export * from '../data/preferences/schema';
 export * from '../data/esi-snapshots/schema';
 export * from '../data/esi-refresh-jobs/schema';
 export * from '../data/domain-events/schema';
+export * from '../data/maps/schema';

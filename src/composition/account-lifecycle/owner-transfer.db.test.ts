@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usageLogs } from '@/data/telemetry/schema';
+import { mapAccess, maps } from '@/data/maps/schema';
 import {
   createDbTestHarness,
   seedCharacter as insertCharacter,
@@ -30,8 +31,31 @@ import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
 const harness = await createDbTestHarness({
   schema: 'test_auth_owner_transfer',
-  tables: ['user', 'account', 'characters', 'session', 'usage_logs', 'character_skills'],
+  tables: [
+    'user',
+    'maps',
+    'map_access',
+    'account',
+    'characters',
+    'session',
+    'usage_logs',
+    'character_skills',
+  ],
   foreignKeys: [
+    {
+      table: 'maps',
+      column: 'user_id',
+      refTable: 'user',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'map_access',
+      column: 'map_id',
+      refTable: 'maps',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
     {
       table: 'account',
       column: 'user_id',
@@ -139,6 +163,17 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
       action: 'auth_login',
       metadata: { source: 'before-transfer' },
     });
+    await harness.db.insert(maps).values({
+      id: '11111111-1111-4111-8111-111111111111',
+      userId: TARGET_ID,
+      name: 'Target map',
+    });
+    await harness.db.insert(mapAccess).values({
+      mapId: '11111111-1111-4111-8111-111111111111',
+      ownerType: 'character',
+      ownerId: MOVED_CHAR,
+      role: 'editor',
+    });
 
     await reconcileCharacterOwner(MOVED_CHAR, 'owner-two');
 
@@ -158,6 +193,8 @@ describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', ()
     expect(
       await harness.db.select().from(usageLogs).where(eq(usageLogs.characterId, MOVED_CHAR)),
     ).toHaveLength(1);
+    expect(await harness.db.select().from(maps)).toHaveLength(1);
+    expect(await harness.db.select().from(mapAccess)).toHaveLength(0);
     const [profile] = await harness.db
       .select({ preferences: characters.preferences })
       .from(characters)

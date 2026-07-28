@@ -135,6 +135,8 @@ export const TABLE_GROWTH_STORIES = [
   },
 
   { kind: 'purge-managed', table: schema.session, purgeContributor: 'auth' },
+  { kind: 'purge-managed', table: schema.maps, purgeContributor: 'maps' },
+  { kind: 'purge-managed', table: schema.mapAccess, purgeContributor: 'maps' },
   {
     kind: 'purge-managed',
     table: schema.customStructures,

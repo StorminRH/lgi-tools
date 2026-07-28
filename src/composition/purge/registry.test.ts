@@ -52,6 +52,8 @@ describe('purge registry gate', () => {
         'custom_structures',
         'esi_refresh_jobs',
         'esi_snapshots',
+        'map_access',
+        'maps',
         'owned_asset_syncs',
         'owned_assets',
         'owned_blueprint_syncs',

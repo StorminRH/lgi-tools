@@ -37,6 +37,10 @@ FINDING_PATTERN = re.compile(
     r"^\s*\d+\.\s+\[(BLOCKER|MAJOR|MINOR)\]\s+",
     re.MULTILINE,
 )
+FINDINGS_SECTION_PATTERN = re.compile(
+    r"^Findings:[ \t]*(?P<body>.*?)(?=^Load-bearing checks(?: that held)?:|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
 
 
 @dataclass(frozen=True)
@@ -272,8 +276,11 @@ def summarize_verdict(seat: Seat, verdict_text: str) -> dict[str, Any]:
     verdict_match = VERDICT_PATTERN.search(verdict_text)
     if verdict_match is None:
         raise ReviewFailure(f"{seat.reviewer} collection has no parseable verdict")
+    findings_match = FINDINGS_SECTION_PATTERN.search(verdict_text)
+    if findings_match is None:
+        raise ReviewFailure(f"{seat.reviewer} collection has no Findings section")
     counts = {"blocker": 0, "major": 0, "minor": 0}
-    for severity in FINDING_PATTERN.findall(verdict_text):
+    for severity in FINDING_PATTERN.findall(findings_match.group("body")):
         counts[severity.lower()] += 1
     verdict = verdict_match.group(1)
     if verdict == "CLEAN" and any(counts.values()):
