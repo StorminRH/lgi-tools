@@ -73,12 +73,13 @@ describe('reconcileCharacterOwner', () => {
       [{ userId: USER, ownerHash: H1 }], // reconcile lookup → mismatch H1≠H2
       [{ id: 'acc-1' }], // deleteLinkedCharacter .returning
       undefined, // characters.preferences reset
+      undefined, // direct map-grant delete
       [], // remaining eve accounts → account-less
       undefined, // delete prior-owner user row
     ];
     await reconcileCharacterOwner(CHAR, H2);
-    // account row + user row both deleted; characters reset once.
-    expect(state.calls).toEqual({ delete: 2, update: 1 });
+    // Account row, direct map grants, and user row deleted; characters reset once.
+    expect(state.calls).toEqual({ delete: 3, update: 1 });
   });
 });
 
@@ -87,17 +88,19 @@ describe('purgeTransferredCharacter', () => {
     state.results = [
       [{ id: 'acc-1' }], // deleteLinkedCharacter .returning
       undefined, // characters.preferences reset
+      undefined, // direct map-grant delete
       [], // remaining eve accounts → none
       undefined, // delete user row
     ];
     await purgeTransferredCharacter(USER, CHAR);
-    expect(state.calls).toEqual({ delete: 2, update: 1 });
+    expect(state.calls).toEqual({ delete: 3, update: 1 });
   });
 
   it('keeps a multi-character prior owner: rebinds the identity email + repoints active', async () => {
     state.results = [
       [{ id: 'acc-1' }], // deleteLinkedCharacter .returning
       undefined, // characters.preferences reset
+      undefined, // direct map-grant delete
       [{ accountId: String(OTHER_CHAR) }], // remaining → one survivor (multi-char)
       // prior owner's email IS the freed character's synthetic address + active == freed char
       [{ email: syntheticEmail(CHAR), activeCharacterId: CHAR }],
@@ -106,20 +109,21 @@ describe('purgeTransferredCharacter', () => {
       undefined, // repointActiveToOldest update
     ];
     await purgeTransferredCharacter(USER, CHAR);
-    // account deleted (1), user row NOT deleted; characters reset + email rebind + repoint = 3 updates.
-    expect(state.calls).toEqual({ delete: 1, update: 3 });
+    // Account + direct grant deleted, user row retained; reset + email rebind + repoint = 3 updates.
+    expect(state.calls).toEqual({ delete: 2, update: 3 });
   });
 
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
       [{ id: 'acc-1' }], // deleteLinkedCharacter .returning
       undefined, // characters.preferences reset
+      undefined, // direct map-grant delete
       [{ accountId: String(OTHER_CHAR) }], // remaining → one survivor
       // identity email + active point at a DIFFERENT surviving character
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await purgeTransferredCharacter(USER, CHAR);
-    // account deleted (1); only the characters reset writes (1) — no rebind, no repoint.
-    expect(state.calls).toEqual({ delete: 1, update: 1 });
+    // Account + direct grant deleted; only the character reset update runs.
+    expect(state.calls).toEqual({ delete: 2, update: 1 });
   });
 });

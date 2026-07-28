@@ -16,6 +16,7 @@ import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
 import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
+import { mapsPurgeContributor } from '@/data/maps/purge';
 import type { PurgeContributor } from '@/platform/purge/types';
 
 /**
@@ -24,6 +25,7 @@ import type { PurgeContributor } from '@/platform/purge/types';
  */
 export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   authPurgeContributor,
+  mapsPurgeContributor,
   skillQueuePurgeContributor,
   industryJobsPurgeContributor,
   ownedAssetsPurgeContributor,

@@ -37,9 +37,9 @@ beforeEach(() => {
 });
 
 describe('runPurge orchestrator', () => {
-  it('transfer scope (credential tier only) touches exactly account then characters', async () => {
+  it('transfer scope removes auth custody and direct map grants at the credential tier', async () => {
     await runPurge({ kind: 'character', userId: 'u1', characterId: 42 }, ['credential']);
-    expect(names()).toEqual(['account', 'characters']);
+    expect(names()).toEqual(['account', 'characters', 'map_access']);
   });
 
   it('full character purge runs credentials before the regenerable caches', async () => {
@@ -47,6 +47,7 @@ describe('runPurge orchestrator', () => {
     const seq = names();
     expect(seq[0]).toBe('account');
     expect(seq[1]).toBe('characters');
+    expect(seq[2]).toBe('map_access');
     for (const cacheTable of [
       'character_skills',
       'character_skill_syncs',
@@ -73,6 +74,7 @@ describe('runPurge orchestrator', () => {
     for (const userTable of [
       'corp_industry_jobs',
       'corp_industry_job_syncs',
+      'maps',
       'user_preferences',
       'custom_structures',
     ]) {
@@ -80,6 +82,7 @@ describe('runPurge orchestrator', () => {
     }
     expect(seq.indexOf('corp_industry_jobs')).toBeLessThan(seq.indexOf('user_preferences'));
     expect(seq.indexOf('corp_industry_jobs')).toBeLessThan(seq.indexOf('custom_structures'));
+    expect(seq.indexOf('maps')).toBeLessThan(seq.indexOf('corp_industry_jobs'));
     expect(seq).not.toContain('account');
     expect(seq).not.toContain('character_skills');
   });

@@ -227,11 +227,10 @@
       "required": [
         "docs/workflows/adversarial-review\\.md",
         "Invocation authority|Authorization",
-        "cursor-agent",
-        "composer-2\\.5",
-        "cursor-grok-4\\.5-high",
-        "--resume",
+        "run_adversarial_review\\.py",
+        "--composer-brief",
         "authorization permits[^\\n]*--trust",
+        "compact",
         "runtime mechanics",
         "Return|result"
       ],
@@ -286,6 +285,8 @@
   "requiredPaths": [
     ".agent-local/check_agent_drift.py",
     ".agent-local/test_agent_drift.py",
+    ".agent-local/run_adversarial_review.py",
+    ".agent-local/test_adversarial_review_runner.py",
     ".agent-local/resolve_development_state.py",
     ".agent-local/test_development_state.py",
     ".agent-local/checker_common.py",
@@ -441,7 +442,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "f85484b62e35456291b0238ccac969ea2749a3f702752bd4369e00fb92249b02"
+      "reconciledHash": "f0376a9691e42eb8d26b32a1640f898af6b7b12af7b701d9d28033296f3da655"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -462,7 +463,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "8fd4607ef1d543b64775bde6fef5e24873092a6267c00252af9055073e0e9a63"
+      "reconciledHash": "cf6514e2f159bef51989af2feebe3eb3928475cc940df814f3d06242a208977d"
     },
     "plan-version-audit": {
       "deps": [
@@ -500,7 +501,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "307b94f19ede393bb2908ab62156151d891cf7fa7a9db720680e64391392bf21"
+      "reconciledHash": "950ed7418f70f455c4a860cbe82b2f9f725302347e58328856b1b5c68d1e4295"
     },
     "ux-check": {
       "deps": [
@@ -534,7 +535,7 @@
         "docs/workflows/adversarial-review.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "0a67f31b414ff7a9147e3d7ee9f6b647e96a02ae320c9a15213b15fa4649ae83"
+      "reconciledHash": "58dc36b290c20f99296b45a8322f6b97e0ef5c86e693914c63b855a2fe7a9e24"
     },
     "agent-policy-audit": {
       "deps": [
@@ -544,7 +545,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "162f08082344ff9d48804aa16737aded1bd1272690830514a7bc32da2801c4b4"
+      "reconciledHash": "360c99d093e14d8b2efeaae77507015968957b7e421cc89ca5b32977395e9b55"
     }
   },
   "procedurePolicies": {
@@ -575,13 +576,14 @@
       "orderedRequired": [
         "Select exactly one review mode",
         "Freeze the subject and evidence",
-        "Build context-budgeted reviewer briefs",
+        "Select scopes and build context-budgeted reviewer briefs",
+        "one to three bounded Composer scopes",
         "Composer 2\\.5 Standard",
         "Cursor Grok 4\\.5 High",
         "two turns in one Cursor session",
+        "compact receipt",
         "Do not launch a duplicate automatic escalation review",
-        "Verify and reconcile",
-        "Build the fix prompt"
+        "Verify and reconcile"
       ]
     },
     "docs/workflows/close-out.md": {

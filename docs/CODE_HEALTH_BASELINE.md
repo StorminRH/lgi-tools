@@ -14,13 +14,13 @@
 
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
-| Production TS/TSX files | 806 | 806 | 0 |
-| Production TS/TSX LOC | 79,515 | 79,515 | 0 |
-| Test files | 428 | 428 | 0 |
-| Coverage — statements | 85.83% | 85.83% | — |
-| Coverage — branches | 82.81% | 82.81% | — |
-| Coverage — functions | 81.37% | 81.37% | — |
-| Coverage — lines | 86.89% | 86.89% | — |
+| Production TS/TSX files | 806 | 811 | +5 |
+| Production TS/TSX LOC | 79,515 | 79,804 | +289 |
+| Test files | 428 | 432 | +4 |
+| Coverage — statements | 85.83% | 85.89% | — |
+| Coverage — branches | 82.81% | 82.79% | — |
+| Coverage — functions | 81.37% | 81.46% | — |
+| Coverage — lines | 86.89% | 86.95% | — |
 | Fallow health score | 78 (B) | 78 (B) | — |
 | Functions above health thresholds | 0 | 0 | 0 |
 | Planner concern-context fields | 5 / 10 / 18 / 6 / 13 | 5 / 10 / 18 / 6 / 13 | — |
@@ -29,8 +29,8 @@
 | ESI dataset registry entries | 13 | 13 | 0 |
 | Freshness leaf breadth | 3 functions / 14 production importers | 3 functions / 14 production importers | — |
 | Cron shell declarations | 7 | 7 | 0 |
-| Real-Postgres harness consumers | 20 | 20 | 0 |
-| Dataset declaration census | 56 tables / 14 index tests | 56 tables / 14 index tests | — |
+| Real-Postgres harness consumers | 20 | 21 | +1 |
+| Dataset declaration census | 56 tables / 14 index tests | 58 tables / 14 index tests | — |
 | API contract completeness | 52 routes / 17 contract modules | 52 routes / 17 contract modules | — |
 | EVE type-image resolver breadth | 8 exports / 6 functions / 15 production importers | 8 exports / 6 functions / 15 production importers | — |
 | Threshold overrides | 0 | 0 | 0 |

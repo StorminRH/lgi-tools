@@ -3,7 +3,7 @@
 // goes through the shared gate as a BARE `esiFetch` with no Authorization header
 // (NOT readEsi, which forces a Bearer header and bypasses the shared budget).
 // Verified against the live ESI swagger: POST /characters/affiliation/, no scope,
-// minItems 1 / maxItems 1000, x-cached-seconds 3600.
+// minItems 1 / maxItems 1000, x-client-cache-ttl 3600.
 //
 // POST is not ETag/window-cacheable in the gate (isEtagEligible is GET-only), so
 // each call dispatches — but the gate still enforces the shared per-IP budget,

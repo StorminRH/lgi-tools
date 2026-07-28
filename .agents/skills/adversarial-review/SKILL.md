@@ -4,9 +4,9 @@ description: >-
   Run a read-only adversarial review of an LGI.tools plan, implementation diff,
   or pull request with independent Cursor models and verified findings. Use
   when the operator asks to challenge a plan, review a branch or PR, validate a
-  completed implementation, or produce one executable fix prompt. Also runs
-  from planning workflows and close-out without replacing approval, pre-PR
-  design review, the external PR gate, implementation, or delivery.
+  completed implementation, or independently test implementation readiness.
+  Also runs from planning workflows and close-out without replacing approval,
+  pre-PR design review, the external PR gate, implementation, or delivery.
 ---
 
 # Run the adversarial review
@@ -22,64 +22,39 @@ fix, commit, open a PR, merge, deploy, or mutate lifecycle state.
 
 - Track the canonical phases with native Codex tasks and keep exactly one task
   active.
-- Store both context-budgeted briefs under a temporary directory outside the
-  repository.
-- Resolve the repository and brief paths into `ADVERSARIAL_REVIEW_REPOSITORY`,
-  `ADVERSARIAL_EXECUTION_BRIEF`, and `ADVERSARIAL_HOLISTIC_BRIEF`.
-- Run the default reviewers concurrently from the persistent terminal:
+- Store the Grok brief, one-to-three selected Composer briefs, and all review
+  captures under a temporary directory outside the repository.
+- Resolve the repository, output directory, and brief paths into task-specific
+  variables. Build `ADVERSARIAL_COMPOSER_ARGS` with one
+  `--composer-brief "scope=path"` pair per frozen Composer scope.
+- Run every selected investigation and collection turn through the shared
+  concurrent runner from the persistent terminal:
 
   ```bash
-  cursor-agent --print --output-format json --mode plan --sandbox enabled \
-    --model composer-2.5 --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
-    < "$ADVERSARIAL_EXECUTION_BRIEF" \
-    > "$ADVERSARIAL_EXECUTION_BRIEF.result.json" &
-  ADVERSARIAL_EXECUTION_PID=$!
-
-  cursor-agent --print --output-format json --mode plan --sandbox enabled \
-    --model cursor-grok-4.5-high \
-    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
-    < "$ADVERSARIAL_HOLISTIC_BRIEF" \
-    > "$ADVERSARIAL_HOLISTIC_BRIEF.result.json" &
-  ADVERSARIAL_HOLISTIC_PID=$!
-
-  ADVERSARIAL_REVIEW_FAILURE=0
-  wait "$ADVERSARIAL_EXECUTION_PID" || ADVERSARIAL_REVIEW_FAILURE=1
-  wait "$ADVERSARIAL_HOLISTIC_PID" || ADVERSARIAL_REVIEW_FAILURE=1
-  if [ "$ADVERSARIAL_REVIEW_FAILURE" -ne 0 ]; then exit 1; fi
-
-  ADVERSARIAL_EXECUTION_SESSION_ID=$(
-    jq -er '.session_id' "$ADVERSARIAL_EXECUTION_BRIEF.result.json"
-  )
-  ADVERSARIAL_HOLISTIC_SESSION_ID=$(
-    jq -er '.session_id' "$ADVERSARIAL_HOLISTIC_BRIEF.result.json"
-  )
-
-  ADVERSARIAL_COLLECTION_PROMPT='Return the review verdict now as plain text in the required format. Do not perform more investigation, edit files, or refer me to a plan artifact. Output only the Verdict, Findings, and Load-bearing checks sections.'
-
-  cursor-agent --print --output-format json --mode plan --sandbox enabled \
-    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
-    --resume "$ADVERSARIAL_EXECUTION_SESSION_ID" \
-    "$ADVERSARIAL_COLLECTION_PROMPT"
-
-  cursor-agent --print --output-format json --mode plan --sandbox enabled \
-    --workspace "$ADVERSARIAL_REVIEW_REPOSITORY" \
-    --resume "$ADVERSARIAL_HOLISTIC_SESSION_ID" \
-    "$ADVERSARIAL_COLLECTION_PROMPT"
+  python3 .agent-local/run_adversarial_review.py \
+    --repository "$ADVERSARIAL_REVIEW_REPOSITORY" \
+    --output-dir "$ADVERSARIAL_REVIEW_OUTPUT" \
+    --grok-brief "$ADVERSARIAL_GROK_BRIEF" \
+    "${ADVERSARIAL_COMPOSER_ARGS[@]}"
   ```
 
-- Use separate background jobs and capture each complete JSON result. Resolve
-  each collection variable from the corresponding investigation result's
-  `session_id`; the collection result text is the verdict of record.
+- The runner pins `composer-2.5` and `cursor-grok-4.5-high`, launches the
+  selected seats concurrently, resumes each `session_id` once, stores complete
+  JSON captures, and emits only the compact severity-count summary.
+- Render that summary as the canonical receipt table, state that triage is
+  beginning, and do not expose raw reviewer findings in commentary.
 - Do not add `--force`, `--yolo`, or `--approve-mcps`. Only an operator's
-  explicit per-run authorization permits `--trust`; an interactive operator
-  trust grant is the normal first-run path.
+  explicit per-run authorization permits appending `--trust` to the runner
+  command; an interactive operator trust grant is the normal first-run path.
 - Do not launch a duplicate Grok seat for a canonical escalation trigger.
   Follow the procedure's evidence-first reconciliation and return `BLOCKED`
   when an unresolved trigger needs an operator-approved frontier-model review.
-- Continue the orchestrator's source review while the model reviews run. Verify
-  every accepted claim personally and fail if the subject changes.
+- Do not add review agents from the invoking runtime. Continue the
+  orchestrator's source review while the Cursor seats run, inspect their
+  captured verdicts during triage, verify every accepted claim personally, and
+  fail if the subject changes.
 
 ## Return
 
-Render the canonical Markdown result without an outer fence. Include exactly
-one fenced fix prompt only when the verdict is `FIX_ROUND_REQUIRED`.
+Render the canonical concise Markdown result without an outer fence. Return
+accepted root causes to the invoking workflow without generating a fix prompt.

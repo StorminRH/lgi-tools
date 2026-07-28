@@ -55,13 +55,11 @@ Rules the pending checker (`.agent-local/check_pending_changelog.py`) enforces:
 
 At planned close-out, after syncing with current `origin/main` so fragments
 already merged there are present, the release folds every pending fragment into
-the new `### vX.Y.N — YYYY-MM-DD` entry. The deterministic ordering, grouping,
-and provenance belong to the fold utility. Resolve the prior release into the
-task-specific `PRIOR_VERSION` variable, then run:
+the new `### vX.Y.N — YYYY-MM-DD` entry. The deterministic ordering and grouping
+belong to the fold utility. Run:
 
 ```bash
-python3 .agent-local/fold_pending_changelog.py \
-  --prior-version "$PRIOR_VERSION"
+python3 .agent-local/fold_pending_changelog.py
 ```
 
 The command prints the folded Markdown and the exact list of consumed fragment
@@ -70,10 +68,9 @@ files:
 1. Order fragments deterministically by `date`, then by file name.
 2. Group their bullets by category in the canonical `Added`, `Changed`,
    `Fixed`, `Removed` order, after the version's own bullets for that category.
-3. Because these changes shipped out-of-band before the rollup deployed, mark
-   each folded bullet so the site does not imply it first deployed with the
-   rollup — append a plain-text provenance clause such as
-   `— included since v<previous-version>`.
+3. Carry each bullet over verbatim. A changelog entry states what changed for
+   the reader; the version a change originally shipped under is internal
+   accounting and does not belong in the published text.
 4. Delete every consumed fragment file in the same release PR. Git retains the
    history, and deletion prevents a fragment from being published twice.
 
