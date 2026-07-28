@@ -65,10 +65,10 @@ Cursor sessions with `--mode plan`, sandboxing, explicit workspace selection,
 and JSON output. Every selected seat uses two turns in one session: the
 investigation, followed by a concurrent `--resume` collection turn whose JSON
 `result` text is the verdict of record. The runner stores complete responses
-outside the repository and emits a compact severity-count summary for chat. On
-a repository's first run, satisfy the workspace-trust prompt through an
-interactive operator grant or pause for the operator's explicit authorization
-to use `--trust` for that invocation.
+outside the repository, bounds each Cursor turn to 30 minutes, and emits a
+compact severity-count summary for chat. On a repository's first run, satisfy
+the workspace-trust prompt through an interactive operator grant or pause for
+the operator's explicit authorization to use `--trust` for that invocation.
 
 Never add `--force`, `--yolo`, `--trust`, or automatic MCP approval silently;
 the per-run operator authorization above is the only exception for `--trust`.

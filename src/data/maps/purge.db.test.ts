@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import {
   createDbTestHarness,
@@ -61,7 +61,9 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
       characterId: 42,
     });
 
-    expect(await harness.db.select().from(mapAccess)).toMatchObject([
+    expect(
+      await harness.db.select().from(mapAccess).orderBy(asc(mapAccess.ownerId)),
+    ).toMatchObject([
       { ownerType: 'character', ownerId: 43 },
       { ownerType: 'corporation', ownerId: 99 },
     ]);
@@ -93,7 +95,9 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
 
     expect(await harness.db.select().from(maps).where(eq(maps.userId, 'owner'))).toHaveLength(0);
     expect(await harness.db.select().from(maps).where(eq(maps.userId, 'other'))).toHaveLength(1);
-    expect(await harness.db.select().from(mapAccess)).toMatchObject([
+    expect(
+      await harness.db.select().from(mapAccess).orderBy(asc(mapAccess.ownerId)),
+    ).toMatchObject([
       { ownerId: 43, mapId: '22222222-2222-4222-8222-222222222222' },
     ]);
   });

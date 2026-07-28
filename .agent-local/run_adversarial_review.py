@@ -41,6 +41,7 @@ FINDINGS_SECTION_PATTERN = re.compile(
     r"^Findings:[ \t]*(?P<body>.*?)(?=^Load-bearing checks(?: that held)?:|\Z)",
     re.MULTILINE | re.DOTALL,
 )
+DEFAULT_CURSOR_TIMEOUT_SECONDS = 30 * 60
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,12 @@ def parse_args() -> argparse.Namespace:
         "--trust",
         action="store_true",
         help="Pass --trust only after explicit operator authorization for this run.",
+    )
+    parser.add_argument(
+        "--cursor-timeout-seconds",
+        type=float,
+        default=DEFAULT_CURSOR_TIMEOUT_SECONDS,
+        help=argparse.SUPPRESS,
     )
     return parser.parse_args()
 
@@ -127,8 +134,11 @@ def validate_inputs(
         raise ReviewFailure(f"repository does not exist: {repository}")
     if is_within(output_dir, repository):
         raise ReviewFailure("review output directory must be outside the repository")
-    if output_dir.exists() and any(output_dir.iterdir()):
-        raise ReviewFailure("review output directory must start empty")
+    if output_dir.exists():
+        if not output_dir.is_dir():
+            raise ReviewFailure("review output path must be a directory")
+        if any(output_dir.iterdir()):
+            raise ReviewFailure("review output directory must start empty")
     for brief in [grok_brief, *(path for _, path in composer_specs)]:
         if not brief.is_file():
             raise ReviewFailure(f"review brief does not exist: {brief}")
@@ -138,6 +148,7 @@ def run_command(
     command: list[str],
     *,
     stdin: str | None = None,
+    timeout_seconds: float,
 ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
@@ -146,7 +157,12 @@ def run_command(
             text=True,
             capture_output=True,
             check=False,
+            timeout=timeout_seconds,
         )
+    except subprocess.TimeoutExpired as exc:
+        raise ReviewFailure(
+            f"{command[0]!r} exceeded the {timeout_seconds:g}-second turn timeout"
+        ) from exc
     except OSError as exc:
         raise ReviewFailure(f"could not start {command[0]!r}: {exc}") from exc
 
@@ -247,6 +263,7 @@ def run_investigations(
     output_dir: Path,
     seats: list[Seat],
     trust: bool,
+    timeout_seconds: float,
 ) -> dict[str, str]:
     sessions: dict[str, str] = {}
     with ThreadPoolExecutor(max_workers=len(seats)) as executor:
@@ -255,6 +272,7 @@ def run_investigations(
                 run_command,
                 investigation_command(cursor_agent, repository, seat, trust),
                 stdin=seat.brief.read_text(encoding="utf-8"),
+                timeout_seconds=timeout_seconds,
             ): seat
             for seat in seats
         }
@@ -306,6 +324,7 @@ def run_collections(
     seats: list[Seat],
     sessions: dict[str, str],
     trust: bool,
+    timeout_seconds: float,
 ) -> list[dict[str, Any]]:
     summaries: dict[str, dict[str, Any]] = {}
     with ThreadPoolExecutor(max_workers=len(seats)) as executor:
@@ -318,6 +337,7 @@ def run_collections(
                     sessions[seat.key],
                     trust,
                 ),
+                timeout_seconds=timeout_seconds,
             ): seat
             for seat in seats
         }
@@ -342,6 +362,8 @@ def main() -> int:
         output_dir = args.output_dir.expanduser().resolve()
         grok_brief = args.grok_brief.expanduser().resolve()
         composer_specs = parse_composer_specs(args.composer_brief)
+        if args.cursor_timeout_seconds <= 0:
+            raise ReviewFailure("Cursor turn timeout must be greater than zero")
         validate_inputs(repository, output_dir, grok_brief, composer_specs)
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -370,6 +392,7 @@ def main() -> int:
             output_dir,
             seats,
             args.trust,
+            args.cursor_timeout_seconds,
         )
         summaries = run_collections(
             args.cursor_agent,
@@ -378,6 +401,7 @@ def main() -> int:
             seats,
             sessions,
             args.trust,
+            args.cursor_timeout_seconds,
         )
         summary = {"seat_count": len(seats), "seats": summaries}
         summary_path = output_dir / "review-summary.json"

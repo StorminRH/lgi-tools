@@ -28,11 +28,14 @@ class AdversarialReviewRunnerTests(unittest.TestCase):
                 import json
                 import os
                 import sys
+                import time
 
                 args = sys.argv[1:]
+                scenario = os.environ.get("FAKE_CURSOR_SCENARIO", "findings")
+                if scenario == "timeout":
+                    time.sleep(1)
                 if "--resume" in args:
                     session_id = args[args.index("--resume") + 1]
-                    scenario = os.environ.get("FAKE_CURSOR_SCENARIO", "findings")
                     if scenario == "nonzero":
                         print("collection failed", file=sys.stderr)
                         raise SystemExit(7)
@@ -89,8 +92,10 @@ class AdversarialReviewRunnerTests(unittest.TestCase):
         *,
         composer_count: int,
         output_inside_repository: bool = False,
+        output_as_file: bool = False,
         prefill_output: bool = False,
         scenario: str = "findings",
+        timeout_seconds: float | None = None,
     ) -> subprocess.CompletedProcess[str]:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
@@ -103,7 +108,9 @@ class AdversarialReviewRunnerTests(unittest.TestCase):
         grok.write_text("holistic brief", encoding="utf-8")
         fake_cursor = self.make_fake_cursor(root)
         output = repository / "results" if output_inside_repository else root / "results"
-        if prefill_output:
+        if output_as_file:
+            output.write_text("not a directory", encoding="utf-8")
+        elif prefill_output:
             output.mkdir()
             (output / "stale.json").write_text("{}", encoding="utf-8")
         command = [
@@ -118,6 +125,8 @@ class AdversarialReviewRunnerTests(unittest.TestCase):
             "--cursor-agent",
             str(fake_cursor),
         ]
+        if timeout_seconds is not None:
+            command.extend(["--cursor-timeout-seconds", str(timeout_seconds)])
         for index in range(1, composer_count + 1):
             brief = briefs / f"composer-{index}.md"
             brief.write_text(f"composer brief {index}", encoding="utf-8")
@@ -159,6 +168,21 @@ class AdversarialReviewRunnerTests(unittest.TestCase):
         result = self.run_runner(composer_count=1, prefill_output=True)
         self.assertEqual(result.returncode, 2)
         self.assertIn("must start empty", result.stderr)
+
+    def test_rejects_file_as_output_directory(self) -> None:
+        result = self.run_runner(composer_count=1, output_as_file=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("output path must be a directory", result.stderr)
+
+    def test_times_out_stalled_cursor_turns_without_a_summary(self) -> None:
+        result = self.run_runner(
+            composer_count=1,
+            scenario="timeout",
+            timeout_seconds=0.05,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("exceeded the 0.05-second turn timeout", result.stderr)
+        self.assertEqual(result.stdout, "")
 
     def test_counts_only_numbered_findings_inside_the_findings_section(self) -> None:
         result = self.run_runner(

@@ -146,7 +146,8 @@ All seats run through Cursor Agent in read-only mode, sandboxed, with structured
 output. They are independent fresh model sessions even when the invoking agent
 is Codex or Claude. Composer's narrower roles and standard speed tier are
 deliberate cost and context controls. Do not replace or supplement these Cursor
-seats with native Codex or Claude subagents.
+seats with native Codex or Claude subagents. The shared runner bounds each
+Cursor turn to 30 minutes and returns a blocking failure if a seat stalls.
 
 Treat every reviewer seat as two turns in one Cursor session:
 

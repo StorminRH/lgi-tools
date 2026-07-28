@@ -535,7 +535,7 @@
         "docs/workflows/adversarial-review.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "f88de8daed500f5de2ebe3bb07a6dad4be6552ca6e8677ec1e4054cb12fe4aba"
+      "reconciledHash": "58dc36b290c20f99296b45a8322f6b97e0ef5c86e693914c63b855a2fe7a9e24"
     },
     "agent-policy-audit": {
       "deps": [
@@ -545,7 +545,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "52fa572c2f02f2682b196b0fbb10d6dfc5b99675cc995d2bb03bd18ecb3f0899"
+      "reconciledHash": "360c99d093e14d8b2efeaae77507015968957b7e421cc89ca5b32977395e9b55"
     }
   },
   "procedurePolicies": {
