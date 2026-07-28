@@ -55,8 +55,8 @@ export interface WhStaticsDiff {
 /** One feed-versus-lineage disagreement retained for operator review. */
 export interface WhStaticsDisagreement {
   readonly systemId: number;
-  readonly feedTypeIds: readonly number[];
-  readonly lineageTypeIds: readonly number[];
+  readonly feedCodes: readonly string[];
+  readonly lineageCodes: readonly string[];
 }
 
 /** Independent-lineage comparison retained with a pending statics snapshot. */
