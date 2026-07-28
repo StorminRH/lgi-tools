@@ -31,6 +31,7 @@ export type VendorIntegrationId =
   | 'discord-webhooks'
   | 'fuzzwork'
   | 'ccp-static-data'
+  | 'anoik-statics'
   | 'eve-news-feed'
   | 'ccp-image-cdn';
 
@@ -237,6 +238,25 @@ export const vendorResilienceRegistry: Record<
     degradation:
       'The deploy-time bootstrap soft-fails so a failed ingest cannot fail a build, and the existing SDE tables keep serving.',
     telemetryFields: "'cron_sde' (refreshed / skipped).",
+  },
+  'anoik-statics': {
+    wrapper: {
+      module: 'src/data/wh-statics/source.ts',
+      symbol: 'fetchStaticsFeed',
+    },
+    timeout:
+      '10s per conditional GET (WH_STATICS_FETCH_TIMEOUT_MS via fetchWithTimeout).',
+    retryableErrors:
+      'None in-process; the next weekly run or an explicit operator refresh is the retry.',
+    backoff: 'None — one bounded request per refresh attempt.',
+    rateLimit:
+      'A weekly conditional GET normally transfers zero body bytes; additional refreshes are operator-triggered only.',
+    idempotency:
+      'Read-only conditional GET; repeating the request cannot mutate the publisher or the promoted copy.',
+    degradation:
+      'Network, timeout and non-200 failures resolve to `unavailable`; the refresh records that outcome while serving keeps the last promoted Neon copy.',
+    telemetryFields:
+      "'cron_wh_statics' outcomes: unchanged, feed-unavailable and snapshot-pending.",
   },
   'eve-news-feed': {
     wrapper: { module: 'src/data/eve-news/queries.ts', symbol: 'getEveNews' },

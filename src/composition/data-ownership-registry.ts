@@ -29,6 +29,7 @@ type SliceId =
   | 'data/maps'
   | 'data/preferences'
   | 'data/telemetry'
+  | 'data/wh-statics'
   | 'features/custom-structures'
   | 'features/industry-jobs'
   | 'features/industry-planner'
@@ -526,6 +527,17 @@ export const DATA_OWNERSHIP = [
     boundary: KEYED_UPSERT,
     dataClass: 'global-reference',
   },
+  {
+    table: schema.whSystemStatics,
+    owner: 'data/wh-statics',
+    reads: 'open',
+    invariants: [
+      'fk(source_snapshot_id→wh_statics_snapshots.id)',
+      'pk(system_id,code)',
+    ],
+    boundary: REPLACE_ALL,
+    dataClass: 'global-reference',
+  },
 
   // ---------------------------------------------------------------------------
   // platform/auth — the identity and credential core (src/db/auth-schema.ts).
@@ -835,6 +847,17 @@ export const DATA_OWNERSHIP = [
   // ---------------------------------------------------------------------------
   // Operational infrastructure — snapshots, queue, and events.
   // ---------------------------------------------------------------------------
+  {
+    table: schema.whStaticsSnapshots,
+    owner: 'data/wh-statics',
+    reads: 'open',
+    invariants: ['pk(id)'],
+    boundary: {
+      kind: 'transactional-batch',
+      note: 'One reserved postgres-js transaction supersedes any pending snapshot and inserts the new pending row, so the operator review target is unambiguous.',
+    },
+    dataClass: 'operational',
+  },
   {
     table: schema.esiSnapshots,
     owner: 'data/esi-snapshots',

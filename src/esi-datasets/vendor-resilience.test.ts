@@ -47,6 +47,7 @@ const EXPECTED_INTEGRATIONS: readonly VendorIntegrationId[] = [
   'discord-webhooks',
   'fuzzwork',
   'ccp-static-data',
+  'anoik-statics',
   'eve-news-feed',
   'ccp-image-cdn',
 ];

@@ -365,6 +365,13 @@
       "when": 1785199373951,
       "tag": "0051_tired_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1785262783452,
+      "tag": "0052_clear_spectrum",
+      "breakpoints": true
     }
   ]
 }
