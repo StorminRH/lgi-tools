@@ -40,6 +40,55 @@ function sameSet(a: readonly number[], b: readonly number[]): boolean {
   return a.every((value, index) => value === b[index]);
 }
 
+function groupTypeIdsBySystem(
+  pairs: readonly { systemId: number; typeId: number }[],
+): Map<number, number[]> {
+  const map = new Map<number, number[]>();
+  for (const pair of pairs) {
+    const bucket = map.get(pair.systemId);
+    if (bucket) bucket.push(pair.typeId);
+    else map.set(pair.systemId, [pair.typeId]);
+  }
+  return map;
+}
+
+function resolveFeedTypeIds(
+  entries: readonly StaticsEntry[],
+  codeToTypeId: ReadonlyMap<string, number>,
+): Map<number, number[]> {
+  const pairs: { systemId: number; typeId: number }[] = [];
+  for (const entry of entries) {
+    const typeId = codeToTypeId.get(entry.code);
+    if (typeId === undefined) {
+      throw new UnresolvableCodexCodeError(entry.code);
+    }
+    pairs.push({ systemId: entry.systemId, typeId });
+  }
+  return groupTypeIdsBySystem(pairs);
+}
+
+function compareOverlappingSystems(
+  feedBySystem: ReadonlyMap<number, number[]>,
+  lineageBySystem: ReadonlyMap<number, number[]>,
+): Pick<StaticsCrossCheck, 'agreedSystems' | 'disagreements'> {
+  const disagreements: StaticsDisagreement[] = [];
+  let agreedSystems = 0;
+
+  for (const systemId of sortedUnique(feedBySystem.keys())) {
+    const lineageTypes = lineageBySystem.get(systemId);
+    if (lineageTypes === undefined) continue;
+    const feedTypeIds = sortedUnique(feedBySystem.get(systemId) ?? []);
+    const lineageTypeIds = sortedUnique(lineageTypes);
+    if (sameSet(feedTypeIds, lineageTypeIds)) {
+      agreedSystems += 1;
+    } else {
+      disagreements.push({ systemId, feedTypeIds, lineageTypeIds });
+    }
+  }
+
+  return { agreedSystems, disagreements };
+}
+
 /**
  * Resolves each feed entry's code to a typeId through the wormhole codex and
  * compares per-system type sets against the Pathfinder lineage. Disagreements
@@ -50,57 +99,23 @@ export function crossCheckStatics(
   lineageRows: readonly LineageRow[],
   codex: WormholeCodexAsset,
 ): StaticsCrossCheck {
-  const codeToTypeId = new Map<string, number>();
-  for (const entry of codex.types) {
-    codeToTypeId.set(entry.code, entry.typeId);
-  }
-
-  const feedBySystem = new Map<number, number[]>();
-  for (const entry of entries) {
-    const typeId = codeToTypeId.get(entry.code);
-    if (typeId === undefined) {
-      throw new UnresolvableCodexCodeError(entry.code);
-    }
-    const bucket = feedBySystem.get(entry.systemId);
-    if (bucket) bucket.push(typeId);
-    else feedBySystem.set(entry.systemId, [typeId]);
-  }
-
-  const lineageBySystem = new Map<number, number[]>();
-  for (const row of lineageRows) {
-    const bucket = lineageBySystem.get(row.systemId);
-    if (bucket) bucket.push(row.typeId);
-    else lineageBySystem.set(row.systemId, [row.typeId]);
-  }
+  const codeToTypeId = new Map(
+    codex.types.map((entry) => [entry.code, entry.typeId] as const),
+  );
+  const feedBySystem = resolveFeedTypeIds(entries, codeToTypeId);
+  const lineageBySystem = groupTypeIdsBySystem(lineageRows);
 
   const feedSystems = new Set(feedBySystem.keys());
   const lineageSystems = new Set(lineageBySystem.keys());
-
-  const lineageOnlySystems = sortedUnique(
-    [...lineageSystems].filter((systemId) => !feedSystems.has(systemId)),
-  );
-  const feedOnlySystems = sortedUnique(
-    [...feedSystems].filter((systemId) => !lineageSystems.has(systemId)),
-  );
-
-  const disagreements: StaticsDisagreement[] = [];
-  let agreedSystems = 0;
-
-  for (const systemId of sortedUnique(feedSystems)) {
-    if (!lineageSystems.has(systemId)) continue;
-    const feedTypeIds = sortedUnique(feedBySystem.get(systemId) ?? []);
-    const lineageTypeIds = sortedUnique(lineageBySystem.get(systemId) ?? []);
-    if (sameSet(feedTypeIds, lineageTypeIds)) {
-      agreedSystems += 1;
-    } else {
-      disagreements.push({ systemId, feedTypeIds, lineageTypeIds });
-    }
-  }
+  const overlap = compareOverlappingSystems(feedBySystem, lineageBySystem);
 
   return {
-    agreedSystems,
-    disagreements,
-    lineageOnlySystems,
-    feedOnlySystems,
+    ...overlap,
+    lineageOnlySystems: sortedUnique(
+      [...lineageSystems].filter((systemId) => !feedSystems.has(systemId)),
+    ),
+    feedOnlySystems: sortedUnique(
+      [...feedSystems].filter((systemId) => !lineageSystems.has(systemId)),
+    ),
   };
 }

@@ -6,6 +6,7 @@ import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { HISTORY_RETENTION_DAYS } from '@/data/market-history/constants';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
+import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
@@ -132,6 +133,13 @@ export const TABLE_GROWTH_STORIES = [
     retentionConstant: 'ESI_REFRESH_JOB_RETENTION_DAYS',
     prunedBy: 'daily /api/cron/refresh-gsc housekeeping; dead letters retained',
     alsoPurgeManagedBy: 'esi-refresh-jobs',
+  },
+  {
+    kind: 'pruned',
+    table: schema.whStaticsSnapshots,
+    retentionDays: WH_STATICS_SNAPSHOT_RETENTION_DAYS,
+    retentionConstant: 'WH_STATICS_SNAPSHOT_RETENTION_DAYS',
+    prunedBy: 'daily /api/cron/refresh-gsc housekeeping',
   },
 
   { kind: 'purge-managed', table: schema.session, purgeContributor: 'auth' },
@@ -311,6 +319,11 @@ export const TABLE_GROWTH_STORIES = [
     kind: 'bounded',
     table: schema.userPreferences,
     reason: 'one row per user and finite registered preference key',
+  },
+  {
+    kind: 'bounded',
+    table: schema.whSystemStatics,
+    reason: 'finite replace-all promoted community statics copy',
   },
 
   {

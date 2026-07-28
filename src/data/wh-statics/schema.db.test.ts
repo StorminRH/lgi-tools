@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import type { StaticsCrossCheck } from './cross-check';
+import type { StaticsDiff } from './diff';
+import type { StaticsEntry } from './parse';
 import { whStaticsSnapshots, whSystemStatics } from './schema';
 
 const SCHEMA = 'test_wh_statics_schema';
@@ -171,6 +174,23 @@ describe.skipIf(!harness.reachable)('wh-statics schema (real Postgres)', () => {
   });
 
   it('accepts a pending snapshot row and a promoted statics assignment', async () => {
+    const entries: StaticsEntry[] = [
+      { systemId: 31000001, systemName: 'J111613', code: 'E175' },
+    ];
+    const diff: StaticsDiff = {
+      systemsAdded: [],
+      systemsRemoved: [],
+      systemsChanged: [],
+      codesAdded: [],
+      codesRemoved: [],
+      totalDifferences: 0,
+    };
+    const crossCheck: StaticsCrossCheck = {
+      agreedSystems: 1,
+      disagreements: [],
+      lineageOnlySystems: [],
+      feedOnlySystems: [],
+    };
     const [snapshot] = await harness.db
       .insert(whStaticsSnapshots)
       .values({
@@ -180,9 +200,9 @@ describe.skipIf(!harness.reachable)('wh-statics schema (real Postgres)', () => {
         digest: 'a'.repeat(64),
         systemCount: 1,
         status: 'pending',
-        entries: [{ systemId: 31000001, systemName: 'J111613', code: 'E175' }],
-        diff: { totalDifferences: 0 },
-        crossCheck: { agreedSystems: 1, disagreements: [] },
+        entries,
+        diff,
+        crossCheck,
       })
       .returning({ id: whStaticsSnapshots.id });
 

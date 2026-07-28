@@ -1,5 +1,4 @@
 import {
-  bigint,
   bigserial,
   integer,
   jsonb,
@@ -8,8 +7,12 @@ import {
   primaryKey,
   text,
   timestamp,
+  bigint,
 } from 'drizzle-orm/pg-core';
 import { WH_STATICS_SNAPSHOT_STATUSES } from './constants';
+import type { StaticsCrossCheck } from './cross-check';
+import type { StaticsDiff } from './diff';
+import type { StaticsEntry } from './parse';
 
 /**
  * Drizzle schema owner for wh-statics snapshot status; migrations, queries, and
@@ -32,9 +35,9 @@ export const whStaticsSnapshots = pgTable('wh_statics_snapshots', {
   digest: text('digest').notNull(),
   systemCount: integer('system_count').notNull(),
   status: whStaticsSnapshotStatusEnum('status').notNull().default('pending'),
-  entries: jsonb('entries').notNull(),
-  diff: jsonb('diff').notNull(),
-  crossCheck: jsonb('cross_check').notNull(),
+  entries: jsonb('entries').$type<StaticsEntry[]>().notNull(),
+  diff: jsonb('diff').$type<StaticsDiff>().notNull(),
+  crossCheck: jsonb('cross_check').$type<StaticsCrossCheck>().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
     .notNull()
     .defaultNow(),
