@@ -187,9 +187,9 @@ placement, rendering, UI, or public-truth review.
      already merged there are present locally. Then freeze the release candidate:
      absorb every pending fragment present at this cutoff into the new
      `### vX.Y.N` entry per `docs/workflows/schema/changelog-pending.md` (ordered
-     by `date` then file name, grouped by category, each folded bullet marked so
-     the site does not imply it first deployed with the rollup), delete the
-     consumed fragment files in this same PR, prepend the new entry using
+     by `date` then file name, grouped by category, each bullet carried over
+     verbatim), delete the consumed fragment files in this same PR, prepend the
+     new entry using
      `docs/workflows/schema/changelog-entry.md`, bump `APP_VERSION` to that
      version, set the delivered sub-version's roadmap row to its terminal status,
      mark the final session plan `Execution status: Complete`, and prepare the PR

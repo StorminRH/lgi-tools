@@ -7,13 +7,21 @@ const ROUTE_FILE = /^(page|route)\.(tsx?|jsx?)$/;
 const SITEMAP_FILE = /^sitemap\.(tsx?|jsx?)$/;
 const ROBOTS_FILE = /^robots\.(tsx?|jsx?)$/;
 const SOCIAL_IMAGE_FILE = /^(opengraph-image|twitter-image)\.(tsx?|jsx?)$/;
+// A literal icon image is route-defining even though it is an asset, not code:
+// Next serves it at its own filename, so it reaches the build manifest and needs
+// a classification entry like any other route. favicon.ico is deliberately not
+// here — assert-route-classification.mjs filters it out of the build check, so it
+// has no entry for this walker to match and discovering it would report a false
+// missing route.
+const STATIC_ICON_FILE = /^icon\d?\.(ico|jpg|jpeg|png|svg)$/;
 
 export function isRouteFile(base) {
   return (
     ROUTE_FILE.test(base) ||
     SITEMAP_FILE.test(base) ||
     ROBOTS_FILE.test(base) ||
-    SOCIAL_IMAGE_FILE.test(base)
+    SOCIAL_IMAGE_FILE.test(base) ||
+    STATIC_ICON_FILE.test(base)
   );
 }
 
@@ -27,6 +35,9 @@ export function routeKey(relPosix) {
   if (ROBOTS_FILE.test(base)) return `${prefix}/robots.txt`;
   const socialImage = base.match(SOCIAL_IMAGE_FILE);
   if (socialImage) return `${prefix}/${socialImage[1]}`;
+  // Icon images keep their extension in the served path (/icon.svg), unlike the
+  // social images above, which drop theirs.
+  if (STATIC_ICON_FILE.test(base)) return `${prefix}/${base}`;
   return prefix === '' ? '/' : prefix;
 }
 

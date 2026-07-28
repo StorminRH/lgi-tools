@@ -442,7 +442,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "f0376a9691e42eb8d26b32a1640f898af6b7b12af7b701d9d28033296f3da655"
+      "reconciledHash": "563083a372fc1221d0a01d39e2c89903b4656639c6018828e722ac7defe89760"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -463,7 +463,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "cf6514e2f159bef51989af2feebe3eb3928475cc940df814f3d06242a208977d"
+      "reconciledHash": "7941602616da284f9a8f767da701608bb387704866dee9572c195ba3604ea5dd"
     },
     "plan-version-audit": {
       "deps": [
