@@ -18,6 +18,27 @@ const harness = await createDbTestHarness({
   resetBetweenTests: 'truncate',
 });
 
+const SNAPSHOT_VALUES = {
+  feedVersion: '11',
+  digest: 'digest',
+  systemCount: 1,
+  entries: [{ systemId: 31_000_001, systemName: 'J000001', code: 'A001' }],
+  difference: {
+    systemsAdded: [],
+    systemsRemoved: [],
+    systemsChanged: [],
+    codesAdded: [],
+    codesRemoved: [],
+    totalDifferences: 0,
+  },
+  crossCheck: {
+    agreedSystems: 1,
+    disagreements: [],
+    lineageOnlySystems: [],
+    feedOnlySystems: [],
+  },
+} as const;
+
 describe.skipIf(!harness.reachable)(
   'wormhole statics schema (real Postgres)',
   () => {
@@ -170,31 +191,18 @@ describe.skipIf(!harness.reachable)(
     it('enforces the snapshot status and serving-copy key', async () => {
       const [snapshot] = await harness.db
         .insert(whStaticsSnapshots)
-        .values({
-          feedVersion: '11',
-          digest: 'digest',
-          systemCount: 1,
-          entries: [{ systemId: 31_000_001, systemName: 'J000001', code: 'A001' }],
-          difference: {
-            systemsAdded: [],
-            systemsRemoved: [],
-            systemsChanged: [],
-            codesAdded: [],
-            codesRemoved: [],
-            totalDifferences: 0,
-          },
-          crossCheck: {
-            agreedSystems: 1,
-            disagreements: [],
-            lineageOnlySystems: [],
-            feedOnlySystems: [],
-          },
-        })
+        .values(SNAPSHOT_VALUES)
         .returning({ id: whStaticsSnapshots.id });
       expect(snapshot?.id).toEqual(expect.any(Number));
       if (snapshot === undefined) {
         throw new Error('Snapshot insert returned no id.');
       }
+      await expect(
+        harness.db.insert(whStaticsSnapshots).values({
+          ...SNAPSHOT_VALUES,
+          digest: 'second-pending',
+        }),
+      ).rejects.toThrow();
 
       await harness.db.insert(whSystemStatics).values({
         systemId: 31_000_001,

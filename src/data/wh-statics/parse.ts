@@ -4,7 +4,12 @@ import type { WhStaticEntry } from './schema';
 const systemSchema = z.object({
   solarSystemID: z.number().int().positive(),
   solarSystemName: z.string().min(1),
-  statics: z.array(z.string().min(1)),
+  statics: z
+    .array(z.string().min(1))
+    .refine(
+      (codes) => new Set(codes).size === codes.length,
+      'System statics must be unique',
+    ),
 });
 
 const wormholeSchema = z.object({
@@ -41,7 +46,7 @@ export function parseStaticsPayload(body: string): ParsedStaticsFeed {
   const entries: WhStaticEntry[] = [];
   for (const system of Object.values(parsed.systems)) {
     for (const code of system.statics) {
-      if (!(code in parsed.wormholes)) {
+      if (!Object.hasOwn(parsed.wormholes, code)) {
         throw new UnknownStaticCodeError(system.solarSystemName, code);
       }
       entries.push({

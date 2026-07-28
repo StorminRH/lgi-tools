@@ -8,7 +8,9 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 /** Persisted statics snapshot states; this tuple owns the TypeScript and Postgres vocabulary. */
 export const WH_STATICS_SNAPSHOT_STATUSES = [
@@ -68,19 +70,29 @@ export interface WhStaticsCrossCheck {
 }
 
 /** Holding pen for a validated, diffed, and lineage-checked community snapshot. */
-export const whStaticsSnapshots = pgTable('wh_statics_snapshots', {
-  id: bigserial('id', { mode: 'number' }).primaryKey(),
-  feedVersion: text('feed_version').notNull(),
-  etag: text('etag'),
-  lastModified: text('last_modified'),
-  digest: text('digest').notNull(),
-  systemCount: integer('system_count').notNull(),
-  status: whStaticsSnapshotStatusEnum('status').notNull().default('pending'),
-  entries: jsonb('entries').$type<readonly WhStaticEntry[]>().notNull(),
-  difference: jsonb('difference').$type<WhStaticsDiff>().notNull(),
-  crossCheck: jsonb('cross_check').$type<WhStaticsCrossCheck>().notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const whStaticsSnapshots = pgTable(
+  'wh_statics_snapshots',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    feedVersion: text('feed_version').notNull(),
+    etag: text('etag'),
+    lastModified: text('last_modified'),
+    digest: text('digest').notNull(),
+    systemCount: integer('system_count').notNull(),
+    status: whStaticsSnapshotStatusEnum('status').notNull().default('pending'),
+    entries: jsonb('entries').$type<readonly WhStaticEntry[]>().notNull(),
+    difference: jsonb('difference').$type<WhStaticsDiff>().notNull(),
+    crossCheck: jsonb('cross_check').$type<WhStaticsCrossCheck>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex('wh_statics_snapshots_single_pending')
+      .on(table.status)
+      .where(sql`${table.status} = 'pending'`),
+  ],
+);
 
 /** Promoted serving copy, keyed by system and code and bound to its source snapshot. */
 export const whSystemStatics = pgTable(

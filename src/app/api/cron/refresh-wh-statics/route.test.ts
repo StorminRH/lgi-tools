@@ -224,6 +224,30 @@ describe('GET /api/cron/refresh-wh-statics', () => {
     });
   });
 
+  it('reports unchanged when locked work finds the observation already recorded', async () => {
+    const feed = {
+      status: 'changed',
+      body: '{"version":11}',
+      etag: '"feed-11"',
+      lastModified: 'Sun, 05 Jan 2025 10:21:29 GMT',
+    } as const;
+    probeMock.mockResolvedValue(feed);
+    recordChangedMock.mockResolvedValue({ status: 'unchanged' });
+    const { GET } = await importRoute();
+    const response = await GET(authedRequest());
+
+    expect(await response.json()).toEqual({ status: 'unchanged' });
+    expect(recordChangedMock).toHaveBeenCalledWith(
+      { client: { reserve: expect.any(Function) } },
+      feed,
+    );
+    expect(releaseMock).toHaveBeenCalledOnce();
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'cron_wh_statics',
+      metadata: expect.objectContaining({ outcome: 'unchanged' }),
+    });
+  });
+
   it('returns busy without writing when another refresh holds the lock', async () => {
     lockGot = false;
     probeMock.mockResolvedValue({

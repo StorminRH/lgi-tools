@@ -48,7 +48,9 @@ export async function probeWhStaticsRefresh(
 export async function recordChangedWhStaticsFeed(
   database: PostgresJsDb,
   feed: ChangedWhStaticsFeed,
-): Promise<Extract<WhStaticsRefreshResult, { status: 'snapshot-pending' }>> {
+): Promise<
+  Extract<WhStaticsRefreshResult, { status: 'snapshot-pending' | 'unchanged' }>
+> {
   const parsed = parseStaticsPayload(feed.body);
   const [promoted, lineage, codex] = await Promise.all([
     readPromotedWhStaticsAssignments(database),
@@ -57,7 +59,7 @@ export async function recordChangedWhStaticsFeed(
   ]);
   const difference = diffStatics(promoted, parsed.entries);
   const crossCheck = crossCheckStatics(parsed.entries, lineage, codex);
-  const { snapshotId } = await recordSnapshot(database, {
+  const { snapshotId, created } = await recordSnapshot(database, {
     feedVersion: parsed.feedVersion,
     etag: feed.etag,
     lastModified: feed.lastModified,
@@ -65,6 +67,7 @@ export async function recordChangedWhStaticsFeed(
     difference,
     crossCheck,
   });
+  if (!created) return { status: 'unchanged' };
   return {
     status: 'snapshot-pending',
     snapshotId,

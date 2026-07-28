@@ -4517,7 +4517,24 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "wh_statics_snapshots_single_pending": {
+          "name": "wh_statics_snapshots_single_pending",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"wh_statics_snapshots\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

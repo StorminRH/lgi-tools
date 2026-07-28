@@ -255,7 +255,7 @@ const SNAPSHOT_ID_FK =
 
 const WH_STATICS_SNAPSHOT_BATCH = {
   kind: 'transactional-batch',
-  note: 'Snapshot creation supersedes the previous pending row and inserts its replacement in one postgres-js transaction. Promotion replaces the serving copy and marks its source snapshot promoted in one transaction; reject and retention paths change only snapshot state or remove eligible history.',
+  note: 'Snapshot creation takes a table lock, reuses an identical latest ETag and digest, or supersedes the previous pending row and inserts its replacement in one postgres-js transaction. Promotion replaces the serving copy and marks its source snapshot promoted in one transaction; reject and retention paths change only snapshot state or remove eligible history.',
 } as const satisfies TransactionBoundary;
 
 const WH_STATICS_PROMOTE_BATCH = {
@@ -545,7 +545,10 @@ export const DATA_OWNERSHIP = [
     table: schema.whStaticsSnapshots,
     owner: 'data/wh-statics',
     reads: 'open',
-    invariants: ['pk(id)'],
+    invariants: [
+      "partial-unique(status) where(\"status\" = 'pending')",
+      'pk(id)',
+    ],
     boundary: WH_STATICS_SNAPSHOT_BATCH,
     dataClass: 'operational',
   },

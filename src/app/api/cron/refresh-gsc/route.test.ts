@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
 
 const syncGscMock = vi.fn();
 const pruneDomainEventsMock = vi.fn();
@@ -140,7 +141,10 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     expect(pruneVerificationMock).toHaveBeenCalledOnce();
     expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
     expect(pruneRefreshJobsMock).toHaveBeenCalledOnce();
-    expect(pruneWhStaticsMock).toHaveBeenCalledOnce();
+    expect(pruneWhStaticsMock).toHaveBeenCalledWith(
+      {},
+      WH_STATICS_SNAPSHOT_RETENTION_DAYS,
+    );
   });
 
   it('runs every prune before an upstream sitemap failure escapes', async () => {
@@ -159,7 +163,10 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     expect(pruneVerificationMock).toHaveBeenCalledOnce();
     expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
     expect(pruneRefreshJobsMock).toHaveBeenCalledOnce();
-    expect(pruneWhStaticsMock).toHaveBeenCalledOnce();
+    expect(pruneWhStaticsMock).toHaveBeenCalledWith(
+      {},
+      WH_STATICS_SNAPSHOT_RETENTION_DAYS,
+    );
     expect(syncGscMock).not.toHaveBeenCalled();
   });
 });

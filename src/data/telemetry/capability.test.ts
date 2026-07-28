@@ -46,6 +46,8 @@ describe('capability catalogue', () => {
   it('names all 40 instrumented operations exactly once', () => {
     expect(ids).toHaveLength(40);
     expect(new Set(ids).size).toBe(40);
+    expect(ids).toContain('admin.wh-statics-review');
+    expect(ids).toContain('cron.refresh-wh-statics');
   });
 
   it('gives every capability a closed feature and a non-empty operation', () => {

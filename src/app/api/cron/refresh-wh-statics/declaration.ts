@@ -64,6 +64,13 @@ export const refreshWhStaticsDeclaration: CronRouteDeclaration<
     // The shell holds the advisory lock on its reserved session while the
     // transactional snapshot write uses the shared direct postgres-js pool.
     const result = await recordChangedWhStaticsFeed(drizzle(client), feed);
+    if (result.status === 'unchanged') {
+      return {
+        outcome: 'unchanged',
+        workDone: false,
+        body: result,
+      };
+    }
     return {
       outcome: 'snapshot-pending',
       workDone: true,

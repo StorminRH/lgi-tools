@@ -133,5 +133,6 @@ describe('capability coverage', () => {
 
     expect(claimed).toHaveLength(31);
     expect(new Set(claimed).size).toBe(31);
+    expect(claimed).toContain('admin.wh-statics-review');
   });
 });

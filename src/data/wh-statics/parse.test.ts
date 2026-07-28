@@ -93,4 +93,25 @@ describe('parseStaticsPayload', () => {
       parseStaticsPayload(payload(['A001'], { Z006: { static: false } })),
     ).toThrow(UnknownStaticCodeError);
   });
+
+  it('rejects duplicate codes before they can violate the serving primary key', () => {
+    expect(() =>
+      parseStaticsPayload(
+        payload(['A001', 'A001'], {
+          A001: { static: true },
+          Z006: { static: false },
+        }),
+      ),
+    ).toThrow('System statics must be unique');
+  });
+
+  it('does not accept inherited object names as wormhole definitions', () => {
+    expect(() =>
+      parseStaticsPayload(
+        payload(['constructor'], {
+          Z006: { static: false },
+        }),
+      ),
+    ).toThrow(UnknownStaticCodeError);
+  });
 });

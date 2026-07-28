@@ -3,11 +3,12 @@ import { Suspense } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { Collapsible } from '@/components/ui/collapsible';
 import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getWhStaticsOperatorReview } from '@/composition/wh-statics-refresh';
 import {
   getSystemStatics,
@@ -43,11 +44,13 @@ function ActionForm({
   snapshotId,
   label,
   variant = 'secondary',
+  disabled = false,
 }: {
   action: 'promote' | 'reject' | 'refresh';
   snapshotId?: number;
   label: string;
   variant?: 'primary' | 'secondary' | 'danger';
+  disabled?: boolean;
 }) {
   return (
     <form action="/api/admin/wh-statics" method="post">
@@ -55,10 +58,130 @@ function ActionForm({
       {snapshotId === undefined ? null : (
         <input type="hidden" name="snapshotId" value={snapshotId} />
       )}
-      <Button type="submit" variant={variant}>
+      <Button type="submit" variant={variant} disabled={disabled}>
         {label}
       </Button>
     </form>
+  );
+}
+
+function NumberList({ values }: { values: readonly number[] }) {
+  return values.length === 0 ? (
+    <p className="font-ui text-ui text-muted">None.</p>
+  ) : (
+    <ul className="max-h-64 space-y-1 overflow-y-auto font-data text-ui text-text">
+      {values.map((value) => (
+        <li key={value}>{value}</li>
+      ))}
+    </ul>
+  );
+}
+
+function DifferenceDetails({
+  snapshot,
+}: {
+  snapshot: PendingWhStaticsReview;
+}) {
+  const { difference } = snapshot;
+  return (
+    <Collapsible
+      header={
+        <span className="font-ui text-ui text-text">
+          Complete assignment difference ({difference.totalDifferences})
+        </span>
+      }
+    >
+      <div className="grid gap-5 px-4 py-4 md:grid-cols-2">
+        <div>
+          <h3 className="mb-2 font-ui text-ui text-muted">Systems added</h3>
+          <NumberList values={difference.systemsAdded} />
+        </div>
+        <div>
+          <h3 className="mb-2 font-ui text-ui text-muted">Systems removed</h3>
+          <NumberList values={difference.systemsRemoved} />
+        </div>
+        <div className="md:col-span-2">
+          <h3 className="mb-2 font-ui text-ui text-muted">Systems changed</h3>
+          {difference.systemsChanged.length === 0 ? (
+            <p className="font-ui text-ui text-muted">None.</p>
+          ) : (
+            <ul className="max-h-80 space-y-1 overflow-y-auto font-data text-ui text-text">
+              {difference.systemsChanged.map((entry) => (
+                <li key={entry.systemId}>
+                  {entry.systemId}: {entry.before.join(', ') || 'none'} →{' '}
+                  {entry.after.join(', ') || 'none'}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <h3 className="mb-2 font-ui text-ui text-muted">Codes added</h3>
+          <p className="font-data text-ui text-text">
+            {difference.codesAdded.join(', ') || 'None.'}
+          </p>
+        </div>
+        <div>
+          <h3 className="mb-2 font-ui text-ui text-muted">Codes removed</h3>
+          <p className="font-data text-ui text-text">
+            {difference.codesRemoved.join(', ') || 'None.'}
+          </p>
+        </div>
+      </div>
+    </Collapsible>
+  );
+}
+
+function LineageDetails({
+  snapshot,
+}: {
+  snapshot: PendingWhStaticsReview;
+}) {
+  const { crossCheck } = snapshot;
+  return (
+    <Collapsible
+      header={
+        <span className="font-ui text-ui text-text">
+          Complete lineage comparison (
+          {crossCheck.disagreements.length +
+            crossCheck.lineageOnlySystems.length +
+            crossCheck.feedOnlySystems.length}{' '}
+          structural differences)
+        </span>
+      }
+    >
+      <div className="grid gap-5 px-4 py-4 md:grid-cols-2">
+        <div>
+          <h3 className="mb-2 font-ui text-ui text-muted">
+            Lineage-only systems
+          </h3>
+          <NumberList values={crossCheck.lineageOnlySystems} />
+        </div>
+        <div>
+          <h3 className="mb-2 font-ui text-ui text-muted">
+            Feed-only systems
+          </h3>
+          <NumberList values={crossCheck.feedOnlySystems} />
+        </div>
+        <div className="md:col-span-2">
+          <h3 className="mb-2 font-ui text-ui text-muted">
+            Code-set disagreements
+          </h3>
+          {crossCheck.disagreements.length === 0 ? (
+            <p className="font-ui text-ui text-muted">None.</p>
+          ) : (
+            <ul className="max-h-80 space-y-1 overflow-y-auto font-data text-ui text-text">
+              {crossCheck.disagreements.map((entry) => (
+                <li key={entry.systemId}>
+                  {entry.systemId}: feed {entry.feedCodes.join(', ') || 'none'};
+                  lineage {entry.lineageCodes.join(', ') || 'none'}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Collapsible>
   );
 }
 
@@ -89,31 +212,24 @@ function ReviewSummary({ snapshot }: { snapshot: PendingWhStaticsReview }) {
           <dd className="text-text">{crossCheck.disagreements.length}</dd>
         </div>
       </dl>
-      {crossCheck.disagreements.length === 0 ? (
-        <p className="border-t border-border-soft px-4 py-3 font-ui text-ui text-muted">
-          Independent lineage agrees across {crossCheck.agreedSystems.toLocaleString()} systems.
-        </p>
-      ) : (
-        <div className="border-t border-border-soft px-4 py-3">
-          <p className="mb-2 font-ui text-ui text-muted">
-            Review every disagreement before promoting:
-          </p>
-          <ul className="space-y-1 font-data text-ui text-text">
-            {crossCheck.disagreements.map((entry) => (
-              <li key={entry.systemId}>
-                {entry.systemId}: feed {entry.feedCodes.join(', ') || 'none'}; lineage{' '}
-                {entry.lineageCodes.join(', ') || 'none'}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <p className="border-t border-border-soft px-4 py-3 font-ui text-ui text-muted">
+        Independent lineage agrees across{' '}
+        {crossCheck.agreedSystems.toLocaleString()} systems. Inspect every
+        structural difference before promoting.
+      </p>
+      <DifferenceDetails snapshot={snapshot} />
+      <LineageDetails snapshot={snapshot} />
       <div className="flex flex-wrap gap-2 border-t border-border-soft px-4 py-3">
         <ActionForm
           action="promote"
           snapshotId={snapshot.id}
-          label="Promote snapshot"
+          label={
+            snapshot.systemCount === 0
+              ? 'Empty snapshot cannot be promoted'
+              : 'Promote snapshot'
+          }
           variant="primary"
+          disabled={snapshot.systemCount === 0}
         />
         <ActionForm
           action="reject"
@@ -141,24 +257,10 @@ async function StaticsContent({
 
   return (
     <>
-      <PageHead
-        size="compact"
-        crumb="admin / statics"
-        title="Wormhole statics"
-        subtitle={promotedSubtitle(promoted.version, promoted.systems.length)}
-        meta={
-          <Link
-            href="/admin"
-            className={cn(
-              buttonVariants({ variant: 'secondary' }),
-              'text-muted hover:text-text',
-            )}
-          >
-            ← Dashboard
-          </Link>
-        }
-      />
       <div className="w-full space-y-5">
+        <Card className="px-4 py-3 font-ui text-ui text-muted">
+          {promotedSubtitle(promoted.version, promoted.systems.length)}
+        </Card>
         {outcome ? (
           <Card className="px-4 py-3 font-ui text-ui text-muted">{outcome}</Card>
         ) : null}
@@ -190,7 +292,31 @@ export default function StaticsPage({
   return (
     <PageShell mode="workspace">
       <div className="flex flex-col items-center gap-0 pb-20">
-        <Suspense fallback={<LoadingLabel />}>
+        <PageHead
+          size="compact"
+          crumb="admin / statics"
+          title="Wormhole statics"
+          subtitle="Review the complete community-feed difference before changing the promoted serving copy."
+          meta={
+            <Link
+              href="/admin"
+              className={cn(
+                buttonVariants({ variant: 'secondary' }),
+                'text-muted hover:text-text',
+              )}
+            >
+              ← Dashboard
+            </Link>
+          }
+        />
+        <Suspense
+          fallback={
+            <Skeleton
+              label="Loading statics review"
+              className="h-72 w-full"
+            />
+          }
+        >
           <StaticsContent searchParams={searchParams} />
         </Suspense>
       </div>

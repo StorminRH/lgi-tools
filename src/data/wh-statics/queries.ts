@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, inArray, lt, notInArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, notInArray, sql } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
@@ -63,6 +63,15 @@ export class WhStaticsSnapshotStateError extends Error {
   }
 }
 
+/** Typed refusal to replace the promoted serving copy with no assignments. */
+export class WhStaticsEmptySnapshotError extends Error {
+  /** Retains the rejected snapshot id for route-level conflict reporting. */
+  constructor(readonly snapshotId: number) {
+    super(`Statics snapshot ${snapshotId} has no assignments to promote`);
+    this.name = 'WhStaticsEmptySnapshotError';
+  }
+}
+
 function canonicalEntries(
   entries: readonly WhStaticEntry[],
 ): WhStaticEntry[] {
@@ -97,6 +106,13 @@ async function requirePendingSnapshot(
     .from(whStaticsSnapshots)
     .where(eq(whStaticsSnapshots.id, snapshotId))
     .for('update');
+  return pendingSnapshotOrThrow(snapshotId, snapshot);
+}
+
+function pendingSnapshotOrThrow<T extends { status: WhStaticsSnapshotStatus }>(
+  snapshotId: number,
+  snapshot: T | undefined,
+): T {
   if (snapshot === undefined || snapshot.status !== 'pending') {
     throw new WhStaticsSnapshotStateError(
       snapshotId,
@@ -107,15 +123,35 @@ async function requirePendingSnapshot(
 }
 
 /**
- * Supersedes every prior pending snapshot and inserts one canonical replacement
- * in the same postgres-js transaction.
+ * Serializes writers, reuses an identical latest observation, or supersedes
+ * the prior pending snapshot and inserts one canonical replacement atomically.
  */
 export function recordSnapshot(
   database: PostgresJsDb,
   input: RecordWhStaticsSnapshotInput,
-): Promise<{ snapshotId: number }> {
+): Promise<{ snapshotId: number; created: boolean }> {
   const entries = canonicalEntries(input.entries);
+  const digest = entriesDigest(entries);
   return database.transaction(async (transaction) => {
+    await transaction.execute(
+      sql`lock table ${whStaticsSnapshots} in share row exclusive mode`,
+    );
+    const [latest] = await transaction
+      .select({
+        id: whStaticsSnapshots.id,
+        etag: whStaticsSnapshots.etag,
+        digest: whStaticsSnapshots.digest,
+      })
+      .from(whStaticsSnapshots)
+      .orderBy(desc(whStaticsSnapshots.id))
+      .limit(1);
+    if (
+      latest !== undefined &&
+      latest.etag === input.etag &&
+      latest.digest === digest
+    ) {
+      return { snapshotId: latest.id, created: false };
+    }
     await transaction
       .update(whStaticsSnapshots)
       .set({ status: 'superseded' })
@@ -126,7 +162,7 @@ export function recordSnapshot(
         feedVersion: input.feedVersion,
         etag: input.etag,
         lastModified: input.lastModified,
-        digest: entriesDigest(entries),
+        digest,
         systemCount: new Set(entries.map((entry) => entry.systemId)).size,
         status: 'pending',
         entries,
@@ -137,7 +173,7 @@ export function recordSnapshot(
     if (inserted === undefined) {
       throw new Error('Statics snapshot insert returned no id.');
     }
-    return { snapshotId: inserted.id };
+    return { snapshotId: inserted.id, created: true };
   });
 }
 
@@ -230,18 +266,19 @@ export async function promoteSnapshot(
 ): Promise<PromoteWhStaticsResult> {
   const result = await database.transaction(async (transaction) => {
     const snapshot = await requirePendingSnapshot(transaction, snapshotId);
+    if (snapshot.entries.length === 0) {
+      throw new WhStaticsEmptySnapshotError(snapshotId);
+    }
 
     await transaction.delete(whSystemStatics);
-    if (snapshot.entries.length > 0) {
-      await transaction.insert(whSystemStatics).values(
-        snapshot.entries.map((entry) => ({
-          systemId: entry.systemId,
-          code: entry.code,
-          feedVersion: snapshot.feedVersion,
-          sourceSnapshotId: snapshotId,
-        })),
-      );
-    }
+    await transaction.insert(whSystemStatics).values(
+      snapshot.entries.map((entry) => ({
+        systemId: entry.systemId,
+        code: entry.code,
+        feedVersion: snapshot.feedVersion,
+        sourceSnapshotId: snapshotId,
+      })),
+    );
     await transaction
       .update(whStaticsSnapshots)
       .set({ status: 'promoted' })

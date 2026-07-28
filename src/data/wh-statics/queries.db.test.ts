@@ -7,6 +7,7 @@ import {
   readSystemStatics,
   recordSnapshot,
   rejectSnapshot,
+  WhStaticsEmptySnapshotError,
   WhStaticsSnapshotStateError,
 } from './queries';
 import { whStaticsSnapshots, whSystemStatics } from './schema';
@@ -129,6 +130,34 @@ describe.skipIf(!harness.reachable)(
       expect(await harness.db.select().from(whSystemStatics)).toEqual([]);
     });
 
+    it('serializes identical observations into one pending snapshot', async () => {
+      const input = {
+        feedVersion: '11',
+        etag: '"same"',
+        lastModified: 'Sun, 05 Jan 2025 10:21:29 GMT',
+        entries: [
+          { systemId: 1, systemName: 'J000001', code: 'A001' },
+          { systemId: 2, systemName: 'J000002', code: 'B002' },
+        ],
+        difference: EMPTY_DIFF,
+        crossCheck: AGREEMENT,
+      } as const;
+
+      const results = await Promise.all([
+        recordSnapshot(harness.db, input),
+        recordSnapshot(harness.db, input),
+      ]);
+
+      expect(new Set(results.map((result) => result.snapshotId)).size).toBe(1);
+      expect(results.map((result) => result.created).sort()).toEqual([
+        false,
+        true,
+      ]);
+      await expect(
+        harness.db.select().from(whStaticsSnapshots),
+      ).resolves.toHaveLength(1);
+    });
+
     it('promotes once, replaces the serving copy, and refuses a second promote', async () => {
       const snapshotId = await insertSnapshot({
         systemCount: 2,
@@ -178,6 +207,33 @@ describe.skipIf(!harness.reachable)(
         }),
       );
       expect(await harness.db.select().from(whSystemStatics)).toHaveLength(2);
+    });
+
+    it('refuses to replace the serving copy from an empty snapshot', async () => {
+      const currentSnapshotId = await insertSnapshot({ status: 'promoted' });
+      await harness.db.insert(whSystemStatics).values({
+        systemId: 31_000_001,
+        code: 'A001',
+        feedVersion: '11',
+        sourceSnapshotId: currentSnapshotId,
+      });
+      const emptySnapshotId = await insertSnapshot({
+        feedVersion: '12',
+        systemCount: 0,
+        entries: [],
+      });
+
+      await expect(
+        promoteSnapshot(harness.db, emptySnapshotId),
+      ).rejects.toEqual(
+        expect.objectContaining<Partial<WhStaticsEmptySnapshotError>>({
+          snapshotId: emptySnapshotId,
+        }),
+      );
+      await expect(readSystemStatics(harness.db)).resolves.toEqual({
+        version: '11',
+        systems: [{ systemId: 31_000_001, codes: ['A001'] }],
+      });
     });
 
     it('rejects only a pending snapshot and leaves the serving copy untouched', async () => {

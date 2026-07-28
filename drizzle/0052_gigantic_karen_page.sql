@@ -21,4 +21,5 @@ CREATE TABLE "wh_system_statics" (
 	CONSTRAINT "wh_system_statics_system_id_code_pk" PRIMARY KEY("system_id","code")
 );
 --> statement-breakpoint
-ALTER TABLE "wh_system_statics" ADD CONSTRAINT "wh_system_statics_source_snapshot_id_wh_statics_snapshots_id_fk" FOREIGN KEY ("source_snapshot_id") REFERENCES "public"."wh_statics_snapshots"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "wh_system_statics" ADD CONSTRAINT "wh_system_statics_source_snapshot_id_wh_statics_snapshots_id_fk" FOREIGN KEY ("source_snapshot_id") REFERENCES "public"."wh_statics_snapshots"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "wh_statics_snapshots_single_pending" ON "wh_statics_snapshots" USING btree ("status") WHERE "wh_statics_snapshots"."status" = 'pending';

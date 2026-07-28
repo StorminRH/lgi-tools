@@ -47,9 +47,8 @@ export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
 /**
  * Closed catalogue of the 40 instrumented operations: 17 mutation routes through `runMutationRoute`,
- * 8 cron routes through `defineCronRoute`, 7 direct mutation routes that deliberately sit outside
- * the mutation shell, one admin statics mutation, 6 POST-bodied tool reads, and the queued
- * ESI-refresh job runner. Adding a
+ * 8 cron routes through `defineCronRoute`, 8 direct mutation routes that deliberately sit outside
+ * the mutation shell, 6 POST-bodied tool reads, and the queued ESI-refresh job runner. Adding a
  * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
  * census covers the rest, so an operation cannot ship unnamed.
  */
@@ -107,7 +106,7 @@ export const CAPABILITIES = {
   'cron.refresh-wh-statics': { feature: 'cron', operation: 'refresh-wh-statics', kind: 'cron' },
   'cron.sync-sweeper': { feature: 'cron', operation: 'sync-sweeper', kind: 'cron' },
 
-  // ── Direct mutation routes outside the mutation shell (7) ──────────────
+  // ── Direct mutation routes outside the mutation shell (8) ──────────────
   'account.delete-account': { feature: 'account', operation: 'delete-account', kind: 'mutation' },
   'admin.reassign-character': { feature: 'admin', operation: 'reassign-character', kind: 'mutation' },
   'admin.requeue-esi-job': { feature: 'admin', operation: 'requeue-esi-job', kind: 'mutation' },

@@ -19,6 +19,12 @@ class SnapshotStateError extends Error {
   }
 }
 
+class EmptySnapshotError extends Error {
+  constructor(readonly snapshotId: number) {
+    super(`Statics snapshot ${snapshotId} has no assignments to promote`);
+  }
+}
+
 const getSessionMock = vi.fn();
 const sameOriginMock = vi.fn();
 const refreshMock = vi.fn();
@@ -41,6 +47,7 @@ vi.mock('@/composition/wh-statics-refresh', () => ({
 }));
 
 vi.mock('@/data/wh-statics/queries', () => ({
+  WhStaticsEmptySnapshotError: EmptySnapshotError,
   WhStaticsSnapshotStateError: SnapshotStateError,
 }));
 
@@ -166,6 +173,19 @@ describe('POST /api/admin/wh-statics', () => {
     expect(response.status).toBe(409);
     expect(problemBodySchema.parse(await response.json())).toMatchObject({
       code: 'snapshot_not_pending',
+    });
+  });
+
+  it('maps an empty pending snapshot to a conflict', async () => {
+    promoteMock.mockRejectedValue(new EmptySnapshotError(7));
+    const { POST } = await importRoute();
+    const response = await POST(
+      buildRequest({ action: 'promote', snapshotId: '7' }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(problemBodySchema.parse(await response.json())).toMatchObject({
+      code: 'snapshot_empty',
     });
   });
 });

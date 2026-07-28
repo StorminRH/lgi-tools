@@ -6,7 +6,10 @@ import {
   rejectWhStaticsSnapshot,
 } from '@/composition/wh-statics-refresh';
 import { whStaticsAdminFormSchema } from '@/data/wh-statics/api-contract';
-import { WhStaticsSnapshotStateError } from '@/data/wh-statics/queries';
+import {
+  WhStaticsEmptySnapshotError,
+  WhStaticsSnapshotStateError,
+} from '@/data/wh-statics/queries';
 import { conflictFailure, validationFailure } from '@/lib/failure';
 import { checkAdminMutation } from '@/platform/auth/route-guards';
 import { problemResponse } from '@/transport/api-response';
@@ -55,6 +58,11 @@ async function handleAuthorizedPost(request: NextRequest): Promise<Response> {
     await rejectWhStaticsSnapshot(parsed.data.snapshotId);
     return redirectToReview(request, 'rejected');
   } catch (error) {
+    if (error instanceof WhStaticsEmptySnapshotError) {
+      return problemResponse(
+        conflictFailure('snapshot_empty', error.message),
+      );
+    }
     if (error instanceof WhStaticsSnapshotStateError) {
       return problemResponse(
         conflictFailure('snapshot_not_pending', error.message),
