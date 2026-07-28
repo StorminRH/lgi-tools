@@ -82,7 +82,7 @@ not cleanly available anywhere. "Shipped" = already ingested/consumed in the app
 | WH system **class** | SDE | `wormholeClassID` on system → constellation → region (most-specific wins); enum 1–6=C1–C6, 7=HS, 8=LS, 9=NS, 12=Thera, 13=C13, 14–18=Drifter, 25=Pochven | Shipped 3.7.2.2 → `wormhole_class_id`. |
 | WH system **effects** (Pulsar/Magnetar/…) | SDE | `mapSecondarySuns.jsonl` → `effectBeaconTypeID` → `types.jsonl` group **920** (typeIDs 30844–30884); ~40% of J systems, absence = none | **Not yet ingested** — candidate near-term session. (Corrected: NOT the `visualEffect` field.) |
 | WH **type defs** (A009/K162: mass/lifetime/target-class) | SDE | `types.jsonl` group **988** (130 types) + dogma attrs (target-class, max-stable-time/mass, max-jump-mass, mass-regen) | Shipped in the SDE mirror; 4.0.1.3 derives the versioned client codex by resolving the five attribute IDs by name. K162 remains the explicit dogma-less far-side entry; the exact QA records 32894 (`QA Wormhole A`) and 32895 (`QA Wormhole B`) are excluded while any other naming drift fails closed. |
-| WH **per-system statics** (which static a J-system spawns) | EXT / GAP | eve-scout API (`api.eve-scout.com`) = LIVE Thera/Turnur connections ONLY; general per-system statics = anoik.is-derived (no clean API → periodic import) or crowdsourced scans | v4.0 mapper, related table; never blocks core mapper. The one genuine WH gap. |
+| WH **per-system statics** (which static a J-system spawns) | EXT | `anoik.is/static/static.json`, with the published version discovered from `anoik.is/static/controller.js`; cross-checked against the committed MIT Pathfinder lineage export through the SDE wormhole codex | Shipped 4.0.1.6 → weekly and on-demand snapshots in Neon, with operator-only promotion into `wh_system_statics`; serving uses only the last promoted copy. |
 | Celestials (planets/moons/belts/stars) | SDE | `mapPlanets` / `mapMoons` / `mapAsteroidBelts` / `mapStars.jsonl` (enhanced variant adds `name`) | Available; not yet ingested. |
 | System security status | SDE | on `mapSolarSystems` | Shipped (universe ingest). |
 | NPC faction (static ownership) | SDE | `factionID` on system/constellation/region | Available. (Live player sovereignty is ESI — below.) |
@@ -99,6 +99,11 @@ not cleanly available anywhere. "Shipped" = already ingested/consumed in the app
 | System kills / jumps (activity heat) | ESI | `/universe/system_kills/`, `/universe/system_jumps/` | Future; live. |
 | Player current location / online / ship | ESI | `/characters/{id}/location|online|ship/` (needs `read_location`/`read_online`/`read_ship_type` — dropped in 3.7.1.1, re-add when a feature consumes it) | Future; scope-gated. |
 | **Storms** (metaliminal / weather) | GAP (verify) | NOT in the standard ESI endpoint set; not static (they move) → likely Hoboleaks or not exposed | **Verify at feature time** — treat as a possible true gap like statics until confirmed. |
+
+Succession watch: if EVE-Scout's expanded v2 API reaches production with
+per-system statics, it becomes the primary refresh source and the anoik.is feed
+becomes the fallback. That is a future promotion decision; this delivery records
+the watch without acting on it.
 
 ---
 

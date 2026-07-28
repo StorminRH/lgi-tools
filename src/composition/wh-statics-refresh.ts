@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import type { AnyPgDb, PostgresJsDb } from '@/lib/db-types';
-import { directClient } from '@/db';
+import { db, directClient } from '@/db';
 import { withAdvisoryLock } from '@/db/advisory-lock';
 import { readWormholeCodex } from '@/data/eve-data/universe-assets';
 import type {
@@ -15,6 +15,7 @@ import { readPathfinderLineage } from '@/data/wh-statics/lineage';
 import { parseStaticsPayload } from '@/data/wh-statics/parse';
 import {
   getLatestSnapshotEtag,
+  getPendingWhStaticsReview,
   promoteSnapshot,
   readPromotedWhStaticsAssignments,
   recordSnapshot,
@@ -103,4 +104,9 @@ export function promoteWhStaticsSnapshot(snapshotId: number) {
 /** Rejects one reviewed snapshot through the slice's transactional writer. */
 export function rejectWhStaticsSnapshot(snapshotId: number) {
   return rejectSnapshot(drizzle(directClient), snapshotId);
+}
+
+/** Returns the pending snapshot projection for the admin operator surface. */
+export function getWhStaticsOperatorReview() {
+  return getPendingWhStaticsReview(db);
 }

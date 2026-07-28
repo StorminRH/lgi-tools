@@ -8,11 +8,11 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
+import { getWhStaticsOperatorReview } from '@/composition/wh-statics-refresh';
 import {
-  getPendingWhStaticsReview,
+  getSystemStatics,
   type PendingWhStaticsReview,
 } from '@/data/wh-statics/queries';
-import { db } from '@/db';
 import { requireAdminPage } from '@/platform/auth/route-guards';
 
 const OUTCOME_LABELS: Readonly<Record<string, string>> = {
@@ -23,6 +23,20 @@ const OUTCOME_LABELS: Readonly<Record<string, string>> = {
   'snapshot-pending': 'A changed feed was recorded for review.',
   unchanged: 'The community feed is unchanged.',
 };
+
+function outcomeMessage(raw: string | string[] | undefined): string | undefined {
+  return typeof raw === 'string' ? OUTCOME_LABELS[raw] : undefined;
+}
+
+function promotedSubtitle(
+  version: string,
+  systemCount: number,
+): string {
+  if (version === '') {
+    return 'No snapshot is promoted yet. Review the community refresh before it reaches serving.';
+  }
+  return `Serving feed v${version} across ${systemCount.toLocaleString()} systems.`;
+}
 
 function ActionForm({
   action,
@@ -118,12 +132,12 @@ async function StaticsContent({
   searchParams: Promise<{ outcome?: string | string[] }>;
 }) {
   await requireAdminPage();
-  const [snapshot, raw] = await Promise.all([
-    getPendingWhStaticsReview(db),
+  const [snapshot, promoted, raw] = await Promise.all([
+    getWhStaticsOperatorReview(),
+    getSystemStatics(),
     searchParams,
   ]);
-  const outcome =
-    typeof raw.outcome === 'string' ? OUTCOME_LABELS[raw.outcome] : undefined;
+  const outcome = outcomeMessage(raw.outcome);
 
   return (
     <>
@@ -131,7 +145,7 @@ async function StaticsContent({
         size="compact"
         crumb="admin / statics"
         title="Wormhole statics"
-        subtitle="Review the community refresh before it reaches serving."
+        subtitle={promotedSubtitle(promoted.version, promoted.systems.length)}
         meta={
           <Link
             href="/admin"

@@ -8,8 +8,7 @@ import {
 import { whStaticsAdminFormSchema } from '@/data/wh-statics/api-contract';
 import { WhStaticsSnapshotStateError } from '@/data/wh-statics/queries';
 import { conflictFailure, validationFailure } from '@/lib/failure';
-import { checkAdmin } from '@/platform/auth/route-guards';
-import { requireSameOrigin } from '@/platform/auth/same-origin';
+import { checkAdminMutation } from '@/platform/auth/route-guards';
 import { problemResponse } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
 
@@ -27,11 +26,12 @@ function redirectToReview(request: NextRequest, outcome: string): Response {
 export const POST = capabilityRoute('admin.wh-statics-review', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
-  const gate = await checkAdmin();
+  const gate = await checkAdminMutation(request);
   if (!gate.ok) return problemResponse(gate.failure);
-  const originCheck = requireSameOrigin(request);
-  if (!originCheck.ok) return problemResponse(originCheck.failure);
+  return handleAuthorizedPost(request);
+}
 
+async function handleAuthorizedPost(request: NextRequest): Promise<Response> {
   const parsed = await parseFormBody(
     request,
     whStaticsAdminFormSchema,

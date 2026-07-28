@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { readSystemStatics } from '@/data/wh-statics/queries';
+import {
+  whStaticsSnapshots,
+  whSystemStatics,
+} from '@/data/wh-statics/schema';
 
 const probeMock = vi.fn();
 const recordChangedMock = vi.fn();
@@ -24,11 +30,34 @@ vi.mock('@/db', () => ({
   directClient: { reserve: () => reserveMock() },
 }));
 
-vi.mock('drizzle-orm/postgres-js', () => ({
-  drizzle: (client: unknown) => ({ client }),
-}));
+vi.mock('drizzle-orm/postgres-js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('drizzle-orm/postgres-js')>();
+  return {
+    ...actual,
+    drizzle: (client: unknown) =>
+      typeof client === 'function'
+        ? (actual.drizzle as (connection: unknown) => unknown)(client)
+        : { client },
+  };
+});
 
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
+
+const harness = await createDbTestHarness({
+  schema: 'test_cron_refresh_wh_statics',
+  tables: ['wh_statics_snapshots', 'wh_system_statics'],
+  foreignKeys: [
+    {
+      table: 'wh_system_statics',
+      column: 'source_snapshot_id',
+      refTable: 'wh_statics_snapshots',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+  ],
+  resetBetweenTests: 'truncate',
+});
 
 function authedRequest(): Request {
   return new Request(
@@ -96,6 +125,66 @@ describe('GET /api/cron/refresh-wh-statics', () => {
       }),
     });
   });
+
+  it.skipIf(!harness.reachable)(
+    'keeps the last promoted serving copy during feed unavailability',
+    async () => {
+      const [snapshot] = await harness.db
+        .insert(whStaticsSnapshots)
+        .values({
+          feedVersion: '11',
+          digest: 'last-good',
+          systemCount: 1,
+          status: 'promoted',
+          entries: [
+            {
+              systemId: 31_002_318,
+              systemName: 'J111613',
+              code: 'E175',
+            },
+          ],
+          difference: {
+            systemsAdded: [],
+            systemsRemoved: [],
+            systemsChanged: [],
+            codesAdded: [],
+            codesRemoved: [],
+            totalDifferences: 0,
+          },
+          crossCheck: {
+            agreedSystems: 1,
+            disagreements: [],
+            lineageOnlySystems: [],
+            feedOnlySystems: [],
+          },
+        })
+        .returning({ id: whStaticsSnapshots.id });
+      if (snapshot === undefined) {
+        throw new Error('Promoted snapshot seed returned no id.');
+      }
+      await harness.db.insert(whSystemStatics).values({
+        systemId: 31_002_318,
+        code: 'E175',
+        feedVersion: '11',
+        sourceSnapshotId: snapshot.id,
+      });
+      const before = await readSystemStatics(harness.db);
+      probeMock.mockResolvedValue({
+        status: 'unavailable',
+        reason: 'anoik.is request failed: offline',
+      });
+
+      const { GET } = await importRoute();
+      const response = await GET(authedRequest());
+
+      expect((await response.json()).status).toBe('feed-unavailable');
+      await expect(readSystemStatics(harness.db)).resolves.toEqual(before);
+      expect(before).toEqual({
+        version: '11',
+        systems: [{ systemId: 31_002_318, codes: ['E175'] }],
+      });
+    },
+  );
 
   it('stores a changed feed as pending under the shared lock', async () => {
     const feed = {

@@ -28,9 +28,13 @@ const PIPELINE_MUTATIONS = [
 const DIRECT_MUTATIONS = [
   'account/delete/route.ts',
   'admin/characters/reassign/route.ts',
-  'admin/esi-jobs/retry/route.ts',
   'admin/role/route.ts',
   'feedback/route.ts',
+] as const;
+
+const ADMIN_MUTATIONS = [
+  'admin/esi-jobs/retry/route.ts',
+  'admin/wh-statics/route.ts',
 ] as const;
 
 const EXEMPT_MUTATIONS = {
@@ -112,11 +116,13 @@ describe('same-origin mutation coverage', () => {
     const classifiedRoutes = [
       ...PIPELINE_MUTATIONS,
       ...DIRECT_MUTATIONS,
+      ...ADMIN_MUTATIONS,
       ...Object.keys(EXEMPT_MUTATIONS),
     ];
 
     expect(PIPELINE_MUTATIONS).toHaveLength(17);
-    expect(DIRECT_MUTATIONS).toHaveLength(5);
+    expect(DIRECT_MUTATIONS).toHaveLength(4);
+    expect(ADMIN_MUTATIONS).toHaveLength(2);
     expect(Object.keys(EXEMPT_MUTATIONS)).toHaveLength(12);
     expect(new Set(classifiedRoutes).size).toBe(classifiedRoutes.length);
     expect(mutatingRoutes).toEqual(classifiedRoutes.sort());
@@ -137,6 +143,18 @@ describe('same-origin mutation coverage', () => {
     );
     expect(source).toContain('const originCheck = requireSameOrigin(request);');
   });
+
+  it.each(ADMIN_MUTATIONS)(
+    '%s invokes the shared admin mutation gate',
+    (route) => {
+      const source = readFileSync(join(API_DIR, route), 'utf8');
+
+      expect(source).toContain(
+        "import { checkAdminMutation } from '@/platform/auth/route-guards';",
+      );
+      expect(source).toContain('const gate = await checkAdminMutation(request);');
+    },
+  );
 
   it.each(Object.entries(EXEMPT_MUTATIONS))(
     '%s records its exemption: $reason',
