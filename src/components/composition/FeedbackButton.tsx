@@ -14,6 +14,9 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
  * Reads login state here (the shared component layer may import the auth
  * feature) and feeds it to the modal as props, so the feedback feature stays
  * decoupled from the auth feature.
+ *
+ * `compact` selects the map's icon-only form; it defaults to the labelled
+ * button every site route uses.
  */
 export function FeedbackButton({ compact = false }: { compact?: boolean }) {
   const { session, loading } = useAuth();

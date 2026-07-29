@@ -33,7 +33,7 @@ COLLECTION_PROMPT = (
     "artifact. Output only the Verdict, Findings, and Load-bearing checks sections."
 )
 VERDICT_PATTERN = re.compile(
-    r"^(?:\*\*)?Verdict:\s*(CLEAN|FINDINGS)(?:\*\*)?\s*$",
+    r"^(?:\*\*)?Verdict:(?:\*\*)?\s*(?:\*\*)?(CLEAN|FINDINGS)(?:\*\*)?\s*$",
     re.MULTILINE,
 )
 FINDING_PATTERN = re.compile(

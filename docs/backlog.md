@@ -784,3 +784,23 @@ so both need a real design decision, not a constraint.
   of scope: that session's hard constraints allowed no application behaviour
   change beyond its own devlog block. The map's own figure contains its overflow
   and does not contribute to this measurement.*
+
+- **Make the audit-mode boundary graph see the `mapper` zone.** *What:*
+  `fallow audit --fail-on-issues` — the form `pnpm verify` runs — reports
+  `boundary zone 'mapper' matched 0 reachable files`, while
+  `fallow dead-code --boundary-violations` builds a graph in which the zone is
+  reachable and correctly reports `features/wormhole-sites → mapper` when a
+  probe import is added. The two commands disagree about reachability for this
+  zone only; no other zone warns. *Impact:* the changed-files gate in
+  `pnpm verify` is not currently evaluating mapper's permitted directions, so a
+  future upward import into `src/mapper/` would be caught only by
+  `src/mapper/boundary.test.ts`, not by the audit. The rule is enforced today —
+  that test mutates a reachable module and asserts the violation — but by one
+  owner instead of two. *Fix direction:* determine which entry roots audit mode
+  uses and why the `(map)` route group's page does not make `src/mapper/**`
+  reachable there; the likely candidates are route-group parentheses in entry
+  discovery or audit's scoped graph roots. *Size:* S. *Trigger:* the next mapper
+  session (4.0.2.2), which adds the first real imports into the zone and would
+  benefit from both owners being live. *Found during 4.0.2.1.1 close-out; the
+  warning predates this session's fixes and was confirmed present with them
+  stashed.*

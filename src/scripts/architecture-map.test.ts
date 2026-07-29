@@ -142,6 +142,10 @@ describe('architecture map — the pinned edge taxonomy', () => {
     expect(map.nodes).toHaveLength(24);
     expect(kindsOf(map, 'allow')).toHaveLength(115);
     expect(kindsOf(map, 'exception')).toHaveLength(1);
+    // Closes the census: every edge is one of the three counted kinds, so a new
+    // kind or a moved non-allow edge cannot slip past the per-kind totals.
+    expect(kindsOf(map, 'carve-out')).toHaveLength(1);
+    expect(map.edges).toHaveLength(117);
     expect(Math.max(...map.nodes.map((node) => node.layer))).toBe(10);
   });
 

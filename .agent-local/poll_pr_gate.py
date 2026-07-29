@@ -37,7 +37,7 @@ import datetime as dt
 import re
 import time
 
-from github_api import github_token, request
+from github_api import get_all, github_token, request
 from merge_clean_pr import (
     CODERABBIT_CHECK,
     coderabbit_reviewed,
@@ -131,9 +131,10 @@ def greptile_state(repo: str, number: int, token: str) -> tuple[str, bool, dict[
     pull = get(f"/repos/{repo}/pulls/{number}", token)
     assert isinstance(pull, dict)
     head_sha = str(pull["head"]["sha"])
-    comments = get(f"/repos/{repo}/issues/{number}/comments?per_page=100", token)
-    reviews = get(f"/repos/{repo}/pulls/{number}/comments?per_page=100", token)
-    assert isinstance(comments, list) and isinstance(reviews, list)
+    # Read to the last page: the merge helper's predicate is imported, so this
+    # watch must see the same complete record set the gate will decide on.
+    comments = get_all(f"/repos/{repo}/issues/{number}/comments?per_page=100", token)
+    reviews = get_all(f"/repos/{repo}/pulls/{number}/comments?per_page=100", token)
 
     summaries = [
         comment
@@ -161,11 +162,11 @@ def checks_state(repo: str, number: int, token: str) -> tuple[str, bool, bool, d
     pull = get(f"/repos/{repo}/pulls/{number}", token)
     assert isinstance(pull, dict)
     head_sha = str(pull["head"]["sha"])
-    checks = get(f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token)
+    runs = get_all(
+        f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token, key="check_runs"
+    )
     status = get(f"/repos/{repo}/commits/{head_sha}/status", token)
-    assert isinstance(checks, dict) and isinstance(status, dict)
-    runs = checks.get("check_runs", [])
-    assert isinstance(runs, list)
+    assert isinstance(status, dict)
     completed = bool(runs) and all(run.get("status") == "completed" for run in runs)
     runs_clean = completed and all(run.get("conclusion") in GOOD_CONCLUSIONS for run in runs)
     legacy_state = status.get("state")
@@ -230,11 +231,11 @@ def quiescent_state(repo: str, number: int, token: str) -> tuple[str, frozenset[
     pull = get(f"/repos/{repo}/pulls/{number}", token)
     assert isinstance(pull, dict)
     head_sha = str(pull["head"]["sha"])
-    checks = get(f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token)
+    runs = get_all(
+        f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token, key="check_runs"
+    )
     status = get(f"/repos/{repo}/commits/{head_sha}/status", token)
-    assert isinstance(checks, dict) and isinstance(status, dict)
-    runs = checks.get("check_runs", [])
-    assert isinstance(runs, list)
+    assert isinstance(status, dict)
     names, settled = quiescence(runs, status)
     cursor_signal = cursor_bugbot_signal(runs)
     detail = {
@@ -292,23 +293,19 @@ def review_state(
     head = pull.get("head")
     require(isinstance(head, dict), "pull request has no head data")
     head_sha = str(head.get("sha", ""))
-    issue_comments = get(f"/repos/{repo}/issues/{number}/comments?per_page=100", token)
-    inline_comments = get(f"/repos/{repo}/pulls/{number}/comments?per_page=100", token)
-    checks = get(f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token)
+    issue_comments = get_all(f"/repos/{repo}/issues/{number}/comments?per_page=100", token)
+    inline_comments = get_all(f"/repos/{repo}/pulls/{number}/comments?per_page=100", token)
+    runs = get_all(
+        f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token, key="check_runs"
+    )
     status = get(f"/repos/{repo}/commits/{head_sha}/status", token)
-    require(isinstance(issue_comments, list), "issue comments response was not a list")
-    require(isinstance(inline_comments, list), "inline comments response was not a list")
-    require(isinstance(checks, dict), "check-runs response was not an object")
     require(isinstance(status, dict), "commit status response was not an object")
-    runs = checks.get("check_runs", [])
-    require(isinstance(runs, list), "check-runs response had no run list")
 
     names, settled = quiescence(runs, status)
     # Both reviewers are keyed on thread resolution and on their own review
     # records, so neither read is optional on any path.
     resolved_roots = resolved_thread_roots(number, token, repo)
-    reviews = get(f"/repos/{repo}/pulls/{number}/reviews?per_page=100", token)
-    require(isinstance(reviews, list), "reviews response was not a list")
+    reviews = get_all(f"/repos/{repo}/pulls/{number}/reviews?per_page=100", token)
 
     blockers = merge_blockers(
         pull, issue_comments, inline_comments, runs, head_sha, resolved_roots, reviews

@@ -1,6 +1,7 @@
+import { unstable_rethrow } from 'next/navigation';
 import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
-import { checkAdmin } from '@/platform/auth/route-guards';
+import { checkAdmin, type SessionCheckResult } from '@/platform/auth/route-guards';
 import type { Session } from '@/platform/auth/types';
 
 function MapDevelopmentWall() {
@@ -27,13 +28,26 @@ function MapDevelopmentWall() {
 
 /**
  * Resolves the atlas's server-side administrator wall before rendering its canvas subtree.
+ *
+ * A thrown authorization check fails closed to the wall rather than escaping:
+ * `error.tsx` covers a segment's children, not its own layout, so an escaping
+ * throw here would reach Next.js's built-in error page instead of the map's
+ * recovery surface. `unstable_rethrow` still lets framework control-flow
+ * signals through, matching `loadSection`'s boundary.
  */
 export async function MapAccessGate({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const gate = await checkAdmin();
+  let gate: SessionCheckResult;
+  try {
+    gate = await checkAdmin();
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error('[map] authorization check unavailable', err);
+    return <MapDevelopmentWall />;
+  }
   if (!gate.ok) return <MapDevelopmentWall />;
 
   const session: Session | null =

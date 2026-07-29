@@ -15,7 +15,7 @@
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
 | Production TS/TSX files | 806 | 848 | +42 |
-| Production TS/TSX LOC | 79,515 | 83,221 | +3706 |
+| Production TS/TSX LOC | 79,515 | 83,238 | +3723 |
 | Test files | 428 | 455 | +27 |
 | Coverage — statements | 85.83% | 86.00% | — |
 | Coverage — branches | 82.81% | 82.94% | — |

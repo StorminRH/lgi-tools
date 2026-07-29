@@ -39,7 +39,7 @@ import re
 import sys
 import urllib.parse
 
-from github_api import github_token, request
+from github_api import get_all, github_token, request
 
 
 OWNER = "StorminRH"
@@ -505,20 +505,19 @@ def main() -> int:
     head_sha = str(head.get("sha", ""))
     branch = str(head.get("ref", ""))
 
-    issue_comments = get(f"{root}/issues/{args.pr}/comments?per_page=100", token)
-    inline_comments = get(f"{root}/pulls/{args.pr}/comments?per_page=100", token)
-    checks = get(f"{root}/commits/{head_sha}/check-runs?per_page=100", token)
-    require(isinstance(issue_comments, list), "issue comments response was not a list")
-    require(isinstance(inline_comments, list), "inline comments response was not a list")
-    require(isinstance(checks, dict), "check-runs response was not an object")
-    runs = checks.get("check_runs")
-    require(isinstance(runs, list), "check-runs response had no run list")
+    # Every reviewer record is read to its last page: a first-page-only read
+    # truncates a busy pull request at 100 records and would drop a reviewer's
+    # participation, its head evidence, or an unresolved finding from the gate.
+    issue_comments = get_all(f"{root}/issues/{args.pr}/comments?per_page=100", token)
+    inline_comments = get_all(f"{root}/pulls/{args.pr}/comments?per_page=100", token)
+    runs = get_all(
+        f"{root}/commits/{head_sha}/check-runs?per_page=100", token, key="check_runs"
+    )
 
     # Both reviewers are keyed on thread resolution and on their own review
     # records, so neither read is optional any more.
     resolved_roots = resolved_thread_roots(args.pr, token)
-    reviews = get(f"{root}/pulls/{args.pr}/reviews?per_page=100", token)
-    require(isinstance(reviews, list), "reviews response was not a list")
+    reviews = get_all(f"{root}/pulls/{args.pr}/reviews?per_page=100", token)
 
     blockers = merge_blockers(
         pr,

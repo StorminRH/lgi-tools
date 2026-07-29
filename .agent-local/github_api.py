@@ -76,6 +76,27 @@ def next_path(link_header: str | None) -> str | None:
     return None
 
 
+def get_all(path: str, token: str, key: str | None = None) -> list[object]:
+    """Every record from a paginated list endpoint, following Link rel="next".
+
+    GitHub caps a page at 100 records, so a single request silently truncates a
+    busy pull request's comments, reviews, or checks. A gate reading a truncated
+    set can miss a reviewer's participation or an unresolved finding, so callers
+    that decide anything read every page. `key` unwraps the object-wrapped list
+    endpoints such as check-runs.
+    """
+    records: list[object] = []
+    page_path: str | None = path
+    while page_path:
+        body, headers = request("GET", page_path, token, None)
+        page = body.get(key) if key is not None and isinstance(body, dict) else body
+        if not isinstance(page, list):
+            raise RuntimeError(f"GitHub API list response was not a list: {page_path}")
+        records.extend(page)
+        page_path = next_path(headers.get("Link"))
+    return records
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("method", choices=("GET", "POST", "PATCH"))
