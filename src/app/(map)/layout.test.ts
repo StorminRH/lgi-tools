@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapLayout, { MapAccessGate } from './layout';
 
 const mocks = vi.hoisted(() => ({
@@ -38,6 +38,13 @@ describe('MapAccessGate', () => {
   beforeEach(() => {
     mocks.checkAdmin.mockReset();
     mocks.rethrow.mockReset();
+  });
+
+  // Restores the console spies unconditionally: a manual restore at the end of a
+  // test body is skipped when an assertion above it throws, leaving the stub
+  // active and hiding later diagnostics.
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('renders the development wall without the canvas for a non-admin', async () => {
@@ -104,7 +111,6 @@ describe('MapAccessGate', () => {
       '[map] authorization check unavailable',
       err,
     );
-    consoleError.mockRestore();
   });
 
   it('re-throws a framework control-flow signal instead of walling it', async () => {
@@ -119,7 +125,6 @@ describe('MapAccessGate', () => {
       MapAccessGate({ children: createElement('div', { 'data-map-canvas': '' }) }),
     ).rejects.toBe(signal);
     expect(consoleError).not.toHaveBeenCalled();
-    consoleError.mockRestore();
   });
 });
 
