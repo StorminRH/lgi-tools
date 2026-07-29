@@ -11,7 +11,11 @@ Shared rules:
 - Cite load-bearing evidence without pasting large source or tool output.
 - State gaps instead of filling them from memory.
 - Do not recommend unrelated work or claim authority beyond the assigned task.
-- Keep each result under 800 tokens unless the parent explicitly requests more.
+- Return a meaningfully compressed, non-redundant evidence packet that includes
+  every material fact the parent needs to plan, implement, review, or verify the
+  assigned task. Do not impose a fixed token, turn, or tool-call budget; use the
+  isolated context to absorb raw exploration while keeping the returned
+  evidence concise, structured, and relevant.
 
 ## Repository map
 
