@@ -137,10 +137,10 @@ describe('architecture map — the pinned edge taxonomy', () => {
     ]);
   });
 
-  it('counts the live graph at 23 zones and 108 declared permissions', () => {
+  it('counts the live graph at 24 zones and 116 declared permissions', () => {
     const map = liveMap();
-    expect(map.nodes).toHaveLength(23);
-    expect(kindsOf(map, 'allow')).toHaveLength(107);
+    expect(map.nodes).toHaveLength(24);
+    expect(kindsOf(map, 'allow')).toHaveLength(115);
     expect(kindsOf(map, 'exception')).toHaveLength(1);
     expect(Math.max(...map.nodes.map((node) => node.layer))).toBe(10);
   });

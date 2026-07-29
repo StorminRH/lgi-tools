@@ -22,6 +22,7 @@ import {
   MenuSeparator,
   menuRow,
   menuSeparator,
+  type MenuAnchor,
 } from '@/components/ui/menu';
 import { authClient } from '@/platform/auth/auth-client';
 import type { Session } from '@/platform/auth/types';
@@ -31,7 +32,13 @@ import { startCharacterLink } from '@/platform/auth/link-character';
  * Renders the signed-in account menu with character, settings, administrator, and sign-out actions
  * from the auth provider.
  */
-export function AccountMenu({ session }: { session: Session }) {
+export function AccountMenu({
+  session,
+  anchor,
+}: {
+  session: Session;
+  anchor?: MenuAnchor;
+}) {
   return (
     <Menu
       label={`${session.name} — account menu`}
@@ -46,7 +53,7 @@ export function AccountMenu({ session }: { session: Session }) {
       }
       triggerClassName="flex items-center cursor-pointer transition-opacity hover:opacity-80 data-[popup-open]:opacity-80"
       className="min-w-60 border-t-0"
-      anchor={() => document.querySelector('.app-header')}
+      anchor={anchor ?? (() => document.querySelector('.app-header'))}
     >
       <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/characters" />}>
         Manage characters

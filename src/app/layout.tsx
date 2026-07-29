@@ -3,9 +3,6 @@ import { Barlow_Condensed, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
-import { AppHeader } from "@/components/composition/AppHeader";
-import { Footer } from "@/components/composition/Footer";
-import { FeedbackButton } from "@/components/composition/FeedbackButton";
 import { TelemetryReporter } from "@/components/composition/TelemetryReporter";
 import { AuthProvider } from "@/platform/auth/components/AuthProvider";
 import { ConvexClientProvider } from "@/platform/auth/components/ConvexClientProvider";
@@ -109,10 +106,7 @@ export default function RootLayout({
                    * pathname (no auth/convex/preferences) — and wraps both the
                    * header and the page so each can read the slot. */}
                   <PageMenuProvider>
-                    <AppHeader />
-                    <main className="flex-1">{children}</main>
-                    <Footer />
-                    <FeedbackButton />
+                    {children}
                   </PageMenuProvider>
                 </LoadingToastProvider>
               </OnlineStatusProvider>

@@ -434,7 +434,7 @@
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "80a3f4392931d63993c946da5c517d370d54b752cebb67d12382046b6d231b34"
+      "reconciledHash": "f9cd86e3572d457ff10b2e928ae1261a2cd519ae5d593b6aaac03efb72cc7829"
     },
     "start-session": {
       "deps": [
@@ -511,7 +511,7 @@
         "docs/workflows/ux-check.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "76655b8a00470704499970b2743c7619b533d47cf29003d0e4501b333aadc7dc"
+      "reconciledHash": "f1354b58352ba7fd7eebcdf1b155947ed18a6530a6662afe4dc8ce6060b576c6"
     },
     "update-watch": {
       "deps": [
@@ -546,7 +546,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "3e3913260730e474bd4f5f88f5ca75500746626221f17f975b76dec9f6e713cc"
+      "reconciledHash": "0a0af564e9c68f56cbb664b843888f0eca76aa7f0545c6666f07e040d252a0ae"
     }
   },
   "procedurePolicies": {

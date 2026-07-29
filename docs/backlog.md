@@ -437,6 +437,19 @@ justified infra decision — the "new library needs written justification" bar �
 back into mid-feature. *Size:* S–M. *Trigger:* a future surface whose only meaningful branch is
 genuinely un-extractable from the DOM, where a render/interaction test earns the stack.
 
+## Atlas floating-chrome placement controls
+
+**What:** consider whether the atlas menu, reserved search slot, account control,
+and feedback affordance should be movable or individually hideable once real map
+content and overlay windows establish the collision patterns. Preserve the
+application-layer composition boundary; this is a placement preference, not mapper
+ownership.
+
+**Why deferred:** the empty canvas provides no evidence for useful alternate
+positions, and configuration now would violate the simplicity rule by shipping
+controls before a real need exists. *Size:* S–M. *Trigger:* repeated obstruction
+observed during the 4.0 map-content and overlay-window UX gates.
+
 ## Industry planner — UI
 
 > Small planner-UI deferrals. (The T2 margin-semantics track — the Raw | Item toggle, the

@@ -41,8 +41,9 @@ Adopted categories:
 - Charts: visx plus the house CSSOM pattern. Charts are not part of the
   overlay-wrapper category.
 - Fixed-layout trees: keep using `trees/flow/FlowExplorer.tsx`.
-- Future free-form mapper: React Flow v12 (`@xyflow/react`), reinstalled only
-  when the mapper lands on a real route.
+- Free-form mapper: React Flow v12 (`@xyflow/react`) is owned only by
+  `src/mapper/`; application routes consume its public surface through
+  `@/mapper`.
 - Future drag/reorder: classic dnd-kit packages. Give every `<DndContext>` a
   stable explicit `id` to prevent SSR `aria-describedby` hydration drift, and
   apply transforms through CSSOM rather than JSX `style`.
@@ -80,7 +81,7 @@ Preferred patterns:
   `toneHex`.
 
 Do not hardcode raw hex at call sites, interpolated class strings, or SVG
-attributes. `tones.ts` and `src/app/preview` are deliberate raw-hex lint
+attributes. `tones.ts` and `src/app/(site)/preview` are deliberate raw-hex lint
 exemptions; raw `rgba()` is restricted everywhere in source and belongs in the
 `globals.css` token layer. Reuse the semantic type, tracking, radius, motion,
 stacking, elevation, icon-size, button, field, and card tokens/primitives

@@ -32,13 +32,17 @@ COLLECTION_PROMPT = (
     "Do not perform more investigation, edit files, or refer me to a plan "
     "artifact. Output only the Verdict, Findings, and Load-bearing checks sections."
 )
-VERDICT_PATTERN = re.compile(r"^Verdict:\s*(CLEAN|FINDINGS)\s*$", re.MULTILINE)
+VERDICT_PATTERN = re.compile(
+    r"^(?:\*\*)?Verdict:\s*(CLEAN|FINDINGS)(?:\*\*)?\s*$",
+    re.MULTILINE,
+)
 FINDING_PATTERN = re.compile(
-    r"^\s*\d+\.\s+\[(BLOCKER|MAJOR|MINOR)\]\s+",
+    r"^\s*\d+\.\s+(?:\*\*)?\[(BLOCKER|MAJOR|MINOR)\](?:\*\*)?\s+",
     re.MULTILINE,
 )
 FINDINGS_SECTION_PATTERN = re.compile(
-    r"^Findings:[ \t]*(?P<body>.*?)(?=^Load-bearing checks(?: that held)?:|\Z)",
+    r"^(?:\*\*)?Findings:(?:\*\*)?[ \t]*(?P<body>.*?)"
+    r"(?=^(?:\*\*)?Load-bearing checks(?: that held)?:(?:\*\*)?|\Z)",
     re.MULTILINE | re.DOTALL,
 )
 DEFAULT_CURSOR_TIMEOUT_SECONDS = 30 * 60

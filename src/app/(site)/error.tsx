@@ -7,10 +7,10 @@ import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 
 /**
- * Application-wide error boundary. Catches any unhandled error thrown
- * rendering a page (Server or Client Component) and shows a friendly
- * EVE-themed fallback. The root <html>/<body>, header, and footer keep
- * rendering — only the page body is replaced. global-error.tsx would be
+ * Site-group error boundary. Catches any unhandled error thrown rendering a
+ * (site) page (Server or Client Component) and shows a friendly EVE-themed
+ * fallback. The root <html>/<body> and the (site) layout's header and footer
+ * keep rendering — only the page body is replaced. global-error.tsx would be
  * needed for errors in the root layout itself, which we don't add here.
  */
 export default function Error({

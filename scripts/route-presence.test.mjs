@@ -43,6 +43,11 @@ describe('routeKey', () => {
     expect(routeKey('api/account/structures/route.ts')).toBe('/api/account/structures');
   });
 
+  it('drops route-group segments from nested and root paths', () => {
+    expect(routeKey('(site)/sites/[id]/page.tsx')).toBe('/sites/[id]');
+    expect(routeKey('(site)/page.tsx')).toBe('/');
+  });
+
   it('maps sitemap and robots to their served paths', () => {
     expect(routeKey('sitemap.ts')).toBe('/sitemap.xml');
     expect(routeKey('robots.tsx')).toBe('/robots.txt');
@@ -53,6 +58,9 @@ describe('routeKey', () => {
     expect(routeKey('opengraph-image.tsx')).toBe('/opengraph-image');
     expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe('/sites/[id]/opengraph-image');
     expect(routeKey('docs/twitter-image.js')).toBe('/docs/twitter-image');
+    expect(routeKey('(site)/sites/[id]/opengraph-image.tsx')).toBe(
+      '/sites/[id]/opengraph-image',
+    );
   });
 
   it('keeps the extension when mapping icon images, unlike social images', () => {

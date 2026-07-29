@@ -242,6 +242,7 @@ class DocRefsTests(unittest.TestCase):
         record_sources = (
             "session-plans/3.10/3.10.0.1.md",
             "session-contracts/3.10/nested/contract.md",
+            "session-as-built/3.10/3.10.0.1.md",
             "version-audits/3.10/PLAN.md",
             "SCRATCHPAD.md",
             "VERSION_3_10_PLAN.md",

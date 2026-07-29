@@ -15,7 +15,7 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
  * feature) and feeds it to the modal as props, so the feedback feature stays
  * decoupled from the auth feature.
  */
-export function FeedbackButton() {
+export function FeedbackButton({ compact = false }: { compact?: boolean }) {
   const { session, loading } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -23,10 +23,12 @@ export function FeedbackButton() {
     <>
       <Button
         variant="primary"
+        size={compact ? 'sm' : 'md'}
+        aria-label={compact ? 'Send feedback' : undefined}
         onClick={() => setOpen(true)}
         className="fixed bottom-4 right-4 z-dropdown"
       >
-        Feedback
+        {compact ? '?' : 'Feedback'}
       </Button>
       <FeedbackModal
         open={open}

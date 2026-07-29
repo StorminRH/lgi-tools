@@ -21,13 +21,15 @@ access to the rest of that band.
 2. **Composition** — `composition` owns server-side cross-slice orchestration;
    `components-composition` owns app-shell, dashboard, page-menu, and account UI
    composition.
-3. **Product and presentation** — auto-discovered `features/<name>` zones own
+3. **Host layer** — `mapper` owns the free-form map canvas and may compose
+   feature widgets through their public surfaces. Features never import it.
+4. **Product and presentation** — auto-discovered `features/<name>` zones own
    product capabilities; `components` and `ui` own reusable presentation.
-4. **Data** — auto-discovered `data/<name>` zones own reusable schemas, ingest,
+5. **Data** — auto-discovered `data/<name>` zones own reusable schemas, ingest,
    queries, and data-domain types.
-5. **Platform capabilities** — authentication, ESI, owner synchronization,
+6. **Platform capabilities** — authentication, ESI, owner synchronization,
    search, purge, and page-settings contracts that multiple higher bands use.
-6. **Foundations** — `transport`, `db`, `lib`, and `config` are leafward
+7. **Foundations** — `transport`, `db`, `lib`, and `config` are leafward
    infrastructure.
 
 `convex` is a regenerable live-projection runtime beside the entry-point band.
@@ -41,12 +43,13 @@ responsible for auditing itself.
 
 | Zone | Owns | May depend on |
 | --- | --- | --- |
-| `app` | Next.js pages, layouts, metadata, and page-owned tests | `components-composition`, `composition`, `components`, `ui`, `features`, `platform/auth`, `platform/esi`, `platform/page-settings`, `data`, `transport`, `lib`, `config` |
+| `app` | Next.js pages, layouts, metadata, and page-owned tests | `components-composition`, `composition`, `components`, `ui`, `mapper`, `features`, `platform/auth`, `platform/esi`, `platform/page-settings`, `data`, `transport`, `lib`, `config` |
 | `api` | Next.js route handlers and route-owned tests | `transport`, `composition`, `features`, `platform/auth`, `platform/esi`, `data`, `db`, `lib`, `config` |
 | `scripts` | Executable application-maintenance commands | `composition`, `platform/auth`, `data`, `db`, `lib` |
 | `runtime` | Next.js proxy and instrumentation entry points | `transport`, `features`, `data`, `lib`, `config` |
 | `composition` | Server-side cross-slice workflows, registries, and pipelines | `features`, every required platform capability, `data`, `transport`, `db`, `lib`, `config` |
 | `components-composition` | Cross-feature shell and account presentation | `composition`, `components`, `ui`, `features`, `platform/auth`, `platform/search`, `platform/page-settings`, `data`, `transport`, `lib`, `config` |
+| `mapper` | Free-form map canvas and feature-widget hosting | `features`, `data`, `components`, `ui`, `transport`, `lib`, `config`; never authentication or app-shell composition |
 | `features/<name>` | One product capability and its feature UI | Platform contracts, `data`, `transport`, `db`, `lib`, `config`, `ui`, `components`; never a peer feature |
 | `components` | Reusable domain-aware leaf components and telemetry presentation | `ui`, `platform/auth`, `platform/search`, `platform/page-settings`, `data`, `transport`, `lib` |
 | `ui` | Domain-neutral UI primitives | No cross-zone dependencies |
