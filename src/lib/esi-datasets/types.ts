@@ -12,7 +12,8 @@ type EsiUpstream =
       verifiedCacheSeconds: number | null;
     }
   | { kind: 'ccp-sde-manifest' }
-  | { kind: 'google-gsc' };
+  | { kind: 'google-gsc' }
+  | { kind: 'anoik-statics' };
 
 /**
  * The rules an entry may carry a waiver against. A waiver names exactly one

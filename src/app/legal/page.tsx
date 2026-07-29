@@ -40,7 +40,7 @@ export default function LegalPage() {
         title="Privacy"
         meta={
           <span className={eyebrow()}>
-            Last updated <b className="text-name font-semibold">19 Jul 2026</b>
+            Last updated <b className="text-name font-semibold">28 Jul 2026</b>
           </span>
         }
       />
@@ -159,6 +159,25 @@ export default function LegalPage() {
               separately against the new account&apos;s current linked characters, corporation
               membership, and roles, so the new pilot does not inherit the previous owner&apos;s
               corporation access.
+            </p>
+          </LegalSection>
+
+          <LegalSection label="Community data credits">
+            <p>
+              Per-system wormhole statics are refreshed from{' '}
+              <a href="https://anoik.is" target="_blank" rel="noopener noreferrer">
+                anoik.is
+              </a>
+              . Before a snapshot can be promoted, LGI.tools cross-checks it
+              against the MIT-licensed Pathfinder lineage data published by{' '}
+              <a
+                href="https://github.com/exodus4d/pathfinder"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                exodus4d
+              </a>
+              .
             </p>
           </LegalSection>
 

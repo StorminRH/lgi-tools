@@ -6,6 +6,7 @@ import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { HISTORY_RETENTION_DAYS } from '@/data/market-history/constants';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
+import { WH_STATICS_SNAPSHOT_RETENTION_DAYS } from '@/data/wh-statics/constants';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
@@ -133,6 +134,14 @@ export const TABLE_GROWTH_STORIES = [
     prunedBy: 'daily /api/cron/refresh-gsc housekeeping; dead letters retained',
     alsoPurgeManagedBy: 'esi-refresh-jobs',
   },
+  {
+    kind: 'pruned',
+    table: schema.whStaticsSnapshots,
+    retentionDays: WH_STATICS_SNAPSHOT_RETENTION_DAYS,
+    retentionConstant: 'WH_STATICS_SNAPSHOT_RETENTION_DAYS',
+    prunedBy:
+      'daily /api/cron/refresh-gsc housekeeping, preserving pending and current promoted snapshots',
+  },
 
   { kind: 'purge-managed', table: schema.session, purgeContributor: 'auth' },
   { kind: 'purge-managed', table: schema.maps, purgeContributor: 'maps' },
@@ -217,6 +226,12 @@ export const TABLE_GROWTH_STORIES = [
     kind: 'bounded',
     table: schema.gscSitemaps,
     reason: 'at most one latest row per submitted sitemap path',
+  },
+  {
+    kind: 'bounded',
+    table: schema.whSystemStatics,
+    reason:
+      'replaced in full from one finite operator-promoted community snapshot',
   },
 
   // Identity/framework rows are keyed by a finite identity; transient OAuth

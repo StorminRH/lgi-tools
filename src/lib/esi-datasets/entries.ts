@@ -236,6 +236,20 @@ export const ESI_DATASET_ENTRIES = [
     ],
   },
   {
+    name: 'wh_statics',
+    store: 'neon',
+    shape: 'global-cron',
+    freshnessModel: 'cron-cadence',
+    refreshOwner: {
+      kind: 'cron',
+      route: '/api/cron/refresh-wh-statics',
+    },
+    upstream: { kind: 'anoik-statics' },
+    mirrorTables: ['wh_statics_snapshots', 'wh_system_statics'],
+    notes:
+      'Weekly conditional refresh into an operator-reviewed pending snapshot; serving reads only the promoted copy.',
+  },
+  {
     name: 'online_status',
     store: 'convex',
     shape: 'live',

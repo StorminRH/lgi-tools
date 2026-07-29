@@ -14,6 +14,7 @@ import {
 } from '@/lib/failure';
 import { auth } from './auth';
 import { getCurrentUserId } from './session';
+import { requireSameOrigin } from './same-origin';
 
 type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
 
@@ -38,6 +39,17 @@ export async function checkAdmin(): Promise<SessionCheckResult> {
     return { ok: false, failure: forbiddenFailure() };
   }
   return { ok: true, session };
+}
+
+/** Applies the shared admin-session and same-origin gates for form mutations. */
+export async function checkAdminMutation(
+  request: Request,
+): Promise<SessionCheckResult> {
+  const gate = await checkAdmin();
+  if (!gate.ok) return gate;
+  const origin = requireSameOrigin(request);
+  if (!origin.ok) return origin;
+  return gate;
 }
 
 /** Typed user-id check result returned before HTTP problem serialization. */

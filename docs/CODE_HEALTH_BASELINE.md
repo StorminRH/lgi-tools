@@ -14,24 +14,24 @@
 
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
-| Production TS/TSX files | 806 | 821 | +15 |
-| Production TS/TSX LOC | 79,515 | 81,040 | +1525 |
-| Test files | 428 | 436 | +8 |
-| Coverage — statements | 85.83% | 85.99% | — |
-| Coverage — branches | 82.81% | 82.97% | — |
-| Coverage — functions | 81.37% | 81.58% | — |
-| Coverage — lines | 86.89% | 87.06% | — |
+| Production TS/TSX files | 806 | 836 | +30 |
+| Production TS/TSX LOC | 79,515 | 82,776 | +3261 |
+| Test files | 428 | 447 | +19 |
+| Coverage — statements | 85.83% | 86.03% | — |
+| Coverage — branches | 82.81% | 82.94% | — |
+| Coverage — functions | 81.37% | 81.65% | — |
+| Coverage — lines | 86.89% | 87.09% | — |
 | Fallow health score | 78 (B) | 78 (B) | — |
 | Functions above health thresholds | 0 | 0 | 0 |
 | Planner concern-context fields | 5 / 10 / 18 / 6 / 13 | 5 / 10 / 18 / 6 / 13 | — |
 | Concern-hook consumers | 20 calls / 9 files | 20 calls / 9 files | — |
 | Auth contract paths (`src/platform/auth/types.ts`, `src/db/auth-schema.ts`, `src/platform/auth/api-contract.ts`) | 3 | 3 | 0 |
-| ESI dataset registry entries | 13 | 13 | 0 |
+| ESI dataset registry entries | 13 | 14 | +1 |
 | Freshness leaf breadth | 3 functions / 14 production importers | 3 functions / 14 production importers | — |
-| Cron shell declarations | 7 | 7 | 0 |
-| Real-Postgres harness consumers | 20 | 22 | +2 |
-| Dataset declaration census | 56 tables / 14 index tests | 58 tables / 15 index tests | — |
-| API contract completeness | 52 routes / 17 contract modules | 56 routes / 17 contract modules | — |
+| Cron shell declarations | 7 | 8 | +1 |
+| Real-Postgres harness consumers | 20 | 25 | +5 |
+| Dataset declaration census | 56 tables / 14 index tests | 60 tables / 15 index tests | — |
+| API contract completeness | 52 routes / 17 contract modules | 58 routes / 18 contract modules | — |
 | EVE type-image resolver breadth | 8 exports / 6 functions / 15 production importers | 8 exports / 6 functions / 15 production importers | — |
 | Threshold overrides | 0 | 0 | 0 |
 | Diagnostic suppressions | 18 | 18 | 0 |
@@ -40,10 +40,10 @@
 | Accepted duplication baseline clone groups | 0 | 0 | 0 |
 | Version-start-pinned Fallow verdict | Pass | Pass | — |
 | Fallow boundary zones (configured) | 22 | 22 | 0 |
-| Vendor-resilience integrations | 14 | 14 | 0 |
-| Instrumented capability operations | 38 | 38 | 0 |
+| Vendor-resilience integrations | 14 | 15 | +1 |
+| Instrumented capability operations | 38 | 40 | +2 |
 | Owned service-level indicators | 5 | 5 | 0 |
-| UI adoption exemptions | 16 | 16 | 0 |
+| UI adoption exemptions | 16 | 17 | +1 |
 | Retained legacy CSS families | 8 | 8 | 0 |
 | `src/data/telemetry/queries.ts` | 25 exports | 25 exports | — |
 | `src/data/esi-refresh-jobs/queries.ts` | 13 exports | 13 exports | — |

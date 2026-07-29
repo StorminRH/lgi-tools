@@ -49,6 +49,7 @@ const EXPECTED_INTEGRATIONS: readonly VendorIntegrationId[] = [
   'ccp-static-data',
   'eve-news-feed',
   'ccp-image-cdn',
+  'anoik-statics',
 ];
 
 /** The one Upstash Redis construction site. */
@@ -59,6 +60,7 @@ const PRODUCTION_POSTGRES_SITES = [
   'src/db/index.ts',
   'src/scripts/backfill-users-if-empty.ts',
   'src/scripts/check-universe-assets.ts',
+  'src/scripts/check-wh-statics.ts',
   'src/scripts/ingest-sde-if-empty.ts',
   'src/scripts/ingest-sde.ts',
   'src/scripts/migrate.ts',

@@ -643,6 +643,7 @@ const serverRootImportPatterns = [
       "@/platform/auth/eve-sso",
       "@/lib/rate-limit",
       "@/data/gsc/source",
+      "@/data/wh-statics/source",
       "@/data/eve-data/source",
       "@/data/esi-refresh-jobs/pending-signal",
     ],

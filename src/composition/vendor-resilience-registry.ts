@@ -32,7 +32,8 @@ export type VendorIntegrationId =
   | 'fuzzwork'
   | 'ccp-static-data'
   | 'eve-news-feed'
-  | 'ccp-image-cdn';
+  | 'ccp-image-cdn'
+  | 'anoik-statics';
 
 /**
  * One integration's declared resilience policy — the eight recorded facts. `wrapper` names the
@@ -260,5 +261,24 @@ export const vendorResilienceRegistry: Record<
     degradation:
       'A failed load renders as a broken or empty image inside the wrapper’s reserved layout box; no data path depends on it.',
     telemetryFields: 'None; client-side asset loading is not instrumented.',
+  },
+  'anoik-statics': {
+    wrapper: {
+      module: 'src/data/wh-statics/source.ts',
+      symbol: 'fetchStaticsFeed',
+    },
+    timeout:
+      '10s per request (WH_STATICS_FETCH_TIMEOUT_MS via fetchWithTimeout).',
+    retryableErrors:
+      'None. The weekly schedule or an operator-triggered refresh is the next attempt.',
+    backoff: 'None.',
+    rateLimit:
+      'No app-side limiter; one weekly conditional GET plus explicit operator-triggered requests.',
+    idempotency:
+      'Read-only conditional GET. A changed body enters a pending snapshot and never promotes automatically.',
+    degradation:
+      'Network, timeout and non-200 outcomes become feed-unavailable while the last promoted Neon copy keeps serving.',
+    telemetryFields:
+      "'cron_wh_statics' outcomes (unchanged, feed-unavailable, stale-observation, snapshot-pending).",
   },
 };

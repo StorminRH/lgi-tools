@@ -134,6 +134,17 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
       'Guarded by the ADVISORY_LOCK_SDE_INGEST session advisory lock; the ingest is a full replace keyed on the published SDE checksum, so a repeat of the same build is a no-op.',
   },
   {
+    id: 'cron/refresh-wh-statics',
+    workKind: 'vercel-cron',
+    cronPath: '/api/cron/refresh-wh-statics',
+    module: 'src/app/api/cron/refresh-wh-statics/declaration.ts',
+    redeliverySource: VERCEL_CRON_REDELIVERY,
+    verdict: 'key-protected',
+    vendor: 'anoik-statics',
+    evidence:
+      'The conditional probe runs before the shared ADVISORY_LOCK_WH_STATICS_REFRESH lock; a changed body is serialized, and recordSnapshot atomically supersedes any prior pending snapshot only when the probe baseline still matches, so a redelivered or delayed run cannot replace a newer observation.',
+  },
+  {
     id: 'cron/refresh-gsc',
     workKind: 'vercel-cron',
     cronPath: '/api/cron/refresh-gsc',
@@ -340,6 +351,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mutationRoute('src/app/api/account/saved-plans/rename/route.ts', 'inherently-idempotent', 'Sets a plan’s name by id; a repeat sets the same name.'),
   mutationRoute('src/app/api/account/saved-plans/favorite/route.ts', 'inherently-idempotent', 'Sets a plan’s favorite flag by id to a named boolean; a repeat sets the same flag.'),
   mutationRoute('src/app/api/admin/role/route.ts', 'inherently-idempotent', 'Sets a user’s role to a named value; a repeat sets the same role.'),
+  mutationRoute('src/app/api/admin/wh-statics/route.ts', 'key-protected', 'Refresh uses the shared advisory lock, serializes snapshot writes, reuses an identical latest non-rejected ETag and digest instead of superseding it, and refuses a response whose pre-lock baseline no longer matches the newest snapshot; rejected observations remain eligible for a later pending review. Promote and reject accept only a pending snapshot, so a repeated review action is refused without changing the promoted copy.'),
 
   // ── Delete-shaped mutations: the second delete finds nothing ────────────
   mutationRoute('src/app/api/account/saved-plans/delete/route.ts', 'inherently-idempotent', 'Deletes one owned plan by id; the second delete matches no row and returns not found.'),
