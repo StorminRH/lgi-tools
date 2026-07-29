@@ -542,6 +542,14 @@ const sonnerImportPatterns = [
   },
 ];
 
+const xyflowImportPatterns = [
+  {
+    group: ["@xyflow/react", "@xyflow/react/*"],
+    message:
+      "@xyflow/react is confined to src/mapper/** — import MapCanvas from @/mapper, not the package.",
+  },
+];
+
 // The two rails every source block keeps regardless of which vendor exemption it
 // carries. Factored out for the same reason as the selector families above:
 // flat-config rule options REPLACE per matching file, and the vendor rail below
@@ -746,6 +754,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
           ],
         },
       ],
@@ -763,7 +772,31 @@ const eslintConfig = defineConfig([
       "src/data/**/use-*.{ts,tsx}",
       "src/platform/auth/auth-client.ts",
       "src/platform/auth/components/**/*.{ts,tsx,mts}",
+      "src/mapper/**/*.{ts,tsx,mts}",
     ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...nextImageImportPaths,
+          ],
+          patterns: [
+            ...vendorImportPatterns,
+            ...stalenessImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // The mapper owns @xyflow/react; every other client/shared rail still applies.
+  {
+    files: ["src/mapper/**/*.{ts,tsx,mts}"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -797,6 +830,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
             ...serverRootImportPatterns,
           ],
         },
@@ -819,6 +853,7 @@ const eslintConfig = defineConfig([
             ...stalenessImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
             ...serverRootImportPatterns,
           ],
         },
@@ -862,6 +897,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
             ...serverRootImportPatterns,
           ],
         },
@@ -910,6 +946,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
           ],
         },
       ],
@@ -948,6 +985,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
           ],
         },
       ],
@@ -972,6 +1010,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
           ],
         },
       ],
@@ -1004,6 +1043,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
           ],
         },
       ],
@@ -1020,8 +1060,8 @@ const eslintConfig = defineConfig([
     files: [
       "src/platform/auth/**/*.{ts,tsx,mts}",
       "src/app/api/auth/**/route.{ts,tsx}",
-      "src/app/industry/active-job-character-ids.ts",
-      "src/app/industry/active-job-character-ids.test.ts",
+      "src/app/(site)/industry/active-job-character-ids.ts",
+      "src/app/(site)/industry/active-job-character-ids.test.ts",
     ],
     rules: {
       "no-restricted-imports": [
@@ -1038,6 +1078,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
           ],
         },
       ],
@@ -1065,6 +1106,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
             ...serverRootImportPatterns,
           ],
         },
@@ -1089,6 +1131,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
           ],
         },
       ],
@@ -1124,6 +1167,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
             ...serverRootImportPatterns,
           ],
         },
@@ -1149,6 +1193,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
             ...serverRootImportPatterns,
           ],
         },
@@ -1174,6 +1219,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...xyflowImportPatterns,
             ...serverRootImportPatterns,
           ],
         },
@@ -1352,7 +1398,7 @@ const eslintConfig = defineConfig([
   // Preview pages may intentionally try off-palette hex one-offs, but alpha
   // colors still use the shared token layer. Re-state every other ban.
   {
-    files: ["src/app/preview/**/*.{ts,tsx}"],
+    files: ["src/app/(site)/preview/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",

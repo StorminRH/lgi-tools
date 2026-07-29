@@ -132,7 +132,7 @@ const VENDOR_OWNER_RULES: readonly VendorOwnerRule[] = [
       'src/platform/auth/',
       'src/composition/account-lifecycle/',
       'src/app/api/auth/[...all]/route.ts',
-      'src/app/industry/active-job-character-ids.ts',
+      'src/app/(site)/industry/active-job-character-ids.ts',
     ],
   },
 ];

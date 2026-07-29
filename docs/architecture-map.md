@@ -8,7 +8,7 @@ block of the Fallow configuration. `docs/architecture-boundaries.md` is the pros
 owner of the same map; this file is its generated picture, and the public devlog
 renders it as a permission matrix.
 
-Zones: 23. Declared permissions: 108 (reference-core exceptions: 1). First-match carve-outs: 1.
+Zones: 24. Declared permissions: 116 (reference-core exceptions: 1). First-match carve-outs: 1.
 
 ```mermaid
 flowchart TD
@@ -29,6 +29,7 @@ flowchart TD
     data["data"]
     lib["lib"]
     components["components"]
+    mapper["mapper"]
     api["api"]
     app["app"]
     scripts["scripts"]
@@ -45,6 +46,7 @@ flowchart TD
     app --> components
     app --> ui
     app --> features
+    app --> mapper
     app --> platform__auth
     app --> platform__esi
     app --> platform__page_settings
@@ -52,6 +54,13 @@ flowchart TD
     app --> transport
     app --> lib
     app --> config
+    mapper --> features
+    mapper --> data
+    mapper --> components
+    mapper --> ui
+    mapper --> transport
+    mapper --> lib
+    mapper --> config
     api --> transport
     api --> composition
     api --> features

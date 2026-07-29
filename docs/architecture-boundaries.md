@@ -41,13 +41,14 @@ responsible for auditing itself.
 
 | Zone | Owns | May depend on |
 | --- | --- | --- |
-| `app` | Next.js pages, layouts, metadata, and page-owned tests | `components-composition`, `composition`, `components`, `ui`, `features`, `platform/auth`, `platform/esi`, `platform/page-settings`, `data`, `transport`, `lib`, `config` |
+| `app` | Next.js pages, layouts, metadata, and page-owned tests | `components-composition`, `composition`, `components`, `ui`, `features`, `mapper`, `platform/auth`, `platform/esi`, `platform/page-settings`, `data`, `transport`, `lib`, `config` |
 | `api` | Next.js route handlers and route-owned tests | `transport`, `composition`, `features`, `platform/auth`, `platform/esi`, `data`, `db`, `lib`, `config` |
 | `scripts` | Executable application-maintenance commands | `composition`, `platform/auth`, `data`, `db`, `lib` |
 | `runtime` | Next.js proxy and instrumentation entry points | `transport`, `features`, `data`, `lib`, `config` |
 | `composition` | Server-side cross-slice workflows, registries, and pipelines | `features`, every required platform capability, `data`, `transport`, `db`, `lib`, `config` |
 | `components-composition` | Cross-feature shell and account presentation | `composition`, `components`, `ui`, `features`, `platform/auth`, `platform/search`, `platform/page-settings`, `data`, `transport`, `lib`, `config` |
-| `features/<name>` | One product capability and its feature UI | Platform contracts, `data`, `transport`, `db`, `lib`, `config`, `ui`, `components`; never a peer feature |
+| `mapper` | Free-form map host layer and React Flow canvas | `features`, `data`, `components`, `ui`, `transport`, `lib`, `config`; never `platform/auth`, `components-composition`, `composition`, `db`, or `api` |
+| `features/<name>` | One product capability and its feature UI | Platform contracts, `data`, `transport`, `db`, `lib`, `config`, `ui`, `components`; never a peer feature and never `mapper` |
 | `components` | Reusable domain-aware leaf components and telemetry presentation | `ui`, `platform/auth`, `platform/search`, `platform/page-settings`, `data`, `transport`, `lib` |
 | `ui` | Domain-neutral UI primitives | No cross-zone dependencies |
 | `data/<name>` | One reusable data slice | `data/eve-data`, `platform/esi`, `platform/owner-sync`, `platform/search`, `platform/purge`, `transport`, `db`, `lib`, `config`; never another peer data slice |

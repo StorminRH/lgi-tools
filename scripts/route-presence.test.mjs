@@ -59,6 +59,22 @@ describe('routeKey', () => {
     expect(routeKey('icon.svg')).toBe('/icon.svg');
     expect(routeKey('docs/icon.png')).toBe('/docs/icon.png');
   });
+
+  it('strips parenthesised route-group segments from nested routes', () => {
+    expect(routeKey('(site)/sites/[id]/page.tsx')).toBe('/sites/[id]');
+    expect(routeKey('(map)/atlas/page.tsx')).toBe('/atlas');
+  });
+
+  it('maps a grouped root page to /', () => {
+    expect(routeKey('(site)/page.tsx')).toBe('/');
+  });
+
+  it('strips route groups from metadata file paths', () => {
+    expect(routeKey('(site)/opengraph-image.tsx')).toBe('/opengraph-image');
+    expect(routeKey('(site)/sites/[id]/opengraph-image.tsx')).toBe(
+      '/sites/[id]/opengraph-image',
+    );
+  });
 });
 
 describe('discoveredKeys', () => {

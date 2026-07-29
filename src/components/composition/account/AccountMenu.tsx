@@ -29,9 +29,16 @@ import { startCharacterLink } from '@/platform/auth/link-character';
 
 /**
  * Renders the signed-in account menu with character, settings, administrator, and sign-out actions
- * from the auth provider.
+ * from the auth provider. `anchorSelector` defaults to the site header so existing routes are
+ * unchanged; the map passes its floating chrome root.
  */
-export function AccountMenu({ session }: { session: Session }) {
+export function AccountMenu({
+  session,
+  anchorSelector = '.app-header',
+}: {
+  session: Session;
+  anchorSelector?: string;
+}) {
   return (
     <Menu
       label={`${session.name} — account menu`}
@@ -46,7 +53,7 @@ export function AccountMenu({ session }: { session: Session }) {
       }
       triggerClassName="flex items-center cursor-pointer transition-opacity hover:opacity-80 data-[popup-open]:opacity-80"
       className="min-w-60 border-t-0"
-      anchor={() => document.querySelector('.app-header')}
+      anchor={() => document.querySelector(anchorSelector)}
     >
       <MenuLinkItem closeOnClick className={menuRow} render={<Link href="/characters" />}>
         Manage characters

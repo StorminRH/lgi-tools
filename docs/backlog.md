@@ -195,6 +195,14 @@
   tiles are separate hardcoded JSX and won't auto-follow. *Why deferred:*
   feature/architecture work, well beyond copy/visual polish; explicitly its own branch.
   *Size:* L. *Trigger:* the nav/module-foundation session.
+
+- **Movable / hideable map chrome.** *What:* let an administrator reposition or
+  temporarily hide the floating map menu, reserved search slot, and account
+  control without leaving the canvas. *Why deferred:* 4.0.2.1.1 ships fixed
+  positions so the shell and host layer can land first; personalization belongs
+  with later map-settings work. *Size:* M. *Trigger:* after the map has real
+  content and the account control gains map settings (4.0.4.4+).
+
 ## Character roster
 
 - **Roster Phase B — sec status · location · corp/faction badge** (deferred from 3.6 at the

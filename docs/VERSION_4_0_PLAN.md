@@ -86,7 +86,7 @@ by hand where needed, and never see a refresh control.
 | 4.0.1.3 | Client universe assets, wormhole codex, sites card widget export | §4.0.1.3, §4.0.1.4, §4.0.1.5 | 1 | COMPLETE |
 | 4.0.1.6 | Statics dataset ingest (anoik.is feed) | §4.0.1.6 | 1 | COMPLETE |
 | **Phase 2 — Shell & live core** | | | | |
-| 4.0.2.1 | Map shell (dev wall, host layer, floating chrome) | §4.0.2.1 | 1 | PLANNED |
+| 4.0.2.1 | Map shell (dev wall, host layer, floating chrome) | §4.0.2.1 | 1 | COMPLETE |
 | 4.0.2.2 | Data model + authorization (Convex schema + gate + projection) | §4.0.2.2 | 1 | PLANNED |
 | 4.0.2.3 | Reactive read path (subscriptions + reconciler) | §4.0.2.3 | 1 | PLANNED |
 | **Phase 3 — Canvas** | | | | |

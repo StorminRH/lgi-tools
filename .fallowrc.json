@@ -94,6 +94,7 @@
         "name": "components",
         "patterns": ["src/components/*.tsx", "src/components/*.ts", "src/components/telemetry/**"]
       },
+      { "name": "mapper", "patterns": ["src/mapper/**"] },
       { "name": "api", "patterns": ["src/app/api/**"] },
       { "name": "app", "patterns": ["src/app/**"] },
       { "name": "scripts", "patterns": ["src/scripts/**"] },
@@ -113,10 +114,23 @@
           "components",
           "ui",
           "features",
+          "mapper",
           "platform/auth",
           "platform/esi",
           "platform/page-settings",
           "data",
+          "transport",
+          "lib",
+          "config"
+        ]
+      },
+      {
+        "from": "mapper",
+        "allow": [
+          "features",
+          "data",
+          "components",
+          "ui",
           "transport",
           "lib",
           "config"

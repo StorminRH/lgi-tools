@@ -13,9 +13,10 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
  *
  * Reads login state here (the shared component layer may import the auth
  * feature) and feeds it to the modal as props, so the feedback feature stays
- * decoupled from the auth feature.
+ * decoupled from the auth feature. `compact` shrinks the control for the map
+ * chrome; the default labelled button is unchanged.
  */
-export function FeedbackButton() {
+export function FeedbackButton({ compact }: { compact?: boolean }) {
   const { session, loading } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -23,6 +24,7 @@ export function FeedbackButton() {
     <>
       <Button
         variant="primary"
+        size={compact ? 'sm' : 'md'}
         onClick={() => setOpen(true)}
         className="fixed bottom-4 right-4 z-dropdown"
       >
