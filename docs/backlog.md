@@ -437,6 +437,19 @@ justified infra decision — the "new library needs written justification" bar �
 back into mid-feature. *Size:* S–M. *Trigger:* a future surface whose only meaningful branch is
 genuinely un-extractable from the DOM, where a render/interaction test earns the stack.
 
+## Atlas floating-chrome placement controls
+
+**What:** consider whether the atlas menu, reserved search slot, account control,
+and feedback affordance should be movable or individually hideable once real map
+content and overlay windows establish the collision patterns. Preserve the
+application-layer composition boundary; this is a placement preference, not mapper
+ownership.
+
+**Why deferred:** the empty canvas provides no evidence for useful alternate
+positions, and configuration now would violate the simplicity rule by shipping
+controls before a real need exists. *Size:* S–M. *Trigger:* repeated obstruction
+observed during the 4.0 map-content and overlay-window UX gates.
+
 ## Industry planner — UI
 
 > Small planner-UI deferrals. (The T2 margin-semantics track — the Raw | Item toggle, the
@@ -771,3 +784,23 @@ so both need a real design decision, not a constraint.
   of scope: that session's hard constraints allowed no application behaviour
   change beyond its own devlog block. The map's own figure contains its overflow
   and does not contribute to this measurement.*
+
+- **Make the audit-mode boundary graph see the `mapper` zone.** *What:*
+  `fallow audit --fail-on-issues` — the form `pnpm verify` runs — reports
+  `boundary zone 'mapper' matched 0 reachable files`, while
+  `fallow dead-code --boundary-violations` builds a graph in which the zone is
+  reachable and correctly reports `features/wormhole-sites → mapper` when a
+  probe import is added. The two commands disagree about reachability for this
+  zone only; no other zone warns. *Impact:* the changed-files gate in
+  `pnpm verify` is not currently evaluating mapper's permitted directions, so a
+  future upward import into `src/mapper/` would be caught only by
+  `src/mapper/boundary.test.ts`, not by the audit. The rule is enforced today —
+  that test mutates a reachable module and asserts the violation — but by one
+  owner instead of two. *Fix direction:* determine which entry roots audit mode
+  uses and why the `(map)` route group's page does not make `src/mapper/**`
+  reachable there; the likely candidates are route-group parentheses in entry
+  discovery or audit's scoped graph roots. *Size:* S. *Trigger:* the next mapper
+  session (4.0.2.2), which adds the first real imports into the zone and would
+  benefit from both owners being live. *Found during 4.0.2.1.1 close-out; the
+  warning predates this session's fixes and was confirmed present with them
+  stashed.*

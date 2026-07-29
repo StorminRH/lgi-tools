@@ -14,13 +14,13 @@
 
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
-| Production TS/TSX files | 806 | 836 | +30 |
-| Production TS/TSX LOC | 79,515 | 82,776 | +3261 |
-| Test files | 428 | 447 | +19 |
-| Coverage — statements | 85.83% | 86.03% | — |
+| Production TS/TSX files | 806 | 848 | +42 |
+| Production TS/TSX LOC | 79,515 | 83,238 | +3723 |
+| Test files | 428 | 455 | +27 |
+| Coverage — statements | 85.83% | 86.00% | — |
 | Coverage — branches | 82.81% | 82.94% | — |
-| Coverage — functions | 81.37% | 81.65% | — |
-| Coverage — lines | 86.89% | 87.09% | — |
+| Coverage — functions | 81.37% | 81.61% | — |
+| Coverage — lines | 86.89% | 87.05% | — |
 | Fallow health score | 78 (B) | 78 (B) | — |
 | Functions above health thresholds | 0 | 0 | 0 |
 | Planner concern-context fields | 5 / 10 / 18 / 6 / 13 | 5 / 10 / 18 / 6 / 13 | — |
@@ -39,7 +39,7 @@
 | Whole-version Fallow clone groups | 1 | 1 | 0 |
 | Accepted duplication baseline clone groups | 0 | 0 | 0 |
 | Version-start-pinned Fallow verdict | Pass | Pass | — |
-| Fallow boundary zones (configured) | 22 | 22 | 0 |
+| Fallow boundary zones (configured) | 22 | 23 | +1 |
 | Vendor-resilience integrations | 14 | 15 | +1 |
 | Instrumented capability operations | 38 | 40 | +2 |
 | Owned service-level indicators | 5 | 5 | 0 |

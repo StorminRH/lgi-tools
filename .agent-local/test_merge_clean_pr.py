@@ -8,11 +8,12 @@ import unittest
 
 import merge_clean_pr
 from merge_clean_pr import (
+    BASE_REQUIRED_CHECKS,
     CODERABBIT,
-    FALLBACK_REQUIRED_CHECKS,
     GREPTILE,
     GREPTILE_CHECK,
     REQUIRED_CHECKS,
+    coderabbit_reviewed,
     coderabbit_reviewed_head,
     greptile_reviewed,
     live_coderabbit_findings,
@@ -25,6 +26,18 @@ HEAD = "6228ebcb3749ee0aac8a027815f21b30df003a03"
 
 def summary_comment(body: str) -> dict:
     return {"user": {"login": GREPTILE}, "id": 1, "updated_at": "2026-07-23T10:00:00Z", "body": body}
+
+
+def gr_root(comment_id: int = 20, commit: str = HEAD) -> dict:
+    """One Greptile inline finding root."""
+    return {
+        "user": {"login": GREPTILE},
+        "id": comment_id,
+        "commit_id": commit,
+        "in_reply_to_id": None,
+        "line": 5,
+        "body": "P1 finding",
+    }
 
 
 def clean_inputs() -> dict:
@@ -44,10 +57,18 @@ def clean_inputs() -> dict:
     }
 
 
-def blockers(**overrides) -> list[str]:
+def blockers(resolved: frozenset[int] = frozenset(), **overrides) -> list[str]:
     data = clean_inputs()
     data.update(overrides)
-    return merge_blockers(data["pr"], data["issue_comments"], data["inline_comments"], data["runs"], data["expected_head"])
+    return merge_blockers(
+        data["pr"],
+        data["issue_comments"],
+        data["inline_comments"],
+        data["runs"],
+        data["expected_head"],
+        resolved,
+        data.get("reviews", []),
+    )
 
 
 class MergeGate(unittest.TestCase):
@@ -91,14 +112,31 @@ class MergeGate(unittest.TestCase):
         ]
         self.assertTrue(any("newer than the live summary" in r for r in blockers(issue_comments=cs)))
 
-    def test_live_inline_finding_blocks(self) -> None:
-        inline = [{"user": {"login": GREPTILE}, "commit_id": HEAD, "line": 5, "body": "P1"}]
+    def test_unresolved_inline_finding_blocks(self) -> None:
+        inline = [gr_root()]
         self.assertTrue(any("inline finding" in r for r in blockers(inline_comments=inline)))
 
-    def test_outdated_inline_comment_does_not_block(self) -> None:
-        # A resolved finding left on an older commit must not block a clean merge.
-        inline = [{"user": {"login": GREPTILE}, "commit_id": "a1a808f", "line": None, "body": "P1"}]
-        self.assertEqual(blockers(inline_comments=inline), [])
+    def test_resolved_inline_finding_does_not_block(self) -> None:
+        self.assertEqual(blockers(resolved=frozenset({20}), inline_comments=[gr_root()]), [])
+
+    def test_unresolved_finding_on_an_older_commit_still_blocks(self) -> None:
+        # Anchor commit says nothing about whether the finding still stands.
+        inline = [gr_root(commit="a1a808f")]
+        self.assertTrue(any("unresolved inline finding" in r for r in blockers(inline_comments=inline)))
+
+    def test_resolved_finding_reanchored_to_the_head_does_not_block(self) -> None:
+        # The PR #324 regression. GitHub moves `commit_id` to the new head for any
+        # comment whose anchor line survives the fix, including one Greptile has
+        # already marked addressed and resolved, so the old head filter refused a
+        # merge every participating reviewer had signed off.
+        self.assertEqual(
+            blockers(resolved=frozenset({20}), inline_comments=[gr_root(commit=HEAD)]),
+            [],
+        )
+
+    def test_greptile_reply_is_not_a_finding(self) -> None:
+        reply = gr_root(21) | {"in_reply_to_id": 20}
+        self.assertEqual(blockers(inline_comments=[reply]), [])
 
     def test_missing_required_check_blocks(self) -> None:
         runs = [{"name": "test", "status": "completed", "conclusion": "success"}]
@@ -120,20 +158,28 @@ class MergeGate(unittest.TestCase):
 
 
 class LiveInlineFindings(unittest.TestCase):
-    def test_current_head_finding_counts(self) -> None:
-        found = live_inline_findings([{"user": {"login": GREPTILE}, "commit_id": HEAD, "line": 5}], HEAD)
-        self.assertEqual(len(found), 1)
+    def test_unresolved_finding_counts(self) -> None:
+        self.assertEqual(len(live_inline_findings([gr_root()], frozenset())), 1)
 
-    def test_old_commit_finding_is_ignored(self) -> None:
-        found = live_inline_findings([{"user": {"login": GREPTILE}, "commit_id": "old", "line": 5}], HEAD)
-        self.assertEqual(found, [])
+    def test_resolved_finding_is_ignored(self) -> None:
+        self.assertEqual(live_inline_findings([gr_root()], frozenset({20})), [])
+
+    def test_anchor_commit_is_irrelevant(self) -> None:
+        # Both directions of the bug: an old anchor still counts, a head anchor
+        # stops counting once the thread is resolved.
+        self.assertEqual(len(live_inline_findings([gr_root(commit="old")], frozenset())), 1)
+        self.assertEqual(live_inline_findings([gr_root(commit=HEAD)], frozenset({20})), [])
+
+    def test_reply_is_not_a_finding(self) -> None:
+        reply = gr_root(21) | {"in_reply_to_id": 20}
+        self.assertEqual(live_inline_findings([reply], frozenset()), [])
 
     def test_non_greptile_comment_ignored(self) -> None:
-        found = live_inline_findings([{"user": {"login": "coderabbitai"}, "commit_id": HEAD, "line": 5}], HEAD)
+        found = live_inline_findings([{"user": {"login": "coderabbitai"}, "id": 20}], frozenset())
         self.assertEqual(found, [])
 
     def test_ignores_non_dict_items(self) -> None:
-        self.assertEqual(live_inline_findings([None, "x"], HEAD), [])
+        self.assertEqual(live_inline_findings([None, "x"], frozenset()), [])
 
 
 def cr_root(comment_id: int = 10, commit: str = HEAD) -> dict:
@@ -146,20 +192,20 @@ def cr_root(comment_id: int = 10, commit: str = HEAD) -> dict:
     }
 
 
-def fallback_inputs() -> dict:
-    """A PR Greptile never reviewed: no summary comment and no Greptile check."""
+def coderabbit_only_inputs() -> dict:
+    """A PR Greptile never appeared on: no summary comment and no Greptile check."""
     data = clean_inputs()
     data["issue_comments"] = []
     data["runs"] = [
         {"name": name, "status": "completed", "conclusion": "success"}
-        for name in FALLBACK_REQUIRED_CHECKS
+        for name in BASE_REQUIRED_CHECKS
     ]
     data["reviews"] = [{"user": {"login": CODERABBIT}, "commit_id": HEAD}]
     return data
 
 
-def fallback_blockers(resolved: frozenset[int] = frozenset(), **overrides) -> list[str]:
-    data = fallback_inputs()
+def coderabbit_only_blockers(resolved: frozenset[int] = frozenset(), **overrides) -> list[str]:
+    data = coderabbit_only_inputs()
     data.update(overrides)
     return merge_blockers(
         data["pr"],
@@ -170,6 +216,20 @@ def fallback_blockers(resolved: frozenset[int] = frozenset(), **overrides) -> li
         resolved,
         data["reviews"],
     )
+
+
+class CodeRabbitParticipation(unittest.TestCase):
+    def test_an_inline_comment_counts_as_participation(self) -> None:
+        self.assertTrue(coderabbit_reviewed([cr_root()], []))
+
+    def test_a_review_object_counts_as_participation(self) -> None:
+        self.assertTrue(coderabbit_reviewed([], [{"user": {"login": CODERABBIT}}]))
+
+    def test_another_author_is_not_participation(self) -> None:
+        self.assertFalse(coderabbit_reviewed([gr_root()], [{"user": {"login": "StorminRH"}}]))
+
+    def test_nothing_at_all_is_not_participation(self) -> None:
+        self.assertFalse(coderabbit_reviewed([], []))
 
 
 class GreptileParticipation(unittest.TestCase):
@@ -186,55 +246,55 @@ class GreptileParticipation(unittest.TestCase):
         self.assertFalse(greptile_reviewed([], runs))
 
 
-class CodeRabbitFallback(unittest.TestCase):
-    def test_fallback_gate_is_clean_with_no_findings(self) -> None:
-        self.assertEqual(fallback_blockers(), [])
+class CodeRabbitAlone(unittest.TestCase):
+    def test_coderabbit_alone_is_clean_with_no_findings(self) -> None:
+        self.assertEqual(coderabbit_only_blockers(), [])
 
     def test_unresolved_finding_blocks(self) -> None:
-        reasons = fallback_blockers(inline_comments=[cr_root()])
+        reasons = coderabbit_only_blockers(inline_comments=[cr_root()])
         self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
 
     def test_resolved_finding_does_not_block(self) -> None:
-        self.assertEqual(fallback_blockers(frozenset({10}), inline_comments=[cr_root()]), [])
+        self.assertEqual(coderabbit_only_blockers(frozenset({10}), inline_comments=[cr_root()]), [])
 
     def test_unresolved_finding_on_an_older_commit_still_blocks(self) -> None:
         # CodeRabbit never re-anchors a finding, so its commit is the one it was
         # found on. Filtering by head would drop every finding after any push.
-        reasons = fallback_blockers(inline_comments=[cr_root(commit="old")])
+        reasons = coderabbit_only_blockers(inline_comments=[cr_root(commit="old")])
         self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
 
     def test_bot_reply_is_not_a_finding(self) -> None:
         reply = cr_root(11) | {"in_reply_to_id": 10}
-        self.assertEqual(fallback_blockers(inline_comments=[reply]), [])
+        self.assertEqual(coderabbit_only_blockers(inline_comments=[reply]), [])
 
     def test_missing_coderabbit_check_blocks(self) -> None:
         runs = [{"name": "test", "status": "completed", "conclusion": "success"}]
-        reasons = fallback_blockers(runs=runs)
+        reasons = coderabbit_only_blockers(runs=runs)
         self.assertTrue(any("missing required checks" in r for r in reasons))
 
-    def test_fallback_does_not_require_the_greptile_check(self) -> None:
-        self.assertFalse(any("Greptile Review" in r for r in fallback_blockers()))
+    def test_coderabbit_alone_does_not_require_the_greptile_check(self) -> None:
+        self.assertFalse(any("Greptile Review" in r for r in coderabbit_only_blockers()))
 
     def test_greptile_findings_are_never_waived_by_a_green_coderabbit(self) -> None:
-        # Greptile reviewed, so its inline finding decides the merge even though
-        # CodeRabbit is clean — the fallback must not become an alternative.
+        # Greptile took part, so its unresolved finding blocks even though
+        # CodeRabbit is clean. Neither reviewer waives the other.
         data = clean_inputs()
         reasons = merge_blockers(
             data["pr"],
             data["issue_comments"],
-            [{"user": {"login": GREPTILE}, "commit_id": HEAD, "line": 5}],
+            [gr_root()],
             data["runs"],
             data["expected_head"],
             frozenset(),
         )
-        self.assertTrue(any("Greptile has 1 inline finding" in r for r in reasons))
+        self.assertTrue(any("Greptile has 1 unresolved inline finding" in r for r in reasons))
 
     def test_missing_greptile_summary_still_blocks_when_greptile_checked(self) -> None:
         runs = [
             {"name": name, "status": "completed", "conclusion": "success"}
             for name in REQUIRED_CHECKS
         ]
-        reasons = fallback_blockers(runs=runs)
+        reasons = coderabbit_only_blockers(runs=runs)
         self.assertTrue(any("no Greptile summary found" in r for r in reasons))
 
 
@@ -254,11 +314,11 @@ class CodeRabbitReviewedHead(unittest.TestCase):
     def test_rate_limited_head_blocks_the_merge(self) -> None:
         # CodeRabbit's commit status reports success even when it says
         # "Review rate limited", so an unreviewed head must still block.
-        reasons = fallback_blockers(reviews=[{"user": {"login": CODERABBIT}, "commit_id": "older"}])
+        reasons = coderabbit_only_blockers(reviews=[{"user": {"login": CODERABBIT}, "commit_id": "older"}])
         self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
 
     def test_no_reviews_at_all_blocks_the_merge(self) -> None:
-        reasons = fallback_blockers(reviews=[])
+        reasons = coderabbit_only_blockers(reviews=[])
         self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
 
 
@@ -331,7 +391,7 @@ class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
         # The hole this gate exists to close: a green status with no real review.
         limited = self.cr_comment("Review rate limited. Please try again later.")
         self.assertFalse(coderabbit_reviewed_head([], HEAD, [limited]))
-        reasons = fallback_blockers(reviews=[], inline_comments=[limited])
+        reasons = coderabbit_only_blockers(reviews=[], inline_comments=[limited])
         self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
 
     def test_a_human_cannot_supply_the_marker(self) -> None:
@@ -352,7 +412,7 @@ class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
         # fixed finding is acknowledged and resolved, a second one is neither.
         ack = self.cr_comment(f"Addressed in commit {HEAD[:7]}")
         still_open = cr_root(11, commit="older")
-        reasons = fallback_blockers(
+        reasons = coderabbit_only_blockers(
             frozenset({10}), reviews=[], inline_comments=[ack, still_open]
         )
         self.assertFalse(any("no CodeRabbit review" in r for r in reasons))
@@ -364,7 +424,7 @@ class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
         # Head evidence is therefore satisfied while the finding still stands, and
         # before the fix the head filter dropped it and returned no blockers.
         only_root = self.cr_comment(f"finding\n\nAddressed in commit {HEAD[:7]}")
-        reasons = fallback_blockers(reviews=[], inline_comments=[only_root])
+        reasons = coderabbit_only_blockers(reviews=[], inline_comments=[only_root])
         self.assertFalse(any("no CodeRabbit review" in r for r in reasons))
         self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
 
@@ -384,20 +444,74 @@ class CodeRabbitIncrementalAcknowledgement(unittest.TestCase):
         self.assertTrue(coderabbit_reviewed_head([], HEAD, [emoji_line]))
 
     def test_acknowledgement_never_substitutes_for_greptile(self) -> None:
-        # Greptile reviewed, so the fallback path must not be reachable at all.
+        # Greptile took part, so its own finding must still be answered.
         data = clean_inputs()
         reasons = merge_blockers(
             data["pr"],
             data["issue_comments"],
             [
-                {"user": {"login": GREPTILE}, "commit_id": HEAD, "line": 5},
+                gr_root(),
                 self.cr_comment(f"Addressed in commit {HEAD[:7]}"),
             ],
             data["runs"],
             data["expected_head"],
             frozenset(),
         )
-        self.assertTrue(any("Greptile has 1 inline finding" in r for r in reasons))
+        self.assertTrue(any("Greptile has 1 unresolved inline finding" in r for r in reasons))
+
+
+class EveryParticipatingReviewerGates(unittest.TestCase):
+    """Presence decides the gate: both, one, or — refusing everything — neither."""
+
+    def cr_review_at_head(self) -> list[dict]:
+        return [{"user": {"login": CODERABBIT}, "commit_id": HEAD}]
+
+    def test_both_present_and_clean_merges(self) -> None:
+        reasons = blockers(
+            frozenset({10}),
+            inline_comments=[cr_root()],
+            reviews=self.cr_review_at_head(),
+        )
+        self.assertEqual(reasons, [])
+
+    def test_a_clean_greptile_does_not_waive_a_coderabbit_finding(self) -> None:
+        # The direction the old fallback allowed silently: Greptile reviewed, so
+        # CodeRabbit's unresolved finding was never even computed.
+        reasons = blockers(inline_comments=[cr_root()], reviews=self.cr_review_at_head())
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
+
+    def test_a_rate_limited_coderabbit_leaves_greptile_deciding(self) -> None:
+        # PR #324's shape. CodeRabbit took part on earlier heads and was rate
+        # limited on this one; its findings are all resolved and Greptile read
+        # this head, so the merge is not held hostage to a quota.
+        reasons = blockers(frozenset({10}), inline_comments=[cr_root(commit="older")], reviews=[])
+        self.assertEqual(reasons, [])
+
+    def test_a_rate_limited_coderabbit_still_owes_its_findings(self) -> None:
+        reasons = blockers(inline_comments=[cr_root(commit="older")], reviews=[])
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
+
+    def test_a_stale_greptile_summary_leaves_coderabbit_deciding(self) -> None:
+        # The mirror case: Greptile has not re-run on this head, CodeRabbit has.
+        stale = [summary_comment("Greptile Summary\nConfidence Score: 5/5\nReviewed abc1234")]
+        reasons = blockers(issue_comments=stale, reviews=self.cr_review_at_head())
+        self.assertEqual(reasons, [])
+
+    def test_a_non_five_greptile_score_blocks_even_when_coderabbit_read_the_head(self) -> None:
+        # Head evidence is collective; a participating reviewer's verdict is not.
+        low = [summary_comment(f"Greptile Summary\nConfidence Score: 3/5\nReviewed {HEAD}")]
+        reasons = blockers(issue_comments=low, reviews=self.cr_review_at_head())
+        self.assertTrue(any("not 5/5" in r for r in reasons))
+
+    def test_no_reviewer_at_all_blocks(self) -> None:
+        runs = [
+            {"name": name, "status": "completed", "conclusion": "success"}
+            for name in BASE_REQUIRED_CHECKS
+        ]
+        reasons = blockers(issue_comments=[], runs=runs, reviews=[])
+        self.assertTrue(any("no reviewer read the current head" in r for r in reasons))
+        self.assertTrue(any("no Greptile review on the current head" in r for r in reasons))
+        self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
 
 
 class LiveCodeRabbitFindings(unittest.TestCase):

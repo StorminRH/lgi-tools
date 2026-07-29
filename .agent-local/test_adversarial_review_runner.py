@@ -62,6 +62,22 @@ class AdversarialReviewRunnerTests(unittest.TestCase):
                             "Load-bearing checks that held:\\n"
                             "1. [BLOCKER] parser fixture — rejected marker outside findings."
                         )
+                    elif scenario == "bold-label":
+                        severity = "BLOCKER" if "grok" in session_id else "MAJOR"
+                        result = (
+                            "**Verdict:** FINDINGS\\n\\n"
+                            "**Findings:**\\n\\n"
+                            f"1. **[{severity}]** owner.py — invariant; scenario; correction.\\n\\n"
+                            "**Load-bearing checks that held:**\\n- identity — evidence."
+                        )
+                    elif scenario == "markdown-bold":
+                        severity = "BLOCKER" if "grok" in session_id else "MAJOR"
+                        result = (
+                            "**Verdict: FINDINGS**\\n\\n"
+                            "**Findings:**\\n\\n"
+                            f"1. **[{severity}]** owner.py — invariant; scenario; correction.\\n\\n"
+                            "**Load-bearing checks that held:**\\n- identity — evidence."
+                        )
                     else:
                         severity = "BLOCKER" if "grok" in session_id else "MAJOR"
                         result = (
@@ -194,6 +210,22 @@ class AdversarialReviewRunnerTests(unittest.TestCase):
         for seat in summary["seats"]:
             self.assertEqual(seat["verdict"], "CLEAN")
             self.assertEqual(seat["reported"], {"blocker": 0, "major": 0, "minor": 0})
+
+    def test_accepts_markdown_bold_around_structural_verdict_tokens(self) -> None:
+        result = self.run_runner(composer_count=1, scenario="markdown-bold")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        summary = json.loads(result.stdout)
+        self.assertEqual(summary["seats"][0]["reported"]["blocker"], 1)
+        self.assertEqual(summary["seats"][1]["reported"]["major"], 1)
+
+    def test_accepts_bold_on_the_verdict_label_alone(self) -> None:
+        # `**Verdict:** FINDINGS` is as common as whole-line bold, and the
+        # findings-section pattern already accepted the label-only form.
+        result = self.run_runner(composer_count=1, scenario="bold-label")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        summary = json.loads(result.stdout)
+        self.assertEqual(summary["seats"][0]["reported"]["blocker"], 1)
+        self.assertEqual(summary["seats"][1]["reported"]["major"], 1)
 
     def test_rejects_clean_with_a_numbered_finding(self) -> None:
         result = self.run_runner(composer_count=1, scenario="clean-with-finding")

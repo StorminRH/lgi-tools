@@ -184,6 +184,7 @@ _ALLOWLIST = (
 _RECORD_SOURCES = (
     ("docs/session-plans/**", "approved implementation plans are frozen history"),
     ("docs/session-contracts/**", "approved session contracts are frozen history"),
+    ("docs/session-as-built/**", "final session records preserve delivered history"),
     ("docs/version-audits/**", "version audit plans and evidence are frozen history"),
     ("docs/SCRATCHPAD.md", "session handoff history is a durable record"),
     ("docs/VERSION_*_PLAN.md", "the active roadmap is resolver-owned living state"),

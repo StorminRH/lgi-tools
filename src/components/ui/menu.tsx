@@ -48,6 +48,8 @@ const popup = cva(`flex flex-col outline-none ${panelSurface}`, {
 });
 
 type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
+/** Supported element and virtual-anchor shapes for positioning a menu popup. */
+export type MenuAnchor = PositionerProps['anchor'];
 type DataAttributes = {
   [key: `data-${string}`]: string | number | boolean | undefined;
 };
@@ -85,7 +87,7 @@ export function Menu({
   sideOffset?: PositionerProps['sideOffset'];
   // Element to position against (defaults to the trigger). Accepts Base UI's
   // anchor shapes — e.g. `() => document.querySelector('.app-header')`.
-  anchor?: PositionerProps['anchor'];
+  anchor?: MenuAnchor;
   // Modal locks page scroll + blocks outside interaction. Default off (a
   // lightweight dropdown that doesn't trap the page).
   modal?: boolean;

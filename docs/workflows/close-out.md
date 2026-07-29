@@ -302,7 +302,7 @@ cheap workflow check, the successful pinned `pnpm verify` result tied to the
 verified head, read-only no-change confirmation, commit SHA, push result, and
 the lifecycle-memory disposition.
 
-## The PR and Greptile loop (shared)
+## The PR and external-review loop (shared)
 
 1. Before opening the PR, confirm the verification evidence names the current
    head. If the head has not changed since **Finalize and verify the current
@@ -355,23 +355,23 @@ the lifecycle-memory disposition.
    ```
 
    The helper imports the merge predicate, waits for a stable current-head
-   result, keeps waiting through CodeRabbit's rate-limited status, and prints
-   Cursor Bugbot's non-gating signal. `cursor=comments` means Bugbot concluded
-   `neutral` or `skipped` and left comments to collect; `cursor=clean` means its
-   conclusion was `success`. Continue useful close-out work while it runs, but
-   do not push or re-trigger a bot merely to escape a rate limit.
+   result, and prints Cursor Bugbot's non-gating signal. `cursor=comments` means
+   Bugbot concluded `neutral` or `skipped` and left comments to collect;
+   `cursor=clean` means its conclusion was `success`. Continue useful close-out
+   work while it runs, but do not push or re-trigger a bot merely to escape a
+   rate limit.
 6. On that stable head, collect every finding from all reviewers at once: the
-   Greptile summary and current-head inline findings, CodeRabbit review bodies
-   and inline threads, and any Cursor Bugbot comments signaled by the monitor.
-   Cursor remains advisory and never becomes the merge gate, but every comment
-   receives an explicit disposition. If the gate of record is clean and every
-   advisory comment has been triaged, the loop is done — go to **Merge**.
+   Greptile summary, unresolved Greptile and CodeRabbit inline threads,
+   CodeRabbit review bodies, and any Cursor Bugbot comments signaled by the
+   monitor. Cursor remains advisory and never becomes the merge gate, but every
+   comment receives an explicit disposition. If the gate of record is clean and
+   every advisory comment has been triaged, the loop is done — go to **Merge**.
    Otherwise triage the complete batch without widening the branch:
    1. **Fix** an in-scope problem on the branch.
    2. **Justify** a deliberate choice by replying `@greptileai` (or the owning
-      bot) with the reasoning; a justification that leaves a live current-head
-      finding is not resolved, so wait for the reply rather than treating the
-      unchanged head as a new pass.
+      bot) with the reasoning; a reply alone does not resolve the finding, so
+      wait for the owning reviewer rather than treating the unchanged head as a
+      new pass.
    3. **Defer** only genuinely out-of-scope work to `docs/backlog.md` with its
       reason, size, and trigger.
 7. Batch the round's whole disposition — every fix, justification reply,
@@ -394,23 +394,21 @@ returns `BLOCKED`.
 
 ## Merge (shared)
 
-1. Declare the PR review-ready only when the live Greptile result is 5/5 and
-   zero Greptile inline comments remain. A score alone is not sufficient.
-   When Greptile did not review the PR at all — no summary comment and no
-   `Greptile Review` check, which is what an exhausted Greptile quota looks
-   like — CodeRabbit becomes the gate of record for that PR instead, and it is
-   review-ready only when its check passes and every CodeRabbit review thread on
-   the current head is resolved. This is a fallback, never an alternative: any
-   PR Greptile did review is decided by Greptile, so a Greptile finding can
-   never be waived by pointing at a green CodeRabbit. The merge helper owns this
-   selection and fails closed; do not choose the gate by hand.
+1. Greptile and CodeRabbit each gate the PR when they participate. A
+   participating Greptile requires a live 5/5 result, and every Greptile and
+   CodeRabbit review thread must be resolved. Neither reviewer waives the other;
+   a reviewer that never participates gates nothing. At least one participating
+   reviewer must carry head-exact evidence, and if neither participates nothing
+   merges. The merge helper owns this composition and fails closed; do not
+   choose the gate by hand.
 2. Use `.agent-local/merge_clean_pr.py` as the gate of record. It owns the final
    fail-closed live revalidation and expected-head squash merge, and deletes the
    remote branch after a successful merge; do not restate or manually substitute
    its internal checklist.
-3. If an accepted or resolved finding leaves a Greptile inline comment that the
-   helper rejects, stop and escalate to the operator. Do not merge around the
-   fail-closed result.
+3. If the helper rejects an unresolved finding, stop and escalate to the
+   operator. Resolve a thread only when the finding is genuinely addressed or
+   withdrawn; never resolve one merely to clear the gate or merge around the
+   helper.
 
 Phase evidence: successful `merge_clean_pr.py` result, expected pre-merge head,
 actual merge SHA, and remote-branch deletion result. A rejected helper result

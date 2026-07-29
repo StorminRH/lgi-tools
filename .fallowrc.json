@@ -87,6 +87,7 @@
         "name": "components-composition",
         "patterns": ["src/components/composition/**"]
       },
+      { "name": "mapper", "patterns": ["src/mapper/**"] },
       { "name": "features", "autoDiscover": ["src/features"] },
       { "name": "data", "autoDiscover": ["src/data"] },
       { "name": "lib", "patterns": ["src/lib/**"] },
@@ -112,6 +113,7 @@
           "composition",
           "components",
           "ui",
+          "mapper",
           "features",
           "platform/auth",
           "platform/esi",
@@ -192,6 +194,18 @@
           "config",
           "ui",
           "components"
+        ]
+      },
+      {
+        "from": "mapper",
+        "allow": [
+          "features",
+          "data",
+          "components",
+          "ui",
+          "transport",
+          "lib",
+          "config"
         ]
       },
       {

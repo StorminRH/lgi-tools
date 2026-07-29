@@ -26,11 +26,11 @@ export function isRouteFile(base) {
 }
 
 // src/app-relative posix path → the route key the classification JSON uses.
-// (No route groups in this app, so the mapping is direct.)
 export function routeKey(relPosix) {
   const parts = relPosix.split('/');
   const base = parts.pop();
-  const prefix = parts.length ? `/${parts.join('/')}` : '';
+  const routeParts = parts.filter((part) => !/^\(.+\)$/.test(part));
+  const prefix = routeParts.length ? `/${routeParts.join('/')}` : '';
   if (SITEMAP_FILE.test(base)) return `${prefix}/sitemap.xml`;
   if (ROBOTS_FILE.test(base)) return `${prefix}/robots.txt`;
   const socialImage = base.match(SOCIAL_IMAGE_FILE);

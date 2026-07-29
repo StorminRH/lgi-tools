@@ -75,16 +75,8 @@ def main() -> int:
             errors.append(f"missing user-global Codex Vercel agent: {agent_name}")
 
     claude_guide = HOME / ".claude/CLAUDE.md"
-    codex_guide = HOME / ".codex/AGENTS.md"
     if not claude_guide.is_file() or "/vercel-plugin:*" not in claude_guide.read_text(encoding="utf-8"):
         errors.append("global Claude guide is missing native Vercel invocation guidance")
-    if not codex_guide.is_file():
-        errors.append("missing global Codex AGENTS.md")
-    else:
-        codex_text = codex_guide.read_text(encoding="utf-8")
-        for required in ("vercel-deploy", "custom agents", "sync_vercel_plugin.py --check"):
-            if required not in codex_text:
-                errors.append(f"global Codex guide is missing Vercel adapter policy: {required}")
 
     if errors:
         print(f"tooling parity check failed ({len(errors)} finding(s)):")
@@ -98,7 +90,7 @@ def main() -> int:
     )
     print(
         "intentional native differences: Claude slash commands/session hook; "
-        "Codex command skills/global guidance; Codex built-in app plugins/MCP"
+        "Codex command skills/generated agents; Codex built-in app plugins/MCP"
     )
     return 0
 

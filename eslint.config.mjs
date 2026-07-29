@@ -563,6 +563,19 @@ const stalenessImportPatterns = [
   },
 ];
 
+const reactFlowImportPatterns = [
+  {
+    group: ["@xyflow/react", "@xyflow/react/*"],
+    message:
+      "React Flow is confined to the mapper host layer. Import mapper surfaces from @/mapper outside src/mapper.",
+  },
+];
+
+const crossCuttingImportPatterns = [
+  ...stalenessImportPatterns,
+  ...reactFlowImportPatterns,
+];
+
 // Vendor package ownership (3.10.2.4): each integration's SDK is importable only
 // by the module that owns its declared resilience policy, so no call site can
 // bypass the wrapper and its explicit timeout. Declared per vendor rather than as
@@ -742,7 +755,7 @@ const eslintConfig = defineConfig([
           ],
           patterns: [
             ...vendorImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -761,9 +774,33 @@ const eslintConfig = defineConfig([
       "src/features/**/components/**/*.{ts,tsx,mts}",
       "src/features/**/use-*.{ts,tsx}",
       "src/data/**/use-*.{ts,tsx}",
+      "src/mapper/**/*.{ts,tsx,mts}",
       "src/platform/auth/auth-client.ts",
       "src/platform/auth/components/**/*.{ts,tsx,mts}",
     ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...nextImageImportPaths,
+          ],
+          patterns: [
+            ...vendorImportPatterns,
+            ...crossCuttingImportPatterns,
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // The mapper is the only React Flow package owner. It keeps every other
+  // shared, vendor, component, and client/server import rail.
+  {
+    files: ["src/mapper/**/*.{ts,tsx,mts}"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -793,7 +830,7 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             ...vendorImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -816,7 +853,7 @@ const eslintConfig = defineConfig([
           ],
           patterns: [
             ...vendorImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
             ...serverRootImportPatterns,
@@ -837,7 +874,7 @@ const eslintConfig = defineConfig([
           ],
           patterns: [
             ...vendorImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...serverRootImportPatterns,
@@ -906,7 +943,7 @@ const eslintConfig = defineConfig([
           ],
           patterns: [
             ...vendorImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -944,7 +981,7 @@ const eslintConfig = defineConfig([
             ...betterAuthImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -968,7 +1005,7 @@ const eslintConfig = defineConfig([
             ...betterAuthImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1000,7 +1037,7 @@ const eslintConfig = defineConfig([
             ...betterAuthImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1020,8 +1057,8 @@ const eslintConfig = defineConfig([
     files: [
       "src/platform/auth/**/*.{ts,tsx,mts}",
       "src/app/api/auth/**/route.{ts,tsx}",
-      "src/app/industry/active-job-character-ids.ts",
-      "src/app/industry/active-job-character-ids.test.ts",
+      "src/app/(site)/industry/active-job-character-ids.ts",
+      "src/app/(site)/industry/active-job-character-ids.test.ts",
     ],
     rules: {
       "no-restricted-imports": [
@@ -1034,7 +1071,7 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1061,7 +1098,7 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...betterAuthImportPatterns,
             ...googleAuthImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1085,7 +1122,7 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...betterAuthImportPatterns,
             ...convexReactImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1120,7 +1157,7 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...convexReactImportPatterns,
             ...googleAuthImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1145,7 +1182,7 @@ const eslintConfig = defineConfig([
             ...upstashRatelimitImportPatterns,
             ...databaseDriverImportPatterns,
             ...googleAuthImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1170,7 +1207,7 @@ const eslintConfig = defineConfig([
             ...databaseDriverImportPatterns,
             ...betterAuthImportPatterns,
             ...googleAuthImportPatterns,
-            ...stalenessImportPatterns,
+            ...crossCuttingImportPatterns,
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
@@ -1352,7 +1389,7 @@ const eslintConfig = defineConfig([
   // Preview pages may intentionally try off-palette hex one-offs, but alpha
   // colors still use the shared token layer. Re-state every other ban.
   {
-    files: ["src/app/preview/**/*.{ts,tsx}"],
+    files: ["src/app/(site)/preview/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",

@@ -108,6 +108,7 @@ run all of its declared viewports with `prefers-reduced-motion: reduce`.
 
 | Name | Recurring proof |
 | --- | --- |
+| `atlas-wall` | Signed-out atlas development wall, canvas/chrome exclusion, and viewport scroll suppression |
 | `asset-ledger` | Logged-out asset ledger open state and totals |
 | `asset-ring-mock` | Mocked complete/partial ownership rings and holding details |
 | `changelog-browser` | Canonical routes, sitemap entries, soft navigation, sticky rail, and mobile drawer |

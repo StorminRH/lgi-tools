@@ -5,16 +5,27 @@ The script uses the credential already held by git, prints no credential data,
 and refuses to merge unless the live review gate, CI, mergeability, and expected
 head SHA all satisfy the repository close-out gate.
 
-Greptile is the gate of record. CodeRabbit is a fallback, not an alternative:
-it gates only when Greptile did not review this PR at all — no summary comment
-and no `Greptile Review` check — which is what a Greptile quota exhaustion looks
-like. Whenever Greptile did review, its summary and inline findings decide the
-merge and CodeRabbit stays advisory, so a Greptile finding can never be waived
-by pointing at a green CodeRabbit.
+Every reviewer that took part in a PR is part of its gate. Greptile and
+CodeRabbit are peers here, not a gate of record and a fallback: whichever of
+them participated must be satisfied, and neither can be waived by pointing at
+the other. A reviewer that never appeared — no comment, no review, no check,
+which is what an exhausted quota looks like — gates nothing, so one reviewer
+being out of credit leaves the other deciding the merge alone rather than
+stalling it. If neither appeared there is no review and nothing merges.
 
-The fallback counts a CodeRabbit finding as live until its review thread is
-resolved, so an addressed or withdrawn finding must be resolved on the PR before
-the merge is allowed.
+Both reviewers count a finding as live until its review thread is resolved.
+Resolution is the only honest signal for either: CodeRabbit pins a comment to
+the commit it was first anchored to forever, and GitHub re-anchors a Greptile
+comment to each new head whenever its line survives the fix — including
+comments Greptile itself already marked addressed. Neither commit id says
+anything about whether the finding still stands.
+
+Someone must have read the exact code being merged, so at least one
+participating reviewer has to carry head-exact evidence: for Greptile a live
+summary naming the head, for CodeRabbit a head-pinned review or its own
+`Addressed in commit <sha>` marker. Requiring it of every participant instead
+would make a rate-limited pass unmergeable no matter how many other reviewers
+had read the head.
 
 Usage:
   python3 .agent-local/merge_clean_pr.py 228 <expected-head-sha>
@@ -28,7 +39,7 @@ import re
 import sys
 import urllib.parse
 
-from github_api import github_token, request
+from github_api import get_all, github_token, request
 
 
 OWNER = "StorminRH"
@@ -37,12 +48,12 @@ GREPTILE = "greptile-apps[bot]"
 CODERABBIT = "coderabbitai[bot]"
 GREPTILE_CHECK = "Greptile Review"
 CODERABBIT_CHECK = "CodeRabbit"
+# The base set is everything required when Greptile is not on the PR. CodeRabbit
+# adds nothing to it: it reports as a commit status rather than a check run, and
+# that status can pass while saying "Review rate limited", so no check name can
+# stand for its participation. Its review record does that instead.
 BASE_REQUIRED_CHECKS = {"semgrep-cloud-platform/scan", "test"}
 REQUIRED_CHECKS = BASE_REQUIRED_CHECKS | {GREPTILE_CHECK}
-# CodeRabbit reports as a commit status rather than a check run, and its status
-# can pass while saying "Review rate limited". The fallback therefore proves the
-# review happened from the review record itself, not from a named check.
-FALLBACK_REQUIRED_CHECKS = BASE_REQUIRED_CHECKS
 PASSING_CONCLUSIONS = {"success", "neutral", "skipped"}
 # CodeRabbit's machine-emitted verification marker, appended to a finding as its
 # own trailing line when an incremental pass confirms the commit that fixed it.
@@ -146,22 +157,30 @@ def actor_login(item: dict[str, object]) -> str:
 
 
 def live_inline_findings(
-    inline_comments: list[object], head_sha: str
+    inline_comments: list[object],
+    resolved_roots: frozenset[int],
 ) -> list[dict[str, object]]:
-    """Greptile inline comments that still apply to the current head.
+    """Greptile inline findings that are not resolved, at any anchor commit.
 
-    Greptile leaves a resolved finding's comment in place but keeps its
-    ``commit_id`` on the last head where the finding was live; a finding that
-    still applies is re-anchored to the current head. Counting only comments on
-    the current head (the same signal ``poll_pr_gate.py`` uses) means a resolved
-    finding stops blocking while a live one still fails the gate.
+    Deliberately NOT filtered to the current head. That filter was believed to
+    exclude addressed findings, on the theory that Greptile re-anchors only a
+    still-live one — but ``commit_id`` is GitHub's, not Greptile's: it follows
+    any comment whose anchor line survives the fix, including one Greptile has
+    already marked addressed and resolved. Observed on PR #324, where all four
+    Greptile threads were resolved and its live summary scored 5/5 while two
+    re-anchored comments still read as head-live and refused the merge.
+
+    Resolution is the honest signal, and it is the same bar the CodeRabbit path
+    enforces. Only thread roots count; a bot reply hangs off a root and is not a
+    separate finding.
     """
     return [
         item
         for item in inline_comments
         if isinstance(item, dict)
         and actor_login(item) == GREPTILE
-        and str(item.get("commit_id", "")) == head_sha
+        and item.get("in_reply_to_id") is None
+        and int(item.get("id", 0)) not in resolved_roots
     ]
 
 
@@ -176,12 +195,9 @@ def live_coderabbit_findings(
     root stops blocking once its review thread is resolved on the PR, which is
     the same "no finding left standing" bar the Greptile path enforces.
 
-    Deliberately NOT filtered to the current head, unlike `live_inline_findings`.
-    That filter is correct for Greptile, which re-anchors a still-live finding to
-    each new head, and silently wrong for CodeRabbit, whose comment keeps the
-    commit it was first anchored to forever. Filtering by head would drop every
-    CodeRabbit finding the moment any commit landed after it, so resolution is
-    the only honest signal here.
+    Deliberately NOT filtered to the current head. CodeRabbit's comment keeps
+    the commit it was first anchored to forever, so filtering by head would drop
+    every CodeRabbit finding the moment any commit landed after it.
     """
     return [
         item
@@ -197,14 +213,30 @@ def greptile_reviewed(issue_comments: list[object], runs: list[object]) -> bool:
     """True when Greptile took part in this PR at all.
 
     Absence of both its summary and its check is what an exhausted Greptile
-    quota looks like, and is the only condition that hands the gate to the
-    CodeRabbit fallback.
+    quota looks like, and is the only condition that drops Greptile out of the
+    gate and leaves the remaining reviewer deciding alone.
     """
     if greptile_summary(issue_comments) is not None:
         return True
     return any(
         isinstance(run, dict) and str(run.get("name", "")) == GREPTILE_CHECK
         for run in runs
+    )
+
+
+def coderabbit_reviewed(
+    inline_comments: list[object], reviews: list[object]
+) -> bool:
+    """True when CodeRabbit took part in this PR at all.
+
+    Read from the review record rather than a check, because CodeRabbit reports
+    as a commit status that this gate never fetches — and that status reports
+    success even when its body says the review was rate limited, so it is not
+    evidence of participation anyway.
+    """
+    return any(
+        isinstance(item, dict) and actor_login(item) == CODERABBIT
+        for item in [*inline_comments, *reviews]
     )
 
 
@@ -222,37 +254,55 @@ def greptile_summary(issue_comments: list[object]) -> dict[str, object] | None:
     return max(summaries, key=lambda item: str(item.get("updated_at", "")))
 
 
+def greptile_head_evidence(
+    issue_comments: list[object], head_sha: str
+) -> str | None:
+    """None when Greptile's live verdict covers this exact head, else the reason.
+
+    Greptile re-reviews every head and pins its summary to the one it read, so
+    the summary naming the head is its own statement that it read that commit.
+    A newer Greptile comment than the summary means a pass is still landing and
+    the summary is not yet the last word.
+    """
+    summary = greptile_summary(issue_comments)
+    if summary is None:
+        return "no Greptile summary found"
+    summary_updated = str(summary.get("updated_at", ""))
+    if any(
+        isinstance(item, dict)
+        and actor_login(item) == GREPTILE
+        and item.get("id") != summary.get("id")
+        and str(item.get("updated_at", item.get("created_at", ""))) > summary_updated
+        for item in issue_comments
+    ):
+        return "a Greptile comment is newer than the live summary"
+    if head_sha not in str(summary.get("body", "")):
+        return "live Greptile summary does not name the current head"
+    return None
+
+
 def greptile_blockers(
     issue_comments: list[object],
     inline_comments: list[object],
-    head_sha: str,
+    resolved_roots: frozenset[int],
 ) -> list[str]:
-    """Gate-of-record reasons: the live Greptile summary and its inline findings."""
+    """What a participating Greptile must satisfy, independent of the head.
+
+    Head-exact evidence is deliberately not checked here: it is satisfied
+    collectively in `merge_blockers`, so a reviewer that skipped this head does
+    not veto one that read it.
+    """
     reasons: list[str] = []
     summary = greptile_summary(issue_comments)
     if summary is None:
+        # A reviewer that appeared owes a verdict; silence is not approval.
         reasons.append("no Greptile summary found")
-    else:
-        summary_body = str(summary.get("body", ""))
-        summary_updated = str(summary.get("updated_at", ""))
-        if "Confidence Score: 5/5" not in summary_body:
-            reasons.append("live Greptile score is not 5/5")
-        if head_sha not in summary_body:
-            reasons.append("live Greptile summary does not name the current head")
-        newer = [
-            item
-            for item in issue_comments
-            if isinstance(item, dict)
-            and actor_login(item) == GREPTILE
-            and item.get("id") != summary.get("id")
-            and str(item.get("updated_at", item.get("created_at", ""))) > summary_updated
-        ]
-        if newer:
-            reasons.append("a Greptile comment is newer than the live summary")
+    elif "Confidence Score: 5/5" not in str(summary.get("body", "")):
+        reasons.append("live Greptile score is not 5/5")
 
-    findings = live_inline_findings(inline_comments, head_sha)
+    findings = live_inline_findings(inline_comments, resolved_roots)
     if findings:
-        reasons.append(f"Greptile has {len(findings)} inline finding(s)")
+        reasons.append(f"Greptile has {len(findings)} unresolved inline finding(s)")
     return reasons
 
 
@@ -301,9 +351,9 @@ def coderabbit_reviewed_head(
 ) -> bool:
     """True when CodeRabbit demonstrably examined the exact current head.
 
-    This is the fallback's proof that a review actually happened. CodeRabbit's
-    commit status reports `success` even when its body says "Review rate
-    limited", so the status alone would let an unreviewed head merge.
+    This is CodeRabbit's proof that a review actually happened. Its commit
+    status reports `success` even when its body says "Review rate limited", so
+    the status alone would let an unreviewed head merge.
 
     Two forms of head-exact evidence are accepted, matching how CodeRabbit
     actually reports. A review object pinned to the head covers its first pass
@@ -324,18 +374,62 @@ def coderabbit_reviewed_head(
 
 
 def coderabbit_blockers(
-    reviews: list[object],
     inline_comments: list[object],
+    resolved_roots: frozenset[int],
+) -> list[str]:
+    """What a participating CodeRabbit must satisfy, independent of the head.
+
+    Head-exact evidence is checked collectively in `merge_blockers`, for the
+    same reason as the Greptile path: a rate-limited pass leaves the reviewer
+    that did read the head to carry that requirement.
+    """
+    findings = live_coderabbit_findings(inline_comments, resolved_roots)
+    if not findings:
+        return []
+    return [f"CodeRabbit has {len(findings)} unresolved inline finding(s)"]
+
+
+def review_blockers(
+    issue_comments: list[object],
+    inline_comments: list[object],
+    runs: list[object],
+    reviews: list[object],
     head_sha: str,
     resolved_roots: frozenset[int],
 ) -> list[str]:
-    """Fallback reasons, used only when Greptile did not review this PR."""
+    """Every review reason the PR must not merge, across all reviewers.
+
+    Each reviewer that appeared must be satisfied on its own terms; one that
+    never appeared gates nothing, so an exhausted quota narrows the gate to the
+    reviewers that are actually there instead of stalling the merge. Head-exact
+    evidence is required of the set rather than of each member: one reviewer
+    demonstrably read this head, and every participant's findings are resolved.
+    """
     reasons: list[str] = []
-    if not coderabbit_reviewed_head(reviews, head_sha, inline_comments):
-        reasons.append("no CodeRabbit review on the current head")
-    findings = live_coderabbit_findings(inline_comments, resolved_roots)
-    if findings:
-        reasons.append(f"CodeRabbit has {len(findings)} unresolved inline finding(s)")
+    head_read = False
+    unread: list[str] = []
+
+    if greptile_reviewed(issue_comments, runs):
+        reasons.extend(greptile_blockers(issue_comments, inline_comments, resolved_roots))
+        evidence = greptile_head_evidence(issue_comments, head_sha)
+        if evidence is None:
+            head_read = True
+        else:
+            unread.append(evidence)
+    else:
+        unread.append("no Greptile review on the current head")
+
+    if coderabbit_reviewed(inline_comments, reviews):
+        reasons.extend(coderabbit_blockers(inline_comments, resolved_roots))
+        if coderabbit_reviewed_head(reviews, head_sha, inline_comments):
+            head_read = True
+        else:
+            unread.append("no CodeRabbit review on the current head")
+    else:
+        unread.append("no CodeRabbit review on the current head")
+
+    if not head_read:
+        reasons.append("no reviewer read the current head: " + "; ".join(unread))
     return reasons
 
 
@@ -367,14 +461,15 @@ def merge_blockers(
     if pr.get("mergeable_state") != "clean":
         reasons.append(f"merge state is {pr.get('mergeable_state')}")
 
-    if greptile_reviewed(issue_comments, runs):
-        reasons.extend(greptile_blockers(issue_comments, inline_comments, head_sha))
-        required = REQUIRED_CHECKS
-    else:
-        reasons.extend(
-            coderabbit_blockers(reviews or [], inline_comments, head_sha, resolved_roots)
-        )
-        required = FALLBACK_REQUIRED_CHECKS
+    reviews = reviews or []
+    reasons.extend(
+        review_blockers(issue_comments, inline_comments, runs, reviews, head_sha, resolved_roots)
+    )
+    required = (
+        REQUIRED_CHECKS
+        if greptile_reviewed(issue_comments, runs)
+        else BASE_REQUIRED_CHECKS
+    )
 
     if not runs:
         reasons.append("no check runs found")
@@ -410,23 +505,19 @@ def main() -> int:
     head_sha = str(head.get("sha", ""))
     branch = str(head.get("ref", ""))
 
-    issue_comments = get(f"{root}/issues/{args.pr}/comments?per_page=100", token)
-    inline_comments = get(f"{root}/pulls/{args.pr}/comments?per_page=100", token)
-    checks = get(f"{root}/commits/{head_sha}/check-runs?per_page=100", token)
-    require(isinstance(issue_comments, list), "issue comments response was not a list")
-    require(isinstance(inline_comments, list), "inline comments response was not a list")
-    require(isinstance(checks, dict), "check-runs response was not an object")
-    runs = checks.get("check_runs")
-    require(isinstance(runs, list), "check-runs response had no run list")
+    # Every reviewer record is read to its last page: a first-page-only read
+    # truncates a busy pull request at 100 records and would drop a reviewer's
+    # participation, its head evidence, or an unresolved finding from the gate.
+    issue_comments = get_all(f"{root}/issues/{args.pr}/comments?per_page=100", token)
+    inline_comments = get_all(f"{root}/pulls/{args.pr}/comments?per_page=100", token)
+    runs = get_all(
+        f"{root}/commits/{head_sha}/check-runs?per_page=100", token, key="check_runs"
+    )
 
-    fallback = not greptile_reviewed(issue_comments, runs)
-    resolved_roots: frozenset[int] = frozenset()
-    reviews: list[object] = []
-    if fallback:
-        resolved_roots = resolved_thread_roots(args.pr, token)
-        reviews_body = get(f"{root}/pulls/{args.pr}/reviews?per_page=100", token)
-        require(isinstance(reviews_body, list), "reviews response was not a list")
-        reviews = reviews_body
+    # Both reviewers are keyed on thread resolution and on their own review
+    # records, so neither read is optional any more.
+    resolved_roots = resolved_thread_roots(args.pr, token)
+    reviews = get_all(f"{root}/pulls/{args.pr}/reviews?per_page=100", token)
 
     blockers = merge_blockers(
         pr,
@@ -454,13 +545,19 @@ def main() -> int:
     request("DELETE", f"{root}/git/refs/heads/{encoded_branch}", token, None)
 
     names = {str(run.get("name", "")) for run in runs if isinstance(run, dict)}
+    gated = [
+        name
+        for name, present in (
+            ("greptile", greptile_reviewed(issue_comments, runs)),
+            ("coderabbit", coderabbit_reviewed(inline_comments, reviews)),
+        )
+        if present
+    ]
     print(json.dumps({
         "pr": args.pr,
         "head": head_sha,
-        "review_gate": "coderabbit (greptile did not review)" if fallback else "greptile",
-        "review_result": (
-            "zero unresolved findings" if fallback else "5/5, zero findings"
-        ),
+        "review_gate": "+".join(gated),
+        "review_result": "every participating reviewer satisfied, zero unresolved findings",
         "checks": sorted(names),
         "merge_sha": merge.get("sha"),
         "remote_branch_deleted": branch,

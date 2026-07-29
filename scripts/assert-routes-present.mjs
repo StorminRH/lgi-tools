@@ -4,7 +4,7 @@
 // (assert-route-classification.mjs) needs a `next build` and runs at deploy;
 // this lighter check catches an added/removed route that forgot the JSON in
 // plain CI, where the build doesn't run. Route keys are derived to match Next's
-// App Router paths (no route groups in this app, so the mapping is direct).
+// App Router paths, including route groups that are omitted from served URLs.
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { diffRoutes, discoveredKeys, isRouteFile } from './route-presence.mjs';

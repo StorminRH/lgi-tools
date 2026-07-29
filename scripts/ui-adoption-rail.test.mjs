@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const eslint = new ESLint({ cwd: repoRoot });
 const productionProbe = 'src/features/industry-planner/ui-adoption-probe.tsx';
-const previewProbe = 'src/app/preview/ui-adoption-probe.tsx';
+const previewProbe = 'src/app/(site)/preview/ui-adoption-probe.tsx';
 
 const exemptionHomes = [
   ['src/components/ui/banner.tsx', '<button type="button">Dismiss</button>', 'No raw <button>'],
