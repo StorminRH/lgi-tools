@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -75,6 +76,18 @@ class FireOnceReminder(unittest.TestCase):
         out = capture(guard_read, {"file_path": ".codegraph/index.ts"}, self.marker)
         self.assertEqual(out, "")
         self.assertFalse(self.marker.is_file())
+
+    def test_cursor_native_reminder_uses_cursor_output_schema(self) -> None:
+        out = capture(
+            guard_read,
+            {"file_path": "src/foo.ts"},
+            self.marker,
+            True,
+        )
+        payload = json.loads(out)
+        self.assertEqual("allow", payload["permission"])
+        self.assertIn("MANDATORY", payload["agent_message"])
+        self.assertNotIn("hookSpecificOutput", payload)
 
 
 class MarkerPath(unittest.TestCase):

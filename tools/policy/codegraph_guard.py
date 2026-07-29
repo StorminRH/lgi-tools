@@ -6,9 +6,9 @@ then stays silent for the rest of that session, so the guidance appears when it
 is useful instead of on every subsequent source read. The per-session marker
 records only that the reminder has already been shown; the guard never tries to
 infer whether Codegraph was actually consulted (a hook cannot observe that
-reliably). Sessions are keyed by the ``session_id`` the hook receives on stdin;
-when that is absent (a caller that does not provide it) the guard falls back to
-reminding every time rather than going silent.
+reliably). Sessions are keyed by the harness session or conversation identifier
+received on stdin; when that is absent the guard falls back to reminding every
+time rather than going silent.
 """
 
 from __future__ import annotations
@@ -43,11 +43,20 @@ SOURCE_EXTENSIONS = (
 MARKER_DIR = Path(tempfile.gettempdir())
 
 
-def emit(message: str) -> None:
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "additionalContext": message,
-    }}))
+def emit(message: str, cursor_native: bool = False) -> None:
+    if cursor_native:
+        print(json.dumps({"permission": "allow", "agent_message": message}))
+        return
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": message,
+                }
+            }
+        )
+    )
 
 
 def marker_path(session_id: str) -> Path | None:
@@ -81,7 +90,9 @@ def claim_reminder(marker: Path | None) -> bool:
     return True
 
 
-def guard_bash(tool_input: dict, marker: Path | None) -> None:
+def guard_bash(
+    tool_input: dict, marker: Path | None, cursor_native: bool = False
+) -> None:
     command = str(tool_input.get("command") or tool_input.get("cmd") or "")
     if SEARCH_COMMAND.search(command) and claim_reminder(marker):
         emit(
@@ -91,11 +102,14 @@ def guard_bash(tool_input: dict, marker: Path | None) -> None:
             "codegraph explore \"<question>\" for an unfamiliar area or "
             "codegraph query \"<symbol>\" when you already know the symbol, "
             "before grepping raw files. Only grep "
-            "after Codegraph has oriented you, or to modify/debug specific lines."
+            "after Codegraph has oriented you, or to modify/debug specific lines.",
+            cursor_native,
         )
 
 
-def guard_read(tool_input: dict, marker: Path | None) -> None:
+def guard_read(
+    tool_input: dict, marker: Path | None, cursor_native: bool = False
+) -> None:
     candidate = " ".join(
         str(tool_input.get(key) or "") for key in ("file_path", "pattern", "path")
     ).lower().replace("\\", "/")
@@ -110,7 +124,8 @@ def guard_read(tool_input: dict, marker: Path | None) -> None:
             "(relevant symbols and call paths), `codegraph query \"<symbol>\"`, or "
             "`codegraph callers \"<symbol>\"` / `codegraph impact \"<symbol>\"`. Only "
             "read raw files after Codegraph has oriented the task, or to "
-            "modify/debug specific lines."
+            "modify/debug specific lines.",
+            cursor_native,
         )
 
 
@@ -129,11 +144,20 @@ def main() -> int:
     tool_input = payload.get("tool_input", payload)
     if not isinstance(tool_input, dict):
         tool_input = {}
-    marker = marker_path(str(payload.get("session_id") or ""))
-    if sys.argv[1] == "bash":
+    mode = sys.argv[1]
+    marker = marker_path(
+        str(payload.get("session_id") or payload.get("conversation_id") or "")
+    )
+    if mode == "bash":
         guard_bash(tool_input, marker)
-    elif sys.argv[1] == "read":
+    elif mode == "read":
         guard_read(tool_input, marker)
+    elif mode == "cursor":
+        tool_name = str(payload.get("tool_name") or "").lower()
+        if tool_name == "shell":
+            guard_bash(tool_input, marker, cursor_native=True)
+        elif tool_name in {"read", "grep", "glob"}:
+            guard_read(tool_input, marker, cursor_native=True)
     return 0
 
 

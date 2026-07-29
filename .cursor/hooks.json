@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": "python3 \"$CURSOR_PROJECT_DIR/tools/cli.py\" policy codegraph-guard cursor"
+      }
+    ]
+  }
+}
