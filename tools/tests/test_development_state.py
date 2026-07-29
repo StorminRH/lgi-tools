@@ -493,6 +493,16 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual("audit-ready", self.stage())
         self.assertEqual("version-audit", self.handler())
 
+    def test_missing_audit_procedure_returns_invalid_state(self) -> None:
+        self.fixture.write_audit("Approved")
+        (self.fixture.docs / "workflows/version-audit.md").unlink()
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual("invalid", state["stage"])
+        self.assertIn(
+            "missing audit procedure: docs/workflows/version-audit.md",
+            errors,
+        )
+
     def test_missing_audit_plan_routes_to_audit_planning(self) -> None:
         self.assertEqual("audit-plan-needed", self.stage())
         self.assertEqual("plan-version-audit", self.handler())

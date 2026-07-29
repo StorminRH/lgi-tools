@@ -7,8 +7,10 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-raise SystemExit(
-    subprocess.call(
+
+
+def main() -> int:
+    return subprocess.call(
         [
             sys.executable,
             str(ROOT / "tools/cli.py"),
@@ -18,4 +20,7 @@ raise SystemExit(
         ],
         cwd=ROOT,
     )
-)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

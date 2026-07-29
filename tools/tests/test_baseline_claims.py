@@ -8,7 +8,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from tools.policy.check_agent_policy import LIFECYCLE_CHECKERS
 from tools.quality.check_baseline_claims import (
     AUTH_CONTRACT_METRIC,
     AUTH_CONTRACT_PATHS,
@@ -469,10 +468,6 @@ class BaselineClaimTests(unittest.TestCase):
         self.assertEqual(1, len(findings))
         self.assertEqual("error", findings[0].severity)
         self.assertIn("anchor from origin/main is unavailable", findings[0].message)
-
-    def test_checker_is_registered_as_a_lifecycle_gate(self) -> None:
-        self.assertIn("tools/quality/check_baseline_claims.py", LIFECYCLE_CHECKERS)
-
 
 if __name__ == "__main__":
     unittest.main()

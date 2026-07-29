@@ -8,12 +8,14 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tools._lib.repository import ROOT
 from tools.policy.check_agent_policy import (
     check_canonical_guides,
     check_global_skill_contracts,
     check_hooks,
+    check_ignored,
     check_legacy_entrypoints,
     check_paths,
     check_procedure_policies,
@@ -222,6 +224,24 @@ class AgentPolicyTests(unittest.TestCase):
             errors,
         )
         self.assertEqual([], errors)
+
+    def test_ignore_check_surfaces_git_failure(self) -> None:
+        errors: list[str] = []
+        result = subprocess.CompletedProcess(
+            args=["git", "check-ignore"],
+            returncode=2,
+            stdout="",
+            stderr="not a work tree",
+        )
+        with patch(
+            "tools.policy.check_agent_policy.subprocess.run",
+            return_value=result,
+        ):
+            check_ignored({"ignoredPaths": [".agents/local-only"]}, errors)
+        self.assertEqual(
+            ["git check-ignore failed: not a work tree"],
+            errors,
+        )
 
     def test_tracked_hook_commands_run_from_nested_cwd(self) -> None:
         for raw_path in (".claude/settings.json", ".codex/hooks.json"):

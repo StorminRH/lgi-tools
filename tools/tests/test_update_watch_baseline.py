@@ -12,7 +12,6 @@ from pathlib import Path
 from tools.update_watch.check_update_watch_baseline import collect_findings
 from tools.update_watch.update_watch_collect import SOURCE_REGISTRY
 
-from tools.policy import check_agent_policy
 from tools._lib.repository import ROOT
 
 
@@ -214,14 +213,6 @@ class BaselineCheckerTests(unittest.TestCase):
         self.assertEqual(["package.json:1: package.json is missing"], self.messages())
         (self.fixture.root / "package.json").write_text("{oops", "utf-8")
         self.assertIn("package.json is malformed", self.messages()[0])
-
-
-class PolicyRegistrationTests(unittest.TestCase):
-    def test_update_watch_checker_is_registered_in_the_drift_tuple(self) -> None:
-        self.assertIn(
-            "tools/update_watch/check_update_watch_baseline.py",
-            check_agent_policy.LIFECYCLE_CHECKERS,
-        )
 
 
 if __name__ == "__main__":

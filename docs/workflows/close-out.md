@@ -251,14 +251,15 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    in `docs/backlog.md`. **(planned non-final session)** defer the session status
    and handoff pointer to the lifecycle-only commit in the fork above.
 3. Run every cheap workflow check that can still lead to an edit: agent policy
-   after changing shared guides, skills, hooks, or workflow policy; document
-   references after changing live documentation; the pending-changelog checker
-   whenever a fragment changed; the read-only baseline-claims and watch-trigger
-   reporters; and any specialized checker named by the approved plan. **(planned)**
-   also run release consistency. Ordinary mode does not run release consistency.
-   Fix or reconcile every finding before the definition-of-done checkpoint;
-   surface every `promote AF-NNN` result to the operator because neither reporter
-   promotes findings itself.
+   and `python3 tools/cli.py test` after changing shared guides, skills, hooks,
+   or workflow policy; document references after changing live documentation;
+   the pending-changelog checker whenever a fragment changed; the read-only
+   baseline-claims and watch-trigger reporters; and any specialized checker
+   named by the approved plan. **(planned)** also run release consistency.
+   Ordinary mode does not run release consistency. Fix or reconcile every
+   finding before the definition-of-done checkpoint; surface every
+   `promote AF-NNN` result to the operator because neither reporter promotes
+   findings itself.
 4. Shut down the Next.js and local Convex development processes after all agent
    and operator local review is finished, confirm their ports no longer answer,
    and clear `.next`. Leave the small persistent Docker Postgres service running

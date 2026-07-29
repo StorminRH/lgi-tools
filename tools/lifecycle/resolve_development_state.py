@@ -821,6 +821,9 @@ def audit_contract(path: Path, root: Path) -> tuple[str | None, list[AuditFindin
         return None, [], errors, "The audit plan is not a Version close plan."
 
     procedure = root / AUDIT_PROCEDURE_RELPATH
+    if not procedure.is_file():
+        errors.append(f"missing audit procedure: {AUDIT_PROCEDURE_RELPATH}")
+        return None, [], errors, "The canonical audit procedure is missing."
     expected = f"sha256:{sha256(procedure)}"
     if marker(path, "Procedure digest") != expected:
         return None, [], errors, "The audit plan is stale because its procedure digest does not match."

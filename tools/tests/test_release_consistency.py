@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 
+from tools._lib.repository import ROOT
 from tools.lifecycle.check_release_consistency import collect_findings
 
 
@@ -197,6 +198,7 @@ class ReleaseConsistencyTests(unittest.TestCase):
                 str(self.fixture.root),
                 "--check",
             ],
+            cwd=ROOT,
             text=True,
             capture_output=True,
             check=False,

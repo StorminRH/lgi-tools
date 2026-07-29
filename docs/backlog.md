@@ -490,6 +490,17 @@ is reprioritized.
 
 ## Workflow & docs
 
+- **Fallow zone measurements use path-agnostic wildcard matching** (found during
+  PR #329 review). *What:* `tools/quality/repo_measures.py` uses Python
+  `fnmatch` for Fallow patterns, so a single-segment `*` can cross `/` and count
+  nested files that Fallow's glob would not assign to that pattern. Align
+  matching with Fallow's segment semantics, add nested-path fixtures, and
+  recapture any affected baseline measurement. *Why deferred:* this PR moves
+  the existing measurement behavior without changing it, while a correction
+  can change live code-health counts and belongs with a measured baseline
+  reconciliation. *Size:* S. *Trigger:* the next code-health audit or
+  `repo_measures.py` behavior change.
+
 - **Revisit the version-audit lifecycle for bloat** (operator ruling 2026-07-27).
   *What:* before the next version audit, review the version-audit lifecycle for
   process bloat — planning/evidence ceremony that does not change the audit's

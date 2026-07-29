@@ -39,6 +39,24 @@ class CliTests(unittest.TestCase):
             call.call_args.args[0],
         )
 
+    def test_test_command_discovers_tool_tests(self) -> None:
+        with patch("tools.cli.subprocess.call", return_value=0) as call:
+            self.assertEqual(0, cli.main(["test", "--failfast"]))
+        self.assertEqual(
+            [
+                cli.sys.executable,
+                "-m",
+                "unittest",
+                "discover",
+                "-s",
+                "tools/tests",
+                "-p",
+                "test_*.py",
+                "--failfast",
+            ],
+            call.call_args.args[0],
+        )
+
     def test_update_watch_help_runs_through_public_dispatcher(self) -> None:
         result = subprocess.run(
             [

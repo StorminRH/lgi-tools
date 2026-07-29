@@ -11,6 +11,7 @@ import sys
 import tempfile
 import unittest
 
+from tools._lib.repository import ROOT
 from tools.lifecycle.verify_archive import collect_findings
 
 
@@ -175,6 +176,7 @@ class VerifyArchiveTests(unittest.TestCase):
                 "post",
                 "--check",
             ],
+            cwd=ROOT,
             text=True,
             capture_output=True,
             check=False,

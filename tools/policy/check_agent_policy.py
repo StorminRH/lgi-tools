@@ -15,17 +15,6 @@ from tools._lib.repository import ROOT
 
 MANIFEST_PATH = Path(__file__).with_name("policy-manifest.json")
 
-LIFECYCLE_CHECKERS = (
-    "tools/quality/check_baseline_claims.py",
-    "tools/quality/check_env_example.py",
-    "tools/policy/check_doc_refs.py",
-    "tools/lifecycle/check_lifecycle_evidence.py",
-    "tools/lifecycle/check_release_consistency.py",
-    "tools/lifecycle/check_pending_changelog.py",
-    "tools/update_watch/check_update_watch_baseline.py",
-)
-
-
 def relative(path: Path, root: Path) -> str:
     """Return a stable repository-relative path."""
 
@@ -109,7 +98,8 @@ def check_global_skill_contracts(
     unexpected = sorted(set(documented) - {str(name) for name in skills})
     if unexpected:
         errors.append(
-            "docs/AGENT_CAPABILITIES.md: undocumented manifest skill(s): "
+            "docs/AGENT_CAPABILITIES.md: documented skill(s) missing from the "
+            "manifest: "
             + ", ".join(unexpected)
         )
 
@@ -275,6 +265,12 @@ def check_ignored(manifest: dict[str, object], errors: list[str]) -> None:
         capture_output=True,
         check=False,
     )
+    if result.returncode not in (0, 1):
+        errors.append(
+            "git check-ignore failed: "
+            + (result.stderr.strip() or "unknown error")
+        )
+        return
     ignored = set(result.stdout.splitlines())
     for raw_path in manifest.get("ignoredPaths", []):
         if str(raw_path) not in ignored:
@@ -313,49 +309,6 @@ def check_probe_layout(manifest: dict[str, object], root: Path) -> list[str]:
                     "stray probe script (scratch allowed; delete at close-out): "
                     f"{relative(path, root)}"
                 )
-    return warnings
-
-
-def check_lifecycle_checkers(
-    errors: list[str],
-    *,
-    root: Path = ROOT,
-    checkers: tuple[str, ...] = LIFECYCLE_CHECKERS,
-) -> list[str]:
-    """Run cross-artifact checkers when a lifecycle workflow explicitly asks."""
-
-    warnings: list[str] = []
-    for raw_path in checkers:
-        result = subprocess.run(
-            [sys.executable, str(root / raw_path), "--root", str(root)],
-            cwd=root,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            detail = result.stdout.strip() or result.stderr.strip() or "unknown failure"
-            errors.append(f"{raw_path} failed to run:\n{detail}")
-            continue
-        try:
-            payload = json.loads(result.stdout)
-        except json.JSONDecodeError as exc:
-            errors.append(f"{raw_path} returned invalid JSON: {exc}")
-            continue
-        checker_errors = payload.get("errors")
-        checker_warnings = payload.get("warnings")
-        if not isinstance(checker_errors, list) or not all(
-            isinstance(item, str) for item in checker_errors
-        ):
-            errors.append(f"{raw_path} returned an invalid errors array")
-            continue
-        if not isinstance(checker_warnings, list) or not all(
-            isinstance(item, str) for item in checker_warnings
-        ):
-            errors.append(f"{raw_path} returned an invalid warnings array")
-            continue
-        errors.extend(checker_errors)
-        warnings.extend(checker_warnings)
     return warnings
 
 
