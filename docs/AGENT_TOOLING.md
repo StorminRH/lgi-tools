@@ -44,11 +44,13 @@ capabilities as follows:
 - five slash commands become `vercel-bootstrap`, `vercel-deploy`, `vercel-env`,
   `vercel-marketplace`, and `vercel-status` skills;
 - the three specialists become user-global TOML agents in `~/.codex/agents/`;
-- `~/.codex/AGENTS.md` supplies the thin always-on context instead of emulating
-  Claude's session hook.
+- the installed adapter, generated specialists, and active project instruction
+  chain supply the required context. Tooling parity does not require content in
+  `~/.codex/AGENTS.md`.
 
 Every generated skill and agent adds LGI.tools' explicit-production-approval and
-Greptile-review constraints. The source Vercel content otherwise remains intact.
+repository-review constraints. The source Vercel content otherwise remains
+intact.
 
 ## Adversarial-review runtime
 
@@ -130,7 +132,8 @@ python3 .agent-local/check_tooling_parity.py
 
 The sync utility reads Claude's installed marketplace source, writes the personal
 Codex plugin and global custom agents, and stamps the Claude version and Git SHA.
-It never modifies Claude's plugin checkout or marketplace metadata.
+It never modifies Claude's plugin checkout, marketplace metadata, or
+`~/.codex/AGENTS.md`.
 
 ## Intentional native differences
 

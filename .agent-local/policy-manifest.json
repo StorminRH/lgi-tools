@@ -317,6 +317,7 @@
     ".agent-local/codegraph_guard.py",
     ".agent-local/audit_tooling_parity.py",
     ".agent-local/check_tooling_parity.py",
+    ".agent-local/test_tooling_parity.py",
     ".agent-local/sync_vercel_plugin.py",
     ".agent-local/check_update_watch_baseline.py",
     ".agent-local/test_update_watch_baseline.py",
@@ -535,7 +536,7 @@
         "docs/workflows/adversarial-review.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "6cd973087f34c50b23dba244d928edfef02bdb6532a6e21b98e10ddd4a963633"
+      "reconciledHash": "8cf021264471c7d85c4a6db7e7adebc3fe2df0680b2a7bad4717cbe0c19170d3"
     },
     "agent-policy-audit": {
       "deps": [
@@ -545,7 +546,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "79311442fed7c048af2e9a6cde4db443f4d4f969a46bdee8b0fa8350aa59ce23"
+      "reconciledHash": "3e3913260730e474bd4f5f88f5ca75500746626221f17f975b76dec9f6e713cc"
     }
   },
   "procedurePolicies": {
