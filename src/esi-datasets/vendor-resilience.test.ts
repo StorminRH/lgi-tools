@@ -260,10 +260,16 @@ describe('vendor client construction sites', () => {
 
 describe('agent tooling outbound calls', () => {
   it('passes an explicit timeout to every urlopen call', () => {
-    const pythonFiles = readdirSync('.agent-local')
-      .filter((name) => name.endsWith('.py'))
-      .map((name) => `.agent-local/${name}`)
-      .sort();
+    const pythonFiles: string[] = [];
+    const walk = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = `${directory}/${entry.name}`;
+        if (entry.isDirectory()) walk(path);
+        else if (entry.name.endsWith('.py')) pythonFiles.push(path);
+      }
+    };
+    walk('tools');
+    pythonFiles.sort();
     // A degraded scan that found no Python at all would otherwise pass.
     expect(pythonFiles.length).toBeGreaterThan(0);
 

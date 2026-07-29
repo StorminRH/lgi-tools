@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" bash"
+            "command": "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard bash"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" read"
+            "command": "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard read"
           }
         ]
       }

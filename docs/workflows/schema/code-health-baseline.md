@@ -17,7 +17,8 @@ baseline's own Code ref SHA as `Version-start ref`, and freeze both for the
 version. New registered rows introduced in that same adoption fill
 `Version-start` from live measurement at that ref. The claims checker owns the
 one legal transition keyed on `Version-start ref`; invoke the read-only
-`.agent-local/capture_version_start.py` reporter when applying the capture.
+`python3 tools/cli.py lifecycle capture-version-start` reporter when applying
+the capture.
 
 ## Snapshot
 

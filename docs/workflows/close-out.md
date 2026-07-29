@@ -212,12 +212,11 @@ second coverage cycle.
    change. Supply the direct request or frozen contract-and-plan chain, the
    current base, the complete tracked patch and untracked inventory, focused and
    UX evidence, and the finalized delivery records from the preceding phase.
-2. Keep the worktree stable while the selected Cursor reviewers run. The
-   adversarial-review procedure owns its one-to-three scoped Composer reviews,
-   Grok High holistic review, compact receipt, evidence-first reconciliation,
-   and verified root-cause ledger. An escalation trigger that direct evidence
-   cannot settle returns `BLOCKED`; do not add native review subagents or
-   another model fan-out here.
+2. Keep the worktree stable while the selected native subagents run. The
+   adversarial-review procedure owns one holistic role, one-to-three
+   non-overlapping scoped roles, the compact receipt, evidence-first
+   reconciliation, and verified root-cause ledger. A required role that cannot
+   run or a claim that direct evidence cannot settle returns `BLOCKED`.
 3. Fix every accepted in-scope finding through the authority already held by
    close-out. Preserve the rejection/do-not-change ledger. A scope, architecture,
    public-surface, or authority conflict returns `BLOCKED`.
@@ -230,9 +229,9 @@ second coverage cycle.
    final bytes.
 
 Phase evidence: reviewed working-tree base and patch digest, every selected
-reviewer verdict and compact count, escalation trigger plus direct-evidence
-disposition or `Not used`, accepted and rejected dispositions, and the final
-clean/corrected boundary verdict.
+reviewer verdict and compact count, selected roles and completion states,
+direct-evidence blocker disposition or `Not used`, accepted and rejected
+dispositions, and the final clean/corrected boundary verdict.
 
 ## Finalize and verify the current head (shared)
 
@@ -251,7 +250,7 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    cannot know; remove shipped or superseded detail and keep deferred work only
    in `docs/backlog.md`. **(planned non-final session)** defer the session status
    and handoff pointer to the lifecycle-only commit in the fork above.
-3. Run every cheap workflow check that can still lead to an edit: agent drift
+3. Run every cheap workflow check that can still lead to an edit: agent policy
    after changing shared guides, skills, hooks, or workflow policy; document
    references after changing live documentation; the pending-changelog checker
    whenever a fragment changed; the read-only baseline-claims and watch-trigger
@@ -268,8 +267,7 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    runtime-local settings and worktrees, generated reports or captures,
    temporary PR body files, `.codegraph/`, and comparable declared local
    artifacts. Remove credential-bearing permissions and session-only output;
-   tracked guides, skills, hooks, workspace docs, and `.agent-local/` utilities
-   ship normally.
+   tracked guides, hooks, workspace docs, and `tools/` utilities ship normally.
 6. Run the sole coverage-backed definition-of-done checkpoint once on the
    finalized head:
 
@@ -326,13 +324,13 @@ the lifecycle-memory disposition.
    run:
 
    ```bash
-   python3 .agent-local/scrub_pr_body.py --check \
+   python3 tools/cli.py delivery scrub-pr-body --check \
      --body-file "$PR_BODY_FILE" \
      --title "$PR_TITLE"
    ```
 
    **(planned)** additionally run
-   `python3 .agent-local/check_release_consistency.py --check --expect reconciled`
+   `python3 tools/cli.py lifecycle check-release --check --expect reconciled`
    — the final PR already carries the delivered sub-version's terminal roadmap
    row and matching `APP_VERSION`, so its release identity is `reconciled`.
    Ordinary mode does not run release consistency. After publishing, read the
@@ -350,7 +348,7 @@ the lifecycle-memory disposition.
    and the PR number into `PR_NUMBER`, then run:
 
    ```bash
-   python3 .agent-local/poll_pr_gate.py \
+   python3 tools/cli.py delivery poll-pr-gate \
      "$PR_REPOSITORY" "$PR_NUMBER" review
    ```
 
@@ -401,7 +399,7 @@ returns `BLOCKED`.
    reviewer must carry head-exact evidence, and if neither participates nothing
    merges. The merge helper owns this composition and fails closed; do not
    choose the gate by hand.
-2. Use `.agent-local/merge_clean_pr.py` as the gate of record. It owns the final
+2. Use `python3 tools/cli.py delivery merge-clean-pr` as the gate of record. It owns the final
    fail-closed live revalidation and expected-head squash merge, and deletes the
    remote branch after a successful merge; do not restate or manually substitute
    its internal checklist.
@@ -410,7 +408,7 @@ returns `BLOCKED`.
    withdrawn; never resolve one merely to clear the gate or merge around the
    helper.
 
-Phase evidence: successful `merge_clean_pr.py` result, expected pre-merge head,
+Phase evidence: successful `merge-clean-pr` result, expected pre-merge head,
 actual merge SHA, and remote-branch deletion result. A rejected helper result
 returns `BLOCKED`.
 
@@ -436,7 +434,7 @@ returns `BLOCKED`.
      published changelog with absorbed fragments), so there is no uncommitted
      reconciliation to prepare and no follow-up lifecycle-only PR. Update the
      local view from `origin/main`, rerun
-     `python3 .agent-local/resolve_development_state.py --pretty` against that
+     `python3 tools/cli.py lifecycle resolve --pretty` against that
      committed state, report its full directive, and return control to
      `start-session`. If the merge made every master-plan row terminal, leave the
      active plan, contracts, session plans, and SCRATCHPAD in place; close-out
@@ -464,7 +462,7 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 - **Session review:** <evidence summary>
 - **Focused/local/UX:** <evidence summary or Not applicable>
 - **Design review:** <PASS result or Not applicable>
-- **Adversarial review:** <models, verdict, and finding disposition or Not applicable>
+- **Adversarial review:** <reviewer roles, verdict, and finding disposition or Not applicable>
 - **Final verification:** <command and result or Not reached>
 
 ### Delivery

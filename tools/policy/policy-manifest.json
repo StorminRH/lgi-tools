@@ -1,0 +1,242 @@
+{
+  "canonicalGuides": [
+    "AGENTS.md",
+    "src/AGENTS.md",
+    "docs/AGENT_CAPABILITIES.md",
+    "CONTRIBUTING.md",
+    "docs/workflows/schema/chat-result.md",
+    "docs/workflows/schema/code-health-baseline.md",
+    "docs/workflows/schema/changelog-entry.md",
+    "docs/workflows/schema/changelog-pending.md",
+    "docs/workflows/schema/session-contract.md",
+    "docs/workflows/schema/session-plan.md",
+    "docs/workflows/schema/session-as-built.md",
+    "docs/workflows/schema/subagent-evidence.md",
+    "docs/workflows/plan-version.md",
+    "docs/workflows/plan-session.md",
+    "docs/workflows/start-session.md",
+    "docs/workflows/pre-pr-design-review.md",
+    "docs/workflows/adversarial-review.md",
+    "docs/workflows/agent-policy-audit.md",
+    "docs/workflows/close-out.md",
+    "docs/workflows/version-audit.md",
+    "docs/workflows/triage-issue.md",
+    "docs/workflows/ux-check.md",
+    "docs/workflows/update-watch.md",
+    "docs/workflows/resolve-update-watch.md"
+  ],
+  "globalSkills": {
+    "adversarial-review": "docs/workflows/adversarial-review.md",
+    "agent-policy-audit": "docs/workflows/agent-policy-audit.md",
+    "close-out": "docs/workflows/close-out.md",
+    "plan-audit-remediation": "docs/workflows/version-audit.md",
+    "plan-session": "docs/workflows/plan-session.md",
+    "plan-version": "docs/workflows/plan-version.md",
+    "plan-version-audit": "docs/workflows/version-audit.md",
+    "pre-pr-design-review": "docs/workflows/pre-pr-design-review.md",
+    "resolve-update-watch": "docs/workflows/resolve-update-watch.md",
+    "start-session": "docs/workflows/start-session.md",
+    "triage-issue": "docs/workflows/triage-issue.md",
+    "update-watch": "docs/workflows/update-watch.md",
+    "ux-check": "docs/workflows/ux-check.md",
+    "version-audit": "docs/workflows/version-audit.md"
+  },
+  "harnessGuideImports": {
+    "CLAUDE.md": "@AGENTS.md",
+    "src/CLAUDE.md": "@AGENTS.md"
+  },
+  "requiredPaths": [
+    "tools/cli.py",
+    "tools/_lib/checker_common.py",
+    "tools/_lib/repository.py",
+    "tools/lifecycle/resolve_development_state.py",
+    "tools/lifecycle/check_release_consistency.py",
+    "tools/delivery/merge_clean_pr.py",
+    "tools/policy/check_agent_policy.py",
+    "tools/policy/check_all.py",
+    "tools/policy/check_doc_refs.py",
+    "tools/policy/codegraph_guard.py",
+    "tools/policy/policy-manifest.json",
+    "tools/quality/check_baseline_claims.py",
+    "tools/update_watch/update_watch_collect.py",
+    "tools/tests/test_agent_policy.py",
+    ".agent-local/resolve_development_state.py",
+    ".agent-local/check_release_consistency.py",
+    ".agent-local/check_agent_drift.py",
+    ".codex/hooks.json",
+    ".claude/settings.json",
+    "docs/AGENT_CAPABILITIES.md",
+    "docs/workflows/adversarial-review.md",
+    "docs/workflows/agent-policy-audit.md",
+    "docs/workflows/schema/session-contract.md",
+    "docs/workflows/schema/session-plan.md",
+    "docs/workflows/schema/session-as-built.md",
+    "docs/workflows/schema/subagent-evidence.md"
+  ],
+  "forbiddenPaths": [
+    ".agents/skills",
+    ".claude/skills",
+    ".cursor/agents",
+    ".codex/agents",
+    ".codex/skills",
+    ".agent-local/audit_tooling_parity.py",
+    ".agent-local/check_tooling_parity.py",
+    ".agent-local/reconcile_skill_ledger.py",
+    ".agent-local/run_adversarial_review.py",
+    ".agent-local/sync_vercel_plugin.py",
+    ".agent-local/test_tooling_parity.py",
+    ".agent-local/test_adversarial_review_runner.py",
+    ".claude/rules/ui-styling.md",
+    "docs/AGENT_TOOLING.md",
+    "docs/Version_3_8_Prompts.md",
+    "docs/DESIGN_PRINCIPLES.md",
+    "docs/PRIMITIVE_LEDGER.md",
+    "docs/PRE_PR_DESIGN_REVIEW.md",
+    "docs/VERSION_AUDIT.md"
+  ],
+  "ignoredPaths": [
+    ".agents/local-only",
+    ".claude/skills/local-only",
+    ".claude/settings.local.json",
+    ".claude/launch.json",
+    ".claude/worktrees/",
+    ".cursor/agents/local-only",
+    ".codex/agents/local-only",
+    ".codex/skills/local-only",
+    "docs/ux-check/captures/",
+    "docs/margin-audit/",
+    ".local/agent/"
+  ],
+  "legacyEntrypoints": {
+    ".agent-local/check_agent_drift.py": ["policy", "check-all"],
+    ".agent-local/check_release_consistency.py": ["lifecycle", "check-release"],
+    ".agent-local/resolve_development_state.py": ["lifecycle", "resolve"]
+  },
+  "hookCommands": {
+    ".claude/settings.json": [
+      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard bash",
+      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard read"
+    ],
+    ".codex/hooks.json": [
+      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard bash",
+      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard read"
+    ]
+  },
+  "probeLayout": {
+    "definitionsDir": "docs/ux-check/probes",
+    "runner": "docs/ux-check/run-probes.mjs",
+    "strayPattern": "*-probe.mjs"
+  },
+  "sessionContracts": {
+    "schema": "docs/workflows/schema/session-contract.md",
+    "scan": [
+      "docs/workflows/schema/session-contract.md"
+    ],
+    "forbidden": [
+      "Version_3_8_Prompts",
+      "<hard_constraints>",
+      "</hard_constraints>",
+      "this prompt's"
+    ]
+  },
+  "developmentState": {
+    "resolver": "tools/lifecycle/resolve_development_state.py",
+    "allowedStages": [
+      "master-plan-needed",
+      "contracts-needed",
+      "contract-repair-needed",
+      "session-plan-needed",
+      "session-ready",
+      "audit-plan-needed",
+      "audit-ready",
+      "audit-remediation-plan-needed",
+      "audit-restart-ready",
+      "archive-needed",
+      "invalid"
+    ],
+    "allowedHandlers": [
+      "plan-version",
+      "plan-session",
+      "start-session",
+      "plan-version-audit",
+      "plan-audit-remediation",
+      "version-audit"
+    ],
+    "allowedModes": [
+      "plan",
+      "execute",
+      "report"
+    ],
+    "directiveFields": [
+      "action",
+      "reason",
+      "handler",
+      "mode",
+      "authority",
+      "primaryArtifact",
+      "pause",
+      "branch",
+      "preDispatchGate"
+    ],
+    "preDispatchGate": "python3 tools/cli.py lifecycle check-release --check",
+    "legacySchemaArtifacts": []
+  },
+  "procedurePolicies": {
+    "docs/workflows/plan-version.md": {
+      "orderedRequired": [
+        "Build the outcome ledger",
+        "Record and challenge the current topology",
+        "Attempt to combine every adjacent or tightly coupled slice",
+        "Produce the minimum safe bundles",
+        "Invoke `adversarial-review` in Plan mode",
+        "Obtain operator approval",
+        "update the master plan's delivery topology first",
+        "Create one schema-complete contract per approved bundle"
+      ]
+    },
+    "docs/workflows/plan-session.md": {
+      "orderedRequired": [
+        "Reconcile the bundle",
+        "Do not split it",
+        "recorded split trigger",
+        "Draft and review",
+        "Invoke `adversarial-review` in Plan mode",
+        "operator approval",
+        "Persist the approved plan"
+      ]
+    },
+    "docs/workflows/adversarial-review.md": {
+      "orderedRequired": [
+        "Select exactly one review mode",
+        "Freeze the subject and evidence",
+        "Select independent review roles",
+        "Launch native subagents",
+        "Collect structured verdicts",
+        "Verify and reconcile"
+      ],
+      "forbidden": [
+        "Cursor",
+        "Claude",
+        "Codex",
+        "headless"
+      ]
+    },
+    "docs/workflows/close-out.md": {
+      "orderedRequired": [
+        "Pre-PR design-review gate",
+        "Adversarial implementation-review gate",
+        "Finalize and verify the current head",
+        "Open one \\*\\*draft\\*\\* PR",
+        "mark it ready for review exactly once",
+        "poll-pr-gate",
+        "Merge \\(shared\\)",
+        "After merge and production proof"
+      ]
+    },
+    "docs/workflows/version-audit.md": {
+      "orderedRequired": [
+        "in every mapped sub-version's delivering PR, mark its finding Delivered"
+      ]
+    }
+  }
+}

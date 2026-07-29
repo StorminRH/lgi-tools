@@ -32,7 +32,7 @@ repository, branch, PR, dependency, or baseline mutation authority.
 1. Create a state directory outside the repository worktree, store the absolute
    result of `mktemp -d` in the task-specific `UPDATE_WATCH_STATE_DIR`
    variable, and use that resolved path for every collector artifact.
-2. Run `python3 .agent-local/update_watch_collect.py collect --out
+2. Run `python3 tools/cli.py update-watch collector collect --out
    "$UPDATE_WATCH_STATE_DIR/state.json"`.
 3. Read each source's fetched watch content from the state document and judge
    which announcement items exist — for every item record its title, its
@@ -46,7 +46,7 @@ repository, branch, PR, dependency, or baseline mutation authority.
 4. Write the judged list as
    `{"items": [{"source", "title", "date", "url", "summary"}]}` to
    `$UPDATE_WATCH_STATE_DIR/items.json`, then run `python3
-   .agent-local/update_watch_collect.py finalize --state
+   tools/cli.py update-watch collector finalize --state
    "$UPDATE_WATCH_STATE_DIR/state.json" --items
    "$UPDATE_WATCH_STATE_DIR/items.json" --out
    "$UPDATE_WATCH_STATE_DIR/verdict.json"`.

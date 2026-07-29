@@ -33,6 +33,18 @@ Required outputs:
    section.
 5. The list of verification evidence invalidated by review fixes.
 
+Native subagents may collect design evidence, but the parent owns every verdict,
+fix, deferral, baseline decision, and final result. After establishing the
+review boundary, launch a fresh read-only `architecture-reviewer` when native
+subagents are available. Also launch a fresh read-only `interface-reviewer`
+when user-facing behavior changed. Give each reviewer the complete logical
+inventory and one bounded scope; require the verdict form from
+`docs/workflows/adversarial-review.md`. Keep their exploratory output isolated
+and carry only reported findings and load-bearing checks into this procedure.
+
+When native subagents are unavailable, perform the same review directly. Their
+absence never waives a phase or changes the result standard.
+
 Stop with `BLOCKED` instead of returning to close-out when a required input is
 missing, the diff violates an approved scope boundary, or a material design fix
 needs operator approval. This procedure grants no authority to open, merge,
@@ -53,7 +65,8 @@ bare assertion such as "checked" or "looks good" is not evidence.
    `Exports: none` and continue.
 
 Evidence: merge-base SHA, logical-change groups with their authority, proof
-inventory, and export inventory.
+inventory, export inventory, selected native reviewer roles and scopes, and
+their completion states or `Native reviewers: unavailable`.
 
 ## 2. Review interface depth and decision ownership
 

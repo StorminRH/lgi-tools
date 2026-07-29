@@ -38,12 +38,15 @@ yarn-error.log*
 .vercel
 
 # local agent state (never tracked)
+/.agents/
+/.claude/skills/
 .claude/settings.local.json
 .claude/launch.json
 .claude/worktrees/
-.agent-local/tooling-parity-report.json
-.agent-local/pr-*.md
-.agent-local/pr-privacy-local-patterns.txt
+/.cursor/agents/
+/.codex/agents/
+/.codex/skills/
+.local/agent/
 docs/ux-check/captures/
 docs/ux-check/profiles/
 docs/margin-audit/

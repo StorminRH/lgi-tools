@@ -139,6 +139,6 @@ in `run-probes.mjs`; a definition should contain only the feature interaction an
 checks.
 
 One-off exploration remains allowed. A scratch `*-probe.mjs` may live outside
-`probes/` during a session, but the agent drift check warns about it so it cannot be
-forgotten. Delete scratch probes at close-out. Do not promote a genuine one-shot into a
-durable definition "just in case."
+`probes/` during a session, but `python3 tools/cli.py policy check` warns about
+it so it cannot be forgotten. Delete scratch probes at close-out. Do not promote
+a genuine one-shot into a durable definition "just in case."

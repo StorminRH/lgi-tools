@@ -2,9 +2,10 @@
 
 This file contains the repository-wide instructions that every coding agent
 must follow. Keep shared executable procedures in `docs/workflows/`, exact
-artifact forms in `docs/workflows/schema/`, runtime adapters in the paired skill
-trees, source-only rules in `src/AGENTS.md`, and mechanical policy in lint,
-tests, Fallow, and hooks.
+artifact forms in `docs/workflows/schema/`, thin discovery adapters in the
+global Agent Skills directory, source-only rules in `src/AGENTS.md`, visible
+repository automation in `tools/`, and mechanical policy in lint, tests,
+Fallow, and hooks.
 
 Precedence is: the operator's explicit current instruction and approved scope;
 the nearest applicable `AGENTS.md`; the invoked canonical procedure under
@@ -20,11 +21,20 @@ Before changing code:
    When work is scoped to a roadmap, contract, approved plan, or canonical
    procedure, read those owning artifacts too. Use
    `docs/workflows/pre-pr-design-review.md` for design judgment.
-2. Use `codegraph explore "authentication request flow"` for an unfamiliar area
-   or use `codegraph query "apiFetch"` for a known symbol before grepping. Use
-   `callers`, `callees`, or `impact` when the change depends on relationships.
-3. Use the global `find-docs` skill/Context7 at the beginning of every coding
-   task, including routine React and framework work. Resolve installed versions
+2. For an unfamiliar or cross-cutting area, delegate repository orientation to
+   a fresh read-only `repo-mapper` subagent. It runs the global `map-codebase`
+   skill and returns the repository-map form in
+   `docs/workflows/schema/subagent-evidence.md`. When native subagents are
+   unavailable, run that skill in the main context. Obtain Codegraph evidence
+   before grepping or reading source: use `explore` for an unfamiliar flow,
+   `query` for a known symbol, and `callers`, `callees`, or `impact` for
+   relationships.
+3. Delegate current primary-documentation retrieval to a fresh read-only
+   `docs-researcher` subagent at the beginning of every coding task, including
+   routine React and framework work. It runs the global `find-docs` skill and
+   returns the documentation-evidence form in
+   `docs/workflows/schema/subagent-evidence.md`. When native subagents are
+   unavailable, run that skill in the main context. Resolve installed versions
    and do not substitute remembered behavior for current documentation.
 4. Read the relevant installed guide under `node_modules/next/dist/docs/`
    before changing Next.js routing, rendering, caching, or configuration.
@@ -33,7 +43,7 @@ Before changing code:
 
 Ordinary task-scoped work — anything that begins from a direct request rather
 than through `start-session` — must not run the lifecycle resolver
-(`.agent-local/resolve_development_state.py`) or reconcile roadmap, contract, or
+(`python3 tools/cli.py lifecycle resolve`) or reconcile roadmap, contract, or
 session-plan state. The active version plan is one workstream, not a
 repository-wide lock. The resolver answers only "what is the next action in the
 active version plan?"; it is opt-in and owned by the lifecycle skills. Only
@@ -278,24 +288,25 @@ symbol names. Add a short body only when it helps explain what changed and why.
 
 ## Agent-policy maintenance
 
-`AGENTS.md` and `src/AGENTS.md` are canonical shared guidance for Codex and
-Claude Code. Claude's `CLAUDE.md` files import them and contain only
-Claude-specific execution notes.
+`AGENTS.md` and `src/AGENTS.md` are canonical shared guidance for every agent.
+Harness-specific guide files import them and contain no duplicate policy.
 
 - Shared policy belongs in these guides or the appropriate canonical document:
-  `docs/AGENT_TOOLING.md`, an owning procedure under `docs/workflows/`, or an
+  `docs/AGENT_CAPABILITIES.md`, an owning procedure under `docs/workflows/`, or an
   exact artifact form under `docs/workflows/schema/`.
   `docs/CODE_HEALTH_BASELINE.md` is living state, not policy.
-- Keep `.agents/skills/` and `.claude/skills/` as runtime adapters with behavior
-  parity, not verbatim implementations. Keep shared enforcement in
-  `.agent-local/`.
+- Keep global skills under `~/.agents/skills/` as thin portable adapters that
+  locate this repository and read exactly one owning procedure. Link a
+  harness-specific skill root to that global source only when the harness does
+  not discover it directly. Keep deterministic repository automation in
+  `tools/`.
 - Invoke `agent-policy-audit` for a cross-surface review or repair of guides,
-  workflows, schemas, paired skills, hooks, manifests, and drift tooling.
-- After changing a guide, skill, hook, or shared workflow policy, re-review all
-  affected skills in both trees, then run
-  `python3 .agent-local/reconcile_skill_ledger.py` and
-  `python3 .agent-local/check_agent_drift.py`. The drift command is safe for
-  ordinary work: it never invokes the lifecycle resolver or release consistency.
-  A failing drift check blocks close-out.
-- After changing global CLIs, plugins, MCP configuration, or Claude's Vercel
-  plugin, follow `docs/AGENT_TOOLING.md`.
+  workflows, schemas, global skill contracts, hooks, manifests, and policy
+  tooling.
+- After changing a guide, skill, hook, or shared workflow policy, run
+  `python3 tools/cli.py policy check` and `python3 tools/cli.py test`. The policy
+  command is safe for ordinary work: it never invokes the lifecycle resolver,
+  release consistency, or machine-global capability checks. A failing policy
+  check blocks close-out.
+- After changing global CLIs, plugins, app connections, MCP configuration, or
+  skills, follow `docs/AGENT_CAPABILITIES.md`.

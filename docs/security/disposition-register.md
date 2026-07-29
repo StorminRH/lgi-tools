@@ -171,8 +171,9 @@ bounded exchange-error classification, logging-redaction canary.
 ## LGI-12 — Supply-chain enforcement not evidenced in repo config — **partially-confirmed**
 
 Better than the snapshot implied: the 3.9.3.5 daily update-watch runs
-`pnpm audit` and reports dependency-major/advisory deltas (`.agent-local/
-update_watch_collect.py`, report-only). But no repo-controlled Dependabot config,
+`pnpm audit` and reports dependency-major/advisory deltas
+(`tools/update_watch/update_watch_collect.py`, report-only). But no
+repo-controlled Dependabot config,
 CodeQL workflow, secret-scanner config, or immutable-SHA action pinning exists
 under `.github/` (CI uses mutable `actions/checkout@v6`). GitHub-side settings are
 not verifiable from source. **Routing:** M — after confirming live GitHub security

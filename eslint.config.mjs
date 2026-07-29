@@ -1817,7 +1817,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Tracked workflow and product docs are prose, not lint source.
     "docs/**",
-    // Gitignored local-only Claude Code state, incl. harness worktrees under
+    // Gitignored local-only harness state, including worktrees under
     // .claude/worktrees/** (a full repo copy whose prefixed paths bypass the
     // per-file exemptions below — e.g. tones.ts, the preview sandbox).
     ".claude/**",
