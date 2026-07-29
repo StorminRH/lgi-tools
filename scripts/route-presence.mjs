@@ -2,6 +2,14 @@
 // unit-tested without walking the real tree. The entry (assert-routes-present.mjs)
 // does the fs walk + JSON read + exit; these decide the derived keys and the diff.
 import path from 'node:path';
+// Next owns the built route id for a metadata image, including the
+// disambiguating hash it appends under a route group. Importing its helper
+// keeps that rule in one place: restating it here would let this key drift from
+// the one assert-route-classification.mjs reads out of the build manifest, and
+// the two checks would then disagree about the same route. Like the `postponed`
+// marker that check relies on, this is a Next 16 internal — if a release moves
+// it, CI fails loudly and this import is the one place to update.
+import { normalizeMetadataRoute } from 'next/dist/lib/metadata/get-metadata-route.js';
 
 const ROUTE_FILE = /^(page|route)\.(tsx?|jsx?)$/;
 const SITEMAP_FILE = /^sitemap\.(tsx?|jsx?)$/;
@@ -25,16 +33,26 @@ export function isRouteFile(base) {
   );
 }
 
+const withoutGroups = (parts) => parts.filter((part) => !/^\(.+\)$/.test(part));
+
 // src/app-relative posix path → the route key the classification JSON uses.
 export function routeKey(relPosix) {
   const parts = relPosix.split('/');
   const base = parts.pop();
-  const routeParts = parts.filter((part) => !/^\(.+\)$/.test(part));
+  const routeParts = withoutGroups(parts);
   const prefix = routeParts.length ? `/${routeParts.join('/')}` : '';
   if (SITEMAP_FILE.test(base)) return `${prefix}/sitemap.xml`;
   if (ROBOTS_FILE.test(base)) return `${prefix}/robots.txt`;
   const socialImage = base.match(SOCIAL_IMAGE_FILE);
-  if (socialImage) return `${prefix}/${socialImage[1]}`;
+  if (socialImage) {
+    // Groups are stripped from the served path but not from the id Next builds:
+    // it hashes the grouped parent so two handlers sharing a public path stay
+    // distinct. Resolve against the grouped page path, then drop the groups.
+    const built = normalizeMetadataRoute(
+      `/${[...parts, socialImage[1]].join('/')}`,
+    ).replace(/\/route$/, '');
+    return `/${withoutGroups(built.split('/').filter(Boolean)).join('/')}`;
+  }
   // Icon images keep their extension in the served path (/icon.svg), unlike the
   // social images above, which drop theirs.
   if (STATIC_ICON_FILE.test(base)) return `${prefix}/${base}`;

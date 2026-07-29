@@ -58,7 +58,22 @@ describe('routeKey', () => {
     expect(routeKey('opengraph-image.tsx')).toBe('/opengraph-image');
     expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe('/sites/[id]/opengraph-image');
     expect(routeKey('docs/twitter-image.js')).toBe('/docs/twitter-image');
+  });
+
+  it('carries the hash Next appends to a social image under a route group', () => {
+    // A group is invisible in the served path but not in the built route id:
+    // Next appends djb2Hash of the grouped parent so two handlers sharing a
+    // public path stay distinct. This key must match the id the build manifest
+    // reports, or the presence check and the render-mode check disagree — which
+    // is exactly what broke the deploy when /sites/[id] moved under (site).
     expect(routeKey('(site)/sites/[id]/opengraph-image.tsx')).toBe(
+      '/sites/[id]/opengraph-image-38dcjp',
+    );
+    expect(routeKey('(map)/atlas/opengraph-image.tsx')).toBe(
+      '/atlas/opengraph-image-ci9ouf',
+    );
+    // Ungrouped parents keep the plain served path.
+    expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe(
       '/sites/[id]/opengraph-image',
     );
   });

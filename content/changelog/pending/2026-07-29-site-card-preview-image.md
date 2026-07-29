@@ -4,4 +4,4 @@ source: fix/og-image-route-classification
 ---
 
 #### Fixed
-- Restored the production deployment after the site-card preview image moved to a new address, so shared links to a wormhole site show their preview card again.
+- Restored automatic deployment to production, which stopped after an internal page reorganisation changed the address of the wormhole site preview image.
