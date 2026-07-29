@@ -24,9 +24,10 @@ ready result means the gate was clear at the last stable poll, not a promise abo
 the merge — the PR can change afterwards, and the helper re-validates live before
 acting. It returns 0 when nothing blocked the merge at that observation, 2 with
 the blocker list when the head is settled but something does, and 1 on timeout.
-It inherits whichever reviewer is gate of record, and so covers inline findings
-and the incremental reviewer's head-exact acknowledgement without duplicating
-either rule. It never merges; that stays with the helper.
+It inherits whichever reviewers actually gate the PR, and so covers every
+participant's unresolved findings and the incremental reviewer's head-exact
+acknowledgement without duplicating either rule. It never merges; that stays
+with the helper.
 """
 
 from __future__ import annotations
@@ -39,8 +40,11 @@ import time
 from github_api import github_token, request
 from merge_clean_pr import (
     CODERABBIT_CHECK,
+    coderabbit_reviewed,
     coderabbit_reviewed_head,
+    greptile_head_evidence,
     greptile_reviewed,
+    live_inline_findings,
     merge_blockers,
     require,
     resolved_thread_roots,
@@ -140,12 +144,10 @@ def greptile_state(repo: str, number: int, token: str) -> tuple[str, bool, dict[
     summaries.sort(key=lambda comment: str(comment.get("updated_at", "")))
     summary = summaries[-1] if summaries else None
     current = bool(summary and head_sha in str(summary.get("body", "")))
-    inline = [
-        comment
-        for comment in reviews
-        if "greptile" in str(comment.get("user", {}).get("login", "")).lower()
-        and comment.get("commit_id") == head_sha
-    ]
+    # Resolution, not anchor commit — the merge helper's rule, imported rather
+    # than restated so this watch cannot report a finding the helper waives, or
+    # miss one it refuses.
+    inline = live_inline_findings(reviews, resolved_thread_roots(number, token, repo))
     score = None
     if summary:
         match = re.search(r"Confidence Score:\s*(\d)/5", str(summary.get("body", "")))
@@ -302,27 +304,31 @@ def review_state(
     require(isinstance(runs, list), "check-runs response had no run list")
 
     names, settled = quiescence(runs, status)
-    fallback = not greptile_reviewed(issue_comments, runs)
-    resolved_roots: frozenset[int] = frozenset()
-    reviews: list[object] = []
-    if fallback:
-        # Thread resolution and review records only matter on the fallback path,
-        # and both cost an extra request, so they are fetched only when needed.
-        resolved_roots = resolved_thread_roots(number, token, repo)
-        reviews_body = get(f"/repos/{repo}/pulls/{number}/reviews?per_page=100", token)
-        require(isinstance(reviews_body, list), "reviews response was not a list")
-        reviews = reviews_body
+    # Both reviewers are keyed on thread resolution and on their own review
+    # records, so neither read is optional on any path.
+    resolved_roots = resolved_thread_roots(number, token, repo)
+    reviews = get(f"/repos/{repo}/pulls/{number}/reviews?per_page=100", token)
+    require(isinstance(reviews, list), "reviews response was not a list")
 
     blockers = merge_blockers(
         pull, issue_comments, inline_comments, runs, head_sha, resolved_roots, reviews
     )
-    gate = "coderabbit" if fallback else "greptile"
+    gate = "+".join(
+        name
+        for name, present in (
+            ("greptile", greptile_reviewed(issue_comments, runs)),
+            ("coderabbit", coderabbit_reviewed(inline_comments, reviews)),
+        )
+        if present
+    ) or "none"
     cursor_signal = cursor_bugbot_signal(runs)
     # A declined review is not a stable state: keep waiting rather than reporting
-    # a blocker whose only remedy is time.
-    limited = fallback and coderabbit_waiting_for_review(
+    # a blocker whose only remedy is time. Only when nobody else has read this
+    # head, though — otherwise a rate limit would hang a watch the merge helper
+    # would happily clear.
+    limited = coderabbit_waiting_for_review(
         status, reviews, head_sha, inline_comments
-    )
+    ) and greptile_head_evidence(issue_comments, head_sha) is not None
     label = (
         f"head={head_sha[:8]} gate={gate} settled={settled} "
         f"blockers={len(blockers)} cursor={cursor_signal}"
@@ -379,14 +385,14 @@ def main() -> int:
             if key is not None and key == review_marker:
                 print(detail)
                 if not blockers and detail.get("gate") == "coderabbit":
-                    # Greptile's total absence is what selects the fallback, and a
-                    # merely slow Greptile looks identical to an exhausted one at
-                    # this moment. Say so, so a ready verdict is never read as
-                    # "the primary reviewer passed it".
+                    # A reviewer that never appeared gates nothing, and a merely
+                    # slow Greptile looks identical to an exhausted one at this
+                    # moment. Say so, so a ready verdict is never read as "every
+                    # reviewer passed it".
                     print(
-                        "\nNOTE: ready under the CodeRabbit fallback — Greptile "
-                        "posted no summary and no check. If Greptile was only "
-                        "slow, re-run before merging."
+                        "\nNOTE: ready on CodeRabbit alone — Greptile posted no "
+                        "summary and no check. If Greptile was only slow, re-run "
+                        "before merging."
                     )
                 if blockers:
                     print("\nBLOCKERS\n")
