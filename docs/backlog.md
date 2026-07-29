@@ -248,13 +248,14 @@
 > if any item is pulled into a future version.
 
 - **Workspace continuity mechanism + restore drill** (deferred from 3.9.4.2).
-  *What:* protect the gitignored lifecycle workspace, both agent skill trees,
-  `.agent-local/`, memory files, and the Document Archive with an off-device,
-  deletion-recoverable mechanism; exclude secrets; then prove a clean restore
-  by running the resolver and drift checker from the recovered copy. *Why
-  deferred:* version-completion priority; no replacement date assigned.
-  *Size:* M–L. *Trigger:* continuity work is reprioritized, before the secrets
-  and bootstrap runbook.
+  *What:* protect machine-global Agent Skills and native role definitions,
+  repository-owned workflows and `tools/`, memory files, and the Document
+  Archive with an off-device, deletion-recoverable mechanism; exclude secrets;
+  then prove a clean restore through global capability discovery,
+  `python3 tools/cli.py policy check-all`, and the lifecycle resolver from the
+  recovered copy. *Why deferred:* version-completion priority; no replacement
+  date assigned. *Size:* M–L. *Trigger:* continuity work is reprioritized,
+  before the secrets and bootstrap runbook.
 - **Neon recovery posture + disposable restore drill** (deferred from 3.9.4.3).
   *What:* record the live tier's point-in-time recovery guarantees, restore a
   disposable branch, verify migrations and authoritative-table row counts, and
@@ -489,6 +490,17 @@ is reprioritized.
 
 ## Workflow & docs
 
+- **Fallow zone measurements use path-agnostic wildcard matching** (found during
+  PR #329 review). *What:* `tools/quality/repo_measures.py` uses Python
+  `fnmatch` for Fallow patterns, so a single-segment `*` can cross `/` and count
+  nested files that Fallow's glob would not assign to that pattern. Align
+  matching with Fallow's segment semantics, add nested-path fixtures, and
+  recapture any affected baseline measurement. *Why deferred:* this PR moves
+  the existing measurement behavior without changing it, while a correction
+  can change live code-health counts and belongs with a measured baseline
+  reconciliation. *Size:* S. *Trigger:* the next code-health audit or
+  `repo_measures.py` behavior change.
+
 - **Revisit the version-audit lifecycle for bloat** (operator ruling 2026-07-27).
   *What:* before the next version audit, review the version-audit lifecycle for
   process bloat — planning/evidence ceremony that does not change the audit's
@@ -509,7 +521,7 @@ is reprioritized.
   *Trigger:* the next touch of each file, or any suppression-hygiene pass.
 
 - **Fail-closed merge helper counts resolved Greptile replies as findings** (found during
-  the 3.9.3.8 close-out). *What:* `.agent-local/merge_clean_pr.py` treats every
+  the 3.9.3.8 close-out). *What:* `tools/delivery/merge_clean_pr.py` treats every
   Greptile-authored inline comment as an open finding, so an accepted justification thread
   still fails after Greptile replies "No change needed" and GitHub marks the thread resolved.
   Make the gate consume review-thread resolution and root-finding state instead of counting
@@ -550,7 +562,7 @@ is reprioritized.
   but left here deferred per operator instruction rather than auto-absorbed.
 
 - **Codegraph guard over-matches source extensions by substring** (found 2026-07-23
-  during the orient-once hook review). *What:* `.agent-local/codegraph_guard.py`
+  during the orient-once hook review). *What:* `tools/policy/codegraph_guard.py`
   detects a source file by testing whether any entry of `SOURCE_EXTENSIONS` is a
   *substring* of the joined path/pattern, which correctly catches glob patterns
   (`**/*.ts`) but over-matches real file paths — `data.json` matches `.js`,
@@ -559,7 +571,7 @@ is reprioritized.
   Glob `pattern` (substring match). *Why deferred:* pre-existing and unrelated to
   the orient-once timing change; splitting the match logic is its own small change
   with its own review. *Size:* XS. *Trigger:* the next codegraph-hook or
-  agent-tooling pass, or if non-source-read nudges become noisy in practice.
+  agent-policy pass, or if non-source-read nudges become noisy in practice.
 
 ## Identity and ESI robustness
 

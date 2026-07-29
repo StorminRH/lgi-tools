@@ -11,6 +11,6 @@ that ship on their own PR without bumping `APP_VERSION` or publishing a
   entry and deletes them.
 - The form and rules are defined in
   `docs/workflows/schema/changelog-pending.md` and enforced by
-  `.agent-local/check_pending_changelog.py`.
+  `tools/lifecycle/check_pending_changelog.py`.
 
 This `README.md` is documentation, not a fragment; the checker ignores it.

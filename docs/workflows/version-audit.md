@@ -71,7 +71,7 @@ repeats the complete audit; it is never a targeted diff.
 
 ## Step 0 — Validate the transition
 
-1. Run `python3 .agent-local/resolve_development_state.py --pretty`.
+1. Run `python3 tools/cli.py lifecycle resolve --pretty`.
 2. Require the directive to name `version-audit` as its handler. Its action
    distinguishes an initial/resumed close audit, a complete restart after
    remediation, or a verified archive transition. Otherwise return `BLOCKED`
@@ -206,7 +206,7 @@ Put every finding in exactly one bucket:
    `docs/workflows/schema/code-health-baseline.md` is the sole owner of that
    block's grammar: its metrics, each metric's subject forms, and the permitted
    operators. Do not restate that grammar here. Extending it is a change to
-   that schema, made together with `.agent-local/check_watch_triggers.py`, and
+   that schema, made together with `tools/quality/check_watch_triggers.py`, and
    never a checker feature alone.
 
    This procedure owns only the judgment around the trigger:
@@ -293,7 +293,7 @@ For a clean version close:
 5. keep `docs/CODE_HEALTH_BASELINE.md` active;
 6. update SCRATCHPAD to the next master-plan handoff or to a clear
    `awaiting master plan` state;
-7. run the workflow-state resolver and `python3 .agent-local/check_agent_drift.py`.
+7. run the workflow-state resolver and `python3 tools/cli.py policy check`.
 
 Never archive before the baseline replacement is verified.
 

@@ -92,7 +92,7 @@ same branch and PR.
    once every in-window item is acknowledged (partial absorption keeps the
    window). Do not acknowledge advisories here — fixed ones disappear from audit
    and deferred ones must keep surfacing. Validate the edit with
-   `python3 .agent-local/check_update_watch_baseline.py`.
+   `python3 tools/cli.py update-watch check-baseline`.
 7. Create exactly one ordinary pending changelog fragment under
    `content/changelog/pending/` using
    `docs/workflows/schema/changelog-pending.md`. Do not edit `APP_VERSION`, a

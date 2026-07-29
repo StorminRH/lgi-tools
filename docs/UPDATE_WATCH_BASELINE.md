@@ -3,7 +3,7 @@
 This file records what the operator has **acknowledged**, never what is
 installed — `package.json` remains the sole owner of installed state. The
 daily report-only update-watch routine compares live state against this
-baseline through `.agent-local/update_watch_collect.py` and opens a GitHub
+baseline through `tools/update_watch/update_watch_collect.py` and opens a GitHub
 digest issue only for deltas that are neither acknowledged here nor already
 reported in an open digest issue. The routine has no write path to this file;
 every update is manual absorption during a normal session.
@@ -21,7 +21,7 @@ every update is manual absorption during a normal session.
   source's `acknowledgedItems` and not reported in an open digest issue.
   Dates never decide identity.
 - `idRule` names the per-source canonical-id extraction from the shared source
-  registry owned by the collector (`.agent-local/update_watch_collect.py`);
+  registry owned by the collector (`tools/update_watch/update_watch_collect.py`);
   URL-derived ids are canonicalized (lowercase scheme/host, strip
   query/fragment/trailing slash).
 

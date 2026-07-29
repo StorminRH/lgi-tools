@@ -1,4 +1,0 @@
-interface:
-  display_name: "Agent Policy Audit"
-  short_description: "Audit agent docs, workflows, and paired skills"
-  default_prompt: "Use $agent-policy-audit to run a read-only audit of LGI.tools agent-facing policy, repairing it only when explicitly requested."

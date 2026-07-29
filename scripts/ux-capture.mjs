@@ -1,10 +1,10 @@
-// UX capture utility — a fast, no-model-in-the-loop replacement for the Claude
-// Desktop auto-verify preview loop, for UI verification only. Drives a headless
+// UX capture utility — a fast, no-model-in-the-loop local review helper for UI
+// verification only. Drives a headless
 // Chromium over the running dev server, captures a full-page screenshot of each
 // route at desktop + mobile, and records console errors, uncaught page errors,
 // failed requests, and 4xx/5xx responses to a gitignored report. The agent reads
-// that report; Ryan reviews visual + feel in his own browser. See the `ux-check`
-// skill.
+// that report; the operator reviews visual feel in their own browser. See the
+// `ux-check` skill.
 //
 // Routes are passed as args (the caller scopes them to what the session touched),
 // e.g.  `pnpm ux-check /sites /sites/30002 /`. Dynamic routes take a concrete id

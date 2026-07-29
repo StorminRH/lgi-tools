@@ -15,7 +15,7 @@ the operator has explicitly approved a one-time bootstrap transition.
 
 ## Resolve and select the branch
 
-1. Run `python3 .agent-local/resolve_development_state.py --pretty` and report
+1. Run `python3 tools/cli.py lifecycle resolve --pretty` and report
    the directive's action, reason, authority, primary artifact, branch, and
    pause. Do not infer a stage from the current branch.
 2. Stop when the worktree contains unexplained changes. Preserve explicitly

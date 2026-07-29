@@ -29,7 +29,7 @@ source: <optional one-line provenance>
 - One plain-language change per bullet.
 ```
 
-Rules the pending checker (`.agent-local/check_pending_changelog.py`) enforces:
+Rules the pending checker (`tools/lifecycle/check_pending_changelog.py`) enforces:
 
 - **Frontmatter.** A leading `---` … `---` block with keys drawn only from
   `date` and `source`. `date` is required and is the ISO `YYYY-MM-DD` record or
@@ -59,7 +59,7 @@ the new `### vX.Y.N — YYYY-MM-DD` entry. The deterministic ordering and groupi
 belong to the fold utility. Run:
 
 ```bash
-python3 .agent-local/fold_pending_changelog.py
+python3 tools/cli.py lifecycle fold-pending-changelog
 ```
 
 The command prints the folded Markdown and the exact list of consumed fragment
