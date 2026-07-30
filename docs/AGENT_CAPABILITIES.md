@@ -87,12 +87,13 @@ The portable role vocabulary is:
 - `docs-researcher`: current primary documentation through `find-docs`;
 - `repo-mapper`: repository ownership and execution paths through
   `map-codebase`;
-- `gate-runner`: exact caller-supplied verification commands with compressed
-  results and no fixes;
-- `architecture-reviewer`: interface depth, ownership, boundaries, and
-  structural risk; and
-- `interface-reviewer`: user-facing behavior, accessibility, and design-system
-  conformance.
+- `gate-runner`: literal caller-supplied verification commands with complete
+  command text, native exit evidence, compressed results, and no fixes;
+- `architecture-reviewer`: repository design principles, primitive reuse,
+  deep-module interface depth, decision ownership, boundaries, and structural
+  risk; and
+- `interface-reviewer`: user-facing behavior, accessibility, interaction
+  semantics, responsive behavior, and documented design-system conformance.
 
 Role names describe capabilities, not a required application, model, or global
 file layout. Harness-native definitions may select different models and

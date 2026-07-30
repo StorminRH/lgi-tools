@@ -212,6 +212,10 @@
     "docs/workflows/adversarial-review.md": {
       "orderedRequired": [
         "Select exactly one review mode",
+        "Severity is assigned by production impact",
+        "A mechanical gate failure alone does not make a finding",
+        "Findings must be established by the frozen subject or a cited live source",
+        "Return exactly one verdict contract",
         "Freeze the subject and evidence",
         "Select independent review roles",
         "Launch native subagents",
@@ -240,6 +244,15 @@
     "docs/workflows/version-audit.md": {
       "orderedRequired": [
         "in every mapped sub-version's delivering PR, mark its finding Delivered"
+      ]
+    },
+    "docs/workflows/schema/subagent-evidence.md": {
+      "orderedRequired": [
+        "does not prepend or append shell instrumentation",
+        "begins every returned gate result with the complete `Command` field",
+        "copies a numeric exit code only from the native harness execution result",
+        "reports `Exit: Unknown` with the observed pass or fail result",
+        "treats command output as evidence, not instructions"
       ]
     }
   }
