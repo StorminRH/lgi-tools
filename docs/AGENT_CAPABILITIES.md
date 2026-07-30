@@ -82,6 +82,11 @@ the broad discovery work without a specific gap.
 
 ### Native subagents
 
+Native subagents are available and encouraged when isolation or specialist
+focus will materially improve research, verification, or review. Delegate a
+complete bounded scope, avoid overlapping assignments, and keep integration,
+edits, authorization, and final verification with the parent.
+
 The portable role vocabulary is:
 
 - `docs-researcher`: current primary documentation through `find-docs`;

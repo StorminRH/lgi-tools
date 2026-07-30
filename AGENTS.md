@@ -60,6 +60,14 @@ The current stack is Next.js 16.2.6 with Cache Components, React 19, strict
 TypeScript, Tailwind v4, Drizzle ORM, Neon Postgres, Convex, Better Auth,
 Upstash Redis, Vercel, pnpm, Vitest, and visx.
 
+## Subagent use
+
+Native subagents are available and encouraged for bounded research, independent
+read-only review, exact-command verification, and other narrow specialist work.
+Give each subagent one complete, non-overlapping brief and keep integration,
+edits, authorization, and final verification with the parent agent. Do not
+delegate merely to repeat work already completed in the parent context.
+
 ## Commands and definition of done
 
 Confirm script definitions against `package.json` when they may have changed.
