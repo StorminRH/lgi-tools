@@ -78,6 +78,7 @@ tooling).
     "@visx/shape": { "acknowledgedMajor": 4 },
     "@visx/tooltip": { "acknowledgedMajor": 4 },
     "@vitest/coverage-istanbul": { "acknowledgedMajor": 4 },
+    "@xyflow/react": { "acknowledgedMajor": 12 },
     "better-auth": { "acknowledgedMajor": 1 },
     "class-variance-authority": { "acknowledgedMajor": 0 },
     "clsx": { "acknowledgedMajor": 2 },
@@ -124,7 +125,7 @@ tooling).
       "name": "Vercel / Next.js",
       "watch": ["https://vercel.com/atom", "https://nextjs.org/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-25",
+      "scanSince": "2026-07-30",
       "acknowledgedItems": [
         "https://vercel.com/blog/how-searchable-ships-customer-requested-features-in-30-minutes-on-vercel",
         "https://vercel.com/blog/vercel-agent",
@@ -147,7 +148,23 @@ tooling).
         "https://vercel.com/changelog/vercel-waf-for-blob-is-now-in-beta",
         "https://vercel.com/changelog/workflow-steps-now-support-extended-function-durations",
         "https://vercel.com/changelog/claude-opus-5-now-available-on-ai-gateway",
-        "https://nextjs.org/blog/july-2026-security-release"
+        "https://nextjs.org/blog/july-2026-security-release",
+        "https://vercel.com/changelog/regional-inference-now-available-on-ai-gateway",
+        "https://vercel.com/changelog/eve-adds-new-slack-event-hooks-and-session-controls",
+        "https://vercel.com/blog/deepsecbench-evaluating-model-performance-in-finding-cybersecurity-vulnerabilities",
+        "https://vercel.com/changelog/websocket-support-for-openai-responses-api-live-on-ai-gateway",
+        "https://vercel.com/changelog/nuxt-july-2026-security-advisory",
+        "https://vercel.com/changelog/kimi-k3-and-kimi-k3-fast-on-ai-gateway",
+        "https://vercel.com/changelog/claude-managed-agents-with-chat-sdk",
+        "https://vercel.com/changelog/vercel-sandbox-supports-forking",
+        "https://vercel.com/changelog/vercel-connect-now-supports-custom-environments",
+        "https://vercel.com/blog/how-sandstone-grew-40x-in-147-days-on-vercel",
+        "https://vercel.com/changelog/grok-voice-think-fast-2-0-now-available-on-ai-gateway",
+        "https://vercel.com/changelog/edge-config-is-now-global-config",
+        "https://vercel.com/changelog/ai-gateway-adds-unified-fast-mode-support",
+        "https://vercel.com/changelog/sign-in-with-chatgpt-is-now-available-on-vercel",
+        "https://vercel.com/changelog/additional-custom-environments-can-now-be-purchased",
+        "https://vercel.com/changelog/discover-and-install-eve-integrations-from-the-cli"
       ]
     },
     {
@@ -170,10 +187,13 @@ tooling).
       "name": "Upstash",
       "watch": ["https://upstash.com/blog/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-22",
+      "scanSince": "2026-07-30",
       "acknowledgedItems": [
         "https://upstash.com/blog/durable-workflow-engines-compared-every-major-option-in-2026",
-        "https://upstash.com/blog/context7-vs-static-llm-knowledge-benchmarking-coding-assistants"
+        "https://upstash.com/blog/context7-vs-static-llm-knowledge-benchmarking-coding-assistants",
+        "https://upstash.com/blog/how-to-self-host-redis-in-2026",
+        "https://upstash.com/blog/replicated-cache-backed-by-redis",
+        "https://upstash.com/blog/time-series-data-in-redis-patterns-and-best-practices"
       ]
     }
   ],
