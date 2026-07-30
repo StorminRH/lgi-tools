@@ -93,8 +93,8 @@ Choose one holistic role and one to three bounded scoped roles:
 
 Use the portable reviewer vocabulary when it fits the subject:
 
-- select `architecture-reviewer` for interface depth, ownership, boundaries,
-  or structural pressure;
+- select `architecture-reviewer` for interface depth, boundaries, or
+  structural pressure;
 - select `ownership-reviewer` for local decision ownership, dependency
   direction, primitive reuse, interface breadth, or semantic duplication;
 - select `reliability-reviewer` for state transitions, cleanup, cancellation,

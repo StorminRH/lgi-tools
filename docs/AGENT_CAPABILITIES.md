@@ -94,9 +94,8 @@ The portable role vocabulary is:
   `map-codebase`;
 - `gate-runner`: literal caller-supplied verification commands with complete
   command text, native exit evidence, compressed results, and no fixes;
-- `architecture-reviewer`: repository design principles, primitive reuse,
-  deep-module interface depth, decision ownership, boundaries, and structural
-  risk;
+- `architecture-reviewer`: repository design principles, deep-module
+  interface depth, boundaries, and structural risk;
 - `ownership-reviewer`: local decision ownership, dependency direction,
   primitive reuse, interface breadth, and semantic duplication;
 - `reliability-reviewer`: demonstrated state transitions, cleanup,

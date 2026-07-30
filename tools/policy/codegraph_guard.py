@@ -45,7 +45,10 @@ MARKER_DIR = Path(tempfile.gettempdir())
 
 def emit(message: str, cursor_native: bool = False) -> None:
     if cursor_native:
-        print(json.dumps({"permission": "allow", "agent_message": message}))
+        # Cursor preToolUse feeds agent_message to the model only on deny.
+        # Claim the session marker before this call so a retry is silent and
+        # fails open (empty stdout), which lets the same tool proceed once.
+        print(json.dumps({"permission": "deny", "agent_message": message}))
         return
     print(
         json.dumps(
@@ -90,21 +93,39 @@ def claim_reminder(marker: Path | None) -> bool:
     return True
 
 
+def cursor_may_deny(marker: Path | None) -> bool:
+    """True when Cursor can deny once and later fail open on retry.
+
+    Cursor delivers agent_message only with permission deny. Without a durable
+    session marker, claim_reminder stays true forever, so a deny would loop.
+    Skip the reminder unless this call creates the marker file.
+    """
+    if marker is None or not claim_reminder(marker):
+        return False
+    return marker.is_file()
+
+
 def guard_bash(
     tool_input: dict, marker: Path | None, cursor_native: bool = False
 ) -> None:
     command = str(tool_input.get("command") or tool_input.get("cmd") or "")
-    if SEARCH_COMMAND.search(command) and claim_reminder(marker):
-        emit(
-            "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
-            "the global map-codebase skill through a fresh repo-mapper subagent, "
-            "or in this context when native subagents are unavailable. Use "
-            "codegraph explore \"<question>\" for an unfamiliar area or "
-            "codegraph query \"<symbol>\" when you already know the symbol, "
-            "before grepping raw files. Only grep "
-            "after Codegraph has oriented you, or to modify/debug specific lines.",
-            cursor_native,
-        )
+    if not SEARCH_COMMAND.search(command):
+        return
+    if cursor_native:
+        if not cursor_may_deny(marker):
+            return
+    elif not claim_reminder(marker):
+        return
+    emit(
+        "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
+        "the global map-codebase skill through a fresh repo-mapper subagent, "
+        "or in this context when native subagents are unavailable. Use "
+        "codegraph explore \"<question>\" for an unfamiliar area or "
+        "codegraph query \"<symbol>\" when you already know the symbol, "
+        "before grepping raw files. Only grep "
+        "after Codegraph has oriented you, or to modify/debug specific lines.",
+        cursor_native,
+    )
 
 
 def guard_read(
@@ -115,18 +136,24 @@ def guard_read(
     ).lower().replace("\\", "/")
     if ".codegraph/" in candidate:
         return
-    if any(extension in candidate for extension in SOURCE_EXTENSIONS) and claim_reminder(marker):
-        emit(
-            "MANDATORY: .codegraph/codegraph.db exists. Obtain a current "
-            "map-codebase evidence packet from a fresh repo-mapper subagent before "
-            "reading source files, or run the skill in this context when native "
-            "subagents are unavailable. Use: `codegraph explore \"<question>\"` "
-            "(relevant symbols and call paths), `codegraph query \"<symbol>\"`, or "
-            "`codegraph callers \"<symbol>\"` / `codegraph impact \"<symbol>\"`. Only "
-            "read raw files after Codegraph has oriented the task, or to "
-            "modify/debug specific lines.",
-            cursor_native,
-        )
+    if not any(extension in candidate for extension in SOURCE_EXTENSIONS):
+        return
+    if cursor_native:
+        if not cursor_may_deny(marker):
+            return
+    elif not claim_reminder(marker):
+        return
+    emit(
+        "MANDATORY: .codegraph/codegraph.db exists. Obtain a current "
+        "map-codebase evidence packet from a fresh repo-mapper subagent before "
+        "reading source files, or run the skill in this context when native "
+        "subagents are unavailable. Use: `codegraph explore \"<question>\"` "
+        "(relevant symbols and call paths), `codegraph query \"<symbol>\"`, or "
+        "`codegraph callers \"<symbol>\"` / `codegraph impact \"<symbol>\"`. Only "
+        "read raw files after Codegraph has oriented the task, or to "
+        "modify/debug specific lines.",
+        cursor_native,
+    )
 
 
 def load_payload() -> dict:

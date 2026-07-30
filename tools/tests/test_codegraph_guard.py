@@ -85,9 +85,34 @@ class FireOnceReminder(unittest.TestCase):
             True,
         )
         payload = json.loads(out)
-        self.assertEqual("allow", payload["permission"])
+        self.assertEqual("deny", payload["permission"])
         self.assertIn("MANDATORY", payload["agent_message"])
         self.assertNotIn("hookSpecificOutput", payload)
+
+    def test_cursor_native_reminder_allows_retry_after_claim(self) -> None:
+        first = capture(
+            guard_read,
+            {"file_path": "src/foo.ts"},
+            self.marker,
+            True,
+        )
+        self.assertEqual("deny", json.loads(first)["permission"])
+        self.assertEqual(
+            capture(guard_read, {"file_path": "src/bar.ts"}, self.marker, True),
+            "",
+        )
+
+    def test_cursor_native_skips_deny_without_durable_marker(self) -> None:
+        # No session marker means claim_reminder cannot latch; denying would
+        # block every matching tool call. Fail open with no reminder instead.
+        self.assertEqual(
+            capture(guard_read, {"file_path": "src/foo.ts"}, None, True),
+            "",
+        )
+        self.assertEqual(
+            capture(guard_bash, {"command": "rg foo src/"}, None, True),
+            "",
+        )
 
 
 class MarkerPath(unittest.TestCase):
