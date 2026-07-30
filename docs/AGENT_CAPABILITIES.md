@@ -91,7 +91,14 @@ The portable role vocabulary is:
   command text, native exit evidence, compressed results, and no fixes;
 - `architecture-reviewer`: repository design principles, primitive reuse,
   deep-module interface depth, decision ownership, boundaries, and structural
-  risk; and
+  risk;
+- `ownership-reviewer`: local decision ownership, dependency direction,
+  primitive reuse, interface breadth, and semantic duplication;
+- `reliability-reviewer`: demonstrated state transitions, cleanup,
+  cancellation, resource release, concurrency, idempotency, timeouts, retries,
+  degradation, and recovery;
+- `contract-reviewer`: authority-to-outcome coverage, boundary contracts,
+  authoritative shapes, cross-file consistency, and behavioral proof; and
 - `interface-reviewer`: user-facing behavior, accessibility, interaction
   semantics, responsive behavior, and documented design-system conformance.
 

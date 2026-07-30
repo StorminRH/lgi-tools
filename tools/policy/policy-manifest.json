@@ -218,6 +218,7 @@
         "Return exactly one verdict contract",
         "Freeze the subject and evidence",
         "Select independent review roles",
+        "A reliability finding requires a supplied trigger",
         "Launch native subagents",
         "Collect structured verdicts",
         "Verify and reconcile"

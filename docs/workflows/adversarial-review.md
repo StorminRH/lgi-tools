@@ -95,6 +95,14 @@ Use the portable reviewer vocabulary when it fits the subject:
 
 - select `architecture-reviewer` for interface depth, ownership, boundaries,
   or structural pressure;
+- select `ownership-reviewer` for local decision ownership, dependency
+  direction, primitive reuse, interface breadth, or semantic duplication;
+- select `reliability-reviewer` for state transitions, cleanup, cancellation,
+  resource release, concurrency, idempotency, timeouts, retries, degradation,
+  or recovery;
+- select `contract-reviewer` for authority-to-outcome coverage, boundary
+  contracts, authoritative shapes, cross-file consistency, or behavioral
+  proof;
 - select `interface-reviewer` for changed user-facing behavior,
   accessibility, or design-system conformance; and
 - select a task-specific security, identity, data-integrity, concurrency, or
@@ -103,6 +111,15 @@ Use the portable reviewer vocabulary when it fits the subject:
 Do not select a reviewer merely because its global definition exists. A
 reviewer used during pre-PR design review must still be launched as a fresh
 subagent here when its scope is selected.
+
+A reliability finding requires a supplied trigger, a reachable unsafe
+transition, material impact that follows without an unstated assumption, and a
+correction to the decision that caused the transition. Do not infer overlapping
+executions, resource sharing, retry behavior, scheduler behavior, driver
+behavior, or deployment topology when the subject and inspected sources do not
+establish them. Record absent non-load-bearing evidence as a check or handoff,
+not an actionable finding, and deduplicate symptoms resolved by one
+integration-policy correction.
 
 Role count expresses coverage. Concurrency expresses harness capacity. If the
 harness cannot run every selected role concurrently, queue them without
