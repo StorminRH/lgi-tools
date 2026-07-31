@@ -27,8 +27,12 @@ Before changing code:
    `docs/workflows/schema/subagent-evidence.md`. When native subagents are
    unavailable, run that skill in the main context. Codegraph is installed and
    required: use the global `codegraph` CLI before grepping or reading source.
-   Confirm `command -v codegraph` and `codegraph status`, then use `explore` for
-   an unfamiliar flow, `query` for a known symbol, and `callers`, `callees`, or
+   Confirm `command -v codegraph` and `codegraph status` from the repository
+   root, or pass the repository root as the path argument (for example
+   `codegraph status "<repo-root>"`). The index lives in gitignored
+   `.codegraph/`; if a harness sandbox cannot open that directory, re-run
+   Codegraph with unrestricted filesystem access. Then use `explore` for an
+   unfamiliar flow, `query` for a known symbol, and `callers`, `callees`, or
    `impact` for relationships. If the CLI or index is unexpectedly unavailable,
    report the blocker; do not substitute text search or install or configure a
    Codegraph MCP.

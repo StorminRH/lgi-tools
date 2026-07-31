@@ -63,8 +63,12 @@ documentation retrieval, and local command execution.
 
 Codegraph is installed and required for repository mapping. Use the global
 `codegraph` CLI before text search or source reads, and confirm the executable
-and index first. If either is unexpectedly unavailable, report the blocker; do
-not substitute text search or install or configure a Codegraph MCP.
+and index first with `command -v codegraph` and `codegraph status` from the
+repository root, or with an explicit repository-root path argument. The index
+lives in gitignored `.codegraph/`; if a harness sandbox cannot open that
+directory, re-run Codegraph with unrestricted filesystem access. If the CLI or
+index remains unavailable, report the blocker; do not substitute text search or
+install or configure a Codegraph MCP.
 
 For unfamiliar or cross-cutting code, prefer a fresh read-only `repo-mapper`
 subagent that invokes `map-codebase`. For every coding task, prefer a fresh

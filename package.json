@@ -20,7 +20,7 @@
     "dev:all": "concurrently -k -n next,convex -c cyan,magenta \"next dev\" \"convex dev\"",
     "build": "next build",
     "vercel-build": "pnpm exec convex deploy --cmd 'pnpm build:vercel' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL",
-    "build:vercel": "tsx src/scripts/migrate.ts && tsx src/scripts/backfill-users-if-empty.ts && tsx src/scripts/ingest-sde-if-empty.ts && next build && node scripts/assert-route-classification.mjs",
+    "build:vercel": "tsx src/scripts/migrate.ts && tsx src/scripts/backfill-users-if-empty.ts && tsx src/scripts/ingest-sde-if-empty.ts && tsx src/scripts/warm-neon.ts && next build && node scripts/assert-route-classification.mjs",
     "start": "next start",
     "assert:routes": "node scripts/assert-route-classification.mjs",
     "assert:routes-present": "node scripts/assert-routes-present.mjs",
