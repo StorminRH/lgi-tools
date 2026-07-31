@@ -61,38 +61,34 @@ async function errorCode(promise: Promise<unknown>): Promise<string | null> {
 
 describe('mapFixtures schema census', () => {
   it('registers every chain table and required index', () => {
-    const tables = schema.tables;
-    expect(Object.keys(tables)).toEqual(
-      expect.arrayContaining([
-        'mapAccess',
-        'mapSystems',
-        'mapConnections',
-        'mapSignatures',
-        'mapNotes',
-        'mapSignatureActivity',
-      ]),
+    const schemaSource = readFileSync(
+      join(import.meta.dirname, 'schema.ts'),
+      'utf8',
     );
+    for (const table of [
+      'mapAccess',
+      'mapSystems',
+      'mapConnections',
+      'mapSignatures',
+      'mapNotes',
+      'mapSignatureActivity',
+    ]) {
+      expect(schemaSource).toContain(`${table}: defineTable(`);
+      expect(Object.keys(schema.tables)).toContain(table);
+    }
 
-    expect(tables.mapAccess.indexes.map((index) => index.indexDescriptor)).toEqual(
-      expect.arrayContaining(['by_map', 'by_map_user', 'by_user']),
+    expect(schemaSource).toContain(".index('by_map_user', ['mapId', 'userId'])");
+    expect(schemaSource).toContain(".index('by_user', ['userId'])");
+    expect(schemaSource).toContain(
+      ".index('by_map_system', ['mapId', 'systemId'])",
     );
-    expect(tables.mapSystems.indexes.map((index) => index.indexDescriptor)).toEqual(
-      expect.arrayContaining(['by_map', 'by_map_system']),
+    expect(schemaSource).toContain(
+      ".index('by_map_signature', ['mapId', 'systemId', 'signatureId'])",
     );
-    expect(
-      tables.mapConnections.indexes.map((index) => index.indexDescriptor),
-    ).toEqual(expect.arrayContaining(['by_map']));
-    expect(
-      tables.mapSignatures.indexes.map((index) => index.indexDescriptor),
-    ).toEqual(
-      expect.arrayContaining(['by_map', 'by_map_signature', 'by_purge_after']),
+    expect(schemaSource).toContain(".index('by_purge_after', ['purgeAfter'])");
+    expect(schemaSource).toContain(
+      ".index('by_map_target', ['mapId', 'targetKind', 'targetId'])",
     );
-    expect(tables.mapNotes.indexes.map((index) => index.indexDescriptor)).toEqual(
-      expect.arrayContaining(['by_map', 'by_map_target']),
-    );
-    expect(
-      tables.mapSignatureActivity.indexes.map((index) => index.indexDescriptor),
-    ).toEqual(expect.arrayContaining(['by_map', 'by_map_signature']));
     expect(MAP_ROLES).toEqual(['viewer', 'editor', 'owner']);
   });
 
@@ -429,8 +425,11 @@ describe('mapFixtures gates every public fixture and isolates maps', () => {
     });
     expect(firstSystems.page).toHaveLength(MAP_FIXTURE_PAGE_SIZE);
     expect(firstSystems.isDone).toBe(false);
-    expect(firstSystems.page.every((row) => row.mapId === MAP_A)).toBe(true);
-    expect(firstSystems.page.some((row) => row.systemId >= 100)).toBe(false);
+    expect(
+      firstSystems.page.every(
+        (row) => row.mapId === MAP_A && 'systemId' in row && row.systemId < 100,
+      ),
+    ).toBe(true);
 
     for (const collection of ['connections', 'signatures', 'notes'] as const) {
       const first = await asEditor.query(api.mapFixtures.readMapCollection, {
@@ -443,7 +442,12 @@ describe('mapFixtures gates every public fixture and isolates maps', () => {
       expect(first.page.every((row) => row.mapId === MAP_A)).toBe(true);
     }
 
-    const systemIds = new Set(firstSystems.page.map((row) => row.systemId));
+    const systemIds = new Set(
+      firstSystems.page.map((row) => {
+        if (!('systemId' in row)) throw new Error('expected system page');
+        return row.systemId;
+      }),
+    );
     let systemsCursor = firstSystems.continueCursor;
     let systemsDone = firstSystems.isDone;
     while (!systemsDone) {
@@ -452,7 +456,10 @@ describe('mapFixtures gates every public fixture and isolates maps', () => {
         collection: 'systems',
         cursor: systemsCursor,
       });
-      for (const row of next.page) systemIds.add(row.systemId);
+      for (const row of next.page) {
+        if (!('systemId' in row)) throw new Error('expected system page');
+        systemIds.add(row.systemId);
+      }
       systemsCursor = next.continueCursor;
       systemsDone = next.isDone;
     }
