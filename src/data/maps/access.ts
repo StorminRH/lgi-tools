@@ -1,4 +1,18 @@
-import type { MapAccessOwnerType, MapRole } from './schema';
+import {
+  MAP_ROLE_PRECEDENCE,
+  rolesAllow,
+  type MapRole,
+} from './access-contract';
+import type { MapAccessOwnerType } from './schema';
+
+export {
+  MAP_ROLE_CAPABILITIES,
+  MAP_ROLE_PRECEDENCE,
+  roleAllows,
+  rolesAllow,
+  type MapCapability,
+  type MapRole,
+} from './access-contract';
 
 /** The EVE character and corporation principals through which one user may hold a grant. */
 export interface MapPrincipals {
@@ -20,21 +34,6 @@ export interface MapAccess {
   readonly canEdit: boolean;
 }
 
-/** Explicit capabilities for every persisted role; capabilities never derive from role order. */
-export const MAP_ROLE_CAPABILITIES: Readonly<
-  Record<MapRole, Readonly<Omit<MapAccess, 'role'>>>
-> = {
-  viewer: { canView: true, canEdit: false },
-  editor: { canView: true, canEdit: true },
-  owner: { canView: true, canEdit: true },
-};
-
-/**
- * Precedence selects the reported role when several grants match. It does not grant capabilities;
- * those are unioned independently through `MAP_ROLE_CAPABILITIES`.
- */
-export const MAP_ROLE_PRECEDENCE: readonly MapRole[] = ['owner', 'editor', 'viewer'];
-
 const NO_ACCESS: MapAccess = { role: null, canView: false, canEdit: false };
 
 function principalMatches(grant: MapGrant, principals: MapPrincipals): boolean {
@@ -43,6 +42,25 @@ function principalMatches(grant: MapGrant, principals: MapPrincipals): boolean {
       ? principals.characterIds
       : principals.corporationIds;
   return ids.includes(grant.ownerId);
+}
+
+/**
+ * Resolves the precedence-sorted, de-duplicated effective role set for one map
+ * principal/grant input. Capability grants union through this set; display role
+ * selection still uses precedence only for serialization.
+ */
+export function resolveMatchedMapRoles(input: {
+  readonly isCreator: boolean;
+  readonly grants: readonly MapGrant[];
+  readonly principals: MapPrincipals;
+}): MapRole[] {
+  if (input.isCreator) return ['owner'];
+
+  const matchedRoles = new Set<MapRole>();
+  for (const grant of input.grants) {
+    if (principalMatches(grant, input.principals)) matchedRoles.add(grant.role);
+  }
+  return MAP_ROLE_PRECEDENCE.filter((role) => matchedRoles.has(role));
 }
 
 /**
@@ -55,27 +73,12 @@ export function resolveMapRole(input: {
   readonly grants: readonly MapGrant[];
   readonly principals: MapPrincipals;
 }): MapAccess {
-  if (input.isCreator) {
-    return { role: 'owner', ...MAP_ROLE_CAPABILITIES.owner };
-  }
-
-  const matchedRoles = new Set<MapRole>();
-  for (const grant of input.grants) {
-    if (principalMatches(grant, input.principals)) matchedRoles.add(grant.role);
-  }
-  if (matchedRoles.size === 0) return { ...NO_ACCESS };
-
-  let canView = false;
-  let canEdit = false;
-  for (const role of matchedRoles) {
-    const capabilities = MAP_ROLE_CAPABILITIES[role];
-    canView ||= capabilities.canView;
-    canEdit ||= capabilities.canEdit;
-  }
+  const roles = resolveMatchedMapRoles(input);
+  if (roles.length === 0) return { ...NO_ACCESS };
 
   return {
-    role: MAP_ROLE_PRECEDENCE.find((role) => matchedRoles.has(role)) ?? null,
-    canView,
-    canEdit,
+    role: roles[0] ?? null,
+    canView: rolesAllow(roles, 'view'),
+    canEdit: rolesAllow(roles, 'edit'),
   };
 }

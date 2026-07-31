@@ -9,11 +9,10 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
+import { MAP_ROLES, type MapRole } from './access-contract';
 
-/** Persisted map roles; this tuple is the single TypeScript and Postgres vocabulary. */
-export const MAP_ROLES = ['viewer', 'editor', 'owner'] as const;
-/** One persisted map role. */
-export type MapRole = (typeof MAP_ROLES)[number];
+export { MAP_ROLES, type MapRole };
+
 /** Drizzle owner of the persisted map-role enum. */
 export const mapRoleEnum = pgEnum('map_role', MAP_ROLES);
 
