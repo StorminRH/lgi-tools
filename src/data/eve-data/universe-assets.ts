@@ -20,12 +20,7 @@ import {
   type WormholeSizeClass,
 } from './wormhole-contract';
 
-export {
-  FAR_SIDE_WORMHOLE_CODE,
-  WORMHOLE_SIZE_CLASSES,
-  isWormholeTypeCode,
-  type WormholeSizeClass,
-} from './wormhole-contract';
+export type { WormholeSizeClass } from './wormhole-contract';
 
 const WORMHOLE_GROUP_ID = 988;
 const WORMHOLE_TYPE_NAME = /^Wormhole ([A-Z]\d{3})$/;

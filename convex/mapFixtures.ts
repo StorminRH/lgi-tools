@@ -67,18 +67,46 @@ async function requireSameMapSystem(
   return system._id;
 }
 
+async function findSignatureByKey(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+  signatureId: string,
+) {
+  return await ctx.db
+    .query('mapSignatures')
+    .withIndex('by_map_signature', (q) =>
+      q.eq('mapId', mapId).eq('systemId', systemId).eq('signatureId', signatureId),
+    )
+    .unique();
+}
+
+async function findSignatureActivityByKey(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+  signatureId: string,
+) {
+  return await ctx.db
+    .query('mapSignatureActivity')
+    .withIndex('by_map_signature', (q) =>
+      q.eq('mapId', mapId).eq('systemId', systemId).eq('signatureId', signatureId),
+    )
+    .unique();
+}
+
 async function deleteSignatureActivityCompanion(
   ctx: MutationCtx,
   mapId: string,
   systemId: number,
   signatureId: string,
 ): Promise<void> {
-  const activity = await ctx.db
-    .query('mapSignatureActivity')
-    .withIndex('by_map_signature', (q) =>
-      q.eq('mapId', mapId).eq('systemId', systemId).eq('signatureId', signatureId),
-    )
-    .unique();
+  const activity = await findSignatureActivityByKey(
+    ctx,
+    mapId,
+    systemId,
+    signatureId,
+  );
   if (activity !== null) {
     await ctx.db.delete(activity._id);
   }
@@ -93,15 +121,12 @@ async function writeSignatureActivity(
     readonly observedAt: number;
   },
 ): Promise<'inserted' | 'patched' | 'unchanged'> {
-  const existing = await ctx.db
-    .query('mapSignatureActivity')
-    .withIndex('by_map_signature', (q) =>
-      q
-        .eq('mapId', args.mapId)
-        .eq('systemId', args.systemId)
-        .eq('signatureId', args.signatureId),
-    )
-    .unique();
+  const existing = await findSignatureActivityByKey(
+    ctx,
+    args.mapId,
+    args.systemId,
+    args.signatureId,
+  );
 
   if (existing === null) {
     await ctx.db.insert('mapSignatureActivity', {
@@ -264,15 +289,12 @@ export const upsertSignatureObservation = internalMutation({
       throw new Error('signatureId must be a non-empty string');
     }
     const knowledge = normalizeSignatureKnowledge(args.knowledge);
-    const existing = await ctx.db
-      .query('mapSignatures')
-      .withIndex('by_map_signature', (q) =>
-        q
-          .eq('mapId', args.mapId)
-          .eq('systemId', args.systemId)
-          .eq('signatureId', signatureId),
-      )
-      .unique();
+    const existing = await findSignatureByKey(
+      ctx,
+      args.mapId,
+      args.systemId,
+      signatureId,
+    );
 
     if (existing === null) {
       const id = await ctx.db.insert('mapSignatures', {
@@ -325,15 +347,12 @@ export const setSignatureTombstone = internalMutation({
   },
   handler: async (ctx, args) => {
     validateTombstoneTimestamps(args.deletedAt, args.purgeAfter);
-    const signature = await ctx.db
-      .query('mapSignatures')
-      .withIndex('by_map_signature', (q) =>
-        q
-          .eq('mapId', args.mapId)
-          .eq('systemId', args.systemId)
-          .eq('signatureId', args.signatureId),
-      )
-      .unique();
+    const signature = await findSignatureByKey(
+      ctx,
+      args.mapId,
+      args.systemId,
+      args.signatureId,
+    );
     if (signature === null) {
       throw new Error('signature not found');
     }
@@ -368,15 +387,12 @@ export const recordSignatureSeen = internalMutation({
     observedAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const signature = await ctx.db
-      .query('mapSignatures')
-      .withIndex('by_map_signature', (q) =>
-        q
-          .eq('mapId', args.mapId)
-          .eq('systemId', args.systemId)
-          .eq('signatureId', args.signatureId),
-      )
-      .unique();
+    const signature = await findSignatureByKey(
+      ctx,
+      args.mapId,
+      args.systemId,
+      args.signatureId,
+    );
     if (signature === null) {
       throw new Error('signature not found');
     }

@@ -8,8 +8,6 @@ import type { MapAccessOwnerType } from './schema';
 export {
   MAP_ROLE_CAPABILITIES,
   MAP_ROLE_PRECEDENCE,
-  roleAllows,
-  rolesAllow,
   type MapCapability,
   type MapRole,
 } from './access-contract';
