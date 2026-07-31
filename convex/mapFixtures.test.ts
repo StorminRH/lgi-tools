@@ -228,6 +228,33 @@ describe('mapFixtures round-trips connection and signature state', () => {
     });
     expect(conflict.kind).toBe('conflict');
 
+    const lessResolved = await t.mutation(
+      internal.mapFixtures.upsertSignatureObservation,
+      {
+        mapId: MAP_A,
+        systemId: 1,
+        signatureId: 'ABC-123',
+        knowledge: {
+          group: 'wormhole',
+          typeName: null,
+          wormholeTypeCode: null,
+        },
+      },
+    );
+    expect(lessResolved.kind).toBe('unchanged');
+
+    await expect(
+      t.mutation(internal.mapFixtures.insertConnectionFixture, {
+        mapId: MAP_A,
+        fromSystemId: 1,
+        toSystemId: 2,
+        wormholeTypeCode: 'not-a-code',
+        massState: 'stable',
+        shipSize: null,
+        eolAt: null,
+      }),
+    ).rejects.toThrow(/canonical/);
+
     const signature = await t.run((ctx) =>
       ctx.db
         .query('mapSignatures')
@@ -431,41 +458,46 @@ describe('mapFixtures gates every public fixture and isolates maps', () => {
       ),
     ).toBe(true);
 
-    for (const collection of ['connections', 'signatures', 'notes'] as const) {
-      const first = await asEditor.query(api.mapFixtures.readMapCollection, {
-        mapId: MAP_A,
-        collection,
-        cursor: null,
-      });
-      expect(first.page).toHaveLength(MAP_FIXTURE_PAGE_SIZE);
-      expect(first.isDone).toBe(false);
-      expect(first.page.every((row) => row.mapId === MAP_A)).toBe(true);
+    async function collectCollection(
+      collection: 'systems' | 'connections' | 'signatures' | 'notes',
+    ) {
+      const rows: Array<{ mapId: string }> = [];
+      let cursor: string | null = null;
+      let isDone = false;
+      while (!isDone) {
+        const page: {
+          page: Array<{ mapId: string }>;
+          continueCursor: string;
+          isDone: boolean;
+        } = await asEditor.query(api.mapFixtures.readMapCollection, {
+          mapId: MAP_A,
+          collection,
+          cursor,
+        });
+        expect(page.page.every((row) => row.mapId === MAP_A)).toBe(true);
+        rows.push(...page.page);
+        cursor = page.continueCursor;
+        isDone = page.isDone;
+      }
+      return rows;
     }
 
-    const systemIds = new Set(
-      firstSystems.page.map((row) => {
-        if (!('systemId' in row)) throw new Error('expected system page');
-        return row.systemId;
-      }),
-    );
-    let systemsCursor = firstSystems.continueCursor;
-    let systemsDone = firstSystems.isDone;
-    while (!systemsDone) {
-      const next = await asEditor.query(api.mapFixtures.readMapCollection, {
-        mapId: MAP_A,
-        collection: 'systems',
-        cursor: systemsCursor,
-      });
-      for (const row of next.page) {
-        if (!('systemId' in row)) throw new Error('expected system page');
-        systemIds.add(row.systemId);
-      }
-      systemsCursor = next.continueCursor;
-      systemsDone = next.isDone;
-    }
-    expect([...systemIds].sort((a, b) => a - b)).toEqual(
-      Array.from({ length: MAP_FIXTURE_PAGE_SIZE + 1 }, (_, i) => i + 1),
-    );
+    const systems = await collectCollection('systems');
+    const connections = await collectCollection('connections');
+    const signatures = await collectCollection('signatures');
+    const notes = await collectCollection('notes');
+    expect(systems).toHaveLength(MAP_FIXTURE_PAGE_SIZE + 1);
+    expect(connections).toHaveLength(MAP_FIXTURE_PAGE_SIZE + 1);
+    expect(signatures).toHaveLength(MAP_FIXTURE_PAGE_SIZE + 1);
+    expect(notes).toHaveLength(MAP_FIXTURE_PAGE_SIZE + 1);
+    expect(
+      systems
+        .map((row) => {
+          if (!('systemId' in row)) throw new Error('expected system page');
+          return row.systemId as number;
+        })
+        .sort((a, b) => a - b),
+    ).toEqual(Array.from({ length: MAP_FIXTURE_PAGE_SIZE + 1 }, (_, i) => i + 1));
   });
 });
 
@@ -633,6 +665,30 @@ describe('mapFixtures keeps bookkeeping off payload documents', () => {
       purgeAfter: null,
     });
     expect(restored?._id).toBe(before?._id);
+
+    const afterRestoreObservation = await t.mutation(
+      internal.mapFixtures.upsertSignatureObservation,
+      {
+        mapId: MAP_A,
+        systemId: 1,
+        signatureId: 'ABC-123',
+        knowledge: {
+          group: 'wormhole',
+          typeName: null,
+          wormholeTypeCode: null,
+        },
+      },
+    );
+    expect(afterRestoreObservation.kind).toBe('unchanged');
+    const activityRecreated = await t.run((ctx) =>
+      ctx.db
+        .query('mapSignatureActivity')
+        .withIndex('by_map_signature', (q) =>
+          q.eq('mapId', MAP_A).eq('systemId', 1).eq('signatureId', 'ABC-123'),
+        )
+        .unique(),
+    );
+    expect(activityRecreated).not.toBeNull();
 
     // Bounded cleanup: 129 expired + one active survivor.
     const now = 2_000_000_000_000;

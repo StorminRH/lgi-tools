@@ -358,11 +358,21 @@ export const upsertSignatureObservation = internalMutation({
       },
       knowledge,
     );
-    if (merge.kind !== 'enriched') {
-      return { kind: merge.kind, id: existing._id };
+    if (merge.kind === 'enriched') {
+      await ctx.db.patch(existing._id, merge.next);
     }
-    await ctx.db.patch(existing._id, merge.next);
-    return { kind: 'enriched' as const, id: existing._id };
+    // Restored or otherwise missing companions are recreated here; existing
+    // activity rows remain stale-gated inside writeSignatureActivity.
+    await writeSignatureActivity(ctx, {
+      mapId: args.mapId,
+      systemId: args.systemId,
+      signatureId,
+      observedAt: Date.now(),
+    });
+    return {
+      kind: merge.kind === 'enriched' ? ('enriched' as const) : merge.kind,
+      id: existing._id,
+    };
   },
 });
 

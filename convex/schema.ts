@@ -1,5 +1,8 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import { WORMHOLE_SIZE_CLASSES } from '@/data/eve-data/wormhole-contract';
+import { MAP_ROLES } from '@/data/maps/access-contract';
+import { CONNECTION_MASS_STATES } from './lib/mapEntityContracts';
 
 // Convex is a regenerable projection of live ESI data keyed by the Neon
 // identities (userId + characterId) — never the system of record, never a
@@ -21,16 +24,15 @@ import { v } from 'convex/values';
 // kept off watched payload documents.
 
 const mapRoleValidator = v.union(
-  v.literal('viewer'),
-  v.literal('editor'),
-  v.literal('owner'),
+  ...MAP_ROLES.map((role) => v.literal(role)),
 );
 
 const wormholeSizeValidator = v.union(
-  v.literal('S'),
-  v.literal('M'),
-  v.literal('L'),
-  v.literal('XL'),
+  ...WORMHOLE_SIZE_CLASSES.map((size) => v.literal(size)),
+);
+
+const connectionMassValidator = v.union(
+  ...CONNECTION_MASS_STATES.map((state) => v.literal(state)),
 );
 
 export default defineSchema({
@@ -149,11 +151,7 @@ export default defineSchema({
     fromSystemId: v.number(),
     toSystemId: v.number(),
     wormholeTypeCode: v.union(v.string(), v.null()),
-    massState: v.union(
-      v.literal('stable'),
-      v.literal('reduced'),
-      v.literal('critical'),
-    ),
+    massState: connectionMassValidator,
     shipSize: v.union(wormholeSizeValidator, v.null()),
     eolAt: v.union(v.number(), v.null()),
   }).index('by_map', ['mapId']),
