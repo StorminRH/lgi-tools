@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { roleAllows, rolesAllow } from './access-contract';
 import {
   MAP_ROLE_CAPABILITIES,
   MAP_ROLE_PRECEDENCE,
   resolveMapRole,
+  resolveMatchedMapRoles,
   type MapGrant,
 } from './access';
 import type { MapRole } from './schema';
@@ -83,6 +85,7 @@ describe('resolveMapRole', () => {
   });
 
   it('capability record admits a non-linear role without rank comparisons', () => {
+
     const capabilities = MAP_ROLE_CAPABILITIES as Record<
       string,
       { canView: boolean; canEdit: boolean }
@@ -107,5 +110,66 @@ describe('resolveMapRole', () => {
       delete capabilities.access_manager;
       precedence.splice(precedence.indexOf('access_manager'), 1);
     }
+  });
+});
+
+describe('resolveMatchedMapRoles', () => {
+  it('returns every matched role in precedence order', () => {
+    // The Convex gate unions capabilities across this whole set, and the projection stores it in
+    // this order so an unchanged re-projection compares equal and skips the write. Collapsing it
+    // to the display role would silently drop capabilities a second principal granted.
+    expect(
+      resolveMatchedMapRoles({
+        isCreator: false,
+        grants: [
+          grant('corporation', 99, 'viewer'),
+          grant('character', 42, 'editor'),
+        ],
+        principals: { characterIds: [42], corporationIds: [99] },
+      }),
+    ).toEqual(['editor', 'viewer']);
+  });
+
+  it('de-duplicates a role matched through several principals', () => {
+    expect(
+      resolveMatchedMapRoles({
+        isCreator: false,
+        grants: [
+          grant('character', 42, 'editor'),
+          grant('corporation', 99, 'editor'),
+        ],
+        principals: { characterIds: [42], corporationIds: [99] },
+      }),
+    ).toEqual(['editor']);
+  });
+
+  it.each([
+    { label: 'the creator', isCreator: true, expected: ['owner'] },
+    { label: 'no match', isCreator: false, expected: [] },
+  ])('resolves $label', ({ isCreator, expected }) => {
+    expect(
+      resolveMatchedMapRoles({ isCreator, grants: [], principals: EMPTY_PRINCIPALS }),
+    ).toEqual(expected);
+  });
+});
+
+describe('capability predicates', () => {
+  it.each([
+    { role: 'viewer', capability: 'view', expected: true },
+    { role: 'viewer', capability: 'edit', expected: false },
+    { role: 'editor', capability: 'edit', expected: true },
+    { role: 'owner', capability: 'edit', expected: true },
+  ] as const)('$role $capability is $expected', ({ role, capability, expected }) => {
+    expect(roleAllows(role, capability)).toBe(expected);
+  });
+
+  it('denies a role that carries no capability record', () => {
+    expect(roleAllows('ghost' as MapRole, 'view')).toBe(false);
+  });
+
+  it('unions across a role set and denies an empty one', () => {
+    expect(rolesAllow(['viewer', 'editor'], 'edit')).toBe(true);
+    expect(rolesAllow(['viewer'], 'edit')).toBe(false);
+    expect(rolesAllow([], 'view')).toBe(false);
   });
 });

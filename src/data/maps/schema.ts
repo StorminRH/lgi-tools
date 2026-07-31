@@ -9,11 +9,12 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
+import { MAP_ROLES, type MapRole } from './access-contract';
 
-/** Persisted map roles; this tuple is the single TypeScript and Postgres vocabulary. */
-export const MAP_ROLES = ['viewer', 'editor', 'owner'] as const;
-/** One persisted map role. */
-export type MapRole = (typeof MAP_ROLES)[number];
+// The role vocabulary itself lives in the pure ./access-contract owner so the Convex gate can share
+// it without importing Drizzle. This module remains its Postgres home and public re-export.
+export { MAP_ROLES, type MapRole };
+
 /** Drizzle owner of the persisted map-role enum. */
 export const mapRoleEnum = pgEnum('map_role', MAP_ROLES);
 
