@@ -38,12 +38,12 @@ git diff --name-only $(git merge-base HEAD origin/main)..HEAD
 git diff --name-only
 ```
 
-Map route files directly. For shared feature or UI code, use Codegraph MCP
-`codegraph_explore` when available, or CLI `codegraph explore` /
-`codegraph impact` (impact is CLI-only), to find every rendered consumer.
-Replace each dynamic segment with a real locally available identifier obtained
-from the owning list page or database; never treat an example identifier as a
-fixture.
+Map route files directly. For shared feature or UI code, search the repository
+for route and component consumers; use Codegraph MCP `codegraph_explore`, or the
+CLI `codegraph explore` / `codegraph impact`, only when the rendered-consumer or
+blast-radius relationship cannot be established directly. Replace each dynamic
+segment with a real locally available identifier obtained from the owning list
+page or database; never treat an example identifier as a fixture.
 
 The sweep is logged out. Capture authenticated routes to verify their signed-out
 gate, then record that populated account state requires the operator's logged-in

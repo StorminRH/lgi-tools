@@ -1,9 +1,8 @@
 # Convex Layer
 
 > Read this when working on Convex, live-sync, the sync engine, or the ESI gate.
-> CLAUDE.md keeps the load-bearing invariants as one-liners; this doc is the full
-> layer. Same bar as the CLAUDE.md invariants — don't regress without raising a
-> conflict.
+> `convex/AGENTS.md` keeps the load-bearing scoped invariants concise; this doc
+> is the full layer. Do not regress either owner without raising a conflict.
 >
 > This doc also carries the **cost & I/O discipline** distilled from the v3.7
 > scaling audit (completed and archived out of tree; the discipline below is the live authority): the binding constraint at scale

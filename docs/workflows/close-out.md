@@ -212,7 +212,7 @@ second coverage cycle.
    change. Supply the direct request or frozen contract-and-plan chain, the
    current base, the complete tracked patch and untracked inventory, focused and
    UX evidence, and the finalized delivery records from the preceding phase.
-2. Keep the worktree stable while the selected native subagents run. The
+2. Keep the worktree stable while the selected subagents run. The
    adversarial-review procedure owns one holistic role, one-to-three
    non-overlapping scoped roles, the compact receipt, evidence-first
    reconciliation, and verified root-cause ledger. A required role that cannot
@@ -295,8 +295,8 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    preflight and verification steps; a lifecycle-only record does not.
 8. Commit the verified scope in the repository's conventional plain-English style
    — a conventional subject under 72 characters, lowercase after the prefix,
-   describing the project outcome rather than files or symbols (see `AGENTS.md`)
-   — and push the branch. No preview is created automatically.
+   describing the project outcome rather than files or symbols — and push the
+   branch. No preview is created automatically.
 9. **(planned)** Follow the fork above: a non-final session completes its plan
    and SCRATCHPAD handoff in the lifecycle-only commit, then stops; a final
    session has already set its plan `Complete` during finalization and continues

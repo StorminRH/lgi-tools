@@ -17,9 +17,9 @@ Required output is exactly one of:
   remains; or
 - `BLOCKED`: an operator decision or mandatory gate prevents truthful progress.
 
-This procedure is the canonical review-only exception described in `AGENTS.md`.
-It withholds merge authority. Later shipping resumes through `close-out` on the
-same branch and PR.
+This procedure is the canonical review-only exception. It withholds merge
+authority. Later shipping resumes through `close-out` on the same branch and
+PR.
 
 ## Hard rules
 

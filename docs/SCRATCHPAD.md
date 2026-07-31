@@ -35,15 +35,14 @@ active health and update-watch state. The full scratchpad as it stood at the
 
 ## Durable homes
 
-- Repository rules and invariants: `AGENTS.md`, `src/AGENTS.md`, and the owning
-  workflow or schema under `docs/workflows/`.
+- Repository rules and invariants: root and scoped `AGENTS.md` files, plus the
+  owning workflow or schema under `docs/workflows/`.
 - Deferred, unassigned work: `docs/backlog.md`.
 - User-facing and internal ship history: `content/changelog/` and git history.
 - Per-session planned delivery truth from the 3.10 binding floor:
   `../LGI Tools Document Archive/versions/3.10/session-as-built/`.
-- Architecture ownership and the generated dependency view:
-  `docs/architecture-boundaries.md`, `.fallowrc.json`, and
-  `docs/architecture-map.md`.
+- Architecture rules and generated dependency view: `.fallowrc.json`,
+  `src/AGENTS.md`, and `docs/architecture-map.md`.
 - Older scratchpad context: the `pre-3.8/` and `pre-4.0/` document-archive
   folders.
 

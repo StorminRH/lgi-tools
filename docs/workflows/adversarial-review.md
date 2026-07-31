@@ -1,7 +1,7 @@
 # Adversarial-review procedure
 
 Review one complete plan, implementation diff, or pull request with fresh,
-independent native subagents. Keep the review read-only, verify every reported
+independent subagents. Keep the review read-only, verify every reported
 defect, and return one concise reconciled result.
 
 Planning workflows may invoke **Plan mode** before approval. `close-out` invokes
@@ -22,7 +22,7 @@ Select exactly one review mode:
   authority, description, review context, and available verification.
 
 Return `BLOCKED` when the subject is incomplete or changes during review,
-authority is ambiguous, native subagents are unavailable, a selected reviewer
+authority is ambiguous, subagents are unavailable, a selected reviewer
 does not return a verdict, or load-bearing evidence cannot be established.
 When the operator explicitly requires exact runtime identity for an experiment,
 an identity mismatch or an unobservable identity also returns `BLOCKED`.
@@ -123,8 +123,7 @@ establish them. Record absent non-load-bearing evidence as a check or handoff,
 not an actionable finding, and deduplicate symptoms resolved by one
 integration-policy correction.
 
-Role count expresses coverage. Concurrency expresses harness capacity. If the
-harness cannot run every selected role concurrently, queue them without
+Role count expresses coverage. Queue roles that cannot run concurrently without
 combining roles or reducing independence.
 
 Every brief must include the stable subject identity, authority, operator
@@ -152,21 +151,20 @@ Pass paths, symbols, hashes, and the logical inventory instead of raw discovery
 logs or copied source. Require the final verdict to stay compact; the
 reviewer's exploratory transcript remains isolated from the parent context.
 
-## 3. Launch native subagents
+## 3. Launch subagents
 
-Launch one fresh native subagent for every selected role. Use the active
-harness's native delegation mechanism and isolate each reviewer from the
-authoring conversation and other verdicts. Reviewers may inspect the repository
-and run read-only diagnostics but may not edit files, communicate externally,
-or broaden authority.
+Launch one fresh subagent for every selected role and isolate each reviewer from
+the authoring conversation and other verdicts. Reviewers may inspect the
+repository and run read-only diagnostics but may not edit files, communicate
+externally, or broaden authority.
 
 Collect structured verdicts from every selected role. Allow one diagnosed
 retry when a reviewer fails to return the required format. A second failure
 returns `BLOCKED`.
 
 Record the requested runtime identity for each role and the observed identity
-when the harness exposes it. Write `Not observable` when it does not. Never infer observed identity
-from adapter configuration, role name, or self-report.
+when available. Write `Not observable` when it is not. Never infer observed identity
+from role configuration, role name, or self-report.
 Ordinary lifecycle review remains role-based unless the operator made exact
 identity an explicit condition.
 
@@ -190,8 +188,8 @@ but retain the source roles in review-local evidence.
 If reviewers disagree about a security, identity, destructive-data, migration,
 concurrency, or public-contract claim, first settle it from source, primary
 documentation, tests, or observable behavior. If direct evidence cannot settle
-it, return `BLOCKED` for operator direction. Do not silently add an external
-reviewer or a product-specific model lane.
+it, return `BLOCKED` for operator direction. Do not silently add an unselected
+reviewer or model lane.
 
 ## 5. Verify and reconcile
 
@@ -224,7 +222,7 @@ Apply `docs/workflows/schema/chat-result.md` to this exact field set:
 
 - **Verification:** <current commands/results or explicit not-run reason>
 - **Selected roles:** <holistic plus one-to-three scoped roles and reason>
-- **Execution:** <native subagent completion states>
+- **Execution:** <subagent completion states>
 - **Load-bearing checks:** <verified properties that held>
 
 | Reviewer role | Assigned scope | Requested runtime identity | Observed runtime identity | Reported |

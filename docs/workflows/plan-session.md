@@ -27,7 +27,9 @@ to the executor.
    and return to `start-session`.
 2. Read the contract and session-plan schema, then reconcile every dependency,
    boundary, decision, acceptance claim, evidence category, baseline effect, and
-   operator gate against Codegraph and live code.
+   operator gate against current repository evidence and live code. Use
+   Codegraph only when a relationship, consumer, dependency, or blast-radius
+   claim is material.
 3. Treat the contract's approved execution bundle as fixed. Do not split it
    because work has phases, touches different owners, needs producer/consumer
    ordering, or contains a resumable review pause.
@@ -61,6 +63,7 @@ to the executor.
    obtain operator approval while the repository remains unchanged.
 2. Persist the approved plan with approval date, exact contract digest,
    `Execution status: Pending`, and every schema-required section.
+   Do not save or treat a harness-native plan as a second lifecycle artifact.
 3. Run the resolver and drift gate again, report the new directive, and stop.
    Execution begins through a fresh `start-session`; overwrite a re-approved
    plan in place rather than appending history or creating a separate prompt.

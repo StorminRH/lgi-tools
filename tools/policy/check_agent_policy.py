@@ -63,47 +63,6 @@ def check_canonical_guides(
             )
 
 
-def check_global_skill_contracts(
-    manifest: dict[str, object], root: Path, errors: list[str]
-) -> None:
-    """Ensure each globally supplied skill has one repository procedure owner."""
-
-    capability_path = root / "docs/AGENT_CAPABILITIES.md"
-    capability_text = (
-        capability_path.read_text(encoding="utf-8")
-        if capability_path.is_file()
-        else ""
-    )
-    skills = manifest.get("globalSkills", {})
-    if not isinstance(skills, dict):
-        errors.append("globalSkills must be an object")
-        return
-    documented_pairs = re.findall(
-        r"^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|\s*$",
-        capability_text,
-        flags=re.MULTILINE,
-    )
-    documented = dict(documented_pairs)
-    if len(documented) != len(documented_pairs):
-        errors.append("docs/AGENT_CAPABILITIES.md: duplicate global skill mapping")
-    for skill_name, procedure in sorted(skills.items()):
-        procedure_path = root / str(procedure)
-        if not procedure_path.is_file():
-            errors.append(f"{skill_name}: missing owning procedure {procedure}")
-        if documented.get(str(skill_name)) != str(procedure):
-            errors.append(
-                "docs/AGENT_CAPABILITIES.md: missing exact mapping "
-                f"`{skill_name}` -> `{procedure}`"
-            )
-    unexpected = sorted(set(documented) - {str(name) for name in skills})
-    if unexpected:
-        errors.append(
-            "docs/AGENT_CAPABILITIES.md: documented skill(s) missing from the "
-            "manifest: "
-            + ", ".join(unexpected)
-        )
-
-
 def check_procedure_policies(
     manifest: dict[str, object], root: Path, errors: list[str]
 ) -> None:
@@ -319,7 +278,6 @@ def main() -> int:
     errors: list[str] = []
     check_paths(manifest, ROOT, errors)
     check_canonical_guides(manifest, ROOT, errors)
-    check_global_skill_contracts(manifest, ROOT, errors)
     check_procedure_policies(manifest, ROOT, errors)
     check_legacy_entrypoints(manifest, ROOT, errors)
     check_hooks(manifest, ROOT, errors)

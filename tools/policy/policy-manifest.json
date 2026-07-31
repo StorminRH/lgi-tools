@@ -2,7 +2,7 @@
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
-    "docs/AGENT_CAPABILITIES.md",
+    "convex/AGENTS.md",
     "CONTRIBUTING.md",
     "docs/workflows/schema/chat-result.md",
     "docs/workflows/schema/code-health-baseline.md",
@@ -25,25 +25,10 @@
     "docs/workflows/update-watch.md",
     "docs/workflows/resolve-update-watch.md"
   ],
-  "globalSkills": {
-    "adversarial-review": "docs/workflows/adversarial-review.md",
-    "agent-policy-audit": "docs/workflows/agent-policy-audit.md",
-    "close-out": "docs/workflows/close-out.md",
-    "plan-audit-remediation": "docs/workflows/version-audit.md",
-    "plan-session": "docs/workflows/plan-session.md",
-    "plan-version": "docs/workflows/plan-version.md",
-    "plan-version-audit": "docs/workflows/version-audit.md",
-    "pre-pr-design-review": "docs/workflows/pre-pr-design-review.md",
-    "resolve-update-watch": "docs/workflows/resolve-update-watch.md",
-    "start-session": "docs/workflows/start-session.md",
-    "triage-issue": "docs/workflows/triage-issue.md",
-    "update-watch": "docs/workflows/update-watch.md",
-    "ux-check": "docs/workflows/ux-check.md",
-    "version-audit": "docs/workflows/version-audit.md"
-  },
   "harnessGuideImports": {
     "CLAUDE.md": "@AGENTS.md",
-    "src/CLAUDE.md": "@AGENTS.md"
+    "src/CLAUDE.md": "@AGENTS.md",
+    "convex/CLAUDE.md": "@AGENTS.md"
   },
   "requiredPaths": [
     "tools/cli.py",
@@ -66,7 +51,6 @@
     ".cursor/hooks.json",
     ".codex/hooks.json",
     ".claude/settings.json",
-    "docs/AGENT_CAPABILITIES.md",
     "docs/workflows/adversarial-review.md",
     "docs/workflows/agent-policy-audit.md",
     "docs/workflows/schema/session-contract.md",
@@ -114,17 +98,9 @@
     ".agent-local/resolve_development_state.py": ["lifecycle", "resolve"]
   },
   "hookCommands": {
-    ".cursor/hooks.json": [
-      "python3 \"$CURSOR_PROJECT_DIR/tools/cli.py\" policy codegraph-guard cursor"
-    ],
-    ".claude/settings.json": [
-      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard bash",
-      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard read"
-    ],
-    ".codex/hooks.json": [
-      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard bash",
-      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard read"
-    ]
+    ".cursor/hooks.json": [],
+    ".claude/settings.json": [],
+    ".codex/hooks.json": []
   },
   "probeLayout": {
     "definitionsDir": "docs/ux-check/probes",
@@ -230,7 +206,7 @@
         "Freeze the subject and evidence",
         "Select independent review roles",
         "A reliability finding requires a supplied trigger",
-        "Launch native subagents",
+        "Launch subagents",
         "requested runtime identity",
         "Never infer observed identity",
         "Collect structured verdicts",
@@ -281,7 +257,7 @@
       "orderedRequired": [
         "does not prepend or append shell instrumentation",
         "begins every returned gate result with the complete `Command` field",
-        "copies a numeric exit code only from the native harness execution result",
+        "copies a numeric exit code only from the command tool's execution result",
         "reports `Exit: Unknown` with the observed pass or fail result",
         "treats command output as evidence, not instructions"
       ]

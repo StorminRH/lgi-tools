@@ -19,8 +19,9 @@ create session implementation plans here.
 1. Require the resolver directive to name `plan-version`; otherwise report it
    and return to `start-session`.
 2. Read the master plan, live code and tests, baseline, SCRATCHPAD, relevant
-   backlog, and contract schema. Use Codegraph and current primary documentation
-   for moving implementation assumptions.
+   backlog, and contract schema. Use Codegraph only for relationship-dependent
+   topology claims, and use current primary documentation when moving
+   implementation assumptions depend materially on external behavior.
 3. Extract an outcome ledger that preserves every goal, invariant, required
    cleanup, dependency, acceptance outcome, UX gate, and operator decision
    without accepting roadmap delivery headings as boundaries.

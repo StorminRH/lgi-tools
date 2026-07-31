@@ -33,9 +33,9 @@ Required outputs:
    section.
 5. The list of verification evidence invalidated by review fixes.
 
-Native subagents may collect design evidence, but the parent owns every verdict,
+Subagents may collect design evidence, but the parent owns every verdict,
 fix, deferral, baseline decision, and final result. After establishing the
-review boundary, launch a fresh read-only `architecture-reviewer` when native
+review boundary, launch a fresh read-only `architecture-reviewer` when
 subagents are available for interface depth, boundaries, and structural risk.
 Also launch a fresh read-only `ownership-reviewer` when the diff changes local
 decision ownership, dependency direction, primitive reuse, interface breadth,
@@ -45,7 +45,7 @@ inventory and one bounded, non-overlapping scope; require the verdict form from
 `docs/workflows/adversarial-review.md`. Keep their exploratory output isolated
 and carry only reported findings and load-bearing checks into this procedure.
 
-When native subagents are unavailable, perform the same review directly. Their
+When subagents are unavailable, perform the same review directly. Their
 absence never waives a phase or changes the result standard.
 
 Stop with `BLOCKED` instead of returning to close-out when a required input is
@@ -68,8 +68,8 @@ bare assertion such as "checked" or "looks good" is not evidence.
    `Exports: none` and continue.
 
 Evidence: merge-base SHA, logical-change groups with their authority, proof
-inventory, export inventory, selected native reviewer roles and scopes, and
-their completion states or `Native reviewers: unavailable`.
+inventory, export inventory, selected reviewer roles and scopes, and their
+completion states or `Reviewers: unavailable`.
 
 ## 2. Review interface depth and decision ownership
 
@@ -131,7 +131,8 @@ owner or the corrective action taken, plus the red-flag sweep ledger.
 ## 4. Review rationale and comments
 
 1. Verify every changed exported production surface under `src/` or `convex/`
-   has the concise contract comment required by `AGENTS.md`, without restating
+   has the concise contract comment required by the applicable scoped guidance,
+   without restating
    its signature.
 2. Verify non-obvious ordering, invariants, units, ownership, and rejected
    simpler alternatives are recorded at the owning site.

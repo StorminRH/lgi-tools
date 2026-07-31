@@ -252,8 +252,10 @@ def _source_paths(root: Path) -> list[Path]:
         for raw_path in (
             "AGENTS.md",
             "src/AGENTS.md",
+            "convex/AGENTS.md",
             "CLAUDE.md",
             "src/CLAUDE.md",
+            "convex/CLAUDE.md",
             "README.md",
             "CONTRIBUTING.md",
             "SECURITY.md",
