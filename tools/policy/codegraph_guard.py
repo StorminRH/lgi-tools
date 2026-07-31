@@ -7,8 +7,13 @@ is useful instead of on every subsequent source read. The per-session marker
 records only that the reminder has already been shown; the guard never tries to
 infer whether Codegraph was actually consulted (a hook cannot observe that
 reliably). Sessions are keyed by the harness session or conversation identifier
-received on stdin; when that is absent the guard falls back to reminding every
-time rather than going silent.
+received on stdin.
+
+Claude and Codex paths inject additionalContext and, when no session identifier
+is present, fall back to reminding every time rather than going silent. Cursor
+preToolUse can only deliver agent_message on deny, so Cursor mode emits a
+deny-once reminder only after creating a durable marker and otherwise fails
+open with no reminder — a missing identifier must not permanently block tools.
 """
 
 from __future__ import annotations
