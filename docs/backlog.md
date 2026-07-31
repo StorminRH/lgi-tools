@@ -816,3 +816,37 @@ so both need a real design decision, not a constraint.
   benefit from both owners being live. *Found during 4.0.2.1.1 close-out; the
   warning predates this session's fixes and was confirmed present with them
   stashed.*
+
+- **Give purged signatures a note-cascade owner.** *What:* `mapNotes` rows with
+  `targetKind: 'signature'` store the signature's Convex document ID as
+  `targetId`, but `purgeExpiredSignatures` deletes only the `mapSignatures` row.
+  A note attached to a signature therefore outlives the signature it describes,
+  keeps being returned by `readMapCollection('notes')`, and can never be resolved
+  or found again. *Impact:* slow leak of unreachable notes once real authoring
+  and undo ship; no user-visible break today because nothing writes notes outside
+  the fixture seam. *Fix direction:* the cascade cannot go in
+  `convex/lib/mapSignatureCleanup.ts` as that module stands — session 4.0.2.2.1's
+  SC-4 pins it by source contract to exactly one indexed `mapSignatures` query
+  with no `db.get`, so widening it there would invalidate an approved success
+  criterion. Give the cascade its own bounded owner keyed on the existing
+  `mapNotes.by_map_target` index, or decide during 4.0.4.3.1's undo-window work
+  that signature notes should key on `(systemId, signatureId)` join keys like
+  `mapConnections` does rather than on a document ID. *Size:* S. *Trigger:*
+  whichever lands first — the first real note-authoring surface, or 4.0.4.3.1's
+  undo/purge decision. *Found by adversarial review during 4.0.2.2.1 and
+  deliberately left out of scope: the plan explicitly specifies the document-ID
+  note target, and the cleanup module's source contract is a pinned success
+  criterion of that same session.*
+
+- **Refresh `docs/CONVEX.md`'s Convex-primary exception clause.** *What:* the
+  data-model section still describes the sanctioned durability exception as the
+  mapper's "signatures, notes, bookmarks", but sub-version 4.0.2.2 also lands
+  `mapSystems` and `mapConnections` as Convex-primary user-authored tables under
+  master-plan decision D3. *Impact:* the prose owner now understates the
+  exception, so a later agent reading it as the constraint could reject a correct
+  chain table or invent a second Neon owner for connections. *Fix direction:* one
+  clause naming the whole per-map chain and citing D3; no behaviour change.
+  *Size:* XS. *Trigger:* the next session that touches `docs/CONVEX.md`, or
+  4.0.2.2.2, which extends the same tables. *Found by adversarial review during
+  4.0.2.2.1; left out of scope because `docs/CONVEX.md` is not among that
+  session's owned surfaces.*

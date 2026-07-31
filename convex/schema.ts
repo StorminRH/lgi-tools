@@ -1,5 +1,12 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import {
+  mapRoleValidator,
+  massStateValidator,
+  noteTargetKindValidator,
+  shipSizeValidator,
+  wormholeTypeCodeValidator,
+} from './lib/mapEntityContracts';
 
 // Convex is a regenerable projection of live ESI data keyed by the Neon
 // identities (userId + characterId) — never the system of record, never a
@@ -103,4 +110,121 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
+
+  // ── v4.0 collaborative chain (the one sanctioned durability exception) ──────
+  //
+  // These are the mapper's USER-AUTHORED artifacts: Convex-primary, not a
+  // projection of Neon. Neon still owns map identity, metadata and durable
+  // access; nothing here ever writes back to it. Every document carries JOIN KEYS
+  // ONLY — system/connection/signature/map/user IDs and canonical wormhole codes.
+  // System names, classes, effects and codex mass/lifetime facts stay in the SDE
+  // client codex, so a chain read never pays to re-send reference data and a new
+  // SDE build never rewrites stored rows.
+  //
+  // Granular on the write/subscribe axis, bounded on the read axis (Cost Rule 4):
+  // one document per entity so two scouts editing different signatures never
+  // share a read/write set, and every growing collection is read through an
+  // indexed page rather than collect().
+
+  // The projected role claim the collaborative gate reads. NON-AUTHORITATIVE: a
+  // regenerable mirror of the durable Neon rule, carrying the full effective role
+  // set so a caller matching through several principals keeps every capability.
+  // Session 4.0.2.2.2 owns every writer; until then production claims are absent
+  // and the fixture API fails closed by construction.
+  mapAccess: defineTable({
+    mapId: v.string(),
+    userId: v.string(),
+    // Non-empty, unique, stored in MAP_ROLE_PRECEDENCE order so a re-projection
+    // that changes nothing compares equal and skips the write (Cost Rule 3). The
+    // validator is bound to the shared Neon role vocabulary, so widening
+    // MAP_ROLES without widening this table is a compile error rather than a
+    // claim the projection writer would silently fail to store.
+    roles: v.array(mapRoleValidator),
+  })
+    .index('by_map', ['mapId'])
+    // The gate's single indexed read; it is also the read set that must
+    // participate in live revocation once the projection is connected.
+    .index('by_map_user', ['mapId', 'userId'])
+    // Teardown/resynchronization by user, owned by the next session.
+    .index('by_user', ['userId']),
+
+  // One document per system placed on one map.
+  mapSystems: defineTable({
+    mapId: v.string(),
+    systemId: v.number(),
+  })
+    .index('by_map', ['mapId'])
+    // Makes the map/system upsert an exact indexed lookup, so a repeated or
+    // concurrent placement converges on one document instead of racing.
+    .index('by_map_system', ['mapId', 'systemId']),
+
+  // One document per connection between two systems on one map. Endpoints are
+  // system IDs, never document references, so a connection survives independently
+  // of how its endpoints were placed. Remaining lifetime is always derived from
+  // `eolAt - now` on the client; no scheduler ever flips an EOL state.
+  mapConnections: defineTable({
+    mapId: v.string(),
+    fromSystemId: v.number(),
+    toSystemId: v.number(),
+    wormholeTypeCode: wormholeTypeCodeValidator,
+    massState: massStateValidator,
+    shipSize: shipSizeValidator,
+    eolAt: v.union(v.number(), v.null()),
+  }).index('by_map', ['mapId']),
+
+  // One document per scanned signature. The nullable knowledge fields hold the
+  // map's best SHARED knowledge: a later observation may enrich them, but a
+  // less-resolved paste never erases what the map already knows. Soft deletion is
+  // reversible — the payload stays on the document so a restore recovers it
+  // unchanged — and bounded by an absolute purge instant.
+  mapSignatures: defineTable({
+    mapId: v.string(),
+    systemId: v.number(),
+    signatureId: v.string(),
+    group: v.union(v.string(), v.null()),
+    typeName: v.union(v.string(), v.null()),
+    // Non-null only with group 'wormhole'. An identified-as-wormhole-but-untyped
+    // signature stores null here; K162 is a real far-side code, never a stand-in
+    // for unknown.
+    wormholeTypeCode: wormholeTypeCodeValidator,
+    // Both null on an active row, or both finite with purgeAfter > deletedAt.
+    deletedAt: v.union(v.number(), v.null()),
+    purgeAfter: v.union(v.number(), v.null()),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_signature', ['mapId', 'systemId', 'signatureId'])
+    // Expiry-only cleanup ranges this oldest-first. Convex orders null below
+    // every number, so an active (null) row cannot enter a `> null` range and
+    // survives every cleanup call by construction.
+    .index('by_purge_after', ['purgeAfter']),
+
+  // One document per user-authored note. Notes are primary payload, not a
+  // projection. A map-wide note repeats the stable map ID as its target; system
+  // and signature notes carry the matching Convex document ID. The first UI may
+  // expose only system notes while the stored shape already admits the others.
+  mapNotes: defineTable({
+    mapId: v.string(),
+    targetKind: noteTargetKindValidator,
+    targetId: v.string(),
+    body: v.string(),
+  })
+    .index('by_map', ['mapId'])
+    // Reserved for the authoring surfaces in 4.0.4.x: fetching or replacing the
+    // note on one specific target without ranging the whole map.
+    .index('by_map_target', ['mapId', 'targetKind', 'targetId']),
+
+  // Last-seen bookkeeping, split off mapSignatures exactly as syncPresence is
+  // split off syncSubjects (Cost Rule 2). No payload query reads this table, so a
+  // re-observation of an unchanged signature cannot invalidate a watched chain
+  // document through Convex's document-granular reactivity.
+  mapSignatureActivity: defineTable({
+    mapId: v.string(),
+    systemId: v.number(),
+    signatureId: v.string(),
+    lastSeenAt: v.number(),
+  })
+    // Reserved for the per-map teardown 4.0.2.2.2 owns; the write path uses only
+    // by_map_signature, and no payload query reads this table at all.
+    .index('by_map', ['mapId'])
+    .index('by_map_signature', ['mapId', 'systemId', 'signatureId']),
 });
