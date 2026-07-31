@@ -40,7 +40,6 @@
     "tools/policy/check_agent_policy.py",
     "tools/policy/check_all.py",
     "tools/policy/check_doc_refs.py",
-    "tools/policy/codegraph_guard.py",
     "tools/policy/policy-manifest.json",
     "tools/quality/check_baseline_claims.py",
     "tools/update_watch/update_watch_collect.py",
@@ -48,8 +47,6 @@
     ".agent-local/resolve_development_state.py",
     ".agent-local/check_release_consistency.py",
     ".agent-local/check_agent_drift.py",
-    ".cursor/hooks.json",
-    ".codex/hooks.json",
     ".claude/settings.json",
     "docs/workflows/adversarial-review.md",
     "docs/workflows/agent-policy-audit.md",
@@ -96,11 +93,6 @@
     ".agent-local/check_agent_drift.py": ["policy", "check-all"],
     ".agent-local/check_release_consistency.py": ["lifecycle", "check-release"],
     ".agent-local/resolve_development_state.py": ["lifecycle", "resolve"]
-  },
-  "hookCommands": {
-    ".cursor/hooks.json": [],
-    ".claude/settings.json": [],
-    ".codex/hooks.json": []
   },
   "probeLayout": {
     "definitionsDir": "docs/ux-check/probes",
