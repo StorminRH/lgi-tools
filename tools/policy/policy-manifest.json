@@ -204,9 +204,20 @@
         "Do not split it",
         "recorded split trigger",
         "Draft and review",
+        "focused executable probe",
         "Invoke `adversarial-review` in Plan mode",
         "operator approval",
         "Persist the approved plan"
+      ]
+    },
+    "docs/workflows/start-session.md": {
+      "orderedRequired": [
+        "Resolve and select the branch",
+        "Dispatch",
+        "installed framework or runtime limit",
+        "do not select a replacement public interface",
+        "in-context proof ledger",
+        "Stop and resume"
       ]
     },
     "docs/workflows/adversarial-review.md": {
@@ -220,6 +231,8 @@
         "Select independent review roles",
         "A reliability finding requires a supplied trigger",
         "Launch native subagents",
+        "requested runtime identity",
+        "Never infer observed identity",
         "Collect structured verdicts",
         "Verify and reconcile"
       ],
@@ -234,12 +247,29 @@
       "orderedRequired": [
         "Pre-PR design-review gate",
         "Adversarial implementation-review gate",
+        "requested and observed runtime identity",
         "Finalize and verify the current head",
+        "in-context atomic proof ledger",
         "Open one \\*\\*draft\\*\\* PR",
         "mark it ready for review exactly once",
         "poll-pr-gate",
         "Merge \\(shared\\)",
         "After merge and production proof"
+      ]
+    },
+    "docs/workflows/schema/session-plan.md": {
+      "orderedRequired": [
+        "Proof standard",
+        "Proof identifiers are unique and contiguous"
+      ]
+    },
+    "docs/workflows/schema/session-as-built.md": {
+      "orderedRequired": [
+        "Plan statement",
+        "Built instead",
+        "Authority",
+        "one ordered line per plan criterion",
+        "requested and observed runtime identity separately"
       ]
     },
     "docs/workflows/version-audit.md": {

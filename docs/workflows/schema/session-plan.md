@@ -18,6 +18,7 @@ An approved plan starts with this frame:
 **Contract:** `docs/session-contracts/X.Y/X.Y.N.M.md`
 **Contract digest:** `sha256:<64 lowercase hexadecimal characters>`
 **Planning standard:** `docs/workflows/schema/session-plan.md`
+**Proof standard:** Atomic
 **Execution status:** Pending
 **Baseline effect:** Neutral
 ```
@@ -32,6 +33,8 @@ The marker values are closed vocabularies:
   bytes, prefixed with `sha256:`.
 - `Planning standard` is exactly
   `docs/workflows/schema/session-plan.md`.
+- `Proof standard` is exactly `Atomic`. It binds each success criterion to
+  separately executable proof rows with one required observable per row.
 - `Execution status` is exactly `Pending` or `Complete`. Close-out changes it
   to `Complete` only after the session's required delivery evidence exists.
 - `Baseline effect` is exactly `Improves`, `Neutral`, or `Temporary pressure`:
@@ -232,19 +235,33 @@ instructions such as "update relevant files," "add tests as needed," or
 
 ## Success criteria (agent-runnable — show the output)
 
-- **SC-1 — Contract DC-1 / AC-1 / V-1.** `[focused command]` → [the exact
-  passing result or observed behavior].
-- **SC-2 — Contract DC-2 / AC-2 / V-2.** `[current repository gate]` → [the
-  expected zero-error or green result].
-- **SC-3 — Contract DC-3 / AC-3 / V-3 / G-1.** `[inspection, route, fixture, or
-  generated artifact]` → [the concrete output that proves the user-visible or
-  contract-level result and reaches the named operator pause].
+- **SC-1 — Contract DC-1 / AC-1 / V-1.** [One observable outcome.]
 
-Success criteria pair every command with the output that must be shown. A bare
-statement that tests pass is not acceptance evidence. Every `DC-N` and `AC-N`
-maps to at least one numbered criterion, every `V-N` is represented by runnable
-proof, and every `G-N` appears in the delivery sequence. `DONE =` references
-these identifiers instead of duplicating their commands.
+  | Proof | Evidence action | Required observable |
+  | --- | --- | --- |
+  | `SC-1.1` | `[focused command or inspection]` | [One exact output, state transition, or behavior.] |
+
+- **SC-2 — Contract DC-2 / AC-2 / V-2.** [One observable outcome.]
+
+  | Proof | Evidence action | Required observable |
+  | --- | --- | --- |
+  | `SC-2.1` | `[current repository gate]` | [One expected zero-error or green result.] |
+
+- **SC-3 — Contract DC-3 / AC-3 / V-3 / G-1.** [One observable outcome.]
+
+  | Proof | Evidence action | Required observable |
+  | --- | --- | --- |
+  | `SC-3.1` | `[inspection, route, fixture, or generated artifact]` | [One concrete user-visible or contract-level result.] |
+  | `SC-3.2` | `[operator-gate evidence]` | [The named pause was reached and its disposition recorded.] |
+
+Proof identifiers are unique and contiguous within each criterion (`SC-1.1`,
+`SC-1.2`, and so on). Each proof row contains one runnable command or focused
+inspection and one required observable; do not combine unrelated behaviors in
+one row. A passing command name or a bare statement that tests pass is not
+acceptance evidence. Every `DC-N` and `AC-N` maps to at least one numbered
+criterion, every `V-N` is represented by runnable proof, and every `G-N`
+appears in the delivery sequence. `DONE =` references the `SC-N` identifiers
+instead of duplicating their evidence actions.
 
 ## End of session
 

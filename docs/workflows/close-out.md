@@ -229,9 +229,10 @@ second coverage cycle.
    final bytes.
 
 Phase evidence: reviewed working-tree base and patch digest, every selected
-reviewer verdict and compact count, selected roles and completion states,
-direct-evidence blocker disposition or `Not used`, accepted and rejected
-dispositions, and the final clean/corrected boundary verdict.
+reviewer verdict and compact receipt including requested and observed runtime identity,
+selected roles and completion states, direct-evidence blocker
+disposition or `Not used`, accepted and rejected dispositions, and the final
+clean/corrected boundary verdict.
 
 ## Finalize and verify the current head (shared)
 
@@ -244,6 +245,11 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    ordinary mode — plus prohibited surfaces. Remove anything outside those
    boundaries, confirm every required surface is present, and screen all tracked
    content for personal information before mechanical verification begins.
+   **(planned)** Expand each plan `SC-N` into an in-context atomic proof ledger
+   and confirm every required observable. A passing command, test name, or
+   grouped criterion range is not proof. Stop `BLOCKED` if any observable is
+   absent. A material framework limit or public-interface divergence returns to
+   `plan-session`; the as-built record cannot supply missing authority.
 2. Reconcile durable memory before any final mechanical gate can be invalidated
    by another documentation edit. **(ordinary and planned final session)** update
    `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and contract

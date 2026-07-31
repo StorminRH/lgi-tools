@@ -24,6 +24,8 @@ Select exactly one review mode:
 Return `BLOCKED` when the subject is incomplete or changes during review,
 authority is ambiguous, native subagents are unavailable, a selected reviewer
 does not return a verdict, or load-bearing evidence cannot be established.
+When the operator explicitly requires exact runtime identity for an experiment,
+an identity mismatch or an unobservable identity also returns `BLOCKED`.
 This procedure grants no edit, approval, commit, PR, merge, deployment,
 lifecycle, or outward-action authority.
 
@@ -162,13 +164,19 @@ Collect structured verdicts from every selected role. Allow one diagnosed
 retry when a reviewer fails to return the required format. A second failure
 returns `BLOCKED`.
 
+Record the requested runtime identity for each role and the observed identity
+when the harness exposes it. Write `Not observable` when it does not. Never infer observed identity
+from adapter configuration, role name, or self-report.
+Ordinary lifecycle review remains role-based unless the operator made exact
+identity an explicit condition.
+
 Render one compact receipt before triage:
 
 ```markdown
-| Reviewer role | Assigned scope | Reported |
-|---|---|---:|
-| Holistic | Complete subject | <severity counts or Clean> |
-| Scoped 1 | <scope> | <severity counts or Clean> |
+| Reviewer role | Assigned scope | Requested runtime identity | Observed runtime identity | Reported |
+|---|---|---|---|---:|
+| Holistic | Complete subject | <selection, inherit, or unspecified> | <identity or Not observable> | <severity counts or Clean> |
+| Scoped 1 | <scope> | <selection, inherit, or unspecified> | <identity or Not observable> | <severity counts or Clean> |
 ```
 
 Do not quote or enumerate raw reviewer findings before reconciliation.
@@ -219,9 +227,9 @@ Apply `docs/workflows/schema/chat-result.md` to this exact field set:
 - **Execution:** <native subagent completion states>
 - **Load-bearing checks:** <verified properties that held>
 
-| Reviewer role | Assigned scope | Reported |
-|---|---|---:|
-| <role> | <scope> | <severity counts or Clean> |
+| Reviewer role | Assigned scope | Requested runtime identity | Observed runtime identity | Reported |
+|---|---|---|---|---:|
+| <role> | <scope> | <selection, inherit, or unspecified> | <identity or Not observable> | <severity counts or Clean> |
 
 ### Triage
 

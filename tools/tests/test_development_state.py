@@ -15,7 +15,9 @@ import unittest
 from tools.lifecycle.resolve_development_state import (
     DELIVERY_UNITS,
     RELEASE_CONSISTENCY_GATE,
+    atomic_plan_binds,
     as_built_binds,
+    execution_receipt_binds,
     lifecycle_branch,
     required_contract_sections,
     resolve,
@@ -244,7 +246,13 @@ class ResolverFixture:
             "Final surfaces": "None.",
             "Discovered work": "None.",
             "Successor notes": "None.",
-            "Verification summary": "- SC-1: fixture evidence.",
+            "Verification summary": (
+                "- **SC-1:** `Passed` — focused fixture output matched the required observable.\n"
+                "- **SC-2:** `Passed` — repository gate returned a clean result.\n"
+                "- **Adversarial review:** Subject: fixture digest; Roles: holistic and contract; "
+                "Runtime identity: requested=inherit, observed=Not observable; "
+                "Verdict: CLEAN; Disposition: no findings."
+            ),
         }
         if empty_section:
             sections[empty_section] = ""
@@ -301,6 +309,7 @@ class ResolverFixture:
 **Contract:** `docs/session-contracts/9.9/{session}.md`
 **Contract digest:** `sha256:{digest}`
 **Planning standard:** `docs/workflows/schema/session-plan.md`
+**Proof standard:** Atomic
 **Execution status:** {execution_status}
 {baseline_marker}
 ## Bottom line (READ FIRST)
@@ -394,8 +403,17 @@ No runtime data flow changes.
 
 ## Success criteria (agent-runnable — show the output)
 
-- **SC-1 — Contract DC-1 / AC-1 / V-1.** `fixture focused` → fixture passes.
-- **SC-2 — Contract delivery.** `fixture gate` → clean result.
+- **SC-1 — Contract DC-1 / AC-1 / V-1.** Fixture behavior is observable.
+
+  | Proof | Evidence action | Required observable |
+  | --- | --- | --- |
+  | `SC-1.1` | `fixture focused` | Fixture passes with the expected output. |
+
+- **SC-2 — Contract delivery.** Repository gate is clean.
+
+  | Proof | Evidence action | Required observable |
+  | --- | --- | --- |
+  | `SC-2.1` | `fixture gate` | Command exits successfully with no findings. |
 
 ## End of session
 
@@ -665,6 +683,41 @@ class DevelopmentStateTests(unittest.TestCase):
             state["reason"],
         )
         self.assertTrue(any("required ## sections" in error for error in errors))
+
+    def test_atomic_plan_proof_is_required_after_binding_floor(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        plan.write_text(
+            plan.read_text(encoding="utf-8").replace("**Proof standard:** Atomic\n", ""),
+            encoding="utf-8",
+        )
+
+        state, errors = resolve(self.fixture.root)
+
+        self.assertEqual("session-plan-needed", state["stage"])
+        self.assertIn("Proof standard must be 'Atomic'", errors)
+
+    def test_atomic_plan_proof_ids_must_be_contiguous(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        plan.write_text(
+            plan.read_text(encoding="utf-8").replace("`SC-1.1`", "`SC-1.2`"),
+            encoding="utf-8",
+        )
+
+        state, errors = resolve(self.fixture.root)
+
+        self.assertEqual("session-plan-needed", state["stage"])
+        self.assertTrue(any("SC-1 proof identifiers" in error for error in errors))
+
+    def test_atomic_plan_binding_preserves_current_frozen_plan(self) -> None:
+        self.assertFalse(atomic_plan_binds("4.0.2.2.1"))
+        self.assertTrue(atomic_plan_binds("4.0.2.2.2"))
+        self.assertTrue(atomic_plan_binds("9.9.1.1.1"))
 
     def test_plan_schema_enforces_contract_coverage_and_verified_inputs(self) -> None:
         self.fixture.write_roadmap("PLANNED")
@@ -991,6 +1044,80 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertTrue(any("Successor notes" in item for item in violations))
         self.assertTrue(any(item.startswith("PR must be") for item in violations))
 
+    def test_as_built_requires_structured_divergence_authority(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+        record = self.fixture.write_as_built(contract)
+        record.write_text(
+            record.read_text(encoding="utf-8").replace(
+                "## Divergences from plan\n\nNone.",
+                "## Divergences from plan\n\n"
+                "- **Plan statement:** Keep the fixture seam.\n"
+                "  **Built instead:** Used another seam.\n"
+                "  **Why:** Installed behavior required it.\n"
+                "  **Authority:** Agent choice.",
+            ),
+            encoding="utf-8",
+        )
+
+        state, _ = resolve(self.fixture.root)
+
+        self.assertEqual("as-built-needed", state["stage"])
+        self.assertTrue(
+            any("Authority must begin" in item for item in state["asBuiltViolations"])
+        )
+
+    def test_as_built_accepts_structured_evidence_divergence(self) -> None:
+        (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
+            "# Version 9.9\n\n## Status\n\n"
+            "| Sub-version | Theme | Sessions | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 9.9.1.1 | Shipped work | 1 | SHIPPED |\n"
+            "| 9.9.1.2 | Next work | 1 | PLANNED |\n",
+            encoding="utf-8",
+        )
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+        record = self.fixture.write_as_built(contract)
+        record.write_text(
+            record.read_text(encoding="utf-8").replace(
+                "## Divergences from plan\n\nNone.",
+                "## Divergences from plan\n\n"
+                "- **Plan statement:** Use the named fixture inspection.\n"
+                "  **Built instead:** Used the installed fixture probe.\n"
+                "  **Why:** The named inspection was unavailable.\n"
+                "  **Authority:** Evidence: installed fixture output.",
+            ),
+            encoding="utf-8",
+        )
+
+        state, errors = resolve(self.fixture.root)
+
+        self.assertEqual([], errors)
+        self.assertEqual("contracts-needed", state["stage"])
+        self.assertNotIn("asBuiltViolations", state)
+
+    def test_as_built_requires_each_passed_criterion_and_review_receipt(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+        record = self.fixture.write_as_built(contract)
+        text = record.read_text(encoding="utf-8")
+        text = re.sub(
+            r"- \*\*SC-1:\*\*[\s\S]*?- \*\*Adversarial review:\*\*[^\n]+",
+            "- **SC-1 through SC-2:** `Passed` — fixture suite passed.",
+            text,
+        )
+        record.write_text(text, encoding="utf-8")
+
+        state, _ = resolve(self.fixture.root)
+
+        self.assertEqual("as-built-needed", state["stage"])
+        violations = state["asBuiltViolations"]
+        self.assertTrue(any("one ordered Passed line" in item for item in violations))
+        self.assertTrue(any("adversarial-review receipt" in item for item in violations))
+
     def test_stale_plan_digest_invalidates_as_built(self) -> None:
         # Editing a frozen prompt after its as-built sealed it must surface.
         (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
@@ -1083,6 +1210,11 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertTrue(as_built_binds("3.10.2.1"))
         self.assertTrue(as_built_binds("3.11.0.1"))
         self.assertTrue(as_built_binds("9.9.1.1"))
+
+    def test_execution_receipt_binding_floor(self) -> None:
+        self.assertFalse(execution_receipt_binds("4.0.2.1.9"))
+        self.assertTrue(execution_receipt_binds("4.0.2.2.1"))
+        self.assertTrue(execution_receipt_binds("9.9.1.1.1"))
 
     def test_pre_3_9_artifacts_are_exempt_from_binding_markers(self) -> None:
         (self.fixture.docs / "VERSION_9_9_PLAN.md").unlink()

@@ -138,6 +138,12 @@ file layout. Harness-native definitions may select different models and
 permission syntax while following the same repository-owned evidence and
 authority contracts.
 
+Requested and observed runtime identity are separate evidence. Record the
+adapter selection and the actual identity when the harness exposes it; use
+`Not observable` otherwise and never infer actual identity from configuration
+or self-report. Exact identity is a benchmark condition only when the operator
+explicitly requires it; ordinary lifecycle review is bound to role coverage.
+
 The parent owns orchestration. It supplies a bounded brief, receives only the
 subagent's final structured result, verifies load-bearing conclusions, and
 retains all decisions, edits, approval, and outward-action authority.

@@ -42,11 +42,15 @@ to the executor.
 2. Resolve every contract planning decision from live evidence. Keep ordinary
    local implementation choices with the agent; surface only consequential
    decisions that change behavior, ownership, risk, or scope.
-3. Produce every required plan marker, heading, mapping, interface, control-flow
+3. For every framework-sensitive interface or runtime claim, cite current
+   primary documentation or run a focused executable probe against the
+   installed version. If feasibility remains unproved, present bounded
+   alternatives for operator approval instead of freezing one as exact.
+4. Produce every required plan marker, heading, mapping, interface, control-flow
    statement, edge/failure behavior, ordered work item, and command-plus-output
    success criterion. No Blocking prerequisite or unresolved placeholder may
    remain.
-4. Invoke `adversarial-review` in Plan mode with the complete draft, contract,
+5. Invoke `adversarial-review` in Plan mode with the complete draft, contract,
    schema, and source evidence. Reconcile every verified finding and permit at
    most one rerun after a material architecture, scope, or verification change.
    Do not persist reviewer transcripts or superseded drafts.
