@@ -67,6 +67,58 @@ async function requireSameMapSystem(
   return system._id;
 }
 
+async function requireSameMapNoteTarget(
+  ctx: MutationCtx,
+  mapId: string,
+  targetKind: 'map' | 'system' | 'signature',
+  targetId: string,
+): Promise<void> {
+  if (targetKind === 'map') return;
+  if (targetKind === 'system') {
+    const system = await ctx.db.get(targetId as Id<'mapSystems'>);
+    if (system === null || system.mapId !== mapId) {
+      throw new Error('system note target must belong to the same map');
+    }
+    return;
+  }
+  const signature = await ctx.db.get(targetId as Id<'mapSignatures'>);
+  if (signature === null || signature.mapId !== mapId) {
+    throw new Error('signature note target must belong to the same map');
+  }
+}
+
+async function insertSignatureObservation(
+  ctx: MutationCtx,
+  args: {
+    readonly mapId: string;
+    readonly systemId: number;
+    readonly signatureId: string;
+    readonly knowledge: {
+      readonly group: string | null;
+      readonly typeName: string | null;
+      readonly wormholeTypeCode: string | null;
+    };
+  },
+) {
+  const id = await ctx.db.insert('mapSignatures', {
+    mapId: args.mapId,
+    systemId: args.systemId,
+    signatureId: args.signatureId,
+    group: args.knowledge.group,
+    typeName: args.knowledge.typeName,
+    wormholeTypeCode: args.knowledge.wormholeTypeCode,
+    deletedAt: null,
+    purgeAfter: null,
+  });
+  await writeSignatureActivity(ctx, {
+    mapId: args.mapId,
+    systemId: args.systemId,
+    signatureId: args.signatureId,
+    observedAt: Date.now(),
+  });
+  return { kind: 'inserted' as const, id };
+}
+
 async function findSignatureByKey(
   ctx: MutationCtx,
   mapId: string,
@@ -253,20 +305,12 @@ export const insertNoteFixture = internalMutation({
   },
   handler: async (ctx, args) => {
     const validated = validateNoteTargetInput(args);
-    if (validated.targetKind === 'system') {
-      const system = await ctx.db.get(validated.targetId as Id<'mapSystems'>);
-      if (system === null || system.mapId !== validated.mapId) {
-        throw new Error('system note target must belong to the same map');
-      }
-    }
-    if (validated.targetKind === 'signature') {
-      const signature = await ctx.db.get(
-        validated.targetId as Id<'mapSignatures'>,
-      );
-      if (signature === null || signature.mapId !== validated.mapId) {
-        throw new Error('signature note target must belong to the same map');
-      }
-    }
+    await requireSameMapNoteTarget(
+      ctx,
+      validated.mapId,
+      validated.targetKind,
+      validated.targetId,
+    );
     return await ctx.db.insert('mapNotes', validated);
   },
 });
@@ -295,31 +339,17 @@ export const upsertSignatureObservation = internalMutation({
       args.systemId,
       signatureId,
     );
-
     if (existing === null) {
-      const id = await ctx.db.insert('mapSignatures', {
+      return await insertSignatureObservation(ctx, {
         mapId: args.mapId,
         systemId: args.systemId,
         signatureId,
-        group: knowledge.group,
-        typeName: knowledge.typeName,
-        wormholeTypeCode: knowledge.wormholeTypeCode,
-        deletedAt: null,
-        purgeAfter: null,
+        knowledge,
       });
-      await writeSignatureActivity(ctx, {
-        mapId: args.mapId,
-        systemId: args.systemId,
-        signatureId,
-        observedAt: Date.now(),
-      });
-      return { kind: 'inserted' as const, id };
     }
-
     if (existing.deletedAt !== null) {
       return { kind: 'tombstoned' as const, id: existing._id };
     }
-
     const merge = mergeSignatureKnowledge(
       {
         group: existing.group,
@@ -328,11 +358,11 @@ export const upsertSignatureObservation = internalMutation({
       },
       knowledge,
     );
-    if (merge.kind === 'enriched') {
-      await ctx.db.patch(existing._id, merge.next);
-      return { kind: 'enriched' as const, id: existing._id };
+    if (merge.kind !== 'enriched') {
+      return { kind: merge.kind, id: existing._id };
     }
-    return { kind: merge.kind, id: existing._id };
+    await ctx.db.patch(existing._id, merge.next);
+    return { kind: 'enriched' as const, id: existing._id };
   },
 });
 
