@@ -15,10 +15,16 @@ import {
   eveTypes,
   typeDogma,
 } from './schema';
+import {
+  FAR_SIDE_WORMHOLE_CODE,
+  isWormholeTypeCode,
+  type WormholeSizeClass,
+} from './wormhole-contract';
+
+export type { WormholeSizeClass } from './wormhole-contract';
 
 const WORMHOLE_GROUP_ID = 988;
-const K162_CODE = 'K162';
-const WORMHOLE_TYPE_NAME = /^Wormhole ([A-Z]\d{3})$/;
+const WORMHOLE_TYPE_NAME_PREFIX = 'Wormhole ';
 const KNOWN_QA_WORMHOLE_TYPES = new Map([
   [32_894, 'QA Wormhole A'],
   [32_895, 'QA Wormhole B'],
@@ -49,12 +55,9 @@ export type AdjacencyEntry = [
   neighbours: number[],
 ];
 
-/** Wormhole jump-size vocabulary derived from the SDE's maximum jumpable mass. */
-export type WormholeSizeClass = 'S' | 'M' | 'L' | 'XL';
-
 /** The special untyped far-side wormhole entry. */
 export interface FarSideWormholeCodexEntry {
-  code: typeof K162_CODE;
+  code: typeof FAR_SIDE_WORMHOLE_CODE;
   typeId: number;
   farSide: true;
 }
@@ -161,13 +164,15 @@ export function buildWormholeCodex(
   return typeRows
     .filter((row) => !isKnownQaWormholeType(row))
     .map((row): WormholeCodexEntry => {
-      const code = WORMHOLE_TYPE_NAME.exec(row.name)?.[1];
-      if (code === undefined) {
+      const code = row.name.startsWith(WORMHOLE_TYPE_NAME_PREFIX)
+        ? row.name.slice(WORMHOLE_TYPE_NAME_PREFIX.length)
+        : '';
+      if (!isWormholeTypeCode(code)) {
         throw new Error(
           `SDE wormhole type ${row.id} has unexpected name "${row.name}".`,
         );
       }
-      if (code === K162_CODE) {
+      if (code === FAR_SIDE_WORMHOLE_CODE) {
         return { code, typeId: row.id, farSide: true };
       }
       const attributes = dogmaAttributes(row);

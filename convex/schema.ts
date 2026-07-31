@@ -1,10 +1,15 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
+import { MAP_ROLES } from '../src/data/maps/access-contract';
+import {
+  connectionMassStateValidator,
+  noteTargetKindValidator,
+  nullableWormholeSizeValidator,
+} from './lib/mapEntityContracts';
 
-// Convex is a regenerable projection of live ESI data keyed by the Neon
-// identities (userId + characterId) — never the system of record, never a
-// home for SDE/domain data. Wiping these tables and re-syncing must
-// reproduce the same state from Neon + ESI.
+// Convex is normally a regenerable projection of live ESI data keyed by Neon
+// identities. The mapper's user-authored chain payloads are the one sanctioned
+// Convex-primary exception; map identity and access authority remain in Neon.
 //
 // Since MIGRATE.B the engine serves a SINGLE live consumer — onlineStatus, the
 // ≤2-min canary (MIGRATE.A) that keeps the engine exercised + proven for the
@@ -15,6 +20,74 @@ import { v } from 'convex/values';
 // pattern (the dataset-union-as-superset technique the mapper will re-instantiate).
 
 export default defineSchema({
+  // Regenerable minimum access claim projected one-way from durable authority.
+  mapAccess: defineTable({
+    mapId: v.string(),
+    userId: v.string(),
+    roles: v.array(
+      v.union(
+        v.literal(MAP_ROLES[0]),
+        v.literal(MAP_ROLES[1]),
+        v.literal(MAP_ROLES[2]),
+      ),
+    ),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_user', ['mapId', 'userId'])
+    .index('by_user', ['userId']),
+
+  // Fine-grained collaborative chain payloads carry join keys only. Reference
+  // names, classes, effects, and codex facts stay in their authoritative assets.
+  mapSystems: defineTable({
+    mapId: v.string(),
+    systemId: v.number(),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_system', ['mapId', 'systemId']),
+
+  mapConnections: defineTable({
+    mapId: v.string(),
+    fromSystemId: v.number(),
+    toSystemId: v.number(),
+    wormholeTypeCode: v.union(v.string(), v.null()),
+    massState: connectionMassStateValidator,
+    shipSize: nullableWormholeSizeValidator,
+    eolAt: v.union(v.number(), v.null()),
+  }).index('by_map', ['mapId']),
+
+  mapSignatures: defineTable({
+    mapId: v.string(),
+    systemId: v.number(),
+    signatureId: v.string(),
+    group: v.union(v.string(), v.null()),
+    typeName: v.union(v.string(), v.null()),
+    wormholeTypeCode: v.union(v.string(), v.null()),
+    deletedAt: v.union(v.number(), v.null()),
+    purgeAfter: v.union(v.number(), v.null()),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_signature', ['mapId', 'systemId', 'signatureId'])
+    .index('by_purge_after', ['purgeAfter']),
+
+  mapNotes: defineTable({
+    mapId: v.string(),
+    targetKind: noteTargetKindValidator,
+    targetId: v.string(),
+    body: v.string(),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_target', ['mapId', 'targetKind', 'targetId']),
+
+  // Invisible observation bookkeeping stays outside watched signature payloads.
+  mapSignatureActivity: defineTable({
+    mapId: v.string(),
+    systemId: v.number(),
+    signatureId: v.string(),
+    lastSeenAt: v.number(),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_signature', ['mapId', 'systemId', 'signatureId']),
+
   // One doc per watched subject (dataset × user): presence plus the run
   // lifecycle the 3.4.9 engine absorbed from the trackers. The dataset is part
   // of the row key, so a future second consumer's lifecycle stays isolated from

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAP_ROLE_CAPABILITIES,
   MAP_ROLE_PRECEDENCE,
+  resolveMatchedMapRoles,
   resolveMapRole,
   type MapGrant,
 } from './access';
@@ -70,16 +71,21 @@ describe('resolveMapRole', () => {
   });
 
   it('unions capabilities and reports the highest-precedence matched role', () => {
-    expect(
-      resolveMapRole({
-        isCreator: false,
-        grants: [
-          grant('character', 42, 'viewer'),
-          grant('corporation', 99, 'editor'),
-        ],
-        principals: { characterIds: [42], corporationIds: [99] },
-      }),
-    ).toEqual({ role: 'editor', canView: true, canEdit: true });
+    const input = {
+      isCreator: false,
+      grants: [
+        grant('character', 42, 'viewer'),
+        grant('corporation', 99, 'editor'),
+        grant('corporation', 99, 'editor'),
+      ],
+      principals: { characterIds: [42], corporationIds: [99] },
+    };
+    expect(resolveMatchedMapRoles(input)).toEqual(['editor', 'viewer']);
+    expect(resolveMapRole(input)).toEqual({
+      role: 'editor',
+      canView: true,
+      canEdit: true,
+    });
   });
 
   it('capability record admits a non-linear role without rank comparisons', () => {

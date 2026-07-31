@@ -1,4 +1,14 @@
-import type { MapAccessOwnerType, MapRole } from './schema';
+import {
+  MAP_ROLE_CAPABILITIES,
+  MAP_ROLE_PRECEDENCE,
+  type MapRole,
+} from './access-contract';
+import type { MapAccessOwnerType } from './schema';
+
+export {
+  MAP_ROLE_CAPABILITIES,
+  MAP_ROLE_PRECEDENCE,
+} from './access-contract';
 
 /** The EVE character and corporation principals through which one user may hold a grant. */
 export interface MapPrincipals {
@@ -20,21 +30,6 @@ export interface MapAccess {
   readonly canEdit: boolean;
 }
 
-/** Explicit capabilities for every persisted role; capabilities never derive from role order. */
-export const MAP_ROLE_CAPABILITIES: Readonly<
-  Record<MapRole, Readonly<Omit<MapAccess, 'role'>>>
-> = {
-  viewer: { canView: true, canEdit: false },
-  editor: { canView: true, canEdit: true },
-  owner: { canView: true, canEdit: true },
-};
-
-/**
- * Precedence selects the reported role when several grants match. It does not grant capabilities;
- * those are unioned independently through `MAP_ROLE_CAPABILITIES`.
- */
-export const MAP_ROLE_PRECEDENCE: readonly MapRole[] = ['owner', 'editor', 'viewer'];
-
 const NO_ACCESS: MapAccess = { role: null, canView: false, canEdit: false };
 
 function principalMatches(grant: MapGrant, principals: MapPrincipals): boolean {
@@ -55,15 +50,8 @@ export function resolveMapRole(input: {
   readonly grants: readonly MapGrant[];
   readonly principals: MapPrincipals;
 }): MapAccess {
-  if (input.isCreator) {
-    return { role: 'owner', ...MAP_ROLE_CAPABILITIES.owner };
-  }
-
-  const matchedRoles = new Set<MapRole>();
-  for (const grant of input.grants) {
-    if (principalMatches(grant, input.principals)) matchedRoles.add(grant.role);
-  }
-  if (matchedRoles.size === 0) return { ...NO_ACCESS };
+  const matchedRoles = resolveMatchedMapRoles(input);
+  if (matchedRoles.length === 0) return { ...NO_ACCESS };
 
   let canView = false;
   let canEdit = false;
@@ -74,8 +62,26 @@ export function resolveMapRole(input: {
   }
 
   return {
-    role: MAP_ROLE_PRECEDENCE.find((role) => matchedRoles.has(role)) ?? null,
+    role: matchedRoles[0] ?? null,
     canView,
     canEdit,
   };
+}
+
+/**
+ * Resolves the complete effective role set for durable projection, sorted by
+ * display precedence and de-duplicated without deriving capabilities from rank.
+ */
+export function resolveMatchedMapRoles(input: {
+  readonly isCreator: boolean;
+  readonly grants: readonly MapGrant[];
+  readonly principals: MapPrincipals;
+}): MapRole[] {
+  if (input.isCreator) return ['owner'];
+
+  const matchedRoles = new Set<MapRole>();
+  for (const grant of input.grants) {
+    if (principalMatches(grant, input.principals)) matchedRoles.add(grant.role);
+  }
+  return MAP_ROLE_PRECEDENCE.filter((role) => matchedRoles.has(role));
 }
