@@ -26,16 +26,18 @@ Before changing code:
    skill and returns the repository-map form in
    `docs/workflows/schema/subagent-evidence.md`. When native subagents are
    unavailable, run that skill in the main context. Codegraph is installed and
-   required: use the global `codegraph` CLI before grepping or reading source.
-   Confirm `command -v codegraph` and `codegraph status` from the repository
-   root, or pass the repository root as the path argument (for example
-   `codegraph status "<repo-root>"`). The index lives in gitignored
-   `.codegraph/`; if a harness sandbox cannot open that directory, re-run
-   Codegraph with unrestricted filesystem access. Then use `explore` for an
-   unfamiliar flow, `query` for a known symbol, and `callers`, `callees`, or
-   `impact` for relationships. If the CLI or index is unexpectedly unavailable,
-   report the blocker; do not substitute text search or install or configure a
-   Codegraph MCP.
+   required before grepping or reading source. Prefer the harness Codegraph MCP
+   `codegraph_explore` tool when it is available; otherwise use the global
+   `codegraph` CLI. Confirm the CLI and index with `command -v codegraph` and
+   `codegraph status` from the repository root, or pass the repository root as
+   the path argument (for example `codegraph status "<repo-root>"`) — status,
+   sync, index, install, and other maintenance commands are CLI-only. The index
+   lives in gitignored `.codegraph/`; if a harness sandbox cannot open that
+   directory, re-run Codegraph CLI calls with unrestricted filesystem access.
+   Use explore (MCP or CLI) for an unfamiliar flow. Use the CLI for `query`,
+   `callers`, `callees`, `impact`, `affected`, and any other command the MCP
+   surface does not expose. If neither MCP nor CLI can reach a current index,
+   report the blocker; do not substitute text search.
 3. Delegate current primary-documentation retrieval to a fresh read-only
    `docs-researcher` subagent at the beginning of every coding task, including
    routine React and framework work. It runs the global `find-docs` skill and

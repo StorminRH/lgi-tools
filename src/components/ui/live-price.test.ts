@@ -201,4 +201,52 @@ describe('scheduleConfirmFlash', () => {
     host.dispatchAnimationEnd('price-flash', false);
     expect(host.classes.has('price-flash')).toBe(true);
   });
+
+  it('does not Illegal-invocation when window-like rAF requires its receiver', () => {
+    // Mirrors browser `window.requestAnimationFrame` — calling the extracted
+    // method without the window receiver throws TypeError: Illegal invocation.
+    // Production LivePrice binds through window the same way (module-private
+    // browserConfirmFlashScheduler); this exercises that public scheduler seam.
+    const windowLike = {
+      requestAnimationFrame(this: unknown, callback: FrameRequestCallback) {
+        if (this !== windowLike) throw new TypeError('Illegal invocation');
+        callback(0);
+        return 1;
+      },
+      cancelAnimationFrame(this: unknown, _handle: number) {
+        if (this !== windowLike) throw new TypeError('Illegal invocation');
+      },
+      matchMedia() {
+        return { matches: false };
+      },
+    };
+    const previousWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: windowLike,
+    });
+    try {
+      const host = createFlashHost();
+      const bound: Parameters<typeof scheduleConfirmFlash>[1] = {
+        requestAnimationFrame: (callback) => window.requestAnimationFrame(callback),
+        cancelAnimationFrame: (handle) => window.cancelAnimationFrame(handle),
+        prefersReducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      };
+      expect(() => scheduleConfirmFlash(host, bound)).not.toThrow();
+      expect(host.classes.has('price-flash')).toBe(true);
+      // Bare method extraction still throws — documents why window binding exists.
+      expect(() =>
+        scheduleConfirmFlash(host, {
+          requestAnimationFrame: windowLike.requestAnimationFrame,
+          cancelAnimationFrame: windowLike.cancelAnimationFrame,
+          prefersReducedMotion: () => false,
+        }),
+      ).toThrow(/Illegal invocation/);
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow,
+      });
+    }
+  });
 });

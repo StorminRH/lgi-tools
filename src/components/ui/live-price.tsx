@@ -34,6 +34,18 @@ export type ConfirmFlashScheduler = {
 };
 
 /**
+ * Browser-backed confirm-flash hooks. Always call through `window` — extracting
+ * `requestAnimationFrame` as a bare function throws TypeError: Illegal invocation.
+ */
+function browserConfirmFlashScheduler(): ConfirmFlashScheduler {
+  return {
+    requestAnimationFrame: (callback) => window.requestAnimationFrame(callback),
+    cancelAnimationFrame: (handle) => window.cancelAnimationFrame(handle),
+    prefersReducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  };
+}
+
+/**
  * Clears any in-flight `.price-flash`, arms a one-shot flash after two animation
  * frames, and removes the class on `animationend`. Cleanup cancels unarmed
  * frames; `isArmed` reports whether the inner frame already ran.
@@ -121,11 +133,7 @@ export function LivePrice({
     // so the second setup still sees confirm. A real dep change after arm keeps
     // `next` so a later settled value change (including A→B→A) still confirms.
     previous.current = next;
-    const flash = scheduleConfirmFlash(el, {
-      requestAnimationFrame,
-      cancelAnimationFrame,
-      prefersReducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    });
+    const flash = scheduleConfirmFlash(el, browserConfirmFlashScheduler());
     return () => {
       flash.cleanup();
       if (!flash.isArmed()) previous.current = prior;

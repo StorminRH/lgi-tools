@@ -32,8 +32,9 @@ still requires its point-of-action approval.
 
 For each claim:
 
-1. Orient with `codegraph explore` for an unfamiliar area or `codegraph query`
-   for a known symbol before raw search.
+1. Orient with Codegraph MCP `codegraph_explore` when available, or CLI
+   `codegraph explore`, for an unfamiliar area; use CLI-only
+   `codegraph query` for a known symbol before raw search.
 2. Confirm cited files, lines, owners, and behavior against current code. Use a
    focused runtime or live check when the claim cannot be established statically.
 3. Search read-only for the same root cause elsewhere. Distinguish the reported

@@ -61,14 +61,18 @@ follow `docs/workflows/schema/subagent-evidence.md`.
 Agents need file search, code-relationship exploration, current primary
 documentation retrieval, and local command execution.
 
-Codegraph is installed and required for repository mapping. Use the global
-`codegraph` CLI before text search or source reads, and confirm the executable
-and index first with `command -v codegraph` and `codegraph status` from the
-repository root, or with an explicit repository-root path argument. The index
-lives in gitignored `.codegraph/`; if a harness sandbox cannot open that
-directory, re-run Codegraph with unrestricted filesystem access. If the CLI or
-index remains unavailable, report the blocker; do not substitute text search or
-install or configure a Codegraph MCP.
+Codegraph is installed and required for repository mapping. Prefer the harness
+Codegraph MCP `codegraph_explore` tool when available; otherwise use the global
+`codegraph` CLI. Confirm the executable and index with `command -v codegraph`
+and `codegraph status` from the repository root, or with an explicit
+repository-root path argument — status, sync, index, install, and other
+maintenance commands remain CLI-only. The index lives in gitignored
+`.codegraph/`; if a harness sandbox cannot open that directory, re-run
+Codegraph CLI calls with unrestricted filesystem access. Use explore (MCP or
+CLI) for unfamiliar flows; use the CLI for `query`, `callers`, `callees`,
+`impact`, `affected`, and any other command the MCP surface does not expose.
+If neither MCP nor CLI can reach a current index, report the blocker; do not
+substitute text search.
 
 For unfamiliar or cross-cutting code, prefer a fresh read-only `repo-mapper`
 subagent that invokes `map-codebase`. For every coding task, prefer a fresh
