@@ -73,18 +73,14 @@ async function retryDelayFor(
 // of depth.
 const MAX_TIMEOUT_SEARCH_NODES = 16;
 
-// Looks for our own timeout abort anywhere in the error's cause/sourceError
-// graph. The reason is a `TimeoutError` DOMException, matched by name rather
-// than by instance so it holds across runtimes (Convex, Node, the edge runtime)
-// that each construct their own DOMException.
-//
-// Deliberately breadth-first across BOTH links rather than `cause ?? sourceError`:
-// a wrapper carrying a non-timeout `cause` alongside a timeout-bearing
-// `sourceError` would otherwise hide the abort and be retried as a cold start —
-// the precise envelope multiplication this carve-out exists to prevent. Erring
-// toward finding a timeout is the safe direction here, because a false positive
-// only fails one query fast while a false negative costs the full retry envelope.
-function hasTimeoutAbort(err: unknown): boolean {
+/**
+ * True when the error chain carries a TimeoutError abort reason.
+ *
+ * Breadth-first across both `cause` and `sourceError` so a non-timeout cause
+ * cannot hide a timeout-bearing sourceError. Shared by the prerender cold-start
+ * carve-out (decline timeouts) and deploy warm (retry timeouts).
+ */
+export function hasTimeoutAbort(err: unknown): boolean {
   const pending: unknown[] = [err];
   for (let visited = 0; visited < MAX_TIMEOUT_SEARCH_NODES && visited < pending.length; visited++) {
     const node = pending[visited];
@@ -95,6 +91,24 @@ function hasTimeoutAbort(err: unknown): boolean {
     if (sourceError != null) pending.push(sourceError);
   }
   return false;
+}
+
+/**
+ * Logs one retry attempt and waits `delayMs` before the next try. Label owns
+ * the log prefix so prerender and deploy-warm envelopes stay distinguishable.
+ */
+export async function pauseBeforeRetry(
+  label: string,
+  attempt: number,
+  maxAttempts: number,
+  err: unknown,
+  delayMs: number,
+): Promise<void> {
+  const summary = err instanceof Error ? err.message.split('\n')[0] : String(err);
+  console.warn(
+    `[${label}] attempt ${attempt}/${maxAttempts} failed (${summary}); retrying in ${delayMs}ms`,
+  );
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
 /**
@@ -156,11 +170,7 @@ export async function withColdStartRetry<T>(read: () => Promise<T>): Promise<T> 
     } catch (err) {
       const delayMs = await retryDelayFor(err, attempt, totalDelayMs);
       totalDelayMs += delayMs;
-      const summary = err instanceof Error ? err.message.split('\n')[0] : String(err);
-      console.warn(
-        `[neon-cold-start-retry] attempt ${attempt}/${MAX_ATTEMPTS} failed (${summary}); retrying in ${delayMs}ms`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      await pauseBeforeRetry('neon-cold-start-retry', attempt, MAX_ATTEMPTS, err, delayMs);
     }
   }
 }
