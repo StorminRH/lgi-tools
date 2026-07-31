@@ -249,7 +249,7 @@
   --tracking-eyebrow: 0.18em;
   --transition-duration-fast: 150ms;
   --transition-duration-panel: 200ms;
-  --transition-duration-price-confirm: 1100ms;
+  --transition-duration-price-confirm: 700ms;
   --transition-duration-price-pending: 780ms;
   --ease-panel: cubic-bezier(0.2,0.85,0.25,1);
   --z-index-base: 0;
@@ -761,10 +761,10 @@ details[data-collapsible][open] > summary [data-chevron] {
 .price-confidence--medium::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--color-dps-mid); clip-path: inset(0 50% 0 0); }
 
 /* ── Live price confirmation (LivePrice) ─────────────────────────────
- * Pending prices visibly pulse between dim and bright. Confirmation lands with
- * one high-energy green signal burst and a short overshoot before settling.
- * Both durations are tokens, classes are CSP-clean, and reduced motion preserves
- * a clear static pending state without movement. */
+ * Pending prices visibly pulse between dim and bright. Confirmation is one
+ * brightness flash that decays to rest; LivePrice clears `.price-flash` on
+ * animationend so the class cannot linger. Both durations are tokens, classes
+ * are CSP-clean, and reduced motion preserves a clear static pending state. */
 .price-live {
   display: inline-block;
 }
@@ -790,21 +790,10 @@ details[data-collapsible][open] > summary [data-chevron] {
   }
 }
 @keyframes price-flash {
-  0%,
-  18% {
-    filter: brightness(2.5);
-    text-shadow: 0 0 16px var(--color-tool-ring), 0 0 5px var(--color-isk);
-    transform: scale(1.08);
-  }
-  42% {
-    filter: brightness(1.45);
-    text-shadow: 0 0 8px var(--color-tool-ring);
-    transform: scale(0.98);
-  }
-  68% {
-    filter: brightness(1.2);
-    text-shadow: 0 0 3px var(--color-tool-ring);
-    transform: scale(1.025);
+  0% {
+    filter: brightness(2.2);
+    text-shadow: 0 0 12px var(--color-tool-ring), 0 0 4px var(--color-isk);
+    transform: scale(1.05);
   }
   100% {
     filter: brightness(1);

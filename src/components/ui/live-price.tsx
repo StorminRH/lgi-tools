@@ -17,15 +17,72 @@ export function livePriceTransition(
   return previous.pending || previous.value !== next.value ? 'confirm' : 'none';
 }
 
+/** Minimal element surface the confirm-flash scheduler mutates. */
+export type ConfirmFlashHost = {
+  classList: { add(token: string): void; remove(token: string): void };
+  offsetWidth: number;
+  addEventListener(type: 'animationend', listener: (event: AnimationEvent) => void): void;
+  removeEventListener(type: 'animationend', listener: (event: AnimationEvent) => void): void;
+};
+
+/** Frame and motion hooks the confirm-flash scheduler reads (injectable for tests). */
+export type ConfirmFlashScheduler = {
+  requestAnimationFrame: (callback: FrameRequestCallback) => number;
+  cancelAnimationFrame: (handle: number) => void;
+  /** Read at arm time — true when the flash must not be applied. */
+  prefersReducedMotion: () => boolean;
+};
+
+/**
+ * Clears any in-flight `.price-flash`, arms a one-shot flash after two animation
+ * frames, and removes the class on `animationend`. Cleanup cancels unarmed
+ * frames; `isArmed` reports whether the inner frame already ran.
+ */
+export function scheduleConfirmFlash(
+  el: ConfirmFlashHost,
+  scheduler: ConfirmFlashScheduler,
+): { cleanup: () => void; isArmed: () => boolean } {
+  const onEnd = (event: AnimationEvent) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.animationName !== 'price-flash') return;
+    el.classList.remove('price-flash');
+  };
+
+  el.classList.remove('price-flash');
+  let armed = false;
+  let inner = 0;
+  const outer = scheduler.requestAnimationFrame(() => {
+    inner = scheduler.requestAnimationFrame(() => {
+      armed = true;
+      if (scheduler.prefersReducedMotion()) return;
+      void el.offsetWidth;
+      el.classList.add('price-flash');
+      el.addEventListener('animationend', onEnd);
+    });
+  });
+
+  return {
+    isArmed: () => armed,
+    cleanup: () => {
+      scheduler.cancelAnimationFrame(outer);
+      scheduler.cancelAnimationFrame(inner);
+      el.removeEventListener('animationend', onEnd);
+      el.classList.remove('price-flash');
+    },
+  };
+}
+
 /**
  * A live ISK/percent figure rendered as plain tabular text. Pending confirmation
- * visibly pulses the seed; the confirmed value lands through a bright green
- * signal burst and short scale bounce. No replay occurs on initial mount.
+ * visibly pulses the seed; the confirmed value lands through one brightness
+ * flash and settles. No replay occurs on initial mount.
  *
- * CSP-clean: the pulse is a stylesheet \@keyframes (`.price-flash` in
- * globals.css) applied via className and restarted on each change with the
- * remove → reflow → re-add trick (without the forced reflow the browser
- * coalesces remove+add and the animation never replays). No inline style.
+ * CSP-clean: both motions are stylesheet \@keyframes (`.price-pending` /
+ * `.price-flash` in globals.css). Pending is React `className`; the one-shot
+ * confirm flash is applied through `scheduleConfirmFlash` after two animation
+ * frames so (a) same-tick remove+add still replays and (b) React Strict Mode's
+ * setup→cleanup→setup can cancel an unarmed flash and reclassify the confirm.
+ * `animationend` removes `.price-flash` so it cannot linger. No inline style.
  *
  * Accessible: the figure is a single plain text node, so a screen reader reads
  * "123.4M ISK" directly, once. (The odometer needed an sr-only value + an
@@ -48,13 +105,31 @@ export function LivePrice({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
     const next = { value, pending };
-    const transition = livePriceTransition(previous.current, next);
+    const prior = previous.current;
+    const transition = livePriceTransition(prior, next);
+
+    if (pending || transition !== 'confirm') {
+      previous.current = next;
+      el.classList.remove('price-flash');
+      return;
+    }
+
+    // Commit the snapshot before arming. Strict Mode runs setup → cleanup →
+    // setup; cleanup rolls the snapshot back only when the arm never committed
+    // so the second setup still sees confirm. A real dep change after arm keeps
+    // `next` so a later settled value change (including A→B→A) still confirms.
     previous.current = next;
-    if (transition !== 'confirm') return;
-    el.classList.remove('price-flash');
-    void el.offsetWidth;
-    el.classList.add('price-flash');
+    const flash = scheduleConfirmFlash(el, {
+      requestAnimationFrame,
+      cancelAnimationFrame,
+      prefersReducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    });
+    return () => {
+      flash.cleanup();
+      if (!flash.isArmed()) previous.current = prior;
+    };
   }, [pending, value]);
 
   return (
