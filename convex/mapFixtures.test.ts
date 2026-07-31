@@ -353,15 +353,14 @@ describe('mapFixtures gates every public fixture and isolates maps', () => {
     await seedClaim(t, MAP_A, USER_VIEWER, ['viewer']);
     await seedClaim(t, MAP_B, USER_EDITOR, ['editor']);
 
-    const emptyCursors = {
-      systems: null,
-      connections: null,
-      signatures: null,
-      notes: null,
-    };
-
     expect(
-      await errorCode(t.query(api.mapFixtures.readMap, { mapId: MAP_A, cursors: emptyCursors })),
+      await errorCode(
+        t.query(api.mapFixtures.readMapCollection, {
+          mapId: MAP_A,
+          collection: 'systems',
+          cursor: null,
+        }),
+      ),
     ).toBe('UNAUTHENTICATED');
     expect(
       await errorCode(
@@ -372,7 +371,11 @@ describe('mapFixtures gates every public fixture and isolates maps', () => {
     const asNone = t.withIdentity({ subject: USER_NONE });
     expect(
       await errorCode(
-        asNone.query(api.mapFixtures.readMap, { mapId: MAP_A, cursors: emptyCursors }),
+        asNone.query(api.mapFixtures.readMapCollection, {
+          mapId: MAP_A,
+          collection: 'systems',
+          cursor: null,
+        }),
       ),
     ).toBe('FORBIDDEN');
 
@@ -419,34 +422,39 @@ describe('mapFixtures gates every public fixture and isolates maps', () => {
       });
     }
 
-    const firstPage = await asEditor.query(api.mapFixtures.readMap, {
+    const firstSystems = await asEditor.query(api.mapFixtures.readMapCollection, {
       mapId: MAP_A,
-      cursors: emptyCursors,
+      collection: 'systems',
+      cursor: null,
     });
-    expect(firstPage.systems.page).toHaveLength(MAP_FIXTURE_PAGE_SIZE);
-    expect(firstPage.systems.isDone).toBe(false);
-    expect(firstPage.connections.isDone).toBe(false);
-    expect(firstPage.signatures.isDone).toBe(false);
-    expect(firstPage.notes.isDone).toBe(false);
-    expect(firstPage.systems.page.every((row) => row.mapId === MAP_A)).toBe(true);
-    expect(firstPage.systems.page.some((row) => row.systemId >= 100)).toBe(false);
+    expect(firstSystems.page).toHaveLength(MAP_FIXTURE_PAGE_SIZE);
+    expect(firstSystems.isDone).toBe(false);
+    expect(firstSystems.page.every((row) => row.mapId === MAP_A)).toBe(true);
+    expect(firstSystems.page.some((row) => row.systemId >= 100)).toBe(false);
 
-    const systemIds = new Set(firstPage.systems.page.map((row) => row.systemId));
-    let systemsCursor = firstPage.systems.continueCursor;
-    let systemsDone = firstPage.systems.isDone;
-    while (!systemsDone) {
-      const next = await asEditor.query(api.mapFixtures.readMap, {
+    for (const collection of ['connections', 'signatures', 'notes'] as const) {
+      const first = await asEditor.query(api.mapFixtures.readMapCollection, {
         mapId: MAP_A,
-        cursors: {
-          systems: systemsCursor,
-          connections: null,
-          signatures: null,
-          notes: null,
-        },
+        collection,
+        cursor: null,
       });
-      for (const row of next.systems.page) systemIds.add(row.systemId);
-      systemsCursor = next.systems.continueCursor;
-      systemsDone = next.systems.isDone;
+      expect(first.page).toHaveLength(MAP_FIXTURE_PAGE_SIZE);
+      expect(first.isDone).toBe(false);
+      expect(first.page.every((row) => row.mapId === MAP_A)).toBe(true);
+    }
+
+    const systemIds = new Set(firstSystems.page.map((row) => row.systemId));
+    let systemsCursor = firstSystems.continueCursor;
+    let systemsDone = firstSystems.isDone;
+    while (!systemsDone) {
+      const next = await asEditor.query(api.mapFixtures.readMapCollection, {
+        mapId: MAP_A,
+        collection: 'systems',
+        cursor: systemsCursor,
+      });
+      for (const row of next.page) systemIds.add(row.systemId);
+      systemsCursor = next.continueCursor;
+      systemsDone = next.isDone;
     }
     expect([...systemIds].sort((a, b) => a - b)).toEqual(
       Array.from({ length: MAP_FIXTURE_PAGE_SIZE + 1 }, (_, i) => i + 1),

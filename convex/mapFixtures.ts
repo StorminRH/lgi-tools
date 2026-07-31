@@ -23,7 +23,23 @@ export const MAP_FIXTURE_PAGE_SIZE = 2;
 /** Invisible activity-write threshold; does not schedule UI changes. */
 export const SIGNATURE_ACTIVITY_STALE_MS = 60_000;
 
-const cursorValidator = v.union(v.string(), v.null());
+/** Payload collections readable through the public fixture page query. */
+export const MAP_FIXTURE_COLLECTIONS = [
+  'systems',
+  'connections',
+  'signatures',
+  'notes',
+] as const;
+
+/** One payload collection name accepted by `readMapCollection`. */
+export type MapFixtureCollection = (typeof MAP_FIXTURE_COLLECTIONS)[number];
+
+const collectionValidator = v.union(
+  v.literal('systems'),
+  v.literal('connections'),
+  v.literal('signatures'),
+  v.literal('notes'),
+);
 
 const knowledgeValidator = v.object({
   group: v.union(v.string(), v.null()),
@@ -106,75 +122,50 @@ async function writeSignatureActivity(
 }
 
 /**
- * Gate-first fixture read of one map's chain collections. Each collection uses an
- * independent cursor and the fixed page size; activity rows are never read.
+ * Gate-first fixture read of one map payload collection. One `.paginate()` per
+ * call satisfies Convex's single-paginated-query limit; callers iterate each
+ * collection until `isDone`. Activity rows are never read.
  */
-export const readMap = query({
+export const readMapCollection = query({
   args: {
     mapId: v.string(),
-    cursors: v.object({
-      systems: cursorValidator,
-      connections: cursorValidator,
-      signatures: cursorValidator,
-      notes: cursorValidator,
-    }),
+    collection: collectionValidator,
+    cursor: v.union(v.string(), v.null()),
   },
   handler: async (ctx, args) => {
     await requireMapAccess(ctx, args.mapId, 'view');
 
-    const [systems, connections, signatures, notes] = await Promise.all([
-      ctx.db
-        .query('mapSystems')
-        .withIndex('by_map', (q) => q.eq('mapId', args.mapId))
-        .paginate({
-          cursor: args.cursors.systems,
-          numItems: MAP_FIXTURE_PAGE_SIZE,
-        }),
-      ctx.db
-        .query('mapConnections')
-        .withIndex('by_map', (q) => q.eq('mapId', args.mapId))
-        .paginate({
-          cursor: args.cursors.connections,
-          numItems: MAP_FIXTURE_PAGE_SIZE,
-        }),
-      ctx.db
-        .query('mapSignatures')
-        .withIndex('by_map', (q) => q.eq('mapId', args.mapId))
-        .paginate({
-          cursor: args.cursors.signatures,
-          numItems: MAP_FIXTURE_PAGE_SIZE,
-        }),
-      ctx.db
-        .query('mapNotes')
-        .withIndex('by_map', (q) => q.eq('mapId', args.mapId))
-        .paginate({
-          cursor: args.cursors.notes,
-          numItems: MAP_FIXTURE_PAGE_SIZE,
-        }),
-    ]);
-
-    return {
-      systems: {
-        page: systems.page,
-        continueCursor: systems.continueCursor,
-        isDone: systems.isDone,
-      },
-      connections: {
-        page: connections.page,
-        continueCursor: connections.continueCursor,
-        isDone: connections.isDone,
-      },
-      signatures: {
-        page: signatures.page,
-        continueCursor: signatures.continueCursor,
-        isDone: signatures.isDone,
-      },
-      notes: {
-        page: notes.page,
-        continueCursor: notes.continueCursor,
-        isDone: notes.isDone,
-      },
+    const paginationOpts = {
+      cursor: args.cursor,
+      numItems: MAP_FIXTURE_PAGE_SIZE,
     };
+
+    switch (args.collection) {
+      case 'systems':
+        return await ctx.db
+          .query('mapSystems')
+          .withIndex('by_map', (q) => q.eq('mapId', args.mapId))
+          .paginate(paginationOpts);
+      case 'connections':
+        return await ctx.db
+          .query('mapConnections')
+          .withIndex('by_map', (q) => q.eq('mapId', args.mapId))
+          .paginate(paginationOpts);
+      case 'signatures':
+        return await ctx.db
+          .query('mapSignatures')
+          .withIndex('by_map', (q) => q.eq('mapId', args.mapId))
+          .paginate(paginationOpts);
+      case 'notes':
+        return await ctx.db
+          .query('mapNotes')
+          .withIndex('by_map', (q) => q.eq('mapId', args.mapId))
+          .paginate(paginationOpts);
+      default: {
+        const _exhaustive: never = args.collection;
+        throw new Error(`unsupported collection: ${_exhaustive}`);
+      }
+    }
   },
 });
 
