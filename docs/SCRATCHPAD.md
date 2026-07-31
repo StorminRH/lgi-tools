@@ -23,10 +23,10 @@ by arithmetic. Sub-versions 4.0.4.2 and 4.0.4.3 are the only ones whose sessions
 each ship their own PR — every other sub-version ships one PR for the
 sub-version.
 
-Sub-version 4.0.0.1 delivers Phase 0: the baseline captures each master
-version's starting ref, measures the expanded registered-row set, and archives
-session as-built records with the rest of a version bundle. Its merge advances
-the resolver to Phase 1 planning for 4.0.1.1.
+Sub-version **4.0.2.2** is in flight on `lifecycle/4.0.2.2`. Session
+**4.0.2.2.1** is complete (chain schema + gate-first
+`readMapCollection` fixtures); the next action is planning Session
+**4.0.2.2.2** (durable access projection) via `start-session`.
 
 `docs/CODE_HEALTH_BASELINE.md` and `docs/UPDATE_WATCH_BASELINE.md` remain the
 active health and update-watch state. The full scratchpad as it stood at the
