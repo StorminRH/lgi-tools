@@ -220,9 +220,11 @@ describe('scheduleConfirmFlash', () => {
         return { matches: false };
       },
     };
-    const previousWindow = globalThis.window;
+    const previousDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
+      enumerable: true,
+      writable: true,
       value: windowLike,
     });
     try {
@@ -243,10 +245,11 @@ describe('scheduleConfirmFlash', () => {
         }),
       ).toThrow(/Illegal invocation/);
     } finally {
-      Object.defineProperty(globalThis, 'window', {
-        configurable: true,
-        value: previousWindow,
-      });
+      if (previousDescriptor) {
+        Object.defineProperty(globalThis, 'window', previousDescriptor);
+      } else {
+        Reflect.deleteProperty(globalThis, 'window');
+      }
     }
   });
 });
