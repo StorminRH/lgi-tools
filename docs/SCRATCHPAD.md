@@ -3,6 +3,21 @@
 > Short cross-session memory. Keep this skimmable in about one minute. The
 > upkeep procedure lives in `docs/workflows/close-out.md`.
 
+## Now
+
+- **CURRENT:** session 4.0.2.2.1 is complete and committed on
+  `lifecycle/4.0.2.2`. Draft PR #338 is open for the sub-version and publishes
+  no version records; it is unreviewed and unmerged.
+- **NEXT:** session-plan approval for **4.0.2.2.2**, which owns the
+  durable-to-Convex access projection, its teardown and resynchronization, and
+  live revocation. It completes and ships PR #338 rather than opening a second
+  one.
+- Two constraints it must honor, recorded in
+  `docs/session-as-built/4.0/4.0.2.2.1.md`: the projection writer must guarantee
+  one `mapAccess` row per `(mapId, userId)` because the gate reads it with
+  `.unique()`, and Convex permits exactly one `.paginate()` per function
+  execution.
+
 ## Current boundary
 
 Version 3.10, “Hull Integrity + SKIN,” is closed and archived. Its roadmap,
