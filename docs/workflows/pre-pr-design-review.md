@@ -36,9 +36,12 @@ Required outputs:
 Native subagents may collect design evidence, but the parent owns every verdict,
 fix, deferral, baseline decision, and final result. After establishing the
 review boundary, launch a fresh read-only `architecture-reviewer` when native
-subagents are available. Also launch a fresh read-only `interface-reviewer`
+subagents are available for interface depth, boundaries, and structural risk.
+Also launch a fresh read-only `ownership-reviewer` when the diff changes local
+decision ownership, dependency direction, primitive reuse, interface breadth,
+or semantic duplication. Also launch a fresh read-only `interface-reviewer`
 when user-facing behavior changed. Give each reviewer the complete logical
-inventory and one bounded scope; require the verdict form from
+inventory and one bounded, non-overlapping scope; require the verdict form from
 `docs/workflows/adversarial-review.md`. Keep their exploratory output isolated
 and carry only reported findings and load-bearing checks into this procedure.
 

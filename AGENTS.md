@@ -25,10 +25,13 @@ Before changing code:
    a fresh read-only `repo-mapper` subagent. It runs the global `map-codebase`
    skill and returns the repository-map form in
    `docs/workflows/schema/subagent-evidence.md`. When native subagents are
-   unavailable, run that skill in the main context. Obtain Codegraph evidence
-   before grepping or reading source: use `explore` for an unfamiliar flow,
-   `query` for a known symbol, and `callers`, `callees`, or `impact` for
-   relationships.
+   unavailable, run that skill in the main context. Codegraph is installed and
+   required: use the global `codegraph` CLI before grepping or reading source.
+   Confirm `command -v codegraph` and `codegraph status`, then use `explore` for
+   an unfamiliar flow, `query` for a known symbol, and `callers`, `callees`, or
+   `impact` for relationships. If the CLI or index is unexpectedly unavailable,
+   report the blocker; do not substitute text search or install or configure a
+   Codegraph MCP.
 3. Delegate current primary-documentation retrieval to a fresh read-only
    `docs-researcher` subagent at the beginning of every coding task, including
    routine React and framework work. It runs the global `find-docs` skill and
@@ -56,6 +59,14 @@ slices and shared infrastructure without rewriting unrelated working systems.
 The current stack is Next.js 16.2.6 with Cache Components, React 19, strict
 TypeScript, Tailwind v4, Drizzle ORM, Neon Postgres, Convex, Better Auth,
 Upstash Redis, Vercel, pnpm, Vitest, and visx.
+
+## Subagent use
+
+Native subagents are available and encouraged for bounded research, independent
+read-only review, exact-command verification, and other narrow specialist work.
+Give each subagent one complete, non-overlapping brief and keep integration,
+edits, authorization, and final verification with the parent agent. Do not
+delegate merely to repeat work already completed in the parent context.
 
 ## Commands and definition of done
 

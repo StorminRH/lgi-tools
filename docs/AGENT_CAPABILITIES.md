@@ -51,8 +51,8 @@ authority.
 
 The portable `find-docs` and `map-codebase` skills are research procedures, not
 lifecycle dispatch adapters. They may run in an isolated native subagent or in
-the main context when delegation is unavailable. Their compact results follow
-`docs/workflows/schema/subagent-evidence.md`.
+the main context when delegation is unavailable. Their structured results
+follow `docs/workflows/schema/subagent-evidence.md`.
 
 ## Capability contracts
 
@@ -61,12 +61,18 @@ the main context when delegation is unavailable. Their compact results follow
 Agents need file search, code-relationship exploration, current primary
 documentation retrieval, and local command execution.
 
+Codegraph is installed and required for repository mapping. Use the global
+`codegraph` CLI before text search or source reads, and confirm the executable
+and index first. If either is unexpectedly unavailable, report the blocker; do
+not substitute text search or install or configure a Codegraph MCP.
+
 For unfamiliar or cross-cutting code, prefer a fresh read-only `repo-mapper`
 subagent that invokes `map-codebase`. For every coding task, prefer a fresh
 read-only `docs-researcher` subagent that invokes `find-docs`. The parent passes
 only the task, authority, known scope, and required evidence form. The subagents
 keep raw Codegraph, source, and documentation output in their own contexts and
-return only the compact evidence the parent needs.
+return meaningfully compressed, non-redundant structured evidence containing
+every material fact the parent needs.
 
 If native subagents are unavailable, the parent runs the applicable skill
 directly. A missing preferred subagent is not permission to skip Codegraph or
@@ -76,17 +82,29 @@ the broad discovery work without a specific gap.
 
 ### Native subagents
 
+Native subagents are available and encouraged when isolation or specialist
+focus will materially improve research, verification, or review. Delegate a
+complete bounded scope, avoid overlapping assignments, and keep integration,
+edits, authorization, and final verification with the parent.
+
 The portable role vocabulary is:
 
 - `docs-researcher`: current primary documentation through `find-docs`;
 - `repo-mapper`: repository ownership and execution paths through
   `map-codebase`;
-- `gate-runner`: exact caller-supplied verification commands with compressed
-  results and no fixes;
-- `architecture-reviewer`: interface depth, ownership, boundaries, and
-  structural risk; and
-- `interface-reviewer`: user-facing behavior, accessibility, and design-system
-  conformance.
+- `gate-runner`: literal caller-supplied verification commands with complete
+  command text, native exit evidence, compressed results, and no fixes;
+- `architecture-reviewer`: repository design principles, deep-module
+  interface depth, boundaries, and structural risk;
+- `ownership-reviewer`: local decision ownership, dependency direction,
+  primitive reuse, interface breadth, and semantic duplication;
+- `reliability-reviewer`: demonstrated state transitions, cleanup,
+  cancellation, resource release, concurrency, idempotency, timeouts, retries,
+  degradation, and recovery;
+- `contract-reviewer`: authority-to-outcome coverage, boundary contracts,
+  authoritative shapes, cross-file consistency, and behavioral proof; and
+- `interface-reviewer`: user-facing behavior, accessibility, interaction
+  semantics, responsive behavior, and documented design-system conformance.
 
 Role names describe capabilities, not a required application, model, or global
 file layout. Harness-native definitions may select different models and

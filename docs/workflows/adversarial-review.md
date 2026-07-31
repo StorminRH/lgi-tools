@@ -41,6 +41,32 @@ lifecycle, or outward-action authority.
   must not be changed.
 - Reviewer agreement raises confidence but never replaces direct verification.
 
+Severity is assigned by production impact, not by wording, model confidence, or
+the existence of a mechanical gate:
+
+- `BLOCKER` — accepting the subject creates a credible security, identity,
+  destructive-data, deadlock, resource-exhaustion, unbounded-availability, or
+  comparably high-blast-radius failure.
+- `MAJOR` — incorrect behavior, ownership, boundary placement, failure handling,
+  or structural design must be corrected before acceptance, but the remedy and
+  blast radius are bounded.
+- `MINOR` — a localized contract, comment, evidence, or test gap should be
+  corrected but does not invalidate the primary design or required runtime
+  behavior.
+
+A mechanical gate failure alone does not make a finding `BLOCKER`. Top-level
+`BLOCKED` means the review cannot establish a trustworthy verdict; it is not a
+finding severity.
+
+Findings must be established by the frozen subject or a cited live source.
+Reconcile every authorized outcome and complete inventory item before returning,
+then verify, deduplicate, and severity-calibrate every candidate finding.
+Missing non-load-bearing evidence is a stated gap or unknown, not an assumed
+defect; missing load-bearing evidence returns top-level `BLOCKED`.
+
+Return exactly one verdict contract. Keep discovery and exploratory reasoning
+inside the isolated reviewer context; append no extra analysis to the contract.
+
 ## 1. Freeze the subject and evidence
 
 1. Record the mode, authority, repository, and operator emphasis.
@@ -67,8 +93,16 @@ Choose one holistic role and one to three bounded scoped roles:
 
 Use the portable reviewer vocabulary when it fits the subject:
 
-- select `architecture-reviewer` for interface depth, ownership, boundaries,
-  or structural pressure;
+- select `architecture-reviewer` for interface depth, boundaries, or
+  structural pressure;
+- select `ownership-reviewer` for local decision ownership, dependency
+  direction, primitive reuse, interface breadth, or semantic duplication;
+- select `reliability-reviewer` for state transitions, cleanup, cancellation,
+  resource release, concurrency, idempotency, timeouts, retries, degradation,
+  or recovery;
+- select `contract-reviewer` for authority-to-outcome coverage, boundary
+  contracts, authoritative shapes, cross-file consistency, or behavioral
+  proof;
 - select `interface-reviewer` for changed user-facing behavior,
   accessibility, or design-system conformance; and
 - select a task-specific security, identity, data-integrity, concurrency, or
@@ -77,6 +111,15 @@ Use the portable reviewer vocabulary when it fits the subject:
 Do not select a reviewer merely because its global definition exists. A
 reviewer used during pre-PR design review must still be launched as a fresh
 subagent here when its scope is selected.
+
+A reliability finding requires a supplied trigger, a reachable unsafe
+transition, material impact that follows without an unstated assumption, and a
+correction to the decision that caused the transition. Do not infer overlapping
+executions, resource sharing, retry behavior, scheduler behavior, driver
+behavior, or deployment topology when the subject and inspected sources do not
+establish them. Record absent non-load-bearing evidence as a check or handoff,
+not an actionable finding, and deduplicate symptoms resolved by one
+integration-policy correction.
 
 Role count expresses coverage. Concurrency expresses harness capacity. If the
 harness cannot run every selected role concurrently, queue them without

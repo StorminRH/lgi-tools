@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -12,6 +13,7 @@ from unittest.mock import patch
 
 from tools._lib.repository import ROOT
 from tools.policy.check_agent_policy import (
+    _hook_commands,
     check_canonical_guides,
     check_global_skill_contracts,
     check_hooks,
@@ -244,15 +246,19 @@ class AgentPolicyTests(unittest.TestCase):
         )
 
     def test_tracked_hook_commands_run_from_nested_cwd(self) -> None:
-        for raw_path in (".claude/settings.json", ".codex/hooks.json"):
+        for raw_path in (
+            ".claude/settings.json",
+            ".codex/hooks.json",
+            ".cursor/hooks.json",
+        ):
             config = json.loads((ROOT / raw_path).read_text(encoding="utf-8"))
-            commands = []
-            for group in config["hooks"]["PreToolUse"]:
-                commands.extend(hook["command"] for hook in group["hooks"])
+            commands = _hook_commands(config["hooks"])
             for command in commands:
+                env = {**os.environ, "CURSOR_PROJECT_DIR": str(ROOT)}
                 result = subprocess.run(
                     command,
                     cwd=ROOT / "src",
+                    env=env,
                     input="{}",
                     text=True,
                     shell=True,
