@@ -60,7 +60,7 @@ active roadmap.
 
 LGI.tools is an incremental EVE Online multi-tool platform. Extend existing
 slices and shared infrastructure without rewriting unrelated working systems.
-The current stack is Next.js 16.2.6 with Cache Components, React 19, strict
+The current stack is Next.js 16.2.11 with Cache Components, React 19, strict
 TypeScript, Tailwind v4, Drizzle ORM, Neon Postgres, Convex, Better Auth,
 Upstash Redis, Vercel, pnpm, Vitest, and visx.
 
