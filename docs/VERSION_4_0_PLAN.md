@@ -26,7 +26,7 @@
 > the session plan must resolve / Baseline & hotspot note / Delivery evidence.
 > `plan-version` maps these 1:1 onto the contract shape in
 > `docs/SESSION_CONTRACTS.md`; the plan states *what must be true*, never
-> implementation steps. Where a slice runs two sessions, the block notes the
+> implementation steps. Where a slice runs multiple sessions, the block notes the
 > split and which session carries the UX gate.
 >
 > **Provenance:** reshaped 2026-07-19 from the fully-walked 2026-07-04 planning
@@ -68,11 +68,14 @@ by hand where needed, and never see a refresh control.
 
 ## Status
 
-> **Approved delivery topology (2026-07-27 `plan-version`).** The rows below are
-> the approved execution bundles, not the phase narratives. `plan-version`
-> compressed the narrative's 16 sub-versions plus the version-opening obligations
-> (17 sub-versions / 19 sessions) to **14 sub-versions / 16 sessions**, and the
-> topology passed adversarial review with six accepted findings reconciled.
+> **Approved delivery topology (2026-07-30 operator restructure).** The rows
+> below are the approved execution bundles, not the phase narratives. The
+> original `plan-version` topology compressed the narrative's 16 sub-versions
+> plus the version-opening obligations to 14 sub-versions / 16 sessions. The
+> approved lower-context restructure preserves those 14 sub-versions and every
+> outcome while expanding execution to **23 sessions**. Its independent
+> topology challenge removed boundaries justified only by ordinary
+> producer/consumer order.
 > Sub-version identifiers keep their narrative numbers so no identifier ever
 > denotes different content; merged bundles absorb adjacent numbers and leave
 > gaps. `Covers` maps each bundle to the phase sections below.
@@ -87,17 +90,17 @@ by hand where needed, and never see a refresh control.
 | 4.0.1.6 | Statics dataset ingest (anoik.is feed) | §4.0.1.6 | 1 | COMPLETE |
 | **Phase 2 — Shell & live core** | | | | |
 | 4.0.2.1 | Map shell (dev wall, host layer, floating chrome) | §4.0.2.1 | 1 | COMPLETE |
-| 4.0.2.2 | Data model + authorization (Convex schema + gate + projection) | §4.0.2.2 | 1 | PLANNED |
+| 4.0.2.2 | Data model + authorization (Convex schema + gate + projection) | §4.0.2.2 | 2 | PLANNED |
 | 4.0.2.3 | Reactive read path (subscriptions + reconciler) | §4.0.2.3 | 1 | PLANNED |
 | **Phase 3 — Canvas** | | | | |
-| 4.0.3.1 | Auto-layout engine (ELK radial, sticky sectors) | §4.0.3.1 | 1 | PLANNED |
+| 4.0.3.1 | Auto-layout engine (ELK radial, sticky sectors) | §4.0.3.1 | 2 | PLANNED |
 | 4.0.3.2 | Motion layer (surface-in-place, tweened glides) | §4.0.3.2 | 1 | PLANNED |
 | 4.0.3.3 | Overlay window framework (three surfaces, one primitive) | §4.0.3.3 | 1 | PLANNED |
 | **Phase 4 — The living chain** | | | | |
-| 4.0.4.1 | Write path + connection intel | §4.0.4.1 | 1 | PLANNED |
-| 4.0.4.2 | Auto-mapping on jump (tracking, classification, fog) | §4.0.4.2 | 2 (PR per session) | PLANNED |
-| 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 2 (PR per session) | PLANNED |
-| 4.0.4.4 | Maps & access (switcher, roles, archive) | §4.0.4.4 | 1 | PLANNED |
+| 4.0.4.1 | Write path + connection intel | §4.0.4.1 | 2 | PLANNED |
+| 4.0.4.2 | Auto-mapping on jump (tracking, classification, fog) | §4.0.4.2 | 3 (PR per session) | PLANNED |
+| 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 3 (PR per session) | PLANNED |
+| 4.0.4.4 | Maps & access (switcher, roles, archive) | §4.0.4.4 | 3 | PLANNED |
 
 *(Elective health campaign: none scheduled — the campaign queue is empty at the
 3.9 cycle-2 baseline, and 4.0 is a flagship feature version; the decision is
@@ -106,9 +109,9 @@ contracts below name every Watch/hotspot surface they touch.)*
 
 *(Delivery-unit note: 4.0.4.2 and 4.0.4.3 are the version's two largest slices
 and are the only sub-versions whose sessions ship one PR per session. Their
-two-session boundary is justified by combined-diff unreviewability, which is
-only coherent when the review unit itself splits; every other sub-version ships
-one PR for the sub-version.)*
+three-session boundaries isolate external synchronization, collaborative
+mutation, and inference/privacy review domains whose combined diffs would be
+unreviewable; every other sub-version ships one PR for the sub-version.)*
 
 ## Gates (all sub-versions)
 
@@ -916,7 +919,7 @@ composition details.
 
 ---
 
-### 4.0.4.2 — Auto-mapping on jump *(2 sessions, one branch: plumbing → fog/UX; the UX gate rides session 2)*
+### 4.0.4.2 — Auto-mapping on jump *(3 sessions, one branch: tracking/classification → authoring/observations → fog/UX; UX gates ride sessions 2 and 3)*
 
 **PRE-SESSION OPERATOR STEP (Ryan):** enable `esi-location.read_location`,
 `esi-location.read_ship_type`, `esi-location.read_online` on the EVE dev-app
@@ -929,8 +932,8 @@ is shipped and directly tested in `eve-token-service.test.ts` — verified
 connection for every viewer with zero interaction — plus jump classification,
 the fog-of-war halo, the promotion rule, and the first D16 emissions.
 
-**UX gate:** Yes (session 2 — fog visuals + surfacing behavior on Ryan's local
-review; session 1 is plumbing and self-finishes in-branch).
+**UX gate:** Yes (session 2 proves automatic authoring in two local clients;
+session 3 reviews fog visuals + surfacing behavior; session 1 is non-visual).
 
 **Done means.**
 - A tracked scout's WH jump → system + connection surface on all viewers with
@@ -1001,7 +1004,7 @@ classification test outputs; AFK zero-write evidence; the D16 emission test;
 
 ---
 
-### 4.0.4.3 — Signatures *(2 sessions, one branch: parse/lifecycle → inference/UX; the UX gate rides session 2)*
+### 4.0.4.3 — Signatures *(3 sessions, one branch: lifecycle → inference/provenance → ranking/emission/UX; UX gates ride sessions 1 and 3)*
 
 **Pre-gates:** 4.0.1.6 shipped or explicitly running degraded (inference off,
 pick list unranked — never fake a static); 4.0.1.5 shipped (else the sig-row
@@ -1011,7 +1014,8 @@ hook degrades to opening /sites in a new tab).
 constraint-solver inference engine with provenance, stub nodes per the canvas
 ladder, ceiling expiry, the unified collapse pathway, and D16 typed-emission.
 
-**UX gate:** Yes (session 2).
+**UX gate:** Yes (session 1 reviews lifecycle and stubs; session 3 reviews
+inference, ranking, provenance and widget integration).
 
 **Done means.**
 - Paste parses scanner output (sigs + anomalies); the list populates.

@@ -56,6 +56,19 @@ follow `docs/workflows/schema/subagent-evidence.md`.
 
 ## Capability contracts
 
+### MCP and CLI selection
+
+Prefer an official configured MCP for agent-facing reads and exploration when
+it exposes the required behavior. Use the owning CLI for installation,
+authentication, index or server maintenance, deterministic scripting, complete
+output, recovery, and operations the MCP does not expose. A procedure that
+names an exact command still owns that command.
+
+MCP and CLI surfaces complement each other; neither changes repository policy
+or grants authority. Choose one primary surface for an operation instead of
+repeating the same work through both. If the preferred surface is unavailable,
+use the documented fallback and report any remaining capability gap.
+
 ### Repository navigation and documentation
 
 Agents need file search, code-relationship exploration, current primary
@@ -73,6 +86,12 @@ CLI) for unfamiliar flows; use the CLI for `query`, `callers`, `callees`,
 `impact`, `affected`, and any other command the MCP surface does not expose.
 If neither MCP nor CLI can reach a current index, report the blocker; do not
 substitute text search.
+
+The `find-docs` skill owns documentation research and its evidence form.
+Prefer the official Context7 MCP when it is configured and authenticated; use
+the `ctx7` CLI or current official primary documentation when the MCP is
+unavailable or incomplete. Do not let a harness-generated rule or skill
+replace the repository-owned procedure.
 
 For unfamiliar or cross-cutting code, prefer a fresh read-only `repo-mapper`
 subagent that invokes `map-codebase`. For every coding task, prefer a fresh
@@ -134,10 +153,15 @@ unapproved external service.
 
 ### Authenticated and external tools
 
-Authenticated CLIs and app connections may remain user-level so multiple
-harnesses can share them. Their presence, authentication, and entitlement are
-checked at the point of use. Missing credentials or a missing integration block
-only the procedure that requires it.
+Authenticated CLIs, official MCPs, and app connections may remain user-level so
+multiple harnesses can share them. Their presence, authentication, entitlement,
+and scope are checked at the point of use. Missing credentials or a missing
+integration blocks only the procedure that requires it.
+
+GitHub, Vercel, Neon, and similar MCPs complement their CLIs but do not replace
+exact workflow commands. Configure write-capable MCPs only with credentials and
+project boundaries appropriate to their intended use. Keep development-only
+integrations out of production data and projects.
 
 External writes, reviews, deployments, and merges retain the authorization
 rules in `AGENTS.md` and the owning workflow regardless of which harness

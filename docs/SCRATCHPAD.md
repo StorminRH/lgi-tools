@@ -11,7 +11,7 @@ contracts, plans, as-built records, audit evidence, and close record live in
 
 Version **4.0, “The Living Map,”** is the active master version. Its plan is
 `docs/VERSION_4_0_PLAN.md` and its approved delivery topology — 14 sub-versions
-across 16 sessions — is the `## Status` table there. Every session is
+across 23 sessions — is the `## Status` table there. Every session is
 contracted in `docs/session-contracts/4.0/`. Continue only through
 `start-session`; the resolver owns stage selection and the deterministic
 `lifecycle/<sub-version>` branch.

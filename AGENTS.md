@@ -5,7 +5,8 @@ must follow. Keep shared executable procedures in `docs/workflows/`, exact
 artifact forms in `docs/workflows/schema/`, thin discovery adapters in the
 global Agent Skills directory, source-only rules in `src/AGENTS.md`, visible
 repository automation in `tools/`, and mechanical policy in lint, tests,
-Fallow, and hooks.
+Fallow, and hooks. `docs/AGENT_CAPABILITIES.md` owns how agents choose between
+native tools, MCPs, and CLIs; an owning workflow may require an exact command.
 
 Precedence is: the operator's explicit current instruction and approved scope;
 the nearest applicable `AGENTS.md`; the invoked canonical procedure under
@@ -25,19 +26,11 @@ Before changing code:
    a fresh read-only `repo-mapper` subagent. It runs the global `map-codebase`
    skill and returns the repository-map form in
    `docs/workflows/schema/subagent-evidence.md`. When native subagents are
-   unavailable, run that skill in the main context. Codegraph is installed and
-   required before grepping or reading source. Prefer the harness Codegraph MCP
-   `codegraph_explore` tool when it is available; otherwise use the global
-   `codegraph` CLI. Confirm the CLI and index with `command -v codegraph` and
-   `codegraph status` from the repository root, or pass the repository root as
-   the path argument (for example `codegraph status "<repo-root>"`) — status,
-   sync, index, install, and other maintenance commands are CLI-only. The index
-   lives in gitignored `.codegraph/`; if a harness sandbox cannot open that
-   directory, re-run Codegraph CLI calls with unrestricted filesystem access.
-   Use explore (MCP or CLI) for an unfamiliar flow. Use the CLI for `query`,
-   `callers`, `callees`, `impact`, `affected`, and any other command the MCP
-   surface does not expose. If neither MCP nor CLI can reach a current index,
-   report the blocker; do not substitute text search.
+   unavailable, run that skill in the main context. Follow
+   `docs/AGENT_CAPABILITIES.md` for the MCP/CLI split. Codegraph and a current
+   index are required before text search or source inspection; if neither
+   official surface can reach the index, report the blocker rather than
+   substituting text search.
 3. Delegate current primary-documentation retrieval to a fresh read-only
    `docs-researcher` subagent at the beginning of every coding task, including
    routine React and framework work. It runs the global `find-docs` skill and
@@ -315,7 +308,8 @@ Harness-specific guide files import them and contain no duplicate policy.
 - Keep global skills under `~/.agents/skills/` as thin portable adapters that
   locate this repository and read exactly one owning procedure. Link a
   harness-specific skill root to that global source only when the harness does
-  not discover it directly. Keep deterministic repository automation in
+  not discover it directly. Harness-generated guidance must not duplicate or
+  override repository policy. Keep deterministic repository automation in
   `tools/`.
 - Invoke `agent-policy-audit` for a cross-surface review or repair of guides,
   workflows, schemas, global skill contracts, hooks, manifests, and policy
