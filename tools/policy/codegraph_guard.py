@@ -124,11 +124,12 @@ def guard_bash(
     emit(
         "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
         "the global map-codebase skill through a fresh repo-mapper subagent, "
-        "or in this context when native subagents are unavailable. Use "
-        "codegraph explore \"<question>\" for an unfamiliar area or "
-        "codegraph query \"<symbol>\" when you already know the symbol, "
-        "before grepping raw files. Only grep "
-        "after Codegraph has oriented you, or to modify/debug specific lines.",
+        "or in this context when native subagents are unavailable. Prefer "
+        "Codegraph MCP codegraph_explore when available, or "
+        "codegraph explore \"<question>\" via the CLI, for an unfamiliar "
+        "area; use CLI-only codegraph query \"<symbol>\" when you already "
+        "know the symbol, before grepping raw files. Only grep after "
+        "Codegraph has oriented you, or to modify/debug specific lines.",
         cursor_native,
     )
 
@@ -152,9 +153,11 @@ def guard_read(
         "MANDATORY: .codegraph/codegraph.db exists. Obtain a current "
         "map-codebase evidence packet from a fresh repo-mapper subagent before "
         "reading source files, or run the skill in this context when native "
-        "subagents are unavailable. Use: `codegraph explore \"<question>\"` "
-        "(relevant symbols and call paths), `codegraph query \"<symbol>\"`, or "
-        "`codegraph callers \"<symbol>\"` / `codegraph impact \"<symbol>\"`. Only "
+        "subagents are unavailable. Prefer Codegraph MCP codegraph_explore "
+        "when available, or CLI `codegraph explore \"<question>\"`. Use "
+        "CLI-only `codegraph query \"<symbol>\"`, "
+        "`codegraph callers \"<symbol>\"`, or `codegraph impact \"<symbol>\"` "
+        "for relationship lookups the MCP surface does not expose. Only "
         "read raw files after Codegraph has oriented the task, or to "
         "modify/debug specific lines.",
         cursor_native,

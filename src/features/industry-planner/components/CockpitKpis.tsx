@@ -118,7 +118,7 @@ function InputCostTile() {
           </span>
         }
       />
-      <div className={cn(KPI_FIG, 'text-name')}>
+      <div className={cn(KPI_FIG, 'text-isk')}>
         <LivePrice value={view.inputCost} pending={refreshing} />
       </div>
     </KpiTile>
