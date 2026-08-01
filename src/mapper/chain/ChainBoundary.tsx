@@ -45,12 +45,14 @@ export function NoMapAccess() {
         <div className="font-data text-label uppercase tracking-eyebrow text-muted">
           Atlas · access
         </div>
-        <h2 className="font-display text-title font-bold uppercase tracking-copy text-name">
-          Access not held
+        {/* Deliberately NOT uppercased, unlike other display headings: `o7` is the salute and `O7`
+            is not, so the house uppercase treatment would break the word. */}
+        <h2 className="font-display text-title font-bold tracking-copy text-name">
+          You&rsquo;ve lost access to this map o7
         </h2>
         <p className="text-body leading-relaxed text-text">
-          Access to this map is no longer held. Another map can be opened from the
-          atlas, and access can be restored by the map&rsquo;s owner.
+          Another map can be opened from the atlas or access can be restored by the
+          map&rsquo;s owner.
         </p>
       </div>
     </section>

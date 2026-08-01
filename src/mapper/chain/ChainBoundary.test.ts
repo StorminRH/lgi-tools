@@ -61,9 +61,18 @@ describe('chain boundary', () => {
 describe('calm no-access state', () => {
   const markup = renderToStaticMarkup(createElement(NoMapAccess));
 
-  it('explains that access is no longer held', () => {
+  it('leads with the lost-access line as its heading, salute intact', () => {
     expect(markup).toContain('data-chain-no-access');
-    expect(markup).toContain('Access to this map is no longer held');
+    expect(markup).toMatch(/<h2[^>]*>[^<]*lost access to this map o7/);
+    // The house uppercase treatment would render the salute as `O7`, which is not the gesture.
+    expect(markup).not.toContain('uppercase tracking-copy');
+    expect(markup).not.toContain('O7');
+  });
+
+  it('states the two ways back without restating the heading', () => {
+    expect(markup).toContain('Another map can be opened from the atlas');
+    expect(markup).toContain('access can be restored by the');
+    expect(markup).not.toMatch(/access lost/i);
   });
 
   // HC-4: no retry control anywhere on the map, including here.
