@@ -21,6 +21,7 @@ import type {
 import {
   FAR_SIDE_WORMHOLE_CODE,
   WORMHOLE_SIZE_CLASSES,
+  WORMHOLE_TYPE_CODE,
 } from './wormhole-contract';
 
 // ── POST /api/eve/names (authz: none — public ESI read) ─────────────────
@@ -171,7 +172,7 @@ export const adjacencyResponseSchema = z.object({
 }) satisfies z.ZodType<AdjacencyAsset>;
 
 const typedWormholeCodexEntrySchema = z.object({
-  code: z.string().regex(/^[A-Z]\d{3}$/),
+  code: z.string().regex(WORMHOLE_TYPE_CODE),
   typeId: z.number().int().positive(),
   farSide: z.literal(false),
   totalMass: z.number(),

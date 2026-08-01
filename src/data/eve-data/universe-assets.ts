@@ -15,11 +15,16 @@ import {
   eveTypes,
   typeDogma,
 } from './schema';
-import { FAR_SIDE_WORMHOLE_CODE, type WormholeSizeClass } from './wormhole-contract';
+import {
+  FAR_SIDE_WORMHOLE_CODE,
+  isWormholeTypeCode,
+  type WormholeSizeClass,
+} from './wormhole-contract';
 
 const WORMHOLE_GROUP_ID = 988;
 const K162_CODE = FAR_SIDE_WORMHOLE_CODE;
-const WORMHOLE_TYPE_NAME = /^Wormhole ([A-Z]\d{3})$/;
+/** SDE type-name prefix; the captured code is validated by {@link isWormholeTypeCode}. */
+const WORMHOLE_TYPE_NAME = /^Wormhole (.+)$/;
 const KNOWN_QA_WORMHOLE_TYPES = new Map([
   [32_894, 'QA Wormhole A'],
   [32_895, 'QA Wormhole B'],
@@ -163,7 +168,7 @@ export function buildWormholeCodex(
     .filter((row) => !isKnownQaWormholeType(row))
     .map((row): WormholeCodexEntry => {
       const code = WORMHOLE_TYPE_NAME.exec(row.name)?.[1];
-      if (code === undefined) {
+      if (code === undefined || !isWormholeTypeCode(code)) {
         throw new Error(
           `SDE wormhole type ${row.id} has unexpected name "${row.name}".`,
         );

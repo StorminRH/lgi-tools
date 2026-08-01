@@ -824,16 +824,3 @@ so both need a real design decision, not a constraint.
   deliberately left out of scope: the plan explicitly specifies the document-ID
   note target, and the cleanup module's source contract is a pinned success
   criterion of that same session.*
-
-- **Refresh `docs/CONVEX.md`'s Convex-primary exception clause.** *What:* the
-  data-model section still describes the sanctioned durability exception as the
-  mapper's "signatures, notes, bookmarks", but sub-version 4.0.2.2 also lands
-  `mapSystems` and `mapConnections` as Convex-primary user-authored tables under
-  master-plan decision D3. *Impact:* the prose owner now understates the
-  exception, so a later agent reading it as the constraint could reject a correct
-  chain table or invent a second Neon owner for connections. *Fix direction:* one
-  clause naming the whole per-map chain and citing D3; no behaviour change.
-  *Size:* XS. *Trigger:* the next session that touches `docs/CONVEX.md`, or
-  4.0.2.2.2, which extends the same tables. *Found by adversarial review during
-  4.0.2.2.1; left out of scope because `docs/CONVEX.md` is not among that
-  session's owned surfaces.*

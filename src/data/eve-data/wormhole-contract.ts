@@ -15,7 +15,12 @@ export type WormholeSizeClass = (typeof WORMHOLE_SIZE_CLASSES)[number];
  */
 export const FAR_SIDE_WORMHOLE_CODE = 'K162';
 
-const WORMHOLE_TYPE_CODE = /^[A-Z]\d{3}$/;
+/**
+ * Canonical wormhole type-code grammar: one uppercase letter followed by three digits. The wire
+ * validator, SDE name extractor, and collaborative boundary all consume this one pattern so a
+ * future widening cannot accept a code in one runtime that another rejects.
+ */
+export const WORMHOLE_TYPE_CODE = /^[A-Z]\d{3}$/;
 
 /**
  * Recognises a canonical wormhole type code: an uppercase letter followed by three digits, which

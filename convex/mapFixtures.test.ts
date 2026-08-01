@@ -606,6 +606,25 @@ describe('map chain fixtures', () => {
         systemId: AMARR,
       });
       await t.run(async (ctx) => {
+        await ctx.db.insert('mapConnections', {
+          mapId: MAP_B,
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          wormholeTypeCode: 'C247',
+          massState: 'stable',
+          shipSize: 'S',
+          eolAt: null,
+        });
+        await ctx.db.insert('mapSignatures', {
+          mapId: MAP_B,
+          systemId: AMARR,
+          signatureId: 'OTH-001',
+          group: null,
+          typeName: null,
+          wormholeTypeCode: null,
+          deletedAt: null,
+          purgeAfter: null,
+        });
         await ctx.db.insert('mapNotes', {
           mapId: MAP_B,
           targetKind: 'map',
@@ -614,13 +633,18 @@ describe('map chain fixtures', () => {
         });
       });
 
-      const systems = await drain(t, 'systems');
-      expect(systems.rows).toHaveLength(1);
-      expect(systems.rows.every((row) => row.mapId === MAP_A)).toBe(true);
+      for (const collection of ['systems', 'connections', 'signatures', 'notes'] as const) {
+        const page = await drain(t, collection);
+        expect(page.rows.every((row) => row.mapId === MAP_A)).toBe(true);
+        expect(page.rows.some((row) => row.mapId === MAP_B)).toBe(false);
+      }
+      expect((await drain(t, 'systems')).rows).toHaveLength(1);
+      expect((await drain(t, 'connections')).rows).toHaveLength(0);
+      expect((await drain(t, 'signatures')).rows).toHaveLength(0);
       expect((await drain(t, 'notes')).rows).toHaveLength(0);
     });
 
-    it.each(['notes', 'signatures'] as const)(
+    it.each(['systems', 'connections', 'notes', 'signatures'] as const)(
       'reports a non-terminal %s cursor whose iteration yields the complete set',
       async (collection) => {
         const t = convexTest(schema, modules);
@@ -636,7 +660,7 @@ describe('map chain fixtures', () => {
                 targetId: MAP_A,
                 body: `note ${i}`,
               });
-            } else {
+            } else if (collection === 'signatures') {
               await ctx.db.insert('mapSignatures', {
                 mapId: MAP_A,
                 systemId: JITA,
@@ -647,6 +671,22 @@ describe('map chain fixtures', () => {
                 deletedAt: null,
                 purgeAfter: null,
               });
+            } else if (collection === 'systems') {
+              await ctx.db.insert('mapSystems', {
+                mapId: MAP_A,
+                // Keep clear of seeded Jita/Amarr identities used elsewhere in this suite.
+                systemId: 40_000_000 + i,
+              });
+            } else {
+              await ctx.db.insert('mapConnections', {
+                mapId: MAP_A,
+                fromSystemId: JITA,
+                toSystemId: 40_000_000 + i,
+                wormholeTypeCode: null,
+                massState: 'stable',
+                shipSize: null,
+                eolAt: null,
+              });
             }
           }
         });
@@ -656,8 +696,11 @@ describe('map chain fixtures', () => {
         const drained = await drain(t, collection);
         expect(drained.sawNonTerminalCursor).toBe(true);
         expect(drained.pages).toBeGreaterThan(1);
-        expect(drained.rows).toHaveLength(total);
-        expect(new Set(drained.rows.map((row) => row._id)).size).toBe(total);
+        // seedMap already placed one system on MAP_A; connections/notes/signatures start empty.
+        const expected =
+          collection === 'systems' ? total + 1 : total;
+        expect(drained.rows).toHaveLength(expected);
+        expect(new Set(drained.rows.map((row) => row._id)).size).toBe(expected);
       },
     );
   });
