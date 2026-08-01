@@ -12,17 +12,36 @@
 //
 // Everything drawn here comes from the reconciler (contract DC-7). This module reads no Convex page
 // directly and adds no mutation surface — the session is read-only.
-import { applyNodeChanges, type NodeChange, type OnNodeDrag } from '@xyflow/react';
+import { applyNodeChanges, type Edge, type NodeChange, type OnNodeDrag } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import { ChainSurface } from '../canvas/ChainSurface';
 import type { ChainNode } from '../canvas/SystemNode';
 import { buildEdges, syncNodes } from './nodes';
 import { useMapChain } from './use-map-chain';
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
+const EMPTY_NODES: ChainNode[] = [];
+const EMPTY_EDGES: Edge[] = [];
+
+/**
+ * Renders the live chain, waiting for a Convex identity before subscribing.
+ *
+ * The websocket connects before Better Auth has minted the JWT, so subscribing immediately would send
+ * a gated query with no identity and take an `UNAUTHENTICATED` rejection — which is not a FORBIDDEN
+ * revocation and would therefore escape the calm-state boundary to the map error surface. Waiting is
+ * also the correct HC-5 behavior: the canvas renders straight away and empty, with no spinner, and
+ * nodes arrive when both the identity and the pages do.
+ */
+export function ChainHost({ mapId }: { readonly mapId: string }) {
+  const authed = useConvexAuthed();
+
+  if (!authed) return <ChainSurface nodes={EMPTY_NODES} edges={EMPTY_EDGES} />;
+  return <ChainLive mapId={mapId} />;
+}
 
 /** Subscribes to one map and renders its live chain on the canvas surface. */
-export function ChainHost({ mapId }: { readonly mapId: string }) {
+function ChainLive({ mapId }: { readonly mapId: string }) {
   const [dragging, setDragging] = useState<ReadonlySet<number>>(EMPTY_DRAG_SET);
   // Mirrors `dragging` for use inside the sync effect without making the effect depend on it: a drag
   // start must not itself trigger a resync.
