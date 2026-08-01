@@ -3,6 +3,50 @@
 > Short cross-session memory. Keep this skimmable in about one minute. The
 > upkeep procedure lives in `docs/workflows/close-out.md`.
 
+## Now
+
+- **CURRENT:** session 4.0.2.2.2 access projection and revocation is on
+  `lifecycle/4.0.2.2` in close-out for shared sub-version PR #341.
+- **NEXT:** finish close-out for PR #341, then run
+  `python3 tools/cli.py lifecycle resolve --pretty` and follow its directive.
+- **Access/read-set cost (4.0.2.2.2 SC-4):** each gated fixture call reads 1
+  indexed `mapAccess` claim row + at most `MAP_FIXTURE_PAGE_SIZE = 25` payload
+  rows. At pinned sizes 50 systems / 30 connections / 60 signatures / 10 notes,
+  drains measured 2 / 2 / 3 / 1 pages with max page ≤ 25. A full four-collection
+  watch is therefore 4 claim reads + one page per open cursor per update cycle.
+- **Live revocation probe (SC-3.2):** local backend (`CONVEX_DEPLOYMENT` began
+  `local:`), admin-auth subscriber B received data, took no further action, and
+  got `onError` with code `FORBIDDEN` 14 ms after the revoke POST. Probe script
+  is not committed. Transcript:
+
+```json
+[
+  {"t":1785551312141,"event":"warmup_query"},
+  {"t":1785551312153,"event":"warmup_ok","pageLength":0},
+  {"t":1785551312153,"event":"subscribe"},
+  {"t":1785551312154,"event":"data","pageLength":0,"isDone":true},
+  {"t":1785551312205,"event":"project_revoke"},
+  {"t":1785551312216,"event":"project_revoke_ok","revokeCounts":{"deleted":1,"inserted":0,"unchanged":1,"updated":0}},
+  {"t":1785551312219,"event":"onError","code":"FORBIDDEN","name":"ConvexError","data":{"code":"FORBIDDEN"}},
+  {"t":1785551312219,"event":"result","result":"forbidden","sawForbidden":true,"latencyMs":14}
+]
+```
+- **Deferred by operator ruling:** automatic corp-membership-drift trigger after
+  a projection run; resync remains the correction tool until a later session.
+- **Accepted residuals:** (1) a deleted map whose teardown POST failed has no
+  automatic healer — operator must resync those logged map ids; (2) a projection
+  racing a concurrent user purge can re-insert claims until the purge door or a
+  resync runs again.
+- **Refresh-shortfall:** projection throws only on transient ESI failure
+  (5xx/budget/thrown); ESI 404 batch omissions are definitive and must not wedge
+  convergence (biomassed characters leave stale cache fail-closed via
+  `memberCorpIds`).
+- **Fallow-driven seams:** `mapsPurgeContributor` stays in `src/data/maps/purge.ts`
+  with `registerMapAccessProjectionPurgeHooks`; identity mutations use
+  `registerIdentityProjectionHooks` from `map-access-identity.ts` so
+  platform/auth never imports composition. Unlink/reassign/absorb/emptied-user
+  deletes re-project or tear down in-session (not backlog).
+
 ## Current boundary
 
 Version 3.10, “Hull Integrity + SKIN,” is closed and archived. Its roadmap,
@@ -22,11 +66,6 @@ and the sequence contains deliberate gaps; the resolver orders by table row, not
 by arithmetic. Sub-versions 4.0.4.2 and 4.0.4.3 are the only ones whose sessions
 each ship their own PR — every other sub-version ships one PR for the
 sub-version.
-
-Sub-version 4.0.0.1 delivers Phase 0: the baseline captures each master
-version's starting ref, measures the expanded registered-row set, and archives
-session as-built records with the rest of a version bundle. Its merge advances
-the resolver to Phase 1 planning for 4.0.1.1.
 
 `docs/CODE_HEALTH_BASELINE.md` and `docs/UPDATE_WATCH_BASELINE.md` remain the
 active health and update-watch state. The full scratchpad as it stood at the

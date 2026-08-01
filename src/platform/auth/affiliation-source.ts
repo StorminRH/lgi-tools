@@ -39,6 +39,17 @@ export interface AffiliationRow {
   factionId: number | null;
 }
 
+/**
+ * Aggregate ESI affiliation fetch outcome. A single-id 404 is definitive (the
+ * character no longer exists). Multi-id 404s are bisected so live characters in
+ * the same batch still refresh; thrown/5xx/budget refusals and unreadable bodies
+ * are transient.
+ */
+export interface AffiliationFetchResult {
+  readonly rows: AffiliationRow[];
+  readonly transientFailure: boolean;
+}
+
 type AffiliationEntry = z.infer<typeof affiliationEntrySchema>;
 
 function toAffiliationRow(entry: AffiliationEntry): AffiliationRow {
@@ -50,11 +61,27 @@ function toAffiliationRow(entry: AffiliationEntry): AffiliationRow {
   };
 }
 
-// One bulk POST for up to 1000 ids. Returns [] for any skippable batch failure —
-// a non-ok Response (4xx incl. the all-or-nothing 404 ESI returns when ANY id is
-// non-existent), a 5xx, a budget refusal, or contract drift — so a bad batch
-// never sinks the others; only an unexpected error rethrows.
-async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationRow[]> {
+type BatchOutcome =
+  | { kind: 'ok'; rows: AffiliationRow[] }
+  | { kind: 'completedWithOmissions' }
+  | { kind: 'transientFailure' };
+
+function mergeBatchOutcomes(left: BatchOutcome, right: BatchOutcome): BatchOutcome {
+  if (left.kind === 'transientFailure' || right.kind === 'transientFailure') {
+    return { kind: 'transientFailure' };
+  }
+  const rows = [
+    ...(left.kind === 'ok' ? left.rows : []),
+    ...(right.kind === 'ok' ? right.rows : []),
+  ];
+  if (rows.length > 0) return { kind: 'ok', rows };
+  return { kind: 'completedWithOmissions' };
+}
+
+// One bulk POST for up to 1000 ids. Classifies ESI outcomes so callers can tell
+// a definitive deleted-id 404 from a retryable outage. ESI 404s the whole batch
+// when ANY id is deleted — bisect until single-id omissions are isolated.
+async function fetchAffiliationBatch(batch: number[]): Promise<BatchOutcome> {
   let res: Response;
   try {
     res = await esiFetch(esiUrl('/characters/affiliation/'), {
@@ -63,26 +90,46 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationRow[]>
       body: JSON.stringify(batch),
     });
   } catch (err) {
-    if (err instanceof EsiBudgetExhaustedError || err instanceof EsiServerError) return [];
+    if (err instanceof EsiBudgetExhaustedError || err instanceof EsiServerError) {
+      return { kind: 'transientFailure' };
+    }
     throw err;
   }
-  if (!res.ok) return [];
+  if (res.status === 404) {
+    if (batch.length <= 1) return { kind: 'completedWithOmissions' };
+    const mid = Math.ceil(batch.length / 2);
+    const left = await fetchAffiliationBatch(batch.slice(0, mid));
+    const right = await fetchAffiliationBatch(batch.slice(mid));
+    return mergeBatchOutcomes(left, right);
+  }
+  if (!res.ok) return { kind: 'transientFailure' };
   const parsed = affiliationResponseSchema.safeParse(await res.json());
-  return parsed.success ? parsed.data.map(toAffiliationRow) : [];
+  if (!parsed.success) return { kind: 'transientFailure' };
+  return { kind: 'ok', rows: parsed.data.map(toAffiliationRow) };
 }
 
 /**
- * Fetch affiliations for the given characters. Best-effort and resilient: each
- * batch is independent, and a skipped character simply keeps its prior cached
- * value and is retried on the next trigger.
+ * Fetch affiliations for the given characters. Each batch is independent: a
+ * definitive deleted-id 404 contributes no row for that id (and is bisected out
+ * of mixed batches) without marking the aggregate transient; a 5xx/budget
+ * refusal or unreadable body sets `transientFailure` so projection can refuse
+ * to converge on a silently shrunken set.
  */
-export async function fetchAffiliations(characterIds: number[]): Promise<AffiliationRow[]> {
+export async function fetchAffiliations(
+  characterIds: number[],
+): Promise<AffiliationFetchResult> {
   const unique = dedupe(characterIds);
-  if (unique.length === 0) return [];
+  if (unique.length === 0) return { rows: [], transientFailure: false };
 
   const out: AffiliationRow[] = [];
+  let transientFailure = false;
   for (const batch of chunk(unique, AFFILIATION_BATCH_MAX)) {
-    out.push(...(await fetchAffiliationBatch(batch)));
+    const outcome = await fetchAffiliationBatch(batch);
+    if (outcome.kind === 'ok') {
+      out.push(...outcome.rows);
+    } else if (outcome.kind === 'transientFailure') {
+      transientFailure = true;
+    }
   }
-  return out;
+  return { rows: out, transientFailure };
 }

@@ -7,20 +7,43 @@ import { getMapAccessSubject, getMapGrants } from '@/data/maps/queries';
 import {
   getUserAffiliations,
 } from '@/platform/auth/affiliation-store';
-import { refreshStaleAffiliationsForUser } from '@/platform/auth/affiliation';
+import { refreshStaleAffiliationsForUserWithOutcome } from '@/platform/auth/affiliation';
 import { memberCorpIds } from '@/platform/auth/membership';
+
+/** Principals plus whether the preceding stale refresh hit a transient ESI failure. */
+export interface ResolvedMapPrincipals {
+  readonly principals: MapPrincipals;
+  readonly refreshTransientFailure: boolean;
+}
+
+/**
+ * Resolves a Better Auth user into the EVE principals they act as, refreshing
+ * stale affiliations first and reporting whether that refresh failed transiently.
+ * This is the single seam where character and corporation principals bind to a
+ * user id for Neon-side map callers — one affiliation read path for both the
+ * principals and the projection shortfall guard.
+ */
+export async function resolveMapPrincipalsWithOutcome(
+  userId: string,
+): Promise<ResolvedMapPrincipals> {
+  const { transientFailure } = await refreshStaleAffiliationsForUserWithOutcome(userId);
+  const affiliations = await getUserAffiliations(userId);
+  return {
+    principals: {
+      characterIds: affiliations.map((affiliation) => affiliation.characterId),
+      corporationIds: memberCorpIds(affiliations, new Date()),
+    },
+    refreshTransientFailure: transientFailure,
+  };
+}
 
 /**
  * Resolves a Better Auth user into the EVE principals they act as. This is the single seam where
  * character and corporation principals bind to a user id for Neon-side map callers.
  */
 export async function resolveMapPrincipals(userId: string): Promise<MapPrincipals> {
-  await refreshStaleAffiliationsForUser(userId);
-  const affiliations = await getUserAffiliations(userId);
-  return {
-    characterIds: affiliations.map((affiliation) => affiliation.characterId),
-    corporationIds: memberCorpIds(affiliations, new Date()),
-  };
+  const { principals } = await resolveMapPrincipalsWithOutcome(userId);
+  return principals;
 }
 
 /**

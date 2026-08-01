@@ -3,6 +3,10 @@ import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { accountMatch, eveAccountsForUser } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
+import {
+  runAfterCharacterLinkChanged,
+  runBeforeUserDelete,
+} from './identity-projection-hooks';
 import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-characters';
 import { account, session, user } from '@/db/auth-schema';
 import type { CharacterRole } from './types';
@@ -186,7 +190,10 @@ export async function deleteLinkedCharacter(
     .delete(account)
     .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
     .returning({ id: account.id });
-  return deleted.length > 0;
+  if (deleted.length === 0) return false;
+  // Grants remain; re-project so the detached user loses character-derived claims.
+  await runAfterCharacterLinkChanged(characterId);
+  return true;
 }
 
 /**
@@ -257,7 +264,10 @@ export async function reassignCharacter({
     .limit(1);
 
   if (!remaining) {
+    // Tear down Convex map claims before FK cascade deletes owned Neon maps.
+    await runBeforeUserDelete(fromUserId);
     await db.delete(user).where(eq(user.id, fromUserId));
+    await runAfterCharacterLinkChanged(characterId);
     return { sourceDeleted: true };
   }
 
@@ -265,5 +275,6 @@ export async function reassignCharacter({
   if (active === characterId) {
     await repointActiveToOldest(fromUserId);
   }
+  await runAfterCharacterLinkChanged(characterId);
   return { sourceDeleted: false };
 }

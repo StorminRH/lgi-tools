@@ -5,9 +5,11 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { problemResponse } from '@/transport/api-response';
+import '@/composition/map-access-identity';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
 import { auth } from '@/platform/auth/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
+import { runAfterCharacterLinkChanged } from '@/platform/auth/identity-projection-hooks';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,
@@ -71,6 +73,11 @@ export async function POST(request: NextRequest): Promise<Response> {
         console.error('[account/unlink] unlinkAccount failed', err);
         return redirectWithError(request, 'unlink_failed');
       }
+
+      // Better Auth unlink does not go through deleteLinkedCharacter; re-project
+      // via the never-throw identity hook runner so a Neon enumeration blip
+      // cannot 500 a committed unlink or skip the active-pointer repoint.
+      await runAfterCharacterLinkChanged(characterId);
 
       // Re-point the active character if we just removed it (the oldest remaining one
       // becomes active). Read the stored active id FRESH rather than trusting the

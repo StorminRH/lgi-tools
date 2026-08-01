@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   getMapAccessSubject: vi.fn(),
   getMapGrants: vi.fn(),
   getUserAffiliations: vi.fn(),
-  refreshStaleAffiliationsForUser: vi.fn(),
+  refreshStaleAffiliationsForUserWithOutcome: vi.fn(),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -16,7 +16,7 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
   getUserAffiliations: mocks.getUserAffiliations,
 }));
 vi.mock('@/platform/auth/affiliation', () => ({
-  refreshStaleAffiliationsForUser: mocks.refreshStaleAffiliationsForUser,
+  refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
 }));
 
 import { getMapAccess, resolveMapPrincipals } from './map-access';
@@ -37,7 +37,10 @@ function affiliation(
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.refreshStaleAffiliationsForUser.mockResolvedValue(0);
+  mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
+    refreshed: 0,
+    transientFailure: false,
+  });
   mocks.getUserAffiliations.mockResolvedValue([]);
   mocks.getMapAccessSubject.mockResolvedValue({
     userId: 'creator',
@@ -55,10 +58,10 @@ describe('resolveMapPrincipals', () => {
       characterIds: [42],
       corporationIds: [99],
     });
-    expect(mocks.refreshStaleAffiliationsForUser).toHaveBeenCalledOnce();
-    expect(mocks.refreshStaleAffiliationsForUser).toHaveBeenCalledWith('user-1');
+    expect(mocks.refreshStaleAffiliationsForUserWithOutcome).toHaveBeenCalledOnce();
+    expect(mocks.refreshStaleAffiliationsForUserWithOutcome).toHaveBeenCalledWith('user-1');
     expect(
-      mocks.refreshStaleAffiliationsForUser.mock.invocationCallOrder[0],
+      mocks.refreshStaleAffiliationsForUserWithOutcome.mock.invocationCallOrder[0],
     ).toBeLessThan(mocks.getUserAffiliations.mock.invocationCallOrder[0] ?? 0);
   });
 
@@ -137,7 +140,7 @@ describe('getMapAccess', () => {
       canView: false,
       canEdit: false,
     });
-    expect(mocks.refreshStaleAffiliationsForUser).not.toHaveBeenCalled();
+    expect(mocks.refreshStaleAffiliationsForUserWithOutcome).not.toHaveBeenCalled();
     expect(mocks.getMapGrants).not.toHaveBeenCalled();
   });
 });

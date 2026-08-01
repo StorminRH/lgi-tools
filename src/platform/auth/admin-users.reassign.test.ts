@@ -29,17 +29,31 @@ const { chain, state } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
+const hooks = vi.hoisted(() => ({
+  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('./identity-projection-hooks', () => ({
+  runBeforeUserDelete: (userId: string) => hooks.runBeforeUserDelete(userId),
+  runAfterCharacterLinkChanged: (characterId: number) =>
+    hooks.runAfterCharacterLinkChanged(characterId),
+}));
+
 import { reassignCharacter } from './admin-users';
 
 beforeEach(() => {
   state.results = [];
   state.calls.delete = 0;
   state.calls.update = 0;
+  hooks.runBeforeUserDelete.mockClear();
+  hooks.runAfterCharacterLinkChanged.mockClear();
 });
 
 describe('reassignCharacter', () => {
   it('deletes the source user when moving its last character', async () => {
-    // awaits: move account → select-remaining (empty) → delete user.
+    // awaits: move account → select-remaining (empty) → beforeUserDelete → delete user
+    // → afterCharacterLinkChanged.
     state.results = [undefined, [], undefined];
     const out = await reassignCharacter({
       characterId: 100,
@@ -48,11 +62,13 @@ describe('reassignCharacter', () => {
     });
     expect(out).toEqual({ sourceDeleted: true });
     expect(state.calls.delete).toBe(1);
+    expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith('eve-user-2');
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith(100);
   });
 
   it('keeps the source user when it still owns other characters', async () => {
     // awaits: move account → select-remaining (one row) → stored-active (999, so
-    // the moved char wasn't active → no re-point).
+    // the moved char wasn't active → no re-point) → afterCharacterLinkChanged.
     state.results = [undefined, [{ id: 'acc-other' }], [{ activeCharacterId: 999 }]];
     const out = await reassignCharacter({
       characterId: 100,
@@ -61,5 +77,7 @@ describe('reassignCharacter', () => {
     });
     expect(out).toEqual({ sourceDeleted: false });
     expect(state.calls.delete).toBe(0);
+    expect(hooks.runBeforeUserDelete).not.toHaveBeenCalled();
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith(100);
   });
 });

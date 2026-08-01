@@ -18,6 +18,11 @@ import type {
   WormholeCodexAsset,
   WormholeCodexEntry,
 } from './universe-assets';
+import {
+  FAR_SIDE_WORMHOLE_CODE,
+  WORMHOLE_SIZE_CLASSES,
+  WORMHOLE_TYPE_CODE,
+} from './wormhole-contract';
 
 // ── POST /api/eve/names (authz: none — public ESI read) ─────────────────
 // Bulk entity-id → name resolution for characters + corporations (3.7.3.4),
@@ -167,19 +172,19 @@ export const adjacencyResponseSchema = z.object({
 }) satisfies z.ZodType<AdjacencyAsset>;
 
 const typedWormholeCodexEntrySchema = z.object({
-  code: z.string().regex(/^[A-Z]\d{3}$/),
+  code: z.string().regex(WORMHOLE_TYPE_CODE),
   typeId: z.number().int().positive(),
   farSide: z.literal(false),
   totalMass: z.number(),
   maxJumpMass: z.number(),
   massRegen: z.number(),
   lifetimeMinutes: z.number(),
-  sizeClass: z.enum(['S', 'M', 'L', 'XL']),
+  sizeClass: z.enum(WORMHOLE_SIZE_CLASSES),
   targetClass: z.number(),
 });
 
 const farSideWormholeCodexEntrySchema = z.object({
-  code: z.literal('K162'),
+  code: z.literal(FAR_SIDE_WORMHOLE_CODE),
   typeId: z.number().int().positive(),
   farSide: z.literal(true),
 });

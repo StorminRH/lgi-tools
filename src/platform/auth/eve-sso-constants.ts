@@ -1,5 +1,5 @@
-/** Better Auth provider id for EVE SSO. */
-export const EVE_PROVIDER_ID = 'eve';
+/** Better Auth provider id for EVE SSO. Re-exported from the shared lib owner. */
+export { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 
 /** Canonical EVE OAuth authorization endpoint. */
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';

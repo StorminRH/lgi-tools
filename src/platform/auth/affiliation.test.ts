@@ -57,7 +57,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('refreshAffiliations', () => {
   it('fetches then upserts and returns the row count', async () => {
     const rows = [{ characterId: 101, corporationId: 2000, allianceId: null, factionId: null }];
-    fetchAffiliationsMock.mockResolvedValue(rows);
+    fetchAffiliationsMock.mockResolvedValue({ rows, transientFailure: false });
     upsertAffiliationsMock.mockResolvedValue(undefined);
 
     expect(await refreshAffiliations([101])).toBe(1);
@@ -91,7 +91,7 @@ describe('refreshStaleAffiliationsForUser', () => {
       rowFor(102, STALE_AT),
       rowFor(103, null),
     ]);
-    fetchAffiliationsMock.mockResolvedValue([]);
+    fetchAffiliationsMock.mockResolvedValue({ rows: [], transientFailure: false });
     upsertAffiliationsMock.mockResolvedValue(undefined);
 
     await refreshStaleAffiliationsForUser('u1');
@@ -108,9 +108,10 @@ describe('refreshStaleAffiliationsForUser', () => {
 
   it('returns the number of rows refreshed', async () => {
     getUserAffiliationsMock.mockResolvedValue([rowFor(102, STALE_AT)]);
-    fetchAffiliationsMock.mockResolvedValue([
-      { characterId: 102, corporationId: 2000, allianceId: null, factionId: null },
-    ]);
+    fetchAffiliationsMock.mockResolvedValue({
+      rows: [{ characterId: 102, corporationId: 2000, allianceId: null, factionId: null }],
+      transientFailure: false,
+    });
     upsertAffiliationsMock.mockResolvedValue(undefined);
 
     expect(await refreshStaleAffiliationsForUser('u1')).toBe(1);
