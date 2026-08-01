@@ -463,49 +463,66 @@ describe('map chain read path', () => {
       return codeOnly(rest.slice(0, end));
     }
 
+    /** The one shared body every chain subscription flows through. */
+    function helperCode(): string {
+      const start = SOURCE.indexOf('async function readChainPage');
+      expect(start, 'readChainPage must exist').toBeGreaterThanOrEqual(0);
+      const rest = SOURCE.slice(start);
+      const end = rest.indexOf('\n}');
+      expect(end, 'readChainPage must be a closed declaration').toBeGreaterThan(0);
+      return codeOnly(rest.slice(0, end));
+    }
+
+    // HC-2's deterministic evidence, in two halves. Read-set tracking is per-execution, so the
+    // handler's table literal plus a helper that reads nothing but that parameter table proves a
+    // connection patch cannot overlap the systems read set — without observing a deployment.
     it.each([
       { fn: 'watchMapSystems', table: 'mapSystems' },
       { fn: 'watchMapConnections', table: 'mapConnections' },
-    ])('pins $fn to exactly one indexed $table range', ({ fn, table }) => {
+    ])('pins $fn to exactly its own $table read', ({ fn, table }) => {
       const code = dense(handlerCode(fn));
 
-      // Assert on the QUERY calls, not on bare table names: only a `ctx.db.query` forms a read set,
-      // whereas a `Doc<'mapSystems'>` type argument reads nothing.
-      expect(countOccurrences(code, `ctx.db.query('${table}')`)).toBe(1);
+      expect(countOccurrences(code, `readChainPage(ctx,'${table}'`)).toBe(1);
       for (const other of CHAIN_TABLES.filter((name) => name !== table)) {
-        expect(code, `${fn} must not query ${other}`).not.toContain(
-          `ctx.db.query('${other}')`,
-        );
+        expect(code, `${fn} must not name ${other}`).not.toContain(`'${other}'`);
       }
-
-      expect(countOccurrences(code, '.paginate(')).toBe(1);
-      expect(code).toContain("withIndex('by_map'");
-      expect(code, `${fn} must not point-read a document`).not.toContain('db.get');
+      // The handler delegates and does nothing else database-shaped itself.
+      expect(code, `${fn} must not read the database directly`).not.toContain('ctx.db');
     });
 
-    it.each(['watchMapSystems', 'watchMapConnections'])(
-      'resolves access before touching a chain table in %s',
-      (fn) => {
-        const code = dense(handlerCode(fn));
-        const gateAt = code.indexOf('tryMapAccess');
-        const readAt = code.indexOf('ctx.db.query');
+    it('pins the shared page reader to one gated dynamic read and nothing else', () => {
+      const code = dense(helperCode());
 
-        expect(gateAt).toBeGreaterThanOrEqual(0);
-        expect(readAt).toBeGreaterThan(gateAt);
-      },
-    );
+      // Exactly one database read, and it is the caller's parameter table via the by_map index.
+      expect(countOccurrences(code, 'ctx.db.query(chainTable)')).toBe(1);
+      expect(countOccurrences(code, 'ctx.db.')).toBe(1);
+      expect(countOccurrences(code, '.paginate(')).toBe(1);
+      expect(code).toContain("withIndex('by_map'");
+      expect(code, 'the helper must not point-read a document').not.toContain('db.get');
+      // No table literal may be hard-wired inside the shared body: an added read here would land in
+      // every chain subscription at once.
+      for (const table of CHAIN_TABLES) {
+        expect(code, `readChainPage must not hard-code ${table}`).not.toContain(`'${table}'`);
+      }
+    });
 
-    it.each(['watchMapSystems', 'watchMapConnections'])(
-      'returns an empty page instead of throwing when access is absent in %s',
-      (fn) => {
-        // The whole point of the shape: a live subscription reports a denial as a value, so a
-        // revocation is a state the UI renders rather than an error in the client's socket callback.
-        const code = handlerCode(fn);
+    it('resolves access before touching a chain table in the shared reader', () => {
+      const code = dense(helperCode());
+      const gateAt = code.indexOf('tryMapAccess');
+      const readAt = code.indexOf('ctx.db.query');
 
-        expect(code).toContain('=== null) return deniedPage');
-        expect(code, `${fn} must not throw`).not.toContain('throw ');
-      },
-    );
+      expect(gateAt).toBeGreaterThanOrEqual(0);
+      expect(readAt).toBeGreaterThan(gateAt);
+    });
+
+    it('returns an empty page instead of throwing when access is absent', () => {
+      // The whole point of the shape: a live subscription reports a denial as a value, so a
+      // revocation is a state the UI renders rather than an error in the client's socket callback.
+      const code = helperCode();
+
+      expect(code).toContain('=== null) return deniedPage');
+      expect(code, 'the shared reader must not throw').not.toContain('throw ');
+    });
 
     it('keeps the access authority off the chain tables entirely', () => {
       const code = dense(handlerCode('watchMapAccess'));

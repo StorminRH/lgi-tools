@@ -15,7 +15,7 @@
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
 | Production TS/TSX files | 806 | 877 | +71 |
-| Production TS/TSX LOC | 79,515 | 86,863 | +7348 |
+| Production TS/TSX LOC | 79,515 | 86,886 | +7371 |
 | Test files | 428 | 472 | +44 |
 | Coverage — statements | 85.83% | 86.00% | — |
 | Coverage — branches | 82.81% | 82.94% | — |
@@ -36,7 +36,7 @@
 | Threshold overrides | 0 | 0 | 0 |
 | Diagnostic suppressions | 18 | 18 | 0 |
 | Test contract suppressions | 24 | 24 | 0 |
-| Whole-version Fallow clone groups | 1 | 2 | +1 |
+| Whole-version Fallow clone groups | 1 | 1 | 0 |
 | Accepted duplication baseline clone groups | 0 | 0 | 0 |
 | Version-start-pinned Fallow verdict | Pass | Pass | — |
 | Fallow boundary zones (configured) | 22 | 23 | +1 |
