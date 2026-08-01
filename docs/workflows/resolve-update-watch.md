@@ -99,7 +99,8 @@ PR.
 8. Invoke `pre-pr-design-review` against the complete diff and fix every
    in-scope finding. Invoke `adversarial-review` in Diff mode and reconcile its
    verified findings. Then apply the ordinary-mode finalization rules from
-   `docs/workflows/close-out.md` through commit and push. Do not merge, and do
+   `docs/workflows/close-out.md` through commit and push, reusing the pending
+   fragment from step 7 rather than creating a second one. Do not merge, and do
    not rerun unchanged evidence at the PR boundary.
 9. Open one draft PR whose body states what was fixed, what was deferred and
    why, and what was absorbed. Put `Closes #<issue>` in the body so the digest

@@ -609,8 +609,9 @@ is reprioritized.
 > LGI-01…LGI-12), verified against live code in session 3.9.4.1. **LGI-08 was
 > acted on in that session** (see `docs/security/db-privilege-runbook.md`), and
 > **LGI-03 was completed in session 3.10.2.2.1** by enforcing explicit
-> Origin/Referer mismatches; neither remains a backlog item. Everything below is
-> confirmed-but-deferred.
+> Origin/Referer mismatches; the original LGI-08 and LGI-03 findings are no
+> longer backlog items. The separate LGI-08 follow-on remains deferred by
+> design. Everything below is confirmed-but-deferred.
 > Context that bounds all of these: EVE scopes are read-only, there are no
 > payments, and there is effectively one admin.
 

@@ -709,19 +709,15 @@ def as_built_schema_violations(
             verification,
             re.MULTILINE,
         )
-        required_receipt_fields = (
-            "Subject:",
-            "Roles:",
-            "Runtime identity: requested=",
-            "observed=",
-            "Verdict:",
-            "Disposition:",
+        receipt_pattern = re.compile(
+            r"^Subject:\s+\S.+?"
+            r";\s*Roles:\s+\S.+?"
+            r";\s*Runtime identity:\s+requested=\S.+?"
+            r",\s*observed=(?:Not observable|\S.+?)"
+            r";\s*Verdict:\s+(?:CLEAN|CORRECTED)"
+            r";\s*Disposition:\s+\S.+$"
         )
-        if (
-            len(review_lines) != 1
-            or not all(field in review_lines[0] for field in required_receipt_fields)
-            or re.search(r"Verdict:\s+(?:CLEAN|CORRECTED)(?:;|\.)", review_lines[0]) is None
-        ):
+        if len(review_lines) != 1 or receipt_pattern.fullmatch(review_lines[0]) is None:
             violations.append(
                 "Verification summary must contain one complete adversarial-review receipt"
             )
