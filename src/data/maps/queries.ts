@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters } from '@/db/auth-schema';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -78,7 +78,9 @@ export async function getUserIdsOwningCharacters(
 /**
  * Resolves every Better Auth user that currently has a linked character whose
  * cached corporation id is in the given set. Empty input returns an empty set
- * without querying.
+ * without querying. Character ids are selected first, then owners resolve
+ * through the text-keyed EVE account lookup so non-numeric non-EVE account ids
+ * never enter a bigint cast.
  */
 export async function getUserIdsInCorporations(
   corporationIds: number[],
@@ -86,21 +88,16 @@ export async function getUserIdsInCorporations(
 ): Promise<Set<string>> {
   if (corporationIds.length === 0) return new Set();
 
-  const rows = await database
-    .select({ userId: account.userId })
-    .from(account)
-    .innerJoin(
-      characters,
-      eq(characters.characterId, sql`${account.accountId}::bigint`),
-    )
-    .where(
-      and(
-        eq(account.providerId, EVE_PROVIDER_ID),
-        inArray(characters.corporationId, corporationIds),
-      ),
-    );
+  const characterRows = await database
+    .select({ characterId: characters.characterId })
+    .from(characters)
+    .where(inArray(characters.corporationId, corporationIds));
 
-  return new Set(rows.map((row) => row.userId));
+  const owners = await getUserIdsOwningCharacters(
+    characterRows.map((row) => row.characterId),
+    database,
+  );
+  return new Set(owners.values());
 }
 
 /**

@@ -35,7 +35,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     await seedEveAccount(harness.db, { id: 'acc-2', characterId: 43, userId: 'other' });
     await harness.db.insert(account).values({
       id: 'acc-discord',
-      accountId: '42',
+      accountId: 'discord-user-not-numeric',
       providerId: 'discord',
       userId: 'owner',
       createdAt: new Date(),

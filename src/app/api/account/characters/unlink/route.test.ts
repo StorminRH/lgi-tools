@@ -46,7 +46,8 @@ vi.mock('@/platform/auth/linked-characters', () => ({
 
 vi.mock('@/data/maps/queries', () => ({
   getCharacterCorporationId: () => getCharacterCorporationIdMock(),
-  getMapIdsWithCharacterGrant: () => getMapIdsWithCharacterGrantMock(),
+  getMapIdsWithCharacterGrant: (characterId: number) =>
+    getMapIdsWithCharacterGrantMock(characterId),
   getMapIdsWithCorporationGrants: (ids: number[]) => getMapIdsWithCorporationGrantsMock(ids),
   getOwnedMapIds: (userId: string) => getOwnedMapIdsMock(userId),
 }));
@@ -145,7 +146,7 @@ describe('POST /api/account/characters/unlink', () => {
       body: { providerId: 'eve', accountId: '100' },
       headers: expect.any(Headers),
     });
-    expect(getMapIdsWithCharacterGrantMock).toHaveBeenCalled();
+    expect(getMapIdsWithCharacterGrantMock).toHaveBeenCalledWith(100);
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
   });

@@ -22,17 +22,22 @@ export const NOTE_TARGET_KINDS = ['map', 'system', 'signature'] as const;
 /** One note target kind. */
 export type NoteTargetKind = (typeof NOTE_TARGET_KINDS)[number];
 
-/** Schema validator for the observed connection mass state. */
-export const massStateValidator = v.union(
-  v.literal('stable'),
-  v.literal('reduced'),
-  v.literal('critical'),
-);
-
-// Convex validators need literal unions, but the vocabularies they encode are owned in src/data.
-// `satisfies` binds each literal set to its owner: adding a role or a size class upstream without
+// Convex validators need literal unions, but the vocabularies they encode are owned here or in
+// src/data. `satisfies` binds each literal set to its owner: widening a vocabulary without
 // widening the validator here becomes a compile error instead of a runtime rejection that would
 // only surface once a real writer tried to store the new value.
+const MASS_STATE_LITERALS = {
+  stable: v.literal('stable'),
+  reduced: v.literal('reduced'),
+  critical: v.literal('critical'),
+} as const satisfies Record<ConnectionMassState, unknown>;
+
+const NOTE_TARGET_KIND_LITERALS = {
+  map: v.literal('map'),
+  system: v.literal('system'),
+  signature: v.literal('signature'),
+} as const satisfies Record<NoteTargetKind, unknown>;
+
 const SHIP_SIZE_LITERALS = {
   S: v.literal('S'),
   M: v.literal('M'),
@@ -45,6 +50,13 @@ const MAP_ROLE_LITERALS = {
   editor: v.literal('editor'),
   owner: v.literal('owner'),
 } as const satisfies Record<MapRole, unknown>;
+
+/** Schema validator for the observed connection mass state. */
+export const massStateValidator = v.union(
+  MASS_STATE_LITERALS.stable,
+  MASS_STATE_LITERALS.reduced,
+  MASS_STATE_LITERALS.critical,
+);
 
 /** Schema validator for a connection's shipped size, null while still unknown. */
 export const shipSizeValidator = v.union(
@@ -67,9 +79,9 @@ export const wormholeTypeCodeValidator = v.union(v.string(), v.null());
 
 /** Schema validator for the kind of chain object a note targets. */
 export const noteTargetKindValidator = v.union(
-  v.literal('map'),
-  v.literal('system'),
-  v.literal('signature'),
+  NOTE_TARGET_KIND_LITERALS.map,
+  NOTE_TARGET_KIND_LITERALS.system,
+  NOTE_TARGET_KIND_LITERALS.signature,
 );
 
 /** Rejects a chain-boundary value that must never reach a stored document. */

@@ -13,6 +13,8 @@ import {
 import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
+import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
+import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
 import { resolveMapPrincipalsWithOutcome } from './map-access';
 
 /** One projected claim: the complete effective role set one user holds on one map. */
@@ -48,11 +50,14 @@ export class ProjectionUnavailableError extends Error {
  * resolveMatchedMapRoles rule. Users with an empty role set are omitted. A
  * missing map returns the empty set (its projection tears down). Deterministic:
  * results are sorted by userId and roles are in MAP_ROLE_PRECEDENCE order.
- * Refresh-shortfall guard: throws ProjectionUnavailableError only when a
- * candidate's stale-affiliation refresh fails transiently (5xx/budget/thrown).
- * Still-stale ids after a completed refresh (including ESI's definitive 404 for
- * deleted characters) contribute no corp roles via memberCorpIds fail-closed and
- * do not block convergence.
+ * Corporation-grant discovery refreshes every linked character whose affiliation
+ * is missing or stale before the cached-corp lookup, so a newly entitled member
+ * is not omitted solely because the cache still shows null or a prior corp.
+ * Refresh-shortfall guard: throws ProjectionUnavailableError when that discovery
+ * refresh or a candidate's stale-affiliation refresh fails transiently
+ * (5xx/budget/thrown). Still-stale ids after a completed refresh (including ESI's
+ * definitive 404 for deleted characters) contribute no corp roles via
+ * memberCorpIds fail-closed and do not block convergence.
  */
 export async function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]> {
   const map = await getMapAccessSubject(mapId);
@@ -73,6 +78,16 @@ export async function computeMapAccessClaims(mapId: string): Promise<MapAccessCl
         .map((grant) => grant.ownerId),
     ),
   ];
+
+  if (corporationIds.length > 0) {
+    const staleCharacterIds = await listStaleLinkedCharacterIds();
+    const { transientFailure } = await refreshAffiliationsWithOutcome(staleCharacterIds);
+    if (transientFailure) {
+      throw new ProjectionUnavailableError(
+        'Map access projection unavailable: affiliation refresh failed transiently while discovering corporation candidates',
+      );
+    }
+  }
 
   const [characterOwners, corporationMembers] = await Promise.all([
     getUserIdsOwningCharacters(characterIds),

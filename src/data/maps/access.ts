@@ -74,7 +74,9 @@ export function resolveMapRole(input: MapRoleInput): MapAccess {
   if (roles.length === 0) return { ...NO_ACCESS };
 
   return {
-    role: MAP_ROLE_PRECEDENCE.find((role) => roles.includes(role)) ?? null,
+    // `roles` is non-empty here; canonicalizeMapRoles already ordered it, so the
+    // head is the display role even when a value is absent from precedence.
+    role: MAP_ROLE_PRECEDENCE.find((role) => roles.includes(role)) ?? roles[0]!,
     canView: rolesAllow(roles, 'view'),
     canEdit: rolesAllow(roles, 'edit'),
   };

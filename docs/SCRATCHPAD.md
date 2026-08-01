@@ -5,10 +5,10 @@
 
 ## Now
 
-- **CURRENT:** session 4.0.2.2.2 access projection and revocation is implemented
-  on `lifecycle/4.0.2.2` and entering close-out for the shared sub-version PR.
-- **NEXT:** close-out ships both 4.0.2.2 sessions; the resolver then selects the
-  next approved lifecycle action (likely 4.0.2.3 planning or execution).
+- **CURRENT:** session 4.0.2.2.2 access projection and revocation is on
+  `lifecycle/4.0.2.2` in close-out for shared sub-version PR #341.
+- **NEXT:** finish close-out for PR #341, then run
+  `python3 tools/cli.py lifecycle resolve --pretty` and follow its directive.
 - **Access/read-set cost (4.0.2.2.2 SC-4):** each gated fixture call reads 1
   indexed `mapAccess` claim row + at most `MAP_FIXTURE_PAGE_SIZE = 25` payload
   rows. At pinned sizes 50 systems / 30 connections / 60 signatures / 10 notes,

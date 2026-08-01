@@ -9,6 +9,10 @@ import { mapAccess, maps } from '@/data/maps/schema';
 import { computeMapAccessClaims } from './map-access-projection';
 
 const mocks = vi.hoisted(() => ({
+  refreshAffiliationsWithOutcome: vi.fn().mockResolvedValue({
+    refreshed: 0,
+    transientFailure: false,
+  }),
   refreshStaleAffiliationsForUserWithOutcome: vi.fn().mockResolvedValue({
     refreshed: 0,
     transientFailure: false,
@@ -16,6 +20,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/platform/auth/affiliation', () => ({
+  refreshAffiliationsWithOutcome: mocks.refreshAffiliationsWithOutcome,
   refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
 }));
 
@@ -50,6 +55,11 @@ const harness = await createDbTestHarness({
 });
 
 beforeEach(() => {
+  mocks.refreshAffiliationsWithOutcome.mockReset();
+  mocks.refreshAffiliationsWithOutcome.mockResolvedValue({
+    refreshed: 0,
+    transientFailure: false,
+  });
   mocks.refreshStaleAffiliationsForUserWithOutcome.mockReset();
   mocks.refreshStaleAffiliationsForUserWithOutcome.mockResolvedValue({
     refreshed: 0,

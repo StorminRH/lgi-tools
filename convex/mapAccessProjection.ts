@@ -10,7 +10,8 @@ import {
   canonicalizeMapRoles,
   type MapRole,
 } from '@/data/maps/access-contract';
-import { internalMutation } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { internalMutation, type MutationCtx } from './_generated/server';
 import { mapRoleValidator } from './lib/mapEntityContracts';
 
 /** Maximum claim rows one user-purge call deletes, bounding the transaction write budget. */
@@ -35,6 +36,76 @@ function rolesEqual(left: readonly MapRole[], right: readonly MapRole[]): boolea
 }
 
 /**
+ * Last-entry-wins desired claim map: roles are canonicalized, and empty roles
+ * mean absence so they never create a ghost row.
+ */
+function toDesiredClaims(
+  claims: ReadonlyArray<{ readonly userId: string; readonly roles: readonly MapRole[] }>,
+): Map<string, MapRole[]> {
+  const desired = new Map<string, MapRole[]>();
+  for (const claim of claims) {
+    const roles = canonicalizeMapRoles(claim.roles);
+    if (roles.length === 0) continue;
+    desired.set(claim.userId, roles);
+  }
+  return desired;
+}
+
+function indexClaimsByUser(
+  existing: Doc<'mapAccess'>[],
+): Map<string, Doc<'mapAccess'>[]> {
+  const byUser = new Map<string, Doc<'mapAccess'>[]>();
+  for (const row of existing) {
+    const rows = byUser.get(row.userId) ?? [];
+    rows.push(row);
+    byUser.set(row.userId, rows);
+  }
+  return byUser;
+}
+
+async function applyDesiredUserClaim(
+  ctx: MutationCtx,
+  mapId: string,
+  userId: string,
+  roles: MapRole[],
+  rows: Doc<'mapAccess'>[],
+): Promise<Pick<ReconcileCounts, 'inserted' | 'updated' | 'deleted' | 'unchanged'>> {
+  if (rows.length === 0) {
+    await ctx.db.insert('mapAccess', { mapId, userId, roles });
+    return { inserted: 1, updated: 0, deleted: 0, unchanged: 0 };
+  }
+
+  // rows.length > 0 was checked above; keeper is the first existing claim.
+  const keeper = rows[0]!;
+  let deleted = 0;
+  for (const duplicate of rows.slice(1)) {
+    await ctx.db.delete(duplicate._id);
+    deleted += 1;
+  }
+
+  if (rolesEqual(keeper.roles, roles)) {
+    return { inserted: 0, updated: 0, deleted, unchanged: 1 };
+  }
+
+  await ctx.db.patch(keeper._id, { roles });
+  return { inserted: 0, updated: 1, deleted, unchanged: 0 };
+}
+
+async function deleteClaimRows(
+  ctx: MutationCtx,
+  rows: Iterable<Doc<'mapAccess'>[]>,
+): Promise<number> {
+  let deleted = 0;
+  for (const group of rows) {
+    for (const row of group) {
+      await ctx.db.delete(row._id);
+      deleted += 1;
+    }
+  }
+  return deleted;
+}
+
+/**
  * Converges the mapAccess table to exactly the stated claim set for one map:
  * inserts missing rows, replaces rows whose ordered roles differ, deletes rows
  * for absent users and every duplicate beyond the first, and skips identical
@@ -43,7 +114,8 @@ function rolesEqual(left: readonly MapRole[], right: readonly MapRole[]): boolea
  * last-entry-wins deduped by userId and each roles array is canonicalized
  * (unique values, MAP_ROLE_PRECEDENCE order) before compare/store, so a
  * repeated userId or unordered roles in one payload cannot create duplicates
- * or byte-different equal sets. Empty claims = full teardown for the map.
+ * or byte-different equal sets. Empty claims = full teardown for the map;
+ * empty roles on a present userId also mean absence.
  */
 export const reconcileMapClaims = internalMutation({
   args: {
@@ -56,22 +128,12 @@ export const reconcileMapClaims = internalMutation({
     ),
   },
   handler: async (ctx, { mapId, claims }): Promise<ReconcileCounts> => {
-    const desired = new Map<string, MapRole[]>();
-    for (const claim of claims) {
-      desired.set(claim.userId, canonicalizeMapRoles(claim.roles));
-    }
-
+    const desired = toDesiredClaims(claims);
     const existing = await ctx.db
       .query('mapAccess')
       .withIndex('by_map', (q) => q.eq('mapId', mapId))
       .collect();
-
-    const byUser = new Map<string, typeof existing>();
-    for (const row of existing) {
-      const rows = byUser.get(row.userId) ?? [];
-      rows.push(row);
-      byUser.set(row.userId, rows);
-    }
+    const byUser = indexClaimsByUser(existing);
 
     let inserted = 0;
     let updated = 0;
@@ -81,36 +143,14 @@ export const reconcileMapClaims = internalMutation({
     for (const [userId, roles] of desired) {
       const rows = byUser.get(userId) ?? [];
       byUser.delete(userId);
-
-      if (rows.length === 0) {
-        await ctx.db.insert('mapAccess', { mapId, userId, roles });
-        inserted += 1;
-        continue;
-      }
-
-      // rows.length > 0 was checked above; keeper is the first existing claim.
-      const keeper = rows[0]!;
-      for (const duplicate of rows.slice(1)) {
-        await ctx.db.delete(duplicate._id);
-        deleted += 1;
-      }
-
-      if (rolesEqual(keeper.roles, roles)) {
-        unchanged += 1;
-        continue;
-      }
-
-      await ctx.db.patch(keeper._id, { roles });
-      updated += 1;
+      const delta = await applyDesiredUserClaim(ctx, mapId, userId, roles, rows);
+      inserted += delta.inserted;
+      updated += delta.updated;
+      deleted += delta.deleted;
+      unchanged += delta.unchanged;
     }
 
-    for (const rows of byUser.values()) {
-      for (const row of rows) {
-        await ctx.db.delete(row._id);
-        deleted += 1;
-      }
-    }
-
+    deleted += await deleteClaimRows(ctx, byUser.values());
     return { inserted, updated, deleted, unchanged };
   },
 });

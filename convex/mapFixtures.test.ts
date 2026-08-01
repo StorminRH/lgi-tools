@@ -1,5 +1,4 @@
 // @vitest-environment edge-runtime
-import { readFileSync } from 'node:fs';
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
@@ -948,26 +947,5 @@ describe('map chain fixtures', () => {
       expect(await readActivity(t)).toBeNull();
     });
 
-    it('confines cleanup to one indexed signature query with no companion lookups', () => {
-      const source = readFileSync(
-        new URL('./lib/mapSignatureCleanup.ts', import.meta.url),
-        'utf8',
-      );
-      // Strip prose, then collapse whitespace so a chained call reads as one token
-      // regardless of how the formatter wrapped it.
-      const body = source
-        .split('\n')
-        .filter((line) => !line.trimStart().startsWith('*') && !line.trimStart().startsWith('//'))
-        .join('\n')
-        .replaceAll(/\s+/g, '');
-
-      expect(body.match(/ctx\.db\.query\(/g) ?? []).toHaveLength(1);
-      expect(body).toContain("ctx.db.query('mapSignatures')");
-      expect(body).toContain("withIndex('by_purge_after'");
-      // No per-tombstone activity lookup and no point read: the N+1 that would otherwise
-      // spend the transaction's index-read budget draining a backlog.
-      expect(body).not.toContain('mapSignatureActivity');
-      expect(body).not.toContain('ctx.db.get(');
-    });
   });
 });

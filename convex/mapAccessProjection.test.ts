@@ -107,6 +107,22 @@ describe('reconcileMapClaims', () => {
     expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['owner'] }]);
   });
 
+  it('treats an empty-roles claim as absence and deletes any existing row', async () => {
+    const t = convexTest(schema, modules);
+    await reconcile(t, MAP_A, [
+      { userId: OWNER, roles: ['owner'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+
+    const counts = await reconcile(t, MAP_A, [
+      { userId: OWNER, roles: ['owner'] },
+      { userId: EDITOR, roles: [] },
+    ]);
+
+    expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
+    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['owner'] }]);
+  });
+
   it('teardown deletes every claim for the map and only that map', async () => {
     const t = convexTest(schema, modules);
     await reconcile(t, MAP_A, [
