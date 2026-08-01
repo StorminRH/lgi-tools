@@ -114,27 +114,8 @@ Use `docs/workflows/schema/chat-result.md` with:
 ```markdown
 ## Agent-policy audit: `PASS` | `FINDINGS` | `BLOCKED`
 
-- **Mode:** Report | Repair
-- **Authority:** <operator request>
-- **Scope:** <guides, workflows, tools, hooks, and global skills inspected>
-
-### Surface ledger
-
-| Surface | Owner | Result |
-|---|---|---|
-| <path or capability> | <canonical owner> | Pass, repaired, finding, or blocked |
-
-### Findings or repairs
-
-- <root cause and smallest sufficient correction, or None>
-
-### Verification
-
-- <command and observable result>
-
-### Next state
-
-- **Repository:** <clean, local review required, or blocker>
-- **Global skills:** <unchanged, validated installation, or blocker>
-- **Delivery:** Not authorized
+- **Subject:** <Report or Repair>; <guides, workflows, tools, hooks, and global skills inspected>
+- **Result:** <pass, finding count, or blocker summary; ≤2 sentences>
+- **Action:** <smallest sufficient correction, local review required, or None>
+- **Blocker:** <exact blocker or `None`>
 ```

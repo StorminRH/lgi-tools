@@ -40,14 +40,61 @@ export async function requireMapAccess(
     throw new ConvexError({ code: 'UNAUTHENTICATED' });
   }
 
-  const userId = identity.subject;
+  const principal = await resolveMapPrincipal(
+    ctx,
+    mapId,
+    identity.subject,
+    requiredCapability,
+  );
+  if (principal === null) {
+    throw new ConvexError({ code: 'FORBIDDEN' });
+  }
+
+  return principal;
+}
+
+/**
+ * The same authorization decision as {@link requireMapAccess}, returned as a value.
+ *
+ * Exists for LIVE SUBSCRIPTIONS. A paginated Convex query must return a page, so it cannot report a
+ * refusal as a value and would have to throw — and a thrown error inside a live subscription is a
+ * genuine uncaught error in the client's socket callback, not a clean state change. Subscriptions
+ * therefore resolve access through this and return an empty page when it is absent, while a separate
+ * access subscription is the authority on whether access is held at all.
+ *
+ * Identical read set and identical rule: identity still comes from the verified JWT, never an
+ * argument, and the claim lookup is still one `by_map_user` indexed read, which is what lets a
+ * revocation invalidate every live subscription that resolved through it.
+ */
+export async function tryMapAccess(
+  ctx: QueryCtx,
+  mapId: string,
+  requiredCapability: MapCapability,
+): Promise<MapPrincipal | null> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) return null;
+  return await resolveMapPrincipal(
+    ctx,
+    mapId,
+    identity.subject,
+    requiredCapability,
+  );
+}
+
+/** The single claim lookup and capability check both entry points share. */
+async function resolveMapPrincipal(
+  ctx: QueryCtx,
+  mapId: string,
+  userId: string,
+  requiredCapability: MapCapability,
+): Promise<MapPrincipal | null> {
   const claim = await ctx.db
     .query('mapAccess')
     .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
     .unique();
 
   if (claim === null || !rolesAllow(claim.roles, requiredCapability)) {
-    throw new ConvexError({ code: 'FORBIDDEN' });
+    return null;
   }
 
   return { userId, roles: claim.roles };

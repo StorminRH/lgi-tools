@@ -98,31 +98,18 @@ merge around the repository's review gate.
 
 ## Return the result
 
+Keep the full triage receipt — the file/line or command evidence, the
+response/ownership/scope choices, and the time, review, and risk tradeoffs —
+as procedure-local notes the operator can inspect before choosing a direction.
+Chat carries the verdict and the recommended choice, not the ledger.
+
 Use `docs/workflows/schema/chat-result.md` for this field set:
 
 ```markdown
 ## Triage: `VALID` | `PARTIALLY_VALID` | `FALSE_POSITIVE` | `NEEDS_INFO` | `DUPLICATE` | `WORKS_AS_INTENDED` | `BLOCKED`
 
-- **Target:** <issue or PR number and URL>
-- **Scope:** Trivial | Contained | Tip of iceberg
-- **Reporter context:** <external contributor, offered PR, or Not applicable>
-
-### Evidence
-
-- **Primary evidence:** <first current file, behavior, or command finding>
-- **Additional evidence:** <additional evidence or None>
-
-### Recommendation
-
-- **Direction:** <recommended response>
-- **Why:** <plain-English reason>
-- **Choices:**
-  1. **<recommended choice> (Recommended):** <impact or tradeoff>
-  2. **<alternative choice>:** <impact or tradeoff>
-
-### Next state
-
-- **Authorization:** Awaiting operator direction | Authorized action completed
-- **Handoff:** <required operator choice or completed action>
-- **Blocker:** <exact blocker or None>
+- **Subject:** <issue or PR number and URL>; <Trivial | Contained | Tip of iceberg>
+- **Result:** <plain-English verdict and why; ≤2 sentences>
+- **Action:** <recommended choice, or completed authorized action>
+- **Blocker:** <exact blocker or `None`>
 ```

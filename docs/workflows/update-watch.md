@@ -82,7 +82,6 @@ assumption.
 ## Return the result
 
 The collector renders it in the shared chat format; print it verbatim. Its
-outcome heading is `REPORT`, `QUIET`, or `REFUSED`. The Collection section
-reports sources, dependencies, advisory status, and open issues; Delta review
-reports candidates and suppressions; `### Next state` reports the handoff and
-any blocker.
+outcome heading is `REPORT`, `QUIET`, or `REFUSED`. **Subject** names the scan;
+**Result** summarizes sources, candidates, and suppressions; **Action** is the
+handoff; **Blocker** is the exact failure or `None`.

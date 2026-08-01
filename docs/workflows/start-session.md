@@ -79,21 +79,8 @@ After the dispatched handler stops, apply
 ```markdown
 ## Start session: `DISPATCHED` | `PAUSED` | `BLOCKED`
 
-- **Action:** `<resolver action>`
-- **Handler:** `<handler or None>`
-- **Branch:** `<branch or Not selected>`
-- **Primary artifact:** `<path or None>`
-
-### Dispatch
-
-- **Authority:** <resolver authority>
-- **Pre-dispatch gate:** <command and result or Not reached>
-- **Handler result:** <canonical handler result or Not dispatched>
-
-### Next state
-
-- **Resolver directive:** <complete fresh directive or unchanged blocking directive>
-- **Pause:** <named pause or None>
-- **Handoff:** <next operator or lifecycle action>
-- **Blocker:** <exact blocker or None>
+- **Subject:** `<resolver action>` via `<handler or None>` on `<branch or Not selected>`
+- **Result:** <dispatch, pause, or block summary; ≤2 sentences>
+- **Action:** <next operator or lifecycle step>
+- **Blocker:** <exact blocker or `None`>
 ```

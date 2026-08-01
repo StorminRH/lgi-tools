@@ -305,22 +305,8 @@ field set:
 ```markdown
 ## Version audit: `PLANNED` | `REMEDIATION_PLANNED` | `REMEDIATION_REQUIRED` | `COMPLETE` | `BLOCKED`
 
-- **Mode:** Plan version audit | Plan audit remediation | Version audit
-- **Version:** `<X.Y>`
-- **Audit cycle:** <number or Not applicable>
-- **Primary artifact:** <audit plan, roadmap, baseline, archive path, or Not written>
-
-### Audit evidence
-
-- **Measurements:** <measurement and gate summary or Not reached>
-- **Findings:** <class and status summary or None>
-- **Baseline:** <replacement/current-state summary or Not reached>
-- **Review and approval:** <review and operator approval or Not applicable>
-- **Archive:** <archived bundle, Not authorized, or Not reached>
-
-### Next state
-
-- **Resolver directive:** <complete fresh directive or Not reached>
-- **Handoff:** <next lifecycle action>
-- **Blocker:** <exact blocker or None>
+- **Subject:** `<X.Y>` cycle <number or n/a>; <primary artifact or Not written>
+- **Result:** <mode outcome; finding or baseline summary; ≤2 sentences>
+- **Action:** <next lifecycle action>
+- **Blocker:** <exact blocker or `None`>
 ```

@@ -129,20 +129,12 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 ```markdown
 ## UX check: `READY_FOR_REVIEW` | `BLOCKED`
 
-- **Routes:** <concrete captured routes>
-- **Viewports:** <desktop, mobile, or both>
-- **Captures:** `<capture directory>`
-
-### Automated evidence
-
-- **Route diagnostics:** <errors and dispositions or None>
-- **Interaction probes:** <definitions and results or Not applicable>
-- **Capture inspection:** <visual findings or None>
-- **Authenticated-state limits:** <limitations or None>
-
-### Next state
-
-- **Operator review:** Pending | Approved | Changes requested
-- **Handoff:** <Pause for review, return to implementation, or continue to close-out>
-- **Blocker:** <exact blocker or None>
+- **Subject:** <concrete captured routes and viewports>; captures `<capture directory>`
+- **Result:** <diagnostics/probe/visual summary, naming any authenticated-state limitation; ≤2 sentences>
+- **Action:** <Pause for operator review (`Pending`), return to implementation, or continue to close-out>
+- **Blocker:** <exact blocker or `None`>
 ```
+
+The remaining `UX_EVIDENCE` detail — per-route diagnostics and inspected
+capture paths — stays in the capture directory's reports, which the operator
+reviews alongside the captures.

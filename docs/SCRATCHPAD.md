@@ -5,11 +5,39 @@
 
 ## Now
 
-- **CURRENT:** ordinary close-out for PR #343 — restore schema-valid SC-5
-  evidence on the session 4.0.2.2.2 as-built after #341 merged.
-- **NEXT:** after #343 merges, run
+- **CURRENT:** planned close-out for sub-version 4.0.2.3 (session 4.0.2.3.1) —
+  the reactive chain read path on the Atlas canvas.
+- **NEXT:** after the 4.0.2.3 PR merges, run
   `python3 tools/cli.py lifecycle resolve --pretty` and follow its directive
-  (expected next planning action is session 4.0.2.3.1).
+  (expected next sub-version is 4.0.3.1, the deterministic layout engine).
+- **Chain read-set cost (4.0.2.3.1):** every PAGE is its own handler execution and
+  every execution resolves the claim, so a map open costs
+  `1 + ceil(N/100) + ceil(M/100)` indexed `mapAccess` claim reads — not one per
+  subscription — plus the payload pages themselves, at
+  `MAP_CHAIN_MAX_PAGE_SIZE = 100`. Per-update re-read shape is the point of the
+  split, and is read-set-precise: a `mapSystems` write re-runs only the
+  `watchMapSystems` page queries (their claim reads + N systems); a
+  `mapConnections` write re-runs only `watchMapConnections` and CANNOT re-read the
+  systems range; a claim write re-runs everything, since every execution reads that
+  row; a `mapSignatures`/`mapNotes`/`mapSignatureActivity` write re-runs none of
+  them, because no query here reads those tables.
+- **Access is a subscription, not a thrown error (4.0.2.3.1, supersedes plan
+  PD-4 by operator directive):** `watchMapAccess` answers `{ granted }` as a
+  value and the two chain reads return an empty page when the claim is absent, so
+  a revocation is a rendered state rather than an uncaught error in the Convex
+  client's socket callback. Consequence worth keeping: a re-granted claim
+  recovers the map live, with no reload and no access poller. The throwing
+  `requireMapAccess` remains for the fixture mutations; `tryMapAccess` is the
+  value-returning half and shares its one `by_map_user` lookup.
+- **Provisional placement can arrive off-screen (4.0.2.3.1 demo residual, for
+  4.0.3.1):** the grid walks row-major 6 wide at 220px, and the canvas carries no
+  camera refit by design, so on a half-width window an arrival past slot ~4 lands
+  outside the viewport and reads as "nothing happened". Within OOS-1 for this
+  session — the layout engine owns real placement — but the layout engine should
+  decide whether arrivals are brought into view.
+- **Convex local backend was relaunched standalone during 4.0.2.3.1 SC-5.3**
+  (killed to prove silent reconnection, then restarted outside the `convex dev`
+  supervisor). Restart `pnpm dev:all` before relying on Convex hot-push again.
 - **Convex local typecheck:** `convex/tsconfig.json` is present so
   `pnpm exec convex codegen --typecheck enable` exits 0 against a running local
   backend. Root `tsc --noEmit` remains the app-wide gate and also covers

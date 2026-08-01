@@ -329,7 +329,7 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual("quiet", payload["verdict"])
         self.assertEqual(["dep-major:clsx:2"], payload["suppressed"])
         self.assertIn("## Update watch: `QUIET`", payload["summary"])
-        self.assertIn("- **Outward action:** None", payload["summary"])
+        self.assertIn("- **Action:** None", payload["summary"])
 
     def test_zero_candidate_clean_run_is_quiet(self) -> None:
         state = state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}})
@@ -377,8 +377,21 @@ class VerdictTests(unittest.TestCase):
         payload = finalize_verdict(state, [], [])
         self.assertEqual("refused", payload["verdict"])
         self.assertEqual([], payload["deltas"])
-        self.assertIn("- **Candidates found:** 1", payload["summary"])
-        self.assertIn("- **Suppressed by open issues:** 0", payload["summary"])
+        self.assertIn("1 candidate, 0 suppressed.", payload["summary"])
+        # A refused run performed no outward write, so it must not advertise one.
+        self.assertIn("- **Action:** None", payload["summary"])
+
+    def test_report_summary_never_instructs_a_second_issue(self) -> None:
+        # The summary prints after the workflow's single outward write; an
+        # imperative "open one digest issue" here reads as a second digest.
+        state = state_with()
+        payload = finalize_verdict(state, [], [])
+        self.assertEqual("report", payload["verdict"])
+        self.assertNotIn("Open one digest issue", payload["summary"])
+        self.assertIn(
+            "- **Action:** Hand the opened digest issue to resolve-update-watch",
+            payload["summary"],
+        )
 
 
 class ScopeTests(unittest.TestCase):

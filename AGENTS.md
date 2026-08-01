@@ -18,11 +18,11 @@ Vitest, and visx.
 
 ## Subagents
 
-Prefer designed research (`docs-researcher`), verification (`gate-runner`), and
-workflow-named review roles when isolation or a structured evidence packet
-helps. Fall back to the matching skill or direct command when a role is
-unavailable. Do not run a fixed preflight on every task, and do not redo
-discovery the parent already completed.
+Prefer designed research (`docs-researcher`), repository mapping
+(`repo-mapper`), verification (`gate-runner`), and workflow-named review roles
+when isolation or a structured evidence packet helps. Fall back to the matching
+skill or direct command when a role is unavailable. Do not run a fixed
+preflight on every task, and do not redo discovery the parent already completed.
 
 ## Commands and definition of done
 

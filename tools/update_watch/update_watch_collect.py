@@ -749,51 +749,42 @@ def render_summary(
     """
     failures = state.get("failures", [])
     outcome = "REFUSED" if failures else verdict.upper()
-    outward_action = "Open one digest issue" if verdict == "report" else "None"
-    lines = [
-        f"## Update watch: `{outcome}`",
-        "",
-        f"- **Verdict:** {outcome.title()}",
-        f"- **Outward action:** {outward_action}",
-        "",
-        "### Collection",
-        "",
-        "- **Sources:**",
-    ]
     sources = sorted(state.get("watch", {}).items())
-    for slug, source_state in sources:
-        pages = source_state.get("pages", {})
-        lines.append(f"  - **{slug}:** {len(pages)} page(s) fetched")
-    if not sources:
-        lines.append("  - None")
-    lines.append(f"- **Dependencies checked:** {len(state.get('npmLatest', {}))}")
-    lines.append(
-        "- **Advisory query:** "
-        + ("OK" if "advisories" in state else "Failed")
-        + f" ({len(state.get('advisories', []))} advisories observed)"
+    source_count = len(sources)
+    dep_count = len(state.get("npmLatest", {}))
+    advisory_count = len(state.get("advisories", []))
+    open_issues = len(state.get("openIssues", []))
+
+    def counted(count: int, noun: str, plural: str | None = None) -> str:
+        """One count with its correctly numbered noun."""
+        return f"{count} {noun if count == 1 else (plural or noun + 's')}"
+
+    # This summary prints AFTER the workflow's single outward write, so it must
+    # never instruct opening an issue — that reads as a second digest. Keyed on
+    # the final outcome, not the raw verdict, so a refused run can never
+    # advertise a write that did not happen.
+    action = (
+        "Hand the opened digest issue to resolve-update-watch"
+        if outcome == "REPORT"
+        else "None"
     )
-    lines.extend(
+    result = (
+        f"{counted(source_count, 'source')}, "
+        f"{counted(dep_count, 'dependency', 'dependencies')}, "
+        f"{counted(advisory_count, 'advisory', 'advisories')}, "
+        f"{counted(open_issues, 'open issue')}; "
+        f"{counted(candidate_count, 'candidate')}, {len(suppressed)} suppressed."
+    )
+    return "\n".join(
         [
-            "- **Open update-watch issues scanned:** "
-            + str(len(state.get("openIssues", []))),
+            f"## Update watch: `{outcome}`",
             "",
-            "### Delta review",
-            "",
-            f"- **Candidates found:** {candidate_count}",
-            f"- **Suppressed by open issues:** {len(suppressed)}",
-            "",
-            "### Next state",
-            "",
-            "- **Handoff:** "
-            + (
-                "Create one from the rendered issue body"
-                if verdict == "report"
-                else "Not created"
-            ),
+            f"- **Subject:** Update-watch scan ({outcome.lower()})",
+            f"- **Result:** {result}",
+            f"- **Action:** {action}",
             "- **Blocker:** " + ("; ".join(failures) if failures else "None"),
         ]
     )
-    return "\n".join(lines)
 
 
 def finalize_verdict(state: dict, items: list[dict], fresh_issues: list[dict]) -> dict:

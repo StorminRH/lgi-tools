@@ -456,32 +456,10 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 ```markdown
 ## Close-out: `SESSION_HANDOFF` | `MERGED` | `BLOCKED`
 
-- **Mode:** Ordinary | Planned
-- **Session:** `<id>` | Not applicable
-- **Branch head:** `<full SHA>`
-
-### Review and verification
-
-- **Session review:** <evidence summary>
-- **Focused/local/UX:** <evidence summary or Not applicable>
-- **Design review:** <PASS result or Not applicable>
-- **Adversarial review:** <reviewer roles, verdict, and finding disposition or Not applicable>
-- **Final verification:** <command and result or Not reached>
-
-### Delivery
-
-- **PR and review:** <URL, draft/ready transition, head, CI, gate of record,
-  Cursor signal, and finding dispositions or Not opened>
-- **Merge:** <merge SHA or Not merged>
-- **Production:** <deployment and browser proof or Not reached>
-- **Lifecycle state:** <pending fragment path in ordinary mode, or committed
-  handoff/truthful merged state in planned mode>
-
-### Next state
-
-- **Resolver directive:** <complete directive against committed main in planned
-  mode, or Not applicable in ordinary mode>
-- **Blocker:** <exact blocker or None>
+- **Subject:** <Ordinary or Planned>; session `<id>` or ordinary; head `<full SHA>`
+- **Result:** <what completed through review, PR, merge, or production; ≤2 sentences>
+- **Action:** <next operator or lifecycle step; include PR URL or merge SHA when present>
+- **Blocker:** <exact blocker or `None`>
 ```
 
 Return `SESSION_HANDOFF` only after a non-final planned session's verified

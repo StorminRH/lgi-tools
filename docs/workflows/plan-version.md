@@ -86,23 +86,8 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 ```markdown
 ## Version topology: `APPROVED` | `BLOCKED`
 
-- **Master version:** `<X.Y>`
-- **Roadmap:** `<path>`
-- **Contract index:** `<path or Not written>`
-
-### Topology and approval
-
-- **Outcome coverage:** <complete coverage summary>
-- **Delivery counts:** <current counts → approved counts>
-- **Execution bundles:** <approved bundle and internal-phase summary>
-- **Boundary decisions:** <surviving boundaries and reasons, or None>
-- **Adversarial review:** <review result and finding disposition or Not reached>
-- **Operator approval:** <approval evidence or Not approved>
-
-### Next state
-
-- **Artifacts:** <created, reconciled, or Not written>
-- **Resolver directive:** <complete fresh directive or Not reached>
-- **Handoff:** <next lifecycle action>
-- **Blocker:** <exact blocker or None>
+- **Subject:** Master `<X.Y>`; roadmap `<path>`
+- **Result:** <approval or stop reason; delivery counts; ≤2 sentences>
+- **Action:** <next lifecycle action>
+- **Blocker:** <exact blocker or `None`>
 ```
