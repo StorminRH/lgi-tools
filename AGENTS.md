@@ -18,11 +18,11 @@ Vitest, and visx.
 
 ## Subagents
 
-Prefer designed agents under `~/.cursor/agents/` for bounded research
-(`docs-researcher`), exact verification (`gate-runner`), and independent
-review roles named by workflows. Delegate when isolation or a structured
-evidence packet helps; do not run a fixed preflight on every task, and do not
-redo discovery the parent already completed.
+Prefer designed research (`docs-researcher`), verification (`gate-runner`), and
+workflow-named review roles when isolation or a structured evidence packet
+helps. Fall back to the matching skill or direct command when a role is
+unavailable. Do not run a fixed preflight on every task, and do not redo
+discovery the parent already completed.
 
 ## Commands and definition of done
 
@@ -42,8 +42,9 @@ flagged, simplify the change or add meaningful behavioral coverage.
 ## Architecture and engineering
 
 Production source belongs to the existing deny-by-default Fallow zones. Follow
-`src/AGENTS.md`; `.fallowrc.json` is the mechanical boundary authority. Do not
-add cross-layer exceptions.
+the nearest scoped guide — `src/AGENTS.md` for application source and
+`convex/AGENTS.md` for Convex. `.fallowrc.json` is the mechanical boundary
+authority. Do not add cross-layer exceptions.
 
 Always use existing primitives and configuration. Extract shared code only for
 a real second consumer.

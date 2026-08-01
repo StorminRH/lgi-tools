@@ -89,8 +89,7 @@ explicit written justification.
 For every interactive primitive:
 
 1. When implementation depends on the adopted library's current API or
-   behavior, confirm it with a `docs-researcher` subagent (it runs
-   `find-docs`).
+   behavior, confirm it with `find-docs` or a `docs-researcher` subagent.
 2. Compose the library's documented parts and preserve its native dismiss,
    focus, keyboard, touch, stacking, pan, or drag behavior.
 3. Wrap the library once in `src/components/ui/` as a domain-neutral primitive
