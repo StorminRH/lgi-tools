@@ -20,14 +20,14 @@ export interface ChainPosition {
 }
 
 /** A system became visible on the map, parked at its first assigned position. */
-export interface SystemAppeared {
+interface SystemAppeared {
   readonly kind: 'system-appeared';
   readonly systemId: number;
   readonly position: ChainPosition;
 }
 
 /** A system left the map. Emitted only from a complete snapshot, never from a draining page. */
-export interface SystemDeparted {
+interface SystemDeparted {
   readonly kind: 'system-departed';
   readonly systemId: number;
 }
@@ -41,7 +41,7 @@ export interface SystemDeparted {
  * and is proven now by driving the seam directly in tests. An incoming server change alone can never
  * produce it (contract HC-1).
  */
-export interface SystemMoved {
+interface SystemMoved {
   readonly kind: 'system-moved';
   readonly systemId: number;
   readonly from: ChainPosition;
@@ -54,7 +54,7 @@ export interface SystemMoved {
  * Visibility, not document existence: a connection whose endpoint has not arrived yet is withheld
  * silently and emits this only once that endpoint appears.
  */
-export interface ConnectionAppeared {
+interface ConnectionAppeared {
   readonly kind: 'connection-appeared';
   readonly connectionId: string;
   readonly fromSystemId: number;
@@ -65,12 +65,19 @@ export interface ConnectionAppeared {
  * A connection stopped being visible — either its document left a complete snapshot, or one of its
  * endpoint systems departed while the document itself persists server-side.
  */
-export interface ConnectionDeparted {
+interface ConnectionDeparted {
   readonly kind: 'connection-departed';
   readonly connectionId: string;
 }
 
-/** Everything the reconciler can say about one merge. Exhaustive: switch on `kind`. */
+/**
+ * Everything the reconciler can say about one merge. Exhaustive: switch on `kind`.
+ *
+ * The union is the public surface; its five members are deliberately NOT exported, because no caller
+ * needs one in isolation today. A consumer that later wants a single kind narrows the union rather
+ * than importing a variant — `Extract<MapChainIntent, { kind: 'system-moved' }>` — which keeps the
+ * vocabulary frozen (PD-1) without publishing five types nothing names.
+ */
 export type MapChainIntent =
   | SystemAppeared
   | SystemDeparted

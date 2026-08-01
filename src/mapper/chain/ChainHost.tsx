@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import { ChainSurface } from '../canvas/ChainSurface';
 import type { ChainNode } from '../canvas/SystemNode';
-import { NoMapAccess } from './ChainBoundary';
+import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
 import { useMapChain } from './use-map-chain';
 

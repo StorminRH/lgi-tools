@@ -116,8 +116,8 @@ describe('MapCanvas', () => {
     expect(props.nodes).toEqual([]);
   });
 
-  // PD-4: a tripped calm state must never persist across a map change.
-  it('keys the boundary by map id so a map change remounts past a tripped boundary', async () => {
+  // A map change must not carry the previous map's reconciled nodes or local placements over.
+  it('keys the chain host by map id so a map change remounts it', async () => {
     mocks.searchParams = new URLSearchParams('map=map-a');
     const first = await canvasTree();
 
@@ -130,5 +130,16 @@ describe('MapCanvas', () => {
 
     expect(keyOf(first)).toBe('map-a');
     expect(keyOf(second)).toBe('map-b');
+  });
+
+  // The calm state is a live value now, so nothing in this path throws and no boundary is warranted;
+  // an unexpected error belongs to the map route's own error.tsx.
+  it('wraps the host in no error boundary of its own', async () => {
+    mocks.searchParams = new URLSearchParams('map=map-a');
+
+    const tree = await canvasTree();
+    const child = (tree.props as { children: ReactElement }).children;
+
+    expect(child.type).toBe(mocks.chainHost);
   });
 });

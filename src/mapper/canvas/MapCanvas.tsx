@@ -3,7 +3,6 @@
 import type { Edge } from '@xyflow/react';
 import { useSearchParams } from 'next/navigation';
 import { convexClient } from '@/data/convex/client';
-import { ChainBoundary } from '../chain/ChainBoundary';
 import { ChainHost } from '../chain/ChainHost';
 import { ChainSurface } from './ChainSurface';
 import type { ChainNode } from './SystemNode';
@@ -25,8 +24,12 @@ const EMPTY_EDGES: Edge[] = [];
  *     `NEXT_PUBLIC_CONVEX_URL` unset there is no provider above, and the installed hooks throw even
  *     when skipped. Mirrors `src/components/OnlineStatusProvider.tsx`.
  *
- * The host and its boundary are keyed by map id, so switching maps discards a tripped calm state and
- * re-subscribes fresh rather than showing one map's no-access state over another.
+ * The host is keyed by map id, so switching maps discards the previous map's reconciled nodes and
+ * local placements instead of carrying them over, and re-subscribes fresh.
+ *
+ * There is no error boundary here. Losing access is a live value the host renders as a calm state, so
+ * nothing in this path throws; a genuinely unexpected error belongs to the map route's own
+ * `error.tsx`, and a boundary that could only rethrow to it would be a pass-through layer.
  */
 export function MapCanvas() {
   const mapId = useSearchParams().get('map');
@@ -34,9 +37,7 @@ export function MapCanvas() {
   return (
     <div data-map-canvas className="h-full w-full">
       {mapId !== null && convexClient !== null ? (
-        <ChainBoundary key={mapId}>
-          <ChainHost mapId={mapId} />
-        </ChainBoundary>
+        <ChainHost key={mapId} mapId={mapId} />
       ) : (
         <ChainSurface nodes={EMPTY_NODES} edges={EMPTY_EDGES} />
       )}

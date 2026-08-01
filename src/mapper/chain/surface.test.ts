@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { NodeProps } from '@xyflow/react';
 import { SystemNode, type ChainNode } from '../canvas/SystemNode';
-import { NoMapAccess } from './ChainBoundary';
+import { NoMapAccess } from './NoMapAccess';
 
 const mocks = vi.hoisted(() => ({ reactFlow: vi.fn() }));
 
@@ -109,8 +109,8 @@ describe('mapper source contract', () => {
       'canvas/ChainSurface.tsx',
       'canvas/MapCanvas.tsx',
       'canvas/SystemNode.tsx',
-      'chain/ChainBoundary.tsx',
       'chain/ChainHost.tsx',
+      'chain/NoMapAccess.tsx',
       'chain/intents.ts',
       'chain/labels.ts',
       'chain/nodes.ts',
