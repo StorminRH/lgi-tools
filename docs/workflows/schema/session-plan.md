@@ -35,6 +35,10 @@ The marker values are closed vocabularies:
   `docs/workflows/schema/session-plan.md`.
 - `Proof standard` is exactly `Atomic`. It binds each success criterion to
   separately executable proof rows with one required observable per row.
+  Plans before session `4.0.2.2.2` are a frozen legacy exception: the resolver
+  does not require the `Proof standard` marker or atomic proof rows for them,
+  and close-out proves their success criteria under the plan's written evidence
+  form rather than rewriting the approved prompt.
 - `Execution status` is exactly `Pending` or `Complete`. Close-out changes it
   to `Complete` only after the session's required delivery evidence exists.
 - `Baseline effect` is exactly `Improves`, `Neutral`, or `Temporary pressure`:
