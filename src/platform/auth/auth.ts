@@ -32,6 +32,7 @@ import { recordAbsorb } from './absorb-context';
 import { resolveActiveCharacter, upsertCharacterOnLogin } from './linked-characters';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { getCharacterOwnerReconciler } from './owner-reconcile-hook';
+import { runAfterCharacterLinkChanged } from './identity-projection-hooks';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
 import { encryptToken } from './token-crypto';
@@ -63,7 +64,17 @@ const options = {
   // Do not turn it on.
   databaseHooks: {
     account: {
-      create: { before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }) },
+      create: {
+        before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }),
+        // Fresh EVE account rows (first link / new user) never go through
+        // reassignCharacter; re-project maps that may grant this character access.
+        after: async (acct) => {
+          if (acct.providerId !== EVE_PROVIDER_ID) return;
+          const characterId = Number(acct.accountId);
+          if (!Number.isFinite(characterId)) return;
+          await runAfterCharacterLinkChanged(characterId);
+        },
+      },
       update: { before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }) },
     },
   },

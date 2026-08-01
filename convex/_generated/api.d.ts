@@ -17,6 +17,7 @@ import type * as lib_mapAccess from "../lib/mapAccess.js";
 import type * as lib_mapEntityContracts from "../lib/mapEntityContracts.js";
 import type * as lib_mapSignatureCleanup from "../lib/mapSignatureCleanup.js";
 import type * as lib_subjects from "../lib/subjects.js";
+import type * as mapAccessProjection from "../mapAccessProjection.js";
 import type * as mapFixtures from "../mapFixtures.js";
 import type * as onlineStatus from "../onlineStatus.js";
 import type * as onlineStatusSync from "../onlineStatusSync.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mapEntityContracts": typeof lib_mapEntityContracts;
   "lib/mapSignatureCleanup": typeof lib_mapSignatureCleanup;
   "lib/subjects": typeof lib_subjects;
+  mapAccessProjection: typeof mapAccessProjection;
   mapFixtures: typeof mapFixtures;
   onlineStatus: typeof onlineStatus;
   onlineStatusSync: typeof onlineStatusSync;

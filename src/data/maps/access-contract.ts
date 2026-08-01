@@ -35,6 +35,18 @@ export const MAP_ROLE_CAPABILITIES: Readonly<Record<MapRole, MapRoleCapabilities
  */
 export const MAP_ROLE_PRECEDENCE: readonly MapRole[] = ['owner', 'editor', 'viewer'];
 
+/**
+ * Deduplicates and orders roles by {@link MAP_ROLE_PRECEDENCE}, appending any
+ * unranked values after. Shared by Neon resolution and the Convex claim writer
+ * so equal sets serialize identically in both runtimes.
+ */
+export function canonicalizeMapRoles(roles: readonly MapRole[]): MapRole[] {
+  const unique = new Set(roles);
+  const ranked = MAP_ROLE_PRECEDENCE.filter((role) => unique.has(role));
+  const unranked = [...unique].filter((role) => !MAP_ROLE_PRECEDENCE.includes(role));
+  return [...ranked, ...unranked];
+}
+
 // Which capability flag answers which capability. `satisfies` makes this total: adding a value to
 // MAP_CAPABILITIES without adding its flag here is a compile error, so a new capability can never
 // fall through to an unrelated flag and silently grant itself.

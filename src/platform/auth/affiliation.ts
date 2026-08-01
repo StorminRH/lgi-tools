@@ -19,23 +19,58 @@ const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
  */
 export const ADVISORY_LOCK_AFFILIATION_REFRESH = BigInt(8273619016);
 
+/** Detailed refresh outcome for callers that must distinguish transient ESI failure. */
+export interface AffiliationRefreshOutcome {
+  readonly refreshed: number;
+  readonly transientFailure: boolean;
+}
+
 /**
  * Fetch fresh affiliations for these characters and write them to the Neon cache.
- * Best-effort — never throws (the source already swallows per-batch ESI failures;
- * this guards the upsert too) so a refresh can't break sign-in, the enumeration
- * route, or the cron. Returns the number of rows refreshed (for cron telemetry).
- * Used by all three triggers: login/link, on-view (write-behind), and the cron.
+ * Surfaces whether any batch failed transiently so projection can refuse to
+ * converge; login/link/cron callers use {@link refreshAffiliations} which only
+ * needs the row count.
  */
-export async function refreshAffiliations(characterIds: number[]): Promise<number> {
-  if (characterIds.length === 0) return 0;
+export async function refreshAffiliationsWithOutcome(
+  characterIds: number[],
+): Promise<AffiliationRefreshOutcome> {
+  if (characterIds.length === 0) return { refreshed: 0, transientFailure: false };
   try {
-    const rows = await fetchAffiliations(characterIds);
+    const { rows, transientFailure } = await fetchAffiliations(characterIds);
     await upsertAffiliations(rows);
-    return rows.length;
+    return { refreshed: rows.length, transientFailure };
   } catch (err) {
     console.error('[auth/affiliation] refresh failed', err);
-    return 0;
+    return { refreshed: 0, transientFailure: true };
   }
+}
+
+/**
+ * Fetch fresh affiliations for these characters and write them to the Neon cache.
+ * Best-effort — never throws (the source already classifies per-batch ESI
+ * failures; this guards the upsert too) so a refresh can't break sign-in, the
+ * enumeration route, or the cron. Returns the number of rows refreshed (for cron
+ * telemetry). Used by all three triggers: login/link, on-view (write-behind),
+ * and the cron.
+ */
+export async function refreshAffiliations(characterIds: number[]): Promise<number> {
+  return (await refreshAffiliationsWithOutcome(characterIds)).refreshed;
+}
+
+/**
+ * Refresh every stale / never-refreshed affiliation among a user's linked
+ * characters, returning both the upserted row count and whether any ESI batch
+ * failed transiently.
+ */
+export async function refreshStaleAffiliationsForUserWithOutcome(
+  userId: string,
+): Promise<AffiliationRefreshOutcome> {
+  const affiliations = await getUserAffiliations(userId);
+  const now = new Date();
+  const staleIds = affiliations
+    .filter((a) => AFFILIATION_FRESHNESS.isStale(a.refreshedAt, now))
+    .map((a) => a.characterId);
+  return refreshAffiliationsWithOutcome(staleIds);
 }
 
 /**
@@ -47,12 +82,7 @@ export async function refreshAffiliations(characterIds: number[]): Promise<numbe
  * number of rows refreshed.
  */
 export async function refreshStaleAffiliationsForUser(userId: string): Promise<number> {
-  const affiliations = await getUserAffiliations(userId);
-  const now = new Date();
-  const staleIds = affiliations
-    .filter((a) => AFFILIATION_FRESHNESS.isStale(a.refreshedAt, now))
-    .map((a) => a.characterId);
-  return refreshAffiliations(staleIds);
+  return (await refreshStaleAffiliationsForUserWithOutcome(userId)).refreshed;
 }
 
 /**

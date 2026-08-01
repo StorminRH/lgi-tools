@@ -7,6 +7,7 @@ import {
 } from '@/platform/auth/api-contract';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
 import '@/composition/account-lifecycle/register-owner-reconciler';
+import '@/composition/map-access-identity';
 import { purgeOwnCharacter } from '@/composition/account-lifecycle/account-purge';
 import { validationFailure } from '@/lib/failure';
 import { checkSession } from '@/platform/auth/route-guards';

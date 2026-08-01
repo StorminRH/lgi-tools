@@ -32,7 +32,7 @@ function rowFor(characterId: number, corporationId: number, refreshedAt: Date | 
 }
 
 beforeEach(() => {
-  fetchAffiliationsMock.mockReset().mockResolvedValue([]);
+  fetchAffiliationsMock.mockReset().mockResolvedValue({ rows: [], transientFailure: false });
   upsertAffiliationsMock.mockReset().mockResolvedValue(undefined);
   getUserAffiliationsMock.mockReset();
   recordCorpAccessDecisionMock.mockReset().mockResolvedValue(undefined);
@@ -77,9 +77,10 @@ describe('decideCorpAccess', () => {
     getUserAffiliationsMock
       .mockResolvedValueOnce([rowFor(101, 2000, STALE)])
       .mockResolvedValueOnce([rowFor(101, 2000, FRESH)]);
-    fetchAffiliationsMock.mockResolvedValue([
-      { characterId: 101, corporationId: 2000, allianceId: null, factionId: null },
-    ]);
+    fetchAffiliationsMock.mockResolvedValue({
+      rows: [{ characterId: 101, corporationId: 2000, allianceId: null, factionId: null }],
+      transientFailure: false,
+    });
 
     const decision = await decideCorpAccess({ userId: 'u1', corporationId: 2000 });
 

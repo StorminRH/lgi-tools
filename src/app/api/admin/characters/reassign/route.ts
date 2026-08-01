@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { capabilityRoute } from '@/app/api/capability-route';
+import '@/composition/map-access-identity';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';

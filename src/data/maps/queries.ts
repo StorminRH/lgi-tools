@@ -1,6 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import { account, characters } from '@/db/auth-schema';
 import type { AnyPgDb } from '@/lib/db-types';
+import { EVE_PROVIDER_ID } from '@/lib/eve-provider';
 import type { MapGrant } from './access';
 import { mapAccess, maps } from './schema';
 
@@ -36,4 +38,134 @@ export async function getMapGrants(
     })
     .from(mapAccess)
     .where(eq(mapAccess.mapId, mapId));
+}
+
+/**
+ * Resolves EVE-provider account owners for the given character ids in one batched
+ * select. Non-EVE provider rows are ignored. Empty input returns an empty map
+ * without querying.
+ */
+export async function getUserIdsOwningCharacters(
+  characterIds: number[],
+  database: AnyPgDb = db,
+): Promise<Map<number, string>> {
+  if (characterIds.length === 0) return new Map();
+
+  const accountIds = characterIds.map(String);
+  const rows = await database
+    .select({
+      accountId: account.accountId,
+      userId: account.userId,
+    })
+    .from(account)
+    .where(
+      and(
+        eq(account.providerId, EVE_PROVIDER_ID),
+        inArray(account.accountId, accountIds),
+      ),
+    );
+
+  const owners = new Map<number, string>();
+  for (const row of rows) {
+    const characterId = Number(row.accountId);
+    if (Number.isFinite(characterId)) {
+      owners.set(characterId, row.userId);
+    }
+  }
+  return owners;
+}
+
+/**
+ * Resolves every Better Auth user that currently has a linked character whose
+ * cached corporation id is in the given set. Empty input returns an empty set
+ * without querying.
+ */
+export async function getUserIdsInCorporations(
+  corporationIds: number[],
+  database: AnyPgDb = db,
+): Promise<Set<string>> {
+  if (corporationIds.length === 0) return new Set();
+
+  const rows = await database
+    .select({ userId: account.userId })
+    .from(account)
+    .innerJoin(
+      characters,
+      eq(characters.characterId, sql`${account.accountId}::bigint`),
+    )
+    .where(
+      and(
+        eq(account.providerId, EVE_PROVIDER_ID),
+        inArray(characters.corporationId, corporationIds),
+      ),
+    );
+
+  return new Set(rows.map((row) => row.userId));
+}
+
+/**
+ * Distinct map ids that hold a corporation grant for one of the given corporation
+ * ids. Used by character purge to capture corp-derived projections before the
+ * durable grant rows disappear.
+ */
+export async function getMapIdsWithCorporationGrants(
+  corporationIds: number[],
+  database: AnyPgDb = db,
+): Promise<string[]> {
+  if (corporationIds.length === 0) return [];
+
+  const rows = await database
+    .selectDistinct({ mapId: mapAccess.mapId })
+    .from(mapAccess)
+    .where(
+      and(
+        eq(mapAccess.ownerType, 'corporation'),
+        inArray(mapAccess.ownerId, corporationIds),
+      ),
+    );
+  return rows.map((row) => row.mapId);
+}
+
+/**
+ * Distinct map ids that hold a direct character grant for the given character.
+ */
+export async function getMapIdsWithCharacterGrant(
+  characterId: number,
+  database: AnyPgDb = db,
+): Promise<string[]> {
+  const rows = await database
+    .selectDistinct({ mapId: mapAccess.mapId })
+    .from(mapAccess)
+    .where(
+      and(
+        eq(mapAccess.ownerType, 'character'),
+        eq(mapAccess.ownerId, characterId),
+      ),
+    );
+  return rows.map((row) => row.mapId);
+}
+
+/** Owned map ids for one creator, captured before a user purge deletes them. */
+export async function getOwnedMapIds(
+  userId: string,
+  database: AnyPgDb = db,
+): Promise<string[]> {
+  const rows = await database
+    .select({ id: maps.id })
+    .from(maps)
+    .where(eq(maps.userId, userId));
+  return rows.map((row) => row.id);
+}
+
+/** Cached corporation id for one character profile, or null when absent/unknown. */
+export async function getCharacterCorporationId(
+  characterId: number,
+  database: AnyPgDb = db,
+): Promise<number | null> {
+  const [row] = await database
+    .select({ corporationId: characters.corporationId })
+    .from(characters)
+    .where(eq(characters.characterId, characterId))
+    .limit(1);
+  return row?.corporationId ?? null;
 }

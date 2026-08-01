@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { eveAccountsForUser } from './eve-account-shared';
+import { runBeforeUserDelete } from './identity-projection-hooks';
 import { repointActiveToOldest } from './linked-characters';
 import { account, user } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
@@ -44,6 +45,8 @@ export async function reconcileAfterCharacterRemoval(
 
   const [firstRemaining] = remaining;
   if (firstRemaining === undefined) {
+    // Tear down Convex map claims before FK cascade deletes owned Neon maps.
+    await runBeforeUserDelete(userId);
     await db.delete(user).where(eq(user.id, userId));
     return { accountEmptied: true };
   }

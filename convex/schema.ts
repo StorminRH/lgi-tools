@@ -129,8 +129,9 @@ export default defineSchema({
   // The projected role claim the collaborative gate reads. NON-AUTHORITATIVE: a
   // regenerable mirror of the durable Neon rule, carrying the full effective role
   // set so a caller matching through several principals keeps every capability.
-  // Session 4.0.2.2.2 owns every writer; until then production claims are absent
-  // and the fixture API fails closed by construction.
+  // Writers live in convex/mapAccessProjection.ts (reconcile + per-user purge).
+  // Neon remains the authority; these rows are regenerable and never answer a
+  // durable access question on their own.
   mapAccess: defineTable({
     mapId: v.string(),
     userId: v.string(),
@@ -143,9 +144,9 @@ export default defineSchema({
   })
     .index('by_map', ['mapId'])
     // The gate's single indexed read; it is also the read set that must
-    // participate in live revocation once the projection is connected.
+    // participate in live revocation when a claim row is deleted.
     .index('by_map_user', ['mapId', 'userId'])
-    // Teardown/resynchronization by user, owned by the next session.
+    // Per-user claim teardown for account purge (/purge-map-access).
     .index('by_user', ['userId']),
 
   // One document per system placed on one map.

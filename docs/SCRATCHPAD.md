@@ -5,17 +5,47 @@
 
 ## Now
 
-- **CURRENT:** session 4.0.2.2.1 is complete on `lifecycle/4.0.2.2`. Earlier
-  draft PRs for this sub-version were closed without merge; no sub-version PR
-  is open.
-- **NEXT:** session-plan approval for **4.0.2.2.2**, which owns the
-  durable-to-Convex access projection, its teardown and resynchronization, and
-  live revocation. It completes and ships the shared sub-version PR.
-- Two constraints it must honor, recorded in
-  `docs/session-as-built/4.0/4.0.2.2.1.md`: the projection writer must guarantee
-  one `mapAccess` row per `(mapId, userId)` because the gate reads it with
-  `.unique()`, and Convex permits exactly one `.paginate()` per function
-  execution.
+- **CURRENT:** session 4.0.2.2.2 access projection and revocation is implemented
+  on `lifecycle/4.0.2.2` and entering close-out for the shared sub-version PR.
+- **NEXT:** close-out ships both 4.0.2.2 sessions; the resolver then selects the
+  next approved lifecycle action (likely 4.0.2.3 planning or execution).
+- **Access/read-set cost (4.0.2.2.2 SC-4):** each gated fixture call reads 1
+  indexed `mapAccess` claim row + at most `MAP_FIXTURE_PAGE_SIZE = 25` payload
+  rows. At pinned sizes 50 systems / 30 connections / 60 signatures / 10 notes,
+  drains measured 2 / 2 / 3 / 1 pages with max page ≤ 25. A full four-collection
+  watch is therefore 4 claim reads + one page per open cursor per update cycle.
+- **Live revocation probe (SC-3.2):** local backend (`CONVEX_DEPLOYMENT` began
+  `local:`), admin-auth subscriber B received data, took no further action, and
+  got `onError` with code `FORBIDDEN` 14 ms after the revoke POST. Probe script
+  is not committed. Transcript:
+
+```json
+[
+  {"t":1785551312141,"event":"warmup_query"},
+  {"t":1785551312153,"event":"warmup_ok","pageLength":0},
+  {"t":1785551312153,"event":"subscribe"},
+  {"t":1785551312154,"event":"data","pageLength":0,"isDone":true},
+  {"t":1785551312205,"event":"project_revoke"},
+  {"t":1785551312216,"event":"project_revoke_ok","revokeCounts":{"deleted":1,"inserted":0,"unchanged":1,"updated":0}},
+  {"t":1785551312219,"event":"onError","code":"FORBIDDEN","name":"ConvexError","data":{"code":"FORBIDDEN"}},
+  {"t":1785551312219,"event":"result","result":"forbidden","sawForbidden":true,"latencyMs":14}
+]
+```
+- **Deferred by operator ruling:** automatic corp-membership-drift trigger after
+  a projection run; resync remains the correction tool until a later session.
+- **Accepted residuals:** (1) a deleted map whose teardown POST failed has no
+  automatic healer — operator must resync those logged map ids; (2) a projection
+  racing a concurrent user purge can re-insert claims until the purge door or a
+  resync runs again.
+- **Refresh-shortfall:** projection throws only on transient ESI failure
+  (5xx/budget/thrown); ESI 404 batch omissions are definitive and must not wedge
+  convergence (biomassed characters leave stale cache fail-closed via
+  `memberCorpIds`).
+- **Fallow-driven seams:** `mapsPurgeContributor` stays in `src/data/maps/purge.ts`
+  with `registerMapAccessProjectionPurgeHooks`; identity mutations use
+  `registerIdentityProjectionHooks` from `map-access-identity.ts` so
+  platform/auth never imports composition. Unlink/reassign/absorb/emptied-user
+  deletes re-project or tear down in-session (not backlog).
 
 ## Current boundary
 
@@ -36,11 +66,6 @@ and the sequence contains deliberate gaps; the resolver orders by table row, not
 by arithmetic. Sub-versions 4.0.4.2 and 4.0.4.3 are the only ones whose sessions
 each ship their own PR — every other sub-version ships one PR for the
 sub-version.
-
-Sub-version 4.0.0.1 delivers Phase 0: the baseline captures each master
-version's starting ref, measures the expanded registered-row set, and archives
-session as-built records with the rest of a version bundle. Its merge advances
-the resolver to Phase 1 planning for 4.0.1.1.
 
 `docs/CODE_HEALTH_BASELINE.md` and `docs/UPDATE_WATCH_BASELINE.md` remain the
 active health and update-watch state. The full scratchpad as it stood at the

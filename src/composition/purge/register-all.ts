@@ -16,6 +16,8 @@ import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
 import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
+import '@/composition/map-access-identity';
+import '@/composition/map-access-purge';
 import { mapsPurgeContributor } from '@/data/maps/purge';
 import type { PurgeContributor } from '@/platform/purge/types';
 

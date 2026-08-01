@@ -21,6 +21,13 @@ const listLinkedCharactersMock = vi.fn();
 const repointActiveToOldestMock = vi.fn();
 const getStoredActiveCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
+const getCharacterCorporationIdMock = vi.fn();
+const getMapIdsWithCharacterGrantMock = vi.fn();
+const getMapIdsWithCorporationGrantsMock = vi.fn();
+const getOwnedMapIdsMock = vi.fn();
+const projectMapAccessMock = vi.fn();
+const teardownMapAccessProjectionMock = vi.fn();
+const purgeUserMapAccessProjectionMock = vi.fn();
 
 vi.mock('@/platform/auth/auth', () => ({
   auth: {
@@ -37,15 +44,27 @@ vi.mock('@/platform/auth/linked-characters', () => ({
   getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),
 }));
 
+vi.mock('@/data/maps/queries', () => ({
+  getCharacterCorporationId: () => getCharacterCorporationIdMock(),
+  getMapIdsWithCharacterGrant: () => getMapIdsWithCharacterGrantMock(),
+  getMapIdsWithCorporationGrants: (ids: number[]) => getMapIdsWithCorporationGrantsMock(ids),
+  getOwnedMapIds: (userId: string) => getOwnedMapIdsMock(userId),
+}));
+
+vi.mock('@/composition/map-access-projection', () => ({
+  projectMapAccess: (mapId: string) => projectMapAccessMock(mapId),
+  teardownMapAccessProjection: (mapId: string) => teardownMapAccessProjectionMock(mapId),
+  purgeUserMapAccessProjection: (userId: string) => purgeUserMapAccessProjectionMock(userId),
+}));
+
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-// Static import — the mocks above are hoisted, and the route module holds no
-// per-test state (only the mocked functions vary, reset in beforeEach), so a
-// single import avoids the heavy per-test re-import the resetModules pattern costs.
+// Real identity wiring: map-access-identity registers hooks; the route uses the
+// never-throw runner. Static import after mocks are hoisted.
 import { POST } from './route';
 
 function buildRequest(form: Record<string, string>): NextRequest {
@@ -70,7 +89,24 @@ describe('POST /api/account/characters/unlink', () => {
     repointActiveToOldestMock.mockReset();
     getStoredActiveCharacterIdMock.mockReset();
     logUsageEventMock.mockReset();
+    getCharacterCorporationIdMock.mockReset();
+    getMapIdsWithCharacterGrantMock.mockReset();
+    getMapIdsWithCorporationGrantsMock.mockReset();
+    getOwnedMapIdsMock.mockReset();
+    projectMapAccessMock.mockReset();
+    teardownMapAccessProjectionMock.mockReset();
+    purgeUserMapAccessProjectionMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
+    getCharacterCorporationIdMock.mockResolvedValue(null);
+    getMapIdsWithCharacterGrantMock.mockResolvedValue([]);
+    getMapIdsWithCorporationGrantsMock.mockResolvedValue([]);
+    getOwnedMapIdsMock.mockResolvedValue([]);
+    projectMapAccessMock.mockResolvedValue({
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 0,
+    });
   });
 
   it('returns 401 when there is no session', async () => {
@@ -109,6 +145,7 @@ describe('POST /api/account/characters/unlink', () => {
       body: { providerId: 'eve', accountId: '100' },
       headers: expect.any(Headers),
     });
+    expect(getMapIdsWithCharacterGrantMock).toHaveBeenCalled();
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
   });
@@ -131,5 +168,23 @@ describe('POST /api/account/characters/unlink', () => {
     expect(res.status).toBe(303);
     expect(locationOf(res)).toContain('error=unlink_failed');
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
+    expect(getMapIdsWithCharacterGrantMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps unlink success and repoint when map enumeration fails', async () => {
+    getSessionMock.mockResolvedValue(SESSION);
+    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
+    getStoredActiveCharacterIdMock.mockResolvedValue(100);
+    unlinkAccountMock.mockResolvedValue({ status: true });
+    getMapIdsWithCharacterGrantMock.mockRejectedValue(new Error('neon enumeration failed'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const res = await POST(buildRequest({ characterId: '100' }));
+
+    expect(res.status).toBe(303);
+    expect(locationOf(res)).toBe('http://localhost:3000/characters');
+    expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

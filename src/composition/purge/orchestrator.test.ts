@@ -28,6 +28,35 @@ const { chain, recorded } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
+// Maps purge now captures affected map ids before deleting; unit tests that only
+// assert Neon delete order stub those reads empty so the mock db chain stays delete-only.
+vi.mock('@/data/maps/queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/data/maps/queries')>();
+  return {
+    ...actual,
+    getCharacterCorporationId: vi.fn().mockResolvedValue(null),
+    getMapIdsWithCharacterGrant: vi.fn().mockResolvedValue([]),
+    getMapIdsWithCorporationGrants: vi.fn().mockResolvedValue([]),
+    getOwnedMapIds: vi.fn().mockResolvedValue([]),
+  };
+});
+
+vi.mock('@/composition/map-access-projection', () => ({
+  projectMapAccess: vi.fn().mockResolvedValue({
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+  }),
+  teardownMapAccessProjection: vi.fn().mockResolvedValue({
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+  }),
+  purgeUserMapAccessProjection: vi.fn().mockResolvedValue({ deleted: 0 }),
+}));
+
 import { runPurge } from './orchestrator';
 
 const names = (): string[] => recorded.map((r) => getTableConfig(r.table as PgTable).name);

@@ -1,4 +1,5 @@
 import {
+  canonicalizeMapRoles,
   MAP_ROLE_CAPABILITIES,
   MAP_ROLE_PRECEDENCE,
   rolesAllow,
@@ -60,11 +61,7 @@ export function resolveMatchedMapRoles(input: MapRoleInput): readonly MapRole[] 
     if (principalMatches(grant, input.principals)) matchedRoles.add(grant.role);
   }
 
-  const ranked = MAP_ROLE_PRECEDENCE.filter((role) => matchedRoles.has(role));
-  const unranked = [...matchedRoles].filter(
-    (role) => !MAP_ROLE_PRECEDENCE.includes(role),
-  );
-  return [...ranked, ...unranked];
+  return canonicalizeMapRoles([...matchedRoles]);
 }
 
 /**

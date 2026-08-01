@@ -48,6 +48,12 @@ vi.mock('better-auth/api', () => ({
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: vi.fn().mockResolvedValue(undefined),
 }));
+// Identity projection hooks are composition-registered at route boot; unit
+// stubs here so reassignCharacter's never-throw runners do not breadcrumb.
+vi.mock('./identity-projection-hooks', () => ({
+  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
