@@ -10,11 +10,14 @@
 // Callers get `complete` instead, which is an honesty flag about the data — a consumer that infers
 // removals must wait for it, because a still-draining collection is missing rows it will yet receive.
 import {
+  useQuery,
   usePaginatedQuery,
   type PaginatedQueryArgs,
   type PaginatedQueryItem,
   type PaginatedQueryReference,
+  type OptionalRestArgsOrSkip,
 } from 'convex/react';
+import type { FunctionReference, FunctionReturnType } from 'convex/server';
 import { useEffect } from 'react';
 
 /** One collection's accumulated rows plus whether every page has landed. */
@@ -45,4 +48,20 @@ export function useDrainedPages<Query extends PaginatedQueryReference>(
   }, [status, loadMore, pageSize]);
 
   return { rows: results, complete: status === 'Exhausted' };
+}
+
+/**
+ * Subscribes to one non-paginated query, returning `undefined` until its first result lands.
+ *
+ * The plain-value counterpart to {@link useDrainedPages}, for a subscription whose answer is a value
+ * rather than a page — the shape that lets a live query report a state (such as "access is not held")
+ * without throwing.
+ */
+export function useLiveValue<
+  Query extends FunctionReference<'query'>,
+>(
+  query: Query,
+  ...args: OptionalRestArgsOrSkip<Query>
+): FunctionReturnType<Query> | undefined {
+  return useQuery(query, ...args);
 }

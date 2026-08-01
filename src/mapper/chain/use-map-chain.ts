@@ -17,7 +17,7 @@
 // Reconnection is likewise silent — the Convex client resumes its own subscriptions.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/data/convex/api';
-import { useDrainedPages } from '@/data/convex/use-drained-pages';
+import { useDrainedPages, useLiveValue } from '@/data/convex/use-drained-pages';
 import {
   loadUniverseAssets,
   type UniverseAssets,
@@ -40,8 +40,16 @@ const PAGE_SIZE = 100;
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
 const INITIAL_MERGE: ChainMerge = { state: EMPTY_CHAIN_STATE, intents: [] };
 
+/** Whether the caller holds access, or `undefined` until the access subscription first answers. */
+export type MapAccessState = boolean | undefined;
+
 /** What the chain host needs to render and interact with one map. */
 export interface MapChain {
+  /**
+   * Live access. `false` means the calm no-access state; `undefined` means not yet known, which
+   * renders the same empty canvas as an authorized empty map (HC-5 — never a loading state).
+   */
+  readonly access: MapAccessState;
   readonly state: ChainState;
   /** The most recent merge's intents; sub-version 4.0.3.2 binds motion to these. */
   readonly intents: readonly MapChainIntent[];
@@ -88,6 +96,12 @@ export function useMapChain(
   draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,
 ): MapChain {
   const args = mapId === null ? ('skip' as const) : { mapId };
+  // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
+  // the map returns without a reload.
+  const accessResult = useLiveValue(api.mapChain.watchMapAccess, args);
+  const access: MapAccessState =
+    accessResult === undefined ? undefined : accessResult.granted;
+
   const systems = useDrainedPages(api.mapChain.watchMapSystems, args, PAGE_SIZE);
   const connections = useDrainedPages(
     api.mapChain.watchMapConnections,
@@ -153,5 +167,5 @@ export function useMapChain(
     [],
   );
 
-  return { state: merge.state, intents: merge.intents, labelOf, pinPlacement };
+  return { access, state: merge.state, intents: merge.intents, labelOf, pinPlacement };
 }

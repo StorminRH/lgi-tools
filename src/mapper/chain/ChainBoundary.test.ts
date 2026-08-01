@@ -63,10 +63,16 @@ describe('calm no-access state', () => {
 
   it('leads with the lost-access line as its heading, salute intact', () => {
     expect(markup).toContain('data-chain-no-access');
-    expect(markup).toMatch(/<h2[^>]*>[^<]*lost access to this map o7/);
+    expect(markup).toMatch(/<h2[^>]*>\s*You[^<]*lost access to this map/);
     // The house uppercase treatment would render the salute as `O7`, which is not the gesture.
     expect(markup).not.toContain('uppercase tracking-copy');
     expect(markup).not.toContain('O7');
+  });
+
+  it('renders the salute in ISK green, bound to the word before it', () => {
+    expect(markup).toMatch(/<span class="text-isk">o7<\/span>/);
+    // A non-breaking space, not a plain one: the salute must never wrap onto its own line.
+    expect(markup).toContain(`map\u00a0<span class="text-isk">o7</span>`);
   });
 
   it('states the two ways back without restating the heading', () => {

@@ -36,19 +36,27 @@ async function renderHost(): Promise<string> {
   return renderToStaticMarkup(createElement(ChainHost, { mapId: 'map-a' }));
 }
 
-describe('chain host auth gate', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    mocks.reactFlow.mockClear();
-    mocks.useMapChain.mockClear();
-    mocks.useMapChain.mockReturnValue({
-      state: { systems: new Map(), connections: new Map() },
-      intents: [],
-      labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
-      pinPlacement: vi.fn(),
-    });
-    mocks.authed = true;
+/** Points the mocked hook at one live access state. */
+function withAccess(access: boolean | undefined): void {
+  mocks.useMapChain.mockReturnValue({
+    access,
+    state: { systems: new Map(), connections: new Map() },
+    intents: [],
+    labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
+    pinPlacement: vi.fn(),
   });
+}
+
+function resetHostMocks(): void {
+  vi.resetModules();
+  mocks.reactFlow.mockClear();
+  mocks.useMapChain.mockClear();
+  mocks.authed = true;
+  withAccess(true);
+}
+
+describe('chain host auth gate', () => {
+  beforeEach(resetHostMocks);
 
   // The regression this guards: subscribing before the JWT attaches takes an UNAUTHENTICATED
   // rejection, which is not a FORBIDDEN revocation and so escapes the calm-state boundary.
@@ -79,5 +87,42 @@ describe('chain host auth gate', () => {
 
     expect(mocks.useMapChain).toHaveBeenCalledTimes(1);
     expect(mocks.useMapChain.mock.calls[0]?.[0]).toBe('map-a');
+  });
+});
+
+// ── SC-4 · DC-4 / AC-4 — the calm state comes from a live value, never an error ──
+describe('chain host access states', () => {
+  beforeEach(resetHostMocks);
+
+  it('renders the calm no-access state when access is withdrawn', async () => {
+    withAccess(false);
+
+    const markup = await renderHost();
+
+    expect(markup).toContain('data-chain-no-access');
+    expect(markup).toContain('lost access to this map');
+    // No canvas behind it, and nothing that reads as an error or a retry.
+    expect(markup).not.toContain('data-react-flow');
+    expect(markup).not.toMatch(/error|try again|refresh|retry/i);
+  });
+
+  it('renders the canvas, not the calm state, once access is held', async () => {
+    withAccess(true);
+
+    const markup = await renderHost();
+
+    expect(markup).toContain('data-react-flow-background');
+    expect(markup).not.toContain('data-chain-no-access');
+  });
+
+  // HC-5: "not yet answered" is not a state of its own — it looks like an ordinary empty map.
+  it('renders the ordinary empty canvas while access is still unknown', async () => {
+    withAccess(undefined);
+
+    const markup = await renderHost();
+
+    expect(markup).toContain('data-react-flow-background');
+    expect(markup).not.toContain('data-chain-no-access');
+    expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
   });
 });

@@ -87,35 +87,83 @@ function page(numItems: number, cursor: string | null = null) {
   return { numItems, cursor };
 }
 
+/** Deletes one caller's claim, the durable revocation the projection performs. */
+async function revokeClaim(t: Chain, mapId: string, userId: string): Promise<void> {
+  await t.run(async (ctx) => {
+    const claim = await ctx.db
+      .query('mapAccess')
+      .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
+      .unique();
+    if (claim !== null) await ctx.db.delete(claim._id);
+  });
+}
+
 describe('map chain read path', () => {
   // ── Gate-first authorization ───────────────────────────────────────────────
   describe('gate', () => {
+    // The chain reads answer a denial with an empty page rather than a throw, because a thrown error
+    // inside a live subscription is an uncaught error in the client's socket callback rather than a
+    // state the UI can simply render. `watchMapAccess` is the authority on revoked-versus-empty.
     it.each(['watchMapSystems', 'watchMapConnections'] as const)(
-      'rejects a signed-out caller of %s',
+      'serves a signed-out caller of %s an empty, complete page and no rows',
       async (fn) => {
         const t = convexTest(schema, modules);
         await grant(t, MAP_A, EDITOR, ['editor']);
-        await expectErrorCode(
-          t.query(api.mapChain[fn], { mapId: MAP_A, paginationOpts: page(10) }),
-          'UNAUTHENTICATED',
-        );
+        await placeSystems(t, MAP_A, [JITA]);
+        await connect(t, MAP_A, JITA, AMARR);
+
+        const result = await t.query(api.mapChain[fn], {
+          mapId: MAP_A,
+          paginationOpts: page(10),
+        });
+
+        expect(result.page).toEqual([]);
+        expect(result.isDone).toBe(true);
       },
     );
 
     it.each(['watchMapSystems', 'watchMapConnections'] as const)(
-      'rejects a signed-in caller holding no claim on the map for %s',
+      'serves a caller holding no claim an empty page for %s',
       async (fn) => {
         const t = convexTest(schema, modules);
         await grant(t, MAP_A, EDITOR, ['editor']);
-        await expectErrorCode(
-          asUser(t, STRANGER).query(api.mapChain[fn], {
-            mapId: MAP_A,
-            paginationOpts: page(10),
-          }),
-          'FORBIDDEN',
-        );
+        await placeSystems(t, MAP_A, [JITA]);
+        await connect(t, MAP_A, JITA, AMARR);
+
+        const result = await asUser(t, STRANGER).query(api.mapChain[fn], {
+          mapId: MAP_A,
+          paginationOpts: page(10),
+        });
+
+        expect(result.page).toEqual([]);
+        expect(result.isDone).toBe(true);
       },
     );
+
+    it.each([
+      ['a signed-out caller', undefined],
+      ['a caller holding no claim', STRANGER],
+    ] as const)('reports access as not granted for %s', async (_label, subject) => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, EDITOR, ['editor']);
+
+      const result = await (subject === undefined
+        ? t.query(api.mapChain.watchMapAccess, { mapId: MAP_A })
+        : asUser(t, subject).query(api.mapChain.watchMapAccess, { mapId: MAP_A }));
+
+      expect(result).toEqual({ granted: false });
+    });
+
+    it('reports access as granted for a viewer', async () => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, VIEWER, ['viewer']);
+
+      const result = await asUser(t, VIEWER).query(api.mapChain.watchMapAccess, {
+        mapId: MAP_A,
+      });
+
+      expect(result).toEqual({ granted: true });
+    });
 
     it('lets a viewer watch both collections', async () => {
       const t = convexTest(schema, modules);
@@ -136,8 +184,8 @@ describe('map chain read path', () => {
       expect(connections.page).toHaveLength(1);
     });
 
-    // SC-4 · DC-4 / AC-4 — the server half of the calm no-access state.
-    it('flips a previously succeeding watch to FORBIDDEN after claim revocation', async () => {
+    // SC-4 · DC-4 / AC-4 — the server half of the calm no-access state, with no error path.
+    it('flips access to not granted after claim revocation, without throwing', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, EDITOR, ['editor']);
       await placeSystems(t, MAP_A, [JITA]);
@@ -146,23 +194,64 @@ describe('map chain read path', () => {
         mapId: MAP_A,
         paginationOpts: page(10),
       });
+      const accessBefore = await asUser(t).query(api.mapChain.watchMapAccess, {
+        mapId: MAP_A,
+      });
       expect(before.page).toHaveLength(1);
+      expect(accessBefore).toEqual({ granted: true });
 
-      await t.run(async (ctx) => {
-        const claim = await ctx.db
-          .query('mapAccess')
-          .withIndex('by_map_user', (q) => q.eq('mapId', MAP_A).eq('userId', EDITOR))
-          .unique();
-        if (claim !== null) await ctx.db.delete(claim._id);
+      await revokeClaim(t, MAP_A, EDITOR);
+
+      const accessAfter = await asUser(t).query(api.mapChain.watchMapAccess, {
+        mapId: MAP_A,
+      });
+      const after = await asUser(t).query(api.mapChain.watchMapSystems, {
+        mapId: MAP_A,
+        paginationOpts: page(10),
       });
 
-      await expectErrorCode(
-        asUser(t).query(api.mapChain.watchMapSystems, {
-          mapId: MAP_A,
-          paginationOpts: page(10),
-        }),
-        'FORBIDDEN',
+      expect(accessAfter).toEqual({ granted: false });
+      expect(after.page).toEqual([]);
+    });
+
+    // Recovery is live: re-granting the claim restores the map with no reload and no user action.
+    it('restores access and rows when the claim is granted again', async () => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, EDITOR, ['editor']);
+      await placeSystems(t, MAP_A, [JITA]);
+      await revokeClaim(t, MAP_A, EDITOR);
+
+      await grant(t, MAP_A, EDITOR, ['editor']);
+
+      const access = await asUser(t).query(api.mapChain.watchMapAccess, {
+        mapId: MAP_A,
+      });
+      const systems = await asUser(t).query(api.mapChain.watchMapSystems, {
+        mapId: MAP_A,
+        paginationOpts: page(10),
+      });
+
+      expect(access).toEqual({ granted: true });
+      expect(systems.page).toHaveLength(1);
+    });
+
+    it('never reads a chain row for a caller holding no claim', async () => {
+      const t = convexTest(schema, modules);
+      await placeSystems(t, MAP_A, [JITA, AMARR]);
+      await connect(t, MAP_A, JITA, AMARR);
+
+      // No claim was ever granted: both collections must come back empty despite holding rows.
+      const systems = await asUser(t, STRANGER).query(api.mapChain.watchMapSystems, {
+        mapId: MAP_A,
+        paginationOpts: page(100),
+      });
+      const connections = await asUser(t, STRANGER).query(
+        api.mapChain.watchMapConnections,
+        { mapId: MAP_A, paginationOpts: page(100) },
       );
+
+      expect(systems.page).toEqual([]);
+      expect(connections.page).toEqual([]);
     });
   });
 
@@ -360,6 +449,11 @@ describe('map chain read path', () => {
       return haystack.split(needle).length - 1;
     }
 
+    /** Whitespace-stripped code, so a formatter's line breaks cannot hide a chained call. */
+    function dense(code: string): string {
+      return code.replace(/\s+/g, '');
+    }
+
     function handlerCode(name: string): string {
       const start = SOURCE.indexOf(`export const ${name} = query({`);
       expect(start, `${name} must be a public query`).toBeGreaterThanOrEqual(0);
@@ -373,11 +467,15 @@ describe('map chain read path', () => {
       { fn: 'watchMapSystems', table: 'mapSystems' },
       { fn: 'watchMapConnections', table: 'mapConnections' },
     ])('pins $fn to exactly one indexed $table range', ({ fn, table }) => {
-      const code = handlerCode(fn);
+      const code = dense(handlerCode(fn));
 
-      expect(countOccurrences(code, `'${table}'`)).toBe(1);
+      // Assert on the QUERY calls, not on bare table names: only a `ctx.db.query` forms a read set,
+      // whereas a `Doc<'mapSystems'>` type argument reads nothing.
+      expect(countOccurrences(code, `ctx.db.query('${table}')`)).toBe(1);
       for (const other of CHAIN_TABLES.filter((name) => name !== table)) {
-        expect(code, `${fn} must not reference ${other}`).not.toContain(`'${other}'`);
+        expect(code, `${fn} must not query ${other}`).not.toContain(
+          `ctx.db.query('${other}')`,
+        );
       }
 
       expect(countOccurrences(code, '.paginate(')).toBe(1);
@@ -386,15 +484,38 @@ describe('map chain read path', () => {
     });
 
     it.each(['watchMapSystems', 'watchMapConnections'])(
-      'calls requireMapAccess before touching a chain table in %s',
+      'resolves access before touching a chain table in %s',
       (fn) => {
-        const code = handlerCode(fn);
-        const gateAt = code.indexOf('requireMapAccess');
-        const readAt = code.indexOf('ctx.db');
+        const code = dense(handlerCode(fn));
+        const gateAt = code.indexOf('tryMapAccess');
+        const readAt = code.indexOf('ctx.db.query');
 
         expect(gateAt).toBeGreaterThanOrEqual(0);
         expect(readAt).toBeGreaterThan(gateAt);
       },
     );
+
+    it.each(['watchMapSystems', 'watchMapConnections'])(
+      'returns an empty page instead of throwing when access is absent in %s',
+      (fn) => {
+        // The whole point of the shape: a live subscription reports a denial as a value, so a
+        // revocation is a state the UI renders rather than an error in the client's socket callback.
+        const code = handlerCode(fn);
+
+        expect(code).toContain('=== null) return deniedPage');
+        expect(code, `${fn} must not throw`).not.toContain('throw ');
+      },
+    );
+
+    it('keeps the access authority off the chain tables entirely', () => {
+      const code = dense(handlerCode('watchMapAccess'));
+
+      for (const table of CHAIN_TABLES) {
+        expect(code, `watchMapAccess must not query ${table}`).not.toContain(
+          `ctx.db.query('${table}')`,
+        );
+      }
+      expect(code).toContain('tryMapAccess');
+    });
   });
 });

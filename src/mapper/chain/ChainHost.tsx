@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import { ChainSurface } from '../canvas/ChainSurface';
 import type { ChainNode } from '../canvas/SystemNode';
+import { NoMapAccess } from './ChainBoundary';
 import { buildEdges, syncNodes } from './nodes';
 import { useMapChain } from './use-map-chain';
 
@@ -47,7 +48,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // start must not itself trigger a resync.
   const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
 
-  const { state, labelOf, pinPlacement } = useMapChain(mapId, dragging);
+  const { access, state, labelOf, pinPlacement } = useMapChain(mapId, dragging);
   const [nodes, setNodes] = useState<ChainNode[]>([]);
 
   useEffect(() => {
@@ -82,6 +83,11 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     },
     [pinPlacement, setDrag],
   );
+
+  // Revoked-versus-empty comes from the access subscription, never from a row count (DC-4). It is
+  // live, so a re-granted claim brings the map back here without a reload. `undefined` is "not yet
+  // answered" and renders the ordinary empty canvas rather than a loading state (HC-5).
+  if (access === false) return <NoMapAccess />;
 
   return (
     <ChainSurface
