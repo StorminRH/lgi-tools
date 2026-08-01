@@ -1,9 +1,26 @@
-# Source-level UI and rendering guidance
+# Source-level engineering guidance
 
-This file extends the root `AGENTS.md` for work under `src/`. Apply the
-UI-specific sections when changing TSX, CSS, `*-styles.ts`, UI primitives, or
-interactive behavior. For non-UI source work, keep only the relevant routing,
-rendering, and security constraints in scope.
+The architecture and data/API sections apply to their named source surfaces.
+Apply the UI sections only when changing TSX, CSS, `*-styles.ts`, UI primitives,
+routes, or interactive behavior.
+
+## Source ownership
+
+- `src/features/<name>/` owns product slices and never imports peer features.
+- `src/data/<name>/` owns reusable schemas, ingest, queries, and types and never
+  imports features or a peer data slice other than the shared
+  `src/data/eve-data/` reference core.
+- `src/components/ui/` owns domain-neutral primitives; the root of
+  `src/components/` owns reusable leaf presentation; and
+  `src/components/composition/` owns app-shell and account UI composition.
+- `src/composition/` owns server-side cross-slice orchestration.
+  `src/platform/` owns reusable authentication, ESI, owner-sync, search, purge,
+  and page-settings capabilities. `src/transport/` owns transport helpers.
+- `src/app/` owns routes and page composition. `src/db/` owns database
+  foundations; `src/esi-datasets/` owns test-only cross-slice registry checks;
+  `src/lib/` and `src/config/` own cross-cutting leaves and configuration.
+- `src/proxy*.ts` and `src/instrumentation*.ts` are process-level runtime entry
+  points.
 
 Reusable presentation stays in the leaf owners under `src/components/`;
 app-shell, dashboard, PageMenu, and account composition belong under
@@ -11,6 +28,57 @@ app-shell, dashboard, PageMenu, and account composition belong under
 `src/composition/`; follow `src/composition/search/register-all.ts` and
 `src/composition/purge/orchestrator.ts`. Feature UI may import reusable
 components and primitives, but never the composition homes or a peer feature.
+
+Protect the EVE tree resolver, shared ESI/API/environment gates, and industry
+planner pure-logic pairs as deep modules. Split them only when callers or change
+axes differ.
+
+Use a non-null assertion only for a locally provable by-construction invariant
+and explain it with a one-line comment. Every exported production surface needs
+a concise `/** */` contract comment; use TSDoc tags only when they add
+information.
+
+## Data, API, and identity
+
+- TypeScript `as const` arrays are authoritative for Postgres enums. The lazy DB
+  proxy in `src/db/index.ts` remains import-side-effect-free.
+- Keep types, variants, classes, and enums in one authoritative configuration.
+  Batch database work and do not introduce N+1 queries.
+- Session advisory locks use a reserved direct, unpooled connection and release
+  in `finally`; never hold a transaction or pooled connection across network
+  calls.
+- Every user- or character-keyed Neon table needs a purge contributor or an
+  explicit retained exemption. Follow the declaration, key-shape, purge,
+  growth, and ESI checks in
+  `src/esi-datasets/dataset-declarations.test.ts`.
+- Real-Postgres suites use `*.db.test.ts` and `createDbTestHarness`; direct
+  `postgres()` construction or embedded connection strings are forbidden.
+- Validate JSON bodies in route handlers with the owning slice's Zod
+  `api-contract.ts`. Keep response types and endpoint definitions there, and
+  use `apiFetch` from clients. Raw `fetch('/api/...')` is forbidden.
+- Routes without a JSON or form body declare exactly one own-line marker:
+  `// input: none`, `// input: query`, or `// input: path`. Body-consuming
+  routes carry none of them.
+- Read server environment through `readEnv` or `requireEnv`; direct access is
+  limited to `NODE_ENV` and `NEXT_PUBLIC_*`.
+- Every external vendor call routes through the wrapper declared in
+  `src/composition/vendor-resilience-registry.ts` and carries an explicit
+  timeout. That registry owns retryable errors, backoff, rate limits,
+  idempotency, degradation, and telemetry. Bare production `fetch` is limited
+  to `src/lib/fetch-with-timeout.ts` and `src/transport/api-client.ts`; each
+  vendor SDK is importable only from its declared home. Adding a vendor requires
+  its registry entry and rail exemption; an integration with no programmatic
+  call surface records that absence.
+- Every EVE ESI request uses `esiFetch` and `esiUrl` through the shared Redis
+  budget. The EVE SSO host is owned by
+  `src/platform/auth/eve-sso-constants.ts`; do not duplicate either integration
+  seam. New ESI scopes require an explicit batched decision.
+- One Better Auth user represents one human. Linked EVE characters are account
+  rows; admin authority belongs to the user, and EVE SSO is the only login
+  path. Application AES-256-GCM encryption protects EVE tokens; Better Auth
+  `encryptOAuthTokens` remains disabled.
+- Before placing data in Convex or changing a source-to-Convex projection, read
+  `docs/CONVEX.md`.
 
 ## Interactive UI
 
@@ -20,8 +88,8 @@ explicit written justification.
 
 For every interactive primitive:
 
-1. Confirm the installed library's current API with the `find-docs`
-   skill/Context7.
+1. When implementation depends on the adopted library's current API or
+   behavior, confirm it with `find-docs` or a `docs-researcher` subagent.
 2. Compose the library's documented parts and preserve its native dismiss,
    focus, keyboard, touch, stacking, pan, or drag behavior.
 3. Wrap the library once in `src/components/ui/` as a domain-neutral primitive

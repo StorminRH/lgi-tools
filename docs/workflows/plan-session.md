@@ -27,7 +27,9 @@ to the executor.
    and return to `start-session`.
 2. Read the contract and session-plan schema, then reconcile every dependency,
    boundary, decision, acceptance claim, evidence category, baseline effect, and
-   operator gate against Codegraph and live code.
+   operator gate against current repository evidence and live code. Use
+   Codegraph only for material relationship, consumer, dependency, or
+   blast-radius claims.
 3. Treat the contract's approved execution bundle as fixed. Do not split it
    because work has phases, touches different owners, needs producer/consumer
    ordering, or contains a resumable review pause.
@@ -39,17 +41,22 @@ to the executor.
 
 1. Discuss the intended implementation shape with the operator in plain English
    before fixed-schema drafting.
-2. Resolve every contract planning decision from live evidence. Keep ordinary
-   local implementation choices with the agent; surface only consequential
-   decisions that change behavior, ownership, risk, or scope.
-3. Produce every required plan marker, heading, mapping, interface, control-flow
+2. Resolve every contract planning decision from live evidence. Do not escalate
+   ordinary local implementation choices; surface only consequential decisions
+   that change behavior, ownership, risk, or scope.
+3. For every framework-sensitive interface or runtime claim, cite current
+   primary documentation or run a focused executable probe against the
+   installed version. If feasibility remains unproved, present bounded
+   alternatives for operator approval instead of freezing one as exact.
+4. Produce every required plan marker, heading, mapping, interface, control-flow
    statement, edge/failure behavior, ordered work item, and command-plus-output
    success criterion. No Blocking prerequisite or unresolved placeholder may
    remain.
-4. Invoke `adversarial-review` in Plan mode with the complete draft, contract,
-   schema, and source evidence. Reconcile every verified finding and permit at
-   most one rerun after a material architecture, scope, or verification change.
-   Do not persist reviewer transcripts or superseded drafts.
+5. Run the planning approval gate: invoke `adversarial-review` in Plan mode with
+   the complete draft, contract, schema, and source evidence. Reconcile every
+   verified finding; permit at most one rerun after a material architecture,
+   scope, or verification change. Do not persist reviewer transcripts or
+   superseded drafts.
 
 ## Approve, persist, and stop
 
@@ -57,6 +64,7 @@ to the executor.
    obtain operator approval while the repository remains unchanged.
 2. Persist the approved plan with approval date, exact contract digest,
    `Execution status: Pending`, and every schema-required section.
+   Do not save or treat a harness-native plan as a second lifecycle artifact.
 3. Run the resolver and drift gate again, report the new directive, and stop.
    Execution begins through a fresh `start-session`; overwrite a re-approved
    plan in place rather than appending history or creating a separate prompt.

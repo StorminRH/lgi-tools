@@ -1,6 +1,6 @@
 # Agent-policy audit procedure
 
-Audit or repair LGI.tools agent-facing policy across repository guides,
+Audit or repair LGI.tools shared automation policy across repository guides,
 canonical workflows, schemas, visible tools, hooks, global skill contracts, and
 drift checks. This is an ordinary-task procedure. It never runs the lifecycle
 resolver, changes lifecycle state, or authorizes delivery.
@@ -20,13 +20,12 @@ repository-only repair.
 
 ## 1. Establish scope and owners
 
-1. Read `AGENTS.md`, the nearest scoped guide, `docs/AGENT_CAPABILITIES.md`,
-   this procedure, and any affected owning workflow or schema.
+1. Read `AGENTS.md`, the nearest scoped guide, this procedure, and any affected
+   owning workflow or schema.
 2. Record the operator's authority, requested outcome, allowed edit surface, and
    required pause.
 3. Inventory these surfaces:
    - `AGENTS.md`, scoped `AGENTS.md`, and import-only harness guides;
-   - `docs/AGENT_CAPABILITIES.md`;
    - `docs/workflows/` and `docs/workflows/schema/`;
    - `tools/`, `tools/policy/policy-manifest.json`, and tool tests;
    - repository hook configuration;

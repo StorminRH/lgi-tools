@@ -4,18 +4,15 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from tools._lib.repository import ROOT
 from tools.policy.check_agent_policy import (
     _hook_commands,
     check_canonical_guides,
-    check_global_skill_contracts,
     check_hooks,
     check_ignored,
     check_legacy_entrypoints,
@@ -86,55 +83,6 @@ class AgentPolicyTests(unittest.TestCase):
             {
                 "canonicalGuides": ["missing.md"],
                 "harnessGuideImports": {"CLAUDE.md": "@AGENTS.md"},
-            },
-            self.fixture.root,
-            errors,
-        )
-        self.assertEqual(2, len(errors))
-
-    def test_global_skill_requires_one_documented_procedure(self) -> None:
-        self.fixture.write("docs/workflows/start-session.md", "# Procedure\n")
-        self.fixture.write(
-            "docs/AGENT_CAPABILITIES.md",
-            "| Global skill | Repository procedure |\n"
-            "|---|---|\n"
-            "| `start-session` | `docs/workflows/start-session.md` |\n",
-        )
-        errors: list[str] = []
-        check_global_skill_contracts(
-            {"globalSkills": {"start-session": "docs/workflows/start-session.md"}},
-            self.fixture.root,
-            errors,
-        )
-        self.assertEqual([], errors)
-
-    def test_global_skill_contract_reports_missing_mapping(self) -> None:
-        self.fixture.write("docs/AGENT_CAPABILITIES.md", "# Capabilities\n")
-        errors: list[str] = []
-        check_global_skill_contracts(
-            {"globalSkills": {"start-session": "docs/workflows/start-session.md"}},
-            self.fixture.root,
-            errors,
-        )
-        self.assertEqual(2, len(errors))
-
-    def test_global_skill_contract_rejects_swapped_mapping(self) -> None:
-        self.fixture.write("docs/workflows/start-session.md", "# Start\n")
-        self.fixture.write("docs/workflows/close-out.md", "# Close\n")
-        self.fixture.write(
-            "docs/AGENT_CAPABILITIES.md",
-            "| Global skill | Repository procedure |\n"
-            "|---|---|\n"
-            "| `start-session` | `docs/workflows/close-out.md` |\n"
-            "| `close-out` | `docs/workflows/start-session.md` |\n",
-        )
-        errors: list[str] = []
-        check_global_skill_contracts(
-            {
-                "globalSkills": {
-                    "start-session": "docs/workflows/start-session.md",
-                    "close-out": "docs/workflows/close-out.md",
-                }
             },
             self.fixture.root,
             errors,
@@ -244,29 +192,6 @@ class AgentPolicyTests(unittest.TestCase):
             ["git check-ignore failed: not a work tree"],
             errors,
         )
-
-    def test_tracked_hook_commands_run_from_nested_cwd(self) -> None:
-        for raw_path in (
-            ".claude/settings.json",
-            ".codex/hooks.json",
-            ".cursor/hooks.json",
-        ):
-            config = json.loads((ROOT / raw_path).read_text(encoding="utf-8"))
-            commands = _hook_commands(config["hooks"])
-            for command in commands:
-                env = {**os.environ, "CURSOR_PROJECT_DIR": str(ROOT)}
-                result = subprocess.run(
-                    command,
-                    cwd=ROOT / "src",
-                    env=env,
-                    input="{}",
-                    text=True,
-                    shell=True,
-                    capture_output=True,
-                    check=False,
-                )
-                self.assertEqual(0, result.returncode, result.stderr)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,13 +1,13 @@
 # UX-check procedure
 
-Verify changed user-facing surfaces against the local development server. The
-agent owns route selection, automated diagnostics, capture inspection, and the
-evidence report. The operator owns the final browser judgment. A clean sweep
+Verify changed user-facing surfaces against the local development server. Capture
+affected routes, run automated diagnostics, inspect captures, and return an
+evidence report. Operator browser review is required before a PR; a clean sweep
 does not replace that review.
 
 This procedure is a local development aid, not a `pnpm verify` or CI gate. The
 route sweep exits successfully after writing its report even when the report
-contains findings; the agent must read and disposition them. Use
+contains findings; read and disposition them. Use
 `docs/workflows/pre-pr-design-review.md` when a UX finding exposes ownership or
 interface decay rather than a local presentation defect.
 
@@ -38,12 +38,11 @@ git diff --name-only $(git merge-base HEAD origin/main)..HEAD
 git diff --name-only
 ```
 
-Map route files directly. For shared feature or UI code, use Codegraph MCP
-`codegraph_explore` when available, or CLI `codegraph explore` /
-`codegraph impact` (impact is CLI-only), to find every rendered consumer.
-Replace each dynamic segment with a real locally available identifier obtained
-from the owning list page or database; never treat an example identifier as a
-fixture.
+Map route files directly. For shared feature or UI code, search the repository
+for route and component consumers. Use Codegraph only for material relationship,
+consumer, dependency, or blast-radius claims. Replace each dynamic segment with
+a real locally available identifier obtained from the owning list page or
+database; never treat an example identifier as a fixture.
 
 The sweep is logged out. Capture authenticated routes to verify their signed-out
 gate, then record that populated account state requires the operator's logged-in
@@ -100,7 +99,7 @@ node docs/ux-check/run-probes.mjs
 The runner uses isolated desktop and mobile contexts and writes screenshots plus
 `docs/ux-check/captures/probes/report.json`. It fails for a failed assertion,
 probe crash, `style-src` violation, unfiltered console error, or uncaught page
-error; reported network failures still require agent disposition.
+error; reported network failures still require disposition.
 
 Add recurring interactions as definitions under `docs/ux-check/probes/` using
 `docs/ux-check/README.md`. Do not add another standalone Playwright launcher.
@@ -115,8 +114,9 @@ sweep refreshes all captures; the probe runner refreshes only `captures/probes/`
    route or probe and viewport. Include the first diagnostic message and its
    disposition.
 3. Inspect representative desktop, mobile, and open-state screenshots for
-   overlap, empty regions, broken layout, and missing content. Do not present
-   agent inspection as the final visual judgment.
+   overlap, empty regions, broken layout, and missing content. Capture
+   inspection is diagnostic only; operator browser review is the final visual
+   judgment.
 4. Return `UX_EVIDENCE`, point to the capture directory, and pause for the
    operator's browser review before PR creation.
 
@@ -137,7 +137,7 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 
 - **Route diagnostics:** <errors and dispositions or None>
 - **Interaction probes:** <definitions and results or Not applicable>
-- **Capture inspection:** <agent visual findings or None>
+- **Capture inspection:** <visual findings or None>
 - **Authenticated-state limits:** <limitations or None>
 
 ### Next state

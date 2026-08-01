@@ -22,6 +22,11 @@ AS_BUILT_SCHEMA_RELPATH = "docs/workflows/schema/session-as-built.md"
 # Sessions in sub-versions at or above this floor require an as-built record
 # once their plan is Complete; earlier sessions predate the record species.
 AS_BUILT_BINDING_FLOOR = (3, 10, 2, 1)
+# Plans from this session onward use atomic proof rows. The immediately prior
+# approved plan remains a frozen legacy prompt.
+ATOMIC_PLAN_BINDING_FLOOR = (4, 0, 2, 2, 2)
+# As-built records from this session onward carry criterion and review receipts.
+EXECUTION_RECEIPT_BINDING_FLOOR = (4, 0, 2, 2, 1)
 AUDIT_PROCEDURE_RELPATH = "docs/workflows/version-audit.md"
 POLICY_MANIFEST_RELPATH = "tools/policy/policy-manifest.json"
 RELEASE_CONSISTENCY_GATE = "python3 tools/cli.py lifecycle check-release --check"
@@ -432,6 +437,29 @@ def contract_schema_violations(path: Path, root: Path) -> list[str]:
     return violations
 
 
+def session_key(session: str) -> tuple[int, ...]:
+    """Return the numeric ordering key for a session or sub-version id."""
+    return tuple(int(part) for part in session.split("."))
+
+
+def atomic_plan_binds(session: str) -> bool:
+    """Return whether this session requires atomic proof rows."""
+    return session_key(session) >= ATOMIC_PLAN_BINDING_FLOOR
+
+
+def execution_receipt_binds(session: str) -> bool:
+    """Return whether this session requires structured close-out receipts."""
+    return session_key(session) >= EXECUTION_RECEIPT_BINDING_FLOOR
+
+
+def plan_success_ids(plan: Path) -> list[str]:
+    """Return the plan's ordered success-criterion identifiers."""
+    success = section_bodies(plan, 2).get(
+        "Success criteria (agent-runnable — show the output)", ""
+    )
+    return re.findall(r"^\s*-\s+\*\*(SC-\d+)\s+—", success, re.MULTILINE)
+
+
 def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
     """Return machine-verifiable plan-form and contract-coverage violations."""
     schema = root / PLAN_SCHEMA_RELPATH
@@ -471,6 +499,9 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
     for label, expected_value in expected_markers.items():
         if marker(path, label) != expected_value:
             violations.append(f"{label} must be {expected_value!r}")
+    atomic_proof = atomic_plan_binds(path.stem)
+    if atomic_proof and marker(path, "Proof standard") != "Atomic":
+        violations.append("Proof standard must be 'Atomic'")
     approved = marker(path, "Approved")
     if approved is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", approved):
         violations.append("Approved must be a YYYY-MM-DD date")
@@ -520,7 +551,7 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
         violations.append("an approved plan cannot contain a Blocking prerequisite")
 
     success = bodies.get("Success criteria (agent-runnable — show the output)", "")
-    success_ids = re.findall(r"^\s*-\s+\*\*(SC-\d+)\s+—", success, re.MULTILINE)
+    success_ids = plan_success_ids(path)
     expected_success = [f"SC-{number}" for number in range(1, len(success_ids) + 1)]
     if not success_ids or success_ids != expected_success:
         violations.append("SC-N criteria must be unique and contiguous from SC-1")
@@ -530,8 +561,32 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
             success,
             re.MULTILINE,
         )
-        if match is None or "`" not in match.group(1) or "→" not in match.group(1):
-            violations.append(f"{success_id} must pair a runnable command or inspection with exact output")
+        if match is None:
+            continue
+        if atomic_proof:
+            rows = re.findall(
+                rf"^\s*\|\s*`?({re.escape(success_id)}\.\d+)`?\s*\|([^\n]+)$",
+                match.group(1),
+                re.MULTILINE,
+            )
+            proof_ids = [proof_id for proof_id, _ in rows]
+            expected_proofs = [
+                f"{success_id}.{number}" for number in range(1, len(rows) + 1)
+            ]
+            if not rows or proof_ids != expected_proofs:
+                violations.append(
+                    f"{success_id} proof identifiers must be unique and contiguous from {success_id}.1"
+                )
+            for proof_id, remainder in rows:
+                cells = [cell.strip() for cell in remainder.strip().strip("|").split("|")]
+                if len(cells) != 2 or "`" not in cells[0] or not cells[1]:
+                    violations.append(
+                        f"{proof_id} must contain one runnable evidence action and one required observable"
+                    )
+        elif "`" not in match.group(1) or "→" not in match.group(1):
+            violations.append(
+                f"{success_id} must pair a runnable command or inspection with exact output"
+            )
     bottom = bodies.get("Bottom line (READ FIRST)", "")
     if success_ids:
         explicit = all(identifier in bottom for identifier in success_ids)
@@ -549,7 +604,7 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
 
 def as_built_binds(subversion: str) -> bool:
     """Return whether a completed session in this sub-version needs an as-built."""
-    return tuple(int(part) for part in subversion.split(".")) >= AS_BUILT_BINDING_FLOOR
+    return session_key(subversion) >= AS_BUILT_BINDING_FLOOR
 
 
 def as_built_schema_violations(
@@ -612,6 +667,60 @@ def as_built_schema_violations(
         violations.append("PR must be '#<number>' or 'Deferred to <final session id>'")
     if re.search(r"\b(?:TBD|TODO|FIXME)\b|\bX\.Y\.N\b", text, re.IGNORECASE):
         violations.append("as-built contains a placeholder token")
+    if execution_receipt_binds(path.stem):
+        divergences = bodies.get("Divergences from plan", "").strip()
+        if divergences != "None.":
+            statements = re.findall(
+                r"^\s*-\s+\*\*Plan statement:\*\*\s+\S[\s\S]*?(?=^\s*-\s+\*\*Plan statement:\*\*|\Z)",
+                divergences,
+                re.MULTILINE,
+            )
+            if not statements or "".join(statements).strip() != divergences:
+                violations.append(
+                    "Divergences from plan must be None. or exact structured items"
+                )
+            for statement in statements:
+                for label in ("Built instead", "Why", "Authority"):
+                    if not re.search(rf"^\s+\*\*{label}:\*\*\s+\S", statement, re.MULTILINE):
+                        violations.append(f"each divergence must contain a non-empty {label} field")
+                authority = re.search(
+                    r"^\s+\*\*Authority:\*\*\s+(Operator|Evidence):\s+\S",
+                    statement,
+                    re.MULTILINE,
+                )
+                if authority is None:
+                    violations.append(
+                        "each divergence Authority must begin with Operator: or Evidence:"
+                    )
+
+        verification = bodies.get("Verification summary", "")
+        recorded_success = re.findall(
+            r"^\s*-\s+\*\*(SC-\d+):\*\*\s+`Passed`\s+—\s+\S.+$",
+            verification,
+            re.MULTILINE,
+        )
+        expected_success = plan_success_ids(plan)
+        if recorded_success != expected_success:
+            violations.append(
+                "Verification summary must contain one ordered Passed line for every plan SC-N"
+            )
+        review_lines = re.findall(
+            r"^\s*-\s+\*\*Adversarial review:\*\*\s+(.+)$",
+            verification,
+            re.MULTILINE,
+        )
+        receipt_pattern = re.compile(
+            r"^Subject:\s+\S.+?"
+            r";\s*Roles:\s+\S.+?"
+            r";\s*Runtime identity:\s+requested=\S.+?"
+            r",\s*observed=(?:Not observable|\S.+?)"
+            r";\s*Verdict:\s+(?:CLEAN|CORRECTED)"
+            r";\s*Disposition:\s+\S.+$"
+        )
+        if len(review_lines) != 1 or receipt_pattern.fullmatch(review_lines[0]) is None:
+            violations.append(
+                "Verification summary must contain one complete adversarial-review receipt"
+            )
     return violations
 
 

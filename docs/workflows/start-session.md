@@ -51,11 +51,17 @@ digests, prerequisites, interfaces, branch, and assumptions against live code
 and current primary documentation. Correct mechanical drift in scope; return a
 material scope or design conflict to `plan-session` for approval.
 
-Execute the approved ordered work and its proof. A UI gate invokes `ux-check`
-and pauses for operator review. Finish through `close-out`, passing the original
-planned directive so close-out selects planned mode. Rerun the resolver after
-the handler returns and report its complete next directive without predicting
-the following stage.
+An installed framework or runtime limit that invalidates a named plan
+interface is a material design conflict. Preserve the work and evidence, return
+to `plan-session`, and do not select a replacement public interface during
+execution.
+
+Execute the approved ordered work and maintain an in-context proof ledger with
+one result for every atomic proof row. A UI gate invokes `ux-check` and pauses
+for operator review. Finish through `close-out`, passing the original planned
+directive so close-out selects planned mode. Rerun the resolver after the
+handler returns and report its complete next directive without predicting the
+following stage.
 
 ## Stop and resume
 

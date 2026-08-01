@@ -30,7 +30,6 @@ COMMANDS = {
     ("policy", "check"): "tools.policy.check_agent_policy",
     ("policy", "check-all"): "tools.policy.check_all",
     ("policy", "check-doc-refs"): "tools.policy.check_doc_refs",
-    ("policy", "codegraph-guard"): "tools.policy.codegraph_guard",
     ("quality", "check-baseline"): "tools.quality.check_baseline_claims",
     ("quality", "check-env-example"): "tools.quality.check_env_example",
     ("quality", "check-watch-triggers"): "tools.quality.check_watch_triggers",

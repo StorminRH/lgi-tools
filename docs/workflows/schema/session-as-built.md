@@ -62,10 +62,19 @@ into a devlog entry.
 
 ## Divergences from plan
 
-One list item per divergence: the plan or contract statement (name its
-identifier where one exists), what was built instead, why, and the authority
-(operator direction or discovered evidence). `None.` when execution matched
-the plan.
+Use this exact four-field item for every divergence:
+
+```markdown
+- **Plan statement:** <plan or contract statement and identifier>
+  **Built instead:** <delivered behavior or interface>
+  **Why:** <concise reason>
+  **Authority:** Operator: <direction> | Evidence: <source or observed limit>
+```
+
+The authority value begins with exactly `Operator:` or `Evidence:`. An as-built
+records authorized execution history; it cannot retroactively approve a
+material scope, architecture, or public-interface change. `None.` when
+execution matched the plan.
 
 ## Final surfaces
 
@@ -87,5 +96,16 @@ next session must not relearn. `None.` when there are none.
 
 ## Verification summary
 
-The plan's `SC-N` identifiers, each with one line of pass evidence. A
-criterion the session legitimately did not reach names why instead.
+Use exactly one ordered line per plan criterion and one review receipt:
+
+```markdown
+- **SC-1:** `Passed` — <specific evidence covering every atomic proof row>
+- **SC-2:** `Passed` — <specific evidence covering every atomic proof row>
+- **Adversarial review:** Subject: <frozen identity>; Roles: <selected roles>; Runtime identity: requested=<requested selection>, observed=<observed identity or Not observable>; Verdict: <CLEAN or CORRECTED>; Disposition: <accepted and rejected finding disposition>.
+```
+
+Every plan `SC-N` appears once, in order, and is `Passed`; grouped ranges and a
+bare command or suite name are invalid. The review receipt records requested and observed runtime identity separately
+and never infers one from the other. Structured criterion and review receipts
+bind from session `4.0.2.2.1` onward; earlier as-built records remain a frozen
+legacy exception under the resolver's execution-receipt floor.

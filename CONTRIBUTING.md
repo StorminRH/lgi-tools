@@ -17,9 +17,10 @@ conventions and workflow for working in the repo. For local setup, see the
 The codebase is organized into self-contained slices. The import direction
 between them is **enforced in CI** by `pnpm fallow`: every production source
 file must belong to a named zone, and a violating cross-zone import fails that
-gate. The complete ownership map and dependency directions live in
-[`docs/architecture-boundaries.md`](docs/architecture-boundaries.md);
-[`.fallowrc.json`](.fallowrc.json) is the mechanical authority.
+gate. [`.fallowrc.json`](.fallowrc.json) is the mechanical authority;
+[`docs/architecture-map.md`](docs/architecture-map.md) is its generated view,
+and [`docs/architecture-boundaries.md`](docs/architecture-boundaries.md) records
+the remaining architectural rationale.
 
 - `src/features/<name>/` — self-contained feature slices (their own
   `components/`, `schema.ts`, `queries.ts`, `types.ts` as needed). **Two features

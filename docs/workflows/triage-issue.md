@@ -32,9 +32,9 @@ still requires its point-of-action approval.
 
 For each claim:
 
-1. Orient with Codegraph MCP `codegraph_explore` when available, or CLI
-   `codegraph explore`, for an unfamiliar area; use CLI-only
-   `codegraph query` for a known symbol before raw search.
+1. Locate the cited files, symbols, and behavior through repository search and
+   targeted source reads. Use Codegraph only for material relationship,
+   consumer, dependency, or blast-radius claims.
 2. Confirm cited files, lines, owners, and behavior against current code. Use a
    focused runtime or live check when the claim cannot be established statically.
 3. Search read-only for the same root cause elsewhere. Distinguish the reported
@@ -75,8 +75,9 @@ Treat the approved fix as ordinary work unless the operator explicitly invokes
 `start-session` for a named lifecycle artifact. Do not run the lifecycle
 resolver or infer planned work from the issue, branch, or app version.
 
-Hold the selected scope, use `find-docs` for affected technologies, and add
-behavioral proof. A resolving PR must include `Fixes #<issue>`. For user-facing
+Hold the selected scope, use `find-docs` when current external technology
+behavior materially affects the fix, and add behavioral proof. A resolving PR
+must include `Fixes #<issue>`. For user-facing
 changes, run `ux-check` and complete the operator-review pause. Ship only through
 `close-out`, which owns the ordinary pending fragment, verification, PR review,
 conditional merge, and production proof.

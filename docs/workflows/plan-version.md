@@ -19,8 +19,10 @@ create session implementation plans here.
 1. Require the resolver directive to name `plan-version`; otherwise report it
    and return to `start-session`.
 2. Read the master plan, live code and tests, baseline, SCRATCHPAD, relevant
-   backlog, and contract schema. Use Codegraph and current primary documentation
-   for moving implementation assumptions.
+   backlog, and contract schema. Use Codegraph only for material relationship,
+   consumer, dependency, or blast-radius claims. Use current primary
+   documentation when moving implementation assumptions depend materially on
+   external behavior.
 3. Extract an outcome ledger that preserves every goal, invariant, required
    cleanup, dependency, acceptance outcome, UX gate, and operator decision
    without accepting roadmap delivery headings as boundaries.
@@ -52,19 +54,19 @@ create session implementation plans here.
    size or risk concern.
 3. Present current versus proposed counts and a complete current-to-proposed
    bundle map.
-4. Invoke `adversarial-review` in Plan mode with the complete proposal, fixed
-   outcomes, and source evidence. The review must attempt every sensible merge
-   and reject boundaries justified only by headings or ordinary implementation
-   order. Reconcile every verified finding; permit at most one rerun after
-   material reconciliation.
+4. Run the planning approval gate: invoke `adversarial-review` in Plan mode with
+   the complete proposal, fixed outcomes, and source evidence. The review must
+   attempt every sensible merge and reject boundaries justified only by headings
+   or ordinary implementation order. Reconcile every verified finding; permit at
+   most one rerun after material reconciliation.
 
 ## Approve before writing
 
 1. Present the fixed outcomes, current/proposed counts, bundle map, internal
    phases, owner/gate overlaps, stop and split triggers, hard reason for every
    boundary, and any genuinely oversized bundle in plain English.
-2. Obtain operator approval for the revised topology while all repository
-   artifacts remain unchanged.
+2. Obtain operator approval for the revised topology while the repository remains
+   unchanged.
 3. After approval, update the master plan's delivery topology first.
 4. At topology approval, run `python3 tools/cli.py lifecycle capture-version-start` and
    apply its promoted Snapshot/Metrics output to `docs/CODE_HEALTH_BASELINE.md`

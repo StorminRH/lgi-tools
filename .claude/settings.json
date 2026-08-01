@@ -21,27 +21,5 @@
       "Glob",
       "WebSearch"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard bash"
-          }
-        ]
-      },
-      {
-        "matcher": "Read|Glob",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard read"
-          }
-        ]
-      }
-    ]
   }
 }

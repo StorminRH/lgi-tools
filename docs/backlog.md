@@ -374,10 +374,9 @@
 
 ## fallow code-health (from the fallow-adoption chore) — CLOSED
 
-> Disposition ledger: `fallow-baselines/README.md`; pre-compaction history: Document Archive
-> `fallow-health-improvement.md`. Re-derive with `pnpm test:coverage && pnpm fallow:health`.
-> AF-003 moved the v3.8 audit's six unwaived functions into Session 3.8.5.3.1; the corp tri-state
-> convergence remains a closed non-debt disposition in the ledger of record.
+> The accepted duplication baseline is `fallow-baselines/dupes.json`; the earlier
+> improvement record is archived as `fallow-health-improvement.md`. Re-derive
+> health with `pnpm test:coverage && pnpm fallow:health`.
 
 ## Asset ledger — real in-game held-by names (structures, corp divisions, containers)
 
@@ -561,18 +560,6 @@ is reprioritized.
   a 3.10 Phase 0 resolver/checker slice (e.g. 3.10.0.1 "green the gate honestly"),
   but left here deferred per operator instruction rather than auto-absorbed.
 
-- **Codegraph guard over-matches source extensions by substring** (found 2026-07-23
-  during the orient-once hook review). *What:* `tools/policy/codegraph_guard.py`
-  detects a source file by testing whether any entry of `SOURCE_EXTENSIONS` is a
-  *substring* of the joined path/pattern, which correctly catches glob patterns
-  (`**/*.ts`) but over-matches real file paths — `data.json` matches `.js`,
-  `notes.csv` matches `.cs`. The read nudge therefore fires on some non-source
-  reads. A clean fix treats a Read `file_path` (suffix match) differently from a
-  Glob `pattern` (substring match). *Why deferred:* pre-existing and unrelated to
-  the orient-once timing change; splitting the match logic is its own small change
-  with its own review. *Size:* XS. *Trigger:* the next codegraph-hook or
-  agent-policy pass, or if non-source-read nudges become noisy in practice.
-
 ## Identity and ESI robustness
 
 - **Verify the absorb-on-proof reassignment won its compare-and-swap.** *What:*
@@ -619,12 +606,12 @@ is reprioritized.
 ## Security (deep-research report, 2026-07-19)
 
 > From the external Security Deep-Research Report (snapshot `141e914`, findings
-> LGI-01…LGI-12), verified against live code in session 3.9.4.1. Full verdicts +
-> evidence: `docs/security/disposition-register.md`. **LGI-08 was acted on in
-> that session** (see `docs/security/db-privilege-runbook.md`), and **LGI-03 was
-> completed in session 3.10.2.2.1** by enforcing explicit Origin/Referer
-> mismatches; neither remains a backlog item. Everything below is
-> confirmed-but-deferred.
+> LGI-01…LGI-12), verified against live code in session 3.9.4.1. **LGI-08 was
+> acted on in that session** (see `docs/security/db-privilege-runbook.md`), and
+> **LGI-03 was completed in session 3.10.2.2.1** by enforcing explicit
+> Origin/Referer mismatches; the original LGI-08 and LGI-03 findings are no
+> longer backlog items. The separate LGI-08 follow-on remains deferred by
+> design. Everything below is confirmed-but-deferred.
 > Context that bounds all of these: EVE scopes are read-only, there are no
 > payments, and there is effectively one admin.
 

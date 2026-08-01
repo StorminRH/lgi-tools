@@ -17,9 +17,9 @@ Required output is exactly one of:
   remains; or
 - `BLOCKED`: an operator decision or mandatory gate prevents truthful progress.
 
-This procedure is the canonical review-only exception described in `AGENTS.md`.
-It withholds merge authority. Later shipping resumes through `close-out` on the
-same branch and PR.
+This procedure is the canonical review-only exception. It withholds merge
+authority. Later shipping resumes through `close-out` on the same branch and
+PR.
 
 ## Hard rules
 
@@ -95,15 +95,13 @@ same branch and PR.
    `python3 tools/cli.py update-watch check-baseline`.
 7. Create exactly one ordinary pending changelog fragment under
    `content/changelog/pending/` using
-   `docs/workflows/schema/changelog-pending.md`. Do not edit `APP_VERSION`, a
-   public version heading, roadmap state, or session execution state.
+   `docs/workflows/schema/changelog-pending.md`, subject to the Hard rules above.
 8. Invoke `pre-pr-design-review` against the complete diff and fix every
    in-scope finding. Invoke `adversarial-review` in Diff mode and reconcile its
    verified findings. Then apply the ordinary-mode finalization rules from
-   `docs/workflows/close-out.md`: run every applicable cheap checker, the focused
-   collector tests, and the sole `origin/main`-pinned `pnpm verify` checkpoint;
-   screen tracked content for private information; commit in plain English; and
-   push. Do not rerun unchanged evidence at the PR boundary.
+   `docs/workflows/close-out.md` through commit and push, reusing the pending
+   fragment from step 7 rather than creating a second one. Do not merge, and do
+   not rerun unchanged evidence at the PR boundary.
 9. Open one draft PR whose body states what was fixed, what was deferred and
    why, and what was absorbed. Put `Closes #<issue>` in the body so the digest
    closes only when a later `close-out` run merges. Apply the close-out PR

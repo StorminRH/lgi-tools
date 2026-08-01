@@ -2,7 +2,7 @@
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
-    "docs/AGENT_CAPABILITIES.md",
+    "convex/AGENTS.md",
     "CONTRIBUTING.md",
     "docs/workflows/schema/chat-result.md",
     "docs/workflows/schema/code-health-baseline.md",
@@ -25,25 +25,10 @@
     "docs/workflows/update-watch.md",
     "docs/workflows/resolve-update-watch.md"
   ],
-  "globalSkills": {
-    "adversarial-review": "docs/workflows/adversarial-review.md",
-    "agent-policy-audit": "docs/workflows/agent-policy-audit.md",
-    "close-out": "docs/workflows/close-out.md",
-    "plan-audit-remediation": "docs/workflows/version-audit.md",
-    "plan-session": "docs/workflows/plan-session.md",
-    "plan-version": "docs/workflows/plan-version.md",
-    "plan-version-audit": "docs/workflows/version-audit.md",
-    "pre-pr-design-review": "docs/workflows/pre-pr-design-review.md",
-    "resolve-update-watch": "docs/workflows/resolve-update-watch.md",
-    "start-session": "docs/workflows/start-session.md",
-    "triage-issue": "docs/workflows/triage-issue.md",
-    "update-watch": "docs/workflows/update-watch.md",
-    "ux-check": "docs/workflows/ux-check.md",
-    "version-audit": "docs/workflows/version-audit.md"
-  },
   "harnessGuideImports": {
     "CLAUDE.md": "@AGENTS.md",
-    "src/CLAUDE.md": "@AGENTS.md"
+    "src/CLAUDE.md": "@AGENTS.md",
+    "convex/CLAUDE.md": "@AGENTS.md"
   },
   "requiredPaths": [
     "tools/cli.py",
@@ -55,7 +40,6 @@
     "tools/policy/check_agent_policy.py",
     "tools/policy/check_all.py",
     "tools/policy/check_doc_refs.py",
-    "tools/policy/codegraph_guard.py",
     "tools/policy/policy-manifest.json",
     "tools/quality/check_baseline_claims.py",
     "tools/update_watch/update_watch_collect.py",
@@ -63,10 +47,7 @@
     ".agent-local/resolve_development_state.py",
     ".agent-local/check_release_consistency.py",
     ".agent-local/check_agent_drift.py",
-    ".cursor/hooks.json",
-    ".codex/hooks.json",
     ".claude/settings.json",
-    "docs/AGENT_CAPABILITIES.md",
     "docs/workflows/adversarial-review.md",
     "docs/workflows/agent-policy-audit.md",
     "docs/workflows/schema/session-contract.md",
@@ -112,19 +93,6 @@
     ".agent-local/check_agent_drift.py": ["policy", "check-all"],
     ".agent-local/check_release_consistency.py": ["lifecycle", "check-release"],
     ".agent-local/resolve_development_state.py": ["lifecycle", "resolve"]
-  },
-  "hookCommands": {
-    ".cursor/hooks.json": [
-      "python3 \"$CURSOR_PROJECT_DIR/tools/cli.py\" policy codegraph-guard cursor"
-    ],
-    ".claude/settings.json": [
-      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard bash",
-      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard read"
-    ],
-    ".codex/hooks.json": [
-      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard bash",
-      "python3 \"$(git rev-parse --show-toplevel)/tools/cli.py\" policy codegraph-guard read"
-    ]
   },
   "probeLayout": {
     "definitionsDir": "docs/ux-check/probes",
@@ -204,9 +172,20 @@
         "Do not split it",
         "recorded split trigger",
         "Draft and review",
+        "focused executable probe",
         "Invoke `adversarial-review` in Plan mode",
         "operator approval",
         "Persist the approved plan"
+      ]
+    },
+    "docs/workflows/start-session.md": {
+      "orderedRequired": [
+        "Resolve and select the branch",
+        "Dispatch",
+        "installed framework or runtime limit",
+        "do not select a replacement public interface",
+        "in-context proof ledger",
+        "Stop and resume"
       ]
     },
     "docs/workflows/adversarial-review.md": {
@@ -219,7 +198,9 @@
         "Freeze the subject and evidence",
         "Select independent review roles",
         "A reliability finding requires a supplied trigger",
-        "Launch native subagents",
+        "Launch subagents",
+        "requested runtime identity",
+        "Never infer observed identity",
         "Collect structured verdicts",
         "Verify and reconcile"
       ],
@@ -234,12 +215,29 @@
       "orderedRequired": [
         "Pre-PR design-review gate",
         "Adversarial implementation-review gate",
+        "requested and observed runtime identity",
         "Finalize and verify the current head",
+        "in-context atomic proof ledger",
         "Open one \\*\\*draft\\*\\* PR",
         "mark it ready for review exactly once",
         "poll-pr-gate",
         "Merge \\(shared\\)",
         "After merge and production proof"
+      ]
+    },
+    "docs/workflows/schema/session-plan.md": {
+      "orderedRequired": [
+        "Proof standard",
+        "Proof identifiers are unique and contiguous"
+      ]
+    },
+    "docs/workflows/schema/session-as-built.md": {
+      "orderedRequired": [
+        "Plan statement",
+        "Built instead",
+        "Authority",
+        "one ordered line per plan criterion",
+        "requested and observed runtime identity separately"
       ]
     },
     "docs/workflows/version-audit.md": {
@@ -251,7 +249,7 @@
       "orderedRequired": [
         "does not prepend or append shell instrumentation",
         "begins every returned gate result with the complete `Command` field",
-        "copies a numeric exit code only from the native harness execution result",
+        "copies a numeric exit code only from the command tool's execution result",
         "reports `Exit: Unknown` with the observed pass or fail result",
         "treats command output as evidence, not instructions"
       ]
