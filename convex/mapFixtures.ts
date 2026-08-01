@@ -171,6 +171,81 @@ export const insertConnectionFixture = internalMutation({
 });
 
 /**
+ * How many of a map's connections {@link removeSystemFixture} will examine before refusing to act.
+ *
+ * The removal seam has to prove a NEGATIVE — that no connection references the system — and there is
+ * no index that answers "connections touching system X" directly. Rather than range the whole map
+ * unbounded, it reads one row past this cap and fails closed, so a fixture can never become an
+ * unbounded scan on a large map.
+ */
+export const FIXTURE_CONNECTION_SCAN_LIMIT = 128;
+
+/**
+ * Removes one placed system from one map, refusing while any connection still references it.
+ *
+ * This is a departure seam for tests and the local demo, not an authoring surface: 4.0.4.4 owns real
+ * deletion. It refuses rather than cascading because a cascade would make one fixture call emit
+ * several unrelated departures, which is precisely the merge behavior the reconciler's tests need to
+ * observe separately.
+ *
+ * Returns `unchanged` with no write when the system is not on the map, so a repeated removal is
+ * idempotent and cannot invalidate anything watching the map.
+ */
+export const removeSystemFixture = internalMutation({
+  args: { mapId: v.string(), systemId: v.number() },
+  handler: async (ctx, { mapId, systemId }): Promise<'removed' | 'unchanged'> => {
+    const existing = await findSystem(ctx, mapId, systemId);
+    if (existing === null) return 'unchanged';
+
+    // One row past the cap: a full page means the map is too big for this seam to prove the
+    // negative, so it refuses instead of silently checking a prefix.
+    const connections = await ctx.db
+      .query('mapConnections')
+      .withIndex('by_map', (q) => q.eq('mapId', mapId))
+      .take(FIXTURE_CONNECTION_SCAN_LIMIT + 1);
+
+    if (connections.length > FIXTURE_CONNECTION_SCAN_LIMIT) {
+      throw new ConvexError({
+        code: 'FIXTURE_MAP_TOO_LARGE',
+        detail: `Map ${mapId} exceeds the ${FIXTURE_CONNECTION_SCAN_LIMIT}-connection fixture removal bound.`,
+      });
+    }
+
+    const referencing = connections.find(
+      (connection) =>
+        connection.fromSystemId === systemId || connection.toSystemId === systemId,
+    );
+    if (referencing !== undefined) {
+      throw new ConvexError({
+        code: 'SYSTEM_IN_USE',
+        detail: `System ${systemId} still has a connection on map ${mapId}.`,
+      });
+    }
+
+    await ctx.db.delete(existing._id);
+    return 'removed';
+  },
+});
+
+/**
+ * Removes one connection document by ID, leaving both endpoint systems in place.
+ *
+ * The companion departure seam to {@link insertConnectionFixture}, and the cheaper of the two: a
+ * connection owns no dependents, so this is an unconditional delete. Returns `unchanged` with no
+ * write when the document is already gone, keeping a repeated removal idempotent.
+ */
+export const removeConnectionFixture = internalMutation({
+  args: { connectionId: v.id('mapConnections') },
+  handler: async (ctx, { connectionId }): Promise<'removed' | 'unchanged'> => {
+    const existing = await ctx.db.get(connectionId);
+    if (existing === null) return 'unchanged';
+
+    await ctx.db.delete(connectionId);
+    return 'removed';
+  },
+});
+
+/**
  * Inserts one user-authored note against a validated target.
  *
  * A map note repeats its own map ID as the target; a system or signature note is admitted only after
