@@ -754,15 +754,26 @@ def render_summary(
     dep_count = len(state.get("npmLatest", {}))
     advisory_count = len(state.get("advisories", []))
     open_issues = len(state.get("openIssues", []))
+
+    def counted(count: int, noun: str, plural: str | None = None) -> str:
+        """One count with its correctly numbered noun."""
+        return f"{count} {noun if count == 1 else (plural or noun + 's')}"
+
+    # This summary prints AFTER the workflow's single outward write, so it must
+    # never instruct opening an issue — that reads as a second digest. Keyed on
+    # the final outcome, not the raw verdict, so a refused run can never
+    # advertise a write that did not happen.
     action = (
-        "Open one digest issue from the rendered issue body"
-        if verdict == "report"
+        "Hand the opened digest issue to resolve-update-watch"
+        if outcome == "REPORT"
         else "None"
     )
     result = (
-        f"{source_count} sources, {dep_count} dependencies, "
-        f"{advisory_count} advisories, {open_issues} open issues; "
-        f"{candidate_count} candidates, {len(suppressed)} suppressed."
+        f"{counted(source_count, 'source')}, "
+        f"{counted(dep_count, 'dependency', 'dependencies')}, "
+        f"{counted(advisory_count, 'advisory', 'advisories')}, "
+        f"{counted(open_issues, 'open issue')}; "
+        f"{counted(candidate_count, 'candidate')}, {len(suppressed)} suppressed."
     )
     return "\n".join(
         [

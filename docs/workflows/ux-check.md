@@ -129,8 +129,12 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 ```markdown
 ## UX check: `READY_FOR_REVIEW` | `BLOCKED`
 
-- **Subject:** <concrete captured routes>; captures `<capture directory>`
-- **Result:** <diagnostics/probe/visual summary or ready; ≤2 sentences>
-- **Action:** <Pause for review, return to implementation, or continue to close-out>
+- **Subject:** <concrete captured routes and viewports>; captures `<capture directory>`
+- **Result:** <diagnostics/probe/visual summary, naming any authenticated-state limitation; ≤2 sentences>
+- **Action:** <Pause for operator review (`Pending`), return to implementation, or continue to close-out>
 - **Blocker:** <exact blocker or `None`>
 ```
+
+The remaining `UX_EVIDENCE` detail — per-route diagnostics and inspected
+capture paths — stays in the capture directory's reports, which the operator
+reviews alongside the captures.

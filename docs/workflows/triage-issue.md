@@ -98,6 +98,11 @@ merge around the repository's review gate.
 
 ## Return the result
 
+Keep the full triage receipt — the file/line or command evidence, the
+response/ownership/scope choices, and the time, review, and risk tradeoffs —
+as procedure-local notes the operator can inspect before choosing a direction.
+Chat carries the verdict and the recommended choice, not the ledger.
+
 Use `docs/workflows/schema/chat-result.md` for this field set:
 
 ```markdown

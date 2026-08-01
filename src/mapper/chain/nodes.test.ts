@@ -90,20 +90,23 @@ describe('canvas node projection', () => {
   });
 
   it('takes the reconciled position once the drag has ended', () => {
-    const pointer = { x: 777, y: 111 };
+    // The reconciled position deliberately differs from the stale local one, so this passes only
+    // through the reconciled branch — with identical values either branch would satisfy it.
+    const stale = { x: 777, y: 111 };
+    const dropped = { x: 900, y: 250 };
     const dragged: ChainNode[] = [
       {
         id: String(JITA),
         type: 'chainSystem',
-        position: pointer,
+        position: stale,
         data: { name: 'Jita', className: null },
       },
     ];
-    const pinned = applyUserPlacement(stateFor([JITA]), JITA, pointer);
+    const pinned = applyUserPlacement(stateFor([JITA]), JITA, dropped);
 
     const after = syncNodes(dragged, pinned.systems, fallbackLabel, NO_DRAG);
 
-    expect(after[0]?.position).toEqual(pointer);
+    expect(after[0]?.position).toEqual(dropped);
   });
 
   // SC-3 — a late directory load relabels in place without touching positions.

@@ -11,7 +11,11 @@ describe('calm no-access state', () => {
     expect(markup).toContain('data-chain-no-access');
     expect(markup).toMatch(/<h2[^>]*>\s*You[^<]*lost access to this map/);
     // The house uppercase treatment would render the salute as `O7`, which is not the gesture.
-    expect(markup).not.toContain('uppercase tracking-copy');
+    // Asserted on the h2's parsed class list: a literal like `uppercase tracking-copy` depends on
+    // token order and would pass even with `uppercase` present elsewhere in the attribute.
+    const heading = /<h2[^>]*class="([^"]*)"/.exec(markup);
+    expect(heading, 'the lost-access heading must be an h2 with classes').not.toBeNull();
+    expect(heading?.[1]?.split(/\s+/)).not.toContain('uppercase');
     expect(markup).not.toContain('O7');
   });
 
