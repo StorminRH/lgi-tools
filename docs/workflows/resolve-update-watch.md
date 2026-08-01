@@ -147,28 +147,8 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 ```markdown
 ## Update-watch resolution: `REVIEW_READY` | `NO_CHANGE` | `BLOCKED`
 
-- **Digest issue:** <number and URL>
-- **Branch head:** `<full SHA or Not applicable>`
-- **PR:** <number and URL, Not opened, or Not applicable>
-
-### Disposition
-
-- **Fixed:** <findings or None>
-- **Deferred:** <findings with reasons or None>
-- **Absorbed:** <informational items or None>
-- **Pending changelog:** <fragment path or Not created>
-
-### Review
-
-- **Verification:** <commands and results or Not reached>
-- **CI:** <result or Not reached>
-- **Gate of record:** <reviewer, current-head evidence, and findings or Not reached>
-- **Cursor:** <clean signal, findings, or Not reached>
-- **Issue comment:** <URL or Not posted>
-
-### Next state
-
-- **Handoff:** <Operator review then close-out, issue closed, or corrective action>
-- **Merge authority:** Withheld
-- **Blocker:** <exact blocker or None>
+- **Subject:** Digest <number and URL>; PR <number and URL, Not opened, or n/a>
+- **Result:** <fixed/deferred/absorbed counts; ≤2 sentences>
+- **Action:** <Operator review then close-out, issue closed, or corrective action>
+- **Blocker:** <exact blocker or `None`>
 ```

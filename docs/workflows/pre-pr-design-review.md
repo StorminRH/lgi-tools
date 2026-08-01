@@ -218,30 +218,10 @@ it to `close-out`:
 ```markdown
 ## Design review: `PASS` | `BLOCKED`
 
-- **Merge base:** `<full SHA>`
-- **Scope groups:** <group → authority mapping>
-- **Exports reviewed:** <count or None>
-
-### Design evidence
-
-- **Interface depth:** <verdict summary>
-- **Change amplification:** <verdict summary>
-- **Rationale and comments:** <verdict summary>
-- **Test design:** <verdict summary>
-- **Rails and baseline:** <verdict summary>
-
-### Findings and follow-up
-
-- **Findings:** <FIXED, DEFERRED, and BLOCKED ledger or None>
-- **Invalidated verification:** <items or None>
-- **Design notes:**
-  - <first PR-ready note>
-  - <additional notes, for three to eight total>
-
-### Next state
-
-- **Handoff:** <Return to close-out or Stop for operator decision>
-- **Blocker:** <exact blocker or None>
+- **Subject:** Merge base `<full SHA>`; <scope-group count> groups
+- **Result:** <PASS or stop reason; finding disposition counts; ≤2 sentences>
+- **Action:** <Return to close-out, or stop for operator decision with material findings>
+- **Blocker:** <exact blocker or `None`>
 ```
 
 Return `PASS` only when no `FIX` or `BLOCKED` finding remains, every required

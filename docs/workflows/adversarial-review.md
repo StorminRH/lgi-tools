@@ -214,35 +214,8 @@ Apply `docs/workflows/schema/chat-result.md` to this exact field set:
 ```markdown
 ## Adversarial review: `CLEAN` | `CORRECTIONS_REQUIRED` | `BLOCKED`
 
-- **Mode:** Plan | Diff | PR
 - **Subject:** <paths and digest, diff identity, or PR and exact head>
-- **Authority:** <direct request or owning artifacts>
-
-### Review evidence
-
-- **Verification:** <current commands/results or explicit not-run reason>
-- **Selected roles:** <holistic plus one-to-three scoped roles and reason>
-- **Execution:** <subagent completion states>
-- **Load-bearing checks:** <verified properties that held>
-
-| Reviewer role | Assigned scope | Requested runtime identity | Observed runtime identity | Reported |
-|---|---|---|---|---:|
-| <role> | <scope> | <selection, inherit, or unspecified> | <identity or Not observable> | <severity counts or Clean> |
-
-### Triage
-
-- **Disposition:** <reported count to accepted, rejected, and deduplicated root causes>
-
-| Severity | Location | Verified correction |
-|---|---|---|
-| <severity> | <subject location> | <smallest sufficient correction> |
-
-- **Rejected:** <do-not-change reasons or None>
-- **Invalidated verification:** <checks a correction must rerun or None>
-
-### Next state
-
-- **Caller action:** <continue, correct accepted root causes, or operator action>
-- **Review rerun:** <material-change trigger or Not required>
-- **Blocker:** <exact blocker or None>
+- **Result:** <roles used; accepted finding count or clean; ≤2 sentences>
+- **Action:** <continue, correct accepted root causes, or operator action>
+- **Blocker:** <exact blocker or `None`>
 ```

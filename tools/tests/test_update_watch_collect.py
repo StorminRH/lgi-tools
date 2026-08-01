@@ -329,7 +329,7 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual("quiet", payload["verdict"])
         self.assertEqual(["dep-major:clsx:2"], payload["suppressed"])
         self.assertIn("## Update watch: `QUIET`", payload["summary"])
-        self.assertIn("- **Outward action:** None", payload["summary"])
+        self.assertIn("- **Action:** None", payload["summary"])
 
     def test_zero_candidate_clean_run_is_quiet(self) -> None:
         state = state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}})
@@ -377,8 +377,7 @@ class VerdictTests(unittest.TestCase):
         payload = finalize_verdict(state, [], [])
         self.assertEqual("refused", payload["verdict"])
         self.assertEqual([], payload["deltas"])
-        self.assertIn("- **Candidates found:** 1", payload["summary"])
-        self.assertIn("- **Suppressed by open issues:** 0", payload["summary"])
+        self.assertIn("1 candidates, 0 suppressed.", payload["summary"])
 
 
 class ScopeTests(unittest.TestCase):
