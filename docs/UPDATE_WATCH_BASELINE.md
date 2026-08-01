@@ -164,16 +164,25 @@ tooling).
         "https://vercel.com/changelog/ai-gateway-adds-unified-fast-mode-support",
         "https://vercel.com/changelog/sign-in-with-chatgpt-is-now-available-on-vercel",
         "https://vercel.com/changelog/additional-custom-environments-can-now-be-purchased",
-        "https://vercel.com/changelog/discover-and-install-eve-integrations-from-the-cli"
+        "https://vercel.com/changelog/discover-and-install-eve-integrations-from-the-cli",
+        "https://vercel.com/changelog/ai-gateway-spend-budgets-and-alerts",
+        "https://vercel.com/changelog/deepseek-v4-flash-now-runs-updated-weights-on-ai-gateway",
+        "https://vercel.com/changelog/chat-sdk-reactions-and-ephemeral-messages-on-teams",
+        "https://vercel.com/changelog/ai-gateway-logs",
+        "https://vercel.com/changelog/vercel-mcp-now-supports-the-2026-07-28-mcp-specification",
+        "https://vercel.com/changelog/expanded-search-for-workflow-runs-in-vercel-observability",
+        "https://vercel.com/changelog/10x-more-capacity-for-laguna-s-2-1-on-ai-gateway",
+        "https://vercel.com/changelog/vercel-passport-generally-available"
       ]
     },
     {
       "name": "Neon",
       "watch": ["https://neon.com/docs/changelog/rss.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-25",
+      "scanSince": "2026-07-31",
       "acknowledgedItems": [
-        "https://neon.com/docs/changelog/2026-07-24"
+        "https://neon.com/docs/changelog/2026-07-24",
+        "https://neon.com/docs/changelog/2026-07-31"
       ]
     },
     {
