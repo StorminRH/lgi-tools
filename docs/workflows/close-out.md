@@ -1,8 +1,7 @@
 # Close-out procedure
 
 This is the sole end-to-end close-out sequence. It runs one delivery pipeline in
-one of two modes. Runtime skills supply only native task-list and
-background-process mechanics.
+one of two modes.
 
 ## Mode selection
 
@@ -55,15 +54,14 @@ Required outputs are exactly one of:
 
 Stop with `BLOCKED` rather than bypassing, weakening, or substituting for a gate.
 Do not infer approval for a merge, deployment, promotion, production mutation,
-or destructive recovery beyond the runtime skill's explicit authorization.
+or destructive recovery beyond explicit authorization.
 
-Before acting, create one native runtime task for each applicable phase below
-and one final result task. Keep exactly one task active. Attach the phase's
-required evidence before completing its task; a bare assertion such as
-"checked" or "looks good" is not evidence. Reopen only phases and verification
-invalidated by a later change. Moving to another phase, editing PR metadata, or
-adding a lifecycle-only status commit does not invalidate current-head
-application evidence.
+Track each applicable phase below plus one final result. Keep exactly one phase
+active. Attach the phase's required evidence before completing it; a bare
+assertion such as "checked" or "looks good" is not evidence. Reopen only phases
+and verification invalidated by a later change. Moving to another phase, editing
+PR metadata, or adding a lifecycle-only status commit does not invalidate
+current-head application evidence.
 
 ## End-of-session review and local proof (shared)
 
@@ -160,18 +158,17 @@ under the one-sub-version-PR delivery unit skip it (per the fork above). It owns
 the whole-branch design judgment and does not repeat the session-level data
 placement, rendering, UI, or public-truth review.
 
-1. **(shared)** Invoke the pre-pr-design-review skill against the complete diff.
-   Supply the completed implementation, focused checks, and local/UX proof as its
+1. **(shared)** Invoke `pre-pr-design-review` against the complete diff. Supply
+   the completed implementation, focused checks, and local/UX proof as its
    readiness evidence; the final full definition-of-done gate deliberately
-   follows this review so any design fix is included in the tested head.
-2. **(shared)** Review interface depth, information ownership, change
-   amplification, rationale, test design, and bounded cleanup across the complete
-   diff. Fix every in-scope finding before continuing.
-3. **(shared)** If a measured hotspot surface changed, reconcile
+   follows this review so any design fix is included in the tested head. That
+   procedure owns the review dimensions; fix every in-scope finding before
+   continuing.
+2. **(shared)** If a measured hotspot surface changed, reconcile
    `docs/CODE_HEALTH_BASELINE.md` as required by the design review. The
    design-review and version-audit procedures own the measurement and overwrite
    mechanics; do not reproduce them here.
-4. Finalize every delivery record that would otherwise create a later commit,
+3. Finalize every delivery record that would otherwise create a later commit,
    before the final current-head gates and before opening the PR:
    - **(ordinary)** Create exactly one valid pending changelog fragment for the
      shipped work in `content/changelog/pending/`, following
@@ -212,18 +209,17 @@ second coverage cycle.
    change. Supply the direct request or frozen contract-and-plan chain, the
    current base, the complete tracked patch and untracked inventory, focused and
    UX evidence, and the finalized delivery records from the preceding phase.
-2. Keep the worktree stable while the selected subagents run. The
-   adversarial-review procedure owns one holistic role, one-to-three
-   non-overlapping scoped roles, the compact receipt, evidence-first
-   reconciliation, and verified root-cause ledger. A required role that cannot
-   run or a claim that direct evidence cannot settle returns `BLOCKED`.
+2. Keep the worktree stable while that procedure runs. It owns role selection,
+   receipt, and reconciliation; do not restate its mechanics here. A required
+   role that cannot run or a claim that direct evidence cannot settle returns
+   `BLOCKED`.
 3. Fix every accepted in-scope finding through the authority already held by
    close-out. Preserve the rejection/do-not-change ledger. A scope, architecture,
    public-surface, or authority conflict returns `BLOCKED`.
 4. Permit one fresh adversarial-review rerun only after a material correction to
    behavior, architecture, scope, or verification. An ordinary localized fix is
-   verified by the orchestrator and the applicable focused check without buying
-   another model round.
+   verified by the orchestrator and the applicable focused check without another
+   full review round.
 5. Continue only with `CLEAN` or with every accepted finding corrected and
    personally verified. The following full checkpoint validates the resulting
    final bytes.

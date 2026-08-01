@@ -53,8 +53,8 @@ missing, the diff violates an approved scope boundary, or a material design fix
 needs operator approval. This procedure grants no authority to open, merge,
 deploy, promote, or archive.
 
-Run every numbered phase below and attach its evidence before continuing; a
-bare assertion such as "checked" or "looks good" is not evidence.
+Run every numbered phase below and attach its required evidence before
+continuing.
 
 ## 1. Establish the review boundary
 

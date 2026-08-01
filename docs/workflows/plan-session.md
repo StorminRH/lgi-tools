@@ -28,8 +28,8 @@ to the executor.
 2. Read the contract and session-plan schema, then reconcile every dependency,
    boundary, decision, acceptance claim, evidence category, baseline effect, and
    operator gate against current repository evidence and live code. Use
-   Codegraph only when a relationship, consumer, dependency, or blast-radius
-   claim is material.
+   Codegraph only for material relationship, consumer, dependency, or
+   blast-radius claims.
 3. Treat the contract's approved execution bundle as fixed. Do not split it
    because work has phases, touches different owners, needs producer/consumer
    ordering, or contains a resumable review pause.
@@ -41,9 +41,9 @@ to the executor.
 
 1. Discuss the intended implementation shape with the operator in plain English
    before fixed-schema drafting.
-2. Resolve every contract planning decision from live evidence. Keep ordinary
-   local implementation choices with the agent; surface only consequential
-   decisions that change behavior, ownership, risk, or scope.
+2. Resolve every contract planning decision from live evidence. Do not escalate
+   ordinary local implementation choices; surface only consequential decisions
+   that change behavior, ownership, risk, or scope.
 3. For every framework-sensitive interface or runtime claim, cite current
    primary documentation or run a focused executable probe against the
    installed version. If feasibility remains unproved, present bounded
@@ -52,10 +52,11 @@ to the executor.
    statement, edge/failure behavior, ordered work item, and command-plus-output
    success criterion. No Blocking prerequisite or unresolved placeholder may
    remain.
-5. Invoke `adversarial-review` in Plan mode with the complete draft, contract,
-   schema, and source evidence. Reconcile every verified finding and permit at
-   most one rerun after a material architecture, scope, or verification change.
-   Do not persist reviewer transcripts or superseded drafts.
+5. Run the planning approval gate: invoke `adversarial-review` in Plan mode with
+   the complete draft, contract, schema, and source evidence. Reconcile every
+   verified finding; permit at most one rerun after a material architecture,
+   scope, or verification change. Do not persist reviewer transcripts or
+   superseded drafts.
 
 ## Approve, persist, and stop
 

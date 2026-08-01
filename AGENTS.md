@@ -16,6 +16,14 @@ Vitest, and visx.
 - **Planned lifecycle work** begins only through `start-session`; use its
   resolver-selected branch and handler.
 
+## Subagents
+
+Prefer designed agents under `~/.cursor/agents/` for bounded research
+(`docs-researcher`), exact verification (`gate-runner`), and independent
+review roles named by workflows. Delegate when isolation or a structured
+evidence packet helps; do not run a fixed preflight on every task, and do not
+redo discovery the parent already completed.
+
 ## Commands and definition of done
 
 - Full local stack: `pnpm dev:all`

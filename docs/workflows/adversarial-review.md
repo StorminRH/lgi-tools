@@ -145,11 +145,11 @@ Require `Findings: None` for a clean review. Give each scoped reviewer the full
 inventory plus one non-overlapping primary scope. Give the holistic reviewer
 the complete subject and focus it on missing outcomes, cross-area
 contradictions, failure paths, and stale assumptions. Do not disclose expected
-defects, another reviewer's output, or the parent agent's conclusions.
+defects, another reviewer's output, or the caller's prior conclusions.
 
 Pass paths, symbols, hashes, and the logical inventory instead of raw discovery
 logs or copied source. Require the final verdict to stay compact; the
-reviewer's exploratory transcript remains isolated from the parent context.
+reviewer's exploratory transcript remains isolated from the caller context.
 
 ## 3. Launch subagents
 
@@ -193,9 +193,9 @@ reviewer or model lane.
 
 ## 5. Verify and reconcile
 
-The parent agent must:
+Before returning, personally verify:
 
-1. personally inspect the highest-blast-radius owner;
+1. inspect the highest-blast-radius owner;
 2. reproduce or disprove every reported failure;
 3. classify each accepted root cause once as `BLOCKER`, `MAJOR`, or `MINOR`;
 4. record false positives and deliberate do-not-change decisions;

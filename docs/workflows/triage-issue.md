@@ -33,9 +33,8 @@ still requires its point-of-action approval.
 For each claim:
 
 1. Locate the cited files, symbols, and behavior through repository search and
-   targeted source reads. Use Codegraph MCP `codegraph_explore`, or its CLI
-   equivalent, only when validating a material call path, consumer set,
-   dependency, or blast radius.
+   targeted source reads. Use Codegraph only for material relationship,
+   consumer, dependency, or blast-radius claims.
 2. Confirm cited files, lines, owners, and behavior against current code. Use a
    focused runtime or live check when the claim cannot be established statically.
 3. Search read-only for the same root cause elsewhere. Distinguish the reported
