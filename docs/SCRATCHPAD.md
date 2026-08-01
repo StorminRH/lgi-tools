@@ -5,10 +5,15 @@
 
 ## Now
 
-- **CURRENT:** session 4.0.2.2.2 access projection and revocation is on
-  `lifecycle/4.0.2.2` in close-out for shared sub-version PR #341.
-- **NEXT:** finish close-out for PR #341, then run
-  `python3 tools/cli.py lifecycle resolve --pretty` and follow its directive.
+- **CURRENT:** ordinary close-out for PR #343 — restore schema-valid SC-5
+  evidence on the session 4.0.2.2.2 as-built after #341 merged.
+- **NEXT:** after #343 merges, run
+  `python3 tools/cli.py lifecycle resolve --pretty` and follow its directive
+  (expected next planning action is session 4.0.2.3.1).
+- **Convex local typecheck:** `convex/tsconfig.json` is present so
+  `pnpm exec convex codegen --typecheck enable` exits 0 against a running local
+  backend. Root `tsc --noEmit` remains the app-wide gate and also covers
+  `convex/`.
 - **Access/read-set cost (4.0.2.2.2 SC-4):** each gated fixture call reads 1
   indexed `mapAccess` claim row + at most `MAP_FIXTURE_PAGE_SIZE = 25` payload
   rows. At pinned sizes 50 systems / 30 connections / 60 signatures / 10 notes,
