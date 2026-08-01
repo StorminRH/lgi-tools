@@ -66,9 +66,10 @@ current-head application evidence.
 ## End-of-session review and local proof (shared)
 
 1. Fix every in-scope problem discovered during the session on the current
-   branch. Defer only work that is genuinely outside the change, and record that
-   work once in `docs/backlog.md` with what, why, rough size, and its dependency
-   or trigger.
+   branch. Prefer pausing to reshape and absorb corrections in this session.
+   Backlog only when the operator explicitly cuts scope; record that rare cut
+   once in `docs/backlog.md` with what, why, rough size, and its dependency or
+   trigger.
 2. Run the session judgment review against the session diff. These checks are
    mandatory every session and happen before the final mechanical gates; when a
    check is irrelevant, record that its surface was not touched.
@@ -90,7 +91,8 @@ current-head application evidence.
    5. **Public-document truth.** Recheck any affected claims in `README.md`,
       `CONTRIBUTING.md`, `SECURITY.md`, `.github/`, `.env.example`, and the
       `/legal` surface. Correct small drift in-branch and raise a material scope
-      conflict instead of shipping misinformation.
+      conflict for in-session operator discussion instead of shipping
+      misinformation.
 3. Verify the changed behavior on the local development surface while the
    server is still running. Use the local Docker database or direct API checks
    as appropriate, and use a manual preview only when local data cannot
@@ -244,14 +246,20 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    **(planned)** Expand each plan `SC-N` into an in-context atomic proof ledger
    and confirm every required observable. A passing command, test name, or
    grouped criterion range is not proof. Stop `BLOCKED` if any observable is
-   absent. A material framework limit or public-interface divergence returns to
-   `plan-session`; the as-built record cannot supply missing authority.
+   absent. A material framework limit or public-interface divergence must already
+   have been settled by in-session operator discussion during execution; record
+   it in the as-built under `Operator:` or `Evidence:` authority.
+   Never return this session to `plan-session`. The as-built cannot invent
+   authority after the fact, but it is the forward closure record for
+   authorized reshapes.
 2. Reconcile durable memory before any final mechanical gate can be invalidated
    by another documentation edit. **(ordinary and planned final session)** update
    `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and contract
-   cannot know; remove shipped or superseded detail and keep deferred work only
-   in `docs/backlog.md`. **(planned non-final session)** defer the session status
-   and handoff pointer to the lifecycle-only commit in the fork above.
+   cannot know; remove shipped or superseded detail. Prefer absorbing work in
+   this session; if the operator explicitly cut scope, keep that rare deferred
+   work only in `docs/backlog.md`. **(planned non-final session)** defer the
+   session status and handoff pointer to the lifecycle-only commit in the fork
+   above.
 3. Run every cheap workflow check that can still lead to an edit: agent policy
    and `python3 tools/cli.py test` after changing shared guides, skills, hooks,
    or workflow policy; document references after changing live documentation;
@@ -373,8 +381,9 @@ the lifecycle-memory disposition.
       bot) with the reasoning; a reply alone does not resolve the finding, so
       wait for the owning reviewer rather than treating the unchanged head as a
       new pass.
-   3. **Defer** only genuinely out-of-scope work to `docs/backlog.md` with its
-      reason, size, and trigger.
+   3. **Defer** only when the operator explicitly cuts scope; record that rare
+      cut in `docs/backlog.md` with its reason, size, and trigger. Prefer fixing
+      or justifying in this session.
 7. Batch the round's whole disposition — every fix, justification reply,
    necessary re-trigger, and backlog entry — then make exactly one push, and
    only after the evidence a fix invalidated is green again. Production or test

@@ -1,12 +1,15 @@
 # Session plan schema
 
 This file is the canonical form for approved LGI.tools session plans. A plan is
-the execution prompt for one session: it binds the contract's product boundary
-to a concrete implementation blueprint an executing agent can follow without
-making material design choices. This schema owns the exact markers, headings,
-vocabularies, and contract-to-plan mappings. The canonical
-`docs/workflows/plan-session.md` procedure owns investigation, review, approval,
-persistence, and handoff; runtime skills only invoke that procedure.
+the starting execution prompt for one session: it binds the contract's product
+boundary to a concrete, decision-dense implementation blueprint co-authored
+with the operator. At approval it should not leave open material design
+choices for the executor to invent unilaterally; during execution, live
+operator discussion may still reshape interfaces or steps without returning to
+`plan-session`. This schema owns the exact markers, headings, vocabularies,
+and contract-to-plan mappings. The canonical `docs/workflows/plan-session.md`
+procedure owns investigation, co-authoring, review, approval, persistence, and
+handoff; runtime skills only invoke that procedure.
 
 An approved plan starts with this frame:
 
@@ -285,3 +288,5 @@ contract owns. Persist only the final approved design. Do not include reviewer
 transcripts, review-pass counts, superseded alternatives, revision history, or
 research chronology. A constraint, rationale, or tradeoff that still affects
 execution belongs in its owning plan section; everything else is discarded.
+In-session reshapes after approval are recorded in the session as-built, not by
+rewriting this frozen prompt mid-execution.

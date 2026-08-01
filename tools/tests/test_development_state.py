@@ -889,7 +889,8 @@ class DevelopmentStateTests(unittest.TestCase):
         directive = state["directive"]
         assert isinstance(directive, dict)
         self.assertEqual(
-            "Pause on a material scope/design conflict or an explicit operator gate.",
+            "Pause to discuss design conflicts with the operator, or on an "
+            "explicit operator gate; reshape in-session and continue.",
             directive["pause"],
         )
 

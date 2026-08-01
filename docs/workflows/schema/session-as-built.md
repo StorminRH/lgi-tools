@@ -2,10 +2,10 @@
 
 This file is the canonical form for LGI.tools session as-built records. An
 as-built is the finalized record of what one executed session actually
-delivered. The contract and plan are frozen prompts; the as-built is the
-record species that closes them out. It is written once at session close,
-never reopened, and archived with the version bundle beside the contract and
-plan pairs.
+delivered. The contract and plan are frozen starting prompts; the as-built is
+the forward record species that closes them out after in-session reshaping.
+It is written once at session close, never reopened, and archived with the
+version bundle beside the contract and plan pairs.
 
 Record only what the next planning agent cannot recover from the code, the
 plan, or the changelog. Aggressive brevity is the standard: a session that
@@ -72,8 +72,9 @@ Use this exact four-field item for every divergence:
 ```
 
 The authority value begins with exactly `Operator:` or `Evidence:`. An as-built
-records authorized execution history; it cannot retroactively approve a
-material scope, architecture, or public-interface change. `None.` when
+cannot invent authority after the fact; it records `Operator:` or `Evidence:`
+authority that existed during execution, including material interface or
+architecture substitutions settled by in-session discussion. `None.` when
 execution matched the plan.
 
 ## Final surfaces
@@ -85,9 +86,10 @@ code. `None.` when the session changed no durable surface worth mapping.
 
 ## Discovered work
 
-Work found during execution and deliberately not done, each item naming
-where it went: backlog, a named later session, or dropped with the reason.
-`None.` when nothing was discovered.
+Work found during execution and deliberately not done. Prefer absorbing
+corrections in-session; backlog or later-session cuts are extremely rare and
+operator-driven. When present, each item names where it went: backlog, a named
+later session, or dropped with the reason. `None.` when nothing was cut.
 
 ## Successor notes
 

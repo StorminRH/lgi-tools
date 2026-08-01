@@ -1,9 +1,10 @@
 # Plan-session procedure
 
-Turn one approved session contract into a decision-complete implementation plan.
-The contract owns the product boundary; `docs/workflows/schema/session-plan.md`
-owns the exact artifact form. This procedure owns investigation, judgment,
-review, approval, persistence, and handoff.
+Turn one approved session contract into a decision-complete implementation plan
+through iterative plain-English co-authoring with the operator. The contract is
+a starting prompt for product intent; `docs/workflows/schema/session-plan.md`
+owns the exact artifact form. This procedure owns investigation, collaborative
+shaping, review, approval, persistence, and handoff.
 
 ## Execution contract
 
@@ -15,11 +16,13 @@ The contract is the planning prompt: verify its claims against live code and
 prior as-built records, honor its intent, and let in-session operator
 direction supersede its text. Contracts are never edited during or after
 planning; divergences settle in the plan, and the executed session's as-built
-record closes the loop.
+record closes the loop. Do not rewind to contract or topology authoring for
+this session.
 
 Output: one approved plan at `docs/session-plans/X.Y/<session>.md` whose digest
-matches the contract and whose steps leave no material implementation decision
-to the executor.
+matches the contract and whose settled steps give the executor a concrete
+starting blueprint. The plan is decision-dense at approval; execution may still
+reshape through live operator discussion without returning here.
 
 ## Reconcile the bundle
 
@@ -29,30 +32,49 @@ to the executor.
    boundary, decision, acceptance claim, evidence category, baseline effect, and
    operator gate against current repository evidence and live code. Use
    Codegraph only for material relationship, consumer, dependency, or
-   blast-radius claims.
+   blast-radius claims. Investigate as needed, but do not draft the full plan
+   yet.
 3. Treat the contract's approved execution bundle as fixed. Do not split it
    because work has phases, touches different owners, needs producer/consumer
    ordering, or contains a resumable review pause.
-4. Return to topology planning only when a recorded split trigger fires or live
-   evidence reveals a material scope conflict. Record the exact trigger; never
-   manufacture a new session as an ordinary implementation choice.
+4. If a recorded split trigger fires or live evidence appears to invalidate the
+   bundle, pause and discuss with the operator in this session. Do not rewrite
+   the contract and do not return to topology planning as an ordinary path.
+   Continue co-authoring the plan under the operator's settled direction;
+   backlog or a later session is an extremely rare, operator-driven cut only.
 
-## Draft and review
+## Co-author the plan
 
-1. Discuss the intended implementation shape with the operator in plain English
-   before fixed-schema drafting.
-2. Resolve every contract planning decision from live evidence. Do not escalate
-   ordinary local implementation choices; surface only consequential decisions
-   that change behavior, ownership, risk, or scope.
-3. For every framework-sensitive interface or runtime claim, cite current
-   primary documentation or run a focused executable probe against the
-   installed version. If feasibility remains unproved, present bounded
-   alternatives for operator approval instead of freezing one as exact.
-4. Produce every required plan marker, heading, mapping, interface, control-flow
-   statement, edge/failure behavior, ordered work item, and command-plus-output
-   success criterion. No Blocking prerequisite or unresolved placeholder may
-   remain.
-5. Run the planning approval gate: invoke `adversarial-review` in Plan mode with
+Iterative discussion with the operator is the default. Do not research silently
+and present a complete schema plan for approval.
+
+1. Present a short plain-English overview of what the contract implies this
+   session will build — destination, boundaries, and major unknowns — so the
+   operator forms a mental model before any section detail.
+2. Walk the plan one logical section at a time with the operator. Suggested
+   order: destination and scope; key decisions; interfaces and control flow;
+   ordered work; success criteria and proof; delivery and handoff. For each
+   section, discuss in plain English, adjust from live evidence and operator
+   direction, and confirm before moving on. Stay in prose; do not jump ahead
+   to a complete schema document.
+3. Resolve every contract planning decision (`PD-N` and consequential choices)
+   during this walk. Do not escalate ordinary local implementation details;
+   surface choices that change behavior, ownership, risk, or scope. For every
+   framework-sensitive interface or runtime claim, cite current primary
+   documentation or run a focused executable probe against the installed
+   version. If feasibility remains unproved, present bounded alternatives in
+   the current section discussion instead of freezing one as exact.
+4. Stop before fixed-schema drafting until every section above is settled with
+   the operator and both share a full mental model of the session.
+
+## Assemble and review
+
+1. Only after co-authoring is complete, assemble the fixed-schema plan from the
+   settled conversation. Produce every required plan marker, heading, mapping,
+   interface, control-flow statement, edge/failure behavior, ordered work item,
+   and command-plus-output success criterion. No Blocking prerequisite or
+   unresolved placeholder may remain.
+2. Run the planning approval gate: invoke `adversarial-review` in Plan mode with
    the complete draft, contract, schema, and source evidence. Reconcile every
    verified finding; permit at most one rerun after a material architecture,
    scope, or verification change. Do not persist reviewer transcripts or
@@ -78,6 +100,6 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 
 - **Subject:** Session `<id>`; plan `<path or Not written>`
 - **Result:** <approval or stop reason; ≤2 sentences>
-- **Action:** <fresh start-session action or planning correction>
+- **Action:** <fresh start-session action or continue co-authoring>
 - **Blocker:** <exact blocker or `None`>
 ```

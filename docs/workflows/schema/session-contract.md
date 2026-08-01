@@ -9,18 +9,20 @@ The artifact chain has three distinct levels:
 1. The **version plan** owns the complete roadmap, ordering, cross-session
    decisions, and sub-version delivery outcomes.
 2. A **session contract** records the slice-relevant projection of that roadmap.
-   It owns the session's product boundary and acceptance bar while preserving,
+   It is a starting product-boundary prompt and acceptance bar while preserving,
    not re-owning, the version plan's dependencies, ordering, and delivery fork.
-3. An approved **session plan** reconciles that contract with live code and
-   turns it into the descriptive execution prompt: settled decisions, exact
-   owners and interfaces, control flow, edge behavior, ordered work, runnable
-   proof, and delivery handoff.
+   Planning may diverge from its text into the plan; the contract bytes are not
+   rewritten.
+3. An approved **session plan** reconciles that contract with live code through
+   operator co-authoring and becomes the starting execution prompt: settled
+   decisions, exact owners and interfaces, control flow, edge behavior, ordered
+   work, runnable proof, and delivery handoff. Execution may reshape further
+   through live discussion; the as-built closes those deltas.
 
-A contract is intentionally concise and implementation-agnostic. It prevents a
-planning session from silently changing product intent while investigating the
-live repository. If it merely repeats the version plan, or if it prescribes
-files and implementation steps the planning phase has not investigated, it is
-not doing its job.
+A contract is intentionally concise and implementation-agnostic. It gives
+planning a product-intent starting point without prescribing uninvestigated
+implementation. If it merely repeats the version plan, or if it invents files
+and steps the planning phase has not investigated, it is not doing its job.
 
 A contract starts with this frame:
 
@@ -34,7 +36,7 @@ A contract starts with this frame:
 **Delivery unit:** One agent session, one shared sub-version branch, one sub-version PR
 **Roadmap coverage:** §X.Y.N outcome or ordered outcome set
 **Internal phases:** 1. First outcome; 2. Second outcome; 3. Integration and proof
-**Split triggers:** Only the concrete conditions that require stopping or replanning
+**Split triggers:** Only the rare concrete conditions that invalidate the bundle
 ```
 
 `UX gate` is exactly `Yes` or `No`. It is the machine-readable authority for
@@ -52,10 +54,11 @@ frozen contract; otherwise only the final session opens the sub-version PR.
 `Roadmap coverage`, `Internal phases`, and `Split triggers` are non-empty.
 Roadmap coverage may name several approved roadmap sections. Internal phases
 are ordered work inside the session, not new delivery boundaries. Split
-triggers name only conditions that invalidate the approved bundle, such as an
-external wait, a material scope conflict, a genuinely unreviewable combined
-diff, or an operator decision that changes later work. An ordinary review or
-operator pause that can resume on the same branch is not a split trigger.
+triggers name only rare conditions that invalidate the approved bundle, such as
+an external wait or an operator decision that the bundle cannot proceed. They
+are not a cue to rewrite the contract or replan ordinary design discovery; an
+ordinary review, design discussion, or pause that can resume on the same branch
+is not a split trigger.
 
 The version's contract index contains exactly three columns and maps identifiers
 to contract files only:

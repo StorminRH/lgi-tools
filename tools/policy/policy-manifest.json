@@ -170,9 +170,13 @@
       "orderedRequired": [
         "Reconcile the bundle",
         "Do not split it",
-        "recorded split trigger",
-        "Draft and review",
+        "do not return to topology planning",
+        "Co-author the plan",
+        "plain-English overview",
+        "one logical section at a time",
         "focused executable probe",
+        "Stop before fixed-schema drafting",
+        "Assemble and review",
         "Invoke `adversarial-review` in Plan mode",
         "operator approval",
         "Persist the approved plan"
@@ -182,8 +186,9 @@
       "orderedRequired": [
         "Resolve and select the branch",
         "Dispatch",
-        "installed framework or runtime limit",
-        "do not select a replacement public interface",
+        "Never return this session to `plan-session`",
+        "pause and discuss with the operator",
+        "do not default to backlog or deferral",
         "in-context proof ledger",
         "Stop and resume"
       ]
@@ -218,6 +223,7 @@
         "requested and observed runtime identity",
         "Finalize and verify the current head",
         "in-context atomic proof ledger",
+        "Never return this session to `plan-session`",
         "Open one \\*\\*draft\\*\\* PR",
         "mark it ready for review exactly once",
         "poll-pr-gate",
@@ -227,6 +233,8 @@
     },
     "docs/workflows/schema/session-plan.md": {
       "orderedRequired": [
+        "starting execution prompt",
+        "without returning to",
         "Proof standard",
         "Proof identifiers are unique and contiguous"
       ]
@@ -236,6 +244,7 @@
         "Plan statement",
         "Built instead",
         "Authority",
+        "cannot invent authority after the fact",
         "one ordered line per plan criterion",
         "requested and observed runtime identity separately"
       ]
