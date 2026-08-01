@@ -155,13 +155,19 @@ describe('mapper source contract', () => {
     }
   });
 
-  it('keeps canvas modules off the subscription and its raw pages', () => {
+  it('keeps canvas modules off every Convex subscription hook', () => {
     for (const file of mapperFiles().filter((name) => name.startsWith('canvas/'))) {
       const source = sourceOf(file);
       expect(source, `${file} must not read Convex`).not.toContain("from 'convex/react'");
       expect(source, `${file} must not read the chain hook`).not.toContain('use-map-chain');
       expect(source, `${file} must not build state from pages`).not.toContain(
         'usePaginatedQuery',
+      );
+      // Any live-data slice hook, not only today's two: the canvas renders what it is handed.
+      // `@/data/convex/client` stays allowed — the null-client gate is a client-existence check,
+      // not a subscription.
+      expect(source, `${file} must not subscribe through a slice hook`).not.toMatch(
+        /@\/data\/convex\/use-[\w-]+/,
       );
     }
   });

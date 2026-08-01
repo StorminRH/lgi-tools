@@ -17,7 +17,8 @@
 // Reconnection is likewise silent — the Convex client resumes its own subscriptions.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/data/convex/api';
-import { useDrainedPages, useLiveValue } from '@/data/convex/use-drained-pages';
+import { useDrainedPages } from '@/data/convex/use-drained-pages';
+import { useLiveValue } from '@/data/convex/use-live-value';
 import {
   loadUniverseAssets,
   type UniverseAssets,
@@ -49,6 +50,42 @@ const INITIAL_MERGE: ChainMerge = { state: EMPTY_CHAIN_STATE, intents: [] };
 
 /** Whether the caller holds access, or `undefined` until the access subscription first answers. */
 export type MapAccessState = boolean | undefined;
+
+/** The row shapes the signature summarizes, kept minimal so the function stays pure and testable. */
+interface SignatureInput {
+  readonly systems: { readonly rows: readonly { readonly systemId: number }[]; readonly complete: boolean };
+  readonly connections: {
+    readonly rows: readonly {
+      readonly _id: string;
+      readonly fromSystemId: number;
+      readonly toSystemId: number;
+    }[];
+    readonly complete: boolean;
+  };
+}
+
+/**
+ * A content fingerprint of both collections, used to decide whether a merge is warranted.
+ *
+ * Content, never array identity: the subscription hooks hand back fresh arrays and a fresh wrapper
+ * object on every render, so an identity comparison would re-merge forever — replaying every intent
+ * continuously, which sub-version 4.0.3.2 would bind animations to. Exported so that stability is a
+ * unit test rather than a property nothing checks; the separators cannot occur in numeric system ids
+ * or Convex document ids, so no distinct content collides.
+ */
+export function chainSignature(
+  systems: SignatureInput['systems'],
+  connections: SignatureInput['connections'],
+): string {
+  return [
+    systems.complete,
+    systems.rows.map((row) => row.systemId).join(','),
+    connections.complete,
+    connections.rows
+      .map((row) => `${row._id}:${row.fromSystemId}>${row.toSystemId}`)
+      .join(','),
+  ].join('#');
+}
 
 /** What the chain host needs to render and interact with one map. */
 export interface MapChain {
@@ -118,17 +155,7 @@ export function useMapChain(
 
   const [merge, setMerge] = useState<ChainMerge>(INITIAL_MERGE);
   const appliedSignature = useRef<string | null>(null);
-
-  // Content signature rather than array identity: the hooks hand back fresh arrays every render, so
-  // identity alone would re-merge forever and drop each merge's intents on the floor.
-  const signature = [
-    systems.complete,
-    systems.rows.map((row) => row.systemId).join(','),
-    connections.complete,
-    connections.rows
-      .map((row) => `${row._id}:${row.fromSystemId}>${row.toSystemId}`)
-      .join(','),
-  ].join('#');
+  const signature = chainSignature(systems, connections);
 
   useEffect(() => {
     if (appliedSignature.current === signature) return;

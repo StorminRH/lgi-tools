@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   authed: true,
   useMapChain: vi.fn(),
   reactFlow: vi.fn(),
+  pinPlacement: vi.fn(),
 }));
 
 vi.mock('@/data/convex/use-convex-authed', () => ({
@@ -43,7 +44,7 @@ function withAccess(access: boolean | undefined): void {
     state: { systems: new Map(), connections: new Map() },
     intents: [],
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
-    pinPlacement: vi.fn(),
+    pinPlacement: mocks.pinPlacement,
   });
 }
 
@@ -51,15 +52,26 @@ function resetHostMocks(): void {
   vi.resetModules();
   mocks.reactFlow.mockClear();
   mocks.useMapChain.mockClear();
+  mocks.pinPlacement.mockClear();
   mocks.authed = true;
   withAccess(true);
+}
+
+/** The props the host handed the flow surface, for driving its callbacks directly. */
+function surfaceProps(): Record<string, (...args: never[]) => void> {
+  return mocks.reactFlow.mock.calls[0]?.[0] as Record<string, (...args: never[]) => void>;
+}
+
+function node(systemId: number, x: number, y: number) {
+  return { id: String(systemId), position: { x, y } };
 }
 
 describe('chain host auth gate', () => {
   beforeEach(resetHostMocks);
 
-  // The regression this guards: subscribing before the JWT attaches takes an UNAUTHENTICATED
-  // rejection, which is not a FORBIDDEN revocation and so escapes the calm-state boundary.
+  // The regression this guards: an identity-less caller is answered `granted: false`, which is a
+  // legitimate value rather than an error — so subscribing before the JWT attaches would flash the
+  // calm no-access state on every map open.
   it('opens no subscription until Convex holds an identity', async () => {
     mocks.authed = false;
 
@@ -124,5 +136,60 @@ describe('chain host access states', () => {
     expect(markup).toContain('data-react-flow-background');
     expect(markup).not.toContain('data-chain-no-access');
     expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
+  });
+});
+
+// ── SC-2 · DC-2 / HC-1 — one gesture can move several nodes ──────────────────
+//
+// React Flow's drag driver moves every selected node in one gesture and reports the whole set in the
+// callback's third argument. Honouring only the grabbed node would leave its companions unprotected
+// mid-drag and unpinned at drop, so they would snap back on the very next merge.
+describe('chain host group drag', () => {
+  beforeEach(resetHostMocks);
+
+  it('pins every node a multi-node drag moved, not just the grabbed one', async () => {
+    await renderHost();
+    const moved = [node(30_000_142, 10, 20), node(30_002_187, 30, 40)];
+
+    surfaceProps().onNodeDragStop?.(
+      ...([{}, moved[0], moved] as unknown as never[]),
+    );
+
+    expect(mocks.pinPlacement.mock.calls).toEqual([
+      [30_000_142, { x: 10, y: 20 }],
+      [30_002_187, { x: 30, y: 40 }],
+    ]);
+  });
+
+  it('pins the grabbed node when a gesture reports no companion set', async () => {
+    await renderHost();
+    const grabbed = node(30_000_142, 7, 8);
+
+    surfaceProps().onNodeDragStop?.(
+      ...([{}, grabbed, []] as unknown as never[]),
+    );
+
+    expect(mocks.pinPlacement.mock.calls).toEqual([[30_000_142, { x: 7, y: 8 }]]);
+  });
+
+  it('pins every node a selection-rectangle drag moved', async () => {
+    await renderHost();
+    const moved = [node(30_000_142, 1, 2), node(30_002_187, 3, 4)];
+
+    surfaceProps().onSelectionDragStop?.(...([{}, moved] as unknown as never[]));
+
+    expect(mocks.pinPlacement.mock.calls).toEqual([
+      [30_000_142, { x: 1, y: 2 }],
+      [30_002_187, { x: 3, y: 4 }],
+    ]);
+  });
+
+  it('offers no delete key and no keyboard node movement on the surface', async () => {
+    await renderHost();
+    const props = mocks.reactFlow.mock.calls[0]?.[0] as Record<string, unknown>;
+
+    // Both React Flow defaults would mutate local nodes outside the drag path this session owns.
+    expect(props.deleteKeyCode).toBeNull();
+    expect(props.disableKeyboardA11y).toBe(true);
   });
 });

@@ -9,10 +9,14 @@
 // (contract HC-4).
 
 /**
- * Explains that map access is not held, without claiming prior access existed.
+ * Explains that map access is not held.
  *
- * The same copy is correct for a live revocation and for a map the caller never had, and it carries
- * no spinner, retry, or reload affordance.
+ * The lost-access framing is deliberate operator-chosen copy. It reads as a revocation, which is the
+ * common case, and it is also what a caller who never held access sees — following a stale or shared
+ * `/atlas?map=` link resolves here through the same `granted: false`. That wording was chosen over
+ * neutral phrasing knowingly; do not "correct" it back.
+ *
+ * Carries no spinner, retry, or reload affordance.
  */
 export function NoMapAccess() {
   return (

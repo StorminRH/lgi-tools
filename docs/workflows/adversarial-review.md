@@ -168,7 +168,9 @@ from role configuration, role name, or self-report.
 Ordinary lifecycle review remains role-based unless the operator made exact
 identity an explicit condition.
 
-Render one compact receipt before triage:
+Render one compact receipt before triage. It is review-local evidence held for the
+caller's reconciliation, not chat output: `docs/workflows/schema/chat-result.md`
+owns what reaches chat and excludes role and runtime-identity tables from it.
 
 ```markdown
 | Reviewer role | Assigned scope | Requested runtime identity | Observed runtime identity | Reported |

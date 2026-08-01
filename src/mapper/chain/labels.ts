@@ -17,6 +17,14 @@ export interface SystemLabel {
   readonly className: string | null;
 }
 
+/**
+ * The complete class-id ladder, mirroring the authoritative declaration on
+ * `eveSolarSystems.wormholeClassId` (`src/data/eve-data/schema.ts`).
+ *
+ * It must stay complete, not just plausible: the directory passes every SDE class id through
+ * unfiltered, so an id missing from here renders a genuine wormhole system with no chip at all — the
+ * shattered and Drifter systems a chain mapper exists to track.
+ */
 const CLASS_LABELS_BY_ID = new Map<number, string>([
   [1, 'C1'],
   [2, 'C2'],
@@ -28,9 +36,23 @@ const CLASS_LABELS_BY_ID = new Map<number, string>([
   [8, 'LS'],
   [9, 'NS'],
   [12, 'Thera'],
+  [13, 'C13'],
+  // 14–18 are the five Drifter complexes. The system's own name already identifies which one, so the
+  // chip carries the class rather than repeating it.
+  [14, 'Drifter'],
+  [15, 'Drifter'],
+  [16, 'Drifter'],
+  [17, 'Drifter'],
+  [18, 'Drifter'],
+  [25, 'Pochven'],
 ]);
 
-/** The chip text for a wormhole class id, or `null` for k-space and unmapped ids. */
+/**
+ * The chip text for a location class id, or `null` for an unclassed system.
+ *
+ * `null` means "this system has no class to show", which is why the ladder above must cover every id
+ * the directory can produce — an unmapped id would be indistinguishable from unclassed k-space.
+ */
 export function systemClassLabel(whClassId: number | null): string | null {
   if (whClassId === null) return null;
   return CLASS_LABELS_BY_ID.get(whClassId) ?? null;

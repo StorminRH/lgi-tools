@@ -36,7 +36,11 @@ export function syncNodes(
     const holdLocal = local !== undefined && dragging.has(placed.systemId);
     const label = labelOf(placed.systemId);
 
+    // Spread the retained node first so React Flow's own per-node state survives a merge — `selected`
+    // above all, plus measured dimensions. Rebuilding a bare literal would silently clear the user's
+    // selection every time any unrelated system arrived or left.
     return {
+      ...local,
       id,
       type: CHAIN_NODE_TYPE,
       position: holdLocal ? local.position : placed.position,
