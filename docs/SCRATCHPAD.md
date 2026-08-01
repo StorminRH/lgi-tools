@@ -5,13 +5,12 @@
 
 ## Now
 
-- **CURRENT:** session 4.0.2.2.1 is complete and committed on
-  `lifecycle/4.0.2.2`. Draft PR #338 is open for the sub-version and publishes
-  no version records; it is unreviewed and unmerged.
+- **CURRENT:** session 4.0.2.2.1 is complete on `lifecycle/4.0.2.2`. Earlier
+  draft PRs for this sub-version were closed without merge; no sub-version PR
+  is open.
 - **NEXT:** session-plan approval for **4.0.2.2.2**, which owns the
   durable-to-Convex access projection, its teardown and resynchronization, and
-  live revocation. It completes and ships PR #338 rather than opening a second
-  one.
+  live revocation. It completes and ships the shared sub-version PR.
 - Two constraints it must honor, recorded in
   `docs/session-as-built/4.0/4.0.2.2.1.md`: the projection writer must guarantee
   one `mapAccess` row per `(mapId, userId)` because the gate reads it with
