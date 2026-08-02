@@ -4,8 +4,22 @@
 //
 // The chip is omitted rather than shown empty when the class is unknown (contract DC-3), and an
 // unresolved system falls back to its bare id, which is a plainer label rather than a loading state
-// (contract HC-5).
+// (contract HC-5). Motion presentation (4.0.3.2) is a class on this inner element — scale and
+// opacity only, never position — and is suppressed wholesale while the node is being dragged (HC-2).
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { memo } from 'react';
+import { cn } from '@/components/ui/cn';
+
+/**
+ * A node's motion presentation, derived per render by the motion layer
+ * (4.0.3.2). Presentation only: it never feeds position or any synchronized
+ * state (contract HC-4).
+ */
+export type NodeMotion = {
+  readonly phase: 'entering' | 'departing';
+  /** Departures only: whether the heavier chain-collapse exit plays. */
+  readonly heavy?: boolean;
+};
 
 /**
  * What one node displays. A type alias rather than an interface so it satisfies React Flow's
@@ -14,6 +28,7 @@ import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 export type ChainNodeData = {
   name: string;
   className: string | null;
+  motion?: NodeMotion;
 };
 
 /** The only node kind this session ships. */
@@ -39,11 +54,31 @@ export const SYSTEM_DISC_RADIUS = 22;
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
 
+/**
+ * The motion class for one node's inner element, or `null` for none. A
+ * dragging node carries no motion presentation whatever its window (HC-2).
+ */
+export function nodeMotionClass(
+  motion: NodeMotion | undefined,
+  dragging: boolean,
+): string | null {
+  if (dragging || motion === undefined) return null;
+  if (motion.phase === 'entering') return 'map-node-enter';
+  return motion.heavy === true ? 'map-node-exit-heavy' : 'map-node-exit';
+}
+
 /** Renders one system as a class-labeled disc with its name beneath. */
-export function SystemNode({ data }: NodeProps<ChainNode>) {
+function SystemNodeComponent({ data, dragging }: NodeProps<ChainNode>) {
   return (
-    <div data-chain-node className="flex flex-col items-center gap-1">
-      <div className="relative flex size-[44px] items-center justify-center rounded-full border border-border-idle bg-section">
+    <div
+      data-chain-node
+      data-dragging={dragging || undefined}
+      className={cn(
+        'flex flex-col items-center gap-1',
+        nodeMotionClass(data.motion, dragging),
+      )}
+    >
+      <div className="map-node-disc relative flex size-[44px] items-center justify-center rounded-full border border-border-idle bg-section">
         <Handle type="target" position={Position.Left} className={CENTER_HANDLE_CLASS} />
         {data.className !== null && (
           <span
@@ -59,3 +94,11 @@ export function SystemNode({ data }: NodeProps<ChainNode>) {
     </div>
   );
 }
+
+/**
+ * Memoized (drag hardening, IS-5): the moved node still re-renders every drag
+ * frame through React Flow's store (its `positionAbsoluteX/Y` props change),
+ * but every OTHER node's wrapper receives identical props and skips — the
+ * per-frame commit stays proportional to actual movers.
+ */
+export const SystemNode = memo(SystemNodeComponent);

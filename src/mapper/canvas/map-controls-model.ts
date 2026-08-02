@@ -39,8 +39,11 @@ export const DIRECTION_PRESET_OPTIONS: readonly {
   { value: 'rotated-45', label: 'Rotated 45°' },
 ];
 
-/** Clamp a number into `[min, max]` and snap to `step` from `min`. */
-function clampStepped(
+/**
+ * Clamp a number into `[min, max]` and snap to `step` from `min`. Shared with
+ * the motion dial model (`motion-controls-model.ts`), its second consumer.
+ */
+export function clampStepped(
   value: number,
   min: number,
   max: number,

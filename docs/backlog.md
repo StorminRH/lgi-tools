@@ -477,6 +477,50 @@ happy path. Hooking Worker construction in the Vitest environment is a separate
 test-harness slice. *Size:* S. *Trigger:* the next mapper reliability or
 component-test-stack pass that already mounts client hooks.
 
+## Mapper — heavy ChainHost decomposition
+
+**What:** split the mapper's single re-render root. `ChainLive` (in
+`src/mapper/chain/ChainHost.tsx`) owns everything today: reconciled truth (the
+controlled `nodes` state written by `syncNodes` on merge and `applyNodeChanges`
+on drag), the drag set, lock/follow/focus UI state, `LayoutConfig` and
+`MotionConfig` dial state, and the intent stream hand-off. Every drag frame
+runs `setNodes` and re-renders the whole subtree; 4.0.3.2's light fix contains
+that with `React.memo` on `SystemNode`/`ChainLinkEdge`/`MapControls`/
+`CameraFollowHost`, the `MotionLayer` render boundary (per-frame motion state
+re-renders only that child; sibling children keep element identity), and
+id-derived camera dependencies. The heavy version would move truth and
+interaction state into subscription-scoped compartments (a store or split
+contexts) so a per-frame position write re-renders only the consumers that
+read positions — no memo lattice required — with the existing seams
+(`useMapChain`'s merge, the `MotionTruth` object, the `ChainSurface` props) as
+the compartment boundaries.
+
+**Why deferred:** the measured light fix holds the frame budget at the
+operator-set 50–60 node ceiling (4.0.3.2 frame-time series), and a realistic
+chain is ~10 systems; restructuring state ownership mid-version would risk the
+drag-protection and layout-then-merge invariants for headroom nothing needs
+yet. *Size:* M. *Trigger:* the next mapper performance or restructuring pass —
+e.g. if overlay windows (4.0.3.3) or auto-mapping bursts (4.0.4.2) push
+per-frame commits past the memoized containment.
+
+## Mapper — post-4.0 k-space familiar-layout concept
+
+**What:** when the map later draws k-space context around a wormhole chain,
+consider a familiar-layout treatment: known-space systems placed to echo the
+in-game map's recognizable neighborhood shapes (constellation/region
+adjacency), so a revealed k-space exit reads as "that's Domain" at a glance
+instead of another radial branch. Concept only, per master-plan decision D10
+(clean-room rule): no competitor design, flow, schema, or code — the problem
+statement is recognizability of revealed k-space, and any design happens fresh
+against the deterministic kernel's invariants when the slice is planned.
+
+**Why deferred:** out of every 4.0 contract's scope (4.0.3.2 is motion;
+4.0.4.2's fog halo caps drawn k-space nodes and ships its own layout rules);
+recorded now so the idea survives the version. *Authority:* operator direction
+during 4.0.3.2.1 planning (2026-08-02). *Size:* M (concept + layout-rule
+design when pulled). *Trigger:* post-4.0 planning for k-space presentation, or
+the first fog-halo UX gate that shows revealed exits reading poorly.
+
 ## Industry planner — UI
 
 > Small planner-UI deferrals. (The T2 margin-semantics track — the Raw | Item toggle, the

@@ -11,11 +11,13 @@ import {
   ReactFlow,
   type Edge,
   type NodeChange,
+  type NodeMouseHandler,
   type OnNodeDrag,
   type SelectionDragHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { motionCssProperties, type MotionConfig } from '../motion/motion-contract';
 import { CHAIN_EDGE_TYPE, ChainLinkEdge } from './ChainLinkEdge';
 import { CHAIN_NODE_TYPE, SystemNode, type ChainNode } from './SystemNode';
 
@@ -36,11 +38,20 @@ export interface ChainSurfaceProps {
   readonly onNodeDragStop?: OnNodeDrag<ChainNode>;
   readonly onSelectionDragStart?: SelectionDragHandler<ChainNode>;
   readonly onSelectionDragStop?: SelectionDragHandler<ChainNode>;
+  /** Node-click seam for the camera's click-to-focus setting. */
+  readonly onNodeClick?: NodeMouseHandler<ChainNode>;
   /**
    * Whether nodes may be dragged. Default `true` preserves the empty-canvas
    * contract; the live host passes the map-lock state (locked → false).
    */
   readonly nodesDraggable?: boolean;
+  /**
+   * Live motion dial state. When present, the surface's container element
+   * carries the `--map-motion-*` custom properties the stylesheet motion
+   * rules consume — written through CSSOM per the house no-JSX-style rule.
+   * The empty canvas omits it and the stylesheet falls back to its defaults.
+   */
+  readonly motion?: MotionConfig;
   /**
    * Mounted inside `<ReactFlow>` beside `<Background>` — the only legal home
    * for React Flow `Panel` and `useReactFlow` consumers (map controls, camera
@@ -68,29 +79,44 @@ export function ChainSurface({
   onNodeDragStop,
   onSelectionDragStart,
   onSelectionDragStop,
+  onNodeClick,
   nodesDraggable = true,
+  motion,
   children,
 }: ChainSurfaceProps) {
+  const scopeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = scopeRef.current;
+    if (element === null || motion === undefined) return;
+    for (const [property, value] of Object.entries(motionCssProperties(motion))) {
+      element.style.setProperty(property, value);
+    }
+  }, [motion]);
+
   return (
-    <ReactFlow
-      nodes={nodes as ChainNode[]}
-      edges={edges as Edge[]}
-      nodeTypes={NODE_TYPES}
-      edgeTypes={EDGE_TYPES}
-      minZoom={0.2}
-      maxZoom={2.5}
-      defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-      deleteKeyCode={null}
-      disableKeyboardA11y
-      nodesDraggable={nodesDraggable}
-      onNodesChange={onNodesChange}
-      onNodeDragStart={onNodeDragStart}
-      onNodeDragStop={onNodeDragStop}
-      onSelectionDragStart={onSelectionDragStart}
-      onSelectionDragStop={onSelectionDragStop}
-    >
-      <Background variant={BackgroundVariant.Dots} />
-      {children}
-    </ReactFlow>
+    <div ref={scopeRef} data-map-motion-scope className="h-full w-full">
+      <ReactFlow
+        nodes={nodes as ChainNode[]}
+        edges={edges as Edge[]}
+        nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
+        minZoom={0.2}
+        maxZoom={2.5}
+        defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+        deleteKeyCode={null}
+        disableKeyboardA11y
+        nodesDraggable={nodesDraggable}
+        onNodesChange={onNodesChange}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDragStop={onNodeDragStop}
+        onSelectionDragStart={onSelectionDragStart}
+        onSelectionDragStop={onSelectionDragStop}
+        onNodeClick={onNodeClick}
+      >
+        <Background variant={BackgroundVariant.Dots} />
+        {children}
+      </ReactFlow>
+    </div>
   );
 }

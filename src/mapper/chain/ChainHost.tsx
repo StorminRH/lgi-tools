@@ -16,22 +16,36 @@ import {
   applyNodeChanges,
   type Edge,
   type NodeChange,
+  type NodeMouseHandler,
   type OnNodeDrag,
   type SelectionDragHandler,
 } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
-import { ChainSurface } from '../canvas/ChainSurface';
+import { ChainSurface, type ChainSurfaceProps } from '../canvas/ChainSurface';
 import { MapControls } from '../canvas/MapControls';
 import type { ChainNode } from '../canvas/SystemNode';
-import { CameraFollowHost } from '../canvas/use-camera-follow';
+import {
+  CameraFollowHost,
+  type CameraFocusRequest,
+} from '../canvas/use-camera-follow';
 import {
   DEFAULT_LAYOUT_CONFIG,
   type LayoutConfig,
 } from '../layout/layout-contract';
+import {
+  DEFAULT_MOTION_CONFIG,
+  type MotionConfig,
+} from '../motion/motion-contract';
+import {
+  BROWSER_MOTION_SEAMS,
+  useMotion,
+  type MotionTruth,
+} from '../motion/use-motion';
+import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
-import { useMapChain } from './use-map-chain';
+import { useMapChain, type MapAccessState } from './use-map-chain';
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
 const EMPTY_NODES: ChainNode[] = [];
@@ -67,8 +81,18 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // Camera follow: local, default OFF — the operator's G-1 call (2026-08-02):
   // automatic viewport snapping reads as the camera fighting the user.
   const [follow, setFollow] = useState(false);
+  // Click-to-focus: a shipped user setting beside camera follow — deliberately
+  // NOT a MotionConfig dial. Starting default pending the G-1 ratification.
+  const [focusOnClick, setFocusOnClick] = useState(true);
+  const [focusRequest, setFocusRequest] = useState<CameraFocusRequest | null>(null);
+  const focusTokenRef = useRef(0);
   // Live dial state — local presentation only; never synchronized.
   const [config, setConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG);
+  // Motion dials — presentation only, a separate object from LayoutConfig by
+  // contract (HC-4): no motion field may enter the layout fingerprint.
+  const [motionConfig, setMotionConfig] = useState<MotionConfig>(
+    DEFAULT_MOTION_CONFIG,
+  );
 
   const {
     access,
@@ -90,6 +114,13 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const edges = useMemo(
     () => buildEdges(state.connections, treeParents),
     [state.connections, treeParents],
+  );
+
+  // The truth arrays the motion layer derives from — identity changes exactly
+  // when a member does, so the derivation re-runs per commit, not per render.
+  const truth = useMemo<MotionTruth>(
+    () => ({ nodes, edges, treeParents }),
+    [nodes, edges, treeParents],
   );
 
   const onNodesChange = useCallback((changes: NodeChange<ChainNode>[]) => {
@@ -162,36 +193,118 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     [releasePlacements],
   );
 
+  // Focus is additive to selection: this handler only records the click for
+  // the camera host; React Flow's own selection behavior runs untouched.
+  const onNodeClick = useCallback<NodeMouseHandler<ChainNode>>(
+    (_event, clicked) => {
+      focusTokenRef.current += 1;
+      setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
+    },
+    [],
+  );
+
+  // Id-derived (the join key), so per-frame drag renders reuse the same set
+  // and the camera host's effects don't churn (drag hardening, IS-5).
+  const nodeIdsKey = nodes.map((node) => node.id).join(',');
+  const nodeIds = useMemo(
+    () =>
+      new Set(
+        nodeIdsKey.length === 0 ? [] : nodeIdsKey.split(',').map(Number),
+      ),
+    [nodeIdsKey],
+  );
+
   // Revoked-versus-empty comes from the access subscription, never from a row count (DC-4). It is
   // live, so a re-granted claim brings the map back here without a reload. `undefined` is "not yet
   // answered" and renders the ordinary empty canvas rather than a loading state (HC-5).
   if (access === false) return <NoMapAccess />;
 
   return (
-    <ChainSurface
-      nodes={nodes}
-      edges={edges}
+    <MotionLayer
+      truth={truth}
+      intents={intents}
+      access={access}
+      dragging={dragging}
+      motionConfig={motionConfig}
       nodesDraggable={!locked}
       onNodesChange={onNodesChange}
       onNodeDragStart={onNodeDragStart}
       onNodeDragStop={onNodeDragStop}
       onSelectionDragStart={onSelectionDragStart}
       onSelectionDragStop={onSelectionDragStop}
+      onNodeClick={onNodeClick}
     >
       <MapControls
         locked={locked}
         onLockedChange={handleLockedChange}
         follow={follow}
         onFollowChange={setFollow}
+        focusOnClick={focusOnClick}
+        onFocusOnClickChange={setFocusOnClick}
         config={config}
         onConfigChange={setConfig}
+        motion={motionConfig}
+        onMotionChange={setMotionConfig}
       />
       <CameraFollowHost
         intents={intents}
         follow={follow}
         dragging={dragging}
-        nodes={nodes}
+        nodeIds={nodeIds}
+        systems={state.systems}
+        config={motionConfig}
+        prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
+        focusRequest={focusRequest}
+        focusEnabled={focusOnClick}
       />
+    </MotionLayer>
+  );
+}
+
+/** What the motion layer needs beyond the surface's own props. */
+interface MotionLayerProps
+  extends Omit<ChainSurfaceProps, 'nodes' | 'edges' | 'motion'> {
+  readonly truth: MotionTruth;
+  readonly intents: readonly MapChainIntent[];
+  readonly access: MapAccessState;
+  readonly dragging: ReadonlySet<number>;
+  readonly motionConfig: MotionConfig;
+  readonly children?: ReactNode;
+}
+
+/**
+ * The per-frame render boundary between reconciled truth and the canvas.
+ *
+ * `useMotion`'s frame loop re-renders THIS component, not `ChainLive`: the
+ * children (controls, camera host) are created by the parent, so their element
+ * identity is stable across motion frames and React bails out of re-rendering
+ * them — the per-frame commit stays proportional to actual movers.
+ */
+function MotionLayer({
+  truth,
+  intents,
+  access,
+  dragging,
+  motionConfig,
+  children,
+  ...surface
+}: MotionLayerProps) {
+  const presentation = useMotion(
+    truth,
+    intents,
+    access,
+    dragging,
+    motionConfig,
+    BROWSER_MOTION_SEAMS,
+  );
+  return (
+    <ChainSurface
+      nodes={presentation.nodes}
+      edges={presentation.edges}
+      motion={motionConfig}
+      {...surface}
+    >
+      {children}
     </ChainSurface>
   );
 }
