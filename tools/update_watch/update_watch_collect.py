@@ -220,28 +220,6 @@ def classify_scope(paths: list[str], production: set[str], development: set[str]
     return "unknown"
 
 
-def _agent_debug_log(hypothesis_id: str, location: str, message: str, data: dict) -> None:
-    """Append one NDJSON debug line for this session; never raises."""
-    # #region agent log
-    payload = {
-        "sessionId": "fb3487",
-        "hypothesisId": hypothesis_id,
-        "location": location,
-        "message": message,
-        "data": data,
-        "timestamp": int(time.time() * 1000),
-    }
-    try:
-        log_path = ROOT / ".cursor" / "debug-fb3487.log"
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        with log_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, separators=(",", ":")) + "\n")
-    except OSError:
-        pass
-    print(f"[update-watch-debug] {message} {json.dumps(data, separators=(',', ':'))}", flush=True)
-    # #endregion
-
-
 def _fetch(url: str) -> tuple[int, str]:
     """GET one URL raw; returns (status, body) or raises on transport failure.
 
@@ -258,47 +236,15 @@ def _fetch(url: str) -> tuple[int, str]:
         request = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=_FETCH_TIMEOUT) as response:
-                status = response.status
-                body = response.read().decode("utf-8", "replace")
-                _agent_debug_log(
-                    "A",
-                    "update_watch_collect.py:_fetch",
-                    "fetch_ok",
-                    {"url": url, "status": status, "attempt": attempt},
-                )
-                return status, body
+                return response.status, response.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as exc:
             last_error = exc
-            retryable = exc.code in _RETRYABLE_HTTP_CODES and attempt < _FETCH_ATTEMPTS
-            _agent_debug_log(
-                "A",
-                "update_watch_collect.py:_fetch",
-                "fetch_http_error",
-                {
-                    "url": url,
-                    "code": exc.code,
-                    "attempt": attempt,
-                    "retryable": retryable,
-                },
-            )
-            if not retryable:
+            if exc.code not in _RETRYABLE_HTTP_CODES or attempt >= _FETCH_ATTEMPTS:
                 raise
             time.sleep(_FETCH_RETRY_BASE_DELAY_S * (2 ** (attempt - 1)))
         except urllib.error.URLError as exc:
             last_error = exc
-            retryable = attempt < _FETCH_ATTEMPTS
-            _agent_debug_log(
-                "C",
-                "update_watch_collect.py:_fetch",
-                "fetch_url_error",
-                {
-                    "url": url,
-                    "reason": str(exc.reason),
-                    "attempt": attempt,
-                    "retryable": retryable,
-                },
-            )
-            if not retryable:
+            if attempt >= _FETCH_ATTEMPTS:
                 raise
             time.sleep(_FETCH_RETRY_BASE_DELAY_S * (2 ** (attempt - 1)))
     assert last_error is not None
