@@ -5,11 +5,26 @@
 
 ## Now
 
-- **CURRENT:** planned close-out for sub-version 4.0.2.3 (session 4.0.2.3.1) —
-  the reactive chain read path on the Atlas canvas.
-- **NEXT:** after the 4.0.2.3 PR merges, run
-  `python3 tools/cli.py lifecycle resolve --pretty` and follow its directive
-  (expected next sub-version is 4.0.3.1, the deterministic layout engine).
+- **CURRENT:** session 4.0.3.1.1 (deterministic layout kernel) is complete and
+  committed on `lifecycle/4.0.3.1` (`161f97a1`, no PR — first of two sessions).
+  The operator selected the **compass-sector engine** at the G-1 gate (ELK
+  failed the no-overlap hard gate everywhere and hung in WEDGE_COMPACTION;
+  elkjs uninstalled), posture `fixed-slot`, `siblingSpread: 3` — pinned as
+  `DEFAULT_LAYOUT_CONFIG`. Full decision record:
+  `docs/session-as-built/4.0/4.0.3.1.1.md`.
+- **NEXT:** run `start-session`; the resolver should select planning for
+  session 4.0.3.1.2 (worker + route integration + pinning + live tuning
+  dials). Its named residuals, all recorded in the as-built: (1) the async
+  worker bridge needs an explicit re-merge trigger independent of
+  `chainSignature`, plus first-appearance-before-resolution rendering;
+  (2) cross-engine float identity must be settled before wiring the kernel to
+  live clients (digest fixture pins Node only; `segmentsIntersect` branches on
+  exact zeros); (3) camera refit for off-viewport arrivals (4.0.2.3.1
+  residual); (4) any `DEFAULT_LAYOUT_CONFIG` dial change must deliberately
+  regenerate `determinism-fixture.ts`, and `ringSpacing ≥ minSeparation` is a
+  standing dial invariant; (5) a future spawn-posture toggle or root override
+  must be a synchronized map property, never local state (operator note
+  2026-08-01).
 - **Chain read-set cost (4.0.2.3.1):** every PAGE is its own handler execution and
   every execution resolves the claim, so a map open costs
   `1 + ceil(N/100) + ceil(M/100)` indexed `mapAccess` claim reads — not one per
@@ -29,12 +44,10 @@
   recovers the map live, with no reload and no access poller. The throwing
   `requireMapAccess` remains for the fixture mutations; `tryMapAccess` is the
   value-returning half and shares its one `by_map_user` lookup.
-- **Provisional placement can arrive off-screen (4.0.2.3.1 demo residual, for
-  4.0.3.1):** the grid walks row-major 6 wide at 220px, and the canvas carries no
-  camera refit by design, so on a half-width window an arrival past slot ~4 lands
-  outside the viewport and reads as "nothing happened". Within OOS-1 for this
-  session — the layout engine owns real placement — but the layout engine should
-  decide whether arrivals are brought into view.
+- **Provisional placement can arrive off-screen (4.0.2.3.1 demo residual):**
+  the live map still runs `gridAssigner` until 4.0.3.1.2 wires the kernel; the
+  camera-refit question now belongs to that integration session (also listed in
+  the NEXT residuals above).
 - **Convex local backend was relaunched standalone during 4.0.2.3.1 SC-5.3**
   (killed to prove silent reconnection, then restarted outside the `convex dev`
   supervisor). Restart `pnpm dev:all` before relying on Convex hot-push again.
