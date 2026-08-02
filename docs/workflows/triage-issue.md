@@ -75,10 +75,10 @@ Treat the approved fix as ordinary work unless the operator explicitly invokes
 `start-session` for a named lifecycle artifact. Do not run the lifecycle
 resolver or infer planned work from the issue, branch, or app version.
 
-Hold the selected scope, use `find-docs` when current external technology
-behavior materially affects the fix, and add behavioral proof. A resolving PR
-must include `Fixes #<issue>`. For user-facing
-changes, run `ux-check` and complete the operator-review pause. Ship only through
+Hold the selected scope, use a `docs-researcher` subagent when current external
+technology behavior materially affects the fix, and add behavioral proof. A
+resolving PR must include `Fixes #<issue>`. For user-facing changes, run
+`ux-check` and complete the operator-review pause. Ship only through
 `close-out`, which owns the ordinary pending fragment, verification, PR review,
 conditional merge, and production proof.
 
