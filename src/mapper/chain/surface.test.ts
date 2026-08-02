@@ -118,6 +118,13 @@ describe('mapper source contract', () => {
       'chain/reconciler.ts',
       'chain/use-map-chain.ts',
       'index.ts',
+      'layout/compass.ts',
+      'layout/determinism-fixture.ts',
+      'layout/facts.ts',
+      'layout/geometry.ts',
+      'layout/layout-contract.ts',
+      'layout/overflow.ts',
+      'layout/proof-kit.ts',
     ]);
   });
 
