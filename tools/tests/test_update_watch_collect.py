@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import unittest
+import urllib.error
+from unittest.mock import MagicMock, patch
 
 from tools.update_watch.update_watch_collect import (
     SOURCE_REGISTRY,
+    _fetch,
     advisory_key,
     canonical_url,
     classify_scope,
@@ -612,6 +615,64 @@ class RegistryTests(unittest.TestCase):
             {"EVE Developers blog", "EVE developer documentation"},
             {source.name for source in SOURCE_REGISTRY if source.section == "eveSurface"},
         )
+
+
+class FetchRetryTests(unittest.TestCase):
+    def test_retries_transient_403_then_succeeds(self) -> None:
+        forbidden = urllib.error.HTTPError(
+            "https://vercel.com/atom", 403, "Forbidden", hdrs=None, fp=None
+        )
+        ok = MagicMock()
+        ok.status = 200
+        ok.read.return_value = b"<feed/>"
+        ok.__enter__.return_value = ok
+        ok.__exit__.return_value = False
+        with (
+            patch(
+                "tools.update_watch.update_watch_collect.urllib.request.urlopen",
+                side_effect=[forbidden, ok],
+            ) as urlopen,
+            patch("tools.update_watch.update_watch_collect.time.sleep") as sleep,
+        ):
+            status, body = _fetch("https://vercel.com/atom")
+        self.assertEqual(200, status)
+        self.assertEqual("<feed/>", body)
+        self.assertEqual(2, urlopen.call_count)
+        sleep.assert_called_once()
+
+    def test_exhausted_403_retries_still_raise(self) -> None:
+        forbidden = urllib.error.HTTPError(
+            "https://vercel.com/atom", 403, "Forbidden", hdrs=None, fp=None
+        )
+        with (
+            patch(
+                "tools.update_watch.update_watch_collect.urllib.request.urlopen",
+                side_effect=[forbidden, forbidden, forbidden],
+            ) as urlopen,
+            patch("tools.update_watch.update_watch_collect.time.sleep") as sleep,
+        ):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                _fetch("https://vercel.com/atom")
+        self.assertEqual(403, ctx.exception.code)
+        self.assertEqual(3, urlopen.call_count)
+        self.assertEqual(2, sleep.call_count)
+
+    def test_non_retryable_404_raises_immediately(self) -> None:
+        missing = urllib.error.HTTPError(
+            "https://example.com/missing", 404, "Not Found", hdrs=None, fp=None
+        )
+        with (
+            patch(
+                "tools.update_watch.update_watch_collect.urllib.request.urlopen",
+                side_effect=[missing],
+            ) as urlopen,
+            patch("tools.update_watch.update_watch_collect.time.sleep") as sleep,
+        ):
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                _fetch("https://example.com/missing")
+        self.assertEqual(404, ctx.exception.code)
+        self.assertEqual(1, urlopen.call_count)
+        sleep.assert_not_called()
 
 
 if __name__ == "__main__":
