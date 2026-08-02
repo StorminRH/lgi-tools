@@ -104,6 +104,45 @@ describe('move path', () => {
     expect(frame.displacements.get(31)?.x).toBeCloseTo(midpoint, 6);
   });
 
+  it('relocates instantly — no tween — when the move lands inside the birth window', () => {
+    // The split system/connection subscriptions reveal a system one merge
+    // before its attaching connection repositions it onto the tree; the node
+    // is still surfacing, so it must finish its birth at the tree position
+    // rather than zip over (operator direction 2026-08-02).
+    let state = adoptIntents(createMotionState(), [appeared(31)], 0, PLAN);
+    state = adoptIntents(
+      state,
+      [moved(31, { x: 10, y: 20 }, { x: 300, y: -150 })],
+      200,
+      PLAN,
+    );
+
+    expect(state.tweens.size).toBe(0);
+    expect(state.entering.has(31)).toBe(true);
+
+    // After the birth window closes, an ordinary move glides again.
+    const settled = stepMotion(state, PLAN.birthMs + 1, EASE, NONE).state;
+    const gliding = adoptIntents(
+      settled,
+      [moved(31, { x: 300, y: -150 }, { x: 0, y: 0 })],
+      PLAN.birthMs + 10,
+      PLAN,
+    );
+    expect(gliding.tweens.has(31)).toBe(true);
+  });
+
+  it('treats a birth and its tree placement in one batch as surfacing in place', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [appeared(31), moved(31, { x: 10, y: 20 }, { x: 300, y: -150 })],
+      0,
+      PLAN,
+    );
+
+    expect(state.tweens.size).toBe(0);
+    expect(state.entering.has(31)).toBe(true);
+  });
+
   it('suppresses a no-op move whose origin equals its target', () => {
     const state = adoptIntents(
       createMotionState(),

@@ -132,6 +132,17 @@ export function adoptIntents(
         tweens.delete(intent.systemId);
         break;
       case 'system-moved': {
+        // A move landing inside the node's birth window relocates instantly:
+        // the system is still surfacing, and its first real place is wherever
+        // its attaching connection puts it. Without this, the split system/
+        // connection subscriptions make every reveal surface unattached off to
+        // the side and then zip onto the tree (operator direction 2026-08-02).
+        // Read the working map, so a birth in this same batch counts too.
+        const birthWindow = entering.get(intent.systemId);
+        if (birthWindow !== undefined && birthWindow > now) {
+          tweens.delete(intent.systemId);
+          break;
+        }
         const current = tweens.get(intent.systemId);
         // Origin: the intent's own `from`, or the current displaced value when
         // a glide is already in flight (retarget without a jump).
