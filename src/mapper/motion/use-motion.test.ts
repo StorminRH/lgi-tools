@@ -1,6 +1,7 @@
-// The derivation host's pure pipeline, driven exactly as the thin React hook
-// drives it: adjust-for-render on each simulated commit, stepHost per injected
-// clock frame, derivePresentation for what the canvas would paint.
+// The derivation host's pure pipeline (`motion-host-model.ts`), driven exactly
+// as the thin React hook drives it: adjust-for-render on each simulated
+// commit, stepHost per injected clock frame, derivePresentation for what the
+// canvas would paint.
 import { describe, expect, it } from 'vitest';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { ChainEdge } from '../chain/nodes';
@@ -15,7 +16,7 @@ import {
   stepHost,
   type MotionHostState,
   type MotionTruth,
-} from './use-motion';
+} from './motion-host-model';
 
 const PLAN = tweenPlanOf(DEFAULT_MOTION_CONFIG, false);
 const EASE = springFamily(DEFAULT_MOTION_CONFIG.overshootPct).ease;
@@ -182,6 +183,10 @@ describe('departure derivation', () => {
     expect(ghost?.draggable).toBe(false);
     expect(ghost?.selectable).toBe(false);
     expect(ghost?.className).toBe('map-ghost');
+    // Inline, because React Flow's own inline pointer-events (truthy once
+    // onNodeClick is forwarded) beats any class rule — this is what makes the
+    // ghost genuinely inert to hover and click-to-focus.
+    expect(ghost?.style).toEqual({ pointerEvents: 'none' });
   });
 
   it('drops the ghost on the scheduler clock, never a DOM event', () => {

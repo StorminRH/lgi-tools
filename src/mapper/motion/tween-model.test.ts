@@ -11,6 +11,11 @@ import {
 } from './tween-model';
 
 const PLAN = tweenPlanOf(DEFAULT_MOTION_CONFIG, false);
+// Collapse-weight cases dial heavy explicitly: the shipped default is ordinary.
+const HEAVY_PLAN = tweenPlanOf(
+  { ...DEFAULT_MOTION_CONFIG, collapseWeight: 'heavy' },
+  false,
+);
 const EASE = springFamily(DEFAULT_MOTION_CONFIG.overshootPct).ease;
 const NONE: ReadonlySet<number> = new Set();
 
@@ -264,29 +269,50 @@ describe('departure path', () => {
     expect(state.entering.has(31)).toBe(true);
   });
 
-  it('weighs a multi-system departure batch as a heavy collapse when dialed', () => {
+  it('weighs a wormhole collapse — system and connection departing together — as heavy', () => {
+    // The atomic collapse transaction's exact signature: one system leaves
+    // with its severed connection in one merge (operator direction 2026-08-02).
+    const collapse = [
+      departed(31),
+      { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent,
+    ];
+    const state = adoptIntents(createMotionState(), collapse, 0, HEAVY_PLAN);
+
+    expect(state.ghosts.get(31)?.heavy).toBe(true);
+    expect(state.ghosts.get(31)?.expiresAt).toBe(HEAVY_PLAN.heavyExitMs);
+    expect(state.edgeGhosts.get('c1')?.heavy).toBe(true);
+  });
+
+  it('weighs a whole departing subtree batch as heavy too', () => {
     const collapse = [
       departed(31),
       departed(32),
       { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent,
     ];
-    const state = adoptIntents(createMotionState(), collapse, 0, PLAN);
+    const state = adoptIntents(createMotionState(), collapse, 0, HEAVY_PLAN);
 
-    expect(state.ghosts.get(31)?.heavy).toBe(true);
-    expect(state.ghosts.get(31)?.expiresAt).toBe(PLAN.heavyExitMs);
-    expect(state.edgeGhosts.get('c1')?.heavy).toBe(true);
+    expect(state.ghosts.get(32)?.heavy).toBe(true);
   });
 
-  it('keeps a single removal ordinary, and everything ordinary when dialed off', () => {
-    const single = adoptIntents(createMotionState(), [departed(31)], 0, PLAN);
+  it('keeps a bare system removal ordinary, and everything ordinary at the shipped default', () => {
+    // No connection in the batch → not a wormhole collapse, whatever the dial.
+    const single = adoptIntents(createMotionState(), [departed(31)], 0, HEAVY_PLAN);
     expect(single.ghosts.get(31)?.heavy).toBe(false);
 
-    const ordinaryPlan = { ...PLAN, collapseHeavy: false };
-    const state = adoptIntents(
+    const bare = adoptIntents(
       createMotionState(),
       [departed(31), departed(32)],
       0,
-      ordinaryPlan,
+      HEAVY_PLAN,
+    );
+    expect(bare.ghosts.get(31)?.heavy).toBe(false);
+
+    // The shipped default (collapse exit: ordinary) never weighs a collapse.
+    const state = adoptIntents(
+      createMotionState(),
+      [departed(31), { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent],
+      0,
+      PLAN,
     );
     expect(state.ghosts.get(31)?.heavy).toBe(false);
   });

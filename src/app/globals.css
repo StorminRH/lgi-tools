@@ -1100,8 +1100,10 @@ details[data-collapsible][open] > summary [data-chevron] {
 }
 
 /* Ghosts: departed nodes replaying their exit are presentation-only — no
- * interaction may target one. */
-.react-flow__node.map-ghost { pointer-events: none; }
+ * interaction may target one. That inertness is owned by the ghost snapshot's
+ * inline `pointerEvents: 'none'` (motion-host-model.ts), because React Flow
+ * writes its own inline pointer-events value that any class rule here would
+ * lose to. The `.map-ghost` class remains as the DOM witness only. */
 
 /* Drag suppression backstop (HC-2): whatever window a node is in, grabbing it
  * stills its presentation instantly. The component also omits motion classes
@@ -1155,7 +1157,9 @@ details[data-collapsible][open] > summary [data-chevron] {
 .map-edge-grow-enter,
 .map-edge-grow-enter-rev,
 .map-edge-grow-exit,
-.map-edge-grow-exit-rev {
+.map-edge-grow-exit-rev,
+.map-edge-grow-exit-heavy,
+.map-edge-grow-exit-heavy-rev {
   stroke-dasharray: 1;
 }
 .map-edge-grow-enter {
@@ -1170,6 +1174,14 @@ details[data-collapsible][open] > summary [data-chevron] {
 .map-edge-grow-exit-rev {
   animation: map-edge-grow-exit-rev var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
 }
+/* Heavy collapse exits retract over the slow tier, matching the scheduler's
+ * heavy ghost window — one duration mapping, mirrored from tweenPlanOf. */
+.map-edge-grow-exit-heavy {
+  animation: map-edge-grow-exit var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-heavy-rev {
+  animation: map-edge-grow-exit-rev var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
 
 /* Reduced motion (DC-6): births and exits become gentle fades over the same
  * windows, edges always fade, hover breathing stops (the static glow remains —
@@ -1178,9 +1190,13 @@ details[data-collapsible][open] > summary [data-chevron] {
   .map-node-enter {
     animation: map-fade-in var(--map-motion-mid) linear both;
   }
-  .map-node-exit,
-  .map-node-exit-heavy {
+  .map-node-exit {
     animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  /* Heavy exits keep the slow tier so the fade spans the scheduler's heavy
+   * ghost window instead of holding invisible for its tail. */
+  .map-node-exit-heavy {
+    animation: map-fade-out var(--map-motion-slow) linear both;
   }
   [data-chain-node]:not([data-dragging]):hover .map-node-disc {
     animation: none;
@@ -1195,11 +1211,18 @@ details[data-collapsible][open] > summary [data-chevron] {
     stroke-dasharray: none;
     animation: map-fade-out var(--map-motion-mid) linear both;
   }
+  .map-edge-grow-exit-heavy,
+  .map-edge-grow-exit-heavy-rev {
+    stroke-dasharray: none;
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
   .map-edge-fade-enter {
     animation: map-fade-in var(--map-motion-mid) linear both;
   }
-  .map-edge-fade-exit,
-  .map-edge-fade-exit-heavy {
+  .map-edge-fade-exit {
     animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-edge-fade-exit-heavy {
+    animation: map-fade-out var(--map-motion-slow) linear both;
   }
 }

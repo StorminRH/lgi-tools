@@ -2,13 +2,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { NodeProps } from '@xyflow/react';
+import type { NodeMotion } from '../motion/motion-contract';
 import { edgeMotionClass, edgePresentation } from './ChainLinkEdge';
-import {
-  SystemNode,
-  nodeMotionClass,
-  type ChainNode,
-  type NodeMotion,
-} from './SystemNode';
+import { SystemNode, nodeMotionClass, type ChainNode } from './SystemNode';
 
 vi.mock('@xyflow/react', async () => {
   const { createElement: element } = await import('react');
@@ -117,5 +113,18 @@ describe('edge motion classes', () => {
     expect(
       edgeMotionClass({ phase: 'departing', flavor: 'grow', reverse: true, heavy: false }),
     ).toBe('map-edge-grow-exit-rev');
+  });
+
+  it('carries the heavy collapse weight on grow exits — the slow-tier variants', () => {
+    expect(
+      edgeMotionClass({ phase: 'departing', flavor: 'grow', reverse: false, heavy: true }),
+    ).toBe('map-edge-grow-exit-heavy');
+    expect(
+      edgeMotionClass({ phase: 'departing', flavor: 'grow', reverse: true, heavy: true }),
+    ).toBe('map-edge-grow-exit-heavy-rev');
+    // Heavy never touches entries: only departures carry collapse weight.
+    expect(
+      edgeMotionClass({ phase: 'entering', flavor: 'grow', reverse: false, heavy: true }),
+    ).toBe('map-edge-grow-enter');
   });
 });

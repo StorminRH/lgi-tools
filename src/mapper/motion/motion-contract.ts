@@ -15,13 +15,42 @@
  *
  * Tier semantics are fixed even as the values move: `fast` drives hover and
  * micro feedback, `mid` drives births, exits, and position glides, `slow`
- * drives camera moves.
+ * drives camera moves and the heavy collapse exit.
  */
 export interface MotionTempo {
   readonly fast: number;
   readonly mid: number;
   readonly slow: number;
 }
+
+/** One motion phase a rendered node or edge can be in. */
+export type MotionPhase = 'entering' | 'departing';
+
+/**
+ * A node's motion presentation, derived per render by the motion layer.
+ * Presentation only: it never feeds position or any synchronized state
+ * (HC-4).
+ */
+export type NodeMotion = {
+  readonly phase: MotionPhase;
+  /** Departures only: whether the heavier chain-collapse exit plays. */
+  readonly heavy?: boolean;
+};
+
+/**
+ * An edge's motion presentation, derived per render by the motion layer.
+ * `grow` draws/shrinks along the path (solid tree edges under the
+ * grow-from-parent dial); `fade` is opacity only. Dashed loop edges always
+ * fade so the tree/loop dash distinction never lies mid-animation.
+ */
+export type EdgeMotion = {
+  readonly phase: MotionPhase;
+  readonly flavor: 'fade' | 'grow';
+  /** Grow from the path's target end (set when the geometric source is the child). */
+  readonly reverse: boolean;
+  /** Departures only: the heavier chain-collapse exit. */
+  readonly heavy: boolean;
+};
 
 /** How a departing edge leaves (and an arriving tree edge enters) the canvas. */
 export type EdgeFlavor = 'fade-with-child' | 'grow-from-parent';
@@ -46,16 +75,18 @@ export interface MotionConfig {
 
 /**
  * The G-1-ratified defaults (operator sign-off 2026-08-02, from live replay
- * mapping): a deliberately unhurried feel — births, exits, and glides share
- * the full second with camera moves, hover feedback sits at 250 ms, edges draw
- * from and retract into their parent, and a chain collapse plays its heavier
- * farewell. Changing any of these re-opens the tuning gate, not a code review.
+ * mapping; collapse weight amended to ordinary at the same gate after a live
+ * heavy preview): a deliberately unhurried feel — births, exits, and glides
+ * share the full second with camera moves, hover feedback sits at 250 ms,
+ * edges draw from and retract into their parent, and every departure plays
+ * the ordinary exit, with the heavier collapse farewell kept as a dial.
+ * Changing any of these re-opens the tuning gate, not a code review.
  */
 export const DEFAULT_MOTION_CONFIG: MotionConfig = {
   tempo: { fast: 250, mid: 1000, slow: 1000 },
   overshootPct: 12,
   edgeFlavor: 'grow-from-parent',
-  collapseWeight: 'heavy',
+  collapseWeight: 'ordinary',
 };
 
 /** The spring family in both dialects, sampled from one function. */

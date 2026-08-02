@@ -9,21 +9,12 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 import { cn } from '@/components/ui/cn';
-
-/**
- * A node's motion presentation, derived per render by the motion layer
- * (4.0.3.2). Presentation only: it never feeds position or any synchronized
- * state (contract HC-4).
- */
-export type NodeMotion = {
-  readonly phase: 'entering' | 'departing';
-  /** Departures only: whether the heavier chain-collapse exit plays. */
-  readonly heavy?: boolean;
-};
+import type { NodeMotion } from '../motion/motion-contract';
 
 /**
  * What one node displays. A type alias rather than an interface so it satisfies React Flow's
- * `Record<string, unknown>` data constraint.
+ * `Record<string, unknown>` data constraint. The motion vocabulary (`NodeMotion`)
+ * is owned by `../motion/motion-contract`.
  */
 export type ChainNodeData = {
   name: string;

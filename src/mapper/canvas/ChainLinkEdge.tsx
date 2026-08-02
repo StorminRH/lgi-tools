@@ -23,7 +23,8 @@ import {
 } from '@xyflow/react';
 import { memo } from 'react';
 import { cn } from '@/components/ui/cn';
-import type { ChainEdgeData, EdgeMotion } from '../chain/nodes';
+import type { ChainEdgeData } from '../chain/nodes';
+import type { EdgeMotion } from '../motion/motion-contract';
 import { chainLinkPath } from './edge-geometry';
 import { SYSTEM_DISC_RADIUS } from './SystemNode';
 
@@ -37,7 +38,12 @@ const LOOP_DASH_CLASS = '[stroke-dasharray:6_4]';
 export function edgeMotionClass(motion: EdgeMotion | undefined): string | null {
   if (motion === undefined) return null;
   if (motion.flavor === 'grow') {
-    const base = motion.phase === 'entering' ? 'map-edge-grow-enter' : 'map-edge-grow-exit';
+    const base =
+      motion.phase === 'entering'
+        ? 'map-edge-grow-enter'
+        : motion.heavy
+          ? 'map-edge-grow-exit-heavy'
+          : 'map-edge-grow-exit';
     return motion.reverse ? `${base}-rev` : base;
   }
   if (motion.phase === 'entering') return 'map-edge-fade-enter';

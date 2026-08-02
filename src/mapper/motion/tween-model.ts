@@ -88,16 +88,24 @@ function displacedAt(
 }
 
 /**
- * A collapse is a departure batch removing more than one system at once — the
- * reconciler emits a connected subtree's removal as a single batch, while an
- * ordinary removal departs exactly one system.
+ * A collapse is a departure batch where a system leaves TOGETHER WITH a
+ * connection — the wormhole-collapse signature: the hole died and took its
+ * unreachable side with it. This is exactly what the atomic
+ * `collapseJumpFixture` transaction emits (one system + its severed
+ * connection in one merge), so the heavy exit fires for every real collapse;
+ * a bare system removal with no connection in the batch stays ordinary
+ * (operator direction 2026-08-02, superseding the earlier multi-system rule
+ * the atomic write shape made unreachable). The 4.0.4.1 unified collapse pathway
+ * owns evolving this trigger when richer collapse semantics land.
  */
 function isCollapseBatch(intents: readonly MapChainIntent[]): boolean {
-  let departures = 0;
+  let systemDeparted = false;
+  let connectionDeparted = false;
   for (const intent of intents) {
-    if (intent.kind === 'system-departed') departures += 1;
+    if (intent.kind === 'system-departed') systemDeparted = true;
+    else if (intent.kind === 'connection-departed') connectionDeparted = true;
   }
-  return departures > 1;
+  return systemDeparted && connectionDeparted;
 }
 
 /**

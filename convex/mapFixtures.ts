@@ -198,8 +198,10 @@ export const insertConnectionFixture = internalMutation({
  * and it is what keeps the reveal whole on the read path: both subscriptions
  * update in one consistent Convex transition, so the layout kernel sees the
  * attachment in the same merge that births the node and it surfaces directly
- * on the tree (never "nowhere", then a hop). The production auto-mapper
- * (4.0.4.2) must write reveals through this same one-transaction shape.
+ * on the tree (never "nowhere", then a hop). What binds the production
+ * auto-mapper (4.0.4.2) is the TRANSACTION BOUNDARY — system and connection
+ * land together — not this fixture's insert semantics: a polled writer must
+ * upsert re-observed jumps, where this dev seam may plainly insert.
  *
  * At least one endpoint must already be on the map (a connection cannot be
  * scanned from nowhere); a missing endpoint is upserted, and a repeated call
@@ -332,7 +334,23 @@ export const collapseJumpFixture = internalMutation({
     { mapId, connectionId, systemId },
   ): Promise<'removed' | 'unchanged'> => {
     const connection = await ctx.db.get(connectionId);
-    if (connection !== null) await ctx.db.delete(connectionId);
+    if (connection !== null) {
+      // The pairing must be proven, not assumed: the connection has to belong
+      // to THIS map and actually join the system being removed, or one call
+      // could mutate two maps / two unrelated chain regions in one
+      // transaction — exactly the cross-boundary write the module's typed
+      // ownership checks exist to prevent.
+      if (
+        connection.mapId !== mapId
+        || (connection.fromSystemId !== systemId && connection.toSystemId !== systemId)
+      ) {
+        throw new ConvexError({
+          code: 'WRONG_CONNECTION',
+          detail: `Connection ${connectionId} does not join system ${systemId} on map ${mapId}.`,
+        });
+      }
+      await ctx.db.delete(connectionId);
+    }
 
     const system = await findSystem(ctx, mapId, systemId);
     if (system === null) return connection === null ? 'unchanged' : 'removed';

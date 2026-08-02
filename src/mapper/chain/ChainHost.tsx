@@ -37,11 +37,8 @@ import {
   DEFAULT_MOTION_CONFIG,
   type MotionConfig,
 } from '../motion/motion-contract';
-import {
-  BROWSER_MOTION_SEAMS,
-  useMotion,
-  type MotionTruth,
-} from '../motion/use-motion';
+import type { MotionTruth } from '../motion/motion-host-model';
+import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
@@ -82,7 +79,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // automatic viewport snapping reads as the camera fighting the user.
   const [follow, setFollow] = useState(false);
   // Click-to-focus: a shipped user setting beside camera follow — deliberately
-  // NOT a MotionConfig dial. Starting default pending the G-1 ratification.
+  // NOT a MotionConfig dial. Default ON ratified at the G-1 gate (2026-08-02):
+  // unlike follow, focus is a direct answer to the user's own click, so it
+  // does not read as the camera moving on its own; it stays user-changeable.
   const [focusOnClick, setFocusOnClick] = useState(true);
   const [focusRequest, setFocusRequest] = useState<CameraFocusRequest | null>(null);
   const focusTokenRef = useRef(0);

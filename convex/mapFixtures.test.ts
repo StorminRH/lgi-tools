@@ -453,6 +453,61 @@ describe('map chain fixtures', () => {
       expect(connections).toHaveLength(2);
     });
 
+    it('refuses to collapse a connection belonging to another map', async () => {
+      const t = convexTest(schema, modules);
+      const connectionId = await seedJump(t);
+      // MAP_B holds an unreferenced copy of the system — the cross-map bait.
+      await grant(t, MAP_B, EDITOR, ['editor']);
+      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+        mapId: MAP_B,
+        systemId: AMARR,
+      });
+
+      await expectConvexError(
+        t.mutation(internal.mapFixtures.collapseJumpFixture, {
+          mapId: MAP_B,
+          connectionId,
+          systemId: AMARR,
+        }),
+        'WRONG_CONNECTION',
+      );
+
+      // Nothing on either map moved: map A keeps its connection, map B its system.
+      const mapAConnections = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapConnections')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
+      );
+      const mapBSystems = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapSystems')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_B))
+          .collect(),
+      );
+      expect(mapAConnections).toHaveLength(1);
+      expect(mapBSystems).toHaveLength(1);
+    });
+
+    it('refuses to collapse a connection that does not join the removed system', async () => {
+      const t = convexTest(schema, modules);
+      const connectionId = await seedJump(t);
+      const bystander = 30_002_659;
+      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+        mapId: MAP_A,
+        systemId: bystander,
+      });
+
+      await expectConvexError(
+        t.mutation(internal.mapFixtures.collapseJumpFixture, {
+          mapId: MAP_A,
+          connectionId,
+          systemId: bystander,
+        }),
+        'WRONG_CONNECTION',
+      );
+    });
+
     it('is idempotent: repeating a completed collapse changes nothing', async () => {
       const t = convexTest(schema, modules);
       const connectionId = await seedJump(t);

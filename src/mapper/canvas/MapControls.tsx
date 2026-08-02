@@ -87,7 +87,7 @@ function MapControlsComponent({
   return (
     <Panel
       position="top-right"
-      className="nopan nodrag nowheel mx-2! mb-2! mt-16! flex w-56 flex-col gap-2 rounded-ctl border border-border bg-bg/95 p-2 text-ui"
+      className="nopan nodrag nowheel mx-2! mb-2! mt-16! flex max-h-[calc(100dvh-6rem)] w-56 flex-col gap-2 overflow-y-auto rounded-ctl border border-border bg-bg/95 p-2 text-ui"
     >
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center justify-between gap-2">
@@ -225,7 +225,7 @@ function MapControlsComponent({
         headerClassName="px-0 py-1"
       >
         <div className="flex flex-col gap-2 px-0 pb-1 pt-1">
-          <DialRow label="Fast (ms)">
+          <DialRow label="Fast">
             <Stepper
               value={motion.tempo.fast}
               min={FAST_TEMPO_RANGE.min}
@@ -233,11 +233,11 @@ function MapControlsComponent({
               step={FAST_TEMPO_RANGE.step}
               ariaLabel="Fast tempo"
               variant="inline"
-              valueClassName="w-10"
+              valueClassName="w-12"
               onChange={(next) => onMotionChange(commitFastTempo(motion, next))}
             />
           </DialRow>
-          <DialRow label="Mid (ms)">
+          <DialRow label="Mid">
             <Stepper
               value={motion.tempo.mid}
               min={MID_TEMPO_RANGE.min}
@@ -245,11 +245,11 @@ function MapControlsComponent({
               step={MID_TEMPO_RANGE.step}
               ariaLabel="Mid tempo"
               variant="inline"
-              valueClassName="w-10"
+              valueClassName="w-12"
               onChange={(next) => onMotionChange(commitMidTempo(motion, next))}
             />
           </DialRow>
-          <DialRow label="Slow (ms)">
+          <DialRow label="Slow">
             <Stepper
               value={motion.tempo.slow}
               min={SLOW_TEMPO_RANGE.min}
@@ -257,11 +257,11 @@ function MapControlsComponent({
               step={SLOW_TEMPO_RANGE.step}
               ariaLabel="Slow tempo"
               variant="inline"
-              valueClassName="w-10"
+              valueClassName="w-12"
               onChange={(next) => onMotionChange(commitSlowTempo(motion, next))}
             />
           </DialRow>
-          <DialRow label="Overshoot %">
+          <DialRow label="Overshoot">
             <Stepper
               value={motion.overshootPct}
               min={OVERSHOOT_RANGE.min}

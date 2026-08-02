@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MOTION_CONFIG,
@@ -122,5 +123,19 @@ describe('motion css properties', () => {
       springFamily(DEFAULT_MOTION_CONFIG.overshootPct).cssLinear,
     );
     expect(properties['--map-motion-ease-settle']).toBe(springFamily(0).cssLinear);
+  });
+
+  it('keeps the stylesheet pre-hydration fallbacks pinned to the ratified defaults', () => {
+    // The [data-map-motion-scope] block in globals.css is the only other place
+    // the tier values appear; without this pin a retuned default could leave
+    // every pre-hydration frame (and the empty canvas) at a retired tempo.
+    const stylesheet = readFileSync('src/app/globals.css', 'utf8');
+    const scope = /\[data-map-motion-scope\]\s*\{([^}]*)\}/.exec(stylesheet);
+
+    expect(scope).not.toBeNull();
+    const block = scope?.[1] ?? '';
+    expect(block).toContain(`--map-motion-fast: ${DEFAULT_MOTION_CONFIG.tempo.fast}ms`);
+    expect(block).toContain(`--map-motion-mid: ${DEFAULT_MOTION_CONFIG.tempo.mid}ms`);
+    expect(block).toContain(`--map-motion-slow: ${DEFAULT_MOTION_CONFIG.tempo.slow}ms`);
   });
 });

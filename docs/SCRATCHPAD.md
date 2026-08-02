@@ -5,18 +5,43 @@
 
 ## Now
 
-- **CURRENT:** sub-version 4.0.3.1 (auto-layout engine) is COMPLETE — both
-  sessions on `lifecycle/4.0.3.1`; PR #346 is ready and in the review-bot
-  correction loop. The operator ratified the shipped defaults at the 4.0.3.1.2
-  G-1 gate (2026-08-02): ring 300 / separation 150 / fan 3 / proportional /
-  compass-8, camera follow OFF with a one-time initial framing fit. Records:
-  `docs/session-as-built/4.0/4.0.3.1.{1,2}.md`.
+- **CURRENT:** sub-version 4.0.3.2 (motion layer) is COMPLETE on
+  `lifecycle/4.0.3.2` — its sub-version PR is opening through close-out. The
+  operator ratified the motion defaults at the G-1 gate (2026-08-02): fast 250 /
+  mid 1000 / slow 1000 ms, overshoot 12 %, edge flavor grow-from-parent,
+  collapse exit heavy, click-focus ON. Record:
+  `docs/session-as-built/4.0/4.0.3.2.1.md`.
 - **NEXT:** after the PR merges, `start-session` — the resolver should select
-  4.0.3.2 (motion layer). Its inputs are live: the reconciler's intents now
-  actually fire in production (kernel repositions, re-lock snap-home), and the
-  ratified `proportional` posture means sector fills move exactly the sibling
-  group + riders — the precise motion 4.0.3.2 animates. Camera-follow refits
-  currently snap (duration 0) by design; motion may revisit.
+  4.0.3.3 (overlay window framework). Handoff facts for it: an overlay anchored
+  to a moving node must read positions through React Flow's store
+  (`useInternalNode`, as `ChainLinkEdge` does) — the motion layer's derived
+  presentation is local to `MotionLayer` and deliberately unexported (one
+  position authority). Settings-visibility ruling (operator 2026-08-02): the
+  three toggles (Map lock, Camera follow, Click focus) are USER settings; the
+  Layout and Motion dial groups are ADMIN tuning surfaces — whichever session
+  removes the atlas wall owns gating both dial groups.
+- **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
+  transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
+  system surface unattached ("nowhere") and then hop, because each transaction
+  is its own consistent client transition; 4.0.4.2's auto-mapper must keep the
+  transaction boundary but use upsert semantics for re-observed jumps. (2) Edge
+  truth recomputes in the merge commit while node truth lags one commit (sync
+  effect) — the motion host keeps a `knownEdges` previous-merge memory for
+  ghost capture; refactoring ChainHost's edge memo must preserve a capture
+  source. (3) React Flow writes `pointerEvents` INLINE on node wrappers
+  (truthy once `onNodeClick` is forwarded) — a class rule can never make a
+  node inert; ghost snapshots carry `style: { pointerEvents: 'none' }`.
+  (4) Animated viewport promises NEVER settle when superseded — camera flights
+  are generation-tracked; the drag abort is a zero-duration
+  `setViewport(getViewport())`. `setCenter` defaults to maxZoom: always pass
+  the current zoom explicitly. (5) A `system-moved` landing inside a node's
+  birth window relocates instantly (no glide) — the split-merge backstop.
+  (6) The G-1-ratified stylesheet fallbacks in `[data-map-motion-scope]` are
+  test-pinned to `DEFAULT_MOTION_CONFIG`; retune both together.
+  (7) The heavy collapse exit triggers on the wormhole-collapse batch
+  signature — a system departing TOGETHER WITH a connection in one merge
+  (what `collapseJumpFixture` emits); a bare system removal stays ordinary.
+  The 4.0.4.1 unified collapse pathway owns evolving this trigger.
 - **Durable 4.0.3.1.2 gotchas:** (1) DOM `style.transform` read-back carries
   ~1e-4px float32 serialization noise per engine — cross-client position
   comparisons must use `docs/ux-check/lib/read-node-positions.mjs` (0.01px
@@ -33,6 +58,9 @@
   only (no unit test) — an evidence gap for a future session.
   (6) `MapChain.treeParents` re-runs `deriveChainTree` on the main thread
   (~8µs at 60 systems) — a deliberate recorded exception to the worker story.
+- **Post-merge follow-up:** the operator's informal production feel-check of
+  the motion layer (behind the admin wall) happens after merge per the
+  resolved PD-1 ruling; any surprise is ordinary out-of-bound work.
 - **Chain read-set cost (4.0.2.3.1):** every PAGE is its own handler execution and
   every execution resolves the claim, so a map open costs
   `1 + ceil(N/100) + ceil(M/100)` indexed `mapAccess` claim reads — not one per

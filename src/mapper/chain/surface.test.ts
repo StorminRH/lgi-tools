@@ -137,6 +137,7 @@ describe('mapper source contract', () => {
       'layout/use-layout-kernel.ts',
       'motion/motion-contract.ts',
       'motion/motion-controls-model.ts',
+      'motion/motion-host-model.ts',
       'motion/tween-model.ts',
       'motion/use-motion.ts',
     ]);

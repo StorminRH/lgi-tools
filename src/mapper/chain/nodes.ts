@@ -4,28 +4,16 @@
 // This is the ONLY place canvas nodes and edges are built, and it builds them solely from reconciler
 // output (contract DC-7). Nothing here reads a Convex page.
 import { CHAIN_NODE_TYPE, type ChainNode } from '../canvas/SystemNode';
+import type { EdgeMotion } from '../motion/motion-contract';
 import type { SystemLabel } from './labels';
 import type { ChainState } from './reconciler';
 
 /**
- * An edge's motion presentation, derived per render by the motion layer
- * (4.0.3.2). `buildEdges` never sets it — reconciled truth carries no motion.
+ * The chain edge payload — the one shape both the builder and renderer type
+ * against. `buildEdges` never sets `motion` — reconciled truth carries no
+ * motion; the vocabulary (`EdgeMotion`) is owned by `../motion/motion-contract`
+ * and the field is written only by the motion derivation.
  */
-export type EdgeMotion = {
-  readonly phase: 'entering' | 'departing';
-  /**
-   * `grow` draws/shrinks along the path (solid tree edges under the
-   * grow-from-parent dial); `fade` is opacity only. Dashed loop edges always
-   * fade so the tree/loop dash distinction never lies mid-animation.
-   */
-  readonly flavor: 'fade' | 'grow';
-  /** Grow from the path's target end (set when the geometric source is the child). */
-  readonly reverse: boolean;
-  /** Departures only: the heavier chain-collapse exit. */
-  readonly heavy: boolean;
-};
-
-/** The chain edge payload — the one shape both the builder and renderer type against. */
 export type ChainEdgeData = {
   /** `loop: true` marks a non-tree connection (loop closure); drawn dashed. */
   readonly loop: boolean;
