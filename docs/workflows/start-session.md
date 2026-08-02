@@ -46,17 +46,21 @@ the operator has explicitly approved a one-time bootstrap transition.
 
 When the handler is `start-session`, read the approved contract and plan,
 prior session as-built records in the active version, master-plan context,
-agent-guide chain, baseline, SCRATCHPAD, and relevant backlog. Reconcile their
-digests, prerequisites, interfaces, branch, and assumptions against live code
-and current primary documentation. Correct mechanical drift in scope; return a
-material scope or design conflict to `plan-session` for approval.
+agent-guide chain, baseline, and SCRATCHPAD. Reconcile their digests,
+prerequisites, interfaces, branch, and assumptions against live code and
+current primary documentation. Correct mechanical drift in scope.
 
-An installed framework or runtime limit that invalidates a named plan
-interface is a material design conflict. Preserve the work and evidence, return
-to `plan-session`, and do not select a replacement public interface during
-execution.
+The approved plan is the starting execution prompt, not an immutable script.
+Never return this session to `plan-session`, and never rewrite the contract.
+When an installed framework or runtime limit, live evidence, or clearer path
+invalidates a named plan interface or step, pause and discuss with the operator
+in plain English. Present the conflict and bounded alternatives,
+settle the replacement shape in this session, continue under that direction,
+and record the divergence for the as-built. Do not unilaterally invent a
+replacement design, and do not default to backlog or deferral; those cuts are
+extremely rare and operator-driven only.
 
-Execute the approved ordered work and maintain an in-context proof ledger with
+Execute the settled ordered work and maintain an in-context proof ledger with
 one result for every atomic proof row. A UI gate invokes `ux-check` and pauses
 for operator review. Finish through `close-out`, passing the original planned
 directive so close-out selects planned mode. Rerun the resolver after the
@@ -65,11 +69,12 @@ following stage.
 
 ## Stop and resume
 
-Stop on a named operator gate, material contract conflict, failed mandatory
-check, unexplained worktree state, or missing authority. Preserve completed
-evidence. On resumption, re-enter through this procedure, select the same
-deterministic branch, rerun the resolver and pre-dispatch gate, and reopen only
-work invalidated by changed state.
+Stop on a named operator gate, an unresolved in-session design discussion,
+failed mandatory check, unexplained worktree state, or missing authority.
+Preserve completed evidence. On resumption, re-enter through this procedure,
+select the same deterministic branch, rerun the resolver and pre-dispatch gate,
+and reopen only work invalidated by changed state — continue forward; do not
+replan.
 
 ## Return the result
 

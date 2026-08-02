@@ -450,6 +450,33 @@ positions, and configuration now would violate the simplicity rule by shipping
 controls before a real need exists. *Size:* S–M. *Trigger:* repeated obstruction
 observed during the 4.0 map-content and overlay-window UX gates.
 
+## React Flow attribution — styled credit home
+
+**What:** give React Flow a deliberate styled credit — e.g. an isk-green footer
+link ("Powered by React Flow") in the site footer or atlas chrome — then hide
+the default corner badge via `proOptions.hideAttribution` only under an active
+React Flow Pro subscription (current xyflow guidance: removal is for Pro
+subscribers; MIT alone is not a permission). The default badge remains visible
+after 4.0.3.1 until that pass.
+
+**Why deferred:** presentation-only, needs the footer/chrome design moment plus
+Pro eligibility, and the 4.0.3.1 session is scoped to layout integration.
+*Size:* XS. *Trigger:* the next footer or map-chrome styling pass with Pro in
+place, or the map's public opening — whichever lands first.
+
+## Layout worker degradation unit tests
+
+**What:** add focused unit coverage for `use-layout-kernel.ts` degradation —
+worker construction failure, post-construction `error`/`messageerror` death,
+`postMessage` failure, and teardown (`LAYOUT_KERNEL_TEARDOWN`) — so those paths
+are not inspection-only. Recorded as an evidence gap in session 4.0.3.1.2.
+
+**Why deferred:** the live map already degrades through the same `compassKernel`
+seam with identical deterministic output; browser probes and review covered the
+happy path. Hooking Worker construction in the Vitest environment is a separate
+test-harness slice. *Size:* S. *Trigger:* the next mapper reliability or
+component-test-stack pass that already mounts client hooks.
+
 ## Industry planner — UI
 
 > Small planner-UI deferrals. (The T2 margin-semantics track — the Raw | Item toggle, the

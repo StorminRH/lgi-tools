@@ -140,6 +140,22 @@ function findSystem(ctx: MutationCtx, mapId: string, systemId: number) {
 }
 
 /**
+ * Internal CLI-callable system placement: `upsertSystem`'s id validation and
+ * idempotent `by_map_system` upsert, with no access gate. Admin-key `convex run`
+ * only — matches the existing internal fixture family.
+ */
+export const placeSystemFixture = internalMutation({
+  args: { mapId: v.string(), systemId: v.number() },
+  handler: async (ctx, { mapId, systemId }) => {
+    requireSystemId(systemId);
+
+    const existing = await findSystem(ctx, mapId, systemId);
+    if (existing !== null) return existing._id;
+    return await ctx.db.insert('mapSystems', { mapId, systemId });
+  },
+});
+
+/**
  * Inserts one validated connection. Beyond the pure boundary rules, both endpoints must already
  * exist on THIS map — a connection to an unplaced or foreign system would be an unresolvable
  * reference the read path could never join.

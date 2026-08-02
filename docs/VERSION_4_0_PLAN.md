@@ -93,7 +93,7 @@ by hand where needed, and never see a refresh control.
 | 4.0.2.2 | Data model + authorization (Convex schema + gate + projection) | §4.0.2.2 | 2 | COMPLETE |
 | 4.0.2.3 | Reactive read path (subscriptions + reconciler) | §4.0.2.3 | 1 | COMPLETE |
 | **Phase 3 — Canvas** | | | | |
-| 4.0.3.1 | Auto-layout engine (ELK radial, sticky sectors) | §4.0.3.1 | 2 | PLANNED |
+| 4.0.3.1 | Auto-layout engine (compass-sector tree, deterministic) | §4.0.3.1 | 2 | COMPLETE |
 | 4.0.3.2 | Motion layer (surface-in-place, tweened glides) | §4.0.3.2 | 1 | PLANNED |
 | 4.0.3.3 | Overlay window framework (three surfaces, one primitive) | §4.0.3.3 | 1 | PLANNED |
 | **Phase 4 — The living chain** | | | | |

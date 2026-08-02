@@ -8,10 +8,10 @@
 //      for those ids — so a system arriving or leaving elsewhere cannot snap the node under the
 //      pointer back to its reconciled position.
 //   2. At drag stop the position is stamped `user` in reconciled state, which protects it
-//      permanently from the placement seam.
+//      from the placement seam until re-lock clears every user stamp.
 //
 // Everything drawn here comes from the reconciler (contract DC-7). This module reads no Convex page
-// directly and adds no mutation surface — the session is read-only.
+// directly and adds no mutation surface — lock, dials, and camera follow are client-local only.
 import {
   applyNodeChanges,
   type Edge,
@@ -22,7 +22,13 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import { ChainSurface } from '../canvas/ChainSurface';
+import { MapControls } from '../canvas/MapControls';
 import type { ChainNode } from '../canvas/SystemNode';
+import { CameraFollowHost } from '../canvas/use-camera-follow';
+import {
+  DEFAULT_LAYOUT_CONFIG,
+  type LayoutConfig,
+} from '../layout/layout-contract';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
 import { useMapChain } from './use-map-chain';
@@ -56,8 +62,23 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // Mirrors `dragging` for use inside the sync effect without making the effect depend on it: a drag
   // start must not itself trigger a resync.
   const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
+  // Map lock: locked by default — nodes cannot be dragged until the operator unlocks.
+  const [locked, setLocked] = useState(true);
+  // Camera follow: local, default OFF — the operator's G-1 call (2026-08-02):
+  // automatic viewport snapping reads as the camera fighting the user.
+  const [follow, setFollow] = useState(false);
+  // Live dial state — local presentation only; never synchronized.
+  const [config, setConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG);
 
-  const { access, state, labelOf, pinPlacement } = useMapChain(mapId, dragging);
+  const {
+    access,
+    state,
+    intents,
+    labelOf,
+    treeParents,
+    pinPlacement,
+    releasePlacements,
+  } = useMapChain(mapId, dragging, config);
   const [nodes, setNodes] = useState<ChainNode[]>([]);
 
   useEffect(() => {
@@ -66,7 +87,10 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     );
   }, [state.systems, labelOf]);
 
-  const edges = useMemo(() => buildEdges(state.connections), [state.connections]);
+  const edges = useMemo(
+    () => buildEdges(state.connections, treeParents),
+    [state.connections, treeParents],
+  );
 
   const onNodesChange = useCallback((changes: NodeChange<ChainNode>[]) => {
     setNodes((previous) => applyNodeChanges(changes, previous));
@@ -130,6 +154,14 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     [stopDrag],
   );
 
+  const handleLockedChange = useCallback(
+    (nextLocked: boolean) => {
+      setLocked(nextLocked);
+      if (nextLocked) releasePlacements();
+    },
+    [releasePlacements],
+  );
+
   // Revoked-versus-empty comes from the access subscription, never from a row count (DC-4). It is
   // live, so a re-granted claim brings the map back here without a reload. `undefined` is "not yet
   // answered" and renders the ordinary empty canvas rather than a loading state (HC-5).
@@ -139,11 +171,27 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     <ChainSurface
       nodes={nodes}
       edges={edges}
+      nodesDraggable={!locked}
       onNodesChange={onNodesChange}
       onNodeDragStart={onNodeDragStart}
       onNodeDragStop={onNodeDragStop}
       onSelectionDragStart={onSelectionDragStart}
       onSelectionDragStop={onSelectionDragStop}
-    />
+    >
+      <MapControls
+        locked={locked}
+        onLockedChange={handleLockedChange}
+        follow={follow}
+        onFollowChange={setFollow}
+        config={config}
+        onConfigChange={setConfig}
+      />
+      <CameraFollowHost
+        intents={intents}
+        follow={follow}
+        dragging={dragging}
+        nodes={nodes}
+      />
+    </ChainSurface>
   );
 }

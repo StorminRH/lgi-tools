@@ -257,6 +257,28 @@ describe('map chain fixtures', () => {
         'INVALID_SYSTEM_ID',
       );
     });
+
+    it('placeSystemFixture upserts without an access gate (internal/admin-key only)', async () => {
+      const t = convexTest(schema, modules);
+      // No grant — the internal mutation must succeed for the CLI replay tool.
+      const first = await t.mutation(internal.mapFixtures.placeSystemFixture, {
+        mapId: MAP_A,
+        systemId: JITA,
+      });
+      const second = await t.mutation(internal.mapFixtures.placeSystemFixture, {
+        mapId: MAP_A,
+        systemId: JITA,
+      });
+      expect(second).toBe(first);
+
+      await expectConvexError(
+        t.mutation(internal.mapFixtures.placeSystemFixture, {
+          mapId: MAP_A,
+          systemId: 0,
+        }),
+        'INVALID_SYSTEM_ID',
+      );
+    });
   });
 
   // ── SC-2 · DC-2 / AC-2 / V-1 ───────────────────────────────────────────────

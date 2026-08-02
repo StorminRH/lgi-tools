@@ -1279,17 +1279,25 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             branch=lifecycle_branch(str(state["subversion"])),
         )
     if stage == "session-ready":
-        pause = "Pause on a material scope/design conflict or an explicit operator gate."
+        pause = (
+            "Pause to discuss design conflicts with the operator, or on an "
+            "explicit operator gate; reshape in-session and continue."
+        )
         if state.get("uxGate") == "Yes":
             pause = (
                 "UX gate: The operator's local browser review is required before the PR opens; "
-                "also pause on any material scope/design conflict."
+                "also pause to discuss design conflicts and reshape in-session."
             )
         return WorkflowDirective(
             action=f"Execute approved session {session}",
             handler="start-session",
             mode="execute",
-            authority="Changes are limited to the approved session plan and contract.",
+            authority=(
+                "The contract and product scope remain frozen. The approved "
+                "plan is the starting prompt; reshape only its interfaces or "
+                "steps through in-session operator discussion, record the "
+                "divergence in the as-built, and continue forward."
+            ),
             primary_artifact=str(state["sessionPlan"]),
             pause=pause,
             branch=lifecycle_branch(str(state["subversion"])),

@@ -27,7 +27,7 @@ Required outputs:
 
 1. One review result using the exact result form in **Return the result**.
 2. Every in-scope design defect fixed on the branch.
-3. Every genuinely out-of-scope finding recorded once in `docs/backlog.md` with
+3. Every operator-cut out-of-scope finding recorded once in `docs/backlog.md` with
    its diagnosis, size, and trigger.
 4. A concise `Design notes:` block ready for the PR's canonical `## Notes`
    section.

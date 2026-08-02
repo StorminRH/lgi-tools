@@ -58,6 +58,7 @@ export const architectureMap = {
     { from: 'scripts', to: 'data', kind: 'allow' },
     { from: 'scripts', to: 'db', kind: 'allow' },
     { from: 'scripts', to: 'lib', kind: 'allow' },
+    { from: 'scripts', to: 'mapper', kind: 'allow' },
     { from: 'runtime', to: 'transport', kind: 'allow' },
     { from: 'runtime', to: 'features', kind: 'allow' },
     { from: 'runtime', to: 'data', kind: 'allow' },

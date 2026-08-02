@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChainNode } from '../canvas/SystemNode';
+import { deriveChainTree } from '../layout/facts';
 import type { SystemLabel } from './labels';
 import { buildEdges, syncNodes } from './nodes';
 import {
@@ -9,7 +10,25 @@ import {
   type ChainSnapshot,
   type ChainState,
 } from './reconciler';
-import { gridAssigner, positionOfSlot } from './placement';
+import { type PlacementAssigner } from './placement';
+
+function positionOfSlot(slot: number) {
+  return { x: (slot % 6) * 220, y: Math.floor(slot / 6) * 160 };
+}
+
+const sequentialTestAssigner: PlacementAssigner = ({ systems }) => {
+  const proposals = new Map<number, ReturnType<typeof positionOfSlot>>();
+  let next = 0;
+  for (const candidate of systems) {
+    if (candidate.position !== null) {
+      proposals.set(candidate.systemId, candidate.position);
+    } else {
+      proposals.set(candidate.systemId, positionOfSlot(next));
+      next += 1;
+    }
+  }
+  return proposals;
+};
 
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
@@ -33,7 +52,7 @@ function snapshot(systemIds: readonly number[], connections: ChainSnapshot['conn
 }
 
 function stateFor(systemIds: readonly number[]): ChainState {
-  return reconcileChain(EMPTY_CHAIN_STATE, snapshot(systemIds), NO_DRAG, gridAssigner)
+  return reconcileChain(EMPTY_CHAIN_STATE, snapshot(systemIds), NO_DRAG, sequentialTestAssigner)
     .state;
 }
 
@@ -129,11 +148,11 @@ describe('canvas edge projection', () => {
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
       NO_DRAG,
-      gridAssigner,
+      sequentialTestAssigner,
     ).state;
 
-    expect(buildEdges(state.connections)).toEqual([
-      { id: 'c1', source: String(JITA), target: String(AMARR) },
+    expect(buildEdges(state.connections, new Map([[AMARR, JITA]]))).toEqual([
+      { id: 'c1', source: String(JITA), target: String(AMARR), data: { loop: false } },
     ]);
   });
 
@@ -144,9 +163,45 @@ describe('canvas edge projection', () => {
         { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
       ]),
       NO_DRAG,
-      gridAssigner,
+      sequentialTestAssigner,
     ).state;
 
-    expect(buildEdges(state.connections)).toEqual([]);
+    expect(buildEdges(state.connections, new Map())).toEqual([]);
+  });
+
+  it('classifies tree links solid and loop closures dashed, once per pair', () => {
+    const DODIXIE = 30002659;
+    const state = reconcileChain(
+      EMPTY_CHAIN_STATE,
+      snapshot([JITA, AMARR, DODIXIE], [
+        { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
+        { connectionId: 'c2', fromSystemId: AMARR, toSystemId: DODIXIE },
+        // A loop closure back to the root, and a duplicate of a tree pair.
+        { connectionId: 'c3', fromSystemId: DODIXIE, toSystemId: JITA },
+        { connectionId: 'c4', fromSystemId: AMARR, toSystemId: JITA },
+      ]),
+      NO_DRAG,
+      sequentialTestAssigner,
+    ).state;
+    // Derived by the kernel's own function on the same facts, not hand-built —
+    // binding the canvas classification to the derivation it claims to follow.
+    const treeParents = deriveChainTree({
+      systems: [JITA, AMARR, DODIXIE].map((systemId) => ({ systemId })),
+      connections: [
+        { fromSystemId: JITA, toSystemId: AMARR },
+        { fromSystemId: AMARR, toSystemId: DODIXIE },
+        { fromSystemId: DODIXIE, toSystemId: JITA },
+        { fromSystemId: AMARR, toSystemId: JITA },
+      ],
+    }).parents;
+
+    expect(
+      buildEdges(state.connections, treeParents).map((edge) => [edge.id, edge.data.loop]),
+    ).toEqual([
+      ['c1', false],
+      ['c2', false],
+      ['c3', true],
+      ['c4', true],
+    ]);
   });
 });

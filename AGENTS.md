@@ -18,11 +18,13 @@ Vitest, and visx.
 
 ## Subagents
 
-Prefer designed research (`docs-researcher`), repository mapping
-(`repo-mapper`), verification (`gate-runner`), and workflow-named review roles
-when isolation or a structured evidence packet helps. Fall back to the matching
-skill or direct command when a role is unavailable. Do not run a fixed
-preflight on every task, and do not redo discovery the parent already completed.
+Always use `docs-researcher` for documentation lookups (returns a Documentation
+brief). Always use `repo-mapper` for Codegraph relationship or impact questions
+(returns a Repository map); the parent keeps Cursor semantic search and grep for
+conceptual discovery. Prefer `gate-runner` and workflow-named review roles when
+isolation or a structured evidence packet helps. Fall back to a direct command
+when a role is unavailable. Do not run a fixed preflight on every task, and do
+not redo discovery the parent already completed.
 
 ## Commands and definition of done
 

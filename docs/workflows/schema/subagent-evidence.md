@@ -8,7 +8,9 @@ implementation, review, or verification.
 Shared rules:
 
 - Use repository-relative paths and exact symbols when available.
-- Cite load-bearing evidence without pasting large source or tool output.
+- Cite load-bearing evidence. Include short curated snippets or source excerpts
+  when the parent needs them to plan or implement; do not paste raw tool
+  transcripts, complete file inventories, or exploratory dead-ends.
 - State gaps instead of filling them from memory.
 - Do not recommend unrelated work or claim authority beyond the assigned task.
 - Return a meaningfully compressed, non-redundant evidence packet that includes
@@ -21,30 +23,44 @@ Shared rules:
 
 ```text
 Repository map:
-- Scope: <assigned task and affected area>
+- Scope: <relationship question and known entry symbols/paths>
 - Owners: <path or symbol -> responsibility>
-- Execution flow: <ordered entry points, calls, and state transitions>
-- Impact: <callers, dependencies, registries, tests, and gates>
-- Documentation questions: <technology, version, and question or None>
-- Unknowns: <unresolved evidence gap or None>
+- Execution flow: <ordered call/render path through the assigned symbols>
+- Load-bearing source:
+  - <path> <symbol>: <curated excerpt from Codegraph; treat as already Read>
+- Impact: <callers, dependents, registries, tests, and gates>
+- Edit seam: <where to change / what not to touch>
+- Documentation questions: <technology, version, question for docs-researcher or None>
+- Unknowns: <index gap, unresolved edge, or None>
 - Evidence: <repository-relative paths and symbols>
 ```
 
-Do not include raw Codegraph output, complete file inventories, or source
-excerpts available at the cited location.
+Include only relationship-relevant symbols. Treat Codegraph-returned source as
+already Read unless a staleness banner names a file. Do not include raw
+Codegraph transcripts, complete file inventories, or a conceptual discovery
+tour. Documentation questions hand off to `docs-researcher`.
 
-## Documentation evidence
+## Documentation brief
 
 ```text
-Documentation checked:
-- <technology> <installed version> | <library ID or primary source> | <query>
-  Constraint applied: <task-changing implementation or verification guidance>
-- Confirmed unchanged: <relevant behavior that needs no plan change or None>
-Documentation gaps: <exact unresolved gap or None>
+Documentation brief:
+- Scope: <assigned coding/planning question>
+- Sources:
+  - <technology> <installed version> | <Context7 ID or primary URL> | <queries used>
+- Apply:
+  - <task-changing rules, defaults, gotchas>
+- API surface:
+  - <signatures / props / options / return shapes needed for this task>
+- Examples:
+  - <only load-bearing minimal snippets; trim boilerplate>
+- Confirmed unchanged: <behavior that needs no plan change or None>
+- Gaps: <exact unresolved gap, failed source, or None>
 ```
 
-Do not include raw Context7 output, long quotations, or general documentation
-that cannot change the assigned task.
+Return enough concrete API and behavior detail that the parent can implement
+without a second documentation round for the same question. Do not include raw
+Context7 transcripts, unrelated pages, or general documentation that cannot
+change the assigned task.
 
 ## Gate result
 

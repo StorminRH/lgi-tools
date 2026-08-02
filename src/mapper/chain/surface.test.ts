@@ -106,9 +106,15 @@ describe('mapper source contract', () => {
   // Guards every loop below: an empty or broken file walk would make them all pass vacuously.
   it('walks the whole mapper zone', () => {
     expect(mapperFiles().toSorted()).toEqual([
+      'canvas/ChainLinkEdge.tsx',
       'canvas/ChainSurface.tsx',
       'canvas/MapCanvas.tsx',
+      'canvas/MapControls.tsx',
       'canvas/SystemNode.tsx',
+      'canvas/camera-follow-model.ts',
+      'canvas/edge-geometry.ts',
+      'canvas/map-controls-model.ts',
+      'canvas/use-camera-follow.ts',
       'chain/ChainHost.tsx',
       'chain/NoMapAccess.tsx',
       'chain/intents.ts',
@@ -118,6 +124,17 @@ describe('mapper source contract', () => {
       'chain/reconciler.ts',
       'chain/use-map-chain.ts',
       'index.ts',
+      'layout/compass.ts',
+      'layout/determinism-fixture.ts',
+      'layout/facts.ts',
+      'layout/geometry.ts',
+      'layout/kernel-requests.ts',
+      'layout/layout-contract.ts',
+      'layout/layout.worker.ts',
+      'layout/overflow.ts',
+      'layout/proof-kit.ts',
+      'layout/trig.ts',
+      'layout/use-layout-kernel.ts',
     ]);
   });
 

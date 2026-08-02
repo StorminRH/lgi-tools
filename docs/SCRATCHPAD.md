@@ -5,11 +5,34 @@
 
 ## Now
 
-- **CURRENT:** planned close-out for sub-version 4.0.2.3 (session 4.0.2.3.1) —
-  the reactive chain read path on the Atlas canvas.
-- **NEXT:** after the 4.0.2.3 PR merges, run
-  `python3 tools/cli.py lifecycle resolve --pretty` and follow its directive
-  (expected next sub-version is 4.0.3.1, the deterministic layout engine).
+- **CURRENT:** sub-version 4.0.3.1 (auto-layout engine) is COMPLETE — both
+  sessions on `lifecycle/4.0.3.1`; PR #346 is ready and in the review-bot
+  correction loop. The operator ratified the shipped defaults at the 4.0.3.1.2
+  G-1 gate (2026-08-02): ring 300 / separation 150 / fan 3 / proportional /
+  compass-8, camera follow OFF with a one-time initial framing fit. Records:
+  `docs/session-as-built/4.0/4.0.3.1.{1,2}.md`.
+- **NEXT:** after the PR merges, `start-session` — the resolver should select
+  4.0.3.2 (motion layer). Its inputs are live: the reconciler's intents now
+  actually fire in production (kernel repositions, re-lock snap-home), and the
+  ratified `proportional` posture means sector fills move exactly the sibling
+  group + riders — the precise motion 4.0.3.2 animates. Camera-follow refits
+  currently snap (duration 0) by design; motion may revisit.
+- **Durable 4.0.3.1.2 gotchas:** (1) DOM `style.transform` read-back carries
+  ~1e-4px float32 serialization noise per engine — cross-client position
+  comparisons must use `docs/ux-check/lib/read-node-positions.mjs` (0.01px
+  tolerance), never string equality; JS-side byte-identity is pinned by the
+  digest fixture. (2) The probe runner now supports `--engine`,
+  `--storage-state` (auth applies only to `requiresAuth` probes) and
+  `--capture-storage-state` (headed EVE SSO login capture); Playwright firefox
+  is installed locally. (3) `.fallowrc.json` has a declared `scripts → mapper`
+  allow edge for the replay tool; the architecture-map census is 24 zones /
+  117 permissions / 118 edges. (4) `pnpm map:replay` reuse of `--map` after an
+  interrupted run accumulates duplicate connections (inserts are not
+  idempotent) — seed fresh with `--user`; replay maps are disposable.
+  (5) `use-layout-kernel.ts` worker degradation paths are inspection-verified
+  only (no unit test) — an evidence gap for a future session.
+  (6) `MapChain.treeParents` re-runs `deriveChainTree` on the main thread
+  (~8µs at 60 systems) — a deliberate recorded exception to the worker story.
 - **Chain read-set cost (4.0.2.3.1):** every PAGE is its own handler execution and
   every execution resolves the claim, so a map open costs
   `1 + ceil(N/100) + ceil(M/100)` indexed `mapAccess` claim reads — not one per
@@ -29,12 +52,6 @@
   recovers the map live, with no reload and no access poller. The throwing
   `requireMapAccess` remains for the fixture mutations; `tryMapAccess` is the
   value-returning half and shares its one `by_map_user` lookup.
-- **Provisional placement can arrive off-screen (4.0.2.3.1 demo residual, for
-  4.0.3.1):** the grid walks row-major 6 wide at 220px, and the canvas carries no
-  camera refit by design, so on a half-width window an arrival past slot ~4 lands
-  outside the viewport and reads as "nothing happened". Within OOS-1 for this
-  session — the layout engine owns real placement — but the layout engine should
-  decide whether arrivals are brought into view.
 - **Convex local backend was relaunched standalone during 4.0.2.3.1 SC-5.3**
   (killed to prove silent reconnection, then restarted outside the `convex dev`
   supervisor). Restart `pnpm dev:all` before relying on Convex hot-push again.

@@ -137,15 +137,15 @@ describe('architecture map — the pinned edge taxonomy', () => {
     ]);
   });
 
-  it('counts the live graph at 24 zones and 116 declared permissions', () => {
+  it('counts the live graph at 24 zones and 117 declared permissions', () => {
     const map = liveMap();
     expect(map.nodes).toHaveLength(24);
-    expect(kindsOf(map, 'allow')).toHaveLength(115);
+    expect(kindsOf(map, 'allow')).toHaveLength(116);
     expect(kindsOf(map, 'exception')).toHaveLength(1);
     // Closes the census: every edge is one of the three counted kinds, so a new
     // kind or a moved non-allow edge cannot slip past the per-kind totals.
     expect(kindsOf(map, 'carve-out')).toHaveLength(1);
-    expect(map.edges).toHaveLength(117);
+    expect(map.edges).toHaveLength(118);
     expect(Math.max(...map.nodes.map((node) => node.layer))).toBe(10);
   });
 

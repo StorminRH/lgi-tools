@@ -15,6 +15,7 @@
     "scripts/validate-resolver-output.ts",
     "scripts/assert-route-classification.mjs",
     "scripts/ux-capture.mjs",
+    "src/scripts/map-replay.ts",
     "drizzle.config.ts",
     "neon.ts"
   ],
@@ -141,7 +142,7 @@
       },
       {
         "from": "scripts",
-        "allow": ["composition", "platform/auth", "data", "db", "lib"]
+        "allow": ["composition", "platform/auth", "data", "db", "lib", "mapper"]
       },
       {
         "from": "runtime",
