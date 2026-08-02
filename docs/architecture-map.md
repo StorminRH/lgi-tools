@@ -7,7 +7,7 @@ The zone-level dependency graph LGI.tools enforces, derived from the `boundaries
 block of the Fallow configuration. This file is its generated picture, and the
 public devlog renders it as a permission matrix.
 
-Zones: 24. Declared permissions: 116 (reference-core exceptions: 1). First-match carve-outs: 1.
+Zones: 24. Declared permissions: 117 (reference-core exceptions: 1). First-match carve-outs: 1.
 
 ```mermaid
 flowchart TD
@@ -67,6 +67,7 @@ flowchart TD
     scripts --> data
     scripts --> db
     scripts --> lib
+    scripts --> mapper
     runtime --> transport
     runtime --> features
     runtime --> data

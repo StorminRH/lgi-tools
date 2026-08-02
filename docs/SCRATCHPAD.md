@@ -5,26 +5,35 @@
 
 ## Now
 
-- **CURRENT:** session 4.0.3.1.1 (deterministic layout kernel) is complete and
-  committed on `lifecycle/4.0.3.1` (`161f97a1`, no PR — first of two sessions).
-  The operator selected the **compass-sector engine** at the G-1 gate (ELK
-  failed the no-overlap hard gate everywhere and hung in WEDGE_COMPACTION;
-  elkjs uninstalled), posture `fixed-slot`, `siblingSpread: 3` — pinned as
-  `DEFAULT_LAYOUT_CONFIG`. Full decision record:
-  `docs/session-as-built/4.0/4.0.3.1.1.md`.
-- **NEXT:** run `start-session`; the resolver should select planning for
-  session 4.0.3.1.2 (worker + route integration + pinning + live tuning
-  dials). Its named residuals, all recorded in the as-built: (1) the async
-  worker bridge needs an explicit re-merge trigger independent of
-  `chainSignature`, plus first-appearance-before-resolution rendering;
-  (2) cross-engine float identity must be settled before wiring the kernel to
-  live clients (digest fixture pins Node only; `segmentsIntersect` branches on
-  exact zeros); (3) camera refit for off-viewport arrivals (4.0.2.3.1
-  residual); (4) any `DEFAULT_LAYOUT_CONFIG` dial change must deliberately
-  regenerate `determinism-fixture.ts`, and `ringSpacing ≥ minSeparation` is a
-  standing dial invariant; (5) a future spawn-posture toggle or root override
-  must be a synchronized map property, never local state (operator note
-  2026-08-01).
+- **CURRENT:** sub-version 4.0.3.1 (auto-layout engine) is COMPLETE — both
+  sessions on `lifecycle/4.0.3.1`; the single sub-version PR is opening as a
+  DRAFT and its review-bot loop is operator-delegated to another agent. The
+  operator ratified the shipped defaults at the 4.0.3.1.2 G-1 gate
+  (2026-08-02): ring 300 / separation 150 / fan 3 / proportional / compass-8,
+  camera follow OFF with a one-time initial framing fit. Records:
+  `docs/session-as-built/4.0/4.0.3.1.{1,2}.md`.
+- **NEXT:** after the PR merges, `start-session` — the resolver should select
+  4.0.3.2 (motion layer). Its inputs are live: the reconciler's intents now
+  actually fire in production (kernel repositions, re-lock snap-home), and the
+  ratified `proportional` posture means sector fills move exactly the sibling
+  group + riders — the precise motion 4.0.3.2 animates. Camera-follow refits
+  currently snap (duration 0) by design; motion may revisit.
+- **Durable 4.0.3.1.2 gotchas:** (1) DOM `style.transform` read-back carries
+  ~1e-4px float32 serialization noise per engine — cross-client position
+  comparisons must use `docs/ux-check/lib/read-node-positions.mjs` (0.01px
+  tolerance), never string equality; JS-side byte-identity is pinned by the
+  digest fixture. (2) The probe runner now supports `--engine`,
+  `--storage-state` (auth applies only to `requiresAuth` probes) and
+  `--capture-storage-state` (headed EVE SSO login capture); Playwright firefox
+  is installed locally. (3) `.fallowrc.json` has a declared `scripts → mapper`
+  allow edge for the replay tool; the architecture-map census is 24 zones /
+  117 permissions / 118 edges. (4) `pnpm map:replay` reuse of `--map` after an
+  interrupted run accumulates duplicate connections (inserts are not
+  idempotent) — seed fresh with `--user`; replay maps are disposable.
+  (5) `use-layout-kernel.ts` worker degradation paths are inspection-verified
+  only (no unit test) — an evidence gap for a future session.
+  (6) `MapChain.treeParents` re-runs `deriveChainTree` on the main thread
+  (~8µs at 60 systems) — a deliberate recorded exception to the worker story.
 - **Chain read-set cost (4.0.2.3.1):** every PAGE is its own handler execution and
   every execution resolves the claim, so a map open costs
   `1 + ceil(N/100) + ceil(M/100)` indexed `mapAccess` claim reads — not one per

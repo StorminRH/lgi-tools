@@ -18,6 +18,7 @@ export function Stepper({
   onChange,
   min = 0,
   max,
+  step = 1,
   ariaLabel,
   variant = 'default',
   trailing,
@@ -29,6 +30,12 @@ export function Stepper({
   onChange: (n: number) => void;
   min?: number;
   max?: number;
+  /**
+   * Button/arrow increment (default 1). A caller whose domain quantizes commits
+   * to a coarser grid must pass that grid here, or every button press is undone
+   * by its own commit rounding.
+   */
+  step?: number;
   ariaLabel: string;
   variant?: 'default' | 'inline';
   trailing?: ReactNode;
@@ -37,9 +44,11 @@ export function Stepper({
   valueClassName?: string;
 }) {
   const inline = variant === 'inline';
+  const disabledBtn =
+    'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted';
   const btn = inline
-    ? "relative inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-ctl text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer after:absolute after:-inset-1 after:content-['']"
-    : 'h-7 w-[26px] text-ui leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
+    ? `relative inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-ctl text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer after:absolute after:-inset-1 after:content-[''] ${disabledBtn}`
+    : `h-7 w-[26px] text-ui leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer ${disabledBtn}`;
   return (
     <NumberField.Root
       value={value}
@@ -55,9 +64,9 @@ export function Stepper({
       onValueCommitted={(next) => onChange(next ?? min)}
       min={min}
       max={max}
-      step={1}
-      smallStep={1}
-      largeStep={10}
+      step={step}
+      smallStep={step}
+      largeStep={step * 10}
       format={{ maximumFractionDigits: 0 }}
       className={cn(
         'inline-flex items-center',

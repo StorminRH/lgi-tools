@@ -28,6 +28,12 @@ vi.mock('@xyflow/react', async () => {
     BackgroundVariant: { Dots: 'dots' },
     Handle: () => element('div', { 'data-handle': '' }),
     Position: { Left: 'left', Right: 'right' },
+    Panel: ({ children }: { children?: unknown }) =>
+      element('div', { 'data-react-flow-panel': '' }, children as never),
+    useReactFlow: () => ({
+      fitView: vi.fn(async () => true),
+      viewportInitialized: true,
+    }),
     applyNodeChanges: (_changes: unknown, nodes: unknown) => nodes,
   };
 });
@@ -45,6 +51,7 @@ function withAccess(access: boolean | undefined): void {
     intents: [],
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
     pinPlacement: mocks.pinPlacement,
+    releasePlacements: vi.fn(),
   });
 }
 

@@ -450,6 +450,24 @@ positions, and configuration now would violate the simplicity rule by shipping
 controls before a real need exists. *Size:* S–M. *Trigger:* repeated obstruction
 observed during the 4.0 map-content and overlay-window UX gates.
 
+## React Flow attribution — styled credit home
+
+**What:** the mapper canvas hides React Flow's default bottom-right attribution
+badge (`proOptions.hideAttribution`, operator direction 2026-08-02) because it
+clashed with the terminal/EVE visual identity. Give the credit a deliberate
+styled home instead — e.g. an isk-green footer link ("Powered by React Flow")
+in the site footer or the atlas chrome — so the library is credited in our own
+visual language. Removal is explicitly permitted for everyone per xyflow's own
+docs ("Anyone is free to remove this attribution whether they're a Pro
+subscriber or not"); they ask only that the removing-attribution guide be read
+first, which this decision has honored. The styled credit is pure good
+citizenship, not a compliance need.
+
+**Why deferred:** presentation-only, needs the footer/chrome design moment, and
+the 4.0.3.1 session is scoped to layout integration. *Size:* XS. *Trigger:* the
+next footer or map-chrome styling pass, or the map's public opening —
+whichever lands first.
+
 ## Industry planner — UI
 
 > Small planner-UI deferrals. (The T2 margin-semantics track — the Raw | Item toggle, the

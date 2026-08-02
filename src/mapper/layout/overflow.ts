@@ -13,6 +13,7 @@
 import type { ChainPosition } from '../chain/intents';
 import { headingVector } from './geometry';
 import { SEPARATION_MARGIN, type LayoutConfig } from './layout-contract';
+import { distance } from './trig';
 
 /** Orphans per overflow row before the cluster wraps one ring outward. */
 const ORPHANS_PER_ROW = 6;
@@ -29,8 +30,9 @@ function overflowBaseRadius(
   config: LayoutConfig,
 ): number {
   let maxRadius = 0;
+  const origin = { x: 0, y: 0 };
   for (const position of positions.values()) {
-    maxRadius = Math.max(maxRadius, Math.hypot(position.x, position.y));
+    maxRadius = Math.max(maxRadius, distance(origin, position));
   }
   const quantum = 4 * config.ringSpacing;
   return Math.ceil((maxRadius + config.ringSpacing) / quantum) * quantum;

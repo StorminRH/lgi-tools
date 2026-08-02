@@ -1,8 +1,9 @@
 // Contract DC-3 (AC-2, V-1), as operator-relaxed in plan PD-3: spawn movement is a measured,
-// configured behavior. Under the ratified `fixed-slot` posture (`DEFAULT_LAYOUT_CONFIG`,
-// G-1 disposition 2026-08-01) every add moves nothing; under the supported `proportional`
-// posture a sector fill re-spreads exactly the affected sibling group and the subtrees riding on
-// it. Every case asserts the exact moved-set, matching the scorecard rows.
+// configured behavior. Under the `fixed-slot` posture every add moves nothing; under
+// `proportional` — the SHIPPED default since the integration session's G-1 ratification
+// (2026-08-02) — a sector fill re-spreads exactly the affected sibling group and the subtrees
+// riding on it. Both postures keep their exact moved-set guarantees gated here, each under its
+// own explicit config.
 import { describe, expect, it } from 'vitest';
 import { compassKernel } from './compass';
 import { deriveChainTree } from './facts';
@@ -21,6 +22,7 @@ const D = 31_000_004;
 const E = 31_000_005;
 
 const PROPORTIONAL = { ...DEFAULT_LAYOUT_CONFIG, wedgePolicy: 'proportional' as const };
+const FIXED_SLOT = { ...DEFAULT_LAYOUT_CONFIG, wedgePolicy: 'fixed-slot' as const };
 
 function facts(
   systemIds: readonly number[],
@@ -35,16 +37,16 @@ function facts(
   };
 }
 
-describe('leaf adds under the ratified fixed-slot configuration', () => {
+describe('leaf adds under the fixed-slot posture', () => {
   it('adding a deep leaf moves no existing node', async () => {
-    const before = await compassKernel(facts([A, B, C], [[A, B], [B, C]]));
-    const after = await compassKernel(facts([A, B, C, D], [[A, B], [B, C], [C, D]]));
+    const before = await compassKernel(facts([A, B, C], [[A, B], [B, C]]), FIXED_SLOT);
+    const after = await compassKernel(facts([A, B, C, D], [[A, B], [B, C], [C, D]]), FIXED_SLOT);
     expect(movedSystems(before, after)).toEqual([]);
   });
 
   it('adding a new root child (claiming a fresh compass sector) moves no existing node', async () => {
-    const before = await compassKernel(facts([A, B, C], [[A, B], [B, C]]));
-    const after = await compassKernel(facts([A, B, C, D], [[A, B], [B, C], [A, D]]));
+    const before = await compassKernel(facts([A, B, C], [[A, B], [B, C]]), FIXED_SLOT);
+    const after = await compassKernel(facts([A, B, C, D], [[A, B], [B, C], [A, D]]), FIXED_SLOT);
     expect(movedSystems(before, after)).toEqual([]);
   });
 
@@ -56,15 +58,16 @@ describe('leaf adds under the ratified fixed-slot configuration', () => {
       [A, 31_000_009], [31_000_009, 31_000_010], [D, 31_000_011],
     ];
     const ids = [A, B, C, D, E, 31_000_006, 31_000_007, 31_000_008, 31_000_009, 31_000_010, 31_000_011];
-    const before = await compassKernel(facts(ids, base));
+    const before = await compassKernel(facts(ids, base), FIXED_SLOT);
     const after = await compassKernel(
       facts([...ids, 31_000_012], [...base, [31_000_011, 31_000_012] as const]),
+      FIXED_SLOT,
     );
     expect(movedSystems(before, after)).toEqual([]);
   });
 });
 
-describe('corpus-wide growth under the ratified fixed-slot configuration', () => {
+describe('corpus-wide growth under the fixed-slot posture', () => {
   it('replays every corpus chain spawn by spawn: no attached node ever moves', async () => {
     // The stated exception (overflow.ts): parked orphans may shift within their cluster as
     // orphans attach or the cluster base steps outward. Systems parked in EITHER layout are
@@ -72,10 +75,10 @@ describe('corpus-wide growth under the ratified fixed-slot configuration', () =>
     for (const entry of PROOF_CORPUS) {
       const full = generateChainTimeline(entry);
       let beforeFacts = chainPrefix(full, 1);
-      let before = await compassKernel(beforeFacts);
+      let before = await compassKernel(beforeFacts, FIXED_SLOT);
       for (let size = 2; size <= entry.size; size += 1) {
         const afterFacts = chainPrefix(full, size);
-        const after = await compassKernel(afterFacts);
+        const after = await compassKernel(afterFacts, FIXED_SLOT);
         const parked = new Set([
           ...deriveChainTree(beforeFacts).orphans,
           ...deriveChainTree(afterFacts).orphans,
@@ -95,11 +98,12 @@ describe('corpus-wide growth under the ratified fixed-slot configuration', () =>
 });
 
 describe('sector fills', () => {
-  it('filling a sector under the ratified fixed-slot configuration moves nothing at all', async () => {
+  it('filling a sector under the fixed-slot posture moves nothing at all', async () => {
     // D becomes B's second child — the sector-fill case; fixed slots hold every sibling still.
-    const before = await compassKernel(facts([A, B, C, E], [[A, B], [B, C], [C, E]]));
+    const before = await compassKernel(facts([A, B, C, E], [[A, B], [B, C], [C, E]]), FIXED_SLOT);
     const after = await compassKernel(
       facts([A, B, C, E, D], [[A, B], [B, C], [C, E], [B, D]]),
+      FIXED_SLOT,
     );
     expect(movedSystems(before, after)).toEqual([]);
   });

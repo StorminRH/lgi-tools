@@ -37,15 +37,32 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
     }
   });
 
-  it(`confines every edge crossing to loop-closing edges across all ${PROOF_CORPUS.length} corpus chains`, async () => {
+  it(`confines every edge crossing to loop-closing edges under fixed-slot across all ${PROOF_CORPUS.length} corpus chains`, async () => {
+    const fixedSlot = { ...DEFAULT_LAYOUT_CONFIG, wedgePolicy: 'fixed-slot' as const };
+    for (const entry of PROOF_CORPUS) {
+      const chain = generateChain(entry);
+      const positions = await compassKernel(chain, fixedSlot);
+      const report = crossingReport(chain, positions);
+      expect(
+        report.treeTreeCrossings,
+        `seed ${entry.seed} n=${entry.size} crossed spanning-tree edges`,
+      ).toBe(0);
+    }
+  });
+
+  it('holds the shipped default (proportional, G-1 dials) to its pinned crossing budget', async () => {
+    // The operator ratified proportional at ring 300 / separation 150 / fan 3 with these two
+    // measured single crossings in view (G-1, 2026-08-02). Any NEW crossing is a regression;
+    // an engine improvement that removes one should lower this pin deliberately.
+    const budget: Record<string, number> = { 'seed32-n42': 1, 'seed42-n60': 1 };
     for (const entry of PROOF_CORPUS) {
       const chain = generateChain(entry);
       const positions = await compassKernel(chain, DEFAULT_LAYOUT_CONFIG);
       const report = crossingReport(chain, positions);
       expect(
         report.treeTreeCrossings,
-        `seed ${entry.seed} n=${entry.size} crossed spanning-tree edges`,
-      ).toBe(0);
+        `seed ${entry.seed} n=${entry.size} spanning-tree crossings vs ratified budget`,
+      ).toBe(budget[`seed${entry.seed}-n${entry.size}`] ?? 0);
     }
   });
 

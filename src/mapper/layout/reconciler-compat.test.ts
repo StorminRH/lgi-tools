@@ -10,7 +10,7 @@
 //      intents from the unchanged `reconcileChain`.
 import { describe, expect, it } from 'vitest';
 import type { ChainPosition } from '../chain/intents';
-import type { PlacementAssigner } from '../chain/placement';
+import { assignerFromPositions, type PlacementAssigner } from '../chain/placement';
 import {
   EMPTY_CHAIN_STATE,
   reconcileChain,
@@ -69,7 +69,7 @@ function candidateOrderSpy(): {
 function kernelResultAssigner(
   positions: ReadonlyMap<number, ChainPosition>,
 ): PlacementAssigner {
-  return () => positions;
+  return assignerFromPositions(positions);
 }
 
 describe('reconcileChain candidate order (synchronized creation order)', () => {

@@ -15,10 +15,20 @@ import {
   type SelectionDragHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import type { ReactNode } from 'react';
+import { CHAIN_EDGE_TYPE, ChainLinkEdge } from './ChainLinkEdge';
 import { CHAIN_NODE_TYPE, SystemNode, type ChainNode } from './SystemNode';
 
 // Stable identity: a fresh object each render would remount every node.
 const NODE_TYPES = { [CHAIN_NODE_TYPE]: SystemNode };
+const EDGE_TYPES = { [CHAIN_EDGE_TYPE]: ChainLinkEdge };
+
+// Every chain edge renders rim-to-rim through the custom edge, so branch
+// shapes read as radial lines rather than overlapping S-curves.
+const DEFAULT_EDGE_OPTIONS = { type: CHAIN_EDGE_TYPE };
+
+// Operator direction (2026-08-02): hide the library's corner attribution.
+const PRO_OPTIONS = { hideAttribution: true };
 
 /** Props the live host supplies; the empty canvas passes nodes and edges only. */
 export interface ChainSurfaceProps {
@@ -29,6 +39,17 @@ export interface ChainSurfaceProps {
   readonly onNodeDragStop?: OnNodeDrag<ChainNode>;
   readonly onSelectionDragStart?: SelectionDragHandler<ChainNode>;
   readonly onSelectionDragStop?: SelectionDragHandler<ChainNode>;
+  /**
+   * Whether nodes may be dragged. Default `true` preserves the empty-canvas
+   * contract; the live host passes the map-lock state (locked → false).
+   */
+  readonly nodesDraggable?: boolean;
+  /**
+   * Mounted inside `<ReactFlow>` beside `<Background>` — the only legal home
+   * for React Flow `Panel` and `useReactFlow` consumers (map controls, camera
+   * follow).
+   */
+  readonly children?: ReactNode;
 }
 
 /**
@@ -50,16 +71,22 @@ export function ChainSurface({
   onNodeDragStop,
   onSelectionDragStart,
   onSelectionDragStop,
+  nodesDraggable = true,
+  children,
 }: ChainSurfaceProps) {
   return (
     <ReactFlow
       nodes={nodes as ChainNode[]}
       edges={edges as Edge[]}
       nodeTypes={NODE_TYPES}
+      edgeTypes={EDGE_TYPES}
       minZoom={0.2}
       maxZoom={2.5}
+      defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+      proOptions={PRO_OPTIONS}
       deleteKeyCode={null}
       disableKeyboardA11y
+      nodesDraggable={nodesDraggable}
       onNodesChange={onNodesChange}
       onNodeDragStart={onNodeDragStart}
       onNodeDragStop={onNodeDragStop}
@@ -67,6 +94,7 @@ export function ChainSurface({
       onSelectionDragStop={onSelectionDragStop}
     >
       <Background variant={BackgroundVariant.Dots} />
+      {children}
     </ReactFlow>
   );
 }

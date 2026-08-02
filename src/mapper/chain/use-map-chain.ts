@@ -1,20 +1,17 @@
 'use client';
 
-// The client half of the reactive read path: two split subscriptions and the merge that turns them
-// into canvas state.
+// The client half of the reactive read path: two split subscriptions and the
+// layout-then-merge pipeline that turns them into canvas state.
 //
 // The two subscriptions are separate `useDrainedPages` calls against separate Convex functions — that
 // is contract HC-2, and it is the entire reason a connection write does not re-read the systems
 // range. Do not "simplify" them into one call over one aggregate query.
 //
-// The raw Convex hooks are reached through `@/data/convex/use-drained-pages` rather than imported
-// here: that slice owns the browser client and its hooks, and the ownership is lint-enforced. This
-// module owns everything above transport — reconciliation, labelling, and drag protection.
-//
-// Loading is deliberately not modelled (contract HC-5): there is no spinner and no `isLoading` in the
-// return value. The canvas renders immediately, nodes arrive as their pages land, and a still-draining
-// collection is reported to the reconciler as incomplete so nothing is mistaken for a departure.
-// Reconnection is likewise silent — the Convex client resumes its own subscriptions.
+// Layout runs off the main thread through `useLayoutKernel`. The merge waits for
+// positions (layout-then-merge): nothing ever appears at a wrong position first.
+// The posted key (chain signature + layout revision) advances eagerly at post
+// time so re-renders never cancel or repost in-flight work; staleness is decided
+// by request id. The drag-protection set is read from a ref at apply time.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/data/convex/api';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
@@ -23,11 +20,26 @@ import {
   loadUniverseAssets,
   type UniverseAssets,
 } from '@/data/eve-data/universe-assets-client';
+import { deriveChainTree } from '../layout/facts';
+import type { LayoutConfig, LayoutFacts } from '../layout/layout-contract';
+import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
+import {
+  acceptReply,
+  failRequest,
+  initialKernelRequestState,
+  postRequest,
+  type KernelRequestState,
+} from '../layout/kernel-requests';
+import {
+  LAYOUT_KERNEL_TEARDOWN,
+  useLayoutKernel,
+} from '../layout/use-layout-kernel';
 import type { ChainPosition, MapChainIntent } from './intents';
 import { resolveSystemLabel, type SystemLabel } from './labels';
-import { gridAssigner } from './placement';
+import { assignerFromPositions } from './placement';
 import {
   applyUserPlacement,
+  clearUserPlacements,
   EMPTY_CHAIN_STATE,
   reconcileChain,
   type ChainMerge,
@@ -87,6 +99,46 @@ export function chainSignature(
   ].join('#');
 }
 
+/**
+ * Layout facts from a snapshot's server-ordered rows — never from reconciled
+ * arrival order. Array position IS creation order for the kernel.
+ */
+export function factsFromSnapshot(snapshot: ChainSnapshot): LayoutFacts {
+  return {
+    systems: snapshot.systems.rows.map((row) => ({ systemId: row.systemId })),
+    connections: snapshot.connections.rows.map((row) => ({
+      fromSystemId: row.fromSystemId,
+      toSystemId: row.toSystemId,
+    })),
+  };
+}
+
+/**
+ * Stable fingerprint of dial state — part of the posted key. Exhaustive by
+ * type: adding a `LayoutConfig` field without fingerprinting it here is a
+ * compile error, because an unfingerprinted dial would commit state that never
+ * changes the posted key — a silent no-op dial.
+ */
+export function layoutConfigKey(config: LayoutConfig): string {
+  const parts = {
+    ringSpacing: config.ringSpacing,
+    minSeparation: config.minSeparation,
+    wedgePolicy: config.wedgePolicy,
+    siblingSpread: config.siblingSpread,
+    directionSequence: config.directionSequence.join(','),
+  } satisfies Record<keyof LayoutConfig, string | number>;
+  return Object.values(parts).join('|');
+}
+
+/** Posted key: chain content, dial fingerprint, and the re-lock revision bump. */
+export function layoutPostKey(
+  signature: string,
+  configKey: string,
+  revision: number,
+): string {
+  return `${signature}#${configKey}@${revision}`;
+}
+
 /** What the chain host needs to render and interact with one map. */
 export interface MapChain {
   /**
@@ -98,8 +150,23 @@ export interface MapChain {
   /** The most recent merge's intents; sub-version 4.0.3.2 binds motion to these. */
   readonly intents: readonly MapChainIntent[];
   readonly labelOf: (systemId: number) => SystemLabel;
-  /** Stamps a dropped node's position as user-owned, protecting it permanently. */
+  /**
+   * Child → parent for every tree-attached system, computed by re-running the
+   * kernel's own `deriveChainTree` on the exact facts object the worker laid
+   * out — the same pure function on the same input, so it cannot disagree with
+   * the drawn positions (measured ~8µs at 60 systems; a deliberate main-thread
+   * exception, recorded in the session as-built). The canvas draws tree links
+   * solid and every other connection (loop closures) dashed, identically on
+   * every client.
+   */
+  readonly treeParents: ReadonlyMap<number, number>;
+  /** Stamps a dropped node's position as user-owned, protecting it until re-lock releases it. */
   readonly pinPlacement: (systemId: number, position: ChainPosition) => void;
+  /**
+   * Clears every user stamp and forces a fresh layout merge (re-lock). Positions
+   * are untouched here; the next merge snaps them to kernel proposals.
+   */
+  readonly releasePlacements: () => void;
 }
 
 /** The session-memoized directory, or `null` until it lands. A failure stays null, silently. */
@@ -133,11 +200,16 @@ function useUniverseAssets(): UniverseAssets | null {
  * caller must also keep this hook unmounted behind the null-client gate.
  *
  * `draggingIds` is the canvas's active-drag set. The reconciler additionally protects every
- * user-placed node from its own state, so omitting one here cannot move it (HC-1).
+ * user-placed node from its own state, so omitting one here cannot move it (HC-1). The set is
+ * mirrored into a ref and read at apply time so protection cannot go stale across the async window.
+ *
+ * `config` is the live dial state; changing it bumps the layout revision so the
+ * pipeline re-posts.
  */
 export function useMapChain(
   mapId: string | null,
   draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,
+  config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
 ): MapChain {
   const args = mapId === null ? ('skip' as const) : { mapId };
   // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
@@ -154,12 +226,32 @@ export function useMapChain(
   );
 
   const [merge, setMerge] = useState<ChainMerge>(INITIAL_MERGE);
-  const appliedSignature = useRef<string | null>(null);
+  const [treeParents, setTreeParents] = useState<ReadonlyMap<number, number>>(
+    () => new Map(),
+  );
+  const [layoutRevision, setLayoutRevision] = useState(0);
+  const requestStateRef = useRef<KernelRequestState>(initialKernelRequestState());
+  const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
+
+  // Mirrored after commit (render must stay pure): declared before the posting
+  // effect so the ref is current before any post in the same commit. An apply
+  // callback landing in the paint gap before this runs reads a one-render-old
+  // set; the rendered node is still safe because `syncNodes` holds the local
+  // position for every actively dragging id, and drag stop re-stamps `user`.
+  useEffect(() => {
+    draggingRef.current = draggingIds;
+  }, [draggingIds]);
+
+  const layout = useLayoutKernel();
   const signature = chainSignature(systems, connections);
+  const configKey = layoutConfigKey(config);
+  const postKey = layoutPostKey(signature, configKey, layoutRevision);
 
   useEffect(() => {
-    if (appliedSignature.current === signature) return;
-    appliedSignature.current = signature;
+    const posted = postRequest(requestStateRef.current, postKey);
+    if (posted.kind === 'skipped') return;
+    requestStateRef.current = posted.state;
+    const { requestId } = posted;
 
     const snapshot: ChainSnapshot = {
       systems: {
@@ -176,10 +268,34 @@ export function useMapChain(
       },
     };
 
-    setMerge((previous) =>
-      reconcileChain(previous.state, snapshot, draggingIds, gridAssigner),
+    const facts = factsFromSnapshot(snapshot);
+
+    // `config` is captured directly: its identity only changes on a real dial
+    // commit, and any such commit also changes `postKey`, so this adds no
+    // reruns beyond the posting the key already demands.
+    void layout(facts, config).then(
+      (positions) => {
+        if (!acceptReply(requestStateRef.current, requestId)) return;
+        setMerge((previous) =>
+          reconcileChain(
+            previous.state,
+            snapshot,
+            draggingRef.current,
+            assignerFromPositions(positions),
+          ),
+        );
+        setTreeParents(deriveChainTree(facts).parents);
+      },
+      (error: unknown) => {
+        // Teardown is expected lifecycle (unmount, StrictMode's dev remount);
+        // resetting the posted key still lets a survivor retry, silently.
+        if (!(error instanceof Error && error.message === LAYOUT_KERNEL_TEARDOWN)) {
+          console.error('layout merge skipped', error);
+        }
+        requestStateRef.current = failRequest(requestStateRef.current, requestId);
+      },
     );
-  }, [signature, systems, connections, draggingIds]);
+  }, [postKey, systems, connections, layout, config]);
 
   const assets = useUniverseAssets();
   const labelOf = useCallback(
@@ -201,5 +317,21 @@ export function useMapChain(
     [],
   );
 
-  return { access, state: merge.state, intents: merge.intents, labelOf, pinPlacement };
+  const releasePlacements = useCallback(() => {
+    setMerge((previous) => ({
+      state: clearUserPlacements(previous.state),
+      intents: [],
+    }));
+    setLayoutRevision((revision) => revision + 1);
+  }, []);
+
+  return {
+    access,
+    state: merge.state,
+    intents: merge.intents,
+    labelOf,
+    treeParents,
+    pinPlacement,
+    releasePlacements,
+  };
 }

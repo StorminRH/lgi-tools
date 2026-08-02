@@ -7,8 +7,8 @@
 // unfiltered console/page errors. Never waits on networkidle: the Convex
 // websocket keeps the network busy forever.
 
-import { chromium, devices } from 'playwright';
-import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { chromium, firefox, webkit, devices } from 'playwright';
+import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { VIEWPORTS } from '../../scripts/ux-capture-args.mjs';
@@ -19,6 +19,11 @@ const OUT_DIR = path.resolve(ROOT, 'docs/ux-check/captures/probes');
 const REPORT_PATH = path.join(OUT_DIR, 'report.json');
 const DEFAULT_SETTLE_MS = 1000;
 const DEFAULT_VIEWPORTS = ['desktop', 'mobile'];
+const ENGINES = {
+  chromium,
+  firefox,
+  webkit,
+};
 const STANDARD_CONSOLE_NOISE = [
   /ws:\/\/127\.0\.0\.1:3210/i,
   /127\.0\.0\.1:3210.*ERR_CONNECTION_REFUSED/i,
@@ -37,12 +42,23 @@ function parseArgs(argv) {
   const opts = {
     baseUrl: process.env.UX_BASE_URL ?? 'http://localhost:3000',
     list: false,
+    engine: 'chromium',
+    storageState: process.env.UX_STORAGE_STATE ?? null,
+    captureStorageState: null,
   };
   for (const arg of argv) {
     if (arg === '--list') opts.list = true;
     else if (arg.startsWith('--base-url=')) opts.baseUrl = arg.slice('--base-url='.length);
-    else if (arg.startsWith('--')) throw new Error(`unknown option: ${arg}`);
+    else if (arg.startsWith('--engine=')) opts.engine = arg.slice('--engine='.length);
+    else if (arg.startsWith('--storage-state=')) {
+      opts.storageState = arg.slice('--storage-state='.length);
+    } else if (arg.startsWith('--capture-storage-state=')) {
+      opts.captureStorageState = arg.slice('--capture-storage-state='.length);
+    } else if (arg.startsWith('--')) throw new Error(`unknown option: ${arg}`);
     else names.push(arg);
+  }
+  if (!(opts.engine in ENGINES)) {
+    throw new Error(`unknown engine: ${opts.engine} (use ${Object.keys(ENGINES).join(', ')})`);
   }
   return { names, opts };
 }
@@ -173,11 +189,15 @@ function validateDefinition(definition, filename) {
   if (definition.reducedMotion !== undefined && typeof definition.reducedMotion !== 'boolean') {
     throw new Error(`${filename}: reducedMotion must be a boolean when present`);
   }
+  if (definition.requiresAuth !== undefined && typeof definition.requiresAuth !== 'boolean') {
+    throw new Error(`${filename}: requiresAuth must be a boolean when present`);
+  }
   return {
     ...definition,
     allowConsole,
     viewports,
     reducedMotion: definition.reducedMotion ?? false,
+    requiresAuth: definition.requiresAuth ?? false,
   };
 }
 
@@ -218,11 +238,12 @@ async function collectCsp(page) {
   }
 }
 
-async function runViewport(browser, definition, viewport, baseUrl) {
+async function runViewport(browser, definition, viewport, baseUrl, opts) {
   const result = {
     name: definition.name,
     route: definition.route,
     viewport,
+    engine: opts.engine,
     url: new URL(definition.route, baseUrl).href,
     checks: [],
     screenshots: [],
@@ -243,6 +264,7 @@ async function runViewport(browser, definition, viewport, baseUrl) {
     failedRequests: [],
     httpErrors: [],
   };
+  const ownedContexts = [];
 
   const check = (label, condition) => {
     const passed = Boolean(condition);
@@ -250,23 +272,70 @@ async function runViewport(browser, definition, viewport, baseUrl) {
     console.log(`    ${passed ? '✓' : '✗'} ${label}`);
     return passed;
   };
-  const shot = async (tag) => {
+  const shot = async (tag, { page: targetPage = page } = {}) => {
     const file = path.join(
       OUT_DIR,
-      `${definition.name}--${viewport}--${slugify(tag) || 'shot'}.png`,
+      `${definition.name}--${opts.engine}--${viewport}--${slugify(tag) || 'shot'}.png`,
     );
-    await page.screenshot({ path: file, fullPage: true });
+    await targetPage.screenshot({ path: file, fullPage: true });
     result.screenshots.push(rel(file));
     console.log(`    ✓ ${rel(file)}`);
     return rel(file);
   };
 
+  /** Opens an additional authenticated (or anonymous) context for multi-client probes. */
+  const createContext = async ({
+    storageState = opts.storageState,
+    engineName = opts.engine,
+    viewportName = viewport,
+  } = {}) => {
+    const launcher = ENGINES[engineName];
+    if (launcher === undefined) {
+      throw new Error(`unknown engine for createContext: ${engineName}`);
+    }
+    const secondaryBrowser =
+      engineName === opts.engine ? browser : await launcher.launch();
+    const secondaryContext = await secondaryBrowser.newContext({
+      ...contextOptions(viewportName, definition.reducedMotion),
+      ...(storageState ? { storageState } : {}),
+    });
+    ownedContexts.push({
+      context: secondaryContext,
+      browser: engineName === opts.engine ? null : secondaryBrowser,
+    });
+    const secondaryPage = await secondaryContext.newPage();
+    await installCspCollector(secondaryPage);
+    return { browser: secondaryBrowser, context: secondaryContext, page: secondaryPage };
+  };
+
   try {
-    context = await browser.newContext(contextOptions(viewport, definition.reducedMotion));
+    if (definition.requiresAuth && !opts.storageState) {
+      throw new Error(
+        `${definition.name} requires --storage-state=<path> (or UX_STORAGE_STATE); capture once via headed EVE SSO login`,
+      );
+    }
+    // Auth state applies only to probes that declare they need it: a probe
+    // asserting the logged-out gate must never inherit a signed-in session
+    // just because one was supplied for its siblings.
+    context = await browser.newContext({
+      ...contextOptions(viewport, definition.reducedMotion),
+      ...(definition.requiresAuth && opts.storageState
+        ? { storageState: opts.storageState }
+        : {}),
+    });
     page = await context.newPage();
     diagnostics = watchPage(page, definition.allowConsole);
     await installCspCollector(page);
-    const ctx = { page, viewport, baseUrl, check, shot };
+    const ctx = {
+      page,
+      viewport,
+      baseUrl,
+      check,
+      shot,
+      engine: opts.engine,
+      storageState: opts.storageState,
+      createContext,
+    };
     if (definition.setup) await definition.setup(ctx);
     await page.goto(result.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(definition.settle ?? DEFAULT_SETTLE_MS);
@@ -286,17 +355,21 @@ async function runViewport(browser, definition, viewport, baseUrl) {
     result.passed = result.crash === null && result.checks.every((item) => item.passed);
     await page?.close().catch(() => {});
     await context?.close().catch(() => {});
+    for (const owned of ownedContexts) {
+      await owned.context.close().catch(() => {});
+      await owned.browser?.close().catch(() => {});
+    }
   }
   return result;
 }
 
-async function launchBrowser() {
+async function launchBrowser(engineName) {
   try {
-    return await chromium.launch();
+    return await ENGINES[engineName].launch();
   } catch (error) {
-    console.error('✗ could not launch Chromium.');
+    console.error(`✗ could not launch ${engineName}.`);
     console.error(`  ${error.message}`);
-    console.error('  Install it once with: npx playwright install chromium');
+    console.error(`  Install it once with: npx playwright install ${engineName}`);
     process.exit(1);
   }
 }
@@ -320,15 +393,70 @@ function printSummary(results) {
   }
 }
 
+/**
+ * Headed one-time login capture: opens the site, waits for the operator to
+ * complete EVE SSO, then saves the authenticated storage state and exits.
+ * Completion is detected by Better Auth's own session endpoint answering
+ * non-null — cookie names are not a signal, because anonymous visitors carry
+ * session-named cookies too. No terminal interaction is needed.
+ */
+async function captureStorageState(opts) {
+  if (!(await waitForServer(opts.baseUrl))) {
+    throw new Error(`dev server at ${opts.baseUrl} did not respond; start pnpm dev first`);
+  }
+  const sessionUrl = new URL('/api/auth/get-session', opts.baseUrl).href;
+  const browser = await chromium.launch({ headless: false });
+  try {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(opts.baseUrl);
+    console.log('Log in through EVE SSO in the opened browser…');
+    const deadline = Date.now() + 10 * 60_000;
+    for (;;) {
+      // context.request shares the context's cookies, and polling an API URL
+      // never races the page's own SSO redirects.
+      const session = await context.request
+        .get(sessionUrl)
+        .then((response) => response.json())
+        .catch(() => null);
+      if (session !== null) {
+        console.log(`Signed in as ${session.user?.name ?? 'unknown'} — saving state.`);
+        break;
+      }
+      if (Date.now() > deadline) {
+        throw new Error('no authenticated session within 10 minutes; capture aborted');
+      }
+      await wait(2000);
+    }
+    await context.storageState({ path: opts.captureStorageState });
+    console.log(`✓ storage state saved: ${rel(path.resolve(opts.captureStorageState))}`);
+  } finally {
+    await browser.close();
+  }
+}
+
 async function main() {
   const { names, opts } = parseArgs(process.argv.slice(2));
+  if (opts.captureStorageState) {
+    await captureStorageState(opts);
+    return;
+  }
   const definitions = await loadDefinitions();
   if (opts.list) {
     for (const definition of definitions) console.log(definition.name);
     return;
   }
+  if (opts.storageState) {
+    await access(opts.storageState).catch(() => {
+      throw new Error(`storage state not found: ${opts.storageState}`);
+    });
+  }
   const selected = selectDefinitions(definitions, names);
   console.log(`UX probes → ${opts.baseUrl}`);
+  console.log(`  engine: ${opts.engine}`);
+  console.log(
+    `  storage: ${opts.storageState ? rel(path.resolve(opts.storageState)) : '(anonymous)'}`,
+  );
   console.log(`  probes: ${selected.map((definition) => definition.name).join(', ')}`);
   if (!(await waitForServer(opts.baseUrl))) {
     throw new Error(`dev server at ${opts.baseUrl} did not respond; start pnpm dev first`);
@@ -336,13 +464,17 @@ async function main() {
 
   await rm(OUT_DIR, { recursive: true, force: true });
   await mkdir(OUT_DIR, { recursive: true });
-  const browser = await launchBrowser();
+  const browser = await launchBrowser(opts.engine);
   const results = [];
   try {
     for (const definition of selected) {
       for (const viewport of definition.viewports) {
-        console.log(`\n[${definition.name} / ${viewport}] ${definition.route}`);
-        results.push(await runViewport(browser, definition, viewport, opts.baseUrl));
+        console.log(
+          `\n[${definition.name} / ${opts.engine} / ${viewport}] ${definition.route}`,
+        );
+        results.push(
+          await runViewport(browser, definition, viewport, opts.baseUrl, opts),
+        );
       }
     }
   } finally {

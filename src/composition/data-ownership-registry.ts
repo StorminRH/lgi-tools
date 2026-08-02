@@ -40,7 +40,8 @@ type SliceId =
   | 'features/wormhole-sites'
   | 'platform/auth'
   | 'composition/account-lifecycle'
-  | 'composition/pipelines';
+  | 'composition/pipelines'
+  | 'scripts';
 
 /** The auth tables live in one shared module rather than a slice directory; this is their owner. */
 const AUTH_SCHEMA_PATH = 'src/db/auth-schema.ts';
@@ -669,10 +670,17 @@ export const DATA_OWNERSHIP = [
     table: schema.maps,
     owner: 'data/maps',
     reads: [],
+    writers: [
+      {
+        by: 'scripts',
+        reason:
+          'The dev-only map replay tool (src/scripts/map-replay.ts) seeds one disposable local map row so a generated corpus chain has a home to replay into; real map creation remains deferred to 4.0.4.4 and never runs through this path.',
+      },
+    ],
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'The current runtime write surface is credential-tier deletion during account teardown. Map creation and archive writes remain deferred to 4.0.4.4; the authorization gate is read-only.',
+      note: 'The current runtime write surface is credential-tier deletion during account teardown plus the dev-only replay seed above. Map creation and archive writes remain deferred to 4.0.4.4; the authorization gate is read-only.',
     },
     dataClass: 'personal',
   },

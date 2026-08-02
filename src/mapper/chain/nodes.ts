@@ -7,11 +7,18 @@ import { CHAIN_NODE_TYPE, type ChainNode } from '../canvas/SystemNode';
 import type { SystemLabel } from './labels';
 import type { ChainState } from './reconciler';
 
+/** The chain edge payload — the one shape both the builder and renderer type against. */
+export type ChainEdgeData = {
+  /** `loop: true` marks a non-tree connection (loop closure); drawn dashed. */
+  readonly loop: boolean;
+};
+
 /** One edge on the canvas. Structural subset of React Flow's `Edge`. */
 export interface ChainEdge {
   readonly id: string;
   readonly source: string;
   readonly target: string;
+  readonly data: ChainEdgeData;
 }
 
 /**
@@ -49,11 +56,38 @@ export function syncNodes(
   });
 }
 
-/** Builds one edge per visible connection; withheld connections are simply absent from state. */
-export function buildEdges(connections: ChainState['connections']): ChainEdge[] {
-  return [...connections.values()].map((connection) => ({
-    id: connection.connectionId,
-    source: String(connection.fromSystemId),
-    target: String(connection.toSystemId),
-  }));
+/**
+ * Builds one edge per visible connection; withheld connections are simply absent from state.
+ *
+ * A connection is a TREE link — drawn solid — when it realizes a parent/child
+ * relationship from the kernel's own derivation, and only the first connection
+ * between that pair (map order is known-document creation order) claims it; a
+ * duplicate between the same pair, and every loop closure, draws dashed. The
+ * classification input is deterministic shared state, so two clients can never
+ * disagree about which lines are structure.
+ */
+export function buildEdges(
+  connections: ChainState['connections'],
+  treeParents: ReadonlyMap<number, number>,
+): ChainEdge[] {
+  const claimed = new Set<string>();
+  return [...connections.values()].map((connection) => {
+    const { fromSystemId, toSystemId } = connection;
+    const isTreeLink =
+      treeParents.get(toSystemId) === fromSystemId ||
+      treeParents.get(fromSystemId) === toSystemId;
+    const pairKey =
+      fromSystemId < toSystemId
+        ? `${fromSystemId}>${toSystemId}`
+        : `${toSystemId}>${fromSystemId}`;
+    const solid = isTreeLink && !claimed.has(pairKey);
+    if (solid) claimed.add(pairKey);
+
+    return {
+      id: connection.connectionId,
+      source: String(fromSystemId),
+      target: String(toSystemId),
+      data: { loop: !solid },
+    };
+  });
 }

@@ -281,3 +281,25 @@ export function applyUserPlacement(
   systems.set(systemId, { systemId, position, placementSource: 'user' });
   return { systems, connections: state.connections };
 }
+
+/**
+ * Reverts every user-owned placement to assigner ownership, positions untouched (re-lock).
+ *
+ * The next layout merge then applies kernel proposals and emits ordinary `system-moved`
+ * intents — the node snaps home without a special-case movement path, and shared layout
+ * never changed because the kernel never saw the pin.
+ */
+export function clearUserPlacements(state: ChainState): ChainState {
+  let changed = false;
+  const systems = new Map<number, PlacedSystem>();
+  for (const [systemId, placed] of state.systems) {
+    if (placed.placementSource === 'user') {
+      systems.set(systemId, { ...placed, placementSource: 'assigner' });
+      changed = true;
+    } else {
+      systems.set(systemId, placed);
+    }
+  }
+  if (!changed) return state;
+  return { systems, connections: state.connections };
+}

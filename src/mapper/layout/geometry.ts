@@ -5,6 +5,7 @@
 // and the point-equality test is the reconciler's own `samePosition`, so "did it move" means the
 // same thing to the kernel's suites and to the live merge.
 import { samePosition, type ChainPosition } from '../chain/intents';
+import { detCos, detSin } from './trig';
 
 /**
  * The unit vector of one compass heading in canvas coordinates: headings run clockwise from
@@ -12,7 +13,7 @@ import { samePosition, type ChainPosition } from '../chain/intents';
  * the overflow parking both scale this vector.
  */
 export function headingVector(heading: number): ChainPosition {
-  return { x: Math.sin(heading), y: -Math.cos(heading) };
+  return { x: detSin(heading), y: -detCos(heading) };
 }
 
 /** Twice the signed area of triangle `o`–`p`–`q`; sign gives `q`'s side of ray `o`→`p`. */

@@ -142,7 +142,7 @@ describe('layoutZoneMap — the committed generated graph', () => {
 
   it('lays out every zone and every declared permission', () => {
     expect(layout.order).toHaveLength(24);
-    expect(layout.cells).toHaveLength(116);
+    expect(layout.cells).toHaveLength(117);
     expect(layout.rowLabels).toHaveLength(24);
     expect(layout.columnLabels).toHaveLength(24);
   });

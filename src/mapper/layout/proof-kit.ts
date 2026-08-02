@@ -10,6 +10,7 @@ import type { ChainPosition } from '../chain/intents';
 import { deriveChainTree } from './facts';
 import { segmentsIntersect } from './geometry';
 import type { LayoutFacts } from './layout-contract';
+import { distance } from './trig';
 
 /** One committed corpus entry: the seed fixes the chain, the size bounds its system count. */
 export interface CorpusEntry {
@@ -185,8 +186,10 @@ export function separationViolations(
   const violations: { a: number; b: number; distance: number }[] = [];
   for (const [i, [aId, aPos]] of entries.entries()) {
     for (const [bId, bPos] of entries.slice(i + 1)) {
-      const distance = Math.hypot(aPos.x - bPos.x, aPos.y - bPos.y);
-      if (distance < minSeparation) violations.push({ a: aId, b: bId, distance });
+      const pairDistance = distance(aPos, bPos);
+      if (pairDistance < minSeparation) {
+        violations.push({ a: aId, b: bId, distance: pairDistance });
+      }
     }
   }
   return violations;

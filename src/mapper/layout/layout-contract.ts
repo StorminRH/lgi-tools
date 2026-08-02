@@ -88,16 +88,62 @@ const COMPASS_HEADINGS: readonly number[] = [
   (7 * Math.PI) / 4,
 ];
 
+/** Cardinal-only headings. */
+const CARDINAL_HEADINGS: readonly number[] = [
+  0,
+  Math.PI / 2,
+  Math.PI,
+  (3 * Math.PI) / 2,
+];
+
+/** Diagonals first, then cardinals. */
+const DIAGONALS_FIRST_HEADINGS: readonly number[] = [
+  Math.PI / 4,
+  (3 * Math.PI) / 4,
+  (5 * Math.PI) / 4,
+  (7 * Math.PI) / 4,
+  0,
+  Math.PI / 2,
+  Math.PI,
+  (3 * Math.PI) / 2,
+];
+
+/** Compass-8 rotated 45° (diagonals as the primary axes). */
+const ROTATED_45_HEADINGS: readonly number[] = [
+  Math.PI / 4,
+  (3 * Math.PI) / 4,
+  (5 * Math.PI) / 4,
+  (7 * Math.PI) / 4,
+  Math.PI / 2,
+  Math.PI,
+  (3 * Math.PI) / 2,
+  0,
+];
+
+/** Named direction-order presets the tuning panel may select — sole owner of the heading vocabulary. */
+export const DIRECTION_PRESETS = {
+  'compass-8': COMPASS_HEADINGS,
+  'cardinal-4': CARDINAL_HEADINGS,
+  'diagonals-first-8': DIAGONALS_FIRST_HEADINGS,
+  'rotated-45': ROTATED_45_HEADINGS,
+} as const;
+
+/** Keys of `DIRECTION_PRESETS`. */
+export type DirectionPresetId = keyof typeof DIRECTION_PRESETS;
+
 /**
- * The shipping configuration until 4.0.3.1.2's dials exist. `wedgePolicy: 'fixed-slot'` and the
- * wide `siblingSpread` are the operator-ratified posture from the engine selection gate
- * (session 4.0.3.1.1 G-1, 2026-08-01); the spacing constants echo the provisional grid's scale so
- * the first real layout reads at a familiar zoom.
+ * The shipping configuration — the operator's live-tuning ratification from the
+ * integration session's G-1 gate (session 4.0.3.1.2, 2026-08-02): tuned against
+ * paced replays of the proof corpus with the dials exposed. `proportional`
+ * supersedes the selection gate's provisional `fixed-slot` posture by that same
+ * operator authority; sector fills re-spread the affected sibling group, which
+ * the ratification accepted with eyes on the motion the next sub-version will
+ * animate.
  */
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
-  ringSpacing: 240,
-  minSeparation: 140,
-  wedgePolicy: 'fixed-slot',
+  ringSpacing: 300,
+  minSeparation: 150,
+  wedgePolicy: 'proportional',
   siblingSpread: 3,
   directionSequence: COMPASS_HEADINGS,
 };
@@ -106,10 +152,9 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
  * The pure seam (contract HC-1): facts in, one position per input system out.
  *
  * Deterministic — no randomness, clock, or caller state; identical facts and config yield
- * byte-identical positions within a JS engine (pinned by the committed digest fixture). Identity
- * ACROSS engines (D1/D2's every-client goal) additionally rides on `Math.sin`/`Math.cos`/
- * `Math.hypot`, which ECMA-262 lets implementations approximate — closing that gap is a recorded
- * residual 4.0.3.1.2 must settle before wiring the kernel to live clients. Async because the
+ * byte-identical positions on every JS engine. Cross-engine identity is closed by
+ * `trig.ts` (deterministic sin/cos via a fixed minimax polynomial; distance via
+ * correctly-rounded `Math.sqrt`), pinned by the committed digest fixture. Async because the
  * production seam is the worker boundary; rejection is an engine failure, never a production
  * control path.
  */
