@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { MapChainIntent } from '../chain/intents';
-import { shouldFitView } from './camera-follow-model';
+import {
+  decideCameraFit,
+  nodesReadyForFit,
+  planCameraFit,
+  shouldFitView,
+  systemsNeedingFit,
+} from './camera-follow-model';
 
 const APPEARED: readonly MapChainIntent[] = [
   { kind: 'system-appeared', systemId: 1, position: { x: 0, y: 0 } },
@@ -36,5 +42,37 @@ describe('camera fit policy', () => {
     expect(shouldFitView({ intents: [], framed: true, follow: true, dragActive: false })).toBe(
       false,
     );
+  });
+
+  it('waits until React Flow holds every appeared or moved system', () => {
+    expect(systemsNeedingFit([...APPEARED, ...DEPARTED])).toEqual([1]);
+    expect(nodesReadyForFit(APPEARED, new Set())).toBe(false);
+    expect(nodesReadyForFit(APPEARED, new Set([1]))).toBe(true);
+    expect(nodesReadyForFit(DEPARTED, new Set())).toBe(true);
+  });
+
+  it('decides ignore / wait / skip / fit without fitting stale nodes', () => {
+    const base = {
+      intents: APPEARED,
+      previousIntents: DEPARTED,
+      framed: false,
+      follow: false,
+      dragActive: false,
+      nodeIds: new Set<number>(),
+    };
+    expect(decideCameraFit({ ...base, previousIntents: APPEARED })).toBe('ignore');
+    expect(decideCameraFit(base)).toBe('wait');
+    expect(decideCameraFit({ ...base, nodeIds: new Set([1]) })).toBe('fit');
+    expect(
+      decideCameraFit({
+        ...base,
+        intents: [{ kind: 'system-departed', systemId: 2 }],
+        nodeIds: new Set(),
+      }),
+    ).toBe('skip');
+    expect(planCameraFit('ignore')).toEqual({ consume: false, fit: false });
+    expect(planCameraFit('wait')).toEqual({ consume: false, fit: false });
+    expect(planCameraFit('skip')).toEqual({ consume: true, fit: false });
+    expect(planCameraFit('fit')).toEqual({ consume: true, fit: true });
   });
 });

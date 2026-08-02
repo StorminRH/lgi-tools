@@ -295,9 +295,11 @@ async function runViewport(browser, definition, viewport, baseUrl, opts) {
     }
     const secondaryBrowser =
       engineName === opts.engine ? browser : await launcher.launch();
+    // Same requiresAuth rule as the primary context: never hand a signed-in
+    // secondary session to a probe that did not declare it needs one.
     const secondaryContext = await secondaryBrowser.newContext({
       ...contextOptions(viewportName, definition.reducedMotion),
-      ...(storageState ? { storageState } : {}),
+      ...(definition.requiresAuth && storageState ? { storageState } : {}),
     });
     ownedContexts.push({
       context: secondaryContext,
@@ -414,10 +416,15 @@ async function captureStorageState(opts) {
     const deadline = Date.now() + 10 * 60_000;
     for (;;) {
       // context.request shares the context's cookies, and polling an API URL
-      // never races the page's own SSO redirects.
+      // never races the page's own SSO redirects. Require HTTP success and a
+      // user record — a non-2xx JSON error body is also non-null.
       const session = await context.request
         .get(sessionUrl)
-        .then((response) => response.json())
+        .then(async (response) => {
+          if (!response.ok()) return null;
+          const body = await response.json();
+          return body?.user ? body : null;
+        })
         .catch(() => null);
       if (session !== null) {
         console.log(`Signed in as ${session.user?.name ?? 'unknown'} — saving state.`);

@@ -64,6 +64,9 @@ export default {
     if (frameReport === null) {
       check('long-animation-frame observer is available in this browser', false);
     } else {
+      const withScripts = frameReport.filter(
+        (frame) => (frame.scripts ?? []).length > 0,
+      ).length;
       const layoutAttributed = frameReport.some((frame) =>
         (frame.scripts ?? []).some((script) =>
           /compass\.ts|trig\.ts|overflow\.ts|geometry\.ts|layout\.worker/i.test(
@@ -71,10 +74,19 @@ export default {
           ),
         ),
       );
-      check(
-        'no long-animation-frame script attribution names a mapper layout module',
-        !layoutAttributed,
-      );
+      // Bundler-minified LoAF names make a "no layout module" pass vacuous when
+      // nothing carries script attribution at all — report that honestly.
+      if (withScripts === 0) {
+        check(
+          `LoAF script attribution inconclusive (${frameReport.length} frames, 0 with script names; layout-module check skipped)`,
+          true,
+        );
+      } else {
+        check(
+          `no long-animation-frame script attribution names a mapper layout module (${frameReport.length} frames, ${withScripts} with scripts)`,
+          !layoutAttributed,
+        );
+      }
     }
 
     await shot('layout-worker');

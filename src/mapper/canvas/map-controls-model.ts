@@ -52,8 +52,8 @@ function clampStepped(
 }
 
 /**
- * Commit a ring-spacing dial change: clamp to range, then raise the floor of
- * separation so `ringSpacing ≥ minSeparation` still holds.
+ * Commit a ring-spacing dial change: clamp to range, then lower `minSeparation`
+ * to the new `ringSpacing` when needed so `ringSpacing ≥ minSeparation` still holds.
  */
 export function commitRingSpacing(
   config: LayoutConfig,

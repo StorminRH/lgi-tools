@@ -6,11 +6,10 @@
 ## Now
 
 - **CURRENT:** sub-version 4.0.3.1 (auto-layout engine) is COMPLETE — both
-  sessions on `lifecycle/4.0.3.1`; the single sub-version PR is opening as a
-  DRAFT and its review-bot loop is operator-delegated to another agent. The
-  operator ratified the shipped defaults at the 4.0.3.1.2 G-1 gate
-  (2026-08-02): ring 300 / separation 150 / fan 3 / proportional / compass-8,
-  camera follow OFF with a one-time initial framing fit. Records:
+  sessions on `lifecycle/4.0.3.1`; PR #346 is ready and in the review-bot
+  correction loop. The operator ratified the shipped defaults at the 4.0.3.1.2
+  G-1 gate (2026-08-02): ring 300 / separation 150 / fan 3 / proportional /
+  compass-8, camera follow OFF with a one-time initial framing fit. Records:
   `docs/session-as-built/4.0/4.0.3.1.{1,2}.md`.
 - **NEXT:** after the PR merges, `start-session` — the resolver should select
   4.0.3.2 (motion layer). Its inputs are live: the reconciler's intents now
@@ -53,10 +52,6 @@
   recovers the map live, with no reload and no access poller. The throwing
   `requireMapAccess` remains for the fixture mutations; `tryMapAccess` is the
   value-returning half and shares its one `by_map_user` lookup.
-- **Provisional placement can arrive off-screen (4.0.2.3.1 demo residual):**
-  the live map still runs `gridAssigner` until 4.0.3.1.2 wires the kernel; the
-  camera-refit question now belongs to that integration session (also listed in
-  the NEXT residuals above).
 - **Convex local backend was relaunched standalone during 4.0.2.3.1 SC-5.3**
   (killed to prove silent reconnection, then restarted outside the `convex dev`
   supervisor). Restart `pnpm dev:all` before relying on Convex hot-push again.

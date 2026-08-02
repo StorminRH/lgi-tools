@@ -1293,8 +1293,10 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             handler="start-session",
             mode="execute",
             authority=(
-                "The contract and plan are starting prompts; reshape through "
-                "in-session operator discussion and continue forward."
+                "The contract and product scope remain frozen. The approved "
+                "plan is the starting prompt; reshape only its interfaces or "
+                "steps through in-session operator discussion, record the "
+                "divergence in the as-built, and continue forward."
             ),
             primary_artifact=str(state["sessionPlan"]),
             pause=pause,

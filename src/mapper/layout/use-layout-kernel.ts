@@ -82,6 +82,10 @@ export function useLayoutKernel(): LayoutKernel {
     }
 
     workerRef.current = worker;
+    // A fresh worker is healthy; clear any death recorded by a previous mount
+    // (StrictMode remount or route remount) so we do not leave a live worker idle
+    // while every request permanently takes the in-process branch.
+    deadRef.current = false;
 
     worker.onmessage = (event: MessageEvent<LayoutWorkerResponse>) => {
       const response = event.data;

@@ -27,9 +27,6 @@ const EDGE_TYPES = { [CHAIN_EDGE_TYPE]: ChainLinkEdge };
 // shapes read as radial lines rather than overlapping S-curves.
 const DEFAULT_EDGE_OPTIONS = { type: CHAIN_EDGE_TYPE };
 
-// Operator direction (2026-08-02): hide the library's corner attribution.
-const PRO_OPTIONS = { hideAttribution: true };
-
 /** Props the live host supplies; the empty canvas passes nodes and edges only. */
 export interface ChainSurfaceProps {
   readonly nodes: readonly ChainNode[];
@@ -83,7 +80,6 @@ export function ChainSurface({
       minZoom={0.2}
       maxZoom={2.5}
       defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
-      proOptions={PRO_OPTIONS}
       deleteKeyCode={null}
       disableKeyboardA11y
       nodesDraggable={nodesDraggable}

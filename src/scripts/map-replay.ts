@@ -139,7 +139,15 @@ async function insertConnection(mapId: string, edge: LayoutEdge): Promise<string
     toSystemId: edge.toSystemId,
     ...DEFAULT_CONNECTION,
   });
-  return JSON.parse(inserted) as string;
+  // Convex CLI may emit progress lines before the JSON id; take the last line.
+  const lastLine = inserted.split('\n').at(-1)?.trim() ?? '';
+  try {
+    const parsed: unknown = JSON.parse(lastLine);
+    if (typeof parsed !== 'string') throw new Error('not a string id');
+    return parsed;
+  } catch {
+    throw new Error(`insertConnectionFixture returned unparsable output: ${inserted}`);
+  }
 }
 
 /** Narrates one step's skipped self-loops and freshly deferred edges. */

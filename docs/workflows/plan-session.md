@@ -31,7 +31,7 @@ reshape through live operator discussion without returning here.
 2. Read the contract and session-plan schema, then reconcile every dependency,
    boundary, decision, acceptance claim, evidence category, baseline effect, and
    operator gate against current repository evidence and live code. Use
-   Codegraph only for material relationship, consumer, dependency, or
+   `repo-mapper` for material relationship, consumer, dependency, or
    blast-radius claims. Investigate as needed, but do not draft the full plan
    yet.
 3. Treat the contract's approved execution bundle as fixed. Do not split it
@@ -60,10 +60,11 @@ and present a complete schema plan for approval.
 3. Resolve every contract planning decision (`PD-N` and consequential choices)
    during this walk. Do not escalate ordinary local implementation details;
    surface choices that change behavior, ownership, risk, or scope. For every
-   framework-sensitive interface or runtime claim, cite current primary
-   documentation or run a focused executable probe against the installed
-   version. If feasibility remains unproved, present bounded alternatives in
-   the current section discussion instead of freezing one as exact.
+   framework-sensitive interface or runtime claim, use `docs-researcher` for
+   current primary documentation, or run a focused executable probe against the
+   installed version. If feasibility remains unproved, present bounded
+   alternatives in the current section discussion instead of freezing one as
+   exact.
 4. Stop before fixed-schema drafting until every section above is settled with
    the operator and both share a full mental model of the session.
 

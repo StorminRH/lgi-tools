@@ -38,18 +38,23 @@ declare const self: DedicatedWorkerGlobalScope;
 
 self.onmessage = (event: MessageEvent<LayoutWorkerRequest>) => {
   const { requestId, facts, config } = event.data;
-  void compassKernel(facts, config).then(
-    (positions) => {
+  const fail = (error: unknown): void => {
+    const response: LayoutWorkerFailure = {
+      kind: 'error',
+      requestId,
+      message: error instanceof Error ? error.message : String(error),
+    };
+    self.postMessage(response);
+  };
+  // `compassKernel` does synchronous tree work before returning its promise; a
+  // throw there would otherwise kill the worker without a reply and force the
+  // client into permanent in-process degradation.
+  try {
+    void compassKernel(facts, config).then((positions) => {
       const response: LayoutWorkerSuccess = { kind: 'ok', requestId, positions };
       self.postMessage(response);
-    },
-    (error: unknown) => {
-      const response: LayoutWorkerFailure = {
-        kind: 'error',
-        requestId,
-        message: error instanceof Error ? error.message : String(error),
-      };
-      self.postMessage(response);
-    },
-  );
+    }, fail);
+  } catch (error) {
+    fail(error);
+  }
 };

@@ -186,7 +186,12 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
         config={config}
         onConfigChange={setConfig}
       />
-      <CameraFollowHost intents={intents} follow={follow} dragging={dragging} />
+      <CameraFollowHost
+        intents={intents}
+        follow={follow}
+        dragging={dragging}
+        nodes={nodes}
+      />
     </ChainSurface>
   );
 }
