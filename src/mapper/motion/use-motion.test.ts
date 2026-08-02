@@ -211,6 +211,44 @@ describe('departure derivation', () => {
     expect(frame.nodes[0]?.data.motion).toEqual({ phase: 'entering' });
   });
 
+  it('ghosts a departing edge from the previous-merge memory — truth has already dropped it', () => {
+    // The regression this pins: ChainHost's edge memo recomputes in the merge
+    // commit itself, so at adoption the departing edge is ALREADY GONE from
+    // truth. Its ghost must come from the previous merge's edge memory, or
+    // exits pop instead of playing their flavor.
+    const treeParents = new Map([[32, 31]]);
+    const before = truthOf(
+      [node(31, 0, 0), node(32, 100, 0)],
+      [edge('c1', 31, 32)],
+      treeParents,
+    );
+    let host = createHostState([], before.edges);
+
+    const collapse: readonly MapChainIntent[] = [
+      { kind: 'connection-departed', connectionId: 'c1' },
+      { kind: 'system-departed', systemId: 32 },
+    ];
+    // Post-merge truth: the edge is gone in the SAME commit; only nodes lag.
+    const postMerge = truthOf([node(31, 0, 0), node(32, 100, 0)], [], treeParents);
+    host = consumeMerge(host, {
+      ...mergeInput(postMerge, collapse, 0),
+      flavor: 'grow-from-parent',
+    });
+
+    const frame = derivePresentation(postMerge, host, NONE, 'grow-from-parent');
+    const ghostEdge = frame.edges.find((candidate) => candidate.id === 'c1');
+    expect(ghostEdge).toBeDefined();
+    expect(ghostEdge?.data.motion).toMatchObject({
+      phase: 'departing',
+      flavor: 'grow',
+    });
+
+    // And it expires on the scheduler clock like every ghost.
+    const expired = stepHost(host, PLAN.exitMs + 1, EASE, NONE, false);
+    const after = derivePresentation(truthOf([node(31, 0, 0)]), expired.next, NONE, 'grow-from-parent');
+    expect(after.edges).toHaveLength(0);
+  });
+
   it('flags a still-in-truth departing node in the lag commit before the sync effect', () => {
     const preMerge = truthOf([node(31, 40, 50)]);
     const host = consumeMerge(createHostState([]), mergeInput(preMerge, [departure], 0));

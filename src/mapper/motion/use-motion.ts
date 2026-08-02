@@ -90,14 +90,33 @@ export interface MotionHostState {
   readonly displacements: ReadonlyMap<number, ChainPosition>;
   readonly ghostNodes: ReadonlyMap<number, ChainNode>;
   readonly ghostEdges: ReadonlyMap<string, ChainEdge>;
+  /**
+   * The edge array as of the PREVIOUS merge, by id — the ghost capture
+   * source. Nodes sync one commit late (`ChainHost`'s passive effect), so a
+   * departing node is still in truth at adoption; the edge memo recomputes in
+   * the merge commit itself, so a departing edge is ALREADY GONE from truth
+   * when its departure intent arrives. Without this memory, edge exits could
+   * never render and every departing line would pop instead of playing its
+   * flavor.
+   */
+  readonly knownEdges: ReadonlyMap<string, ChainEdge>;
+}
+
+/** The previous-merge edge memory, rebuilt from one truth array. */
+function edgesById(
+  edges: readonly ChainEdge[],
+): ReadonlyMap<string, ChainEdge> {
+  return new Map(edges.map((edge) => [edge.id, edge]));
 }
 
 /**
  * A fresh, idle host that treats `intents` as already consumed — mounting (or
- * an access reset) never replays history as motion.
+ * an access reset) never replays history as motion. `edges` seeds the ghost
+ * capture memory with the mount-time truth.
  */
 export function createHostState(
   intents: readonly MapChainIntent[],
+  edges: readonly ChainEdge[] = [],
 ): MotionHostState {
   return {
     consumed: intents,
@@ -105,6 +124,7 @@ export function createHostState(
     displacements: new Map(),
     ghostNodes: new Map(),
     ghostEdges: new Map(),
+    knownEdges: edgesById(edges),
   };
 }
 
@@ -166,23 +186,28 @@ function captureGhostNodes(
   return captured;
 }
 
-/** Same as `captureGhostNodes`, for departing connections. */
+/**
+ * The edge counterpart of `captureGhostNodes` — sourced from the
+ * previous-merge edge memory, because a departing edge has already left the
+ * truth array in the very commit that announces its departure.
+ */
 function captureGhostEdges(
   previous: ReadonlyMap<string, ChainEdge>,
   motion: MotionState,
-  truth: MotionTruth,
+  knownEdges: ReadonlyMap<string, ChainEdge>,
+  treeParents: ReadonlyMap<number, number>,
   flavor: EdgeFlavor,
 ): ReadonlyMap<string, ChainEdge> {
   const captured = new Map(pruneToLive(previous, motion.edgeGhosts));
   for (const [connectionId, ghost] of motion.edgeGhosts) {
     if (captured.has(connectionId)) continue;
-    const edge = truth.edges.find((candidate) => candidate.id === connectionId);
+    const edge = knownEdges.get(connectionId);
     if (edge === undefined) continue;
     captured.set(connectionId, {
       ...edge,
       data: {
         ...edge.data,
-        motion: edgeMotionFor(edge, 'departing', flavor, truth.treeParents, ghost.heavy),
+        motion: edgeMotionFor(edge, 'departing', flavor, treeParents, ghost.heavy),
       },
     });
   }
@@ -208,9 +233,11 @@ export function consumeMerge(
     ghostEdges: captureGhostEdges(
       previous.ghostEdges,
       frame.state,
-      input.truth,
+      previous.knownEdges,
+      input.truth.treeParents,
       input.flavor,
     ),
+    knownEdges: edgesById(input.truth.edges),
   };
 }
 
@@ -226,7 +253,7 @@ export function adjustHostForRender(
 ): MotionHostState | null {
   if (input.access === false) {
     if (!isIdle(host.motion) || host.consumed !== input.intents) {
-      return createHostState(input.intents);
+      return createHostState(input.intents, input.truth.edges);
     }
     return null;
   }
@@ -267,6 +294,7 @@ export function stepHost(
       displacements: frame.displacements,
       ghostNodes: pruneToLive(previous.ghostNodes, frame.state.ghosts),
       ghostEdges: pruneToLive(previous.ghostEdges, frame.state.edgeGhosts),
+      knownEdges: previous.knownEdges,
     },
     active: frame.active,
     changed: true,
@@ -413,7 +441,9 @@ export function useMotion(
   config: MotionConfig,
   seams: MotionSeams,
 ): MotionPresentation {
-  const [host, setHost] = useState<MotionHostState>(() => createHostState(intents));
+  const [host, setHost] = useState<MotionHostState>(() =>
+    createHostState(intents, truth.edges),
+  );
   const plan = useMemo(() => tweenPlanOf(config, false), [config]);
 
   // Mirrors the committed drag set for the frame callbacks (the ChainHost

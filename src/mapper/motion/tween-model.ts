@@ -131,37 +131,9 @@ export function adoptIntents(
         ghosts.delete(intent.systemId);
         tweens.delete(intent.systemId);
         break;
-      case 'system-moved': {
-        // A move landing inside the node's birth window relocates instantly:
-        // the system is still surfacing, and its first real place is wherever
-        // its attaching connection puts it. Without this, the split system/
-        // connection subscriptions make every reveal surface unattached off to
-        // the side and then zip onto the tree (operator direction 2026-08-02).
-        // Read the working map, so a birth in this same batch counts too.
-        const birthWindow = entering.get(intent.systemId);
-        if (birthWindow !== undefined && birthWindow > now) {
-          tweens.delete(intent.systemId);
-          break;
-        }
-        const current = tweens.get(intent.systemId);
-        // Origin: the intent's own `from`, or the current displaced value when
-        // a glide is already in flight (retarget without a jump).
-        const from =
-          current === undefined
-            ? intent.from
-            : displacedAt(current, now, plan.ease);
-        if (samePosition(from, intent.to)) {
-          tweens.delete(intent.systemId);
-          break;
-        }
-        tweens.set(intent.systemId, {
-          from,
-          to: intent.to,
-          startedAt: now,
-          durationMs: plan.moveMs,
-        });
+      case 'system-moved':
+        adoptMove(tweens, entering, intent, now, plan);
         break;
-      }
       case 'system-departed':
         ghosts.set(intent.systemId, { expiresAt: now + exitMs, heavy });
         entering.delete(intent.systemId);
@@ -179,6 +151,45 @@ export function adoptIntents(
   }
 
   return { tweens, entering, ghosts, edgeEntering, edgeGhosts };
+}
+
+/**
+ * Folds one `system-moved` intent into the working tween map.
+ *
+ * A move landing inside the node's birth window relocates instantly: the
+ * system is still surfacing, and its first real place is wherever its
+ * attaching connection puts it. Without this, split system/connection merges
+ * would make a reveal surface unattached and then zip onto the tree (operator
+ * direction 2026-08-02). The window is read from the WORKING map, so a birth
+ * in this same batch counts too.
+ */
+function adoptMove(
+  tweens: Map<number, Tween>,
+  entering: ReadonlyMap<number, number>,
+  intent: Extract<MapChainIntent, { kind: 'system-moved' }>,
+  now: number,
+  plan: TweenPlan,
+): void {
+  const birthWindow = entering.get(intent.systemId);
+  if (birthWindow !== undefined && birthWindow > now) {
+    tweens.delete(intent.systemId);
+    return;
+  }
+  const current = tweens.get(intent.systemId);
+  // Origin: the intent's own `from`, or the current displaced value when a
+  // glide is already in flight (retarget without a jump).
+  const from =
+    current === undefined ? intent.from : displacedAt(current, now, plan.ease);
+  if (samePosition(from, intent.to)) {
+    tweens.delete(intent.systemId);
+    return;
+  }
+  tweens.set(intent.systemId, {
+    from,
+    to: intent.to,
+    startedAt: now,
+    durationMs: plan.moveMs,
+  });
 }
 
 /** Drops the named nodes' tweens — drag start cancels, it never smooths (HC-2). */

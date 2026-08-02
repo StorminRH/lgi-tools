@@ -45,14 +45,16 @@ export interface MotionConfig {
 }
 
 /**
- * Starting dial values for the G-1 tuning loop; the gate ratifies the final
- * defaults here exactly as 4.0.3.1.2 ratified the layout dials. The mid tier
- * anchors at the contract's fixed ~600 ms.
+ * The G-1-ratified defaults (operator sign-off 2026-08-02, from live replay
+ * mapping): a deliberately unhurried feel — births, exits, and glides share
+ * the full second with camera moves, hover feedback sits at 250 ms, edges draw
+ * from and retract into their parent, and a chain collapse plays its heavier
+ * farewell. Changing any of these re-opens the tuning gate, not a code review.
  */
 export const DEFAULT_MOTION_CONFIG: MotionConfig = {
-  tempo: { fast: 200, mid: 600, slow: 1000 },
+  tempo: { fast: 250, mid: 1000, slow: 1000 },
   overshootPct: 12,
-  edgeFlavor: 'fade-with-child',
+  edgeFlavor: 'grow-from-parent',
   collapseWeight: 'heavy',
 };
 

@@ -155,21 +155,24 @@ export const placeSystemFixture = internalMutation({
   },
 });
 
+/** The one connection-input arg shape, shared by every fixture that writes a connection row. */
+const connectionArgs = {
+  mapId: v.string(),
+  fromSystemId: v.number(),
+  toSystemId: v.number(),
+  wormholeTypeCode: wormholeTypeCodeValidator,
+  massState: massStateValidator,
+  shipSize: shipSizeValidator,
+  eolAt: v.union(v.number(), v.null()),
+};
+
 /**
  * Inserts one validated connection. Beyond the pure boundary rules, both endpoints must already
  * exist on THIS map — a connection to an unplaced or foreign system would be an unresolvable
  * reference the read path could never join.
  */
 export const insertConnectionFixture = internalMutation({
-  args: {
-    mapId: v.string(),
-    fromSystemId: v.number(),
-    toSystemId: v.number(),
-    wormholeTypeCode: wormholeTypeCodeValidator,
-    massState: massStateValidator,
-    shipSize: shipSizeValidator,
-    eolAt: v.union(v.number(), v.null()),
-  },
+  args: connectionArgs,
   handler: async (ctx, args) => {
     validateConnectionInput(args);
 
@@ -179,6 +182,49 @@ export const insertConnectionFixture = internalMutation({
           code: 'UNKNOWN_ENDPOINT',
           detail: `System ${systemId} is not on map ${args.mapId}.`,
         });
+      }
+    }
+
+    return await ctx.db.insert('mapConnections', args);
+  },
+});
+
+/**
+ * One jump, atomically: reveals a system together with the connection that
+ * discovered it, in a single transaction.
+ *
+ * This mirrors how mapping actually learns about a system — you are IN a known
+ * system and jump, so the connection is known the moment the destination is —
+ * and it is what keeps the reveal whole on the read path: both subscriptions
+ * update in one consistent Convex transition, so the layout kernel sees the
+ * attachment in the same merge that births the node and it surfaces directly
+ * on the tree (never "nowhere", then a hop). The production auto-mapper
+ * (4.0.4.2) must write reveals through this same one-transaction shape.
+ *
+ * At least one endpoint must already be on the map (a connection cannot be
+ * scanned from nowhere); a missing endpoint is upserted, and a repeated call
+ * for two placed endpoints degrades to a plain connection insert. Admin-key
+ * `convex run` only — matches the existing internal fixture family.
+ */
+export const placeJumpFixture = internalMutation({
+  args: connectionArgs,
+  handler: async (ctx, args) => {
+    validateConnectionInput(args);
+
+    const endpoints = [args.fromSystemId, args.toSystemId];
+    const existing = await Promise.all(
+      endpoints.map((systemId) => findSystem(ctx, args.mapId, systemId)),
+    );
+    if (existing.every((row) => row === null)) {
+      throw new ConvexError({
+        code: 'NO_ORIGIN',
+        detail: 'A jump needs one endpoint already on the map.',
+      });
+    }
+    // Endpoint ids are already validated by `validateConnectionInput` above.
+    for (const [index, systemId] of endpoints.entries()) {
+      if (existing[index] === null) {
+        await ctx.db.insert('mapSystems', { mapId: args.mapId, systemId });
       }
     }
 
@@ -197,12 +243,44 @@ export const insertConnectionFixture = internalMutation({
 export const FIXTURE_CONNECTION_SCAN_LIMIT = 128;
 
 /**
+ * The connection (if any) still referencing one system, under the bounded
+ * scan. One row past the cap: a full page means the map is too big for this
+ * seam to prove the negative, so it refuses instead of silently checking a
+ * prefix. Shared by every removal seam that must prove orphanhood.
+ */
+async function findReferencingConnection(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+) {
+  const connections = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map', (q) => q.eq('mapId', mapId))
+    .take(FIXTURE_CONNECTION_SCAN_LIMIT + 1);
+
+  if (connections.length > FIXTURE_CONNECTION_SCAN_LIMIT) {
+    throw new ConvexError({
+      code: 'FIXTURE_MAP_TOO_LARGE',
+      detail: `Map ${mapId} exceeds the ${FIXTURE_CONNECTION_SCAN_LIMIT}-connection fixture removal bound.`,
+    });
+  }
+
+  return (
+    connections.find(
+      (connection) =>
+        connection.fromSystemId === systemId || connection.toSystemId === systemId,
+    ) ?? null
+  );
+}
+
+/**
  * Removes one placed system from one map, refusing while any connection still references it.
  *
  * This is a departure seam for tests and the local demo, not an authoring surface: 4.0.4.4 owns real
  * deletion. It refuses rather than cascading because a cascade would make one fixture call emit
  * several unrelated departures, which is precisely the merge behavior the reconciler's tests need to
- * observe separately.
+ * observe separately. The one sanctioned pairing — a collapse removing a severed connection with its
+ * now-orphaned system — is {@link collapseJumpFixture}, deliberate and singular.
  *
  * Returns `unchanged` with no write when the system is not on the map, so a repeated removal is
  * idempotent and cannot invalidate anything watching the map.
@@ -213,25 +291,8 @@ export const removeSystemFixture = internalMutation({
     const existing = await findSystem(ctx, mapId, systemId);
     if (existing === null) return 'unchanged';
 
-    // One row past the cap: a full page means the map is too big for this seam to prove the
-    // negative, so it refuses instead of silently checking a prefix.
-    const connections = await ctx.db
-      .query('mapConnections')
-      .withIndex('by_map', (q) => q.eq('mapId', mapId))
-      .take(FIXTURE_CONNECTION_SCAN_LIMIT + 1);
-
-    if (connections.length > FIXTURE_CONNECTION_SCAN_LIMIT) {
-      throw new ConvexError({
-        code: 'FIXTURE_MAP_TOO_LARGE',
-        detail: `Map ${mapId} exceeds the ${FIXTURE_CONNECTION_SCAN_LIMIT}-connection fixture removal bound.`,
-      });
-    }
-
-    const referencing = connections.find(
-      (connection) =>
-        connection.fromSystemId === systemId || connection.toSystemId === systemId,
-    );
-    if (referencing !== undefined) {
+    const referencing = await findReferencingConnection(ctx, mapId, systemId);
+    if (referencing !== null) {
       throw new ConvexError({
         code: 'SYSTEM_IN_USE',
         detail: `System ${systemId} still has a connection on map ${mapId}.`,
@@ -239,6 +300,52 @@ export const removeSystemFixture = internalMutation({
     }
 
     await ctx.db.delete(existing._id);
+    return 'removed';
+  },
+});
+
+/**
+ * One wormhole collapse, atomically: severs a connection and removes the
+ * system it had discovered in a single transaction.
+ *
+ * The departure mirror of {@link placeJumpFixture}, for the same reason: every
+ * system in the game exists forever — only connections change — so when the
+ * hole collapses, the far side is unreachable and must leave the map WITH the
+ * severed connection. Two separate transactions would let the canvas witness
+ * an orphaned system for a merge (re-laid out unattached, then departing). The
+ * production auto-mapper must express collapses through this same
+ * one-transaction shape.
+ *
+ * The system must be orphaned once this connection is gone: a remaining
+ * reference means the caller is collapsing the wrong hole, and the whole
+ * transaction (including the connection delete) rolls back on the thrown
+ * error. Both halves are idempotent, so a repeated collapse is `unchanged`.
+ */
+export const collapseJumpFixture = internalMutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    systemId: v.number(),
+  },
+  handler: async (
+    ctx,
+    { mapId, connectionId, systemId },
+  ): Promise<'removed' | 'unchanged'> => {
+    const connection = await ctx.db.get(connectionId);
+    if (connection !== null) await ctx.db.delete(connectionId);
+
+    const system = await findSystem(ctx, mapId, systemId);
+    if (system === null) return connection === null ? 'unchanged' : 'removed';
+
+    const referencing = await findReferencingConnection(ctx, mapId, systemId);
+    if (referencing !== null) {
+      throw new ConvexError({
+        code: 'SYSTEM_IN_USE',
+        detail: `System ${systemId} still has a connection on map ${mapId}.`,
+      });
+    }
+
+    await ctx.db.delete(system._id);
     return 'removed';
   },
 });

@@ -281,6 +281,196 @@ describe('map chain fixtures', () => {
     });
   });
 
+  // ── 4.0.3.2 atomic reveal — a jump lands system and connection together ────
+  describe('places one jump atomically', () => {
+    it('reveals the destination with its discovering connection in one transaction', async () => {
+      const t = convexTest(schema, modules);
+      await seedMap(t);
+
+      await t.mutation(internal.mapFixtures.placeJumpFixture, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        wormholeTypeCode: 'C247',
+        massState: 'stable',
+        shipSize: null,
+        eolAt: null,
+      });
+
+      const systems = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapSystems')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
+      );
+      const connections = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapConnections')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
+      );
+      expect(systems.map((row) => row.systemId).sort()).toEqual([JITA, AMARR].sort());
+      expect(connections).toHaveLength(1);
+      expect(connections[0]).toMatchObject({ fromSystemId: JITA, toSystemId: AMARR });
+    });
+
+    it('refuses a jump with no endpoint on the map — a connection cannot come from nowhere', async () => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, EDITOR, ['editor']);
+
+      await expectConvexError(
+        t.mutation(internal.mapFixtures.placeJumpFixture, {
+          mapId: MAP_A,
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          wormholeTypeCode: 'C247',
+          massState: 'stable',
+          shipSize: null,
+          eolAt: null,
+        }),
+        'NO_ORIGIN',
+      );
+    });
+
+    it('degrades to a plain connection insert when both endpoints already exist', async () => {
+      const t = convexTest(schema, modules);
+      await seedMap(t);
+      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+        mapId: MAP_A,
+        systemId: AMARR,
+      });
+
+      await t.mutation(internal.mapFixtures.placeJumpFixture, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        wormholeTypeCode: 'C247',
+        massState: 'stable',
+        shipSize: null,
+        eolAt: null,
+      });
+
+      const systems = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapSystems')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
+      );
+      expect(systems).toHaveLength(2);
+    });
+
+    it('rejects an invalid revealed system id', async () => {
+      const t = convexTest(schema, modules);
+      await seedMap(t);
+
+      await expectConvexError(
+        t.mutation(internal.mapFixtures.placeJumpFixture, {
+          mapId: MAP_A,
+          fromSystemId: JITA,
+          toSystemId: 0.5,
+          wormholeTypeCode: 'C247',
+          massState: 'stable',
+          shipSize: null,
+          eolAt: null,
+        }),
+        'INVALID_SYSTEM_ID',
+      );
+    });
+  });
+
+  // ── 4.0.3.2 atomic collapse — the departure mirror of the atomic reveal ────
+  describe('collapses one jump atomically', () => {
+    async function seedJump(t: Chain) {
+      await seedMap(t);
+      return await t.mutation(internal.mapFixtures.placeJumpFixture, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        wormholeTypeCode: 'C247',
+        massState: 'stable',
+        shipSize: null,
+        eolAt: null,
+      });
+    }
+
+    it('severs the connection and removes the discovered system in one transaction', async () => {
+      const t = convexTest(schema, modules);
+      const connectionId = await seedJump(t);
+
+      const result = await t.mutation(internal.mapFixtures.collapseJumpFixture, {
+        mapId: MAP_A,
+        connectionId,
+        systemId: AMARR,
+      });
+      expect(result).toBe('removed');
+
+      const systems = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapSystems')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
+      );
+      const connections = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapConnections')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
+      );
+      expect(systems.map((row) => row.systemId)).toEqual([JITA]);
+      expect(connections).toHaveLength(0);
+    });
+
+    it('refuses — and rolls back the sever — while another connection still references the system', async () => {
+      const t = convexTest(schema, modules);
+      const connectionId = await seedJump(t);
+      const third = 30_002_659;
+      await t.mutation(internal.mapFixtures.placeJumpFixture, {
+        mapId: MAP_A,
+        fromSystemId: AMARR,
+        toSystemId: third,
+        wormholeTypeCode: null,
+        massState: 'stable',
+        shipSize: null,
+        eolAt: null,
+      });
+
+      await expectConvexError(
+        t.mutation(internal.mapFixtures.collapseJumpFixture, {
+          mapId: MAP_A,
+          connectionId,
+          systemId: AMARR,
+        }),
+        'SYSTEM_IN_USE',
+      );
+
+      // The whole transaction rolled back: the severed connection is intact.
+      const connections = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapConnections')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
+      );
+      expect(connections).toHaveLength(2);
+    });
+
+    it('is idempotent: repeating a completed collapse changes nothing', async () => {
+      const t = convexTest(schema, modules);
+      const connectionId = await seedJump(t);
+      await t.mutation(internal.mapFixtures.collapseJumpFixture, {
+        mapId: MAP_A,
+        connectionId,
+        systemId: AMARR,
+      });
+
+      const repeat = await t.mutation(internal.mapFixtures.collapseJumpFixture, {
+        mapId: MAP_A,
+        connectionId,
+        systemId: AMARR,
+      });
+      expect(repeat).toBe('unchanged');
+    });
+  });
+
   // ── SC-2 · DC-2 / AC-2 / V-1 ───────────────────────────────────────────────
   describe('round-trips connection and signature state', () => {
     it('stores join keys and observation state only, with no codex facts', async () => {

@@ -1050,9 +1050,11 @@ details[data-collapsible][open] > summary [data-chevron] {
  *   - Every animation has a reduced-motion gate collapsing it to a gentle
  *     fade or nothing (DC-6). */
 
+/* Pre-hydration fallbacks mirroring the ratified DEFAULT_MOTION_CONFIG; the
+ * effect overwrites them with live dial state on mount. */
 [data-map-motion-scope] {
-  --map-motion-fast: 200ms;
-  --map-motion-mid: 600ms;
+  --map-motion-fast: 250ms;
+  --map-motion-mid: 1000ms;
   --map-motion-slow: 1000ms;
 }
 

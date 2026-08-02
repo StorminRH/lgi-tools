@@ -16,12 +16,16 @@ function measuredPeak(ease: (t: number) => number): number {
 
 // ── SC-7 · HC-3 — three tiers, one family, dial defaults ─────────────────────
 describe('motion config defaults', () => {
-  it('anchors the mid tier at the contract-fixed ~600 ms with fast below and slow above', () => {
+  it('ships the G-1-ratified tiers: fast below the shared mid/slow second', () => {
     const { fast, mid, slow } = DEFAULT_MOTION_CONFIG.tempo;
 
-    expect(mid).toBe(600);
+    // Ratified at the 2026-08-02 tuning gate; changing these re-opens the
+    // gate, so the exact values are pinned, not just their ordering.
+    expect(fast).toBe(250);
+    expect(mid).toBe(1000);
+    expect(slow).toBe(1000);
     expect(fast).toBeLessThan(mid);
-    expect(slow).toBeGreaterThan(mid);
+    expect(slow).toBeGreaterThanOrEqual(mid);
   });
 
   it('ships integer-percent overshoot and a declared flavor and collapse weight', () => {
@@ -111,8 +115,8 @@ describe('motion css properties', () => {
       '--map-motion-mid',
       '--map-motion-slow',
     ]);
-    expect(properties['--map-motion-fast']).toBe('200ms');
-    expect(properties['--map-motion-mid']).toBe('600ms');
+    expect(properties['--map-motion-fast']).toBe('250ms');
+    expect(properties['--map-motion-mid']).toBe('1000ms');
     expect(properties['--map-motion-slow']).toBe('1000ms');
     expect(properties['--map-motion-ease']).toBe(
       springFamily(DEFAULT_MOTION_CONFIG.overshootPct).cssLinear,
