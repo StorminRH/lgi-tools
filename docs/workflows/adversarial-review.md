@@ -95,20 +95,30 @@ Choose one holistic role and one to three bounded scoped roles:
 
 Use the portable reviewer vocabulary when it fits the subject:
 
-- select `architecture-reviewer` for interface depth, boundaries, or
-  structural pressure;
+- select `architecture-reviewer` for module interface depth, layer boundaries,
+  or structural pressure;
 - select `ownership-reviewer` for local decision ownership, dependency
-  direction, primitive reuse, interface breadth, or semantic duplication;
+  direction, living AGENTS.md primitive/registry/gate reuse, interface
+  breadth, or semantic duplication; prefer this role whenever the subject
+  changes `src/` or `convex/` behavior so hand-rolled parallels of established
+  owners are checked against the nearest scoped guide;
 - select `reliability-reviewer` for state transitions, cleanup, cancellation,
   resource release, concurrency, idempotency, timeouts, retries, degradation,
   or recovery;
 - select `contract-reviewer` for authority-to-outcome coverage, boundary
   contracts, authoritative shapes, cross-file consistency, or behavioral
   proof;
-- select `interface-reviewer` for changed user-facing behavior,
-  accessibility, or design-system conformance; and
+- select `interface-reviewer` for changed user-facing UI behavior,
+  accessibility, or design-system conformance (not module or API interface
+  depth); and
 - select a task-specific security, identity, data-integrity, concurrency, or
   other role when that risk is more material.
+
+`ownership-reviewer` judges reuse against root `AGENTS.md` Architecture and
+engineering plus the nearest scoped guide (`src/AGENTS.md` and/or
+`convex/AGENTS.md`, and `docs/CONVEX.md` when that guide requires it for the
+changed surface). Do not substitute a fixed checklist of named systems; new
+owners and registries enter scope when those living guides change.
 
 Do not select a reviewer merely because its global definition exists. A
 reviewer used during pre-PR design review must still be launched as a fresh

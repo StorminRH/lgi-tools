@@ -37,11 +37,14 @@ Subagents may collect design evidence, but the parent owns every verdict,
 fix, deferral, baseline decision, and final result. After establishing the
 review boundary, launch a fresh read-only `architecture-reviewer` when
 subagents are available for interface depth, boundaries, and structural risk.
-Also launch a fresh read-only `ownership-reviewer` when the diff changes local
-decision ownership, dependency direction, primitive reuse, interface breadth,
-or semantic duplication. Also launch a fresh read-only `interface-reviewer`
-when user-facing behavior changed. Give each reviewer the complete logical
-inventory and one bounded, non-overlapping scope; require the verdict form from
+Also launch a fresh read-only `ownership-reviewer` when the diff changes
+`src/` or `convex/` behavior, or when it otherwise touches local decision
+ownership, dependency direction, primitive or registry reuse, interface
+breadth, or semantic duplication. That reviewer checks the diff against living
+root and nearest scoped `AGENTS.md` rules rather than a fixed system list.
+Also launch a fresh read-only `interface-reviewer` when user-facing UI behavior
+changed. Give each reviewer the complete logical inventory and one bounded,
+non-overlapping scope; require the verdict form from
 `docs/workflows/adversarial-review.md`. Keep their exploratory output isolated
 and carry only reported findings and load-bearing checks into this procedure.
 
