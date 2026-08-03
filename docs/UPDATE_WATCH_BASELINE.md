@@ -172,7 +172,8 @@ tooling).
         "https://vercel.com/changelog/vercel-mcp-now-supports-the-2026-07-28-mcp-specification",
         "https://vercel.com/changelog/expanded-search-for-workflow-runs-in-vercel-observability",
         "https://vercel.com/changelog/10x-more-capacity-for-laguna-s-2-1-on-ai-gateway",
-        "https://vercel.com/changelog/vercel-passport-generally-available"
+        "https://vercel.com/changelog/vercel-passport-generally-available",
+        "https://vercel.com/changelog/qwen-3-8-max-now-available-on-vercel-ai-gateway"
       ]
     },
     {
