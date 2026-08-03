@@ -9,7 +9,7 @@
   `lifecycle/4.0.3.2` — its sub-version PR is opening through close-out. The
   operator ratified the motion defaults at the G-1 gate (2026-08-02): fast 250 /
   mid 1000 / slow 1000 ms, overshoot 12 %, edge flavor grow-from-parent,
-  collapse exit heavy, click-focus ON. Record:
+  collapse exit ordinary, click-focus ON. Record:
   `docs/session-as-built/4.0/4.0.3.2.1.md`.
 - **NEXT:** after the PR merges, `start-session` — the resolver should select
   4.0.3.3 (overlay window framework). Handoff facts for it: an overlay anchored

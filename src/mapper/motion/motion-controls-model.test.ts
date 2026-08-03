@@ -77,12 +77,13 @@ describe('flavor commits', () => {
   });
 
   it('commits flavor and weight without touching the tempo', () => {
-    const flavored = commitEdgeFlavor(CONFIG, 'grow-from-parent');
-    expect(flavored.edgeFlavor).toBe('grow-from-parent');
+    // Commit the non-default member of each vocabulary so a no-op commit fails.
+    const flavored = commitEdgeFlavor(CONFIG, 'fade-with-child');
+    expect(flavored.edgeFlavor).toBe('fade-with-child');
     expect(flavored.tempo).toEqual(CONFIG.tempo);
 
-    const weighted = commitCollapseWeight(CONFIG, 'ordinary');
-    expect(weighted.collapseWeight).toBe('ordinary');
+    const weighted = commitCollapseWeight(CONFIG, 'heavy');
+    expect(weighted.collapseWeight).toBe('heavy');
     expect(weighted.tempo).toEqual(CONFIG.tempo);
   });
 });

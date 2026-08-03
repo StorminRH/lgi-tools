@@ -175,7 +175,7 @@ function internalNodeSummary(
         readonly internals: {
           readonly positionAbsolute: { readonly x: number; readonly y: number };
         };
-        readonly measured: { readonly width?: number };
+        readonly measured?: { readonly width?: number };
       }
     | undefined,
 ): { readonly x: number; readonly y: number; readonly width?: number } | null {
@@ -183,7 +183,7 @@ function internalNodeSummary(
   return {
     x: internal.internals.positionAbsolute.x,
     y: internal.internals.positionAbsolute.y,
-    width: internal.measured.width,
+    width: internal.measured?.width,
   };
 }
 

@@ -31,7 +31,13 @@ import {
   PROOF_CORPUS,
   type CorpusEntry,
 } from '@/mapper/layout/proof-kit';
-import { parseReplayArgs, planSpawnSteps, type ReplayArgs, type SpawnStep } from './map-replay-plan';
+import {
+  attachingEdgeOf,
+  parseReplayArgs,
+  planSpawnSteps,
+  type ReplayArgs,
+  type SpawnStep,
+} from './map-replay-plan';
 
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
@@ -198,14 +204,13 @@ interface SpawnRecord {
 /**
  * Executes one spawn step. The edge that discovered this system jumps in
  * atomically with it; only a root (or a system whose attaching edge the
- * corpus deferred) spawns bare. Loop closures and newly placeable deferred
- * edges follow as ordinary scans.
+ * corpus deferred until this landing) spawns bare. Prefer a current-step
+ * discovering edge over a drained deferred edge that merely became placeable
+ * because this system arrived — otherwise teardown collapses the wrong pair.
+ * Loop closures and remaining drained edges follow as ordinary scans.
  */
 async function executeSpawnStep(mapId: string, step: SpawnStep): Promise<SpawnRecord> {
-  const attaching = step.connections.find(
-    (edge) =>
-      edge.fromSystemId === step.systemId || edge.toSystemId === step.systemId,
-  );
+  const attaching = attachingEdgeOf(step);
   let attachingConnectionId: string | null = null;
   if (attaching === undefined) {
     console.log(`+ system ${step.systemId}`);
@@ -215,7 +220,7 @@ async function executeSpawnStep(mapId: string, step: SpawnStep): Promise<SpawnRe
   }
   logStepNotes(step);
   const otherConnectionIds: string[] = [];
-  for (const edge of step.connections) {
+  for (const edge of [...step.connections, ...step.drainedConnections]) {
     if (edge === attaching) continue;
     otherConnectionIds.push(await insertConnection(mapId, edge));
   }

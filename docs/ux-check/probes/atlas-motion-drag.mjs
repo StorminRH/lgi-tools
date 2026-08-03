@@ -90,7 +90,16 @@ export default {
     check('a hittable central disc was found to grab', grip !== null);
     if (grip === null) return;
 
-    const node = page.locator('.react-flow__node').nth(gripIndex);
+    // Resolve the node from the grabbed disc — disc and node locator orders
+    // can diverge when selection or z-index reorders React Flow wrappers.
+    const nodeId = await discs
+      .nth(gripIndex)
+      .evaluate((element) => element.closest('.react-flow__node')?.dataset.id ?? null);
+    if (nodeId === null) {
+      check('the grabbed disc resolves to a node', false);
+      return;
+    }
+    const node = page.locator(`.react-flow__node[data-id="${nodeId}"]`);
     const startBox = await node.boundingBox();
     if (startBox === null) {
       check('the dragged node has a box', false);

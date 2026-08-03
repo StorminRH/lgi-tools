@@ -15,7 +15,8 @@ import { readNodePositions } from '../lib/read-node-positions.mjs';
 const execFileAsync = promisify(execFile);
 
 /** Unique per run — a repeated id would upsert idempotently and never arrive. */
-const PROBE_SYSTEM_ID = 99_100_000 + (Date.now() % 100_000);
+const PROBE_SYSTEM_ID =
+  99_100_000 + (Date.now() % 100_000) + Math.floor(Math.random() * 1_000);
 
 /** True when a witness frame shows the birth animation actually running. */
 const animatedFrame = (frame) =>

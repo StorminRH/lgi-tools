@@ -28,7 +28,10 @@ function rimError(endpoint, node) {
 /** True when some node's rim carries this endpoint (within tolerance). */
 function onSomeRim(endpoint, nodes, tolerance) {
   return nodes.some(
-    (node) => node.x !== null && rimError(endpoint, node) <= tolerance,
+    (node) =>
+      node.x !== null
+      && typeof node.width === 'number'
+      && rimError(endpoint, node) <= tolerance,
   );
 }
 

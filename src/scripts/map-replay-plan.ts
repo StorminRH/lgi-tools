@@ -57,7 +57,12 @@ export function parseReplayArgs(argv: readonly string[]): ReplayArgs | null {
 /** One jump of the replay: a system placement plus the connections that land with it. */
 export interface SpawnStep {
   readonly systemId: number;
-  /** Connections insertable at this step, deferred arrivals drained first. */
+  /**
+   * Deferred edges that became placeable because this system landed. Ordinary
+   * scans — they must not steal the discovering jump from a current-step edge.
+   */
+  readonly drainedConnections: readonly LayoutEdge[];
+  /** Edges scanned at this step (discovering jump, loops, orphan resolves). */
   readonly connections: readonly LayoutEdge[];
   /** Self-loop edges the live entity contract forbids; logged and skipped. */
   readonly skippedSelfLoops: readonly LayoutEdge[];
@@ -69,6 +74,17 @@ export interface SpawnStep {
 export interface SpawnPlan {
   readonly steps: readonly SpawnStep[];
   readonly unplaceable: readonly LayoutEdge[];
+}
+
+/**
+ * The discovering connection for one spawn step: prefer a current-step edge
+ * that touches the system, and only fall back to a drained deferred edge when
+ * that deferred edge is the jump that finally revealed it.
+ */
+export function attachingEdgeOf(step: SpawnStep): LayoutEdge | undefined {
+  const touches = (edge: LayoutEdge): boolean =>
+    edge.fromSystemId === step.systemId || edge.toSystemId === step.systemId;
+  return step.connections.find(touches) ?? step.drainedConnections.find(touches);
 }
 
 /**
@@ -95,10 +111,10 @@ export function planSpawnSteps(
     if (system === undefined) throw new Error(`missing system at count ${systemCount}`);
     placed.add(system.systemId);
 
-    const drained = pending.filter(placeable);
+    const drainedConnections = pending.filter(placeable);
     pending = pending.filter((edge) => !placeable(edge));
 
-    const connections: LayoutEdge[] = [...drained];
+    const connections: LayoutEdge[] = [];
     const skippedSelfLoops: LayoutEdge[] = [];
     const newlyDeferred: LayoutEdge[] = [];
     for (const [index, edge] of facts.connections.entries()) {
@@ -111,7 +127,13 @@ export function planSpawnSteps(
       }
     }
 
-    steps.push({ systemId: system.systemId, connections, skippedSelfLoops, newlyDeferred });
+    steps.push({
+      systemId: system.systemId,
+      drainedConnections,
+      connections,
+      skippedSelfLoops,
+      newlyDeferred,
+    });
   }
 
   return { steps, unplaceable: pending };

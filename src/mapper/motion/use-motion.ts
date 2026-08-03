@@ -92,10 +92,25 @@ export function useMotion(
 
   // Adjust-state-while-rendering: adoption must land in the same commit as the
   // truth it accompanies, or a forced move paints one frame at its raw target.
-  // The guard also keeps the environment seams unread on quiet renders (and in
-  // server rendering, where no batch can ever be unconsumed).
+  // Environment seams stay unread on quiet renders and on the access-loss path
+  // (createHostState needs no clock or reduced-motion read), so a server render
+  // that only hits the defensive reset cannot touch `window`.
   let live = host;
-  if (access === false || host.consumed !== intents) {
+  if (access === false) {
+    const adjusted = adjustHostForRender(host, {
+      truth,
+      intents,
+      access,
+      now: 0,
+      plan,
+      dragging,
+      flavor: config.edgeFlavor,
+    });
+    if (adjusted !== null) {
+      live = adjusted;
+      setHost(adjusted);
+    }
+  } else if (host.consumed !== intents) {
     const adjusted = adjustHostForRender(host, {
       truth,
       intents,
