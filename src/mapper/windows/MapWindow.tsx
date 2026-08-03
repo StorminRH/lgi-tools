@@ -73,7 +73,7 @@ function assignForwardedRef(
 
 function placementClassName(placement: WindowPlacement): string | false {
   if (placement.kind === 'docked') {
-    return 'right-4 top-[4.5rem] h-[calc(100dvh-5.5rem)] w-[360px] max-w-[calc(100vw-2rem)]';
+    return 'left-4 top-[4.5rem] h-[calc(100dvh-5.5rem)] w-[360px] max-w-[calc(100vw-2rem)]';
   }
   if (placement.kind === 'floating') {
     return 'left-[var(--map-window-x)] top-[var(--map-window-y)] h-[var(--map-window-height)] w-[var(--map-window-width)]';
@@ -81,27 +81,8 @@ function placementClassName(placement: WindowPlacement): string | false {
   return 'left-0 top-0 h-52 w-72 [transform:var(--map-window-transform)]';
 }
 
-function DragHandle({
-  title,
-  floating,
-  onPointerDown,
-}: {
-  readonly title: string;
-  readonly floating: boolean;
-  readonly onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
-}) {
-  if (!floating) return null;
-  return (
-    <Button
-      variant="bare"
-      aria-label={`Drag ${title}`}
-      className="h-6 w-6 cursor-move touch-none justify-center text-muted hover:text-text"
-      onPointerDown={onPointerDown}
-    >
-      ⋮
-    </Button>
-  );
-}
+const TITLE_BAR_CONTROL_SELECTOR =
+  'button, a, input, select, textarea, [role="button"]';
 
 function PopToggle({
   title,
@@ -117,7 +98,7 @@ function PopToggle({
     <Button
       variant="bare"
       aria-label={floating ? `Anchor ${title}` : `Pop out ${title}`}
-      className="h-6 w-6 justify-center text-muted hover:text-isk"
+      className="h-6 w-6 cursor-pointer justify-center text-muted hover:text-isk"
       onClick={onPopToggle}
     >
       {floating ? '↙' : '↗'}
@@ -136,15 +117,29 @@ function WindowHeader({
   readonly floating: boolean;
   readonly onClose: () => void;
   readonly onPopToggle?: () => void;
-  readonly onDragPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
+  readonly onDragPointerDown: (event: PointerEvent<HTMLElement>) => void;
 }) {
+  const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (!floating) return;
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest(TITLE_BAR_CONTROL_SELECTOR) !== null
+    ) {
+      return;
+    }
+    onDragPointerDown(event);
+  };
+
   return (
-    <header className="flex h-8 shrink-0 items-center gap-1 border-b border-border px-1.5">
-      <DragHandle
-        title={title}
-        floating={floating}
-        onPointerDown={onDragPointerDown}
-      />
+    <header
+      data-map-window-drag={floating ? '' : undefined}
+      className={cn(
+        'flex h-8 shrink-0 items-center gap-1 border-b border-border px-1.5',
+        floating && 'cursor-move touch-none',
+      )}
+      onPointerDown={handlePointerDown}
+    >
       <h2 className="min-w-0 flex-1 truncate px-1 font-data text-label uppercase tracking-label text-name">
         {title}
       </h2>
@@ -156,7 +151,7 @@ function WindowHeader({
       <Button
         variant="bare"
         aria-label={`Close ${title}`}
-        className="h-6 w-6 justify-center text-muted hover:text-name"
+        className="h-6 w-6 cursor-pointer justify-center text-muted hover:text-name"
         onClick={onClose}
       >
         ×

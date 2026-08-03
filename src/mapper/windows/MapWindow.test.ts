@@ -35,16 +35,17 @@ describe('MapWindow isolation markup', () => {
     expect(markup).toContain('overscroll-contain');
   });
 
-  it('mounts drag and resize affordances only while floating', () => {
+  it('mounts title-bar drag and resize affordances only while floating', () => {
     const docked = render({ kind: 'docked' });
     const floating = render({
       kind: 'floating',
       rect: { x: 1, y: 2, width: 380, height: 520 },
     });
 
-    expect(docked).not.toContain('Drag Test window');
+    expect(docked).not.toContain('data-map-window-drag');
     expect(docked).not.toContain('Resize Test window');
-    expect(floating).toContain('Drag Test window');
+    expect(floating).toContain('data-map-window-drag');
+    expect(floating).toContain('cursor-move');
     expect(floating).toContain('Resize Test window');
   });
 });

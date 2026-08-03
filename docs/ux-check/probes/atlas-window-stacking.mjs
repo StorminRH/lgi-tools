@@ -26,10 +26,10 @@ export default {
     const dock = mapWindow(page, 'dock');
     await dock.getByRole('button', { name: /Pop out Current system/ }).click();
     // Default float can sit over the top-left chrome; clear it so the menu is reachable.
-    const drag = dock.getByRole('button', { name: /Drag Current system/ });
+    const drag = dock.locator('[data-map-window-drag]');
     const dragBox = await drag.boundingBox();
     if (dragBox !== null) {
-      await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
+      await page.mouse.move(dragBox.x + 40, dragBox.y + dragBox.height / 2);
       await page.mouse.down();
       await page.mouse.move(420, 280, { steps: 6 });
       await page.mouse.up();
@@ -47,10 +47,10 @@ export default {
     // Re-clear top-left chrome in case bring-to-front / card placement drifted over it.
     const dockBox = await dock.boundingBox();
     if (dockBox !== null && (dockBox.x < 120 || dockBox.y < 120)) {
-      const handle = dock.getByRole('button', { name: /Drag Current system/ });
+      const handle = dock.locator('[data-map-window-drag]');
       const handleBox = await handle.boundingBox();
       if (handleBox !== null) {
-        await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+        await page.mouse.move(handleBox.x + 40, handleBox.y + handleBox.height / 2);
         await page.mouse.down();
         await page.mouse.move(420, 280, { steps: 6 });
         await page.mouse.up();

@@ -20,10 +20,10 @@ export default {
     const dock = mapWindow(page, 'dock');
     await dock.getByRole('button', { name: /Pop out Current system/ }).click();
 
-    const drag = dock.getByRole('button', { name: /Drag Current system/ });
+    const drag = dock.locator('[data-map-window-drag]');
     const dragBox = await drag.boundingBox();
     if (dragBox !== null) {
-      await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
+      await page.mouse.move(dragBox.x + 40, dragBox.y + dragBox.height / 2);
       await page.mouse.down();
       await page.mouse.move(dragBox.x + 140, dragBox.y + 90, { steps: 6 });
       await page.mouse.up();

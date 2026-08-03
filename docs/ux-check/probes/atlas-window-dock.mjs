@@ -32,8 +32,8 @@ export default {
     await dock.getByRole('button', { name: /Close Current system/ }).click();
     check('the close control hides the dock in memory', !(await dock.isVisible()));
     if (root !== null) {
-      // Controls sit top-left over the default root placement; force reaches the
-      // node click seam that clears the in-memory hide flag.
+      // Force reaches the node click seam that clears the in-memory hide flag
+      // even when chrome or other overlays cover the disc.
       await root.node.click({ force: true });
     }
     check('a root click reopens the hidden dock', await dock.isVisible());
@@ -41,9 +41,9 @@ export default {
     const lock = page.getByRole('switch', { name: 'Map lock' });
     const wasLocked = await lock.isChecked();
     await lock.click();
-    check('the relocated top-left lock remains operable', (await lock.isChecked()) !== wasLocked);
+    check('the top-right lock remains operable', (await lock.isChecked()) !== wasLocked);
     await page.getByText('Layout dials').click();
-    check('the relocated dial group opens beside the dock', await page.getByText('Ring spacing').isVisible());
+    check('the top-right dial group opens beside the map', await page.getByText('Ring spacing').isVisible());
     await shot('standing-dock');
   },
 };

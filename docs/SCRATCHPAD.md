@@ -6,20 +6,27 @@
 ## Now
 
 - **CURRENT:** session 4.0.3.3.1 (overlay window framework) on `lifecycle/4.0.3.3`
-  has completed the authenticated UX probe sweep. Implementation checkpoint
-  remains `2f694817` (verify already green there). Probe harness hardened for
-  Next's hidden `#S:0` Suspense clone (visible-canvas scoping), camera settle /
-  Click-focus off before isolation identity checks, disc-based node drag, and
-  chrome-clear float placement. All eight probe viewport runs passed
-  (`atlas-wall` desktop+mobile plus six `atlas-window-*`); `pnpm test
-  src/mapper/windows` 18/18 green. Network findings are only aborted
-  `/api/sites/1` fetches across reloads — expected widget teardown, not a defect.
-  Captures: `docs/ux-check/captures/` and `docs/ux-check/captures/probes/`.
-- **NEXT:** G-1 operator local-browser review (Pending) of the persistent dock,
-  float/reload geometry, summary tracking, Escape arbitration, relocated
-  controls, and in-window isolation on a live `/atlas?map=…` session. After
-  sign-off: changelog + `APP_VERSION` bump, as-built, final verify, then
-  `close-out` in planned mode. No push or PR yet.
+  paused after G-1 feel iteration. Core implementation is still
+  `2f694817` (full `pnpm verify` green there). Probe harness hardened in
+  `c6dfea86`. Operator-directed feel/layout follow-ups landed next: (1) floating
+  windows drag from the entire title bar (not a corner grip) —
+  `data-map-window-drag` on `<header>`, controls excluded via `closest()`;
+  (2) chrome rearrange — portrait immediately right of the Atlas hamburger
+  (`MapChrome` left cluster), map controls panel back to `Panel
+  position="top-right"`, anchored dock default to the **left** rail
+  (`left-4 top-[4.5rem]`). Focused tests 123/123; layout-sensitive probes
+  `atlas-window-dock` / `reload` / `stacking` re-green after the rearrange.
+  Disposable review map (if still live):
+  `/atlas?map=a6046063-ec8c-4b96-a240-cc3bbb1e7c16`. Auth:
+  `UX_STORAGE_STATE=~/.lgi-ux-state.json`. Record for as-built: plan's
+  right-rail dock + top-left controls placement was superseded in-session by
+  this operator layout.
+- **NEXT:** resume via `start-session` on `lifecycle/4.0.3.3`. Confirm G-1
+  disposition after the feel pass (operator was iterating live), re-run the
+  full six `atlas-window-*` + `atlas-wall` probes if desired, then changelog +
+  `APP_VERSION` bump for 4.0.3.3, as-built (include title-bar drag + layout
+  divergence), final `pnpm verify`, and `close-out` in planned mode. No push
+  or PR yet.
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
   system surface unattached ("nowhere") and then hop, because each transaction
