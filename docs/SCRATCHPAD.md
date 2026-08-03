@@ -5,21 +5,22 @@
 
 ## Now
 
-- **CURRENT:** sub-version 4.0.3.2 (motion layer) is COMPLETE on
-  `lifecycle/4.0.3.2` — its sub-version PR is opening through close-out. The
-  operator ratified the motion defaults at the G-1 gate (2026-08-02): fast 250 /
-  mid 1000 / slow 1000 ms, overshoot 12 %, edge flavor grow-from-parent,
-  collapse exit ordinary, click-focus ON. Record:
-  `docs/session-as-built/4.0/4.0.3.2.1.md`.
-- **NEXT:** after the PR merges, `start-session` — the resolver should select
-  4.0.3.3 (overlay window framework). Handoff facts for it: an overlay anchored
-  to a moving node must read positions through React Flow's store
-  (`useInternalNode`, as `ChainLinkEdge` does) — the motion layer's derived
-  presentation is local to `MotionLayer` and deliberately unexported (one
-  position authority). Settings-visibility ruling (operator 2026-08-02): the
-  three toggles (Map lock, Camera follow, Click focus) are USER settings; the
-  Layout and Motion dial groups are ADMIN tuning surfaces — whichever session
-  removes the atlas wall owns gating both dial groups.
+- **CURRENT:** session 4.0.3.3.1 (overlay window framework) has an implementation
+  checkpoint at commit `2f694817` on `lifecycle/4.0.3.3`. The shared window
+  primitive, persistent dock/floating lifecycle, node-anchored summary card,
+  stacking, input isolation, and six authenticated UX probes are implemented.
+  `FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify` passed at this
+  checkpoint: 501 test files and 4,898 tests passed, one file/test skipped,
+  coverage passed, zero-warning lint and strict typecheck passed, and Fallow
+  reported no issues across 26 changed files. The signed-out `/atlas` desktop
+  and mobile sweep plus `atlas-wall` probe also passed with no diagnostics.
+- **NEXT:** resume at the G-1 authenticated UX gate. Localhost is signed out;
+  provide or capture `UX_STORAGE_STATE` through an operator-approved EVE SSO
+  login and set a live `UX_MAP_ID`, then run all six `atlas-window-*` probes and
+  complete the operator browser review. No changelog entry, `APP_VERSION` bump,
+  as-built completion, final delivery commit, push, or pull request has been
+  made. After G-1 approval, finish those release artifacts and invoke
+  `close-out` in planned mode.
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
   system surface unattached ("nowhere") and then hop, because each transaction
