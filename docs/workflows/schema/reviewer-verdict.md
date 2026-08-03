@@ -1,8 +1,9 @@
 # Reviewer verdict schema
 
 Portable review roles use this form. The parent adversarial-review procedure
-owns freeze, role selection, launch, verification, and reconciliation. This
-schema owns only the reviewer boundary, finding shape, severity labels, and
+owns freeze, role selection, launch, verification, and reconciliation. Diff
+mode also owns design-creed reconcile and in-scope fixes after reviewers return.
+This schema owns only the reviewer boundary, finding shape, severity labels, and
 return contract.
 
 ## Boundary

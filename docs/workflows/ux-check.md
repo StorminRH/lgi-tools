@@ -8,8 +8,8 @@ does not replace that review.
 This procedure is a local development aid, not a `pnpm verify` or CI gate. The
 route sweep exits successfully after writing its report even when the report
 contains findings; read and disposition them. Use
-`docs/workflows/pre-pr-design-review.md` when a UX finding exposes ownership or
-interface decay rather than a local presentation defect.
+Diff-mode `docs/workflows/adversarial-review.md` when a UX finding exposes
+ownership or interface decay rather than a local presentation defect.
 
 ## Execution contract
 

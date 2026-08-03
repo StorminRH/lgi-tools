@@ -86,7 +86,7 @@ repeats the complete audit; it is never a targeted diff.
    current canonical `main`, and set `Audit status: Approved`. Rerun every
    measurement and gate; a targeted diff is not an audit restart.
 5. Read, in order:
-   - `docs/workflows/pre-pr-design-review.md`;
+   - `docs/workflows/adversarial-review.md` (Diff design creed and parent duties);
    - the current `docs/CODE_HEALTH_BASELINE.md`;
    - the approved version audit plan;
    - the completed master plan and its version-close checklist;
@@ -156,11 +156,11 @@ not merely a long file. For every candidate, judge:
 | Cohesion defense | Is it deep and cohesive, or accreting? |
 
 Record the new ranking and each direction of fix in the audit plan. Reaffirm the
-protected-module and bounded-cleanup rules from
-`docs/workflows/pre-pr-design-review.md`; “make it smaller” is not a sufficient
+protected-module and bounded-cleanup rules from Diff-mode
+`docs/workflows/adversarial-review.md`; “make it smaller” is not a sufficient
 direction.
 
-Do not copy live metrics or rows into the pre-PR design procedure. Amend its
+Do not copy live metrics or rows into the Diff-mode review procedure. Amend its
 design creed only when the audit discovers a durable principle or
 classification rule, not a new number.
 
@@ -168,7 +168,8 @@ classification rule, not a new number.
 
 - **Boundary drift:** inspect zone growth, new `allow` entries, and composition
   placed inside a participating slice. Apply the decision-ownership and
-  change-amplification reviews in `docs/workflows/pre-pr-design-review.md`.
+  change-amplification judgment from Diff-mode
+  `docs/workflows/adversarial-review.md`.
 - **Override staleness:** review every Fallow override and suppression as a loan.
   Remove stale entries; classify live ones with rationale and date.
 - **Duplication baseline:** classify every accepted clone group as boring shape
@@ -254,7 +255,7 @@ derived `Delta` cell. Put hotspot rankings, trend interpretation, rails review,
 classifications, and campaign scheduling in the audit plan or backlog, never in
 the baseline.
 
-Between full audits, the pre-PR design review may perform only the targeted
+Between full audits, Diff-mode `adversarial-review` may perform only the targeted
 `Current` updates allowed by the schema. It does not invent carried-value notes,
 comparison fields, or history sections.
 

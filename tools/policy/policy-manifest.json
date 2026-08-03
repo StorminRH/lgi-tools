@@ -16,7 +16,6 @@
     "docs/workflows/plan-version.md",
     "docs/workflows/plan-session.md",
     "docs/workflows/start-session.md",
-    "docs/workflows/pre-pr-design-review.md",
     "docs/workflows/adversarial-review.md",
     "docs/workflows/agent-policy-audit.md",
     "docs/workflows/close-out.md",
@@ -203,29 +202,36 @@
     "docs/workflows/adversarial-review.md": {
       "orderedRequired": [
         "Select exactly one review mode",
+        "Plan and PR:.*read-only",
+        "prepare PR Design notes",
         "Each invocation runs one fresh review round",
         "docs/workflows/schema/reviewer-verdict.md",
         "Freeze the subject and evidence",
         "Select independent review roles",
+        "Launch each selected role once",
         "Plan mode from .*launch only `holistic-reviewer`",
         "Diff / PR mode.*at most one scoped seat by default",
         "Launch subagents",
         "requested runtime identity",
         "Never infer observed identity",
         "Collect structured verdicts",
-        "Verify and reconcile"
+        "Verify and reconcile",
+        "Diff parent duties",
+        "design creed"
       ],
       "forbidden": [
         "Cursor",
         "Claude",
         "Codex",
-        "headless"
+        "headless",
+        "pre-pr-design-review"
       ]
     },
     "docs/workflows/close-out.md": {
       "orderedRequired": [
-        "Pre-PR design-review gate",
-        "Adversarial implementation-review gate",
+        "Implementation review gate",
+        "Do not launch a second",
+        "Invoke `adversarial-review` in Diff mode",
         "requested and observed runtime identity",
         "Finalize and verify the current head",
         "in-context atomic proof ledger",

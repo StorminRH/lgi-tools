@@ -4,8 +4,8 @@ Validate an incoming issue or contribution against current repository evidence,
 report its true scope, and act only after the operator chooses a response. Do not
 accept a report's diagnosis, line numbers, or proposed fix without verification.
 
-Use `docs/workflows/pre-pr-design-review.md` when the reported defect indicates
-broader ownership, boundary, or change-amplification decay.
+Use Diff-mode `docs/workflows/adversarial-review.md` when the reported defect
+indicates broader ownership, boundary, or change-amplification decay.
 
 ## Execution contract
 

@@ -96,12 +96,12 @@ PR.
 7. Create exactly one ordinary pending changelog fragment under
    `content/changelog/pending/` using
    `docs/workflows/schema/changelog-pending.md`, subject to the Hard rules above.
-8. Invoke `pre-pr-design-review` against the complete diff and fix every
-   in-scope finding. Invoke `adversarial-review` in Diff mode and reconcile its
-   verified findings. Then apply the ordinary-mode finalization rules from
-   `docs/workflows/close-out.md` through commit and push, reusing the pending
-   fragment from step 7 rather than creating a second one. Do not merge, and do
-   not rerun unchanged evidence at the PR boundary.
+8. Invoke `adversarial-review` in Diff mode against the complete diff (sole
+   implementation-review gate). Continue only with `PASS`. Then apply the
+   ordinary-mode finalization rules from `docs/workflows/close-out.md` through
+   commit and push, reusing the pending fragment from step 7 rather than
+   creating a second one. Do not merge, and do not rerun unchanged evidence at
+   the PR boundary.
 9. Open one draft PR whose body states what was fixed, what was deferred and
    why, and what was absorbed. Put `Closes #<issue>` in the body so the digest
    closes only when a later `close-out` run merges. Apply the close-out PR
