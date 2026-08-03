@@ -5,22 +5,21 @@
 
 ## Now
 
-- **CURRENT:** session 4.0.3.3.1 (overlay window framework) has an implementation
-  checkpoint at commit `2f694817` on `lifecycle/4.0.3.3`. The shared window
-  primitive, persistent dock/floating lifecycle, node-anchored summary card,
-  stacking, input isolation, and six authenticated UX probes are implemented.
-  `FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify` passed at this
-  checkpoint: 501 test files and 4,898 tests passed, one file/test skipped,
-  coverage passed, zero-warning lint and strict typecheck passed, and Fallow
-  reported no issues across 26 changed files. The signed-out `/atlas` desktop
-  and mobile sweep plus `atlas-wall` probe also passed with no diagnostics.
-- **NEXT:** resume at the G-1 authenticated UX gate. Localhost is signed out;
-  provide or capture `UX_STORAGE_STATE` through an operator-approved EVE SSO
-  login and set a live `UX_MAP_ID`, then run all six `atlas-window-*` probes and
-  complete the operator browser review. No changelog entry, `APP_VERSION` bump,
-  as-built completion, final delivery commit, push, or pull request has been
-  made. After G-1 approval, finish those release artifacts and invoke
-  `close-out` in planned mode.
+- **CURRENT:** session 4.0.3.3.1 (overlay window framework) on `lifecycle/4.0.3.3`
+  has completed the authenticated UX probe sweep. Implementation checkpoint
+  remains `2f694817` (verify already green there). Probe harness hardened for
+  Next's hidden `#S:0` Suspense clone (visible-canvas scoping), camera settle /
+  Click-focus off before isolation identity checks, disc-based node drag, and
+  chrome-clear float placement. All eight probe viewport runs passed
+  (`atlas-wall` desktop+mobile plus six `atlas-window-*`); `pnpm test
+  src/mapper/windows` 18/18 green. Network findings are only aborted
+  `/api/sites/1` fetches across reloads — expected widget teardown, not a defect.
+  Captures: `docs/ux-check/captures/` and `docs/ux-check/captures/probes/`.
+- **NEXT:** G-1 operator local-browser review (Pending) of the persistent dock,
+  float/reload geometry, summary tracking, Escape arbitration, relocated
+  controls, and in-window isolation on a live `/atlas?map=…` session. After
+  sign-off: changelog + `APP_VERSION` bump, as-built, final verify, then
+  `close-out` in planned mode. No push or PR yet.
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
   system surface unattached ("nowhere") and then hop, because each transaction

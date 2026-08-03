@@ -1,4 +1,4 @@
-import { atlasWindowRoute, waitForWindowMap } from '../lib/window-helpers.mjs';
+import { atlasWindowRoute, mapCanvas, waitForWindowMap } from '../lib/window-helpers.mjs';
 
 export default {
   name: 'atlas-window-dom',
@@ -12,16 +12,19 @@ export default {
       return;
     }
     await waitForWindowMap(page);
-    const topology = await page.locator('[data-map-window-layer]').evaluate((layer) => {
-      const flow = document.querySelector('.react-flow');
-      const motion = document.querySelector('[data-map-motion-scope]');
-      return {
-        outsideFlow: flow !== null && !flow.contains(layer),
-        siblingOfMotion: motion !== null && motion.parentElement === layer.parentElement,
-        layerPointerEvents: getComputedStyle(layer).pointerEvents,
-        dockUsesPrimitive: layer.querySelectorAll('[data-map-window="dock"]').length === 1,
-      };
-    });
+    const topology = await mapCanvas(page)
+      .locator('[data-map-window-layer]')
+      .evaluate((layer) => {
+        const canvas = layer.parentElement;
+        const flow = canvas?.querySelector('.react-flow') ?? null;
+        const motion = canvas?.querySelector('[data-map-motion-scope]') ?? null;
+        return {
+          outsideFlow: flow !== null && !flow.contains(layer),
+          siblingOfMotion: motion !== null && motion.parentElement === layer.parentElement,
+          layerPointerEvents: getComputedStyle(layer).pointerEvents,
+          dockUsesPrimitive: layer.querySelectorAll('[data-map-window="dock"]').length === 1,
+        };
+      });
     check('the window layer is outside the React Flow renderer', topology.outsideFlow);
     check('the window layer is a sibling of the motion/canvas surface', topology.siblingOfMotion);
     check('the full layer is pointer-inert', topology.layerPointerEvents === 'none');

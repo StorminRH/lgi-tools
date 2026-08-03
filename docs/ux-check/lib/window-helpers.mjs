@@ -3,21 +3,87 @@ export const WINDOW_STORAGE_KEY = 'lgi:map:windows:v1';
 export const atlasWindowRoute = () =>
   process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas';
 
+/**
+ * The live map canvas. Next can briefly keep a hidden Suspense clone
+ * (`#S:0`) with a second React Flow tree; Playwright strict mode then fails
+ * unscoped `.react-flow__*` queries. Visibility filters that clone out.
+ */
+export const mapCanvas = (page) =>
+  page.locator('[data-map-canvas]').filter({ visible: true });
+
+/** The map's sole React Flow wrapper on the visible canvas. */
+export const flowWrapper = (page) =>
+  mapCanvas(page).locator('[data-testid="rf__wrapper"]');
+
+export const flowPane = (page) => flowWrapper(page).locator('.react-flow__pane');
+
+export const flowViewport = (page) =>
+  flowWrapper(page).locator('.react-flow__viewport');
+
+export const mapWindow = (page, windowId) =>
+  page.locator(`[data-map-window="${windowId}"]`).filter({ visible: true });
+
 export async function waitForWindowMap(page, minimumNodes = 2) {
   await page.waitForFunction(
-    (minimum) =>
-      document.querySelectorAll('[data-chain-node]').length >= minimum
-      && document.querySelector('[data-map-window="dock"]') !== null,
+    (minimum) => {
+      const canvases = [...document.querySelectorAll('[data-map-canvas]')].filter(
+        (element) => element.checkVisibility?.() !== false && element.getClientRects().length > 0,
+      );
+      if (canvases.length !== 1) return false;
+      const canvas = canvases[0];
+      const nodes = canvas.querySelectorAll('[data-testid="rf__wrapper"] .react-flow__node');
+      const dock = [...document.querySelectorAll('[data-map-window="dock"]')].some(
+        (element) => element.checkVisibility?.() !== false && element.getClientRects().length > 0,
+      );
+      return nodes.length >= minimum && dock;
+    },
     minimumNodes,
     { timeout: 60_000 },
   );
+  // Camera flights keep rewriting the viewport after mount; isolation probes
+  // compare transform identity and must wait for stillness with flights off.
+  for (const name of ['Camera follow', 'Click focus']) {
+    const control = page.getByRole('switch', { name });
+    if ((await control.count()) > 0 && (await control.isChecked())) {
+      await control.click();
+    }
+  }
+  await settleMapViewport(page);
 }
 
 export const viewportTransform = (page) =>
-  page.locator('.react-flow__viewport').evaluate((element) => element.style.transform);
+  flowViewport(page).evaluate((element) => element.style.transform);
+
+/** Wait until the visible React Flow viewport transform stops changing. */
+export async function settleMapViewport(page, { samples = 4, intervalMs = 150 } = {}) {
+  let last = await viewportTransform(page);
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    await page.waitForTimeout(intervalMs);
+    const next = await viewportTransform(page);
+    if (next === last) {
+      let stable = true;
+      for (let sample = 1; sample < samples; sample += 1) {
+        await page.waitForTimeout(intervalMs);
+        if ((await viewportTransform(page)) !== last) {
+          stable = false;
+          break;
+        }
+      }
+      if (stable) return last;
+    }
+    last = next;
+  }
+  return last;
+}
+
+function pointInViewport(page, point) {
+  const size = page.viewportSize();
+  if (size === null) return false;
+  return point.x >= 0 && point.y >= 0 && point.x < size.width && point.y < size.height;
+}
 
 export async function exposedPanePoint(page) {
-  const pane = page.locator('.react-flow__pane');
+  const pane = flowPane(page);
   const box = await pane.boundingBox();
   if (box === null) return null;
   return page.evaluate(
@@ -29,7 +95,7 @@ export async function exposedPanePoint(page) {
             y: y + (height * row) / 8,
           };
           const hit = document.elementFromPoint(point.x, point.y);
-          if (hit?.closest('.react-flow__pane')) return point;
+          if (hit?.closest('[data-map-canvas] .react-flow__pane')) return point;
         }
       }
       return null;
@@ -45,32 +111,90 @@ export async function clickExposedPane(page) {
   return true;
 }
 
-export async function hittableNode(page, startIndex = 0) {
-  const nodes = page.locator('.react-flow__node');
-  for (let index = startIndex; index < (await nodes.count()); index += 1) {
-    const candidate = nodes.nth(index);
-    const box = await candidate.boundingBox();
+/**
+ * A node whose disc is actually under the pointer (not covered by chrome or
+ * windows) and inside the viewport. Optional `excludeIds` skips systems such
+ * as the chain root when opening the summary card.
+ */
+export async function hittableNode(page, { excludeIds = [] } = {}) {
+  const excluded = new Set(excludeIds.map(String));
+  const discs = flowWrapper(page).locator('.map-node-disc');
+  const count = await discs.count();
+  for (let index = 0; index < count; index += 1) {
+    const disc = discs.nth(index);
+    const box = await disc.boundingBox();
     if (box === null) continue;
-    const point = { x: box.x + box.width / 2, y: box.y + 22 };
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    if (!pointInViewport(page, point)) continue;
     const hit = await page.evaluate(
-      ({ x, y }) => document.elementFromPoint(x, y)?.closest('.react-flow__node') !== null,
+      ({ x, y }) => {
+        const element = document.elementFromPoint(x, y);
+        const node = element?.closest('.react-flow__node');
+        return node
+          ? { id: node.getAttribute('data-id'), ok: true }
+          : { id: null, ok: false };
+      },
       point,
     );
-    if (hit) return { node: candidate, point, index };
+    if (!hit.ok || hit.id === null || excluded.has(hit.id)) continue;
+    return {
+      node: flowWrapper(page).locator(`.react-flow__node[data-id="${hit.id}"]`),
+      disc,
+      point,
+      id: hit.id,
+      index,
+    };
+  }
+  return null;
+}
+
+/** Resolve the standing dock's root system id from the live node whose name matches the title. */
+export async function rootSystemTarget(page) {
+  const dock = mapWindow(page, 'dock');
+  // Read textContent from the title node — header innerText is CSS-uppercased.
+  const title = ((await dock.locator('h2').textContent()) ?? '').trim();
+  const name = title.replace(/^Current system\s*·\s*/i, '').trim();
+  if (name.length === 0) return null;
+  const nodes = flowWrapper(page).locator('.react-flow__node');
+  const count = await nodes.count();
+  for (let index = 0; index < count; index += 1) {
+    const candidate = nodes.nth(index);
+    const nodeName = ((await candidate.locator('.text-name').textContent()) ?? '').trim();
+    if (nodeName !== name) continue;
+    const id = await candidate.getAttribute('data-id');
+    if (id === null) continue;
+    return { node: candidate, id };
   }
   return null;
 }
 
 export async function openSummary(page) {
-  const target = await hittableNode(page, 1);
+  const root = await rootSystemTarget(page);
+  const target = await hittableNode(page, {
+    excludeIds: root ? [root.id] : [],
+  });
   if (target === null) return null;
   await page.mouse.click(target.point.x, target.point.y);
-  await page.locator('[data-map-window="summary"]').waitFor({ state: 'visible' });
-  return target.node;
+  await mapWindow(page, 'summary').waitFor({ state: 'visible' });
+  return target;
+}
+
+/** Drag a node's disc; label/chrome grabs are not reliable for RF node drag. */
+export async function dragNodeDisc(page, target, delta = { x: 70, y: 40 }) {
+  const lock = page.getByRole('switch', { name: 'Map lock' });
+  if (await lock.isChecked()) await lock.click();
+  const box = await target.disc.boundingBox();
+  if (box === null) return false;
+  const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + delta.x, start.y + delta.y, { steps: 8 });
+  await page.mouse.up();
+  return true;
 }
 
 export async function exerciseWindowInput(page, windowId) {
-  const root = page.locator(`[data-map-window="${windowId}"]`);
+  const root = mapWindow(page, windowId);
   const before = await viewportTransform(page);
   const input = root.locator('[data-window-probe-input]');
   await root.locator('[data-map-window-scroll]').evaluate((element) => {

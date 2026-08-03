@@ -1,7 +1,9 @@
 import {
   atlasWindowRoute,
   clickExposedPane,
+  dragNodeDisc,
   exposedPanePoint,
+  mapWindow,
   openSummary,
   waitForWindowMap,
 } from '../lib/window-helpers.mjs';
@@ -28,11 +30,11 @@ export default {
       return;
     }
     await waitForWindowMap(page);
-    const node = await openSummary(page);
-    const card = page.locator('[data-map-window="summary"]');
-    check('a non-root selection opens the summary card', node !== null && await card.isVisible());
-    if (node === null) return;
-    const initial = await offset(node, card);
+    const target = await openSummary(page);
+    const card = mapWindow(page, 'summary');
+    check('a non-root selection opens the summary card', target !== null && await card.isVisible());
+    if (target === null) return;
+    const initial = await offset(target.node, card);
 
     const panePoint = await exposedPanePoint(page);
     if (panePoint !== null) {
@@ -42,29 +44,24 @@ export default {
       await page.mouse.up({ button: 'middle' });
     }
     await page.waitForTimeout(100);
-    check('the card tracks its node through pan', near(initial, await offset(node, card)));
+    check('the card tracks its node through pan', near(initial, await offset(target.node, card)));
 
     if (panePoint !== null) {
       await page.mouse.move(panePoint.x, panePoint.y);
       await page.mouse.wheel(0, -260);
     }
     await page.waitForTimeout(150);
-    check('the card tracks its node through zoom', near(initial, await offset(node, card)));
+    check('the card tracks its node through zoom', near(initial, await offset(target.node, card)));
 
-    const lock = page.getByRole('switch', { name: 'Map lock' });
-    if (await lock.isChecked()) await lock.click();
-    const nodeBox = await node.boundingBox();
-    if (nodeBox !== null) {
-      await page.mouse.move(nodeBox.x + nodeBox.width / 2, nodeBox.y + 22);
-      await page.mouse.down();
-      await page.mouse.move(nodeBox.x + nodeBox.width / 2 + 70, nodeBox.y + 62, { steps: 5 });
-      await page.mouse.up();
-    }
-    await page.waitForTimeout(100);
-    check('the card tracks a direct drag of its anchor node', near(initial, await offset(node, card)));
+    await dragNodeDisc(page, target, { x: 70, y: 40 });
+    await page.waitForTimeout(150);
+    check('the card tracks a direct drag of its anchor node', near(initial, await offset(target.node, card)));
 
     check('an exposed pane point remains available for deselection', await clickExposedPane(page));
-    check('deselection closes the card while the dock stands', !(await card.isVisible()) && await page.locator('[data-map-window="dock"]').isVisible());
+    check(
+      'deselection closes the card while the dock stands',
+      !(await card.isVisible()) && await mapWindow(page, 'dock').isVisible(),
+    );
     await shot('node-anchored-summary');
   },
 };

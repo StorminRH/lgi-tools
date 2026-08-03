@@ -1,4 +1,4 @@
-import { atlasWindowRoute, waitForWindowMap } from '../lib/window-helpers.mjs';
+import { atlasWindowRoute, mapWindow, waitForWindowMap } from '../lib/window-helpers.mjs';
 
 const closeEnough = (a, b) =>
   ['x', 'y', 'width', 'height'].every((key) => Math.abs(a[key] - b[key]) <= 1);
@@ -17,7 +17,7 @@ export default {
     await page.evaluate(() => localStorage.removeItem('lgi:map:windows:v1'));
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForWindowMap(page);
-    const dock = page.locator('[data-map-window="dock"]');
+    const dock = mapWindow(page, 'dock');
     await dock.getByRole('button', { name: /Pop out Current system/ }).click();
 
     const drag = dock.getByRole('button', { name: /Drag Current system/ });
