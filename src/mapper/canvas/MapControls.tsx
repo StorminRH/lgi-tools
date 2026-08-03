@@ -86,7 +86,7 @@ function MapControlsComponent({
 
   return (
     <Panel
-      position="top-right"
+      position="top-left"
       className="nopan nodrag nowheel mx-2! mb-2! mt-16! flex max-h-[calc(100dvh-6rem)] w-56 flex-col gap-2 overflow-y-auto rounded-ctl border border-border bg-bg/95 p-2 text-ui"
     >
       <div className="flex flex-col gap-0.5">

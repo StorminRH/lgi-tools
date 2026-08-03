@@ -140,6 +140,12 @@ describe('mapper source contract', () => {
       'motion/motion-host-model.ts',
       'motion/tween-model.ts',
       'motion/use-motion.ts',
+      'windows/MapWindow.tsx',
+      'windows/MapWindowLayer.tsx',
+      'windows/drag-resize.ts',
+      'windows/follower-model.ts',
+      'windows/persistence.ts',
+      'windows/window-model.ts',
     ]);
   });
 

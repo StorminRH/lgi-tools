@@ -117,6 +117,12 @@ run all of its declared viewports with `prefers-reduced-motion: reduce`.
 | `atlas-motion-glide` | Forced-shift glides with per-frame edge-rim tracking and the glide frame-time budget (authenticated, `UX_MAP_ID`) |
 | `atlas-motion-idle` | Hover-only breathing plus zero rAF registrations across an idle window with a glide positive control (authenticated, `UX_MAP_ID`) |
 | `atlas-motion-reduced` | Paired control/reduced phases: fade-only births and glide-free shifts under prefers-reduced-motion (authenticated, `UX_MAP_ID`, local Convex) |
+| `atlas-window-dock` | Persistent dock, close/root-click reopen, and relocated controls operation (authenticated, `UX_MAP_ID`) |
+| `atlas-window-dom` | Window layer sibling topology and pointer-inert host inspection (authenticated, `UX_MAP_ID`) |
+| `atlas-window-isolation` | Key and wheel isolation in docked, floating, and node-anchored surfaces (authenticated, `UX_MAP_ID`) |
+| `atlas-window-reload` | Exact floating geometry restore plus re-anchor/retained-rect round trip (authenticated, `UX_MAP_ID`) |
+| `atlas-window-stacking` | Bring-to-front, Escape popup arbitration, and exposed-canvas interaction (authenticated, `UX_MAP_ID`) |
+| `atlas-window-track` | Summary-card tracking through pan, zoom, anchor drag, and deselection (authenticated, `UX_MAP_ID`) |
 | `atlas-wall` | Signed-out atlas development wall, canvas/chrome exclusion, and viewport scroll suppression |
 | `asset-ledger` | Logged-out asset ledger open state and totals |
 | `asset-ring-mock` | Mocked complete/partial ownership rings and holding details |

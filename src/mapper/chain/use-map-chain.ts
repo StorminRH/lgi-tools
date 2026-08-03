@@ -160,6 +160,8 @@ export interface MapChain {
    * every client.
    */
   readonly treeParents: ReadonlyMap<number, number>;
+  /** The deterministic chain root used as the current-system stand-in until location tracking. */
+  readonly rootSystemId: number | null;
   /** Stamps a dropped node's position as user-owned, protecting it until re-lock releases it. */
   readonly pinPlacement: (systemId: number, position: ChainPosition) => void;
   /**
@@ -229,6 +231,7 @@ export function useMapChain(
   const [treeParents, setTreeParents] = useState<ReadonlyMap<number, number>>(
     () => new Map(),
   );
+  const [rootSystemId, setRootSystemId] = useState<number | null>(null);
   const [layoutRevision, setLayoutRevision] = useState(0);
   const requestStateRef = useRef<KernelRequestState>(initialKernelRequestState());
   const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
@@ -284,7 +287,9 @@ export function useMapChain(
             assignerFromPositions(positions),
           ),
         );
-        setTreeParents(deriveChainTree(facts).parents);
+        const tree = deriveChainTree(facts);
+        setTreeParents(tree.parents);
+        setRootSystemId(tree.rootSystemId);
       },
       (error: unknown) => {
         // Teardown is expected lifecycle (unmount, StrictMode's dev remount);
@@ -331,6 +336,7 @@ export function useMapChain(
     intents: merge.intents,
     labelOf,
     treeParents,
+    rootSystemId,
     pinPlacement,
     releasePlacements,
   };
