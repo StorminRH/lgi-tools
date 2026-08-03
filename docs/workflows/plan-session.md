@@ -76,10 +76,11 @@ and present a complete schema plan for approval.
    and command-plus-output success criterion. No Blocking prerequisite or
    unresolved placeholder may remain.
 2. Run the planning approval gate: invoke `adversarial-review` in Plan mode with
-   the complete draft, contract, schema, and source evidence. Reconcile every
-   verified finding; permit at most one rerun after a material architecture,
-   scope, or verification change. Do not persist reviewer transcripts or
-   superseded drafts.
+   the complete draft, contract, schema, and source evidence. That Plan-mode
+   invocation must launch only `holistic-reviewer` for one review pass.
+   Reconcile every verified finding. Do not automatically relaunch
+   adversarial-review. Do not persist reviewer transcripts or superseded
+   drafts.
 
 ## Approve, persist, and stop
 

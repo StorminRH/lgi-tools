@@ -12,6 +12,7 @@
     "docs/workflows/schema/session-plan.md",
     "docs/workflows/schema/session-as-built.md",
     "docs/workflows/schema/subagent-evidence.md",
+    "docs/workflows/schema/reviewer-verdict.md",
     "docs/workflows/plan-version.md",
     "docs/workflows/plan-session.md",
     "docs/workflows/start-session.md",
@@ -53,7 +54,8 @@
     "docs/workflows/schema/session-contract.md",
     "docs/workflows/schema/session-plan.md",
     "docs/workflows/schema/session-as-built.md",
-    "docs/workflows/schema/subagent-evidence.md"
+    "docs/workflows/schema/subagent-evidence.md",
+    "docs/workflows/schema/reviewer-verdict.md"
   ],
   "forbiddenPaths": [
     ".agents/skills",
@@ -196,13 +198,12 @@
     "docs/workflows/adversarial-review.md": {
       "orderedRequired": [
         "Select exactly one review mode",
-        "Severity is assigned by production impact",
-        "A mechanical gate failure alone does not make a finding",
-        "Findings must be established by the frozen subject or a cited live source",
-        "Return exactly one verdict contract",
+        "Each invocation runs one fresh review round",
+        "docs/workflows/schema/reviewer-verdict.md",
         "Freeze the subject and evidence",
         "Select independent review roles",
-        "A reliability finding requires a supplied trigger",
+        "launch only `holistic-reviewer`",
+        "at most one scoped seat by default",
         "Launch subagents",
         "requested runtime identity",
         "Never infer observed identity",
