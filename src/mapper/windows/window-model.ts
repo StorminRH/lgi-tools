@@ -142,17 +142,28 @@ export function topmost(stack: readonly MapWindowId[]): MapWindowId | null {
   return stack.at(-1) ?? null;
 }
 
-/** Keeps a floating title bar reachable without quantizing the user's rectangle. */
+/** Keeps a floating title bar and resize grip reachable without quantizing freely. */
 export function clampRect(
   rect: WindowRect,
   viewport: WindowViewport,
   minVisible = 48,
 ): WindowRect {
-  const maxX = Math.max(minVisible - rect.width, viewport.width - minVisible);
+  // Cap size to the viewport so a restored or resized float cannot push the
+  // sole bottom-right grip permanently off-screen on a smaller display.
+  const width = Math.min(
+    Math.max(rect.width, MIN_FLOATING_SIZE.width),
+    Math.max(MIN_FLOATING_SIZE.width, viewport.width),
+  );
+  const height = Math.min(
+    Math.max(rect.height, MIN_FLOATING_SIZE.height),
+    Math.max(MIN_FLOATING_SIZE.height, viewport.height),
+  );
+  const maxX = Math.max(minVisible - width, viewport.width - minVisible);
   const maxY = Math.max(0, viewport.height - minVisible);
   return {
-    ...rect,
-    x: Math.min(maxX, Math.max(minVisible - rect.width, rect.x)),
+    width,
+    height,
+    x: Math.min(maxX, Math.max(minVisible - width, rect.x)),
     y: Math.min(maxY, Math.max(0, rect.y)),
   };
 }

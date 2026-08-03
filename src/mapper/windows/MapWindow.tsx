@@ -22,10 +22,15 @@ import {
   type WindowPlacement,
 } from './window-model';
 
+// Base UI puts `data-open` on the Positioner while role lives on the nested
+// Popup/List — match both co-located and descendant forms.
 const ADOPTED_POPUP_SELECTOR = [
   '[data-open][role="dialog"]',
   '[data-open][role="listbox"]',
   '[data-open][role="menu"]',
+  '[data-open] [role="dialog"]',
+  '[data-open] [role="listbox"]',
+  '[data-open] [role="menu"]',
 ].join(',');
 
 /** Whether an adopted Base UI popup currently owns Escape. */

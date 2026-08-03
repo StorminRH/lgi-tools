@@ -33,13 +33,13 @@ describe('node follower model', () => {
     const first = computeFollowerTransform(null, '2', [0, 0, 1], node(), true);
     expect(
       computeFollowerTransform(first?.baseline ?? null, '2', [1, 0, 1], node(), true),
-    )?.not.toBeNull();
+    ).not.toBeNull();
     expect(
       computeFollowerTransform(first?.baseline ?? null, '2', [0, 0, 1], node(11), true),
-    )?.not.toBeNull();
+    ).not.toBeNull();
     expect(
       computeFollowerTransform(first?.baseline ?? null, '3', [0, 0, 1], node(), true),
-    )?.not.toBeNull();
+    ).not.toBeNull();
     expect(computeFollowerTransform(null, '2', [0, 0, 1], undefined, false)).toBeNull();
   });
 });

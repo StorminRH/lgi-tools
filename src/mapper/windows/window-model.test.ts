@@ -122,6 +122,9 @@ describe('map window geometry', () => {
     expect(
       clampRect({ x: -900, y: -50, width: 400, height: 300 }, { width: 800, height: 600 }),
     ).toEqual({ x: -352, y: 0, width: 400, height: 300 });
+    expect(
+      clampRect({ x: 10, y: 10, width: 2000, height: 1500 }, { width: 800, height: 600 }),
+    ).toEqual({ x: 10, y: 10, width: 800, height: 600 });
   });
 
   it('applies drag and free resize deltas with a usable minimum', () => {
