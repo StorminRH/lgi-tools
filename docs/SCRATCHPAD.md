@@ -6,27 +6,20 @@
 ## Now
 
 - **CURRENT:** session 4.0.3.3.1 (overlay window framework) on `lifecycle/4.0.3.3`
-  paused after G-1 feel iteration. Core implementation is still
-  `2f694817` (full `pnpm verify` green there). Probe harness hardened in
-  `c6dfea86`. Operator-directed feel/layout follow-ups landed next: (1) floating
-  windows drag from the entire title bar (not a corner grip) —
-  `data-map-window-drag` on `<header>`, controls excluded via `closest()`;
-  (2) chrome rearrange — portrait immediately right of the Atlas hamburger
-  (`MapChrome` left cluster), map controls panel back to `Panel
-  position="top-right"`, anchored dock default to the **left** rail
-  (`left-4 top-[4.5rem]`). Focused tests 123/123; layout-sensitive probes
-  `atlas-window-dock` / `reload` / `stacking` re-green after the rearrange.
-  Disposable review map (if still live):
-  `/atlas?map=a6046063-ec8c-4b96-a240-cc3bbb1e7c16`. Auth:
-  `UX_STORAGE_STATE=~/.lgi-ux-state.json`. Record for as-built: plan's
-  right-rail dock + top-left controls placement was superseded in-session by
-  this operator layout.
-- **NEXT:** resume via `start-session` on `lifecycle/4.0.3.3`. Confirm G-1
-  disposition after the feel pass (operator was iterating live), re-run the
-  full six `atlas-window-*` + `atlas-wall` probes if desired, then changelog +
-  `APP_VERSION` bump for 4.0.3.3, as-built (include title-bar drag + layout
-  divergence), final `pnpm verify`, and `close-out` in planned mode. No push
-  or PR yet.
+  at close-out: G-1 accepted 2026-08-03; delivery records frozen
+  (`APP_VERSION`/`changelog`/`roadmap` 4.0.3.3); design-review and adversarial
+  corrections absorbed (window layer off hot `nodes`, `surfaceKindOf`, summary
+  target owned by `deriveSurfaces`, shared `MIN_FLOATING_SIZE`/`DOCK_MODES`,
+  pointer-only resize grip). Disposable map
+  `/atlas?map=a6046063-ec8c-4b96-a240-cc3bbb1e7c16`.
+- **NEXT:** after merge, resolver advances to 4.0.4.1 via `start-session`.
+- **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
+  equality-stable React Flow store selectors — never the host's hot `nodes`
+  array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must
+  stay byte-identical to `persistence.ts` (docs cannot import src). (3)
+  Floating resize is a pointer-only `data-map-window-resize` grip, not a
+  button. (4) As-built must record G-1 layout supersession: left-rail dock,
+  top-right controls, portrait beside Atlas menu, title-bar drag.
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
   system surface unattached ("nowhere") and then hop, because each transaction

@@ -22,7 +22,13 @@ export interface WindowViewport {
 export type MapWindowId = 'dock' | 'summary';
 
 /** The only persisted dock presentation modes. */
-export type DockMode = 'docked' | 'floating';
+export const DOCK_MODES = ['docked', 'floating'] as const;
+
+/** The only persisted dock presentation modes. */
+export type DockMode = (typeof DOCK_MODES)[number];
+
+/** Usable floating minimum; resize and persistence validation share this floor. */
+export const MIN_FLOATING_SIZE = { width: 300, height: 220 } as const;
 
 /** One unconditional node click, including clicks on an already-selected node. */
 export interface RootClickSignal {
@@ -34,7 +40,6 @@ export interface RootClickSignal {
 export interface SurfaceInputs {
   readonly rootSystemId: number | null;
   readonly dockHidden: boolean;
-  readonly mode: DockMode;
   readonly selectedIds: readonly number[];
   readonly boxSelectActive: boolean;
   readonly rootClick: RootClickSignal | null;
@@ -44,6 +49,7 @@ export interface SurfaceInputs {
 /** One live surface and the state transitions consumed while deriving it. */
 export interface SurfaceDerivation {
   readonly surfaces: readonly MapWindowId[];
+  readonly summarySystemId: number | null;
   readonly dockHidden: boolean;
   readonly consumedRootClickToken: number;
 }
@@ -66,20 +72,27 @@ export function deriveSurfaces(input: SurfaceInputs): SurfaceDerivation {
   }
 
   const surfaces: MapWindowId[] = [];
+  let summarySystemId: number | null = null;
   if (input.rootSystemId !== null && !dockHidden) surfaces.push('dock');
   if (
     !input.boxSelectActive &&
     input.selectedIds.length === 1 &&
     input.selectedIds[0] !== input.rootSystemId
   ) {
-    surfaces.push('summary');
+    summarySystemId = input.selectedIds[0] ?? null;
+    if (summarySystemId !== null) surfaces.push('summary');
   }
 
-  return { surfaces, dockHidden, consumedRootClickToken };
+  return { surfaces, summarySystemId, dockHidden, consumedRootClickToken };
 }
 
 /** The two semantic surface kinds used by keyboard arbitration. */
 export type WindowSurfaceKind = 'dock' | 'card';
+
+/** Escape surface kind implied by a placement — docked/floating share dock rules. */
+export function surfaceKindOf(placement: WindowPlacement): WindowSurfaceKind {
+  return placement.kind === 'node-anchored' ? 'card' : 'dock';
+}
 
 /** The only action a map-window keydown may request. */
 export type WindowKeydownAction = 'dismiss-card' | 'ignore';
@@ -156,7 +169,7 @@ export function dragRect(
 export function resizeRect(
   rect: WindowRect,
   delta: { readonly x: number; readonly y: number },
-  minimum = { width: 300, height: 220 },
+  minimum: { readonly width: number; readonly height: number } = MIN_FLOATING_SIZE,
 ): WindowRect {
   return {
     ...rect,

@@ -107,25 +107,45 @@ function useFloatingDock() {
   return { mode, rect, dockRef, commit, drag, resize, toggleMode };
 }
 
+function sameSelectedIds(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+/** Selected system ids — equality-stable across position-only node updates. */
+function useSelectedSystemIds(): readonly number[] {
+  return useStore(
+    (state) =>
+      state.nodes
+        .filter((node) => node.selected)
+        .map((node) => Number(node.id)),
+    sameSelectedIds,
+  );
+}
+
+/** One node's display name; position-only updates leave the string identity stable. */
+function useNodeName(systemId: number | null): string | undefined {
+  return useStore((state) => {
+    if (systemId === null) return undefined;
+    const node = state.nodes.find((entry) => Number(entry.id) === systemId);
+    const name = node?.data.name;
+    return typeof name === 'string' ? name : undefined;
+  });
+}
+
 function useSurfacePresence(input: {
-  readonly nodes: readonly ChainNode[];
   readonly rootSystemId: number | null;
   readonly rootClick: RootClickSignal | null;
   readonly boxSelectActive: boolean;
+  readonly selectedIds: readonly number[];
 }) {
   const [presence, setPresence] = useState({
     dockHidden: false,
     consumedRootClickToken: 0,
   });
-  const selectedIds = useMemo(
-    () => input.nodes.filter((node) => node.selected).map((node) => Number(node.id)),
-    [input.nodes],
-  );
   const derivation = deriveSurfaces({
     rootSystemId: input.rootSystemId,
     dockHidden: presence.dockHidden,
-    mode: 'docked',
-    selectedIds,
+    selectedIds: input.selectedIds,
     boxSelectActive: input.boxSelectActive,
     rootClick: input.rootClick,
     consumedRootClickToken: presence.consumedRootClickToken,
@@ -145,7 +165,11 @@ function useSurfacePresence(input: {
     setPresence((current) => ({ ...current, dockHidden: true }));
   }, []);
 
-  return { liveIds: derivation.surfaces, selectedIds, hideDock };
+  return {
+    liveIds: derivation.surfaces,
+    summarySystemId: derivation.summarySystemId,
+    hideDock,
+  };
 }
 
 function useWindowStack(liveIds: readonly MapWindowId[]) {
@@ -192,14 +216,6 @@ function useCardDismissal(cardOpen: boolean, onDeselect: () => void): void {
     document.addEventListener('keydown', handleDocumentKeyDown);
     return () => document.removeEventListener('keydown', handleDocumentKeyDown);
   }, [cardOpen, onDeselect]);
-}
-
-function summarySystemId(
-  liveIds: readonly MapWindowId[],
-  selectedIds: readonly number[],
-): number | null {
-  if (!liveIds.includes('summary') || selectedIds.length !== 1) return null;
-  return selectedIds[0] ?? null;
 }
 
 function dockPlacement(mode: DockMode, rect: WindowRect) {
@@ -250,7 +266,6 @@ function DockSurface({
       windowId="dock"
       title={dockTitle(title, rootSystemId)}
       placement={dockPlacement(mode, rect)}
-      surfaceKind="dock"
       stackIndex={stackIndex}
       onClose={onClose}
       onActivate={onActivate}
@@ -287,7 +302,6 @@ function SummarySurface({
       windowId="summary"
       title={title ?? String(summaryId)}
       placement={{ kind: 'node-anchored', systemId: summaryId }}
-      surfaceKind="card"
       stackIndex={stackIndex}
       onClose={onClose}
       onActivate={onActivate}
@@ -306,7 +320,6 @@ function SummarySurface({
 
 /** Props supplied by the chain host to the sibling window layer. */
 export interface MapWindowLayerProps {
-  readonly nodes: readonly ChainNode[];
   readonly rootSystemId: number | null;
   readonly rootClick: RootClickSignal | null;
   readonly onDeselect: () => void;
@@ -331,23 +344,24 @@ export function MapWindowLayer(props: MapWindowLayerProps) {
 }
 
 function MountedMapWindowLayer({
-  nodes,
   rootSystemId,
   rootClick,
   onDeselect,
 }: MapWindowLayerProps) {
   const store = useStoreApi<ChainNode>();
   const boxSelectActive = useStore((state) => state.userSelectionActive);
+  const selectedIds = useSelectedSystemIds();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const floatingDock = useFloatingDock();
-  const { liveIds, selectedIds, hideDock } = useSurfacePresence({
-    nodes,
+  const { liveIds, summarySystemId, hideDock } = useSurfacePresence({
     rootSystemId,
     rootClick,
     boxSelectActive,
+    selectedIds,
   });
   const { renderedStack, activate } = useWindowStack(liveIds);
-  const summaryId = summarySystemId(liveIds, selectedIds);
+  const rootTitle = useNodeName(rootSystemId);
+  const summaryTitle = useNodeName(summarySystemId);
   const followerStore = useMemo<NodeFollowerStore>(
     () => ({
       getState: () => store.getState(),
@@ -355,11 +369,9 @@ function MountedMapWindowLayer({
     }),
     [store],
   );
-  useNodeFollower(followerStore, summaryId, cardRef);
-  useCardDismissal(summaryId !== null, onDeselect);
+  useNodeFollower(followerStore, summarySystemId, cardRef);
+  useCardDismissal(summarySystemId !== null, onDeselect);
 
-  const rootNode = nodes.find((node) => Number(node.id) === rootSystemId);
-  const summaryNode = nodes.find((node) => Number(node.id) === summaryId);
   const zIndex = (id: MapWindowId) => renderedStack.indexOf(id) + 1;
 
   return (
@@ -370,7 +382,7 @@ function MountedMapWindowLayer({
       <DockSurface
         visible={liveIds.includes('dock')}
         rootSystemId={rootSystemId}
-        title={rootNode?.data.name}
+        title={rootTitle}
         mode={floatingDock.mode}
         rect={floatingDock.rect}
         stackIndex={zIndex('dock')}
@@ -384,8 +396,8 @@ function MountedMapWindowLayer({
         onResizeEnd={floatingDock.commit}
       />
       <SummarySurface
-        summaryId={summaryId}
-        title={summaryNode?.data.name}
+        summaryId={summarySystemId}
+        title={summaryTitle}
         stackIndex={zIndex('summary')}
         cardRef={cardRef}
         onClose={onDeselect}

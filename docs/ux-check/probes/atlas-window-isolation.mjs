@@ -5,6 +5,7 @@ import {
   openSummary,
   settleMapViewport,
   waitForWindowMap,
+  WINDOW_STORAGE_KEY,
 } from '../lib/window-helpers.mjs';
 
 const isolated = (result) =>
@@ -21,7 +22,7 @@ export default {
       check('UX_MAP_ID is set for the live map under test', false);
       return;
     }
-    await page.evaluate(() => localStorage.removeItem('lgi:map:windows:v1'));
+    await page.evaluate((key) => localStorage.removeItem(key), WINDOW_STORAGE_KEY);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForWindowMap(page);
     const docked = await exerciseWindowInput(page, 'dock');

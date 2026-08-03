@@ -4,6 +4,7 @@ import {
   mapWindow,
   rootSystemTarget,
   waitForWindowMap,
+  WINDOW_STORAGE_KEY,
 } from '../lib/window-helpers.mjs';
 
 export default {
@@ -17,7 +18,7 @@ export default {
       check('UX_MAP_ID is set for the live map under test', false);
       return;
     }
-    await page.evaluate(() => localStorage.removeItem('lgi:map:windows:v1'));
+    await page.evaluate((key) => localStorage.removeItem(key), WINDOW_STORAGE_KEY);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForWindowMap(page);
 

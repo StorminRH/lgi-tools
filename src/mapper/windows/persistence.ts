@@ -1,18 +1,24 @@
 import { z } from 'zod';
-import type { DockMode, WindowRect } from './window-model';
+import {
+  DOCK_MODES,
+  MIN_FLOATING_SIZE,
+  type DockMode,
+  type WindowRect,
+} from './window-model';
 
-const STORAGE_KEY = 'lgi:map:windows:v1';
+/** Device-local key; probe helpers mirror this string across the docs zone. */
+export const WINDOW_STORAGE_KEY = 'lgi:map:windows:v1';
 
 const rectSchema = z.object({
   x: z.number().finite(),
   y: z.number().finite(),
-  width: z.number().finite().min(300),
-  height: z.number().finite().min(220),
+  width: z.number().finite().min(MIN_FLOATING_SIZE.width),
+  height: z.number().finite().min(MIN_FLOATING_SIZE.height),
 });
 
 const recordSchema = z.object({
   v: z.literal(1),
-  mode: z.enum(['docked', 'floating']),
+  mode: z.enum(DOCK_MODES),
   rect: rectSchema.optional(),
 });
 
@@ -36,7 +42,7 @@ function safeStorage(): Storage | null {
 export function readWindowRecord(storage = safeStorage()): WindowRecord | null {
   if (storage === null) return null;
   try {
-    const raw = storage.getItem(STORAGE_KEY);
+    const raw = storage.getItem(WINDOW_STORAGE_KEY);
     if (raw === null) return null;
     const parsed = recordSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : null;
@@ -52,11 +58,11 @@ export function writeWindowRecord(
 ): void {
   if (storage === null) return;
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(recordSchema.parse(record)));
+    storage.setItem(WINDOW_STORAGE_KEY, JSON.stringify(recordSchema.parse(record)));
   } catch {
     // Local presentation must never make the map unavailable (private mode, quota, stale shape).
   }
 }
 
 /** Test-only key contract; production code consumes the helpers above. */
-export const __TEST_ONLY__ = { STORAGE_KEY };
+export const __TEST_ONLY__ = { STORAGE_KEY: WINDOW_STORAGE_KEY };

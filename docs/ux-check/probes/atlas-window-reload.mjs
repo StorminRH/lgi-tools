@@ -1,4 +1,9 @@
-import { atlasWindowRoute, mapWindow, waitForWindowMap } from '../lib/window-helpers.mjs';
+import {
+  atlasWindowRoute,
+  mapWindow,
+  waitForWindowMap,
+  WINDOW_STORAGE_KEY,
+} from '../lib/window-helpers.mjs';
 
 const closeEnough = (a, b) =>
   ['x', 'y', 'width', 'height'].every((key) => Math.abs(a[key] - b[key]) <= 1);
@@ -14,7 +19,7 @@ export default {
       check('UX_MAP_ID is set for the live map under test', false);
       return;
     }
-    await page.evaluate(() => localStorage.removeItem('lgi:map:windows:v1'));
+    await page.evaluate((key) => localStorage.removeItem(key), WINDOW_STORAGE_KEY);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForWindowMap(page);
     const dock = mapWindow(page, 'dock');
@@ -28,7 +33,7 @@ export default {
       await page.mouse.move(dragBox.x + 140, dragBox.y + 90, { steps: 6 });
       await page.mouse.up();
     }
-    const resize = dock.getByRole('button', { name: /Resize Current system/ });
+    const resize = dock.locator('[data-map-window-resize]');
     const resizeBox = await resize.boundingBox();
     if (resizeBox !== null) {
       await page.mouse.move(resizeBox.x + 8, resizeBox.y + 8);

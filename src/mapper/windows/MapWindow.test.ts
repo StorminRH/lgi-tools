@@ -12,7 +12,6 @@ function render(placement: WindowPlacement): string {
         windowId: 'test',
         title: 'Test window',
         placement,
-        surfaceKind: placement.kind === 'node-anchored' ? 'card' : 'dock',
         stackIndex: 1,
         onClose: vi.fn(),
         onActivate: vi.fn(),
@@ -43,9 +42,10 @@ describe('MapWindow isolation markup', () => {
     });
 
     expect(docked).not.toContain('data-map-window-drag');
-    expect(docked).not.toContain('Resize Test window');
+    expect(docked).not.toContain('data-map-window-resize');
     expect(floating).toContain('data-map-window-drag');
     expect(floating).toContain('cursor-move');
-    expect(floating).toContain('Resize Test window');
+    expect(floating).toContain('data-map-window-resize');
+    expect(floating).toContain('aria-hidden="true"');
   });
 });

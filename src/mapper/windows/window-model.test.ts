@@ -7,13 +7,13 @@ import {
   keydownAction,
   reconcileStack,
   resizeRect,
+  surfaceKindOf,
   topmost,
 } from './window-model';
 
 const base = {
   rootSystemId: 1,
   dockHidden: false,
-  mode: 'docked' as const,
   selectedIds: [] as number[],
   boxSelectActive: false,
   rootClick: null,
@@ -38,6 +38,7 @@ describe('map window presence', () => {
 
     expect(result).toEqual({
       surfaces: ['dock'],
+      summarySystemId: null,
       dockHidden: false,
       consumedRootClickToken: 4,
     });
@@ -52,20 +53,32 @@ describe('map window presence', () => {
   });
 
   it('shows a card only for one settled non-root selection', () => {
-    expect(deriveSurfaces({ ...base, selectedIds: [2] }).surfaces).toEqual([
-      'dock',
-      'summary',
-    ]);
+    expect(deriveSurfaces({ ...base, selectedIds: [2] })).toMatchObject({
+      surfaces: ['dock', 'summary'],
+      summarySystemId: 2,
+    });
     expect(
-      deriveSurfaces({ ...base, selectedIds: [2], boxSelectActive: true }).surfaces,
-    ).toEqual(['dock']);
-    expect(deriveSurfaces({ ...base, selectedIds: [2, 3] }).surfaces).toEqual([
-      'dock',
-    ]);
+      deriveSurfaces({ ...base, selectedIds: [2], boxSelectActive: true }),
+    ).toMatchObject({ surfaces: ['dock'], summarySystemId: null });
+    expect(deriveSurfaces({ ...base, selectedIds: [2, 3] })).toMatchObject({
+      surfaces: ['dock'],
+      summarySystemId: null,
+    });
   });
 });
 
 describe('map window keyboard and stack', () => {
+  it('derives Escape surface kind from placement alone', () => {
+    expect(surfaceKindOf({ kind: 'docked' })).toBe('dock');
+    expect(
+      surfaceKindOf({
+        kind: 'floating',
+        rect: { x: 0, y: 0, width: 380, height: 520 },
+      }),
+    ).toBe('dock');
+    expect(surfaceKindOf({ kind: 'node-anchored', systemId: 2 })).toBe('card');
+  });
+
   it('dismisses only a card Escape that no popup already owns', () => {
     expect(
       keydownAction({

@@ -274,7 +274,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
         />
       </MotionLayer>
       <MapWindowLayer
-        nodes={nodes}
         rootSystemId={rootSystemId}
         rootClick={rootClick}
         onDeselect={deselectNodes}
