@@ -14,9 +14,13 @@ import { readNodePositions } from '../lib/read-node-positions.mjs';
 
 const execFileAsync = promisify(execFile);
 
-/** Unique per run — a repeated id would upsert idempotently and never arrive. */
+/** Unique per run — a repeated id would upsert idempotently and never arrive.
+ * Offset stays below 100_000 so this band cannot collide with the
+ * 99_200_000 / 99_300_000 fixture bands used by sibling motion probes. */
 const PROBE_SYSTEM_ID =
-  99_100_000 + (Date.now() % 100_000) + Math.floor(Math.random() * 1_000);
+  99_100_000
+  + (Date.now() % 99_000)
+  + Math.floor(Math.random() * 1_000);
 
 /** True when a witness frame shows the birth animation actually running. */
 const animatedFrame = (frame) =>

@@ -16,10 +16,11 @@ import { readNodePositions } from '../lib/read-node-positions.mjs';
 
 const execFileAsync = promisify(execFile);
 
-const CONTROL_SYSTEM_ID =
-  99_200_000 + (Date.now() % 100_000) + Math.floor(Math.random() * 1_000);
-const REDUCED_SYSTEM_ID =
-  99_300_000 + (Date.now() % 100_000) + Math.floor(Math.random() * 1_000);
+/** Shared offset below 100_000 keeps the 99_200_000 / 99_300_000 bands disjoint. */
+const PROBE_ID_OFFSET =
+  (Date.now() % 99_000) + Math.floor(Math.random() * 1_000);
+const CONTROL_SYSTEM_ID = 99_200_000 + PROBE_ID_OFFSET;
+const REDUCED_SYSTEM_ID = 99_300_000 + PROBE_ID_OFFSET;
 
 const scaleAnimatedFrame = (frame) =>
   frame.scale !== null && frame.scale !== 'none' && Number(frame.scale) < 0.999;
