@@ -108,6 +108,15 @@ run all of its declared viewports with `prefers-reduced-motion: reduce`.
 
 | Name | Recurring proof |
 | --- | --- |
+| `atlas-layout-cross-engine` | Chromium↔Firefox position identity through the tolerance reader (authenticated, `UX_MAP_ID`) |
+| `atlas-layout-lock` | Unlock/drag/pin hold through an arrival and exact re-lock snap-home (authenticated, `UX_MAP_ID`, local Convex) |
+| `atlas-layout-two-clients` | Two staggered authenticated clients render position-identical chains (authenticated, `UX_MAP_ID`) |
+| `atlas-layout-worker` | Layout worker spawns on the map route with no layout-attributed long frames (authenticated, `UX_MAP_ID`) |
+| `atlas-motion-birth` | Arrivals surface in place with in-window scale/opacity animation, initial load and live insertion (authenticated, `UX_MAP_ID`, local Convex) |
+| `atlas-motion-drag` | Own-drag 1:1 pointer tracking and the drag-window frame-time budget (authenticated, `UX_MAP_ID`) |
+| `atlas-motion-glide` | Forced-shift glides with per-frame edge-rim tracking and the glide frame-time budget (authenticated, `UX_MAP_ID`) |
+| `atlas-motion-idle` | Hover-only breathing plus zero rAF registrations across an idle window with a glide positive control (authenticated, `UX_MAP_ID`) |
+| `atlas-motion-reduced` | Paired control/reduced phases: fade-only births and glide-free shifts under prefers-reduced-motion (authenticated, `UX_MAP_ID`, local Convex) |
 | `atlas-wall` | Signed-out atlas development wall, canvas/chrome exclusion, and viewport scroll suppression |
 | `asset-ledger` | Logged-out asset ledger open state and totals |
 | `asset-ring-mock` | Mocked complete/partial ownership rings and holding details |

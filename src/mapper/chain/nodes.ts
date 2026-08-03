@@ -4,13 +4,20 @@
 // This is the ONLY place canvas nodes and edges are built, and it builds them solely from reconciler
 // output (contract DC-7). Nothing here reads a Convex page.
 import { CHAIN_NODE_TYPE, type ChainNode } from '../canvas/SystemNode';
+import type { EdgeMotion } from '../motion/motion-contract';
 import type { SystemLabel } from './labels';
 import type { ChainState } from './reconciler';
 
-/** The chain edge payload — the one shape both the builder and renderer type against. */
+/**
+ * The chain edge payload — the one shape both the builder and renderer type
+ * against. `buildEdges` never sets `motion` — reconciled truth carries no
+ * motion; the vocabulary (`EdgeMotion`) is owned by `../motion/motion-contract`
+ * and the field is written only by the motion derivation.
+ */
 export type ChainEdgeData = {
   /** `loop: true` marks a non-tree connection (loop closure); drawn dashed. */
   readonly loop: boolean;
+  readonly motion?: EdgeMotion;
 };
 
 /** One edge on the canvas. Structural subset of React Flow's `Edge`. */

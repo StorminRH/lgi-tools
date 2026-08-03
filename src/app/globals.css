@@ -1028,3 +1028,201 @@ details[data-collapsible][open] > summary [data-chevron] {
   background: var(--color-bg-deep);
 }
 .devlog-excerpt-code-line { white-space: pre; }
+
+/* ── Atlas motion layer (4.0.3.2) ────────────────────────────────────────
+ * The mapper's motion vocabulary: birth, exit, hover, and edge flavors, all
+ * driven by the --map-motion-* custom properties that ChainSurface writes via
+ * CSSOM from live dial state (declared here, outside @theme, so the component
+ * system's --transition-duration-* / --ease-* family stays untouched). The
+ * spring `linear()` ease token is GENERATED from motion-contract.ts — the one
+ * easing definition site — so no literal linear() appears here; the keyword
+ * fallbacks below only cover the pre-hydration frame before the effect writes
+ * the real tokens.
+ *
+ * Contract boundaries carried by this section:
+ *   - Nothing here targets the React Flow node transform (.react-flow__node):
+ *     position glides are scheduled in code and drive state (HC-1).
+ *   - Every rule animates scale/opacity on the node's inner element or
+ *     stroke-dash/opacity on an edge path — never position (IS-1).
+ *   - The only continuous (infinite) animation is hover-scoped breathing;
+ *     everything else is a finite, class-gated window (HC-5).
+ *   - Motion classes are suppressed wholesale on a dragging node (HC-2).
+ *   - Every animation has a reduced-motion gate collapsing it to a gentle
+ *     fade or nothing (DC-6). */
+
+/* Pre-hydration fallbacks mirroring the ratified DEFAULT_MOTION_CONFIG; the
+ * effect overwrites them with live dial state on mount. */
+[data-map-motion-scope] {
+  --map-motion-fast: 250ms;
+  --map-motion-mid: 1000ms;
+  --map-motion-slow: 1000ms;
+}
+
+/* Birth: slightly small, dim, and soft — softness IS the low-opacity sub-scale
+ * start — scaling through the spring's overshoot and settling sharp. The
+ * overshoot lives in the eased timing function's >1 excursion, so the
+ * keyframes stay a plain from/to. */
+@keyframes map-node-enter {
+  from { scale: 0.82; opacity: 0.25; }
+  to { scale: 1; opacity: 1; }
+}
+.map-node-enter {
+  animation: map-node-enter var(--map-motion-mid) var(--map-motion-ease, ease-out) both;
+}
+
+/* Exit: a brief shrink-and-fade; the heavy variant (chain collapse, dialed)
+ * sinks deeper over the slow tier. */
+@keyframes map-node-exit {
+  to { scale: 0.78; opacity: 0; }
+}
+.map-node-exit {
+  animation: map-node-exit var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+@keyframes map-node-exit-heavy {
+  to { scale: 0.55; opacity: 0; }
+}
+.map-node-exit-heavy {
+  animation: map-node-exit-heavy var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+/* Hover: the one cursor-responsive moment (DC-4) — a glow plus subtle
+ * breathing, strictly hover-scoped so the idle map schedules nothing, and
+ * suppressed while the node itself is being dragged. */
+@keyframes map-node-breathe {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.045; }
+}
+[data-chain-node]:not([data-dragging]):hover .map-node-disc {
+  animation: map-node-breathe calc(var(--map-motion-fast) * 8) ease-in-out infinite;
+  box-shadow:
+    0 0 0 1px var(--color-card-glow-ring),
+    0 0 12px var(--color-card-glow-shadow);
+}
+
+/* Ghosts: departed nodes replaying their exit are presentation-only — no
+ * interaction may target one. That inertness is owned by the ghost snapshot's
+ * inline `pointerEvents: 'none'` (motion-host-model.ts), because React Flow
+ * writes its own inline pointer-events value that any class rule here would
+ * lose to. The `.map-ghost` class remains as the DOM witness only. */
+
+/* Drag suppression backstop (HC-2): whatever window a node is in, grabbing it
+ * stills its presentation instantly. The component also omits motion classes
+ * for a dragging node; this rule covers the same commit's paint. */
+.react-flow__node.dragging [data-chain-node],
+.react-flow__node.dragging [data-chain-node] .map-node-disc {
+  animation: none;
+}
+
+/* Shared gentle fades — the reduced-motion vocabulary and the edge fade
+ * flavor use the same pair. */
+@keyframes map-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes map-fade-out {
+  to { opacity: 0; }
+}
+
+/* Edge flavors. Fade touches opacity only (loop edges always take it, so the
+ * dash channel never lies); grow draws the line along its path via
+ * pathLength-normalized stroke-dash, from the parent end (the -rev variants
+ * start from the path's target end). The settle ease keeps dashoffset inside
+ * [-1, 1] — an overshooting ease would wrap the dash pattern. */
+.map-edge-fade-enter {
+  animation: map-fade-in var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-fade-exit {
+  animation: map-fade-out var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-fade-exit-heavy {
+  animation: map-fade-out var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+@keyframes map-edge-grow-enter {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes map-edge-grow-enter-rev {
+  from { stroke-dashoffset: -1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes map-edge-grow-exit {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 1; }
+}
+@keyframes map-edge-grow-exit-rev {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -1; }
+}
+.map-edge-grow-enter,
+.map-edge-grow-enter-rev,
+.map-edge-grow-exit,
+.map-edge-grow-exit-rev,
+.map-edge-grow-exit-heavy,
+.map-edge-grow-exit-heavy-rev {
+  stroke-dasharray: 1;
+}
+.map-edge-grow-enter {
+  animation: map-edge-grow-enter var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-grow-enter-rev {
+  animation: map-edge-grow-enter-rev var(--map-motion-mid) var(--map-motion-ease-settle, ease-out) both;
+}
+.map-edge-grow-exit {
+  animation: map-edge-grow-exit var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-rev {
+  animation: map-edge-grow-exit-rev var(--map-motion-mid) var(--map-motion-ease-settle, ease-in) both;
+}
+/* Heavy collapse exits retract over the slow tier, matching the scheduler's
+ * heavy ghost window — one duration mapping, mirrored from tweenPlanOf. */
+.map-edge-grow-exit-heavy {
+  animation: map-edge-grow-exit var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+.map-edge-grow-exit-heavy-rev {
+  animation: map-edge-grow-exit-rev var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
+}
+
+/* Reduced motion (DC-6): births and exits become gentle fades over the same
+ * windows, edges always fade, hover breathing stops (the static glow remains —
+ * it is a state, not motion), and grow's dash machinery is neutralized. */
+@media (prefers-reduced-motion: reduce) {
+  .map-node-enter {
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-node-exit {
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  /* Heavy exits keep the slow tier so the fade spans the scheduler's heavy
+   * ghost window instead of holding invisible for its tail. */
+  .map-node-exit-heavy {
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  [data-chain-node]:not([data-dragging]):hover .map-node-disc {
+    animation: none;
+  }
+  .map-edge-grow-enter,
+  .map-edge-grow-enter-rev {
+    stroke-dasharray: none;
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-edge-grow-exit,
+  .map-edge-grow-exit-rev {
+    stroke-dasharray: none;
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-edge-grow-exit-heavy,
+  .map-edge-grow-exit-heavy-rev {
+    stroke-dasharray: none;
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  .map-edge-fade-enter {
+    animation: map-fade-in var(--map-motion-mid) linear both;
+  }
+  .map-edge-fade-exit {
+    animation: map-fade-out var(--map-motion-mid) linear both;
+  }
+  .map-edge-fade-exit-heavy {
+    animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+}

@@ -31,7 +31,13 @@ import {
   PROOF_CORPUS,
   type CorpusEntry,
 } from '@/mapper/layout/proof-kit';
-import { parseReplayArgs, planSpawnSteps, type ReplayArgs, type SpawnStep } from './map-replay-plan';
+import {
+  attachingEdgeOf,
+  parseReplayArgs,
+  planSpawnSteps,
+  type ReplayArgs,
+  type SpawnStep,
+} from './map-replay-plan';
 
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
@@ -131,6 +137,19 @@ function holdMs(intervalMs: number): number {
   return Math.max(2000, intervalMs * 3);
 }
 
+/** Parses the connection doc id a fixture mutation prints last. */
+function parseConnectionId(output: string, path: string): string {
+  // Convex CLI may emit progress lines before the JSON id; take the last line.
+  const lastLine = output.split('\n').at(-1)?.trim() ?? '';
+  try {
+    const parsed: unknown = JSON.parse(lastLine);
+    if (typeof parsed !== 'string') throw new Error('not a string id');
+    return parsed;
+  } catch {
+    throw new Error(`${path} returned unparsable output: ${output}`);
+  }
+}
+
 async function insertConnection(mapId: string, edge: LayoutEdge): Promise<string> {
   console.log(`+ connection ${edge.fromSystemId} → ${edge.toSystemId}`);
   const inserted = await convexRun('mapFixtures:insertConnectionFixture', {
@@ -139,15 +158,23 @@ async function insertConnection(mapId: string, edge: LayoutEdge): Promise<string
     toSystemId: edge.toSystemId,
     ...DEFAULT_CONNECTION,
   });
-  // Convex CLI may emit progress lines before the JSON id; take the last line.
-  const lastLine = inserted.split('\n').at(-1)?.trim() ?? '';
-  try {
-    const parsed: unknown = JSON.parse(lastLine);
-    if (typeof parsed !== 'string') throw new Error('not a string id');
-    return parsed;
-  } catch {
-    throw new Error(`insertConnectionFixture returned unparsable output: ${inserted}`);
-  }
+  return parseConnectionId(inserted, 'mapFixtures:insertConnectionFixture');
+}
+
+/**
+ * One jump: the revealed system and its discovering connection land in a
+ * single transaction, the way real mapping learns about a system — so the
+ * canvas births the node already attached to the tree, never elsewhere first.
+ */
+async function insertJump(mapId: string, edge: LayoutEdge): Promise<string> {
+  console.log(`+ jump ${edge.fromSystemId} → ${edge.toSystemId}`);
+  const inserted = await convexRun('mapFixtures:placeJumpFixture', {
+    mapId,
+    fromSystemId: edge.fromSystemId,
+    toSystemId: edge.toSystemId,
+    ...DEFAULT_CONNECTION,
+  });
+  return parseConnectionId(inserted, 'mapFixtures:placeJumpFixture');
 }
 
 /** Narrates one step's skipped self-loops and freshly deferred edges. */
@@ -162,60 +189,96 @@ function logStepNotes(step: SpawnStep): void {
   }
 }
 
-/** Inserts one step's placeable connections, appending their doc ids in order. */
-async function insertStepConnections(
-  mapId: string,
-  step: SpawnStep,
-  connectionIds: string[],
-): Promise<void> {
-  for (const edge of step.connections) {
-    connectionIds.push(await insertConnection(mapId, edge));
-  }
+/**
+ * One executed spawn step, as the teardown must undo it: the system, the
+ * connection it jumped in with (null for a bare root spawn), and every other
+ * connection inserted at this step (loop closures, newly placeable deferred
+ * edges).
+ */
+interface SpawnRecord {
+  readonly systemId: number;
+  readonly attachingConnectionId: string | null;
+  readonly otherConnectionIds: readonly string[];
 }
 
-/** Executes the precomputed spawn plan; returns inserted connection doc ids in order. */
+/**
+ * Executes one spawn step. The edge that discovered this system jumps in
+ * atomically with it; only a root (or a system whose attaching edge the
+ * corpus deferred until this landing) spawns bare. Prefer a current-step
+ * discovering edge over a drained deferred edge that merely became placeable
+ * because this system arrived — otherwise teardown collapses the wrong pair.
+ * Loop closures and remaining drained edges follow as ordinary scans.
+ */
+async function executeSpawnStep(mapId: string, step: SpawnStep): Promise<SpawnRecord> {
+  const attaching = attachingEdgeOf(step);
+  let attachingConnectionId: string | null = null;
+  if (attaching === undefined) {
+    console.log(`+ system ${step.systemId}`);
+    await convexRun('mapFixtures:placeSystemFixture', { mapId, systemId: step.systemId });
+  } else {
+    attachingConnectionId = await insertJump(mapId, attaching);
+  }
+  logStepNotes(step);
+  const otherConnectionIds: string[] = [];
+  for (const edge of [...step.connections, ...step.drainedConnections]) {
+    if (edge === attaching) continue;
+    otherConnectionIds.push(await insertConnection(mapId, edge));
+  }
+  return { systemId: step.systemId, attachingConnectionId, otherConnectionIds };
+}
+
+/** Executes the precomputed spawn plan; returns one record per step, in order. */
 async function spawnChain(
   mapId: string,
   timeline: ReturnType<typeof generateChainTimeline>,
   entry: CorpusEntry,
   intervalMs: number,
-): Promise<string[]> {
+): Promise<SpawnRecord[]> {
   const plan = planSpawnSteps(timeline.facts, timeline.connectionSteps, entry.size);
-  const connectionIds: string[] = [];
+  const records: SpawnRecord[] = [];
 
   for (const step of plan.steps) {
-    console.log(`+ system ${step.systemId}`);
-    await convexRun('mapFixtures:placeSystemFixture', { mapId, systemId: step.systemId });
-    logStepNotes(step);
-    await insertStepConnections(mapId, step, connectionIds);
+    records.push(await executeSpawnStep(mapId, step));
     await pace(intervalMs);
   }
 
   if (plan.unplaceable.length > 0) {
     console.log(`~ ${plan.unplaceable.length} deferred connection(s) never became placeable; skipped`);
   }
-  return connectionIds;
+  return records;
 }
 
 /**
- * Tears the chain down for the loop: connections in reverse insertion order,
- * then systems in reverse arrival order — so the removal seam never refuses a
- * still-referenced system, and departures cascade newest-first.
+ * Tears the chain down for the loop, newest-first, undoing each spawn step the
+ * way it happened: loop-closure scans drop as plain connection removals, then
+ * the step's wormhole COLLAPSES — connection and the system it had discovered
+ * leave in one transaction, because a severed hole makes the far side
+ * unreachable and an orphaned system must never linger on the map. Reverse
+ * order guarantees every later-inserted connection referencing a system is
+ * gone before that system's collapse, so the orphan proof never refuses.
  */
 async function despawnChain(
   mapId: string,
-  timeline: ReturnType<typeof generateChainTimeline>,
-  connectionIds: readonly string[],
+  records: readonly SpawnRecord[],
   intervalMs: number,
 ): Promise<void> {
-  for (const connectionId of [...connectionIds].reverse()) {
-    console.log(`- connection ${connectionId}`);
-    await convexRun('mapFixtures:removeConnectionFixture', { connectionId });
-    await pace(intervalMs);
-  }
-  for (const system of [...timeline.facts.systems].reverse()) {
-    console.log(`- system ${system.systemId}`);
-    await convexRun('mapFixtures:removeSystemFixture', { mapId, systemId: system.systemId });
+  for (const record of [...records].reverse()) {
+    for (const connectionId of [...record.otherConnectionIds].reverse()) {
+      console.log(`- connection ${connectionId}`);
+      await convexRun('mapFixtures:removeConnectionFixture', { connectionId });
+      await pace(intervalMs);
+    }
+    if (record.attachingConnectionId === null) {
+      console.log(`- system ${record.systemId}`);
+      await convexRun('mapFixtures:removeSystemFixture', { mapId, systemId: record.systemId });
+    } else {
+      console.log(`- collapse ${record.systemId} (with its connection)`);
+      await convexRun('mapFixtures:collapseJumpFixture', {
+        mapId,
+        connectionId: record.attachingConnectionId,
+        systemId: record.systemId,
+      });
+    }
     await pace(intervalMs);
   }
 }
@@ -235,11 +298,11 @@ async function run(args: ReplayArgs): Promise<void> {
   console.log(`open /atlas?map=${mapId}`);
 
   for (;;) {
-    const connectionIds = await spawnChain(mapId, timeline, entry, args.intervalMs);
+    const records = await spawnChain(mapId, timeline, entry, args.intervalMs);
     if (!args.loop) break;
 
     await sleep(holdMs(args.intervalMs));
-    await despawnChain(mapId, timeline, connectionIds, args.intervalMs);
+    await despawnChain(mapId, records, args.intervalMs);
     await sleep(holdMs(args.intervalMs));
   }
 

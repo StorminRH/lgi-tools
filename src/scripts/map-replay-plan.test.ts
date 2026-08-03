@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseReplayArgs, planSpawnSteps } from './map-replay-plan';
+import { attachingEdgeOf, parseReplayArgs, planSpawnSteps } from './map-replay-plan';
 
 describe('replay argument parsing', () => {
   it('parses a full well-formed invocation, skipping the pnpm separator', () => {
@@ -72,8 +72,42 @@ describe('spawn planning', () => {
     );
     expect(plan.steps[0]?.newlyDeferred).toEqual([{ fromSystemId: A, toSystemId: C }]);
     expect(plan.steps[1]?.connections).toEqual([]);
-    expect(plan.steps[2]?.connections).toEqual([{ fromSystemId: A, toSystemId: C }]);
+    expect(plan.steps[1]?.drainedConnections).toEqual([]);
+    expect(plan.steps[2]?.connections).toEqual([]);
+    expect(plan.steps[2]?.drainedConnections).toEqual([{ fromSystemId: A, toSystemId: C }]);
     expect(plan.unplaceable).toEqual([]);
+  });
+
+  it('keeps a current-step discovering edge out of the drained list', () => {
+    const plan = planSpawnSteps(
+      {
+        systems: [{ systemId: A }, { systemId: B }, { systemId: C }],
+        connections: [
+          { fromSystemId: A, toSystemId: C },
+          { fromSystemId: B, toSystemId: C },
+        ],
+      },
+      [1, 3],
+      3,
+    );
+    const step = plan.steps[2];
+    expect(step?.drainedConnections).toEqual([{ fromSystemId: A, toSystemId: C }]);
+    expect(step?.connections).toEqual([{ fromSystemId: B, toSystemId: C }]);
+    // Prefer the current-step discoverer over the drained orphan/deferred edge.
+    expect(step && attachingEdgeOf(step)).toEqual({ fromSystemId: B, toSystemId: C });
+  });
+
+  it('falls back to a drained edge when it alone discovers the system', () => {
+    const plan = planSpawnSteps(
+      {
+        systems: [{ systemId: A }, { systemId: B }, { systemId: C }],
+        connections: [{ fromSystemId: A, toSystemId: C }],
+      },
+      [1],
+      3,
+    );
+    const step = plan.steps[2];
+    expect(step && attachingEdgeOf(step)).toEqual({ fromSystemId: A, toSystemId: C });
   });
 
   it('reports an edge that never becomes placeable', () => {

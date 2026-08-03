@@ -1,0 +1,364 @@
+import { describe, expect, it } from 'vitest';
+import type { MapChainIntent } from '../chain/intents';
+import { springFamily, tweenPlanOf, DEFAULT_MOTION_CONFIG } from './motion-contract';
+import {
+  adoptIntents,
+  cancelForDrag,
+  createMotionState,
+  finishAllTweens,
+  isIdle,
+  stepMotion,
+} from './tween-model';
+
+const PLAN = tweenPlanOf(DEFAULT_MOTION_CONFIG, false);
+// Collapse-weight cases dial heavy explicitly: the shipped default is ordinary.
+const HEAVY_PLAN = tweenPlanOf(
+  { ...DEFAULT_MOTION_CONFIG, collapseWeight: 'heavy' },
+  false,
+);
+const EASE = springFamily(DEFAULT_MOTION_CONFIG.overshootPct).ease;
+const NONE: ReadonlySet<number> = new Set();
+
+const appeared = (systemId: number): MapChainIntent => ({
+  kind: 'system-appeared',
+  systemId,
+  position: { x: 10, y: 20 },
+});
+const moved = (
+  systemId: number,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): MapChainIntent => ({ kind: 'system-moved', systemId, from, to });
+const departed = (systemId: number): MapChainIntent => ({
+  kind: 'system-departed',
+  systemId,
+});
+
+// ── SC-1.1 · DC-1 — births surface in place, never a positional tween ────────
+describe('appear path', () => {
+  it('never creates a positional tween for an arrival', () => {
+    const state = adoptIntents(createMotionState(), [appeared(31)], 1000, PLAN);
+
+    expect(state.tweens.size).toBe(0);
+    expect(state.entering.has(31)).toBe(true);
+    // No displacement write exists, so the node renders its exact kernel
+    // target from the first frame.
+    const frame = stepMotion(state, 1000, EASE, NONE);
+    expect(frame.displacements.size).toBe(0);
+  });
+
+  it('covers initial load and live insertion with the same vocabulary', () => {
+    // Initial load is just a larger batch of the same intent kind (DEP-6).
+    const batch = [appeared(1), appeared(2), appeared(3)];
+    const state = adoptIntents(createMotionState(), batch, 0, PLAN);
+
+    expect(state.entering.size).toBe(3);
+    expect(state.tweens.size).toBe(0);
+  });
+});
+
+// ── SC-2.1 · DC-2 — glides adopt the intent's own from/to ────────────────────
+describe('move path', () => {
+  it('adopts origin and target from the intent itself, not from any read-back', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 0, y: 0 }, { x: 100, y: 50 })],
+      1000,
+      PLAN,
+    );
+
+    const tween = state.tweens.get(31);
+    expect(tween).toMatchObject({ from: { x: 0, y: 0 }, to: { x: 100, y: 50 } });
+  });
+
+  it('steps displaced positions along the spring family', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
+      0,
+      PLAN,
+    );
+
+    const halfway = stepMotion(state, PLAN.moveMs / 2, EASE, NONE);
+    const expected = 100 * EASE(0.5);
+    expect(halfway.displacements.get(31)?.x).toBeCloseTo(expected, 6);
+    expect(halfway.active).toBe(true);
+  });
+
+  it('retargets mid-flight from the current displaced value, no jump', () => {
+    let state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
+      0,
+      PLAN,
+    );
+    const midpoint = 100 * EASE(0.5);
+
+    state = adoptIntents(
+      state,
+      [moved(31, { x: 0, y: 0 }, { x: -40, y: 0 })],
+      PLAN.moveMs / 2,
+      PLAN,
+    );
+
+    const tween = state.tweens.get(31);
+    expect(tween?.from.x).toBeCloseTo(midpoint, 6);
+    expect(tween?.to).toEqual({ x: -40, y: 0 });
+    // The very next frame continues from the displaced value.
+    const frame = stepMotion(state, PLAN.moveMs / 2, EASE, NONE);
+    expect(frame.displacements.get(31)?.x).toBeCloseTo(midpoint, 6);
+  });
+
+  it('relocates instantly — no tween — when the move lands inside the birth window', () => {
+    // The split system/connection subscriptions reveal a system one merge
+    // before its attaching connection repositions it onto the tree; the node
+    // is still surfacing, so it must finish its birth at the tree position
+    // rather than zip over (operator direction 2026-08-02).
+    let state = adoptIntents(createMotionState(), [appeared(31)], 0, PLAN);
+    state = adoptIntents(
+      state,
+      [moved(31, { x: 10, y: 20 }, { x: 300, y: -150 })],
+      200,
+      PLAN,
+    );
+
+    expect(state.tweens.size).toBe(0);
+    expect(state.entering.has(31)).toBe(true);
+
+    // After the birth window closes, an ordinary move glides again.
+    const settled = stepMotion(state, PLAN.birthMs + 1, EASE, NONE).state;
+    const gliding = adoptIntents(
+      settled,
+      [moved(31, { x: 300, y: -150 }, { x: 0, y: 0 })],
+      PLAN.birthMs + 10,
+      PLAN,
+    );
+    expect(gliding.tweens.has(31)).toBe(true);
+  });
+
+  it('treats a birth and its tree placement in one batch as surfacing in place', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [appeared(31), moved(31, { x: 10, y: 20 }, { x: 300, y: -150 })],
+      0,
+      PLAN,
+    );
+
+    expect(state.tweens.size).toBe(0);
+    expect(state.entering.has(31)).toBe(true);
+  });
+
+  it('suppresses a no-op move whose origin equals its target', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 5, y: 5 }, { x: 5, y: 5 })],
+      0,
+      PLAN,
+    );
+
+    expect(state.tweens.size).toBe(0);
+  });
+
+  it('completes on time-based progress across a simulated hidden-tab gap', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
+      0,
+      PLAN,
+    );
+
+    // The tab was hidden through the whole glide; the first resumed frame
+    // completes the tween rather than resuming from a stale frame count.
+    const resumed = stepMotion(state, PLAN.moveMs * 10, EASE, NONE);
+    expect(resumed.displacements.size).toBe(0);
+    expect(resumed.state.tweens.size).toBe(0);
+  });
+
+  it('collapses to instant placement when the plan carries zero duration', () => {
+    const reducedPlan = tweenPlanOf(DEFAULT_MOTION_CONFIG, true);
+    const state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
+      0,
+      reducedPlan,
+    );
+
+    const frame = stepMotion(state, 0, EASE, NONE);
+    expect(frame.displacements.size).toBe(0);
+    expect(frame.state.tweens.size).toBe(0);
+  });
+});
+
+// ── SC-3.1 · HC-2 — drag cancels, and dragged ids get no displacement ────────
+describe('drag path', () => {
+  it('cancelForDrag drops the active tween at drag start', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
+      0,
+      PLAN,
+    );
+
+    const cancelled = cancelForDrag(state, new Set([31]));
+    expect(cancelled.tweens.size).toBe(0);
+  });
+
+  it('writes no displacement for an id in the live drag set', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [
+        moved(31, { x: 0, y: 0 }, { x: 100, y: 0 }),
+        moved(32, { x: 0, y: 0 }, { x: 0, y: 100 }),
+      ],
+      0,
+      PLAN,
+    );
+
+    const frame = stepMotion(state, PLAN.moveMs / 2, EASE, new Set([31]));
+    expect(frame.displacements.has(31)).toBe(false);
+    expect(frame.displacements.has(32)).toBe(true);
+    // The dragged node's tween is gone, not paused: a later frame without the
+    // drag still writes nothing.
+    const after = stepMotion(frame.state, PLAN.moveMs * 0.75, EASE, NONE);
+    expect(after.displacements.has(31)).toBe(false);
+  });
+
+  it('is untouched by an empty drag set', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
+      0,
+      PLAN,
+    );
+
+    expect(cancelForDrag(state, NONE)).toBe(state);
+  });
+});
+
+// ── Plan hard constraint — empty and repeated batches are inert ──────────────
+describe('batch discipline', () => {
+  it('returns the same state for an empty batch (pin/release merges)', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [moved(31, { x: 0, y: 0 }, { x: 100, y: 0 })],
+      0,
+      PLAN,
+    );
+
+    expect(adoptIntents(state, [], 100, PLAN)).toBe(state);
+  });
+});
+
+// ── Ghost lifecycle — clock-scheduled exits, supersession, collapse weight ───
+describe('departure path', () => {
+  it('creates a clock-bounded ghost that expires on schedule', () => {
+    const state = adoptIntents(createMotionState(), [departed(31)], 0, PLAN);
+
+    expect(state.ghosts.get(31)).toMatchObject({ expiresAt: PLAN.exitMs, heavy: false });
+    const before = stepMotion(state, PLAN.exitMs - 1, EASE, NONE);
+    expect(before.state.ghosts.has(31)).toBe(true);
+    const after = stepMotion(state, PLAN.exitMs, EASE, NONE);
+    expect(after.state.ghosts.has(31)).toBe(false);
+  });
+
+  it('drops the ghost when its id re-appears (supersession)', () => {
+    let state = adoptIntents(createMotionState(), [departed(31)], 0, PLAN);
+    state = adoptIntents(state, [appeared(31)], 100, PLAN);
+
+    expect(state.ghosts.has(31)).toBe(false);
+    expect(state.entering.has(31)).toBe(true);
+  });
+
+  it('weighs a wormhole collapse — system and connection departing together — as heavy', () => {
+    // The atomic collapse transaction's exact signature: one system leaves
+    // with its severed connection in one merge (operator direction 2026-08-02).
+    const collapse = [
+      departed(31),
+      { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent,
+    ];
+    const state = adoptIntents(createMotionState(), collapse, 0, HEAVY_PLAN);
+
+    expect(state.ghosts.get(31)?.heavy).toBe(true);
+    expect(state.ghosts.get(31)?.expiresAt).toBe(HEAVY_PLAN.heavyExitMs);
+    expect(state.edgeGhosts.get('c1')?.heavy).toBe(true);
+  });
+
+  it('weighs a whole departing subtree batch as heavy too', () => {
+    const collapse = [
+      departed(31),
+      departed(32),
+      { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent,
+    ];
+    const state = adoptIntents(createMotionState(), collapse, 0, HEAVY_PLAN);
+
+    expect(state.ghosts.get(32)?.heavy).toBe(true);
+  });
+
+  it('keeps a bare system removal ordinary, and everything ordinary at the shipped default', () => {
+    // No connection in the batch → not a wormhole collapse, whatever the dial.
+    const single = adoptIntents(createMotionState(), [departed(31)], 0, HEAVY_PLAN);
+    expect(single.ghosts.get(31)?.heavy).toBe(false);
+
+    const bare = adoptIntents(
+      createMotionState(),
+      [departed(31), departed(32)],
+      0,
+      HEAVY_PLAN,
+    );
+    expect(bare.ghosts.get(31)?.heavy).toBe(false);
+
+    // The shipped default (collapse exit: ordinary) never weighs a collapse.
+    const state = adoptIntents(
+      createMotionState(),
+      [departed(31), { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent],
+      0,
+      PLAN,
+    );
+    expect(state.ghosts.get(31)?.heavy).toBe(false);
+  });
+});
+
+// ── HC-5 — idle detection: the loop's stop condition ─────────────────────────
+describe('idle detection', () => {
+  it('starts idle and returns to idle when the schedule drains', () => {
+    expect(isIdle(createMotionState())).toBe(true);
+
+    const busy = adoptIntents(
+      createMotionState(),
+      [appeared(1), moved(2, { x: 0, y: 0 }, { x: 10, y: 0 }), departed(3)],
+      0,
+      PLAN,
+    );
+    expect(isIdle(busy)).toBe(false);
+
+    const drained = stepMotion(busy, PLAN.heavyExitMs + PLAN.moveMs + 1, EASE, NONE);
+    expect(isIdle(drained.state)).toBe(true);
+    expect(drained.active).toBe(false);
+  });
+
+  it('reports no visible change when only unexpired windows persist', () => {
+    const state = adoptIntents(createMotionState(), [appeared(1)], 0, PLAN);
+
+    const frame = stepMotion(state, 1, EASE, NONE);
+    expect(frame.changed).toBe(false);
+    expect(frame.active).toBe(true);
+    expect(frame.state).toBe(state);
+  });
+});
+
+// ── DC-6 — the live reduced-motion flip mid-tween ────────────────────────────
+describe('finishAllTweens', () => {
+  it('resolves every in-flight glide instantly and leaves windows alone', () => {
+    const state = adoptIntents(
+      createMotionState(),
+      [appeared(1), moved(2, { x: 0, y: 0 }, { x: 10, y: 0 })],
+      0,
+      PLAN,
+    );
+
+    const finished = finishAllTweens(state);
+    expect(finished.tweens.size).toBe(0);
+    expect(finished.entering.has(1)).toBe(true);
+    expect(finishAllTweens(finished)).toBe(finished);
+  });
+});
