@@ -14,25 +14,22 @@ export function MapChrome({ session }: { session: Session | null }) {
       data-map-chrome
       className="pointer-events-none absolute inset-0 z-sticky"
     >
-      <div className="pointer-events-auto absolute left-4 top-4">
+      <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2">
         <MapMenu />
+        {session ? (
+          <div data-map-account-anchor>
+            <AccountMenu
+              session={session}
+              anchor={() => document.querySelector('[data-map-account-anchor]')}
+            />
+          </div>
+        ) : null}
       </div>
       <div
         data-map-search-slot
         aria-hidden="true"
         className="absolute left-1/2 top-4 h-10 w-72 -translate-x-1/2"
       />
-      {session ? (
-        <div
-          data-map-account-anchor
-          className="pointer-events-auto absolute right-4 top-4"
-        >
-          <AccountMenu
-            session={session}
-            anchor={() => document.querySelector('[data-map-account-anchor]')}
-          />
-        </div>
-      ) : null}
       <div className="pointer-events-auto">
         <FeedbackButton compact />
       </div>

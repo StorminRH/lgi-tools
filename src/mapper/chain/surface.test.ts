@@ -140,7 +140,24 @@ describe('mapper source contract', () => {
       'motion/motion-host-model.ts',
       'motion/tween-model.ts',
       'motion/use-motion.ts',
+      'windows/MapWindow.tsx',
+      'windows/MapWindowLayer.tsx',
+      'windows/drag-resize.ts',
+      'windows/follower-model.ts',
+      'windows/persistence.ts',
+      'windows/window-model.ts',
     ]);
+  });
+
+  it('keeps the window layer off the hot nodes array', () => {
+    // PD-4: selection/title come from equality-stable store selectors so
+    // position-only drag frames cannot re-render hosted window content.
+    const layer = sourceOf('windows/MapWindowLayer.tsx');
+    const host = sourceOf('chain/ChainHost.tsx');
+    expect(layer).not.toMatch(/readonly nodes:/);
+    expect(layer).toContain('useSelectedSystemIds');
+    expect(layer).toContain('useNodeName');
+    expect(host).not.toMatch(/MapWindowLayer[\s\S]*nodes=\{nodes\}/);
   });
 
   it('imports no Convex package directly — the data slice owns the client', () => {

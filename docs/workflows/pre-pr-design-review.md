@@ -45,8 +45,9 @@ root and nearest scoped `AGENTS.md` rules rather than a fixed system list.
 Also launch a fresh read-only `interface-reviewer` when user-facing UI behavior
 changed. Give each reviewer the complete logical inventory and one bounded,
 non-overlapping scope; require the verdict form from
-`docs/workflows/adversarial-review.md`. Keep their exploratory output isolated
-and carry only reported findings and load-bearing checks into this procedure.
+`docs/workflows/schema/reviewer-verdict.md`. Keep their exploratory output
+isolated and carry only reported findings and load-bearing checks into this
+procedure.
 
 When subagents are unavailable, perform the same review directly. Their
 absence never waives a phase or changes the result standard.

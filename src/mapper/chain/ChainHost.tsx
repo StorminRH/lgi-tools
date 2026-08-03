@@ -14,6 +14,7 @@
 // directly and adds no mutation surface — lock, dials, and camera follow are client-local only.
 import {
   applyNodeChanges,
+  ReactFlowProvider,
   type Edge,
   type NodeChange,
   type NodeMouseHandler,
@@ -39,6 +40,8 @@ import {
 } from '../motion/motion-contract';
 import type { MotionTruth } from '../motion/motion-host-model';
 import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
+import { MapWindowLayer } from '../windows/MapWindowLayer';
+import type { RootClickSignal } from '../windows/window-model';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
@@ -84,6 +87,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // does not read as the camera moving on its own; it stays user-changeable.
   const [focusOnClick, setFocusOnClick] = useState(true);
   const [focusRequest, setFocusRequest] = useState<CameraFocusRequest | null>(null);
+  const [rootClick, setRootClick] = useState<RootClickSignal | null>(null);
   const focusTokenRef = useRef(0);
   // Live dial state — local presentation only; never synchronized.
   const [config, setConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG);
@@ -99,6 +103,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     intents,
     labelOf,
     treeParents,
+    rootSystemId,
     pinPlacement,
     releasePlacements,
   } = useMapChain(mapId, dragging, config);
@@ -198,9 +203,19 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     (_event, clicked) => {
       focusTokenRef.current += 1;
       setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
+      setRootClick({ systemId: Number(clicked.id), token: focusTokenRef.current });
     },
     [],
   );
+
+  const deselectNodes = useCallback(() => {
+    setNodes((previous) => {
+      const changes: NodeChange<ChainNode>[] = previous
+        .filter((node) => node.selected)
+        .map((node) => ({ id: node.id, type: 'select', selected: false }));
+      return changes.length === 0 ? previous : applyNodeChanges(changes, previous);
+    });
+  }, []);
 
   // Id-derived (the join key), so per-frame drag renders reuse the same set
   // and the camera host's effects don't churn (drag hardening, IS-5).
@@ -219,44 +234,51 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   if (access === false) return <NoMapAccess />;
 
   return (
-    <MotionLayer
-      truth={truth}
-      intents={intents}
-      access={access}
-      dragging={dragging}
-      motionConfig={motionConfig}
-      nodesDraggable={!locked}
-      onNodesChange={onNodesChange}
-      onNodeDragStart={onNodeDragStart}
-      onNodeDragStop={onNodeDragStop}
-      onSelectionDragStart={onSelectionDragStart}
-      onSelectionDragStop={onSelectionDragStop}
-      onNodeClick={onNodeClick}
-    >
-      <MapControls
-        locked={locked}
-        onLockedChange={handleLockedChange}
-        follow={follow}
-        onFollowChange={setFollow}
-        focusOnClick={focusOnClick}
-        onFocusOnClickChange={setFocusOnClick}
-        config={config}
-        onConfigChange={setConfig}
-        motion={motionConfig}
-        onMotionChange={setMotionConfig}
-      />
-      <CameraFollowHost
+    <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
+      <MotionLayer
+        truth={truth}
         intents={intents}
-        follow={follow}
+        access={access}
         dragging={dragging}
-        nodeIds={nodeIds}
-        systems={state.systems}
-        config={motionConfig}
-        prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
-        focusRequest={focusRequest}
-        focusEnabled={focusOnClick}
+        motionConfig={motionConfig}
+        nodesDraggable={!locked}
+        onNodesChange={onNodesChange}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDragStop={onNodeDragStop}
+        onSelectionDragStart={onSelectionDragStart}
+        onSelectionDragStop={onSelectionDragStop}
+        onNodeClick={onNodeClick}
+      >
+        <MapControls
+          locked={locked}
+          onLockedChange={handleLockedChange}
+          follow={follow}
+          onFollowChange={setFollow}
+          focusOnClick={focusOnClick}
+          onFocusOnClickChange={setFocusOnClick}
+          config={config}
+          onConfigChange={setConfig}
+          motion={motionConfig}
+          onMotionChange={setMotionConfig}
+        />
+        <CameraFollowHost
+          intents={intents}
+          follow={follow}
+          dragging={dragging}
+          nodeIds={nodeIds}
+          systems={state.systems}
+          config={motionConfig}
+          prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
+          focusRequest={focusRequest}
+          focusEnabled={focusOnClick}
+        />
+      </MotionLayer>
+      <MapWindowLayer
+        rootSystemId={rootSystemId}
+        rootClick={rootClick}
+        onDeselect={deselectNodes}
       />
-    </MotionLayer>
+    </ReactFlowProvider>
   );
 }
 

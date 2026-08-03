@@ -38,8 +38,8 @@ transition.
    destination.
 4. Present the shape before drafting, invoke `adversarial-review` in Plan mode
    with the complete plan and its source evidence, reconcile every verified
-   finding, and obtain operator approval. Permit at most one rerun after
-   material change.
+   finding from that one review pass, and obtain operator approval. Do not
+   automatically relaunch adversarial-review.
 5. Persist a new Approved cycle-1 plan with full audited ref and procedure
    digest. When a procedure change made an in-progress plan stale, preserve its
    cycle history, AF ledger, statuses, and mappings while reconciling scope.

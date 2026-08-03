@@ -217,12 +217,11 @@ second coverage cycle.
    `BLOCKED`.
 3. Fix every accepted in-scope finding through the authority already held by
    close-out. Preserve the rejection/do-not-change ledger. A scope, architecture,
-   public-surface, or authority conflict returns `BLOCKED`.
-4. Permit one fresh adversarial-review rerun only after a material correction to
-   behavior, architecture, scope, or verification. An ordinary localized fix is
-   verified by the orchestrator and the applicable focused check without another
-   full review round.
-5. Continue only with `CLEAN` or with every accepted finding corrected and
+   public-surface, or authority conflict returns `BLOCKED`. Ordinary localized
+   fixes are verified by the orchestrator and the applicable focused check
+   without another full adversarial-review round. Do not automatically relaunch
+   adversarial-review.
+4. Continue only with `CLEAN` or with every accepted finding corrected and
    personally verified. The following full checkpoint validates the resulting
    final bytes.
 

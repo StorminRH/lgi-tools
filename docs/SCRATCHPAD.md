@@ -5,21 +5,21 @@
 
 ## Now
 
-- **CURRENT:** sub-version 4.0.3.2 (motion layer) is COMPLETE on
-  `lifecycle/4.0.3.2` — its sub-version PR is opening through close-out. The
-  operator ratified the motion defaults at the G-1 gate (2026-08-02): fast 250 /
-  mid 1000 / slow 1000 ms, overshoot 12 %, edge flavor grow-from-parent,
-  collapse exit ordinary, click-focus ON. Record:
-  `docs/session-as-built/4.0/4.0.3.2.1.md`.
-- **NEXT:** after the PR merges, `start-session` — the resolver should select
-  4.0.3.3 (overlay window framework). Handoff facts for it: an overlay anchored
-  to a moving node must read positions through React Flow's store
-  (`useInternalNode`, as `ChainLinkEdge` does) — the motion layer's derived
-  presentation is local to `MotionLayer` and deliberately unexported (one
-  position authority). Settings-visibility ruling (operator 2026-08-02): the
-  three toggles (Map lock, Camera follow, Click focus) are USER settings; the
-  Layout and Motion dial groups are ADMIN tuning surfaces — whichever session
-  removes the atlas wall owns gating both dial groups.
+- **CURRENT:** session 4.0.3.3.1 (overlay window framework) on `lifecycle/4.0.3.3`
+  at close-out: G-1 accepted 2026-08-03; delivery records frozen
+  (`APP_VERSION`/`changelog`/`roadmap` 4.0.3.3); design-review and adversarial
+  corrections absorbed (window layer off hot `nodes`, `surfaceKindOf`, summary
+  target owned by `deriveSurfaces`, shared `MIN_FLOATING_SIZE`/`DOCK_MODES`,
+  pointer-only resize grip). Disposable map
+  `/atlas?map=a6046063-ec8c-4b96-a240-cc3bbb1e7c16`.
+- **NEXT:** after merge, resolver advances to 4.0.4.1 via `start-session`.
+- **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
+  equality-stable React Flow store selectors — never the host's hot `nodes`
+  array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must
+  stay byte-identical to `persistence.ts` (docs cannot import src). (3)
+  Floating resize is a pointer-only `data-map-window-resize` grip, not a
+  button. (4) As-built must record G-1 layout supersession: left-rail dock,
+  top-right controls, portrait beside Atlas menu, title-bar drag.
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
   system surface unattached ("nowhere") and then hop, because each transaction

@@ -24,6 +24,8 @@ vi.mock('@xyflow/react', async () => {
   );
   return {
     ReactFlow: mocks.reactFlow,
+    ReactFlowProvider: ({ children }: { children?: unknown }) =>
+      element('div', { 'data-react-flow-provider': '' }, children as never),
     Background: () => element('div', { 'data-react-flow-background': '' }),
     BackgroundVariant: { Dots: 'dots' },
     Handle: () => element('div', { 'data-handle': '' }),
@@ -33,6 +35,16 @@ vi.mock('@xyflow/react', async () => {
     useReactFlow: () => ({
       fitView: vi.fn(async () => true),
       viewportInitialized: true,
+    }),
+    useStore: (selector: (state: Record<string, unknown>) => unknown) =>
+      selector({ userSelectionActive: false }),
+    useStoreApi: () => ({
+      getState: () => ({
+        domNode: null,
+        transform: [0, 0, 1],
+        nodeLookup: new Map(),
+      }),
+      subscribe: () => () => undefined,
     }),
     applyNodeChanges: (_changes: unknown, nodes: unknown) => nodes,
   };
@@ -50,6 +62,8 @@ function withAccess(access: boolean | undefined): void {
     state: { systems: new Map(), connections: new Map() },
     intents: [],
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
+    treeParents: new Map(),
+    rootSystemId: null,
     pinPlacement: mocks.pinPlacement,
     releasePlacements: vi.fn(),
   });
