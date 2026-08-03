@@ -169,8 +169,6 @@ active health and update-watch state. The full scratchpad as it stood at the
   separately for Production and Preview. It drives price-degradation alerts;
   telemetry still records when delivery is skipped.
 - Vercel Speed Insights remains wired but not enabled on the current plan.
-- The daily update-watch routine remains paused until the operator explicitly
-  chooses to unpause it.
 
 ## Working notes
 
