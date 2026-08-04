@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { listRegisteredSources } from '@/platform/search';
 import { MapChrome } from './MapChrome';
 
 vi.mock('@/components/composition/account/AccountMenu', () => ({
@@ -17,6 +18,14 @@ vi.mock('./MapMenu', () => ({
 }));
 
 describe('MapChrome', () => {
+  it('registers the systems search source so atlas pickers can suggest', () => {
+    // MapChrome's side-effect import is the atlas boot path for register-all;
+    // without it, scoped `searchAll(..., ['systems'])` returns no sections.
+    expect(listRegisteredSources().some((source) => source.id === 'systems')).toBe(
+      true,
+    );
+  });
+
   it('composes three floating positions while leaving the search slot empty', () => {
     const markup = renderToStaticMarkup(
       createElement(MapChrome, {

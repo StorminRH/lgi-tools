@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Dialog, DialogClose, DialogTitle } from '@/components/ui/dialog';
 import {
   PointerMenu,
@@ -45,6 +45,9 @@ export function NodeAddMenu({
   const [searchOpen, setSearchOpen] = useState(false);
   const [fromSystemId, setFromSystemId] = useState<number | null>(null);
   const titleId = useId();
+  // Dialog owns open-focus; without this the Close control (earlier in the
+  // tree) wins and the operator has to click the field before typing.
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const anchor: MenuAnchor | null =
     menu === null ? null : pointerAnchor(menu.clientX, menu.clientY);
@@ -73,6 +76,7 @@ export function NodeAddMenu({
         open={searchOpen}
         onOpenChange={setSearchOpen}
         labelledBy={titleId}
+        initialFocus={searchInputRef}
         className="w-[min(24rem,calc(100vw-2rem))] p-4"
       >
         <div className="flex flex-col gap-3" data-map-node-add-search>
@@ -96,6 +100,7 @@ export function NodeAddMenu({
             placeholder="Destination system — type a name"
             parse={parse}
             suggest={suggest}
+            inputRef={searchInputRef}
             errorMessage={() => 'No system matches that name.'}
             onSubmit={(params) => {
               if (fromSystemId === null) return;

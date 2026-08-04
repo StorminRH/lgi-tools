@@ -23,6 +23,7 @@ vi.mock('@xyflow/react', async () => {
     BackgroundVariant: { Dots: 'dots' },
     Handle: () => element('div', { 'data-handle': '' }),
     Position: { Left: 'left', Right: 'right' },
+    getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),
     applyNodeChanges: (_changes: unknown, nodes: unknown) => nodes,
   };
 });
@@ -57,12 +58,18 @@ describe('map surface inspection', () => {
     return renderToStaticMarkup(createElement(MapCanvas));
   }
 
-  it('renders the canvas frame immediately with no loading state', async () => {
-    const markup = await emptyCanvasMarkup();
+  // MapCanvas pulls the ChainHost tree; first import under full-suite coverage
+  // can exceed the default 5s when workers contend.
+  it(
+    'renders the canvas frame immediately with no loading state',
+    async () => {
+      const markup = await emptyCanvasMarkup();
 
-    expect(markup).toContain('data-map-canvas');
-    expect(markup).toContain('data-react-flow-background');
-  });
+      expect(markup).toContain('data-map-canvas');
+      expect(markup).toContain('data-react-flow-background');
+    },
+    15_000,
+  );
 
   it.each(['empty', 'populated', 'calm'])(
     'has no spinner and no refresh control in the %s state',
@@ -78,6 +85,7 @@ describe('map surface inspection', () => {
       expect(markup).not.toMatch(/refresh|reload|try again|retry/i);
       expect(markup).not.toMatch(/loading/i);
     },
+    15_000,
   );
 });
 

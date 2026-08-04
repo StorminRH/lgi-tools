@@ -2,8 +2,9 @@
 
 import { Dialog as Base } from '@base-ui/react/dialog';
 import { cva } from 'class-variance-authority';
-import type { ReactNode, RefObject } from 'react';
+import { useState, type ReactNode, type RefObject } from 'react';
 import { cn } from './cn';
+import { OverlayPortalContainerProvider } from './overlay-portal-container';
 import type { Tone } from './tones';
 
 // The platform's one modal-overlay primitive — the idiomatic Base UI Dialog,
@@ -76,17 +77,25 @@ export function Dialog({
   // touch to avoid the virtual keyboard).
   initialFocus?: RefObject<HTMLElement | null>;
 }) {
+  // Capture the popup element so nested floating portals (e.g. TerminalSearch
+  // suggestions) can mount inside this stacking context rather than under the
+  // body-level backdrop at z-dropdown < z-overlay.
+  const [popupEl, setPopupEl] = useState<HTMLDivElement | null>(null);
+
   return (
     <Base.Root open={open} onOpenChange={(next) => onOpenChange?.(next)} modal>
       <Base.Portal>
         <Base.Backdrop className="fixed inset-0 z-overlay bg-black/60 backdrop-blur-sm transition-opacity duration-panel data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none" />
         <Base.Popup
+          ref={setPopupEl}
           aria-labelledby={labelledBy}
           finalFocus={finalFocus}
           initialFocus={initialFocus}
           className={cn(popup({ tone }), className)}
         >
-          {children}
+          <OverlayPortalContainerProvider container={popupEl}>
+            {children}
+          </OverlayPortalContainerProvider>
         </Base.Popup>
       </Base.Portal>
     </Base.Root>
