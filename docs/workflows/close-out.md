@@ -241,7 +241,8 @@ repeat it at the implementation-review or PR-opening boundary when the head is
 unchanged.
 
 1. Confirm the finalized diff still matches the adversarially reviewed subject
-   plus its recorded corrections. Inspect it against the change's scope — the
+   plus its recorded corrections and the delivery records finalized in the
+   Implementation review gate. Inspect it against the change's scope — the
    session contract and approved plan in planned mode, or the direct request in
    ordinary mode — plus prohibited surfaces. Remove anything outside those
    boundaries, confirm every required surface is present, and screen all tracked

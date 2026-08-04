@@ -302,6 +302,11 @@ class ResolverFixture:
             ),
             "No",
         )
+        ux_ordered_step = (
+            "3. Run ux-check and record the operator disposition for the Contract UX gate.\n"
+            if ux_gate == "Yes"
+            else ""
+        )
         body = f"""# Session {session} Implementation Plan — Fixture
 
 **Plan status:** Approved
@@ -400,7 +405,7 @@ No runtime data flow changes.
 
 1. Implement the fixture contract.
 2. Prove its resolver result.
-
+{ux_ordered_step}
 ## Success criteria (agent-runnable — show the output)
 
 - **SC-1 — Contract DC-1 / AC-1 / V-1.** Fixture behavior is observable.
@@ -892,6 +897,26 @@ class DevelopmentStateTests(unittest.TestCase):
             "Pause to discuss design conflicts with the operator, or on an "
             "explicit operator gate; reshape in-session and continue.",
             directive["pause"],
+        )
+
+    def test_ux_gate_yes_requires_ordered_ux_check_step(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(ux_gate="Yes")
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        text = plan.read_text(encoding="utf-8")
+        plan.write_text(
+            text.replace(
+                "3. Run ux-check and record the operator disposition for the Contract UX gate.\n",
+                "",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual("session-plan-needed", state["stage"])
+        self.assertTrue(
+            any("dedicated ux-check step" in error for error in errors),
+            msg=f"errors={errors!r} reason={state.get('reason')!r}",
         )
 
     def test_session_ready_directive_carries_deterministic_lifecycle_branch(self) -> None:

@@ -125,7 +125,7 @@ tooling).
       "name": "Vercel / Next.js",
       "watch": ["https://vercel.com/atom", "https://nextjs.org/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-08-05",
+      "scanSince": "2026-08-04",
       "acknowledgedItems": [
         "https://vercel.com/blog/how-searchable-ships-customer-requested-features-in-30-minutes-on-vercel",
         "https://vercel.com/blog/vercel-agent",

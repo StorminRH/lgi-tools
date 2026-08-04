@@ -75,6 +75,7 @@
     "docs/DESIGN_PRINCIPLES.md",
     "docs/PRIMITIVE_LEDGER.md",
     "docs/PRE_PR_DESIGN_REVIEW.md",
+    "docs/workflows/pre-pr-design-review.md",
     "docs/VERSION_AUDIT.md"
   ],
   "ignoredPaths": [
