@@ -944,6 +944,26 @@ class DevelopmentStateTests(unittest.TestCase):
             msg=f"errors={errors!r} reason={state.get('reason')!r}",
         )
 
+    def test_ux_gate_yes_rejects_incidental_ux_check_mention(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(ux_gate="Yes")
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        text = plan.read_text(encoding="utf-8")
+        plan.write_text(
+            text.replace(
+                "3. Run ux-check and record the operator disposition for the Contract UX gate.\n",
+                "3. Implement the fixture while mentioning ux-check disposition in a note.\n",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual("session-plan-needed", state["stage"])
+        self.assertTrue(
+            any("dedicated numbered ux-check step" in error for error in errors),
+            msg=f"errors={errors!r} reason={state.get('reason')!r}",
+        )
+
     def test_session_ready_directive_carries_deterministic_lifecycle_branch(self) -> None:
         self.fixture.write_roadmap("PLANNED")
         contract = self.fixture.write_contract()
