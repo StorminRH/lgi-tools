@@ -5,28 +5,34 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.1.1** paused for **G-1 operator browser
-  review** on `lifecycle/4.0.4.1`. Plan **Execution status Pending**.
-- **OW1–OW5 evidence committed** (probes + `map:project-access` + verify
-  green). Automated OW5 suite was **7/7**; signed-out `/atlas` sweep clean.
-- **Local review maps:** blank home
-  `4f5dd5e0-97f4-42c2-97aa-2fee04756665`; populated demo (after restore)
+- **CURRENT / NEXT:** session **4.0.4.1.2** on `lifecycle/4.0.4.1` —
+  plan-session expected (resolver after 4.0.4.1.1 SESSION_HANDOFF). This
+  session opens the single sub-version PR.
+- **Shipped 4.0.4.1.1:** gated chain authoring (home / add-from-node /
+  connection card / tombstone foundations). Plan `Execution status:
+  Complete`; as-built `docs/session-as-built/4.0/4.0.4.1.1.md`. PR deferred
+  to 4.0.4.1.2.
+- **4.0.4.1.1 gotchas:** (1) Optimistic destination systems must
+  `insertAtBottomIfLoaded` — `resolveRoot` is `facts.systems[0]`. (2) Home
+  prompt gates on filtered `liveSystemCount`, not merged canvas state. (3)
+  Public `mapFixtures.upsertSystem` removed — use `placeSystemFixture` /
+  `mapAuthoring`. (4) Access CLI:
+  `pnpm map:project-access project|teardown <mapId>` — omit bare `--`. (5)
+  Edge-card selects may sit outside the CSS viewport after camera settle —
+  probe via `[data-map-window="connection-details"]`. (6) G-1 camera fit
+  `CAMERA_FIT_MAX_ZOOM = 0.75`; typeahead unique codes for SDE clone typeIds
+  (C729/F216/J244) with full typeId wire payload preserved.
+- **Local review maps:** blank
+  `4f5dd5e0-97f4-42c2-97aa-2fee04756665`; populated
   `4f47c80a-c40b-4795-8831-faa4c7c41426`.
-- **Probe gotcha:** edge-anchored card selects can sit outside the CSS
-  viewport after camera settle — open/choose via DOM events scoped to
-  `[data-map-window="connection-details"]`. Revoke/restore uses
-  `pnpm map:project-access`.
-- **NEXT:** operator G-1 accept/reject → OW6 close-out (planned mode, push,
-  no PR; 4.0.4.1.2 opens PR).
-- **Key paths:** `docs/session-plans/4.0/4.0.4.1.1.md`,
-  `docs/session-contracts/4.0/4.0.4.1.1.md`, `src/mapper/authoring/`,
-  `docs/ux-check/probes/atlas-authoring-*.mjs`.
+- **Key paths:** `docs/session-contracts/4.0/4.0.4.1.2.md`,
+  `src/mapper/authoring/`, `convex/mapAuthoring.ts`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
   array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must
   stay byte-identical to `persistence.ts` (docs cannot import src). (3)
   Floating resize is a pointer-only `data-map-window-resize` grip, not a
-  button. (4) As-built must record G-1 layout supersession: left-rail dock,
+  button. (4) As-built recorded G-1 layout supersession: left-rail dock,
   top-right controls, portrait beside Atlas menu, title-bar drag.
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
