@@ -236,9 +236,12 @@ explicitly when no runtime data flow changes.]
    repoint superseded surfaces, and name the evidence that proves no parallel
    owner remains.
 
-Each step names concrete surfaces and its resulting contract. Avoid open-ended
-instructions such as "update relevant files," "add tests as needed," or
-"handle edge cases."
+Each numbered step is one execution chat under `start-session`: implement that
+step, prove it, run `gate-runner`, update SCRATCHPAD OW fields, and hand off.
+Do not list close-out, adversarial review, commit/push, or PR opening as an
+Ordered work step — **End of session** Delivery owns those. Each step names
+concrete surfaces and its resulting contract. Avoid open-ended instructions
+such as "update relevant files," "add tests as needed," or "handle edge cases."
 
 ## Success criteria (agent-runnable — show the output)
 
@@ -280,7 +283,9 @@ instead of duplicating their evidence actions.
   SCRATCHPAD, or archive updates that this session actually owns; omit those it
   does not].
 - **Handoff:** [the exact resolver rerun, next-session pointer, or terminal pause
-  required after delivery].
+  required after delivery]. Per-OW chat handoffs during execution are owned by
+  `docs/workflows/start-session.md` and SCRATCHPAD OW fields; this Handoff is
+  the post-close-out session-boundary pointer only.
 
 The plan is overwritten on re-approval rather than appended as an execution
 log. It may make the contract concrete but never expand the product scope the

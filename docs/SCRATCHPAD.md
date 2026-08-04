@@ -1,7 +1,11 @@
 # SCRATCHPAD — LGI.tools
 
-> Short cross-session memory. Keep this skimmable in about one minute. The
-> upkeep procedure lives in `docs/workflows/close-out.md`.
+> Short cross-session memory. Keep this skimmable in about one minute. Close-out
+> owns session-boundary upkeep (`docs/workflows/close-out.md`). During an
+> in-flight planned session, `start-session` also maintains under **Now**:
+> **OW progress** (`k/n complete` — next step title, or `n/n complete —
+> awaiting close-out`), **OW completed** (one short line per finished step),
+> and **Next-agent notes**. Collapse those mid-session OW rows at close-out.
 
 ## Now
 

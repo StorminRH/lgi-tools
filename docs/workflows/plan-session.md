@@ -56,7 +56,9 @@ and present a complete schema plan for approval.
    ordered work; success criteria and proof; delivery and handoff. For each
    section, discuss in plain English, adjust from live evidence and operator
    direction, and confirm before moving on. Stay in prose; do not jump ahead
-   to a complete schema document.
+   to a complete schema document. Size each Ordered work step for one
+   execution chat; do not place close-out, adversarial review, or delivery
+   commits inside Ordered work — those belong under End of session Delivery.
 3. Resolve every contract planning decision (`PD-N` and consequential choices)
    during this walk. Do not escalate ordinary local implementation details;
    surface choices that change behavior, ownership, risk, or scope. For every
