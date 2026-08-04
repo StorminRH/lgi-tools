@@ -42,7 +42,8 @@
   captures clean; authoring probes
   `intelligence`/`ledger`/`connection`/`wall` 6/6 viewport runs clean
   (codex-load race hardened; shared `ensureJumpEdge`); G-1 evidence packet
-  below; `pnpm verify` 5,066 tests + Fallow 0 on 115 files 2026-08-04.
+  below; `pnpm verify` 5,066 tests + Fallow 0 on 115 files 2026-08-04;
+  commit `5601a7df`.
 - **Next-agent notes (G-1 + close-out):** Pause for operator G-1 ACCEPT before
   close-out opens the PR. **Do not open the PR until G-1 accepts.**
 
