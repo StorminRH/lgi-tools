@@ -77,6 +77,13 @@ describe('map window keyboard and stack', () => {
       }),
     ).toBe('dock');
     expect(surfaceKindOf({ kind: 'node-anchored', systemId: 2 })).toBe('card');
+    expect(
+      surfaceKindOf({
+        kind: 'edge-anchored',
+        fromSystemId: 1,
+        toSystemId: 2,
+      }),
+    ).toBe('card');
   });
 
   it('dismisses only a card Escape that no popup already owns', () => {

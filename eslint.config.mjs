@@ -506,6 +506,7 @@ const baseUiWrapperFiles = [
   "src/components/ui/field.tsx",
   "src/components/ui/menu.tsx",
   "src/components/ui/navigation-menu.tsx",
+  "src/components/ui/pointer-menu.tsx",
   "src/components/ui/popover.tsx",
   "src/components/ui/radio-group.tsx",
   "src/components/ui/segmented.tsx",

@@ -7,6 +7,14 @@ const mocks = vi.hoisted(() => ({
   useMapChain: vi.fn(),
   reactFlow: vi.fn(),
   pinPlacement: vi.fn(),
+  authoring: {
+    setHomeSystem: vi.fn(),
+    addSystemFromNode: vi.fn(),
+    setConnectionWormholeType: vi.fn(),
+    setConnectionShipSize: vi.fn(),
+    setConnectionMassState: vi.fn(),
+    setConnectionLifeStage: vi.fn(),
+  },
 }));
 
 vi.mock('@/data/convex/use-convex-authed', () => ({
@@ -15,6 +23,14 @@ vi.mock('@/data/convex/use-convex-authed', () => ({
 
 vi.mock('./use-map-chain', () => ({
   useMapChain: mocks.useMapChain,
+}));
+
+vi.mock('./optimistic-authoring', () => ({
+  useChainAuthoringMutations: () => mocks.authoring,
+}));
+
+vi.mock('../authoring/RightsTransitionToast', () => ({
+  RightsTransitionToast: () => null,
 }));
 
 vi.mock('@xyflow/react', async () => {
@@ -63,6 +79,8 @@ function withAccess(
   mocks.useMapChain.mockReturnValue({
     access,
     canEdit,
+    systemsComplete: true,
+    connectionDetails: new Map(),
     state: { systems: new Map(), connections: new Map() },
     intents: [],
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
@@ -159,6 +177,17 @@ describe('chain host access states', () => {
     const markup = await renderHost();
 
     expect(markup).toContain('data-map-can-edit="false"');
+    expect(markup).not.toContain('data-map-home-prompt');
+  });
+
+  it('shows the home prompt only for an editor on a complete empty map', async () => {
+    withAccess(true, true);
+
+    const markup = await renderHost();
+
+    expect(markup).toContain('data-map-home-prompt');
+    expect(markup).toContain('Set your home system');
+    expect(markup).toContain('data-map-home-current-disabled');
   });
 
   // HC-5: "not yet answered" is not a state of its own — it looks like an ordinary empty map.

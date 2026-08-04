@@ -10,6 +10,7 @@ import {
   BackgroundVariant,
   ReactFlow,
   type Edge,
+  type EdgeMouseHandler,
   type NodeChange,
   type NodeMouseHandler,
   type OnNodeDrag,
@@ -40,6 +41,10 @@ export interface ChainSurfaceProps {
   readonly onSelectionDragStop?: SelectionDragHandler<ChainNode>;
   /** Node-click seam for the camera's click-to-focus setting. */
   readonly onNodeClick?: NodeMouseHandler<ChainNode>;
+  /** Node right-click / long-press seam for the add-from-node menu. */
+  readonly onNodeContextMenu?: NodeMouseHandler<ChainNode>;
+  /** Edge-click seam for the connection details card. */
+  readonly onEdgeClick?: EdgeMouseHandler;
   /**
    * Whether nodes may be dragged. Default `true` preserves the empty-canvas
    * contract; the live host passes the map-lock state (locked → false).
@@ -80,6 +85,8 @@ export function ChainSurface({
   onSelectionDragStart,
   onSelectionDragStop,
   onNodeClick,
+  onNodeContextMenu,
+  onEdgeClick,
   nodesDraggable = true,
   motion,
   children,
@@ -113,6 +120,8 @@ export function ChainSurface({
         onSelectionDragStart={onSelectionDragStart}
         onSelectionDragStop={onSelectionDragStop}
         onNodeClick={onNodeClick}
+        onNodeContextMenu={onNodeContextMenu}
+        onEdgeClick={onEdgeClick}
       >
         <Background variant={BackgroundVariant.Dots} />
         {children}

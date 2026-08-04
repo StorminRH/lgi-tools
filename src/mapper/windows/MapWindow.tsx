@@ -82,6 +82,10 @@ function placementClassName(placement: WindowPlacement): string | false {
   if (placement.kind === 'floating') {
     return 'left-[var(--map-window-x)] top-[var(--map-window-y)] h-[var(--map-window-height)] w-[var(--map-window-width)]';
   }
+  // node-anchored and edge-anchored both ride `--map-window-transform`.
+  if (placement.kind === 'edge-anchored') {
+    return 'left-0 top-0 h-auto w-72 [transform:var(--map-window-transform)]';
+  }
   return 'left-0 top-0 h-52 w-72 [transform:var(--map-window-transform)]';
 }
 

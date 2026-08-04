@@ -2,7 +2,12 @@
 export type WindowPlacement =
   | { readonly kind: 'docked' }
   | { readonly kind: 'floating'; readonly rect: WindowRect }
-  | { readonly kind: 'node-anchored'; readonly systemId: number };
+  | { readonly kind: 'node-anchored'; readonly systemId: number }
+  | {
+      readonly kind: 'edge-anchored';
+      readonly fromSystemId: number;
+      readonly toSystemId: number;
+    };
 
 /** One floating rectangle in map-layer pixels. */
 export interface WindowRect {
@@ -91,7 +96,9 @@ export type WindowSurfaceKind = 'dock' | 'card';
 
 /** Escape surface kind implied by a placement — docked/floating share dock rules. */
 export function surfaceKindOf(placement: WindowPlacement): WindowSurfaceKind {
-  return placement.kind === 'node-anchored' ? 'card' : 'dock';
+  return placement.kind === 'node-anchored' || placement.kind === 'edge-anchored'
+    ? 'card'
+    : 'dock';
 }
 
 /** The only action a map-window keydown may request. */

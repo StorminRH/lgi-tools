@@ -21,6 +21,8 @@ export interface UniverseAssets {
 export interface WormholeCodex {
   version: string;
   byCode(code: string): WormholeCodexEntry | null;
+  /** Sorted type codes (including K162) for type-ahead search. */
+  codes(): readonly string[];
 }
 
 let universeAssetsPromise: Promise<UniverseAssets> | null = null;
@@ -91,10 +93,14 @@ async function fetchWormholeCodex(
   const typeByCode = new Map(
     result.data.types.map((entry) => [entry.code, entry]),
   );
+  const codes = result.data.types.map((entry) => entry.code).toSorted();
   return {
     version,
     byCode(code) {
       return typeByCode.get(code) ?? null;
+    },
+    codes() {
+      return codes;
     },
   };
 }

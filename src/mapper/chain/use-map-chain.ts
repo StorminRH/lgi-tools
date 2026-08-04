@@ -12,13 +12,19 @@
 // The posted key (chain signature + layout revision) advances eagerly at post
 // time so re-renders never cancel or repost in-flight work; staleness is decided
 // by request id. The drag-protection set is read from a ref at apply time.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/data/convex/api';
+import type { Id } from '@/data/convex/data-model';
 import {
   useDrainedPages,
   type DrainedPages,
 } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
+import type {
+  ConnectionMassState,
+  WormholeLifeStage,
+  WormholeSizeClass,
+} from '@/data/eve-data/wormhole-contract';
 import {
   loadUniverseAssets,
   type UniverseAssets,
@@ -66,6 +72,20 @@ const INITIAL_MERGE: ChainMerge = { state: EMPTY_CHAIN_STATE, intents: [] };
 
 /** Whether the caller holds access, or `undefined` until the access subscription first answers. */
 export type MapAccessState = boolean | undefined;
+
+/**
+ * Live connection fields the authoring card edits. Topology stays in reconciled
+ * state; these travel beside it so a field patch never forces a layout merge.
+ */
+export interface ConnectionDetail {
+  readonly connectionId: Id<'mapConnections'>;
+  readonly fromSystemId: number;
+  readonly toSystemId: number;
+  readonly wormholeTypeCode: string | null;
+  readonly massState: ConnectionMassState | null;
+  readonly shipSize: WormholeSizeClass | null;
+  readonly lifeStage: WormholeLifeStage | null;
+}
 
 /** The row shapes the signature summarizes, kept minimal so the function stays pure and testable. */
 interface SignatureInput {
@@ -173,6 +193,13 @@ export interface MapChain {
    * then always a boolean (false when access is withdrawn).
    */
   readonly canEdit: boolean | undefined;
+  /**
+   * Whether every systems page has landed. Home prompt waits on this so an
+   * editor never sees a false-empty prompt while pages are still draining.
+   */
+  readonly systemsComplete: boolean;
+  /** Live connection detail fields keyed by document id, for the authoring card. */
+  readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly state: ChainState;
   /** The most recent merge's intents; sub-version 4.0.3.2 binds motion to these. */
   readonly intents: readonly MapChainIntent[];
@@ -264,6 +291,22 @@ export function useMapChain(
   // alone changes the fingerprint and drives the removal merge.
   const systems = filterLivePages(subscribedSystems);
   const connections = filterLivePages(subscribedConnections);
+  const systemsComplete = systems.complete;
+  const connectionDetails = useMemo(() => {
+    const next = new Map<Id<'mapConnections'>, ConnectionDetail>();
+    for (const row of connections.rows) {
+      next.set(row._id, {
+        connectionId: row._id,
+        fromSystemId: row.fromSystemId,
+        toSystemId: row.toSystemId,
+        wormholeTypeCode: row.wormholeTypeCode,
+        massState: row.massState,
+        shipSize: row.shipSize,
+        lifeStage: row.lifeStage ?? null,
+      });
+    }
+    return next;
+  }, [connections.rows]);
 
   const [merge, setMerge] = useState<ChainMerge>(INITIAL_MERGE);
   const [treeParents, setTreeParents] = useState<ReadonlyMap<number, number>>(
@@ -371,6 +414,8 @@ export function useMapChain(
   return {
     access,
     canEdit,
+    systemsComplete,
+    connectionDetails,
     state: merge.state,
     intents: merge.intents,
     labelOf,

@@ -16,6 +16,7 @@ import {
   applyNodeChanges,
   ReactFlowProvider,
   type Edge,
+  type EdgeMouseHandler,
   type NodeChange,
   type NodeMouseHandler,
   type OnNodeDrag,
@@ -23,6 +24,14 @@ import {
 } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
+import type { Id } from '@/data/convex/data-model';
+import { ConnectionDetailsCard } from '../authoring/ConnectionDetailsCard';
+import { HomePrompt } from '../authoring/HomePrompt';
+import {
+  NodeAddMenu,
+  type NodeMenuAnchor,
+} from '../authoring/NodeAddMenu';
+import { RightsTransitionToast } from '../authoring/RightsTransitionToast';
 import { ChainSurface, type ChainSurfaceProps } from '../canvas/ChainSurface';
 import { MapControls } from '../canvas/MapControls';
 import type { ChainNode } from '../canvas/SystemNode';
@@ -45,6 +54,7 @@ import type { RootClickSignal } from '../windows/window-model';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
+import { useChainAuthoringMutations } from './optimistic-authoring';
 import { useMapChain, type MapAccessState } from './use-map-chain';
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
@@ -100,6 +110,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const {
     access,
     canEdit,
+    systemsComplete,
+    connectionDetails,
     state,
     intents,
     labelOf,
@@ -108,7 +120,12 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     pinPlacement,
     releasePlacements,
   } = useMapChain(mapId, dragging, config);
+  const authoring = useChainAuthoringMutations();
   const [nodes, setNodes] = useState<ChainNode[]>([]);
+  const [nodeMenu, setNodeMenu] = useState<NodeMenuAnchor | null>(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<
+    Id<'mapConnections'> | null
+  >(null);
 
   useEffect(() => {
     setNodes((previous) =>
@@ -205,8 +222,32 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       focusTokenRef.current += 1;
       setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
       setRootClick({ systemId: Number(clicked.id), token: focusTokenRef.current });
+      setSelectedConnectionId(null);
     },
     [],
+  );
+
+  const onNodeContextMenu = useCallback<NodeMouseHandler<ChainNode>>(
+    (event, node) => {
+      if (canEdit !== true) return;
+      event.preventDefault();
+      setSelectedConnectionId(null);
+      setNodeMenu({
+        systemId: Number(node.id),
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    },
+    [canEdit],
+  );
+
+  const onEdgeClick = useCallback<EdgeMouseHandler>(
+    (_event, edge) => {
+      if (canEdit !== true) return;
+      // Edge ids are Convex connection document ids by construction (buildEdges).
+      setSelectedConnectionId(edge.id as Id<'mapConnections'>);
+    },
+    [canEdit],
   );
 
   const deselectNodes = useCallback(() => {
@@ -217,6 +258,24 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       return changes.length === 0 ? previous : applyNodeChanges(changes, previous);
     });
   }, []);
+
+  const selectedConnection =
+    selectedConnectionId === null
+      ? null
+      : (connectionDetails.get(selectedConnectionId) ?? null);
+
+  // Drop a stale card when the connection leaves the live set (tombstone / rollback).
+  useEffect(() => {
+    if (
+      selectedConnectionId !== null &&
+      !connectionDetails.has(selectedConnectionId)
+    ) {
+      setSelectedConnectionId(null);
+    }
+  }, [connectionDetails, selectedConnectionId]);
+
+  const showHomePrompt =
+    canEdit === true && systemsComplete && state.systems.size === 0;
 
   // Id-derived (the join key), so per-frame drag renders reuse the same set
   // and the camera host's effects don't churn (drag hardening, IS-5).
@@ -255,6 +314,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           onSelectionDragStart={onSelectionDragStart}
           onSelectionDragStop={onSelectionDragStop}
           onNodeClick={onNodeClick}
+          onNodeContextMenu={onNodeContextMenu}
+          onEdgeClick={onEdgeClick}
         >
           <MapControls
             locked={locked}
@@ -285,6 +346,67 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           rootClick={rootClick}
           onDeselect={deselectNodes}
         />
+        <RightsTransitionToast canEdit={canEdit} />
+        {showHomePrompt ? (
+          <HomePrompt
+            mapId={mapId}
+            onPick={(systemId) => {
+              void authoring.setHomeSystem({ mapId, systemId });
+            }}
+          />
+        ) : null}
+        {canEdit === true ? (
+          <NodeAddMenu
+            mapId={mapId}
+            menu={nodeMenu}
+            onMenuOpenChange={(open) => {
+              if (!open) setNodeMenu(null);
+            }}
+            onAdd={(fromSystemId, toSystemId) => {
+              void authoring.addSystemFromNode({
+                mapId,
+                fromSystemId,
+                toSystemId,
+              });
+            }}
+          />
+        ) : null}
+        {canEdit === true && selectedConnection !== null ? (
+          <ConnectionDetailsCard
+            connection={selectedConnection}
+            onClose={() => setSelectedConnectionId(null)}
+            setters={{
+              setWormholeType: (value) => {
+                void authoring.setConnectionWormholeType({
+                  mapId,
+                  connectionId: selectedConnection.connectionId,
+                  value,
+                });
+              },
+              setShipSize: (value) => {
+                void authoring.setConnectionShipSize({
+                  mapId,
+                  connectionId: selectedConnection.connectionId,
+                  value,
+                });
+              },
+              setMassState: (value) => {
+                void authoring.setConnectionMassState({
+                  mapId,
+                  connectionId: selectedConnection.connectionId,
+                  value,
+                });
+              },
+              setLifeStage: (value) => {
+                void authoring.setConnectionLifeStage({
+                  mapId,
+                  connectionId: selectedConnection.connectionId,
+                  value,
+                });
+              },
+            }}
+          />
+        ) : null}
       </ReactFlowProvider>
     </div>
   );

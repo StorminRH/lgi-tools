@@ -5,24 +5,22 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.1.1** paused mid-execution after **OW1–OW3** on
+- **CURRENT:** session **4.0.4.1.1** paused mid-execution after **OW1–OW4** on
   `lifecycle/4.0.4.1` (checkpoint commit; session not finished).
-- **OW1 done:** vocab / chain-contract / schema / validators (mass nullability,
-  lifeStage, soft-delete tombstones, purge indexes).
-- **OW2 done:** `mapAuthoring` + `mapChainCleanup` + tests (**48/48**).
-- **OW3 done:** `watchMapAccess` → `{ granted, canEdit }`; live-row filter
-  upstream of `chainSignature`; endpoint-matched connection id-swap;
-  `useChainAuthoringMutations` optimistic hooks; focused tests **109** +
-  gate-checker clean.
-- **NOT done:** OW4 authoring UI; OW5 ux-check / G-1; OW6 close-out.
+- **OW1–OW3 done:** schema/mutations/client plumbing (prior checkpoints).
+- **OW4 done:** `src/mapper/authoring/` (HomePrompt, NodeAddMenu,
+  ConnectionDetailsCard, rights toast); `follower-model` edge-midpoint;
+  `PointerMenu` house wrapper; `systemsComplete` + `connectionDetails` on
+  `useMapChain`; focused tests **172** + gate-checker clean + `tsc` clean.
+- **NOT done:** OW5 ux-check / G-1; OW6 close-out.
 - **Plan:** `docs/session-plans/4.0/4.0.4.1.1.md` still **Execution status
   Pending** — do **not** flip to Complete (session unfinished).
-- **NEXT:** resume at **OW4** authoring surfaces (`src/mapper/authoring/`,
-  edge follower). Then OW5 G-1 pause → OW6 close-out in planned mode (no PR;
+- **NEXT:** OW5 two-client demo + `ux-check` → **G-1 operator pause** before
+  any final UI commit; then OW6 close-out in planned mode (no PR;
   4.0.4.1.2 opens PR).
 - **Key paths:** `docs/session-plans/4.0/4.0.4.1.1.md`,
-  `docs/session-contracts/4.0/4.0.4.1.1.md`, `convex/mapAuthoring.ts`,
-  `src/mapper/chain/optimistic-authoring.ts`, `src/data/maps/chain-contract.ts`.
+  `docs/session-contracts/4.0/4.0.4.1.1.md`, `src/mapper/authoring/`,
+  `src/mapper/chain/ChainHost.tsx`, `src/mapper/windows/follower-model.ts`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
   array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must

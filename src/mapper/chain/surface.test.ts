@@ -106,6 +106,12 @@ describe('mapper source contract', () => {
   // Guards every loop below: an empty or broken file walk would make them all pass vacuously.
   it('walks the whole mapper zone', () => {
     expect(mapperFiles().toSorted()).toEqual([
+      'authoring/ConnectionDetailsCard.tsx',
+      'authoring/HomePrompt.tsx',
+      'authoring/NodeAddMenu.tsx',
+      'authoring/RightsTransitionToast.tsx',
+      'authoring/rights-transition.ts',
+      'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',
       'canvas/ChainSurface.tsx',
       'canvas/MapCanvas.tsx',
@@ -148,6 +154,18 @@ describe('mapper source contract', () => {
       'windows/persistence.ts',
       'windows/window-model.ts',
     ]);
+  });
+
+  it('keeps tombstone/restore mutations off every authoring surface', () => {
+    // SC-5.1 across the whole mapper zone — only optimistic-authoring may name them.
+    for (const file of mapperFiles()) {
+      if (file === 'chain/optimistic-authoring.ts') continue;
+      const source = sourceOf(file);
+      expect(source, file).not.toContain('tombstoneSystem');
+      expect(source, file).not.toContain('tombstoneConnection');
+      expect(source, file).not.toContain('restoreSystem');
+      expect(source, file).not.toContain('restoreConnection');
+    }
   });
 
   it('keeps the window layer off the hot nodes array', () => {

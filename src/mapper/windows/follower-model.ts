@@ -151,3 +151,140 @@ export function createNodeFollower(
     frame = null;
   };
 }
+
+interface EdgeFollowerBaseline {
+  readonly fromId: string;
+  readonly toId: string;
+  readonly midX: number;
+  readonly midY: number;
+  readonly tx: number;
+  readonly ty: number;
+  readonly zoom: number;
+}
+
+/** One edge-follower decision; `null` means leave the DOM untouched. */
+export interface EdgeFollowerDecision {
+  readonly transform: string;
+  readonly baseline: EdgeFollowerBaseline;
+}
+
+/**
+ * Disc center in flow coordinates, or `null` before the node is measured.
+ * Matches `edge-geometry` disc-center policy so the card rides the drawn link.
+ */
+function discCenter(
+  node: FollowerNode | undefined,
+  radius: number,
+): { readonly x: number; readonly y: number } | null {
+  const width = node?.measured.width;
+  if (node === undefined || width === undefined) return null;
+  return {
+    x: node.internals.positionAbsolute.x + width / 2,
+    y: node.internals.positionAbsolute.y + radius,
+  };
+}
+
+/**
+ * Decides the edge-midpoint card transform from one installed-store snapshot.
+ * A new endpoint pair always writes once; unchanged facts write nothing.
+ */
+export function computeEdgeFollowerTransform(
+  baseline: EdgeFollowerBaseline | null,
+  fromId: string,
+  toId: string,
+  viewport: readonly [number, number, number],
+  from: FollowerNode | undefined,
+  to: FollowerNode | undefined,
+  radius: number,
+): EdgeFollowerDecision | null {
+  const fromCenter = discCenter(from, radius);
+  const toCenter = discCenter(to, radius);
+  if (fromCenter === null || toCenter === null) return null;
+
+  const [tx, ty, zoom] = viewport;
+  const midX = (fromCenter.x + toCenter.x) / 2;
+  const midY = (fromCenter.y + toCenter.y) / 2;
+  const next: EdgeFollowerBaseline = {
+    fromId,
+    toId,
+    midX,
+    midY,
+    tx,
+    ty,
+    zoom,
+  };
+  if (
+    baseline !== null &&
+    baseline.fromId === next.fromId &&
+    baseline.toId === next.toId &&
+    baseline.midX === next.midX &&
+    baseline.midY === next.midY &&
+    baseline.tx === next.tx &&
+    baseline.ty === next.ty &&
+    baseline.zoom === next.zoom
+  ) {
+    return null;
+  }
+
+  // Center the card on the midpoint with a small upward offset so it sits
+  // above the line rather than covering the link stroke.
+  const left = tx + midX * zoom;
+  const top = ty + midY * zoom - 8;
+  return {
+    transform: `translate(calc(${left}px - 50%), calc(${top}px - 100%))`,
+    baseline: next,
+  };
+}
+
+/**
+ * Applies a moving edge's midpoint transform through CSSOM without React hot-state subscriptions.
+ * The returned disposer is idempotent and cancels both the store listener and queued frame.
+ */
+export function createEdgeFollower(
+  store: NodeFollowerStore,
+  fromId: string,
+  toId: string,
+  radius: number,
+  write: (transform: string) => void,
+  scheduler: FollowerScheduler = BROWSER_SCHEDULER,
+): () => void {
+  let baseline: EdgeFollowerBaseline | null = null;
+  let frame: number | null = null;
+  let latest = store.getState();
+  let disposed = false;
+
+  const evaluate = (state: FollowerState) => {
+    if (state.domNode === null) return;
+    const decision = computeEdgeFollowerTransform(
+      baseline,
+      fromId,
+      toId,
+      state.transform,
+      state.nodeLookup.get(fromId),
+      state.nodeLookup.get(toId),
+      radius,
+    );
+    if (decision === null) return;
+    baseline = decision.baseline;
+    write(decision.transform);
+  };
+
+  evaluate(latest);
+
+  const unsubscribe = store.subscribe((state) => {
+    latest = state;
+    if (frame !== null) return;
+    frame = scheduler.schedule(() => {
+      frame = null;
+      if (!disposed) evaluate(latest);
+    });
+  });
+
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    unsubscribe();
+    if (frame !== null) scheduler.cancel(frame);
+    frame = null;
+  };
+}
