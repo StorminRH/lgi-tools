@@ -120,6 +120,7 @@ describe('mapper source contract', () => {
       'chain/intents.ts',
       'chain/labels.ts',
       'chain/nodes.ts',
+      'chain/optimistic-authoring.ts',
       'chain/placement.ts',
       'chain/reconciler.ts',
       'chain/use-map-chain.ts',
@@ -185,13 +186,19 @@ describe('mapper source contract', () => {
     expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(2);
   });
 
-  it('adds no client-callable mutation anywhere in the mapper', () => {
-    // OOS-3: this session reads only. The removal seams are internal Convex mutations.
-    for (const file of mapperFiles()) {
-      expect(sourceOf(file), `${file} must call no mutation`).not.toMatch(
-        /useMutation|useAction/,
-      );
-    }
+  it('confines client-callable mutations to the optimistic authoring seam', () => {
+    // Session 4.0.4.1.1 OW3: authoring mutations live in one chain owner and
+    // reach Convex only through the data-slice re-export — never raw convex/react.
+    const mutationFiles = mapperFiles().filter((file) =>
+      /useMutation|useAction/.test(sourceOf(file)),
+    );
+    expect(mutationFiles).toEqual(['chain/optimistic-authoring.ts']);
+    expect(sourceOf('chain/optimistic-authoring.ts')).toContain(
+      '@/data/convex/use-mutation',
+    );
+    expect(sourceOf('chain/optimistic-authoring.ts')).not.toContain(
+      "from 'convex/react'",
+    );
   });
 
   it('keeps canvas modules off every Convex subscription hook', () => {

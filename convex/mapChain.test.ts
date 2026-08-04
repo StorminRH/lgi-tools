@@ -151,10 +151,10 @@ describe('map chain read path', () => {
         ? t.query(api.mapChain.watchMapAccess, { mapId: MAP_A })
         : asUser(t, subject).query(api.mapChain.watchMapAccess, { mapId: MAP_A }));
 
-      expect(result).toEqual({ granted: false });
+      expect(result).toEqual({ granted: false, canEdit: false });
     });
 
-    it('reports access as granted for a viewer', async () => {
+    it('reports access as granted for a viewer without edit', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, VIEWER, ['viewer']);
 
@@ -162,7 +162,18 @@ describe('map chain read path', () => {
         mapId: MAP_A,
       });
 
-      expect(result).toEqual({ granted: true });
+      expect(result).toEqual({ granted: true, canEdit: false });
+    });
+
+    it('reports canEdit for an editor', async () => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, EDITOR, ['editor']);
+
+      const result = await asUser(t).query(api.mapChain.watchMapAccess, {
+        mapId: MAP_A,
+      });
+
+      expect(result).toEqual({ granted: true, canEdit: true });
     });
 
     it('lets a viewer watch both collections', async () => {
@@ -198,7 +209,7 @@ describe('map chain read path', () => {
         mapId: MAP_A,
       });
       expect(before.page).toHaveLength(1);
-      expect(accessBefore).toEqual({ granted: true });
+      expect(accessBefore).toEqual({ granted: true, canEdit: true });
 
       await revokeClaim(t, MAP_A, EDITOR);
 
@@ -210,7 +221,7 @@ describe('map chain read path', () => {
         paginationOpts: page(10),
       });
 
-      expect(accessAfter).toEqual({ granted: false });
+      expect(accessAfter).toEqual({ granted: false, canEdit: false });
       expect(after.page).toEqual([]);
     });
 
@@ -231,7 +242,7 @@ describe('map chain read path', () => {
         paginationOpts: page(10),
       });
 
-      expect(access).toEqual({ granted: true });
+      expect(access).toEqual({ granted: true, canEdit: true });
       expect(systems.page).toHaveLength(1);
     });
 

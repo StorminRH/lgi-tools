@@ -56,9 +56,13 @@ async function renderHost(): Promise<string> {
 }
 
 /** Points the mocked hook at one live access state. */
-function withAccess(access: boolean | undefined): void {
+function withAccess(
+  access: boolean | undefined,
+  canEdit: boolean | undefined = access === true,
+): void {
   mocks.useMapChain.mockReturnValue({
     access,
+    canEdit,
     state: { systems: new Map(), connections: new Map() },
     intents: [],
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
@@ -140,12 +144,21 @@ describe('chain host access states', () => {
   });
 
   it('renders the canvas, not the calm state, once access is held', async () => {
-    withAccess(true);
+    withAccess(true, true);
 
     const markup = await renderHost();
 
     expect(markup).toContain('data-react-flow-background');
     expect(markup).not.toContain('data-chain-no-access');
+    expect(markup).toContain('data-map-can-edit="true"');
+  });
+
+  it('exposes canEdit=false for a view-only claim', async () => {
+    withAccess(true, false);
+
+    const markup = await renderHost();
+
+    expect(markup).toContain('data-map-can-edit="false"');
   });
 
   // HC-5: "not yet answered" is not a state of its own — it looks like an ordinary empty map.

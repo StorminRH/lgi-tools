@@ -14,12 +14,16 @@
 // by request id. The drag-protection set is read from a ref at apply time.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/data/convex/api';
-import { useDrainedPages } from '@/data/convex/use-drained-pages';
+import {
+  useDrainedPages,
+  type DrainedPages,
+} from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import {
   loadUniverseAssets,
   type UniverseAssets,
 } from '@/data/eve-data/universe-assets-client';
+import { isTombstoned } from '@/data/maps/chain-contract';
 import { deriveChainTree } from '../layout/facts';
 import type { LayoutConfig, LayoutFacts } from '../layout/layout-contract';
 import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
@@ -84,6 +88,9 @@ interface SignatureInput {
  * continuously, which sub-version 4.0.3.2 would bind animations to. Exported so that stability is a
  * unit test rather than a property nothing checks; the separators cannot occur in numeric system ids
  * or Convex document ids, so no distinct content collides.
+ *
+ * Callers must pass LIVE rows only — tombstones are filtered upstream so a
+ * tombstone patch changes this fingerprint and triggers the removal merge.
  */
 export function chainSignature(
   systems: SignatureInput['systems'],
@@ -97,6 +104,21 @@ export function chainSignature(
       .map((row) => `${row._id}:${row.fromSystemId}>${row.toSystemId}`)
       .join(','),
   ].join('#');
+}
+
+/**
+ * Drops tombstoned rows while preserving page completeness and relative order.
+ *
+ * Runs upstream of {@link chainSignature}: the signature fingerprints only ids
+ * and completeness, so filtering anywhere downstream would leave a ghost on
+ * canvas until an unrelated change.
+ */
+export function filterLivePages<Row extends { readonly deletedAt?: number | null }>(
+  pages: DrainedPages<Row>,
+): DrainedPages<Row> {
+  const live = pages.rows.filter((row) => !isTombstoned(row));
+  if (live.length === pages.rows.length) return pages;
+  return { rows: live, complete: pages.complete };
 }
 
 /**
@@ -146,6 +168,11 @@ export interface MapChain {
    * renders the same empty canvas as an authorized empty map (HC-5 — never a loading state).
    */
   readonly access: MapAccessState;
+  /**
+   * Whether the same claim carries edit. `undefined` until access first answers;
+   * then always a boolean (false when access is withdrawn).
+   */
+  readonly canEdit: boolean | undefined;
   readonly state: ChainState;
   /** The most recent merge's intents; sub-version 4.0.3.2 binds motion to these. */
   readonly intents: readonly MapChainIntent[];
@@ -215,17 +242,28 @@ export function useMapChain(
 ): MapChain {
   const args = mapId === null ? ('skip' as const) : { mapId };
   // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
-  // the map returns without a reload.
+  // the map returns without a reload. `canEdit` shares that claim row.
   const accessResult = useLiveValue(api.mapChain.watchMapAccess, args);
   const access: MapAccessState =
     accessResult === undefined ? undefined : accessResult.granted;
+  const canEdit: boolean | undefined =
+    accessResult === undefined ? undefined : accessResult.canEdit;
 
-  const systems = useDrainedPages(api.mapChain.watchMapSystems, args, PAGE_SIZE);
-  const connections = useDrainedPages(
+  const subscribedSystems = useDrainedPages(
+    api.mapChain.watchMapSystems,
+    args,
+    PAGE_SIZE,
+  );
+  const subscribedConnections = useDrainedPages(
     api.mapChain.watchMapConnections,
     args,
     PAGE_SIZE,
   );
+  // Tombstones still flow from the server (restore / .2 undo need the rows).
+  // Filter LIVE rows here, upstream of the signature, so a tombstone patch
+  // alone changes the fingerprint and drives the removal merge.
+  const systems = filterLivePages(subscribedSystems);
+  const connections = filterLivePages(subscribedConnections);
 
   const [merge, setMerge] = useState<ChainMerge>(INITIAL_MERGE);
   const [treeParents, setTreeParents] = useState<ReadonlyMap<number, number>>(
@@ -332,6 +370,7 @@ export function useMapChain(
 
   return {
     access,
+    canEdit,
     state: merge.state,
     intents: merge.intents,
     labelOf,

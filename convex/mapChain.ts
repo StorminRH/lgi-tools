@@ -34,6 +34,7 @@ import {
   type PaginationResult,
 } from 'convex/server';
 import { v } from 'convex/values';
+import { rolesAllow } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { tryMapAccess } from './lib/mapAccess';
@@ -101,21 +102,30 @@ async function readChainPage<Table extends ChainTable>(
 }
 
 /**
- * Subscribes to whether the caller currently holds view access to one map.
+ * Subscribes to whether the caller currently holds view access to one map, and
+ * whether that claim also carries edit.
  *
  * The authority on revoked-versus-empty, and the reason no chain read has to throw. Its read set is
  * exactly the caller's own `by_map_user` claim row, so deleting that claim re-runs this subscription
- * and flips it to `false` live — and re-granting it flips back to `true`, recovering the map without
- * a reload.
+ * and flips both flags live — and re-granting it recovers the map without a reload. `canEdit` is
+ * computed from the same claim row (`rolesAllow(..., 'edit')`), so a rights change unmounts
+ * authoring affordances without a second subscription.
  *
- * Answers `false` rather than throwing for a signed-out caller too, so the window between socket
- * connect and JWT mint is an ordinary `false` instead of an error.
+ * Answers both flags `false` rather than throwing for a signed-out caller too, so the window between
+ * socket connect and JWT mint is an ordinary refusal instead of an error.
  */
 export const watchMapAccess = query({
   args: { mapId: v.string() },
-  handler: async (ctx, { mapId }): Promise<{ granted: boolean }> => {
+  handler: async (
+    ctx,
+    { mapId },
+  ): Promise<{ granted: boolean; canEdit: boolean }> => {
     const principal = await tryMapAccess(ctx, mapId, 'view');
-    return { granted: principal !== null };
+    if (principal === null) return { granted: false, canEdit: false };
+    return {
+      granted: true,
+      canEdit: rolesAllow(principal.roles, 'edit'),
+    };
   },
 });
 

@@ -99,6 +99,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
 
   const {
     access,
+    canEdit,
     state,
     intents,
     labelOf,
@@ -233,52 +234,59 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // answered" and renders the ordinary empty canvas rather than a loading state (HC-5).
   if (access === false) return <NoMapAccess />;
 
+  // `canEdit` reaches the host here so OW4 authoring surfaces can gate
+  // affordances from the same live claim answer without a second subscription.
   return (
-    <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
-      <MotionLayer
-        truth={truth}
-        intents={intents}
-        access={access}
-        dragging={dragging}
-        motionConfig={motionConfig}
-        nodesDraggable={!locked}
-        onNodesChange={onNodesChange}
-        onNodeDragStart={onNodeDragStart}
-        onNodeDragStop={onNodeDragStop}
-        onSelectionDragStart={onSelectionDragStart}
-        onSelectionDragStop={onSelectionDragStop}
-        onNodeClick={onNodeClick}
-      >
-        <MapControls
-          locked={locked}
-          onLockedChange={handleLockedChange}
-          follow={follow}
-          onFollowChange={setFollow}
-          focusOnClick={focusOnClick}
-          onFocusOnClickChange={setFocusOnClick}
-          config={config}
-          onConfigChange={setConfig}
-          motion={motionConfig}
-          onMotionChange={setMotionConfig}
-        />
-        <CameraFollowHost
+    <div
+      className="h-full w-full"
+      data-map-can-edit={canEdit === true ? 'true' : 'false'}
+    >
+      <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
+        <MotionLayer
+          truth={truth}
           intents={intents}
-          follow={follow}
+          access={access}
           dragging={dragging}
-          nodeIds={nodeIds}
-          systems={state.systems}
-          config={motionConfig}
-          prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
-          focusRequest={focusRequest}
-          focusEnabled={focusOnClick}
+          motionConfig={motionConfig}
+          nodesDraggable={!locked}
+          onNodesChange={onNodesChange}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDragStop={onNodeDragStop}
+          onSelectionDragStart={onSelectionDragStart}
+          onSelectionDragStop={onSelectionDragStop}
+          onNodeClick={onNodeClick}
+        >
+          <MapControls
+            locked={locked}
+            onLockedChange={handleLockedChange}
+            follow={follow}
+            onFollowChange={setFollow}
+            focusOnClick={focusOnClick}
+            onFocusOnClickChange={setFocusOnClick}
+            config={config}
+            onConfigChange={setConfig}
+            motion={motionConfig}
+            onMotionChange={setMotionConfig}
+          />
+          <CameraFollowHost
+            intents={intents}
+            follow={follow}
+            dragging={dragging}
+            nodeIds={nodeIds}
+            systems={state.systems}
+            config={motionConfig}
+            prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
+            focusRequest={focusRequest}
+            focusEnabled={focusOnClick}
+          />
+        </MotionLayer>
+        <MapWindowLayer
+          rootSystemId={rootSystemId}
+          rootClick={rootClick}
+          onDeselect={deselectNodes}
         />
-      </MotionLayer>
-      <MapWindowLayer
-        rootSystemId={rootSystemId}
-        rootClick={rootClick}
-        onDeselect={deselectNodes}
-      />
-    </ReactFlowProvider>
+      </ReactFlowProvider>
+    </div>
   );
 }
 

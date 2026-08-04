@@ -2,11 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
   chainSignature,
   factsFromSnapshot,
+  filterLivePages,
   layoutConfigKey,
   layoutPostKey,
 } from './use-map-chain';
-import type { ChainSnapshot } from './reconciler';
+import {
+  EMPTY_CHAIN_STATE,
+  reconcileChain,
+  type ChainSnapshot,
+} from './reconciler';
+import type { PlacementAssigner } from './placement';
 import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
+import { deriveChainTree } from '../layout/facts';
 import {
   acceptReply,
   failRequest,
@@ -16,6 +23,7 @@ import {
 
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
+const DODIXIE = 30_002_659;
 
 function systems(ids: readonly number[], complete = true) {
   return { rows: ids.map((systemId) => ({ systemId })), complete };
@@ -27,6 +35,17 @@ function connections(
 ) {
   return { rows, complete };
 }
+
+const keepPositions: PlacementAssigner = ({ systems: candidates }) => {
+  const proposals = new Map<number, { x: number; y: number }>();
+  for (const candidate of candidates) {
+    proposals.set(
+      candidate.systemId,
+      candidate.position ?? { x: candidate.systemId, y: 0 },
+    );
+  }
+  return proposals;
+};
 
 // The signature is what stops the merge effect from re-running on every render. If it were unstable,
 // every render would re-merge and replay every intent — which 4.0.3.2 binds motion to — while the
@@ -149,5 +168,212 @@ describe('layout-then-merge posted-key guard', () => {
     const failed = failRequest(posted.state, posted.requestId);
     const retry = postRequest(failed, layoutPostKey('sig', 'cfg', 0));
     expect(retry.kind).toBe('posted');
+  });
+});
+
+// ── OW3 · live-row filter + signature gate + optimistic merge path ───────────
+describe('live-row filter upstream of chainSignature', () => {
+  it('drops tombstoned rows and changes the signature', () => {
+    const subscribed = {
+      rows: [
+        { systemId: JITA, deletedAt: null as number | null },
+        { systemId: AMARR, deletedAt: 1_700_000_000_000 },
+      ],
+      complete: true,
+    };
+    const live = filterLivePages(subscribed);
+    expect(live.rows.map((row) => row.systemId)).toEqual([JITA]);
+    expect(chainSignature(systems([JITA, AMARR]), connections([]))).not.toBe(
+      chainSignature(
+        { rows: live.rows.map((row) => ({ systemId: row.systemId })), complete: true },
+        connections([]),
+      ),
+    );
+  });
+
+  it('treats undefined deletedAt as live (optional-field normalization)', () => {
+    const pages = {
+      rows: [{ systemId: JITA }, { systemId: AMARR, deletedAt: undefined }],
+      complete: true,
+    };
+    expect(filterLivePages(pages)).toBe(pages);
+  });
+});
+
+describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
+  it('removes a tombstoned root from canvas state and re-roots to the next live system', () => {
+    const before: ChainSnapshot = {
+      systems: {
+        rows: [{ systemId: JITA }, { systemId: AMARR }],
+        complete: true,
+      },
+      connections: {
+        rows: [
+          {
+            connectionId: 'c1',
+            fromSystemId: JITA,
+            toSystemId: AMARR,
+          },
+        ],
+        complete: true,
+      },
+    };
+    const populated = reconcileChain(
+      EMPTY_CHAIN_STATE,
+      before,
+      new Set(),
+      keepPositions,
+    );
+    expect(deriveChainTree(factsFromSnapshot(before)).rootSystemId).toBe(JITA);
+
+    // Tombstone patch filtered upstream — JITA gone from the live snapshot alone.
+    const afterFilter: ChainSnapshot = {
+      systems: { rows: [{ systemId: AMARR }], complete: true },
+      connections: { rows: [], complete: true },
+    };
+    const after = reconcileChain(
+      populated.state,
+      afterFilter,
+      new Set(),
+      keepPositions,
+    );
+
+    expect([...after.state.systems.keys()]).toEqual([AMARR]);
+    expect(after.intents.map((intent) => intent.kind)).toEqual(
+      expect.arrayContaining(['system-departed', 'connection-departed']),
+    );
+    expect(deriveChainTree(factsFromSnapshot(afterFilter)).rootSystemId).toBe(
+      AMARR,
+    );
+  });
+
+  it('re-roots back when the prior root returns live (restore)', () => {
+    const withoutRoot: ChainSnapshot = {
+      systems: { rows: [{ systemId: AMARR }, { systemId: DODIXIE }], complete: true },
+      connections: { rows: [], complete: true },
+    };
+    const restored: ChainSnapshot = {
+      systems: {
+        rows: [
+          { systemId: JITA },
+          { systemId: AMARR },
+          { systemId: DODIXIE },
+        ],
+        complete: true,
+      },
+      connections: { rows: [], complete: true },
+    };
+    expect(deriveChainTree(factsFromSnapshot(withoutRoot)).rootSystemId).toBe(
+      AMARR,
+    );
+    expect(deriveChainTree(factsFromSnapshot(restored)).rootSystemId).toBe(JITA);
+  });
+});
+
+describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
+  it('shows an optimistic edge then removes it on rollback to server truth', () => {
+    const home: ChainSnapshot = {
+      systems: { rows: [{ systemId: JITA }], complete: true },
+      connections: { rows: [], complete: true },
+    };
+    const withHome = reconcileChain(
+      EMPTY_CHAIN_STATE,
+      home,
+      new Set(),
+      keepPositions,
+    );
+
+    const optimistic: ChainSnapshot = {
+      systems: {
+        rows: [{ systemId: JITA }, { systemId: AMARR }],
+        complete: true,
+      },
+      connections: {
+        rows: [
+          {
+            connectionId: 'temp:c1',
+            fromSystemId: JITA,
+            toSystemId: AMARR,
+          },
+        ],
+        complete: true,
+      },
+    };
+    const local = reconcileChain(
+      withHome.state,
+      optimistic,
+      new Set(),
+      keepPositions,
+    );
+    expect(local.state.connections.has('temp:c1')).toBe(true);
+    expect(
+      local.intents.some((intent) => intent.kind === 'connection-appeared'),
+    ).toBe(true);
+
+    // Rejection rolls the optimistic layer back — server still has only home.
+    const rolledBack = reconcileChain(
+      local.state,
+      home,
+      new Set(),
+      keepPositions,
+    );
+    expect(rolledBack.state.connections.size).toBe(0);
+    expect([...rolledBack.state.systems.keys()]).toEqual([JITA]);
+    expect(
+      rolledBack.intents.some((intent) => intent.kind === 'connection-departed'),
+    ).toBe(true);
+  });
+
+  it('swaps a confirmed id in place with no connection intent pair', () => {
+    const optimistic: ChainSnapshot = {
+      systems: {
+        rows: [{ systemId: JITA }, { systemId: AMARR }],
+        complete: true,
+      },
+      connections: {
+        rows: [
+          {
+            connectionId: 'temp:c1',
+            fromSystemId: JITA,
+            toSystemId: AMARR,
+          },
+        ],
+        complete: true,
+      },
+    };
+    const confirmed: ChainSnapshot = {
+      systems: optimistic.systems,
+      connections: {
+        rows: [
+          {
+            connectionId: 'confirmed:c1',
+            fromSystemId: JITA,
+            toSystemId: AMARR,
+          },
+        ],
+        complete: true,
+      },
+    };
+    const local = reconcileChain(
+      EMPTY_CHAIN_STATE,
+      optimistic,
+      new Set(),
+      keepPositions,
+    );
+    const merged = reconcileChain(
+      local.state,
+      confirmed,
+      new Set(),
+      keepPositions,
+    );
+
+    expect([...merged.state.connections.keys()]).toEqual(['confirmed:c1']);
+    expect(
+      merged.intents.filter(
+        (intent) =>
+          intent.kind === 'connection-appeared' ||
+          intent.kind === 'connection-departed',
+      ),
+    ).toEqual([]);
   });
 });

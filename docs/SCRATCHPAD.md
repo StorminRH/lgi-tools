@@ -5,22 +5,24 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.1.1** paused mid-execution after **OW1+OW2** on
+- **CURRENT:** session **4.0.4.1.1** paused mid-execution after **OW1–OW3** on
   `lifecycle/4.0.4.1` (checkpoint commit; session not finished).
 - **OW1 done:** vocab / chain-contract / schema / validators (mass nullability,
   lifeStage, soft-delete tombstones, purge indexes).
-- **OW2 done:** `mapAuthoring` + `mapChainCleanup` + tests (**48/48**),
+- **OW2 done:** `mapAuthoring` + `mapChainCleanup` + tests (**48/48**).
+- **OW3 done:** `watchMapAccess` → `{ granted, canEdit }`; live-row filter
+  upstream of `chainSignature`; endpoint-matched connection id-swap;
+  `useChainAuthoringMutations` optimistic hooks; focused tests **109** +
   gate-checker clean.
-- **NOT done:** OW3 client plumbing; OW4 authoring UI; OW5 ux-check / G-1; OW6
-  close-out.
+- **NOT done:** OW4 authoring UI; OW5 ux-check / G-1; OW6 close-out.
 - **Plan:** `docs/session-plans/4.0/4.0.4.1.1.md` still **Execution status
   Pending** — do **not** flip to Complete (session unfinished).
-- **NEXT:** resume `start-session` / continue ordered work at **OW3** (canEdit,
-  live-row filter, id-swap, optimistic). Then OW4 surfaces → OW5 G-1 pause →
-  OW6 close-out in planned mode (no PR; 4.0.4.1.2 opens PR).
+- **NEXT:** resume at **OW4** authoring surfaces (`src/mapper/authoring/`,
+  edge follower). Then OW5 G-1 pause → OW6 close-out in planned mode (no PR;
+  4.0.4.1.2 opens PR).
 - **Key paths:** `docs/session-plans/4.0/4.0.4.1.1.md`,
   `docs/session-contracts/4.0/4.0.4.1.1.md`, `convex/mapAuthoring.ts`,
-  `src/data/maps/chain-contract.ts`.
+  `src/mapper/chain/optimistic-authoring.ts`, `src/data/maps/chain-contract.ts`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
   array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must
