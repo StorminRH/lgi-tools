@@ -50,9 +50,10 @@ Required inputs:
 Required outputs are exactly one of:
 
 - `SESSION_HANDOFF` **(planned)**: another approved session remains in the
-  sub-version; the verified scope is committed and pushed to the lifecycle
-  branch, its session plan reads `Execution status: Complete`, the durable
-  handoff points to the next session, and no PR is opened.
+  sub-version; Ordered work commits plus any remaining lifecycle-only delta are
+  pushed to the lifecycle branch, its session plan reads
+  `Execution status: Complete`, the durable handoff points to the next session,
+  and no PR is opened.
 - `MERGED` **(shared)**: the change passes design review and verification, the PR
   is reviewed and merged through the gate of record, and exact production proof
   is complete. In planned mode the merged PR already carries the truthful
@@ -308,15 +309,22 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    worktree still matches the preflighted scope and that no application, test,
    executable, dependency, or verification-configuration change occurred after
    it. Any such change invalidates the checkpoint and returns to the applicable
-   preflight and verification steps; a lifecycle-only record does not.
-8. Commit the verified scope in the repository's conventional plain-English style
-   — a conventional subject under 72 characters, lowercase after the prefix,
+   preflight and verification steps; a lifecycle-only record does not. For
+   planned sessions, Ordered work steps are already committed under
+   `start-session`. If SCRATCHPAD claims Ordered work complete but the tree
+   still holds uncommitted OW implementation, return `BLOCKED` and send the
+   work back through `start-session` rather than absorbing it here.
+8. Commit any remaining unverified-or-lifecycle-only delta on the already
+   OW-committed branch in the repository's conventional plain-English style —
+   a conventional subject under 72 characters, lowercase after the prefix,
    describing the project outcome rather than files or symbols — and push the
-   branch. No preview is created automatically.
+   branch. No preview is created automatically. When the verified head is
+   already fully committed and only needs push, push without inventing an empty
+   commit.
 9. **(planned)** Follow the fork above: a non-final session completes its plan
-   and SCRATCHPAD handoff in the lifecycle-only commit, then stops; a final
-   session has already set its plan `Complete` during finalization and continues
-   to the PR.
+   and SCRATCHPAD handoff in the lifecycle-only commit when that delta remains,
+   then stops; a final session has already set its plan `Complete` during
+   finalization and continues to the PR.
 
 Phase evidence: finalized-diff boundary verdict, output from every applicable
 cheap workflow check, the successful pinned `pnpm verify` result tied to the

@@ -18,13 +18,18 @@ Vitest, and visx.
 
 ## Subagents
 
-Always use `docs-researcher` for documentation lookups (returns a Documentation
-brief). Always use `repo-mapper` for Codegraph relationship or impact questions
-(returns a Repository map); the parent keeps Cursor semantic search and grep for
-conceptual discovery. Prefer `gate-runner` and workflow-named review roles when
-isolation or a structured evidence packet helps. Fall back to a direct command
-when a role is unavailable. Do not run a fixed preflight on every task, and do
-not redo discovery the parent already completed.
+Before writing or editing production or test code, launch `docs-researcher` for
+every material external technology in the change (React, Next.js, Convex, Base
+UI, React Flow, Vitest, and peers). Require a Documentation brief before
+generation; do not implement from training memory or in-parent Context7.
+Skip the docs gate only for docs-only, SCRATCHPAD, policy-only, or other pure
+non-code edits. Always use `repo-mapper` for Codegraph relationship or impact
+questions (returns a Repository map); the parent keeps semantic search and grep
+for conceptual discovery. Prefer `gate-runner`, `ow-reviewer`, and
+workflow-named review roles when isolation or a structured evidence packet
+helps. Fall back to a direct command when a role is unavailable. Do not run a
+fixed discovery preflight on every task or redo discovery the parent already
+completed; that ban does not excuse skipping the docs gate before code.
 
 ## Commands and definition of done
 

@@ -237,11 +237,14 @@ explicitly when no runtime data flow changes.]
    owner remains.
 
 Each numbered step is one execution chat under `start-session`: implement that
-step, prove it, run `gate-runner`, update SCRATCHPAD OW fields, and hand off.
-Do not list close-out, adversarial review, commit/push, or PR opening as an
-Ordered work step — **End of session** Delivery owns those. Each step names
-concrete surfaces and its resulting contract. Avoid open-ended instructions
-such as "update relevant files," "add tests as needed," or "handle edge cases."
+step (after the docs gate when touching production or test code), prove it,
+run `gate-runner`, launch `ow-reviewer`, update SCRATCHPAD OW fields, commit
+the step, and hand off. Do not list close-out, adversarial review, push, or PR
+opening as an Ordered work step — **End of session** Delivery owns those.
+Per-step commit after green gates and a clean `ow-reviewer` verdict is part of
+Ordered work. Each step names concrete surfaces and its resulting contract.
+Avoid open-ended instructions such as "update relevant files," "add tests as
+needed," or "handle edge cases."
 
 ## Success criteria (agent-runnable — show the output)
 
@@ -277,8 +280,8 @@ instead of duplicating their evidence actions.
 
 - Confirm every `DONE =` item is evidenced and every `hard_constraints` boundary
   held; confirm the baseline verdict and contract UX pause were honored.
-- **Delivery:** [exactly commit/push in-branch, open a PR, merge, or stop with a
-  non-code artifact; include the required gate and operator pause].
+- **Delivery:** [exactly push in-branch after OW commits, open a PR, merge, or
+  stop with a non-code artifact; include the required gate and operator pause].
 - **Lifecycle artifacts:** [name the plan marker, roadmap, changelog, baseline,
   SCRATCHPAD, or archive updates that this session actually owns; omit those it
   does not].

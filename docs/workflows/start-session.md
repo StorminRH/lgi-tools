@@ -71,9 +71,12 @@ Return `OW_HANDOFF` with the close-out handoff prompt below.
 Otherwise determine the next incomplete Ordered work step from the plan's
 `### Ordered work` list and SCRATCHPAD `OW progress` (1-based; absent progress
 means step 1). Execute only that step, plus any operator pause the plan or
-contract attaches to it. A UI gate invokes `ux-check` and pauses for operator
-review. Maintain an in-context proof ledger with one result for every atomic
-proof row owned by that step.
+contract attaches to it. Before writing or editing production or test code for
+the step, launch `docs-researcher` for every material external technology in
+the change and require a Documentation brief; skip only for docs-only,
+SCRATCHPAD, policy-only, or other pure non-code edits. A UI gate invokes
+`ux-check` and pauses for operator review. Maintain an in-context proof ledger
+with one result for every atomic proof row owned by that step.
 
 After the step's focused proof, invoke `gate-runner` with those focused
 evidence commands, then:
@@ -87,13 +90,23 @@ Require a green Gate result packet for every command. Failures return
 hand off while red. Do not launch `adversarial-review` here — that belongs to
 the close-out chat only.
 
-On green gates, update `docs/SCRATCHPAD.md` **Now** with:
+On green gates, launch a fresh `ow-reviewer` against this step's working-tree
+diff and named surfaces. `ow-reviewer` is an incremental adoption-and-hygiene
+seat; it does not replace Diff/PR `ownership-reviewer` or close-out
+`adversarial-review`. On `FINDINGS`, fix in this chat, re-prove, re-run
+`gate-runner`, and re-launch `ow-reviewer` — do not hand off while dirty. On
+`CLEAN` (or every accepted finding corrected and re-reviewed clean), update
+`docs/SCRATCHPAD.md` **Now** with:
 
 - **OW progress:** `k/n complete` — next step title, or `n/n complete —
   awaiting close-out` when this was the last step
 - **OW completed:** one short line per finished step (surfaces, focused proof,
-  verify pass pointer)
+  verify pass pointer, commit SHA)
 - **Next-agent notes:** gotchas, open operator dispositions, paths to reopen
+
+Then commit the verified OW scope (implementation, tests, and SCRATCHPAD OW
+fields) in the repository's conventional plain-English style. Do not push from
+the OW chat.
 
 Do not rewrite the frozen session plan. Do not change `Execution status`
 (close-out owns that). Do not start the next Ordered work step or close-out in
@@ -107,14 +120,14 @@ Continue planned session <id> on `<branch>` via start-session.
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 SCRATCHPAD: docs/SCRATCHPAD.md (OW progress + next-agent notes).
-Completed OW 1..<k>. Next: Ordered work step <k+1> — <title from plan>.
-Do not replan; do not close-out; execute only that step, then gate-runner + handoff.
+Completed OW 1..<k> (commit <sha>). Next: Ordered work step <k+1> — <title from plan>.
+Do not replan; do not close-out; execute only that step, then gate-runner + ow-reviewer + commit + handoff.
 ```
 
 When this was the last Ordered work step:
 
 ```text
-Planned session <id> Ordered work is complete on `<branch>`.
+Planned session <id> Ordered work is complete on `<branch>` (final OW commit <sha>).
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 SCRATCHPAD: docs/SCRATCHPAD.md (OW progress shows awaiting close-out).

@@ -10,8 +10,45 @@
 ## Now
 
 - **CURRENT / NEXT:** session **4.0.4.1.2** on `lifecycle/4.0.4.1` —
-  plan-session expected (resolver after 4.0.4.1.1 SESSION_HANDOFF). This
-  session opens the single sub-version PR.
+  execution in progress. This session opens the single sub-version PR.
+- **OW progress:** `5/6 complete` — Integration proof.
+- **OW completed:** OW1 pure contracts + schema groundwork — lifetime/mass,
+  tombstone stages, unified collapse decision, event vocabulary/table, and
+  SDE space-boundary census; 72 focused tests + `pnpm verify` passed
+  2026-08-04 (4,885 tests, Fallow 0 issues).
+- **OW completed:** OW2 collapse + ledger mutations — bounded server-computed
+  sever/branch restore, shared-stamp identity round-trip, atomic actor events,
+  newest-first ledger read, internalized .1 helpers, and JWT display name;
+  152 focused tests + `pnpm verify` passed 2026-08-04 (4,893 tests, Fallow 0
+  issues).
+- **OW completed:** OW3 lifetime windows + scheduled purge — server
+  intersection/reset and true no-op stamping, skeleton re-arm on endpoint
+  removal, live-island skeleton retention, dangling/event expiry, and the
+  15-minute production cron; 75 focused tests + `pnpm verify` passed
+  2026-08-04 (4,899 tests, Fallow 0 issues).
+- **OW completed:** OW4 client plumbing + riders — structural tombstoned
+  connections with dying/skeleton projection, memoized live filtering, ledger
+  subscription, explicit lifetime proposals, optimistic sever/shared-stamp
+  restore, refusal swallowing, and temp-id-only swap suppression; 170 focused
+  tests + `pnpm verify` passed 2026-08-04 (5,045 tests, Fallow 0 issues).
+- **OW completed:** OW5 card intelligence + sever UI + ledger — codex panel /
+  size lock / lifetime+mass rows, restore-only dying mode, keyed sever Undo
+  toast (`actionButton`), dying edge pulse, `src/mapper/log/` Collapsible
+  ledger with `canEdit`-gated Restore, CONVEX durability wording amended;
+  72 focused tests + `pnpm verify` passed 2026-08-04 (5,066 tests, Fallow 0
+  issues).
+- **Next-agent notes:** Start only Ordered work 6 (Integration proof) in
+  `docs/session-plans/4.0/4.0.4.1.2.md`. Living `start-session` now requires
+  docs-researcher before production/test code, then gate-runner → ow-reviewer
+  → commit → handoff (adversarial-review and push remain close-out-only). Run
+  the full two-client demo (type auto-fill → lifetime narrowing → mass clamp →
+  sever retain/remove → toast and ledger undo → window expiry) with `ux-check`
+  desktop/mobile captures; assemble the G-1 evidence packet and pause for
+  operator review before close-out. New probes: `atlas-authoring-intelligence.mjs`,
+  `atlas-authoring-ledger.mjs` (plus updated `atlas-authoring-connection.mjs`).
+  Card/ledger wiring lives in `ConnectionAuthoringOverlay` (not ChainHost);
+  dying edges use `.map-edge-dying` (reduced-motion: steady dim red). Local
+  review maps unchanged. Do not open the PR until G-1 accepts.
 - **Shipped 4.0.4.1.1:** gated chain authoring (home / add-from-node /
   connection card / tombstone foundations). Plan `Execution status:
   Complete`; as-built `docs/session-as-built/4.0/4.0.4.1.1.md`. PR deferred
