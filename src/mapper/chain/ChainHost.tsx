@@ -126,6 +126,14 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const authoring = useChainAuthoringMutations();
   const [nodes, setNodes] = useState<ChainNode[]>([]);
   const [nodeMenu, setNodeMenu] = useState<NodeMenuAnchor | null>(null);
+  // Guarded adjust-during-render: losing edit rights unmounts NodeAddMenu
+  // before its onOpenChange can fire, so drop the stale anchor here or the
+  // menu re-mounts open at old coordinates when rights come back.
+  const [prevCanEdit, setPrevCanEdit] = useState(canEdit);
+  if (prevCanEdit !== canEdit) {
+    setPrevCanEdit(canEdit);
+    if (canEdit !== true && nodeMenu !== null) setNodeMenu(null);
+  }
   const [selectedConnectionId, setSelectedConnectionId] = useState<
     Id<'mapConnections'> | null
   >(null);

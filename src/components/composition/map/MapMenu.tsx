@@ -47,20 +47,17 @@ export function MapMenu() {
           </MenuLinkItem>
         ) : null,
       )}
-      <div
+      <MenuLinkItem
         data-map-menu-attribution
-        className="border-t border-border-soft px-3 py-2"
+        href="https://reactflow.dev"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="React Flow attribution"
+        closeOnClick
+        className="block border-t border-border-soft px-3 py-2 font-data text-micro text-muted transition-colors hover:text-isk data-[highlighted]:text-isk"
       >
-        <a
-          href="https://reactflow.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="React Flow attribution"
-          className="font-data text-micro text-muted transition-colors hover:text-isk"
-        >
-          Built with React Flow
-        </a>
-      </div>
+        Built with React Flow
+      </MenuLinkItem>
     </Menu>
   );
 }

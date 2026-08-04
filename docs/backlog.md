@@ -529,8 +529,13 @@ it — and restore affordances surfaced inside that history. Research how Nexum
 and Wanderer shape their map-event logs (retention, surfaced events, user
 expectations) before designing ours; keep clean-room (D10).
 
-**Why deferred:** out of 4.0.4.1.1 (authoring + tombstone foundations only)
-and not owned by 4.0.4.1.2's collapse pathway. *Authority:* 4.0.4.1.1 plan
+**Shipped so far:** 4.0.4.1.2 delivered the basic despawn ledger
+(`src/mapper/log/` — newest-first sever/restore events, seven-day event
+retention, inline editor-gated Restore). Tabs, month-scale retention, and
+broader event kinds remain backlogged here.
+
+**Why deferred:** out of 4.0.4.1.1 (authoring + tombstone foundations only);
+4.0.4.1.2 shipped only the basic ledger above. *Authority:* 4.0.4.1.1 plan
 End of session. *Size:* L. *Trigger:* with or after 4.0.4.4, or when history
 / undo UX is prioritized beyond the 24h tombstone window.
 

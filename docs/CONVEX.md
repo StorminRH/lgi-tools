@@ -27,7 +27,11 @@ door to CCP; the sync engine is the one scheduler.
   chain state (systems, connections, signatures, notes, and map events), whether
   user- or automatically authored: Convex-native primary SoR, protected by
   backups + CDC export. It is a deliberate, documented exception — never a
-  license to make other data Convex-durable.
+  license to make other data Convex-durable. Within it, `mapEvents.actor`
+  denormalizes the acting account's display name into the map ledger; that name
+  deliberately rides the ledger's seven-day self-expiry (`purgeAfter` + the
+  chain purge cron) instead of the per-user `/n` teardown door — a recorded
+  exemption, bounded by event retention, not an oversight.
 - **The ≤2-min placement rule (the test for every dataset).** *Convex (live engine)*
   iff the ESI cache is ≤ ~2 min (genuinely live — location ~5 s, online ~60 s) OR the
   data is app-authored collaborative-realtime needing peer fan-out (the mapper):

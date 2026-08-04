@@ -27,6 +27,10 @@ export type SecurityClass = (typeof SECURITY_CLASSES)[number];
  *     so ≥ 0.45 is hi-sec; any positive value below that is low-sec; ≤ 0.0 is null.
  *   - A null securityStatus (a handful of untagged hi-sec K-space rows in the SDE)
  *     defaults to 'high' — their band is hi-sec, just unlabelled.
+ *
+ * Sibling classifier: `wormhole-contract.ts` `isKnownSpaceSystemId` answers only
+ * wormhole-vs-known-space from the bare system id, for callers with no SDE row
+ * (Convex mutations). Prefer this row-based band when the fields are available.
  */
 export function systemSecurityClass(
   securityStatus: number | null,

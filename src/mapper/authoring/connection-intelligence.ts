@@ -1,11 +1,11 @@
 import {
-  FAR_SIDE_WORMHOLE_CODE,
   remainingMassBounds,
   type ConnectionMassState,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import {
+  deathWindowFrom,
   lifetimeDisplay,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
@@ -52,11 +52,6 @@ const HOUR_MS = 60 * 60 * 1000;
 /** Whether the ship-size control must lock to a codex-derived size class. */
 export function isCodexSizeLocked(entry: WormholeCodexEntry | null): boolean {
   return entry !== null && entry.farSide === false;
-}
-
-/** Whether a stored type code is the far-side K162 identity (editable size). */
-export function isFarSideTypeCode(code: string | null): boolean {
-  return code === FAR_SIDE_WORMHOLE_CODE;
 }
 
 /** Extracts the read-only codex panel facts, or null for K162 / missing / untyped. */
@@ -178,19 +173,7 @@ function storedDeathWindow(connection: {
   readonly deathEarliestAt: number | null;
   readonly deathLatestAt: number | null;
 }): ConnectionDeathWindow | null {
-  if (
-    typeof connection.deathEarliestAt === 'number' &&
-    Number.isFinite(connection.deathEarliestAt) &&
-    typeof connection.deathLatestAt === 'number' &&
-    Number.isFinite(connection.deathLatestAt) &&
-    connection.deathEarliestAt <= connection.deathLatestAt
-  ) {
-    return {
-      earliestAt: connection.deathEarliestAt,
-      latestAt: connection.deathLatestAt,
-    };
-  }
-  return null;
+  return deathWindowFrom(connection.deathEarliestAt, connection.deathLatestAt);
 }
 
 function countdownTitle(earliestMs: number, latestMs: number): string {

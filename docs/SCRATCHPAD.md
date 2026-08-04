@@ -9,79 +9,31 @@
 
 ## Now
 
-- **CURRENT / NEXT:** session **4.0.4.1.2** on `lifecycle/4.0.4.1` —
-  Ordered work complete; **G-1 operator review required before close-out
-  opens the PR**. This session opens the single sub-version PR.
-- **OW progress:** `7/7 complete — awaiting close-out`.
-- **OW completed:** OW1 pure contracts + schema groundwork — lifetime/mass,
-  tombstone stages, unified collapse decision, event vocabulary/table, and
-  SDE space-boundary census; 72 focused tests + `pnpm verify` passed
-  2026-08-04 (4,885 tests, Fallow 0 issues).
-- **OW completed:** OW2 collapse + ledger mutations — bounded server-computed
-  sever/branch restore, shared-stamp identity round-trip, atomic actor events,
-  newest-first ledger read, internalized .1 helpers, and JWT display name;
-  152 focused tests + `pnpm verify` passed 2026-08-04 (4,893 tests, Fallow 0
-  issues).
-- **OW completed:** OW3 lifetime windows + scheduled purge — server
-  intersection/reset and true no-op stamping, skeleton re-arm on endpoint
-  removal, live-island skeleton retention, dangling/event expiry, and the
-  15-minute production cron; 75 focused tests + `pnpm verify` passed
-  2026-08-04 (4,899 tests, Fallow 0 issues).
-- **OW completed:** OW4 client plumbing + riders — structural tombstoned
-  connections with dying/skeleton projection, memoized live filtering, ledger
-  subscription, explicit lifetime proposals, optimistic sever/shared-stamp
-  restore, refusal swallowing, and temp-id-only swap suppression; 170 focused
-  tests + `pnpm verify` passed 2026-08-04 (5,045 tests, Fallow 0 issues).
-- **OW completed:** OW5 card intelligence + sever UI + ledger — codex panel /
-  size lock / lifetime+mass rows, restore-only dying mode, keyed sever Undo
-  toast (`actionButton`), dying edge pulse, `src/mapper/log/` Collapsible
-  ledger with `canEdit`-gated Restore, CONVEX durability wording amended;
-  72 focused tests + `pnpm verify` passed 2026-08-04 (5,066 tests, Fallow 0
-  issues).
-- **OW completed:** OW6 integration proof — route `/atlas` desktop+mobile
-  captures clean; authoring probes
-  `intelligence`/`ledger`/`connection`/`wall` 6/6 viewport runs clean
-  (codex-load race hardened; shared `ensureJumpEdge`); G-1 evidence packet
-  below; Convex client uses a plain console `logger` so Cache Components
-  prerender never hits DefaultLogger `Math.random`
-  (`src/data/convex/client.ts`); `pnpm verify` 5,067 tests + Fallow 0 on
-  117 files 2026-08-04; commits `5601a7df` + logger fix `9bffe6dc`.
-- **OW completed:** OW7 map chrome polish — dying edges, viewport-bounded
-  follower cards + green leaders, frosted map chrome token, click-vs-pan
-  dismiss, dock/audit layout, RF dots/attribution cleanup, site-card dock
-  centering; Select gutter gated on `align="center"`; focused +
-  `pnpm verify` 5,077 tests + Fallow 0 on 130 files 2026-08-04; OW-lite
-  CLEAN after Select/frosted-surface fixes; commit `f84171aa`.
-- **Next-agent notes (G-1 + close-out):** Pause for operator G-1 ACCEPT before
-  close-out opens the PR. **Do not open the PR until G-1 accepts.**
-
-  **G-1 evidence packet (local, gitignored captures):**
-  - Stack: `pnpm dev:all` → http://localhost:3000; auth
-    `UX_STORAGE_STATE=~/.lgi-ux-state.json`.
-  - Maps: blank `4f5dd5e0-97f4-42c2-97aa-2fee04756665` (now seeded/mutated by
-    probes — re-drain or use a fresh blank if home-prompt demo needed);
-    populated `4f47c80a-c40b-4795-8831-faa4c7c41426`.
-  - Automated: `docs/ux-check/captures/report.json` (signed-out `/atlas`
-    desktop+mobile, zero errors);
-    `docs/ux-check/captures/probes/report.json` (6/6 pass). Key shots:
-    `…/atlas-authoring-intelligence--…--connection-intelligence.png` (B274
-    codex + locked L + mass range + lifetime + Sever);
-    `…/atlas-authoring-ledger--…--map-event-log.png` desktop+mobile (Log
-    expand / empty or rows); connection + wall shots alongside.
-  - Network noise disposed: `/api/sites/1` `ERR_ABORTED` on map focus (benign).
-  - Operator live two-client checklist (SC-1.1 / SC-2.3 / SC-4.2–4.4 /
-    SC-6.2): type auto-fill → lifetime narrowing across reports → mass clamp
-    → sever retain (k-space / loop) and remove (wormhole-only) → toast Undo
-    + ledger Restore → dying→skeleton window expiry. Rider-1 refusal swallow
-    covered by OW4 unit tests + zero console errors on authoring probes.
-  - Card/ledger wiring: `ConnectionAuthoringOverlay` (not ChainHost); dying
-    edges `.map-edge-dying` (reduced-motion: steady dim red).
-  - After G-1 ACCEPT: run close-out in planned mode only (no further OW);
-    adversarial-review + push + single sub-version PR.
-- **Shipped 4.0.4.1.1:** gated chain authoring (home / add-from-node /
-  connection card / tombstone foundations). Plan `Execution status:
-  Complete`; as-built `docs/session-as-built/4.0/4.0.4.1.1.md`. PR deferred
-  to 4.0.4.1.2.
+- **CURRENT / NEXT:** sub-version **4.0.4.1** complete (both sessions);
+  close-out is delivering the single sub-version PR from
+  `lifecycle/4.0.4.1` (G-1 ACCEPT recorded 2026-08-04). Next planned work:
+  4.0.4.2 through `start-session` after merge.
+- **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
+  add-from-node / connection card), codex connection intelligence, death-window
+  lifetime model, mass layers 1+3, unified sever/collapse pathway with
+  shared-stamp undo, `src/mapper/log/` despawn ledger, 15-minute chain purge
+  cron, and OW7 map-chrome polish. Ledger detail: changelog `v4.0.4.1`,
+  as-builts under `docs/session-as-built/4.0/`.
+- **Durable 4.0.4.1.2 gotchas:** (1) `deathWindowFrom` in
+  `src/data/maps/connection-lifetime.ts` is the ONLY owner of the
+  stored-pair→window predicate — server validation, optimistic patches, and
+  card rendering all consume it; do not re-implement locally. (2)
+  `restoreSeveredBranch` refuses `ENDPOINT_TOMBSTONED` when a later sever
+  tombstoned a cut endpoint outside the shared-stamp set — the fail-closed
+  guard exists because a live connection with a dead endpoint wedges
+  `severConnection` (`INVALID_MAP_TOPOLOGY`) permanently after the purge cron.
+  (3) `mapConnections.eolAt` is vestigial (superseded mark-EOL design, always
+  null); lifetime truth is the `deathEarliestAt`/`deathLatestAt` pair. (4)
+  `mapEvents.actor` display-name retention rides the ledger's 7-day
+  self-expiry, a recorded exemption in `docs/CONVEX.md` — not the `/n`
+  teardown door. (5) Wrapping a `<label>` around a Base UI Select forwards
+  caption clicks and springs the dropdown (the CustomStructureBuilder gotcha
+  recurred in `connection-fields.tsx`); use `<div>` + `ariaLabel`.
 - **4.0.4.1.1 gotchas:** (1) Optimistic destination systems must
   `insertAtBottomIfLoaded` — `resolveRoot` is `facts.systems[0]`. (2) Home
   prompt gates on filtered `liveSystemCount`, not merged canvas state. (3)

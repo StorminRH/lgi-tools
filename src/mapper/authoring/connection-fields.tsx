@@ -459,12 +459,15 @@ function FieldBlock({
   readonly children: ReactNode;
 }) {
   return (
-    <label className="flex w-full flex-col items-center gap-1 text-center [&_input]:text-center">
+    // A plain <div>: wrapping a <label> around a Base UI Select forwards
+    // caption clicks to the trigger button and springs the dropdown open
+    // (the CustomStructureBuilder gotcha); the controls carry ariaLabel.
+    <div className="flex w-full flex-col items-center gap-1 text-center [&_input]:text-center">
       <span className="font-data text-label uppercase tracking-label text-isk">
         {label}
       </span>
       <div className="w-full">{children}</div>
-    </label>
+    </div>
   );
 }
 

@@ -87,7 +87,9 @@ function placementClassName(placement: WindowPlacement): string | false {
   }
   // node-anchored and edge-anchored both ride `--map-window-transform`.
   if (placement.kind === 'edge-anchored') {
-    return 'left-0 top-0 h-auto w-72 [transform:var(--map-window-transform)]';
+    // The height bound keeps the card's scroll body engaged on short
+    // viewports; the position clamp alone cannot shrink an h-auto card.
+    return 'left-0 top-0 h-auto max-h-[calc(100%-2rem)] w-72 [transform:var(--map-window-transform)]';
   }
   return 'left-0 top-0 h-52 w-72 [transform:var(--map-window-transform)]';
 }

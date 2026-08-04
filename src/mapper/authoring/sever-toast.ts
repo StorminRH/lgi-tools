@@ -19,16 +19,19 @@ export function announceSeverOutcome(input: {
   const duration = input.durationMs ?? 12_000;
   if (input.result.outcome === 'removed') {
     const count = input.result.systemIds.length;
-    toast.success(`Severed — ${count} downstream systems removed`, {
-      id,
-      duration,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          input.onUndo();
+    toast.success(
+      `Severed — ${count} downstream system${count === 1 ? '' : 's'} removed`,
+      {
+        id,
+        duration,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            input.onUndo();
+          },
         },
       },
-    });
+    );
     return;
   }
   toast.success('Severed — branch kept', {

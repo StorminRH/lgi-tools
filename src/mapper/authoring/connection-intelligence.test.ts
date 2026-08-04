@@ -6,7 +6,6 @@ import {
   formatDurationBound,
   formatKilograms,
   isCodexSizeLocked,
-  isFarSideTypeCode,
   lifetimeRowDisplay,
   massRowDisplay,
 } from './connection-intelligence';
@@ -56,8 +55,6 @@ describe('connection intelligence', () => {
     expect(isCodexSizeLocked(TYPED)).toBe(true);
     expect(isCodexSizeLocked(K162)).toBe(false);
     expect(isCodexSizeLocked(null)).toBe(false);
-    expect(isFarSideTypeCode('K162')).toBe(true);
-    expect(isFarSideTypeCode('B274')).toBe(false);
     expect(codexPanelFacts(TYPED)?.sizeClass).toBe('L');
     expect(codexPanelFacts(K162)).toBeNull();
   });

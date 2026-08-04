@@ -1045,6 +1045,38 @@ describe('map authoring', () => {
       expect(await readEvents(t)).toHaveLength(3);
     });
 
+    it('refuses a branch restore whose cut endpoint was tombstoned by a later sever', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [WH_ROOT, WH_A, WH_B],
+        [
+          { key: 'root-a', fromSystemId: WH_ROOT, toSystemId: WH_A },
+          { key: 'cut', fromSystemId: WH_A, toSystemId: WH_B },
+        ],
+      );
+      const cut = ids.cut!;
+      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+        mapId: MAP_A,
+        connectionId: cut,
+      });
+      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+        mapId: MAP_A,
+        connectionId: ids['root-a']!,
+      });
+      expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: NOW + 1 });
+
+      await expectConvexError(
+        asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+          mapId: MAP_A,
+          connectionId: cut,
+        }),
+        'ENDPOINT_TOMBSTONED',
+      );
+      expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW });
+      expect(await readConnection(t, cut)).toMatchObject({ deletedAt: NOW });
+    });
+
     it('fails closed before mutation or ledger write when the map exceeds the bound', async () => {
       const t = convexTest(schema, modules);
       await seedEmpty(t);

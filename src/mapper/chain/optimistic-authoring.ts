@@ -19,10 +19,11 @@ import {
 } from '@/data/convex/use-mutation';
 import {
   chainTombstoneStamps,
-  MAP_CHAIN_UNDO_WINDOW_MS,
+  isTombstoned,
 } from '@/data/maps/chain-contract';
 import {
   deathWindowForReport,
+  deathWindowFrom,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
 import type {
@@ -227,8 +228,8 @@ function severStamp(
     const connection = value.page.find((row) => row._id === connectionId);
     if (
       connection !== undefined &&
-      typeof connection.deletedAt === 'number' &&
-      Number.isFinite(connection.deletedAt)
+      isTombstoned(connection) &&
+      typeof connection.deletedAt === 'number'
     ) {
       return connection.deletedAt;
     }
@@ -333,16 +334,7 @@ export interface ConnectionWindowSource {
 function storedWindow(
   connection: ConnectionWindowSource,
 ): ConnectionDeathWindow | null {
-  return typeof connection.deathEarliestAt === 'number' &&
-    Number.isFinite(connection.deathEarliestAt) &&
-    typeof connection.deathLatestAt === 'number' &&
-    Number.isFinite(connection.deathLatestAt) &&
-    connection.deathEarliestAt <= connection.deathLatestAt
-    ? {
-        earliestAt: connection.deathEarliestAt,
-        latestAt: connection.deathLatestAt,
-      }
-    : null;
+  return deathWindowFrom(connection.deathEarliestAt, connection.deathLatestAt);
 }
 
 /** Explicit type-pick proposal: typed ceilings narrow; K162/unset preserve. */
@@ -539,7 +531,5 @@ export function useChainAuthoringMutations() {
     severConnection,
     restoreSeveredBranch,
     restoreConnection,
-    /** Exposed so tests can assert the undo window the optimistic stamps use. */
-    undoWindowMs: MAP_CHAIN_UNDO_WINDOW_MS,
   };
 }

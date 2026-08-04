@@ -83,6 +83,11 @@ export function remainingMassBounds(
 /**
  * Classifies the SDE's stable system-ID partition. IDs below 31 million are
  * known space; IDs at or above it are J-space.
+ *
+ * Sibling classifier: `security.ts` `systemSecurityClass` answers the same
+ * wormhole-vs-known-space question from `securityStatus`/`wormholeClassId`
+ * row fields. Use that one when the SDE row is in hand; use this id-range
+ * form only where no row is available (e.g. Convex mutations).
  */
 export function isKnownSpaceSystemId(systemId: number): boolean {
   return systemId < 31_000_000;

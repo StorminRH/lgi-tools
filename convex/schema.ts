@@ -171,8 +171,10 @@ export default defineSchema({
 
   // One document per connection between two systems on one map. Endpoints are
   // system IDs, never document references, so a connection survives independently
-  // of how its endpoints were placed. Remaining lifetime is always derived from
-  // `eolAt - now` on the client; no scheduler ever flips an EOL state.
+  // of how its endpoints were placed. Remaining lifetime is the death window
+  // pair `deathEarliestAt`/`deathLatestAt` (absolute instants; clients derive
+  // the countdown, no scheduler ever flips a state). `eolAt` is vestigial — a
+  // superseded mark-EOL design with no production writer; it stays null.
   // lifeStage is the human-observed Reliable Lifetime bucket; estimates that
   // consume lifeStageObservedAt belong to a later session.
   mapConnections: defineTable({

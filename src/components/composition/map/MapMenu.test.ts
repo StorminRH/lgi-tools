@@ -12,10 +12,16 @@ vi.mock('@/components/ui/menu', async () => {
     MenuLinkItem: ({
       render,
       children,
+      closeOnClick: _closeOnClick,
+      ...anchorProps
     }: {
-      render: React.ReactElement;
+      render?: React.ReactElement;
       children: React.ReactNode;
-    }) => cloneElement(render, {}, children),
+      closeOnClick?: boolean;
+    } & Record<string, unknown>) =>
+      render !== undefined
+        ? cloneElement(render, {}, children)
+        : element('a', anchorProps, children),
   };
 });
 

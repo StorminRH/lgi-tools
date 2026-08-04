@@ -32,6 +32,25 @@ const LIFE_STAGE_REMAINING_MS = {
 >;
 
 /**
+ * Normalizes a stored timestamp pair into a death window, or null when either
+ * bound is absent, non-finite, or inverted. The single owner of what counts as
+ * a stored window — server validation, optimistic patches, and card rendering
+ * must all agree, so none of them re-implements this predicate.
+ */
+export function deathWindowFrom(
+  earliestAt: number | null | undefined,
+  latestAt: number | null | undefined,
+): ConnectionDeathWindow | null {
+  return typeof earliestAt === 'number' &&
+    Number.isFinite(earliestAt) &&
+    typeof latestAt === 'number' &&
+    Number.isFinite(latestAt) &&
+    earliestAt <= latestAt
+    ? { earliestAt, latestAt }
+    : null;
+}
+
+/**
  * Converts one Reliable Lifetime report into an absolute death interval. A
  * typed lifetime caps the report's maximum possible remaining duration.
  */

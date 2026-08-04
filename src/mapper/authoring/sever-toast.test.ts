@@ -35,6 +35,19 @@ describe('announceSeverOutcome', () => {
     expect(onUndo).toHaveBeenCalledOnce();
   });
 
+  it('singularizes the removed-count copy like the ledger does', () => {
+    announceSeverOutcome({
+      connectionId: 'c1',
+      result: { outcome: 'removed', systemIds: [1] },
+      onUndo: vi.fn(),
+    });
+
+    expect(toastSuccess).toHaveBeenCalledWith(
+      'Severed — 1 downstream system removed',
+      expect.objectContaining({ id: 'sever:c1' }),
+    );
+  });
+
   it('announces a retained branch without a removed-system count', () => {
     announceSeverOutcome({
       connectionId: 'c2',

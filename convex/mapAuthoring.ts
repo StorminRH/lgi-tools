@@ -44,6 +44,7 @@ import {
   type MapEventPayloadByKind,
 } from '@/data/maps/chain-events';
 import {
+  deathWindowFrom,
   intersectOrReset,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
@@ -406,15 +407,10 @@ interface DeathWindowArgs {
 function storedDeathWindow(
   connection: Doc<'mapConnections'>,
 ): ConnectionDeathWindow | null {
-  const earliestAt = connection.deathEarliestAt ?? null;
-  const latestAt = connection.deathLatestAt ?? null;
-  return typeof earliestAt === 'number'
-    && Number.isFinite(earliestAt)
-    && typeof latestAt === 'number'
-    && Number.isFinite(latestAt)
-    && earliestAt <= latestAt
-    ? { earliestAt, latestAt }
-    : null;
+  return deathWindowFrom(
+    connection.deathEarliestAt ?? null,
+    connection.deathLatestAt ?? null,
+  );
 }
 
 /**
@@ -878,6 +874,25 @@ export const restoreSeveredBranch = mutation({
     const connections = topology.connections.filter(
       (row) => row.deletedAt === deletedAt,
     );
+    // Every restored connection needs two live endpoints. An endpoint outside
+    // this sever's shared-stamp set may have been tombstoned by a LATER sever;
+    // restoring around it would create a live connection with a dead endpoint,
+    // which the collapse core rejects as INVALID_MAP_TOPOLOGY forever after.
+    const restoredSystemIds = new Set(systems.map((row) => row.systemId));
+    for (const row of connections) {
+      for (const endpointId of [row.fromSystemId, row.toSystemId]) {
+        if (restoredSystemIds.has(endpointId)) continue;
+        const endpoint = topology.systems.find(
+          (system) => system.systemId === endpointId,
+        );
+        if (endpoint === undefined || isTombstoned(endpoint)) {
+          throw new ConvexError({
+            code: 'ENDPOINT_TOMBSTONED',
+            detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
+          });
+        }
+      }
+    }
     const actor = await eventActor(ctx);
     for (const system of systems) {
       await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });

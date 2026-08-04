@@ -13,10 +13,7 @@ import {
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { MapRole } from '@/data/maps/access-contract';
-import {
-  MAP_EVENT_KINDS,
-  type MapEventKind,
-} from '@/data/maps/chain-events';
+import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 
 /** Re-export the data-owned mass vocabulary for Convex-local callers. */
 export { CONNECTION_MASS_STATES, type ConnectionMassState };
@@ -65,18 +62,6 @@ const MAP_ROLE_LITERALS = {
   owner: v.literal('owner'),
 } as const satisfies Record<MapRole, unknown>;
 
-const MAP_EVENT_KIND_LITERALS = {
-  connection_severed_retained: v.literal('connection_severed_retained'),
-  branch_removed: v.literal('branch_removed'),
-  branch_restored: v.literal('branch_restored'),
-  connection_restored: v.literal('connection_restored'),
-} as const satisfies Record<MapEventKind, unknown>;
-
-// The runtime validator is deliberately bound to the data-owned tuple as well
-// as the type-level record above, so an accidental empty vocabulary cannot
-// silently leave the schema accepting a stale set.
-void MAP_EVENT_KINDS;
-
 /** Schema validator for observed mass state, null while still unobserved. */
 export const massStateValidator = v.union(
   MASS_STATE_LITERALS.stable,
@@ -116,12 +101,12 @@ export const mapRoleValidator = v.union(
   MAP_ROLE_LITERALS.owner,
 );
 
-/** Schema validator for the data-owned basic map-event kind vocabulary. */
+/**
+ * Schema validator derived from the data-owned event-kind tuple, so a kind
+ * added to the vocabulary reaches the deployed schema without a hand edit.
+ */
 export const mapEventKindValidator = v.union(
-  MAP_EVENT_KIND_LITERALS.connection_severed_retained,
-  MAP_EVENT_KIND_LITERALS.branch_removed,
-  MAP_EVENT_KIND_LITERALS.branch_restored,
-  MAP_EVENT_KIND_LITERALS.connection_restored,
+  ...MAP_EVENT_KINDS.map((kind) => v.literal(kind)),
 );
 
 /** Schema validator for the payload shapes written by the basic map-event ledger. */
@@ -151,8 +136,10 @@ export function isPositiveId(value: number): boolean {
 }
 
 /**
- * Validates one absolute timestamp field. Chain documents store absolute instants only, so a
- * remaining lifetime is always derived as `eolAt - now` and no mutation or scheduler flips a state.
+ * Validates one absolute timestamp field. Chain documents store absolute instants only —
+ * remaining lifetime derives from the `deathEarliestAt`/`deathLatestAt` window pair
+ * (`eolAt` is a vestigial superseded field, always null) and no mutation or scheduler
+ * flips a state.
  */
 function requireAbsoluteTimestamp(label: string, value: number | null): void {
   if (value !== null && !Number.isFinite(value)) {
