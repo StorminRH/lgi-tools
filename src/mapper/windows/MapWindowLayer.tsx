@@ -14,6 +14,10 @@ import { SiteCardWidget } from '@/features/wormhole-sites/widget';
 import type { ChainNode } from '../canvas/SystemNode';
 import { createNodeFollower, type NodeFollowerStore } from './follower-model';
 import { isAdoptedPopupOpen, MapWindow } from './MapWindow';
+import {
+  MapWindowLeader,
+  type MapWindowLeaderHandle,
+} from './MapWindowLeader';
 import { readWindowRecord, writeWindowRecord } from './persistence';
 import {
   bringToFront,
@@ -191,14 +195,33 @@ function useNodeFollower(
   store: NodeFollowerStore,
   summaryId: number | null,
   cardRef: React.RefObject<HTMLDivElement | null>,
+  leaderRef: React.RefObject<MapWindowLeaderHandle | null>,
 ): void {
   useLayoutEffect(() => {
     const element = cardRef.current;
-    if (summaryId === null || element === null) return;
-    return createNodeFollower(store, String(summaryId), (transform) => {
-      element.style.setProperty('--map-window-transform', transform);
-    });
-  }, [cardRef, store, summaryId]);
+    const leader = leaderRef.current;
+    if (summaryId === null || element === null) {
+      leader?.hide();
+      return;
+    }
+    const dispose = createNodeFollower(
+      store,
+      String(summaryId),
+      element,
+      (payload) => {
+        const liveLeader = leaderRef.current;
+        if (liveLeader !== null) {
+          liveLeader.apply(element, payload);
+          return;
+        }
+        element.style.setProperty('--map-window-transform', payload.transform);
+      },
+    );
+    return () => {
+      dispose();
+      leader?.hide();
+    };
+  }, [cardRef, leaderRef, store, summaryId]);
 }
 
 function useCardDismissal(cardOpen: boolean, onDeselect: () => void): void {
@@ -306,7 +329,7 @@ function SummarySurface({
       onClose={onClose}
       onActivate={onActivate}
     >
-      <div data-map-summary-placeholder className="flex flex-col gap-2">
+      <div data-map-summary-placeholder className="flex flex-col items-center gap-2 text-center">
         <p className="font-data text-label uppercase tracking-label text-isk">
           System summary
         </p>
@@ -352,6 +375,7 @@ function MountedMapWindowLayer({
   const boxSelectActive = useStore((state) => state.userSelectionActive);
   const selectedIds = useSelectedSystemIds();
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const leaderRef = useRef<MapWindowLeaderHandle | null>(null);
   const floatingDock = useFloatingDock();
   const { liveIds, summarySystemId, hideDock } = useSurfacePresence({
     rootSystemId,
@@ -369,7 +393,7 @@ function MountedMapWindowLayer({
     }),
     [store],
   );
-  useNodeFollower(followerStore, summarySystemId, cardRef);
+  useNodeFollower(followerStore, summarySystemId, cardRef, leaderRef);
   useCardDismissal(summarySystemId !== null, onDeselect);
 
   const zIndex = (id: MapWindowId) => renderedStack.indexOf(id) + 1;
@@ -379,6 +403,7 @@ function MountedMapWindowLayer({
       data-map-window-layer
       className="pointer-events-none absolute inset-0 z-sticky"
     >
+      <MapWindowLeader ref={leaderRef} />
       <DockSurface
         visible={liveIds.includes('dock')}
         rootSystemId={rootSystemId}

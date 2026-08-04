@@ -13,8 +13,8 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { panelSurface } from '@/components/ui/dropdown-panel';
 import { scrollArea } from '@/components/ui/scroll-area';
+import { mapFrostedSurface } from '../map-frosted-surface';
 import { createPointerGesture, type PointerDelta } from './drag-resize';
 import {
   keydownAction,
@@ -45,6 +45,8 @@ export interface MapWindowProps {
   readonly placement: WindowPlacement;
   readonly stackIndex: number;
   readonly onClose: () => void;
+  /** When false, the title-bar × is omitted (outside-click / Escape still close). */
+  readonly showCloseButton?: boolean;
   readonly onActivate: () => void;
   readonly onPopToggle?: () => void;
   readonly onDragDelta?: (delta: PointerDelta) => void;
@@ -77,7 +79,8 @@ function assignForwardedRef(
 
 function placementClassName(placement: WindowPlacement): string | false {
   if (placement.kind === 'docked') {
-    return 'left-4 top-[4.5rem] h-[calc(100dvh-5.5rem)] w-[360px] max-w-[calc(100vw-2rem)]';
+    // left-4 matches MapChrome hamburger; bottom-16 clears the audit-log strip.
+    return 'left-4 top-[4.5rem] bottom-16 w-[360px] max-w-[calc(100vw-2rem)]';
   }
   if (placement.kind === 'floating') {
     return 'left-[var(--map-window-x)] top-[var(--map-window-y)] h-[var(--map-window-height)] w-[var(--map-window-width)]';
@@ -126,12 +129,14 @@ function PopToggle({
 function WindowHeader({
   title,
   floating,
+  showCloseButton,
   onClose,
   onPopToggle,
   onDragPointerDown,
 }: {
   readonly title: string;
   readonly floating: boolean;
+  readonly showCloseButton: boolean;
   readonly onClose: () => void;
   readonly onPopToggle?: () => void;
   readonly onDragPointerDown: (event: PointerEvent<HTMLElement>) => void;
@@ -152,12 +157,12 @@ function WindowHeader({
     <header
       data-map-window-drag={floating ? '' : undefined}
       className={cn(
-        'flex h-8 shrink-0 items-center gap-1 border-b border-border px-1.5',
+        'flex h-8 shrink-0 items-center gap-1 border-b border-border/80 px-1.5',
         floating && 'cursor-move touch-none',
       )}
       onPointerDown={handlePointerDown}
     >
-      <h2 className="min-w-0 flex-1 truncate px-1 font-data text-label uppercase tracking-label text-name">
+      <h2 className="min-w-0 flex-1 truncate px-1 text-center font-data text-label uppercase tracking-label text-name">
         {title}
       </h2>
       <PopToggle
@@ -165,14 +170,16 @@ function WindowHeader({
         floating={floating}
         onPopToggle={onPopToggle}
       />
-      <Button
-        variant="bare"
-        aria-label={`Close ${title}`}
-        className="h-6 w-6 cursor-pointer justify-center text-muted hover:text-name"
-        onClick={onClose}
-      >
-        ×
-      </Button>
+      {showCloseButton ? (
+        <Button
+          variant="bare"
+          aria-label={`Close ${title}`}
+          className="h-6 w-6 cursor-pointer justify-center text-muted hover:text-name"
+          onClick={onClose}
+        >
+          ×
+        </Button>
+      ) : null}
     </header>
   );
 }
@@ -207,6 +214,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       placement,
       stackIndex,
       onClose,
+      showCloseButton = true,
       onActivate,
       onPopToggle,
       onDragDelta,
@@ -276,7 +284,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         data-map-window-placement={placement.kind}
         className={cn(
           'nokey pointer-events-auto absolute z-[var(--map-window-z)] flex min-h-0 flex-col overflow-hidden rounded-card text-ui',
-          panelSurface,
+          mapFrostedSurface,
           placementClassName(placement),
         )}
         onKeyDown={handleKeyDown}
@@ -285,6 +293,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         <WindowHeader
           title={title}
           floating={floating}
+          showCloseButton={showCloseButton}
           onClose={onClose}
           onPopToggle={onPopToggle}
           onDragPointerDown={dragGesture.onPointerDown}
@@ -293,7 +302,9 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
           data-map-window-scroll
           className={cn(
             scrollArea,
-            'min-h-0 flex-1 overflow-y-auto overscroll-contain p-2',
+            // pl compensates the painted 10px track when both-edges is ignored
+            // (some engines only reserve the classic right gutter).
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 pl-[22px] pr-3',
           )}
         >
           {children}

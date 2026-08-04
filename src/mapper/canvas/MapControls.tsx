@@ -7,11 +7,13 @@
 // `@/components/ui` primitives inside a React Flow `Panel`.
 import { Panel } from '@xyflow/react';
 import { memo, type ReactNode } from 'react';
+import { cn } from '@/components/ui/cn';
 import { Collapsible } from '@/components/ui/collapsible';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Select } from '@/components/ui/select';
 import { Stepper } from '@/components/ui/stepper';
 import { Switch } from '@/components/ui/switch';
+import { mapFrostedSurface } from '../map-frosted-surface';
 import type {
   DirectionPresetId,
   LayoutConfig,
@@ -87,7 +89,10 @@ function MapControlsComponent({
   return (
     <Panel
       position="top-right"
-      className="nopan nodrag nowheel mx-2! mb-2! mt-4! flex max-h-[calc(100dvh-6rem)] w-56 flex-col gap-2 overflow-y-auto rounded-ctl border border-border bg-bg/95 p-2 text-ui"
+      className={cn(
+        'nopan nodrag nowheel mx-2! mb-2! mt-4! flex max-h-[calc(100dvh-6rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
+        mapFrostedSurface,
+      )}
     >
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center justify-between gap-2">

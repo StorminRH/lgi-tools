@@ -59,6 +59,12 @@ describe('MapEventLog', () => {
     );
     expect(empty).toContain('data-map-event-log');
     expect(empty).toContain('data-map-event-log-empty');
+    expect(empty).toContain('Audit Log');
+    expect(empty).toContain('Events - 0');
+    expect(empty).toContain('bg-bg-deep/65');
+    expect(empty).toContain('backdrop-blur-md');
+    expect(empty).toContain('left-4');
+    expect(empty).toContain('bottom-2');
 
     const events = [
       row({
@@ -84,6 +90,7 @@ describe('MapEventLog', () => {
       }),
     );
     expect(editor).toContain('data-map-event-restore');
+    expect(editor).toContain('Events - 2');
     expect(editor).toContain('Removed 2 downstream systems');
     expect(editor).toContain('Pilot');
 

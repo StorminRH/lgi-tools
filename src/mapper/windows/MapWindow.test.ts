@@ -32,6 +32,13 @@ describe('MapWindow isolation markup', () => {
     expect(markup).toContain('data-map-window-scroll');
     expect(markup).toContain('overflow-y-auto');
     expect(markup).toContain('overscroll-contain');
+    expect(markup).toContain('backdrop-blur-md');
+    expect(markup).toContain('bg-bg-deep/65');
+    expect(markup).toContain('pl-[22px]');
+    expect(markup).toContain('pr-3');
+    expect(markup).toContain('left-4');
+    expect(markup).toContain('bottom-16');
+    expect(markup).not.toContain('h-[calc(100dvh-5.5rem)]');
   });
 
   it('mounts title-bar drag and resize affordances only while floating', () => {
@@ -47,5 +54,23 @@ describe('MapWindow isolation markup', () => {
     expect(floating).toContain('cursor-move');
     expect(floating).toContain('data-map-window-resize');
     expect(floating).toContain('aria-hidden="true"');
+  });
+
+  it('can omit the title-bar close control', () => {
+    const withClose = render({ kind: 'docked' });
+    const withoutClose = renderToStaticMarkup(
+      createElement(MapWindow, {
+        windowId: 'test',
+        title: 'Test window',
+        placement: { kind: 'docked' },
+        stackIndex: 1,
+        onClose: vi.fn(),
+        onActivate: vi.fn(),
+        showCloseButton: false,
+      }),
+    );
+
+    expect(withClose).toContain('Close Test window');
+    expect(withoutClose).not.toContain('Close Test window');
   });
 });

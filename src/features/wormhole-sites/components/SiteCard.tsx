@@ -39,23 +39,34 @@ function CatalogueCardExtras({ site }: { site: SiteDetail }) {
 export function SiteCard({
   site,
   defaultOpen = false,
+  className,
+  contentAlign = 'start',
 }: {
   site: SiteDetail;
   defaultOpen?: boolean;
+  /** Extra surface classes — map embeds clear the nested solid card fill. */
+  className?: string;
+  /** Map dock centers the summary stack; catalogue cards stay start-aligned. */
+  contentAlign?: 'start' | 'center';
 }) {
   const liveResources = displayableResources(site.resources);
+  const centered = contentAlign === 'center';
 
   return (
     // `data-site-card` is the lightbox's DOM hook (it walks from the summary up to
     // this element, then down to the <details>); `font="ui"` states the prose
     // role, while `hover` keeps the catalogue glow.
-    <Card font="ui" hover data-site-card>
+    <Card font="ui" hover={!centered} data-site-card className={className}>
       <SiteLiveProvider resources={liveResources}>
         <Collapsible
           defaultOpen={defaultOpen}
           className="border-b-0"
-          headerClassName="flex-col items-stretch gap-2 px-[17px] pb-[13px] pt-[15px]"
-          header={<SiteCardHeader site={site} />}
+          headerClassName={
+            centered
+              ? 'flex-col items-center gap-2 px-3 pb-3 pt-3 text-center'
+              : 'flex-col items-stretch gap-2 px-[17px] pb-[13px] pt-[15px]'
+          }
+          header={<SiteCardHeader site={site} align={contentAlign} />}
         >
           {defaultOpen ? (
             <SiteDetailsBody site={site} />

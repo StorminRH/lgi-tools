@@ -6,8 +6,6 @@
 // with whatever nodes exist — none, at first — and nodes arrive as their pages land. There is no
 // spinner and no refresh control here or anywhere below it (contract HC-4).
 import {
-  Background,
-  BackgroundVariant,
   ReactFlow,
   type Edge,
   type EdgeMouseHandler,
@@ -29,6 +27,9 @@ const EDGE_TYPES = { [CHAIN_EDGE_TYPE]: ChainLinkEdge };
 // Every chain edge renders rim-to-rim through the custom edge, so branch
 // shapes read as radial lines rather than overlapping S-curves.
 const DEFAULT_EDGE_OPTIONS = { type: CHAIN_EDGE_TYPE };
+
+// Corner badge is relocated into the atlas hamburger footer (MapMenu).
+const PRO_OPTIONS = { hideAttribution: true } as const;
 
 /** Props the live host supplies; the empty canvas passes nodes and edges only. */
 export interface ChainSurfaceProps {
@@ -58,15 +59,15 @@ export interface ChainSurfaceProps {
    */
   readonly motion?: MotionConfig;
   /**
-   * Mounted inside `<ReactFlow>` beside `<Background>` — the only legal home
-   * for React Flow `Panel` and `useReactFlow` consumers (map controls, camera
-   * follow).
+   * Mounted inside `<ReactFlow>` — the only legal home for React Flow `Panel`
+   * and `useReactFlow` consumers (map controls, camera follow).
    */
   readonly children?: ReactNode;
 }
 
 /**
- * Renders the dotted, zoom-clamped flow surface for the supplied nodes and edges.
+ * Renders the zoom-clamped flow surface for the supplied nodes and edges.
+ * No RF Background — the sitewide nebula backdrop shows through.
  *
  * Pointer drag is deliberately the ONLY way a node moves here, and nothing on this surface removes
  * one. React Flow's defaults would otherwise give the session two mutation-shaped affordances it does
@@ -111,6 +112,7 @@ export function ChainSurface({
         minZoom={0.2}
         maxZoom={2.5}
         defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+        proOptions={PRO_OPTIONS}
         deleteKeyCode={null}
         disableKeyboardA11y
         nodesDraggable={nodesDraggable}
@@ -122,8 +124,9 @@ export function ChainSurface({
         onNodeClick={onNodeClick}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeClick={onEdgeClick}
+        // RF's dark theme paints a solid pane; keep it clear so the nebula shows.
+        className="bg-transparent!"
       >
-        <Background variant={BackgroundVariant.Dots} />
         {children}
       </ReactFlow>
     </div>

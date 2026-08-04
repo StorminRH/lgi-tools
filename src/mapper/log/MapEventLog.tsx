@@ -1,7 +1,9 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/components/ui/cn';
 import { Collapsible } from '@/components/ui/collapsible';
+import { mapFrostedSurface } from '../map-frosted-surface';
 import {
   formatEventTime,
   mapEventConnectionId,
@@ -19,7 +21,7 @@ export interface MapEventLogProps {
 }
 
 /**
- * Bottom-edge "Log" surface: Collapsible-composed newest-first ledger with
+ * Bottom-edge audit-log surface: Collapsible-composed newest-first ledger with
  * canEdit-gated Restore on in-window removal rows. Mapper-local until a second
  * consumer justifies promotion to `src/components/ui/`.
  */
@@ -32,9 +34,15 @@ export function MapEventLog({
   return (
     <div
       data-map-event-log
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-sticky flex justify-start p-2"
+      // left-4 matches MapChrome / docked Current System so the left rail lines up.
+      className="pointer-events-none absolute bottom-2 left-4 z-sticky flex justify-start"
     >
-      <div className="pointer-events-auto w-full max-w-md rounded-ctl border border-border bg-bg/95 text-ui shadow-toast">
+      <div
+        className={cn(
+          'pointer-events-auto w-full max-w-md rounded-card text-ui',
+          mapFrostedSurface,
+        )}
+      >
         <Collapsible
           defaultOpen={false}
           className="border-0"
@@ -45,10 +53,13 @@ export function MapEventLog({
                 data-map-event-log-toggle
                 className="text-label uppercase tracking-label text-muted"
               >
-                Log
+                Audit Log
               </span>
-              <span className="font-data text-micro text-muted">
-                {events.length}
+              <span
+                data-map-event-log-count
+                className="font-data text-micro text-muted"
+              >
+                Events - {events.length}
               </span>
               <span
                 data-chevron

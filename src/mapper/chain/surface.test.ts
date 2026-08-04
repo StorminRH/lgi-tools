@@ -66,7 +66,7 @@ describe('map surface inspection', () => {
       const markup = await emptyCanvasMarkup();
 
       expect(markup).toContain('data-map-canvas');
-      expect(markup).toContain('data-react-flow-background');
+      expect(markup).not.toContain('data-react-flow-background');
     },
     15_000,
   );
@@ -157,6 +157,7 @@ describe('mapper source contract', () => {
       'layout/use-layout-kernel.ts',
       'log/MapEventLog.tsx',
       'log/map-event-copy.ts',
+      'map-frosted-surface.ts',
       'motion/motion-contract.ts',
       'motion/motion-controls-model.ts',
       'motion/motion-host-model.ts',
@@ -164,6 +165,7 @@ describe('mapper source contract', () => {
       'motion/use-motion.ts',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
+      'windows/MapWindowLeader.tsx',
       'windows/drag-resize.ts',
       'windows/follower-model.ts',
       'windows/persistence.ts',

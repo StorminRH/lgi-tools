@@ -18,7 +18,15 @@ import {
   createEdgeFollower,
   type NodeFollowerStore,
 } from '../windows/follower-model';
-import { keydownAction } from '../windows/window-model';
+import {
+  MapWindowLeader,
+  type MapWindowLeaderHandle,
+} from '../windows/MapWindowLeader';
+import {
+  isOutsideClickGesture,
+  keydownAction,
+  outsideDismissAction,
+} from '../windows/window-model';
 import {
   ConnectionFields,
   type ConnectionFieldSetters,
@@ -76,6 +84,7 @@ export function ConnectionDetailsCard({
 }: ConnectionDetailsCardProps) {
   const store = useStoreApi<ChainNode>();
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const leaderRef = useRef<MapWindowLeaderHandle | null>(null);
   const { codes, entry } = useWormholeCodexState(connection.wormholeTypeCode);
   const followerStore = useMemo<NodeFollowerStore>(
     () => ({
@@ -93,8 +102,14 @@ export function ConnectionDetailsCard({
       String(connection.fromSystemId),
       String(connection.toSystemId),
       SYSTEM_DISC_RADIUS,
-      (transform) => {
-        element.style.setProperty('--map-window-transform', transform);
+      element,
+      (payload) => {
+        const leader = leaderRef.current;
+        if (leader !== null) {
+          leader.apply(element, payload);
+          return;
+        }
+        element.style.setProperty('--map-window-transform', payload.transform);
       },
     );
   }, [connection.fromSystemId, connection.toSystemId, followerStore]);
@@ -113,12 +128,79 @@ export function ConnectionDetailsCard({
     return () => document.removeEventListener('keydown', handleDocumentKeyDown);
   }, [onClose]);
 
+  // Dismiss only on a true outside click (down+up, little movement). Pan/drag
+  // on the map must leave the connection card open.
+  useEffect(() => {
+    let down: {
+      readonly x: number;
+      readonly y: number;
+      readonly pointerId: number;
+    } | null = null;
+
+    const clearDown = () => {
+      down = null;
+    };
+
+    const containment = (target: EventTarget | null) => {
+      const card = cardRef.current;
+      return {
+        insideCard:
+          card !== null && target instanceof Node && card.contains(target),
+        insideOpenPopup:
+          target instanceof Element && target.closest('[data-open]') !== null,
+        popupOpen: isAdoptedPopupOpen(),
+      };
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      // Arm only when a click here would be eligible to dismiss — ignore starts
+      // on the card or an open popup so we never close on a later up elsewhere.
+      const action = outsideDismissAction({
+        ...containment(event.target),
+        isClick: true,
+      });
+      if (action !== 'dismiss-card') {
+        clearDown();
+        return;
+      }
+      down = {
+        x: event.clientX,
+        y: event.clientY,
+        pointerId: event.pointerId,
+      };
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      if (down === null || event.pointerId !== down.pointerId) return;
+      const start = down;
+      clearDown();
+      const action = outsideDismissAction({
+        ...containment(event.target),
+        isClick: isOutsideClickGesture(start, {
+          x: event.clientX,
+          y: event.clientY,
+        }),
+      });
+      if (action === 'dismiss-card') onClose();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('pointerup', handlePointerUp);
+    document.addEventListener('pointercancel', clearDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('pointerup', handlePointerUp);
+      document.removeEventListener('pointercancel', clearDown);
+    };
+  }, [onClose]);
+
   return (
     <div
       data-map-connection-details
       data-map-connection-mode={mode}
       className="pointer-events-none absolute inset-0 z-sticky"
     >
+      <MapWindowLeader ref={leaderRef} />
       <MapWindow
         ref={cardRef}
         windowId="connection-details"
@@ -130,6 +212,7 @@ export function ConnectionDetailsCard({
         }}
         stackIndex={3}
         onClose={onClose}
+        showCloseButton={false}
         onActivate={() => undefined}
       >
         <ConnectionFields

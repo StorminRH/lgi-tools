@@ -62,7 +62,7 @@ const LIFE_ITEMS = [
 ];
 
 const READOUT_CLASS =
-  'rounded-ctl border border-border-soft px-2 py-1.5 font-data text-ui text-name';
+  'block w-full rounded-ctl border border-border-soft px-2 py-1.5 text-center font-data text-ui text-name';
 
 /** Encodes a nullable field for the house Select (empty string = unset). */
 export function encodeOptionalField(value: string | null): string {
@@ -112,7 +112,10 @@ export function ConnectionFields({
   const readOnly = mode === 'restore';
   const lockedSize = isCodexSizeLocked(entry);
   return (
-    <div data-map-connection-fields className="flex flex-col gap-3">
+    <div
+      data-map-connection-fields
+      className="flex flex-col items-center gap-3 text-center"
+    >
       {readOnly ? (
         <p
           data-map-connection-restore-mode
@@ -202,7 +205,7 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
   return (
     <div
       data-map-connection-codex
-      className="flex flex-col gap-1 rounded-ctl border border-border-soft px-2 py-1.5"
+      className="flex w-full flex-col gap-1 rounded-ctl border border-border-soft px-2 py-1.5 text-center"
     >
       <span className="font-data text-label uppercase tracking-label text-isk">
         Codex
@@ -245,6 +248,7 @@ function SizeField({
       ) : (
         <Select
           ariaLabel="Ship size"
+          align="center"
           value={encodeOptionalField(connection.shipSize)}
           items={SIZE_ITEMS}
           onValueChange={(value) =>
@@ -277,6 +281,7 @@ function StabilityField({
       ) : (
         <Select
           ariaLabel="Mass stability"
+          align="center"
           value={encodeOptionalField(connection.massState)}
           items={MASS_ITEMS}
           onValueChange={(value) =>
@@ -345,6 +350,7 @@ function LifeStageField({
       ) : (
         <Select
           ariaLabel="Life stage"
+          align="center"
           value={encodeOptionalField(connection.lifeStage)}
           items={LIFE_ITEMS}
           onValueChange={(value) =>
@@ -416,26 +422,30 @@ function ConnectionActions({
 }) {
   if (mode === 'edit' && onSever !== undefined) {
     return (
-      <Button
-        variant="danger"
-        size="sm"
-        data-map-connection-sever
-        onClick={onSever}
-      >
-        Sever
-      </Button>
+      <div className="flex w-full justify-center">
+        <Button
+          variant="danger"
+          size="sm"
+          data-map-connection-sever
+          onClick={onSever}
+        >
+          Sever
+        </Button>
+      </div>
     );
   }
   if (mode === 'restore' && onRestore !== undefined) {
     return (
-      <Button
-        variant="primary"
-        size="sm"
-        data-map-connection-restore
-        onClick={onRestore}
-      >
-        Restore
-      </Button>
+      <div className="flex w-full justify-center">
+        <Button
+          variant="primary"
+          size="sm"
+          data-map-connection-restore
+          onClick={onRestore}
+        >
+          Restore
+        </Button>
+      </div>
     );
   }
   return null;
@@ -449,11 +459,11 @@ function FieldBlock({
   readonly children: ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex w-full flex-col items-center gap-1 text-center [&_input]:text-center">
       <span className="font-data text-label uppercase tracking-label text-isk">
         {label}
       </span>
-      {children}
+      <div className="w-full">{children}</div>
     </label>
   );
 }
@@ -466,7 +476,7 @@ function CodexFact({
   readonly value: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-2 font-data text-micro">
+    <div className="flex flex-col items-center gap-0.5 font-data text-micro">
       <span className="text-muted">{label}</span>
       <span data-map-codex-fact={label} className="text-name">
         {value}

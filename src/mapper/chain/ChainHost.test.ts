@@ -150,7 +150,8 @@ describe('chain host auth gate', () => {
       const markup = await renderHost();
 
       expect(mocks.useMapChain).not.toHaveBeenCalled();
-      expect(markup).toContain('data-react-flow-background');
+      expect(markup).toContain('data-react-flow');
+      expect(markup).not.toContain('data-react-flow-background');
     },
     15_000,
   );
@@ -205,7 +206,8 @@ describe('chain host access states', () => {
 
     const markup = await renderHost();
 
-    expect(markup).toContain('data-react-flow-background');
+    expect(markup).toContain('data-react-flow');
+    expect(markup).not.toContain('data-react-flow-background');
     expect(markup).not.toContain('data-chain-no-access');
     expect(markup).toContain('data-map-can-edit="true"');
   });
@@ -258,7 +260,8 @@ describe('chain host access states', () => {
 
     const markup = await renderHost();
 
-    expect(markup).toContain('data-react-flow-background');
+    expect(markup).toContain('data-react-flow');
+    expect(markup).not.toContain('data-react-flow-background');
     expect(markup).not.toContain('data-chain-no-access');
     expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
   });

@@ -122,6 +122,45 @@ export function keydownAction(input: {
   return 'ignore';
 }
 
+/** Max movement (px) still treated as a click for outside-dismiss; pans stay open. */
+export const OUTSIDE_CLICK_SLOP_PX = 4;
+
+/**
+ * Whether a pointer gesture stayed within the click slop (not a pan/drag).
+ * Callers supply down/up client coordinates; this keeps the threshold pure.
+ */
+export function isOutsideClickGesture(
+  start: { readonly x: number; readonly y: number },
+  end: { readonly x: number; readonly y: number },
+  slopPx: number = OUTSIDE_CLICK_SLOP_PX,
+): boolean {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  return dx * dx + dy * dy <= slopPx * slopPx;
+}
+
+/**
+ * Decides whether a pointer outside an anchored card should dismiss it.
+ * Callers resolve DOM containment and click-vs-drag; this keeps the policy pure.
+ */
+export function outsideDismissAction(input: {
+  readonly insideCard: boolean;
+  readonly insideOpenPopup: boolean;
+  readonly popupOpen: boolean;
+  /** False when the gesture moved beyond {@link OUTSIDE_CLICK_SLOP_PX} (pan/drag). */
+  readonly isClick: boolean;
+}): WindowKeydownAction {
+  if (
+    !input.isClick ||
+    input.popupOpen ||
+    input.insideCard ||
+    input.insideOpenPopup
+  ) {
+    return 'ignore';
+  }
+  return 'dismiss-card';
+}
+
 /** Reconciles the z-stack to the currently rendered surface set. */
 export function reconcileStack(
   stack: readonly MapWindowId[],

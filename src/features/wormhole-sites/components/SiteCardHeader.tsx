@@ -35,13 +35,28 @@ function SiteCardValue({
  * labels the lightbox dialog — pass it only for the lightbox copy so the summary
  * copy doesn't emit a duplicate id.
  */
-export function SiteCardHeader({ site, nameId }: { site: SiteDetail; nameId?: string }) {
+export function SiteCardHeader({
+  site,
+  nameId,
+  align = 'start',
+}: {
+  site: SiteDetail;
+  nameId?: string;
+  align?: 'start' | 'center';
+}) {
   const liveResources = displayableResources(site.resources);
   const view = deriveSiteCardHeaderView(site, liveResources);
+  const centered = align === 'center';
 
   return (
     <>
-      <div className="flex items-baseline justify-between gap-3">
+      <div
+        className={
+          centered
+            ? 'flex flex-col items-center gap-1'
+            : 'flex items-baseline justify-between gap-3'
+        }
+      >
         <span className="min-w-0 text-lead font-bold leading-[1.15] tracking-optical text-name" id={nameId}>
           {site.name}
         </span>
@@ -50,7 +65,13 @@ export function SiteCardHeader({ site, nameId }: { site: SiteDetail; nameId?: st
         </span>
       </div>
       {view.subLine && <div className="text-micro tracking-[0.04em] text-muted">{view.subLine}</div>}
-      <div className="mt-0.5 flex flex-wrap items-center gap-1">
+      <div
+        className={
+          centered
+            ? 'mt-0.5 flex flex-wrap items-center justify-center gap-1'
+            : 'mt-0.5 flex flex-wrap items-center gap-1'
+        }
+      >
         {view.classPill && <Pill tone={view.classPill.tone}>{view.classPill.label}</Pill>}
         <Pill tone={view.typePill.tone}>{view.typePill.label}</Pill>
         {view.ewarPills.map((p) => (

@@ -72,6 +72,12 @@
    * EVE overview's red-for-hostiles convention. Surfaced as text-hostile. */
   --color-hostile: #dd4444;
 
+  /* Alert red — bright attention red for urgent transient states (dying map
+   * edges, and later any other "this needs eyes now" chrome). Brighter than
+   * --color-hostile so it still reads through opacity pulses and library
+   * default strokes. */
+  --color-alert-red: #ff3b3b;
+
   /* ── Call-site color tokens (3.3.9) ──
    * Homes for colors that used to be hardcoded as raw hex / rgba in component
    * className strings and SVG attributes. Each token holds the EXACT prior
@@ -1138,20 +1144,22 @@ details[data-collapsible][open] > summary [data-chevron] {
   animation: map-fade-out var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
 }
 
-/* Dying (in-window tombstoned) connection: red pulsed line. Opacity bounds are
- * owned here so reduced-motion can flatten to a steady dim red without JS. */
+/* Dying (in-window tombstoned) connection: alert-red pulsed line. Specificity
+ * beats React Flow's `.react-flow__edge-path` default stroke (#b1b1b7) so the
+ * pulse reads as red, not white. Opacity floor stays high enough that the hue
+ * remains obvious; reduced-motion flattens to a steady alert red without JS. */
 @keyframes map-edge-dying-pulse {
   0%,
   100% {
-    opacity: 0.2;
+    opacity: 0.55;
   }
   50% {
-    opacity: 0.75;
+    opacity: 1;
   }
 }
-.map-edge-dying {
-  stroke: var(--color-hostile);
-  --map-edge-dying-opacity: 0.45;
+.react-flow__edge-path.map-edge-dying {
+  stroke: var(--color-alert-red);
+  --map-edge-dying-opacity: 0.7;
   animation: map-edge-dying-pulse 1.6s ease-in-out infinite;
 }
 
@@ -1242,8 +1250,8 @@ details[data-collapsible][open] > summary [data-chevron] {
   .map-edge-fade-exit-heavy {
     animation: map-fade-out var(--map-motion-slow) linear both;
   }
-  .map-edge-dying {
+  .react-flow__edge-path.map-edge-dying {
     animation: none;
-    opacity: var(--map-edge-dying-opacity, 0.45);
+    opacity: var(--map-edge-dying-opacity, 0.7);
   }
 }
