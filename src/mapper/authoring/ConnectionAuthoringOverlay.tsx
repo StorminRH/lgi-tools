@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Doc, Id } from '@/data/convex/data-model';
 import type { ConnectionDetail } from '../chain/use-map-chain';
 import { MapEventLog } from '../log/MapEventLog';
@@ -11,6 +11,9 @@ import {
   shouldClearConnectionSelection,
 } from './connection-selection';
 import { announceSeverOutcome } from './sever-toast';
+
+// Minute granularity matches the hour-scale countdown copy the overlay renders.
+const OVERLAY_TICK_MS = 60_000;
 
 /** Authoring mutation surface the overlay needs for connection intelligence. */
 export interface ConnectionAuthoringApi {
@@ -80,6 +83,20 @@ export function ConnectionAuthoringOverlay({
   selectedConnectionId,
   onSelectedConnectionIdChange,
 }: ConnectionAuthoringOverlayProps) {
+  // The host clock ticks only while a connection is dying (at-rest canvas
+  // work stays zero). The overlay owns its own minute tick so lifetime
+  // countdowns and ledger restore windows keep moving while it is on screen.
+  // Seeded from the host clock so a render under a synthetic clock stays on it.
+  const [tickNow, setTickNow] = useState(connectionPresentationNow);
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setTickNow(Date.now()),
+      OVERLAY_TICK_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
+  const now = Math.max(tickNow, connectionPresentationNow);
+
   const restoreSeveredBranch = useCallback(
     (connectionId: string) => {
       void authoring.restoreSeveredBranch({
@@ -98,32 +115,27 @@ export function ConnectionAuthoringOverlay({
   useEffect(() => {
     if (
       selectedConnectionId !== null &&
-      shouldClearConnectionSelection(selected, connectionPresentationNow)
+      shouldClearConnectionSelection(selected, now)
     ) {
       onSelectedConnectionIdChange(null);
     }
-  }, [
-    selectedConnectionId,
-    selected,
-    connectionPresentationNow,
-    onSelectedConnectionIdChange,
-  ]);
+  }, [selectedConnectionId, selected, now, onSelectedConnectionIdChange]);
 
-  const card = connectionCardSelection(selected, connectionPresentationNow);
+  const card = connectionCardSelection(selected, now);
 
   return (
     <>
       <MapEventLog
         events={events}
         canEdit={canEdit}
-        now={connectionPresentationNow}
+        now={now}
         onRestore={restoreSeveredBranch}
       />
       {canEdit && card !== null ? (
         <SelectedConnectionCard
           mapId={mapId}
           selection={card}
-          now={connectionPresentationNow}
+          now={now}
           authoring={authoring}
           onClose={() => onSelectedConnectionIdChange(null)}
           onUndoBranch={restoreSeveredBranch}

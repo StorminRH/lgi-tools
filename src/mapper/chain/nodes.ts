@@ -95,11 +95,15 @@ export function buildEdges(
       fromSystemId < toSystemId
         ? `${fromSystemId}>${toSystemId}`
         : `${toSystemId}>${fromSystemId}`;
-    const solid = isTreeLink && !claimed.has(pairKey);
-    if (solid) claimed.add(pairKey);
 
+    // Skeletons never render, so they must not claim the pair key either —
+    // a claimed-then-dropped skeleton would force the surviving connection
+    // on the same endpoints to draw dashed as a loop closure.
     const tombstoneState = chainTombstoneState(connection, now);
     if (tombstoneState === 'skeleton') continue;
+
+    const solid = isTreeLink && !claimed.has(pairKey);
+    if (solid) claimed.add(pairKey);
 
     edges.push({
       id: connection.connectionId,

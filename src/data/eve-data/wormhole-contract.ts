@@ -60,7 +60,7 @@ export function remainingMassBounds(
     !Number.isFinite(entry.totalMass) ||
     entry.totalMass <= 0 ||
     !Number.isFinite(entry.massRegen) ||
-    entry.massRegen > 0
+    entry.massRegen !== 0
   ) {
     return null;
   }

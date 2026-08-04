@@ -46,27 +46,36 @@ export interface ConnectionDetailsCardProps {
 function useWormholeCodexState(code: string | null): {
   readonly codes: readonly string[];
   readonly entry: WormholeCodexEntry | null;
+  readonly codexReady: boolean;
 } {
-  const [codes, setCodes] = useState<readonly string[]>([]);
-  const [entry, setEntry] = useState<WormholeCodexEntry | null>(null);
+  const [codex, setCodex] = useState<Awaited<
+    ReturnType<typeof loadWormholeCodex>
+  > | null>(null);
 
   useEffect(() => {
+    if (codex !== null) return;
     let alive = true;
+    // The memoized loader clears itself on failure, so this effect re-attempts
+    // on the next code change instead of wedging on one failed fetch.
     loadWormholeCodex()
-      .then((codex) => {
-        if (!alive) return;
-        setCodes(codex.codes());
-        setEntry(code === null ? null : codex.byCode(code));
+      .then((loaded) => {
+        if (alive) setCodex(loaded);
       })
       .catch(() => {
-        // Null-degradation: empty suggestions / no panel until the loader heals.
+        // Degraded: no suggestions or codex panel; the type field falls back
+        // to lenient syntactic parsing and the server stays the authority.
       });
     return () => {
       alive = false;
     };
-  }, [code]);
+  }, [codex, code]);
 
-  return { codes, entry };
+  // Derived during render: a code switch can never show the prior code's facts.
+  return {
+    codes: codex?.codes() ?? [],
+    entry: codex === null || code === null ? null : codex.byCode(code),
+    codexReady: codex !== null,
+  };
 }
 
 /**
@@ -85,7 +94,9 @@ export function ConnectionDetailsCard({
   const store = useStoreApi<ChainNode>();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const leaderRef = useRef<MapWindowLeaderHandle | null>(null);
-  const { codes, entry } = useWormholeCodexState(connection.wormholeTypeCode);
+  const { codes, entry, codexReady } = useWormholeCodexState(
+    connection.wormholeTypeCode,
+  );
   const followerStore = useMemo<NodeFollowerStore>(
     () => ({
       getState: () => store.getState(),
@@ -218,6 +229,7 @@ export function ConnectionDetailsCard({
         <ConnectionFields
           connection={connection}
           codes={codes}
+          codexReady={codexReady}
           entry={entry}
           setters={setters}
           now={now}

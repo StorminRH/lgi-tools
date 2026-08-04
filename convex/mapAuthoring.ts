@@ -550,7 +550,9 @@ export const setConnectionMassState = mutation({
 
 /**
  * Field-scoped setter: Reliable Lifetime bucket. Stamps
- * `lifeStageObservedAt` from server time on a real change only.
+ * `lifeStageObservedAt` from server time on every accepted report — a stage
+ * change, or a same-stage report whose window narrows — and skips only the
+ * true no-op where neither the stage nor the stored window changes.
  */
 export const setConnectionLifeStage = mutation({
   args: {

@@ -120,6 +120,9 @@ function resetHostMocks(): void {
   mocks.reactFlow.mockClear();
   mocks.useMapChain.mockClear();
   mocks.pinPlacement.mockClear();
+  for (const spy of Object.values(mocks.authoring)) {
+    spy.mockClear();
+  }
   mocks.authed = true;
   withAccess(true);
 }

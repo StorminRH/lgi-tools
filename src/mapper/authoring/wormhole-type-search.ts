@@ -14,9 +14,14 @@ const SUGGEST_LIMIT = 12;
 
 /**
  * Builds parse/suggest for a TerminalSearch over a fixed, sorted code list.
- * Empty input parses to null (unset). Unknown codes fail closed.
+ * Empty input parses to null (unset). Unknown codes fail closed — except in
+ * `lenient` mode (codex unavailable), where any syntactically canonical code
+ * is accepted and the server-side vocabulary check remains the authority.
  */
-export function wormholeTypeSearch(codes: readonly string[]): {
+export function wormholeTypeSearch(
+  codes: readonly string[],
+  options?: { readonly lenient?: boolean },
+): {
   parse: (
     input: string,
   ) =>
@@ -36,7 +41,10 @@ export function wormholeTypeSearch(codes: readonly string[]): {
       const trimmed = input.trim();
       if (trimmed.length === 0) return { ok: true, params: { code: null } };
       const code = trimmed.toUpperCase();
-      if (!isWormholeTypeCode(code) || !known.has(code)) {
+      if (!isWormholeTypeCode(code)) {
+        return { ok: false, error: { kind: 'not_found' } };
+      }
+      if (!known.has(code) && options?.lenient !== true) {
         return { ok: false, error: { kind: 'not_found' } };
       }
       return { ok: true, params: { code } };

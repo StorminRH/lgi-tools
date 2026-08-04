@@ -1160,6 +1160,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 .react-flow__edge-path.map-edge-dying {
   stroke: var(--color-alert-red);
   --map-edge-dying-opacity: 0.7;
+
   animation: map-edge-dying-pulse 1.6s ease-in-out infinite;
 }
 

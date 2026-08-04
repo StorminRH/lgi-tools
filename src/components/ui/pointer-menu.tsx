@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { panelSurface } from './dropdown-panel';
 import type { MenuAnchor } from './menu';
+import { useOverlayPortalContainer } from './overlay-portal-container';
 import type { Tone } from './tones';
 
 export type { MenuAnchor };
@@ -20,7 +21,7 @@ export type { MenuAnchor };
  */
 export type PointerMenuTone = Extract<Tone, 'neutral'>;
 
-const popup = cva(`flex flex-col outline-none ${panelSurface}`, {
+const popup = cva(cn('flex flex-col outline-none', panelSurface), {
   variants: {
     tone: {
       neutral: '',
@@ -74,9 +75,13 @@ export function PointerMenu({
   popupProps?: DataAttributes;
   className?: string;
 }) {
+  // Inside an overlay the popup must share the overlay's stacking context;
+  // outside one the context is null and the body-level portal is kept —
+  // `container={null}` would disable the portal entirely.
+  const overlayContainer = useOverlayPortalContainer();
   return (
     <Base.Root open={open} onOpenChange={onOpenChange} modal={modal}>
-      <Base.Portal>
+      <Base.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
         <Base.Positioner
           side={side}
           align={align}

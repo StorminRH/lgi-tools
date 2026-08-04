@@ -71,6 +71,9 @@ export const Field = forwardRef<
 /**
  * The floating results panel — portaled, positioned below the field, wearing the
  * shared recessed dropdown-panel surface. `className` sizes / caps the popup.
+ * Inside an overlay-portal provider the panel portals into that overlay's
+ * container so it shares the overlay stacking context; otherwise it keeps the
+ * default body portal.
  */
 export function Panel({
   className,

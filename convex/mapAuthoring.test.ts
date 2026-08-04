@@ -1206,10 +1206,10 @@ describe('map authoring', () => {
       });
 
       const result = await t.mutation(internal.mapAuthoring.purgeExpiredChainTombstones, {});
-      // System budget consumes the whole batch; the leftover expired system
-      // and the expired connection wait for the next call.
+      // Per-table budgets: the full system batch AND the expired connection
+      // progress in one call; only the leftover expired system waits.
       expect(result.deletedSystems).toBe(CHAIN_PURGE_BATCH);
-      expect(result.deletedConnections).toBe(0);
+      expect(result.deletedConnections).toBe(1);
       expect(result.hasMore).toBe(true);
 
       const systems = await t.run(async (ctx) =>
@@ -1228,12 +1228,12 @@ describe('map authoring', () => {
           .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
           .collect(),
       );
-      expect(connections).toHaveLength(2);
+      expect(connections).toHaveLength(1);
 
-      // Second call drains the remainder (1 system + 1 connection).
+      // Second call drains the leftover expired system.
       const second = await t.mutation(internal.mapAuthoring.purgeExpiredChainTombstones, {});
       expect(second.deletedSystems).toBe(1);
-      expect(second.deletedConnections).toBe(1);
+      expect(second.deletedConnections).toBe(0);
       expect(second.hasMore).toBe(false);
 
       const remainingConnections = await t.run(async (ctx) =>

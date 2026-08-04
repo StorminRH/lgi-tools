@@ -65,6 +65,9 @@ export const NODE_CARD_FALLBACK: ScreenSize = { width: 288, height: 208 };
 /** Fallback size matching the edge-anchored `w-72` chrome before layout. */
 export const EDGE_CARD_FALLBACK: ScreenSize = { width: 288, height: 320 };
 
+/** Fallback layer size when the React Flow host is absent or unmeasured. */
+export const LAYER_SIZE_FALLBACK: ScreenSize = { width: 1440, height: 900 };
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -178,10 +181,10 @@ export function measureCardSize(
 
 /** Layer size from the React Flow host, with a safe fallback. */
 export function measureLayerSize(domNode: HTMLElement | null): ScreenSize {
-  if (domNode === null) return { width: 1440, height: 900 };
+  if (domNode === null) return LAYER_SIZE_FALLBACK;
   const width = domNode.clientWidth;
   const height = domNode.clientHeight;
-  if (width <= 0 || height <= 0) return { width: 1440, height: 900 };
+  if (width <= 0 || height <= 0) return LAYER_SIZE_FALLBACK;
   return { width, height };
 }
 

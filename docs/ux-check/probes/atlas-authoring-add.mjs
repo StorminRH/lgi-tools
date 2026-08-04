@@ -39,12 +39,19 @@ export default {
       );
     }
 
-    await openAddConnectionMenu(page);
-    check(
-      'node-bound Add connection… menu opens at the pointer',
-      (await page.locator('[data-map-node-add-menu]').count()) > 0
-        || (await page.getByRole('menuitem', { name: 'Add connection…' }).count()) === 1,
-    );
+    const clickPoint = await openAddConnectionMenu(page);
+    const menuItem = page.getByRole('menuitem', { name: 'Add connection…' });
+    const menuBox = await menuItem.boundingBox();
+    // The popup positioner sits beside the virtual pointer anchor — a menu
+    // opening anywhere else (e.g. a global fallback) fails the distance bound.
+    const nearPointer =
+      clickPoint !== null
+      && menuBox !== null
+      && Math.hypot(
+        menuBox.x + menuBox.width / 2 - clickPoint.x,
+        menuBox.y + menuBox.height / 2 - clickPoint.y,
+      ) <= 160;
+    check('node-bound Add connection… menu opens at the pointer', nearPointer);
     await shot('node-add-menu');
 
     await page.getByRole('menuitem', { name: 'Add connection…' }).click();

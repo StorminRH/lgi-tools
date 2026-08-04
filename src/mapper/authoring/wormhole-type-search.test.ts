@@ -26,6 +26,28 @@ describe('wormhole type search', () => {
     });
   });
 
+  it('accepts canonical codes leniently when the codex is unavailable', () => {
+    const lenient = wormholeTypeSearch([], { lenient: true });
+    expect(lenient.parse('Z999')).toEqual({
+      ok: true,
+      params: { code: 'Z999' },
+    });
+    expect(lenient.parse('not-a-code')).toEqual({
+      ok: false,
+      error: { kind: 'not_found' },
+    });
+  });
+
+  it('bounds suggestions to the suggest limit', async () => {
+    const many = Array.from(
+      { length: 20 },
+      (_, index) => `C${String(index + 100)}`,
+    );
+    const bounded = wormholeTypeSearch(many);
+    await expect(bounded.suggest('')).resolves.toHaveLength(12);
+    await expect(bounded.suggest('C')).resolves.toHaveLength(12);
+  });
+
   it('suggests prefix matches including K162', async () => {
     await expect(search.suggest('k')).resolves.toEqual(['K162']);
     await expect(search.suggest('')).resolves.toEqual([...CODES]);

@@ -322,7 +322,7 @@ describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
     );
   });
 
-  it('re-roots back when the prior root returns live (restore)', () => {
+  it('re-derives the original root from pure facts once it is live again', () => {
     const withoutRoot: ChainSnapshot = {
       systems: { rows: [{ systemId: AMARR }, { systemId: DODIXIE }], complete: true },
       connections: { rows: [], complete: true },

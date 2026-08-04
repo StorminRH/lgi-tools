@@ -52,7 +52,6 @@ export function MapMenu() {
         href="https://reactflow.dev"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="React Flow attribution"
         closeOnClick
         className="block border-t border-border-soft px-3 py-2 font-data text-micro text-muted transition-colors hover:text-isk data-[highlighted]:text-isk"
       >

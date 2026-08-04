@@ -4,9 +4,22 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-/** Blank-map id for home / two-client authoring probes. */
-export const authoringMapId = () =>
+/**
+ * Blank-map id — ONLY for probes that require (and mutate) a blank map, i.e.
+ * home and two-clients. Generic authoring probes use {@link authoringMapId}
+ * so a full probe run never seeds the blank fixture out from under them.
+ */
+export const blankMapId = () =>
   process.env.UX_BLANK_MAP_ID ?? process.env.UX_MAP_ID ?? null;
+
+export const blankMapRoute = () => {
+  const mapId = blankMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
+/** Populated/general map id for authoring probes that only need edit rights. */
+export const authoringMapId = () =>
+  process.env.UX_MAP_ID ?? process.env.UX_BLANK_MAP_ID ?? null;
 
 export const authoringRoute = () => {
   const mapId = authoringMapId();
@@ -42,15 +55,23 @@ export async function pickSystemSearch(page, placeholder, query, { root } = {}) 
   await page.waitForTimeout(900);
 }
 
-/** Right-click the first visible chain node and open Add connection…. */
+/**
+ * Right-click the first visible chain node and open Add connection….
+ * Returns the click point (node center) so callers can assert the menu
+ * actually anchored at the pointer rather than anywhere on screen.
+ */
 export async function openAddConnectionMenu(page) {
   const node = page.locator('[data-chain-node]').first();
   await node.waitFor({ state: 'visible', timeout: 60_000 });
+  const box = await node.boundingBox();
   await node.click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Add connection…' }).waitFor({
     state: 'visible',
     timeout: 10_000,
   });
+  return box === null
+    ? null
+    : { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
 /** Turn off camera flights that can park an edge-anchored card off-screen. */

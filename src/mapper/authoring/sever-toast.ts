@@ -17,24 +17,11 @@ export function announceSeverOutcome(input: {
 }): void {
   const id = `sever:${input.connectionId}`;
   const duration = input.durationMs ?? 12_000;
-  if (input.result.outcome === 'removed') {
-    const count = input.result.systemIds.length;
-    toast.success(
-      `Severed — ${count} downstream system${count === 1 ? '' : 's'} removed`,
-      {
-        id,
-        duration,
-        action: {
-          label: 'Undo',
-          onClick: () => {
-            input.onUndo();
-          },
-        },
-      },
-    );
-    return;
-  }
-  toast.success('Severed — branch kept', {
+  const message =
+    input.result.outcome === 'removed'
+      ? severedRemovedMessage(input.result.systemIds.length)
+      : 'Severed — branch kept';
+  toast.success(message, {
     id,
     duration,
     action: {
@@ -44,4 +31,9 @@ export function announceSeverOutcome(input: {
       },
     },
   });
+}
+
+// Pluralization mirrors the ledger copy in `map-event-copy.ts`.
+function severedRemovedMessage(count: number): string {
+  return `Severed — ${count} downstream system${count === 1 ? '' : 's'} removed`;
 }

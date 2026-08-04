@@ -111,6 +111,55 @@ describe('map chain cleanup', () => {
     expect(await t.run(async (ctx) => await ctx.db.get(ids.liveEvent))).not.toBeNull();
   });
 
+  it('purges connections and events even under a full system-tombstone backlog', async () => {
+    const { CHAIN_PURGE_BATCH } = await import('./mapChainCleanup');
+    const t = convexTest(schema, modules);
+    const ids = await t.run(async (ctx) => {
+      for (let index = 0; index <= CHAIN_PURGE_BATCH; index += 1) {
+        await ctx.db.insert('mapSystems', {
+          mapId: MAP_ID,
+          systemId: 31_100_000 + index,
+          deletedAt: NOW - 2_000,
+          purgeAfter: NOW - 1_000,
+        });
+      }
+      const danglingConnection = await ctx.db.insert('mapConnections', {
+        mapId: MAP_ID,
+        fromSystemId: ROOT,
+        toSystemId: DANGLING,
+        wormholeTypeCode: null,
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: NOW - 2_000,
+        purgeAfter: NOW - 1_000,
+      });
+      const expiredEvent = await ctx.db.insert('mapEvents', {
+        mapId: MAP_ID,
+        at: NOW - MAP_EVENT_RETENTION_MS - 1,
+        kind: 'connection_restored',
+        actor: 'Editor',
+        payload: { connectionId: String(danglingConnection) },
+        purgeAfter: NOW - 1,
+      });
+      return { danglingConnection, expiredEvent };
+    });
+
+    const result = await t.mutation(
+      internal.mapAuthoring.purgeExpiredChainTombstones,
+      {},
+    );
+    expect(result).toEqual({
+      deletedSystems: CHAIN_PURGE_BATCH,
+      deletedConnections: 1,
+      retainedConnections: 0,
+      deletedEvents: 1,
+      hasMore: true,
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.danglingConnection))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.expiredEvent))).toBeNull();
+  });
+
   it('registers the bounded purge on the production Convex cron registry', () => {
     const source = readFileSync('convex/crons.ts', 'utf8');
     expect(source).toContain("'map chain purge'");

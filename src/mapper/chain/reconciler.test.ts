@@ -231,6 +231,29 @@ describe('map chain reconciler', () => {
       ]);
     });
 
+    it('does not suppress an optimistic departure whose endpoints differ from the appear', () => {
+      const tempId = 'optimistic:mapConnections:swap-test';
+      const { intents } = replay([
+        snapshot([JITA, AMARR, DODIXIE], [link(tempId, JITA, AMARR)]),
+        snapshot(
+          [JITA, AMARR, DODIXIE],
+          [link('c2', JITA, DODIXIE)],
+        ),
+      ]);
+
+      // The departing id is optimistic, but the confirmed row's endpoints do
+      // not match — this is a real departure plus a real appear, not a swap.
+      expect(intents[1]).toEqual([
+        { kind: 'connection-departed', connectionId: tempId },
+        {
+          kind: 'connection-appeared',
+          connectionId: 'c2',
+          fromSystemId: JITA,
+          toSystemId: DODIXIE,
+        },
+      ]);
+    });
+
     // The 4.0.3.1 hand-off: the grid never proposes a move, so the emission path is proven by
     // driving the seam directly. Without this the layout engine would inherit dead code.
     it('emits system-moved when the placement seam proposes a new position', () => {

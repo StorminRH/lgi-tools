@@ -107,6 +107,7 @@ describe('connection fields form', () => {
     const markup = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: CONNECTION,
+        codexReady: true,
         codes: ['B274', 'K162'],
         entry: null,
         now: 1,
@@ -129,6 +130,7 @@ describe('connection fields form', () => {
     const markup = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: CONNECTION,
+        codexReady: true,
         codes: ['B274'],
         entry: TYPED,
         now: 1,
@@ -152,6 +154,7 @@ describe('connection fields form', () => {
     const markup = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: { ...CONNECTION, wormholeTypeCode: 'K162', shipSize: null },
+        codexReady: true,
         codes: ['K162'],
         entry: K162,
         now: 1,
@@ -173,6 +176,7 @@ describe('connection fields form', () => {
           deletedAt: 100,
           purgeAfter: 100 + 24 * 60 * 60 * 1000,
         },
+        codexReady: true,
         codes: ['B274'],
         entry: TYPED,
         now: 200,

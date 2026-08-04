@@ -22,6 +22,7 @@ import {
   type ChainPosition,
   type MapChainIntent,
 } from './intents';
+import { OPTIMISTIC_ID_PREFIX } from './optimistic-authoring';
 import type { PlacementAssigner, PlacementCandidate } from './placement';
 
 /** Where a node's current position came from. `user` positions are permanently protected. */
@@ -301,7 +302,7 @@ function suppressConnectionIdSwaps(
   );
   const unmatchedDepartedByEndpoint = new Map<string, string[]>();
   for (const connectionId of departedIds) {
-    if (!connectionId.startsWith('optimistic:')) continue;
+    if (!connectionId.startsWith(OPTIMISTIC_ID_PREFIX)) continue;
     const prior = previousConnections.get(connectionId);
     if (prior === undefined) continue;
     const key = endpointKey(prior.fromSystemId, prior.toSystemId);

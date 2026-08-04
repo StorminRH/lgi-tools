@@ -93,7 +93,9 @@ function Option({
 
 /**
  * Renders the domain-neutral select with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
+ * and content while this primitive owns presentation. `align="center"` opts a
+ * consumer into optically centered value/rows (with the caret gutter); the
+ * default keeps every existing start-aligned call site byte-identical.
  */
 export function Select({
   value,

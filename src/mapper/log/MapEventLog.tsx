@@ -63,6 +63,7 @@ export function MapEventLog({
               </span>
               <span
                 data-chevron
+                aria-hidden
                 className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
               >
                 ▾
@@ -70,8 +71,13 @@ export function MapEventLog({
             </span>
           }
         >
+          {/* Focusable so keyboard-only viewers (no Restore buttons rendered)
+              can still scroll the bounded region with the arrow keys. */}
           <div
             data-map-event-log-rows
+            tabIndex={0}
+            role="group"
+            aria-label="Map events"
             className="flex max-h-48 flex-col gap-1 overflow-y-auto border-t border-border-soft px-2.5 py-1.5"
           >
             {events.length === 0 ? (

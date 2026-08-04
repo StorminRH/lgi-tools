@@ -1,20 +1,20 @@
 // SC-1.1 / SC-6.1: editor on a blank map sees the centered home prompt with
 // both options; tracking option stays disabled. Requires auth + blank map id.
 import {
-  authoringMapId,
-  authoringRoute,
+  blankMapId,
+  blankMapRoute,
   waitForEditableMap,
 } from '../lib/authoring-helpers.mjs';
 
 export default {
   name: 'atlas-authoring-home',
-  route: authoringRoute(),
+  route: blankMapRoute(),
   viewports: ['desktop', 'mobile'],
   requiresAuth: true,
   reducedMotion: true,
   settle: 2000,
   async run({ page, check, shot }) {
-    if (!authoringMapId()) {
+    if (!blankMapId()) {
       check('UX_BLANK_MAP_ID or UX_MAP_ID is set for the blank map', false);
       return;
     }

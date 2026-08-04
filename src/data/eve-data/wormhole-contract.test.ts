@@ -48,6 +48,9 @@ describe('wormhole-contract vocabularies', () => {
     expect(
       remainingMassBounds({ totalMass: 2_000_000_000, massRegen: 1 }, 'stable'),
     ).toBeNull();
+    expect(
+      remainingMassBounds({ totalMass: 2_000_000_000, massRegen: -1 }, 'stable'),
+    ).toBeNull();
   });
 
   it('owns the stable known-space ID boundary', () => {

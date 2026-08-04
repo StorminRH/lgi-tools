@@ -24,6 +24,7 @@ import {
 import {
   deathWindowForReport,
   deathWindowFrom,
+  intersectOrReset,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
 import type {
@@ -63,9 +64,15 @@ export interface OptimisticConnectionRow {
   readonly purgeAfter: number | null;
 }
 
+/**
+ * Prefix marking a client-only optimistic temp id. The reconciler's swap
+ * suppression keys on this exact prefix — change both together.
+ */
+export const OPTIMISTIC_ID_PREFIX = 'optimistic:';
+
 /** Builds a client-only temp document id for an optimistic insert. */
 export function optimisticTempId(table: 'mapSystems' | 'mapConnections'): string {
-  return `optimistic:${table}:${crypto.randomUUID()}`;
+  return `${OPTIMISTIC_ID_PREFIX}${table}:${crypto.randomUUID()}`;
 }
 
 /** Whether any loaded systems page already carries a live row for `systemId`. */
@@ -349,10 +356,12 @@ export function wormholeTypeWindowProposal(
   ) {
     return storedWindow(connection);
   }
-  return {
+  // Mirror the server's resolution: a typed span narrows a stored window and
+  // never widens it optimistically; an empty intersection resets to the span.
+  return intersectOrReset(storedWindow(connection), {
     earliestAt: connection._creationTime,
     latestAt: connection._creationTime + lifetimeMinutes * 60_000,
-  };
+  });
 }
 
 /** Explicit life-stage proposal from the shared pure lifetime algebra. */
@@ -440,8 +449,10 @@ function optimisticConnectionField(
 
 /**
  * Authoring mutations with optimistic local-store patches wired against the
- * chain subscriptions. Collapse-specific sever/undo wiring lands in OW4; the
+ * chain subscriptions, including the collapse sever/undo/restore surface. The
  * internalized .1 single-row tombstone helpers are deliberately absent here.
+ * Every mutation is wrapped in {@link swallowMutationRejection}: a server
+ * refusal resolves to null and the optimistic patch rolls back reactively.
  */
 export function useChainAuthoringMutations() {
   const setHomeSystem = swallowMutationRejection(

@@ -25,7 +25,9 @@ export { toast };
 
 /**
  * Renders the domain-neutral toaster with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
+ * and content while this primitive owns presentation. Owns the root sonner
+ * configuration, including the action-button chrome an action-bearing toast
+ * (for example a keyed Undo) renders in unstyled mode.
  */
 export function Toaster() {
   return (

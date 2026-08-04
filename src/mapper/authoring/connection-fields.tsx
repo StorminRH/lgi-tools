@@ -17,6 +17,7 @@ import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { ConnectionDetail } from '../chain/use-map-chain';
 import {
   codexPanelFacts,
+  formatDurationBound,
   isCodexSizeLocked,
   lifetimeRowDisplay,
   massRowDisplay,
@@ -86,6 +87,8 @@ export interface ConnectionFieldSetters {
 export interface ConnectionFieldsProps {
   readonly connection: ConnectionDetail;
   readonly codes: readonly string[];
+  /** False while the codex is unloaded — the type field parses leniently. */
+  readonly codexReady: boolean;
   readonly entry: WormholeCodexEntry | null;
   readonly setters: ConnectionFieldSetters;
   readonly now: number;
@@ -102,6 +105,7 @@ export interface ConnectionFieldsProps {
 export function ConnectionFields({
   connection,
   codes,
+  codexReady,
   entry,
   setters,
   now,
@@ -127,6 +131,7 @@ export function ConnectionFields({
       <TypeField
         connection={connection}
         codes={codes}
+        codexReady={codexReady}
         readOnly={readOnly}
         onChange={setters.setWormholeType}
       />
@@ -162,15 +167,17 @@ export function ConnectionFields({
 function TypeField({
   connection,
   codes,
+  codexReady,
   readOnly,
   onChange,
 }: {
   readonly connection: ConnectionDetail;
   readonly codes: readonly string[];
+  readonly codexReady: boolean;
   readonly readOnly: boolean;
   readonly onChange: (value: string | null) => void;
 }) {
-  const search = wormholeTypeSearch(codes);
+  const search = wormholeTypeSearch(codes, { lenient: !codexReady });
   const typeInitial = encodeOptionalField(connection.wormholeTypeCode);
   return (
     <FieldBlock label="Wormhole type">
@@ -216,7 +223,10 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
         label="Regeneration"
         value={facts.massRegenKg > 0 ? formatFactKg(facts.massRegenKg) : 'None'}
       />
-      <CodexFact label="Lifetime" value={`${facts.lifetimeMinutes / 60}h`} />
+      <CodexFact
+        label="Lifetime"
+        value={formatDurationBound(facts.lifetimeMinutes * 60 * 1000)}
+      />
       <CodexFact label="Size" value={facts.sizeClass} />
     </div>
   );

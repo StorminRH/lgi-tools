@@ -2,8 +2,8 @@
 // home → add → edit → fan-out → revocation. Mutates the blank map under test;
 // re-projects access after the revocation step so the map stays usable.
 import {
-  authoringMapId,
-  authoringRoute,
+  blankMapId,
+  blankMapRoute,
   calmMapCamera,
   clickFirstEdge,
   openAddConnectionMenu,
@@ -53,13 +53,13 @@ async function pickSelect(page, ariaLabel, optionName) {
 
 export default {
   name: 'atlas-authoring-two-clients',
-  route: authoringRoute(),
+  route: blankMapRoute(),
   viewports: ['desktop'],
   requiresAuth: true,
   reducedMotion: true,
   settle: 2500,
   async run({ page, check, shot, createContext, baseUrl }) {
-    const mapId = authoringMapId();
+    const mapId = blankMapId();
     if (!mapId) {
       check('UX_BLANK_MAP_ID or UX_MAP_ID is set for the blank map', false);
       return;
@@ -68,7 +68,13 @@ export default {
     await waitForEditableMap(page);
     const home = page.locator('[data-map-home-prompt]');
     const startedBlank = (await home.count()) > 0;
-    check('editor client starts on a blank map with the home prompt', startedBlank);
+    // This probe authors a root + connection on the blank map, and no map
+    // drain API exists yet — a rerun fails closed here until the operator
+    // re-seeds or drains the UX_BLANK_MAP_ID map.
+    check(
+      'editor client starts on a blank map with the home prompt (re-seed or drain UX_BLANK_MAP_ID after each run)',
+      startedBlank,
+    );
     if (!startedBlank) return;
 
     const second = await createContext();
@@ -164,39 +170,43 @@ export default {
     await shot('two-clients-after-edit-b', { page: second.page });
 
     // Revocation: tear down claims → affordances / access poof on both clients.
-    await teardownMapAccess(mapId);
-    await page.waitForFunction(
-      () =>
-        document.querySelector('[data-chain-no-access]') !== null
-        || document.querySelector('[data-map-can-edit="true"]') === null,
-      null,
-      { timeout: 30_000 },
-    );
-    await second.page.waitForFunction(
-      () =>
-        document.querySelector('[data-chain-no-access]') !== null
-        || document.querySelector('[data-map-can-edit="true"]') === null,
-      null,
-      { timeout: 30_000 },
-    );
-    check(
-      'revocation removes editor affordances on client A',
-      (await page.locator('[data-map-can-edit="true"]').count()) === 0
-        || (await page.locator('[data-chain-no-access]').count()) === 1,
-    );
-    check(
-      'revocation removes editor affordances on client B',
-      (await second.page.locator('[data-map-can-edit="true"]').count()) === 0
-        || (await second.page.locator('[data-chain-no-access]').count()) === 1,
-    );
-    check(
-      'connection details card is gone after revocation',
-      (await page.locator('[data-map-connection-details]').count()) === 0,
-    );
-    await shot('two-clients-after-revoke');
-
-    // Restore access so later probes / operator review can reopen the map.
-    await restoreMapAccess(mapId);
+    // The restore runs in `finally` so a failed wait, check, or screenshot can
+    // never leave the map revoked for later probes or operator review.
+    try {
+      await teardownMapAccess(mapId);
+      await page.waitForFunction(
+        () =>
+          document.querySelector('[data-chain-no-access]') !== null
+          || document.querySelector('[data-map-can-edit="true"]') === null,
+        null,
+        { timeout: 30_000 },
+      );
+      await second.page.waitForFunction(
+        () =>
+          document.querySelector('[data-chain-no-access]') !== null
+          || document.querySelector('[data-map-can-edit="true"]') === null,
+        null,
+        { timeout: 30_000 },
+      );
+      check(
+        'revocation removes editor affordances on client A',
+        (await page.locator('[data-map-can-edit="true"]').count()) === 0
+          || (await page.locator('[data-chain-no-access]').count()) === 1,
+      );
+      check(
+        'revocation removes editor affordances on client B',
+        (await second.page.locator('[data-map-can-edit="true"]').count()) === 0
+          || (await second.page.locator('[data-chain-no-access]').count()) === 1,
+      );
+      check(
+        'connection details card is gone after revocation',
+        (await page.locator('[data-map-connection-details]').count()) === 0,
+      );
+      await shot('two-clients-after-revoke');
+    } finally {
+      // Restore access so later probes / operator review can reopen the map.
+      await restoreMapAccess(mapId);
+    }
     await page.waitForTimeout(500);
   },
 };
