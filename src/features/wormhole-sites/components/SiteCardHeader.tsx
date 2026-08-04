@@ -42,6 +42,7 @@ export function SiteCardHeader({
 }: {
   site: SiteDetail;
   nameId?: string;
+  /** Map-dock embeds center the summary stack; catalogue cards stay start-aligned. */
   align?: 'start' | 'center';
 }) {
   const liveResources = displayableResources(site.resources);
