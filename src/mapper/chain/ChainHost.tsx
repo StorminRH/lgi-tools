@@ -111,6 +111,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     access,
     canEdit,
     systemsComplete,
+    liveSystemCount,
     connectionDetails,
     state,
     intents,
@@ -273,7 +274,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       : (connectionDetails.get(selectedConnectionId) ?? null);
 
   const showHomePrompt =
-    canEdit === true && systemsComplete && state.systems.size === 0;
+    canEdit === true && systemsComplete && liveSystemCount === 0;
 
   // Id-derived (the join key), so per-frame drag renders reuse the same set
   // and the camera host's effects don't churn (drag hardening, IS-5).

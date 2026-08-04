@@ -94,6 +94,7 @@ function withAccess(
     access,
     canEdit,
     systemsComplete: true,
+    liveSystemCount: 0,
     connectionDetails: new Map(),
     state: { systems: new Map(), connections: new Map() },
     intents: [],
@@ -216,6 +217,29 @@ describe('chain host access states', () => {
     expect(markup).toContain('data-map-home-prompt');
     expect(markup).toContain('Set your home system');
     expect(markup).toContain('data-map-home-current-disabled');
+  });
+
+  it('hides the home prompt when live systems exist even before merge lands', async () => {
+    // Merged canvas empty + liveSystemCount > 0 models the layout-worker lag
+    // that previously flashed a false-empty prompt.
+    mocks.useMapChain.mockReturnValue({
+      access: true,
+      canEdit: true,
+      systemsComplete: true,
+      liveSystemCount: 1,
+      connectionDetails: new Map(),
+      state: { systems: new Map(), connections: new Map() },
+      intents: [],
+      labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
+      treeParents: new Map(),
+      rootSystemId: null,
+      pinPlacement: mocks.pinPlacement,
+      releasePlacements: vi.fn(),
+    });
+
+    const markup = await renderHost();
+
+    expect(markup).not.toContain('data-map-home-prompt');
   });
 
   // HC-5: "not yet answered" is not a state of its own — it looks like an ordinary empty map.

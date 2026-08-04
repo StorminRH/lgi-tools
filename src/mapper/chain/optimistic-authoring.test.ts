@@ -187,10 +187,9 @@ describe('optimisticAddSystemFromNode', () => {
       { mapId: MAP, fromSystemId: JITA, toSystemId: AMARR },
       99,
     );
-    expect(store.systems.map((row) => row.systemId).toSorted()).toEqual([
-      JITA,
-      AMARR,
-    ]);
+    // Append-only: destination must stay after the existing root so
+    // resolveRoot(facts.systems[0]) does not flip for the optimistic window.
+    expect(store.systems.map((row) => row.systemId)).toEqual([JITA, AMARR]);
     expect(store.connections).toHaveLength(1);
     expect(store.connections[0]).toMatchObject({
       fromSystemId: JITA,

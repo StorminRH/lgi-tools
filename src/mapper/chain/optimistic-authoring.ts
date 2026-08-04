@@ -10,6 +10,7 @@
 // without a live Convex client.
 import { api } from '@/data/convex/api';
 import {
+  insertAtBottomIfLoaded,
   insertAtTop,
   optimisticallyUpdateValueInPaginatedQuery,
   useMutation,
@@ -118,7 +119,10 @@ export function optimisticAddSystemFromNode(
   if (!liveSystemPresent(localStore, args.mapId, args.fromSystemId)) return;
 
   if (!liveSystemPresent(localStore, args.mapId, args.toSystemId)) {
-    insertAtTop({
+    // Append — systems pages are ascending creation order and resolveRoot
+    // takes facts.systems[0]. Prepending would make the destination the
+    // transient root for the mutation round trip.
+    insertAtBottomIfLoaded({
       paginatedQuery: api.mapChain.watchMapSystems,
       argsToMatch: { mapId: args.mapId },
       localQueryStore: localStore,

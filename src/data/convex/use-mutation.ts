@@ -5,6 +5,7 @@
 // `convex/react` (or `convex/browser`) directly.
 export type { OptimisticLocalStore } from 'convex/browser';
 export {
+  insertAtBottomIfLoaded,
   insertAtTop,
   optimisticallyUpdateValueInPaginatedQuery,
   useMutation,

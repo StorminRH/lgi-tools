@@ -198,6 +198,12 @@ export interface MapChain {
    * editor never sees a false-empty prompt while pages are still draining.
    */
   readonly systemsComplete: boolean;
+  /**
+   * Live (non-tombstoned) system count from the filtered subscription pages —
+   * not the async merged canvas state. Home prompt gates on this so a
+   * populated map never flashes the empty-map prompt during the first layout.
+   */
+  readonly liveSystemCount: number;
   /** Live connection detail fields keyed by document id, for the authoring card. */
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly state: ChainState;
@@ -292,6 +298,7 @@ export function useMapChain(
   const systems = filterLivePages(subscribedSystems);
   const connections = filterLivePages(subscribedConnections);
   const systemsComplete = systems.complete;
+  const liveSystemCount = systems.rows.length;
   const connectionDetails = useMemo(() => {
     const next = new Map<Id<'mapConnections'>, ConnectionDetail>();
     for (const row of connections.rows) {
@@ -415,6 +422,7 @@ export function useMapChain(
     access,
     canEdit,
     systemsComplete,
+    liveSystemCount,
     connectionDetails,
     state: merge.state,
     intents: merge.intents,

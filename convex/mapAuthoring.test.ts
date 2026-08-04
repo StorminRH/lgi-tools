@@ -169,6 +169,27 @@ describe('map authoring', () => {
       },
     );
 
+    it('rejects an invalid wormhole code only after the edit gate', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expectConvexError(
+        asUser(t, VIEWER).mutation(api.mapAuthoring.setConnectionWormholeType, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'not-a-code',
+        }),
+        'FORBIDDEN',
+      );
+      await expectConvexError(
+        asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'not-a-code',
+        }),
+        'INVALID_WORMHOLE_CODE',
+      );
+    });
+
     it.each(PUBLIC_MUTATIONS)('lets an editor call %s successfully', async (name) => {
       const t = convexTest(schema, modules);
 

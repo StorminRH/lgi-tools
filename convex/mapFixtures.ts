@@ -7,11 +7,11 @@
 // real validators, rather than through unrestricted test-harness inserts that would prove only that
 // the harness works.
 //
-// Note that "no importer" is not "unreachable": Convex publishes every function in this directory
-// to the deployment, so the two PUBLIC handlers are callable by any signed-in client. That is
-// exactly why the gate — not obscurity — is the boundary, and why they stay public here: HC-3 and
-// SC-3 are premised on proving that a real client-callable surface rejects unauthorized callers.
-// Until the projection writer exists, no production map has a claim row, so both deny in practice.
+// Note that "no importer" is not "unreachable": Convex publishes every public
+// function in this directory. The sole remaining public surface here is the
+// gated `readMapCollection` query; every chain write is either an internal
+// fixture (`placeSystemFixture` and siblings) or a production authoring
+// mutation in `mapAuthoring` (HC-1 sole write surface).
 //
 // Two rules hold everywhere here:
 //   1. requireMapAccess is the FIRST call in every public handler. There is no second access path.
@@ -20,7 +20,6 @@
 import { ConvexError, v } from 'convex/values';
 import {
   internalMutation,
-  mutation,
   query,
   type MutationCtx,
 } from './_generated/server';
@@ -37,7 +36,6 @@ import {
   type NoteTargetKind,
 } from './lib/mapEntityContracts';
 import {
-  beginSystemEdit,
   findSystem,
   requireSystemId,
 } from './lib/mapSystemLookup';
@@ -105,35 +103,10 @@ export const readMapCollection = query({
   },
 });
 
-/** Idempotent by_map_system upsert after edit gate + id validation. */
-async function upsertSystemDoc(
-  ctx: MutationCtx,
-  mapId: string,
-  systemId: number,
-) {
-  await beginSystemEdit(ctx, mapId, systemId);
-  const existing = await findSystem(ctx, mapId, systemId);
-  if (existing !== null) return existing._id;
-  return await ctx.db.insert('mapSystems', { mapId, systemId });
-}
-
 /**
- * Places one system on one map, returning the document ID either way.
- *
- * Singular by construction: the exact `by_map_system` lookup means a repeated call returns the
- * existing ID and performs NO write, so a re-placement cannot invalidate anything watching the map.
- * Two concurrent first-placements read the same index range one of them then writes, so Convex's
- * OCC retry re-runs the loser against the winner's row and it converges on one document.
- */
-export const upsertSystem = mutation({
-  args: { mapId: v.string(), systemId: v.number() },
-  handler: (ctx, { mapId, systemId }) => upsertSystemDoc(ctx, mapId, systemId),
-});
-
-/**
- * Internal CLI-callable system placement: `upsertSystem`'s id validation and
- * idempotent `by_map_system` upsert, with no access gate. Admin-key `convex run`
- * only — matches the existing internal fixture family.
+ * Internal CLI-callable system placement: id validation and idempotent
+ * `by_map_system` upsert, with no access gate. Admin-key `convex run` and
+ * tests only — production chain writes go through `mapAuthoring` (HC-1).
  */
 export const placeSystemFixture = internalMutation({
   args: { mapId: v.string(), systemId: v.number() },

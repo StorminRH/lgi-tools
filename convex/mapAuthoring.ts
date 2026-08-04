@@ -309,19 +309,18 @@ export const setConnectionWormholeType = mutation({
     value: wormholeTypeCodeValidator,
   },
   handler: async (ctx, { mapId, connectionId, value }) => {
+    // Gate before semantic validation so unauthorized callers never learn
+    // whether a code is well-formed (HC-2 / gate-first).
+    const connection = await requireLiveConnection(ctx, mapId, connectionId);
     if (value !== null && !isWormholeTypeCode(value)) {
       throw new ConvexError({
         code: 'INVALID_WORMHOLE_CODE',
         detail: `Unknown wormhole code "${value}".`,
       });
     }
-    return await patchConnectionField(
-      ctx,
-      mapId,
-      connectionId,
-      'wormholeTypeCode',
-      value,
-    );
+    if (connection.wormholeTypeCode === value) return { changed: false };
+    await ctx.db.patch(connectionId, { wormholeTypeCode: value });
+    return { changed: true };
   },
 });
 
