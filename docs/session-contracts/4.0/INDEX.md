@@ -5,8 +5,10 @@ sequence, dependencies, and delivery status. The canonical contract form is
 `docs/workflows/schema/session-contract.md`.
 
 > All phases are contracted. The 2026-07-30 approved restructure preserves the
-> original 14 sub-versions and every outcome while expanding the topology to 23
-> lower-context sessions. Phase 0 is the version-opening obligation the v3.10
+> original 14 sub-versions and every outcome while expanding the topology to
+> lower-context sessions — 24 after the 2026-08-04 operator amendment added the
+> 4.0.4.4 Atlas landing catalogue session (`4.0.4.4.4`). Phase 0 is the
+> version-opening obligation the v3.10
 > close audit assigned to this version's opening. Sub-versions 4.0.4.2 and
 > 4.0.4.3 are the only sub-versions whose sessions each ship their own pull
 > request.
@@ -36,3 +38,4 @@ sequence, dependencies, and delivery status. The canonical contract form is
 | 4.0.4.4.1 | 4.0.4.4 | `4.0.4.4.1.md` |
 | 4.0.4.4.2 | 4.0.4.4 | `4.0.4.4.2.md` |
 | 4.0.4.4.3 | 4.0.4.4 | `4.0.4.4.3.md` |
+| 4.0.4.4.4 | 4.0.4.4 | `4.0.4.4.4.md` |
