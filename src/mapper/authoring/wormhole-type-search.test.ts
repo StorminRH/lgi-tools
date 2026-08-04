@@ -31,4 +31,23 @@ describe('wormhole type search', () => {
     await expect(search.suggest('')).resolves.toEqual([...CODES]);
     await expect(search.suggest('B')).resolves.toEqual(['B274']);
   });
+
+  it('collapses duplicate SDE codes in suggestions', async () => {
+    const searchWithDupes = wormholeTypeSearch([
+      'C729',
+      'C729',
+      'C008',
+      'C729',
+      'B274',
+    ]);
+    await expect(searchWithDupes.suggest('c')).resolves.toEqual([
+      'C008',
+      'C729',
+    ]);
+    await expect(searchWithDupes.suggest('')).resolves.toEqual([
+      'B274',
+      'C008',
+      'C729',
+    ]);
+  });
 });

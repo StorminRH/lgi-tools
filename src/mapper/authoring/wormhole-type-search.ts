@@ -24,7 +24,11 @@ export function wormholeTypeSearch(codes: readonly string[]): {
     | { ok: false; error: WormholeTypeErr };
   suggest: (input: string) => Promise<string[]>;
 } {
-  const upper = codes.map((code) => code.toUpperCase());
+  // Deduplicate: the SDE can emit the same code on many typeIds; typeahead
+  // keys on the code string and must not list a code twice.
+  const upper = [...new Set(codes.map((code) => code.toUpperCase()))].toSorted(
+    (left, right) => left.localeCompare(right),
+  );
   const known = new Set(upper);
 
   return {

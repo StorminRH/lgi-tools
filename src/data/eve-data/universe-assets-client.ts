@@ -90,10 +90,18 @@ async function fetchWormholeCodex(
     if ('status' in result && result.status === 404) return null;
     throw new Error(`wormhole codex ${failureLabel(result)}`);
   }
-  const typeByCode = new Map(
-    result.data.types.map((entry) => [entry.code, entry]),
-  );
-  const codes = result.data.types.map((entry) => entry.code).toSorted();
+  // The SDE ships multiple typeIds that share one code (e.g. C729 × 27) with
+  // identical dogma. Keep every typeId→code pair available via the wire
+  // payload for statics/lineage, but collapse the typeahead vocabulary to one
+  // entry per code (lowest typeId wins for byCode).
+  const typeByCode = new Map<string, (typeof result.data.types)[number]>();
+  for (const entry of result.data.types) {
+    const existing = typeByCode.get(entry.code);
+    if (existing === undefined || entry.typeId < existing.typeId) {
+      typeByCode.set(entry.code, entry);
+    }
+  }
+  const codes = [...typeByCode.keys()].toSorted();
   return {
     version,
     byCode(code) {
