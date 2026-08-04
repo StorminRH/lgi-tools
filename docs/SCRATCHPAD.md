@@ -51,7 +51,7 @@
   dismiss, dock/audit layout, RF dots/attribution cleanup, site-card dock
   centering; Select gutter gated on `align="center"`; focused +
   `pnpm verify` 5,077 tests + Fallow 0 on 130 files 2026-08-04; OW-lite
-  CLEAN after Select/frosted-surface fixes.
+  CLEAN after Select/frosted-surface fixes; commit `f84171aa`.
 - **Next-agent notes (G-1 + close-out):** Pause for operator G-1 ACCEPT before
   close-out opens the PR. **Do not open the PR until G-1 accepts.**
 
