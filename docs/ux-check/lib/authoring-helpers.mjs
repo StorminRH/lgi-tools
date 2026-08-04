@@ -6,11 +6,11 @@ const execFileAsync = promisify(execFile);
 
 /**
  * Blank-map id — ONLY for probes that require (and mutate) a blank map, i.e.
- * home and two-clients. Generic authoring probes use {@link authoringMapId}
- * so a full probe run never seeds the blank fixture out from under them.
+ * home and two-clients. Strictly `UX_BLANK_MAP_ID`: no fallback, so a
+ * one-variable run fails those probes closed instead of letting a generic
+ * probe seed the same map the blank probes depend on.
  */
-export const blankMapId = () =>
-  process.env.UX_BLANK_MAP_ID ?? process.env.UX_MAP_ID ?? null;
+export const blankMapId = () => process.env.UX_BLANK_MAP_ID ?? null;
 
 export const blankMapRoute = () => {
   const mapId = blankMapId();
@@ -18,8 +18,7 @@ export const blankMapRoute = () => {
 };
 
 /** Populated/general map id for authoring probes that only need edit rights. */
-export const authoringMapId = () =>
-  process.env.UX_MAP_ID ?? process.env.UX_BLANK_MAP_ID ?? null;
+export const authoringMapId = () => process.env.UX_MAP_ID ?? null;
 
 export const authoringRoute = () => {
   const mapId = authoringMapId();
@@ -63,6 +62,9 @@ export async function pickSystemSearch(page, placeholder, query, { root } = {}) 
 export async function openAddConnectionMenu(page) {
   const node = page.locator('[data-chain-node]').first();
   await node.waitFor({ state: 'visible', timeout: 60_000 });
+  // Scroll first: click() may scroll the node, which would stale a box
+  // captured before the gesture.
+  await node.scrollIntoViewIfNeeded();
   const box = await node.boundingBox();
   await node.click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Add connection…' }).waitFor({

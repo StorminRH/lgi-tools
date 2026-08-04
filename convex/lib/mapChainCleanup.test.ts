@@ -158,6 +158,12 @@ describe('map chain cleanup', () => {
     });
     expect(await t.run(async (ctx) => await ctx.db.get(ids.danglingConnection))).toBeNull();
     expect(await t.run(async (ctx) => await ctx.db.get(ids.expiredEvent))).toBeNull();
+    // The persisted boundary, not just the counters: exactly the one
+    // over-batch system survives the bounded pass.
+    const remainingSystems = await t.run(async (ctx) =>
+      await ctx.db.query('mapSystems').collect(),
+    );
+    expect(remainingSystems).toHaveLength(1);
   });
 
   it('registers the bounded purge on the production Convex cron registry', () => {

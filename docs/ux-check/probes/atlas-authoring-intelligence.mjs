@@ -17,7 +17,7 @@ export default {
   async run({ page, check, shot }) {
     const mapId = authoringMapId();
     if (!mapId) {
-      check('UX_BLANK_MAP_ID or UX_MAP_ID is set', false);
+      check('UX_MAP_ID is set', false);
       return;
     }
 

@@ -61,7 +61,7 @@ export default {
   async run({ page, check, shot, createContext, baseUrl }) {
     const mapId = blankMapId();
     if (!mapId) {
-      check('UX_BLANK_MAP_ID or UX_MAP_ID is set for the blank map', false);
+      check('UX_BLANK_MAP_ID is set for the blank map', false);
       return;
     }
 

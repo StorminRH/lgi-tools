@@ -15,7 +15,7 @@ export default {
   settle: 2000,
   async run({ page, check, shot }) {
     if (!blankMapId()) {
-      check('UX_BLANK_MAP_ID or UX_MAP_ID is set for the blank map', false);
+      check('UX_BLANK_MAP_ID is set for the blank map', false);
       return;
     }
 
