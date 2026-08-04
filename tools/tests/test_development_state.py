@@ -302,6 +302,11 @@ class ResolverFixture:
             ),
             "No",
         )
+        ux_ordered_step = (
+            "3. Run ux-check and record the operator disposition for the Contract UX gate.\n"
+            if ux_gate == "Yes"
+            else ""
+        )
         body = f"""# Session {session} Implementation Plan — Fixture
 
 **Plan status:** Approved
@@ -400,7 +405,7 @@ No runtime data flow changes.
 
 1. Implement the fixture contract.
 2. Prove its resolver result.
-
+{ux_ordered_step}
 ## Success criteria (agent-runnable — show the output)
 
 - **SC-1 — Contract DC-1 / AC-1 / V-1.** Fixture behavior is observable.
@@ -881,7 +886,12 @@ class DevelopmentStateTests(unittest.TestCase):
         state = self.resolved()
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertIn("The operator's local browser review is required", directive["pause"])
+        self.assertEqual(
+            "UX gate: Complete the dedicated UX Ordered-work step (`ux-check` plus "
+            "the operator's local browser review) before awaiting close-out; "
+            "also pause to discuss design conflicts and reshape in-session.",
+            directive["pause"],
+        )
 
         contract = self.fixture.write_contract(ux_gate="No")
         self.fixture.write_session_plan(contract)
@@ -892,6 +902,103 @@ class DevelopmentStateTests(unittest.TestCase):
             "Pause to discuss design conflicts with the operator, or on an "
             "explicit operator gate; reshape in-session and continue.",
             directive["pause"],
+        )
+
+    def test_ux_gate_yes_requires_ordered_ux_check_step(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(ux_gate="Yes")
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        text = plan.read_text(encoding="utf-8")
+        plan.write_text(
+            text.replace(
+                "3. Run ux-check and record the operator disposition for the Contract UX gate.\n",
+                "",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual("session-plan-needed", state["stage"])
+        self.assertTrue(
+            any("dedicated numbered ux-check step" in error for error in errors),
+            msg=f"errors={errors!r} reason={state.get('reason')!r}",
+        )
+
+    def test_ux_gate_yes_rejects_prose_only_ux_check_mention(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(ux_gate="Yes")
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        text = plan.read_text(encoding="utf-8")
+        plan.write_text(
+            text.replace(
+                "3. Run ux-check and record the operator disposition for the Contract UX gate.\n",
+                "Note: skip ux-check for this fixture.\n",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual("session-plan-needed", state["stage"])
+        self.assertTrue(
+            any("dedicated numbered ux-check step" in error for error in errors),
+            msg=f"errors={errors!r} reason={state.get('reason')!r}",
+        )
+
+    def test_ux_gate_yes_rejects_incidental_ux_check_mention(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(ux_gate="Yes")
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        text = plan.read_text(encoding="utf-8")
+        plan.write_text(
+            text.replace(
+                "3. Run ux-check and record the operator disposition for the Contract UX gate.\n",
+                "3. Implement the fixture while mentioning ux-check disposition in a note.\n",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual("session-plan-needed", state["stage"])
+        self.assertTrue(
+            any("dedicated numbered ux-check step" in error for error in errors),
+            msg=f"errors={errors!r} reason={state.get('reason')!r}",
+        )
+
+    def test_ux_gate_yes_accepts_do_not_skip_phrasing(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(ux_gate="Yes")
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        text = plan.read_text(encoding="utf-8")
+        plan.write_text(
+            text.replace(
+                "3. Run ux-check and record the operator disposition for the Contract UX gate.\n",
+                "3. Do not skip ux-check; Run ux-check and record the operator disposition.\n",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("session-ready", state["stage"])
+
+    def test_ux_gate_yes_rejects_negated_run_ux_check(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(ux_gate="Yes")
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        text = plan.read_text(encoding="utf-8")
+        plan.write_text(
+            text.replace(
+                "3. Run ux-check and record the operator disposition for the Contract UX gate.\n",
+                "3. Do not Run ux-check; record the operator disposition from manual review.\n",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual("session-plan-needed", state["stage"])
+        self.assertTrue(
+            any("dedicated numbered ux-check step" in error for error in errors),
+            msg=f"errors={errors!r} reason={state.get('reason')!r}",
         )
 
     def test_session_ready_directive_carries_deterministic_lifecycle_branch(self) -> None:
@@ -1098,6 +1205,30 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertEqual("contracts-needed", state["stage"])
         self.assertNotIn("asBuiltViolations", state)
+
+    def test_as_built_accepts_pass_review_verdict(self) -> None:
+        (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
+            "# Version 9.9\n\n## Status\n\n"
+            "| Sub-version | Theme | Sessions | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 9.9.1.1 | Shipped work | 1 | SHIPPED |\n"
+            "| 9.9.1.2 | Next work | 1 | PLANNED |\n",
+            encoding="utf-8",
+        )
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+        record = self.fixture.write_as_built(contract)
+        record.write_text(
+            record.read_text(encoding="utf-8").replace(
+                "Verdict: CLEAN;",
+                "Verdict: PASS;",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertNotIn("asBuiltViolations", state)
+        self.assertNotEqual("as-built-needed", state["stage"])
 
     def test_as_built_requires_each_passed_criterion_and_review_receipt(self) -> None:
         self.fixture.write_roadmap("PLANNED")

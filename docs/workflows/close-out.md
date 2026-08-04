@@ -43,8 +43,12 @@ Required inputs:
    `BLOCKED` and send the operator back to `start-session` for the next step —
    close-out must not absorb leftover Ordered work.
 2. **(shared)** Focused behavior, local, and UX evidence required by the changed
-   surface, plus the complete branch diff.
-3. **(shared)** Current design-review, release, health-baseline, and
+   surface, plus the complete branch diff. When the change is user-facing,
+   that UX evidence must already include completed `ux-check` captures and the
+   operator's browser-review disposition (or an explicit not-applicable reason).
+   Close-out consumes that evidence; it does not invoke `ux-check` or re-own
+   the operator pause.
+3. **(shared)** Current implementation-review, release, health-baseline, and
    workflow-policy state.
 
 Required outputs are exactly one of:
@@ -54,11 +58,11 @@ Required outputs are exactly one of:
   pushed to the lifecycle branch, its session plan reads
   `Execution status: Complete`, the durable handoff points to the next session,
   and no PR is opened.
-- `MERGED` **(shared)**: the change passes design review and verification, the PR
-  is reviewed and merged through the gate of record, and exact production proof
-  is complete. In planned mode the merged PR already carries the truthful
-  post-merge lifecycle state; in ordinary mode one valid pending changelog
-  fragment is the only durable lifecycle record.
+- `MERGED` **(shared)**: the change passes Diff-mode implementation review and
+  verification, the PR is reviewed and merged through the gate of record, and
+  exact production proof is complete. In planned mode the merged PR already
+  carries the truthful post-merge lifecycle state; in ordinary mode one valid
+  pending changelog fragment is the only durable lifecycle record.
 - `BLOCKED` **(shared)**: a named operator gate, scope conflict, failed mandatory
   check, or external-state condition prevents a truthful handoff or merge.
 
@@ -83,9 +87,9 @@ current-head application evidence.
 2. Run the session judgment review against the session diff. These checks are
    mandatory every session and happen before the final mechanical gates; when a
    check is irrelevant, record that its surface was not touched.
-   1. **Scope discipline.** Remove work the change did not need. The pre-PR
-      design review owns interface depth, semantic duplication, and whole-branch
-      change amplification, so do not repeat those audits here.
+   1. **Scope discipline.** Remove work the change did not need. Diff-mode
+      `adversarial-review` owns interface depth, semantic duplication, and
+      whole-branch change amplification, so do not repeat those audits here.
    2. **Data placement.** For every added or moved ESI-fed dataset, confirm its
       declaration, upstream cache time, authoritative store, freshness owner,
       key shape, purge coverage, and regenerability. Convex remains derived and
@@ -109,10 +113,13 @@ current-head application evidence.
    represent the behavior. Never run `pnpm build`, `next build`,
    `pnpm vercel-build`, or another production-mode build before merge.
 4. **(ordinary)** If the change affects user-facing behavior or appearance,
-   invoke `ux-check`, present its diagnostics and captures, and pause for the
-   operator's local-browser review. Do not enter the pre-PR gate until the
-   operator completes that review. Planned execution receives the same gate from
-   its contract through `start-session`.
+   require prior `ux-check` evidence and the operator's local-browser-review
+   disposition (run standalone `ux-check` before this close-out when missing).
+   Do not invoke `ux-check` or re-pause here. Do not enter the
+   implementation-review gate until that disposition is recorded or the surface
+   is explicitly not applicable. Planned execution completes the same gate in a
+   dedicated UX Ordered work step under `start-session` before awaiting
+   close-out.
 
 Phase evidence: disposition of every session finding, one verdict for each
 judgment-review surface, and the focused/local/UX proof or explicit
@@ -125,7 +132,7 @@ unit, one sub-version uses one lifecycle branch and one eventual PR; multiple
 scoped sessions may contribute verified commits before that PR opens. When any
 indexed contract in the sub-version declares one PR per session, that delivery
 unit applies to the whole sub-version and every session instead proceeds through
-**Pre-PR design-review gate** toward its own PR. This preserves earlier frozen
+**Implementation review gate** toward its own PR. This preserves earlier frozen
 contracts when an approved operator restructure adds later per-session
 contracts. A non-final such PR publishes no version, leaves the release triplet
 and changelog untouched so its identity stays `reconciled`, must work end to end
@@ -133,64 +140,77 @@ on its own, and its as-built record carries its own PR number; after each squash
 merge the lifecycle branch is recreated from current `origin/main`. Ordinary
 mode has no session-plan status, no next-session pointer, and no
 final-vs-non-final fork — it always proceeds toward a single PR; skip to
-**Pre-PR design-review gate**.
+**Implementation review gate**.
 
 1. Determine from the approved contract index, master-plan row, and session
    plan whether another approved session remains in the sub-version. Record the
    next session id or `Final session`; do not infer from branch age or filenames.
-2. If more sessions remain under the one-sub-version-PR delivery unit, skip the
-   pre-PR design review and continue at **Adversarial implementation-review
-   gate**. After that review and **Finalize and verify the current head** produce
-   commit-and-push evidence, change the approved plan's `Execution status` from
-   `Pending` to `Complete`, author the session's as-built record per
-   `docs/workflows/schema/session-as-built.md` (its `PR` marker defers to the
-   sub-version's final session), point the durable handoff
+2. If more sessions remain under the one-sub-version-PR delivery unit, continue
+   at **Implementation review gate** with Design notes deferred to the final
+   session. After that review and **Finalize and verify the current head**
+   produce commit-and-push evidence, change the approved plan's
+   `Execution status` from `Pending` to `Complete`, author the session's
+   as-built record per `docs/workflows/schema/session-as-built.md` (its `PR`
+   marker defers to the sub-version's final session), point the durable handoff
    (`docs/SCRATCHPAD.md`) at the next session, and make the required lifecycle
    commit and push to the lifecycle branch. A lifecycle-only status commit does
    not rerun application tests. Stop without opening a PR (`SESSION_HANDOFF`).
 3. If this is the final session, the sub-version's remaining state ships inside
    its PR. Continue only when the sub-version works end to end, depends on
    nothing unmerged, and the PR is reviewable as one cohesive change. The final
-   session is marked `Execution status: Complete` during **Pre-PR design-review
-   gate** version finalization, before the PR opens — not after merge.
-4. Read the session contract's `UX gate` marker. `Yes` is the authority to
-   pause for the operator's local-browser review now, while the verified local
-   server remains available; `No` skips that pause.
+   session is marked `Execution status: Complete` during **Implementation
+   review gate** version finalization, before the PR opens — not after merge.
+4. Read the session contract's `UX gate` marker. `Yes` means a dedicated UX
+   Ordered work step under `start-session` must already have invoked `ux-check`
+   and recorded the operator's local-browser-review disposition before this
+   close-out began; verify that disposition in SCRATCHPAD, the in-context proof
+   ledger, or the session as-built draft inputs. `No` skips that requirement.
+   Do not re-run `ux-check` or re-own the pause here. Missing required UX
+   disposition returns `BLOCKED` and sends the operator back to `start-session`
+   for the UX Ordered work step (or standalone `ux-check` when resuming outside
+   OW).
 
 Phase evidence: `Remaining session: <id>` or `Final session`, the applicable UX
-gate value, and any operator-review outcome. A required operator review that has
-not completed returns `BLOCKED`.
+gate value, and the recorded operator-review disposition or `N/A`. A required
+operator review that has not completed returns `BLOCKED`.
 
-## Pre-PR design-review gate
+## Implementation review gate (shared)
 
-This gate runs before any PR opens: for the final planned session, for every
-session in a sub-version whose effective delivery unit is one PR per session,
-and for ordinary work — each a complete, reviewable change. Non-final sessions
-under the one-sub-version-PR delivery unit skip it (per the fork above). It owns
-the whole-branch design judgment and does not repeat the session-level data
-placement, rendering, UI, or public-truth review.
+This is the sole design-and-independent-review stage before the full
+verification checkpoint. It runs for ordinary work, for the final planned
+session, for every session in a sub-version whose effective delivery unit is
+one PR per session, and for non-final handoff sessions under the
+one-sub-version-PR delivery unit. It owns whole-branch design judgment and the
+independent Diff-mode review in one invocation. Do not launch a second
+design-agent or adversarial round after it. It does not repeat the
+session-level data placement, rendering, UI, or public-truth review.
 
-1. **(shared)** Invoke `pre-pr-design-review` against the complete diff. Supply
-   the completed implementation, focused checks, and local/UX proof as its
-   readiness evidence; the final full definition-of-done gate deliberately
-   follows this review so any design fix is included in the tested head. That
-   procedure owns the review dimensions; fix every in-scope finding before
-   continuing.
-2. **(shared)** If a measured hotspot surface changed, reconcile
-   `docs/CODE_HEALTH_BASELINE.md` as required by the design review. The
-   design-review and version-audit procedures own the measurement and overwrite
-   mechanics; do not reproduce them here.
+1. **(shared)** Invoke `adversarial-review` in Diff mode against the complete
+   working-tree change. Supply the direct request or frozen contract-and-plan
+   chain, the current base, the complete tracked patch and untracked inventory,
+   focused and UX evidence, and the current code-health baseline. Keep the
+   worktree stable while reviewers run. That procedure owns role selection
+   (agents once), receipt, design-creed reconcile, in-scope fixes, baseline
+   updates, and Design notes; do not restate its mechanics here. A required
+   role that cannot run, a claim that direct evidence cannot settle, or a
+   material design conflict returns `BLOCKED`. Do not automatically relaunch
+   adversarial-review.
+2. Continue only with Diff-mode `PASS`. The following full checkpoint validates
+   the resulting final bytes.
 3. Finalize every delivery record that would otherwise create a later commit,
    before the final current-head gates and before opening the PR:
    - **(ordinary)** Create exactly one valid pending changelog fragment for the
      shipped work in `content/changelog/pending/`, following
      `docs/workflows/schema/changelog-pending.md`. Do not bump `APP_VERSION`,
      write any `### vX.Y.N` heading, edit the roadmap, or touch session execution
-     state. Prepare the concise design result for the PR's `## Notes`.
+     state. Use the Design notes from Diff mode for the PR's `## Notes`.
    - **(planned, non-final session shipping its own PR)** Leave the release
      triplet, changelog, and pending inbox untouched; mark the session plan
-     `Execution status: Complete` and prepare the concise design result for
+     `Execution status: Complete` and use the Design notes from Diff mode for
      the PR's `## Notes`.
+   - **(planned, non-final handoff under one-sub-version-PR)** Skip delivery
+     finalization and PR Design notes here; Diff mode may record
+     `Design notes: deferred to final session`.
    - **(planned, final session)** Safely synchronize with current `origin/main`
      (fetch and integrate without discarding local work) so any pending fragments
      already merged there are present locally. Then freeze the release candidate:
@@ -202,54 +222,27 @@ placement, rendering, UI, or public-truth review.
      `docs/workflows/schema/changelog-entry.md`, bump `APP_VERSION` to that
      version, set the delivered sub-version's roadmap row to its terminal status,
      mark the final session plan `Execution status: Complete`, and prepare the PR
-     `## Notes`. Anything merged into the inbox after this cutoff stays pending
-     for the following planned release.
+     `## Notes` from Diff-mode Design notes. Anything merged into the inbox after
+     this cutoff stays pending for the following planned release.
 
-Phase evidence: the exact `PASS` result returned by the pre-PR design-review
-procedure, reconciled hotspot/baseline state or a not-applicable verdict, and —
-per mode — the created pending fragment path (ordinary) or the finalized
-changelog, absorbed-fragment list, `APP_VERSION`, terminal roadmap row, final
-session status, and PR design notes (planned).
-
-## Adversarial implementation-review gate (shared)
-
-Run the economical independent review before the sole full verification
-checkpoint, so accepted fixes join the finalized head without manufacturing a
-second coverage cycle. For planned sessions this gate runs only in the
-close-out chat — Ordered-work chats under `start-session` must not invoke
-`adversarial-review`.
-
-1. Invoke `adversarial-review` in Diff mode against the complete working-tree
-   change. Supply the direct request or frozen contract-and-plan chain, the
-   current base, the complete tracked patch and untracked inventory, focused and
-   UX evidence, and the finalized delivery records from the preceding phase.
-2. Keep the worktree stable while that procedure runs. It owns role selection,
-   receipt, and reconciliation; do not restate its mechanics here. A required
-   role that cannot run or a claim that direct evidence cannot settle returns
-   `BLOCKED`.
-3. Fix every accepted in-scope finding through the authority already held by
-   close-out. Preserve the rejection/do-not-change ledger. A scope, architecture,
-   public-surface, or authority conflict returns `BLOCKED`. Ordinary localized
-   fixes are verified by the orchestrator and the applicable focused check
-   without another full adversarial-review round. Do not automatically relaunch
-   adversarial-review.
-4. Continue only with `CLEAN` or with every accepted finding corrected and
-   personally verified. The following full checkpoint validates the resulting
-   final bytes.
-
-Phase evidence: reviewed working-tree base and patch digest, every selected
-reviewer verdict and compact receipt including requested and observed runtime identity,
-selected roles and completion states, direct-evidence blocker
-disposition or `Not used`, accepted and rejected dispositions, and the final
-clean/corrected boundary verdict.
+Phase evidence: the exact Diff-mode `PASS` result, reviewed working-tree base
+and patch digest, every selected reviewer verdict and compact receipt including
+requested and observed runtime identity, selected roles and completion states,
+accepted and rejected dispositions, reconciled hotspot/baseline state or a
+not-applicable verdict, Design notes or deferred-handoff marker, and — per mode —
+the created pending fragment path (ordinary) or the finalized changelog,
+absorbed-fragment list, `APP_VERSION`, terminal roadmap row, and final session
+status (planned).
 
 ## Finalize and verify the current head (shared)
 
 This is the single full verification checkpoint for the completed head. Do not
-repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
+repeat it at the implementation-review or PR-opening boundary when the head is
+unchanged.
 
 1. Confirm the finalized diff still matches the adversarially reviewed subject
-   plus its recorded corrections. Inspect it against the change's scope — the
+   plus its recorded corrections and the delivery records finalized in the
+   Implementation review gate. Inspect it against the change's scope — the
    session contract and approved plan in planned mode, or the direct request in
    ordinary mode — plus prohibited surfaces. Remove anything outside those
    boundaries, confirm every required surface is present, and screen all tracked

@@ -6,8 +6,9 @@
 > requirements. Standing workflow: the lifecycle resolver selects every stage;
 > branch per sub-version; sessions commit in-branch with `pnpm verify`; one PR
 > per completed sub-version; Greptile on PR open is the gate of record;
-> `UX gate: Yes` contracts pause for Ryan's local dev-server review before the
-> PR opens; every session ends through `close-out`. Every completed sub-version
+> `UX gate: Yes` contracts require a dedicated Ordered-work `ux-check` step and
+> Ryan's local dev-server review before awaiting close-out; every session ends
+> through `close-out`. Every completed sub-version
 > gets an APP_VERSION bump + entry in `content/changelog/v4.0.md` (the
 > per-sub-version changelog rule applies to mapper work like everything else —
 > the repo is public; the D13 wall gates the *UI*, not development visibility).

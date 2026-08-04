@@ -518,6 +518,45 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
     )
     if plan_ux_match is None or plan_ux_match.group(1) != ux_gate:
         violations.append("Contract UX gate must match the contract marker")
+    if ux_gate == "Yes":
+        ordered_work = bodies.get("Implementation blueprint", "")
+        # Schema requires a numbered dedicated UX step under ### Ordered work.
+        ordered_section = re.search(
+            r"^### Ordered work\s*\n([\s\S]*?)(?=^## |\Z)",
+            ordered_work,
+            re.MULTILINE,
+        )
+        ordered_body = ordered_section.group(1) if ordered_section else ""
+        # Dedicated step: numbered item with an affirmative Run/Complete/
+        # Perform/Execute ux-check action plus disposition/G-N. Reject only
+        # when every action verb on the line is locally negated ("Do not Run
+        # ux-check"); a later affirmative verb still counts.
+        has_dedicated_ux_step = False
+        for line_match in re.finditer(r"^\d+\.\s+\S.+$", ordered_body, re.MULTILINE):
+            line = line_match.group(0)
+            if not re.search(r"(?:\bdisposition\b|\bG-\d+\b)", line):
+                continue
+            for action in re.finditer(
+                r"(?:Run|Complete|Perform|Execute)\s+ux-check\b",
+                line,
+                re.IGNORECASE,
+            ):
+                prefix = line[max(0, action.start() - 24) : action.start()]
+                if re.search(
+                    r"(?:\bnot|\bnever|\bdon'?t|\bdo\s+not)\s+$",
+                    prefix,
+                    re.IGNORECASE,
+                ):
+                    continue
+                has_dedicated_ux_step = True
+                break
+            if has_dedicated_ux_step:
+                break
+        if not has_dedicated_ux_step:
+            violations.append(
+                "Ordered work must include a dedicated numbered ux-check step "
+                "with operator disposition or G-N when Contract UX gate is Yes"
+            )
     if not re.search(r"^\*\*Branch:\*\*\s+\S.+\*\*ends in PR:\*\*\s+(?:yes|no)\s+·\s+\*\*gate:\*\*\s+\S", text, re.MULTILINE | re.IGNORECASE):
         violations.append("Bottom line must contain the exact Branch / ends in PR / gate marker")
     if "<hard_constraints>" not in bodies.get("Bottom line (READ FIRST)", "") or "</hard_constraints>" not in bodies.get("Bottom line (READ FIRST)", ""):
@@ -714,7 +753,7 @@ def as_built_schema_violations(
             r";\s*Roles:\s+\S.+?"
             r";\s*Runtime identity:\s+requested=\S.+?"
             r",\s*observed=(?:Not observable|\S.+?)"
-            r";\s*Verdict:\s+(?:CLEAN|CORRECTED)"
+            r";\s*Verdict:\s+(?:PASS|CLEAN|CORRECTED)"
             r";\s*Disposition:\s+\S.+$"
         )
         if len(review_lines) != 1 or receipt_pattern.fullmatch(review_lines[0]) is None:
@@ -1285,7 +1324,8 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
         )
         if state.get("uxGate") == "Yes":
             pause = (
-                "UX gate: The operator's local browser review is required before the PR opens; "
+                "UX gate: Complete the dedicated UX Ordered-work step (`ux-check` plus "
+                "the operator's local browser review) before awaiting close-out; "
                 "also pause to discuss design conflicts and reshape in-session."
             )
         return WorkflowDirective(

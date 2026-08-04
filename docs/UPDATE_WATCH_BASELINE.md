@@ -125,7 +125,7 @@ tooling).
       "name": "Vercel / Next.js",
       "watch": ["https://vercel.com/atom", "https://nextjs.org/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-30",
+      "scanSince": "2026-08-04",
       "acknowledgedItems": [
         "https://vercel.com/blog/how-searchable-ships-customer-requested-features-in-30-minutes-on-vercel",
         "https://vercel.com/blog/vercel-agent",
@@ -173,17 +173,36 @@ tooling).
         "https://vercel.com/changelog/expanded-search-for-workflow-runs-in-vercel-observability",
         "https://vercel.com/changelog/10x-more-capacity-for-laguna-s-2-1-on-ai-gateway",
         "https://vercel.com/changelog/vercel-passport-generally-available",
-        "https://vercel.com/changelog/qwen-3-8-max-now-available-on-vercel-ai-gateway"
+        "https://vercel.com/changelog/qwen-3-8-max-now-available-on-vercel-ai-gateway",
+        "https://vercel.com/changelog/server-timing-header",
+        "https://vercel.com/blog/shopify-and-vercel-are-rebuilding-hydrogen-for-faster-storefronts",
+        "https://vercel.com/changelog/run-multiple-isolated-agents-in-a-single-sandbox",
+        "https://vercel.com/changelog/minimax-h3-now-available-on-vercel-ai-gateway",
+        "https://vercel.com/changelog/inkling-small-now-available-on-ai-gateway",
+        "https://vercel.com/changelog/turborepo-and-remote-cache-now-support-openid-connect-oidc",
+        "https://vercel.com/changelog/ai-gateway-gpt-5-6-pricing-speed-updates",
+        "https://vercel.com/changelog/deployments-are-now-up-to-7-seconds-faster",
+        "https://vercel.com/changelog/latest-mcp-spec-now-supported-in-mcp-handler",
+        "https://vercel.com/changelog/introducing-enterprise-flexible-commitment-for-vercel-marketplace",
+        "https://vercel.com/changelog/project-scoped-tokens",
+        "https://nextjs.org/blog/next-security-release-program",
+        "https://nextjs.org/blog/next-16-3-turbopack",
+        "https://vercel.com/changelog/give-your-eve-agent-a-browser",
+        "https://vercel.com/changelog/vercel-waf-for-blob-is-now-generally-available",
+        "https://vercel.com/blog/how-factory-scaled-its-cloud-backend-to-tens-of-millions-of-daily-requests",
+        "https://vercel.com/changelog/share-vercel-container-registry-repositories-across-teams",
+        "https://nextjs.org/blog/next-16-3"
       ]
     },
     {
       "name": "Neon",
       "watch": ["https://neon.com/docs/changelog/rss.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-31",
+      "scanSince": "2026-08-01",
       "acknowledgedItems": [
         "https://neon.com/docs/changelog/2026-07-24",
-        "https://neon.com/docs/changelog/2026-07-31"
+        "https://neon.com/docs/changelog/2026-07-31",
+        "https://neon.com/docs/changelog/2026-07-17"
       ]
     },
     {
@@ -191,19 +210,27 @@ tooling).
       "watch": ["https://news.convex.dev/rss/"],
       "idRule": "url",
       "scanSince": "2026-07-22",
-      "acknowledgedItems": []
+      "acknowledgedItems": [
+        "https://news.convex.dev/abstract",
+        "https://news.convex.dev/convex-open-source-recap-2025",
+        "https://news.convex.dev/enterprise-launch"
+      ]
     },
     {
       "name": "Upstash",
       "watch": ["https://upstash.com/blog/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-30",
+      "scanSince": "2026-08-04",
       "acknowledgedItems": [
         "https://upstash.com/blog/durable-workflow-engines-compared-every-major-option-in-2026",
         "https://upstash.com/blog/context7-vs-static-llm-knowledge-benchmarking-coding-assistants",
         "https://upstash.com/blog/how-to-self-host-redis-in-2026",
         "https://upstash.com/blog/replicated-cache-backed-by-redis",
-        "https://upstash.com/blog/time-series-data-in-redis-patterns-and-best-practices"
+        "https://upstash.com/blog/time-series-data-in-redis-patterns-and-best-practices",
+        "https://upstash.com/blog/google-cloud-run-vs-agent-sandboxes",
+        "https://upstash.com/blog/how-to-build-search-on-redis",
+        "https://upstash.com/blog/running-claude-code-in-a-remote-sandbox-with-upstash-box",
+        "https://upstash.com/blog/upstash-vs-aws-elasticache-serverless-redis-pricing-and-performance-2026"
       ]
     }
   ],
@@ -214,7 +241,9 @@ tooling).
       "idRule": "url",
       "scanSince": "2026-07-22",
       "acknowledgedItems": [
-        "https://developers.eveonline.com/blog/a-splash-of-color-corporation-palette-and-a-few-fresh-fields"
+        "https://developers.eveonline.com/blog/a-splash-of-color-corporation-palette-and-a-few-fresh-fields",
+        "https://developers.eveonline.com/blog/goodbye-swagger-removing-the-last-remnants",
+        "https://developers.eveonline.com/blog/cradle-of-war-on-esi-character-titles-and-achievements"
       ]
     },
     {
@@ -304,7 +333,9 @@ tooling).
         "https://developers.eveonline.com/docs/services/image-server",
         "https://developers.eveonline.com/docs/services/sso",
         "https://developers.eveonline.com/docs/services/static-data",
-        "https://developers.eveonline.com/docs/support"
+        "https://developers.eveonline.com/docs/support",
+        "https://developers.eveonline.com/docs/community/fuzzwork",
+        "https://developers.eveonline.com/docs/community/fuzzwork-sde"
       ]
     }
   ]

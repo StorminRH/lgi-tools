@@ -22,7 +22,8 @@ Shared rules:
 Portable evidence roles referenced by living guides and workflows:
 
 - `docs-researcher` — Documentation brief before production/test code
-- `repo-mapper` — Repository map for Codegraph relationship questions
+- `repo-mapper` — Repository map for Codegraph CLI relationship questions
+  (`callers`, `callees`, `impact`, `query`)
 - `gate-runner` — Gate result packets for focused tests and `pnpm verify`
 - `ow-reviewer` — reviewer-verdict for per-OW adoption and hygiene (not a
   substitute for Diff/PR `ownership-reviewer` or `adversarial-review`)
@@ -32,10 +33,11 @@ Portable evidence roles referenced by living guides and workflows:
 ```text
 Repository map:
 - Scope: <relationship question and known entry symbols/paths>
+- Index: <Codegraph status/sync result, or Not run — reason>
 - Owners: <path or symbol -> responsibility>
 - Execution flow: <ordered call/render path through the assigned symbols>
 - Load-bearing source:
-  - <path> <symbol>: <curated excerpt from Codegraph; treat as already Read>
+  - <path> <symbol>: <curated excerpt from Codegraph CLI relationship query; treat as already Read>
 - Impact: <callers, dependents, registries, tests, and gates>
 - Edit seam: <where to change / what not to touch>
 - Documentation questions: <technology, version, question for docs-researcher or None>
@@ -43,10 +45,15 @@ Repository map:
 - Evidence: <repository-relative paths and symbols>
 ```
 
-Include only relationship-relevant symbols. Treat Codegraph-returned source as
-already Read unless a staleness banner names a file. Do not include raw
-Codegraph transcripts, complete file inventories, or a conceptual discovery
-tour. Documentation questions hand off to `docs-researcher`.
+Include only relationship-relevant symbols. Run Codegraph `status`/`sync` when
+the index may be stale, and record that result in `Index` before treating
+relationship excerpts as Read. Treat source returned by Codegraph CLI
+relationship queries (`callers`, `callees`, `impact`, `query`) as already Read
+unless a staleness or index-gap notice names a file. Do not include raw CLI
+transcripts, complete file inventories, or a conceptual discovery tour.
+`repo-mapper` is not for ordinary discovery — the parent uses Explore, semantic
+search, and grep for that. Documentation questions hand off to
+`docs-researcher`.
 
 ## Documentation brief
 

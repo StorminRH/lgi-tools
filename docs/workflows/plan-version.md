@@ -19,10 +19,11 @@ create session implementation plans here.
 1. Require the resolver directive to name `plan-version`; otherwise report it
    and return to `start-session`.
 2. Read the master plan, live code and tests, baseline, SCRATCHPAD, relevant
-   backlog, and contract schema. Use Codegraph only for material relationship,
-   consumer, dependency, or blast-radius claims. Use current primary
-   documentation when moving implementation assumptions depend materially on
-   external behavior.
+   backlog, and contract schema. Use `repo-mapper` (Codegraph CLI: `callers`,
+   `callees`, `impact`, `query`) only for material relationship, consumer,
+   dependency, or blast-radius claims; keep conceptual discovery on Explore,
+   semantic search, and grep. Use current primary documentation when moving
+   implementation assumptions depend materially on external behavior.
 3. Extract an outcome ledger that preserves every goal, invariant, required
    cleanup, dependency, acceptance outcome, UX gate, and operator decision
    without accepting roadmap delivery headings as boundaries.

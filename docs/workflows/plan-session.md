@@ -31,9 +31,10 @@ reshape through live operator discussion without returning here.
 2. Read the contract and session-plan schema, then reconcile every dependency,
    boundary, decision, acceptance claim, evidence category, baseline effect, and
    operator gate against current repository evidence and live code. Use
-   `repo-mapper` for material relationship, consumer, dependency, or
-   blast-radius claims. Investigate as needed, but do not draft the full plan
-   yet.
+   `repo-mapper` (Codegraph CLI: `callers`, `callees`, `impact`, `query`) for
+   material relationship, consumer, dependency, or blast-radius claims. Keep
+   conceptual discovery on Explore, semantic search, and grep. Investigate as
+   needed, but do not draft the full plan yet.
 3. Treat the contract's approved execution bundle as fixed. Do not split it
    because work has phases, touches different owners, needs producer/consumer
    ordering, or contains a resumable review pause.
@@ -59,8 +60,10 @@ and present a complete schema plan for approval.
    to a complete schema document. Size each Ordered work step for one
    execution chat; do not place close-out, adversarial review, push, or PR
    opening inside Ordered work — those belong under End of session Delivery.
-   Per-step commit after green gates and `ow-reviewer` is part of Ordered work
-   under `start-session`, not End of session Delivery.
+   When `UX gate` is Yes, size a dedicated UX Ordered work step that invokes
+   `ux-check` and completes the operator pause; never nest that gate under
+   close-out Delivery. Per-step commit after green gates and `ow-reviewer` is
+   part of Ordered work under `start-session`, not End of session Delivery.
 3. Resolve every contract planning decision (`PD-N` and consequential choices)
    during this walk. Do not escalate ordinary local implementation details;
    surface choices that change behavior, ownership, risk, or scope. For every

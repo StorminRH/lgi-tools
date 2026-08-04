@@ -4,8 +4,8 @@ Validate an incoming issue or contribution against current repository evidence,
 report its true scope, and act only after the operator chooses a response. Do not
 accept a report's diagnosis, line numbers, or proposed fix without verification.
 
-Use `docs/workflows/pre-pr-design-review.md` when the reported defect indicates
-broader ownership, boundary, or change-amplification decay.
+Use Diff-mode `docs/workflows/adversarial-review.md` when the reported defect
+indicates broader ownership, boundary, or change-amplification decay.
 
 ## Execution contract
 
@@ -33,8 +33,9 @@ still requires its point-of-action approval.
 For each claim:
 
 1. Locate the cited files, symbols, and behavior through repository search and
-   targeted source reads. Use Codegraph only for material relationship,
-   consumer, dependency, or blast-radius claims.
+   targeted source reads. Use `repo-mapper` (Codegraph CLI: `callers`,
+   `callees`, `impact`, `query`) only for material relationship, consumer,
+   dependency, or blast-radius claims.
 2. Confirm cited files, lines, owners, and behavior against current code. Use a
    focused runtime or live check when the claim cannot be established statically.
 3. Search read-only for the same root cause elsewhere. Distinguish the reported
@@ -78,9 +79,10 @@ resolver or infer planned work from the issue, branch, or app version.
 Hold the selected scope, use a `docs-researcher` subagent when current external
 technology behavior materially affects the fix, and add behavioral proof. A
 resolving PR must include `Fixes #<issue>`. For user-facing changes, run
-`ux-check` and complete the operator-review pause. Ship only through
-`close-out`, which owns the ordinary pending fragment, verification, PR review,
-conditional merge, and production proof.
+`ux-check` and complete the operator-review pause before invoking `close-out`
+(close-out consumes that evidence; it does not re-run the sweep or pause).
+Ship only through `close-out`, which owns the ordinary pending fragment,
+verification, PR review, conditional merge, and production proof.
 
 ### Contribution PR
 
