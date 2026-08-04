@@ -39,10 +39,11 @@ git diff --name-only
 ```
 
 Map route files directly. For shared feature or UI code, search the repository
-for route and component consumers. Use Codegraph only for material relationship,
-consumer, dependency, or blast-radius claims. Replace each dynamic segment with
-a real locally available identifier obtained from the owning list page or
-database; never treat an example identifier as a fixture.
+for route and component consumers. Use `repo-mapper` (Codegraph CLI: `callers`,
+`callees`, `impact`, `query`) only for material relationship, consumer,
+dependency, or blast-radius claims. Replace each dynamic segment with a real
+locally available identifier obtained from the owning list page or database;
+never treat an example identifier as a fixture.
 
 The sweep is logged out. Capture authenticated routes to verify their signed-out
 gate, then record that populated account state requires the operator's logged-in
@@ -118,7 +119,13 @@ sweep refreshes all captures; the probe runner refreshes only `captures/probes/`
    inspection is diagnostic only; operator browser review is the final visual
    judgment.
 4. Return `UX_EVIDENCE`, point to the capture directory, and pause for the
-   operator's browser review before PR creation.
+   operator's browser review. Do not open a PR from this workflow. `close-out`
+   consumes the recorded disposition and does not re-run this sweep or pause.
+
+In planned lifecycle work with `UX gate: Yes`, this procedure is the body of a
+dedicated Ordered work step under `start-session`; complete the operator pause
+there before `n/n complete — awaiting close-out`. In ordinary work, run this
+skill standalone, complete the operator pause, then invoke `close-out`.
 
 The required sequence is `ux-check` evidence → operator review → `close-out`.
 
@@ -131,7 +138,7 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 
 - **Subject:** <concrete captured routes and viewports>; captures `<capture directory>`
 - **Result:** <diagnostics/probe/visual summary, naming any authenticated-state limitation; ≤2 sentences>
-- **Action:** <Pause for operator review (`Pending`), return to implementation, or continue to close-out>
+- **Action:** <Pause for operator review (`Pending`), return to implementation, hand off to the next Ordered work step, or continue to close-out>
 - **Blocker:** <exact blocker or `None`>
 ```
 

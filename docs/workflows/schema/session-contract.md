@@ -174,7 +174,9 @@ lists.
 Repeat the practical consequence of the `UX gate` marker and name any additional
 explicit operator pause required by the version plan or product decision as a
 `G-N` item. The session plan carries the marker and every item into its exact
-delivery sequence.
+delivery sequence. When the marker is Yes, satisfaction is owned by a dedicated
+Ordered work step under `start-session` that invokes `ux-check` and records the
+operator disposition — not by close-out's review or PR-opening phase.
 
 ## 11. Baseline/hotspot boundary
 
@@ -186,6 +188,7 @@ baseline. Live proximity evidence and the exact update belong in the plan.
 
 Record the slice-relevant delivery fork inherited from the roadmap: whether the
 session commits in-branch or completes a sub-version, when its execution marker
-may become `Complete`, and which review or operator gates apply. The version
-plan remains authoritative; the session plan supplies exact branch, command,
-artifact, and handoff details.
+may become `Complete`, and which review or operator gates apply. Close-out
+consumes a completed UX Ordered work disposition when `UX gate` is Yes; it does
+not re-run that pause. The version plan remains authoritative; the session plan
+supplies exact branch, command, artifact, and handoff details.

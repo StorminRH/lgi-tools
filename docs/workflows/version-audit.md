@@ -49,7 +49,8 @@ transition.
 
 1. Require the resolver to name `plan-audit-remediation`; read the baseline,
    audit plan and ledger, master plan, schemas, SCRATCHPAD, backlog, live code,
-   and any Codegraph relationship evidence needed by the open findings.
+   and any Codegraph CLI relationship evidence (`repo-mapper` / `callers`,
+   `callees`, `impact`, `query`) needed by the open findings.
 2. For every open Floss or Campaign, diagnose the violated ownership, interface,
    change-axis, or coverage principle. Define the required end-state and
    characterization evidence instead of copying a metric.

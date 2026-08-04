@@ -241,10 +241,13 @@ step (after the docs gate when touching production or test code), prove it,
 run `gate-runner`, launch `ow-reviewer`, update SCRATCHPAD OW fields, commit
 the step, and hand off. Do not list close-out, adversarial review, push, or PR
 opening as an Ordered work step — **End of session** Delivery owns those.
-Per-step commit after green gates and a clean `ow-reviewer` verdict is part of
-Ordered work. Each step names concrete surfaces and its resulting contract.
-Avoid open-ended instructions such as "update relevant files," "add tests as
-needed," or "handle edge cases."
+When `Contract UX gate` is Yes, include one dedicated Ordered work step whose
+outcome is `ux-check` evidence plus the named `G-N` operator disposition;
+close-out consumes that disposition and does not re-own the pause. Per-step
+commit after green gates and a clean `ow-reviewer` verdict is part of Ordered
+work. Each step names concrete surfaces and its resulting contract. Avoid
+open-ended instructions such as "update relevant files," "add tests as needed,"
+or "handle edge cases."
 
 ## Success criteria (agent-runnable — show the output)
 
@@ -279,9 +282,12 @@ instead of duplicating their evidence actions.
 ## End of session
 
 - Confirm every `DONE =` item is evidenced and every `hard_constraints` boundary
-  held; confirm the baseline verdict and contract UX pause were honored.
+  held; confirm the baseline verdict and, when `Contract UX gate` is Yes, that
+  the dedicated UX Ordered work step completed the contract UX pause before
+  Delivery.
 - **Delivery:** [exactly push in-branch after OW commits, open a PR, merge, or
-  stop with a non-code artifact; include the required gate and operator pause].
+  stop with a non-code artifact; assume the UX Ordered work disposition is
+  already recorded when the marker is Yes].
 - **Lifecycle artifacts:** [name the plan marker, roadmap, changelog, baseline,
   SCRATCHPAD, or archive updates that this session actually owns; omit those it
   does not].

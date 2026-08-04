@@ -74,9 +74,12 @@ means step 1). Execute only that step, plus any operator pause the plan or
 contract attaches to it. Before writing or editing production or test code for
 the step, launch `docs-researcher` for every material external technology in
 the change and require a Documentation brief; skip only for docs-only,
-SCRATCHPAD, policy-only, or other pure non-code edits. A UI gate invokes
-`ux-check` and pauses for operator review. Maintain an in-context proof ledger
-with one result for every atomic proof row owned by that step.
+SCRATCHPAD, policy-only, or other pure non-code edits. When the contract or
+plan `UX gate` is Yes, the plan must include a dedicated Ordered work step that
+invokes `ux-check` and completes the operator pause before
+`n/n complete — awaiting close-out`; that step owns the UI gate, and close-out
+does not re-run it. Maintain an in-context proof ledger with one result for
+every atomic proof row owned by that step.
 
 After the step's focused proof, invoke `gate-runner` with those focused
 evidence commands, then:

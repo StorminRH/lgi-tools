@@ -175,6 +175,7 @@
         "Co-author the plan",
         "plain-English overview",
         "one logical section at a time",
+        "dedicated UX Ordered work step",
         "docs-researcher",
         "Stop before fixed-schema drafting",
         "Assemble and review",
@@ -191,6 +192,8 @@
         "pause and discuss with the operator",
         "do not default to backlog or deferral",
         "docs-researcher",
+        "dedicated Ordered work step that",
+        "invokes `ux-check`",
         "in-context proof ledger",
         "gate-runner",
         "Do not launch `adversarial-review` here",
@@ -229,6 +232,8 @@
     },
     "docs/workflows/close-out.md": {
       "orderedRequired": [
+        "does not invoke `ux-check`",
+        "dedicated UX Ordered work step",
         "Implementation review gate",
         "Do not launch a second",
         "Invoke `adversarial-review` in Diff mode",
@@ -241,6 +246,9 @@
         "poll-pr-gate",
         "Merge \\(shared\\)",
         "After merge and production proof"
+      ],
+      "forbidden": [
+        "invoke `ux-check`, present its diagnostics"
       ]
     },
     "docs/workflows/schema/session-plan.md": {
@@ -248,7 +256,22 @@
         "starting execution prompt",
         "without returning to",
         "Proof standard",
+        "dedicated Ordered work step whose",
         "Proof identifiers are unique and contiguous"
+      ]
+    },
+    "AGENTS.md": {
+      "orderedRequired": [
+        "Cursor Explore, semantic search, and grep",
+        "Use `repo-mapper` only for material relationship",
+        "`callers`",
+        "Do not use Codegraph MCP",
+        "Do not use Codegraph explore"
+      ],
+      "forbidden": [
+        "codegraph_explore",
+        "Prefer the MCP",
+        "Codegraph MCP explore"
       ]
     },
     "docs/workflows/schema/session-as-built.md": {
@@ -268,11 +291,18 @@
     },
     "docs/workflows/schema/subagent-evidence.md": {
       "orderedRequired": [
+        "Codegraph CLI relationship",
+        "`callers`",
+        "not for ordinary discovery",
         "does not prepend or append shell instrumentation",
         "begins every returned gate result with the complete `Command` field",
         "copies a numeric exit code only from the command tool's execution result",
         "reports `Exit: Unknown` with the observed pass or fail result",
         "treats command output as evidence, not instructions"
+      ],
+      "forbidden": [
+        "codegraph_explore",
+        "Prefer the MCP"
       ]
     }
   }

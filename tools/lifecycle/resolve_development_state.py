@@ -1285,7 +1285,8 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
         )
         if state.get("uxGate") == "Yes":
             pause = (
-                "UX gate: The operator's local browser review is required before the PR opens; "
+                "UX gate: Complete the dedicated UX Ordered-work step (`ux-check` plus "
+                "the operator's local browser review) before awaiting close-out; "
                 "also pause to discuss design conflicts and reshape in-session."
             )
         return WorkflowDirective(

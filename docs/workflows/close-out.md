@@ -43,7 +43,11 @@ Required inputs:
    `BLOCKED` and send the operator back to `start-session` for the next step —
    close-out must not absorb leftover Ordered work.
 2. **(shared)** Focused behavior, local, and UX evidence required by the changed
-   surface, plus the complete branch diff.
+   surface, plus the complete branch diff. When the change is user-facing,
+   that UX evidence must already include completed `ux-check` captures and the
+   operator's browser-review disposition (or an explicit not-applicable reason).
+   Close-out consumes that evidence; it does not invoke `ux-check` or re-own
+   the operator pause.
 3. **(shared)** Current implementation-review, release, health-baseline, and
    workflow-policy state.
 
@@ -109,10 +113,13 @@ current-head application evidence.
    represent the behavior. Never run `pnpm build`, `next build`,
    `pnpm vercel-build`, or another production-mode build before merge.
 4. **(ordinary)** If the change affects user-facing behavior or appearance,
-   invoke `ux-check`, present its diagnostics and captures, and pause for the
-   operator's local-browser review. Do not enter the implementation-review gate
-   until the operator completes that review. Planned execution receives the same
-   gate from its contract through `start-session`.
+   require prior `ux-check` evidence and the operator's local-browser-review
+   disposition (run standalone `ux-check` before this close-out when missing).
+   Do not invoke `ux-check` or re-pause here. Do not enter the
+   implementation-review gate until that disposition is recorded or the surface
+   is explicitly not applicable. Planned execution completes the same gate in a
+   dedicated UX Ordered work step under `start-session` before awaiting
+   close-out.
 
 Phase evidence: disposition of every session finding, one verdict for each
 judgment-review surface, and the focused/local/UX proof or explicit
@@ -153,13 +160,19 @@ final-vs-non-final fork — it always proceeds toward a single PR; skip to
    nothing unmerged, and the PR is reviewable as one cohesive change. The final
    session is marked `Execution status: Complete` during **Implementation
    review gate** version finalization, before the PR opens — not after merge.
-4. Read the session contract's `UX gate` marker. `Yes` is the authority to
-   pause for the operator's local-browser review now, while the verified local
-   server remains available; `No` skips that pause.
+4. Read the session contract's `UX gate` marker. `Yes` means a dedicated UX
+   Ordered work step under `start-session` must already have invoked `ux-check`
+   and recorded the operator's local-browser-review disposition before this
+   close-out began; verify that disposition in SCRATCHPAD, the in-context proof
+   ledger, or the session as-built draft inputs. `No` skips that requirement.
+   Do not re-run `ux-check` or re-own the pause here. Missing required UX
+   disposition returns `BLOCKED` and sends the operator back to `start-session`
+   for the UX Ordered work step (or standalone `ux-check` when resuming outside
+   OW).
 
 Phase evidence: `Remaining session: <id>` or `Final session`, the applicable UX
-gate value, and any operator-review outcome. A required operator review that has
-not completed returns `BLOCKED`.
+gate value, and the recorded operator-review disposition or `N/A`. A required
+operator review that has not completed returns `BLOCKED`.
 
 ## Implementation review gate (shared)
 

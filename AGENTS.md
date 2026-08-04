@@ -23,13 +23,17 @@ every material external technology in the change (React, Next.js, Convex, Base
 UI, React Flow, Vitest, and peers). Require a Documentation brief before
 generation; do not implement from training memory or in-parent Context7.
 Skip the docs gate only for docs-only, SCRATCHPAD, policy-only, or other pure
-non-code edits. Always use `repo-mapper` for Codegraph relationship or impact
-questions (returns a Repository map); the parent keeps semantic search and grep
-for conceptual discovery. Prefer `gate-runner`, `ow-reviewer`, and
-workflow-named review roles when isolation or a structured evidence packet
-helps. Fall back to a direct command when a role is unavailable. Do not run a
-fixed discovery preflight on every task or redo discovery the parent already
-completed; that ban does not excuse skipping the docs gate before code.
+non-code edits. The parent keeps Cursor Explore, semantic search, and grep for
+conceptual discovery ("how does X work?", "where is Y?", architecture
+orientation). Use `repo-mapper` only for material relationship, consumer,
+dependency, or blast-radius questions; it must use Codegraph CLI (`callers`,
+`callees`, `impact`, `query`, plus `status`/`sync` if needed) and return a
+Repository map. Do not use Codegraph MCP. Do not use Codegraph explore for
+ordinary discovery. Prefer `gate-runner`, `ow-reviewer`, and workflow-named
+review roles when isolation or a structured evidence packet helps. Fall back to
+a direct command when a role is unavailable. Do not run a fixed discovery
+preflight on every task or redo discovery the parent already completed; that
+ban does not excuse skipping the docs gate before code.
 
 ## Commands and definition of done
 

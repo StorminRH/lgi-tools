@@ -881,7 +881,7 @@ class DevelopmentStateTests(unittest.TestCase):
         state = self.resolved()
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertIn("The operator's local browser review is required", directive["pause"])
+        self.assertIn("dedicated UX Ordered-work step", directive["pause"])
 
         contract = self.fixture.write_contract(ux_gate="No")
         self.fixture.write_session_plan(contract)
