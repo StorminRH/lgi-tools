@@ -9,10 +9,11 @@
 
 ## Now
 
-- **CURRENT / NEXT:** sub-version **4.0.4.1** complete (both sessions);
-  close-out is delivering the single sub-version PR from
-  `lifecycle/4.0.4.1` (G-1 ACCEPT recorded 2026-08-04). Next planned work:
-  4.0.4.2 through `start-session` after merge.
+- **CURRENT / NEXT:** session **4.0.4.1.2** complete — sub-version
+  **4.0.4.1** done (both sessions); close-out is delivering the single
+  sub-version PR #353 from `lifecycle/4.0.4.1` (G-1 ACCEPT recorded
+  2026-08-04). Next planned work: 4.0.4.2 through `start-session` after
+  merge.
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
   add-from-node / connection card), codex connection intelligence, death-window
   lifetime model, mass layers 1+3, unified sever/collapse pathway with
