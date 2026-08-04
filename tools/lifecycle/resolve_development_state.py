@@ -527,16 +527,32 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
             re.MULTILINE,
         )
         ordered_body = ordered_section.group(1) if ordered_section else ""
-        # Dedicated step: numbered item whose action is to run ux-check and
-        # record disposition/G-N. The required action verb rejects incidental
-        # mentions; do not scan for negation words (they false-reject phrasing
-        # such as "Do not skip ux-check; Run ux-check and record disposition").
-        ux_step_pattern = re.compile(
-            r"^\d+\.\s+.{0,120}?\b(?:Run|Complete|Perform|Execute)\s+ux-check\b"
-            r".+(?:\bdisposition\b|\bG-\d+\b)",
-            re.MULTILINE | re.IGNORECASE,
-        )
-        if ux_step_pattern.search(ordered_body) is None:
+        # Dedicated step: numbered item with an affirmative Run/Complete/
+        # Perform/Execute ux-check action plus disposition/G-N. Reject only
+        # when every action verb on the line is locally negated ("Do not Run
+        # ux-check"); a later affirmative verb still counts.
+        has_dedicated_ux_step = False
+        for line_match in re.finditer(r"^\d+\.\s+\S.+$", ordered_body, re.MULTILINE):
+            line = line_match.group(0)
+            if not re.search(r"(?:\bdisposition\b|\bG-\d+\b)", line):
+                continue
+            for action in re.finditer(
+                r"(?:Run|Complete|Perform|Execute)\s+ux-check\b",
+                line,
+                re.IGNORECASE,
+            ):
+                prefix = line[max(0, action.start() - 24) : action.start()]
+                if re.search(
+                    r"(?:\bnot|\bnever|\bdon'?t|\bdo\s+not)\s+$",
+                    prefix,
+                    re.IGNORECASE,
+                ):
+                    continue
+                has_dedicated_ux_step = True
+                break
+            if has_dedicated_ux_step:
+                break
+        if not has_dedicated_ux_step:
             violations.append(
                 "Ordered work must include a dedicated numbered ux-check step "
                 "with operator disposition or G-N when Contract UX gate is Yes"
