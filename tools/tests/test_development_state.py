@@ -964,6 +964,23 @@ class DevelopmentStateTests(unittest.TestCase):
             msg=f"errors={errors!r} reason={state.get('reason')!r}",
         )
 
+    def test_ux_gate_yes_accepts_do_not_skip_phrasing(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(ux_gate="Yes")
+        self.fixture.write_session_plan(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        text = plan.read_text(encoding="utf-8")
+        plan.write_text(
+            text.replace(
+                "3. Run ux-check and record the operator disposition for the Contract UX gate.\n",
+                "3. Do not skip ux-check; Run ux-check and record the operator disposition.\n",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("session-ready", state["stage"])
+
     def test_session_ready_directive_carries_deterministic_lifecycle_branch(self) -> None:
         self.fixture.write_roadmap("PLANNED")
         contract = self.fixture.write_contract()

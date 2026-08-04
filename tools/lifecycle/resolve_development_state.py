@@ -528,24 +528,15 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
         )
         ordered_body = ordered_section.group(1) if ordered_section else ""
         # Dedicated step: numbered item whose action is to run ux-check and
-        # record disposition/G-N. Reject prose mentions and negated references.
+        # record disposition/G-N. The required action verb rejects incidental
+        # mentions; do not scan for negation words (they false-reject phrasing
+        # such as "Do not skip ux-check; Run ux-check and record disposition").
         ux_step_pattern = re.compile(
-            r"^\d+\.\s+(?:\*\*[^*]+?\*\*\.\s+)*"
-            r"(?:Run|Complete|Perform|Execute)\s+ux-check\b"
+            r"^\d+\.\s+.{0,120}?\b(?:Run|Complete|Perform|Execute)\s+ux-check\b"
             r".+(?:\bdisposition\b|\bG-\d+\b)",
             re.MULTILINE | re.IGNORECASE,
         )
-        ux_steps = [
-            match.group(0)
-            for match in ux_step_pattern.finditer(ordered_body)
-            if not re.search(
-                r"\b(?:skip|without|not|never|omit)\b.{0,40}\bux-check\b"
-                r"|\bux-check\b.{0,40}\b(?:skip|omitted|unnecessary)\b",
-                match.group(0),
-                re.IGNORECASE,
-            )
-        ]
-        if not ux_steps:
+        if ux_step_pattern.search(ordered_body) is None:
             violations.append(
                 "Ordered work must include a dedicated numbered ux-check step "
                 "with operator disposition or G-N when Contract UX gate is Yes"
