@@ -5,24 +5,29 @@ one of two modes.
 
 ## Mode selection
 
-The discriminator is the resolver directive passed in by `start-session`, never
-the current branch name.
+Never infer the mode from a branch prefix alone.
 
-- **Planned mode** when `start-session` dispatched this close-out with a valid
-  resolver `session-ready`/`execute` directive — its `handler` is `start-session`
-  and its `branch` names the sub-version's `lifecycle/<sub-version>` branch.
+- **Planned mode** when either:
+  1. `start-session` dispatched this close-out with a valid resolver
+     `session-ready`/`execute` directive — its `handler` is `start-session` and
+     its `branch` names the sub-version's `lifecycle/<sub-version>` branch, or
+  2. the operator opens a dedicated close-out chat after an Ordered-work
+     handoff that names planned mode, the live resolver still reports
+     `session-ready` / `execute` for that session, the approved plan's
+     `Execution status` is `Pending`, and SCRATCHPAD **OW progress** shows all
+     Ordered work complete for that session (`n/n complete — awaiting
+     close-out`).
   Planned mode owns the version, roadmap, session-plan, and pending-fragment
   absorption work.
-- **Ordinary mode** on any direct invocation ("close out", "ship it") with no
-  such directive. The absence of a resolver directive is normal and is not an
-  error. Ordinary work never runs the resolver or the release-consistency
-  checker and never edits `APP_VERSION`, a public version heading, roadmap
-  state, or session execution state; it records exactly one pending changelog
-  fragment instead.
+- **Ordinary mode** on any direct invocation ("close out", "ship it") that does
+  not meet a planned-mode condition above. The absence of a resolver directive
+  is normal for ordinary work and is not an error. Ordinary work never runs the
+  resolver or the release-consistency checker and never edits `APP_VERSION`, a
+  public version heading, roadmap state, or session execution state; it records
+  exactly one pending changelog fragment instead.
 
-Do not re-run the resolver to decide the mode, and never infer the mode from a
-branch prefix. Planned work resumed in a later session must re-enter through
-`start-session`, which re-selects the mode.
+Do not invent planned mode from a lifecycle branch name alone. Mid-session
+Ordered work resumes through `start-session`, not through close-out.
 
 Steps below are marked **(shared)**, **(planned)**, or **(ordinary)**. Shared
 steps run in both modes.
@@ -31,8 +36,12 @@ steps run in both modes.
 
 Required inputs:
 
-1. **(planned)** The resolver directive, approved contract and plan, and
-   master-plan status.
+1. **(planned)** The resolver directive or the dedicated close-out handoff that
+   selects planned mode, the approved contract and plan, master-plan status, and
+   SCRATCHPAD proof that all Ordered work for the session is complete
+   (`n/n complete — awaiting close-out`). If Ordered work remains, stop
+   `BLOCKED` and send the operator back to `start-session` for the next step —
+   close-out must not absorb leftover Ordered work.
 2. **(shared)** Focused behavior, local, and UX evidence required by the changed
    surface, plus the complete branch diff.
 3. **(shared)** Current design-review, release, health-baseline, and
@@ -41,9 +50,10 @@ Required inputs:
 Required outputs are exactly one of:
 
 - `SESSION_HANDOFF` **(planned)**: another approved session remains in the
-  sub-version; the verified scope is committed and pushed to the lifecycle
-  branch, its session plan reads `Execution status: Complete`, the durable
-  handoff points to the next session, and no PR is opened.
+  sub-version; Ordered work commits plus any remaining lifecycle-only delta are
+  pushed to the lifecycle branch, its session plan reads
+  `Execution status: Complete`, the durable handoff points to the next session,
+  and no PR is opened.
 - `MERGED` **(shared)**: the change passes design review and verification, the PR
   is reviewed and merged through the gate of record, and exact production proof
   is complete. In planned mode the merged PR already carries the truthful
@@ -205,7 +215,9 @@ session status, and PR design notes (planned).
 
 Run the economical independent review before the sole full verification
 checkpoint, so accepted fixes join the finalized head without manufacturing a
-second coverage cycle.
+second coverage cycle. For planned sessions this gate runs only in the
+close-out chat — Ordered-work chats under `start-session` must not invoke
+`adversarial-review`.
 
 1. Invoke `adversarial-review` in Diff mode against the complete working-tree
    change. Supply the direct request or frozen contract-and-plan chain, the
@@ -254,11 +266,13 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
 2. Reconcile durable memory before any final mechanical gate can be invalidated
    by another documentation edit. **(ordinary and planned final session)** update
    `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and contract
-   cannot know; remove shipped or superseded detail. Prefer absorbing work in
-   this session; if the operator explicitly cut scope, keep that rare deferred
-   work only in `docs/backlog.md`. **(planned non-final session)** defer the
-   session status and handoff pointer to the lifecycle-only commit in the fork
-   above.
+   cannot know; remove shipped or superseded detail; collapse mid-session
+   **OW progress** / **OW completed** / **Next-agent notes** rows into durable
+   gotchas or drop them. Prefer absorbing work in this session; if the operator
+   explicitly cut scope, keep that rare deferred work only in `docs/backlog.md`.
+   **(planned non-final session)** collapse those mid-session OW rows the same
+   way, then defer the session status and handoff pointer to the lifecycle-only
+   commit in the fork above.
 3. Run every cheap workflow check that can still lead to an edit: agent policy
    and `python3 tools/cli.py test` after changing shared guides, skills, hooks,
    or workflow policy; document references after changing live documentation;
@@ -295,15 +309,22 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    worktree still matches the preflighted scope and that no application, test,
    executable, dependency, or verification-configuration change occurred after
    it. Any such change invalidates the checkpoint and returns to the applicable
-   preflight and verification steps; a lifecycle-only record does not.
-8. Commit the verified scope in the repository's conventional plain-English style
-   — a conventional subject under 72 characters, lowercase after the prefix,
+   preflight and verification steps; a lifecycle-only record does not. For
+   planned sessions, Ordered work steps are already committed under
+   `start-session`. If SCRATCHPAD claims Ordered work complete but the tree
+   still holds uncommitted OW implementation, return `BLOCKED` and send the
+   work back through `start-session` rather than absorbing it here.
+8. Commit any remaining unverified-or-lifecycle-only delta on the already
+   OW-committed branch in the repository's conventional plain-English style —
+   a conventional subject under 72 characters, lowercase after the prefix,
    describing the project outcome rather than files or symbols — and push the
-   branch. No preview is created automatically.
+   branch. No preview is created automatically. When the verified head is
+   already fully committed and only needs push, push without inventing an empty
+   commit.
 9. **(planned)** Follow the fork above: a non-final session completes its plan
-   and SCRATCHPAD handoff in the lifecycle-only commit, then stops; a final
-   session has already set its plan `Complete` during finalization and continues
-   to the PR.
+   and SCRATCHPAD handoff in the lifecycle-only commit when that delta remains,
+   then stops; a final session has already set its plan `Complete` during
+   finalization and continues to the PR.
 
 Phase evidence: finalized-diff boundary verdict, output from every applicable
 cheap workflow check, the successful pinned `pnpm verify` result tied to the

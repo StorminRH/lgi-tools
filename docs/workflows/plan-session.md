@@ -56,15 +56,18 @@ and present a complete schema plan for approval.
    ordered work; success criteria and proof; delivery and handoff. For each
    section, discuss in plain English, adjust from live evidence and operator
    direction, and confirm before moving on. Stay in prose; do not jump ahead
-   to a complete schema document.
+   to a complete schema document. Size each Ordered work step for one
+   execution chat; do not place close-out, adversarial review, push, or PR
+   opening inside Ordered work — those belong under End of session Delivery.
+   Per-step commit after green gates and `ow-reviewer` is part of Ordered work
+   under `start-session`, not End of session Delivery.
 3. Resolve every contract planning decision (`PD-N` and consequential choices)
    during this walk. Do not escalate ordinary local implementation details;
    surface choices that change behavior, ownership, risk, or scope. For every
    framework-sensitive interface or runtime claim, use `docs-researcher` for
-   current primary documentation, or run a focused executable probe against the
-   installed version. If feasibility remains unproved, present bounded
-   alternatives in the current section discussion instead of freezing one as
-   exact.
+   current primary documentation and examples. If feasibility remains unproved,
+   present bounded alternatives in the current section discussion instead of
+   freezing one as exact.
 4. Stop before fixed-schema drafting until every section above is settled with
    the operator and both share a full mental model of the session.
 

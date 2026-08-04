@@ -39,7 +39,7 @@ async function grant(
 async function seedMap(t: Chain, mapId = MAP_A, systemId = JITA): Promise<void> {
   await grant(t, mapId, EDITOR, ['editor']);
   await grant(t, mapId, VIEWER, ['viewer']);
-  await asEditor(t).mutation(api.mapFixtures.upsertSystem, { mapId, systemId });
+  await t.mutation(internal.mapFixtures.placeSystemFixture, { mapId, systemId });
 }
 
 function observe(
@@ -157,12 +157,18 @@ describe('map chain fixtures', () => {
       // test failure rather than a silent I/O cost on every watched read.
       const expectedFields: Record<string, string[]> = {
         mapAccess: ['mapId', 'roles', 'userId'],
-        mapSystems: ['mapId', 'systemId'],
+        mapSystems: ['deletedAt', 'mapId', 'purgeAfter', 'systemId'],
         mapConnections: [
+          'deathEarliestAt',
+          'deathLatestAt',
+          'deletedAt',
           'eolAt',
           'fromSystemId',
+          'lifeStage',
+          'lifeStageObservedAt',
           'mapId',
           'massState',
+          'purgeAfter',
           'shipSize',
           'toSystemId',
           'wormholeTypeCode',
@@ -179,6 +185,7 @@ describe('map chain fixtures', () => {
         ],
         mapNotes: ['body', 'mapId', 'targetId', 'targetKind'],
         mapSignatureActivity: ['lastSeenAt', 'mapId', 'signatureId', 'systemId'],
+        mapEvents: ['actor', 'at', 'kind', 'mapId', 'payload', 'purgeAfter'],
       };
 
       for (const [tableName, fields] of Object.entries(expectedFields)) {
@@ -195,8 +202,14 @@ describe('map chain fixtures', () => {
         mapSystems: {
           by_map: ['mapId'],
           by_map_system: ['mapId', 'systemId'],
+          by_purge_after: ['purgeAfter'],
         },
-        mapConnections: { by_map: ['mapId'] },
+        mapConnections: {
+          by_map: ['mapId'],
+          by_map_from: ['mapId', 'fromSystemId'],
+          by_map_to: ['mapId', 'toSystemId'],
+          by_purge_after: ['purgeAfter'],
+        },
         mapSignatures: {
           by_map: ['mapId'],
           by_map_signature: ['mapId', 'systemId', 'signatureId'],
@@ -209,6 +222,10 @@ describe('map chain fixtures', () => {
         mapSignatureActivity: {
           by_map: ['mapId'],
           by_map_signature: ['mapId', 'systemId', 'signatureId'],
+        },
+        mapEvents: {
+          by_map: ['mapId', 'at'],
+          by_purge_after: ['purgeAfter'],
         },
       };
 
@@ -223,39 +240,6 @@ describe('map chain fixtures', () => {
         );
         expect(actual).toEqual(indexes);
       }
-    });
-
-    it('returns one document ID and writes one row for a repeated placement', async () => {
-      const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
-
-      const first = await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
-        mapId: MAP_A,
-        systemId: JITA,
-      });
-      const second = await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
-        mapId: MAP_A,
-        systemId: JITA,
-      });
-
-      expect(second).toBe(first);
-      const stored = await t.run(async (ctx) =>
-        await ctx.db
-          .query('mapSystems')
-          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
-          .collect(),
-      );
-      expect(stored).toHaveLength(1);
-      expect(stored[0]!._creationTime).toBeDefined();
-    });
-
-    it('rejects a system ID that is not a positive safe integer', async () => {
-      const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
-      await expectConvexError(
-        asEditor(t).mutation(api.mapFixtures.upsertSystem, { mapId: MAP_A, systemId: 0 }),
-        'INVALID_SYSTEM_ID',
-      );
     });
 
     it('placeSystemFixture upserts without an access gate (internal/admin-key only)', async () => {
@@ -335,7 +319,7 @@ describe('map chain fixtures', () => {
     it('degrades to a plain connection insert when both endpoints already exist', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+      await t.mutation(internal.mapFixtures.placeSystemFixture, {
         mapId: MAP_A,
         systemId: AMARR,
       });
@@ -458,7 +442,7 @@ describe('map chain fixtures', () => {
       const connectionId = await seedJump(t);
       // MAP_B holds an unreferenced copy of the system — the cross-map bait.
       await grant(t, MAP_B, EDITOR, ['editor']);
-      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+      await t.mutation(internal.mapFixtures.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,
       });
@@ -493,7 +477,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       const connectionId = await seedJump(t);
       const bystander = 30_002_659;
-      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+      await t.mutation(internal.mapFixtures.placeSystemFixture, {
         mapId: MAP_A,
         systemId: bystander,
       });
@@ -531,7 +515,7 @@ describe('map chain fixtures', () => {
     it('stores join keys and observation state only, with no codex facts', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+      await t.mutation(internal.mapFixtures.placeSystemFixture, {
         mapId: MAP_A,
         systemId: AMARR,
       });
@@ -701,7 +685,7 @@ describe('map chain fixtures', () => {
     ])('rejects $label before any write', async ({ code, args }) => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+      await t.mutation(internal.mapFixtures.placeSystemFixture, {
         mapId: MAP_A,
         systemId: AMARR,
       });
@@ -735,7 +719,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
       await grant(t, MAP_B, EDITOR, ['editor']);
-      const foreign = await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+      const foreign = await t.mutation(internal.mapFixtures.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,
       });
@@ -808,15 +792,6 @@ describe('map chain fixtures', () => {
       },
     );
 
-    it('rejects a signed-out mutation', async () => {
-      const t = convexTest(schema, modules);
-      await seedMap(t);
-      await expectConvexError(
-        t.mutation(api.mapFixtures.upsertSystem, { mapId: MAP_A, systemId: AMARR }),
-        'UNAUTHENTICATED',
-      );
-    });
-
     it('rejects a signed-in caller holding no claim on the map', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
@@ -830,7 +805,7 @@ describe('map chain fixtures', () => {
       );
     });
 
-    it('lets a viewer read but not mutate', async () => {
+    it('lets a viewer read the gated collection', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
 
@@ -840,23 +815,16 @@ describe('map chain fixtures', () => {
         cursor: null,
       });
       expect(page.page).toHaveLength(1);
-
-      await expectConvexError(
-        asEditor(t, VIEWER).mutation(api.mapFixtures.upsertSystem, {
-          mapId: MAP_A,
-          systemId: AMARR,
-        }),
-        'FORBIDDEN',
-      );
     });
 
     it('unions capabilities across a multi-role claim', async () => {
       const t = convexTest(schema, modules);
       // Neon may match one user through several principals; the projected set keeps every
-      // capability rather than collapsing to a display role.
+      // capability rather than collapsing to a display role. Production writes live on
+      // mapAuthoring; prove the unioned claim still grants edit there.
       await grant(t, MAP_A, OWNER, ['owner', 'viewer']);
       await expect(
-        asEditor(t, OWNER).mutation(api.mapFixtures.upsertSystem, {
+        asEditor(t, OWNER).mutation(api.mapAuthoring.setHomeSystem, {
           mapId: MAP_A,
           systemId: JITA,
         }),
@@ -867,7 +835,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
       await grant(t, MAP_B, EDITOR, ['editor']);
-      await asEditor(t).mutation(api.mapFixtures.upsertSystem, {
+      await t.mutation(internal.mapFixtures.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,
       });

@@ -22,6 +22,7 @@ import {
   type ChainPosition,
   type MapChainIntent,
 } from './intents';
+import { OPTIMISTIC_ID_PREFIX } from './optimistic-authoring';
 import type { PlacementAssigner, PlacementCandidate } from './placement';
 
 /** Where a node's current position came from. `user` positions are permanently protected. */
@@ -39,6 +40,8 @@ export interface VisibleConnection {
   readonly connectionId: string;
   readonly fromSystemId: number;
   readonly toSystemId: number;
+  readonly deletedAt?: number | null;
+  readonly purgeAfter?: number | null;
 }
 
 /** The reconciled picture the canvas renders. Insertion order is arrival order. */
@@ -57,6 +60,8 @@ export interface ConnectionRow {
   readonly connectionId: string;
   readonly fromSystemId: number;
   readonly toSystemId: number;
+  readonly deletedAt?: number | null;
+  readonly purgeAfter?: number | null;
 }
 
 /**
@@ -238,11 +243,11 @@ export function reconcileChain(
     .filter((systemId) => !presentSet.has(systemId))
     .map((systemId) => ({ kind: 'system-departed', systemId }));
 
-  const departedConnections: MapChainIntent[] = [...previous.connections.keys()]
+  const rawDepartedConnections: MapChainIntent[] = [...previous.connections.keys()]
     .filter((connectionId) => !visible.has(connectionId))
     .map((connectionId) => ({ kind: 'connection-departed', connectionId }));
 
-  const appearedConnections: MapChainIntent[] = [...visible.values()]
+  const rawAppearedConnections: MapChainIntent[] = [...visible.values()]
     .filter((connection) => !previous.connections.has(connection.connectionId))
     .map(({ connectionId, fromSystemId, toSystemId }) => ({
       kind: 'connection-appeared',
@@ -250,6 +255,15 @@ export function reconcileChain(
       fromSystemId,
       toSystemId,
     }));
+
+  // Same-merge endpoint-matched id-swap: an optimistic temp-id departing
+  // together with a confirmed id appearing on the same endpoints is one edge
+  // identity update, not a birth/death pair (session 4.0.4.1.1 PD-1).
+  const { departedConnections, appearedConnections } = suppressConnectionIdSwaps(
+    previous.connections,
+    rawDepartedConnections,
+    rawAppearedConnections,
+  );
 
   return {
     state: { systems, connections: visible },
@@ -260,6 +274,66 @@ export function reconcileChain(
       ...appearedConnections,
       ...moved,
     ],
+  };
+}
+
+/** Exact directed endpoint key — parallel same-endpoint edges share it. */
+function endpointKey(fromSystemId: number, toSystemId: number): string {
+  return `${fromSystemId}>${toSystemId}`;
+}
+
+/**
+ * Drops matched `connection-departed` / `connection-appeared` pairs only when
+ * the departing id is an optimistic temp id. A real same-endpoint replacement
+ * remains a genuine birth/death pair.
+ */
+function suppressConnectionIdSwaps(
+  previousConnections: ReadonlyMap<string, VisibleConnection>,
+  departed: readonly MapChainIntent[],
+  appeared: readonly MapChainIntent[],
+): {
+  departedConnections: MapChainIntent[];
+  appearedConnections: MapChainIntent[];
+} {
+  const departedIds = new Set(
+    departed.flatMap((intent) =>
+      intent.kind === 'connection-departed' ? [intent.connectionId] : [],
+    ),
+  );
+  const unmatchedDepartedByEndpoint = new Map<string, string[]>();
+  for (const connectionId of departedIds) {
+    if (!connectionId.startsWith(OPTIMISTIC_ID_PREFIX)) continue;
+    const prior = previousConnections.get(connectionId);
+    if (prior === undefined) continue;
+    const key = endpointKey(prior.fromSystemId, prior.toSystemId);
+    const queue = unmatchedDepartedByEndpoint.get(key);
+    if (queue === undefined) unmatchedDepartedByEndpoint.set(key, [connectionId]);
+    else queue.push(connectionId);
+  }
+
+  const matchedDeparted = new Set<string>();
+  const matchedAppeared = new Set<string>();
+  for (const intent of appeared) {
+    if (intent.kind !== 'connection-appeared') continue;
+    const key = endpointKey(intent.fromSystemId, intent.toSystemId);
+    const queue = unmatchedDepartedByEndpoint.get(key);
+    const priorId = queue?.shift();
+    if (priorId === undefined) continue;
+    matchedDeparted.add(priorId);
+    matchedAppeared.add(intent.connectionId);
+  }
+
+  return {
+    departedConnections: departed.filter(
+      (intent) =>
+        intent.kind !== 'connection-departed' ||
+        !matchedDeparted.has(intent.connectionId),
+    ),
+    appearedConnections: appeared.filter(
+      (intent) =>
+        intent.kind !== 'connection-appeared' ||
+        !matchedAppeared.has(intent.connectionId),
+    ),
   };
 }
 

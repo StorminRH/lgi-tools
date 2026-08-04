@@ -142,6 +142,21 @@ export interface CameraBounds {
 }
 
 /**
+ * Cap for every camera fit. A single home-system disc is tiny in world space,
+ * so fitting against the surface maxZoom (2.5) fills the screen. Operator G-1
+ * wants the first framing closer to a reading overview than a close-up —
+ * slightly above half the default viewport zoom. Large chains may still zoom
+ * out below this; they just never zoom in past it.
+ *
+ * Note: `fitBounds`'s options do NOT accept maxZoom (store maxZoom wins). The
+ * hook must call `getViewportForBounds` with this ceiling, then `setViewport`.
+ */
+export const CAMERA_FIT_MAX_ZOOM = 0.75;
+
+/** Padding passed to `getViewportForBounds` for every camera fit. */
+export const CAMERA_FIT_PADDING = 0.15;
+
+/**
  * Height allowance for the name label beneath a disc; bounds framing is a
  * padding decision, not measurement, so an estimate is correct here.
  */
@@ -210,6 +225,36 @@ export function decideFitExecution(input: {
   return {
     consume: plan.consume,
     bounds: plan.fit ? chainBounds(input.systems, input.discRadius) : null,
+  };
+}
+
+/** Fit-tick outcome including the post-tick `framed` flag the hook stores. */
+export interface FitTickResult extends FitExecution {
+  readonly framed: boolean;
+}
+
+/**
+ * Viewport-gated fit tick: skip entirely until the pane has size, otherwise
+ * run `decideFitExecution` and mark framed once a fit actually fires.
+ */
+export function resolveFitTick(input: {
+  readonly viewportReady: boolean;
+  readonly intents: readonly MapChainIntent[];
+  readonly previousIntents: readonly MapChainIntent[];
+  readonly framed: boolean;
+  readonly follow: boolean;
+  readonly dragActive: boolean;
+  readonly nodeIds: ReadonlySet<number>;
+  readonly systems: ReadonlyMap<number, PlacedSystem>;
+  readonly discRadius: number;
+}): FitTickResult {
+  if (!input.viewportReady) {
+    return { consume: false, bounds: null, framed: input.framed };
+  }
+  const decision = decideFitExecution(input);
+  return {
+    ...decision,
+    framed: decision.bounds !== null ? true : input.framed,
   };
 }
 

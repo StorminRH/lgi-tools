@@ -159,6 +159,17 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
 
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
   {
+    id: 'convex/crons:map chain purge',
+    workKind: 'convex-cron',
+    module: 'convex/crons.ts',
+    redeliverySource:
+      'The 15-minute Convex interval may run again after an earlier batch partially drained the expiry ranges.',
+    verdict: 'inherently-idempotent',
+    vendor: 'convex',
+    evidence:
+      'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.',
+  },
+  {
     id: 'convex/crons:sync engine scan',
     workKind: 'convex-cron',
     module: 'convex/crons.ts',

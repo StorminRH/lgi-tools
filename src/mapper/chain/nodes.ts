@@ -4,6 +4,10 @@
 // This is the ONLY place canvas nodes and edges are built, and it builds them solely from reconciler
 // output (contract DC-7). Nothing here reads a Convex page.
 import { CHAIN_NODE_TYPE, type ChainNode } from '../canvas/SystemNode';
+import {
+  chainTombstoneState,
+  type ChainTombstoneState,
+} from '@/data/maps/chain-contract';
 import type { EdgeMotion } from '../motion/motion-contract';
 import type { SystemLabel } from './labels';
 import type { ChainState } from './reconciler';
@@ -17,6 +21,8 @@ import type { ChainState } from './reconciler';
 export type ChainEdgeData = {
   /** `loop: true` marks a non-tree connection (loop closure); drawn dashed. */
   readonly loop: boolean;
+  /** Active edges render normally; dying edges render restorable; skeletons never render. */
+  readonly tombstoneState?: Exclude<ChainTombstoneState, 'skeleton'>;
   readonly motion?: EdgeMotion;
 };
 
@@ -76,9 +82,11 @@ export function syncNodes(
 export function buildEdges(
   connections: ChainState['connections'],
   treeParents: ReadonlyMap<number, number>,
+  now = Date.now(),
 ): ChainEdge[] {
   const claimed = new Set<string>();
-  return [...connections.values()].map((connection) => {
+  const edges: ChainEdge[] = [];
+  for (const connection of connections.values()) {
     const { fromSystemId, toSystemId } = connection;
     const isTreeLink =
       treeParents.get(toSystemId) === fromSystemId ||
@@ -87,14 +95,22 @@ export function buildEdges(
       fromSystemId < toSystemId
         ? `${fromSystemId}>${toSystemId}`
         : `${toSystemId}>${fromSystemId}`;
+
+    // Skeletons never render, so they must not claim the pair key either —
+    // a claimed-then-dropped skeleton would force the surviving connection
+    // on the same endpoints to draw dashed as a loop closure.
+    const tombstoneState = chainTombstoneState(connection, now);
+    if (tombstoneState === 'skeleton') continue;
+
     const solid = isTreeLink && !claimed.has(pairKey);
     if (solid) claimed.add(pairKey);
 
-    return {
+    edges.push({
       id: connection.connectionId,
       source: String(fromSystemId),
       target: String(toSystemId),
-      data: { loop: !solid },
-    };
-  });
+      data: { loop: !solid, tombstoneState },
+    });
+  }
+  return edges;
 }

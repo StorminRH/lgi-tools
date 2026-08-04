@@ -123,6 +123,12 @@ run all of its declared viewports with `prefers-reduced-motion: reduce`.
 | `atlas-window-reload` | Exact floating geometry restore plus re-anchor/retained-rect round trip (authenticated, `UX_MAP_ID`) |
 | `atlas-window-stacking` | Bring-to-front, Escape popup arbitration, and exposed-canvas interaction (authenticated, `UX_MAP_ID`) |
 | `atlas-window-track` | Summary-card tracking through pan, zoom, anchor drag, and deselection (authenticated, `UX_MAP_ID`) |
+| `atlas-authoring-home` | Blank-map home prompt, disabled tracking option, editor-only affordance (authenticated, `UX_BLANK_MAP_ID`) |
+| `atlas-authoring-add` | Node-bound Add connection… menu and destination search dialog (authenticated, map id) |
+| `atlas-authoring-connection` | Edge-anchored connection details card and field controls including unset stability (authenticated, map id) |
+| `atlas-authoring-intelligence` | Typed codex panel, size lock, mass range, lifetime row, and sever control (authenticated, map id) |
+| `atlas-authoring-ledger` | Bottom-edge map-event Log expand with rows or empty state (authenticated, map id; desktop + mobile) |
+| `atlas-authoring-two-clients` | Two-client home → add → edit → fan-out → revocation demo (authenticated, blank map id, local Convex) |
 | `atlas-wall` | Signed-out atlas development wall, canvas/chrome exclusion, and viewport scroll suppression |
 | `asset-ledger` | Logged-out asset ledger open state and totals |
 | `asset-ring-mock` | Mocked complete/partial ownership rings and holding details |

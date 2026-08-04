@@ -19,6 +19,14 @@ Shared rules:
   isolated context to absorb raw exploration while keeping the returned
   evidence concise, structured, and relevant.
 
+Portable evidence roles referenced by living guides and workflows:
+
+- `docs-researcher` — Documentation brief before production/test code
+- `repo-mapper` — Repository map for Codegraph relationship questions
+- `gate-runner` — Gate result packets for focused tests and `pnpm verify`
+- `ow-reviewer` — reviewer-verdict for per-OW adoption and hygiene (not a
+  substitute for Diff/PR `ownership-reviewer` or `adversarial-review`)
+
 ## Repository map
 
 ```text

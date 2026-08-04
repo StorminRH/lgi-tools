@@ -3,6 +3,7 @@ import type { MapChainIntent } from '../chain/intents';
 import type { PlacedSystem } from '../chain/reconciler';
 import { DEFAULT_MOTION_CONFIG } from '../motion/motion-contract';
 import {
+  CAMERA_FIT_MAX_ZOOM,
   IDLE_FLIGHT,
   abortFlightForDrag,
   beginFlight,
@@ -15,6 +16,7 @@ import {
   newFocusRequest,
   nodesReadyForFit,
   planCameraFit,
+  resolveFitTick,
   settleFlight,
   shouldFitView,
   systemsNeedingFit,
@@ -132,6 +134,13 @@ describe('chain bounds', () => {
       height: 150 + 44 + 24,
     });
   });
+
+  it('caps fit zoom so a lone home system does not fill the viewport', () => {
+    // fitBounds ignores option maxZoom and uses the store ceiling (2.5); the
+    // hook must feed this constant into getViewportForBounds instead.
+    expect(CAMERA_FIT_MAX_ZOOM).toBe(0.75);
+    expect(CAMERA_FIT_MAX_ZOOM).toBeLessThan(2.5);
+  });
 });
 
 // ── SC-5.1 — focus at the preserved zoom, only when allowed ──────────────────
@@ -226,6 +235,38 @@ describe('fit execution', () => {
     });
     expect(waiting.consume).toBe(false);
     expect(waiting.bounds).toBeNull();
+  });
+
+  it('skips the whole tick until the viewport is ready', () => {
+    const skipped = resolveFitTick({
+      viewportReady: false,
+      intents: APPEARED,
+      previousIntents: [],
+      framed: false,
+      follow: false,
+      dragActive: false,
+      nodeIds: new Set([1]),
+      systems,
+      discRadius: 22,
+    });
+    expect(skipped).toEqual({ consume: false, bounds: null, framed: false });
+  });
+
+  it('marks framed once a ready viewport warrants a fit', () => {
+    const tick = resolveFitTick({
+      viewportReady: true,
+      intents: APPEARED,
+      previousIntents: [],
+      framed: false,
+      follow: false,
+      dragActive: false,
+      nodeIds: new Set([1]),
+      systems,
+      discRadius: 22,
+    });
+    expect(tick.consume).toBe(true);
+    expect(tick.bounds).not.toBeNull();
+    expect(tick.framed).toBe(true);
   });
 });
 

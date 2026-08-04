@@ -97,7 +97,7 @@ by hand where needed, and never see a refresh control.
 | 4.0.3.2 | Motion layer (surface-in-place, tweened glides) | §4.0.3.2 | 1 | COMPLETE |
 | 4.0.3.3 | Overlay window framework (three surfaces, one primitive) | §4.0.3.3 | 1 | COMPLETE |
 | **Phase 4 — The living chain** | | | | |
-| 4.0.4.1 | Write path + connection intel | §4.0.4.1 | 2 | PLANNED |
+| 4.0.4.1 | Write path + connection intel | §4.0.4.1 | 2 | COMPLETE |
 | 4.0.4.2 | Auto-mapping on jump (tracking, classification, fog) | §4.0.4.2 | 3 (PR per session) | PLANNED |
 | 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 3 (PR per session) | PLANNED |
 | 4.0.4.4 | Maps & access (switcher, roles, archive) | §4.0.4.4 | 3 | PLANNED |

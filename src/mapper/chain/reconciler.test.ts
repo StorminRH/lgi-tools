@@ -158,6 +158,102 @@ describe('map chain reconciler', () => {
       ]);
     });
 
+    // SC-3.4 — optimistic temp-id → confirmed id on the same endpoints is an
+    // in-place identity swap: one edge remains, no birth/death intent pair.
+    it('suppresses connection intents when a same-merge id-swap shares endpoints', () => {
+      const { state, intents } = replay([
+        snapshot(
+          [JITA, AMARR],
+          [link('optimistic:mapConnections:c1', JITA, AMARR)],
+        ),
+        snapshot([JITA, AMARR], [link('confirmed:c1', JITA, AMARR)]),
+      ]);
+
+      expect(intents[1]).toEqual([]);
+      expect([...state.connections.keys()]).toEqual(['confirmed:c1']);
+      expect(state.connections.get('confirmed:c1')).toEqual(
+        link('confirmed:c1', JITA, AMARR),
+      );
+    });
+
+    it('keeps real same-endpoint replacement intents', () => {
+      const { intents } = replay([
+        snapshot([JITA, AMARR], [link('persisted:c1', JITA, AMARR)]),
+        snapshot([JITA, AMARR], [link('persisted:c2', JITA, AMARR)]),
+      ]);
+
+      expect(intents[1]).toEqual([
+        { kind: 'connection-departed', connectionId: 'persisted:c1' },
+        {
+          kind: 'connection-appeared',
+          connectionId: 'persisted:c2',
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+        },
+      ]);
+    });
+
+    it('updates one connection tombstone stage without birth/death intents', () => {
+      const active = snapshot(
+        [JITA, AMARR],
+        [{ ...link('c1', JITA, AMARR), deletedAt: null, purgeAfter: null }],
+      );
+      const dying = snapshot(
+        [JITA, AMARR],
+        [{ ...link('c1', JITA, AMARR), deletedAt: 10, purgeAfter: 20 }],
+      );
+      const { state, intents } = replay([active, dying]);
+
+      expect(intents[1]).toEqual([]);
+      expect(state.connections.get('c1')).toMatchObject({
+        deletedAt: 10,
+        purgeAfter: 20,
+      });
+    });
+
+    it('still emits a real connection appear when endpoints differ from a departure', () => {
+      const { intents } = replay([
+        snapshot([JITA, AMARR, DODIXIE], [link('c1', JITA, AMARR)]),
+        snapshot(
+          [JITA, AMARR, DODIXIE],
+          [link('c2', JITA, DODIXIE)],
+        ),
+      ]);
+
+      expect(intents[1]).toEqual([
+        { kind: 'connection-departed', connectionId: 'c1' },
+        {
+          kind: 'connection-appeared',
+          connectionId: 'c2',
+          fromSystemId: JITA,
+          toSystemId: DODIXIE,
+        },
+      ]);
+    });
+
+    it('does not suppress an optimistic departure whose endpoints differ from the appear', () => {
+      const tempId = 'optimistic:mapConnections:swap-test';
+      const { intents } = replay([
+        snapshot([JITA, AMARR, DODIXIE], [link(tempId, JITA, AMARR)]),
+        snapshot(
+          [JITA, AMARR, DODIXIE],
+          [link('c2', JITA, DODIXIE)],
+        ),
+      ]);
+
+      // The departing id is optimistic, but the confirmed row's endpoints do
+      // not match — this is a real departure plus a real appear, not a swap.
+      expect(intents[1]).toEqual([
+        { kind: 'connection-departed', connectionId: tempId },
+        {
+          kind: 'connection-appeared',
+          connectionId: 'c2',
+          fromSystemId: JITA,
+          toSystemId: DODIXIE,
+        },
+      ]);
+    });
+
     // The 4.0.3.1 hand-off: the grid never proposes a move, so the emission path is proven by
     // driving the seam directly. Without this the layout engine would inherit dead code.
     it('emits system-moved when the placement seam proposes a new position', () => {

@@ -6,7 +6,7 @@ import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { MAP_CHAIN_MAX_PAGE_SIZE } from './mapChain';
+import { MAP_CHAIN_MAX_PAGE_SIZE, MAP_EVENT_READ_LIMIT } from './mapChain';
 import { FIXTURE_CONNECTION_SCAN_LIMIT } from './mapFixtures';
 import schema from './schema';
 
@@ -151,10 +151,33 @@ describe('map chain read path', () => {
         ? t.query(api.mapChain.watchMapAccess, { mapId: MAP_A })
         : asUser(t, subject).query(api.mapChain.watchMapAccess, { mapId: MAP_A }));
 
-      expect(result).toEqual({ granted: false });
+      expect(result).toEqual({ granted: false, canEdit: false });
     });
 
-    it('reports access as granted for a viewer', async () => {
+    it.each([
+      ['a signed-out caller', undefined],
+      ['a caller holding no claim', STRANGER],
+    ] as const)('serves %s an empty event ledger', async (_label, subject) => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, EDITOR, ['editor']);
+      await t.run(async (ctx) => {
+        await ctx.db.insert('mapEvents', {
+          mapId: MAP_A,
+          at: 1,
+          kind: 'connection_severed_retained',
+          actor: 'Editor',
+          payload: { connectionId: 'connection-1' },
+          purgeAfter: 2,
+        });
+      });
+
+      const events = await (subject === undefined
+        ? t.query(api.mapChain.watchMapEvents, { mapId: MAP_A })
+        : asUser(t, subject).query(api.mapChain.watchMapEvents, { mapId: MAP_A }));
+      expect(events).toEqual([]);
+    });
+
+    it('reports access as granted for a viewer without edit', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, VIEWER, ['viewer']);
 
@@ -162,7 +185,18 @@ describe('map chain read path', () => {
         mapId: MAP_A,
       });
 
-      expect(result).toEqual({ granted: true });
+      expect(result).toEqual({ granted: true, canEdit: false });
+    });
+
+    it('reports canEdit for an editor', async () => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, EDITOR, ['editor']);
+
+      const result = await asUser(t).query(api.mapChain.watchMapAccess, {
+        mapId: MAP_A,
+      });
+
+      expect(result).toEqual({ granted: true, canEdit: true });
     });
 
     it('lets a viewer watch both collections', async () => {
@@ -198,7 +232,7 @@ describe('map chain read path', () => {
         mapId: MAP_A,
       });
       expect(before.page).toHaveLength(1);
-      expect(accessBefore).toEqual({ granted: true });
+      expect(accessBefore).toEqual({ granted: true, canEdit: true });
 
       await revokeClaim(t, MAP_A, EDITOR);
 
@@ -210,7 +244,7 @@ describe('map chain read path', () => {
         paginationOpts: page(10),
       });
 
-      expect(accessAfter).toEqual({ granted: false });
+      expect(accessAfter).toEqual({ granted: false, canEdit: false });
       expect(after.page).toEqual([]);
     });
 
@@ -231,7 +265,7 @@ describe('map chain read path', () => {
         paginationOpts: page(10),
       });
 
-      expect(access).toEqual({ granted: true });
+      expect(access).toEqual({ granted: true, canEdit: true });
       expect(systems.page).toHaveLength(1);
     });
 
@@ -322,6 +356,39 @@ describe('map chain read path', () => {
 
       expect(result.page).toHaveLength(MAP_CHAIN_MAX_PAGE_SIZE);
       expect(result.isDone).toBe(false);
+    });
+
+    it('reads only one map event range, newest-first and bounded', async () => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, VIEWER, ['viewer']);
+      await t.run(async (ctx) => {
+        for (let at = 0; at < MAP_EVENT_READ_LIMIT + 2; at += 1) {
+          await ctx.db.insert('mapEvents', {
+            mapId: MAP_A,
+            at,
+            kind: 'connection_severed_retained',
+            actor: 'Editor',
+            payload: { connectionId: `connection-${at}` },
+            purgeAfter: at + 10_000,
+          });
+        }
+        await ctx.db.insert('mapEvents', {
+          mapId: MAP_B,
+          at: MAP_EVENT_READ_LIMIT + 100,
+          kind: 'connection_severed_retained',
+          actor: 'Other map',
+          payload: { connectionId: 'other-map' },
+          purgeAfter: MAP_EVENT_READ_LIMIT + 10_000,
+        });
+      });
+
+      const events = await asUser(t, VIEWER).query(api.mapChain.watchMapEvents, {
+        mapId: MAP_A,
+      });
+      expect(events).toHaveLength(MAP_EVENT_READ_LIMIT);
+      expect(events[0]?.at).toBe(MAP_EVENT_READ_LIMIT + 1);
+      expect(events.at(-1)?.at).toBe(2);
+      expect(events.every((event) => event.mapId === MAP_A)).toBe(true);
     });
   });
 
@@ -436,6 +503,7 @@ describe('map chain read path', () => {
       'mapAccess',
       'mapSystems',
       'mapConnections',
+      'mapEvents',
       'mapSignatures',
       'mapNotes',
       'mapSignatureActivity',
@@ -533,6 +601,22 @@ describe('map chain read path', () => {
         );
       }
       expect(code).toContain('tryMapAccess');
+    });
+
+    it('pins the event ledger to one bounded newest-first indexed read', () => {
+      const code = dense(handlerCode('watchMapEvents'));
+
+      expect(countOccurrences(code, "ctx.db.query('mapEvents')")).toBe(1);
+      expect(code).toContain("withIndex('by_map'");
+      expect(code).toContain(".order('desc')");
+      expect(code).toContain('.take(MAP_EVENT_READ_LIMIT)');
+      expect(code).toContain('tryMapAccess');
+      expect(code).not.toContain('.collect(');
+      for (const table of CHAIN_TABLES.filter((name) => name !== 'mapEvents')) {
+        expect(code, `watchMapEvents must not query ${table}`).not.toContain(
+          `ctx.db.query('${table}')`,
+        );
+      }
     });
   });
 });

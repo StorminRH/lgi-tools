@@ -24,6 +24,7 @@ import { forwardRef, type ComponentProps, type ReactNode } from 'react';
 import { cn } from './cn';
 import { dropdownGroupLabel, dropdownPanel } from './dropdown-panel';
 import { fieldText, fieldVariants, focusWell, type FieldSize } from './input';
+import { useOverlayPortalContainer } from './overlay-portal-container';
 
 /**
  * Root renders no DOM of its own; re-exported as-is so Base UI's generic item
@@ -70,6 +71,9 @@ export const Field = forwardRef<
 /**
  * The floating results panel — portaled, positioned below the field, wearing the
  * shared recessed dropdown-panel surface. `className` sizes / caps the popup.
+ * Inside an overlay-portal provider the panel portals into that overlay's
+ * container so it shares the overlay stacking context; otherwise it keeps the
+ * default body portal.
  */
 export function Panel({
   className,
@@ -82,8 +86,14 @@ export function Panel({
   align?: 'start' | 'center' | 'end';
   children: ReactNode;
 }) {
+  // Prefer the nearest Dialog (etc.) popup so suggestions sit above the
+  // lightbox blur. Outside overlays the context is null — omit `container`
+  // entirely so FloatingPortal keeps its default <body> target. Passing
+  // `container={null}` disables the portal and the panel never mounts.
+  const overlayContainer = useOverlayPortalContainer();
+
   return (
-    <Autocomplete.Portal>
+    <Autocomplete.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
       <Autocomplete.Positioner side="bottom" align={align} sideOffset={sideOffset} className="z-dropdown">
         <Autocomplete.Popup className={cn(dropdownPanel, className)}>{children}</Autocomplete.Popup>
       </Autocomplete.Positioner>

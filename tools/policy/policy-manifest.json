@@ -176,7 +176,7 @@
         "Co-author the plan",
         "plain-English overview",
         "one logical section at a time",
-        "focused executable probe",
+        "docs-researcher",
         "Stop before fixed-schema drafting",
         "Assemble and review",
         "Invoke `adversarial-review` in Plan mode",
@@ -191,7 +191,12 @@
         "Never return this session to `plan-session`",
         "pause and discuss with the operator",
         "do not default to backlog or deferral",
+        "docs-researcher",
         "in-context proof ledger",
+        "gate-runner",
+        "Do not launch `adversarial-review` here",
+        "ow-reviewer",
+        "commit the verified OW scope",
         "Stop and resume"
       ]
     },

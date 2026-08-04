@@ -11,7 +11,34 @@ import { ConvexReactClient } from 'convex/react';
 const url = process.env.NEXT_PUBLIC_CONVEX_URL;
 
 /**
+ * Console logger that never touches Convex's DefaultLogger listener registry.
+ *
+ * Next.js Cache Components prerenders Client Component modules on the server.
+ * `new ConvexReactClient()` with the default logger calls `Math.random()` inside
+ * `DefaultLogger.addLogLineListener`, which surfaces as
+ * `next-prerender-random-client` on `/atlas` (and every other route under the
+ * root layout). A plain logger keeps Convex console output without that
+ * non-deterministic SSR path. Shape matches Convex's public `Logger` contract.
+ */
+const consoleLogger = {
+  logVerbose(...args: unknown[]) {
+    console.debug(...args);
+  },
+  log(...args: unknown[]) {
+    console.log(...args);
+  },
+  warn(...args: unknown[]) {
+    console.warn(...args);
+  },
+  error(...args: unknown[]) {
+    console.error(...args);
+  },
+};
+
+/**
  * Shared browser Convex client configured from the public deployment URL; null disables live reads
  * when the URL is absent.
  */
-export const convexClient: ConvexReactClient | null = url ? new ConvexReactClient(url) : null;
+export const convexClient: ConvexReactClient | null = url
+  ? new ConvexReactClient(url, { logger: consoleLogger })
+  : null;

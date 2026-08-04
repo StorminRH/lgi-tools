@@ -14,7 +14,7 @@
 // hand-rolled. Results come from the caller's `suggest`, so the combobox does no
 // filtering of its own (`filter={null}`); the input text is controlled here.
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type Ref } from 'react';
 import { Callout } from './callout';
 import * as Combobox from './combobox';
 import { scrollArea } from './scroll-area';
@@ -43,6 +43,8 @@ export type TerminalSearchProps<Params, Err> = {
   errorLabel?: string;
   // Hint shown beneath the input when nothing is typed yet.
   hint?: string;
+  // Optional ref to the real text input — Dialog `initialFocus`, ⌘K, etc.
+  inputRef?: Ref<HTMLInputElement>;
 };
 
 type EmptyKind = 'empty';
@@ -61,6 +63,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
   onClear,
   errorLabel = 'Search',
   hint,
+  inputRef,
 }: TerminalSearchProps<Params, Err>) {
   const [value, setValue] = useState(initialValue);
   const [error, setError] = useState<Err | null>(null);
@@ -154,6 +157,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
         mode="list"
       >
         <Combobox.Field
+          ref={inputRef}
           id={inputId}
           type="text"
           placeholder={placeholder}

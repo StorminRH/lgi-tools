@@ -34,6 +34,7 @@ import {
   type PaginationResult,
 } from 'convex/server';
 import { v } from 'convex/values';
+import { rolesAllow } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { tryMapAccess } from './lib/mapAccess';
@@ -45,6 +46,9 @@ import { tryMapAccess } from './lib/mapAccess';
  * (`docs/CONVEX.md`), so a bigger map costs more calls rather than one bigger, riskier transaction.
  */
 export const MAP_CHAIN_MAX_PAGE_SIZE = 100;
+
+/** Maximum retained ledger rows one live map subscription may read. */
+export const MAP_EVENT_READ_LIMIT = 100;
 
 /**
  * Clamps a client's requested page size into `[1, MAP_CHAIN_MAX_PAGE_SIZE]`.
@@ -101,21 +105,30 @@ async function readChainPage<Table extends ChainTable>(
 }
 
 /**
- * Subscribes to whether the caller currently holds view access to one map.
+ * Subscribes to whether the caller currently holds view access to one map, and
+ * whether that claim also carries edit.
  *
  * The authority on revoked-versus-empty, and the reason no chain read has to throw. Its read set is
  * exactly the caller's own `by_map_user` claim row, so deleting that claim re-runs this subscription
- * and flips it to `false` live — and re-granting it flips back to `true`, recovering the map without
- * a reload.
+ * and flips both flags live — and re-granting it recovers the map without a reload. `canEdit` is
+ * computed from the same claim row (`rolesAllow(..., 'edit')`), so a rights change unmounts
+ * authoring affordances without a second subscription.
  *
- * Answers `false` rather than throwing for a signed-out caller too, so the window between socket
- * connect and JWT mint is an ordinary `false` instead of an error.
+ * Answers both flags `false` rather than throwing for a signed-out caller too, so the window between
+ * socket connect and JWT mint is an ordinary refusal instead of an error.
  */
 export const watchMapAccess = query({
   args: { mapId: v.string() },
-  handler: async (ctx, { mapId }): Promise<{ granted: boolean }> => {
+  handler: async (
+    ctx,
+    { mapId },
+  ): Promise<{ granted: boolean; canEdit: boolean }> => {
     const principal = await tryMapAccess(ctx, mapId, 'view');
-    return { granted: principal !== null };
+    if (principal === null) return { granted: false, canEdit: false };
+    return {
+      granted: true,
+      canEdit: rolesAllow(principal.roles, 'edit'),
+    };
   },
 });
 
@@ -146,4 +159,21 @@ export const watchMapConnections = query({
   args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
   handler: async (ctx, { mapId, paginationOpts }) =>
     await readChainPage(ctx, 'mapConnections', mapId, paginationOpts),
+});
+
+/**
+ * Watches the retained basic ledger newest-first through one bounded map/time
+ * index range. Access denial is the same calm empty value as the chain pages.
+ */
+export const watchMapEvents = query({
+  args: { mapId: v.string() },
+  handler: async (ctx, { mapId }) => {
+    const principal = await tryMapAccess(ctx, mapId, 'view');
+    if (principal === null) return [];
+    return await ctx.db
+      .query('mapEvents')
+      .withIndex('by_map', (q) => q.eq('mapId', mapId))
+      .order('desc')
+      .take(MAP_EVENT_READ_LIMIT);
+  },
 });

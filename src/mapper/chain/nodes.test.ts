@@ -152,8 +152,55 @@ describe('canvas edge projection', () => {
     ).state;
 
     expect(buildEdges(state.connections, new Map([[AMARR, JITA]]))).toEqual([
-      { id: 'c1', source: String(JITA), target: String(AMARR), data: { loop: false } },
+      {
+        id: 'c1',
+        source: String(JITA),
+        target: String(AMARR),
+        data: { loop: false, tombstoneState: 'active' },
+      },
     ]);
+  });
+
+  it('renders dying ties but keeps skeleton ties out of the canvas', () => {
+    const now = 1_700_000_000_000;
+    const state = reconcileChain(
+      EMPTY_CHAIN_STATE,
+      snapshot([JITA, AMARR], [
+        {
+          connectionId: 'dying',
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          deletedAt: now - 1,
+          purgeAfter: now + 1,
+        },
+        {
+          connectionId: 'skeleton',
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          deletedAt: now - 2,
+          purgeAfter: null,
+        },
+      ]),
+      NO_DRAG,
+      sequentialTestAssigner,
+    ).state;
+
+    const positionsBefore = [...state.systems.values()].map((row) => row.position);
+    expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
+      {
+        id: 'dying',
+        source: String(JITA),
+        target: String(AMARR),
+        data: { loop: false, tombstoneState: 'dying' },
+      },
+    ]);
+    expect(
+      buildEdges(state.connections, new Map([[AMARR, JITA]]), now + 2),
+    ).toEqual([]);
+    expect([...state.systems.values()].map((row) => row.position)).toEqual(
+      positionsBefore,
+    );
+    expect(state.connections.has('skeleton')).toBe(true);
   });
 
   it('projects nothing for a withheld connection', () => {

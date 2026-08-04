@@ -5,16 +5,20 @@
 // the eve-data reference core rather than re-declared here.
 import { ConvexError, v } from 'convex/values';
 import {
+  CONNECTION_MASS_STATES,
   isWormholeTypeCode,
+  WORMHOLE_LIFE_STAGES,
+  type ConnectionMassState,
+  type WormholeLifeStage,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { MapRole } from '@/data/maps/access-contract';
+import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 
-/** Observed mass state of one wormhole connection. */
-export const CONNECTION_MASS_STATES = ['stable', 'reduced', 'critical'] as const;
-
-/** One observed connection mass state. */
-export type ConnectionMassState = (typeof CONNECTION_MASS_STATES)[number];
+/** Re-export the data-owned mass vocabulary for Convex-local callers. */
+export { CONNECTION_MASS_STATES, type ConnectionMassState };
+/** Re-export the data-owned life-stage vocabulary for Convex-local callers. */
+export { WORMHOLE_LIFE_STAGES, type WormholeLifeStage };
 
 /** The kinds of chain object a note may be attached to. */
 export const NOTE_TARGET_KINDS = ['map', 'system', 'signature'] as const;
@@ -31,6 +35,13 @@ const MASS_STATE_LITERALS = {
   reduced: v.literal('reduced'),
   critical: v.literal('critical'),
 } as const satisfies Record<ConnectionMassState, unknown>;
+
+const LIFE_STAGE_LITERALS = {
+  under_1_day: v.literal('under_1_day'),
+  under_4_hours: v.literal('under_4_hours'),
+  under_1_hour: v.literal('under_1_hour'),
+  expired: v.literal('expired'),
+} as const satisfies Record<WormholeLifeStage, unknown>;
 
 const NOTE_TARGET_KIND_LITERALS = {
   map: v.literal('map'),
@@ -51,12 +62,28 @@ const MAP_ROLE_LITERALS = {
   owner: v.literal('owner'),
 } as const satisfies Record<MapRole, unknown>;
 
-/** Schema validator for the observed connection mass state. */
+/** Schema validator for observed mass state, null while still unobserved. */
 export const massStateValidator = v.union(
   MASS_STATE_LITERALS.stable,
   MASS_STATE_LITERALS.reduced,
   MASS_STATE_LITERALS.critical,
+  v.null(),
 );
+
+/** Schema validator for a Reliable Lifetime bucket, null while still unset. */
+export const lifeStageValidator = v.union(
+  LIFE_STAGE_LITERALS.under_1_day,
+  LIFE_STAGE_LITERALS.under_4_hours,
+  LIFE_STAGE_LITERALS.under_1_hour,
+  LIFE_STAGE_LITERALS.expired,
+  v.null(),
+);
+
+/**
+ * Optional normalized tombstone stamp. Existing live rows may omit the field;
+ * active rows may store explicit null; tombstoned rows store a finite number.
+ */
+export const optionalTimestampValidator = v.optional(v.union(v.number(), v.null()));
 
 /** Schema validator for a connection's shipped size, null while still unknown. */
 export const shipSizeValidator = v.union(
@@ -72,6 +99,20 @@ export const mapRoleValidator = v.union(
   MAP_ROLE_LITERALS.viewer,
   MAP_ROLE_LITERALS.editor,
   MAP_ROLE_LITERALS.owner,
+);
+
+/**
+ * Schema validator derived from the data-owned event-kind tuple, so a kind
+ * added to the vocabulary reaches the deployed schema without a hand edit.
+ */
+export const mapEventKindValidator = v.union(
+  ...MAP_EVENT_KINDS.map((kind) => v.literal(kind)),
+);
+
+/** Schema validator for the payload shapes written by the basic map-event ledger. */
+export const mapEventPayloadValidator = v.union(
+  v.object({ connectionId: v.string() }),
+  v.object({ connectionId: v.string(), systemIds: v.array(v.number()) }),
 );
 
 /** Schema validator for a canonical wormhole code, null while the type is unidentified. */
@@ -95,8 +136,10 @@ export function isPositiveId(value: number): boolean {
 }
 
 /**
- * Validates one absolute timestamp field. Chain documents store absolute instants only, so a
- * remaining lifetime is always derived as `eolAt - now` and no mutation or scheduler flips a state.
+ * Validates one absolute timestamp field. Chain documents store absolute instants only —
+ * remaining lifetime derives from the `deathEarliestAt`/`deathLatestAt` window pair
+ * (`eolAt` is a vestigial superseded field, always null) and no mutation or scheduler
+ * flips a state.
  */
 function requireAbsoluteTimestamp(label: string, value: number | null): void {
   if (value !== null && !Number.isFinite(value)) {
@@ -109,9 +152,30 @@ export interface ConnectionInput {
   readonly fromSystemId: number;
   readonly toSystemId: number;
   readonly wormholeTypeCode: string | null;
-  readonly massState: ConnectionMassState;
+  readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
   readonly eolAt: number | null;
+  readonly deathEarliestAt?: number | null;
+  readonly deathLatestAt?: number | null;
+}
+
+/** The optional-normalized absolute death-window pair accepted at the boundary. */
+export interface DeathWindowInput {
+  readonly deathEarliestAt?: number | null;
+  readonly deathLatestAt?: number | null;
+}
+
+/** Requires a death window to be either wholly absent or ordered and finite. */
+export function validateDeathWindowInput(input: DeathWindowInput): void {
+  const earliest = input.deathEarliestAt ?? null;
+  const latest = input.deathLatestAt ?? null;
+  if ((earliest === null) !== (latest === null)) {
+    reject('INVALID_DEATH_WINDOW', 'Death-window timestamps must both be null or both be set.');
+  }
+  if (earliest === null || latest === null) return;
+  if (!Number.isFinite(earliest) || !Number.isFinite(latest) || earliest > latest) {
+    reject('INVALID_DEATH_WINDOW', 'Death-window timestamps must be finite and ordered.');
+  }
 }
 
 /**
@@ -130,6 +194,7 @@ export function validateConnectionInput(input: ConnectionInput): void {
     reject('INVALID_WORMHOLE_CODE', `Unknown wormhole code "${input.wormholeTypeCode}".`);
   }
   requireAbsoluteTimestamp('eolAt', input.eolAt);
+  validateDeathWindowInput(input);
 }
 
 /** The nullable knowledge fields the map shares about one signature. */

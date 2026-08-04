@@ -7,6 +7,17 @@ const mocks = vi.hoisted(() => ({
   useMapChain: vi.fn(),
   reactFlow: vi.fn(),
   pinPlacement: vi.fn(),
+  authoring: {
+    setHomeSystem: vi.fn(),
+    addSystemFromNode: vi.fn(),
+    setConnectionWormholeType: vi.fn(),
+    setConnectionShipSize: vi.fn(),
+    setConnectionMassState: vi.fn(),
+    setConnectionLifeStage: vi.fn(),
+    severConnection: vi.fn(),
+    restoreSeveredBranch: vi.fn(),
+    restoreConnection: vi.fn(),
+  },
 }));
 
 vi.mock('@/data/convex/use-convex-authed', () => ({
@@ -15,6 +26,18 @@ vi.mock('@/data/convex/use-convex-authed', () => ({
 
 vi.mock('./use-map-chain', () => ({
   useMapChain: mocks.useMapChain,
+}));
+
+vi.mock('./optimistic-authoring', () => ({
+  useChainAuthoringMutations: () => mocks.authoring,
+}));
+
+vi.mock('../authoring/RightsTransitionToast', () => ({
+  RightsTransitionToast: () => null,
+}));
+
+vi.mock('../authoring/ConnectionAuthoringOverlay', () => ({
+  ConnectionAuthoringOverlay: () => null,
 }));
 
 vi.mock('@xyflow/react', async () => {
@@ -32,12 +55,26 @@ vi.mock('@xyflow/react', async () => {
     Position: { Left: 'left', Right: 'right' },
     Panel: ({ children }: { children?: unknown }) =>
       element('div', { 'data-react-flow-panel': '' }, children as never),
+    // Camera follow now fits via getViewportForBounds + setViewport (fitBounds
+    // ignores option maxZoom). Keep the mock surface aligned with that path.
+    getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),
     useReactFlow: () => ({
       fitView: vi.fn(async () => true),
+      fitBounds: vi.fn(async () => true),
+      setViewport: vi.fn(async () => true),
+      setCenter: vi.fn(async () => true),
+      getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
+      getInternalNode: () => undefined,
       viewportInitialized: true,
     }),
     useStore: (selector: (state: Record<string, unknown>) => unknown) =>
-      selector({ userSelectionActive: false }),
+      selector({
+        userSelectionActive: false,
+        width: 1440,
+        height: 900,
+        minZoom: 0.2,
+        maxZoom: 2.5,
+      }),
     useStoreApi: () => ({
       getState: () => ({
         domNode: null,
@@ -56,9 +93,18 @@ async function renderHost(): Promise<string> {
 }
 
 /** Points the mocked hook at one live access state. */
-function withAccess(access: boolean | undefined): void {
+function withAccess(
+  access: boolean | undefined,
+  canEdit: boolean | undefined = access === true,
+): void {
   mocks.useMapChain.mockReturnValue({
     access,
+    canEdit,
+    systemsComplete: true,
+    liveSystemCount: 0,
+    connectionDetails: new Map(),
+    connectionPresentationNow: 1,
+    events: [],
     state: { systems: new Map(), connections: new Map() },
     intents: [],
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
@@ -74,6 +120,9 @@ function resetHostMocks(): void {
   mocks.reactFlow.mockClear();
   mocks.useMapChain.mockClear();
   mocks.pinPlacement.mockClear();
+  for (const spy of Object.values(mocks.authoring)) {
+    spy.mockClear();
+  }
   mocks.authed = true;
   withAccess(true);
 }
@@ -93,34 +142,49 @@ describe('chain host auth gate', () => {
   // The regression this guards: an identity-less caller is answered `granted: false`, which is a
   // legitimate value rather than an error — so subscribing before the JWT attaches would flash the
   // calm no-access state on every map open.
-  it('opens no subscription until Convex holds an identity', async () => {
-    mocks.authed = false;
+  // Dynamic import of ChainHost under full-suite coverage can exceed the
+  // default 5s when workers contend; these tests pay that first-load cost.
+  it(
+    'opens no subscription until Convex holds an identity',
+    async () => {
+      mocks.authed = false;
 
-    const markup = await renderHost();
+      const markup = await renderHost();
 
-    expect(mocks.useMapChain).not.toHaveBeenCalled();
-    expect(markup).toContain('data-react-flow-background');
-  });
+      expect(mocks.useMapChain).not.toHaveBeenCalled();
+      expect(markup).toContain('data-react-flow');
+      expect(markup).not.toContain('data-react-flow-background');
+    },
+    15_000,
+  );
 
-  it('renders the canvas immediately and empty while unauthenticated, with no spinner', async () => {
-    mocks.authed = false;
+  it(
+    'renders the canvas immediately and empty while unauthenticated, with no spinner',
+    async () => {
+      mocks.authed = false;
 
-    const markup = await renderHost();
-    const props = mocks.reactFlow.mock.calls[0]?.[0] as Record<string, unknown>;
+      const markup = await renderHost();
+      const props = mocks.reactFlow.mock.calls[0]?.[0] as Record<string, unknown>;
 
-    expect(props.nodes).toEqual([]);
-    expect(props.edges).toEqual([]);
-    expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
-  });
+      expect(props.nodes).toEqual([]);
+      expect(props.edges).toEqual([]);
+      expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
+    },
+    15_000,
+  );
 
-  it('subscribes once Convex is authenticated', async () => {
-    mocks.authed = true;
+  it(
+    'subscribes once Convex is authenticated',
+    async () => {
+      mocks.authed = true;
 
-    await renderHost();
+      await renderHost();
 
-    expect(mocks.useMapChain).toHaveBeenCalledTimes(1);
-    expect(mocks.useMapChain.mock.calls[0]?.[0]).toBe('map-a');
-  });
+      expect(mocks.useMapChain).toHaveBeenCalledTimes(1);
+      expect(mocks.useMapChain.mock.calls[0]?.[0]).toBe('map-a');
+    },
+    15_000,
+  );
 });
 
 // ── SC-4 · DC-4 / AC-4 — the calm state comes from a live value, never an error ──
@@ -140,12 +204,56 @@ describe('chain host access states', () => {
   });
 
   it('renders the canvas, not the calm state, once access is held', async () => {
-    withAccess(true);
+    withAccess(true, true);
 
     const markup = await renderHost();
 
-    expect(markup).toContain('data-react-flow-background');
+    expect(markup).toContain('data-react-flow');
+    expect(markup).not.toContain('data-react-flow-background');
     expect(markup).not.toContain('data-chain-no-access');
+    expect(markup).toContain('data-map-can-edit="true"');
+  });
+
+  it('exposes canEdit=false for a view-only claim', async () => {
+    withAccess(true, false);
+
+    const markup = await renderHost();
+
+    expect(markup).toContain('data-map-can-edit="false"');
+    expect(markup).not.toContain('data-map-home-prompt');
+  });
+
+  it('shows the home prompt only for an editor on a complete empty map', async () => {
+    withAccess(true, true);
+
+    const markup = await renderHost();
+
+    expect(markup).toContain('data-map-home-prompt');
+    expect(markup).toContain('Set your home system');
+    expect(markup).toContain('data-map-home-current-disabled');
+  });
+
+  it('hides the home prompt when live systems exist even before merge lands', async () => {
+    // Merged canvas empty + liveSystemCount > 0 models the layout-worker lag
+    // that previously flashed a false-empty prompt.
+    mocks.useMapChain.mockReturnValue({
+      access: true,
+      canEdit: true,
+      systemsComplete: true,
+      liveSystemCount: 1,
+      connectionDetails: new Map(),
+      state: { systems: new Map(), connections: new Map() },
+      intents: [],
+      labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
+      treeParents: new Map(),
+      rootSystemId: null,
+      pinPlacement: mocks.pinPlacement,
+      releasePlacements: vi.fn(),
+    });
+
+    const markup = await renderHost();
+
+    expect(markup).not.toContain('data-map-home-prompt');
   });
 
   // HC-5: "not yet answered" is not a state of its own — it looks like an ordinary empty map.
@@ -154,7 +262,8 @@ describe('chain host access states', () => {
 
     const markup = await renderHost();
 
-    expect(markup).toContain('data-react-flow-background');
+    expect(markup).toContain('data-react-flow');
+    expect(markup).not.toContain('data-react-flow-background');
     expect(markup).not.toContain('data-chain-no-access');
     expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
   });

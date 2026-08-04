@@ -1,24 +1,61 @@
 # SCRATCHPAD — LGI.tools
 
-> Short cross-session memory. Keep this skimmable in about one minute. The
-> upkeep procedure lives in `docs/workflows/close-out.md`.
+> Short cross-session memory. Keep this skimmable in about one minute. Close-out
+> owns session-boundary upkeep (`docs/workflows/close-out.md`). During an
+> in-flight planned session, `start-session` also maintains under **Now**:
+> **OW progress** (`k/n complete` — next step title, or `n/n complete —
+> awaiting close-out`), **OW completed** (one short line per finished step),
+> and **Next-agent notes**. Collapse those mid-session OW rows at close-out.
 
 ## Now
 
-- **CURRENT:** session 4.0.3.3.1 (overlay window framework) on `lifecycle/4.0.3.3`
-  at close-out: G-1 accepted 2026-08-03; delivery records frozen
-  (`APP_VERSION`/`changelog`/`roadmap` 4.0.3.3); design-review and adversarial
-  corrections absorbed (window layer off hot `nodes`, `surfaceKindOf`, summary
-  target owned by `deriveSurfaces`, shared `MIN_FLOATING_SIZE`/`DOCK_MODES`,
-  pointer-only resize grip). Disposable map
-  `/atlas?map=a6046063-ec8c-4b96-a240-cc3bbb1e7c16`.
-- **NEXT:** after merge, resolver advances to 4.0.4.1 via `start-session`.
+- **CURRENT / NEXT:** session **4.0.4.1.2** complete — sub-version
+  **4.0.4.1** done (both sessions); close-out is delivering the single
+  sub-version PR #353 from `lifecycle/4.0.4.1` (G-1 ACCEPT recorded
+  2026-08-04). Next planned work: 4.0.4.2 through `start-session` after
+  merge.
+- **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
+  add-from-node / connection card), codex connection intelligence, death-window
+  lifetime model, mass layers 1+3, unified sever/collapse pathway with
+  shared-stamp undo, `src/mapper/log/` despawn ledger, 15-minute chain purge
+  cron, and OW7 map-chrome polish. Ledger detail: changelog `v4.0.4.1`,
+  as-builts under `docs/session-as-built/4.0/`.
+- **Durable 4.0.4.1.2 gotchas:** (1) `deathWindowFrom` in
+  `src/data/maps/connection-lifetime.ts` is the ONLY owner of the
+  stored-pair→window predicate — server validation, optimistic patches, and
+  card rendering all consume it; do not re-implement locally. (2)
+  `restoreSeveredBranch` refuses `ENDPOINT_TOMBSTONED` when a later sever
+  tombstoned a cut endpoint outside the shared-stamp set — the fail-closed
+  guard exists because a live connection with a dead endpoint wedges
+  `severConnection` (`INVALID_MAP_TOPOLOGY`) permanently after the purge cron.
+  (3) `mapConnections.eolAt` is vestigial (superseded mark-EOL design, always
+  null); lifetime truth is the `deathEarliestAt`/`deathLatestAt` pair. (4)
+  `mapEvents.actor` display-name retention rides the ledger's 7-day
+  self-expiry, a recorded exemption in `docs/CONVEX.md` — not the `/n`
+  teardown door. (5) Wrapping a `<label>` around a Base UI Select forwards
+  caption clicks and springs the dropdown (the CustomStructureBuilder gotcha
+  recurred in `connection-fields.tsx`); use `<div>` + `ariaLabel`.
+- **4.0.4.1.1 gotchas:** (1) Optimistic destination systems must
+  `insertAtBottomIfLoaded` — `resolveRoot` is `facts.systems[0]`. (2) Home
+  prompt gates on filtered `liveSystemCount`, not merged canvas state. (3)
+  Public `mapFixtures.upsertSystem` removed — use `placeSystemFixture` /
+  `mapAuthoring`. (4) Access CLI:
+  `pnpm map:project-access project|teardown <mapId>` — omit bare `--`. (5)
+  Edge-card selects may sit outside the CSS viewport after camera settle —
+  probe via `[data-map-window="connection-details"]`. (6) G-1 camera fit
+  `CAMERA_FIT_MAX_ZOOM = 0.75`; typeahead unique codes for SDE clone typeIds
+  (C729/F216/J244) with full typeId wire payload preserved.
+- **Local review maps:** blank
+  `4f5dd5e0-97f4-42c2-97aa-2fee04756665`; populated
+  `4f47c80a-c40b-4795-8831-faa4c7c41426`.
+- **Key paths:** `docs/session-contracts/4.0/4.0.4.1.2.md`,
+  `src/mapper/authoring/`, `convex/mapAuthoring.ts`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
   array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must
   stay byte-identical to `persistence.ts` (docs cannot import src). (3)
   Floating resize is a pointer-only `data-map-window-resize` grip, not a
-  button. (4) As-built must record G-1 layout supersession: left-rail dock,
+  button. (4) As-built recorded G-1 layout supersession: left-rail dock,
   top-right controls, portrait beside Atlas menu, title-bar drag.
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a

@@ -100,6 +100,14 @@ describe('edge motion classes', () => {
     expect(still.className).toBeUndefined();
   });
 
+  it('styles dying edges with the pulsed red class and leaves active edges alone', () => {
+    const dying = edgePresentation({ loop: false, tombstoneState: 'dying' });
+    expect(dying.className).toBe('map-edge-dying');
+
+    const active = edgePresentation({ loop: false, tombstoneState: 'active' });
+    expect(active.className).toBeUndefined();
+  });
+
   it('maps grow direction through the -rev suffix', () => {
     expect(
       edgeMotionClass({ phase: 'entering', flavor: 'grow', reverse: false, heavy: false }),

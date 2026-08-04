@@ -28,6 +28,10 @@ owning procedure defines its outcome vocabulary and what belongs in each field.
 6. Replace every template placeholder. Render the Markdown directly in chat.
    Never wrap the result in a code fence, prepend a second summary, or append
    an unstructured duplicate.
+7. Exception — `start-session` outcome `OW_HANDOFF` only: after the four
+   bullets, append exactly one fenced copy-paste handoff prompt owned by
+   `docs/workflows/start-session.md`. No other workflow may append chat
+   content after the four bullets.
 
 Templates remain fenced inside procedures only so agents can distinguish the
 literal field form from surrounding instructions.

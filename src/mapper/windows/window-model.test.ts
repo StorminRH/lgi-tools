@@ -5,6 +5,8 @@ import {
   deriveSurfaces,
   dragRect,
   keydownAction,
+  isOutsideClickGesture,
+  outsideDismissAction,
   reconcileStack,
   resizeRect,
   surfaceKindOf,
@@ -77,6 +79,13 @@ describe('map window keyboard and stack', () => {
       }),
     ).toBe('dock');
     expect(surfaceKindOf({ kind: 'node-anchored', systemId: 2 })).toBe('card');
+    expect(
+      surfaceKindOf({
+        kind: 'edge-anchored',
+        fromSystemId: 1,
+        toSystemId: 2,
+      }),
+    ).toBe('card');
   });
 
   it('dismisses only a card Escape that no popup already owns', () => {
@@ -96,6 +105,58 @@ describe('map window keyboard and stack', () => {
     ]) {
       expect(keydownAction(input)).toBe('ignore');
     }
+  });
+
+  it('dismisses outside clicks unless the card, a popup, or a pan owns them', () => {
+    expect(
+      outsideDismissAction({
+        insideCard: false,
+        insideOpenPopup: false,
+        popupOpen: false,
+        isClick: true,
+      }),
+    ).toBe('dismiss-card');
+    expect(
+      outsideDismissAction({
+        insideCard: false,
+        insideOpenPopup: false,
+        popupOpen: false,
+        isClick: false,
+      }),
+    ).toBe('ignore');
+    expect(
+      outsideDismissAction({
+        insideCard: true,
+        insideOpenPopup: false,
+        popupOpen: false,
+        isClick: true,
+      }),
+    ).toBe('ignore');
+    expect(
+      outsideDismissAction({
+        insideCard: false,
+        insideOpenPopup: true,
+        popupOpen: false,
+        isClick: true,
+      }),
+    ).toBe('ignore');
+    expect(
+      outsideDismissAction({
+        insideCard: false,
+        insideOpenPopup: false,
+        popupOpen: true,
+        isClick: true,
+      }),
+    ).toBe('ignore');
+  });
+
+  it('treats sub-slop movement as a click and larger moves as a pan', () => {
+    expect(
+      isOutsideClickGesture({ x: 10, y: 10 }, { x: 12, y: 11 }),
+    ).toBe(true);
+    expect(
+      isOutsideClickGesture({ x: 10, y: 10 }, { x: 20, y: 10 }),
+    ).toBe(false);
   });
 
   it('prunes, appends, and brings only live ids forward', () => {

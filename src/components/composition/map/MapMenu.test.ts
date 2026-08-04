@@ -12,10 +12,16 @@ vi.mock('@/components/ui/menu', async () => {
     MenuLinkItem: ({
       render,
       children,
+      closeOnClick: _closeOnClick,
+      ...anchorProps
     }: {
-      render: React.ReactElement;
+      render?: React.ReactElement;
       children: React.ReactNode;
-    }) => cloneElement(render, {}, children),
+      closeOnClick?: boolean;
+    } & Record<string, unknown>) =>
+      render !== undefined
+        ? cloneElement(render, {}, children)
+        : element('a', anchorProps, children),
   };
 });
 
@@ -25,10 +31,14 @@ describe('MapMenu', () => {
     const anchors = [...markup.matchAll(/<a [^>]+>/g)].map((match) => match[0]);
 
     expect(markup).toContain('[</span><span');
-    expect(anchors).toHaveLength(visibleNavTools().length + 1);
+    // Home + visible tools + React Flow attribution footer.
+    expect(anchors).toHaveLength(visibleNavTools().length + 2);
+    expect(markup).toContain('data-map-menu-attribution');
+    expect(markup).toContain('Built with React Flow');
+    expect(markup).toContain('https://reactflow.dev');
     for (const anchor of anchors) {
       expect(anchor).toContain('target="_blank"');
-      expect(anchor).toContain('rel="noreferrer"');
+      expect(anchor).toMatch(/rel="(?:noopener )?noreferrer"/);
     }
     for (const tool of visibleNavTools()) {
       expect(markup).toContain(tool.label);

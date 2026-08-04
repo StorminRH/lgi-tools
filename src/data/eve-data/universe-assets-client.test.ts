@@ -227,6 +227,55 @@ describe('universe asset client loaders', () => {
     expect(first.byCode('NOPE')).toBeNull();
   });
 
+  it('exposes one typeahead code per SDE clone cluster and prefers the lowest typeId', async () => {
+    apiFetchMock.mockImplementation((endpoint: { path: string }) => {
+      if (endpoint.path === '/api/universe/assets') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          data: { version: '3444265' },
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        data: {
+          version: '3444265',
+          types: [
+            {
+              code: 'C729',
+              typeId: 56546,
+              farSide: false,
+              totalMass: 1_000_000_000,
+              maxJumpMass: 410_000_000,
+              massRegen: 0,
+              lifetimeMinutes: 720,
+              sizeClass: 'L',
+              targetClass: -1,
+            },
+            {
+              code: 'C729',
+              typeId: 56026,
+              farSide: false,
+              totalMass: 1_000_000_000,
+              maxJumpMass: 410_000_000,
+              massRegen: 0,
+              lifetimeMinutes: 720,
+              sizeClass: 'L',
+              targetClass: -1,
+            },
+            { code: 'K162', typeId: 30831, farSide: true },
+          ],
+        },
+      });
+    });
+    const assetModule = await freshModule();
+    const codex = await assetModule.loadWormholeCodex();
+
+    expect(codex.codes()).toEqual(['C729', 'K162']);
+    expect(codex.byCode('C729')?.typeId).toBe(56026);
+  });
+
   it('refetches the manifest once when the codex version is stale', async () => {
     let manifestCalls = 0;
     apiFetchMock.mockImplementation(

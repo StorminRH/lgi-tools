@@ -12,14 +12,27 @@
 // The posted key (chain signature + layout revision) advances eagerly at post
 // time so re-renders never cancel or repost in-flight work; staleness is decided
 // by request id. The drag-protection set is read from a ref at apply time.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/data/convex/api';
-import { useDrainedPages } from '@/data/convex/use-drained-pages';
+import type { Doc, Id } from '@/data/convex/data-model';
+import {
+  useDrainedPages,
+  type DrainedPages,
+} from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
+import type {
+  ConnectionMassState,
+  WormholeLifeStage,
+  WormholeSizeClass,
+} from '@/data/eve-data/wormhole-contract';
 import {
   loadUniverseAssets,
   type UniverseAssets,
 } from '@/data/eve-data/universe-assets-client';
+import {
+  chainTombstoneState,
+  isTombstoned,
+} from '@/data/maps/chain-contract';
 import { deriveChainTree } from '../layout/facts';
 import type { LayoutConfig, LayoutFacts } from '../layout/layout-contract';
 import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
@@ -58,10 +71,80 @@ import {
 const PAGE_SIZE = 100;
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
+const EMPTY_MAP_EVENTS: readonly Doc<'mapEvents'>[] = [];
 const INITIAL_MERGE: ChainMerge = { state: EMPTY_CHAIN_STATE, intents: [] };
+const TOMBSTONE_TICK_MS = 60_000;
 
 /** Whether the caller holds access, or `undefined` until the access subscription first answers. */
 export type MapAccessState = boolean | undefined;
+
+interface NormalizedMapAccess {
+  readonly access: MapAccessState;
+  readonly canEdit: boolean | undefined;
+}
+
+/** Normalizes the not-yet-answered access subscription without conflating it with denial. */
+export function normalizeMapAccess(
+  result: { readonly granted: boolean; readonly canEdit: boolean } | undefined,
+): NormalizedMapAccess {
+  if (result === undefined) return { access: undefined, canEdit: undefined };
+  return { access: result.granted, canEdit: result.canEdit };
+}
+
+/** Builds the shared skip-or-map arguments for every chain subscription. */
+function mapSubscriptionArgs(mapId: string | null): 'skip' | { mapId: string } {
+  if (mapId === null) return 'skip';
+  return { mapId };
+}
+
+/**
+ * Live connection fields the authoring card edits. Topology stays in reconciled
+ * state; these travel beside it so a field patch never forces a layout merge.
+ */
+export interface ConnectionDetail {
+  readonly connectionId: Id<'mapConnections'>;
+  readonly _creationTime: number;
+  readonly fromSystemId: number;
+  readonly toSystemId: number;
+  readonly wormholeTypeCode: string | null;
+  readonly massState: ConnectionMassState | null;
+  readonly shipSize: WormholeSizeClass | null;
+  readonly lifeStage: WormholeLifeStage | null;
+  readonly lifeStageObservedAt: number | null;
+  readonly deathEarliestAt: number | null;
+  readonly deathLatestAt: number | null;
+  readonly deletedAt: number | null;
+  readonly purgeAfter: number | null;
+}
+
+function optionalOrNull<Value>(value: Value | null | undefined): Value | null {
+  return value ?? null;
+}
+
+/** Projects subscribed connection documents into the stable card-detail map. */
+export function connectionDetailsFromRows(
+  rows: readonly Doc<'mapConnections'>[],
+): ReadonlyMap<Id<'mapConnections'>, ConnectionDetail> {
+  const details = new Map<Id<'mapConnections'>, ConnectionDetail>();
+  for (const row of rows) {
+    details.set(row._id, {
+      connectionId: row._id,
+      _creationTime: row._creationTime,
+      fromSystemId: row.fromSystemId,
+      toSystemId: row.toSystemId,
+      wormholeTypeCode: row.wormholeTypeCode,
+      massState: row.massState,
+      shipSize: row.shipSize,
+      lifeStage: optionalOrNull(row.lifeStage),
+      lifeStageObservedAt: optionalOrNull(row.lifeStageObservedAt),
+      deathEarliestAt: optionalOrNull(row.deathEarliestAt),
+      deathLatestAt: optionalOrNull(row.deathLatestAt),
+      deletedAt: optionalOrNull(row.deletedAt),
+      purgeAfter: optionalOrNull(row.purgeAfter),
+    });
+  }
+  return details;
+}
 
 /** The row shapes the signature summarizes, kept minimal so the function stays pure and testable. */
 interface SignatureInput {
@@ -71,6 +154,7 @@ interface SignatureInput {
       readonly _id: string;
       readonly fromSystemId: number;
       readonly toSystemId: number;
+      readonly deletedAt?: number | null;
     }[];
     readonly complete: boolean;
   };
@@ -84,6 +168,10 @@ interface SignatureInput {
  * continuously, which sub-version 4.0.3.2 would bind animations to. Exported so that stability is a
  * unit test rather than a property nothing checks; the separators cannot occur in numeric system ids
  * or Convex document ids, so no distinct content collides.
+ *
+ * Systems are live-only while connections include structural tombstones. The
+ * connection liveness bit makes a tombstone/restore patch trigger one merge
+ * without making ordinary detail-field patches re-run layout.
  */
 export function chainSignature(
   systems: SignatureInput['systems'],
@@ -94,9 +182,34 @@ export function chainSignature(
     systems.rows.map((row) => row.systemId).join(','),
     connections.complete,
     connections.rows
-      .map((row) => `${row._id}:${row.fromSystemId}>${row.toSystemId}`)
+      .map(
+        (row) =>
+          `${row._id}:${isTombstoned(row) ? 0 : 1}:${row.fromSystemId}>${row.toSystemId}`,
+      )
       .join(','),
   ].join('#');
+}
+
+/**
+ * Drops tombstoned rows while preserving page completeness and relative order.
+ *
+ * Runs upstream of {@link chainSignature}: the signature fingerprints only ids
+ * and completeness, so filtering anywhere downstream would leave a ghost on
+ * canvas until an unrelated change.
+ */
+export function filterLivePages<Row extends { readonly deletedAt?: number | null }>(
+  pages: DrainedPages<Row>,
+): DrainedPages<Row> {
+  const live = pages.rows.filter((row) => !isTombstoned(row));
+  if (live.length === pages.rows.length) return pages;
+  return { rows: live, complete: pages.complete };
+}
+
+/** Keeps every connection row, including structural dying/skeleton ties. */
+export function filterChainConnections<Row>(
+  pages: DrainedPages<Row>,
+): DrainedPages<Row> {
+  return pages;
 }
 
 /**
@@ -146,6 +259,28 @@ export interface MapChain {
    * renders the same empty canvas as an authorized empty map (HC-5 — never a loading state).
    */
   readonly access: MapAccessState;
+  /**
+   * Whether the same claim carries edit. `undefined` until access first answers;
+   * then always a boolean (false when access is withdrawn).
+   */
+  readonly canEdit: boolean | undefined;
+  /**
+   * Whether every systems page has landed. Home prompt waits on this so an
+   * editor never sees a false-empty prompt while pages are still draining.
+   */
+  readonly systemsComplete: boolean;
+  /**
+   * Live (non-tombstoned) system count from the filtered subscription pages —
+   * not the async merged canvas state. Home prompt gates on this so a
+   * populated map never flashes the empty-map prompt during the first layout.
+   */
+  readonly liveSystemCount: number;
+  /** Live connection detail fields keyed by document id, for the authoring card. */
+  readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
+  /** Shared newest-first despawn ledger rows for the mapper-local log surface. */
+  readonly events: readonly Doc<'mapEvents'>[];
+  /** Coarse client clock used only for dying-to-skeleton edge presentation. */
+  readonly connectionPresentationNow: number;
   readonly state: ChainState;
   /** The most recent merge's intents; sub-version 4.0.3.2 binds motion to these. */
   readonly intents: readonly MapChainIntent[];
@@ -213,19 +348,63 @@ export function useMapChain(
   draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,
   config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
 ): MapChain {
-  const args = mapId === null ? ('skip' as const) : { mapId };
+  const args = mapSubscriptionArgs(mapId);
   // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
-  // the map returns without a reload.
+  // the map returns without a reload. `canEdit` shares that claim row.
   const accessResult = useLiveValue(api.mapChain.watchMapAccess, args);
-  const access: MapAccessState =
-    accessResult === undefined ? undefined : accessResult.granted;
+  const { access, canEdit } = normalizeMapAccess(accessResult);
 
-  const systems = useDrainedPages(api.mapChain.watchMapSystems, args, PAGE_SIZE);
-  const connections = useDrainedPages(
+  const subscribedSystems = useDrainedPages(
+    api.mapChain.watchMapSystems,
+    args,
+    PAGE_SIZE,
+  );
+  const subscribedConnections = useDrainedPages(
     api.mapChain.watchMapConnections,
     args,
     PAGE_SIZE,
   );
+  const subscribedEvents = useLiveValue(api.mapChain.watchMapEvents, args);
+  // Memoizing the normalized page objects keeps field-only/timer renders from
+  // rebuilding connectionDetails or reposting layout work.
+  const systems = useMemo(
+    () =>
+      filterLivePages({
+        rows: subscribedSystems.rows,
+        complete: subscribedSystems.complete,
+      }),
+    [subscribedSystems.rows, subscribedSystems.complete],
+  );
+  const connections = useMemo(
+    () =>
+      filterChainConnections({
+        rows: subscribedConnections.rows,
+        complete: subscribedConnections.complete,
+      }),
+    [subscribedConnections.rows, subscribedConnections.complete],
+  );
+  const events = subscribedEvents ?? EMPTY_MAP_EVENTS;
+  const systemsComplete = systems.complete;
+  const liveSystemCount = systems.rows.length;
+  const connectionDetails = useMemo(
+    () => connectionDetailsFromRows(connections.rows),
+    [connections.rows],
+  );
+  const [connectionPresentationNow, setConnectionPresentationNow] = useState(
+    () => Date.now(),
+  );
+  const hasDyingConnection = connections.rows.some(
+    (row) => chainTombstoneState(row, connectionPresentationNow) === 'dying',
+  );
+
+  useEffect(() => {
+    if (!hasDyingConnection) return;
+    const timer = window.setInterval(
+      () => setConnectionPresentationNow(Date.now()),
+      TOMBSTONE_TICK_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, [hasDyingConnection]);
 
   const [merge, setMerge] = useState<ChainMerge>(INITIAL_MERGE);
   const [treeParents, setTreeParents] = useState<ReadonlyMap<number, number>>(
@@ -266,6 +445,8 @@ export function useMapChain(
           connectionId: row._id,
           fromSystemId: row.fromSystemId,
           toSystemId: row.toSystemId,
+          deletedAt: row.deletedAt ?? null,
+          purgeAfter: row.purgeAfter ?? null,
         })),
         complete: connections.complete,
       },
@@ -319,7 +500,7 @@ export function useMapChain(
         intents: [],
       }));
     },
-    [],
+    [setMerge],
   );
 
   const releasePlacements = useCallback(() => {
@@ -328,10 +509,16 @@ export function useMapChain(
       intents: [],
     }));
     setLayoutRevision((revision) => revision + 1);
-  }, []);
+  }, [setMerge, setLayoutRevision]);
 
   return {
     access,
+    canEdit,
+    systemsComplete,
+    liveSystemCount,
+    connectionDetails,
+    events,
+    connectionPresentationNow,
     state: merge.state,
     intents: merge.intents,
     labelOf,

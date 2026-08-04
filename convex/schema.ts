@@ -1,9 +1,13 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import {
+  lifeStageValidator,
+  mapEventKindValidator,
+  mapEventPayloadValidator,
   mapRoleValidator,
   massStateValidator,
   noteTargetKindValidator,
+  optionalTimestampValidator,
   shipSizeValidator,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
@@ -149,20 +153,30 @@ export default defineSchema({
     // Per-user claim teardown for account purge (/purge-map-access).
     .index('by_user', ['userId']),
 
-  // One document per system placed on one map.
+  // One document per system placed on one map. Soft deletion mirrors
+  // mapSignatures: optional because live rows may predate the fields, both
+  // null/absent while active, and both finite with purgeAfter > deletedAt when
+  // tombstoned.
   mapSystems: defineTable({
     mapId: v.string(),
     systemId: v.number(),
+    deletedAt: optionalTimestampValidator,
+    purgeAfter: optionalTimestampValidator,
   })
     .index('by_map', ['mapId'])
     // Makes the map/system upsert an exact indexed lookup, so a repeated or
     // concurrent placement converges on one document instead of racing.
-    .index('by_map_system', ['mapId', 'systemId']),
+    .index('by_map_system', ['mapId', 'systemId'])
+    .index('by_purge_after', ['purgeAfter']),
 
   // One document per connection between two systems on one map. Endpoints are
   // system IDs, never document references, so a connection survives independently
-  // of how its endpoints were placed. Remaining lifetime is always derived from
-  // `eolAt - now` on the client; no scheduler ever flips an EOL state.
+  // of how its endpoints were placed. Remaining lifetime is the death window
+  // pair `deathEarliestAt`/`deathLatestAt` (absolute instants; clients derive
+  // the countdown, no scheduler ever flips a state). `eolAt` is vestigial — a
+  // superseded mark-EOL design with no production writer; it stays null.
+  // lifeStage is the human-observed Reliable Lifetime bucket; estimates that
+  // consume lifeStageObservedAt belong to a later session.
   mapConnections: defineTable({
     mapId: v.string(),
     fromSystemId: v.number(),
@@ -171,7 +185,33 @@ export default defineSchema({
     massState: massStateValidator,
     shipSize: shipSizeValidator,
     eolAt: v.union(v.number(), v.null()),
-  }).index('by_map', ['mapId']),
+    lifeStage: v.optional(lifeStageValidator),
+    lifeStageObservedAt: optionalTimestampValidator,
+    deathEarliestAt: optionalTimestampValidator,
+    deathLatestAt: optionalTimestampValidator,
+    deletedAt: optionalTimestampValidator,
+    purgeAfter: optionalTimestampValidator,
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_from', ['mapId', 'fromSystemId'])
+    .index('by_map_to', ['mapId', 'toSystemId'])
+    .index('by_purge_after', ['purgeAfter']),
+
+  // One immutable audit row per destructive/restore map event. Actor and
+  // display payload are resolved at write time so the bounded ledger read has
+  // no user-directory or chain-entity N+1. Seven-day cleanup ranges the
+  // retention index; the UI reads newest-first through the compound map/time
+  // index without watching unrelated maps.
+  mapEvents: defineTable({
+    mapId: v.string(),
+    at: v.number(),
+    kind: mapEventKindValidator,
+    actor: v.string(),
+    payload: mapEventPayloadValidator,
+    purgeAfter: v.number(),
+  })
+    .index('by_map', ['mapId', 'at'])
+    .index('by_purge_after', ['purgeAfter']),
 
   // One document per scanned signature. The nullable knowledge fields hold the
   // map's best SHARED knowledge: a later observation may enrich them, but a

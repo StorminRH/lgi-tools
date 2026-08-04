@@ -16,6 +16,7 @@ import {
   applyNodeChanges,
   ReactFlowProvider,
   type Edge,
+  type EdgeMouseHandler,
   type NodeChange,
   type NodeMouseHandler,
   type OnNodeDrag,
@@ -23,6 +24,14 @@ import {
 } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
+import type { Id } from '@/data/convex/data-model';
+import { ConnectionAuthoringOverlay } from '../authoring/ConnectionAuthoringOverlay';
+import { HomePrompt } from '../authoring/HomePrompt';
+import {
+  NodeAddMenu,
+  type NodeMenuAnchor,
+} from '../authoring/NodeAddMenu';
+import { RightsTransitionToast } from '../authoring/RightsTransitionToast';
 import { ChainSurface, type ChainSurfaceProps } from '../canvas/ChainSurface';
 import { MapControls } from '../canvas/MapControls';
 import type { ChainNode } from '../canvas/SystemNode';
@@ -45,6 +54,7 @@ import type { RootClickSignal } from '../windows/window-model';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
+import { useChainAuthoringMutations } from './optimistic-authoring';
 import { useMapChain, type MapAccessState } from './use-map-chain';
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
@@ -99,6 +109,12 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
 
   const {
     access,
+    canEdit,
+    systemsComplete,
+    liveSystemCount,
+    connectionDetails,
+    connectionPresentationNow,
+    events,
     state,
     intents,
     labelOf,
@@ -107,7 +123,20 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     pinPlacement,
     releasePlacements,
   } = useMapChain(mapId, dragging, config);
+  const authoring = useChainAuthoringMutations();
   const [nodes, setNodes] = useState<ChainNode[]>([]);
+  const [nodeMenu, setNodeMenu] = useState<NodeMenuAnchor | null>(null);
+  // Guarded adjust-during-render: losing edit rights unmounts NodeAddMenu
+  // before its onOpenChange can fire, so drop the stale anchor here or the
+  // menu re-mounts open at old coordinates when rights come back.
+  const [prevCanEdit, setPrevCanEdit] = useState(canEdit);
+  if (prevCanEdit !== canEdit) {
+    setPrevCanEdit(canEdit);
+    if (canEdit !== true && nodeMenu !== null) setNodeMenu(null);
+  }
+  const [selectedConnectionId, setSelectedConnectionId] = useState<
+    Id<'mapConnections'> | null
+  >(null);
 
   useEffect(() => {
     setNodes((previous) =>
@@ -116,8 +145,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   }, [state.systems, labelOf]);
 
   const edges = useMemo(
-    () => buildEdges(state.connections, treeParents),
-    [state.connections, treeParents],
+    () => buildEdges(state.connections, treeParents, connectionPresentationNow),
+    [state.connections, treeParents, connectionPresentationNow],
   );
 
   // The truth arrays the motion layer derives from — identity changes exactly
@@ -204,8 +233,32 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       focusTokenRef.current += 1;
       setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
       setRootClick({ systemId: Number(clicked.id), token: focusTokenRef.current });
+      setSelectedConnectionId(null);
     },
     [],
+  );
+
+  const onNodeContextMenu = useCallback<NodeMouseHandler<ChainNode>>(
+    (event, node) => {
+      if (canEdit !== true) return;
+      event.preventDefault();
+      setSelectedConnectionId(null);
+      setNodeMenu({
+        systemId: Number(node.id),
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    },
+    [canEdit],
+  );
+
+  const onEdgeClick = useCallback<EdgeMouseHandler>(
+    (_event, edge) => {
+      if (canEdit !== true) return;
+      // Edge ids are Convex connection document ids by construction (buildEdges).
+      setSelectedConnectionId(edge.id as Id<'mapConnections'>);
+    },
+    [canEdit],
   );
 
   const deselectNodes = useCallback(() => {
@@ -216,6 +269,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       return changes.length === 0 ? previous : applyNodeChanges(changes, previous);
     });
   }, []);
+
+  const showHomePrompt =
+    canEdit === true && systemsComplete && liveSystemCount === 0;
 
   // Id-derived (the join key), so per-frame drag renders reuse the same set
   // and the camera host's effects don't churn (drag hardening, IS-5).
@@ -233,52 +289,96 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // answered" and renders the ordinary empty canvas rather than a loading state (HC-5).
   if (access === false) return <NoMapAccess />;
 
+  // `canEdit` reaches the host here so OW4 authoring surfaces can gate
+  // affordances from the same live claim answer without a second subscription.
   return (
-    <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
-      <MotionLayer
-        truth={truth}
-        intents={intents}
-        access={access}
-        dragging={dragging}
-        motionConfig={motionConfig}
-        nodesDraggable={!locked}
-        onNodesChange={onNodesChange}
-        onNodeDragStart={onNodeDragStart}
-        onNodeDragStop={onNodeDragStop}
-        onSelectionDragStart={onSelectionDragStart}
-        onSelectionDragStop={onSelectionDragStop}
-        onNodeClick={onNodeClick}
-      >
-        <MapControls
-          locked={locked}
-          onLockedChange={handleLockedChange}
-          follow={follow}
-          onFollowChange={setFollow}
-          focusOnClick={focusOnClick}
-          onFocusOnClickChange={setFocusOnClick}
-          config={config}
-          onConfigChange={setConfig}
-          motion={motionConfig}
-          onMotionChange={setMotionConfig}
-        />
-        <CameraFollowHost
+    <div
+      className="h-full w-full"
+      data-map-can-edit={canEdit === true ? 'true' : 'false'}
+    >
+      <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
+        <MotionLayer
+          truth={truth}
           intents={intents}
-          follow={follow}
+          access={access}
           dragging={dragging}
-          nodeIds={nodeIds}
-          systems={state.systems}
-          config={motionConfig}
-          prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
-          focusRequest={focusRequest}
-          focusEnabled={focusOnClick}
+          motionConfig={motionConfig}
+          nodesDraggable={!locked}
+          onNodesChange={onNodesChange}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDragStop={onNodeDragStop}
+          onSelectionDragStart={onSelectionDragStart}
+          onSelectionDragStop={onSelectionDragStop}
+          onNodeClick={onNodeClick}
+          onNodeContextMenu={onNodeContextMenu}
+          onEdgeClick={onEdgeClick}
+        >
+          <MapControls
+            locked={locked}
+            onLockedChange={handleLockedChange}
+            follow={follow}
+            onFollowChange={setFollow}
+            focusOnClick={focusOnClick}
+            onFocusOnClickChange={setFocusOnClick}
+            config={config}
+            onConfigChange={setConfig}
+            motion={motionConfig}
+            onMotionChange={setMotionConfig}
+          />
+          <CameraFollowHost
+            intents={intents}
+            follow={follow}
+            dragging={dragging}
+            nodeIds={nodeIds}
+            systems={state.systems}
+            config={motionConfig}
+            prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
+            focusRequest={focusRequest}
+            focusEnabled={focusOnClick}
+          />
+        </MotionLayer>
+        <MapWindowLayer
+          rootSystemId={rootSystemId}
+          rootClick={rootClick}
+          onDeselect={deselectNodes}
         />
-      </MotionLayer>
-      <MapWindowLayer
-        rootSystemId={rootSystemId}
-        rootClick={rootClick}
-        onDeselect={deselectNodes}
-      />
-    </ReactFlowProvider>
+        <RightsTransitionToast canEdit={canEdit} />
+        <ConnectionAuthoringOverlay
+          mapId={mapId}
+          canEdit={canEdit === true}
+          connectionDetails={connectionDetails}
+          connectionPresentationNow={connectionPresentationNow}
+          events={events}
+          authoring={authoring}
+          selectedConnectionId={selectedConnectionId}
+          onSelectedConnectionIdChange={setSelectedConnectionId}
+        />
+        {showHomePrompt ? (
+          <HomePrompt
+            mapId={mapId}
+            onPick={(systemId) => {
+              void authoring.setHomeSystem({ mapId, systemId });
+            }}
+          />
+        ) : null}
+        {canEdit === true ? (
+          <NodeAddMenu
+            mapId={mapId}
+            menu={nodeMenu}
+            onMenuOpenChange={(open) => {
+              if (!open) setNodeMenu(null);
+            }}
+            onAdd={(fromSystemId, toSystemId) => {
+              void authoring.addSystemFromNode({
+                mapId,
+                fromSystemId,
+                toSystemId,
+              });
+            }}
+          />
+        ) : null}
+      </ReactFlowProvider>
+    </div>
   );
 }
 

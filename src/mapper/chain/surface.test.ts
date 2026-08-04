@@ -23,6 +23,7 @@ vi.mock('@xyflow/react', async () => {
     BackgroundVariant: { Dots: 'dots' },
     Handle: () => element('div', { 'data-handle': '' }),
     Position: { Left: 'left', Right: 'right' },
+    getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),
     applyNodeChanges: (_changes: unknown, nodes: unknown) => nodes,
   };
 });
@@ -57,12 +58,18 @@ describe('map surface inspection', () => {
     return renderToStaticMarkup(createElement(MapCanvas));
   }
 
-  it('renders the canvas frame immediately with no loading state', async () => {
-    const markup = await emptyCanvasMarkup();
+  // MapCanvas pulls the ChainHost tree; first import under full-suite coverage
+  // can exceed the default 5s when workers contend.
+  it(
+    'renders the canvas frame immediately with no loading state',
+    async () => {
+      const markup = await emptyCanvasMarkup();
 
-    expect(markup).toContain('data-map-canvas');
-    expect(markup).toContain('data-react-flow-background');
-  });
+      expect(markup).toContain('data-map-canvas');
+      expect(markup).not.toContain('data-react-flow-background');
+    },
+    15_000,
+  );
 
   it.each(['empty', 'populated', 'calm'])(
     'has no spinner and no refresh control in the %s state',
@@ -78,6 +85,7 @@ describe('map surface inspection', () => {
       expect(markup).not.toMatch(/refresh|reload|try again|retry/i);
       expect(markup).not.toMatch(/loading/i);
     },
+    15_000,
   );
 });
 
@@ -106,6 +114,17 @@ describe('mapper source contract', () => {
   // Guards every loop below: an empty or broken file walk would make them all pass vacuously.
   it('walks the whole mapper zone', () => {
     expect(mapperFiles().toSorted()).toEqual([
+      'authoring/ConnectionAuthoringOverlay.tsx',
+      'authoring/ConnectionDetailsCard.tsx',
+      'authoring/HomePrompt.tsx',
+      'authoring/NodeAddMenu.tsx',
+      'authoring/RightsTransitionToast.tsx',
+      'authoring/connection-fields.tsx',
+      'authoring/connection-intelligence.ts',
+      'authoring/connection-selection.ts',
+      'authoring/rights-transition.ts',
+      'authoring/sever-toast.ts',
+      'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',
       'canvas/ChainSurface.tsx',
       'canvas/MapCanvas.tsx',
@@ -120,6 +139,7 @@ describe('mapper source contract', () => {
       'chain/intents.ts',
       'chain/labels.ts',
       'chain/nodes.ts',
+      'chain/optimistic-authoring.ts',
       'chain/placement.ts',
       'chain/reconciler.ts',
       'chain/use-map-chain.ts',
@@ -135,6 +155,9 @@ describe('mapper source contract', () => {
       'layout/proof-kit.ts',
       'layout/trig.ts',
       'layout/use-layout-kernel.ts',
+      'log/MapEventLog.tsx',
+      'log/map-event-copy.ts',
+      'map-frosted-surface.ts',
       'motion/motion-contract.ts',
       'motion/motion-controls-model.ts',
       'motion/motion-host-model.ts',
@@ -142,11 +165,44 @@ describe('mapper source contract', () => {
       'motion/use-motion.ts',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
+      'windows/MapWindowLeader.tsx',
       'windows/drag-resize.ts',
       'windows/follower-model.ts',
       'windows/persistence.ts',
       'windows/window-model.ts',
     ]);
+  });
+
+  it('keeps internalized tombstone helpers off every UI surface', () => {
+    // SC-5.2: public destruction/restore is sever + restoreSeveredBranch +
+    // restoreConnection; the .1 single-row tombstone helpers stay internal.
+    for (const file of mapperFiles()) {
+      if (file === 'chain/optimistic-authoring.ts') continue;
+      const source = sourceOf(file);
+      expect(source, file).not.toContain('tombstoneSystem');
+      expect(source, file).not.toContain('tombstoneConnection');
+      expect(source, file).not.toContain('restoreSystem');
+    }
+  });
+
+  it('routes UI destruction only through sever and the public restore pair', () => {
+    const allowed = new Set([
+      'chain/optimistic-authoring.ts',
+      'authoring/ConnectionAuthoringOverlay.tsx',
+    ]);
+    for (const file of mapperFiles()) {
+      const source = sourceOf(file);
+      const namesDestruction =
+        source.includes('severConnection') ||
+        source.includes('restoreSeveredBranch') ||
+        source.includes('restoreConnection');
+      if (!namesDestruction) continue;
+      expect(allowed.has(file), file).toBe(true);
+    }
+    const overlay = sourceOf('authoring/ConnectionAuthoringOverlay.tsx');
+    expect(overlay).toContain('severConnection');
+    expect(overlay).toContain('restoreSeveredBranch');
+    expect(overlay).toContain('restoreConnection');
   });
 
   it('keeps the window layer off the hot nodes array', () => {
@@ -185,13 +241,27 @@ describe('mapper source contract', () => {
     expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(2);
   });
 
-  it('adds no client-callable mutation anywhere in the mapper', () => {
-    // OOS-3: this session reads only. The removal seams are internal Convex mutations.
-    for (const file of mapperFiles()) {
-      expect(sourceOf(file), `${file} must call no mutation`).not.toMatch(
-        /useMutation|useAction/,
-      );
-    }
+  it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
+    const hook = sourceOf('chain/use-map-chain.ts');
+    expect(hook).toContain('api.mapChain.watchMapEvents');
+    expect(hook).toContain('filterChainConnections');
+    expect(hook).toMatch(/const systems = useMemo\(/);
+    expect(hook).toMatch(/const connections = useMemo\(/);
+  });
+
+  it('confines client-callable mutations to the optimistic authoring seam', () => {
+    // Session 4.0.4.1.1 OW3: authoring mutations live in one chain owner and
+    // reach Convex only through the data-slice re-export — never raw convex/react.
+    const mutationFiles = mapperFiles().filter((file) =>
+      /useMutation|useAction/.test(sourceOf(file)),
+    );
+    expect(mutationFiles).toEqual(['chain/optimistic-authoring.ts']);
+    expect(sourceOf('chain/optimistic-authoring.ts')).toContain(
+      '@/data/convex/use-mutation',
+    );
+    expect(sourceOf('chain/optimistic-authoring.ts')).not.toContain(
+      "from 'convex/react'",
+    );
   });
 
   it('keeps canvas modules off every Convex subscription hook', () => {

@@ -16,6 +16,7 @@
     "scripts/assert-route-classification.mjs",
     "scripts/ux-capture.mjs",
     "src/scripts/map-replay.ts",
+    "src/scripts/project-map-access.ts",
     "drizzle.config.ts",
     "neon.ts"
   ],

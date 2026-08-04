@@ -25,7 +25,9 @@ export { toast };
 
 /**
  * Renders the domain-neutral toaster with house behavior and tokens; callers own semantic meaning
- * and content while this primitive owns presentation.
+ * and content while this primitive owns presentation. Owns the root sonner
+ * configuration, including the action-button chrome an action-bearing toast
+ * (for example a keyed Undo) renders in unstyled mode.
  */
 export function Toaster() {
   return (
@@ -58,6 +60,11 @@ export function Toaster() {
           content: 'flex flex-col gap-0.5',
           title: 'leading-snug',
           description: 'text-muted leading-snug',
+          // Unstyled mode drops sonner's [data-styled] action chrome — own the
+          // full button layout here (first action-bearing toast: sever Undo).
+          actionButton:
+            'ml-auto shrink-0 rounded-ctl border border-isk-dim bg-feedback-bg ' +
+            'px-2 py-1 font-ui text-nav text-isk hover:bg-isk hover:text-isk-ink',
           // Per-type colour + border — the icon (currentColor) and title inherit
           // the text colour. Green for the sync/success/info path, red for errors.
           default: 'text-isk border-isk-dim',

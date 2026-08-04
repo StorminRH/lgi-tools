@@ -521,6 +521,24 @@ during 4.0.3.2.1 planning (2026-08-02). *Size:* M (concept + layout-rule
 design when pulled). *Trigger:* post-4.0 planning for k-space presentation, or
 the first fog-halo UX gate that shows revealed exits reading poorly.
 
+## Mapper — map-event audit log
+
+**What:** a tabbed map-event history (connections/wormholes tab first) with
+~month retention on its own event records — 24h chain tombstones cannot back
+it — and restore affordances surfaced inside that history. Research how Nexum
+and Wanderer shape their map-event logs (retention, surfaced events, user
+expectations) before designing ours; keep clean-room (D10).
+
+**Shipped so far:** 4.0.4.1.2 delivered the basic despawn ledger
+(`src/mapper/log/` — newest-first sever/restore events, seven-day event
+retention, inline editor-gated Restore). Tabs, month-scale retention, and
+broader event kinds remain backlogged here.
+
+**Why deferred:** out of 4.0.4.1.1 (authoring + tombstone foundations only);
+4.0.4.1.2 shipped only the basic ledger above. *Authority:* 4.0.4.1.1 plan
+End of session. *Size:* L. *Trigger:* with or after 4.0.4.4, or when history
+/ undo UX is prioritized beyond the 24h tombstone window.
+
 ## Industry planner — UI
 
 > Small planner-UI deferrals. (The T2 margin-semantics track — the Raw | Item toggle, the
