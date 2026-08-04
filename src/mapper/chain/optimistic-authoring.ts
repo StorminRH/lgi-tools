@@ -1,6 +1,6 @@
 'use client';
 
-// Optimistic local-store patches for every public mapAuthoring mutation.
+// Optimistic local-store patches for the client-facing mapAuthoring mutations.
 //
 // Each hook wraps `useMutation(...).withOptimisticUpdate(...)` against the
 // exact chain subscriptions (`watchMapSystems` / `watchMapConnections`). A
@@ -9,6 +9,7 @@
 // Pure patch helpers are exported so the optimistic shapes are unit-tested
 // without a live Convex client.
 import { api } from '@/data/convex/api';
+import type { Id } from '@/data/convex/data-model';
 import {
   insertAtBottomIfLoaded,
   insertAtTop,
@@ -20,11 +21,17 @@ import {
   chainTombstoneStamps,
   MAP_CHAIN_UNDO_WINDOW_MS,
 } from '@/data/maps/chain-contract';
+import {
+  deathWindowForReport,
+  type ConnectionDeathWindow,
+} from '@/data/maps/connection-lifetime';
 import type {
   ConnectionMassState,
   WormholeLifeStage,
   WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
+import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
 
 /** One optimistic system page row — structural match for `watchMapSystems`. */
 export interface OptimisticSystemRow {
@@ -49,6 +56,8 @@ export interface OptimisticConnectionRow {
   readonly eolAt: number | null;
   readonly lifeStage?: WormholeLifeStage | null;
   readonly lifeStageObservedAt?: number | null;
+  readonly deathEarliestAt?: number | null;
+  readonly deathLatestAt?: number | null;
   readonly deletedAt: number | null;
   readonly purgeAfter: number | null;
 }
@@ -153,6 +162,8 @@ export function optimisticAddSystemFromNode(
       eolAt: null,
       lifeStage: null,
       lifeStageObservedAt: null,
+      deathEarliestAt: null,
+      deathLatestAt: null,
       deletedAt: null,
       purgeAfter: null,
     } satisfies OptimisticConnectionRow as never,
@@ -173,6 +184,8 @@ export function optimisticPatchConnection(
         | 'massState'
         | 'lifeStage'
         | 'lifeStageObservedAt'
+        | 'deathEarliestAt'
+        | 'deathLatestAt'
         | 'deletedAt'
         | 'purgeAfter'
       >
@@ -188,42 +201,8 @@ export function optimisticPatchConnection(
   );
 }
 
-/** Optimistically stamps a system tombstone so the live-row filter drops it. */
-export function optimisticTombstoneSystem(
-  localStore: OptimisticLocalStore,
-  args: { mapId: string; systemId: number },
-  now = Date.now(),
-): void {
-  const stamps = chainTombstoneStamps(now);
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChain.watchMapSystems,
-    { mapId: args.mapId },
-    (row) =>
-      row.systemId === args.systemId && row.deletedAt == null
-        ? { ...row, ...stamps }
-        : row,
-  );
-}
-
-/** Optimistically clears a system tombstone. */
-export function optimisticRestoreSystem(
-  localStore: OptimisticLocalStore,
-  args: { mapId: string; systemId: number },
-): void {
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChain.watchMapSystems,
-    { mapId: args.mapId },
-    (row) =>
-      row.systemId === args.systemId && typeof row.deletedAt === 'number'
-        ? { ...row, deletedAt: null, purgeAfter: null }
-        : row,
-  );
-}
-
-/** Optimistically stamps a connection tombstone. */
-export function optimisticTombstoneConnection(
+/** Optimistically stamps only the cut edge; the server owns any branch set. */
+export function optimisticSeverConnection(
   localStore: OptimisticLocalStore,
   args: { mapId: string; connectionId: string },
   now = Date.now(),
@@ -233,6 +212,55 @@ export function optimisticTombstoneConnection(
     connectionId: args.connectionId,
     patch: chainTombstoneStamps(now),
   });
+}
+
+/** Finds one loaded connection's shared sever stamp. */
+function severStamp(
+  localStore: OptimisticLocalStore,
+  mapId: string,
+  connectionId: string,
+): number | null {
+  for (const { args, value } of localStore.getAllQueries(
+    api.mapChain.watchMapConnections,
+  )) {
+    if (value === undefined || args.mapId !== mapId) continue;
+    const connection = value.page.find((row) => row._id === connectionId);
+    if (
+      connection !== undefined &&
+      typeof connection.deletedAt === 'number' &&
+      Number.isFinite(connection.deletedAt)
+    ) {
+      return connection.deletedAt;
+    }
+  }
+  return null;
+}
+
+/** Optimistically restores every loaded row carrying the cut's shared stamp. */
+export function optimisticRestoreSeveredBranch(
+  localStore: OptimisticLocalStore,
+  args: { mapId: string; connectionId: string },
+): void {
+  const deletedAt = severStamp(localStore, args.mapId, args.connectionId);
+  if (deletedAt === null) return;
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChain.watchMapSystems,
+    { mapId: args.mapId },
+    (row) =>
+      row.deletedAt === deletedAt
+        ? { ...row, deletedAt: null, purgeAfter: null }
+        : row,
+  );
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChain.watchMapConnections,
+    { mapId: args.mapId },
+    (row) =>
+      row.deletedAt === deletedAt
+        ? { ...row, deletedAt: null, purgeAfter: null }
+        : row,
+  );
 }
 
 /** Optimistically clears a connection tombstone. */
@@ -254,6 +282,8 @@ export function optimisticSetConnectionLifeStage(
     mapId: string;
     connectionId: string;
     value: WormholeLifeStage | null;
+    deathEarliestAt?: number | null;
+    deathLatestAt?: number | null;
   },
   now = Date.now(),
 ): void {
@@ -262,9 +292,135 @@ export function optimisticSetConnectionLifeStage(
     connectionId: args.connectionId,
     patch: {
       lifeStage: args.value,
-      lifeStageObservedAt: args.value === null ? null : now,
+      lifeStageObservedAt: now,
+      deathEarliestAt: args.deathEarliestAt ?? null,
+      deathLatestAt: args.deathLatestAt ?? null,
     },
   });
+}
+
+/** Optimistically patches a type pick and its explicit lifetime proposal. */
+export function optimisticSetConnectionWormholeType(
+  localStore: OptimisticLocalStore,
+  args: {
+    mapId: string;
+    connectionId: string;
+    value: string | null;
+    deathEarliestAt?: number | null;
+    deathLatestAt?: number | null;
+  },
+): void {
+  optimisticPatchConnection(localStore, {
+    mapId: args.mapId,
+    connectionId: args.connectionId,
+    patch: {
+      wormholeTypeCode: args.value,
+      deathEarliestAt: args.deathEarliestAt ?? null,
+      deathLatestAt: args.deathLatestAt ?? null,
+    },
+  });
+}
+
+/** Connection facts needed to form a stale-safe explicit window proposal. */
+export interface ConnectionWindowSource {
+  readonly connectionId: Id<'mapConnections'>;
+  readonly _creationTime: number;
+  readonly wormholeTypeCode: string | null;
+  readonly deathEarliestAt: number | null;
+  readonly deathLatestAt: number | null;
+}
+
+function storedWindow(
+  connection: ConnectionWindowSource,
+): ConnectionDeathWindow | null {
+  return typeof connection.deathEarliestAt === 'number' &&
+    Number.isFinite(connection.deathEarliestAt) &&
+    typeof connection.deathLatestAt === 'number' &&
+    Number.isFinite(connection.deathLatestAt) &&
+    connection.deathEarliestAt <= connection.deathLatestAt
+    ? {
+        earliestAt: connection.deathEarliestAt,
+        latestAt: connection.deathLatestAt,
+      }
+    : null;
+}
+
+/** Explicit type-pick proposal: typed ceilings narrow; K162/unset preserve. */
+export function wormholeTypeWindowProposal(
+  connection: ConnectionWindowSource,
+  lifetimeMinutes: number | null,
+): ConnectionDeathWindow | null {
+  if (
+    lifetimeMinutes === null ||
+    !Number.isFinite(lifetimeMinutes) ||
+    lifetimeMinutes < 0
+  ) {
+    return storedWindow(connection);
+  }
+  return {
+    earliestAt: connection._creationTime,
+    latestAt: connection._creationTime + lifetimeMinutes * 60_000,
+  };
+}
+
+/** Explicit life-stage proposal from the shared pure lifetime algebra. */
+export function lifeStageWindowProposal(
+  value: WormholeLifeStage | null,
+  observedAt: number,
+  lifetimeMinutes: number | null,
+): ConnectionDeathWindow | null {
+  return value === null
+    ? null
+    : deathWindowForReport(value, observedAt, lifetimeMinutes);
+}
+
+function windowArgs(window: ConnectionDeathWindow | null): {
+  readonly deathEarliestAt: number | null;
+  readonly deathLatestAt: number | null;
+} {
+  if (window === null) {
+    return { deathEarliestAt: null, deathLatestAt: null };
+  }
+  return {
+    deathEarliestAt: window.earliestAt,
+    deathLatestAt: window.latestAt,
+  };
+}
+
+async function nullOnRejection<Value>(
+  promise: Promise<Value>,
+): Promise<Value | null> {
+  return await promise.catch(() => null);
+}
+
+/** Reads lifetime only from a typed codex entry; K162 carries no ceiling. */
+export function lifetimeMinutesFromEntry(
+  entry: WormholeCodexEntry | null,
+): number | null {
+  if (entry === null) return null;
+  if (entry.farSide) return null;
+  return entry.lifetimeMinutes;
+}
+
+/** Resolves typed lifetime without turning a codex outage into a rejection. */
+async function lifetimeMinutesFor(code: string | null): Promise<number | null> {
+  if (code === null) return null;
+  const codex = await nullOnRejection(loadWormholeCodex());
+  if (codex === null) return null;
+  return lifetimeMinutesFromEntry(codex.byCode(code));
+}
+
+/** Converts a mutation refusal into a calm optimistic rollback result. */
+export function swallowMutationRejection<Args, Result>(
+  mutation: (args: Args) => Promise<Result>,
+): (args: Args) => Promise<Result | undefined> {
+  return async (args) => {
+    try {
+      return await mutation(args);
+    } catch {
+      return undefined;
+    }
+  };
 }
 
 type ConnectionFieldArgs = {
@@ -292,41 +448,97 @@ function optimisticConnectionField(
 
 /**
  * Authoring mutations with optimistic local-store patches wired against the
- * chain subscriptions. Call from authoring surfaces (OW4); tombstone/restore
- * ship for the later collapse pathway with no UI caller this session.
+ * chain subscriptions. Collapse-specific sever/undo wiring lands in OW4; the
+ * internalized .1 single-row tombstone helpers are deliberately absent here.
  */
 export function useChainAuthoringMutations() {
-  return {
-    setHomeSystem: useMutation(api.mapAuthoring.setHomeSystem).withOptimisticUpdate(
+  const setHomeSystem = swallowMutationRejection(
+    useMutation(api.mapAuthoring.setHomeSystem).withOptimisticUpdate(
       optimisticSetHomeSystem,
     ),
-    addSystemFromNode: useMutation(
-      api.mapAuthoring.addSystemFromNode,
-    ).withOptimisticUpdate(optimisticAddSystemFromNode),
-    setConnectionWormholeType: useMutation(
-      api.mapAuthoring.setConnectionWormholeType,
-    ).withOptimisticUpdate(optimisticConnectionField('wormholeTypeCode')),
-    setConnectionShipSize: useMutation(
-      api.mapAuthoring.setConnectionShipSize,
-    ).withOptimisticUpdate(optimisticConnectionField('shipSize')),
-    setConnectionMassState: useMutation(
-      api.mapAuthoring.setConnectionMassState,
-    ).withOptimisticUpdate(optimisticConnectionField('massState')),
-    setConnectionLifeStage: useMutation(
-      api.mapAuthoring.setConnectionLifeStage,
-    ).withOptimisticUpdate(optimisticSetConnectionLifeStage),
-    tombstoneSystem: useMutation(
-      api.mapAuthoring.tombstoneSystem,
-    ).withOptimisticUpdate(optimisticTombstoneSystem),
-    tombstoneConnection: useMutation(
-      api.mapAuthoring.tombstoneConnection,
-    ).withOptimisticUpdate(optimisticTombstoneConnection),
-    restoreSystem: useMutation(
-      api.mapAuthoring.restoreSystem,
-    ).withOptimisticUpdate(optimisticRestoreSystem),
-    restoreConnection: useMutation(
-      api.mapAuthoring.restoreConnection,
-    ).withOptimisticUpdate(optimisticRestoreConnection),
+  );
+  const addSystemFromNode = swallowMutationRejection(
+    useMutation(api.mapAuthoring.addSystemFromNode).withOptimisticUpdate(
+      optimisticAddSystemFromNode,
+    ),
+  );
+  const setConnectionWormholeType = swallowMutationRejection(
+    useMutation(api.mapAuthoring.setConnectionWormholeType).withOptimisticUpdate(
+      optimisticSetConnectionWormholeType,
+    ),
+  );
+  const setConnectionShipSize = swallowMutationRejection(
+    useMutation(api.mapAuthoring.setConnectionShipSize).withOptimisticUpdate(
+      optimisticConnectionField('shipSize'),
+    ),
+  );
+  const setConnectionMassState = swallowMutationRejection(
+    useMutation(api.mapAuthoring.setConnectionMassState).withOptimisticUpdate(
+      optimisticConnectionField('massState'),
+    ),
+  );
+  const setConnectionLifeStage = swallowMutationRejection(
+    useMutation(api.mapAuthoring.setConnectionLifeStage).withOptimisticUpdate(
+      optimisticSetConnectionLifeStage,
+    ),
+  );
+  const severConnection = swallowMutationRejection(
+    useMutation(api.mapAuthoring.severConnection).withOptimisticUpdate(
+      optimisticSeverConnection,
+    ),
+  );
+  const restoreSeveredBranch = swallowMutationRejection(
+    useMutation(api.mapAuthoring.restoreSeveredBranch).withOptimisticUpdate(
+      optimisticRestoreSeveredBranch,
+    ),
+  );
+  const restoreConnection = swallowMutationRejection(
+    useMutation(api.mapAuthoring.restoreConnection).withOptimisticUpdate(
+      optimisticRestoreConnection,
+    ),
+  );
+
+  return {
+    setHomeSystem,
+    addSystemFromNode,
+    setConnectionWormholeType: async (args: {
+      mapId: string;
+      connection: ConnectionWindowSource;
+      value: string | null;
+    }) => {
+      const proposal = wormholeTypeWindowProposal(
+        args.connection,
+        await lifetimeMinutesFor(args.value),
+      );
+      return await setConnectionWormholeType({
+        mapId: args.mapId,
+        connectionId: args.connection.connectionId,
+        value: args.value,
+        ...windowArgs(proposal),
+      });
+    },
+    setConnectionShipSize,
+    setConnectionMassState,
+    setConnectionLifeStage: async (args: {
+      mapId: string;
+      connection: ConnectionWindowSource;
+      value: WormholeLifeStage | null;
+    }) => {
+      const proposal = lifeStageWindowProposal(
+        args.value,
+        Date.now(),
+        await lifetimeMinutesFor(args.connection.wormholeTypeCode),
+      );
+      return await setConnectionLifeStage({
+        mapId: args.mapId,
+        connectionId: args.connection.connectionId,
+        value: args.value,
+        ...windowArgs(proposal),
+      });
+    },
+    severConnection,
+    restoreSeveredBranch,
+    restoreConnection,
     /** Exposed so tests can assert the undo window the optimistic stamps use. */
     undoWindowMs: MAP_CHAIN_UNDO_WINDOW_MS,
   };

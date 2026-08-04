@@ -25,15 +25,22 @@ describe('authoring surface inspection', () => {
     expect(sources).not.toContain('addSystem(');
   });
 
-  it('ships no destructive connection affordance or tombstone UI caller', () => {
-    // SC-5.1: tombstone/restore/delete mutations have zero UI callers this session.
+  it('ships sever/restore affordances without internalized tombstone helpers', () => {
+    // OW5: sever is the sole destructive UI entry; restoreConnection is the
+    // dying-edge restore. Internalized .1 helpers stay out of the UI layer.
+    const sources = authoringFiles().map((file) => sourceOf(file)).join('\n');
+    expect(sources).toMatch(/\bSever\b/);
+    expect(sources).toContain('data-map-connection-sever');
+    expect(sources).toContain('data-map-connection-restore');
+    expect(sources).toContain('announceSeverOutcome');
+    expect(sources).toContain('severConnection');
+    expect(sources).toContain('restoreSeveredBranch');
+    expect(sources).toContain('restoreConnection');
     for (const file of authoringFiles()) {
       const source = sourceOf(file);
       expect(source, file).not.toContain('tombstoneSystem');
       expect(source, file).not.toContain('tombstoneConnection');
       expect(source, file).not.toContain('restoreSystem');
-      expect(source, file).not.toContain('restoreConnection');
-      expect(source, file).not.toMatch(/\bsever\b/i);
       expect(source, file).not.toContain('useMutation');
     }
   });
@@ -52,5 +59,14 @@ describe('authoring surface inspection', () => {
     expect(fields).toContain('lifeStage');
     expect(fields).toContain('shipSize');
     expect(fields).toContain('wormholeType');
+  });
+
+  it('locks typed codex size and never duplicates codex facts as editors (HC-1)', () => {
+    const fields = sourceOf('connection-fields.tsx');
+    expect(fields).toContain('data-map-connection-codex');
+    expect(fields).toContain('data-map-connection-size-locked');
+    expect(fields).toContain('isCodexSizeLocked');
+    expect(fields).not.toMatch(/ariaLabel=\{?['"]Total mass/i);
+    expect(fields).not.toMatch(/ariaLabel=\{?['"]Per-jump/i);
   });
 });

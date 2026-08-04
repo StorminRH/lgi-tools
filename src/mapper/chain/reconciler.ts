@@ -39,6 +39,8 @@ export interface VisibleConnection {
   readonly connectionId: string;
   readonly fromSystemId: number;
   readonly toSystemId: number;
+  readonly deletedAt?: number | null;
+  readonly purgeAfter?: number | null;
 }
 
 /** The reconciled picture the canvas renders. Insertion order is arrival order. */
@@ -57,6 +59,8 @@ export interface ConnectionRow {
   readonly connectionId: string;
   readonly fromSystemId: number;
   readonly toSystemId: number;
+  readonly deletedAt?: number | null;
+  readonly purgeAfter?: number | null;
 }
 
 /**
@@ -278,10 +282,9 @@ function endpointKey(fromSystemId: number, toSystemId: number): string {
 }
 
 /**
- * Drops matched `connection-departed` / `connection-appeared` pairs that share
- * endpoints in one merge so a confirmed id replaces an optimistic temp id
- * without blinking. When two parallel adds share endpoints in the same window,
- * the first unmatched departure wins (one suppressed birth; accepted cosmetic).
+ * Drops matched `connection-departed` / `connection-appeared` pairs only when
+ * the departing id is an optimistic temp id. A real same-endpoint replacement
+ * remains a genuine birth/death pair.
  */
 function suppressConnectionIdSwaps(
   previousConnections: ReadonlyMap<string, VisibleConnection>,
@@ -298,6 +301,7 @@ function suppressConnectionIdSwaps(
   );
   const unmatchedDepartedByEndpoint = new Map<string, string[]>();
   for (const connectionId of departedIds) {
+    if (!connectionId.startsWith('optimistic:')) continue;
     const prior = previousConnections.get(connectionId);
     if (prior === undefined) continue;
     const key = endpointKey(prior.fromSystemId, prior.toSystemId);

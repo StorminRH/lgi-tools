@@ -235,15 +235,19 @@ const options = {
     // RS256/ES256. The keypair is generated once and persisted in the `jwks`
     // table (static JWKS served at /api/auth/jwks), private key encrypted at rest
     // under the app secret. The subject defaults to the Better Auth user id so
-    // Convex scopes to the user; the payload carries only the role — never any
-    // EVE token material. `aud`/`iss` are the recorded contract for 3.4.3's
+    // Convex scopes to the user; the payload carries the role plus the user's
+    // display name for write-time map-event attribution — never any EVE token
+    // material. `aud`/`iss` are the recorded contract for 3.4.3's
     // auth.config.ts (applicationID = 'convex', issuer = BETTER_AUTH_URL).
     jwt({
       jwks: { keyPairConfig: { alg: 'ES256' } },
       jwt: {
         issuer: readEnv('BETTER_AUTH_URL'),
         audience: 'convex',
-        definePayload: ({ user: u }) => ({ role: (u.role as CharacterRole | undefined) ?? 'USER' }),
+        definePayload: ({ user: u }) => ({
+          role: (u.role as CharacterRole | undefined) ?? 'USER',
+          name: u.name,
+        }),
       },
       // Don't attach a signed JWT to every session response — Convex pulls one
       // deliberately from /api/auth/token. Recommended with OAuth provider plugins.

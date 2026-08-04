@@ -1,10 +1,12 @@
 // @vitest-environment edge-runtime
+import { readFileSync } from 'node:fs';
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { CHAIN_PURGE_BATCH } from './mapAuthoring';
+import { CHAIN_PURGE_BATCH, COLLAPSE_MAP_SCAN_CAP } from './mapAuthoring';
 import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
+import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -16,11 +18,15 @@ const NOW = 1_800_000_000_000;
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
 const DODIXIE = 30_002_659;
+const WH_ROOT = 31_000_001;
+const WH_A = 31_000_002;
+const WH_B = 31_000_003;
+const WH_C = 31_000_004;
 
 type Chain = TestConvex<typeof schema>;
 
-function asUser(t: Chain, userId = EDITOR) {
-  return t.withIdentity({ subject: userId });
+function asUser(t: Chain, userId = EDITOR, name = 'Editor Pilot') {
+  return t.withIdentity({ subject: userId, name });
 }
 
 async function grant(
@@ -79,6 +85,55 @@ function readConnection(t: Chain, connectionId: Id<'mapConnections'>) {
   return t.run(async (ctx) => await ctx.db.get(connectionId));
 }
 
+function readEvents(t: Chain) {
+  return t.run(async (ctx) =>
+    await ctx.db
+      .query('mapEvents')
+      .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+      .collect(),
+  );
+}
+
+async function seedTopology(
+  t: Chain,
+  systems: readonly number[],
+  connections: readonly {
+    readonly key: string;
+    readonly fromSystemId: number;
+    readonly toSystemId: number;
+  }[],
+): Promise<Record<string, Id<'mapConnections'>>> {
+  await seedEmpty(t);
+  return await t.run(async (ctx) => {
+    for (const systemId of systems) {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP_A,
+        systemId,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    }
+    const ids: Record<string, Id<'mapConnections'>> = {};
+    for (const connection of connections) {
+      const id = await ctx.db.insert('mapConnections', {
+        mapId: MAP_A,
+        fromSystemId: connection.fromSystemId,
+        toSystemId: connection.toSystemId,
+        wormholeTypeCode: null,
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        lifeStage: null,
+        lifeStageObservedAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      ids[connection.key] = id;
+    }
+    return ids;
+  });
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
@@ -98,9 +153,8 @@ describe('map authoring', () => {
       'setConnectionShipSize',
       'setConnectionMassState',
       'setConnectionLifeStage',
-      'tombstoneSystem',
-      'tombstoneConnection',
-      'restoreSystem',
+      'severConnection',
+      'restoreSeveredBranch',
       'restoreConnection',
     ] as const;
 
@@ -119,7 +173,8 @@ describe('map authoring', () => {
         case 'setConnectionShipSize':
         case 'setConnectionMassState':
         case 'setConnectionLifeStage':
-        case 'tombstoneConnection':
+        case 'severConnection':
+        case 'restoreSeveredBranch':
         case 'restoreConnection': {
           const { connectionId } = await seedJump(t);
           if (name === 'setConnectionWormholeType') {
@@ -136,10 +191,6 @@ describe('map authoring', () => {
           }
           return { mapId: MAP_A, connectionId };
         }
-        case 'tombstoneSystem':
-        case 'restoreSystem':
-          await seedHome(t);
-          return { mapId: MAP_A, systemId: JITA };
       }
     }
 
@@ -244,45 +295,22 @@ describe('map authoring', () => {
         return;
       }
 
-      if (name === 'tombstoneConnection' || name === 'restoreConnection') {
+      if (name === 'severConnection') {
         const { connectionId } = await seedJump(t);
-        await asUser(t).mutation(api.mapAuthoring.tombstoneConnection, {
-          mapId: MAP_A,
-          connectionId,
-        });
-        if (name === 'tombstoneConnection') {
-          expect(await readConnection(t, connectionId)).toMatchObject({
-            deletedAt: NOW,
-            purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
-          });
-          return;
-        }
         await expect(
-          asUser(t).mutation(api.mapAuthoring.restoreConnection, {
+          asUser(t).mutation(api.mapAuthoring.severConnection, {
             mapId: MAP_A,
             connectionId,
           }),
-        ).resolves.toEqual({ restored: true });
+        ).resolves.toEqual({ outcome: 'retained' });
         return;
       }
 
-      // tombstoneSystem / restoreSystem — need an unreferenced system.
-      await seedHome(t);
-      await asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
-        mapId: MAP_A,
-        systemId: JITA,
-      });
-      if (name === 'tombstoneSystem') {
-        expect(await readSystem(t, JITA)).toMatchObject({
-          deletedAt: NOW,
-          purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
-        });
-        return;
-      }
+      const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.restoreSystem, {
+        asUser(t).mutation(api.mapAuthoring[name], {
           mapId: MAP_A,
-          systemId: JITA,
+          connectionId,
         }),
       ).resolves.toEqual({ restored: true });
     });
@@ -306,7 +334,7 @@ describe('map authoring', () => {
     it('allows a new home when only tombstoned systems remain', async () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
-      await asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
@@ -361,11 +389,11 @@ describe('map authoring', () => {
           .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
           .collect(),
       );
-      await asUser(t).mutation(api.mapAuthoring.tombstoneConnection, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
         mapId: MAP_A,
         connectionId: connections[0]!._id,
       });
-      await asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
         mapId: MAP_A,
         systemId: AMARR,
       });
@@ -487,6 +515,135 @@ describe('map authoring', () => {
     });
   });
 
+  describe('connection death windows', () => {
+    const HOUR_MS = 60 * 60 * 1000;
+
+    it('accepts same-bucket narrowing, stamps it, and resets a contradiction', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+
+      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+        mapId: MAP_A,
+        connectionId,
+        value: 'under_1_day',
+        deathEarliestAt: NOW + 4 * HOUR_MS,
+        deathLatestAt: NOW + 16 * HOUR_MS,
+      });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        lifeStage: 'under_1_day',
+        lifeStageObservedAt: NOW,
+        deathEarliestAt: NOW + 4 * HOUR_MS,
+        deathLatestAt: NOW + 16 * HOUR_MS,
+      });
+
+      vi.setSystemTime(NOW + HOUR_MS);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'under_1_day',
+          deathEarliestAt: NOW + 5 * HOUR_MS,
+          deathLatestAt: NOW + 17 * HOUR_MS,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        lifeStage: 'under_1_day',
+        lifeStageObservedAt: NOW + HOUR_MS,
+        deathEarliestAt: NOW + 5 * HOUR_MS,
+        deathLatestAt: NOW + 16 * HOUR_MS,
+      });
+
+      vi.setSystemTime(NOW + 2 * HOUR_MS);
+      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+        mapId: MAP_A,
+        connectionId,
+        value: 'expired',
+        deathEarliestAt: NOW + 2 * HOUR_MS,
+        deathLatestAt: NOW + 2 * HOUR_MS,
+      });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        lifeStage: 'expired',
+        lifeStageObservedAt: NOW + 2 * HOUR_MS,
+        deathEarliestAt: NOW + 2 * HOUR_MS,
+        deathLatestAt: NOW + 2 * HOUR_MS,
+      });
+    });
+
+    it('intersects a type-pick ceiling and skips only the true no-op', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+        mapId: MAP_A,
+        connectionId,
+        value: 'under_1_day',
+        deathEarliestAt: NOW + 4 * HOUR_MS,
+        deathLatestAt: NOW + 24 * HOUR_MS,
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'C247',
+          deathEarliestAt: NOW,
+          deathLatestAt: NOW + 16 * HOUR_MS,
+        }),
+      ).resolves.toEqual({ changed: true });
+      const typed = await readConnection(t, connectionId);
+      expect(typed).toMatchObject({
+        wormholeTypeCode: 'C247',
+        deathEarliestAt: NOW + 4 * HOUR_MS,
+        deathLatestAt: NOW + 16 * HOUR_MS,
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'C247',
+          deathEarliestAt: NOW + 4 * HOUR_MS,
+          deathLatestAt: NOW + 16 * HOUR_MS,
+        }),
+      ).resolves.toEqual({ changed: false });
+      expect(await readConnection(t, connectionId)).toEqual(typed);
+    });
+
+    it('refuses partial, inverted, and non-finite death-window pairs', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+
+      await expectConvexError(
+        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'under_1_day',
+          deathEarliestAt: NOW,
+        }),
+        'INVALID_DEATH_WINDOW',
+      );
+      await expectConvexError(
+        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'under_1_day',
+          deathEarliestAt: NOW + 1,
+          deathLatestAt: NOW,
+        }),
+        'INVALID_DEATH_WINDOW',
+      );
+      await expectConvexError(
+        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'under_1_day',
+          deathEarliestAt: Number.NaN,
+          deathLatestAt: NOW,
+        }),
+        'INVALID_DEATH_WINDOW',
+      );
+    });
+  });
+
   // ── SC-4.3 / SC-4.4 tombstone + restore ───────────────────────────────────
   describe('tombstone and restore', () => {
     it('round-trips system identity including _id and _creationTime', async () => {
@@ -495,7 +652,7 @@ describe('map authoring', () => {
       const before = await readSystem(t, JITA);
       expect(before).not.toBeNull();
 
-      await asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
@@ -510,7 +667,7 @@ describe('map authoring', () => {
         MAP_CHAIN_UNDO_WINDOW_MS,
       );
 
-      await asUser(t).mutation(api.mapAuthoring.restoreSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.restoreSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
@@ -533,7 +690,7 @@ describe('map authoring', () => {
       const before = await readConnection(t, connectionId);
       expect(before).not.toBeNull();
 
-      await asUser(t).mutation(api.mapAuthoring.tombstoneConnection, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
         mapId: MAP_A,
         connectionId,
       });
@@ -561,14 +718,14 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       await seedJump(t);
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+        asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
           mapId: MAP_A,
           systemId: JITA,
         }),
         'SYSTEM_IN_USE',
       );
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+        asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
           mapId: MAP_A,
           systemId: AMARR,
         }),
@@ -580,12 +737,12 @@ describe('map authoring', () => {
     it('allows tombstone after the referencing connection is itself tombstoned', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
-      await asUser(t).mutation(api.mapAuthoring.tombstoneConnection, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
         mapId: MAP_A,
         connectionId,
       });
       await expect(
-        asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+        asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
           mapId: MAP_A,
           systemId: AMARR,
         }),
@@ -595,11 +752,11 @@ describe('map authoring', () => {
     it('refuses to restore a connection whose endpoint is tombstoned', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
-      await asUser(t).mutation(api.mapAuthoring.tombstoneConnection, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
         mapId: MAP_A,
         connectionId,
       });
-      await asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
         mapId: MAP_A,
         systemId: AMARR,
       });
@@ -615,28 +772,346 @@ describe('map authoring', () => {
     it('writes nothing on repeated tombstone or restore of the current state', async () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
-      await asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
       const tombstoned = await readSystem(t, JITA);
 
-      await asUser(t).mutation(api.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
       expect(await readSystem(t, JITA)).toEqual(tombstoned);
 
-      await asUser(t).mutation(api.mapAuthoring.restoreSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.restoreSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
       const restored = await readSystem(t, JITA);
-      await asUser(t).mutation(api.mapAuthoring.restoreSystem, {
+      await asUser(t).mutation(internal.mapAuthoring.restoreSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
       expect(await readSystem(t, JITA)).toEqual(restored);
+    });
+  });
+
+  describe('collapse and ledger mutations', () => {
+    it('internalizes the .1 helpers and exposes only the unified destructive surface', () => {
+      const source = readFileSync('convex/mapAuthoring.ts', 'utf8');
+      const publicMutations = [...source.matchAll(/export const (\w+) = mutation\(/g)]
+        .map((match) => match[1]);
+      expect(publicMutations).toEqual([
+        'setHomeSystem',
+        'addSystemFromNode',
+        'setConnectionWormholeType',
+        'setConnectionShipSize',
+        'setConnectionMassState',
+        'setConnectionLifeStage',
+        'severConnection',
+        'restoreSeveredBranch',
+        'restoreConnection',
+      ]);
+      for (const name of [
+        'tombstoneSystem',
+        'tombstoneConnection',
+        'restoreSystem',
+      ]) {
+        expect(source).toContain(`export const ${name} = internalMutation(`);
+      }
+    });
+
+    it('retains a loop, captures the actor, and records direct connection restore', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [WH_ROOT, WH_A],
+        [
+          { key: 'cut', fromSystemId: WH_ROOT, toSystemId: WH_A },
+          { key: 'other', fromSystemId: WH_ROOT, toSystemId: WH_A },
+        ],
+      );
+      const cut = ids.cut!;
+
+      await expect(
+        asUser(t, EDITOR, 'Scout One').mutation(api.mapAuthoring.severConnection, {
+          mapId: MAP_A,
+          connectionId: cut,
+        }),
+      ).resolves.toEqual({ outcome: 'retained' });
+      expect(await readConnection(t, cut)).toMatchObject({
+        deletedAt: NOW,
+        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      });
+      expect(await readConnection(t, ids.other!)).toMatchObject({
+        deletedAt: null,
+      });
+      expect(await readEvents(t)).toEqual([
+        expect.objectContaining({
+          mapId: MAP_A,
+          at: NOW,
+          kind: 'connection_severed_retained',
+          actor: 'Scout One',
+          payload: { connectionId: String(cut) },
+          purgeAfter: NOW + MAP_EVENT_RETENTION_MS,
+        }),
+      ]);
+
+      vi.setSystemTime(NOW + 1_000);
+      await asUser(t, EDITOR, 'Scout Two').mutation(
+        api.mapAuthoring.restoreConnection,
+        { mapId: MAP_A, connectionId: cut },
+      );
+      expect(await readConnection(t, cut)).toMatchObject({
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      expect((await readEvents(t)).map((event) => [event.kind, event.actor])).toEqual([
+        ['connection_severed_retained', 'Scout One'],
+        ['connection_restored', 'Scout Two'],
+      ]);
+    });
+
+    it('retains a severed component containing a known-space exit', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [WH_ROOT, WH_A, JITA],
+        [
+          { key: 'root-a', fromSystemId: WH_ROOT, toSystemId: WH_A },
+          { key: 'cut', fromSystemId: WH_A, toSystemId: JITA },
+        ],
+      );
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.severConnection, {
+          mapId: MAP_A,
+          connectionId: ids.cut!,
+        }),
+      ).resolves.toEqual({ outcome: 'retained' });
+      expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: null });
+    });
+
+    it('removes a dead branch with incident connections and round-trips every identity', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [WH_ROOT, WH_A, WH_B, WH_C],
+        [
+          { key: 'root-a', fromSystemId: WH_ROOT, toSystemId: WH_A },
+          { key: 'cut', fromSystemId: WH_A, toSystemId: WH_B },
+          { key: 'b-c', fromSystemId: WH_B, toSystemId: WH_C },
+        ],
+      );
+      const cut = ids.cut!;
+      const beforeSystems = await Promise.all([
+        readSystem(t, WH_B),
+        readSystem(t, WH_C),
+      ]);
+      const beforeConnections = await Promise.all([
+        readConnection(t, cut),
+        readConnection(t, ids['b-c']!),
+      ]);
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.severConnection, {
+          mapId: MAP_A,
+          connectionId: cut,
+        }),
+      ).resolves.toEqual({ outcome: 'removed', systemIds: [WH_B, WH_C] });
+      const tombstonedRows = await Promise.all([
+        readSystem(t, WH_B),
+        readSystem(t, WH_C),
+        readConnection(t, cut),
+        readConnection(t, ids['b-c']!),
+      ]);
+      expect(new Set(tombstonedRows.map((row) => row?.deletedAt))).toEqual(
+        new Set([NOW]),
+      );
+      expect(await readConnection(t, ids['root-a']!)).toMatchObject({
+        deletedAt: null,
+      });
+      expect((await readEvents(t))[0]).toMatchObject({
+        kind: 'branch_removed',
+        payload: { connectionId: String(cut), systemIds: [WH_B, WH_C] },
+      });
+
+      vi.setSystemTime(NOW + 1_000);
+      await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+        mapId: MAP_A,
+        connectionId: cut,
+      });
+      expect(await readSystem(t, WH_B)).toEqual({
+        ...beforeSystems[0]!,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      expect(await readSystem(t, WH_C)).toEqual({
+        ...beforeSystems[1]!,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      expect(await readConnection(t, cut)).toEqual({
+        ...beforeConnections[0]!,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      expect(await readConnection(t, ids['b-c']!)).toEqual({
+        ...beforeConnections[1]!,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+      expect((await readEvents(t)).at(-1)).toMatchObject({
+        kind: 'branch_restored',
+        payload: { connectionId: String(cut), systemIds: [WH_B, WH_C] },
+      });
+    });
+
+    it('evaluates an interior sever inside a retained known-space island', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [WH_ROOT, WH_A, JITA, WH_B],
+        [
+          { key: 'root-a', fromSystemId: WH_ROOT, toSystemId: WH_A },
+          { key: 'island-cut', fromSystemId: WH_A, toSystemId: JITA },
+          { key: 'interior', fromSystemId: JITA, toSystemId: WH_B },
+        ],
+      );
+      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+        mapId: MAP_A,
+        connectionId: ids['island-cut']!,
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.severConnection, {
+          mapId: MAP_A,
+          connectionId: ids.interior!,
+        }),
+      ).resolves.toEqual({ outcome: 'removed', systemIds: [WH_B] });
+      expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: null });
+      expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW + 1 });
+      expect(await readConnection(t, ids['island-cut']!)).toMatchObject({
+        deletedAt: NOW,
+      });
+    });
+
+    it('uses unique stamps so restores cannot cross two same-millisecond severs', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [WH_ROOT, WH_A, WH_B],
+        [
+          { key: 'cut-a', fromSystemId: WH_ROOT, toSystemId: WH_A },
+          { key: 'cut-b', fromSystemId: WH_ROOT, toSystemId: WH_B },
+        ],
+      );
+      const cutA = ids['cut-a']!;
+      const cutB = ids['cut-b']!;
+      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+        mapId: MAP_A,
+        connectionId: cutA,
+      });
+      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+        mapId: MAP_A,
+        connectionId: cutB,
+      });
+      expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: NOW });
+      expect(await readConnection(t, cutB)).toMatchObject({ deletedAt: NOW + 1 });
+
+      await expectConvexError(
+        asUser(t).mutation(api.mapAuthoring.severConnection, {
+          mapId: MAP_A,
+          connectionId: cutA,
+        }),
+        'CONNECTION_TOMBSTONED',
+      );
+      expect(await readEvents(t)).toHaveLength(2);
+
+      await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+        mapId: MAP_A,
+        connectionId: cutA,
+      });
+      expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: null });
+      expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: null });
+      expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW + 1 });
+      expect(await readConnection(t, cutB)).toMatchObject({ deletedAt: NOW + 1 });
+
+      await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+        mapId: MAP_A,
+        connectionId: cutA,
+      });
+      expect(await readEvents(t)).toHaveLength(3);
+    });
+
+    it('fails closed before mutation or ledger write when the map exceeds the bound', async () => {
+      const t = convexTest(schema, modules);
+      await seedEmpty(t);
+      const connectionId = await t.run(async (ctx) => {
+        for (let index = 0; index <= COLLAPSE_MAP_SCAN_CAP; index += 1) {
+          await ctx.db.insert('mapSystems', {
+            mapId: MAP_A,
+            systemId: WH_ROOT + index,
+            deletedAt: null,
+            purgeAfter: null,
+          });
+        }
+        return await ctx.db.insert('mapConnections', {
+          mapId: MAP_A,
+          fromSystemId: WH_ROOT,
+          toSystemId: WH_A,
+          wormholeTypeCode: null,
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+      });
+
+      await expectConvexError(
+        asUser(t).mutation(api.mapAuthoring.severConnection, {
+          mapId: MAP_A,
+          connectionId,
+        }),
+        'MAP_TOO_LARGE',
+      );
+      expect(await readConnection(t, connectionId)).toMatchObject({ deletedAt: null });
+      expect(await readEvents(t)).toEqual([]);
+    });
+
+    it('re-arms an incident skeleton when its live endpoint is removed', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [WH_ROOT, WH_A, WH_B],
+        [{ key: 'cut', fromSystemId: WH_ROOT, toSystemId: WH_A }],
+      );
+      const skeletonId = await t.run(async (ctx) =>
+        await ctx.db.insert('mapConnections', {
+          mapId: MAP_A,
+          fromSystemId: WH_A,
+          toSystemId: WH_B,
+          wormholeTypeCode: null,
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          lifeStage: null,
+          lifeStageObservedAt: null,
+          deletedAt: NOW - MAP_CHAIN_UNDO_WINDOW_MS,
+          purgeAfter: null,
+        }),
+      );
+
+      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+        mapId: MAP_A,
+        connectionId: ids.cut!,
+      });
+      expect(await readConnection(t, skeletonId)).toMatchObject({
+        deletedAt: NOW - MAP_CHAIN_UNDO_WINDOW_MS,
+        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      });
     });
   });
 

@@ -19,6 +19,75 @@ export const CONNECTION_MASS_STATES = ['stable', 'reduced', 'critical'] as const
 /** One observed connection mass state. */
 export type ConnectionMassState = (typeof CONNECTION_MASS_STATES)[number];
 
+/** Spawn-mass variance applied to non-regenerating wormhole estimates. */
+export const WORMHOLE_MASS_VARIANCE = 0.1;
+
+/** Remaining-mass fraction intervals implied by each observed shake state. */
+export const WORMHOLE_MASS_STATE_THRESHOLDS = {
+  stable: { minFraction: 0.5, maxFraction: 1 },
+  reduced: { minFraction: 0.1, maxFraction: 0.5 },
+  critical: { minFraction: 0, maxFraction: 0.1 },
+  unset: { minFraction: 0, maxFraction: 1 },
+} as const satisfies Record<
+  ConnectionMassState | 'unset',
+  { readonly minFraction: number; readonly maxFraction: number }
+>;
+
+/** The codex-owned facts required to estimate remaining connection mass. */
+export interface WormholeMassFacts {
+  readonly totalMass: number;
+  readonly massRegen: number;
+}
+
+/** Honest remaining-mass bounds in kilograms. */
+export interface RemainingMassBounds {
+  readonly minKg: number;
+  readonly maxKg: number;
+}
+
+/**
+ * Derives the shake-state-clamped remaining-mass interval, widened by the
+ * per-hole spawn variance. Regenerating holes intentionally return no estimate:
+ * regeneration makes a state-only remaining budget misleading.
+ */
+export function remainingMassBounds(
+  entry: WormholeMassFacts | null | undefined,
+  massState: ConnectionMassState | null,
+): RemainingMassBounds | null {
+  if (
+    entry === null ||
+    entry === undefined ||
+    !Number.isFinite(entry.totalMass) ||
+    entry.totalMass <= 0 ||
+    !Number.isFinite(entry.massRegen) ||
+    entry.massRegen > 0
+  ) {
+    return null;
+  }
+
+  const threshold = WORMHOLE_MASS_STATE_THRESHOLDS[massState ?? 'unset'];
+  return {
+    minKg: Math.round(
+      threshold.minFraction *
+        (1 - WORMHOLE_MASS_VARIANCE) *
+        entry.totalMass,
+    ),
+    maxKg: Math.round(
+      threshold.maxFraction *
+        (1 + WORMHOLE_MASS_VARIANCE) *
+        entry.totalMass,
+    ),
+  };
+}
+
+/**
+ * Classifies the SDE's stable system-ID partition. IDs below 31 million are
+ * known space; IDs at or above it are J-space.
+ */
+export function isKnownSpaceSystemId(systemId: number): boolean {
+  return systemId < 31_000_000;
+}
+
 /**
  * Current in-game Reliable Lifetime buckets for a wormhole connection. Null on
  * a stored row means unset; the four literals match show-info wording

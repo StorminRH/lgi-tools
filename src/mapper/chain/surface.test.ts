@@ -114,12 +114,16 @@ describe('mapper source contract', () => {
   // Guards every loop below: an empty or broken file walk would make them all pass vacuously.
   it('walks the whole mapper zone', () => {
     expect(mapperFiles().toSorted()).toEqual([
+      'authoring/ConnectionAuthoringOverlay.tsx',
       'authoring/ConnectionDetailsCard.tsx',
       'authoring/HomePrompt.tsx',
       'authoring/NodeAddMenu.tsx',
       'authoring/RightsTransitionToast.tsx',
       'authoring/connection-fields.tsx',
+      'authoring/connection-intelligence.ts',
+      'authoring/connection-selection.ts',
       'authoring/rights-transition.ts',
+      'authoring/sever-toast.ts',
       'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',
       'canvas/ChainSurface.tsx',
@@ -151,6 +155,8 @@ describe('mapper source contract', () => {
       'layout/proof-kit.ts',
       'layout/trig.ts',
       'layout/use-layout-kernel.ts',
+      'log/MapEventLog.tsx',
+      'log/map-event-copy.ts',
       'motion/motion-contract.ts',
       'motion/motion-controls-model.ts',
       'motion/motion-host-model.ts',
@@ -165,16 +171,36 @@ describe('mapper source contract', () => {
     ]);
   });
 
-  it('keeps tombstone/restore mutations off every authoring surface', () => {
-    // SC-5.1 across the whole mapper zone — only optimistic-authoring may name them.
+  it('keeps internalized tombstone helpers off every UI surface', () => {
+    // SC-5.2: public destruction/restore is sever + restoreSeveredBranch +
+    // restoreConnection; the .1 single-row tombstone helpers stay internal.
     for (const file of mapperFiles()) {
       if (file === 'chain/optimistic-authoring.ts') continue;
       const source = sourceOf(file);
       expect(source, file).not.toContain('tombstoneSystem');
       expect(source, file).not.toContain('tombstoneConnection');
       expect(source, file).not.toContain('restoreSystem');
-      expect(source, file).not.toContain('restoreConnection');
     }
+  });
+
+  it('routes UI destruction only through sever and the public restore pair', () => {
+    const allowed = new Set([
+      'chain/optimistic-authoring.ts',
+      'authoring/ConnectionAuthoringOverlay.tsx',
+    ]);
+    for (const file of mapperFiles()) {
+      const source = sourceOf(file);
+      const namesDestruction =
+        source.includes('severConnection') ||
+        source.includes('restoreSeveredBranch') ||
+        source.includes('restoreConnection');
+      if (!namesDestruction) continue;
+      expect(allowed.has(file), file).toBe(true);
+    }
+    const overlay = sourceOf('authoring/ConnectionAuthoringOverlay.tsx');
+    expect(overlay).toContain('severConnection');
+    expect(overlay).toContain('restoreSeveredBranch');
+    expect(overlay).toContain('restoreConnection');
   });
 
   it('keeps the window layer off the hot nodes array', () => {
@@ -211,6 +237,14 @@ describe('mapper source contract', () => {
     expect(hook).toContain('api.mapChain.watchMapSystems');
     expect(hook).toContain('api.mapChain.watchMapConnections');
     expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(2);
+  });
+
+  it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
+    const hook = sourceOf('chain/use-map-chain.ts');
+    expect(hook).toContain('api.mapChain.watchMapEvents');
+    expect(hook).toContain('filterChainConnections');
+    expect(hook).toMatch(/const systems = useMemo\(/);
+    expect(hook).toMatch(/const connections = useMemo\(/);
   });
 
   it('confines client-callable mutations to the optimistic authoring seam', () => {

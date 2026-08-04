@@ -2,6 +2,8 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import {
   lifeStageValidator,
+  mapEventKindValidator,
+  mapEventPayloadValidator,
   mapRoleValidator,
   massStateValidator,
   noteTargetKindValidator,
@@ -183,12 +185,30 @@ export default defineSchema({
     eolAt: v.union(v.number(), v.null()),
     lifeStage: v.optional(lifeStageValidator),
     lifeStageObservedAt: optionalTimestampValidator,
+    deathEarliestAt: optionalTimestampValidator,
+    deathLatestAt: optionalTimestampValidator,
     deletedAt: optionalTimestampValidator,
     purgeAfter: optionalTimestampValidator,
   })
     .index('by_map', ['mapId'])
     .index('by_map_from', ['mapId', 'fromSystemId'])
     .index('by_map_to', ['mapId', 'toSystemId'])
+    .index('by_purge_after', ['purgeAfter']),
+
+  // One immutable audit row per destructive/restore map event. Actor and
+  // display payload are resolved at write time so the bounded ledger read has
+  // no user-directory or chain-entity N+1. Seven-day cleanup ranges the
+  // retention index; the UI reads newest-first through the compound map/time
+  // index without watching unrelated maps.
+  mapEvents: defineTable({
+    mapId: v.string(),
+    at: v.number(),
+    kind: mapEventKindValidator,
+    actor: v.string(),
+    payload: mapEventPayloadValidator,
+    purgeAfter: v.number(),
+  })
+    .index('by_map', ['mapId', 'at'])
     .index('by_purge_after', ['purgeAfter']),
 
   // One document per scanned signature. The nullable knowledge fields hold the

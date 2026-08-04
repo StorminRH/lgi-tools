@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import type { Doc } from '@/data/convex/data-model';
 import {
   chainSignature,
+  connectionDetailsFromRows,
   factsFromSnapshot,
+  filterChainConnections,
   filterLivePages,
   layoutConfigKey,
   layoutPostKey,
+  normalizeMapAccess,
 } from './use-map-chain';
 import {
   EMPTY_CHAIN_STATE,
@@ -30,7 +34,12 @@ function systems(ids: readonly number[], complete = true) {
 }
 
 function connections(
-  rows: readonly { _id: string; fromSystemId: number; toSystemId: number }[],
+  rows: readonly {
+    _id: string;
+    fromSystemId: number;
+    toSystemId: number;
+    deletedAt?: number | null;
+  }[],
   complete = true,
 ) {
   return { rows, complete };
@@ -102,6 +111,18 @@ describe('chain snapshot signature', () => {
     );
 
     expect(first).not.toBe(second);
+  });
+
+  it('changes when a connection becomes tombstoned without changing endpoints', () => {
+    const active = connections([
+      { _id: 'c1', fromSystemId: JITA, toSystemId: AMARR, deletedAt: null },
+    ]);
+    const tombstoned = connections([
+      { _id: 'c1', fromSystemId: JITA, toSystemId: AMARR, deletedAt: 42 },
+    ]);
+    expect(chainSignature(systems([JITA, AMARR]), tombstoned)).not.toBe(
+      chainSignature(systems([JITA, AMARR]), active),
+    );
   });
 });
 
@@ -198,6 +219,60 @@ describe('live-row filter upstream of chainSignature', () => {
     };
     expect(filterLivePages(pages)).toBe(pages);
   });
+
+  it('keeps tombstoned connections as structural layout facts', () => {
+    const pages = {
+      rows: [
+        {
+          _id: 'c1',
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          deletedAt: 42,
+          purgeAfter: null,
+        },
+      ],
+      complete: true,
+    };
+    expect(filterChainConnections(pages)).toBe(pages);
+  });
+});
+
+describe('client subscription projections', () => {
+  it('keeps unanswered access distinct from a live denial', () => {
+    expect(normalizeMapAccess(undefined)).toEqual({
+      access: undefined,
+      canEdit: undefined,
+    });
+    expect(normalizeMapAccess({ granted: false, canEdit: false })).toEqual({
+      access: false,
+      canEdit: false,
+    });
+  });
+
+  it('normalizes optional connection detail fields without dropping tombstones', () => {
+    const row = {
+      _id: 'c1',
+      _creationTime: 10,
+      mapId: 'map-a',
+      fromSystemId: JITA,
+      toSystemId: AMARR,
+      wormholeTypeCode: null,
+      massState: null,
+      shipSize: null,
+      eolAt: null,
+      deletedAt: 20,
+      purgeAfter: 30,
+    } as Doc<'mapConnections'>;
+    expect(connectionDetailsFromRows([row]).get(row._id)).toMatchObject({
+      connectionId: row._id,
+      _creationTime: 10,
+      lifeStage: null,
+      deathEarliestAt: null,
+      deathLatestAt: null,
+      deletedAt: 20,
+      purgeAfter: 30,
+    });
+  });
 });
 
 describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
@@ -291,7 +366,7 @@ describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
       connections: {
         rows: [
           {
-            connectionId: 'temp:c1',
+            connectionId: 'optimistic:mapConnections:c1',
             fromSystemId: JITA,
             toSystemId: AMARR,
           },
@@ -305,7 +380,9 @@ describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
       new Set(),
       keepPositions,
     );
-    expect(local.state.connections.has('temp:c1')).toBe(true);
+    expect(
+      local.state.connections.has('optimistic:mapConnections:c1'),
+    ).toBe(true);
     expect(
       local.intents.some((intent) => intent.kind === 'connection-appeared'),
     ).toBe(true);
@@ -333,7 +410,7 @@ describe('optimistic add through the merge (SC-3.3 / SC-3.4)', () => {
       connections: {
         rows: [
           {
-            connectionId: 'temp:c1',
+            connectionId: 'optimistic:mapConnections:c1',
             fromSystemId: JITA,
             toSystemId: AMARR,
           },

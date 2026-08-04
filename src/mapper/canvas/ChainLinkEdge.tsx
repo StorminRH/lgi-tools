@@ -62,6 +62,7 @@ export function edgePresentation(data: ChainEdgeData | undefined): {
 } {
   const classes = cn(
     data?.loop === true && LOOP_DASH_CLASS,
+    data?.tombstoneState === 'dying' && 'map-edge-dying',
     edgeMotionClass(data?.motion),
   );
   return {

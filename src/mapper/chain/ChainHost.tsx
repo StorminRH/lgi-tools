@@ -25,7 +25,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import type { Id } from '@/data/convex/data-model';
-import { ConnectionDetailsCard } from '../authoring/ConnectionDetailsCard';
+import { ConnectionAuthoringOverlay } from '../authoring/ConnectionAuthoringOverlay';
 import { HomePrompt } from '../authoring/HomePrompt';
 import {
   NodeAddMenu,
@@ -113,6 +113,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     systemsComplete,
     liveSystemCount,
     connectionDetails,
+    connectionPresentationNow,
+    events,
     state,
     intents,
     labelOf,
@@ -135,8 +137,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   }, [state.systems, labelOf]);
 
   const edges = useMemo(
-    () => buildEdges(state.connections, treeParents),
-    [state.connections, treeParents],
+    () => buildEdges(state.connections, treeParents, connectionPresentationNow),
+    [state.connections, treeParents, connectionPresentationNow],
   );
 
   // The truth arrays the motion layer derives from — identity changes exactly
@@ -260,19 +262,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     });
   }, []);
 
-  // Stale ids (tombstone / optimistic rollback) drop out of the live map; clear
-  // during render so the card unmounts without an effect setState.
-  if (
-    selectedConnectionId !== null &&
-    !connectionDetails.has(selectedConnectionId)
-  ) {
-    setSelectedConnectionId(null);
-  }
-  const selectedConnection =
-    selectedConnectionId === null
-      ? null
-      : (connectionDetails.get(selectedConnectionId) ?? null);
-
   const showHomePrompt =
     canEdit === true && systemsComplete && liveSystemCount === 0;
 
@@ -346,6 +335,16 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           onDeselect={deselectNodes}
         />
         <RightsTransitionToast canEdit={canEdit} />
+        <ConnectionAuthoringOverlay
+          mapId={mapId}
+          canEdit={canEdit === true}
+          connectionDetails={connectionDetails}
+          connectionPresentationNow={connectionPresentationNow}
+          events={events}
+          authoring={authoring}
+          selectedConnectionId={selectedConnectionId}
+          onSelectedConnectionIdChange={setSelectedConnectionId}
+        />
         {showHomePrompt ? (
           <HomePrompt
             mapId={mapId}
@@ -367,42 +366,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
                 fromSystemId,
                 toSystemId,
               });
-            }}
-          />
-        ) : null}
-        {canEdit === true && selectedConnection !== null ? (
-          <ConnectionDetailsCard
-            connection={selectedConnection}
-            onClose={() => setSelectedConnectionId(null)}
-            setters={{
-              setWormholeType: (value) => {
-                void authoring.setConnectionWormholeType({
-                  mapId,
-                  connectionId: selectedConnection.connectionId,
-                  value,
-                });
-              },
-              setShipSize: (value) => {
-                void authoring.setConnectionShipSize({
-                  mapId,
-                  connectionId: selectedConnection.connectionId,
-                  value,
-                });
-              },
-              setMassState: (value) => {
-                void authoring.setConnectionMassState({
-                  mapId,
-                  connectionId: selectedConnection.connectionId,
-                  value,
-                });
-              },
-              setLifeStage: (value) => {
-                void authoring.setConnectionLifeStage({
-                  mapId,
-                  connectionId: selectedConnection.connectionId,
-                  value,
-                });
-              },
             }}
           />
         ) : null}

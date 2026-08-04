@@ -116,3 +116,37 @@ export async function convexRun(path, args) {
   if (stderr.trim()) console.error(stderr.trim());
   return stdout.trim();
 }
+
+/** Jita → Perimeter disposable jump used when a probe map has no edges yet. */
+const DEFAULT_JUMP_FROM_SYSTEM_ID = 30_000_142;
+const DEFAULT_JUMP_TO_SYSTEM_ID = 30_000_144;
+
+/**
+ * Ensures the map has at least one rendered edge, seeding a disposable jump
+ * fixture when the canvas is empty. Shared by connection/intelligence probes.
+ */
+export async function ensureJumpEdge(
+  page,
+  mapId,
+  {
+    fromSystemId = DEFAULT_JUMP_FROM_SYSTEM_ID,
+    toSystemId = DEFAULT_JUMP_TO_SYSTEM_ID,
+  } = {},
+) {
+  if ((await page.locator('.react-flow__edge').count()) > 0) return;
+  await convexRun('mapFixtures:placeJumpFixture', {
+    mapId,
+    fromSystemId,
+    toSystemId,
+    wormholeTypeCode: null,
+    massState: null,
+    shipSize: null,
+    eolAt: null,
+  });
+  await page.waitForFunction(
+    () => document.querySelectorAll('.react-flow__edge').length >= 1,
+    null,
+    { timeout: 30_000 },
+  );
+  await page.waitForTimeout(800);
+}

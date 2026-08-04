@@ -24,10 +24,10 @@ door to CCP; the sync engine is the one scheduler.
   test** (template: the `onlineStatus` regenerable test — the surviving live Convex
   dataset; the corp / skills / jobs datasets moved to Neon in MIGRATE.B).
 - **The one sanctioned durability exception** is the v4.0 mapper's collaborative
-  chain state (systems, connections, signatures, and notes), whether user- or
-  automatically authored: Convex-native primary SoR, protected by backups + CDC
-  export. It is a deliberate, documented exception — never a license to make
-  other data Convex-durable.
+  chain state (systems, connections, signatures, notes, and map events), whether
+  user- or automatically authored: Convex-native primary SoR, protected by
+  backups + CDC export. It is a deliberate, documented exception — never a
+  license to make other data Convex-durable.
 - **The ≤2-min placement rule (the test for every dataset).** *Convex (live engine)*
   iff the ESI cache is ≤ ~2 min (genuinely live — location ~5 s, online ~60 s) OR the
   data is app-authored collaborative-realtime needing peer fan-out (the mapper):
@@ -314,7 +314,7 @@ trackers' departure so the mapper can rebuild on it.
 ## Adding a Convex surface — checklist
 
 1. **Durable SoR?** → it belongs in Neon; Convex holds a derived projection only
-   (exception: mapper collaborative chain state).
+   (exception: mapper collaborative chain state, including map events).
 2. **What watches it, how often does it change, one watcher or many?** → drives the
    document split (Cost Rule 1).
 3. **A growing collection?** → per-entity docs + bounded/paginated reads (Cost Rule 4);

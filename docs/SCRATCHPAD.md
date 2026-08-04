@@ -10,8 +10,9 @@
 ## Now
 
 - **CURRENT / NEXT:** session **4.0.4.1.2** on `lifecycle/4.0.4.1` —
-  execution in progress. This session opens the single sub-version PR.
-- **OW progress:** `5/6 complete` — Integration proof.
+  Ordered work complete; **G-1 operator review required before close-out
+  opens the PR**. This session opens the single sub-version PR.
+- **OW progress:** `6/6 complete — awaiting close-out`.
 - **OW completed:** OW1 pure contracts + schema groundwork — lifetime/mass,
   tombstone stages, unified collapse decision, event vocabulary/table, and
   SDE space-boundary census; 72 focused tests + `pnpm verify` passed
@@ -37,18 +38,37 @@
   ledger with `canEdit`-gated Restore, CONVEX durability wording amended;
   72 focused tests + `pnpm verify` passed 2026-08-04 (5,066 tests, Fallow 0
   issues).
-- **Next-agent notes:** Start only Ordered work 6 (Integration proof) in
-  `docs/session-plans/4.0/4.0.4.1.2.md`. Living `start-session` now requires
-  docs-researcher before production/test code, then gate-runner → ow-reviewer
-  → commit → handoff (adversarial-review and push remain close-out-only). Run
-  the full two-client demo (type auto-fill → lifetime narrowing → mass clamp →
-  sever retain/remove → toast and ledger undo → window expiry) with `ux-check`
-  desktop/mobile captures; assemble the G-1 evidence packet and pause for
-  operator review before close-out. New probes: `atlas-authoring-intelligence.mjs`,
-  `atlas-authoring-ledger.mjs` (plus updated `atlas-authoring-connection.mjs`).
-  Card/ledger wiring lives in `ConnectionAuthoringOverlay` (not ChainHost);
-  dying edges use `.map-edge-dying` (reduced-motion: steady dim red). Local
-  review maps unchanged. Do not open the PR until G-1 accepts.
+- **OW completed:** OW6 integration proof — route `/atlas` desktop+mobile
+  captures clean; authoring probes
+  `intelligence`/`ledger`/`connection`/`wall` 6/6 viewport runs clean
+  (codex-load race hardened; shared `ensureJumpEdge`); G-1 evidence packet
+  below; `pnpm verify` 5,066 tests + Fallow 0 on 115 files 2026-08-04.
+- **Next-agent notes (G-1 + close-out):** Pause for operator G-1 ACCEPT before
+  close-out opens the PR. **Do not open the PR until G-1 accepts.**
+
+  **G-1 evidence packet (local, gitignored captures):**
+  - Stack: `pnpm dev:all` → http://localhost:3000; auth
+    `UX_STORAGE_STATE=~/.lgi-ux-state.json`.
+  - Maps: blank `4f5dd5e0-97f4-42c2-97aa-2fee04756665` (now seeded/mutated by
+    probes — re-drain or use a fresh blank if home-prompt demo needed);
+    populated `4f47c80a-c40b-4795-8831-faa4c7c41426`.
+  - Automated: `docs/ux-check/captures/report.json` (signed-out `/atlas`
+    desktop+mobile, zero errors);
+    `docs/ux-check/captures/probes/report.json` (6/6 pass). Key shots:
+    `…/atlas-authoring-intelligence--…--connection-intelligence.png` (B274
+    codex + locked L + mass range + lifetime + Sever);
+    `…/atlas-authoring-ledger--…--map-event-log.png` desktop+mobile (Log
+    expand / empty or rows); connection + wall shots alongside.
+  - Network noise disposed: `/api/sites/1` `ERR_ABORTED` on map focus (benign).
+  - Operator live two-client checklist (SC-1.1 / SC-2.3 / SC-4.2–4.4 /
+    SC-6.2): type auto-fill → lifetime narrowing across reports → mass clamp
+    → sever retain (k-space / loop) and remove (wormhole-only) → toast Undo
+    + ledger Restore → dying→skeleton window expiry. Rider-1 refusal swallow
+    covered by OW4 unit tests + zero console errors on authoring probes.
+  - Card/ledger wiring: `ConnectionAuthoringOverlay` (not ChainHost); dying
+    edges `.map-edge-dying` (reduced-motion: steady dim red).
+  - After G-1 ACCEPT: run close-out in planned mode only (no further OW);
+    adversarial-review + push + single sub-version PR.
 - **Shipped 4.0.4.1.1:** gated chain authoring (home / add-from-node /
   connection card / tombstone foundations). Plan `Execution status:
   Complete`; as-built `docs/session-as-built/4.0/4.0.4.1.1.md`. PR deferred

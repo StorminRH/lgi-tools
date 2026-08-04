@@ -1,16 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { getFunctionName } from 'convex/server';
 import { api } from '@/data/convex/api';
+import type { Id } from '@/data/convex/data-model';
 import type { OptimisticLocalStore } from '@/data/convex/use-mutation';
-import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import {
-  liveSystemPresent,
+  lifeStageWindowProposal,
+  lifetimeMinutesFromEntry,
   optimisticAddSystemFromNode,
   optimisticPatchConnection,
+  optimisticRestoreSeveredBranch,
+  optimisticSetConnectionLifeStage,
   optimisticSetHomeSystem,
+  optimisticSetConnectionWormholeType,
+  optimisticSeverConnection,
   optimisticTempId,
-  optimisticTombstoneSystem,
+  swallowMutationRejection,
   useChainAuthoringMutations,
+  wormholeTypeWindowProposal,
   type OptimisticConnectionRow,
   type OptimisticSystemRow,
 } from './optimistic-authoring';
@@ -142,6 +148,8 @@ function connectionRow(
     eolAt: null,
     lifeStage: null,
     lifeStageObservedAt: null,
+    deathEarliestAt: null,
+    deathLatestAt: null,
     deletedAt: null,
     purgeAfter: null,
     ...overrides,
@@ -238,13 +246,124 @@ describe('optimisticPatchConnection', () => {
   });
 });
 
-describe('optimisticTombstoneSystem', () => {
-  it('stamps the 24h undo window so the live filter can drop the row', () => {
-    const now = 1_700_000_000_000;
-    const store = mockStore({ systems: [systemRow(JITA)] });
-    optimisticTombstoneSystem(store, { mapId: MAP, systemId: JITA }, now);
-    expect(store.systems[0]?.deletedAt).toBe(now);
-    expect(store.systems[0]?.purgeAfter).toBe(now + MAP_CHAIN_UNDO_WINDOW_MS);
-    expect(liveSystemPresent(store, MAP, JITA)).toBe(false);
+describe('optimistic collapse patches', () => {
+  it('stamps only the cut edge before the server-computed outcome lands', () => {
+    const store = mockStore({
+      systems: [systemRow(JITA), systemRow(AMARR)],
+      connections: [connectionRow('cut', JITA, AMARR)],
+    });
+    optimisticSeverConnection(
+      store,
+      { mapId: MAP, connectionId: 'cut' },
+      100,
+    );
+    expect(store.connections[0]).toMatchObject({
+      deletedAt: 100,
+      purgeAfter: 100 + 24 * 60 * 60 * 1000,
+    });
+    expect(store.systems.every((row) => row.deletedAt === null)).toBe(true);
+  });
+
+  it('restores every loaded row sharing the cut stamp', () => {
+    const stamp = 100;
+    const tombstone = { deletedAt: stamp, purgeAfter: stamp + 1 };
+    const store = mockStore({
+      systems: [systemRow(JITA, tombstone), systemRow(AMARR)],
+      connections: [
+        connectionRow('cut', JITA, AMARR, tombstone),
+        connectionRow('incident', JITA, AMARR, tombstone),
+      ],
+    });
+    optimisticRestoreSeveredBranch(store, {
+      mapId: MAP,
+      connectionId: 'cut',
+    });
+    expect(store.systems[0]).toMatchObject({ deletedAt: null, purgeAfter: null });
+    expect(
+      store.connections.every(
+        (row) => row.deletedAt === null && row.purgeAfter === null,
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('explicit lifetime proposals', () => {
+  const connection = {
+    connectionId: 'c1' as Id<'mapConnections'>,
+    _creationTime: 1_000,
+    wormholeTypeCode: 'B274',
+    deathEarliestAt: 2_000,
+    deathLatestAt: 3_000,
+  };
+
+  it('proposes a typed creation-time ceiling and preserves K162/unset windows', () => {
+    expect(wormholeTypeWindowProposal(connection, 60)).toEqual({
+      earliestAt: 1_000,
+      latestAt: 3_601_000,
+    });
+    expect(wormholeTypeWindowProposal(connection, null)).toEqual({
+      earliestAt: 2_000,
+      latestAt: 3_000,
+    });
+    expect(
+      lifetimeMinutesFromEntry({
+        code: 'B274',
+        typeId: 1,
+        farSide: false,
+        totalMass: 2_000_000_000,
+        maxJumpMass: 300_000_000,
+        massRegen: 0,
+        lifetimeMinutes: 1_440,
+        sizeClass: 'L',
+        targetClass: 7,
+      }),
+    ).toBe(1_440);
+    expect(
+      lifetimeMinutesFromEntry({ code: 'K162', typeId: 2, farSide: true }),
+    ).toBeNull();
+  });
+
+  it('derives life-stage windows and patches both optimistic setters', () => {
+    expect(lifeStageWindowProposal('under_4_hours', 10_000, null)).toEqual({
+      earliestAt: 3_610_000,
+      latestAt: 14_410_000,
+    });
+    const store = mockStore({
+      connections: [connectionRow('c1', JITA, AMARR)],
+    });
+    optimisticSetConnectionWormholeType(store, {
+      mapId: MAP,
+      connectionId: 'c1',
+      value: 'B274',
+      deathEarliestAt: 1,
+      deathLatestAt: 2,
+    });
+    optimisticSetConnectionLifeStage(
+      store,
+      {
+        mapId: MAP,
+        connectionId: 'c1',
+        value: 'under_1_day',
+        deathEarliestAt: 3,
+        deathLatestAt: 4,
+      },
+      5,
+    );
+    expect(store.connections[0]).toMatchObject({
+      wormholeTypeCode: 'B274',
+      lifeStage: 'under_1_day',
+      lifeStageObservedAt: 5,
+      deathEarliestAt: 3,
+      deathLatestAt: 4,
+    });
+  });
+});
+
+describe('mutation rejection rider', () => {
+  it('resolves undefined instead of leaking a rejected mutation promise', async () => {
+    const mutation = swallowMutationRejection(async (_args: { value: number }) => {
+      throw new Error('server refusal');
+    });
+    await expect(mutation({ value: 1 })).resolves.toBeUndefined();
   });
 });

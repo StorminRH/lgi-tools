@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
     setConnectionShipSize: vi.fn(),
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
+    severConnection: vi.fn(),
+    restoreSeveredBranch: vi.fn(),
+    restoreConnection: vi.fn(),
+    undoWindowMs: 24 * 60 * 60 * 1000,
   },
 }));
 
@@ -31,6 +35,10 @@ vi.mock('./optimistic-authoring', () => ({
 
 vi.mock('../authoring/RightsTransitionToast', () => ({
   RightsTransitionToast: () => null,
+}));
+
+vi.mock('../authoring/ConnectionAuthoringOverlay', () => ({
+  ConnectionAuthoringOverlay: () => null,
 }));
 
 vi.mock('@xyflow/react', async () => {
@@ -96,6 +104,8 @@ function withAccess(
     systemsComplete: true,
     liveSystemCount: 0,
     connectionDetails: new Map(),
+    connectionPresentationNow: 1,
+    events: [],
     state: { systems: new Map(), connections: new Map() },
     intents: [],
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),

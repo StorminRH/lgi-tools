@@ -7,8 +7,8 @@ the ESI gate, or cost and scaling behavior.
 
 - Neon is authoritative for durable account, character, and ESI data. Convex
   live projections remain regenerable and never write to Neon. The approved
-  mapper's collaborative chain state — systems, connections, signatures, and
-  notes, whether user- or automatically authored — is the deliberate
+  mapper's collaborative chain state — systems, connections, signatures, notes,
+  and map events, whether user- or automatically authored — is the deliberate
   Convex-native durability exception described in `docs/CONVEX.md`; do not
   generalize that exception to other data.
 - Convex trusts Better Auth JWT/JWKS identity. Gate every public map operation

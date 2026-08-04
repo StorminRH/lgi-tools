@@ -13,6 +13,10 @@ import {
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { MapRole } from '@/data/maps/access-contract';
+import {
+  MAP_EVENT_KINDS,
+  type MapEventKind,
+} from '@/data/maps/chain-events';
 
 /** Re-export the data-owned mass vocabulary for Convex-local callers. */
 export { CONNECTION_MASS_STATES, type ConnectionMassState };
@@ -61,6 +65,18 @@ const MAP_ROLE_LITERALS = {
   owner: v.literal('owner'),
 } as const satisfies Record<MapRole, unknown>;
 
+const MAP_EVENT_KIND_LITERALS = {
+  connection_severed_retained: v.literal('connection_severed_retained'),
+  branch_removed: v.literal('branch_removed'),
+  branch_restored: v.literal('branch_restored'),
+  connection_restored: v.literal('connection_restored'),
+} as const satisfies Record<MapEventKind, unknown>;
+
+// The runtime validator is deliberately bound to the data-owned tuple as well
+// as the type-level record above, so an accidental empty vocabulary cannot
+// silently leave the schema accepting a stale set.
+void MAP_EVENT_KINDS;
+
 /** Schema validator for observed mass state, null while still unobserved. */
 export const massStateValidator = v.union(
   MASS_STATE_LITERALS.stable,
@@ -98,6 +114,20 @@ export const mapRoleValidator = v.union(
   MAP_ROLE_LITERALS.viewer,
   MAP_ROLE_LITERALS.editor,
   MAP_ROLE_LITERALS.owner,
+);
+
+/** Schema validator for the data-owned basic map-event kind vocabulary. */
+export const mapEventKindValidator = v.union(
+  MAP_EVENT_KIND_LITERALS.connection_severed_retained,
+  MAP_EVENT_KIND_LITERALS.branch_removed,
+  MAP_EVENT_KIND_LITERALS.branch_restored,
+  MAP_EVENT_KIND_LITERALS.connection_restored,
+);
+
+/** Schema validator for the payload shapes written by the basic map-event ledger. */
+export const mapEventPayloadValidator = v.union(
+  v.object({ connectionId: v.string() }),
+  v.object({ connectionId: v.string(), systemIds: v.array(v.number()) }),
 );
 
 /** Schema validator for a canonical wormhole code, null while the type is unidentified. */
@@ -138,6 +168,27 @@ export interface ConnectionInput {
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
   readonly eolAt: number | null;
+  readonly deathEarliestAt?: number | null;
+  readonly deathLatestAt?: number | null;
+}
+
+/** The optional-normalized absolute death-window pair accepted at the boundary. */
+export interface DeathWindowInput {
+  readonly deathEarliestAt?: number | null;
+  readonly deathLatestAt?: number | null;
+}
+
+/** Requires a death window to be either wholly absent or ordered and finite. */
+export function validateDeathWindowInput(input: DeathWindowInput): void {
+  const earliest = input.deathEarliestAt ?? null;
+  const latest = input.deathLatestAt ?? null;
+  if ((earliest === null) !== (latest === null)) {
+    reject('INVALID_DEATH_WINDOW', 'Death-window timestamps must both be null or both be set.');
+  }
+  if (earliest === null || latest === null) return;
+  if (!Number.isFinite(earliest) || !Number.isFinite(latest) || earliest > latest) {
+    reject('INVALID_DEATH_WINDOW', 'Death-window timestamps must be finite and ordered.');
+  }
 }
 
 /**
@@ -156,6 +207,7 @@ export function validateConnectionInput(input: ConnectionInput): void {
     reject('INVALID_WORMHOLE_CODE', `Unknown wormhole code "${input.wormholeTypeCode}".`);
   }
   requireAbsoluteTimestamp('eolAt', input.eolAt);
+  validateDeathWindowInput(input);
 }
 
 /** The nullable knowledge fields the map shares about one signature. */

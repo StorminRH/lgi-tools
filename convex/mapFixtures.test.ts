@@ -159,6 +159,8 @@ describe('map chain fixtures', () => {
         mapAccess: ['mapId', 'roles', 'userId'],
         mapSystems: ['deletedAt', 'mapId', 'purgeAfter', 'systemId'],
         mapConnections: [
+          'deathEarliestAt',
+          'deathLatestAt',
           'deletedAt',
           'eolAt',
           'fromSystemId',
@@ -183,6 +185,7 @@ describe('map chain fixtures', () => {
         ],
         mapNotes: ['body', 'mapId', 'targetId', 'targetKind'],
         mapSignatureActivity: ['lastSeenAt', 'mapId', 'signatureId', 'systemId'],
+        mapEvents: ['actor', 'at', 'kind', 'mapId', 'payload', 'purgeAfter'],
       };
 
       for (const [tableName, fields] of Object.entries(expectedFields)) {
@@ -219,6 +222,10 @@ describe('map chain fixtures', () => {
         mapSignatureActivity: {
           by_map: ['mapId'],
           by_map_signature: ['mapId', 'systemId', 'signatureId'],
+        },
+        mapEvents: {
+          by_map: ['mapId', 'at'],
+          by_purge_after: ['purgeAfter'],
         },
       };
 

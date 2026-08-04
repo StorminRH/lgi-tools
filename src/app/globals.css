@@ -1138,6 +1138,23 @@ details[data-collapsible][open] > summary [data-chevron] {
   animation: map-fade-out var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
 }
 
+/* Dying (in-window tombstoned) connection: red pulsed line. Opacity bounds are
+ * owned here so reduced-motion can flatten to a steady dim red without JS. */
+@keyframes map-edge-dying-pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+.map-edge-dying {
+  stroke: var(--color-hostile);
+  --map-edge-dying-opacity: 0.45;
+  animation: map-edge-dying-pulse 1.6s ease-in-out infinite;
+}
+
 @keyframes map-edge-grow-enter {
   from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
@@ -1224,5 +1241,9 @@ details[data-collapsible][open] > summary [data-chevron] {
   }
   .map-edge-fade-exit-heavy {
     animation: map-fade-out var(--map-motion-slow) linear both;
+  }
+  .map-edge-dying {
+    animation: none;
+    opacity: var(--map-edge-dying-opacity, 0.45);
   }
 }

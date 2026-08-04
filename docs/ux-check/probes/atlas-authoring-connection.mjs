@@ -4,12 +4,9 @@ import {
   authoringMapId,
   authoringRoute,
   clickFirstEdge,
-  convexRun,
+  ensureJumpEdge,
   waitForEditableMap,
 } from '../lib/authoring-helpers.mjs';
-
-const FROM_SYSTEM_ID = 30_000_142; // Jita
-const TO_SYSTEM_ID = 30_000_144; // Perimeter
 
 export default {
   name: 'atlas-authoring-connection',
@@ -26,25 +23,7 @@ export default {
     }
 
     await waitForEditableMap(page);
-
-    if ((await page.locator('.react-flow__edge').count()) === 0) {
-      await convexRun('mapFixtures:placeJumpFixture', {
-        mapId,
-        fromSystemId: FROM_SYSTEM_ID,
-        toSystemId: TO_SYSTEM_ID,
-        wormholeTypeCode: null,
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-      });
-      await page.waitForFunction(
-        () => document.querySelectorAll('.react-flow__edge').length >= 1,
-        null,
-        { timeout: 30_000 },
-      );
-      await page.waitForTimeout(800);
-    }
-
+    await ensureJumpEdge(page, mapId);
     await clickFirstEdge(page);
     const card = page.locator('[data-map-connection-details]');
     check('connection details card mounts on edge click', await card.isVisible());
@@ -60,9 +39,11 @@ export default {
       'wormhole type search is present',
       (await page.getByPlaceholder('Type code — e.g. B274 or K162').count()) === 1,
     );
+    const shipSizeSelect = await page.getByRole('combobox', { name: 'Ship size' }).count();
+    const sizeLocked = await page.locator('[data-map-connection-size-locked]').count();
     check(
-      'ship size select is present',
-      (await page.getByRole('combobox', { name: 'Ship size' }).count()) === 1,
+      'ship size is an editable select or a locked codex readout',
+      shipSizeSelect === 1 || sizeLocked === 1,
     );
     check(
       'stability select is present',
@@ -71,6 +52,10 @@ export default {
     check(
       'life stage select is present',
       (await page.getByRole('combobox', { name: 'Life stage' }).count()) === 1,
+    );
+    check(
+      'sever control is present on the editable card',
+      (await page.locator('[data-map-connection-sever]').count()) === 1,
     );
 
     // Fresh fixture jumps land with null massState ("Unset"); a map reused
