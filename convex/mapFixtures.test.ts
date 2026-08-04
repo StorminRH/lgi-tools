@@ -157,12 +157,16 @@ describe('map chain fixtures', () => {
       // test failure rather than a silent I/O cost on every watched read.
       const expectedFields: Record<string, string[]> = {
         mapAccess: ['mapId', 'roles', 'userId'],
-        mapSystems: ['mapId', 'systemId'],
+        mapSystems: ['deletedAt', 'mapId', 'purgeAfter', 'systemId'],
         mapConnections: [
+          'deletedAt',
           'eolAt',
           'fromSystemId',
+          'lifeStage',
+          'lifeStageObservedAt',
           'mapId',
           'massState',
+          'purgeAfter',
           'shipSize',
           'toSystemId',
           'wormholeTypeCode',
@@ -195,8 +199,14 @@ describe('map chain fixtures', () => {
         mapSystems: {
           by_map: ['mapId'],
           by_map_system: ['mapId', 'systemId'],
+          by_purge_after: ['purgeAfter'],
         },
-        mapConnections: { by_map: ['mapId'] },
+        mapConnections: {
+          by_map: ['mapId'],
+          by_map_from: ['mapId', 'fromSystemId'],
+          by_map_to: ['mapId', 'toSystemId'],
+          by_purge_after: ['purgeAfter'],
+        },
         mapSignatures: {
           by_map: ['mapId'],
           by_map_signature: ['mapId', 'systemId', 'signatureId'],

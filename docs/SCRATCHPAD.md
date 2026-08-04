@@ -5,14 +5,22 @@
 
 ## Now
 
-- **CURRENT:** session 4.0.3.3.1 (overlay window framework) on `lifecycle/4.0.3.3`
-  at close-out: G-1 accepted 2026-08-03; delivery records frozen
-  (`APP_VERSION`/`changelog`/`roadmap` 4.0.3.3); design-review and adversarial
-  corrections absorbed (window layer off hot `nodes`, `surfaceKindOf`, summary
-  target owned by `deriveSurfaces`, shared `MIN_FLOATING_SIZE`/`DOCK_MODES`,
-  pointer-only resize grip). Disposable map
-  `/atlas?map=a6046063-ec8c-4b96-a240-cc3bbb1e7c16`.
-- **NEXT:** after merge, resolver advances to 4.0.4.1 via `start-session`.
+- **CURRENT:** session **4.0.4.1.1** paused mid-execution after **OW1+OW2** on
+  `lifecycle/4.0.4.1` (checkpoint commit; session not finished).
+- **OW1 done:** vocab / chain-contract / schema / validators (mass nullability,
+  lifeStage, soft-delete tombstones, purge indexes).
+- **OW2 done:** `mapAuthoring` + `mapChainCleanup` + tests (**48/48**),
+  gate-checker clean.
+- **NOT done:** OW3 client plumbing; OW4 authoring UI; OW5 ux-check / G-1; OW6
+  close-out.
+- **Plan:** `docs/session-plans/4.0/4.0.4.1.1.md` still **Execution status
+  Pending** — do **not** flip to Complete (session unfinished).
+- **NEXT:** resume `start-session` / continue ordered work at **OW3** (canEdit,
+  live-row filter, id-swap, optimistic). Then OW4 surfaces → OW5 G-1 pause →
+  OW6 close-out in planned mode (no PR; 4.0.4.1.2 opens PR).
+- **Key paths:** `docs/session-plans/4.0/4.0.4.1.1.md`,
+  `docs/session-contracts/4.0/4.0.4.1.1.md`, `convex/mapAuthoring.ts`,
+  `src/data/maps/chain-contract.ts`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
   array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must

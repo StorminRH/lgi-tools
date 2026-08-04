@@ -5,16 +5,19 @@
 // the eve-data reference core rather than re-declared here.
 import { ConvexError, v } from 'convex/values';
 import {
+  CONNECTION_MASS_STATES,
   isWormholeTypeCode,
+  WORMHOLE_LIFE_STAGES,
+  type ConnectionMassState,
+  type WormholeLifeStage,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { MapRole } from '@/data/maps/access-contract';
 
-/** Observed mass state of one wormhole connection. */
-export const CONNECTION_MASS_STATES = ['stable', 'reduced', 'critical'] as const;
-
-/** One observed connection mass state. */
-export type ConnectionMassState = (typeof CONNECTION_MASS_STATES)[number];
+/** Re-export the data-owned mass vocabulary for Convex-local callers. */
+export { CONNECTION_MASS_STATES, type ConnectionMassState };
+/** Re-export the data-owned life-stage vocabulary for Convex-local callers. */
+export { WORMHOLE_LIFE_STAGES, type WormholeLifeStage };
 
 /** The kinds of chain object a note may be attached to. */
 export const NOTE_TARGET_KINDS = ['map', 'system', 'signature'] as const;
@@ -31,6 +34,13 @@ const MASS_STATE_LITERALS = {
   reduced: v.literal('reduced'),
   critical: v.literal('critical'),
 } as const satisfies Record<ConnectionMassState, unknown>;
+
+const LIFE_STAGE_LITERALS = {
+  under_1_day: v.literal('under_1_day'),
+  under_4_hours: v.literal('under_4_hours'),
+  under_1_hour: v.literal('under_1_hour'),
+  expired: v.literal('expired'),
+} as const satisfies Record<WormholeLifeStage, unknown>;
 
 const NOTE_TARGET_KIND_LITERALS = {
   map: v.literal('map'),
@@ -51,12 +61,28 @@ const MAP_ROLE_LITERALS = {
   owner: v.literal('owner'),
 } as const satisfies Record<MapRole, unknown>;
 
-/** Schema validator for the observed connection mass state. */
+/** Schema validator for observed mass state, null while still unobserved. */
 export const massStateValidator = v.union(
   MASS_STATE_LITERALS.stable,
   MASS_STATE_LITERALS.reduced,
   MASS_STATE_LITERALS.critical,
+  v.null(),
 );
+
+/** Schema validator for a Reliable Lifetime bucket, null while still unset. */
+export const lifeStageValidator = v.union(
+  LIFE_STAGE_LITERALS.under_1_day,
+  LIFE_STAGE_LITERALS.under_4_hours,
+  LIFE_STAGE_LITERALS.under_1_hour,
+  LIFE_STAGE_LITERALS.expired,
+  v.null(),
+);
+
+/**
+ * Optional normalized tombstone stamp. Existing live rows may omit the field;
+ * active rows may store explicit null; tombstoned rows store a finite number.
+ */
+export const optionalTimestampValidator = v.optional(v.union(v.number(), v.null()));
 
 /** Schema validator for a connection's shipped size, null while still unknown. */
 export const shipSizeValidator = v.union(
@@ -109,7 +135,7 @@ export interface ConnectionInput {
   readonly fromSystemId: number;
   readonly toSystemId: number;
   readonly wormholeTypeCode: string | null;
-  readonly massState: ConnectionMassState;
+  readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
   readonly eolAt: number | null;
 }

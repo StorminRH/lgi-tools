@@ -10,6 +10,31 @@ export const WORMHOLE_SIZE_CLASSES = ['S', 'M', 'L', 'XL'] as const;
 export type WormholeSizeClass = (typeof WORMHOLE_SIZE_CLASSES)[number];
 
 /**
+ * Observed mass-stability vocabulary for one wormhole connection. Null on a
+ * stored row means "not yet observed" and is outside this tuple — freshness is
+ * a human observation, never a fabricated default.
+ */
+export const CONNECTION_MASS_STATES = ['stable', 'reduced', 'critical'] as const;
+
+/** One observed connection mass state. */
+export type ConnectionMassState = (typeof CONNECTION_MASS_STATES)[number];
+
+/**
+ * Current in-game Reliable Lifetime buckets for a wormhole connection. Null on
+ * a stored row means unset; the four literals match show-info wording
+ * (less than 1 day / less than 4 hours / less than 1 hour / expired).
+ */
+export const WORMHOLE_LIFE_STAGES = [
+  'under_1_day',
+  'under_4_hours',
+  'under_1_hour',
+  'expired',
+] as const;
+
+/** One observed wormhole life-stage bucket. */
+export type WormholeLifeStage = (typeof WORMHOLE_LIFE_STAGES)[number];
+
+/**
  * The far-side wormhole code. K162 is a real code with its own signature identity — it is never a
  * stand-in for an unidentified wormhole, which stores a null type code instead.
  */
