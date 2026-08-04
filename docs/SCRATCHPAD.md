@@ -5,22 +5,22 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.1.1** paused mid-execution after **OW1–OW4** on
-  `lifecycle/4.0.4.1` (checkpoint commit; session not finished).
-- **OW1–OW3 done:** schema/mutations/client plumbing (prior checkpoints).
-- **OW4 done:** `src/mapper/authoring/` (HomePrompt, NodeAddMenu,
-  ConnectionDetailsCard, rights toast); `follower-model` edge-midpoint;
-  `PointerMenu` house wrapper; `systemsComplete` + `connectionDetails` on
-  `useMapChain`; focused tests **172** + gate-checker clean + `tsc` clean.
-- **NOT done:** OW5 ux-check / G-1; OW6 close-out.
-- **Plan:** `docs/session-plans/4.0/4.0.4.1.1.md` still **Execution status
-  Pending** — do **not** flip to Complete (session unfinished).
-- **NEXT:** OW5 two-client demo + `ux-check` → **G-1 operator pause** before
-  any final UI commit; then OW6 close-out in planned mode (no PR;
-  4.0.4.1.2 opens PR).
+- **CURRENT:** session **4.0.4.1.1** paused for **G-1 operator browser
+  review** on `lifecycle/4.0.4.1`. Plan **Execution status Pending**.
+- **OW1–OW5 evidence committed** (probes + `map:project-access` + verify
+  green). Automated OW5 suite was **7/7**; signed-out `/atlas` sweep clean.
+- **Local review maps:** blank home
+  `4f5dd5e0-97f4-42c2-97aa-2fee04756665`; populated demo (after restore)
+  `4f47c80a-c40b-4795-8831-faa4c7c41426`.
+- **Probe gotcha:** edge-anchored card selects can sit outside the CSS
+  viewport after camera settle — open/choose via DOM events scoped to
+  `[data-map-window="connection-details"]`. Revoke/restore uses
+  `pnpm map:project-access`.
+- **NEXT:** operator G-1 accept/reject → OW6 close-out (planned mode, push,
+  no PR; 4.0.4.1.2 opens PR).
 - **Key paths:** `docs/session-plans/4.0/4.0.4.1.1.md`,
   `docs/session-contracts/4.0/4.0.4.1.1.md`, `src/mapper/authoring/`,
-  `src/mapper/chain/ChainHost.tsx`, `src/mapper/windows/follower-model.ts`.
+  `docs/ux-check/probes/atlas-authoring-*.mjs`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
   array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must

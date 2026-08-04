@@ -46,6 +46,7 @@
     "profile:sites-suite": "node scripts/profile-sites-suite.mjs",
     "ux-check": "node scripts/ux-capture.mjs",
     "map:replay": "tsx --conditions=react-server src/scripts/map-replay.ts",
+    "map:project-access": "tsx --conditions=react-server src/scripts/project-map-access.ts",
     "verify:site-routes": "node scripts/verify-site-detail-routes.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
