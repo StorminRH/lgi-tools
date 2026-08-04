@@ -520,16 +520,24 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
         violations.append("Contract UX gate must match the contract marker")
     if ux_gate == "Yes":
         ordered_work = bodies.get("Implementation blueprint", "")
-        # Schema requires the dedicated UX step under ### Ordered work.
+        # Schema requires a numbered dedicated UX step under ### Ordered work.
         ordered_section = re.search(
             r"^### Ordered work\s*\n([\s\S]*?)(?=^## |\Z)",
             ordered_work,
             re.MULTILINE,
         )
         ordered_body = ordered_section.group(1) if ordered_section else ""
-        if not re.search(r"\bux-check\b", ordered_body):
+        ux_steps = [
+            match.group(0)
+            for match in re.finditer(r"^\d+\.\s+\S.+$", ordered_body, re.MULTILINE)
+            if re.search(r"\bux-check\b", match.group(0))
+        ]
+        if not ux_steps or not any(
+            re.search(r"(?:\bdisposition\b|\bG-\d+\b)", step) for step in ux_steps
+        ):
             violations.append(
-                "Ordered work must include a dedicated ux-check step when Contract UX gate is Yes"
+                "Ordered work must include a dedicated numbered ux-check step "
+                "with operator disposition or G-N when Contract UX gate is Yes"
             )
     if not re.search(r"^\*\*Branch:\*\*\s+\S.+\*\*ends in PR:\*\*\s+(?:yes|no)\s+·\s+\*\*gate:\*\*\s+\S", text, re.MULTILINE | re.IGNORECASE):
         violations.append("Bottom line must contain the exact Branch / ends in PR / gate marker")

@@ -33,6 +33,7 @@ Portable evidence roles referenced by living guides and workflows:
 ```text
 Repository map:
 - Scope: <relationship question and known entry symbols/paths>
+- Index: <Codegraph status/sync result, or Not run — reason>
 - Owners: <path or symbol -> responsibility>
 - Execution flow: <ordered call/render path through the assigned symbols>
 - Load-bearing source:
@@ -44,10 +45,12 @@ Repository map:
 - Evidence: <repository-relative paths and symbols>
 ```
 
-Include only relationship-relevant symbols. Treat source returned by Codegraph
-CLI relationship queries (`callers`, `callees`, `impact`, `query`) as already
-Read unless a staleness or index-gap notice names a file. Do not include raw
-CLI transcripts, complete file inventories, or a conceptual discovery tour.
+Include only relationship-relevant symbols. Run Codegraph `status`/`sync` when
+the index may be stale, and record that result in `Index` before treating
+relationship excerpts as Read. Treat source returned by Codegraph CLI
+relationship queries (`callers`, `callees`, `impact`, `query`) as already Read
+unless a staleness or index-gap notice names a file. Do not include raw CLI
+transcripts, complete file inventories, or a conceptual discovery tour.
 `repo-mapper` is not for ordinary discovery — the parent uses Explore, semantic
 search, and grep for that. Documentation questions hand off to
 `docs-researcher`.

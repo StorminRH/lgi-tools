@@ -41,8 +41,11 @@ Select exactly one review mode:
   or outward-action authority.
 
 Return `BLOCKED` when the subject is incomplete or changes during review,
-authority is ambiguous, subagents are unavailable, a selected reviewer
-does not return a verdict, or load-bearing evidence cannot be established.
+authority is ambiguous, a selected reviewer does not return a verdict, or
+load-bearing evidence cannot be established. In Plan and PR modes, unavailable
+subagents also return `BLOCKED`. Diff mode instead performs the same design
+judgment directly when subagents are unavailable (see Launch subagents); their
+absence never waives Diff parent duties or changes the result standard.
 When the operator explicitly requires exact runtime identity for an experiment,
 an identity mismatch or an unobservable identity also returns `BLOCKED`.
 
@@ -315,9 +318,10 @@ mode.
 - **Blocker:** <exact blocker or `None`>
 ```
 
-Return Diff `PASS` only when no unresolved `FIXED`-pending or `BLOCKED`
-finding remains, Diff parent evidence is complete, any affected baseline state
-is current, and Design notes are ready or explicitly deferred for a non-final
-handoff. A `PASS` returns control to the caller; it does not itself authorize
-PR creation. Keep as-built receipts labeled `**Adversarial review:**` for
-resolver compatibility.
+Return Diff `PASS` only when every accepted finding is `FIXED` or `DEFERRED`,
+no `BLOCKED` finding remains, Diff parent evidence is complete, any affected
+baseline state is current, and Design notes are ready or explicitly deferred
+for a non-final handoff. `DEFERRED` findings require their backlog entry and
+Design-notes disposition. A `PASS` returns control to the caller; it does not
+itself authorize PR creation. Keep as-built receipts labeled
+`**Adversarial review:**` for resolver compatibility.
