@@ -1,6 +1,7 @@
 'use client';
 
 import { useId } from 'react';
+import { Button } from '@/components/ui/button';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import {
   useSystemSearch,
@@ -57,18 +58,18 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
           onClear={() => undefined}
           errorLabel="System"
         />
-        <button
+        <Button
           type="button"
+          variant="secondary"
           disabled
           data-map-home-current-disabled
-          className="flex w-full cursor-not-allowed flex-col items-start gap-0.5 border border-border-soft px-3 py-2 text-left opacity-50"
-          title="Requires live location tracking"
+          className="flex h-auto w-full flex-col items-start gap-0.5 px-3 py-2 text-left"
         >
-          <span className="font-ui text-nav text-muted">Use current system</span>
+          <span className="font-ui text-nav">Use current system</span>
           <span className="font-data text-micro text-faint">
             Requires live tracking · arrives in 4.0.4.2
           </span>
-        </button>
+        </Button>
       </section>
     </div>
   );

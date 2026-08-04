@@ -400,7 +400,7 @@ export function useMapChain(
         intents: [],
       }));
     },
-    [],
+    [setMerge],
   );
 
   const releasePlacements = useCallback(() => {
@@ -409,7 +409,7 @@ export function useMapChain(
       intents: [],
     }));
     setLayoutRevision((revision) => revision + 1);
-  }, []);
+  }, [setMerge, setLayoutRevision]);
 
   return {
     access,

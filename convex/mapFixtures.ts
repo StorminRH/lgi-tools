@@ -26,7 +26,6 @@ import {
 } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
 import {
-  isPositiveId,
   massStateValidator,
   mergeSignatureKnowledge,
   noteTargetKindValidator,
@@ -37,6 +36,11 @@ import {
   wormholeTypeCodeValidator,
   type NoteTargetKind,
 } from './lib/mapEntityContracts';
+import {
+  beginSystemEdit,
+  findSystem,
+  requireSystemId,
+} from './lib/mapSystemLookup';
 import {
   purgeExpiredSignatures,
   SIGNATURE_PURGE_BATCH,
@@ -101,6 +105,18 @@ export const readMapCollection = query({
   },
 });
 
+/** Idempotent by_map_system upsert after edit gate + id validation. */
+async function upsertSystemDoc(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+) {
+  await beginSystemEdit(ctx, mapId, systemId);
+  const existing = await findSystem(ctx, mapId, systemId);
+  if (existing !== null) return existing._id;
+  return await ctx.db.insert('mapSystems', { mapId, systemId });
+}
+
 /**
  * Places one system on one map, returning the document ID either way.
  *
@@ -111,33 +127,8 @@ export const readMapCollection = query({
  */
 export const upsertSystem = mutation({
   args: { mapId: v.string(), systemId: v.number() },
-  handler: async (ctx, { mapId, systemId }) => {
-    await requireMapAccess(ctx, mapId, 'edit');
-    requireSystemId(systemId);
-
-    const existing = await findSystem(ctx, mapId, systemId);
-    if (existing !== null) return existing._id;
-    return await ctx.db.insert('mapSystems', { mapId, systemId });
-  },
+  handler: (ctx, { mapId, systemId }) => upsertSystemDoc(ctx, mapId, systemId),
 });
-
-/** Rejects a system ID that is not a positive safe integer. */
-function requireSystemId(systemId: number): void {
-  if (!isPositiveId(systemId)) {
-    throw new ConvexError({
-      code: 'INVALID_SYSTEM_ID',
-      detail: 'A system ID must be a positive safe integer.',
-    });
-  }
-}
-
-/** The one indexed map/system lookup shared by every fixture that must prove system ownership. */
-function findSystem(ctx: MutationCtx, mapId: string, systemId: number) {
-  return ctx.db
-    .query('mapSystems')
-    .withIndex('by_map_system', (q) => q.eq('mapId', mapId).eq('systemId', systemId))
-    .unique();
-}
 
 /**
  * Internal CLI-callable system placement: `upsertSystem`'s id validation and

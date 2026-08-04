@@ -243,6 +243,26 @@ export function optimisticRestoreConnection(
   });
 }
 
+/** Optimistically patches life stage and stamps observation time on change. */
+export function optimisticSetConnectionLifeStage(
+  localStore: OptimisticLocalStore,
+  args: {
+    mapId: string;
+    connectionId: string;
+    value: WormholeLifeStage | null;
+  },
+  now = Date.now(),
+): void {
+  optimisticPatchConnection(localStore, {
+    mapId: args.mapId,
+    connectionId: args.connectionId,
+    patch: {
+      lifeStage: args.value,
+      lifeStageObservedAt: args.value === null ? null : now,
+    },
+  });
+}
+
 type ConnectionFieldArgs = {
   mapId: string;
   connectionId: string;
@@ -290,16 +310,7 @@ export function useChainAuthoringMutations() {
     ).withOptimisticUpdate(optimisticConnectionField('massState')),
     setConnectionLifeStage: useMutation(
       api.mapAuthoring.setConnectionLifeStage,
-    ).withOptimisticUpdate((localStore, args) => {
-      optimisticPatchConnection(localStore, {
-        mapId: args.mapId,
-        connectionId: args.connectionId,
-        patch: {
-          lifeStage: args.value,
-          lifeStageObservedAt: args.value === null ? null : Date.now(),
-        },
-      });
-    }),
+    ).withOptimisticUpdate(optimisticSetConnectionLifeStage),
     tombstoneSystem: useMutation(
       api.mapAuthoring.tombstoneSystem,
     ).withOptimisticUpdate(optimisticTombstoneSystem),

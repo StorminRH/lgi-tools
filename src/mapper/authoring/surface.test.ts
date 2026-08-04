@@ -45,12 +45,12 @@ describe('authoring surface inspection', () => {
     expect(home).toContain('Requires live tracking');
   });
 
-  it('wires unset stability into the connection card', () => {
-    const card = sourceOf('ConnectionDetailsCard.tsx');
-    expect(card).toContain("label: 'Unset'");
-    expect(card).toContain('massState');
-    expect(card).toContain('lifeStage');
-    expect(card).toContain('shipSize');
-    expect(card).toContain('wormholeType');
+  it('wires unset stability into the connection fields form', () => {
+    const fields = sourceOf('connection-fields.tsx');
+    expect(fields).toContain("label: 'Unset'");
+    expect(fields).toContain('massState');
+    expect(fields).toContain('lifeStage');
+    expect(fields).toContain('shipSize');
+    expect(fields).toContain('wormholeType');
   });
 });

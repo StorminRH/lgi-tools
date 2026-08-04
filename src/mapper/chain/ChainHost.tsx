@@ -259,20 +259,18 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     });
   }, []);
 
+  // Stale ids (tombstone / optimistic rollback) drop out of the live map; clear
+  // during render so the card unmounts without an effect setState.
+  if (
+    selectedConnectionId !== null &&
+    !connectionDetails.has(selectedConnectionId)
+  ) {
+    setSelectedConnectionId(null);
+  }
   const selectedConnection =
     selectedConnectionId === null
       ? null
       : (connectionDetails.get(selectedConnectionId) ?? null);
-
-  // Drop a stale card when the connection leaves the live set (tombstone / rollback).
-  useEffect(() => {
-    if (
-      selectedConnectionId !== null &&
-      !connectionDetails.has(selectedConnectionId)
-    ) {
-      setSelectedConnectionId(null);
-    }
-  }, [connectionDetails, selectedConnectionId]);
 
   const showHomePrompt =
     canEdit === true && systemsComplete && state.systems.size === 0;

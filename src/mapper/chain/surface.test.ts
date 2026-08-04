@@ -110,6 +110,7 @@ describe('mapper source contract', () => {
       'authoring/HomePrompt.tsx',
       'authoring/NodeAddMenu.tsx',
       'authoring/RightsTransitionToast.tsx',
+      'authoring/connection-fields.tsx',
       'authoring/rights-transition.ts',
       'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',

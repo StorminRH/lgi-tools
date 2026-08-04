@@ -102,36 +102,18 @@ const BROWSER_SCHEDULER: FollowerScheduler = {
 };
 
 /**
- * Applies a moving node's screen transform through CSSOM without subscribing React to hot state.
- * The returned disposer is idempotent and cancels both the store listener and queued frame.
+ * Shared rAF-coalesced store subscription for node and edge followers.
+ * Arms synchronously so the card cannot paint at the layer origin.
  */
-export function createNodeFollower(
+function armFollower(
   store: NodeFollowerStore,
-  anchorId: string,
-  write: (transform: string) => void,
-  scheduler: FollowerScheduler = BROWSER_SCHEDULER,
+  evaluate: (state: FollowerState) => void,
+  scheduler: FollowerScheduler,
 ): () => void {
-  let baseline: FollowerBaseline | null = null;
   let frame: number | null = null;
   let latest = store.getState();
   let disposed = false;
 
-  const evaluate = (state: FollowerState) => {
-    if (state.domNode === null) return;
-    const anchor = state.nodeLookup.get(anchorId);
-    const decision = computeFollowerTransform(
-      baseline,
-      anchorId,
-      state.transform,
-      anchor,
-      anchor !== undefined,
-    );
-    if (decision === null) return;
-    baseline = decision.baseline;
-    write(decision.transform);
-  };
-
-  // Arm synchronously so the card cannot paint at the layer origin.
   evaluate(latest);
 
   const unsubscribe = store.subscribe((state) => {
@@ -150,6 +132,37 @@ export function createNodeFollower(
     if (frame !== null) scheduler.cancel(frame);
     frame = null;
   };
+}
+
+/**
+ * Applies a moving node's screen transform through CSSOM without subscribing React to hot state.
+ * The returned disposer is idempotent and cancels both the store listener and queued frame.
+ */
+export function createNodeFollower(
+  store: NodeFollowerStore,
+  anchorId: string,
+  write: (transform: string) => void,
+  scheduler: FollowerScheduler = BROWSER_SCHEDULER,
+): () => void {
+  let baseline: FollowerBaseline | null = null;
+  return armFollower(
+    store,
+    (state) => {
+      if (state.domNode === null) return;
+      const anchor = state.nodeLookup.get(anchorId);
+      const decision = computeFollowerTransform(
+        baseline,
+        anchorId,
+        state.transform,
+        anchor,
+        anchor !== undefined,
+      );
+      if (decision === null) return;
+      baseline = decision.baseline;
+      write(decision.transform);
+    },
+    scheduler,
+  );
 }
 
 interface EdgeFollowerBaseline {
@@ -249,42 +262,23 @@ export function createEdgeFollower(
   scheduler: FollowerScheduler = BROWSER_SCHEDULER,
 ): () => void {
   let baseline: EdgeFollowerBaseline | null = null;
-  let frame: number | null = null;
-  let latest = store.getState();
-  let disposed = false;
-
-  const evaluate = (state: FollowerState) => {
-    if (state.domNode === null) return;
-    const decision = computeEdgeFollowerTransform(
-      baseline,
-      fromId,
-      toId,
-      state.transform,
-      state.nodeLookup.get(fromId),
-      state.nodeLookup.get(toId),
-      radius,
-    );
-    if (decision === null) return;
-    baseline = decision.baseline;
-    write(decision.transform);
-  };
-
-  evaluate(latest);
-
-  const unsubscribe = store.subscribe((state) => {
-    latest = state;
-    if (frame !== null) return;
-    frame = scheduler.schedule(() => {
-      frame = null;
-      if (!disposed) evaluate(latest);
-    });
-  });
-
-  return () => {
-    if (disposed) return;
-    disposed = true;
-    unsubscribe();
-    if (frame !== null) scheduler.cancel(frame);
-    frame = null;
-  };
+  return armFollower(
+    store,
+    (state) => {
+      if (state.domNode === null) return;
+      const decision = computeEdgeFollowerTransform(
+        baseline,
+        fromId,
+        toId,
+        state.transform,
+        state.nodeLookup.get(fromId),
+        state.nodeLookup.get(toId),
+        radius,
+      );
+      if (decision === null) return;
+      baseline = decision.baseline;
+      write(decision.transform);
+    },
+    scheduler,
+  );
 }

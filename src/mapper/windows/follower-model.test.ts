@@ -152,7 +152,7 @@ describe('edge follower model', () => {
   });
 
   it('arms immediately and stops after dispose', () => {
-    let current: FollowerState = {
+    const current: FollowerState = {
       domNode: {} as HTMLElement,
       transform: [0, 0, 1],
       nodeLookup: new Map([
