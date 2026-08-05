@@ -268,4 +268,40 @@ export default defineSchema({
     // by_map_signature, and no payload query reads this table at all.
     .index('by_map', ['mapId'])
     .index('by_map_signature', ['mapId', 'systemId', 'signatureId']),
+
+  // ── v4.0.4.2.1 tracked location (live map state, not chain) ─────────────────
+  //
+  // Per-(map, character) opt-in registry. Live map state, not a chain document:
+  // viewers join through this table to the per-character location payload below.
+  // Revocation and map teardown cascade deletes here inside reconcileMapClaims;
+  // account/character purge hits POST /purge-location-tracking.
+  mapTracking: defineTable({
+    mapId: v.string(),
+    userId: v.string(),
+    characterId: v.number(),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_user', ['mapId', 'userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // One document per character — not per map — carrying current system,
+  // docked station/structure, ship type, previous system, sample continuity, and
+  // ETags. Viewers join through mapTracking, so one movement is one write
+  // regardless of how many maps track the character. Chain tables never gain
+  // location fields (HC-3).
+  characterLocation: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    solarSystemId: v.number(),
+    stationId: v.union(v.number(), v.null()),
+    structureId: v.union(v.number(), v.null()),
+    shipTypeId: v.union(v.number(), v.null()),
+    prevSolarSystemId: v.union(v.number(), v.null()),
+    prevFresh: v.boolean(),
+    observedAt: v.number(),
+    etagLocation: v.union(v.string(), v.null()),
+    etagShip: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
 });

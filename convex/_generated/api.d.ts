@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as characterLocation from "../characterLocation.js";
 import type * as crons from "../crons.js";
 import type * as engine from "../engine.js";
 import type * as http from "../http.js";
@@ -23,6 +24,7 @@ import type * as mapAccessProjection from "../mapAccessProjection.js";
 import type * as mapAuthoring from "../mapAuthoring.js";
 import type * as mapChain from "../mapChain.js";
 import type * as mapFixtures from "../mapFixtures.js";
+import type * as mapTracking from "../mapTracking.js";
 import type * as onlineStatus from "../onlineStatus.js";
 import type * as onlineStatusSync from "../onlineStatusSync.js";
 
@@ -33,6 +35,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  characterLocation: typeof characterLocation;
   crons: typeof crons;
   engine: typeof engine;
   http: typeof http;
@@ -48,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   mapAuthoring: typeof mapAuthoring;
   mapChain: typeof mapChain;
   mapFixtures: typeof mapFixtures;
+  mapTracking: typeof mapTracking;
   onlineStatus: typeof onlineStatus;
   onlineStatusSync: typeof onlineStatusSync;
 }>;

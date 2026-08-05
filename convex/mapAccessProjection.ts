@@ -105,6 +105,32 @@ async function deleteClaimRows(
   return deleted;
 }
 
+/** Deletes every mapTracking row for one user on one map (revocation cascade). */
+async function deleteTrackingForUser(
+  ctx: MutationCtx,
+  mapId: string,
+  userId: string,
+): Promise<void> {
+  const rows = await ctx.db
+    .query('mapTracking')
+    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
+    .collect();
+  for (const row of rows) {
+    await ctx.db.delete(row._id);
+  }
+}
+
+/** Full-map tracking sweep used when claims: [] tears the map down. */
+async function deleteAllTrackingForMap(ctx: MutationCtx, mapId: string): Promise<void> {
+  const rows = await ctx.db
+    .query('mapTracking')
+    .withIndex('by_map', (q) => q.eq('mapId', mapId))
+    .collect();
+  for (const row of rows) {
+    await ctx.db.delete(row._id);
+  }
+}
+
 /**
  * Converges the mapAccess table to exactly the stated claim set for one map:
  * inserts missing rows, replaces rows whose ordered roles differ, deletes rows
@@ -150,7 +176,18 @@ export const reconcileMapClaims = internalMutation({
       unchanged += delta.unchanged;
     }
 
+    // Revocation cascade: drop tracking for every user leaving the claim set.
+    // Full map teardown (desired empty) also sweeps any orphaned tracking rows
+    // that never had a claim, so the map purge door empties mapTracking.
+    const revokedUserIds = [...byUser.keys()];
     deleted += await deleteClaimRows(ctx, byUser.values());
+    if (desired.size === 0) {
+      await deleteAllTrackingForMap(ctx, mapId);
+    } else {
+      for (const userId of revokedUserIds) {
+        await deleteTrackingForUser(ctx, mapId, userId);
+      }
+    }
     return { inserted, updated, deleted, unchanged };
   },
 });

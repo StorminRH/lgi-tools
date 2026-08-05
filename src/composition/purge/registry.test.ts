@@ -89,6 +89,14 @@ describe('purge registry gate', () => {
     expect(NON_NEON_HOMES.some((h) => h.home === 'convex:characterOnline')).toBe(true);
   });
 
+  it('the location-tracking Convex homes are explicitly accounted for', () => {
+    expect(NON_NEON_HOMES.some((h) => h.home === 'convex:characterLocation')).toBe(true);
+    expect(NON_NEON_HOMES.some((h) => h.home === 'convex:mapTracking')).toBe(true);
+    expect(
+      PURGE_CONTRIBUTORS.some((contributor) => contributor.name === 'location-tracking'),
+    ).toBe(true);
+  });
+
   // The gate's red path, proven on a synthetic schema so it stands independent of
   // the live tables: an unclaimed user-data table MUST surface; claimed/retained
   // tables MUST NOT.

@@ -13,20 +13,27 @@
   `lifecycle/4.0.4.2` (tracked location and jump classification). Plan
   `docs/session-plans/4.0/4.0.4.2.1.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.1.md`.
-- **OW progress:** `1/6 complete` — next: Tracking registry, location
-  table, and teardown.
+- **OW progress:** `2/6 complete` — next: The location dataset on the
+  engine.
 - **OW completed:**
   - OW1 Scopes and eligibility — `EVE_SCOPES` → 14 (added
     `read_location` / `read_ship_type`); glosses flipped Active;
     `src/data/location-tracking/sync-eligibility.ts` + pin tests; focused
     49/49 + verify green.
+  - OW2 Tracking registry, location table, and teardown —
+    `mapTracking`/`characterLocation` tables; gated `setTracking`/`forMap`;
+    revocation + map-teardown cascade in `reconcileMapClaims`;
+    `POST /purge-location-tracking` + contributor + `NON_NEON_HOMES`;
+    focused 41/41 + verify green.
 - **Next-agent notes:** (1) Eligibility is per-character via
   `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
   already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
   (`ONLINE_SYNC_SCOPES` stays separate). (3) G-1 scopes were enabled on
-  the EVE app 2026-08-04; re-confirm only at Delivery. (4) OW2 owns
-  `mapTracking` / `characterLocation` tables, revocation cascade, and
-  purge door — chain tables stay untouched.
+  the EVE app 2026-08-04; re-confirm only at Delivery. (4) `forMap` joins
+  location strictly by the tracking row's own `(userId, characterId)` —
+  never `characterId` alone. (5) OW3 owns engine dataset registration,
+  sync action/apply, ESI registry/`CONVEX_ESI_HOMES` — chain tables stay
+  untouched; stock 30s cadence only (5s chain-on-success is OW4).
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
   add-from-node / connection card), codex connection intelligence, death-window
   lifetime model, mass layers 1+3, unified sever/collapse pathway with
