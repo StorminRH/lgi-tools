@@ -84,6 +84,10 @@ export default function RootLayout({
          * layer behind every route. Reuses the approved landing recipe (see
          * .page-backdrop in globals.css); purely decorative, reads nothing. */}
         <div className="page-backdrop" aria-hidden="true" />
+        {/* Sitewide film grain — the fixed full-viewport counterpart ABOVE
+         * all content (see .page-grain in globals.css); purely decorative,
+         * pointer-transparent, reads nothing. */}
+        <div className="page-grain" aria-hidden="true" />
         <AuthProvider>
           {/* Autosave preferences (F4): reads the session to pick the localStorage
            * (anon) vs Neon (logged-in) tier, so it sits inside AuthProvider. */}

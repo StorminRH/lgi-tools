@@ -262,6 +262,10 @@
   --z-index-sticky: 10;
   --z-index-dropdown: 40;
   --z-index-overlay: 50;
+  /* The sitewide film-grain layer (.page-grain) sits ABOVE overlay chrome on
+   * purpose: the texture reads as a property of the screen, so dialogs and
+   * dropdowns stay under the same grain as the page behind them. */
+  --z-index-grain: 60;
   --spacing-icon-xs: 12px;
   --spacing-icon-sm: 14px;
   --spacing-icon-md: 18px;
@@ -441,6 +445,68 @@ a:hover {
   background-size: auto, auto, auto, auto, cover;
   background-position: center, center, center, center, center;
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+}
+
+/* ── Sitewide film grain (.page-grain) ───────────────────────────────────
+ * A fixed full-viewport noise texture ABOVE all content (mounted next to
+ * .page-backdrop in layout.tsx) — the "screen" half of the glass-and-grain
+ * treatment. The texture is a static 256px SVG feTurbulence tile
+ * (stitchTiles='stitch' makes it seamless); the grain's intensity is baked
+ * into the SVG rect's opacity so the element itself needs no CSS opacity —
+ * an element-level opacity would force an extra composited layer on every
+ * frame. pointer-events: none keeps it purely decorative; z-grain (60) puts
+ * it over dialogs so the whole screen shares one texture. Tune intensity by
+ * editing the rect's opacity value (0.04). */
+.page-grain {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-index-grain);
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* ── Glass surfaces (glass-panel / glass-chrome) ─────────────────────────
+ * The shared frosted-surface recipe: a color-mix tint of the deep well over
+ * `backdrop-filter: blur() saturate()`, driven by the two :root --glass-*
+ * knobs below so density/blur tune in ONE place. Two tiers on the T3-style
+ * rationale that elevated popups need a denser tint than ambient chrome:
+ *   glass-panel  (80%) — floating popups (Select/Menu/Popover/Tooltip via
+ *                        panelSurface in dropdown-panel.ts); dense enough
+ *                        that high-contrast page content never blooms
+ *                        through menu text.
+ *   glass-chrome (65%) — in-map ambient chrome (mapFrostedSurface), where
+ *                        seeing the map move underneath is the point.
+ * @utility (not plain classes) so variants compose and consumer bg-*
+ * overrides stay in the utilities layer. -webkit-backdrop-filter is written
+ * by hand here — Tailwind only auto-prefixes its own utilities — and the
+ * nested @supports collapses each tier to the opaque well on engines with
+ * no backdrop-filter, matching the pre-glass look. Backdrop-filter gotcha
+ * for consumers: an ancestor with filter, fractional opacity, mask, or
+ * clip-path becomes a "backdrop root" and silently scopes the frost. */
+@utility glass-panel {
+  background: color-mix(in oklab, var(--color-bg-deep) 80%, transparent);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background: var(--color-bg-deep);
+  }
+}
+@utility glass-chrome {
+  background: color-mix(in oklab, var(--color-bg-deep) 65%, transparent);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background: var(--color-bg-deep);
+  }
+}
+/* Plain :root (not @theme) — these are shared knobs, not utility-generating
+ * tokens. Saturation slightly >1 keeps the ISK-green accents alive through
+ * the frost instead of washing gray. */
+:root {
+  --glass-blur: 12px;
+  --glass-saturate: 1.1;
 }
 
 /* ── Hover bob (reusable) ────────────────────────────────────────────────
@@ -917,6 +983,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   body > footer,
   body > a[href="/feedback"],
   .page-backdrop,
+  .page-grain,
   .no-print,
   button {
     display: none !important;
