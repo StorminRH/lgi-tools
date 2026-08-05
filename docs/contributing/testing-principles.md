@@ -69,6 +69,11 @@ When trimming:
    (unless explicitly planned-unused and inventoried), skipped/dead helpers,
    and comment banners that only narrate session chronology (`4.0.x`, `OWn`,
    `HC-n`) rather than a durable why.
+6. "Covered elsewhere" only counts when the other coverage actually RUNS in the
+   gate that blocks merges. CI has no database, so `*.db.test.ts` suites skip
+   there — a mocked suite whose branches a db suite also reaches is NOT a
+   duplicate layer; it is the CI falsifier for those branches. Never delete a
+   mocked suite in favor of db-harness coverage alone.
 
 ## Examples of low signal
 

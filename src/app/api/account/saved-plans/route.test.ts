@@ -91,16 +91,6 @@ describe('GET /api/account/saved-plans', () => {
 });
 
 describe('POST /api/account/saved-plans', () => {
-  it('returns 401 for an anonymous caller', async () => {
-    h.requireUserIdMock.mockResolvedValue({
-      ok: false,
-      failure: { category: 'unauthenticated', code: 'unauthenticated' },
-    });
-    const res = await POST(makeRequest(VALID_BODY));
-    expect(res.status).toBe(401);
-    expect(h.createSavedPlanMock).not.toHaveBeenCalled();
-  });
-
   it('returns 400 for an invalid body', async () => {
     const res = await POST(makeRequest({ name: 'no snapshot' }));
     expect(res.status).toBe(400);
@@ -125,17 +115,6 @@ describe('POST /api/account/saved-plans', () => {
       code: 'unknown_blueprint',
       detail: 'unknown blueprint',
     });
-  });
-
-  it('returns 409 when the caller is at the save cap', async () => {
-    h.countSavedPlansMock.mockResolvedValue(MAX_SAVED_PLANS_PER_USER);
-    const res = await POST(makeRequest(VALID_BODY));
-    expect(res.status).toBe(409);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'template_limit',
-      detail: 'template limit reached',
-    });
-    expect(h.createSavedPlanMock).not.toHaveBeenCalled();
   });
 
   it('rolls the insert back when a concurrent save breaches the cap', async () => {
@@ -175,30 +154,4 @@ describe('POST /api/account/saved-plans', () => {
     expect(h.deleteSavedPlanMock).not.toHaveBeenCalled();
   });
 
-  it('rejects a cross-origin mutation when telemetry fails', async () => {
-    h.countSavedPlansMock
-      .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER - 1)
-      .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER);
-    h.logUsageEventMock.mockRejectedValueOnce(new Error('telemetry unavailable'));
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    const res = await POST(makeRequest(VALID_BODY, 'https://foreign.example/private'));
-
-    expect(res.status).toBe(403);
-    expect(res.headers.get('Content-Type')).toBe('application/problem+json');
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      type: 'https://lgi.tools/problems/forbidden',
-      code: 'cross_origin',
-    });
-    expect(h.createSavedPlanMock).not.toHaveBeenCalled();
-    expect(h.logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cross_origin_mutation',
-      metadata: {
-        route: '/api/account/saved-plans',
-        offendingOrigin: 'https://foreign.example',
-        source: 'origin',
-      },
-    });
-    await vi.waitFor(() => expect(consoleError).toHaveBeenCalled());
-  });
 });

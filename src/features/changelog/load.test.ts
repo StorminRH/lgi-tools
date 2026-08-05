@@ -12,20 +12,15 @@ import { parseChangelog, parseChangelogMasters } from './parse';
 describe('readChangelogSource', () => {
   it('reassembles masters newest-first with the preamble leading', async () => {
     const masters = parseChangelogMasters(await readChangelogSource());
-    expect(masters.map((m) => m.version)).toEqual([
-      '4.0',
-      '3.10',
-      '3.9',
-      '3.8',
-      '3.7',
-      '3.6',
-      '3.4',
-      '3.3',
-      '3.2',
-      '3.1',
-      '3.0',
-      '2.9',
-    ]);
+    // Strictly descending numeric major.minor order — the master set itself is
+    // pinned against the content directory by the inbox test below.
+    const ranks = masters.map((m) => {
+      const [major = 0, minor = 0] = m.version.split('.').map(Number);
+      return major * 1_000 + minor;
+    });
+    expect(masters.length).toBeGreaterThan(1);
+    expect(ranks).toEqual([...ranks].sort((a, b) => b - a));
+    expect(new Set(ranks).size).toBe(ranks.length);
     // The preamble file is read first, so the leading master still carries its title.
     expect(masters[0]?.title).toBe('Atlas of Worlds');
   });

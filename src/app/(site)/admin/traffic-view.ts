@@ -32,7 +32,7 @@ export function deriveTrafficView(input: {
 }
 
 /** The last-sync stamp for the GSC card: "YYYY-MM-DD HH:MM UTC" or "never". */
-export function formatSyncedAt(lastSyncedAt: Date | null): string {
+function formatSyncedAt(lastSyncedAt: Date | null): string {
   return lastSyncedAt
     ? `${lastSyncedAt.toISOString().replace('T', ' ').slice(0, 16)} UTC`
     : 'never';

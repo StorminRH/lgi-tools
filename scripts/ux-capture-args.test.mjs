@@ -6,7 +6,6 @@ import {
   parseArgs,
   slugify,
   summariseResults,
-  VIEWPORTS,
 } from './ux-capture-args.mjs';
 
 afterEach(() => {
@@ -49,20 +48,6 @@ describe('applyFlag', () => {
     applyFlag(opts, 'wat', 'x');
     expect(opts).toEqual({});
     expect(spy).toHaveBeenCalledWith('  (ignoring unknown flag --wat)');
-  });
-});
-
-describe('VIEWPORTS', () => {
-  it('pins the complete responsive and zoom-proxy matrix', () => {
-    expect(VIEWPORTS).toEqual({
-      mobile: { width: 390, height: 844 },
-      tablet: { width: 768, height: 1024 },
-      laptop: { width: 1024, height: 768 },
-      hd: { width: 1366, height: 768 },
-      desktop: { width: 1440, height: 900 },
-      wide: { width: 1920, height: 1080 },
-      zoom200: { width: 640, height: 450 },
-    });
   });
 });
 

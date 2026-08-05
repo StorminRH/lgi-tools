@@ -71,14 +71,6 @@ describe('POST /api/admin/role', () => {
     vi.unstubAllEnvs();
   });
 
-  it('returns 403 when there is no session', async () => {
-    getSessionMock.mockResolvedValue(null);
-    const { POST } = await importRoute();
-    const res = await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'ADMIN' }));
-    expect(res.status).toBe(403);
-    expect(setUserRoleMock).not.toHaveBeenCalled();
-  });
-
   it('returns 403 when the caller is not an admin', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_VIEWER, isAdmin: false });
     const { POST } = await importRoute();

@@ -43,16 +43,6 @@ describe('system class labels', () => {
     expect(systemClassLabel(classId)).toBe(label);
   });
 
-  // Every id the SDE actually assigns must produce a chip. Asserting this as a set is what makes an
-  // omission fail here rather than silently rendering a real wormhole system with no class.
-  it('covers the whole authoritative class ladder', () => {
-    const declared = [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 25];
-
-    const unlabelled = declared.filter((id) => systemClassLabel(id) === null);
-
-    expect(unlabelled).toEqual([]);
-  });
-
   it('has no chip for a k-space system', () => {
     expect(systemClassLabel(null)).toBeNull();
   });

@@ -15,7 +15,6 @@ import {
   optimisticSeverConnection,
   optimisticTempId,
   swallowMutationRejection,
-  useChainAuthoringMutations,
   wormholeTypeWindowProposal,
   type OptimisticConnectionRow,
   type OptimisticSystemRow,
@@ -163,12 +162,6 @@ describe('optimisticTempId', () => {
     expect(optimisticTempId('mapConnections')).toMatch(
       /^optimistic:mapConnections:/,
     );
-  });
-});
-
-describe('useChainAuthoringMutations', () => {
-  it('is the OW4-facing hook that wraps every public authoring mutation', () => {
-    expect(typeof useChainAuthoringMutations).toBe('function');
   });
 });
 

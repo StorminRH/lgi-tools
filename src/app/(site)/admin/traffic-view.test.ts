@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveGscPerformanceView, deriveTrafficView, formatSyncedAt } from './traffic-view';
+import { deriveGscPerformanceView, deriveTrafficView } from './traffic-view';
 
 describe('deriveTrafficView', () => {
   it('reshapes each list into keyed distribution rows', () => {
@@ -20,22 +20,6 @@ describe('deriveTrafficView', () => {
     expect(view.topSearches).toEqual([{ key: 'ore', label: 'ore', count: 9 }]);
   });
 
-  it('maps an empty list to an empty array', () => {
-    const view = deriveTrafficView({
-      topPages: [],
-      topReferrers: [],
-      topEntryPages: [],
-      topSearches: [],
-    });
-    expect(view.topPages).toEqual([]);
-  });
-});
-
-describe('formatSyncedAt', () => {
-  it('formats a UTC timestamp to the minute, or "never"', () => {
-    expect(formatSyncedAt(new Date('2026-07-11T08:42:19.000Z'))).toBe('2026-07-11 08:42 UTC');
-    expect(formatSyncedAt(null)).toBe('never');
-  });
 });
 
 describe('deriveGscPerformanceView', () => {
@@ -61,9 +45,9 @@ describe('deriveGscPerformanceView', () => {
     expect(view.asOf).toBe('2026-07-11 08:42 UTC');
   });
 
-  it('reports no trend for an empty range', () => {
-    expect(
-      deriveGscPerformanceView({ lastSyncedAt: null, trend: [], topPages: [] }).hasTrend,
-    ).toBe(false);
+  it('reports no trend and a "never" sync stamp for an empty range', () => {
+    const view = deriveGscPerformanceView({ lastSyncedAt: null, trend: [], topPages: [] });
+    expect(view.hasTrend).toBe(false);
+    expect(view.asOf).toBe('never');
   });
 });

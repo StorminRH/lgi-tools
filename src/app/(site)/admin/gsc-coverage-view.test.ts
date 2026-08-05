@@ -1,17 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveGscCoverageView, isIndexedVerdict } from './gsc-coverage-view';
-
-describe('isIndexedVerdict', () => {
-  it.each([
-    ['PASS', true],
-    ['NEUTRAL', false],
-    ['FAIL', false],
-    ['VERDICT_UNSPECIFIED', false],
-    [null, false],
-  ])('classifies %s as indexed=%s', (verdict, expected) => {
-    expect(isIndexedVerdict(verdict)).toBe(expected);
-  });
-});
+import { deriveGscCoverageView } from './gsc-coverage-view';
 
 describe('deriveGscCoverageView', () => {
   it('groups unknown reasons, sorts non-indexed first, and orders trends chronologically', () => {

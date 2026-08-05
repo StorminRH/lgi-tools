@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { problemBodySchema } from '@/lib/problem';
 import { apiFetch } from '@/transport/api-client';
 import {
-  isDeleteAcknowledged,
   redirectTargetFor,
   runDeleteAccount,
   runLogoutEverywhere,
@@ -122,9 +121,3 @@ describe('runLogoutEverywhere', () => {
   });
 });
 
-describe('isDeleteAcknowledged', () => {
-  it('gates the account delete on the acknowledgement checkbox', () => {
-    expect(isDeleteAcknowledged(true)).toBe(true);
-    expect(isDeleteAcknowledged(false)).toBe(false);
-  });
-});

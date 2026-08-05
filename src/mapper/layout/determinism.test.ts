@@ -32,10 +32,4 @@ describe('compass kernel determinism', () => {
       ).toBe(DETERMINISM_DIGESTS[key]);
     }
   });
-
-  it('pins one digest per corpus entry, no more, no fewer', () => {
-    expect(Object.keys(DETERMINISM_DIGESTS).sort()).toEqual(
-      PROOF_CORPUS.map((entry) => `seed${entry.seed}-n${entry.size}`).sort(),
-    );
-  });
 });

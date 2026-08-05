@@ -19,21 +19,19 @@ const STATIC_DATASETS = [
   'market_prices',
 ] as const satisfies readonly StaticWindowDatasetName[];
 
-describe.each(STATIC_DATASETS)('freshnessGate(%s)', (name) => {
-  const gate = freshnessGate(name);
+// All static-window gates share one closure over the registry-derived TTL, so
+// one dataset's boundary cases falsify the shared staleness math; the other
+// members of STATIC_DATASETS only pin set membership, which `satisfies` already
+// enforces at compile time. Binding every gate still proves each entry resolves
+// to a legal TTL (freshnessGate throws otherwise).
+describe('freshnessGate', () => {
+  it('binds every static dataset and applies the window at its boundaries', () => {
+    for (const name of STATIC_DATASETS) expect(freshnessGate(name).ttlMs).toBeGreaterThan(0);
 
-  it('treats a missing refresh stamp as stale', () => {
+    const gate = freshnessGate('skills');
     expect(gate.isStale(null, NOW)).toBe(true);
-  });
-
-  it('is fresh just inside the window', () => {
-    const justInside = new Date(NOW.getTime() - gate.ttlMs + 1_000);
-    expect(gate.isStale(justInside, NOW)).toBe(false);
-  });
-
-  it('is stale just outside the window', () => {
-    const justOutside = new Date(NOW.getTime() - gate.ttlMs - 1_000);
-    expect(gate.isStale(justOutside, NOW)).toBe(true);
+    expect(gate.isStale(new Date(NOW.getTime() - gate.ttlMs + 1_000), NOW)).toBe(false);
+    expect(gate.isStale(new Date(NOW.getTime() - gate.ttlMs - 1_000), NOW)).toBe(true);
   });
 });
 

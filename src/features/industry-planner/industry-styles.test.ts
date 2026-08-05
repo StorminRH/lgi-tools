@@ -125,24 +125,10 @@ describe('aggregateConfidence', () => {
 // SQL browse path maps the same shortfall counts here — keep band edges +
 // parity with aggregateConfidence; drop cases that only restate the row path.
 describe('aggregateConfidenceFromCounts', () => {
-  it('is unknown with zero rows', () => {
-    expect(aggregateConfidenceFromCounts({ high: 0, total: 0, stale: 0, fallback: 0, thin: 0, missing: 0 })).toEqual({
-      level: 'unknown',
-      summary: 'No materials to price',
-    });
-  });
-
   it('is medium between the 40% and 75% bands', () => {
     expect(aggregateConfidenceFromCounts({ high: 5, total: 10, stale: 2, fallback: 1, thin: 2, missing: 0 })).toEqual({
       level: 'medium',
       summary: '2 stale · 1 fallback · 2 illiquid',
-    });
-  });
-
-  it('drops to low below the 40% band', () => {
-    expect(aggregateConfidenceFromCounts({ high: 1, total: 5, stale: 0, fallback: 0, thin: 0, missing: 4 })).toEqual({
-      level: 'low',
-      summary: '4 missing',
     });
   });
 

@@ -102,13 +102,8 @@ export const SLI_DEFINITIONS: readonly SliDefinition[] = [
   },
 ];
 
-/**
- * Recorded, deliberately unbuilt: whether to adopt OpenTelemetry or a third-party observability
- * vendor. The capability record is already vendor-neutral, so this stays a future decision rather
- * than a dependency taken on now. Roadmap section 3.10.3.1 puts the migration out of scope.
- */
-export const SLI_FUTURE_DECISION =
-  'OpenTelemetry or a third-party observability vendor is deferred. The capability record in '
-  + 'capability.ts is vendor-neutral and writes through usage_logs, so adopting one later is an '
-  + 'export concern rather than a re-instrumentation. Revisit when a second operator, a paging '
-  + 'rotation, or cross-service tracing makes the dependency worth its cost.';
+// Recorded, deliberately unbuilt: OpenTelemetry or a third-party observability
+// vendor is deferred. The capability record in capability.ts is vendor-neutral
+// and writes through usage_logs, so adopting one later is an export concern
+// rather than a re-instrumentation. Revisit when a second operator, a paging
+// rotation, or cross-service tracing makes the dependency worth its cost.

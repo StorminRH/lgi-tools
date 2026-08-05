@@ -35,14 +35,4 @@ describe('deriveSiteDetailsView', () => {
     expect(view.hasWaves).toBe(true);
   });
 
-  it('pulls the section copy from the site type', () => {
-    const ore = deriveSiteDetailsView(site({ siteType: 'ore' }));
-    expect(ore.sectionLabel).toBe('Ore Deposits');
-    expect(ore.sectionHint).toBe('qty · m³ · est. ISK');
-    expect(ore.footerLabel).toBe('Total ore value');
-
-    const relic = deriveSiteDetailsView(site({ siteType: 'relic' }));
-    expect(relic.sectionLabel).toBe('Hackable Containers');
-    expect(relic.footerLabel).toBe('Total container value');
-  });
 });

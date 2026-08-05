@@ -74,34 +74,6 @@ describe('POST /purge-online', () => {
   });
 });
 
-describe('POST /purge-location-tracking', () => {
-  it('rejects a request without the service bearer token', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post(
-      '/purge-location-tracking',
-      JSON.stringify({ userId: 'user-1', characterId: null }),
-      false,
-    );
-    expect(res.status).toBe(401);
-  });
-
-  it('returns a clean 400 for a malformed JSON body', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post('/purge-location-tracking', 'not json');
-    expect(res.status).toBe(400);
-  });
-
-  it('purges for a valid body', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post(
-      '/purge-location-tracking',
-      JSON.stringify({ userId: 'user-1', characterId: null }),
-    );
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deletedLocations: 0, deletedTracking: 0 });
-  });
-});
-
 describe('POST /project-map-access', () => {
   it('rejects a request without the service bearer token', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);

@@ -43,7 +43,4 @@ describe('renderToken', () => {
     expect(a.props.rel).toBeUndefined();
   });
 
-  it('keys each token by its index', () => {
-    expect(token({ type: 'code', value: 'x' }, 2).key).toBe('2');
-  });
 });

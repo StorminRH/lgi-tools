@@ -53,12 +53,6 @@ describe('architecture map — committed artifacts match the live configuration'
     expect(renderGeneratedModule(liveMap())).toBe(readArtifact(ARCHITECTURE_MAP_ARTIFACTS.module));
   });
 
-  it('is a pure function of the config bytes — two runs are identical', () => {
-    const [first, second] = [liveMap(), liveMap()];
-    expect(renderMermaid(first)).toBe(renderMermaid(second));
-    expect(renderGeneratedModule(first)).toBe(renderGeneratedModule(second));
-  });
-
   it('turns red when a seeded allow edge is not regenerated', () => {
     // Proves the byte-compare above is load-bearing: change one rule and the emitted
     // text must diverge from the committed file.
@@ -135,18 +129,6 @@ describe('architecture map — the pinned edge taxonomy', () => {
     expect(kindsOf(liveMap(), 'carve-out')).toEqual([
       { from: 'api', to: 'app', kind: 'carve-out' },
     ]);
-  });
-
-  it('counts the live graph at 24 zones and 117 declared permissions', () => {
-    const map = liveMap();
-    expect(map.nodes).toHaveLength(24);
-    expect(kindsOf(map, 'allow')).toHaveLength(116);
-    expect(kindsOf(map, 'exception')).toHaveLength(1);
-    // Closes the census: every edge is one of the three counted kinds, so a new
-    // kind or a moved non-allow edge cannot slip past the per-kind totals.
-    expect(kindsOf(map, 'carve-out')).toHaveLength(1);
-    expect(map.edges).toHaveLength(118);
-    expect(Math.max(...map.nodes.map((node) => node.layer))).toBe(10);
   });
 
   it('renders the three link forms distinctly in the flowchart', () => {

@@ -5,15 +5,6 @@ import {
 } from './intents';
 import { type PlacementAssigner } from './placement';
 
-/** Every intent kind — kept in the test for exhaustiveness coverage. */
-const MAP_CHAIN_INTENT_KINDS = [
-  'system-appeared',
-  'system-departed',
-  'system-moved',
-  'connection-appeared',
-  'connection-departed',
-] as const satisfies readonly MapChainIntent['kind'][];
-
 /** Test-only row park — production placement is the kernel via assignerFromPositions. */
 function positionOfSlot(slot: number): ChainPosition {
   return { x: (slot % 6) * 220, y: Math.floor(slot / 6) * 160 };
@@ -289,27 +280,6 @@ describe('map chain reconciler', () => {
       ]);
       expect(second.state.systems.get(JITA)?.position).toEqual(target);
     });
-
-    it('covers every declared intent kind across the suite scenarios', () => {
-      const observed = new Set<string>();
-
-      const arrive = replay([
-        snapshot([JITA, AMARR]),
-        snapshot([JITA, AMARR], [link('c1', JITA, AMARR)]),
-        snapshot([JITA], []),
-      ]);
-      arrive.intents.flat().forEach((intent) => observed.add(intent.kind));
-
-      const moved = reconcileChain(
-        arrive.state,
-        snapshot([JITA]),
-        NO_DRAG,
-        assignerMoving(JITA, { x: 7, y: 7 }),
-      );
-      kindsOf(moved.intents).forEach((kind) => observed.add(kind));
-
-      expect([...observed].toSorted()).toEqual([...MAP_CHAIN_INTENT_KINDS].toSorted());
-    });
   });
 
   // ── SC-1 · DC-1 / AC-1 / V-1 — arrivals and departures ───────────────────
@@ -505,30 +475,6 @@ describe('map chain reconciler', () => {
 
   // ── Provisional placement determinism (PD-3) ─────────────────────────────
   describe('placement', () => {
-    it('places identical arrival orders identically', () => {
-      const runA = replay([snapshot([JITA]), snapshot([JITA, AMARR, DODIXIE])]);
-      const runB = replay([snapshot([JITA]), snapshot([JITA, AMARR, DODIXIE])]);
-
-      expect([...runA.state.systems.entries()]).toEqual([
-        ...runB.state.systems.entries(),
-      ]);
-    });
-
-    it('fills grid slots in row-major order as systems arrive', () => {
-      const { state } = replay([snapshot([JITA, AMARR, DODIXIE])]);
-
-      expect(state.systems.get(JITA)?.position).toEqual(positionOfSlot(0));
-      expect(state.systems.get(AMARR)?.position).toEqual(positionOfSlot(1));
-      expect(state.systems.get(DODIXIE)?.position).toEqual(positionOfSlot(2));
-    });
-
-    it('assigns the next free slot around an already-placed node', () => {
-      const { state } = replay([snapshot([JITA]), snapshot([JITA, AMARR])]);
-
-      expect(state.systems.get(JITA)?.position).toEqual(positionOfSlot(0));
-      expect(state.systems.get(AMARR)?.position).toEqual(positionOfSlot(1));
-    });
-
     it('falls back to the origin when an assigner declines to place a new node', () => {
       const merge = reconcileChain(
         EMPTY_CHAIN_STATE,

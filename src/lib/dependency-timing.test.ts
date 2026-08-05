@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   addDependencyTiming,
   setDependencyTimingSink,
-  type DependencyKind,
 } from './dependency-timing';
 
 describe('dependency timing', () => {
@@ -37,15 +36,5 @@ describe('dependency timing', () => {
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledWith('esi', 40);
-  });
-
-  it('names exactly the three instrumented dependency kinds', () => {
-    const kinds: DependencyKind[] = ['neon', 'esi', 'redis'];
-    const sink = vi.fn();
-    setDependencyTimingSink(sink);
-
-    for (const kind of kinds) addDependencyTiming(kind, 1);
-
-    expect(sink.mock.calls.map(([kind]) => kind)).toEqual(kinds);
   });
 });

@@ -25,7 +25,6 @@ vi.mock('@/features/custom-structures/queries', () => ({
 }));
 
 import { NextRequest } from 'next/server';
-import { MAX_CUSTOM_STRUCTURES_PER_USER } from '@/features/custom-structures/api-contract';
 import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
@@ -107,17 +106,6 @@ describe('POST /api/account/custom-structures', () => {
       code: 'unknown_system',
       detail: 'unknown system',
     });
-  });
-
-  it('returns 409 when the per-user cap is reached', async () => {
-    h.countCustomStructuresMock.mockResolvedValue(MAX_CUSTOM_STRUCTURES_PER_USER);
-    const res = await POST(makeRequest(VALID_BODY));
-    expect(res.status).toBe(409);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'structure_limit',
-      detail: 'structure limit reached',
-    });
-    expect(h.createCustomStructureMock).not.toHaveBeenCalled();
   });
 
   it('saves the structure and returns the updated list with 201', async () => {

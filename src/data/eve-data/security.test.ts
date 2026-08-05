@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type SecurityClass, SECURITY_CLASSES, systemSecurityClass } from './security';
+import { systemSecurityClass } from './security';
 
 describe('systemSecurityClass', () => {
   it('classifies hi-sec from security status (0.45 rounds up to hi-sec)', () => {
@@ -38,15 +38,5 @@ describe('systemSecurityClass', () => {
 
   it('defaults an untagged system (null security status, no class) to hi-sec', () => {
     expect(systemSecurityClass(null, null)).toBe('high');
-  });
-
-  it('returns only declared security classes', () => {
-    const all: SecurityClass[] = [
-      systemSecurityClass(1.0, null),
-      systemSecurityClass(0.3, null),
-      systemSecurityClass(-1.0, null),
-      systemSecurityClass(-1.0, 3),
-    ];
-    for (const band of all) expect(SECURITY_CLASSES).toContain(band);
   });
 });

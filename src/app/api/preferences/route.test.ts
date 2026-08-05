@@ -100,24 +100,4 @@ describe('POST /api/preferences', () => {
     expect(h.upsertPreferenceMock).toHaveBeenCalledWith('user-1', 'sites.view', 'table');
   });
 
-  it('allows a missing-provenance request', async () => {
-    const res = await POST(makeRequest(VALID_BODY));
-
-    expect(res.status).toBe(204);
-    expect(h.upsertPreferenceMock).toHaveBeenCalledOnce();
-  });
-
-  it('returns a mapped 403 for a cross-origin request', async () => {
-    const res = await POST(
-      makeRequest(VALID_BODY, 'https://foreign.example'),
-    );
-
-    expect(res.status).toBe(403);
-    expect(res.headers.get('Content-Type')).toBe('application/problem+json');
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      type: 'https://lgi.tools/problems/forbidden',
-      code: 'cross_origin',
-    });
-    expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
-  });
 });

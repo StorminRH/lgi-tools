@@ -11,10 +11,6 @@ describe('visibleNavTools', () => {
     expect(labels).not.toContain('Skill Queues'); // navHidden
     expect(labels).not.toContain('Industry Jobs'); // navHidden
   });
-
-  it('returns only tools the registry marks visible', () => {
-    expect(visibleNavTools().every((t) => !t.navHidden)).toBe(true);
-  });
 });
 
 describe('isToolActive', () => {

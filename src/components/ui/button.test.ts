@@ -1,38 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Button, buttonVariants } from './button';
+import { Button } from './button';
 
 // The primitive is a thin styled shell — the testable logic is the cva variant
 // map and the prop-forwarding contract. No DOM: calling the component returns a
 // React element whose props we inspect directly (the suite is node-env, no RTL).
-
-describe('buttonVariants', () => {
-  it('maps each intent to its signature tokens', () => {
-    expect(buttonVariants({ variant: 'primary' })).toContain('bg-feedback-bg');
-    expect(buttonVariants({ variant: 'primary' })).toContain('hover:bg-isk');
-    expect(buttonVariants({ variant: 'secondary' })).toContain('border-border-idle');
-    expect(buttonVariants({ variant: 'danger' })).toContain('text-pill-red-text');
-    // ghost is the only intent without the bezel
-    expect(buttonVariants({ variant: 'ghost' })).not.toContain('shadow-btn-bezel');
-    expect(buttonVariants({ variant: 'secondary' })).toContain('shadow-btn-bezel');
-  });
-
-  it('sizes to the two control paddings', () => {
-    expect(buttonVariants({ size: 'md' })).toContain('px-4');
-    expect(buttonVariants({ size: 'sm' })).toContain('px-2.5');
-  });
-
-  it('defaults to secondary/md', () => {
-    expect(buttonVariants({})).toContain('border-border-idle');
-    expect(buttonVariants({})).toContain('px-4');
-  });
-
-  it('uses the sentence-case navigation role', () => {
-    const classes = buttonVariants({});
-    expect(classes).toContain('font-ui');
-    expect(classes).toContain('text-nav');
-    expect(classes).not.toContain('uppercase');
-  });
-});
 
 describe('Button', () => {
   it('renders a <button> that defaults to type="button"', () => {

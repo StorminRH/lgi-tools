@@ -9,6 +9,9 @@ describe('calm no-access state', () => {
 
   it('leads with the lost-access line as its heading, salute intact', () => {
     expect(markup).toContain('data-chain-no-access');
+    // HC-4: no retry control here — recovery is the live access subscription
+    // flipping back (chain/surface.test.ts owns the copy/spinner negatives).
+    expect(markup).not.toMatch(/<button/i);
     expect(markup).toMatch(/<h2[^>]*>\s*You[^<]*lost access to this map/);
     // The house uppercase treatment would render the salute as `O7`, which is not the gesture.
     // Asserted on the h2's parsed class list: a literal like `uppercase tracking-copy` depends on
@@ -29,16 +32,5 @@ describe('calm no-access state', () => {
     expect(markup).toContain('Another map can be opened from the atlas');
     expect(markup).toContain('access can be restored by the');
     expect(markup).not.toMatch(/access lost/i);
-  });
-
-  // HC-4: no retry control anywhere on the map, including here. Recovery is the live access
-  // subscription flipping back, not something the user has to press.
-  it('offers no retry, refresh, or reload control', () => {
-    expect(markup).not.toMatch(/<button/i);
-    expect(markup).not.toMatch(/try again|refresh|reload|retry/i);
-  });
-
-  it('shows no spinner or progress affordance', () => {
-    expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
   });
 });
