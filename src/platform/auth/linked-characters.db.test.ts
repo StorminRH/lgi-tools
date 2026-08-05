@@ -110,6 +110,8 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
       corporationId: null,
       affiliationRefreshedAt: null,
     });
+    // Missing profile portrait falls back to the EVE image-server URL.
+    expect(rows[0]!.portraitUrl).toContain(`/characters/${FIRST_CHAR}/portrait`);
     expect(rows[1]).toMatchObject({
       name: `Character ${SECOND_CHAR}`,
       hasRefreshToken: true,

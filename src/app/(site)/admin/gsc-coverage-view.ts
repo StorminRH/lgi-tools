@@ -11,7 +11,7 @@ export interface GscCoverageRow extends GscUrlStatus {
 }
 
 /** Returns the indexed verdict without side effects; callers own the policy branch taken from that verdict. */
-export function isIndexedVerdict(verdict: string | null): boolean {
+function isIndexedVerdict(verdict: string | null): boolean {
   return verdict === 'PASS';
 }
 

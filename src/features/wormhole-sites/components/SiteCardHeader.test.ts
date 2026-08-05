@@ -33,21 +33,19 @@ const site = (over: Partial<SiteDetail> = {}): SiteDetail => ({
 });
 
 describe('SiteCardHeader', () => {
-  it('centers the summary stack for map-dock embeds', () => {
-    const markup = renderToStaticMarkup(
+  it('renders the site name and ship-class slot for map-dock and catalogue aligns', () => {
+    const dock = renderToStaticMarkup(
       createElement(SiteCardHeader, { site: site(), align: 'center' }),
     );
-    expect(markup).toContain('Forgotten Perimeter Coronation Platform');
-    expect(markup).toContain('items-center');
-    expect(markup).toContain('justify-center');
-    expect(markup).toContain('data-site-ship-classes');
-  });
-
-  it('keeps catalogue cards start-aligned', () => {
-    const markup = renderToStaticMarkup(
+    const catalogue = renderToStaticMarkup(
       createElement(SiteCardHeader, { site: site(), align: 'start' }),
     );
-    expect(markup).toContain('justify-between');
-    expect(markup).not.toContain('justify-center');
+    expect(dock).toContain('Forgotten Perimeter Coronation Platform');
+    expect(dock).toContain('data-site-ship-classes');
+    expect(catalogue).toContain('Forgotten Perimeter Coronation Platform');
+    // The align split is this prop's entire behavior: dock embeds center,
+    // catalogue cards must not.
+    expect(dock).toContain('justify-center');
+    expect(catalogue).not.toContain('justify-center');
   });
 });

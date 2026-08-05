@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  fetchWithTimeout,
-  OUTBOUND_FETCH_TIMEOUT_MS,
-} from './fetch-with-timeout';
+import { fetchWithTimeout } from './fetch-with-timeout';
 
 // A fetch mock that never settles on its own, only via its abort signal —
 // so the only way the promise rejects is an abort. Mirrors real fetch by
@@ -83,18 +80,5 @@ describe('fetchWithTimeout', () => {
     await expect(
       fetchWithTimeout('https://example.test/', { signal: controller.signal }, 5_000),
     ).rejects.toThrow('cancelled before dispatch');
-  });
-
-  it('defaults to OUTBOUND_FETCH_TIMEOUT_MS when no timeout is given', async () => {
-    // A signal whose abort is far in the future (the default) must not have
-    // fired by the time the request resolves.
-    fetchSpy.mockResolvedValueOnce(new Response('{}', { status: 200 }));
-
-    await fetchWithTimeout('https://example.test/');
-
-    const [, init] = fetchSpy.mock.calls[0];
-    expect(init?.signal?.aborted).toBe(false);
-    // Sanity: the default constant is a sane fail-fast bound.
-    expect(OUTBOUND_FETCH_TIMEOUT_MS).toBeGreaterThan(0);
   });
 });

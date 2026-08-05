@@ -141,10 +141,11 @@ describe('layoutZoneMap — the committed generated graph', () => {
   const layout = layoutZoneMap(zoneMapGraph);
 
   it('lays out every zone and every declared permission', () => {
-    expect(layout.order).toHaveLength(24);
-    expect(layout.cells).toHaveLength(117);
-    expect(layout.rowLabels).toHaveLength(24);
-    expect(layout.columnLabels).toHaveLength(24);
+    const permissionEdges = zoneMapGraph.edges.filter((edge) => edge.kind !== 'carve-out');
+    expect(layout.order).toHaveLength(zoneMapGraph.nodes.length);
+    expect(layout.cells).toHaveLength(permissionEdges.length);
+    expect(layout.rowLabels).toHaveLength(zoneMapGraph.nodes.length);
+    expect(layout.columnLabels).toHaveLength(zoneMapGraph.nodes.length);
   });
 
   it('keeps the live graph triangular — the acyclicity the map claims', () => {

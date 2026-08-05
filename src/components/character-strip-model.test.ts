@@ -40,14 +40,6 @@ describe('visibleCharacters (the view-only render filter)', () => {
     const characters = [healthy(1)];
     expect(visibleCharacters(characters, [999])).toEqual(characters);
   });
-
-  it('does not mutate its inputs', () => {
-    const characters = [healthy(1), healthy(2)];
-    const dimmed = [2];
-    visibleCharacters(characters, dimmed);
-    expect(characters).toEqual([healthy(1), healthy(2)]);
-    expect(dimmed).toEqual([2]);
-  });
 });
 
 describe('toggleDimmed', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildPageMetadata } from './page-metadata';
 
 describe('buildPageMetadata', () => {
-  it('keeps page copy aligned across document and social metadata', () => {
+  it('keeps document/social copy aligned and supports absolute titles', () => {
     expect(
       buildPageMetadata({
         title: 'Contact',
@@ -34,17 +34,14 @@ describe('buildPageMetadata', () => {
         images: ['/opengraph-image'],
       },
     });
-  });
 
-  it('supports a title that bypasses the root template', () => {
-    const metadata = buildPageMetadata({
+    const absolute = buildPageMetadata({
       title: 'Eve Tools — LGI.tools',
       description: 'Tools for wormhole pilots.',
       canonical: '/',
       absoluteTitle: true,
     });
-
-    expect(metadata.title).toEqual({ absolute: 'Eve Tools — LGI.tools' });
-    expect(metadata.openGraph?.title).toBe('Eve Tools — LGI.tools');
+    expect(absolute.title).toEqual({ absolute: 'Eve Tools — LGI.tools' });
+    expect(absolute.openGraph?.title).toBe('Eve Tools — LGI.tools');
   });
 });

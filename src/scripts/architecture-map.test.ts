@@ -53,12 +53,6 @@ describe('architecture map — committed artifacts match the live configuration'
     expect(renderGeneratedModule(liveMap())).toBe(readArtifact(ARCHITECTURE_MAP_ARTIFACTS.module));
   });
 
-  it('is a pure function of the config bytes — two runs are identical', () => {
-    const [first, second] = [liveMap(), liveMap()];
-    expect(renderMermaid(first)).toBe(renderMermaid(second));
-    expect(renderGeneratedModule(first)).toBe(renderGeneratedModule(second));
-  });
-
   it('turns red when a seeded allow edge is not regenerated', () => {
     // Proves the byte-compare above is load-bearing: change one rule and the emitted
     // text must diverge from the committed file.

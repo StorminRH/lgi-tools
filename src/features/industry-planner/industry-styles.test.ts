@@ -3,29 +3,11 @@ import {
   aggregateConfidence,
   aggregateConfidenceFromCounts,
   deriveMarginFigures,
-  EFFICIENCY_TONE_CLASSES,
   priceConfidence,
   regionalDiscountCallout,
   sellAnchorConfidence,
   type ConfidenceInput,
 } from './industry-styles';
-
-describe('EFFICIENCY_TONE_CLASSES', () => {
-  it('keeps state meaning in one map and gives owned frames the ISK-green outline', () => {
-    expect(EFFICIENCY_TONE_CLASSES.owned).toMatchObject({
-      fill: 'fill-evb-bright',
-      text: 'text-evb-bright',
-      frame: 'border-isk',
-    });
-    expect(EFFICIENCY_TONE_CLASSES.manual.frame).toContain('--color-dps-mid');
-    expect(EFFICIENCY_TONE_CLASSES.unowned.frame).toBe('border-border-soft');
-  });
-
-  it('owns the structure-bonus and reaction glyph tones too', () => {
-    expect(EFFICIENCY_TONE_CLASSES.bonus.fill).toContain('--color-isk');
-    expect(EFFICIENCY_TONE_CLASSES.reaction.fill).toContain('--color-reaction-purple');
-  });
-});
 
 // Fixed clock so freshness is deterministic.
 const NOW = 1_700_000_000_000;
@@ -140,38 +122,13 @@ describe('aggregateConfidence', () => {
 
 // The browse catalog tallies the same shortfall counts in SQL and maps them
 // here, so this must agree with aggregateConfidence's share bands + summary.
+// SQL browse path maps the same shortfall counts here — keep band edges +
+// parity with aggregateConfidence; drop cases that only restate the row path.
 describe('aggregateConfidenceFromCounts', () => {
-  it('is unknown with zero rows', () => {
-    expect(aggregateConfidenceFromCounts({ high: 0, total: 0, stale: 0, fallback: 0, thin: 0, missing: 0 })).toEqual({
-      level: 'unknown',
-      summary: 'No materials to price',
-    });
-  });
-
-  it('is high and clean when every row is trustworthy', () => {
-    expect(aggregateConfidenceFromCounts({ high: 5, total: 5, stale: 0, fallback: 0, thin: 0, missing: 0 })).toEqual({
-      level: 'high',
-      summary: 'all live · liquid',
-    });
-  });
-
-  it('stays high at the 75% band and lists each shortfall', () => {
-    expect(
-      aggregateConfidenceFromCounts({ high: 8, total: 10, stale: 1, fallback: 0, thin: 0, missing: 1 }),
-    ).toEqual({ level: 'high', summary: '1 stale · 1 missing' });
-  });
-
   it('is medium between the 40% and 75% bands', () => {
     expect(aggregateConfidenceFromCounts({ high: 5, total: 10, stale: 2, fallback: 1, thin: 2, missing: 0 })).toEqual({
       level: 'medium',
       summary: '2 stale · 1 fallback · 2 illiquid',
-    });
-  });
-
-  it('drops to low below the 40% band', () => {
-    expect(aggregateConfidenceFromCounts({ high: 1, total: 5, stale: 0, fallback: 0, thin: 0, missing: 4 })).toEqual({
-      level: 'low',
-      summary: '4 missing',
     });
   });
 

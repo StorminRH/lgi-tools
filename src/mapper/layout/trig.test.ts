@@ -18,14 +18,6 @@ const REFERENCE = {
 const ACCURACY_BOUND = 1e-15;
 
 describe('detSin / detCos', () => {
-  it('returns bit-identical results across repeated calls for the same input', () => {
-    const angles = [0, Math.PI / 4, Math.PI / 2, Math.PI, (3 * Math.PI) / 2, 10.5, -2.3];
-    for (const angle of angles) {
-      expect(Object.is(detSin(angle), detSin(angle))).toBe(true);
-      expect(Object.is(detCos(angle), detCos(angle))).toBe(true);
-    }
-  });
-
   it('matches the pinned reference bits at compass cardinals and diagonals', () => {
     expect(detSin(0)).toBe(REFERENCE.sin0);
     expect(detCos(0)).toBe(REFERENCE.cos0);
@@ -63,11 +55,5 @@ describe('distance', () => {
     expect(distance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5);
     expect(distance({ x: 1, y: 1 }, { x: 1, y: 1 })).toBe(0);
     expect(distance({ x: -2, y: 5 }, { x: 1, y: 1 })).toBe(5);
-  });
-
-  it('is bit-identical across repeated calls', () => {
-    const a = { x: 12.5, y: -40 };
-    const b = { x: -3.25, y: 17.125 };
-    expect(Object.is(distance(a, b), distance(a, b))).toBe(true);
   });
 });

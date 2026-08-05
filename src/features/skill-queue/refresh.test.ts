@@ -195,38 +195,12 @@ describe('refreshSkillsForUser', () => {
   });
 });
 
+// The save/stamp/partial-304/error branches run through refreshSkillsForUser's
+// port workflow above; the mismatch row is the one arm with no workflow twin,
+// and it pins the PersistVerdict skip shape owner-sync consumes.
 describe('planSkillsPersist', () => {
   const fresh = (body: unknown, etag: string | null): SkillsEsiRead => ({ kind: 'fresh', body, etag });
   const unchanged: SkillsEsiRead = { kind: 'unchanged' };
-  const error: SkillsEsiRead = { kind: 'error', code: 'esi_500' };
-
-  it('saves both halves when both reads are fresh, levels riding the skills half', () => {
-    const plan = planSkillsPersist(
-      fresh([esiQueueEntry(34, 0)], '"q"'),
-      fresh({ total_sp: 10, skills: [{ skill_id: 45746, active_skill_level: 3 }] }, '"s"'),
-    );
-    expect(plan).toEqual({
-      kind: 'save',
-      halves: {
-        queue: { entries: [esiQueueEntry(34, 0)], etag: '"q"' },
-        skills: { totalSp: 10, levels: { '45746': 3 }, etag: '"s"' },
-      },
-    });
-  });
-
-  it('stamps when both halves are 304', () => {
-    expect(planSkillsPersist(unchanged, unchanged)).toEqual({ kind: 'stamp' });
-  });
-
-  it('saves only the fresh half on a partial 304', () => {
-    const plan = planSkillsPersist(fresh([esiQueueEntry(7, 0)], '"q"'), unchanged);
-    expect(plan).toEqual({ kind: 'save', halves: { queue: { entries: [esiQueueEntry(7, 0)], etag: '"q"' } } });
-  });
-
-  it('skips on an ESI error on either half', () => {
-    expect(planSkillsPersist(error, fresh({ total_sp: 1 }, '"s"'))).toEqual({ kind: 'skip', code: 'esi_500' });
-    expect(planSkillsPersist(fresh([], '"q"'), error)).toEqual({ kind: 'skip', code: 'esi_500' });
-  });
 
   it('skips on a contract mismatch in a fresh body', () => {
     expect(planSkillsPersist(fresh({ not: 'an array' }, '"q"'), unchanged)).toEqual({ kind: 'skip', code: 'contract_error' });

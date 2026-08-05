@@ -43,7 +43,7 @@ const EMPTY: ActivityChartData = {
  * One marker per day: many sub-versions ship on the same date, so collapse them
  * (label = the single version, or "N deploys" when several land the same day).
  */
-export function dedupeMarkersByDay(
+function dedupeMarkersByDay(
   markers: { date: string; label: string }[],
 ): { date: string; label: string }[] {
   const byDay = new Map<string, string[]>();

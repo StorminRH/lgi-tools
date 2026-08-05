@@ -48,50 +48,16 @@ async function runCommands(query: string, c: SearchContext) {
 }
 
 describe('commands search source', () => {
-  it('surfaces "Open changelog" for everyone', async () => {
-    const out = await runCommands('changelog', ctx());
-    expect(out.map((r) => r.label)).toContain('Open changelog');
-  });
-
-  it('shows "Log in with EVE" only when logged out', async () => {
-    const loggedOut = await runCommands('log', ctx());
-    expect(loggedOut.map((r) => r.label)).toContain('Log in with EVE');
-
-    const loggedIn = await runCommands('log', ctx({ session: mockSession() }));
-    expect(loggedIn.map((r) => r.label)).not.toContain('Log in with EVE');
-  });
-
-  it('shows "Log out" only when logged in', async () => {
-    const loggedOut = await runCommands('log', ctx());
-    expect(loggedOut.map((r) => r.label)).not.toContain('Log out');
-
-    const loggedIn = await runCommands('log', ctx({ session: mockSession() }));
-    expect(loggedIn.map((r) => r.label)).toContain('Log out');
-  });
-
-  it('shows "Open admin" only when isAdmin is true', async () => {
-    const notAdmin = await runCommands('admin', ctx({ session: mockSession() }));
-    expect(notAdmin.map((r) => r.label)).not.toContain('Open admin');
-
-    const admin = await runCommands('admin', ctx({ session: mockSession(), isAdmin: true }));
-    expect(admin.map((r) => r.label)).toContain('Open admin');
-  });
-
-  it('exposes an onSelect handler on Log out (no command discriminator)', async () => {
-    const out = await runCommands('log', ctx({ session: mockSession() }));
-    const logout = out.find((r) => r.label === 'Log out');
-    expect(typeof logout?.onSelect).toBe('function');
-  });
-
-  it('exposes an onSelect handler on Log in (no command discriminator)', async () => {
-    const out = await runCommands('log', ctx());
-    const login = out.find((r) => r.label === 'Log in with EVE');
+  it('filters by substring and exposes auth onSelect handlers without a discriminator', async () => {
+    expect((await runCommands('changelog', ctx())).map((r) => r.label)).toEqual([
+      'Open changelog',
+    ]);
+    const login = (await runCommands('log', ctx())).find((r) => r.label === 'Log in with EVE');
+    const logout = (await runCommands('log', ctx({ session: mockSession() }))).find(
+      (r) => r.label === 'Log out',
+    );
     expect(typeof login?.onSelect).toBe('function');
-  });
-
-  it('filters by substring match against the label', async () => {
-    const out = await runCommands('changelog', ctx());
-    expect(out.map((r) => r.label)).toEqual(['Open changelog']);
+    expect(typeof logout?.onSelect).toBe('function');
   });
 });
 

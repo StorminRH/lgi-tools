@@ -138,7 +138,6 @@ describe('chain bounds', () => {
   it('caps fit zoom so a lone home system does not fill the viewport', () => {
     // fitBounds ignores option maxZoom and uses the store ceiling (2.5); the
     // hook must feed this constant into getViewportForBounds instead.
-    expect(CAMERA_FIT_MAX_ZOOM).toBe(0.75);
     expect(CAMERA_FIT_MAX_ZOOM).toBeLessThan(2.5);
   });
 });

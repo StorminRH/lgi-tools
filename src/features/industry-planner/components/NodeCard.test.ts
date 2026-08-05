@@ -24,8 +24,5 @@ describe('NodeCard', () => {
     expect(button.props['aria-pressed']).toBe(true);
     button.props.onClick();
     expect(onSelect).toHaveBeenCalledOnce();
-
-    const nativeButton = Button(button.props);
-    expect(nativeButton.type).toBe('button');
   });
 });

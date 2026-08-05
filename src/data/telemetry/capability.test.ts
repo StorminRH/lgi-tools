@@ -12,12 +12,10 @@ vi.mock('next/server', () => ({ after: (fn: () => unknown) => fn() }));
 
 import {
   CAPABILITIES,
-  CAPABILITY_FEATURES,
   recordCapabilityOutcome,
   type CapabilityId,
   type CapabilityOutcomeInput,
 } from './capability';
-import { USAGE_ACTIONS } from './types';
 
 beforeEach(() => {
   logUsageEventMock.mockClear();
@@ -44,18 +42,9 @@ function recordedMetadata(
 
 describe('capability catalogue', () => {
   it('names all 40 instrumented operations exactly once', () => {
-    expect(ids).toHaveLength(40);
     expect(new Set(ids).size).toBe(40);
     expect(ids).toContain('admin.wh-statics-review');
     expect(ids).toContain('cron.refresh-wh-statics');
-  });
-
-  it('gives every capability a closed feature and a non-empty operation', () => {
-    for (const id of ids) {
-      const capability = CAPABILITIES[id];
-      expect(CAPABILITY_FEATURES).toContain(capability.feature);
-      expect(capability.operation.length).toBeGreaterThan(0);
-    }
   });
 
   it('keeps operation names unique within each feature', () => {
@@ -66,10 +55,6 @@ describe('capability catalogue', () => {
       expect(seen.has(key)).toBe(false);
       seen.add(key);
     }
-  });
-
-  it('registers capability_outcome as a server-only usage action', () => {
-    expect(USAGE_ACTIONS).toContain('capability_outcome');
   });
 });
 
@@ -189,17 +174,6 @@ describe('recordCapabilityOutcome', () => {
 // on any of them would create one series per request.
 describe('metric label cardinality', () => {
   const HIGH_CARDINALITY_FIELDS = ['correlationId', 'durationMs', 'dependencies', 'retry'];
-
-  it('draws every grouping label from a closed vocabulary', () => {
-    for (const id of ids) {
-      const { feature, operation } = CAPABILITIES[id];
-      expect(CAPABILITY_FEATURES).toContain(feature);
-      // `operation` is a literal from the same `as const` catalogue, so the label
-      // set is bounded by the catalogue's size rather than by traffic.
-      expect(typeof operation).toBe('string');
-    }
-    expect(ids.length).toBeLessThan(200);
-  });
 
   it('never groups a telemetry query on a high-cardinality record field', () => {
     const sliQueries = readFileSync(

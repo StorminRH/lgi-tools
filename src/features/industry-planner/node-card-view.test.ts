@@ -5,14 +5,9 @@ import { nodeCardView } from './node-card-view';
 const base = { typeId: 34, selected: false, related: false, faded: false };
 
 describe('nodeCardView', () => {
-  it('is non-interactive with no onSelect', () => {
-    const view = nodeCardView(base);
-    expect(view.interactive).toBe(false);
-  });
-
-  it('is interactive when onSelect is set', () => {
-    const view = nodeCardView({ ...base, selected: true, onSelect: () => {} });
-    expect(view.interactive).toBe(true);
+  it('is interactive only when onSelect is set', () => {
+    expect(nodeCardView(base).interactive).toBe(false);
+    expect(nodeCardView({ ...base, selected: true, onSelect: () => {} }).interactive).toBe(true);
   });
 
   it('defaults the icon to the item itself, or forwards a provided rendition', () => {
@@ -20,18 +15,5 @@ describe('nodeCardView', () => {
     expect(nodeCardView({ ...base, icon: nodeImage(999, 34) }).iconDesc).toEqual(
       nodeImage(999, 34),
     );
-  });
-
-  it('reflects the visual state in the class list', () => {
-    expect(nodeCardView({ ...base, faded: true }).className).toContain('opacity-20');
-    const related = nodeCardView({ ...base, related: true }).className;
-    expect(related).toContain('bg-row-related');
-    expect(related).toContain('ring-isk');
-    expect(nodeCardView({ ...base, selected: true }).className).toContain('bg-isk-selected');
-    expect(nodeCardView({ ...base, onSelect: () => {} }).className).toContain('cursor-pointer');
-    // A plain card carries none of the state modifiers.
-    const plain = nodeCardView(base).className;
-    expect(plain).not.toContain('opacity-25');
-    expect(plain).not.toContain('cursor-pointer');
   });
 });

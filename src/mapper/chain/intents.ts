@@ -1,12 +1,6 @@
-// The reconciler's output vocabulary — the interface sub-version 4.0.3.2's motion work consumes.
-//
-// CONTRACT (session 4.0.2.3.1, decision PD-1): these five kinds are frozen here even though no
-// motion ships in this session, because 4.0.3.2 binds surfacing, exit, and glide animations to them.
-// The kinds are deliberately renderer-neutral nouns describing what happened to the CHAIN, not to
-// the canvas: reusing React Flow's `NodeChange` objects would weld the motion contract to a renderer
-// library the motion session does not own.
-//
-// Consumers should treat the union as exhaustive and switch on `kind`.
+// Reconciler output vocabulary: renderer-neutral nouns for what happened to the
+// chain (not the canvas). Motion binds surfacing/exit/glide to these kinds;
+// keep the union free of React Flow types and treat it as exhaustive.
 
 /**
  * A position in the canvas coordinate space.
@@ -84,15 +78,6 @@ export type MapChainIntent =
   | SystemMoved
   | ConnectionAppeared
   | ConnectionDeparted;
-
-/** Every intent kind, for exhaustiveness checks and test coverage assertions. */
-export const MAP_CHAIN_INTENT_KINDS = [
-  'system-appeared',
-  'system-departed',
-  'system-moved',
-  'connection-appeared',
-  'connection-departed',
-] as const satisfies readonly MapChainIntent['kind'][];
 
 /** True when two positions are the same point; the no-op test that suppresses a `system-moved`. */
 export function samePosition(a: ChainPosition, b: ChainPosition): boolean {

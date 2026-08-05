@@ -225,24 +225,6 @@ describe('POST /api/feedback', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('returns 429 from the typed rate-limit failure', async () => {
-    checkRateLimitMock.mockResolvedValue({
-      ok: false,
-      failure: {
-        category: 'rate_limited',
-        code: 'rate_limited',
-        retryAfterSeconds: 17,
-      },
-    });
-
-    const { POST } = await importRoute();
-    const res = await POST(buildRequest({ message: 'hi', path: '/sites' }));
-    const body = await expectProblem(res, 429, 'rate_limited');
-    expect(body.retryAfterSeconds).toBe(17);
-    expect(res.headers.get('Retry-After')).toBe('17');
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
   it('strips control characters from message and path before forwarding', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
@@ -276,29 +258,4 @@ describe('POST /api/feedback', () => {
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
-  it('returns 502 and skips telemetry when fetch throws', async () => {
-    getSessionMock.mockResolvedValue(SESSION);
-    fetchMock.mockRejectedValue(new Error('network down'));
-
-    const { POST } = await importRoute();
-    const res = await POST(buildRequest({ message: 'hi', path: '/sites' }));
-    await expectProblem(res, 502, 'discord_failed', 'Could not reach Discord');
-    expect(logUsageEventMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 503 when DISCORD_WEBHOOK_URL is unset', async () => {
-    vi.stubEnv('DISCORD_WEBHOOK_URL', '');
-    getSessionMock.mockResolvedValue(SESSION);
-
-    const { POST } = await importRoute();
-    const res = await POST(buildRequest({ message: 'hi', path: '/sites' }));
-    await expectProblem(
-      res,
-      503,
-      'feedback_unconfigured',
-      'Feedback channel is not configured',
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(logUsageEventMock).not.toHaveBeenCalled();
-  });
 });

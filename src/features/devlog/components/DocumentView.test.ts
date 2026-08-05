@@ -61,7 +61,4 @@ describe('renderBlock', () => {
     expect(Object.keys(el.props)).toEqual([]);
   });
 
-  it('keys each block by its index', () => {
-    expect(block({ type: 'paragraph', tokens }, 3).key).toBe('3');
-  });
 });

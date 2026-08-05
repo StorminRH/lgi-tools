@@ -62,10 +62,4 @@ describe('deriveSessionIdentity', () => {
     expect(isAdmin).toHaveBeenCalledWith(99, 'ADMIN');
     expect(out.isAdmin).toBe(true);
   });
-
-  it('passes the raw user and session through by reference', () => {
-    const out = deriveSessionIdentity({ user: baseUser, session: baseSession, active: null, isAdmin: notAdmin });
-    expect(out.user).toBe(baseUser);
-    expect(out.session).toBe(baseSession);
-  });
 });

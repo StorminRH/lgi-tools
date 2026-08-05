@@ -5,14 +5,16 @@ import {
   isTombstoned,
   MAP_CHAIN_UNDO_WINDOW_MS,
 } from './chain-contract';
+import { MAP_EVENT_RETENTION_MS } from './chain-events';
 
 describe('chain-contract', () => {
-  it('owns a 24-hour undo window', () => {
-    expect(MAP_CHAIN_UNDO_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
-  });
-
   it('pairs purgeAfter exactly one undo window after deletedAt', () => {
     const deletedAt = 1_700_000_000_000;
+    expect(MAP_CHAIN_UNDO_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
+    // Every purge suite computes with this constant symbolically, so a unit
+    // typo (days → hours) would pass everywhere but here. Product durability
+    // pins: 24h undo, 7d despawn ledger.
+    expect(MAP_EVENT_RETENTION_MS).toBe(7 * 24 * 60 * 60 * 1000);
     expect(chainTombstoneStamps(deletedAt)).toEqual({
       deletedAt,
       purgeAfter: deletedAt + MAP_CHAIN_UNDO_WINDOW_MS,

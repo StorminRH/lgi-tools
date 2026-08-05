@@ -1,22 +1,15 @@
-// The gate-first fixture surface for the collaborative chain.
+// Gate-first fixture surface for the collaborative chain: executable entity,
+// index, and authorization contracts. Public surface is the gated
+// `readMapCollection` query; chain writes are internal fixtures or production
+// authoring mutations in `mapAuthoring` (sole write surface).
 //
-// This module exists to make the chain's entity, index and authorization contracts EXECUTABLE
-// before any production consumer depends on them. No route, client hook or durable writer imports
-// it, and none will until Session 4.0.2.2.2 connects the access projection and the real authoring
-// surfaces land. Its value is that every invariant below is proven through a named function with
-// real validators, rather than through unrestricted test-harness inserts that would prove only that
-// the harness works.
-//
-// Note that "no importer" is not "unreachable": Convex publishes every public
-// function in this directory. The sole remaining public surface here is the
-// gated `readMapCollection` query; every chain write is either an internal
-// fixture (`placeSystemFixture` and siblings) or a production authoring
-// mutation in `mapAuthoring` (HC-1 sole write surface).
+// "No importer" is not "unreachable": Convex publishes every public function in
+// this directory, so import-graph reasoning must never declare one dead.
 //
 // Two rules hold everywhere here:
-//   1. requireMapAccess is the FIRST call in every public handler. There is no second access path.
-//   2. Volatile bookkeeping never touches a watched payload document — last-seen lives in
-//      mapSignatureActivity, and a sub-threshold observation writes nothing at all.
+//   1. requireMapAccess is the FIRST call in every public handler.
+//   2. Volatile bookkeeping never touches a watched payload document — last-seen
+//      lives in mapSignatureActivity, and a sub-threshold observation writes nothing.
 import { ConvexError, v } from 'convex/values';
 import {
   internalMutation,
@@ -55,7 +48,7 @@ export const MAP_FIXTURE_PAGE_SIZE = 25;
  * governs INVISIBLE bookkeeping only — nothing user-visible is delayed or scheduled by it, and every
  * activity write stays outside mapSignatures either way.
  */
-export const SIGNATURE_ACTIVITY_STALE_MS = 60_000;
+const SIGNATURE_ACTIVITY_STALE_MS = 60_000;
 
 const collectionValidator = v.union(
   v.literal('systems'),

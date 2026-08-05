@@ -16,15 +16,21 @@ const character = (over: Partial<LinkedCharacter> = {}): LinkedCharacter => ({
 });
 
 describe('deriveCharacterRowView', () => {
-  it('reports a healthy character with no reconnect label and the granted scopes', () => {
-    const view = deriveCharacterRowView({ scope: EVE_SCOPES.join(','), hasRefreshToken: true });
+  // The healthy negative: falsifies the view's wiring into deriveCharacterHealth
+  // (scope-health.test.ts owns the comparator itself). Scopes arrive REVERSED so
+  // an order-sensitive comparison regression fails here too.
+  it('reports a fully-scoped character healthy with no reconnect label', () => {
+    const view = deriveCharacterRowView({
+      scope: [...EVE_SCOPES].reverse().join(','),
+      hasRefreshToken: true,
+    });
     expect(view.needsReconnect).toBe(false);
     expect(view.healthLabel).toBeNull();
     expect(view.scopes.length).toBeGreaterThan(0);
   });
 
   it('labels a token-less character Disconnected', () => {
-    const view = deriveCharacterRowView({ scope: EVE_SCOPES.join(','), hasRefreshToken: false });
+    const view = deriveCharacterRowView({ scope: 'publicData', hasRefreshToken: false });
     expect(view.needsReconnect).toBe(true);
     expect(view.healthLabel).toBe('Disconnected');
   });

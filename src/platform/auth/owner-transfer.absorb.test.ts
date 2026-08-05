@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// absorbLinkedCharacterOnProof's decision forks — never absorb without a link
-// state, never absorb your own row, and the emptied/not-emptied source fork
-// (reconcile composition adds ONLY the identity-email rebind). The Drizzle
+// absorbLinkedCharacterOnProof's failure paths — the arms only an
+// error-injecting mock can express (the decision forks themselves run against
+// real Postgres in owner-transfer.db.test.ts). The Drizzle
 // calls are stubbed with the admin-users reassignment-test chainable thenable:
 // every builder method returns the same object, awaiting it resolves the next
 // queued result (FIFO). getOAuthState is mocked settable so link/sign-in/throw
@@ -78,72 +78,6 @@ afterEach(() => {
 });
 
 describe('absorbLinkedCharacterOnProof', () => {
-  it('never absorbs on a sign-in flow (no link in the OAuth state)', async () => {
-    oauthState.value = { callbackURL: '/' }; // parsed state without link
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
-    expect(out).toEqual({ absorbed: false });
-    expect(state.calls).toEqual({ delete: 0, update: 0 });
-    expect(state.results).toHaveLength(0); // no DB read at all
-  });
-
-  it('no-ops on a fresh link (no account row for the character)', async () => {
-    oauthState.value = { link: { userId: 'user-b' } };
-    state.results = [[]]; // row lookup finds nothing
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
-    expect(out).toEqual({ absorbed: false });
-    expect(state.calls).toEqual({ delete: 0, update: 0 });
-  });
-
-  it('no-ops when the character already belongs to the linking user (normal relink)', async () => {
-    oauthState.value = { link: { userId: 'user-b' } };
-    state.results = [[{ userId: 'user-b' }]];
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
-    expect(out).toEqual({ absorbed: false });
-    expect(state.calls).toEqual({ delete: 0, update: 0 });
-    expect(vi.mocked(logUsageEvent)).not.toHaveBeenCalled();
-  });
-
-  it('absorbs and deletes the emptied source user, skipping the reconcile', async () => {
-    oauthState.value = { link: { userId: 'user-b' } };
-    // awaits: absorb row-lookup → move update → reassign remaining (empty) →
-    // delete source user. Reconcile must NOT run on this fork.
-    state.results = [[{ userId: 'stray' }], undefined, [], undefined];
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
-    expect(out).toEqual({ absorbed: true });
-    expect(state.calls).toEqual({ delete: 1, update: 1 });
-    expect(state.results).toHaveLength(0); // exactly four awaits — no reconcile reads
-    expect(vi.mocked(logUsageEvent)).toHaveBeenCalledWith({
-      action: 'auth_absorb',
-      characterId: CHARACTER,
-      metadata: { fromUserId: 'stray', toUserId: 'user-b', sourceDeleted: true },
-    });
-  });
-
-  it('absorbs from a surviving source and rebinds its identity email', async () => {
-    oauthState.value = { link: { userId: 'user-b' } };
-    // awaits: absorb row-lookup → move update → reassign remaining (sibling) →
-    // stored-active (999 ≠ moved, no repoint) → reconcile remaining →
-    // reconcile user row (email IS the moved character's) → email rebind update.
-    state.results = [
-      [{ userId: 'stray' }],
-      undefined,
-      [{ id: 'acc-other' }],
-      [{ activeCharacterId: 999 }],
-      [{ accountId: '222' }],
-      [{ email: syntheticEmail(CHARACTER), activeCharacterId: 999 }],
-      undefined,
-    ];
-    const out = await absorbLinkedCharacterOnProof(CHARACTER);
-    expect(out).toEqual({ absorbed: true });
-    expect(state.calls).toEqual({ delete: 0, update: 2 }); // move + the rebind
-    expect(state.results).toHaveLength(0);
-    expect(vi.mocked(logUsageEvent)).toHaveBeenCalledWith({
-      action: 'auth_absorb',
-      characterId: CHARACTER,
-      metadata: { fromUserId: 'stray', toUserId: 'user-b', sourceDeleted: false },
-    });
-  });
-
   it('absorbs from a surviving source without touching an unrelated identity email', async () => {
     oauthState.value = { link: { userId: 'user-b' } };
     state.results = [

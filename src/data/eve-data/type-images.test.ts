@@ -1,30 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  blueprintImage,
-  heroImage,
-  isRenderableCategory,
-  itemImage,
-  jobImage,
-  nodeImage,
-} from './type-images';
-
-describe('itemImage', () => {
-  it('shows the item itself in the inventory icon rendition', () => {
-    expect(itemImage(34)).toEqual({ typeId: 34, variant: 'icon' });
-  });
-});
-
-describe('blueprintImage', () => {
-  it('shows a blueprint row in the blueprint-scroll rendition', () => {
-    expect(blueprintImage(691)).toEqual({ typeId: 691, variant: 'bp' });
-  });
-});
-
-describe('heroImage', () => {
-  it('shows the blueprint being configured in the hero experiment', () => {
-    expect(heroImage(691)).toEqual({ typeId: 691, variant: 'bp' });
-  });
-});
+import { isRenderableCategory, jobImage, nodeImage } from './type-images';
 
 describe('nodeImage', () => {
   it('renders a buildable/reaction node as the producing type in the `bp` rendition', () => {

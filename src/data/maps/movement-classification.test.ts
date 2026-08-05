@@ -37,7 +37,6 @@ interface MovementCase {
   readonly name: string;
   readonly facts: MovementFacts;
   readonly expected: MovementVerdict;
-  readonly sequence?: 'repeated-arrival';
 }
 
 const MOVEMENT_CASES: readonly MovementCase[] = [
@@ -47,12 +46,7 @@ const MOVEMENT_CASES: readonly MovementCase[] = [
     expected: 'stationary',
   },
   {
-    name: 'dock in the current system',
-    facts: facts({ toSolarSystemId: JITA, sameSystemStateChange: true }),
-    expected: 'same-system-state',
-  },
-  {
-    name: 'undock or change station in the current system',
+    name: 'same-system dock or station change',
     facts: facts({ toSolarSystemId: JITA, sameSystemStateChange: true }),
     expected: 'same-system-state',
   },
@@ -87,24 +81,6 @@ const MOVEMENT_CASES: readonly MovementCase[] = [
     expected: 'hole-crossing',
   },
   {
-    name: 'repeated arrival first crossing',
-    facts: facts({ toSolarSystemId: J100001 }),
-    expected: 'hole-crossing',
-    sequence: 'repeated-arrival',
-  },
-  {
-    name: 'repeated arrival return crossing',
-    facts: facts({ fromSolarSystemId: J100001, toSolarSystemId: JITA }),
-    expected: 'hole-crossing',
-    sequence: 'repeated-arrival',
-  },
-  {
-    name: 'repeated arrival second crossing',
-    facts: facts({ toSolarSystemId: J100001 }),
-    expected: 'hole-crossing',
-    sequence: 'repeated-arrival',
-  },
-  {
     name: 'first sample',
     facts: facts({ fromSolarSystemId: null }),
     expected: 're-anchor',
@@ -121,47 +97,8 @@ const MOVEMENT_CASES: readonly MovementCase[] = [
   },
 ];
 
-const EXPECTED_VERDICT_COUNTS = {
-  stationary: 1,
-  'same-system-state': 2,
-  'gate-placement': 2,
-  'hole-crossing': 7,
-  're-anchor': 3,
-} satisfies Record<MovementVerdict, number>;
-
 describe('classifyMovement', () => {
-  it('keeps the complete verdict fixture matrix pinned', () => {
-    const actualCounts = {
-      stationary: MOVEMENT_CASES.filter(({ expected }) => expected === 'stationary').length,
-      'same-system-state': MOVEMENT_CASES.filter(
-        ({ expected }) => expected === 'same-system-state',
-      ).length,
-      'gate-placement': MOVEMENT_CASES.filter(
-        ({ expected }) => expected === 'gate-placement',
-      ).length,
-      'hole-crossing': MOVEMENT_CASES.filter(
-        ({ expected }) => expected === 'hole-crossing',
-      ).length,
-      're-anchor': MOVEMENT_CASES.filter(({ expected }) => expected === 're-anchor').length,
-    } satisfies Record<MovementVerdict, number>;
-
-    expect(MOVEMENT_CASES).toHaveLength(15);
-    expect(actualCounts).toEqual(EXPECTED_VERDICT_COUNTS);
-  });
-
   it.each(MOVEMENT_CASES)('$name -> $expected', ({ facts: input, expected }) => {
     expect(classifyMovement(input, geography)).toBe(expected);
-  });
-
-  it('judges repeated arrivals independently without retaining sequence state', () => {
-    const verdicts = MOVEMENT_CASES.filter(
-      ({ sequence }) => sequence === 'repeated-arrival',
-    ).map(({ facts: input }) => classifyMovement(input, geography));
-
-    expect(verdicts).toEqual([
-      'hole-crossing',
-      'hole-crossing',
-      'hole-crossing',
-    ]);
   });
 });

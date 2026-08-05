@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dedupeMarkersByDay, deriveActivityView, rangeDayCount } from './activity-view';
+import { deriveActivityView, rangeDayCount } from './activity-view';
 
 const range = {
   from: new Date('2026-07-06T00:00:00Z'),
@@ -11,21 +11,6 @@ const dailyCounts = [
   { day: '2026-07-08', totalEvents: 20 },
   { day: '2026-07-12', totalEvents: 5 },
 ];
-
-describe('dedupeMarkersByDay', () => {
-  it('keeps a single version, collapses several on one day to a count', () => {
-    expect(
-      dedupeMarkersByDay([
-        { date: '2026-07-08', label: 'v1' },
-        { date: '2026-07-08', label: 'v2' },
-        { date: '2026-07-10', label: 'v3' },
-      ]),
-    ).toEqual([
-      { date: '2026-07-08', label: '2 deploys' },
-      { date: '2026-07-10', label: 'v3' },
-    ]);
-  });
-});
 
 describe('deriveActivityView', () => {
   it('zero-fills the span, adds the moving average, weekend flags, and end label', () => {
@@ -93,12 +78,17 @@ describe('deriveActivityView', () => {
       dailyCounts,
       prevDailyCounts: null,
       markers: [
+        { date: '2026-07-06', label: 'v0' },
         { date: '2026-07-08', label: 'v1' },
         { date: '2026-07-08', label: 'v2' },
         { date: '2026-07-20', label: 'v3' },
       ],
     });
-    expect(view.eventMarkers).toEqual([{ x: 2, label: '2 deploys' }]);
+    // A lone marker keeps its own label; same-day markers collapse to a count.
+    expect(view.eventMarkers).toEqual([
+      { x: 0, label: 'v0' },
+      { x: 2, label: '2 deploys' },
+    ]);
   });
 
   it('returns an empty, no-data view when there are no daily counts', () => {

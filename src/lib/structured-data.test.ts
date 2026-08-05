@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildBreadcrumbList } from './structured-data';
 
 describe('buildBreadcrumbList', () => {
-  it('numbers canonical breadcrumb items from one in source order', () => {
+  it('numbers BreadcrumbList items from one in source order', () => {
     expect(
       buildBreadcrumbList([
         { name: 'Home', url: 'https://lgi.tools/' },

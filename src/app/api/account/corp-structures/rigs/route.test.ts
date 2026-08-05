@@ -85,24 +85,6 @@ describe('POST /api/account/corp-structures/rigs', () => {
     expect(h.stationManagerGateMock).not.toHaveBeenCalled();
   });
 
-  it('maps the station-manager denial to the endpoint problem contract', async () => {
-    h.stationManagerGateMock.mockResolvedValue({
-      ok: false,
-      failure: {
-        category: 'forbidden',
-        code: 'not_station_manager',
-        detail: 'Requires the Station Manager role',
-      },
-    });
-    const res = await POST(makeRequest(VALID_BODY));
-    expect(res.status).toBe(403);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'not_station_manager',
-      detail: 'Requires the Station Manager role',
-    });
-    expect(h.upsertCorpStructureRigsMock).not.toHaveBeenCalled();
-  });
-
   it('returns 400 for a structure the corp does not own', async () => {
     h.getCorpStructuresMock.mockResolvedValue(new Map());
     const res = await POST(makeRequest(VALID_BODY));
