@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '@/platform/auth/types';
 import {
+  buildRadioValue,
   deriveRoster,
+  parseRadioSelection,
   resolveBuildCharacter,
   runAsView,
   type BuildCharacter,
@@ -136,5 +138,14 @@ describe('deriveRoster', () => {
     expect(
       deriveRoster({ loading: false, characterId: 90000002 }, { characterId: 90000001, list }),
     ).toBeNull();
+  });
+});
+
+describe('run-as radio sentinel', () => {
+  it('round-trips clear↔select through the 0 sentinel (0 is never a real character id)', () => {
+    expect(buildRadioValue(null)).toBe(0);
+    expect(parseRadioSelection(0)).toBeNull();
+    expect(buildRadioValue(alt)).toBe(90000002);
+    expect(parseRadioSelection(90000002)).toBe(90000002);
   });
 });
