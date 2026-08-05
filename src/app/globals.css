@@ -313,11 +313,14 @@
  * sits above negative z-index — and hide the dots (3.6.11 F1). */
 html {
   background: var(--color-bg-deep);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html, body {
   color: var(--color-text);
   font-family: var(--font-ui);
+  overscroll-behavior: none;
 }
 
 body {
@@ -406,12 +409,22 @@ a:hover {
 
 /* Touch browsers (notably iOS Safari) auto-zoom the viewport when a focused text
  * control renders below 16px. Form controls wear --text-ui (13px); on coarse-
- * pointer devices bump them to --text-body so focus does not reflow the page. */
+ * pointer devices bump them to --text-body so focus does not reflow the page.
+ * That zoom also makes fixed backdrop/grain appear to shift while scrolling until
+ * the page scale resets — the 16px floor prevents both symptoms. */
 @media (hover: none) and (pointer: coarse) {
   input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='file']),
   textarea,
   select {
     font-size: var(--text-body);
+  }
+
+  /* Keep the decorative fixed layers pinned to the dynamic viewport and on their
+   * own compositor plane so rubber-band overscroll does not drift them. */
+  .page-backdrop,
+  .page-grain {
+    min-height: 100dvh;
+    transform: translateZ(0);
   }
 }
 

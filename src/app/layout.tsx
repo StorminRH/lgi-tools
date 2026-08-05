@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -65,6 +65,13 @@ export const metadata: Metadata = {
   ...(googleVerification ? { verification: { google: googleVerification } } : {}),
 };
 
+/** Root viewport: keep pinch-zoom available; keyboard overlays content instead of resizing layout. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "overlays-content",
+};
+
 /**
  * Renders the / route surface and owns its page-level composition, metadata boundary, and fallback
  * presentation.
@@ -79,7 +86,7 @@ export default function RootLayout({
       lang="en"
       className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full overscroll-none`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col overscroll-none">
         {/* Sitewide dot-lattice backdrop (3.6.11 F1) — a fixed full-viewport
          * layer behind every route. Reuses the approved landing recipe (see
          * .page-backdrop in globals.css); purely decorative, reads nothing. */}
