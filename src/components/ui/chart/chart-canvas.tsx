@@ -51,7 +51,7 @@ export function ChartCanvas({
 
       {tooltipOpen && tooltip && (
         <div ref={tooltipRef} className="sparkline-tooltip" aria-hidden>
-          <div className="sparkline-tooltip-box font-data">{tooltip}</div>
+          <div className="sparkline-tooltip-box glass-panel font-data">{tooltip}</div>
         </div>
       )}
     </div>

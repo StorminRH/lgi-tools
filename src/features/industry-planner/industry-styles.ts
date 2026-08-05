@@ -30,6 +30,22 @@ export const PLANNER_DISCLOSURE_TRIGGER_CLASS =
 export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
 
 /**
+ * Hero location group layout: fluid up to the desktop 332px plane so manufacturing
+ * and reaction pickers stay inside the card on narrow viewports.
+ */
+export const HERO_LOCATION_GROUP_CLASS =
+  'flex w-full min-w-0 max-w-[332px] flex-col justify-center gap-1.5';
+
+/** Label + control row inside a hero location group. */
+export const HERO_LOCATION_ROW_CLASS = 'flex min-w-0 items-center gap-2';
+
+/**
+ * The shared 260×30 control well when space allows; shrinks beside the fixed label
+ * on phones instead of clipping past the card edge.
+ */
+export const HERO_LOCATION_CONTROL_WELL_CLASS = 'min-w-0 flex-1 max-w-[260px]';
+
+/**
  * Sole presentation owner for planner efficiency states across icon glyphs, editable
  * values, hero labels, and build-node frames.
  */
