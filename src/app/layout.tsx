@@ -87,9 +87,9 @@ export default function RootLayout({
       className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full overscroll-none`}
     >
       <body className="min-h-full flex flex-col overscroll-none">
-        {/* Sitewide dot-lattice backdrop (3.6.11 F1) — a fixed full-viewport
-         * layer behind every route. Reuses the approved landing recipe (see
-         * .page-backdrop in globals.css); purely decorative, reads nothing. */}
+        {/* Sitewide space backdrop (3.6.11 F1, image since 3.6.24) — a fixed
+         * full-viewport layer behind every route (see .page-backdrop in
+         * globals.css); purely decorative, reads nothing. */}
         <div className="page-backdrop" aria-hidden="true" />
         {/* Sitewide film grain — the fixed full-viewport counterpart ABOVE
          * all content (see .page-grain in globals.css); purely decorative,

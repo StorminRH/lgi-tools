@@ -310,7 +310,7 @@
 /* The deep base lives on <html> so it propagates to the canvas BEHIND the fixed
  * .page-backdrop (a z-index:-1 child of <body>). Keeping the fill on <body> too
  * would paint over that backdrop — body's background is a block-level paint that
- * sits above negative z-index — and hide the dots (3.6.11 F1). */
+ * sits above negative z-index — and hide the nebula image (3.6.11 F1). */
 html {
   background: var(--color-bg-deep);
   -webkit-text-size-adjust: 100%;
@@ -446,15 +446,15 @@ a:hover {
   .skeleton-shimmer { animation: none; }
 }
 
-/* Sitewide fixed backdrop (3.6.11 F1) — the approved landing "dots" treatment
- * (handoff §3), promoted from the homepage to a fixed full-viewport layer behind
- * every route. Three stacked layers: a top-down fade so the bottom returns to
- * page-deep, a grey-blue radial wash (an echo of the old radial lift), and a fine
- * grey-blue dot lattice. rgba is permitted in the stylesheet (the hex ban is
- * hex-only); the final solid stop reuses the deep-bg token. `background-image`
- * (not the `background` shorthand) so the html/body deep base survives beneath.
- * z-index -1 keeps it above the page canvas but below all content (cards/panels
- * paint their own fill over it, so dots only show through framed gutters). */
+/* Sitewide fixed backdrop (3.6.11 F1) — promoted from the homepage to a fixed
+ * full-viewport layer behind every route. Stacked layers: a top-down fade so the
+ * bottom returns to page-deep, grey-blue radial washes, a dimming veil, and the
+ * dark nebula photo (`/backdrops/dark.avif`; the old CSS dot lattice was removed
+ * in 3.6.24). rgba is permitted in the stylesheet (the hex ban is hex-only);
+ * the final solid stop reuses the deep-bg token. `background-image` (not the
+ * `background` shorthand) so the html/body deep base survives beneath. z-index -1
+ * keeps it above the page canvas but below all content (cards/panels paint their
+ * own fill over it, so the backdrop shows through framed gutters). */
 .page-backdrop {
   position: fixed;
   inset: 0;
