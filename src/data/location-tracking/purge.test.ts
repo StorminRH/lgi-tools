@@ -42,6 +42,7 @@ describe('locationTrackingPurgeContributor', () => {
       characterId: CHAR,
     });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+    // The preceding call-count assertion proves the first recorded call exists.
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe('https://example.convex.site/purge-location-tracking');
     expect(init?.method).toBe('POST');
@@ -51,6 +52,8 @@ describe('locationTrackingPurgeContributor', () => {
 
   it('purgeUser POSTs the whole-user teardown (characterId null)', async () => {
     await locationTrackingPurgeContributor.purgeUser?.({ kind: 'user', userId: USER });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    // The preceding call-count assertion proves the first recorded call exists.
     const [, init] = fetchSpy.mock.calls[0]!;
     expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: null });
   });

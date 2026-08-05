@@ -195,6 +195,9 @@ describe('characterLocationSync.syncUser', () => {
         etagShip: 'ship0',
       }),
     );
+    // Snapshot before the run — comparing against a post-run re-read would be
+    // a tautology and could not detect a delete+reinsert.
+    const createdAt = (await t.run((ctx) => ctx.db.get(before)))?._creationTime;
     stubFetch({
       esi: () => new Response(null, { status: 304, headers: { Expires: EXP } }),
     });
@@ -203,9 +206,7 @@ describe('characterLocationSync.syncUser', () => {
 
     const doc = await readDoc(t);
     expect(doc?._id).toBe(before);
-    expect(doc?._creationTime).toBe(
-      (await t.run((ctx) => ctx.db.get(before)))?._creationTime,
-    );
+    expect(doc?._creationTime).toBe(createdAt);
     expect(doc).toMatchObject({
       solarSystemId: SYSTEM_A,
       shipTypeId: SHIP_A,

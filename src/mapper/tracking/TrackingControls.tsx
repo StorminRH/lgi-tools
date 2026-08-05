@@ -6,6 +6,7 @@
 // location state is mirrored locally and no new polling path exists here.
 import { Panel } from '@xyflow/react';
 import { useAccountCharacters } from '@/components/use-account-characters';
+import { cn } from '@/components/ui/cn';
 import { Switch } from '@/components/ui/switch';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
@@ -58,7 +59,10 @@ function TrackingControlsView({
     <Panel
       position="top-left"
       data-map-tracking
-      className={`nopan nodrag nowheel mx-2! mb-2! mt-4! flex w-56 flex-col gap-2 rounded-card p-2 text-ui ${mapFrostedSurface}`}
+      className={cn(
+        'nopan nodrag nowheel mx-2! mb-2! mt-4! flex w-56 flex-col gap-2 rounded-card p-2 text-ui',
+        mapFrostedSurface,
+      )}
     >
       <span className="text-label uppercase tracking-label text-muted">
         Live tracking

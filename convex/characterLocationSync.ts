@@ -8,8 +8,8 @@
 //   → ONE applySyncResults mutation.
 //
 // Throw = transient (network, ESI 5xx, Neon 5xx); everything else becomes a
-// recorded per-character or run-level error. Stock 30s scan cadence only —
-// chain-on-success is OW4.
+// recorded per-character or run-level error. The engine chains a dispatch on
+// clean-yield success (~5s while watched); the 30s scan is the retry/watchdog.
 import { v } from 'convex/values';
 import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import {
