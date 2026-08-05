@@ -42,8 +42,9 @@ ban does not excuse skipping the docs gate before code.
 - Strict TypeScript check: `npx tsc --noEmit --incremental false`
 - Sole definition of done: `pnpm verify`
 - Testing principles: `docs/contributing/testing-principles.md` — the bar for
-  authors, reviewers, and any Keep-Tests-Tight automation (fewer, longer,
-  high-signal tests; delete or consolidate low-signal agent residue)
+  authors, reviewers, and Keep-Tests-Tight automation (fewer, longer,
+  high-signal tests; delete or consolidate low-signal agent residue). The
+  daily cleanup procedure is `docs/workflows/keep-tests-tight.md`.
 
 Never run `pnpm build`, `next build`, `pnpm vercel-build`, or another
 production-mode build locally or before merge. Only Vercel may run the

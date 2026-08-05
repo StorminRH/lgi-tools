@@ -1,17 +1,22 @@
 // run-probes.mjs — the one probe runner for docs/ux-check.
 // Owns browser lifecycle, console/pageerror/CSP/network collection, noise
-// policy, screenshots, report.json, and the pass/fail exit gate. A probe is a
-// definition module in docs/ux-check/probes/ (see README for the format);
-// definitions receive everything through ctx and import nothing from here.
-// Default gates on every probe: zero style-src CSP violations and zero
+// policy, failure-only screenshots, report.json, and the pass/fail exit gate.
+// A probe is a definition module in docs/ux-check/probes/ (see README for the
+// format); definitions receive everything through ctx and import nothing from
+// here. Default gates on every probe: zero style-src CSP violations and zero
 // unfiltered console/page errors. Never waits on networkidle: the Convex
-// websocket keeps the network busy forever.
+// websocket keeps the network busy forever. Proactive `shot()` is a no-op —
+// screenshots land only when a viewport run fails.
 
 import { chromium, firefox, webkit, devices } from 'playwright';
 import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { VIEWPORTS } from '../../scripts/ux-capture-args.mjs';
+import {
+  installOriginScopedBypass,
+  loadRemoteAuthOptions,
+} from '../../scripts/ux-remote-auth.mjs';
 
 const ROOT = process.cwd();
 const DEFINITIONS_DIR = path.resolve(ROOT, 'docs/ux-check/probes');
@@ -24,11 +29,12 @@ const ENGINES = {
   firefox,
   webkit,
 };
+// Local Convex websocket / HMR noise only — do not match every console line
+// that merely contains "Convex" (real ConvexError must still fail the probe).
 const STANDARD_CONSOLE_NOISE = [
   /ws:\/\/127\.0\.0\.1:3210/i,
   /127\.0\.0\.1:3210.*ERR_CONNECTION_REFUSED/i,
   /ERR_CONNECTION_REFUSED.*127\.0\.0\.1:3210/i,
-  /\bconvex\b/i,
   /webpack-hmr/i,
   /\[Fast Refresh\]/i,
   /va\.vercel-scripts\.com/i,
@@ -44,6 +50,7 @@ function parseArgs(argv) {
     list: false,
     engine: 'chromium',
     storageState: process.env.UX_STORAGE_STATE ?? null,
+    cookieJar: process.env.UX_COOKIE_JAR ?? null,
     captureStorageState: null,
   };
   for (const arg of argv) {
@@ -52,6 +59,8 @@ function parseArgs(argv) {
     else if (arg.startsWith('--engine=')) opts.engine = arg.slice('--engine='.length);
     else if (arg.startsWith('--storage-state=')) {
       opts.storageState = arg.slice('--storage-state='.length);
+    } else if (arg.startsWith('--cookie-jar=')) {
+      opts.cookieJar = arg.slice('--cookie-jar='.length);
     } else if (arg.startsWith('--capture-storage-state=')) {
       opts.captureStorageState = arg.slice('--capture-storage-state='.length);
     } else if (arg.startsWith('--')) throw new Error(`unknown option: ${arg}`);
@@ -74,13 +83,6 @@ async function waitForServer(baseUrl, timeoutMs = 30000) {
       await wait(750);
     }
   }
-}
-
-function slugify(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 function isAllowedConsole(message, extraPatterns) {
@@ -238,7 +240,7 @@ async function collectCsp(page) {
   }
 }
 
-async function runViewport(browser, definition, viewport, baseUrl, opts) {
+async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
   const result = {
     name: definition.name,
     route: definition.route,
@@ -247,6 +249,7 @@ async function runViewport(browser, definition, viewport, baseUrl, opts) {
     url: new URL(definition.route, baseUrl).href,
     checks: [],
     screenshots: [],
+    failureArtifacts: [],
     cspViolations: [],
     styleSrcViolations: [],
     consoleErrors: [],
@@ -272,16 +275,8 @@ async function runViewport(browser, definition, viewport, baseUrl, opts) {
     console.log(`    ${passed ? '✓' : '✗'} ${label}`);
     return passed;
   };
-  const shot = async (tag, { page: targetPage = page } = {}) => {
-    const file = path.join(
-      OUT_DIR,
-      `${definition.name}--${opts.engine}--${viewport}--${slugify(tag) || 'shot'}.png`,
-    );
-    await targetPage.screenshot({ path: file, fullPage: true });
-    result.screenshots.push(rel(file));
-    console.log(`    ✓ ${rel(file)}`);
-    return rel(file);
-  };
+  // Proactive shots are retired — keep the API so probes do not crash.
+  const shot = async () => null;
 
   /** Opens an additional authenticated (or anonymous) context for multi-client probes. */
   const createContext = async ({
@@ -301,6 +296,10 @@ async function runViewport(browser, definition, viewport, baseUrl, opts) {
       ...contextOptions(viewportName, definition.reducedMotion),
       ...(definition.requiresAuth && storageState ? { storageState } : {}),
     });
+    await installOriginScopedBypass(secondaryContext, opts.baseUrl);
+    if (definition.requiresAuth && auth.cookies.length > 0) {
+      await secondaryContext.addCookies(auth.cookies);
+    }
     ownedContexts.push({
       context: secondaryContext,
       browser: engineName === opts.engine ? null : secondaryBrowser,
@@ -311,9 +310,9 @@ async function runViewport(browser, definition, viewport, baseUrl, opts) {
   };
 
   try {
-    if (definition.requiresAuth && !opts.storageState) {
+    if (definition.requiresAuth && !opts.storageState && auth.cookies.length === 0) {
       throw new Error(
-        `${definition.name} requires --storage-state=<path> (or UX_STORAGE_STATE); capture once via headed EVE SSO login`,
+        `${definition.name} requires auth: run pnpm e2e:seed and pass --storage-state=docs/ux-check/captures/auth-storage.json (or UX_STORAGE_STATE / UX_COOKIE_JAR / --cookie-jar)`,
       );
     }
     // Auth state applies only to probes that declare they need it: a probe
@@ -325,6 +324,10 @@ async function runViewport(browser, definition, viewport, baseUrl, opts) {
         ? { storageState: opts.storageState }
         : {}),
     });
+    await installOriginScopedBypass(context, opts.baseUrl);
+    if (definition.requiresAuth && auth.cookies.length > 0) {
+      await context.addCookies(auth.cookies);
+    }
     page = await context.newPage();
     diagnostics = watchPage(page, definition.allowConsole);
     await installCspCollector(page);
@@ -355,6 +358,21 @@ async function runViewport(browser, definition, viewport, baseUrl, opts) {
     check('default gate: zero unfiltered console errors', result.consoleErrors.length === 0);
     check('default gate: zero uncaught page errors', result.pageErrors.length === 0);
     result.passed = result.crash === null && result.checks.every((item) => item.passed);
+    if (!result.passed && page) {
+      try {
+        const file = path.join(
+          OUT_DIR,
+          `${definition.name}--${opts.engine}--${viewport}--failure.png`,
+        );
+        await page.screenshot({ path: file, fullPage: true });
+        const relative = rel(file);
+        result.failureArtifacts.push(relative);
+        result.screenshots.push(relative);
+        console.log(`    failure artifact: ${relative}`);
+      } catch {
+        // Best-effort diagnostic only.
+      }
+    }
     await page?.close().catch(() => {});
     await context?.close().catch(() => {});
     for (const owned of ownedContexts) {
@@ -381,18 +399,22 @@ function printSummary(results) {
   const networkFindings = results.filter(
     (result) => result.failedRequests.length > 0 || result.httpErrors.length > 0,
   );
+  const artifacts = results.reduce((n, result) => n + (result.failureArtifacts?.length ?? 0), 0);
   console.log('');
   console.log(
     `${failed.length === 0 ? '✓' : '✗'} ${results.length - failed.length}/${results.length} probe viewport run(s) passed.`,
   );
   console.log(`Report: ${rel(REPORT_PATH)}`);
-  console.log(`Shots:  ${rel(OUT_DIR)}/`);
+  console.log(`Failure artifacts: ${artifacts} under ${rel(OUT_DIR)}/`);
   if (networkFindings.length > 0) {
     console.log(`Network findings recorded for ${networkFindings.length} run(s); inspect report.json.`);
   }
   for (const result of failed) {
     console.log(`  - ${result.name} [${result.viewport}]`);
   }
+  console.log(
+    'Operator visual checklist: open each probed interaction in your browser and confirm layout/feel.',
+  );
 }
 
 /**
@@ -453,6 +475,10 @@ async function main() {
     for (const definition of definitions) console.log(definition.name);
     return;
   }
+  const auth = await loadRemoteAuthOptions({
+    storageState: opts.storageState,
+    cookieJar: opts.cookieJar,
+  });
   if (opts.storageState) {
     await access(opts.storageState).catch(() => {
       throw new Error(`storage state not found: ${opts.storageState}`);
@@ -462,7 +488,7 @@ async function main() {
   console.log(`UX probes → ${opts.baseUrl}`);
   console.log(`  engine: ${opts.engine}`);
   console.log(
-    `  storage: ${opts.storageState ? rel(path.resolve(opts.storageState)) : '(anonymous)'}`,
+    `  storage: ${opts.storageState ? rel(path.resolve(opts.storageState)) : opts.cookieJar ? `cookie-jar ${opts.cookieJar}` : '(anonymous)'}`,
   );
   console.log(`  probes: ${selected.map((definition) => definition.name).join(', ')}`);
   if (!(await waitForServer(opts.baseUrl))) {
@@ -480,7 +506,7 @@ async function main() {
           `\n[${definition.name} / ${opts.engine} / ${viewport}] ${definition.route}`,
         );
         results.push(
-          await runViewport(browser, definition, viewport, opts.baseUrl, opts),
+          await runViewport(browser, definition, viewport, opts.baseUrl, opts, auth),
         );
       }
     }

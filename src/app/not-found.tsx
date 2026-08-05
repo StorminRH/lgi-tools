@@ -10,6 +10,7 @@ import { SiteFrame } from '@/components/composition/SiteFrame';
 // fallow-ignore-next-line unused-export
 export const metadata = {
   title: 'Not found',
+  robots: { index: false, follow: false },
 };
 
 /**

@@ -1,4 +1,4 @@
-// Pure, import-safe helpers for the UX capture utility (scripts/ux-capture.mjs),
+// Pure, import-safe helpers for the UX log sweep (scripts/ux-capture.mjs),
 // extracted so the arg parsing, slug assignment, and report-row shaping are unit
 // tested without launching a browser. Node builtins only — no playwright, no side
 // effects, no top-level execution.
@@ -27,7 +27,9 @@ export function applyFlag(opts, key, value) {
       .split(',')
       .map((v) => v.trim())
       .filter((v) => v in VIEWPORTS);
-  } else console.error(`  (ignoring unknown flag --${key})`);
+  } else if (key === 'storage-state') opts.storageState = value;
+  else if (key === 'cookie-jar') opts.cookieJar = value;
+  else console.error(`  (ignoring unknown flag --${key})`);
 }
 
 export function parseArgs(argv) {
@@ -41,6 +43,8 @@ export function parseArgs(argv) {
     baseUrl: process.env.UX_BASE_URL ?? 'http://localhost:3000',
     viewports: ['desktop', 'mobile'],
     settle: 1500,
+    storageState: process.env.UX_STORAGE_STATE ?? null,
+    cookieJar: process.env.UX_COOKIE_JAR ?? null,
   };
   for (const arg of argv) {
     if (arg.startsWith('--')) {
@@ -52,7 +56,7 @@ export function parseArgs(argv) {
   }
   if (routes.length === 0) {
     routes.push('/');
-    console.error("ℹ no routes passed — capturing '/' as a smoke check.");
+    console.error("ℹ no routes passed — probing '/' as a smoke check.");
     console.error('  normally you pass the routes this session touched, e.g.');
     console.error('  pnpm ux-check /sites /sites/30002 /industry');
   }
@@ -91,10 +95,13 @@ export function networkFirst(r) {
     : `${r.failedRequests[0].error} ${r.failedRequests[0].url}`;
 }
 
-// Shape the sweep results into the three finding tables + total shot count the
-// summary prints. Pure: no console, no fs — the entry does the logging.
+// Shape the sweep results into the three finding tables + failure-artifact
+// count the summary prints. Pure: no console, no fs — the entry does the logging.
 export function summariseResults(results) {
-  const shotCount = results.reduce((n, r) => n + r.screenshots.length, 0);
+  const failureArtifactCount = results.reduce(
+    (n, r) => n + (r.failureArtifacts?.length ?? r.screenshots?.length ?? 0),
+    0,
+  );
   const loadRows = results
     .filter((r) => r.loadError)
     .map((r) => `${r.route} [${r.viewport}]: ${r.loadError}`);
@@ -107,5 +114,5 @@ export function summariseResults(results) {
   const networkRows = results
     .filter((r) => r.failedRequests.length || r.httpErrors.length)
     .map((r) => `${r.route} [${r.viewport}]: ${r.failedRequests.length + r.httpErrors.length} — ${networkFirst(r)}`);
-  return { shotCount, loadRows, consoleRows, networkRows };
+  return { failureArtifactCount, loadRows, consoleRows, networkRows };
 }

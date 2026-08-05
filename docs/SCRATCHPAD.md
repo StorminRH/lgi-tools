@@ -9,6 +9,13 @@
 
 ## Now
 
+- **Durable tooling gotcha (Playwright / Deployment Protection):** never put
+  `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
+  sends it to every third-party origin. Use
+  `scripts/ux-remote-auth.mjs` `installOriginScopedBypass` only. Captures and
+  `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
+  `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
+  `.env.local` is seeded.
 - **CURRENT / NEXT:** session **4.0.4.2.1** complete (tracked location and
   jump classification); close-out is delivering its per-session PR from
   `lifecycle/4.0.4.2`. After merge: recreate `lifecycle/4.0.4.2` from

@@ -44,10 +44,10 @@ Required inputs:
    close-out must not absorb leftover Ordered work.
 2. **(shared)** Focused behavior, local, and UX evidence required by the changed
    surface, plus the complete branch diff. When the change is user-facing,
-   that UX evidence must already include completed `ux-check` captures and the
-   operator's browser-review disposition (or an explicit not-applicable reason).
-   Close-out consumes that evidence; it does not invoke `ux-check` or re-own
-   the operator pause.
+   that UX evidence must already include completed `ux-check` log reports (and
+   any failure artifacts), plus the operator's browser-review disposition (or
+   an explicit not-applicable reason). Close-out consumes that evidence; it
+   does not invoke `ux-check` or re-own the operator pause.
 3. **(shared)** Current implementation-review, release, health-baseline, and
    workflow-policy state.
 
@@ -281,7 +281,7 @@ unchanged.
    and clear `.next`. Leave the small persistent Docker Postgres service running
    unless the session has another reason to stop it.
 5. Reconcile only deliberately ignored local state touched by the session:
-   runtime-local settings and worktrees, generated reports or captures,
+   runtime-local settings and worktrees, generated reports or failure artifacts,
    temporary PR body files, `.codegraph/`, and comparable declared local
    artifacts. Remove credential-bearing permissions and session-only output;
    tracked guides, hooks, workspace docs, and `tools/` utilities ship normally.
@@ -445,11 +445,29 @@ returns `BLOCKED`.
 2. Resolve the production deployment by the merge SHA and wait until that exact
    deployment reports Ready. Inspect deployment state and runtime logs with the
    Vercel CLI.
-3. Use a real browser as the production review surface. Confirm the shipped
-   version, affected routes, expected authentication and admin gates, and a clean
-   browser console. Scripted HTTP checks are supplemental, not the primary
-   production proof.
-4. After the exact deployment and browser proof succeed, close out by mode:
+3. **Required agent production proof — Playwright (log-driven), not a visual
+   browser pass.** After the merge-SHA deployment is Ready, agents must run
+   Playwright against that exact production URL (or the deployment URL when
+   proving a preview). Do not substitute bare `curl`/HTTP checks for this step.
+
+   - Always: `pnpm verify:prod` (or
+     `pnpm verify:site-routes -- https://lgi.tools` / the exact deployment URL).
+     `scripts/ux-remote-auth.mjs` loads `VERCEL_AUTOMATION_BYPASS_SECRET` from
+     the environment or `.env.local` and attaches `x-vercel-protection-bypass`
+     only to requests for that deployment origin (never as context-wide
+     `extraHTTPHeaders`).
+   - When the change touched account-adjacent surfaces: also
+     `pnpm ux-check <routes> --base-url=<prod-url>` with an operator-exported
+     `--cookie-jar` or `--storage-state` (local E2E seed cookies do not work
+     against production).
+   - Pass/fail from the JSON report (status, console, page errors). Failure
+     screenshots only under `docs/ux-check/captures/`.
+   - Do not open production in a browser for visual approval — that remains the
+     operator's review when the change was user-facing.
+
+   See `docs/workflows/ux-check.md` § Remote / production log probes and
+   `docs/contributing/end-to-end-testing.md`.
+4. After the exact deployment and agent log proof succeed, close out by mode:
    - **(ordinary)** Stop with `MERGED`. Do not run the resolver, do not mark any
      session plan complete, do not edit the roadmap or `APP_VERSION`, and do not
      open any follow-up PR. The pending changelog fragment is the only durable
@@ -467,9 +485,11 @@ returns `BLOCKED`.
      owns that decision.
 
 Phase evidence: exact merge-SHA deployment identity and Ready state,
-deployment-targeted runtime-log verdict, real-browser route/auth/console proof,
-and — per mode — the pending-fragment path (ordinary) or the resolver's complete
-new directive against committed main (planned).
+deployment-targeted runtime-log verdict, agent log-driven route/console proof
+(with bypass secret when Protection is on; cookie jar when auth is required),
+operator visual disposition when the change was user-facing, and — per mode —
+the pending-fragment path (ordinary) or the resolver's complete new directive
+against committed main (planned).
 
 ## Return the result
 

@@ -133,7 +133,8 @@ describe('summariseResults', () => {
   const clean = {
     route: '/',
     viewport: 'desktop',
-    screenshots: ['a.png', 'b.png'],
+    failureArtifacts: [],
+    screenshots: [],
     loadError: null,
     consoleErrors: [],
     pageErrors: [],
@@ -141,14 +142,33 @@ describe('summariseResults', () => {
     httpErrors: [],
   };
 
-  it('counts screenshots and produces no rows for a clean sweep', () => {
-    const out = summariseResults([clean, { ...clean, screenshots: ['c.png'] }]);
+  it('counts failure artifacts and produces no rows for a clean sweep', () => {
+    const out = summariseResults([
+      clean,
+      { ...clean, failureArtifacts: ['a.png', 'b.png'] },
+    ]);
     expect(out).toEqual({
-      shotCount: 3,
+      failureArtifactCount: 2,
       loadRows: [],
       consoleRows: [],
       networkRows: [],
     });
+  });
+
+  it('falls back to legacy screenshots when failureArtifacts is absent', () => {
+    const { failureArtifacts: _omit, ...legacy } = clean;
+    const out = summariseResults([{ ...legacy, screenshots: ['old.png'] }]);
+    expect(out.failureArtifactCount).toBe(1);
+  });
+
+  it('reads storage-state and cookie-jar flags', () => {
+    const { opts } = parseArgs([
+      '/',
+      '--storage-state=docs/ux-check/captures/auth-storage.json',
+      '--cookie-jar=/tmp/cookies.txt',
+    ]);
+    expect(opts.storageState).toBe('docs/ux-check/captures/auth-storage.json');
+    expect(opts.cookieJar).toBe('/tmp/cookies.txt');
   });
 
   it('shapes a load-error row', () => {

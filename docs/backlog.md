@@ -893,6 +893,18 @@ so both need a real design decision, not a constraint.
   warning predates this session's fixes and was confirmed present with them
   stashed.*
 
+- **CI real-Postgres for `*.db.test.ts` via ephemeral Neon preview branch.**
+  *What:* a GitHub Actions job that creates a short-lived Neon `preview/ci-*`
+  branch (respecting `neon.ts` TTL / cheap compute), migrates, sets
+  `DATABASE_URL`, runs only `*.db.test.ts`, then deletes the branch. Local Docker
+  + `createDbTestHarness` stays the gate of record for agents. Convex remains
+  on in-process `convex-test` — do not spin live Convex deployments per Vitest
+  run. *Why deferred:* Keep-Tests-Tight + log-driven Playwright shipped first;
+  CI DB needs Neon API credentials, migrate cost, and careful branch cleanup.
+  *Size:* M. *Trigger:* when skipped db suites on CI become a merge-risk, or
+  when remote agents need real-Postgres proof without a local Docker harness.
+  *See:* `docs/contributing/testing-principles.md` § CI database posture.
+
 - **Give purged signatures a note-cascade owner.** *What:* `mapNotes` rows with
   `targetKind: 'signature'` store the signature's Convex document ID as
   `targetId`, but `purgeExpiredSignatures` deletes only the `mapSignatures` row.
