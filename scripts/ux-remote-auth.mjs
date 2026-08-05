@@ -1,19 +1,68 @@
 // Shared remote-access helpers for ux-check and verify:site-routes.
 // Netscape cookie jars, Playwright storageState files, and Vercel Deployment
-// Protection bypass headers. Node builtins + fs only — no Playwright import.
+// Protection bypass. Loads `.env.local` when the bypass secret is unset so
+// local close-out / prod probes work without manually exporting the env.
+//
+// Never attach the bypass secret via Playwright `extraHTTPHeaders` — that sends
+// it to every origin (third-party images, CDNs, analytics). Use
+// `installOriginScopedBypass` so only the target deployment origin receives it.
 
+import { config as loadDotenv } from 'dotenv';
 import { readFile } from 'node:fs/promises';
 
+let dotenvLoaded = false;
+
+/** Load `.env.local` once when the bypass secret is not already in the environment. */
+export function ensureBypassSecretFromEnvLocal() {
+  if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET || dotenvLoaded) return;
+  loadDotenv({ path: process.env.DOTENV_PATH ?? '.env.local' });
+  dotenvLoaded = true;
+}
+
 /**
- * Builds Playwright extraHTTPHeaders for Vercel Protection Bypass for Automation
- * when `VERCEL_AUTOMATION_BYPASS_SECRET` (or an explicit secret) is set.
+ * Builds the Vercel Protection Bypass header map when a secret is available.
+ * Pass `null`/`undefined` to resolve from the environment (loading `.env.local`
+ * once). Pass `''` to force "no bypass". Never log the secret value.
+ * Do not pass this object to `browser.newContext({ extraHTTPHeaders })`.
  */
-export function vercelBypassHeaders(secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
-  if (!secret) return undefined;
+export function vercelBypassHeaders(secret) {
+  let resolved = secret;
+  if (resolved === undefined) {
+    ensureBypassSecretFromEnvLocal();
+    resolved = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  }
+  if (!resolved) return undefined;
   return {
-    'x-vercel-protection-bypass': secret,
+    'x-vercel-protection-bypass': resolved,
     'x-vercel-set-bypass-cookie': 'true',
   };
+}
+
+/**
+ * Adds bypass headers only for requests whose URL origin matches `targetOrigin`.
+ * Returns true when a route was installed. Safe no-op when no secret is set.
+ */
+export async function installOriginScopedBypass(context, targetOrigin, secret) {
+  const headers = vercelBypassHeaders(secret);
+  if (!headers) return false;
+  let origin;
+  try {
+    origin = new URL(targetOrigin).origin;
+  } catch {
+    throw new Error('installOriginScopedBypass requires an absolute origin or URL');
+  }
+  await context.route(
+    (url) => url.origin === origin,
+    async (route) => {
+      await route.continue({
+        headers: {
+          ...route.request().headers(),
+          ...headers,
+        },
+      });
+    },
+  );
+  return true;
 }
 
 function requireCookieField(value, label) {
@@ -53,14 +102,15 @@ export async function readNetscapeCookies(filePath) {
 }
 
 /**
- * Loads Playwright context auth options from optional storageState path and/or
- * Netscape cookie jar. Cookies from the jar are applied after context creation
- * by the caller via `context.addCookies`.
+ * Loads Playwright storageState / cookie-jar options. Bypass is applied later
+ * via `installOriginScopedBypass(context, targetOrigin)` — never as
+ * context-wide `extraHTTPHeaders`.
  */
 export async function loadRemoteAuthOptions({ storageState = null, cookieJar = null } = {}) {
+  ensureBypassSecretFromEnvLocal();
   return {
     storageState: storageState || undefined,
     cookies: await readNetscapeCookies(cookieJar),
-    extraHTTPHeaders: vercelBypassHeaders(),
+    bypassConfigured: Boolean(vercelBypassHeaders()),
   };
 }

@@ -13,7 +13,10 @@ import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { VIEWPORTS } from '../../scripts/ux-capture-args.mjs';
-import { loadRemoteAuthOptions } from '../../scripts/ux-remote-auth.mjs';
+import {
+  installOriginScopedBypass,
+  loadRemoteAuthOptions,
+} from '../../scripts/ux-remote-auth.mjs';
 
 const ROOT = process.cwd();
 const DEFINITIONS_DIR = path.resolve(ROOT, 'docs/ux-check/probes');
@@ -291,8 +294,8 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     const secondaryContext = await secondaryBrowser.newContext({
       ...contextOptions(viewportName, definition.reducedMotion),
       ...(definition.requiresAuth && storageState ? { storageState } : {}),
-      ...(auth.extraHTTPHeaders ? { extraHTTPHeaders: auth.extraHTTPHeaders } : {}),
     });
+    await installOriginScopedBypass(secondaryContext, opts.baseUrl);
     if (definition.requiresAuth && auth.cookies.length > 0) {
       await secondaryContext.addCookies(auth.cookies);
     }
@@ -319,8 +322,8 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
       ...(definition.requiresAuth && opts.storageState
         ? { storageState: opts.storageState }
         : {}),
-      ...(auth.extraHTTPHeaders ? { extraHTTPHeaders: auth.extraHTTPHeaders } : {}),
     });
+    await installOriginScopedBypass(context, opts.baseUrl);
     if (definition.requiresAuth && auth.cookies.length > 0) {
       await context.addCookies(auth.cookies);
     }

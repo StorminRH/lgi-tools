@@ -19,7 +19,9 @@ for LGI.tools (Next.js, Better Auth + EVE SSO, Neon, Convex).
 | `pnpm e2e:seed` | Seed local Better Auth E2E pilot + write `docs/ux-check/captures/auth-storage.json` |
 | `pnpm test:e2e` | Seed (unless `E2E_SKIP_SEED=1`) then run Playwright specs |
 | `pnpm ux-check <routes>` | Log-driven route sweep for changed paths (Ordered-work UX gate) |
+| `pnpm verify:prod` | Post-merge Playwright prod proof against `https://lgi.tools` (origin-scoped bypass from env / `.env.local`) |
 | `node docs/ux-check/run-probes.mjs …` | Durable interaction probes (same log-driven policy) |
+| `python3 scripts/ensure-vercel-automation-bypass.py` | **Bootstrap/rotate only** — write bypass secret to `.env.local`; not needed once seeded |
 
 None of these are part of `pnpm verify` today.
 

@@ -11,7 +11,7 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { loadRemoteAuthOptions } from './ux-remote-auth.mjs';
+import { installOriginScopedBypass, loadRemoteAuthOptions } from './ux-remote-auth.mjs';
 
 const args = process.argv.slice(2).filter((argument) => argument !== '--');
 const baseUrlArg = args[0];
@@ -61,8 +61,8 @@ await mkdir(OUT_DIR, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
   ...(auth.storageState ? { storageState: auth.storageState } : {}),
-  ...(auth.extraHTTPHeaders ? { extraHTTPHeaders: auth.extraHTTPHeaders } : {}),
 });
+await installOriginScopedBypass(context, baseUrl.origin);
 if (auth.cookies.length > 0) await context.addCookies(auth.cookies);
 const reports = [];
 
@@ -94,7 +94,10 @@ try {
     const robots = await page.locator('meta[name="robots"]').evaluateAll(
       (elements) => elements.map((element) => element.getAttribute('content') ?? ''),
     );
+    const robotsHeader = (response?.headers()?.['x-robots-tag'] ?? '').toLowerCase();
     const robotsValue = robots.join(', ').toLowerCase();
+    const hasNoindex =
+      robotsValue.includes('noindex') || robotsHeader.includes('noindex');
     const unexpectedConsoleErrors = consoleErrors.filter(
       (entry) => !isExpectedDocument404(entry, targetUrl, route.invalid),
     );
@@ -103,9 +106,7 @@ try {
       title: route.invalid
         ? title === 'Not found | LGI.tools'
         : title.length > 0 && title !== 'Not found | LGI.tools',
-      robots: route.invalid
-        ? robotsValue.includes('noindex')
-        : !robotsValue.includes('noindex'),
+      robots: route.invalid ? hasNoindex : !hasNoindex,
       pageErrors: pageErrors.length === 0,
       consoleErrors: unexpectedConsoleErrors.length === 0,
     };

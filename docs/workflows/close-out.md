@@ -445,19 +445,28 @@ returns `BLOCKED`.
 2. Resolve the production deployment by the merge SHA and wait until that exact
    deployment reports Ready. Inspect deployment state and runtime logs with the
    Vercel CLI.
-3. **Agent production proof is log-driven**, not a visual browser pass. Against
-   the exact production (or deployment) URL, run the shared Playwright remote
-   probes with `VERCEL_AUTOMATION_BYPASS_SECRET` set so Deployment Protection /
-   the Vercel bot wall does not block the agent (`x-vercel-protection-bypass` is
-   applied by `scripts/ux-remote-auth.mjs`). Prefer
-   `pnpm verify:site-routes -- <prod-url>` and, when the change touched
-   account-adjacent surfaces, `pnpm ux-check <routes> --base-url=<prod-url>`
-   with an operator-exported `--cookie-jar` or `--storage-state` (seeded local
-   E2E cookies do not work against production). Assert HTTP/status, console, and
-   page errors from the JSON report; write failure screenshots only under
-   `docs/ux-check/captures/`. Do not open production in a browser for visual
-   approval — that remains the operator's review. See
-   `docs/workflows/ux-check.md` § Remote / production log probes.
+3. **Required agent production proof — Playwright (log-driven), not a visual
+   browser pass.** After the merge-SHA deployment is Ready, agents must run
+   Playwright against that exact production URL (or the deployment URL when
+   proving a preview). Do not substitute bare `curl`/HTTP checks for this step.
+
+   - Always: `pnpm verify:prod` (or
+     `pnpm verify:site-routes -- https://lgi.tools` / the exact deployment URL).
+     `scripts/ux-remote-auth.mjs` loads `VERCEL_AUTOMATION_BYPASS_SECRET` from
+     the environment or `.env.local` and attaches `x-vercel-protection-bypass`
+     only to requests for that deployment origin (never as context-wide
+     `extraHTTPHeaders`).
+   - When the change touched account-adjacent surfaces: also
+     `pnpm ux-check <routes> --base-url=<prod-url>` with an operator-exported
+     `--cookie-jar` or `--storage-state` (local E2E seed cookies do not work
+     against production).
+   - Pass/fail from the JSON report (status, console, page errors). Failure
+     screenshots only under `docs/ux-check/captures/`.
+   - Do not open production in a browser for visual approval — that remains the
+     operator's review when the change was user-facing.
+
+   See `docs/workflows/ux-check.md` § Remote / production log probes and
+   `docs/contributing/end-to-end-testing.md`.
 4. After the exact deployment and agent log proof succeed, close out by mode:
    - **(ordinary)** Stop with `MERGED`. Do not run the resolver, do not mark any
      session plan complete, do not edit the roadmap or `APP_VERSION`, and do not

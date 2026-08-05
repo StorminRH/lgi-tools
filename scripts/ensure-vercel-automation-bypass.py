@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Ensure VERCEL_AUTOMATION_BYPASS_SECRET exists and is written to .env.local.
+"""Bootstrap or rotate VERCEL_AUTOMATION_BYPASS_SECRET into .env.local.
 
-Never prints the secret value. Uses the local Vercel CLI auth token and the
-linked .vercel/project.json. Create or rotate via PATCH
-/v1/projects/{id}/protection-bypass; the secret is the protectionBypass map key.
+Day-to-day close-out / Playwright prod probes do **not** need this script once
+`.env.local` already has the key — `scripts/ux-remote-auth.mjs` loads it.
+Use this only to create the secret the first time, rotate after a leak, or
+seed a new machine. Never prints the secret value. Uses the local Vercel CLI
+auth token and `.vercel/project.json`. The secret is the protectionBypass map
+key from PATCH /v1/projects/{id}/protection-bypass.
 """
 
 from __future__ import annotations

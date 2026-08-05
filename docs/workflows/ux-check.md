@@ -148,7 +148,7 @@ Agents must not visually inspect production. For deployment proof scripts:
 
 | Need | Mechanism |
 | --- | --- |
-| Vercel Deployment Protection | `VERCEL_AUTOMATION_BYPASS_SECRET` → `x-vercel-protection-bypass` (+ set-bypass-cookie) |
+| Vercel Deployment Protection | `VERCEL_AUTOMATION_BYPASS_SECRET` via origin-scoped Playwright route (`installOriginScopedBypass`) — never context-wide `extraHTTPHeaders` (that would send the secret to third-party origins) |
 | App session on remote | Operator-exported Netscape `--cookie-jar` or Playwright `--storage-state` |
 
 Example:

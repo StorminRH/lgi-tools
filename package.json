@@ -50,6 +50,7 @@
     "map:replay": "tsx --conditions=react-server src/scripts/map-replay.ts",
     "map:project-access": "tsx --conditions=react-server src/scripts/project-map-access.ts",
     "verify:site-routes": "node scripts/verify-site-detail-routes.mjs",
+    "verify:prod": "node scripts/verify-site-detail-routes.mjs -- https://lgi.tools",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

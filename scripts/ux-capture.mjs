@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { VIEWPORTS, assignSlugs, parseArgs, summariseResults } from './ux-capture-args.mjs';
-import { loadRemoteAuthOptions } from './ux-remote-auth.mjs';
+import { installOriginScopedBypass, loadRemoteAuthOptions } from './ux-remote-auth.mjs';
 
 const OUT_DIR = path.resolve(process.cwd(), 'docs/ux-check/captures');
 const rel = (p) => path.relative(process.cwd(), p);
@@ -130,12 +130,12 @@ async function launchBrowser() {
   }
 }
 
-async function openAuthContext(browser, viewport, auth) {
+async function openAuthContext(browser, viewport, auth, baseUrl) {
   const context = await browser.newContext({
     viewport: VIEWPORTS[viewport],
     ...(auth.storageState ? { storageState: auth.storageState } : {}),
-    ...(auth.extraHTTPHeaders ? { extraHTTPHeaders: auth.extraHTTPHeaders } : {}),
   });
+  await installOriginScopedBypass(context, baseUrl);
   if (auth.cookies.length > 0) await context.addCookies(auth.cookies);
   return context;
 }
@@ -152,7 +152,7 @@ async function runSweep(browser, routed, opts, auth) {
   const results = [];
   try {
     for (const viewport of opts.viewports) {
-      const context = await openAuthContext(browser, viewport, auth);
+      const context = await openAuthContext(browser, viewport, auth, opts.baseUrl);
       for (const { route, slug } of routed) {
         const result = await probeRoute(context, opts.baseUrl, route, slug, viewport, opts.settle);
         results.push(result);
@@ -190,7 +190,7 @@ function printSummary(results, reportPath) {
 }
 
 function authLabel(opts, auth) {
-  if (opts.storageState || opts.cookieJar || auth.extraHTTPHeaders) return 'configured';
+  if (opts.storageState || opts.cookieJar || auth.bypassConfigured) return 'configured';
   return 'anonymous';
 }
 
