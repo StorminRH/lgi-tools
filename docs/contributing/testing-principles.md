@@ -66,7 +66,9 @@ When trimming:
 4. Net line count should usually go down. If a cleanup adds more lines than it
    removes, stop and reassess.
 5. Production cruft in the same pass: unused exports with only test consumers
-   (unless explicitly planned-unused and inventoried), skipped/dead helpers,
+   (unless the module's own header comment declares them planned-unused with a
+   date or session reference — that comment IS the inventory), skipped/dead
+   helpers,
    and comment banners that only narrate session chronology (`4.0.x`, `OWn`,
    `HC-n`) rather than a durable why.
 6. "Covered elsewhere" only counts when the other coverage actually RUNS in the
@@ -103,8 +105,9 @@ Suggested loop (adapt to Cursor Automations / a skill when ready):
    their only falsifier, consolidate into one high-signal suite rather than
    deleting coverage outright.
 7. Run focused Vitest on touched paths, then `pnpm verify`.
-8. Open a PR only when the net line count drops (or stays flat with a clear
-   consolidation). Title/body should list **Removed**, **Consolidated**, and
-   **Kept**.
+8. Net line count should usually drop, but restoring a sole falsifier is
+   always in scope even when it adds lines — never under-restore coverage to
+   keep a PR eligible. Title/body should list **Removed**, **Consolidated**,
+   and **Kept** (plus **Restored** when applicable).
 9. Mark the PR ready for review; do not auto-merge until the house ship process
    allows it.

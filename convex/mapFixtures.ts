@@ -3,6 +3,9 @@
 // `readMapCollection` query; chain writes are internal fixtures or production
 // authoring mutations in `mapAuthoring` (sole write surface).
 //
+// "No importer" is not "unreachable": Convex publishes every public function in
+// this directory, so import-graph reasoning must never declare one dead.
+//
 // Two rules hold everywhere here:
 //   1. requireMapAccess is the FIRST call in every public handler.
 //   2. Volatile bookkeeping never touches a watched payload document — last-seen
