@@ -1,21 +1,18 @@
 # docs/ux-check — UX verification workspace
 
 The durable probe harness, probe definitions, and this guide are tracked project
-tooling. Generated screenshots and reports under `captures/` remain ignored local
-evidence and can be deleted at any time.
+tooling. Generated reports and failure artifacts under `captures/` remain
+ignored local evidence and can be deleted at any time.
 
 ## Layout
 
 | Path | What | Lifecycle |
 | --- | --- | --- |
-| `run-probes.mjs` | Shared Playwright runner for durable interaction probes | Tracked; one owner for browser lifecycle, diagnostics, screenshots, reports, and exit gating |
+| `run-probes.mjs` | Shared Playwright runner for durable interaction probes | Tracked; browser lifecycle, diagnostics, failure-only screenshots, reports, exit gating |
 | `probes/*.mjs` | Small durable probe definitions | Tracked; one module per recurring feature check |
-| `captures/probes/` | Probe screenshots plus `report.json` | Ignored; only this subdirectory is wiped when the probe runner starts |
-| `captures/` | `pnpm ux-check` sweep screenshots and report | Ignored; the sweep refreshes the capture root as before |
-
-The probe runner never wipes the sweep's screenshots. Running `pnpm ux-check`
-afterward still starts a new sweep by clearing the capture root, so review or relay
-probe evidence before beginning that later sweep.
+| `captures/probes/` | Probe failure screenshots plus `report.json` | Ignored; wiped when the probe runner starts |
+| `captures/` | `pnpm ux-check` report + failure PNGs; `auth-storage.json` from `pnpm e2e:seed` | Ignored |
+| `../contributing/end-to-end-testing.md` | Tiny Playwright smoke suite policy (`pnpm test:e2e`) | Tracked |
 
 ## Run durable probes
 
@@ -23,6 +20,7 @@ Start the local app first:
 
 ```bash
 pnpm dev
+# or pnpm dev:all when Convex-backed surfaces are required
 ```
 
 List available definitions, run all of them, or select names:
@@ -33,7 +31,14 @@ node docs/ux-check/run-probes.mjs
 node docs/ux-check/run-probes.mjs overlay-open dialog-open
 ```
 
-Use a different local origin when needed:
+Authenticated probes:
+
+```bash
+pnpm e2e:seed
+node docs/ux-check/run-probes.mjs --storage-state=docs/ux-check/captures/auth-storage.json atlas-window-dock
+```
+
+Use a different origin when needed:
 
 ```bash
 node docs/ux-check/run-probes.mjs --base-url=http://localhost:3001 overlay-open
@@ -46,15 +51,17 @@ crash is recorded without aborting the remaining probes. It never waits for
 
 Every viewport run automatically records:
 
-- authored checks and screenshots;
+- authored checks;
 - `style-src` CSP violations;
 - unfiltered console errors and uncaught page errors;
-- failed requests and HTTP 4xx/5xx responses.
+- failed requests and HTTP 4xx/5xx responses;
+- a failure screenshot under `captures/probes/` only when the run fails.
 
-The command exits non-zero when an authored check, a definition, or a default gate
-fails. Network findings are recorded for diagnosis but are not an automatic failure,
-because some probes deliberately exercise responses such as signed-out 401s. Read the
-combined result at `captures/probes/report.json`.
+Proactive `shot()` in probe definitions is a no-op (kept so older probes do not
+crash). The command exits non-zero when an authored check, a definition, or a
+default gate fails. Network findings are recorded for diagnosis but are not an
+automatic failure, because some probes deliberately exercise responses such as
+signed-out 401s. Read the combined result at `captures/probes/report.json`.
 
 ## Definition format
 
@@ -70,96 +77,16 @@ export default {
   reducedMotion: true,               // optional; emulates prefers-reduced-motion
   settle: 1200,                      // optional milliseconds; defaults to 1000
   allowConsole: [/expected noise/],  // optional extra RegExp filters
+  requiresAuth: false,               // optional; needs --storage-state or cookie jar
   async setup({ page, baseUrl }) {
     // Optional pre-navigation route mocks, permissions, or init scripts.
   },
-  async run({ page, viewport, baseUrl, check, shot }) {
+  async run({ page, viewport, baseUrl, check }) {
     const dialog = page.getByRole('dialog');
     check('dialog opens', await dialog.isVisible());
-    await shot('open');
   },
 };
 ```
 
-Context members:
-
-| Member | Contract |
-| --- | --- |
-| `page` | The raw Playwright page for feature-specific navigation and interaction |
-| `viewport` | One of `mobile`, `tablet`, `laptop`, `hd`, `desktop`, `wide`, or `zoom200` |
-| `baseUrl` | The selected local origin |
-| `check(label, condition)` | Records a pass/fail result without throwing, so later checks still run |
-| `shot(tag)` | Writes a full-page PNG to `captures/probes/<name>--<viewport>--<tag>.png` |
-
-Use `setup` only when behavior must exist before the first navigation, such as a
-`page.route` mock or clipboard permission. Use `allowConsole` only for noise the
-definition intentionally creates; Convex/HMR/Speed-Insights development noise is
-owned centrally by the runner.
-
-The shared viewport matrix is 390×844 (`mobile`), 768×1024 (`tablet`),
-1024×768 (`laptop`), 1366×768 (`hd`), 1440×900 (`desktop`), 1920×1080
-(`wide`), and 640×450 (`zoom200`). `zoom200` is the CSS viewport exposed by a
-1280×900 window at 200% browser zoom; the harness records it as a responsive
-layout proxy rather than claiming to emulate browser zoom. Only `mobile` uses
-touch and mobile-device emulation. Set `reducedMotion: true` on a definition to
-run all of its declared viewports with `prefers-reduced-motion: reduce`.
-
-## Durable definition index
-
-| Name | Recurring proof |
-| --- | --- |
-| `atlas-layout-cross-engine` | Chromium↔Firefox position identity through the tolerance reader (authenticated, `UX_MAP_ID`) |
-| `atlas-layout-lock` | Unlock/drag/pin hold through an arrival and exact re-lock snap-home (authenticated, `UX_MAP_ID`, local Convex) |
-| `atlas-layout-two-clients` | Two staggered authenticated clients render position-identical chains (authenticated, `UX_MAP_ID`) |
-| `atlas-layout-worker` | Layout worker spawns on the map route with no layout-attributed long frames (authenticated, `UX_MAP_ID`) |
-| `atlas-motion-birth` | Arrivals surface in place with in-window scale/opacity animation, initial load and live insertion (authenticated, `UX_MAP_ID`, local Convex) |
-| `atlas-motion-drag` | Own-drag 1:1 pointer tracking and the drag-window frame-time budget (authenticated, `UX_MAP_ID`) |
-| `atlas-motion-glide` | Forced-shift glides with per-frame edge-rim tracking and the glide frame-time budget (authenticated, `UX_MAP_ID`) |
-| `atlas-motion-idle` | Hover-only breathing plus zero rAF registrations across an idle window with a glide positive control (authenticated, `UX_MAP_ID`) |
-| `atlas-motion-reduced` | Paired control/reduced phases: fade-only births and glide-free shifts under prefers-reduced-motion (authenticated, `UX_MAP_ID`, local Convex) |
-| `atlas-window-dock` | Persistent dock, close/root-click reopen, and relocated controls operation (authenticated, `UX_MAP_ID`) |
-| `atlas-window-dom` | Window layer sibling topology and pointer-inert host inspection (authenticated, `UX_MAP_ID`) |
-| `atlas-window-isolation` | Key and wheel isolation in docked, floating, and node-anchored surfaces (authenticated, `UX_MAP_ID`) |
-| `atlas-window-reload` | Exact floating geometry restore plus re-anchor/retained-rect round trip (authenticated, `UX_MAP_ID`) |
-| `atlas-window-stacking` | Bring-to-front, Escape popup arbitration, and exposed-canvas interaction (authenticated, `UX_MAP_ID`) |
-| `atlas-window-track` | Summary-card tracking through pan, zoom, anchor drag, and deselection (authenticated, `UX_MAP_ID`) |
-| `atlas-authoring-home` | Blank-map home prompt, disabled tracking option, editor-only affordance (authenticated, `UX_BLANK_MAP_ID`) |
-| `atlas-authoring-add` | Node-bound Add connection… menu and destination search dialog (authenticated, map id) |
-| `atlas-authoring-connection` | Edge-anchored connection details card and field controls including unset stability (authenticated, map id) |
-| `atlas-authoring-intelligence` | Typed codex panel, size lock, mass range, lifetime row, and sever control (authenticated, map id) |
-| `atlas-authoring-ledger` | Bottom-edge map-event Log expand with rows or empty state (authenticated, map id; desktop + mobile) |
-| `atlas-authoring-two-clients` | Two-client home → add → edit → fan-out → revocation demo (authenticated, blank map id, local Convex) |
-| `atlas-wall` | Signed-out atlas development wall, canvas/chrome exclusion, and viewport scroll suppression |
-| `asset-ledger` | Logged-out asset ledger open state and totals |
-| `asset-ring-mock` | Mocked complete/partial ownership rings and holding details |
-| `changelog-browser` | Canonical routes, sitemap entries, soft navigation, sticky rail, and mobile drawer |
-| `combobox-global` | Header search focus, options, keyboard navigation, selection, and dismissal |
-| `combobox-terminal` | Planner system search focus, suggestions, selection, and dismissal |
-| `content-browser-scroll` | Shared sticky rail, internal scroll, boundary chaining, and mobile drawer |
-| `contents-drawer` | Mobile chapter context, focus, navigation close, Escape close, and reduced motion |
-| `cost-basis` | Raw/Item input-cost toggle and explanatory popover |
-| `devlog-excerpt-open` | Open Shiki excerpts, gutters, colored tokens, and permalinks |
-| `dialog-open` | Sites lightbox click/tap open and Escape close |
-| `eve-image-network` | Direct EVE image requests with no Next optimizer or hydration regression |
-| `feedback-dialog` | Keyboard/touch open, Field focus, and Escape close |
-| `me-planner` | Mocked owned research, component adjuster popover, and ME recomputation |
-| `multibuy-panel` | Tier toggles, nested help, toast, and clipboard payload |
-| `nav-menu` | Mobile open, navigation close, Enter open, and Escape close |
-| `nav-page-settings` | Mobile page controls, persistent menu adjustment, and routes without settings |
-| `overlay-open` | Desktop hover/keyboard and mobile tap for planner help overlays |
-| `page-modes` | Shared shell frame, reading width, region spacing, and narrow overflow across seven viewports |
-| `sites-lazy-detail` | Cards/table summary parity and first-open-only lazy detail mounting |
-| `templates-menu` | Signed-out saved-template panel, 401 toast, and unknown-plan cleanup |
-| `toast-stack` | Template-loaded feedback concurrent with the keyed market-sync toast |
-
-## Add or explore a probe
-
-When a behavior will recur, add a small definition in `probes/`, run it by name, and
-add its purpose to the index above. Keep all generic lifecycle and diagnostic behavior
-in `run-probes.mjs`; a definition should contain only the feature interaction and its
-checks.
-
-One-off exploration remains allowed. A scratch `*-probe.mjs` may live outside
-`probes/` during a session, but `python3 tools/cli.py policy check` warns about
-it so it cannot be forgotten. Delete scratch probes at close-out. Do not promote
-a genuine one-shot into a durable definition "just in case."
+Prefer role/label locators and behavioral checks. Do not add probes whose only
+job is a screenshot.

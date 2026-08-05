@@ -15,6 +15,9 @@
     "scripts/validate-resolver-output.ts",
     "scripts/assert-route-classification.mjs",
     "scripts/ux-capture.mjs",
+    "scripts/ux-remote-auth.mjs",
+    "scripts/run-e2e.mjs",
+    "scripts/verify-site-detail-routes.mjs",
     "src/scripts/map-replay.ts",
     "src/scripts/project-map-access.ts",
     "drizzle.config.ts",
@@ -31,10 +34,11 @@
     "**/*.generated.ts",
     "drizzle/**",
     "docs/**",
+    "e2e/**",
     "convex/**/*.test.ts"
   ],
 
-  "ignoreDependencies": ["convex-test", "@edge-runtime/vm", "playwright"],
+  "ignoreDependencies": ["convex-test", "@edge-runtime/vm", "playwright", "@playwright/test"],
 
   "rules": {
     "unused-files": "error",
@@ -284,6 +288,7 @@
         "next.config.ts",
         "drizzle.config.ts",
         "vitest.config.ts",
+        "playwright.config.ts",
         "eslint.config.mjs"
       ]
     }

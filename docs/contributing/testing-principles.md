@@ -12,7 +12,8 @@ This document is the bar for authors, reviewers, and any future Keep-Tests-Tight
 automation. Linked from `AGENTS.md`.
 
 Adapted from the [Epic Web / Kent C. Dodds testing guidance](https://github.com/kentcdodds/kody/blob/main/docs/contributing/testing-principles.md)
-for this repository's Vitest, Postgres, Convex, and `ux-check` stack.
+for this repository's Vitest, Postgres, Convex, and log-driven Playwright
+`ux-check` / tiny E2E stack.
 
 ## Commands
 
@@ -32,7 +33,7 @@ Choose the lightest flavor that can falsify the behavior:
 | Co-located `*.test.ts` / `*.test.mjs` (`pnpm test`) | Pure functions, view-models, schema/contract checks, handlers that can be exercised with local fakes, and Convex logic under `convex-test` / edge-runtime. Fast feedback; no browser. | The assertion needs a real browser, authenticated UX, or layout that only a human/operator capture can judge. |
 | Real-Postgres `*.db.test.ts` (`pnpm test`, local harness) | Behavior that depends on real SQL, transactions, advisory locks, or Neon-shaped constraints via `createDbTestHarness`. | Pure logic that never touches the DB — keep those in ordinary `*.test.ts`. Do not invent alternate DB harnesses. |
 | Journey-style Vitest (same `pnpm test`) | One longer workflow that asserts a user-critical path across collaborating units without a browser. Prefer this over many tiny sibling cases. | Edge cases, copy pinning, or anything a single pure-unit test can cover. |
-| Playwright UX capture (`pnpm ux-check`) | Changed user-facing routes during Ordered-work / pre-close-out UI gates. See `docs/workflows/ux-check.md`. | Permanent regression locking, edge cases, or anything Vitest can falsify. `ux-check` is not part of `pnpm verify`, and this repo has no permanent Playwright E2E suite. |
+| Playwright log-driven UX / tiny E2E (`pnpm ux-check`, `pnpm test:e2e`) | Changed user-facing routes during Ordered-work / pre-close-out UI gates, plus a very small number of authenticated happy-path smokes. Assertion + console/network evidence; failure-only screenshots/traces under `docs/ux-check/captures/`. See `docs/workflows/ux-check.md` and `docs/contributing/end-to-end-testing.md`. | Visual approval, layout feel, edge cases, or anything Vitest can falsify. Not part of `pnpm verify`. Agents never use always-on screenshots or browse the site for visual judgment — the operator does that after the log sweep. |
 
 ## Principles
 
@@ -116,30 +117,20 @@ When trimming:
 - Thin passthrough tests for a function already exercised by a feature workflow
 - Tests that only assert incidental instructional copy or tool-description prose
 
-## Automation (future Keep Tests Tight)
+## Automation (Keep Tests Tight)
 
-A recurring cleanup agent should treat this file as the sole deletion bar. Do
-not invent a second standard.
+A recurring cleanup agent must treat this file as the sole deletion bar. Do not
+invent a second standard. The executable procedure lives in
+[`docs/workflows/keep-tests-tight.md`](../workflows/keep-tests-tight.md); Cursor
+Automations point at that workflow and open **draft** PRs only (never
+auto-merge).
 
-Suggested loop (adapt to Cursor Automations / a skill when ready):
+## CI database posture (deferred)
 
-1. Exit early if `main` had no commits in the last 24 hours (nothing new to
-   tighten).
-2. Read this document and `AGENTS.md`.
-3. Inspect recently touched `*.test.ts` / `*.test.mjs` (and adjacent production
-   exports those tests uniquely own). Agents may add many tiny regression cases
-   while implementing — keep that habit during the feature work; trim afterward.
-4. For each low-signal case: **edit, combine, or delete** so the suite stays
-   high-signal. Prefer fewer longer workflow tests.
-5. Never delete house registry / Fallow / ESI-dataset / API-matrix / purge gates
-   without an explicit replacement in the same change.
-6. If user-visible contracts (formatters, SEO metadata, auth journeys) lose
-   their only falsifier, consolidate into one high-signal suite rather than
-   deleting coverage outright.
-7. Run focused Vitest on touched paths, then `pnpm verify`.
-8. Net line count should usually drop, but restoring a sole falsifier is
-   always in scope even when it adds lines — never under-restore coverage to
-   keep a PR eligible. Title/body should list **Removed**, **Consolidated**,
-   and **Kept** (plus **Restored** when applicable).
-9. Mark the PR ready for review; do not auto-merge until the house ship process
-   allows it.
+Real-Postgres `*.db.test.ts` suites stay on local Docker via
+`createDbTestHarness`. CI does not spin Neon or Convex branches for Vitest today.
+A future CI job may create a short-lived Neon `preview/ci-*` branch (see
+`neon.ts` TTL policy), migrate, run only `*.db.test.ts`, and delete the branch —
+tracked in `docs/backlog.md`. Convex unit/integration stays on in-process
+`convex-test`; live Convex preview deployments are for app previews, not the
+Vitest gate.

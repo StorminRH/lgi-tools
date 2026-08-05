@@ -1,26 +1,35 @@
-// UX capture utility — a fast, no-model-in-the-loop local review helper for UI
-// verification only. Drives a headless
-// Chromium over the running dev server, captures a full-page screenshot of each
-// route at desktop + mobile, and records console errors, uncaught page errors,
-// failed requests, and 4xx/5xx responses to a gitignored report. The agent reads
-// that report; the operator reviews visual feel in their own browser. See the
-// `ux-check` skill.
-//
-// Routes are passed as args (the caller scopes them to what the session touched),
-// e.g.  `pnpm ux-check /sites /sites/30002 /`. Dynamic routes take a concrete id
-// from the caller — this script never derives ids. Bare `playwright` library, not
-// the @playwright/test runner: this is a dev-loop capture tool, not a test gate.
+// UX log sweep — headless Chromium over the running app for changed routes.
+// Assertion surface is status + console + page errors + network diagnostics.
+// Screenshots only when a route×viewport fails (written under
+// docs/ux-check/captures/). Agents do not visually approve the UI; the operator
+// does after the log report. See docs/workflows/ux-check.md.
 
 import { chromium } from 'playwright';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { VIEWPORTS, assignSlugs, parseArgs, summariseResults } from './ux-capture-args.mjs';
+import { loadRemoteAuthOptions } from './ux-remote-auth.mjs';
 
 const OUT_DIR = path.resolve(process.cwd(), 'docs/ux-check/captures');
 const rel = (p) => path.relative(process.cwd(), p);
 
-// Poll the base URL until the dev server answers (the skill may have just
-// started it). Any HTTP response — even a redirect or a 500 — proves it's up.
+const STANDARD_CONSOLE_NOISE = [
+  /ws:\/\/127\.0\.0\.1:3210/i,
+  /127\.0\.0\.1:3210.*ERR_CONNECTION_REFUSED/i,
+  /ERR_CONNECTION_REFUSED.*127\.0\.0\.1:3210/i,
+  /\bconvex\b/i,
+  /webpack-hmr/i,
+  /\[Fast Refresh\]/i,
+  /va\.vercel-scripts\.com/i,
+];
+
+function isAllowedConsole(message) {
+  return STANDARD_CONSOLE_NOISE.some((pattern) => {
+    pattern.lastIndex = 0;
+    return pattern.test(message);
+  });
+}
+
 async function waitForServer(baseUrl, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
@@ -34,12 +43,12 @@ async function waitForServer(baseUrl, timeoutMs = 30000) {
   }
 }
 
-// Attach diagnostic listeners before navigation; the returned object fills in
-// as the page loads.
 function watchPage(page) {
   const diag = { consoleErrors: [], pageErrors: [], failedRequests: [], httpErrors: [] };
   page.on('console', (msg) => {
-    if (msg.type() === 'error') diag.consoleErrors.push(msg.text());
+    if (msg.type() !== 'error') return;
+    const text = msg.text();
+    if (!isAllowedConsole(text)) diag.consoleErrors.push(text);
   });
   page.on('pageerror', (err) => diag.pageErrors.push(err.message));
   page.on('requestfailed', (req) => {
@@ -51,28 +60,9 @@ function watchPage(page) {
   return diag;
 }
 
-// Open the global hamburger wherever the active viewport reveals it and capture
-// the expanded state. Best-effort — returns null where the toggle isn't present.
-async function captureNavOpen(page, slug, viewport) {
-  try {
-    const toggle = page.locator('[data-nav-menu-toggle]');
-    if (!(await toggle.isVisible())) return null;
-    await toggle.click();
-    await page.waitForTimeout(250);
-    const navShot = path.join(OUT_DIR, `${slug}--${viewport}--nav-open.png`);
-    await page.screenshot({ path: navShot, fullPage: true });
-    return navShot;
-  } catch {
-    return null;
-  }
-}
-
-// Navigate and let the page settle. Returns the load error message, or null.
 async function gotoAndSettle(page, url, settle) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    // Settle, not `networkidle`: Convex's persistent websocket means idle never
-    // fires on live-sync pages. A fixed wait lets streamed Suspense holes resolve.
     await page.waitForTimeout(settle);
     return null;
   } catch (err) {
@@ -80,38 +70,53 @@ async function gotoAndSettle(page, url, settle) {
   }
 }
 
-// Take the base screenshot plus a nav-open shot wherever the responsive header
-// exposes its toggle. Returns the shot paths and a screenshot error message if
-// one occurred — one route's failure never aborts the sweep.
-async function captureShots(page, slug, viewport) {
-  const shots = [];
+async function maybeFailureShot(page, slug, viewport, failed) {
+  if (!failed) return [];
   try {
-    const baseShot = path.join(OUT_DIR, `${slug}--${viewport}.png`);
-    await page.screenshot({ path: baseShot, fullPage: true });
-    shots.push(baseShot);
-    const navShot = await captureNavOpen(page, slug, viewport);
-    if (navShot) shots.push(navShot);
-    return { shots, shotError: null };
+    const file = path.join(OUT_DIR, `${slug}--${viewport}--failure.png`);
+    await page.screenshot({ path: file, fullPage: true });
+    return [rel(file)];
   } catch (err) {
-    return { shots, shotError: `screenshot failed: ${err.message}` };
+    return [`screenshot failed: ${err.message}`];
   }
 }
 
-async function captureRoute(context, baseUrl, route, slug, viewport, settle) {
+function routeFailed(result) {
+  return Boolean(
+    result.loadError || result.consoleErrors.length > 0 || result.pageErrors.length > 0,
+  );
+}
+
+function emptyResult(route, viewport, url) {
+  return {
+    route,
+    viewport,
+    url,
+    loadError: null,
+    failureArtifacts: [],
+    screenshots: [],
+    consoleErrors: [],
+    pageErrors: [],
+    failedRequests: [],
+    httpErrors: [],
+  };
+}
+
+async function probeRoute(context, baseUrl, route, slug, viewport, settle) {
   const page = await context.newPage();
   const diag = watchPage(page);
   const url = new URL(route, baseUrl).href;
-
-  const gotoError = await gotoAndSettle(page, url, settle);
-  let captured = { shots: [], shotError: null };
+  const result = { ...emptyResult(route, viewport, url), loadError: await gotoAndSettle(page, url, settle), ...diag };
   try {
-    captured = await captureShots(page, slug, viewport);
+    const artifacts = await maybeFailureShot(page, slug, viewport, routeFailed(result));
+    const shotError = artifacts.find((item) => item.startsWith('screenshot failed:'));
+    result.failureArtifacts = artifacts.filter((item) => !item.startsWith('screenshot failed:'));
+    result.screenshots = result.failureArtifacts;
+    if (shotError) result.loadError = result.loadError ?? shotError;
   } finally {
-    await page.close(); // always close the page
+    await page.close();
   }
-
-  const loadError = gotoError ?? captured.shotError;
-  return { route, viewport, url, screenshots: captured.shots.map(rel), loadError, ...diag };
+  return result;
 }
 
 async function launchBrowser() {
@@ -125,15 +130,33 @@ async function launchBrowser() {
   }
 }
 
-async function runSweep(browser, routed, opts) {
+async function openAuthContext(browser, viewport, auth) {
+  const context = await browser.newContext({
+    viewport: VIEWPORTS[viewport],
+    ...(auth.storageState ? { storageState: auth.storageState } : {}),
+    ...(auth.extraHTTPHeaders ? { extraHTTPHeaders: auth.extraHTTPHeaders } : {}),
+  });
+  if (auth.cookies.length > 0) await context.addCookies(auth.cookies);
+  return context;
+}
+
+function logRouteResult(result) {
+  const mark = routeFailed(result) ? '✗' : '✓';
+  console.log(`  ${mark} ${result.route} [${result.viewport}]`);
+  for (const artifact of result.failureArtifacts) {
+    console.log(`      failure artifact: ${artifact}`);
+  }
+}
+
+async function runSweep(browser, routed, opts, auth) {
   const results = [];
   try {
     for (const viewport of opts.viewports) {
-      const context = await browser.newContext({ viewport: VIEWPORTS[viewport] });
+      const context = await openAuthContext(browser, viewport, auth);
       for (const { route, slug } of routed) {
-        const result = await captureRoute(context, opts.baseUrl, route, slug, viewport, opts.settle);
+        const result = await probeRoute(context, opts.baseUrl, route, slug, viewport, opts.settle);
         results.push(result);
-        for (const shot of result.screenshots) console.log(`  ✓ ${shot}`);
+        logRouteResult(result);
       }
       await context.close();
     }
@@ -150,46 +173,56 @@ function logFindings(label, rows) {
 }
 
 function printSummary(results, reportPath) {
-  const { shotCount, loadRows, consoleRows, networkRows } = summariseResults(results);
+  const { failureArtifactCount, loadRows, consoleRows, networkRows } = summariseResults(results);
   console.log('');
-  console.log(`Captured ${shotCount} screenshot(s) across ${results.length} route×viewport pair(s).`);
+  console.log(
+    `Probed ${results.length} route×viewport pair(s); ${failureArtifactCount} failure artifact(s).`,
+  );
   console.log(`Report:  ${rel(reportPath)}`);
   console.log(`Dir:     ${rel(OUT_DIR)}/`);
-
   logFindings('pair(s) failed to load cleanly', loadRows);
   logFindings('pair(s) with console/page errors', consoleRows);
-  logFindings('pair(s) with failed / 4xx-5xx requests', networkRows);
+  logFindings('pair(s) with failed / 4xx-5xx requests (disposition required)', networkRows);
   if (loadRows.length + consoleRows.length + networkRows.length === 0) {
     console.log('\n✓ no console, page, or network errors observed.');
   }
+  console.log('\nOperator visual checklist: open each probed route in your browser and confirm layout/feel.');
+}
+
+function authLabel(opts, auth) {
+  if (opts.storageState || opts.cookieJar || auth.extraHTTPHeaders) return 'configured';
+  return 'anonymous';
+}
+
+async function prepareOutDir() {
+  await rm(path.join(OUT_DIR, 'report.json'), { force: true });
+  await mkdir(OUT_DIR, { recursive: true });
 }
 
 async function main() {
   const { routes, opts } = parseArgs(process.argv.slice(2));
+  const auth = await loadRemoteAuthOptions({
+    storageState: opts.storageState,
+    cookieJar: opts.cookieJar,
+  });
 
-  console.log(`UX capture → ${opts.baseUrl}`);
+  console.log(`UX log sweep → ${opts.baseUrl}`);
   console.log(`  routes:    ${routes.join(', ')}`);
   console.log(`  viewports: ${opts.viewports.join(', ')}`);
+  console.log(`  auth:      ${authLabel(opts, auth)}`);
 
   if (!(await waitForServer(opts.baseUrl))) {
-    console.error(`✗ dev server at ${opts.baseUrl} did not respond.`);
+    console.error(`✗ server at ${opts.baseUrl} did not respond.`);
     console.error('  Start it first (pnpm dev) or pass --base-url=…');
     process.exit(1);
   }
 
-  // Clear so a prior run's (possibly different) route set leaves no stale shots.
-  await rm(OUT_DIR, { recursive: true, force: true });
-  await mkdir(OUT_DIR, { recursive: true });
-
-  const browser = await launchBrowser();
-  const results = await runSweep(browser, assignSlugs(routes), opts);
-
+  await prepareOutDir();
+  const results = await runSweep(await launchBrowser(), assignSlugs(routes), opts, auth);
   const reportPath = path.join(OUT_DIR, 'report.json');
-  await writeFile(reportPath, JSON.stringify(results, null, 2) + '\n');
+  await writeFile(reportPath, `${JSON.stringify(results, null, 2)}\n`);
   printSummary(results, reportPath);
-
-  // A capture utility, not a gate: a clean sweep exits 0 even with findings.
-  process.exit(0);
+  process.exit(results.some(routeFailed) ? 1 : 0);
 }
 
 main().catch((err) => {

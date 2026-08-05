@@ -44,10 +44,10 @@ Required inputs:
    close-out must not absorb leftover Ordered work.
 2. **(shared)** Focused behavior, local, and UX evidence required by the changed
    surface, plus the complete branch diff. When the change is user-facing,
-   that UX evidence must already include completed `ux-check` captures and the
-   operator's browser-review disposition (or an explicit not-applicable reason).
-   Close-out consumes that evidence; it does not invoke `ux-check` or re-own
-   the operator pause.
+   that UX evidence must already include completed `ux-check` log reports (and
+   any failure artifacts), plus the operator's browser-review disposition (or
+   an explicit not-applicable reason). Close-out consumes that evidence; it
+   does not invoke `ux-check` or re-own the operator pause.
 3. **(shared)** Current implementation-review, release, health-baseline, and
    workflow-policy state.
 
@@ -281,7 +281,7 @@ unchanged.
    and clear `.next`. Leave the small persistent Docker Postgres service running
    unless the session has another reason to stop it.
 5. Reconcile only deliberately ignored local state touched by the session:
-   runtime-local settings and worktrees, generated reports or captures,
+   runtime-local settings and worktrees, generated reports or failure artifacts,
    temporary PR body files, `.codegraph/`, and comparable declared local
    artifacts. Remove credential-bearing permissions and session-only output;
    tracked guides, hooks, workspace docs, and `tools/` utilities ship normally.
@@ -445,11 +445,20 @@ returns `BLOCKED`.
 2. Resolve the production deployment by the merge SHA and wait until that exact
    deployment reports Ready. Inspect deployment state and runtime logs with the
    Vercel CLI.
-3. Use a real browser as the production review surface. Confirm the shipped
-   version, affected routes, expected authentication and admin gates, and a clean
-   browser console. Scripted HTTP checks are supplemental, not the primary
-   production proof.
-4. After the exact deployment and browser proof succeed, close out by mode:
+3. **Agent production proof is log-driven**, not a visual browser pass. Against
+   the exact production (or deployment) URL, run the shared Playwright remote
+   probes with `VERCEL_AUTOMATION_BYPASS_SECRET` set so Deployment Protection /
+   the Vercel bot wall does not block the agent (`x-vercel-protection-bypass` is
+   applied by `scripts/ux-remote-auth.mjs`). Prefer
+   `pnpm verify:site-routes -- <prod-url>` and, when the change touched
+   account-adjacent surfaces, `pnpm ux-check <routes> --base-url=<prod-url>`
+   with an operator-exported `--cookie-jar` or `--storage-state` (seeded local
+   E2E cookies do not work against production). Assert HTTP/status, console, and
+   page errors from the JSON report; write failure screenshots only under
+   `docs/ux-check/captures/`. Do not open production in a browser for visual
+   approval — that remains the operator's review. See
+   `docs/workflows/ux-check.md` § Remote / production log probes.
+4. After the exact deployment and agent log proof succeed, close out by mode:
    - **(ordinary)** Stop with `MERGED`. Do not run the resolver, do not mark any
      session plan complete, do not edit the roadmap or `APP_VERSION`, and do not
      open any follow-up PR. The pending changelog fragment is the only durable
@@ -467,9 +476,11 @@ returns `BLOCKED`.
      owns that decision.
 
 Phase evidence: exact merge-SHA deployment identity and Ready state,
-deployment-targeted runtime-log verdict, real-browser route/auth/console proof,
-and — per mode — the pending-fragment path (ordinary) or the resolver's complete
-new directive against committed main (planned).
+deployment-targeted runtime-log verdict, agent log-driven route/console proof
+(with bypass secret when Protection is on; cookie jar when auth is required),
+operator visual disposition when the change was user-facing, and — per mode —
+the pending-fragment path (ordinary) or the resolver's complete new directive
+against committed main (planned).
 
 ## Return the result
 

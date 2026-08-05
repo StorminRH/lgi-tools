@@ -1,31 +1,46 @@
 // Production-runtime regression probe for the carried invalid-site React #419
 // rider. Run against a Vercel preview, never a local production build:
 //   pnpm verify:site-routes -- https://deployment.example.vercel.app
+//   pnpm verify:site-routes -- https://… [--cookie-jar path] [--storage-state path]
 //
 // Prints one JSON report and exits non-zero unless /sites/100 is the expected
 // noindex 404, /sites/3 remains a normal indexable 200, and neither page emits
-// an uncaught page error or unexpected console error.
+// an uncaught page error or unexpected console error. Failure screenshots land
+// under docs/ux-check/captures/. Supports Vercel Protection Bypass via
+// VERCEL_AUTOMATION_BYPASS_SECRET.
 import { chromium } from 'playwright';
-import { readFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { loadRemoteAuthOptions } from './ux-remote-auth.mjs';
 
 const args = process.argv.slice(2).filter((argument) => argument !== '--');
 const baseUrlArg = args[0];
 if (!baseUrlArg) {
   throw new Error(
-    'Usage: pnpm verify:site-routes -- https://deployment.example.vercel.app [--cookie-jar path]',
+    'Usage: pnpm verify:site-routes -- https://deployment.example.vercel.app [--cookie-jar path] [--storage-state path]',
   );
 }
 
-const cookieJarFlag = args.indexOf('--cookie-jar');
-const cookieJarPath = cookieJarFlag === -1 ? null : args[cookieJarFlag + 1];
-if (cookieJarFlag !== -1 && !cookieJarPath) {
-  throw new Error('--cookie-jar requires a Netscape-format cookie file path');
+function readFlag(flag) {
+  const index = args.indexOf(flag);
+  if (index === -1) return null;
+  const value = args[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`${flag} requires a path argument`);
+  }
+  return value;
 }
+
+const cookieJarPath = readFlag('--cookie-jar');
+const storageStatePath = readFlag('--storage-state');
 
 const baseUrl = new URL(baseUrlArg);
 baseUrl.pathname = '/';
 baseUrl.search = '';
 baseUrl.hash = '';
+
+const OUT_DIR = path.resolve(process.cwd(), 'docs/ux-check/captures');
+const rel = (file) => path.relative(process.cwd(), file);
 
 const CASES = [
   { path: '/sites/100', expectedStatus: 404, invalid: true },
@@ -37,44 +52,18 @@ function isExpectedDocument404(entry, targetUrl, invalid) {
   return entry.location === '' || entry.location === targetUrl;
 }
 
-function requireCookieField(value, label) {
-  if (value === undefined || value === '') throw new Error(`Cookie ${label} is missing`);
-  return value;
-}
+const auth = await loadRemoteAuthOptions({
+  storageState: storageStatePath,
+  cookieJar: cookieJarPath,
+});
 
-function parseCookieExpiry(expires) {
-  const expiresAt = Number(expires);
-  if (!Number.isFinite(expiresAt) || expiresAt <= 0) return -1;
-  return expiresAt;
-}
-
-function parseCookieLine(line) {
-  const httpOnly = line.startsWith('#HttpOnly_');
-  const normalizedLine = httpOnly ? line.slice('#HttpOnly_'.length) : line;
-  const [domain, , path, secure, expires, name, value] = normalizedLine.split('\t');
-  return {
-    name: requireCookieField(name, 'name'),
-    value: requireCookieField(value, 'value'),
-    domain: requireCookieField(domain, 'domain'),
-    path: requireCookieField(path, 'path'),
-    secure: secure === 'TRUE',
-    httpOnly,
-    expires: parseCookieExpiry(expires),
-  };
-}
-
-async function readNetscapeCookies(filePath) {
-  if (!filePath) return [];
-  const contents = await readFile(filePath, 'utf8');
-  return contents
-    .split('\n')
-    .filter((line) => line.trim() !== '' && (!line.startsWith('#') || line.startsWith('#HttpOnly_')))
-    .map(parseCookieLine);
-}
-
+await mkdir(OUT_DIR, { recursive: true });
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext();
-await context.addCookies(await readNetscapeCookies(cookieJarPath));
+const context = await browser.newContext({
+  ...(auth.storageState ? { storageState: auth.storageState } : {}),
+  ...(auth.extraHTTPHeaders ? { extraHTTPHeaders: auth.extraHTTPHeaders } : {}),
+});
+if (auth.cookies.length > 0) await context.addCookies(auth.cookies);
 const reports = [];
 
 try {
@@ -82,6 +71,7 @@ try {
     const page = await context.newPage();
     const consoleErrors = [];
     const pageErrors = [];
+    const failureArtifacts = [];
     const targetUrl = new URL(route.path, baseUrl).toString();
 
     page.on('console', (message) => {
@@ -119,6 +109,19 @@ try {
       pageErrors: pageErrors.length === 0,
       consoleErrors: unexpectedConsoleErrors.length === 0,
     };
+    const passed = Object.values(checks).every(Boolean);
+    if (!passed) {
+      const file = path.join(
+        OUT_DIR,
+        `verify-site-routes--${route.path.replace(/\W+/g, '-') || 'root'}--failure.png`,
+      );
+      try {
+        await page.screenshot({ path: file, fullPage: true });
+        failureArtifacts.push(rel(file));
+      } catch {
+        // Best-effort diagnostic only.
+      }
+    }
 
     reports.push({
       route: route.path,
@@ -129,7 +132,8 @@ try {
       consoleErrors,
       unexpectedConsoleErrors,
       checks,
-      passed: Object.values(checks).every(Boolean),
+      failureArtifacts,
+      passed,
     });
     await page.close();
   }
