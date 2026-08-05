@@ -18,7 +18,13 @@ export default defineConfig({
     // scripts (arg parsing, route-key derivation, fixture canonicalisation)
     // plus durable lint-rail fixtures; entry scripts themselves run at import,
     // so only their import-safe sibling modules are unit-tested.
-    include: ['src/**/*.test.ts', 'convex/**/*.test.ts', 'scripts/**/*.test.mjs'],
+    include: [
+      'src/**/*.test.ts',
+      'convex/**/*.test.ts',
+      'scripts/**/*.test.mjs',
+      // Side-effect-free E2E helpers (identity path resolution) — not Playwright specs.
+      'e2e/**/*.test.ts',
+    ],
     coverage: {
       // fallow's `--coverage` ingests an Istanbul coverage map
       // (coverage-final.json) for exact per-function CRAP scoring and rejects

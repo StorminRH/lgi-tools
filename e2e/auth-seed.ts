@@ -14,16 +14,21 @@ import { account, characters, jwks, session, user, verification } from '@/db/aut
 import { db } from '@/db';
 import { readEnv } from '@/lib/env';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
+import {
+  DEFAULT_STORAGE_STATE_PATH as DEFAULT_STORAGE_STATE_RELATIVE,
+  E2E_CHARACTER_ID,
+  E2E_CHARACTER_NAME,
+  E2E_USER_ID,
+} from './identity';
+
+export { E2E_CHARACTER_ID, E2E_CHARACTER_NAME, E2E_USER_ID } from './identity';
 
 config({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
-/** Obviously fake local character — never a real EVE id used in production. */
-export const E2E_CHARACTER_ID = 9_000_001;
-export const E2E_USER_ID = 'e2e-pilot';
-export const E2E_CHARACTER_NAME = 'E2E Pilot';
+/** Absolute default path for writing seed output (`pnpm e2e:seed`). */
 export const DEFAULT_STORAGE_STATE_PATH = path.resolve(
   process.cwd(),
-  'docs/ux-check/captures/auth-storage.json',
+  DEFAULT_STORAGE_STATE_RELATIVE,
 );
 
 const baseURL = readEnv('BETTER_AUTH_URL') ?? 'http://localhost:3000';

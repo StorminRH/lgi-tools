@@ -19,9 +19,12 @@ Required inputs:
 1. The complete change diff and the user-facing routes it can affect.
 2. A running local stack capable of rendering those routes truthfully.
 3. Any durable open-state probe definitions required by changed interactions.
-4. For authenticated probes or `pnpm test:e2e`: seeded storage state
-   (`pnpm e2e:seed` → `docs/ux-check/captures/auth-storage.json`) or an
-   operator cookie jar.
+4. For authenticated probes: seeded storage state
+   (`pnpm e2e:seed` → `docs/ux-check/captures/auth-storage.json`),
+   `UX_STORAGE_STATE` / `--storage-state`, or an operator cookie jar
+   (`UX_COOKIE_JAR` / `--cookie-jar`). `pnpm test:e2e` uses Playwright
+   `storageState` only (local seed by default, or `E2E_STORAGE_STATE` /
+   `UX_STORAGE_STATE` with `E2E_SKIP_SEED=1` for an operator export).
 
 Required output: `UX_EVIDENCE` naming the probed routes and viewports, route and
 probe diagnostics, any failure artifact paths, an **operator visual checklist**,

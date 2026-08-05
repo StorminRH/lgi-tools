@@ -29,11 +29,12 @@ const ENGINES = {
   firefox,
   webkit,
 };
+// Local Convex websocket / HMR noise only — do not match every console line
+// that merely contains "Convex" (real ConvexError must still fail the probe).
 const STANDARD_CONSOLE_NOISE = [
   /ws:\/\/127\.0\.0\.1:3210/i,
   /127\.0\.0\.1:3210.*ERR_CONNECTION_REFUSED/i,
   /ERR_CONNECTION_REFUSED.*127\.0\.0\.1:3210/i,
-  /\bconvex\b/i,
   /webpack-hmr/i,
   /\[Fast Refresh\]/i,
   /va\.vercel-scripts\.com/i,
@@ -311,7 +312,7 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
   try {
     if (definition.requiresAuth && !opts.storageState && auth.cookies.length === 0) {
       throw new Error(
-        `${definition.name} requires auth: run pnpm e2e:seed and pass --storage-state=docs/ux-check/captures/auth-storage.json (or UX_STORAGE_STATE / --cookie-jar)`,
+        `${definition.name} requires auth: run pnpm e2e:seed and pass --storage-state=docs/ux-check/captures/auth-storage.json (or UX_STORAGE_STATE / UX_COOKIE_JAR / --cookie-jar)`,
       );
     }
     // Auth state applies only to probes that declare they need it: a probe

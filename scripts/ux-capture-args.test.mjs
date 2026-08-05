@@ -155,6 +155,12 @@ describe('summariseResults', () => {
     });
   });
 
+  it('falls back to legacy screenshots when failureArtifacts is absent', () => {
+    const { failureArtifacts: _omit, ...legacy } = clean;
+    const out = summariseResults([{ ...legacy, screenshots: ['old.png'] }]);
+    expect(out.failureArtifactCount).toBe(1);
+  });
+
   it('reads storage-state and cookie-jar flags', () => {
     const { opts } = parseArgs([
       '/',

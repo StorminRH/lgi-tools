@@ -1,7 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
-import { E2E_CHARACTER_NAME } from './auth-seed';
+import {
+  E2E_CHARACTER_NAME,
+  resolveE2eStorageStatePath,
+  usesSyntheticE2ePilot,
+} from './identity';
 
-const CONSOLE_ALLOW = /convex|webpack-hmr|Fast Refresh|va\.vercel-scripts|ERR_CONNECTION_REFUSED/i;
+const STORAGE_STATE_PATH = resolveE2eStorageStatePath();
+const EXPECT_SYNTHETIC_PILOT = usesSyntheticE2ePilot(STORAGE_STATE_PATH);
+
+/** Local Convex websocket / HMR noise — not a blanket match on every "Convex" string. */
+const CONSOLE_ALLOW =
+  /127\.0\.0\.1:3210|webpack-hmr|Fast Refresh|va\.vercel-scripts|ERR_CONNECTION_REFUSED/i;
 
 function attachDiagnostics(page: Page) {
   const consoleErrors: string[] = [];
@@ -32,8 +41,18 @@ async function expectAuthenticatedSession(page: Page) {
   } | null;
   expect(body, 'get-session returned null — cookie not accepted').not.toBeNull();
   expect(body?.characterId ?? null).not.toBeNull();
-  const displayName = body?.name ?? body?.user?.name;
-  expect(displayName).toBe(E2E_CHARACTER_NAME);
+  if (EXPECT_SYNTHETIC_PILOT) {
+    const displayName = body?.name ?? body?.user?.name;
+    expect(displayName).toBe(E2E_CHARACTER_NAME);
+  }
+}
+
+function accountMenuLocator(page: Page) {
+  if (EXPECT_SYNTHETIC_PILOT) {
+    return page.getByRole('button', { name: `${E2E_CHARACTER_NAME} — account menu` });
+  }
+  // Operator-exported remote session — name is unknown; menu label always ends this way.
+  return page.getByRole('button', { name: /— account menu$/ });
 }
 
 /**
@@ -41,6 +60,10 @@ async function expectAuthenticatedSession(page: Page) {
  * authenticated account surfaces. Prefer role/label locators; assert outcomes
  * and keep console/page errors empty. Bar for adding cases stays high — see
  * docs/contributing/end-to-end-testing.md.
+ *
+ * Authenticated storage state: default local seed path, or
+ * `E2E_STORAGE_STATE` / `UX_STORAGE_STATE` for an operator-exported remote session
+ * (use with `E2E_SKIP_SEED=1`).
  */
 test('public home shell loads without console or page errors', async ({ page }) => {
   const diag = attachDiagnostics(page);
@@ -51,7 +74,7 @@ test('public home shell loads without console or page errors', async ({ page }) 
 });
 
 test.describe('authenticated smoke', () => {
-  test.use({ storageState: 'docs/ux-check/captures/auth-storage.json' });
+  test.use({ storageState: STORAGE_STATE_PATH });
 
   test('seeded session is accepted and account shells settle signed-in', async ({ page }) => {
     const diag = attachDiagnostics(page);
@@ -59,18 +82,14 @@ test.describe('authenticated smoke', () => {
     await page.goto('/');
     await expectAuthenticatedSession(page);
     // Desktop header: AccountMenu trigger label is "<name> — account menu".
-    await expect(
-      page.getByRole('button', { name: `${E2E_CHARACTER_NAME} — account menu` }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toHaveCount(0);
 
     for (const route of ['/industry', '/skills', '/jobs', '/structures'] as const) {
       await page.goto(route);
       await expect(page.locator('body')).toBeVisible();
       await expectAuthenticatedSession(page);
-      await expect(
-        page.getByRole('button', { name: `${E2E_CHARACTER_NAME} — account menu` }),
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     }
 
     diag.assertClean();

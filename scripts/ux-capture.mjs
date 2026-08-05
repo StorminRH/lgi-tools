@@ -13,11 +13,12 @@ import { installOriginScopedBypass, loadRemoteAuthOptions } from './ux-remote-au
 const OUT_DIR = path.resolve(process.cwd(), 'docs/ux-check/captures');
 const rel = (p) => path.relative(process.cwd(), p);
 
+// Local Convex websocket / HMR noise only — do not match every console line
+// that merely contains "Convex" (real ConvexError must still fail the sweep).
 const STANDARD_CONSOLE_NOISE = [
   /ws:\/\/127\.0\.0\.1:3210/i,
   /127\.0\.0\.1:3210.*ERR_CONNECTION_REFUSED/i,
   /ERR_CONNECTION_REFUSED.*127\.0\.0\.1:3210/i,
-  /\bconvex\b/i,
   /webpack-hmr/i,
   /\[Fast Refresh\]/i,
   /va\.vercel-scripts\.com/i,
