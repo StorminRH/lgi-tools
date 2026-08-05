@@ -404,6 +404,17 @@ a:hover {
   outline: none;
 }
 
+/* Touch browsers (notably iOS Safari) auto-zoom the viewport when a focused text
+ * control renders below 16px. Form controls wear --text-ui (13px); on coarse-
+ * pointer devices bump them to --text-body so focus does not reflow the page. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset']):not([type='file']),
+  textarea,
+  select {
+    font-size: var(--text-body);
+  }
+}
+
 @keyframes skeleton-shimmer {
   from { background-position: 120% 0; }
   to { background-position: -20% 0; }
