@@ -582,6 +582,9 @@ a:hover {
  * Literal hex / rgba are permitted in the stylesheet (the lint ban is
  * hex-in-TS/TSX only). */
 
+/* step-end keeps the blink frame-discrete — steps(1): two opacity changes
+ * per 1.1s cycle, the same duty-cycle idiom as status-led-pulse (and the
+ * steps() caret T3 left untouched). Do not swap in a continuous ease. */
 .industry-cur {
   animation: industry-cur 1.1s step-end infinite;
 }
@@ -735,7 +738,10 @@ a:hover {
 .status-led.online {
   background: var(--color-isk);
   box-shadow: 0 0 8px var(--color-card-glow-shadow);
-  animation: status-led-pulse 2.4s ease-in-out infinite;
+  /* No element-level easing on purpose: the ramps' steps() timing lives
+   * per-keyframe below, and the hold segments have equal endpoints (inert
+   * under any curve). */
+  animation: status-led-pulse 2.4s infinite;
 }
 .status-led.vip {
   background: var(--color-tone-orange);
@@ -743,9 +749,18 @@ a:hover {
 .status-led.offline {
   background: var(--color-muted);
 }
+/* Duty-cycled pulse (the T3 Code fix, adopted alongside the .page-grain
+ * overlay): long flat opacity holds with short steps() ramps, so an
+ * always-on LED lands a handful of discrete opacity changes per cycle
+ * instead of a new value every vsync — a continuous ease pulse under the
+ * fixed grain layer forced the compositor to re-blend the viewport at
+ * refresh rate, all day, on every page. Each per-keyframe timing function
+ * governs the segment that keyframe starts: 0→40% hold bright, 40→50% step
+ * down, 50→90% hold dim, 90→100% step back up (~20% of the cycle moving). */
 @keyframes status-led-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 40%  { opacity: 1;   animation-timing-function: steps(6); }
+  50%, 90% { opacity: 0.4; animation-timing-function: steps(6); }
+  100%     { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .status-led { animation: none; }
