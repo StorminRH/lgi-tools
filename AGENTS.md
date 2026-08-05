@@ -41,6 +41,8 @@ ban does not excuse skipping the docs gate before code.
 - Focused tests: pass the resolved path or Vitest filter to `pnpm test`
 - Strict TypeScript check: `npx tsc --noEmit --incremental false`
 - Sole definition of done: `pnpm verify`
+- Testing style: `docs/contributing/testing-principles.md` (fewer, longer,
+  high-signal tests; prefer deleting low-signal agent residue)
 
 Never run `pnpm build`, `next build`, `pnpm vercel-build`, or another
 production-mode build locally or before merge. Only Vercel may run the
