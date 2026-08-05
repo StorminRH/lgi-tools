@@ -33,7 +33,7 @@
   - OW4 The 5-second cadence — `chainOnSuccess` + `rateKeyScope: 'subject'`
     on `characterLocation`; `computeChainBoundary` + `chainDispatch`;
     jitter-free success/fresh chain; failed/cold never chain; movement →
-    onlineStatus due-now; focused 67/67 + verify green.
+    onlineStatus due-now; focused 67/67 + verify green; commit `c6c30043`.
 - **Next-agent notes:** (1) Eligibility is per-character via
   `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
   already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
