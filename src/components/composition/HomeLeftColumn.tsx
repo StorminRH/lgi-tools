@@ -11,8 +11,7 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
  * (the hero is the anonymous pitch and should be crawlable). Until the client
  * session resolves — and for every signed-out visitor — we render that hero
  * unchanged, so there's no skeleton flash. A signed-in visitor keeps the hero
- * banner (the wordmark, sans the anon pitch line + login button) and gains the
- * character roster below it (P3b), which fetches its own linked-character list
+ * banner (the wordmark, sans the anon pitch line) and gains the character roster
  * and live skill queues client-side, leaving the static shell untouched.
  */
 export function HomeLeftColumn({ anonHero }: { anonHero: ReactNode }) {
