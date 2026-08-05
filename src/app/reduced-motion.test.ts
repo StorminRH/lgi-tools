@@ -19,13 +19,14 @@ describe('reduced-motion coverage', () => {
   const css = readFileSync('src/app/globals.css', 'utf8');
 
   it.each(LOOPING_CLASSES)('statically renders .%s under reduced motion', (className) => {
-    // The class still exists and animates somewhere…
     expect(css).toContain(`.${className}`);
-    // …and some reduced-motion block sets it to animation: none.
-    const blocks = [...css.matchAll(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}/g)];
-    const covered = blocks.some(
-      ([block]) => block.includes(`.${className}`) && block.includes('animation: none'),
+    // Require animation: none on a rule whose selector includes this class —
+    // not merely that some other rule in the same media block disables animation.
+    const ruleRe = new RegExp(
+      String.raw`@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\.${className}\b[^{]*\{[^}]*animation:\s*none`,
     );
-    expect(covered, `.${className} needs an animation: none reduced-motion override`).toBe(true);
+    expect(ruleRe.test(css), `.${className} needs an animation: none reduced-motion override`).toBe(
+      true,
+    );
   });
 });

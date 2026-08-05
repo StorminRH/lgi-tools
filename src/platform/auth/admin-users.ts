@@ -33,7 +33,7 @@ const adminUserColumns = {
 };
 
 /** Maps a Better Auth user row to the privacy-bounded administrator view. */
-function toAdminUser(row: {
+export function toAdminUser(row: {
   userId: string;
   name: string;
   portraitUrl: string | null;
