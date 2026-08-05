@@ -247,7 +247,7 @@ export const vendorResilienceRegistry: Record<
     rateLimit: "None; the read is cached and shared across requests.",
     idempotency: 'Read-only RSS.',
     degradation:
-      'Throwing is deliberate: a failed background revalidation lets Next serve the last-good cached value, and the consuming card catches the error and renders without news.',
+      'Failure is caught inside the cache boundary and cached as an empty list on a short-lived profile — an error crossing a use-cache boundary during build prerender fails the deploy even when the consumer catches it — so the news card renders its empty state and self-heals within minutes.',
     telemetryFields: 'None.',
   },
   'ccp-image-cdn': {
