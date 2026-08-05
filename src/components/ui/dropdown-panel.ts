@@ -3,19 +3,27 @@ import { eyebrow } from './type-roles';
 // The shared dropdown-panel treatment ("Inset Instrument", 3.8.2.3) — the ONE
 // floating-panel surface every popup wears (the Select popup, the Menu, the
 // Popover), so no two dropdowns drift and no OS-styled popup ever opens inside the
-// dark UI. The panel reads as a recessed tray (bg-deep well + idle border + the
-// engraved `dd` shadow); items are control-radius rows that light on highlight and
+// dark UI. The panel reads as a frosted glass screen over the page (the
+// glass-panel tint + blur from globals.css, idle border, the engraved `dd`
+// shadow); items are control-radius rows that light on highlight and
 // go ISK-green when chosen; group labels use the shared eyebrow role. Pure
 // class strings composed at each primitive via `cn()`; every token is already
 // minted in globals.css and registered in cn.ts (no new families here).
 
 /**
- * The recessed-tray SURFACE every floating panel shares — the Select popup, the
- * Menu, the Popover. Split out from the full panel so a header-flush menu (square,
- * full-width rows) and a padded content popover can wear the same surface without
- * the card radius / 5px inset the Select dropdown adds.
+ * The frosted SURFACE the small pop-outs share — the Select popup, the Popover,
+ * the Tooltip, the search dropdowns. Split out from the full panel so a padded
+ * content popover can wear the same surface without the card radius / 5px inset
+ * the Select dropdown adds.
  */
-export const panelSurface = 'border border-border-idle bg-bg-deep shadow-dd';
+export const panelSurface = 'border border-border-idle glass-panel shadow-dd';
+
+/**
+ * The SOLID variant of the same surface — the original recessed tray. Worn by the
+ * nav-level menus (hamburger, account, page menus), which read as part of the
+ * page chrome rather than floating glass, so they deliberately skip the frost.
+ */
+export const panelSurfaceSolid = 'border border-border-idle bg-bg-deep shadow-dd';
 
 /**
  * The full dropdown panel: the shared surface + card radius + a 5px inset that

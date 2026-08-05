@@ -161,7 +161,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   return (
     <Card
       className={cn(
-        'mb-3.5 mt-3.5 flex flex-wrap items-stretch gap-x-6 gap-y-3',
+        'mb-3.5 mt-3.5 flex min-w-0 w-full flex-wrap items-stretch gap-x-6 gap-y-3',
         'px-[18px] py-4',
       )}
     >
@@ -192,7 +192,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
           builds in a refinery too). The routing derives roles — a lone
           refinery does everything; adding a build structure takes over just
           the manufacturing nodes. */}
-      <div className="flex flex-wrap gap-x-6 gap-y-3 sm:ml-auto">
+      <div className="flex min-w-0 w-full flex-wrap gap-x-6 gap-y-3 sm:ml-auto sm:w-auto">
         <BuildLocationSelector />
         <ReactionStructureSelect />
       </div>

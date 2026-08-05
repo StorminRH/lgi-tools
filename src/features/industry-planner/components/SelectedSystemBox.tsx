@@ -1,6 +1,8 @@
-import { formatSec } from '@/data/eve-data/systems-search';
+import { cn } from '@/components/ui/cn';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
+import { formatSec } from '@/data/eve-data/systems-search';
+import { HERO_LOCATION_CONTROL_WELL_CLASS } from '../industry-styles';
 
 /**
  * The picked/locked SYSTEM readout of a location group — the exact fixed box
@@ -22,7 +24,12 @@ export function SelectedSystemBox({
   onClear?: () => void;
 }) {
   return (
-    <div className="flex h-[30px] w-[260px] shrink-0 items-center gap-2 border border-border bg-bg px-2">
+    <div
+      className={cn(
+        HERO_LOCATION_CONTROL_WELL_CLASS,
+        'flex h-[30px] items-center gap-2 border border-border bg-bg px-2',
+      )}
+    >
       <span className="min-w-0 truncate font-data text-ui text-tone-blue">
         {name} {formatSec(security)}
       </span>

@@ -38,7 +38,9 @@ const popup = cva(
     variants: {
       tone: {
         neutral: `${panelSurface} text-text`,
-        green: 'bg-section text-text border-isk-dim shadow-popover-green',
+        // Green keeps its data-quality identity via the ISK border + glow but
+        // shares the frosted glass-panel surface with the neutral pop-outs.
+        green: 'glass-panel text-text border-isk-dim shadow-popover-green',
       } satisfies Record<PopoverTone, string>,
     },
     defaultVariants: { tone: 'neutral' },

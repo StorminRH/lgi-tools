@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -65,6 +65,13 @@ export const metadata: Metadata = {
   ...(googleVerification ? { verification: { google: googleVerification } } : {}),
 };
 
+/** Root viewport: keep pinch-zoom available; keyboard overlays content instead of resizing layout. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "overlays-content",
+};
+
 /**
  * Renders the / route surface and owns its page-level composition, metadata boundary, and fallback
  * presentation.
@@ -77,13 +84,18 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full overscroll-none`}
+      className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full`}
     >
+      {/* Overscroll containment lives on the html/body rule in globals.css. */}
       <body className="min-h-full flex flex-col">
-        {/* Sitewide dot-lattice backdrop (3.6.11 F1) — a fixed full-viewport
-         * layer behind every route. Reuses the approved landing recipe (see
-         * .page-backdrop in globals.css); purely decorative, reads nothing. */}
+        {/* Sitewide space backdrop (3.6.11 F1, image since 3.6.24) — a fixed
+         * full-viewport layer behind every route (see .page-backdrop in
+         * globals.css); purely decorative, reads nothing. */}
         <div className="page-backdrop" aria-hidden="true" />
+        {/* Sitewide film grain — the fixed full-viewport counterpart ABOVE
+         * all content (see .page-grain in globals.css); purely decorative,
+         * pointer-transparent, reads nothing. */}
+        <div className="page-grain" aria-hidden="true" />
         <AuthProvider>
           {/* Autosave preferences (F4): reads the session to pick the localStorage
            * (anon) vs Neon (logged-in) tier, so it sits inside AuthProvider. */}

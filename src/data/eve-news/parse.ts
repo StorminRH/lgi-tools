@@ -2,8 +2,9 @@
 // known feed is the right pairing (same call as the changelog parser): the feed
 // is plain `<item>` blocks with `<title>`, `<link>`, `<pubDate>`, `<category>`,
 // and we only surface title / date / category, so a full XML dependency would
-// be dead weight. On unparseable input this THROWS so the caller can fail loudly
-// (see the cached accessor's stale-while-revalidate contract).
+// be dead weight. On unparseable input this THROWS; the cached accessor
+// (getEveNews) catches it inside its 'use cache' boundary and caches an empty
+// list on a short-lived profile, so a broken feed self-heals within minutes.
 
 import type { EveNewsItem } from './types';
 

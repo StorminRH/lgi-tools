@@ -10,8 +10,9 @@ export const EVE_NEWS_RSS_URL = 'https://www.eveonline.com/rss';
 export const EVE_NEWS_LIMIT = 5;
 
 /**
- * Revalidation tag for the cached feed snapshot. Time-based `cacheLife('hours')`
- * drives the refresh; this tag is here only as an optional manual bust hook
- * (there is no cron for news).
+ * Revalidation tag for the cached feed snapshot. Time-based `cacheLife` drives
+ * the refresh ('hours' on a healthy read, a short minutes-scale profile when
+ * the feed came back empty or failed); this tag is here only as an optional
+ * manual bust hook (there is no cron for news).
  */
 export const EVE_NEWS_TAG = 'eve-news';
