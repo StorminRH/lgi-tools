@@ -13,6 +13,11 @@ import {
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { mapRoleValidator } from './lib/mapEntityContracts';
+import {
+  deleteAllTrackingForMap,
+  deleteTrackingForUser,
+  purgeTrackingForUserBatch,
+} from './mapTracking';
 
 /** Maximum claim rows one user-purge call deletes, bounding the transaction write budget. */
 export const MAP_ACCESS_PURGE_BATCH = 128;
@@ -105,32 +110,6 @@ async function deleteClaimRows(
   return deleted;
 }
 
-/** Deletes every mapTracking row for one user on one map (revocation cascade). */
-async function deleteTrackingForUser(
-  ctx: MutationCtx,
-  mapId: string,
-  userId: string,
-): Promise<void> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
-    .collect();
-  for (const row of rows) {
-    await ctx.db.delete(row._id);
-  }
-}
-
-/** Full-map tracking sweep used when claims: [] tears the map down. */
-async function deleteAllTrackingForMap(ctx: MutationCtx, mapId: string): Promise<void> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .collect();
-  for (const row of rows) {
-    await ctx.db.delete(row._id);
-  }
-}
-
 /**
  * Converges the mapAccess table to exactly the stated claim set for one map:
  * inserts missing rows, replaces rows whose ordered roles differ, deletes rows
@@ -210,9 +189,20 @@ export const purgeUserClaims = internalMutation({
       await ctx.db.delete(row._id);
     }
 
+    // Also sweep the user's mapTracking rows: the dedicated best-effort
+    // /purge-location-tracking door can fail silently, and a deleted account
+    // has no later sync or projection to reclaim its rows — without this,
+    // forMap would keep serving the purged user's last-known location to
+    // every remaining map member indefinitely.
+    const tracking = await purgeTrackingForUserBatch(
+      ctx,
+      userId,
+      MAP_ACCESS_PURGE_BATCH,
+    );
+
     return {
-      deleted: doomed.length,
-      hasMore: rows.length > MAP_ACCESS_PURGE_BATCH,
+      deleted: doomed.length + tracking.deleted,
+      hasMore: rows.length > MAP_ACCESS_PURGE_BATCH || tracking.hasMore,
     };
   },
 });

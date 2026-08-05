@@ -3,6 +3,7 @@ import { convexTest, type TestConvex } from 'convex-test';
 import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -114,6 +115,47 @@ describe('mapTracking.setTracking', () => {
       tracked: false,
     });
     expect(await readTracking(t, MAP_A)).toEqual([]);
+  });
+
+  it('refuses opt-in beyond the per-(map, user) cap but keeps toggle-off/re-add working', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
+    const caller = asUser(t, OWNER);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < TRACKED_CHARACTERS_PER_MAP_USER_CAP; index += 1) {
+        await ctx.db.insert('mapTracking', {
+          mapId: MAP_A,
+          userId: OWNER,
+          characterId: 91_000_000 + index,
+        });
+      }
+    });
+
+    await expect(
+      caller.mutation(api.mapTracking.setTracking, {
+        mapId: MAP_A,
+        characterId: 92_000_000,
+        tracked: true,
+      }),
+    ).rejects.toThrow(ConvexError);
+
+    // Re-opting an already-tracked character at the cap stays idempotent-ok.
+    await caller.mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: 91_000_000,
+      tracked: true,
+    });
+    // Freeing one slot re-admits a new character.
+    await caller.mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: 91_000_000,
+      tracked: false,
+    });
+    await caller.mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: 92_000_000,
+      tracked: true,
+    });
   });
 
   it('refuses setTracking without a map-access claim', async () => {

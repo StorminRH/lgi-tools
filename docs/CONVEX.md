@@ -26,8 +26,11 @@ door to CCP; the sync engine is the one scheduler.
 - **The one sanctioned durability exception** is the v4.0 mapper's collaborative
   chain state (systems, connections, signatures, notes, and map events), whether
   user- or automatically authored: Convex-native primary SoR, protected by
-  backups + CDC export. It is a deliberate, documented exception — never a
-  license to make other data Convex-durable. Within it, `mapEvents.actor`
+  backups + CDC export. The `mapTracking` opt-in registry (4.0.4.2.1) rides the
+  same exception as live-map-adjacent durable state: not derivable from
+  Neon/ESI, cap-bounded, low-stakes to lose (a pilot re-toggles), torn down by
+  the access cascade and purge doors. It is a deliberate, documented
+  exception — never a license to make other data Convex-durable. Within it, `mapEvents.actor`
   denormalizes the acting account's display name into the map ledger; that name
   deliberately rides the ledger's seven-day self-expiry (`purgeAfter` + the
   chain purge cron) instead of the per-user `/n` teardown door — a recorded
@@ -211,18 +214,25 @@ Rule 6) so the shared doc isn't a write magnet to begin with.
 
 ## The sync engine
 
-**The engine serves the live ≤2-min canary today** (`convex/engine.ts`; subject =
+**The engine serves live ≤2-min data** (`convex/engine.ts`; subject =
 dataset × userId). It is the one sanctioned presence/scheduling machinery for **live
-≤2-min reactive data**, and serves a SINGLE live consumer: `onlineStatus`, the canary
-that keeps it exercised + proven (MIGRATE.A) — plus the future v4.0 mapper. The three
+≤2-min reactive data**, and serves TWO live consumers: `onlineStatus`, the canary
+that keeps it exercised + proven (MIGRATE.A, ~60s floor), and `characterLocation`
+(4.0.4.2.1 tracked location, 5s floor sustained by opt-in chain-on-success while a
+tracked pilot's map is visible — ~12 runs/min, an accepted order-of-magnitude cost
+multiple that is zero while cold). The three
 slow trackers (skills, personal + corp industry jobs) MOVED to Neon stale-gated on-view
 reads in MIGRATE.B; slow per-owner data does NOT join the engine (it follows the Neon
 on-view template above). New ≤2-min-live OR collaborative-realtime data joins via the
-4-step seam; nothing else. The architecture below is documented design — it survives the
-trackers' departure so the mapper can rebuild on it.
+4-step seam; nothing else.
 
 - **The 4-step registration seam** (the engine's header): (1) dataset + cadence floor +
-  token group in `src/lib/sync-engine.ts` and the schema's `dataset` union; (2) a
+  token group in `src/lib/sync-engine.ts` and the schema's `dataset` union — plus two
+  OPTIONAL per-dataset policy fields, `chainOnSuccess` (jitter-free `chainDispatch`
+  hops at the Expires boundary after a clean-yield run; requires the apply to stamp
+  `coveredCharacterIds`; failed/zero-yield/cold runs fall back to the 30s scan, which
+  stays the sole retry owner) and `rateKeyScope: 'subject'` (per-user limiter key);
+  omitting both keeps stock scan behavior byte-identical; (2) a
   `syncRef` pointing at the internal sync action; (3) a generation-guarded apply that
   stamps results onto the subject row (per Cost Rule 2, keep *scheduling* metadata off
   the watched payload); (4) the `useSyncSubject` hook (`src/data/convex/`). A subject

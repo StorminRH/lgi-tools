@@ -7,9 +7,13 @@
 //
 // BEST-EFFORT, NEVER THROWS: the orchestrator awaits each contributor with no
 // try/catch (composition/purge/orchestrator.ts), so a thrown error here would
-// abort the Neon purge mid-tier. A lost Convex delete just leaves a regenerable,
-// never-re-synced orphan row (Neon is authoritative; Convex is derived), which
-// is harmless. Mirrors the online-status contributor's transport.
+// abort the Neon purge mid-tier. Unlike the online-status contributor this
+// residue is NOT harmless-regenerable: mapTracking is a durable opt-in and a
+// deleted account has no later sync to orphan-clean either table, so a failed
+// delete must be DETECTABLE — bestEffort logs the structured failure line —
+// and the purge-map-access door's tracking sweep is the in-deployment
+// backstop for the mapTracking half.
+import { bestEffort } from '@/lib/best-effort';
 import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
@@ -19,13 +23,14 @@ async function postPurgeLocationTracking(
   userId: string,
   characterId: number | null,
 ): Promise<void> {
-  try {
+  const subject = characterId === null ? userId : `${userId}:${characterId}`;
+  await bestEffort('location-tracking/purge', 'convex-teardown', subject, async () => {
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!convexUrl) return;
     const siteUrl = deriveConvexSiteUrl(convexUrl);
     const secret = readEnv('CONVEX_SERVICE_SECRET');
     if (siteUrl === null || !secret) return;
-    await fetchWithTimeout(`${siteUrl}/purge-location-tracking`, {
+    const response = await fetchWithTimeout(`${siteUrl}/purge-location-tracking`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${secret}`,
@@ -33,9 +38,12 @@ async function postPurgeLocationTracking(
       },
       body: JSON.stringify({ userId, characterId }),
     });
-  } catch {
-    // Best-effort: swallow every failure so the Neon purge completes.
-  }
+    // A non-2xx (rotated bearer, deploy drift) is a REAL missed delete —
+    // surface it through bestEffort's failure line instead of asserting done.
+    if (!response.ok) {
+      throw new Error(`purge-location-tracking ${response.status}`);
+    }
+  });
 }
 
 /**
@@ -44,9 +52,11 @@ async function postPurgeLocationTracking(
  */
 export const locationTrackingPurgeContributor: PurgeContributor = {
   name: 'location-tracking',
-  // characterLocation / mapTracking are regenerable live state, not credential
-  // or durable Neon data.
-  tier: 'cache',
+  // 'durable', not 'cache': characterLocation is a regenerable mirror, but
+  // mapTracking is app-authored opt-in state with no upstream to rebuild from
+  // (the schema header's mapTracking carve-out) — the stricter table decides
+  // the tier.
+  tier: 'durable',
   claims: [],
   purgeCharacter: ({ userId, characterId }) =>
     postPurgeLocationTracking(userId, characterId),

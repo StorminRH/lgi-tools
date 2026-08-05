@@ -217,10 +217,12 @@ describe('characterLocationSync.syncUser', () => {
   it('fetches ship and stamps prev on a system change', async () => {
     const t = convexTest(schema, modules);
     // Continuity uses Date.now() at apply — keep lastFinishedAt inside JUMP_CONTINUITY_MS.
+    // prevFresh requires the previous run's covered set, not the tracked set.
     const recentFinish = Date.now() - 5_000;
     await seedSubject(t, {
       lastFinishedAt: recentFinish,
       syncedCharacterIds: [101],
+      coveredCharacterIds: [101],
     });
     await seedTracking(t);
     await t.run((ctx) =>

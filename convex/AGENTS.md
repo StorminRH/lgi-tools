@@ -9,8 +9,11 @@ the ESI gate, or cost and scaling behavior.
   live projections remain regenerable and never write to Neon. The approved
   mapper's collaborative chain state — systems, connections, signatures, notes,
   and map events, whether user- or automatically authored — is the deliberate
-  Convex-native durability exception described in `docs/CONVEX.md`; do not
-  generalize that exception to other data.
+  Convex-native durability exception described in `docs/CONVEX.md`. The
+  `mapTracking` opt-in registry (4.0.4.2.1) rides that same exception as
+  live-map-adjacent durable state: not derivable from Neon/ESI, bounded by an
+  opt-in cap, torn down by the access cascade and purge doors. Do not
+  generalize the exception to other data.
 - Convex trusts Better Auth JWT/JWKS identity. Gate every public map operation
   through the established access owner before reading or mutating map state.
 - Use Convex for collaborative live state and ESI data with an upstream cache

@@ -9,63 +9,47 @@
 
 ## Now
 
-- **CURRENT / NEXT:** session **4.0.4.2.1** in flight on
-  `lifecycle/4.0.4.2` (tracked location and jump classification). Plan
-  `docs/session-plans/4.0/4.0.4.2.1.md`; contract
-  `docs/session-contracts/4.0/4.0.4.2.1.md`.
-- **OW progress:** `6/6 complete — awaiting close-out`.
-- **OW completed:**
-  - OW1 Scopes and eligibility — `EVE_SCOPES` → 14 (added
-    `read_location` / `read_ship_type`); glosses flipped Active;
-    `src/data/location-tracking/sync-eligibility.ts` + pin tests; focused
-    49/49 + verify green.
-  - OW2 Tracking registry, location table, and teardown —
-    `mapTracking`/`characterLocation` tables; gated `setTracking`/`forMap`;
-    revocation + map-teardown cascade in `reconcileMapClaims`;
-    `POST /purge-location-tracking` + contributor + `NON_NEON_HOMES`;
-    focused 41/41 + verify green; commit `75979d8d`.
-  - OW3 The location dataset on the engine — `characterLocation` in
-    `SYNC_DATASETS`/config/`SYNC_REFS`/schema unions; sync action
-    (registry ∩ enum, location + ship-on-change, 304 zero-write);
-    apply stamps `prev*` via `JUMP_CONTINUITY_MS`; ESI
-    `character_location` + `CONVEX_ESI_HOMES` + idempotency; stock 30s
-    only; focused 112/112 + verify green; commit `55a19133`.
-  - OW4 The 5-second cadence — `chainOnSuccess` + `rateKeyScope: 'subject'`
-    on `characterLocation`; `computeChainBoundary` + `chainDispatch`;
-    jitter-free success/fresh chain; failed/cold never chain; movement →
-    onlineStatus due-now; focused 67/67 + verify green; commit `c6c30043`.
-  - OW5 The movement decision table — pure `classifyMovement` with injected
-    SDE geography; full gate / k-space / J-space / noise / discontinuity /
-    capsule / repeated-arrival matrix; focused 17/17 + verify green; commit
-    `18cdefef`.
-  - OW6 The map-side toggle and handoff notes — caller-owned tracked ids from
-    `forMap`; own-roster `TrackingControls` + `setTracking` +
-    `characterLocation` heartbeat mounted inside the map's React Flow provider;
-    focused 8/8 + verify green; commit `971ea148`.
-- **Next-agent notes:** (1) Eligibility is per-character via
-  `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
-  already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
-  (`ONLINE_SYNC_SCOPES` stays separate). (3) G-1 scopes were enabled on
-  the EVE app 2026-08-04; re-confirm only at Delivery. (4) `forMap` joins
-  location strictly by the tracking row's own `(userId, characterId)` —
-  never `characterId` alone. (5) Poll set = `mapTracking` ∩ Neon enum;
-  apply orphan-cleans against full enum but stamps `syncedCharacterIds`
-  from the tracked set. (6) Chain hops must stay jitter-free
-  (`computeChainBoundary`); jitter on a chained subject silently degrades
-  to the 30s scan. (7) The mapper toggle reads explicit caller-owned ids from
-  `forMap`; keep the pure `src/data/maps/movement-classification.ts` seam
-  client-side and never move geography into Convex. (8) Fallow may warn on
+- **CURRENT / NEXT:** session **4.0.4.2.1** complete (tracked location and
+  jump classification); close-out is delivering its per-session PR from
+  `lifecycle/4.0.4.2`. After merge: recreate `lifecycle/4.0.4.2` from
+  current `main` and plan **4.0.4.2.2** through `start-session`, starting
+  from the operator direction below.
+- **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
+  `mapTracking` opt-in registry + `characterLocation` payload with full
+  teardown matrix; `characterLocation` engine dataset (registry ∩ enum,
+  ship-on-change, 304 zero-write); 5s chain-on-success cadence
+  (`chainOnSuccess`/`rateKeyScope` opt-in config, `chainDispatch`); pure
+  `classifyMovement` decision table; map-side `TrackingControls`. Ledger
+  detail: as-built under `docs/session-as-built/4.0/`.
+- **Durable 4.0.4.2.1 gotchas:** (1) Continuity (`prevFresh`) reads the
+  subject's `coveredCharacterIds` (this run's clean samples, 304s included) —
+  NEVER `syncedCharacterIds` (the tracked/hint set); the chain-on-success
+  yield gate reads the same field, so a dataset opting into `chainOnSuccess`
+  must stamp it or it never chains. (2) Chain hops must stay jitter-free
+  (`computeChainBoundary`); jitter on a chained subject silently degrades to
+  the 30s scan. (3) `forMap` joins location strictly by the tracking row's own
+  `(userId, characterId)`; reads are capped and `setTracking` enforces
+  `TRACKED_CHARACTERS_PER_MAP_USER_CAP`. (4) `mapTracking` is DURABLE
+  user-authored state riding the sanctioned Convex durability exception
+  (schema-header carve-out; purge contributor tier `durable`); the
+  purge-map-access door sweeps it as the account-purge backstop because the
+  best-effort HTTP door can fail. (5) Eligibility is per-character via
+  `canSyncLocation`; keep online out of `LOCATION_SYNC_SCOPES`. (6)
+  `observedAt` is last-change time (304s never touch the doc); freshness
+  reads the subject's `lastFinishedAt`. (7) Keep the pure
+  `src/data/maps/movement-classification.ts` seam client-side; never move
+  geography into Convex. (8) Fallow may warn on
   onlineStatus↔characterLocation clone groups; accepted canary mirroring,
-  not a waiver target. (9) 4.0.4.2.2 direction revises k-space handling so a
-  visited k-space system is authored; reconcile that against the successor
-  contract's existing wormhole-exits-only wording during planning, not by a
-  silent execution divergence. (10) Hole matching is signature-first and asks
-  an informed confirmation question from the available signature evidence;
-  ambiguity is never auto-asserted. (11) A `re-anchor` surfaces downstream as
-  an orphaned anchor that regraphs and may reconnect, never as an invented
-  path. (12) Capsule/death classification fine-tuning remains deferred; the
-  shipped non-adjacent-capsule verdict stays `re-anchor` until that later
-  decision is made explicitly.
+  not a waiver target.
+- **4.0.4.2.2 direction (operator):** (1) k-space handling is revised so a
+  visited k-space system is authored; reconcile against the successor
+  contract's wormhole-exits-only wording during planning, not by silent
+  execution divergence. (2) Hole matching is signature-first and asks an
+  informed confirmation question from available signature evidence; ambiguity
+  is never auto-asserted. (3) A `re-anchor` surfaces downstream as an orphaned
+  anchor that regraphs and may reconnect, never as an invented path.
+  (4) Capsule/death fine-tuning stays deferred; the shipped
+  non-adjacent-capsule verdict remains `re-anchor` until decided explicitly.
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
   add-from-node / connection card), codex connection intelligence, death-window
   lifetime model, mass layers 1+3, unified sever/collapse pathway with

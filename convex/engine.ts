@@ -359,16 +359,54 @@ export const chainDispatch = internalMutation({
 });
 
 /**
+ * A completed run's next-due decision, in precedence order: failed → jittered
+ * floor re-arm (a first-ever run failing terminally would otherwise park
+ * nextDueAt null and leave the scan set, so a viewer staying on the page
+ * would get no retry at all; the scan's cold-retire still cleans the row once
+ * the viewer leaves); synced nothing → park at null until a heartbeat brings
+ * targets; chain-eligible (chainOnSuccess + clean yield + fresh presence) →
+ * the jitter-free chain boundary with a scheduled hop (jitter would land the
+ * hop later than its own due check and silently degrade cadence to the 30s
+ * scan); otherwise → the jittered cache-window re-arm. A zero-yield
+ * "success" — budget stop, all-reauth roster, empty poll set — is chain-
+ * INELIGIBLE (no character covered cleanly per the apply's stamp), so a
+ * protective state is never hammered at the 5s floor.
+ */
+async function resolveCompletionSchedule(
+  ctx: MutationCtx,
+  subject: Doc<'syncSubjects'>,
+  failed: boolean,
+  cadenceFloorMs: number,
+  chainOnSuccess: boolean,
+  now: number,
+): Promise<{ nextDueAt: number | null; chainAt: number | null }> {
+  if (failed) {
+    return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
+  }
+  if (subject.syncedCharacterIds.length === 0) {
+    return { nextDueAt: null, chainAt: null };
+  }
+  const yielded =
+    subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
+  if (chainOnSuccess && yielded) {
+    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+    if (!isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
+      const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
+      return { nextDueAt: boundary, chainAt: boundary };
+    }
+  }
+  return {
+    nextDueAt: computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
+    chainAt: null,
+  };
+}
+
+/**
  * Exactly-once run epilogue from the Workpool: clear 'running', surface a
- * terminal failure, and arm the next due time — off the cache window the
- * apply just stamped, floored at the dataset cadence, plus jitter (group
- * staggering). Datasets with chainOnSuccess additionally schedule a
- * jitter-free chainDispatch hop when the run succeeded and presence is still
- * fresh; failed/cold completions never chain and keep today's jittered
- * re-arm so the 30s scan remains the retry owner. Matched by workId, so a
+ * terminal failure, and arm the next due time per resolveCompletionSchedule,
+ * scheduling the chainDispatch hop when one is due. Matched by workId, so a
  * taken-over run's late completion no-ops rather than clearing the new run's
- * status. A successful run that synced nothing parks at null until a
- * heartbeat brings targets; a failed run always re-arms (rationale inline).
+ * status.
  */
 export const onSyncComplete = internalMutation({
   args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
@@ -391,30 +429,14 @@ export const onSyncComplete = internalMutation({
       );
     }
 
-    // A failed run re-arms at the cadence floor even when nothing is
-    // synced yet: a first-ever run failing terminally would otherwise park
-    // nextDueAt null and leave the scan set, so a viewer staying on the
-    // page would get no retry at all. The scan's cold-retire still cleans
-    // the row once the viewer leaves.
-    let nextDueAt: number | null;
-    let chainAt: number | null = null;
-    if (failed) {
-      nextDueAt = computeNextDueAt(null, cadenceFloorMs, now);
-    } else if (subject.syncedCharacterIds.length === 0) {
-      nextDueAt = null;
-    } else if (chainOnSuccess) {
-      const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-      if (!isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
-        // Jitter-free boundary: a per-subject chain must not land later than
-        // its own due check, or every hop no-ops and cadence falls to 30s.
-        nextDueAt = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
-        chainAt = nextDueAt;
-      } else {
-        nextDueAt = computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now);
-      }
-    } else {
-      nextDueAt = computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now);
-    }
+    const { nextDueAt, chainAt } = await resolveCompletionSchedule(
+      ctx,
+      subject,
+      failed,
+      cadenceFloorMs,
+      chainOnSuccess === true,
+      now,
+    );
 
     await ctx.db.patch(subject._id, {
       status: 'idle',

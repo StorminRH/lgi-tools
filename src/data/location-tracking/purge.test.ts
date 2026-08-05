@@ -28,8 +28,10 @@ afterEach(() => {
 });
 
 describe('locationTrackingPurgeContributor', () => {
-  it('is a cache-tier contributor that claims no Neon table (its homes live in Convex)', () => {
-    expect(locationTrackingPurgeContributor.tier).toBe('cache');
+  it('is a durable-tier contributor that claims no Neon table (its homes live in Convex)', () => {
+    // durable, not cache: mapTracking is app-authored opt-in state with no
+    // upstream to rebuild from — the stricter of the two tables decides.
+    expect(locationTrackingPurgeContributor.tier).toBe('durable');
     expect(locationTrackingPurgeContributor.claims).toEqual([]);
   });
 
@@ -55,6 +57,7 @@ describe('locationTrackingPurgeContributor', () => {
 
   it('swallows a Convex outage (fetch reject) without throwing — the Neon purge must complete', async () => {
     fetchSpy.mockRejectedValue(new Error('convex down'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await expect(
       locationTrackingPurgeContributor.purgeCharacter?.({
         kind: 'character',
@@ -62,6 +65,27 @@ describe('locationTrackingPurgeContributor', () => {
         characterId: CHAR,
       }),
     ).resolves.toBeUndefined();
+    // Detectable, not silent: bestEffort logs the structured failure line.
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[location-tracking/purge] convex-teardown failed'),
+      expect.anything(),
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('logs a non-2xx response as a missed delete instead of asserting done', async () => {
+    // A rotated bearer (401) or deploy drift must be detectable in logs — a
+    // deleted account has no later sync to orphan-clean these tables.
+    fetchSpy.mockResolvedValue(new Response('Unauthorized', { status: 401 }));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await expect(
+      locationTrackingPurgeContributor.purgeUser?.({ kind: 'user', userId: USER }),
+    ).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[location-tracking/purge] convex-teardown failed'),
+      expect.anything(),
+    );
+    errorSpy.mockRestore();
   });
 
   it('no-ops when Convex is not configured (no NEXT_PUBLIC_CONVEX_URL)', async () => {

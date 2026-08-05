@@ -342,6 +342,8 @@ describe('characterLocation.applySyncResults', () => {
         subjectRow({
           lastFinishedAt: Date.now() - 60_000,
           syncedCharacterIds: [CHAR_A],
+          // Covered too — proving the stale WINDOW alone forces the re-anchor.
+          coveredCharacterIds: [CHAR_A],
         }),
       );
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
@@ -370,6 +372,100 @@ describe('characterLocation.applySyncResults', () => {
       prevFresh: false,
       shipTypeId: 11_985,
     });
+  });
+
+  it('stamps prevFresh false when the previous run did not cover the character', async () => {
+    // Recent finish AND tracked, but the character's last sample was an error /
+    // unpolled (not in coveredCharacterIds): the transition must re-anchor —
+    // PD-2's "no invented path" — never inherit jump provenance from the
+    // tracked set.
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        'syncSubjects',
+        subjectRow({
+          lastFinishedAt: Date.now() - 1_000,
+          syncedCharacterIds: [CHAR_A],
+          coveredCharacterIds: [],
+        }),
+      );
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_144,
+          stationId: null,
+          structureId: null,
+          shipTypeId: 11_985,
+          systemChanged: true,
+          etagLocation: 'loc2',
+          etagShip: 'ship2',
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+
+    expect(await readDoc(t)).toMatchObject({
+      solarSystemId: 30_000_144,
+      prevSolarSystemId: 30_000_142,
+      prevFresh: false,
+    });
+  });
+
+  it('stamps this run\'s covered set from clean results only (304 included)', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow());
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+
+    await apply(t, {
+      enumeratedCharacterIds: [CHAR_A, CHAR_B],
+      trackedCharacterIds: [CHAR_A, CHAR_B],
+      results: [
+        {
+          // 304 — clean sample, counts as covered despite writing nothing.
+          characterId: CHAR_A,
+          solarSystemId: null,
+          stationId: null,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: false,
+          etagLocation: 'loc',
+          etagShip: 'ship',
+          expiresAt: WINDOW,
+          error: null,
+        },
+        {
+          // Errored — excluded from the covered set.
+          characterId: CHAR_B,
+          solarSystemId: null,
+          stationId: null,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: false,
+          etagLocation: null,
+          etagShip: null,
+          expiresAt: null,
+          error: 'reauth_required',
+        },
+      ],
+    });
+
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) =>
+          q.eq('userId', USER).eq('dataset', 'characterLocation'),
+        )
+        .unique(),
+    );
+    expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
+    expect(subject?.syncedCharacterIds).toEqual([CHAR_A, CHAR_B]);
   });
 
   it('orphan-cleans a character no longer in the Neon enumeration', async () => {

@@ -15,7 +15,10 @@ import {
 // Convex is a regenerable projection of live ESI data keyed by the Neon
 // identities (userId + characterId) — never the system of record, never a
 // home for SDE/domain data. Wiping these tables and re-syncing must
-// reproduce the same state from Neon + ESI.
+// reproduce the same state from Neon + ESI. Two carve-outs hold durable
+// user-authored state under the Convex-native exception docs/CONVEX.md
+// sanctions: the chain tables (mapSystems et al., marked below) and the
+// mapTracking opt-in registry (4.0.4.2.1) — a wipe loses those, not a mirror.
 //
 // Live engine consumers: onlineStatus (MIGRATE.A canary) and characterLocation
 // (4.0.4.2.1 tracked location). The three slow trackers (skills, personal + corp
@@ -53,6 +56,14 @@ export default defineSchema({
     // The characters the last run enumerated, so a heartbeat's hint can
     // detect a newly linked character without a per-dataset table read.
     syncedCharacterIds: v.array(v.number()),
+    // The characters the last run actually observed cleanly (fresh 200 OR
+    // 304; per-character errors and unpolled characters excluded). Distinct
+    // from syncedCharacterIds (the hint/park set): continuity decisions like
+    // characterLocation's prevFresh need "did the previous run cover this
+    // character", which the tracked/enumerated set does not encode. Optional:
+    // only datasets that need continuity stamp it (chain-on-success also
+    // requires it to sustain the fast cadence).
+    coveredCharacterIds: v.optional(v.array(v.number())),
     lastFinishedAt: v.union(v.number(), v.null()),
     lastError: v.union(v.string(), v.null()),
     rlGroup: v.union(v.string(), v.null()),
@@ -272,7 +283,11 @@ export default defineSchema({
   // Per-(map, character) opt-in registry. Live map state, not a chain document:
   // viewers join through this table to the per-character location payload below.
   // Revocation and map teardown cascade deletes here inside reconcileMapClaims;
-  // account/character purge hits POST /purge-location-tracking.
+  // account/character purge hits POST /purge-location-tracking (backstopped by
+  // the purge-map-access door's tracking sweep).
+  // DURABLE user-authored state (the header's mapTracking carve-out): not
+  // derivable from Neon/ESI — a wipe loses pilots' opt-ins. Growth is bounded
+  // by TRACKED_CHARACTERS_PER_MAP_USER_CAP in convex/mapTracking.ts.
   mapTracking: defineTable({
     mapId: v.string(),
     userId: v.string(),
@@ -296,6 +311,10 @@ export default defineSchema({
     shipTypeId: v.union(v.number(), v.null()),
     prevSolarSystemId: v.union(v.number(), v.null()),
     prevFresh: v.boolean(),
+    // LAST-CHANGE time, not last-confirmation: the zero-write 304 path (HC-3)
+    // never touches this doc, so a stationary pilot's observedAt ages while
+    // still confirmed live. Freshness consumers read the subject row's
+    // lastFinishedAt; this field only dates the facts above.
     observedAt: v.number(),
     etagLocation: v.union(v.string(), v.null()),
     etagShip: v.union(v.string(), v.null()),

@@ -29,6 +29,8 @@ export const JUMP_CONTINUITY_MS = 15_000;
 /**
  * The calling user's own location docs. Map members join through
  * mapTracking.forMap; this is the personal mirror of onlineStatus.forViewer.
+ * observedAt is LAST-CHANGE time (304s never touch the doc); freshness
+ * consumers read the subject row's lastFinishedAt.
  */
 export const forViewer = query({
   args: {},
@@ -131,9 +133,15 @@ export const applySyncResults = internalMutation({
     }
 
     const windowsByCharacter = new Map<number, number | null>();
+    // This run's continuity set: characters actually observed cleanly (fresh
+    // 200 OR 304). Per-character errors and unpolled characters are excluded,
+    // so a character that erred or was skipped (budget stop) re-anchors on
+    // recovery instead of inheriting an invented path from the tracked set.
+    const coveredCharacterIds: number[] = [];
     let sawMovement = false;
     for (const result of args.results) {
       if (!enumerated.has(result.characterId)) continue;
+      if (result.error === null) coveredCharacterIds.push(result.characterId);
       const window = await applyLocationResult(
         ctx,
         args.userId,
@@ -156,6 +164,7 @@ export const applySyncResults = internalMutation({
       [...windowsByCharacter.values()],
       {
         enumeratedCharacterIds: args.trackedCharacterIds,
+        coveredCharacterIds,
         lastError: args.lastError,
         rlGroup: args.rlGroup,
         rlLimit: args.rlLimit,
@@ -260,7 +269,11 @@ function isPrevFresh(
 ): boolean {
   if (subject.lastFinishedAt === null) return false;
   if (now - subject.lastFinishedAt > JUMP_CONTINUITY_MS) return false;
-  return subject.syncedCharacterIds.includes(characterId);
+  // Membership in the PREVIOUS run's covered set — not syncedCharacterIds
+  // (the tracked/hint set): a character whose last sample was an error or
+  // that went unpolled (budget stop) must re-anchor, never trust a stale
+  // prev-system as jump provenance (PD-2's "no invented path").
+  return (subject.coveredCharacterIds ?? []).includes(characterId);
 }
 
 function locationChanged(

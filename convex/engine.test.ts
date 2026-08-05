@@ -422,6 +422,7 @@ describe('engine chain-on-success', () => {
         workId: 'w1',
         minExpiresAt,
         syncedCharacterIds: [101],
+        coveredCharacterIds: [101],
       }));
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
@@ -473,6 +474,8 @@ describe('engine chain-on-success', () => {
         workId: 'w1',
         minExpiresAt: now + 5_000,
         syncedCharacterIds: [101],
+        // Covered set present so the FAILURE is the only reason not to chain.
+        coveredCharacterIds: [101],
       }));
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
@@ -506,6 +509,8 @@ describe('engine chain-on-success', () => {
         workId: 'w1',
         minExpiresAt: now + 5_000,
         syncedCharacterIds: [101],
+        // Covered set present so COLD PRESENCE is the only reason not to chain.
+        coveredCharacterIds: [101],
       }));
       // Presence older than COLD_AFTER_MS — completion must not chain.
       await ctx.db.insert('syncPresence', {
@@ -526,6 +531,64 @@ describe('engine chain-on-success', () => {
     );
     // Cold success still re-arms onto the scan (jittered), never schedules a hop.
     expect(typeof subject?.nextDueAt).toBe('number');
+  });
+
+  it('never chains a zero-yield success (empty covered set or run-level error)', async () => {
+    // A "success" that observed nothing cleanly — budget stop, all-reauth
+    // roster — must fall back to the jittered scan re-arm, not hammer a
+    // protective state at the 5s floor.
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    for (const overrides of [
+      { coveredCharacterIds: [] as number[] },
+      { coveredCharacterIds: [101], lastError: 'budget_exhausted:daily' },
+    ]) {
+      await t.run(async (ctx) => {
+        const stale = await ctx.db
+          .query('syncSubjects')
+          .withIndex('by_user_dataset', (q) =>
+            q.eq('userId', USER).eq('dataset', 'characterLocation'),
+          )
+          .unique();
+        if (stale !== null) await ctx.db.delete(stale._id);
+        await ctx.db.insert('syncSubjects', subjectRow({
+          dataset: 'characterLocation',
+          status: 'running',
+          lastRequestedAt: now,
+          workId: 'w1',
+          minExpiresAt: now + 5_000,
+          syncedCharacterIds: [101],
+          ...overrides,
+        }));
+        const presence = await ctx.db
+          .query('syncPresence')
+          .withIndex('by_user_dataset', (q) =>
+            q.eq('userId', USER).eq('dataset', 'characterLocation'),
+          )
+          .unique();
+        if (presence === null) {
+          await ctx.db.insert('syncPresence', {
+            dataset: 'characterLocation',
+            userId: USER,
+            lastSeenAt: now,
+          });
+        }
+      });
+
+      await callLocationComplete(t, { kind: 'success', returnValue: null });
+
+      expect(await scheduledChainDispatches(t)).toHaveLength(0);
+      const subject = await t.run((ctx) =>
+        ctx.db
+          .query('syncSubjects')
+          .withIndex('by_user_dataset', (q) =>
+            q.eq('userId', USER).eq('dataset', 'characterLocation'),
+          )
+          .unique(),
+      );
+      // Still re-arms onto the scan set (the retry owner), just without a hop.
+      expect(typeof subject?.nextDueAt).toBe('number');
+    }
   });
 
   it('keys the rate limiter per subject for characterLocation', async () => {
