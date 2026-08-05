@@ -29,7 +29,7 @@
     (registry ∩ enum, location + ship-on-change, 304 zero-write);
     apply stamps `prev*` via `JUMP_CONTINUITY_MS`; ESI
     `character_location` + `CONVEX_ESI_HOMES` + idempotency; stock 30s
-    only; focused 112/112 + verify green.
+    only; focused 112/112 + verify green; commit `55a19133`.
 - **Next-agent notes:** (1) Eligibility is per-character via
   `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
   already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
