@@ -56,7 +56,7 @@ import {
 } from '@/data/eve-data/wormhole-contract';
 
 /** Fail-closed cap for the per-system live-connection liveness proof. */
-export const LIVE_CONNECTION_SCAN_CAP = 32;
+const LIVE_CONNECTION_SCAN_CAP = 32;
 
 /**
  * Fail-closed bound for the empty-map proof in {@link setHomeSystem}. A map

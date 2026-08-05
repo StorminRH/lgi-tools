@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MAP_CHAIN_INTENT_KINDS,
   type ChainPosition,
   type MapChainIntent,
 } from './intents';
 import { type PlacementAssigner } from './placement';
+
+/** Every intent kind — kept in the test for exhaustiveness coverage. */
+const MAP_CHAIN_INTENT_KINDS = [
+  'system-appeared',
+  'system-departed',
+  'system-moved',
+  'connection-appeared',
+  'connection-departed',
+] as const satisfies readonly MapChainIntent['kind'][];
 
 /** Test-only row park — production placement is the kernel via assignerFromPositions. */
 function positionOfSlot(slot: number): ChainPosition {

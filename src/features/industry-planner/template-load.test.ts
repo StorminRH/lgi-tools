@@ -9,7 +9,7 @@ import {
   type TemplateLoadOutcome,
 } from './template-load';
 import { applyTemplate, captureTemplate } from './template-manifest';
-import { configureFull, makeApplyCtx, makeMockPlanner } from './template-test-fixtures';
+import { configureFull, makeApplyCtx, makeMockPlanner } from './template.fixtures';
 
 // The loader core over the shared mock-planner harness. The manifest's own
 // suite already pins every per-field degrade arm; here the pins are the
