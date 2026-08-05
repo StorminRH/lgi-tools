@@ -1,14 +1,13 @@
 // Character location payload — the Convex half of 4.0.4.2.1 tracked location.
 //
 // Canonical shape (mirrors the onlineStatus canary): client heartbeat (engine)
-// → stock 30s scan while watched → Workpool → characterLocationSync.syncUser
-// (action: Neon enum ∩ mapTracking, location + ship-on-change) →
-// applySyncResults (ONE batched mutation, generation-guarded) → forViewer /
-// mapTracking.forMap. The client never calls the action directly.
+// → chain-on-success ~5s loop while watched (30s scan is the retry/watchdog)
+// → Workpool → characterLocationSync.syncUser (action: Neon enum ∩
+// mapTracking, location + ship-on-change) → applySyncResults (ONE batched
+// mutation, generation-guarded; movement nudges onlineStatus due-now) →
+// forViewer / mapTracking.forMap. The client never calls the action directly.
 //
-// Chain-on-success cadence and the onlineStatus due-now nudge land in OW4;
-// this module stays at stock scan cadence. Purge remains the Neon→Convex
-// teardown door for removed accounts/characters.
+// Purge remains the Neon→Convex teardown door for removed accounts/characters.
 import { type Infer, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import {
@@ -132,6 +131,7 @@ export const applySyncResults = internalMutation({
     }
 
     const windowsByCharacter = new Map<number, number | null>();
+    let sawMovement = false;
     for (const result of args.results) {
       if (!enumerated.has(result.characterId)) continue;
       const window = await applyLocationResult(
@@ -143,6 +143,11 @@ export const applySyncResults = internalMutation({
         now,
       );
       windowsByCharacter.set(result.characterId, window);
+      // systemChanged covers first sample and a system hop; 304 / dock-only
+      // leave it false so stationary windows never nudge onlineStatus.
+      if (result.error === null && result.solarSystemId !== null && result.systemChanged) {
+        sawMovement = true;
+      }
     }
 
     await stampSyncSubject(
@@ -159,8 +164,26 @@ export const applySyncResults = internalMutation({
       },
       now,
     );
+
+    if (sawMovement) await nudgeOnlineStatusDueNow(ctx, args.userId, now);
   },
 });
+
+/**
+ * Pull the user's onlineStatus subject into the scan's due range so the
+ * online dot catches a fresh login/jump without gating location on the 60s
+ * online cache. Absent or already-due subjects are left alone.
+ */
+async function nudgeOnlineStatusDueNow(
+  ctx: MutationCtx,
+  userId: string,
+  now: number,
+): Promise<void> {
+  const online = await getSyncSubject(ctx.db, 'onlineStatus', userId);
+  if (online === null) return;
+  if (online.nextDueAt !== null && online.nextDueAt <= now) return;
+  await ctx.db.patch(online._id, { nextDueAt: now });
+}
 
 async function applyLocationResult(
   ctx: MutationCtx,

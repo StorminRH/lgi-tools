@@ -13,7 +13,7 @@
   `lifecycle/4.0.4.2` (tracked location and jump classification). Plan
   `docs/session-plans/4.0/4.0.4.2.1.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.1.md`.
-- **OW progress:** `3/6 complete` — next: The 5-second cadence.
+- **OW progress:** `4/6 complete` — next: The movement decision table.
 - **OW completed:**
   - OW1 Scopes and eligibility — `EVE_SCOPES` → 14 (added
     `read_location` / `read_ship_type`); glosses flipped Active;
@@ -30,6 +30,10 @@
     apply stamps `prev*` via `JUMP_CONTINUITY_MS`; ESI
     `character_location` + `CONVEX_ESI_HOMES` + idempotency; stock 30s
     only; focused 112/112 + verify green; commit `55a19133`.
+  - OW4 The 5-second cadence — `chainOnSuccess` + `rateKeyScope: 'subject'`
+    on `characterLocation`; `computeChainBoundary` + `chainDispatch`;
+    jitter-free success/fresh chain; failed/cold never chain; movement →
+    onlineStatus due-now; focused 67/67 + verify green.
 - **Next-agent notes:** (1) Eligibility is per-character via
   `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
   already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
@@ -38,11 +42,12 @@
   location strictly by the tracking row's own `(userId, characterId)` —
   never `characterId` alone. (5) Poll set = `mapTracking` ∩ Neon enum;
   apply orphan-cleans against full enum but stamps `syncedCharacterIds`
-  from the tracked set. (6) OW4 owns `chainOnSuccess` +
-  `rateKeyScope: 'subject'` + jitter-free `chainDispatch` + movement →
-  `onlineStatus` due-now nudge — do not touch classification (OW5) or
-  mapper toggle (OW6). (7) Fallow may warn on onlineStatus↔characterLocation
-  clone groups; accepted canary mirroring, not a waiver target.
+  from the tracked set. (6) Chain hops must stay jitter-free
+  (`computeChainBoundary`); jitter on a chained subject silently degrades
+  to the 30s scan. (7) OW5 owns `classifyMovement` pure table only — do
+  not touch mapper toggle (OW6). (8) Fallow may warn on
+  onlineStatus↔characterLocation clone groups; accepted canary mirroring,
+  not a waiver target.
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
   add-from-node / connection card), codex connection intelligence, death-window
   lifetime model, mass layers 1+3, unified sever/collapse pathway with

@@ -54,8 +54,10 @@
 // forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
 // amortizes across a burst).
 // Watched-hour ≈ 2.9k calls for onlineStatus (60-run floor); characterLocation
-// adds a second watcher at its own cadence (stock 30s scan until chain-on-success).
-// skills/jobs/corp all moved to Neon stale-gated on-view reads in MIGRATE.B.
+// with chain-on-success is ~12 runs/min (~10k–30k calls/watched-hour) while a
+// tracked pilot's map stays open — accepted order-of-magnitude multiple, zero
+// while cold. skills/jobs/corp all moved to Neon stale-gated on-view reads in
+// MIGRATE.B.
 // Calls do NOT scale with characters-per-user — characters multiply ESI reads
 // inside ONE action (action compute + bandwidth scale, calls don't) — and since
 // 3.5.e1 DB I/O no longer scales with the payload re-read on every beat either.
@@ -65,6 +67,7 @@ import { v } from 'convex/values';
 import {
   classifyDueSubject,
   COLD_AFTER_MS,
+  computeChainBoundary,
   computeNextDueAt,
   hasSyncTarget,
   isColdFromPresence,
@@ -302,8 +305,13 @@ async function dispatch(
   subject: Doc<'syncSubjects'>,
   now: number,
 ): Promise<boolean> {
-  const { cadenceFloorMs, tokenGroup } = SYNC_DATASET_CONFIG[subject.dataset];
-  const { ok, retryAfter } = await rateLimiter.limit(ctx, 'syncDispatch', { key: tokenGroup });
+  const { cadenceFloorMs, tokenGroup, rateKeyScope } = SYNC_DATASET_CONFIG[subject.dataset];
+  // Default group key smooths re-arm herds across users; subject scope keeps
+  // concurrent tracked pilots from starving each other on one char-location
+  // bucket (characterLocation).
+  const rateKey =
+    rateKeyScope === 'subject' ? `${tokenGroup}:${subject.userId}` : tokenGroup;
+  const { ok, retryAfter } = await rateLimiter.limit(ctx, 'syncDispatch', { key: rateKey });
   if (!ok) {
     await ctx.db.patch(subject._id, { nextDueAt: now + retryAfter });
     return false;
@@ -328,13 +336,39 @@ async function dispatch(
 }
 
 /**
+ * Per-subject hop scheduled by chain-on-success completions. Re-reads the
+ * subject and calls dispatch only when idle, nextDueAt is reached, and
+ * presence is still fresh — otherwise a no-op so takeover, generation, and
+ * scan-retry semantics stay with the 30s scan.
+ */
+export const chainDispatch = internalMutation({
+  args: {
+    dataset: syncDatasetValidator,
+    userId: v.string(),
+  },
+  handler: async (ctx, { dataset, userId }) => {
+    const subject = await getSyncSubject(ctx.db, dataset, userId);
+    if (subject === null) return;
+    const now = Date.now();
+    if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
+    if (subject.nextDueAt === null || subject.nextDueAt > now) return;
+    const presence = await getPresence(ctx.db, dataset, userId);
+    if (isColdFromPresence(presence?.lastSeenAt ?? null, now)) return;
+    await dispatch(ctx, subject, now);
+  },
+});
+
+/**
  * Exactly-once run epilogue from the Workpool: clear 'running', surface a
  * terminal failure, and arm the next due time — off the cache window the
  * apply just stamped, floored at the dataset cadence, plus jitter (group
- * staggering). Matched by workId, so a taken-over run's late completion
- * no-ops rather than clearing the new run's status. A successful run that
- * synced nothing parks at null until a heartbeat brings targets; a failed
- * run always re-arms (rationale inline below).
+ * staggering). Datasets with chainOnSuccess additionally schedule a
+ * jitter-free chainDispatch hop when the run succeeded and presence is still
+ * fresh; failed/cold completions never chain and keep today's jittered
+ * re-arm so the 30s scan remains the retry owner. Matched by workId, so a
+ * taken-over run's late completion no-ops rather than clearing the new run's
+ * status. A successful run that synced nothing parks at null until a
+ * heartbeat brings targets; a failed run always re-arms (rationale inline).
  */
 export const onSyncComplete = internalMutation({
   args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
@@ -342,7 +376,7 @@ export const onSyncComplete = internalMutation({
     const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
     if (subject === null || subject.workId !== workId) return;
     const now = Date.now();
-    const { cadenceFloorMs } = SYNC_DATASET_CONFIG[subject.dataset];
+    const { cadenceFloorMs, chainOnSuccess } = SYNC_DATASET_CONFIG[subject.dataset];
     const failed = result.kind === 'failed';
     if (failed) {
       // Mirror of the Vercel crons' structured boundary line — the Convex
@@ -356,19 +390,36 @@ export const onSyncComplete = internalMutation({
         }),
       );
     }
+
+    // A failed run re-arms at the cadence floor even when nothing is
+    // synced yet: a first-ever run failing terminally would otherwise park
+    // nextDueAt null and leave the scan set, so a viewer staying on the
+    // page would get no retry at all. The scan's cold-retire still cleans
+    // the row once the viewer leaves.
+    let nextDueAt: number | null;
+    let chainAt: number | null = null;
+    if (failed) {
+      nextDueAt = computeNextDueAt(null, cadenceFloorMs, now);
+    } else if (subject.syncedCharacterIds.length === 0) {
+      nextDueAt = null;
+    } else if (chainOnSuccess) {
+      const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+      if (!isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
+        // Jitter-free boundary: a per-subject chain must not land later than
+        // its own due check, or every hop no-ops and cadence falls to 30s.
+        nextDueAt = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
+        chainAt = nextDueAt;
+      } else {
+        nextDueAt = computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now);
+      }
+    } else {
+      nextDueAt = computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now);
+    }
+
     await ctx.db.patch(subject._id, {
       status: 'idle',
       workId: null,
-      // A failed run re-arms at the cadence floor even when nothing is
-      // synced yet: a first-ever run failing terminally would otherwise park
-      // nextDueAt null and leave the scan set, so a viewer staying on the
-      // page would get no retry at all. The scan's cold-retire still cleans
-      // the row once the viewer leaves.
-      nextDueAt: failed
-        ? computeNextDueAt(null, cadenceFloorMs, now)
-        : subject.syncedCharacterIds.length === 0
-          ? null
-          : computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
+      nextDueAt,
       // A terminal failure means the apply never ran, so the old cache
       // window is unverified — clear it (the #95 "errored, re-syncable now"
       // meaning) so the next mount/visible heartbeat dispatches immediately
@@ -378,6 +429,13 @@ export const onSyncComplete = internalMutation({
         ? { lastError: `sync_failed: ${result.error.slice(0, 500)}`, minExpiresAt: null }
         : {}),
     });
+
+    if (chainAt !== null) {
+      await ctx.scheduler.runAt(chainAt, internal.engine.chainDispatch, {
+        dataset: subject.dataset,
+        userId: subject.userId,
+      });
+    }
   },
 });
 

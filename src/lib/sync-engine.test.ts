@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyDueSubject,
   COLD_AFTER_MS,
+  computeChainBoundary,
   computeNextDueAt,
   deriveConvexSiteUrl,
   hasSyncTarget,
@@ -22,8 +23,9 @@ describe('dataset registration data', () => {
   // The floors are the live-read ESI cache windows
   // and the groups are the live-observed token buckets — pinned so a future
   // edit can't silently poll faster than a dataset's cache or bill the
-  // wrong bucket.
-  it('pins the live-read cadence floor and token group', () => {
+  // wrong bucket. onlineStatus omits the opt-in chain fields so its path
+  // stays byte-identical under the new defaults.
+  it('pins the live-read cadence floor, token group, and chain policy', () => {
     expect(SYNC_DATASET_CONFIG.onlineStatus).toEqual({
       cadenceFloorMs: 60_000,
       tokenGroup: 'char-online',
@@ -31,6 +33,8 @@ describe('dataset registration data', () => {
     expect(SYNC_DATASET_CONFIG.characterLocation).toEqual({
       cadenceFloorMs: 5_000,
       tokenGroup: 'char-location',
+      chainOnSuccess: true,
+      rateKeyScope: 'subject',
     });
   });
 });
@@ -93,6 +97,16 @@ describe('classifyDueSubject', () => {
   });
   it('dispatches a hot row exactly at the cold edge (still warm)', () => {
     expect(classifyDueSubject(NOW - COLD_AFTER_MS, 'idle', 0, NOW)).toBe('dispatch');
+  });
+});
+
+describe('computeChainBoundary', () => {
+  const floor = 5_000;
+
+  it('is the jitter-free max of the cache window and the cadence floor', () => {
+    expect(computeChainBoundary(NOW + 300_000, floor, NOW)).toBe(NOW + 300_000);
+    expect(computeChainBoundary(NOW + 1_000, floor, NOW)).toBe(NOW + floor);
+    expect(computeChainBoundary(null, floor, NOW)).toBe(NOW + floor);
   });
 });
 
