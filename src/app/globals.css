@@ -264,7 +264,8 @@
   --z-index-overlay: 50;
   /* The sitewide film-grain layer (.page-grain) sits ABOVE overlay chrome on
    * purpose: the texture reads as a property of the screen, so dialogs and
-   * dropdowns stay under the same grain as the page behind them. */
+   * dropdowns stay under the same grain as the page behind them. (Sonner toasts
+   * are the one exception — the library pins its own huge inline z-index.) */
   --z-index-grain: 60;
   --spacing-icon-xs: 12px;
   --spacing-icon-sm: 14px;
@@ -320,6 +321,8 @@ html {
 html, body {
   color: var(--color-text);
   font-family: var(--font-ui);
+  /* Sole overscroll authority (layout.tsx carries no overscroll-none classes):
+   * kills rubber-band chaining so the fixed backdrop/grain never drift. */
   overscroll-behavior: none;
 }
 

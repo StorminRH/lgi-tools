@@ -30,18 +30,23 @@ export const PLANNER_DISCLOSURE_TRIGGER_CLASS =
 export const RELATED_NODE_ROW_CLASS = 'ring-1 ring-inset ring-isk';
 
 /**
- * Hero location group layout: fluid up to the desktop 332px plane so manufacturing
- * and reaction pickers stay inside the card on narrow viewports.
+ * Hero location group layout: fluid below `sm` so manufacturing and reaction
+ * pickers stay inside the card on narrow viewports; FIXED at the 332px plane
+ * from `sm` up. The fixed width is load-bearing on desktop — a fluid `w-full`
+ * child inside the hero's max-content-sized wrapper resolves cyclically (the
+ * groups' intrinsic widths shrink to their content, wrap, then rewrap as labels
+ * change — the shifting-pane bug), so only the sub-`sm` tier may be fluid.
  */
 export const HERO_LOCATION_GROUP_CLASS =
-  'flex w-full min-w-0 max-w-[332px] flex-col justify-center gap-1.5';
+  'flex w-full min-w-0 max-w-[332px] sm:w-[332px] flex-col justify-center gap-1.5';
 
 /** Label + control row inside a hero location group. */
 export const HERO_LOCATION_ROW_CLASS = 'flex min-w-0 items-center gap-2';
 
 /**
- * The shared 260×30 control well when space allows; shrinks beside the fixed label
- * on phones instead of clipping past the card edge.
+ * The shared control well: 260px beside the fixed label when space allows
+ * (consumers add their own height); shrinks on phones instead of clipping past
+ * the card edge.
  */
 export const HERO_LOCATION_CONTROL_WELL_CLASS = 'min-w-0 flex-1 max-w-[260px]';
 

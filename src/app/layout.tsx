@@ -84,9 +84,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full overscroll-none`}
+      className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col overscroll-none">
+      {/* Overscroll containment lives on the html/body rule in globals.css. */}
+      <body className="min-h-full flex flex-col">
         {/* Sitewide space backdrop (3.6.11 F1, image since 3.6.24) — a fixed
          * full-viewport layer behind every route (see .page-backdrop in
          * globals.css); purely decorative, reads nothing. */}
