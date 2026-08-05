@@ -13,7 +13,7 @@
   `lifecycle/4.0.4.2` (tracked location and jump classification). Plan
   `docs/session-plans/4.0/4.0.4.2.1.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.1.md`.
-- **OW progress:** `5/6 complete` — next: The map-side toggle and handoff notes.
+- **OW progress:** `6/6 complete — awaiting close-out`.
 - **OW completed:**
   - OW1 Scopes and eligibility — `EVE_SCOPES` → 14 (added
     `read_location` / `read_ship_type`); glosses flipped Active;
@@ -38,6 +38,10 @@
     SDE geography; full gate / k-space / J-space / noise / discontinuity /
     capsule / repeated-arrival matrix; focused 17/17 + verify green; commit
     `18cdefef`.
+  - OW6 The map-side toggle and handoff notes — caller-owned tracked ids from
+    `forMap`; own-roster `TrackingControls` + `setTracking` +
+    `characterLocation` heartbeat mounted inside the map's React Flow provider;
+    focused 8/8 + verify green; commit `971ea148`.
 - **Next-agent notes:** (1) Eligibility is per-character via
   `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
   already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
@@ -48,11 +52,20 @@
   apply orphan-cleans against full enum but stamps `syncedCharacterIds`
   from the tracked set. (6) Chain hops must stay jitter-free
   (`computeChainBoundary`); jitter on a chained subject silently degrades
-  to the 30s scan. (7) OW6 owns the mapper toggle and heartbeat mount; reuse
-  the pure `src/data/maps/movement-classification.ts` seam without moving
-  geography into Convex. (8) Fallow may warn on
+  to the 30s scan. (7) The mapper toggle reads explicit caller-owned ids from
+  `forMap`; keep the pure `src/data/maps/movement-classification.ts` seam
+  client-side and never move geography into Convex. (8) Fallow may warn on
   onlineStatus↔characterLocation clone groups; accepted canary mirroring,
-  not a waiver target.
+  not a waiver target. (9) 4.0.4.2.2 direction revises k-space handling so a
+  visited k-space system is authored; reconcile that against the successor
+  contract's existing wormhole-exits-only wording during planning, not by a
+  silent execution divergence. (10) Hole matching is signature-first and asks
+  an informed confirmation question from the available signature evidence;
+  ambiguity is never auto-asserted. (11) A `re-anchor` surfaces downstream as
+  an orphaned anchor that regraphs and may reconnect, never as an invented
+  path. (12) Capsule/death classification fine-tuning remains deferred; the
+  shipped non-adjacent-capsule verdict stays `re-anchor` until that later
+  decision is made explicitly.
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
   add-from-node / connection card), codex connection intelligence, death-window
   lifetime model, mass layers 1+3, unified sever/collapse pathway with
