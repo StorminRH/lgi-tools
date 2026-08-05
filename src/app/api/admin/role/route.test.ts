@@ -71,11 +71,17 @@ describe('POST /api/admin/role', () => {
     vi.unstubAllEnvs();
   });
 
-  it('returns 403 when the caller is not an admin', async () => {
+  it('returns 403 for a non-admin and for no session at all', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_VIEWER, isAdmin: false });
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'ADMIN' }));
     expect(res.status).toBe(403);
+
+    // The null-session arm is the security-salient one: a guard refactor like
+    // `session && !session.isAdmin` would wave anonymous callers through.
+    getSessionMock.mockResolvedValue(null);
+    const anonymous = await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'ADMIN' }));
+    expect(anonymous.status).toBe(403);
     expect(setUserRoleMock).not.toHaveBeenCalled();
   });
 

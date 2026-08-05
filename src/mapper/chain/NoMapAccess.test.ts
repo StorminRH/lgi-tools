@@ -10,8 +10,10 @@ describe('calm no-access state', () => {
   it('leads with the lost-access line as its heading, salute intact', () => {
     expect(markup).toContain('data-chain-no-access');
     // HC-4: no retry control here — recovery is the live access subscription
-    // flipping back (chain/surface.test.ts owns the copy/spinner negatives).
+    // flipping back (chain/surface.test.ts owns the copy/spinner negatives;
+    // literal "loading" copy is only banned here, so it stays too).
     expect(markup).not.toMatch(/<button/i);
+    expect(markup).not.toMatch(/loading/i);
     expect(markup).toMatch(/<h2[^>]*>\s*You[^<]*lost access to this map/);
     // The house uppercase treatment would render the salute as `O7`, which is not the gesture.
     // Asserted on the h2's parsed class list: a literal like `uppercase tracking-copy` depends on
