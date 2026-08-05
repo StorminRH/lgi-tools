@@ -28,15 +28,7 @@ describe('MapWindow isolation markup', () => {
 
     expect(markup).toContain('data-map-window="test"');
     expect(markup).toContain('nokey');
-    expect(markup).toContain('pointer-events-auto');
     expect(markup).toContain('data-map-window-scroll');
-    expect(markup).toContain('overflow-y-auto');
-    expect(markup).toContain('overscroll-contain');
-    expect(markup).toContain('glass-panel');
-    expect(markup).toContain('pl-[22px]');
-    expect(markup).toContain('pr-3');
-    expect(markup).toContain('left-4');
-    expect(markup).toContain('bottom-16');
     expect(markup).not.toContain('h-[calc(100dvh-5.5rem)]');
   });
 

@@ -48,13 +48,8 @@ describe('DEFAULT_FEE_RATES (verified 2026-06 — fail on silent rate drift)', (
       salesTax: 0.075, // 7.5% base, no Accounting (Version 22.02, 2025-03-12)
       brokerFee: 0.03, // 3% NPC base, no Broker Relations/standings
     });
-  });
-
-  it('pins the reaction SCC (shares the 4% manufacturing rate; the 2025-07 rework cut research only)', () => {
-    expect(REACTION_SCC_SURCHARGE).toBe(0.04);
-  });
-
-  it('pins the player-structure facility-tax cap (0–10%, Viridian 2023-06)', () => {
+    // Reaction SCC shares manufacturing's 4%; facility-tax cap is 0–10% (Viridian).
+    expect(REACTION_SCC_SURCHARGE).toBe(DEFAULT_FEE_RATES.sccSurcharge);
     expect(MAX_FACILITY_TAX_PCT).toBe(10);
   });
 });

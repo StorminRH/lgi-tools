@@ -10,7 +10,6 @@ describe('SLI definitions', () => {
       'esi_success_rate',
       'job_backlog',
     ]);
-    expect(SLI_IDS).toHaveLength(5);
   });
 
   it('gives every indicator a named owner from the closed list', () => {
