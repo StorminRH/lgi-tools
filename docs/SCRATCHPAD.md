@@ -24,7 +24,7 @@
     `mapTracking`/`characterLocation` tables; gated `setTracking`/`forMap`;
     revocation + map-teardown cascade in `reconcileMapClaims`;
     `POST /purge-location-tracking` + contributor + `NON_NEON_HOMES`;
-    focused 41/41 + verify green.
+    focused 41/41 + verify green; commit `75979d8d`.
 - **Next-agent notes:** (1) Eligibility is per-character via
   `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
   already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
