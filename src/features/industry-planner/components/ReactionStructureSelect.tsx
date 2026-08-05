@@ -2,10 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
+import { cn } from '@/components/ui/cn';
 import { Select } from '@/components/ui/select';
 import { SectionLabel } from '@/components/ui/section-label';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { facilityValueFor, parseFacilityValue, structureById } from '../facility-value';
+import {
+  HERO_LOCATION_CONTROL_WELL_CLASS,
+  HERO_LOCATION_GROUP_CLASS,
+  HERO_LOCATION_ROW_CLASS,
+} from '../industry-styles';
 import { deriveReactionSlotView, lockTransition } from '../structure-slots';
 import type { AvailableStructure } from '../types';
 import { useBuildSetup, type SelectedReactionSystem } from './planner-contexts';
@@ -41,13 +47,18 @@ function ReactionSystemRow({
   );
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={HERO_LOCATION_ROW_CLASS}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">System</SectionLabel>
       {lockedTo ? (
         deducedSystem ? (
           <SelectedSystemBox name={deducedSystem.name} security={deducedSystem.security} locked={lockedTo} />
         ) : (
-          <div className="flex h-[30px] w-[260px] shrink-0 items-center border border-border bg-bg px-2">
+          <div
+            className={cn(
+              HERO_LOCATION_CONTROL_WELL_CLASS,
+              'flex h-[30px] items-center border border-border bg-bg px-2',
+            )}
+          >
             <span className="truncate text-label uppercase tracking-wide text-muted">System unavailable</span>
           </div>
         )
@@ -58,7 +69,7 @@ function ReactionSystemRow({
           onClear={() => setReactionSystem(null)}
         />
       ) : (
-        <div className="w-[260px] max-w-full">
+        <div className={HERO_LOCATION_CONTROL_WELL_CLASS}>
           <TerminalSearch<SystemParams, SystemErr>
             initialValue=""
             placeholder="Reaction system — type a name"
@@ -138,9 +149,7 @@ export function ReactionStructureSelect() {
     reactionSystem,
   );
   return (
-    // FIXED group width, mirroring the Manufacturing group — see its note: an
-    // unconstrained group would widen to a long readout and rewrap the plane.
-    <div className="flex w-[332px] flex-col justify-center gap-1.5">
+    <div className={HERO_LOCATION_GROUP_CLASS}>
       {/* The group header carries the bonus readout on its own fixed-height
           line, right of the title. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
@@ -153,7 +162,7 @@ export function ReactionStructureSelect() {
         reactionSystem={reactionSystem}
         setReactionSystem={setReactionSystem}
       />
-      <div className="flex items-center gap-2">
+      <div className={HERO_LOCATION_ROW_CLASS}>
         <SectionLabel prefix={false} className="w-[64px] shrink-0">Station</SectionLabel>
         <Select
           value={facilityValueFor(reactionStructure, null)}
@@ -171,7 +180,7 @@ export function ReactionStructureSelect() {
             { value: 'add-custom', label: '+ Add custom structure…' },
           ]}
           ariaLabel="Reaction refinery"
-          className="h-[30px] w-[260px] shrink-0"
+          className={cn('h-[30px]', HERO_LOCATION_CONTROL_WELL_CLASS)}
         />
       </div>
     </div>

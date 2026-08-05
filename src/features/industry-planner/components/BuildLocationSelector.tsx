@@ -16,6 +16,11 @@ import {
   stationLabel,
 } from '../build-location-view';
 import { facilityValueFor, parseFacilityValue, structureById } from '../facility-value';
+import {
+  HERO_LOCATION_CONTROL_WELL_CLASS,
+  HERO_LOCATION_GROUP_CLASS,
+  HERO_LOCATION_ROW_CLASS,
+} from '../industry-styles';
 import type { StructureReadout as StructureReadoutBonus } from '../structure-factors';
 import { lockTransition, type LockSystem } from '../structure-slots';
 import type { AvailableStructure, IndustryStationView } from '../types';
@@ -106,10 +111,10 @@ function BuildFacilitySelect({
     setStation(null, null);
   };
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className={cn(HERO_LOCATION_ROW_CLASS, 'flex-wrap')}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">Station</SectionLabel>
-      {/* Fixed width + shrink-0 keeps the control from shifting as the selected
-          label changes, so the hero plane never reflows. */}
+      {/* Fluid well width on narrow viewports; caps at 260px on wider screens so
+          the hero plane does not shift as labels change. */}
       <Select
         value={facilityValueFor(selectedStructure, station)}
         onValueChange={onChange}
@@ -130,7 +135,7 @@ function BuildFacilitySelect({
           { value: 'add-custom', label: '+ Add custom structure…' },
         ]}
         ariaLabel="Build location"
-        className="h-[30px] w-[260px] shrink-0"
+        className={cn('h-[30px]', HERO_LOCATION_CONTROL_WELL_CLASS)}
       />
     </div>
   );
@@ -151,7 +156,12 @@ function LockedSystemBox({
     return <SelectedSystemBox name={deducedSystem.name} security={deducedSystem.security} locked={lockedName} />;
   }
   return (
-    <div className="flex h-[30px] w-[260px] shrink-0 items-center border border-border bg-bg px-2">
+    <div
+      className={cn(
+        HERO_LOCATION_CONTROL_WELL_CLASS,
+        'flex h-[30px] items-center border border-border bg-bg px-2',
+      )}
+    >
       <span className="truncate text-label uppercase tracking-wide text-muted">System unavailable</span>
     </div>
   );
@@ -180,7 +190,7 @@ function PickedOrSearchSystem({
     );
   }
   return (
-    <div className="w-[260px] max-w-full">
+    <div className={HERO_LOCATION_CONTROL_WELL_CLASS}>
       <TerminalSearch<SystemParams, SystemErr>
         initialValue=""
         placeholder="Build system — type a name"
@@ -225,7 +235,7 @@ function BuildSystemControl({
   fetchError: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className={HERO_LOCATION_ROW_CLASS}>
       <SectionLabel prefix={false} className="w-[64px] shrink-0">System</SectionLabel>
       {lockedStructure ? (
         <LockedSystemBox deducedSystem={deducedSystem} lockedName={lockedStructure.name} />
@@ -324,11 +334,9 @@ export function BuildLocationSelector() {
   );
 
   return (
-    // FIXED group width (label 64 + gap 8 + control 260): the header line's
-    // content must truncate against it — an unconstrained flex child sizes to
-    // max-content, so a long readout/prompt would widen the whole group and
-    // rewrap the hero's plane (the shifting-pane bug).
-    <div className="flex w-[332px] flex-col justify-center gap-1.5">
+    // Fluid group width on narrow viewports; caps at 332px so a long readout
+    // cannot widen the hero plane on desktop.
+    <div className={HERO_LOCATION_GROUP_CLASS}>
       {/* The group header carries the bonus readout (or the pick-a-system
           prompt) on its own fixed-height line, right of the title — beside the
           controls it would push them; below them it would stretch the group. */}
