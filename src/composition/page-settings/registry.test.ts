@@ -37,6 +37,7 @@ describe('page-settings engine', () => {
       { route: '/industry' },
       { route: '/industry/build' },
     ];
+    expect(resolveSpecForPath('/sites', specs)?.route).toBe('/sites');
     expect(resolveSpecForPath('/sites/30002', specs)?.route).toBe('/sites');
     expect(resolveSpecForPath('/sitesfoo', specs)).toBeNull();
     expect(resolveSpecForPath('/industry/build/x', specs)?.route).toBe('/industry/build');

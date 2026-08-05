@@ -8,25 +8,27 @@ import {
 type StaticWindowDatasetName = Parameters<typeof freshnessGate>[0];
 
 const NOW = new Date('2026-07-17T12:00:00Z');
-const STATIC_DATASETS = [
-  'skills',
-  'character_industry_jobs',
-  'corporation_industry_jobs',
-  'owned_assets',
-  'owned_blueprints',
-  'owned_structures',
-  'affiliations',
-  'market_prices',
-] as const satisfies readonly StaticWindowDatasetName[];
+// Independent [name, window] expectations: the registry values themselves are
+// pinned in src/esi-datasets/registry.test.ts, but only this table falsifies
+// the gate's NAME→WINDOW wiring (an entryNamed lookup bug that hands every
+// gate the first entry's TTL passes any derived assertion).
+const STATIC_WINDOWS = [
+  ['skills', 120_000],
+  ['character_industry_jobs', 300_000],
+  ['corporation_industry_jobs', 300_000],
+  ['owned_assets', 3_600_000],
+  ['owned_blueprints', 3_600_000],
+  ['owned_structures', 3_600_000],
+  ['affiliations', 3_600_000],
+  ['market_prices', 86_400_000],
+] as const satisfies readonly (readonly [StaticWindowDatasetName, number])[];
 
 // All static-window gates share one closure over the registry-derived TTL, so
-// one dataset's boundary cases falsify the shared staleness math; the other
-// members of STATIC_DATASETS only pin set membership, which `satisfies` already
-// enforces at compile time. Binding every gate still proves each entry resolves
-// to a legal TTL (freshnessGate throws otherwise).
+// one dataset's boundary cases falsify the shared staleness math for all of
+// them; the per-name table above owns the wiring.
 describe('freshnessGate', () => {
-  it('binds every static dataset and applies the window at its boundaries', () => {
-    for (const name of STATIC_DATASETS) expect(freshnessGate(name).ttlMs).toBeGreaterThan(0);
+  it('binds each static dataset to its own window and applies it at the boundaries', () => {
+    for (const [name, ttlMs] of STATIC_WINDOWS) expect(freshnessGate(name).ttlMs).toBe(ttlMs);
 
     const gate = freshnessGate('skills');
     expect(gate.isStale(null, NOW)).toBe(true);

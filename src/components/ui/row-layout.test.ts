@@ -11,7 +11,11 @@ describe('deriveRowLayout', () => {
     expect(noChips.showChipColumn).toBe(false);
     expect(inline.showChipColumn).toBe(false);
     expect(inline.showInlineChips).toBe(true);
-    expect(chipColumn.colsClass).not.toBe(noChips.colsClass);
+    // The template literals ARE the output contract — consumers put them
+    // straight into className, so a swapped ternary or a truncation-breaking
+    // typo (minmax(0,1fr) → 1fr) must fail here.
+    expect(chipColumn.colsClass).toBe('grid-cols-[26px_minmax(0,1fr)_auto_auto]');
+    expect(noChips.colsClass).toBe('grid-cols-[26px_minmax(0,1fr)_auto]');
     expect(inline.colsClass).toBe(noChips.colsClass);
 
     // The inline flag without chips renders nothing.
