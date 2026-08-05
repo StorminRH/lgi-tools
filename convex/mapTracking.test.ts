@@ -169,6 +169,7 @@ describe('mapTracking.forMap', () => {
     const result = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
     const byUser = new Map(result.tracked.map((row) => [row.userId, row]));
 
+    expect(result.ownTrackedCharacterIds).toEqual([CHAR]);
     expect(byUser.get(OWNER)?.location?.solarSystemId).toBe(30_000_142);
     expect(byUser.get(EDITOR)?.characterId).toBe(CHAR);
     expect(byUser.get(EDITOR)?.location).toBeNull();
@@ -186,7 +187,7 @@ describe('mapTracking.forMap', () => {
     await grant(t, MAP_A, []);
 
     const result = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
-    expect(result).toEqual({ tracked: [] });
+    expect(result).toEqual({ tracked: [], ownTrackedCharacterIds: [] });
   });
 });
 

@@ -40,6 +40,10 @@ vi.mock('../authoring/ConnectionAuthoringOverlay', () => ({
   ConnectionAuthoringOverlay: () => null,
 }));
 
+vi.mock('../tracking/TrackingControls', () => ({
+  TrackingControls: () => null,
+}));
+
 vi.mock('@xyflow/react', async () => {
   const { createElement: element } = await import('react');
   mocks.reactFlow.mockImplementation(({ children }: { children?: unknown }) =>

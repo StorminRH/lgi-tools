@@ -76,7 +76,7 @@ export const forMap = query({
   handler: async (ctx, { mapId }) => {
     const principal = await tryMapAccess(ctx, mapId, 'view');
     if (principal === null) {
-      return { tracked: [] as const };
+      return { tracked: [] as const, ownTrackedCharacterIds: [] as number[] };
     }
 
     const rows = await ctx.db
@@ -109,6 +109,12 @@ export const forMap = query({
               },
       });
     }
-    return { tracked };
+    return {
+      tracked,
+      ownTrackedCharacterIds: rows
+        .filter((row) => row.userId === principal.userId)
+        .map((row) => row.characterId)
+        .sort((left, right) => left - right),
+    };
   },
 });
