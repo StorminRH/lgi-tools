@@ -15,27 +15,28 @@ import {
 // Convex is a regenerable projection of live ESI data keyed by the Neon
 // identities (userId + characterId) — never the system of record, never a
 // home for SDE/domain data. Wiping these tables and re-syncing must
-// reproduce the same state from Neon + ESI.
+// reproduce the same state from Neon + ESI. Two carve-outs hold durable
+// user-authored state under the Convex-native exception docs/CONVEX.md
+// sanctions: the chain tables (mapSystems et al., marked below) and the
+// mapTracking opt-in registry (4.0.4.2.1) — a wipe loses those, not a mirror.
 //
-// Since MIGRATE.B the engine serves a SINGLE live consumer — onlineStatus, the
-// ≤2-min canary (MIGRATE.A) that keeps the engine exercised + proven for the
-// v4.0 mapper. The three slow trackers (skills, personal + corp industry jobs)
-// moved to Neon stale-gated on-view reads in MIGRATE.B; their Convex tables +
-// dormant dataset literals were wiped in MIGRATE.D.1. See docs/CONVEX.md for
-// the engine architecture, the ≤2-min placement rule, and the orphan-guard
-// pattern (the dataset-union-as-superset technique the mapper will re-instantiate).
+// Live engine consumers: onlineStatus (MIGRATE.A canary) and characterLocation
+// (4.0.4.2.1 tracked location). The three slow trackers (skills, personal + corp
+// industry jobs) moved to Neon stale-gated on-view reads in MIGRATE.B; their
+// Convex tables + dormant dataset literals were wiped in MIGRATE.D.1. See
+// docs/CONVEX.md for the engine architecture, the ≤2-min placement rule, and the
+// orphan-guard pattern (dataset-union-as-superset during drain windows).
 
 export default defineSchema({
   // One doc per watched subject (dataset × user): presence plus the run
   // lifecycle the 3.4.9 engine absorbed from the trackers. The dataset is part
-  // of the row key, so a future second consumer's lifecycle stays isolated from
-  // onlineStatus's without duplicating the machinery.
+  // of the row key, so each consumer's lifecycle stays isolated without
+  // duplicating the machinery.
   syncSubjects: defineTable({
-    // The engine's live datasets. A single literal today (onlineStatus); the
-    // union is designed to hold a SUPERSET of the active registry while a
-    // dataset is being retired (the drain-window pattern documented in
-    // docs/CONVEX.md — the mapper will re-instantiate it).
-    dataset: v.literal('onlineStatus'),
+    // The engine's live datasets. The union is designed to hold a SUPERSET of
+    // the active registry while a dataset is being retired (the drain-window
+    // pattern documented in docs/CONVEX.md).
+    dataset: v.union(v.literal('onlineStatus'), v.literal('characterLocation')),
     userId: v.string(),
     status: v.union(v.literal('idle'), v.literal('running')),
     // Doubles as the run's generation token (shipped name kept): a late
@@ -55,6 +56,14 @@ export default defineSchema({
     // The characters the last run enumerated, so a heartbeat's hint can
     // detect a newly linked character without a per-dataset table read.
     syncedCharacterIds: v.array(v.number()),
+    // The characters the last run actually observed cleanly (fresh 200 OR
+    // 304; per-character errors and unpolled characters excluded). Distinct
+    // from syncedCharacterIds (the hint/park set): continuity decisions like
+    // characterLocation's prevFresh need "did the previous run cover this
+    // character", which the tracked/enumerated set does not encode. Optional:
+    // only datasets that need continuity stamp it (chain-on-success also
+    // requires it to sustain the fast cadence).
+    coveredCharacterIds: v.optional(v.array(v.number())),
     lastFinishedAt: v.union(v.number(), v.null()),
     lastError: v.union(v.string(), v.null()),
     rlGroup: v.union(v.string(), v.null()),
@@ -74,7 +83,7 @@ export default defineSchema({
   // returning tab's first heartbeat recreates it, and the engine sweep reaps it
   // alongside a long-abandoned subject.
   syncPresence: defineTable({
-    dataset: v.literal('onlineStatus'),
+    dataset: v.union(v.literal('onlineStatus'), v.literal('characterLocation')),
     userId: v.string(),
     // Last heartbeat from a visible tab. The scan and sweep treat a presence
     // doc older than COLD_AFTER_MS — or a missing one — as cold.
@@ -268,4 +277,48 @@ export default defineSchema({
     // by_map_signature, and no payload query reads this table at all.
     .index('by_map', ['mapId'])
     .index('by_map_signature', ['mapId', 'systemId', 'signatureId']),
+
+  // ── v4.0.4.2.1 tracked location (live map state, not chain) ─────────────────
+  //
+  // Per-(map, character) opt-in registry. Live map state, not a chain document:
+  // viewers join through this table to the per-character location payload below.
+  // Revocation and map teardown cascade deletes here inside reconcileMapClaims;
+  // account/character purge hits POST /purge-location-tracking (backstopped by
+  // the purge-map-access door's tracking sweep).
+  // DURABLE user-authored state (the header's mapTracking carve-out): not
+  // derivable from Neon/ESI — a wipe loses pilots' opt-ins. Growth is bounded
+  // by TRACKED_CHARACTERS_PER_MAP_USER_CAP in convex/mapTracking.ts.
+  mapTracking: defineTable({
+    mapId: v.string(),
+    userId: v.string(),
+    characterId: v.number(),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_user', ['mapId', 'userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // One document per character — not per map — carrying current system,
+  // docked station/structure, ship type, previous system, sample continuity, and
+  // ETags. Viewers join through mapTracking, so one movement is one write
+  // regardless of how many maps track the character. Chain tables never gain
+  // location fields (HC-3).
+  characterLocation: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    solarSystemId: v.number(),
+    stationId: v.union(v.number(), v.null()),
+    structureId: v.union(v.number(), v.null()),
+    shipTypeId: v.union(v.number(), v.null()),
+    prevSolarSystemId: v.union(v.number(), v.null()),
+    prevFresh: v.boolean(),
+    // LAST-CHANGE time, not last-confirmation: the zero-write 304 path (HC-3)
+    // never touches this doc, so a stationary pilot's observedAt ages while
+    // still confirmed live. Freshness consumers read the subject row's
+    // lastFinishedAt; this field only dates the facts above.
+    observedAt: v.number(),
+    etagLocation: v.union(v.string(), v.null()),
+    etagShip: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
 });

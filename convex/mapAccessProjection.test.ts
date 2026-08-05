@@ -242,6 +242,27 @@ describe('purgeUserClaims', () => {
     );
     expect(remaining).toHaveLength(1);
   });
+
+  it("sweeps the user's mapTracking rows as the account-purge backstop", async () => {
+    // The dedicated best-effort /purge-location-tracking door can fail
+    // silently; this door must still clear the deleted account's tracking so
+    // forMap never serves a purged user's location to remaining members.
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['viewer'] });
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: EDITOR, characterId: 90_000_001 });
+      await ctx.db.insert('mapTracking', { mapId: MAP_B, userId: EDITOR, characterId: 90_000_002 });
+      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: 90_000_003 });
+    });
+
+    const result = await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
+      userId: EDITOR,
+    });
+    expect(result).toEqual({ deleted: 3, hasMore: false });
+
+    const remaining = await t.run((ctx) => ctx.db.query('mapTracking').collect());
+    expect(remaining.map((row) => row.userId)).toEqual([OWNER]);
+  });
 });
 
 describe('gate returns projected roles', () => {

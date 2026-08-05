@@ -125,6 +125,13 @@ export function resolveExpiresAt(
  */
 export interface SubjectStamp {
   enumeratedCharacterIds: number[];
+  /**
+   * The characters this run actually observed cleanly (fresh 200 OR 304).
+   * Optional: only continuity-sensitive datasets (characterLocation) stamp it;
+   * omitting it leaves the subject field untouched, so onlineStatus stamps
+   * stay byte-identical.
+   */
+  coveredCharacterIds?: number[];
   lastError: string | null;
   rlGroup: string | null;
   rlLimit: number | null;
@@ -146,6 +153,11 @@ export async function stampSyncSubject(
   await ctx.db.patch(subjectId, {
     minExpiresAt: minCacheWindow(windows),
     syncedCharacterIds: stamp.enumeratedCharacterIds,
+    // Conditional spread, not `field: undefined` — a patched undefined REMOVES
+    // the field in Convex; omission leaves the prior value unchanged.
+    ...(stamp.coveredCharacterIds !== undefined
+      ? { coveredCharacterIds: stamp.coveredCharacterIds }
+      : {}),
     lastFinishedAt: now,
     lastError: stamp.lastError,
     rlGroup: stamp.rlGroup,

@@ -331,6 +331,7 @@ describe('ESI dataset registry live gate', () => {
     expect(mappedEntries).toEqual(convexEntries);
     expect(CONVEX_ESI_HOMES).toEqual([
       { home: 'convex:characterOnline', entry: 'online_status' },
+      { home: 'convex:characterLocation', entry: 'character_location' },
     ]);
   });
 
@@ -380,6 +381,9 @@ describe('ESI dataset registry live gate', () => {
     );
     expect(effectiveTtlMs(entryNamed('online_status'))).toBe(
       SYNC_DATASET_CONFIG.onlineStatus.cadenceFloorMs,
+    );
+    expect(effectiveTtlMs(entryNamed('character_location'))).toBe(
+      SYNC_DATASET_CONFIG.characterLocation.cadenceFloorMs,
     );
   });
 });

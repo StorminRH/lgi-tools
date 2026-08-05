@@ -3,9 +3,10 @@
 // same service secret the deployment already uses to call the Next internal
 // endpoints (here verified in the opposite direction):
 //   POST /sweep               — the Vercel watchdog cron's sweep trigger.
-//   POST /purge-online        — explicit characterOnline teardown for a Neon-side purge.
-//   POST /project-map-access  — one-way Neon→Convex mapAccess claim reconcile.
-//   POST /purge-map-access    — per-user mapAccess claim teardown for account purge.
+//   POST /purge-online             — explicit characterOnline teardown for a Neon-side purge.
+//   POST /purge-location-tracking  — characterLocation + mapTracking teardown for a Neon-side purge.
+//   POST /project-map-access       — one-way Neon→Convex mapAccess claim reconcile.
+//   POST /purge-map-access         — per-user mapAccess claim teardown for account purge.
 import { httpRouter } from 'convex/server';
 import { z } from 'zod';
 import { MAP_ROLES } from '@/data/maps/access-contract';
@@ -20,6 +21,11 @@ const http = httpRouter();
 // as a 500 plus a stack trace in the deployment logs. Validating here returns
 // the clean 400 this route already intended for a malformed body.
 const purgeOnlineBodySchema = z.object({
+  userId: z.string(),
+  characterId: z.number().nullable(),
+});
+
+const purgeLocationTrackingBodySchema = z.object({
   userId: z.string(),
   characterId: z.number().nullable(),
 });
@@ -101,6 +107,22 @@ http.route({
       return new Response('Bad Request', { status: 400 });
     }
     const counts = await ctx.runMutation(internal.onlineStatus.purgeForUser, body.data);
+    return Response.json(counts);
+  }),
+});
+
+http.route({
+  path: '/purge-location-tracking',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+    const raw = await readJsonBody(req);
+    if (raw === null) return new Response('Bad Request', { status: 400 });
+    const body = purgeLocationTrackingBodySchema.safeParse(raw);
+    if (!body.success) {
+      return new Response('Bad Request', { status: 400 });
+    }
+    const counts = await ctx.runMutation(internal.characterLocation.purgeForUser, body.data);
     return Response.json(counts);
   }),
 });

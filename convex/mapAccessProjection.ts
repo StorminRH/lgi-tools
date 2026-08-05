@@ -13,6 +13,11 @@ import {
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { mapRoleValidator } from './lib/mapEntityContracts';
+import {
+  deleteAllTrackingForMap,
+  deleteTrackingForUser,
+  purgeTrackingForUserBatch,
+} from './mapTracking';
 
 /** Maximum claim rows one user-purge call deletes, bounding the transaction write budget. */
 export const MAP_ACCESS_PURGE_BATCH = 128;
@@ -150,7 +155,18 @@ export const reconcileMapClaims = internalMutation({
       unchanged += delta.unchanged;
     }
 
+    // Revocation cascade: drop tracking for every user leaving the claim set.
+    // Full map teardown (desired empty) also sweeps any orphaned tracking rows
+    // that never had a claim, so the map purge door empties mapTracking.
+    const revokedUserIds = [...byUser.keys()];
     deleted += await deleteClaimRows(ctx, byUser.values());
+    if (desired.size === 0) {
+      await deleteAllTrackingForMap(ctx, mapId);
+    } else {
+      for (const userId of revokedUserIds) {
+        await deleteTrackingForUser(ctx, mapId, userId);
+      }
+    }
     return { inserted, updated, deleted, unchanged };
   },
 });
@@ -173,9 +189,20 @@ export const purgeUserClaims = internalMutation({
       await ctx.db.delete(row._id);
     }
 
+    // Also sweep the user's mapTracking rows: the dedicated best-effort
+    // /purge-location-tracking door can fail silently, and a deleted account
+    // has no later sync or projection to reclaim its rows — without this,
+    // forMap would keep serving the purged user's last-known location to
+    // every remaining map member indefinitely.
+    const tracking = await purgeTrackingForUserBatch(
+      ctx,
+      userId,
+      MAP_ACCESS_PURGE_BATCH,
+    );
+
     return {
-      deleted: doomed.length,
-      hasMore: rows.length > MAP_ACCESS_PURGE_BATCH,
+      deleted: doomed.length + tracking.deleted,
+      hasMore: rows.length > MAP_ACCESS_PURGE_BATCH || tracking.hasMore,
     };
   },
 });

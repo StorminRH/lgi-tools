@@ -114,13 +114,15 @@ describe('listGrantedScopes', () => {
   });
 
   it('lists legacy (no-longer-requested) scopes after active ones, in grant order', () => {
+    // read_location is active again (4.0.4.2.1); clones + standings remain the
+    // stable legacy pair for this ordering pin.
     const grant =
-      'esi-clones.read_clones.v1,publicData,esi-location.read_location.v1,esi-skills.read_skills.v1';
+      'esi-clones.read_clones.v1,publicData,esi-characters.read_standings.v1,esi-skills.read_skills.v1';
     expect(listGrantedScopes(grant).map((s) => ({ id: s.id, status: s.status }))).toEqual([
       { id: 'publicData', status: 'active' },
       { id: 'esi-skills.read_skills.v1', status: 'active' },
       { id: 'esi-clones.read_clones.v1', status: 'legacy' },
-      { id: 'esi-location.read_location.v1', status: 'legacy' },
+      { id: 'esi-characters.read_standings.v1', status: 'legacy' },
     ]);
   });
 

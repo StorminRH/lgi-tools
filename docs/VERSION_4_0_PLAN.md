@@ -74,7 +74,9 @@ by hand where needed, and never see a refresh control.
 > original `plan-version` topology compressed the narrative's 16 sub-versions
 > plus the version-opening obligations to 14 sub-versions / 16 sessions. The
 > approved lower-context restructure preserves those 14 sub-versions and every
-> outcome while expanding execution to **23 sessions**. Its independent
+> outcome while expanding execution to **24 sessions** (23 at the 2026-07-30
+> restructure; the 2026-08-04 operator amendment added the 4.0.4.4 Atlas
+> landing catalogue session `4.0.4.4.4`). Its independent
 > topology challenge removed boundaries justified only by ordinary
 > producer/consumer order.
 > Sub-version identifiers keep their narrative numbers so no identifier ever
@@ -101,7 +103,7 @@ by hand where needed, and never see a refresh control.
 | 4.0.4.1 | Write path + connection intel | §4.0.4.1 | 2 | COMPLETE |
 | 4.0.4.2 | Auto-mapping on jump (tracking, classification, fog) | §4.0.4.2 | 3 (PR per session) | PLANNED |
 | 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 3 (PR per session) | PLANNED |
-| 4.0.4.4 | Maps & access (switcher, roles, archive) | §4.0.4.4 | 3 | PLANNED |
+| 4.0.4.4 | Maps & access (landing, switcher, roles, archive) | §4.0.4.4 | 4 | PLANNED |
 
 *(Elective health campaign: none scheduled — the campaign queue is empty at the
 3.9 cycle-2 baseline, and 4.0 is a flagship feature version; the decision is
@@ -1089,8 +1091,8 @@ bump.
 ### 4.0.4.4 — Maps & access
 
 **Objective.** Maps become manageable — the creation dialog, the dropdown
-switcher, the access editor in the orb, archive→grace→purge — closing out
-4.0's roadmap.
+switcher, the access editor in the orb, archive→grace→purge, and the Atlas
+landing catalogue — closing out 4.0's roadmap.
 
 **UX gate:** Yes.
 
@@ -1116,9 +1118,15 @@ switcher, the access editor in the orb, archive→grace→purge — closing out
   purges the map's Convex docs completely (bounded batched deletes, verified
   on a test map) and tombstones the Neon row. No instant hard-delete of a
   living chain exists.
+- **Atlas opens to a catalogue, not a blank canvas:** the map route with no
+  selected map shows the authorized map cards (name, visibility, viewer role,
+  recency, bounded chain summary) plus a visually distinct create card; zero
+  maps → the create card + one hint; the list is the same durable server-read
+  the switcher uses; archived maps absent; create lands on the set-home
+  prompt. No auto-resume of a last-used map — a future explicit affordance.
 
 **In scope.** Creation flow, switcher, access editor, archive lifecycle,
-rate-limit guard.
+rate-limit guard, landing catalogue.
 
 **Out of scope.** Finer role tiers (deferred, not rejected — 4.0.1.1's
 standing note), map settings beyond access, any post-4.0 content.
@@ -1130,14 +1138,15 @@ standing note), map settings beyond access, any post-4.0 content.
 **Dependencies.** Everything prior; last slice of the roadmap.
 
 **Decisions the session plan must resolve.** Grace-period length (~30d lean);
-purge-sweep batching under Convex delete ceilings.
+purge-sweep batching under Convex delete ceilings; the landing's bounded
+chain-summary sourcing and no-map routing mechanics.
 
 **Baseline & hotspot note.** Touches `auth-surface`-adjacent composition
 (AF-008, named) at the orb settings slot — consumed via `PageMenuSection`, not
 modified. Effect: Neutral.
 
 **Delivery evidence.** The full flow demo; purge evidence; rate-limit test;
-`pnpm verify`; changelog + bump. On merge: every roadmap row is terminal → the
+the landing-catalogue demo; `pnpm verify`; changelog + bump. On merge: every roadmap row is terminal → the
 resolver directs audit planning; the wall-drop (release) happens only after
 the 4.0 audit completes.
 

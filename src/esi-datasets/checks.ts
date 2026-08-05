@@ -219,4 +219,5 @@ export const ESI_INFRASTRUCTURE_TABLES = [
  */
 export const CONVEX_ESI_HOMES = [
   { home: 'convex:characterOnline', entry: 'online_status' },
+  { home: 'convex:characterLocation', entry: 'character_location' },
 ] as const;

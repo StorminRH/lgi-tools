@@ -16,17 +16,14 @@
  * Adding a future consumer is a config change here plus a syncRef in
  * convex/engine.ts, not new machinery.
  *
- * The engine serves a SINGLE live consumer: onlineStatus, the ≤2-min canary
- * (MIGRATE.A) that keeps it exercised + proven for the v4.0 mapper. The three
+ * Live consumers: onlineStatus (MIGRATE.A canary, ~60s) and characterLocation
+ * (4.0.4.2.1, ~5s floor sustained by chain-on-success while watched). The three
  * slow trackers (skills, personal + corp industry jobs) MOVED to Neon
- * stale-gated on-view reads in MIGRATE.B (all 300s/120s cache, "ready" derived
- * client-side from each job's absolute end_date — slow per-owner data, not
- * live); MIGRATE.D.1 wiped their dormant schema literals + subject rows. See
- * docs/CONVEX.md for the ≤2-min placement rule and the orphan-guard pattern
- * (the dataset-union-as-superset-of-the-registry technique a future retirement
- * re-instantiates).
+ * stale-gated on-view reads in MIGRATE.B; MIGRATE.D.1 wiped their dormant schema
+ * literals + subject rows. See docs/CONVEX.md for the ≤2-min placement rule and
+ * the orphan-guard pattern (dataset-union-as-superset during drain windows).
  */
-export const SYNC_DATASETS = ['onlineStatus'] as const;
+export const SYNC_DATASETS = ['onlineStatus', 'characterLocation'] as const;
 /**
  * Closed active Convex sync-dataset registry; stored schemas may temporarily retain a retiring
  * superset during drain windows.
@@ -41,11 +38,23 @@ export type SyncDataset = (typeof SYNC_DATASETS)[number];
  * tokenGroup names the ESI token bucket the dataset bills (per-character
  * buckets, group-keyed) — the engine's rate limiter smooths dispatch per
  * group so a re-arm herd can't burst one group's spend.
+ * chainOnSuccess / rateKeyScope are opt-in; omitted keeps today's scan-owned
+ * jittered re-arm and group-keyed limiter (onlineStatus stays byte-identical).
  */
-export const SYNC_DATASET_CONFIG: Record<
-  SyncDataset,
-  { cadenceFloorMs: number; tokenGroup: string }
-> = {
+export type SyncDatasetConfig = {
+  cadenceFloorMs: number;
+  tokenGroup: string;
+  /** Schedule chainDispatch at the jitter-free Expires boundary after success. */
+  chainOnSuccess?: boolean;
+  /** 'subject' keys the limiter per user; default is the shared tokenGroup. */
+  rateKeyScope?: 'group' | 'subject';
+};
+
+/**
+ * Per-dataset cadence, token-group, and optional chain-on-success / rate-key
+ * policy for every registered sync consumer.
+ */
+export const SYNC_DATASET_CONFIG: Record<SyncDataset, SyncDatasetConfig> = {
   // Online status (MIGRATE.A) — ~60s ESI cache, polled at the same 60s floor as
   // skills. Its own dispatch-smoothing key because /characters/{id}/online is a
   // distinct ESI route from the skill reads (the group smooths re-arm herds, it
@@ -53,6 +62,17 @@ export const SYNC_DATASET_CONFIG: Record<
   // real route group), so an online re-arm herd must not burst the char-detail
   // group's dispatch.
   onlineStatus: { cadenceFloorMs: 60_000, tokenGroup: 'char-online' },
+  // Tracked location (4.0.4.2.1) — verified ESI location/ship cache is 5s; the
+  // floor pegs to that. chainOnSuccess sustains the ~5s loop while presence is
+  // fresh; rateKeyScope subject keeps concurrent tracked users from sharing one
+  // char-location bucket. Own token group so location re-arms never share the
+  // onlineStatus dispatch bucket.
+  characterLocation: {
+    cadenceFloorMs: 5_000,
+    tokenGroup: 'char-location',
+    chainOnSuccess: true,
+    rateKeyScope: 'subject',
+  },
 };
 
 /** Client heartbeat interval while the tab is visible. */
@@ -149,11 +169,25 @@ export function classifyDueSubject(
 }
 
 /**
+ * The earliest legal next-run instant: max(cache window, now + cadence floor).
+ * Chain-on-success writes this boundary verbatim — jitter would push the hop
+ * past its own due check and silently degrade to the 30s scan.
+ */
+export function computeChainBoundary(
+  minExpiresAt: number | null,
+  cadenceFloorMs: number,
+  now: number,
+): number {
+  return Math.max(minExpiresAt ?? 0, now + cadenceFloorMs);
+}
+
+/**
  * Next scheduled run: when the earliest per-character cache window ends, but
  * never sooner than the dataset's cadence floor, plus jitter. minExpiresAt
  * null means stale-now (first sync, or an errored character cleared its
  * window) — the floor still paces it, so an erroring subject retries at
- * cadence, never in a tight loop.
+ * cadence, never in a tight loop. Chain-on-success callers use
+ * computeChainBoundary instead (jitter-free).
  */
 export function computeNextDueAt(
   minExpiresAt: number | null,
@@ -161,8 +195,8 @@ export function computeNextDueAt(
   now: number,
   random: () => number = Math.random,
 ): number {
-  const due = Math.max(minExpiresAt ?? 0, now + cadenceFloorMs);
-  return due + Math.floor(random() * SYNC_JITTER_MS);
+  return computeChainBoundary(minExpiresAt, cadenceFloorMs, now)
+    + Math.floor(random() * SYNC_JITTER_MS);
 }
 
 /**

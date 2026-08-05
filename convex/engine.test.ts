@@ -3,7 +3,7 @@ import { RateLimiter } from '@convex-dev/rate-limiter';
 import { Workpool } from '@convex-dev/workpool';
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { COLD_AFTER_MS, RETENTION_MS } from '@/lib/sync-engine';
+import { COLD_AFTER_MS, computeChainBoundary, RETENTION_MS } from '@/lib/sync-engine';
 import { api, internal } from './_generated/api';
 import { SCAN_DISPATCH_BATCH } from './engine';
 import schema from './schema';
@@ -15,6 +15,13 @@ import schema from './schema';
 function stubDispatch() {
   vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: true, retryAfter: 0 } as never);
   vi.spyOn(Workpool.prototype, 'enqueueAction').mockResolvedValue('w-test' as never);
+}
+
+async function scheduledChainDispatches(t: ReturnType<typeof convexTest>) {
+  return t.run(async (ctx) => {
+    const rows = await ctx.db.system.query('_scheduled_functions').collect();
+    return rows.filter((row) => row.name.includes('chainDispatch'));
+  });
 }
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -41,7 +48,10 @@ function subjectRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
 
 describe('engine.heartbeat', () => {
   it('does nothing when signed out', async () => {
@@ -353,6 +363,261 @@ describe('engine.onSyncComplete', () => {
     );
     expect(subject?.status).toBe('running');
     expect(subject?.workId).toBe('w1');
+  });
+
+  it('does not schedule chainDispatch for onlineStatus success (default config)', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        status: 'running',
+        lastRequestedAt: now,
+        workId: 'w1',
+        minExpiresAt: now + 50_000,
+        syncedCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt: now });
+    });
+
+    await callComplete(t, { kind: 'success', returnValue: null });
+
+    // Default config: no chain hop; success still re-arms onto the scan set.
+    expect(await scheduledChainDispatches(t)).toHaveLength(0);
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('idle');
+    expect(typeof subject?.nextDueAt).toBe('number');
+  });
+});
+
+describe('engine chain-on-success', () => {
+  function callLocationComplete(
+    t: ReturnType<typeof convexTest>,
+    result: unknown,
+    workId = 'w1',
+  ) {
+    return t.mutation(internal.engine.onSyncComplete, {
+      workId: workId as never,
+      context: { dataset: 'characterLocation', userId: USER },
+      result: result as never,
+    });
+  }
+
+  it('re-arms jitter-free and chainDispatch dispatches the next hop', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
+    const t = convexTest(schema, modules);
+    stubDispatch();
+    const now = Date.now();
+    const minExpiresAt = now + 5_000;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation',
+        status: 'running',
+        lastRequestedAt: now,
+        workId: 'w1',
+        minExpiresAt,
+        syncedCharacterIds: [101],
+        coveredCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+      });
+    });
+
+    await callLocationComplete(t, { kind: 'success', returnValue: null });
+
+    const boundary = computeChainBoundary(minExpiresAt, 5_000, now);
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('idle');
+    expect(subject?.nextDueAt).toBe(boundary);
+
+    const pending = await scheduledChainDispatches(t);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.scheduledTime).toBe(boundary);
+    expect(pending[0]?.args).toEqual([{ dataset: 'characterLocation', userId: USER }]);
+
+    await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+
+    const afterHop = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(afterHop?.status).toBe('running');
+    expect(afterHop?.workId).toBe('w-test');
+    // dispatch parks nextDueAt one cadence floor out — the next hop's arm.
+    expect(afterHop?.nextDueAt).toBe(Date.now() + 5_000);
+  });
+
+  it('never chains a failed completion', async () => {
+    const t = convexTest(schema, modules);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation',
+        status: 'running',
+        lastRequestedAt: now,
+        workId: 'w1',
+        minExpiresAt: now + 5_000,
+        syncedCharacterIds: [101],
+        // Covered set present so the FAILURE is the only reason not to chain.
+        coveredCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+      });
+    });
+
+    await callLocationComplete(t, { kind: 'failed', error: 'boom' });
+
+    expect(await scheduledChainDispatches(t)).toHaveLength(0);
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('idle');
+    expect(typeof subject?.nextDueAt).toBe('number');
+    expect(subject?.lastError?.startsWith('sync_failed:')).toBe(true);
+  });
+
+  it('never chains a cold-presence completion', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation',
+        status: 'running',
+        lastRequestedAt: now,
+        workId: 'w1',
+        minExpiresAt: now + 5_000,
+        syncedCharacterIds: [101],
+        // Covered set present so COLD PRESENCE is the only reason not to chain.
+        coveredCharacterIds: [101],
+      }));
+      // Presence older than COLD_AFTER_MS — completion must not chain.
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now - COLD_AFTER_MS - 1,
+      });
+    });
+
+    await callLocationComplete(t, { kind: 'success', returnValue: null });
+
+    expect(await scheduledChainDispatches(t)).toHaveLength(0);
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    // Cold success still re-arms onto the scan (jittered), never schedules a hop.
+    expect(typeof subject?.nextDueAt).toBe('number');
+  });
+
+  it('never chains a zero-yield success (empty covered set or run-level error)', async () => {
+    // A "success" that observed nothing cleanly — budget stop, all-reauth
+    // roster — must fall back to the jittered scan re-arm, not hammer a
+    // protective state at the 5s floor.
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    for (const overrides of [
+      { coveredCharacterIds: [] as number[] },
+      { coveredCharacterIds: [101], lastError: 'budget_exhausted:daily' },
+    ]) {
+      await t.run(async (ctx) => {
+        const stale = await ctx.db
+          .query('syncSubjects')
+          .withIndex('by_user_dataset', (q) =>
+            q.eq('userId', USER).eq('dataset', 'characterLocation'),
+          )
+          .unique();
+        if (stale !== null) await ctx.db.delete(stale._id);
+        await ctx.db.insert('syncSubjects', subjectRow({
+          dataset: 'characterLocation',
+          status: 'running',
+          lastRequestedAt: now,
+          workId: 'w1',
+          minExpiresAt: now + 5_000,
+          syncedCharacterIds: [101],
+          ...overrides,
+        }));
+        const presence = await ctx.db
+          .query('syncPresence')
+          .withIndex('by_user_dataset', (q) =>
+            q.eq('userId', USER).eq('dataset', 'characterLocation'),
+          )
+          .unique();
+        if (presence === null) {
+          await ctx.db.insert('syncPresence', {
+            dataset: 'characterLocation',
+            userId: USER,
+            lastSeenAt: now,
+          });
+        }
+      });
+
+      await callLocationComplete(t, { kind: 'success', returnValue: null });
+
+      expect(await scheduledChainDispatches(t)).toHaveLength(0);
+      const subject = await t.run((ctx) =>
+        ctx.db
+          .query('syncSubjects')
+          .withIndex('by_user_dataset', (q) =>
+            q.eq('userId', USER).eq('dataset', 'characterLocation'),
+          )
+          .unique(),
+      );
+      // Still re-arms onto the scan set (the retry owner), just without a hop.
+      expect(typeof subject?.nextDueAt).toBe('number');
+    }
+  });
+
+  it('keys the rate limiter per subject for characterLocation', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const limit = vi
+      .spyOn(RateLimiter.prototype, 'limit')
+      .mockResolvedValue({ ok: true, retryAfter: 0 } as never);
+    vi.spyOn(Workpool.prototype, 'enqueueAction').mockResolvedValue('w-test' as never);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation',
+        nextDueAt: now - 1000,
+        syncedCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+      });
+    });
+
+    await t.mutation(internal.engine.scan, {});
+
+    expect(limit).toHaveBeenCalledWith(
+      expect.anything(),
+      'syncDispatch',
+      { key: `char-location:${USER}` },
+    );
   });
 });
 

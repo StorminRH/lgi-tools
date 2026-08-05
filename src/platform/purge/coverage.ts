@@ -86,4 +86,20 @@ export const NON_NEON_HOMES = [
     reason:
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Lazy orphan-clean alone cannot cover an account-nuke (no later sync re-enumerates a removed account), so the online-status contributor tears it down explicitly during runPurge.',
   },
+  {
+    home: 'convex:characterLocation',
+    coveredBy:
+      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser); engine orphan-clean in the location apply (OW3) is the backstop for linked-character drift',
+    explicitTeardown: 'src/data/location-tracking/purge.ts — shipped 4.0.4.2.1',
+    reason:
+      'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Lazy orphan-clean alone cannot cover an account-nuke, so the location-tracking contributor tears it down explicitly during runPurge.',
+  },
+  {
+    home: 'convex:mapTracking',
+    coveredBy:
+      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser, which also deletes mapTracking); revocation and map teardown cascade inside convex/mapAccessProjection.reconcileMapClaims; the purge-map-access door additionally sweeps the user rows as an in-deployment backstop',
+    explicitTeardown: 'src/data/location-tracking/purge.ts — shipped 4.0.4.2.1',
+    reason:
+      'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Access revocation and map deletion cascade-delete mapTracking inside the projection apply; account/character purge hits the same HTTP door as characterLocation.',
+  },
 ] as const;

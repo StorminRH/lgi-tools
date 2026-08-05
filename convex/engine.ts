@@ -53,18 +53,21 @@
 // onComplete + ~3 forViewer echoes — a genuine status change still re-runs
 // forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
 // amortizes across a burst).
-// Watched-hour ≈ 2.9k calls online status (60-run floor) — the SOLE live watcher now;
-// skills/jobs/corp all moved to Neon stale-gated on-view reads in MIGRATE.B, so none of
-// them contribute a watcher cost any more. Calls do NOT scale with
-// characters-per-user — characters multiply ESI reads inside ONE action
-// (action compute + bandwidth scale, calls don't) — and since 3.5.e1 DB I/O
-// no longer scales with the payload re-read on every beat either.
+// Watched-hour ≈ 2.9k calls for onlineStatus (60-run floor); characterLocation
+// with chain-on-success is ~12 runs/min (~10k–30k calls/watched-hour) while a
+// tracked pilot's map stays open — accepted order-of-magnitude multiple, zero
+// while cold. skills/jobs/corp all moved to Neon stale-gated on-view reads in
+// MIGRATE.B.
+// Calls do NOT scale with characters-per-user — characters multiply ESI reads
+// inside ONE action (action compute + bandwidth scale, calls don't) — and since
+// 3.5.e1 DB I/O no longer scales with the payload re-read on every beat either.
 import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
 import {
   classifyDueSubject,
   COLD_AFTER_MS,
+  computeChainBoundary,
   computeNextDueAt,
   hasSyncTarget,
   isColdFromPresence,
@@ -94,19 +97,20 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
   syncDispatch: { kind: 'token bucket', period: MINUTE, rate: 30, capacity: 10 },
 });
 
-// The engine's stored dataset literal — a single live consumer today (onlineStatus).
-// The union is designed to hold a SUPERSET of the active registry while a dataset is
-// being retired (the drain-window pattern in docs/CONVEX.md): the schema literal +
-// leftover subject rows outlive the deleted syncer for one deploy so an in-flight run /
-// heartbeat still validates, then the wipe removes them. MIGRATE.B retired skills /
-// personal jobs / corp jobs that way; MIGRATE.D.1 wiped them, leaving onlineStatus alone.
-// The v4.0 mapper re-instantiates the pattern against its own dataset lifecycle.
-const syncDatasetValidator = v.literal('onlineStatus');
+// The engine's stored dataset union — live consumers today: onlineStatus +
+// characterLocation. Designed to hold a SUPERSET of the active registry while a
+// dataset is being retired (drain-window pattern in docs/CONVEX.md): schema +
+// leftover subject rows outlive the deleted syncer for one deploy so an in-flight
+// run / heartbeat still validates, then the wipe removes them.
+const syncDatasetValidator = v.union(
+  v.literal('onlineStatus'),
+  v.literal('characterLocation'),
+);
 
-// The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS). The engine
-// serves a single live consumer: onlineStatus, the canary that keeps it alive (MIGRATE.A).
+// The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS).
 const SYNC_REFS = {
   onlineStatus: internal.onlineStatusSync.syncUser,
+  characterLocation: internal.characterLocationSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
 // Pass C (abandoned-row GC) deletes at most this many past-retention subjects
@@ -301,8 +305,13 @@ async function dispatch(
   subject: Doc<'syncSubjects'>,
   now: number,
 ): Promise<boolean> {
-  const { cadenceFloorMs, tokenGroup } = SYNC_DATASET_CONFIG[subject.dataset];
-  const { ok, retryAfter } = await rateLimiter.limit(ctx, 'syncDispatch', { key: tokenGroup });
+  const { cadenceFloorMs, tokenGroup, rateKeyScope } = SYNC_DATASET_CONFIG[subject.dataset];
+  // Default group key smooths re-arm herds across users; subject scope keeps
+  // concurrent tracked pilots from starving each other on one char-location
+  // bucket (characterLocation).
+  const rateKey =
+    rateKeyScope === 'subject' ? `${tokenGroup}:${subject.userId}` : tokenGroup;
+  const { ok, retryAfter } = await rateLimiter.limit(ctx, 'syncDispatch', { key: rateKey });
   if (!ok) {
     await ctx.db.patch(subject._id, { nextDueAt: now + retryAfter });
     return false;
@@ -327,13 +336,77 @@ async function dispatch(
 }
 
 /**
+ * Per-subject hop scheduled by chain-on-success completions. Re-reads the
+ * subject and calls dispatch only when idle, nextDueAt is reached, and
+ * presence is still fresh — otherwise a no-op so takeover, generation, and
+ * scan-retry semantics stay with the 30s scan.
+ */
+export const chainDispatch = internalMutation({
+  args: {
+    dataset: syncDatasetValidator,
+    userId: v.string(),
+  },
+  handler: async (ctx, { dataset, userId }) => {
+    const subject = await getSyncSubject(ctx.db, dataset, userId);
+    if (subject === null) return;
+    const now = Date.now();
+    if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
+    if (subject.nextDueAt === null || subject.nextDueAt > now) return;
+    const presence = await getPresence(ctx.db, dataset, userId);
+    if (isColdFromPresence(presence?.lastSeenAt ?? null, now)) return;
+    await dispatch(ctx, subject, now);
+  },
+});
+
+/**
+ * A completed run's next-due decision, in precedence order: failed → jittered
+ * floor re-arm (a first-ever run failing terminally would otherwise park
+ * nextDueAt null and leave the scan set, so a viewer staying on the page
+ * would get no retry at all; the scan's cold-retire still cleans the row once
+ * the viewer leaves); synced nothing → park at null until a heartbeat brings
+ * targets; chain-eligible (chainOnSuccess + clean yield + fresh presence) →
+ * the jitter-free chain boundary with a scheduled hop (jitter would land the
+ * hop later than its own due check and silently degrade cadence to the 30s
+ * scan); otherwise → the jittered cache-window re-arm. A zero-yield
+ * "success" — budget stop, all-reauth roster, empty poll set — is chain-
+ * INELIGIBLE (no character covered cleanly per the apply's stamp), so a
+ * protective state is never hammered at the 5s floor.
+ */
+async function resolveCompletionSchedule(
+  ctx: MutationCtx,
+  subject: Doc<'syncSubjects'>,
+  failed: boolean,
+  cadenceFloorMs: number,
+  chainOnSuccess: boolean,
+  now: number,
+): Promise<{ nextDueAt: number | null; chainAt: number | null }> {
+  if (failed) {
+    return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
+  }
+  if (subject.syncedCharacterIds.length === 0) {
+    return { nextDueAt: null, chainAt: null };
+  }
+  const yielded =
+    subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
+  if (chainOnSuccess && yielded) {
+    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+    if (!isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
+      const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
+      return { nextDueAt: boundary, chainAt: boundary };
+    }
+  }
+  return {
+    nextDueAt: computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
+    chainAt: null,
+  };
+}
+
+/**
  * Exactly-once run epilogue from the Workpool: clear 'running', surface a
- * terminal failure, and arm the next due time — off the cache window the
- * apply just stamped, floored at the dataset cadence, plus jitter (group
- * staggering). Matched by workId, so a taken-over run's late completion
- * no-ops rather than clearing the new run's status. A successful run that
- * synced nothing parks at null until a heartbeat brings targets; a failed
- * run always re-arms (rationale inline below).
+ * terminal failure, and arm the next due time per resolveCompletionSchedule,
+ * scheduling the chainDispatch hop when one is due. Matched by workId, so a
+ * taken-over run's late completion no-ops rather than clearing the new run's
+ * status.
  */
 export const onSyncComplete = internalMutation({
   args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
@@ -341,7 +414,7 @@ export const onSyncComplete = internalMutation({
     const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
     if (subject === null || subject.workId !== workId) return;
     const now = Date.now();
-    const { cadenceFloorMs } = SYNC_DATASET_CONFIG[subject.dataset];
+    const { cadenceFloorMs, chainOnSuccess } = SYNC_DATASET_CONFIG[subject.dataset];
     const failed = result.kind === 'failed';
     if (failed) {
       // Mirror of the Vercel crons' structured boundary line — the Convex
@@ -355,19 +428,20 @@ export const onSyncComplete = internalMutation({
         }),
       );
     }
+
+    const { nextDueAt, chainAt } = await resolveCompletionSchedule(
+      ctx,
+      subject,
+      failed,
+      cadenceFloorMs,
+      chainOnSuccess === true,
+      now,
+    );
+
     await ctx.db.patch(subject._id, {
       status: 'idle',
       workId: null,
-      // A failed run re-arms at the cadence floor even when nothing is
-      // synced yet: a first-ever run failing terminally would otherwise park
-      // nextDueAt null and leave the scan set, so a viewer staying on the
-      // page would get no retry at all. The scan's cold-retire still cleans
-      // the row once the viewer leaves.
-      nextDueAt: failed
-        ? computeNextDueAt(null, cadenceFloorMs, now)
-        : subject.syncedCharacterIds.length === 0
-          ? null
-          : computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
+      nextDueAt,
       // A terminal failure means the apply never ran, so the old cache
       // window is unverified — clear it (the #95 "errored, re-syncable now"
       // meaning) so the next mount/visible heartbeat dispatches immediately
@@ -377,6 +451,13 @@ export const onSyncComplete = internalMutation({
         ? { lastError: `sync_failed: ${result.error.slice(0, 500)}`, minExpiresAt: null }
         : {}),
     });
+
+    if (chainAt !== null) {
+      await ctx.scheduler.runAt(chainAt, internal.engine.chainDispatch, {
+        dataset: subject.dataset,
+        userId: subject.userId,
+      });
+    }
   },
 });
 

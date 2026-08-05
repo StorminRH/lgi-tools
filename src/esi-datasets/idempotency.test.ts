@@ -202,6 +202,10 @@ describe('idempotency registry verdicts', () => {
       (entry) => entry.id === 'convex/onlineStatusSync:syncUser',
     );
     expect(action?.evidence).toMatch(/generation guard/);
+    const locationAction = IDEMPOTENCY_REGISTRY.find(
+      (entry) => entry.id === 'convex/characterLocationSync:syncUser',
+    );
+    expect(locationAction?.evidence).toMatch(/generation.?guard/i);
     expect(readFileSync(path.join(ROOT, 'convex/convex.config.ts'), 'utf8')).toMatch(
       /[Ww]orkpool/,
     );

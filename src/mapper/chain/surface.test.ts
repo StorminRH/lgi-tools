@@ -163,6 +163,7 @@ describe('mapper source contract', () => {
       'motion/motion-host-model.ts',
       'motion/tween-model.ts',
       'motion/use-motion.ts',
+      'tracking/TrackingControls.tsx',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
       'windows/MapWindowLeader.tsx',
@@ -224,7 +225,7 @@ describe('mapper source contract', () => {
     expect(readers).toEqual([]);
   });
 
-  it('reaches Convex through exactly one slice hook, in the chain layer', () => {
+  it('routes paginated chain reads through exactly one slice hook', () => {
     const consumers = mapperFiles().filter((file) =>
       sourceOf(file).includes('@/data/convex/use-drained-pages'),
     );
@@ -249,19 +250,20 @@ describe('mapper source contract', () => {
     expect(hook).toMatch(/const connections = useMemo\(/);
   });
 
-  it('confines client-callable mutations to the optimistic authoring seam', () => {
-    // Session 4.0.4.1.1 OW3: authoring mutations live in one chain owner and
-    // reach Convex only through the data-slice re-export — never raw convex/react.
+  it('confines client-callable mutations to the two named mapper seams', () => {
+    // Authoring and tracking are independent mutation owners; both reach
+    // Convex only through the data-slice re-export — never raw convex/react.
     const mutationFiles = mapperFiles().filter((file) =>
       /useMutation|useAction/.test(sourceOf(file)),
     );
-    expect(mutationFiles).toEqual(['chain/optimistic-authoring.ts']);
-    expect(sourceOf('chain/optimistic-authoring.ts')).toContain(
-      '@/data/convex/use-mutation',
-    );
-    expect(sourceOf('chain/optimistic-authoring.ts')).not.toContain(
-      "from 'convex/react'",
-    );
+    expect(mutationFiles).toEqual([
+      'chain/optimistic-authoring.ts',
+      'tracking/TrackingControls.tsx',
+    ]);
+    for (const file of mutationFiles) {
+      expect(sourceOf(file)).toContain('@/data/convex/use-mutation');
+      expect(sourceOf(file)).not.toContain("from 'convex/react'");
+    }
   });
 
   it('keeps canvas modules off every Convex subscription hook', () => {

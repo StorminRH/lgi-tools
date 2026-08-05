@@ -9,11 +9,47 @@
 
 ## Now
 
-- **CURRENT / NEXT:** session **4.0.4.1.2** complete — sub-version
-  **4.0.4.1** done (both sessions); close-out is delivering the single
-  sub-version PR #353 from `lifecycle/4.0.4.1` (G-1 ACCEPT recorded
-  2026-08-04). Next planned work: 4.0.4.2 through `start-session` after
-  merge.
+- **CURRENT / NEXT:** session **4.0.4.2.1** complete (tracked location and
+  jump classification); close-out is delivering its per-session PR from
+  `lifecycle/4.0.4.2`. After merge: recreate `lifecycle/4.0.4.2` from
+  current `main` and plan **4.0.4.2.2** through `start-session`, starting
+  from the operator direction below.
+- **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
+  `mapTracking` opt-in registry + `characterLocation` payload with full
+  teardown matrix; `characterLocation` engine dataset (registry ∩ enum,
+  ship-on-change, 304 zero-write); 5s chain-on-success cadence
+  (`chainOnSuccess`/`rateKeyScope` opt-in config, `chainDispatch`); pure
+  `classifyMovement` decision table; map-side `TrackingControls`. Ledger
+  detail: as-built under `docs/session-as-built/4.0/`.
+- **Durable 4.0.4.2.1 gotchas:** (1) Continuity (`prevFresh`) reads the
+  subject's `coveredCharacterIds` (this run's clean samples, 304s included) —
+  NEVER `syncedCharacterIds` (the tracked/hint set); the chain-on-success
+  yield gate reads the same field, so a dataset opting into `chainOnSuccess`
+  must stamp it or it never chains. (2) Chain hops must stay jitter-free
+  (`computeChainBoundary`); jitter on a chained subject silently degrades to
+  the 30s scan. (3) `forMap` joins location strictly by the tracking row's own
+  `(userId, characterId)`; reads are capped and `setTracking` enforces
+  `TRACKED_CHARACTERS_PER_MAP_USER_CAP`. (4) `mapTracking` is DURABLE
+  user-authored state riding the sanctioned Convex durability exception
+  (schema-header carve-out; purge contributor tier `durable`); the
+  purge-map-access door sweeps it as the account-purge backstop because the
+  best-effort HTTP door can fail. (5) Eligibility is per-character via
+  `canSyncLocation`; keep online out of `LOCATION_SYNC_SCOPES`. (6)
+  `observedAt` is last-change time (304s never touch the doc); freshness
+  reads the subject's `lastFinishedAt`. (7) Keep the pure
+  `src/data/maps/movement-classification.ts` seam client-side; never move
+  geography into Convex. (8) Fallow may warn on
+  onlineStatus↔characterLocation clone groups; accepted canary mirroring,
+  not a waiver target.
+- **4.0.4.2.2 direction (operator):** (1) k-space handling is revised so a
+  visited k-space system is authored; reconcile against the successor
+  contract's wormhole-exits-only wording during planning, not by silent
+  execution divergence. (2) Hole matching is signature-first and asks an
+  informed confirmation question from available signature evidence; ambiguity
+  is never auto-asserted. (3) A `re-anchor` surfaces downstream as an orphaned
+  anchor that regraphs and may reconnect, never as an invented path.
+  (4) Capsule/death fine-tuning stays deferred; the shipped
+  non-adjacent-capsule verdict remains `re-anchor` until decided explicitly.
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
   add-from-node / connection card), codex connection intelligence, death-window
   lifetime model, mass layers 1+3, unified sever/collapse pathway with
