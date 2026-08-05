@@ -4,16 +4,16 @@
 // deployed API surface. The presence write (an upsert) stays inline in the
 // heartbeat handler — this module is read-only by design.
 //
-// The `dataset` param is the STORED schema literal (StoredDataset). Today that is a
-// single value (onlineStatus); the schema union is designed to hold a SUPERSET of the
-// active registry while a dataset is being retired (the drain-window pattern in
-// docs/CONVEX.md), and these lookups stay typed off the stored union so they can still
-// find/clean a retiring dataset's leftover rows during that window.
+// The `dataset` param is the STORED schema literal (StoredDataset). Today that is
+// onlineStatus | characterLocation; the schema union is designed to hold a SUPERSET
+// of the active registry while a dataset is being retired (the drain-window pattern
+// in docs/CONVEX.md), and these lookups stay typed off the stored union so they can
+// still find/clean a retiring dataset's leftover rows during that window.
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader } from '../_generated/server';
 
-// The dataset values that can be STORED — the schema's dataset literal (a single value
-// today; a superset of the active SyncDataset during a future drain window).
+// The dataset values that can be STORED — the schema's dataset union (a superset of
+// the active SyncDataset during a future drain window).
 type StoredDataset = Doc<'syncSubjects'>['dataset'];
 
 /**

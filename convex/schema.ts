@@ -17,25 +17,23 @@ import {
 // home for SDE/domain data. Wiping these tables and re-syncing must
 // reproduce the same state from Neon + ESI.
 //
-// Since MIGRATE.B the engine serves a SINGLE live consumer — onlineStatus, the
-// ≤2-min canary (MIGRATE.A) that keeps the engine exercised + proven for the
-// v4.0 mapper. The three slow trackers (skills, personal + corp industry jobs)
-// moved to Neon stale-gated on-view reads in MIGRATE.B; their Convex tables +
-// dormant dataset literals were wiped in MIGRATE.D.1. See docs/CONVEX.md for
-// the engine architecture, the ≤2-min placement rule, and the orphan-guard
-// pattern (the dataset-union-as-superset technique the mapper will re-instantiate).
+// Live engine consumers: onlineStatus (MIGRATE.A canary) and characterLocation
+// (4.0.4.2.1 tracked location). The three slow trackers (skills, personal + corp
+// industry jobs) moved to Neon stale-gated on-view reads in MIGRATE.B; their
+// Convex tables + dormant dataset literals were wiped in MIGRATE.D.1. See
+// docs/CONVEX.md for the engine architecture, the ≤2-min placement rule, and the
+// orphan-guard pattern (dataset-union-as-superset during drain windows).
 
 export default defineSchema({
   // One doc per watched subject (dataset × user): presence plus the run
   // lifecycle the 3.4.9 engine absorbed from the trackers. The dataset is part
-  // of the row key, so a future second consumer's lifecycle stays isolated from
-  // onlineStatus's without duplicating the machinery.
+  // of the row key, so each consumer's lifecycle stays isolated without
+  // duplicating the machinery.
   syncSubjects: defineTable({
-    // The engine's live datasets. A single literal today (onlineStatus); the
-    // union is designed to hold a SUPERSET of the active registry while a
-    // dataset is being retired (the drain-window pattern documented in
-    // docs/CONVEX.md — the mapper will re-instantiate it).
-    dataset: v.literal('onlineStatus'),
+    // The engine's live datasets. The union is designed to hold a SUPERSET of
+    // the active registry while a dataset is being retired (the drain-window
+    // pattern documented in docs/CONVEX.md).
+    dataset: v.union(v.literal('onlineStatus'), v.literal('characterLocation')),
     userId: v.string(),
     status: v.union(v.literal('idle'), v.literal('running')),
     // Doubles as the run's generation token (shipped name kept): a late
@@ -74,7 +72,7 @@ export default defineSchema({
   // returning tab's first heartbeat recreates it, and the engine sweep reaps it
   // alongside a long-abandoned subject.
   syncPresence: defineTable({
-    dataset: v.literal('onlineStatus'),
+    dataset: v.union(v.literal('onlineStatus'), v.literal('characterLocation')),
     userId: v.string(),
     // Last heartbeat from a visible tab. The scan and sweep treat a presence
     // doc older than COLD_AFTER_MS — or a missing one — as cold.

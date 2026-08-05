@@ -53,12 +53,12 @@
 // onComplete + ~3 forViewer echoes — a genuine status change still re-runs
 // forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
 // amortizes across a burst).
-// Watched-hour ≈ 2.9k calls online status (60-run floor) — the SOLE live watcher now;
-// skills/jobs/corp all moved to Neon stale-gated on-view reads in MIGRATE.B, so none of
-// them contribute a watcher cost any more. Calls do NOT scale with
-// characters-per-user — characters multiply ESI reads inside ONE action
-// (action compute + bandwidth scale, calls don't) — and since 3.5.e1 DB I/O
-// no longer scales with the payload re-read on every beat either.
+// Watched-hour ≈ 2.9k calls for onlineStatus (60-run floor); characterLocation
+// adds a second watcher at its own cadence (stock 30s scan until chain-on-success).
+// skills/jobs/corp all moved to Neon stale-gated on-view reads in MIGRATE.B.
+// Calls do NOT scale with characters-per-user — characters multiply ESI reads
+// inside ONE action (action compute + bandwidth scale, calls don't) — and since
+// 3.5.e1 DB I/O no longer scales with the payload re-read on every beat either.
 import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
@@ -94,19 +94,20 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
   syncDispatch: { kind: 'token bucket', period: MINUTE, rate: 30, capacity: 10 },
 });
 
-// The engine's stored dataset literal — a single live consumer today (onlineStatus).
-// The union is designed to hold a SUPERSET of the active registry while a dataset is
-// being retired (the drain-window pattern in docs/CONVEX.md): the schema literal +
-// leftover subject rows outlive the deleted syncer for one deploy so an in-flight run /
-// heartbeat still validates, then the wipe removes them. MIGRATE.B retired skills /
-// personal jobs / corp jobs that way; MIGRATE.D.1 wiped them, leaving onlineStatus alone.
-// The v4.0 mapper re-instantiates the pattern against its own dataset lifecycle.
-const syncDatasetValidator = v.literal('onlineStatus');
+// The engine's stored dataset union — live consumers today: onlineStatus +
+// characterLocation. Designed to hold a SUPERSET of the active registry while a
+// dataset is being retired (drain-window pattern in docs/CONVEX.md): schema +
+// leftover subject rows outlive the deleted syncer for one deploy so an in-flight
+// run / heartbeat still validates, then the wipe removes them.
+const syncDatasetValidator = v.union(
+  v.literal('onlineStatus'),
+  v.literal('characterLocation'),
+);
 
-// The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS). The engine
-// serves a single live consumer: onlineStatus, the canary that keeps it alive (MIGRATE.A).
+// The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS).
 const SYNC_REFS = {
   onlineStatus: internal.onlineStatusSync.syncUser,
+  characterLocation: internal.characterLocationSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
 // Pass C (abandoned-row GC) deletes at most this many past-retention subjects

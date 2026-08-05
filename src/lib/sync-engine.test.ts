@@ -24,11 +24,13 @@ describe('dataset registration data', () => {
   // edit can't silently poll faster than a dataset's cache or bill the
   // wrong bucket.
   it('pins the live-read cadence floor and token group', () => {
-    // After MIGRATE.B.3 the engine serves a SINGLE live consumer — onlineStatus, the
-    // canary. The skills / personal-jobs / corp-jobs floors left with their syncers.
     expect(SYNC_DATASET_CONFIG.onlineStatus).toEqual({
       cadenceFloorMs: 60_000,
       tokenGroup: 'char-online',
+    });
+    expect(SYNC_DATASET_CONFIG.characterLocation).toEqual({
+      cadenceFloorMs: 5_000,
+      tokenGroup: 'char-location',
     });
   });
 });

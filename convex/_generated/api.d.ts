@@ -9,6 +9,7 @@
  */
 
 import type * as characterLocation from "../characterLocation.js";
+import type * as characterLocationSync from "../characterLocationSync.js";
 import type * as crons from "../crons.js";
 import type * as engine from "../engine.js";
 import type * as http from "../http.js";
@@ -36,6 +37,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   characterLocation: typeof characterLocation;
+  characterLocationSync: typeof characterLocationSync;
   crons: typeof crons;
   engine: typeof engine;
   http: typeof http;

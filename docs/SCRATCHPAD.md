@@ -13,8 +13,7 @@
   `lifecycle/4.0.4.2` (tracked location and jump classification). Plan
   `docs/session-plans/4.0/4.0.4.2.1.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.1.md`.
-- **OW progress:** `2/6 complete` — next: The location dataset on the
-  engine.
+- **OW progress:** `3/6 complete` — next: The 5-second cadence.
 - **OW completed:**
   - OW1 Scopes and eligibility — `EVE_SCOPES` → 14 (added
     `read_location` / `read_ship_type`); glosses flipped Active;
@@ -25,15 +24,25 @@
     revocation + map-teardown cascade in `reconcileMapClaims`;
     `POST /purge-location-tracking` + contributor + `NON_NEON_HOMES`;
     focused 41/41 + verify green; commit `75979d8d`.
+  - OW3 The location dataset on the engine — `characterLocation` in
+    `SYNC_DATASETS`/config/`SYNC_REFS`/schema unions; sync action
+    (registry ∩ enum, location + ship-on-change, 304 zero-write);
+    apply stamps `prev*` via `JUMP_CONTINUITY_MS`; ESI
+    `character_location` + `CONVEX_ESI_HOMES` + idempotency; stock 30s
+    only; focused 112/112 + verify green.
 - **Next-agent notes:** (1) Eligibility is per-character via
   `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
   already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
   (`ONLINE_SYNC_SCOPES` stays separate). (3) G-1 scopes were enabled on
   the EVE app 2026-08-04; re-confirm only at Delivery. (4) `forMap` joins
   location strictly by the tracking row's own `(userId, characterId)` —
-  never `characterId` alone. (5) OW3 owns engine dataset registration,
-  sync action/apply, ESI registry/`CONVEX_ESI_HOMES` — chain tables stay
-  untouched; stock 30s cadence only (5s chain-on-success is OW4).
+  never `characterId` alone. (5) Poll set = `mapTracking` ∩ Neon enum;
+  apply orphan-cleans against full enum but stamps `syncedCharacterIds`
+  from the tracked set. (6) OW4 owns `chainOnSuccess` +
+  `rateKeyScope: 'subject'` + jitter-free `chainDispatch` + movement →
+  `onlineStatus` due-now nudge — do not touch classification (OW5) or
+  mapper toggle (OW6). (7) Fallow may warn on onlineStatus↔characterLocation
+  clone groups; accepted canary mirroring, not a waiver target.
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
   add-from-node / connection card), codex connection intelligence, death-window
   lifetime model, mass layers 1+3, unified sever/collapse pathway with

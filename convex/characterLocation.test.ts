@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
-import { convexTest } from 'convex-test';
+import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { internal } from './_generated/api';
+import { api, internal } from './_generated/api';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -11,6 +11,8 @@ const OTHER = 'user-location-other';
 const CHAR_A = 90_000_101;
 const CHAR_B = 90_000_102;
 const SECRET = 'svc-secret-location';
+const GEN = 1_700_000_000_000;
+const WINDOW = GEN + 5_000;
 
 function locationDoc(userId: string, characterId: number) {
   return {
@@ -26,6 +28,73 @@ function locationDoc(userId: string, characterId: number) {
     etagLocation: 'loc' as string | null,
     etagShip: 'ship' as string | null,
   };
+}
+
+function subjectRow(overrides: Record<string, unknown> = {}) {
+  return {
+    dataset: 'characterLocation' as const,
+    userId: USER,
+    status: 'running' as const,
+    lastRequestedAt: GEN,
+    workId: 'w1',
+    nextDueAt: GEN + 30_000,
+    minExpiresAt: null,
+    syncedCharacterIds: [] as number[],
+    lastFinishedAt: null as number | null,
+    lastError: null,
+    rlGroup: null,
+    rlLimit: null,
+    rlRemaining: null,
+    rlUsed: null,
+    ...overrides,
+  };
+}
+
+type ApplyResult = {
+  characterId: number;
+  solarSystemId: number | null;
+  stationId: number | null;
+  structureId: number | null;
+  shipTypeId: number | null;
+  systemChanged: boolean;
+  etagLocation: string | null;
+  etagShip: string | null;
+  expiresAt: number | null;
+  error: string | null;
+};
+
+function apply(
+  t: TestConvex<typeof schema>,
+  args: {
+    results: ApplyResult[];
+    generation?: number;
+    enumeratedCharacterIds?: number[];
+    trackedCharacterIds?: number[];
+  },
+) {
+  return t.mutation(internal.characterLocation.applySyncResults, {
+    userId: USER,
+    generation: args.generation ?? GEN,
+    enumeratedCharacterIds:
+      args.enumeratedCharacterIds ?? args.results.map((r) => r.characterId),
+    trackedCharacterIds:
+      args.trackedCharacterIds ?? args.results.map((r) => r.characterId),
+    results: args.results,
+    lastError: null,
+    rlGroup: null,
+    rlLimit: null,
+    rlRemaining: null,
+    rlUsed: null,
+  });
+}
+
+function readDoc(t: TestConvex<typeof schema>, characterId = CHAR_A) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('characterLocation')
+      .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
+      .unique(),
+  );
 }
 
 afterEach(() => {
@@ -159,5 +228,180 @@ describe('POST /purge-location-tracking', () => {
     const tracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
     expect(locations).toEqual([]);
     expect(tracking).toEqual([]);
+  });
+});
+
+describe('characterLocation.forViewer', () => {
+  it('returns null when signed out', async () => {
+    const t = convexTest(schema, modules);
+    expect(await t.query(api.characterLocation.forViewer, {})).toBeNull();
+  });
+
+  it('returns the viewer location facts when signed in', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+    const view = await t.withIdentity({ subject: USER }).query(api.characterLocation.forViewer, {});
+    expect(view?.characters).toEqual([
+      {
+        characterId: CHAR_A,
+        solarSystemId: 30_000_142,
+        stationId: null,
+        structureId: null,
+        shipTypeId: 670,
+        prevSolarSystemId: null,
+        prevFresh: false,
+        observedAt: 1_700_000_000_000,
+      },
+    ]);
+  });
+});
+
+describe('characterLocation.heldState', () => {
+  it('returns system id and dual etags for the conditional reads', async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
+    const held = await t.query(internal.characterLocation.heldState, { userId: USER });
+    expect(held).toEqual([
+      {
+        characterId: CHAR_A,
+        solarSystemId: 30_000_142,
+        etagLocation: 'loc',
+        etagShip: 'ship',
+      },
+    ]);
+  });
+});
+
+describe('characterLocation.applySyncResults', () => {
+  it('no-ops on a generation mismatch', async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));
+    await apply(t, {
+      generation: GEN + 1,
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_142,
+          stationId: null,
+          structureId: null,
+          shipTypeId: 670,
+          systemChanged: true,
+          etagLocation: 'n',
+          etagShip: 's',
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+    expect(await readDoc(t)).toBeNull();
+  });
+
+  it('writes nothing for a 304 unchanged result (stationary zero-write)', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow());
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+    const before = await readDoc(t);
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: null,
+          stationId: null,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: false,
+          etagLocation: 'loc',
+          etagShip: 'ship',
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+
+    const after = await readDoc(t);
+    expect(after?._id).toBe(before?._id);
+    expect(after?._creationTime).toBe(before?._creationTime);
+    expect(after).toMatchObject({
+      solarSystemId: 30_000_142,
+      shipTypeId: 670,
+      etagLocation: 'loc',
+      etagShip: 'ship',
+    });
+  });
+
+  it('stamps prevFresh false when the previous run is outside JUMP_CONTINUITY_MS', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        'syncSubjects',
+        subjectRow({
+          lastFinishedAt: Date.now() - 60_000,
+          syncedCharacterIds: [CHAR_A],
+        }),
+      );
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_144,
+          stationId: null,
+          structureId: null,
+          shipTypeId: 11_985,
+          systemChanged: true,
+          etagLocation: 'loc2',
+          etagShip: 'ship2',
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+
+    expect(await readDoc(t)).toMatchObject({
+      solarSystemId: 30_000_144,
+      prevSolarSystemId: 30_000_142,
+      prevFresh: false,
+      shipTypeId: 11_985,
+    });
+  });
+
+  it('orphan-cleans a character no longer in the Neon enumeration', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow());
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
+    });
+
+    await apply(t, {
+      enumeratedCharacterIds: [CHAR_A],
+      trackedCharacterIds: [CHAR_A],
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: null,
+          stationId: null,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: false,
+          etagLocation: 'loc',
+          etagShip: 'ship',
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+
+    const remaining = await t.run((ctx) =>
+      ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
+    );
+    expect(remaining.map((d) => d.characterId)).toEqual([CHAR_A]);
   });
 });

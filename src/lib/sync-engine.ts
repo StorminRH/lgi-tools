@@ -16,17 +16,14 @@
  * Adding a future consumer is a config change here plus a syncRef in
  * convex/engine.ts, not new machinery.
  *
- * The engine serves a SINGLE live consumer: onlineStatus, the ≤2-min canary
- * (MIGRATE.A) that keeps it exercised + proven for the v4.0 mapper. The three
+ * Live consumers: onlineStatus (MIGRATE.A canary, ~60s) and characterLocation
+ * (4.0.4.2.1, ~5s floor; stock 30s scan until chain-on-success lands). The three
  * slow trackers (skills, personal + corp industry jobs) MOVED to Neon
- * stale-gated on-view reads in MIGRATE.B (all 300s/120s cache, "ready" derived
- * client-side from each job's absolute end_date — slow per-owner data, not
- * live); MIGRATE.D.1 wiped their dormant schema literals + subject rows. See
- * docs/CONVEX.md for the ≤2-min placement rule and the orphan-guard pattern
- * (the dataset-union-as-superset-of-the-registry technique a future retirement
- * re-instantiates).
+ * stale-gated on-view reads in MIGRATE.B; MIGRATE.D.1 wiped their dormant schema
+ * literals + subject rows. See docs/CONVEX.md for the ≤2-min placement rule and
+ * the orphan-guard pattern (dataset-union-as-superset during drain windows).
  */
-export const SYNC_DATASETS = ['onlineStatus'] as const;
+export const SYNC_DATASETS = ['onlineStatus', 'characterLocation'] as const;
 /**
  * Closed active Convex sync-dataset registry; stored schemas may temporarily retain a retiring
  * superset during drain windows.
@@ -53,6 +50,11 @@ export const SYNC_DATASET_CONFIG: Record<
   // real route group), so an online re-arm herd must not burst the char-detail
   // group's dispatch.
   onlineStatus: { cadenceFloorMs: 60_000, tokenGroup: 'char-online' },
+  // Tracked location (4.0.4.2.1) — verified ESI location/ship cache is 5s; the
+  // floor pegs to that. Stock engine scan remains 30s until chain-on-success
+  // (OW4) sustains the ~5s loop. Own token group so location re-arms never
+  // share the onlineStatus dispatch bucket.
+  characterLocation: { cadenceFloorMs: 5_000, tokenGroup: 'char-location' },
 };
 
 /** Client heartbeat interval while the tab is visible. */

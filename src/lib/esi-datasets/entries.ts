@@ -262,4 +262,20 @@ export const ESI_DATASET_ENTRIES = [
     },
     mirrorTables: [],
   },
+  {
+    name: 'character_location',
+    store: 'convex',
+    shape: 'live',
+    freshnessModel: 'engine-cadence',
+    refreshOwner: { kind: 'engine', dataset: 'characterLocation' },
+    upstream: {
+      kind: 'esi',
+      specPaths: [
+        '/characters/{character_id}/location/',
+        '/characters/{character_id}/ship/',
+      ],
+      verifiedCacheSeconds: 5,
+    },
+    mirrorTables: [],
+  },
 ] as const satisfies readonly EsiDatasetEntry[];
