@@ -19,7 +19,7 @@ export type { ClassValue };
 // cn() call, and `shadow-none` can't override them. Registering under the real
 // `shadow`/`rounded` groups keeps box-shadow and radius overriding correctly.
 // Keep both lists in sync with the `--radius-*`/`--shadow-*` tokens in globals.css.
-const twMerge = extendTailwindMerge<'glass'>({
+const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       font: ['ui', 'data', 'display'],
@@ -79,13 +79,6 @@ const twMerge = extendTailwindMerge<'glass'>({
           ],
         },
       ],
-      // The frosted-surface tiers (globals.css @utility) — registered as their
-      // own group so the two densities conflict-resolve against each other in a
-      // cn() call instead of both shipping. They deliberately do NOT conflict
-      // with bg-*: each sets background AND backdrop-filter as one recipe, so a
-      // lone bg-* override would leave a stray frost behind — swap the whole
-      // glass class instead.
-      glass: ['glass-panel', 'glass-chrome'],
     },
   },
 });

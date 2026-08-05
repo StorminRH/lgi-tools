@@ -32,7 +32,7 @@ describe('MapWindow isolation markup', () => {
     expect(markup).toContain('data-map-window-scroll');
     expect(markup).toContain('overflow-y-auto');
     expect(markup).toContain('overscroll-contain');
-    expect(markup).toContain('glass-chrome');
+    expect(markup).toContain('glass-panel');
     expect(markup).toContain('pl-[22px]');
     expect(markup).toContain('pr-3');
     expect(markup).toContain('left-4');

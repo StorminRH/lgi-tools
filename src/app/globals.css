@@ -467,33 +467,25 @@ a:hover {
   background-size: 256px 256px;
 }
 
-/* ── Glass surfaces (glass-panel / glass-chrome) ─────────────────────────
- * The shared frosted-surface recipe: a color-mix tint of the deep well over
+/* ── Glass surface (glass-panel) ─────────────────────────────────────────
+ * The one frosted-surface recipe: a color-mix tint of the deep well over
  * `backdrop-filter: blur() saturate()`, driven by the two :root --glass-*
- * knobs below so density/blur tune in ONE place. Two tiers on the T3-style
- * rationale that elevated popups need a denser tint than ambient chrome:
- *   glass-panel  (80%) — floating popups (Select/Menu/Popover/Tooltip via
- *                        panelSurface in dropdown-panel.ts); dense enough
- *                        that high-contrast page content never blooms
- *                        through menu text.
- *   glass-chrome (65%) — in-map ambient chrome (mapFrostedSurface), where
- *                        seeing the map move underneath is the point.
- * @utility (not plain classes) so variants compose and consumer bg-*
+ * knobs below so density/blur tune in ONE place. 65% density on operator
+ * review — the earlier 80% tier read as solid black over these near-black
+ * pages (the tint only registers where blurred content shows through), and
+ * 65% matches the mapper chrome's proven translucency. Worn by the SMALL
+ * pop-outs: tooltips, popovers, Select/Combobox dropdowns, the pointer
+ * menu, chart tooltips, and the in-map chrome. The nav-level menus
+ * (hamburger, account, page menus) deliberately stay solid on
+ * panelSurfaceSolid — they read as part of the page chrome, not floating
+ * glass. @utility (not a plain class) so variants compose and consumer
  * overrides stay in the utilities layer. -webkit-backdrop-filter is written
  * by hand here — Tailwind only auto-prefixes its own utilities — and the
- * nested @supports collapses each tier to the opaque well on engines with
- * no backdrop-filter, matching the pre-glass look. Backdrop-filter gotcha
- * for consumers: an ancestor with filter, fractional opacity, mask, or
+ * nested @supports collapses to the opaque well on engines with no
+ * backdrop-filter, matching the pre-glass look. Backdrop-filter gotcha for
+ * consumers: an ancestor with filter, fractional opacity, mask, or
  * clip-path becomes a "backdrop root" and silently scopes the frost. */
 @utility glass-panel {
-  background: color-mix(in oklab, var(--color-bg-deep) 80%, transparent);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background: var(--color-bg-deep);
-  }
-}
-@utility glass-chrome {
   background: color-mix(in oklab, var(--color-bg-deep) 65%, transparent);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -559,13 +551,14 @@ a:hover {
   transform: translate(var(--tt-x, 0), var(--tt-y, 0));
   pointer-events: none;
 }
+/* Surface comes from the glass-panel utility on the element (chart-canvas.tsx)
+ * — no background here, or this un-layered rule would beat the utility layer. */
 .sparkline-tooltip-box {
   position: absolute;
   bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  background: var(--color-section);
   border: 1px solid var(--color-isk-dim);
   border-radius: 4px;
   padding: 4px 8px;

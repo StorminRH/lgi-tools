@@ -10,7 +10,7 @@ import {
   menuSection,
   menuSectionLabel,
   menuSeparator,
-  panelSurface,
+  panelSurfaceSolid,
 } from './dropdown-panel';
 import type { Tone } from './tones';
 
@@ -31,14 +31,15 @@ import type { Tone } from './tones';
  */
 export type MenuTone = Extract<Tone, 'neutral'>;
 
-// Abstract tone → token classes. The base owns the shared dropdown-panel SURFACE
-// (bg-deep well + idle border + the dd shadow, from dropdown-panel.ts) so every menu
-// matches the Select popup and the Popover. The call site's `className` supplies only
+// Abstract tone → token classes. The base owns the SOLID dropdown-panel surface
+// (bg-deep well + idle border + the dd shadow, from dropdown-panel.ts): nav-level
+// menus read as part of the page chrome, so they deliberately skip the glass-panel
+// frost the smaller pop-outs wear. The call site's `className` supplies only
 // structure — the per-panel min-width, header-flush border override, and any
 // placement-specific row composition.
 // Menus stay square with full-width rows, so they take the surface atom, not the full
 // dropdownPanel (which adds card radius + a 5px inset the Select popup wants).
-const popup = cva(`flex flex-col outline-none ${panelSurface}`, {
+const popup = cva(`flex flex-col outline-none ${panelSurfaceSolid}`, {
   variants: {
     tone: {
       neutral: '',

@@ -11,12 +11,19 @@ import { eyebrow } from './type-roles';
 // minted in globals.css and registered in cn.ts (no new families here).
 
 /**
- * The frosted SURFACE every floating panel shares — the Select popup, the
- * Menu, the Popover, the Tooltip. Split out from the full panel so a header-flush
- * menu (square, full-width rows) and a padded content popover can wear the same
- * surface without the card radius / 5px inset the Select dropdown adds.
+ * The frosted SURFACE the small pop-outs share — the Select popup, the Popover,
+ * the Tooltip, the search dropdowns. Split out from the full panel so a padded
+ * content popover can wear the same surface without the card radius / 5px inset
+ * the Select dropdown adds.
  */
 export const panelSurface = 'border border-border-idle glass-panel shadow-dd';
+
+/**
+ * The SOLID variant of the same surface — the original recessed tray. Worn by the
+ * nav-level menus (hamburger, account, page menus), which read as part of the
+ * page chrome rather than floating glass, so they deliberately skip the frost.
+ */
+export const panelSurfaceSolid = 'border border-border-idle bg-bg-deep shadow-dd';
 
 /**
  * The full dropdown panel: the shared surface + card radius + a 5px inset that
