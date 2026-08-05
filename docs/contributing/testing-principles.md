@@ -7,6 +7,9 @@ Agents often add cheap regression wrappers while implementing. Those can be
 useful during the change and still be wrong to keep forever. Prefer deleting or
 consolidating low-signal coverage over accumulating green checks.
 
+This document is the bar for authors, reviewers, and any future Keep-Tests-Tight
+automation. Linked from `AGENTS.md`.
+
 ## Commands
 
 - Focused: `pnpm test <path>` or `pnpm test <path> -t "<name pattern>"`
@@ -57,7 +60,8 @@ When trimming:
 2. **Consolidate** related one-assertion cases into fewer workflow tests or one
    `it.each` table.
 3. **Keep** end-to-end-ish journeys, teardown/purge matrices, auth/ESI budget
-   contracts, and anything that falsifies user-visible or build-breaking
+   contracts, user-visible formatter/metadata contracts that have no higher
+   falsifier, and anything that falsifies user-visible or build-breaking
    behavior.
 4. Net line count should usually go down. If a cleanup adds more lines than it
    removes, stop and reassess.
@@ -73,3 +77,29 @@ When trimming:
 - Two `it` blocks that only differ by fixture name but share identical facts
 - A test that only asserts `CASES.length === N` or verdict histogram counts
 - Thin passthrough tests for a function already exercised by a feature workflow
+
+## Automation (future Keep Tests Tight)
+
+A recurring cleanup agent should treat this file as the sole deletion bar.
+
+Suggested loop (adapt to Cursor Automations / a skill when ready):
+
+1. Exit early if `main` had no commits in the last 24 hours (nothing new to
+   tighten).
+2. Read this document and `AGENTS.md`. Do not invent a second standard.
+3. Inspect recently touched `*.test.ts` (and adjacent production exports those
+   tests uniquely own). Agents may add many tiny regression cases while
+   implementing — keep that habit during the feature work; trim afterward.
+4. For each low-signal case: **edit, combine, or delete** so the suite stays
+   high-signal. Prefer fewer longer workflow tests.
+5. Never delete house registry / Fallow / ESI-dataset / API-matrix / purge gates
+   without an explicit replacement in the same change.
+6. If user-visible contracts (formatters, SEO metadata, auth journeys) lose
+   their only falsifier, consolidate into one high-signal suite rather than
+   deleting coverage outright.
+7. Run focused Vitest on touched paths, then `pnpm verify`.
+8. Open a PR only when the net line count drops (or stays flat with a clear
+   consolidation). Title/body should list **Removed**, **Consolidated**, and
+   **Kept**.
+9. Mark the PR ready for review; do not auto-merge until the house ship process
+   allows it.
