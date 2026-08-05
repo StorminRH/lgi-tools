@@ -30,16 +30,13 @@ function expectBlueprintImage(markup: string): void {
 }
 
 describe('blueprint-list row images', () => {
-  it('renders the blueprint scroll for industry recents and saved-build tiles', () => {
+  it('renders the blueprint scroll across recents, saved-build tiles, and saved-plan rows', () => {
     expectBlueprintImage(
       renderToStaticMarkup(createElement(RecentBlueprintRows, { recent: [recent] })),
     );
     expectBlueprintImage(
       renderToStaticMarkup(createElement(SavedBuildTiles, { plans: [saved] })),
     );
-  });
-
-  it('renders the blueprint scroll for planner saved-plan rows', () => {
     expectBlueprintImage(
       renderToStaticMarkup(
         createElement(SavedPlanRowItem, {

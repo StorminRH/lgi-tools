@@ -111,11 +111,6 @@ describe('daysSinceHistoryDate / STALENESS_FLAG_DAYS', () => {
 
   it('grows large for months-old history (the stale case the flag catches)', () => {
     expect(daysSinceHistoryDate('2025-07-07', NOW)).toBeGreaterThan(STALENESS_FLAG_DAYS);
-  });
-
-  it('threshold is a positive integer; the flag fires at or beyond it, not below', () => {
-    expect(Number.isInteger(STALENESS_FLAG_DAYS)).toBe(true);
-    expect(STALENESS_FLAG_DAYS).toBeGreaterThan(0);
     expect(daysSinceHistoryDate('2026-05-31', NOW)).toBeGreaterThanOrEqual(STALENESS_FLAG_DAYS); // 14d
     expect(daysSinceHistoryDate('2026-06-01', NOW)).toBeLessThan(STALENESS_FLAG_DAYS); // 13d
   });

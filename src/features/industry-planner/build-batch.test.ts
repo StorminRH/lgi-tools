@@ -687,11 +687,8 @@ describe('computeMultibuyDemand — Archon fuel blocks (real multi-depth pin)', 
   const base = computeBatchLedgerWithMe(archon, 1, NO_OWNED);
   const FUEL_BLOCK = 4247;
 
-  it('the fixture really builds the fuel block (guard for fixture drift)', () => {
-    expect(base.builds.has(FUEL_BLOCK)).toBe(true);
-  });
-
   it('bought fuel blocks are one aggregated line; the frontier never grows', () => {
+    expect(base.builds.has(FUEL_BLOCK)).toBe(true);
     const buildSet = new Set(base.builds.keys());
     buildSet.delete(FUEL_BLOCK);
     const buy = computeMultibuyDemand(archon, 1, NO_OWNED, { buildSet });
