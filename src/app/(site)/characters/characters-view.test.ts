@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
 import type { LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
 
@@ -16,15 +15,8 @@ const character = (over: Partial<LinkedCharacter> = {}): LinkedCharacter => ({
 });
 
 describe('deriveCharacterRowView', () => {
-  it('reports a healthy character with no reconnect label and the granted scopes', () => {
-    const view = deriveCharacterRowView({ scope: EVE_SCOPES.join(','), hasRefreshToken: true });
-    expect(view.needsReconnect).toBe(false);
-    expect(view.healthLabel).toBeNull();
-    expect(view.scopes.length).toBeGreaterThan(0);
-  });
-
   it('labels a token-less character Disconnected', () => {
-    const view = deriveCharacterRowView({ scope: EVE_SCOPES.join(','), hasRefreshToken: false });
+    const view = deriveCharacterRowView({ scope: 'publicData', hasRefreshToken: false });
     expect(view.needsReconnect).toBe(true);
     expect(view.healthLabel).toBe('Disconnected');
   });

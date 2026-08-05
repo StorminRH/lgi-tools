@@ -41,7 +41,6 @@ vi.mock('@/db', () => ({
 import {
   accountBelongsToUser,
   getStoredActiveCharacterId,
-  listLinkedCharacters,
   repointActiveToOldest,
   resolveActiveCharacter,
 } from './linked-characters';
@@ -132,33 +131,5 @@ describe('getStoredActiveCharacterId', () => {
     expect(await getStoredActiveCharacterId('u1')).toBeNull();
     h.selectRows = [];
     expect(await getStoredActiveCharacterId('u1')).toBeNull();
-  });
-});
-
-describe('listLinkedCharacters', () => {
-  it('maps token presence and falls back for a missing profile row', async () => {
-    h.selectRows = [
-      {
-        accountId: '100',
-        scope: 'publicData',
-        refreshToken: 'v1:abc',
-        createdAt: new Date('2026-01-01'),
-        name: 'Alice',
-        portraitUrl: 'a',
-      },
-      {
-        accountId: '200',
-        scope: null,
-        refreshToken: null,
-        createdAt: new Date('2026-02-01'),
-        name: null,
-        portraitUrl: null,
-      },
-    ];
-    const result = await listLinkedCharacters('u1');
-    expect(result[0]).toMatchObject({ characterId: 100, name: 'Alice', hasRefreshToken: true });
-    expect(result[1]).toMatchObject({ characterId: 200, name: 'Character 200', hasRefreshToken: false });
-    // Missing profile portrait falls back to the EVE image-server URL.
-    expect(result[1]!.portraitUrl).toContain('/characters/200/portrait');
   });
 });

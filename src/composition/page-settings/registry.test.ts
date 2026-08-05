@@ -7,6 +7,8 @@ import {
   resolvePageSettings,
 } from '@/platform/page-settings';
 import { FEATURE_CONTROL_IDS } from '@/platform/page-settings/feature-controls';
+import { resolveSpecForPath } from '@/platform/page-settings/resolve';
+import type { PageSettingsSpec } from '@/platform/page-settings/types';
 import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/register-all';
 
 // Importing register-all (for PAGE_SETTINGS_SPECS) also runs its side-effect
@@ -27,6 +29,19 @@ describe('page-settings engine', () => {
 
     __resetPageSettings();
     expect(listPageSettings()).toEqual([]);
+  });
+
+  it('matches path segments, prefers the longest route, and rejects empty/non-segment prefixes', () => {
+    const specs: PageSettingsSpec[] = [
+      { route: '/sites' },
+      { route: '/industry' },
+      { route: '/industry/build' },
+    ];
+    expect(resolveSpecForPath('/sites/30002', specs)?.route).toBe('/sites');
+    expect(resolveSpecForPath('/sitesfoo', specs)).toBeNull();
+    expect(resolveSpecForPath('/industry/build/x', specs)?.route).toBe('/industry/build');
+    expect(resolveSpecForPath('/industry/123', specs)?.route).toBe('/industry');
+    expect(resolveSpecForPath('', specs)).toBeNull();
   });
 });
 
