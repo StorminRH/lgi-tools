@@ -12,13 +12,10 @@ function run(events: ConfirmEvent[], from: ConfirmPhase = INITIAL_CONFIRM_PHASE)
 }
 
 describe('confirmGateReducer', () => {
-  it('starts idle', () => {
-    expect(INITIAL_CONFIRM_PHASE).toBe('idle');
-  });
-
   it('opening the dialog never reaches running (the gate blocks the call until confirmed)', () => {
     // The D-3 guarantee: a `request` (open) on its own must NOT enter `running`,
     // the phase the consumer uses to dispatch the destructive call.
+    expect(INITIAL_CONFIRM_PHASE).toBe('idle');
     expect(run([{ type: 'request' }])).toBe('confirming');
     // Re-requesting still never runs.
     expect(run([{ type: 'request' }, { type: 'request' }])).toBe('confirming');

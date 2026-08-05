@@ -7,12 +7,9 @@ import {
 } from './chain-contract';
 
 describe('chain-contract', () => {
-  it('owns a 24-hour undo window', () => {
-    expect(MAP_CHAIN_UNDO_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
-  });
-
   it('pairs purgeAfter exactly one undo window after deletedAt', () => {
     const deletedAt = 1_700_000_000_000;
+    expect(MAP_CHAIN_UNDO_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
     expect(chainTombstoneStamps(deletedAt)).toEqual({
       deletedAt,
       purgeAfter: deletedAt + MAP_CHAIN_UNDO_WINDOW_MS,
