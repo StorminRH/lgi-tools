@@ -91,9 +91,10 @@ export type GrantedScope = { id: string; gloss?: string; status: 'active' | 'leg
 
 // Short human descriptions for the scopes a pilot may have granted — the
 // requested scopes worth a gloss plus the scopes pruned in 3.7.1.1 that legacy
-// grants still carry (esi-location.read_online.v1 was re-admitted in MIGRATE.A,
-// so it sits in the active block again). Private: only listGrantedScopes reads
-// it. An unglossed scope still renders (its raw id), so this need not be exhaustive.
+// grants still carry (esi-location.read_online.v1 was re-admitted in MIGRATE.A;
+// read_location / read_ship_type were re-admitted in 4.0.4.2.1 — all three sit
+// in the active block again). Private: only listGrantedScopes reads it. An
+// unglossed scope still renders (its raw id), so this need not be exhaustive.
 const SCOPE_GLOSS: Record<string, string> = {
   // Active — the current requested set (EVE_SCOPES).
   publicData: 'Read your public character info',
@@ -103,13 +104,13 @@ const SCOPE_GLOSS: Record<string, string> = {
   'esi-characters.read_corporation_roles.v1': 'Read your corporation roles',
   'esi-industry.read_corporation_jobs.v1': "Read your corporation's industry jobs",
   'esi-location.read_online.v1': 'Read your online status',
+  'esi-location.read_location.v1': 'Read your current location',
+  'esi-location.read_ship_type.v1': 'Read your current ship type',
   // Legacy — pruned in 3.7.1.1, still present in older grants.
   'esi-planets.manage_planets.v1': 'Manage your planetary colonies',
   'esi-characters.read_standings.v1': 'Read your standings',
   'esi-clones.read_implants.v1': 'Read your active implants',
   'esi-clones.read_clones.v1': 'Read your jump clones',
-  'esi-location.read_location.v1': 'Read your current location',
-  'esi-location.read_ship_type.v1': 'Read your current ship type',
 };
 
 function describeScope(id: string, status: 'active' | 'legacy'): GrantedScope {

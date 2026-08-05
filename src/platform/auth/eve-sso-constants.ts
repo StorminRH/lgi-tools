@@ -35,5 +35,7 @@ export const EVE_SCOPES = [
   'esi-assets.read_assets.v1',
   'esi-assets.read_corporation_assets.v1',
   'esi-location.read_online.v1',
+  'esi-location.read_location.v1',
+  'esi-location.read_ship_type.v1',
   'esi-corporations.read_structures.v1',
 ] as const;

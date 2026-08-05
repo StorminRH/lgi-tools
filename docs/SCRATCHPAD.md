@@ -9,11 +9,24 @@
 
 ## Now
 
-- **CURRENT / NEXT:** session **4.0.4.1.2** complete — sub-version
-  **4.0.4.1** done (both sessions); close-out is delivering the single
-  sub-version PR #353 from `lifecycle/4.0.4.1` (G-1 ACCEPT recorded
-  2026-08-04). Next planned work: 4.0.4.2 through `start-session` after
-  merge.
+- **CURRENT / NEXT:** session **4.0.4.2.1** in flight on
+  `lifecycle/4.0.4.2` (tracked location and jump classification). Plan
+  `docs/session-plans/4.0/4.0.4.2.1.md`; contract
+  `docs/session-contracts/4.0/4.0.4.2.1.md`.
+- **OW progress:** `1/6 complete` — next: Tracking registry, location
+  table, and teardown.
+- **OW completed:**
+  - OW1 Scopes and eligibility — `EVE_SCOPES` → 14 (added
+    `read_location` / `read_ship_type`); glosses flipped Active;
+    `src/data/location-tracking/sync-eligibility.ts` + pin tests; focused
+    49/49 + verify green.
+- **Next-agent notes:** (1) Eligibility is per-character via
+  `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
+  already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
+  (`ONLINE_SYNC_SCOPES` stays separate). (3) G-1 scopes were enabled on
+  the EVE app 2026-08-04; re-confirm only at Delivery. (4) OW2 owns
+  `mapTracking` / `characterLocation` tables, revocation cascade, and
+  purge door — chain tables stay untouched.
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
   add-from-node / connection card), codex connection intelligence, death-window
   lifetime model, mass layers 1+3, unified sever/collapse pathway with
