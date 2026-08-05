@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { searchUsersByLinkedCharacterName, toAdminUser } from './admin-users';
+import { searchUsersByLinkedCharacterName } from './admin-users';
 
 vi.mock('@/db', () => ({
   db: {
@@ -18,37 +18,5 @@ describe('searchUsersByLinkedCharacterName', () => {
 
   it('returns [] for a whitespace-only string', async () => {
     await expect(searchUsersByLinkedCharacterName('   \t\n')).resolves.toEqual([]);
-  });
-});
-
-describe('toAdminUser', () => {
-  const base = {
-    userId: 'u1',
-    name: 'Ryan',
-    portraitUrl: 'https://img/1',
-    role: 'ADMIN' as const,
-    characterId: '90000001',
-  };
-
-  it('parses a numeric characterId string', () => {
-    expect(toAdminUser(base)).toEqual({
-      userId: 'u1',
-      name: 'Ryan',
-      portraitUrl: 'https://img/1',
-      role: 'ADMIN',
-      characterId: 90000001,
-    });
-  });
-
-  it('yields a null characterId when the account id is null', () => {
-    expect(toAdminUser({ ...base, characterId: null }).characterId).toBeNull();
-  });
-
-  it('yields a null characterId when the account id is not finite', () => {
-    expect(toAdminUser({ ...base, characterId: 'not-a-number' }).characterId).toBeNull();
-  });
-
-  it('defaults a null portrait to the empty string', () => {
-    expect(toAdminUser({ ...base, portraitUrl: null }).portraitUrl).toBe('');
   });
 });

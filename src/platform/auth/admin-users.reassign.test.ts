@@ -66,18 +66,4 @@ describe('reassignCharacter', () => {
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith(100);
   });
 
-  it('keeps the source user when it still owns other characters', async () => {
-    // awaits: move account → select-remaining (one row) → stored-active (999, so
-    // the moved char wasn't active → no re-point) → afterCharacterLinkChanged.
-    state.results = [undefined, [{ id: 'acc-other' }], [{ activeCharacterId: 999 }]];
-    const out = await reassignCharacter({
-      characterId: 100,
-      fromUserId: 'eve-user-2',
-      toUserId: 'admin-1',
-    });
-    expect(out).toEqual({ sourceDeleted: false });
-    expect(state.calls.delete).toBe(0);
-    expect(hooks.runBeforeUserDelete).not.toHaveBeenCalled();
-    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith(100);
-  });
 });

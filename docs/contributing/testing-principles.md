@@ -71,11 +71,15 @@ When trimming:
    helpers,
    and comment banners that only narrate session chronology (`4.0.x`, `OWn`,
    `HC-n`) rather than a durable why.
-6. "Covered elsewhere" only counts when the other coverage actually RUNS in the
-   gate that blocks merges. CI has no database, so `*.db.test.ts` suites skip
-   there — a mocked suite whose branches a db suite also reaches is NOT a
-   duplicate layer; it is the CI falsifier for those branches. Never delete a
-   mocked suite in favor of db-harness coverage alone.
+6. "Covered elsewhere" means covered in the gate of record: `pnpm verify` on a
+   machine with the db harness reachable. Real-Postgres `*.db.test.ts` coverage
+   therefore counts, and a mocked db-layer suite whose branches the db twin
+   reaches IS a duplicate layer — delete it, keeping only arms a mock alone can
+   express (error injection, mid-loop mutation, malformed-row guards,
+   projection-hook spies). Corollary: CI and remote agent sessions have no
+   database and skip db suites, so db-layer changes are not done until a local
+   `pnpm verify` has run them — agents must say so rather than treat green CI
+   as proof.
 
 ## Examples of low signal
 
