@@ -13,7 +13,7 @@
   `lifecycle/4.0.4.2` (tracked location and jump classification). Plan
   `docs/session-plans/4.0/4.0.4.2.1.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.1.md`.
-- **OW progress:** `4/6 complete` — next: The movement decision table.
+- **OW progress:** `5/6 complete` — next: The map-side toggle and handoff notes.
 - **OW completed:**
   - OW1 Scopes and eligibility — `EVE_SCOPES` → 14 (added
     `read_location` / `read_ship_type`); glosses flipped Active;
@@ -34,6 +34,10 @@
     on `characterLocation`; `computeChainBoundary` + `chainDispatch`;
     jitter-free success/fresh chain; failed/cold never chain; movement →
     onlineStatus due-now; focused 67/67 + verify green; commit `c6c30043`.
+  - OW5 The movement decision table — pure `classifyMovement` with injected
+    SDE geography; full gate / k-space / J-space / noise / discontinuity /
+    capsule / repeated-arrival matrix; focused 17/17 + verify green; commit
+    `18cdefef`.
 - **Next-agent notes:** (1) Eligibility is per-character via
   `canSyncLocation` — never assume sitewide `EVE_SCOPES` means a pilot
   already relinked. (2) Keep online out of `LOCATION_SYNC_SCOPES`
@@ -44,8 +48,9 @@
   apply orphan-cleans against full enum but stamps `syncedCharacterIds`
   from the tracked set. (6) Chain hops must stay jitter-free
   (`computeChainBoundary`); jitter on a chained subject silently degrades
-  to the 30s scan. (7) OW5 owns `classifyMovement` pure table only — do
-  not touch mapper toggle (OW6). (8) Fallow may warn on
+  to the 30s scan. (7) OW6 owns the mapper toggle and heartbeat mount; reuse
+  the pure `src/data/maps/movement-classification.ts` seam without moving
+  geography into Convex. (8) Fallow may warn on
   onlineStatus↔characterLocation clone groups; accepted canary mirroring,
   not a waiver target.
 - **Shipped 4.0.4.1 (both sessions):** gated chain authoring (home /
