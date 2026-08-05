@@ -39,7 +39,7 @@ export type MenuTone = Extract<Tone, 'neutral'>;
 // placement-specific row composition.
 // Menus stay square with full-width rows, so they take the surface atom, not the full
 // dropdownPanel (which adds card radius + a 5px inset the Select popup wants).
-const popup = cva(`flex flex-col outline-none ${panelSurfaceSolid}`, {
+const popup = cva(cn('flex flex-col outline-none', panelSurfaceSolid), {
   variants: {
     tone: {
       neutral: '',
