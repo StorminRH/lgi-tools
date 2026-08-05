@@ -234,6 +234,14 @@ These are load-bearing constraints, several **lint-enforced**:
   shell to visual review. Assert on visible text/role, never DOM structure.
 - **Don't backfill for coverage's sake** — untested code stays untested until
   something touches it.
+- **High-signal bar.** Prefer fewer, longer workflow tests over many tiny cases.
+  The deletion / consolidation bar for authors, reviewers, and Keep-Tests-Tight
+  automation lives in
+  [`docs/contributing/testing-principles.md`](docs/contributing/testing-principles.md)
+  and
+  [`docs/contributing/end-to-end-testing.md`](docs/contributing/end-to-end-testing.md).
+  Browser capture uses `pnpm ux-check` as a UI gate aid, not a permanent E2E
+  suite in `pnpm verify`.
 
 ## Commit style
 

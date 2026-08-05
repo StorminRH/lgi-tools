@@ -1,14 +1,19 @@
 # Testing principles
 
-This codebase favors high-signal Vitest suites. Prefer fewer, longer tests that
-follow a real workflow over many tiny cases that pin incidental details.
+This codebase favors small, readable Vitest suites with explicit setup and
+minimal magic. Individual tests should follow a meaningful workflow end-to-end,
+even when that makes a single test longer and more assertion-heavy.
 
 Agents often add cheap regression wrappers while implementing. Those can be
 useful during the change and still be wrong to keep forever. Prefer deleting or
 consolidating low-signal coverage over accumulating green checks.
 
 This document is the bar for authors, reviewers, and any future Keep-Tests-Tight
-automation. Linked from `AGENTS.md`.
+automation. Linked from `AGENTS.md`. For browser / journey surfaces, also see
+[end-to-end testing](./end-to-end-testing.md).
+
+Adapted from the [Epic Web / Kent C. Dodds testing guidance](https://github.com/kentcdodds/kody/blob/main/docs/contributing/testing-principles.md)
+for this repository's Vitest, Postgres, Convex, and `ux-check` stack.
 
 ## Commands
 
@@ -19,13 +24,32 @@ Discovery includes `src/**/*.test.ts`, `convex/**/*.test.ts`, and
 `scripts/**/*.test.mjs` (`vitest.config.ts`). Prefer deleting a permanent
 low-signal file over leaving `it.skip` / `describe.skip` residue.
 
+## Test flavor decision matrix
+
+Choose the lightest flavor that can falsify the behavior:
+
+| Flavor / command | Use when | Avoid when |
+| --- | --- | --- |
+| Co-located `*.test.ts` / `*.test.mjs` (`pnpm test`) | Pure functions, view-models, schema/contract checks, handlers that can be exercised with local fakes, and Convex logic under `convex-test` / edge-runtime. Fast feedback; no browser. | The assertion needs a real browser, authenticated UX, or layout that only a human/operator capture can judge. |
+| Real-Postgres `*.db.test.ts` (`pnpm test`, local harness) | Behavior that depends on real SQL, transactions, advisory locks, or Neon-shaped constraints via `createDbTestHarness`. | Pure logic that never touches the DB — keep those in ordinary `*.test.ts`. Do not invent alternate DB harnesses. |
+| Journey-style Vitest (same `pnpm test`) | One longer workflow that asserts a user-critical path across collaborating units without a browser. Prefer this over many tiny sibling cases. | Edge cases, copy pinning, or anything a single pure-unit test can cover. |
+| Playwright UX capture (`pnpm ux-check`) | Changed user-facing routes during Ordered-work / pre-close-out UI gates. See [end-to-end testing](./end-to-end-testing.md) and `docs/workflows/ux-check.md`. | Permanent regression locking, edge cases, or anything Vitest can falsify. `ux-check` is not part of `pnpm verify`. |
+
 ## Principles
 
-- Prefer the "fewer, longer tests" style: one setup, then as many actions and
-  assertions as needed for one workflow. Multiple related assertions in one
-  test are a feature, not a smell.
-- Do not split a single flow into many tiny tests just to satisfy "one
-  assertion per test."
+- Prefer the "fewer, longer tests" style from Kent C. Dodds when assertions
+  belong to one workflow.
+- Treat each test like a manual tester's script: one setup, then as many actions
+  and assertions as needed to validate the whole journey.
+- Do not split a single flow into many tiny tests just to satisfy "one assertion
+  per test." Multiple related assertions in one test are a feature, not a smell.
+- Prefer flat test files: use top-level `test(...)` / `it(...)` and avoid deep
+  `describe` nesting unless a short grouping materially clarifies the suite.
+- Avoid shared setup like `beforeEach` / `afterEach` when inline setup keeps the
+  case readable; do not hide important arrange steps in hooks.
+- Avoid shared mutable test state across cases. If the next assertion depends on
+  the same rendered object, request, or response, it likely belongs in the same
+  test.
 - Don't write tests for what the type system already guarantees.
 - Prefer behavior and stable public contracts over implementation details.
   Avoid pinning CSS class strings, keyframe percentage literals, incidental
@@ -39,13 +63,17 @@ low-signal file over leaving `it.skip` / `describe.skip` residue.
   re-run `it.each` rows under a second name.
 - Do not add regression tests for bugs unlikely to recur unless the flow is
   important enough to justify the maintenance cost.
+- Prefer asserting intermediate states inside the broader workflow that causes
+  them rather than adding isolated tests that only check an incidental loading
+  or transition state.
 - Prefer table-driven `it.each` when the same assertion runs over different
   inputs; prefer one longer workflow test when the cases share setup and form
   one journey.
+- Build helpers that return ready-to-run objects (factory pattern), not globals.
 - Keep test intent obvious in the name.
 - Write tests so they can run offline: local fakes/fixtures over the public
   internet.
-- Keep the bar for adding tests high, especially slower DB / E2E surfaces.
+- Keep the bar for adding tests high, especially slower DB and browser surfaces.
 - Real-Postgres suites stay `*.db.test.ts` with `createDbTestHarness`; do not
   invent alternate DB harnesses during cleanup.
 - House registry / Fallow / ESI-dataset declaration suites are load-bearing
@@ -68,9 +96,8 @@ When trimming:
 5. Production cruft in the same pass: unused exports with only test consumers
    (unless the module's own header comment declares them planned-unused with a
    date or session reference — that comment IS the inventory), skipped/dead
-   helpers,
-   and comment banners that only narrate session chronology (`4.0.x`, `OWn`,
-   `HC-n`) rather than a durable why.
+   helpers, and comment banners that only narrate session chronology (`4.0.x`,
+   `OWn`, `HC-n`) rather than a durable why.
 6. "Covered elsewhere" means covered in the gate of record: `pnpm verify` on a
    machine with the db harness reachable. Real-Postgres `*.db.test.ts` coverage
    therefore counts, and a mocked db-layer suite whose branches the db twin
@@ -88,19 +115,23 @@ When trimming:
 - Two `it` blocks that only differ by fixture name but share identical facts
 - A test that only asserts `CASES.length === N` or verdict histogram counts
 - Thin passthrough tests for a function already exercised by a feature workflow
+- Tests that only assert incidental instructional copy or tool-description prose
 
 ## Automation (future Keep Tests Tight)
 
-A recurring cleanup agent should treat this file as the sole deletion bar.
+A recurring cleanup agent should treat this file and
+[end-to-end testing](./end-to-end-testing.md) as the deletion bar. Do not invent
+a second standard.
 
 Suggested loop (adapt to Cursor Automations / a skill when ready):
 
 1. Exit early if `main` had no commits in the last 24 hours (nothing new to
    tighten).
-2. Read this document and `AGENTS.md`. Do not invent a second standard.
-3. Inspect recently touched `*.test.ts` (and adjacent production exports those
-   tests uniquely own). Agents may add many tiny regression cases while
-   implementing — keep that habit during the feature work; trim afterward.
+2. Read this document, [end-to-end testing](./end-to-end-testing.md), and
+   `AGENTS.md`.
+3. Inspect recently touched `*.test.ts` / `*.test.mjs` (and adjacent production
+   exports those tests uniquely own). Agents may add many tiny regression cases
+   while implementing — keep that habit during the feature work; trim afterward.
 4. For each low-signal case: **edit, combine, or delete** so the suite stays
    high-signal. Prefer fewer longer workflow tests.
 5. Never delete house registry / Fallow / ESI-dataset / API-matrix / purge gates
