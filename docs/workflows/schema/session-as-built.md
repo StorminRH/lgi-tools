@@ -107,9 +107,9 @@ Use exactly one ordered line per plan criterion and one review receipt:
 ```
 
 Every plan `SC-N` appears once, in order, and is `Passed`; grouped ranges and a
-bare command or suite name are invalid. Diff-mode close-out writes `PASS` (the
-adversarial-review Diff result). Legacy `CLEAN` and `CORRECTED` remain accepted
-for earlier as-builts. The review receipt records requested and observed runtime identity separately
+bare command or suite name are invalid. Close-out adversarial-review writes
+`PASS`. Legacy `CLEAN` and `CORRECTED` remain accepted for earlier as-builts.
+The review receipt records requested and observed runtime identity separately
 and never infers one from the other. Structured criterion and review receipts
 bind from session `4.0.2.2.1` onward; earlier as-built records remain a frozen
 legacy exception under the resolver's execution-receipt floor.

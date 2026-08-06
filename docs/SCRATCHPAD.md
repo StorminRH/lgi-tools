@@ -234,10 +234,10 @@ active health and update-watch state. The full scratchpad as it stood at the
 
 - Repository rules and invariants: root and scoped `AGENTS.md` files, plus the
   owning workflow or schema under `docs/workflows/`.
-- High-signal Vitest / Keep-Tests-Tight deletion bar:
-  `docs/contributing/testing-principles.md` (linked from `AGENTS.md`). Local
-  `pnpm verify` with the db harness reachable remains the gate of record when
-  real-Postgres suites are the sole falsifier.
+- High-signal Vitest deletion bar:
+  `docs/contributing/testing-principles.md`. Local `pnpm verify` with the db
+  harness reachable remains the gate of record when real-Postgres suites are
+  the sole falsifier.
 - Deferred, unassigned work: `docs/backlog.md`.
 - User-facing and internal ship history: `content/changelog/` and git history.
 - Per-session planned delivery truth from the 3.10 binding floor:

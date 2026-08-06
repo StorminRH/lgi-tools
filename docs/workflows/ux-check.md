@@ -1,101 +1,78 @@
 # UX-check procedure
 
-Exercise changed user-facing surfaces against the local development server with
-**log-driven Playwright** (assertions, console, page errors, network). On
-failure only, write screenshots/traces under `docs/ux-check/captures/`. The
-operator reviews visual feel in their own browser; agents never use always-on
-screenshots or browse the site for visual approval.
+Exercise changed user-facing routes with **log-driven Playwright** (assertions,
+console, page errors, network). Write screenshots/traces under
+`docs/ux-check/captures/` on failure only. Operator reviews visual feel in
+their browser — never always-on screenshots or agent visual approval.
 
-This procedure is a local development aid, not a `pnpm verify` or CI gate. Route
-sweep and probes exit non-zero on hard assertion/console/page failures; network
-findings still require disposition. Use Diff-mode
-`docs/workflows/adversarial-review.md` when a UX finding exposes ownership or
-interface decay rather than a local presentation defect.
+Local aid only: not a `pnpm verify` or CI gate. Sweeps/probes exit non-zero on
+hard assertion/console/page failures; network findings still need disposition.
+Use `adversarial-review` when a finding is ownership or interface decay.
 
 ## Execution contract
 
-Required inputs:
+Inputs: (1) complete change diff and affected user-facing routes; (2) running
+local stack that renders them truthfully; (3) durable open-state probe
+definitions for changed interactions; (4) for auth probes — seeded storage
+state (`pnpm e2e:seed` → `docs/ux-check/captures/auth-storage.json`),
+`UX_STORAGE_STATE` / `--storage-state`, or operator cookie jar (`UX_COOKIE_JAR`
+/ `--cookie-jar`). `pnpm test:e2e` uses Playwright `storageState` only (local
+seed by default, or `E2E_STORAGE_STATE` / `UX_STORAGE_STATE` with
+`E2E_SKIP_SEED=1`).
 
-1. The complete change diff and the user-facing routes it can affect.
-2. A running local stack capable of rendering those routes truthfully.
-3. Any durable open-state probe definitions required by changed interactions.
-4. For authenticated probes: seeded storage state
-   (`pnpm e2e:seed` → `docs/ux-check/captures/auth-storage.json`),
-   `UX_STORAGE_STATE` / `--storage-state`, or an operator cookie jar
-   (`UX_COOKIE_JAR` / `--cookie-jar`). `pnpm test:e2e` uses Playwright
-   `storageState` only (local seed by default, or `E2E_STORAGE_STATE` /
-   `UX_STORAGE_STATE` with `E2E_SKIP_SEED=1` for an operator export).
-
-Required output: `UX_EVIDENCE` naming the probed routes and viewports, route and
-probe diagnostics, any failure artifact paths, an **operator visual checklist**,
-and the operator-review status.
-
-Stop with `BLOCKED` when the local stack cannot represent required behavior or a
-diagnostic remains unexplained. A completed clean sweep returns
-`READY_FOR_REVIEW` with the operator review marked `Pending`, then pauses for
-that review. Do not open a PR from this workflow.
+Output: `UX_EVIDENCE` naming probed routes/viewports, diagnostics, failure
+artifact paths, an **operator visual checklist**, and review status. `BLOCKED`
+when the stack cannot represent required behavior or a diagnostic stays
+unexplained. Clean sweep → `READY_FOR_REVIEW` with review `Pending`, then
+pause. Do not open a PR from this workflow.
 
 ## 1. Resolve the capture surface
 
-Probe only routes affected by the change. Start from both committed and
-uncommitted changes:
+Probe only routes the change affects:
 
 ```bash
 git diff --name-only $(git merge-base HEAD origin/main)..HEAD
 git diff --name-only
 ```
 
-Map route files directly. For shared feature or UI code, search the repository
-for route and component consumers. Use `repo-mapper` (Codegraph CLI: `callers`,
-`callees`, `impact`, `query`) only for material relationship, consumer,
-dependency, or blast-radius claims. Replace each dynamic segment with a real
-locally available identifier obtained from the owning list page or database;
-never treat an example identifier as a fixture.
+Map route files directly. For shared feature/UI code, find consumers. Use
+`repo-mapper` (Codegraph: `callers`, `callees`, `impact`, `query`) only for
+material relationship, consumer, dependency, or blast-radius claims. Replace
+dynamic segments with real local identifiers from the owning list page or
+database — never example ids as fixtures.
 
-Anonymous sweeps verify signed-out gates. For signed-in shells, seed auth first
-(`pnpm e2e:seed`) and pass `--storage-state=docs/ux-check/captures/auth-storage.json`.
+Anonymous sweeps verify signed-out gates. Signed-in: `pnpm e2e:seed`, then
+`--storage-state=docs/ux-check/captures/auth-storage.json`.
 
 ## 2. Establish the local server
-
-Probe before starting another process:
 
 ```bash
 curl -sf -o /dev/null http://localhost:3000 && echo UP || echo DOWN
 ```
 
-- Reuse an answering server when it represents the current worktree.
-- Otherwise start the stack required by the selected routes. `pnpm dev` starts
-  Next.js and expects configured local Docker Postgres; use `pnpm dev:all` when
-  the route also needs the repository-managed Postgres and Convex services.
-- Browse `http://localhost:3000`, never `127.0.0.1`, for Next origin checks.
-
-Ensure Chromium is available before the first run:
-
-```bash
-pnpm exec playwright install chromium
-```
+Reuse an answering server when it represents the current worktree. Otherwise
+start what the routes need: `pnpm dev` (Next.js + configured local Docker
+Postgres) or `pnpm dev:all` (also repo-managed Postgres and Convex). Browse
+`http://localhost:3000`, never `127.0.0.1`. Before first run:
+`pnpm exec playwright install chromium`.
 
 ## 3. Run the log-driven route sweep
-
-Pass concrete paths only:
 
 ```bash
 pnpm ux-check /sites /industry
 pnpm ux-check /industry --storage-state=docs/ux-check/captures/auth-storage.json
 ```
 
-Defaults: desktop 1440×900 and mobile 390×844. Optional:
-`--viewport=desktop`, `--base-url=…`, `--settle=2000`, `--cookie-jar=…`,
-`--storage-state=…`. Set `VERCEL_AUTOMATION_BYPASS_SECRET` when targeting a
-protected Vercel preview/production URL.
-
-Evidence lands in gitignored `docs/ux-check/captures/report.json`. Failure
-PNGs use the `*--failure.png` suffix in the same directory.
+Defaults: desktop 1440×900, mobile 390×844. Optional: `--viewport=desktop`,
+`--base-url=…`, `--settle=2000`, `--cookie-jar=…`, `--storage-state=…`. Set
+`VERCEL_AUTOMATION_BYPASS_SECRET` for protected Vercel preview/production URLs.
+Evidence: gitignored `docs/ux-check/captures/report.json`. Failure PNGs:
+`*--failure.png` in the same directory.
 
 ## 4. Run required open-state probes
 
-Use the shared probe runner for dialogs, popovers, menus, toasts, mock-backed
-states, or other durable interactions:
+Shared runner for dialogs, popovers, menus, toasts, mock-backed states, or
+other durable interactions:
 
 ```bash
 node docs/ux-check/run-probes.mjs --list
@@ -104,57 +81,45 @@ pnpm e2e:seed
 node docs/ux-check/run-probes.mjs --storage-state=docs/ux-check/captures/auth-storage.json atlas-window-dock
 ```
 
-The runner uses isolated desktop and mobile contexts and writes
-`docs/ux-check/captures/probes/report.json`. It fails for a failed assertion,
-probe crash, `style-src` violation, unfiltered console error, or uncaught page
-error; reported network failures still require disposition. Proactive `shot()`
-calls are no-ops; failure screenshots are written automatically.
-
-Add recurring interactions as definitions under `docs/ux-check/probes/` using
-`docs/ux-check/README.md`. Do not add another standalone Playwright launcher.
-Delete any temporary `*-probe.mjs` diagnosis script before close-out.
+Isolated desktop/mobile contexts; writes
+`docs/ux-check/captures/probes/report.json`. Fails on assertion failure, probe
+crash, `style-src` violation, unfiltered console error, or uncaught page error;
+network findings still need disposition. Proactive `shot()` is a no-op; failure
+screenshots write automatically. Add recurring interactions under
+`docs/ux-check/probes/` per `docs/ux-check/README.md`. No standalone Playwright
+launchers. Delete temporary `*-probe.mjs` scripts before close-out.
 
 ## 5. Optional authenticated smoke
 
 When account-adjacent shells matter and Vitest cannot falsify them:
-
-```bash
-pnpm test:e2e
-```
-
-See `docs/contributing/end-to-end-testing.md`. Keep the suite tiny.
+`pnpm test:e2e`. See `docs/contributing/end-to-end-testing.md`. Keep the suite
+tiny.
 
 ## 6. Report and pause for operator visual review
 
-1. Read `docs/ux-check/captures/report.json` and, when probes ran,
-   `docs/ux-check/captures/probes/report.json` (and e2e report when run).
-2. Report every console or page error, failed request, and 4xx/5xx response by
-   route or probe and viewport. Include the first diagnostic message and its
-   disposition. Link any failure artifact paths for diagnosis only.
-3. **Do not** open the site to visually approve layout. Build an operator
-   checklist of routes/interactions to open locally (and production when
-   relevant).
-4. Return `UX_EVIDENCE`, pause for the operator's browser review. Do not open a
-   PR from this workflow. `close-out` consumes the recorded disposition and does
-   not re-run this sweep or pause.
+1. Read `docs/ux-check/captures/report.json` and, when run,
+   `docs/ux-check/captures/probes/report.json` (and e2e report).
+2. Report every console/page error, failed request, and 4xx/5xx by route or
+   probe and viewport — first diagnostic and disposition. Link failure artifacts
+   for diagnosis only.
+3. Do not open the site to approve layout. Build an operator checklist of
+   routes/interactions to open locally.
+4. Return `UX_EVIDENCE`, pause for operator browser review. Do not open a PR.
+   `close-out` consumes the disposition — no re-run or pause.
 
-In planned lifecycle work with `UX gate: Yes`, this procedure is the body of a
-dedicated Ordered work step under `start-session`; complete the operator pause
-there before `n/n complete — awaiting close-out`. In ordinary work, run this
-skill standalone, complete the operator pause, then invoke `close-out`.
-
-The required sequence is `ux-check` evidence → operator review → `close-out`.
+Planned lifecycle with `UX gate: Yes`: dedicated Ordered work step under
+`start-session` — finish the operator pause before `n/n complete — awaiting
+close-out`. Ordinary work: run standalone, finish the pause, then `close-out`.
+Sequence: `ux-check` → operator review → `close-out`.
 
 ## Remote / production log probes
 
-Agents must not visually inspect production. For deployment proof scripts:
+Do not visually inspect production. For deployment proof:
 
 | Need | Mechanism |
 | --- | --- |
-| Vercel Deployment Protection | `VERCEL_AUTOMATION_BYPASS_SECRET` via origin-scoped Playwright route (`installOriginScopedBypass`) — never context-wide `extraHTTPHeaders` (that would send the secret to third-party origins) |
-| App session on remote | Operator-exported Netscape `--cookie-jar` or Playwright `--storage-state` |
-
-Example:
+| Vercel Deployment Protection | `VERCEL_AUTOMATION_BYPASS_SECRET` via origin-scoped Playwright route (`installOriginScopedBypass`) — never context-wide `extraHTTPHeaders` |
+| App session on remote | Operator Netscape `--cookie-jar` or Playwright `--storage-state` |
 
 ```bash
 VERCEL_AUTOMATION_BYPASS_SECRET=… pnpm verify:site-routes -- https://….vercel.app --cookie-jar ~/lgi-prod-cookies.txt
@@ -174,4 +139,4 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 - **Blocker:** <exact blocker or `None`>
 ```
 
-The remaining `UX_EVIDENCE` detail stays in the report JSON files.
+Remaining detail stays in the report JSON files.

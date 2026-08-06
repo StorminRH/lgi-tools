@@ -1,351 +1,167 @@
 # Close-out procedure
 
-This is the sole end-to-end close-out sequence. It runs one delivery pipeline in
-one of two modes.
+Sole end-to-end ship path. Two modes — never infer mode from a branch prefix.
 
 ## Mode selection
 
-Never infer the mode from a branch prefix alone.
+- **Planned** when `start-session` dispatched close-out with a valid
+  `session-ready`/`execute` directive on `lifecycle/<sub-version>`, or a
+  dedicated close-out chat after an OW handoff that names planned mode, the
+  resolver still reports that session, the plan's `Execution status` is
+  `Pending`, and SCRATCHPAD shows `n/n complete — awaiting close-out`. Owns
+  version, roadmap, session-plan, and pending-fragment absorption.
+- **Ordinary** on any direct "close out" / "ship it" that does not meet planned
+  conditions. No resolver, no release-consistency, no edits to `APP_VERSION`,
+  public version headings, roadmap, or session execution state — exactly one
+  pending changelog fragment instead.
 
-- **Planned mode** when either:
-  1. `start-session` dispatched this close-out with a valid resolver
-     `session-ready`/`execute` directive — its `handler` is `start-session` and
-     its `branch` names the sub-version's `lifecycle/<sub-version>` branch, or
-  2. the operator opens a dedicated close-out chat after an Ordered-work
-     handoff that names planned mode, the live resolver still reports
-     `session-ready` / `execute` for that session, the approved plan's
-     `Execution status` is `Pending`, and SCRATCHPAD **OW progress** shows all
-     Ordered work complete for that session (`n/n complete — awaiting
-     close-out`).
-  Planned mode owns the version, roadmap, session-plan, and pending-fragment
-  absorption work.
-- **Ordinary mode** on any direct invocation ("close out", "ship it") that does
-  not meet a planned-mode condition above. The absence of a resolver directive
-  is normal for ordinary work and is not an error. Ordinary work never runs the
-  resolver or the release-consistency checker and never edits `APP_VERSION`, a
-  public version heading, roadmap state, or session execution state; it records
-  exactly one pending changelog fragment instead.
-
-Do not invent planned mode from a lifecycle branch name alone. Mid-session
-Ordered work resumes through `start-session`, not through close-out.
-
-Steps below are marked **(shared)**, **(planned)**, or **(ordinary)**. Shared
-steps run in both modes.
+Mid-session Ordered work resumes through `start-session`, not close-out.
+Steps are **(shared)**, **(planned)**, or **(ordinary)**.
 
 ## Execution contract
 
-Required inputs:
+Inputs:
 
-1. **(planned)** The resolver directive or the dedicated close-out handoff that
-   selects planned mode, the approved contract and plan, master-plan status, and
-   SCRATCHPAD proof that all Ordered work for the session is complete
-   (`n/n complete — awaiting close-out`). If Ordered work remains, stop
-   `BLOCKED` and send the operator back to `start-session` for the next step —
-   close-out must not absorb leftover Ordered work.
-2. **(shared)** Focused behavior, local, and UX evidence required by the changed
-   surface, plus the complete branch diff. When the change is user-facing,
-   that UX evidence must already include completed `ux-check` log reports (and
-   any failure artifacts), plus the operator's browser-review disposition (or
-   an explicit not-applicable reason). Close-out consumes that evidence; it
-   does not invoke `ux-check` or re-own the operator pause.
-3. **(shared)** Current implementation-review, release, health-baseline, and
-   workflow-policy state.
+1. **(planned)** Directive or handoff selecting planned mode, approved contract
+   and plan, master-plan status, and OW-complete SCRATCHPAD. If Ordered work
+   remains, `BLOCKED` — return to `start-session`.
+2. **(shared)** Focused/local/UX evidence for the changed surface plus the full
+   branch diff. User-facing work requires completed `ux-check` reports and the
+   operator's browser-review disposition (or not-applicable). Close-out
+   consumes that evidence; it does not invoke `ux-check`.
+3. **(shared)** Current review, release, baseline, and workflow-policy state.
 
-Required outputs are exactly one of:
+Outputs (exactly one):
 
-- `SESSION_HANDOFF` **(planned)**: another approved session remains in the
-  sub-version; Ordered work commits plus any remaining lifecycle-only delta are
-  pushed to the lifecycle branch, its session plan reads
-  `Execution status: Complete`, the durable handoff points to the next session,
-  and no PR is opened.
-- `MERGED` **(shared)**: the change passes Diff-mode implementation review and
-  verification, the PR is reviewed and merged through the gate of record, and
-  exact production proof is complete. In planned mode the merged PR already
-  carries the truthful post-merge lifecycle state; in ordinary mode one valid
-  pending changelog fragment is the only durable lifecycle record.
-- `BLOCKED` **(shared)**: a named operator gate, scope conflict, failed mandatory
-  check, or external-state condition prevents a truthful handoff or merge.
+- `SESSION_HANDOFF` **(planned)** — more sessions remain; plan `Complete`,
+  handoff pointed, lifecycle branch pushed, no PR.
+- `MERGED` **(shared)** — adversarial-review, verify, PR, merge, and production
+  proof complete.
+- `BLOCKED` **(shared)** — named gate, scope conflict, failed check, or
+  external-state block.
 
-Stop with `BLOCKED` rather than bypassing, weakening, or substituting for a gate.
-Do not infer approval for a merge, deployment, promotion, production mutation,
-or destructive recovery beyond explicit authorization.
-
-Track each applicable phase below plus one final result. Keep exactly one phase
-active. Attach the phase's required evidence before completing it; a bare
-assertion such as "checked" or "looks good" is not evidence. Reopen only phases
-and verification invalidated by a later change. Moving to another phase, editing
-PR metadata, or adding a lifecycle-only status commit does not invalidate
-current-head application evidence.
+One active phase at a time; attach real evidence before completing it. Reopen
+only phases invalidated by a later change.
 
 ## End-of-session review and local proof (shared)
 
-1. Fix every in-scope problem discovered during the session on the current
-   branch. Prefer pausing to reshape and absorb corrections in this session.
-   Backlog only when the operator explicitly cuts scope; record that rare cut
-   once in `docs/backlog.md` with what, why, rough size, and its dependency or
-   trigger.
-2. Run the session judgment review against the session diff. These checks are
-   mandatory every session and happen before the final mechanical gates; when a
-   check is irrelevant, record that its surface was not touched.
-   1. **Scope discipline.** Remove work the change did not need. Diff-mode
-      `adversarial-review` owns interface depth, semantic duplication, and
-      whole-branch change amplification, so do not repeat those audits here.
-   2. **Data placement.** For every added or moved ESI-fed dataset, confirm its
-      declaration, upstream cache time, authoritative store, freshness owner,
-      key shape, purge coverage, and regenerability. Convex remains derived and
-      never writes to Neon; timer-like state remains an absolute end timestamp.
-   3. **Rendering mode.** For every added or changed route, reason from the most
-      static honest mode, keep request data inside Suspense boundaries, and
-      reconcile both the route mode and its reason in
-      `scripts/route-classification.json`. Production-mode builds remain
-      forbidden before merge.
-   4. **Interactive UI.** Confirm each interaction uses the adopted library and
-      the shared wrapper in `src/components/ui/`, respects repository styling
-      rules, and matches its keyboard, pointer, and touch affordance.
-   5. **Public-document truth.** Recheck any affected claims in `README.md`,
-      `CONTRIBUTING.md`, `SECURITY.md`, `.github/`, `.env.example`, and the
-      `/legal` surface. Correct small drift in-branch and raise a material scope
-      conflict for in-session operator discussion instead of shipping
-      misinformation.
-3. Verify the changed behavior on the local development surface while the
-   server is still running. Use the local Docker database or direct API checks
-   as appropriate, and use a manual preview only when local data cannot
-   represent the behavior. Never run `pnpm build`, `next build`,
-   `pnpm vercel-build`, or another production-mode build before merge.
-4. **(ordinary)** If the change affects user-facing behavior or appearance,
-   require prior `ux-check` evidence and the operator's local-browser-review
-   disposition (run standalone `ux-check` before this close-out when missing).
-   Do not invoke `ux-check` or re-pause here. Do not enter the
-   implementation-review gate until that disposition is recorded or the surface
-   is explicitly not applicable. Planned execution completes the same gate in a
+1. Fix in-scope session problems on the branch. Prefer absorb here; backlog
+   only on explicit operator scope cut (`docs/backlog.md`: what, why, size,
+   trigger).
+2. Judgment review (record not-touched when irrelevant):
+   - **Scope** — remove unneeded work. `adversarial-review` owns depth /
+     duplication / amplification — do not repeat those audits here.
+   - **Data** — ESI-fed datasets: declaration, cache time, store, freshness
+     owner, key shape, purge, regenerability. Convex is derived; never writes
+     Neon; timers are absolute end timestamps.
+   - **Rendering** — most static honest mode; request data in Suspense;
+     update `scripts/route-classification.json`. No production builds before
+     merge.
+   - **UI** — adopted library + `src/components/ui/` wrappers; keyboard /
+     pointer / touch.
+   - **Public docs** — fix drift in README, CONTRIBUTING, SECURITY, `.github/`,
+     `.env.example`, `/legal`.
+3. Verify on local dev (Docker DB / API). Never `pnpm build` / `next build` /
+   `pnpm vercel-build` before merge.
+4. **(ordinary)** User-facing changes need prior `ux-check` + operator
+   disposition before the implementation-review gate. Planned work uses a
    dedicated UX Ordered work step under `start-session` before awaiting
    close-out.
 
-Phase evidence: disposition of every session finding, one verdict for each
-judgment-review surface, and the focused/local/UX proof or explicit
-not-applicable reason.
-
 ## Session memory and the final-session fork (planned)
 
-This section runs in planned mode only. Under the one-sub-version-PR delivery
-unit, one sub-version uses one lifecycle branch and one eventual PR; multiple
-scoped sessions may contribute verified commits before that PR opens. When any
-indexed contract in the sub-version declares one PR per session, that delivery
-unit applies to the whole sub-version and every session instead proceeds through
-**Implementation review gate** toward its own PR. This preserves earlier frozen
-contracts when an approved operator restructure adds later per-session
-contracts. A non-final such PR publishes no version, leaves the release triplet
-and changelog untouched so its identity stays `reconciled`, must work end to end
-on its own, and its as-built record carries its own PR number; after each squash
-merge the lifecycle branch is recreated from current `origin/main`. Ordinary
-mode has no session-plan status, no next-session pointer, and no
-final-vs-non-final fork — it always proceeds toward a single PR; skip to
-**Implementation review gate**.
+One sub-version → one lifecycle branch → one PR unless indexed contracts say
+one PR per session (then every session opens its own). Ordinary skips this
+section — go to **Implementation review gate**.
 
-1. Determine from the approved contract index, master-plan row, and session
-   plan whether another approved session remains in the sub-version. Record the
-   next session id or `Final session`; do not infer from branch age or filenames.
-2. If more sessions remain under the one-sub-version-PR delivery unit, continue
-   at **Implementation review gate** with Design notes deferred to the final
-   session. After that review and **Finalize and verify the current head**
-   produce commit-and-push evidence, change the approved plan's
-   `Execution status` from `Pending` to `Complete`, author the session's
-   as-built record per `docs/workflows/schema/session-as-built.md` (its `PR`
-   marker defers to the sub-version's final session), point the durable handoff
-   (`docs/SCRATCHPAD.md`) at the next session, and make the required lifecycle
-   commit and push to the lifecycle branch. A lifecycle-only status commit does
-   not rerun application tests. Stop without opening a PR (`SESSION_HANDOFF`).
-3. If this is the final session, the sub-version's remaining state ships inside
-   its PR. Continue only when the sub-version works end to end, depends on
-   nothing unmerged, and the PR is reviewable as one cohesive change. The final
-   session is marked `Execution status: Complete` during **Implementation
-   review gate** version finalization, before the PR opens — not after merge.
-4. Read the session contract's `UX gate` marker. `Yes` means a dedicated UX
-   Ordered work step under `start-session` must already have invoked `ux-check`
-   and recorded the operator's local-browser-review disposition before this
-   close-out began; verify that disposition in SCRATCHPAD, the in-context proof
-   ledger, or the session as-built draft inputs. `No` skips that requirement.
-   Do not re-run `ux-check` or re-own the pause here. Missing required UX
-   disposition returns `BLOCKED` and sends the operator back to `start-session`
-   for the UX Ordered work step (or standalone `ux-check` when resuming outside
-   OW).
-
-Phase evidence: `Remaining session: <id>` or `Final session`, the applicable UX
-gate value, and the recorded operator-review disposition or `N/A`. A required
-operator review that has not completed returns `BLOCKED`.
+1. From contract index, master-plan row, and session plan: next session id or
+   `Final session`.
+2. Non-final under one-sub-version-PR: **Implementation review gate** without
+   PR Design notes → **Finalize and verify the current head** → plan
+   `Execution status: Complete`, as-built per
+   `docs/workflows/schema/session-as-built.md` (PR marker deferred to final),
+   SCRATCHPAD handoff, lifecycle commit+push. Stop (`SESSION_HANDOFF`).
+3. Final session: continue only when the sub-version is cohesive and reviewable
+   as one PR. Mark `Complete` during Implementation review gate finalization,
+   before the PR opens.
+4. Contract `UX gate: Yes` requires a dedicated UX Ordered work step that
+   already invoked `ux-check` and recorded operator disposition — verify in
+   SCRATCHPAD/proof ledger. `No` skips. Missing required disposition →
+   `BLOCKED` back to `start-session`.
 
 ## Implementation review gate (shared)
 
-This is the sole design-and-independent-review stage before the full
-verification checkpoint. It runs for ordinary work, for the final planned
-session, for every session in a sub-version whose effective delivery unit is
-one PR per session, and for non-final handoff sessions under the
-one-sub-version-PR delivery unit. It owns whole-branch design judgment and the
-independent Diff-mode review in one invocation. Do not launch a second
-design-agent or adversarial round after it. It does not repeat the
-session-level data placement, rendering, UI, or public-truth review.
+Sole design-and-independent-review stage before full verify. Do not launch a second
+adversarial round after it.
 
-1. **(shared)** Invoke `adversarial-review` in Diff mode against the complete
-   working-tree change. Supply the direct request or frozen contract-and-plan
-   chain, the current base, the complete tracked patch and untracked inventory,
-   focused and UX evidence, and the current code-health baseline. Keep the
-   worktree stable while reviewers run. That procedure owns role selection
-   (agents once), receipt, design-creed reconcile, in-scope fixes, baseline
-   updates, and Design notes; do not restate its mechanics here. A required
-   role that cannot run, a claim that direct evidence cannot settle, or a
-   material design conflict returns `BLOCKED`. Do not automatically relaunch
-   adversarial-review.
-2. Continue only with Diff-mode `PASS`. The following full checkpoint validates
-   the resulting final bytes.
-3. Finalize every delivery record that would otherwise create a later commit,
-   before the final current-head gates and before opening the PR:
-   - **(ordinary)** Create exactly one valid pending changelog fragment for the
-     shipped work in `content/changelog/pending/`, following
-     `docs/workflows/schema/changelog-pending.md`. Do not bump `APP_VERSION`,
-     write any `### vX.Y.N` heading, edit the roadmap, or touch session execution
-     state. Use the Design notes from Diff mode for the PR's `## Notes`.
-   - **(planned, non-final session shipping its own PR)** Leave the release
-     triplet, changelog, and pending inbox untouched; mark the session plan
-     `Execution status: Complete` and use the Design notes from Diff mode for
-     the PR's `## Notes`.
-   - **(planned, non-final handoff under one-sub-version-PR)** Skip delivery
-     finalization and PR Design notes here; Diff mode may record
-     `Design notes: deferred to final session`.
-   - **(planned, final session)** Safely synchronize with current `origin/main`
-     (fetch and integrate without discarding local work) so any pending fragments
-     already merged there are present locally. Then freeze the release candidate:
-     absorb every pending fragment present at this cutoff into the new
-     `### vX.Y.N` entry per `docs/workflows/schema/changelog-pending.md` (ordered
-     by `date` then file name, grouped by category, each bullet carried over
-     verbatim), delete the consumed fragment files in this same PR, prepend the
-     new entry using
-     `docs/workflows/schema/changelog-entry.md`, bump `APP_VERSION` to that
-     version, set the delivered sub-version's roadmap row to its terminal status,
-     mark the final session plan `Execution status: Complete`, and prepare the PR
-     `## Notes` from Diff-mode Design notes. Anything merged into the inbox after
-     this cutoff stays pending for the following planned release.
-
-Phase evidence: the exact Diff-mode `PASS` result, reviewed working-tree base
-and patch digest, every selected reviewer verdict and compact receipt including
-requested and observed runtime identity, selected roles and completion states,
-accepted and rejected dispositions, reconciled hotspot/baseline state or a
-not-applicable verdict, Design notes or deferred-handoff marker, and — per mode —
-the created pending fragment path (ordinary) or the finalized changelog,
-absorbed-fragment list, `APP_VERSION`, terminal roadmap row, and final session
-status (planned).
+1. **(shared)** Invoke `adversarial-review` against the complete working-tree
+   change (request or contract/plan, base, patch + untracked inventory,
+   focused/UX evidence, baseline). Keep the worktree stable. Contested items
+   surface in chat — no deferral inside the review. Continue only with
+   `PASS`.
+2. Finalize delivery records before gates and before opening a PR:
+   - **(ordinary)** One pending fragment in `content/changelog/pending/` per
+     `docs/workflows/schema/changelog-pending.md`. No `APP_VERSION` / version
+     heading / roadmap / session-status edits. Design notes → PR `## Notes`.
+   - **(planned, own PR, non-final)** Leave release triplet untouched; plan
+     `Complete`; Design notes → PR `## Notes`.
+   - **(planned, handoff, one-sub-version-PR)** Skip delivery finalization and
+     Design notes.
+   - **(planned, final)** Sync `origin/main`, absorb pending fragments into
+     `### vX.Y.N` per changelog-pending, delete consumed fragments, prepend via
+     `docs/workflows/schema/changelog-entry.md`, bump `APP_VERSION`, terminal
+     roadmap row, plan `Complete`, Design notes → PR `## Notes`.
 
 ## Finalize and verify the current head (shared)
 
-This is the single full verification checkpoint for the completed head. Do not
-repeat it at the implementation-review or PR-opening boundary when the head is
-unchanged.
+Single full verification checkpoint for the completed head. Do not repeat at
+PR open when the head is unchanged.
 
-1. Confirm the finalized diff still matches the adversarially reviewed subject
-   plus its recorded corrections and the delivery records finalized in the
-   Implementation review gate. Inspect it against the change's scope — the
-   session contract and approved plan in planned mode, or the direct request in
-   ordinary mode — plus prohibited surfaces. Remove anything outside those
-   boundaries, confirm every required surface is present, and screen all tracked
-   content for personal information before mechanical verification begins.
-   **(planned)** Expand each plan `SC-N` into an in-context atomic proof ledger
-   and confirm every required observable. A passing command, test name, or
-   grouped criterion range is not proof. Stop `BLOCKED` if any observable is
-   absent. A material framework limit or public-interface divergence must already
-   have been settled by in-session operator discussion during execution; record
-   it in the as-built under `Operator:` or `Evidence:` authority.
-   Never return this session to `plan-session`. The as-built cannot invent
-   authority after the fact, but it is the forward closure record for
-   authorized reshapes.
-2. Reconcile durable memory before any final mechanical gate can be invalidated
-   by another documentation edit. **(ordinary and planned final session)** update
-   `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and contract
-   cannot know; remove shipped or superseded detail; collapse mid-session
-   **OW progress** / **OW completed** / **Next-agent notes** rows into durable
-   gotchas or drop them. Prefer absorbing work in this session; if the operator
-   explicitly cut scope, keep that rare deferred work only in `docs/backlog.md`.
-   **(planned non-final session)** collapse those mid-session OW rows the same
-   way, then defer the session status and handoff pointer to the lifecycle-only
-   commit in the fork above.
-3. Run every cheap workflow check that can still lead to an edit: agent policy
-   and `python3 tools/cli.py test` after changing shared guides, skills, hooks,
-   or workflow policy; document references after changing live documentation;
-   the pending-changelog checker whenever a fragment changed; the read-only
-   baseline-claims and watch-trigger reporters; and any specialized checker
-   named by the approved plan. **(planned)** also run release consistency.
-   Ordinary mode does not run release consistency. Fix or reconcile every
-   finding before the definition-of-done checkpoint; surface every
-   `promote AF-NNN` result to the operator because neither reporter promotes
-   findings itself.
-4. Shut down the Next.js and local Convex development processes after all agent
-   and operator local review is finished, confirm their ports no longer answer,
-   and clear `.next`. Leave the small persistent Docker Postgres service running
-   unless the session has another reason to stop it.
-5. Reconcile only deliberately ignored local state touched by the session:
-   runtime-local settings and worktrees, generated reports or failure artifacts,
-   temporary PR body files, `.codegraph/`, and comparable declared local
-   artifacts. Remove credential-bearing permissions and session-only output;
-   tracked guides, hooks, workspace docs, and `tools/` utilities ship normally.
-6. Run the sole coverage-backed definition-of-done checkpoint once on the
-   finalized head:
+1. Diff still matches the reviewed subject + corrections + delivery records.
+   Screen scope and PII. **(planned)** Expand each plan `SC-N` into an
+   in-context atomic proof ledger — every required observable. A passing
+   command or suite name is not proof. Missing observable → `BLOCKED`.
+   Never return this session to `plan-session`.
+2. Reconcile `docs/SCRATCHPAD.md` (durable gotchas only; collapse OW rows).
+   Operator-cut scope stays only in `docs/backlog.md`.
+3. Cheap checks that can still edit: agent policy + `python3 tools/cli.py test`
+   after guide/skill/hook/policy changes; doc refs; pending-changelog checker;
+   baseline-claims / watch-trigger reporters; plan-named checkers.
+   **(planned)** also release consistency. Fix before verify.
+4. Stop local Next.js/Convex after review; clear `.next`. Leave Docker Postgres
+   running unless stopping for another reason.
+5. Clean session-only ignored artifacts (credentials, temp PR bodies,
+   `.codegraph/`, failure captures). Tracked guides/tools ship normally.
+6. Definition of done once:
 
    ```bash
    FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify
    ```
 
-   This runs typecheck, zero-warning lint, one coverage-enabled Vitest suite,
-   and coverage-backed Fallow. Fix failures with meaningful behavioral coverage
-   or a simpler design and rerun the invalidated gate after a fix. A failure
-   leaves `coverage/` available for diagnosis; remove it only after the final
-   successful pass so no later session can reuse stale attribution. Entering a
-   later workflow section does not make current-head evidence stale.
-7. After the successful checkpoint, make a read-only confirmation that the
-   worktree still matches the preflighted scope and that no application, test,
-   executable, dependency, or verification-configuration change occurred after
-   it. Any such change invalidates the checkpoint and returns to the applicable
-   preflight and verification steps; a lifecycle-only record does not. For
-   planned sessions, Ordered work steps are already committed under
-   `start-session`. If SCRATCHPAD claims Ordered work complete but the tree
-   still holds uncommitted OW implementation, return `BLOCKED` and send the
-   work back through `start-session` rather than absorbing it here.
-8. Commit any remaining unverified-or-lifecycle-only delta on the already
-   OW-committed branch in the repository's conventional plain-English style —
-   a conventional subject under 72 characters, lowercase after the prefix,
-   describing the project outcome rather than files or symbols — and push the
-   branch. No preview is created automatically. When the verified head is
-   already fully committed and only needs push, push without inventing an empty
-   commit.
-9. **(planned)** Follow the fork above: a non-final session completes its plan
-   and SCRATCHPAD handoff in the lifecycle-only commit when that delta remains,
-   then stops; a final session has already set its plan `Complete` during
-   finalization and continues to the PR.
-
-Phase evidence: finalized-diff boundary verdict, output from every applicable
-cheap workflow check, the successful pinned `pnpm verify` result tied to the
-verified head, read-only no-change confirmation, commit SHA, push result, and
-the lifecycle-memory disposition.
+7. Confirm the worktree still matches preflighted scope and that no
+   application, test, executable, dependency-manifest, lockfile, or
+   verification-configuration change occurred after verify. Any such change
+   invalidates the checkpoint and returns to the applicable preflight and
+   verification steps. Uncommitted OW implementation with SCRATCHPAD claiming
+   complete → `BLOCKED` back to `start-session`.
+8. Commit and push (plain-English conventional style). Push without an empty
+   commit when already fully committed.
+   - **(ordinary)** Commit all verified scoped changes plus the pending
+     fragment.
+   - **(planned)** Commit any remaining lifecycle-only delta (plan status,
+     as-built, SCRATCHPAD handoff, release records). Ordered-work commits
+     already cover implementation.
+9. **(planned)** Non-final stops after handoff; final continues to the PR.
 
 ## The PR and external-review loop (shared)
 
-1. Before opening the PR, confirm the verification evidence names the current
-   head. If the head has not changed since **Finalize and verify the current
-   head**, reuse that evidence and do not rerun the test suite or coverage.
-2. Open one **draft** PR from the branch to `main`, or reuse the one open PR
-   already owned by a canonical review-only workflow. A reused ready PR does not
-   move backward to draft; settle any active review before another push and
-   retain its current-head evidence. Describe the coherent project outcome, not
-   a file list, using these headings in order:
-   `## What this does`, `## Why`, `## Notes`, and `## Test plan`. Record the
-   existing verification as past-tense evidence. Do not manually trigger a
-   reviewer while the PR is a draft. **(planned)** With the PR number known,
-   author the session's as-built record per
-   `docs/workflows/schema/session-as-built.md` carrying that number, commit, and
-   push it while the PR remains draft, before the first review round begins.
-3. Privacy-scrub the title and body. Exclude personal names, email addresses,
-   account handles, machine names, local paths, browser-profile details, and
-   private identifiers; describe human review role-neutrally.
-4. Prepare the full Markdown body in a temporary file, store its resolved path
-   in `PR_BODY_FILE`, and store the final title in `PR_TITLE`. Before publishing,
-   run:
+1. Reuse verify evidence when the head is unchanged since **Finalize and verify
+   the current head**.
+2. Open one **draft** PR to `main` (or reuse the open review-only PR). Headings
+   in order: `## What this does`, `## Why`, `## Notes`, `## Test plan`.
+   **(planned)** With the PR number known, author the as-built, commit, push
+   while still draft.
+3. Privacy-scrub title/body. Prepare body file + title; run:
 
    ```bash
    python3 tools/cli.py delivery scrub-pr-body --check \
@@ -353,160 +169,59 @@ the lifecycle-memory disposition.
      --title "$PR_TITLE"
    ```
 
-   **(planned)** additionally run
-   `python3 tools/cli.py lifecycle check-release --check --expect reconciled`
-   — the final PR already carries the delivered sub-version's terminal roadmap
-   row and matching `APP_VERSION`, so its release identity is `reconciled`.
-   Ordinary mode does not run release consistency. After publishing, read the
-   GitHub body back into a temporary file and run the scrub again. Confirm the
-   new draft's exact head, body, delivery records, and verification are final,
-   then mark it ready for review exactly once. A reused ready PR remains ready.
-   Greptile and CodeRabbit skip drafts by default, and Cursor Bugbot does not
-   automatically review them; if a reviewer nevertheless registers because
-   external configuration changed, let that run settle before any later push.
-   PR-body edits do not invalidate repository verification.
-5. Drive the ready PR as batched rounds and never push while a reviewer is
-   mid-pass — a push to the head cancels an in-flight Greptile or CodeRabbit
-   review before it reports. Begin each round with the merge gate's own
-   end-to-end background monitor. Resolve the repository into `PR_REPOSITORY`
-   and the PR number into `PR_NUMBER`, then run:
+   **(planned)** also
+   `python3 tools/cli.py lifecycle check-release --check --expect reconciled`.
+   Re-scrub after publish. Confirm head/body/delivery/verify final, then
+   mark it ready for review exactly once.
+4. Drive ready PRs in batched rounds — never push mid-pass. Each round:
 
    ```bash
    python3 tools/cli.py delivery poll-pr-gate \
      "$PR_REPOSITORY" "$PR_NUMBER" review
    ```
 
-   The helper imports the merge predicate, waits for a stable current-head
-   result, and prints Cursor Bugbot's non-gating signal. `cursor=comments` means
-   Bugbot concluded `neutral` or `skipped` and left comments to collect;
-   `cursor=clean` means its conclusion was `success`. Continue useful close-out
-   work while it runs, but do not push or re-trigger a bot merely to escape a
-   rate limit.
-6. On that stable head, collect every finding from all reviewers at once: the
-   Greptile summary, unresolved Greptile and CodeRabbit inline threads,
-   CodeRabbit review bodies, and any Cursor Bugbot comments signaled by the
-   monitor. Cursor remains advisory and never becomes the merge gate, but every
-   comment receives an explicit disposition. If the gate of record is clean and
-   every advisory comment has been triaged, the loop is done — go to **Merge**.
-   Otherwise triage the complete batch without widening the branch:
-   1. **Fix** an in-scope problem on the branch.
-   2. **Justify** a deliberate choice by replying `@greptileai` (or the owning
-      bot) with the reasoning; a reply alone does not resolve the finding, so
-      wait for the owning reviewer rather than treating the unchanged head as a
-      new pass.
-   3. **Defer** only when the operator explicitly cuts scope; record that rare
-      cut in `docs/backlog.md` with its reason, size, and trigger. Prefer fixing
-      or justifying in this session.
-7. Batch the round's whole disposition — every fix, justification reply,
-   necessary re-trigger, and backlog entry — then make exactly one push, and
-   only after the evidence a fix invalidated is green again. Production or test
-   code, executable scripts, package or lockfile changes, and TypeScript,
-   ESLint, Vitest, coverage, or Fallow configuration invalidate the full
-   checkpoint; a prose-only workflow document, lifecycle record, or PR-metadata
-   change runs only its applicable document, release, drift, privacy,
-   pending-changelog, or diff checks. That push opens the next round; repeat
-   until the gate of record is clean and all advisory findings are disposed.
-   Later passes may raise new findings, so judge each round on its own live
-   result.
-
-Phase evidence: draft PR URL, ready transition, published title/body scrub
-result, current head SHA, stable review set per round, green CI result,
-gate-of-record result, Cursor signal, unresolved-finding count across all
-reviewers, and the disposition of every finding. Any pending justification
-returns `BLOCKED`.
+5. Collect all findings (Greptile, CodeRabbit, Bugbot). Cursor is advisory.
+   Triage without widening scope: **Fix** in-scope; **Justify** via
+   `@greptileai` (wait for the bot — reply alone does not resolve); **Defer**
+   only on explicit operator cut → `docs/backlog.md`. One push per round after
+   invalidated evidence is green. Pending justification → `BLOCKED`.
 
 ## Merge (shared)
 
-1. Greptile and CodeRabbit each gate the PR when they participate. A
-   participating Greptile requires a live 5/5 result, and every Greptile and
-   CodeRabbit review thread must be resolved. Neither reviewer waives the other;
-   a reviewer that never participates gates nothing. At least one participating
-   reviewer must carry head-exact evidence, and if neither participates nothing
-   merges. The merge helper owns this composition and fails closed; do not
-   choose the gate by hand.
-2. Use `python3 tools/cli.py delivery merge-clean-pr` as the gate of record. It owns the final
-   fail-closed live revalidation and expected-head squash merge, and deletes the
-   remote branch after a successful merge; do not restate or manually substitute
-   its internal checklist.
-3. If the helper rejects an unresolved finding, stop and escalate to the
-   operator. Resolve a thread only when the finding is genuinely addressed or
-   withdrawn; never resolve one merely to clear the gate or merge around the
-   helper.
-
-Phase evidence: successful `merge-clean-pr` result, expected pre-merge head,
-actual merge SHA, and remote-branch deletion result. A rejected helper result
-returns `BLOCKED`.
+1. Participating Greptile needs live 5/5; every Greptile/CodeRabbit thread
+   resolved. At least one participating reviewer with head-exact evidence.
+2. Gate of record:
+   `python3 tools/cli.py delivery merge-clean-pr` — fail-closed; do not
+   substitute its checklist.
+3. Unresolved finding rejected by the helper → escalate. Never resolve a thread
+   only to clear the gate.
 
 ## After merge and production proof (shared)
 
-1. Clean up the local feature branch and tear down any manual Vercel preview and
-   its Neon branch created for the work. The merge helper owns remote-branch
-   deletion; close-out owns this local and optional-preview cleanup.
-2. Resolve the production deployment by the merge SHA and wait until that exact
-   deployment reports Ready. Inspect deployment state and runtime logs with the
-   Vercel CLI.
-3. **Required agent production proof — Playwright (log-driven), not a visual
-   browser pass.** After the merge-SHA deployment is Ready, agents must run
-   Playwright against that exact production URL (or the deployment URL when
-   proving a preview). Do not substitute bare `curl`/HTTP checks for this step.
+1. Clean local feature branch and any manual Vercel preview + Neon branch.
+2. Wait for the merge-SHA production deployment Ready (Vercel CLI).
+3. Agent production proof — Playwright log-driven, not a visual browser pass:
+   - Always: `pnpm verify:prod` (or `pnpm verify:site-routes -- <url>`).
+     Origin-scoped bypass via `scripts/ux-remote-auth.mjs` / env — never
+     context-wide `extraHTTPHeaders`.
+   - Account-adjacent: also `pnpm ux-check <routes> --base-url=<prod-url>` with
+     operator `--cookie-jar` / `--storage-state`.
+   - Pass/fail from JSON; failure screenshots under `docs/ux-check/captures/`.
+   - See `docs/workflows/ux-check.md` and
+     `docs/contributing/end-to-end-testing.md`.
+4. Exit by mode:
+   - **(ordinary)** `MERGED`. Pending fragment is the only lifecycle record.
+   - **(planned)** Update from `origin/main`, run
+     `python3 tools/cli.py lifecycle resolve --pretty`, return to
+     `start-session`. Resolver owns archive/next-audit decisions.
 
-   - Always: `pnpm verify:prod` (or
-     `pnpm verify:site-routes -- https://lgi.tools` / the exact deployment URL).
-     `scripts/ux-remote-auth.mjs` loads `VERCEL_AUTOMATION_BYPASS_SECRET` from
-     the environment or `.env.local` and attaches `x-vercel-protection-bypass`
-     only to requests for that deployment origin (never as context-wide
-     `extraHTTPHeaders`).
-   - When the change touched account-adjacent surfaces: also
-     `pnpm ux-check <routes> --base-url=<prod-url>` with an operator-exported
-     `--cookie-jar` or `--storage-state` (local E2E seed cookies do not work
-     against production).
-   - Pass/fail from the JSON report (status, console, page errors). Failure
-     screenshots only under `docs/ux-check/captures/`.
-   - Do not open production in a browser for visual approval — that remains the
-     operator's review when the change was user-facing.
-
-   See `docs/workflows/ux-check.md` § Remote / production log probes and
-   `docs/contributing/end-to-end-testing.md`.
-4. After the exact deployment and agent log proof succeed, close out by mode:
-   - **(ordinary)** Stop with `MERGED`. Do not run the resolver, do not mark any
-     session plan complete, do not edit the roadmap or `APP_VERSION`, and do not
-     open any follow-up PR. The pending changelog fragment is the only durable
-     lifecycle record this change leaves; a later planned release publishes it.
-   - **(planned)** The merged PR already contains the truthful post-merge state
-     (final session `Complete`, terminal roadmap row, matching `APP_VERSION`,
-     published changelog with absorbed fragments), so there is no uncommitted
-     reconciliation to prepare and no follow-up lifecycle-only PR. Update the
-     local view from `origin/main`, rerun
-     `python3 tools/cli.py lifecycle resolve --pretty` against that
-     committed state, report its full directive, and return control to
-     `start-session`. If the merge made every master-plan row terminal, leave the
-     active plan, contracts, session plans, and SCRATCHPAD in place; close-out
-     does not archive the version or select its next audit action — the resolver
-     owns that decision.
-
-Phase evidence: exact merge-SHA deployment identity and Ready state,
-deployment-targeted runtime-log verdict, agent log-driven route/console proof
-(with bypass secret when Protection is on; cookie jar when auth is required),
-operator visual disposition when the change was user-facing, and — per mode —
-the pending-fragment path (ordinary) or the resolver's complete new directive
-against committed main (planned).
-
-## Return the result
-
-Use `docs/workflows/schema/chat-result.md` for this field set:
+## Return
 
 ```markdown
 ## Close-out: `SESSION_HANDOFF` | `MERGED` | `BLOCKED`
 
 - **Subject:** <Ordinary or Planned>; session `<id>` or ordinary; head `<full SHA>`
-- **Result:** <what completed through review, PR, merge, or production; ≤2 sentences>
-- **Action:** <next operator or lifecycle step; include PR URL or merge SHA when present>
+- **Result:** <what completed; ≤2 sentences>
+- **Action:** <next step; PR URL or merge SHA when present>
 - **Blocker:** <exact blocker or `None`>
 ```
-
-Return `SESSION_HANDOFF` only after a non-final planned session's verified
-commit, push, plan status, and SCRATCHPAD handoff are complete. Return `MERGED`
-only after exact production proof is complete — with the pending fragment
-recorded in ordinary mode, or the resolver rerun against truthful committed main
-in planned mode. Otherwise return `BLOCKED` with the first unresolved mandatory
-gate and preserve all completed evidence for resumption.

@@ -235,10 +235,8 @@ These are load-bearing constraints, several **lint-enforced**:
 - **Don't backfill for coverage's sake** — untested code stays untested until
   something touches it.
 - **High-signal bar.** Prefer fewer, longer workflow tests over many tiny cases.
-  The deletion / consolidation bar for authors, reviewers, and Keep-Tests-Tight
-  automation lives in
-  [`docs/contributing/testing-principles.md`](docs/contributing/testing-principles.md)
-  (daily procedure: [`docs/workflows/keep-tests-tight.md`](docs/workflows/keep-tests-tight.md)).
+  The deletion / consolidation bar lives in
+  [`docs/contributing/testing-principles.md`](docs/contributing/testing-principles.md).
   Log-driven Playwright UX uses `pnpm ux-check` / `pnpm test:e2e` as a UI gate
   aid (`docs/workflows/ux-check.md`,
   `docs/contributing/end-to-end-testing.md`), not a permanent suite in
