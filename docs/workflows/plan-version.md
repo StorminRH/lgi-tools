@@ -55,17 +55,19 @@ create session implementation plans here.
    size or risk concern.
 3. Present current versus proposed counts and a complete current-to-proposed
    bundle map.
-4. Run the planning approval gate: invoke `adversarial-review` against the
-   complete proposal, fixed outcomes, and source evidence. The review must
+4. Run the planning approval gate: invoke `adversarial-review` against the complete proposal,
+   fixed outcomes, and source evidence. The review must
    attempt every sensible merge and reject boundaries justified only by headings
    or ordinary implementation order. Reconcile every verified finding from that
-   one review pass. Do not automatically relaunch adversarial-review.
+   one review pass. Continue only with `PASS` (`BLOCKED` stops;
+   `CORRECTIONS_REQUIRED` requires operator-controlled re-review after fixes —
+   do not auto-relaunch).
 
 ## Approve before writing
 
 1. Present the fixed outcomes, current/proposed counts, bundle map, internal
    phases, owner/gate overlaps, stop and split triggers, hard reason for every
-   boundary, and any genuinely oversized bundle in plain English.
+   boundary, and any genuinely oversized bundle in plain English (`PASS` only).
 2. Obtain operator approval for the revised topology while the repository remains
    unchanged.
 3. After approval, update the master plan's delivery topology first.

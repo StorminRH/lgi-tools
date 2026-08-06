@@ -26,7 +26,7 @@ Inputs:
    and plan, master-plan status, and OW-complete SCRATCHPAD. If Ordered work
    remains, `BLOCKED` — return to `start-session`.
 2. **(shared)** Focused/local/UX evidence for the changed surface plus the full
-   branch diff. User-facing work needs completed `ux-check` reports and the
+   branch diff. User-facing work requires completed `ux-check` reports and the
    operator's browser-review disposition (or not-applicable). Close-out
    consumes that evidence; it does not invoke `ux-check`.
 3. **(shared)** Current review, release, baseline, and workflow-policy state.
@@ -140,9 +140,10 @@ PR open when the head is unchanged.
 
 7. Confirm the worktree still matches preflighted scope and that no
    application, test, executable, dependency-manifest, lockfile, or
-   verification-configuration change occurred after verify. Uncommitted OW
-   implementation with SCRATCHPAD claiming complete → `BLOCKED` back to
-   `start-session`.
+   verification-configuration change occurred after verify. Any such change
+   invalidates the checkpoint and returns to the applicable preflight and
+   verification steps. Uncommitted OW implementation with SCRATCHPAD claiming
+   complete → `BLOCKED` back to `start-session`.
 8. Commit and push (plain-English conventional style). Push without an empty
    commit when already fully committed.
    - **(ordinary)** Commit all verified scoped changes plus the pending

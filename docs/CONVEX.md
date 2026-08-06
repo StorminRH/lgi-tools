@@ -197,10 +197,12 @@ else.
 - **Refresh token never leaves Neon.** Convex receives only short-lived
   per-character access tokens from the service-authed Neon-side endpoint.
 - **Env split.** `CONVEX_SERVICE_SECRET` in Convex env — EVE credentials never;
-  identity/token secrets stay Neon-side. `CONVEX_DEPLOY_KEY` in Vercel; deploy:
+  identity/token secrets stay Neon-side. `CONVEX_DEPLOY_KEY` in Vercel. The
+  Vercel-only deploy path is
   `pnpm exec convex deploy --cmd 'pnpm build:vercel' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL`
-  (each preview gets an isolated Convex deployment). **Retire abandoned
-  previews** — each runs the 30s scan and burns calls.
+  — never run `pnpm build:vercel` / `next build` locally or before merge (each
+  preview gets an isolated Convex deployment). **Retire abandoned previews** —
+  each runs the 30s scan and burns calls.
 - **CSP:** Convex origin in `connect-src` only — https + wss, exact
   per-deployment origin, never `*.convex.cloud` (`src/proxy.ts`).
 

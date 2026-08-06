@@ -91,6 +91,9 @@ Gate runner:
 - runs each supplied command as its own execution in the supplied order;
 - does not prepend or append shell instrumentation, and never modifies a
   command to manufacture an exit code;
+- does not edit source, select a different gate, fix failures, use Git write
+  operations, change installed packages, open PRs, or perform unapproved
+  external writes — only declared verification artifacts may appear;
 - begins every returned gate result with the complete `Command` field;
 - copies a numeric exit code only from the command tool's execution result;
 - reports `Exit: Unknown` with the observed pass or fail result when no

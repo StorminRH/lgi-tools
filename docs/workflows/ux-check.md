@@ -103,7 +103,7 @@ tiny.
    probe and viewport — first diagnostic and disposition. Link failure artifacts
    for diagnosis only.
 3. Do not open the site to approve layout. Build an operator checklist of
-   routes/interactions to open locally (and production when relevant).
+   routes/interactions to open locally.
 4. Return `UX_EVIDENCE`, pause for operator browser review. Do not open a PR.
    `close-out` consumes the disposition — no re-run or pause.
 

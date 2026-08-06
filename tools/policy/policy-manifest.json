@@ -160,7 +160,7 @@
         "Record and challenge the current topology",
         "Attempt to combine every adjacent or tightly coupled slice",
         "Produce the minimum safe bundles",
-        "invoke `adversarial-review` against the",
+        "invoke `adversarial-review` against the complete proposal",
         "Obtain operator approval",
         "update the master plan's delivery topology first",
         "Create one schema-complete contract per approved bundle"
@@ -178,7 +178,7 @@
         "docs-researcher",
         "Stop before fixed-schema drafting",
         "Assemble and review",
-        "invoke `adversarial-review` against the",
+        "invoke `adversarial-review` against the complete draft",
         "holistic-reviewer",
         "operator approval",
         "Persist the approved plan"
@@ -267,6 +267,9 @@
         "Documentation brief",
         "Use `repo-mapper` for material relationship",
         "`callers`",
+        "`callees`",
+        "`impact`",
+        "`query`",
         "Repository map"
       ],
       "forbidden": [

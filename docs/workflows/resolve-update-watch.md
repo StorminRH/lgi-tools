@@ -81,9 +81,10 @@ auto-merge. Later shipping resumes through `close-out` on the same branch and PR
    `content/changelog/pending/` per `docs/workflows/schema/changelog-pending.md`.
 8. Invoke `adversarial-review` against the complete diff (sole
    implementation-review gate; ordinary integrative seat). Continue only with
-   `PASS`. Then apply ordinary-mode finalization from
-   `docs/workflows/close-out.md` through commit and push, reusing the step-7
-   fragment. Do not merge, and do not rerun unchanged evidence at the PR boundary.
+   `PASS`. Then enter `docs/workflows/close-out.md` at **Finalize and verify the
+   current head** through commit and push — do not re-run the Implementation
+   review gate. Reuse the step-7 fragment. Do not merge, and do not rerun
+   unchanged evidence at the PR boundary.
 9. Open one draft PR stating what was fixed, deferred (and why), and absorbed.
    Put `Closes #<issue>` so the digest closes only on a later `close-out` merge.
    Apply the close-out PR privacy scrub, confirm draft head and body are final,

@@ -81,16 +81,19 @@ and present a complete schema plan for approval.
    interface, control-flow statement, edge/failure behavior, ordered work item,
    and command-plus-output success criterion. No Blocking prerequisite or
    unresolved placeholder may remain.
-2. Run the planning approval gate: invoke `adversarial-review` against the
-   complete draft, contract, schema, and source evidence. That invocation uses
+2. Run the planning approval gate: invoke `adversarial-review` against the complete draft,
+   contract, schema, and source evidence. That invocation uses
    `holistic-reviewer` as the integrative seat for one review pass. Reconcile
-   every verified finding. Do not automatically relaunch adversarial-review. Do
-   not persist reviewer transcripts or superseded drafts.
+   every verified finding. Continue only with `PASS` (`BLOCKED` stops;
+   `CORRECTIONS_REQUIRED` requires operator-controlled re-review after fixes —
+   do not auto-relaunch). Do not persist reviewer transcripts or superseded
+   drafts.
 
 ## Approve, persist, and stop
 
-1. Present a short plain-English summary with the complete reviewed plan and
-   obtain operator approval while the repository remains unchanged.
+1. Present a short plain-English summary with the complete reviewed plan
+   (`PASS` only) and obtain operator approval while the repository remains
+   unchanged.
 2. Persist the approved plan with approval date, exact contract digest,
    `Execution status: Pending`, and every schema-required section.
    Do not save or treat a harness-native plan as a second lifecycle artifact.
