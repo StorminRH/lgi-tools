@@ -81,6 +81,40 @@ export async function tryMapAccess(
   );
 }
 
+/**
+ * Authorizes an already server-verified user id through the same projected
+ * claim rule as the JWT-derived public gates. Internal HTTP-door functions use
+ * this after the service bearer has authenticated the calling Next.js server;
+ * it must never be exposed as a public client function.
+ */
+export async function requireMapAccessForUser(
+  ctx: QueryCtx,
+  mapId: string,
+  userId: string,
+  requiredCapability: MapCapability,
+): Promise<MapPrincipal> {
+  const principal = await resolveMapPrincipal(
+    ctx,
+    mapId,
+    userId,
+    requiredCapability,
+  );
+  if (principal === null) {
+    throw new ConvexError({ code: 'FORBIDDEN' });
+  }
+  return principal;
+}
+
+/** Value-returning explicit-user access check for one consistent evidence query. */
+export async function tryMapAccessForUser(
+  ctx: QueryCtx,
+  mapId: string,
+  userId: string,
+  requiredCapability: MapCapability,
+): Promise<MapPrincipal | null> {
+  return await resolveMapPrincipal(ctx, mapId, userId, requiredCapability);
+}
+
 /** The single claim lookup and capability check both entry points share. */
 async function resolveMapPrincipal(
   ctx: QueryCtx,

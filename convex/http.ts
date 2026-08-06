@@ -7,10 +7,13 @@
 //   POST /purge-location-tracking  — characterLocation + mapTracking teardown for a Neon-side purge.
 //   POST /project-map-access       — one-way Neon→Convex mapAccess claim reconcile.
 //   POST /purge-map-access         — per-user mapAccess claim teardown for account purge.
+//   POST /jump-evidence            — one consistent tracked-transition evidence packet.
+//   POST /resolve-jump             — one transactional automatic-jump write/answer.
 import { httpRouter } from 'convex/server';
 import { z } from 'zod';
 import { MAP_ROLES } from '@/data/maps/access-contract';
 import { internal } from './_generated/api';
+import type { Id } from './_generated/dataModel';
 import { httpAction } from './_generated/server';
 import { bearerMatches } from './lib/bearerAuth';
 
@@ -63,6 +66,55 @@ const purgeMapAccessBodySchema = z.object({
   userId: z.string(),
 });
 
+const jumpEvidenceBodySchema = z.object({
+  userId: z.string().min(1),
+  mapId: z.string().min(1),
+  characterId: z.number().int().positive(),
+});
+
+const jumpDecisionSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('resolve'),
+    candidateId: z.string().min(1),
+    provenance: z.enum(['jump-verified', 'assumed']),
+    candidateIds: z.array(z.string().min(1)),
+    survivors: z.array(z.string().min(1)),
+  }),
+  z.object({
+    kind: z.literal('insert'),
+    candidateIds: z.array(z.string().min(1)),
+    survivors: z.array(z.string().min(1)),
+  }),
+]);
+
+const resolveJumpBodySchema = z.discriminatedUnion('operation', [
+  z.object({
+    operation: z.literal('author'),
+    userId: z.string().min(1),
+    mapId: z.string().min(1),
+    characterId: z.number().int().positive(),
+    fromSolarSystemId: z.number().int().positive(),
+    toSolarSystemId: z.number().int().positive(),
+    observedAt: z.number().finite(),
+    observedShipMassKg: z.number().finite().positive().nullable(),
+    observationKey: z.string().min(1),
+    decision: jumpDecisionSchema,
+  }),
+  z.object({
+    operation: z.literal('confirm'),
+    userId: z.string().min(1),
+    mapId: z.string().min(1),
+    connectionId: z.string().min(1),
+  }),
+  z.object({
+    operation: z.literal('reassociate'),
+    userId: z.string().min(1),
+    mapId: z.string().min(1),
+    connectionId: z.string().min(1),
+    targetConnectionId: z.string().min(1),
+  }),
+]);
+
 // Shared service-auth guard: HTTP actions are bearer-gated by the same secret
 // the deployment already holds (verified here in the opposite direction from the
 // Next internal endpoints). True only on a valid Bearer match.
@@ -87,6 +139,78 @@ http.route({
     if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
     const counts = await ctx.runMutation(internal.engine.sweep, {});
     return Response.json(counts);
+  }),
+});
+
+http.route({
+  path: '/jump-evidence',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+    const raw = await readJsonBody(req);
+    if (raw === null) return new Response('Bad Request', { status: 400 });
+    const body = jumpEvidenceBodySchema.safeParse(raw);
+    if (!body.success) return new Response('Bad Request', { status: 400 });
+    return Response.json(await ctx.runQuery(internal.mapJump.jumpEvidence, body.data));
+  }),
+});
+
+http.route({
+  path: '/resolve-jump',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+    const raw = await readJsonBody(req);
+    if (raw === null) return new Response('Bad Request', { status: 400 });
+    const body = resolveJumpBodySchema.safeParse(raw);
+    if (!body.success) return new Response('Bad Request', { status: 400 });
+
+    if (body.data.operation === 'confirm') {
+      return Response.json(
+        await ctx.runMutation(internal.mapJump.confirmJumpIdentity, {
+          userId: body.data.userId,
+          mapId: body.data.mapId,
+          connectionId: body.data.connectionId as Id<'mapConnections'>,
+        }),
+      );
+    }
+    if (body.data.operation === 'reassociate') {
+      return Response.json(
+        await ctx.runMutation(internal.mapJump.reassociateJumpDestination, {
+          userId: body.data.userId,
+          mapId: body.data.mapId,
+          connectionId: body.data.connectionId as Id<'mapConnections'>,
+          targetConnectionId:
+            body.data.targetConnectionId as Id<'mapConnections'>,
+        }),
+      );
+    }
+    const decision = body.data.decision.kind === 'resolve'
+      ? {
+          ...body.data.decision,
+          candidateId:
+            body.data.decision.candidateId as Id<'mapConnections'>,
+          candidateIds: body.data.decision.candidateIds as Id<'mapConnections'>[],
+          survivors: body.data.decision.survivors as Id<'mapConnections'>[],
+        }
+      : {
+          ...body.data.decision,
+          candidateIds: body.data.decision.candidateIds as Id<'mapConnections'>[],
+          survivors: body.data.decision.survivors as Id<'mapConnections'>[],
+        };
+    return Response.json(
+      await ctx.runMutation(internal.mapJump.resolveJumpAuthoring, {
+        userId: body.data.userId,
+        mapId: body.data.mapId,
+        characterId: body.data.characterId,
+        fromSolarSystemId: body.data.fromSolarSystemId,
+        toSolarSystemId: body.data.toSolarSystemId,
+        observedAt: body.data.observedAt,
+        observedShipMassKg: body.data.observedShipMassKg,
+        observationKey: body.data.observationKey,
+        decision,
+      }),
+    );
   }),
 });
 

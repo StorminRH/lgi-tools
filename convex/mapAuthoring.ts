@@ -13,10 +13,16 @@ import {
 import type { Doc, Id } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
 import {
+  requireConnectionOnMap,
+  requireLiveConnectionOnMap,
+} from './lib/mapConnectionLookup';
+import {
+  destinationHintValidator,
   lifeStageValidator,
   massStateValidator,
   optionalTimestampValidator,
   shipSizeValidator,
+  typedSideValidator,
   validateDeathWindowInput,
   wormholeTypeCodeValidator,
   type WormholeLifeStage,
@@ -148,22 +154,6 @@ async function writeMapEvent<Kind extends MapEventKind>(
   });
 }
 
-/** Loads a connection that must belong to the named map. */
-async function requireConnectionOnMap(
-  ctx: MutationCtx,
-  mapId: string,
-  connectionId: Id<'mapConnections'>,
-): Promise<Doc<'mapConnections'>> {
-  const connection = await ctx.db.get(connectionId);
-  if (connection === null || connection.mapId !== mapId) {
-    throw new ConvexError({
-      code: 'UNKNOWN_CONNECTION',
-      detail: `No connection ${connectionId} on map ${mapId}.`,
-    });
-  }
-  return connection;
-}
-
 /** Gate + load a connection for field/tombstone writers. */
 async function gatedConnection(
   ctx: MutationCtx,
@@ -180,14 +170,8 @@ async function requireLiveConnection(
   mapId: string,
   connectionId: Id<'mapConnections'>,
 ): Promise<Doc<'mapConnections'>> {
-  const connection = await gatedConnection(ctx, mapId, connectionId);
-  if (isTombstoned(connection)) {
-    throw new ConvexError({
-      code: 'CONNECTION_TOMBSTONED',
-      detail: `Connection ${connectionId} is tombstoned.`,
-    });
-  }
-  return connection;
+  await requireMapAccess(ctx, mapId, 'edit');
+  return await requireLiveConnectionOnMap(ctx, mapId, connectionId);
 }
 
 /** Gate + load a named system document, or throw UNKNOWN_SYSTEM. */
@@ -315,7 +299,8 @@ async function requireLiveOrigin(
   }
 }
 
-async function upsertLiveDestination(
+/** Upserts one live destination while preserving the human restore boundary. */
+export async function upsertLiveDestination(
   ctx: MutationCtx,
   mapId: string,
   toSystemId: number,
@@ -500,15 +485,84 @@ export const setConnectionWormholeType = mutation({
       deathEarliestAt,
       deathLatestAt,
     });
+    const identityPatch = value === null
+      ? {
+          typedSide: undefined,
+          typeProvenance: undefined,
+          pendingCandidates: undefined,
+        }
+      : {
+          typedSide: connection.typedSide ?? ('from' as const),
+          typeProvenance: 'human' as const,
+          pendingCandidates: undefined,
+        };
     if (
       connection.wormholeTypeCode === value
+      && connection.typedSide === identityPatch.typedSide
+      && connection.typeProvenance === identityPatch.typeProvenance
+      && connection.pendingCandidates === undefined
       && sameDeathWindow(connection, window)
     ) {
       return { changed: false };
     }
     await ctx.db.patch(connectionId, {
       wormholeTypeCode: value,
+      ...identityPatch,
       ...deathWindowPatch(window),
+    });
+    return { changed: true };
+  },
+});
+
+/** Field-scoped setter: the side whose manually typed code is attributable. */
+export const setConnectionTypedSide = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    value: typedSideValidator,
+  },
+  handler: async (ctx, { mapId, connectionId, value }) => {
+    const connection = await requireLiveConnection(ctx, mapId, connectionId);
+    if (connection.wormholeTypeCode === null) {
+      throw new ConvexError({
+        code: 'UNTYPED_CONNECTION',
+        detail: 'An unidentified connection has no attributable typed side.',
+      });
+    }
+    if (
+      connection.typedSide === value
+      && connection.typeProvenance === 'human'
+      && connection.pendingCandidates === undefined
+    ) {
+      return { changed: false };
+    }
+    await ctx.db.patch(connectionId, {
+      typedSide: value,
+      typeProvenance: 'human',
+      pendingCandidates: undefined,
+    });
+    return { changed: true };
+  },
+});
+
+/** Field-scoped setter: one side's closed-vocabulary destination hint. */
+export const setConnectionDestinationHint = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    side: typedSideValidator,
+    value: v.union(destinationHintValidator, v.null()),
+  },
+  handler: async (ctx, { mapId, connectionId, side, value }) => {
+    const connection = await requireLiveConnection(ctx, mapId, connectionId);
+    const field = side === 'from' ? 'fromDestinationHint' : 'toDestinationHint';
+    const normalized = value ?? undefined;
+    if (connection[field] === normalized && connection.pendingCandidates === undefined) {
+      return { changed: false };
+    }
+    await ctx.db.patch(connectionId, {
+      [field]: normalized,
+      pendingCandidates: undefined,
     });
     return { changed: true };
   },
@@ -538,14 +592,21 @@ export const setConnectionMassState = mutation({
     connectionId: v.id('mapConnections'),
     value: massStateValidator,
   },
-  handler: async (ctx, { mapId, connectionId, value }) =>
-    await patchConnectionField(
-      ctx,
-      mapId,
-      connectionId,
-      'massState',
-      value satisfies ConnectionMassState | null,
-    ),
+  handler: async (ctx, { mapId, connectionId, value }) => {
+    const connection = await requireLiveConnection(ctx, mapId, connectionId);
+    const observedMassAtStateKg = connection.observedMassKg ?? 0;
+    if (
+      connection.massState === value
+      && connection.observedMassAtStateKg === observedMassAtStateKg
+    ) {
+      return { changed: false };
+    }
+    await ctx.db.patch(connectionId, {
+      massState: value satisfies ConnectionMassState | null,
+      observedMassAtStateKg,
+    });
+    return { changed: true };
+  },
 });
 
 /**

@@ -1,6 +1,6 @@
 // Shared indexed map/system lookup and id validation for authoring + fixtures.
 import { ConvexError } from 'convex/values';
-import type { MutationCtx } from '../_generated/server';
+import type { MutationCtx, QueryCtx } from '../_generated/server';
 import { requireMapAccess } from './mapAccess';
 import { isPositiveId } from './mapEntityContracts';
 
@@ -14,9 +14,9 @@ export function requireSystemId(systemId: number): void {
   }
 }
 
-/** The one indexed map/system lookup shared by every chain write that needs ownership. */
+/** The one indexed map/system lookup shared by chain reads and writes. */
 export function findSystem(
-  ctx: MutationCtx,
+  ctx: QueryCtx,
   mapId: string,
   systemId: number,
 ) {

@@ -150,6 +150,8 @@ describe('map authoring', () => {
       'setHomeSystem',
       'addSystemFromNode',
       'setConnectionWormholeType',
+      'setConnectionTypedSide',
+      'setConnectionDestinationHint',
       'setConnectionShipSize',
       'setConnectionMassState',
       'setConnectionLifeStage',
@@ -170,6 +172,8 @@ describe('map authoring', () => {
           await seedHome(t);
           return { mapId: MAP_A, fromSystemId: JITA, toSystemId: AMARR };
         case 'setConnectionWormholeType':
+        case 'setConnectionTypedSide':
+        case 'setConnectionDestinationHint':
         case 'setConnectionShipSize':
         case 'setConnectionMassState':
         case 'setConnectionLifeStage':
@@ -179,6 +183,17 @@ describe('map authoring', () => {
           const { connectionId } = await seedJump(t);
           if (name === 'setConnectionWormholeType') {
             return { mapId: MAP_A, connectionId, value: 'C247' };
+          }
+          if (name === 'setConnectionTypedSide') {
+            await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+              mapId: MAP_A,
+              connectionId,
+              value: 'C247',
+            });
+            return { mapId: MAP_A, connectionId, value: 'to' };
+          }
+          if (name === 'setConnectionDestinationHint') {
+            return { mapId: MAP_A, connectionId, side: 'from', value: 'dangerous' };
           }
           if (name === 'setConnectionShipSize') {
             return { mapId: MAP_A, connectionId, value: 'M' };
@@ -272,11 +287,39 @@ describe('map authoring', () => {
 
       if (
         name === 'setConnectionWormholeType'
+        || name === 'setConnectionTypedSide'
+        || name === 'setConnectionDestinationHint'
         || name === 'setConnectionShipSize'
         || name === 'setConnectionMassState'
         || name === 'setConnectionLifeStage'
       ) {
         const { connectionId } = await seedJump(t);
+        if (name === 'setConnectionTypedSide') {
+          await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+            mapId: MAP_A,
+            connectionId,
+            value: 'C247',
+          });
+          await expect(
+            asUser(t).mutation(api.mapAuthoring.setConnectionTypedSide, {
+              mapId: MAP_A,
+              connectionId,
+              value: 'to',
+            }),
+          ).resolves.toEqual({ changed: true });
+          return;
+        }
+        if (name === 'setConnectionDestinationHint') {
+          await expect(
+            asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+              mapId: MAP_A,
+              connectionId,
+              side: 'from',
+              value: 'dangerous',
+            }),
+          ).resolves.toEqual({ changed: true });
+          return;
+        }
         const value =
           name === 'setConnectionWormholeType'
             ? 'C247'
@@ -512,6 +555,86 @@ describe('map authoring', () => {
       const restamped = await readConnection(t, connectionId);
       expect(restamped?.lifeStage).toBe('expired');
       expect(restamped?.lifeStageObservedAt).toBe(NOW + 60_000);
+    });
+
+    it('re-stamps the mass odometer anchor after new travel even for the same shake state', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await t.run(async (ctx) => {
+        await ctx.db.patch(connectionId, { observedMassKg: 10_000_000 });
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionMassState, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'reduced',
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        massState: 'reduced',
+        observedMassAtStateKg: 10_000_000,
+      });
+
+      await t.run(async (ctx) => {
+        await ctx.db.patch(connectionId, { observedMassKg: 25_000_000 });
+      });
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionMassState, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'reduced',
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        massState: 'reduced',
+        observedMassAtStateKg: 25_000_000,
+      });
+    });
+
+    it('records manual type identity and clears pending automatic candidates on edits', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await t.run(async (ctx) => {
+        await ctx.db.patch(connectionId, { pendingCandidates: [connectionId] });
+      });
+
+      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        mapId: MAP_A,
+        connectionId,
+        value: 'C247',
+      });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typeProvenance: 'human',
+      });
+      expect((await readConnection(t, connectionId))?.pendingCandidates).toBeUndefined();
+
+      await asUser(t).mutation(api.mapAuthoring.setConnectionTypedSide, {
+        mapId: MAP_A,
+        connectionId,
+        value: 'to',
+      });
+      await asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+        mapId: MAP_A,
+        connectionId,
+        side: 'to',
+        value: 'dangerous',
+      });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        typedSide: 'to',
+        typeProvenance: 'human',
+        toDestinationHint: 'dangerous',
+      });
+
+      await asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+        mapId: MAP_A,
+        connectionId,
+        side: 'to',
+        value: null,
+      });
+      expect((await readConnection(t, connectionId))?.toDestinationHint).toBeUndefined();
     });
   });
 
@@ -806,6 +929,8 @@ describe('map authoring', () => {
         'setHomeSystem',
         'addSystemFromNode',
         'setConnectionWormholeType',
+        'setConnectionTypedSide',
+        'setConnectionDestinationHint',
         'setConnectionShipSize',
         'setConnectionMassState',
         'setConnectionLifeStage',
