@@ -327,11 +327,8 @@ describe('computeNetMargin', () => {
 });
 
 describe('taxDraftFromStored', () => {
-  it('null (never entered) → empty draft', () => {
+  it('round-trips null to empty and stored percents to parseable drafts', () => {
     expect(taxDraftFromStored(null)).toBe('');
-  });
-
-  it('a stored percent → its string (round-trips with parseFacilityTaxDraft)', () => {
     expect(taxDraftFromStored(0)).toBe('0');
     expect(taxDraftFromStored(0.25)).toBe('0.25');
     expect(taxDraftFromStored(5)).toBe('5');

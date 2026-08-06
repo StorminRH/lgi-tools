@@ -12,73 +12,61 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('applyFlag', () => {
-  it('sets the base URL', () => {
+describe('ux-capture args helpers', () => {
+  it('applyFlag sets known options and ignores junk', () => {
     const opts = {};
     applyFlag(opts, 'base-url', 'http://localhost:4000');
-    expect(opts.baseUrl).toBe('http://localhost:4000');
-  });
-
-  it('parses a numeric settle, including 0', () => {
-    const opts = {};
     applyFlag(opts, 'settle', '2500');
-    expect(opts.settle).toBe(2500);
+    expect(opts).toEqual({ baseUrl: 'http://localhost:4000', settle: 2500 });
+
     applyFlag(opts, 'settle', '0');
     expect(opts.settle).toBe(0);
-  });
-
-  it('ignores a non-numeric settle', () => {
-    const opts = { settle: 1500 };
     applyFlag(opts, 'settle', 'soon');
-    expect(opts.settle).toBe(1500);
-  });
+    expect(opts.settle).toBe(0);
 
-  it('filters viewports to known names (both --viewport and --viewports)', () => {
-    const a = {};
-    applyFlag(a, 'viewport', 'desktop, mobile, tablet');
-    expect(a.viewports).toEqual(['desktop', 'mobile', 'tablet']);
-    const b = {};
-    applyFlag(b, 'viewports', 'wide, cinema');
-    expect(b.viewports).toEqual(['wide']);
-  });
+    applyFlag(opts, 'viewport', 'desktop, mobile, tablet');
+    expect(opts.viewports).toEqual(['desktop', 'mobile', 'tablet']);
+    applyFlag(opts, 'viewports', 'wide, cinema');
+    expect(opts.viewports).toEqual(['wide']);
 
-  it('warns on an unknown flag and changes nothing', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const opts = {};
+    const before = { ...opts };
     applyFlag(opts, 'wat', 'x');
-    expect(opts).toEqual({});
+    expect(opts).toEqual(before);
     expect(spy).toHaveBeenCalledWith('  (ignoring unknown flag --wat)');
   });
-});
 
-describe('parseArgs', () => {
-  it('defaults to the smoke route when no routes are passed', () => {
+  it('parseArgs defaults, normalizes routes, and reads option flags', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { routes, opts } = parseArgs(['--base-url=http://localhost:3000']);
-    expect(routes).toEqual(['/']);
-    expect(opts.viewports).toEqual(['desktop', 'mobile']);
-    expect(opts.settle).toBe(1500);
+    const smoke = parseArgs(['--base-url=http://localhost:3000']);
+    expect(smoke.routes).toEqual(['/']);
+    expect(smoke.opts.viewports).toEqual(['desktop', 'mobile']);
+    expect(smoke.opts.settle).toBe(1500);
     expect(spy).toHaveBeenCalled();
+
+    expect(parseArgs(['sites', '/industry', 'sites/30002']).routes).toEqual([
+      '/sites',
+      '/industry',
+      '/sites/30002',
+    ]);
+
+    const flagged = parseArgs([
+      '/',
+      '--base-url=http://localhost:9',
+      '--settle=0',
+      '--storage-state=docs/ux-check/captures/auth-storage.json',
+      '--cookie-jar=/tmp/cookies.txt',
+    ]);
+    expect(flagged.opts).toMatchObject({
+      baseUrl: 'http://localhost:9',
+      settle: 0,
+      storageState: 'docs/ux-check/captures/auth-storage.json',
+      cookieJar: '/tmp/cookies.txt',
+    });
+
+    expect(parseArgs(['/', '--viewport=nope']).opts.viewports).toEqual(['desktop', 'mobile']);
   });
 
-  it('prefixes positional routes with a leading slash and keeps absolute ones', () => {
-    const { routes } = parseArgs(['sites', '/industry', 'sites/30002']);
-    expect(routes).toEqual(['/sites', '/industry', '/sites/30002']);
-  });
-
-  it('reads --flag=value options', () => {
-    const { opts } = parseArgs(['/', '--base-url=http://localhost:9', '--settle=0']);
-    expect(opts.baseUrl).toBe('http://localhost:9');
-    expect(opts.settle).toBe(0);
-  });
-
-  it('resets an emptied viewport list back to the default pair', () => {
-    const { opts } = parseArgs(['/', '--viewport=nope']);
-    expect(opts.viewports).toEqual(['desktop', 'mobile']);
-  });
-});
-
-describe('slugify', () => {
   it.each([
     ['/', 'home'],
     ['', 'home'],
@@ -88,20 +76,15 @@ describe('slugify', () => {
     ['/sites/[id]', 'sites-id-'],
     ['/a/b', 'a-b'],
     ['/industry/templates/', 'industry-templates'],
-  ])('%s → %s', (route, expected) => {
+  ])('slugify %s → %s', (route, expected) => {
     expect(slugify(route)).toBe(expected);
   });
-});
 
-describe('assignSlugs', () => {
-  it('pairs each route with its slug', () => {
+  it('assignSlugs pairs routes and suffixes collisions', () => {
     expect(assignSlugs(['/sites', '/industry'])).toEqual([
       { route: '/sites', slug: 'sites' },
       { route: '/industry', slug: 'industry' },
     ]);
-  });
-
-  it('suffixes colliding slugs so files never overwrite', () => {
     // `/a/b` and `/a-b` both slugify to `a-b`.
     expect(assignSlugs(['/a/b', '/a-b', '/a/b/'])).toEqual([
       { route: '/a/b', slug: 'a-b' },
@@ -109,88 +92,65 @@ describe('assignSlugs', () => {
       { route: '/a/b/', slug: 'a-b-3' },
     ]);
   });
-});
 
-describe('networkFirst', () => {
-  it('prefers the first 4xx/5xx response', () => {
-    const r = {
-      httpErrors: [{ url: 'http://x/y', status: 500 }],
-      failedRequests: [{ url: 'http://x/z', error: 'net::ERR' }],
-    };
-    expect(networkFirst(r)).toBe('500 http://x/y');
+  it('networkFirst prefers http errors then failed requests', () => {
+    expect(
+      networkFirst({
+        httpErrors: [{ url: 'http://x/y', status: 500 }],
+        failedRequests: [{ url: 'http://x/z', error: 'net::ERR' }],
+      }),
+    ).toBe('500 http://x/y');
+    expect(
+      networkFirst({
+        httpErrors: [],
+        failedRequests: [{ url: 'http://x/z', error: 'net::ERR_FAILED' }],
+      }),
+    ).toBe('net::ERR_FAILED http://x/z');
   });
 
-  it('falls back to the first failed request when there is no http error', () => {
-    const r = {
+  it('summariseResults shapes artifact counts and failure rows', () => {
+    const clean = {
+      route: '/',
+      viewport: 'desktop',
+      failureArtifacts: [],
+      screenshots: [],
+      loadError: null,
+      consoleErrors: [],
+      pageErrors: [],
+      failedRequests: [],
       httpErrors: [],
-      failedRequests: [{ url: 'http://x/z', error: 'net::ERR_FAILED' }],
     };
-    expect(networkFirst(r)).toBe('net::ERR_FAILED http://x/z');
-  });
-});
 
-describe('summariseResults', () => {
-  const clean = {
-    route: '/',
-    viewport: 'desktop',
-    failureArtifacts: [],
-    screenshots: [],
-    loadError: null,
-    consoleErrors: [],
-    pageErrors: [],
-    failedRequests: [],
-    httpErrors: [],
-  };
-
-  it('counts failure artifacts and produces no rows for a clean sweep', () => {
-    const out = summariseResults([
-      clean,
-      { ...clean, failureArtifacts: ['a.png', 'b.png'] },
-    ]);
-    expect(out).toEqual({
+    expect(
+      summariseResults([clean, { ...clean, failureArtifacts: ['a.png', 'b.png'] }]),
+    ).toEqual({
       failureArtifactCount: 2,
       loadRows: [],
       consoleRows: [],
       networkRows: [],
     });
-  });
 
-  it('falls back to legacy screenshots when failureArtifacts is absent', () => {
     const { failureArtifacts: _omit, ...legacy } = clean;
-    const out = summariseResults([{ ...legacy, screenshots: ['old.png'] }]);
-    expect(out.failureArtifactCount).toBe(1);
-  });
+    expect(summariseResults([{ ...legacy, screenshots: ['old.png'] }]).failureArtifactCount).toBe(
+      1,
+    );
 
-  it('reads storage-state and cookie-jar flags', () => {
-    const { opts } = parseArgs([
-      '/',
-      '--storage-state=docs/ux-check/captures/auth-storage.json',
-      '--cookie-jar=/tmp/cookies.txt',
+    expect(summariseResults([{ ...clean, loadError: 'boom' }]).loadRows).toEqual([
+      '/ [desktop]: boom',
     ]);
-    expect(opts.storageState).toBe('docs/ux-check/captures/auth-storage.json');
-    expect(opts.cookieJar).toBe('/tmp/cookies.txt');
-  });
-
-  it('shapes a load-error row', () => {
-    const out = summariseResults([{ ...clean, loadError: 'boom' }]);
-    expect(out.loadRows).toEqual(['/ [desktop]: boom']);
-  });
-
-  it('shapes a console/page-error row with the count and first message', () => {
-    const out = summariseResults([
-      { ...clean, consoleErrors: ['bad thing'], pageErrors: ['worse thing'] },
-    ]);
-    expect(out.consoleRows).toEqual(['/ [desktop]: 2 — bad thing']);
-  });
-
-  it('shapes a network row combining failed + http errors', () => {
-    const out = summariseResults([
-      {
-        ...clean,
-        failedRequests: [{ url: 'http://x/z', error: 'net::ERR' }],
-        httpErrors: [{ url: 'http://x/y', status: 404 }],
-      },
-    ]);
-    expect(out.networkRows).toEqual(['/ [desktop]: 2 — 404 http://x/y']);
+    expect(
+      summariseResults([
+        { ...clean, consoleErrors: ['bad thing'], pageErrors: ['worse thing'] },
+      ]).consoleRows,
+    ).toEqual(['/ [desktop]: 2 — bad thing']);
+    expect(
+      summariseResults([
+        {
+          ...clean,
+          failedRequests: [{ url: 'http://x/z', error: 'net::ERR' }],
+          httpErrors: [{ url: 'http://x/y', status: 404 }],
+        },
+      ]).networkRows,
+    ).toEqual(['/ [desktop]: 2 — 404 http://x/y']);
   });
 });

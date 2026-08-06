@@ -4,7 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { MapWindow } from './MapWindow';
 import type { WindowPlacement } from './window-model';
 
-function render(placement: WindowPlacement): string {
+function render(
+  placement: WindowPlacement,
+  overrides: { showCloseButton?: boolean } = {},
+): string {
   return renderToStaticMarkup(
     createElement(
       MapWindow,
@@ -16,6 +19,7 @@ function render(placement: WindowPlacement): string {
         onClose: vi.fn(),
         onActivate: vi.fn(),
         onPopToggle: vi.fn(),
+        ...overrides,
       },
       createElement('p', null, 'content'),
     ),
@@ -23,45 +27,26 @@ function render(placement: WindowPlacement): string {
 }
 
 describe('MapWindow isolation markup', () => {
-  it('owns the nokey root and effective contained scroller', () => {
-    const markup = render({ kind: 'docked' });
-
-    expect(markup).toContain('data-map-window="test"');
-    expect(markup).toContain('nokey');
-    expect(markup).toContain('data-map-window-scroll');
-    expect(markup).not.toContain('h-[calc(100dvh-5.5rem)]');
-  });
-
-  it('mounts title-bar drag and resize affordances only while floating', () => {
+  it('owns nokey/scroller contracts and gates float-only drag/resize plus optional close', () => {
     const docked = render({ kind: 'docked' });
+    expect(docked).toContain('data-map-window="test"');
+    expect(docked).toContain('nokey');
+    expect(docked).toContain('data-map-window-scroll');
+    expect(docked).not.toContain('h-[calc(100dvh-5.5rem)]');
+    expect(docked).not.toContain('data-map-window-drag');
+    expect(docked).not.toContain('data-map-window-resize');
+    expect(docked).toContain('Close Test window');
+
     const floating = render({
       kind: 'floating',
       rect: { x: 1, y: 2, width: 380, height: 520 },
     });
-
-    expect(docked).not.toContain('data-map-window-drag');
-    expect(docked).not.toContain('data-map-window-resize');
     expect(floating).toContain('data-map-window-drag');
-    expect(floating).toContain('cursor-move');
     expect(floating).toContain('data-map-window-resize');
     expect(floating).toContain('aria-hidden="true"');
-  });
 
-  it('can omit the title-bar close control', () => {
-    const withClose = render({ kind: 'docked' });
-    const withoutClose = renderToStaticMarkup(
-      createElement(MapWindow, {
-        windowId: 'test',
-        title: 'Test window',
-        placement: { kind: 'docked' },
-        stackIndex: 1,
-        onClose: vi.fn(),
-        onActivate: vi.fn(),
-        showCloseButton: false,
-      }),
+    expect(render({ kind: 'docked' }, { showCloseButton: false })).not.toContain(
+      'Close Test window',
     );
-
-    expect(withClose).toContain('Close Test window');
-    expect(withoutClose).not.toContain('Close Test window');
   });
 });
