@@ -62,6 +62,46 @@ const MAP_ROLE_LITERALS = {
   owner: v.literal('owner'),
 } as const satisfies Record<MapRole, unknown>;
 
+/** Convex-local rollout owner for the closed destination-hint vocabulary. */
+export const WORMHOLE_DESTINATION_HINTS = [
+  'hisec',
+  'lowsec',
+  'nullsec',
+  'unknown',
+  'dangerous',
+  'deadly',
+  'thera',
+  'pochven',
+  'drifter',
+] as const;
+
+/** One stored destination-hint bucket. */
+export type WormholeDestinationHint = (typeof WORMHOLE_DESTINATION_HINTS)[number];
+
+/** Convex-local rollout owner for connection identity provenance. */
+export const CONNECTION_PROVENANCES = [
+  'jump-verified',
+  'human',
+  'confirmed',
+  'assumed',
+] as const;
+
+/** One stored connection identity provenance tier. */
+export type ConnectionProvenance = (typeof CONNECTION_PROVENANCES)[number];
+
+/** Schema validator for the side whose wormhole type is attributable. */
+export const typedSideValidator = v.union(v.literal('from'), v.literal('to'));
+
+/** Schema validator for the closed destination-hint vocabulary. */
+export const destinationHintValidator = v.union(
+  ...WORMHOLE_DESTINATION_HINTS.map((hint) => v.literal(hint)),
+);
+
+/** Schema validator for connection identity provenance. */
+export const connectionProvenanceValidator = v.union(
+  ...CONNECTION_PROVENANCES.map((provenance) => v.literal(provenance)),
+);
+
 /** Schema validator for observed mass state, null while still unobserved. */
 export const massStateValidator = v.union(
   MASS_STATE_LITERALS.stable,
@@ -159,6 +199,16 @@ export interface ConnectionInput {
   readonly deathLatestAt?: number | null;
 }
 
+/** The fixture boundary for a scanned wormhole whose far endpoint is unresolved. */
+export interface UnresolvedHoleInput {
+  readonly fromSystemId: number;
+  readonly toSystemId: null;
+  readonly fromSignatureId: string;
+  readonly wormholeTypeCode: string | null;
+  readonly shipSize: WormholeSizeClass | null;
+  readonly fromDestinationHint?: WormholeDestinationHint;
+}
+
 /** The optional-normalized absolute death-window pair accepted at the boundary. */
 export interface DeathWindowInput {
   readonly deathEarliestAt?: number | null;
@@ -195,6 +245,25 @@ export function validateConnectionInput(input: ConnectionInput): void {
   }
   requireAbsoluteTimestamp('eolAt', input.eolAt);
   validateDeathWindowInput(input);
+}
+
+/**
+ * Validates an unresolved wormhole row without weakening the established
+ * two-endpoint connection boundary used by shipped authoring fixtures.
+ */
+export function validateUnresolvedHoleInput(input: UnresolvedHoleInput): void {
+  if (!isPositiveId(input.fromSystemId)) {
+    reject('INVALID_SYSTEM_ID', 'An unresolved hole origin must be a positive safe integer.');
+  }
+  if (input.toSystemId !== null) {
+    reject('INVALID_UNRESOLVED_HOLE', 'An unresolved hole must have a null destination.');
+  }
+  if (input.fromSignatureId.trim() === '') {
+    reject('INVALID_SIGNATURE_ID', 'An unresolved hole needs an origin signature ID.');
+  }
+  if (input.wormholeTypeCode !== null && !isWormholeTypeCode(input.wormholeTypeCode)) {
+    reject('INVALID_WORMHOLE_CODE', `Unknown wormhole code "${input.wormholeTypeCode}".`);
+  }
 }
 
 /** The nullable knowledge fields the map shares about one signature. */

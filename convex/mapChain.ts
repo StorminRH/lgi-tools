@@ -7,12 +7,11 @@
 // cannot overlap the systems read set and therefore cannot re-read the systems range — the invariant
 // `docs/VERSION_4_0_PLAN.md` §4.0.2.3 states and the trackers' SA.5 lesson taught (`docs/CONVEX.md`).
 //
-// Both queries flow through one `readChainPage` helper, house-style (the fixture reader's
-// `byMap(table)`, the purge contributors, the ESI gate): the table name is the caller's parameter,
-// and read-set tracking is per-execution, so the two subscriptions stay disjoint at runtime. The
-// contract is enforced, not hoped for: `mapChain.test.ts` pins each handler to its exact table
-// literal and pins the helper to exactly one dynamic indexed read with no other database access —
-// together the deterministic evidence AC-6 requires instead of an observation.
+// Systems and connections use separate page helpers because the merged connection model has two
+// disjoint destination ranges: numeric rows are resolved canvas edges, while null rows are
+// unresolved matching slots. Read-set tracking is per execution, so the subscriptions remain
+// table/range precise. `mapChain.test.ts` pins each handler to its exact helper and each helper to
+// its single owned table — deterministic evidence rather than an observation.
 //
 // AUTHORIZATION SHAPE — why nothing here throws:
 //
@@ -35,6 +34,7 @@ import {
 } from 'convex/server';
 import { v } from 'convex/values';
 import { rolesAllow } from '@/data/maps/access-contract';
+import { isTombstoned } from '@/data/maps/chain-contract';
 import type { Doc } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { tryMapAccess } from './lib/mapAccess';
@@ -64,44 +64,77 @@ function clampPageSize<T extends { numItems: number }>(paginationOpts: T): T {
   };
 }
 
-/** The tables a chain subscription may page. Widening this list is a contract decision, not a tweak. */
-type ChainTable = 'mapSystems' | 'mapConnections';
+type ResolvedMapConnection = Doc<'mapConnections'> & { readonly toSystemId: number };
+type UnresolvedMapConnection = Doc<'mapConnections'> & { readonly toSystemId: null };
+type ConnectionPageMode = 'resolved' | 'unresolved';
 
 /** A complete, empty page: what a chain read serves a caller holding no claim. */
-function deniedPage<Table extends ChainTable>(): PaginationResult<Doc<Table>> {
+function deniedPage<Row>(): PaginationResult<Row> {
   return { page: [], isDone: true, continueCursor: '' };
 }
 
-/**
- * Reads one gated page of one chain table for one map — the single shared body of every chain
- * subscription.
- *
- * The caller's table name is the ONLY thing that varies, and it decides the execution's whole read
- * set: one claim lookup plus one `by_map` index range on exactly that table. Nothing else in here may
- * touch the database — an added read would land in every chain subscription at once, and the
- * source-contract test pins this body to exactly one dynamic indexed read for that reason.
- *
- * Serves an empty, complete page to a caller holding no claim, having read no chain row.
- */
-async function readChainPage<Table extends ChainTable>(
+/** Reads one access-gated systems page through only that map's `by_map` range. */
+async function readSystemPage(
   ctx: QueryCtx,
-  table: Table,
   mapId: string,
   paginationOpts: PaginationOptions,
-): Promise<PaginationResult<Doc<Table>>> {
+): Promise<PaginationResult<Doc<'mapSystems'>>> {
   const principal = await tryMapAccess(ctx, mapId, 'view');
-  if (principal === null) return deniedPage<Table>();
-
-  // Union-typed initializer, exactly like the fixture reader's `byMap(table)`: Convex's index
-  // builder resolves field types over a union but not over an unreduced generic. The two-step cast
-  // narrows the page back to the caller's exact table — provable by construction, since `chainTable`
-  // IS the caller's parameter and the query read nothing else.
-  const chainTable: ChainTable = table;
-  const result = await ctx.db
-    .query(chainTable)
+  if (principal === null) return deniedPage<Doc<'mapSystems'>>();
+  return await ctx.db
+    .query('mapSystems')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
     .paginate(clampPageSize(paginationOpts));
-  return result as unknown as PaginationResult<Doc<Table>>;
+}
+
+/**
+ * Reads one access-gated connection page through a destination-specific index
+ * range. Numeric destinations and null destinations are disjoint ranges, so
+ * unresolved rows can never enter the shipped canvas page.
+ */
+async function readConnectionPage(
+  ctx: QueryCtx,
+  mapId: string,
+  paginationOpts: PaginationOptions,
+  mode: 'resolved',
+): Promise<PaginationResult<ResolvedMapConnection>>;
+async function readConnectionPage(
+  ctx: QueryCtx,
+  mapId: string,
+  paginationOpts: PaginationOptions,
+  mode: 'unresolved',
+): Promise<PaginationResult<UnresolvedMapConnection>>;
+async function readConnectionPage(
+  ctx: QueryCtx,
+  mapId: string,
+  paginationOpts: PaginationOptions,
+  mode: ConnectionPageMode,
+): Promise<PaginationResult<ResolvedMapConnection | UnresolvedMapConnection>> {
+  const principal = await tryMapAccess(ctx, mapId, 'view');
+  if (principal === null) {
+    return deniedPage<ResolvedMapConnection | UnresolvedMapConnection>();
+  }
+
+  const bounded = clampPageSize(paginationOpts);
+  if (mode === 'resolved') {
+    const result = await ctx.db
+      .query('mapConnections')
+      .withIndex('by_map_to', (q) => q.eq('mapId', mapId).gt('toSystemId', null))
+      .paginate(bounded);
+    // The indexed range is the proof that every returned destination is numeric.
+    return result as PaginationResult<ResolvedMapConnection>;
+  }
+
+  const result = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map_to', (q) => q.eq('mapId', mapId).eq('toSystemId', null))
+    .paginate(bounded);
+  return {
+    ...result,
+    // Tombstoned stubs stay available to sever/restore internally but never
+    // re-enter the live candidate feed merely because their anchor is placed again.
+    page: result.page.filter((row) => !isTombstoned(row)) as UnresolvedMapConnection[],
+  };
 }
 
 /**
@@ -144,21 +177,34 @@ export const watchMapAccess = query({
 export const watchMapSystems = query({
   args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
   handler: async (ctx, { mapId, paginationOpts }) =>
-    await readChainPage(ctx, 'mapSystems', mapId, paginationOpts),
+    await readSystemPage(ctx, mapId, paginationOpts),
 });
 
 /**
  * Subscribes to one page of a map's connections.
  *
- * Its read set is exactly the `mapConnections` `by_map` range for this map plus the caller's claim
- * row, disjoint from the systems range above. Endpoints are system IDs rather than document
- * references, so no `db.get` join is needed server-side; the client-side reconciler owns that join
- * and withholds an edge whose endpoint has not arrived yet.
+ * Its read set is exactly the numeric-destination portion of this map's
+ * `mapConnections.by_map_to` range plus the caller's claim row, disjoint from
+ * both systems and null-destination slots. No `db.get` join is needed server-side.
  */
 export const watchMapConnections = query({
   args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { mapId, paginationOpts }) =>
-    await readChainPage(ctx, 'mapConnections', mapId, paginationOpts),
+  handler: async (ctx, { mapId, paginationOpts }): Promise<
+    PaginationResult<ResolvedMapConnection>
+  > =>
+    await readConnectionPage(ctx, mapId, paginationOpts, 'resolved'),
+});
+
+/**
+ * Subscribes to one page of active unresolved wormhole slots. This is a
+ * separate feed for matching/prompt consumers; the canvas never subscribes to it.
+ */
+export const watchUnresolvedHoles = query({
+  args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { mapId, paginationOpts }): Promise<
+    PaginationResult<UnresolvedMapConnection>
+  > =>
+    await readConnectionPage(ctx, mapId, paginationOpts, 'unresolved'),
 });
 
 /**

@@ -162,17 +162,29 @@ describe('map chain fixtures', () => {
           'deathEarliestAt',
           'deathLatestAt',
           'deletedAt',
+          'destinationProvenance',
           'eolAt',
+          'fromDestinationHint',
+          'fromSignatureId',
           'fromSystemId',
           'lifeStage',
           'lifeStageObservedAt',
           'mapId',
           'massState',
+          'observationKey',
+          'observedMassAtStateKg',
+          'observedMassKg',
+          'pendingCandidates',
           'purgeAfter',
           'shipSize',
+          'toDestinationHint',
+          'toSignatureId',
           'toSystemId',
+          'typeProvenance',
+          'typedSide',
           'wormholeTypeCode',
         ],
+        mapJumpBookkeeping: ['characterId', 'lastProcessedTransitionAt', 'mapId'],
         mapSignatures: [
           'deletedAt',
           'group',
@@ -209,6 +221,10 @@ describe('map chain fixtures', () => {
           by_map_from: ['mapId', 'fromSystemId'],
           by_map_to: ['mapId', 'toSystemId'],
           by_purge_after: ['purgeAfter'],
+        },
+        mapJumpBookkeeping: {
+          by_map: ['mapId'],
+          by_map_character: ['mapId', 'characterId'],
         },
         mapSignatures: {
           by_map: ['mapId'],
@@ -572,6 +588,52 @@ describe('map chain fixtures', () => {
         group: 'wormhole',
         typeName: 'Unstable Wormhole',
         wormholeTypeCode: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+
+    it('upserts one unresolved wormhole slot without inventing a destination', async () => {
+      const t = convexTest(schema, modules);
+      await seedMap(t);
+
+      const inserted = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: 'ABC-123',
+      });
+      const unchanged = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: ' ABC-123 ',
+      });
+      const updated = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: 'C247',
+        shipSize: 'L',
+        fromDestinationHint: 'dangerous',
+      });
+
+      expect(inserted.outcome).toBe('inserted');
+      expect(unchanged).toEqual({ outcome: 'unchanged', connectionId: inserted.connectionId });
+      expect(updated).toEqual({ outcome: 'updated', connectionId: inserted.connectionId });
+      const rows = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapConnections')
+          .withIndex('by_map_from', (q) => q.eq('mapId', MAP_A).eq('fromSystemId', JITA))
+          .collect(),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        toSystemId: null,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        shipSize: 'L',
+        fromDestinationHint: 'dangerous',
         deletedAt: null,
         purgeAfter: null,
       });

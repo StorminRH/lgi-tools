@@ -263,7 +263,14 @@ describe('client subscription projections', () => {
       deletedAt: 20,
       purgeAfter: 30,
     } as Doc<'mapConnections'>;
-    expect(connectionDetailsFromRows([row]).get(row._id)).toMatchObject({
+    const unresolved = {
+      ...row,
+      _id: 'stub-1',
+      toSystemId: null,
+      fromSignatureId: 'ABC-123',
+    } as Doc<'mapConnections'>;
+    const details = connectionDetailsFromRows([row, unresolved]);
+    expect(details.get(row._id)).toMatchObject({
       connectionId: row._id,
       _creationTime: 10,
       lifeStage: null,
@@ -272,6 +279,7 @@ describe('client subscription projections', () => {
       deletedAt: 20,
       purgeAfter: 30,
     });
+    expect(details.has(unresolved._id)).toBe(false);
   });
 });
 

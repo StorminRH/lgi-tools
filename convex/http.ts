@@ -15,6 +15,7 @@ import { httpAction } from './_generated/server';
 import { bearerMatches } from './lib/bearerAuth';
 
 const http = httpRouter();
+const MAX_PURGE_BATCHES = 10_000;
 
 // The inbound purge body's wire contract. The mutation's own arg validators
 // would also reject a wrong-typed body, but only by throwing — which surfaced
@@ -142,6 +143,18 @@ http.route({
       internal.mapAccessProjection.reconcileMapClaims,
       body.data,
     );
+    if (body.data.claims.length === 0) {
+      // Map teardown owns durable exactly-once stamps, but drains them in
+      // bounded transactions. A 503 remains idempotently retryable after any
+      // completed batches instead of making a large map permanently undeletable.
+      for (let batchIndex = 0; batchIndex < MAX_PURGE_BATCHES; batchIndex += 1) {
+        const batch = await ctx.runMutation(internal.mapJumpBookkeeping.purgeForMap, {
+          mapId: body.data.mapId,
+        });
+        if (!batch.hasMore) return Response.json(counts);
+      }
+      return new Response('Purge batch limit exceeded', { status: 503 });
+    }
     return Response.json(counts);
   }),
 });
@@ -160,7 +173,6 @@ http.route({
 
     // Cap iterations so a concurrent writer that keeps re-inserting claims cannot
     // hang the HTTP action; purge remains idempotent and safe to retry.
-    const MAX_PURGE_BATCHES = 10_000;
     let deleted = 0;
     for (let batchIndex = 0; batchIndex < MAX_PURGE_BATCHES; batchIndex += 1) {
       const batch = await ctx.runMutation(internal.mapAccessProjection.purgeUserClaims, {

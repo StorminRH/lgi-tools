@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MAP_JUMP_BOOKKEEPING_PURGE_BATCH } from './mapJumpBookkeeping';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -140,6 +141,36 @@ describe('POST /project-map-access', () => {
       deleted: 0,
       unchanged: 0,
     });
+  });
+
+  it('drains a multi-batch bookkeeping teardown without touching another map', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let index = 0; index <= MAP_JUMP_BOOKKEEPING_PURGE_BATCH; index += 1) {
+        await ctx.db.insert('mapJumpBookkeeping', {
+          mapId: 'map-large',
+          characterId: 90_000_000 + index,
+          lastProcessedTransitionAt: index,
+        });
+      }
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-other',
+        characterId: 91_000_000,
+        lastProcessedTransitionAt: 1,
+      });
+    });
+
+    const res = await t.fetch('/project-map-access', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({ mapId: 'map-large', claims: [] }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(await t.run(async (ctx) => ctx.db.query('mapJumpBookkeeping').collect())).toEqual([
+      expect.objectContaining({ mapId: 'map-other', characterId: 91_000_000 }),
+    ]);
   });
 });
 

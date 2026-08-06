@@ -102,4 +102,12 @@ export const NON_NEON_HOMES = [
     reason:
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Access revocation and map deletion cascade-delete mapTracking inside the projection apply; account/character purge hits the same HTTP door as characterLocation.',
   },
+  {
+    home: 'convex:mapJumpBookkeeping',
+    coveredBy:
+      'full map teardown via POST /project-map-access drains bounded convex/mapJumpBookkeeping.purgeForMap batches; tracking revocation intentionally retains the stamps so untrack/retrack cannot double-count a jump',
+    explicitTeardown: 'convex/mapJumpBookkeeping.ts — session 4.0.4.2.2 OW1',
+    reason:
+      'the table contains map-scoped exactly-once state rather than account-owned payload. It has no user identity, survives tracking revocation by design, and is deleted with the collaborative map whose jump history it protects.',
+  },
 ] as const;

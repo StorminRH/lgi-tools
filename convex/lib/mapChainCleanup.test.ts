@@ -67,6 +67,18 @@ describe('map chain cleanup', () => {
         deletedAt: NOW - 2_000,
         purgeAfter: NOW - 1_000,
       });
+      const unresolvedConnection = await ctx.db.insert('mapConnections', {
+        mapId: MAP_ID,
+        fromSystemId: ROOT,
+        toSystemId: null,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: null,
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: NOW - 2_000,
+        purgeAfter: NOW - 1_000,
+      });
       const expiredEvent = await ctx.db.insert('mapEvents', {
         mapId: MAP_ID,
         at: NOW - MAP_EVENT_RETENTION_MS - 1,
@@ -86,6 +98,7 @@ describe('map chain cleanup', () => {
       return {
         retainedConnection,
         danglingConnection,
+        unresolvedConnection,
         expiredEvent,
         liveEvent,
       };
@@ -97,7 +110,7 @@ describe('map chain cleanup', () => {
     );
     expect(result).toEqual({
       deletedSystems: 1,
-      deletedConnections: 1,
+      deletedConnections: 2,
       retainedConnections: 1,
       deletedEvents: 1,
       hasMore: false,
@@ -107,6 +120,7 @@ describe('map chain cleanup', () => {
       purgeAfter: null,
     });
     expect(await t.run(async (ctx) => await ctx.db.get(ids.danglingConnection))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(ids.unresolvedConnection))).toBeNull();
     expect(await t.run(async (ctx) => await ctx.db.get(ids.expiredEvent))).toBeNull();
     expect(await t.run(async (ctx) => await ctx.db.get(ids.liveEvent))).not.toBeNull();
   });

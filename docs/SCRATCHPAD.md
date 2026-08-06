@@ -16,11 +16,28 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.2.1** complete (tracked location and
-  jump classification); close-out is delivering its per-session PR from
-  `lifecycle/4.0.4.2`. After merge: recreate `lifecycle/4.0.4.2` from
-  current `main` and plan **4.0.4.2.2** through `start-session`, starting
-  from the operator direction below.
+- **CURRENT / NEXT:** session **4.0.4.2.2** in flight on
+  `lifecycle/4.0.4.2` (automatic jump authoring). Plan
+  `docs/session-plans/4.0/4.0.4.2.2.md`; contract
+  `docs/session-contracts/4.0/4.0.4.2.2.md`.
+- **OW progress:** `1/7 complete` — next: Pure vocabulary, matcher, and mass
+  math.
+- **OW completed:**
+  - OW1 Merged schema + shipped-consumer guards — nullable unresolved
+    connection endpoints plus identity/hint/provenance/observation fields;
+    indexed resolved/unresolved feeds; null-aware sever/restore/purge;
+    durable jump-bookkeeping census + bounded map teardown; focused 196/196;
+    verify green (4,738 passed / 133 skipped), Fallow 19 files / 0 issues.
+- **Next-agent notes:** (1) The plan's detailed hard constraint controls its
+  mechanical OW1 wording drift: `readBoundedMapTopology` deliberately retains
+  unresolved rows for sever/restore; only the collapse-decision graph filters
+  to resolved live connections. (2) `watchMapConnections` is the shipped
+  resolved-only feed; `watchUnresolvedHoles` is the pinned authoring seam.
+  (3) `mapJumpBookkeeping` survives tracking revocation by design; full map
+  teardown drains bounded `purgeForMap` batches through authenticated
+  `POST /project-map-access`, so retry can continue safely. (4) OW1's
+  Convex-local hint/provenance vocabulary is temporary; OW2 owns moving the
+  shared vocabulary to `src/data/eve-data/wormhole-contract.ts`.
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,

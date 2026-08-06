@@ -11,13 +11,16 @@
 //   2. Volatile bookkeeping never touches a watched payload document — last-seen
 //      lives in mapSignatureActivity, and a sub-threshold observation writes nothing.
 import { ConvexError, v } from 'convex/values';
+import { isTombstoned } from '@/data/maps/chain-contract';
 import {
   internalMutation,
   query,
   type MutationCtx,
 } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
 import {
+  destinationHintValidator,
   massStateValidator,
   mergeSignatureKnowledge,
   noteTargetKindValidator,
@@ -25,6 +28,7 @@ import {
   shipSizeValidator,
   validateConnectionInput,
   validateSignatureKnowledge,
+  validateUnresolvedHoleInput,
   wormholeTypeCodeValidator,
   type NoteTargetKind,
 } from './lib/mapEntityContracts';
@@ -188,6 +192,172 @@ export const placeJumpFixture = internalMutation({
     }
 
     return await ctx.db.insert('mapConnections', args);
+  },
+});
+
+interface UnresolvedHoleFixtureArgs {
+  readonly mapId: string;
+  readonly fromSystemId: number;
+  readonly fromSignatureId: string;
+  readonly wormholeTypeCode?: Doc<'mapConnections'>['wormholeTypeCode'];
+  readonly shipSize?: Doc<'mapConnections'>['shipSize'];
+  readonly fromDestinationHint?: Doc<'mapConnections'>['fromDestinationHint'];
+}
+
+interface NormalizedUnresolvedHole extends UnresolvedHoleFixtureArgs {
+  readonly fromSignatureId: string;
+  readonly wormholeTypeCode: Doc<'mapConnections'>['wormholeTypeCode'];
+  readonly shipSize: Doc<'mapConnections'>['shipSize'];
+}
+
+function normalizeUnresolvedHole(args: UnresolvedHoleFixtureArgs): NormalizedUnresolvedHole {
+  const normalized = {
+    ...args,
+    fromSignatureId: args.fromSignatureId.trim(),
+    wormholeTypeCode: args.wormholeTypeCode ?? null,
+    shipSize: args.shipSize ?? null,
+  };
+  validateUnresolvedHoleInput({
+    fromSystemId: normalized.fromSystemId,
+    toSystemId: null,
+    fromSignatureId: normalized.fromSignatureId,
+    wormholeTypeCode: normalized.wormholeTypeCode,
+    shipSize: normalized.shipSize,
+    fromDestinationHint: normalized.fromDestinationHint,
+  });
+  return normalized;
+}
+
+async function requireUnresolvedHoleOrigin(
+  ctx: MutationCtx,
+  args: NormalizedUnresolvedHole,
+): Promise<void> {
+  const origin = await findSystem(ctx, args.mapId, args.fromSystemId);
+  if (origin === null || isTombstoned(origin)) {
+    throw new ConvexError({
+      code: 'UNKNOWN_ENDPOINT',
+      detail: `Origin system ${args.fromSystemId} is not live on map ${args.mapId}.`,
+    });
+  }
+}
+
+async function findUnresolvedHole(
+  ctx: MutationCtx,
+  args: NormalizedUnresolvedHole,
+): Promise<Doc<'mapConnections'> | undefined> {
+  const rows = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map_from', (q) =>
+      q.eq('mapId', args.mapId).eq('fromSystemId', args.fromSystemId),
+    )
+    .take(FIXTURE_CONNECTION_SCAN_LIMIT + 1);
+  if (rows.length > FIXTURE_CONNECTION_SCAN_LIMIT) {
+    throw new ConvexError({
+      code: 'FIXTURE_MAP_TOO_LARGE',
+      detail: `Map ${args.mapId} exceeds the ${FIXTURE_CONNECTION_SCAN_LIMIT}-connection unresolved-hole bound.`,
+    });
+  }
+  return rows.find(
+    (row) => row.toSystemId === null && row.fromSignatureId === args.fromSignatureId,
+  );
+}
+
+function unresolvedHoleTypePatch(
+  existing: Doc<'mapConnections'>,
+  input: UnresolvedHoleFixtureArgs,
+  normalized: NormalizedUnresolvedHole,
+): Partial<Doc<'mapConnections'>> {
+  if (input.wormholeTypeCode === undefined) return {};
+  if (existing.wormholeTypeCode === normalized.wormholeTypeCode) return {};
+  return {
+    wormholeTypeCode: normalized.wormholeTypeCode,
+    typedSide: normalized.wormholeTypeCode === null ? undefined : 'from',
+    typeProvenance: normalized.wormholeTypeCode === null ? undefined : 'human',
+  };
+}
+
+function unresolvedHoleSizePatch(
+  existing: Doc<'mapConnections'>,
+  input: UnresolvedHoleFixtureArgs,
+  normalized: NormalizedUnresolvedHole,
+): Partial<Doc<'mapConnections'>> {
+  if (input.shipSize === undefined || existing.shipSize === normalized.shipSize) return {};
+  return { shipSize: normalized.shipSize };
+}
+
+function unresolvedHoleHintPatch(
+  existing: Doc<'mapConnections'>,
+  input: UnresolvedHoleFixtureArgs,
+  normalized: NormalizedUnresolvedHole,
+): Partial<Doc<'mapConnections'>> {
+  if (input.fromDestinationHint === undefined) return {};
+  if (existing.fromDestinationHint === normalized.fromDestinationHint) return {};
+  return { fromDestinationHint: normalized.fromDestinationHint };
+}
+
+function unresolvedHolePatch(
+  existing: Doc<'mapConnections'>,
+  input: UnresolvedHoleFixtureArgs,
+  normalized: NormalizedUnresolvedHole,
+): Partial<Doc<'mapConnections'>> {
+  return {
+    ...unresolvedHoleTypePatch(existing, input, normalized),
+    ...unresolvedHoleSizePatch(existing, input, normalized),
+    ...unresolvedHoleHintPatch(existing, input, normalized),
+  };
+}
+
+async function insertUnresolvedHole(
+  ctx: MutationCtx,
+  args: NormalizedUnresolvedHole,
+) {
+  return await ctx.db.insert('mapConnections', {
+    mapId: args.mapId,
+    fromSystemId: args.fromSystemId,
+    toSystemId: null,
+    fromSignatureId: args.fromSignatureId,
+    wormholeTypeCode: args.wormholeTypeCode,
+    massState: null,
+    shipSize: args.shipSize,
+    eolAt: null,
+    typedSide: args.wormholeTypeCode === null ? undefined : 'from',
+    typeProvenance: args.wormholeTypeCode === null ? undefined : 'human',
+    fromDestinationHint: args.fromDestinationHint,
+    deletedAt: null,
+    purgeAfter: null,
+  });
+}
+
+/**
+ * Seeds or enriches one active scanned wormhole slot without inventing a far
+ * endpoint. This is the pre-parser proof seam for jump matching.
+ */
+export const upsertUnresolvedHole = internalMutation({
+  args: {
+    mapId: v.string(),
+    fromSystemId: v.number(),
+    fromSignatureId: v.string(),
+    wormholeTypeCode: v.optional(wormholeTypeCodeValidator),
+    shipSize: v.optional(shipSizeValidator),
+    fromDestinationHint: v.optional(destinationHintValidator),
+  },
+  handler: async (ctx, input) => {
+    const args = normalizeUnresolvedHole(input);
+    await requireUnresolvedHoleOrigin(ctx, args);
+    const existing = await findUnresolvedHole(ctx, args);
+    if (existing === undefined) {
+      const connectionId = await insertUnresolvedHole(ctx, args);
+      return { outcome: 'inserted' as const, connectionId };
+    }
+    if (isTombstoned(existing)) {
+      return { outcome: 'tombstoned' as const, connectionId: existing._id };
+    }
+    const patch = unresolvedHolePatch(existing, input, args);
+    if (Object.keys(patch).length === 0) {
+      return { outcome: 'unchanged' as const, connectionId: existing._id };
+    }
+    await ctx.db.patch(existing._id, patch);
+    return { outcome: 'updated' as const, connectionId: existing._id };
   },
 });
 

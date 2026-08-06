@@ -127,6 +127,9 @@ export function connectionDetailsFromRows(
 ): ReadonlyMap<Id<'mapConnections'>, ConnectionDetail> {
   const details = new Map<Id<'mapConnections'>, ConnectionDetail>();
   for (const row of rows) {
+    // The public subscription is resolved-only; keep this projection guarded
+    // as a second boundary for direct/test callers holding a schema-wide Doc.
+    if (row.toSystemId === null) continue;
     details.set(row._id, {
       connectionId: row._id,
       _creationTime: row._creationTime,

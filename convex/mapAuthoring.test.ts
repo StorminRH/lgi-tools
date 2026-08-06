@@ -968,6 +968,72 @@ describe('map authoring', () => {
       });
     });
 
+    it('stamps, restores, and keeps replaced-anchor stubs out of the candidate feed', async () => {
+      const t = convexTest(schema, modules);
+      const ids = await seedTopology(
+        t,
+        [WH_ROOT, WH_A, WH_B],
+        [
+          { key: 'cut', fromSystemId: WH_ROOT, toSystemId: WH_A },
+          { key: 'a-b', fromSystemId: WH_A, toSystemId: WH_B },
+        ],
+      );
+      const stub = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: WH_B,
+        fromSignatureId: 'ABC-123',
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.severConnection, {
+          mapId: MAP_A,
+          connectionId: ids.cut!,
+        }),
+      ).resolves.toEqual({ outcome: 'removed', systemIds: [WH_A, WH_B] });
+      expect(await readConnection(t, stub.connectionId)).toMatchObject({
+        toSystemId: null,
+        deletedAt: NOW,
+        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      });
+
+      await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+        mapId: MAP_A,
+        connectionId: ids.cut!,
+      });
+      expect(await readConnection(t, stub.connectionId)).toMatchObject({
+        deletedAt: null,
+        purgeAfter: null,
+      });
+
+      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+        mapId: MAP_A,
+        connectionId: ids.cut!,
+      });
+      await t.run(async (ctx) => {
+        const oldAnchor = await ctx.db
+          .query('mapSystems')
+          .withIndex('by_map_system', (q) =>
+            q.eq('mapId', MAP_A).eq('systemId', WH_B),
+          )
+          .unique();
+        if (oldAnchor === null) throw new Error('expected tombstoned anchor fixture');
+        await ctx.db.delete(oldAnchor._id);
+        await ctx.db.insert('mapSystems', {
+          mapId: MAP_A,
+          systemId: WH_B,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+      });
+
+      const candidates = await asUser(t).query(api.mapChain.watchUnresolvedHoles, {
+        mapId: MAP_A,
+        paginationOpts: { cursor: null, numItems: 10 },
+      });
+      expect(candidates.page).toEqual([]);
+      expect(await readConnection(t, stub.connectionId)).toMatchObject({ deletedAt: NOW });
+    });
+
     it('evaluates an interior sever inside a retained known-space island', async () => {
       const t = convexTest(schema, modules);
       const ids = await seedTopology(

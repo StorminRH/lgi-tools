@@ -652,7 +652,9 @@ async function clearConnectionTombstone(
   const connection = await gatedConnection(ctx, mapId, connectionId);
   if (!isTombstoned(connection)) return { restored: true, changed: false };
   await requireLiveEndpoint(ctx, mapId, connection.fromSystemId);
-  await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
+  if (connection.toSystemId !== null) {
+    await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
+  }
   await ctx.db.patch(connectionId, { deletedAt: null, purgeAfter: null });
   return { restored: true, changed: true };
 }
@@ -711,10 +713,21 @@ function collapseDecision(
       detail: `Connection ${cut._id} is already tombstoned.`,
     });
   }
+  if (cut.toSystemId === null) {
+    throw new ConvexError({
+      code: 'UNRESOLVED_CONNECTION',
+      detail: `Connection ${cut._id} has no resolved destination to sever.`,
+    });
+  }
 
   const systems = topology.systems.filter((row) => !isTombstoned(row));
   const systemIds = new Set(systems.map((row) => row.systemId));
-  const connections = topology.connections.filter((row) => !isTombstoned(row));
+  // Keep stubs in the bounded topology for the write/restore set, but only
+  // resolved live rows form graph edges for the collapse decision.
+  const connections = topology.connections.filter(
+    (row): row is Doc<'mapConnections'> & { toSystemId: number } =>
+      !isTombstoned(row) && row.toSystemId !== null,
+  );
   for (const connection of connections) {
     if (
       !systemIds.has(connection.fromSystemId) ||
@@ -756,6 +769,19 @@ interface SeverWriteContext {
   readonly stamps: ReturnType<typeof chainTombstoneStamps>;
 }
 
+function shouldRearmSkeleton(
+  row: Doc<'mapConnections'>,
+  removedConnectionIds: ReadonlySet<string>,
+  removedSystemIds: ReadonlySet<number>,
+): boolean {
+  const touchesRemovedSystem =
+    removedSystemIds.has(row.fromSystemId)
+    || (row.toSystemId !== null && removedSystemIds.has(row.toSystemId));
+  return isTombstoned(row)
+    && !removedConnectionIds.has(String(row._id))
+    && touchesRemovedSystem;
+}
+
 /** Commits the retained-edge stamp and its matching event. */
 async function writeRetainedSever(
   input: SeverWriteContext,
@@ -784,20 +810,23 @@ async function stampRemovedRows(
   const connections = input.topology.connections.filter((row) =>
     removedConnectionIds.has(String(row._id)),
   );
-  const skeletonsToRearm = input.topology.connections.filter(
+  const incidentStubs = input.topology.connections.filter(
     (row) =>
-      isTombstoned(row)
-      && !removedConnectionIds.has(String(row._id))
-      && (
-        removedSystemIds.has(row.fromSystemId)
-        || removedSystemIds.has(row.toSystemId)
-      ),
+      row.toSystemId === null
+      && !isTombstoned(row)
+      && removedSystemIds.has(row.fromSystemId),
+  );
+  const skeletonsToRearm = input.topology.connections.filter(
+    (row) => shouldRearmSkeleton(row, removedConnectionIds, removedSystemIds),
   );
   for (const system of systems) {
     await input.ctx.db.patch(system._id, input.stamps);
   }
   for (const connection of connections) {
     await input.ctx.db.patch(connection._id, input.stamps);
+  }
+  for (const stub of incidentStubs) {
+    await input.ctx.db.patch(stub._id, input.stamps);
   }
   for (const connection of skeletonsToRearm) {
     await input.ctx.db.patch(connection._id, {
@@ -855,6 +884,32 @@ export const severConnection = mutation({
   },
 });
 
+async function requireRestorableEndpoints(
+  ctx: MutationCtx,
+  mapId: string,
+  topology: BoundedMapTopology,
+  connections: readonly Doc<'mapConnections'>[],
+  restoredSystemIds: ReadonlySet<number>,
+): Promise<void> {
+  for (const row of connections) {
+    const endpointIds = row.toSystemId === null
+      ? [row.fromSystemId]
+      : [row.fromSystemId, row.toSystemId];
+    for (const endpointId of endpointIds) {
+      if (restoredSystemIds.has(endpointId)) continue;
+      const endpoint = topology.systems.find(
+        (system) => system.systemId === endpointId,
+      );
+      if (endpoint === undefined || isTombstoned(endpoint)) {
+        throw new ConvexError({
+          code: 'ENDPOINT_TOMBSTONED',
+          detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
+        });
+      }
+    }
+  }
+}
+
 /**
  * Restores every surviving row carrying one sever transaction's shared stamp.
  * A repeated call is an identity-preserving no-op and writes no duplicate event.
@@ -881,20 +936,13 @@ export const restoreSeveredBranch = mutation({
     // restoring around it would create a live connection with a dead endpoint,
     // which the collapse core rejects as INVALID_MAP_TOPOLOGY forever after.
     const restoredSystemIds = new Set(systems.map((row) => row.systemId));
-    for (const row of connections) {
-      for (const endpointId of [row.fromSystemId, row.toSystemId]) {
-        if (restoredSystemIds.has(endpointId)) continue;
-        const endpoint = topology.systems.find(
-          (system) => system.systemId === endpointId,
-        );
-        if (endpoint === undefined || isTombstoned(endpoint)) {
-          throw new ConvexError({
-            code: 'ENDPOINT_TOMBSTONED',
-            detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
-          });
-        }
-      }
-    }
+    await requireRestorableEndpoints(
+      ctx,
+      mapId,
+      topology,
+      connections,
+      restoredSystemIds,
+    );
     const actor = await eventActor(ctx);
     for (const system of systems) {
       await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
