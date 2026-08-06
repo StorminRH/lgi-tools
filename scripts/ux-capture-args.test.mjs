@@ -19,9 +19,11 @@ describe('ux-capture args helpers', () => {
     applyFlag(opts, 'settle', '2500');
     expect(opts).toEqual({ baseUrl: 'http://localhost:4000', settle: 2500 });
 
-    applyFlag(opts, 'settle', '0');
-    expect(opts.settle).toBe(0);
+    // Junk against a non-zero prior — "preserve" must be distinguishable from
+    // "reset to 0", so the parseable-0 case comes after.
     applyFlag(opts, 'settle', 'soon');
+    expect(opts.settle).toBe(2500);
+    applyFlag(opts, 'settle', '0');
     expect(opts.settle).toBe(0);
 
     applyFlag(opts, 'viewport', 'desktop, mobile, tablet');

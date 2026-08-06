@@ -45,6 +45,7 @@ describe('getEveNews', () => {
     );
     await expect(getEveNews()).resolves.toEqual([]);
 
+    h.cacheLife.mockClear();
     h.fetchWithTimeout.mockResolvedValue(new Response('down', { status: 500 }));
     await expect(getEveNews()).resolves.toEqual([]);
     expect(h.cacheLife).toHaveBeenCalledWith(expect.objectContaining({ revalidate: 300 }));
