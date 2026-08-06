@@ -7,7 +7,9 @@ import { Button } from './button';
 
 describe('Button', () => {
   it('defaults type to button, allows submit override, and distinguishes primary vs bare chrome', () => {
-    expect(Button({ children: 'x' }).props.type).toBe('button');
+    const el = Button({ children: 'x' });
+    expect(el.type).toBe('button');
+    expect(el.props.type).toBe('button');
     expect(Button({ type: 'submit', children: 'x' }).props.type).toBe('submit');
 
     const primary = Button({ variant: 'primary', className: 'fixed bottom-4' });
