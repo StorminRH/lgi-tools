@@ -29,6 +29,7 @@ type SliceId =
   | 'data/maps'
   | 'data/preferences'
   | 'data/telemetry'
+  | 'data/wh-observations'
   | 'data/wh-statics'
   | 'features/custom-structures'
   | 'features/industry-jobs'
@@ -537,6 +538,23 @@ export const DATA_OWNERSHIP = [
     invariants: ['pk(inspection_date,url)'],
     boundary: KEYED_UPSERT,
     dataClass: 'global-reference',
+  },
+
+  // ---------------------------------------------------------------------------
+  // data/wh-observations — privacy-safe retained D16 signal corpus.
+  // ---------------------------------------------------------------------------
+  {
+    table: schema.whObservations,
+    owner: 'data/wh-observations',
+    reads: 'open',
+    invariants: [
+      'check(wh_observations_attributable_type)',
+      'check(wh_observations_hour_coarse)',
+      'check(wh_observations_verified_provenance)',
+      'unique(dedupe_key)',
+    ],
+    boundary: KEYED_UPSERT,
+    dataClass: 'operational',
   },
 
   // ---------------------------------------------------------------------------

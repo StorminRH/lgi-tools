@@ -73,6 +73,19 @@ export async function getTypesByIds(ids: number[]): Promise<EveType[]> {
   return db.select(TYPE_COLUMNS).from(eveTypes).where(inArray(eveTypes.id, ids));
 }
 
+/** Reads one ship type's SDE mass, returning null for a missing row or missing mass. */
+export async function readShipMassByType(
+  database: AnyPgDb,
+  typeId: number,
+): Promise<number | null> {
+  const [row] = await database
+    .select({ mass: eveTypes.mass })
+    .from(eveTypes)
+    .where(eq(eveTypes.id, typeId))
+    .limit(1);
+  return row?.mass ?? null;
+}
+
 /**
  * Cached count of buildable blueprints + reactions, for the home dashboard's
  * status card. Deploy-static SDE data; the SDE refresh cron busts

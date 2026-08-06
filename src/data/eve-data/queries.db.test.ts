@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/test-support/db-test-harness';
-import { getBlueprintActivities } from './queries';
-import { industryBlueprints } from './schema';
+import { getBlueprintActivities, readShipMassByType } from './queries';
+import { eveTypes, industryBlueprints } from './schema';
 import { INV_683, MFG_681, RXN_46175 } from './__fixtures__/blueprint-activities';
 
 // Runs getBlueprintActivities against the local Docker Postgres so the parse is
@@ -11,7 +11,7 @@ import { INV_683, MFG_681, RXN_46175 } from './__fixtures__/blueprint-activities
 
 const harness = await createDbTestHarness({
   schema: 'test_eve_activities',
-  tables: ['industry_blueprints'],
+  tables: ['industry_blueprints', 'eve_types'],
   steerDbProxy: true,
 });
 
@@ -24,6 +24,22 @@ describe.skipIf(!harness.reachable)('getBlueprintActivities executes against Pos
         { blueprintTypeId: 683, maxProductionLimit: 1, activities: INV_683 },
         { blueprintTypeId: 46175, maxProductionLimit: 1, activities: RXN_46175 },
       ]);
+    await harness.db.insert(eveTypes).values([
+      {
+        id: 670,
+        groupId: 25,
+        name: 'Capsule',
+        mass: 32_000,
+        published: true,
+      },
+      {
+        id: 999_999,
+        groupId: 25,
+        name: 'Massless fixture',
+        mass: null,
+        published: false,
+      },
+    ]);
   });
 
   it('reads invention probability, datacores, and skills from the stored blob', async () => {
@@ -59,5 +75,11 @@ describe.skipIf(!harness.reachable)('getBlueprintActivities executes against Pos
 
   it('returns an empty map for no ids', async () => {
     expect((await getBlueprintActivities([])).size).toBe(0);
+  });
+
+  it('reads one seeded ship mass and preserves missing values', async () => {
+    await expect(readShipMassByType(harness.db, 670)).resolves.toBe(32_000);
+    await expect(readShipMassByType(harness.db, 999_999)).resolves.toBeNull();
+    await expect(readShipMassByType(harness.db, 123_456)).resolves.toBeNull();
   });
 });

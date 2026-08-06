@@ -35,7 +35,7 @@ function coverageDiff(
 }
 
 function missingMessage(missing: readonly string[]): string {
-  return `Undeclared table(s): ${missing.join(', ')}. Add a pruned, bounded, or purge-managed growth story.`;
+  return `Undeclared table(s): ${missing.join(', ')}. Add a pruned, bounded, purge-managed, or retained growth story.`;
 }
 
 const tables = await reflectedSchemaTables();
@@ -57,6 +57,9 @@ describe('table growth-story gate', () => {
         expect(story.prunedBy, tableGrowthKey(story.table)).not.toBe('');
       } else if (story.kind === 'bounded') {
         expect(story.reason, tableGrowthKey(story.table)).not.toBe('');
+      } else if (story.kind === 'retained') {
+        expect(story.reason, tableGrowthKey(story.table)).not.toBe('');
+        expect(story.authority, tableGrowthKey(story.table)).not.toBe('');
       }
     }
   });

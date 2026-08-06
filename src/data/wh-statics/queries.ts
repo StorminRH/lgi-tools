@@ -315,6 +315,19 @@ export function readPromotedWhStaticsAssignments(
     .from(whSystemStatics);
 }
 
+/** Reads the promoted static type codes for one system in deterministic code order. */
+export async function readSystemStaticsForSystem(
+  database: AnyPgDb,
+  systemId: number,
+): Promise<string[]> {
+  const rows = await database
+    .select({ code: whSystemStatics.code })
+    .from(whSystemStatics)
+    .where(eq(whSystemStatics.systemId, systemId))
+    .orderBy(asc(whSystemStatics.code));
+  return rows.map((row) => row.code);
+}
+
 /**
  * Reads and groups the promoted serving table only, preserving deterministic
  * system-id and code order and carrying its denormalized feed version.
