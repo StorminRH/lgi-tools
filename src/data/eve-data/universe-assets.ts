@@ -18,6 +18,7 @@ import {
 import {
   FAR_SIDE_WORMHOLE_CODE,
   isWormholeTypeCode,
+  wormholeSizeClass,
   type WormholeSizeClass,
 } from './wormhole-contract';
 
@@ -57,6 +58,8 @@ export type AdjacencyEntry = [
 
 /** Wormhole jump-size vocabulary; owned by `./wormhole-contract` and re-exported for codex callers. */
 export type { WormholeSizeClass };
+/** Re-export the shared maximum-mass classifier for existing asset callers. */
+export { wormholeSizeClass };
 
 /** The special untyped far-side wormhole entry. */
 export interface FarSideWormholeCodexEntry {
@@ -130,14 +133,6 @@ export function buildAdjacencyGraph(
       systemId,
       [...neighbours].sort((left, right) => left - right),
     ]);
-}
-
-/** Maps every live maximum-jump-mass value into the exhaustive D15 size vocabulary. */
-export function wormholeSizeClass(maxJumpMass: number): WormholeSizeClass {
-  if (maxJumpMass <= 5_000_000) return 'S';
-  if (maxJumpMass <= 62_000_000) return 'M';
-  if (maxJumpMass <= 410_000_000) return 'L';
-  return 'XL';
 }
 
 /** Resolves the required wormhole attribute IDs by name and rejects schema drift. */

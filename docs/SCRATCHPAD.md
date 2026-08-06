@@ -20,14 +20,17 @@
   `lifecycle/4.0.4.2` (automatic jump authoring). Plan
   `docs/session-plans/4.0/4.0.4.2.2.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.2.md`.
-- **OW progress:** `1/7 complete` — next: Pure vocabulary, matcher, and mass
-  math.
+- **OW progress:** `2/7 complete` — next: Convex jump mutations and doors.
 - **OW completed:**
   - OW1 Merged schema + shipped-consumer guards — nullable unresolved
     connection endpoints plus identity/hint/provenance/observation fields;
     indexed resolved/unresolved feeds; null-aware sever/restore/purge;
     durable jump-bookkeeping census + bounded map teardown; focused 196/196;
     verify green (4,738 passed / 133 skipped), Fallow 19 files / 0 issues.
+  - OW2 Pure vocabulary, matcher, and mass math — shared destination-hint,
+    provenance, effective-class, and size contracts; pure signature elimination,
+    census, survivor ordering, and anchor-aware odometer math; focused 86/86;
+    verify green (4,761 passed / 133 skipped), Fallow 25 files / 0 issues.
 - **Next-agent notes:** (1) The plan's detailed hard constraint controls its
   mechanical OW1 wording drift: `readBoundedMapTopology` deliberately retains
   unresolved rows for sever/restore; only the collapse-decision graph filters
@@ -35,9 +38,16 @@
   resolved-only feed; `watchUnresolvedHoles` is the pinned authoring seam.
   (3) `mapJumpBookkeeping` survives tracking revocation by design; full map
   teardown drains bounded `purgeForMap` batches through authenticated
-  `POST /project-map-access`, so retry can continue safely. (4) OW1's
-  Convex-local hint/provenance vocabulary is temporary; OW2 owns moving the
-  shared vocabulary to `src/data/eve-data/wormhole-contract.ts`.
+  `POST /project-map-access`, so retry can continue safely. (4) Destination
+  hints, connection provenance, effective system classes, and size ordering are
+  owned by `src/data/eve-data/wormhole-contract.ts`; Convex derives its
+  validators from that owner. (5) `matchJump` consumes only plain evidence and
+  the existing codex shape; it orders typed-consistent, hinted, untyped, then
+  bare K162 survivors, and downgrades a lone typed match when the J-space
+  statics census is short. (6) `remainingMassAfterTravel` subtracts only the
+  cumulative odometer delta since the shake-state anchor and returns no estimate
+  for malformed or reversed counters; OW3 owns re-stamping that anchor even on
+  a same-value re-shake.
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,

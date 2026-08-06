@@ -5,10 +5,14 @@
 // the eve-data reference core rather than re-declared here.
 import { ConvexError, v } from 'convex/values';
 import {
+  CONNECTION_PROVENANCES,
   CONNECTION_MASS_STATES,
   isWormholeTypeCode,
+  WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_LIFE_STAGES,
+  type ConnectionProvenance,
   type ConnectionMassState,
+  type WormholeDestinationHint,
   type WormholeLifeStage,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
@@ -19,6 +23,10 @@ import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 export { CONNECTION_MASS_STATES, type ConnectionMassState };
 /** Re-export the data-owned life-stage vocabulary for Convex-local callers. */
 export { WORMHOLE_LIFE_STAGES, type WormholeLifeStage };
+/** Re-export the data-owned destination-hint vocabulary for Convex-local callers. */
+export { WORMHOLE_DESTINATION_HINTS, type WormholeDestinationHint };
+/** Re-export the data-owned connection provenance vocabulary for Convex-local callers. */
+export { CONNECTION_PROVENANCES, type ConnectionProvenance };
 
 /** The kinds of chain object a note may be attached to. */
 export const NOTE_TARGET_KINDS = ['map', 'system', 'signature'] as const;
@@ -61,33 +69,6 @@ const MAP_ROLE_LITERALS = {
   editor: v.literal('editor'),
   owner: v.literal('owner'),
 } as const satisfies Record<MapRole, unknown>;
-
-/** Convex-local rollout owner for the closed destination-hint vocabulary. */
-export const WORMHOLE_DESTINATION_HINTS = [
-  'hisec',
-  'lowsec',
-  'nullsec',
-  'unknown',
-  'dangerous',
-  'deadly',
-  'thera',
-  'pochven',
-  'drifter',
-] as const;
-
-/** One stored destination-hint bucket. */
-export type WormholeDestinationHint = (typeof WORMHOLE_DESTINATION_HINTS)[number];
-
-/** Convex-local rollout owner for connection identity provenance. */
-export const CONNECTION_PROVENANCES = [
-  'jump-verified',
-  'human',
-  'confirmed',
-  'assumed',
-] as const;
-
-/** One stored connection identity provenance tier. */
-export type ConnectionProvenance = (typeof CONNECTION_PROVENANCES)[number];
 
 /** Schema validator for the side whose wormhole type is attributable. */
 export const typedSideValidator = v.union(v.literal('from'), v.literal('to'));

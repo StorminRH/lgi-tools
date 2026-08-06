@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CONNECTION_PROVENANCES,
   CONNECTION_MASS_STATES,
+  hintAdmitsClass,
   isKnownSpaceSystemId,
+  remainingMassAfterTravel,
   remainingMassBounds,
+  WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_LIFE_STAGES,
   WORMHOLE_MASS_STATE_THRESHOLDS,
   WORMHOLE_MASS_VARIANCE,
@@ -19,6 +23,23 @@ describe('wormhole-contract vocabularies', () => {
       'expired',
     ]);
     expect(WORMHOLE_SIZE_CLASSES).toEqual(['S', 'M', 'L', 'XL']);
+    expect(WORMHOLE_DESTINATION_HINTS).toEqual([
+      'hisec',
+      'lowsec',
+      'nullsec',
+      'unknown',
+      'dangerous',
+      'deadly',
+      'thera',
+      'pochven',
+      'drifter',
+    ]);
+    expect(CONNECTION_PROVENANCES).toEqual([
+      'jump-verified',
+      'human',
+      'confirmed',
+      'assumed',
+    ]);
   });
 
   it('owns the mass thresholds and spawn variance', () => {
@@ -51,6 +72,59 @@ describe('wormhole-contract vocabularies', () => {
     expect(
       remainingMassBounds({ totalMass: 2_000_000_000, massRegen: -1 }, 'stable'),
     ).toBeNull();
+  });
+
+  it('subtracts only travel since the latest mass-state anchor', () => {
+    const entry = { totalMass: 2_000_000_000, massRegen: 0 };
+    expect(remainingMassAfterTravel(entry, 'stable', 300_000_000, 100_000_000)).toEqual({
+      minKg: 700_000_000,
+      maxKg: 2_000_000_000,
+    });
+    expect(remainingMassAfterTravel(entry, 'critical', 300_000_000, 0)).toEqual({
+      minKg: 0,
+      maxKg: 0,
+    });
+
+    // A same-value re-shake re-stamps the anchor at the current odometer.
+    expect(remainingMassAfterTravel(entry, 'stable', 300_000_000, 300_000_000)).toEqual({
+      minKg: 900_000_000,
+      maxKg: 2_200_000_000,
+    });
+    expect(remainingMassAfterTravel(entry, 'stable', 350_000_000, 300_000_000)).toEqual({
+      minKg: 850_000_000,
+      maxKg: 2_150_000_000,
+    });
+  });
+
+  it('keeps the anchor math fail-closed for invalid counters and regen holes', () => {
+    const entry = { totalMass: 2_000_000_000, massRegen: 0 };
+    expect(remainingMassAfterTravel(entry, null, undefined, undefined)).toEqual({
+      minKg: 0,
+      maxKg: 2_200_000_000,
+    });
+    expect(remainingMassAfterTravel(entry, 'stable', Number.NaN, 0)).toBeNull();
+    expect(remainingMassAfterTravel(entry, 'stable', 1, -1)).toBeNull();
+    expect(remainingMassAfterTravel(entry, 'stable', 1, 2)).toBeNull();
+    expect(
+      remainingMassAfterTravel({ totalMass: 2_000_000_000, massRegen: 1 }, 'stable', 1, 0),
+    ).toBeNull();
+  });
+
+  it.each([
+    ['unknown admits C1', 'unknown', { wormholeClassId: 1, securityStatus: -1 }, true],
+    ['unknown admits C13', 'unknown', { wormholeClassId: 13, securityStatus: -1 }, true],
+    ['unknown rejects C4', 'unknown', { wormholeClassId: 4, securityStatus: -1 }, false],
+    ['dangerous admits C4', 'dangerous', { wormholeClassId: 4, securityStatus: -1 }, true],
+    ['deadly admits C6', 'deadly', { wormholeClassId: 6, securityStatus: -1 }, true],
+    ['thera admits class 12', 'thera', { wormholeClassId: 12, securityStatus: -1 }, true],
+    ['pochven admits class 25', 'pochven', { wormholeClassId: 25, securityStatus: -1 }, true],
+    ['null-class highsec uses security band', 'hisec', { wormholeClassId: null, securityStatus: 0.8 }, true],
+    ['null-class highsec rejects lowsec', 'lowsec', { wormholeClassId: null, securityStatus: 0.8 }, false],
+    ['drifter class fails open', 'hisec', { wormholeClassId: 14, securityStatus: -1 }, true],
+    ['future class fails open', 'deadly', { wormholeClassId: 99, securityStatus: -1 }, true],
+    ['unresolved class fails open', 'nullsec', { wormholeClassId: null, securityStatus: null }, true],
+  ] as const)('%s', (_name, hint, destination, expected) => {
+    expect(hintAdmitsClass(hint, destination)).toBe(expected);
   });
 
   it('owns the stable known-space ID boundary', () => {
