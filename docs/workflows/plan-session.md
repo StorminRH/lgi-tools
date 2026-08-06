@@ -62,7 +62,7 @@ and present a complete schema plan for approval.
    opening inside Ordered work — those belong under End of session Delivery.
    When `UX gate` is Yes, size a dedicated UX Ordered work step that invokes
    `ux-check` and completes the operator pause; never nest that gate under
-   close-out Delivery. Per-step commit after green gates and `ow-reviewer` is
+   close-out Delivery. Per-step commit after green gates and `primitive-checker` is
    part of Ordered work under `start-session`, not End of session Delivery.
 3. Resolve every contract planning decision (`PD-N` and consequential choices)
    during this walk. Do not escalate ordinary local implementation details;
@@ -81,12 +81,11 @@ and present a complete schema plan for approval.
    interface, control-flow statement, edge/failure behavior, ordered work item,
    and command-plus-output success criterion. No Blocking prerequisite or
    unresolved placeholder may remain.
-2. Run the planning approval gate: invoke `adversarial-review` in Plan mode with
-   the complete draft, contract, schema, and source evidence. That Plan-mode
-   invocation must launch only `holistic-reviewer` for one review pass.
-   Reconcile every verified finding. Do not automatically relaunch
-   adversarial-review. Do not persist reviewer transcripts or superseded
-   drafts.
+2. Run the planning approval gate: invoke `adversarial-review` against the
+   complete draft, contract, schema, and source evidence. That invocation uses
+   `holistic-reviewer` as the integrative seat for one review pass. Reconcile
+   every verified finding. Do not automatically relaunch adversarial-review. Do
+   not persist reviewer transcripts or superseded drafts.
 
 ## Approve, persist, and stop
 

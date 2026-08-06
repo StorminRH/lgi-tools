@@ -74,8 +74,6 @@
     "docs/Version_3_8_Prompts.md",
     "docs/DESIGN_PRINCIPLES.md",
     "docs/PRIMITIVE_LEDGER.md",
-    "docs/PRE_PR_DESIGN_REVIEW.md",
-    "docs/workflows/pre-pr-design-review.md",
     "docs/VERSION_AUDIT.md"
   ],
   "ignoredPaths": [
@@ -162,7 +160,7 @@
         "Record and challenge the current topology",
         "Attempt to combine every adjacent or tightly coupled slice",
         "Produce the minimum safe bundles",
-        "Invoke `adversarial-review` in Plan mode",
+        "invoke `adversarial-review` against the",
         "Obtain operator approval",
         "update the master plan's delivery topology first",
         "Create one schema-complete contract per approved bundle"
@@ -180,7 +178,8 @@
         "docs-researcher",
         "Stop before fixed-schema drafting",
         "Assemble and review",
-        "Invoke `adversarial-review` in Plan mode",
+        "invoke `adversarial-review` against the",
+        "holistic-reviewer",
         "operator approval",
         "Persist the approved plan"
       ]
@@ -198,37 +197,39 @@
         "in-context proof ledger",
         "gate-runner",
         "Do not launch `adversarial-review` here",
-        "ow-reviewer",
+        "primitive-checker",
         "commit the verified OW scope",
         "Stop and resume"
       ]
     },
     "docs/workflows/adversarial-review.md": {
       "orderedRequired": [
-        "Select exactly one review mode",
-        "Plan and PR:.*read-only",
-        "prepare PR Design notes",
-        "Each invocation runs one fresh review round",
+        "One review round",
         "docs/workflows/schema/reviewer-verdict.md",
-        "Freeze the subject and evidence",
-        "Select independent review roles",
-        "Launch each selected role once",
-        "Plan mode from .*launch only `holistic-reviewer`",
-        "Diff / PR mode.*at most one scoped seat by default",
-        "Launch subagents",
-        "requested runtime identity",
-        "Never infer observed identity",
-        "Collect structured verdicts",
-        "Verify and reconcile",
-        "Diff parent duties",
-        "design creed"
+        "Do not defer, backlog, or justify findings away",
+        "Plan subjects are report-only",
+        "Design creed",
+        "## 1. Freeze",
+        "## 2. Select roles",
+        "Ordinary / small one-off code",
+        "`primitive-checker`",
+        "`holistic-reviewer`",
+        "## 3. Launch",
+        "## 4. Verify",
+        "## 5. Fix and close \\(code\\)",
+        "Design notes"
       ],
       "forbidden": [
         "Cursor",
         "Claude",
         "Codex",
         "headless",
-        "pre-pr-design-review"
+        "Select exactly one review mode",
+        "Diff mode only",
+        "Plan mode from",
+        "DEFERRED",
+        "docs/backlog.md",
+        "The parent "
       ]
     },
     "docs/workflows/close-out.md": {
@@ -237,8 +238,7 @@
         "dedicated UX Ordered work step",
         "Implementation review gate",
         "Do not launch a second",
-        "Invoke `adversarial-review` in Diff mode",
-        "requested and observed runtime identity",
+        "Invoke `adversarial-review` against the complete",
         "Finalize and verify the current head",
         "in-context atomic proof ledger",
         "Never return this session to `plan-session`",
@@ -263,11 +263,11 @@
     },
     "AGENTS.md": {
       "orderedRequired": [
-        "Cursor Explore, semantic search, and grep",
-        "Use `repo-mapper` only for material relationship",
+        "docs-researcher",
+        "Documentation brief",
+        "Use `repo-mapper` for material relationship",
         "`callers`",
-        "Do not use Codegraph MCP",
-        "Do not use Codegraph explore"
+        "Repository map"
       ],
       "forbidden": [
         "codegraph_explore",

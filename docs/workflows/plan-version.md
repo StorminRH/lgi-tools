@@ -55,8 +55,8 @@ create session implementation plans here.
    size or risk concern.
 3. Present current versus proposed counts and a complete current-to-proposed
    bundle map.
-4. Run the planning approval gate: invoke `adversarial-review` in Plan mode with
-   the complete proposal, fixed outcomes, and source evidence. The review must
+4. Run the planning approval gate: invoke `adversarial-review` against the
+   complete proposal, fixed outcomes, and source evidence. The review must
    attempt every sensible merge and reject boundaries justified only by headings
    or ordinary implementation order. Reconcile every verified finding from that
    one review pass. Do not automatically relaunch adversarial-review.
