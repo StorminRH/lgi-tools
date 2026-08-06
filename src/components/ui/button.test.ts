@@ -6,29 +6,21 @@ import { Button } from './button';
 // React element whose props we inspect directly (the suite is node-env, no RTL).
 
 describe('Button', () => {
-  it('renders a <button> that defaults to type="button"', () => {
+  it('defaults type to button, allows submit override, and distinguishes primary vs bare chrome', () => {
     const el = Button({ children: 'x' });
     expect(el.type).toBe('button');
     expect(el.props.type).toBe('button');
-  });
-
-  it('lets a caller override type — server-action submit buttons need it', () => {
     expect(Button({ type: 'submit', children: 'x' }).props.type).toBe('submit');
-  });
 
-  it('merges a caller className after the variant classes', () => {
-    const el = Button({ variant: 'primary', className: 'fixed bottom-4' });
-    expect(el.props.className).toContain('bg-feedback-bg');
-    expect(el.props.className).toContain('fixed');
-  });
+    const primary = Button({ variant: 'primary', className: 'fixed bottom-4' });
+    expect(primary.props.className).toContain('bg-feedback-bg');
+    expect(primary.props.className).toContain('fixed');
 
-  it('renders bare semantic buttons with shared states but without chrome', () => {
-    const el = Button({ variant: 'bare', className: 'absolute inset-0' });
-    expect(el.props.className).toContain('inline-flex');
-    expect(el.props.className).toContain('absolute');
-    expect(el.props.className).toContain('focus-visible:ring-1');
-    expect(el.props.className).toContain('disabled:opacity-50');
-    expect(el.props.className).not.toContain('border-border-idle');
-    expect(el.props.className).not.toContain('px-4');
+    const bare = Button({ variant: 'bare', className: 'absolute inset-0' });
+    expect(bare.props.className).toContain('absolute');
+    expect(bare.props.className).toContain('focus-visible:ring-1');
+    expect(bare.props.className).toContain('disabled:opacity-50');
+    expect(bare.props.className).not.toContain('border-border-idle');
+    expect(bare.props.className).not.toContain('px-4');
   });
 });

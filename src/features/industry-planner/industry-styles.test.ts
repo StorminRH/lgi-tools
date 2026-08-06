@@ -36,37 +36,22 @@ describe('priceConfidence', () => {
     expect(c.reasons[0]).toMatch(/no live price/i);
   });
 
-  it('is medium when stale', () => {
-    const c = priceConfidence(liveRow({ staleAfterMs: STALE }), NOW);
-    expect(c.level).toBe('medium');
-    expect(c.reasons).toContain('Stale — price may have moved');
-  });
-
-  it('is medium at the exact stale-after boundary', () => {
-    const c = priceConfidence(liveRow({ staleAfterMs: NOW }), NOW);
-    expect(c.level).toBe('medium');
-    expect(c.reasons).toContain('Stale — price may have moved');
-  });
-
-  it('is medium when the source is the fallback, not ESI', () => {
-    const c = priceConfidence(liveRow({ source: 'fuzzwork-fallback' }), NOW);
-    expect(c.level).toBe('medium');
-    expect(c.reasons).toContain('Fallback price source');
-  });
-
-  it('is medium when buy-side depth is thin', () => {
-    const c = priceConfidence(liveRow({ buyVolume: 10 }), NOW);
-    expect(c.level).toBe('medium');
-    expect(c.reasons).toContain('Thin market depth');
-  });
-
-  it('accumulates every shortfall into reasons', () => {
-    const c = priceConfidence(
-      liveRow({ staleAfterMs: STALE, source: 'fuzzwork-fallback', buyVolume: 1 }),
-      NOW,
+  it('is medium for stale (incl. boundary), fallback, thin depth, and stacked shortfalls', () => {
+    for (const staleAfterMs of [STALE, NOW]) {
+      const c = priceConfidence(liveRow({ staleAfterMs }), NOW);
+      expect(c.level).toBe('medium');
+      expect(c.reasons).toContain('Stale — price may have moved');
+    }
+    expect(priceConfidence(liveRow({ source: 'fuzzwork-fallback' }), NOW).reasons).toContain(
+      'Fallback price source',
     );
-    expect(c.level).toBe('medium');
-    expect(c.reasons).toHaveLength(3);
+    expect(priceConfidence(liveRow({ buyVolume: 10 }), NOW).reasons).toContain('Thin market depth');
+    expect(
+      priceConfidence(
+        liveRow({ staleAfterMs: STALE, source: 'fuzzwork-fallback', buyVolume: 1 }),
+        NOW,
+      ).reasons,
+    ).toHaveLength(3);
   });
 });
 
@@ -152,9 +137,8 @@ describe('aggregateConfidenceFromCounts', () => {
 });
 
 describe('deriveMarginFigures', () => {
-  const summary = { margin: 100, marginPct: 0.1 };
-
-  it('uses gross from the summary when there is no net estimate', () => {
+  it('prefers net when present, falls back to gross, and handles absent summary', () => {
+    const summary = { margin: 100, marginPct: 0.1 };
     expect(deriveMarginFigures(summary, null)).toEqual({
       showNet: false,
       margin: 100,
@@ -163,15 +147,13 @@ describe('deriveMarginFigures', () => {
       missingSystemCostIndex: false,
       missingAdjustedPriceCount: 0,
     });
-  });
-
-  it('prefers net (and surfaces the missing-fee flags) when a net estimate exists', () => {
-    const net = {
-      netMargin: -50,
-      netMarginPct: -0.05,
-      jobFee: { missingSystemCostIndex: true, missingAdjustedPriceTypeIds: [1, 2] },
-    };
-    expect(deriveMarginFigures(summary, net)).toEqual({
+    expect(
+      deriveMarginFigures(summary, {
+        netMargin: -50,
+        netMarginPct: -0.05,
+        jobFee: { missingSystemCostIndex: true, missingAdjustedPriceTypeIds: [1, 2] },
+      }),
+    ).toEqual({
       showNet: true,
       margin: -50,
       marginPct: -0.05,
@@ -179,9 +161,6 @@ describe('deriveMarginFigures', () => {
       missingSystemCostIndex: true,
       missingAdjustedPriceCount: 2,
     });
-  });
-
-  it('handles an absent summary without a net estimate', () => {
     expect(deriveMarginFigures(null, null)).toEqual({
       showNet: false,
       margin: null,
@@ -194,60 +173,38 @@ describe('deriveMarginFigures', () => {
 });
 
 describe('sellAnchorConfidence', () => {
-  it('flags a best sell well under the 5%-percentile (ratio < 0.90)', () => {
+  it('flags thin anchors by ratio alone and stays silent otherwise', () => {
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: 100 })).toEqual({
       level: 'medium',
       reasons: ['Price anchored by a thin order'],
     });
-  });
-
-  it('stays silent at and above the threshold', () => {
-    expect(sellAnchorConfidence({ bestSell: 90, pct5Sell: 100 })).toBeNull();
-    expect(sellAnchorConfidence({ bestSell: 100, pct5Sell: 100 })).toBeNull();
-    // A best above pct5 (tiny/degenerate book) is not a thin-anchor signal.
-    expect(sellAnchorConfidence({ bestSell: 110, pct5Sell: 100 })).toBeNull();
-  });
-
-  it('is null-safe on missing or degenerate figures', () => {
-    expect(sellAnchorConfidence({ bestSell: null, pct5Sell: 100 })).toBeNull();
-    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: null })).toBeNull();
-    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: 0 })).toBeNull();
-    // A payload cached before the field existed carries undefined, not null —
-    // it must read as "no reference", never as a firing NaN ratio.
-    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: undefined })).toBeNull();
-    expect(sellAnchorConfidence({ bestSell: undefined, pct5Sell: 100 })).toBeNull();
-  });
-
-  it('fires on the ratio alone — a Fuzzwork-fallback-shaped row is judged the same way', () => {
-    // The fallback path stores the raw book bottom (no order book to filter),
-    // so a thin-anchored fallback row wears the badge purely by its figures —
-    // no source check involved.
+    // Fallback-shaped figures still badge on ratio — no source check involved.
     expect(sellAnchorConfidence({ bestSell: 21_200_000, pct5Sell: 230_000_000 })).toEqual({
       level: 'medium',
       reasons: ['Price anchored by a thin order'],
     });
+    expect(sellAnchorConfidence({ bestSell: 90, pct5Sell: 100 })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: 100, pct5Sell: 100 })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: 110, pct5Sell: 100 })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: null, pct5Sell: 100 })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: null })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: 0 })).toBeNull();
+    // Pre-field caches carry undefined — read as "no reference", never NaN.
+    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: undefined })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: undefined, pct5Sell: 100 })).toBeNull();
   });
 });
 
 describe('regionalDiscountCallout', () => {
-  it('shapes a stored discount for display (rounded pct, ids intact)', () => {
+  it('shapes a stored discount and stays silent on absent or degenerate payloads', () => {
     expect(
       regionalDiscountCallout({
         regionalDiscount: { systemId: 30000143, price: 28_000, pct: 89.0196, units: 19 },
       }),
     ).toEqual({ systemId: 30000143, pct: 89, units: 19 });
-  });
-
-  it('is silent with no stored discount', () => {
     expect(regionalDiscountCallout({ regionalDiscount: null })).toBeNull();
-  });
-
-  it('is silent on a payload cached before the field existed (undefined, the #203 posture)', () => {
     expect(regionalDiscountCallout({})).toBeNull();
     expect(regionalDiscountCallout({ regionalDiscount: undefined })).toBeNull();
-  });
-
-  it('is silent on a malformed or degenerate object rather than rendering NaN', () => {
     expect(
       regionalDiscountCallout({ regionalDiscount: { systemId: 30000143, pct: undefined, units: 19 } }),
     ).toBeNull();

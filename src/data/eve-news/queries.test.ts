@@ -35,29 +35,24 @@ describe('getEveNews', () => {
     expect(h.cacheLife).toHaveBeenCalledWith('hours');
   });
 
-  // The build-safety contract: an error must NEVER cross the cache boundary —
-  // under Cache Components a rejection from a 'use cache' fill during build
-  // prerender fails the whole deploy even when the consumer catches it.
-  it('resolves empty on a timeout instead of rethrowing across the cache boundary', async () => {
+  // Build-safety: an error must NEVER cross the cache boundary — under Cache
+  // Components a rejection from a 'use cache' fill during build prerender fails
+  // the whole deploy even when the consumer catches it. Failures resolve empty
+  // and pin the short-lived profile so they self-heal.
+  it('resolves empty on timeout, http failure, and unparseable body without rethrowing', async () => {
     h.fetchWithTimeout.mockRejectedValue(
       new DOMException('signal timed out', 'TimeoutError'),
     );
     await expect(getEveNews()).resolves.toEqual([]);
-  });
 
-  it('caches the failure result on the short-lived profile so it self-heals', async () => {
+    h.cacheLife.mockClear();
     h.fetchWithTimeout.mockResolvedValue(new Response('down', { status: 500 }));
     await expect(getEveNews()).resolves.toEqual([]);
-    expect(h.cacheLife).toHaveBeenCalledWith(
-      expect.objectContaining({ revalidate: 300 }),
-    );
-  });
+    expect(h.cacheLife).toHaveBeenCalledWith(expect.objectContaining({ revalidate: 300 }));
 
-  it('treats an unparseable body as a failure, not an error', async () => {
+    h.cacheLife.mockClear();
     h.fetchWithTimeout.mockResolvedValue(new Response('garbage', { status: 200 }));
     await expect(getEveNews()).resolves.toEqual([]);
-    expect(h.cacheLife).toHaveBeenCalledWith(
-      expect.objectContaining({ revalidate: 300 }),
-    );
+    expect(h.cacheLife).toHaveBeenCalledWith(expect.objectContaining({ revalidate: 300 }));
   });
 });
