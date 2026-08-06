@@ -22,6 +22,8 @@ import {
 import { useLiveValue } from '@/data/convex/use-live-value';
 import type {
   ConnectionMassState,
+  ConnectionProvenance,
+  WormholeDestinationHint,
   WormholeLifeStage,
   WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
@@ -115,6 +117,13 @@ export interface ConnectionDetail {
   readonly deathLatestAt: number | null;
   readonly deletedAt: number | null;
   readonly purgeAfter: number | null;
+  readonly fromSignatureId: string | null;
+  readonly fromDestinationHint: WormholeDestinationHint | null;
+  readonly destinationProvenance: ConnectionProvenance | null;
+  /** The recorded survivor list an `assumed` auto-link left for confirm/correct. */
+  readonly pendingCandidates: readonly Id<'mapConnections'>[] | null;
+  readonly observedMassKg: number | null;
+  readonly observedMassAtStateKg: number | null;
 }
 
 function optionalOrNull<Value>(value: Value | null | undefined): Value | null {
@@ -144,9 +153,37 @@ export function connectionDetailsFromRows(
       deathLatestAt: optionalOrNull(row.deathLatestAt),
       deletedAt: optionalOrNull(row.deletedAt),
       purgeAfter: optionalOrNull(row.purgeAfter),
+      fromSignatureId: optionalOrNull(row.fromSignatureId),
+      fromDestinationHint: optionalOrNull(row.fromDestinationHint),
+      destinationProvenance: optionalOrNull(row.destinationProvenance),
+      pendingCandidates: optionalOrNull(row.pendingCandidates),
+      observedMassKg: optionalOrNull(row.observedMassKg),
+      observedMassAtStateKg: optionalOrNull(row.observedMassAtStateKg),
     });
   }
   return details;
+}
+
+/** One scanned-but-unexplored wormhole slot, projected for prompt labeling. */
+export interface UnresolvedHoleSummary {
+  readonly connectionId: Id<'mapConnections'>;
+  readonly fromSystemId: number;
+  readonly fromSignatureId: string | null;
+  readonly wormholeTypeCode: string | null;
+}
+
+/** Projects subscribed unresolved-slot documents into stable prompt summaries. */
+export function unresolvedHolesFromRows(
+  rows: readonly Doc<'mapConnections'>[],
+): readonly UnresolvedHoleSummary[] {
+  return rows
+    .filter((row) => row.toSystemId === null && !isTombstoned(row))
+    .map((row) => ({
+      connectionId: row._id,
+      fromSystemId: row.fromSystemId,
+      fromSignatureId: optionalOrNull(row.fromSignatureId),
+      wormholeTypeCode: row.wormholeTypeCode,
+    }));
 }
 
 /** The row shapes the signature summarizes, kept minimal so the function stays pure and testable. */
@@ -280,6 +317,8 @@ export interface MapChain {
   readonly liveSystemCount: number;
   /** Live connection detail fields keyed by document id, for the authoring card. */
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
+  /** Live scanned-but-unexplored wormhole slots, for jump-resolution labeling. */
+  readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
   /** Shared newest-first despawn ledger rows for the mapper-local log surface. */
   readonly events: readonly Doc<'mapEvents'>[];
   /** Coarse client clock used only for dying-to-skeleton edge presentation. */
@@ -367,6 +406,13 @@ export function useMapChain(
     args,
     PAGE_SIZE,
   );
+  // The unresolved-slot feed is its own subscription by the same HC-2 split:
+  // resolved-canvas writes and unresolved-slot writes re-read disjoint ranges.
+  const subscribedUnresolved = useDrainedPages(
+    api.mapChain.watchUnresolvedHoles,
+    args,
+    PAGE_SIZE,
+  );
   const subscribedEvents = useLiveValue(api.mapChain.watchMapEvents, args);
   // Memoizing the normalized page objects keeps field-only/timer renders from
   // rebuilding connectionDetails or reposting layout work.
@@ -392,6 +438,10 @@ export function useMapChain(
   const connectionDetails = useMemo(
     () => connectionDetailsFromRows(connections.rows),
     [connections.rows],
+  );
+  const unresolvedHoles = useMemo(
+    () => unresolvedHolesFromRows(subscribedUnresolved.rows),
+    [subscribedUnresolved.rows],
   );
   const [connectionPresentationNow, setConnectionPresentationNow] = useState(
     () => Date.now(),
@@ -520,6 +570,7 @@ export function useMapChain(
     systemsComplete,
     liveSystemCount,
     connectionDetails,
+    unresolvedHoles,
     events,
     connectionPresentationNow,
     state: merge.state,

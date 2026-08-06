@@ -29,6 +29,7 @@ import {
 } from '@/data/maps/connection-lifetime';
 import type {
   ConnectionMassState,
+  WormholeDestinationHint,
   WormholeLifeStage,
   WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
@@ -58,6 +59,8 @@ export interface OptimisticConnectionRow {
   readonly eolAt: number | null;
   readonly lifeStage?: WormholeLifeStage | null;
   readonly lifeStageObservedAt?: number | null;
+  readonly fromDestinationHint?: WormholeDestinationHint;
+  readonly toDestinationHint?: WormholeDestinationHint;
   readonly deathEarliestAt?: number | null;
   readonly deathLatestAt?: number | null;
   readonly deletedAt: number | null;
@@ -192,6 +195,8 @@ export function optimisticPatchConnection(
         | 'massState'
         | 'lifeStage'
         | 'lifeStageObservedAt'
+        | 'fromDestinationHint'
+        | 'toDestinationHint'
         | 'deathEarliestAt'
         | 'deathLatestAt'
         | 'deletedAt'
@@ -434,6 +439,26 @@ type ConnectionFieldArgs = {
     | 'lifeStage'];
 };
 
+/** Optimistic patch for one side's destination hint (null clears the field). */
+export function optimisticSetConnectionDestinationHint(
+  localStore: OptimisticLocalStore,
+  args: {
+    mapId: string;
+    connectionId: string;
+    side: 'from' | 'to';
+    value: WormholeDestinationHint | null;
+  },
+): void {
+  optimisticPatchConnection(localStore, {
+    mapId: args.mapId,
+    connectionId: args.connectionId,
+    patch:
+      args.side === 'from'
+        ? { fromDestinationHint: args.value ?? undefined }
+        : { toDestinationHint: args.value ?? undefined },
+  });
+}
+
 /** Wires one field-scoped connection setter to a single-key optimistic patch. */
 function optimisticConnectionField(
   field: 'wormholeTypeCode' | 'shipSize' | 'massState',
@@ -485,6 +510,11 @@ export function useChainAuthoringMutations() {
       optimisticSetConnectionLifeStage,
     ),
   );
+  const setConnectionDestinationHint = swallowMutationRejection(
+    useMutation(api.mapAuthoring.setConnectionDestinationHint).withOptimisticUpdate(
+      optimisticSetConnectionDestinationHint,
+    ),
+  );
   const severConnection = swallowMutationRejection(
     useMutation(api.mapAuthoring.severConnection).withOptimisticUpdate(
       optimisticSeverConnection,
@@ -522,6 +552,7 @@ export function useChainAuthoringMutations() {
     },
     setConnectionShipSize,
     setConnectionMassState,
+    setConnectionDestinationHint,
     setConnectionLifeStage: async (args: {
       mapId: string;
       connection: ConnectionWindowSource;

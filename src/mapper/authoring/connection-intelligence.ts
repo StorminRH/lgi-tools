@@ -1,5 +1,5 @@
 import {
-  remainingMassBounds,
+  remainingMassAfterTravel,
   type ConnectionMassState,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
@@ -96,19 +96,27 @@ export function formatDurationBound(ms: number): string {
 }
 
 /**
- * Builds the mass estimate row. Always a range (or regenerates / none) — never a
- * single certain kilogram figure (HC-2).
+ * Builds the mass estimate row from the shake-state interval minus observed
+ * travel since the latest anchor. Always a range (or regenerates / none) —
+ * never a single certain kilogram figure (HC-2).
  */
 export function massRowDisplay(
   entry: WormholeCodexEntry | null,
   massState: ConnectionMassState | null,
+  observedMassKg: number | null,
+  observedMassAtStateKg: number | null,
 ): MassRowDisplay {
   if (entry === null) return { kind: 'none' };
   if (entry.farSide) return { kind: 'none' };
   if (entry.massRegen > 0) {
     return { kind: 'regenerates', label: 'Regenerates — no mass interval' };
   }
-  const bounds = remainingMassBounds(entry, massState);
+  const bounds = remainingMassAfterTravel(
+    entry,
+    massState,
+    observedMassKg,
+    observedMassAtStateKg,
+  );
   if (bounds === null) return { kind: 'none' };
   return {
     kind: 'range',

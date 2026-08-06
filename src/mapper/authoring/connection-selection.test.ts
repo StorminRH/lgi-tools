@@ -24,6 +24,12 @@ function detail(partial: Partial<ConnectionDetail> = {}): ConnectionDetail {
     deathLatestAt: null,
     deletedAt: null,
     purgeAfter: null,
+    fromSignatureId: null,
+    fromDestinationHint: null,
+    destinationProvenance: null,
+    pendingCandidates: null,
+    observedMassKg: null,
+    observedMassAtStateKg: null,
     ...partial,
   };
 }

@@ -49,6 +49,7 @@ import {
 } from '../motion/motion-contract';
 import type { MotionTruth } from '../motion/motion-host-model';
 import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
+import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
 import { TrackingControls } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import type { RootClickSignal } from '../windows/window-model';
@@ -114,6 +115,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     systemsComplete,
     liveSystemCount,
     connectionDetails,
+    unresolvedHoles,
     connectionPresentationNow,
     events,
     state,
@@ -345,10 +347,12 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           onDeselect={deselectNodes}
         />
         <RightsTransitionToast canEdit={canEdit} />
+        {canEdit === true ? <JumpDoorbellObserver mapId={mapId} /> : null}
         <ConnectionAuthoringOverlay
           mapId={mapId}
           canEdit={canEdit === true}
           connectionDetails={connectionDetails}
+          unresolvedHoles={unresolvedHoles}
           connectionPresentationNow={connectionPresentationNow}
           events={events}
           authoring={authoring}

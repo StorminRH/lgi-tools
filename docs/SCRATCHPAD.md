@@ -20,7 +20,7 @@
   `lifecycle/4.0.4.2` (automatic jump authoring). Plan
   `docs/session-plans/4.0/4.0.4.2.2.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.2.md`.
-- **OW progress:** `5/7 complete` — next: Client wiring: observer, popup, card.
+- **OW progress:** `6/7 complete` — next: UX gate (G-1) via ux-check.
 - **OW completed:**
   - OW1 Merged schema + shipped-consumer guards — nullable unresolved
     connection endpoints plus identity/hint/provenance/observation fields;
@@ -45,6 +45,14 @@
     convergence, server-side movement/matching/class checks, authoritative
     post-commit observation emission, and complete route registries; focused
     84/84; verify green (4,802 passed / 137 skipped), Fallow gate green.
+  - OW6 Client wiring — edit-gated doorbell observer (`transitionObservedAt`
+    ring-once memory, capped feed-driven retry), confirm/correct prompt plus
+    card auto-link group, extracted connection field-group primitive, from-side
+    leads-to hint (K162/unidentified only), conditional codex regeneration row,
+    odometer-aware remaining-mass estimate, typed-hole route notification, and
+    the unresolved-holes chain subscription; focused 401 mapper + 78
+    resolver/route/data; verify green (4,965 passed / 1 skipped, db harness
+    up), Fallow gate green; primitive-checker CLEAN.
 - **Next-agent notes:** (1) The plan's detailed hard constraint controls its
   mechanical OW1 wording drift: `readBoundedMapTopology` deliberately retains
   unresolved rows for sever/restore; only the collapse-decision graph filters
@@ -94,7 +102,24 @@
   derives the typed side and suppresses observation emission when the codex
   class contradicts the authoritative opposite endpoint. (16) Record the
   complete operator-approved items (13)-(15) as the frozen-interface divergence
-  in `docs/session-as-built/4.0/4.0.4.2.2.md` during close-out.
+  in `docs/session-as-built/4.0/4.0.4.2.2.md` during close-out. (17) OW6
+  mechanical divergence for the as-built: the jump route's Zod contract was
+  re-homed from `src/composition/jump-resolver/api-contract.ts` to
+  `src/data/maps/api-contract.ts` — the mapper zone may not import
+  `composition`, and data-slice `api-contract.ts` files are the established
+  client-visible pattern; route + resolver imports repointed, schemas
+  unchanged. (18) OW7 (ux-check) client facts: the doorbell observer mounts
+  only for edit-capable viewers and retries on later `forMap` updates (no
+  timers, cap 5 per transition); prompt probes are `data-map-jump-prompt`,
+  `data-map-jump-confirm`, `data-map-jump-correct=<id>`,
+  `data-map-jump-dismiss` (bottom-right, non-blocking); dismissal is
+  client-local and the connection card re-surfaces the same choices under
+  `data-map-connection-resolution` while `pendingCandidates` persists; manual
+  card typing notifies `kind:'typed-hole'` only after the mutation holds; the
+  leads-to hint writes side `from` and renders only for K162/unidentified
+  holes; the codex regeneration row renders only when regeneration is nonzero;
+  the card mass estimate subtracts the odometer delta via
+  `remainingMassAfterTravel`.
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,

@@ -23,7 +23,7 @@ import { readSystemStaticsForSystem } from '@/data/wh-statics/queries';
 import type {
   JumpResolverRequest,
   JumpResolverResponse,
-} from './api-contract';
+} from '@/data/maps/api-contract';
 import {
   answerJump,
   authorJump,

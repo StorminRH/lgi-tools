@@ -44,6 +44,10 @@ vi.mock('../tracking/TrackingControls', () => ({
   TrackingControls: () => null,
 }));
 
+vi.mock('../tracking/JumpDoorbellObserver', () => ({
+  JumpDoorbellObserver: () => null,
+}));
+
 vi.mock('@xyflow/react', async () => {
   const { createElement: element } = await import('react');
   mocks.reactFlow.mockImplementation(({ children }: { children?: unknown }) =>
@@ -107,6 +111,7 @@ function withAccess(
     systemsComplete: true,
     liveSystemCount: 0,
     connectionDetails: new Map(),
+    unresolvedHoles: [],
     connectionPresentationNow: 1,
     events: [],
     state: { systems: new Map(), connections: new Map() },

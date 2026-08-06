@@ -2,7 +2,7 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import {
   jumpResolverEndpoint,
   jumpResolverRequestSchema,
-} from '@/composition/jump-resolver/api-contract';
+} from '@/data/maps/api-contract';
 import { resolveJumpRequest } from '@/composition/jump-resolver/resolver';
 import { db } from '@/db';
 import { checkUserId } from '@/platform/auth/route-guards';
