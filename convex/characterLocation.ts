@@ -16,7 +16,13 @@ import {
   type MutationCtx,
   query,
 } from './_generated/server';
-import { stampSyncSubject } from './lib/characterSync';
+import {
+  authenticatedSubject,
+  characterSyncApplyFields,
+  characterSyncResultFields,
+  selectCharacterRows,
+  stampSyncSubject,
+} from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
 
 /**
@@ -35,9 +41,8 @@ export const JUMP_CONTINUITY_MS = 15_000;
 export const forViewer = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) return null;
-    const userId = identity.subject;
+    const userId = await authenticatedSubject(ctx);
+    if (userId === null) return null;
     const docs = await ctx.db
       .query('characterLocation')
       .withIndex('by_user', (q) => q.eq('userId', userId))
@@ -51,6 +56,7 @@ export const forViewer = query({
         shipTypeId: doc.shipTypeId,
         prevSolarSystemId: doc.prevSolarSystemId,
         prevFresh: doc.prevFresh,
+        transitionObservedAt: doc.transitionObservedAt ?? null,
         observedAt: doc.observedAt,
       })),
     };
@@ -82,7 +88,7 @@ export const heldState = internalQuery({
 // `systemChanged` is true when the action fetched ship because the system
 // moved (or there was no prior doc).
 const characterResultValidator = v.object({
-  characterId: v.number(),
+  ...characterSyncResultFields,
   solarSystemId: v.union(v.number(), v.null()),
   stationId: v.union(v.number(), v.null()),
   structureId: v.union(v.number(), v.null()),
@@ -90,8 +96,6 @@ const characterResultValidator = v.object({
   systemChanged: v.boolean(),
   etagLocation: v.union(v.string(), v.null()),
   etagShip: v.union(v.string(), v.null()),
-  expiresAt: v.union(v.number(), v.null()),
-  error: v.union(v.string(), v.null()),
 });
 
 type CharacterResult = Infer<typeof characterResultValidator>;
@@ -105,16 +109,9 @@ type CharacterResult = Infer<typeof characterResultValidator>;
  */
 export const applySyncResults = internalMutation({
   args: {
-    userId: v.string(),
-    generation: v.number(),
-    enumeratedCharacterIds: v.array(v.number()),
+    ...characterSyncApplyFields,
     trackedCharacterIds: v.array(v.number()),
     results: v.array(characterResultValidator),
-    lastError: v.union(v.string(), v.null()),
-    rlGroup: v.union(v.string(), v.null()),
-    rlLimit: v.union(v.number(), v.null()),
-    rlRemaining: v.union(v.number(), v.null()),
-    rlUsed: v.union(v.number(), v.null()),
   },
   handler: async (ctx, args) => {
     const subject = await getSyncSubject(ctx.db, 'characterLocation', args.userId);
@@ -218,6 +215,7 @@ async function applyLocationResult(
       shipTypeId: result.shipTypeId,
       prevSolarSystemId: null,
       prevFresh: false,
+      transitionObservedAt: now,
       observedAt: now,
       etagLocation: result.etagLocation,
       etagShip: result.etagShip,
@@ -235,6 +233,7 @@ async function applyLocationResult(
       shipTypeId,
       prevSolarSystemId: existing.solarSystemId,
       prevFresh,
+      transitionObservedAt: now,
       observedAt: now,
       etagLocation: result.etagLocation,
       etagShip: result.etagShip,
@@ -285,6 +284,7 @@ function locationChanged(
     shipTypeId: number | null;
     prevSolarSystemId: number | null;
     prevFresh: boolean;
+    transitionObservedAt: number;
     etagLocation: string | null;
     etagShip: string | null;
   },
@@ -296,6 +296,7 @@ function locationChanged(
     || existing.shipTypeId !== next.shipTypeId
     || existing.prevSolarSystemId !== next.prevSolarSystemId
     || existing.prevFresh !== next.prevFresh
+    || existing.transitionObservedAt !== next.transitionObservedAt
     || existing.etagLocation !== next.etagLocation
     || existing.etagShip !== next.etagShip
   );
@@ -310,18 +311,19 @@ function locationChanged(
 export const purgeForUser = internalMutation({
   args: { userId: v.string(), characterId: v.union(v.number(), v.null()) },
   handler: async (ctx, { userId, characterId }) => {
-    const locations =
-      characterId === null
-        ? await ctx.db
+    const locations = await selectCharacterRows(
+      characterId,
+      async () => await ctx.db
             .query('characterLocation')
             .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect()
-        : await ctx.db
+            .collect(),
+      async (selectedCharacterId) => await ctx.db
             .query('characterLocation')
             .withIndex('by_user_character', (q) =>
-              q.eq('userId', userId).eq('characterId', characterId),
+              q.eq('userId', userId).eq('characterId', selectedCharacterId),
             )
-            .collect();
+            .collect(),
+    );
 
     const tracking =
       characterId === null

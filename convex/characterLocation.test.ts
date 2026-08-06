@@ -24,6 +24,7 @@ function locationDoc(userId: string, characterId: number) {
     shipTypeId: 670 as number | null,
     prevSolarSystemId: null as number | null,
     prevFresh: false,
+    transitionObservedAt: 1_699_999_999_000,
     observedAt: 1_700_000_000_000,
     etagLocation: 'loc' as string | null,
     etagShip: 'ship' as string | null,
@@ -252,6 +253,7 @@ describe('characterLocation.forViewer', () => {
         shipTypeId: 670,
         prevSolarSystemId: null,
         prevFresh: false,
+        transitionObservedAt: 1_699_999_999_000,
         observedAt: 1_700_000_000_000,
       },
     ]);
@@ -332,6 +334,38 @@ describe('characterLocation.applySyncResults', () => {
       etagLocation: 'loc',
       etagShip: 'ship',
     });
+  });
+
+  it('advances observedAt for a dock update without advancing the system-transition epoch', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow());
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_142,
+          stationId: 60_003_760,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: false,
+          etagLocation: 'loc-docked',
+          etagShip: null,
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+
+    expect(await readDoc(t)).toMatchObject({
+      stationId: 60_003_760,
+      transitionObservedAt: 1_699_999_999_000,
+      etagLocation: 'loc-docked',
+    });
+    expect((await readDoc(t))?.observedAt).not.toBe(1_700_000_000_000);
   });
 
   it('stamps prevFresh false when the previous run is outside JUMP_CONTINUITY_MS', async () => {

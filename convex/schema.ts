@@ -338,6 +338,10 @@ export default defineSchema({
     shipTypeId: v.union(v.number(), v.null()),
     prevSolarSystemId: v.union(v.number(), v.null()),
     prevFresh: v.boolean(),
+    // Dedicated system-transition epoch. Unlike observedAt, dock/undock fact
+    // changes never advance this stamp, so automatic jump processing can key
+    // exactly-once behavior to a genuine system change.
+    transitionObservedAt: v.optional(v.number()),
     // LAST-CHANGE time, not last-confirmation: the zero-write 304 path (HC-3)
     // never touches this doc, so a stationary pilot's observedAt ages while
     // still confirmed live. Freshness consumers read the subject row's

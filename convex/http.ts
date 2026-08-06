@@ -66,11 +66,20 @@ const purgeMapAccessBodySchema = z.object({
   userId: z.string(),
 });
 
-const jumpEvidenceBodySchema = z.object({
-  userId: z.string().min(1),
-  mapId: z.string().min(1),
-  characterId: z.number().int().positive(),
-});
+const jumpEvidenceBodySchema = z.discriminatedUnion('mode', [
+  z.strictObject({
+    mode: z.literal('transition'),
+    userId: z.string().min(1),
+    mapId: z.string().min(1),
+    characterId: z.number().int().positive(),
+  }),
+  z.strictObject({
+    mode: z.literal('connection'),
+    userId: z.string().min(1),
+    mapId: z.string().min(1),
+    connectionId: z.string().min(1),
+  }),
+]);
 
 const jumpDecisionSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -95,7 +104,7 @@ const resolveJumpBodySchema = z.discriminatedUnion('operation', [
     characterId: z.number().int().positive(),
     fromSolarSystemId: z.number().int().positive(),
     toSolarSystemId: z.number().int().positive(),
-    observedAt: z.number().finite(),
+    transitionObservedAt: z.number().finite(),
     observedShipMassKg: z.number().finite().positive().nullable(),
     observationKey: z.string().min(1),
     decision: jumpDecisionSchema,
@@ -151,7 +160,22 @@ http.route({
     if (raw === null) return new Response('Bad Request', { status: 400 });
     const body = jumpEvidenceBodySchema.safeParse(raw);
     if (!body.success) return new Response('Bad Request', { status: 400 });
-    return Response.json(await ctx.runQuery(internal.mapJump.jumpEvidence, body.data));
+    if (body.data.mode === 'connection') {
+      return Response.json(
+        await ctx.runQuery(internal.mapJump.connectionEvidence, {
+          userId: body.data.userId,
+          mapId: body.data.mapId,
+          connectionId: body.data.connectionId as Id<'mapConnections'>,
+        }),
+      );
+    }
+    return Response.json(
+      await ctx.runQuery(internal.mapJump.jumpEvidence, {
+        userId: body.data.userId,
+        mapId: body.data.mapId,
+        characterId: body.data.characterId,
+      }),
+    );
   }),
 });
 
@@ -205,7 +229,7 @@ http.route({
         characterId: body.data.characterId,
         fromSolarSystemId: body.data.fromSolarSystemId,
         toSolarSystemId: body.data.toSolarSystemId,
-        observedAt: body.data.observedAt,
+        transitionObservedAt: body.data.transitionObservedAt,
         observedShipMassKg: body.data.observedShipMassKg,
         observationKey: body.data.observationKey,
         decision,

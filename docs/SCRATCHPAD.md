@@ -20,7 +20,7 @@
   `lifecycle/4.0.4.2` (automatic jump authoring). Plan
   `docs/session-plans/4.0/4.0.4.2.2.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.2.md`.
-- **OW progress:** `4/7 complete` — next: Jump-resolver route.
+- **OW progress:** `5/7 complete` — next: Client wiring: observer, popup, card.
 - **OW completed:**
   - OW1 Merged schema + shipped-consumer guards — nullable unresolved
     connection endpoints plus identity/hint/provenance/observation fields;
@@ -40,6 +40,11 @@
     UTC-hour correction-safe dedupe upsert, attributable-only database guards,
     and indexed per-system statics / per-type ship-mass reads; focused 45/45;
     verify green (4,780 passed / 137 skipped), Fallow 44 files / 0 issues.
+  - OW5 Jump-resolver route — authenticated doorbell/confirm/reassociate/type
+    composition over the existing Convex doors, transition-epoch replay
+    convergence, server-side movement/matching/class checks, authoritative
+    post-commit observation emission, and complete route registries; focused
+    84/84; verify green (4,802 passed / 137 skipped), Fallow gate green.
 - **Next-agent notes:** (1) The plan's detailed hard constraint controls its
   mechanical OW1 wording drift: `readBoundedMapTopology` deliberately retains
   unresolved rows for sever/restore; only the collapse-decision graph filters
@@ -74,7 +79,22 @@
   should pass its Neon handle into `readSystemStaticsForSystem`,
   `readShipMassByType`, and `insertWhObservation`; do not add parallel lookup
   queries or a second observation writer. Migration `0053_nasty_bug.sql` is
-  generated and was applied to the local real-Postgres proof database.
+  generated and was applied to the local real-Postgres proof database. (13)
+  Operator-settled in-session divergence for the eventual as-built: the frozen
+  interface lacked a stable jump epoch because dock/undock advances
+  `observedAt`; OW5 added optional `transitionObservedAt`, advances it only on
+  first insert or a genuine system change, and keys both jump evidence and
+  bookkeeping on it while leaving `observedAt` freshness consumers unchanged.
+  Legacy rows without the field honestly re-anchor until their next genuine
+  system change. (14) OW6's client observer MUST key its ring-once memory on
+  `transitionObservedAt`, never `observedAt`, or docking will ring repeatedly.
+  (15) `/jump-evidence` now owns both `transition` and `connection` modes; the
+  latter is edit-authorized and bounded to one connection row plus two indexed
+  endpoint lookups. Typed-hole clients send only `connectionId`; the server
+  derives the typed side and suppresses observation emission when the codex
+  class contradicts the authoritative opposite endpoint. (16) Record the
+  complete operator-approved items (13)-(15) as the frozen-interface divergence
+  in `docs/session-as-built/4.0/4.0.4.2.2.md` during close-out.
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,

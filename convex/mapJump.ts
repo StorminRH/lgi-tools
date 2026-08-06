@@ -48,6 +48,8 @@ interface TrackedLocation {
 
 interface EmissionFacts {
   readonly connectionId: Id<'mapConnections'>;
+  readonly fromSystemId: number;
+  readonly toSystemId: number | null;
   readonly wormholeTypeCode: string | null;
   readonly typedSide: 'from' | 'to' | null;
   readonly typedSideSystemId: number | null;
@@ -78,7 +80,7 @@ interface ResolveJumpInput {
   readonly characterId: number;
   readonly fromSolarSystemId: number;
   readonly toSolarSystemId: number;
-  readonly observedAt: number;
+  readonly transitionObservedAt: number;
   readonly observedShipMassKg: number | null;
   readonly observationKey: string;
   readonly decision: JumpDecision;
@@ -206,6 +208,8 @@ function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
   const typedSide = connection.typedSide ?? null;
   return {
     connectionId: connection._id,
+    fromSystemId: connection.fromSystemId,
+    toSystemId: connection.toSystemId,
     wormholeTypeCode: connection.wormholeTypeCode,
     typedSide,
     typedSideSystemId:
@@ -255,6 +259,16 @@ export const jumpEvidence = internalQuery({
       };
     }
     const { location } = tracked;
+    if (location.transitionObservedAt === undefined) {
+      return {
+        canEdit: true as const,
+        tracked: true as const,
+        transition: null,
+        lastProcessedTransitionAt: null,
+        originLive: false,
+        candidates: [],
+      };
+    }
     const stamp = await ctx.db
       .query('mapJumpBookkeeping')
       .withIndex('by_map_character', (q) =>
@@ -278,7 +292,7 @@ export const jumpEvidence = internalQuery({
         toSolarSystemId: location.solarSystemId,
         shipTypeId: location.shipTypeId,
         prevFresh: location.prevFresh,
-        observedAt: location.observedAt,
+        transitionObservedAt: location.transitionObservedAt,
       },
       lastProcessedTransitionAt: stamp?.lastProcessedTransitionAt ?? null,
       originLive,
@@ -292,22 +306,65 @@ export const jumpEvidence = internalQuery({
   },
 });
 
+/**
+ * Reads one edit-authorized resolved connection for post-mutation observation
+ * emission. The client supplies only the id; both live endpoints and all
+ * attributable facts are re-read from Convex truth.
+ */
+export const connectionEvidence = internalQuery({
+  args: {
+    userId: v.string(),
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+  },
+  handler: async (ctx, { userId, mapId, connectionId }) => {
+    const principal = await tryMapAccessForUser(ctx, mapId, userId, 'edit');
+    if (principal === null) {
+      return { canEdit: false as const, connection: null };
+    }
+    const connection = await ctx.db.get(connectionId);
+    if (
+      connection === null
+      || connection.mapId !== mapId
+      || connection.toSystemId === null
+      || isTombstoned(connection)
+    ) {
+      return { canEdit: true as const, connection: null };
+    }
+    const [fromSystem, toSystem] = await Promise.all([
+      findSystem(ctx, mapId, connection.fromSystemId),
+      findSystem(ctx, mapId, connection.toSystemId),
+    ]);
+    if (
+      fromSystem === null
+      || toSystem === null
+      || isTombstoned(fromSystem)
+      || isTombstoned(toSystem)
+    ) {
+      return { canEdit: true as const, connection: null };
+    }
+    return { canEdit: true as const, connection: emissionFacts(connection) };
+  },
+});
+
 async function stampTransition(
   ctx: MutationCtx,
   mapId: string,
   characterId: number,
-  observedAt: number,
+  transitionObservedAt: number,
   existing: Doc<'mapJumpBookkeeping'> | null,
 ): Promise<void> {
   if (existing === null) {
     await ctx.db.insert('mapJumpBookkeeping', {
       mapId,
       characterId,
-      lastProcessedTransitionAt: observedAt,
+      lastProcessedTransitionAt: transitionObservedAt,
     });
     return;
   }
-  await ctx.db.patch(existing._id, { lastProcessedTransitionAt: observedAt });
+  await ctx.db.patch(existing._id, {
+    lastProcessedTransitionAt: transitionObservedAt,
+  });
 }
 
 function connectionBase(
@@ -351,7 +408,10 @@ function validateJumpInput(args: ResolveJumpInput): ValidJumpInput | StaleResult
   requireSystemId(args.fromSolarSystemId);
   requireSystemId(args.toSolarSystemId);
   if (args.fromSolarSystemId === args.toSolarSystemId) return stale('same-system');
-  if (!Number.isFinite(args.observedAt) || args.observationKey.trim() === '') {
+  if (
+    !Number.isFinite(args.transitionObservedAt)
+    || args.observationKey.trim() === ''
+  ) {
     throw new ConvexError({ code: 'INVALID_JUMP_INPUT' });
   }
   return { observedShipMassKg: validObservedMass(args.observedShipMassKg) };
@@ -377,7 +437,7 @@ function transitionMatches(
     && tracked.location.prevFresh
     && tracked.location.prevSolarSystemId === args.fromSolarSystemId
     && tracked.location.solarSystemId === args.toSolarSystemId
-    && tracked.location.observedAt === args.observedAt;
+    && tracked.location.transitionObservedAt === args.transitionObservedAt;
 }
 
 async function endpointLapse(
@@ -527,7 +587,7 @@ async function authorNewTopology(
 
 /**
  * Revalidates and authors one tracked transition atomically. Repeated requests
- * converge through the durable per-(map,character) observedAt stamp; separate
+ * converge through the durable per-(map,character) transition stamp; separate
  * scouts crossing the same pair still add their own observed mass.
  */
 export const resolveJumpAuthoring = internalMutation({
@@ -537,7 +597,7 @@ export const resolveJumpAuthoring = internalMutation({
     characterId: v.number(),
     fromSolarSystemId: v.number(),
     toSolarSystemId: v.number(),
-    observedAt: v.number(),
+    transitionObservedAt: v.number(),
     observedShipMassKg: v.union(v.number(), v.null()),
     observationKey: v.string(),
     decision: jumpDecisionValidator,
@@ -547,7 +607,10 @@ export const resolveJumpAuthoring = internalMutation({
     const validated = validateJumpInput(args);
     if ('status' in validated) return validated;
     const stamp = await readTransitionStamp(ctx, args);
-    if (stamp !== null && stamp.lastProcessedTransitionAt >= args.observedAt) {
+    if (
+      stamp !== null
+      && stamp.lastProcessedTransitionAt >= args.transitionObservedAt
+    ) {
       return { status: 'converged' as const, reason: 'processed' as const };
     }
 
@@ -572,7 +635,7 @@ export const resolveJumpAuthoring = internalMutation({
       ctx,
       args.mapId,
       args.characterId,
-      args.observedAt,
+      args.transitionObservedAt,
       stamp,
     );
     return {

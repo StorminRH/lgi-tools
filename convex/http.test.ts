@@ -100,7 +100,12 @@ describe('jump resolver doors', () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
     const res = await post(
       '/jump-evidence',
-      JSON.stringify({ userId: 'user-1', mapId: 'map-1', characterId: 90_000_001 }),
+      JSON.stringify({
+        mode: 'transition',
+        userId: 'user-1',
+        mapId: 'map-1',
+        characterId: 90_000_001,
+      }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
@@ -110,6 +115,63 @@ describe('jump resolver doors', () => {
       lastProcessedTransitionAt: null,
       originLive: false,
       candidates: [],
+    });
+  });
+
+  it('pins the read-only connection-evidence mode on the existing evidence door', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    const t = convexTest(schema, modules);
+    const connectionId = await t.run(async (ctx) => {
+      await ctx.db.insert('mapAccess', {
+        mapId: 'map-evidence',
+        userId: 'editor',
+        roles: ['editor'],
+      });
+      await ctx.db.insert('mapSystems', {
+        mapId: 'map-evidence',
+        systemId: 31_000_001,
+      });
+      await ctx.db.insert('mapSystems', {
+        mapId: 'map-evidence',
+        systemId: 31_000_002,
+      });
+      return await ctx.db.insert('mapConnections', {
+        mapId: 'map-evidence',
+        fromSystemId: 31_000_001,
+        toSystemId: 31_000_002,
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        lifeStage: null,
+        lifeStageObservedAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+
+    const res = await t.fetch('/jump-evidence', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({
+        mode: 'connection',
+        userId: 'editor',
+        mapId: 'map-evidence',
+        connectionId,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      canEdit: true,
+      connection: {
+        connectionId,
+        fromSystemId: 31_000_001,
+        toSystemId: 31_000_002,
+        typedSideSystemId: 31_000_001,
+      },
     });
   });
 
@@ -140,6 +202,7 @@ describe('jump resolver doors', () => {
         shipTypeId: 587,
         prevSolarSystemId: 31_000_001,
         prevFresh: true,
+        transitionObservedAt: 1_800_000_000_000,
         observedAt: 1_800_000_000_000,
         etagLocation: null,
         etagShip: null,
@@ -156,7 +219,7 @@ describe('jump resolver doors', () => {
         characterId: 90_000_001,
         fromSolarSystemId: 31_000_001,
         toSolarSystemId: 31_000_002,
-        observedAt: 1_800_000_000_000,
+        transitionObservedAt: 1_800_000_000_000,
         observedShipMassKg: 10_000_000,
         observationKey: 'door-key',
         decision: { kind: 'insert', candidateIds: [], survivors: [] },

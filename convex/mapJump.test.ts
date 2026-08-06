@@ -35,7 +35,7 @@ async function seedTrackedTransition(
     readonly trackingUserId?: string;
     readonly fromSystemId?: number;
     readonly toSystemId?: number;
-    readonly observedAt?: number;
+    readonly transitionObservedAt?: number;
     readonly placeOrigin?: boolean;
   } = {},
 ): Promise<void> {
@@ -43,7 +43,7 @@ async function seedTrackedTransition(
   const trackingUserId = input.trackingUserId ?? TRACKER;
   const fromSystemId = input.fromSystemId ?? ORIGIN;
   const toSystemId = input.toSystemId ?? DESTINATION;
-  const observedAt = input.observedAt ?? OBSERVED_AT;
+  const transitionObservedAt = input.transitionObservedAt ?? OBSERVED_AT;
   if (input.placeOrigin !== false) {
     await t.mutation(internal.mapFixtures.placeSystemFixture, {
       mapId: MAP,
@@ -65,7 +65,8 @@ async function seedTrackedTransition(
       shipTypeId: 587,
       prevSolarSystemId: fromSystemId,
       prevFresh: true,
-      observedAt,
+      transitionObservedAt,
+      observedAt: transitionObservedAt,
       etagLocation: null,
       etagShip: null,
     });
@@ -91,7 +92,7 @@ function authorArgs(
     readonly characterId?: number;
     readonly fromSolarSystemId?: number;
     readonly toSolarSystemId?: number;
-    readonly observedAt?: number;
+    readonly transitionObservedAt?: number;
     readonly observedShipMassKg?: number | null;
     readonly observationKey?: string;
     readonly decision:
@@ -115,7 +116,7 @@ function authorArgs(
     characterId: input.characterId ?? CHARACTER,
     fromSolarSystemId: input.fromSolarSystemId ?? ORIGIN,
     toSolarSystemId: input.toSolarSystemId ?? DESTINATION,
-    observedAt: input.observedAt ?? OBSERVED_AT,
+    transitionObservedAt: input.transitionObservedAt ?? OBSERVED_AT,
     observedShipMassKg: input.observedShipMassKg ?? 10_000_000,
     observationKey: input.observationKey ?? 'observation-key',
     decision: input.decision,
@@ -174,7 +175,7 @@ describe('automatic jump authoring', () => {
       transition: {
         fromSolarSystemId: ORIGIN,
         toSolarSystemId: DESTINATION,
-        observedAt: OBSERVED_AT,
+        transitionObservedAt: OBSERVED_AT,
       },
       candidates: [{ id: candidateId, wormholeTypeCode: 'C247' }],
     });
@@ -223,6 +224,47 @@ describe('automatic jump authoring', () => {
         lastProcessedTransitionAt: OBSERVED_AT,
       }),
     ]);
+
+    await t.run(async (ctx) => {
+      const location = await ctx.db
+        .query('characterLocation')
+        .withIndex('by_user_character', (q) =>
+          q.eq('userId', TRACKER).eq('characterId', CHARACTER),
+        )
+        .unique();
+      if (location === null) throw new Error('seeded location missing');
+      await ctx.db.patch(location._id, {
+        stationId: 60_003_760,
+        observedAt: OBSERVED_AT + 1_000,
+      });
+    });
+    expect(
+      await t.mutation(internal.mapJump.resolveJumpAuthoring, args),
+    ).toEqual({ status: 'converged', reason: 'processed' });
+    expect((await mapState(t)).connections[0]?.observedMassKg).toBe(10_000_000);
+
+    const connectionEvidence = await t.query(
+      internal.mapJump.connectionEvidence,
+      { userId: EDITOR, mapId: MAP, connectionId: candidateId },
+    );
+    expect(connectionEvidence).toMatchObject({
+      canEdit: true,
+      connection: {
+        connectionId: candidateId,
+        fromSystemId: ORIGIN,
+        toSystemId: DESTINATION,
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typedSideSystemId: ORIGIN,
+      },
+    });
+    await expect(
+      t.query(internal.mapJump.connectionEvidence, {
+        userId: VIEWER,
+        mapId: MAP,
+        connectionId: candidateId,
+      }),
+    ).resolves.toEqual({ canEdit: false, connection: null });
   });
 
   it('records assumed survivors, confirms them, and re-associates the destination round trip', async () => {
@@ -323,7 +365,7 @@ describe('automatic jump authoring', () => {
       trackingUserId: 'return-scout',
       fromSystemId: DESTINATION,
       toSystemId: ORIGIN,
-      observedAt: returnAt,
+      transitionObservedAt: returnAt,
     });
     const reverse = await t.mutation(
       internal.mapJump.resolveJumpAuthoring,
@@ -331,7 +373,7 @@ describe('automatic jump authoring', () => {
         characterId: returnCharacter,
         fromSolarSystemId: DESTINATION,
         toSolarSystemId: ORIGIN,
-        observedAt: returnAt,
+        transitionObservedAt: returnAt,
         observedShipMassKg: 7_000_000,
         observationKey: 'ignored-second-key',
         decision: { kind: 'insert', candidateIds: [], survivors: [] },
@@ -381,7 +423,7 @@ describe('automatic jump authoring', () => {
       t.mutation(internal.mapJump.resolveJumpAuthoring, {
         ...args,
         userId: VIEWER,
-        observedAt: OBSERVED_AT + 1,
+        transitionObservedAt: OBSERVED_AT + 1,
       }),
     ).rejects.toThrow('FORBIDDEN');
   });

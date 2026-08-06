@@ -15,7 +15,13 @@
 import { type Infer, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx, query } from './_generated/server';
-import { stampSyncSubject } from './lib/characterSync';
+import {
+  authenticatedSubject,
+  characterSyncApplyFields,
+  characterSyncResultFields,
+  selectCharacterRows,
+  stampSyncSubject,
+} from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
 
 /**
@@ -30,9 +36,8 @@ import { getSyncSubject } from './lib/subjects';
 export const forViewer = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) return null;
-    const userId = identity.subject;
+    const userId = await authenticatedSubject(ctx);
+    if (userId === null) return null;
     const docs = await ctx.db
       .query('characterOnline')
       .withIndex('by_user', (q) => q.eq('userId', userId))
@@ -65,11 +70,9 @@ export const heldState = internalQuery({
 // value to store (the action echoes the held etag across a 304/error because
 // ESI's 304 does not repeat the ETag header).
 const characterResultValidator = v.object({
-  characterId: v.number(),
+  ...characterSyncResultFields,
   online: v.union(v.boolean(), v.null()),
   etag: v.union(v.string(), v.null()),
-  expiresAt: v.union(v.number(), v.null()),
-  error: v.union(v.string(), v.null()),
 });
 
 type CharacterResult = Infer<typeof characterResultValidator>;
@@ -82,15 +85,8 @@ type CharacterResult = Infer<typeof characterResultValidator>;
  */
 export const applySyncResults = internalMutation({
   args: {
-    userId: v.string(),
-    generation: v.number(),
-    enumeratedCharacterIds: v.array(v.number()),
+    ...characterSyncApplyFields,
     results: v.array(characterResultValidator),
-    lastError: v.union(v.string(), v.null()),
-    rlGroup: v.union(v.string(), v.null()),
-    rlLimit: v.union(v.number(), v.null()),
-    rlRemaining: v.union(v.number(), v.null()),
-    rlUsed: v.union(v.number(), v.null()),
   },
   handler: async (ctx, args) => {
     const subject = await getSyncSubject(ctx.db, 'onlineStatus', args.userId);
@@ -171,18 +167,19 @@ async function applyOnlineResult(
 export const purgeForUser = internalMutation({
   args: { userId: v.string(), characterId: v.union(v.number(), v.null()) },
   handler: async (ctx, { userId, characterId }) => {
-    const docs =
-      characterId === null
-        ? await ctx.db
+    const docs = await selectCharacterRows(
+      characterId,
+      async () => await ctx.db
             .query('characterOnline')
             .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect()
-        : await ctx.db
+            .collect(),
+      async (selectedCharacterId) => await ctx.db
             .query('characterOnline')
             .withIndex('by_user_character', (q) =>
-              q.eq('userId', userId).eq('characterId', characterId),
+              q.eq('userId', userId).eq('characterId', selectedCharacterId),
             )
-            .collect();
+            .collect(),
+    );
     for (const doc of docs) await ctx.db.delete(doc._id);
     return { deleted: docs.length };
   },
