@@ -138,9 +138,11 @@ PR open when the head is unchanged.
    FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify
    ```
 
-7. Confirm the worktree still matches preflighted scope with no app/test/config
-   change after verify. Uncommitted OW implementation with SCRATCHPAD claiming
-   complete → `BLOCKED` back to `start-session`.
+7. Confirm the worktree still matches preflighted scope and that no
+   application, test, executable, dependency-manifest, lockfile, or
+   verification-configuration change occurred after verify. Uncommitted OW
+   implementation with SCRATCHPAD claiming complete → `BLOCKED` back to
+   `start-session`.
 8. Commit and push (plain-English conventional style). Push without an empty
    commit when already fully committed.
    - **(ordinary)** Commit all verified scoped changes plus the pending
