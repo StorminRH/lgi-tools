@@ -88,7 +88,12 @@ export function Dialog({
         <Base.Backdrop className="fixed inset-0 z-overlay bg-black/60 backdrop-blur-sm transition-opacity duration-panel data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none" />
         <Base.Popup
           ref={setPopupEl}
-          aria-labelledby={labelledBy}
+          // Conditional spread, never a bare aria-labelledby={labelledBy}:
+          // Base UI's prop merge is Object.assign-shaped (rightmost wins,
+          // undefined overwrites), so an explicit undefined would clobber the
+          // titleElementId auto-wired from a rendered DialogTitle and the
+          // dialog would silently lose its accessible name.
+          {...(labelledBy !== undefined ? { 'aria-labelledby': labelledBy } : {})}
           finalFocus={finalFocus}
           initialFocus={initialFocus}
           className={cn(popup({ tone }), className)}
