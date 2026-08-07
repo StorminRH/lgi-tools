@@ -22,7 +22,7 @@ const EMPTY_EDGES: Edge[] = [];
  *   - No Convex deployment (`convexClient === null`, a contributor without Convex) → the empty
  *     canvas again. This gate is REQUIRED and the hooks' `'skip'` token is not a substitute: with
  *     `NEXT_PUBLIC_CONVEX_URL` unset there is no provider above, and the installed hooks throw even
- *     when skipped. Mirrors `src/components/OnlineStatusProvider.tsx`.
+ *     when skipped.
  *
  * The host is keyed by map id, so switching maps discards the previous map's reconciled nodes and
  * local placements instead of carrying them over, and re-subscribes fresh.

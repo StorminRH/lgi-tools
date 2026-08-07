@@ -70,7 +70,7 @@ describe('vendor rail', () => {
       ['src/app/(site)/industry/active-job-character-ids.test.ts', 'better-auth'],
       ['src/data/convex/client.ts', 'convex/react'],
       ['src/platform/auth/components/ConvexClientProvider.tsx', 'convex/react'],
-      ['src/components/OnlineStatusProvider.tsx', 'convex/react'],
+      ['src/data/convex/use-sync-subject.ts', 'convex/react'],
       ['src/data/gsc/source.ts', 'google-auth-library'],
     ])('allows %s importing its own vendor %s', async (filePath, packageName) => {
       expect(await importMessages(filePath, packageName)).toEqual([]);
@@ -83,10 +83,10 @@ describe('vendor rail', () => {
       ['src/data/convex/client.ts', 'better-auth'],
       ['src/platform/auth/auth.ts', 'convex/react'],
       // The client-addressable homes are split per vendor, so none inherits
-      // another's exemption: the online-status provider owns Convex only, and
-      // the auth client owns Better Auth only. ConvexClientProvider is the one
+      // another's exemption: the data/convex slice owns Convex only, and the
+      // auth client owns Better Auth only. ConvexClientProvider is the one
       // file granted both, and has its own narrower block.
-      ['src/components/OnlineStatusProvider.tsx', 'better-auth'],
+      ['src/data/convex/use-sync-subject.ts', 'better-auth'],
       ['src/platform/auth/auth-client.ts', 'convex/react'],
       ['src/platform/auth/components/AuthProvider.tsx', 'convex/react'],
     ])('still rejects %s importing another vendor (%s)', async (filePath, packageName) => {
@@ -175,7 +175,7 @@ describe('vendor rail', () => {
       ['src/lib/esi-datasets/entries.ts', '@base-ui/react/dialog', 'Base UI'],
       ['src/app/api/cron/probe/route.ts', 'sonner', 'sonner'],
       // The client-addressable vendor homes must keep rejecting server roots.
-      ['src/components/OnlineStatusProvider.tsx', '@/db', 'server roots'],
+      ['src/data/convex/use-sync-subject.ts', '@/db', 'server roots'],
       ['src/platform/auth/components/ConvexClientProvider.tsx', '@/db', 'server roots'],
       ['src/platform/auth/auth-client.ts', '@/lib/rate-limit', 'server roots'],
     ])('keeps rejecting %s importing %s', async (filePath, packageName, fragment) => {

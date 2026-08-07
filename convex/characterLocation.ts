@@ -1,11 +1,12 @@
 // Character location payload — the Convex half of 4.0.4.2.1 tracked location.
 //
-// Canonical shape (mirrors the onlineStatus canary): client heartbeat (engine)
-// → chain-on-success ~5s loop while watched (30s scan is the retry/watchdog)
-// → Workpool → characterLocationSync.syncUser (action: Neon enum ∩
-// mapTracking, location + ship-on-change) → applySyncResults (ONE batched
-// mutation, generation-guarded; movement nudges onlineStatus due-now) →
-// forViewer / mapTracking.forMap. The client never calls the action directly.
+// Canonical shape: client heartbeat (engine) → chain-on-success ~5s loop
+// while watched and a tracked pilot is online (30s scan is the retry/
+// watchdog; the sync's own /online probe paces an all-offline subject at
+// ~60s) → Workpool → characterLocationSync.syncUser (action: Neon enum ∩
+// mapTracking, online probe + location + ship-on-change) → applySyncResults
+// (ONE batched mutation, generation-guarded) → forViewer /
+// mapTracking.forMap. The client never calls the action directly.
 //
 // Purge remains the Neon→Convex teardown door for removed accounts/characters.
 import { type Infer, v } from 'convex/values';
@@ -23,6 +24,7 @@ import {
   stampSyncSubject,
 } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
+import { purgeScopeArgs } from './lib/syncFields';
 
 /**
  * Two consecutive fresh samples must land within this window for a jump
@@ -64,28 +66,45 @@ export const forViewer = query({
 
 /**
  * The action's read seam: which ETags to replay per character for the
- * conditional location and ship reads.
+ * conditional location and ship reads, plus the held online-probe state
+ * (flag, ETag, cache window). ONE internalQuery — both tables read in the
+ * same transaction, so the etag-beside-value invariants hold across a single
+ * snapshot (two runQuery calls would each get their own).
  */
 export const heldState = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
-    const docs = await ctx.db
+    const locations = await ctx.db
       .query('characterLocation')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
-    return docs.map((doc) => ({
-      characterId: doc.characterId,
-      solarSystemId: doc.solarSystemId,
-      etagLocation: doc.etagLocation,
-      etagShip: doc.etagShip,
-    }));
+    const online = await ctx.db
+      .query('characterLocationOnline')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    return {
+      locations: locations.map((doc) => ({
+        characterId: doc.characterId,
+        solarSystemId: doc.solarSystemId,
+        etagLocation: doc.etagLocation,
+        etagShip: doc.etagShip,
+      })),
+      online: online.map((doc) => ({
+        characterId: doc.characterId,
+        online: doc.online,
+        etagOnline: doc.etagOnline,
+        onlineExpiresAt: doc.onlineExpiresAt,
+      })),
+    };
   },
 });
 
 // Per-character outcome the action hands back. `solarSystemId` null means a
-// 304 (or an error — then `error` is set): write nothing to the payload table.
-// `systemChanged` is true when the action fetched ship because the system
-// moved (or there was no prior doc).
+// 304, an offline pilot, or an error (then `error` is set): write nothing to
+// the payload table. `systemChanged` is true when the action fetched ship
+// because the system moved (or there was no prior doc). The probe trio:
+// `online` null = probe never resolved; `onlineExpiresAt` non-null = a fresh
+// probe read to upsert into characterLocationOnline (null = held-reuse).
 const characterResultValidator = v.object({
   ...characterSyncResultFields,
   solarSystemId: v.union(v.number(), v.null()),
@@ -95,6 +114,9 @@ const characterResultValidator = v.object({
   systemChanged: v.boolean(),
   etagLocation: v.union(v.string(), v.null()),
   etagShip: v.union(v.string(), v.null()),
+  online: v.union(v.boolean(), v.null()),
+  etagOnline: v.union(v.string(), v.null()),
+  onlineExpiresAt: v.union(v.number(), v.null()),
 });
 
 type CharacterResult = Infer<typeof characterResultValidator>;
@@ -116,51 +138,28 @@ export const applySyncResults = internalMutation({
     const subject = await getSyncSubject(ctx.db, 'characterLocation', args.userId);
     if (subject === null || subject.lastRequestedAt !== args.generation) return;
 
+    const enumerated = new Set(args.enumeratedCharacterIds);
     const docs = await ctx.db
       .query('characterLocation')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .collect();
-    const byCharacter = new Map(docs.map((doc) => [doc.characterId, doc]));
+    const onlineDocs = await ctx.db
+      .query('characterLocationOnline')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect();
+    const byCharacter = await indexAndOrphanClean(ctx, docs, enumerated);
+    const onlineByCharacter = await indexAndOrphanClean(ctx, onlineDocs, enumerated);
     const now = Date.now();
-    const enumerated = new Set(args.enumeratedCharacterIds);
 
-    for (const doc of docs) {
-      if (!enumerated.has(doc.characterId)) await ctx.db.delete(doc._id);
-    }
-
-    const windowsByCharacter = new Map<number, number | null>();
-    // This run's continuity set: characters actually observed cleanly (fresh
-    // 200 OR 304). Per-character errors and unpolled characters are excluded,
-    // so a character that erred or was skipped (budget stop) re-anchors on
-    // recovery instead of inheriting an invented path from the tracked set.
-    const coveredCharacterIds: number[] = [];
-    let sawMovement = false;
-    for (const result of args.results) {
-      if (!enumerated.has(result.characterId)) continue;
-      if (result.error === null) coveredCharacterIds.push(result.characterId);
-      const window = await applyLocationResult(
-        ctx,
-        args.userId,
-        result,
-        byCharacter.get(result.characterId),
-        subject,
-        now,
-      );
-      windowsByCharacter.set(result.characterId, window);
-      // systemChanged covers first sample and a system hop; 304 / dock-only
-      // leave it false so stationary windows never nudge onlineStatus.
-      if (result.error === null && result.solarSystemId !== null && result.systemChanged) {
-        sawMovement = true;
-      }
-    }
+    const outcome = await applyCharacterResults(ctx, args, byCharacter, onlineByCharacter, subject, now);
 
     await stampSyncSubject(
       ctx,
       subject._id,
-      [...windowsByCharacter.values()],
+      outcome.windows,
       {
         enumeratedCharacterIds: args.trackedCharacterIds,
-        coveredCharacterIds,
+        coveredCharacterIds: outcome.coveredCharacterIds,
         lastError: args.lastError,
         rlGroup: args.rlGroup,
         rlLimit: args.rlLimit,
@@ -170,24 +169,99 @@ export const applySyncResults = internalMutation({
       now,
     );
 
-    if (sawMovement) await nudgeOnlineStatusDueNow(ctx, args.userId, now);
   },
 });
 
-/**
- * Pull the user's onlineStatus subject into the scan's due range so the
- * online dot catches a fresh login/jump without gating location on the 60s
- * online cache. Absent or already-due subjects are left alone.
- */
-async function nudgeOnlineStatusDueNow(
+// Index one payload table's rows by character, deleting rows for characters
+// no longer linked to the user (the lazy orphan-clean both tables share).
+// Takes the already-collected docs — Convex's index-builder generics don't
+// accept union table names, so the typed reads stay at the call sites.
+async function indexAndOrphanClean<
+  D extends { _id: Doc<'characterLocation'>['_id'] | Doc<'characterLocationOnline'>['_id']; characterId: number },
+>(ctx: MutationCtx, docs: D[], enumerated: Set<number>): Promise<Map<number, D>> {
+  const byCharacter = new Map<number, D>();
+  for (const doc of docs) {
+    if (enumerated.has(doc.characterId)) byCharacter.set(doc.characterId, doc);
+    else await ctx.db.delete(doc._id);
+  }
+  return byCharacter;
+}
+
+// The per-result loop, split from the handler: probe upsert + location apply
+// per character, accumulating the subject stamp inputs. The covered set is
+// this run's continuity truth — characters whose LOCATION was observed
+// cleanly (fresh 200 OR 304); offline probe results, per-character errors,
+// and unpolled characters are all excluded so they re-anchor on recovery
+// instead of inheriting an invented path from the tracked set.
+async function applyCharacterResults(
+  ctx: MutationCtx,
+  args: { userId: string; enumeratedCharacterIds: number[]; results: CharacterResult[] },
+  byCharacter: Map<number, Doc<'characterLocation'>>,
+  onlineByCharacter: Map<number, Doc<'characterLocationOnline'>>,
+  subject: Doc<'syncSubjects'>,
+  now: number,
+): Promise<{ windows: Array<number | null>; coveredCharacterIds: number[] }> {
+  const enumerated = new Set(args.enumeratedCharacterIds);
+  const windowsByCharacter = new Map<number, number | null>();
+  const coveredCharacterIds: number[] = [];
+  for (const result of args.results) {
+    if (!enumerated.has(result.characterId)) continue;
+    // Covered = the LOCATION was observed this run (probe said online and the
+    // location path ran — fresh 200 OR 304). An offline probe "success" never
+    // enters: it observed no location, and continuity built on probe-only
+    // samples would let a pilot who logged in and moved inside the held ~60s
+    // window author a fabricated jump (prevFresh must mean "we watched the
+    // previous system", not "the run went cleanly").
+    if (result.error === null && result.online === true) {
+      coveredCharacterIds.push(result.characterId);
+    }
+    await applyOnlineProbeResult(ctx, args.userId, result, onlineByCharacter.get(result.characterId));
+    const window = await applyLocationResult(
+      ctx,
+      args.userId,
+      result,
+      byCharacter.get(result.characterId),
+      subject,
+      now,
+    );
+    windowsByCharacter.set(result.characterId, window);
+  }
+  return { windows: [...windowsByCharacter.values()], coveredCharacterIds };
+}
+
+// Upsert one character's held online-probe state. Only a fresh probe read
+// carries a non-null onlineExpiresAt (held-reuse and errors carry null →
+// nothing to store). The table is unsubscribed, so the per-read expiry write
+// (~1/min) invalidates nothing; the write still happens only when something
+// actually changed.
+async function applyOnlineProbeResult(
   ctx: MutationCtx,
   userId: string,
-  now: number,
+  result: CharacterResult,
+  existing: Doc<'characterLocationOnline'> | undefined,
 ): Promise<void> {
-  const online = await getSyncSubject(ctx.db, 'onlineStatus', userId);
-  if (online === null) return;
-  if (online.nextDueAt !== null && online.nextDueAt <= now) return;
-  await ctx.db.patch(online._id, { nextDueAt: now });
+  if (result.online === null || result.onlineExpiresAt === null) return;
+  if (existing === undefined) {
+    await ctx.db.insert('characterLocationOnline', {
+      userId,
+      characterId: result.characterId,
+      online: result.online,
+      etagOnline: result.etagOnline,
+      onlineExpiresAt: result.onlineExpiresAt,
+    });
+    return;
+  }
+  if (
+    existing.online !== result.online
+    || existing.etagOnline !== result.etagOnline
+    || existing.onlineExpiresAt !== result.onlineExpiresAt
+  ) {
+    await ctx.db.patch(existing._id, {
+      online: result.online,
+      etagOnline: result.etagOnline,
+      onlineExpiresAt: result.onlineExpiresAt,
+    });
+  }
 }
 
 async function applyLocationResult(
@@ -303,40 +377,31 @@ function locationChanged(
 
 /**
  * Explicit teardown for a Neon-side account/character purge. characterId null
- * tears down the whole user (account-nuke): every characterLocation doc and
- * every mapTracking row for that user. A number tears down one character.
- * Idempotent: deleting absent rows is a no-op.
+ * tears down the whole user (account-nuke): every characterLocation doc,
+ * held online-probe row, and mapTracking row for that user. A number tears
+ * down one character. Idempotent: deleting absent rows is a no-op.
  */
 export const purgeForUser = internalMutation({
-  args: { userId: v.string(), characterId: v.union(v.number(), v.null()) },
+  args: purgeScopeArgs,
   handler: async (ctx, { userId, characterId }) => {
-    const locations =
-      characterId === null
-        ? await ctx.db
-            .query('characterLocation')
-            .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect()
-        : await ctx.db
-            .query('characterLocation')
-            .withIndex('by_user_character', (q) =>
-              q.eq('userId', userId).eq('characterId', characterId),
-            )
-            .collect();
+    // One indexed, user-bounded read per table (by_user_character prefix on
+    // userId — a purge is rare and a user's rows are few), then the scope
+    // narrows in JS: a single-character purge keeps only that character.
+    const scoped = <D extends { characterId: number }>(docs: D[]) =>
+      characterId === null ? docs : docs.filter((doc) => doc.characterId === characterId);
 
-    const tracking =
-      characterId === null
-        ? await ctx.db
-            .query('mapTracking')
-            .withIndex('by_user_character', (q) => q.eq('userId', userId))
-            .collect()
-        : await ctx.db
-            .query('mapTracking')
-            .withIndex('by_user_character', (q) =>
-              q.eq('userId', userId).eq('characterId', characterId),
-            )
-            .collect();
+    const locations = scoped(
+      await ctx.db.query('characterLocation').withIndex('by_user_character', (q) => q.eq('userId', userId)).collect(),
+    );
+    const heldOnline = scoped(
+      await ctx.db.query('characterLocationOnline').withIndex('by_user_character', (q) => q.eq('userId', userId)).collect(),
+    );
+    const tracking = scoped(
+      await ctx.db.query('mapTracking').withIndex('by_user_character', (q) => q.eq('userId', userId)).collect(),
+    );
 
     for (const doc of locations) await ctx.db.delete(doc._id);
+    for (const doc of heldOnline) await ctx.db.delete(doc._id);
     for (const doc of tracking) await ctx.db.delete(doc._id);
 
     // Jump-bookkeeping stamps are character-keyed and deliberately survive

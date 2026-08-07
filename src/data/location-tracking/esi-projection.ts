@@ -45,3 +45,14 @@ export function parseShipBody(body: unknown): number | null {
   const parsed = shipBodySchema.safeParse(body);
   return parsed.success ? parsed.data.ship_type_id : null;
 }
+
+/**
+ * The character online endpoint — the location sync's pause/resume probe and
+ * this slice's own boundary parse. `online` is the only stored field (zod
+ * drops the login-history keys), and a shape mismatch is null — the same
+ * contract-error taxonomy as the location and ship reads.
+ */
+export function parseOnlineBody(body: unknown): boolean | null {
+  const parsed = z.object({ online: z.boolean() }).safeParse(body);
+  return parsed.success ? parsed.data.online : null;
+}

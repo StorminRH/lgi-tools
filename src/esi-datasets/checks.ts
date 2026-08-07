@@ -218,6 +218,6 @@ export const ESI_INFRASTRUCTURE_TABLES = [
  * registry entry that owns their placement and freshness declaration.
  */
 export const CONVEX_ESI_HOMES = [
-  { home: 'convex:characterOnline', entry: 'online_status' },
   { home: 'convex:characterLocation', entry: 'character_location' },
+  { home: 'convex:characterLocationOnline', entry: 'character_location' },
 ] as const;

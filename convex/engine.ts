@@ -44,8 +44,12 @@
 // bounded by its live working sets — the overdue backlog, the concurrently-
 // watched set, and per-run retention crossings — not by the total retained-
 // subject count (3.5.e2 retired its full-table scan for three indexed ranges).
-// Per visible tab: 3 heartbeats/min ≈ 180 calls/hr. Since 3.5.e1 each beat
-// writes only the syncPresence row, so interval beats no longer re-run
+// Per watched tab: 3 heartbeats/min while visible (≈180 calls/hr); a HIDDEN
+// tab keeps beating at the browser-throttled rate (~1/min) until the client
+// AFK flow stops it (prompt after 1h continuously hidden, beats stop 5 min
+// unanswered later) — HIDDEN_PRESENCE_MAX_MS (90 min without a visible beat)
+// is the server backstop against a client that never stops. Since 3.5.e1 each
+// beat writes only the syncPresence row, so interval beats no longer re-run
 // forViewer and no longer re-read the heavy tracker payload — the per-beat DB
 // I/O term that bound first on Free for multi-alt users (a 5-alt watcher
 // re-reading ~5 payloads 3×/min) is gone. Per dispatched run: ~11 marginal
@@ -53,11 +57,16 @@
 // onComplete + ~3 forViewer echoes — a genuine status change still re-runs
 // forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
 // amortizes across a burst).
-// Watched-hour ≈ 2.9k calls for onlineStatus (60-run floor); characterLocation
-// with chain-on-success is ~12 runs/min (~10k–30k calls/watched-hour) while a
-// tracked pilot's map stays open — accepted order-of-magnitude multiple, zero
-// while cold. skills/jobs/corp all moved to Neon stale-gated on-view reads in
-// MIGRATE.B.
+// Watched-hour: characterLocation
+// with chain-on-success is ~12 runs/min (~10k–30k calls/watched-hour) while
+// the Atlas tab is OPEN — visible or hidden behind the game — AND a tracked
+// pilot is online in EVE (BY DESIGN since the hidden-tab change: a hidden
+// online pilot runs the full loop until the AFK flow stops it, ~25–40k calls
+// per hidden stretch worst-case). All tracked pilots offline drops the
+// subject to the ~60s online-probe cadence (≈2.7k calls/watched-hour) that
+// auto-resumes the fast loop on the next login; zero once the tab closes
+// (cold after the dataset's coldAfterMs) or the AFK stop lands. skills/jobs/
+// corp all moved to Neon stale-gated on-view reads in MIGRATE.B.
 // Calls do NOT scale with characters-per-user — characters multiply ESI reads
 // inside ONE action (action compute + bandwidth scale, calls don't) — and since
 // 3.5.e1 DB I/O no longer scales with the payload re-read on every beat either.
@@ -66,21 +75,25 @@ import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
 import {
   classifyDueSubject,
-  COLD_AFTER_MS,
   computeChainBoundary,
   computeNextDueAt,
   hasSyncTarget,
+  isCold,
   isColdFromPresence,
+  isRegisteredDataset,
   isRunningFresh,
   isStaleForImmediate,
+  MAX_COLD_AFTER_MS,
   RETENTION_MS,
   SYNC_DATASET_CONFIG,
+  SYNC_DATASETS,
   type SyncDataset,
 } from '@/lib/sync-engine';
 import { components, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
 import { getPresence, getSyncSubject } from './lib/subjects';
+import { drainCharacterOnline } from './onlineStatus';
 
 // Bounded fan-out across hot subjects. Retries ride the pool (exponential
 // backoff; the actions' error taxonomy already reserves throwing for
@@ -97,11 +110,12 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
   syncDispatch: { kind: 'token bucket', period: MINUTE, rate: 30, capacity: 10 },
 });
 
-// The engine's stored dataset union — live consumers today: onlineStatus +
-// characterLocation. Designed to hold a SUPERSET of the active registry while a
-// dataset is being retired (drain-window pattern in docs/CONVEX.md): schema +
-// leftover subject rows outlive the deleted syncer for one deploy so an in-flight
-// run / heartbeat still validates, then the wipe removes them.
+// The engine's stored dataset union — a SUPERSET of the active registry while
+// onlineStatus drains (drain-window pattern in docs/CONVEX.md): its schema
+// literal + leftover rows outlive the deleted syncer so an in-flight run or a
+// pre-deploy tab's heartbeat still validates. No syncRef is registered for it;
+// isRegisteredDataset keeps every dispatch path off it, and the sweep's
+// temporary retired-row GC drains the leftovers ahead of the wipe deploy.
 const syncDatasetValidator = v.union(
   v.literal('onlineStatus'),
   v.literal('characterLocation'),
@@ -109,7 +123,6 @@ const syncDatasetValidator = v.union(
 
 // The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS).
 const SYNC_REFS = {
-  onlineStatus: internal.onlineStatusSync.syncUser,
   characterLocation: internal.characterLocationSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
@@ -173,24 +186,33 @@ export const heartbeat = mutation({
     dataset: syncDatasetValidator,
     characterIdsHint: v.array(v.number()),
     reason: v.union(v.literal('mount'), v.literal('visible'), v.literal('interval')),
+    // Whether the beating tab is visible. Optional and defaulting to true:
+    // pre-field clients only ever beat while visible, so absence is honest.
+    visible: v.optional(v.boolean()),
   },
-  handler: async (ctx, { dataset, characterIdsHint, reason }) => {
+  handler: async (ctx, { dataset, characterIdsHint, reason, visible }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) return;
+    // A retired dataset's beat (a tab loaded before its retirement deploy)
+    // no-ops entirely — even writing presence would keep drain-GC rows alive.
+    if (!isRegisteredDataset(dataset)) return;
     const userId = identity.subject;
     const now = Date.now();
 
     // Presence first, for every reason — into syncPresence, never the subject
-    // row. This is the decoupling: an interval beat writes only this doc and
-    // returns, so it cannot invalidate forViewer's read of syncSubjects.
-    const presence = await getPresence(ctx.db, dataset, userId);
-    if (presence === null) {
-      await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now });
-    } else {
-      await ctx.db.patch(presence._id, { lastSeenAt: now });
-    }
+    // row. This is the decoupling: a steady-state interval beat writes only
+    // this doc and returns, so it cannot invalidate forViewer's read of
+    // syncSubjects.
+    const wasCold = await upsertPresence(ctx, dataset, userId, visible !== false, now);
 
-    if (reason === 'interval') return;
+    // A RECOVERY interval beat falls through to the on-view path: hidden tabs
+    // now beat too, so a ≥coldAfterMs gap (OS suspend, websocket outage,
+    // freeze/thaw) can leave the subject retired by the scan while beats
+    // resume with the tab still hidden — no visible beat ever comes to revive
+    // it, and Pass B's 15-minute cron would be the only recovery. The first
+    // beat after a cold gap re-arms/dispatches instead; steady-state interval
+    // beats still stop at the presence write.
+    if (reason === 'interval' && !wasCold) return;
 
     // Mount/visible only: the on-view dispatch path. Reads — and on the first
     // beat creates — the subject row. The client always fires a mount/visible
@@ -226,7 +248,7 @@ export const heartbeat = mutation({
       // the schedule off the held window so the cadence resumes without
       // waiting for staleness or the sweeper.
       if (subject.nextDueAt === null) {
-        const { cadenceFloorMs } = SYNC_DATASET_CONFIG[subject.dataset];
+        const { cadenceFloorMs } = SYNC_DATASET_CONFIG[dataset];
         await ctx.db.patch(subject._id, {
           nextDueAt: computeNextDueAt(
             subject.minExpiresAt,
@@ -240,6 +262,43 @@ export const heartbeat = mutation({
     await dispatch(ctx, subject, now);
   },
 });
+
+/**
+ * The heartbeat's presence write. lastVisibleAt feeds the hidden-presence
+ * backstop (a hidden beat advances only lastSeenAt); a fresh insert stamps it
+ * unconditionally — a newly opened tab, even a background one, is a
+ * deliberate user action and gets a fresh visibility budget. Returns whether
+ * an EXISTING presence doc was cold for the dataset before this beat — the
+ * recovery-beat signal the heartbeat uses to revive a subject the scan
+ * retired during the gap (absent presence stays presence-only: the client
+ * contract fires a mount beat first, which owns row creation).
+ */
+async function upsertPresence(
+  ctx: MutationCtx,
+  dataset: SyncDataset,
+  userId: string,
+  seenVisible: boolean,
+  now: number,
+): Promise<boolean> {
+  const presence = await getPresence(ctx.db, dataset, userId);
+  const wasCold =
+    presence !== null && isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now);
+  if (presence === null) {
+    await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now, lastVisibleAt: now });
+  } else {
+    await ctx.db.patch(presence._id, {
+      lastSeenAt: now,
+      ...(seenVisible ? { lastVisibleAt: now } : {}),
+    });
+  }
+  return wasCold;
+}
+
+// Null the schedule so the row leaves the by_next_due range — a returning
+// heartbeat revives a live dataset's row; the drain GC deletes a retired one.
+function retireFromScan(ctx: MutationCtx, subject: Doc<'syncSubjects'>): Promise<void> {
+  return ctx.db.patch(subject._id, { nextDueAt: null });
+}
 
 /**
  * The 30s dispatcher (convex/crons.ts): one indexed range over due
@@ -259,16 +318,24 @@ export const scan = internalMutation({
     // and can be re-selected, but it ages out of isRunningFresh within
     // STALE_RUNNING_MS and is then taken over (nextDueAt advances), so it can't
     // hold a batch slot indefinitely; worst-case added drain latency behind a
-    // running-fresh cluster is bounded by STALE_RUNNING_MS. (onlineStatus's 60s
-    // cadence is below the 180s stale threshold, so a still-running subject can
-    // re-come-due before it ages out — exactly this re-select-then-take-over case.)
+    // running-fresh cluster is bounded by STALE_RUNNING_MS. (Any cadence below
+    // the 180s stale threshold — e.g. the ~60s offline-probe pace — lets a
+    // still-running subject re-come-due before it ages out: exactly this
+    // re-select-then-take-over case.)
     const due = await dueSubjects(ctx, now);
     for (const subject of due) {
+      // A retired dataset's leftover row never dispatches (no syncRef exists)
+      // — retire it from the scan set; the sweep GC deletes it.
+      if (!isRegisteredDataset(subject.dataset)) {
+        await retireFromScan(ctx, subject);
+        continue;
+      }
       // Presence is its own doc now (3.5.e1) — one point read per due row,
-      // only over the hot, already-scheduled set. A missing doc reads as cold.
+      // only over the hot, already-scheduled set. A missing doc reads as cold,
+      // and each dataset is judged against its own cold window.
       const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-      if (isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
-        await ctx.db.patch(subject._id, { nextDueAt: null });
+      if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[subject.dataset].coldAfterMs, now)) {
+        await retireFromScan(ctx, subject);
         continue;
       }
       if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
@@ -305,6 +372,9 @@ async function dispatch(
   subject: Doc<'syncSubjects'>,
   now: number,
 ): Promise<boolean> {
+  // Every caller pre-guards, but the stored union is wider than the registry
+  // during a drain window — never index a missing syncRef.
+  if (!isRegisteredDataset(subject.dataset)) return false;
   const { cadenceFloorMs, tokenGroup, rateKeyScope } = SYNC_DATASET_CONFIG[subject.dataset];
   // Default group key smooths re-arm herds across users; subject scope keeps
   // concurrent tracked pilots from starving each other on one char-location
@@ -347,13 +417,14 @@ export const chainDispatch = internalMutation({
     userId: v.string(),
   },
   handler: async (ctx, { dataset, userId }) => {
+    if (!isRegisteredDataset(dataset)) return;
     const subject = await getSyncSubject(ctx.db, dataset, userId);
     if (subject === null) return;
     const now = Date.now();
     if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
     if (subject.nextDueAt === null || subject.nextDueAt > now) return;
     const presence = await getPresence(ctx.db, dataset, userId);
-    if (isColdFromPresence(presence?.lastSeenAt ?? null, now)) return;
+    if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return;
     await dispatch(ctx, subject, now);
   },
 });
@@ -377,6 +448,7 @@ async function resolveCompletionSchedule(
   subject: Doc<'syncSubjects'>,
   failed: boolean,
   cadenceFloorMs: number,
+  coldAfterMs: number,
   chainOnSuccess: boolean,
   now: number,
 ): Promise<{ nextDueAt: number | null; chainAt: number | null }> {
@@ -388,9 +460,14 @@ async function resolveCompletionSchedule(
   }
   const yielded =
     subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
-  if (chainOnSuccess && yielded) {
+  // A null window means some character's read errored (the #95 poisoned
+  // stamp): computeChainBoundary(null, floor) would collapse the hop to the
+  // cadence floor and hammer a partly-broken roster at 5s. Chain only off a
+  // real window; a poisoned run falls to the jittered scan re-arm below
+  // (~scan-tick pacing until the roster heals or the viewer relinks).
+  if (chainOnSuccess && yielded && subject.minExpiresAt !== null) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-    if (!isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
+    if (!isColdFromPresence(presence, coldAfterMs, now)) {
       const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
       return { nextDueAt: boundary, chainAt: boundary };
     }
@@ -411,10 +488,13 @@ async function resolveCompletionSchedule(
 export const onSyncComplete = internalMutation({
   args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
   handler: async (ctx, { workId, context, result }) => {
+    // A retired dataset's late completion (in-flight across its retirement
+    // deploy) has nothing to re-arm; the sweep GC deletes its row.
+    if (!isRegisteredDataset(context.dataset)) return;
     const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
     if (subject === null || subject.workId !== workId) return;
     const now = Date.now();
-    const { cadenceFloorMs, chainOnSuccess } = SYNC_DATASET_CONFIG[subject.dataset];
+    const { cadenceFloorMs, coldAfterMs, chainOnSuccess } = SYNC_DATASET_CONFIG[context.dataset];
     const failed = result.kind === 'failed';
     if (failed) {
       // Mirror of the Vercel crons' structured boundary line — the Convex
@@ -434,6 +514,7 @@ export const onSyncComplete = internalMutation({
       subject,
       failed,
       cadenceFloorMs,
+      coldAfterMs,
       chainOnSuccess === true,
       now,
     );
@@ -479,7 +560,9 @@ export const onSyncComplete = internalMutation({
  *      past-retention / retire cold-within-retention / dispatch hot. Capped at
  *      SCAN_DISPATCH_BATCH (≈0 on a healthy system, but the scan's own cap now
  *      lets a backlog form — this recovery pass must not read it unbounded).
- *   B. dropped — by_last_seen over hot presence (lastSeenAt ≥ now−COLD): a hot
+ *   B. dropped — by_last_seen over presence within the widest cold window
+ *      (lastSeenAt ≥ now−MAX_COLD_AFTER_MS, per-row filtered by each dataset's
+ *      own window): a hot
  *      idle row with targets but no schedule (timer wiped mid-flight) is
  *      re-armed. Capped at SCAN_DISPATCH_BATCH (a backstop sample of the
  *      concurrently-watched set; the on-view heartbeat is the primary re-arm).
@@ -509,9 +592,45 @@ export const sweep = internalMutation({
     await sweepOverdue(ctx, now, counts);
     await sweepDropped(ctx, now, counts);
     await sweepAbandoned(ctx, now, counts);
+    await sweepRetiredDatasets(ctx, counts);
     return counts;
   },
 });
+
+/**
+ * TEMPORARY Pass D — the onlineStatus drain GC (delete alongside the wipe
+ * deploy that drops the retired literals + characterOnline). Retention alone
+ * would hold leftover rows for 7 days and block the wipe's schema push; this
+ * drains them in a few 15-minute runs instead. The filtered take() guarantees
+ * progress: each batch is up to RETIRED_GC_BATCH retired rows, never live
+ * rows occupying slots (an unfiltered take would starve once live rows
+ * outnumber the batch). The filter scans the table in creation order until it
+ * finds the batch or the end — an unindexed scan bounded by table size
+ * (~2 small rows/user, far under the 32k doc-scan ceiling) and acceptable
+ * only because this pass is throwaway; there is deliberately no by_dataset
+ * index. characterOnline teardown stays with its owner
+ * (convex/onlineStatus.drainCharacterOnline).
+ */
+const RETIRED_GC_BATCH = 512;
+async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Promise<void> {
+  // The deny-list is the ACTIVE registry, not a hardcoded literal — a dataset
+  // added to SYNC_DATASETS while this temporary pass still exists must never
+  // have its live rows swept.
+  const subjects = await ctx.db
+    .query('syncSubjects')
+    .filter((q) => q.and(...SYNC_DATASETS.map((live) => q.neq(q.field('dataset'), live))))
+    .take(RETIRED_GC_BATCH);
+  for (const row of subjects) {
+    await ctx.db.delete(row._id);
+    counts.deleted += 1;
+  }
+  const presence = await ctx.db
+    .query('syncPresence')
+    .filter((q) => q.and(...SYNC_DATASETS.map((live) => q.neq(q.field('dataset'), live))))
+    .take(RETIRED_GC_BATCH);
+  for (const row of presence) await ctx.db.delete(row._id);
+  await drainCharacterOnline(ctx, RETIRED_GC_BATCH);
+}
 
 interface SweepCounts {
   dispatched: number;
@@ -529,9 +648,21 @@ async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts):
   // the 4,096-read ceiling — it drains the rest on the next 15-min run.
   const due = await dueSubjects(ctx, now);
   for (const subject of due) {
+    // Retired-dataset leftovers are the drain GC's province (Pass D).
+    if (!isRegisteredDataset(subject.dataset)) {
+      await retireFromScan(ctx, subject);
+      counts.retired += 1;
+      continue;
+    }
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     switch (
-      classifyDueSubject(presence?.lastSeenAt ?? null, subject.status, subject.lastRequestedAt, now)
+      classifyDueSubject(
+        presence,
+        subject.status,
+        subject.lastRequestedAt,
+        SYNC_DATASET_CONFIG[subject.dataset].coldAfterMs,
+        now,
+      )
     ) {
       case 'delete':
         await ctx.db.delete(subject._id);
@@ -539,7 +670,7 @@ async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts):
         counts.deleted += 1;
         break;
       case 'retire':
-        await ctx.db.patch(subject._id, { nextDueAt: null });
+        await retireFromScan(ctx, subject);
         counts.retired += 1;
         break;
       case 'dispatch':
@@ -562,22 +693,36 @@ async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts):
   // the PRIMARY dropped-timer re-arm — so capping the read only means a hot row
   // beyond the cap is reconciled by its own next heartbeat or a later sweep as its
   // lastSeenAt rotates toward the cap window. The cap buys ceiling-safety only.
+  // The range bound is the WIDEST registered cold window; each row is then
+  // filtered by its own dataset's window (a narrower bound would silently
+  // exclude longer-window datasets, and the range alone would treat a
+  // short-window dataset's cold row as hot).
   const hot = await ctx.db
     .query('syncPresence')
-    .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - COLD_AFTER_MS))
+    .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - MAX_COLD_AFTER_MS))
     .take(SCAN_DISPATCH_BATCH);
   for (const presence of hot) {
+    if (!isRegisteredDataset(presence.dataset)) continue;
+    if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[presence.dataset].coldAfterMs, now)) {
+      continue;
+    }
     const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
-    if (subject === null || subject.nextDueAt !== null) continue;
-    if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
-    if (
-      hasSyncTarget(subject.syncedCharacterIds, []) &&
-      isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
-    ) {
+    if (subject !== null && droppedTimerReady(subject, now)) {
       if (await dispatch(ctx, subject, now)) counts.dispatched += 1;
     }
   }
   if (hot.length === SCAN_DISPATCH_BATCH) logBatchCapped('engine:sweep', 'dropped_batch_capped', hot.length);
+}
+
+// Pass B's subject-side shape: idle, unscheduled (Pass A owns anything with a
+// nextDueAt), with targets and a lapsed window — the dropped-timer signature.
+function droppedTimerReady(subject: Doc<'syncSubjects'>, now: number): boolean {
+  if (subject.nextDueAt !== null) return false;
+  if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return false;
+  return (
+    hasSyncTarget(subject.syncedCharacterIds, [])
+    && isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
+  );
 }
 
 // Pass C — abandoned: past-retention presence (oldest first), deleted with its

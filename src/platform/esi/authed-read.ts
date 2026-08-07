@@ -5,7 +5,7 @@
 //   - the five Neon slow-data trackers (owned blueprints / assets, skills, char +
 //     corp industry jobs) call it with NO `rl` — a stale-gated write-behind has no
 //     cadence engine, so the rate-limit harvest has no consumer there;
-//   - the Convex `onlineStatus` live canary (convex/onlineStatusSync.ts) passes an
+//   - the Convex `characterLocation` live tracker (convex/characterLocationSync.ts) passes an
 //     `rl: RlSnapshot` so the live engine schedules its next run against the
 //     observed token-bucket usage. The reader runs in the Convex action runtime
 //     too — the shared ESI gate is runtime-portable, so one implementation serves

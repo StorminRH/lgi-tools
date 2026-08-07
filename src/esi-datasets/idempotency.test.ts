@@ -198,10 +198,6 @@ describe('idempotency registry verdicts', () => {
   });
 
   it('names the Workpool generation guard for the retried Convex sync action', () => {
-    const action = IDEMPOTENCY_REGISTRY.find(
-      (entry) => entry.id === 'convex/onlineStatusSync:syncUser',
-    );
-    expect(action?.evidence).toMatch(/generation guard/);
     const locationAction = IDEMPOTENCY_REGISTRY.find(
       (entry) => entry.id === 'convex/characterLocationSync:syncUser',
     );

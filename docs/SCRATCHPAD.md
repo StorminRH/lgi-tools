@@ -16,6 +16,21 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
+- **Deferred to 4.0.4.2.3 by operator ruling (2026-08-07, PR #368):** the
+  real-character behavioral validation of hidden-tab tracking merged without a
+  dev visual pass. The 4.0.4.2.3 plan/close-out must cover, alongside its own
+  fog/live-pilot G-1 gate: alt-tab past the old 60s window with jumps landing;
+  ~60s offline probe pacing and login resume; AFK dialog look/feel + dismissal
+  resume (dev-shortcut envs `NEXT_PUBLIC_AFK_HIDDEN_AFTER_MS` /
+  `NEXT_PUBLIC_AFK_PROMPT_TIMEOUT_MS`). Headless background-jump probes need
+  no real character: compose `convex/mapFixtures.ts`
+  (`seedTrackedLocationFixture`/`advanceTrackedLocationFixture`) with the
+  `atlas-afk-gate` probe's virtual-clock + hidden-visibility technique.
+  Presentation note: `mapTracking.forMap` exposes only last-CHANGE
+  `observedAt`, so paused/stalled tracking renders like a stationary pilot —
+  live-pilot presentation should surface staleness honestly. Also pending:
+  the tiny drain-end wipe PR (drop `onlineStatus` schema literals +
+  `characterOnline` + keeper/GC) once prod rows drain post-#368.
 - **CURRENT / NEXT:** session **4.0.4.2.2** (automatic jump authoring) is in
   close-out on `lifecycle/4.0.4.2` — per-session PR carrying the v4.0.4.2.2
   changelog entry + `APP_VERSION` bump. After merge, rerun the resolver;

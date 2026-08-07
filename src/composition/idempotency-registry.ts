@@ -212,17 +212,6 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
       'Declared internalMutation whose generation guard (convex/engine.ts:84-85) makes a duplicate apply a no-op, so a late or repeated completion cannot rewind a newer sync.',
   },
   {
-    id: 'convex/onlineStatusSync:syncUser',
-    workKind: 'convex-action',
-    module: 'convex/onlineStatusSync.ts',
-    redeliverySource:
-      'The Convex Workpool (convex/convex.config.ts) runs the engine’s sync actions with durable exponential-backoff retries — the third retry owner, living in the Convex isolate.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'convex/engine.ts:84-85 declares the safety condition: the actions’ error taxonomy reserves throwing for transient failures, and the generation guard makes a duplicate apply a no-op. The online-status write itself is replace-shaped, so a retry converges.',
-  },
-  {
     id: 'convex/characterLocationSync:syncUser',
     workKind: 'convex-action',
     module: 'convex/characterLocationSync.ts',
@@ -231,7 +220,7 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
     verdict: 'inherently-idempotent',
     vendor: 'convex',
     evidence:
-      'Same Workpool + generation-guard safety as onlineStatusSync: only transient failures throw, and applySyncResults no-ops when generation mismatches. Location upserts are replace-shaped keyed by userId+characterId, so a retry converges.',
+      'convex/engine.ts declares the safety condition: only transient failures throw, and the generation guard makes a duplicate apply a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId, so a retry converges.',
   },
 ];
 

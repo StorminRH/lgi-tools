@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseLocationBody, parseShipBody } from './esi-projection';
+import { parseLocationBody, parseOnlineBody, parseShipBody } from './esi-projection';
 
 describe('parseLocationBody', () => {
   it('parses in-space location (system only)', () => {
@@ -44,5 +44,24 @@ describe('parseShipBody', () => {
   it('returns null on a shape mismatch', () => {
     expect(parseShipBody({ type_id: 670 })).toBeNull();
     expect(parseShipBody(null)).toBeNull();
+  });
+});
+
+describe('parseOnlineBody', () => {
+  it('returns the online flag and strips the login-history fields', () => {
+    expect(
+      parseOnlineBody({
+        online: true,
+        last_login: '2026-08-07T00:00:00Z',
+        last_logout: '2026-08-06T00:00:00Z',
+        logins: 42,
+      }),
+    ).toBe(true);
+    expect(parseOnlineBody({ online: false })).toBe(false);
+  });
+
+  it('returns null on a shape mismatch', () => {
+    expect(parseOnlineBody({ online: 'yes' })).toBeNull();
+    expect(parseOnlineBody(null)).toBeNull();
   });
 });
