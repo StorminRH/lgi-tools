@@ -31,6 +31,12 @@ export type ChainNodeData = {
   name: string;
   className: string | null;
   motion?: NodeMotion;
+  /**
+   * Present only on derived halo systems (4.0.4.2.3 OW3); an authored node
+   * carries no halo field. `fogged` marks the ring placed under OW4's fog —
+   * rendered dimmed and inert until the fog occludes it.
+   */
+  halo?: { readonly ring: number; readonly fogged: boolean };
 };
 
 /** The only node kind this session ships. */
@@ -76,19 +82,37 @@ export function nodeMotionClass(
 
 /** Renders one system as a widget frame: header name, centered disc, widget slots. */
 function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
+  const derived = data.halo !== undefined;
+  const fogged = data.halo?.fogged === true;
   return (
     <div
       data-chain-node
       data-dragging={dragging || undefined}
-      className={cn('relative h-full w-full', nodeMotionClass(data.motion, dragging))}
+      data-chain-node-derived={derived || undefined}
+      data-chain-node-fogged={fogged || undefined}
+      className={cn(
+        'relative h-full w-full',
+        // Provisional presentation: derived systems read dimmer than authored
+        // truth, and the fogged ring dims further until OW4's fog covers it.
+        derived && (fogged ? 'opacity-40' : 'opacity-75'),
+        nodeMotionClass(data.motion, dragging),
+      )}
     >
       <span
         data-chain-node-name
-        className="absolute inset-x-1 top-1 truncate text-center font-data text-ui text-name"
+        className={cn(
+          'absolute inset-x-1 top-1 truncate text-center font-data text-ui',
+          derived ? 'text-muted' : 'text-name',
+        )}
       >
         {data.name}
       </span>
-      <div className="map-node-disc absolute left-1/2 top-1/2 flex size-[44px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section">
+      <div
+        className={cn(
+          'map-node-disc absolute left-1/2 top-1/2 flex size-[44px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section',
+          derived && 'border-dashed',
+        )}
+      >
         <Handle type="target" position={Position.Left} className={CENTER_HANDLE_CLASS} />
         {data.className !== null && (
           <span

@@ -34,8 +34,7 @@
 - **CURRENT / NEXT:** session **4.0.4.2.3** (fog, halo, pilot presence) is in
   Ordered work on `lifecycle/4.0.4.2` (plan
   `docs/session-plans/4.0/4.0.4.2.3.md`; 4.0.4.2.2 merged as PR #365).
-- **OW progress:** `2/5 complete` — next: Ordered work step 3, K-space halo
-  through the compass.
+- **OW progress:** `3/5 complete` — next: Ordered work step 4, Fog layer.
 - **OW completed:**
   - OW1 — widget-frame node primitive: `SystemNode.tsx` (frame 120×88 declared
     data-side, header name, centered disc, widget rail), `edge-geometry.ts`
@@ -58,6 +57,25 @@
     presence-model 14 units + convex join/stamp coverage, probe run all 19
     checks green (2026-08-07), full verify green (fallow clean, 38 changed
     files), primitive-checker CLEAN after 4 corrections across 2 rounds.
+    Commit: 814be6c2.
+  - OW3 — k-space halo through the compass: `halo-model.ts` (pure ring-BFS
+    from authored k-space exits over the client adjacency asset; rings 1–2
+    drawn / ring 3 fogged, per-exit + aggregate caps, claim-links-first
+    emission so the kernel tree attaches at shortest gate distance),
+    `use-map-chain.ts` merge seam (memoized on authored key + assets, facts
+    append, `layoutPostKey` 4th halo-fingerprint arg, placed halo set
+    atomically with the merge), `syncNodes`/`buildEdges` halo passes
+    (declared frame dims, draggable:false, fogged ring inert via node style,
+    `halo:` edge ids + shared pair claiming, upgrade sheds derived controls),
+    SystemNode derived/fogged markers, `pilot-path.ts` +
+    `outbound-arrow-context`/`OutboundArrowProvider` + ChainLinkEdge
+    EdgeLabelRenderer arrow (CSSOM transform var), context-menu/edge-click
+    guards, engine.ts clone dedupe (`takeRetiredRows`). Proof: halo-model 13
+    + pilot-path 6 units, mapper 51 files / 479 tests, `atlas-halo`
+    two-client probe 12/12 green at final head (identical membership +
+    positions, zero non-heartbeat mutations, in-place upgrade with
+    map-node-enter on both clients; SC-1/SC-2/SC-4 evidence), full verify
+    green (fallow audit exit 0). Primitive-checker CLEAN round 1.
     Commit: see this commit's SHA.
 - **Next-agent notes (4.0.4.2.3):**
   - Node dims are DECLARED (`width`/`height` on the node object in
@@ -84,9 +102,35 @@
     transiently (no live ESI identity). Fixture timestamps split on purpose:
     `transitionObservedAt` real time (server capture window), `feedFreshAt`
     virtual now (client staleness).
-  - OW3 owns: `halo-model.ts`, the `use-map-chain.ts` merge seam,
-    `pilot-path.ts`, and the outbound-arrow mount (`pointAlongChainLink` is
-    already in place from OW1).
+  - OW4 owns: `src/mapper/fog/fog-model.ts` + `FogLayer.tsx` (world-anchored
+    canvas below edges/nodes via `ViewportPortal` + negative zIndex), the
+    frame-budget probe at max combined load (SC-6.2), and the MapControls
+    dev dials for halo/fog constants ahead of G-1 (`deriveHalo` already
+    accepts an injectable `limits` object, so dial wiring is trivial).
+  - OW3 seams for OW4: fogged ring-3 nodes carry `data.halo.fogged` on the
+    presentation nodes and `data-chain-node-fogged` in the DOM; halo edges
+    carry `data.halo` and a both-fogged link is never emitted (halo-model
+    guarantees it), so `deriveFogReveals` can trust node flags alone.
+    `layoutPostKey` now takes a 4th halo-fingerprint arg — halo membership
+    is structural layout input; the assets landing re-posts the kernel.
+  - Halo nodes live in ChainHost's controlled node set (selection
+    round-trips through `applyNodeChanges`); never draggable; inertness is
+    node-level `style.pointerEvents` (ghost precedent — a class can never
+    win). The derived→authored upgrade reuses the node id and
+    `stripDerivedControls` sheds draggable/selectable/style — spreading a
+    retained halo node unchanged would leave an authored system inert.
+  - Fallow gotcha: the cognitive cap (15) binds BFS/scan-shaped functions —
+    keep per-ring/per-frontier expansion in extracted helpers (deriveHalo,
+    derivePilotPath, buildEdges all shipped that shape after a red gate).
+    The engine.ts clone group was OW2 scope fallout, deduped via
+    `takeRetiredRows`.
+  - `atlas-halo` probe ops: fresh disposable map per run —
+    `psql: insert into maps (user_id, name) values ('e2e-pilot', ...)`,
+    stamp `characters.affiliation_refreshed_at` for character 9000001
+    (projection otherwise fails "affiliation refresh failed transiently"),
+    `pnpm map:project-access project <id>`, then
+    `UX_HALO_MAP_ID=<id> node docs/ux-check/run-probes.mjs
+    --storage-state=docs/ux-check/captures/auth-storage.json atlas-halo`.
 - **Shipped 4.0.4.2.2 (awaiting merge):** merged unresolved-signature/connection
   model; pure eliminator + statics census; one-transaction Convex jump
   authoring behind two bearer doors; D16 observation slice (five-field Neon

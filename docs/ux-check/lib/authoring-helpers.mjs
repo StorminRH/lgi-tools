@@ -46,6 +46,18 @@ export const backgroundTrackingRoute = () => {
   return mapId ? `/atlas?map=${mapId}` : '/atlas';
 };
 
+/**
+ * Dedicated one-shot map for the k-space halo probe (4.0.4.2.3 SC-2/SC-4).
+ * Disposable like the jump map: seed a fresh empty map per run — the probe
+ * leaves its authored anchor and one authored jump behind.
+ */
+export const haloMapId = () => process.env.UX_HALO_MAP_ID ?? null;
+
+export const haloRoute = () => {
+  const mapId = haloMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
 /** Wait until the chain host has answered access for an editor. */
 export async function waitForEditableMap(page, { timeout = 60_000 } = {}) {
   await page.waitForFunction(

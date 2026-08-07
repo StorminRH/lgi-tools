@@ -256,3 +256,120 @@ describe('canvas edge projection', () => {
     ]);
   });
 });
+
+// ── OW3 (4.0.4.2.3) — derived halo systems merged into the canvas ────────────
+
+const RING1 = 30_000_144;
+const RING3 = 30_000_139;
+
+const placedHalo = (fogged: boolean, systemId: number = fogged ? RING3 : RING1) => ({
+  systemId,
+  ring: fogged ? 3 : 1,
+  fogged,
+  position: { x: 500, y: 500 },
+});
+
+describe('halo node projection', () => {
+  it('appends kernel-owned halo nodes: declared frame, never draggable, fogged ring inert', () => {
+    const nodes = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+      placedHalo(false),
+      placedHalo(true),
+    ]);
+
+    expect(nodes.map((node) => node.id)).toEqual(
+      [JITA, RING1, RING3].map(String),
+    );
+    const drawn = nodes[1];
+    expect(drawn).toMatchObject({
+      width: 120,
+      height: 88,
+      position: { x: 500, y: 500 },
+      draggable: false,
+      data: { halo: { ring: 1, fogged: false } },
+    });
+    expect(drawn?.selectable).toBeUndefined();
+    expect(drawn?.style).toBeUndefined();
+    const fogged = nodes[2];
+    expect(fogged).toMatchObject({
+      draggable: false,
+      selectable: false,
+      selected: false,
+      style: { pointerEvents: 'none' },
+      data: { halo: { ring: 3, fogged: true } },
+    });
+  });
+
+  it('retains selection for a drawn halo node across merges', () => {
+    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+      placedHalo(false),
+    ]);
+    const selected = before.map((node) =>
+      node.id === String(RING1) ? { ...node, selected: true } : node,
+    );
+    const after = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+      placedHalo(false),
+    ]);
+    expect(after.find((node) => node.id === String(RING1))?.selected).toBe(true);
+  });
+
+  it('upgrades a halo node in place when its system becomes authored, shedding derived controls', () => {
+    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [
+      placedHalo(true, RING1),
+    ]);
+    // The jump lands: the same id is now reconciled truth and out of the halo.
+    const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, NO_DRAG, []);
+
+    expect(after.filter((node) => node.id === String(RING1))).toHaveLength(1);
+    const upgraded = after.find((node) => node.id === String(RING1));
+    expect(upgraded?.data.halo).toBeUndefined();
+    expect(upgraded?.draggable).toBeUndefined();
+    expect(upgraded?.selectable).toBeUndefined();
+    expect(upgraded?.style).toBeUndefined();
+  });
+
+  it('never renders a halo entry whose id is already reconciled (no duplicate mid-window)', () => {
+    const nodes = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, NO_DRAG, [
+      placedHalo(false, RING1),
+    ]);
+    expect(nodes.filter((node) => node.id === String(RING1))).toHaveLength(1);
+    expect(nodes.find((node) => node.id === String(RING1))?.data.halo).toBeUndefined();
+  });
+});
+
+describe('halo edge projection', () => {
+  it('appends prefixed halo links sharing the pair-claiming, skipping authored pairs', () => {
+    const state = reconcileChain(
+      EMPTY_CHAIN_STATE,
+      snapshot([JITA, AMARR], [
+        { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
+      ]),
+      NO_DRAG,
+      sequentialTestAssigner,
+    ).state;
+    const treeParents = deriveChainTree({
+      systems: [{ systemId: JITA }, { systemId: AMARR }, { systemId: RING1 }, { systemId: RING3 }],
+      connections: [
+        { fromSystemId: JITA, toSystemId: AMARR },
+        { fromSystemId: JITA, toSystemId: RING1 },
+        { fromSystemId: RING1, toSystemId: RING3 },
+      ],
+    }).parents;
+
+    const edges = buildEdges(state.connections, treeParents, Date.now(), [
+      // An authored line already spans this pair: contributes nothing.
+      { a: JITA, b: AMARR },
+      // Claim link to a ring-1 system: a tree link, drawn solid.
+      { a: JITA, b: RING1 },
+      // Onward claim link, and a non-tree cross-link.
+      { a: RING1, b: RING3 },
+      { a: AMARR, b: RING1 },
+    ]);
+
+    expect(edges.map((edge) => [edge.id, edge.data.loop, edge.data.halo])).toEqual([
+      ['c1', false, undefined],
+      [`halo:${JITA}>${RING1}`, false, true],
+      [`halo:${RING1}>${RING3}`, false, true],
+      [`halo:${AMARR}>${RING1}`, true, true],
+    ]);
+  });
+});

@@ -18,15 +18,22 @@
 // derivation enforces that and `edgeMotionClass` renders whatever it is told.
 import {
   BaseEdge,
+  EdgeLabelRenderer,
   useInternalNode,
   type Edge,
   type EdgeProps,
 } from '@xyflow/react';
-import { memo } from 'react';
+import { memo, useLayoutEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
 import type { ChainEdgeData } from '../chain/nodes';
 import type { EdgeMotion } from '../motion/motion-contract';
-import { chainLinkPath } from './edge-geometry';
+import { useOutboundArrow } from '../tracking/outbound-arrow-context';
+import {
+  chainLinkPath,
+  endpointFrame,
+  pointAlongChainLink,
+  type EdgeEndpointNode,
+} from './edge-geometry';
 
 /** The edge type key registered with React Flow. */
 export const CHAIN_EDGE_TYPE = 'chainLink';
@@ -63,12 +70,77 @@ export function edgePresentation(data: ChainEdgeData | undefined): {
   const classes = cn(
     data?.loop === true && LOOP_DASH_CLASS,
     data?.tombstoneState === 'dying' && 'map-edge-dying',
+    // Derived halo gate links read dimmer than authored truth (DC-3's
+    // visibly-provisional rule applied to lines).
+    data?.halo === true && 'map-edge-derived',
     edgeMotionClass(data?.motion),
   );
   return {
     pathLength: data?.motion?.flavor === 'grow' ? 1 : undefined,
     className: classes.length === 0 ? undefined : classes,
   };
+}
+
+/**
+ * Where along the clipped segment the outbound arrow sits (0 = inward
+ * boundary, 1 = outward boundary): far enough out to read as "beyond here",
+ * clear of the endpoint frame.
+ */
+const ARROW_EDGE_FRACTION = 0.7;
+
+/**
+ * The outbound pilot arrow, mounted through React Flow's edge-label seam —
+ * a portal inside the viewport transform, so the arrow lives in world space
+ * and scales with the map like every other canvas element. Placement flows
+ * through the stylesheet's `--map-pilot-arrow-transform` custom property via
+ * CSSOM (house no-JSX-style rule); pointer events stay off end to end (the
+ * label container is inert and the class keeps the arrow so).
+ */
+function OutboundArrowLabel({
+  source,
+  target,
+  towardTarget,
+}: {
+  readonly source: EdgeEndpointNode;
+  readonly target: EdgeEndpointNode;
+  readonly towardTarget: boolean;
+}) {
+  const arrowRef = useRef<HTMLSpanElement>(null);
+  const sourceFrame = endpointFrame(source);
+  const targetFrame = endpointFrame(target);
+  const point =
+    sourceFrame === null || targetFrame === null
+      ? null
+      : pointAlongChainLink(
+          towardTarget ? sourceFrame : targetFrame,
+          towardTarget ? targetFrame : sourceFrame,
+          ARROW_EDGE_FRACTION,
+        );
+  const transform =
+    point === null
+      ? null
+      : `translate(-50%, -50%) translate(${point.x}px, ${point.y}px) rotate(${point.angle}deg)`;
+
+  useLayoutEffect(() => {
+    if (transform === null) return;
+    arrowRef.current?.style.setProperty('--map-pilot-arrow-transform', transform);
+  }, [transform]);
+
+  if (transform === null) return null;
+  return (
+    <EdgeLabelRenderer>
+      <span
+        ref={arrowRef}
+        aria-hidden
+        data-pilot-arrow
+        className="map-pilot-arrow text-isk"
+      >
+        <svg viewBox="0 0 12 12" className="size-3" fill="currentColor">
+          <path d="M2 1 L11 6 L2 11 Z" />
+        </svg>
+      </span>
+    </EdgeLabelRenderer>
+  );
 }
 
 /** Renders one connection as a straight segment clipped to both frame boxes. */
@@ -80,17 +152,27 @@ function ChainLinkEdgeComponent({
 }: EdgeProps<Edge<ChainEdgeData, typeof CHAIN_EDGE_TYPE>>) {
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
+  const arrow = useOutboundArrow(id);
   const path = chainLinkPath(sourceNode, targetNode);
   if (path === null) return null;
 
   const presentation = edgePresentation(data);
   return (
-    <BaseEdge
-      id={id}
-      path={path}
-      pathLength={presentation.pathLength}
-      className={presentation.className}
-    />
+    <>
+      <BaseEdge
+        id={id}
+        path={path}
+        pathLength={presentation.pathLength}
+        className={presentation.className}
+      />
+      {arrow !== null && sourceNode !== undefined && targetNode !== undefined && (
+        <OutboundArrowLabel
+          source={sourceNode}
+          target={targetNode}
+          towardTarget={arrow.towardSystemId === Number(target)}
+        />
+      )}
+    </>
   );
 }
 

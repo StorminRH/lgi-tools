@@ -58,12 +58,13 @@ import {
 import type { MotionTruth } from '../motion/motion-host-model';
 import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
 import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
+import { OutboundArrowProvider } from '../tracking/OutboundArrowProvider';
 import { MapPresenceProvider } from '../tracking/PresenceProvider';
 import { TrackingHeartbeat } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
-import { buildEdges, syncNodes } from './nodes';
+import { buildEdges, isHaloEdgeId, syncNodes } from './nodes';
 import { useChainAuthoringMutations } from './optimistic-authoring';
 import { useMapChain, type MapAccessState } from './use-map-chain';
 
@@ -138,6 +139,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     labelOf,
     treeParents,
     rootSystemId,
+    halo,
+    neighboursOf,
     pinPlacement,
     releasePlacements,
   } = useMapChain(mapId, dragging, config);
@@ -158,14 +161,31 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
 
   useEffect(() => {
     setNodes((previous) =>
-      syncNodes(previous, state.systems, labelOf, draggingRef.current),
+      syncNodes(previous, state.systems, labelOf, draggingRef.current, halo.systems),
     );
-  }, [state.systems, labelOf]);
+  }, [state.systems, labelOf, halo.systems]);
 
   const edges = useMemo(
-    () => buildEdges(state.connections, treeParents, connectionPresentationNow),
-    [state.connections, treeParents, connectionPresentationNow],
+    () =>
+      buildEdges(
+        state.connections,
+        treeParents,
+        connectionPresentationNow,
+        halo.links,
+      ),
+    [state.connections, treeParents, connectionPresentationNow, halo.links],
   );
+
+  // The non-fogged rendered set the outbound-arrow derivation walks from:
+  // authored systems plus drawn halo rings (fogged ring-3 systems excluded,
+  // so a pilot under fog resolves to the boundary arrow, never a hidden badge).
+  const drawnSystemIds = useMemo(() => {
+    const drawn = new Set<number>(state.systems.keys());
+    for (const system of halo.systems) {
+      if (!system.fogged) drawn.add(system.systemId);
+    }
+    return drawn;
+  }, [state.systems, halo.systems]);
 
   // The truth arrays the motion layer derives from — identity changes exactly
   // when a member does, so the derivation re-runs per commit, not per render.
@@ -255,6 +275,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const onNodeContextMenu = useCallback<NodeMouseHandler<ChainNode>>(
     (event, node) => {
       if (canEdit !== true) return;
+      // Derived halo systems are rendered, never written (HC-2): no authoring
+      // menu may anchor to one until a jump upgrades it to authored truth.
+      if (node.data.halo !== undefined) return;
       event.preventDefault();
       setSelectedConnectionId(null);
       setNodeMenu({
@@ -269,7 +292,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const onEdgeClick = useCallback<EdgeMouseHandler>(
     (_event, edge) => {
       if (canEdit !== true) return;
-      // Edge ids are Convex connection document ids by construction (buildEdges).
+      // Derived halo gate links have no connection document to edit.
+      if (isHaloEdgeId(edge.id)) return;
+      // Every other edge id is a Convex connection document id by construction (buildEdges).
       setSelectedConnectionId(edge.id as Id<'mapConnections'>);
     },
     [canEdit],
@@ -317,41 +342,47 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           the React Flow tree — context crosses it intact (docs brief). */}
       <MapPresenceProvider mapId={mapId}>
         <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
-          <MotionLayer
-            truth={truth}
-            intents={intents}
-            access={access}
-            dragging={dragging}
-            motionConfig={motionConfig}
-            nodesDraggable={!locked}
-            onNodesChange={onNodesChange}
-            onNodeDragStart={onNodeDragStart}
-            onNodeDragStop={onNodeDragStop}
-            onSelectionDragStart={onSelectionDragStart}
-            onSelectionDragStop={onSelectionDragStop}
-            onNodeClick={onNodeClick}
-            onNodeContextMenu={onNodeContextMenu}
-            onEdgeClick={onEdgeClick}
+          <OutboundArrowProvider
+            drawnSystemIds={drawnSystemIds}
+            edges={edges}
+            neighboursOf={neighboursOf}
           >
-            <MapControls
-              config={config}
-              onConfigChange={setConfig}
-              motion={motionConfig}
-              onMotionChange={setMotionConfig}
-            />
-            {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
-            <CameraFollowHost
+            <MotionLayer
+              truth={truth}
               intents={intents}
-              follow={follow}
+              access={access}
               dragging={dragging}
-              nodeIds={nodeIds}
-              systems={state.systems}
-              config={motionConfig}
-              prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
-              focusRequest={focusRequest}
-              focusEnabled={focusOnClick}
-            />
-          </MotionLayer>
+              motionConfig={motionConfig}
+              nodesDraggable={!locked}
+              onNodesChange={onNodesChange}
+              onNodeDragStart={onNodeDragStart}
+              onNodeDragStop={onNodeDragStop}
+              onSelectionDragStart={onSelectionDragStart}
+              onSelectionDragStop={onSelectionDragStop}
+              onNodeClick={onNodeClick}
+              onNodeContextMenu={onNodeContextMenu}
+              onEdgeClick={onEdgeClick}
+            >
+              <MapControls
+                config={config}
+                onConfigChange={setConfig}
+                motion={motionConfig}
+                onMotionChange={setMotionConfig}
+              />
+              {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
+              <CameraFollowHost
+                intents={intents}
+                follow={follow}
+                dragging={dragging}
+                nodeIds={nodeIds}
+                systems={state.systems}
+                config={motionConfig}
+                prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
+                focusRequest={focusRequest}
+                focusEnabled={focusOnClick}
+              />
+            </MotionLayer>
+          </OutboundArrowProvider>
           <MapWindowLayer
             rootSystemId={rootSystemId}
             onDeselect={deselectNodes}

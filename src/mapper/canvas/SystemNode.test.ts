@@ -1,20 +1,29 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import type { NodeProps } from '@xyflow/react';
+import type { Edge, EdgeProps, NodeProps } from '@xyflow/react';
+import type { ChainEdgeData } from '../chain/nodes';
 import type { NodeMotion } from '../motion/motion-contract';
+import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
+import type { OutboundArrow } from '../tracking/pilot-path';
 import type { PresencePilot, SystemPresence } from '../tracking/presence-model';
-import { edgeMotionClass, edgePresentation } from './ChainLinkEdge';
+import { ChainLinkEdge, edgeMotionClass, edgePresentation } from './ChainLinkEdge';
 import { PresenceBadgeView } from './PilotPresenceBadge';
 import { SystemNode, nodeMotionClass, type ChainNode } from './SystemNode';
 
+const { internalNodes } = vi.hoisted(() => ({
+  internalNodes: new Map<string, unknown>(),
+}));
+
 vi.mock('@xyflow/react', async () => {
-  const { createElement: element } = await import('react');
+  const { createElement: element, Fragment } = await import('react');
   return {
     BaseEdge: () => element('path'),
+    EdgeLabelRenderer: ({ children }: { children?: React.ReactNode }) =>
+      element(Fragment, null, children),
     Handle: () => element('div', { 'data-handle': '' }),
     Position: { Left: 'left', Right: 'right' },
-    useInternalNode: () => undefined,
+    useInternalNode: (id: string) => internalNodes.get(id),
   };
 });
 
@@ -55,6 +64,78 @@ describe('widget frame markup', () => {
 
     expect(rendered).not.toContain('data-chain-node-class');
     expect(rendered).toContain('data-chain-node-name');
+  });
+});
+
+// ── OW3 (4.0.4.2.3) — derived halo systems read visibly provisional ──────────
+describe('halo node markup', () => {
+  const haloMarkup = (fogged: boolean) => {
+    const props = {
+      data: { name: 'Perimeter', className: null, halo: { ring: fogged ? 3 : 1, fogged } },
+      dragging: false,
+    } as unknown as NodeProps<ChainNode>;
+    return renderToStaticMarkup(createElement(SystemNode, props));
+  };
+
+  it('marks a drawn halo node derived, with the dashed provisional disc', () => {
+    const drawn = haloMarkup(false);
+    expect(drawn).toContain('data-chain-node-derived');
+    expect(drawn).not.toContain('data-chain-node-fogged');
+    expect(drawn).toContain('border-dashed');
+  });
+
+  it('marks a fogged ring node and dims it further', () => {
+    const fogged = haloMarkup(true);
+    expect(fogged).toContain('data-chain-node-fogged');
+    expect(fogged).toContain('opacity-40');
+  });
+
+  it('leaves authored nodes unmarked', () => {
+    expect(markup(undefined)).not.toMatch(
+      /data-chain-node-derived|data-chain-node-fogged|border-dashed/,
+    );
+  });
+});
+
+// ── OW3 — the outbound pilot arrow rides the edge-label seam ─────────────────
+describe('outbound arrow markup', () => {
+  const frameNode = (x: number, y: number) => ({
+    internals: { positionAbsolute: { x, y } },
+    measured: {},
+    width: 120,
+    height: 88,
+  });
+  const edgeProps = {
+    id: 'e1',
+    source: '1',
+    target: '2',
+    data: { loop: false },
+  } as unknown as EdgeProps<Edge<ChainEdgeData, 'chainLink'>>;
+
+  const renderEdge = (arrows: ReadonlyMap<string, OutboundArrow> | null) => {
+    internalNodes.set('1', frameNode(0, 0));
+    internalNodes.set('2', frameNode(400, 0));
+    const edge = createElement(ChainLinkEdge, edgeProps);
+    const rendered = renderToStaticMarkup(
+      arrows === null
+        ? edge
+        : createElement(OutboundArrowContext, { value: arrows }, edge),
+    );
+    internalNodes.clear();
+    return rendered;
+  };
+
+  it('mounts the arrow when the context assigns one to this edge', () => {
+    const rendered = renderEdge(new Map([['e1', { towardSystemId: 2 }]]));
+    expect(rendered).toContain('data-pilot-arrow');
+    expect(rendered).toContain('map-pilot-arrow');
+  });
+
+  it('mounts nothing without an assignment (the empty default context)', () => {
+    expect(renderEdge(null)).not.toContain('data-pilot-arrow');
+    expect(renderEdge(new Map([['other-edge', { towardSystemId: 2 }]]))).not.toContain(
+      'data-pilot-arrow',
+    );
   });
 });
 

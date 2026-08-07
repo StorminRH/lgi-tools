@@ -125,6 +125,8 @@ function withAccess(
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
     treeParents: new Map(),
     rootSystemId: null,
+    halo: { systems: [], links: [] },
+    neighboursOf: () => [],
     pinPlacement: mocks.pinPlacement,
     releasePlacements: vi.fn(),
   });
@@ -262,6 +264,8 @@ describe('chain host access states', () => {
       labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
       treeParents: new Map(),
       rootSystemId: null,
+      halo: { systems: [], links: [] },
+      neighboursOf: () => [],
       pinPlacement: mocks.pinPlacement,
       releasePlacements: vi.fn(),
     });

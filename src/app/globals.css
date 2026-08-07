@@ -1259,6 +1259,22 @@ details[data-collapsible][open] > summary [data-chevron] {
   animation: map-fade-out var(--map-motion-slow) var(--map-motion-ease-settle, ease-in) both;
 }
 
+/* Derived halo gate links (4.0.4.2.3): visibly provisional beside authored
+ * lines — same stroke, lower presence. */
+.react-flow__edge-path.map-edge-derived {
+  opacity: 0.45;
+}
+
+/* Outbound pilot arrow (4.0.4.2.3): mounted through the edge-label portal
+ * inside the viewport transform, so it lives in world space and scales with
+ * the map. The label container is pointer-inert; position arrives through
+ * the CSSOM custom property (house no-JSX-style rule). */
+.map-pilot-arrow {
+  position: absolute;
+  pointer-events: none;
+  transform: var(--map-pilot-arrow-transform);
+}
+
 /* Dying (in-window tombstoned) connection: alert-red pulsed line. Specificity
  * beats React Flow's `.react-flow__edge-path` default stroke (#b1b1b7) so the
  * pulse reads as red, not white. Opacity floor stays high enough that the hue

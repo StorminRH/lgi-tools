@@ -13,6 +13,7 @@ import {
   chainTombstoneState,
   type ChainTombstoneState,
 } from '@/data/maps/chain-contract';
+import type { HaloLink, PlacedHaloSystem } from '../halo/halo-model';
 import type { EdgeMotion } from '../motion/motion-contract';
 import type { SystemLabel } from './labels';
 import type { ChainState } from './reconciler';
@@ -28,8 +29,22 @@ export type ChainEdgeData = {
   readonly loop: boolean;
   /** Active edges render normally; dying edges render restorable; skeletons never render. */
   readonly tombstoneState?: Exclude<ChainTombstoneState, 'skeleton'>;
+  /** Present only on derived halo gate links; authored connections carry none. */
+  readonly halo?: true;
   readonly motion?: EdgeMotion;
 };
+
+/**
+ * Id prefix for derived halo gate links. Authored edge ids are Convex
+ * document ids, which can never start with this, so the two id families
+ * cannot collide and interaction seams can cheaply tell them apart.
+ */
+export const HALO_EDGE_ID_PREFIX = 'halo:';
+
+/** Whether one canvas edge id names a derived halo gate link. */
+export function isHaloEdgeId(edgeId: string): boolean {
+  return edgeId.startsWith(HALO_EDGE_ID_PREFIX);
+}
 
 /** One edge on the canvas. Structural subset of React Flow's `Edge`. */
 export interface ChainEdge {
@@ -40,22 +55,57 @@ export interface ChainEdge {
 }
 
 /**
- * Rebuilds the node list from reconciled state, preserving the live position of any dragging node.
+ * The inert style a fogged halo node carries. Inline on the node object, not
+ * a stylesheet rule, for the same reason ghosts do it (motion-host-model):
+ * React Flow computes a truthy inline `pointerEvents` once `onNodeClick` is
+ * forwarded, and only the node-level style spread wins over it.
+ */
+const INERT_NODE_STYLE = { pointerEvents: 'none' } as const;
+
+/**
+ * Sheds the derived-node control fields a halo node carries. Load-bearing on
+ * the upgrade path: a jump authoring a system already rendered in the halo
+ * reuses the same node id, and spreading the retained halo node unchanged
+ * would leave the newly authored system undraggable or inert.
+ */
+function stripDerivedControls(node: ChainNode): ChainNode {
+  if (
+    node.draggable === undefined &&
+    node.selectable === undefined &&
+    node.style === undefined
+  ) {
+    return node;
+  }
+  const { draggable: _draggable, selectable: _selectable, style: _style, ...rest } = node;
+  return rest;
+}
+
+/**
+ * Rebuilds the node list from reconciled state, preserving the live position of any dragging node,
+ * then appends the derived halo systems.
  *
  * Arrivals, departures, and labels follow reconciled state exactly. Positions do not: an id in
  * `dragging` keeps whatever position the pointer has given it, which is what makes an incoming
  * update unable to reposition a node being dragged (contract DC-2 / HC-1). A node that is not
  * dragging takes its reconciled position, which is already the user's own once stamped at drag stop.
+ *
+ * Halo nodes are the kernel's, never the user's: they declare the same frame
+ * dimensions (so edges, fits, and followers see the box before measurement),
+ * are never draggable, and the fogged ring is inert and unselectable. A halo
+ * system whose id is already reconciled contributes nothing — the authored
+ * node owns the id, which is what makes the derived → authored upgrade a
+ * single node's field change rather than a duplicate.
  */
 export function syncNodes(
   previous: readonly ChainNode[],
   systems: ChainState['systems'],
   labelOf: (systemId: number) => SystemLabel,
   dragging: ReadonlySet<number>,
+  halo: readonly PlacedHaloSystem[] = [],
 ): ChainNode[] {
   const localById = new Map(previous.map((node) => [node.id, node]));
 
-  return [...systems.values()].map((placed) => {
+  const authored = [...systems.values()].map((placed): ChainNode => {
     const id = String(placed.systemId);
     const local = localById.get(id);
     const holdLocal = local !== undefined && dragging.has(placed.systemId);
@@ -65,7 +115,7 @@ export function syncNodes(
     // above all, plus measured dimensions. Rebuilding a bare literal would silently clear the user's
     // selection every time any unrelated system arrived or left.
     return {
-      ...local,
+      ...(local === undefined ? undefined : stripDerivedControls(local)),
       id,
       type: CHAIN_NODE_TYPE,
       // The widget frame is declared data-side so React Flow sizes the wrapper
@@ -76,6 +126,38 @@ export function syncNodes(
       data: { name: label.name, className: label.className },
     };
   });
+
+  const haloNodes = halo
+    .filter((placed) => !systems.has(placed.systemId))
+    .map((placed): ChainNode => {
+      const id = String(placed.systemId);
+      const local = localById.get(id);
+      const label = labelOf(placed.systemId);
+      const node: ChainNode = {
+        ...(local === undefined ? undefined : stripDerivedControls(local)),
+        id,
+        type: CHAIN_NODE_TYPE,
+        width: SYSTEM_FRAME_WIDTH,
+        height: SYSTEM_FRAME_HEIGHT,
+        // The kernel always owns derived positions; nothing persists them.
+        position: placed.position,
+        draggable: false,
+        data: {
+          name: label.name,
+          className: label.className,
+          halo: { ring: placed.ring, fogged: placed.fogged },
+        },
+      };
+      if (!placed.fogged) return node;
+      return {
+        ...node,
+        selected: false,
+        selectable: false,
+        style: INERT_NODE_STYLE,
+      };
+    });
+
+  return [...authored, ...haloNodes];
 }
 
 /**
@@ -92,18 +174,12 @@ export function buildEdges(
   connections: ChainState['connections'],
   treeParents: ReadonlyMap<number, number>,
   now = Date.now(),
+  haloLinks: readonly HaloLink[] = [],
 ): ChainEdge[] {
-  const claimed = new Set<string>();
+  const claim = newPairClaim(treeParents);
   const edges: ChainEdge[] = [];
   for (const connection of connections.values()) {
     const { fromSystemId, toSystemId } = connection;
-    const isTreeLink =
-      treeParents.get(toSystemId) === fromSystemId ||
-      treeParents.get(fromSystemId) === toSystemId;
-    const pairKey =
-      fromSystemId < toSystemId
-        ? `${fromSystemId}>${toSystemId}`
-        : `${toSystemId}>${fromSystemId}`;
 
     // Skeletons never render, so they must not claim the pair key either —
     // a claimed-then-dropped skeleton would force the surviving connection
@@ -111,9 +187,7 @@ export function buildEdges(
     const tombstoneState = chainTombstoneState(connection, now);
     if (tombstoneState === 'skeleton') continue;
 
-    const solid = isTreeLink && !claimed.has(pairKey);
-    if (solid) claimed.add(pairKey);
-
+    const solid = claim.claimSolid(fromSystemId, toSystemId);
     edges.push({
       id: connection.connectionId,
       source: String(fromSystemId),
@@ -121,5 +195,54 @@ export function buildEdges(
       data: { loop: !solid, tombstoneState },
     });
   }
+  appendHaloEdges(edges, haloLinks, claim);
   return edges;
+}
+
+/**
+ * The shared solid-claim bookkeeping both edge families use: tree structure
+ * draws solid exactly once per endpoint pair, and every rendered pair is
+ * remembered so a derived line never doubles an authored one.
+ */
+function newPairClaim(treeParents: ReadonlyMap<number, number>) {
+  const claimed = new Set<string>();
+  const rendered = new Set<string>();
+  const pairKey = (a: number, b: number) => (a < b ? `${a}>${b}` : `${b}>${a}`);
+  return {
+    /** Records the pair as rendered; true when it draws solid (first tree claim). */
+    claimSolid(a: number, b: number): boolean {
+      const key = pairKey(a, b);
+      const isTreeLink = treeParents.get(b) === a || treeParents.get(a) === b;
+      const solid = isTreeLink && !claimed.has(key);
+      if (solid) claimed.add(key);
+      rendered.add(key);
+      return solid;
+    },
+    rendered(a: number, b: number): boolean {
+      return rendered.has(pairKey(a, b));
+    },
+  };
+}
+
+/**
+ * Derived halo gate links append after every authored connection, sharing
+ * the pair-claiming so tree structure stays solid exactly once per pair. A
+ * pair an authored line already spans draws nothing extra — the authored
+ * connection owns that line.
+ */
+function appendHaloEdges(
+  edges: ChainEdge[],
+  haloLinks: readonly HaloLink[],
+  claim: ReturnType<typeof newPairClaim>,
+): void {
+  for (const link of haloLinks) {
+    if (claim.rendered(link.a, link.b)) continue;
+    const solid = claim.claimSolid(link.a, link.b);
+    edges.push({
+      id: `${HALO_EDGE_ID_PREFIX}${link.a}>${link.b}`,
+      source: String(link.a),
+      target: String(link.b),
+      data: { loop: !solid, halo: true },
+    });
+  }
 }

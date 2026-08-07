@@ -597,22 +597,27 @@ export const sweep = internalMutation({
  * (convex/onlineStatus.drainCharacterOnline).
  */
 const RETIRED_GC_BATCH = 512;
-async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Promise<void> {
-  // The deny-list is the ACTIVE registry, not a hardcoded literal — a dataset
-  // added to SYNC_DATASETS while this temporary pass still exists must never
-  // have its live rows swept.
-  const subjects = await ctx.db
-    .query('syncSubjects')
+
+/**
+ * One batch of a dataset-keyed table's retired rows. The deny-list is the
+ * ACTIVE registry, not a hardcoded literal — a dataset added to
+ * `SYNC_DATASETS` while this temporary pass still exists must never have its
+ * live rows swept.
+ */
+function takeRetiredRows(ctx: MutationCtx, table: 'syncSubjects' | 'syncPresence') {
+  return ctx.db
+    .query(table)
     .filter((q) => q.and(...SYNC_DATASETS.map((live) => q.neq(q.field('dataset'), live))))
     .take(RETIRED_GC_BATCH);
+}
+
+async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Promise<void> {
+  const subjects = await takeRetiredRows(ctx, 'syncSubjects');
   for (const row of subjects) {
     await ctx.db.delete(row._id);
     counts.deleted += 1;
   }
-  const presence = await ctx.db
-    .query('syncPresence')
-    .filter((q) => q.and(...SYNC_DATASETS.map((live) => q.neq(q.field('dataset'), live))))
-    .take(RETIRED_GC_BATCH);
+  const presence = await takeRetiredRows(ctx, 'syncPresence');
   for (const row of presence) await ctx.db.delete(row._id);
   await drainCharacterOnline(ctx, RETIRED_GC_BATCH);
 }
