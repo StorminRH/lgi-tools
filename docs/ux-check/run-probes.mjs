@@ -303,9 +303,15 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     ownedContexts.push({
       context: secondaryContext,
       browser: engineName === opts.engine ? null : secondaryBrowser,
+      page: null,
+      diagnostics: null,
     });
     const secondaryPage = await secondaryContext.newPage();
+    const secondaryDiagnostics = watchPage(secondaryPage, definition.allowConsole);
     await installCspCollector(secondaryPage);
+    const owned = ownedContexts.at(-1);
+    owned.page = secondaryPage;
+    owned.diagnostics = secondaryDiagnostics;
     return { browser: secondaryBrowser, context: secondaryContext, page: secondaryPage };
   };
 
@@ -349,28 +355,46 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     result.crash = error instanceof Error ? error.message : String(error);
     console.log(`    ✗ crashed: ${result.crash}`);
   } finally {
-    result.cspViolations = page ? await collectCsp(page) : [];
+    const watchedPages = [
+      ...(page ? [{ page, diagnostics }] : []),
+      ...ownedContexts.filter(
+        (owned) => owned.page !== null && owned.diagnostics !== null,
+      ),
+    ];
+    result.cspViolations = (
+      await Promise.all(watchedPages.map((owned) => collectCsp(owned.page)))
+    ).flat();
     result.styleSrcViolations = result.cspViolations.filter((entry) =>
       /style-src/i.test(entry.violatedDirective ?? entry.effectiveDirective ?? ''),
     );
-    Object.assign(result, diagnostics);
+    for (const field of [
+      'consoleErrors',
+      'pageErrors',
+      'failedRequests',
+      'httpErrors',
+    ]) {
+      result[field] = watchedPages.flatMap((owned) => owned.diagnostics[field]);
+    }
     check('default gate: zero style-src CSP violations', result.styleSrcViolations.length === 0);
     check('default gate: zero unfiltered console errors', result.consoleErrors.length === 0);
     check('default gate: zero uncaught page errors', result.pageErrors.length === 0);
     result.passed = result.crash === null && result.checks.every((item) => item.passed);
-    if (!result.passed && page) {
-      try {
-        const file = path.join(
-          OUT_DIR,
-          `${definition.name}--${opts.engine}--${viewport}--failure.png`,
-        );
-        await page.screenshot({ path: file, fullPage: true });
-        const relative = rel(file);
-        result.failureArtifacts.push(relative);
-        result.screenshots.push(relative);
-        console.log(`    failure artifact: ${relative}`);
-      } catch {
-        // Best-effort diagnostic only.
+    if (!result.passed) {
+      for (const [index, watched] of watchedPages.entries()) {
+        try {
+          const clientSuffix = index === 0 ? '' : `--client-${index + 1}`;
+          const file = path.join(
+            OUT_DIR,
+            `${definition.name}--${opts.engine}--${viewport}${clientSuffix}--failure.png`,
+          );
+          await watched.page.screenshot({ path: file, fullPage: true });
+          const relative = rel(file);
+          result.failureArtifacts.push(relative);
+          result.screenshots.push(relative);
+          console.log(`    failure artifact: ${relative}`);
+        } catch {
+          // Best-effort diagnostic only.
+        }
       }
     }
     await page?.close().catch(() => {});

@@ -1,22 +1,27 @@
 'use client';
 
-// The map's per-character tracking opt-in. The roster comes from the existing
-// account-character owner; committed toggle state comes from Convex forMap; the
-// heartbeat follows only the caller-owned ids returned by that query. No
-// location state is mirrored locally and no new polling path exists here.
-import { Panel } from '@xyflow/react';
+// The map's per-character tracking opt-in. The visible portrait controls live
+// in the account portrait menu, while TrackingHeartbeat stays mounted with the
+// canvas so syncing never depends on whether that popup is open. The roster
+// comes from the existing account-character owner; committed toggle state comes
+// from Convex forMap. No location state is mirrored locally and no new polling
+// path exists here.
+import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
-import { cn } from '@/components/ui/cn';
-import { Switch } from '@/components/ui/switch';
+import {
+  MenuCheckboxItem,
+  menuSection,
+  menuSectionLabel,
+} from '@/components/ui/menu';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
-import { mapFrostedSurface } from '../map-frosted-surface';
 
 interface TrackingCharacter {
   readonly characterId: number;
   readonly name: string;
+  readonly portraitUrl: string;
 }
 
 interface TrackingControlsViewProps {
@@ -26,18 +31,28 @@ interface TrackingControlsViewProps {
 }
 
 /**
- * Lists the signed-in pilot's linked characters and controls tracking on the
- * current map. Must mount inside the mapper's React Flow provider.
+ * Keeps location syncing alive for the caller-owned characters tracked on this map. This owner stays
+ * mounted with the accessible canvas rather than with the account-menu popup.
  */
+export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
+  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
+
+  useSyncSubject('characterLocation', trackedIds);
+  return null;
+}
+
+/** Lists the signed-in pilot's linked characters as map-menu tracking controls. */
 export function TrackingControls({ mapId }: { readonly mapId: string }) {
   const characters = useAccountCharacters();
+  const access = useLiveValue(api.mapChain.watchMapAccess, { mapId });
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
   const setTracking = useMutation(api.mapTracking.setTracking);
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
 
-  useSyncSubject('characterLocation', trackedIds);
-
-  if (characters === null || tracking === undefined) return null;
+  if (access?.granted !== true || characters === null || tracking === undefined) {
+    return null;
+  }
 
   return (
     <TrackingControlsView
@@ -56,44 +71,50 @@ function TrackingControlsView({
   onToggle,
 }: TrackingControlsViewProps) {
   return (
-    <Panel
-      position="top-left"
+    <div
       data-map-tracking
-      className={cn(
-        'nopan nodrag nowheel mx-2! mb-2! mt-4! flex w-56 flex-col gap-2 rounded-card p-2 text-ui',
-        mapFrostedSurface,
-      )}
+      className={menuSection}
+      role="group"
+      aria-label="Map settings"
     >
-      <span className="text-label uppercase tracking-label text-muted">
-        Live tracking
-      </span>
+      <div className={menuSectionLabel} aria-hidden="true">
+        Map settings
+      </div>
+      <div className="px-3 pb-1 font-data text-label uppercase tracking-label text-muted">
+        Tracking
+      </div>
       {characters.length === 0 ? (
-        <span className="font-data text-micro text-muted">
+        <span className="px-3 pb-2 font-data text-micro text-muted">
           No linked characters
         </span>
       ) : (
-        characters.map((character) => {
-          const checked = trackedIds.has(character.characterId);
-          return (
-            <div
-              key={character.characterId}
-              className="flex items-center justify-between gap-2"
-            >
-              <span className="min-w-0 truncate text-nav text-name">
-                {character.name}
-              </span>
-              <Switch
+        <div className="flex flex-wrap gap-2 px-3 pb-2">
+          {characters.map((character) => {
+            const checked = trackedIds.has(character.characterId);
+            return (
+              <MenuCheckboxItem
+                key={character.characterId}
                 checked={checked}
-                onCheckedChange={async (next) => {
-                  await onToggle(character.characterId, next);
+                onCheckedChange={(next) => {
+                  void onToggle(character.characterId, next);
                 }}
-                label={`${checked ? 'Stop tracking' : 'Track'} ${character.name}`}
-                tone="neutral"
-              />
-            </div>
-          );
-        })
+                closeOnClick={false}
+                label={character.name}
+                aria-label={`${checked ? 'Stop tracking' : 'Track'} ${character.name}`}
+                data-tracking-character-id={character.characterId}
+                className="rounded-full border-2 border-transparent p-0.5 opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:border-isk data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none"
+              >
+                <CharacterPortrait
+                  characterId={character.characterId}
+                  name={character.name}
+                  size={32}
+                  src={character.portraitUrl}
+                />
+              </MenuCheckboxItem>
+            );
+          })}
+        </div>
       )}
-    </Panel>
+    </div>
   );
 }

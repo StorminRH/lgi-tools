@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { AccountMenu } from '@/components/composition/account/AccountMenu';
 import { FeedbackButton } from '@/components/composition/FeedbackButton';
 import type { Session } from '@/platform/auth/types';
@@ -16,7 +17,13 @@ import '@/composition/search/register-all';
 /**
  * Composes the atlas's floating navigation, reserved search slot, account control, and feedback.
  */
-export function MapChrome({ session }: { session: Session | null }) {
+export function MapChrome({
+  session,
+  contextualSection,
+}: {
+  session: Session | null;
+  contextualSection?: ReactNode;
+}) {
   return (
     <div
       data-map-chrome
@@ -29,6 +36,7 @@ export function MapChrome({ session }: { session: Session | null }) {
             <AccountMenu
               session={session}
               anchor={() => document.querySelector('[data-map-account-anchor]')}
+              contextualSection={contextualSection}
             />
           </div>
         ) : null}

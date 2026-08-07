@@ -5,7 +5,8 @@ import { listRegisteredSources } from '@/platform/search';
 import { MapChrome } from './MapChrome';
 
 vi.mock('@/components/composition/account/AccountMenu', () => ({
-  AccountMenu: () => createElement('div', { 'data-account-menu': '' }),
+  AccountMenu: ({ contextualSection }: { contextualSection?: React.ReactNode }) =>
+    createElement('div', { 'data-account-menu': '' }, contextualSection),
 }));
 
 vi.mock('@/components/composition/FeedbackButton', () => ({
@@ -44,6 +45,23 @@ describe('MapChrome', () => {
     expect(markup).toMatch(
       /<div data-map-search-slot="true" aria-hidden="true"[^>]*><\/div>/,
     );
+  });
+
+  it('forwards the map-owned contextual settings into the account menu', () => {
+    const markup = renderToStaticMarkup(
+      createElement(MapChrome, {
+        session: {
+          characterId: 1,
+          name: 'Mapper',
+          portraitUrl: '/portrait.png',
+          role: 'ADMIN',
+        },
+        contextualSection: createElement('div', { 'data-map-settings': '' }),
+      }),
+    );
+
+    expect(markup).toContain('data-account-menu');
+    expect(markup).toContain('data-map-settings');
   });
 
   it('omits only the account control when an authorized user has no active character', () => {

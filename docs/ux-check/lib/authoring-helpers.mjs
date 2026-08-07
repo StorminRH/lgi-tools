@@ -25,6 +25,14 @@ export const authoringRoute = () => {
   return mapId ? `/atlas?map=${mapId}` : '/atlas';
 };
 
+/** Dedicated one-shot map for the automatic-jump UX gate. */
+export const automaticJumpMapId = () => process.env.UX_JUMP_MAP_ID ?? null;
+
+export const automaticJumpRoute = () => {
+  const mapId = automaticJumpMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
 /** Wait until the chain host has answered access for an editor. */
 export async function waitForEditableMap(page, { timeout = 60_000 } = {}) {
   await page.waitForFunction(
@@ -133,7 +141,7 @@ export async function restoreMapAccess(mapId) {
 export async function convexRun(path, args) {
   const { stdout, stderr } = await execFileAsync(
     'pnpm',
-    ['exec', 'convex', 'run', path, JSON.stringify(args)],
+    ['exec', 'convex', 'run', path, JSON.stringify(args), '--deployment', 'local'],
     { cwd: process.cwd(), env: process.env, timeout: 30_000 },
   );
   if (stderr.trim()) console.error(stderr.trim());

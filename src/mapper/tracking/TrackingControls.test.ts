@@ -6,7 +6,7 @@ import {
 } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TrackingControls } from './TrackingControls';
+import { TrackingControls, TrackingHeartbeat } from './TrackingControls';
 
 const mocks = vi.hoisted(() => ({
   heartbeat: vi.fn(),
@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     ],
     ownTrackedCharacterIds: [101],
   },
+  accessResult: { granted: true, canEdit: true },
   characters: [
     {
       characterId: 101,
@@ -39,7 +40,15 @@ vi.mock('@/data/convex/use-mutation', () => ({
 }));
 
 vi.mock('@/data/convex/use-live-value', () => ({
-  useLiveValue: () => mocks.queryResult,
+  useLiveValue: (query: string) =>
+    query === 'map-access' ? mocks.accessResult : mocks.queryResult,
+}));
+
+vi.mock('@/data/convex/api', () => ({
+  api: {
+    mapChain: { watchMapAccess: 'map-access' },
+    mapTracking: { forMap: 'map-tracking', setTracking: 'set-tracking' },
+  },
 }));
 
 vi.mock('@/components/use-account-characters', () => ({
@@ -50,23 +59,26 @@ vi.mock('@/data/convex/use-sync-subject', () => ({
   useSyncSubject: (...args: unknown[]) => mocks.heartbeat(...args),
 }));
 
-vi.mock('@xyflow/react', () => ({
-  Panel: ({ children, ...props }: { children?: ReactNode }) =>
-    createElement('section', props, children),
+vi.mock('@/components/character-portrait', () => ({
+  CharacterPortrait: ({ name }: { name: string }) =>
+    createElement('img', { alt: name }),
 }));
 
-vi.mock('@/components/ui/switch', () => ({
-  Switch: (props: {
+vi.mock('@/components/ui/menu', () => ({
+  MenuCheckboxItem: (props: {
     checked: boolean;
-    label: string;
+    children?: ReactNode;
     onCheckedChange: (checked: boolean) => void;
+    'aria-label': string;
   }) =>
     createElement('button', {
       type: 'button',
-      'data-tracking-switch': props.label,
-      'aria-pressed': props.checked,
+      'data-tracking-portrait': props['aria-label'],
+      'aria-checked': props.checked,
       onClick: () => props.onCheckedChange(!props.checked),
-    }),
+    }, props.children),
+  menuSection: 'menu-section',
+  menuSectionLabel: 'menu-section-label',
 }));
 
 describe('TrackingControls', () => {
@@ -75,16 +87,22 @@ describe('TrackingControls', () => {
     mocks.mutate.mockClear();
   });
 
-  it('renders only the account roster, fires the map mutation, and mounts the tracked heartbeat', async () => {
+  it('renders the account roster as controlled portrait settings and fires the map mutation', async () => {
     const element = TrackingControls({ mapId: 'map-a' });
     expect(isValidElement(element)).toBe(true);
     if (!isValidElement(element)) throw new Error('tracking controls did not render');
 
     const markup = renderToStaticMarkup(element);
+    expect(markup).toContain('data-map-tracking');
+    expect(markup).toContain('Map settings');
+    expect(markup).toContain('Tracking');
     expect(markup).toContain('Alice Own');
     expect(markup).toContain('Bob Own');
     expect(markup).not.toContain('999');
-    expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', [101]);
+    expect(markup).toContain('data-tracking-portrait="Stop tracking Alice Own"');
+    expect(markup).toContain('data-tracking-portrait="Track Bob Own"');
+    expect(markup).toContain('aria-checked="true"');
+    expect(markup).toContain('aria-checked="false"');
 
     const view = element as ReactElement<{
       onToggle: (characterId: number, tracked: boolean) => Promise<unknown>;
@@ -95,5 +113,10 @@ describe('TrackingControls', () => {
       characterId: 202,
       tracked: true,
     });
+  });
+
+  it('keeps the tracked-character heartbeat mounted independently of the menu', () => {
+    expect(TrackingHeartbeat({ mapId: 'map-a' })).toBeNull();
+    expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', [101]);
   });
 });

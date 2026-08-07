@@ -20,7 +20,7 @@
   `lifecycle/4.0.4.2` (automatic jump authoring). Plan
   `docs/session-plans/4.0/4.0.4.2.2.md`; contract
   `docs/session-contracts/4.0/4.0.4.2.2.md`.
-- **OW progress:** `6/7 complete` — next: UX gate (G-1) via ux-check.
+- **OW progress:** `7/7 complete` — awaiting close-out.
 - **OW completed:**
   - OW1 Merged schema + shipped-consumer guards — nullable unresolved
     connection endpoints plus identity/hint/provenance/observation fields;
@@ -53,6 +53,15 @@
     the unresolved-holes chain subscription; focused 401 mapper + 78
     resolver/route/data; verify green (4,965 passed / 1 skipped, db harness
     up), Fallow gate green; primitive-checker CLEAN.
+  - OW7 UX gate (G-1) — durable two-client automatic-jump probe now covers
+    source-only location fixtures, real doorbell/resolver authoring, C247
+    auto-link, Orca mass decrement, ambiguous prompt fan-out, client-local
+    dismissal, and portrait-menu tracking toggles; operator approved the
+    non-blocking popup and `Map settings` tracking placement (tracked = full
+    brightness + ISK-green border; untracked = dim + no border). Focused
+    107/107; ux-check 18/18 with zero CSP/console/page errors and zero failure
+    artifacts; verify green (4,836 passed / 137 skipped), Fallow gate green;
+    primitive-checker CLEAN.
 - **Next-agent notes:** (1) The plan's detailed hard constraint controls its
   mechanical OW1 wording drift: `readBoundedMapTopology` deliberately retains
   unresolved rows for sever/restore; only the collapse-decision graph filters
@@ -119,7 +128,11 @@
   leads-to hint writes side `from` and renders only for K162/unidentified
   holes; the codex regeneration row renders only when regeneration is nonzero;
   the card mass estimate subtracts the odometer delta via
-  `remainingMassAfterTravel`.
+  `remainingMassAfterTravel`. (19) G-1 disposition (2026-08-06): approved.
+  The automatic two-client fan-out, mass decrement, C247 auto-link, ambiguous
+  prompt, and portrait-menu tracking states were accepted. A later popup move
+  remains an optional future refinement, not a blocker. Tracking heartbeat
+  remains canvas-mounted so closing the account menu never stops syncing.
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,

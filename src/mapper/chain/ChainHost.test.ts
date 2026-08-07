@@ -41,7 +41,7 @@ vi.mock('../authoring/ConnectionAuthoringOverlay', () => ({
 }));
 
 vi.mock('../tracking/TrackingControls', () => ({
-  TrackingControls: () => null,
+  TrackingHeartbeat: () => null,
 }));
 
 vi.mock('../tracking/JumpDoorbellObserver', () => ({

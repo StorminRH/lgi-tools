@@ -378,6 +378,97 @@ describe('map chain fixtures', () => {
     });
   });
 
+  describe('drives tracked-location fixtures through the real observer seam', () => {
+    it('seeds idempotently and advances only location evidence', async () => {
+      const t = convexTest(schema, modules);
+      const seed = {
+        mapId: MAP_A,
+        userId: EDITOR,
+        characterId: 90_404_222,
+        solarSystemId: JITA,
+        shipTypeId: 28_606,
+        transitionObservedAt: NOW,
+      };
+
+      const first = await t.mutation(
+        internal.mapFixtures.seedTrackedLocationFixture,
+        seed,
+      );
+      const repeated = await t.mutation(
+        internal.mapFixtures.seedTrackedLocationFixture,
+        seed,
+      );
+      expect(repeated).toEqual(first);
+
+      const seeded = await t.run(async (ctx) => ({
+        systems: await ctx.db.query('mapSystems').collect(),
+        connections: await ctx.db.query('mapConnections').collect(),
+        tracking: await ctx.db.query('mapTracking').collect(),
+        locations: await ctx.db.query('characterLocation').collect(),
+        bookkeeping: await ctx.db.query('mapJumpBookkeeping').collect(),
+      }));
+      expect(seeded.systems).toHaveLength(1);
+      expect(seeded.connections).toEqual([]);
+      expect(seeded.tracking).toHaveLength(1);
+      expect(seeded.locations).toHaveLength(1);
+      expect(seeded.bookkeeping).toEqual([]);
+      expect(seeded.locations[0]).toMatchObject({
+        solarSystemId: JITA,
+        prevSolarSystemId: null,
+        prevFresh: false,
+        shipTypeId: 28_606,
+        transitionObservedAt: NOW,
+      });
+
+      await expect(
+        t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
+          mapId: MAP_A,
+          userId: EDITOR,
+          characterId: seed.characterId,
+          fromSolarSystemId: AMARR,
+          toSolarSystemId: JITA,
+          prevFresh: true,
+          transitionObservedAt: NOW + 1,
+        }),
+      ).rejects.toThrow('FIXTURE_LOCATION_STALE');
+
+      const advanced = await t.mutation(
+        internal.mapFixtures.advanceTrackedLocationFixture,
+        {
+          mapId: MAP_A,
+          userId: EDITOR,
+          characterId: seed.characterId,
+          fromSolarSystemId: JITA,
+          toSolarSystemId: AMARR,
+          prevFresh: true,
+          transitionObservedAt: NOW + 2,
+        },
+      );
+      expect(advanced).toMatchObject({
+        trackingId: first.trackingId,
+        locationId: first.locationId,
+        fromSolarSystemId: JITA,
+        toSolarSystemId: AMARR,
+        transitionObservedAt: NOW + 2,
+      });
+
+      const after = await t.run(async (ctx) => ({
+        location: await ctx.db.get(first.locationId),
+        connections: await ctx.db.query('mapConnections').collect(),
+        bookkeeping: await ctx.db.query('mapJumpBookkeeping').collect(),
+      }));
+      expect(after.location).toMatchObject({
+        solarSystemId: AMARR,
+        prevSolarSystemId: JITA,
+        prevFresh: true,
+        shipTypeId: 28_606,
+        transitionObservedAt: NOW + 2,
+      });
+      expect(after.connections).toEqual([]);
+      expect(after.bookkeeping).toEqual([]);
+    });
+  });
+
   // ── 4.0.3.2 atomic collapse — the departure mirror of the atomic reveal ────
   describe('collapses one jump atomically', () => {
     async function seedJump(t: Chain) {

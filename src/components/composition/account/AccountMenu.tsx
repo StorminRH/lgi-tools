@@ -13,6 +13,7 @@
 // (never a menu nested inside the hamburger's popup).
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { PageMenuSection } from '@/components/composition/PageMenuSection';
 import {
@@ -35,9 +36,11 @@ import { startCharacterLink } from '@/platform/auth/link-character';
 export function AccountMenu({
   session,
   anchor,
+  contextualSection,
 }: {
   session: Session;
   anchor?: MenuAnchor;
+  contextualSection?: ReactNode;
 }) {
   return (
     <Menu
@@ -52,6 +55,8 @@ export function AccountMenu({
         />
       }
       triggerClassName="flex items-center cursor-pointer transition-opacity hover:opacity-80 data-[popup-open]:opacity-80"
+      triggerProps={{ 'data-account-menu-trigger': '' }}
+      popupProps={{ 'data-account-menu-popup': '' }}
       className="min-w-60 border-t-0"
       anchor={anchor ?? (() => document.querySelector('.app-header'))}
     >
@@ -65,6 +70,7 @@ export function AccountMenu({
         Account settings
       </MenuLinkItem>
       <PageMenuSection />
+      {contextualSection}
       <MenuSeparator className={menuSeparator} />
       <MenuItem
         className={menuRow}

@@ -50,7 +50,7 @@ import {
 import type { MotionTruth } from '../motion/motion-host-model';
 import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
 import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
-import { TrackingControls } from '../tracking/TrackingControls';
+import { TrackingHeartbeat } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import type { RootClickSignal } from '../windows/window-model';
 import type { MapChainIntent } from './intents';
@@ -328,7 +328,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
             motion={motionConfig}
             onMotionChange={setMotionConfig}
           />
-          {access === true ? <TrackingControls mapId={mapId} /> : null}
+          {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
           <CameraFollowHost
             intents={intents}
             follow={follow}
