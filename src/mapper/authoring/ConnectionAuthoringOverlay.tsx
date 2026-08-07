@@ -2,15 +2,34 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Doc, Id } from '@/data/convex/data-model';
-import type { ConnectionDetail } from '../chain/use-map-chain';
+import type { JumpResolverResponse } from '@/data/maps/api-contract';
+import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
+import type {
+  ConnectionDetail,
+  UnresolvedHoleSummary,
+} from '../chain/use-map-chain';
+import { postJumpRequest } from '../jump-client';
 import { MapEventLog } from '../log/MapEventLog';
 import { ConnectionDetailsCard } from './ConnectionDetailsCard';
-import type { ConnectionFieldSetters } from './connection-fields';
+import type {
+  ConnectionFieldSetters,
+  ConnectionResolutionControls,
+} from './connection-fields';
 import {
   connectionCardSelection,
   shouldClearConnectionSelection,
 } from './connection-selection';
+import {
+  hasPendingResolution,
+  jumpResolutionCandidates,
+  pendingJumpResolution,
+} from './jump-resolution';
+import {
+  JumpResolutionPrompt,
+  type JumpResolutionAnswers,
+} from './JumpResolutionPrompt';
 import { announceSeverOutcome } from './sever-toast';
+import { toast } from '@/components/ui/toast';
 
 // Minute granularity matches the hour-scale countdown copy the overlay renders.
 const OVERLAY_TICK_MS = 60_000;
@@ -31,6 +50,12 @@ export interface ConnectionAuthoringApi {
     mapId: string;
     connectionId: Id<'mapConnections'>;
     value: ConnectionDetail['massState'];
+  }) => Promise<unknown>;
+  readonly setConnectionDestinationHint: (args: {
+    mapId: string;
+    connectionId: Id<'mapConnections'>;
+    side: 'from' | 'to';
+    value: WormholeDestinationHint | null;
   }) => Promise<unknown>;
   readonly setConnectionLifeStage: (args: {
     mapId: string;
@@ -60,6 +85,7 @@ export interface ConnectionAuthoringOverlayProps {
   readonly mapId: string;
   readonly canEdit: boolean;
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
+  readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
   readonly connectionPresentationNow: number;
   readonly events: readonly Doc<'mapEvents'>[];
   readonly authoring: ConnectionAuthoringApi;
@@ -69,6 +95,8 @@ export interface ConnectionAuthoringOverlayProps {
   ) => void;
 }
 
+const EMPTY_DISMISSED: ReadonlySet<string> = new Set();
+
 /**
  * Owns the edge-anchored card, sever toast, and bottom-edge ledger so the chain
  * host stays a thin subscription/layout shell.
@@ -77,6 +105,7 @@ export function ConnectionAuthoringOverlay({
   mapId,
   canEdit,
   connectionDetails,
+  unresolvedHoles,
   connectionPresentationNow,
   events,
   authoring,
@@ -107,6 +136,35 @@ export function ConnectionAuthoringOverlay({
     [authoring, mapId],
   );
 
+  // Locally dismissed pending resolutions: the assumed association stands and
+  // the connection card keeps the same choices answerable later.
+  const [dismissedResolutions, setDismissedResolutions] =
+    useState<ReadonlySet<string>>(EMPTY_DISMISSED);
+  const dismissResolution = useCallback((connectionId: string) => {
+    setDismissedResolutions((previous) => new Set(previous).add(connectionId));
+  }, []);
+  const answersFor = useCallback(
+    (connectionId: Id<'mapConnections'>): JumpResolutionAnswers => ({
+      onConfirm: () => {
+        void answerAndAnnounce({
+          mapId,
+          connectionId,
+          targetConnectionId: null,
+          dismiss: () => dismissResolution(connectionId),
+        });
+      },
+      onCorrect: (targetConnectionId) => {
+        void answerAndAnnounce({
+          mapId,
+          connectionId,
+          targetConnectionId,
+          dismiss: () => dismissResolution(connectionId),
+        });
+      },
+    }),
+    [mapId, dismissResolution],
+  );
+
   const selected =
     selectedConnectionId === null
       ? null
@@ -122,6 +180,9 @@ export function ConnectionAuthoringOverlay({
   }, [selectedConnectionId, selected, now, onSelectedConnectionIdChange]);
 
   const card = connectionCardSelection(selected, now);
+  const promptResolution = canEdit
+    ? pendingJumpResolution(connectionDetails, unresolvedHoles, dismissedResolutions)
+    : null;
 
   return (
     <>
@@ -131,12 +192,33 @@ export function ConnectionAuthoringOverlay({
         now={now}
         onRestore={restoreSeveredBranch}
       />
+      {promptResolution !== null ? (
+        <JumpResolutionPrompt
+          resolution={promptResolution}
+          answers={answersFor(promptResolution.connectionId)}
+          onDismiss={() => dismissResolution(promptResolution.connectionId)}
+        />
+      ) : null}
       {canEdit && card !== null ? (
         <SelectedConnectionCard
           mapId={mapId}
           selection={card}
           now={now}
           authoring={authoring}
+          resolutionControls={
+            hasPendingResolution(card.connection)
+              ? {
+                  resolution: {
+                    connectionId: card.connection.connectionId,
+                    candidates: jumpResolutionCandidates(
+                      card.connection,
+                      unresolvedHoles,
+                    ),
+                  },
+                  answers: answersFor(card.connection.connectionId),
+                }
+              : undefined
+          }
           onClose={() => onSelectedConnectionIdChange(null)}
           onUndoBranch={restoreSeveredBranch}
         />
@@ -150,6 +232,7 @@ function SelectedConnectionCard({
   selection,
   now,
   authoring,
+  resolutionControls,
   onClose,
   onUndoBranch,
 }: {
@@ -159,6 +242,7 @@ function SelectedConnectionCard({
   >;
   readonly now: number;
   readonly authoring: ConnectionAuthoringApi;
+  readonly resolutionControls?: ConnectionResolutionControls;
   readonly onClose: () => void;
   readonly onUndoBranch: (connectionId: string) => void;
 }) {
@@ -168,6 +252,7 @@ function SelectedConnectionCard({
       connection={connection}
       now={now}
       mode={mode}
+      resolutionControls={resolutionControls}
       onClose={onClose}
       onSever={() => {
         void severAndAnnounce({
@@ -197,7 +282,7 @@ function fieldSetters(
 ): ConnectionFieldSetters {
   return {
     setWormholeType: (value) => {
-      void authoring.setConnectionWormholeType({ mapId, connection, value });
+      void applyWormholeType({ mapId, connection, value, authoring });
     },
     setShipSize: (value) => {
       void authoring.setConnectionShipSize({
@@ -216,7 +301,81 @@ function fieldSetters(
     setLifeStage: (value) => {
       void authoring.setConnectionLifeStage({ mapId, connection, value });
     },
+    setDestinationHint: (value) => {
+      // The card records what its own side's show-info says about the space
+      // beyond the hole, so manual hints always land on the origin side.
+      void authoring.setConnectionDestinationHint({
+        mapId,
+        connectionId: connection.connectionId,
+        side: 'from',
+        value,
+      });
+    },
   };
+}
+
+/** Sends one confirm (null target) or correct answer for a pending auto-link. */
+export function answerJumpResolution(input: {
+  readonly mapId: string;
+  readonly connectionId: Id<'mapConnections'>;
+  readonly targetConnectionId: string | null;
+}): Promise<JumpResolverResponse | null> {
+  return postJumpRequest({
+    kind: 'confirm',
+    mapId: input.mapId,
+    connectionId: input.connectionId,
+    targetConnectionId: input.targetConnectionId,
+  });
+}
+
+/**
+ * Answers a prompt and dismisses it only when the route delivered the answer.
+ * A lost race or transport failure keeps the prompt (still answerable from
+ * the connection card) and says so — a silently swallowed correction would
+ * leave the user believing their override was recorded.
+ */
+export async function answerAndAnnounce(input: {
+  readonly mapId: string;
+  readonly connectionId: Id<'mapConnections'>;
+  readonly targetConnectionId: string | null;
+  readonly dismiss: () => void;
+}): Promise<void> {
+  const response = await answerJumpResolution(input);
+  if (response !== null && response.status !== 'retry') {
+    input.dismiss();
+    return;
+  }
+  toast.error('Signature answer not recorded — try again', {
+    id: `jump-answer:${input.connectionId}`,
+    duration: 5_000,
+  });
+}
+
+/**
+ * Applies a manual type entry, then notifies the jump route on every HELD
+ * mutation — a set emits at human tier, and a clear lets the server remove a
+ * now-superseded observation under the preserved dedupe key. Only a refused
+ * mutation (undefined result) skips the notification; the emit-or-delete
+ * decision itself remains server-gated. Exported for focused proof of the
+ * notify condition.
+ */
+export async function applyWormholeType(input: {
+  readonly mapId: string;
+  readonly connection: ConnectionDetail;
+  readonly value: string | null;
+  readonly authoring: ConnectionAuthoringApi;
+}): Promise<void> {
+  const result = await input.authoring.setConnectionWormholeType({
+    mapId: input.mapId,
+    connection: input.connection,
+    value: input.value,
+  });
+  if (result === undefined) return;
+  await postJumpRequest({
+    kind: 'typed-hole',
+    mapId: input.mapId,
+    connectionId: input.connection.connectionId,
+  });
 }
 
 /** Announces one sever outcome; exported for focused proof of the toast path. */

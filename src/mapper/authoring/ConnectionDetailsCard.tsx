@@ -30,6 +30,7 @@ import {
 import {
   ConnectionFields,
   type ConnectionFieldSetters,
+  type ConnectionResolutionControls,
 } from './connection-fields';
 
 /** Props for the edge-anchored connection details card. */
@@ -39,6 +40,8 @@ export interface ConnectionDetailsCardProps {
   readonly onClose: () => void;
   readonly now: number;
   readonly mode: 'edit' | 'restore';
+  /** Present while this row's assumed auto-link is still answerable. */
+  readonly resolutionControls?: ConnectionResolutionControls;
   readonly onSever: () => void;
   readonly onRestore: () => void;
 }
@@ -88,6 +91,7 @@ export function ConnectionDetailsCard({
   onClose,
   now,
   mode,
+  resolutionControls,
   onSever,
   onRestore,
 }: ConnectionDetailsCardProps) {
@@ -234,6 +238,7 @@ export function ConnectionDetailsCard({
           setters={setters}
           now={now}
           mode={mode}
+          resolutionControls={resolutionControls}
           onSever={onSever}
           onRestore={onRestore}
         />

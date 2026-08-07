@@ -162,17 +162,29 @@ describe('map chain fixtures', () => {
           'deathEarliestAt',
           'deathLatestAt',
           'deletedAt',
+          'destinationProvenance',
           'eolAt',
+          'fromDestinationHint',
+          'fromSignatureId',
           'fromSystemId',
           'lifeStage',
           'lifeStageObservedAt',
           'mapId',
           'massState',
+          'observationKey',
+          'observedMassAtStateKg',
+          'observedMassKg',
+          'pendingCandidates',
           'purgeAfter',
           'shipSize',
+          'toDestinationHint',
+          'toSignatureId',
           'toSystemId',
+          'typeProvenance',
+          'typedSide',
           'wormholeTypeCode',
         ],
+        mapJumpBookkeeping: ['characterId', 'lastProcessedTransitionAt', 'mapId'],
         mapSignatures: [
           'deletedAt',
           'group',
@@ -209,6 +221,11 @@ describe('map chain fixtures', () => {
           by_map_from: ['mapId', 'fromSystemId'],
           by_map_to: ['mapId', 'toSystemId'],
           by_purge_after: ['purgeAfter'],
+        },
+        mapJumpBookkeeping: {
+          by_map: ['mapId'],
+          by_map_character: ['mapId', 'characterId'],
+          by_character: ['characterId'],
         },
         mapSignatures: {
           by_map: ['mapId'],
@@ -359,6 +376,97 @@ describe('map chain fixtures', () => {
         }),
         'INVALID_SYSTEM_ID',
       );
+    });
+  });
+
+  describe('drives tracked-location fixtures through the real observer seam', () => {
+    it('seeds idempotently and advances only location evidence', async () => {
+      const t = convexTest(schema, modules);
+      const seed = {
+        mapId: MAP_A,
+        userId: EDITOR,
+        characterId: 90_404_222,
+        solarSystemId: JITA,
+        shipTypeId: 28_606,
+        transitionObservedAt: NOW,
+      };
+
+      const first = await t.mutation(
+        internal.mapFixtures.seedTrackedLocationFixture,
+        seed,
+      );
+      const repeated = await t.mutation(
+        internal.mapFixtures.seedTrackedLocationFixture,
+        seed,
+      );
+      expect(repeated).toEqual(first);
+
+      const seeded = await t.run(async (ctx) => ({
+        systems: await ctx.db.query('mapSystems').collect(),
+        connections: await ctx.db.query('mapConnections').collect(),
+        tracking: await ctx.db.query('mapTracking').collect(),
+        locations: await ctx.db.query('characterLocation').collect(),
+        bookkeeping: await ctx.db.query('mapJumpBookkeeping').collect(),
+      }));
+      expect(seeded.systems).toHaveLength(1);
+      expect(seeded.connections).toEqual([]);
+      expect(seeded.tracking).toHaveLength(1);
+      expect(seeded.locations).toHaveLength(1);
+      expect(seeded.bookkeeping).toEqual([]);
+      expect(seeded.locations[0]).toMatchObject({
+        solarSystemId: JITA,
+        prevSolarSystemId: null,
+        prevFresh: false,
+        shipTypeId: 28_606,
+        transitionObservedAt: NOW,
+      });
+
+      await expect(
+        t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
+          mapId: MAP_A,
+          userId: EDITOR,
+          characterId: seed.characterId,
+          fromSolarSystemId: AMARR,
+          toSolarSystemId: JITA,
+          prevFresh: true,
+          transitionObservedAt: NOW + 1,
+        }),
+      ).rejects.toThrow('FIXTURE_LOCATION_STALE');
+
+      const advanced = await t.mutation(
+        internal.mapFixtures.advanceTrackedLocationFixture,
+        {
+          mapId: MAP_A,
+          userId: EDITOR,
+          characterId: seed.characterId,
+          fromSolarSystemId: JITA,
+          toSolarSystemId: AMARR,
+          prevFresh: true,
+          transitionObservedAt: NOW + 2,
+        },
+      );
+      expect(advanced).toMatchObject({
+        trackingId: first.trackingId,
+        locationId: first.locationId,
+        fromSolarSystemId: JITA,
+        toSolarSystemId: AMARR,
+        transitionObservedAt: NOW + 2,
+      });
+
+      const after = await t.run(async (ctx) => ({
+        location: await ctx.db.get(first.locationId),
+        connections: await ctx.db.query('mapConnections').collect(),
+        bookkeeping: await ctx.db.query('mapJumpBookkeeping').collect(),
+      }));
+      expect(after.location).toMatchObject({
+        solarSystemId: AMARR,
+        prevSolarSystemId: JITA,
+        prevFresh: true,
+        shipTypeId: 28_606,
+        transitionObservedAt: NOW + 2,
+      });
+      expect(after.connections).toEqual([]);
+      expect(after.bookkeeping).toEqual([]);
     });
   });
 
@@ -572,6 +680,52 @@ describe('map chain fixtures', () => {
         group: 'wormhole',
         typeName: 'Unstable Wormhole',
         wormholeTypeCode: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+
+    it('upserts one unresolved wormhole slot without inventing a destination', async () => {
+      const t = convexTest(schema, modules);
+      await seedMap(t);
+
+      const inserted = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: 'ABC-123',
+      });
+      const unchanged = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: ' ABC-123 ',
+      });
+      const updated = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: 'C247',
+        shipSize: 'L',
+        fromDestinationHint: 'dangerous',
+      });
+
+      expect(inserted.outcome).toBe('inserted');
+      expect(unchanged).toEqual({ outcome: 'unchanged', connectionId: inserted.connectionId });
+      expect(updated).toEqual({ outcome: 'updated', connectionId: inserted.connectionId });
+      const rows = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapConnections')
+          .withIndex('by_map_from', (q) => q.eq('mapId', MAP_A).eq('fromSystemId', JITA))
+          .collect(),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        toSystemId: null,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        shipSize: 'L',
+        fromDestinationHint: 'dangerous',
         deletedAt: null,
         purgeAfter: null,
       });

@@ -41,7 +41,11 @@ vi.mock('../authoring/ConnectionAuthoringOverlay', () => ({
 }));
 
 vi.mock('../tracking/TrackingControls', () => ({
-  TrackingControls: () => null,
+  TrackingHeartbeat: () => null,
+}));
+
+vi.mock('../tracking/JumpDoorbellObserver', () => ({
+  JumpDoorbellObserver: () => null,
 }));
 
 vi.mock('@xyflow/react', async () => {
@@ -107,6 +111,7 @@ function withAccess(
     systemsComplete: true,
     liveSystemCount: 0,
     connectionDetails: new Map(),
+    unresolvedHoles: [],
     connectionPresentationNow: 1,
     events: [],
     state: { systems: new Map(), connections: new Map() },

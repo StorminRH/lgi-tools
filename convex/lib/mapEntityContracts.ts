@@ -5,10 +5,14 @@
 // the eve-data reference core rather than re-declared here.
 import { ConvexError, v } from 'convex/values';
 import {
+  CONNECTION_PROVENANCES,
   CONNECTION_MASS_STATES,
   isWormholeTypeCode,
+  WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_LIFE_STAGES,
+  type ConnectionProvenance,
   type ConnectionMassState,
+  type WormholeDestinationHint,
   type WormholeLifeStage,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
@@ -19,6 +23,10 @@ import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 export { CONNECTION_MASS_STATES, type ConnectionMassState };
 /** Re-export the data-owned life-stage vocabulary for Convex-local callers. */
 export { WORMHOLE_LIFE_STAGES, type WormholeLifeStage };
+/** Re-export the data-owned destination-hint vocabulary for Convex-local callers. */
+export { WORMHOLE_DESTINATION_HINTS, type WormholeDestinationHint };
+/** Re-export the data-owned connection provenance vocabulary for Convex-local callers. */
+export { CONNECTION_PROVENANCES, type ConnectionProvenance };
 
 /** The kinds of chain object a note may be attached to. */
 export const NOTE_TARGET_KINDS = ['map', 'system', 'signature'] as const;
@@ -61,6 +69,19 @@ const MAP_ROLE_LITERALS = {
   editor: v.literal('editor'),
   owner: v.literal('owner'),
 } as const satisfies Record<MapRole, unknown>;
+
+/** Schema validator for the side whose wormhole type is attributable. */
+export const typedSideValidator = v.union(v.literal('from'), v.literal('to'));
+
+/** Schema validator for the closed destination-hint vocabulary. */
+export const destinationHintValidator = v.union(
+  ...WORMHOLE_DESTINATION_HINTS.map((hint) => v.literal(hint)),
+);
+
+/** Schema validator for connection identity provenance. */
+export const connectionProvenanceValidator = v.union(
+  ...CONNECTION_PROVENANCES.map((provenance) => v.literal(provenance)),
+);
 
 /** Schema validator for observed mass state, null while still unobserved. */
 export const massStateValidator = v.union(
@@ -159,6 +180,16 @@ export interface ConnectionInput {
   readonly deathLatestAt?: number | null;
 }
 
+/** The fixture boundary for a scanned wormhole whose far endpoint is unresolved. */
+export interface UnresolvedHoleInput {
+  readonly fromSystemId: number;
+  readonly toSystemId: null;
+  readonly fromSignatureId: string;
+  readonly wormholeTypeCode: string | null;
+  readonly shipSize: WormholeSizeClass | null;
+  readonly fromDestinationHint?: WormholeDestinationHint;
+}
+
 /** The optional-normalized absolute death-window pair accepted at the boundary. */
 export interface DeathWindowInput {
   readonly deathEarliestAt?: number | null;
@@ -195,6 +226,25 @@ export function validateConnectionInput(input: ConnectionInput): void {
   }
   requireAbsoluteTimestamp('eolAt', input.eolAt);
   validateDeathWindowInput(input);
+}
+
+/**
+ * Validates an unresolved wormhole row without weakening the established
+ * two-endpoint connection boundary used by shipped authoring fixtures.
+ */
+export function validateUnresolvedHoleInput(input: UnresolvedHoleInput): void {
+  if (!isPositiveId(input.fromSystemId)) {
+    reject('INVALID_SYSTEM_ID', 'An unresolved hole origin must be a positive safe integer.');
+  }
+  if (input.toSystemId !== null) {
+    reject('INVALID_UNRESOLVED_HOLE', 'An unresolved hole must have a null destination.');
+  }
+  if (input.fromSignatureId.trim() === '') {
+    reject('INVALID_SIGNATURE_ID', 'An unresolved hole needs an origin signature ID.');
+  }
+  if (input.wormholeTypeCode !== null && !isWormholeTypeCode(input.wormholeTypeCode)) {
+    reject('INVALID_WORMHOLE_CODE', `Unknown wormhole code "${input.wormholeTypeCode}".`);
+  }
 }
 
 /** The nullable knowledge fields the map shares about one signature. */

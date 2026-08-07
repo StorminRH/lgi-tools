@@ -9,6 +9,7 @@ import {
   layoutConfigKey,
   layoutPostKey,
   normalizeMapAccess,
+  unresolvedHolesFromRows,
 } from './use-map-chain';
 import {
   EMPTY_CHAIN_STATE,
@@ -263,7 +264,14 @@ describe('client subscription projections', () => {
       deletedAt: 20,
       purgeAfter: 30,
     } as Doc<'mapConnections'>;
-    expect(connectionDetailsFromRows([row]).get(row._id)).toMatchObject({
+    const unresolved = {
+      ...row,
+      _id: 'stub-1',
+      toSystemId: null,
+      fromSignatureId: 'ABC-123',
+    } as Doc<'mapConnections'>;
+    const details = connectionDetailsFromRows([row, unresolved]);
+    expect(details.get(row._id)).toMatchObject({
       connectionId: row._id,
       _creationTime: 10,
       lifeStage: null,
@@ -271,7 +279,83 @@ describe('client subscription projections', () => {
       deathLatestAt: null,
       deletedAt: 20,
       purgeAfter: 30,
+      fromSignatureId: null,
+      fromDestinationHint: null,
+      destinationProvenance: null,
+      pendingCandidates: null,
+      observedMassKg: null,
+      observedMassAtStateKg: null,
     });
+    expect(details.has(unresolved._id)).toBe(false);
+  });
+
+  it('projects merged identity fields for the card and prompt consumers', () => {
+    const row = {
+      _id: 'c1',
+      _creationTime: 10,
+      mapId: 'map-a',
+      fromSystemId: JITA,
+      toSystemId: AMARR,
+      wormholeTypeCode: 'K162',
+      massState: null,
+      shipSize: null,
+      eolAt: null,
+      deletedAt: null,
+      purgeAfter: null,
+      fromSignatureId: 'ABC-123',
+      fromDestinationHint: 'deadly',
+      destinationProvenance: 'assumed',
+      pendingCandidates: ['c1', 'stub-2'],
+      observedMassKg: 300_000_000,
+      observedMassAtStateKg: 100_000_000,
+    } as Doc<'mapConnections'>;
+    expect(connectionDetailsFromRows([row]).get(row._id)).toMatchObject({
+      fromSignatureId: 'ABC-123',
+      fromDestinationHint: 'deadly',
+      destinationProvenance: 'assumed',
+      pendingCandidates: ['c1', 'stub-2'],
+      observedMassKg: 300_000_000,
+      observedMassAtStateKg: 100_000_000,
+    });
+  });
+
+  it('summarizes only live unresolved slots for the prompt feed', () => {
+    const base = {
+      _creationTime: 10,
+      mapId: 'map-a',
+      fromSystemId: JITA,
+      massState: null,
+      shipSize: null,
+      eolAt: null,
+      deletedAt: null,
+      purgeAfter: null,
+    };
+    const rows = [
+      {
+        ...base,
+        _id: 'stub-1',
+        toSystemId: null,
+        wormholeTypeCode: null,
+        fromSignatureId: 'ABC-123',
+      },
+      { ...base, _id: 'resolved', toSystemId: AMARR, wormholeTypeCode: 'B274' },
+      {
+        ...base,
+        _id: 'stub-dead',
+        toSystemId: null,
+        wormholeTypeCode: null,
+        deletedAt: 20,
+        purgeAfter: 30,
+      },
+    ] as Doc<'mapConnections'>[];
+    expect(unresolvedHolesFromRows(rows)).toEqual([
+      {
+        connectionId: 'stub-1',
+        fromSystemId: JITA,
+        fromSignatureId: 'ABC-123',
+        wormholeTypeCode: null,
+      },
+    ]);
   });
 });
 

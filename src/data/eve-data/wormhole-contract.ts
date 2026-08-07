@@ -3,11 +3,104 @@
 // lookup, no database access, and no framework import, so both runtimes can
 // depend on the same stable identity rules without either owning the other.
 
+import { systemSecurityClass } from './security';
+
 /** Wormhole jump-size vocabulary derived from the SDE's maximum jumpable mass. */
 export const WORMHOLE_SIZE_CLASSES = ['S', 'M', 'L', 'XL'] as const;
 
 /** One wormhole jump-size class. */
 export type WormholeSizeClass = (typeof WORMHOLE_SIZE_CLASSES)[number];
+
+/** Maps a maximum jump mass into the exhaustive wormhole size vocabulary. */
+export function wormholeSizeClass(maxJumpMass: number): WormholeSizeClass {
+  if (maxJumpMass <= 5_000_000) return 'S';
+  if (maxJumpMass <= 62_000_000) return 'M';
+  if (maxJumpMass <= 410_000_000) return 'L';
+  return 'XL';
+}
+
+/** Closed show-info buckets for the space beyond one wormhole side. */
+export const WORMHOLE_DESTINATION_HINTS = [
+  'hisec',
+  'lowsec',
+  'nullsec',
+  'unknown',
+  'dangerous',
+  'deadly',
+  'thera',
+  'pochven',
+  'drifter',
+] as const;
+
+/** One stored destination-hint bucket. */
+export type WormholeDestinationHint = (typeof WORMHOLE_DESTINATION_HINTS)[number];
+
+/** Provenance tiers for connection identity facts and D16 observations. */
+export const CONNECTION_PROVENANCES = [
+  'jump-verified',
+  'human',
+  'confirmed',
+  'assumed',
+] as const;
+
+/** One stored connection identity provenance tier. */
+export type ConnectionProvenance = (typeof CONNECTION_PROVENANCES)[number];
+
+/** SDE system fields needed to interpret one destination hint. */
+export interface WormholeSystemClassFacts {
+  readonly wormholeClassId: number | null;
+  readonly securityStatus: number | null;
+}
+
+const HINT_CLASSES = {
+  hisec: [7],
+  lowsec: [8],
+  nullsec: [9],
+  unknown: [1, 2, 3, 13],
+  dangerous: [4, 5],
+  deadly: [6],
+  thera: [12],
+  pochven: [25],
+} as const satisfies Record<
+  Exclude<WormholeDestinationHint, 'drifter'>,
+  readonly number[]
+>;
+
+const COVERED_DESTINATION_CLASSES = new Set<number>(
+  Object.values(HINT_CLASSES).flat(),
+);
+
+/** Resolves a system's wormhole or known-space class ID without duplicating security thresholds. */
+export function effectiveWormholeClassId(
+  facts: WormholeSystemClassFacts,
+): number | null {
+  if (facts.wormholeClassId !== null) return facts.wormholeClassId;
+  if (facts.securityStatus === null) return null;
+  return {
+    high: 7,
+    low: 8,
+    null: 9,
+    wormhole: null,
+  }[systemSecurityClass(facts.securityStatus, null)];
+}
+
+/**
+ * Tests a show-info destination bucket against SDE system facts. Classes the
+ * vocabulary cannot distinguish fail open so inference never discards a
+ * credible signature on incomplete or future geography.
+ */
+export function hintAdmitsClass(
+  hint: WormholeDestinationHint,
+  destination: WormholeSystemClassFacts,
+): boolean {
+  const effectiveClassId = effectiveWormholeClassId(destination);
+
+  if (effectiveClassId === null || !COVERED_DESTINATION_CLASSES.has(effectiveClassId)) {
+    return true;
+  }
+  if (hint === 'drifter') return false;
+  return (HINT_CLASSES[hint] as readonly number[]).includes(effectiveClassId);
+}
 
 /**
  * Observed mass-stability vocabulary for one wormhole connection. Null on a
@@ -77,6 +170,50 @@ export function remainingMassBounds(
         (1 + WORMHOLE_MASS_VARIANCE) *
         entry.totalMass,
     ),
+  };
+}
+
+/**
+ * Applies only the observed travel since the latest shake-state anchor to the
+ * shipped remaining-mass interval. Missing odometer fields represent an old
+ * row with no observed travel; malformed counters return no estimate.
+ */
+export function remainingMassAfterTravel(
+  entry: WormholeMassFacts | null | undefined,
+  massState: ConnectionMassState | null,
+  observedMassKg: number | null | undefined,
+  observedMassAtStateKg: number | null | undefined,
+): RemainingMassBounds | null {
+  const bounds = remainingMassBounds(entry, massState);
+  if (bounds === null) return null;
+  if (
+    (observedMassKg !== null &&
+      observedMassKg !== undefined &&
+      (!Number.isFinite(observedMassKg) || observedMassKg < 0)) ||
+    (observedMassAtStateKg !== null &&
+      observedMassAtStateKg !== undefined &&
+      (!Number.isFinite(observedMassAtStateKg) || observedMassAtStateKg < 0))
+  ) {
+    return null;
+  }
+
+  if (
+    observedMassKg !== null &&
+    observedMassKg !== undefined &&
+    observedMassAtStateKg !== null &&
+    observedMassAtStateKg !== undefined &&
+    observedMassKg < observedMassAtStateKg
+  ) {
+    return null;
+  }
+
+  const travelledKg = Math.max(
+    0,
+    (observedMassKg ?? 0) - (observedMassAtStateKg ?? 0),
+  );
+  return {
+    minKg: Math.max(0, Math.round(bounds.minKg - travelledKg)),
+    maxKg: Math.max(0, Math.round(bounds.maxKg - travelledKg)),
   };
 }
 

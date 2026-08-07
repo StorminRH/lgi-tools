@@ -143,6 +143,11 @@ export const MenuLinkItem = Base.LinkItem;
  */
 export const MenuItem = Base.Item;
 /**
+ * Independent boolean menu setting. It stays open on selection by default and participates in the
+ * menu's roving focus/typeahead behavior.
+ */
+export const MenuCheckboxItem = Base.CheckboxItem;
+/**
  * Adopted Base UI menu separator part exposed through the single house wrapper; consumers compose
  * it only within this primitive family.
  */

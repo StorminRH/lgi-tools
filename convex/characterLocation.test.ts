@@ -24,6 +24,7 @@ function locationDoc(userId: string, characterId: number) {
     shipTypeId: 670 as number | null,
     prevSolarSystemId: null as number | null,
     prevFresh: false,
+    transitionObservedAt: 1_699_999_999_000,
     observedAt: 1_700_000_000_000,
     etagLocation: 'loc' as string | null,
     etagShip: 'ship' as string | null,
@@ -123,13 +124,30 @@ describe('characterLocation.purgeForUser', () => {
         userId: OTHER,
         characterId: CHAR_A,
       });
+      // Character-keyed exactly-once stamps: the account purge must drain the
+      // purged characters' stamps across maps (no userId column to key on).
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-a',
+        characterId: CHAR_A,
+        lastProcessedTransitionAt: 1,
+      });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-b',
+        characterId: CHAR_B,
+        lastProcessedTransitionAt: 2,
+      });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-a',
+        characterId: 90_999_999,
+        lastProcessedTransitionAt: 3,
+      });
     });
 
     const out = await t.mutation(internal.characterLocation.purgeForUser, {
       userId: USER,
       characterId: null,
     });
-    expect(out).toEqual({ deletedLocations: 2, deletedTracking: 2 });
+    expect(out).toEqual({ deletedLocations: 2, deletedTracking: 2, deletedBookkeeping: 2 });
 
     const remainingLocations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
     const remainingTracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
@@ -152,13 +170,23 @@ describe('characterLocation.purgeForUser', () => {
         userId: USER,
         characterId: CHAR_B,
       });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-a',
+        characterId: CHAR_A,
+        lastProcessedTransitionAt: 1,
+      });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-a',
+        characterId: CHAR_B,
+        lastProcessedTransitionAt: 2,
+      });
     });
 
     const out = await t.mutation(internal.characterLocation.purgeForUser, {
       userId: USER,
       characterId: CHAR_A,
     });
-    expect(out).toEqual({ deletedLocations: 1, deletedTracking: 1 });
+    expect(out).toEqual({ deletedLocations: 1, deletedTracking: 1, deletedBookkeeping: 1 });
 
     const locations = await t.run((ctx) =>
       ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
@@ -179,7 +207,7 @@ describe('characterLocation.purgeForUser', () => {
       userId: USER,
       characterId: null,
     });
-    expect(out).toEqual({ deletedLocations: 0, deletedTracking: 0 });
+    expect(out).toEqual({ deletedLocations: 0, deletedTracking: 0, deletedBookkeeping: 0 });
   });
 });
 
@@ -222,7 +250,7 @@ describe('POST /purge-location-tracking', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deletedLocations: 1, deletedTracking: 1 });
+    expect(await res.json()).toEqual({ deletedLocations: 1, deletedTracking: 1, deletedBookkeeping: 0 });
 
     const locations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
     const tracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
@@ -252,6 +280,7 @@ describe('characterLocation.forViewer', () => {
         shipTypeId: 670,
         prevSolarSystemId: null,
         prevFresh: false,
+        transitionObservedAt: 1_699_999_999_000,
         observedAt: 1_700_000_000_000,
       },
     ]);
@@ -332,6 +361,38 @@ describe('characterLocation.applySyncResults', () => {
       etagLocation: 'loc',
       etagShip: 'ship',
     });
+  });
+
+  it('advances observedAt for a dock update without advancing the system-transition epoch', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow());
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_142,
+          stationId: 60_003_760,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: false,
+          etagLocation: 'loc-docked',
+          etagShip: null,
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+
+    expect(await readDoc(t)).toMatchObject({
+      stationId: 60_003_760,
+      transitionObservedAt: 1_699_999_999_000,
+      etagLocation: 'loc-docked',
+    });
+    expect((await readDoc(t))?.observedAt).not.toBe(1_700_000_000_000);
   });
 
   it('stamps prevFresh false when the previous run is outside JUMP_CONTINUITY_MS', async () => {

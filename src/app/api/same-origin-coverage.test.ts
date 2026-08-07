@@ -22,6 +22,7 @@ const PIPELINE_MUTATIONS = [
   'account/sessions/revoke/route.ts',
   'admin/characters/unlink/route.ts',
   'admin/sessions/revoke/route.ts',
+  'maps/jump/route.ts',
   'preferences/route.ts',
 ] as const;
 
@@ -120,7 +121,7 @@ describe('same-origin mutation coverage', () => {
       ...Object.keys(EXEMPT_MUTATIONS),
     ];
 
-    expect(PIPELINE_MUTATIONS).toHaveLength(17);
+    expect(PIPELINE_MUTATIONS).toHaveLength(18);
     expect(DIRECT_MUTATIONS).toHaveLength(4);
     expect(ADMIN_MUTATIONS).toHaveLength(2);
     expect(Object.keys(EXEMPT_MUTATIONS)).toHaveLength(12);

@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
 import { checkAdmin, type SessionCheckResult } from '@/platform/auth/route-guards';
 import type { Session } from '@/platform/auth/types';
+import { MapTrackingMenu } from './MapTrackingMenu';
 
 function MapDevelopmentWall() {
   return (
@@ -62,7 +63,7 @@ export async function MapAccessGate({
 
   return (
     <>
-      <MapChrome session={session} />
+      <MapChrome session={session} contextualSection={<MapTrackingMenu />} />
       {children}
     </>
   );

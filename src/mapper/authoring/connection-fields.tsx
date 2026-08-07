@@ -1,20 +1,28 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { Tooltip } from '@/components/ui/tooltip';
 import {
   CONNECTION_MASS_STATES,
+  FAR_SIDE_WORMHOLE_CODE,
+  WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_LIFE_STAGES,
   WORMHOLE_SIZE_CLASSES,
   type ConnectionMassState,
+  type WormholeDestinationHint,
   type WormholeLifeStage,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { ConnectionDetail } from '../chain/use-map-chain';
+import {
+  ConnectionFieldGroup,
+  encodeOptionalField,
+  FieldReadout,
+  OptionalSelectField,
+  UNSET_FIELD,
+} from './connection-field-group';
 import {
   codexPanelFacts,
   formatDurationBound,
@@ -25,14 +33,17 @@ import {
   type LifetimeRowDisplay,
   type MassRowDisplay,
 } from './connection-intelligence';
+import type { JumpResolutionModel } from './jump-resolution';
+import {
+  JumpResolutionChoices,
+  type JumpResolutionAnswers,
+} from './JumpResolutionPrompt';
 import {
   wormholeTypeSearch,
   type WormholeTypeErr,
   type WormholeTypeParams,
 } from './wormhole-type-search';
 
-/** Select sentinel for null / unset field values. */
-export const UNSET_FIELD = '';
 
 const MASS_ITEMS = [
   { value: UNSET_FIELD, label: 'Unset' },
@@ -62,18 +73,25 @@ const LIFE_ITEMS = [
   })),
 ];
 
-const READOUT_CLASS =
-  'block w-full rounded-ctl border border-border-soft px-2 py-1.5 text-center font-data text-ui text-name';
+const HINT_LABELS: Record<WormholeDestinationHint, string> = {
+  hisec: 'High-sec',
+  lowsec: 'Low-sec',
+  nullsec: 'Null-sec',
+  unknown: 'Unknown (C1–C3)',
+  dangerous: 'Dangerous (C4–C5)',
+  deadly: 'Deadly (C6)',
+  thera: 'Thera',
+  pochven: 'Pochven',
+  drifter: 'Drifter',
+};
 
-/** Encodes a nullable field for the house Select (empty string = unset). */
-export function encodeOptionalField(value: string | null): string {
-  return value ?? UNSET_FIELD;
-}
-
-/** Decodes a Select value back to null when the unset sentinel is chosen. */
-export function decodeOptionalField(value: string): string | null {
-  return value === UNSET_FIELD ? null : value;
-}
+const HINT_ITEMS = [
+  { value: UNSET_FIELD, label: 'Unset' },
+  ...WORMHOLE_DESTINATION_HINTS.map((value) => ({
+    value,
+    label: HINT_LABELS[value],
+  })),
+];
 
 /** Field-scoped setters the card calls for one connection. */
 export interface ConnectionFieldSetters {
@@ -81,6 +99,13 @@ export interface ConnectionFieldSetters {
   readonly setShipSize: (value: WormholeSizeClass | null) => void;
   readonly setMassState: (value: ConnectionMassState | null) => void;
   readonly setLifeStage: (value: WormholeLifeStage | null) => void;
+  readonly setDestinationHint: (value: WormholeDestinationHint | null) => void;
+}
+
+/** The card's pending auto-link group: the recorded survivors plus answers. */
+export interface ConnectionResolutionControls {
+  readonly resolution: JumpResolutionModel;
+  readonly answers: JumpResolutionAnswers;
 }
 
 /** Props for the connection field form body. */
@@ -94,6 +119,8 @@ export interface ConnectionFieldsProps {
   readonly now: number;
   /** Restore-only mode freezes every field control and shows Restore. */
   readonly mode: 'edit' | 'restore';
+  /** Present while an assumed auto-link is still answerable on this row. */
+  readonly resolutionControls?: ConnectionResolutionControls;
   readonly onSever?: () => void;
   readonly onRestore?: () => void;
 }
@@ -110,6 +137,7 @@ export function ConnectionFields({
   setters,
   now,
   mode,
+  resolutionControls,
   onSever,
   onRestore,
 }: ConnectionFieldsProps) {
@@ -127,6 +155,9 @@ export function ConnectionFields({
         >
           Severed connection — restore within the undo window.
         </p>
+      ) : null}
+      {!readOnly && resolutionControls !== undefined ? (
+        <ResolutionField controls={resolutionControls} />
       ) : null}
       <TypeField
         connection={connection}
@@ -148,19 +179,41 @@ export function ConnectionFields({
         readOnly={readOnly}
         onChange={setters.setMassState}
       />
-      <MassEstimate entry={entry} massState={connection.massState} />
+      <MassEstimate entry={entry} connection={connection} />
       <LifeStageField
         connection={connection}
         readOnly={readOnly}
         onChange={setters.setLifeStage}
       />
       <LifetimeEstimate connection={connection} entry={entry} now={now} />
+      <LeadsToField
+        connection={connection}
+        readOnly={readOnly}
+        onChange={setters.setDestinationHint}
+      />
       <ConnectionActions
         mode={mode}
         onSever={onSever}
         onRestore={onRestore}
       />
     </div>
+  );
+}
+
+function ResolutionField({
+  controls,
+}: {
+  readonly controls: ConnectionResolutionControls;
+}) {
+  return (
+    <ConnectionFieldGroup label="Auto-link">
+      <div data-map-connection-resolution className="flex w-full flex-col gap-1">
+        <JumpResolutionChoices
+          resolution={controls.resolution}
+          answers={controls.answers}
+        />
+      </div>
+    </ConnectionFieldGroup>
   );
 }
 
@@ -180,11 +233,12 @@ function TypeField({
   const search = wormholeTypeSearch(codes, { lenient: !codexReady });
   const typeInitial = encodeOptionalField(connection.wormholeTypeCode);
   return (
-    <FieldBlock label="Wormhole type">
+    <ConnectionFieldGroup label="Wormhole type">
       {readOnly ? (
-        <span data-map-connection-type-readout="" className={READOUT_CLASS}>
-          {connection.wormholeTypeCode ?? 'Unset'}
-        </span>
+        <FieldReadout
+          attr="data-map-connection-type-readout"
+          text={connection.wormholeTypeCode ?? 'Unset'}
+        />
       ) : (
         <TerminalSearch<WormholeTypeParams, WormholeTypeErr>
           key={`${connection.connectionId}:${typeInitial}`}
@@ -198,7 +252,7 @@ function TypeField({
           errorLabel="Type"
         />
       )}
-    </FieldBlock>
+    </ConnectionFieldGroup>
   );
 }
 
@@ -219,10 +273,9 @@ function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
       </span>
       <CodexFact label="Total mass" value={formatFactKg(facts.totalMassKg)} />
       <CodexFact label="Per-jump" value={formatFactKg(facts.maxJumpMassKg)} />
-      <CodexFact
-        label="Regeneration"
-        value={facts.massRegenKg > 0 ? formatFactKg(facts.massRegenKg) : 'None'}
-      />
+      {facts.massRegenKg > 0 ? (
+        <CodexFact label="Regeneration" value={formatFactKg(facts.massRegenKg)} />
+      ) : null}
       <CodexFact
         label="Lifetime"
         value={formatDurationBound(facts.lifetimeMinutes * 60 * 1000)}
@@ -250,23 +303,16 @@ function SizeField({
       ? entry.sizeClass
       : (connection.shipSize ?? 'Unset');
   return (
-    <FieldBlock label="Ship size">
-      {lockedSize || readOnly ? (
-        <span data-map-connection-size-locked="" className={READOUT_CLASS}>
-          {lockedValue}
-        </span>
-      ) : (
-        <Select
-          ariaLabel="Ship size"
-          align="center"
-          value={encodeOptionalField(connection.shipSize)}
-          items={SIZE_ITEMS}
-          onValueChange={(value) =>
-            onChange(decodeOptionalField(value) as WormholeSizeClass | null)
-          }
-        />
-      )}
-    </FieldBlock>
+    <OptionalSelectField
+      label="Ship size"
+      ariaLabel="Ship size"
+      items={SIZE_ITEMS}
+      value={connection.shipSize}
+      readOnly={lockedSize || readOnly}
+      readoutAttr="data-map-connection-size-locked"
+      readoutText={lockedValue}
+      onChange={(value) => onChange(value as WormholeSizeClass | null)}
+    />
   );
 }
 
@@ -280,37 +326,66 @@ function StabilityField({
   readonly onChange: (value: ConnectionMassState | null) => void;
 }) {
   return (
-    <FieldBlock label="Stability">
-      {readOnly ? (
-        <span
-          data-map-connection-mass-state-readout=""
-          className={READOUT_CLASS}
-        >
-          {connection.massState ?? 'Unset'}
-        </span>
-      ) : (
-        <Select
-          ariaLabel="Mass stability"
-          align="center"
-          value={encodeOptionalField(connection.massState)}
-          items={MASS_ITEMS}
-          onValueChange={(value) =>
-            onChange(decodeOptionalField(value) as ConnectionMassState | null)
-          }
-        />
-      )}
-    </FieldBlock>
+    <OptionalSelectField
+      label="Stability"
+      ariaLabel="Mass stability"
+      items={MASS_ITEMS}
+      value={connection.massState}
+      readOnly={readOnly}
+      readoutAttr="data-map-connection-mass-state-readout"
+      readoutText={connection.massState ?? 'Unset'}
+      onChange={(value) => onChange(value as ConnectionMassState | null)}
+    />
+  );
+}
+
+function LeadsToField({
+  connection,
+  readOnly,
+  onChange,
+}: {
+  readonly connection: ConnectionDetail;
+  readonly readOnly: boolean;
+  readonly onChange: (value: WormholeDestinationHint | null) => void;
+}) {
+  // D11: no manual field the codex can fill — a typed origin-side hole already
+  // knows where it leads, so the hint control exists only for K162/unidentified.
+  const showable =
+    connection.wormholeTypeCode === null ||
+    connection.wormholeTypeCode === FAR_SIDE_WORMHOLE_CODE;
+  if (!showable) return null;
+  const hint = connection.fromDestinationHint;
+  return (
+    <OptionalSelectField
+      label="Leads to"
+      ariaLabel="Leads to"
+      items={HINT_ITEMS}
+      value={hint}
+      readOnly={readOnly}
+      readoutAttr="data-map-connection-leads-readout"
+      readoutText={hint === null ? 'Unset' : HINT_LABELS[hint]}
+      onChange={(value) => onChange(value as WormholeDestinationHint | null)}
+    />
   );
 }
 
 function MassEstimate({
   entry,
-  massState,
+  connection,
 }: {
   readonly entry: WormholeCodexEntry | null;
-  readonly massState: ConnectionMassState | null;
+  readonly connection: ConnectionDetail;
 }) {
-  return <MassEstimateView display={massRowDisplay(entry, massState)} />;
+  return (
+    <MassEstimateView
+      display={massRowDisplay(
+        entry,
+        connection.massState,
+        connection.observedMassKg,
+        connection.observedMassAtStateKg,
+      )}
+    />
+  );
 }
 
 function MassEstimateView({ display }: { readonly display: MassRowDisplay }) {
@@ -350,25 +425,18 @@ function LifeStageField({
   readonly onChange: (value: WormholeLifeStage | null) => void;
 }) {
   return (
-    <FieldBlock label="Life stage">
-      {readOnly ? (
-        <span data-map-connection-life-readout="" className={READOUT_CLASS}>
-          {connection.lifeStage === null
-            ? 'Unset'
-            : LIFE_LABELS[connection.lifeStage]}
-        </span>
-      ) : (
-        <Select
-          ariaLabel="Life stage"
-          align="center"
-          value={encodeOptionalField(connection.lifeStage)}
-          items={LIFE_ITEMS}
-          onValueChange={(value) =>
-            onChange(decodeOptionalField(value) as WormholeLifeStage | null)
-          }
-        />
-      )}
-    </FieldBlock>
+    <OptionalSelectField
+      label="Life stage"
+      ariaLabel="Life stage"
+      items={LIFE_ITEMS}
+      value={connection.lifeStage}
+      readOnly={readOnly}
+      readoutAttr="data-map-connection-life-readout"
+      readoutText={
+        connection.lifeStage === null ? 'Unset' : LIFE_LABELS[connection.lifeStage]
+      }
+      onChange={(value) => onChange(value as WormholeLifeStage | null)}
+    />
   );
 }
 
@@ -459,26 +527,6 @@ function ConnectionActions({
     );
   }
   return null;
-}
-
-function FieldBlock({
-  label,
-  children,
-}: {
-  readonly label: string;
-  readonly children: ReactNode;
-}) {
-  return (
-    // A plain <div>: wrapping a <label> around a Base UI Select forwards
-    // caption clicks to the trigger button and springs the dropdown open
-    // (the CustomStructureBuilder gotcha); the controls carry ariaLabel.
-    <div className="flex w-full flex-col items-center gap-1 text-center [&_input]:text-center">
-      <span className="font-data text-label uppercase tracking-label text-isk">
-        {label}
-      </span>
-      <div className="w-full">{children}</div>
-    </div>
-  );
 }
 
 function CodexFact({

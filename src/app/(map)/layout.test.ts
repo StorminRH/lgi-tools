@@ -20,10 +20,17 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/components/composition/map/MapChrome', () => ({
-  MapChrome: ({ session: value }: { session: unknown }) =>
+  MapChrome: ({
+    session: value,
+    contextualSection,
+  }: {
+    session: unknown;
+    contextualSection?: React.ReactNode;
+  }) =>
     createElement('div', {
       'data-map-chrome': '',
       'data-map-account-session': String(value != null),
+      'data-map-contextual-section': String(contextualSection != null),
     }),
 }));
 
@@ -70,6 +77,7 @@ describe('MapAccessGate', () => {
     const markup = renderToStaticMarkup(result);
 
     expect(markup).toContain('data-map-chrome');
+    expect(markup).toContain('data-map-contextual-section="true"');
     expect(markup).toContain('data-map-canvas');
     expect(markup).not.toContain('data-map-development-wall');
   });

@@ -2,9 +2,10 @@
 
 // The portrait menu's DYNAMIC half (ACCOUNT.5): the current route's
 // page-settings section, read from the ACCOUNT.4 slot (usePageSettings — the one
-// resolution path) and rendered as live segmented preference controls. Routes
-// with no spec (or no renderable section controls) render NOTHING — no
-// empty-state filler, no dangling divider.
+// resolution path) and rendered as live preference controls. Enum prefs use
+// SegmentedControl; boolean prefs use the house Base UI Switch. Routes with no
+// spec (or no renderable section controls) render NOTHING — no empty-state
+// filler, no dangling divider.
 //
 // The rows are NON-item popup content (the nav-menu-login precedent), so
 // selecting a value deliberately does not close the menu — adjust, watch the
@@ -20,26 +21,79 @@
 // only.) No usePathname and no Suspense here — PageMenuProvider already
 // isolates the request-time read (the #182 lesson).
 
+import type { ReactNode } from 'react';
 import { usePageSettings } from '@/components/composition/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';
 import { menuControlRow, menuSection, menuSectionLabel } from '@/components/ui/menu';
 import { SegmentedControl } from '@/components/ui/segmented';
-import { resolveMenuControls, type MenuControlModel } from '@/platform/page-settings/controls';
+import { Switch } from '@/components/ui/switch';
+import {
+  resolveMenuControls,
+  type BooleanMenuControlModel,
+  type EnumMenuControlModel,
+  type MenuControlModel,
+} from '@/platform/page-settings/controls';
 
-// Own component so usePreference is never called inside a map.
-function ControlRow({ model }: { model: MenuControlModel }) {
+// One label recipe and description slot for every row kind; the variants
+// supply only their control. Own components so usePreference is never called
+// inside a map.
+function ControlRowFrame({
+  label,
+  description,
+  children,
+}: {
+  label: string;
+  description: string | undefined;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <div className={menuControlRow}>
+        <span className="text-label">{label}</span>
+        {children}
+      </div>
+      {description !== undefined ? (
+        <span className="px-3 pb-1 font-data text-micro text-muted">
+          {description}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+function EnumControlRow({ model }: { model: EnumMenuControlModel }) {
   const [value, setValue] = usePreference(model.def);
   return (
-    <div className={menuControlRow}>
-      <span className="text-label">{model.label}</span>
+    <ControlRowFrame label={model.label} description={model.description}>
       <SegmentedControl
         options={model.options.map((option) => ({ value: option, label: option }))}
         value={value}
         onChange={setValue}
         label={model.label}
       />
-    </div>
+    </ControlRowFrame>
   );
+}
+
+function BooleanControlRow({ model }: { model: BooleanMenuControlModel }) {
+  const [value, setValue] = usePreference(model.def);
+  return (
+    <ControlRowFrame label={model.label} description={model.description}>
+      <Switch
+        checked={value}
+        onCheckedChange={setValue}
+        label={model.label}
+        tone="neutral"
+      />
+    </ControlRowFrame>
+  );
+}
+
+function ControlRow({ model }: { model: MenuControlModel }) {
+  if (model.kind === 'preference-boolean') {
+    return <BooleanControlRow model={model} />;
+  }
+  return <EnumControlRow model={model} />;
 }
 
 /**

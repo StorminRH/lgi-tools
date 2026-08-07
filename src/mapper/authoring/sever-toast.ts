@@ -16,7 +16,7 @@ export function announceSeverOutcome(input: {
   readonly durationMs?: number;
 }): void {
   const id = `sever:${input.connectionId}`;
-  const duration = input.durationMs ?? 12_000;
+  const duration = input.durationMs ?? 3_000;
   const message =
     input.result.outcome === 'removed'
       ? severedRemovedMessage(input.result.systemIds.length)

@@ -60,19 +60,34 @@ describe('connection intelligence', () => {
   });
 
   it('renders mass as a bounded range and suppresses regenerating holes (HC-2)', () => {
-    const stable = massRowDisplay(TYPED, 'stable');
+    const stable = massRowDisplay(TYPED, 'stable', null, null);
     expect(stable.kind).toBe('range');
     if (stable.kind !== 'range') return;
     expect(stable.label).toContain('–');
     expect(stable.label).toContain('±10%');
     expect(stable.minKg).toBeLessThan(stable.maxKg);
 
-    expect(massRowDisplay(REGEN, 'stable')).toEqual({
+    expect(massRowDisplay(REGEN, 'stable', null, null)).toEqual({
       kind: 'regenerates',
       label: 'Regenerates — no mass interval',
     });
-    expect(massRowDisplay(K162, 'stable').kind).toBe('none');
+    expect(massRowDisplay(K162, 'stable', null, null).kind).toBe('none');
     expect(formatKilograms(2_000_000_000)).toBe('2B kg');
+  });
+
+  it('subtracts only since-anchor observed travel from the interval (DC-3)', () => {
+    const untravelled = massRowDisplay(TYPED, 'stable', null, null);
+    const travelled = massRowDisplay(TYPED, 'stable', 500_000_000, 200_000_000);
+    expect(untravelled.kind).toBe('range');
+    expect(travelled.kind).toBe('range');
+    if (untravelled.kind !== 'range' || travelled.kind !== 'range') return;
+    expect(travelled.minKg).toBe(untravelled.minKg - 300_000_000);
+    expect(travelled.maxKg).toBe(untravelled.maxKg - 300_000_000);
+
+    // A reversed odometer (anchor ahead of the counter) is malformed: no estimate.
+    expect(massRowDisplay(TYPED, 'stable', 100_000_000, 200_000_000).kind).toBe(
+      'none',
+    );
   });
 
   it('projects lifetime from the shared window or typed ceiling', () => {

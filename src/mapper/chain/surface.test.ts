@@ -117,11 +117,14 @@ describe('mapper source contract', () => {
       'authoring/ConnectionAuthoringOverlay.tsx',
       'authoring/ConnectionDetailsCard.tsx',
       'authoring/HomePrompt.tsx',
+      'authoring/JumpResolutionPrompt.tsx',
       'authoring/NodeAddMenu.tsx',
       'authoring/RightsTransitionToast.tsx',
+      'authoring/connection-field-group.tsx',
       'authoring/connection-fields.tsx',
       'authoring/connection-intelligence.ts',
       'authoring/connection-selection.ts',
+      'authoring/jump-resolution.ts',
       'authoring/rights-transition.ts',
       'authoring/sever-toast.ts',
       'authoring/wormhole-type-search.ts',
@@ -144,6 +147,7 @@ describe('mapper source contract', () => {
       'chain/reconciler.ts',
       'chain/use-map-chain.ts',
       'index.ts',
+      'jump-client.ts',
       'layout/compass.ts',
       'layout/determinism-fixture.ts',
       'layout/facts.ts',
@@ -163,13 +167,13 @@ describe('mapper source contract', () => {
       'motion/motion-host-model.ts',
       'motion/tween-model.ts',
       'motion/use-motion.ts',
+      'tracking/JumpDoorbellObserver.tsx',
       'tracking/TrackingControls.tsx',
+      'tracking/doorbell-model.ts',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
       'windows/MapWindowLeader.tsx',
-      'windows/drag-resize.ts',
       'windows/follower-model.ts',
-      'windows/persistence.ts',
       'windows/window-model.ts',
     ]);
   });
@@ -233,13 +237,15 @@ describe('mapper source contract', () => {
     expect(consumers).toEqual(['chain/use-map-chain.ts']);
   });
 
-  it('keeps the two subscriptions split so a connection write cannot re-read systems', () => {
-    // HC-2's client half: two calls against two functions, never one aggregate read.
+  it('keeps the page subscriptions split so a connection write cannot re-read systems', () => {
+    // HC-2's client half: one call per function over disjoint index ranges,
+    // never one aggregate read. The unresolved-slot feed is the third split.
     const hook = sourceOf('chain/use-map-chain.ts');
 
     expect(hook).toContain('api.mapChain.watchMapSystems');
     expect(hook).toContain('api.mapChain.watchMapConnections');
-    expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(2);
+    expect(hook).toContain('api.mapChain.watchUnresolvedHoles');
+    expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(3);
   });
 
   it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {

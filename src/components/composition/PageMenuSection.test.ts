@@ -33,6 +33,27 @@ describe('PageMenuSection', () => {
     expect(html).toContain('aria-pressed="true"'); // the fallback value is selected
   });
 
+  it('renders a registered boolean control as a Switch row', () => {
+    registerPageSettings({
+      route: '/atlas',
+      title: 'Map settings',
+      controls: [
+        {
+          key: 'atlas.autoLayout',
+          placement: 'section',
+          description: 're-enabling restores the computed layout',
+        },
+      ],
+    });
+    const html = renderAt('/atlas');
+    expect(html).toContain('Map settings');
+    expect(html).toContain('auto layout');
+    // The relock consequence is disclosed on the row itself.
+    expect(html).toContain('re-enabling restores the computed layout');
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('aria-checked="true"'); // atlas.autoLayout fallback
+  });
+
   it('prefers the spec’s own title when declared', () => {
     registerPageSettings({
       route: '/sites',

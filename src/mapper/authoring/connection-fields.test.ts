@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import {
-  ConnectionFields,
   decodeOptionalField,
   encodeOptionalField,
   UNSET_FIELD,
-} from './connection-fields';
+} from './connection-field-group';
+import { ConnectionFields } from './connection-fields';
 
 vi.mock('@/components/ui/select', () => ({
   Select: (props: {
@@ -33,19 +33,13 @@ vi.mock('@/components/ui/terminal-search', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-  Button: (props: {
-    children?: unknown;
-    'data-map-connection-sever'?: string;
-    'data-map-connection-restore'?: string;
-  }) =>
-    createElement(
-      'button',
-      {
-        'data-map-connection-sever': props['data-map-connection-sever'],
-        'data-map-connection-restore': props['data-map-connection-restore'],
-      },
-      props.children as never,
-    ),
+  Button: ({
+    children,
+    variant: _variant,
+    size: _size,
+    ...props
+  }: Record<string, unknown> & { children?: unknown }) =>
+    createElement('button', props, children as never),
 }));
 
 vi.mock('@/components/ui/tooltip', () => ({
@@ -85,6 +79,12 @@ const CONNECTION = {
   deathLatestAt: null,
   deletedAt: null,
   purgeAfter: null,
+  fromSignatureId: null,
+  fromDestinationHint: null,
+  destinationProvenance: null,
+  pendingCandidates: null,
+  observedMassKg: null,
+  observedMassAtStateKg: null,
 };
 
 const SETTERS = {
@@ -92,6 +92,7 @@ const SETTERS = {
   setShipSize: vi.fn(),
   setMassState: vi.fn(),
   setLifeStage: vi.fn(),
+  setDestinationHint: vi.fn(),
 };
 
 describe('optional field encode/decode', () => {
@@ -166,6 +167,133 @@ describe('connection fields form', () => {
     expect(markup).not.toContain('data-map-connection-codex');
     expect(markup).toContain('data-select="Ship size"');
     expect(markup).not.toContain('data-map-connection-size-locked');
+  });
+
+  it('offers the leads-to hint only for K162 / unidentified holes (D11)', () => {
+    const k162 = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: { ...CONNECTION, wormholeTypeCode: 'K162' },
+        codexReady: true,
+        codes: ['K162'],
+        entry: K162,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+      }),
+    );
+    expect(k162).toContain('data-select="Leads to"');
+
+    const untyped = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: { ...CONNECTION, wormholeTypeCode: null },
+        codexReady: true,
+        codes: [],
+        entry: null,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+      }),
+    );
+    expect(untyped).toContain('data-select="Leads to"');
+
+    const typed = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: CONNECTION,
+        codexReady: true,
+        codes: ['B274'],
+        entry: TYPED,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+      }),
+    );
+    expect(typed).not.toContain('data-select="Leads to"');
+  });
+
+  it('renders the codex regeneration row only when regeneration is nonzero', () => {
+    const still = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: CONNECTION,
+        codexReady: true,
+        codes: ['B274'],
+        entry: TYPED,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+      }),
+    );
+    expect(still).toContain('data-map-connection-codex');
+    expect(still).not.toContain('data-map-codex-fact="Regeneration"');
+
+    const regen = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: CONNECTION,
+        codexReady: true,
+        codes: ['B274'],
+        entry: { ...TYPED, massRegen: 500_000_000 },
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+      }),
+    );
+    expect(regen).toContain('data-map-codex-fact="Regeneration"');
+    expect(regen).toContain('data-map-connection-mass-regen');
+  });
+
+  it('shows the answerable auto-link group only while controls are supplied', () => {
+    const pending = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: {
+          ...CONNECTION,
+          wormholeTypeCode: 'K162',
+          destinationProvenance: 'assumed' as const,
+          pendingCandidates: [CONNECTION.connectionId],
+        },
+        codexReady: true,
+        codes: ['K162'],
+        entry: K162,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+        resolutionControls: {
+          resolution: {
+            connectionId: CONNECTION.connectionId,
+            candidates: [
+              {
+                connectionId: CONNECTION.connectionId,
+                signatureId: 'ABC-123',
+                wormholeTypeCode: 'K162',
+                isCurrent: true,
+              },
+              {
+                connectionId: 'stub-2' as Id<'mapConnections'>,
+                signatureId: 'DEF-456',
+                wormholeTypeCode: null,
+                isCurrent: false,
+              },
+            ],
+          },
+          answers: { onConfirm: vi.fn(), onCorrect: vi.fn() },
+        },
+      }),
+    );
+    expect(pending).toContain('data-map-connection-resolution');
+    expect(pending).toContain('data-map-jump-confirm');
+    expect(pending).toContain('data-map-jump-correct="stub-2"');
+    expect(pending).toContain('DEF-456');
+
+    const plain = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: CONNECTION,
+        codexReady: true,
+        codes: ['B274'],
+        entry: TYPED,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+      }),
+    );
+    expect(plain).not.toContain('data-map-connection-resolution');
   });
 
   it('opens restore-only mode without field editors or sever', () => {

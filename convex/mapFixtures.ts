@@ -11,13 +11,16 @@
 //   2. Volatile bookkeeping never touches a watched payload document — last-seen
 //      lives in mapSignatureActivity, and a sub-threshold observation writes nothing.
 import { ConvexError, v } from 'convex/values';
+import { isTombstoned } from '@/data/maps/chain-contract';
 import {
   internalMutation,
   query,
   type MutationCtx,
 } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
 import {
+  destinationHintValidator,
   massStateValidator,
   mergeSignatureKnowledge,
   noteTargetKindValidator,
@@ -25,6 +28,7 @@ import {
   shipSizeValidator,
   validateConnectionInput,
   validateSignatureKnowledge,
+  validateUnresolvedHoleInput,
   wormholeTypeCodeValidator,
   type NoteTargetKind,
 } from './lib/mapEntityContracts';
@@ -188,6 +192,368 @@ export const placeJumpFixture = internalMutation({
     }
 
     return await ctx.db.insert('mapConnections', args);
+  },
+});
+
+interface UnresolvedHoleFixtureArgs {
+  readonly mapId: string;
+  readonly fromSystemId: number;
+  readonly fromSignatureId: string;
+  readonly wormholeTypeCode?: Doc<'mapConnections'>['wormholeTypeCode'];
+  readonly shipSize?: Doc<'mapConnections'>['shipSize'];
+  readonly fromDestinationHint?: Doc<'mapConnections'>['fromDestinationHint'];
+}
+
+interface NormalizedUnresolvedHole extends UnresolvedHoleFixtureArgs {
+  readonly fromSignatureId: string;
+  readonly wormholeTypeCode: Doc<'mapConnections'>['wormholeTypeCode'];
+  readonly shipSize: Doc<'mapConnections'>['shipSize'];
+}
+
+function normalizeUnresolvedHole(args: UnresolvedHoleFixtureArgs): NormalizedUnresolvedHole {
+  const normalized = {
+    ...args,
+    fromSignatureId: args.fromSignatureId.trim(),
+    wormholeTypeCode: args.wormholeTypeCode ?? null,
+    shipSize: args.shipSize ?? null,
+  };
+  validateUnresolvedHoleInput({
+    fromSystemId: normalized.fromSystemId,
+    toSystemId: null,
+    fromSignatureId: normalized.fromSignatureId,
+    wormholeTypeCode: normalized.wormholeTypeCode,
+    shipSize: normalized.shipSize,
+    fromDestinationHint: normalized.fromDestinationHint,
+  });
+  return normalized;
+}
+
+async function requireUnresolvedHoleOrigin(
+  ctx: MutationCtx,
+  args: NormalizedUnresolvedHole,
+): Promise<void> {
+  const origin = await findSystem(ctx, args.mapId, args.fromSystemId);
+  if (origin === null || isTombstoned(origin)) {
+    throw new ConvexError({
+      code: 'UNKNOWN_ENDPOINT',
+      detail: `Origin system ${args.fromSystemId} is not live on map ${args.mapId}.`,
+    });
+  }
+}
+
+async function findUnresolvedHole(
+  ctx: MutationCtx,
+  args: NormalizedUnresolvedHole,
+): Promise<Doc<'mapConnections'> | undefined> {
+  const rows = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map_from', (q) =>
+      q.eq('mapId', args.mapId).eq('fromSystemId', args.fromSystemId),
+    )
+    .take(FIXTURE_CONNECTION_SCAN_LIMIT + 1);
+  if (rows.length > FIXTURE_CONNECTION_SCAN_LIMIT) {
+    throw new ConvexError({
+      code: 'FIXTURE_MAP_TOO_LARGE',
+      detail: `Map ${args.mapId} exceeds the ${FIXTURE_CONNECTION_SCAN_LIMIT}-connection unresolved-hole bound.`,
+    });
+  }
+  return rows.find(
+    (row) => row.toSystemId === null && row.fromSignatureId === args.fromSignatureId,
+  );
+}
+
+function unresolvedHoleTypePatch(
+  existing: Doc<'mapConnections'>,
+  input: UnresolvedHoleFixtureArgs,
+  normalized: NormalizedUnresolvedHole,
+): Partial<Doc<'mapConnections'>> {
+  if (input.wormholeTypeCode === undefined) return {};
+  if (existing.wormholeTypeCode === normalized.wormholeTypeCode) return {};
+  return {
+    wormholeTypeCode: normalized.wormholeTypeCode,
+    typedSide: normalized.wormholeTypeCode === null ? undefined : 'from',
+    typeProvenance: normalized.wormholeTypeCode === null ? undefined : 'human',
+  };
+}
+
+function unresolvedHoleSizePatch(
+  existing: Doc<'mapConnections'>,
+  input: UnresolvedHoleFixtureArgs,
+  normalized: NormalizedUnresolvedHole,
+): Partial<Doc<'mapConnections'>> {
+  if (input.shipSize === undefined || existing.shipSize === normalized.shipSize) return {};
+  return { shipSize: normalized.shipSize };
+}
+
+function unresolvedHoleHintPatch(
+  existing: Doc<'mapConnections'>,
+  input: UnresolvedHoleFixtureArgs,
+  normalized: NormalizedUnresolvedHole,
+): Partial<Doc<'mapConnections'>> {
+  if (input.fromDestinationHint === undefined) return {};
+  if (existing.fromDestinationHint === normalized.fromDestinationHint) return {};
+  return { fromDestinationHint: normalized.fromDestinationHint };
+}
+
+function unresolvedHolePatch(
+  existing: Doc<'mapConnections'>,
+  input: UnresolvedHoleFixtureArgs,
+  normalized: NormalizedUnresolvedHole,
+): Partial<Doc<'mapConnections'>> {
+  return {
+    ...unresolvedHoleTypePatch(existing, input, normalized),
+    ...unresolvedHoleSizePatch(existing, input, normalized),
+    ...unresolvedHoleHintPatch(existing, input, normalized),
+  };
+}
+
+async function insertUnresolvedHole(
+  ctx: MutationCtx,
+  args: NormalizedUnresolvedHole,
+) {
+  return await ctx.db.insert('mapConnections', {
+    mapId: args.mapId,
+    fromSystemId: args.fromSystemId,
+    toSystemId: null,
+    fromSignatureId: args.fromSignatureId,
+    wormholeTypeCode: args.wormholeTypeCode,
+    massState: null,
+    shipSize: args.shipSize,
+    eolAt: null,
+    typedSide: args.wormholeTypeCode === null ? undefined : 'from',
+    typeProvenance: args.wormholeTypeCode === null ? undefined : 'human',
+    fromDestinationHint: args.fromDestinationHint,
+    deletedAt: null,
+    purgeAfter: null,
+  });
+}
+
+/**
+ * Seeds or enriches one active scanned wormhole slot without inventing a far
+ * endpoint. This is the pre-parser proof seam for jump matching.
+ */
+export const upsertUnresolvedHole = internalMutation({
+  args: {
+    mapId: v.string(),
+    fromSystemId: v.number(),
+    fromSignatureId: v.string(),
+    wormholeTypeCode: v.optional(wormholeTypeCodeValidator),
+    shipSize: v.optional(shipSizeValidator),
+    fromDestinationHint: v.optional(destinationHintValidator),
+  },
+  handler: async (ctx, input) => {
+    const args = normalizeUnresolvedHole(input);
+    await requireUnresolvedHoleOrigin(ctx, args);
+    const existing = await findUnresolvedHole(ctx, args);
+    if (existing === undefined) {
+      const connectionId = await insertUnresolvedHole(ctx, args);
+      return { outcome: 'inserted' as const, connectionId };
+    }
+    if (isTombstoned(existing)) {
+      return { outcome: 'tombstoned' as const, connectionId: existing._id };
+    }
+    const patch = unresolvedHolePatch(existing, input, args);
+    if (Object.keys(patch).length === 0) {
+      return { outcome: 'unchanged' as const, connectionId: existing._id };
+    }
+    await ctx.db.patch(existing._id, patch);
+    return { outcome: 'updated' as const, connectionId: existing._id };
+  },
+});
+
+function requireTrackedFixtureIdentity(
+  userId: string,
+  characterId: number,
+  transitionObservedAt: number,
+): void {
+  if (userId.trim().length === 0) {
+    throw new ConvexError({
+      code: 'INVALID_FIXTURE_USER',
+      detail: 'A tracked-location fixture needs a non-empty user id.',
+    });
+  }
+  if (!Number.isSafeInteger(characterId) || characterId <= 0) {
+    throw new ConvexError({
+      code: 'INVALID_CHARACTER_ID',
+      detail: 'A tracked-location fixture needs a positive safe character id.',
+    });
+  }
+  if (!Number.isFinite(transitionObservedAt) || transitionObservedAt <= 0) {
+    throw new ConvexError({
+      code: 'INVALID_TRANSITION_TIME',
+      detail: 'A tracked-location fixture needs a positive finite transition time.',
+    });
+  }
+}
+
+const trackedLocationFixtureResult = v.object({
+  trackingId: v.id('mapTracking'),
+  locationId: v.id('characterLocation'),
+  fromSolarSystemId: v.union(v.number(), v.null()),
+  toSolarSystemId: v.number(),
+  transitionObservedAt: v.number(),
+});
+
+/**
+ * Seeds the subscribed origin fact for a CLI-driven tracked-jump demo. This
+ * fixture arranges source evidence only; the browser doorbell and production
+ * resolver still own classification, authoring, matching, and mass updates.
+ */
+export const seedTrackedLocationFixture = internalMutation({
+  args: {
+    mapId: v.string(),
+    userId: v.string(),
+    characterId: v.number(),
+    solarSystemId: v.number(),
+    shipTypeId: v.union(v.number(), v.null()),
+    transitionObservedAt: v.number(),
+  },
+  returns: trackedLocationFixtureResult,
+  handler: async (ctx, args) => {
+    requireSystemId(args.solarSystemId);
+    requireTrackedFixtureIdentity(
+      args.userId,
+      args.characterId,
+      args.transitionObservedAt,
+    );
+
+    const system = await findSystem(ctx, args.mapId, args.solarSystemId);
+    if (system === null) {
+      await ctx.db.insert('mapSystems', {
+        mapId: args.mapId,
+        systemId: args.solarSystemId,
+      });
+    } else if (isTombstoned(system)) {
+      throw new ConvexError({
+        code: 'FIXTURE_ORIGIN_TOMBSTONED',
+        detail: `System ${args.solarSystemId} is tombstoned on map ${args.mapId}.`,
+      });
+    }
+
+    const tracking = await ctx.db
+      .query('mapTracking')
+      .withIndex('by_map_user', (q) =>
+        q.eq('mapId', args.mapId).eq('userId', args.userId),
+      )
+      .filter((q) => q.eq(q.field('characterId'), args.characterId))
+      .unique();
+    const trackingId = tracking?._id ?? await ctx.db.insert('mapTracking', {
+      mapId: args.mapId,
+      userId: args.userId,
+      characterId: args.characterId,
+    });
+
+    const location = await ctx.db
+      .query('characterLocation')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', args.userId).eq('characterId', args.characterId),
+      )
+      .unique();
+    const source = {
+      userId: args.userId,
+      characterId: args.characterId,
+      solarSystemId: args.solarSystemId,
+      stationId: null,
+      structureId: null,
+      shipTypeId: args.shipTypeId,
+      prevSolarSystemId: null,
+      prevFresh: false,
+      transitionObservedAt: args.transitionObservedAt,
+      observedAt: args.transitionObservedAt,
+      etagLocation: null,
+      etagShip: null,
+    };
+    const locationId = location?._id
+      ?? await ctx.db.insert('characterLocation', source);
+    if (location !== null) {
+      await ctx.db.patch('characterLocation', location._id, source);
+    }
+
+    return {
+      trackingId,
+      locationId,
+      fromSolarSystemId: null,
+      toSolarSystemId: args.solarSystemId,
+      transitionObservedAt: args.transitionObservedAt,
+    };
+  },
+});
+
+/**
+ * Advances only the subscribed location evidence for a tracked CLI fixture.
+ * A fresh transition lets the normal browser observer ring the real resolver;
+ * `prevFresh=false` deliberately creates a re-anchor between demo jumps.
+ */
+export const advanceTrackedLocationFixture = internalMutation({
+  args: {
+    mapId: v.string(),
+    userId: v.string(),
+    characterId: v.number(),
+    fromSolarSystemId: v.number(),
+    toSolarSystemId: v.number(),
+    prevFresh: v.boolean(),
+    transitionObservedAt: v.number(),
+  },
+  returns: trackedLocationFixtureResult,
+  handler: async (ctx, args) => {
+    requireSystemId(args.fromSolarSystemId);
+    requireSystemId(args.toSolarSystemId);
+    requireTrackedFixtureIdentity(
+      args.userId,
+      args.characterId,
+      args.transitionObservedAt,
+    );
+
+    const location = await ctx.db
+      .query('characterLocation')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', args.userId).eq('characterId', args.characterId),
+      )
+      .unique();
+    if (location === null) {
+      throw new ConvexError({
+        code: 'FIXTURE_LOCATION_MISSING',
+        detail: `Character ${args.characterId} has no seeded location.`,
+      });
+    }
+    if (location.solarSystemId !== args.fromSolarSystemId) {
+      throw new ConvexError({
+        code: 'FIXTURE_LOCATION_STALE',
+        detail: `Character ${args.characterId} is not in ${args.fromSolarSystemId}.`,
+      });
+    }
+
+    await ctx.db.patch('characterLocation', location._id, {
+      solarSystemId: args.toSolarSystemId,
+      stationId: null,
+      structureId: null,
+      prevSolarSystemId: args.fromSolarSystemId,
+      prevFresh: args.prevFresh,
+      transitionObservedAt: args.transitionObservedAt,
+      observedAt: args.transitionObservedAt,
+      etagLocation: null,
+    });
+    const tracking = await ctx.db
+      .query('mapTracking')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', args.userId).eq('characterId', args.characterId),
+      )
+      .filter((q) => q.eq(q.field('mapId'), args.mapId))
+      .first();
+    if (tracking === null) {
+      throw new ConvexError({
+        code: 'FIXTURE_TRACKING_MISSING',
+        detail: `Character ${args.characterId} has no seeded tracking row.`,
+      });
+    }
+
+    return {
+      trackingId: tracking._id,
+      locationId: location._id,
+      fromSolarSystemId: args.fromSolarSystemId,
+      toSolarSystemId: args.toSolarSystemId,
+      transitionObservedAt: args.transitionObservedAt,
+    };
   },
 });
 

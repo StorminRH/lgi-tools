@@ -10,6 +10,7 @@ import {
   startFrameCapture,
   stopFrameCapture,
 } from '../lib/motion-metrics.mjs';
+import { setAtlasMapPreference } from '../lib/window-helpers.mjs';
 
 export default {
   name: 'atlas-motion-drag',
@@ -38,11 +39,11 @@ export default {
     check(`a production-like chain is rendered (${nodeCount} nodes)`, nodeCount >= 40);
 
     // Unlock for dragging; keep the camera out of the picture.
-    const followSwitch = page.getByRole('switch', { name: 'Camera follow' });
-    if (await followSwitch.isChecked()) await followSwitch.click();
-    const lockSwitch = page.getByRole('switch', { name: 'Map lock' });
-    if (await lockSwitch.isChecked()) await lockSwitch.click();
-    check('map is unlocked for the drag', !(await lockSwitch.isChecked()));
+    await setAtlasMapPreference(page, 'camera follow', false);
+    check(
+      'auto layout is off for the drag',
+      (await setAtlasMapPreference(page, 'auto layout', false)) === false,
+    );
 
     // Grab a node near the viewport center whose disc is actually hittable
     // (floating chrome or the control panel can overlap discs), and keep the

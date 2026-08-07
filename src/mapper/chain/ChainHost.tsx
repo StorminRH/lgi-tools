@@ -11,7 +11,8 @@
 //      from the placement seam until re-lock clears every user stamp.
 //
 // Everything drawn here comes from the reconciler (contract DC-7). This module reads no Convex page
-// directly and adds no mutation surface — lock, dials, and camera follow are client-local only.
+// directly and adds no mutation surface — layout/motion dials are client-local only; map lock,
+// camera follow, and click focus are autosaved preferences.
 import {
   applyNodeChanges,
   ReactFlowProvider,
@@ -23,8 +24,14 @@ import {
   type SelectionDragHandler,
 } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { usePreference } from '@/components/PreferencesProvider';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import type { Id } from '@/data/convex/data-model';
+import {
+  atlasAutoLayout,
+  atlasCameraFollow,
+  atlasClickFocus,
+} from '@/lib/preferences';
 import { ConnectionAuthoringOverlay } from '../authoring/ConnectionAuthoringOverlay';
 import { HomePrompt } from '../authoring/HomePrompt';
 import {
@@ -45,13 +52,14 @@ import {
 } from '../layout/layout-contract';
 import {
   DEFAULT_MOTION_CONFIG,
+  motionCssProperties,
   type MotionConfig,
 } from '../motion/motion-contract';
 import type { MotionTruth } from '../motion/motion-host-model';
 import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
-import { TrackingControls } from '../tracking/TrackingControls';
+import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
+import { TrackingHeartbeat } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
-import type { RootClickSignal } from '../windows/window-model';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
@@ -87,18 +95,14 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // Mirrors `dragging` for use inside the sync effect without making the effect depend on it: a drag
   // start must not itself trigger a resync.
   const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
-  // Map lock: locked by default — nodes cannot be dragged until the operator unlocks.
-  const [locked, setLocked] = useState(true);
-  // Camera follow: local, default OFF — the operator's G-1 call (2026-08-02):
-  // automatic viewport snapping reads as the camera fighting the user.
-  const [follow, setFollow] = useState(false);
-  // Click-to-focus: a shipped user setting beside camera follow — deliberately
-  // NOT a MotionConfig dial. Default ON ratified at the G-1 gate (2026-08-02):
-  // unlike follow, focus is a direct answer to the user's own click, so it
-  // does not read as the camera moving on its own; it stays user-changeable.
-  const [focusOnClick, setFocusOnClick] = useState(true);
+  // Auto layout / camera follow / click focus: autosaved preferences
+  // (portrait menu). Auto layout ON = nodes locked to the computed layout.
+  const [locked] = usePreference(atlasAutoLayout);
+  const [follow] = usePreference(atlasCameraFollow);
+  const [focusOnClick] = usePreference(atlasClickFocus);
+  // Re-lock releases user placements only on transition to locked (not initial mount).
+  const wasLockedRef = useRef(locked);
   const [focusRequest, setFocusRequest] = useState<CameraFocusRequest | null>(null);
-  const [rootClick, setRootClick] = useState<RootClickSignal | null>(null);
   const focusTokenRef = useRef(0);
   // Live dial state — local presentation only; never synchronized.
   const [config, setConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG);
@@ -107,6 +111,17 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const [motionConfig, setMotionConfig] = useState<MotionConfig>(
     DEFAULT_MOTION_CONFIG,
   );
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = shellRef.current;
+    if (element === null) return;
+    for (const [property, value] of Object.entries(
+      motionCssProperties(motionConfig),
+    )) {
+      element.style.setProperty(property, value);
+    }
+  }, [motionConfig]);
 
   const {
     access,
@@ -114,6 +129,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     systemsComplete,
     liveSystemCount,
     connectionDetails,
+    unresolvedHoles,
     connectionPresentationNow,
     events,
     state,
@@ -219,13 +235,10 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     [stopDrag],
   );
 
-  const handleLockedChange = useCallback(
-    (nextLocked: boolean) => {
-      setLocked(nextLocked);
-      if (nextLocked) releasePlacements();
-    },
-    [releasePlacements],
-  );
+  useEffect(() => {
+    if (locked && !wasLockedRef.current) releasePlacements();
+    wasLockedRef.current = locked;
+  }, [locked, releasePlacements]);
 
   // Focus is additive to selection: this handler only records the click for
   // the camera host; React Flow's own selection behavior runs untouched.
@@ -233,7 +246,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     (_event, clicked) => {
       focusTokenRef.current += 1;
       setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
-      setRootClick({ systemId: Number(clicked.id), token: focusTokenRef.current });
       setSelectedConnectionId(null);
     },
     [],
@@ -294,7 +306,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // affordances from the same live claim answer without a second subscription.
   return (
     <div
+      ref={shellRef}
       className="h-full w-full"
+      data-map-shell=""
       data-map-can-edit={canEdit === true ? 'true' : 'false'}
     >
       <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
@@ -315,18 +329,12 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           onEdgeClick={onEdgeClick}
         >
           <MapControls
-            locked={locked}
-            onLockedChange={handleLockedChange}
-            follow={follow}
-            onFollowChange={setFollow}
-            focusOnClick={focusOnClick}
-            onFocusOnClickChange={setFocusOnClick}
             config={config}
             onConfigChange={setConfig}
             motion={motionConfig}
             onMotionChange={setMotionConfig}
           />
-          {access === true ? <TrackingControls mapId={mapId} /> : null}
+          {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
           <CameraFollowHost
             intents={intents}
             follow={follow}
@@ -341,14 +349,15 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
         </MotionLayer>
         <MapWindowLayer
           rootSystemId={rootSystemId}
-          rootClick={rootClick}
           onDeselect={deselectNodes}
         />
         <RightsTransitionToast canEdit={canEdit} />
+        {canEdit === true ? <JumpDoorbellObserver mapId={mapId} /> : null}
         <ConnectionAuthoringOverlay
           mapId={mapId}
           canEdit={canEdit === true}
           connectionDetails={connectionDetails}
+          unresolvedHoles={unresolvedHoles}
           connectionPresentationNow={connectionPresentationNow}
           events={events}
           authoring={authoring}

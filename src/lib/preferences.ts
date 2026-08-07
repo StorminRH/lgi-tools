@@ -120,6 +120,39 @@ export const industryCostBasis = define<'batched' | 'marginal'>(
   'marginal',
 );
 
+/**
+ * Atlas canvas: the computed layout owns node positions. Default on; off
+ * unlocks node dragging, and switching it back ON releases every user
+ * placement and restores the computed layout (ChainHost owns the
+ * transition). The key matches the user-facing "auto layout" wording so the
+ * derived label needs no override. NOT ssrReadable: the canvas is client-only.
+ */
+export const atlasAutoLayout = define<boolean>(
+  'atlas.autoLayout',
+  z.boolean(),
+  true,
+);
+
+/**
+ * Atlas canvas: auto-refit camera when the chain changes. Default off — G-1
+ * (automatic snapping reads as fighting the user). NOT ssrReadable.
+ */
+export const atlasCameraFollow = define<boolean>(
+  'atlas.cameraFollow',
+  z.boolean(),
+  false,
+);
+
+/**
+ * Atlas canvas: center on a clicked system. Default on — G-1 (direct answer to
+ * the user's click). NOT ssrReadable.
+ */
+export const atlasClickFocus = define<boolean>(
+  'atlas.clickFocus',
+  z.boolean(),
+  true,
+);
+
 // ── The per-surface character-strip dimmed sets (ACCOUNT.7, D-7) ──
 // One def per strip-declaring surface, keyed `strip.<surfaceId>.dimmed`. The
 // stored value is the DIMMED characterIds (store-off-not-on): a character absent
@@ -175,6 +208,9 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   plannerBuildCharacter,
   sitesDetailMode,
   industryCostBasis,
+  atlasAutoLayout,
+  atlasCameraFollow,
+  atlasClickFocus,
   ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),
 ];
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));

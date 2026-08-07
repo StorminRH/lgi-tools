@@ -104,7 +104,7 @@ describe('map chain read path', () => {
     // The chain reads answer a denial with an empty page rather than a throw, because a thrown error
     // inside a live subscription is an uncaught error in the client's socket callback rather than a
     // state the UI can simply render. `watchMapAccess` is the authority on revoked-versus-empty.
-    it.each(['watchMapSystems', 'watchMapConnections'] as const)(
+    it.each(['watchMapSystems', 'watchMapConnections', 'watchUnresolvedHoles'] as const)(
       'serves a signed-out caller of %s an empty, complete page and no rows',
       async (fn) => {
         const t = convexTest(schema, modules);
@@ -122,7 +122,7 @@ describe('map chain read path', () => {
       },
     );
 
-    it.each(['watchMapSystems', 'watchMapConnections'] as const)(
+    it.each(['watchMapSystems', 'watchMapConnections', 'watchUnresolvedHoles'] as const)(
       'serves a caller holding no claim an empty page for %s',
       async (fn) => {
         const t = convexTest(schema, modules);
@@ -199,11 +199,16 @@ describe('map chain read path', () => {
       expect(result).toEqual({ granted: true, canEdit: true });
     });
 
-    it('lets a viewer watch both collections', async () => {
+    it('gives a viewer disjoint resolved and unresolved connection feeds', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, VIEWER, ['viewer']);
       await placeSystems(t, MAP_A, [JITA, AMARR]);
       await connect(t, MAP_A, JITA, AMARR);
+      const unresolved = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: 'ABC-123',
+      });
 
       const systems = await asUser(t, VIEWER).query(api.mapChain.watchMapSystems, {
         mapId: MAP_A,
@@ -213,9 +218,22 @@ describe('map chain read path', () => {
         mapId: MAP_A,
         paginationOpts: page(10),
       });
+      const holes = await asUser(t, VIEWER).query(api.mapChain.watchUnresolvedHoles, {
+        mapId: MAP_A,
+        paginationOpts: page(10),
+      });
 
       expect(systems.page).toHaveLength(2);
       expect(connections.page).toHaveLength(1);
+      expect(connections.page[0]?.toSystemId).toBe(AMARR);
+      expect(holes.page).toEqual([
+        expect.objectContaining({
+          _id: unresolved.connectionId,
+          fromSystemId: JITA,
+          toSystemId: null,
+          fromSignatureId: 'ABC-123',
+        }),
+      ]);
     });
 
     // SC-4 · DC-4 / AC-4 — the server half of the calm no-access state, with no error path.
@@ -531,65 +549,49 @@ describe('map chain read path', () => {
       return codeOnly(rest.slice(0, end));
     }
 
-    /** The one shared body every chain subscription flows through. */
-    function helperCode(): string {
-      const start = SOURCE.indexOf('async function readChainPage');
-      expect(start, 'readChainPage must exist').toBeGreaterThanOrEqual(0);
-      const rest = SOURCE.slice(start);
-      const end = rest.indexOf('\n}');
-      expect(end, 'readChainPage must be a closed declaration').toBeGreaterThan(0);
-      return codeOnly(rest.slice(0, end));
+    function helperCode(startMarker: string, endMarker: string): string {
+      const start = SOURCE.indexOf(startMarker);
+      const end = SOURCE.indexOf(endMarker, start);
+      expect(start, `${startMarker} must exist`).toBeGreaterThanOrEqual(0);
+      expect(end, `${endMarker} must follow ${startMarker}`).toBeGreaterThan(start);
+      return codeOnly(SOURCE.slice(start, end));
     }
 
-    // HC-2's deterministic evidence, in two halves. Read-set tracking is per-execution, so the
-    // handler's table literal plus a helper that reads nothing but that parameter table proves a
-    // connection patch cannot overlap the systems read set — without observing a deployment.
+    // HC-2's deterministic evidence: each handler delegates to one range-owned helper, and those
+    // helpers touch only their named table/range — without observing a deployment.
     it.each([
-      { fn: 'watchMapSystems', table: 'mapSystems' },
-      { fn: 'watchMapConnections', table: 'mapConnections' },
-    ])('pins $fn to exactly its own $table read', ({ fn, table }) => {
+      { fn: 'watchMapSystems', helper: 'readSystemPage' },
+      { fn: 'watchMapConnections', helper: 'readConnectionPage', mode: 'resolved' },
+      { fn: 'watchUnresolvedHoles', helper: 'readConnectionPage', mode: 'unresolved' },
+    ])('pins $fn to its owned page helper', ({ fn, helper, mode }) => {
       const code = dense(handlerCode(fn));
 
-      expect(countOccurrences(code, `readChainPage(ctx,'${table}'`)).toBe(1);
-      for (const other of CHAIN_TABLES.filter((name) => name !== table)) {
-        expect(code, `${fn} must not name ${other}`).not.toContain(`'${other}'`);
-      }
-      // The handler delegates and does nothing else database-shaped itself.
+      expect(countOccurrences(code, `${helper}(ctx,mapId,paginationOpts`)).toBe(1);
+      if (mode !== undefined) expect(code).toContain(`'${mode}'`);
       expect(code, `${fn} must not read the database directly`).not.toContain('ctx.db');
     });
 
-    it('pins the shared page reader to one gated dynamic read and nothing else', () => {
-      const code = dense(helperCode());
+    it('pins the gated helpers to their disjoint indexed ranges', () => {
+      const systems = dense(helperCode('async function readSystemPage', '/**\n * Reads one access-gated connection'));
+      const connections = dense(helperCode('async function readConnectionPage', '/**\n * Subscribes to whether'));
 
-      // Exactly one database read, and it is the caller's parameter table via the by_map index.
-      expect(countOccurrences(code, 'ctx.db.query(chainTable)')).toBe(1);
-      expect(countOccurrences(code, 'ctx.db.')).toBe(1);
-      expect(countOccurrences(code, '.paginate(')).toBe(1);
-      expect(code).toContain("withIndex('by_map'");
-      expect(code, 'the helper must not point-read a document').not.toContain('db.get');
-      // No table literal may be hard-wired inside the shared body: an added read here would land in
-      // every chain subscription at once.
-      for (const table of CHAIN_TABLES) {
-        expect(code, `readChainPage must not hard-code ${table}`).not.toContain(`'${table}'`);
+      expect(countOccurrences(systems, "ctx.db.query('mapSystems')")).toBe(1);
+      expect(systems).toContain("withIndex('by_map'");
+      expect(countOccurrences(systems, '.paginate(')).toBe(1);
+      expect(systems.indexOf('tryMapAccess')).toBeLessThan(systems.indexOf('ctx.db.query'));
+
+      expect(countOccurrences(connections, "ctx.db.query('mapConnections')")).toBe(2);
+      expect(countOccurrences(connections, "withIndex('by_map_to'")).toBe(2);
+      expect(connections).toContain("gt('toSystemId',null)");
+      expect(connections).toContain("eq('toSystemId',null)");
+      expect(connections.indexOf('tryMapAccess')).toBeLessThan(connections.indexOf('ctx.db.query'));
+
+      for (const code of [systems, connections]) {
+        expect(code).toContain('deniedPage');
+        expect(code).not.toContain('db.get');
+        expect(code).not.toContain('.collect(');
+        expect(code).not.toContain('throw');
       }
-    });
-
-    it('resolves access before touching a chain table in the shared reader', () => {
-      const code = dense(helperCode());
-      const gateAt = code.indexOf('tryMapAccess');
-      const readAt = code.indexOf('ctx.db.query');
-
-      expect(gateAt).toBeGreaterThanOrEqual(0);
-      expect(readAt).toBeGreaterThan(gateAt);
-    });
-
-    it('returns an empty page instead of throwing when access is absent', () => {
-      // The whole point of the shape: a live subscription reports a denial as a value, so a
-      // revocation is a state the UI renders rather than an error in the client's socket callback.
-      const code = helperCode();
-
-      expect(code).toContain('=== null) return deniedPage');
-      expect(code, 'the shared reader must not throw').not.toContain('throw ');
     });
 
     it('keeps the access authority off the chain tables entirely', () => {

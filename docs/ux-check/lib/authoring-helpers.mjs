@@ -1,6 +1,7 @@
 /** Shared helpers for Atlas gated-authoring probes (session 4.0.4.1.1). */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { calmAtlasCamera } from './window-helpers.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,6 +23,14 @@ export const authoringMapId = () => process.env.UX_MAP_ID ?? null;
 
 export const authoringRoute = () => {
   const mapId = authoringMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
+/** Dedicated one-shot map for the automatic-jump UX gate. */
+export const automaticJumpMapId = () => process.env.UX_JUMP_MAP_ID ?? null;
+
+export const automaticJumpRoute = () => {
+  const mapId = automaticJumpMapId();
   return mapId ? `/atlas?map=${mapId}` : '/atlas';
 };
 
@@ -78,12 +87,7 @@ export async function openAddConnectionMenu(page) {
 
 /** Turn off camera flights that can park an edge-anchored card off-screen. */
 export async function calmMapCamera(page) {
-  for (const name of ['Camera follow', 'Click focus']) {
-    const control = page.getByRole('switch', { name });
-    if ((await control.count()) > 0 && (await control.isChecked())) {
-      await control.click();
-    }
-  }
+  await calmAtlasCamera(page);
 }
 
 /**
@@ -133,7 +137,7 @@ export async function restoreMapAccess(mapId) {
 export async function convexRun(path, args) {
   const { stdout, stderr } = await execFileAsync(
     'pnpm',
-    ['exec', 'convex', 'run', path, JSON.stringify(args)],
+    ['exec', 'convex', 'run', path, JSON.stringify(args), '--deployment', 'local'],
     { cwd: process.cwd(), env: process.env, timeout: 30_000 },
   );
   if (stderr.trim()) console.error(stderr.trim());

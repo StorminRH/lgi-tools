@@ -521,6 +521,16 @@ a:hover {
     background: var(--color-bg-deep);
   }
 }
+/* Near-transparent frost for map text overlays (current-system dock). No tint —
+ * soft blur alone keeps copy readable when map chrome passes underneath. */
+@utility glass-panel-faint {
+  background: transparent;
+  -webkit-backdrop-filter: blur(3px) saturate(var(--glass-saturate));
+  backdrop-filter: blur(3px) saturate(var(--glass-saturate));
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background: transparent;
+  }
+}
 /* Plain :root (not @theme) — these are shared knobs, not utility-generating
  * tokens. Saturation slightly >1 keeps the ISK-green accents alive through
  * the frost instead of washing gray. */
@@ -1160,7 +1170,9 @@ details[data-collapsible][open] > summary [data-chevron] {
  *     fade or nothing (DC-6). */
 
 /* Pre-hydration fallbacks mirroring the ratified DEFAULT_MOTION_CONFIG; the
- * effect overwrites them with live dial state on mount. */
+ * effect overwrites them with live dial state on the motion scope. Shell keeps
+ * the same tokens for overlays (connection card, etc.) outside that scope. */
+[data-map-shell],
 [data-map-motion-scope] {
   --map-motion-fast: 250ms;
   --map-motion-mid: 1000ms;

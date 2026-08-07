@@ -13,10 +13,16 @@ import {
 import type { Doc, Id } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
 import {
+  requireConnectionOnMap,
+  requireLiveConnectionOnMap,
+} from './lib/mapConnectionLookup';
+import {
+  destinationHintValidator,
   lifeStageValidator,
   massStateValidator,
   optionalTimestampValidator,
   shipSizeValidator,
+  typedSideValidator,
   validateDeathWindowInput,
   wormholeTypeCodeValidator,
   type WormholeLifeStage,
@@ -148,22 +154,6 @@ async function writeMapEvent<Kind extends MapEventKind>(
   });
 }
 
-/** Loads a connection that must belong to the named map. */
-async function requireConnectionOnMap(
-  ctx: MutationCtx,
-  mapId: string,
-  connectionId: Id<'mapConnections'>,
-): Promise<Doc<'mapConnections'>> {
-  const connection = await ctx.db.get(connectionId);
-  if (connection === null || connection.mapId !== mapId) {
-    throw new ConvexError({
-      code: 'UNKNOWN_CONNECTION',
-      detail: `No connection ${connectionId} on map ${mapId}.`,
-    });
-  }
-  return connection;
-}
-
 /** Gate + load a connection for field/tombstone writers. */
 async function gatedConnection(
   ctx: MutationCtx,
@@ -180,14 +170,8 @@ async function requireLiveConnection(
   mapId: string,
   connectionId: Id<'mapConnections'>,
 ): Promise<Doc<'mapConnections'>> {
-  const connection = await gatedConnection(ctx, mapId, connectionId);
-  if (isTombstoned(connection)) {
-    throw new ConvexError({
-      code: 'CONNECTION_TOMBSTONED',
-      detail: `Connection ${connectionId} is tombstoned.`,
-    });
-  }
-  return connection;
+  await requireMapAccess(ctx, mapId, 'edit');
+  return await requireLiveConnectionOnMap(ctx, mapId, connectionId);
 }
 
 /** Gate + load a named system document, or throw UNKNOWN_SYSTEM. */
@@ -315,7 +299,8 @@ async function requireLiveOrigin(
   }
 }
 
-async function upsertLiveDestination(
+/** Upserts one live destination while preserving the human restore boundary. */
+export async function upsertLiveDestination(
   ctx: MutationCtx,
   mapId: string,
   toSystemId: number,
@@ -500,15 +485,91 @@ export const setConnectionWormholeType = mutation({
       deathEarliestAt,
       deathLatestAt,
     });
+    const identityPatch = value === null
+      ? {
+          typedSide: undefined,
+          typeProvenance: undefined,
+          pendingCandidates: undefined,
+        }
+      : {
+          typedSide: connection.typedSide ?? ('from' as const),
+          typeProvenance: 'human' as const,
+          pendingCandidates: undefined,
+        };
     if (
       connection.wormholeTypeCode === value
+      && connection.typedSide === identityPatch.typedSide
+      && connection.typeProvenance === identityPatch.typeProvenance
+      && connection.pendingCandidates === undefined
       && sameDeathWindow(connection, window)
     ) {
       return { changed: false };
     }
     await ctx.db.patch(connectionId, {
       wormholeTypeCode: value,
+      ...identityPatch,
+      // Typing a hole makes it observation-eligible (human tier through the
+      // jump route), so a row that was never jump-authored needs its stable
+      // per-connection dedupe key minted here. Seeded-PRNG UUIDs are
+      // mutation-safe; an OCC retry rolls the whole write back with the key.
+      ...(value !== null && connection.observationKey === undefined
+        ? { observationKey: crypto.randomUUID() }
+        : {}),
       ...deathWindowPatch(window),
+    });
+    return { changed: true };
+  },
+});
+
+/** Field-scoped setter: the side whose manually typed code is attributable. */
+export const setConnectionTypedSide = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    value: typedSideValidator,
+  },
+  handler: async (ctx, { mapId, connectionId, value }) => {
+    const connection = await requireLiveConnection(ctx, mapId, connectionId);
+    if (connection.wormholeTypeCode === null) {
+      throw new ConvexError({
+        code: 'UNTYPED_CONNECTION',
+        detail: 'An unidentified connection has no attributable typed side.',
+      });
+    }
+    if (
+      connection.typedSide === value
+      && connection.typeProvenance === 'human'
+      && connection.pendingCandidates === undefined
+    ) {
+      return { changed: false };
+    }
+    await ctx.db.patch(connectionId, {
+      typedSide: value,
+      typeProvenance: 'human',
+      pendingCandidates: undefined,
+    });
+    return { changed: true };
+  },
+});
+
+/** Field-scoped setter: one side's closed-vocabulary destination hint. */
+export const setConnectionDestinationHint = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    side: typedSideValidator,
+    value: v.union(destinationHintValidator, v.null()),
+  },
+  handler: async (ctx, { mapId, connectionId, side, value }) => {
+    const connection = await requireLiveConnection(ctx, mapId, connectionId);
+    const field = side === 'from' ? 'fromDestinationHint' : 'toDestinationHint';
+    const normalized = value ?? undefined;
+    if (connection[field] === normalized && connection.pendingCandidates === undefined) {
+      return { changed: false };
+    }
+    await ctx.db.patch(connectionId, {
+      [field]: normalized,
+      pendingCandidates: undefined,
     });
     return { changed: true };
   },
@@ -538,14 +599,21 @@ export const setConnectionMassState = mutation({
     connectionId: v.id('mapConnections'),
     value: massStateValidator,
   },
-  handler: async (ctx, { mapId, connectionId, value }) =>
-    await patchConnectionField(
-      ctx,
-      mapId,
-      connectionId,
-      'massState',
-      value satisfies ConnectionMassState | null,
-    ),
+  handler: async (ctx, { mapId, connectionId, value }) => {
+    const connection = await requireLiveConnection(ctx, mapId, connectionId);
+    const observedMassAtStateKg = connection.observedMassKg ?? 0;
+    if (
+      connection.massState === value
+      && connection.observedMassAtStateKg === observedMassAtStateKg
+    ) {
+      return { changed: false };
+    }
+    await ctx.db.patch(connectionId, {
+      massState: value satisfies ConnectionMassState | null,
+      observedMassAtStateKg,
+    });
+    return { changed: true };
+  },
 });
 
 /**
@@ -652,7 +720,9 @@ async function clearConnectionTombstone(
   const connection = await gatedConnection(ctx, mapId, connectionId);
   if (!isTombstoned(connection)) return { restored: true, changed: false };
   await requireLiveEndpoint(ctx, mapId, connection.fromSystemId);
-  await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
+  if (connection.toSystemId !== null) {
+    await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
+  }
   await ctx.db.patch(connectionId, { deletedAt: null, purgeAfter: null });
   return { restored: true, changed: true };
 }
@@ -711,10 +781,21 @@ function collapseDecision(
       detail: `Connection ${cut._id} is already tombstoned.`,
     });
   }
+  if (cut.toSystemId === null) {
+    throw new ConvexError({
+      code: 'UNRESOLVED_CONNECTION',
+      detail: `Connection ${cut._id} has no resolved destination to sever.`,
+    });
+  }
 
   const systems = topology.systems.filter((row) => !isTombstoned(row));
   const systemIds = new Set(systems.map((row) => row.systemId));
-  const connections = topology.connections.filter((row) => !isTombstoned(row));
+  // Keep stubs in the bounded topology for the write/restore set, but only
+  // resolved live rows form graph edges for the collapse decision.
+  const connections = topology.connections.filter(
+    (row): row is Doc<'mapConnections'> & { toSystemId: number } =>
+      !isTombstoned(row) && row.toSystemId !== null,
+  );
   for (const connection of connections) {
     if (
       !systemIds.has(connection.fromSystemId) ||
@@ -756,6 +837,19 @@ interface SeverWriteContext {
   readonly stamps: ReturnType<typeof chainTombstoneStamps>;
 }
 
+function shouldRearmSkeleton(
+  row: Doc<'mapConnections'>,
+  removedConnectionIds: ReadonlySet<string>,
+  removedSystemIds: ReadonlySet<number>,
+): boolean {
+  const touchesRemovedSystem =
+    removedSystemIds.has(row.fromSystemId)
+    || (row.toSystemId !== null && removedSystemIds.has(row.toSystemId));
+  return isTombstoned(row)
+    && !removedConnectionIds.has(String(row._id))
+    && touchesRemovedSystem;
+}
+
 /** Commits the retained-edge stamp and its matching event. */
 async function writeRetainedSever(
   input: SeverWriteContext,
@@ -784,20 +878,23 @@ async function stampRemovedRows(
   const connections = input.topology.connections.filter((row) =>
     removedConnectionIds.has(String(row._id)),
   );
-  const skeletonsToRearm = input.topology.connections.filter(
+  const incidentStubs = input.topology.connections.filter(
     (row) =>
-      isTombstoned(row)
-      && !removedConnectionIds.has(String(row._id))
-      && (
-        removedSystemIds.has(row.fromSystemId)
-        || removedSystemIds.has(row.toSystemId)
-      ),
+      row.toSystemId === null
+      && !isTombstoned(row)
+      && removedSystemIds.has(row.fromSystemId),
+  );
+  const skeletonsToRearm = input.topology.connections.filter(
+    (row) => shouldRearmSkeleton(row, removedConnectionIds, removedSystemIds),
   );
   for (const system of systems) {
     await input.ctx.db.patch(system._id, input.stamps);
   }
   for (const connection of connections) {
     await input.ctx.db.patch(connection._id, input.stamps);
+  }
+  for (const stub of incidentStubs) {
+    await input.ctx.db.patch(stub._id, input.stamps);
   }
   for (const connection of skeletonsToRearm) {
     await input.ctx.db.patch(connection._id, {
@@ -855,6 +952,32 @@ export const severConnection = mutation({
   },
 });
 
+async function requireRestorableEndpoints(
+  ctx: MutationCtx,
+  mapId: string,
+  topology: BoundedMapTopology,
+  connections: readonly Doc<'mapConnections'>[],
+  restoredSystemIds: ReadonlySet<number>,
+): Promise<void> {
+  for (const row of connections) {
+    const endpointIds = row.toSystemId === null
+      ? [row.fromSystemId]
+      : [row.fromSystemId, row.toSystemId];
+    for (const endpointId of endpointIds) {
+      if (restoredSystemIds.has(endpointId)) continue;
+      const endpoint = topology.systems.find(
+        (system) => system.systemId === endpointId,
+      );
+      if (endpoint === undefined || isTombstoned(endpoint)) {
+        throw new ConvexError({
+          code: 'ENDPOINT_TOMBSTONED',
+          detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
+        });
+      }
+    }
+  }
+}
+
 /**
  * Restores every surviving row carrying one sever transaction's shared stamp.
  * A repeated call is an identity-preserving no-op and writes no duplicate event.
@@ -881,20 +1004,13 @@ export const restoreSeveredBranch = mutation({
     // restoring around it would create a live connection with a dead endpoint,
     // which the collapse core rejects as INVALID_MAP_TOPOLOGY forever after.
     const restoredSystemIds = new Set(systems.map((row) => row.systemId));
-    for (const row of connections) {
-      for (const endpointId of [row.fromSystemId, row.toSystemId]) {
-        if (restoredSystemIds.has(endpointId)) continue;
-        const endpoint = topology.systems.find(
-          (system) => system.systemId === endpointId,
-        );
-        if (endpoint === undefined || isTombstoned(endpoint)) {
-          throw new ConvexError({
-            code: 'ENDPOINT_TOMBSTONED',
-            detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
-          });
-        }
-      }
-    }
+    await requireRestorableEndpoints(
+      ctx,
+      mapId,
+      topology,
+      connections,
+      restoredSystemIds,
+    );
     const actor = await eventActor(ctx);
     for (const system of systems) {
       await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });

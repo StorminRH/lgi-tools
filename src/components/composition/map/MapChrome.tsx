@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { AccountMenu } from '@/components/composition/account/AccountMenu';
 import { FeedbackButton } from '@/components/composition/FeedbackButton';
 import type { Session } from '@/platform/auth/types';
@@ -16,22 +17,32 @@ import '@/composition/search/register-all';
 /**
  * Composes the atlas's floating navigation, reserved search slot, account control, and feedback.
  */
-export function MapChrome({ session }: { session: Session | null }) {
+export function MapChrome({
+  session,
+  contextualSection,
+}: {
+  session: Session | null;
+  contextualSection?: ReactNode;
+}) {
   return (
     <div
       data-map-chrome
-      className="pointer-events-none absolute inset-0 z-sticky"
+      // z-dropdown: chrome controls (portrait, Atlas menu, search) must stay
+      // clickable above the z-sticky window layer — a sticky-side connection
+      // card clamped into the top-right corner would otherwise cover them.
+      className="pointer-events-none absolute inset-0 z-dropdown"
     >
-      <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2">
-        <MapMenu />
+      <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2">
         {session ? (
           <div data-map-account-anchor>
             <AccountMenu
               session={session}
               anchor={() => document.querySelector('[data-map-account-anchor]')}
+              contextualSection={contextualSection}
             />
           </div>
         ) : null}
+        <MapMenu />
       </div>
       <div
         data-map-search-slot

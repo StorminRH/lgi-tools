@@ -2,9 +2,7 @@ import {
   atlasWindowRoute,
   clickExposedPane,
   mapWindow,
-  rootSystemTarget,
   waitForWindowMap,
-  WINDOW_STORAGE_KEY,
 } from '../lib/window-helpers.mjs';
 
 export default {
@@ -18,33 +16,35 @@ export default {
       check('UX_MAP_ID is set for the live map under test', false);
       return;
     }
-    await page.evaluate((key) => localStorage.removeItem(key), WINDOW_STORAGE_KEY);
-    await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForWindowMap(page);
 
     const dock = mapWindow(page, 'dock');
-    check('the current-system dock stands on load', await dock.isVisible());
+    check('the current-system readout stands on load', await dock.isVisible());
+    check(
+      'the readout stays docked without pop-out or close controls',
+      (await dock.getAttribute('data-map-window-placement')) === 'docked'
+        && (await dock.getAttribute('data-map-window-appearance')) === 'overlay'
+        && (await dock.getByRole('button', { name: /Pop out/ }).count()) === 0
+        && (await dock.getByRole('button', { name: /Close / }).count()) === 0,
+    );
+    check(
+      'the readout is click-through (nodes beneath stay reachable)',
+      (await dock.evaluate((element) => getComputedStyle(element).pointerEvents)) === 'none',
+    );
     check('an exposed canvas point is available', await clickExposedPane(page));
     await page.keyboard.press('Escape');
-    check('pane click and Escape leave the dock standing', await dock.isVisible());
+    check('pane click and Escape leave the readout standing', await dock.isVisible());
 
-    const root = await rootSystemTarget(page);
-    check('the root system is resolvable from the standing dock', root !== null);
-    await dock.getByRole('button', { name: /Close Current system/ }).click();
-    check('the close control hides the dock in memory', !(await dock.isVisible()));
-    if (root !== null) {
-      // Force reaches the node click seam that clears the in-memory hide flag
-      // even when chrome or other overlays cover the disc.
-      await root.node.click({ force: true });
+    const dials = page.locator('[data-map-dev-dials]');
+    if (await dials.count()) {
+      await page.getByText('Layout dials').click();
+      check(
+        'the bottom-left dial group opens above the audit log',
+        await page.getByText('Ring spacing').isVisible(),
+      );
+    } else {
+      check('dev layout dials are absent outside development (expected)', true);
     }
-    check('a root click reopens the hidden dock', await dock.isVisible());
-
-    const lock = page.getByRole('switch', { name: 'Map lock' });
-    const wasLocked = await lock.isChecked();
-    await lock.click();
-    check('the top-right lock remains operable', (await lock.isChecked()) !== wasLocked);
-    await page.getByText('Layout dials').click();
-    check('the top-right dial group opens beside the map', await page.getByText('Ring spacing').isVisible());
     await shot('standing-dock');
   },
 };

@@ -16,13 +16,15 @@ vi.mock('@/components/ui/menu', async () => {
   return {
     Menu: ({
       trigger,
+      children,
       anchor,
     }: {
       trigger: React.ReactNode;
+      children?: React.ReactNode;
       anchor?: () => Element | null;
     }) => {
       mocks.anchorResult(anchor?.());
-      return element('div', { 'data-account-menu': '' }, trigger);
+      return element('div', { 'data-account-menu': '' }, trigger, children);
     },
     MenuItem: Part,
     MenuLinkItem: Part,
@@ -92,5 +94,24 @@ describe('map chrome variants', () => {
     expect(standard).not.toContain('aria-label=');
     expect(compact).toContain('aria-label="Send feedback"');
     expect(compact).toContain('>?</button>');
+  });
+
+  it('renders an app-owned contextual section before logout', () => {
+    const markup = renderToStaticMarkup(
+      createElement(AccountMenu, {
+        session: {
+          characterId: 1,
+          name: 'Mapper',
+          portraitUrl: '/portrait.png',
+          role: 'ADMIN',
+        },
+        contextualSection: createElement('div', { 'data-contextual-settings': '' }),
+      }),
+    );
+
+    expect(markup).toContain('data-contextual-settings');
+    expect(markup.indexOf('data-contextual-settings')).toBeLessThan(
+      markup.indexOf('Log out'),
+    );
   });
 });

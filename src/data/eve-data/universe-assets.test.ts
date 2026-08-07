@@ -4,8 +4,8 @@ import {
   buildSystemDirectory,
   buildWormholeCodex,
   resolveWormholeAttributeIds,
-  wormholeSizeClass,
 } from './universe-assets';
+import { wormholeSizeClass } from './wormhole-contract';
 
 const ATTRIBUTE_ROWS = [
   { id: 1381, name: 'wormholeTargetSystemClass' },

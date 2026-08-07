@@ -16,11 +16,44 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.2.1** complete (tracked location and
-  jump classification); close-out is delivering its per-session PR from
-  `lifecycle/4.0.4.2`. After merge: recreate `lifecycle/4.0.4.2` from
-  current `main` and plan **4.0.4.2.2** through `start-session`, starting
-  from the operator direction below.
+- **CURRENT / NEXT:** session **4.0.4.2.2** (automatic jump authoring) is in
+  close-out on `lifecycle/4.0.4.2` — per-session PR carrying the v4.0.4.2.2
+  changelog entry + `APP_VERSION` bump. After merge, rerun the resolver;
+  expected next directive is planning **4.0.4.2.3** (fog/UX) on a recreated
+  `lifecycle/4.0.4.2` from updated `main`.
+- **Shipped 4.0.4.2.2 (awaiting merge):** merged unresolved-signature/connection
+  model; pure eliminator + statics census; one-transaction Convex jump
+  authoring behind two bearer doors; D16 observation slice (five-field Neon
+  table, upsert by dedupe key); jump-resolver route; doorbell observer +
+  confirm/correct prompt; leads-to hints; odometer-aware mass estimates;
+  autosaved atlas map preferences; persistent click-through current-system
+  overlay. Close-out adversarial round (holistic+ownership+interface+
+  reliability) accepted 18 root causes, all fixed on-branch — headline fixes:
+  emission tier now follows the MUTATION's stored provenance (never the
+  matcher verdict); statics census counts resolved scanned rows; manual typing
+  mints the observation dedupe key; forged `mapTracking` rows can no longer
+  veto a genuine scout (joinable-row filter); doorbell gained a 15s timer
+  retry + request timeout and a 10-min capture window; account/character purge
+  drains `mapJumpBookkeeping` via new `by_character` index.
+- **Durable 4.0.4.2.2 gotchas:** (1) `convex-test` serializes top-level calls —
+  the Promise-all convergence proof is concurrent-SHAPED, not a deployed OCC
+  collision. (2) Emission gating rule (HC-3): any observation write must key
+  its tier off `destinationProvenance` returned BY the mutation; a converged
+  pair is a different document than the matcher's candidate. (3) The census
+  pool is `scannedTypeCodes` (resolved rows included, `typedSide:'to'`
+  excluded) — the unresolved candidate pool is the wrong census input by
+  construction. (4) The current-system dock overlay is `pointer-events-none`
+  by contract (nothing interactive inside); probes assert click-through, and
+  window probes drive prefs through the portrait menu (`auto layout`,
+  `camera follow`, `click focus` — server-authoritative for signed-in probe
+  accounts, so localStorage seeding does NOT survive reconcile). (5) The
+  floating-window machinery (drag/resize/pop-out, `WindowRect`,
+  `drag-resize.ts`) is fully DELETED with the review round — a future float
+  surface rebuilds from git history rather than inheriting an unreachable
+  path; the pointer-only-grip precedent stays recorded in the 4.0.3.3.1
+  as-built. (6) Atlas map-lock pref key is `atlas.autoLayout` (ON = computed
+  layout owns positions; re-enabling releases user placements — disclosed via
+  the page-settings `description` slot).
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,
@@ -95,11 +128,14 @@
   `src/mapper/authoring/`, `convex/mapAuthoring.ts`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
-  array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must
-  stay byte-identical to `persistence.ts` (docs cannot import src). (3)
-  Floating resize is a pointer-only `data-map-window-resize` grip, not a
-  button. (4) As-built recorded G-1 layout supersession: left-rail dock,
-  top-right controls, portrait beside Atlas menu, title-bar drag.
+  array (PD-4). (2) Current-system dock is a persistent CLICK-THROUGH overlay —
+  no float, no localStorage window record, no close (`persistence.ts` and the
+  whole drag/resize/pop-out machinery removed in 4.0.4.2.2). (3) Any future
+  float surface rebuilds from git history; keep resize a pointer-only grip,
+  not a button (4.0.3.3.1 as-built precedent). (4) As-built G-1 layout from
+  4.0.3.3 was superseded again in 4.0.4.2.2: dock top-left overlay, chrome
+  top-right above the window layer (z-dropdown), dials bottom-left above the
+  audit log (dev-only).
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
   system surface unattached ("nowhere") and then hop, because each transaction

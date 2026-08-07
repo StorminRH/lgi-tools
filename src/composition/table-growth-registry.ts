@@ -41,10 +41,18 @@ interface PurgeManagedGrowthStory {
   readonly purgeContributor: string;
 }
 
+interface RetainedGrowthStory {
+  readonly kind: 'retained';
+  readonly table: RegisteredTable;
+  readonly reason: string;
+  readonly authority: string;
+}
+
 type TableGrowthStory =
   | PrunedGrowthStory
   | BoundedGrowthStory
-  | PurgeManagedGrowthStory;
+  | PurgeManagedGrowthStory
+  | RetainedGrowthStory;
 
 /**
  * Schema-qualified Drizzle migrations table retained as an explicit infrastructure exemption in
@@ -141,6 +149,14 @@ export const TABLE_GROWTH_STORIES = [
     retentionConstant: 'WH_STATICS_SNAPSHOT_RETENTION_DAYS',
     prunedBy:
       'daily /api/cron/refresh-gsc housekeeping, preserving pending and current promoted snapshots',
+  },
+
+  {
+    kind: 'retained',
+    table: schema.whObservations,
+    reason:
+      'one corrected-in-place row per per-hole-lifetime dedupe key; D16 intentionally preserves the accumulating anonymized corpus for later scoring',
+    authority: 'docs/VERSION_4_0_PLAN.md D16',
   },
 
   { kind: 'purge-managed', table: schema.session, purgeContributor: 'auth' },

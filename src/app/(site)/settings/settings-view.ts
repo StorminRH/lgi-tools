@@ -76,7 +76,10 @@ export function deriveSettingsView(
   models: PageControlModel[],
   managerCorps: SharingCorpView[],
 ): SettingsView {
-  const preferenceModels = models.filter((m): m is MenuControlModel => m.kind === 'preference');
+  const preferenceModels = models.filter(
+    (m): m is MenuControlModel =>
+      m.kind === 'preference-enum' || m.kind === 'preference-boolean',
+  );
   const featureSections = models
     .filter((m): m is FeatureControlModel => m.kind === 'feature')
     .map((m) => featureSectionView(m, managerCorps))

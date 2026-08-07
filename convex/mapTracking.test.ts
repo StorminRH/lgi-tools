@@ -202,6 +202,7 @@ describe('mapTracking.forMap', () => {
         shipTypeId: 670,
         prevSolarSystemId: null,
         prevFresh: false,
+        transitionObservedAt: 1_699_999_999_000,
         observedAt: 1_700_000_000_000,
         etagLocation: 'loc-1',
         etagShip: 'ship-1',

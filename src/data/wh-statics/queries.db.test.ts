@@ -6,6 +6,7 @@ import {
   pruneWhStaticsSnapshots,
   getSnapshotProbeBaseline,
   readSystemStatics,
+  readSystemStaticsForSystem,
   recordSnapshot,
   rejectSnapshot,
   WhStaticsEmptySnapshotError,
@@ -79,6 +80,37 @@ describe.skipIf(!harness.reachable)(
         version: '',
         systems: [],
       });
+    });
+
+    it('reads only one system\'s promoted statics in code order', async () => {
+      const snapshotId = await insertSnapshot();
+      await harness.db.insert(whSystemStatics).values([
+        {
+          systemId: 31_000_001,
+          code: 'N770',
+          feedVersion: '11',
+          sourceSnapshotId: snapshotId,
+        },
+        {
+          systemId: 31_000_001,
+          code: 'B274',
+          feedVersion: '11',
+          sourceSnapshotId: snapshotId,
+        },
+        {
+          systemId: 31_000_002,
+          code: 'C247',
+          feedVersion: '11',
+          sourceSnapshotId: snapshotId,
+        },
+      ]);
+
+      await expect(
+        readSystemStaticsForSystem(harness.db, 31_000_001),
+      ).resolves.toEqual(['B274', 'N770']);
+      await expect(
+        readSystemStaticsForSystem(harness.db, 31_000_003),
+      ).resolves.toEqual([]);
     });
 
     it('keeps exactly one pending snapshot and leaves the promoted copy untouched', async () => {

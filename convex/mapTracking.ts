@@ -131,6 +131,7 @@ export const forMap = query({
                 shipTypeId: location.shipTypeId,
                 prevSolarSystemId: location.prevSolarSystemId,
                 prevFresh: location.prevFresh,
+                transitionObservedAt: location.transitionObservedAt ?? null,
                 observedAt: location.observedAt,
               },
       });

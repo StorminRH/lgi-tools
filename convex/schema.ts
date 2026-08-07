@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import {
+  connectionProvenanceValidator,
+  destinationHintValidator,
   lifeStageValidator,
   mapEventKindValidator,
   mapEventPayloadValidator,
@@ -9,6 +11,7 @@ import {
   noteTargetKindValidator,
   optionalTimestampValidator,
   shipSizeValidator,
+  typedSideValidator,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
 
@@ -178,9 +181,10 @@ export default defineSchema({
     .index('by_map_system', ['mapId', 'systemId'])
     .index('by_purge_after', ['purgeAfter']),
 
-  // One document per connection between two systems on one map. Endpoints are
-  // system IDs, never document references, so a connection survives independently
-  // of how its endpoints were placed. Remaining lifetime is the death window
+  // One document per wormhole identity on one map. A scanned-but-unexplored
+  // hole has a null destination and origin signature; resolving it fills the
+  // far endpoint on the same durable row. Endpoints are system IDs, never
+  // document references. Remaining lifetime is the death window
   // pair `deathEarliestAt`/`deathLatestAt` (absolute instants; clients derive
   // the countdown, no scheduler ever flips a state). `eolAt` is vestigial — a
   // superseded mark-EOL design with no production writer; it stays null.
@@ -189,11 +193,24 @@ export default defineSchema({
   mapConnections: defineTable({
     mapId: v.string(),
     fromSystemId: v.number(),
-    toSystemId: v.number(),
+    toSystemId: v.union(v.number(), v.null()),
     wormholeTypeCode: wormholeTypeCodeValidator,
     massState: massStateValidator,
     shipSize: shipSizeValidator,
     eolAt: v.union(v.number(), v.null()),
+    // Additive rollout fields stay optional until every live document has
+    // passed through the merged-model writers.
+    fromSignatureId: v.optional(v.string()),
+    toSignatureId: v.optional(v.string()),
+    typedSide: v.optional(typedSideValidator),
+    fromDestinationHint: v.optional(destinationHintValidator),
+    toDestinationHint: v.optional(destinationHintValidator),
+    typeProvenance: v.optional(connectionProvenanceValidator),
+    destinationProvenance: v.optional(connectionProvenanceValidator),
+    observedMassKg: v.optional(v.number()),
+    observedMassAtStateKg: v.optional(v.number()),
+    observationKey: v.optional(v.string()),
+    pendingCandidates: v.optional(v.array(v.id('mapConnections'))),
     lifeStage: v.optional(lifeStageValidator),
     lifeStageObservedAt: optionalTimestampValidator,
     deathEarliestAt: optionalTimestampValidator,
@@ -205,6 +222,18 @@ export default defineSchema({
     .index('by_map_from', ['mapId', 'fromSystemId'])
     .index('by_map_to', ['mapId', 'toSystemId'])
     .index('by_purge_after', ['purgeAfter']),
+
+  // Exactly-once jump-processing state is deliberately separate from the
+  // deletable tracking opt-in so an untrack/retrack cycle cannot erase it.
+  mapJumpBookkeeping: defineTable({
+    mapId: v.string(),
+    characterId: v.number(),
+    lastProcessedTransitionAt: v.number(),
+  })
+    .index('by_map', ['mapId'])
+    .index('by_map_character', ['mapId', 'characterId'])
+    // Account/character purge drains stamps across every map.
+    .index('by_character', ['characterId']),
 
   // One immutable audit row per destructive/restore map event. Actor and
   // display payload are resolved at write time so the bounded ledger read has
@@ -311,6 +340,10 @@ export default defineSchema({
     shipTypeId: v.union(v.number(), v.null()),
     prevSolarSystemId: v.union(v.number(), v.null()),
     prevFresh: v.boolean(),
+    // Dedicated system-transition epoch. Unlike observedAt, dock/undock fact
+    // changes never advance this stamp, so automatic jump processing can key
+    // exactly-once behavior to a genuine system change.
+    transitionObservedAt: v.optional(v.number()),
     // LAST-CHANGE time, not last-confirmation: the zero-write 304 path (HC-3)
     // never touches this doc, so a stationary pilot's observedAt ages while
     // still confirmed live. Freshness consumers read the subject row's

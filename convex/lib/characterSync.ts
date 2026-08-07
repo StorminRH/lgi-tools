@@ -5,6 +5,7 @@
 // function exports), so nothing here lands on the deployed API surface. The
 // per-dataset reads, parses, and apply bodies stay in their own tracker module.
 import type { EveCharactersResponse } from '@/platform/auth/api-contract';
+import { v } from 'convex/values';
 import {
   eveCharactersEndpoint,
   eveTokenEndpoint,
@@ -12,7 +13,32 @@ import {
 import { serviceFetch } from '@/platform/auth/service-client';
 import { minCacheWindow } from '@/lib/sync-engine';
 import type { Id } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
+import type { MutationCtx, QueryCtx } from '../_generated/server';
+
+/** Validator fields shared by every per-character ESI sync result. */
+export const characterSyncResultFields = {
+  characterId: v.number(),
+  expiresAt: v.union(v.number(), v.null()),
+  error: v.union(v.string(), v.null()),
+};
+
+/** Validator fields shared by every batched per-character apply mutation. */
+export const characterSyncApplyFields = {
+  userId: v.string(),
+  generation: v.number(),
+  enumeratedCharacterIds: v.array(v.number()),
+  lastError: v.union(v.string(), v.null()),
+  rlGroup: v.union(v.string(), v.null()),
+  rlLimit: v.union(v.number(), v.null()),
+  rlRemaining: v.union(v.number(), v.null()),
+  rlUsed: v.union(v.number(), v.null()),
+};
+
+/** Resolves the authenticated Convex subject without duplicating viewer-query ceremony. */
+export async function authenticatedSubject(ctx: QueryCtx): Promise<string | null> {
+  const identity = await ctx.auth.getUserIdentity();
+  return identity?.subject ?? null;
+}
 
 /**
  * Deployment-level config (set via `npx convex env set`) — the app's

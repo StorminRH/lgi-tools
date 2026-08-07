@@ -23,8 +23,9 @@ async function endpointIsLive(
   ctx: MutationCtx,
   cache: Map<string, boolean>,
   mapId: string,
-  systemId: number,
+  systemId: number | null,
 ): Promise<boolean> {
+  if (systemId === null) return false;
   const key = `${mapId}:${systemId}`;
   const cached = cache.get(key);
   if (cached !== undefined) return cached;

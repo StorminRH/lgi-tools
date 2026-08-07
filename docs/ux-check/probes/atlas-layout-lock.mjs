@@ -5,6 +5,11 @@
 // internal fixture mutation).
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import {
+  closeAtlasMenu,
+  openAtlasMenu,
+  setAtlasMapPreference,
+} from '../lib/window-helpers.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -47,26 +52,31 @@ export default {
       { timeout: 60_000 },
     );
 
-    const lockSwitch = page.getByRole('switch', { name: 'Map lock' });
-    check('map lock control is present', (await lockSwitch.count()) > 0);
+    const menu = await openAtlasMenu(page);
+    const lockSwitch = menu.getByRole('switch', { name: 'auto layout' });
+    check('auto layout control is present in the map settings menu', (await lockSwitch.count()) > 0);
+    check(
+      'the re-enable consequence is disclosed on the row',
+      (await menu.getByText('re-enabling restores the computed layout').count()) === 1,
+    );
+    await closeAtlasMenu(page);
 
     // Camera follow off: the arrival below must not be allowed to move the
     // viewport for the follow feature's own reasons — this probe asserts the
     // viewport holds, so the follow toggle has to be out of the picture.
-    const followSwitch = page.getByRole('switch', { name: 'Camera follow' });
-    if (await followSwitch.isChecked()) {
-      await followSwitch.click();
-    }
-    check('camera follow is off for the round trip', !(await followSwitch.isChecked()));
+    check(
+      'camera follow is off for the round trip',
+      (await setAtlasMapPreference(page, 'camera follow', false)) === false,
+    );
 
     // The kernel position, recorded as the node's exact flow transform.
     const kernelTransform = await nodeTransform(page);
 
-    // Unlock.
-    if (await lockSwitch.isChecked()) {
-      await lockSwitch.click();
-    }
-    check('map is unlocked', !(await lockSwitch.isChecked()));
+    // Unlock (auto layout off = nodes draggable).
+    check(
+      'auto layout is off for the drag',
+      (await setAtlasMapPreference(page, 'auto layout', false)) === false,
+    );
 
     const node = page.locator('[data-chain-node]').first();
     const before = await node.boundingBox();
@@ -112,9 +122,11 @@ export default {
       (await viewportTransform(page)) === viewportBefore,
     );
 
-    // Re-lock — clears user placements and forces a kernel merge.
-    await lockSwitch.click();
-    check('map is re-locked', await lockSwitch.isChecked());
+    // Re-enable — clears user placements and forces a kernel merge.
+    check(
+      'auto layout is re-enabled',
+      await setAtlasMapPreference(page, 'auto layout', true),
+    );
     await page.waitForTimeout(800);
 
     check(

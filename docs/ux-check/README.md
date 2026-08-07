@@ -38,6 +38,16 @@ pnpm e2e:seed
 node docs/ux-check/run-probes.mjs --storage-state=docs/ux-check/captures/auth-storage.json atlas-window-dock
 ```
 
+The one-shot automatic-jump gate also needs a dedicated empty editable map:
+
+```bash
+UX_JUMP_MAP_ID=<uuid> node docs/ux-check/run-probes.mjs \
+  --storage-state=docs/ux-check/captures/auth-storage.json atlas-automatic-jump
+```
+
+The probe leaves its two authored jumps in place for operator review. Use a
+fresh empty map for a later run instead of reusing that UUID.
+
 Use a different origin when needed:
 
 ```bash

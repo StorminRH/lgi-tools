@@ -158,6 +158,10 @@ export const reconcileMapClaims = internalMutation({
     // Revocation cascade: drop tracking for every user leaving the claim set.
     // Full map teardown (desired empty) also sweeps any orphaned tracking rows
     // that never had a claim, so the map purge door empties mapTracking.
+    // Teardown's OTHER half lives in convex/http.ts: on claims.length === 0
+    // the map purge door also drains mapJumpBookkeeping in bounded batches
+    // (a drain cannot ride this single reconcile transaction). A new
+    // map-scoped table must be added to BOTH sweeps or named here.
     const revokedUserIds = [...byUser.keys()];
     deleted += await deleteClaimRows(ctx, byUser.values());
     if (desired.size === 0) {

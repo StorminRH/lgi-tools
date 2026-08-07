@@ -35,6 +35,8 @@ export type SettingsControlRef =
       key: string;
       placement: SettingsPlacement;
       order?: number;
+      /** One-line consequence note rendered under the control (menu + page). */
+      description?: string;
     }
   | {
       kind: 'feature';
