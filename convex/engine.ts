@@ -195,23 +195,11 @@ export const heartbeat = mutation({
     if (!isRegisteredDataset(dataset)) return;
     const userId = identity.subject;
     const now = Date.now();
-    const seenVisible = visible !== false;
 
     // Presence first, for every reason — into syncPresence, never the subject
     // row. This is the decoupling: an interval beat writes only this doc and
     // returns, so it cannot invalidate forViewer's read of syncSubjects.
-    // lastVisibleAt feeds the hidden-presence backstop; a fresh insert stamps
-    // it unconditionally (a newly opened tab — even a background one — is a
-    // deliberate user action and gets a fresh visibility budget).
-    const presence = await getPresence(ctx.db, dataset, userId);
-    if (presence === null) {
-      await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now, lastVisibleAt: now });
-    } else {
-      await ctx.db.patch(presence._id, {
-        lastSeenAt: now,
-        ...(seenVisible ? { lastVisibleAt: now } : {}),
-      });
-    }
+    await upsertPresence(ctx, dataset, userId, visible !== false, now);
 
     if (reason === 'interval') return;
 
@@ -265,6 +253,36 @@ export const heartbeat = mutation({
 });
 
 /**
+ * The heartbeat's presence write. lastVisibleAt feeds the hidden-presence
+ * backstop (a hidden beat advances only lastSeenAt); a fresh insert stamps it
+ * unconditionally — a newly opened tab, even a background one, is a
+ * deliberate user action and gets a fresh visibility budget.
+ */
+async function upsertPresence(
+  ctx: MutationCtx,
+  dataset: SyncDataset,
+  userId: string,
+  seenVisible: boolean,
+  now: number,
+): Promise<void> {
+  const presence = await getPresence(ctx.db, dataset, userId);
+  if (presence === null) {
+    await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now, lastVisibleAt: now });
+  } else {
+    await ctx.db.patch(presence._id, {
+      lastSeenAt: now,
+      ...(seenVisible ? { lastVisibleAt: now } : {}),
+    });
+  }
+}
+
+// Null the schedule so the row leaves the by_next_due range — a returning
+// heartbeat revives a live dataset's row; the drain GC deletes a retired one.
+function retireFromScan(ctx: MutationCtx, subject: Doc<'syncSubjects'>): Promise<void> {
+  return ctx.db.patch(subject._id, { nextDueAt: null });
+}
+
+/**
  * The 30s dispatcher (convex/crons.ts): one indexed range over due
  * subjects. Cold rows are retired from the scan set (nextDueAt null — the
  * returning viewer's heartbeat revives them); fresh-running rows are left
@@ -291,7 +309,7 @@ export const scan = internalMutation({
       // A retired dataset's leftover row never dispatches (no syncRef exists)
       // — retire it from the scan set; the sweep GC deletes it.
       if (!isRegisteredDataset(subject.dataset)) {
-        await ctx.db.patch(subject._id, { nextDueAt: null });
+        await retireFromScan(ctx, subject);
         continue;
       }
       // Presence is its own doc now (3.5.e1) — one point read per due row,
@@ -299,7 +317,7 @@ export const scan = internalMutation({
       // and each dataset is judged against its own cold window.
       const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
       if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[subject.dataset].coldAfterMs, now)) {
-        await ctx.db.patch(subject._id, { nextDueAt: null });
+        await retireFromScan(ctx, subject);
         continue;
       }
       if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
@@ -600,7 +618,7 @@ async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts):
   for (const subject of due) {
     // Retired-dataset leftovers are the drain GC's province (Pass D).
     if (!isRegisteredDataset(subject.dataset)) {
-      await ctx.db.patch(subject._id, { nextDueAt: null });
+      await retireFromScan(ctx, subject);
       counts.retired += 1;
       continue;
     }
@@ -620,7 +638,7 @@ async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts):
         counts.deleted += 1;
         break;
       case 'retire':
-        await ctx.db.patch(subject._id, { nextDueAt: null });
+        await retireFromScan(ctx, subject);
         counts.retired += 1;
         break;
       case 'dispatch':
@@ -657,16 +675,22 @@ async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts):
       continue;
     }
     const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
-    if (subject === null || subject.nextDueAt !== null) continue;
-    if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
-    if (
-      hasSyncTarget(subject.syncedCharacterIds, []) &&
-      isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
-    ) {
+    if (subject !== null && droppedTimerReady(subject, now)) {
       if (await dispatch(ctx, subject, now)) counts.dispatched += 1;
     }
   }
   if (hot.length === SCAN_DISPATCH_BATCH) logBatchCapped('engine:sweep', 'dropped_batch_capped', hot.length);
+}
+
+// Pass B's subject-side shape: idle, unscheduled (Pass A owns anything with a
+// nextDueAt), with targets and a lapsed window — the dropped-timer signature.
+function droppedTimerReady(subject: Doc<'syncSubjects'>, now: number): boolean {
+  if (subject.nextDueAt !== null) return false;
+  if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return false;
+  return (
+    hasSyncTarget(subject.syncedCharacterIds, [])
+    && isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
+  );
 }
 
 // Pass C — abandoned: past-retention presence (oldest first), deleted with its
