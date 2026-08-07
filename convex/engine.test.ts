@@ -35,7 +35,7 @@ const USER = 'user_engine_1';
 
 function subjectRow(overrides: Record<string, unknown> = {}) {
   return {
-    dataset: 'onlineStatus' as const,
+    dataset: 'characterLocation' as const,
     userId: USER,
     status: 'idle' as const,
     lastRequestedAt: 0,
@@ -61,7 +61,7 @@ afterEach(() => {
 describe('engine.heartbeat', () => {
   it('does nothing when signed out', async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [], reason: 'mount' });
+    await t.mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [], reason: 'mount' });
     const { presence, subjects } = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
       subjects: await ctx.db.query('syncSubjects').collect(),
@@ -74,7 +74,7 @@ describe('engine.heartbeat', () => {
     const t = convexTest(schema, modules);
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'interval' });
+      .mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [101], reason: 'interval' });
     const { presence, subjects } = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
       subjects: await ctx.db.query('syncSubjects').collect(),
@@ -87,11 +87,11 @@ describe('engine.heartbeat', () => {
     const t = convexTest(schema, modules);
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [], reason: 'mount' });
+      .mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [], reason: 'mount' });
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.status).toBe('idle');
@@ -113,12 +113,12 @@ describe('engine.heartbeat', () => {
 
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'mount' });
+      .mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [101], reason: 'mount' });
 
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(typeof subject?.nextDueAt).toBe('number');
@@ -140,16 +140,31 @@ describe('engine.heartbeat', () => {
 
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'mount' });
+      .mutation(api.engine.heartbeat, { dataset: 'characterLocation', characterIdsHint: [101], reason: 'mount' });
 
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.status).toBe('running');
     expect(subject?.workId).toBe('w1');
+  });
+
+  it('no-ops entirely for a retired dataset beat (pre-deploy tab)', async () => {
+    const t = convexTest(schema, modules);
+    // The stored union still accepts the literal, but even a presence write
+    // would keep drain-GC rows alive — nothing may be written.
+    await t
+      .withIdentity({ subject: USER })
+      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'mount' });
+    const { presence, subjects } = await t.run(async (ctx) => ({
+      presence: await ctx.db.query('syncPresence').collect(),
+      subjects: await ctx.db.query('syncSubjects').collect(),
+    }));
+    expect(presence).toHaveLength(0);
+    expect(subjects).toHaveLength(0);
   });
 
   it('stamps lastVisibleAt on visible and legacy beats but never on hidden ones', async () => {
@@ -157,7 +172,7 @@ describe('engine.heartbeat', () => {
     const authed = t.withIdentity({ subject: USER });
     // First beat inserts — a fresh tab gets a fresh visibility budget.
     await authed.mutation(api.engine.heartbeat, {
-      dataset: 'onlineStatus', characterIdsHint: [], reason: 'mount', visible: false,
+      dataset: 'characterLocation', characterIdsHint: [], reason: 'mount', visible: false,
     });
     const inserted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(typeof inserted?.lastVisibleAt).toBe('number');
@@ -166,7 +181,7 @@ describe('engine.heartbeat', () => {
     // lastSeenAt may advance.
     await t.run((ctx) => ctx.db.patch(inserted!._id, { lastSeenAt: 123, lastVisibleAt: 123 }));
     await authed.mutation(api.engine.heartbeat, {
-      dataset: 'onlineStatus', characterIdsHint: [], reason: 'interval', visible: false,
+      dataset: 'characterLocation', characterIdsHint: [], reason: 'interval', visible: false,
     });
     const afterHidden = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(afterHidden?.lastSeenAt).toBeGreaterThan(123);
@@ -175,7 +190,7 @@ describe('engine.heartbeat', () => {
     // A beat WITHOUT the arg is a pre-field client, which only ever beat while
     // visible — it must refresh the visibility stamp.
     await authed.mutation(api.engine.heartbeat, {
-      dataset: 'onlineStatus', characterIdsHint: [], reason: 'interval',
+      dataset: 'characterLocation', characterIdsHint: [], reason: 'interval',
     });
     const afterLegacy = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(afterLegacy?.lastVisibleAt).toBeGreaterThan(123);
@@ -183,31 +198,42 @@ describe('engine.heartbeat', () => {
 });
 
 describe('engine.scan', () => {
-  it('judges each dataset against its own cold window', async () => {
+  it('keeps a hidden-throttled subject hot inside the widened cold window', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     stubDispatch();
-    // One presence age, two verdicts: 2 min without a beat is cold for
-    // onlineStatus (60s window) but warm for characterLocation (5 min window,
-    // sized for hidden-tab throttled beats).
-    const lastSeenAt = now - 2 * 60_000;
+    // 2 min without a beat — cold under the old 60s visible-tab window, warm
+    // under characterLocation's 5-min window (sized for ~1/min hidden beats).
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({ nextDueAt: now - 1000, syncedCharacterIds: [101] }));
-      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt });
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation', nextDueAt: now - 1000, syncedCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt });
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation', userId: USER, lastSeenAt: now - 2 * 60_000,
+      });
     });
 
     await t.mutation(internal.engine.scan, {});
 
-    const byDataset = await t.run(async (ctx) => {
-      const rows = await ctx.db.query('syncSubjects').collect();
-      return Object.fromEntries(rows.map((row) => [row.dataset, row]));
+    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
+    expect(subject?.status).toBe('running');
+  });
+
+  it('retires a retired-dataset leftover row instead of dispatching it', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    stubDispatch();
+    // A drain-window leftover: due, hot presence — and no registered syncRef.
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'onlineStatus', nextDueAt: now - 1000, syncedCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt: now });
     });
-    expect(byDataset.onlineStatus?.nextDueAt).toBeNull();
-    expect(byDataset.characterLocation?.status).toBe('running');
+
+    await t.mutation(internal.engine.scan, {});
+
+    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
+    expect(subject?.status).toBe('idle');
+    expect(subject?.nextDueAt).toBeNull();
   });
 
   it('retires hidden-only presence past the visible backstop despite fresh beats', async () => {
@@ -247,7 +273,7 @@ describe('engine.scan', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.nextDueAt).toBeNull();
@@ -263,13 +289,13 @@ describe('engine.scan', () => {
         workId: 'w1',
         nextDueAt: now - 1000,
       }));
-      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt: now });
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt: now });
     });
     await t.mutation(internal.engine.scan, {});
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.nextDueAt).toBe(now - 1000);
@@ -288,7 +314,7 @@ describe('engine.scan', () => {
           nextDueAt: now - 1000,
           syncedCharacterIds: [101],
         }));
-        await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: `u${i}`, lastSeenAt: now });
+        await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: `u${i}`, lastSeenAt: now });
       }
     });
 
@@ -316,7 +342,7 @@ describe('engine.scan', () => {
           nextDueAt: now - total + i,
           syncedCharacterIds: [101],
         }));
-        await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: `u${i}`, lastSeenAt: now });
+        await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: `u${i}`, lastSeenAt: now });
       }
     });
 
@@ -345,7 +371,7 @@ describe('engine.onSyncComplete', () => {
   function callComplete(t: ReturnType<typeof convexTest>, result: unknown, workId = 'w1') {
     return t.mutation(internal.engine.onSyncComplete, {
       workId: workId as never,
-      context: { dataset: 'onlineStatus', userId: USER },
+      context: { dataset: 'characterLocation', userId: USER },
       result: result as never,
     });
   }
@@ -370,7 +396,7 @@ describe('engine.onSyncComplete', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.status).toBe('idle');
@@ -398,7 +424,7 @@ describe('engine.onSyncComplete', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.status).toBe('idle');
@@ -423,7 +449,7 @@ describe('engine.onSyncComplete', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.nextDueAt).toBeNull();
@@ -446,40 +472,13 @@ describe('engine.onSyncComplete', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.status).toBe('running');
     expect(subject?.workId).toBe('w1');
   });
 
-  it('does not schedule chainDispatch for onlineStatus success (default config)', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        minExpiresAt: now + 50_000,
-        syncedCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt: now });
-    });
-
-    await callComplete(t, { kind: 'success', returnValue: null });
-
-    // Default config: no chain hop; success still re-arms onto the scan set.
-    expect(await scheduledChainDispatches(t)).toHaveLength(0);
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('idle');
-    expect(typeof subject?.nextDueAt).toBe('number');
-  });
 });
 
 describe('engine chain-on-success', () => {
@@ -719,20 +718,20 @@ describe('engine.sweep', () => {
       // S2 — overdue, cold-within-retention presence → retire.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u2', nextDueAt: now - 1000 }));
       await ctx.db.insert('syncPresence', {
-        dataset: 'onlineStatus',
+        dataset: 'characterLocation',
         userId: 'u2',
-        lastSeenAt: now - SYNC_DATASET_CONFIG.onlineStatus.coldAfterMs - 5000,
+        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 5000,
       });
       // S3 — past-retention presence, not due → reaped in Pass C.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u3', nextDueAt: null }));
       await ctx.db.insert('syncPresence', {
-        dataset: 'onlineStatus',
+        dataset: 'characterLocation',
         userId: 'u3',
         lastSeenAt: now - RETENTION_MS - 5000,
       });
       // S5 — hot presence, idle, no target → Pass B touches it, no dispatch.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u5', nextDueAt: null }));
-      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u5', lastSeenAt: now - 1000 });
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u5', lastSeenAt: now - 1000 });
     });
 
     const counts = await t.mutation(internal.engine.sweep, {});
@@ -754,7 +753,7 @@ describe('engine.sweep', () => {
         'syncSubjects',
         subjectRow({ userId: 'u1', nextDueAt: now - 1000, syncedCharacterIds: [101] }),
       );
-      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u1', lastSeenAt: now });
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u1', lastSeenAt: now });
     });
     // Force the per-token-group limiter to refuse: dispatch parks the row and
     // returns without enqueuing (so this never touches the workpool).
@@ -772,7 +771,7 @@ describe('engine.sweep', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', 'u1').eq('dataset', 'onlineStatus'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', 'u1').eq('dataset', 'characterLocation'))
         .unique(),
     );
     expect(subject?.nextDueAt).toBeGreaterThanOrEqual(now + 1000);
@@ -819,7 +818,7 @@ describe('engine.sweep', () => {
           nextDueAt: null,
           syncedCharacterIds: [],
         }));
-        await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: `u${i}`, lastSeenAt: now - 1000 });
+        await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: `u${i}`, lastSeenAt: now - 1000 });
       }
     });
 
@@ -833,19 +832,21 @@ describe('engine.sweep', () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     stubDispatch();
-    // Same presence age, both inside the widened index range: cold for
-    // onlineStatus, hot for characterLocation. Both subjects are idle,
-    // unscheduled, with targets and a lapsed window — Pass B's re-arm shape.
+    // Both presences are hot and inside the widened index range, but only the
+    // registered dataset's idle, unscheduled, lapsed-window subject re-arms —
+    // the retired dataset's row is Pass D's to delete, never Pass B's to
+    // dispatch. Distinct users so each (dataset × user) key stays unique.
     const lastSeenAt = now - 2 * 60_000;
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({
-        nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: now - 1000,
+        userId: 'u-live', nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: now - 1000,
       }));
-      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt });
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-live', lastSeenAt });
       await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation', nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: now - 1000,
+        dataset: 'onlineStatus', userId: 'u-retired', nextDueAt: null,
+        syncedCharacterIds: [101], minExpiresAt: now - 1000,
       }));
-      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt });
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u-retired', lastSeenAt });
     });
 
     const counts = await t.mutation(internal.engine.sweep, {});
@@ -856,7 +857,35 @@ describe('engine.sweep', () => {
       return Object.fromEntries(rows.map((row) => [row.dataset, row]));
     });
     expect(byDataset.characterLocation?.status).toBe('running');
-    expect(byDataset.onlineStatus?.status).toBe('idle');
-    expect(byDataset.onlineStatus?.nextDueAt).toBeNull();
+    // The retired row was never dispatched; Pass D deleted it in the same sweep.
+    expect(byDataset.onlineStatus).toBeUndefined();
+  });
+
+  it('Pass D drains retired-dataset leftovers and the characterOnline table', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'onlineStatus', userId: 'u-old', nextDueAt: null,
+      }));
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u-old', lastSeenAt: now });
+      await ctx.db.insert('characterOnline', {
+        userId: 'u-old', characterId: 101, online: true, etag: 'e1',
+      });
+      // Live-dataset rows survive the drain untouched.
+      await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-live', nextDueAt: null }));
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-live', lastSeenAt: now });
+    });
+
+    await t.mutation(internal.engine.sweep, {});
+
+    const { subjects, presence, online } = await t.run(async (ctx) => ({
+      subjects: await ctx.db.query('syncSubjects').collect(),
+      presence: await ctx.db.query('syncPresence').collect(),
+      online: await ctx.db.query('characterOnline').collect(),
+    }));
+    expect(subjects.map((row) => row.dataset)).toEqual(['characterLocation']);
+    expect(presence.map((row) => row.dataset)).toEqual(['characterLocation']);
+    expect(online).toEqual([]);
   });
 });

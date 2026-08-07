@@ -250,19 +250,6 @@ export const ESI_DATASET_ENTRIES = [
       'Weekly conditional refresh into an operator-reviewed pending snapshot; serving reads only the promoted copy.',
   },
   {
-    name: 'online_status',
-    store: 'convex',
-    shape: 'live',
-    freshnessModel: 'engine-cadence',
-    refreshOwner: { kind: 'engine', dataset: 'onlineStatus' },
-    upstream: {
-      kind: 'esi',
-      specPaths: ['/characters/{character_id}/online/'],
-      verifiedCacheSeconds: 60,
-    },
-    mirrorTables: [],
-  },
-  {
     name: 'character_location',
     store: 'convex',
     shape: 'live',

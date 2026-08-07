@@ -124,11 +124,14 @@ Debounce high-churn shared writes (Rule 6).
 ## The sync engine
 
 Serves live ≤2-min data (`convex/engine.ts`; subject = dataset × userId). One
-sanctioned presence/scheduling machinery. Live consumers: `onlineStatus`
-(canary) and `characterLocation` (tracked location; `chainOnSuccess` while the
-Atlas tab is open — visible or hidden — and a tracked pilot is online in EVE).
-Slow per-owner data does **not** join — use Neon on-view. New ≤2-min-live OR
-collaborative-realtime data joins via the 4-step seam; nothing else.
+sanctioned presence/scheduling machinery. Live consumer: `characterLocation`
+(tracked location; `chainOnSuccess` while the Atlas tab is open — visible or
+hidden — and a tracked pilot is online in EVE). `onlineStatus` (the MIGRATE.A
+canary) retired with the portrait dot once the location sync absorbed the
+online probe — its schema literals + `characterOnline` stay dormant through
+the drain window until the follow-up wipe. Slow per-owner data does **not**
+join — use Neon on-view. New ≤2-min-live OR collaborative-realtime data joins
+via the 4-step seam; nothing else.
 
 - **4-step registration seam:** (1) dataset + cadence floor + **cold window
   (`coldAfterMs`)** + token group in `src/lib/sync-engine.ts` and schema

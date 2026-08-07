@@ -6,7 +6,6 @@ import "./globals.css";
 import { TelemetryReporter } from "@/components/composition/TelemetryReporter";
 import { AuthProvider } from "@/platform/auth/components/AuthProvider";
 import { ConvexClientProvider } from "@/platform/auth/components/ConvexClientProvider";
-import { OnlineStatusProvider } from "@/components/OnlineStatusProvider";
 import { LoadingToastProvider } from "@/components/ui/loading-toast";
 import { Toaster } from "@/components/ui/toast";
 import { PreferencesProvider } from "@/components/PreferencesProvider";
@@ -101,27 +100,24 @@ export default function RootLayout({
            * (anon) vs Neon (logged-in) tier, so it sits inside AuthProvider. */}
           <PreferencesProvider>
             <ConvexClientProvider>
-              {/* One live online-status subscription for the whole app (MIGRATE.A):
-               * every CharacterPortrait below reads its online dot from this
-               * context. Inside ConvexClientProvider so it can subscribe; it
-               * no-ops without a Convex deployment or a session. */}
-              <OnlineStatusProvider>
-                {/* The shared loading-toast PROVIDER lives here so any live
-                 * surface can register via useLoadingToast; it drives one keyed
-                 * sonner toast (the <Toaster> mounted below). Inside
-                 * ConvexClientProvider so Convex-driven `syncing` consumers share
-                 * a tree with the provider. */}
-                <LoadingToastProvider>
-                  {/* The page-menu slot (ACCOUNT.4): resolves the current
-                   * route's page-settings spec for the portrait menu's dynamic
-                   * half (ACCOUNT.5) to read. Innermost — it needs only the
-                   * pathname (no auth/convex/preferences) — and wraps both the
-                   * header and the page so each can read the slot. */}
-                  <PageMenuProvider>
-                    {children}
-                  </PageMenuProvider>
-                </LoadingToastProvider>
-              </OnlineStatusProvider>
+              {/* No app-wide Convex subscription lives here: since the
+               * online-status retirement, only Atlas surfaces subscribe, so
+               * every other route pays nothing beyond the idle provider. */}
+              {/* The shared loading-toast PROVIDER lives here so any live
+               * surface can register via useLoadingToast; it drives one keyed
+               * sonner toast (the <Toaster> mounted below). Inside
+               * ConvexClientProvider so Convex-driven `syncing` consumers share
+               * a tree with the provider. */}
+              <LoadingToastProvider>
+                {/* The page-menu slot (ACCOUNT.4): resolves the current
+                 * route's page-settings spec for the portrait menu's dynamic
+                 * half (ACCOUNT.5) to read. Innermost — it needs only the
+                 * pathname (no auth/convex/preferences) — and wraps both the
+                 * header and the page so each can read the slot. */}
+                <PageMenuProvider>
+                  {children}
+                </PageMenuProvider>
+              </LoadingToastProvider>
             </ConvexClientProvider>
           </PreferencesProvider>
         </AuthProvider>

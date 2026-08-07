@@ -1,11 +1,12 @@
 // Character location payload — the Convex half of 4.0.4.2.1 tracked location.
 //
-// Canonical shape (mirrors the onlineStatus canary): client heartbeat (engine)
-// → chain-on-success ~5s loop while watched (30s scan is the retry/watchdog)
-// → Workpool → characterLocationSync.syncUser (action: Neon enum ∩
-// mapTracking, location + ship-on-change) → applySyncResults (ONE batched
-// mutation, generation-guarded; movement nudges onlineStatus due-now) →
-// forViewer / mapTracking.forMap. The client never calls the action directly.
+// Canonical shape: client heartbeat (engine) → chain-on-success ~5s loop
+// while watched and a tracked pilot is online (30s scan is the retry/
+// watchdog; the sync's own /online probe paces an all-offline subject at
+// ~60s) → Workpool → characterLocationSync.syncUser (action: Neon enum ∩
+// mapTracking, online probe + location + ship-on-change) → applySyncResults
+// (ONE batched mutation, generation-guarded) → forViewer /
+// mapTracking.forMap. The client never calls the action directly.
 //
 // Purge remains the Neon→Convex teardown door for removed accounts/characters.
 import { type Infer, v } from 'convex/values';
@@ -168,7 +169,6 @@ export const applySyncResults = internalMutation({
       now,
     );
 
-    if (outcome.sawMovement) await nudgeOnlineStatusDueNow(ctx, args.userId, now);
   },
 });
 
@@ -200,11 +200,10 @@ async function applyCharacterResults(
   onlineByCharacter: Map<number, Doc<'characterLocationOnline'>>,
   subject: Doc<'syncSubjects'>,
   now: number,
-): Promise<{ windows: Array<number | null>; coveredCharacterIds: number[]; sawMovement: boolean }> {
+): Promise<{ windows: Array<number | null>; coveredCharacterIds: number[] }> {
   const enumerated = new Set(args.enumeratedCharacterIds);
   const windowsByCharacter = new Map<number, number | null>();
   const coveredCharacterIds: number[] = [];
-  let sawMovement = false;
   for (const result of args.results) {
     if (!enumerated.has(result.characterId)) continue;
     if (result.error === null) coveredCharacterIds.push(result.characterId);
@@ -218,29 +217,8 @@ async function applyCharacterResults(
       now,
     );
     windowsByCharacter.set(result.characterId, window);
-    // systemChanged covers first sample and a system hop; 304 / dock-only
-    // leave it false so stationary windows never nudge onlineStatus.
-    if (result.error === null && result.solarSystemId !== null && result.systemChanged) {
-      sawMovement = true;
-    }
   }
-  return { windows: [...windowsByCharacter.values()], coveredCharacterIds, sawMovement };
-}
-
-/**
- * Pull the user's onlineStatus subject into the scan's due range so the
- * online dot catches a fresh login/jump without gating location on the 60s
- * online cache. Absent or already-due subjects are left alone.
- */
-async function nudgeOnlineStatusDueNow(
-  ctx: MutationCtx,
-  userId: string,
-  now: number,
-): Promise<void> {
-  const online = await getSyncSubject(ctx.db, 'onlineStatus', userId);
-  if (online === null) return;
-  if (online.nextDueAt !== null && online.nextDueAt <= now) return;
-  await ctx.db.patch(online._id, { nextDueAt: now });
+  return { windows: [...windowsByCharacter.values()], coveredCharacterIds };
 }
 
 // Upsert one character's held online-probe state. Only a fresh probe read

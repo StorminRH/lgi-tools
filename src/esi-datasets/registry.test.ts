@@ -130,7 +130,7 @@ describe('ESI dataset registry seeded rule failures', () => {
       store: 'convex',
       shape: 'live',
       freshnessModel: 'engine-cadence',
-      refreshOwner: { kind: 'engine', dataset: 'onlineStatus' },
+      refreshOwner: { kind: 'engine', dataset: 'characterLocation' },
       upstream: staticEsi(3600),
       mirrorTables: [],
     };
@@ -324,14 +324,15 @@ describe('ESI dataset registry live gate', () => {
       .filter((entry) => entry.store === 'convex')
       .map((entry) => entry.name)
       .sort();
-    const mappedEntries = CONVEX_ESI_HOMES
-      .map((home) => home.entry)
-      .sort();
+    // One entry may own several Convex homes (character_location owns the
+    // payload table and its held online-probe table) — dedupe before the
+    // bidirectional comparison.
+    const mappedEntries = [...new Set(CONVEX_ESI_HOMES.map((home) => home.entry))].sort();
 
     expect(mappedEntries).toEqual(convexEntries);
     expect(CONVEX_ESI_HOMES).toEqual([
-      { home: 'convex:characterOnline', entry: 'online_status' },
       { home: 'convex:characterLocation', entry: 'character_location' },
+      { home: 'convex:characterLocationOnline', entry: 'character_location' },
     ]);
   });
 
@@ -378,9 +379,6 @@ describe('ESI dataset registry live gate', () => {
     );
     expect(effectiveTtlMs(entryNamed('market_prices'))).toBe(
       86_400_000,
-    );
-    expect(effectiveTtlMs(entryNamed('online_status'))).toBe(
-      SYNC_DATASET_CONFIG.onlineStatus.cadenceFloorMs,
     );
     expect(effectiveTtlMs(entryNamed('character_location'))).toBe(
       SYNC_DATASET_CONFIG.characterLocation.cadenceFloorMs,

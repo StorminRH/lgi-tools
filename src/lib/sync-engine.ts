@@ -20,19 +20,34 @@
  * Adding a future consumer is a config change here plus a syncRef in
  * convex/engine.ts, not new machinery.
  *
- * Live consumers: onlineStatus (MIGRATE.A canary, ~60s) and characterLocation
- * (4.0.4.2.1, ~5s floor sustained by chain-on-success while watched). The three
- * slow trackers (skills, personal + corp industry jobs) MOVED to Neon
- * stale-gated on-view reads in MIGRATE.B; MIGRATE.D.1 wiped their dormant schema
- * literals + subject rows. See docs/CONVEX.md for the ≤2-min placement rule and
- * the orphan-guard pattern (dataset-union-as-superset during drain windows).
+ * Live consumer: characterLocation (4.0.4.2.1, ~5s floor sustained by
+ * chain-on-success while watched, paced down to the ~60s online probe while
+ * every tracked pilot is logged off). onlineStatus (the MIGRATE.A canary) was
+ * RETIRED with the portrait dot after the location sync absorbed the online
+ * probe: its schema literals + leftover rows stay dormant through the drain
+ * window (isRegisteredDataset guards the engine; the sweep GC drains them)
+ * until the follow-up wipe drops them. The three slow trackers (skills,
+ * personal + corp industry jobs) MOVED to Neon stale-gated on-view reads in
+ * MIGRATE.B; MIGRATE.D.1 wiped their dormant rows. See docs/CONVEX.md for the
+ * ≤2-min placement rule and the orphan-guard pattern.
  */
-export const SYNC_DATASETS = ['onlineStatus', 'characterLocation'] as const;
+export const SYNC_DATASETS = ['characterLocation'] as const;
 /**
  * Closed active Convex sync-dataset registry; stored schemas may temporarily retain a retiring
  * superset during drain windows.
  */
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
+
+/**
+ * True iff a stored dataset still has a registered syncer. A retiring dataset
+ * (onlineStatus now; skills/industryJobs/corpIndustryJobs through MIGRATE.B)
+ * keeps its schema literal and leftover rows until its wipe, but no longer
+ * dispatches — the engine retires such an orphan instead, so a leftover
+ * hot+due row can never reach a deleted syncRef and crash the shared scan.
+ */
+export function isRegisteredDataset(dataset: string): dataset is SyncDataset {
+  return (SYNC_DATASETS as readonly string[]).includes(dataset);
+}
 
 /**
  * Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:
@@ -66,13 +81,6 @@ export type SyncDatasetConfig = {
  * policy for every registered sync consumer.
  */
 export const SYNC_DATASET_CONFIG: Record<SyncDataset, SyncDatasetConfig> = {
-  // Online status (MIGRATE.A) — ~60s ESI cache, polled at the same 60s floor as
-  // skills. Its own dispatch-smoothing key because /characters/{id}/online is a
-  // distinct ESI route from the skill reads (the group smooths re-arm herds, it
-  // is NOT the spend budget — that's the gate's Redis scoreboard, keyed by the
-  // real route group), so an online re-arm herd must not burst the char-detail
-  // group's dispatch.
-  onlineStatus: { cadenceFloorMs: 60_000, coldAfterMs: 60_000, tokenGroup: 'char-online' },
   // Tracked location (4.0.4.2.1) — verified ESI location/ship cache is 5s; the
   // floor pegs to that. chainOnSuccess sustains the ~5s loop while presence is
   // fresh; rateKeyScope subject keeps concurrent tracked users from sharing one

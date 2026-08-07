@@ -8,6 +8,7 @@ import {
   HIDDEN_PRESENCE_MAX_MS,
   isCold,
   isColdFromPresence,
+  isRegisteredDataset,
   isRunningFresh,
   isStaleForImmediate,
   MAX_COLD_AFTER_MS,
@@ -20,8 +21,10 @@ import {
 
 const NOW = 1_750_000_000_000;
 
-// onlineStatus's window (visible-tab dataset, three missed 20s beats).
-const ONLINE_COLD_MS = SYNC_DATASET_CONFIG.onlineStatus.coldAfterMs;
+// A representative narrow window for the pure helpers (the retired
+// onlineStatus dataset's 60s visible-tab shape — the helpers are window-
+// agnostic, so any value exercises them).
+const ONLINE_COLD_MS = 60_000;
 
 // A presence doc seen (and visible) at the given instant.
 const seenAt = (lastSeenAt: number) => ({ lastSeenAt, lastVisibleAt: lastSeenAt });
@@ -30,14 +33,8 @@ describe('dataset registration data', () => {
   // The floors are the live-read ESI cache windows
   // and the groups are the live-observed token buckets — pinned so a future
   // edit can't silently poll faster than a dataset's cache or bill the
-  // wrong bucket. onlineStatus omits the opt-in chain fields so its path
-  // stays byte-identical under the new defaults.
+  // wrong bucket.
   it('pins the live-read cadence floor, cold window, token group, and chain policy', () => {
-    expect(SYNC_DATASET_CONFIG.onlineStatus).toEqual({
-      cadenceFloorMs: 60_000,
-      coldAfterMs: 60_000,
-      tokenGroup: 'char-online',
-    });
     expect(SYNC_DATASET_CONFIG.characterLocation).toEqual({
       cadenceFloorMs: 5_000,
       coldAfterMs: 5 * 60_000,
@@ -50,6 +47,13 @@ describe('dataset registration data', () => {
   it('derives the widest window as the mixed-dataset index bound', () => {
     expect(MAX_COLD_AFTER_MS).toBe(5 * 60_000);
   });
+
+  it('registers exactly the live dataset; retired literals are unregistered', () => {
+    expect(isRegisteredDataset('characterLocation')).toBe(true);
+    // The drain-window leftovers: stored, never dispatched.
+    expect(isRegisteredDataset('onlineStatus')).toBe(false);
+    expect(isRegisteredDataset('skills')).toBe(false);
+  });
 });
 
 describe('isCold', () => {
@@ -59,9 +63,9 @@ describe('isCold', () => {
     expect(isCold(seenAt(NOW), ONLINE_COLD_MS, NOW)).toBe(false);
   });
 
-  it('applies each dataset its own window', () => {
+  it('applies each caller its own window', () => {
     const beat = seenAt(NOW - 2 * 60_000);
-    expect(isCold(beat, SYNC_DATASET_CONFIG.onlineStatus.coldAfterMs, NOW)).toBe(true);
+    expect(isCold(beat, ONLINE_COLD_MS, NOW)).toBe(true);
     expect(isCold(beat, SYNC_DATASET_CONFIG.characterLocation.coldAfterMs, NOW)).toBe(false);
   });
 

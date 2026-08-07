@@ -57,7 +57,7 @@
 // onComplete + ~3 forViewer echoes — a genuine status change still re-runs
 // forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
 // amortizes across a burst).
-// Watched-hour ≈ 2.9k calls for onlineStatus (60-run floor); characterLocation
+// Watched-hour: characterLocation
 // with chain-on-success is ~12 runs/min (~10k–30k calls/watched-hour) while
 // the Atlas tab is OPEN — visible or hidden behind the game — AND a tracked
 // pilot is online in EVE (BY DESIGN since the hidden-tab change: a hidden
@@ -79,6 +79,7 @@ import {
   computeNextDueAt,
   hasSyncTarget,
   isColdFromPresence,
+  isRegisteredDataset,
   isRunningFresh,
   isStaleForImmediate,
   MAX_COLD_AFTER_MS,
@@ -106,11 +107,12 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
   syncDispatch: { kind: 'token bucket', period: MINUTE, rate: 30, capacity: 10 },
 });
 
-// The engine's stored dataset union — live consumers today: onlineStatus +
-// characterLocation. Designed to hold a SUPERSET of the active registry while a
-// dataset is being retired (drain-window pattern in docs/CONVEX.md): schema +
-// leftover subject rows outlive the deleted syncer for one deploy so an in-flight
-// run / heartbeat still validates, then the wipe removes them.
+// The engine's stored dataset union — a SUPERSET of the active registry while
+// onlineStatus drains (drain-window pattern in docs/CONVEX.md): its schema
+// literal + leftover rows outlive the deleted syncer so an in-flight run or a
+// pre-deploy tab's heartbeat still validates. No syncRef is registered for it;
+// isRegisteredDataset keeps every dispatch path off it, and the sweep's
+// temporary retired-row GC drains the leftovers ahead of the wipe deploy.
 const syncDatasetValidator = v.union(
   v.literal('onlineStatus'),
   v.literal('characterLocation'),
@@ -118,7 +120,6 @@ const syncDatasetValidator = v.union(
 
 // The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS).
 const SYNC_REFS = {
-  onlineStatus: internal.onlineStatusSync.syncUser,
   characterLocation: internal.characterLocationSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
@@ -189,6 +190,9 @@ export const heartbeat = mutation({
   handler: async (ctx, { dataset, characterIdsHint, reason, visible }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) return;
+    // A retired dataset's beat (a tab loaded before its retirement deploy)
+    // no-ops entirely — even writing presence would keep drain-GC rows alive.
+    if (!isRegisteredDataset(dataset)) return;
     const userId = identity.subject;
     const now = Date.now();
     const seenVisible = visible !== false;
@@ -245,7 +249,7 @@ export const heartbeat = mutation({
       // the schedule off the held window so the cadence resumes without
       // waiting for staleness or the sweeper.
       if (subject.nextDueAt === null) {
-        const { cadenceFloorMs } = SYNC_DATASET_CONFIG[subject.dataset];
+        const { cadenceFloorMs } = SYNC_DATASET_CONFIG[dataset];
         await ctx.db.patch(subject._id, {
           nextDueAt: computeNextDueAt(
             subject.minExpiresAt,
@@ -278,11 +282,18 @@ export const scan = internalMutation({
     // and can be re-selected, but it ages out of isRunningFresh within
     // STALE_RUNNING_MS and is then taken over (nextDueAt advances), so it can't
     // hold a batch slot indefinitely; worst-case added drain latency behind a
-    // running-fresh cluster is bounded by STALE_RUNNING_MS. (onlineStatus's 60s
-    // cadence is below the 180s stale threshold, so a still-running subject can
-    // re-come-due before it ages out — exactly this re-select-then-take-over case.)
+    // running-fresh cluster is bounded by STALE_RUNNING_MS. (Any cadence below
+    // the 180s stale threshold — e.g. the ~60s offline-probe pace — lets a
+    // still-running subject re-come-due before it ages out: exactly this
+    // re-select-then-take-over case.)
     const due = await dueSubjects(ctx, now);
     for (const subject of due) {
+      // A retired dataset's leftover row never dispatches (no syncRef exists)
+      // — retire it from the scan set; the sweep GC deletes it.
+      if (!isRegisteredDataset(subject.dataset)) {
+        await ctx.db.patch(subject._id, { nextDueAt: null });
+        continue;
+      }
       // Presence is its own doc now (3.5.e1) — one point read per due row,
       // only over the hot, already-scheduled set. A missing doc reads as cold,
       // and each dataset is judged against its own cold window.
@@ -325,6 +336,9 @@ async function dispatch(
   subject: Doc<'syncSubjects'>,
   now: number,
 ): Promise<boolean> {
+  // Every caller pre-guards, but the stored union is wider than the registry
+  // during a drain window — never index a missing syncRef.
+  if (!isRegisteredDataset(subject.dataset)) return false;
   const { cadenceFloorMs, tokenGroup, rateKeyScope } = SYNC_DATASET_CONFIG[subject.dataset];
   // Default group key smooths re-arm herds across users; subject scope keeps
   // concurrent tracked pilots from starving each other on one char-location
@@ -367,6 +381,7 @@ export const chainDispatch = internalMutation({
     userId: v.string(),
   },
   handler: async (ctx, { dataset, userId }) => {
+    if (!isRegisteredDataset(dataset)) return;
     const subject = await getSyncSubject(ctx.db, dataset, userId);
     if (subject === null) return;
     const now = Date.now();
@@ -397,6 +412,7 @@ async function resolveCompletionSchedule(
   subject: Doc<'syncSubjects'>,
   failed: boolean,
   cadenceFloorMs: number,
+  coldAfterMs: number,
   chainOnSuccess: boolean,
   now: number,
 ): Promise<{ nextDueAt: number | null; chainAt: number | null }> {
@@ -410,7 +426,6 @@ async function resolveCompletionSchedule(
     subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
   if (chainOnSuccess && yielded) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-    const { coldAfterMs } = SYNC_DATASET_CONFIG[subject.dataset];
     if (!isColdFromPresence(presence, coldAfterMs, now)) {
       const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
       return { nextDueAt: boundary, chainAt: boundary };
@@ -432,10 +447,13 @@ async function resolveCompletionSchedule(
 export const onSyncComplete = internalMutation({
   args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
   handler: async (ctx, { workId, context, result }) => {
+    // A retired dataset's late completion (in-flight across its retirement
+    // deploy) has nothing to re-arm; the sweep GC deletes its row.
+    if (!isRegisteredDataset(context.dataset)) return;
     const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
     if (subject === null || subject.workId !== workId) return;
     const now = Date.now();
-    const { cadenceFloorMs, chainOnSuccess } = SYNC_DATASET_CONFIG[subject.dataset];
+    const { cadenceFloorMs, coldAfterMs, chainOnSuccess } = SYNC_DATASET_CONFIG[context.dataset];
     const failed = result.kind === 'failed';
     if (failed) {
       // Mirror of the Vercel crons' structured boundary line — the Convex
@@ -455,6 +473,7 @@ export const onSyncComplete = internalMutation({
       subject,
       failed,
       cadenceFloorMs,
+      coldAfterMs,
       chainOnSuccess === true,
       now,
     );
@@ -532,9 +551,36 @@ export const sweep = internalMutation({
     await sweepOverdue(ctx, now, counts);
     await sweepDropped(ctx, now, counts);
     await sweepAbandoned(ctx, now, counts);
+    await sweepRetiredDatasets(ctx, counts);
     return counts;
   },
 });
+
+/**
+ * TEMPORARY Pass D — the onlineStatus drain GC (delete alongside the wipe
+ * deploy that drops the retired literals + characterOnline). Retention alone
+ * would hold leftover rows for 7 days and block the wipe's schema push; this
+ * drains them in a few 15-minute runs instead. Bounded unindexed take()s
+ * (there is no by_dataset index and never will be — the tables are small and
+ * this pass is throwaway): deleted rows leave the front of the creation
+ * order, so successive runs walk the whole table.
+ */
+const RETIRED_GC_BATCH = 512;
+async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Promise<void> {
+  const subjects = await ctx.db.query('syncSubjects').take(RETIRED_GC_BATCH);
+  for (const row of subjects) {
+    if (isRegisteredDataset(row.dataset)) continue;
+    await ctx.db.delete(row._id);
+    counts.deleted += 1;
+  }
+  const presence = await ctx.db.query('syncPresence').take(RETIRED_GC_BATCH);
+  for (const row of presence) {
+    if (!isRegisteredDataset(row.dataset)) await ctx.db.delete(row._id);
+  }
+  // Every characterOnline row belongs to the retired dataset — drain them all.
+  const online = await ctx.db.query('characterOnline').take(RETIRED_GC_BATCH);
+  for (const row of online) await ctx.db.delete(row._id);
+}
 
 interface SweepCounts {
   dispatched: number;
@@ -552,6 +598,12 @@ async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts):
   // the 4,096-read ceiling — it drains the rest on the next 15-min run.
   const due = await dueSubjects(ctx, now);
   for (const subject of due) {
+    // Retired-dataset leftovers are the drain GC's province (Pass D).
+    if (!isRegisteredDataset(subject.dataset)) {
+      await ctx.db.patch(subject._id, { nextDueAt: null });
+      counts.retired += 1;
+      continue;
+    }
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     switch (
       classifyDueSubject(
@@ -600,6 +652,7 @@ async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts):
     .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - MAX_COLD_AFTER_MS))
     .take(SCAN_DISPATCH_BATCH);
   for (const presence of hot) {
+    if (!isRegisteredDataset(presence.dataset)) continue;
     if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[presence.dataset].coldAfterMs, now)) {
       continue;
     }

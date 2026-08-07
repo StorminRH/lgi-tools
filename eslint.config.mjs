@@ -1193,31 +1193,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The online-status provider mounts the Convex client only; Better Auth stays
-  // banned here.
-  {
-    files: ["src/components/OnlineStatusProvider.tsx"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [...nextImageImportPaths],
-          patterns: [
-            ...upstashRedisImportPatterns,
-            ...upstashRatelimitImportPatterns,
-            ...databaseDriverImportPatterns,
-            ...betterAuthImportPatterns,
-            ...googleAuthImportPatterns,
-            ...crossCuttingImportPatterns,
-            ...baseUiImportPatterns,
-            ...deprecatedBaseUiImportPatterns,
-            ...sonnerImportPatterns,
-            ...serverRootImportPatterns,
-          ],
-        },
-      ],
-    },
-  },
   // CSP + color tokens: two families of `no-restricted-syntax` bans share one
   // block (the rule's options REPLACE across matching files, so they can't be
   // split into two `**/*.{ts,tsx}` objects without one wiping the other).

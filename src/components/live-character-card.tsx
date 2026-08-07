@@ -4,8 +4,8 @@
 // The Convex-reactive plumbing that once lived here — the session gate, the
 // engine-coupled sync/clock/name hook, and the per-tracker COLD/HOT merge hooks —
 // left with the trackers as each moved to a Neon stale-gated on-view read
-// (MIGRATE.B.1/B.2/B.3); the engine now serves only the onlineStatus canary, which
-// rides its own path (OnlineStatusProvider + use-sync-subject). What remains is the
+// (MIGRATE.B.1/B.2/B.3), and the onlineStatus canary retired with the portrait
+// dot (Convex now activates only on Atlas surfaces). What remains is the
 // pure card shell each feature feeds with already-resolved data + its own render
 // clock. This is the `shared` zone (`src/components/*.tsx`), the only layer permitted
 // to import features + data + ui + lib, so the two features compose it without

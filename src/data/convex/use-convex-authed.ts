@@ -8,7 +8,7 @@
 // Why any consumer needs it: the Convex websocket connects before Better Auth has minted the JWT, so
 // a gated query issued during that window reaches the server with no identity and is rejected. A
 // subtree whose queries require an identity must therefore not mount until this is true — the same
-// reason `OnlineStatusProvider` wraps its authenticated subscription in `<Authenticated>`.
+// reason authenticated Convex subscriptions mount behind `<Authenticated>`.
 import { useConvexAuth } from 'convex/react';
 
 /**
