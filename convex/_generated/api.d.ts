@@ -22,6 +22,7 @@ import type * as lib_mapEntityContracts from "../lib/mapEntityContracts.js";
 import type * as lib_mapSignatureCleanup from "../lib/mapSignatureCleanup.js";
 import type * as lib_mapSystemLookup from "../lib/mapSystemLookup.js";
 import type * as lib_subjects from "../lib/subjects.js";
+import type * as lib_syncFields from "../lib/syncFields.js";
 import type * as mapAccessProjection from "../mapAccessProjection.js";
 import type * as mapAuthoring from "../mapAuthoring.js";
 import type * as mapChain from "../mapChain.js";
@@ -30,7 +31,6 @@ import type * as mapJump from "../mapJump.js";
 import type * as mapJumpBookkeeping from "../mapJumpBookkeeping.js";
 import type * as mapTracking from "../mapTracking.js";
 import type * as onlineStatus from "../onlineStatus.js";
-import type * as onlineStatusSync from "../onlineStatusSync.js";
 
 import type {
   ApiFromModules,
@@ -53,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mapSignatureCleanup": typeof lib_mapSignatureCleanup;
   "lib/mapSystemLookup": typeof lib_mapSystemLookup;
   "lib/subjects": typeof lib_subjects;
+  "lib/syncFields": typeof lib_syncFields;
   mapAccessProjection: typeof mapAccessProjection;
   mapAuthoring: typeof mapAuthoring;
   mapChain: typeof mapChain;
@@ -61,7 +62,6 @@ declare const fullApi: ApiFromModules<{
   mapJumpBookkeeping: typeof mapJumpBookkeeping;
   mapTracking: typeof mapTracking;
   onlineStatus: typeof onlineStatus;
-  onlineStatusSync: typeof onlineStatusSync;
 }>;
 
 /**
