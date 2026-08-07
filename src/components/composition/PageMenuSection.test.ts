@@ -33,6 +33,20 @@ describe('PageMenuSection', () => {
     expect(html).toContain('aria-pressed="true"'); // the fallback value is selected
   });
 
+  it('renders a registered boolean control as a Switch row', () => {
+    registerPageSettings({
+      route: '/atlas',
+      title: 'Map settings',
+      controls: [{ key: 'atlas.mapLock', placement: 'section' }],
+    });
+    const html = renderAt('/atlas');
+    expect(html).toContain('Map settings');
+    expect(html).toContain('Auto Layout');
+    expect(html).not.toContain('re-locking restores the computed layout');
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('aria-checked="true"'); // atlas.mapLock fallback
+  });
+
   it('prefers the spec’s own title when declared', () => {
     registerPageSettings({
       route: '/sites',

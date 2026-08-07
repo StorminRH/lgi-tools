@@ -28,8 +28,14 @@ describe('resolveMenuControls', () => {
     );
     expect(models.map((m) => m.key)).toEqual(['sites.view', 'sites.detailMode']);
     // The preceding equality assertion guarantees both indexed models exist.
-    expect(models[0]!.options).toEqual(['cards', 'table']);
-    expect(models[1]!.options).toEqual(['lightbox', 'expand']);
+    expect(models[0]).toMatchObject({
+      kind: 'preference-enum',
+      options: ['cards', 'table'],
+    });
+    expect(models[1]).toMatchObject({
+      kind: 'preference-enum',
+      options: ['lightbox', 'expand'],
+    });
     expect(models[0]!.def.key).toBe('sites.view');
   });
 
@@ -63,7 +69,7 @@ describe('resolveMenuControls', () => {
     expect(models.map((m) => m.key)).toEqual(['sites.view']);
   });
 
-  it('drops non-enum preferences (no generic control shape for them pre-ACCOUNT.6)', () => {
+  it('drops non-enum, non-boolean preferences (no generic control shape for objects)', () => {
     const models = resolveMenuControls(
       spec([
         { key: 'planner.buildLocation', placement: 'section' },
@@ -71,6 +77,31 @@ describe('resolveMenuControls', () => {
       ]),
     );
     expect(models.map((m) => m.key)).toEqual(['sites.view']);
+  });
+
+  it('resolves boolean preference keys to switch models', () => {
+    const models = resolveMenuControls(
+      spec([
+        { key: 'atlas.mapLock', placement: 'section' },
+        { key: 'atlas.cameraFollow', placement: 'section' },
+        { key: 'atlas.clickFocus', placement: 'section' },
+      ]),
+    );
+    expect(models.map((m) => m.kind)).toEqual([
+      'preference-boolean',
+      'preference-boolean',
+      'preference-boolean',
+    ]);
+    expect(models.map((m) => m.key)).toEqual([
+      'atlas.mapLock',
+      'atlas.cameraFollow',
+      'atlas.clickFocus',
+    ]);
+    expect(models.map((m) => m.label)).toEqual([
+      'Auto Layout',
+      'camera follow',
+      'click focus',
+    ]);
   });
 
   it('sorts explicit order first, unordered refs following in declaration order', () => {
@@ -118,8 +149,8 @@ describe('resolvePageControls', () => {
     expect(models).toHaveLength(1);
     // The preceding length assertion guarantees the first indexed model exists.
     const model = models[0]!;
-    expect(model.kind).toBe('preference');
-    if (model.kind === 'preference') {
+    expect(model.kind).toBe('preference-enum');
+    if (model.kind === 'preference-enum') {
       expect(model.options).toEqual(['cards', 'table']);
       expect(model.label).toBe('view');
       expect(model.def.key).toBe('sites.view');
@@ -143,7 +174,7 @@ describe('resolvePageControls', () => {
     expect(models).toEqual([{ kind: 'feature', id: 'corp-structure-sharing' }]);
   });
 
-  it('drops unknown and non-enum preference keys at inline placement', () => {
+  it('drops unknown and non-renderable preference keys at inline placement', () => {
     const models = resolvePageControls(
       spec([
         { key: 'sites.unregistered', placement: 'inline' },
@@ -151,7 +182,9 @@ describe('resolvePageControls', () => {
         { key: 'sites.view', placement: 'inline' },
       ]),
     );
-    expect(models).toEqual([expect.objectContaining({ kind: 'preference', key: 'sites.view' })]);
+    expect(models).toEqual([
+      expect.objectContaining({ kind: 'preference-enum', key: 'sites.view' }),
+    ]);
   });
 
   it('orders across kinds: explicit order first, then declaration order', () => {

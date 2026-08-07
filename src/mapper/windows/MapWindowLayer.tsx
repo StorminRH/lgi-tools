@@ -10,7 +10,6 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { SiteCardWidget } from '@/features/wormhole-sites/widget';
 import type { ChainNode } from '../canvas/SystemNode';
 import { createNodeFollower, type NodeFollowerStore } from './follower-model';
 import { isAdoptedPopupOpen, MapWindow } from './MapWindow';
@@ -35,10 +34,23 @@ import {
   type WindowViewport,
 } from './window-model';
 
-const FIXTURE_SITE_ID = 1;
 const subscribeMounted = () => () => undefined;
 const clientMountedSnapshot = () => true;
 const serverMountedSnapshot = () => false;
+
+/** Shared body for dock + node-summary until system intelligence ships. */
+function SystemIntelligencePlaceholder() {
+  return (
+    <div data-map-summary-placeholder className="flex flex-col items-center gap-2 text-center">
+      <p className="font-data text-label uppercase tracking-label text-isk">
+        System summary
+      </p>
+      <p className="text-ui text-muted">
+        Detailed system intelligence will arrive in a later Atlas slice.
+      </p>
+    </div>
+  );
+}
 
 function viewportSize(): WindowViewport {
   if (typeof window === 'undefined') return { width: 1440, height: 900 };
@@ -298,7 +310,7 @@ function DockSurface({
       onResizeDelta={onResizeDelta}
       onResizeEnd={onResizeEnd}
     >
-      <SiteCardWidget siteId={FIXTURE_SITE_ID} className="min-h-0" />
+      <SystemIntelligencePlaceholder />
     </MapWindow>
   );
 }
@@ -329,14 +341,7 @@ function SummarySurface({
       onClose={onClose}
       onActivate={onActivate}
     >
-      <div data-map-summary-placeholder className="flex flex-col items-center gap-2 text-center">
-        <p className="font-data text-label uppercase tracking-label text-isk">
-          System summary
-        </p>
-        <p className="text-ui text-muted">
-          Detailed system intelligence will arrive in a later Atlas slice.
-        </p>
-      </div>
+      <SystemIntelligencePlaceholder />
     </MapWindow>
   );
 }

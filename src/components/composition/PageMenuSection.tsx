@@ -2,9 +2,10 @@
 
 // The portrait menu's DYNAMIC half (ACCOUNT.5): the current route's
 // page-settings section, read from the ACCOUNT.4 slot (usePageSettings — the one
-// resolution path) and rendered as live segmented preference controls. Routes
-// with no spec (or no renderable section controls) render NOTHING — no
-// empty-state filler, no dangling divider.
+// resolution path) and rendered as live preference controls. Enum prefs use
+// SegmentedControl; boolean prefs use the house Base UI Switch. Routes with no
+// spec (or no renderable section controls) render NOTHING — no empty-state
+// filler, no dangling divider.
 //
 // The rows are NON-item popup content (the nav-menu-login precedent), so
 // selecting a value deliberately does not close the menu — adjust, watch the
@@ -24,10 +25,16 @@ import { usePageSettings } from '@/components/composition/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';
 import { menuControlRow, menuSection, menuSectionLabel } from '@/components/ui/menu';
 import { SegmentedControl } from '@/components/ui/segmented';
-import { resolveMenuControls, type MenuControlModel } from '@/platform/page-settings/controls';
+import { Switch } from '@/components/ui/switch';
+import {
+  resolveMenuControls,
+  type BooleanMenuControlModel,
+  type EnumMenuControlModel,
+  type MenuControlModel,
+} from '@/platform/page-settings/controls';
 
-// Own component so usePreference is never called inside a map.
-function ControlRow({ model }: { model: MenuControlModel }) {
+// Own components so usePreference is never called inside a map.
+function EnumControlRow({ model }: { model: EnumMenuControlModel }) {
   const [value, setValue] = usePreference(model.def);
   return (
     <div className={menuControlRow}>
@@ -40,6 +47,30 @@ function ControlRow({ model }: { model: MenuControlModel }) {
       />
     </div>
   );
+}
+
+function BooleanControlRow({ model }: { model: BooleanMenuControlModel }) {
+  const [value, setValue] = usePreference(model.def);
+  return (
+    <div className={menuControlRow}>
+      <span className="text-label uppercase tracking-label text-muted">
+        {model.label}
+      </span>
+      <Switch
+        checked={value}
+        onCheckedChange={setValue}
+        label={model.label}
+        tone="neutral"
+      />
+    </div>
+  );
+}
+
+function ControlRow({ model }: { model: MenuControlModel }) {
+  if (model.kind === 'preference-boolean') {
+    return <BooleanControlRow model={model} />;
+  }
+  return <EnumControlRow model={model} />;
 }
 
 /**

@@ -12,6 +12,7 @@ import { skillsPageSettings } from '@/features/skill-queue/page-settings';
 import { sitesPageSettings } from '@/features/wormhole-sites/page-settings';
 import { registerPageSettings } from '@/platform/page-settings';
 import { accountPageSettings } from '@/platform/page-settings/account';
+import { atlasPageSettings } from '@/platform/page-settings/atlas';
 import type { PageSettingsSpec } from '@/platform/page-settings/types';
 
 /** Complete ordered page-settings specification set registered at application startup. */
@@ -20,6 +21,7 @@ export const PAGE_SETTINGS_SPECS: readonly PageSettingsSpec[] = [
   accountPageSettings,
   skillsPageSettings,
   jobsPageSettings,
+  atlasPageSettings,
 ];
 
 for (const spec of PAGE_SETTINGS_SPECS) {

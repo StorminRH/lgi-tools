@@ -1,10 +1,12 @@
 'use client';
 
-// Canvas panel: map lock, camera follow, and the collapsible dial group.
+// Canvas panel: development-only layout/motion dial group. User-facing map
+// lock / camera follow / click focus live in page-settings (portrait menu).
 //
 // Controlled and domain-stateless — commit handlers apply `map-controls-model`
 // clamping so invalid configs cannot leave the panel. Composed from existing
-// `@/components/ui` primitives inside a React Flow `Panel`.
+// `@/components/ui` primitives inside a React Flow `Panel`. Renders nothing
+// outside development so production never shows an empty frosted shell.
 import { Panel } from '@xyflow/react';
 import { memo, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
@@ -12,7 +14,6 @@ import { Collapsible } from '@/components/ui/collapsible';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Select } from '@/components/ui/select';
 import { Stepper } from '@/components/ui/stepper';
-import { Switch } from '@/components/ui/switch';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import type {
   DirectionPresetId,
@@ -52,15 +53,8 @@ import {
   directionPresetOf,
 } from './map-controls-model';
 
-/** Controlled props for the map lock, camera, and layout/motion dials. */
+/** Controlled props for the development-only layout/motion dials. */
 export interface MapControlsProps {
-  readonly locked: boolean;
-  readonly onLockedChange: (locked: boolean) => void;
-  readonly follow: boolean;
-  readonly onFollowChange: (follow: boolean) => void;
-  /** Click-to-focus: a shipped user setting, deliberately not a motion dial. */
-  readonly focusOnClick: boolean;
-  readonly onFocusOnClickChange: (focusOnClick: boolean) => void;
   readonly config: LayoutConfig;
   readonly onConfigChange: (config: LayoutConfig) => void;
   readonly motion: MotionConfig;
@@ -68,65 +62,29 @@ export interface MapControlsProps {
 }
 
 /**
- * Map lock, camera-follow, and layout dials for the live chain surface.
+ * Development-only layout and motion dials for the live chain surface.
  *
  * Must mount inside `<ReactFlow>` (via `ChainSurface`'s children slot).
  */
 function MapControlsComponent({
-  locked,
-  onLockedChange,
-  follow,
-  onFollowChange,
-  focusOnClick,
-  onFocusOnClickChange,
   config,
   onConfigChange,
   motion,
   onMotionChange,
 }: MapControlsProps) {
+  if (process.env.NODE_ENV !== 'development') return null;
+
   const preset = directionPresetOf(config) ?? 'compass-8';
 
   return (
     <Panel
+      data-map-dev-dials
       position="top-right"
       className={cn(
         'nopan nodrag nowheel mx-2! mb-2! mt-4! flex max-h-[calc(100dvh-6rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
         mapFrostedSurface,
       )}
     >
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-label uppercase tracking-label text-muted">Map lock</span>
-          <Switch
-            checked={locked}
-            onCheckedChange={onLockedChange}
-            label="Map lock"
-            tone="neutral"
-          />
-        </div>
-        <span className="font-data text-micro text-muted">
-          re-locking restores the computed layout
-        </span>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-label uppercase tracking-label text-muted">Camera follow</span>
-        <Switch
-          checked={follow}
-          onCheckedChange={onFollowChange}
-          label="Camera follow"
-          tone="neutral"
-        />
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-label uppercase tracking-label text-muted">Click focus</span>
-        <Switch
-          checked={focusOnClick}
-          onCheckedChange={onFocusOnClickChange}
-          label="Click focus"
-          tone="neutral"
-        />
-      </div>
-
       <Collapsible
         defaultOpen={false}
         header={

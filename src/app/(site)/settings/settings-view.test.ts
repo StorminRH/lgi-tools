@@ -5,7 +5,7 @@ import type { PageControlModel } from '@/platform/page-settings/controls';
 import { deriveSettingsView, settingsNeedsCorpSharing, toManagerCorps } from './settings-view';
 
 const preference = (key: string): PageControlModel => ({
-  kind: 'preference',
+  kind: 'preference-enum',
   key,
   label: key,
   options: ['a', 'b'],

@@ -5,11 +5,10 @@
 // 'section') and the account settings page (resolvePageControls, placement
 // 'inline').
 //
-// A preference ref renders only when its key resolves to a registered ENUM
-// preference: the options come straight off the def's z.enum (zero per-key
-// presentation config — the segments show the raw values, exactly as the /sites
-// page toggles do). Non-enum defs (e.g. the planner's build-location object)
-// and unknown keys drop out silently; anti-drift for unknown keys is the engine
+// A preference ref renders when its key resolves to a registered ENUM
+// preference (SegmentedControl — options from z.enum) or BOOLEAN preference
+// (Switch). Other shapes (e.g. the planner's build-location object) and
+// unknown keys drop out silently; anti-drift for unknown keys is the engine
 // test's job. A feature ref resolves by id for the PAGE only — the menu drops
 // it (D-3: no confirm-gated/destructive flow in the menu; the type already pins
 // feature refs to 'inline', the runtime skip is cast-defense).
@@ -19,9 +18,9 @@ import { getPreferenceDef, type PreferenceDef } from '@/lib/preferences';
 import type { FeatureControlId } from './feature-controls';
 import type { PageSettingsSpec, SettingsControlRef } from './types';
 
-/** Display-ready page-menu control with stable identity, label, state, and controlled update behavior. */
-export type MenuControlModel = {
-  kind: 'preference';
+/** Enum preference row for SegmentedControl presentation. */
+export type EnumMenuControlModel = {
+  kind: 'preference-enum';
   key: string;
   // Display label derived from the key ('sites.detailMode' → 'detail mode');
   // a per-key override registry stays a future growth with this derivation as
@@ -31,9 +30,20 @@ export type MenuControlModel = {
   def: PreferenceDef<string>;
 };
 
+/** Boolean preference row for Switch presentation. */
+export type BooleanMenuControlModel = {
+  kind: 'preference-boolean';
+  key: string;
+  label: string;
+  def: PreferenceDef<boolean>;
+};
+
+/** Display-ready page-menu control with stable identity, label, state, and controlled update behavior. */
+export type MenuControlModel = EnumMenuControlModel | BooleanMenuControlModel;
+
 /**
  * A feature-owned, server-backed control, resolved by id. The settings page
- * maps the id to its owning slice's component; the resolver stays data-only.
+ * maps the id to that slice's component; the resolver stays data-only.
  */
 export type FeatureControlModel = {
   kind: 'feature';
@@ -65,18 +75,34 @@ function labelFromKey(key: string): string {
   return segment.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
+/** Display labels that should not follow the raw key-derived wording. */
+const LABEL_OVERRIDES: Readonly<Record<string, string>> = {
+  'atlas.mapLock': 'Auto Layout',
+};
+
 function preferenceModel(ref: { key: string }): MenuControlModel | null {
   const def = getPreferenceDef(ref.key);
   if (def === undefined) return null;
-  if (!(def.schema instanceof z.ZodEnum)) return null;
-  return {
-    kind: 'preference',
-    key: ref.key,
-    label: labelFromKey(ref.key),
-    options: def.schema.options as readonly string[],
-    // Safe: the schema is a string enum, so the def's value type is string.
-    def: def as PreferenceDef<string>,
-  };
+  const label = LABEL_OVERRIDES[ref.key] ?? labelFromKey(ref.key);
+  if (def.schema instanceof z.ZodEnum) {
+    return {
+      kind: 'preference-enum',
+      key: ref.key,
+      label,
+      options: def.schema.options as readonly string[],
+      // Safe: the schema is a string enum, so the def's value type is string.
+      def: def as PreferenceDef<string>,
+    };
+  }
+  if (def.schema instanceof z.ZodBoolean) {
+    return {
+      kind: 'preference-boolean',
+      key: ref.key,
+      label,
+      def: def as PreferenceDef<boolean>,
+    };
+  }
+  return null;
 }
 
 /**

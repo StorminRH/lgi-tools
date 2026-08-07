@@ -1,11 +1,11 @@
 'use client';
 
 // The map's per-character tracking opt-in. The visible portrait controls live
-// in the account portrait menu, while TrackingHeartbeat stays mounted with the
-// canvas so syncing never depends on whether that popup is open. The roster
-// comes from the existing account-character owner; committed toggle state comes
-// from Convex forMap. No location state is mirrored locally and no new polling
-// path exists here.
+// in the account portrait menu below page-settings Map settings; TrackingHeartbeat
+// stays mounted with the canvas so syncing never depends on whether that popup
+// is open. The roster comes from the existing account-character owner; committed
+// toggle state comes from Convex forMap. No location state is mirrored locally
+// and no new polling path exists here.
 import { CharacterPortrait } from '@/components/character-portrait';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import {
@@ -75,12 +75,9 @@ function TrackingControlsView({
       data-map-tracking
       className={menuSection}
       role="group"
-      aria-label="Map settings"
+      aria-label="Tracking"
     >
       <div className={menuSectionLabel} aria-hidden="true">
-        Map settings
-      </div>
-      <div className="px-3 pb-1 font-data text-label uppercase tracking-label text-muted">
         Tracking
       </div>
       {characters.length === 0 ? (
@@ -88,7 +85,7 @@ function TrackingControlsView({
           No linked characters
         </span>
       ) : (
-        <div className="flex flex-wrap gap-2 px-3 pb-2">
+        <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
           {characters.map((character) => {
             const checked = trackedIds.has(character.characterId);
             return (
@@ -102,13 +99,16 @@ function TrackingControlsView({
                 label={character.name}
                 aria-label={`${checked ? 'Stop tracking' : 'Track'} ${character.name}`}
                 data-tracking-character-id={character.characterId}
-                className="rounded-full border-2 border-transparent p-0.5 opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:border-isk data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none"
+                // Fixed square hit target: content-sized CheckboxItem + inline-block
+                // portrait baseline gap was stretching height and ovalizing the ring.
+                className="box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-transparent p-0.5 leading-none opacity-35 grayscale outline-none transition-[border-color,opacity,filter] data-[checked]:border-isk data-[checked]:opacity-100 data-[checked]:grayscale-0 data-[highlighted]:ring-1 data-[highlighted]:ring-isk-sub focus-visible:ring-1 focus-visible:ring-isk-sub motion-reduce:transition-none"
               >
                 <CharacterPortrait
                   characterId={character.characterId}
                   name={character.name}
                   size={32}
                   src={character.portraitUrl}
+                  className="block"
                 />
               </MenuCheckboxItem>
             );

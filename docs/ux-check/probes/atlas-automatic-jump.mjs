@@ -150,15 +150,17 @@ export default {
     await accountTrigger.click();
     const accountMenu = page.locator('[data-account-menu-popup]');
     await accountMenu.waitFor({ state: 'visible', timeout: 10_000 });
-    const mapSettings = accountMenu.locator('[data-map-tracking]');
-    const trackingPortrait = mapSettings.locator(
+    const mapSettings = accountMenu.locator('[data-page-menu-section]');
+    const trackingSection = accountMenu.locator('[data-map-tracking]');
+    const trackingPortrait = trackingSection.locator(
       `[data-tracking-character-id="${CHARACTER_ID}"]`,
     );
     await mapSettings.waitFor({ state: 'visible', timeout: 10_000 });
+    await trackingSection.waitFor({ state: 'visible', timeout: 10_000 });
     check(
-      'portrait menu contains the Map settings tracking section',
+      'portrait menu contains Map settings prefs and Tracking portraits',
       (await mapSettings.getByText('Map settings', { exact: true }).count()) === 1
-      && (await mapSettings.getByText('Tracking', { exact: true }).count()) === 1,
+      && (await trackingSection.getByText('Tracking', { exact: true }).count()) === 1,
     );
     await trackingPortrait.waitFor({ state: 'visible', timeout: 10_000 });
     check(

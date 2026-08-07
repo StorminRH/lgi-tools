@@ -94,8 +94,9 @@ describe('TrackingControls', () => {
 
     const markup = renderToStaticMarkup(element);
     expect(markup).toContain('data-map-tracking');
-    expect(markup).toContain('Map settings');
+    expect(markup).not.toContain('Map settings');
     expect(markup).toContain('Tracking');
+    expect(markup).toContain('aria-label="Tracking"');
     expect(markup).toContain('Alice Own');
     expect(markup).toContain('Bob Own');
     expect(markup).not.toContain('999');

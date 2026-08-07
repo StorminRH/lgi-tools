@@ -11,7 +11,8 @@
 //      from the placement seam until re-lock clears every user stamp.
 //
 // Everything drawn here comes from the reconciler (contract DC-7). This module reads no Convex page
-// directly and adds no mutation surface — lock, dials, and camera follow are client-local only.
+// directly and adds no mutation surface — layout/motion dials are client-local only; map lock,
+// camera follow, and click focus are autosaved preferences.
 import {
   applyNodeChanges,
   ReactFlowProvider,
@@ -23,8 +24,14 @@ import {
   type SelectionDragHandler,
 } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { usePreference } from '@/components/PreferencesProvider';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import type { Id } from '@/data/convex/data-model';
+import {
+  atlasCameraFollow,
+  atlasClickFocus,
+  atlasMapLock,
+} from '@/lib/preferences';
 import { ConnectionAuthoringOverlay } from '../authoring/ConnectionAuthoringOverlay';
 import { HomePrompt } from '../authoring/HomePrompt';
 import {
@@ -88,16 +95,12 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // Mirrors `dragging` for use inside the sync effect without making the effect depend on it: a drag
   // start must not itself trigger a resync.
   const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
-  // Map lock: locked by default — nodes cannot be dragged until the operator unlocks.
-  const [locked, setLocked] = useState(true);
-  // Camera follow: local, default OFF — the operator's G-1 call (2026-08-02):
-  // automatic viewport snapping reads as the camera fighting the user.
-  const [follow, setFollow] = useState(false);
-  // Click-to-focus: a shipped user setting beside camera follow — deliberately
-  // NOT a MotionConfig dial. Default ON ratified at the G-1 gate (2026-08-02):
-  // unlike follow, focus is a direct answer to the user's own click, so it
-  // does not read as the camera moving on its own; it stays user-changeable.
-  const [focusOnClick, setFocusOnClick] = useState(true);
+  // Map lock / camera follow / click focus: autosaved preferences (portrait menu).
+  const [locked] = usePreference(atlasMapLock);
+  const [follow] = usePreference(atlasCameraFollow);
+  const [focusOnClick] = usePreference(atlasClickFocus);
+  // Re-lock releases user placements only on transition to locked (not initial mount).
+  const wasLockedRef = useRef(locked);
   const [focusRequest, setFocusRequest] = useState<CameraFocusRequest | null>(null);
   const [rootClick, setRootClick] = useState<RootClickSignal | null>(null);
   const focusTokenRef = useRef(0);
@@ -221,13 +224,10 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     [stopDrag],
   );
 
-  const handleLockedChange = useCallback(
-    (nextLocked: boolean) => {
-      setLocked(nextLocked);
-      if (nextLocked) releasePlacements();
-    },
-    [releasePlacements],
-  );
+  useEffect(() => {
+    if (locked && !wasLockedRef.current) releasePlacements();
+    wasLockedRef.current = locked;
+  }, [locked, releasePlacements]);
 
   // Focus is additive to selection: this handler only records the click for
   // the camera host; React Flow's own selection behavior runs untouched.
@@ -317,12 +317,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           onEdgeClick={onEdgeClick}
         >
           <MapControls
-            locked={locked}
-            onLockedChange={handleLockedChange}
-            follow={follow}
-            onFollowChange={setFollow}
-            focusOnClick={focusOnClick}
-            onFocusOnClickChange={setFocusOnClick}
             config={config}
             onConfigChange={setConfig}
             motion={motionConfig}
