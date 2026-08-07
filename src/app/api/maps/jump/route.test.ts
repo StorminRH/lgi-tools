@@ -38,8 +38,8 @@ beforeEach(() => {
 });
 
 describe('POST /api/maps/jump', () => {
-  it('rejects a forged doorbell carrying movement facts before any resolver write', async () => {
-    const response = await POST(
+  it('rejects forged doorbell facts and anonymous callers before resolving, then forwards authenticated bodies', async () => {
+    const forged = await POST(
       request({
         kind: 'doorbell',
         mapId: 'map-1',
@@ -48,34 +48,30 @@ describe('POST /api/maps/jump', () => {
         toSolarSystemId: 31_000_002,
       }),
     );
-    expect(response.status).toBe(400);
-    expect(problemBodySchema.parse(await response.json())).toMatchObject({
+    expect(forged.status).toBe(400);
+    expect(problemBodySchema.parse(await forged.json())).toMatchObject({
       code: 'invalid_body',
     });
     expect(h.resolveJumpRequest).not.toHaveBeenCalled();
-  });
 
-  it('returns 401 before resolving for an anonymous caller', async () => {
     h.checkUserId.mockResolvedValueOnce({
       ok: false,
       failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
-    const response = await POST(
+    const anonymous = await POST(
       request({ kind: 'doorbell', mapId: 'map-1', characterId: 90_000_001 }),
     );
-    expect(response.status).toBe(401);
+    expect(anonymous.status).toBe(401);
     expect(h.resolveJumpRequest).not.toHaveBeenCalled();
-  });
 
-  it('passes only the authenticated user and validated request to composition', async () => {
     const body = {
       kind: 'typed-hole' as const,
       mapId: 'map-1',
       connectionId: 'connection-1',
     };
-    const response = await POST(request(body));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    const ok = await POST(request(body));
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({
       status: 'processed',
       outcome: 'authored',
       emitted: true,

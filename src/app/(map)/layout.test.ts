@@ -54,81 +54,68 @@ describe('MapAccessGate', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the development wall without the canvas for a non-admin', async () => {
+  it('walls non-admins, admits admins (with or without a character), fails closed on auth errors, and rethrows framework signals', async () => {
     mocks.checkAdmin.mockResolvedValue({ ok: false, failure: { code: 'forbidden' } });
+    const wall = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-map-canvas': '' }),
+      }),
+    );
+    expect(wall).toContain('data-map-development-wall');
+    expect(wall).toContain('under development');
+    expect(wall).not.toContain('data-map-canvas');
+    expect(wall).not.toContain('data-map-chrome');
 
-    const result = await MapAccessGate({
-      children: createElement('div', { 'data-map-canvas': '' }),
-    });
-    const markup = renderToStaticMarkup(result);
-
-    expect(markup).toContain('data-map-development-wall');
-    expect(markup).toContain('under development');
-    expect(markup).not.toContain('data-map-canvas');
-    expect(markup).not.toContain('data-map-chrome');
-  });
-
-  it('renders floating chrome and the canvas subtree for an admin', async () => {
     mocks.checkAdmin.mockResolvedValue({ ok: true, session });
+    const admin = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-map-canvas': '' }),
+      }),
+    );
+    expect(admin).toContain('data-map-chrome');
+    expect(admin).toContain('data-map-contextual-section="true"');
+    expect(admin).toContain('data-map-canvas');
+    expect(admin).not.toContain('data-map-development-wall');
 
-    const result = await MapAccessGate({
-      children: createElement('div', { 'data-map-canvas': '' }),
-    });
-    const markup = renderToStaticMarkup(result);
-
-    expect(markup).toContain('data-map-chrome');
-    expect(markup).toContain('data-map-contextual-section="true"');
-    expect(markup).toContain('data-map-canvas');
-    expect(markup).not.toContain('data-map-development-wall');
-  });
-
-  it('keeps the canvas available when an authorized user has no active character', async () => {
     mocks.checkAdmin.mockResolvedValue({
       ok: true,
       session: { ...session, characterId: null },
     });
+    const noCharacter = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-map-canvas': '' }),
+      }),
+    );
+    expect(noCharacter).toContain('data-map-chrome');
+    expect(noCharacter).toContain('data-map-account-session="false"');
+    expect(noCharacter).toContain('data-map-canvas');
+    expect(noCharacter).not.toContain('data-map-development-wall');
 
-    const result = await MapAccessGate({
-      children: createElement('div', { 'data-map-canvas': '' }),
-    });
-    const markup = renderToStaticMarkup(result);
-
-    expect(markup).toContain('data-map-chrome');
-    expect(markup).toContain('data-map-account-session="false"');
-    expect(markup).toContain('data-map-canvas');
-    expect(markup).not.toContain('data-map-development-wall');
-  });
-
-  it('fails closed to the wall when the authorization check itself throws', async () => {
     const err = new Error('session store unavailable');
     mocks.checkAdmin.mockRejectedValue(err);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    const result = await MapAccessGate({
-      children: createElement('div', { 'data-map-canvas': '' }),
-    });
-    const markup = renderToStaticMarkup(result);
-
+    const failed = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-map-canvas': '' }),
+      }),
+    );
     // error.tsx covers a segment's children, not its own layout, so an escaping
     // throw here would leave the map without its recovery surface.
-    expect(markup).toContain('data-map-development-wall');
-    expect(markup).not.toContain('data-map-canvas');
-    expect(markup).not.toContain('data-map-chrome');
+    expect(failed).toContain('data-map-development-wall');
+    expect(failed).not.toContain('data-map-canvas');
+    expect(failed).not.toContain('data-map-chrome');
     expect(mocks.rethrow).toHaveBeenCalledWith(err);
     expect(consoleError).toHaveBeenCalledWith(
       '[map] authorization check unavailable',
       err,
     );
-  });
 
-  it('re-throws a framework control-flow signal instead of walling it', async () => {
     const signal = new Error('NEXT_REDIRECT');
     mocks.checkAdmin.mockRejectedValue(signal);
-    mocks.rethrow.mockImplementation((err: unknown) => {
-      throw err;
+    mocks.rethrow.mockImplementation((rethrowErr: unknown) => {
+      throw rethrowErr;
     });
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-
+    consoleError.mockClear();
     await expect(
       MapAccessGate({ children: createElement('div', { 'data-map-canvas': '' }) }),
     ).rejects.toBe(signal);

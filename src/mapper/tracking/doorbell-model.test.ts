@@ -23,7 +23,7 @@ function response(
 }
 
 describe('pendingDoorbells', () => {
-  it('rings a fresh transition and never an untracked or transitionless row', () => {
+  it('rings fresh transitions once per transitionObservedAt with retry, cap, and in-flight rules', () => {
     const memory = new Map<number, DoorbellMemoryEntry>();
     expect(
       pendingDoorbells(
@@ -35,22 +35,17 @@ describe('pendingDoorbells', () => {
         memory,
       ),
     ).toEqual([{ characterId: 101, transitionObservedAt: 5_000 }]);
-  });
 
-  it('keys the ring-once memory on transitionObservedAt, not on payload churn', () => {
     // A dock/undock advances observedAt but not transitionObservedAt: the
     // settled entry must keep the doorbell silent across those updates.
-    const memory = new Map<number, DoorbellMemoryEntry>([
+    const settled = new Map<number, DoorbellMemoryEntry>([
       [101, { transitionObservedAt: 5_000, attempts: 1, settled: true, inFlight: false }],
     ]);
-    expect(pendingDoorbells([tracked(101, 5_000)], memory)).toEqual([]);
-    // A genuine new transition rings again.
-    expect(pendingDoorbells([tracked(101, 6_000)], memory)).toEqual([
+    expect(pendingDoorbells([tracked(101, 5_000)], settled)).toEqual([]);
+    expect(pendingDoorbells([tracked(101, 6_000)], settled)).toEqual([
       { characterId: 101, transitionObservedAt: 6_000 },
     ]);
-  });
 
-  it('retries an unsettled transition until the attempt cap, never while in flight', () => {
     const unsettled: DoorbellMemoryEntry = {
       transitionObservedAt: 5_000,
       attempts: 2,
@@ -75,16 +70,13 @@ describe('pendingDoorbells', () => {
 });
 
 describe('ring bookkeeping', () => {
-  it('counts attempts per transition and resets them on a new transition', () => {
+  it('counts attempts per transition, resets on a new one, and settles every answer except retry', () => {
     const first = ringDispatched(undefined, 5_000);
     expect(first.attempts).toBe(1);
     const second = ringDispatched(first, 5_000);
     expect(second.attempts).toBe(2);
-    const fresh = ringDispatched(second, 6_000);
-    expect(fresh.attempts).toBe(1);
-  });
+    expect(ringDispatched(second, 6_000).attempts).toBe(1);
 
-  it('settles every workflow answer except retry, and ignores stale answers', () => {
     const entry: DoorbellMemoryEntry = {
       transitionObservedAt: 5_000,
       attempts: 1,
@@ -107,61 +99,48 @@ describe('ring bookkeeping', () => {
 });
 
 describe('ringPendingTransitions', () => {
-  it('rings once per transition and stays silent once settled', async () => {
+  it('rings once per transition, retries to the cap, guards overlap, and treats throws as retryable', async () => {
     const memory = new Map<number, DoorbellMemoryEntry>();
     const ring = vi.fn(async () => response('processed'));
 
     await ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
     expect(ring).toHaveBeenCalledTimes(1);
     expect(ring).toHaveBeenCalledWith(101);
-
-    // The same payload again (and a dock-style churn) rings nothing.
     await ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
     expect(ring).toHaveBeenCalledTimes(1);
-  });
 
-  it('retries while the route answers retry, bounded by the attempt cap', async () => {
-    const memory = new Map<number, DoorbellMemoryEntry>();
-    const ring = vi.fn(async () => response('retry'));
-
+    const retryMemory = new Map<number, DoorbellMemoryEntry>();
+    const retryRing = vi.fn(async () => response('retry'));
     for (let pass = 0; pass < DOORBELL_ATTEMPT_CAP + 3; pass += 1) {
-      await ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
+      await ringPendingTransitions(retryMemory, [tracked(101, 5_000)], retryRing);
     }
-    expect(ring).toHaveBeenCalledTimes(DOORBELL_ATTEMPT_CAP);
+    expect(retryRing).toHaveBeenCalledTimes(DOORBELL_ATTEMPT_CAP);
+    retryRing.mockImplementation(async () => response('processed'));
+    await ringPendingTransitions(retryMemory, [tracked(101, 6_000)], retryRing);
+    await ringPendingTransitions(retryMemory, [tracked(101, 6_000)], retryRing);
+    expect(retryRing).toHaveBeenCalledTimes(DOORBELL_ATTEMPT_CAP + 1);
 
-    // A processed answer for the next transition settles it in one ring.
-    ring.mockImplementation(async () => response('processed'));
-    await ringPendingTransitions(memory, [tracked(101, 6_000)], ring);
-    await ringPendingTransitions(memory, [tracked(101, 6_000)], ring);
-    expect(ring).toHaveBeenCalledTimes(DOORBELL_ATTEMPT_CAP + 1);
-  });
-
-  it('marks memory before awaiting so an overlapping pass cannot double-ring', async () => {
-    const memory = new Map<number, DoorbellMemoryEntry>();
+    const overlapMemory = new Map<number, DoorbellMemoryEntry>();
     let release: (value: JumpResolverResponse) => void = () => undefined;
-    const ring = vi.fn(
+    const overlapRing = vi.fn(
       () =>
         new Promise<JumpResolverResponse | null>((resolve) => {
           release = resolve;
         }),
     );
-
-    const firstPass = ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
-    // The double-invoked development effect re-enters before any response.
-    const secondPass = ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
+    const firstPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
+    const secondPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
     release(response('processed'));
     await Promise.all([firstPass, secondPass]);
-    expect(ring).toHaveBeenCalledTimes(1);
-  });
+    expect(overlapRing).toHaveBeenCalledTimes(1);
 
-  it('treats a thrown transport failure as an unsettled retryable attempt', async () => {
-    const memory = new Map<number, DoorbellMemoryEntry>();
-    const ring = vi.fn(async () => {
+    const failMemory = new Map<number, DoorbellMemoryEntry>();
+    const failRing = vi.fn(async () => {
       throw new Error('offline');
     });
-    await ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
-    expect(memory.get(101)).toMatchObject({ settled: false, inFlight: false });
-    await ringPendingTransitions(memory, [tracked(101, 5_000)], ring);
-    expect(ring).toHaveBeenCalledTimes(2);
+    await ringPendingTransitions(failMemory, [tracked(101, 5_000)], failRing);
+    expect(failMemory.get(101)).toMatchObject({ settled: false, inFlight: false });
+    await ringPendingTransitions(failMemory, [tracked(101, 5_000)], failRing);
+    expect(failRing).toHaveBeenCalledTimes(2);
   });
 });

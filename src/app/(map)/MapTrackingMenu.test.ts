@@ -25,14 +25,14 @@ describe('MapTrackingMenu', () => {
     mocks.mapId = 'map-a';
   });
 
-  it('passes the current query-string map id to the mapper settings surface', () => {
+  it('passes the query-string map id to the mapper settings surface and renders nothing without one', () => {
     expect(renderToStaticMarkup(createElement(MapTrackingMenu))).toContain(
       'data-tracking-map-id="map-a"',
     );
-  });
 
-  it.each([null, ''])('renders nothing without an addressed map (%s)', (mapId) => {
-    mocks.mapId = mapId;
-    expect(renderToStaticMarkup(createElement(MapTrackingMenu))).toBe('');
+    for (const mapId of [null, '']) {
+      mocks.mapId = mapId;
+      expect(renderToStaticMarkup(createElement(MapTrackingMenu))).toBe('');
+    }
   });
 });

@@ -93,7 +93,7 @@ describe('TrackingControls', () => {
     mocks.mutate.mockClear();
   });
 
-  it('renders the account roster as controlled portrait settings and fires the map mutation', async () => {
+  it('renders owned portraits as tracking toggles and keeps the heartbeat mounted independently', async () => {
     const element = TrackingControls({ mapId: 'map-a' });
     expect(isValidElement(element)).toBe(true);
     if (!isValidElement(element)) throw new Error('tracking controls did not render');
@@ -120,9 +120,7 @@ describe('TrackingControls', () => {
       characterId: 202,
       tracked: true,
     });
-  });
 
-  it('keeps the tracked-character heartbeat mounted independently of the menu', () => {
     TrackingHeartbeat({ mapId: 'map-a' });
     expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', [101]);
   });
