@@ -80,6 +80,7 @@ export function AccountMenu({
           // dropped (today's exact log-out handler; the finally keeps the
           // redirect on the error path).
           void authClient.signOut().finally(() => {
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full document reload is deliberate (see comment above)
             window.location.href = '/';
           });
         }}

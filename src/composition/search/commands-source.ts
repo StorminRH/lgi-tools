@@ -76,6 +76,7 @@ const COMMANDS: CommandEntry[] = [
       void authClient
         .signOut()
         .then(({ error }) => {
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full document reload is deliberate (see comment above)
           if (!error) window.location.href = '/';
           // else: server returned an error; stay put so the user can retry.
         })

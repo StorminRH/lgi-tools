@@ -87,6 +87,7 @@ function SignedInCluster({
             // Clear the session, then hard-navigate home so cached server-component
             // output that referenced the now-gone session is dropped.
             void authClient.signOut().finally(() => {
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- the full document reload is deliberate (see comment above)
               window.location.href = '/';
             });
           }}

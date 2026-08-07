@@ -63,6 +63,7 @@ tooling).
     "@edge-runtime/vm": { "acknowledgedMajor": 5 },
     "@neondatabase/config": { "acknowledgedMajor": 0 },
     "@neondatabase/serverless": { "acknowledgedMajor": 1 },
+    "@playwright/test": { "acknowledgedMajor": 1 },
     "@shikijs/langs": { "acknowledgedMajor": 4 },
     "@shikijs/themes": { "acknowledgedMajor": 4 },
     "@tailwindcss/postcss": { "acknowledgedMajor": 4 },
@@ -125,7 +126,7 @@ tooling).
       "name": "Vercel / Next.js",
       "watch": ["https://vercel.com/atom", "https://nextjs.org/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-08-04",
+      "scanSince": "2026-08-07",
       "acknowledgedItems": [
         "https://vercel.com/blog/how-searchable-ships-customer-requested-features-in-30-minutes-on-vercel",
         "https://vercel.com/blog/vercel-agent",
@@ -191,7 +192,29 @@ tooling).
         "https://vercel.com/changelog/vercel-waf-for-blob-is-now-generally-available",
         "https://vercel.com/blog/how-factory-scaled-its-cloud-backend-to-tens-of-millions-of-daily-requests",
         "https://vercel.com/changelog/share-vercel-container-registry-repositories-across-teams",
-        "https://nextjs.org/blog/next-16-3"
+        "https://nextjs.org/blog/next-16-3",
+        "https://vercel.com/changelog/chat-sdk-durable-approvals",
+        "https://vercel.com/changelog/project-avatars",
+        "https://vercel.com/changelog/new-setup-page-after-domain-checkout",
+        "https://vercel.com/changelog/export-ai-gateway-traces-with-vercel-drains",
+        "https://vercel.com/blog/introducing-the-new-v0-api",
+        "https://vercel.com/changelog/ai-gateway-is-now-available-on-aws-marketplace",
+        "https://vercel.com/changelog/muse-spark-1-2-is-now-available-on-vercel-ai-gateway",
+        "https://vercel.com/changelog/vercel-sandbox-now-supports-10-000-concurrent-sandboxes-and-5-000-vcpus-per-minute",
+        "https://vercel.com/changelog/search-and-buy-domains-in-the-dashboard",
+        "https://vercel.com/changelog/measure-time-between-steps-in-vercel-workflows",
+        "https://vercel.com/changelog/full-sandbox-egress-firewall-now-available-on-hobby-plan",
+        "https://vercel.com/changelog/vercel-sandbox-now-supports-devin-outposts",
+        "https://vercel.com/blog/vercel-supports-next-js-16-3",
+        "https://vercel.com/changelog/skill-packs-are-now-available",
+        "https://vercel.com/changelog/deploys-are-now-up-to-33-faster-for-apps-with-many-isr-pages",
+        "https://vercel.com/changelog/deepseek-v4-flash-is-90-off-through-novita",
+        "https://vercel.com/blog/introducing-agent-plugins",
+        "https://vercel.com/changelog/seedance-2-5-now-available-on-vercel-ai-gateway",
+        "https://vercel.com/changelog/vercel-marketplace-agent-skills",
+        "https://vercel.com/changelog/ling-3-0-tiny-is-now-available-on-ai-gateway",
+        "https://vercel.com/changelog/introducing-agent-plugins-1-0-0",
+        "https://nextjs.org/blog/making-v0-navigations-instant"
       ]
     },
     {
@@ -209,18 +232,19 @@ tooling).
       "name": "Convex",
       "watch": ["https://news.convex.dev/rss/"],
       "idRule": "url",
-      "scanSince": "2026-07-22",
+      "scanSince": "2026-08-07",
       "acknowledgedItems": [
         "https://news.convex.dev/abstract",
         "https://news.convex.dev/convex-open-source-recap-2025",
-        "https://news.convex.dev/enterprise-launch"
+        "https://news.convex.dev/enterprise-launch",
+        "https://news.convex.dev/convex-raises-57m"
       ]
     },
     {
       "name": "Upstash",
       "watch": ["https://upstash.com/blog/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-08-04",
+      "scanSince": "2026-08-07",
       "acknowledgedItems": [
         "https://upstash.com/blog/durable-workflow-engines-compared-every-major-option-in-2026",
         "https://upstash.com/blog/context7-vs-static-llm-knowledge-benchmarking-coding-assistants",
@@ -230,7 +254,9 @@ tooling).
         "https://upstash.com/blog/google-cloud-run-vs-agent-sandboxes",
         "https://upstash.com/blog/how-to-build-search-on-redis",
         "https://upstash.com/blog/running-claude-code-in-a-remote-sandbox-with-upstash-box",
-        "https://upstash.com/blog/upstash-vs-aws-elasticache-serverless-redis-pricing-and-performance-2026"
+        "https://upstash.com/blog/upstash-vs-aws-elasticache-serverless-redis-pricing-and-performance-2026",
+        "https://upstash.com/blog/redis-cloud-pricing-in-2026-plans-costs-and-real-examples",
+        "https://upstash.com/blog/upstash-agentkit-redis-memory-rag-and-chat-history-for-ai-agents"
       ]
     }
   ],
@@ -239,11 +265,12 @@ tooling).
       "name": "EVE Developers blog",
       "watch": ["https://developers.eveonline.com/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-22",
+      "scanSince": "2026-08-07",
       "acknowledgedItems": [
         "https://developers.eveonline.com/blog/a-splash-of-color-corporation-palette-and-a-few-fresh-fields",
         "https://developers.eveonline.com/blog/goodbye-swagger-removing-the-last-remnants",
-        "https://developers.eveonline.com/blog/cradle-of-war-on-esi-character-titles-and-achievements"
+        "https://developers.eveonline.com/blog/cradle-of-war-on-esi-character-titles-and-achievements",
+        "https://developers.eveonline.com/blog/military-campaigns-on-esi-joining-the-war-effort"
       ]
     },
     {

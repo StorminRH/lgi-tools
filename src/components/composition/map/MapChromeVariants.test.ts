@@ -67,36 +67,7 @@ describe('map chrome variants', () => {
     vi.stubGlobal('document', { querySelector: mocks.querySelector });
   });
 
-  it('preserves the account menu default site-header anchor', () => {
-    const markup = renderToStaticMarkup(
-      createElement(AccountMenu, {
-        session: {
-          characterId: 1,
-          name: 'Mapper',
-          portraitUrl: '/portrait.png',
-          role: 'ADMIN',
-        },
-      }),
-    );
-
-    expect(markup).toContain('data-character-portrait');
-    expect(mocks.querySelector).toHaveBeenCalledWith('.app-header');
-    expect(mocks.anchorResult).toHaveBeenCalledWith({ id: 'site-header' });
-  });
-
-  it('preserves labelled feedback by default and offers the compact map form', () => {
-    const standard = renderToStaticMarkup(createElement(FeedbackButton));
-    const compact = renderToStaticMarkup(
-      createElement(FeedbackButton, { compact: true }),
-    );
-
-    expect(standard).toContain('>Feedback</button>');
-    expect(standard).not.toContain('aria-label=');
-    expect(compact).toContain('aria-label="Send feedback"');
-    expect(compact).toContain('>?</button>');
-  });
-
-  it('renders an app-owned contextual section before logout', () => {
+  it('preserves account-menu anchoring, compact feedback, and contextual settings before logout', () => {
     const markup = renderToStaticMarkup(
       createElement(AccountMenu, {
         session: {
@@ -109,9 +80,21 @@ describe('map chrome variants', () => {
       }),
     );
 
+    expect(markup).toContain('data-character-portrait');
+    expect(mocks.querySelector).toHaveBeenCalledWith('.app-header');
+    expect(mocks.anchorResult).toHaveBeenCalledWith({ id: 'site-header' });
     expect(markup).toContain('data-contextual-settings');
     expect(markup.indexOf('data-contextual-settings')).toBeLessThan(
       markup.indexOf('Log out'),
     );
+
+    const standard = renderToStaticMarkup(createElement(FeedbackButton));
+    const compact = renderToStaticMarkup(
+      createElement(FeedbackButton, { compact: true }),
+    );
+    expect(standard).toContain('>Feedback</button>');
+    expect(standard).not.toContain('aria-label=');
+    expect(compact).toContain('aria-label="Send feedback"');
+    expect(compact).toContain('>?</button>');
   });
 });

@@ -35,7 +35,7 @@ function detail(partial: Partial<ConnectionDetail> = {}): ConnectionDetail {
 }
 
 describe('connectionCardSelection', () => {
-  it('returns edit mode for live rows and restore for dying rows', () => {
+  it('returns edit or restore for live and dying rows, and clears missing or skeleton selections', () => {
     expect(connectionCardSelection(detail(), NOW)).toEqual({
       connection: detail(),
       mode: 'edit',
@@ -48,9 +48,7 @@ describe('connectionCardSelection', () => {
       connection: dying,
       mode: 'restore',
     });
-  });
 
-  it('clears missing and skeleton selections', () => {
     expect(connectionCardSelection(null, NOW)).toBeNull();
     expect(connectionCardSelection(undefined, NOW)).toBeNull();
     const skeleton = detail({ deletedAt: NOW - 1, purgeAfter: null });

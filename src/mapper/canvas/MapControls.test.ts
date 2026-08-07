@@ -20,7 +20,7 @@ describe('MapControls', () => {
     vi.unstubAllEnvs();
   });
 
-  it('renders layout/motion dials in development', () => {
+  it('renders layout/motion dials only in development', () => {
     vi.stubEnv('NODE_ENV', 'development');
     const html = renderToStaticMarkup(
       createElement(MapControls, {
@@ -36,18 +36,17 @@ describe('MapControls', () => {
     expect(html).toContain('Motion dials');
     expect(html).not.toContain('Map lock');
     expect(html).not.toContain('Camera follow');
-  });
 
-  it('renders nothing outside development', () => {
     vi.stubEnv('NODE_ENV', 'production');
-    const html = renderToStaticMarkup(
-      createElement(MapControls, {
-        config: DEFAULT_LAYOUT_CONFIG,
-        onConfigChange: () => undefined,
-        motion: DEFAULT_MOTION_CONFIG,
-        onMotionChange: () => undefined,
-      }),
-    );
-    expect(html).toBe('');
+    expect(
+      renderToStaticMarkup(
+        createElement(MapControls, {
+          config: DEFAULT_LAYOUT_CONFIG,
+          onConfigChange: () => undefined,
+          motion: DEFAULT_MOTION_CONFIG,
+          onMotionChange: () => undefined,
+        }),
+      ),
+    ).toBe('');
   });
 });

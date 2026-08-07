@@ -340,6 +340,25 @@
   render-mode rubric is now encoded (CLAUDE.md "Static by default" + `route-classification.json`
   `_comment` + `ui-styling.md`) so future pages follow the ladder by default.
 
+## Next.js 16.3 instant navigations
+
+- **Adopt the `instant()` Playwright helper in ux-check + audit surfaces for
+  instant navigation** (operator-requested 2026-08-07 at the 16.3 adoption).
+  *What:* two-part follow-on to the Next.js 16.3 upgrade: (a) bake the
+  `@next/playwright` `instant()` assertion into the ux-check probe runner so
+  changed routes can assert which UI is visible with zero network round trips,
+  and surface the new Instant Insights signal during dev; (b) a comprehensive
+  audit of existing surfaces (site pages, planner, devlog, atlas chrome) for
+  slow navigations, applying the 16.3 runtime-prerender patterns route by
+  route — moving blocking data reads below Suspense boundaries or into
+  `'use cache'` regions — and keeping each fixed route's failing-then-passing
+  `instant()` test in the suite as a regression guard (the v0 case-study loop;
+  Vercel's `next-cache-components-optimizer` skill encodes it). *Why deferred:*
+  the 16.3 adoption PR is dependency-only; the audit changes route rendering
+  and needs its own UX gates. *Size:* M–L. *Trigger:* the next app-wide
+  rendering/perf pass — pairs with the client-settled-static investigation in
+  Infra & bundle.
+
 ## Accessibility
 
 - **Accessibility verification pass — axe gate + formal a11y assertions for the Base UI

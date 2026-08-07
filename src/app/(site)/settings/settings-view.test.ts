@@ -31,42 +31,30 @@ const row = (over: Partial<CorpStructurePageView> = {}): CorpStructurePageView =
   ...over,
 });
 
-describe('settingsNeedsCorpSharing', () => {
-  it('is true only when a corp-structure-sharing feature control is present', () => {
+describe('settings view derivation', () => {
+  it('gates corp sharing, maps managers, and derives empty/populated page sections', () => {
     expect(settingsNeedsCorpSharing([feature])).toBe(true);
     expect(settingsNeedsCorpSharing([preference('sites.detailMode')])).toBe(false);
     expect(settingsNeedsCorpSharing([])).toBe(false);
-  });
-});
 
-describe('toManagerCorps', () => {
-  it('keeps only station-manager corps and maps to the sharing view shape', () => {
     expect(
       toManagerCorps([
         row({ corporationId: 1, corporationName: 'A', isStationManager: true, sharingEnabled: true }),
         row({ corporationId: 2, corporationName: 'B', isStationManager: false, sharingEnabled: false }),
       ]),
     ).toEqual([{ corporationId: 1, corporationName: 'A', sharingEnabled: true }]);
-  });
-});
 
-describe('deriveSettingsView', () => {
-  it('flags empty when nothing resolves', () => {
-    const view = deriveSettingsView([], []);
-    expect(view.preferenceModels).toEqual([]);
-    expect(view.featureSections).toEqual([]);
-    expect(view.isEmpty).toBe(true);
-  });
+    const empty = deriveSettingsView([], []);
+    expect(empty.preferenceModels).toEqual([]);
+    expect(empty.featureSections).toEqual([]);
+    expect(empty.isEmpty).toBe(true);
 
-  it('collects preference models and is not empty when present', () => {
     const pref = preference('sites.detailMode');
-    const view = deriveSettingsView([pref], []);
-    expect(view.preferenceModels).toEqual([pref]);
-    expect(view.featureSections).toEqual([]);
-    expect(view.isEmpty).toBe(false);
-  });
+    const withPref = deriveSettingsView([pref], []);
+    expect(withPref.preferenceModels).toEqual([pref]);
+    expect(withPref.featureSections).toEqual([]);
+    expect(withPref.isEmpty).toBe(false);
 
-  it('renders the corp-sharing section only when there are manager corps', () => {
     const managerCorps = [corp({ corporationId: 7 })];
     const withCorps = deriveSettingsView([feature], managerCorps);
     expect(withCorps.featureSections).toEqual([

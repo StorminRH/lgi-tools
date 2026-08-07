@@ -51,15 +51,13 @@ const CONNECTION = {
 };
 
 describe('connection intelligence', () => {
-  it('locks ship size only for typed codex entries (HC-1)', () => {
+  it('locks typed size, bounds mass with travel anchors, and projects lifetime ceilings', () => {
     expect(isCodexSizeLocked(TYPED)).toBe(true);
     expect(isCodexSizeLocked(K162)).toBe(false);
     expect(isCodexSizeLocked(null)).toBe(false);
     expect(codexPanelFacts(TYPED)?.sizeClass).toBe('L');
     expect(codexPanelFacts(K162)).toBeNull();
-  });
 
-  it('renders mass as a bounded range and suppresses regenerating holes (HC-2)', () => {
     const stable = massRowDisplay(TYPED, 'stable', null, null);
     expect(stable.kind).toBe('range');
     if (stable.kind !== 'range') return;
@@ -73,24 +71,17 @@ describe('connection intelligence', () => {
     });
     expect(massRowDisplay(K162, 'stable', null, null).kind).toBe('none');
     expect(formatKilograms(2_000_000_000)).toBe('2B kg');
-  });
 
-  it('subtracts only since-anchor observed travel from the interval (DC-3)', () => {
-    const untravelled = massRowDisplay(TYPED, 'stable', null, null);
     const travelled = massRowDisplay(TYPED, 'stable', 500_000_000, 200_000_000);
-    expect(untravelled.kind).toBe('range');
     expect(travelled.kind).toBe('range');
-    if (untravelled.kind !== 'range' || travelled.kind !== 'range') return;
-    expect(travelled.minKg).toBe(untravelled.minKg - 300_000_000);
-    expect(travelled.maxKg).toBe(untravelled.maxKg - 300_000_000);
-
+    if (travelled.kind !== 'range') return;
+    expect(travelled.minKg).toBe(stable.minKg - 300_000_000);
+    expect(travelled.maxKg).toBe(stable.maxKg - 300_000_000);
     // A reversed odometer (anchor ahead of the counter) is malformed: no estimate.
     expect(massRowDisplay(TYPED, 'stable', 100_000_000, 200_000_000).kind).toBe(
       'none',
     );
-  });
 
-  it('projects lifetime from the shared window or typed ceiling', () => {
     const ceiling = lifetimeRowDisplay(CONNECTION, TYPED, 1_000);
     expect(ceiling.kind).toBe('ceiling');
     if (ceiling.kind === 'ceiling') {
@@ -112,16 +103,17 @@ describe('connection intelligence', () => {
       expect(ranged.title).toContain('remaining');
     }
 
-    const expired = lifetimeRowDisplay(
-      {
-        ...CONNECTION,
-        deathEarliestAt: 500,
-        deathLatestAt: 900,
-      },
-      TYPED,
-      1_000,
-    );
-    expect(expired).toEqual({ kind: 'expired', label: 'Expired' });
+    expect(
+      lifetimeRowDisplay(
+        {
+          ...CONNECTION,
+          deathEarliestAt: 500,
+          deathLatestAt: 900,
+        },
+        TYPED,
+        1_000,
+      ),
+    ).toEqual({ kind: 'expired', label: 'Expired' });
     expect(formatDurationBound(90 * 60 * 1000)).toBe('1.5h');
   });
 });
