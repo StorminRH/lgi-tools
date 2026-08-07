@@ -41,7 +41,11 @@ export function useSyncSubject(dataset: SyncDataset, characterIds: number[]) {
     const loop = startHeartbeatLoop(
       {
         isVisible: () => document.visibilityState === 'visible',
-        beat: (reason, visible) => void heartbeat({ dataset, characterIdsHint, reason, visible }),
+        // Fire-and-forget by design: a rejected beat (deploy blip, auth
+        // refresh) is recovered by the next beat; swallow the rejection so a
+        // hidden tab can't accumulate unhandled-rejection noise.
+        beat: (reason, visible) =>
+          void heartbeat({ dataset, characterIdsHint, reason, visible }).catch(() => undefined),
         startInterval: (tick, ms) => {
           const id = setInterval(tick, ms);
           return () => clearInterval(id);

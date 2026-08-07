@@ -260,11 +260,14 @@ async function resolveOnlineProbe(
 
   const windowExpiresAt = resolveExpiresAt([read.expiresAt], ONLINE_FALLBACK_TTL_MS, Date.now());
   if (read.kind === 'unchanged') {
-    // A 304 without held state can't happen (no ETag was sent); the held flag
-    // stands and only the window refreshes.
+    // A 304 should only arrive when we sent the held ETag; a 304 with no held
+    // state is a protocol violation from upstream — record it as a contract
+    // error for this character rather than throwing the run into the
+    // Workpool's transient-retry path.
+    if (heldOnline === undefined) return 'contract_error';
     return {
-      online: heldOnline!.online,
-      etagOnline: heldOnline!.etagOnline,
+      online: heldOnline.online,
+      etagOnline: heldOnline.etagOnline,
       onlineExpiresAt: windowExpiresAt,
       windowExpiresAt,
     };

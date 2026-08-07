@@ -52,18 +52,18 @@ export default {
     const dialog = page.getByRole('dialog');
     await dialog.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
     check('prompt appears after an hour hidden', await dialog.isVisible().catch(() => false));
-    check(
-      'prompt warns before pausing',
-      (await page.getByText('Tracking pauses in a few minutes', { exact: false }).count()) > 0,
-    );
+    const warnCopy = page.getByText('Tracking pauses in a few minutes', { exact: false });
+    await warnCopy.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
+    check('prompt warns before pausing', (await warnCopy.count()) > 0);
     await shot('afk-prompt');
 
     // Unanswered for the response window: tracking pauses, prompt persists.
     await page.clock.fastForward('00:06:00');
-    check(
-      'unanswered prompt flips to the paused copy',
-      (await page.getByText('location tracking is paused', { exact: false }).count()) > 0,
-    );
+    // fastForward fires the due timers but React's commit may land a
+    // microtask later — wait for the copy rather than counting immediately.
+    const pausedCopy = page.getByText('location tracking is paused', { exact: false });
+    await pausedCopy.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
+    check('unanswered prompt flips to the paused copy', (await pausedCopy.count()) > 0);
     await shot('afk-paused');
 
     // The player alt-tabs back: the prompt is waiting; Continue resumes.

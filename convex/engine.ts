@@ -86,6 +86,7 @@ import {
   MAX_COLD_AFTER_MS,
   RETENTION_MS,
   SYNC_DATASET_CONFIG,
+  SYNC_DATASETS,
   type SyncDataset,
 } from '@/lib/sync-engine';
 import { components, internal } from './_generated/api';
@@ -612,9 +613,12 @@ export const sweep = internalMutation({
  */
 const RETIRED_GC_BATCH = 512;
 async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Promise<void> {
+  // The deny-list is the ACTIVE registry, not a hardcoded literal — a dataset
+  // added to SYNC_DATASETS while this temporary pass still exists must never
+  // have its live rows swept.
   const subjects = await ctx.db
     .query('syncSubjects')
-    .filter((q) => q.neq(q.field('dataset'), 'characterLocation'))
+    .filter((q) => q.and(...SYNC_DATASETS.map((live) => q.neq(q.field('dataset'), live))))
     .take(RETIRED_GC_BATCH);
   for (const row of subjects) {
     await ctx.db.delete(row._id);
@@ -622,7 +626,7 @@ async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Prom
   }
   const presence = await ctx.db
     .query('syncPresence')
-    .filter((q) => q.neq(q.field('dataset'), 'characterLocation'))
+    .filter((q) => q.and(...SYNC_DATASETS.map((live) => q.neq(q.field('dataset'), live))))
     .take(RETIRED_GC_BATCH);
   for (const row of presence) await ctx.db.delete(row._id);
   await drainCharacterOnline(ctx, RETIRED_GC_BATCH);
