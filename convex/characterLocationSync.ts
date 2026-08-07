@@ -10,13 +10,16 @@
 //   the online expiry becomes the character's window → ONE applySyncResults.
 //
 // The probe is the pause/resume signal: an all-offline run stamps ~60s
-// windows, so the engine's chain/scan pace the subject at the probe cadence
-// instead of the 5s location floor, and the next login's probe resumes the
-// fast loop automatically.
+// windows and an EMPTY covered set (no location observed — covered is
+// continuity evidence, never probe bookkeeping), so the run is chain-
+// ineligible and the 30s scan re-arms the subject at the probe window
+// instead of the 5s location floor. The next login's probe resumes the fast
+// loop automatically.
 //
 // Throw = transient (network, ESI 5xx, Neon 5xx); everything else becomes a
 // recorded per-character or run-level error. The engine chains a dispatch on
 // clean-yield success (~5s while watched); the 30s scan is the retry/watchdog.
+import { v } from 'convex/values';
 import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import {
   parseLocationBody,
@@ -40,7 +43,6 @@ import {
   type SyncEnv,
   vendCharacterToken,
 } from './lib/characterSync';
-import { type SyncOutcome, syncRunArgs } from './lib/syncFields';
 
 // Fallback when a response carries no parseable Expires — pegged to the
 // verified location cache (5s). The header is preferred whenever present.
@@ -83,14 +85,20 @@ interface CharacterResult {
 // online fields on top, so the read helpers below stay probe-agnostic.
 type LocationReadResult = Omit<CharacterResult, 'online' | 'etagOnline' | 'onlineExpiresAt'>;
 
-type CharacterOutcome = SyncOutcome<CharacterResult>;
+// What one character's processing resolves to inside the loop: skipped
+// silently (unlinked mid-run), a recorded result, or a run-stopping
+// protective state (budget exhaustion) carrying its own result row.
+type CharacterOutcome =
+  | { kind: 'skip' }
+  | { kind: 'result'; result: CharacterResult }
+  | { kind: 'stop'; runError: string; result: CharacterResult };
 
 /**
  * Runs the authenticated location sync for one user through the shared Convex
  * engine; the engine owns scheduling and persisted run state.
  */
 export const syncUser = internalAction({
-  args: syncRunArgs,
+  args: { userId: v.string(), generation: v.number() },
   handler: async (ctx, { userId, generation }) => {
     const env = requireSyncEnv();
 

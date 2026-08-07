@@ -47,11 +47,10 @@ export function parseShipBody(body: unknown): number | null {
 }
 
 /**
- * The character online endpoint — the location sync's pause/resume probe.
- * `online` is the only stored field (zod drops the login-history keys), and a
- * shape mismatch is null — the same contract-error taxonomy as the location
- * and ship reads. Owned here, not imported from the online-status slice: data
- * slices never import peers, and that slice retires with the portrait dot.
+ * The character online endpoint — the location sync's pause/resume probe and
+ * this slice's own boundary parse. `online` is the only stored field (zod
+ * drops the login-history keys), and a shape mismatch is null — the same
+ * contract-error taxonomy as the location and ship reads.
  */
 export function parseOnlineBody(body: unknown): boolean | null {
   const parsed = z.object({ online: z.boolean() }).safeParse(body);

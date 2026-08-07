@@ -497,7 +497,9 @@ describe('characterLocationSync.syncUser', () => {
     expect(row?.etagOnline).toBe('on1');
     // The subject window IS the online expiry: the engine re-arms at the
     // ~60s probe cadence, never the 5s location floor — and the covered set
-    // includes the cleanly-observed offline character.
+    // EXCLUDES the offline character (no location observed → no continuity
+    // evidence; a probe-only "covered" entry could fabricate jump provenance
+    // for a pilot who logged in and moved inside the held window).
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
@@ -507,7 +509,7 @@ describe('characterLocationSync.syncUser', () => {
         .unique(),
     );
     expect(subject?.minExpiresAt).toBeGreaterThan(Date.now() + 30_000);
-    expect(subject?.coveredCharacterIds).toEqual([101]);
+    expect(subject?.coveredCharacterIds).toEqual([]);
   });
 
   it('resumes the location loop when the probe sees a login', async () => {

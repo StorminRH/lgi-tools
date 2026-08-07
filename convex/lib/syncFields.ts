@@ -1,15 +1,9 @@
-// The canonical per-tracker seam shapes shared by every engine sync consumer
-// (onlineStatus, characterLocation): the engine-dispatched action signature,
-// the per-character loop outcome, the Neon-purge door scope, and the run
-// observability stamp. A validator-only leaf (convex/values), importable from
-// schema.ts and the tracker modules without widening the schema bundle.
+// Validator shapes with two real owners each, kept in a convex/values-only
+// leaf so schema.ts can import them without widening its bundle:
+// purgeScopeArgs (both Neon→Convex purge doors) and runObservabilityFields
+// (the syncSubjects schema + the shared apply-args validator). Single-owner
+// seam shapes live with their one consumer, not here.
 import { v } from 'convex/values';
-
-/** Args every engine-dispatched sync action takes (dispatch() supplies them). */
-export const syncRunArgs = {
-  userId: v.string(),
-  generation: v.number(),
-};
 
 /**
  * Args every Neon→Convex purge door takes: characterId null tears down the
@@ -32,13 +26,3 @@ export const runObservabilityFields = {
   rlRemaining: v.union(v.number(), v.null()),
   rlUsed: v.union(v.number(), v.null()),
 };
-
-/**
- * What one character's processing resolves to inside a sync action's loop:
- * skipped silently (unlinked mid-run), a recorded result, or a run-stopping
- * protective state (budget exhaustion) carrying its own result row.
- */
-export type SyncOutcome<Result> =
-  | { kind: 'skip' }
-  | { kind: 'result'; result: Result }
-  | { kind: 'stop'; runError: string; result: Result };

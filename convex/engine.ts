@@ -78,6 +78,7 @@ import {
   computeChainBoundary,
   computeNextDueAt,
   hasSyncTarget,
+  isCold,
   isColdFromPresence,
   isRegisteredDataset,
   isRunningFresh,
@@ -91,6 +92,7 @@ import { components, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
 import { getPresence, getSyncSubject } from './lib/subjects';
+import { drainCharacterOnline } from './onlineStatus';
 
 // Bounded fan-out across hot subjects. Retries ride the pool (exponential
 // backoff; the actions' error taxonomy already reserves throwing for
@@ -197,11 +199,19 @@ export const heartbeat = mutation({
     const now = Date.now();
 
     // Presence first, for every reason — into syncPresence, never the subject
-    // row. This is the decoupling: an interval beat writes only this doc and
-    // returns, so it cannot invalidate forViewer's read of syncSubjects.
-    await upsertPresence(ctx, dataset, userId, visible !== false, now);
+    // row. This is the decoupling: a steady-state interval beat writes only
+    // this doc and returns, so it cannot invalidate forViewer's read of
+    // syncSubjects.
+    const wasCold = await upsertPresence(ctx, dataset, userId, visible !== false, now);
 
-    if (reason === 'interval') return;
+    // A RECOVERY interval beat falls through to the on-view path: hidden tabs
+    // now beat too, so a ≥coldAfterMs gap (OS suspend, websocket outage,
+    // freeze/thaw) can leave the subject retired by the scan while beats
+    // resume with the tab still hidden — no visible beat ever comes to revive
+    // it, and Pass B's 15-minute cron would be the only recovery. The first
+    // beat after a cold gap re-arms/dispatches instead; steady-state interval
+    // beats still stop at the presence write.
+    if (reason === 'interval' && !wasCold) return;
 
     // Mount/visible only: the on-view dispatch path. Reads — and on the first
     // beat creates — the subject row. The client always fires a mount/visible
@@ -256,7 +266,11 @@ export const heartbeat = mutation({
  * The heartbeat's presence write. lastVisibleAt feeds the hidden-presence
  * backstop (a hidden beat advances only lastSeenAt); a fresh insert stamps it
  * unconditionally — a newly opened tab, even a background one, is a
- * deliberate user action and gets a fresh visibility budget.
+ * deliberate user action and gets a fresh visibility budget. Returns whether
+ * an EXISTING presence doc was cold for the dataset before this beat — the
+ * recovery-beat signal the heartbeat uses to revive a subject the scan
+ * retired during the gap (absent presence stays presence-only: the client
+ * contract fires a mount beat first, which owns row creation).
  */
 async function upsertPresence(
   ctx: MutationCtx,
@@ -264,8 +278,10 @@ async function upsertPresence(
   userId: string,
   seenVisible: boolean,
   now: number,
-): Promise<void> {
+): Promise<boolean> {
   const presence = await getPresence(ctx.db, dataset, userId);
+  const wasCold =
+    presence !== null && isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now);
   if (presence === null) {
     await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now, lastVisibleAt: now });
   } else {
@@ -274,6 +290,7 @@ async function upsertPresence(
       ...(seenVisible ? { lastVisibleAt: now } : {}),
     });
   }
+  return wasCold;
 }
 
 // Null the schedule so the row leaves the by_next_due range — a returning
@@ -442,7 +459,12 @@ async function resolveCompletionSchedule(
   }
   const yielded =
     subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
-  if (chainOnSuccess && yielded) {
+  // A null window means some character's read errored (the #95 poisoned
+  // stamp): computeChainBoundary(null, floor) would collapse the hop to the
+  // cadence floor and hammer a partly-broken roster at 5s. Chain only off a
+  // real window; a poisoned run falls to the jittered scan re-arm below
+  // (~scan-tick pacing until the roster heals or the viewer relinks).
+  if (chainOnSuccess && yielded && subject.minExpiresAt !== null) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     if (!isColdFromPresence(presence, coldAfterMs, now)) {
       const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
@@ -578,26 +600,32 @@ export const sweep = internalMutation({
  * TEMPORARY Pass D — the onlineStatus drain GC (delete alongside the wipe
  * deploy that drops the retired literals + characterOnline). Retention alone
  * would hold leftover rows for 7 days and block the wipe's schema push; this
- * drains them in a few 15-minute runs instead. Bounded unindexed take()s
- * (there is no by_dataset index and never will be — the tables are small and
- * this pass is throwaway): deleted rows leave the front of the creation
- * order, so successive runs walk the whole table.
+ * drains them in a few 15-minute runs instead. The filtered take() guarantees
+ * progress: each batch is up to RETIRED_GC_BATCH retired rows, never live
+ * rows occupying slots (an unfiltered take would starve once live rows
+ * outnumber the batch). The filter scans the table in creation order until it
+ * finds the batch or the end — an unindexed scan bounded by table size
+ * (~2 small rows/user, far under the 32k doc-scan ceiling) and acceptable
+ * only because this pass is throwaway; there is deliberately no by_dataset
+ * index. characterOnline teardown stays with its owner
+ * (convex/onlineStatus.drainCharacterOnline).
  */
 const RETIRED_GC_BATCH = 512;
 async function sweepRetiredDatasets(ctx: MutationCtx, counts: SweepCounts): Promise<void> {
-  const subjects = await ctx.db.query('syncSubjects').take(RETIRED_GC_BATCH);
+  const subjects = await ctx.db
+    .query('syncSubjects')
+    .filter((q) => q.neq(q.field('dataset'), 'characterLocation'))
+    .take(RETIRED_GC_BATCH);
   for (const row of subjects) {
-    if (isRegisteredDataset(row.dataset)) continue;
     await ctx.db.delete(row._id);
     counts.deleted += 1;
   }
-  const presence = await ctx.db.query('syncPresence').take(RETIRED_GC_BATCH);
-  for (const row of presence) {
-    if (!isRegisteredDataset(row.dataset)) await ctx.db.delete(row._id);
-  }
-  // Every characterOnline row belongs to the retired dataset — drain them all.
-  const online = await ctx.db.query('characterOnline').take(RETIRED_GC_BATCH);
-  for (const row of online) await ctx.db.delete(row._id);
+  const presence = await ctx.db
+    .query('syncPresence')
+    .filter((q) => q.neq(q.field('dataset'), 'characterLocation'))
+    .take(RETIRED_GC_BATCH);
+  for (const row of presence) await ctx.db.delete(row._id);
+  await drainCharacterOnline(ctx, RETIRED_GC_BATCH);
 }
 
 interface SweepCounts {

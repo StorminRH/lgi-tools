@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { HIDDEN_PRESENCE_MAX_MS } from '@/lib/sync-engine';
 import {
   AFK_HIDDEN_AFTER_MS,
   AFK_PROMPT_TIMEOUT_MS,
@@ -109,5 +110,16 @@ describe('afkConfigFromOverrides', () => {
     expect(afkConfigFromOverrides('', 'soon')).toEqual(production);
     // Zero/negative would mean an instant prompt — refused.
     expect(afkConfigFromOverrides('0', '-5')).toEqual(production);
+  });
+});
+
+describe('server backstop ordering', () => {
+  it('the hidden-presence backstop stays strictly behind the client AFK flow', () => {
+    // One decision, two files: if the AFK thresholds ever grow past the
+    // server's HIDDEN_PRESENCE_MAX_MS, the engine would go cold BEFORE the
+    // prompt appears and tracking would die with no UI. Keep real margin for
+    // throttled hidden ticks (~1/min resolution on every timer involved).
+    const clientStopsAt = AFK_HIDDEN_AFTER_MS + AFK_PROMPT_TIMEOUT_MS;
+    expect(HIDDEN_PRESENCE_MAX_MS - clientStopsAt).toBeGreaterThanOrEqual(10 * 60_000);
   });
 });

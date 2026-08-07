@@ -189,10 +189,10 @@ async function indexAndOrphanClean<
 
 // The per-result loop, split from the handler: probe upsert + location apply
 // per character, accumulating the subject stamp inputs. The covered set is
-// this run's continuity truth — characters observed cleanly (fresh 200 OR
-// 304, offline probes included); per-character errors and unpolled characters
-// are excluded so they re-anchor on recovery instead of inheriting an
-// invented path from the tracked set.
+// this run's continuity truth — characters whose LOCATION was observed
+// cleanly (fresh 200 OR 304); offline probe results, per-character errors,
+// and unpolled characters are all excluded so they re-anchor on recovery
+// instead of inheriting an invented path from the tracked set.
 async function applyCharacterResults(
   ctx: MutationCtx,
   args: { userId: string; enumeratedCharacterIds: number[]; results: CharacterResult[] },
@@ -206,7 +206,15 @@ async function applyCharacterResults(
   const coveredCharacterIds: number[] = [];
   for (const result of args.results) {
     if (!enumerated.has(result.characterId)) continue;
-    if (result.error === null) coveredCharacterIds.push(result.characterId);
+    // Covered = the LOCATION was observed this run (probe said online and the
+    // location path ran — fresh 200 OR 304). An offline probe "success" never
+    // enters: it observed no location, and continuity built on probe-only
+    // samples would let a pilot who logged in and moved inside the held ~60s
+    // window author a fabricated jump (prevFresh must mean "we watched the
+    // previous system", not "the run went cleanly").
+    if (result.error === null && result.online === true) {
+      coveredCharacterIds.push(result.characterId);
+    }
     await applyOnlineProbeResult(ctx, args.userId, result, onlineByCharacter.get(result.characterId));
     const window = await applyLocationResult(
       ctx,

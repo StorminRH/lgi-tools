@@ -539,7 +539,8 @@ describe('characterLocation.applySyncResults', () => {
       trackedCharacterIds: [CHAR_A, CHAR_B],
       results: [
         {
-          // 304 — clean sample, counts as covered despite writing nothing.
+          // 304 with the pilot online — a clean LOCATION observation, counts
+          // as covered despite writing nothing.
           characterId: CHAR_A,
           solarSystemId: null,
           stationId: null,
@@ -550,6 +551,7 @@ describe('characterLocation.applySyncResults', () => {
           etagShip: 'ship',
           expiresAt: WINDOW,
           error: null,
+          online: true,
         },
         {
           // Errored — excluded from the covered set.
@@ -610,6 +612,56 @@ describe('characterLocation.applySyncResults', () => {
       ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
     );
     expect(remaining.map((d) => d.characterId)).toEqual([CHAR_A]);
+  });
+
+  it('excludes an offline probe result from the covered set (no fabricated continuity)', async () => {
+    // Two tracked pilots: A online (location observed), B logged off under a
+    // held probe. B must NOT enter coveredCharacterIds — if it did, a login +
+    // multi-hop move inside the held ~60s window would satisfy isPrevFresh on
+    // the next run and author a fabricated jump on the shared map.
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_142,
+          stationId: null,
+          structureId: null,
+          shipTypeId: 670,
+          systemChanged: true,
+          etagLocation: 'loc',
+          etagShip: 'ship',
+          expiresAt: WINDOW,
+          error: null,
+          online: true,
+        },
+        {
+          characterId: CHAR_B,
+          solarSystemId: null,
+          stationId: null,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: false,
+          etagLocation: null,
+          etagShip: null,
+          expiresAt: WINDOW + 55_000,
+          error: null,
+          online: false,
+          etagOnline: 'on1',
+          onlineExpiresAt: WINDOW + 55_000,
+        },
+      ],
+    });
+
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
   });
 
   it('upserts the held online-probe row only on a fresh probe read', async () => {

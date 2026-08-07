@@ -152,6 +152,36 @@ describe('engine.heartbeat', () => {
     expect(subject?.workId).toBe('w1');
   });
 
+  it('a recovery interval beat revives a subject the scan retired during a beat gap', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    stubDispatch();
+    // A hidden tab suspended past the cold window: the scan retired the
+    // subject (nextDueAt null) and beats resumed with the tab still hidden —
+    // no visible beat is coming. The first beat after the gap must not stop
+    // at the presence write or tracking silently stalls until Pass B's cron.
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: null,
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 60_000,
+        lastVisibleAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 60_000,
+      });
+    });
+
+    await t
+      .withIdentity({ subject: USER })
+      .mutation(api.engine.heartbeat, {
+        dataset: 'characterLocation', characterIdsHint: [101], reason: 'interval', visible: false,
+      });
+
+    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
+    expect(subject?.status).toBe('running');
+  });
+
   it('no-ops entirely for a retired dataset beat (pre-deploy tab)', async () => {
     const t = convexTest(schema, modules);
     // The stored union still accepts the literal, but even a presence write
@@ -617,6 +647,32 @@ describe('engine chain-on-success', () => {
         .unique(),
     );
     // Cold success still re-arms onto the scan (jittered), never schedules a hop.
+    expect(typeof subject?.nextDueAt).toBe('number');
+  });
+
+  it('never chains a poisoned (null-window) completion — the 5s floor is unreachable', async () => {
+    // One errored character null-poisons minCacheWindow while another's clean
+    // location keeps the run yielded; chaining would collapse the boundary to
+    // the cadence floor and hammer the partly-broken roster at 5s. The run
+    // must fall to the jittered scan re-arm instead.
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        status: 'running',
+        lastRequestedAt: now,
+        workId: 'w1',
+        minExpiresAt: null,
+        syncedCharacterIds: [101, 102],
+        coveredCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt: now });
+    });
+
+    await callLocationComplete(t, { kind: 'success', returnValue: null });
+
+    expect(await scheduledChainDispatches(t)).toHaveLength(0);
+    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
     expect(typeof subject?.nextDueAt).toBe('number');
   });
 

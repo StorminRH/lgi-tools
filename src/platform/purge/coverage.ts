@@ -81,10 +81,10 @@ export const NON_NEON_HOMES = [
   {
     home: 'convex:characterOnline',
     coveredBy:
-      'explicit teardown via the online-status purge contributor (POST /purge-online → convex/onlineStatus.purgeForUser); lazy orphan-clean in convex/onlineStatus.applySyncResults is the backstop',
-    explicitTeardown: 'src/data/online-status/purge.ts — shipped ACCOUNT.2',
+      'explicit teardown via the online-status purge contributor (POST /purge-online → convex/onlineStatus.purgeForUser); the retired dataset has no syncer, so the sweep drain GC (convex/onlineStatus.drainCharacterOnline via engine Pass D) empties the rest ahead of the wipe deploy',
+    explicitTeardown: 'src/data/online-status/purge.ts — shipped ACCOUNT.2; table dropped at the wipe deploy',
     reason:
-      'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Lazy orphan-clean alone cannot cover an account-nuke (no later sync re-enumerates a removed account), so the online-status contributor tears it down explicitly during runPurge.',
+      'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. The dataset is retired: nothing writes the table anymore, and both teardown paths live in its keeper module until the wipe removes home and table together.',
   },
   {
     home: 'convex:characterLocation',
