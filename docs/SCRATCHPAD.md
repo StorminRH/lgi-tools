@@ -91,7 +91,7 @@
     Operator review: fog/pilot/arrow/reveal, AFK dialog look (Still
     mapping?), #368 live-character pass. Proof: focused 80 units + full
     verify green (fallow clean, 68 changed files), primitive-checker CLEAN.
-    Commit: 9a24326f.
+    Commit: ab0e6bdd.
 - **Next-agent notes (4.0.4.2.3 → close-out):**
   - G-1 pins live in `halo-model.ts` (`HALO_*` / `HALO_PINNED_LIMITS`) and
     `fog-model.ts` (`FOG_*` / `DEFAULT_FOG_CONFIG`); dials start at those
