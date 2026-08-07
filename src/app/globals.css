@@ -19,6 +19,7 @@
   --color-bg-deep:     #060708;
   --color-bg:          #0b0d10;
   --color-section:     #0f1216;
+  --color-map-fog:     #12161e; /* atlas fog-of-war cloud (4.0.4.2.3); lifted above bg so the cloud reads over the nebula */
   --color-tooltip:     #161b22; /* raised slate for help-tooltip panels */
   --color-border:      #1d232c;
   --color-border-soft: #141821;
@@ -1263,6 +1264,20 @@ details[data-collapsible][open] > summary [data-chevron] {
  * lines — same stroke, lower presence. */
 .react-flow__edge-path.map-edge-derived {
   opacity: 0.45;
+}
+
+/* Fog-of-war canvas (4.0.4.2.3 OW4): the DIRECT child of React Flow's
+ * ViewportPortal. The viewport is a stacking context and the portal container
+ * is not, so this negative z-index paints the cloud below the edge/node
+ * layers (z auto/0) while staying above the pane backdrop — verified against
+ * the installed 12.11.2 DOM (docs brief). Geometry (left/top/width/height)
+ * is written through CSSOM per paint placement; pointer-events stay none by
+ * inheritance from the viewport. */
+.map-fog {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: -1;
 }
 
 /* Outbound pilot arrow (4.0.4.2.3): mounted through the edge-label portal

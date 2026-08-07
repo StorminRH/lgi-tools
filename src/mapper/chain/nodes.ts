@@ -31,6 +31,12 @@ export type ChainEdgeData = {
   readonly tombstoneState?: Exclude<ChainTombstoneState, 'skeleton'>;
   /** Present only on derived halo gate links; authored connections carry none. */
   readonly halo?: true;
+  /**
+   * Present when exactly one endpoint sits under the fog (halo-model never
+   * links two fogged systems): the renderer truncates the line so it visibly
+   * runs into the cloud instead of reaching the invisible endpoint (OW4).
+   */
+  readonly fogSide?: 'source' | 'target';
   readonly motion?: EdgeMotion;
 };
 
@@ -175,6 +181,7 @@ export function buildEdges(
   treeParents: ReadonlyMap<number, number>,
   now = Date.now(),
   haloLinks: readonly HaloLink[] = [],
+  foggedSystemIds: ReadonlySet<number> = EMPTY_FOGGED_IDS,
 ): ChainEdge[] {
   const claim = newPairClaim(treeParents);
   const edges: ChainEdge[] = [];
@@ -195,9 +202,11 @@ export function buildEdges(
       data: { loop: !solid, tombstoneState },
     });
   }
-  appendHaloEdges(edges, haloLinks, claim);
+  appendHaloEdges(edges, haloLinks, claim, foggedSystemIds);
   return edges;
 }
+
+const EMPTY_FOGGED_IDS: ReadonlySet<number> = new Set();
 
 /**
  * The shared solid-claim bookkeeping both edge families use: tree structure
@@ -234,15 +243,21 @@ function appendHaloEdges(
   edges: ChainEdge[],
   haloLinks: readonly HaloLink[],
   claim: ReturnType<typeof newPairClaim>,
+  foggedSystemIds: ReadonlySet<number>,
 ): void {
   for (const link of haloLinks) {
     if (claim.rendered(link.a, link.b)) continue;
     const solid = claim.claimSolid(link.a, link.b);
+    const fogSide = foggedSystemIds.has(link.a)
+      ? ('source' as const)
+      : foggedSystemIds.has(link.b)
+        ? ('target' as const)
+        : undefined;
     edges.push({
       id: `${HALO_EDGE_ID_PREFIX}${link.a}>${link.b}`,
       source: String(link.a),
       target: String(link.b),
-      data: { loop: !solid, halo: true },
+      data: { loop: !solid, halo: true, ...(fogSide === undefined ? {} : { fogSide }) },
     });
   }
 }

@@ -46,6 +46,9 @@ import {
   CameraFollowHost,
   type CameraFocusRequest,
 } from '../canvas/use-camera-follow';
+import { DEFAULT_FOG_CONFIG, type FogConfig } from '../fog/fog-model';
+import { FogLayer } from '../fog/FogLayer';
+import { HALO_PINNED_LIMITS, type HaloLimits } from '../halo/halo-model';
 import {
   DEFAULT_LAYOUT_CONFIG,
   type LayoutConfig,
@@ -113,6 +116,10 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const [motionConfig, setMotionConfig] = useState<MotionConfig>(
     DEFAULT_MOTION_CONFIG,
   );
+  // Halo/fog G-1 tuning dials (dev-only panel): both start at the pinned
+  // constants, so production renders exactly the pins.
+  const [haloLimits, setHaloLimits] = useState<HaloLimits>(HALO_PINNED_LIMITS);
+  const [fogConfig, setFogConfig] = useState<FogConfig>(DEFAULT_FOG_CONFIG);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -143,7 +150,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     neighboursOf,
     pinPlacement,
     releasePlacements,
-  } = useMapChain(mapId, dragging, config);
+  } = useMapChain(mapId, dragging, config, haloLimits);
   const authoring = useChainAuthoringMutations();
   const [nodes, setNodes] = useState<ChainNode[]>([]);
   const [nodeMenu, setNodeMenu] = useState<NodeMenuAnchor | null>(null);
@@ -165,6 +172,16 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     );
   }, [state.systems, labelOf, halo.systems]);
 
+  // Which halo systems sit under the fog — the edge builder truncates lines
+  // into the cloud, and the arrow derivation excludes them from the drawn set.
+  const foggedSystemIds = useMemo(() => {
+    const fogged = new Set<number>();
+    for (const system of halo.systems) {
+      if (system.fogged) fogged.add(system.systemId);
+    }
+    return fogged;
+  }, [halo.systems]);
+
   const edges = useMemo(
     () =>
       buildEdges(
@@ -172,8 +189,15 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
         treeParents,
         connectionPresentationNow,
         halo.links,
+        foggedSystemIds,
       ),
-    [state.connections, treeParents, connectionPresentationNow, halo.links],
+    [
+      state.connections,
+      treeParents,
+      connectionPresentationNow,
+      halo.links,
+      foggedSystemIds,
+    ],
   );
 
   // The non-fogged rendered set the outbound-arrow derivation walks from:
@@ -353,6 +377,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
               access={access}
               dragging={dragging}
               motionConfig={motionConfig}
+              fogConfig={fogConfig}
               nodesDraggable={!locked}
               onNodesChange={onNodesChange}
               onNodeDragStart={onNodeDragStart}
@@ -368,6 +393,10 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
                 onConfigChange={setConfig}
                 motion={motionConfig}
                 onMotionChange={setMotionConfig}
+                halo={haloLimits}
+                onHaloChange={setHaloLimits}
+                fog={fogConfig}
+                onFogChange={setFogConfig}
               />
               {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
               <CameraFollowHost
@@ -438,6 +467,7 @@ interface MotionLayerProps
   readonly access: MapAccessState;
   readonly dragging: ReadonlySet<number>;
   readonly motionConfig: MotionConfig;
+  readonly fogConfig: FogConfig;
   readonly children?: ReactNode;
 }
 
@@ -455,6 +485,7 @@ function MotionLayer({
   access,
   dragging,
   motionConfig,
+  fogConfig,
   children,
   ...surface
 }: MotionLayerProps) {
@@ -473,6 +504,14 @@ function MotionLayer({
       motion={motionConfig}
       {...surface}
     >
+      {/* Fog derives from the SAME presentation the surface renders, so the
+          cloud can never disagree with the drawn canvas (OW4). */}
+      <FogLayer
+        nodes={presentation.nodes}
+        edges={presentation.edges}
+        motion={motionConfig}
+        config={fogConfig}
+      />
       {children}
     </ChainSurface>
   );

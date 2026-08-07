@@ -69,6 +69,11 @@ vi.mock('@xyflow/react', async () => {
     Position: { Left: 'left', Right: 'right' },
     Panel: ({ children }: { children?: unknown }) =>
       element('div', { 'data-react-flow-panel': '' }, children as never),
+    // FogLayer (OW4) mounts through the viewport portal and registers a
+    // gesture-settle callback; the static render needs both present.
+    ViewportPortal: ({ children }: { children?: unknown }) =>
+      element('div', { 'data-viewport-portal': '' }, children as never),
+    useOnViewportChange: () => undefined,
     // Camera follow now fits via getViewportForBounds + setViewport (fitBounds
     // ignores option maxZoom). Keep the mock surface aligned with that path.
     getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),

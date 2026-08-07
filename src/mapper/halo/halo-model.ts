@@ -73,7 +73,10 @@ export interface PlacedHalo {
 /** The empty placed halo — stable identity before the first kernel reply. */
 export const EMPTY_PLACED_HALO: PlacedHalo = { systems: [], links: [] };
 
-/** The scan depths the pinned constants demand; injectable for extent tests. */
+/**
+ * The scan depths the pinned constants demand; injectable for extent tests
+ * and the development-only G-1 tuning dials.
+ */
 export interface HaloLimits {
   readonly drawnRings: number;
   readonly foggedRings: number;
@@ -81,7 +84,8 @@ export interface HaloLimits {
   readonly maxSystemsTotal: number;
 }
 
-const PINNED_LIMITS: HaloLimits = {
+/** The pinned limits as one object — the dial panel's starting state. */
+export const HALO_PINNED_LIMITS: HaloLimits = {
   drawnRings: HALO_DRAWN_RINGS,
   foggedRings: HALO_FOGGED_RINGS,
   maxSystemsPerExit: HALO_MAX_SYSTEMS_PER_EXIT,
@@ -96,7 +100,7 @@ export interface HaloInput {
   readonly neighbours: (id: number) => readonly number[];
   /** The one k-space/J-space owner's verdict; `undefined` for unknown ids. */
   readonly securityClassOf: (id: number) => SecurityClass | undefined;
-  /** Test-only extent override; production always uses the pinned constants. */
+  /** Extent override for tests and the dev-only G-1 dials; absent = pinned. */
   readonly limits?: HaloLimits;
 }
 
@@ -213,7 +217,7 @@ function appendCrossLinks(
  * Unknown system ids (absent from the asset) simply contribute nothing.
  */
 export function deriveHalo(input: HaloInput): HaloDerivation {
-  const limits = input.limits ?? PINNED_LIMITS;
+  const limits = input.limits ?? HALO_PINNED_LIMITS;
   const totalRings = limits.drawnRings + limits.foggedRings;
   const authoredIds = new Set(input.authoredSystems.map((system) => system.systemId));
 

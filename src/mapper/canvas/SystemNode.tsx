@@ -33,8 +33,10 @@ export type ChainNodeData = {
   motion?: NodeMotion;
   /**
    * Present only on derived halo systems (4.0.4.2.3 OW3); an authored node
-   * carries no halo field. `fogged` marks the ring placed under OW4's fog —
-   * rendered dimmed and inert until the fog occludes it.
+   * carries no halo field. `fogged` marks the ring under the fog layer: the
+   * node is placed (so fog recession reveals it in place) but renders fully
+   * transparent and inert — the cloud paints below the node layer, so the
+   * node hides itself rather than relying on paint order.
    */
   halo?: { readonly ring: number; readonly fogged: boolean };
 };
@@ -93,8 +95,9 @@ function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
       className={cn(
         'relative h-full w-full',
         // Provisional presentation: derived systems read dimmer than authored
-        // truth, and the fogged ring dims further until OW4's fog covers it.
-        derived && (fogged ? 'opacity-40' : 'opacity-75'),
+        // truth; the fogged ring is invisible under the cloud (the fog canvas
+        // paints below nodes, so the node hides itself — SC-3.2).
+        derived && (fogged ? 'opacity-0' : 'opacity-75'),
         nodeMotionClass(data.motion, dragging),
       )}
     >

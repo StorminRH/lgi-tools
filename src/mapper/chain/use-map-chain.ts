@@ -42,6 +42,7 @@ import {
   EMPTY_HALO,
   EMPTY_PLACED_HALO,
   haloSignature,
+  type HaloLimits,
   type PlacedHalo,
 } from '../halo/halo-model';
 import { deriveChainTree } from '../layout/facts';
@@ -412,11 +413,16 @@ function useUniverseAssets(): UniverseAssets | null {
  *
  * `config` is the live dial state; changing it bumps the layout revision so the
  * pipeline re-posts.
+ *
+ * `haloLimits` is the development-only G-1 extent dial; omitted (or the
+ * pinned object) it changes nothing — the halo fingerprint in the post key
+ * re-posts layout when a dial commit changes the derivation.
  */
 export function useMapChain(
   mapId: string | null,
   draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,
   config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
+  haloLimits?: HaloLimits,
 ): MapChain {
   const args = mapSubscriptionArgs(mapId);
   // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
@@ -525,8 +531,9 @@ export function useMapChain(
         if (entry === null) return undefined;
         return systemSecurityClass(entry.security, entry.whClassId);
       },
+      limits: haloLimits,
     });
-  }, [authoredKey, assets]);
+  }, [authoredKey, assets, haloLimits]);
   const haloKey = useMemo(() => haloSignature(halo), [halo]);
 
   const layout = useLayoutKernel();

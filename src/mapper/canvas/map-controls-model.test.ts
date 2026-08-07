@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_FOG_CONFIG } from '../fog/fog-model';
+import { HALO_PINNED_LIMITS } from '../halo/halo-model';
 import { DEFAULT_LAYOUT_CONFIG, DIRECTION_PRESETS } from '../layout/layout-contract';
 import {
   commitDirectionPreset,
+  commitFogOpacityPct,
+  commitFogRevealRadius,
+  commitFogStrokeRadius,
+  commitFogTier,
+  commitHaloDrawnRings,
+  commitHaloFoggedRings,
+  commitHaloPerExitCap,
+  commitHaloTotalCap,
   commitMinSeparation,
   commitRingSpacing,
   commitSiblingSpread,
@@ -43,5 +53,29 @@ describe('map controls model', () => {
       expect(next.directionSequence).toBe(DIRECTION_PRESETS[id]);
       expect(directionPresetOf(next)).toBe(id);
     }
+  });
+
+  // ── OW4 — G-1 halo/fog tuning dials clamp to their ranges ──────────────────
+  it('clamps halo dial commits into range', () => {
+    expect(commitHaloDrawnRings(HALO_PINNED_LIMITS, 9).drawnRings).toBe(4);
+    expect(commitHaloDrawnRings(HALO_PINNED_LIMITS, -1).drawnRings).toBe(0);
+    expect(commitHaloFoggedRings(HALO_PINNED_LIMITS, 7).foggedRings).toBe(2);
+    expect(commitHaloPerExitCap(HALO_PINNED_LIMITS, 5).maxSystemsPerExit).toBe(10);
+    expect(commitHaloPerExitCap(HALO_PINNED_LIMITS, 999).maxSystemsPerExit).toBe(120);
+    expect(commitHaloTotalCap(HALO_PINNED_LIMITS, 1000).maxSystemsTotal).toBe(300);
+    // Untouched fields survive a commit unchanged.
+    expect(commitHaloDrawnRings(HALO_PINNED_LIMITS, 3)).toMatchObject({
+      foggedRings: HALO_PINNED_LIMITS.foggedRings,
+      maxSystemsPerExit: HALO_PINNED_LIMITS.maxSystemsPerExit,
+      maxSystemsTotal: HALO_PINNED_LIMITS.maxSystemsTotal,
+    });
+  });
+
+  it('clamps fog dial commits, storing density as a fraction', () => {
+    expect(commitFogRevealRadius(DEFAULT_FOG_CONFIG, 5000).revealRadius).toBe(320);
+    expect(commitFogStrokeRadius(DEFAULT_FOG_CONFIG, 0).strokeRadius).toBe(20);
+    expect(commitFogOpacityPct(DEFAULT_FOG_CONFIG, 85).opacity).toBe(0.85);
+    expect(commitFogOpacityPct(DEFAULT_FOG_CONFIG, 500).opacity).toBe(1);
+    expect(commitFogTier(DEFAULT_FOG_CONFIG, 'static').tier).toBe('static');
   });
 });

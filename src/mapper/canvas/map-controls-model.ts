@@ -2,7 +2,11 @@
 //
 // Commit-time clamping keeps the standing invariant `ringSpacing ≥ minSeparation`
 // from either direction. Presets resolve to `DIRECTION_PRESETS` so the panel
-// never grows a second owner of the heading vocabulary.
+// never grows a second owner of the heading vocabulary. The halo/fog groups
+// (4.0.4.2.3 OW4) are G-1 tuning dials over the pinned constants — the panel
+// is dev-only, so production always renders the pins.
+import type { FogConfig } from '../fog/fog-model';
+import type { HaloLimits } from '../halo/halo-model';
 import {
   DIRECTION_PRESETS,
   type DirectionPresetId,
@@ -120,6 +124,92 @@ export function commitDirectionPreset(
   preset: DirectionPresetId,
 ): LayoutConfig {
   return { ...config, directionSequence: DIRECTION_PRESETS[preset] };
+}
+
+/** Halo drawn-ring depth dial range. */
+export const HALO_DRAWN_RINGS_RANGE = { min: 0, max: 4, step: 1 } as const;
+
+/** Halo fogged-ring depth dial range. */
+export const HALO_FOGGED_RINGS_RANGE = { min: 0, max: 2, step: 1 } as const;
+
+/** Halo per-exit system cap dial range. */
+export const HALO_PER_EXIT_RANGE = { min: 10, max: 120, step: 10 } as const;
+
+/** Halo aggregate system cap dial range. */
+export const HALO_TOTAL_RANGE = { min: 30, max: 300, step: 30 } as const;
+
+/** Commit a halo drawn-ring dial change. */
+export function commitHaloDrawnRings(limits: HaloLimits, next: number): HaloLimits {
+  const range = HALO_DRAWN_RINGS_RANGE;
+  return { ...limits, drawnRings: clampStepped(next, range.min, range.max, range.step) };
+}
+
+/** Commit a halo fogged-ring dial change. */
+export function commitHaloFoggedRings(limits: HaloLimits, next: number): HaloLimits {
+  const range = HALO_FOGGED_RINGS_RANGE;
+  return { ...limits, foggedRings: clampStepped(next, range.min, range.max, range.step) };
+}
+
+/** Commit a halo per-exit cap dial change. */
+export function commitHaloPerExitCap(limits: HaloLimits, next: number): HaloLimits {
+  const range = HALO_PER_EXIT_RANGE;
+  return {
+    ...limits,
+    maxSystemsPerExit: clampStepped(next, range.min, range.max, range.step),
+  };
+}
+
+/** Commit a halo aggregate cap dial change. */
+export function commitHaloTotalCap(limits: HaloLimits, next: number): HaloLimits {
+  const range = HALO_TOTAL_RANGE;
+  return {
+    ...limits,
+    maxSystemsTotal: clampStepped(next, range.min, range.max, range.step),
+  };
+}
+
+/** Fog reveal-radius dial range (world units). */
+export const FOG_REVEAL_RADIUS_RANGE = { min: 80, max: 320, step: 10 } as const;
+
+/** Fog corridor-radius dial range (world units). */
+export const FOG_STROKE_RADIUS_RANGE = { min: 20, max: 120, step: 4 } as const;
+
+/** Fog cloud-density dial range, in percent. */
+export const FOG_OPACITY_PCT_RANGE = { min: 40, max: 100, step: 5 } as const;
+
+/** Fog tier options the segmented control exposes. */
+export const FOG_TIER_OPTIONS: readonly {
+  readonly value: FogConfig['tier'];
+  readonly label: string;
+}[] = [
+  { value: 'dynamic', label: 'Dynamic' },
+  { value: 'static', label: 'Static' },
+];
+
+/** Commit a fog reveal-radius dial change. */
+export function commitFogRevealRadius(config: FogConfig, next: number): FogConfig {
+  const range = FOG_REVEAL_RADIUS_RANGE;
+  return { ...config, revealRadius: clampStepped(next, range.min, range.max, range.step) };
+}
+
+/** Commit a fog corridor-radius dial change. */
+export function commitFogStrokeRadius(config: FogConfig, next: number): FogConfig {
+  const range = FOG_STROKE_RADIUS_RANGE;
+  return { ...config, strokeRadius: clampStepped(next, range.min, range.max, range.step) };
+}
+
+/** Commit a fog density dial change (percent in, fraction stored). */
+export function commitFogOpacityPct(config: FogConfig, next: number): FogConfig {
+  const range = FOG_OPACITY_PCT_RANGE;
+  return {
+    ...config,
+    opacity: clampStepped(next, range.min, range.max, range.step) / 100,
+  };
+}
+
+/** Commit a fog tier segmented change. */
+export function commitFogTier(config: FogConfig, tier: FogConfig['tier']): FogConfig {
+  return { ...config, tier };
 }
 
 /** Which preset matches the current direction sequence, if any. */

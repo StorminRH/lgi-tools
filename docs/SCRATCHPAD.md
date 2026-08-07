@@ -34,7 +34,8 @@
 - **CURRENT / NEXT:** session **4.0.4.2.3** (fog, halo, pilot presence) is in
   Ordered work on `lifecycle/4.0.4.2` (plan
   `docs/session-plans/4.0/4.0.4.2.3.md`; 4.0.4.2.2 merged as PR #365).
-- **OW progress:** `3/5 complete` — next: Ordered work step 4, Fog layer.
+- **OW progress:** `4/5 complete` — next: Ordered work step 5, UX gate (G-1)
+  + #368 checklist.
 - **OW completed:**
   - OW1 — widget-frame node primitive: `SystemNode.tsx` (frame 120×88 declared
     data-side, header name, centered disc, widget rail), `edge-geometry.ts`
@@ -76,7 +77,22 @@
     positions, zero non-heartbeat mutations, in-place upgrade with
     map-node-enter on both clients; SC-1/SC-2/SC-4 evidence), full verify
     green (fallow audit exit 0). Primitive-checker CLEAN round 1.
-    Commit: see this commit's SHA.
+    Commit: cd34ba98.
+  - OW4 — fog layer: `src/mapper/fog/` (fog-model reveal membership +
+    open/close timeline + drag wake, fog-painter cover/backing/noise-brush/
+    paint-commands, fog-host `runFogTick` with injected browser seams,
+    FogLayer thin canvas host via ViewportPortal + `.map-fog` z:-1),
+    ring-3 occlusion (fogged nodes opacity-0 + `chainLinkFogPath` stub via
+    `fogSide` on halo edges), `--color-map-fog` token, halo/fog dev dials
+    (MapControls + map-controls-model commits, `haloLimits` threaded through
+    `useMapChain`). Proof: fog 36 units (model/painter/host) + edge-geometry/
+    nodes/MapControls units, mapper 53 files / 490 tests, `atlas-fog-layering`
+    19/19 (SC-3.2: stacking, pixel-alpha honesty, inert/invisible ring-3,
+    0.55-cut stub, click-through, idle-still), `atlas-fog-budget` 9/9
+    (SC-6.2: 55 authored + 150-cap halo, p50 8.4 ms / p95 33.4 ms vs 17/34
+    budget, returns to zero rAF), full verify green (fallow: no issues in 61
+    changed files). Primitive-checker CLEAN after 1 correction
+    (DialGroupHeader retrofit). Commit: see this commit's SHA.
 - **Next-agent notes (4.0.4.2.3):**
   - Node dims are DECLARED (`width`/`height` on the node object in
     `syncNodes`) — React Flow v12 renders them as wrapper inline styles, so
@@ -102,17 +118,31 @@
     transiently (no live ESI identity). Fixture timestamps split on purpose:
     `transitionObservedAt` real time (server capture window), `feedFreshAt`
     virtual now (client staleness).
-  - OW4 owns: `src/mapper/fog/fog-model.ts` + `FogLayer.tsx` (world-anchored
-    canvas below edges/nodes via `ViewportPortal` + negative zIndex), the
-    frame-budget probe at max combined load (SC-6.2), and the MapControls
-    dev dials for halo/fog constants ahead of G-1 (`deriveHalo` already
-    accepts an injectable `limits` object, so dial wiring is trivial).
-  - OW3 seams for OW4: fogged ring-3 nodes carry `data.halo.fogged` on the
-    presentation nodes and `data-chain-node-fogged` in the DOM; halo edges
-    carry `data.halo` and a both-fogged link is never emitted (halo-model
-    guarantees it), so `deriveFogReveals` can trust node flags alone.
-    `layoutPostKey` now takes a 4th halo-fingerprint arg — halo membership
-    is structural layout input; the assets landing re-posts the kernel.
+  - OW5 (G-1) pinning: halo/fog dials live in MapControls (dev-only); the
+    chosen values pin as constants in `halo-model.ts` (`HALO_*`) and
+    `fog-model.ts` (`FOG_*` + `DEFAULT_FOG_CONFIG`) — the dial state merely
+    starts at the pins, so pinning = edit the constants, dials stay. Fog
+    color is the `--color-map-fog` @theme token (globals.css).
+  - Fog perf headroom note for G-1: `atlas-fog-budget` measured p95 33.4 ms
+    against the 34 ms budget at max combined load (dynamic tier) — the
+    `static` smoke tier on the Fog dials segmented control is the pinned
+    degradation if live review sees misses.
+  - Fog probe ops (both need fresh disposable maps, same recipe as
+    atlas-halo): `UX_FOG_MAP_ID` (layering, leaves one Jita anchor) and
+    `UX_FOG_BUDGET_MAP_ID` (budget, seeds ~55 systems over ~1–2 min of
+    sequential convex runs). Operator captures from this step live in
+    gitignored `docs/ux-check/captures/fog-*.png`.
+  - ⚠ `atlas-motion-glide` still checks edge endpoints against the PRE-OW1
+    disc geometry (`DISC_RADIUS 22`, disc atop column); edges now clip to
+    the 120×88 frame box, so that probe's rim assertion will fail if OW5's
+    sweep runs it — update its rim math to `endpointFrame` semantics first.
+  - Fog scheduling contract: NO standing rAF loop — frames only on
+    presentation change / viewport settle / pane resize, re-armed while
+    `animating`; `atlas-motion-idle`'s zero-registration idle assertion now
+    also covers fog. `runFogTick` (fog-host.ts) is the tested owner; keep
+    FogLayer.tsx functions ≤4 cyclomatic (CRAP: .tsx has no coverage).
+    The fog canvas MUST stay the direct ViewportPortal child — any wrapper
+    creating a stacking context traps the z:-1 and paints fog over the map.
   - Halo nodes live in ChainHost's controlled node set (selection
     round-trips through `applyNodeChanges`); never draggable; inertness is
     node-level `style.pointerEvents` (ghost precedent — a class can never

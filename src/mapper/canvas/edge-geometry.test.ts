@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chainLinkFogPath,
   chainLinkPath,
   endpointFrame,
   frameCenter,
@@ -156,5 +157,31 @@ describe('point along chain link', () => {
 
   it('is null when no visible segment exists between the frames', () => {
     expect(pointAlongChainLink(frame(0, 0), frame(100, 0), 0.5)).toBeNull();
+  });
+});
+
+// ── OW4 — the fogged-endpoint cutoff stub ────────────────────────────────────
+describe('chain link fog path', () => {
+  const node = (x: number, y: number) => ({
+    internals: { positionAbsolute: { x, y } },
+    measured: { width: 120, height: 88 },
+  });
+
+  it('keeps the drawn-side stub toward a fogged target', () => {
+    // Full clipped segment runs x 120 → 300; half the cut keeps 120 → 210.
+    expect(chainLinkFogPath(node(0, 0), node(300, 0), 'target', 0.5)).toBe(
+      'M 120,44 L 210,44',
+    );
+  });
+
+  it('keeps the drawn-side stub toward a fogged source', () => {
+    expect(chainLinkFogPath(node(0, 0), node(300, 0), 'source', 0.5)).toBe(
+      'M 210,44 L 300,44',
+    );
+  });
+
+  it('is null exactly when the full path would be', () => {
+    expect(chainLinkFogPath(undefined, node(300, 0), 'target', 0.5)).toBeNull();
+    expect(chainLinkFogPath(node(0, 0), node(100, 0), 'target', 0.5)).toBeNull();
   });
 });

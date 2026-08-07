@@ -84,10 +84,13 @@ describe('halo node markup', () => {
     expect(drawn).toContain('border-dashed');
   });
 
-  it('marks a fogged ring node and dims it further', () => {
+  it('marks a fogged ring node and hides it under the cloud (OW4)', () => {
     const fogged = haloMarkup(true);
     expect(fogged).toContain('data-chain-node-fogged');
-    expect(fogged).toContain('opacity-40');
+    // The fog canvas paints BELOW the node layer, so the fogged node hides
+    // itself; invisibility-under-fog is this class, not paint order (SC-3.2).
+    expect(fogged).toContain('opacity-0');
+    expect(fogged).not.toContain('opacity-40');
   });
 
   it('leaves authored nodes unmarked', () => {

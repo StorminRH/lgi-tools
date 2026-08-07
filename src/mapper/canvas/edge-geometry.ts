@@ -94,6 +94,26 @@ export function endpointFrame(node: EdgeEndpointNode | undefined): FrameRect | n
   };
 }
 
+/** The clipped segment between two endpoint nodes, or `null` when unknowable. */
+function endpointSegment(
+  source: EdgeEndpointNode | undefined,
+  target: EdgeEndpointNode | undefined,
+): FrameSegment | null {
+  const from = endpointFrame(source);
+  const to = endpointFrame(target);
+  if (from === null || to === null) return null;
+  return frameSegment(from, to);
+}
+
+/** The SVG path for a sub-span `[start, end]` (fractions) of one segment. */
+function segmentPath(segment: FrameSegment, start: number, end: number): string {
+  const dx = segment.endX - segment.startX;
+  const dy = segment.endY - segment.startY;
+  const point = (t: number) =>
+    `${segment.startX + dx * t},${segment.startY + dy * t}`;
+  return `M ${point(start)} L ${point(end)}`;
+}
+
 /**
  * The SVG path for one frame-clipped connection, or `null` while either
  * endpoint is missing or has no known dimensions, or when the frames touch
@@ -103,13 +123,27 @@ export function chainLinkPath(
   source: EdgeEndpointNode | undefined,
   target: EdgeEndpointNode | undefined,
 ): string | null {
-  const from = endpointFrame(source);
-  const to = endpointFrame(target);
-  if (from === null || to === null) return null;
+  const segment = endpointSegment(source, target);
+  return segment === null ? null : segmentPath(segment, 0, 1);
+}
 
-  const segment = frameSegment(from, to);
+/**
+ * The SVG path for the drawn stub of a fogged-endpoint connection: the
+ * clipped segment truncated to `cut` of its length from the non-fogged end,
+ * so the line visibly runs into the cloud and ends short of the invisible
+ * endpoint (4.0.4.2.3 OW4). `fogSide` names which endpoint sits under fog.
+ */
+export function chainLinkFogPath(
+  source: EdgeEndpointNode | undefined,
+  target: EdgeEndpointNode | undefined,
+  fogSide: 'source' | 'target',
+  cut: number,
+): string | null {
+  const segment = endpointSegment(source, target);
   if (segment === null) return null;
-  return `M ${segment.startX},${segment.startY} L ${segment.endX},${segment.endY}`;
+  return fogSide === 'target'
+    ? segmentPath(segment, 0, cut)
+    : segmentPath(segment, 1 - cut, 1);
 }
 
 /**

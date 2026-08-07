@@ -26,9 +26,11 @@ import {
 import { memo, useLayoutEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
 import type { ChainEdgeData } from '../chain/nodes';
+import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
 import type { EdgeMotion } from '../motion/motion-contract';
 import { useOutboundArrow } from '../tracking/outbound-arrow-context';
 import {
+  chainLinkFogPath,
   chainLinkPath,
   endpointFrame,
   pointAlongChainLink,
@@ -153,7 +155,11 @@ function ChainLinkEdgeComponent({
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
   const arrow = useOutboundArrow(id);
-  const path = chainLinkPath(sourceNode, targetNode);
+  // A fogged-endpoint line draws only its stub into the cloud (OW4).
+  const path =
+    data?.fogSide === undefined
+      ? chainLinkPath(sourceNode, targetNode)
+      : chainLinkFogPath(sourceNode, targetNode, data.fogSide, FOG_EDGE_CUT_FRACTION);
   if (path === null) return null;
 
   const presentation = edgePresentation(data);
