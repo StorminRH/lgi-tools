@@ -77,6 +77,7 @@ describe('connection intelligence', () => {
     if (travelled.kind !== 'range') return;
     expect(travelled.minKg).toBe(stable.minKg - 300_000_000);
     expect(travelled.maxKg).toBe(stable.maxKg - 300_000_000);
+    // A reversed odometer (anchor ahead of the counter) is malformed: no estimate.
     expect(massRowDisplay(TYPED, 'stable', 100_000_000, 200_000_000).kind).toBe(
       'none',
     );

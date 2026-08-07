@@ -4,6 +4,30 @@
 # `pnpm.overrides` in package.json are unaffected once they clear this window.
 minimumReleaseAge: 10080
 
+# Operator-approved exception (2026-08-07): adopt Next.js 16.3.0 (published
+# 2026-08-03) ahead of the window. Exact-version entries, so every later
+# release still quarantines. Remove once 16.3.0 ages past the window
+# (2026-08-10).
+minimumReleaseAgeExclude:
+  - next@16.3.0
+  - eslint-config-next@16.3.0
+  # Operator-approved (2026-08-07): js-yaml 4.3.1 security patch adopted ~3h
+  # before its window cleared (published 2026-07-31T17:39Z). Removable
+  # immediately after 2026-08-07T17:39Z.
+  - js-yaml@4.3.1
+  # next's platform sub-packages, pinned to the same exact version (pnpm
+  # rejects glob patterns with versions, but exact scoped entries work):
+  - "@next/env@16.3.0"
+  - "@next/eslint-plugin-next@16.3.0"
+  - "@next/swc-darwin-arm64@16.3.0"
+  - "@next/swc-darwin-x64@16.3.0"
+  - "@next/swc-linux-arm64-gnu@16.3.0"
+  - "@next/swc-linux-arm64-musl@16.3.0"
+  - "@next/swc-linux-x64-gnu@16.3.0"
+  - "@next/swc-linux-x64-musl@16.3.0"
+  - "@next/swc-win32-arm64-msvc@16.3.0"
+  - "@next/swc-win32-x64-msvc@16.3.0"
+
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver

@@ -30,6 +30,7 @@ describe('resolveMenuControls', () => {
       kind: 'preference-enum',
       options: ['lightbox', 'expand'],
     });
+    // The preceding equality assertion guarantees both indexed models exist.
     expect(enums[0]!.def.key).toBe('sites.view');
     expect(enums.map((m) => m.label)).toEqual(['view', 'detail mode']);
 
@@ -125,6 +126,7 @@ describe('resolvePageControls', () => {
 
     const models = resolvePageControls(spec([{ key: 'sites.view', placement: 'inline' }]));
     expect(models).toHaveLength(1);
+    // The preceding length assertion guarantees the first indexed model exists.
     const model = models[0]!;
     expect(model.kind).toBe('preference-enum');
     if (model.kind === 'preference-enum') {

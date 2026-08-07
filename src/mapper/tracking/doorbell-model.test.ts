@@ -129,6 +129,7 @@ describe('ringPendingTransitions', () => {
         }),
     );
     const firstPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
+    // The double-invoked development effect re-enters before any response.
     const secondPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
     release(response('processed'));
     await Promise.all([firstPass, secondPass]);
