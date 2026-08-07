@@ -368,6 +368,9 @@ describe('jump resolver composition', () => {
       emitted: false,
     });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
+    // The contradicted retype makes any previously emitted row stale — the
+    // typed-hole channel removes it just like the answer path.
+    expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'observation-key');
   });
 
   it('emission follows the stored provenance of a converged pair, never the matcher verdict', async () => {

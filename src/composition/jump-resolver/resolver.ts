@@ -444,6 +444,15 @@ async function resolveTypedHole(
       'human',
       dependencies,
     );
+    if (!emitted && evidence.connection.observationKey !== null) {
+      // Retyping to K162, an unidentified code, or a class-contradicted type
+      // makes any previously emitted row assert a superseded identity — the
+      // same repair as the answer path removes it. Absent row: no-op.
+      await dependencies.deleteWhObservation(
+        database,
+        evidence.connection.observationKey,
+      );
+    }
     return { status: 'processed', outcome: 'typed-hole', emitted };
   } catch (cause) {
     dependencies.reportEmissionFailure(cause);
