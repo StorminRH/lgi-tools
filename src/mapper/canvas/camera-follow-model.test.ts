@@ -28,6 +28,9 @@ const APPEARED: readonly MapChainIntent[] = [
 const MOVED: readonly MapChainIntent[] = [
   { kind: 'system-moved', systemId: 1, from: { x: 0, y: 0 }, to: { x: 1, y: 1 } },
 ];
+
+/** The widget-frame box camera math pads and centers with in these tests. */
+const FRAME = { width: 120, height: 88 };
 const DEPARTED: readonly MapChainIntent[] = [{ kind: 'system-departed', systemId: 1 }];
 
 describe('camera fit policy', () => {
@@ -113,7 +116,7 @@ describe('camera easing', () => {
   });
 });
 
-// ── SC-5.1 — bounds come from reconciled targets, padded for disc and label ──
+// ── SC-5.1 — bounds come from reconciled targets, padded by the frame box ────
 describe('chain bounds', () => {
   const placed = (systemId: number, x: number, y: number): [number, PlacedSystem] => [
     systemId,
@@ -121,17 +124,17 @@ describe('chain bounds', () => {
   ];
 
   it('is null for an empty chain — nothing to frame', () => {
-    expect(chainBounds(new Map(), 22)).toBeNull();
+    expect(chainBounds(new Map(), FRAME)).toBeNull();
   });
 
-  it('spans the reconciled positions plus disc diameter and label allowance', () => {
+  it('spans the reconciled positions plus the widget-frame box', () => {
     const systems = new Map([placed(1, 0, 0), placed(2, 300, -150)]);
 
-    expect(chainBounds(systems, 22)).toEqual({
+    expect(chainBounds(systems, FRAME)).toEqual({
       x: 0,
       y: -150,
-      width: 300 + 44,
-      height: 150 + 44 + 24,
+      width: 300 + 120,
+      height: 150 + 88,
     });
   });
 
@@ -200,10 +203,10 @@ describe('fit execution', () => {
       dragActive: false,
       nodeIds: new Set([1]),
       systems,
-      discRadius: 22,
+      frame: FRAME,
     });
     expect(warranted.consume).toBe(true);
-    expect(warranted.bounds).toEqual({ x: 0, y: 0, width: 44, height: 44 + 24 });
+    expect(warranted.bounds).toEqual({ x: 0, y: 0, width: 120, height: 88 });
   });
 
   it('consumes without bounds when the batch warrants no fit', () => {
@@ -215,7 +218,7 @@ describe('fit execution', () => {
       dragActive: false,
       nodeIds: new Set([1]),
       systems,
-      discRadius: 22,
+      frame: FRAME,
     });
     expect(skipped.consume).toBe(true);
     expect(skipped.bounds).toBeNull();
@@ -230,7 +233,7 @@ describe('fit execution', () => {
       dragActive: false,
       nodeIds: new Set(),
       systems,
-      discRadius: 22,
+      frame: FRAME,
     });
     expect(waiting.consume).toBe(false);
     expect(waiting.bounds).toBeNull();
@@ -246,7 +249,7 @@ describe('fit execution', () => {
       dragActive: false,
       nodeIds: new Set([1]),
       systems,
-      discRadius: 22,
+      frame: FRAME,
     });
     expect(skipped).toEqual({ consume: false, bounds: null, framed: false });
   });
@@ -261,7 +264,7 @@ describe('fit execution', () => {
       dragActive: false,
       nodeIds: new Set([1]),
       systems,
-      discRadius: 22,
+      frame: FRAME,
     });
     expect(tick.consume).toBe(true);
     expect(tick.bounds).not.toBeNull();
@@ -284,15 +287,18 @@ describe('focus request gating', () => {
 });
 
 describe('focus center', () => {
-  it('centers the disc atop the node column', () => {
-    expect(focusCenter({ x: 100, y: 200, width: 80 }, 22)).toEqual({ x: 140, y: 222 });
+  it('centers on the measured frame box', () => {
+    expect(focusCenter({ x: 100, y: 200, width: 80, height: 60 }, FRAME)).toEqual({
+      x: 140,
+      y: 230,
+    });
   });
 
-  it('falls back to the disc diameter when the node is unmeasured', () => {
-    expect(focusCenter({ x: 100, y: 200 }, 22)).toEqual({ x: 122, y: 222 });
+  it('falls back to the declared frame size when the node is unmeasured', () => {
+    expect(focusCenter({ x: 100, y: 200 }, FRAME)).toEqual({ x: 160, y: 244 });
   });
 
   it('is null for a vanished node', () => {
-    expect(focusCenter(null, 22)).toBeNull();
+    expect(focusCenter(null, FRAME)).toBeNull();
   });
 });

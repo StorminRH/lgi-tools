@@ -1,3 +1,5 @@
+import { endpointFrame, frameCenter } from '../canvas/edge-geometry';
+
 /** The internal React Flow node fields the isolated follower is allowed to read. */
 export interface FollowerNode {
   readonly measured: {
@@ -7,6 +9,9 @@ export interface FollowerNode {
   readonly internals: {
     readonly positionAbsolute: { readonly x: number; readonly y: number };
   };
+  /** v12 declared frame dimensions — present from first render for chain nodes. */
+  readonly width?: number;
+  readonly height?: number;
 }
 
 /** The narrow installed-store shape kept private to the mapper window follower. */
@@ -413,6 +418,45 @@ function armSizedFollower(
 }
 
 /**
+ * The shared arming loop node and edge followers ride: evaluate a per-frame
+ * decision against the latest baseline, and write only when a decision lands.
+ */
+function createDecidedFollower<Baseline>(
+  store: NodeFollowerStore,
+  card: HTMLElement,
+  fallback: ScreenSize,
+  decide: (
+    state: FollowerState,
+    baseline: Baseline | null,
+    card: ScreenSize,
+    layer: ScreenSize,
+  ) => { readonly write: FollowerWrite; readonly baseline: Baseline } | null,
+  write: (payload: FollowerWrite) => void,
+  scheduler: FollowerScheduler,
+  observeSize: SizeObserver,
+): () => void {
+  let baseline: Baseline | null = null;
+  return armSizedFollower(
+    store,
+    card,
+    (state) => {
+      if (state.domNode === null) return;
+      const decision = decide(
+        state,
+        baseline,
+        measureCardSize(card, fallback),
+        measureLayerSize(state.domNode),
+      );
+      if (decision === null) return;
+      baseline = decision.baseline;
+      write(decision.write);
+    },
+    scheduler,
+    observeSize,
+  );
+}
+
+/**
  * Applies a moving node's screen transform through CSSOM without subscribing React to hot state.
  * The returned disposer is idempotent and cancels both the store listener and queued frame.
  */
@@ -424,26 +468,23 @@ export function createNodeFollower(
   scheduler: FollowerScheduler = BROWSER_SCHEDULER,
   observeSize: SizeObserver = BROWSER_SIZE_OBSERVER,
 ): () => void {
-  let baseline: FollowerBaseline | null = null;
-  return armSizedFollower(
+  return createDecidedFollower<FollowerBaseline>(
     store,
     card,
-    (state) => {
-      if (state.domNode === null) return;
+    NODE_CARD_FALLBACK,
+    (state, baseline, cardSize, layer) => {
       const anchor = state.nodeLookup.get(anchorId);
-      const decision = computeFollowerTransform(
+      return computeFollowerTransform(
         baseline,
         anchorId,
         state.transform,
         anchor,
         anchor !== undefined,
-        measureCardSize(card, NODE_CARD_FALLBACK),
-        measureLayerSize(state.domNode),
+        cardSize,
+        layer,
       );
-      if (decision === null) return;
-      baseline = decision.baseline;
-      write(decision.write);
     },
+    write,
     scheduler,
     observeSize,
   );
@@ -471,19 +512,15 @@ export interface EdgeFollowerDecision {
 }
 
 /**
- * Disc center in flow coordinates, or `null` before the node is measured.
- * Matches `edge-geometry` disc-center policy so the card rides the drawn link.
+ * Frame center in flow coordinates through `edge-geometry`'s own frame policy
+ * (measured wins, declared dimensions cover the pre-measurement window), so
+ * the card rides exactly the link the edge renderer draws — from first paint.
  */
-function discCenter(
+function followerFrameCenter(
   node: FollowerNode | undefined,
-  radius: number,
 ): { readonly x: number; readonly y: number } | null {
-  const width = node?.measured.width;
-  if (node === undefined || width === undefined) return null;
-  return {
-    x: node.internals.positionAbsolute.x + width / 2,
-    y: node.internals.positionAbsolute.y + radius,
-  };
+  const frame = endpointFrame(node);
+  return frame === null ? null : frameCenter(frame);
 }
 
 /**
@@ -497,12 +534,11 @@ export function computeEdgeFollowerTransform(
   viewport: readonly [number, number, number],
   from: FollowerNode | undefined,
   to: FollowerNode | undefined,
-  radius: number,
   card: ScreenSize,
   layer: ScreenSize,
 ): EdgeFollowerDecision | null {
-  const fromCenter = discCenter(from, radius);
-  const toCenter = discCenter(to, radius);
+  const fromCenter = followerFrameCenter(from);
+  const toCenter = followerFrameCenter(to);
   if (fromCenter === null || toCenter === null) return null;
 
   const [tx, ty, zoom] = viewport;
@@ -556,33 +592,27 @@ export function createEdgeFollower(
   store: NodeFollowerStore,
   fromId: string,
   toId: string,
-  radius: number,
   card: HTMLElement,
   write: (payload: FollowerWrite) => void,
   scheduler: FollowerScheduler = BROWSER_SCHEDULER,
   observeSize: SizeObserver = BROWSER_SIZE_OBSERVER,
 ): () => void {
-  let baseline: EdgeFollowerBaseline | null = null;
-  return armSizedFollower(
+  return createDecidedFollower<EdgeFollowerBaseline>(
     store,
     card,
-    (state) => {
-      if (state.domNode === null) return;
-      const decision = computeEdgeFollowerTransform(
+    EDGE_CARD_FALLBACK,
+    (state, baseline, cardSize, layer) =>
+      computeEdgeFollowerTransform(
         baseline,
         fromId,
         toId,
         state.transform,
         state.nodeLookup.get(fromId),
         state.nodeLookup.get(toId),
-        radius,
-        measureCardSize(card, EDGE_CARD_FALLBACK),
-        measureLayerSize(state.domNode),
-      );
-      if (decision === null) return;
-      baseline = decision.baseline;
-      write(decision.write);
-    },
+        cardSize,
+        layer,
+      ),
+    write,
     scheduler,
     observeSize,
   );

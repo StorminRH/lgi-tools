@@ -3,7 +3,12 @@
 //
 // This is the ONLY place canvas nodes and edges are built, and it builds them solely from reconciler
 // output (contract DC-7). Nothing here reads a Convex page.
-import { CHAIN_NODE_TYPE, type ChainNode } from '../canvas/SystemNode';
+import {
+  CHAIN_NODE_TYPE,
+  SYSTEM_FRAME_HEIGHT,
+  SYSTEM_FRAME_WIDTH,
+  type ChainNode,
+} from '../canvas/SystemNode';
 import {
   chainTombstoneState,
   type ChainTombstoneState,
@@ -63,6 +68,10 @@ export function syncNodes(
       ...local,
       id,
       type: CHAIN_NODE_TYPE,
+      // The widget frame is declared data-side so React Flow sizes the wrapper
+      // (and edges, fits, and followers see the box) before DOM measurement.
+      width: SYSTEM_FRAME_WIDTH,
+      height: SYSTEM_FRAME_HEIGHT,
       position: holdLocal ? local.position : placed.position,
       data: { name: label.name, className: label.className },
     };

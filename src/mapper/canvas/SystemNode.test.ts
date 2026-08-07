@@ -24,6 +24,34 @@ function markup(motion: NodeMotion | undefined, dragging = false): string {
   return renderToStaticMarkup(createElement(SystemNode, props));
 }
 
+// ── OW1 — the widget frame carries the header name, disc, and widget slots ───
+describe('widget frame markup', () => {
+  it('renders the name in the frame header and the class chip in the disc', () => {
+    const still = markup(undefined);
+
+    expect(still).toContain('data-chain-node-name');
+    expect(still).toContain('J123456');
+    expect(still).toContain('data-chain-node-class');
+    expect(still).toContain('C5');
+    expect(still).toContain('map-node-disc');
+  });
+
+  it('renders the widget slot rail along the frame edge', () => {
+    expect(markup(undefined)).toContain('data-chain-node-widgets');
+  });
+
+  it('omits the class chip when the class is unknown', () => {
+    const props = {
+      data: { name: 'Jita', className: null },
+      dragging: false,
+    } as unknown as NodeProps<ChainNode>;
+    const rendered = renderToStaticMarkup(createElement(SystemNode, props));
+
+    expect(rendered).not.toContain('data-chain-node-class');
+    expect(rendered).toContain('data-chain-node-name');
+  });
+});
+
 // ── SC-1 · DC-1 — the birth window is a class on the inner element ───────────
 describe('node motion markup', () => {
   it('marks an entering node on its inner element only', () => {

@@ -1,11 +1,21 @@
 'use client';
 
-// One system node on the chain canvas: a directory-resolved name plus an optional class chip.
+// One system node on the chain canvas: an invisible widget frame whose bounds
+// ARE the node box — the system name in the frame header, the class-labeled
+// disc centered inside, and widget slots along the bottom edge for at-a-glance
+// indicators (pilot presence first; gas/anomaly readouts extend it later).
 //
-// The chip is omitted rather than shown empty when the class is unknown (contract DC-3), and an
-// unresolved system falls back to its bare id, which is a plainer label rather than a loading state
-// (contract HC-5). Motion presentation (4.0.3.2) is a class on this inner element — scale and
-// opacity only, never position — and is suppressed wholesale while the node is being dragged (HC-2).
+// The frame is declared data-side (`width`/`height` on the node object, set by
+// `syncNodes`) so React Flow sizes the wrapper before any DOM measurement:
+// edges, camera fits, and followers all see the frame box from first paint.
+// This component fills that box rather than sizing it.
+//
+// The class chip is omitted rather than shown empty when the class is unknown
+// (contract DC-3), and an unresolved system falls back to its bare id, which is
+// a plainer label rather than a loading state (contract HC-5). Motion
+// presentation (4.0.3.2) is a class on this inner element — scale and opacity
+// only, never position — and is suppressed wholesale while the node is being
+// dragged (HC-2).
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 import { cn } from '@/components/ui/cn';
@@ -29,18 +39,23 @@ export type ChainNode = Node<ChainNodeData, 'chainSystem'>;
 export const CHAIN_NODE_TYPE = 'chainSystem';
 
 /**
- * The disc's radius in canvas pixels — `size-[44px]` below is its diameter,
- * deliberately in px (not a rem-derived spacing step) so browser base-font
- * settings cannot desynchronize the rendered disc from this constant.
- * `ChainLinkEdge` clips every connection to this circumference, so the two
- * must move together.
+ * The widget frame's width in canvas pixels — the node box every consumer
+ * shares: `syncNodes` declares it on the node object, `edge-geometry` clips
+ * connection lines to this box, and the camera pads fit bounds with it.
+ * Deliberately px (not rem-derived) so browser base-font settings cannot
+ * desynchronize the rendered frame from these constants.
  */
-export const SYSTEM_DISC_RADIUS = 22;
+export const SYSTEM_FRAME_WIDTH = 120;
+
+/** The widget frame's height in canvas pixels; see `SYSTEM_FRAME_WIDTH`. */
+export const SYSTEM_FRAME_HEIGHT = 88;
 
 /**
  * The handles exist because React Flow requires them for an edge's endpoints
- * to be valid; the chain edge computes its own rim-to-rim geometry and never
- * reads their positions. They stay invisible and inert at the disc's center.
+ * to be valid; the chain edge computes its own frame-to-frame geometry and
+ * never reads their positions. They stay invisible and inert at the disc's
+ * center (opacity, not `display: none` — a display-none handle would measure
+ * at the frame's top-left corner).
  */
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
@@ -58,18 +73,21 @@ export function nodeMotionClass(
   return motion.heavy === true ? 'map-node-exit-heavy' : 'map-node-exit';
 }
 
-/** Renders one system as a class-labeled disc with its name beneath. */
+/** Renders one system as a widget frame: header name, centered disc, widget slots. */
 function SystemNodeComponent({ data, dragging }: NodeProps<ChainNode>) {
   return (
     <div
       data-chain-node
       data-dragging={dragging || undefined}
-      className={cn(
-        'flex flex-col items-center gap-1',
-        nodeMotionClass(data.motion, dragging),
-      )}
+      className={cn('relative h-full w-full', nodeMotionClass(data.motion, dragging))}
     >
-      <div className="map-node-disc relative flex size-[44px] items-center justify-center rounded-full border border-border-idle bg-section">
+      <span
+        data-chain-node-name
+        className="absolute inset-x-1 top-1 truncate text-center font-data text-ui text-name"
+      >
+        {data.name}
+      </span>
+      <div className="map-node-disc absolute left-1/2 top-1/2 flex size-[44px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section">
         <Handle type="target" position={Position.Left} className={CENTER_HANDLE_CLASS} />
         {data.className !== null && (
           <span
@@ -81,7 +99,10 @@ function SystemNodeComponent({ data, dragging }: NodeProps<ChainNode>) {
         )}
         <Handle type="source" position={Position.Right} className={CENTER_HANDLE_CLASS} />
       </div>
-      <span className="font-data text-ui text-name">{data.name}</span>
+      <div
+        data-chain-node-widgets
+        className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-1"
+      />
     </div>
   );
 }

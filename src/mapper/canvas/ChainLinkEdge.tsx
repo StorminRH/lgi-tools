@@ -1,14 +1,15 @@
 'use client';
 
-// One chain connection, drawn rim to rim.
+// One chain connection, drawn frame boundary to frame boundary.
 //
 // The floating-edge pattern: instead of anchoring to handle positions (whose
-// library CSS nudges them off-center), the edge computes its line from disc
-// center to disc center clipped to each circle's circumference — so every
-// connection aims at the true center and terminates exactly on the rim, with
-// no reliance on the disc masking anything. The whole policy (unmeasured
-// nodes, touching discs, the path itself) lives in `edge-geometry.ts`, where
-// it is unit-tested; this component only binds it to React Flow.
+// library CSS nudges them off-center), the edge computes its line from frame
+// center to frame center clipped to each endpoint's own frame box — so every
+// connection aims at the centered disc and terminates exactly on the widget
+// frame's boundary, with no reliance on the frame masking anything. The whole
+// policy (unknown dimensions, touching frames, the path itself) lives in
+// `edge-geometry.ts`, where it is unit-tested; this component only binds it
+// to React Flow.
 //
 // Motion (4.0.3.2): an entering/departing edge carries a flavor class from the
 // derived `data.motion` — fade (opacity only) or grow (pathLength-normalized
@@ -26,7 +27,6 @@ import { cn } from '@/components/ui/cn';
 import type { ChainEdgeData } from '../chain/nodes';
 import type { EdgeMotion } from '../motion/motion-contract';
 import { chainLinkPath } from './edge-geometry';
-import { SYSTEM_DISC_RADIUS } from './SystemNode';
 
 /** The edge type key registered with React Flow. */
 export const CHAIN_EDGE_TYPE = 'chainLink';
@@ -71,7 +71,7 @@ export function edgePresentation(data: ChainEdgeData | undefined): {
   };
 }
 
-/** Renders one connection as a straight segment clipped to both discs' rims. */
+/** Renders one connection as a straight segment clipped to both frame boxes. */
 function ChainLinkEdgeComponent({
   id,
   source,
@@ -80,7 +80,7 @@ function ChainLinkEdgeComponent({
 }: EdgeProps<Edge<ChainEdgeData, typeof CHAIN_EDGE_TYPE>>) {
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
-  const path = chainLinkPath(sourceNode, targetNode, SYSTEM_DISC_RADIUS);
+  const path = chainLinkPath(sourceNode, targetNode);
   if (path === null) return null;
 
   const presentation = edgePresentation(data);

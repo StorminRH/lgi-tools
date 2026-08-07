@@ -19,6 +19,16 @@ function node(x = 10, y = 20, width = 72, height = 72) {
   };
 }
 
+/** A chain node before its first measurement: declared frame dims only. */
+function declaredNode(x: number, y: number, width = 44, height = 44) {
+  return {
+    measured: {},
+    internals: { positionAbsolute: { x, y } },
+    width,
+    height,
+  };
+}
+
 function state(anchor = node()): FollowerState {
   return {
     domNode: {
@@ -267,7 +277,6 @@ describe('edge follower model', () => {
       [0, 0, 1],
       from,
       to,
-      22,
       EDGE_CARD_FALLBACK,
       { width: 800, height: 600 },
     );
@@ -283,7 +292,6 @@ describe('edge follower model', () => {
         [0, 0, 1],
         from,
         to,
-        22,
         EDGE_CARD_FALLBACK,
         { width: 800, height: 600 },
       ),
@@ -301,7 +309,6 @@ describe('edge follower model', () => {
       [0, 0, 1],
       from,
       to,
-      22,
       EDGE_CARD_FALLBACK,
       layer,
     );
@@ -314,7 +321,6 @@ describe('edge follower model', () => {
       [628, 0, 1],
       from,
       to,
-      22,
       EDGE_CARD_FALLBACK,
       layer,
     );
@@ -323,6 +329,21 @@ describe('edge follower model', () => {
     expect(panned?.write.transform).toBe(
       `translate(${800 - 288 - 16}px, 16px)`,
     );
+  });
+
+  it('positions from declared frame dimensions before measurement lands', () => {
+    // Same geometry as the measured case: centers (22, 22) and (122, 22).
+    const first = computeEdgeFollowerTransform(
+      null,
+      '1',
+      '2',
+      [0, 0, 1],
+      declaredNode(0, 0),
+      declaredNode(100, 0),
+      EDGE_CARD_FALLBACK,
+      { width: 800, height: 600 },
+    );
+    expect(first?.write.transform).toBe('translate(112px, 16px)');
   });
 
   it('guards unmeasured endpoints and rewrites on viewport change', () => {
@@ -337,7 +358,6 @@ describe('edge follower model', () => {
         [0, 0, 1],
         undefined,
         to,
-        22,
         EDGE_CARD_FALLBACK,
         layer,
       ),
@@ -349,7 +369,6 @@ describe('edge follower model', () => {
       [0, 0, 1],
       from,
       to,
-      22,
       EDGE_CARD_FALLBACK,
       layer,
     );
@@ -361,7 +380,6 @@ describe('edge follower model', () => {
         [10, 0, 1],
         from,
         to,
-        22,
         EDGE_CARD_FALLBACK,
         layer,
       ),
@@ -390,7 +408,6 @@ describe('edge follower model', () => {
       },
       '1',
       '2',
-      22,
       cardElement(EDGE_CARD_FALLBACK),
       write,
       scheduler,
@@ -433,7 +450,6 @@ describe('edge follower model', () => {
       },
       '1',
       '2',
-      22,
       card,
       write,
       scheduler,

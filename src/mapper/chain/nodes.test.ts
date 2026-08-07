@@ -64,12 +64,16 @@ describe('canvas node projection', () => {
       {
         id: String(JITA),
         type: 'chainSystem',
+        width: 120,
+        height: 88,
         position: positionOfSlot(0),
         data: { name: 'Jita', className: null },
       },
       {
         id: String(AMARR),
         type: 'chainSystem',
+        width: 120,
+        height: 88,
         position: positionOfSlot(1),
         data: { name: 'J123456', className: 'C5' },
       },

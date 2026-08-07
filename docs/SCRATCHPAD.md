@@ -31,11 +31,35 @@
   live-pilot presentation should surface staleness honestly. Also pending:
   the tiny drain-end wipe PR (drop `onlineStatus` schema literals +
   `characterOnline` + keeper/GC) once prod rows drain post-#368.
-- **CURRENT / NEXT:** session **4.0.4.2.2** (automatic jump authoring) is in
-  close-out on `lifecycle/4.0.4.2` — per-session PR carrying the v4.0.4.2.2
-  changelog entry + `APP_VERSION` bump. After merge, rerun the resolver;
-  expected next directive is planning **4.0.4.2.3** (fog/UX) on a recreated
-  `lifecycle/4.0.4.2` from updated `main`.
+- **CURRENT / NEXT:** session **4.0.4.2.3** (fog, halo, pilot presence) is in
+  Ordered work on `lifecycle/4.0.4.2` (plan
+  `docs/session-plans/4.0/4.0.4.2.3.md`; 4.0.4.2.2 merged as PR #365).
+- **OW progress:** `1/5 complete` — next: Ordered work step 2, Pilot presence
+  with staleness honesty.
+- **OW completed:**
+  - OW1 — widget-frame node primitive: `SystemNode.tsx` (frame 120×88 declared
+    data-side, header name, centered disc, widget rail), `edge-geometry.ts`
+    frame-box clipping + `pointAlongChainLink`, camera fit/focus and edge
+    follower on frame centers, follower/focus routed through the shared
+    `endpointFrame`/`frameCenter` owner. Proof: edge-geometry 17 + SystemNode
+    13 units, mapper 47 files / 400 tests green, full verify green (fallow
+    clean, 14 changed files), primitive-checker CLEAN after 2 corrections.
+    Commit: see this commit's SHA.
+- **Next-agent notes (4.0.4.2.3):**
+  - Node dims are DECLARED (`width`/`height` on the node object in
+    `syncNodes`) — React Flow v12 renders them as wrapper inline styles, so
+    edges/fits/followers see the box before ResizeObserver measurement; halo
+    nodes (OW3) must declare the same constants.
+  - Frame-center policy has ONE owner: `endpointFrame` + `frameCenter` in
+    `src/mapper/canvas/edge-geometry.ts` (measured wins, declared fallback).
+    Do not restate it — `focusCenter` and `follower-model.ts` both route
+    through it.
+  - `SYSTEM_DISC_RADIUS` is gone; the disc is frame-internal presentation.
+    Camera bounds no longer add a label allowance (name lives inside the
+    frame box).
+  - OW2 owns: presence-model/badge/intelligence body, `forMap` `feedFreshAt`
+    join, `mapFixtures` subject-freshness stamp, folded #368 hidden-tab
+    probes (see the deferral note above).
 - **Shipped 4.0.4.2.2 (awaiting merge):** merged unresolved-signature/connection
   model; pure eliminator + statics census; one-transaction Convex jump
   authoring behind two bearer doors; D16 observation slice (five-field Neon
