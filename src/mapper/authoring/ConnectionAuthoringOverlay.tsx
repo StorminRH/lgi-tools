@@ -352,10 +352,12 @@ export async function answerAndAnnounce(input: {
 }
 
 /**
- * Applies a manual type entry, then notifies the jump route so the typed
- * identity emits at human tier. A refused mutation (undefined result) and a
- * cleared code both skip the notification; the emission itself remains
- * server-gated. Exported for focused proof of the notify condition.
+ * Applies a manual type entry, then notifies the jump route on every HELD
+ * mutation — a set emits at human tier, and a clear lets the server remove a
+ * now-superseded observation under the preserved dedupe key. Only a refused
+ * mutation (undefined result) skips the notification; the emit-or-delete
+ * decision itself remains server-gated. Exported for focused proof of the
+ * notify condition.
  */
 export async function applyWormholeType(input: {
   readonly mapId: string;
@@ -368,7 +370,7 @@ export async function applyWormholeType(input: {
     connection: input.connection,
     value: input.value,
   });
-  if (result === undefined || input.value === null) return;
+  if (result === undefined) return;
   await postJumpRequest({
     kind: 'typed-hole',
     mapId: input.mapId,

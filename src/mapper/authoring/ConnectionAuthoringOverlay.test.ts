@@ -386,7 +386,8 @@ describe('ConnectionAuthoringOverlay', () => {
     });
     expect(postJump).not.toHaveBeenCalled();
 
-    // Clearing the code never notifies.
+    // Clearing the code notifies too: the server must get the chance to
+    // delete a now-superseded observation under the preserved dedupe key.
     postJump.mockClear();
     api.setConnectionWormholeType.mockResolvedValueOnce({ changed: true } as never);
     await applyWormholeType({
@@ -395,7 +396,11 @@ describe('ConnectionAuthoringOverlay', () => {
       value: null,
       authoring: api,
     });
-    expect(postJump).not.toHaveBeenCalled();
+    expect(postJump).toHaveBeenCalledWith({
+      kind: 'typed-hole',
+      mapId: 'map-a',
+      connectionId: 'c1',
+    });
   });
 
   it('announces a successful sever and skips swallowed refusals', async () => {
