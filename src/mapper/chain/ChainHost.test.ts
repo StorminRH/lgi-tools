@@ -44,6 +44,12 @@ vi.mock('../tracking/TrackingControls', () => ({
   TrackingHeartbeat: () => null,
 }));
 
+// The presence host subscribes through the Convex client; these markup tests
+// run without one, so the provider degrades to a pass-through here.
+vi.mock('../tracking/PresenceProvider', () => ({
+  MapPresenceProvider: ({ children }: { children?: unknown }) => children,
+}));
+
 vi.mock('../tracking/JumpDoorbellObserver', () => ({
   JumpDoorbellObserver: () => null,
 }));

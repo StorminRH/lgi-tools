@@ -3,7 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { NodeProps } from '@xyflow/react';
 import type { NodeMotion } from '../motion/motion-contract';
+import type { PresencePilot, SystemPresence } from '../tracking/presence-model';
 import { edgeMotionClass, edgePresentation } from './ChainLinkEdge';
+import { PresenceBadgeView } from './PilotPresenceBadge';
 import { SystemNode, nodeMotionClass, type ChainNode } from './SystemNode';
 
 vi.mock('@xyflow/react', async () => {
@@ -40,6 +42,10 @@ describe('widget frame markup', () => {
     expect(markup(undefined)).toContain('data-chain-node-widgets');
   });
 
+  it('renders no presence badge without a provider (context default)', () => {
+    expect(markup(undefined)).not.toContain('data-pilot-presence');
+  });
+
   it('omits the class chip when the class is unknown', () => {
     const props = {
       data: { name: 'Jita', className: null },
@@ -53,6 +59,39 @@ describe('widget frame markup', () => {
 });
 
 // ── SC-1 · DC-1 — the birth window is a class on the inner element ───────────
+// ── OW2 — the frame-slot presence indicator ──────────────────────────────────
+describe('presence badge markup', () => {
+  const pilot = (overrides: Partial<PresencePilot>): PresencePilot => ({
+    characterId: 1,
+    shipTypeId: null,
+    docked: false,
+    lastMovementAt: 0,
+    state: 'live',
+    ownAfk: false,
+    ...overrides,
+  });
+  const badge = (presence: SystemPresence) =>
+    renderToStaticMarkup(createElement(PresenceBadgeView, { presence }));
+
+  it('renders the live tone while any pilot feed is fresh', () => {
+    const rendered = badge({ pilots: [pilot({ state: 'stale' }), pilot({ characterId: 2 })] });
+    expect(rendered).toContain('data-pilot-presence="live"');
+  });
+
+  it('dims to the stale tone once every feed is old, staying visibly provisional', () => {
+    const rendered = badge({ pilots: [pilot({ state: 'stale' })] });
+    expect(rendered).toContain('data-pilot-presence="stale"');
+  });
+
+  it('shows a count only when more than one pilot shares the system', () => {
+    const one = badge({ pilots: [pilot({})] });
+    const two = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
+    expect(one).not.toContain('data-pilot-presence-count');
+    expect(two).toContain('data-pilot-presence-count');
+    expect(two).toContain('>2<');
+  });
+});
+
 describe('node motion markup', () => {
   it('marks an entering node on its inner element only', () => {
     const entering = markup({ phase: 'entering' });

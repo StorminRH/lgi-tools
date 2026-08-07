@@ -58,6 +58,7 @@ import {
 import type { MotionTruth } from '../motion/motion-host-model';
 import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
 import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
+import { MapPresenceProvider } from '../tracking/PresenceProvider';
 import { TrackingHeartbeat } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import type { MapChainIntent } from './intents';
@@ -311,84 +312,89 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       data-map-shell=""
       data-map-can-edit={canEdit === true ? 'true' : 'false'}
     >
-      <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
-        <MotionLayer
-          truth={truth}
-          intents={intents}
-          access={access}
-          dragging={dragging}
-          motionConfig={motionConfig}
-          nodesDraggable={!locked}
-          onNodesChange={onNodesChange}
-          onNodeDragStart={onNodeDragStart}
-          onNodeDragStop={onNodeDragStop}
-          onSelectionDragStart={onSelectionDragStart}
-          onSelectionDragStop={onSelectionDragStop}
-          onNodeClick={onNodeClick}
-          onNodeContextMenu={onNodeContextMenu}
-          onEdgeClick={onEdgeClick}
-        >
-          <MapControls
-            config={config}
-            onConfigChange={setConfig}
-            motion={motionConfig}
-            onMotionChange={setMotionConfig}
-          />
-          {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
-          <CameraFollowHost
+      {/* Presence (and the AFK gate it owns) must reach both the canvas
+          frames and the sibling window layer, so the provider sits above
+          the React Flow tree — context crosses it intact (docs brief). */}
+      <MapPresenceProvider mapId={mapId}>
+        <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
+          <MotionLayer
+            truth={truth}
             intents={intents}
-            follow={follow}
+            access={access}
             dragging={dragging}
-            nodeIds={nodeIds}
-            systems={state.systems}
-            config={motionConfig}
-            prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
-            focusRequest={focusRequest}
-            focusEnabled={focusOnClick}
+            motionConfig={motionConfig}
+            nodesDraggable={!locked}
+            onNodesChange={onNodesChange}
+            onNodeDragStart={onNodeDragStart}
+            onNodeDragStop={onNodeDragStop}
+            onSelectionDragStart={onSelectionDragStart}
+            onSelectionDragStop={onSelectionDragStop}
+            onNodeClick={onNodeClick}
+            onNodeContextMenu={onNodeContextMenu}
+            onEdgeClick={onEdgeClick}
+          >
+            <MapControls
+              config={config}
+              onConfigChange={setConfig}
+              motion={motionConfig}
+              onMotionChange={setMotionConfig}
+            />
+            {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
+            <CameraFollowHost
+              intents={intents}
+              follow={follow}
+              dragging={dragging}
+              nodeIds={nodeIds}
+              systems={state.systems}
+              config={motionConfig}
+              prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
+              focusRequest={focusRequest}
+              focusEnabled={focusOnClick}
+            />
+          </MotionLayer>
+          <MapWindowLayer
+            rootSystemId={rootSystemId}
+            onDeselect={deselectNodes}
           />
-        </MotionLayer>
-        <MapWindowLayer
-          rootSystemId={rootSystemId}
-          onDeselect={deselectNodes}
-        />
-        <RightsTransitionToast canEdit={canEdit} />
-        {canEdit === true ? <JumpDoorbellObserver mapId={mapId} /> : null}
-        <ConnectionAuthoringOverlay
-          mapId={mapId}
-          canEdit={canEdit === true}
-          connectionDetails={connectionDetails}
-          unresolvedHoles={unresolvedHoles}
-          connectionPresentationNow={connectionPresentationNow}
-          events={events}
-          authoring={authoring}
-          selectedConnectionId={selectedConnectionId}
-          onSelectedConnectionIdChange={setSelectedConnectionId}
-        />
-        {showHomePrompt ? (
-          <HomePrompt
+          <RightsTransitionToast canEdit={canEdit} />
+          {canEdit === true ? <JumpDoorbellObserver mapId={mapId} /> : null}
+          <ConnectionAuthoringOverlay
             mapId={mapId}
-            onPick={(systemId) => {
-              void authoring.setHomeSystem({ mapId, systemId });
-            }}
+            canEdit={canEdit === true}
+            connectionDetails={connectionDetails}
+            unresolvedHoles={unresolvedHoles}
+            connectionPresentationNow={connectionPresentationNow}
+            events={events}
+            authoring={authoring}
+            selectedConnectionId={selectedConnectionId}
+            onSelectedConnectionIdChange={setSelectedConnectionId}
           />
-        ) : null}
-        {canEdit === true ? (
-          <NodeAddMenu
-            mapId={mapId}
-            menu={nodeMenu}
-            onMenuOpenChange={(open) => {
-              if (!open) setNodeMenu(null);
-            }}
-            onAdd={(fromSystemId, toSystemId) => {
-              void authoring.addSystemFromNode({
-                mapId,
-                fromSystemId,
-                toSystemId,
-              });
-            }}
-          />
-        ) : null}
-      </ReactFlowProvider>
+          {showHomePrompt ? (
+            <HomePrompt
+              mapId={mapId}
+              onPick={(systemId) => {
+                void authoring.setHomeSystem({ mapId, systemId });
+              }}
+            />
+          ) : null}
+          {canEdit === true ? (
+            <NodeAddMenu
+              mapId={mapId}
+              menu={nodeMenu}
+              onMenuOpenChange={(open) => {
+                if (!open) setNodeMenu(null);
+              }}
+              onAdd={(fromSystemId, toSystemId) => {
+                void authoring.addSystemFromNode({
+                  mapId,
+                  fromSystemId,
+                  toSystemId,
+                });
+              }}
+            />
+          ) : null}
+        </ReactFlowProvider>
+      </MapPresenceProvider>
     </div>
   );
 }

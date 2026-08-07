@@ -92,7 +92,7 @@ import {
 import { components, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
-import { getPresence, getSyncSubject } from './lib/subjects';
+import { getPresence, getSyncSubject, newIdleSubject } from './lib/subjects';
 import { drainCharacterOnline } from './onlineStatus';
 
 // Bounded fan-out across hot subjects. Retries ride the pool (exponential
@@ -220,22 +220,7 @@ export const heartbeat = mutation({
     // interval beat arrives; intervals no longer create it.
     let subject = await getSyncSubject(ctx.db, dataset, userId);
     if (subject === null) {
-      const id = await ctx.db.insert('syncSubjects', {
-        dataset,
-        userId,
-        status: 'idle',
-        lastRequestedAt: 0,
-        workId: null,
-        nextDueAt: null,
-        minExpiresAt: null,
-        syncedCharacterIds: [],
-        lastFinishedAt: null,
-        lastError: null,
-        rlGroup: null,
-        rlLimit: null,
-        rlRemaining: null,
-        rlUsed: null,
-      });
+      const id = await ctx.db.insert('syncSubjects', newIdleSubject(dataset, userId));
       subject = await ctx.db.get(id);
       if (subject === null) return;
     }

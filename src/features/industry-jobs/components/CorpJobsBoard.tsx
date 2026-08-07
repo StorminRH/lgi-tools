@@ -15,16 +15,16 @@
 //    relink and grant the corp scopes.
 //  - role-insufficient (`needs_role`) → a distinct notice: granting more access can't fix
 //    an in-game role.
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { EveImage } from '@/components/eve-image';
+import { useEntityNames } from '@/components/use-entity-names';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionLabel } from '@/components/ui/section-label';
-import { ENTITY_NAMES_MAX_IDS, entityNamesEndpoint } from '@/data/eve-data/api-contract';
-import { apiFetch } from '@/transport/api-client';
+import { ENTITY_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
 import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';
@@ -105,7 +105,11 @@ export function CorpJobsList({
   names: Record<string, string>;
   now: number;
 }) {
-  const entityNames = useEntityNames(corporations);
+  // Corporation + installer ids resolve through the shared /api/eve/names
+  // hook; unresolved ids are absent (the row falls back to a generic label).
+  const entityNames = useEntityNames(
+    useMemo(() => corpEntityIds(corporations, ENTITY_NAMES_MAX_IDS), [corporations]),
+  );
   return (
     <div className="flex flex-col gap-6">
       {corporations.map((corp) => (
@@ -120,30 +124,6 @@ export function CorpJobsList({
       ))}
     </div>
   );
-}
-
-// Resolve the corporation + installer ids in the live corp data to names through
-// /api/eve/names. Re-fetches only when the id set changes (keyed on content);
-// unresolved ids are simply absent (the row falls back to a generic label).
-function useEntityNames(corporations: CorpEntry[]): Record<string, string> {
-  const ids = useMemo(() => corpEntityIds(corporations, ENTITY_NAMES_MAX_IDS), [corporations]);
-
-  const [names, setNames] = useState<Record<string, string>>({});
-  const idsKey = ids.join(',');
-  useEffect(() => {
-    if (idsKey === '') return;
-    let cancelled = false;
-    void apiFetch(entityNamesEndpoint, { body: { ids: idsKey.split(',').map(Number) } }).then(
-      (result) => {
-        if (!cancelled && result.ok) setNames((prev) => ({ ...prev, ...result.data.names }));
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [idsKey]);
-
-  return names;
 }
 
 interface CorpGroupBodyProps {

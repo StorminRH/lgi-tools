@@ -20,6 +20,7 @@ import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 import { cn } from '@/components/ui/cn';
 import type { NodeMotion } from '../motion/motion-contract';
+import { PilotPresenceBadge } from './PilotPresenceBadge';
 
 /**
  * What one node displays. A type alias rather than an interface so it satisfies React Flow's
@@ -74,7 +75,7 @@ export function nodeMotionClass(
 }
 
 /** Renders one system as a widget frame: header name, centered disc, widget slots. */
-function SystemNodeComponent({ data, dragging }: NodeProps<ChainNode>) {
+function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
   return (
     <div
       data-chain-node
@@ -102,7 +103,9 @@ function SystemNodeComponent({ data, dragging }: NodeProps<ChainNode>) {
       <div
         data-chain-node-widgets
         className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-1"
-      />
+      >
+        <PilotPresenceBadge systemId={Number(id)} />
+      </div>
     </div>
   );
 }

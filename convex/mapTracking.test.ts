@@ -3,6 +3,7 @@ import { convexTest, type TestConvex } from 'convex-test';
 import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
+import { newIdleSubject } from './lib/subjects';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
 import schema from './schema';
 
@@ -216,6 +217,56 @@ describe('mapTracking.forMap', () => {
     expect(byUser.get(OWNER)?.location?.solarSystemId).toBe(30_000_142);
     expect(byUser.get(EDITOR)?.characterId).toBe(CHAR);
     expect(byUser.get(EDITOR)?.location).toBeNull();
+  });
+
+  it('joins each row to its OWNER\'s characterLocation subject freshness as feedFreshAt', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [
+      { userId: OWNER, roles: ['owner'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+    // OWNER tracks a second character: both rows must share the one subject read.
+    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR_B,
+      tracked: true,
+    });
+    await asUser(t, EDITOR).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: 91_000_777,
+      tracked: true,
+    });
+
+    const finishedAt = 1_700_000_123_456;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', {
+        ...newIdleSubject('characterLocation', OWNER),
+        syncedCharacterIds: [CHAR],
+        lastFinishedAt: finishedAt,
+      });
+      // A different dataset's subject for EDITOR must not leak into the join.
+      await ctx.db.insert('syncSubjects', {
+        ...newIdleSubject('onlineStatus', EDITOR),
+        lastFinishedAt: 1_700_000_999_999,
+      });
+    });
+
+    const result = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
+    const ownRows = result.tracked.filter((row) => row.userId === OWNER);
+    const editorRow = result.tracked.find((row) => row.userId === EDITOR);
+
+    expect(ownRows).toHaveLength(2);
+    for (const row of ownRows) expect(row.feedFreshAt).toBe(finishedAt);
+    // Absent characterLocation subject → explicit null, never a dropped key
+    // (an undefined field would vanish from the wire payload).
+    expect(editorRow).toBeDefined();
+    expect(editorRow?.feedFreshAt).toBeNull();
+    expect(editorRow !== undefined && 'feedFreshAt' in editorRow).toBe(true);
   });
 
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {

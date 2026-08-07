@@ -17,7 +17,8 @@ import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
-import { AfkDialog, useAfkState } from './AfkGate';
+import { AfkDialog } from './AfkGate';
+import { useMapPresenceAfk } from './presence-context';
 
 interface TrackingCharacter {
   readonly characterId: number;
@@ -33,14 +34,15 @@ interface TrackingControlsViewProps {
 
 /**
  * Keeps location syncing alive for the caller-owned characters tracked on this map. This owner stays
- * mounted with the accessible canvas rather than with the account-menu popup. The AFK gate rides
- * here too: an unanswered hour-hidden prompt empties the character set (the hook's pause switch),
- * and dismissing the waiting dialog resumes syncing with an immediate mount beat.
+ * mounted with the accessible canvas rather than with the account-menu popup. The AFK gate's state
+ * machine lives one level up in MapPresenceProvider (presence renders its verdict too); this owner
+ * consumes the same instance: an unanswered hour-hidden prompt empties the character set (the pause
+ * switch), and dismissing the waiting dialog resumes syncing with an immediate mount beat.
  */
 export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
-  const afk = useAfkState();
+  const afk = useMapPresenceAfk();
 
   useSyncSubject('characterLocation', afk.paused ? [] : trackedIds);
   return <AfkDialog afk={afk} />;

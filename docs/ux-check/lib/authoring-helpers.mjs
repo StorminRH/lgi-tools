@@ -34,6 +34,18 @@ export const automaticJumpRoute = () => {
   return mapId ? `/atlas?map=${mapId}` : '/atlas';
 };
 
+/**
+ * Dedicated one-shot map for the hidden-tab background-tracking probe
+ * (4.0.4.2.3 SC-5). Like the jump map: disposable, seed a fresh empty map
+ * per run.
+ */
+export const backgroundTrackingMapId = () => process.env.UX_BG_MAP_ID ?? null;
+
+export const backgroundTrackingRoute = () => {
+  const mapId = backgroundTrackingMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
 /** Wait until the chain host has answered access for an editor. */
 export async function waitForEditableMap(page, { timeout = 60_000 } = {}) {
   await page.waitForFunction(

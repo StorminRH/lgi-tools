@@ -11,10 +11,12 @@ import { ConvexError, v } from 'convex/values';
 import {
   internalQuery,
   type MutationCtx,
+  type QueryCtx,
   mutation,
   query,
 } from './_generated/server';
 import { requireMapAccess, tryMapAccess } from './lib/mapAccess';
+import { getSyncSubject } from './lib/subjects';
 
 /**
  * Per-(map, user) tracked-character bound, enforced at opt-in. Bounds every
@@ -90,12 +92,33 @@ export const setTracking = mutation({
 });
 
 /**
+ * The owner's characterLocation sync-subject `lastFinishedAt`, memoized per
+ * user for the duration of one handler: several tracked rows usually share an
+ * owner (per-user cap 32), and repeated identical index reads would count
+ * against the transaction read budget each time.
+ */
+async function feedFreshnessByUser(
+  ctx: QueryCtx,
+): Promise<(userId: string) => Promise<number | null>> {
+  const cache = new Map<string, number | null>();
+  return async (userId: string) => {
+    if (cache.has(userId)) return cache.get(userId) ?? null;
+    const subject = await getSyncSubject(ctx.db, 'characterLocation', userId);
+    const fresh = subject?.lastFinishedAt ?? null;
+    cache.set(userId, fresh);
+    return fresh;
+  };
+}
+
+/**
  * Tracking rows for one map, joined to location by each row's own
  * (userId, characterId). Access is answered as a value: missing/revoked claim
  * returns an empty list (4.0.2.3.1 subscription doctrine). A forged row that
  * names another user's character joins to no document and discloses nothing.
  * observedAt is LAST-CHANGE time (the 304 zero-write path never touches it);
- * freshness consumers read the subject row's lastFinishedAt.
+ * honest staleness rides `feedFreshAt` — the owner's characterLocation
+ * sync-subject `lastFinishedAt` (null when the subject row is absent), so a
+ * stationary pilot with a fresh feed is distinguishable from a paused tracker.
  */
 export const forMap = query({
   args: { mapId: v.string() },
@@ -110,6 +133,7 @@ export const forMap = query({
       .withIndex('by_map', (q) => q.eq('mapId', mapId))
       .take(TRACKING_MAP_SCAN_CAP);
 
+    const feedFreshOf = await feedFreshnessByUser(ctx);
     const tracked = [];
     for (const row of rows) {
       const location = await ctx.db
@@ -121,6 +145,7 @@ export const forMap = query({
       tracked.push({
         userId: row.userId,
         characterId: row.characterId,
+        feedFreshAt: await feedFreshOf(row.userId),
         location:
           location === null
             ? null

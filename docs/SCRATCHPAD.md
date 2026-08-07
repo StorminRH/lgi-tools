@@ -34,8 +34,8 @@
 - **CURRENT / NEXT:** session **4.0.4.2.3** (fog, halo, pilot presence) is in
   Ordered work on `lifecycle/4.0.4.2` (plan
   `docs/session-plans/4.0/4.0.4.2.3.md`; 4.0.4.2.2 merged as PR #365).
-- **OW progress:** `1/5 complete` — next: Ordered work step 2, Pilot presence
-  with staleness honesty.
+- **OW progress:** `2/5 complete` — next: Ordered work step 3, K-space halo
+  through the compass.
 - **OW completed:**
   - OW1 — widget-frame node primitive: `SystemNode.tsx` (frame 120×88 declared
     data-side, header name, centered disc, widget rail), `edge-geometry.ts`
@@ -44,6 +44,20 @@
     `endpointFrame`/`frameCenter` owner. Proof: edge-geometry 17 + SystemNode
     13 units, mapper 47 files / 400 tests green, full verify green (fallow
     clean, 14 changed files), primitive-checker CLEAN after 2 corrections.
+    Commit: 26b94263.
+  - OW2 — pilot presence with staleness honesty: `presence-model.ts` (pure
+    matrix + `PRESENCE_FEED_STALE_AFTER_MS = 180s`, status words, friendly
+    rows), `presence-context.ts` + `PresenceProvider.tsx` (forMap read, 30s
+    tick, AFK gate ownership moved here), `PilotPresenceBadge` in the frame
+    rail, `SystemIntelligenceBody` replacing the placeholder in card + dock,
+    `forMap` `feedFreshAt` join (memoized per owner), `mapFixtures`
+    subject-freshness stamp (+ optional `feedFreshAt` arg), shared
+    `use-entity-names` hook (extracted; CorpJobsBoard is the other consumer),
+    `atlas-background-tracking` probe (folded #368: hidden jumps land,
+    heartbeat frames stop after AFK pause, stale rendering, resume). Proof:
+    presence-model 14 units + convex join/stamp coverage, probe run all 19
+    checks green (2026-08-07), full verify green (fallow clean, 38 changed
+    files), primitive-checker CLEAN after 4 corrections across 2 rounds.
     Commit: see this commit's SHA.
 - **Next-agent notes (4.0.4.2.3):**
   - Node dims are DECLARED (`width`/`height` on the node object in
@@ -51,15 +65,28 @@
     edges/fits/followers see the box before ResizeObserver measurement; halo
     nodes (OW3) must declare the same constants.
   - Frame-center policy has ONE owner: `endpointFrame` + `frameCenter` in
-    `src/mapper/canvas/edge-geometry.ts` (measured wins, declared fallback).
-    Do not restate it — `focusCenter` and `follower-model.ts` both route
-    through it.
+    `src/mapper/canvas/edge-geometry.ts`; node-data display fields have ONE
+    owner too: `useNodeDataString` in `src/mapper/windows/node-fields.ts`
+    (window titles and the intelligence body both route through it).
   - `SYSTEM_DISC_RADIUS` is gone; the disc is frame-internal presentation.
-    Camera bounds no longer add a label allowance (name lives inside the
-    frame box).
-  - OW2 owns: presence-model/badge/intelligence body, `forMap` `feedFreshAt`
-    join, `mapFixtures` subject-freshness stamp, folded #368 hidden-tab
-    probes (see the deferral note above).
+  - Presence seams: badge/body consume `presence-context.ts` (no Convex
+    import chain — SystemNode markup tests need no client); the provider owns
+    the AFK gate and `TrackingHeartbeat` consumes it via `useMapPresenceAfk`.
+    `forMap` now also reads tracked owners' `syncSubjects` rows, so every
+    completed sync run re-pushes forMap to viewers — the intended freshness
+    signal (plan interface), noted for perf awareness.
+  - G-1 presentation note: the friendlies readout renders as a two-column
+    list (`ul`), not a `<table>` — raw tables are lint-banned and StaticTable
+    forces a labeled header against the operator's "nothing more" direction.
+  - Probe ops: `atlas-background-tracking` needs a FRESH empty `UX_BG_MAP_ID`
+    map; seeding one for the synthetic pilot requires stamping
+    `characters.affiliationRefreshedAt` first or `projectMapAccess` fails
+    transiently (no live ESI identity). Fixture timestamps split on purpose:
+    `transitionObservedAt` real time (server capture window), `feedFreshAt`
+    virtual now (client staleness).
+  - OW3 owns: `halo-model.ts`, the `use-map-chain.ts` merge seam,
+    `pilot-path.ts`, and the outbound-arrow mount (`pointAlongChainLink` is
+    already in place from OW1).
 - **Shipped 4.0.4.2.2 (awaiting merge):** merged unresolved-signature/connection
   model; pure eliminator + statics census; one-transaction Convex jump
   authoring behind two bearer doors; D16 observation slice (five-field Neon
