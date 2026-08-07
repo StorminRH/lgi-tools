@@ -16,135 +16,44 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.2.2** in flight on
-  `lifecycle/4.0.4.2` (automatic jump authoring). Plan
-  `docs/session-plans/4.0/4.0.4.2.2.md`; contract
-  `docs/session-contracts/4.0/4.0.4.2.2.md`.
-- **OW progress:** `7/7 complete` — awaiting close-out.
-- **OW completed:**
-  - OW1 Merged schema + shipped-consumer guards — nullable unresolved
-    connection endpoints plus identity/hint/provenance/observation fields;
-    indexed resolved/unresolved feeds; null-aware sever/restore/purge;
-    durable jump-bookkeeping census + bounded map teardown; focused 196/196;
-    verify green (4,738 passed / 133 skipped), Fallow 19 files / 0 issues.
-  - OW2 Pure vocabulary, matcher, and mass math — shared destination-hint,
-    provenance, effective-class, and size contracts; pure signature elimination,
-    census, survivor ordering, and anchor-aware odometer math; focused 86/86;
-    verify green (4,761 passed / 133 skipped), Fallow 25 files / 0 issues.
-  - OW3 Convex jump mutations and doors — one-snapshot evidence + atomic
-    author/confirm/re-associate mutations; exactly-once stamps, pair/slot
-    convergence, odometer + shake-state anchors, manual hint/type provenance,
-    and two bearer-gated HTTP doors; focused 190/190; verify green (4,780 passed
-    / 133 skipped), Fallow 30 files / 0 issues.
-  - OW4 Observation slice + Neon read seams — five-field retained D16 table,
-    UTC-hour correction-safe dedupe upsert, attributable-only database guards,
-    and indexed per-system statics / per-type ship-mass reads; focused 45/45;
-    verify green (4,780 passed / 137 skipped), Fallow 44 files / 0 issues.
-  - OW5 Jump-resolver route — authenticated doorbell/confirm/reassociate/type
-    composition over the existing Convex doors, transition-epoch replay
-    convergence, server-side movement/matching/class checks, authoritative
-    post-commit observation emission, and complete route registries; focused
-    84/84; verify green (4,802 passed / 137 skipped), Fallow gate green.
-  - OW6 Client wiring — edit-gated doorbell observer (`transitionObservedAt`
-    ring-once memory, capped feed-driven retry), confirm/correct prompt plus
-    card auto-link group, extracted connection field-group primitive, from-side
-    leads-to hint (K162/unidentified only), conditional codex regeneration row,
-    odometer-aware remaining-mass estimate, typed-hole route notification, and
-    the unresolved-holes chain subscription; focused 401 mapper + 78
-    resolver/route/data; verify green (4,965 passed / 1 skipped, db harness
-    up), Fallow gate green; primitive-checker CLEAN.
-  - OW7 UX gate (G-1) — durable two-client automatic-jump probe now covers
-    source-only location fixtures, real doorbell/resolver authoring, C247
-    auto-link, Orca mass decrement, ambiguous prompt fan-out, client-local
-    dismissal, and portrait-menu tracking toggles; operator approved the
-    non-blocking popup and `Map settings` tracking placement (tracked = full
-    brightness + ISK-green border; untracked = dim + no border). Focused
-    107/107; ux-check 18/18 with zero CSP/console/page errors and zero failure
-    artifacts; verify green (4,836 passed / 137 skipped), Fallow gate green;
-    primitive-checker CLEAN.
-- **Next-agent notes:** (1) The plan's detailed hard constraint controls its
-  mechanical OW1 wording drift: `readBoundedMapTopology` deliberately retains
-  unresolved rows for sever/restore; only the collapse-decision graph filters
-  to resolved live connections. (2) `watchMapConnections` is the shipped
-  resolved-only feed; `watchUnresolvedHoles` is the pinned authoring seam.
-  (3) `mapJumpBookkeeping` survives tracking revocation by design; full map
-  teardown drains bounded `purgeForMap` batches through authenticated
-  `POST /project-map-access`, so retry can continue safely. (4) Destination
-  hints, connection provenance, effective system classes, and size ordering are
-  owned by `src/data/eve-data/wormhole-contract.ts`; Convex derives its
-  validators from that owner. (5) `matchJump` consumes only plain evidence and
-  the existing codex shape; it orders typed-consistent, hinted, untyped, then
-  bare K162 survivors, and downgrades a lone typed match when the J-space
-  statics census is short. (6) `remainingMassAfterTravel` subtracts only the
-  cumulative odometer delta since the shake-state anchor and returns no estimate
-  for malformed or reversed counters; `setConnectionMassState` now re-stamps
-  that anchor even on a same-value re-shake. (7) OW5's server composition must
-  call only the bearer-gated
-  `POST /jump-evidence` + `POST /resolve-jump` doors: the former is one
-  consistent snapshot, and the latter revalidates access, tracking, location,
-  candidates, endpoints, and stamps in one transaction. (8)
-  `resolveJumpAuthoring` requires a server-generated `observationKey` plus
-  the full candidate-id snapshot; Convex mutations stay deterministic and a
-  changed candidate pool returns `stale` before any write. (9) Explicit ringer
-  authority still flows through the single `mapAccess` capability owner;
-  tracked-scout identity is payload, never authority. (10) `convex-test`
-  serializes top-level calls, so the Promise-all proof is accurately
-  concurrent-shaped convergence, not a deployed-backend OCC collision. (11)
-  `insertWhObservation(database, row)` owns K162 rejection, UTC-hour
-  coarsening, and correction by `dedupeKey`; the table has exactly five fields,
-  and Postgres also rejects `K162`, `assumed`, and non-coarse writes. (12) OW5
-  should pass its Neon handle into `readSystemStaticsForSystem`,
-  `readShipMassByType`, and `insertWhObservation`; do not add parallel lookup
-  queries or a second observation writer. Migration `0053_nasty_bug.sql` is
-  generated and was applied to the local real-Postgres proof database. (13)
-  Operator-settled in-session divergence for the eventual as-built: the frozen
-  interface lacked a stable jump epoch because dock/undock advances
-  `observedAt`; OW5 added optional `transitionObservedAt`, advances it only on
-  first insert or a genuine system change, and keys both jump evidence and
-  bookkeeping on it while leaving `observedAt` freshness consumers unchanged.
-  Legacy rows without the field honestly re-anchor until their next genuine
-  system change. (14) OW6's client observer MUST key its ring-once memory on
-  `transitionObservedAt`, never `observedAt`, or docking will ring repeatedly.
-  (15) `/jump-evidence` now owns both `transition` and `connection` modes; the
-  latter is edit-authorized and bounded to one connection row plus two indexed
-  endpoint lookups. Typed-hole clients send only `connectionId`; the server
-  derives the typed side and suppresses observation emission when the codex
-  class contradicts the authoritative opposite endpoint. (16) Record the
-  complete operator-approved items (13)-(15) as the frozen-interface divergence
-  in `docs/session-as-built/4.0/4.0.4.2.2.md` during close-out. (17) OW6
-  mechanical divergence for the as-built: the jump route's Zod contract was
-  re-homed from `src/composition/jump-resolver/api-contract.ts` to
-  `src/data/maps/api-contract.ts` — the mapper zone may not import
-  `composition`, and data-slice `api-contract.ts` files are the established
-  client-visible pattern; route + resolver imports repointed, schemas
-  unchanged. (18) OW7 (ux-check) client facts: the doorbell observer mounts
-  only for edit-capable viewers and retries on later `forMap` updates (no
-  timers, cap 5 per transition); prompt probes are `data-map-jump-prompt`,
-  `data-map-jump-confirm`, `data-map-jump-correct=<id>`,
-  `data-map-jump-dismiss` (bottom-right, non-blocking); dismissal is
-  client-local and the connection card re-surfaces the same choices under
-  `data-map-connection-resolution` while `pendingCandidates` persists; manual
-  card typing notifies `kind:'typed-hole'` only after the mutation holds; the
-  leads-to hint writes side `from` and renders only for K162/unidentified
-  holes; the codex regeneration row renders only when regeneration is nonzero;
-  the card mass estimate subtracts the odometer delta via
-  `remainingMassAfterTravel`. (19) G-1 disposition (2026-08-06): approved.
-  The automatic two-client fan-out, mass decrement, C247 auto-link, ambiguous
-  prompt, and portrait-menu tracking states were accepted. A later popup move
-  remains an optional future refinement, not a blocker. Tracking heartbeat
-  remains canvas-mounted so closing the account menu never stops syncing.
-  (20) Post-G-1 atlas chrome polish (operator iteration, committed ahead of
-  close-out): portrait + hamburger top-right; layout/motion dials bottom-left
-  above the audit log (dev-only); current-system dock is a persistent top-left
-  overlay (`appearance="overlay"`, `glass-panel-faint` blur-only 3px / no tint)
-  showing the system name large/bold with no close or float; node-summary
-  cards also drop the × (outside-click / Escape dismiss); connection cards
-  spawn with `map-node-enter`, `CARD_ANCHOR_GAP=40`, and sticky side
-  push-not-flip on pan; sever toast default `3s`; deleted
-  `windows/persistence.ts` + float localStorage (dock never floats) and
-  simplified `deriveSurfaces` to persistent dock presence; map shell publishes
-  `--map-motion-*` via CSSOM for overlay siblings. Focused 65/65; verify green
-  (4,973 passed / 1 skipped), Fallow gate green; primitive-checker CLEAN.
+- **CURRENT / NEXT:** session **4.0.4.2.2** (automatic jump authoring) is in
+  close-out on `lifecycle/4.0.4.2` — per-session PR carrying the v4.0.4.2.2
+  changelog entry + `APP_VERSION` bump. After merge, rerun the resolver;
+  expected next directive is planning **4.0.4.2.3** (fog/UX) on a recreated
+  `lifecycle/4.0.4.2` from updated `main`.
+- **Shipped 4.0.4.2.2 (awaiting merge):** merged unresolved-signature/connection
+  model; pure eliminator + statics census; one-transaction Convex jump
+  authoring behind two bearer doors; D16 observation slice (five-field Neon
+  table, upsert by dedupe key); jump-resolver route; doorbell observer +
+  confirm/correct prompt; leads-to hints; odometer-aware mass estimates;
+  autosaved atlas map preferences; persistent click-through current-system
+  overlay. Close-out adversarial round (holistic+ownership+interface+
+  reliability) accepted 18 root causes, all fixed on-branch — headline fixes:
+  emission tier now follows the MUTATION's stored provenance (never the
+  matcher verdict); statics census counts resolved scanned rows; manual typing
+  mints the observation dedupe key; forged `mapTracking` rows can no longer
+  veto a genuine scout (joinable-row filter); doorbell gained a 15s timer
+  retry + request timeout and a 10-min capture window; account/character purge
+  drains `mapJumpBookkeeping` via new `by_character` index.
+- **Durable 4.0.4.2.2 gotchas:** (1) `convex-test` serializes top-level calls —
+  the Promise-all convergence proof is concurrent-SHAPED, not a deployed OCC
+  collision. (2) Emission gating rule (HC-3): any observation write must key
+  its tier off `destinationProvenance` returned BY the mutation; a converged
+  pair is a different document than the matcher's candidate. (3) The census
+  pool is `scannedTypeCodes` (resolved rows included, `typedSide:'to'`
+  excluded) — the unresolved candidate pool is the wrong census input by
+  construction. (4) The current-system dock overlay is `pointer-events-none`
+  by contract (nothing interactive inside); probes assert click-through, and
+  window probes drive prefs through the portrait menu (`auto layout`,
+  `camera follow`, `click focus` — server-authoritative for signed-in probe
+  accounts, so localStorage seeding does NOT survive reconcile). (5) The
+  floating-window machinery (drag/resize/pop-out, `WindowRect`,
+  `drag-resize.ts`) is fully DELETED with the review round — a future float
+  surface rebuilds from git history rather than inheriting an unreachable
+  path; the pointer-only-grip precedent stays recorded in the 4.0.3.3.1
+  as-built. (6) Atlas map-lock pref key is `atlas.autoLayout` (ON = computed
+  layout owns positions; re-enabling releases user placements — disclosed via
+  the page-settings `description` slot).
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,
@@ -219,12 +128,14 @@
   `src/mapper/authoring/`, `convex/mapAuthoring.ts`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
-  array (PD-4). (2) Current-system dock is a persistent overlay — no float,
-  no localStorage window record (`persistence.ts` removed in 4.0.4.2.2 polish).
-  (3) Floating resize remains a pointer-only `data-map-window-resize` grip on
-  any future float surface, not a button. (4) As-built G-1 layout from 4.0.3.3
-  was superseded again in 4.0.4.2.2 polish: dock top-left overlay, chrome
-  top-right, dials bottom-left above audit log.
+  array (PD-4). (2) Current-system dock is a persistent CLICK-THROUGH overlay —
+  no float, no localStorage window record, no close (`persistence.ts` and the
+  whole drag/resize/pop-out machinery removed in 4.0.4.2.2). (3) Any future
+  float surface rebuilds from git history; keep resize a pointer-only grip,
+  not a button (4.0.3.3.1 as-built precedent). (4) As-built G-1 layout from
+  4.0.3.3 was superseded again in 4.0.4.2.2: dock top-left overlay, chrome
+  top-right above the window layer (z-dropdown), dials bottom-left above the
+  audit log (dev-only).
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
   system surface unattached ("nowhere") and then hop, because each transaction

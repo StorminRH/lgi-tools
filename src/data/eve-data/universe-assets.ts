@@ -58,8 +58,6 @@ export type AdjacencyEntry = [
 
 /** Wormhole jump-size vocabulary; owned by `./wormhole-contract` and re-exported for codex callers. */
 export type { WormholeSizeClass };
-/** Re-export the shared maximum-mass classifier for existing asset callers. */
-export { wormholeSizeClass };
 
 /** The special untyped far-side wormhole entry. */
 export interface FarSideWormholeCodexEntry {

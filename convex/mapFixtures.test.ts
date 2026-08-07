@@ -225,6 +225,7 @@ describe('map chain fixtures', () => {
         mapJumpBookkeeping: {
           by_map: ['mapId'],
           by_map_character: ['mapId', 'characterId'],
+          by_character: ['characterId'],
         },
         mapSignatures: {
           by_map: ['mapId'],

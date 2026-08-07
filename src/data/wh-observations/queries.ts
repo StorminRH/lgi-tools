@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   FAR_SIDE_WORMHOLE_CODE,
   isWormholeTypeCode,
@@ -54,6 +54,21 @@ export function toObservationHour(value: Date): Date {
   }
   observedAt.setUTCMinutes(0, 0, 0);
   return observedAt;
+}
+
+/**
+ * Deletes the observation carrying a dedupe key. Used when a correction moves
+ * a hole's identity onto a target the emission guard rejects (untyped, K162,
+ * class-contradicted) — the previously emitted row would otherwise keep
+ * asserting the vacated identity with no repair pathway. Absent key: no-op.
+ */
+export async function deleteWhObservation(
+  database: AnyPgDb,
+  dedupeKey: string,
+): Promise<void> {
+  await database
+    .delete(whObservations)
+    .where(eq(whObservations.dedupeKey, dedupeKey));
 }
 
 /**

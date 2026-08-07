@@ -27,7 +27,10 @@ export function MapChrome({
   return (
     <div
       data-map-chrome
-      className="pointer-events-none absolute inset-0 z-sticky"
+      // z-dropdown: chrome controls (portrait, Atlas menu, search) must stay
+      // clickable above the z-sticky window layer — a sticky-side connection
+      // card clamped into the top-right corner would otherwise cover them.
+      className="pointer-events-none absolute inset-0 z-dropdown"
     >
       <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2">
         {session ? (

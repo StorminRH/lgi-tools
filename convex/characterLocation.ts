@@ -20,7 +20,6 @@ import {
   authenticatedSubject,
   characterSyncApplyFields,
   characterSyncResultFields,
-  selectCharacterRows,
   stampSyncSubject,
 } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
@@ -311,19 +310,18 @@ function locationChanged(
 export const purgeForUser = internalMutation({
   args: { userId: v.string(), characterId: v.union(v.number(), v.null()) },
   handler: async (ctx, { userId, characterId }) => {
-    const locations = await selectCharacterRows(
-      characterId,
-      async () => await ctx.db
+    const locations =
+      characterId === null
+        ? await ctx.db
             .query('characterLocation')
             .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect(),
-      async (selectedCharacterId) => await ctx.db
+            .collect()
+        : await ctx.db
             .query('characterLocation')
             .withIndex('by_user_character', (q) =>
-              q.eq('userId', userId).eq('characterId', selectedCharacterId),
+              q.eq('userId', userId).eq('characterId', characterId),
             )
-            .collect(),
-    );
+            .collect();
 
     const tracking =
       characterId === null
@@ -340,9 +338,37 @@ export const purgeForUser = internalMutation({
 
     for (const doc of locations) await ctx.db.delete(doc._id);
     for (const doc of tracking) await ctx.db.delete(doc._id);
+
+    // Jump-bookkeeping stamps are character-keyed and deliberately survive
+    // untrack/retrack, but an account/character purge removes the character
+    // from the platform — the stamps' double-count protection no longer
+    // applies, so they purge here. Account-nuke (characterId null) drains the
+    // characters this purge could still enumerate from its own rows.
+    const stampCharacterIds =
+      characterId !== null
+        ? [characterId]
+        : [
+            ...new Set(
+              [...locations, ...tracking].map((doc) => doc.characterId),
+            ),
+          ];
+    let deletedBookkeeping = 0;
+    for (const stampCharacterId of stampCharacterIds) {
+      const stamps = await ctx.db
+        .query('mapJumpBookkeeping')
+        .withIndex('by_character', (q) =>
+          q.eq('characterId', stampCharacterId),
+        )
+        .collect();
+      for (const doc of stamps) {
+        await ctx.db.delete(doc._id);
+        deletedBookkeeping += 1;
+      }
+    }
     return {
       deletedLocations: locations.length,
       deletedTracking: tracking.length,
+      deletedBookkeeping,
     };
   },
 });

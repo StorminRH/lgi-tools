@@ -610,6 +610,17 @@ describe('map authoring', () => {
         typeProvenance: 'human',
       });
       expect((await readConnection(t, connectionId))?.pendingCandidates).toBeUndefined();
+      // Typing a never-jump-authored hole mints its observation dedupe key so
+      // the human-tier D16 channel can emit for manually drawn chains; a
+      // second typing keeps the same key (stable per hole lifetime).
+      const mintedKey = (await readConnection(t, connectionId))?.observationKey;
+      expect(mintedKey).toEqual(expect.any(String));
+      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        mapId: MAP_A,
+        connectionId,
+        value: 'B274',
+      });
+      expect((await readConnection(t, connectionId))?.observationKey).toBe(mintedKey);
 
       await asUser(t).mutation(api.mapAuthoring.setConnectionTypedSide, {
         mapId: MAP_A,

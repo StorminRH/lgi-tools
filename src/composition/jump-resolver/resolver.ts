@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AnyPgDb } from '@/lib/db-types';
+import { systemSecurityClass } from '@/data/eve-data/security';
 import {
   effectiveWormholeClassId,
   FAR_SIDE_WORMHOLE_CODE,
@@ -16,6 +17,7 @@ import { readShipMassByType } from '@/data/eve-data/queries';
 import { matchJump } from '@/data/maps/hole-matching';
 import { classifyMovement } from '@/data/maps/movement-classification';
 import {
+  deleteWhObservation,
   insertWhObservation,
   type WhObservationProvenance,
 } from '@/data/wh-observations/queries';
@@ -37,6 +39,15 @@ import {
 
 const CAPSULE_TYPE_ID = 670;
 
+/**
+ * Oldest transition the doorbell may still author. Long enough for the
+ * observer's bounded retries across transient Neon/Convex failures; short
+ * enough that a location document frozen while no edit-capable client was
+ * open (laptop shut, map closed for days) lapses to re-anchor semantics
+ * instead of authoring a long-dead crossing as current map fact.
+ */
+export const JUMP_CAPTURE_WINDOW_MS = 10 * 60_000;
+
 /** Injectable runtime seams for deterministic route/composition proof. */
 export interface JumpResolverDependencies {
   readonly readTransitionEvidence: typeof readTransitionEvidence;
@@ -49,6 +60,7 @@ export interface JumpResolverDependencies {
   readonly readSystemStaticsForSystem: typeof readSystemStaticsForSystem;
   readonly readShipMassByType: typeof readShipMassByType;
   readonly insertWhObservation: typeof insertWhObservation;
+  readonly deleteWhObservation: typeof deleteWhObservation;
   readonly newObservationKey: () => string;
   readonly now: () => number;
   readonly reportEmissionFailure: (cause: unknown) => void;
@@ -65,6 +77,7 @@ const productionDependencies: JumpResolverDependencies = {
   readSystemStaticsForSystem,
   readShipMassByType,
   insertWhObservation,
+  deleteWhObservation,
   newObservationKey: randomUUID,
   now: Date.now,
   reportEmissionFailure: (cause) => {
@@ -113,6 +126,12 @@ async function readReadyTransition(
   if (evidence.transition.fromSolarSystemId === null || !evidence.transition.prevFresh) {
     return skipped('re-anchor');
   }
+  if (
+    dependencies.now() - evidence.transition.transitionObservedAt
+    > JUMP_CAPTURE_WINDOW_MS
+  ) {
+    return skipped('capture-window');
+  }
   if (!evidence.originLive) return { status: 'stale', reason: 'origin' };
   return {
     ...evidence,
@@ -147,8 +166,29 @@ function isWormholeSpace(
   systemId: number,
 ): boolean {
   const facts = systemFacts(systems, systemId);
-  const classId = facts === null ? null : effectiveWormholeClassId(facts);
-  return classId !== null && ((classId >= 1 && classId <= 6) || (classId >= 12 && classId <= 18));
+  // The J-space boundary has one owner: the shared row-based band classifier.
+  return (
+    facts !== null
+    && systemSecurityClass(facts.securityStatus, facts.wormholeClassId) === 'wormhole'
+  );
+}
+
+const RETRYABLE_STALE_REASONS: ReadonlySet<string> = new Set([
+  'candidates',
+  'survivors',
+  'selected-candidate',
+  'candidate',
+]);
+
+/** Observation tier for a stored connection provenance; null never emits. */
+function emissionTier(
+  provenance: ConnectionEmissionFacts['destinationProvenance'],
+): WhObservationProvenance | null {
+  return provenance === 'jump-verified'
+    || provenance === 'human'
+    || provenance === 'confirmed'
+    ? provenance
+    : null;
 }
 
 function typedSideFacts(
@@ -286,6 +326,7 @@ async function resolveDoorbell(
     destination,
     observedShipMassKg,
     candidates: evidence.candidates,
+    scannedTypeCodes: evidence.scannedTypeCodes,
     staticTypeCodes,
     codex: codex.types,
   });
@@ -308,18 +349,26 @@ async function resolveDoorbell(
   } catch {
     return retry('convex-resolve');
   }
-  if (resolved.status === 'stale') return resolved;
+  if (resolved.status === 'stale') {
+    // Candidate-set races (a concurrent author, correction, or scan changed
+    // the pool between the evidence read and the mutation) are re-derivable:
+    // a fresh read succeeds, so the client must not settle the transition.
+    return RETRYABLE_STALE_REASONS.has(resolved.reason)
+      ? retry(resolved.reason)
+      : resolved;
+  }
   if ('reason' in resolved) {
     return { status: 'processed', outcome: 'converged', emitted: false };
   }
-  const emitted = matched.kind === 'resolve' && matched.provenance === 'jump-verified'
-    ? await emitAfterCommit(
-        database,
-        resolved.emission,
-        'jump-verified',
-        dependencies,
-      )
-    : false;
+  // Emission follows what the mutation actually stamped, never the matcher's
+  // pre-transaction verdict: on a convergence the touched row is a different
+  // document whose stored provenance governs (HC-3 — an inferred identity
+  // must not gain observation tier, and a human tier must not be overwritten
+  // by a jump-verified refresh).
+  const tier = emissionTier(resolved.emission.destinationProvenance);
+  const emitted = tier === null
+    ? false
+    : await emitAfterCommit(database, resolved.emission, tier, dependencies);
   return { status: 'processed', outcome: resolved.status, emitted };
 }
 
@@ -350,7 +399,19 @@ async function resolveConfirmation(
     return retry('convex-resolve');
   }
   const provenance = input.operation === 'confirm' ? 'confirmed' : 'human';
-  const emitted = await emitAfterCommit(database, emission, provenance, dependencies);
+  let emitted = false;
+  try {
+    emitted = await emitObservation(database, emission, provenance, dependencies);
+    if (!emitted && emission.observationKey !== null) {
+      // The identity event landed on facts the emission guard rejects
+      // (untyped target, K162, class contradiction). Any previously emitted
+      // row under this key now asserts a vacated identity — remove it rather
+      // than leaving unrepairable corpus pollution. Absent row: no-op.
+      await dependencies.deleteWhObservation(database, emission.observationKey);
+    }
+  } catch (cause) {
+    dependencies.reportEmissionFailure(cause);
+  }
   return {
     status: 'processed',
     outcome: input.operation === 'confirm' ? 'confirmed' : 'reassociated',

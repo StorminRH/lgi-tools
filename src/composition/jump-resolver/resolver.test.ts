@@ -41,8 +41,6 @@ const emission = {
   toSystemId: DESTINATION,
   wormholeTypeCode: 'C247',
   typedSide: 'from' as const,
-  typedSideSystemId: ORIGIN,
-  typeProvenance: 'human' as const,
   destinationProvenance: 'jump-verified' as const,
   observationKey: 'observation-key',
 };
@@ -58,6 +56,7 @@ const h = {
   readSystemStaticsForSystem: vi.fn(),
   readShipMassByType: vi.fn(),
   insertWhObservation: vi.fn(),
+  deleteWhObservation: vi.fn(),
   newObservationKey: vi.fn(),
   now: vi.fn(),
   reportEmissionFailure: vi.fn(),
@@ -91,6 +90,11 @@ function transitionEvidence(
     },
     lastProcessedTransitionAt: null,
     originLive: true,
+    // Mirrors the live packet: unresolved candidates are scanned rows, so
+    // their typed codes join the census pool unless a case overrides it.
+    scannedTypeCodes: (input.candidates ?? [])
+      .map((candidate) => candidate.wormholeTypeCode)
+      .filter((code): code is string => code !== null),
     candidates: input.candidates ?? [],
   };
 }
@@ -185,6 +189,16 @@ describe('jump resolver composition', () => {
   });
 
   it('authors a J-space crossing with the seeded ship mass', async () => {
+    // Faithful fresh-insert facts: an inserted row has no typed identity yet.
+    h.authorJump.mockResolvedValueOnce({
+      status: 'authored',
+      emission: {
+        ...emission,
+        wormholeTypeCode: null,
+        typedSide: null,
+        destinationProvenance: null,
+      },
+    });
     const result = await resolveJumpRequest(
       database,
       USER,
@@ -249,6 +263,11 @@ describe('jump resolver composition', () => {
       }),
     );
     h.readSystemStaticsForSystem.mockResolvedValueOnce([]);
+    // Faithful mutation echo: an assumed decision stamps assumed provenance.
+    h.authorJump.mockResolvedValueOnce({
+      status: 'authored',
+      emission: { ...emission, destinationProvenance: 'assumed' },
+    });
     await resolveJumpRequest(
       database,
       USER,
@@ -349,5 +368,113 @@ describe('jump resolver composition', () => {
       emitted: false,
     });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
+  });
+
+  it('emission follows the stored provenance of a converged pair, never the matcher verdict', async () => {
+    // Matcher sees a lone typed consistent survivor (jump-verified verdict),
+    // but the mutation converged onto an existing pair whose association is
+    // still assumed — no gold-tier row may be written for it.
+    h.readTransitionEvidence.mockResolvedValueOnce(
+      transitionEvidence({
+        candidates: [{ id: 'connection-9', wormholeTypeCode: 'C247', sizeClass: 'L' }],
+      }),
+    );
+    h.readSystemStaticsForSystem.mockResolvedValueOnce(['C247']);
+    h.authorJump.mockResolvedValueOnce({
+      status: 'converged',
+      emission: { ...emission, destinationProvenance: 'assumed' },
+    });
+    await expect(
+      resolveJumpRequest(
+        database,
+        USER,
+        { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
+        dependencies,
+      ),
+    ).resolves.toEqual({ status: 'processed', outcome: 'converged', emitted: false });
+    expect(h.insertWhObservation).not.toHaveBeenCalled();
+
+    // A converged pair whose identity was human-typed refreshes at ITS tier —
+    // the return-jump upsert must not inflate it to jump-verified.
+    h.readTransitionEvidence.mockResolvedValueOnce(
+      transitionEvidence({
+        candidates: [{ id: 'connection-9', wormholeTypeCode: 'C247', sizeClass: 'L' }],
+      }),
+    );
+    h.readSystemStaticsForSystem.mockResolvedValueOnce(['C247']);
+    h.authorJump.mockResolvedValueOnce({
+      status: 'converged',
+      emission: { ...emission, destinationProvenance: 'human' },
+    });
+    await expect(
+      resolveJumpRequest(
+        database,
+        USER,
+        { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
+        dependencies,
+      ),
+    ).resolves.toEqual({ status: 'processed', outcome: 'converged', emitted: true });
+    expect(h.insertWhObservation).toHaveBeenCalledWith(
+      database,
+      expect.objectContaining({ provenance: 'human' }),
+    );
+  });
+
+  it('returns retry for re-derivable candidate races and stale for superseded transitions', async () => {
+    h.authorJump.mockResolvedValueOnce({ status: 'stale', reason: 'candidates' });
+    await expect(
+      resolveJumpRequest(
+        database,
+        USER,
+        { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
+        dependencies,
+      ),
+    ).resolves.toEqual({ status: 'retry', reason: 'candidates' });
+
+    h.authorJump.mockResolvedValueOnce({ status: 'stale', reason: 'transition' });
+    await expect(
+      resolveJumpRequest(
+        database,
+        USER,
+        { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
+        dependencies,
+      ),
+    ).resolves.toEqual({ status: 'stale', reason: 'transition' });
+  });
+
+  it('lapses a transition older than the capture window without authoring', async () => {
+    h.now.mockReturnValue(TRANSITION_AT + 10 * 60_000 + 1);
+    await expect(
+      resolveJumpRequest(
+        database,
+        USER,
+        { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
+        dependencies,
+      ),
+    ).resolves.toEqual({ status: 'skipped', reason: 'capture-window' });
+    expect(h.authorJump).not.toHaveBeenCalled();
+  });
+
+  it('deletes the vacated observation when a correction lands on ineligible facts', async () => {
+    h.answerJump.mockResolvedValueOnce({ ...emission, wormholeTypeCode: null });
+    await expect(
+      resolveJumpRequest(
+        database,
+        USER,
+        {
+          kind: 'confirm',
+          mapId: MAP,
+          connectionId: 'connection-1',
+          targetConnectionId: 'connection-2',
+        },
+        dependencies,
+      ),
+    ).resolves.toEqual({
+      status: 'processed',
+      outcome: 'reassociated',
+      emitted: false,
+    });
+    expect(h.insertWhObservation).not.toHaveBeenCalled();
+    expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'observation-key');
   });
 });

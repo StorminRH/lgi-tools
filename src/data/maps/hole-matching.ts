@@ -27,6 +27,12 @@ export interface JumpEvidence {
   readonly destination: WormholeSystemClassFacts;
   readonly observedShipMassKg: number | null;
   readonly candidates: readonly HoleMatchCandidate[];
+  /**
+   * Typed codes of every scanned origin-side wormhole row — resolved rows
+   * included, so a static that already resolved keeps satisfying the census
+   * (the census asks "is the system fully scanned", not "is it unresolved").
+   */
+  readonly scannedTypeCodes: readonly string[];
   readonly staticTypeCodes: readonly string[];
   readonly codex: readonly WormholeCodexEntry[];
 }
@@ -107,18 +113,17 @@ function staticsCensusSatisfied(evidence: JumpEvidence): boolean {
     return originClassId !== null && !requiresStaticsCensus(originClassId);
   }
 
-  const candidateCounts = new Map<string, number>();
-  for (const candidate of evidence.candidates) {
-    if (candidate.wormholeTypeCode === null) continue;
-    candidateCounts.set(
-      candidate.wormholeTypeCode,
-      (candidateCounts.get(candidate.wormholeTypeCode) ?? 0) + 1,
+  const scannedCounts = new Map<string, number>();
+  for (const scannedTypeCode of evidence.scannedTypeCodes) {
+    scannedCounts.set(
+      scannedTypeCode,
+      (scannedCounts.get(scannedTypeCode) ?? 0) + 1,
     );
   }
   for (const staticTypeCode of evidence.staticTypeCodes) {
-    const remaining = candidateCounts.get(staticTypeCode) ?? 0;
+    const remaining = scannedCounts.get(staticTypeCode) ?? 0;
     if (remaining === 0) return false;
-    candidateCounts.set(staticTypeCode, remaining - 1);
+    scannedCounts.set(staticTypeCode, remaining - 1);
   }
   return true;
 }

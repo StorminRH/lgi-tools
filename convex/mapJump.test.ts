@@ -159,6 +159,7 @@ describe('automatic jump authoring', () => {
       transition: null,
       lastProcessedTransitionAt: null,
       originLive: false,
+      scannedTypeCodes: [],
       candidates: [],
     });
 
@@ -177,6 +178,7 @@ describe('automatic jump authoring', () => {
         toSolarSystemId: DESTINATION,
         transitionObservedAt: OBSERVED_AT,
       },
+      scannedTypeCodes: ['C247'],
       candidates: [{ id: candidateId, wormholeTypeCode: 'C247' }],
     });
 
@@ -255,7 +257,7 @@ describe('automatic jump authoring', () => {
         toSystemId: DESTINATION,
         wormholeTypeCode: 'C247',
         typedSide: 'from',
-        typedSideSystemId: ORIGIN,
+        destinationProvenance: 'jump-verified',
       },
     });
     await expect(
@@ -469,5 +471,52 @@ describe('automatic jump authoring', () => {
     expect(state.systems).toHaveLength(2);
     expect(state.connections).toEqual([]);
     expect(state.stamps).toEqual([]);
+  });
+  it('ignores forged tracking rows that join to no location document', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    // A view-only user can write a tracking row naming any characterId; a row
+    // that joins to no characterLocation doc must not veto the genuine one.
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', {
+        mapId: MAP,
+        userId: 'user-forger',
+        characterId: CHARACTER,
+      });
+    });
+    const evidence = await t.query(internal.mapJump.jumpEvidence, {
+      userId: EDITOR,
+      mapId: MAP,
+      characterId: CHARACTER,
+    });
+    expect(evidence).toMatchObject({
+      tracked: true,
+      transition: { fromSolarSystemId: ORIGIN, toSolarSystemId: DESTINATION },
+    });
+
+    // Two JOINABLE rows are genuine ambiguity and stay fail-closed.
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocation', {
+        userId: 'user-forger',
+        characterId: CHARACTER,
+        solarSystemId: DESTINATION,
+        stationId: null,
+        structureId: null,
+        shipTypeId: 587,
+        prevSolarSystemId: ORIGIN,
+        prevFresh: true,
+        transitionObservedAt: OBSERVED_AT,
+        observedAt: OBSERVED_AT,
+        etagLocation: null,
+        etagShip: null,
+      });
+    });
+    const ambiguous = await t.query(internal.mapJump.jumpEvidence, {
+      userId: EDITOR,
+      mapId: MAP,
+      characterId: CHARACTER,
+    });
+    expect(ambiguous).toMatchObject({ tracked: false, transition: null });
   });
 });

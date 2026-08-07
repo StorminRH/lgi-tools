@@ -82,7 +82,7 @@ describe('resolveMenuControls', () => {
   it('resolves boolean preference keys to switch models', () => {
     const models = resolveMenuControls(
       spec([
-        { key: 'atlas.mapLock', placement: 'section' },
+        { key: 'atlas.autoLayout', placement: 'section', description: 're-enabling restores the computed layout' },
         { key: 'atlas.cameraFollow', placement: 'section' },
         { key: 'atlas.clickFocus', placement: 'section' },
       ]),
@@ -93,14 +93,19 @@ describe('resolveMenuControls', () => {
       'preference-boolean',
     ]);
     expect(models.map((m) => m.key)).toEqual([
-      'atlas.mapLock',
+      'atlas.autoLayout',
       'atlas.cameraFollow',
       'atlas.clickFocus',
     ]);
     expect(models.map((m) => m.label)).toEqual([
-      'Auto Layout',
+      'auto layout',
       'camera follow',
       'click focus',
+    ]);
+    expect(models.map((m) => m.description)).toEqual([
+      're-enabling restores the computed layout',
+      undefined,
+      undefined,
     ]);
   });
 

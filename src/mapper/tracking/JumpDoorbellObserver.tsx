@@ -5,11 +5,12 @@
 // through the ordinary chain subscriptions once the server authors. Mounted
 // only for edit-capable viewers — the route would skip other ringers anyway,
 // this just keeps view-only clients quiet.
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { postJumpRequest } from '../jump-client';
 import {
+  DOORBELL_RETRY_INTERVAL_MS,
   ringPendingTransitions,
   type DoorbellMemoryEntry,
 } from './doorbell-model';
@@ -22,14 +23,33 @@ export function JumpDoorbellObserver({ mapId }: { readonly mapId: string }) {
   const memoryRef = useRef<Map<number, DoorbellMemoryEntry> | null>(null);
   if (memoryRef.current === null) memoryRef.current = new Map();
 
-  useEffect(() => {
+  // Effect Event: both drivers ring with the LATEST feed payload without
+  // re-subscribing the timer. The model's synchronous in-flight marking keeps
+  // a development double-invoked effect from double-ringing.
+  const ringPending = useEffectEvent(() => {
     const memory = memoryRef.current;
     const tracked = tracking?.tracked;
     if (memory === null || tracked === undefined) return;
     void ringPendingTransitions(memory, tracked, (characterId) =>
       postJumpRequest({ kind: 'doorbell', mapId, characterId }),
     );
-  }, [tracking, mapId]);
+  });
+
+  // Feed-driven ring: a fresh transition rings the moment it arrives.
+  useEffect(() => {
+    if (tracking === undefined) return;
+    ringPending();
+  }, [tracking]);
+
+  // Timer-driven retries: the feed only updates on a location WRITE, so a
+  // pilot who jumps then sits scanning produces nothing further — a transient
+  // failure must re-drive from a clock. No-op ticks while nothing is pending.
+  useEffect(() => {
+    const id = setInterval(() => {
+      ringPending();
+    }, DOORBELL_RETRY_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   return null;
 }

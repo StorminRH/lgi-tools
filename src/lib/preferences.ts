@@ -121,11 +121,17 @@ export const industryCostBasis = define<'batched' | 'marginal'>(
 );
 
 /**
- * Atlas canvas: whether nodes can be dragged. Default locked — re-locking
- * restores computed layout (ChainHost releases user placements on transition).
- * NOT ssrReadable: the canvas is client-only.
+ * Atlas canvas: the computed layout owns node positions. Default on; off
+ * unlocks node dragging, and switching it back ON releases every user
+ * placement and restores the computed layout (ChainHost owns the
+ * transition). The key matches the user-facing "auto layout" wording so the
+ * derived label needs no override. NOT ssrReadable: the canvas is client-only.
  */
-export const atlasMapLock = define<boolean>('atlas.mapLock', z.boolean(), true);
+export const atlasAutoLayout = define<boolean>(
+  'atlas.autoLayout',
+  z.boolean(),
+  true,
+);
 
 /**
  * Atlas canvas: auto-refit camera when the chain changes. Default off — G-1
@@ -202,7 +208,7 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   plannerBuildCharacter,
   sitesDetailMode,
   industryCostBasis,
-  atlasMapLock,
+  atlasAutoLayout,
   atlasCameraFollow,
   atlasClickFocus,
   ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),

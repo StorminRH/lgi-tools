@@ -508,6 +508,13 @@ export const setConnectionWormholeType = mutation({
     await ctx.db.patch(connectionId, {
       wormholeTypeCode: value,
       ...identityPatch,
+      // Typing a hole makes it observation-eligible (human tier through the
+      // jump route), so a row that was never jump-authored needs its stable
+      // per-connection dedupe key minted here. Seeded-PRNG UUIDs are
+      // mutation-safe; an OCC retry rolls the whole write back with the key.
+      ...(value !== null && connection.observationKey === undefined
+        ? { observationKey: crypto.randomUUID() }
+        : {}),
       ...deathWindowPatch(window),
     });
     return { changed: true };

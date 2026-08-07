@@ -1,3 +1,47 @@
+/** Open the portrait/account menu and return its popup locator. */
+export async function openAtlasMenu(page) {
+  await page.locator('[data-account-menu-trigger]').click();
+  const popup = page.locator('[data-account-menu-popup]');
+  await popup.waitFor({ state: 'visible', timeout: 10_000 });
+  return popup;
+}
+
+/** Close the portrait/account menu (Escape) and wait for it to leave. */
+export async function closeAtlasMenu(page) {
+  await page.keyboard.press('Escape');
+  await page
+    .locator('[data-account-menu-popup]')
+    .waitFor({ state: 'hidden', timeout: 10_000 });
+}
+
+/**
+ * Ensure one atlas map preference switch (page-settings section of the
+ * portrait menu) matches the desired state; returns the resulting state.
+ * Preferences are server-authoritative for the signed-in probe account, so
+ * the shipped control is the reliable seam — localStorage seeding does not
+ * survive the logged-in reconcile.
+ */
+export async function setAtlasMapPreference(page, name, desired) {
+  const popup = await openAtlasMenu(page);
+  const control = popup.getByRole('switch', { name });
+  await control.waitFor({ state: 'visible', timeout: 10_000 });
+  if ((await control.isChecked()) !== desired) await control.click();
+  const result = await control.isChecked();
+  await closeAtlasMenu(page);
+  return result;
+}
+
+/** Turn off both camera-motion preferences in one menu round trip. */
+export async function calmAtlasCamera(page) {
+  const popup = await openAtlasMenu(page);
+  for (const name of ['camera follow', 'click focus']) {
+    const control = popup.getByRole('switch', { name });
+    await control.waitFor({ state: 'visible', timeout: 10_000 });
+    if (await control.isChecked()) await control.click();
+  }
+  await closeAtlasMenu(page);
+}
+
 export const atlasWindowRoute = () =>
   process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas';
 
@@ -40,12 +84,7 @@ export async function waitForWindowMap(page, minimumNodes = 2) {
   );
   // Camera flights keep rewriting the viewport after mount; isolation probes
   // compare transform identity and must wait for stillness with flights off.
-  for (const name of ['Camera follow', 'Click focus']) {
-    const control = page.getByRole('switch', { name });
-    if ((await control.count()) > 0 && (await control.isChecked())) {
-      await control.click();
-    }
-  }
+  await calmAtlasCamera(page);
   await settleMapViewport(page);
 }
 
@@ -179,8 +218,7 @@ export async function openSummary(page) {
 
 /** Drag a node's disc; label/chrome grabs are not reliable for RF node drag. */
 export async function dragNodeDisc(page, target, delta = { x: 70, y: 40 }) {
-  const lock = page.getByRole('switch', { name: 'Map lock' });
-  if (await lock.isChecked()) await lock.click();
+  await setAtlasMapPreference(page, 'auto layout', false);
   const box = await target.disc.boundingBox();
   if (box === null) return false;
   const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };

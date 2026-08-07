@@ -16,6 +16,15 @@ export interface DoorbellMemoryEntry {
 /** Ring attempts allowed per transition while the server keeps answering retry. */
 export const DOORBELL_ATTEMPT_CAP = 5;
 
+/**
+ * Timer cadence for re-driving unsettled rings. The tracked feed only updates
+ * on a location WRITE, and the zero-write stationary path means a pilot who
+ * jumps then sits scanning produces no further updates — a transiently failed
+ * ring must not wait for the next jump. Ticks are no-ops while nothing is
+ * pending; `DOORBELL_ATTEMPT_CAP` bounds the total.
+ */
+export const DOORBELL_RETRY_INTERVAL_MS = 15_000;
+
 /** The tracked-feed fields the doorbell reads for one character. */
 export interface TrackedDoorbellRow {
   readonly characterId: number;

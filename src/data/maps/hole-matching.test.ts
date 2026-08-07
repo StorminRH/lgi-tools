@@ -46,11 +46,17 @@ function candidate(
 }
 
 function evidence(overrides: Partial<JumpEvidence> = {}): JumpEvidence {
+  // Mirrors the live evidence packet: unresolved candidates are scanned rows,
+  // so their typed codes join the census pool unless a case overrides it.
+  const candidates = overrides.candidates ?? [];
   return {
     origin: { wormholeClassId: 7, securityStatus: 0.8 },
     destination: { wormholeClassId: 3, securityStatus: -1 },
     observedShipMassKg: null,
-    candidates: [],
+    candidates,
+    scannedTypeCodes: candidates
+      .map((row) => row.wormholeTypeCode)
+      .filter((code): code is string => code !== null),
     staticTypeCodes: [],
     codex: CODEX,
     ...overrides,
@@ -197,6 +203,21 @@ describe('matchJump', () => {
       kind: 'resolve',
       candidateId: 'typed',
       provenance: 'assumed',
+      survivors: ['typed'],
+    });
+    // An already-RESOLVED static is still a scanned row: crossing the second
+    // static of a fully mapped system must stay jump-verified even though the
+    // first static no longer sits in the unresolved candidate pool.
+    expect(
+      matchJump({
+        ...base,
+        staticTypeCodes: ['C247', 'Z647'],
+        scannedTypeCodes: ['C247', 'Z647'],
+      }),
+    ).toEqual({
+      kind: 'resolve',
+      candidateId: 'typed',
+      provenance: 'jump-verified',
       survivors: ['typed'],
     });
   });

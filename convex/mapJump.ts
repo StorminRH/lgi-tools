@@ -52,8 +52,6 @@ interface EmissionFacts {
   readonly toSystemId: number | null;
   readonly wormholeTypeCode: string | null;
   readonly typedSide: 'from' | 'to' | null;
-  readonly typedSideSystemId: number | null;
-  readonly typeProvenance: Doc<'mapConnections'>['typeProvenance'] | null;
   readonly destinationProvenance:
     | Doc<'mapConnections'>['destinationProvenance']
     | null;
@@ -128,16 +126,24 @@ async function readTrackedLocation(
     });
   }
   const matches = rows.filter((row) => row.characterId === characterId);
-  if (matches.length !== 1) return null;
-  // Exactly one match was proved above.
-  const tracking = matches[0]!;
-  const location = await ctx.db
-    .query('characterLocation')
-    .withIndex('by_user_character', (q) =>
-      q.eq('userId', tracking.userId).eq('characterId', characterId),
-    )
-    .unique();
-  return location === null ? null : { tracking, location };
+  // Only rows that join to a location document participate: `setTracking`
+  // accepts any characterId from any viewer, so a forged row naming someone
+  // else's character (which joins to nothing under the forger's userId) must
+  // not be able to veto the genuine owner's tracking. More than one JOINABLE
+  // row is real ambiguity and stays fail-closed.
+  const joined: TrackedLocation[] = [];
+  for (const tracking of matches) {
+    const location = await ctx.db
+      .query('characterLocation')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', tracking.userId).eq('characterId', characterId),
+      )
+      .unique();
+    if (location !== null) joined.push({ tracking, location });
+  }
+  if (joined.length !== 1) return null;
+  // Exactly one joinable row was proved above.
+  return joined[0]!;
 }
 
 /** Reads one bounded origin-side connection range. */
@@ -162,14 +168,42 @@ async function readConnectionsFrom(
   return rows;
 }
 
+/** Live unresolved candidate rows within an origin-side read. */
+function unresolvedCandidatesOf(
+  rows: readonly Doc<'mapConnections'>[],
+): Doc<'mapConnections'>[] {
+  return rows.filter((row) => row.toSystemId === null && !isTombstoned(row));
+}
+
 /** Reads one bounded active unresolved candidate pool for an origin. */
 async function readUnresolvedCandidates(
   ctx: QueryCtx,
   mapId: string,
   fromSystemId: number,
 ): Promise<Doc<'mapConnections'>[]> {
-  const rows = await readConnectionsFrom(ctx, mapId, fromSystemId, 'candidate');
-  return rows.filter((row) => row.toSystemId === null && !isTombstoned(row));
+  return unresolvedCandidatesOf(
+    await readConnectionsFrom(ctx, mapId, fromSystemId, 'candidate'),
+  );
+}
+
+/**
+ * Typed codes of every live scanned origin-side wormhole row — resolved rows
+ * included, so an already-resolved static keeps satisfying the census. Rows
+ * typed from the far side (`typedSide: 'to'`) show K162 at this origin and
+ * carry no origin-side code.
+ */
+function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
+  return rows
+    .filter(
+      (row) =>
+        !isTombstoned(row)
+        && row.wormholeTypeCode !== null
+        && row.typedSide !== 'to',
+    )
+    .map((row) => {
+      // Non-null was proved in the filter above.
+      return row.wormholeTypeCode!;
+    });
 }
 
 /** Reads both exact endpoint directions within explicit per-range bounds. */
@@ -205,20 +239,12 @@ function validObservedMass(value: number | null): number | null {
 }
 
 function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
-  const typedSide = connection.typedSide ?? null;
   return {
     connectionId: connection._id,
     fromSystemId: connection.fromSystemId,
     toSystemId: connection.toSystemId,
     wormholeTypeCode: connection.wormholeTypeCode,
-    typedSide,
-    typedSideSystemId:
-      typedSide === 'from'
-        ? connection.fromSystemId
-        : typedSide === 'to'
-          ? connection.toSystemId
-          : null,
-    typeProvenance: connection.typeProvenance ?? null,
+    typedSide: connection.typedSide ?? null,
     destinationProvenance: connection.destinationProvenance ?? null,
     observationKey: connection.observationKey ?? null,
   };
@@ -243,6 +269,7 @@ export const jumpEvidence = internalQuery({
         transition: null,
         lastProcessedTransitionAt: null,
         originLive: false,
+        scannedTypeCodes: [],
         candidates: [],
       };
     }
@@ -255,6 +282,7 @@ export const jumpEvidence = internalQuery({
         transition: null,
         lastProcessedTransitionAt: null,
         originLive: false,
+        scannedTypeCodes: [],
         candidates: [],
       };
     }
@@ -266,6 +294,7 @@ export const jumpEvidence = internalQuery({
         transition: null,
         lastProcessedTransitionAt: null,
         originLive: false,
+        scannedTypeCodes: [],
         candidates: [],
       };
     }
@@ -280,9 +309,10 @@ export const jumpEvidence = internalQuery({
       ? null
       : await findSystem(ctx, mapId, fromSolarSystemId);
     const originLive = origin !== null && !isTombstoned(origin);
-    const candidates = originLive && fromSolarSystemId !== null
-      ? await readUnresolvedCandidates(ctx, mapId, fromSolarSystemId)
+    const originRows = originLive && fromSolarSystemId !== null
+      ? await readConnectionsFrom(ctx, mapId, fromSolarSystemId, 'candidate')
       : [];
+    const candidates = unresolvedCandidatesOf(originRows);
 
     return {
       canEdit: true as const,
@@ -296,6 +326,7 @@ export const jumpEvidence = internalQuery({
       },
       lastProcessedTransitionAt: stamp?.lastProcessedTransitionAt ?? null,
       originLive,
+      scannedTypeCodes: scannedTypeCodes(originRows),
       candidates: candidates.map((candidate) => ({
         id: candidate._id,
         wormholeTypeCode: candidate.wormholeTypeCode,

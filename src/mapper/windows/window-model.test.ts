@@ -41,12 +41,6 @@ describe('map window presence', () => {
 describe('map window keyboard and stack', () => {
   it('derives Escape surface kind from placement alone', () => {
     expect(surfaceKindOf({ kind: 'docked' })).toBe('dock');
-    expect(
-      surfaceKindOf({
-        kind: 'floating',
-        rect: { x: 0, y: 0, width: 380, height: 520 },
-      }),
-    ).toBe('dock');
     expect(surfaceKindOf({ kind: 'node-anchored', systemId: 2 })).toBe('card');
     expect(
       surfaceKindOf({

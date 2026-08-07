@@ -105,9 +105,9 @@ export const NON_NEON_HOMES = [
   {
     home: 'convex:mapJumpBookkeeping',
     coveredBy:
-      'full map teardown via POST /project-map-access drains bounded convex/mapJumpBookkeeping.purgeForMap batches; tracking revocation intentionally retains the stamps so untrack/retrack cannot double-count a jump',
+      'full map teardown via POST /project-map-access drains bounded convex/mapJumpBookkeeping.purgeForMap batches; account/character purge (POST /purge-location-tracking → characterLocation.purgeForUser) drains the purged characterIds by_character; tracking revocation intentionally retains the stamps so untrack/retrack cannot double-count a jump',
     explicitTeardown: 'convex/mapJumpBookkeeping.ts — session 4.0.4.2.2 OW1',
     reason:
-      'the table contains map-scoped exactly-once state rather than account-owned payload. It has no user identity, survives tracking revocation by design, and is deleted with the collaborative map whose jump history it protects.',
+      'the table is (mapId, characterId)-keyed exactly-once state rather than account-owned payload: no userId column, and it survives tracking revocation by design so a retrack cannot double-count the odometer. Character identity leaves with the account/character purge drain; the map teardown door deletes the rest with the collaborative map whose jump history it protects.',
   },
 ] as const;

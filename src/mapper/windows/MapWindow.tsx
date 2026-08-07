@@ -4,18 +4,15 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   type ForwardedRef,
   type KeyboardEvent,
-  type PointerEvent,
   type ReactNode,
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { mapFrostedSurface, mapOverlaySurface } from '../map-frosted-surface';
-import { createPointerGesture, type PointerDelta } from './drag-resize';
 import {
   keydownAction,
   surfaceKindOf,
@@ -48,30 +45,21 @@ export interface MapWindowProps {
   /** When false, the title-bar × is omitted (outside-click / Escape still close). */
   readonly showCloseButton?: boolean;
   /**
-   * `panel` is the frosted card chrome. `overlay` is a content-sized floating
-   * text surface (current-system dock) — faint glass, no border/shadow.
+   * `panel` is the frosted interactive card chrome. `overlay` is a
+   * content-sized passive text surface (current-system dock) — faint glass,
+   * no border/shadow, and CLICK-THROUGH: it has no interactive children, so
+   * it must never steal canvas input from nodes laid out beneath it.
    */
   readonly appearance?: 'panel' | 'overlay';
   readonly onActivate: () => void;
-  readonly onPopToggle?: () => void;
-  readonly onDragDelta?: (delta: PointerDelta) => void;
-  readonly onDragEnd?: () => void;
-  readonly onResizeDelta?: (delta: PointerDelta) => void;
-  readonly onResizeEnd?: () => void;
   readonly children?: ReactNode;
 }
 
 function applyWindowStyles(
   element: HTMLDivElement,
-  placement: WindowPlacement,
   stackIndex: number,
 ): void {
   element.style.setProperty('--map-window-z', String(stackIndex));
-  if (placement.kind !== 'floating') return;
-  element.style.setProperty('--map-window-x', `${placement.rect.x}px`);
-  element.style.setProperty('--map-window-y', `${placement.rect.y}px`);
-  element.style.setProperty('--map-window-width', `${placement.rect.width}px`);
-  element.style.setProperty('--map-window-height', `${placement.rect.height}px`);
 }
 
 function assignForwardedRef(
@@ -93,13 +81,6 @@ function placementClassName(
       ? 'left-4 top-4 h-auto w-max max-w-[min(24rem,calc(100vw-2rem))]'
       : 'left-4 top-4 bottom-16 w-[360px] max-w-[calc(100vw-2rem)]';
   }
-  if (placement.kind === 'floating') {
-    // Overlay keeps only the floating origin; size follows content. Panel uses
-    // the persisted width/height rectangle.
-    return overlay
-      ? 'left-[var(--map-window-x)] top-[var(--map-window-y)] h-auto w-max max-w-[min(24rem,calc(100vw-2rem))]'
-      : 'left-[var(--map-window-x)] top-[var(--map-window-y)] h-[var(--map-window-height)] w-[var(--map-window-width)]';
-  }
   // node-anchored and edge-anchored both ride `--map-window-transform`.
   if (placement.kind === 'edge-anchored') {
     // The height bound keeps the card's scroll body engaged on short
@@ -109,78 +90,23 @@ function placementClassName(
   return 'left-0 top-0 h-52 w-72 [transform:var(--map-window-transform)]';
 }
 
-// Built without a literal role=…button… token so the UI-adoption census
-// keeps counting only real hand-rolled button semantics.
-const TITLE_BAR_CONTROL_ROLE = 'button';
-const TITLE_BAR_CONTROL_SELECTOR = [
-  'button',
-  'a',
-  'input',
-  'select',
-  'textarea',
-  `[role="${TITLE_BAR_CONTROL_ROLE}"]`,
-].join(', ');
-
-function PopToggle({
-  title,
-  floating,
-  onPopToggle,
-}: {
-  readonly title: string;
-  readonly floating: boolean;
-  readonly onPopToggle: (() => void) | undefined;
-}) {
-  if (!onPopToggle) return null;
-  return (
-    <Button
-      variant="bare"
-      aria-label={floating ? `Anchor ${title}` : `Pop out ${title}`}
-      className="h-6 w-6 cursor-pointer justify-center text-muted hover:text-isk"
-      onClick={onPopToggle}
-    >
-      {floating ? '↙' : '↗'}
-    </Button>
-  );
-}
-
 function WindowHeader({
   title,
-  floating,
   overlay,
   showCloseButton,
   onClose,
-  onPopToggle,
-  onDragPointerDown,
 }: {
   readonly title: string;
-  readonly floating: boolean;
   readonly overlay: boolean;
   readonly showCloseButton: boolean;
   readonly onClose: () => void;
-  readonly onPopToggle?: () => void;
-  readonly onDragPointerDown: (event: PointerEvent<HTMLElement>) => void;
 }) {
-  const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
-    if (!floating) return;
-    const target = event.target;
-    if (
-      target instanceof Element &&
-      target.closest(TITLE_BAR_CONTROL_SELECTOR) !== null
-    ) {
-      return;
-    }
-    onDragPointerDown(event);
-  };
-
   return (
     <header
-      data-map-window-drag={floating ? '' : undefined}
       className={cn(
         'flex shrink-0 items-center gap-1 px-1.5',
         overlay ? 'h-auto min-h-8 border-0 py-1' : 'h-8 border-b border-border/80',
-        floating && 'cursor-move touch-none',
       )}
-      onPointerDown={handlePointerDown}
     >
       <h2
         className={cn(
@@ -192,11 +118,6 @@ function WindowHeader({
       >
         {title}
       </h2>
-      <PopToggle
-        title={title}
-        floating={floating}
-        onPopToggle={onPopToggle}
-      />
       {showCloseButton ? (
         <Button
           variant="bare"
@@ -208,30 +129,6 @@ function WindowHeader({
         </Button>
       ) : null}
     </header>
-  );
-}
-
-function ResizeHandle({
-  floating,
-  overlay,
-  onPointerDown,
-}: {
-  readonly floating: boolean;
-  readonly overlay: boolean;
-  readonly onPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
-}) {
-  // Overlay docks hug content — free resize fights auto-sizing.
-  if (!floating || overlay) return null;
-  // Pointer-only grip: free resize is a drag gesture, not a keyboard control.
-  return (
-    <div
-      data-map-window-resize=""
-      aria-hidden="true"
-      className="absolute bottom-0 right-0 flex h-5 w-5 cursor-nwse-resize touch-none items-center justify-center text-faint hover:text-isk"
-      onPointerDown={onPointerDown}
-    >
-      ◢
-    </div>
   );
 }
 
@@ -247,53 +144,24 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       showCloseButton = true,
       appearance = 'panel',
       onActivate,
-      onPopToggle,
-      onDragDelta,
-      onDragEnd,
-      onResizeDelta,
-      onResizeEnd,
       children,
     },
     forwardedRef,
   ) {
     const surfaceKind = surfaceKindOf(placement);
     const rootRef = useRef<HTMLDivElement | null>(null);
-    const dragGesture = useMemo(
-      () =>
-        createPointerGesture({
-          onDelta: (delta) => onDragDelta?.(delta),
-          onEnd: () => onDragEnd?.(),
-        }),
-      [onDragDelta, onDragEnd],
-    );
-    const resizeGesture = useMemo(
-      () =>
-        createPointerGesture({
-          onDelta: (delta) => onResizeDelta?.(delta),
-          onEnd: () => onResizeEnd?.(),
-        }),
-      [onResizeDelta, onResizeEnd],
-    );
-
-    useEffect(
-      () => () => {
-        dragGesture.dispose();
-        resizeGesture.dispose();
-      },
-      [dragGesture, resizeGesture],
-    );
 
     useEffect(() => {
       const element = rootRef.current;
       if (element === null) return;
-      applyWindowStyles(element, placement, stackIndex);
-    }, [placement, stackIndex]);
+      applyWindowStyles(element, stackIndex);
+    }, [stackIndex]);
 
     const setRootRef = useCallback((node: HTMLDivElement | null) => {
       rootRef.current = node;
-      if (node !== null) applyWindowStyles(node, placement, stackIndex);
+      if (node !== null) applyWindowStyles(node, stackIndex);
       assignForwardedRef(forwardedRef, node);
-    }, [forwardedRef, placement, stackIndex]);
+    }, [forwardedRef, stackIndex]);
 
     const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
       const action = keydownAction({
@@ -306,7 +174,6 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       event.stopPropagation();
     };
 
-    const floating = placement.kind === 'floating';
     const overlay = appearance === 'overlay';
 
     return (
@@ -318,24 +185,23 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         className={cn(
           'nokey absolute z-[var(--map-window-z)] flex min-h-0 flex-col overflow-hidden text-ui',
           overlay
-            ? cn('pointer-events-auto rounded-ctl', mapOverlaySurface)
+            ? // Passive readout: nothing inside is interactive, so the canvas
+              // (node clicks, drags, box-select, pans) stays reachable under it.
+              cn('pointer-events-none rounded-ctl', mapOverlaySurface)
             : cn('pointer-events-auto rounded-card', mapFrostedSurface),
           placementClassName(placement, overlay),
           (placement.kind === 'edge-anchored' ||
             placement.kind === 'node-anchored') &&
             'map-node-enter',
         )}
-        onKeyDown={handleKeyDown}
-        onPointerDown={onActivate}
+        onKeyDown={overlay ? undefined : handleKeyDown}
+        onPointerDown={overlay ? undefined : onActivate}
       >
         <WindowHeader
           title={title}
-          floating={floating}
           overlay={overlay}
           showCloseButton={showCloseButton}
           onClose={onClose}
-          onPopToggle={onPopToggle}
-          onDragPointerDown={dragGesture.onPointerDown}
         />
         <div
           data-map-window-scroll
@@ -351,11 +217,6 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         >
           {children}
         </div>
-        <ResizeHandle
-          floating={floating}
-          overlay={overlay}
-          onPointerDown={resizeGesture.onPointerDown}
-        />
       </section>
     );
   },

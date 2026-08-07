@@ -44,11 +44,6 @@ import {
   type WormholeTypeParams,
 } from './wormhole-type-search';
 
-export {
-  decodeOptionalField,
-  encodeOptionalField,
-  UNSET_FIELD,
-} from './connection-field-group';
 
 const MASS_ITEMS = [
   { value: UNSET_FIELD, label: 'Unset' },

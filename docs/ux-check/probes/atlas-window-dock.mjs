@@ -27,6 +27,10 @@ export default {
         && (await dock.getByRole('button', { name: /Pop out/ }).count()) === 0
         && (await dock.getByRole('button', { name: /Close / }).count()) === 0,
     );
+    check(
+      'the readout is click-through (nodes beneath stay reachable)',
+      (await dock.evaluate((element) => getComputedStyle(element).pointerEvents)) === 'none',
+    );
     check('an exposed canvas point is available', await clickExposedPane(page));
     await page.keyboard.press('Escape');
     check('pane click and Escape leave the readout standing', await dock.isVisible());

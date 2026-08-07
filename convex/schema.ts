@@ -231,7 +231,9 @@ export default defineSchema({
     lastProcessedTransitionAt: v.number(),
   })
     .index('by_map', ['mapId'])
-    .index('by_map_character', ['mapId', 'characterId']),
+    .index('by_map_character', ['mapId', 'characterId'])
+    // Account/character purge drains stamps across every map.
+    .index('by_character', ['characterId']),
 
   // One immutable audit row per destructive/restore map event. Actor and
   // display payload are resolved at write time so the bounded ledger read has

@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import {
-  ConnectionFields,
   decodeOptionalField,
   encodeOptionalField,
   UNSET_FIELD,
-} from './connection-fields';
+} from './connection-field-group';
+import { ConnectionFields } from './connection-fields';
 
 vi.mock('@/components/ui/select', () => ({
   Select: (props: {

@@ -124,13 +124,30 @@ describe('characterLocation.purgeForUser', () => {
         userId: OTHER,
         characterId: CHAR_A,
       });
+      // Character-keyed exactly-once stamps: the account purge must drain the
+      // purged characters' stamps across maps (no userId column to key on).
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-a',
+        characterId: CHAR_A,
+        lastProcessedTransitionAt: 1,
+      });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-b',
+        characterId: CHAR_B,
+        lastProcessedTransitionAt: 2,
+      });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-a',
+        characterId: 90_999_999,
+        lastProcessedTransitionAt: 3,
+      });
     });
 
     const out = await t.mutation(internal.characterLocation.purgeForUser, {
       userId: USER,
       characterId: null,
     });
-    expect(out).toEqual({ deletedLocations: 2, deletedTracking: 2 });
+    expect(out).toEqual({ deletedLocations: 2, deletedTracking: 2, deletedBookkeeping: 2 });
 
     const remainingLocations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
     const remainingTracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
@@ -153,13 +170,23 @@ describe('characterLocation.purgeForUser', () => {
         userId: USER,
         characterId: CHAR_B,
       });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-a',
+        characterId: CHAR_A,
+        lastProcessedTransitionAt: 1,
+      });
+      await ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-a',
+        characterId: CHAR_B,
+        lastProcessedTransitionAt: 2,
+      });
     });
 
     const out = await t.mutation(internal.characterLocation.purgeForUser, {
       userId: USER,
       characterId: CHAR_A,
     });
-    expect(out).toEqual({ deletedLocations: 1, deletedTracking: 1 });
+    expect(out).toEqual({ deletedLocations: 1, deletedTracking: 1, deletedBookkeeping: 1 });
 
     const locations = await t.run((ctx) =>
       ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
@@ -180,7 +207,7 @@ describe('characterLocation.purgeForUser', () => {
       userId: USER,
       characterId: null,
     });
-    expect(out).toEqual({ deletedLocations: 0, deletedTracking: 0 });
+    expect(out).toEqual({ deletedLocations: 0, deletedTracking: 0, deletedBookkeeping: 0 });
   });
 });
 
@@ -223,7 +250,7 @@ describe('POST /purge-location-tracking', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deletedLocations: 1, deletedTracking: 1 });
+    expect(await res.json()).toEqual({ deletedLocations: 1, deletedTracking: 1, deletedBookkeeping: 0 });
 
     const locations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
     const tracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());

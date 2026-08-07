@@ -29,13 +29,15 @@ export default {
       node !== null && await dock.isVisible() && await card.isVisible(),
     );
 
-    const before = { dock: await z(dock), card: await z(card) };
-    await dock.locator('header').click();
-    await page.waitForTimeout(50);
-    const after = { dock: await z(dock), card: await z(card) };
+    // The readout is a passive click-through overlay: the interactive card
+    // always stacks above it, and pointer events pass through to the canvas.
     check(
-      'pointer-down brings the lower window to the front',
-      before.card > before.dock && after.dock > after.card,
+      'the interactive card stacks above the passive readout',
+      (await z(card)) > (await z(dock)),
+    );
+    check(
+      'the readout is click-through (pointer events reach the canvas)',
+      (await dock.evaluate((element) => getComputedStyle(element).pointerEvents)) === 'none',
     );
 
     await page.getByRole('button', { name: 'Atlas menu' }).click();

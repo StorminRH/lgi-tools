@@ -37,14 +37,21 @@ describe('PageMenuSection', () => {
     registerPageSettings({
       route: '/atlas',
       title: 'Map settings',
-      controls: [{ key: 'atlas.mapLock', placement: 'section' }],
+      controls: [
+        {
+          key: 'atlas.autoLayout',
+          placement: 'section',
+          description: 're-enabling restores the computed layout',
+        },
+      ],
     });
     const html = renderAt('/atlas');
     expect(html).toContain('Map settings');
-    expect(html).toContain('Auto Layout');
-    expect(html).not.toContain('re-locking restores the computed layout');
+    expect(html).toContain('auto layout');
+    // The relock consequence is disclosed on the row itself.
+    expect(html).toContain('re-enabling restores the computed layout');
     expect(html).toContain('role="switch"');
-    expect(html).toContain('aria-checked="true"'); // atlas.mapLock fallback
+    expect(html).toContain('aria-checked="true"'); // atlas.autoLayout fallback
   });
 
   it('prefers the spec’s own title when declared', () => {

@@ -14,8 +14,6 @@ const emissionFactsSchema = z.strictObject({
   toSystemId: z.number().int().positive().nullable(),
   wormholeTypeCode: z.string().nullable(),
   typedSide: z.enum(['from', 'to']).nullable(),
-  typedSideSystemId: z.number().int().positive().nullable(),
-  typeProvenance: z.enum(CONNECTION_PROVENANCES).nullable(),
   destinationProvenance: z.enum(CONNECTION_PROVENANCES).nullable(),
   observationKey: z.string().nullable(),
 });
@@ -34,6 +32,9 @@ const transitionEvidenceSchema = z.strictObject({
     .nullable(),
   lastProcessedTransitionAt: z.number().finite().nullable(),
   originLive: z.boolean(),
+  // Origin-side typed scanned codes (resolved AND unresolved rows) — the
+  // statics-census pool. Distinct from `candidates`, which stays unresolved-only.
+  scannedTypeCodes: z.array(z.string().min(1)),
   candidates: z.array(
     z.strictObject({
       id: z.string().min(1),

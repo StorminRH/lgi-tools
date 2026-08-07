@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import type { ConnectionDetail } from '../chain/use-map-chain';
 import {
+  answerAndAnnounce,
   answerJumpResolution,
   applyWormholeType,
   ConnectionAuthoringOverlay,
@@ -17,6 +18,11 @@ const postJump = vi.hoisted(() =>
 
 vi.mock('./sever-toast', () => ({
   announceSeverOutcome: announce,
+}));
+
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('@/components/ui/toast', () => ({
+  toast: { error: toastError },
 }));
 
 vi.mock('../jump-client', () => ({
@@ -320,6 +326,35 @@ describe('ConnectionAuthoringOverlay', () => {
       connectionId: 'c1',
       targetConnectionId: 'stub-2',
     });
+  });
+
+  it('dismisses a prompt only on a delivered answer and announces failures', async () => {
+    // Delivered: dismiss fires, no failure toast.
+    postJump.mockClear();
+    toastError.mockClear();
+    const dismissed = vi.fn();
+    await answerAndAnnounce({
+      mapId: 'map-a',
+      connectionId: 'c1' as Id<'mapConnections'>,
+      targetConnectionId: null,
+      dismiss: dismissed,
+    });
+    expect(dismissed).toHaveBeenCalledTimes(1);
+    expect(toastError).not.toHaveBeenCalled();
+
+    // Lost race / transport failure: prompt stays, the user is told.
+    for (const outcome of [null, { status: 'retry', reason: 'convex-resolve' }]) {
+      postJump.mockResolvedValueOnce(outcome as never);
+      const keep = vi.fn();
+      await answerAndAnnounce({
+        mapId: 'map-a',
+        connectionId: 'c1' as Id<'mapConnections'>,
+        targetConnectionId: 'stub-2',
+        dismiss: keep,
+      });
+      expect(keep).not.toHaveBeenCalled();
+    }
+    expect(toastError).toHaveBeenCalledTimes(2);
   });
 
   it('notifies the route after manual typing only when the mutation held', async () => {

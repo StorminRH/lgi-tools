@@ -166,13 +166,11 @@ function DockSurface({
   rootSystemId,
   title,
   stackIndex,
-  onActivate,
 }: {
   readonly visible: boolean;
   readonly rootSystemId: number | null;
   readonly title: string | undefined;
   readonly stackIndex: number;
-  readonly onActivate: () => void;
 }) {
   if (!visible || rootSystemId === null) return null;
   return (
@@ -184,7 +182,9 @@ function DockSurface({
       stackIndex={stackIndex}
       showCloseButton={false}
       onClose={() => undefined}
-      onActivate={onActivate}
+      // Click-through overlay: pointer events never reach it, so activation
+      // (bring-to-front) is unreachable by construction.
+      onActivate={() => undefined}
     >
       <SystemIntelligencePlaceholder />
     </MapWindow>
@@ -287,7 +287,6 @@ function MountedMapWindowLayer({
         rootSystemId={rootSystemId}
         title={rootTitle}
         stackIndex={zIndex('dock')}
-        onActivate={() => activate('dock')}
       />
       <SummarySurface
         summaryId={summarySystemId}

@@ -114,6 +114,7 @@ describe('jump resolver doors', () => {
       transition: null,
       lastProcessedTransitionAt: null,
       originLive: false,
+      scannedTypeCodes: [],
       candidates: [],
     });
   });
@@ -170,7 +171,7 @@ describe('jump resolver doors', () => {
         connectionId,
         fromSystemId: 31_000_001,
         toSystemId: 31_000_002,
-        typedSideSystemId: 31_000_001,
+        typedSide: 'from',
       },
     });
   });

@@ -1,21 +1,12 @@
 /** Where and how one map window renders; the primitive never decides placement. */
 export type WindowPlacement =
   | { readonly kind: 'docked' }
-  | { readonly kind: 'floating'; readonly rect: WindowRect }
   | { readonly kind: 'node-anchored'; readonly systemId: number }
   | {
       readonly kind: 'edge-anchored';
       readonly fromSystemId: number;
       readonly toSystemId: number;
     };
-
-/** One floating rectangle in map-layer pixels. */
-export interface WindowRect {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
 
 /** The two stable identities in the window stack. */
 export type MapWindowId = 'dock' | 'summary';
@@ -56,7 +47,7 @@ export function deriveSurfaces(input: SurfaceInputs): SurfaceDerivation {
 /** The two semantic surface kinds used by keyboard arbitration. */
 export type WindowSurfaceKind = 'dock' | 'card';
 
-/** Escape surface kind implied by a placement — docked/floating share dock rules. */
+/** Escape surface kind implied by a placement — only anchored cards dismiss. */
 export function surfaceKindOf(placement: WindowPlacement): WindowSurfaceKind {
   return placement.kind === 'node-anchored' || placement.kind === 'edge-anchored'
     ? 'card'

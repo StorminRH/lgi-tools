@@ -28,9 +28,9 @@ import { usePreference } from '@/components/PreferencesProvider';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import type { Id } from '@/data/convex/data-model';
 import {
+  atlasAutoLayout,
   atlasCameraFollow,
   atlasClickFocus,
-  atlasMapLock,
 } from '@/lib/preferences';
 import { ConnectionAuthoringOverlay } from '../authoring/ConnectionAuthoringOverlay';
 import { HomePrompt } from '../authoring/HomePrompt';
@@ -95,8 +95,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // Mirrors `dragging` for use inside the sync effect without making the effect depend on it: a drag
   // start must not itself trigger a resync.
   const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
-  // Map lock / camera follow / click focus: autosaved preferences (portrait menu).
-  const [locked] = usePreference(atlasMapLock);
+  // Auto layout / camera follow / click focus: autosaved preferences
+  // (portrait menu). Auto layout ON = nodes locked to the computed layout.
+  const [locked] = usePreference(atlasAutoLayout);
   const [follow] = usePreference(atlasCameraFollow);
   const [focusOnClick] = usePreference(atlasClickFocus);
   // Re-lock releases user placements only on transition to locked (not initial mount).

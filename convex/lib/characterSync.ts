@@ -40,15 +40,6 @@ export async function authenticatedSubject(ctx: QueryCtx): Promise<string | null
   return identity?.subject ?? null;
 }
 
-/** Selects all or one character row set for idempotent purge mutations. */
-export function selectCharacterRows<T>(
-  characterId: number | null,
-  readAll: () => Promise<T[]>,
-  readOne: (characterId: number) => Promise<T[]>,
-): Promise<T[]> {
-  return characterId === null ? readAll() : readOne(characterId);
-}
-
 /**
  * Deployment-level config (set via `npx convex env set`) — the app's
  * NEXT_PUBLIC_* inlines don't exist in a Convex bundle.

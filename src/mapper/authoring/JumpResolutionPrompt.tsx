@@ -76,7 +76,9 @@ export function JumpResolutionPrompt({
   return (
     <div
       data-map-jump-prompt
-      className="pointer-events-none absolute bottom-2 right-4 z-sticky flex justify-end"
+      // bottom-16 clears the fixed bottom-right feedback button (z-dropdown
+      // beats z-sticky, so overlap would cover Dismiss).
+      className="pointer-events-none absolute bottom-16 right-4 z-sticky flex justify-end"
     >
       <div
         className={cn(

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Doc, Id } from '@/data/convex/data-model';
+import type { JumpResolverResponse } from '@/data/maps/api-contract';
 import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
 import type {
   ConnectionDetail,
@@ -28,6 +29,7 @@ import {
   type JumpResolutionAnswers,
 } from './JumpResolutionPrompt';
 import { announceSeverOutcome } from './sever-toast';
+import { toast } from '@/components/ui/toast';
 
 // Minute granularity matches the hour-scale countdown copy the overlay renders.
 const OVERLAY_TICK_MS = 60_000;
@@ -144,12 +146,20 @@ export function ConnectionAuthoringOverlay({
   const answersFor = useCallback(
     (connectionId: Id<'mapConnections'>): JumpResolutionAnswers => ({
       onConfirm: () => {
-        void answerJumpResolution({ mapId, connectionId, targetConnectionId: null });
-        dismissResolution(connectionId);
+        void answerAndAnnounce({
+          mapId,
+          connectionId,
+          targetConnectionId: null,
+          dismiss: () => dismissResolution(connectionId),
+        });
       },
       onCorrect: (targetConnectionId) => {
-        void answerJumpResolution({ mapId, connectionId, targetConnectionId });
-        dismissResolution(connectionId);
+        void answerAndAnnounce({
+          mapId,
+          connectionId,
+          targetConnectionId,
+          dismiss: () => dismissResolution(connectionId),
+        });
       },
     }),
     [mapId, dismissResolution],
@@ -309,12 +319,35 @@ export function answerJumpResolution(input: {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'>;
   readonly targetConnectionId: string | null;
-}): Promise<unknown> {
+}): Promise<JumpResolverResponse | null> {
   return postJumpRequest({
     kind: 'confirm',
     mapId: input.mapId,
     connectionId: input.connectionId,
     targetConnectionId: input.targetConnectionId,
+  });
+}
+
+/**
+ * Answers a prompt and dismisses it only when the route delivered the answer.
+ * A lost race or transport failure keeps the prompt (still answerable from
+ * the connection card) and says so — a silently swallowed correction would
+ * leave the user believing their override was recorded.
+ */
+export async function answerAndAnnounce(input: {
+  readonly mapId: string;
+  readonly connectionId: Id<'mapConnections'>;
+  readonly targetConnectionId: string | null;
+  readonly dismiss: () => void;
+}): Promise<void> {
+  const response = await answerJumpResolution(input);
+  if (response !== null && response.status !== 'retry') {
+    input.dismiss();
+    return;
+  }
+  toast.error('Signature answer not recorded — try again', {
+    id: `jump-answer:${input.connectionId}`,
+    duration: 5_000,
   });
 }
 

@@ -18,7 +18,6 @@ function render(
         stackIndex: 1,
         onClose: vi.fn(),
         onActivate: vi.fn(),
-        onPopToggle: vi.fn(),
         ...overrides,
       },
       createElement('p', null, 'content'),
@@ -27,7 +26,7 @@ function render(
 }
 
 describe('MapWindow isolation markup', () => {
-  it('owns nokey/scroller contracts and gates float-only drag/resize plus optional close', () => {
+  it('owns nokey/scroller contracts with an optional close control', () => {
     const docked = render({ kind: 'docked' });
     expect(docked).toContain('data-map-window="test"');
     expect(docked).toContain('nokey');
@@ -35,17 +34,13 @@ describe('MapWindow isolation markup', () => {
     expect(docked).toContain('data-map-window-appearance="panel"');
     expect(docked).toContain('glass-panel');
     expect(docked).not.toContain('h-[calc(100dvh-5.5rem)]');
+    // The floating window machinery (drag handle, resize grip, pop toggle)
+    // left with the persistent-overlay dock; nothing may resurrect silently.
     expect(docked).not.toContain('data-map-window-drag');
     expect(docked).not.toContain('data-map-window-resize');
+    expect(docked).not.toContain('Pop out');
     expect(docked).toContain('Close Test window');
-
-    const floating = render({
-      kind: 'floating',
-      rect: { x: 1, y: 2, width: 380, height: 520 },
-    });
-    expect(floating).toContain('data-map-window-drag');
-    expect(floating).toContain('data-map-window-resize');
-    expect(floating).toContain('aria-hidden="true"');
+    expect(docked).toContain('pointer-events-auto');
 
     expect(render({ kind: 'docked' }, { showCloseButton: false })).not.toContain(
       'Close Test window',
@@ -62,11 +57,13 @@ describe('MapWindow isolation markup', () => {
         stackIndex: 1,
         onClose: vi.fn(),
         onActivate: vi.fn(),
-        onPopToggle: vi.fn(),
       }, createElement('p', null, 'content')),
     );
     expect(html).toContain('data-map-window-appearance="overlay"');
     expect(html).toContain('glass-panel-faint');
+    // Passive readout: it must not steal node clicks, drags, or pans from the
+    // canvas laid out beneath it.
+    expect(html).toContain('pointer-events-none');
     expect(html).toContain('h-auto');
     expect(html).toContain('w-max');
     expect(html).toContain('text-left');

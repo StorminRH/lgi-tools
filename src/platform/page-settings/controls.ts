@@ -22,6 +22,8 @@ import type { PageSettingsSpec, SettingsControlRef } from './types';
 export type EnumMenuControlModel = {
   kind: 'preference-enum';
   key: string;
+  /** Optional one-line consequence note declared on the spec ref. */
+  description?: string;
   // Display label derived from the key ('sites.detailMode' → 'detail mode');
   // a per-key override registry stays a future growth with this derivation as
   // its fallback.
@@ -35,6 +37,8 @@ export type BooleanMenuControlModel = {
   kind: 'preference-boolean';
   key: string;
   label: string;
+  /** Optional one-line consequence note declared on the spec ref. */
+  description?: string;
   def: PreferenceDef<boolean>;
 };
 
@@ -75,20 +79,18 @@ function labelFromKey(key: string): string {
   return segment.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
-/** Display labels that should not follow the raw key-derived wording. */
-const LABEL_OVERRIDES: Readonly<Record<string, string>> = {
-  'atlas.mapLock': 'Auto Layout',
-};
-
-function preferenceModel(ref: { key: string }): MenuControlModel | null {
+function preferenceModel(
+  ref: { key: string; description?: string },
+): MenuControlModel | null {
   const def = getPreferenceDef(ref.key);
   if (def === undefined) return null;
-  const label = LABEL_OVERRIDES[ref.key] ?? labelFromKey(ref.key);
+  const label = labelFromKey(ref.key);
   if (def.schema instanceof z.ZodEnum) {
     return {
       kind: 'preference-enum',
       key: ref.key,
       label,
+      description: ref.description,
       options: def.schema.options as readonly string[],
       // Safe: the schema is a string enum, so the def's value type is string.
       def: def as PreferenceDef<string>,
@@ -99,6 +101,7 @@ function preferenceModel(ref: { key: string }): MenuControlModel | null {
       kind: 'preference-boolean',
       key: ref.key,
       label,
+      description: ref.description,
       def: def as PreferenceDef<boolean>,
     };
   }

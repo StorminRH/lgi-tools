@@ -30,8 +30,6 @@ const emission = {
   toSystemId: 31_000_002,
   wormholeTypeCode: 'C247',
   typedSide: 'from',
-  typedSideSystemId: 31_000_001,
-  typeProvenance: 'human',
   destinationProvenance: 'jump-verified',
   observationKey: 'observation-key',
 };
@@ -62,6 +60,7 @@ describe('jump resolver Convex doors', () => {
         },
         lastProcessedTransitionAt: null,
         originLive: true,
+        scannedTypeCodes: [],
         candidates: [],
       }))
       .mockResolvedValueOnce(Response.json({

@@ -1,6 +1,7 @@
 /** Shared helpers for Atlas gated-authoring probes (session 4.0.4.1.1). */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { calmAtlasCamera } from './window-helpers.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -86,12 +87,7 @@ export async function openAddConnectionMenu(page) {
 
 /** Turn off camera flights that can park an edge-anchored card off-screen. */
 export async function calmMapCamera(page) {
-  for (const name of ['Camera follow', 'Click focus']) {
-    const control = page.getByRole('switch', { name });
-    if ((await control.count()) > 0 && (await control.isChecked())) {
-      await control.click();
-    }
-  }
+  await calmAtlasCamera(page);
 }
 
 /**

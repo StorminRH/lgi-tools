@@ -22,14 +22,16 @@ export default {
       return;
     }
     await waitForWindowMap(page);
-    const docked = await exerciseWindowInput(page, 'dock');
-    check(
-      'typing and scrolling in the current-system readout leave the viewport untouched',
-      isolated(docked),
-    );
+    // The readout is click-through by design — input isolation is meaningless
+    // for it; assert the pass-through contract instead.
+    const dock = mapWindow(page, 'dock');
     check(
       'the readout stays docked (no floating mode)',
-      (await mapWindow(page, 'dock').getAttribute('data-map-window-placement')) === 'docked',
+      (await dock.getAttribute('data-map-window-placement')) === 'docked',
+    );
+    check(
+      'the readout is click-through rather than input-capturing',
+      (await dock.evaluate((element) => getComputedStyle(element).pointerEvents)) === 'none',
     );
 
     const node = await openSummary(page);

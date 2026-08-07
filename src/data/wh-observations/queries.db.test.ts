@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/test-support/db-test-harness';
-import { insertWhObservation } from './queries';
+import { deleteWhObservation, insertWhObservation } from './queries';
 import { whObservations } from './schema';
 
 const SCHEMA = 'test_wh_observations';
@@ -51,6 +51,22 @@ describe.skipIf(!harness.reachable)('wormhole observations (real Postgres)', () 
         is_nullable: 'NO',
       },
     ]);
+  });
+
+  it('removes a row by dedupe key and ignores an absent key', async () => {
+    await insertWhObservation(harness.db, {
+      solarSystemId: 31_000_001,
+      whTypeCode: 'B274',
+      provenance: 'human',
+      observedAt: new Date('2026-08-06T14:00:00.000Z'),
+      dedupeKey: 'vacated-key',
+    });
+    // Correction onto an untyped target: the vacated identity's row must go.
+    await deleteWhObservation(harness.db, 'vacated-key');
+    expect(await harness.db.select().from(whObservations)).toHaveLength(0);
+    await expect(
+      deleteWhObservation(harness.db, 'never-existed'),
+    ).resolves.toBeUndefined();
   });
 
   it('coarsens timestamps and corrects one deduplicated row in place', async () => {

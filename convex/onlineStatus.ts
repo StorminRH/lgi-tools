@@ -19,7 +19,6 @@ import {
   authenticatedSubject,
   characterSyncApplyFields,
   characterSyncResultFields,
-  selectCharacterRows,
   stampSyncSubject,
 } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
@@ -167,19 +166,18 @@ async function applyOnlineResult(
 export const purgeForUser = internalMutation({
   args: { userId: v.string(), characterId: v.union(v.number(), v.null()) },
   handler: async (ctx, { userId, characterId }) => {
-    const docs = await selectCharacterRows(
-      characterId,
-      async () => await ctx.db
+    const docs =
+      characterId === null
+        ? await ctx.db
             .query('characterOnline')
             .withIndex('by_user', (q) => q.eq('userId', userId))
-            .collect(),
-      async (selectedCharacterId) => await ctx.db
+            .collect()
+        : await ctx.db
             .query('characterOnline')
             .withIndex('by_user_character', (q) =>
-              q.eq('userId', userId).eq('characterId', selectedCharacterId),
+              q.eq('userId', userId).eq('characterId', characterId),
             )
-            .collect(),
-    );
+            .collect();
     for (const doc of docs) await ctx.db.delete(doc._id);
     return { deleted: docs.length };
   },
