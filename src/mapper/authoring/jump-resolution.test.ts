@@ -60,18 +60,14 @@ function pending(partial: Partial<ConnectionDetail> = {}): ConnectionDetail {
   });
 }
 
-describe('hasPendingResolution', () => {
-  it('requires an assumed provenance, recorded survivors, and a live row', () => {
+describe('jump resolution', () => {
+  it('requires assumed live survivors, labels candidates, and drops resolved stubs', () => {
     expect(hasPendingResolution(pending())).toBe(true);
     expect(hasPendingResolution(pending({ destinationProvenance: 'jump-verified' }))).toBe(false);
     expect(hasPendingResolution(pending({ pendingCandidates: null }))).toBe(false);
     expect(hasPendingResolution(pending({ pendingCandidates: [] }))).toBe(false);
     expect(hasPendingResolution(pending({ deletedAt: 5 }))).toBe(false);
-  });
-});
 
-describe('jumpResolutionCandidates', () => {
-  it('leads with the resolved row and labels survivors from the live feed', () => {
     const candidates = jumpResolutionCandidates(pending(), HOLES);
     expect(candidates).toEqual([
       {
@@ -89,11 +85,8 @@ describe('jumpResolutionCandidates', () => {
     ]);
     expect(jumpCandidateLabel(candidates[0]!)).toBe('ABC-123 · K162');
     expect(jumpCandidateLabel(candidates[1]!)).toBe('DEF-456 · Unidentified');
-  });
 
-  it('drops survivors that resolved or tombstoned out of the live feed', () => {
-    const candidates = jumpResolutionCandidates(pending(), []);
-    expect(candidates).toEqual([
+    expect(jumpResolutionCandidates(pending(), [])).toEqual([
       {
         connectionId: C1,
         signatureId: 'ABC-123',
@@ -102,10 +95,8 @@ describe('jumpResolutionCandidates', () => {
       },
     ]);
   });
-});
 
-describe('pendingJumpResolution', () => {
-  it('surfaces the newest pending row and honors local dismissal', () => {
+  it('surfaces the newest pending row, honors dismissal, and ignores settled rows', () => {
     const older = pending();
     const newer = pending({
       connectionId: 'c9' as Id<'mapConnections'>,
@@ -122,9 +113,7 @@ describe('pendingJumpResolution', () => {
       pendingJumpResolution(details, HOLES, new Set(['c9']))?.connectionId,
     ).toBe('c1');
     expect(pendingJumpResolution(details, HOLES, new Set(['c1', 'c9']))).toBeNull();
-  });
 
-  it('ignores rows with no answerable resolution', () => {
     const settled = detail({ connectionId: C1, destinationProvenance: 'jump-verified' });
     expect(
       pendingJumpResolution(new Map([[C1, settled]]), HOLES, new Set()),

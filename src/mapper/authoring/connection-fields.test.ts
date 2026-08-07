@@ -104,8 +104,8 @@ describe('optional field encode/decode', () => {
 });
 
 describe('connection fields form', () => {
-  it('wires type search and dropdowns including unset stability', () => {
-    const markup = renderToStaticMarkup(
+  it('wires edit-mode fields, locks typed size, and gates leads-to plus regen rows', () => {
+    const base = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: CONNECTION,
         codexReady: true,
@@ -116,19 +116,16 @@ describe('connection fields form', () => {
         setters: SETTERS,
       }),
     );
+    expect(base).toContain('data-map-connection-fields');
+    expect(base).toContain('data-terminal-search');
+    expect(base).toContain('data-initial="B274"');
+    expect(base).toContain('data-select="Mass stability"');
+    expect(base).toContain(`data-value="${UNSET_FIELD}"`);
+    expect(base).toContain('data-select="Ship size"');
+    expect(base).toContain('data-value="M"');
+    expect(base).toContain('data-select="Life stage"');
 
-    expect(markup).toContain('data-map-connection-fields');
-    expect(markup).toContain('data-terminal-search');
-    expect(markup).toContain('data-initial="B274"');
-    expect(markup).toContain('data-select="Mass stability"');
-    expect(markup).toContain(`data-value="${UNSET_FIELD}"`);
-    expect(markup).toContain('data-select="Ship size"');
-    expect(markup).toContain('data-value="M"');
-    expect(markup).toContain('data-select="Life stage"');
-  });
-
-  it('locks codex-owned size and shows the read-only panel for typed holes (HC-1)', () => {
-    const markup = renderToStaticMarkup(
+    const typed = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: CONNECTION,
         codexReady: true,
@@ -140,19 +137,18 @@ describe('connection fields form', () => {
         setters: SETTERS,
       }),
     );
+    expect(typed).toContain('data-map-connection-codex');
+    expect(typed).toContain('data-map-codex-fact="Total mass"');
+    expect(typed).toContain('data-map-connection-size-locked');
+    expect(typed).toContain('>L<');
+    expect(typed).not.toContain('data-select="Ship size"');
+    expect(typed).toContain('data-map-connection-mass-range');
+    expect(typed).toContain('–');
+    expect(typed).toContain('data-map-connection-sever');
+    expect(typed).not.toContain('data-select="Leads to"');
+    expect(typed).not.toContain('data-map-codex-fact="Regeneration"');
 
-    expect(markup).toContain('data-map-connection-codex');
-    expect(markup).toContain('data-map-codex-fact="Total mass"');
-    expect(markup).toContain('data-map-connection-size-locked');
-    expect(markup).toContain('>L<');
-    expect(markup).not.toContain('data-select="Ship size"');
-    expect(markup).toContain('data-map-connection-mass-range');
-    expect(markup).toContain('–');
-    expect(markup).toContain('data-map-connection-sever');
-  });
-
-  it('keeps the editable ship-size select for K162 / untyped connections', () => {
-    const markup = renderToStaticMarkup(
+    const k162 = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: { ...CONNECTION, wormholeTypeCode: 'K162', shipSize: null },
         codexReady: true,
@@ -163,24 +159,9 @@ describe('connection fields form', () => {
         setters: SETTERS,
       }),
     );
-
-    expect(markup).not.toContain('data-map-connection-codex');
-    expect(markup).toContain('data-select="Ship size"');
-    expect(markup).not.toContain('data-map-connection-size-locked');
-  });
-
-  it('offers the leads-to hint only for K162 / unidentified holes (D11)', () => {
-    const k162 = renderToStaticMarkup(
-      createElement(ConnectionFields, {
-        connection: { ...CONNECTION, wormholeTypeCode: 'K162' },
-        codexReady: true,
-        codes: ['K162'],
-        entry: K162,
-        now: 1,
-        mode: 'edit',
-        setters: SETTERS,
-      }),
-    );
+    expect(k162).not.toContain('data-map-connection-codex');
+    expect(k162).toContain('data-select="Ship size"');
+    expect(k162).not.toContain('data-map-connection-size-locked');
     expect(k162).toContain('data-select="Leads to"');
 
     const untyped = renderToStaticMarkup(
@@ -195,35 +176,6 @@ describe('connection fields form', () => {
       }),
     );
     expect(untyped).toContain('data-select="Leads to"');
-
-    const typed = renderToStaticMarkup(
-      createElement(ConnectionFields, {
-        connection: CONNECTION,
-        codexReady: true,
-        codes: ['B274'],
-        entry: TYPED,
-        now: 1,
-        mode: 'edit',
-        setters: SETTERS,
-      }),
-    );
-    expect(typed).not.toContain('data-select="Leads to"');
-  });
-
-  it('renders the codex regeneration row only when regeneration is nonzero', () => {
-    const still = renderToStaticMarkup(
-      createElement(ConnectionFields, {
-        connection: CONNECTION,
-        codexReady: true,
-        codes: ['B274'],
-        entry: TYPED,
-        now: 1,
-        mode: 'edit',
-        setters: SETTERS,
-      }),
-    );
-    expect(still).toContain('data-map-connection-codex');
-    expect(still).not.toContain('data-map-codex-fact="Regeneration"');
 
     const regen = renderToStaticMarkup(
       createElement(ConnectionFields, {
@@ -240,7 +192,7 @@ describe('connection fields form', () => {
     expect(regen).toContain('data-map-connection-mass-regen');
   });
 
-  it('shows the answerable auto-link group only while controls are supplied', () => {
+  it('shows answerable auto-link controls when supplied and opens restore-only mode without editors', () => {
     const pending = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: {
@@ -294,10 +246,8 @@ describe('connection fields form', () => {
       }),
     );
     expect(plain).not.toContain('data-map-connection-resolution');
-  });
 
-  it('opens restore-only mode without field editors or sever', () => {
-    const markup = renderToStaticMarkup(
+    const restore = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: {
           ...CONNECTION,
@@ -313,11 +263,10 @@ describe('connection fields form', () => {
         setters: SETTERS,
       }),
     );
-
-    expect(markup).toContain('data-map-connection-restore-mode');
-    expect(markup).toContain('data-map-connection-restore');
-    expect(markup).not.toContain('data-map-connection-sever');
-    expect(markup).not.toContain('data-terminal-search');
-    expect(markup).not.toContain('data-select="Mass stability"');
+    expect(restore).toContain('data-map-connection-restore-mode');
+    expect(restore).toContain('data-map-connection-restore');
+    expect(restore).not.toContain('data-map-connection-sever');
+    expect(restore).not.toContain('data-terminal-search');
+    expect(restore).not.toContain('data-select="Mass stability"');
   });
 });

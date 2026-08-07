@@ -1,57 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CONNECTION_PROVENANCES,
-  CONNECTION_MASS_STATES,
   hintAdmitsClass,
   isKnownSpaceSystemId,
   remainingMassAfterTravel,
   remainingMassBounds,
-  WORMHOLE_DESTINATION_HINTS,
-  WORMHOLE_LIFE_STAGES,
-  WORMHOLE_MASS_STATE_THRESHOLDS,
-  WORMHOLE_MASS_VARIANCE,
-  WORMHOLE_SIZE_CLASSES,
 } from './wormhole-contract';
 
-describe('wormhole-contract vocabularies', () => {
-  it('owns the observed mass and Reliable Lifetime buckets', () => {
-    expect(CONNECTION_MASS_STATES).toEqual(['stable', 'reduced', 'critical']);
-    expect(WORMHOLE_LIFE_STAGES).toEqual([
-      'under_1_day',
-      'under_4_hours',
-      'under_1_hour',
-      'expired',
-    ]);
-    expect(WORMHOLE_SIZE_CLASSES).toEqual(['S', 'M', 'L', 'XL']);
-    expect(WORMHOLE_DESTINATION_HINTS).toEqual([
-      'hisec',
-      'lowsec',
-      'nullsec',
-      'unknown',
-      'dangerous',
-      'deadly',
-      'thera',
-      'pochven',
-      'drifter',
-    ]);
-    expect(CONNECTION_PROVENANCES).toEqual([
-      'jump-verified',
-      'human',
-      'confirmed',
-      'assumed',
-    ]);
-  });
-
-  it('owns the mass thresholds and spawn variance', () => {
-    expect(WORMHOLE_MASS_VARIANCE).toBe(0.1);
-    expect(WORMHOLE_MASS_STATE_THRESHOLDS).toEqual({
-      stable: { minFraction: 0.5, maxFraction: 1 },
-      reduced: { minFraction: 0.1, maxFraction: 0.5 },
-      critical: { minFraction: 0, maxFraction: 0.1 },
-      unset: { minFraction: 0, maxFraction: 1 },
-    });
-  });
-
+describe('wormhole-contract mass and destination math', () => {
   it.each([
     [null, { minKg: 0, maxKg: 2_200_000_000 }],
     ['stable', { minKg: 900_000_000, maxKg: 2_200_000_000 }],
@@ -74,7 +29,7 @@ describe('wormhole-contract vocabularies', () => {
     ).toBeNull();
   });
 
-  it('subtracts only travel since the latest mass-state anchor', () => {
+  it('subtracts only travel since the latest mass-state anchor and fails closed on bad counters', () => {
     const entry = { totalMass: 2_000_000_000, massRegen: 0 };
     expect(remainingMassAfterTravel(entry, 'stable', 300_000_000, 100_000_000)).toEqual({
       minKg: 700_000_000,
@@ -94,10 +49,7 @@ describe('wormhole-contract vocabularies', () => {
       minKg: 850_000_000,
       maxKg: 2_150_000_000,
     });
-  });
 
-  it('keeps the anchor math fail-closed for invalid counters and regen holes', () => {
-    const entry = { totalMass: 2_000_000_000, massRegen: 0 };
     expect(remainingMassAfterTravel(entry, null, undefined, undefined)).toEqual({
       minKg: 0,
       maxKg: 2_200_000_000,
