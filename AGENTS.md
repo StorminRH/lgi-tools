@@ -5,7 +5,7 @@ slices and shared infrastructure.
 
 ## Stack
 
-Next.js 16.2.11 with Cache Components, React 19, strict TypeScript, Tailwind v4,
+Next.js 16.3.0 with Cache Components, React 19, strict TypeScript, Tailwind v4,
 Drizzle ORM, Neon Postgres, Convex, Better Auth, Upstash Redis, Vercel, pnpm,
 Vitest, and visx.
 

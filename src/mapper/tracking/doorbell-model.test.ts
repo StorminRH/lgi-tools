@@ -121,17 +121,21 @@ describe('ringPendingTransitions', () => {
     expect(retryRing).toHaveBeenCalledTimes(DOORBELL_ATTEMPT_CAP + 1);
 
     const overlapMemory = new Map<number, DoorbellMemoryEntry>();
-    let release: (value: JumpResolverResponse) => void = () => undefined;
+    // Collect every resolver so a regression that double-rings still resolves
+    // both promises and fails on the call-count assertion, not by timeout.
+    const releases: Array<(value: JumpResolverResponse | null) => void> = [];
     const overlapRing = vi.fn(
       () =>
         new Promise<JumpResolverResponse | null>((resolve) => {
-          release = resolve;
+          releases.push(resolve);
         }),
     );
     const firstPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
     // The double-invoked development effect re-enters before any response.
     const secondPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
-    release(response('processed'));
+    for (const release of releases) {
+      release(response('processed'));
+    }
     await Promise.all([firstPass, secondPass]);
     expect(overlapRing).toHaveBeenCalledTimes(1);
 
