@@ -16,26 +16,13 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **Deferred to 4.0.4.2.3 by operator ruling (2026-08-07, PR #368):** the
-  real-character behavioral validation of hidden-tab tracking merged without a
-  dev visual pass. The 4.0.4.2.3 plan/close-out must cover, alongside its own
-  fog/live-pilot G-1 gate: alt-tab past the old 60s window with jumps landing;
-  ~60s offline probe pacing and login resume; AFK dialog look/feel + dismissal
-  resume (dev-shortcut envs `NEXT_PUBLIC_AFK_HIDDEN_AFTER_MS` /
-  `NEXT_PUBLIC_AFK_PROMPT_TIMEOUT_MS`). Headless background-jump probes need
-  no real character: compose `convex/mapFixtures.ts`
-  (`seedTrackedLocationFixture`/`advanceTrackedLocationFixture`) with the
-  `atlas-afk-gate` probe's virtual-clock + hidden-visibility technique.
-  Presentation note: `mapTracking.forMap` exposes only last-CHANGE
-  `observedAt`, so paused/stalled tracking renders like a stationary pilot —
-  live-pilot presentation should surface staleness honestly. Also pending:
-  the tiny drain-end wipe PR (drop `onlineStatus` schema literals +
-  `characterOnline` + keeper/GC) once prod rows drain post-#368.
-- **CURRENT / NEXT:** session **4.0.4.2.3** (fog, halo, pilot presence) is in
-  Ordered work on `lifecycle/4.0.4.2` (plan
-  `docs/session-plans/4.0/4.0.4.2.3.md`; 4.0.4.2.2 merged as PR #365).
-- **OW progress:** `4/5 complete` — next: Ordered work step 5, UX gate (G-1)
-  + #368 checklist.
+- **CURRENT / NEXT:** session **4.0.4.2.3** Ordered work is complete on
+  `lifecycle/4.0.4.2` (plan `docs/session-plans/4.0/4.0.4.2.3.md`) —
+  awaiting close-out. G-1 + #368 real-character checklist accepted by
+  operator (2026-08-07). Still pending separately: the tiny drain-end wipe
+  PR (drop `onlineStatus` schema literals + `characterOnline` + keeper/GC)
+  once prod rows drain post-#368.
+- **OW progress:** `5/5 complete` — awaiting close-out.
 - **OW completed:**
   - OW1 — widget-frame node primitive: `SystemNode.tsx` (frame 120×88 declared
     data-side, header name, centered disc, widget rail), `edge-geometry.ts`
@@ -92,75 +79,38 @@
     (SC-6.2: 55 authored + 150-cap halo, p50 8.4 ms / p95 33.4 ms vs 17/34
     budget, returns to zero rAF), full verify green (fallow: no issues in 61
     changed files). Primitive-checker CLEAN after 1 correction
-    (DialGroupHeader retrofit). Commit: see this commit's SHA.
-- **Next-agent notes (4.0.4.2.3):**
-  - Node dims are DECLARED (`width`/`height` on the node object in
-    `syncNodes`) — React Flow v12 renders them as wrapper inline styles, so
-    edges/fits/followers see the box before ResizeObserver measurement; halo
-    nodes (OW3) must declare the same constants.
-  - Frame-center policy has ONE owner: `endpointFrame` + `frameCenter` in
-    `src/mapper/canvas/edge-geometry.ts`; node-data display fields have ONE
-    owner too: `useNodeDataString` in `src/mapper/windows/node-fields.ts`
-    (window titles and the intelligence body both route through it).
-  - `SYSTEM_DISC_RADIUS` is gone; the disc is frame-internal presentation.
-  - Presence seams: badge/body consume `presence-context.ts` (no Convex
-    import chain — SystemNode markup tests need no client); the provider owns
-    the AFK gate and `TrackingHeartbeat` consumes it via `useMapPresenceAfk`.
-    `forMap` now also reads tracked owners' `syncSubjects` rows, so every
-    completed sync run re-pushes forMap to viewers — the intended freshness
-    signal (plan interface), noted for perf awareness.
-  - G-1 presentation note: the friendlies readout renders as a two-column
-    list (`ul`), not a `<table>` — raw tables are lint-banned and StaticTable
-    forces a labeled header against the operator's "nothing more" direction.
-  - Probe ops: `atlas-background-tracking` needs a FRESH empty `UX_BG_MAP_ID`
-    map; seeding one for the synthetic pilot requires stamping
-    `characters.affiliationRefreshedAt` first or `projectMapAccess` fails
-    transiently (no live ESI identity). Fixture timestamps split on purpose:
-    `transitionObservedAt` real time (server capture window), `feedFreshAt`
-    virtual now (client staleness).
-  - OW5 (G-1) pinning: halo/fog dials live in MapControls (dev-only); the
-    chosen values pin as constants in `halo-model.ts` (`HALO_*`) and
-    `fog-model.ts` (`FOG_*` + `DEFAULT_FOG_CONFIG`) — the dial state merely
-    starts at the pins, so pinning = edit the constants, dials stay. Fog
-    color is the `--color-map-fog` @theme token (globals.css).
-  - Fog perf headroom note for G-1: `atlas-fog-budget` measured p95 33.4 ms
-    against the 34 ms budget at max combined load (dynamic tier) — the
-    `static` smoke tier on the Fog dials segmented control is the pinned
-    degradation if live review sees misses.
-  - Fog probe ops (both need fresh disposable maps, same recipe as
-    atlas-halo): `UX_FOG_MAP_ID` (layering, leaves one Jita anchor) and
-    `UX_FOG_BUDGET_MAP_ID` (budget, seeds ~55 systems over ~1–2 min of
-    sequential convex runs). Operator captures from this step live in
-    gitignored `docs/ux-check/captures/fog-*.png`.
-  - ⚠ `atlas-motion-glide` still checks edge endpoints against the PRE-OW1
-    disc geometry (`DISC_RADIUS 22`, disc atop column); edges now clip to
-    the 120×88 frame box, so that probe's rim assertion will fail if OW5's
-    sweep runs it — update its rim math to `endpointFrame` semantics first.
-  - Fog scheduling contract: NO standing rAF loop — frames only on
-    presentation change / viewport settle / pane resize, re-armed while
-    `animating`; `atlas-motion-idle`'s zero-registration idle assertion now
-    also covers fog. `runFogTick` (fog-host.ts) is the tested owner; keep
-    FogLayer.tsx functions ≤4 cyclomatic (CRAP: .tsx has no coverage).
-    The fog canvas MUST stay the direct ViewportPortal child — any wrapper
-    creating a stacking context traps the z:-1 and paints fog over the map.
-  - Halo nodes live in ChainHost's controlled node set (selection
-    round-trips through `applyNodeChanges`); never draggable; inertness is
-    node-level `style.pointerEvents` (ghost precedent — a class can never
-    win). The derived→authored upgrade reuses the node id and
-    `stripDerivedControls` sheds draggable/selectable/style — spreading a
-    retained halo node unchanged would leave an authored system inert.
-  - Fallow gotcha: the cognitive cap (15) binds BFS/scan-shaped functions —
-    keep per-ring/per-frontier expansion in extracted helpers (deriveHalo,
-    derivePilotPath, buildEdges all shipped that shape after a red gate).
-    The engine.ts clone group was OW2 scope fallout, deduped via
-    `takeRetiredRows`.
-  - `atlas-halo` probe ops: fresh disposable map per run —
-    `psql: insert into maps (user_id, name) values ('e2e-pilot', ...)`,
-    stamp `characters.affiliation_refreshed_at` for character 9000001
-    (projection otherwise fails "affiliation refresh failed transiently"),
-    `pnpm map:project-access project <id>`, then
-    `UX_HALO_MAP_ID=<id> node docs/ux-check/run-probes.mjs
-    --storage-state=docs/ux-check/captures/auth-storage.json atlas-halo`.
+    (DialGroupHeader retrofit). Commit: 1e5c6c76.
+  - OW5 — UX gate (G-1) + #368 checklist: operator-pinned halo
+    (`HALO_DRAWN_RINGS=1`, fogged `1`, per-exit `10`, total `150`) and fog
+    (`FOG_REVEAL_RADIUS=280`, stroke `120`, opacity `0.95`, tier `dynamic`);
+    dev dials retained. Presence badge → disc top-right silhouette
+    (operator offset `-right-[13px] -top-[3px]`). Node follower routes
+    through `endpointFrame`/`frameCenter`. Map settings: drop auto-layout
+    description subtext; labels stay lowercase. Probes: frame-perimeter
+    glide, SC-3.3 summary+dock friendlies, window-track birth settle.
+    Operator review: fog/pilot/arrow/reveal, AFK dialog look (Still
+    mapping?), #368 live-character pass. Proof: focused 80 units + full
+    verify green (fallow clean, 68 changed files), primitive-checker CLEAN.
+    Commit: 9a24326f.
+- **Next-agent notes (4.0.4.2.3 → close-out):**
+  - G-1 pins live in `halo-model.ts` (`HALO_*` / `HALO_PINNED_LIMITS`) and
+    `fog-model.ts` (`FOG_*` / `DEFAULT_FOG_CONFIG`); dials start at those
+    pins and stay for future retune. Fog color remains `--color-map-fog`.
+  - Presence badge is on the disc rim (`data-chain-node-widgets` absolute
+    `-right-[13px] -top-[3px]`), silhouette via `currentColor` +
+    `text-isk`/`text-muted` — not the old bottom-rail Dot.
+  - Node follower and edges share `endpointFrame`/`frameCenter`; do not
+    reintroduce measured-only centers.
+  - #368 real-character checklist is operator-accepted this gate; clear the
+    old deferral note at close-out (drain-end wipe stays deferred/unscheduled).
+  - Close-out owns: changelog + `APP_VERSION` 4.0.4.2.3, as-built, PR to
+    `main` (per-session PR rule), adversarial review, merge, production
+    proof. Do not re-run ux-check.
+  - Probe ops unchanged from OW3/OW4 notes (fresh disposable maps for
+    halo/fog/bg; `atlas-motion-glide` now uses frame-perimeter math).
+  - Frame dims remain DECLARED on the node object; fog canvas stays the
+    direct ViewportPortal child (z:-1); halo nodes never draggable and
+    upgrade must `stripDerivedControls`.
 - **Shipped 4.0.4.2.2 (awaiting merge):** merged unresolved-signature/connection
   model; pure eliminator + statics census; one-transaction Convex jump
   authoring behind two bearer doors; D16 observation slice (five-field Neon
@@ -192,8 +142,8 @@
   surface rebuilds from git history rather than inheriting an unreachable
   path; the pointer-only-grip precedent stays recorded in the 4.0.3.3.1
   as-built. (6) Atlas map-lock pref key is `atlas.autoLayout` (ON = computed
-  layout owns positions; re-enabling releases user placements — disclosed via
-  the page-settings `description` slot).
+  layout owns positions; re-enabling releases user placements — description
+  subtext removed at 4.0.4.2.3 G-1 by operator direction).
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,

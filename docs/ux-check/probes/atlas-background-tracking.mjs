@@ -201,6 +201,35 @@ export default {
       && (await badgeIn(page, ORIGIN_SYSTEM_ID).count()) === 0,
     );
 
+    // SC-3.3: summary card shares SystemIntelligenceBody. Root selection is
+    // dock-only — open the non-root destination (where the pilot stands).
+    await setVisibility(page, 'visible');
+    const destDisc = page.locator(
+      `.react-flow__node[data-id="${DESTINATION_SYSTEM_ID}"] .map-node-disc`,
+    );
+    const discBox = await destDisc.boundingBox();
+    if (discBox !== null) {
+      await page.mouse.click(discBox.x + discBox.width / 2, discBox.y + discBox.height / 2);
+    }
+    const summary = page.locator('[data-map-window="summary"]').filter({ visible: true });
+    await summary.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
+    const summaryHeader = summary.locator('[data-intel-section="summary"]');
+    const summaryRow = summary.locator(`[data-presence-pilot="${CHARACTER_ID}"]`);
+    await summaryRow.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
+    check(
+      'summary card intelligence header is present',
+      (await summaryHeader.count()) === 1,
+    );
+    const summaryStatus = await summaryRow
+      .locator('[data-presence-status]')
+      .getAttribute('data-presence-status')
+      .catch(() => null);
+    check(
+      'summary card friendlies list the pilot as In space',
+      summaryStatus === 'In space',
+    );
+    await setVisibility(page, 'hidden');
+
     // ── Return jump: presence comes home; the dock row is live again ────────
     const returned = await doorbellAfter(page, async () => {
       await convexRun('mapFixtures:advanceTrackedLocationFixture', {

@@ -20,13 +20,13 @@ import type { LayoutFacts } from '../layout/layout-contract';
  * Ring depths drawn as visible halo systems. Pinned constant tuned at the
  * G-1 gate; no runtime configuration surface (operator direction, plan PD-2).
  */
-export const HALO_DRAWN_RINGS = 2;
+export const HALO_DRAWN_RINGS = 1;
 
 /** Ring depths placed under fog beyond the drawn rings; see `HALO_DRAWN_RINGS`. */
 export const HALO_FOGGED_RINGS = 1;
 
 /** Hard cap on systems any single authored exit may claim. */
-export const HALO_MAX_SYSTEMS_PER_EXIT = 60;
+export const HALO_MAX_SYSTEMS_PER_EXIT = 10;
 
 /**
  * Hard aggregate cap across every exit, so a many-exit chain's halo load has

@@ -125,6 +125,7 @@ export async function installMotionMetrics(page) {
               x: position === null ? null : position.x,
               y: position === null ? null : position.y,
               width: node.offsetWidth,
+              height: node.offsetHeight,
             };
           },
         );

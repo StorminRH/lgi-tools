@@ -204,6 +204,24 @@ describe('node follower model', () => {
       computeFollowerTransform(null, '2', [0, 0, 1], undefined, false, card, layer),
     ).toBeNull();
   });
+
+  it('positions from declared frame dimensions before measurement lands', () => {
+    const layer = { width: 800, height: 600 };
+    const card = NODE_CARD_FALLBACK;
+    // Declared 120×88 frame: center (60, 44) → screen (60, 44) at identity camera.
+    const first = computeFollowerTransform(
+      null,
+      '2',
+      [0, 0, 1],
+      declaredNode(0, 0, 120, 88),
+      true,
+      card,
+      layer,
+    );
+    expect(first?.write.transform).toBe('translate(100px, 16px)');
+    expect(first?.baseline.width).toBe(120);
+    expect(first?.baseline.height).toBe(88);
+  });
 });
 
 const noopSizeObserver = () => () => undefined;

@@ -13,10 +13,9 @@ import {
 
 // A small deterministic k-space neighbourhood around exit 100:
 //
-//   ring 1: 1, 2        (gates from 100)
-//   ring 2: 3 (via 1), 4 (via 2)
-//   ring 3: 5 (via 3), 7 (via 4) — fogged at the pinned depths; 5–7 adjacent
-//   ring 4: 6 (via 5) — beyond every pinned depth
+//   ring 1: 1, 2        (gates from 100) — drawn at the pinned depth
+//   ring 2: 3 (via 1), 4 (via 2) — fogged at the pinned depth
+//   ring 3+: beyond the pinned extent (reachable only via deeper dials)
 //
 // Neighbour lists are sorted, mirroring the client asset's contract.
 const ADJACENCY = new Map<number, readonly number[]>([
@@ -57,19 +56,17 @@ function inputFor(
 }
 
 describe('deriveHalo', () => {
-  it('fans two drawn rings and one fogged ring from a k-space exit', () => {
+  it('fans one drawn ring and one fogged ring from a k-space exit', () => {
     const halo = deriveHalo(inputFor([100]));
     const byId = new Map(halo.systems.map((system) => [system.systemId, system]));
 
-    expect(HALO_DRAWN_RINGS).toBe(2);
+    expect(HALO_DRAWN_RINGS).toBe(1);
     expect(HALO_FOGGED_RINGS).toBe(1);
-    expect([...byId.keys()].toSorted((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 7]);
+    expect([...byId.keys()].toSorted((a, b) => a - b)).toEqual([1, 2, 3, 4]);
     expect(byId.get(1)).toMatchObject({ ring: 1, fogged: false });
     expect(byId.get(2)).toMatchObject({ ring: 1, fogged: false });
-    expect(byId.get(3)).toMatchObject({ ring: 2, fogged: false });
-    expect(byId.get(4)).toMatchObject({ ring: 2, fogged: false });
-    expect(byId.get(5)).toMatchObject({ ring: 3, fogged: true });
-    expect(byId.get(7)).toMatchObject({ ring: 3, fogged: true });
+    expect(byId.get(3)).toMatchObject({ ring: 2, fogged: true });
+    expect(byId.get(4)).toMatchObject({ ring: 2, fogged: true });
   });
 
   it('derives an empty halo for J-space-only and unknown-id inputs', () => {
@@ -119,11 +116,20 @@ describe('deriveHalo', () => {
   });
 
   it('never links two fogged systems together', () => {
-    const halo = deriveHalo(inputFor([100]));
+    // Use a deeper extent so two gate-adjacent systems land under fog (5↔7).
+    const halo = deriveHalo(
+      inputFor([100], {
+        limits: {
+          drawnRings: 2,
+          foggedRings: 1,
+          maxSystemsPerExit: 60,
+          maxSystemsTotal: 150,
+        },
+      }),
+    );
     const fogged = new Set(
       halo.systems.filter((system) => system.fogged).map((system) => system.systemId),
     );
-    // 5 and 7 are gate-adjacent and both fogged: nothing may draw that line.
     expect(fogged).toEqual(new Set([5, 7]));
     expect(
       halo.links.some((link) => fogged.has(link.a) && fogged.has(link.b)),

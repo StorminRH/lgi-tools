@@ -57,11 +57,7 @@ describe('resolveMenuControls', () => {
 
     const booleans = resolveMenuControls(
       spec([
-        {
-          key: 'atlas.autoLayout',
-          placement: 'section',
-          description: 're-enabling restores the computed layout',
-        },
+        { key: 'atlas.autoLayout', placement: 'section' },
         { key: 'atlas.cameraFollow', placement: 'section' },
         { key: 'atlas.clickFocus', placement: 'section' },
       ]),
@@ -82,7 +78,7 @@ describe('resolveMenuControls', () => {
       'click focus',
     ]);
     expect(booleans.map((m) => m.description)).toEqual([
-      're-enabling restores the computed layout',
+      undefined,
       undefined,
       undefined,
     ]);

@@ -2,8 +2,8 @@
 
 // One system node on the chain canvas: an invisible widget frame whose bounds
 // ARE the node box — the system name in the frame header, the class-labeled
-// disc centered inside, and widget slots along the bottom edge for at-a-glance
-// indicators (pilot presence first; gas/anomaly readouts extend it later).
+// disc centered inside, and widget slots on the disc (pilot presence on the
+// top-right rim first; gas/anomaly readouts extend the rail later).
 //
 // The frame is declared data-side (`width`/`height` on the node object, set by
 // `syncNodes`) so React Flow sizes the wrapper before any DOM measurement:
@@ -126,12 +126,12 @@ function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
           </span>
         )}
         <Handle type="source" position={Position.Right} className={CENTER_HANDLE_CLASS} />
-      </div>
-      <div
-        data-chain-node-widgets
-        className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-1"
-      >
-        <PilotPresenceBadge systemId={Number(id)} />
+        <div
+          data-chain-node-widgets
+          className="absolute -right-[13px] -top-[3px] flex items-center justify-end gap-0.5"
+        >
+          <PilotPresenceBadge systemId={Number(id)} />
+        </div>
       </div>
     </div>
   );

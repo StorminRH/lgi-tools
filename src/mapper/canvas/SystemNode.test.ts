@@ -160,11 +160,14 @@ describe('presence badge markup', () => {
   it('renders the live tone while any pilot feed is fresh', () => {
     const rendered = badge({ pilots: [pilot({ state: 'stale' }), pilot({ characterId: 2 })] });
     expect(rendered).toContain('data-pilot-presence="live"');
+    expect(rendered).toContain('text-isk');
+    expect(rendered).toContain('<svg');
   });
 
   it('dims to the stale tone once every feed is old, staying visibly provisional', () => {
     const rendered = badge({ pilots: [pilot({ state: 'stale' })] });
     expect(rendered).toContain('data-pilot-presence="stale"');
+    expect(rendered).toContain('text-muted');
   });
 
   it('shows a count only when more than one pilot shares the system', () => {

@@ -15,13 +15,7 @@ export const atlasPageSettings: PageSettingsSpec = {
   route: '/atlas',
   title: 'Map settings',
   controls: [
-    {
-      key: atlasAutoLayout.key,
-      placement: 'section',
-      // Turning auto layout back ON discards dragged positions — the one
-      // destructive-ish consequence in this menu, disclosed on the row.
-      description: 're-enabling restores the computed layout',
-    },
+    { key: atlasAutoLayout.key, placement: 'section' },
     { key: atlasCameraFollow.key, placement: 'section' },
     { key: atlasClickFocus.key, placement: 'section' },
   ],

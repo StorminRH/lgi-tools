@@ -257,7 +257,9 @@ export interface FollowerDecision {
 
 /**
  * Decides the node-anchored card transform from one installed-store snapshot.
- * A new anchor always writes once; unchanged facts write nothing.
+ * A new anchor always writes once; unchanged facts write nothing. Anchor
+ * center flows through `endpointFrame` / `frameCenter` — the same frame
+ * owner edges and cameras use (declared dims cover the pre-measure window).
  */
 export function computeFollowerTransform(
   baseline: FollowerBaseline | null,
@@ -268,17 +270,16 @@ export function computeFollowerTransform(
   card: ScreenSize,
   layer: ScreenSize,
 ): FollowerDecision | null {
-  const width = anchor?.measured.width;
-  const height = anchor?.measured.height;
-  if (!measured || anchor === undefined || width === undefined || height === undefined) {
-    return null;
-  }
+  if (!measured || anchor === undefined) return null;
+  const frame = endpointFrame(anchor);
+  if (frame === null) return null;
+  const center = frameCenter(frame);
 
   const [tx, ty, zoom] = viewport;
   const placed = anchoredFollowerWrite(
     {
-      x: tx + (anchor.internals.positionAbsolute.x + width / 2) * zoom,
-      y: ty + (anchor.internals.positionAbsolute.y + height / 2) * zoom,
+      x: tx + center.x * zoom,
+      y: ty + center.y * zoom,
     },
     card,
     layer,
@@ -287,10 +288,10 @@ export function computeFollowerTransform(
   );
   const next: FollowerBaseline = {
     anchorId,
-    x: anchor.internals.positionAbsolute.x,
-    y: anchor.internals.positionAbsolute.y,
-    width,
-    height,
+    x: frame.x,
+    y: frame.y,
+    width: frame.width,
+    height: frame.height,
     tx,
     ty,
     zoom,
