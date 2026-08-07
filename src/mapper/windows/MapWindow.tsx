@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { scrollArea } from '@/components/ui/scroll-area';
-import { mapFrostedSurface } from '../map-frosted-surface';
+import { mapFrostedSurface, mapOverlaySurface } from '../map-frosted-surface';
 import { createPointerGesture, type PointerDelta } from './drag-resize';
 import {
   keydownAction,
@@ -47,6 +47,11 @@ export interface MapWindowProps {
   readonly onClose: () => void;
   /** When false, the title-bar × is omitted (outside-click / Escape still close). */
   readonly showCloseButton?: boolean;
+  /**
+   * `panel` is the frosted card chrome. `overlay` is a content-sized floating
+   * text surface (current-system dock) — faint glass, no border/shadow.
+   */
+  readonly appearance?: 'panel' | 'overlay';
   readonly onActivate: () => void;
   readonly onPopToggle?: () => void;
   readonly onDragDelta?: (delta: PointerDelta) => void;
@@ -77,13 +82,23 @@ function assignForwardedRef(
   else if (forwardedRef !== null) forwardedRef.current = node;
 }
 
-function placementClassName(placement: WindowPlacement): string | false {
+function placementClassName(
+  placement: WindowPlacement,
+  overlay: boolean,
+): string | false {
   if (placement.kind === 'docked') {
-    // left-4 matches MapChrome hamburger; bottom-16 clears the audit-log strip.
-    return 'left-4 top-[4.5rem] bottom-16 w-[360px] max-w-[calc(100vw-2rem)]';
+    // Top-left: chrome moved to top-right, so the dock can sit at the edge.
+    // Overlay hugs content; panel fills the left rail down to the audit-log strip.
+    return overlay
+      ? 'left-4 top-4 h-auto w-max max-w-[min(24rem,calc(100vw-2rem))]'
+      : 'left-4 top-4 bottom-16 w-[360px] max-w-[calc(100vw-2rem)]';
   }
   if (placement.kind === 'floating') {
-    return 'left-[var(--map-window-x)] top-[var(--map-window-y)] h-[var(--map-window-height)] w-[var(--map-window-width)]';
+    // Overlay keeps only the floating origin; size follows content. Panel uses
+    // the persisted width/height rectangle.
+    return overlay
+      ? 'left-[var(--map-window-x)] top-[var(--map-window-y)] h-auto w-max max-w-[min(24rem,calc(100vw-2rem))]'
+      : 'left-[var(--map-window-x)] top-[var(--map-window-y)] h-[var(--map-window-height)] w-[var(--map-window-width)]';
   }
   // node-anchored and edge-anchored both ride `--map-window-transform`.
   if (placement.kind === 'edge-anchored') {
@@ -131,6 +146,7 @@ function PopToggle({
 function WindowHeader({
   title,
   floating,
+  overlay,
   showCloseButton,
   onClose,
   onPopToggle,
@@ -138,6 +154,7 @@ function WindowHeader({
 }: {
   readonly title: string;
   readonly floating: boolean;
+  readonly overlay: boolean;
   readonly showCloseButton: boolean;
   readonly onClose: () => void;
   readonly onPopToggle?: () => void;
@@ -159,12 +176,20 @@ function WindowHeader({
     <header
       data-map-window-drag={floating ? '' : undefined}
       className={cn(
-        'flex h-8 shrink-0 items-center gap-1 border-b border-border/80 px-1.5',
+        'flex shrink-0 items-center gap-1 px-1.5',
+        overlay ? 'h-auto min-h-8 border-0 py-1' : 'h-8 border-b border-border/80',
         floating && 'cursor-move touch-none',
       )}
       onPointerDown={handlePointerDown}
     >
-      <h2 className="min-w-0 flex-1 truncate px-1 text-center font-data text-label uppercase tracking-label text-name">
+      <h2
+        className={cn(
+          'min-w-0 flex-1 truncate px-1',
+          overlay
+            ? 'text-left font-display text-h3 font-bold tracking-copy text-name'
+            : 'text-center font-data text-label uppercase tracking-label text-name',
+        )}
+      >
         {title}
       </h2>
       <PopToggle
@@ -188,12 +213,15 @@ function WindowHeader({
 
 function ResizeHandle({
   floating,
+  overlay,
   onPointerDown,
 }: {
   readonly floating: boolean;
+  readonly overlay: boolean;
   readonly onPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
 }) {
-  if (!floating) return null;
+  // Overlay docks hug content — free resize fights auto-sizing.
+  if (!floating || overlay) return null;
   // Pointer-only grip: free resize is a drag gesture, not a keyboard control.
   return (
     <div
@@ -217,6 +245,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       stackIndex,
       onClose,
       showCloseButton = true,
+      appearance = 'panel',
       onActivate,
       onPopToggle,
       onDragDelta,
@@ -278,16 +307,23 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
     };
 
     const floating = placement.kind === 'floating';
+    const overlay = appearance === 'overlay';
 
     return (
       <section
         ref={setRootRef}
         data-map-window={windowId}
         data-map-window-placement={placement.kind}
+        data-map-window-appearance={appearance}
         className={cn(
-          'nokey pointer-events-auto absolute z-[var(--map-window-z)] flex min-h-0 flex-col overflow-hidden rounded-card text-ui',
-          mapFrostedSurface,
-          placementClassName(placement),
+          'nokey absolute z-[var(--map-window-z)] flex min-h-0 flex-col overflow-hidden text-ui',
+          overlay
+            ? cn('pointer-events-auto rounded-ctl', mapOverlaySurface)
+            : cn('pointer-events-auto rounded-card', mapFrostedSurface),
+          placementClassName(placement, overlay),
+          (placement.kind === 'edge-anchored' ||
+            placement.kind === 'node-anchored') &&
+            'map-node-enter',
         )}
         onKeyDown={handleKeyDown}
         onPointerDown={onActivate}
@@ -295,6 +331,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         <WindowHeader
           title={title}
           floating={floating}
+          overlay={overlay}
           showCloseButton={showCloseButton}
           onClose={onClose}
           onPopToggle={onPopToggle}
@@ -304,15 +341,19 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
           data-map-window-scroll
           className={cn(
             scrollArea,
-            // pl compensates the painted 10px track when both-edges is ignored
-            // (some engines only reserve the classic right gutter).
-            'min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 pl-[22px] pr-3',
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain',
+            overlay
+              ? 'px-2.5 pb-2 pt-0.5 text-left'
+              : // pl compensates the painted 10px track when both-edges is ignored
+                // (some engines only reserve the classic right gutter).
+                'py-2 pl-[22px] pr-3',
           )}
         >
           {children}
         </div>
         <ResizeHandle
           floating={floating}
+          overlay={overlay}
           onPointerDown={resizeGesture.onPointerDown}
         />
       </section>

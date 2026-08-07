@@ -52,6 +52,7 @@ import {
 } from '../layout/layout-contract';
 import {
   DEFAULT_MOTION_CONFIG,
+  motionCssProperties,
   type MotionConfig,
 } from '../motion/motion-contract';
 import type { MotionTruth } from '../motion/motion-host-model';
@@ -59,7 +60,6 @@ import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
 import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
 import { TrackingHeartbeat } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
-import type { RootClickSignal } from '../windows/window-model';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, syncNodes } from './nodes';
@@ -102,7 +102,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // Re-lock releases user placements only on transition to locked (not initial mount).
   const wasLockedRef = useRef(locked);
   const [focusRequest, setFocusRequest] = useState<CameraFocusRequest | null>(null);
-  const [rootClick, setRootClick] = useState<RootClickSignal | null>(null);
   const focusTokenRef = useRef(0);
   // Live dial state — local presentation only; never synchronized.
   const [config, setConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG);
@@ -111,6 +110,17 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const [motionConfig, setMotionConfig] = useState<MotionConfig>(
     DEFAULT_MOTION_CONFIG,
   );
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = shellRef.current;
+    if (element === null) return;
+    for (const [property, value] of Object.entries(
+      motionCssProperties(motionConfig),
+    )) {
+      element.style.setProperty(property, value);
+    }
+  }, [motionConfig]);
 
   const {
     access,
@@ -235,7 +245,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     (_event, clicked) => {
       focusTokenRef.current += 1;
       setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
-      setRootClick({ systemId: Number(clicked.id), token: focusTokenRef.current });
       setSelectedConnectionId(null);
     },
     [],
@@ -296,7 +305,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // affordances from the same live claim answer without a second subscription.
   return (
     <div
+      ref={shellRef}
       className="h-full w-full"
+      data-map-shell=""
       data-map-can-edit={canEdit === true ? 'true' : 'false'}
     >
       <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
@@ -337,7 +348,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
         </MotionLayer>
         <MapWindowLayer
           rootSystemId={rootSystemId}
-          rootClick={rootClick}
           onDeselect={deselectNodes}
         />
         <RightsTransitionToast canEdit={canEdit} />

@@ -18,7 +18,7 @@ export function MapMenu() {
       popupProps={{ 'data-map-menu-panel': '' }}
       className="min-w-60"
       side="bottom"
-      align="start"
+      align="end"
       sideOffset={8}
     >
       <MenuLinkItem

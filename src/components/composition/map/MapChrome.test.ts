@@ -41,6 +41,7 @@ describe('MapChrome', () => {
 
     expect(markup).toContain('data-map-menu');
     expect(markup).toContain('data-account-menu');
+    expect(markup).toContain('right-4 top-4');
     expect(markup).toContain('data-feedback-compact="true"');
     expect(markup).toMatch(
       /<div data-map-search-slot="true" aria-hidden="true"[^>]*><\/div>/,

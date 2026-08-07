@@ -6,3 +6,10 @@
  * here.
  */
 export const mapFrostedSurface = 'border border-border-idle glass-panel shadow-dd';
+
+/**
+ * Soft blur-only surface for content-sized map text overlays (current-system
+ * dock). No tint, border, or shadow — nodes behind soften while copy stays
+ * a floating caption.
+ */
+export const mapOverlaySurface = 'glass-panel-faint';

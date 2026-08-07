@@ -32,6 +32,8 @@ describe('MapWindow isolation markup', () => {
     expect(docked).toContain('data-map-window="test"');
     expect(docked).toContain('nokey');
     expect(docked).toContain('data-map-window-scroll');
+    expect(docked).toContain('data-map-window-appearance="panel"');
+    expect(docked).toContain('glass-panel');
     expect(docked).not.toContain('h-[calc(100dvh-5.5rem)]');
     expect(docked).not.toContain('data-map-window-drag');
     expect(docked).not.toContain('data-map-window-resize');
@@ -48,5 +50,51 @@ describe('MapWindow isolation markup', () => {
     expect(render({ kind: 'docked' }, { showCloseButton: false })).not.toContain(
       'Close Test window',
     );
+  });
+
+  it('renders overlay appearance as a content-sized faint glass caption', () => {
+    const html = renderToStaticMarkup(
+      createElement(MapWindow, {
+        windowId: 'dock',
+        title: 'Jita',
+        placement: { kind: 'docked' },
+        appearance: 'overlay',
+        stackIndex: 1,
+        onClose: vi.fn(),
+        onActivate: vi.fn(),
+        onPopToggle: vi.fn(),
+      }, createElement('p', null, 'content')),
+    );
+    expect(html).toContain('data-map-window-appearance="overlay"');
+    expect(html).toContain('glass-panel-faint');
+    expect(html).toContain('h-auto');
+    expect(html).toContain('w-max');
+    expect(html).toContain('text-left');
+    expect(html).toContain('text-h3');
+    expect(html).toContain('font-bold');
+    expect(html).toContain('left-4 top-4');
+    expect(html).not.toContain('glass-panel ');
+    expect(html).not.toContain('border-border-idle');
+    expect(html).not.toContain('shadow-dd');
+    expect(html).not.toContain('bottom-16');
+  });
+
+  it('plays the node birth overshoot on edge-anchored cards', () => {
+    const html = renderToStaticMarkup(
+      createElement(MapWindow, {
+        windowId: 'connection-details',
+        title: 'Connection',
+        placement: {
+          kind: 'edge-anchored',
+          fromSystemId: 1,
+          toSystemId: 2,
+        },
+        stackIndex: 1,
+        onClose: vi.fn(),
+        onActivate: vi.fn(),
+      }, createElement('p', null, 'content')),
+    );
+    expect(html).toContain('map-node-enter');
+    expect(html).toContain('data-map-window-placement="edge-anchored"');
   });
 });

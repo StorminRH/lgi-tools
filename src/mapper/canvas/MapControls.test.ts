@@ -31,6 +31,7 @@ describe('MapControls', () => {
       }),
     );
     expect(html).toContain('data-map-dev-dials');
+    expect(html).toContain('bottom-left');
     expect(html).toContain('Layout dials');
     expect(html).toContain('Motion dials');
     expect(html).not.toContain('Map lock');

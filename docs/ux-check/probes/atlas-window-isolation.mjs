@@ -5,7 +5,6 @@ import {
   openSummary,
   settleMapViewport,
   waitForWindowMap,
-  WINDOW_STORAGE_KEY,
 } from '../lib/window-helpers.mjs';
 
 const isolated = (result) =>
@@ -22,17 +21,16 @@ export default {
       check('UX_MAP_ID is set for the live map under test', false);
       return;
     }
-    await page.evaluate((key) => localStorage.removeItem(key), WINDOW_STORAGE_KEY);
-    await page.reload({ waitUntil: 'domcontentloaded' });
     await waitForWindowMap(page);
     const docked = await exerciseWindowInput(page, 'dock');
-    check('typing and scrolling in the dock leave the viewport untouched', isolated(docked));
-
-    const dock = mapWindow(page, 'dock');
-    await dock.getByRole('button', { name: /Pop out Current system/ }).click();
-    await settleMapViewport(page);
-    const floating = await exerciseWindowInput(page, 'dock');
-    check('typing and scrolling in the floating window leave the viewport untouched', isolated(floating));
+    check(
+      'typing and scrolling in the current-system readout leave the viewport untouched',
+      isolated(docked),
+    );
+    check(
+      'the readout stays docked (no floating mode)',
+      (await mapWindow(page, 'dock').getAttribute('data-map-window-placement')) === 'docked',
+    );
 
     const node = await openSummary(page);
     check('a non-root node is available for the card isolation pass', node !== null);

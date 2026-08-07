@@ -1,6 +1,3 @@
-/** Must stay identical to `WINDOW_STORAGE_KEY` in src/mapper/windows/persistence.ts. */
-export const WINDOW_STORAGE_KEY = 'lgi:map:windows:v1';
-
 export const atlasWindowRoute = () =>
   process.env.UX_MAP_ID ? `/atlas?map=${process.env.UX_MAP_ID}` : '/atlas';
 

@@ -175,7 +175,6 @@ describe('mapper source contract', () => {
       'windows/MapWindowLeader.tsx',
       'windows/drag-resize.ts',
       'windows/follower-model.ts',
-      'windows/persistence.ts',
       'windows/window-model.ts',
     ]);
   });

@@ -54,7 +54,10 @@ export interface FollowerWrite {
 export const CARD_VIEWPORT_PADDING = 16;
 
 /** Preferred gap between the anchor and the near card edge. */
-export const CARD_ANCHOR_GAP = 20;
+export const CARD_ANCHOR_GAP = 40;
+
+/** Which horizontal half of the anchor the card prefers to occupy. */
+export type CardAnchorSide = 'left' | 'right';
 
 /** Minimum rim-to-anchor distance before a leader line is drawn. */
 export const LEADER_MIN_DISTANCE = 12;
@@ -102,15 +105,20 @@ function anchoredFollowerWrite(
   screenAnchor: ScreenPoint,
   card: ScreenSize,
   layer: ScreenSize,
-): FollowerWrite {
+  side: CardAnchorSide | null,
+): { readonly write: FollowerWrite; readonly side: CardAnchorSide } {
   const placement = placeAnchoredCard({
     anchor: screenAnchor,
     card,
     viewport: layer,
+    side,
   });
   return {
-    transform: `translate(${placement.left}px, ${placement.top}px)`,
-    leader: placement.leader,
+    write: {
+      transform: `translate(${placement.left}px, ${placement.top}px)`,
+      leader: placement.leader,
+    },
+    side: placement.side,
   };
 }
 
@@ -129,8 +137,9 @@ export function nearestCardPoint(
 
 /**
  * Places a card near an anchor in screen/layer space: prefer the open
- * horizontal half, vertically center on the anchor, then inset-clamp so the
- * card stays readable inside the viewport (never flush to the edge).
+ * horizontal half on first placement, then keep that side sticky so camera
+ * pans push the card against the viewport instead of flipping it. Vertically
+ * center on the anchor, then inset-clamp so the card stays readable.
  */
 export function placeAnchoredCard(input: {
   readonly anchor: ScreenPoint;
@@ -139,17 +148,22 @@ export function placeAnchoredCard(input: {
   readonly gap?: number;
   readonly padding?: number;
   readonly leaderMinDistance?: number;
+  /** Sticky side from a prior frame; omit to choose from the midline. */
+  readonly side?: CardAnchorSide | null;
 }): {
   readonly left: number;
   readonly top: number;
   readonly leader: LeaderSegment | null;
+  readonly side: CardAnchorSide;
 } {
   const gap = input.gap ?? CARD_ANCHOR_GAP;
   const padding = input.padding ?? CARD_VIEWPORT_PADDING;
   const leaderMin = input.leaderMinDistance ?? LEADER_MIN_DISTANCE;
   const { anchor, card, viewport } = input;
 
-  const preferLeft = anchor.x >= viewport.width / 2;
+  const side: CardAnchorSide =
+    input.side ?? (anchor.x >= viewport.width / 2 ? 'left' : 'right');
+  const preferLeft = side === 'left';
   let left = preferLeft ? anchor.x - gap - card.width : anchor.x + gap;
   let top = anchor.y - card.height / 2;
 
@@ -165,7 +179,7 @@ export function placeAnchoredCard(input: {
       ? { x1: from.x, y1: from.y, x2: anchor.x, y2: anchor.y }
       : null;
 
-  return { left, top, leader };
+  return { left, top, leader, side };
 }
 
 /** Measured card size, or the fallback when the element has not laid out yet. */
@@ -227,6 +241,7 @@ interface FollowerBaseline {
   readonly cardHeight: number;
   readonly layerWidth: number;
   readonly layerHeight: number;
+  readonly side: CardAnchorSide;
 }
 
 /** One follower decision; `null` means leave the DOM untouched. */
@@ -255,6 +270,16 @@ export function computeFollowerTransform(
   }
 
   const [tx, ty, zoom] = viewport;
+  const placed = anchoredFollowerWrite(
+    {
+      x: tx + (anchor.internals.positionAbsolute.x + width / 2) * zoom,
+      y: ty + (anchor.internals.positionAbsolute.y + height / 2) * zoom,
+    },
+    card,
+    layer,
+    // Retargeting a new node picks a fresh side; same node keeps sticky side.
+    baseline !== null && baseline.anchorId === anchorId ? baseline.side : null,
+  );
   const next: FollowerBaseline = {
     anchorId,
     x: anchor.internals.positionAbsolute.x,
@@ -268,6 +293,7 @@ export function computeFollowerTransform(
     cardHeight: card.height,
     layerWidth: layer.width,
     layerHeight: layer.height,
+    side: placed.side,
   };
   if (
     baseline !== null &&
@@ -276,20 +302,14 @@ export function computeFollowerTransform(
     baseline.y === next.y &&
     baseline.width === next.width &&
     baseline.height === next.height &&
+    baseline.side === next.side &&
     sameSharedFollowerFrame(baseline, next)
   ) {
     return null;
   }
 
   return {
-    write: anchoredFollowerWrite(
-      {
-        x: tx + (next.x + width / 2) * zoom,
-        y: ty + (next.y + height / 2) * zoom,
-      },
-      card,
-      layer,
-    ),
+    write: placed.write,
     baseline: next,
   };
 }
@@ -441,6 +461,7 @@ interface EdgeFollowerBaseline {
   readonly cardHeight: number;
   readonly layerWidth: number;
   readonly layerHeight: number;
+  readonly side: CardAnchorSide;
 }
 
 /** One edge-follower decision; `null` means leave the DOM untouched. */
@@ -487,6 +508,16 @@ export function computeEdgeFollowerTransform(
   const [tx, ty, zoom] = viewport;
   const midX = (fromCenter.x + toCenter.x) / 2;
   const midY = (fromCenter.y + toCenter.y) / 2;
+  const sameEdge =
+    baseline !== null &&
+    baseline.fromId === fromId &&
+    baseline.toId === toId;
+  const placed = anchoredFollowerWrite(
+    { x: tx + midX * zoom, y: ty + midY * zoom },
+    card,
+    layer,
+    sameEdge ? baseline.side : null,
+  );
   const next: EdgeFollowerBaseline = {
     fromId,
     toId,
@@ -499,24 +530,20 @@ export function computeEdgeFollowerTransform(
     cardHeight: card.height,
     layerWidth: layer.width,
     layerHeight: layer.height,
+    side: placed.side,
   };
   if (
-    baseline !== null &&
-    baseline.fromId === next.fromId &&
-    baseline.toId === next.toId &&
+    sameEdge &&
     baseline.midX === next.midX &&
     baseline.midY === next.midY &&
+    baseline.side === next.side &&
     sameSharedFollowerFrame(baseline, next)
   ) {
     return null;
   }
 
   return {
-    write: anchoredFollowerWrite(
-      { x: tx + midX * zoom, y: ty + midY * zoom },
-      card,
-      layer,
-    ),
+    write: placed.write,
     baseline: next,
   };
 }

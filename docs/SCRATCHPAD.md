@@ -133,6 +133,18 @@
   prompt, and portrait-menu tracking states were accepted. A later popup move
   remains an optional future refinement, not a blocker. Tracking heartbeat
   remains canvas-mounted so closing the account menu never stops syncing.
+  (20) Post-G-1 atlas chrome polish (operator iteration, committed ahead of
+  close-out): portrait + hamburger top-right; layout/motion dials bottom-left
+  above the audit log (dev-only); current-system dock is a persistent top-left
+  overlay (`appearance="overlay"`, `glass-panel-faint` blur-only 3px / no tint)
+  showing the system name large/bold with no close or float; node-summary
+  cards also drop the × (outside-click / Escape dismiss); connection cards
+  spawn with `map-node-enter`, `CARD_ANCHOR_GAP=40`, and sticky side
+  push-not-flip on pan; sever toast default `3s`; deleted
+  `windows/persistence.ts` + float localStorage (dock never floats) and
+  simplified `deriveSurfaces` to persistent dock presence; map shell publishes
+  `--map-motion-*` via CSSOM for overlay siblings. Focused 65/65; verify green
+  (4,973 passed / 1 skipped), Fallow gate green; primitive-checker CLEAN.
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,
@@ -207,11 +219,12 @@
   `src/mapper/authoring/`, `convex/mapAuthoring.ts`.
 - **Durable 4.0.3.3 gotchas:** (1) Window layer reads selection/titles through
   equality-stable React Flow store selectors — never the host's hot `nodes`
-  array (PD-4). (2) Probe `WINDOW_STORAGE_KEY` in `docs/ux-check/lib` must
-  stay byte-identical to `persistence.ts` (docs cannot import src). (3)
-  Floating resize is a pointer-only `data-map-window-resize` grip, not a
-  button. (4) As-built recorded G-1 layout supersession: left-rail dock,
-  top-right controls, portrait beside Atlas menu, title-bar drag.
+  array (PD-4). (2) Current-system dock is a persistent overlay — no float,
+  no localStorage window record (`persistence.ts` removed in 4.0.4.2.2 polish).
+  (3) Floating resize remains a pointer-only `data-map-window-resize` grip on
+  any future float surface, not a button. (4) As-built G-1 layout from 4.0.3.3
+  was superseded again in 4.0.4.2.2 polish: dock top-left overlay, chrome
+  top-right, dials bottom-left above audit log.
 - **Durable 4.0.3.2.1 gotchas:** (1) Reveals and collapses must be ONE Convex
   transaction (`placeJumpFixture`/`collapseJumpFixture`) — split writes make a
   system surface unattached ("nowhere") and then hop, because each transaction

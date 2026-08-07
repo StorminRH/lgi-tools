@@ -29,8 +29,7 @@ export function MapChrome({
       data-map-chrome
       className="pointer-events-none absolute inset-0 z-sticky"
     >
-      <div className="pointer-events-auto absolute left-4 top-4 flex items-center gap-2">
-        <MapMenu />
+      <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2">
         {session ? (
           <div data-map-account-anchor>
             <AccountMenu
@@ -40,6 +39,7 @@ export function MapChrome({
             />
           </div>
         ) : null}
+        <MapMenu />
       </div>
       <div
         data-map-search-slot

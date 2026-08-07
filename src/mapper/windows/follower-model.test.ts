@@ -45,7 +45,8 @@ describe('placeAnchoredCard', () => {
       card: { width: 288, height: 208 },
       viewport: { width: 800, height: 600 },
     });
-    expect(placed.left).toBe(700 - 20 - 288);
+    expect(placed.side).toBe('left');
+    expect(placed.left).toBe(700 - 40 - 288);
     expect(placed.top).toBe(300 - 208 / 2);
     expect(placed.leader).not.toBeNull();
   });
@@ -56,8 +57,33 @@ describe('placeAnchoredCard', () => {
       card: { width: 288, height: 208 },
       viewport: { width: 800, height: 600 },
     });
-    expect(placed.left).toBe(100 + 20);
+    expect(placed.side).toBe('right');
+    expect(placed.left).toBe(100 + 40);
     expect(placed.top).toBe(300 - 208 / 2);
+  });
+
+  it('keeps a sticky side across the midline by pushing instead of flipping', () => {
+    const card = { width: 288, height: 208 };
+    const viewport = { width: 800, height: 600 };
+    const first = placeAnchoredCard({
+      anchor: { x: 100, y: 300 },
+      card,
+      viewport,
+    });
+    expect(first.side).toBe('right');
+    expect(first.left).toBe(140);
+
+    const pushed = placeAnchoredCard({
+      anchor: { x: 700, y: 300 },
+      card,
+      viewport,
+      side: first.side,
+    });
+    // Sticky right would prefer 740; clamp pushes to the padded max instead of
+    // flipping to the left-of-anchor seat (700 - 40 - 288 = 372).
+    expect(pushed.side).toBe('right');
+    expect(pushed.left).toBe(800 - 288 - 16);
+    expect(pushed.left).not.toBe(700 - 40 - 288);
   });
 
   it('clamps into the padded viewport instead of clipping or hugging the edge', () => {
@@ -104,7 +130,7 @@ describe('node follower model', () => {
       card,
       layer,
     );
-    expect(first?.write.transform).toBe('translate(212px, 58px)');
+    expect(first?.write.transform).toBe('translate(232px, 58px)');
     expect(first?.write.leader).not.toBeNull();
     expect(
       computeFollowerTransform(
@@ -245,9 +271,10 @@ describe('edge follower model', () => {
       EDGE_CARD_FALLBACK,
       { width: 800, height: 600 },
     );
-    // Anchor on left half → card to the right at x=72+20, vertically centered.
-    expect(first?.write.transform).toBe('translate(92px, 16px)');
+    // Anchor on left half → card to the right at x=72+40, vertically centered.
+    expect(first?.write.transform).toBe('translate(112px, 16px)');
     expect(first?.write.leader).not.toBeNull();
+    expect(first?.baseline.side).toBe('right');
     expect(
       computeEdgeFollowerTransform(
         first?.baseline ?? null,
@@ -261,6 +288,41 @@ describe('edge follower model', () => {
         { width: 800, height: 600 },
       ),
     ).toBeNull();
+  });
+
+  it('keeps sticky side when a pan would otherwise flip across the midline', () => {
+    const from = node(0, 0, 44, 44);
+    const to = node(100, 0, 44, 44);
+    const layer = { width: 800, height: 600 };
+    const first = computeEdgeFollowerTransform(
+      null,
+      '1',
+      '2',
+      [0, 0, 1],
+      from,
+      to,
+      22,
+      EDGE_CARD_FALLBACK,
+      layer,
+    );
+    expect(first?.baseline.side).toBe('right');
+    // Midpoint was 72; pan so screen mid sits on the right half (tx + 72 = 700).
+    const panned = computeEdgeFollowerTransform(
+      first?.baseline ?? null,
+      '1',
+      '2',
+      [628, 0, 1],
+      from,
+      to,
+      22,
+      EDGE_CARD_FALLBACK,
+      layer,
+    );
+    expect(panned?.baseline.side).toBe('right');
+    // Preferred seat 700+40=740 clamps to padded max rather than left-of-anchor.
+    expect(panned?.write.transform).toBe(
+      `translate(${800 - 288 - 16}px, 16px)`,
+    );
   });
 
   it('guards unmeasured endpoints and rewrites on viewport change', () => {
@@ -395,7 +457,7 @@ describe('edge follower model', () => {
     expect(write.mock.calls[1]?.[0]?.transform).not.toBe(first);
     // Tall card near the bottom edge must pin to the padded max top.
     expect(write.mock.calls[1]?.[0]?.transform).toBe(
-      `translate(92px, ${600 - 400 - 16}px)`,
+      `translate(112px, ${600 - 400 - 16}px)`,
     );
   });
 });

@@ -79,9 +79,10 @@ function MapControlsComponent({
   return (
     <Panel
       data-map-dev-dials
-      position="top-right"
+      position="bottom-left"
       className={cn(
-        'nopan nodrag nowheel mx-2! mb-2! mt-4! flex max-h-[calc(100dvh-6rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
+        // mb-14 clears the collapsed audit-log strip (bottom-2 + header).
+        'nopan nodrag nowheel mb-14! ml-4! mr-2! mt-2! flex max-h-[calc(100dvh-6rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
         mapFrostedSurface,
       )}
     >

@@ -34,7 +34,7 @@ export function MapEventLog({
   return (
     <div
       data-map-event-log
-      // left-4 matches MapChrome / docked Current System so the left rail lines up.
+      // left-4 matches the docked system readout and bottom-left dev dials.
       className="pointer-events-none absolute bottom-2 left-4 z-sticky flex justify-start"
     >
       <div
