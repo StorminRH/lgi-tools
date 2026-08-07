@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   classifyDueSubject,
-  COLD_AFTER_MS,
   computeChainBoundary,
   computeNextDueAt,
   deriveConvexSiteUrl,
   hasSyncTarget,
+  HIDDEN_PRESENCE_MAX_MS,
   isCold,
   isColdFromPresence,
   isRunningFresh,
   isStaleForImmediate,
+  MAX_COLD_AFTER_MS,
   minCacheWindow,
   RETENTION_MS,
   STALE_RUNNING_MS,
@@ -19,42 +20,72 @@ import {
 
 const NOW = 1_750_000_000_000;
 
+// onlineStatus's window (visible-tab dataset, three missed 20s beats).
+const ONLINE_COLD_MS = SYNC_DATASET_CONFIG.onlineStatus.coldAfterMs;
+
+// A presence doc seen (and visible) at the given instant.
+const seenAt = (lastSeenAt: number) => ({ lastSeenAt, lastVisibleAt: lastSeenAt });
+
 describe('dataset registration data', () => {
   // The floors are the live-read ESI cache windows
   // and the groups are the live-observed token buckets — pinned so a future
   // edit can't silently poll faster than a dataset's cache or bill the
   // wrong bucket. onlineStatus omits the opt-in chain fields so its path
   // stays byte-identical under the new defaults.
-  it('pins the live-read cadence floor, token group, and chain policy', () => {
+  it('pins the live-read cadence floor, cold window, token group, and chain policy', () => {
     expect(SYNC_DATASET_CONFIG.onlineStatus).toEqual({
       cadenceFloorMs: 60_000,
+      coldAfterMs: 60_000,
       tokenGroup: 'char-online',
     });
     expect(SYNC_DATASET_CONFIG.characterLocation).toEqual({
       cadenceFloorMs: 5_000,
+      coldAfterMs: 5 * 60_000,
       tokenGroup: 'char-location',
       chainOnSuccess: true,
       rateKeyScope: 'subject',
     });
   });
+
+  it('derives the widest window as the mixed-dataset index bound', () => {
+    expect(MAX_COLD_AFTER_MS).toBe(5 * 60_000);
+  });
 });
 
 describe('isCold', () => {
   it('is warm exactly at the window edge and cold past it', () => {
-    expect(isCold(NOW - COLD_AFTER_MS, NOW)).toBe(false);
-    expect(isCold(NOW - COLD_AFTER_MS - 1, NOW)).toBe(true);
-    expect(isCold(NOW, NOW)).toBe(false);
+    expect(isCold(seenAt(NOW - ONLINE_COLD_MS), ONLINE_COLD_MS, NOW)).toBe(false);
+    expect(isCold(seenAt(NOW - ONLINE_COLD_MS - 1), ONLINE_COLD_MS, NOW)).toBe(true);
+    expect(isCold(seenAt(NOW), ONLINE_COLD_MS, NOW)).toBe(false);
+  });
+
+  it('applies each dataset its own window', () => {
+    const beat = seenAt(NOW - 2 * 60_000);
+    expect(isCold(beat, SYNC_DATASET_CONFIG.onlineStatus.coldAfterMs, NOW)).toBe(true);
+    expect(isCold(beat, SYNC_DATASET_CONFIG.characterLocation.coldAfterMs, NOW)).toBe(false);
+  });
+
+  it('hidden-only presence goes cold at the visible backstop despite fresh beats', () => {
+    const hiddenOnly = { lastSeenAt: NOW, lastVisibleAt: NOW - HIDDEN_PRESENCE_MAX_MS - 1 };
+    expect(isCold(hiddenOnly, MAX_COLD_AFTER_MS, NOW)).toBe(true);
+    const withinCap = { lastSeenAt: NOW, lastVisibleAt: NOW - HIDDEN_PRESENCE_MAX_MS };
+    expect(isCold(withinCap, MAX_COLD_AFTER_MS, NOW)).toBe(false);
+  });
+
+  it('a pre-migration row without lastVisibleAt falls back to lastSeenAt', () => {
+    expect(isCold({ lastSeenAt: NOW }, ONLINE_COLD_MS, NOW)).toBe(false);
+    expect(isCold({ lastSeenAt: NOW - ONLINE_COLD_MS - 1 }, ONLINE_COLD_MS, NOW)).toBe(true);
   });
 });
 
 describe('isColdFromPresence', () => {
   it('treats an absent presence doc as cold', () => {
-    expect(isColdFromPresence(null, NOW)).toBe(true);
+    expect(isColdFromPresence(null, ONLINE_COLD_MS, NOW)).toBe(true);
   });
   it('matches isCold at the window edge when a presence doc exists', () => {
-    expect(isColdFromPresence(NOW - COLD_AFTER_MS, NOW)).toBe(false);
-    expect(isColdFromPresence(NOW - COLD_AFTER_MS - 1, NOW)).toBe(true);
-    expect(isColdFromPresence(NOW, NOW)).toBe(false);
+    expect(isColdFromPresence(seenAt(NOW - ONLINE_COLD_MS), ONLINE_COLD_MS, NOW)).toBe(false);
+    expect(isColdFromPresence(seenAt(NOW - ONLINE_COLD_MS - 1), ONLINE_COLD_MS, NOW)).toBe(true);
+    expect(isColdFromPresence(seenAt(NOW), ONLINE_COLD_MS, NOW)).toBe(false);
   });
 });
 
@@ -75,28 +106,32 @@ describe('classifyDueSubject', () => {
   // pin parity with the pre-3.5.e2 single-loop sweep's cold/retention/running
   // branches.
   it('deletes an abandoned row with no presence doc', () => {
-    expect(classifyDueSubject(null, 'idle', 0, NOW)).toBe('delete');
+    expect(classifyDueSubject(null, 'idle', 0, ONLINE_COLD_MS, NOW)).toBe('delete');
   });
   it('deletes a cold row past retention', () => {
-    expect(classifyDueSubject(NOW - RETENTION_MS - 1, 'idle', 0, NOW)).toBe('delete');
+    expect(classifyDueSubject(seenAt(NOW - RETENTION_MS - 1), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe('delete');
   });
   it('retires a cold row exactly at the retention edge (strict >, like the old sweep)', () => {
-    expect(classifyDueSubject(NOW - RETENTION_MS, 'idle', 0, NOW)).toBe('retire');
+    expect(classifyDueSubject(seenAt(NOW - RETENTION_MS), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe('retire');
   });
   it('retires a cold row still within retention', () => {
-    expect(classifyDueSubject(NOW - COLD_AFTER_MS - 1, 'idle', 0, NOW)).toBe('retire');
+    expect(classifyDueSubject(seenAt(NOW - ONLINE_COLD_MS - 1), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe('retire');
+  });
+  it('retires a hidden-only row past the visible backstop (retention keys off lastSeenAt)', () => {
+    const hiddenOnly = { lastSeenAt: NOW, lastVisibleAt: NOW - HIDDEN_PRESENCE_MAX_MS - 1 };
+    expect(classifyDueSubject(hiddenOnly, 'idle', 0, MAX_COLD_AFTER_MS, NOW)).toBe('retire');
   });
   it('skips a hot row a fresh run still owns', () => {
-    expect(classifyDueSubject(NOW, 'running', NOW - 1_000, NOW)).toBe('skip');
+    expect(classifyDueSubject(seenAt(NOW), 'running', NOW - 1_000, ONLINE_COLD_MS, NOW)).toBe('skip');
   });
   it('dispatches a hot idle row', () => {
-    expect(classifyDueSubject(NOW, 'idle', 0, NOW)).toBe('dispatch');
+    expect(classifyDueSubject(seenAt(NOW), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe('dispatch');
   });
   it('dispatches a hot row whose run is presumed wedged (takeover)', () => {
-    expect(classifyDueSubject(NOW, 'running', NOW - STALE_RUNNING_MS, NOW)).toBe('dispatch');
+    expect(classifyDueSubject(seenAt(NOW), 'running', NOW - STALE_RUNNING_MS, ONLINE_COLD_MS, NOW)).toBe('dispatch');
   });
   it('dispatches a hot row exactly at the cold edge (still warm)', () => {
-    expect(classifyDueSubject(NOW - COLD_AFTER_MS, 'idle', 0, NOW)).toBe('dispatch');
+    expect(classifyDueSubject(seenAt(NOW - ONLINE_COLD_MS), 'idle', 0, ONLINE_COLD_MS, NOW)).toBe('dispatch');
   });
 });
 

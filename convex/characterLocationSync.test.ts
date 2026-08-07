@@ -123,6 +123,35 @@ async function seedTracking(t: TestConvex<typeof schema>, characterId = 101) {
   });
 }
 
+// A held online-probe row. The default (online, window still open) makes the
+// probe a zero-ESI held-reuse, so location-focused tests keep their exact
+// pre-probe ESI expectations.
+async function seedOnline(
+  t: TestConvex<typeof schema>,
+  overrides: Partial<{ online: boolean; etagOnline: string | null; onlineExpiresAt: number }> = {},
+  characterId = 101,
+) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert('characterLocationOnline', {
+      userId: USER,
+      characterId,
+      online: true,
+      etagOnline: 'on0',
+      onlineExpiresAt: Date.now() + 60_000,
+      ...overrides,
+    });
+  });
+}
+
+function readOnlineRow(t: TestConvex<typeof schema>, characterId = 101) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('characterLocationOnline')
+      .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
+      .unique(),
+  );
+}
+
 function readDoc(t: TestConvex<typeof schema>, characterId = 101) {
   return t.run((ctx) =>
     ctx.db
@@ -147,6 +176,7 @@ describe('characterLocationSync.syncUser', () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
     await seedTracking(t);
+    await seedOnline(t);
     const fetchFn = stubFetch({
       esi: (url) => {
         if (url.includes('/location')) {
@@ -180,6 +210,7 @@ describe('characterLocationSync.syncUser', () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
     await seedTracking(t);
+    await seedOnline(t);
     const before = await t.run(async (ctx) =>
       ctx.db.insert('characterLocation', {
         userId: USER,
@@ -226,6 +257,7 @@ describe('characterLocationSync.syncUser', () => {
       coveredCharacterIds: [101],
     });
     await seedTracking(t);
+    await seedOnline(t);
     await t.run((ctx) =>
       ctx.db.insert('characterLocation', {
         userId: USER,
@@ -271,6 +303,7 @@ describe('characterLocationSync.syncUser', () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
     await seedTracking(t);
+    await seedOnline(t);
     await t.run((ctx) =>
       ctx.db.insert('characterLocation', {
         userId: USER,
@@ -360,6 +393,7 @@ describe('characterLocationSync.syncUser', () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
     await seedTracking(t);
+    await seedOnline(t);
     await t.run((ctx) =>
       ctx.db.insert('characterLocation', {
         userId: USER,
@@ -382,5 +416,151 @@ describe('characterLocationSync.syncUser', () => {
     const doc = await readDoc(t);
     expect(doc?.solarSystemId).toBe(SYSTEM_A);
     expect(doc?.etagLocation).toBe('loc0');
+  });
+
+  it('reuses a held online answer inside its window — no /online read', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    await seedOnline(t);
+    const fetchFn = stubFetch({
+      esi: (url) => {
+        if (url.includes('/location')) {
+          return new Response(null, { status: 304, headers: { Expires: EXP } });
+        }
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
+
+    await run(t);
+
+    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/online'))).toBe(false);
+    // Held-reuse stores nothing — the row is untouched.
+    expect((await readOnlineRow(t))?.etagOnline).toBe('on0');
+  });
+
+  it('re-reads /online past the window; a 304 keeps the flag and refreshes the window', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    const lapsed = Date.now() - 1;
+    await seedOnline(t, { onlineExpiresAt: lapsed });
+    const onlineExpires = new Date(Date.now() + 60_000).toUTCString();
+    const fetchFn = stubFetch({
+      esi: (url) => {
+        if (url.includes('/online')) {
+          return new Response(null, { status: 304, headers: { Expires: onlineExpires } });
+        }
+        if (url.includes('/location')) {
+          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+        }
+        if (url.includes('/ship')) {
+          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+        }
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
+
+    await run(t);
+
+    // The conditional read carried the held ETag and the row's window moved.
+    const onlineCall = fetchFn.mock.calls.find(([u]) => String(u).includes('/online'));
+    expect(onlineCall).toBeDefined();
+    const row = await readOnlineRow(t);
+    expect(row?.online).toBe(true);
+    expect(row?.onlineExpiresAt).toBeGreaterThan(lapsed);
+    // Still online → the location loop ran.
+    expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
+  });
+
+  it('skips location and ship for an offline pilot and paces at the online window', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    const onlineExpires = new Date(Date.now() + 60_000).toUTCString();
+    const fetchFn = stubFetch({
+      esi: (url) => {
+        if (url.includes('/online')) {
+          return jsonResponse({ online: false }, { ETag: 'on1', Expires: onlineExpires });
+        }
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
+
+    await run(t);
+
+    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(false);
+    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(false);
+    expect(await readDoc(t)).toBeNull();
+    const row = await readOnlineRow(t);
+    expect(row?.online).toBe(false);
+    expect(row?.etagOnline).toBe('on1');
+    // The subject window IS the online expiry: the engine re-arms at the
+    // ~60s probe cadence, never the 5s location floor — and the covered set
+    // includes the cleanly-observed offline character.
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) =>
+          q.eq('userId', USER).eq('dataset', 'characterLocation'),
+        )
+        .unique(),
+    );
+    expect(subject?.minExpiresAt).toBeGreaterThan(Date.now() + 30_000);
+    expect(subject?.coveredCharacterIds).toEqual([101]);
+  });
+
+  it('resumes the location loop when the probe sees a login', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    await seedOnline(t, { online: false, onlineExpiresAt: Date.now() - 1 });
+    const fetchFn = stubFetch({
+      esi: (url) => {
+        if (url.includes('/online')) {
+          return jsonResponse({ online: true }, { ETag: 'on2', Expires: EXP });
+        }
+        if (url.includes('/location')) {
+          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+        }
+        if (url.includes('/ship')) {
+          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+        }
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
+
+    await run(t);
+
+    expect((await readOnlineRow(t))?.online).toBe(true);
+    expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
+    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(true);
+  });
+
+  it('records reauth_required for a tracked character missing only the online scope', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    const fetchFn = stubFetch({
+      characters: [
+        { ...eligible(101), missingScopes: ['esi-location.read_online.v1'] },
+      ],
+    });
+
+    await run(t);
+
+    // The probe is part of the location gate: without its scope there is no
+    // stop condition, so the character records reauth rather than tracking.
+    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) =>
+          q.eq('userId', USER).eq('dataset', 'characterLocation'),
+        )
+        .unique(),
+    );
+    expect(subject?.minExpiresAt).toBeNull();
+    expect(subject?.lastError).toBeNull();
   });
 });

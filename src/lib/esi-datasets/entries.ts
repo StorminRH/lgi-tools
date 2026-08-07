@@ -270,9 +270,13 @@ export const ESI_DATASET_ENTRIES = [
     refreshOwner: { kind: 'engine', dataset: 'characterLocation' },
     upstream: {
       kind: 'esi',
+      // The online probe is the sync's pause/resume signal; it never re-reads
+      // inside its held ~60s Expires window, so the dataset still respects
+      // that endpoint's upstream cache despite the 5s location floor.
       specPaths: [
         '/characters/{character_id}/location/',
         '/characters/{character_id}/ship/',
+        '/characters/{character_id}/online/',
       ],
       verifiedCacheSeconds: 5,
     },

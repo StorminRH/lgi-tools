@@ -95,6 +95,14 @@ export const NON_NEON_HOMES = [
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Lazy orphan-clean alone cannot cover an account-nuke, so the location-tracking contributor tears it down explicitly during runPurge.',
   },
   {
+    home: 'convex:characterLocationOnline',
+    coveredBy:
+      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser, which drains it beside characterLocation); the location apply orphan-cleans rows for unlinked characters as the backstop',
+    explicitTeardown: 'src/data/location-tracking/purge.ts — same door as characterLocation',
+    reason:
+      'the location sync’s held online-probe state (is the pilot logged in, ETag, cache window) — its own unsubscribed table so per-probe expiry writes cannot invalidate mapTracking.forMap. User/character-keyed like characterLocation and torn down through the identical purge cascade.',
+  },
+  {
     home: 'convex:mapTracking',
     coveredBy:
       'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser, which also deletes mapTracking); revocation and map teardown cascade inside convex/mapAccessProjection.reconcileMapClaims; the purge-map-access door additionally sweeps the user rows as an in-deployment backstop',

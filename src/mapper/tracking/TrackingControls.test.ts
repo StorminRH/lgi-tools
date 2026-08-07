@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
     ownTrackedCharacterIds: [101],
   },
   accessResult: { granted: true, canEdit: true },
+  afk: { paused: false, promptOpen: false, dismiss: vi.fn() },
   characters: [
     {
       characterId: 101,
@@ -57,6 +58,11 @@ vi.mock('@/components/use-account-characters', () => ({
 
 vi.mock('@/data/convex/use-sync-subject', () => ({
   useSyncSubject: (...args: unknown[]) => mocks.heartbeat(...args),
+}));
+
+vi.mock('./AfkGate', () => ({
+  useAfkState: () => mocks.afk,
+  AfkDialog: () => null,
 }));
 
 vi.mock('@/components/character-portrait', () => ({
@@ -117,7 +123,17 @@ describe('TrackingControls', () => {
   });
 
   it('keeps the tracked-character heartbeat mounted independently of the menu', () => {
-    expect(TrackingHeartbeat({ mapId: 'map-a' })).toBeNull();
+    TrackingHeartbeat({ mapId: 'map-a' });
     expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', [101]);
+  });
+
+  it('empties the heartbeat character set while the AFK gate is paused', () => {
+    mocks.afk.paused = true;
+    try {
+      TrackingHeartbeat({ mapId: 'map-a' });
+      expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', []);
+    } finally {
+      mocks.afk.paused = false;
+    }
   });
 });

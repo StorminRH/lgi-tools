@@ -12,7 +12,6 @@
 // everything else — token 4xx, ESI 4xx, contract drift, budget refusal — becomes
 // a recorded per-character or run-level error so a hopeless run is never retried
 // and partial results are never lost.
-import { v } from 'convex/values';
 import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import { parseOnlineBody } from '@/data/online-status/esi-projection';
 import { canSyncOnline } from '@/data/online-status/sync-eligibility';
@@ -26,6 +25,7 @@ import {
   type SyncEnv,
   vendCharacterToken,
 } from './lib/characterSync';
+import { type SyncOutcome, syncRunArgs } from './lib/syncFields';
 import { readEsiAuthed, type RlSnapshot } from '@/platform/esi/authed-read';
 
 // Fallback freshness window when a response carries no parseable Expires header.
@@ -45,17 +45,14 @@ interface CharacterResult {
 
 // What one character's processing resolves to, lifted out of the loop so the
 // per-character control flow uses returns instead of continue/break.
-type CharacterOutcome =
-  | { kind: 'skip' }
-  | { kind: 'result'; result: CharacterResult }
-  | { kind: 'stop'; runError: string; result: CharacterResult };
+type CharacterOutcome = SyncOutcome<CharacterResult>;
 
 /**
  * Runs the authenticated online-status sync for one user through the shared Convex engine; the
  * engine owns scheduling and persisted run state.
  */
 export const syncUser = internalAction({
-  args: { userId: v.string(), generation: v.number() },
+  args: syncRunArgs,
   handler: async (ctx, { userId, generation }) => {
     const env = requireSyncEnv();
 

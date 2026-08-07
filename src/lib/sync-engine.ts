@@ -5,11 +5,15 @@
 // heartbeat clock. Pure and dependency-free so every scheduling decision is
 // unit-testable without a Convex runtime.
 //
-// Two decoupled clocks, by design: the HEARTBEAT is a uniform "still
-// watching" liveness signal — identical for every subject, its only job is
-// cold-detection. The SYNC CADENCE is per-dataset and lives in the registry
-// below. Tying heartbeat frequency to a dataset's refresh rate would blind
-// cold-detection for that dataset's whole cadence.
+// Two decoupled clocks, by design: the HEARTBEAT is a "still watching"
+// liveness signal — one client interval shared by every subject, its only job
+// is cold-detection. How long a subject may go unheard before going cold is
+// per-dataset (coldAfterMs in the registry below): hidden tabs keep beating
+// but browsers throttle their timers to ~1/min, so a dataset that must
+// survive backgrounding (characterLocation) declares a window wide enough to
+// absorb throttled beats. The SYNC CADENCE is separately per-dataset. Tying
+// heartbeat frequency to a dataset's refresh rate would blind cold-detection
+// for that dataset's whole cadence.
 
 /**
  * The datasets registered with the engine — one entry per live consumer.
@@ -43,6 +47,13 @@ export type SyncDataset = (typeof SYNC_DATASETS)[number];
  */
 export type SyncDatasetConfig = {
   cadenceFloorMs: number;
+  /**
+   * How long the subject may go without a heartbeat before the scan stops
+   * dispatching for it. Sized to the dataset's tab posture: a visible-tab
+   * dataset needs a few missed 20s beats of margin; a survives-backgrounding
+   * dataset must absorb hidden-tab beats throttled to ~1/min.
+   */
+  coldAfterMs: number;
   tokenGroup: string;
   /** Schedule chainDispatch at the jitter-free Expires boundary after success. */
   chainOnSuccess?: boolean;
@@ -61,34 +72,52 @@ export const SYNC_DATASET_CONFIG: Record<SyncDataset, SyncDatasetConfig> = {
   // is NOT the spend budget — that's the gate's Redis scoreboard, keyed by the
   // real route group), so an online re-arm herd must not burst the char-detail
   // group's dispatch.
-  onlineStatus: { cadenceFloorMs: 60_000, tokenGroup: 'char-online' },
+  onlineStatus: { cadenceFloorMs: 60_000, coldAfterMs: 60_000, tokenGroup: 'char-online' },
   // Tracked location (4.0.4.2.1) — verified ESI location/ship cache is 5s; the
   // floor pegs to that. chainOnSuccess sustains the ~5s loop while presence is
   // fresh; rateKeyScope subject keeps concurrent tracked users from sharing one
   // char-location bucket. Own token group so location re-arms never share the
-  // onlineStatus dispatch bucket.
+  // onlineStatus dispatch bucket. coldAfterMs 5 min: the Atlas tab keeps
+  // beating while hidden behind the game client, but browsers throttle hidden
+  // timers to ~1/min — five missed throttled beats of margin.
   characterLocation: {
     cadenceFloorMs: 5_000,
+    coldAfterMs: 5 * 60_000,
     tokenGroup: 'char-location',
     chainOnSuccess: true,
     rateKeyScope: 'subject',
   },
 };
 
-/** Client heartbeat interval while the tab is visible. */
+/**
+ * The widest registered cold window — the only sound presence-index range
+ * bound for a mixed-dataset pass (the sweep's Pass B): a narrower bound would
+ * silently exclude longer-window datasets from reconciliation.
+ */
+export const MAX_COLD_AFTER_MS = Math.max(
+  ...Object.values(SYNC_DATASET_CONFIG).map((config) => config.coldAfterMs),
+);
+
+/**
+ * Client heartbeat interval. The timer runs whether the tab is visible or
+ * hidden — hidden-tab beats arrive browser-throttled (~1/min) and each
+ * dataset's coldAfterMs absorbs that.
+ */
 export const HEARTBEAT_MS = 20_000;
 
 /**
- * A subject whose last heartbeat is older than this is cold: the scan stops
- * dispatching for it (three missed beats of margin over HEARTBEAT_MS).
+ * The server backstop behind the client AFK flow: presence with no VISIBLE
+ * beat for this long is cold regardless of continuing hidden beats, so a
+ * misbehaving client can't hold a subject hot forever from a background tab.
+ * Sized above the client's 1h AFK prompt + 5 min response window.
  */
-export const COLD_AFTER_MS = 60_000;
+export const HIDDEN_PRESENCE_MAX_MS = 90 * 60_000;
 
 /**
  * A subject this long without a heartbeat is deleted by the sweep — pure
  * housekeeping; a returning viewer's first heartbeat recreates the row. Lives
- * here (beside COLD_AFTER_MS) so the pure sweep classifier and the engine's
- * abandoned-row index range share one constant.
+ * here (beside the cold windows) so the pure sweep classifier and the
+ * engine's abandoned-row index range share one constant.
  */
 export const RETENTION_MS = 7 * 24 * 60 * 60_000;
 
@@ -107,9 +136,25 @@ export const STALE_RUNNING_MS = 3 * 60_000;
  */
 export const SYNC_JITTER_MS = 10_000;
 
-/** Returns whether a sync subject has no usable completion window at the supplied epoch-millisecond clock. */
-export function isCold(lastSeenAt: number, now: number): boolean {
-  return now - lastSeenAt > COLD_AFTER_MS;
+/**
+ * The liveness slice of a syncPresence doc. lastVisibleAt is optional for
+ * rows written before the field existed — those clients only ever beat while
+ * visible, so lastSeenAt is an honest stand-in.
+ */
+export interface PresenceLiveness {
+  lastSeenAt: number;
+  lastVisibleAt?: number;
+}
+
+/**
+ * Cold-detection for one presence doc against its dataset's window: cold when
+ * the last beat (visible or hidden) is older than coldAfterMs, or when no
+ * VISIBLE beat has arrived within HIDDEN_PRESENCE_MAX_MS (the server backstop
+ * behind the client AFK flow).
+ */
+export function isCold(presence: PresenceLiveness, coldAfterMs: number, now: number): boolean {
+  if (now - presence.lastSeenAt > coldAfterMs) return true;
+  return now - (presence.lastVisibleAt ?? presence.lastSeenAt) > HIDDEN_PRESENCE_MAX_MS;
 }
 
 /**
@@ -119,8 +164,12 @@ export function isCold(lastSeenAt: number, now: number): boolean {
  * doc means no live tab has ever beaten — or its presence was already reaped —
  * so it is cold by definition; otherwise defer to isCold.
  */
-export function isColdFromPresence(lastSeenAt: number | null, now: number): boolean {
-  return lastSeenAt === null || isCold(lastSeenAt, now);
+export function isColdFromPresence(
+  presence: PresenceLiveness | null,
+  coldAfterMs: number,
+  now: number,
+): boolean {
+  return presence === null || isCold(presence, coldAfterMs, now);
 }
 
 /**
@@ -156,13 +205,14 @@ export type DueSubjectAction = 'delete' | 'retire' | 'skip' | 'dispatch';
  * callers own scheduling the resulting action.
  */
 export function classifyDueSubject(
-  lastSeenAt: number | null,
+  presence: PresenceLiveness | null,
   status: 'idle' | 'running',
   lastRequestedAt: number,
+  coldAfterMs: number,
   now: number,
 ): DueSubjectAction {
-  if (isColdFromPresence(lastSeenAt, now)) {
-    return lastSeenAt === null || now - lastSeenAt > RETENTION_MS ? 'delete' : 'retire';
+  if (isColdFromPresence(presence, coldAfterMs, now)) {
+    return presence === null || now - presence.lastSeenAt > RETENTION_MS ? 'delete' : 'retire';
   }
   if (isRunningFresh(status, lastRequestedAt, now)) return 'skip';
   return 'dispatch';

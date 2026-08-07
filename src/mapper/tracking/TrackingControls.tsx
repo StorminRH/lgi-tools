@@ -17,6 +17,7 @@ import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
+import { AfkDialog, useAfkState } from './AfkGate';
 
 interface TrackingCharacter {
   readonly characterId: number;
@@ -32,14 +33,17 @@ interface TrackingControlsViewProps {
 
 /**
  * Keeps location syncing alive for the caller-owned characters tracked on this map. This owner stays
- * mounted with the accessible canvas rather than with the account-menu popup.
+ * mounted with the accessible canvas rather than with the account-menu popup. The AFK gate rides
+ * here too: an unanswered hour-hidden prompt empties the character set (the hook's pause switch),
+ * and dismissing the waiting dialog resumes syncing with an immediate mount beat.
  */
 export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
+  const afk = useAfkState();
 
-  useSyncSubject('characterLocation', trackedIds);
-  return null;
+  useSyncSubject('characterLocation', afk.paused ? [] : trackedIds);
+  return <AfkDialog afk={afk} />;
 }
 
 /** Lists the signed-in pilot's linked characters as map-menu tracking controls. */

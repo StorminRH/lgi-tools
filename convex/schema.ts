@@ -14,6 +14,7 @@ import {
   typedSideValidator,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
+import { runObservabilityFields } from './lib/syncFields';
 
 // Convex is a regenerable projection of live ESI data keyed by the Neon
 // identities (userId + characterId) — never the system of record, never a
@@ -68,11 +69,9 @@ export default defineSchema({
     // requires it to sustain the fast cadence).
     coveredCharacterIds: v.optional(v.array(v.number())),
     lastFinishedAt: v.union(v.number(), v.null()),
-    lastError: v.union(v.string(), v.null()),
-    rlGroup: v.union(v.string(), v.null()),
-    rlLimit: v.union(v.number(), v.null()),
-    rlRemaining: v.union(v.number(), v.null()),
-    rlUsed: v.union(v.number(), v.null()),
+    // Run error + rl* observability — one authoritative shape shared with the
+    // apply-args validator (convex/lib/syncFields.ts).
+    ...runObservabilityFields,
   })
     .index('by_user_dataset', ['userId', 'dataset'])
     .index('by_next_due', ['nextDueAt']),
@@ -88,16 +87,24 @@ export default defineSchema({
   syncPresence: defineTable({
     dataset: v.union(v.literal('onlineStatus'), v.literal('characterLocation')),
     userId: v.string(),
-    // Last heartbeat from a visible tab. The scan and sweep treat a presence
-    // doc older than COLD_AFTER_MS — or a missing one — as cold.
+    // Last heartbeat from ANY tab — visible or hidden (hidden tabs keep
+    // beating, browser-throttled). The scan and sweep treat a presence doc
+    // older than the dataset's coldAfterMs — or a missing one — as cold.
     lastSeenAt: v.number(),
+    // Last heartbeat from a VISIBLE tab — the input to the hidden-presence
+    // backstop (HIDDEN_PRESENCE_MAX_MS): hidden-only beats can't hold a
+    // subject hot forever. Optional: rows written before this field existed
+    // came from visible-only clients, so lastSeenAt stands in (never write
+    // null here — v.optional rejects it; omit the field instead).
+    lastVisibleAt: v.optional(v.number()),
   })
     .index('by_user_dataset', ['userId', 'dataset'])
-    // The sweep's two presence-driven passes range over this: hot rows
-    // (lastSeenAt >= now - COLD_AFTER_MS, the dropped-timer reconcile) and
-    // past-retention rows (lastSeenAt < now - RETENTION_MS, the abandoned-row
-    // GC). Ascending order makes the GC pass oldest-first, so a capped catch-up
-    // run drains the backlog deterministically.
+    // The sweep's two presence-driven passes range over this: rows within the
+    // widest registered cold window (lastSeenAt >= now - MAX_COLD_AFTER_MS,
+    // the dropped-timer reconcile — filtered per row by each dataset's own
+    // window) and past-retention rows (lastSeenAt < now - RETENTION_MS, the
+    // abandoned-row GC). Ascending order makes the GC pass oldest-first, so a
+    // capped catch-up run drains the backlog deterministically.
     .index('by_last_seen', ['lastSeenAt']),
 
   // One doc per (user, character): the live online/offline state (MIGRATE.A — the
@@ -351,6 +358,31 @@ export default defineSchema({
     observedAt: v.number(),
     etagLocation: v.union(v.string(), v.null()),
     etagShip: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // Per-character held state for the location sync's online probe: is the
+  // pilot logged into EVE, and until when is that answer cached. Deliberately
+  // its OWN table, not fields on characterLocation — mapTracking.forMap joins
+  // characterLocation docs, and the probe refreshes onlineExpiresAt every
+  // ~60s while all pilots are offline; writing that onto a subscribed doc
+  // would re-run every watching map's forMap each probe (docs/CONVEX.md
+  // Rule 2). NOTHING subscribes to this table: the engine's pacing reads the
+  // subject row's minExpiresAt, and the action reads these rows through
+  // heldState inside its run. Regenerable; purged with characterLocation via
+  // the same /purge-location-tracking door and orphan-cleaned by the apply.
+  characterLocationOnline: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    online: v.boolean(),
+    // Held for the conditional read; ESI's 304 never repeats the ETag, so the
+    // action echoes the held one across an unchanged read.
+    etagOnline: v.union(v.string(), v.null()),
+    // When the held answer lapses (ESI Expires, ~60s): the probe reuses the
+    // held flag inside this window and re-reads past it, so tracked pilots
+    // never bill more than ~1/min of /online reads regardless of the 5s loop.
+    onlineExpiresAt: v.number(),
   })
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),

@@ -125,23 +125,28 @@ Debounce high-churn shared writes (Rule 6).
 
 Serves live ≤2-min data (`convex/engine.ts`; subject = dataset × userId). One
 sanctioned presence/scheduling machinery. Live consumers: `onlineStatus`
-(canary) and `characterLocation` (tracked location; `chainOnSuccess` while map
-visible). Slow per-owner data does **not** join — use Neon on-view. New
-≤2-min-live OR collaborative-realtime data joins via the 4-step seam; nothing
-else.
+(canary) and `characterLocation` (tracked location; `chainOnSuccess` while the
+Atlas tab is open — visible or hidden — and a tracked pilot is online in EVE).
+Slow per-owner data does **not** join — use Neon on-view. New ≤2-min-live OR
+collaborative-realtime data joins via the 4-step seam; nothing else.
 
-- **4-step registration seam:** (1) dataset + cadence floor + token group in
-  `src/lib/sync-engine.ts` and schema `dataset` union — optional
-  `chainOnSuccess` (jitter-free hops at Expires after clean yield; apply stamps
-  `coveredCharacterIds`; failed/zero-yield/cold → 30s scan) and
-  `rateKeyScope: 'subject'`; omit both for stock scan; (2) `syncRef` to the
-  internal sync action; (3) generation-guarded apply stamps results onto the
-  subject row (Rule 2: scheduling metadata off watched payload); (4)
-  `useSyncSubject` (`src/data/convex/`). Refreshes only while viewed in a
-  visible tab — no feature-local presence, scheduler, or always-on sync.
+- **4-step registration seam:** (1) dataset + cadence floor + **cold window
+  (`coldAfterMs`)** + token group in `src/lib/sync-engine.ts` and schema
+  `dataset` union — optional `chainOnSuccess` (jitter-free hops at Expires
+  after clean yield; apply stamps `coveredCharacterIds`; failed/zero-yield/cold
+  → 30s scan) and `rateKeyScope: 'subject'`; omit both for stock scan; (2)
+  `syncRef` to the internal sync action; (3) generation-guarded apply stamps
+  results onto the subject row (Rule 2: scheduling metadata off watched
+  payload); (4) `useSyncSubject` (`src/data/convex/`). Refreshes only while a
+  tab holds the view open — the heartbeat runs visible **or hidden** (hidden
+  beats arrive browser-throttled ~1/min; size `coldAfterMs` to absorb that),
+  bounded by the client AFK flow (1h hidden prompt + 5 min grace, the Atlas
+  `AfkGate`) and the server's `HIDDEN_PRESENCE_MAX_MS` (90 min without a
+  visible beat) backstop. Still no feature-local presence, scheduler, or
+  always-on sync.
 - **Presence split** (`syncPresence`): views subscribe to `syncSubjects`, never
-  `syncPresence`, so heartbeat `lastSeenAt` writes can't invalidate watched
-  payload. Load-bearing for the mapper.
+  `syncPresence`, so heartbeat `lastSeenAt`/`lastVisibleAt` writes can't
+  invalidate watched payload. Load-bearing for the mapper.
 - **Three trigger classes:** while-watched (30 s scan), on-view
   (mount/visible heartbeat when stale), on-schedule (feature-local timestamp
   flips — engine schedules refreshes, never flips). On-schedule reserved; no
@@ -154,10 +159,18 @@ else.
   (`SCAN_DISPATCH_BATCH` / `SWEEP_DELETE_BATCH`); backlog drains across runs.
   Pass A first so its writes are visible to B/C.
 - **Cold / hot lifecycle** (`src/lib/sync-engine.ts`): heartbeat interval,
-  cold-after (missed beats → stop dispatching), stale-running (wedged run taken
-  over), retention (sweep deletes; returning heartbeat regenerates — regenerable,
-  housekeeping loses nothing). Read constants from source; don't hardcode
-  duplicates.
+  per-dataset cold windows (`coldAfterMs` — 60s for a visible-tab dataset,
+  5 min for `characterLocation` to absorb hidden-tab throttling; a mixed-
+  dataset presence index range must use `MAX_COLD_AFTER_MS` and filter per
+  row), the hidden-presence backstop (`HIDDEN_PRESENCE_MAX_MS` off
+  `lastVisibleAt`), stale-running (wedged run taken over), retention (sweep
+  deletes; returning heartbeat regenerates — regenerable, housekeeping loses
+  nothing). Read constants from source; don't hardcode duplicates.
+- **Pacing rides the stamped windows, not new machinery.** The location sync's
+  online probe (ESI `/online`, ≤1 read per its ~60s cache window, held in the
+  unsubscribed `characterLocationOnline` table) stamps the online expiry as an
+  offline character's window, so an all-offline subject chains at ~60s and the
+  next login resumes the 5s loop — no extra trigger class, no engine field.
 - **Orphan-guard pattern.** Schema `dataset` union is a SUPERSET of active
   `SYNC_DATASETS` while retiring: leftover rows outlive the deleted syncer for
   one deploy; engine retires orphans (nulls `nextDueAt`) instead of dispatching

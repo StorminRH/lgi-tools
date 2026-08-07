@@ -22,6 +22,7 @@ import {
   stampSyncSubject,
 } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
+import { purgeScopeArgs } from './lib/syncFields';
 
 /**
  * The COLD-equivalent viewer wire: the calling user's per-character online flag,
@@ -164,7 +165,7 @@ async function applyOnlineResult(
  * /purge-online HTTP action (Neon → Convex, one-directional).
  */
 export const purgeForUser = internalMutation({
-  args: { userId: v.string(), characterId: v.union(v.number(), v.null()) },
+  args: purgeScopeArgs,
   handler: async (ctx, { userId, characterId }) => {
     const docs =
       characterId === null

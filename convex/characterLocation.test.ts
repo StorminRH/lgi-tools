@@ -62,6 +62,12 @@ type ApplyResult = {
   etagShip: string | null;
   expiresAt: number | null;
   error: string | null;
+  // Probe trio, defaulted by apply(): null-null-null = "probe not exercised",
+  // which leaves characterLocationOnline untouched — existing location cases
+  // stay byte-identical.
+  online?: boolean | null;
+  etagOnline?: string | null;
+  onlineExpiresAt?: number | null;
 };
 
 function apply(
@@ -80,7 +86,12 @@ function apply(
       args.enumeratedCharacterIds ?? args.results.map((r) => r.characterId),
     trackedCharacterIds:
       args.trackedCharacterIds ?? args.results.map((r) => r.characterId),
-    results: args.results,
+    results: args.results.map((r) => ({
+      ...r,
+      online: r.online ?? null,
+      etagOnline: r.etagOnline ?? null,
+      onlineExpiresAt: r.onlineExpiresAt ?? null,
+    })),
     lastError: null,
     rlGroup: null,
     rlLimit: null,
@@ -109,6 +120,15 @@ describe('characterLocation.purgeForUser', () => {
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
       await ctx.db.insert('characterLocation', locationDoc(OTHER, CHAR_A));
+      for (const [userId, characterId] of [[USER, CHAR_A], [USER, CHAR_B], [OTHER, CHAR_A]] as const) {
+        await ctx.db.insert('characterLocationOnline', {
+          userId,
+          characterId,
+          online: true,
+          etagOnline: null,
+          onlineExpiresAt: GEN + 60_000,
+        });
+      }
       await ctx.db.insert('mapTracking', {
         mapId: 'map-a',
         userId: USER,
@@ -151,8 +171,11 @@ describe('characterLocation.purgeForUser', () => {
 
     const remainingLocations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
     const remainingTracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
+    const remainingOnline = await t.run((ctx) => ctx.db.query('characterLocationOnline').collect());
     expect(remainingLocations.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingTracking.map((doc) => doc.userId)).toEqual([OTHER]);
+    // Held probe rows leave with the account — same door, same cascade.
+    expect(remainingOnline.map((doc) => doc.userId)).toEqual([OTHER]);
   });
 
   it('deletes only the named character\'s location and tracking rows', async () => {
@@ -288,18 +311,45 @@ describe('characterLocation.forViewer', () => {
 });
 
 describe('characterLocation.heldState', () => {
-  it('returns system id and dual etags for the conditional reads', async () => {
+  it('returns system id, dual etags, and the held online probe in one snapshot', async () => {
     const t = convexTest(schema, modules);
-    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
-    const held = await t.query(internal.characterLocation.heldState, { userId: USER });
-    expect(held).toEqual([
-      {
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+      await ctx.db.insert('characterLocationOnline', {
+        userId: USER,
         characterId: CHAR_A,
-        solarSystemId: 30_000_142,
-        etagLocation: 'loc',
-        etagShip: 'ship',
-      },
-    ]);
+        online: true,
+        etagOnline: 'on',
+        onlineExpiresAt: GEN + 60_000,
+      });
+      // Another user's rows never leak into the read seam.
+      await ctx.db.insert('characterLocationOnline', {
+        userId: OTHER,
+        characterId: CHAR_B,
+        online: false,
+        etagOnline: null,
+        onlineExpiresAt: GEN,
+      });
+    });
+    const held = await t.query(internal.characterLocation.heldState, { userId: USER });
+    expect(held).toEqual({
+      locations: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_142,
+          etagLocation: 'loc',
+          etagShip: 'ship',
+        },
+      ],
+      online: [
+        {
+          characterId: CHAR_A,
+          online: true,
+          etagOnline: 'on',
+          onlineExpiresAt: GEN + 60_000,
+        },
+      ],
+    });
   });
 });
 
@@ -558,6 +608,79 @@ describe('characterLocation.applySyncResults', () => {
 
     const remaining = await t.run((ctx) =>
       ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
+    );
+    expect(remaining.map((d) => d.characterId)).toEqual([CHAR_A]);
+  });
+
+  it('upserts the held online-probe row only on a fresh probe read', async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));
+    const offlineResult = {
+      characterId: CHAR_A,
+      solarSystemId: null as number | null,
+      stationId: null,
+      structureId: null,
+      shipTypeId: null,
+      systemChanged: false,
+      etagLocation: null,
+      etagShip: null,
+      expiresAt: WINDOW + 55_000,
+      error: null,
+    };
+
+    // Fresh read → insert.
+    await apply(t, {
+      results: [{ ...offlineResult, online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 }],
+    });
+    const readRow = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query('characterLocationOnline')
+          .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', CHAR_A))
+          .unique(),
+      );
+    const inserted = await readRow();
+    expect(inserted).toMatchObject({ online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 });
+
+    // Held-reuse (null trio) → untouched.
+    await apply(t, { results: [{ ...offlineResult }] });
+    expect((await readRow())?.onlineExpiresAt).toBe(WINDOW + 55_000);
+
+    // A later fresh read with a moved window → patched in place.
+    await apply(t, {
+      results: [{ ...offlineResult, online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 }],
+    });
+    const patched = await readRow();
+    expect(patched?._id).toBe(inserted?._id);
+    expect(patched).toMatchObject({ online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 });
+  });
+
+  it('orphan-cleans held online-probe rows alongside location docs', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow());
+      for (const characterId of [CHAR_A, CHAR_B]) {
+        await ctx.db.insert('characterLocationOnline', {
+          userId: USER,
+          characterId,
+          online: true,
+          etagOnline: null,
+          onlineExpiresAt: WINDOW,
+        });
+      }
+    });
+
+    await apply(t, {
+      enumeratedCharacterIds: [CHAR_A],
+      trackedCharacterIds: [CHAR_A],
+      results: [],
+    });
+
+    const remaining = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationOnline')
+        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .collect(),
     );
     expect(remaining.map((d) => d.characterId)).toEqual([CHAR_A]);
   });

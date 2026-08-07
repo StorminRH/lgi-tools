@@ -3,7 +3,12 @@ import { RateLimiter } from '@convex-dev/rate-limiter';
 import { Workpool } from '@convex-dev/workpool';
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { COLD_AFTER_MS, computeChainBoundary, RETENTION_MS } from '@/lib/sync-engine';
+import {
+  computeChainBoundary,
+  HIDDEN_PRESENCE_MAX_MS,
+  RETENTION_MS,
+  SYNC_DATASET_CONFIG,
+} from '@/lib/sync-engine';
 import { api, internal } from './_generated/api';
 import { SCAN_DISPATCH_BATCH } from './engine';
 import schema from './schema';
@@ -146,9 +151,92 @@ describe('engine.heartbeat', () => {
     expect(subject?.status).toBe('running');
     expect(subject?.workId).toBe('w1');
   });
+
+  it('stamps lastVisibleAt on visible and legacy beats but never on hidden ones', async () => {
+    const t = convexTest(schema, modules);
+    const authed = t.withIdentity({ subject: USER });
+    // First beat inserts — a fresh tab gets a fresh visibility budget.
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'onlineStatus', characterIdsHint: [], reason: 'mount', visible: false,
+    });
+    const inserted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(typeof inserted?.lastVisibleAt).toBe('number');
+
+    // Pin both stamps to a known past instant, then beat hidden: only
+    // lastSeenAt may advance.
+    await t.run((ctx) => ctx.db.patch(inserted!._id, { lastSeenAt: 123, lastVisibleAt: 123 }));
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'onlineStatus', characterIdsHint: [], reason: 'interval', visible: false,
+    });
+    const afterHidden = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(afterHidden?.lastSeenAt).toBeGreaterThan(123);
+    expect(afterHidden?.lastVisibleAt).toBe(123);
+
+    // A beat WITHOUT the arg is a pre-field client, which only ever beat while
+    // visible — it must refresh the visibility stamp.
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'onlineStatus', characterIdsHint: [], reason: 'interval',
+    });
+    const afterLegacy = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(afterLegacy?.lastVisibleAt).toBeGreaterThan(123);
+  });
 });
 
 describe('engine.scan', () => {
+  it('judges each dataset against its own cold window', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    stubDispatch();
+    // One presence age, two verdicts: 2 min without a beat is cold for
+    // onlineStatus (60s window) but warm for characterLocation (5 min window,
+    // sized for hidden-tab throttled beats).
+    const lastSeenAt = now - 2 * 60_000;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({ nextDueAt: now - 1000, syncedCharacterIds: [101] }));
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt });
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation', nextDueAt: now - 1000, syncedCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt });
+    });
+
+    await t.mutation(internal.engine.scan, {});
+
+    const byDataset = await t.run(async (ctx) => {
+      const rows = await ctx.db.query('syncSubjects').collect();
+      return Object.fromEntries(rows.map((row) => [row.dataset, row]));
+    });
+    expect(byDataset.onlineStatus?.nextDueAt).toBeNull();
+    expect(byDataset.characterLocation?.status).toBe('running');
+  });
+
+  it('retires hidden-only presence past the visible backstop despite fresh beats', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation', nextDueAt: now - 1000, syncedCharacterIds: [101],
+      }));
+      // Beats still arriving (hidden tab), but no visible beat inside the cap.
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+        lastVisibleAt: now - HIDDEN_PRESENCE_MAX_MS - 1,
+      });
+    });
+
+    await t.mutation(internal.engine.scan, {});
+
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.nextDueAt).toBeNull();
+  });
+
   it('retires a cold due subject from the scan set', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
@@ -512,11 +600,11 @@ describe('engine chain-on-success', () => {
         // Covered set present so COLD PRESENCE is the only reason not to chain.
         coveredCharacterIds: [101],
       }));
-      // Presence older than COLD_AFTER_MS — completion must not chain.
+      // Presence older than the dataset's cold window — completion must not chain.
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: USER,
-        lastSeenAt: now - COLD_AFTER_MS - 1,
+        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 1,
       });
     });
 
@@ -633,7 +721,7 @@ describe('engine.sweep', () => {
       await ctx.db.insert('syncPresence', {
         dataset: 'onlineStatus',
         userId: 'u2',
-        lastSeenAt: now - COLD_AFTER_MS - 5000,
+        lastSeenAt: now - SYNC_DATASET_CONFIG.onlineStatus.coldAfterMs - 5000,
       });
       // S3 — past-retention presence, not due → reaped in Pass C.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u3', nextDueAt: null }));
@@ -739,5 +827,36 @@ describe('engine.sweep', () => {
     expect(counts.dispatched).toBe(0);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]![0]).toContain('dropped_batch_capped');
+  });
+
+  it('Pass B re-arms only rows hot for their own dataset window', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    stubDispatch();
+    // Same presence age, both inside the widened index range: cold for
+    // onlineStatus, hot for characterLocation. Both subjects are idle,
+    // unscheduled, with targets and a lapsed window — Pass B's re-arm shape.
+    const lastSeenAt = now - 2 * 60_000;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: now - 1000,
+      }));
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt });
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation', nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: now - 1000,
+      }));
+      await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt });
+    });
+
+    const counts = await t.mutation(internal.engine.sweep, {});
+
+    expect(counts.dispatched).toBe(1);
+    const byDataset = await t.run(async (ctx) => {
+      const rows = await ctx.db.query('syncSubjects').collect();
+      return Object.fromEntries(rows.map((row) => [row.dataset, row]));
+    });
+    expect(byDataset.characterLocation?.status).toBe('running');
+    expect(byDataset.onlineStatus?.status).toBe('idle');
+    expect(byDataset.onlineStatus?.nextDueAt).toBeNull();
   });
 });

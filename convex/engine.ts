@@ -44,8 +44,12 @@
 // bounded by its live working sets — the overdue backlog, the concurrently-
 // watched set, and per-run retention crossings — not by the total retained-
 // subject count (3.5.e2 retired its full-table scan for three indexed ranges).
-// Per visible tab: 3 heartbeats/min ≈ 180 calls/hr. Since 3.5.e1 each beat
-// writes only the syncPresence row, so interval beats no longer re-run
+// Per watched tab: 3 heartbeats/min while visible (≈180 calls/hr); a HIDDEN
+// tab keeps beating at the browser-throttled rate (~1/min) until the client
+// AFK flow stops it (prompt after 1h continuously hidden, beats stop 5 min
+// unanswered later) — HIDDEN_PRESENCE_MAX_MS (90 min without a visible beat)
+// is the server backstop against a client that never stops. Since 3.5.e1 each
+// beat writes only the syncPresence row, so interval beats no longer re-run
 // forViewer and no longer re-read the heavy tracker payload — the per-beat DB
 // I/O term that bound first on Free for multi-alt users (a 5-alt watcher
 // re-reading ~5 payloads 3×/min) is gone. Per dispatched run: ~11 marginal
@@ -54,10 +58,15 @@
 // forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
 // amortizes across a burst).
 // Watched-hour ≈ 2.9k calls for onlineStatus (60-run floor); characterLocation
-// with chain-on-success is ~12 runs/min (~10k–30k calls/watched-hour) while a
-// tracked pilot's map stays open — accepted order-of-magnitude multiple, zero
-// while cold. skills/jobs/corp all moved to Neon stale-gated on-view reads in
-// MIGRATE.B.
+// with chain-on-success is ~12 runs/min (~10k–30k calls/watched-hour) while
+// the Atlas tab is OPEN — visible or hidden behind the game — AND a tracked
+// pilot is online in EVE (BY DESIGN since the hidden-tab change: a hidden
+// online pilot runs the full loop until the AFK flow stops it, ~25–40k calls
+// per hidden stretch worst-case). All tracked pilots offline drops the
+// subject to the ~60s online-probe cadence (≈2.7k calls/watched-hour) that
+// auto-resumes the fast loop on the next login; zero once the tab closes
+// (cold after the dataset's coldAfterMs) or the AFK stop lands. skills/jobs/
+// corp all moved to Neon stale-gated on-view reads in MIGRATE.B.
 // Calls do NOT scale with characters-per-user — characters multiply ESI reads
 // inside ONE action (action compute + bandwidth scale, calls don't) — and since
 // 3.5.e1 DB I/O no longer scales with the payload re-read on every beat either.
@@ -66,13 +75,13 @@ import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
 import {
   classifyDueSubject,
-  COLD_AFTER_MS,
   computeChainBoundary,
   computeNextDueAt,
   hasSyncTarget,
   isColdFromPresence,
   isRunningFresh,
   isStaleForImmediate,
+  MAX_COLD_AFTER_MS,
   RETENTION_MS,
   SYNC_DATASET_CONFIG,
   type SyncDataset,
@@ -173,21 +182,31 @@ export const heartbeat = mutation({
     dataset: syncDatasetValidator,
     characterIdsHint: v.array(v.number()),
     reason: v.union(v.literal('mount'), v.literal('visible'), v.literal('interval')),
+    // Whether the beating tab is visible. Optional and defaulting to true:
+    // pre-field clients only ever beat while visible, so absence is honest.
+    visible: v.optional(v.boolean()),
   },
-  handler: async (ctx, { dataset, characterIdsHint, reason }) => {
+  handler: async (ctx, { dataset, characterIdsHint, reason, visible }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) return;
     const userId = identity.subject;
     const now = Date.now();
+    const seenVisible = visible !== false;
 
     // Presence first, for every reason — into syncPresence, never the subject
     // row. This is the decoupling: an interval beat writes only this doc and
     // returns, so it cannot invalidate forViewer's read of syncSubjects.
+    // lastVisibleAt feeds the hidden-presence backstop; a fresh insert stamps
+    // it unconditionally (a newly opened tab — even a background one — is a
+    // deliberate user action and gets a fresh visibility budget).
     const presence = await getPresence(ctx.db, dataset, userId);
     if (presence === null) {
-      await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now });
+      await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now, lastVisibleAt: now });
     } else {
-      await ctx.db.patch(presence._id, { lastSeenAt: now });
+      await ctx.db.patch(presence._id, {
+        lastSeenAt: now,
+        ...(seenVisible ? { lastVisibleAt: now } : {}),
+      });
     }
 
     if (reason === 'interval') return;
@@ -265,9 +284,10 @@ export const scan = internalMutation({
     const due = await dueSubjects(ctx, now);
     for (const subject of due) {
       // Presence is its own doc now (3.5.e1) — one point read per due row,
-      // only over the hot, already-scheduled set. A missing doc reads as cold.
+      // only over the hot, already-scheduled set. A missing doc reads as cold,
+      // and each dataset is judged against its own cold window.
       const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-      if (isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
+      if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[subject.dataset].coldAfterMs, now)) {
         await ctx.db.patch(subject._id, { nextDueAt: null });
         continue;
       }
@@ -353,7 +373,7 @@ export const chainDispatch = internalMutation({
     if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
     if (subject.nextDueAt === null || subject.nextDueAt > now) return;
     const presence = await getPresence(ctx.db, dataset, userId);
-    if (isColdFromPresence(presence?.lastSeenAt ?? null, now)) return;
+    if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return;
     await dispatch(ctx, subject, now);
   },
 });
@@ -390,7 +410,8 @@ async function resolveCompletionSchedule(
     subject.lastError === null && (subject.coveredCharacterIds?.length ?? 0) > 0;
   if (chainOnSuccess && yielded) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-    if (!isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
+    const { coldAfterMs } = SYNC_DATASET_CONFIG[subject.dataset];
+    if (!isColdFromPresence(presence, coldAfterMs, now)) {
       const boundary = computeChainBoundary(subject.minExpiresAt, cadenceFloorMs, now);
       return { nextDueAt: boundary, chainAt: boundary };
     }
@@ -479,7 +500,9 @@ export const onSyncComplete = internalMutation({
  *      past-retention / retire cold-within-retention / dispatch hot. Capped at
  *      SCAN_DISPATCH_BATCH (≈0 on a healthy system, but the scan's own cap now
  *      lets a backlog form — this recovery pass must not read it unbounded).
- *   B. dropped — by_last_seen over hot presence (lastSeenAt ≥ now−COLD): a hot
+ *   B. dropped — by_last_seen over presence within the widest cold window
+ *      (lastSeenAt ≥ now−MAX_COLD_AFTER_MS, per-row filtered by each dataset's
+ *      own window): a hot
  *      idle row with targets but no schedule (timer wiped mid-flight) is
  *      re-armed. Capped at SCAN_DISPATCH_BATCH (a backstop sample of the
  *      concurrently-watched set; the on-view heartbeat is the primary re-arm).
@@ -531,7 +554,13 @@ async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts):
   for (const subject of due) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     switch (
-      classifyDueSubject(presence?.lastSeenAt ?? null, subject.status, subject.lastRequestedAt, now)
+      classifyDueSubject(
+        presence,
+        subject.status,
+        subject.lastRequestedAt,
+        SYNC_DATASET_CONFIG[subject.dataset].coldAfterMs,
+        now,
+      )
     ) {
       case 'delete':
         await ctx.db.delete(subject._id);
@@ -562,11 +591,18 @@ async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts):
   // the PRIMARY dropped-timer re-arm — so capping the read only means a hot row
   // beyond the cap is reconciled by its own next heartbeat or a later sweep as its
   // lastSeenAt rotates toward the cap window. The cap buys ceiling-safety only.
+  // The range bound is the WIDEST registered cold window; each row is then
+  // filtered by its own dataset's window (a narrower bound would silently
+  // exclude longer-window datasets, and the range alone would treat a
+  // short-window dataset's cold row as hot).
   const hot = await ctx.db
     .query('syncPresence')
-    .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - COLD_AFTER_MS))
+    .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - MAX_COLD_AFTER_MS))
     .take(SCAN_DISPATCH_BATCH);
   for (const presence of hot) {
+    if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[presence.dataset].coldAfterMs, now)) {
+      continue;
+    }
     const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
     if (subject === null || subject.nextDueAt !== null) continue;
     if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
