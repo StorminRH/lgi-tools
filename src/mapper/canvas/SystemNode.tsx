@@ -95,6 +95,7 @@ function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
   return (
     <div
       data-chain-node
+      aria-hidden={fogged || undefined}
       data-dragging={dragging || undefined}
       data-chain-node-derived={derived || undefined}
       data-chain-node-fogged={fogged || undefined}

@@ -3,9 +3,10 @@
 // Staleness honesty is the whole point of this module: `observedAt` is
 // LAST-CHANGE time, so a stationary pilot and a paused tracker look identical
 // through it. The primary honest signal is `feedFreshAt` — delivered per
-// character by the `mapTracking.feedFreshness` subscription (quantized to 60s
-// buckets so the hot per-run subject stamp cannot churn the wire), and
-// non-null only when the owner's last run actually covered that character.
+// owner + character by the `mapTracking.feedFreshness` subscription
+// (quantized to 60s buckets so the hot per-run subject stamp cannot churn the
+// wire), and non-null only when the owner's last run actually covered that
+// character.
 // A RECENT `observedAt` is the one exception to its untrustworthiness: a
 // location change the feed just wrote proves the feed observed the character
 // at that moment, so fresh movement also reads live (cold freshness
@@ -43,6 +44,7 @@ export interface TrackedLocationSnapshot {
 
 /** One `forMap` tracked row, structurally (the model never imports Convex). */
 export interface TrackedPresenceRow {
+  readonly userId: string;
   readonly characterId: number;
   readonly location: TrackedLocationSnapshot | null;
 }
@@ -67,8 +69,8 @@ export interface SystemPresence {
 /** Inputs for one presence derivation pass. */
 export interface PresenceInput {
   readonly tracked: readonly TrackedPresenceRow[];
-  /** Per-character quantized `feedFreshAt`; a missing entry means stale. */
-  readonly freshness: ReadonlyMap<number, number | null>;
+  /** Per-owner-character quantized `feedFreshAt`; a missing entry means stale. */
+  readonly freshness: ReadonlyMap<string, ReadonlyMap<number, number | null>>;
   readonly now: number;
   readonly ownCharacterIds: readonly number[];
   /** The local AFK gate's prompt-open/paused verdict (own characters only). */
@@ -119,7 +121,7 @@ export function derivePresence(input: PresenceInput): ReadonlyMap<number, System
       docked: row.location.stationId !== null || row.location.structureId !== null,
       lastMovementAt: row.location.transitionObservedAt ?? row.location.observedAt,
       state: presenceState(
-        input.freshness.get(row.characterId) ?? null,
+        input.freshness.get(row.userId)?.get(row.characterId) ?? null,
         row.location.observedAt,
         input.now,
       ),
@@ -154,20 +156,26 @@ export interface TrackingPayload {
 
 /** The `feedFreshness` payload shape presence consumes (undefined while loading). */
 export interface FeedFreshnessPayload {
-  readonly fresh: readonly { characterId: number; feedFreshAt: number | null }[];
+  readonly fresh: readonly {
+    userId: string;
+    characterId: number;
+    feedFreshAt: number | null;
+  }[];
 }
 
 /**
- * Indexes the freshness payload by character id. An unloaded payload yields
- * an empty index, which reads as stale-everywhere — the honest verdict while
- * the freshness subscription is still cold.
+ * Indexes the freshness payload by owner then character id. An unloaded
+ * payload yields an empty index, which reads as stale-everywhere — the honest
+ * verdict while the freshness subscription is still cold.
  */
 export function feedFreshnessIndex(
   payload: FeedFreshnessPayload | undefined,
-): ReadonlyMap<number, number | null> {
-  const index = new Map<number, number | null>();
+): ReadonlyMap<string, ReadonlyMap<number, number | null>> {
+  const index = new Map<string, Map<number, number | null>>();
   for (const entry of payload?.fresh ?? []) {
-    index.set(entry.characterId, entry.feedFreshAt);
+    const byCharacter = index.get(entry.userId) ?? new Map();
+    byCharacter.set(entry.characterId, entry.feedFreshAt);
+    index.set(entry.userId, byCharacter);
   }
   return index;
 }

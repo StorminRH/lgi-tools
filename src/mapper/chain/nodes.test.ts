@@ -379,7 +379,7 @@ describe('halo edge projection', () => {
     ]);
   });
 
-  it('marks the fogged side of a link into the fog, and no side otherwise (OW4)', () => {
+  it('marks the one fogged side and omits links whose two endpoints are fogged (OW4)', () => {
     const treeParents = deriveChainTree({
       systems: [{ systemId: JITA }, { systemId: RING1 }, { systemId: RING3 }],
       connections: [
@@ -397,12 +397,11 @@ describe('halo edge projection', () => {
         { a: RING1, b: RING3 },
         { a: RING3, b: JITA },
       ],
-      new Set([RING3]),
+      new Set([RING1, RING3]),
     );
 
     expect(edges.map((edge) => [edge.id, edge.data.fogSide])).toEqual([
-      [`halo:${JITA}>${RING1}`, undefined],
-      [`halo:${RING1}>${RING3}`, 'target'],
+      [`halo:${JITA}>${RING1}`, 'target'],
       [`halo:${RING3}>${JITA}`, 'source'],
     ]);
   });

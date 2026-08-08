@@ -9,6 +9,7 @@
 // of the active registry while a dataset is being retired (the drain-window pattern
 // in docs/CONVEX.md), and these lookups stay typed off the stored union so they can
 // still find/clean a retiring dataset's leftover rows during that window.
+import type { WithoutSystemFields } from 'convex/server';
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader } from '../_generated/server';
 
@@ -22,7 +23,10 @@ type StoredDataset = Doc<'syncSubjects'>['dataset'];
  * a new syncSubjects column cannot drift silently between hand-copied
  * literals. Pure value construction; the callers own the actual insert.
  */
-export function newIdleSubject(dataset: StoredDataset, userId: string) {
+export function newIdleSubject(
+  dataset: StoredDataset,
+  userId: string,
+): WithoutSystemFields<Doc<'syncSubjects'>> {
   return {
     dataset,
     userId,

@@ -137,6 +137,20 @@ describe('runFogTick', () => {
     expect(runtime.frameState.timeline.size).toBeGreaterThan(0);
   });
 
+  it('advances without paint until the color token resolves, then paints', () => {
+    const runtime = createFogHostRuntime();
+    const canvas = stubCanvas();
+    const { ctx, ops } = stubContext();
+
+    runFogTick(runtime, tickIo(canvas, ctx, { readColor: () => null }), INPUTS);
+    expect(ops).toHaveLength(0);
+    expect(runtime.placement).toBeNull();
+    expect(runtime.frameState.timeline.size).toBeGreaterThan(0);
+
+    runFogTick(runtime, tickIo(canvas, ctx), INPUTS);
+    expect(ops.filter((op) => op === 'fillRect')).toHaveLength(1);
+  });
+
   it('reports animation for a later-arriving reveal so the host loops', () => {
     const runtime = createFogHostRuntime();
     const canvas = stubCanvas();

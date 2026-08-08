@@ -95,11 +95,11 @@ export default {
     // One clean load over the fully-seeded map: the budget is measured on the
     // steady state, not on 55 incremental merges.
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
+    const expectedTotalNodes = authoredCount + HALO_MAX_SYSTEMS_TOTAL;
     await page.waitForFunction(
       (expected) =>
-        document.querySelectorAll('[data-chain-node]').length >=
-        expected + 100,
-      authoredCount,
+        document.querySelectorAll('[data-chain-node]').length >= expected,
+      expectedTotalNodes,
       { timeout: 120_000 },
     );
     await page.waitForTimeout(2500);

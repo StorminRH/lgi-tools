@@ -161,8 +161,43 @@ export const forMap = query({
  */
 export const FEED_FRESHNESS_QUANTUM_MS = 60_000;
 
+interface FeedFreshnessRow {
+  userId: string;
+  characterId: number;
+  feedFreshAt: number | null;
+}
+
+/** Stable wire order without adding another decision to the reactive query. */
+function compareFeedFreshnessRows(
+  left: FeedFreshnessRow,
+  right: FeedFreshnessRow,
+): number {
+  return (
+    left.userId.localeCompare(right.userId) ||
+    left.characterId - right.characterId
+  );
+}
+
+function coveredCharacters(subject: Doc<'syncSubjects'>): readonly number[] {
+  return subject.coveredCharacterIds ?? [];
+}
+
+/** Quantized proof that this owner's last completed run covered the pilot. */
+function feedFreshnessBucket(
+  subject: Doc<'syncSubjects'> | null,
+  characterId: number,
+): number | null {
+  if (subject === null) return null;
+  if (subject.lastFinishedAt === null) return null;
+  if (!coveredCharacters(subject).includes(characterId)) return null;
+  return (
+    Math.floor(subject.lastFinishedAt / FEED_FRESHNESS_QUANTUM_MS) *
+    FEED_FRESHNESS_QUANTUM_MS
+  );
+}
+
 /**
- * Per-character feed freshness for one map's tracked pilots — the honest
+ * Per-owner-character feed freshness for one map's tracked pilots — the honest
  * staleness signal, split from `forMap` at the subscription boundary
  * (docs/CONVEX.md): this query's read set includes the owner's hot
  * characterLocation sync-subject (patched every run), so it re-executes at
@@ -172,7 +207,10 @@ export const FEED_FRESHNESS_QUANTUM_MS = 60_000;
  * fresh only when the owner's last run actually covered it
  * (`coveredCharacterIds`, 304s included) — a completing run whose pilot is
  * logged off or token-broken must not read as a live feed for that pilot.
- * Output is sorted by character id so identical state hashes identically.
+ * Output is sorted by owner then character id so identical state hashes
+ * identically. Owner identity must survive this query: location documents are
+ * also owner-scoped, and one owner's fresh subject cannot vouch for another
+ * owner's stale location for the same character id.
  * No time source and no varying log lines: both would defeat the dedupe.
  */
 export const feedFreshness = query({
@@ -180,7 +218,13 @@ export const feedFreshness = query({
   handler: async (ctx, { mapId }) => {
     const principal = await tryMapAccess(ctx, mapId, 'view');
     if (principal === null) {
-      return { fresh: [] as { characterId: number; feedFreshAt: number | null }[] };
+      return {
+        fresh: [] as {
+          userId: string;
+          characterId: number;
+          feedFreshAt: number | null;
+        }[],
+      };
     }
 
     const rows = await ctx.db
@@ -199,29 +243,18 @@ export const feedFreshness = query({
       return subject;
     };
 
-    const byCharacter = new Map<number, number | null>();
+    const fresh: FeedFreshnessRow[] = [];
     for (const row of rows) {
       const subject = await subjectOf(row.userId);
-      const finishedAt = subject === null ? null : subject.lastFinishedAt;
-      const covered =
-        subject !== null &&
-        (subject.coveredCharacterIds ?? []).includes(row.characterId);
-      const bucket =
-        covered && finishedAt !== null
-          ? Math.floor(finishedAt / FEED_FRESHNESS_QUANTUM_MS) *
-            FEED_FRESHNESS_QUANTUM_MS
-          : null;
-      const held = byCharacter.get(row.characterId);
-      // A character tracked by several rows keeps its freshest evidence.
-      if (held === undefined || (bucket !== null && (held === null || bucket > held))) {
-        byCharacter.set(row.characterId, bucket);
-      }
+      fresh.push({
+        userId: row.userId,
+        characterId: row.characterId,
+        feedFreshAt: feedFreshnessBucket(subject, row.characterId),
+      });
     }
 
     return {
-      fresh: [...byCharacter.entries()]
-        .sort((left, right) => left[0] - right[0])
-        .map(([characterId, feedFreshAt]) => ({ characterId, feedFreshAt })),
+      fresh: fresh.sort(compareFeedFreshnessRows),
     };
   },
 });

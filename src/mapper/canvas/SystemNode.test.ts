@@ -111,12 +111,15 @@ describe('halo node markup', () => {
     // itself; invisibility-under-fog is this class, not paint order (SC-3.2).
     expect(fogged).toContain('opacity-0');
     expect(fogged).not.toContain('opacity-40');
+    expect(fogged).toContain('aria-hidden="true"');
     // Fully inert under the cloud: no chrome opts back into pointer events.
     expect(fogged).not.toContain('pointer-events-auto');
   });
 
   it('leaves authored nodes unmarked', () => {
-    expect(markup(undefined)).not.toMatch(
+    const authored = markup(undefined);
+    expect(authored).not.toContain('aria-hidden');
+    expect(authored).not.toMatch(
       /data-chain-node-derived|data-chain-node-fogged|border-dashed/,
     );
   });
@@ -182,7 +185,6 @@ describe('outbound arrow markup', () => {
   });
 });
 
-// ── SC-1 · DC-1 — the birth window is a class on the inner element ───────────
 // ── OW2 — the frame-slot presence indicator ──────────────────────────────────
 describe('presence badge markup', () => {
   const pilot = (overrides: Partial<PresencePilot>): PresencePilot => ({

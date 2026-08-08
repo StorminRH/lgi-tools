@@ -170,6 +170,8 @@ export function syncNodes(
   return [...authored, ...haloNodes];
 }
 
+const EMPTY_FOGGED_IDS: ReadonlySet<number> = new Set();
+
 /**
  * Builds one edge per visible connection; withheld connections are simply absent from state.
  *
@@ -210,8 +212,6 @@ export function buildEdges(
   return edges;
 }
 
-const EMPTY_FOGGED_IDS: ReadonlySet<number> = new Set();
-
 /**
  * The shared solid-claim bookkeeping both edge families use: tree structure
  * draws solid exactly once per endpoint pair, and every rendered pair is
@@ -250,12 +250,13 @@ function appendHaloEdges(
 ): void {
   for (const link of haloLinks) {
     if (claim.rendered(link.a, link.b)) continue;
+    const aFogged = foggedSystemIds.has(link.a);
+    const bFogged = foggedSystemIds.has(link.b);
+    // Claim links stay in layout facts to place deeper rings, but a canvas
+    // edge with both endpoints under fog has no visible side to truncate.
+    if (aFogged && bFogged) continue;
     const solid = claim.claimSolid(link.a, link.b);
-    const fogSide = foggedSystemIds.has(link.a)
-      ? ('source' as const)
-      : foggedSystemIds.has(link.b)
-        ? ('target' as const)
-        : undefined;
+    const fogSide = aFogged ? ('source' as const) : bFogged ? ('target' as const) : undefined;
     edges.push({
       id: `${HALO_EDGE_ID_PREFIX}${link.a}>${link.b}`,
       source: String(link.a),

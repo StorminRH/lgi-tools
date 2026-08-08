@@ -18,7 +18,7 @@ import { getPreferenceDef, type PreferenceDef } from '@/lib/preferences';
 import type { FeatureControlId } from './feature-controls';
 import type { PageSettingsSpec, SettingsControlRef } from './types';
 
-/** Enum preference row for SegmentedControl presentation. */
+/** String preference row: display label, registered options, and owning definition. */
 export type EnumMenuControlModel = {
   kind: 'preference-enum';
   key: string;
@@ -30,7 +30,7 @@ export type EnumMenuControlModel = {
   def: PreferenceDef<string>;
 };
 
-/** Boolean preference row for Switch presentation. */
+/** Boolean preference row: display label plus its owning registered definition. */
 export type BooleanMenuControlModel = {
   kind: 'preference-boolean';
   key: string;

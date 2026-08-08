@@ -46,19 +46,18 @@ export default {
     // Keep pans/zooms/drags modest so the card stays off the viewport clamp —
     // clamp is correct follower behavior but would change the free-placement offset.
     const panePoint = await exposedPanePoint(page);
-    if (panePoint !== null) {
-      await page.mouse.move(panePoint.x, panePoint.y);
-      await page.mouse.down({ button: 'middle' });
-      await page.mouse.move(panePoint.x + 40, panePoint.y + 30, { steps: 5 });
-      await page.mouse.up({ button: 'middle' });
+    if (panePoint === null) {
+      throw new Error('No exposed pane point is available for pan and zoom proof');
     }
+    await page.mouse.move(panePoint.x, panePoint.y);
+    await page.mouse.down({ button: 'middle' });
+    await page.mouse.move(panePoint.x + 40, panePoint.y + 30, { steps: 5 });
+    await page.mouse.up({ button: 'middle' });
     await page.waitForTimeout(100);
     check('the card tracks its node through pan', near(initial, await offset(target.node, card)));
 
-    if (panePoint !== null) {
-      await page.mouse.move(panePoint.x, panePoint.y);
-      await page.mouse.wheel(0, -120);
-    }
+    await page.mouse.move(panePoint.x, panePoint.y);
+    await page.mouse.wheel(0, -120);
     await page.waitForTimeout(150);
     check('the card tracks its node through zoom', near(initial, await offset(target.node, card)));
 

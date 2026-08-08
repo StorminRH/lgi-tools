@@ -83,6 +83,7 @@ function reconstructPath(
   let cursor = scan.cameFrom.get(pilotSystemId)!;
   while (!drawnSystemIds.has(cursor)) {
     path.push(cursor);
+    // Same invariant: every non-source cursor was discovered from a predecessor.
     cursor = scan.cameFrom.get(cursor)!;
   }
   path.push(cursor);

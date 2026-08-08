@@ -222,7 +222,7 @@ describe('mapTracking.forMap', () => {
     expect(byUser.get(EDITOR)?.location).toBeNull();
   });
 
-  it('answers per-character feed freshness: covered characters get the quantized bucket, everyone else null', async () => {
+  it('answers owner-scoped feed freshness: covered characters get the quantized bucket, everyone else null', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
       { userId: OWNER, roles: ['owner'] },
@@ -243,7 +243,7 @@ describe('mapTracking.forMap', () => {
     });
     await asUser(t, EDITOR).mutation(api.mapTracking.setTracking, {
       mapId: MAP_A,
-      characterId: 91_000_777,
+      characterId: CHAR,
       tracked: true,
     });
 
@@ -267,28 +267,35 @@ describe('mapTracking.forMap', () => {
     const result = await asUser(t, OWNER).query(api.mapTracking.feedFreshness, {
       mapId: MAP_A,
     });
-    const byCharacter = new Map(
-      result.fresh.map((entry) => [entry.characterId, entry.feedFreshAt]),
+    const byOwnerCharacter = new Map(
+      result.fresh.map((entry) => [
+        `${entry.userId}/${entry.characterId}`,
+        entry.feedFreshAt,
+      ]),
     );
     // Covered character: the stamp arrives QUANTIZED, so the payload — and
     // therefore the subscription push — changes at most once per bucket.
-    expect(byCharacter.get(CHAR)).toBe(bucket);
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR}`)).toBe(bucket);
     expect(bucket).not.toBe(finishedAt);
     // Same owner, same fresh subject, but not covered by the last run → null.
-    expect(byCharacter.get(CHAR_B)).toBeNull();
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR_B}`)).toBeNull();
     // Owner with no characterLocation subject at all → null, and the other
     // dataset's subject must not leak in.
-    expect(byCharacter.get(91_000_777)).toBeNull();
-    // Sorted by character id: identical state must hash identically for the
-    // server's value-level dedupe.
-    expect(result.fresh.map((entry) => entry.characterId)).toEqual(
-      [CHAR, CHAR_B, 91_000_777].sort((a, b) => a - b),
-    );
+    expect(byOwnerCharacter.get(`${EDITOR}/${CHAR}`)).toBeNull();
+    // Owner identity survives even when two tracking rows name the same
+    // character id, and owner/character ordering stays deterministic.
+    expect(result.fresh.map(({ userId, characterId }) => [userId, characterId])).toEqual([
+      [EDITOR, CHAR],
+      [OWNER, CHAR],
+      [OWNER, CHAR_B],
+    ]);
     // forMap no longer reads the hot subject stamp: its rows carry no
     // freshness field, so the ~5s per-run patch cannot invalidate it.
     const overlay = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
     const anyRow = overlay.tracked[0];
-    expect(anyRow !== undefined && 'feedFreshAt' in anyRow).toBe(false);
+    expect(anyRow).toBeDefined();
+    if (anyRow === undefined) throw new Error('expected a tracked overlay row');
+    expect('feedFreshAt' in anyRow).toBe(false);
   });
 
   it('answers feedFreshness as an empty list without access (subscription doctrine)', async () => {

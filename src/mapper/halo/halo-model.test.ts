@@ -115,7 +115,7 @@ describe('deriveHalo', () => {
     }
   });
 
-  it('never links two fogged systems together', () => {
+  it('does not add fogged-to-fogged cross-links when claim parents stay visible', () => {
     // Use a deeper extent so two gate-adjacent systems land under fog (5↔7).
     const halo = deriveHalo(
       inputFor([100], {
@@ -134,6 +134,26 @@ describe('deriveHalo', () => {
     expect(
       halo.links.some((link) => fogged.has(link.a) && fogged.has(link.b)),
     ).toBe(false);
+  });
+
+  it('retains deeper fogged claim links as structural layout facts', () => {
+    const halo = deriveHalo(
+      inputFor([100], {
+        limits: {
+          drawnRings: 1,
+          foggedRings: 2,
+          maxSystemsPerExit: 60,
+          maxSystemsTotal: 150,
+        },
+      }),
+    );
+    const fogged = new Set(
+      halo.systems.filter((system) => system.fogged).map((system) => system.systemId),
+    );
+
+    expect(
+      halo.links.some((link) => fogged.has(link.a) && fogged.has(link.b)),
+    ).toBe(true);
   });
 
   it('truncates deterministically at the per-exit cap', () => {

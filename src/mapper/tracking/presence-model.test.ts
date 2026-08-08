@@ -13,10 +13,12 @@ import {
 const NOW = 1_700_000_000_000;
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
+const OWNER = 'owner';
 /** Older than PRESENCE_FEED_STALE_AFTER_MS — proves nothing about the feed. */
 const OLD = NOW - 400_000;
 
 function row(overrides: {
+  userId?: string;
   characterId: number;
   solarSystemId?: number;
   stationId?: number | null;
@@ -27,9 +29,14 @@ function row(overrides: {
   location?: null;
 }): TrackedPresenceRow {
   if (overrides.location === null) {
-    return { characterId: overrides.characterId, location: null };
+    return {
+      userId: overrides.userId ?? OWNER,
+      characterId: overrides.characterId,
+      location: null,
+    };
   }
   return {
+    userId: overrides.userId ?? OWNER,
     characterId: overrides.characterId,
     location: {
       solarSystemId: overrides.solarSystemId ?? JITA,
@@ -50,9 +57,13 @@ function derive(tracked: TrackedPresenceRow[], options?: {
 }) {
   return derivePresence({
     tracked,
-    freshness:
-      options?.freshness ??
-      new Map(tracked.map((entry) => [entry.characterId, NOW - 1_000])),
+    freshness: new Map([
+      [
+        OWNER,
+        options?.freshness ??
+          new Map(tracked.map((entry) => [entry.characterId, NOW - 1_000])),
+      ],
+    ]),
     now: NOW,
     ownCharacterIds: options?.ownCharacterIds ?? [],
     ownAfk: options?.ownAfk ?? false,
@@ -189,6 +200,29 @@ describe('derivePresence shape', () => {
     expect(presence.get(JITA)?.pilots[0]?.lastMovementAt).toBe(NOW - 30_000);
   });
 
+  it('never applies one owner\'s fresh feed to another owner\'s stale location', () => {
+    const presence = derivePresence({
+      tracked: [
+        row({ userId: 'fresh-owner', characterId: 1, location: null }),
+        row({
+          userId: 'stale-owner',
+          characterId: 1,
+          transitionObservedAt: OLD,
+          observedAt: OLD,
+        }),
+      ],
+      freshness: new Map<string, ReadonlyMap<number, number | null>>([
+        ['fresh-owner', new Map([[1, NOW - 1_000]])],
+        ['stale-owner', new Map([[1, null]])],
+      ]),
+      now: NOW,
+      ownCharacterIds: [],
+      ownAfk: false,
+    });
+
+    expect(presence.get(JITA)?.pilots[0]?.state).toBe('stale');
+  });
+
   it('carries the ship type through for future readouts', () => {
     const pilot = derive([row({ characterId: 1, shipTypeId: 28_606 })]).get(JITA)?.pilots[0];
     expect(pilot?.shipTypeId).toBe(28_606);
@@ -218,7 +252,7 @@ describe('derivePresenceFromPayload', () => {
   it('threads payload rows, freshness, own ids, and the AFK verdict through', () => {
     const presence = derivePresenceFromPayload(
       { tracked: [row({ characterId: 7 })], ownTrackedCharacterIds: [7] },
-      { fresh: [{ characterId: 7, feedFreshAt: NOW - 1_000 }] },
+      { fresh: [{ userId: OWNER, characterId: 7, feedFreshAt: NOW - 1_000 }] },
       NOW,
       true,
     );
@@ -227,15 +261,17 @@ describe('derivePresenceFromPayload', () => {
     expect(pilot?.ownAfk).toBe(true);
   });
 
-  it('indexes the freshness payload by character id', () => {
+  it('indexes the freshness payload by owner then character id', () => {
     const index = feedFreshnessIndex({
       fresh: [
-        { characterId: 3, feedFreshAt: NOW },
-        { characterId: 4, feedFreshAt: null },
+        { userId: OWNER, characterId: 3, feedFreshAt: NOW },
+        { userId: OWNER, characterId: 4, feedFreshAt: null },
+        { userId: 'other', characterId: 3, feedFreshAt: null },
       ],
     });
-    expect(index.get(3)).toBe(NOW);
-    expect(index.get(4)).toBeNull();
+    expect(index.get(OWNER)?.get(3)).toBe(NOW);
+    expect(index.get(OWNER)?.get(4)).toBeNull();
+    expect(index.get('other')?.get(3)).toBeNull();
     expect(feedFreshnessIndex(undefined).size).toBe(0);
   });
 });

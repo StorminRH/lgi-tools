@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import type { FogFrame } from './fog-model';
 import {
   decideFogPlacement,
@@ -83,35 +83,38 @@ describe('decideFogPlacement', () => {
 
   it('claims a cover on first paint and keeps it while it still holds', () => {
     const first = decideFogPlacement(null, viewport(), FRAME, 170, 1);
-    expect(first?.changed).toBe(true);
-    expect(fogCoverContains(first!.placement.cover, { x: 0, y: 0, width: 1000, height: 800 })).toBe(
+    assert.isNotNull(first);
+    expect(first.changed).toBe(true);
+    expect(fogCoverContains(first.placement.cover, { x: 0, y: 0, width: 1000, height: 800 })).toBe(
       true,
     );
 
-    const kept = decideFogPlacement(first!.placement, viewport(), FRAME, 170, 1);
+    const kept = decideFogPlacement(first.placement, viewport(), FRAME, 170, 1);
     expect(kept?.changed).toBe(false);
-    expect(kept?.placement.cover).toBe(first!.placement.cover);
+    expect(kept?.placement.cover).toBe(first.placement.cover);
   });
 
   it('claims a new cover when the visible rect escapes the old one', () => {
     const first = decideFogPlacement(null, viewport(), FRAME, 170, 1);
+    assert.isNotNull(first);
     const panned = decideFogPlacement(
-      first!.placement,
+      first.placement,
       { transform: [-5000, 0, 1] as const, width: 1000, height: 800 },
       FRAME,
       170,
       1,
     );
     expect(panned?.changed).toBe(true);
-    expect(panned?.placement.cover).not.toBe(first!.placement.cover);
+    expect(panned?.placement.cover).not.toBe(first.placement.cover);
   });
 
   it('flags a change when only the zoom bucket flips', () => {
     const first = decideFogPlacement(null, viewport(1), FRAME, 170, 1);
-    const zoomed = decideFogPlacement(first!.placement, viewport(1.8), FRAME, 170, 1);
+    assert.isNotNull(first);
+    const zoomed = decideFogPlacement(first.placement, viewport(1.8), FRAME, 170, 1);
     expect(zoomed?.changed).toBe(true);
-    expect(zoomed?.placement.cover).toBe(first!.placement.cover);
-    expect(zoomed?.placement.scale).not.toBe(first!.placement.scale);
+    expect(zoomed?.placement.cover).toBe(first.placement.cover);
+    expect(zoomed?.placement.scale).not.toBe(first.placement.scale);
   });
 });
 
