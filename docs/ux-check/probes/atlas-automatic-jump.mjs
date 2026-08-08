@@ -10,64 +10,17 @@ import {
   convexRun,
   waitForEditableMap,
 } from '../lib/authoring-helpers.mjs';
+import {
+  doorbellAfter,
+  sessionUserId,
+  waitForTopology,
+} from '../lib/doorbell-helpers.mjs';
 
 const CHARACTER_ID = 9_000_001; // Synthetic E2E pilot seeded in Neon.
 const ORIGIN_SYSTEM_ID = 31_001_677; // J113551 — C247 + N766 statics.
 const VERIFIED_DESTINATION_ID = 31_000_880; // J160650 — C3.
 const AMBIGUOUS_DESTINATION_ID = 31_000_881; // J114342 — C3.
 const SHIP_TYPE_ID = 28_606; // Orca — 150M kg, legal through C247's 300M cap.
-
-function isDoorbellResponse(response) {
-  if (
-    new URL(response.url()).pathname !== '/api/maps/jump'
-    || response.request().method() !== 'POST'
-  ) {
-    return false;
-  }
-  try {
-    return response.request().postDataJSON()?.kind === 'doorbell';
-  } catch {
-    return false;
-  }
-}
-
-async function waitForDoorbell(page) {
-  return await page.waitForResponse(isDoorbellResponse, { timeout: 30_000 });
-}
-
-async function responseBody(response) {
-  return await response.json().catch(() => null);
-}
-
-async function doorbellAfter(page, trigger) {
-  const pending = waitForDoorbell(page);
-  try {
-    await trigger();
-  } catch (error) {
-    void pending.catch(() => undefined);
-    throw error;
-  }
-  return await responseBody(await pending);
-}
-
-async function waitForTopology(page, nodes, edges) {
-  await page.waitForFunction(
-    ({ expectedNodes, expectedEdges }) =>
-      document.querySelectorAll('[data-chain-node]').length === expectedNodes
-      && document.querySelectorAll('.react-flow__edge').length === expectedEdges,
-    { expectedNodes: nodes, expectedEdges: edges },
-    { timeout: 30_000 },
-  );
-}
-
-async function sessionUserId(page, baseUrl) {
-  const response = await page.request.get(
-    new URL('/api/auth/get-session', baseUrl).href,
-    { failOnStatusCode: true, timeout: 30_000 },
-  );
-  const session = await response.json();
-  return typeof session?.user?.id === 'string' ? session.user.id : null;
-}
 
 async function advanceLocation({
   mapId,
