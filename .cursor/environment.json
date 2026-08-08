@@ -1,0 +1,15 @@
+{
+  "name": "LGI.tools",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "ports": [
+    { "name": "next", "port": 3000 }
+  ],
+  "terminals": [
+    {
+      "name": "next-dev",
+      "command": "pnpm dev",
+      "description": "Next.js dev server on http://localhost:3000. Serves the public pages and the DB-backed tools (Wormhole Sites, Industry Planner). Use this rather than `pnpm dev:all`, which needs Docker and a Convex login that are not provisioned; the app degrades gracefully without Convex."
+    }
+  ]
+}
