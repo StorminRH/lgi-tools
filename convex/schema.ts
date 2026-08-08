@@ -218,6 +218,8 @@ export default defineSchema({
     observedMassAtStateKg: v.optional(v.number()),
     observationKey: v.optional(v.string()),
     pendingCandidates: v.optional(v.array(v.id('mapConnections'))),
+    fromSignalPct: v.optional(v.union(v.number(), v.null())),
+    firstSeenAt: v.optional(v.number()),
     lifeStage: v.optional(lifeStageValidator),
     lifeStageObservedAt: optionalTimestampValidator,
     deathEarliestAt: optionalTimestampValidator,
@@ -228,6 +230,7 @@ export default defineSchema({
     .index('by_map', ['mapId'])
     .index('by_map_from', ['mapId', 'fromSystemId'])
     .index('by_map_to', ['mapId', 'toSystemId'])
+    .index('by_death_latest', ['deathLatestAt'])
     .index('by_purge_after', ['purgeAfter']),
 
   // Exactly-once jump-processing state is deliberately separate from the
@@ -267,8 +270,10 @@ export default defineSchema({
     mapId: v.string(),
     systemId: v.number(),
     signatureId: v.string(),
+    kind: v.optional(v.union(v.literal('signature'), v.literal('anomaly'))),
     group: v.union(v.string(), v.null()),
     typeName: v.union(v.string(), v.null()),
+    signalPct: v.optional(v.union(v.number(), v.null())),
     // Non-null only with group 'wormhole'. An identified-as-wormhole-but-untyped
     // signature stores null here; K162 is a real far-side code, never a stand-in
     // for unknown.

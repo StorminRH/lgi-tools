@@ -164,7 +164,9 @@ describe('map chain fixtures', () => {
           'deletedAt',
           'destinationProvenance',
           'eolAt',
+          'firstSeenAt',
           'fromDestinationHint',
+          'fromSignalPct',
           'fromSignatureId',
           'fromSystemId',
           'lifeStage',
@@ -188,8 +190,10 @@ describe('map chain fixtures', () => {
         mapSignatures: [
           'deletedAt',
           'group',
+          'kind',
           'mapId',
           'purgeAfter',
+          'signalPct',
           'signatureId',
           'systemId',
           'typeName',
@@ -217,6 +221,7 @@ describe('map chain fixtures', () => {
           by_purge_after: ['purgeAfter'],
         },
         mapConnections: {
+          by_death_latest: ['deathLatestAt'],
           by_map: ['mapId'],
           by_map_from: ['mapId', 'fromSystemId'],
           by_map_to: ['mapId', 'toSystemId'],
