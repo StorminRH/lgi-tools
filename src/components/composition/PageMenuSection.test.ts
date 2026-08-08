@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 
 // No Next router in the node test env; the provider resolves off its `pathname`
 // prop (the PageMenuProvider.test.ts pattern). usePreference tolerates the
@@ -19,53 +19,48 @@ function renderAt(pathname: string): string {
 
 beforeEach(() => __resetPageSettings());
 
-describe('PageMenuSection', () => {
-  it('renders a registered enum control as a titled segmented choice', () => {
-    registerPageSettings({
-      route: '/sites',
-      controls: [{ key: 'sites.view', placement: 'section' }],
-    });
-    const html = renderAt('/sites');
-    expect(html).toContain('Page settings'); // default section title
-    expect(html).toContain('view'); // derived row label
-    expect(html).toContain('cards');
-    expect(html).toContain('table');
-    expect(html).toContain('aria-pressed="true"'); // the fallback value is selected
+test('PageMenuSection renders enum and boolean controls with declared titles', () => {
+  registerPageSettings({
+    route: '/sites',
+    controls: [{ key: 'sites.view', placement: 'section' }],
   });
+  const sites = renderAt('/sites');
+  expect(sites).toContain('Page settings');
+  expect(sites).toContain('view');
+  expect(sites).toContain('cards');
+  expect(sites).toContain('table');
+  expect(sites).toContain('aria-pressed="true"');
 
-  it('renders a registered boolean control as a Switch row', () => {
-    registerPageSettings({
-      route: '/atlas',
-      title: 'Map settings',
-      controls: [{ key: 'atlas.autoLayout', placement: 'section' }],
-    });
-    const html = renderAt('/atlas');
-    expect(html).toContain('Map settings');
-    expect(html).toContain('auto layout');
-    expect(html).not.toContain('re-enabling restores the computed layout');
-    expect(html).toContain('role="switch"');
-    expect(html).toContain('aria-checked="true"'); // atlas.autoLayout fallback
+  __resetPageSettings();
+  registerPageSettings({
+    route: '/atlas',
+    title: 'Map settings',
+    controls: [{ key: 'atlas.autoLayout', placement: 'section' }],
   });
+  const atlas = renderAt('/atlas');
+  expect(atlas).toContain('Map settings');
+  expect(atlas).toContain('auto layout');
+  expect(atlas).not.toContain('re-enabling restores the computed layout');
+  expect(atlas).toContain('role="switch"');
+  expect(atlas).toContain('aria-checked="true"');
 
-  it('prefers the spec’s own title when declared', () => {
-    registerPageSettings({
-      route: '/sites',
-      title: 'Sites',
-      controls: [{ key: 'sites.view', placement: 'section' }],
-    });
-    expect(renderAt('/sites')).toContain('Sites');
+  __resetPageSettings();
+  registerPageSettings({
+    route: '/sites',
+    title: 'Sites',
+    controls: [{ key: 'sites.view', placement: 'section' }],
   });
+  expect(renderAt('/sites')).toContain('Sites');
+});
 
-  it('renders nothing for a spec-less route (no filler)', () => {
-    registerPageSettings({
-      route: '/sites',
-      controls: [{ key: 'sites.view', placement: 'section' }],
-    });
-    expect(renderAt('/skills')).toBe('');
+test('PageMenuSection renders nothing for unmatched or strip-only routes', () => {
+  registerPageSettings({
+    route: '/sites',
+    controls: [{ key: 'sites.view', placement: 'section' }],
   });
+  expect(renderAt('/skills')).toBe('');
 
-  it('renders nothing when the spec has no renderable section controls', () => {
-    registerPageSettings({ route: '/jobs', strip: { surfaceId: 'jobs' } });
-    expect(renderAt('/jobs')).toBe('');
-  });
+  __resetPageSettings();
+  registerPageSettings({ route: '/jobs', strip: { surfaceId: 'jobs' } });
+  expect(renderAt('/jobs')).toBe('');
 });

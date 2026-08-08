@@ -69,3 +69,35 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Cursor Cloud specific instructions
+
+The Cloud Agent environment provisions the local stack itself; standard commands
+still live in the README/`package.json`. Non-obvious caveats:
+
+- **Postgres runs natively, not via Docker.** The VM has no Docker daemon or
+  systemd, so `.cursor/install.sh` provisions a self-contained PostgreSQL 16
+  cluster (owned by the agent user, `trust` auth) on `localhost:5433` — the same
+  URL as `docker-compose.yml`. It runs in the foreground in the `postgres`
+  terminal (see `.cursor/environment.json`) so it stays up for the session; a
+  background daemon started in a `start` phase does not reliably survive boot.
+  The migrated schema and the ingested EVE SDE are baked into the environment
+  snapshot, so a normal boot needs no migration/ingest and no CCP network call.
+- **Use `pnpm dev`, not `pnpm dev:all`.** `dev:all` runs `docker compose up -d`
+  (no Docker here) and `convex dev` (needs a Convex cloud login that is not
+  provisioned). The app degrades gracefully without Convex, so `pnpm dev` (Next
+  on `:3000`) is the working local server — the `next-dev` terminal waits for
+  Postgres and runs it for you.
+- **`.env.local` is auto-generated** with dev-only session/crypto secrets and
+  the local DB URLs. Any Cloud Agent Secret you upload is injected as a real env
+  var and overrides the `.env.local` fallback at runtime — do not upload a
+  production `DATABASE_URL`, or the app will talk to prod.
+- **Real-Postgres `*.db.test.ts` suites need the `:5433` cluster** with
+  migrations and SDE applied: they clone the live `public` schema, and some
+  (wormhole codex / `sde_version`) fail rather than skip without SDE data. A
+  cold/unreachable DB makes the harness skip those suites instead. `pnpm verify`
+  is green in this environment.
+- **`DATABASE_URL_UNPOOLED` must be non-empty.** The lock-holder scripts
+  (`db:refresh-sde`, `db:refresh-prices`) resolve it with `??`, so the blank
+  value shipped in `.env.example` does *not* fall back to `DATABASE_URL`; the
+  install script points it at the same local cluster.
