@@ -31,6 +31,15 @@ vi.mock('@/components/ui/button', () => ({
     createElement('button', props, children),
 }));
 
+vi.mock('@/components/ui/pointer-menu', () => ({
+  PointerMenu: () => null,
+  MenuItem: () => null,
+  menuRow: '',
+  pointerAnchor: () => null,
+}));
+
+vi.mock('./WormholeRowEditor', () => ({ WormholeRowEditor: () => null }));
+
 const ROWS: readonly SignatureWindowRow[] = [
   {
     key: 'sig-1',
@@ -41,6 +50,8 @@ const ROWS: readonly SignatureWindowRow[] = [
     name: null,
     signalPct: 25,
     firstSeenAt: 0,
+    connection: null,
+    className: null,
   },
   {
     key: 'sig-2',
@@ -51,6 +62,8 @@ const ROWS: readonly SignatureWindowRow[] = [
     name: 'Forgotten Frontier',
     signalPct: 100,
     firstSeenAt: 0,
+    connection: null,
+    className: null,
   },
 ];
 
@@ -65,6 +78,19 @@ function render(activeSystemId: number | null, missingIds: ReadonlySet<string>):
       now: 60_000,
       onDismissMissing: vi.fn(),
       onRemove: vi.fn(async () => undefined),
+      onIdentify: vi.fn(async () => undefined),
+      mapId: 'map-a',
+      authoring: {
+        setConnectionWormholeType: vi.fn(),
+        setConnectionShipSize: vi.fn(),
+        setConnectionMassState: vi.fn(),
+        setConnectionLifeStage: vi.fn(),
+        setConnectionDestinationHint: vi.fn(),
+        setConnectionTypedSide: vi.fn(),
+        severConnection: vi.fn(),
+        restoreSeveredBranch: vi.fn(),
+        restoreConnection: vi.fn(),
+      },
     }),
   );
 }

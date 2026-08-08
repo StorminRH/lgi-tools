@@ -20,7 +20,11 @@ const SUGGEST_LIMIT = 12;
  */
 export function wormholeTypeSearch(
   codes: readonly string[],
-  options?: { readonly lenient?: boolean },
+  options?: {
+    readonly lenient?: boolean;
+    /** Known origin-system statics promoted ahead of the remaining vocabulary. */
+    readonly preferredCodes?: readonly string[];
+  },
 ): {
   parse: (
     input: string,
@@ -31,10 +35,22 @@ export function wormholeTypeSearch(
 } {
   // Deduplicate: the SDE can emit the same code on many typeIds; typeahead
   // keys on the code string and must not list a code twice.
-  const upper = [...new Set(codes.map((code) => code.toUpperCase()))].toSorted(
-    (left, right) => left.localeCompare(right),
-  );
-  const known = new Set(upper);
+  const alphabetical = [
+    ...new Set(codes.map((code) => code.toUpperCase())),
+  ].toSorted((left, right) => left.localeCompare(right));
+  const known = new Set(alphabetical);
+  const preferred = [
+    ...new Set(
+      (options?.preferredCodes ?? []).map((code) => code.toUpperCase()),
+    ),
+  ]
+    .filter((code) => known.has(code))
+    .toSorted((left, right) => left.localeCompare(right));
+  const preferredSet = new Set(preferred);
+  const upper = [
+    ...preferred,
+    ...alphabetical.filter((code) => !preferredSet.has(code)),
+  ];
 
   return {
     parse(input) {

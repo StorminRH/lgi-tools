@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Doc, Id } from '@/data/convex/data-model';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
-import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
@@ -11,10 +10,11 @@ import type {
 import { postJumpRequest } from '../jump-client';
 import { MapEventLog } from '../log/MapEventLog';
 import { ConnectionDetailsCard } from './ConnectionDetailsCard';
-import type {
-  ConnectionFieldSetters,
-  ConnectionResolutionControls,
-} from './connection-fields';
+import type { ConnectionResolutionControls } from './connection-fields';
+import {
+  connectionFieldSetters,
+  type ConnectionFieldAuthoringApi,
+} from './connection-field-setters';
 import {
   connectionCardSelection,
   shouldClearConnectionSelection,
@@ -34,34 +34,8 @@ import { toast } from '@/components/ui/toast';
 // Minute granularity matches the hour-scale countdown copy the overlay renders.
 const OVERLAY_TICK_MS = 60_000;
 
-/** Authoring mutation surface the overlay needs for connection intelligence. */
-export interface ConnectionAuthoringApi {
-  readonly setConnectionWormholeType: (args: {
-    mapId: string;
-    connection: ConnectionDetail;
-    value: string | null;
-  }) => Promise<unknown>;
-  readonly setConnectionShipSize: (args: {
-    mapId: string;
-    connectionId: Id<'mapConnections'>;
-    value: ConnectionDetail['shipSize'];
-  }) => Promise<unknown>;
-  readonly setConnectionMassState: (args: {
-    mapId: string;
-    connectionId: Id<'mapConnections'>;
-    value: ConnectionDetail['massState'];
-  }) => Promise<unknown>;
-  readonly setConnectionDestinationHint: (args: {
-    mapId: string;
-    connectionId: Id<'mapConnections'>;
-    side: 'from' | 'to';
-    value: WormholeDestinationHint | null;
-  }) => Promise<unknown>;
-  readonly setConnectionLifeStage: (args: {
-    mapId: string;
-    connection: ConnectionDetail;
-    value: ConnectionDetail['lifeStage'];
-  }) => Promise<unknown>;
+/** Full overlay authoring surface: shared fields plus connection lifecycle. */
+export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
   readonly severConnection: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
@@ -270,48 +244,16 @@ function SelectedConnectionCard({
         });
         onClose();
       }}
-      setters={fieldSetters(mapId, connection, authoring)}
+      setters={connectionFieldSetters(
+        mapId,
+        connection,
+        authoring,
+        (value) => {
+          void applyWormholeType({ mapId, connection, value, authoring });
+        },
+      )}
     />
   );
-}
-
-function fieldSetters(
-  mapId: string,
-  connection: ConnectionDetail,
-  authoring: ConnectionAuthoringApi,
-): ConnectionFieldSetters {
-  return {
-    setWormholeType: (value) => {
-      void applyWormholeType({ mapId, connection, value, authoring });
-    },
-    setShipSize: (value) => {
-      void authoring.setConnectionShipSize({
-        mapId,
-        connectionId: connection.connectionId,
-        value,
-      });
-    },
-    setMassState: (value) => {
-      void authoring.setConnectionMassState({
-        mapId,
-        connectionId: connection.connectionId,
-        value,
-      });
-    },
-    setLifeStage: (value) => {
-      void authoring.setConnectionLifeStage({ mapId, connection, value });
-    },
-    setDestinationHint: (value) => {
-      // The card records what its own side's show-info says about the space
-      // beyond the hole, so manual hints always land on the origin side.
-      void authoring.setConnectionDestinationHint({
-        mapId,
-        connectionId: connection.connectionId,
-        side: 'from',
-        value,
-      });
-    },
-  };
 }
 
 /** Sends one confirm (null target) or correct answer for a pending auto-link. */

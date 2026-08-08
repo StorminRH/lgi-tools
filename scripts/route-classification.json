@@ -34,6 +34,7 @@
     "/api/universe/assets/[version]/systems": "Dynamic version-addressed JSON handler: the SDE-tag-cached payload gates its own version and successful responses are immutable.",
     "/api/universe/assets/[version]/adjacency": "Dynamic version-addressed JSON handler: the SDE-tag-cached payload gates its own version and successful responses are immutable.",
     "/api/universe/assets/[version]/wormholes": "Dynamic version-addressed JSON handler: the SDE-tag-cached payload gates its own version and successful responses are immutable.",
+    "/api/universe/statics/[systemId]": "Dynamic path-addressed JSON handler over the shared tag-cached promoted wormhole statics dataset; valid unknown systems return an empty picker list.",
     "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic.",
     "/api/maps/jump": "Dynamic authenticated mutation route: doorbell/confirm/typed-hole jump-resolver entries verify the session user per request, read Convex evidence + Neon geography, and dispatch the transactional authoring door — genuinely per-request."
   },
@@ -115,6 +116,7 @@
     "/api/universe/assets/[version]/systems": "dynamic",
     "/api/universe/assets/[version]/adjacency": "dynamic",
     "/api/universe/assets/[version]/wormholes": "dynamic",
+    "/api/universe/statics/[systemId]": "dynamic",
     "/api/industry/build-location": "dynamic",
     "/api/industry/owned-assets": "dynamic",
     "/api/industry/owned-blueprints": "dynamic",

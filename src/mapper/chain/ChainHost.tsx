@@ -371,6 +371,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           canEdit={canEdit === true}
           connectionDetails={connectionDetails}
           unresolvedHoles={unresolvedHoles}
+          authoring={authoring}
         >
           <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
           <OutboundArrowProvider

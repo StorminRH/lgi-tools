@@ -26,6 +26,7 @@ const MAP = 'map-a';
 
 const SYSTEMS_NAME = getFunctionName(api.mapChain.watchMapSystems);
 const CONNECTIONS_NAME = getFunctionName(api.mapChain.watchMapConnections);
+const UNRESOLVED_NAME = getFunctionName(api.mapChain.watchUnresolvedHoles);
 
 type PageResult<Row> = {
   page: Row[];
@@ -45,9 +46,11 @@ type StoredQuery = {
 function mockStore(seed: {
   systems?: OptimisticSystemRow[];
   connections?: OptimisticConnectionRow[];
+  unresolved?: OptimisticConnectionRow[];
 }): OptimisticLocalStore & {
   systems: OptimisticSystemRow[];
   connections: OptimisticConnectionRow[];
+  unresolved: OptimisticConnectionRow[];
 } {
   const pages = new Map<string, StoredQuery>([
     [
@@ -78,11 +81,26 @@ function mockStore(seed: {
         },
       },
     ],
+    [
+      UNRESOLVED_NAME,
+      {
+        args: {
+          mapId: MAP,
+          paginationOpts: { numItems: 100, cursor: null },
+        },
+        value: {
+          page: [...(seed.unresolved ?? [])],
+          isDone: true,
+          continueCursor: '',
+        },
+      },
+    ],
   ]);
 
   const store: OptimisticLocalStore & {
     systems: OptimisticSystemRow[];
     connections: OptimisticConnectionRow[];
+    unresolved: OptimisticConnectionRow[];
   } = {
     get systems() {
       // By construction: mockStore seeds both keys and no test deletes them.
@@ -91,6 +109,10 @@ function mockStore(seed: {
     get connections() {
       // By construction: mockStore seeds both keys and no test deletes them.
       return pages.get(CONNECTIONS_NAME)!.value
+        .page as OptimisticConnectionRow[];
+    },
+    get unresolved() {
+      return pages.get(UNRESOLVED_NAME)!.value
         .page as OptimisticConnectionRow[];
     },
     getQuery() {
@@ -231,6 +253,7 @@ describe('optimisticPatchConnection', () => {
   it('patches one field on the matching connection id', () => {
     const store = mockStore({
       connections: [connectionRow('c1', JITA, AMARR)],
+      unresolved: [connectionRow('stub', JITA, AMARR, { toSystemId: null })],
     });
     optimisticPatchConnection(store, {
       mapId: MAP,
@@ -238,6 +261,17 @@ describe('optimisticPatchConnection', () => {
       patch: { massState: 'critical' },
     });
     expect(store.connections[0]?.massState).toBe('critical');
+    expect(store.unresolved[0]?.massState).toBeNull();
+
+    optimisticPatchConnection(store, {
+      mapId: MAP,
+      connectionId: 'stub',
+      patch: { typedSide: 'to', toDestinationHint: 'dangerous' },
+    });
+    expect(store.unresolved[0]).toMatchObject({
+      typedSide: 'to',
+      toDestinationHint: 'dangerous',
+    });
   });
 });
 
@@ -286,6 +320,7 @@ describe('explicit lifetime proposals', () => {
   const connection = {
     connectionId: 'c1' as Id<'mapConnections'>,
     _creationTime: 1_000,
+    firstSeenAt: null,
     wormholeTypeCode: 'B274',
     deathEarliestAt: 2_000,
     deathLatestAt: 3_000,
@@ -311,6 +346,20 @@ describe('explicit lifetime proposals', () => {
     expect(wormholeTypeWindowProposal(connection, null)).toEqual({
       earliestAt: 2_000,
       latestAt: 3_000,
+    });
+    expect(
+      wormholeTypeWindowProposal(
+        {
+          ...connection,
+          firstSeenAt: 500,
+          deathEarliestAt: null,
+          deathLatestAt: null,
+        },
+        60,
+      ),
+    ).toEqual({
+      earliestAt: 500,
+      latestAt: 3_600_500,
     });
     expect(
       lifetimeMinutesFromEntry({

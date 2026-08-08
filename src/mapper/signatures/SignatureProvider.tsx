@@ -7,7 +7,10 @@ import { api } from '@/data/convex/api';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
-import type { ScannedRow } from '@/data/maps/scan-parse';
+import type { ScannedRow, SigGroup } from '@/data/maps/scan-parse';
+import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
+import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
+import { systemClassLabel } from '../chain/labels';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
@@ -55,11 +58,33 @@ function useSignaturePage(
     () => connectionRows(connectionDetails, unresolvedHoles),
     [connectionDetails, unresolvedHoles],
   );
+  const { codex } = useWormholeCodexData(null);
   const rows = useMemo(
-    () => buildSignatureRows(signatures.rows, connections),
-    [signatures.rows, connections],
+    () =>
+      buildSignatureRows(signatures.rows, connections, (code) => {
+        const entry = codex?.byCode(code) ?? null;
+        return entry === null || entry.farSide
+          ? null
+          : systemClassLabel(entry.targetClass);
+      }),
+    [signatures.rows, connections, codex],
   );
   return { rows, complete: signatures.complete };
+}
+
+function useIdentifySignature(mapId: string) {
+  const identifySignature = useMutation(api.mapScan.identifySignature);
+  return useCallback(
+    async (row: SignatureWindowRow, group: SigGroup): Promise<void> => {
+      await identifySignature({
+        mapId,
+        systemId: row.systemId,
+        signatureId: row.signatureId,
+        group,
+      });
+    },
+    [identifySignature, mapId],
+  );
 }
 
 function useTrackedPasteSystem(mapId: string): number | null {
@@ -169,12 +194,14 @@ export function SignatureProvider({
   canEdit,
   connectionDetails,
   unresolvedHoles,
+  authoring,
   children,
 }: {
   readonly mapId: string;
   readonly canEdit: boolean;
   readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
+  readonly authoring: ConnectionAuthoringApi;
   readonly children: ReactNode;
 }) {
   const { rows, complete } = useSignaturePage(
@@ -187,6 +214,7 @@ export function SignatureProvider({
   const applyRows = useApplySignatureScan(mapId, replace);
   useScannerPaste({ canEdit, systemId: activeSystemId, applyRows });
   const removeRow = useRemoveSignature(mapId, clear);
+  const identifyRow = useIdentifySignature(mapId);
   const now = useSignatureClock(rows.length > 0);
   const dismissMissing = useCallback((signatureId: string) => {
     if (activeSystemId !== null) clear(activeSystemId, signatureId);
@@ -204,6 +232,9 @@ export function SignatureProvider({
         now={now}
         onDismissMissing={dismissMissing}
         onRemove={removeRow}
+        onIdentify={identifyRow}
+        mapId={mapId}
+        authoring={authoring}
       />
     </SignatureRowsProvider>
   );

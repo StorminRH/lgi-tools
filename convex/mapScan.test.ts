@@ -189,6 +189,52 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
+  it('identifies list rows in place and converges wormholes onto the connection row', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('SIG-001'), signature('WHL-001')]);
+
+    await expect(
+      t.withIdentity({ subject: VIEWER }).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'SIG-001',
+        group: 'Gas Site',
+      }),
+    ).rejects.toThrow('FORBIDDEN');
+
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'SIG-001',
+        group: 'Gas Site',
+      }),
+    ).toEqual({ changed: true, connectionId: null });
+    expect(await readSignature(t, 'SIG-001')).toMatchObject({
+      group: 'Gas Site',
+    });
+
+    const before = await readSignature(t, 'WHL-001');
+    const migrated = await asEditor(t).mutation(api.mapScan.identifySignature, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureId: 'WHL-001',
+      group: 'Wormhole',
+    });
+    expect(migrated.changed).toBe(true);
+    expect(migrated.connectionId).not.toBeNull();
+    expect(await readSignature(t, 'WHL-001')).toBeNull();
+    expect((await readState(t)).connections).toEqual([
+      expect.objectContaining({
+        _id: migrated.connectionId,
+        fromSignatureId: 'WHL-001',
+        firstSeenAt: before?._creationTime,
+        toSystemId: null,
+      }),
+    ]);
+  });
+
   it('re-paste after jump resolution enriches the same connection without duplicating it', async () => {
     const t = convexTest(schema, modules);
     await seed(t);

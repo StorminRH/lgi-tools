@@ -6,10 +6,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
-import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
-import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { ConnectionDetail } from '../chain/use-map-chain';
 import { isAdoptedPopupOpen, MapWindow } from '../windows/MapWindow';
@@ -31,6 +28,7 @@ import {
   type ConnectionFieldSetters,
   type ConnectionResolutionControls,
 } from './connection-fields';
+import { useWormholeEditorData } from './use-wormhole-editor-data';
 
 /** Props for the edge-anchored connection details card. */
 export interface ConnectionDetailsCardProps {
@@ -43,41 +41,6 @@ export interface ConnectionDetailsCardProps {
   readonly resolutionControls?: ConnectionResolutionControls;
   readonly onSever: () => void;
   readonly onRestore: () => void;
-}
-
-function useWormholeCodexState(code: string | null): {
-  readonly codes: readonly string[];
-  readonly entry: WormholeCodexEntry | null;
-  readonly codexReady: boolean;
-} {
-  const [codex, setCodex] = useState<Awaited<
-    ReturnType<typeof loadWormholeCodex>
-  > | null>(null);
-
-  useEffect(() => {
-    if (codex !== null) return;
-    let alive = true;
-    // The memoized loader clears itself on failure, so this effect re-attempts
-    // on the next code change instead of wedging on one failed fetch.
-    loadWormholeCodex()
-      .then((loaded) => {
-        if (alive) setCodex(loaded);
-      })
-      .catch(() => {
-        // Degraded: no suggestions or codex panel; the type field falls back
-        // to lenient syntactic parsing and the server stays the authority.
-      });
-    return () => {
-      alive = false;
-    };
-  }, [codex, code]);
-
-  // Derived during render: a code switch can never show the prior code's facts.
-  return {
-    codes: codex?.codes() ?? [],
-    entry: codex === null || code === null ? null : codex.byCode(code),
-    codexReady: codex !== null,
-  };
 }
 
 /**
@@ -97,7 +60,8 @@ export function ConnectionDetailsCard({
   const store = useStoreApi<ChainNode>();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const leaderRef = useRef<MapWindowLeaderHandle | null>(null);
-  const { codes, entry, codexReady } = useWormholeCodexState(
+  const { codes, preferredCodes, entry, codexReady } = useWormholeEditorData(
+    connection.fromSystemId,
     connection.wormholeTypeCode,
   );
   const followerStore = useMemo<NodeFollowerStore>(
@@ -231,6 +195,7 @@ export function ConnectionDetailsCard({
         <ConnectionFields
           connection={connection}
           codes={codes}
+          preferredCodes={preferredCodes}
           codexReady={codexReady}
           entry={entry}
           setters={setters}

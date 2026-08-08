@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { defineEndpoint, jsonBody } from '@/transport/endpoint';
 
 const snapshotActionSchema = z.object({
   action: z.enum(['promote', 'reject']),
@@ -34,3 +35,24 @@ export type WhStaticsRefreshResult =
 
 /** JSON response returned by the weekly statics cron. */
 export type CronRefreshWhStaticsResponse = WhStaticsRefreshResult;
+
+/** Dynamic path boundary for one promoted solar-system statics lookup. */
+export const systemStaticsParamsSchema = z.object({
+  systemId: z.coerce.number().int().positive().safe(),
+});
+
+/** Small picker payload for one system; an unknown system owns no statics. */
+export const systemStaticsResponseSchema = z.object({
+  statics: z.array(z.string()),
+});
+
+/** Public read-only endpoint serving promoted statics to the Atlas type picker. */
+export const systemStaticsEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/universe/statics/[systemId]',
+  request: null,
+  params: systemStaticsParamsSchema,
+  responses: {
+    200: jsonBody(systemStaticsResponseSchema),
+  },
+});

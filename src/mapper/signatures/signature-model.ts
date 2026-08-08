@@ -1,4 +1,4 @@
-import type { Doc, Id } from '@/data/convex/data-model';
+import type { Doc } from '@/data/convex/data-model';
 import {
   parseScannerPaste,
   type ScannedKind,
@@ -6,6 +6,7 @@ import {
   type SigGroup,
 } from '@/data/maps/scan-parse';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
+import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 
 /** One signature-window row, independent of its Convex storage owner. */
 export interface SignatureWindowRow {
@@ -17,19 +18,14 @@ export interface SignatureWindowRow {
   readonly name: string | null;
   readonly signalPct: number | null;
   readonly firstSeenAt: number;
+  /** Shared editor row after a wormhole signature has migrated. */
+  readonly connection: ConnectionEditorDetail | null;
+  /** Destination class derived from the typed wormhole code. */
+  readonly className: string | null;
 }
 
 /** Connection fields needed to keep migrated wormholes in the signature list. */
-export interface ConnectionSignatureInput {
-  readonly connectionId: Id<'mapConnections'>;
-  readonly _creationTime: number;
-  readonly fromSystemId: number;
-  readonly fromSignatureId: string | null;
-  readonly fromSignalPct: number | null;
-  readonly firstSeenAt: number | null;
-  readonly wormholeTypeCode: string | null;
-  readonly deletedAt?: number | null;
-}
+export type ConnectionSignatureInput = ConnectionEditorDetail;
 
 /** Counts displayed in the tabs and System Info summary. */
 export interface SignatureCounts {
@@ -58,11 +54,14 @@ function signatureDocumentRow(
     name: row.typeName ?? row.wormholeTypeCode,
     signalPct: row.signalPct ?? null,
     firstSeenAt: row._creationTime,
+    connection: null,
+    className: null,
   };
 }
 
 function connectionRow(
   row: ConnectionSignatureInput,
+  classLabelOf: (code: string) => string | null,
 ): SignatureWindowRow | null {
   if (row.fromSignatureId === null || row.deletedAt != null) return null;
   return {
@@ -74,6 +73,11 @@ function connectionRow(
     name: row.wormholeTypeCode,
     signalPct: row.fromSignalPct,
     firstSeenAt: row.firstSeenAt ?? row._creationTime,
+    connection: row,
+    className:
+      row.wormholeTypeCode === null
+        ? null
+        : classLabelOf(row.wormholeTypeCode),
   };
 }
 
@@ -84,6 +88,7 @@ function connectionRow(
 export function buildSignatureRows(
   signatures: readonly Doc<'mapSignatures'>[],
   connections: readonly ConnectionSignatureInput[],
+  classLabelOf: (code: string) => string | null = () => null,
 ): readonly SignatureWindowRow[] {
   const byIdentity = new Map<string, SignatureWindowRow>();
   for (const row of signatures) {
@@ -91,7 +96,7 @@ export function buildSignatureRows(
     byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
   }
   for (const row of connections) {
-    const projected = connectionRow(row);
+    const projected = connectionRow(row, classLabelOf);
     if (projected === null) continue;
     byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
   }

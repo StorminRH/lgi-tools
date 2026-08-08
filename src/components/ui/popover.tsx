@@ -7,6 +7,8 @@ import { cn } from './cn';
 import { panelSurface } from './dropdown-panel';
 import type { Tone } from './tones';
 import { eyebrow } from './type-roles';
+import { useOverlayPortalContainer } from './overlay-portal-container';
+import type { PointerAnchor } from './overlay-positioning';
 
 // The platform's one hover/tap/focus help-panel primitive — the idiomatic Base
 // UI Popover, styled to the existing tone tokens. A Popover (not a Tooltip) is
@@ -46,6 +48,8 @@ const popup = cva(
     defaultVariants: { tone: 'neutral' },
   },
 );
+
+type PopupProps = React.ComponentProps<typeof Base.Popup>;
 
 /**
  * Renders the domain-neutral popover with house behavior and tokens; callers own semantic meaning
@@ -103,6 +107,51 @@ export function Popover({
       <Base.Portal>
         <Base.Positioner side={side} sideOffset={8} className="z-dropdown">
           <Base.Popup aria-label={label} className={cn(popup({ tone }), className)}>
+            {children}
+          </Base.Popup>
+        </Base.Positioner>
+      </Base.Portal>
+    </Base.Root>
+  );
+}
+
+/**
+ * Controlled triggerless Popover for a form editor positioned at a pointer.
+ * Unlike PointerMenu, its labelled dialog semantics admit inputs and Selects.
+ */
+export function PointerPopover({
+  open,
+  onOpenChange,
+  anchor,
+  label,
+  children,
+  finalFocus,
+  className,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly anchor: PointerAnchor;
+  readonly label: string;
+  readonly children: ReactNode;
+  readonly finalFocus?: PopupProps['finalFocus'];
+  readonly className?: string;
+}) {
+  const overlayContainer = useOverlayPortalContainer();
+  return (
+    <Base.Root open={open} onOpenChange={onOpenChange} modal={false}>
+      <Base.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
+        <Base.Positioner
+          anchor={anchor}
+          side="right"
+          align="start"
+          sideOffset={6}
+          className="z-dropdown"
+        >
+          <Base.Popup
+            aria-label={label}
+            finalFocus={finalFocus}
+            className={cn(popup({ tone: 'neutral' }), 'w-72 max-h-[min(38rem,calc(100dvh-2rem))] overflow-y-auto', className)}
+          >
             {children}
           </Base.Popup>
         </Base.Positioner>

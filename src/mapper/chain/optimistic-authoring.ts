@@ -52,8 +52,9 @@ export interface OptimisticConnectionRow {
   readonly _creationTime: number;
   readonly mapId: string;
   readonly fromSystemId: number;
-  readonly toSystemId: number;
+  readonly toSystemId: number | null;
   readonly wormholeTypeCode: string | null;
+  readonly typedSide?: 'from' | 'to';
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
   readonly eolAt: number | null;
@@ -191,6 +192,7 @@ export function optimisticPatchConnection(
       Pick<
         OptimisticConnectionRow,
         | 'wormholeTypeCode'
+        | 'typedSide'
         | 'shipSize'
         | 'massState'
         | 'lifeStage'
@@ -208,6 +210,13 @@ export function optimisticPatchConnection(
   optimisticallyUpdateValueInPaginatedQuery(
     localStore,
     api.mapChain.watchMapConnections,
+    { mapId: args.mapId },
+    (row) =>
+      row._id === args.connectionId ? { ...row, ...args.patch } : row,
+  );
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChain.watchUnresolvedHoles,
     { mapId: args.mapId },
     (row) =>
       row._id === args.connectionId ? { ...row, ...args.patch } : row,
@@ -338,6 +347,7 @@ export function optimisticSetConnectionWormholeType(
 export interface ConnectionWindowSource {
   readonly connectionId: Id<'mapConnections'>;
   readonly _creationTime: number;
+  readonly firstSeenAt: number | null;
   readonly wormholeTypeCode: string | null;
   readonly deathEarliestAt: number | null;
   readonly deathLatestAt: number | null;
@@ -363,9 +373,10 @@ export function wormholeTypeWindowProposal(
   }
   // Mirror the server's resolution: a typed span narrows a stored window and
   // never widens it optimistically; an empty intersection resets to the span.
+  const firstSeenAt = connection.firstSeenAt ?? connection._creationTime;
   return intersectOrReset(storedWindow(connection), {
-    earliestAt: connection._creationTime,
-    latestAt: connection._creationTime + lifetimeMinutes * 60_000,
+    earliestAt: firstSeenAt,
+    latestAt: firstSeenAt + lifetimeMinutes * 60_000,
   });
 }
 
@@ -459,6 +470,22 @@ export function optimisticSetConnectionDestinationHint(
   });
 }
 
+/** Optimistically patches which side owns the manually entered type code. */
+export function optimisticSetConnectionTypedSide(
+  localStore: OptimisticLocalStore,
+  args: {
+    mapId: string;
+    connectionId: string;
+    value: 'from' | 'to';
+  },
+): void {
+  optimisticPatchConnection(localStore, {
+    mapId: args.mapId,
+    connectionId: args.connectionId,
+    patch: { typedSide: args.value },
+  });
+}
+
 /** Wires one field-scoped connection setter to a single-key optimistic patch. */
 function optimisticConnectionField(
   field: 'wormholeTypeCode' | 'shipSize' | 'massState',
@@ -515,6 +542,11 @@ export function useChainAuthoringMutations() {
       optimisticSetConnectionDestinationHint,
     ),
   );
+  const setConnectionTypedSide = swallowMutationRejection(
+    useMutation(api.mapAuthoring.setConnectionTypedSide).withOptimisticUpdate(
+      optimisticSetConnectionTypedSide,
+    ),
+  );
   const severConnection = swallowMutationRejection(
     useMutation(api.mapAuthoring.severConnection).withOptimisticUpdate(
       optimisticSeverConnection,
@@ -553,6 +585,7 @@ export function useChainAuthoringMutations() {
     setConnectionShipSize,
     setConnectionMassState,
     setConnectionDestinationHint,
+    setConnectionTypedSide,
     setConnectionLifeStage: async (args: {
       mapId: string;
       connection: ConnectionWindowSource;

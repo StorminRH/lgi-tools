@@ -533,6 +533,66 @@ export const applyScan = mutation({
   },
 });
 
+/**
+ * Identifies one unresolved list row. Wormhole identification reuses the same
+ * signature-to-connection convergence path as scanner paste.
+ */
+export const identifySignature = mutation({
+  args: {
+    mapId: v.string(),
+    systemId: v.number(),
+    signatureId: v.string(),
+    group: sigGroupValidator,
+  },
+  handler: async (ctx, { mapId, systemId, signatureId, group }) => {
+    await requireMapAccess(ctx, mapId, 'edit');
+    await requireLiveSystem(ctx, mapId, systemId);
+    const [normalizedId] = requireBoundedSignatureIds([signatureId]);
+    if (normalizedId === undefined) {
+      throw new ConvexError({ code: 'INVALID_SIGNATURE_ID' });
+    }
+    const state = await readScanState(ctx, mapId, systemId);
+    const signature = rowMaps(state.signatures).get(normalizedId);
+    if (signature === undefined || isTombstoned(signature)) {
+      throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
+    }
+    const currentGroup = signature.group ?? null;
+    if (currentGroup !== null && currentGroup !== group) {
+      throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
+    }
+    if (group !== 'Wormhole') {
+      if (currentGroup === group) return { changed: false, connectionId: null };
+      await ctx.db.patch(signature._id, { group });
+      return { changed: true, connectionId: null };
+    }
+    if ((signature.kind ?? 'signature') !== 'signature') {
+      throw new ConvexError({ code: 'ANOMALY_CANNOT_BE_WORMHOLE' });
+    }
+    await applyWormholeRow(
+      ctx,
+      state,
+      {
+        signatureId: normalizedId,
+        kind: 'signature',
+        group: 'Wormhole',
+        name: signature.typeName,
+        signalPct: signature.signalPct ?? null,
+      },
+      mapId,
+      systemId,
+      Date.now(),
+    );
+    const connection = findConnectionForSignature(
+      await readOriginConnections(ctx, mapId, systemId),
+      normalizedId,
+    );
+    if (connection === undefined) {
+      throw new ConvexError({ code: 'SIGNATURE_MIGRATION_FAILED' });
+    }
+    return { changed: currentGroup !== 'Wormhole', connectionId: connection._id };
+  },
+});
+
 async function tombstoneSelected(
   ctx: MutationCtx,
   state: ScanState,

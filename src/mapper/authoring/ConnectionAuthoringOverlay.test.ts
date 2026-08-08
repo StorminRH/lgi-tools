@@ -91,6 +91,7 @@ function authoring() {
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
     setConnectionDestinationHint: vi.fn(),
+    setConnectionTypedSide: vi.fn(),
     severConnection: vi.fn(
       async (): Promise<
         | { outcome: 'retained' }
@@ -225,6 +226,22 @@ describe('ConnectionAuthoringOverlay', () => {
         fromSignalPct: null,
         firstSeenAt: null,
         wormholeTypeCode: null,
+        toSystemId: null,
+        typedSide: null,
+        massState: null,
+        shipSize: null,
+        lifeStage: null,
+        lifeStageObservedAt: null,
+        deathEarliestAt: null,
+        deathLatestAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+        fromDestinationHint: null,
+        toDestinationHint: null,
+        destinationProvenance: null,
+        pendingCandidates: null,
+        observedMassKg: null,
+        observedMassAtStateKg: null,
       },
     ];
     const editor = renderToStaticMarkup(

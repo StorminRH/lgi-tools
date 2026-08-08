@@ -38,11 +38,26 @@ function connection(
     connectionId: 'connection-1' as Id<'mapConnections'>,
     _creationTime: 2_000,
     fromSystemId: SYSTEM,
+    toSystemId: null,
     fromSignatureId: 'WHL-001',
     fromSignalPct: 75,
     firstSeenAt: 1_500,
     wormholeTypeCode: null,
+    typedSide: null,
+    massState: null,
+    shipSize: null,
+    lifeStage: null,
+    lifeStageObservedAt: null,
+    deathEarliestAt: null,
+    deathLatestAt: null,
     deletedAt: null,
+    purgeAfter: null,
+    fromDestinationHint: null,
+    toDestinationHint: null,
+    destinationProvenance: null,
+    pendingCandidates: null,
+    observedMassKg: null,
+    observedMassAtStateKg: null,
     ...partial,
   };
 }
@@ -64,7 +79,8 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
           signalPct: 10,
         }),
       ],
-      [connection()],
+      [connection({ wormholeTypeCode: 'B274' })],
+      (code) => (code === 'B274' ? 'HS' : null),
     );
 
     expect(rows).toHaveLength(3);
@@ -78,6 +94,9 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       group: 'Wormhole',
       signalPct: 75,
       firstSeenAt: 1_500,
+      name: 'B274',
+      className: 'HS',
+      connection: expect.objectContaining({ connectionId: 'connection-1' }),
     });
   });
 
