@@ -26,9 +26,11 @@ if ! ls /usr/lib/postgresql/*/bin/pg_ctl >/dev/null 2>&1; then
 fi
 PGBIN="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
 
-# Any failure below must not leave the postmaster (and its live postmaster.pid)
-# behind for the snapshot; the `postgres` terminal owns the running process.
-trap '"$PGBIN/pg_ctl" -D "$PGDATA" -w stop >/dev/null 2>&1 || true' EXIT
+# Any failure below must not leave a postmaster THIS script started (and its
+# live postmaster.pid) behind for the snapshot — but a cluster the `postgres`
+# terminal already owns is not ours to stop, so the trap is flag-gated.
+started_pg=0
+trap '[ "$started_pg" = 1 ] && "$PGBIN/pg_ctl" -D "$PGDATA" -w stop >/dev/null 2>&1 || true' EXIT
 
 # --- Node dependencies (pinned pnpm + frozen lockfile) ---
 pnpm install --frozen-lockfile
@@ -51,6 +53,7 @@ host    all   all   ::1/128      trust
 EOF
 if ! "$PGBIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1; then
   "$PGBIN/pg_ctl" -D "$PGDATA" -l /tmp/lgi-pg.log -w start
+  started_pg=1
 fi
 "$PGBIN/psql" -h localhost -p 5433 -U lgi -d postgres -tAc \
   "SELECT 1 FROM pg_database WHERE datname='lgi_tools'" | grep -q 1 \
@@ -105,6 +108,10 @@ priced="$("$PGBIN/psql" "$DB_URL" -tAc 'SELECT count(*) FROM market_prices' 2>/d
 
 # Shut the cluster down cleanly so the data dir (and any snapshot taken of it)
 # carries no stale postmaster.pid (the EXIT trap covers failure paths too).
-"$PGBIN/pg_ctl" -D "$PGDATA" -w stop >/dev/null 2>&1 || true
+# A cluster the `postgres` terminal already owned stays up — it is not ours.
+if [ "$started_pg" = 1 ]; then
+  "$PGBIN/pg_ctl" -D "$PGDATA" -w stop >/dev/null 2>&1 || true
+  started_pg=0
+fi
 
 echo "install.sh complete: postgres :5433 provisioned; market_prices rows: ${priced:-0}."
