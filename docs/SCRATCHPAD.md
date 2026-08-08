@@ -9,19 +9,36 @@
 
 ## Now
 
-- **OW progress:** `6/7 complete` — next: **UX gate (G-1)**.
+- **OW progress:** `6/7 complete` — OW7's automated evidence is green; the
+  **G-1 operator browser review is PENDING** (operator unavailable 2026-08-08),
+  so do not mark `7/7 complete — awaiting close-out` until the disposition
+  below is recorded.
+- **OW7 automated evidence (2026-08-08):** durable two-client probe
+  `atlas-signature-lifecycle` green 18/18 on a fresh disposable map (paste →
+  re-paste zero-churn → per-kind missing → dismiss/Remove-confirm/undo →
+  ghosted stubs → typed C247 via the statics-first editor → real doorbell jump
+  retiring the stub behind the signature-labeled confirmation, window follows
+  the pilot, chain-root dock keeps the origin summary);
+  `atlas-signature-chrome` 8/8. `pnpm verify` passed at implementation commit
+  `705764df` (4,959 passed / 1 skipped; Fallow clean over 97 session-changed
+  files against `36790747`); primitive-checker CLEAN.
+- **G-1 disposition:** PENDING — operator: open `/atlas?map=92cba7c1-c575-4437-9c0a-995218a8a814`
+  (end state: origin J113551 + resolved J160650, three sig rows + one anomaly)
+  and optionally `70d1abac-…`/`ee003ccc-…` (earlier one-shot states), or run a
+  fresh pass with `UX_SIG_MAP_ID=<new map>` after seeding; record the
+  disposition here, then set `7/7 complete — awaiting close-out`.
 - **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
   fixtures covering five evidence categories; additive signature/connection
   schema fields and death-latest index census. Focused proof: parser 5/5,
   reject filter 1/1, schema census 1/1; `pnpm verify` passed at implementation
-  commit `fc184ee5` (5,057 passed / 1 skipped; Fallow clean over 6 changed
+  commit `d5b4cb3b` (5,057 passed / 1 skipped; Fallow clean over 6 changed
   files against `71fd4846`).
 - **OW completed:** OW2 — gated, tracked-system paste application; monotonic
   signature knowledge; signature-to-connection convergence; per-kind missing
   decisions; 60-second activity debounce; 24-hour remove/restore; paged live
   signature reads; and bounded 15-minute purge. Focused proof: lifecycle 3/3,
   map-scan workflows 16/16, fixtures 50/50, jump 6/6, idempotency 16/16;
-  `pnpm verify` passed at implementation commit `01811429` (4,940 passed / 138
+  `pnpm verify` passed at implementation commit `62d2b50e` (4,940 passed / 138
   skipped; Fallow clean over 19 session-changed files against `71fd4846`).
 - **OW completed:** OW3 — permanent bottom-left signature window with counted
   kind tabs, migrated wormhole rows, signal/age presentation, active-tracked
@@ -29,7 +46,7 @@
   bottom-right audit/feedback/dev chrome; deduplicated dock identity plus
   Security Status and shared signature summaries. Focused proof: confirmation
   8/8 and affected mapper bundle 163/163; `pnpm verify` passed at implementation
-  commit `64ab075d` (4,953 passed / 138 skipped; Fallow clean over 63 changed
+  commit `9c2923dd` (4,953 passed / 138 skipped; Fallow clean over 63 changed
   files against `8dce9774`); primitive-checker CLEAN.
 - **OW completed:** OW4 — labelled row actions and right-click enhancement over
   the same `mapConnections` row and shipped `ConnectionFields`; identify-as
@@ -37,14 +54,14 @@
   search-only outage degradation; side-aware type/hint controls; typed-code /
   class row presentation; and first-seen-anchored lifetime proposals. Focused
   proof: 13 files / 255 tests; `pnpm verify` passed at implementation commit
-  `926b9c13` (4,807 passed / 138 skipped; Fallow clean over 84 changed files
+  `079cdc68` (4,807 passed / 138 skipped; Fallow clean over 84 changed files
   against `8dce9774`); primitive-checker CLEAN.
 - **OW completed:** OW5 — deterministic kernel-placed `stub:` nodes and connected
   provisional edges for scanned unresolved wormholes; ghosted interaction-inert
   presentation; numeric-consumer guards; and resolved/unresolved handover
   deduplication preserving the same-row jump seam and signature-bearing candidate
   labels. Focused proof: mapper/node/jump-label bundle 71/71 plus wormhole boundary
-  1/1; `pnpm verify` passed at implementation commit `0a7df9d5` (4,815 passed /
+  1/1; `pnpm verify` passed at implementation commit `155d24e6` (4,815 passed /
   138 skipped; Fallow clean over 90 changed files against `8dce9774`);
   primitive-checker CLEAN after its handover finding was corrected and re-proven.
 - **OW completed:** OW6 — identity-parameterized `runCollapse`/`runBranchRestore`
@@ -58,16 +75,28 @@
   scheduler-exception comment + cron + idempotency-registry entries recorded.
   Focused proof: mapAuthoring/mapScan/idempotency 106/106, affected bundle
   484/484, single `decideCollapse` call-site inspection; `pnpm verify` passed
-  at implementation commit `5c2c3032` (4,958 passed / 1 skipped; Fallow clean
+  at implementation commit `88e3b94a` (4,958 passed / 1 skipped; Fallow clean
   over 93 changed files against `8dce9774`); primitive-checker CLEAN.
-- **Next-agent notes:** Resume 4.0.4.3.1 at OW7 only — the UX gate (G-1).
-  Run `ux-check` with probes over paste → re-paste → removal confirmation →
-  undo → stub surfacing → jump resolution in two clients on a fresh disposable
-  map, then pause for the operator's browser review and record the G-1
-  disposition here before `7/7 complete — awaiting close-out`. Sweep gotchas for
-  probes: expired-ceiling holes need `deathLatestAt + 4h` in the past before the
-  cron collapses them; paste-driven confident removal needs only the ceiling
-  passed (no grace). Do not run close-out from the OW7 chat.
+- **Next-agent notes:** `lifecycle/4.0.4.3` was rebased 2026-08-08 onto
+  `origin/main` `36790747` (the Next 16.3 Instant Navigations adoption
+  #373/#374/#375), by operator direction; the OW commit SHAs above are the
+  rebased equivalents. OW7's automated sweep is done — only the G-1 operator
+  disposition remains, then close-out (from a fresh chat, planned mode).
+  Probe-environment gotchas hit this run: (1) `pnpm e2e:seed` resets
+  `user.role` — re-grant ADMIN to `e2e-pilot` or `/atlas` shows the wall and
+  `waitForEditableMap` times out; (2) seeding a disposable map needs a fresh
+  synthetic affiliation stamp first
+  (`update characters set affiliation_refreshed_at = now() where character_id=9000001;`
+  — the ~1h TTL expires between runs and projection then fails "transiently"
+  on the fake character); (3) the lifecycle probe is one-shot — seed a NEW map
+  per run (insert Neon `maps` row for `e2e-pilot` + `projectMapAccess`).
+  Design behaviors the probe pinned (not bugs): the auto-linked jump shows the
+  signature-labeled informed-confirmation prompt (4.0.4.2.2 direction), the
+  scanner window follows the pilot's tracked system after the jump, and the
+  dock stays on the chain root. Sweep gotchas for later G-1 passes:
+  expired-ceiling holes need `deathLatestAt + 4h` in the past before the cron
+  collapses them; paste-driven confident removal needs only the ceiling passed
+  (no grace). Do not run close-out from the OW7 chat.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
