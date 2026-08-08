@@ -58,8 +58,8 @@
   scheduler-exception comment + cron + idempotency-registry entries recorded.
   Focused proof: mapAuthoring/mapScan/idempotency 106/106, affected bundle
   484/484, single `decideCollapse` call-site inspection; `pnpm verify` passed
-  (4,958 passed / 1 skipped; Fallow clean over 93 changed files against
-  `8dce9774`); primitive-checker CLEAN.
+  at implementation commit `5c2c3032` (4,958 passed / 1 skipped; Fallow clean
+  over 93 changed files against `8dce9774`); primitive-checker CLEAN.
 - **Next-agent notes:** Resume 4.0.4.3.1 at OW7 only — the UX gate (G-1).
   Run `ux-check` with probes over paste → re-paste → removal confirmation →
   undo → stub surfacing → jump resolution in two clients on a fresh disposable
