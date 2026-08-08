@@ -83,10 +83,11 @@ async function SettingsContent() {
 }
 
 function SettingsLoading() {
+  // One block only: every section beyond the first is account-conditional, so
+  // reserving phantom cards would shift more than it saves on most accounts.
   return (
     <div className="flex w-full flex-col gap-6">
       <Skeleton label="Loading account settings" className="h-40 w-full rounded-card" />
-      <Skeleton aria-hidden="true" className="h-28 w-full rounded-card" />
     </div>
   );
 }

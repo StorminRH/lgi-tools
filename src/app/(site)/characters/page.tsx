@@ -248,7 +248,7 @@ export default function CharactersPage({
         <PageHead
           crumb="characters"
           title="Characters"
-          subtitle="Linked pilots and their account access"
+          subtitle="Linked pilots — the active character is who the site acts as"
         />
         <Suspense fallback={<CharacterPanelSkeleton label="Loading linked characters" />}>
           <CharactersContent searchParams={searchParams} />
