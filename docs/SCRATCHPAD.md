@@ -9,23 +9,31 @@
 
 ## Now
 
-- **OW progress:** `1/7 complete` — next: **Paste application and lifecycle**.
+- **OW progress:** `2/7 complete` — next: **The signature window and chrome**.
 - **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
   fixtures covering five evidence categories; additive signature/connection
   schema fields and death-latest index census. Focused proof: parser 5/5,
   reject filter 1/1, schema census 1/1; `pnpm verify` passed at implementation
   commit `fc184ee5` (5,057 passed / 1 skipped; Fallow clean over 6 changed
   files against `71fd4846`).
-- **Next-agent notes:** Resume 4.0.4.3.1 at OW2 only. The operator supplied four
-  raw paste blocks: Sample 4 intentionally combines the partial-selection and
-  near-object `98 km` witnesses, so it covers the plan's fifth evidence
-  category without an invented paste; carry this clarification into the
-  as-built. `scan-parse.ts` owns the closed English kind/group vocabulary,
-  preserves row order, returns per-line rejects, and ignores distance.
-  `kind`/`signalPct` and `fromSignalPct`/`firstSeenAt` are additive schema
-  fields; signal values admit explicit `null`. OW2 must extend the shipped
-  merge/equality owner and promote `SIGNATURE_ACTIVITY_STALE_MS`, not create
-  parallel parser or bookkeeping owners.
+- **OW completed:** OW2 — gated, tracked-system paste application; monotonic
+  signature knowledge; signature-to-connection convergence; per-kind missing
+  decisions; 60-second activity debounce; 24-hour remove/restore; paged live
+  signature reads; and bounded 15-minute purge. Focused proof: lifecycle 3/3,
+  map-scan workflows 16/16, fixtures 50/50, jump 6/6, idempotency 16/16;
+  `pnpm verify` passed at implementation commit `01811429` (4,940 passed / 138
+  skipped; Fallow clean over 19 session-changed files against `71fd4846`).
+- **Next-agent notes:** Resume 4.0.4.3.1 at OW3 only. Consume the separate,
+  access-gated `mapScan.watchMapSignatures` page in the signature window; do
+  not add it to `useMapChain` or read `mapSignatureActivity` from chain
+  watchers. `mapEntityContracts.ts` remains the monotonic best-seen knowledge
+  owner; `mapSignatures.ts` owns activity/tombstone bookkeeping; and
+  `mapConnectionLookup.ts` owns bounded origin/signature lookup. Preserve
+  `firstSeenAt`, group rows by the scanner kind vocabulary, and keep resolved
+  connection removal fenced as `RESOLVED_CONNECTION_REQUIRES_COLLAPSE` until
+  OW6 extracts the shared collapse core. For the later as-built, retain that
+  operator Sample 4 intentionally covers both partial selection and the
+  near-object `98 km` witness; no fifth paste was invented.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -34,7 +42,7 @@
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
 - **CURRENT / NEXT:** session **4.0.4.3.1** is executing on
-  `lifecycle/4.0.4.3`; OW1 is complete and OW2 is next. Execute one Ordered
+  `lifecycle/4.0.4.3`; OW2 is complete and OW3 is next. Execute one Ordered
   work step per `start-session` chat; OW7 owns the required UX/operator pause.
 - **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
