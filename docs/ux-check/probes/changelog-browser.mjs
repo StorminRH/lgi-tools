@@ -1,4 +1,4 @@
-const OLDER_SLUGS = ['v3.9', 'v3.8', 'v3.7', 'v3.6', 'v3.4', 'v3.3', 'v3.2', 'v3.1', 'v3.0', 'v2.9'];
+const OLDER_SLUGS = ['v3.10', 'v3.9', 'v3.8', 'v3.7', 'v3.6', 'v3.4', 'v3.3', 'v3.2', 'v3.1', 'v3.0', 'v2.9'];
 const STICKY_INSET = 24;
 const TOLERANCE = 2;
 
@@ -33,11 +33,11 @@ export default {
     }
 
     const navItems = page.locator('[data-content-browser-nav-item]');
-    check('rail lists all eleven changelog masters', (await navItems.count()) === 11);
+    check('rail lists all twelve changelog masters', (await navItems.count()) === 12);
     const current = page.locator('[aria-current="page"]');
-    check('current master v3.10 is active', /^v3\.10\b/.test((await current.textContent()) ?? ''));
+    check('current master v4.0 is active', /^v4\.0\b/.test((await current.textContent()) ?? ''));
     check('current master uses canonical /changelog href', (await current.getAttribute('href')) === '/changelog');
-    check('visible master heading is v3.10', (await page.locator('[data-changelog-master-version]:visible').textContent()) === 'v3.10');
+    check('visible master heading is v4.0', (await page.locator('[data-changelog-master-version]:visible').textContent()) === 'v4.0');
     await page.locator('[data-content-browser-rail]').evaluate((rail) => {
       rail.dataset.probeLayout = 'persisted';
     });
@@ -55,9 +55,17 @@ export default {
     check('v3.9 route has versioned metadata', /v3\.9.*Changelog/i.test(await page.title()));
     await shot('desktop-v3-9');
 
-    for (const slug of ['v3.10', 'v9.9']) {
+    // Cache Components streams a 200 App Shell before notFound() fires, so the
+    // documented soft-404 contract is the injected noindex meta plus the
+    // not-found boundary (node_modules/next/dist/docs streaming.md), not the
+    // HTTP status the pre-16.3 structure produced.
+    for (const slug of ['v4.0', 'v9.9']) {
       const response = await page.request.get(new URL(`/changelog/${slug}`, baseUrl).href);
-      check(`${slug} alias returns 404`, response.status() === 404);
+      const body = await response.text();
+      check(
+        `${slug} alias streams the noindex not-found document`,
+        /name="robots" content="noindex"/.test(body) && body.includes('Nothing on D-Scan'),
+      );
     }
     const sitemap = await page.request.get(new URL('/sitemap.xml', baseUrl).href);
     check('sitemap loads', sitemap.ok());
@@ -69,7 +77,7 @@ export default {
         new RegExp(`<loc>[^<]+/changelog/${slug.replace('.', '\\.')}<\\/loc>`).test(sitemapXml),
       );
     }
-    check('sitemap excludes the current-master alias', !/<loc>[^<]+\/changelog\/v3\.10<\/loc>/.test(sitemapXml));
+    check('sitemap excludes the current-master alias', !/<loc>[^<]+\/changelog\/v4\.0<\/loc>/.test(sitemapXml));
 
     await page.setViewportSize({ width: 1100, height: 300 });
     await page.goto(new URL('/changelog/v3.9', baseUrl).href, {

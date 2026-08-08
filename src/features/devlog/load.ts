@@ -44,15 +44,14 @@ export async function readDevlogSource(): Promise<string> {
 
 /**
  * The dev log only changes on deploy, so cache the file reads + parse + syntax highlight
- * in the shared remote cache and let the build id invalidate it. Remote storage is
- * operator-directed hardening on the shared-storage pattern: instances share one cached
- * tree instead of each holding an in-memory copy. This keeps /devlog in the static
- * prerender shell instead of forcing the route dynamic on an uncached file read (the
- * /changelog pattern). Highlighting remains server-only; the tokens ride the cached
- * tree as plain data.
+ * and let the build id invalidate it. Plain `'use cache'` (the /changelog pattern) —
+ * `'use cache: remote'` rejected the full highlighted tree with HTTP 413 on Vercel,
+ * so the oversized payload stays on the in-memory/Data Cache profile that can hold it
+ * while preserving the deploy-static shell. Highlighting remains server-only; the
+ * tokens ride the cached tree as plain data.
  */
 export async function loadDevlog(): Promise<DevlogTree> {
-  'use cache: remote';
+  'use cache';
   cacheLife('max');
   return highlightTree(parseDevlog(await readDevlogSource()));
 }

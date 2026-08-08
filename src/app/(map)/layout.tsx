@@ -71,11 +71,13 @@ export async function MapAccessGate({
 
 /**
  * Provides the full-dynamic-viewport frame and request-time authorization hole for map routes.
+ * The Suspense fallback keeps a chrome-shaped shell (development wall) instant while
+ * `checkAdmin()` resolves — never a blank viewport on soft navigation.
  */
 export default function MapLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
-      <Suspense fallback={null}>
+      <Suspense fallback={<MapDevelopmentWall />}>
         <MapAccessGate>{children}</MapAccessGate>
       </Suspense>
     </div>

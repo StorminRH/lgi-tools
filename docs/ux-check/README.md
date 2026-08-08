@@ -100,3 +100,26 @@ export default {
 
 Prefer role/label locators and behavioral checks. Do not add probes whose only
 job is a screenshot.
+
+## Instant navigations (`instant`)
+
+The runner injects Next.js 16.3's `@next/playwright` `instant(fn, options?)`
+helper on the probe context. Inside the callback, navigations render only the
+App Shell / prefetched UI; dynamic streams wait until the callback returns.
+
+```js
+async run({ page, baseUrl, check, instant }) {
+  await page.goto(new URL('/', baseUrl).href, { waitUntil: 'domcontentloaded' });
+  await instant(async () => {
+    await page.locator('a[href="/sites"]').first().click();
+    await page.waitForURL('**/sites');
+    check('sites shell is instant', await page.getByRole('heading', { name: /wormhole/i }).isVisible());
+  });
+}
+```
+
+Prefer soft `<Link>` navigations. Pass `{ baseURL: baseUrl }` only when overriding
+the runner default (it already scopes cookies to `baseUrl`). Run against
+`pnpm dev` / `pnpm dev:all` — the testing API is enabled automatically there; do
+not rely on a local production build. Warm-cache is assumed: cold `'use cache'`
+misses can still wait once.

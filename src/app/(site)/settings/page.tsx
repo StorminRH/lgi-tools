@@ -3,10 +3,10 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { auth } from '@/platform/auth/auth';
 import {
@@ -76,29 +76,36 @@ async function SettingsContent() {
   const view = deriveSettingsView(models, managerCorps);
 
   return (
-    <>
-      <PageHead
-        crumb="settings"
-        title="Account settings"
-        subtitle="Account-wide settings — they apply to every character on this account"
-      />
+    <div className="flex w-full flex-col gap-6">
+      <SettingsSections view={view} />
+    </div>
+  );
+}
 
-      <div className="flex w-full flex-col gap-6">
-        <SettingsSections view={view} />
-      </div>
-    </>
+function SettingsLoading() {
+  // One block only: every section beyond the first is account-conditional, so
+  // reserving phantom cards would shift more than it saves on most accounts.
+  return (
+    <div className="flex w-full flex-col gap-6">
+      <Skeleton label="Loading account settings" className="h-40 w-full rounded-card" />
+    </div>
   );
 }
 
 /**
  * Renders the /settings route surface and owns its page-level composition, metadata boundary, and
- * fallback presentation.
+ * fallback presentation. PageHead stays in the static shell; session-gated sections stream.
  */
 export default function SettingsPage() {
   return (
     <PageShell mode="reading">
       <div className="flex flex-col items-center gap-0 pb-20">
-        <Suspense fallback={<LoadingLabel />}>
+        <PageHead
+          crumb="settings"
+          title="Account settings"
+          subtitle="Account-wide settings — they apply to every character on this account"
+        />
+        <Suspense fallback={<SettingsLoading />}>
           <SettingsContent />
         </Suspense>
       </div>

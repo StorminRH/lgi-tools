@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   findChangelogDocument,
   toChangelogDocuments,
@@ -47,15 +49,7 @@ export async function generateMetadata({
   });
 }
 
-/**
- * Renders the /changelog/[slug] route surface and owns its page-level composition, metadata
- * boundary, and fallback presentation.
- */
-export default async function ChangelogMasterPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+async function ChangelogMaster({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const document = await findOlderChangelogDocument(slug);
   if (!document) notFound();
@@ -63,5 +57,32 @@ export default async function ChangelogMasterPage({
     <div className="max-w-[820px]">
       <MasterSection master={document.master} />
     </div>
+  );
+}
+
+function ChangelogMasterFallback() {
+  return (
+    <div className="flex max-w-[820px] flex-col gap-4">
+      <Skeleton label="Loading changelog" className="h-8 w-40" />
+      <Skeleton aria-hidden="true" className="h-4 w-full" />
+      <Skeleton aria-hidden="true" className="h-4 w-5/6" />
+      <Skeleton aria-hidden="true" className="h-48 w-full" />
+    </div>
+  );
+}
+
+/**
+ * Renders the /changelog/[slug] route surface. The slug (`params`) is URL data —
+ * isolated in Suspense so soft navigations between masters stay instant.
+ */
+export default function ChangelogMasterPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense fallback={<ChangelogMasterFallback />}>
+      <ChangelogMaster params={params} />
+    </Suspense>
   );
 }

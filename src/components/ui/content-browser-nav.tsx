@@ -24,12 +24,13 @@ function ContentItemLink({
   activeSlug: string | null;
 }) {
   const active = item.slug === activeSlug;
-  // Both document browsers mount their full index; automatic viewport
-  // prefetch would render every linked route segment in one burst.
+  // Partial Prefetching (Next 16.3) reuses one App Shell per route, so the old
+  // "prefetch every slug in one burst" cost no longer applies. Leave the Link
+  // default so soft navigations get the shared shell; document bodies stream
+  // from Suspense around `params`.
   return (
     <Link
       href={contentBrowserHref(basePath, item.slug, landingSlug)}
-      prefetch={false}
       aria-current={active ? 'page' : undefined}
       data-content-browser-nav-item
       className="relative block py-1.5 pl-3 pr-2 font-ui text-ui tracking-optical text-muted no-underline transition-colors before:absolute before:-left-px before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-transparent before:content-[''] hover:bg-row-hover hover:text-text aria-[current=page]:bg-row-hover aria-[current=page]:text-isk aria-[current=page]:before:bg-isk motion-reduce:transition-none"

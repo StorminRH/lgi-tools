@@ -11,13 +11,11 @@
 // rest. Login state is read client-side via useAuth() inside GlobalSearch and
 // LoginButton, so it is not threaded through here.
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { GlobalSearch } from '@/components/composition/GlobalSearch';
 import { LoginButton } from '@/components/composition/account/LoginButton';
 import { NavMenu } from '@/components/composition/NavMenu';
 import { NavTools } from '@/components/composition/NavTools';
-import { ServerStatus } from '@/components/composition/ServerStatus';
-import type { ServerStatus as ServerStatusValue } from '@/data/eve-status/types';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 
 // Side-effect import: registers every search source on the CLIENT instance
@@ -29,14 +27,15 @@ import '@/composition/search/register-all';
 
 /**
  * Composes the global header's navigation, search, page menu, status, and account controls from
- * the supplied catalogue index and request-resolved account state.
+ * the supplied catalogue index and the server-rendered status slot (a Suspense
+ * hole owned by AppHeader, so this shell stays App Shell eligible).
  */
 export function AppHeaderShell({
   siteIndex,
-  serverStatus,
+  serverStatusSlot,
 }: {
   siteIndex: SiteSearchEntry[];
-  serverStatus: ServerStatusValue;
+  serverStatusSlot: ReactNode;
 }) {
   const [searchActive, setSearchActive] = useState(false);
 
@@ -52,7 +51,7 @@ export function AppHeaderShell({
         data-server-status-slot
         className="flex shrink-0 items-stretch border-l border-border max-lg:ml-auto"
       >
-        <ServerStatus status={serverStatus} />
+        {serverStatusSlot}
       </div>
       <div
         data-account-slot

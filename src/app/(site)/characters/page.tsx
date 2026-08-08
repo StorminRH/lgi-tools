@@ -14,6 +14,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { auth } from '@/platform/auth/auth';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
@@ -183,79 +184,70 @@ async function CharactersContent({
   const absorbedCharacter = deriveAbsorbedCharacter(rawAbsorbed, characters);
 
   return (
-    <>
-      <PageHead
-        crumb="characters"
-        title="Characters"
-        subtitle={`${characters.length} linked · the active character is who the site acts as`}
-      />
+    <div className="flex w-full flex-col gap-6">
+      <CharacterNotices absorbedCharacter={absorbedCharacter} error={error} />
 
-      <div className="flex w-full flex-col gap-6">
-        <CharacterNotices absorbedCharacter={absorbedCharacter} error={error} />
-
-        <Card>
-          <SectionHeader
-            size="md"
-            label="Your characters"
-            hint={`${characters.length} linked`}
-          />
-          {characters.length === 0 ? (
-            <EmptyState>No characters linked to this account.</EmptyState>
-          ) : (
-            characters.map((character) => (
-              <CharacterRow
-                key={character.characterId}
-                character={character}
-                isActive={character.characterId === session.characterId}
-                isOnlyCharacter={isOnlyCharacter}
-              />
-            ))
-          )}
-          <div className="px-3.5 py-3 border-t border-border-soft">
-            <LinkCharacterButton label="Link another character" />
-          </div>
-          <div className="px-3.5 py-2.5 border-t border-border-soft text-ui text-muted leading-relaxed">
-            LGI.tools only reads the access shown above. To review or revoke it, visit your{' '}
-            <a
-              href={EVE_AUTHORIZED_APPS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-tone-blue hover:underline"
-            >
-              EVE authorized apps
-            </a>{' '}
-            page, or see{' '}
-            <Link href="/legal" className="text-tone-blue hover:underline">
-              how we handle your data
-            </Link>
-            .
-          </div>
-        </Card>
-
-        <AccountDangerZone
-          characters={characters.map((c) => ({ characterId: c.characterId, name: c.name }))}
+      <Card>
+        <SectionHeader
+          size="md"
+          label="Your characters"
+          hint={`${characters.length} linked`}
         />
-      </div>
-    </>
+        {characters.length === 0 ? (
+          <EmptyState>No characters linked to this account.</EmptyState>
+        ) : (
+          characters.map((character) => (
+            <CharacterRow
+              key={character.characterId}
+              character={character}
+              isActive={character.characterId === session.characterId}
+              isOnlyCharacter={isOnlyCharacter}
+            />
+          ))
+        )}
+        <div className="px-3.5 py-3 border-t border-border-soft">
+          <LinkCharacterButton label="Link another character" />
+        </div>
+        <div className="px-3.5 py-2.5 border-t border-border-soft text-ui text-muted leading-relaxed">
+          LGI.tools only reads the access shown above. To review or revoke it, visit your{' '}
+          <a
+            href={EVE_AUTHORIZED_APPS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-tone-blue hover:underline"
+          >
+            EVE authorized apps
+          </a>{' '}
+          page, or see{' '}
+          <Link href="/legal" className="text-tone-blue hover:underline">
+            how we handle your data
+          </Link>
+          .
+        </div>
+      </Card>
+
+      <AccountDangerZone
+        characters={characters.map((c) => ({ characterId: c.characterId, name: c.name }))}
+      />
+    </div>
   );
 }
 
 function CharactersLoading() {
+  // Roster card plus the always-rendered danger-zone card, so completion does
+  // not shift the page by the danger zone's height.
   return (
-    <>
-      <PageHead
-        crumb="characters"
-        title="Characters"
-        subtitle="Linked pilots and their account access"
-      />
+    <div className="flex w-full flex-col gap-6">
       <CharacterPanelSkeleton label="Loading linked characters" />
-    </>
+      <Skeleton aria-hidden="true" className="h-40 w-full rounded-card" />
+    </div>
   );
 }
 
 /**
- * Per-user, session-gated: the content (auth check, redirect, DB reads) is a
- * fully request-time dynamic hole. Only the page container prerenders.
+ * Per-user, session-gated: PageHead stays in the static shell; the auth check,
+ * redirect, and DB reads stream from a request-time hole with a content-shaped
+ * skeleton so soft navigations are instant.
  */
 export default function CharactersPage({
   searchParams,
@@ -265,6 +257,11 @@ export default function CharactersPage({
   return (
     <PageShell mode="reading">
       <div className="flex flex-col items-center pb-20 gap-0">
+        <PageHead
+          crumb="characters"
+          title="Characters"
+          subtitle="Linked pilots — the active character is who the site acts as"
+        />
         <Suspense fallback={<CharactersLoading />}>
           <CharactersContent searchParams={searchParams} />
         </Suspense>

@@ -5,7 +5,9 @@ import { Footer } from '@/components/composition/Footer';
 /**
  * Renders the site header, main region, footer, and feedback affordance.
  * The root unmatched-URL page and the site route-group layout share this owner
- * so each path composes exactly one chrome layer.
+ * so each path composes exactly one chrome layer. The header renders directly
+ * in the shell — its one short-stale read streams from a chip-scoped Suspense
+ * hole inside AppHeader itself.
  */
 export function SiteFrame({ children }: { children: React.ReactNode }) {
   return (
