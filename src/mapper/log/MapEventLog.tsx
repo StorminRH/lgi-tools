@@ -31,15 +31,17 @@ export function MapEventLog({
   now,
   onRestore,
 }: MapEventLogProps) {
+  const undoable = canEdit && events.some((event) => mapEventRestorable(event, now));
   return (
     <div
       data-map-event-log
-      // left-4 matches the docked system readout and bottom-left dev dials.
-      className="pointer-events-none absolute bottom-2 left-4 z-sticky flex justify-start"
+      data-map-event-undoable={undoable || undefined}
+      className="pointer-events-none absolute bottom-4 right-14 z-sticky flex justify-end"
     >
       <div
         className={cn(
-          'pointer-events-auto w-full max-w-md rounded-card text-ui',
+          'pointer-events-auto w-44 rounded-card text-ui',
+          undoable && 'map-chip-undo-pulse',
           mapFrostedSurface,
         )}
       >
@@ -78,7 +80,7 @@ export function MapEventLog({
             tabIndex={0}
             role="group"
             aria-label="Map events"
-            className="flex max-h-48 flex-col gap-1 overflow-y-auto border-t border-border-soft px-2.5 py-1.5"
+            className="flex max-h-48 w-80 max-w-[calc(100vw-5rem)] flex-col gap-1 overflow-y-auto border-t border-border-soft px-2.5 py-1.5"
           >
             {events.length === 0 ? (
               <p

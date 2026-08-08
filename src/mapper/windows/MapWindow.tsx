@@ -81,6 +81,9 @@ function placementClassName(
       ? 'left-4 top-4 h-auto w-max max-w-[min(24rem,calc(100vw-2rem))]'
       : 'left-4 top-4 bottom-16 w-[360px] max-w-[calc(100vw-2rem)]';
   }
+  if (placement.kind === 'docked-bottom-left') {
+    return 'bottom-4 left-4 h-[min(25rem,calc(100dvh-7rem))] w-[420px] max-w-[calc(100vw-2rem)]';
+  }
   // node-anchored and edge-anchored both ride `--map-window-transform`.
   if (placement.kind === 'edge-anchored') {
     // The height bound keeps the card's scroll body engaged on short

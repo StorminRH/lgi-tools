@@ -1180,6 +1180,40 @@ details[data-collapsible][open] > summary [data-chevron] {
   --map-motion-slow: 1000ms;
 }
 
+/* Bottom-right map chrome quietly calls attention to a still-undoable event. */
+@keyframes map-chip-undo-pulse {
+  0%, 100% { box-shadow: var(--shadow-dd); }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--color-card-glow-ring),
+      0 0 10px var(--color-card-glow-shadow);
+  }
+}
+.map-chip-undo-pulse {
+  animation: map-chip-undo-pulse 2.4s ease-in-out infinite;
+}
+
+/* Scanner completion paints beneath row copy without a JSX style attribute. */
+[data-signature-row] [data-signature-signal-fill] {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  width: var(--signature-signal, 0%);
+  background: var(--color-row-hover);
+  opacity: 0.65;
+}
+.map-signature-missing {
+  color: var(--color-tone-red-soft);
+  background: var(--color-pill-red-soft-bg);
+}
+.map-signature-missing-actions {
+  border-color: var(--color-pill-red-soft-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-chip-undo-pulse { animation: none; }
+}
+
 /* Birth: slightly small, dim, and soft — softness IS the low-opacity sub-scale
  * start — scaling through the spring's overshoot and settling sharp. The
  * overshoot lives in the eased timing function's >1 excursion, so the

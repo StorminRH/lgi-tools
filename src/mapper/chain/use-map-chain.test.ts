@@ -288,6 +288,8 @@ describe('client subscription projections', () => {
     expect(details.get(row._id)).toMatchObject({
       connectionId: row._id,
       _creationTime: 10,
+      fromSignalPct: null,
+      firstSeenAt: null,
       lifeStage: null,
       deathEarliestAt: null,
       deathLatestAt: null,
@@ -365,8 +367,11 @@ describe('client subscription projections', () => {
     expect(unresolvedHolesFromRows(rows)).toEqual([
       {
         connectionId: 'stub-1',
+        _creationTime: 10,
         fromSystemId: JITA,
         fromSignatureId: 'ABC-123',
+        fromSignalPct: null,
+        firstSeenAt: null,
         wormholeTypeCode: null,
       },
     ]);

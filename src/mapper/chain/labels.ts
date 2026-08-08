@@ -15,6 +15,10 @@ export interface SystemLabel {
   readonly name: string;
   /** The class chip text, or `null` when the system has no class worth showing. */
   readonly className: string | null;
+  /** Raw SDE security status for the shared dock/System Info readout. */
+  readonly security?: number | null;
+  /** Raw SDE wormhole class id, paired with security for display classification. */
+  readonly whClassId?: number | null;
 }
 
 /**
@@ -71,6 +75,18 @@ export function resolveSystemLabel(
   systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
 ): SystemLabel {
   const entry = systemInfo === null ? null : systemInfo(systemId);
-  if (entry === null) return { name: String(systemId), className: null };
-  return { name: entry.name, className: systemClassLabel(entry.whClassId) };
+  if (entry === null) {
+    return {
+      name: String(systemId),
+      className: null,
+      security: null,
+      whClassId: null,
+    };
+  }
+  return {
+    name: entry.name,
+    className: systemClassLabel(entry.whClassId),
+    security: entry.security,
+    whClassId: entry.whClassId,
+  };
 }

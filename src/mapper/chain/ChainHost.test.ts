@@ -54,6 +54,10 @@ vi.mock('../tracking/JumpDoorbellObserver', () => ({
   JumpDoorbellObserver: () => null,
 }));
 
+vi.mock('../signatures/SignatureProvider', () => ({
+  SignatureProvider: ({ children }: { children?: unknown }) => children,
+}));
+
 vi.mock('@xyflow/react', async () => {
   const { createElement: element } = await import('react');
   mocks.reactFlow.mockImplementation(({ children }: { children?: unknown }) =>
@@ -127,7 +131,12 @@ function withAccess(
     events: [],
     state: { systems: new Map(), connections: new Map() },
     intents: [],
-    labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
+    labelOf: (systemId: number) => ({
+      name: String(systemId),
+      className: null,
+      security: null,
+      whClassId: null,
+    }),
     treeParents: new Map(),
     rootSystemId: null,
     halo: { systems: [], links: [] },

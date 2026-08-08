@@ -1,6 +1,7 @@
 /** Where and how one map window renders; the primitive never decides placement. */
 export type WindowPlacement =
   | { readonly kind: 'docked' }
+  | { readonly kind: 'docked-bottom-left' }
   | { readonly kind: 'node-anchored'; readonly systemId: number }
   | {
       readonly kind: 'edge-anchored';

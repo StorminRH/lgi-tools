@@ -30,6 +30,8 @@ import { PilotPresenceBadge } from './PilotPresenceBadge';
 export type ChainNodeData = {
   name: string;
   className: string | null;
+  security?: number | null;
+  whClassId?: number | null;
   motion?: NodeMotion;
   /**
    * Present only on derived halo systems (4.0.4.2.3 OW3); an authored node

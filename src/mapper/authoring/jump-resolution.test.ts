@@ -18,6 +18,8 @@ function detail(
     _creationTime: 1,
     fromSystemId: 1,
     toSystemId: 2,
+    fromSignalPct: null,
+    firstSeenAt: null,
     wormholeTypeCode: null,
     massState: null,
     shipSize: null,
@@ -43,8 +45,11 @@ const STUB = 'stub-2' as Id<'mapConnections'>;
 const HOLES: readonly UnresolvedHoleSummary[] = [
   {
     connectionId: STUB,
+    _creationTime: 1,
     fromSystemId: 1,
     fromSignatureId: 'DEF-456',
+    fromSignalPct: null,
+    firstSeenAt: null,
     wormholeTypeCode: null,
   },
 ];

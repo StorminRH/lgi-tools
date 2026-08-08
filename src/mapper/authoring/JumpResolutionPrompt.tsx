@@ -76,9 +76,9 @@ export function JumpResolutionPrompt({
   return (
     <div
       data-map-jump-prompt
-      // bottom-16 clears the fixed bottom-right feedback button (z-dropdown
-      // beats z-sticky, so overlap would cover Dismiss).
-      className="pointer-events-none absolute bottom-16 right-4 z-sticky flex justify-end"
+      // The bottom-right chip rail can expand upward (audit history); keep the
+      // non-blocking answer prompt above that chrome rather than behind it.
+      className="pointer-events-none absolute bottom-[15rem] right-4 z-sticky flex justify-end"
     >
       <div
         className={cn(

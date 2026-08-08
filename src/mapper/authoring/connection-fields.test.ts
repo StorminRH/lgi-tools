@@ -70,6 +70,8 @@ const CONNECTION = {
   _creationTime: 1,
   fromSystemId: 30_000_142,
   toSystemId: 30_002_187,
+  fromSignalPct: null,
+  firstSeenAt: null,
   wormholeTypeCode: 'B274',
   massState: null,
   shipSize: 'M' as const,

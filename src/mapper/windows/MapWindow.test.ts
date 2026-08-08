@@ -94,4 +94,11 @@ describe('MapWindow isolation markup', () => {
     expect(html).toContain('map-node-enter');
     expect(html).toContain('data-map-window-placement="edge-anchored"');
   });
+
+  it('owns the one bottom-left geometry variant for the signature sibling', () => {
+    const html = render({ kind: 'docked-bottom-left' });
+    expect(html).toContain('data-map-window-placement="docked-bottom-left"');
+    expect(html).toContain('bottom-4 left-4');
+    expect(html).toContain('w-[420px]');
+  });
 });

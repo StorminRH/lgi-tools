@@ -18,7 +18,14 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
  * `compact` selects the map's icon-only form; it defaults to the labelled
  * button every site route uses.
  */
-export function FeedbackButton({ compact = false }: { compact?: boolean }) {
+export function FeedbackButton({
+  compact = false,
+  embedded = false,
+}: {
+  compact?: boolean;
+  /** Lets a route-owned chrome cluster own geometry without changing site placement. */
+  embedded?: boolean;
+}) {
   const { session, loading } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -29,7 +36,8 @@ export function FeedbackButton({ compact = false }: { compact?: boolean }) {
         size={compact ? 'sm' : 'md'}
         aria-label={compact ? 'Send feedback' : undefined}
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-dropdown"
+        className={embedded ? undefined : 'fixed bottom-4 right-4 z-dropdown'}
+        data-map-feedback-chip={embedded || undefined}
       >
         {compact ? '?' : 'Feedback'}
       </Button>

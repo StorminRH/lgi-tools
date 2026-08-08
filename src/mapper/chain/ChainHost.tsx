@@ -60,6 +60,7 @@ import {
 } from '../motion/motion-contract';
 import type { MotionTruth } from '../motion/motion-host-model';
 import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
+import { SignatureProvider } from '../signatures/SignatureProvider';
 import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
 import { OutboundArrowProvider } from '../tracking/OutboundArrowProvider';
 import { MapPresenceProvider } from '../tracking/PresenceProvider';
@@ -365,7 +366,13 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           frames and the sibling window layer, so the provider sits above
           the React Flow tree — context crosses it intact (docs brief). */}
       <MapPresenceProvider mapId={mapId}>
-        <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
+        <SignatureProvider
+          mapId={mapId}
+          canEdit={canEdit === true}
+          connectionDetails={connectionDetails}
+          unresolvedHoles={unresolvedHoles}
+        >
+          <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
           <OutboundArrowProvider
             drawnSystemIds={drawnSystemIds}
             edges={edges}
@@ -453,7 +460,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
               }}
             />
           ) : null}
-        </ReactFlowProvider>
+          </ReactFlowProvider>
+        </SignatureProvider>
       </MapPresenceProvider>
     </div>
   );

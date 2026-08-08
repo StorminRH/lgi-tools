@@ -68,7 +68,12 @@ describe('canvas node projection', () => {
         height: 88,
         position: positionOfSlot(0),
         style: { pointerEvents: 'none' },
-        data: { name: 'Jita', className: null },
+        data: {
+          name: 'Jita',
+          className: null,
+          security: null,
+          whClassId: null,
+        },
       },
       {
         id: String(AMARR),
@@ -77,7 +82,12 @@ describe('canvas node projection', () => {
         height: 88,
         position: positionOfSlot(1),
         style: { pointerEvents: 'none' },
-        data: { name: 'J123456', className: 'C5' },
+        data: {
+          name: 'J123456',
+          className: 'C5',
+          security: null,
+          whClassId: null,
+        },
       },
     ]);
   });
@@ -140,8 +150,18 @@ describe('canvas node projection', () => {
     const before = syncNodes([], state.systems, fallbackLabel, NO_DRAG);
     const after = syncNodes(before, state.systems, namedLabel, NO_DRAG);
 
-    expect(before[0]?.data).toEqual({ name: String(JITA), className: null });
-    expect(after[0]?.data).toEqual({ name: 'Jita', className: null });
+    expect(before[0]?.data).toEqual({
+      name: String(JITA),
+      className: null,
+      security: null,
+      whClassId: null,
+    });
+    expect(after[0]?.data).toEqual({
+      name: 'Jita',
+      className: null,
+      security: null,
+      whClassId: null,
+    });
     expect(after[0]?.position).toEqual(before[0]?.position);
   });
 });

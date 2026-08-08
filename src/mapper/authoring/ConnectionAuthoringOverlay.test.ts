@@ -63,6 +63,8 @@ function detail(
     _creationTime: 1,
     fromSystemId: 1,
     toSystemId: 2,
+    fromSignalPct: null,
+    firstSeenAt: null,
     wormholeTypeCode: null,
     massState: null,
     shipSize: null,
@@ -217,8 +219,11 @@ describe('ConnectionAuthoringOverlay', () => {
     const holes = [
       {
         connectionId: 'stub-2' as Id<'mapConnections'>,
+        _creationTime: 1,
         fromSystemId: 1,
         fromSignatureId: 'DEF-456',
+        fromSignalPct: null,
+        firstSeenAt: null,
         wormholeTypeCode: null,
       },
     ];

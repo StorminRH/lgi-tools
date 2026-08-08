@@ -175,6 +175,12 @@ describe('mapper source contract', () => {
       'motion/motion-host-model.ts',
       'motion/tween-model.ts',
       'motion/use-motion.ts',
+      'signatures/SignatureProvider.tsx',
+      'signatures/SignatureWindow.tsx',
+      'signatures/signature-context.tsx',
+      'signatures/signature-model.ts',
+      'signatures/signature-toast.ts',
+      'signatures/use-scanner-paste.ts',
       'tracking/AfkGate.tsx',
       'tracking/JumpDoorbellObserver.tsx',
       'tracking/OutboundArrowProvider.tsx',
@@ -247,12 +253,21 @@ describe('mapper source contract', () => {
     expect(readers).toEqual([]);
   });
 
-  it('routes paginated chain reads through exactly one slice hook', () => {
+  it('routes paginated chain and signature reads through their separate slice seams', () => {
     const consumers = mapperFiles().filter((file) =>
       sourceOf(file).includes('@/data/convex/use-drained-pages'),
     );
 
-    expect(consumers).toEqual(['chain/use-map-chain.ts']);
+    expect(consumers).toEqual([
+      'chain/use-map-chain.ts',
+      'signatures/SignatureProvider.tsx',
+    ]);
+    expect(sourceOf('chain/use-map-chain.ts')).not.toContain(
+      'api.mapScan.watchMapSignatures',
+    );
+    expect(sourceOf('signatures/SignatureProvider.tsx')).toContain(
+      'api.mapScan.watchMapSignatures',
+    );
   });
 
   it('keeps the page subscriptions split so a connection write cannot re-read systems', () => {
@@ -274,14 +289,15 @@ describe('mapper source contract', () => {
     expect(hook).toMatch(/const connections = useMemo\(/);
   });
 
-  it('confines client-callable mutations to the two named mapper seams', () => {
-    // Authoring and tracking are independent mutation owners; both reach
+  it('confines client-callable mutations to the three named mapper seams', () => {
+    // Authoring, signatures, and tracking are independent mutation owners; all reach
     // Convex only through the data-slice re-export — never raw convex/react.
     const mutationFiles = mapperFiles().filter((file) =>
       /useMutation|useAction/.test(sourceOf(file)),
     );
     expect(mutationFiles).toEqual([
       'chain/optimistic-authoring.ts',
+      'signatures/SignatureProvider.tsx',
       'tracking/TrackingControls.tsx',
     ]);
     for (const file of mutationFiles) {

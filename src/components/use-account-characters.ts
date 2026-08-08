@@ -16,6 +16,11 @@ import { apiFetch } from '@/transport/api-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { deriveRoster, type BuildCharacter } from './run-as-state';
 
+/** Returns the currently signed-in active EVE character id, or null while absent. */
+export function useActiveCharacterId(): number | null {
+  return useAuth().session?.characterId ?? null;
+}
+
 /**
  * Encapsulates the account characters subscription and state lifecycle; callers provide lookup
  * keys where required and render the returned state.

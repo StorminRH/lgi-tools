@@ -118,6 +118,8 @@ export interface ConnectionDetail {
   readonly _creationTime: number;
   readonly fromSystemId: number;
   readonly toSystemId: number;
+  readonly fromSignalPct: number | null;
+  readonly firstSeenAt: number | null;
   readonly wormholeTypeCode: string | null;
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
@@ -154,6 +156,8 @@ export function connectionDetailsFromRows(
       _creationTime: row._creationTime,
       fromSystemId: row.fromSystemId,
       toSystemId: row.toSystemId,
+      fromSignalPct: optionalOrNull(row.fromSignalPct),
+      firstSeenAt: optionalOrNull(row.firstSeenAt),
       wormholeTypeCode: row.wormholeTypeCode,
       massState: row.massState,
       shipSize: row.shipSize,
@@ -177,8 +181,11 @@ export function connectionDetailsFromRows(
 /** One scanned-but-unexplored wormhole slot, projected for prompt labeling. */
 export interface UnresolvedHoleSummary {
   readonly connectionId: Id<'mapConnections'>;
+  readonly _creationTime: number;
   readonly fromSystemId: number;
   readonly fromSignatureId: string | null;
+  readonly fromSignalPct: number | null;
+  readonly firstSeenAt: number | null;
   readonly wormholeTypeCode: string | null;
 }
 
@@ -190,8 +197,11 @@ export function unresolvedHolesFromRows(
     .filter((row) => row.toSystemId === null && !isTombstoned(row))
     .map((row) => ({
       connectionId: row._id,
+      _creationTime: row._creationTime,
       fromSystemId: row.fromSystemId,
       fromSignatureId: optionalOrNull(row.fromSignatureId),
+      fromSignalPct: optionalOrNull(row.fromSignalPct),
+      firstSeenAt: optionalOrNull(row.firstSeenAt),
       wormholeTypeCode: row.wormholeTypeCode,
     }));
 }

@@ -133,7 +133,12 @@ export function syncNodes(
       height: SYSTEM_FRAME_HEIGHT,
       position: holdLocal ? local.position : placed.position,
       style: INERT_NODE_STYLE,
-      data: { name: label.name, className: label.className },
+      data: {
+        name: label.name,
+        className: label.className,
+        security: label.security ?? null,
+        whClassId: label.whClassId ?? null,
+      },
     };
   });
 
@@ -156,6 +161,8 @@ export function syncNodes(
         data: {
           name: label.name,
           className: label.className,
+          security: label.security ?? null,
+          whClassId: label.whClassId ?? null,
           halo: { ring: placed.ring, fogged: placed.fogged },
         },
       };
