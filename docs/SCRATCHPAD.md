@@ -9,7 +9,7 @@
 
 ## Now
 
-- **OW progress:** `2/7 complete` — next: **The signature window and chrome**.
+- **OW progress:** `3/7 complete` — next: **The wormhole row editor**.
 - **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
   fixtures covering five evidence categories; additive signature/connection
   schema fields and death-latest index census. Focused proof: parser 5/5,
@@ -23,17 +23,24 @@
   map-scan workflows 16/16, fixtures 50/50, jump 6/6, idempotency 16/16;
   `pnpm verify` passed at implementation commit `01811429` (4,940 passed / 138
   skipped; Fallow clean over 19 session-changed files against `71fd4846`).
-- **Next-agent notes:** Resume 4.0.4.3.1 at OW3 only. Consume the separate,
-  access-gated `mapScan.watchMapSignatures` page in the signature window; do
-  not add it to `useMapChain` or read `mapSignatureActivity` from chain
-  watchers. `mapEntityContracts.ts` remains the monotonic best-seen knowledge
-  owner; `mapSignatures.ts` owns activity/tombstone bookkeeping; and
-  `mapConnectionLookup.ts` owns bounded origin/signature lookup. Preserve
-  `firstSeenAt`, group rows by the scanner kind vocabulary, and keep resolved
-  connection removal fenced as `RESOLVED_CONNECTION_REQUIRES_COLLAPSE` until
-  OW6 extracts the shared collapse core. For the later as-built, retain that
-  operator Sample 4 intentionally covers both partial selection and the
-  near-object `98 km` witness; no fifth paste was invented.
+- **OW completed:** OW3 — permanent bottom-left signature window with counted
+  kind tabs, migrated wormhole rows, signal/age presentation, active-tracked
+  paste refusal, missing-row Remove/dismiss confirmation, and keyed undo;
+  bottom-right audit/feedback/dev chrome; deduplicated dock identity plus
+  Security Status and shared signature summaries. Focused proof: confirmation
+  8/8 and affected mapper bundle 163/163; `pnpm verify` passed at implementation
+  commit `64ab075d` (4,953 passed / 138 skipped; Fallow clean over 63 changed
+  files against `8dce9774`); primitive-checker CLEAN.
+- **Next-agent notes:** Resume 4.0.4.3.1 at OW4 only. Add the wormhole-row
+  context editor by reusing the shipped connection field groups and mutations;
+  use the statics-first picker seam plus `/api/universe/statics/[systemId]`,
+  retain search-only degradation on route outage, and rebase
+  `wormholeTypeWindowProposal` / `ConnectionWindowSource` on
+  `firstSeenAt ?? _creationTime` (migrated rows included). Render the typed code
+  in Name and class in Group. Do not begin stub nodes, collapse triggers, or the
+  UX gate. Keep signature paging separate from `useMapChain`, keep resolved
+  removal fenced until OW6, and preserve the OW3 document listener's
+  editable/popup suppression while the editor is open.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -42,7 +49,7 @@
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
 - **CURRENT / NEXT:** session **4.0.4.3.1** is executing on
-  `lifecycle/4.0.4.3`; OW2 is complete and OW3 is next. Execute one Ordered
+  `lifecycle/4.0.4.3`; OW3 is complete and OW4 is next. Execute one Ordered
   work step per `start-session` chat; OW7 owns the required UX/operator pause.
 - **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
