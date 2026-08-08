@@ -9,7 +9,7 @@
 
 ## Now
 
-- **OW progress:** `5/7 complete` — next: **The collapse triggers**.
+- **OW progress:** `6/7 complete` — next: **UX gate (G-1)**.
 - **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
   fixtures covering five evidence categories; additive signature/connection
   schema fields and death-latest index census. Focused proof: parser 5/5,
@@ -47,14 +47,27 @@
   1/1; `pnpm verify` passed at implementation commit `0a7df9d5` (4,815 passed /
   138 skipped; Fallow clean over 90 changed files against `8dce9774`);
   primitive-checker CLEAN after its handover finding was corrected and re-proven.
-- **Next-agent notes:** Resume 4.0.4.3.1 at OW6 only. Extract the internal
-  identity-parameterized collapse core from `severConnection`, keep the public
-  authenticated wrapper, and route confirmed removal, confident removal, and the
-  grace-buffered ceiling cron through that single core. Compute pilot presence
-  from tracking, register the bounded `by_death_latest` sweep and scheduler-comment
-  exception, and preserve 24-hour signature undo/purge behavior. Prove existing
-  sever/undo first, then all three triggers, still-alive/grace cases, and retained
-  present-pilot branches. Do not begin the OW7 UX/operator gate or close-out.
+- **OW completed:** OW6 — identity-parameterized `runCollapse`/`runBranchRestore`
+  cores extracted from `severConnection`/`restoreSeveredBranch` (public mutations
+  stay thin authenticated wrappers; existing sever/undo suites proven green on the
+  extraction alone before any new caller); confirmed removal, confident removal,
+  and the new 15-minute grace-buffered `by_death_latest` ceiling sweep
+  (`CEILING_COLLAPSE_GRACE_MS` 4h, batch 8, re-read idempotency) all route through
+  the one core with pilot presence from tracking; resolved-row undo restores the
+  shared-stamp branch; collapse now clears signature-activity companions;
+  scheduler-exception comment + cron + idempotency-registry entries recorded.
+  Focused proof: mapAuthoring/mapScan/idempotency 106/106, affected bundle
+  484/484, single `decideCollapse` call-site inspection; `pnpm verify` passed
+  (4,958 passed / 1 skipped; Fallow clean over 93 changed files against
+  `8dce9774`); primitive-checker CLEAN.
+- **Next-agent notes:** Resume 4.0.4.3.1 at OW7 only — the UX gate (G-1).
+  Run `ux-check` with probes over paste → re-paste → removal confirmation →
+  undo → stub surfacing → jump resolution in two clients on a fresh disposable
+  map, then pause for the operator's browser review and record the G-1
+  disposition here before `7/7 complete — awaiting close-out`. Sweep gotchas for
+  probes: expired-ceiling holes need `deathLatestAt + 4h` in the past before the
+  cron collapses them; paste-driven confident removal needs only the ceiling
+  passed (no grace). Do not run close-out from the OW7 chat.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -63,8 +76,8 @@
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
 - **CURRENT / NEXT:** session **4.0.4.3.1** is executing on
-  `lifecycle/4.0.4.3`; OW5 is complete and OW6 is next. Execute one Ordered
-  work step per `start-session` chat; OW7 owns the required UX/operator pause.
+  `lifecycle/4.0.4.3`; OW6 is complete and OW7 (the UX/operator gate) is next.
+  Execute one Ordered work step per `start-session` chat.
 - **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
   render honest presence in the frame, dock, and summary; authored k-space

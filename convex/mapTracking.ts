@@ -14,6 +14,7 @@ import {
   type MutationCtx,
   mutation,
   query,
+  type QueryCtx,
 } from './_generated/server';
 import { requireMapAccess, tryMapAccess } from './lib/mapAccess';
 import { getSyncSubject } from './lib/subjects';
@@ -258,6 +259,33 @@ export const feedFreshness = query({
     };
   },
 });
+
+/**
+ * Solar systems currently holding at least one tracked pilot on one map — the
+ * presence input the collapse triggers feed the shared collapse core. Joins
+ * exactly like `forMap`: each tracking row to its own (userId, characterId)
+ * location document, so a forged row still discloses and retains nothing.
+ */
+export async function readTrackedPilotSystemIds(
+  ctx: QueryCtx,
+  mapId: string,
+): Promise<ReadonlySet<number>> {
+  const rows = await ctx.db
+    .query('mapTracking')
+    .withIndex('by_map', (q) => q.eq('mapId', mapId))
+    .take(TRACKING_MAP_SCAN_CAP);
+  const systemIds = new Set<number>();
+  for (const row of rows) {
+    const location = await ctx.db
+      .query('characterLocation')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', row.userId).eq('characterId', row.characterId),
+      )
+      .unique();
+    if (location !== null) systemIds.add(location.solarSystemId);
+  }
+  return systemIds;
+}
 
 // ── Teardown helpers — mapAccessProjection (revocation cascade, map teardown,
 // account claims door) calls these instead of restating the queries, so the

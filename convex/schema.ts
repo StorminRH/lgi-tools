@@ -193,7 +193,12 @@ export default defineSchema({
   // far endpoint on the same durable row. Endpoints are system IDs, never
   // document references. Remaining lifetime is the death window
   // pair `deathEarliestAt`/`deathLatestAt` (absolute instants; clients derive
-  // the countdown, no scheduler ever flips a state). `eolAt` is vestigial — a
+  // the countdown). One narrow sanctioned scheduler exception exists by
+  // 4.0.4.3.1 operator ruling: the 15-minute ceiling sweep collapses a
+  // connection only past `deathLatestAt + CEILING_COLLAPSE_GRACE_MS` — death
+  // already certain — through the same collapse core every manual trigger
+  // uses; every other countdown remains client-derived display. `eolAt` is
+  // vestigial — a
   // superseded mark-EOL design with no production writer; it stays null.
   // lifeStage is the human-observed Reliable Lifetime bucket; estimates that
   // consume lifeStageObservedAt belong to a later session.

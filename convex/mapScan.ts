@@ -34,6 +34,12 @@ import {
   readOriginConnections,
 } from './lib/mapConnectionLookup';
 import {
+  eventActor,
+  runBranchRestore,
+  runCollapse,
+  type CollapsePilotsPresent,
+} from './mapAuthoring';
+import {
   mergeSignatureKnowledge,
   normalizeSignatureKnowledge,
   scannedKindValidator,
@@ -48,7 +54,10 @@ import {
   SIGNATURE_PURGE_BATCH,
 } from './lib/mapSignatureCleanup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
+import {
+  readTrackedPilotSystemIds,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './mapTracking';
 
 /** Maximum rows accepted or read for one system-level scanner transaction. */
 export const MAP_SCAN_ROW_LIMIT = 256;
@@ -471,28 +480,77 @@ function liveLifecycleRows(state: ScanState) {
   return [...byId.values()];
 }
 
-async function removeConfidentStubs(
+/** Memoizes the tracked-pilot presence read across one removal transaction. */
+function trackedPresenceReader(
+  ctx: MutationCtx,
+  mapId: string,
+): () => Promise<CollapsePilotsPresent> {
+  let held: CollapsePilotsPresent | undefined;
+  return async () => {
+    held ??= { trackedInSystemIds: await readTrackedPilotSystemIds(ctx, mapId) };
+    return held;
+  };
+}
+
+async function removeConfidentRow(
+  ctx: MutationCtx,
+  state: ScanState,
+  connection: Doc<'mapConnections'>,
+  input: {
+    readonly mapId: string;
+    readonly signatureId: string;
+    readonly actor: string;
+    readonly now: number;
+    readonly pilots: () => Promise<CollapsePilotsPresent>;
+  },
+): Promise<void> {
+  if (connection.toSystemId !== null) {
+    // Resolved wormhole: the shared collapse core owns stamps, ledger event,
+    // and activity cleanup.
+    await runCollapse(ctx, {
+      mapId: input.mapId,
+      connectionId: connection._id,
+      actor: input.actor,
+      pilotsPresent: await input.pilots(),
+    });
+    return;
+  }
+  await ctx.db.patch(connection._id, chainTombstoneStamps(input.now));
+  const activity = state.activities.find((row) => row.signatureId === input.signatureId);
+  if (activity !== undefined) await ctx.db.delete(activity._id);
+}
+
+async function removeConfidentRows(
   ctx: MutationCtx,
   state: ScanState,
   missingIds: readonly string[],
+  mapId: string,
+  actor: string,
   now: number,
 ): Promise<Set<string>> {
   const removed = new Set<string>();
-  const stamps = chainTombstoneStamps(now);
+  const pilots = trackedPresenceReader(ctx, mapId);
   for (const signatureId of missingIds) {
-    const connection = findConnectionForSignature(state.connections, signatureId);
+    const known = findConnectionForSignature(state.connections, signatureId);
+    if (known === undefined) continue;
+    // Re-read: an earlier collapse in this loop may already have tombstoned
+    // this row as branch collateral.
+    const connection = await ctx.db.get(known._id);
     if (
-      connection === undefined
-      || connection.toSystemId !== null
+      connection === null
       || isTombstoned(connection)
       || !isConfidentMissingRemoval({
         signatureId,
         deathLatestAt: connection.deathLatestAt,
       }, now)
     ) continue;
-    await ctx.db.patch(connection._id, stamps);
-    const activity = state.activities.find((row) => row.signatureId === signatureId);
-    if (activity !== undefined) await ctx.db.delete(activity._id);
+    await removeConfidentRow(ctx, state, connection, {
+      mapId,
+      signatureId,
+      actor,
+      now,
+      pilots,
+    });
     removed.add(signatureId);
   }
   return removed;
@@ -517,10 +575,12 @@ export const applyScan = mutation({
       counts[outcome] += 1;
     }
 
-    const confident = await removeConfidentStubs(
+    const confident = await removeConfidentRows(
       ctx,
       state,
       missingRows.map((row) => row.signatureId),
+      mapId,
+      await eventActor(ctx),
       now,
     );
     return {
@@ -593,16 +653,65 @@ export const identifySignature = mutation({
   },
 });
 
+interface SelectionWrite {
+  readonly mode: SignatureSelectionMode;
+  readonly deletedAt: number | null;
+  readonly purgeAfter: number | null;
+  readonly actor: string;
+}
+
+/**
+ * Removes or restores one selected wormhole row. Unresolved stubs tombstone as
+ * single rows (no branch decision exists for a stub); resolved rows ride the
+ * shared collapse core and its shared-stamp branch undo.
+ */
+async function changeSelectedConnection(
+  ctx: MutationCtx,
+  mapId: string,
+  connection: Doc<'mapConnections'> | undefined,
+  activity: Doc<'mapSignatureActivity'> | undefined,
+  write: SelectionWrite,
+  pilots: () => Promise<CollapsePilotsPresent>,
+): Promise<boolean> {
+  if (connection === undefined) return false;
+  if (connection.toSystemId === null) {
+    return await tombstoneConnectionRow(
+      ctx,
+      connection,
+      activity,
+      write.deletedAt,
+      write.purgeAfter,
+    );
+  }
+  // Re-read: an earlier selection in this loop may already have collapsed or
+  // restored this row as shared-stamp branch collateral.
+  const fresh = await ctx.db.get(connection._id);
+  if (fresh === null) return false;
+  if (write.mode === 'remove') {
+    if (isTombstoned(fresh)) return false;
+    await runCollapse(ctx, {
+      mapId,
+      connectionId: fresh._id,
+      actor: write.actor,
+      pilotsPresent: await pilots(),
+    });
+    return true;
+  }
+  if (!isTombstoned(fresh)) return false;
+  await runBranchRestore(ctx, { mapId, connectionId: fresh._id, actor: write.actor });
+  return true;
+}
+
 async function tombstoneSelected(
   ctx: MutationCtx,
   state: ScanState,
+  mapId: string,
   signatureIds: readonly string[],
-  deletedAt: number | null,
-  purgeAfter: number | null,
+  write: SelectionWrite,
 ) {
   const signatures = rowMaps(state.signatures);
   const activities = rowMaps(state.activities);
-  requireUnresolvedSelections(state, signatureIds);
+  const pilots = trackedPresenceReader(ctx, mapId);
 
   let changed = 0;
   for (const signatureId of signatureIds) {
@@ -612,34 +721,24 @@ async function tombstoneSelected(
         ctx,
         signature,
         activities.get(signatureId) ?? null,
-        deletedAt,
-        purgeAfter,
+        write.deletedAt,
+        write.purgeAfter,
       );
       if (didChange) changed += 1;
       continue;
     }
     const connection = findConnectionForSignature(state.connections, signatureId);
-    const didChange = await tombstoneConnectionRow(
+    const didChange = await changeSelectedConnection(
       ctx,
+      mapId,
       connection,
       activities.get(signatureId),
-      deletedAt,
-      purgeAfter,
+      write,
+      pilots,
     );
     if (didChange) changed += 1;
   }
   return { changed };
-}
-
-function requireUnresolvedSelections(state: ScanState, signatureIds: readonly string[]): void {
-  for (const signatureId of signatureIds) {
-    const connection = findConnectionForSignature(state.connections, signatureId);
-    if (connection === undefined || connection.toSystemId === null) continue;
-    throw new ConvexError({
-      code: 'RESOLVED_CONNECTION_REQUIRES_COLLAPSE',
-      detail: 'Resolved wormhole removals attach to the shared collapse core in Ordered work 6.',
-    });
-  }
 }
 
 function needsTombstoneChange(
@@ -716,7 +815,12 @@ async function changeSignatureSelection(
   const stamps = mode === 'remove'
     ? chainTombstoneStamps(now)
     : { deletedAt: null, purgeAfter: null };
-  return await tombstoneSelected(ctx, state, ids, stamps.deletedAt, stamps.purgeAfter);
+  return await tombstoneSelected(ctx, state, mapId, ids, {
+    mode,
+    deletedAt: stamps.deletedAt,
+    purgeAfter: stamps.purgeAfter,
+    actor: await eventActor(ctx),
+  });
 }
 
 function signatureSelectionMutation(mode: SignatureSelectionMode) {

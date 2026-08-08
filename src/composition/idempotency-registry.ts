@@ -181,6 +181,17 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
       'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.',
   },
   {
+    id: 'convex/crons:map ceiling collapse',
+    workKind: 'convex-cron',
+    module: 'convex/crons.ts',
+    redeliverySource:
+      'The 15-minute Convex interval may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
+    verdict: 'inherently-idempotent',
+    vendor: 'convex',
+    evidence:
+      'The internal mutation ranges only finite deathLatestAt values past the collapse grace, re-reads each row before acting so tombstoned or purged rows are skipped, and every collapse routes through the shared-stamp core; a repeat observes only rows the previous batch left live.',
+  },
+  {
     id: 'convex/crons:sync engine scan',
     workKind: 'convex-cron',
     module: 'convex/crons.ts',

@@ -17,6 +17,7 @@ const CHARACTER = 1001;
 const NOW = 1_800_000_000_000;
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
+const WH_FAR = 31_000_005;
 
 type ScanDb = TestConvex<typeof schema>;
 
@@ -411,21 +412,94 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
-  it('reserves resolved wormhole removal for the OW6 shared collapse core', async () => {
+  it('routes confirmed resolved removal through the collapse core and undoes the branch', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
     await apply(t, [signature('WHL-001', { group: 'Wormhole' })]);
     await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: WH_FAR });
       const connection = (await ctx.db.query('mapConnections').collect())[0]!;
-      await ctx.db.patch(connection._id, { toSystemId: AMARR });
+      await ctx.db.patch(connection._id, { toSystemId: WH_FAR });
     });
 
-    await expect(asEditor(t).mutation(api.mapScan.removeSignatures, {
+    expect(await asEditor(t).mutation(api.mapScan.removeSignatures, {
       mapId: MAP,
       systemId: JITA,
       signatureIds: ['WHL-001'],
-    })).rejects.toThrow('RESOLVED_CONNECTION_REQUIRES_COLLAPSE');
-    expect((await readState(t)).connections[0]?.deletedAt).toBeNull();
+    })).toEqual({ changed: 1 });
+    const removed = await readState(t);
+    expect(removed.connections[0]).toMatchObject({
+      deletedAt: NOW,
+      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+    });
+    expect(removed.activities).toEqual([]);
+    const farSystem = await t.run(async (ctx) => (await ctx.db
+      .query('mapSystems')
+      .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', WH_FAR))
+      .unique()));
+    expect(farSystem).toMatchObject({ deletedAt: NOW });
+    const events = await t.run(async (ctx) => await ctx.db
+      .query('mapEvents')
+      .withIndex('by_map', (q) => q.eq('mapId', MAP))
+      .collect());
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'branch_removed',
+        actor: 'Editor Pilot',
+        payload: expect.objectContaining({ systemIds: [WH_FAR] }),
+      }),
+    ]);
+
+    vi.setSystemTime(NOW + MAP_CHAIN_UNDO_WINDOW_MS - 1);
+    expect(await asEditor(t).mutation(api.mapScan.restoreSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['WHL-001'],
+    })).toEqual({ changed: 1 });
+    expect((await readState(t)).connections[0]).toMatchObject({
+      toSystemId: WH_FAR,
+      deletedAt: null,
+      purgeAfter: null,
+    });
+    expect(await t.run(async (ctx) => (await ctx.db
+      .query('mapSystems')
+      .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', WH_FAR))
+      .unique()))).toMatchObject({ deletedAt: null, purgeAfter: null });
+  });
+
+  it('silently collapses a missing resolved wormhole past its ceiling', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WHL-001', { group: 'Wormhole' })]);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: WH_FAR });
+      const connection = (await ctx.db.query('mapConnections').collect())[0]!;
+      await ctx.db.patch(connection._id, {
+        toSystemId: WH_FAR,
+        deathEarliestAt: NOW - 2_000,
+        deathLatestAt: NOW - 1_000,
+      });
+    });
+
+    expect(await apply(t, [signature('SIG-001')])).toMatchObject({
+      removedConfident: 1,
+      missing: [],
+    });
+    expect((await readState(t)).connections[0]).toMatchObject({
+      deletedAt: NOW,
+      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+    });
+    const events = await t.run(async (ctx) => await ctx.db
+      .query('mapEvents')
+      .withIndex('by_map', (q) => q.eq('mapId', MAP))
+      .collect());
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'branch_removed',
+        actor: 'Editor Pilot',
+        payload: expect.objectContaining({ systemIds: [WH_FAR] }),
+      }),
+    ]);
   });
 
   it('removes and restores an unresolved wormhole stub inside the undo window', async () => {
