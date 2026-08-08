@@ -14,6 +14,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { auth } from '@/platform/auth/auth';
 import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
 import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
@@ -232,6 +233,17 @@ async function CharactersContent({
   );
 }
 
+function CharactersLoading() {
+  // Roster card plus the always-rendered danger-zone card, so completion does
+  // not shift the page by the danger zone's height.
+  return (
+    <div className="flex w-full flex-col gap-6">
+      <CharacterPanelSkeleton label="Loading linked characters" />
+      <Skeleton aria-hidden="true" className="h-40 w-full rounded-card" />
+    </div>
+  );
+}
+
 /**
  * Per-user, session-gated: PageHead stays in the static shell; the auth check,
  * redirect, and DB reads stream from a request-time hole with a content-shaped
@@ -250,7 +262,7 @@ export default function CharactersPage({
           title="Characters"
           subtitle="Linked pilots — the active character is who the site acts as"
         />
-        <Suspense fallback={<CharacterPanelSkeleton label="Loading linked characters" />}>
+        <Suspense fallback={<CharactersLoading />}>
           <CharactersContent searchParams={searchParams} />
         </Suspense>
       </div>

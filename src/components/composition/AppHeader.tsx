@@ -19,8 +19,8 @@ async function NavServerStatus() {
 
 function NavServerStatusFallback() {
   return (
-    <span aria-hidden="true" className="flex h-full items-center px-3">
-      <Skeleton className="h-3 w-20" />
+    <span className="flex h-full items-center px-3">
+      <Skeleton label="Loading server status" className="h-3 w-20" />
     </span>
   );
 }
