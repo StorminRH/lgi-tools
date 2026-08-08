@@ -1,0 +1,19 @@
+{
+  "name": "LGI.tools",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "postgres",
+      "command": "bash .cursor/postgres.sh",
+      "description": "Local PostgreSQL 16 on localhost:5433 (user/db lgi/lgi_tools), kept in the foreground so it stays up for the whole session. Schema + EVE SDE data are provisioned by install.sh."
+    },
+    {
+      "name": "next-dev",
+      "command": "bash .cursor/dev.sh",
+      "description": "Waits for Postgres, then runs the Next.js dev server on http://localhost:3000 (public pages + the DB-backed Wormhole Sites and Industry Planner tools). Use this rather than `pnpm dev:all`, which needs Docker and a Convex login that are not provisioned; the app degrades gracefully without Convex."
+    }
+  ],
+  "ports": [
+    { "name": "next", "port": 3000 }
+  ]
+}

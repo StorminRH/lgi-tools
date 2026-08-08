@@ -993,10 +993,10 @@ INSERT INTO site_resources (id, site_id, order_in_site, resource_kind, resource_
   (1751, 139, 6, 'ore', 'Smooth Glacial Mass', 6454, 6454000, 131, 844823114, 28442),
   (1752, 139, 7, 'ore', 'Thick Blue Ice', 6868, 6868000, 147, 1009130281, 28443)
 ON CONFLICT (site_id, order_in_site) DO NOTHING;
-SELECT setval('sites_id_seq', (SELECT MAX(id) FROM sites));
-SELECT setval('waves_id_seq', (SELECT MAX(id) FROM waves));
-SELECT setval('npcs_id_seq', (SELECT MAX(id) FROM npcs));
-SELECT setval('site_resources_id_seq', (SELECT MAX(id) FROM site_resources));
+PERFORM setval('sites_id_seq', (SELECT MAX(id) FROM sites));
+PERFORM setval('waves_id_seq', (SELECT MAX(id) FROM waves));
+PERFORM setval('npcs_id_seq', (SELECT MAX(id) FROM npcs));
+PERFORM setval('site_resources_id_seq', (SELECT MAX(id) FROM site_resources));
   END IF;
 END $$;
 --> statement-breakpoint
