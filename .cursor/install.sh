@@ -87,4 +87,9 @@ if [ "${priced:-0}" -lt 1 ]; then
   pnpm db:refresh-sde --force
 fi
 
-echo "install.sh complete: postgres :5433, migrations applied, SDE present."
+# Shut the cluster down cleanly so the data dir (and any snapshot taken of it)
+# carries no stale postmaster.pid. The `postgres` terminal owns the running
+# process for the agent's lifetime; nothing started here should outlive install.
+"$PGBIN/pg_ctl" -D "$PGDATA" -w stop >/dev/null 2>&1 || true
+
+echo "install.sh complete: postgres :5433 provisioned, migrations applied, SDE present."

@@ -78,13 +78,16 @@ still live in the README/`package.json`. Non-obvious caveats:
 - **Postgres runs natively, not via Docker.** The VM has no Docker daemon or
   systemd, so `.cursor/install.sh` provisions a self-contained PostgreSQL 16
   cluster (owned by the agent user, `trust` auth) on `localhost:5433` — the same
-  URL as `docker-compose.yml` — and `.cursor/start.sh` restarts it each boot.
+  URL as `docker-compose.yml`. It runs in the foreground in the `postgres`
+  terminal (see `.cursor/environment.json`) so it stays up for the session; a
+  background daemon started in a `start` phase does not reliably survive boot.
   The migrated schema and the ingested EVE SDE are baked into the environment
   snapshot, so a normal boot needs no migration/ingest and no CCP network call.
 - **Use `pnpm dev`, not `pnpm dev:all`.** `dev:all` runs `docker compose up -d`
   (no Docker here) and `convex dev` (needs a Convex cloud login that is not
   provisioned). The app degrades gracefully without Convex, so `pnpm dev` (Next
-  on `:3000`) is the working local server.
+  on `:3000`) is the working local server — the `next-dev` terminal waits for
+  Postgres and runs it for you.
 - **`.env.local` is auto-generated** with dev-only session/crypto secrets and
   the local DB URLs. Any Cloud Agent Secret you upload is injected as a real env
   var and overrides the `.env.local` fallback at runtime — do not upload a
