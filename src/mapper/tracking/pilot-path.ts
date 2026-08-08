@@ -139,6 +139,19 @@ export interface OutboundArrowInput {
   readonly edgeIdOfPair: (a: number, b: number) => string | null;
 }
 
+/** Deduplicates off-map pilot systems while keeping any live claimant live. */
+function offMapPilotLiveness(
+  pilotSystems: readonly ArrowPilotSystem[],
+  drawnSystemIds: ReadonlySet<number>,
+): Map<number, boolean> {
+  const offMapLive = new Map<number, boolean>();
+  for (const pilot of pilotSystems) {
+    if (drawnSystemIds.has(pilot.systemId)) continue;
+    offMapLive.set(pilot.systemId, (offMapLive.get(pilot.systemId) ?? false) || pilot.live);
+  }
+  return offMapLive;
+}
+
 /**
  * The outermost consecutive pair along one path that a rendered edge exists
  * for — the boundary line running into the fog — or `null` when the path
@@ -170,11 +183,7 @@ function mountFor(
 export function deriveOutboundArrows(
   input: OutboundArrowInput,
 ): ReadonlyMap<string, OutboundArrow> {
-  const offMapLive = new Map<number, boolean>();
-  for (const pilot of input.pilotSystems) {
-    if (input.drawnSystemIds.has(pilot.systemId)) continue;
-    offMapLive.set(pilot.systemId, (offMapLive.get(pilot.systemId) ?? false) || pilot.live);
-  }
+  const offMapLive = offMapPilotLiveness(input.pilotSystems, input.drawnSystemIds);
   const arrows = new Map<string, OutboundArrow>();
   if (offMapLive.size === 0 || input.drawnSystemIds.size === 0) return arrows;
 

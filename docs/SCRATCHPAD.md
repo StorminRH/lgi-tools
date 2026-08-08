@@ -16,150 +16,53 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.2.3** close-out is **IN PROGRESS, paused
-  mid-procedure** on `lifecycle/4.0.4.2` (operator pause 2026-08-07). The
-  adversarial-review gate ran (holistic + ownership + interface + reliability
-  against `ead66468...8439ceaa`, digest `34f5ee0671d7bda7`): **8 accepted root
-  causes, ALL FIXED on-branch** in the pause commit — (1) outbound arrow now
-  derives its fraction from `FOG_EDGE_CUT_FRACTION` (never floats past a fog
-  stub) and tones `text-muted` when every claimant is stale; (2) `forMap`
-  freshness join REPLACED by the sibling quantized `mapTracking.feedFreshness`
-  query (per-character `coveredCharacterIds` gate + 60s buckets; forMap's read
-  set no longer touches the hot subject stamp — doorbell premise restored);
-  presence also reads a FRESH `location.observedAt` as proof-of-coverage
-  (a change the feed wrote IS an observation; fixes cold-start and the
-  engine-clobbers-fixture-covered race); (3) every node wrapper is
-  pointer-inert (`INERT_NODE_STYLE` on ALL nodes; name+disc chrome re-enable
-  via `pointer-events-auto`, gated off for fogged/ghost) so the invisible
-  frame margin can't drag/pin/hover; (4) one shared multi-source BFS in
-  `pilot-path.ts` + content-keyed arrow memo + identity-stable `useAfkState`;
-  (5) `mulberry32` → `src/mapper/lib/prng.ts`; (6) `pairKey` →
-  `src/mapper/lib/pair-key.ts`; (7) page-settings `description` slot retired
-  end-to-end (operator: auto-layout subtext stays removed — do NOT re-add);
-  (8) stale ring-3/rim-to-rim comments fixed. 2089 units + strict tsc green
-  at the pause commit. Still pending separately: the tiny drain-end wipe PR
-  once prod rows drain post-#368.
-- **Close-out progress:** review gate CLOSED except final probe evidence;
-  then: delivery records (changelog `### v4.0.4.2.3` absorbing the two
-  pending fragments, `APP_VERSION`, terminal roadmap session row, plan
-  `Complete`), SCRATCHPAD collapse, cheap checks + release consistency, full
-  verify, commit/push, draft PR + as-built, external review, merge, prod
-  proof. Design notes for PR `## Notes` not yet written.
-- **Probe evidence state (fix verification):** `atlas-halo` 12/12 and
-  `atlas-fog-layering` 19/19 green post-fix; `atlas-background-tracking`
-  19/21 — the 2 reds are ONE issue: the destination-disc click times out on
-  Playwright actionability right after the hidden→visible flip (standalone
-  repro of the same click WORKS incl. under `page.clock`; suspect
-  never-stable bounding box — camera/motion — now that only the 33px disc is
-  clickable, not the whole frame). `atlas-window-track` + `atlas-motion-glide`
-  NOT re-run: they need a ≥40-node chain (`pnpm map:replay -- --user
-  e2e-pilot --chain 33` — the `--` separator is REQUIRED, without it pnpm
-  eats the flags and the script hangs silently).
-- **Probe-ops gotchas (this round):** (1) `pnpm e2e:seed` RESETS
-  `user.role` — re-grant ADMIN AFTER seeding (`UPDATE "user" SET role='ADMIN'
-  WHERE id='e2e-pilot';` in Docker `lgi_tools`); the Atlas dev wall reads
-  user.role, not characters.role. (2) Every bg-probe run needs a FRESH map:
-  insert a `maps` row for `e2e-pilot` via psql, then
-  `pnpm map:project-access project <id>` (re-stamp
-  `characters.affiliation_refreshed_at` first if projection says affiliation
-  refresh failed — the synthetic char can't hit ESI). (3) The live engine
-  beats ~5s for the signed-in e2e user and stamps `coveredCharacterIds: []`
-  (tokenless chars), clobbering fixture covered stamps — the observedAt
-  proof-of-coverage rule in `presence-model.ts` is what makes probes (and
-  cold clients) honest-live anyway; don't "fix" the engine. (4) Probe path-d
-  regexes must accept scientific notation (`7e-15` from frame clipping) —
-  fixed in `atlas-fog-layering.mjs` + `lib/motion-metrics.mjs`. (5) A live
-  click repro script is at `docs/ux-check/captures/debug-card.mjs`
-  (gitignored).
-- **OW completed:**
-  - OW1 — widget-frame node primitive: `SystemNode.tsx` (frame 120×88 declared
-    data-side, header name, centered disc, widget rail), `edge-geometry.ts`
-    frame-box clipping + `pointAlongChainLink`, camera fit/focus and edge
-    follower on frame centers, follower/focus routed through the shared
-    `endpointFrame`/`frameCenter` owner. Proof: edge-geometry 17 + SystemNode
-    13 units, mapper 47 files / 400 tests green, full verify green (fallow
-    clean, 14 changed files), primitive-checker CLEAN after 2 corrections.
-    Commit: 26b94263.
-  - OW2 — pilot presence with staleness honesty: `presence-model.ts` (pure
-    matrix + `PRESENCE_FEED_STALE_AFTER_MS = 180s`, status words, friendly
-    rows), `presence-context.ts` + `PresenceProvider.tsx` (forMap read, 30s
-    tick, AFK gate ownership moved here), `PilotPresenceBadge` in the frame
-    rail, `SystemIntelligenceBody` replacing the placeholder in card + dock,
-    `forMap` `feedFreshAt` join (memoized per owner), `mapFixtures`
-    subject-freshness stamp (+ optional `feedFreshAt` arg), shared
-    `use-entity-names` hook (extracted; CorpJobsBoard is the other consumer),
-    `atlas-background-tracking` probe (folded #368: hidden jumps land,
-    heartbeat frames stop after AFK pause, stale rendering, resume). Proof:
-    presence-model 14 units + convex join/stamp coverage, probe run all 19
-    checks green (2026-08-07), full verify green (fallow clean, 38 changed
-    files), primitive-checker CLEAN after 4 corrections across 2 rounds.
-    Commit: 814be6c2.
-  - OW3 — k-space halo through the compass: `halo-model.ts` (pure ring-BFS
-    from authored k-space exits over the client adjacency asset; rings 1–2
-    drawn / ring 3 fogged, per-exit + aggregate caps, claim-links-first
-    emission so the kernel tree attaches at shortest gate distance),
-    `use-map-chain.ts` merge seam (memoized on authored key + assets, facts
-    append, `layoutPostKey` 4th halo-fingerprint arg, placed halo set
-    atomically with the merge), `syncNodes`/`buildEdges` halo passes
-    (declared frame dims, draggable:false, fogged ring inert via node style,
-    `halo:` edge ids + shared pair claiming, upgrade sheds derived controls),
-    SystemNode derived/fogged markers, `pilot-path.ts` +
-    `outbound-arrow-context`/`OutboundArrowProvider` + ChainLinkEdge
-    EdgeLabelRenderer arrow (CSSOM transform var), context-menu/edge-click
-    guards, engine.ts clone dedupe (`takeRetiredRows`). Proof: halo-model 13
-    + pilot-path 6 units, mapper 51 files / 479 tests, `atlas-halo`
-    two-client probe 12/12 green at final head (identical membership +
-    positions, zero non-heartbeat mutations, in-place upgrade with
-    map-node-enter on both clients; SC-1/SC-2/SC-4 evidence), full verify
-    green (fallow audit exit 0). Primitive-checker CLEAN round 1.
-    Commit: cd34ba98.
-  - OW4 — fog layer: `src/mapper/fog/` (fog-model reveal membership +
-    open/close timeline + drag wake, fog-painter cover/backing/noise-brush/
-    paint-commands, fog-host `runFogTick` with injected browser seams,
-    FogLayer thin canvas host via ViewportPortal + `.map-fog` z:-1),
-    ring-3 occlusion (fogged nodes opacity-0 + `chainLinkFogPath` stub via
-    `fogSide` on halo edges), `--color-map-fog` token, halo/fog dev dials
-    (MapControls + map-controls-model commits, `haloLimits` threaded through
-    `useMapChain`). Proof: fog 36 units (model/painter/host) + edge-geometry/
-    nodes/MapControls units, mapper 53 files / 490 tests, `atlas-fog-layering`
-    19/19 (SC-3.2: stacking, pixel-alpha honesty, inert/invisible ring-3,
-    0.55-cut stub, click-through, idle-still), `atlas-fog-budget` 9/9
-    (SC-6.2: 55 authored + 150-cap halo, p50 8.4 ms / p95 33.4 ms vs 17/34
-    budget, returns to zero rAF), full verify green (fallow: no issues in 61
-    changed files). Primitive-checker CLEAN after 1 correction
-    (DialGroupHeader retrofit). Commit: 1e5c6c76.
-  - OW5 — UX gate (G-1) + #368 checklist: operator-pinned halo
-    (`HALO_DRAWN_RINGS=1`, fogged `1`, per-exit `10`, total `150`) and fog
-    (`FOG_REVEAL_RADIUS=280`, stroke `120`, opacity `0.95`, tier `dynamic`);
-    dev dials retained. Presence badge → disc top-right silhouette
-    (operator offset `-right-[13px] -top-[3px]`). Node follower routes
-    through `endpointFrame`/`frameCenter`. Map settings: drop auto-layout
-    description subtext; labels stay lowercase. Probes: frame-perimeter
-    glide, SC-3.3 summary+dock friendlies, window-track birth settle.
-    Operator review: fog/pilot/arrow/reveal, AFK dialog look (Still
-    mapping?), #368 live-character pass. Proof: focused 80 units + full
-    verify green (fallow clean, 68 changed files), primitive-checker CLEAN.
-    Commit: ab0e6bdd.
-- **Next-agent notes (4.0.4.2.3 → close-out):**
-  - G-1 pins live in `halo-model.ts` (`HALO_*` / `HALO_PINNED_LIMITS`) and
-    `fog-model.ts` (`FOG_*` / `DEFAULT_FOG_CONFIG`); dials start at those
-    pins and stay for future retune. Fog color remains `--color-map-fog`.
-  - Presence badge is on the disc rim (`data-chain-node-widgets` absolute
-    `-right-[13px] -top-[3px]`), silhouette via `currentColor` +
-    `text-isk`/`text-muted` — not the old bottom-rail Dot.
-  - Node follower and edges share `endpointFrame`/`frameCenter`; do not
-    reintroduce measured-only centers.
-  - #368 real-character checklist is operator-accepted this gate; clear the
-    old deferral note at close-out (drain-end wipe stays deferred/unscheduled).
-  - Close-out owns: changelog + `APP_VERSION` 4.0.4.2.3, as-built, PR to
-    `main` (per-session PR rule), adversarial review, merge, production
-    proof. Do not re-run ux-check.
-  - Probe ops unchanged from OW3/OW4 notes (fresh disposable maps for
-    halo/fog/bg; `atlas-motion-glide` now uses frame-perimeter math).
-  - Frame dims remain DECLARED on the node object; fog canvas stays the
-    direct ViewportPortal child (z:-1); halo nodes never draggable and
-    upgrade must `stripDerivedControls`.
-- **Shipped 4.0.4.2.2 (awaiting merge):** merged unresolved-signature/connection
+- **CURRENT / NEXT:** session **4.0.4.2.3** is complete on
+  `lifecycle/4.0.4.2`; planned close-out is delivering the final per-session
+  PR for sub-version 4.0.4.2. After merge and production proof, update from
+  `origin/main` and rerun the resolver; expected next work is 4.0.4.3
+  signatures planning.
+- **Shipped 4.0.4.2.3 (awaiting merge):** every system is a declared 120×88
+  widget frame; edges and followers share frame geometry; tracked pilots
+  render honest presence in the frame, dock, and summary; authored k-space
+  exits derive a bounded deterministic halo; a world-anchored canvas fogs
+  provisional content and reveals authored transitions; off-map pilots point
+  out along the visible gate path. G-1 pinned halo depth `1+1`, per-exit cap
+  `10`, total cap `150`, reveal radius `280`, stroke `120`, opacity `0.95`,
+  and dynamic fog. The folded hidden-tab checklist is complete.
+- **4.0.4.2.3 close-out review:** holistic + ownership + interface +
+  reliability reviewed `ead66468...8439ceaa` (digest `34f5ee0671d7bda7`);
+  eight accepted root causes were fixed in `a7246e26`, nothing contested,
+  and the operator rejected restoring auto-layout description copy. Final
+  probes: halo 12/12, fog layering 19/19, background tracking 21/21, window
+  tracking 9/9, and 50-node motion glide 9/9 (49 movers, 13,585 edge samples,
+  p50 8.3 ms / p95 25.0 ms).
+- **Durable 4.0.4.2.3 gotchas:** (1) Halo pins live in `halo-model.ts` and fog
+  pins in `fog-model.ts`; dev dials start at those values and remain for later
+  retuning. (2) Presence freshness is the quantized sibling
+  `mapTracking.feedFreshness` query, gated per character by
+  `coveredCharacterIds`; a fresh location `observedAt` also proves coverage.
+  Do not put the hot subject stamp back into `forMap`. (3) Every React Flow
+  node wrapper stays pointer-inert; only visible name/disc chrome opts back in.
+  (4) `endpointFrame` / `frameCenter` own edge, camera, and follower geometry;
+  frame dimensions stay declared on node objects. (5) FogLayer remains the
+  direct ViewportPortal child at z:-1; halo nodes are never draggable and an
+  authored upgrade must `stripDerivedControls`. (6) The page-settings
+  `description` slot is retired end-to-end; do not restore auto-layout subtext.
+  (7) Shared mapper utilities own `mulberry32` (`lib/prng.ts`) and `pairKey`
+  (`lib/pair-key.ts`); outbound paths use the shared multi-source BFS.
+- **Durable probe gotchas:** `pnpm e2e:seed` resets `user.role`, so re-grant
+  `ADMIN` after seeding; background/halo/fog probes need a fresh disposable
+  map; `pnpm map:replay -- --user e2e-pilot --chain 33` requires the bare
+  separator; shortened `NEXT_PUBLIC_AFK_*` G-1 overrides must not drive the
+  production-threshold background probe; path-data readers must accept
+  scientific notation. The live tokenless engine may overwrite fixture
+  `coveredCharacterIds` with `[]` by design — fresh `observedAt` coverage is
+  the honest fallback, not an engine bug.
+- **Deferred / unscheduled:** the tiny drain-end wipe (retire remaining
+  `onlineStatus` schema literals, `characterOnline`, and keeper/GC) waits for
+  production rows to drain. The behavioral checklist itself is complete and
+  carries no deferral.
+- **Shipped 4.0.4.2.2:** merged unresolved-signature/connection
   model; pure eliminator + statics census; one-transaction Convex jump
   authoring behind two bearer doors; D16 observation slice (five-field Neon
   table, upsert by dedupe key); jump-resolver route; doorbell observer +
@@ -387,7 +290,7 @@ contracts, plans, as-built records, audit evidence, and close record live in
 
 Version **4.0, “The Living Map,”** is the active master version. Its plan is
 `docs/VERSION_4_0_PLAN.md` and its approved delivery topology — 14 sub-versions
-across 23 sessions — is the `## Status` table there. Every session is
+across 24 sessions — is the `## Status` table there. Every session is
 contracted in `docs/session-contracts/4.0/`. Continue only through
 `start-session`; the resolver owns stage selection and the deterministic
 `lifecycle/<sub-version>` branch.
