@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { toneHex } from '@/components/ui/tones';
-import { loadSocialCardFonts } from './_social-card/fonts';
+import { socialCardFonts } from './_social-card/fonts';
 
 /** Accessible alternative text embedded in this generated social image. */
 export const alt = 'LGI.tools — Eve Online tools for wormhole pilots';
@@ -14,7 +14,7 @@ export const contentType = 'image/png';
  * only route parameters where required.
  */
 export default async function Image() {
-  const fonts = await loadSocialCardFonts();
+  const fonts = socialCardFonts();
   return new ImageResponse(
     <div
       style={{

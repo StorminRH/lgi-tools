@@ -1,6 +1,6 @@
 ---
 date: 2026-08-08
-source: stormin/opengraph-static-classification
+source: stormin/opengraph-static-classification with stormin/social-card-font-determinism folded in
 ---
 
 #### Fixed

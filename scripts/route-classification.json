@@ -3,7 +3,7 @@
   "_reasons": {
     "/": "Transient auth_error query param renders in a Suspense dynamic hole; hero + tiles are static.",
     "/atlas": "The full-viewport frame prerenders while the server-side administrator check and either the development wall or empty canvas stream through a request-time Suspense hole.",
-    "/opengraph-image": "Deploy-static under Next 16.3 partial prefetching: the handler's only inputs are bundled font files and fixed copy, so the build prerenders the PNG as a static asset. It was classified dynamic before 16.3's build started prerendering metadata-image handlers with no request-time inputs.",
+    "/opengraph-image": "Deploy-static: the social-card fonts are read once at module scope with top-level await (the documented Cache Components pattern for bundled request-independent assets), so the handler's render path performs no IO and the build prerenders the PNG deterministically. Awaiting the file reads inside the handler made this route's mode flap between static and dynamic across identical builds.",
     "/icon.svg": "The tab icon is a literal src/app/icon.svg file, not a generated handler, so the metadata route prerenders to a static asset with no request-time input. The sibling src/app/favicon.ico is the legacy fallback and is filtered out of this check by assert-route-classification.mjs.",
     "/sites": "The hourly cached priced catalogue supplies the prerendered page head and filter chrome; the saved-view cookie selects the streamed result branch, with the table's searchParams-driven sort nested inside it, while client in-view refresh keeps price figures current.",
     "/sites/[id]": "Per-site detail (params + DB + live prices) streams from a dynamic hole.",
