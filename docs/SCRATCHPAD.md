@@ -9,7 +9,7 @@
 
 ## Now
 
-- **OW progress:** `4/7 complete` — next: **Ghosted stub nodes**.
+- **OW progress:** `5/7 complete` — next: **The collapse triggers**.
 - **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
   fixtures covering five evidence categories; additive signature/connection
   schema fields and death-latest index census. Focused proof: parser 5/5,
@@ -39,14 +39,22 @@
   proof: 13 files / 255 tests; `pnpm verify` passed at implementation commit
   `926b9c13` (4,807 passed / 138 skipped; Fallow clean over 84 changed files
   against `8dce9774`); primitive-checker CLEAN.
-- **Next-agent notes:** Resume 4.0.4.3.1 at OW5 only. Add the `stub:` synthetic
-  node-id family and ghosted, pointer-inert, never-draggable node data/presentation
-  derived only from unresolved wormhole connection rows. Preserve the same-row
-  jump seam so a resolved `toSystemId` retires the stub and yields the ordinary
-  authored destination without an ID collision; keep signature IDs in candidate
-  labels. Prove spawn-on-paste, no duplicate after resolution, and that unknown
-  groups never reach the canvas. Do not begin collapse triggers or the OW7 UX
-  gate; keep resolved removal fenced until OW6.
+- **OW completed:** OW5 — deterministic kernel-placed `stub:` nodes and connected
+  provisional edges for scanned unresolved wormholes; ghosted interaction-inert
+  presentation; numeric-consumer guards; and resolved/unresolved handover
+  deduplication preserving the same-row jump seam and signature-bearing candidate
+  labels. Focused proof: mapper/node/jump-label bundle 71/71 plus wormhole boundary
+  1/1; `pnpm verify` passed at implementation commit `0a7df9d5` (4,815 passed /
+  138 skipped; Fallow clean over 90 changed files against `8dce9774`);
+  primitive-checker CLEAN after its handover finding was corrected and re-proven.
+- **Next-agent notes:** Resume 4.0.4.3.1 at OW6 only. Extract the internal
+  identity-parameterized collapse core from `severConnection`, keep the public
+  authenticated wrapper, and route confirmed removal, confident removal, and the
+  grace-buffered ceiling cron through that single core. Compute pilot presence
+  from tracking, register the bounded `by_death_latest` sweep and scheduler-comment
+  exception, and preserve 24-hour signature undo/purge behavior. Prove existing
+  sever/undo first, then all three triggers, still-alive/grace cases, and retained
+  present-pilot branches. Do not begin the OW7 UX/operator gate or close-out.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -55,7 +63,7 @@
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
 - **CURRENT / NEXT:** session **4.0.4.3.1** is executing on
-  `lifecycle/4.0.4.3`; OW4 is complete and OW5 is next. Execute one Ordered
+  `lifecycle/4.0.4.3`; OW5 is complete and OW6 is next. Execute one Ordered
   work step per `start-session` chat; OW7 owns the required UX/operator pause.
 - **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
