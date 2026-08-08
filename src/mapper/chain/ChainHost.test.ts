@@ -44,6 +44,12 @@ vi.mock('../tracking/TrackingControls', () => ({
   TrackingHeartbeat: () => null,
 }));
 
+// The presence host subscribes through the Convex client; these markup tests
+// run without one, so the provider degrades to a pass-through here.
+vi.mock('../tracking/PresenceProvider', () => ({
+  MapPresenceProvider: ({ children }: { children?: unknown }) => children,
+}));
+
 vi.mock('../tracking/JumpDoorbellObserver', () => ({
   JumpDoorbellObserver: () => null,
 }));
@@ -63,6 +69,11 @@ vi.mock('@xyflow/react', async () => {
     Position: { Left: 'left', Right: 'right' },
     Panel: ({ children }: { children?: unknown }) =>
       element('div', { 'data-react-flow-panel': '' }, children as never),
+    // FogLayer (OW4) mounts through the viewport portal and registers a
+    // gesture-settle callback; the static render needs both present.
+    ViewportPortal: ({ children }: { children?: unknown }) =>
+      element('div', { 'data-viewport-portal': '' }, children as never),
+    useOnViewportChange: () => undefined,
     // Camera follow now fits via getViewportForBounds + setViewport (fitBounds
     // ignores option maxZoom). Keep the mock surface aligned with that path.
     getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),
@@ -119,6 +130,8 @@ function withAccess(
     labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
     treeParents: new Map(),
     rootSystemId: null,
+    halo: { systems: [], links: [] },
+    neighboursOf: () => [],
     pinPlacement: mocks.pinPlacement,
     releasePlacements: vi.fn(),
   });
@@ -256,6 +269,8 @@ describe('chain host access states', () => {
       labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
       treeParents: new Map(),
       rootSystemId: null,
+      halo: { systems: [], links: [] },
+      neighboursOf: () => [],
       pinPlacement: mocks.pinPlacement,
       releasePlacements: vi.fn(),
     });

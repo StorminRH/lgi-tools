@@ -34,6 +34,54 @@ export const automaticJumpRoute = () => {
   return mapId ? `/atlas?map=${mapId}` : '/atlas';
 };
 
+/**
+ * Dedicated one-shot map for the hidden-tab background-tracking probe
+ * (4.0.4.2.3 SC-5). Like the jump map: disposable, seed a fresh empty map
+ * per run.
+ */
+export const backgroundTrackingMapId = () => process.env.UX_BG_MAP_ID ?? null;
+
+export const backgroundTrackingRoute = () => {
+  const mapId = backgroundTrackingMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
+/**
+ * Dedicated one-shot map for the k-space halo probe (4.0.4.2.3 SC-2/SC-4).
+ * Disposable like the jump map: seed a fresh empty map per run — the probe
+ * leaves its authored anchor and one authored jump behind.
+ */
+export const haloMapId = () => process.env.UX_HALO_MAP_ID ?? null;
+
+export const haloRoute = () => {
+  const mapId = haloMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
+/**
+ * Dedicated one-shot map for the fog layering probe (4.0.4.2.3 SC-3.2).
+ * Disposable: seed a fresh empty map per run — the probe leaves one authored
+ * anchor behind.
+ */
+export const fogMapId = () => process.env.UX_FOG_MAP_ID ?? null;
+
+export const fogRoute = () => {
+  const mapId = fogMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
+/**
+ * Dedicated one-shot map for the fog+halo frame-budget probe (4.0.4.2.3
+ * SC-6.2). Disposable: the probe seeds a ceiling-sized chain (~55 systems)
+ * into it, so never point it at a map you care about.
+ */
+export const fogBudgetMapId = () => process.env.UX_FOG_BUDGET_MAP_ID ?? null;
+
+export const fogBudgetRoute = () => {
+  const mapId = fogBudgetMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
 /** Wait until the chain host has answered access for an editor. */
 export async function waitForEditableMap(page, { timeout = 60_000 } = {}) {
   await page.waitForFunction(

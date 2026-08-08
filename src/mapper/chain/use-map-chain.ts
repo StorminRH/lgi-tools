@@ -27,6 +27,7 @@ import type {
   WormholeLifeStage,
   WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
+import { systemSecurityClass } from '@/data/eve-data/security';
 import {
   loadUniverseAssets,
   type UniverseAssets,
@@ -35,6 +36,15 @@ import {
   chainTombstoneState,
   isTombstoned,
 } from '@/data/maps/chain-contract';
+import {
+  appendHaloFacts,
+  deriveHalo,
+  EMPTY_HALO,
+  EMPTY_PLACED_HALO,
+  haloSignature,
+  type HaloLimits,
+  type PlacedHalo,
+} from '../halo/halo-model';
 import { deriveChainTree } from '../layout/facts';
 import type { LayoutConfig, LayoutFacts } from '../layout/layout-contract';
 import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
@@ -283,14 +293,23 @@ export function layoutConfigKey(config: LayoutConfig): string {
   return Object.values(parts).join('|');
 }
 
-/** Posted key: chain content, dial fingerprint, and the re-lock revision bump. */
+/**
+ * Posted key: chain content, dial fingerprint, the re-lock revision bump, and
+ * the halo fingerprint. The halo component is structural layout input, not
+ * motion or fog state (the HC-4 rule stands): the adjacency asset landing
+ * changes the facts the kernel must place without changing the authored
+ * signature, and an unfingerprinted halo would silently never re-post.
+ */
 export function layoutPostKey(
   signature: string,
   configKey: string,
   revision: number,
+  haloKey = '',
 ): string {
-  return `${signature}#${configKey}@${revision}`;
+  return `${signature}#${configKey}@${revision}~${haloKey}`;
 }
+
+const EMPTY_NEIGHBOURS: readonly number[] = [];
 
 /** What the chain host needs to render and interact with one map. */
 export interface MapChain {
@@ -332,13 +351,23 @@ export interface MapChain {
    * kernel's own `deriveChainTree` on the exact facts object the worker laid
    * out — the same pure function on the same input, so it cannot disagree with
    * the drawn positions (measured ~8µs at 60 systems; a deliberate main-thread
-   * exception, recorded in the session as-built). The canvas draws tree links
-   * solid and every other connection (loop closures) dashed, identically on
-   * every client.
+   * exception, recorded in the session as-built). Halo systems are ordinary
+   * facts entries, so their attachments appear here too. The canvas draws tree
+   * links solid and every other connection (loop closures) dashed, identically
+   * on every client.
    */
   readonly treeParents: ReadonlyMap<number, number>;
   /** The deterministic chain root used as the current-system stand-in until location tracking. */
   readonly rootSystemId: number | null;
+  /**
+   * The kernel-placed k-space gate halo, updated atomically with `state` on
+   * each layout reply so a system upgrading from derived to authored swaps
+   * owner in one commit — never a duplicate node. Purely derived presentation
+   * (HC-1): nothing here is ever written anywhere.
+   */
+  readonly halo: PlacedHalo;
+  /** Sorted gate neighbours from the static asset; empty until it loads. */
+  readonly neighboursOf: (systemId: number) => readonly number[];
   /** Stamps a dropped node's position as user-owned, protecting it until re-lock releases it. */
   readonly pinPlacement: (systemId: number, position: ChainPosition) => void;
   /**
@@ -384,11 +413,16 @@ function useUniverseAssets(): UniverseAssets | null {
  *
  * `config` is the live dial state; changing it bumps the layout revision so the
  * pipeline re-posts.
+ *
+ * `haloLimits` is the development-only G-1 extent dial; omitted (or the
+ * pinned object) it changes nothing — the halo fingerprint in the post key
+ * re-posts layout when a dial commit changes the derivation.
  */
 export function useMapChain(
   mapId: string | null,
   draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,
   config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
+  haloLimits?: HaloLimits,
 ): MapChain {
   const args = mapSubscriptionArgs(mapId);
   // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
@@ -464,6 +498,7 @@ export function useMapChain(
     () => new Map(),
   );
   const [rootSystemId, setRootSystemId] = useState<number | null>(null);
+  const [placedHalo, setPlacedHalo] = useState<PlacedHalo>(EMPTY_PLACED_HALO);
   const [layoutRevision, setLayoutRevision] = useState(0);
   const requestStateRef = useRef<KernelRequestState>(initialKernelRequestState());
   const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
@@ -477,10 +512,34 @@ export function useMapChain(
     draggingRef.current = draggingIds;
   }, [draggingIds]);
 
+  const assets = useUniverseAssets();
+
+  // The halo derivation is memoized on the authored-truth signature (never
+  // per render, never per frame — the PD-3 cost boundary). The authored ids
+  // are rebuilt FROM the key string so the dependency list is honest: the key
+  // and the loaded asset are the only inputs the derivation reads.
+  const authoredKey = systems.rows.map((row) => row.systemId).join(',');
+  const halo = useMemo(() => {
+    if (assets === null || authoredKey.length === 0) return EMPTY_HALO;
+    return deriveHalo({
+      authoredSystems: authoredKey
+        .split(',')
+        .map((id, order) => ({ systemId: Number(id), order })),
+      neighbours: (id) => assets.neighbours(id),
+      securityClassOf: (id) => {
+        const entry = assets.systemInfo(id);
+        if (entry === null) return undefined;
+        return systemSecurityClass(entry.security, entry.whClassId);
+      },
+      limits: haloLimits,
+    });
+  }, [authoredKey, assets, haloLimits]);
+  const haloKey = useMemo(() => haloSignature(halo), [halo]);
+
   const layout = useLayoutKernel();
   const signature = chainSignature(systems, connections);
   const configKey = layoutConfigKey(config);
-  const postKey = layoutPostKey(signature, configKey, layoutRevision);
+  const postKey = layoutPostKey(signature, configKey, layoutRevision, haloKey);
 
   useEffect(() => {
     const posted = postRequest(requestStateRef.current, postKey);
@@ -505,7 +564,10 @@ export function useMapChain(
       },
     };
 
-    const facts = factsFromSnapshot(snapshot);
+    // Halo systems and gate links enter the same kernel as ordinary facts
+    // entries, appended after every authored entry so the authored tree —
+    // root above all — is untouched.
+    const facts = appendHaloFacts(factsFromSnapshot(snapshot), halo);
 
     // `config` is captured directly: its identity only changes on a real dial
     // commit, and any such commit also changes `postKey`, so this adds no
@@ -521,6 +583,22 @@ export function useMapChain(
             assignerFromPositions(positions),
           ),
         );
+        // Placed atomically with the merge (one batched commit), so a halo
+        // system authored by a jump swaps derived → authored without ever
+        // rendering twice.
+        setPlacedHalo(
+          halo.systems.length === 0
+            ? EMPTY_PLACED_HALO
+            : {
+                systems: halo.systems.flatMap((system) => {
+                  const position = positions.get(system.systemId);
+                  // The kernel answers every input system; skip defensively
+                  // rather than inventing a position.
+                  return position === undefined ? [] : [{ ...system, position }];
+                }),
+                links: halo.links,
+              },
+        );
         const tree = deriveChainTree(facts);
         setTreeParents(tree.parents);
         setRootSystemId(tree.rootSystemId);
@@ -534,15 +612,19 @@ export function useMapChain(
         requestStateRef.current = failRequest(requestStateRef.current, requestId);
       },
     );
-  }, [postKey, systems, connections, layout, config]);
-
-  const assets = useUniverseAssets();
+  }, [postKey, systems, connections, layout, config, halo]);
   const labelOf = useCallback(
     (systemId: number): SystemLabel =>
       resolveSystemLabel(
         systemId,
         assets === null ? null : (id: number) => assets.systemInfo(id),
       ),
+    [assets],
+  );
+
+  const neighboursOf = useCallback(
+    (systemId: number): readonly number[] =>
+      assets === null ? EMPTY_NEIGHBOURS : assets.neighbours(systemId),
     [assets],
   );
 
@@ -578,6 +660,8 @@ export function useMapChain(
     labelOf,
     treeParents,
     rootSystemId,
+    halo: placedHalo,
+    neighboursOf,
     pinPlacement,
     releasePlacements,
   };

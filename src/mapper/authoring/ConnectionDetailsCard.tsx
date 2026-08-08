@@ -11,7 +11,6 @@ import {
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import type { ChainNode } from '../canvas/SystemNode';
-import { SYSTEM_DISC_RADIUS } from '../canvas/SystemNode';
 import type { ConnectionDetail } from '../chain/use-map-chain';
 import { isAdoptedPopupOpen, MapWindow } from '../windows/MapWindow';
 import {
@@ -116,7 +115,6 @@ export function ConnectionDetailsCard({
       followerStore,
       String(connection.fromSystemId),
       String(connection.toSystemId),
-      SYSTEM_DISC_RADIUS,
       element,
       (payload) => {
         const leader = leaderRef.current;

@@ -15,6 +15,8 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { Select } from '@/components/ui/select';
 import { Stepper } from '@/components/ui/stepper';
 import { mapFrostedSurface } from '../map-frosted-surface';
+import type { FogConfig } from '../fog/fog-model';
+import type { HaloLimits } from '../halo/halo-model';
 import type {
   DirectionPresetId,
   LayoutConfig,
@@ -41,11 +43,27 @@ import {
 } from '../motion/motion-controls-model';
 import {
   DIRECTION_PRESET_OPTIONS,
+  FOG_OPACITY_PCT_RANGE,
+  FOG_REVEAL_RADIUS_RANGE,
+  FOG_STROKE_RADIUS_RANGE,
+  FOG_TIER_OPTIONS,
+  HALO_DRAWN_RINGS_RANGE,
+  HALO_FOGGED_RINGS_RANGE,
+  HALO_PER_EXIT_RANGE,
+  HALO_TOTAL_RANGE,
   MIN_SEPARATION_RANGE,
   RING_SPACING_RANGE,
   SIBLING_SPREAD_RANGE,
   WEDGE_POLICY_OPTIONS,
   commitDirectionPreset,
+  commitFogOpacityPct,
+  commitFogRevealRadius,
+  commitFogStrokeRadius,
+  commitFogTier,
+  commitHaloDrawnRings,
+  commitHaloFoggedRings,
+  commitHaloPerExitCap,
+  commitHaloTotalCap,
   commitMinSeparation,
   commitRingSpacing,
   commitSiblingSpread,
@@ -53,16 +71,21 @@ import {
   directionPresetOf,
 } from './map-controls-model';
 
-/** Controlled props for the development-only layout/motion dials. */
+/** Controlled props for the development-only layout/motion/halo/fog dials. */
 export interface MapControlsProps {
   readonly config: LayoutConfig;
   readonly onConfigChange: (config: LayoutConfig) => void;
   readonly motion: MotionConfig;
   readonly onMotionChange: (motion: MotionConfig) => void;
+  readonly halo: HaloLimits;
+  readonly onHaloChange: (halo: HaloLimits) => void;
+  readonly fog: FogConfig;
+  readonly onFogChange: (fog: FogConfig) => void;
 }
 
 /**
- * Development-only layout and motion dials for the live chain surface.
+ * Development-only layout, motion, halo, and fog dials for the live chain
+ * surface — the G-1 tuning seam; the chosen halo/fog values pin as constants.
  *
  * Must mount inside `<ReactFlow>` (via `ChainSurface`'s children slot).
  */
@@ -71,6 +94,10 @@ function MapControlsComponent({
   onConfigChange,
   motion,
   onMotionChange,
+  halo,
+  onHaloChange,
+  fog,
+  onFogChange,
 }: MapControlsProps) {
   if (process.env.NODE_ENV !== 'development') return null;
 
@@ -88,17 +115,7 @@ function MapControlsComponent({
     >
       <Collapsible
         defaultOpen={false}
-        header={
-          <span className="flex w-full items-center gap-2">
-            <span className="text-label uppercase tracking-label text-muted">Layout dials</span>
-            <span
-              data-chevron
-              className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-            >
-              ▾
-            </span>
-          </span>
-        }
+        header={<DialGroupHeader label="Layout dials" />}
         className="border-border-soft"
         headerClassName="px-0 py-1"
       >
@@ -174,17 +191,7 @@ function MapControlsComponent({
 
       <Collapsible
         defaultOpen={false}
-        header={
-          <span className="flex w-full items-center gap-2">
-            <span className="text-label uppercase tracking-label text-muted">Motion dials</span>
-            <span
-              data-chevron
-              className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
-            >
-              ▾
-            </span>
-          </span>
-        }
+        header={<DialGroupHeader label="Motion dials" />}
         className="border-border-soft"
         headerClassName="px-0 py-1"
       >
@@ -271,7 +278,141 @@ function MapControlsComponent({
           </div>
         </div>
       </Collapsible>
+
+      <Collapsible
+        defaultOpen={false}
+        header={<DialGroupHeader label="Halo dials" />}
+        className="border-border-soft"
+        headerClassName="px-0 py-1"
+      >
+        <div className="flex flex-col gap-2 px-0 pb-1 pt-1">
+          <DialRow label="Drawn rings">
+            <Stepper
+              value={halo.drawnRings}
+              min={HALO_DRAWN_RINGS_RANGE.min}
+              max={HALO_DRAWN_RINGS_RANGE.max}
+              step={HALO_DRAWN_RINGS_RANGE.step}
+              ariaLabel="Drawn halo rings"
+              variant="inline"
+              valueClassName="w-8"
+              onChange={(next) => onHaloChange(commitHaloDrawnRings(halo, next))}
+            />
+          </DialRow>
+          <DialRow label="Fogged rings">
+            <Stepper
+              value={halo.foggedRings}
+              min={HALO_FOGGED_RINGS_RANGE.min}
+              max={HALO_FOGGED_RINGS_RANGE.max}
+              step={HALO_FOGGED_RINGS_RANGE.step}
+              ariaLabel="Fogged halo rings"
+              variant="inline"
+              valueClassName="w-8"
+              onChange={(next) => onHaloChange(commitHaloFoggedRings(halo, next))}
+            />
+          </DialRow>
+          <DialRow label="Per exit">
+            <Stepper
+              value={halo.maxSystemsPerExit}
+              min={HALO_PER_EXIT_RANGE.min}
+              max={HALO_PER_EXIT_RANGE.max}
+              step={HALO_PER_EXIT_RANGE.step}
+              ariaLabel="Halo systems per exit"
+              variant="inline"
+              valueClassName="w-10"
+              onChange={(next) => onHaloChange(commitHaloPerExitCap(halo, next))}
+            />
+          </DialRow>
+          <DialRow label="Total cap">
+            <Stepper
+              value={halo.maxSystemsTotal}
+              min={HALO_TOTAL_RANGE.min}
+              max={HALO_TOTAL_RANGE.max}
+              step={HALO_TOTAL_RANGE.step}
+              ariaLabel="Halo total system cap"
+              variant="inline"
+              valueClassName="w-10"
+              onChange={(next) => onHaloChange(commitHaloTotalCap(halo, next))}
+            />
+          </DialRow>
+        </div>
+      </Collapsible>
+
+      <Collapsible
+        defaultOpen={false}
+        header={<DialGroupHeader label="Fog dials" />}
+        className="border-border-soft"
+        headerClassName="px-0 py-1"
+      >
+        <div className="flex flex-col gap-2 px-0 pb-1 pt-1">
+          <DialRow label="Reveal">
+            <Stepper
+              value={fog.revealRadius}
+              min={FOG_REVEAL_RADIUS_RANGE.min}
+              max={FOG_REVEAL_RADIUS_RANGE.max}
+              step={FOG_REVEAL_RADIUS_RANGE.step}
+              ariaLabel="Fog reveal radius"
+              variant="inline"
+              valueClassName="w-10"
+              onChange={(next) => onFogChange(commitFogRevealRadius(fog, next))}
+            />
+          </DialRow>
+          <DialRow label="Corridor">
+            <Stepper
+              value={fog.strokeRadius}
+              min={FOG_STROKE_RADIUS_RANGE.min}
+              max={FOG_STROKE_RADIUS_RANGE.max}
+              step={FOG_STROKE_RADIUS_RANGE.step}
+              ariaLabel="Fog corridor radius"
+              variant="inline"
+              valueClassName="w-10"
+              onChange={(next) => onFogChange(commitFogStrokeRadius(fog, next))}
+            />
+          </DialRow>
+          <DialRow label="Density %">
+            <Stepper
+              value={Math.round(fog.opacity * 100)}
+              min={FOG_OPACITY_PCT_RANGE.min}
+              max={FOG_OPACITY_PCT_RANGE.max}
+              step={FOG_OPACITY_PCT_RANGE.step}
+              ariaLabel="Fog density percent"
+              variant="inline"
+              valueClassName="w-10"
+              onChange={(next) => onFogChange(commitFogOpacityPct(fog, next))}
+            />
+          </DialRow>
+          <div className="flex flex-col gap-1">
+            <span className="text-label uppercase tracking-label text-muted">Smoke tier</span>
+            <SegmentedControl
+              label="Smoke tier"
+              density="compact"
+              value={fog.tier}
+              options={FOG_TIER_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              onChange={(value) =>
+                onFogChange(commitFogTier(fog, value as FogConfig['tier']))
+              }
+            />
+          </div>
+        </div>
+      </Collapsible>
     </Panel>
+  );
+}
+
+/** The shared collapsible-group header row (label + chevron). */
+function DialGroupHeader({ label }: { readonly label: string }) {
+  return (
+    <span className="flex w-full items-center gap-2">
+      <span className="text-label uppercase tracking-label text-muted">{label}</span>
+      <span
+        data-chevron
+        className="ml-auto inline-block shrink-0 text-micro text-muted transition-transform"
+      >
+        ▾
+      </span>
+    </span>
   );
 }
 

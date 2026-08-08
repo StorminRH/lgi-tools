@@ -1,14 +1,15 @@
 'use client';
 
-// One chain connection, drawn rim to rim.
+// One chain connection, drawn frame boundary to frame boundary.
 //
 // The floating-edge pattern: instead of anchoring to handle positions (whose
-// library CSS nudges them off-center), the edge computes its line from disc
-// center to disc center clipped to each circle's circumference — so every
-// connection aims at the true center and terminates exactly on the rim, with
-// no reliance on the disc masking anything. The whole policy (unmeasured
-// nodes, touching discs, the path itself) lives in `edge-geometry.ts`, where
-// it is unit-tested; this component only binds it to React Flow.
+// library CSS nudges them off-center), the edge computes its line from frame
+// center to frame center clipped to each endpoint's own frame box — so every
+// connection aims at the centered disc and terminates exactly on the widget
+// frame's boundary, with no reliance on the frame masking anything. The whole
+// policy (unknown dimensions, touching frames, the path itself) lives in
+// `edge-geometry.ts`, where it is unit-tested; this component only binds it
+// to React Flow.
 //
 // Motion (4.0.3.2): an entering/departing edge carries a flavor class from the
 // derived `data.motion` — fade (opacity only) or grow (pathLength-normalized
@@ -17,16 +18,24 @@
 // derivation enforces that and `edgeMotionClass` renders whatever it is told.
 import {
   BaseEdge,
+  EdgeLabelRenderer,
   useInternalNode,
   type Edge,
   type EdgeProps,
 } from '@xyflow/react';
-import { memo } from 'react';
+import { memo, useLayoutEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
 import type { ChainEdgeData } from '../chain/nodes';
+import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
 import type { EdgeMotion } from '../motion/motion-contract';
-import { chainLinkPath } from './edge-geometry';
-import { SYSTEM_DISC_RADIUS } from './SystemNode';
+import { useOutboundArrow } from '../tracking/outbound-arrow-context';
+import {
+  chainLinkFogPath,
+  chainLinkPath,
+  endpointFrame,
+  pointAlongChainLink,
+  type EdgeEndpointNode,
+} from './edge-geometry';
 
 /** The edge type key registered with React Flow. */
 export const CHAIN_EDGE_TYPE = 'chainLink';
@@ -63,6 +72,9 @@ export function edgePresentation(data: ChainEdgeData | undefined): {
   const classes = cn(
     data?.loop === true && LOOP_DASH_CLASS,
     data?.tombstoneState === 'dying' && 'map-edge-dying',
+    // Derived halo gate links read dimmer than authored truth (DC-3's
+    // visibly-provisional rule applied to lines).
+    data?.halo === true && 'map-edge-derived',
     edgeMotionClass(data?.motion),
   );
   return {
@@ -71,7 +83,97 @@ export function edgePresentation(data: ChainEdgeData | undefined): {
   };
 }
 
-/** Renders one connection as a straight segment clipped to both discs' rims. */
+/**
+ * Where along the clipped segment the outbound arrow sits (0 = inward
+ * boundary, 1 = outward boundary): far enough out to read as "beyond here",
+ * clear of the endpoint frame.
+ */
+const ARROW_EDGE_FRACTION = 0.7;
+
+/**
+ * On a fog-truncated edge the arrow backs off to just inside the stub's tip,
+ * as a fraction of the drawn span.
+ */
+const ARROW_FOG_STUB_BACKOFF = 0.9;
+
+/**
+ * The arrow's parametric position measured from its inward (non-fogged)
+ * endpoint. A mounted edge is always drawn↔fogged (the mount resolver walks
+ * outward from the drawn set), and `chainLinkFogPath` draws exactly
+ * `FOG_EDGE_CUT_FRACTION` of the segment from the non-fogged end — so a
+ * fog-truncated edge derives the arrow's position from the SAME constant
+ * that cuts the stroke. One owner: retuning the cut moves the arrow with it,
+ * and the glyph can never float past the end of its own line.
+ */
+export function outboundArrowFraction(
+  fogSide: 'source' | 'target' | undefined,
+): number {
+  if (fogSide === undefined) return ARROW_EDGE_FRACTION;
+  return FOG_EDGE_CUT_FRACTION * ARROW_FOG_STUB_BACKOFF;
+}
+
+/**
+ * The outbound pilot arrow, mounted through React Flow's edge-label seam —
+ * a portal inside the viewport transform, so the arrow lives in world space
+ * and scales with the map like every other canvas element. Placement flows
+ * through the stylesheet's `--map-pilot-arrow-transform` custom property via
+ * CSSOM (house no-JSX-style rule); pointer events stay off end to end (the
+ * label container is inert and the class keeps the arrow so).
+ */
+function OutboundArrowLabel({
+  source,
+  target,
+  towardTarget,
+  fraction,
+  live,
+}: {
+  readonly source: EdgeEndpointNode;
+  readonly target: EdgeEndpointNode;
+  readonly towardTarget: boolean;
+  readonly fraction: number;
+  readonly live: boolean;
+}) {
+  const arrowRef = useRef<HTMLSpanElement>(null);
+  const sourceFrame = endpointFrame(source);
+  const targetFrame = endpointFrame(target);
+  const point =
+    sourceFrame === null || targetFrame === null
+      ? null
+      : pointAlongChainLink(
+          towardTarget ? sourceFrame : targetFrame,
+          towardTarget ? targetFrame : sourceFrame,
+          fraction,
+        );
+  const transform =
+    point === null
+      ? null
+      : `translate(-50%, -50%) translate(${point.x}px, ${point.y}px) rotate(${point.angle}deg)`;
+
+  useLayoutEffect(() => {
+    if (transform === null) return;
+    arrowRef.current?.style.setProperty('--map-pilot-arrow-transform', transform);
+  }, [transform]);
+
+  if (transform === null) return null;
+  return (
+    <EdgeLabelRenderer>
+      <span
+        ref={arrowRef}
+        aria-hidden
+        data-pilot-arrow
+        // Staleness honesty on the one signal an off-map pilot has: green
+        // only while someone the arrow stands for is feed-live.
+        className={cn('map-pilot-arrow', live ? 'text-isk' : 'text-muted')}
+      >
+        <svg viewBox="0 0 12 12" className="size-3" fill="currentColor">
+          <path d="M2 1 L11 6 L2 11 Z" />
+        </svg>
+      </span>
+    </EdgeLabelRenderer>
+  );
+}
+
+/** Renders one connection as a straight segment clipped to both frame boxes. */
 function ChainLinkEdgeComponent({
   id,
   source,
@@ -80,17 +182,33 @@ function ChainLinkEdgeComponent({
 }: EdgeProps<Edge<ChainEdgeData, typeof CHAIN_EDGE_TYPE>>) {
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
-  const path = chainLinkPath(sourceNode, targetNode, SYSTEM_DISC_RADIUS);
+  const arrow = useOutboundArrow(id);
+  // A fogged-endpoint line draws only its stub into the cloud (OW4).
+  const path =
+    data?.fogSide === undefined
+      ? chainLinkPath(sourceNode, targetNode)
+      : chainLinkFogPath(sourceNode, targetNode, data.fogSide, FOG_EDGE_CUT_FRACTION);
   if (path === null) return null;
 
   const presentation = edgePresentation(data);
   return (
-    <BaseEdge
-      id={id}
-      path={path}
-      pathLength={presentation.pathLength}
-      className={presentation.className}
-    />
+    <>
+      <BaseEdge
+        id={id}
+        path={path}
+        pathLength={presentation.pathLength}
+        className={presentation.className}
+      />
+      {arrow !== null && sourceNode !== undefined && targetNode !== undefined && (
+        <OutboundArrowLabel
+          source={sourceNode}
+          target={targetNode}
+          towardTarget={arrow.towardSystemId === Number(target)}
+          fraction={outboundArrowFraction(data?.fogSide)}
+          live={arrow.live}
+        />
+      )}
+    </>
   );
 }
 

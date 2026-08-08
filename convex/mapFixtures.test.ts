@@ -468,6 +468,71 @@ describe('map chain fixtures', () => {
       expect(after.connections).toEqual([]);
       expect(after.bookkeeping).toEqual([]);
     });
+
+    // ── 4.0.4.2.3 — the probe-controlled subject-freshness stamp behind
+    //    mapTracking.feedFreshness ──────────────────────────────────────────
+    it('stamps the owner\'s characterLocation subject freshness on seed and advance', async () => {
+      const t = convexTest(schema, modules);
+      const readSubject = () =>
+        t.run(async (ctx) =>
+          await ctx.db
+            .query('syncSubjects')
+            .withIndex('by_user_dataset', (q) =>
+              q.eq('userId', EDITOR).eq('dataset', 'characterLocation'),
+            )
+            .unique(),
+        );
+
+      await t.mutation(internal.mapFixtures.seedTrackedLocationFixture, {
+        mapId: MAP_A,
+        userId: EDITOR,
+        characterId: 90_404_222,
+        solarSystemId: JITA,
+        shipTypeId: null,
+        transitionObservedAt: NOW,
+      });
+      const seeded = await readSubject();
+      // Absent subject → a minimal idle row is created; the stamp defaults to
+      // the transition time and covers the fixture character, exactly as a
+      // real clean run would — feedFreshness reads fresh only for covered ids.
+      expect(seeded).toMatchObject({
+        dataset: 'characterLocation',
+        userId: EDITOR,
+        status: 'idle',
+        lastFinishedAt: NOW,
+        coveredCharacterIds: [90_404_222],
+      });
+
+      await t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
+        mapId: MAP_A,
+        userId: EDITOR,
+        characterId: 90_404_222,
+        fromSolarSystemId: JITA,
+        toSolarSystemId: AMARR,
+        prevFresh: true,
+        transitionObservedAt: NOW + 60_000,
+      });
+      const advanced = await readSubject();
+      // Existing subject → patched in place, never duplicated; the covered
+      // list stays idempotent across repeated stamps of the same character.
+      expect(advanced?._id).toBe(seeded?._id);
+      expect(advanced?.lastFinishedAt).toBe(NOW + 60_000);
+      expect(advanced?.coveredCharacterIds).toEqual([90_404_222]);
+
+      await t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
+        mapId: MAP_A,
+        userId: EDITOR,
+        characterId: 90_404_222,
+        fromSolarSystemId: AMARR,
+        toSolarSystemId: JITA,
+        prevFresh: true,
+        transitionObservedAt: NOW + 120_000,
+        feedFreshAt: NOW + 300_000,
+      });
+      // The explicit override wins so probes can pin live/stale independently
+      // of the transition clock.
+      expect((await readSubject())?.lastFinishedAt).toBe(NOW + 300_000);
+    });
   });
 
   // ── 4.0.3.2 atomic collapse — the departure mirror of the atomic reveal ────

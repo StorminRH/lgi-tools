@@ -1,6 +1,7 @@
 // SC-2.2 / SC-2.3 / V-4: a forced re-layout (dial commit) glides its movers
-// with every edge endpoint tracking its node's rim on every sampled frame,
-// and the in-page frame-time series across the glide measurement window holds
+// with every edge endpoint tracking its node's frame perimeter on every
+// sampled frame (halo fog stubs keep only the visible end on a frame), and
+// the in-page frame-time series across the glide measurement window holds
 // the dev-mode budget at the 50–60 node ceiling. Requires authenticated
 // storage state and UX_MAP_ID pointing at a replayed 50–60 node chain.
 import {
@@ -14,25 +15,50 @@ import {
 } from '../lib/motion-metrics.mjs';
 import { readNodePositions } from '../lib/read-node-positions.mjs';
 
-/** Disc geometry mirrored from SystemNode: radius 22, disc atop the column. */
-const DISC_RADIUS = 22;
+/** Widget-frame fallbacks mirrored from SystemNode declared dimensions. */
+const FRAME_WIDTH = 120;
+const FRAME_HEIGHT = 88;
 
-/** Distance from an edge endpoint to a node's disc rim. */
-function rimError(endpoint, node) {
-  const cx = node.x + node.width / 2;
-  const cy = node.y + DISC_RADIUS;
-  const distance = Math.hypot(endpoint.x - cx, endpoint.y - cy);
-  return Math.abs(distance - DISC_RADIUS);
+/**
+ * Distance from an edge endpoint to one node's frame perimeter (0 = on the
+ * boundary). Matches `endpointFrame` / `frameSegment` clipping: lines exit
+ * at the axis-aligned box, not a disc rim.
+ */
+function frameBoundaryError(endpoint, node) {
+  const width = typeof node.width === 'number' && node.width > 0 ? node.width : FRAME_WIDTH;
+  const height =
+    typeof node.height === 'number' && node.height > 0 ? node.height : FRAME_HEIGHT;
+  const left = node.x;
+  const right = node.x + width;
+  const top = node.y;
+  const bottom = node.y + height;
+  const clampedX = Math.min(Math.max(endpoint.x, left), right);
+  const clampedY = Math.min(Math.max(endpoint.y, top), bottom);
+  const outside = Math.hypot(endpoint.x - clampedX, endpoint.y - clampedY);
+  if (outside > 0) return outside;
+  return Math.min(endpoint.x - left, right - endpoint.x, endpoint.y - top, bottom - endpoint.y);
 }
 
-/** True when some node's rim carries this endpoint (within tolerance). */
-function onSomeRim(endpoint, nodes, tolerance) {
+/** True when some node's frame perimeter carries this endpoint. */
+function onSomeFrame(endpoint, nodes, tolerance) {
   return nodes.some(
     (node) =>
       node.x !== null
-      && typeof node.width === 'number'
-      && rimError(endpoint, node) <= tolerance,
+      && node.y !== null
+      && frameBoundaryError(endpoint, node) <= tolerance,
   );
+}
+
+/**
+ * Full frame-to-frame edges keep both ends on a perimeter; fog stubs (halo
+ * edges into ring-3) keep only the visible end on a frame and cut short.
+ */
+function edgeTracksFrames(edge, nodes, tolerance) {
+  const startOn = onSomeFrame({ x: edge.x1, y: edge.y1 }, nodes, tolerance);
+  const endOn = onSomeFrame({ x: edge.x2, y: edge.y2 }, nodes, tolerance);
+  if (startOn && endOn) return true;
+  const fogStub = typeof edge.id === 'string' && edge.id.startsWith('halo:');
+  return fogStub && (startOn || endOn);
 }
 
 export default {
@@ -106,22 +132,21 @@ export default {
       betweenFrames.length >= 5,
     );
 
-    // Edge tracking: on EVERY sampled frame, each parsed edge endpoint lies on
-    // some node's rim — a desynchronized edge would strand an endpoint away
-    // from every disc.
+    // Edge tracking: on EVERY sampled frame, each parsed edge follows
+    // frame-box clipping (both ends on a perimeter, or a halo fog stub with
+    // the visible end on a frame). A desynchronized edge strands an endpoint.
     let checkedEdges = 0;
     const desynchronized = geometry.some((frame) =>
       frame.edges.some((edge) => {
-        if (edge.x1 === null) return false;
+        if (edge.x1 === null || edge.y1 === null || edge.x2 === null || edge.y2 === null) {
+          return false;
+        }
         checkedEdges += 1;
-        return (
-          !onSomeRim({ x: edge.x1, y: edge.y1 }, frame.nodes, 1.5)
-          || !onSomeRim({ x: edge.x2, y: edge.y2 }, frame.nodes, 1.5)
-        );
+        return !edgeTracksFrames(edge, frame.nodes, 1.5);
       }),
     );
     check(
-      `edges track their endpoints on every sampled frame (${checkedEdges} edge samples)`,
+      `edges track their frame endpoints on every sampled frame (${checkedEdges} edge samples)`,
       checkedEdges > 0 && !desynchronized,
     );
 

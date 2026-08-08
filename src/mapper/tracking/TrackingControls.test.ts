@@ -61,8 +61,13 @@ vi.mock('@/data/convex/use-sync-subject', () => ({
 }));
 
 vi.mock('./AfkGate', () => ({
-  useAfkState: () => mocks.afk,
   AfkDialog: () => null,
+}));
+
+// The AFK gate instance is provider-owned since OW2; the heartbeat consumes
+// the same instance through the presence context.
+vi.mock('./presence-context', () => ({
+  useMapPresenceAfk: () => mocks.afk,
 }));
 
 vi.mock('@/components/character-portrait', () => ({

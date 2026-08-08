@@ -168,6 +168,20 @@ describe('layout-then-merge posted-key guard', () => {
     ).not.toBe(base);
   });
 
+  it('includes the halo fingerprint so a halo membership change re-posts', () => {
+    const signature = chainSignature(systems([JITA]), connections([]));
+    const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
+    // The asset landing turns an empty halo into a populated one without
+    // touching the authored signature — the key must still change.
+    expect(layoutPostKey(signature, configKey, 0, '#')).not.toBe(
+      layoutPostKey(signature, configKey, 0, `${JITA + 1}:1:0#`),
+    );
+    // Omitted halo (empty-halo callers) stays stable with itself.
+    expect(layoutPostKey(signature, configKey, 0)).toBe(
+      layoutPostKey(signature, configKey, 0),
+    );
+  });
+
   it('drops a stale reply after a newer key posts (merges wait for the latest positions)', () => {
     let state = initialKernelRequestState();
     const first = postRequest(state, layoutPostKey('sig', 'cfg', 0));

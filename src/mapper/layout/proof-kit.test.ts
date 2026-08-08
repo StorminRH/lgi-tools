@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { ChainPosition } from '../chain/intents';
 import { deriveChainTree } from './facts';
+import { mulberry32 } from '../lib/prng';
 import { segmentsIntersect } from './geometry';
 import {
   chainPrefix,
   generateChain,
   generateChainTimeline,
   movedSystems,
-  mulberry32,
   positionDigest,
   PROOF_CORPUS,
   separationViolations,

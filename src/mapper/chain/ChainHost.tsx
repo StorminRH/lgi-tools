@@ -46,6 +46,9 @@ import {
   CameraFollowHost,
   type CameraFocusRequest,
 } from '../canvas/use-camera-follow';
+import { DEFAULT_FOG_CONFIG, type FogConfig } from '../fog/fog-model';
+import { FogLayer } from '../fog/FogLayer';
+import { HALO_PINNED_LIMITS, type HaloLimits } from '../halo/halo-model';
 import {
   DEFAULT_LAYOUT_CONFIG,
   type LayoutConfig,
@@ -58,11 +61,13 @@ import {
 import type { MotionTruth } from '../motion/motion-host-model';
 import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
 import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
+import { OutboundArrowProvider } from '../tracking/OutboundArrowProvider';
+import { MapPresenceProvider } from '../tracking/PresenceProvider';
 import { TrackingHeartbeat } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
-import { buildEdges, syncNodes } from './nodes';
+import { buildEdges, isHaloEdgeId, syncNodes } from './nodes';
 import { useChainAuthoringMutations } from './optimistic-authoring';
 import { useMapChain, type MapAccessState } from './use-map-chain';
 
@@ -111,6 +116,10 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const [motionConfig, setMotionConfig] = useState<MotionConfig>(
     DEFAULT_MOTION_CONFIG,
   );
+  // Halo/fog G-1 tuning dials (dev-only panel): both start at the pinned
+  // constants, so production renders exactly the pins.
+  const [haloLimits, setHaloLimits] = useState<HaloLimits>(HALO_PINNED_LIMITS);
+  const [fogConfig, setFogConfig] = useState<FogConfig>(DEFAULT_FOG_CONFIG);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -137,9 +146,11 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     labelOf,
     treeParents,
     rootSystemId,
+    halo,
+    neighboursOf,
     pinPlacement,
     releasePlacements,
-  } = useMapChain(mapId, dragging, config);
+  } = useMapChain(mapId, dragging, config, haloLimits);
   const authoring = useChainAuthoringMutations();
   const [nodes, setNodes] = useState<ChainNode[]>([]);
   const [nodeMenu, setNodeMenu] = useState<NodeMenuAnchor | null>(null);
@@ -157,14 +168,48 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
 
   useEffect(() => {
     setNodes((previous) =>
-      syncNodes(previous, state.systems, labelOf, draggingRef.current),
+      syncNodes(previous, state.systems, labelOf, draggingRef.current, halo.systems),
     );
-  }, [state.systems, labelOf]);
+  }, [state.systems, labelOf, halo.systems]);
+
+  // Which halo systems sit under the fog — the edge builder truncates lines
+  // into the cloud, and the arrow derivation excludes them from the drawn set.
+  const foggedSystemIds = useMemo(() => {
+    const fogged = new Set<number>();
+    for (const system of halo.systems) {
+      if (system.fogged) fogged.add(system.systemId);
+    }
+    return fogged;
+  }, [halo.systems]);
 
   const edges = useMemo(
-    () => buildEdges(state.connections, treeParents, connectionPresentationNow),
-    [state.connections, treeParents, connectionPresentationNow],
+    () =>
+      buildEdges(
+        state.connections,
+        treeParents,
+        connectionPresentationNow,
+        halo.links,
+        foggedSystemIds,
+      ),
+    [
+      state.connections,
+      treeParents,
+      connectionPresentationNow,
+      halo.links,
+      foggedSystemIds,
+    ],
   );
+
+  // The non-fogged rendered set the outbound-arrow derivation walks from:
+  // authored systems plus drawn halo rings (fogged-ring systems excluded,
+  // so a pilot under fog resolves to the boundary arrow, never a hidden badge).
+  const drawnSystemIds = useMemo(() => {
+    const drawn = new Set<number>(state.systems.keys());
+    for (const system of halo.systems) {
+      if (!system.fogged) drawn.add(system.systemId);
+    }
+    return drawn;
+  }, [state.systems, halo.systems]);
 
   // The truth arrays the motion layer derives from — identity changes exactly
   // when a member does, so the derivation re-runs per commit, not per render.
@@ -254,6 +299,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const onNodeContextMenu = useCallback<NodeMouseHandler<ChainNode>>(
     (event, node) => {
       if (canEdit !== true) return;
+      // Derived halo systems are rendered, never written (HC-2): no authoring
+      // menu may anchor to one until a jump upgrades it to authored truth.
+      if (node.data.halo !== undefined) return;
       event.preventDefault();
       setSelectedConnectionId(null);
       setNodeMenu({
@@ -268,7 +316,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   const onEdgeClick = useCallback<EdgeMouseHandler>(
     (_event, edge) => {
       if (canEdit !== true) return;
-      // Edge ids are Convex connection document ids by construction (buildEdges).
+      // Derived halo gate links have no connection document to edit.
+      if (isHaloEdgeId(edge.id)) return;
+      // Every other edge id is a Convex connection document id by construction (buildEdges).
       setSelectedConnectionId(edge.id as Id<'mapConnections'>);
     },
     [canEdit],
@@ -311,84 +361,100 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       data-map-shell=""
       data-map-can-edit={canEdit === true ? 'true' : 'false'}
     >
-      <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
-        <MotionLayer
-          truth={truth}
-          intents={intents}
-          access={access}
-          dragging={dragging}
-          motionConfig={motionConfig}
-          nodesDraggable={!locked}
-          onNodesChange={onNodesChange}
-          onNodeDragStart={onNodeDragStart}
-          onNodeDragStop={onNodeDragStop}
-          onSelectionDragStart={onSelectionDragStart}
-          onSelectionDragStop={onSelectionDragStop}
-          onNodeClick={onNodeClick}
-          onNodeContextMenu={onNodeContextMenu}
-          onEdgeClick={onEdgeClick}
-        >
-          <MapControls
-            config={config}
-            onConfigChange={setConfig}
-            motion={motionConfig}
-            onMotionChange={setMotionConfig}
+      {/* Presence (and the AFK gate it owns) must reach both the canvas
+          frames and the sibling window layer, so the provider sits above
+          the React Flow tree — context crosses it intact (docs brief). */}
+      <MapPresenceProvider mapId={mapId}>
+        <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
+          <OutboundArrowProvider
+            drawnSystemIds={drawnSystemIds}
+            edges={edges}
+            neighboursOf={neighboursOf}
+          >
+            <MotionLayer
+              truth={truth}
+              intents={intents}
+              access={access}
+              dragging={dragging}
+              motionConfig={motionConfig}
+              fogConfig={fogConfig}
+              nodesDraggable={!locked}
+              onNodesChange={onNodesChange}
+              onNodeDragStart={onNodeDragStart}
+              onNodeDragStop={onNodeDragStop}
+              onSelectionDragStart={onSelectionDragStart}
+              onSelectionDragStop={onSelectionDragStop}
+              onNodeClick={onNodeClick}
+              onNodeContextMenu={onNodeContextMenu}
+              onEdgeClick={onEdgeClick}
+            >
+              <MapControls
+                config={config}
+                onConfigChange={setConfig}
+                motion={motionConfig}
+                onMotionChange={setMotionConfig}
+                halo={haloLimits}
+                onHaloChange={setHaloLimits}
+                fog={fogConfig}
+                onFogChange={setFogConfig}
+              />
+              {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
+              <CameraFollowHost
+                intents={intents}
+                follow={follow}
+                dragging={dragging}
+                nodeIds={nodeIds}
+                systems={state.systems}
+                config={motionConfig}
+                prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
+                focusRequest={focusRequest}
+                focusEnabled={focusOnClick}
+              />
+            </MotionLayer>
+          </OutboundArrowProvider>
+          <MapWindowLayer
+            rootSystemId={rootSystemId}
+            onDeselect={deselectNodes}
           />
-          {access === true ? <TrackingHeartbeat mapId={mapId} /> : null}
-          <CameraFollowHost
-            intents={intents}
-            follow={follow}
-            dragging={dragging}
-            nodeIds={nodeIds}
-            systems={state.systems}
-            config={motionConfig}
-            prefersReducedMotion={BROWSER_MOTION_SEAMS.prefersReducedMotion}
-            focusRequest={focusRequest}
-            focusEnabled={focusOnClick}
-          />
-        </MotionLayer>
-        <MapWindowLayer
-          rootSystemId={rootSystemId}
-          onDeselect={deselectNodes}
-        />
-        <RightsTransitionToast canEdit={canEdit} />
-        {canEdit === true ? <JumpDoorbellObserver mapId={mapId} /> : null}
-        <ConnectionAuthoringOverlay
-          mapId={mapId}
-          canEdit={canEdit === true}
-          connectionDetails={connectionDetails}
-          unresolvedHoles={unresolvedHoles}
-          connectionPresentationNow={connectionPresentationNow}
-          events={events}
-          authoring={authoring}
-          selectedConnectionId={selectedConnectionId}
-          onSelectedConnectionIdChange={setSelectedConnectionId}
-        />
-        {showHomePrompt ? (
-          <HomePrompt
+          <RightsTransitionToast canEdit={canEdit} />
+          {canEdit === true ? <JumpDoorbellObserver mapId={mapId} /> : null}
+          <ConnectionAuthoringOverlay
             mapId={mapId}
-            onPick={(systemId) => {
-              void authoring.setHomeSystem({ mapId, systemId });
-            }}
+            canEdit={canEdit === true}
+            connectionDetails={connectionDetails}
+            unresolvedHoles={unresolvedHoles}
+            connectionPresentationNow={connectionPresentationNow}
+            events={events}
+            authoring={authoring}
+            selectedConnectionId={selectedConnectionId}
+            onSelectedConnectionIdChange={setSelectedConnectionId}
           />
-        ) : null}
-        {canEdit === true ? (
-          <NodeAddMenu
-            mapId={mapId}
-            menu={nodeMenu}
-            onMenuOpenChange={(open) => {
-              if (!open) setNodeMenu(null);
-            }}
-            onAdd={(fromSystemId, toSystemId) => {
-              void authoring.addSystemFromNode({
-                mapId,
-                fromSystemId,
-                toSystemId,
-              });
-            }}
-          />
-        ) : null}
-      </ReactFlowProvider>
+          {showHomePrompt ? (
+            <HomePrompt
+              mapId={mapId}
+              onPick={(systemId) => {
+                void authoring.setHomeSystem({ mapId, systemId });
+              }}
+            />
+          ) : null}
+          {canEdit === true ? (
+            <NodeAddMenu
+              mapId={mapId}
+              menu={nodeMenu}
+              onMenuOpenChange={(open) => {
+                if (!open) setNodeMenu(null);
+              }}
+              onAdd={(fromSystemId, toSystemId) => {
+                void authoring.addSystemFromNode({
+                  mapId,
+                  fromSystemId,
+                  toSystemId,
+                });
+              }}
+            />
+          ) : null}
+        </ReactFlowProvider>
+      </MapPresenceProvider>
     </div>
   );
 }
@@ -401,6 +467,7 @@ interface MotionLayerProps
   readonly access: MapAccessState;
   readonly dragging: ReadonlySet<number>;
   readonly motionConfig: MotionConfig;
+  readonly fogConfig: FogConfig;
   readonly children?: ReactNode;
 }
 
@@ -418,6 +485,7 @@ function MotionLayer({
   access,
   dragging,
   motionConfig,
+  fogConfig,
   children,
   ...surface
 }: MotionLayerProps) {
@@ -436,6 +504,14 @@ function MotionLayer({
       motion={motionConfig}
       {...surface}
     >
+      {/* Fog derives from the SAME presentation the surface renders, so the
+          cloud can never disagree with the drawn canvas (OW4). */}
+      <FogLayer
+        nodes={presentation.nodes}
+        edges={presentation.edges}
+        motion={motionConfig}
+        config={fogConfig}
+      />
       {children}
     </ChainSurface>
   );

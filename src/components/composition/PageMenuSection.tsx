@@ -34,37 +34,27 @@ import {
   type MenuControlModel,
 } from '@/platform/page-settings/controls';
 
-// One label recipe and description slot for every row kind; the variants
-// supply only their control. Own components so usePreference is never called
-// inside a map.
+// One label recipe for every row kind; the variants supply only their
+// control. Own components so usePreference is never called inside a map.
 function ControlRowFrame({
   label,
-  description,
   children,
 }: {
   label: string;
-  description: string | undefined;
   children: ReactNode;
 }) {
   return (
-    <>
-      <div className={menuControlRow}>
-        <span className="text-label">{label}</span>
-        {children}
-      </div>
-      {description !== undefined ? (
-        <span className="px-3 pb-1 font-data text-micro text-muted">
-          {description}
-        </span>
-      ) : null}
-    </>
+    <div className={menuControlRow}>
+      <span className="text-label">{label}</span>
+      {children}
+    </div>
   );
 }
 
 function EnumControlRow({ model }: { model: EnumMenuControlModel }) {
   const [value, setValue] = usePreference(model.def);
   return (
-    <ControlRowFrame label={model.label} description={model.description}>
+    <ControlRowFrame label={model.label}>
       <SegmentedControl
         options={model.options.map((option) => ({ value: option, label: option }))}
         value={value}
@@ -78,7 +68,7 @@ function EnumControlRow({ model }: { model: EnumMenuControlModel }) {
 function BooleanControlRow({ model }: { model: BooleanMenuControlModel }) {
   const [value, setValue] = usePreference(model.def);
   return (
-    <ControlRowFrame label={model.label} description={model.description}>
+    <ControlRowFrame label={model.label}>
       <Switch
         checked={value}
         onCheckedChange={setValue}

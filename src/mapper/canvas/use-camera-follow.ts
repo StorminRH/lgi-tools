@@ -38,7 +38,13 @@ import {
   type CameraBounds,
   type CameraFlight,
 } from './camera-follow-model';
-import { SYSTEM_DISC_RADIUS } from './SystemNode';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './SystemNode';
+
+/** The declared widget-frame box every camera pad and center derives from. */
+const SYSTEM_FRAME_SIZE = {
+  width: SYSTEM_FRAME_WIDTH,
+  height: SYSTEM_FRAME_HEIGHT,
+} as const;
 
 /**
  * Applies one fit: compute a viewport capped at CAMERA_FIT_MAX_ZOOM (fitBounds
@@ -117,7 +123,7 @@ function runCameraFitEffect(input: {
     dragActive: input.dragging.size > 0,
     nodeIds: input.nodeIds,
     systems: input.systems,
-    discRadius: SYSTEM_DISC_RADIUS,
+    frame: SYSTEM_FRAME_SIZE,
   });
   if (tick.consume) input.prevIntentsRef.current = input.intents;
   input.framedRef.current = tick.framed;
@@ -243,7 +249,7 @@ function useCameraFollow({
       dragActive: dragging.size > 0,
       center: focusCenter(
         internalNodeSummary(getInternalNode(request.nodeId)),
-        SYSTEM_DISC_RADIUS,
+        SYSTEM_FRAME_SIZE,
       ),
       zoom: getViewport().zoom,
     });
@@ -269,22 +275,28 @@ function useCameraFollow({
   ]);
 }
 
-/** The position/width triple `focusCenter` needs, from a React Flow internal node. */
+/** The position/box facts `focusCenter` needs, from a React Flow internal node. */
 function internalNodeSummary(
   internal:
     | {
         readonly internals: {
           readonly positionAbsolute: { readonly x: number; readonly y: number };
         };
-        readonly measured?: { readonly width?: number };
+        readonly measured?: { readonly width?: number; readonly height?: number };
       }
     | undefined,
-): { readonly x: number; readonly y: number; readonly width?: number } | null {
+): {
+  readonly x: number;
+  readonly y: number;
+  readonly width?: number;
+  readonly height?: number;
+} | null {
   if (internal === undefined) return null;
   return {
     x: internal.internals.positionAbsolute.x,
     y: internal.internals.positionAbsolute.y,
     width: internal.measured?.width,
+    height: internal.measured?.height,
   };
 }
 

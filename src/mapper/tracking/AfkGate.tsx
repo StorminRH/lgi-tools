@@ -8,7 +8,7 @@
 // transitions, pure and unit-tested; this file is the thin timer/DOM/dialog
 // wiring). Dismissing the dialog — Continue, Escape, or a backdrop press —
 // resumes tracking instantly via the caller's next mount beat.
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -62,12 +62,16 @@ export function useAfkState(): AfkGateState {
     };
   }, []);
 
-  return {
-    paused: isAfkPaused(state),
-    promptOpen: isAfkPromptOpen(state),
-    dismiss: () =>
-      setState(onAfkDismiss(document.visibilityState === 'visible', Date.now())),
-  };
+  // Identity-stable across renders: the presence context memoizes on this
+  // object, so it must change only when a verdict actually flips — a fresh
+  // literal per render would republish the context on every host re-render.
+  const paused = isAfkPaused(state);
+  const promptOpen = isAfkPromptOpen(state);
+  const dismiss = useCallback(
+    () => setState(onAfkDismiss(document.visibilityState === 'visible', Date.now())),
+    [],
+  );
+  return useMemo(() => ({ paused, promptOpen, dismiss }), [paused, promptOpen, dismiss]);
 }
 
 /**

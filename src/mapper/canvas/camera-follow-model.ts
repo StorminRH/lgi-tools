@@ -11,6 +11,7 @@
 import type { MapChainIntent } from '../chain/intents';
 import type { PlacedSystem } from '../chain/reconciler';
 import { springFamily, type MotionConfig } from '../motion/motion-contract';
+import { endpointFrame, frameCenter } from './edge-geometry';
 
 /** System ids an intent batch would ask the camera to frame. */
 export function systemsNeedingFit(
@@ -156,21 +157,22 @@ export const CAMERA_FIT_MAX_ZOOM = 0.75;
 /** Padding passed to `getViewportForBounds` for every camera fit. */
 export const CAMERA_FIT_PADDING = 0.15;
 
-/**
- * Height allowance for the name label beneath a disc; bounds framing is a
- * padding decision, not measurement, so an estimate is correct here.
- */
-const NODE_LABEL_ALLOWANCE = 24;
+/** The node frame box size camera math pads and centers with. */
+export interface NodeFrameSize {
+  readonly width: number;
+  readonly height: number;
+}
 
 /**
  * Fit bounds from reconciled kernel targets — deliberately NOT from rendered
  * node positions, so a fit issued during a mass glide frames the settled
  * chain rather than a mid-tween scatter. Positions are node top-left corners;
- * the disc diameter and label allowance pad the far edges.
+ * the widget frame (which carries the name header and widget slots inside its
+ * bounds) pads the far edges.
  */
 export function chainBounds(
   systems: ReadonlyMap<number, PlacedSystem>,
-  discRadius: number,
+  frame: NodeFrameSize,
 ): CameraBounds | null {
   if (systems.size === 0) return null;
   let minX = Infinity;
@@ -186,8 +188,8 @@ export function chainBounds(
   return {
     x: minX,
     y: minY,
-    width: maxX - minX + discRadius * 2,
-    height: maxY - minY + discRadius * 2 + NODE_LABEL_ALLOWANCE,
+    width: maxX - minX + frame.width,
+    height: maxY - minY + frame.height,
   };
 }
 
@@ -210,7 +212,7 @@ export function decideFitExecution(input: {
   readonly dragActive: boolean;
   readonly nodeIds: ReadonlySet<number>;
   readonly systems: ReadonlyMap<number, PlacedSystem>;
-  readonly discRadius: number;
+  readonly frame: NodeFrameSize;
 }): FitExecution {
   const plan = planCameraFit(
     decideCameraFit({
@@ -224,7 +226,7 @@ export function decideFitExecution(input: {
   );
   return {
     consume: plan.consume,
-    bounds: plan.fit ? chainBounds(input.systems, input.discRadius) : null,
+    bounds: plan.fit ? chainBounds(input.systems, input.frame) : null,
   };
 }
 
@@ -246,7 +248,7 @@ export function resolveFitTick(input: {
   readonly dragActive: boolean;
   readonly nodeIds: ReadonlySet<number>;
   readonly systems: ReadonlyMap<number, PlacedSystem>;
-  readonly discRadius: number;
+  readonly frame: NodeFrameSize;
 }): FitTickResult {
   if (!input.viewportReady) {
     return { consume: false, bounds: null, framed: input.framed };
@@ -295,18 +297,28 @@ export function newFocusRequest<Request extends { readonly token: number }>(
 }
 
 /**
- * The clicked node's disc center: the disc sits centered at the top of the
- * node column. `null` when the node no longer exists.
+ * The clicked node's frame center — where the disc sits — through
+ * `edge-geometry`'s frame policy (measured wins, the declared frame size
+ * covers a node whose measurement has not landed yet). `null` when the node
+ * no longer exists.
  */
 export function focusCenter(
-  node: { readonly x: number; readonly y: number; readonly width?: number } | null,
-  discRadius: number,
+  node: {
+    readonly x: number;
+    readonly y: number;
+    readonly width?: number;
+    readonly height?: number;
+  } | null,
+  frame: NodeFrameSize,
 ): { readonly x: number; readonly y: number } | null {
   if (node === null) return null;
-  return {
-    x: node.x + (node.width ?? discRadius * 2) / 2,
-    y: node.y + discRadius,
-  };
+  const box = endpointFrame({
+    internals: { positionAbsolute: { x: node.x, y: node.y } },
+    measured: { width: node.width, height: node.height },
+    width: frame.width,
+    height: frame.height,
+  });
+  return box === null ? null : frameCenter(box);
 }
 
 /**

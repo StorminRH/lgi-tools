@@ -102,7 +102,8 @@ by hand where needed, and never see a refresh control.
 | **Phase 4 — The living chain** | | | | |
 | 4.0.4.1 | Write path + connection intel | §4.0.4.1 | 2 | COMPLETE |
 | 4.0.4.2.2 | Auto-mapping session 2 of 3 — automatic jump authoring (per-session PR delivery record) | §4.0.4.2 | 1 of 3 | COMPLETE |
-| 4.0.4.2 | Auto-mapping on jump (tracking, classification, fog) | §4.0.4.2 | 3 (PR per session) | PLANNED |
+| 4.0.4.2 | Auto-mapping on jump (tracking, classification, fog) | §4.0.4.2 | 3 (PR per session) | COMPLETE |
+| 4.0.4.2.3 | Auto-mapping session 3 of 3 — fog, halo, and pilot presence (per-session PR delivery record) | §4.0.4.2 | 1 of 3 | COMPLETE |
 | 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 3 (PR per session) | PLANNED |
 | 4.0.4.4 | Maps & access (landing, switcher, roles, archive) | §4.0.4.4 | 4 | PLANNED |
 

@@ -9,12 +9,41 @@
 // of the active registry while a dataset is being retired (the drain-window pattern
 // in docs/CONVEX.md), and these lookups stay typed off the stored union so they can
 // still find/clean a retiring dataset's leftover rows during that window.
+import type { WithoutSystemFields } from 'convex/server';
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader } from '../_generated/server';
 
 // The dataset values that can be STORED — the schema's dataset union (a superset of
 // the active SyncDataset during a future drain window).
 type StoredDataset = Doc<'syncSubjects'>['dataset'];
+
+/**
+ * The canonical freshly-created idle subject row — one shape shared by every
+ * creator (the engine's first-beat insert and the mapFixtures probe seam), so
+ * a new syncSubjects column cannot drift silently between hand-copied
+ * literals. Pure value construction; the callers own the actual insert.
+ */
+export function newIdleSubject(
+  dataset: StoredDataset,
+  userId: string,
+): WithoutSystemFields<Doc<'syncSubjects'>> {
+  return {
+    dataset,
+    userId,
+    status: 'idle' as const,
+    lastRequestedAt: 0,
+    workId: null,
+    nextDueAt: null,
+    minExpiresAt: null,
+    syncedCharacterIds: [] as number[],
+    lastFinishedAt: null as number | null,
+    lastError: null,
+    rlGroup: null,
+    rlLimit: null,
+    rlRemaining: null,
+    rlUsed: null,
+  };
+}
 
 /**
  * Reads the unique subject row for one stored dataset and user; returns null when the subject has

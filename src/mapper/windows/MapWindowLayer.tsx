@@ -24,27 +24,12 @@ import {
   reconcileStack,
   type MapWindowId,
 } from './window-model';
+import { useNodeDataString } from './node-fields';
+import { SystemIntelligenceBody } from './SystemIntelligenceBody';
 
 const subscribeMounted = () => () => undefined;
 const clientMountedSnapshot = () => true;
 const serverMountedSnapshot = () => false;
-
-/** Shared body for dock + node-summary until system intelligence ships. */
-function SystemIntelligencePlaceholder() {
-  return (
-    <div
-      data-map-summary-placeholder
-      className="flex flex-col items-start gap-2 text-left"
-    >
-      <p className="font-data text-label uppercase tracking-label text-isk">
-        System summary
-      </p>
-      <p className="text-ui text-muted">
-        Detailed system intelligence will arrive in a later Atlas slice.
-      </p>
-    </div>
-  );
-}
 
 function sameStack(a: readonly MapWindowId[], b: readonly MapWindowId[]): boolean {
   return a.length === b.length && a.every((id, index) => id === b[index]);
@@ -67,12 +52,7 @@ function useSelectedSystemIds(): readonly number[] {
 
 /** One node's display name; position-only updates leave the string identity stable. */
 function useNodeName(systemId: number | null): string | undefined {
-  return useStore((state) => {
-    if (systemId === null) return undefined;
-    const node = state.nodes.find((entry) => Number(entry.id) === systemId);
-    const name = node?.data.name;
-    return typeof name === 'string' ? name : undefined;
-  });
+  return useNodeDataString(systemId, 'name') ?? undefined;
 }
 
 function useSurfacePresence(input: {
@@ -186,7 +166,7 @@ function DockSurface({
       // (bring-to-front) is unreachable by construction.
       onActivate={() => undefined}
     >
-      <SystemIntelligencePlaceholder />
+      <SystemIntelligenceBody systemId={rootSystemId} />
     </MapWindow>
   );
 }
@@ -218,7 +198,7 @@ function SummarySurface({
       showCloseButton={false}
       onActivate={onActivate}
     >
-      <SystemIntelligencePlaceholder />
+      <SystemIntelligenceBody systemId={summaryId} />
     </MapWindow>
   );
 }

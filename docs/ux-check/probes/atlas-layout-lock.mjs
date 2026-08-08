@@ -56,8 +56,8 @@ export default {
     const lockSwitch = menu.getByRole('switch', { name: 'auto layout' });
     check('auto layout control is present in the map settings menu', (await lockSwitch.count()) > 0);
     check(
-      'the re-enable consequence is disclosed on the row',
-      (await menu.getByText('re-enabling restores the computed layout').count()) === 1,
+      'auto layout has no description subtext',
+      (await menu.getByText('re-enabling restores the computed layout').count()) === 0,
     );
     await closeAtlasMenu(page);
 

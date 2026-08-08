@@ -16,27 +16,53 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **Deferred to 4.0.4.2.3 by operator ruling (2026-08-07, PR #368):** the
-  real-character behavioral validation of hidden-tab tracking merged without a
-  dev visual pass. The 4.0.4.2.3 plan/close-out must cover, alongside its own
-  fog/live-pilot G-1 gate: alt-tab past the old 60s window with jumps landing;
-  ~60s offline probe pacing and login resume; AFK dialog look/feel + dismissal
-  resume (dev-shortcut envs `NEXT_PUBLIC_AFK_HIDDEN_AFTER_MS` /
-  `NEXT_PUBLIC_AFK_PROMPT_TIMEOUT_MS`). Headless background-jump probes need
-  no real character: compose `convex/mapFixtures.ts`
-  (`seedTrackedLocationFixture`/`advanceTrackedLocationFixture`) with the
-  `atlas-afk-gate` probe's virtual-clock + hidden-visibility technique.
-  Presentation note: `mapTracking.forMap` exposes only last-CHANGE
-  `observedAt`, so paused/stalled tracking renders like a stationary pilot —
-  live-pilot presentation should surface staleness honestly. Also pending:
-  the tiny drain-end wipe PR (drop `onlineStatus` schema literals +
-  `characterOnline` + keeper/GC) once prod rows drain post-#368.
-- **CURRENT / NEXT:** session **4.0.4.2.2** (automatic jump authoring) is in
-  close-out on `lifecycle/4.0.4.2` — per-session PR carrying the v4.0.4.2.2
-  changelog entry + `APP_VERSION` bump. After merge, rerun the resolver;
-  expected next directive is planning **4.0.4.2.3** (fog/UX) on a recreated
-  `lifecycle/4.0.4.2` from updated `main`.
-- **Shipped 4.0.4.2.2 (awaiting merge):** merged unresolved-signature/connection
+- **CURRENT / NEXT:** session **4.0.4.2.3** is complete on
+  `lifecycle/4.0.4.2`; planned close-out is delivering the final per-session
+  PR for sub-version 4.0.4.2. After merge and production proof, update from
+  `origin/main` and rerun the resolver; expected next work is 4.0.4.3
+  signatures planning.
+- **Shipped 4.0.4.2.3 (awaiting merge):** every system is a declared 120×88
+  widget frame; edges and followers share frame geometry; tracked pilots
+  render honest presence in the frame, dock, and summary; authored k-space
+  exits derive a bounded deterministic halo; a world-anchored canvas fogs
+  provisional content and reveals authored transitions; off-map pilots point
+  out along the visible gate path. G-1 pinned halo depth `1+1`, per-exit cap
+  `10`, total cap `150`, reveal radius `280`, stroke `120`, opacity `0.95`,
+  and dynamic fog. The folded hidden-tab checklist is complete.
+- **4.0.4.2.3 close-out review:** holistic + ownership + interface +
+  reliability reviewed `ead66468...8439ceaa` (digest `34f5ee0671d7bda7`);
+  eight accepted root causes were fixed in `a7246e26`, nothing contested,
+  and the operator rejected restoring auto-layout description copy. Final
+  probes: halo 12/12, fog layering 19/19, background tracking 21/21, window
+  tracking 9/9, and 50-node motion glide 9/9 (49 movers, 13,585 edge samples,
+  p50 8.3 ms / p95 25.0 ms).
+- **Durable 4.0.4.2.3 gotchas:** (1) Halo pins live in `halo-model.ts` and fog
+  pins in `fog-model.ts`; dev dials start at those values and remain for later
+  retuning. (2) Presence freshness is the quantized sibling
+  `mapTracking.feedFreshness` query, gated per character by
+  `coveredCharacterIds`; a fresh location `observedAt` also proves coverage.
+  Do not put the hot subject stamp back into `forMap`. (3) Every React Flow
+  node wrapper stays pointer-inert; only visible name/disc chrome opts back in.
+  (4) `endpointFrame` / `frameCenter` own edge, camera, and follower geometry;
+  frame dimensions stay declared on node objects. (5) FogLayer remains the
+  direct ViewportPortal child at z:-1; halo nodes are never draggable and an
+  authored upgrade must `stripDerivedControls`. (6) The page-settings
+  `description` slot is retired end-to-end; do not restore auto-layout subtext.
+  (7) Shared mapper utilities own `mulberry32` (`lib/prng.ts`) and `pairKey`
+  (`lib/pair-key.ts`); outbound paths use the shared multi-source BFS.
+- **Durable probe gotchas:** `pnpm e2e:seed` resets `user.role`, so re-grant
+  `ADMIN` after seeding; background/halo/fog probes need a fresh disposable
+  map; `pnpm map:replay -- --user e2e-pilot --chain 33` requires the bare
+  separator; shortened `NEXT_PUBLIC_AFK_*` G-1 overrides must not drive the
+  production-threshold background probe; path-data readers must accept
+  scientific notation. The live tokenless engine may overwrite fixture
+  `coveredCharacterIds` with `[]` by design — fresh `observedAt` coverage is
+  the honest fallback, not an engine bug.
+- **Deferred / unscheduled:** the tiny drain-end wipe (retire remaining
+  `onlineStatus` schema literals, `characterOnline`, and keeper/GC) waits for
+  production rows to drain. The behavioral checklist itself is complete and
+  carries no deferral.
+- **Shipped 4.0.4.2.2:** merged unresolved-signature/connection
   model; pure eliminator + statics census; one-transaction Convex jump
   authoring behind two bearer doors; D16 observation slice (five-field Neon
   table, upsert by dedupe key); jump-resolver route; doorbell observer +
@@ -67,8 +93,8 @@
   surface rebuilds from git history rather than inheriting an unreachable
   path; the pointer-only-grip precedent stays recorded in the 4.0.3.3.1
   as-built. (6) Atlas map-lock pref key is `atlas.autoLayout` (ON = computed
-  layout owns positions; re-enabling releases user placements — disclosed via
-  the page-settings `description` slot).
+  layout owns positions; re-enabling releases user placements — description
+  subtext removed at 4.0.4.2.3 G-1 by operator direction).
 - **Shipped 4.0.4.2.1:** `EVE_SCOPES` → 14 (`read_location`/`read_ship_type`);
   `mapTracking` opt-in registry + `characterLocation` payload with full
   teardown matrix; `characterLocation` engine dataset (registry ∩ enum,
@@ -264,7 +290,7 @@ contracts, plans, as-built records, audit evidence, and close record live in
 
 Version **4.0, “The Living Map,”** is the active master version. Its plan is
 `docs/VERSION_4_0_PLAN.md` and its approved delivery topology — 14 sub-versions
-across 23 sessions — is the `## Status` table there. Every session is
+across 24 sessions — is the `## Status` table there. Every session is
 contracted in `docs/session-contracts/4.0/`. Continue only through
 `start-session`; the resolver owns stage selection and the deterministic
 `lifecycle/<sub-version>` branch.

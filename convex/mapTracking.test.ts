@@ -3,7 +3,11 @@ import { convexTest, type TestConvex } from 'convex-test';
 import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
+import { newIdleSubject } from './lib/subjects';
+import {
+  FEED_FRESHNESS_QUANTUM_MS,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './mapTracking';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -216,6 +220,91 @@ describe('mapTracking.forMap', () => {
     expect(byUser.get(OWNER)?.location?.solarSystemId).toBe(30_000_142);
     expect(byUser.get(EDITOR)?.characterId).toBe(CHAR);
     expect(byUser.get(EDITOR)?.location).toBeNull();
+  });
+
+  it('answers owner-scoped feed freshness: covered characters get the quantized bucket, everyone else null', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [
+      { userId: OWNER, roles: ['owner'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+    // OWNER tracks a second character: both rows must share the one subject
+    // read, but only the COVERED character may read fresh — a completing run
+    // whose pilot is logged off must not count as a live feed for them.
+    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR_B,
+      tracked: true,
+    });
+    await asUser(t, EDITOR).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+
+    const finishedAt = 1_700_000_123_456;
+    const bucket =
+      Math.floor(finishedAt / FEED_FRESHNESS_QUANTUM_MS) * FEED_FRESHNESS_QUANTUM_MS;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', {
+        ...newIdleSubject('characterLocation', OWNER),
+        syncedCharacterIds: [CHAR],
+        coveredCharacterIds: [CHAR],
+        lastFinishedAt: finishedAt,
+      });
+      // A different dataset's subject for EDITOR must not leak into the join.
+      await ctx.db.insert('syncSubjects', {
+        ...newIdleSubject('onlineStatus', EDITOR),
+        lastFinishedAt: 1_700_000_999_999,
+      });
+    });
+
+    const result = await asUser(t, OWNER).query(api.mapTracking.feedFreshness, {
+      mapId: MAP_A,
+    });
+    const byOwnerCharacter = new Map(
+      result.fresh.map((entry) => [
+        `${entry.userId}/${entry.characterId}`,
+        entry.feedFreshAt,
+      ]),
+    );
+    // Covered character: the stamp arrives QUANTIZED, so the payload — and
+    // therefore the subscription push — changes at most once per bucket.
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR}`)).toBe(bucket);
+    expect(bucket).not.toBe(finishedAt);
+    // Same owner, same fresh subject, but not covered by the last run → null.
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR_B}`)).toBeNull();
+    // Owner with no characterLocation subject at all → null, and the other
+    // dataset's subject must not leak in.
+    expect(byOwnerCharacter.get(`${EDITOR}/${CHAR}`)).toBeNull();
+    // Owner identity survives even when two tracking rows name the same
+    // character id, and owner/character ordering stays deterministic.
+    expect(result.fresh.map(({ userId, characterId }) => [userId, characterId])).toEqual([
+      [EDITOR, CHAR],
+      [OWNER, CHAR],
+      [OWNER, CHAR_B],
+    ]);
+    // forMap no longer reads the hot subject stamp: its rows carry no
+    // freshness field, so the ~5s per-run patch cannot invalidate it.
+    const overlay = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
+    const anyRow = overlay.tracked[0];
+    expect(anyRow).toBeDefined();
+    if (anyRow === undefined) throw new Error('expected a tracked overlay row');
+    expect('feedFreshAt' in anyRow).toBe(false);
+  });
+
+  it('answers feedFreshness as an empty list without access (subscription doctrine)', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
+    const result = await asUser(t, EDITOR).query(api.mapTracking.feedFreshness, {
+      mapId: MAP_A,
+    });
+    expect(result.fresh).toEqual([]);
   });
 
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {

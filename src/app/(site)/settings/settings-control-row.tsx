@@ -12,22 +12,15 @@ import type {
 
 function SettingsRowFrame({
   label,
-  description,
   children,
 }: {
   label: string;
-  description: string | undefined;
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between gap-4">
-        <span className="text-ui text-text">{label}</span>
-        {children}
-      </div>
-      {description !== undefined ? (
-        <span className="font-data text-micro text-muted">{description}</span>
-      ) : null}
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-ui text-text">{label}</span>
+      {children}
     </div>
   );
 }
@@ -35,7 +28,7 @@ function SettingsRowFrame({
 function EnumSettingsRow({ model }: { model: EnumMenuControlModel }) {
   const [value, setValue] = usePreference(model.def);
   return (
-    <SettingsRowFrame label={model.label} description={model.description}>
+    <SettingsRowFrame label={model.label}>
       <SegmentedControl
         options={model.options.map((option) => ({ value: option, label: option }))}
         value={value}
@@ -49,7 +42,7 @@ function EnumSettingsRow({ model }: { model: EnumMenuControlModel }) {
 function BooleanSettingsRow({ model }: { model: BooleanMenuControlModel }) {
   const [value, setValue] = usePreference(model.def);
   return (
-    <SettingsRowFrame label={model.label} description={model.description}>
+    <SettingsRowFrame label={model.label}>
       <Switch
         checked={value}
         onCheckedChange={setValue}

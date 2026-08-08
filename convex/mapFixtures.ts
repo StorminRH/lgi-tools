@@ -40,6 +40,7 @@ import {
   purgeExpiredSignatures,
   SIGNATURE_PURGE_BATCH,
 } from './lib/mapSignatureCleanup';
+import { getSyncSubject, newIdleSubject } from './lib/subjects';
 
 /**
  * Rows returned by one paginated chain read. Fixed and small: a page is a transaction-bounded unit,
@@ -386,6 +387,40 @@ function requireTrackedFixtureIdentity(
   }
 }
 
+/**
+ * Stamps the owner's characterLocation sync-subject `lastFinishedAt` and
+ * marks the fixture character covered — the probe-controlled freshness seam
+ * behind `mapTracking.feedFreshness`. Headless probes drive the live/stale
+ * presentation states honestly through this stamp: freshness counts only for
+ * covered characters, so the stamp must cover the character it feeds exactly
+ * as a real clean run would. Production freshness is written only by the sync
+ * engine's apply, and this internal-fixture path is unreachable from
+ * production code. Inserts a minimal idle subject when none exists yet.
+ */
+async function stampSubjectFreshness(
+  ctx: MutationCtx,
+  userId: string,
+  characterId: number,
+  lastFinishedAt: number,
+): Promise<void> {
+  const subject = await getSyncSubject(ctx.db, 'characterLocation', userId);
+  if (subject !== null) {
+    const covered = subject.coveredCharacterIds ?? [];
+    await ctx.db.patch('syncSubjects', subject._id, {
+      lastFinishedAt,
+      coveredCharacterIds: covered.includes(characterId)
+        ? covered
+        : [...covered, characterId],
+    });
+    return;
+  }
+  await ctx.db.insert('syncSubjects', {
+    ...newIdleSubject('characterLocation', userId),
+    lastFinishedAt,
+    coveredCharacterIds: [characterId],
+  });
+}
+
 const trackedLocationFixtureResult = v.object({
   trackingId: v.id('mapTracking'),
   locationId: v.id('characterLocation'),
@@ -398,6 +433,8 @@ const trackedLocationFixtureResult = v.object({
  * Seeds the subscribed origin fact for a CLI-driven tracked-jump demo. This
  * fixture arranges source evidence only; the browser doorbell and production
  * resolver still own classification, authoring, matching, and mass updates.
+ * Also stamps the owner's subject freshness (`feedFreshAt` when supplied,
+ * else the transition time) so presence probes control the live/stale states.
  */
 export const seedTrackedLocationFixture = internalMutation({
   args: {
@@ -407,6 +444,7 @@ export const seedTrackedLocationFixture = internalMutation({
     solarSystemId: v.number(),
     shipTypeId: v.union(v.number(), v.null()),
     transitionObservedAt: v.number(),
+    feedFreshAt: v.optional(v.number()),
   },
   returns: trackedLocationFixtureResult,
   handler: async (ctx, args) => {
@@ -468,6 +506,12 @@ export const seedTrackedLocationFixture = internalMutation({
     if (location !== null) {
       await ctx.db.patch('characterLocation', location._id, source);
     }
+    await stampSubjectFreshness(
+      ctx,
+      args.userId,
+      args.characterId,
+      args.feedFreshAt ?? args.transitionObservedAt,
+    );
 
     return {
       trackingId,
@@ -483,6 +527,7 @@ export const seedTrackedLocationFixture = internalMutation({
  * Advances only the subscribed location evidence for a tracked CLI fixture.
  * A fresh transition lets the normal browser observer ring the real resolver;
  * `prevFresh=false` deliberately creates a re-anchor between demo jumps.
+ * Re-stamps the owner's subject freshness like the seed fixture does.
  */
 export const advanceTrackedLocationFixture = internalMutation({
   args: {
@@ -493,6 +538,7 @@ export const advanceTrackedLocationFixture = internalMutation({
     toSolarSystemId: v.number(),
     prevFresh: v.boolean(),
     transitionObservedAt: v.number(),
+    feedFreshAt: v.optional(v.number()),
   },
   returns: trackedLocationFixtureResult,
   handler: async (ctx, args) => {
@@ -546,6 +592,12 @@ export const advanceTrackedLocationFixture = internalMutation({
         detail: `Character ${args.characterId} has no seeded tracking row.`,
       });
     }
+    await stampSubjectFreshness(
+      ctx,
+      args.userId,
+      args.characterId,
+      args.feedFreshAt ?? args.transitionObservedAt,
+    );
 
     return {
       trackingId: tracking._id,
