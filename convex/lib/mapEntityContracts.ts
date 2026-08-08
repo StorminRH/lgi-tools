@@ -18,6 +18,10 @@ import {
 } from '@/data/eve-data/wormhole-contract';
 import type { MapRole } from '@/data/maps/access-contract';
 import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
+import {
+  SCANNED_KINDS,
+  type ScannedKind,
+} from '@/data/maps/scan-parse';
 
 /** Re-export the data-owned mass vocabulary for Convex-local callers. */
 export { CONNECTION_MASS_STATES, type ConnectionMassState };
@@ -72,6 +76,12 @@ const MAP_ROLE_LITERALS = {
 
 /** Schema validator for the side whose wormhole type is attributable. */
 export const typedSideValidator = v.union(v.literal('from'), v.literal('to'));
+
+/** Schema validator derived from the parser-owned scan-kind vocabulary. */
+export const scannedKindValidator = v.union(
+  v.literal(SCANNED_KINDS[0]),
+  v.literal(SCANNED_KINDS[1]),
+);
 
 /** Schema validator for the closed destination-hint vocabulary. */
 export const destinationHintValidator = v.union(
@@ -252,14 +262,24 @@ export interface SignatureKnowledge {
   readonly group: string | null;
   readonly typeName: string | null;
   readonly wormholeTypeCode: string | null;
+  readonly kind?: ScannedKind;
+  readonly signalPct?: number | null;
 }
 
-const KNOWLEDGE_FIELDS = ['group', 'typeName', 'wormholeTypeCode'] as const;
+const TEXT_KNOWLEDGE_FIELDS = ['group', 'typeName', 'wormholeTypeCode'] as const;
+
+interface SignatureKnowledgePatch {
+  group?: string | null;
+  typeName?: string | null;
+  wormholeTypeCode?: string | null;
+  kind?: ScannedKind;
+  signalPct?: number | null;
+}
 
 /** The outcome of merging one observation into a stored signature. */
 export type SignatureMergeResult =
   | { readonly outcome: 'unchanged' }
-  | { readonly outcome: 'enriched'; readonly patch: Partial<SignatureKnowledge> }
+  | { readonly outcome: 'enriched'; readonly patch: SignatureKnowledgePatch }
   | { readonly outcome: 'conflict'; readonly fields: readonly string[] };
 
 /** Normalizes a blank or unresolved observation value to the stored null. */
@@ -277,6 +297,8 @@ export function normalizeSignatureKnowledge(
     group: normalizeKnowledgeValue(input.group),
     typeName: normalizeKnowledgeValue(input.typeName),
     wormholeTypeCode: normalizeKnowledgeValue(input.wormholeTypeCode),
+    ...(input.kind === undefined ? {} : { kind: input.kind }),
+    ...(input.signalPct === undefined ? {} : { signalPct: input.signalPct }),
   };
 }
 
@@ -286,12 +308,63 @@ export function normalizeSignatureKnowledge(
  * its group with a null code rather than inventing a placeholder type.
  */
 export function validateSignatureKnowledge(knowledge: SignatureKnowledge): void {
-  if (knowledge.wormholeTypeCode === null) return;
-  if (!isWormholeTypeCode(knowledge.wormholeTypeCode)) {
-    reject('INVALID_WORMHOLE_CODE', `Unknown wormhole code "${knowledge.wormholeTypeCode}".`);
+  if (knowledge.kind !== undefined && !SCANNED_KINDS.includes(knowledge.kind)) {
+    reject('INVALID_SIGNATURE_KIND', `Unknown signature kind "${knowledge.kind}".`);
   }
-  if (knowledge.group !== 'wormhole') {
-    reject('INCOHERENT_SIGNATURE', 'A wormhole code requires the wormhole group.');
+  if (
+    knowledge.signalPct !== undefined
+    && knowledge.signalPct !== null
+    && (!Number.isFinite(knowledge.signalPct)
+      || knowledge.signalPct < 0
+      || knowledge.signalPct > 100)
+  ) {
+    reject('INVALID_SIGNAL_PERCENT', 'Signature signal must be between 0 and 100 percent.');
+  }
+  if (knowledge.wormholeTypeCode !== null) {
+    if (!isWormholeTypeCode(knowledge.wormholeTypeCode)) {
+      reject('INVALID_WORMHOLE_CODE', `Unknown wormhole code "${knowledge.wormholeTypeCode}".`);
+    }
+    if (knowledge.group?.toLowerCase() !== 'wormhole') {
+      reject('INCOHERENT_SIGNATURE', 'A wormhole code requires the wormhole group.');
+    }
+  }
+}
+
+function mergeTextKnowledge(
+  existing: SignatureKnowledge,
+  incoming: SignatureKnowledge,
+  patch: SignatureKnowledgePatch,
+  conflicts: string[],
+): void {
+  for (const field of TEXT_KNOWLEDGE_FIELDS) {
+    const next = incoming[field];
+    const stored = existing[field];
+    if (next === null || next === stored) continue;
+    if (stored === null) patch[field] = next;
+    else conflicts.push(field);
+  }
+}
+
+function mergeKindKnowledge(
+  existing: SignatureKnowledge,
+  incoming: SignatureKnowledge,
+  patch: SignatureKnowledgePatch,
+  conflicts: string[],
+): void {
+  if (incoming.kind === undefined || incoming.kind === existing.kind) return;
+  if (existing.kind === undefined) patch.kind = incoming.kind;
+  else conflicts.push('kind');
+}
+
+function mergeSignalKnowledge(
+  existing: SignatureKnowledge,
+  incoming: SignatureKnowledge,
+  patch: SignatureKnowledgePatch,
+): void {
+  const storedSignal = existing.signalPct ?? null;
+  const incomingSignal = incoming.signalPct ?? null;
+  if (incomingSignal !== null && (storedSignal === null || incomingSignal > storedSignal)) {
+    patch.signalPct = incomingSignal;
   }
 }
 
@@ -305,16 +378,12 @@ export function mergeSignatureKnowledge(
   existing: SignatureKnowledge,
   incoming: SignatureKnowledge,
 ): SignatureMergeResult {
-  const patch: Record<string, string> = {};
+  const patch: SignatureKnowledgePatch = {};
   const conflicts: string[] = [];
 
-  for (const field of KNOWLEDGE_FIELDS) {
-    const next = incoming[field];
-    const stored = existing[field];
-    if (next === null || next === stored) continue;
-    if (stored === null) patch[field] = next;
-    else conflicts.push(field);
-  }
+  mergeTextKnowledge(existing, incoming, patch, conflicts);
+  mergeKindKnowledge(existing, incoming, patch, conflicts);
+  mergeSignalKnowledge(existing, incoming, patch);
 
   if (conflicts.length > 0) return { outcome: 'conflict', fields: conflicts };
   if (Object.keys(patch).length === 0) return { outcome: 'unchanged' };

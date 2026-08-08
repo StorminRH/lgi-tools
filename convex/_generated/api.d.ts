@@ -19,6 +19,7 @@ import type * as lib_mapAccess from "../lib/mapAccess.js";
 import type * as lib_mapChainCleanup from "../lib/mapChainCleanup.js";
 import type * as lib_mapConnectionLookup from "../lib/mapConnectionLookup.js";
 import type * as lib_mapEntityContracts from "../lib/mapEntityContracts.js";
+import type * as lib_mapSignatures from "../lib/mapSignatures.js";
 import type * as lib_mapSignatureCleanup from "../lib/mapSignatureCleanup.js";
 import type * as lib_mapSystemLookup from "../lib/mapSystemLookup.js";
 import type * as lib_subjects from "../lib/subjects.js";
@@ -29,6 +30,7 @@ import type * as mapChain from "../mapChain.js";
 import type * as mapFixtures from "../mapFixtures.js";
 import type * as mapJump from "../mapJump.js";
 import type * as mapJumpBookkeeping from "../mapJumpBookkeeping.js";
+import type * as mapScan from "../mapScan.js";
 import type * as mapTracking from "../mapTracking.js";
 import type * as onlineStatus from "../onlineStatus.js";
 
@@ -50,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mapChainCleanup": typeof lib_mapChainCleanup;
   "lib/mapConnectionLookup": typeof lib_mapConnectionLookup;
   "lib/mapEntityContracts": typeof lib_mapEntityContracts;
+  "lib/mapSignatures": typeof lib_mapSignatures;
   "lib/mapSignatureCleanup": typeof lib_mapSignatureCleanup;
   "lib/mapSystemLookup": typeof lib_mapSystemLookup;
   "lib/subjects": typeof lib_subjects;
@@ -60,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   mapFixtures: typeof mapFixtures;
   mapJump: typeof mapJump;
   mapJumpBookkeeping: typeof mapJumpBookkeeping;
+  mapScan: typeof mapScan;
   mapTracking: typeof mapTracking;
   onlineStatus: typeof onlineStatus;
 }>;

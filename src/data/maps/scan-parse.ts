@@ -1,14 +1,21 @@
 /** Probe-scanner row kinds supported by the English client paste format. */
-export type ScannedKind = 'signature' | 'anomaly';
+export const SCANNED_KINDS = ['signature', 'anomaly'] as const;
+
+/** One supported probe-scanner row kind. */
+export type ScannedKind = (typeof SCANNED_KINDS)[number];
 
 /** Closed probe-scanner group vocabulary supported by this session. */
-export type SigGroup =
-  | 'Wormhole'
-  | 'Combat Site'
-  | 'Ore Site'
-  | 'Gas Site'
-  | 'Data Site'
-  | 'Relic Site';
+export const SIG_GROUPS = [
+  'Wormhole',
+  'Combat Site',
+  'Ore Site',
+  'Gas Site',
+  'Data Site',
+  'Relic Site',
+] as const;
+
+/** One supported probe-scanner group. */
+export type SigGroup = (typeof SIG_GROUPS)[number];
 
 /** One normalized row parsed from an English probe-scanner paste. */
 export interface ScannedRow {
@@ -41,14 +48,7 @@ export interface ScannerPasteResult {
   readonly rejects: RejectedLine[];
 }
 
-const GROUPS = new Set<SigGroup>([
-  'Wormhole',
-  'Combat Site',
-  'Ore Site',
-  'Gas Site',
-  'Data Site',
-  'Relic Site',
-]);
+const GROUPS = new Set<SigGroup>(SIG_GROUPS);
 
 const KINDS: Readonly<Record<string, ScannedKind>> = {
   'Cosmic Signature': 'signature',
@@ -57,6 +57,11 @@ const KINDS: Readonly<Record<string, ScannedKind>> = {
 
 const SIGNATURE_ID = /^[A-Z]{3}-\d{3}$/;
 const SIGNAL_PERCENT = /^(?:100(?:\.0+)?|\d{1,2}(?:\.\d+)?)%$/;
+
+/** Whether a value is one scanner-owned ephemeral signature identifier. */
+export function isScannerSignatureId(value: string): boolean {
+  return SIGNATURE_ID.test(value);
+}
 
 function reject(lineNumber: number, raw: string, reason: ScanRejectReason): RejectedLine {
   return { lineNumber, raw, reason };
@@ -93,7 +98,7 @@ function parseScannerLine(raw: string, lineNumber: number): ParsedScannerLine {
     nameValue = '',
     signalValue = '',
   ] = columns.map((value) => value.trim());
-  if (!SIGNATURE_ID.test(signatureValue)) {
+  if (!isScannerSignatureId(signatureValue)) {
     return { rejection: reject(lineNumber, raw, 'invalid-signature-id') };
   }
 

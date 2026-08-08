@@ -20,11 +20,16 @@ import {
 import type { Doc } from './_generated/dataModel';
 import { requireMapAccess } from './lib/mapAccess';
 import {
+  findConnectionForSignature,
+  readOriginConnections,
+} from './lib/mapConnectionLookup';
+import {
   destinationHintValidator,
   massStateValidator,
   mergeSignatureKnowledge,
   noteTargetKindValidator,
   normalizeSignatureKnowledge,
+  scannedKindValidator,
   shipSizeValidator,
   validateConnectionInput,
   validateSignatureKnowledge,
@@ -32,6 +37,11 @@ import {
   wormholeTypeCodeValidator,
   type NoteTargetKind,
 } from './lib/mapEntityContracts';
+import {
+  applySignatureTombstone,
+  findMapSignature,
+  touchSignatureActivity,
+} from './lib/mapSignatures';
 import {
   findSystem,
   requireSystemId,
@@ -47,13 +57,6 @@ import { getSyncSubject, newIdleSubject } from './lib/subjects';
  * so a bigger map costs more calls rather than a bigger, riskier single transaction.
  */
 export const MAP_FIXTURE_PAGE_SIZE = 25;
-
-/**
- * How much newer an observation must be before it rewrites a signature's last-seen row. The boundary
- * governs INVISIBLE bookkeeping only — nothing user-visible is delayed or scheduled by it, and every
- * activity write stays outside mapSignatures either way.
- */
-const SIGNATURE_ACTIVITY_STALE_MS = 60_000;
 
 const collectionValidator = v.union(
   v.literal('systems'),
@@ -246,21 +249,15 @@ async function findUnresolvedHole(
   ctx: MutationCtx,
   args: NormalizedUnresolvedHole,
 ): Promise<Doc<'mapConnections'> | undefined> {
-  const rows = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_map_from', (q) =>
-      q.eq('mapId', args.mapId).eq('fromSystemId', args.fromSystemId),
-    )
-    .take(FIXTURE_CONNECTION_SCAN_LIMIT + 1);
-  if (rows.length > FIXTURE_CONNECTION_SCAN_LIMIT) {
-    throw new ConvexError({
-      code: 'FIXTURE_MAP_TOO_LARGE',
-      detail: `Map ${args.mapId} exceeds the ${FIXTURE_CONNECTION_SCAN_LIMIT}-connection unresolved-hole bound.`,
-    });
-  }
-  return rows.find(
-    (row) => row.toSystemId === null && row.fromSignatureId === args.fromSignatureId,
+  const match = findConnectionForSignature(
+    await readOriginConnections(ctx, args.mapId, args.fromSystemId, {
+      limit: FIXTURE_CONNECTION_SCAN_LIMIT,
+      errorCode: 'FIXTURE_MAP_TOO_LARGE',
+      errorDetail: `Map ${args.mapId} exceeds the ${FIXTURE_CONNECTION_SCAN_LIMIT}-connection unresolved-hole bound.`,
+    }),
+    args.fromSignatureId,
   );
+  return match?.toSystemId === null ? match : undefined;
 }
 
 function unresolvedHoleTypePatch(
@@ -827,6 +824,8 @@ export const upsertSignatureObservation = internalMutation({
     group: v.union(v.string(), v.null()),
     typeName: v.union(v.string(), v.null()),
     wormholeTypeCode: wormholeTypeCodeValidator,
+    kind: v.optional(scannedKindValidator),
+    signalPct: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     requireSystemId(args.systemId);
@@ -849,7 +848,7 @@ export const upsertSignatureObservation = internalMutation({
     validateSignatureKnowledge(knowledge);
 
     const key = { mapId: args.mapId, systemId: args.systemId, signatureId };
-    const existing = await findSignature(ctx, key);
+    const existing = await findMapSignature(ctx, key);
 
     if (existing === null) {
       await ctx.db.insert('mapSignatures', {
@@ -873,55 +872,6 @@ export const upsertSignatureObservation = internalMutation({
   },
 });
 
-/** One signature's stable identity within a map. */
-interface SignatureKey {
-  readonly mapId: string;
-  readonly systemId: number;
-  readonly signatureId: string;
-}
-
-/** The one exact indexed signature lookup; no path scans for missing IDs. */
-function findSignature(ctx: MutationCtx, key: SignatureKey) {
-  return ctx.db
-    .query('mapSignatures')
-    .withIndex('by_map_signature', (q) =>
-      q.eq('mapId', key.mapId).eq('systemId', key.systemId).eq('signatureId', key.signatureId),
-    )
-    .unique();
-}
-
-/** The matching activity lookup. Kept separate from the payload read set on purpose. */
-function findSignatureActivity(ctx: MutationCtx, key: SignatureKey) {
-  return ctx.db
-    .query('mapSignatureActivity')
-    .withIndex('by_map_signature', (q) =>
-      q.eq('mapId', key.mapId).eq('systemId', key.systemId).eq('signatureId', key.signatureId),
-    )
-    .unique();
-}
-
-/**
- * Stale-gated last-seen bookkeeping, stamped from SERVER time so no caller can backdate or advance
- * it. A first sighting inserts; a later one patches ONLY once the server clock is at least
- * {@link SIGNATURE_ACTIVITY_STALE_MS} past the stored value. A sub-threshold sighting writes nothing
- * at all — no write means no re-read and no fan-out, which is the whole point of keeping this off
- * the payload document.
- */
-async function touchSignatureActivity(
-  ctx: MutationCtx,
-  key: SignatureKey,
-): Promise<'inserted' | 'patched' | 'unchanged'> {
-  const observedAt = Date.now();
-  const existing = await findSignatureActivity(ctx, key);
-  if (existing === null) {
-    await ctx.db.insert('mapSignatureActivity', { ...key, lastSeenAt: observedAt });
-    return 'inserted';
-  }
-  if (observedAt - existing.lastSeenAt < SIGNATURE_ACTIVITY_STALE_MS) return 'unchanged';
-  await ctx.db.patch(existing._id, { lastSeenAt: observedAt });
-  return 'patched';
-}
-
 /**
  * Records that a signature was seen again, with no claim about its payload. This is the pure
  * bookkeeping path: it can only ever touch mapSignatureActivity.
@@ -939,7 +889,7 @@ export const recordSignatureSeen = internalMutation({
   },
   handler: async (ctx, args) => {
     const key = { ...args, signatureId: args.signatureId.trim() };
-    const signature = await findSignature(ctx, key);
+    const signature = await findMapSignature(ctx, key);
     if (signature === null || signature.deletedAt !== null) return 'unchanged' as const;
     return await touchSignatureActivity(ctx, key);
   },
@@ -964,49 +914,10 @@ export const setSignatureTombstone = internalMutation({
     purgeAfter: v.union(v.number(), v.null()),
   },
   handler: async (ctx, { deletedAt, purgeAfter, ...key }) => {
-    requireTombstonePair(deletedAt, purgeAfter);
-
-    const signature = await findSignature(ctx, key);
-    if (signature === null) {
-      throw new ConvexError({
-        code: 'UNKNOWN_SIGNATURE',
-        detail: `No signature ${key.signatureId} on map ${key.mapId}.`,
-      });
-    }
-
-    // Already in the target state: write nothing. mapSignatures is a watched payload table, and
-    // Convex re-reads a subscription's whole page on ANY write to it — changed or not — so a
-    // repeated tombstone or a restore of an active row would fan a no-op out to every scout.
-    if (signature.deletedAt === deletedAt && signature.purgeAfter === purgeAfter) {
-      return { tombstoned: deletedAt !== null };
-    }
-
-    await ctx.db.patch(signature._id, { deletedAt, purgeAfter });
-
-    if (deletedAt !== null) {
-      const activity = await findSignatureActivity(ctx, key);
-      if (activity !== null) await ctx.db.delete(activity._id);
-    }
-    return { tombstoned: deletedAt !== null };
+    const result = await applySignatureTombstone(ctx, key, deletedAt, purgeAfter);
+    return { tombstoned: result.tombstoned };
   },
 });
-
-/** Both tombstone timestamps are absent together, or present together and correctly ordered. */
-function requireTombstonePair(deletedAt: number | null, purgeAfter: number | null): void {
-  if (deletedAt === null && purgeAfter === null) return;
-  const paired =
-    deletedAt !== null
-    && purgeAfter !== null
-    && Number.isFinite(deletedAt)
-    && Number.isFinite(purgeAfter)
-    && purgeAfter > deletedAt;
-  if (!paired) {
-    throw new ConvexError({
-      code: 'INVALID_TOMBSTONE',
-      detail: 'deletedAt and purgeAfter must both be null, or both finite with purgeAfter later.',
-    });
-  }
-}
 
 /**
  * Drains expired signature tombstones in one bounded batch, reporting whether another call is

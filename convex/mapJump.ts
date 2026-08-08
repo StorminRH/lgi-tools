@@ -17,6 +17,7 @@ import {
   requireMapAccessForUser,
   tryMapAccessForUser,
 } from './lib/mapAccess';
+import { readOriginConnections } from './lib/mapConnectionLookup';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoring';
@@ -153,19 +154,11 @@ async function readConnectionsFrom(
   fromSystemId: number,
   purpose: 'candidate' | 'pair',
 ): Promise<Doc<'mapConnections'>[]> {
-  const rows = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_map_from', (q) =>
-      q.eq('mapId', mapId).eq('fromSystemId', fromSystemId),
-    )
-    .take(JUMP_CONNECTION_SCAN_CAP + 1);
-  if (rows.length > JUMP_CONNECTION_SCAN_CAP) {
-    throw new ConvexError({
-      code: 'MAP_TOO_LARGE',
-      detail: `Map ${mapId} exceeds the jump-${purpose} read bound.`,
-    });
-  }
-  return rows;
+  return await readOriginConnections(ctx, mapId, fromSystemId, {
+    limit: JUMP_CONNECTION_SCAN_CAP,
+    errorCode: 'MAP_TOO_LARGE',
+    errorDetail: `Map ${mapId} exceeds the jump-${purpose} read bound.`,
+  });
 }
 
 /** Live unresolved candidate rows within an origin-side read. */

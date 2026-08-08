@@ -2,7 +2,11 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
-import { MAP_FIXTURE_PAGE_SIZE, SIGNATURE_PURGE_BATCH } from './mapFixtures';
+import {
+  FIXTURE_CONNECTION_SCAN_LIMIT,
+  MAP_FIXTURE_PAGE_SIZE,
+  SIGNATURE_PURGE_BATCH,
+} from './mapFixtures';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -51,6 +55,8 @@ function observe(
     group: string | null;
     typeName: string | null;
     wormholeTypeCode: string | null;
+    kind: 'signature' | 'anomaly';
+    signalPct: number | null;
   }> = {},
 ) {
   return t.mutation(internal.mapFixtures.upsertSignatureObservation, {
@@ -801,6 +807,31 @@ describe('map chain fixtures', () => {
       });
     });
 
+    it('preserves the fixture overflow contract for unresolved-hole lookup', async () => {
+      const t = convexTest(schema, modules);
+      await seedMap(t);
+      await t.run(async (ctx) => {
+        for (let index = 0; index <= FIXTURE_CONNECTION_SCAN_LIMIT; index += 1) {
+          await ctx.db.insert('mapConnections', {
+            mapId: MAP_A,
+            fromSystemId: JITA,
+            toSystemId: null,
+            fromSignatureId: `WHL-${index}`,
+            wormholeTypeCode: null,
+            massState: 'stable',
+            shipSize: null,
+            eolAt: null,
+          });
+        }
+      });
+
+      await expect(t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        fromSignatureId: 'NEW-001',
+      })).rejects.toThrow('FIXTURE_MAP_TOO_LARGE');
+    });
+
     it('enriches a null field, no-ops on equality, and preserves a conflict', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
@@ -833,6 +864,20 @@ describe('map chain fixtures', () => {
         await observe(t, { group: 'wormhole', wormholeTypeCode: 'K162' }),
       ).toEqual({ outcome: 'conflict', fields: ['wormholeTypeCode'] });
       expect(await readSignature(t)).toMatchObject({ wormholeTypeCode: 'C247' });
+    });
+
+    it('shares additive kind and best-seen signal merge semantics with production paste', async () => {
+      const t = convexTest(schema, modules);
+      await seedMap(t);
+
+      expect(await observe(t, { group: 'wormhole', signalPct: null })).toEqual({
+        outcome: 'inserted',
+      });
+      expect(await observe(t, { group: 'wormhole', kind: 'signature', signalPct: 58.6 }))
+        .toEqual({ outcome: 'enriched', patch: { kind: 'signature', signalPct: 58.6 } });
+      expect(await observe(t, { group: 'wormhole', kind: 'signature', signalPct: 0 }))
+        .toEqual({ outcome: 'unchanged' });
+      expect(await readSignature(t)).toMatchObject({ kind: 'signature', signalPct: 58.6 });
     });
 
     it('accepts map, system, and signature note targets on the same map', async () => {
