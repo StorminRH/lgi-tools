@@ -16,13 +16,61 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.2.3** Ordered work is complete on
-  `lifecycle/4.0.4.2` (plan `docs/session-plans/4.0/4.0.4.2.3.md`) —
-  awaiting close-out. G-1 + #368 real-character checklist accepted by
-  operator (2026-08-07). Still pending separately: the tiny drain-end wipe
-  PR (drop `onlineStatus` schema literals + `characterOnline` + keeper/GC)
+- **CURRENT / NEXT:** session **4.0.4.2.3** close-out is **IN PROGRESS, paused
+  mid-procedure** on `lifecycle/4.0.4.2` (operator pause 2026-08-07). The
+  adversarial-review gate ran (holistic + ownership + interface + reliability
+  against `ead66468...8439ceaa`, digest `34f5ee0671d7bda7`): **8 accepted root
+  causes, ALL FIXED on-branch** in the pause commit — (1) outbound arrow now
+  derives its fraction from `FOG_EDGE_CUT_FRACTION` (never floats past a fog
+  stub) and tones `text-muted` when every claimant is stale; (2) `forMap`
+  freshness join REPLACED by the sibling quantized `mapTracking.feedFreshness`
+  query (per-character `coveredCharacterIds` gate + 60s buckets; forMap's read
+  set no longer touches the hot subject stamp — doorbell premise restored);
+  presence also reads a FRESH `location.observedAt` as proof-of-coverage
+  (a change the feed wrote IS an observation; fixes cold-start and the
+  engine-clobbers-fixture-covered race); (3) every node wrapper is
+  pointer-inert (`INERT_NODE_STYLE` on ALL nodes; name+disc chrome re-enable
+  via `pointer-events-auto`, gated off for fogged/ghost) so the invisible
+  frame margin can't drag/pin/hover; (4) one shared multi-source BFS in
+  `pilot-path.ts` + content-keyed arrow memo + identity-stable `useAfkState`;
+  (5) `mulberry32` → `src/mapper/lib/prng.ts`; (6) `pairKey` →
+  `src/mapper/lib/pair-key.ts`; (7) page-settings `description` slot retired
+  end-to-end (operator: auto-layout subtext stays removed — do NOT re-add);
+  (8) stale ring-3/rim-to-rim comments fixed. 2089 units + strict tsc green
+  at the pause commit. Still pending separately: the tiny drain-end wipe PR
   once prod rows drain post-#368.
-- **OW progress:** `5/5 complete` — awaiting close-out.
+- **Close-out progress:** review gate CLOSED except final probe evidence;
+  then: delivery records (changelog `### v4.0.4.2.3` absorbing the two
+  pending fragments, `APP_VERSION`, terminal roadmap session row, plan
+  `Complete`), SCRATCHPAD collapse, cheap checks + release consistency, full
+  verify, commit/push, draft PR + as-built, external review, merge, prod
+  proof. Design notes for PR `## Notes` not yet written.
+- **Probe evidence state (fix verification):** `atlas-halo` 12/12 and
+  `atlas-fog-layering` 19/19 green post-fix; `atlas-background-tracking`
+  19/21 — the 2 reds are ONE issue: the destination-disc click times out on
+  Playwright actionability right after the hidden→visible flip (standalone
+  repro of the same click WORKS incl. under `page.clock`; suspect
+  never-stable bounding box — camera/motion — now that only the 33px disc is
+  clickable, not the whole frame). `atlas-window-track` + `atlas-motion-glide`
+  NOT re-run: they need a ≥40-node chain (`pnpm map:replay -- --user
+  e2e-pilot --chain 33` — the `--` separator is REQUIRED, without it pnpm
+  eats the flags and the script hangs silently).
+- **Probe-ops gotchas (this round):** (1) `pnpm e2e:seed` RESETS
+  `user.role` — re-grant ADMIN AFTER seeding (`UPDATE "user" SET role='ADMIN'
+  WHERE id='e2e-pilot';` in Docker `lgi_tools`); the Atlas dev wall reads
+  user.role, not characters.role. (2) Every bg-probe run needs a FRESH map:
+  insert a `maps` row for `e2e-pilot` via psql, then
+  `pnpm map:project-access project <id>` (re-stamp
+  `characters.affiliation_refreshed_at` first if projection says affiliation
+  refresh failed — the synthetic char can't hit ESI). (3) The live engine
+  beats ~5s for the signed-in e2e user and stamps `coveredCharacterIds: []`
+  (tokenless chars), clobbering fixture covered stamps — the observedAt
+  proof-of-coverage rule in `presence-model.ts` is what makes probes (and
+  cold clients) honest-live anyway; don't "fix" the engine. (4) Probe path-d
+  regexes must accept scientific notation (`7e-15` from frame clipping) —
+  fixed in `atlas-fog-layering.mjs` + `lib/motion-metrics.mjs`. (5) A live
+  click repro script is at `docs/ux-check/captures/debug-card.mjs`
+  (gitignored).
 - **OW completed:**
   - OW1 — widget-frame node primitive: `SystemNode.tsx` (frame 120×88 declared
     data-side, header name, centered disc, widget rail), `edge-geometry.ts`

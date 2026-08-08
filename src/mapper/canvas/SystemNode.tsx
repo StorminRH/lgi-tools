@@ -86,6 +86,12 @@ export function nodeMotionClass(
 function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
   const derived = data.halo !== undefined;
   const fogged = data.halo?.fogged === true;
+  // The wrapper is pointer-inert for every node (`INERT_NODE_STYLE` in
+  // chain/nodes.ts); only the visible chrome re-enables pointer events, so
+  // the invisible frame margin cannot catch clicks, drags, or hovers. Ghosts
+  // (exit motion) and the fogged ring re-enable nothing and stay fully inert.
+  const ghost = data.motion !== undefined && data.motion.phase !== 'entering';
+  const chromeClass = fogged || ghost ? null : 'pointer-events-auto';
   return (
     <div
       data-chain-node
@@ -106,6 +112,7 @@ function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
         className={cn(
           'absolute inset-x-1 top-1 truncate text-center font-data text-ui',
           derived ? 'text-muted' : 'text-name',
+          chromeClass,
         )}
       >
         {data.name}
@@ -114,6 +121,7 @@ function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
         className={cn(
           'map-node-disc absolute left-1/2 top-1/2 flex size-[44px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section',
           derived && 'border-dashed',
+          chromeClass,
         )}
       >
         <Handle type="target" position={Position.Left} className={CENTER_HANDLE_CLASS} />

@@ -8,10 +8,10 @@
 // caller's characters. A forged tracking row naming someone else's character
 // joins to no location document.
 import { ConvexError, v } from 'convex/values';
+import type { Doc } from './_generated/dataModel';
 import {
   internalQuery,
   type MutationCtx,
-  type QueryCtx,
   mutation,
   query,
 } from './_generated/server';
@@ -92,33 +92,16 @@ export const setTracking = mutation({
 });
 
 /**
- * The owner's characterLocation sync-subject `lastFinishedAt`, memoized per
- * user for the duration of one handler: several tracked rows usually share an
- * owner (per-user cap 32), and repeated identical index reads would count
- * against the transaction read budget each time.
- */
-async function feedFreshnessByUser(
-  ctx: QueryCtx,
-): Promise<(userId: string) => Promise<number | null>> {
-  const cache = new Map<string, number | null>();
-  return async (userId: string) => {
-    if (cache.has(userId)) return cache.get(userId) ?? null;
-    const subject = await getSyncSubject(ctx.db, 'characterLocation', userId);
-    const fresh = subject?.lastFinishedAt ?? null;
-    cache.set(userId, fresh);
-    return fresh;
-  };
-}
-
-/**
  * Tracking rows for one map, joined to location by each row's own
  * (userId, characterId). Access is answered as a value: missing/revoked claim
  * returns an empty list (4.0.2.3.1 subscription doctrine). A forged row that
  * names another user's character joins to no document and discloses nothing.
- * observedAt is LAST-CHANGE time (the 304 zero-write path never touches it);
- * honest staleness rides `feedFreshAt` — the owner's characterLocation
- * sync-subject `lastFinishedAt` (null when the subject row is absent), so a
- * stationary pilot with a fresh feed is distinguishable from a paused tracker.
+ * observedAt is LAST-CHANGE time (the 304 zero-write path never touches it),
+ * so this read set changes only on real location/tracking/claim writes — the
+ * doorbell's retry sizing and the map's push rate both rest on that. Honest
+ * feed staleness deliberately does NOT ride this query: it lives in the
+ * sibling `feedFreshness`, whose read set touches the hot per-run
+ * sync-subject stamp so this one never has to.
  */
 export const forMap = query({
   args: { mapId: v.string() },
@@ -133,7 +116,6 @@ export const forMap = query({
       .withIndex('by_map', (q) => q.eq('mapId', mapId))
       .take(TRACKING_MAP_SCAN_CAP);
 
-    const feedFreshOf = await feedFreshnessByUser(ctx);
     const tracked = [];
     for (const row of rows) {
       const location = await ctx.db
@@ -145,7 +127,6 @@ export const forMap = query({
       tracked.push({
         userId: row.userId,
         characterId: row.characterId,
-        feedFreshAt: await feedFreshOf(row.userId),
         location:
           location === null
             ? null
@@ -167,6 +148,80 @@ export const forMap = query({
         .filter((row) => row.userId === principal.userId)
         .map((row) => row.characterId)
         .sort((left, right) => left - right),
+    };
+  },
+});
+
+/**
+ * Feed-freshness quantum: `feedFreshAt` is floored to this bucket so the
+ * returned value — and therefore the subscription's push rate — changes at
+ * most once per bucket per owner, while the ~5s per-run subject stamp churns
+ * underneath. The client staleness threshold (180s) stays comfortably coarser,
+ * so quantization costs at most one bucket of detection latency.
+ */
+export const FEED_FRESHNESS_QUANTUM_MS = 60_000;
+
+/**
+ * Per-character feed freshness for one map's tracked pilots — the honest
+ * staleness signal, split from `forMap` at the subscription boundary
+ * (docs/CONVEX.md): this query's read set includes the owner's hot
+ * characterLocation sync-subject (patched every run), so it re-executes at
+ * the sync cadence — but it returns a tiny quantized payload whose value-level
+ * dedupe suppresses the push until a bucket actually flips, and `forMap`'s
+ * heavy overlay stays out of the hot read set entirely. A character counts as
+ * fresh only when the owner's last run actually covered it
+ * (`coveredCharacterIds`, 304s included) — a completing run whose pilot is
+ * logged off or token-broken must not read as a live feed for that pilot.
+ * Output is sorted by character id so identical state hashes identically.
+ * No time source and no varying log lines: both would defeat the dedupe.
+ */
+export const feedFreshness = query({
+  args: { mapId: v.string() },
+  handler: async (ctx, { mapId }) => {
+    const principal = await tryMapAccess(ctx, mapId, 'view');
+    if (principal === null) {
+      return { fresh: [] as { characterId: number; feedFreshAt: number | null }[] };
+    }
+
+    const rows = await ctx.db
+      .query('mapTracking')
+      .withIndex('by_map', (q) => q.eq('mapId', mapId))
+      .take(TRACKING_MAP_SCAN_CAP);
+
+    // Memoized per owner: several tracked rows usually share a user (cap 32),
+    // and repeated identical index reads would count against the read budget.
+    const subjectByUser = new Map<string, Doc<'syncSubjects'> | null>();
+    const subjectOf = async (userId: string) => {
+      const held = subjectByUser.get(userId);
+      if (held !== undefined) return held;
+      const subject = await getSyncSubject(ctx.db, 'characterLocation', userId);
+      subjectByUser.set(userId, subject);
+      return subject;
+    };
+
+    const byCharacter = new Map<number, number | null>();
+    for (const row of rows) {
+      const subject = await subjectOf(row.userId);
+      const finishedAt = subject === null ? null : subject.lastFinishedAt;
+      const covered =
+        subject !== null &&
+        (subject.coveredCharacterIds ?? []).includes(row.characterId);
+      const bucket =
+        covered && finishedAt !== null
+          ? Math.floor(finishedAt / FEED_FRESHNESS_QUANTUM_MS) *
+            FEED_FRESHNESS_QUANTUM_MS
+          : null;
+      const held = byCharacter.get(row.characterId);
+      // A character tracked by several rows keeps its freshest evidence.
+      if (held === undefined || (bucket !== null && (held === null || bucket > held))) {
+        byCharacter.set(row.characterId, bucket);
+      }
+    }
+
+    return {
+      fresh: [...byCharacter.entries()]
+        .sort((left, right) => left[0] - right[0])
+        .map(([characterId, feedFreshAt]) => ({ characterId, feedFreshAt })),
     };
   },
 });

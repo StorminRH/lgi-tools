@@ -14,6 +14,7 @@
 // contributes nothing.
 import type { SecurityClass } from '@/data/eve-data/security';
 import type { ChainPosition } from '../chain/intents';
+import { pairKey } from '../lib/pair-key';
 import type { LayoutFacts } from '../layout/layout-contract';
 
 /**
@@ -104,10 +105,6 @@ export interface HaloInput {
   readonly limits?: HaloLimits;
 }
 
-function undirectedPairKey(a: number, b: number): string {
-  return a < b ? `${a}>${b}` : `${b}>${a}`;
-}
-
 /** One claimed system's provenance during the scan. */
 interface HaloClaim {
   readonly ring: number;
@@ -193,9 +190,9 @@ function appendCrossLinks(
     for (const neighbour of scan.neighbours(systemId)) {
       if (!renderedIds.has(neighbour)) continue;
       if (foggedIds.has(systemId) && foggedIds.has(neighbour)) continue;
-      const pairKey = undirectedPairKey(systemId, neighbour);
-      if (linkedPairs.has(pairKey)) continue;
-      linkedPairs.add(pairKey);
+      const key = pairKey(systemId, neighbour);
+      if (linkedPairs.has(key)) continue;
+      linkedPairs.add(key);
       links.push({ a: systemId, b: neighbour });
     }
   }
@@ -248,7 +245,7 @@ export function deriveHalo(input: HaloInput): HaloDerivation {
       fogged: claim.ring > limits.drawnRings,
     });
     links.push({ a: claim.parent, b: systemId });
-    linkedPairs.add(undirectedPairKey(claim.parent, systemId));
+    linkedPairs.add(pairKey(claim.parent, systemId));
   }
 
   const foggedIds = new Set(

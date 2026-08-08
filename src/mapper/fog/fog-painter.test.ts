@@ -8,7 +8,6 @@ import {
   fogContentBounds,
   fogCoverContains,
   fogCoverRect,
-  mulberry32,
   paintFog,
   type FogPaintContext,
   type FogPaintInput,
@@ -135,16 +134,6 @@ describe('fog brush', () => {
     expect(at(size - 1, size - 1)).toBe(0);
   });
 
-  it('mulberry32 yields a stable [0, 1) stream', () => {
-    const first = mulberry32(1234);
-    const second = mulberry32(1234);
-    for (let i = 0; i < 100; i += 1) {
-      const value = first();
-      expect(second()).toBe(value);
-      expect(value).toBeGreaterThanOrEqual(0);
-      expect(value).toBeLessThan(1);
-    }
-  });
 });
 
 // ── Paint command emission against a recording stub ──────────────────────────

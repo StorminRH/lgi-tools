@@ -14,6 +14,7 @@ import {
   type ChainTombstoneState,
 } from '@/data/maps/chain-contract';
 import type { HaloLink, PlacedHaloSystem } from '../halo/halo-model';
+import { pairKey } from '../lib/pair-key';
 import type { EdgeMotion } from '../motion/motion-contract';
 import type { SystemLabel } from './labels';
 import type { ChainState } from './reconciler';
@@ -61,10 +62,14 @@ export interface ChainEdge {
 }
 
 /**
- * The inert style a fogged halo node carries. Inline on the node object, not
- * a stylesheet rule, for the same reason ghosts do it (motion-host-model):
+ * Every chain node's wrapper style: pointer-inert. Inline on the node object,
+ * not a stylesheet rule, for the same reason ghosts do it (motion-host-model):
  * React Flow computes a truthy inline `pointerEvents` once `onNodeClick` is
- * forwarded, and only the node-level style spread wins over it.
+ * forwarded, and only the node-level style spread wins over it. The visible
+ * chrome (name, disc) re-enables its own pointer events inside `SystemNode`,
+ * so the invisible widget-frame margin never catches clicks, drags, or hovers
+ * — pointer activity there falls through to the pane — while ghosts and the
+ * fogged ring re-enable nothing and stay fully inert.
  */
 const INERT_NODE_STYLE = { pointerEvents: 'none' } as const;
 
@@ -72,17 +77,15 @@ const INERT_NODE_STYLE = { pointerEvents: 'none' } as const;
  * Sheds the derived-node control fields a halo node carries. Load-bearing on
  * the upgrade path: a jump authoring a system already rendered in the halo
  * reuses the same node id, and spreading the retained halo node unchanged
- * would leave the newly authored system undraggable or inert.
+ * would leave the newly authored system undraggable or unselectable. The
+ * wrapper style stays: every node is pointer-inert at the wrapper
+ * (`INERT_NODE_STYLE`), and interactivity is the chrome's to re-enable.
  */
 function stripDerivedControls(node: ChainNode): ChainNode {
-  if (
-    node.draggable === undefined &&
-    node.selectable === undefined &&
-    node.style === undefined
-  ) {
+  if (node.draggable === undefined && node.selectable === undefined) {
     return node;
   }
-  const { draggable: _draggable, selectable: _selectable, style: _style, ...rest } = node;
+  const { draggable: _draggable, selectable: _selectable, ...rest } = node;
   return rest;
 }
 
@@ -129,6 +132,7 @@ export function syncNodes(
       width: SYSTEM_FRAME_WIDTH,
       height: SYSTEM_FRAME_HEIGHT,
       position: holdLocal ? local.position : placed.position,
+      style: INERT_NODE_STYLE,
       data: { name: label.name, className: label.className },
     };
   });
@@ -148,6 +152,7 @@ export function syncNodes(
         // The kernel always owns derived positions; nothing persists them.
         position: placed.position,
         draggable: false,
+        style: INERT_NODE_STYLE,
         data: {
           name: label.name,
           className: label.className,
@@ -159,7 +164,6 @@ export function syncNodes(
         ...node,
         selected: false,
         selectable: false,
-        style: INERT_NODE_STYLE,
       };
     });
 
@@ -216,7 +220,6 @@ const EMPTY_FOGGED_IDS: ReadonlySet<number> = new Set();
 function newPairClaim(treeParents: ReadonlyMap<number, number>) {
   const claimed = new Set<string>();
   const rendered = new Set<string>();
-  const pairKey = (a: number, b: number) => (a < b ? `${a}>${b}` : `${b}>${a}`);
   return {
     /** Records the pair as rendered; true when it draws solid (first tree claim). */
     claimSolid(a: number, b: number): boolean {

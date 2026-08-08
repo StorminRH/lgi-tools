@@ -154,7 +154,7 @@ const readFogboundEdge = (page, foggedId) =>
     const match =
       path === null || path === undefined
         ? null
-        : /M ([-\d.]+),([-\d.]+) L ([-\d.]+),([-\d.]+)/.exec(path.getAttribute('d') || '');
+        : /M ([-\d.eE+]+),([-\d.eE+]+) L ([-\d.eE+]+),([-\d.eE+]+)/.exec(path.getAttribute('d') || '');
     if (match === null) return null;
     const id = edge.getAttribute('data-id');
     const [a, b] = id.slice('halo:'.length).split('>');

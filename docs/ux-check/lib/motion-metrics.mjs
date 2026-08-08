@@ -135,7 +135,7 @@ export async function installMotionMetrics(page) {
             const match =
               path === null
                 ? null
-                : /M ([-\d.]+),([-\d.]+) L ([-\d.]+),([-\d.]+)/.exec(
+                : /M ([-\d.eE+]+),([-\d.eE+]+) L ([-\d.eE+]+),([-\d.eE+]+)/.exec(
                     path.getAttribute('d') || '',
                   );
             return {

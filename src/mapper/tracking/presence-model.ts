@@ -2,11 +2,15 @@
 //
 // Staleness honesty is the whole point of this module: `observedAt` is
 // LAST-CHANGE time, so a stationary pilot and a paused tracker look identical
-// through it. The honest signal is `feedFreshAt` — the owner's
-// characterLocation sync-subject `lastFinishedAt`, which every clean sync run
-// advances whether or not anything moved. A pilot is `live` while that feed
-// is fresh and `stale` once it ages out or the subject row is absent; the
-// model never claims online/offline knowledge it does not have.
+// through it. The primary honest signal is `feedFreshAt` — delivered per
+// character by the `mapTracking.feedFreshness` subscription (quantized to 60s
+// buckets so the hot per-run subject stamp cannot churn the wire), and
+// non-null only when the owner's last run actually covered that character.
+// A RECENT `observedAt` is the one exception to its untrustworthiness: a
+// location change the feed just wrote proves the feed observed the character
+// at that moment, so fresh movement also reads live (cold freshness
+// subscription, just-jumped pilot). A pilot with neither signal is `stale` —
+// the model never claims online/offline knowledge it does not have.
 //
 // Pure and clock-injected so the SC-3.1 state matrix is a unit test; the
 // provider owns subscriptions and timers.
@@ -20,7 +24,9 @@ export type PresenceStatusWord = 'Stale' | 'AFK' | 'Docked' | 'In space';
 /**
  * Feed age past which a pilot renders stale. The characterLocation cadence is
  * seconds while hot, so three missed minutes means the tracker paused (AFK
- * gate, closed tab, cold subject) rather than jitter. Pinned; no runtime
+ * gate, closed tab, cold subject) rather than jitter. `feedFreshAt` arrives
+ * quantized to 60s buckets, so detection lands within one bucket past this
+ * threshold — deliberately coarser than the quantum. Pinned; no runtime
  * configuration surface (operator direction, plan PD-2 family).
  */
 export const PRESENCE_FEED_STALE_AFTER_MS = 180_000;
@@ -38,7 +44,6 @@ export interface TrackedLocationSnapshot {
 /** One `forMap` tracked row, structurally (the model never imports Convex). */
 export interface TrackedPresenceRow {
   readonly characterId: number;
-  readonly feedFreshAt: number | null;
   readonly location: TrackedLocationSnapshot | null;
 }
 
@@ -62,15 +67,31 @@ export interface SystemPresence {
 /** Inputs for one presence derivation pass. */
 export interface PresenceInput {
   readonly tracked: readonly TrackedPresenceRow[];
+  /** Per-character quantized `feedFreshAt`; a missing entry means stale. */
+  readonly freshness: ReadonlyMap<number, number | null>;
   readonly now: number;
   readonly ownCharacterIds: readonly number[];
   /** The local AFK gate's prompt-open/paused verdict (own characters only). */
   readonly ownAfk: boolean;
 }
 
-function presenceState(feedFreshAt: number | null, now: number): PresenceState {
-  if (feedFreshAt === null) return 'stale';
-  return now - feedFreshAt > PRESENCE_FEED_STALE_AFTER_MS ? 'stale' : 'live';
+/**
+ * A pilot is live on either honest signal: the covered feed bucket is fresh
+ * (the owner's last run sampled this character), or the location document
+ * itself changed recently — a change the feed just wrote IS proof it observed
+ * the character at that moment, which keeps a just-jumped pilot live while
+ * the freshness subscription is still cold and can never resurrect a pilot
+ * whose feed has actually gone quiet.
+ */
+function presenceState(
+  feedFreshAt: number | null,
+  observedAt: number,
+  now: number,
+): PresenceState {
+  const freshFeed =
+    feedFreshAt !== null && now - feedFreshAt <= PRESENCE_FEED_STALE_AFTER_MS;
+  const freshObservation = now - observedAt <= PRESENCE_FEED_STALE_AFTER_MS;
+  return freshFeed || freshObservation ? 'live' : 'stale';
 }
 
 /** Prefers the live, then most recently moved, duplicate of one character. */
@@ -97,7 +118,11 @@ export function derivePresence(input: PresenceInput): ReadonlyMap<number, System
       shipTypeId: row.location.shipTypeId,
       docked: row.location.stationId !== null || row.location.structureId !== null,
       lastMovementAt: row.location.transitionObservedAt ?? row.location.observedAt,
-      state: presenceState(row.feedFreshAt, input.now),
+      state: presenceState(
+        input.freshness.get(row.characterId) ?? null,
+        row.location.observedAt,
+        input.now,
+      ),
       ownAfk: input.ownAfk && own.has(row.characterId),
     };
     const held = byCharacter.get(row.characterId);
@@ -127,17 +152,40 @@ export interface TrackingPayload {
   readonly ownTrackedCharacterIds: readonly number[];
 }
 
+/** The `feedFreshness` payload shape presence consumes (undefined while loading). */
+export interface FeedFreshnessPayload {
+  readonly fresh: readonly { characterId: number; feedFreshAt: number | null }[];
+}
+
 /**
- * Presence from a possibly-unloaded `forMap` payload — the provider's memo
- * body, kept pure and tested so the component seam stays branch-free.
+ * Indexes the freshness payload by character id. An unloaded payload yields
+ * an empty index, which reads as stale-everywhere — the honest verdict while
+ * the freshness subscription is still cold.
+ */
+export function feedFreshnessIndex(
+  payload: FeedFreshnessPayload | undefined,
+): ReadonlyMap<number, number | null> {
+  const index = new Map<number, number | null>();
+  for (const entry of payload?.fresh ?? []) {
+    index.set(entry.characterId, entry.feedFreshAt);
+  }
+  return index;
+}
+
+/**
+ * Presence from possibly-unloaded `forMap` + `feedFreshness` payloads — the
+ * provider's memo body, kept pure and tested so the component seam stays
+ * branch-free.
  */
 export function derivePresenceFromPayload(
   payload: TrackingPayload | undefined,
+  freshness: FeedFreshnessPayload | undefined,
   now: number,
   ownAfk: boolean,
 ): ReadonlyMap<number, SystemPresence> {
   return derivePresence({
     tracked: payload?.tracked ?? [],
+    freshness: feedFreshnessIndex(freshness),
     now,
     ownCharacterIds: payload?.ownTrackedCharacterIds ?? [],
     ownAfk,

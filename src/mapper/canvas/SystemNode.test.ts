@@ -7,7 +7,13 @@ import type { NodeMotion } from '../motion/motion-contract';
 import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
 import type { PresencePilot, SystemPresence } from '../tracking/presence-model';
-import { ChainLinkEdge, edgeMotionClass, edgePresentation } from './ChainLinkEdge';
+import {
+  ChainLinkEdge,
+  edgeMotionClass,
+  edgePresentation,
+  outboundArrowFraction,
+} from './ChainLinkEdge';
+import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
 import { PresenceBadgeView } from './PilotPresenceBadge';
 import { SystemNode, nodeMotionClass, type ChainNode } from './SystemNode';
 
@@ -65,6 +71,20 @@ describe('widget frame markup', () => {
     expect(rendered).not.toContain('data-chain-node-class');
     expect(rendered).toContain('data-chain-node-name');
   });
+
+  it('re-enables pointer events on the interactive chrome only', () => {
+    // The wrapper is pointer-inert (INERT_NODE_STYLE on every node object);
+    // the name and disc opt back in, so the invisible frame margin cannot
+    // catch clicks, drags, or hovers. Two occurrences: header + disc.
+    const still = markup(undefined);
+    expect(still.match(/pointer-events-auto/g)).toHaveLength(2);
+  });
+
+  it('keeps ghost chrome inert — a departing node must not regain pointer events', () => {
+    expect(markup({ phase: 'departing' })).not.toContain('pointer-events-auto');
+    // An ENTERING node is live truth and stays interactive from first paint.
+    expect(markup({ phase: 'entering' }).match(/pointer-events-auto/g)).toHaveLength(2);
+  });
 });
 
 // ── OW3 (4.0.4.2.3) — derived halo systems read visibly provisional ──────────
@@ -91,6 +111,8 @@ describe('halo node markup', () => {
     // itself; invisibility-under-fog is this class, not paint order (SC-3.2).
     expect(fogged).toContain('opacity-0');
     expect(fogged).not.toContain('opacity-40');
+    // Fully inert under the cloud: no chrome opts back into pointer events.
+    expect(fogged).not.toContain('pointer-events-auto');
   });
 
   it('leaves authored nodes unmarked', () => {
@@ -128,17 +150,35 @@ describe('outbound arrow markup', () => {
     return rendered;
   };
 
-  it('mounts the arrow when the context assigns one to this edge', () => {
-    const rendered = renderEdge(new Map([['e1', { towardSystemId: 2 }]]));
-    expect(rendered).toContain('data-pilot-arrow');
-    expect(rendered).toContain('map-pilot-arrow');
+  it('mounts the arrow when the context assigns one to this edge, toned by liveness', () => {
+    const liveArrow = renderEdge(new Map([['e1', { towardSystemId: 2, live: true }]]));
+    expect(liveArrow).toContain('data-pilot-arrow');
+    expect(liveArrow).toContain('map-pilot-arrow');
+    expect(liveArrow).toContain('text-isk');
+    // Staleness honesty on the arrow: a stale-only claimant mutes the glyph.
+    const staleArrow = renderEdge(new Map([['e1', { towardSystemId: 2, live: false }]]));
+    expect(staleArrow).toContain('data-pilot-arrow');
+    expect(staleArrow).toContain('text-muted');
+    expect(staleArrow).not.toContain('text-isk');
   });
 
   it('mounts nothing without an assignment (the empty default context)', () => {
     expect(renderEdge(null)).not.toContain('data-pilot-arrow');
-    expect(renderEdge(new Map([['other-edge', { towardSystemId: 2 }]]))).not.toContain(
-      'data-pilot-arrow',
-    );
+    expect(
+      renderEdge(new Map([['other-edge', { towardSystemId: 2, live: true }]])),
+    ).not.toContain('data-pilot-arrow');
+  });
+
+  it('keeps the arrow inside the drawn span of a fog-truncated edge', () => {
+    // Every mounted edge is drawn↔fogged, and the stub draws exactly
+    // FOG_EDGE_CUT_FRACTION of the segment from the non-fogged end — the
+    // arrow's fraction must sit strictly inside that span, derived from the
+    // SAME constant, so retuning the cut can never strand the glyph in the
+    // cloud past the end of its own line.
+    expect(outboundArrowFraction('source')).toBeLessThan(FOG_EDGE_CUT_FRACTION);
+    expect(outboundArrowFraction('target')).toBeLessThan(FOG_EDGE_CUT_FRACTION);
+    expect(outboundArrowFraction('source')).toBeGreaterThan(0);
+    expect(outboundArrowFraction(undefined)).toBe(0.7);
   });
 });
 

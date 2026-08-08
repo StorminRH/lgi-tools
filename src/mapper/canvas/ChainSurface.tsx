@@ -24,8 +24,8 @@ import { CHAIN_NODE_TYPE, SystemNode, type ChainNode } from './SystemNode';
 const NODE_TYPES = { [CHAIN_NODE_TYPE]: SystemNode };
 const EDGE_TYPES = { [CHAIN_EDGE_TYPE]: ChainLinkEdge };
 
-// Every chain edge renders rim-to-rim through the custom edge, so branch
-// shapes read as radial lines rather than overlapping S-curves.
+// Every chain edge renders frame-boundary to frame-boundary through the custom
+// edge, so branch shapes read as radial lines rather than overlapping S-curves.
 const DEFAULT_EDGE_OPTIONS = { type: CHAIN_EDGE_TYPE };
 
 // Corner badge is relocated into the atlas hamburger footer (MapMenu).

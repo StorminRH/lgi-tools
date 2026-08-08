@@ -201,7 +201,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   );
 
   // The non-fogged rendered set the outbound-arrow derivation walks from:
-  // authored systems plus drawn halo rings (fogged ring-3 systems excluded,
+  // authored systems plus drawn halo rings (fogged-ring systems excluded,
   // so a pilot under fog resolves to the boundary arrow, never a hidden badge).
   const drawnSystemIds = useMemo(() => {
     const drawn = new Set<number>(state.systems.keys());

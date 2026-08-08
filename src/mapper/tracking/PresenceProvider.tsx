@@ -4,7 +4,10 @@
 // subscription becomes derived per-system presence for the frame badges and
 // the intelligence body. Reads the SAME `mapTracking.forMap` subscription the
 // tracking controls and doorbell use (identical query + args dedupe to one
-// server subscription inside the Convex client) — no new client subscription.
+// server subscription inside the Convex client), plus the tiny
+// `feedFreshness` sibling — the split keeps the hot per-run subject stamp out
+// of `forMap`'s read set, and the quantized freshness payload pushes at most
+// once per bucket flip.
 //
 // The AFK gate's state machine lives here too, one level above the heartbeat:
 // presence needs the gate's verdict for the own-character `AFK` status word,
@@ -32,6 +35,7 @@ export function MapPresenceProvider({
   readonly children: ReactNode;
 }) {
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const freshness = useLiveValue(api.mapTracking.feedFreshness, { mapId });
   const afk = useAfkState();
   const [now, setNow] = useState(() => Date.now());
 
@@ -45,8 +49,8 @@ export function MapPresenceProvider({
   // pause has landed yet. Other viewers see `Stale` once the feed ages.
   const ownAfk = afk.promptOpen;
   const presence = useMemo(
-    () => derivePresenceFromPayload(tracking, now, ownAfk),
-    [tracking, now, ownAfk],
+    () => derivePresenceFromPayload(tracking, freshness, now, ownAfk),
+    [tracking, freshness, now, ownAfk],
   );
   const value = useMemo(() => ({ presence, afk }), [presence, afk]);
 

@@ -7,6 +7,7 @@
 // explicit PRNG (no `Math.random`), corpus seeds are committed constants, and the digest is a pure
 // function of positions, so two processes agreeing on a digest proves byte-identical layout.
 import type { ChainPosition } from '../chain/intents';
+import { mulberry32 } from '../lib/prng';
 import { deriveChainTree } from './facts';
 import { segmentsIntersect } from './geometry';
 import type { LayoutFacts } from './layout-contract';
@@ -39,18 +40,6 @@ export const PROOF_CORPUS: readonly CorpusEntry[] = [
   { seed: 42, size: 60 },
   { seed: 43, size: 60 },
 ];
-
-/** Mulberry32: a tiny, well-distributed 32-bit PRNG; the only randomness source in the suites. */
-export function mulberry32(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** Deterministic wormhole-shaped system ids: J-space numbers offset by creation index. */
 const SYSTEM_ID_BASE = 31_000_000;

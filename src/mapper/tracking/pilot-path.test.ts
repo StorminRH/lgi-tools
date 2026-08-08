@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  arrowPilotKey,
   derivePilotPath,
   deriveOutboundArrows,
   edgeIdOfPairIndex,
+  parseArrowPilotKey,
   PILOT_PATH_MAX_JUMPS,
 } from './pilot-path';
 
@@ -87,19 +89,23 @@ describe('deriveOutboundArrows', () => {
 
   it('mounts the arrow on the outermost rendered edge of the path, aimed outward', () => {
     const arrows = deriveOutboundArrows({
-      pilotSystemIds: [23],
+      pilotSystems: [{ systemId: 23, live: true }],
       drawnSystemIds: drawn,
       neighbours,
       edgeIdOfPair,
     });
     expect(arrows.size).toBe(1);
-    expect(arrows.get('halo:20>21')).toEqual({ towardSystemId: 21 });
+    expect(arrows.get('halo:20>21')).toEqual({ towardSystemId: 21, live: true });
   });
 
   it('mounts nothing for drawn pilots, unreachable pilots, and edge-less paths', () => {
     const spurOnly = deriveOutboundArrows({
       // 40's path is [20, 40] but no 20–40 edge is rendered.
-      pilotSystemIds: [11, 9999, 40],
+      pilotSystems: [
+        { systemId: 11, live: true },
+        { systemId: 9999, live: true },
+        { systemId: 40, live: true },
+      ],
       drawnSystemIds: drawn,
       neighbours,
       edgeIdOfPair,
@@ -109,12 +115,42 @@ describe('deriveOutboundArrows', () => {
 
   it('deduplicates pilots sharing one boundary edge onto a single arrow', () => {
     const arrows = deriveOutboundArrows({
-      pilotSystemIds: [24, 21, 23],
+      pilotSystems: [
+        { systemId: 24, live: false },
+        { systemId: 21, live: false },
+        { systemId: 23, live: false },
+      ],
       drawnSystemIds: drawn,
       neighbours,
       edgeIdOfPair,
     });
     expect([...arrows.keys()]).toEqual(['halo:20>21']);
-    expect(arrows.get('halo:20>21')).toEqual({ towardSystemId: 21 });
+    expect(arrows.get('halo:20>21')).toEqual({ towardSystemId: 21, live: false });
+  });
+
+  it('keeps a shared arrow live when any claimant is live, and mutes it only when all are stale', () => {
+    const mixed = deriveOutboundArrows({
+      // 21 claims the edge first (ascending order, stale); 23's live pilot
+      // must keep the shared arrow honest-green without changing direction.
+      pilotSystems: [
+        { systemId: 21, live: false },
+        { systemId: 23, live: true },
+      ],
+      drawnSystemIds: drawn,
+      neighbours,
+      edgeIdOfPair,
+    });
+    expect(mixed.get('halo:20>21')).toEqual({ towardSystemId: 21, live: true });
+  });
+});
+
+describe('arrowPilotKey', () => {
+  it('round-trips the pilot-system summary through the content key', () => {
+    const summary = [
+      { systemId: 21, live: true },
+      { systemId: 40, live: false },
+    ] as const;
+    expect(parseArrowPilotKey(arrowPilotKey(summary))).toEqual([...summary]);
+    expect(parseArrowPilotKey('')).toEqual([]);
   });
 });

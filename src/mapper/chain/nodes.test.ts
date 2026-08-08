@@ -67,6 +67,7 @@ describe('canvas node projection', () => {
         width: 120,
         height: 88,
         position: positionOfSlot(0),
+        style: { pointerEvents: 'none' },
         data: { name: 'Jita', className: null },
       },
       {
@@ -75,6 +76,7 @@ describe('canvas node projection', () => {
         width: 120,
         height: 88,
         position: positionOfSlot(1),
+        style: { pointerEvents: 'none' },
         data: { name: 'J123456', className: 'C5' },
       },
     ]);
@@ -288,7 +290,9 @@ describe('halo node projection', () => {
       data: { halo: { ring: 1, fogged: false } },
     });
     expect(drawn?.selectable).toBeUndefined();
-    expect(drawn?.style).toBeUndefined();
+    // Every wrapper is pointer-inert; the visible chrome re-enables its own
+    // pointer events inside SystemNode (fogged/ghost chrome never does).
+    expect(drawn?.style).toEqual({ pointerEvents: 'none' });
     const fogged = nodes[2];
     expect(fogged).toMatchObject({
       draggable: false,
@@ -324,7 +328,9 @@ describe('halo node projection', () => {
     expect(upgraded?.data.halo).toBeUndefined();
     expect(upgraded?.draggable).toBeUndefined();
     expect(upgraded?.selectable).toBeUndefined();
-    expect(upgraded?.style).toBeUndefined();
+    // The wrapper stays pointer-inert after the upgrade: interactivity comes
+    // from the chrome, which re-enables once the halo/fogged markers drop.
+    expect(upgraded?.style).toEqual({ pointerEvents: 'none' });
   });
 
   it('never renders a halo entry whose id is already reconciled (no duplicate mid-window)', () => {

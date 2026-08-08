@@ -11,7 +11,12 @@ import {
   OutboundArrowContext,
 } from './outbound-arrow-context';
 import { MapPresenceContext } from './presence-context';
-import { deriveOutboundArrows, edgeIdOfPairIndex } from './pilot-path';
+import {
+  arrowPilotKey,
+  deriveOutboundArrows,
+  edgeIdOfPairIndex,
+  parseArrowPilotKey,
+} from './pilot-path';
 
 /** What the arrow derivation consumes from the chain host. */
 export interface OutboundArrowProviderProps {
@@ -32,10 +37,24 @@ export function OutboundArrowProvider({
   children,
 }: OutboundArrowProviderProps) {
   const presence = useContext(MapPresenceContext)?.presence;
+  // Content key: the presence map's identity churns on every 30-second
+  // staleness tick, but arrows depend only on membership + liveness — the
+  // bounded scan re-runs only when that content (or the canvas) changes.
+  const pilotKey = useMemo(() => {
+    if (presence === undefined || presence.size === 0) return '';
+    return arrowPilotKey(
+      [...presence.entries()]
+        .map(([systemId, system]) => ({
+          systemId,
+          live: system.pilots.some((pilot) => pilot.state === 'live'),
+        }))
+        .sort((left, right) => left.systemId - right.systemId),
+    );
+  }, [presence]);
   const arrows = useMemo(() => {
-    if (presence === undefined || presence.size === 0) return EMPTY_OUTBOUND_ARROWS;
+    if (pilotKey === '') return EMPTY_OUTBOUND_ARROWS;
     const derived = deriveOutboundArrows({
-      pilotSystemIds: [...presence.keys()],
+      pilotSystems: parseArrowPilotKey(pilotKey),
       drawnSystemIds,
       neighbours: neighboursOf,
       edgeIdOfPair: edgeIdOfPairIndex(edges),
@@ -43,7 +62,7 @@ export function OutboundArrowProvider({
     // The empty constant keeps the context value identity-stable across the
     // provider's 30-second staleness ticks, so edges skip re-rendering.
     return derived.size === 0 ? EMPTY_OUTBOUND_ARROWS : derived;
-  }, [presence, drawnSystemIds, edges, neighboursOf]);
+  }, [pilotKey, drawnSystemIds, edges, neighboursOf]);
 
   return <OutboundArrowContext value={arrows}>{children}</OutboundArrowContext>;
 }

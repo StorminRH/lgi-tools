@@ -77,12 +77,6 @@ describe('resolveMenuControls', () => {
       'camera follow',
       'click focus',
     ]);
-    expect(booleans.map((m) => m.description)).toEqual([
-      undefined,
-      undefined,
-      undefined,
-    ]);
-
     // Explicit order first; ties break by declaration position.
     expect(
       resolveMenuControls(

@@ -63,7 +63,7 @@ describe('deriveFogReveals', () => {
     ]);
   });
 
-  it('excludes fogged ring-3 discs — their cover IS the missing reveal', () => {
+  it('excludes fogged-ring discs — their cover IS the missing reveal', () => {
     const reveals = deriveFogReveals(
       [
         node(1, 0, 0, { halo: { ring: 1, fogged: false } }),

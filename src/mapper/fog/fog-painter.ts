@@ -3,6 +3,7 @@
 // backing-resolution decisions, the deterministic noise brush, and the paint
 // command sequence emitted against a minimal context interface the real
 // CanvasRenderingContext2D satisfies structurally.
+import { mulberry32 } from '../lib/prng';
 import type { FogFrame, FogPaintDisc, FogPaintStroke } from './fog-model';
 
 /** A world-space rectangle. */
@@ -108,17 +109,6 @@ export function fogBackingScale(
   const area = Math.max(1, cover.width * cover.height);
   const budgetCap = Math.sqrt(maxPixels / area);
   return Math.max(0.02, Math.min(bucket, budgetCap));
-}
-
-/** Deterministic 32-bit PRNG — the same seed paints the same fog everywhere. */
-export function mulberry32(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let mixed = Math.imul(state ^ (state >>> 15), 1 | state);
-    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 /** Noise lattice cells across the brush — coarse, so the fringe reads smoky. */

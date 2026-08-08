@@ -204,13 +204,18 @@ export default {
     // SC-3.3: summary card shares SystemIntelligenceBody. Root selection is
     // dock-only — open the non-root destination (where the pilot stands).
     await setVisibility(page, 'visible');
+    // Locator click, not raw coordinates: the node wrapper is pointer-inert
+    // (only the disc chrome is clickable) and the camera may still be
+    // settling after the hidden-tab topology change — Playwright's
+    // actionability wait keeps the click on the disc once it is stable.
     const destDisc = page.locator(
       `.react-flow__node[data-id="${DESTINATION_SYSTEM_ID}"] .map-node-disc`,
     );
-    const discBox = await destDisc.boundingBox();
-    if (discBox !== null) {
-      await page.mouse.click(discBox.x + discBox.width / 2, discBox.y + discBox.height / 2);
-    }
+    const clickError = await destDisc
+      .click({ timeout: 10_000 })
+      .then(() => null)
+      .catch((error) => String(error).slice(0, 160));
+    if (clickError !== null) console.error('[probe] disc click failed:', clickError);
     const summary = page.locator('[data-map-window="summary"]').filter({ visible: true });
     await summary.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => undefined);
     const summaryHeader = summary.locator('[data-intel-section="summary"]');

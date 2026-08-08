@@ -388,26 +388,36 @@ function requireTrackedFixtureIdentity(
 }
 
 /**
- * Stamps the owner's characterLocation sync-subject `lastFinishedAt` — the
- * probe-controlled freshness seam behind `mapTracking.forMap`'s `feedFreshAt`
- * join. Headless probes drive the live/stale presentation states honestly
- * through this stamp: production freshness is written only by the sync
+ * Stamps the owner's characterLocation sync-subject `lastFinishedAt` and
+ * marks the fixture character covered — the probe-controlled freshness seam
+ * behind `mapTracking.feedFreshness`. Headless probes drive the live/stale
+ * presentation states honestly through this stamp: freshness counts only for
+ * covered characters, so the stamp must cover the character it feeds exactly
+ * as a real clean run would. Production freshness is written only by the sync
  * engine's apply, and this internal-fixture path is unreachable from
  * production code. Inserts a minimal idle subject when none exists yet.
  */
 async function stampSubjectFreshness(
   ctx: MutationCtx,
   userId: string,
+  characterId: number,
   lastFinishedAt: number,
 ): Promise<void> {
   const subject = await getSyncSubject(ctx.db, 'characterLocation', userId);
   if (subject !== null) {
-    await ctx.db.patch('syncSubjects', subject._id, { lastFinishedAt });
+    const covered = subject.coveredCharacterIds ?? [];
+    await ctx.db.patch('syncSubjects', subject._id, {
+      lastFinishedAt,
+      coveredCharacterIds: covered.includes(characterId)
+        ? covered
+        : [...covered, characterId],
+    });
     return;
   }
   await ctx.db.insert('syncSubjects', {
     ...newIdleSubject('characterLocation', userId),
     lastFinishedAt,
+    coveredCharacterIds: [characterId],
   });
 }
 
@@ -499,6 +509,7 @@ export const seedTrackedLocationFixture = internalMutation({
     await stampSubjectFreshness(
       ctx,
       args.userId,
+      args.characterId,
       args.feedFreshAt ?? args.transitionObservedAt,
     );
 
@@ -584,6 +595,7 @@ export const advanceTrackedLocationFixture = internalMutation({
     await stampSubjectFreshness(
       ctx,
       args.userId,
+      args.characterId,
       args.feedFreshAt ?? args.transitionObservedAt,
     );
 

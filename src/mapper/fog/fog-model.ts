@@ -5,7 +5,7 @@
 // Everything here derives from the motion layer's presentation output — the
 // same arrays `ChainSurface` renders — so fog can never disagree with the
 // drawn canvas: a node the canvas shows gets a reveal, a ghost keeps its
-// reveal for exactly its exit window, and a fogged ring-3 node contributes
+// reveal for exactly its exit window, and a fogged-ring node contributes
 // nothing (its cloud cover IS the absence of a reveal). Nothing here reads
 // Convex or writes anywhere (HC-1); identical presentation yields identical
 // fog on every client (DC-2).

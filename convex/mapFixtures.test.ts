@@ -470,7 +470,7 @@ describe('map chain fixtures', () => {
     });
 
     // ── 4.0.4.2.3 — the probe-controlled subject-freshness stamp behind
-    //    mapTracking.forMap's feedFreshAt join ─────────────────────────────
+    //    mapTracking.feedFreshness ──────────────────────────────────────────
     it('stamps the owner\'s characterLocation subject freshness on seed and advance', async () => {
       const t = convexTest(schema, modules);
       const readSubject = () =>
@@ -493,12 +493,14 @@ describe('map chain fixtures', () => {
       });
       const seeded = await readSubject();
       // Absent subject → a minimal idle row is created; the stamp defaults to
-      // the transition time.
+      // the transition time and covers the fixture character, exactly as a
+      // real clean run would — feedFreshness reads fresh only for covered ids.
       expect(seeded).toMatchObject({
         dataset: 'characterLocation',
         userId: EDITOR,
         status: 'idle',
         lastFinishedAt: NOW,
+        coveredCharacterIds: [90_404_222],
       });
 
       await t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
@@ -511,9 +513,11 @@ describe('map chain fixtures', () => {
         transitionObservedAt: NOW + 60_000,
       });
       const advanced = await readSubject();
-      // Existing subject → patched in place, never duplicated.
+      // Existing subject → patched in place, never duplicated; the covered
+      // list stays idempotent across repeated stamps of the same character.
       expect(advanced?._id).toBe(seeded?._id);
       expect(advanced?.lastFinishedAt).toBe(NOW + 60_000);
+      expect(advanced?.coveredCharacterIds).toEqual([90_404_222]);
 
       await t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
         mapId: MAP_A,

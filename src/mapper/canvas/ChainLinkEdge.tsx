@@ -91,6 +91,28 @@ export function edgePresentation(data: ChainEdgeData | undefined): {
 const ARROW_EDGE_FRACTION = 0.7;
 
 /**
+ * On a fog-truncated edge the arrow backs off to just inside the stub's tip,
+ * as a fraction of the drawn span.
+ */
+const ARROW_FOG_STUB_BACKOFF = 0.9;
+
+/**
+ * The arrow's parametric position measured from its inward (non-fogged)
+ * endpoint. A mounted edge is always drawn↔fogged (the mount resolver walks
+ * outward from the drawn set), and `chainLinkFogPath` draws exactly
+ * `FOG_EDGE_CUT_FRACTION` of the segment from the non-fogged end — so a
+ * fog-truncated edge derives the arrow's position from the SAME constant
+ * that cuts the stroke. One owner: retuning the cut moves the arrow with it,
+ * and the glyph can never float past the end of its own line.
+ */
+export function outboundArrowFraction(
+  fogSide: 'source' | 'target' | undefined,
+): number {
+  if (fogSide === undefined) return ARROW_EDGE_FRACTION;
+  return FOG_EDGE_CUT_FRACTION * ARROW_FOG_STUB_BACKOFF;
+}
+
+/**
  * The outbound pilot arrow, mounted through React Flow's edge-label seam —
  * a portal inside the viewport transform, so the arrow lives in world space
  * and scales with the map like every other canvas element. Placement flows
@@ -102,10 +124,14 @@ function OutboundArrowLabel({
   source,
   target,
   towardTarget,
+  fraction,
+  live,
 }: {
   readonly source: EdgeEndpointNode;
   readonly target: EdgeEndpointNode;
   readonly towardTarget: boolean;
+  readonly fraction: number;
+  readonly live: boolean;
 }) {
   const arrowRef = useRef<HTMLSpanElement>(null);
   const sourceFrame = endpointFrame(source);
@@ -116,7 +142,7 @@ function OutboundArrowLabel({
       : pointAlongChainLink(
           towardTarget ? sourceFrame : targetFrame,
           towardTarget ? targetFrame : sourceFrame,
-          ARROW_EDGE_FRACTION,
+          fraction,
         );
   const transform =
     point === null
@@ -135,7 +161,9 @@ function OutboundArrowLabel({
         ref={arrowRef}
         aria-hidden
         data-pilot-arrow
-        className="map-pilot-arrow text-isk"
+        // Staleness honesty on the one signal an off-map pilot has: green
+        // only while someone the arrow stands for is feed-live.
+        className={cn('map-pilot-arrow', live ? 'text-isk' : 'text-muted')}
       >
         <svg viewBox="0 0 12 12" className="size-3" fill="currentColor">
           <path d="M2 1 L11 6 L2 11 Z" />
@@ -176,6 +204,8 @@ function ChainLinkEdgeComponent({
           source={sourceNode}
           target={targetNode}
           towardTarget={arrow.towardSystemId === Number(target)}
+          fraction={outboundArrowFraction(data?.fogSide)}
+          live={arrow.live}
         />
       )}
     </>
