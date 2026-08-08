@@ -9,6 +9,23 @@
 
 ## Now
 
+- **OW progress:** `1/7 complete` — next: **Paste application and lifecycle**.
+- **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
+  fixtures covering five evidence categories; additive signature/connection
+  schema fields and death-latest index census. Focused proof: parser 5/5,
+  reject filter 1/1, schema census 1/1; `pnpm verify` passed at implementation
+  commit `fc184ee5` (5,057 passed / 1 skipped; Fallow clean over 6 changed
+  files against `71fd4846`).
+- **Next-agent notes:** Resume 4.0.4.3.1 at OW2 only. The operator supplied four
+  raw paste blocks: Sample 4 intentionally combines the partial-selection and
+  near-object `98 km` witnesses, so it covers the plan's fifth evidence
+  category without an invented paste; carry this clarification into the
+  as-built. `scan-parse.ts` owns the closed English kind/group vocabulary,
+  preserves row order, returns per-line rejects, and ignores distance.
+  `kind`/`signalPct` and `fromSignalPct`/`firstSeenAt` are additive schema
+  fields; signal values admit explicit `null`. OW2 must extend the shipped
+  merge/equality owner and promote `SIGNATURE_ACTIVITY_STALE_MS`, not create
+  parallel parser or bookkeeping owners.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -16,12 +33,10 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.2.3** is complete on
-  `lifecycle/4.0.4.2`; planned close-out is delivering the final per-session
-  PR for sub-version 4.0.4.2. After merge and production proof, update from
-  `origin/main` and rerun the resolver; expected next work is 4.0.4.3
-  signatures planning.
-- **Shipped 4.0.4.2.3 (awaiting merge):** every system is a declared 120×88
+- **CURRENT / NEXT:** session **4.0.4.3.1** is executing on
+  `lifecycle/4.0.4.3`; OW1 is complete and OW2 is next. Execute one Ordered
+  work step per `start-session` chat; OW7 owns the required UX/operator pause.
+- **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
   render honest presence in the frame, dock, and summary; authored k-space
   exits derive a bounded deterministic halo; a world-anchored canvas fogs
