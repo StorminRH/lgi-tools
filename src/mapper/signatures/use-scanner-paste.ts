@@ -8,6 +8,7 @@ import {
   isEditablePasteTarget,
   scannerPasteDecision,
   type ScannerPasteDecision,
+  type TrackedPasteTarget,
 } from './signature-model';
 
 function scanFailureMessage(error: unknown): string {
@@ -16,7 +17,7 @@ function scanFailureMessage(error: unknown): string {
     return 'Your tracked character is not in a live system on this map.';
   }
   if (detail.includes('UNTRACKED_SCAN_SYSTEM')) {
-    return 'Track your active character before pasting scanner output.';
+    return 'Track an online character before pasting scanner output.';
   }
   return 'Scanner paste was not applied. Try again.';
 }
@@ -38,15 +39,23 @@ function refusalToast(decision: Exclude<ScannerPasteDecision, { kind: 'apply' }>
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
     };
   }
-  return decision.kind === 'read-only'
-    ? {
-        message: 'Edit access is required to apply scanner output.',
-        options: { id: 'scanner-paste:read-only' },
-      }
-    : {
-        message: 'Track your active character before pasting scanner output.',
-        options: { id: 'scanner-paste:untracked' },
-      };
+  if (decision.kind === 'read-only') {
+    return {
+      message: 'Edit access is required to apply scanner output.',
+      options: { id: 'scanner-paste:read-only' },
+    };
+  }
+  if (decision.kind === 'ambiguous') {
+    return {
+      message:
+        'Tracked characters are in different systems — paste target is ambiguous.',
+      options: { id: 'scanner-paste:ambiguous', duration: 5_000 },
+    };
+  }
+  return {
+    message: 'Track an online character before pasting scanner output.',
+    options: { id: 'scanner-paste:untracked' },
+  };
 }
 
 function reportPasteDecision(
@@ -69,18 +78,18 @@ function reportPasteDecision(
 /** Owns the Atlas page's one cleaned-up document-level scanner paste listener. */
 export function useScannerPaste(input: {
   readonly canEdit: boolean;
-  readonly systemId: number | null;
+  readonly pasteTarget: TrackedPasteTarget;
   readonly applyRows: (
     systemId: number,
     rows: readonly ScannedRow[],
   ) => Promise<void>;
 }): void {
-  const { canEdit, systemId, applyRows } = input;
+  const { canEdit, pasteTarget, applyRows } = input;
   useEffect(() => {
     function handlePaste(event: ClipboardEvent): void {
       if (yieldsToFocusedSurface(event)) return;
       const text = event.clipboardData?.getData('text/plain') ?? '';
-      const decision = scannerPasteDecision(text, canEdit, systemId);
+      const decision = scannerPasteDecision(text, canEdit, pasteTarget);
       if (decision === null) return;
       event.preventDefault();
       reportPasteDecision(decision, applyRows);
@@ -88,5 +97,5 @@ export function useScannerPaste(input: {
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [applyRows, canEdit, systemId]);
+  }, [applyRows, canEdit, pasteTarget]);
 }

@@ -6,7 +6,7 @@ import type { WindowPlacement } from './window-model';
 
 function render(
   placement: WindowPlacement,
-  overrides: { showCloseButton?: boolean } = {},
+  overrides: { showCloseButton?: boolean; showHeader?: boolean } = {},
 ): string {
   return renderToStaticMarkup(
     createElement(
@@ -44,6 +44,9 @@ describe('MapWindow isolation markup', () => {
 
     expect(render({ kind: 'docked' }, { showCloseButton: false })).not.toContain(
       'Close Test window',
+    );
+    expect(render({ kind: 'docked' }, { showHeader: false })).not.toContain(
+      '>Test window<',
     );
   });
 
@@ -99,6 +102,6 @@ describe('MapWindow isolation markup', () => {
     const html = render({ kind: 'docked-bottom-left' });
     expect(html).toContain('data-map-window-placement="docked-bottom-left"');
     expect(html).toContain('bottom-4 left-4');
-    expect(html).toContain('w-[420px]');
+    expect(html).toContain('size-[min(22rem,calc(100vw-2rem))]');
   });
 });

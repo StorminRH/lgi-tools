@@ -10,9 +10,35 @@
 ## Now
 
 - **OW progress:** `6/7 complete` — OW7's automated evidence is green; the
-  **G-1 operator browser review is PENDING** (operator unavailable 2026-08-08),
-  so do not mark `7/7 complete — awaiting close-out` until the disposition
-  below is recorded.
+  **G-1 operator browser review is PENDING** (operator paused 2026-08-08 after
+  mid-session Atlas polish; more UX fixing/testing still needed before a final
+  disposition). Do not mark `7/7 complete — awaiting close-out` until the
+  disposition below is recorded.
+- **Paused mid-session polish (2026-08-08) — committed on `lifecycle/4.0.4.3`;
+  pick up here:**
+  - **Presence:** keep last-known `characterLocation` on logoff (collapse
+    retention); surface map presence only when `feedFreshAt` is non-null
+    (covered/online). Do **not** delete location to hide offline alts.
+  - **Paste target:** account-level — any online tracked character unlocks
+    paste (no longer requires Run-As active character). Same system → paste
+    there; different systems → interim ambiguous toast. Backlog note:
+    *Mapper — scanner paste multi-system disambiguation* in `docs/backlog.md`.
+  - **Scanner chrome:** headerless square `docked-bottom-left` (~22rem);
+    equal-width Signatures/Anomalies tabs (no counts); tracking intro copy
+    removed; column order ID → Group → Name → Age with narrower ID/Age,
+    Name flexing, centered headers.
+  - **Review map:** `92cba7c1-c575-4437-9c0a-995218a8a814` transferred to
+    Nimrots (`Y23MPekIMKRfjkzpicBN9RCXjgkujWvr`); root was moved toward
+    J131624 (`31001878`) with Stormin Jr (`2123732314`) tracked for paste —
+    confirm live map state on resume (earlier OW7 probe end-state may differ).
+  - **Not done / resume UX:** finish scanner window polish + visual QA;
+    re-run focused paste/presence cases; complete G-1 disposition; then
+    close-out from a fresh planned chat. Statics do **not** predraw
+    unidentified connections (not contracted; leave alone). Local
+    `.env.local` may still have short AFK timers for testing — restore prod
+    defaults before ship if still set.
+  - **Dev servers:** shut down on pause (restart with `pnpm dev:all` to
+    resume browser work).
 - **OW7 automated evidence (2026-08-08):** durable two-client probe
   `atlas-signature-lifecycle` green 18/18 on a fresh disposable map (paste →
   re-paste zero-churn → per-kind missing → dismiss/Remove-confirm/undo →
@@ -23,10 +49,9 @@
   `705764df` (4,959 passed / 1 skipped; Fallow clean over 97 session-changed
   files against `36790747`); primitive-checker CLEAN.
 - **G-1 disposition:** PENDING — operator: open `/atlas?map=92cba7c1-c575-4437-9c0a-995218a8a814`
-  (end state: origin J113551 + resolved J160650, three sig rows + one anomaly)
-  and optionally `70d1abac-…`/`ee003ccc-…` (earlier one-shot states), or run a
-  fresh pass with `UX_SIG_MAP_ID=<new map>` after seeding; record the
-  disposition here, then set `7/7 complete — awaiting close-out`.
+  (confirm current root/sig state after polish session), or run a fresh pass
+  with `UX_SIG_MAP_ID=<new map>` after seeding; record the disposition here,
+  then set `7/7 complete — awaiting close-out`.
 - **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
   fixtures covering five evidence categories; additive signature/connection
   schema fields and death-latest index census. Focused proof: parser 5/5,
@@ -80,8 +105,9 @@
 - **Next-agent notes:** `lifecycle/4.0.4.3` was rebased 2026-08-08 onto
   `origin/main` `36790747` (the Next 16.3 Instant Navigations adoption
   #373/#374/#375), by operator direction; the OW commit SHAs above are the
-  rebased equivalents. OW7's automated sweep is done — only the G-1 operator
-  disposition remains, then close-out (from a fresh chat, planned mode).
+  rebased equivalents. OW7's automated sweep is done — operator paused after
+  post-probe Atlas polish (presence/paste/scanner chrome). Resume polish + G-1
+  disposition before close-out (from a fresh chat, planned mode).
   Probe-environment gotchas hit this run: (1) `pnpm e2e:seed` resets
   `user.role` — re-grant ADMIN to `e2e-pilot` or `/atlas` shows the wall and
   `waitForEditableMap` times out; (2) seeding a disposable map needs a fresh
@@ -105,8 +131,8 @@
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
 - **CURRENT / NEXT:** session **4.0.4.3.1** is executing on
-  `lifecycle/4.0.4.3`; OW6 is complete and OW7 (the UX/operator gate) is next.
-  Execute one Ordered work step per `start-session` chat.
+  `lifecycle/4.0.4.3`; OW6 is complete; OW7 UX gate is paused mid-polish —
+  finish scanner UX + G-1 disposition, then close-out.
 - **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
   render honest presence in the frame, dock, and summary; authored k-space

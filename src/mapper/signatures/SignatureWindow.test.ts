@@ -96,16 +96,18 @@ function render(activeSystemId: number | null, missingIds: ReadonlySet<string>):
 }
 
 describe('SignatureWindow component confirmation and filter states', () => {
-  it('renders counted tabs, ID/name/group columns, and the bottom-left primitive', () => {
+  it('renders counted tabs, ID/group/name columns, and the bottom-left primitive', () => {
     const html = render(1, new Set());
     expect(html).toContain('data-map-window="signatures"');
     expect(html).toContain('data-map-window-placement="docked-bottom-left"');
     expect(html).toContain('data-tabs-default="signature"');
-    expect(html).toContain('Signatures 1');
-    expect(html).toContain('Anomalies 1');
+    expect(html).toContain('Signatures');
+    expect(html).toContain('Anomalies');
     expect(html).toContain('ABC-123');
     expect(html).toContain('Forgotten Frontier');
     expect(html).toContain('data-signature-signal-fill');
+    expect(html).not.toContain('>Scanner<');
+    expect(html).not.toContain('Track an online character');
   });
 
   it('highlights a missing row behind Remove/dismiss confirmation affordances', () => {
@@ -117,9 +119,12 @@ describe('SignatureWindow component confirmation and filter states', () => {
     expect(html).toContain('data-confirm-label="Remove"');
   });
 
-  it('renders the untracked refusal state without retargeting to a selected node', () => {
+  it('keeps the window when untracked without retargeting to a selected node', () => {
     const html = render(null, new Set());
-    expect(html).toContain('Track your active character on this map');
+    expect(html).toContain('data-map-window="signatures"');
+    expect(html).toContain('Signatures');
+    expect(html).toContain('Anomalies');
     expect(html).not.toContain('data-signature-id="ABC-123"');
+    expect(html).not.toContain('Track an online character');
   });
 });

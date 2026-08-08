@@ -29,7 +29,6 @@ import { MapWindow } from '../windows/MapWindow';
 import {
   filterSignatureRows,
   formatSignatureAge,
-  signatureCounts,
   type SignatureWindowRow,
 } from './signature-model';
 import { WormholeRowEditor } from './WormholeRowEditor';
@@ -111,6 +110,9 @@ function rowActionLabel(row: SignatureWindowRow): string {
     : `Edit wormhole ${row.signatureId}`;
 }
 
+const SIGNATURE_ROW_COLS =
+  'grid w-full grid-cols-[3.75rem_5.75rem_minmax(0,1fr)_2.25rem] items-center gap-2';
+
 function SignatureRowContent({
   row,
   editable,
@@ -122,8 +124,7 @@ function SignatureRowContent({
   readonly onOpenActions: OpenRowActions;
   readonly children: ReactNode;
 }) {
-  const className =
-    'relative z-base grid w-full grid-cols-[4.75rem_minmax(0,1fr)_6.5rem_3rem] items-center gap-2 text-left';
+  const className = cn('relative z-base text-left', SIGNATURE_ROW_COLS);
   if (!editable) return <div className={className}>{children}</div>;
   return (
     <Button
@@ -210,10 +211,10 @@ function SignatureRow({
         editable={editable}
         onOpenActions={onOpenActions}
       >
-        <span className="text-isk">{row.signatureId}</span>
-        <span className="truncate text-name">{signatureName(row)}</span>
+        <span className="text-center text-isk tabular-nums">{row.signatureId}</span>
         <span className="truncate text-muted">{signatureGroup(row)}</span>
-        <span className="text-right text-muted">
+        <span className="truncate text-name">{signatureName(row)}</span>
+        <span className="text-center text-muted tabular-nums">
           {formatSignatureAge(row.firstSeenAt, now)}
         </span>
       </SignatureRowContent>
@@ -258,12 +259,15 @@ function SignatureTable({
     <div className="flex flex-col gap-1.5">
       <div
         aria-hidden
-        className="grid grid-cols-[4.75rem_minmax(0,1fr)_6.5rem_3rem] gap-2 px-2 font-ui text-label uppercase tracking-label text-muted"
+        className={cn(
+          SIGNATURE_ROW_COLS,
+          'px-2 font-ui text-label uppercase tracking-label text-muted',
+        )}
       >
-        <span>ID</span>
-        <span>Name</span>
-        <span>Group</span>
-        <span className="text-right">Age</span>
+        <span className="text-center">ID</span>
+        <span className="text-center">Group</span>
+        <span className="text-center">Name</span>
+        <span className="text-center">Age</span>
       </div>
       {rows.length === 0 ? (
         <p
@@ -350,35 +354,37 @@ function tableForKind(kind: ScannedKind, props: ScannerWindowFrameProps) {
 }
 
 function ScannerWindowFrame(props: ScannerWindowFrameProps) {
-  const counts = signatureCounts(props.rows, props.activeSystemId);
   return (
     <MapWindow
       windowId="signatures"
       title="Scanner"
       placement={{ kind: 'docked-bottom-left' }}
       stackIndex={1}
+      showHeader={false}
       showCloseButton={false}
       onClose={() => undefined}
       onActivate={() => undefined}
     >
-      <div data-signature-window className="flex flex-col gap-2">
-        <p className="font-data text-micro text-muted">
-          {props.activeSystemId === null
-            ? 'Track your active character on this map to paste scanner output.'
-            : `Current system ${props.activeSystemId}`}
-        </p>
+      <div
+        data-signature-window
+        className="flex min-h-0 flex-1 flex-col"
+      >
         <Tabs
           label="Scanner row kinds"
           defaultValue="signature"
+          className="flex min-h-0 flex-1 flex-col"
+          listClassName="w-full shrink-0 gap-0"
+          tabClassName="flex flex-1 justify-center px-2 text-center"
+          panelClassName="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-2"
           tabs={[
             {
               value: 'signature',
-              label: `Signatures ${counts.signatures}`,
+              label: 'Signatures',
               content: tableForKind('signature', props),
             },
             {
               value: 'anomaly',
-              label: `Anomalies ${counts.anomalies}`,
+              label: 'Anomalies',
               content: tableForKind('anomaly', props),
             },
           ]}

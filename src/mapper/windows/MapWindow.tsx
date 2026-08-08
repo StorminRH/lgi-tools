@@ -44,6 +44,8 @@ export interface MapWindowProps {
   readonly onClose: () => void;
   /** When false, the title-bar × is omitted (outside-click / Escape still close). */
   readonly showCloseButton?: boolean;
+  /** When false, the title bar is omitted (tabs or other chrome may lead). */
+  readonly showHeader?: boolean;
   /**
    * `panel` is the frosted interactive card chrome. `overlay` is a
    * content-sized passive text surface (current-system dock) — faint glass,
@@ -82,7 +84,8 @@ function placementClassName(
       : 'left-4 top-4 bottom-16 w-[360px] max-w-[calc(100vw-2rem)]';
   }
   if (placement.kind === 'docked-bottom-left') {
-    return 'bottom-4 left-4 h-[min(25rem,calc(100dvh-7rem))] w-[420px] max-w-[calc(100vw-2rem)]';
+    // Square sibling for the scanner: tabs own top-left chrome; list scrolls inside.
+    return 'bottom-4 left-4 size-[min(22rem,calc(100vw-2rem))] max-h-[calc(100dvh-7rem)]';
   }
   // node-anchored and edge-anchored both ride `--map-window-transform`.
   if (placement.kind === 'edge-anchored') {
@@ -145,6 +148,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       stackIndex,
       onClose,
       showCloseButton = true,
+      showHeader = true,
       appearance = 'panel',
       onActivate,
       children,
@@ -200,22 +204,29 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         onKeyDown={overlay ? undefined : handleKeyDown}
         onPointerDown={overlay ? undefined : onActivate}
       >
-        <WindowHeader
-          title={title}
-          overlay={overlay}
-          showCloseButton={showCloseButton}
-          onClose={onClose}
-        />
+        {showHeader ? (
+          <WindowHeader
+            title={title}
+            overlay={overlay}
+            showCloseButton={showCloseButton}
+            onClose={onClose}
+          />
+        ) : null}
         <div
           data-map-window-scroll
           className={cn(
             scrollArea,
-            'min-h-0 flex-1 overflow-y-auto overscroll-contain',
+            'min-h-0 flex-1 overscroll-contain',
+            placement.kind === 'docked-bottom-left'
+              ? 'flex flex-col overflow-hidden p-0'
+              : 'overflow-y-auto',
             overlay
               ? 'px-2.5 pb-2 pt-0.5 text-left'
-              : // pl compensates the painted 10px track when both-edges is ignored
-                // (some engines only reserve the classic right gutter).
-                'py-2 pl-[22px] pr-3',
+              : placement.kind === 'docked-bottom-left'
+                ? null
+                : // pl compensates the painted 10px track when both-edges is ignored
+                  // (some engines only reserve the classic right gutter).
+                  'py-2 pl-[22px] pr-3',
           )}
         >
           {children}

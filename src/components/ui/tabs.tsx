@@ -26,6 +26,9 @@ export function Tabs({
   defaultValue,
   onValueChange,
   className,
+  listClassName,
+  tabClassName,
+  panelClassName,
 }: {
   tabs: readonly TabOption[];
   label: string;
@@ -33,6 +36,9 @@ export function Tabs({
   defaultValue?: string;
   onValueChange?: (value: string) => void;
   className?: string;
+  listClassName?: string;
+  tabClassName?: string;
+  panelClassName?: string;
 }) {
   return (
     <Base.Root
@@ -41,13 +47,22 @@ export function Tabs({
       onValueChange={(next) => onValueChange?.(String(next))}
       className={className}
     >
-      <Base.List aria-label={label} className="relative flex gap-0.5 border-b border-border">
+      <Base.List
+        aria-label={label}
+        className={cn(
+          'relative flex gap-0.5 border-b border-border',
+          listClassName,
+        )}
+      >
         {tabs.map((tab) => (
           <Base.Tab
             key={tab.value}
             value={tab.value}
             disabled={tab.disabled}
-            className="relative px-3.5 py-2 font-ui text-nav text-muted outline-none hover:text-text focus-visible:text-name focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub data-[active]:text-name disabled:opacity-40"
+            className={cn(
+              'relative px-3.5 py-2 font-ui text-nav text-muted outline-none hover:text-text focus-visible:text-name focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub data-[active]:text-name disabled:opacity-40',
+              tabClassName,
+            )}
           >
             {tab.label}
           </Base.Tab>
@@ -58,7 +73,10 @@ export function Tabs({
         <Base.Panel
           key={tab.value}
           value={tab.value}
-          className={cn('px-0.5 py-3.5 font-ui text-ui text-text outline-none')}
+          className={cn(
+            'px-0.5 py-3.5 font-ui text-ui text-text outline-none',
+            panelClassName,
+          )}
         >
           {tab.content}
         </Base.Panel>

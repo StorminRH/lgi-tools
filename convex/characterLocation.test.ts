@@ -398,6 +398,7 @@ describe('characterLocation.applySyncResults', () => {
           etagShip: 'ship',
           expiresAt: WINDOW,
           error: null,
+          online: true,
         },
       ],
     });
@@ -662,6 +663,47 @@ describe('characterLocation.applySyncResults', () => {
         .unique(),
     );
     expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
+  });
+
+  it('keeps held location when the pilot is logged off', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow());
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
+    });
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_B,
+          solarSystemId: null,
+          stationId: null,
+          structureId: null,
+          shipTypeId: null,
+          systemChanged: false,
+          etagLocation: null,
+          etagShip: null,
+          expiresAt: WINDOW + 55_000,
+          error: null,
+          online: false,
+          etagOnline: 'on1',
+          onlineExpiresAt: WINDOW + 55_000,
+        },
+      ],
+    });
+
+    const remaining = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocation')
+        .withIndex('by_user_character', (q) =>
+          q.eq('userId', USER).eq('characterId', CHAR_B),
+        )
+        .unique(),
+    );
+    expect(remaining).toMatchObject({
+      characterId: CHAR_B,
+      solarSystemId: locationDoc(USER, CHAR_B).solarSystemId,
+    });
   });
 
   it('upserts the held online-probe row only on a fresh probe read', async () => {

@@ -102,19 +102,26 @@ test('presence honesty: feed freshness decides live vs stale', () => {
   const nullEntry = derive(
     [row({ characterId: 1, transitionObservedAt: OLD, observedAt: OLD })],
     { freshness: new Map([[1, null]]) },
-  ).get(JITA)?.pilots[0];
+  );
   const missingEntry = derive(
     [row({ characterId: 1, transitionObservedAt: OLD, observedAt: OLD })],
     { freshness: new Map() },
-  ).get(JITA)?.pilots[0];
-  expect(nullEntry?.state).toBe('stale');
-  expect(missingEntry?.state).toBe('stale');
-  expect(nullEntry && presenceStatusWord(nullEntry)).toBe('Stale');
+  );
+  // Uncovered (logged off / not sampled): last-known location must not surface.
+  expect(nullEntry.size).toBe(0);
+  expect(missingEntry.size).toBe(0);
 
-  // A change the feed just wrote IS an observation while freshness is cold.
+  // Recent observedAt alone cannot resurrect an uncovered pilot.
   expect(
     derive([row({ characterId: 1, observedAt: NOW - 30_000 })], {
       freshness: new Map([[1, null]]),
+    }).size,
+  ).toBe(0);
+
+  // Covered + recent observation stays live even when the bucket is aging.
+  expect(
+    derive([row({ characterId: 1, observedAt: NOW - 30_000 })], {
+      freshness: new Map([[1, NOW - PRESENCE_FEED_STALE_AFTER_MS - 1]]),
     }).get(JITA)?.pilots[0]?.state,
   ).toBe('live');
 });
@@ -150,14 +157,30 @@ test('presence honesty: AFK marks own pilots only and yields to staleness', () =
         observedAt: OLD,
       }),
     ],
-    { ownCharacterIds: [1], ownAfk: true, freshness: new Map([[1, null]]) },
+    {
+      ownCharacterIds: [1],
+      ownAfk: true,
+      freshness: new Map([[1, NOW - PRESENCE_FEED_STALE_AFTER_MS - 1]]),
+    },
   ).get(JITA)?.pilots[0];
   const afkDocked = derive([row({ characterId: 1, stationId: 60_003_760 })], {
     ownCharacterIds: [1],
     ownAfk: true,
   }).get(JITA)?.pilots[0];
+  const uncoveredAfk = derive(
+    [
+      row({
+        characterId: 1,
+        stationId: 60_003_760,
+        transitionObservedAt: OLD,
+        observedAt: OLD,
+      }),
+    ],
+    { ownCharacterIds: [1], ownAfk: true, freshness: new Map([[1, null]]) },
+  );
   expect(staleAfkDocked && presenceStatusWord(staleAfkDocked)).toBe('Stale');
   expect(afkDocked && presenceStatusWord(afkDocked)).toBe('AFK');
+  expect(uncoveredAfk.size).toBe(0);
 });
 
 test('presence shape groups, dedupes, isolates owners, and labels friendlies', () => {
@@ -191,7 +214,7 @@ test('presence shape groups, dedupes, isolates owners, and labels friendlies', (
     ],
     freshness: new Map<string, ReadonlyMap<number, number | null>>([
       ['fresh-owner', new Map([[1, NOW - 1_000]])],
-      ['stale-owner', new Map([[1, null]])],
+      ['stale-owner', new Map([[1, NOW - PRESENCE_FEED_STALE_AFTER_MS - 1]])],
     ]),
     now: NOW,
     ownCharacterIds: [],
@@ -199,18 +222,52 @@ test('presence shape groups, dedupes, isolates owners, and labels friendlies', (
   });
   expect(isolated.get(JITA)?.pilots[0]?.state).toBe('stale');
 
+  const uncoveredIsolated = derivePresence({
+    tracked: [
+      row({
+        userId: 'offline-owner',
+        characterId: 1,
+        transitionObservedAt: OLD,
+        observedAt: OLD,
+      }),
+    ],
+    freshness: new Map<string, ReadonlyMap<number, number | null>>([
+      ['offline-owner', new Map([[1, null]])],
+    ]),
+    now: NOW,
+    ownCharacterIds: [],
+    ownAfk: false,
+  });
+  expect(uncoveredIsolated.size).toBe(0);
+
   const pilots =
     derive(
       [
         row({ characterId: 7 }),
         row({ characterId: 8, transitionObservedAt: OLD, observedAt: OLD }),
       ],
-      { freshness: new Map([[7, NOW - 1_000], [8, null]]) },
+      {
+        freshness: new Map([
+          [7, NOW - 1_000],
+          [8, NOW - PRESENCE_FEED_STALE_AFTER_MS - 1],
+        ]),
+      },
     ).get(JITA)?.pilots ?? [];
   expect(friendlyRows(pilots, { '7': 'E2E Pilot' })).toEqual([
     { characterId: 7, label: 'E2E Pilot', word: 'In space' },
     { characterId: 8, label: '8', word: 'Stale' },
   ]);
+  expect(
+    derive(
+      [
+        row({ characterId: 7 }),
+        row({ characterId: 8, transitionObservedAt: OLD, observedAt: OLD }),
+      ],
+      { freshness: new Map([[7, NOW - 1_000], [8, null]]) },
+    )
+      .get(JITA)
+      ?.pilots.map((pilot) => pilot.characterId),
+  ).toEqual([7]);
 
   const quiet = { transitionObservedAt: OLD, observedAt: OLD } as const;
   const live = derive(
@@ -226,6 +283,8 @@ test('presence shape groups, dedupes, isolates owners, and labels friendlies', (
       ]),
     },
   ).get(JITA);
+  expect(live?.pilots.map((pilot) => pilot.characterId)).toEqual([2]);
+  expect(stale?.pilots.map((pilot) => pilot.characterId)).toEqual([2]);
   expect(live && presenceBadgeTone(live)).toBe('green');
   expect(stale && presenceBadgeTone(stale)).toBe('neutral');
 });
@@ -242,7 +301,8 @@ test('payload path indexes freshness and threads AFK through cold subscriptions'
     NOW,
     false,
   );
-  expect(cold.get(JITA)?.pilots[0]?.state).toBe('stale');
+  // Cold freshness: coverage unknown → do not paint last-known location.
+  expect(cold.size).toBe(0);
 
   const threaded = derivePresenceFromPayload(
     { tracked: [row({ characterId: 7 })], ownTrackedCharacterIds: [7] },

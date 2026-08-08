@@ -477,6 +477,20 @@ happy path. Hooking Worker construction in the Vitest environment is a separate
 test-harness slice. *Size:* S. *Trigger:* the next mapper reliability or
 component-test-stack pass that already mounts client hooks.
 
+## Mapper — scanner paste multi-system disambiguation
+
+- **Paste target when online tracked alts sit in different systems** (operator
+  direction 2026-08-08). *What:* account-level paste now unlocks when any online
+  tracked character has a covered location, and refuses with an ambiguous toast
+  when two+ distinct systems are eligible. Replace that interim refusal with an
+  explicit disambiguation rule or UI (e.g. prefer a chosen scout, most-recent
+  movement, or a one-shot system picker) so multi-alt fleets can paste without
+  untracking. Keep paste-into-selected-system out unless that plan ruling
+  changes. *Why deferred:* common case is one system; product choice for the
+  multi-system rule was not made with this fix. *Size:* S–M. *Trigger:* first
+  time multi-alt / multi-system paste becomes a real operator pain, or the next
+  Atlas signatures polish pass.
+
 ## Mapper — heavy ChainHost decomposition
 
 **What:** split the mapper's single re-render root. `ChainLive` (in

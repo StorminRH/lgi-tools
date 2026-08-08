@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from '@/components/ui/toast';
-import { useActiveCharacterId } from '@/components/use-account-characters';
 import { api } from '@/data/convex/api';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
@@ -15,12 +14,15 @@ import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
+import { feedFreshnessIndex } from '../tracking/presence-model';
 import { SignatureRowsProvider } from './signature-context';
 import {
   buildSignatureRows,
-  trackedPasteSystem,
+  trackedPasteSystemId,
+  trackedPasteTarget,
   type ConnectionSignatureInput,
   type SignatureWindowRow,
+  type TrackedPasteTarget,
 } from './signature-model';
 import { announceSignatureRemoval } from './signature-toast';
 import { SignatureWindow } from './SignatureWindow';
@@ -29,7 +31,7 @@ import { useScannerPaste } from './use-scanner-paste';
 const SIGNATURE_PAGE_SIZE = 100;
 const SIGNATURE_AGE_TICK_MS = 60_000;
 const EMPTY_MISSING: ReadonlySet<string> = new Set();
-const EMPTY_TRACKING = { ownTrackedCharacterIds: [], tracked: [] } as const;
+const NONE_TARGET: TrackedPasteTarget = { kind: 'none' };
 
 interface MissingSignatures {
   readonly bySystem: ReadonlyMap<number, ReadonlySet<string>>;
@@ -87,15 +89,20 @@ function useIdentifySignature(mapId: string) {
   );
 }
 
-function useTrackedPasteSystem(mapId: string): number | null {
+function useTrackedPasteTarget(mapId: string): TrackedPasteTarget {
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const characterId = useActiveCharacterId();
-  const activeTracking = tracking ?? EMPTY_TRACKING;
-  return trackedPasteSystem({
-    characterId,
-    ownTrackedCharacterIds: activeTracking.ownTrackedCharacterIds,
-    tracked: activeTracking.tracked,
-  });
+  const freshness = useLiveValue(api.mapTracking.feedFreshness, { mapId });
+  return useMemo(
+    () =>
+      tracking === undefined
+        ? NONE_TARGET
+        : trackedPasteTarget({
+            ownTrackedCharacterIds: tracking.ownTrackedCharacterIds,
+            tracked: tracking.tracked,
+            freshness: feedFreshnessIndex(freshness),
+          }),
+    [tracking, freshness],
+  );
 }
 
 function useSignatureClock(active: boolean): number {
@@ -209,10 +216,11 @@ export function SignatureProvider({
     connectionDetails,
     unresolvedHoles,
   );
-  const activeSystemId = useTrackedPasteSystem(mapId);
+  const pasteTarget = useTrackedPasteTarget(mapId);
+  const activeSystemId = trackedPasteSystemId(pasteTarget);
   const { bySystem: missingBySystem, replace, clear } = useMissingSignatures();
   const applyRows = useApplySignatureScan(mapId, replace);
-  useScannerPaste({ canEdit, systemId: activeSystemId, applyRows });
+  useScannerPaste({ canEdit, pasteTarget, applyRows });
   const removeRow = useRemoveSignature(mapId, clear);
   const identifyRow = useIdentifySignature(mapId);
   const now = useSignatureClock(rows.length > 0);

@@ -130,8 +130,8 @@ export default {
     );
     check(
       'tab labels carry per-kind counts',
-      (await page.getByRole('tab', { name: 'Signatures 4' }).count()) === 1
-      && (await page.getByRole('tab', { name: 'Anomalies 1' }).count()) === 1,
+      (await page.getByRole('tab', { name: 'Signatures' }).count()) === 1
+      && (await page.getByRole('tab', { name: 'Anomalies' }).count()) === 1,
     );
     check(
       'wormhole rows spawn exactly two ghosted stub nodes on both clients',

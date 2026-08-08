@@ -8,11 +8,25 @@ import {
   isScannerPasteCandidate,
   scannerPasteDecision,
   signatureCounts,
-  trackedPasteSystem,
+  trackedPasteSystemId,
+  trackedPasteTarget,
   type ConnectionSignatureInput,
+  type TrackedPasteTarget,
 } from './signature-model';
 
 const SYSTEM = 31_000_001;
+const OWNER = 'owner';
+const READY: TrackedPasteTarget = { kind: 'ready', systemId: SYSTEM };
+const NONE: TrackedPasteTarget = { kind: 'none' };
+const AMBIGUOUS: TrackedPasteTarget = { kind: 'ambiguous' };
+
+function freshness(
+  entries: readonly { characterId: number; feedFreshAt: number | null }[],
+): ReadonlyMap<string, ReadonlyMap<number, number | null>> {
+  return new Map([
+    [OWNER, new Map(entries.map((entry) => [entry.characterId, entry.feedFreshAt]))],
+  ]);
+}
 
 function signature(
   partial: Partial<Doc<'mapSignatures'>> & { signatureId: string },
@@ -107,32 +121,83 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(formatSignatureAge(1_000, 2 * 24 * 60 * 60_000 + 1_000)).toBe('2d');
   });
 
-  it('targets only the active character and refuses untracked or locationless state', () => {
+  it('targets any online tracked pilot and refuses offline, empty, or multi-system state', () => {
     const tracked = [
-      { characterId: 7, location: { solarSystemId: SYSTEM } },
-      { characterId: 8, location: { solarSystemId: SYSTEM + 1 } },
+      {
+        userId: OWNER,
+        characterId: 7,
+        location: { solarSystemId: SYSTEM },
+      },
+      {
+        userId: OWNER,
+        characterId: 8,
+        location: { solarSystemId: SYSTEM + 1 },
+      },
     ];
     expect(
-      trackedPasteSystem({
-        characterId: 7,
+      trackedPasteTarget({
         ownTrackedCharacterIds: [7, 8],
         tracked,
+        freshness: freshness([
+          { characterId: 7, feedFreshAt: 1 },
+          { characterId: 8, feedFreshAt: null },
+        ]),
       }),
-    ).toBe(SYSTEM);
+    ).toEqual({ kind: 'ready', systemId: SYSTEM });
     expect(
-      trackedPasteSystem({
-        characterId: 9,
+      trackedPasteTarget({
         ownTrackedCharacterIds: [7, 8],
         tracked,
+        freshness: freshness([
+          { characterId: 7, feedFreshAt: 1 },
+          { characterId: 8, feedFreshAt: 1 },
+        ]),
       }),
-    ).toBeNull();
+    ).toEqual({ kind: 'ambiguous' });
     expect(
-      trackedPasteSystem({
-        characterId: 7,
+      trackedPasteTarget({
+        ownTrackedCharacterIds: [7, 8],
+        tracked: [
+          {
+            userId: OWNER,
+            characterId: 7,
+            location: { solarSystemId: SYSTEM },
+          },
+          {
+            userId: OWNER,
+            characterId: 8,
+            location: { solarSystemId: SYSTEM },
+          },
+        ],
+        freshness: freshness([
+          { characterId: 7, feedFreshAt: 1 },
+          { characterId: 8, feedFreshAt: 1 },
+        ]),
+      }),
+    ).toEqual({ kind: 'ready', systemId: SYSTEM });
+    expect(
+      trackedPasteTarget({
         ownTrackedCharacterIds: [7],
-        tracked: [{ characterId: 7, location: null }],
+        tracked: [{ userId: OWNER, characterId: 7, location: null }],
+        freshness: freshness([{ characterId: 7, feedFreshAt: 1 }]),
       }),
-    ).toBeNull();
+    ).toEqual({ kind: 'none' });
+    expect(
+      trackedPasteTarget({
+        ownTrackedCharacterIds: [7],
+        tracked: [
+          {
+            userId: OWNER,
+            characterId: 7,
+            location: { solarSystemId: SYSTEM },
+          },
+        ],
+        freshness: freshness([{ characterId: 7, feedFreshAt: null }]),
+      }),
+    ).toEqual({ kind: 'none' });
+    expect(trackedPasteSystemId(READY)).toBe(SYSTEM);
+    expect(trackedPasteSystemId(NONE)).toBeNull();
+    expect(trackedPasteSystemId(AMBIGUOUS)).toBeNull();
   });
 
   it('claims scanner-shaped text while leaving ordinary clipboard text alone', () => {
@@ -150,10 +215,11 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     const valid =
       'ABC-123\tCosmic Signature\tWormhole\tUnstable Wormhole\t100%\t1 AU';
 
-    expect(scannerPasteDecision('ordinary clipboard text', true, SYSTEM)).toBeNull();
-    expect(scannerPasteDecision(valid, false, SYSTEM)).toEqual({ kind: 'read-only' });
-    expect(scannerPasteDecision(valid, true, null)).toEqual({ kind: 'untracked' });
-    expect(scannerPasteDecision(valid, true, SYSTEM)).toMatchObject({
+    expect(scannerPasteDecision('ordinary clipboard text', true, READY)).toBeNull();
+    expect(scannerPasteDecision(valid, false, READY)).toEqual({ kind: 'read-only' });
+    expect(scannerPasteDecision(valid, true, NONE)).toEqual({ kind: 'untracked' });
+    expect(scannerPasteDecision(valid, true, AMBIGUOUS)).toEqual({ kind: 'ambiguous' });
+    expect(scannerPasteDecision(valid, true, READY)).toMatchObject({
       kind: 'apply',
       systemId: SYSTEM,
       rows: [{ signatureId: 'ABC-123', group: 'Wormhole' }],
@@ -162,7 +228,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       scannerPasteDecision(
         'ABC-123\tUnexpected Kind\tUnknown\t\t100%\t1 AU',
         true,
-        SYSTEM,
+        READY,
       ),
     ).toMatchObject({ kind: 'reject', rejectCount: 1 });
   });

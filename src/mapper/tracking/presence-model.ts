@@ -6,12 +6,13 @@
 // owner + character by the `mapTracking.feedFreshness` subscription
 // (quantized to 60s buckets so the hot per-run subject stamp cannot churn the
 // wire), and non-null only when the owner's last run actually covered that
-// character.
-// A RECENT `observedAt` is the one exception to its untrustworthiness: a
-// location change the feed just wrote proves the feed observed the character
-// at that moment, so fresh movement also reads live (cold freshness
-// subscription, just-jumped pilot). A pilot with neither signal is `stale` —
-// the model never claims online/offline knowledge it does not have.
+// character (online + location/304 observed). A null `feedFreshAt` means the
+// pilot is not currently covered — logged off or not sampled — so presence
+// does not surface them even when a last-known `characterLocation` still
+// exists for collapse retention.
+// A RECENT `observedAt` upgrades a covered pilot to `live` while the
+// freshness bucket is still aging in: a change the feed just wrote proves
+// observation at that moment. Coverage is still required to appear at all.
 //
 // Pure and clock-injected so the SC-3.1 state matrix is a unit test; the
 // provider owns subscriptions and timers.
@@ -78,20 +79,17 @@ export interface PresenceInput {
 }
 
 /**
- * A pilot is live on either honest signal: the covered feed bucket is fresh
- * (the owner's last run sampled this character), or the location document
- * itself changed recently — a change the feed just wrote IS proof it observed
- * the character at that moment, which keeps a just-jumped pilot live while
- * the freshness subscription is still cold and can never resurrect a pilot
- * whose feed has actually gone quiet.
+ * A covered pilot is live when the feed bucket is still within the stale
+ * window, or when the location document itself changed recently — a change
+ * the feed just wrote IS proof it observed the character at that moment.
+ * Callers must only invoke this for covered pilots (`feedFreshAt !== null`).
  */
 function presenceState(
-  feedFreshAt: number | null,
+  feedFreshAt: number,
   observedAt: number,
   now: number,
 ): PresenceState {
-  const freshFeed =
-    feedFreshAt !== null && now - feedFreshAt <= PRESENCE_FEED_STALE_AFTER_MS;
+  const freshFeed = now - feedFreshAt <= PRESENCE_FEED_STALE_AFTER_MS;
   const freshObservation = now - observedAt <= PRESENCE_FEED_STALE_AFTER_MS;
   return freshFeed || freshObservation ? 'live' : 'stale';
 }
@@ -105,9 +103,11 @@ function betterPilot(a: PresencePilot, b: PresencePilot): PresencePilot {
 /**
  * Derives per-system pilot presence from `forMap` rows. Rows without a joined
  * location contribute nothing (a forged row names a document it cannot read);
- * duplicate character ids collapse to their freshest evidence; output order
- * is deterministic (pilots sorted by character id) so renders and probes see
- * a stable shape for identical inputs.
+ * rows whose owner feed did not cover the character (`feedFreshAt` null /
+ * missing) stay off the map even when last-known location remains; duplicate
+ * character ids collapse to their freshest evidence; output order is
+ * deterministic (pilots sorted by character id) so renders and probes see a
+ * stable shape for identical inputs.
  */
 export function derivePresence(input: PresenceInput): ReadonlyMap<number, SystemPresence> {
   const own = new Set(input.ownCharacterIds);
@@ -115,13 +115,16 @@ export function derivePresence(input: PresenceInput): ReadonlyMap<number, System
 
   for (const row of input.tracked) {
     if (row.location === null) continue;
+    const feedFreshAt =
+      input.freshness.get(row.userId)?.get(row.characterId) ?? null;
+    if (feedFreshAt === null) continue;
     const pilot: PresencePilot = {
       characterId: row.characterId,
       shipTypeId: row.location.shipTypeId,
       docked: row.location.stationId !== null || row.location.structureId !== null,
       lastMovementAt: row.location.transitionObservedAt ?? row.location.observedAt,
       state: presenceState(
-        input.freshness.get(row.userId)?.get(row.characterId) ?? null,
+        feedFreshAt,
         row.location.observedAt,
         input.now,
       ),

@@ -38,7 +38,18 @@ export type ScannerPasteDecision =
   | { readonly kind: 'apply'; readonly systemId: number; readonly rows: readonly ScannedRow[] }
   | { readonly kind: 'reject'; readonly rejectCount: number }
   | { readonly kind: 'read-only' }
-  | { readonly kind: 'untracked' };
+  | { readonly kind: 'untracked' }
+  | { readonly kind: 'ambiguous' };
+
+/**
+ * Account-level paste target from the caller's online tracked pilots.
+ * `ambiguous` is the interim refusal when two+ online tracked pilots sit in
+ * different systems (backlog: multi-system paste disambiguation).
+ */
+export type TrackedPasteTarget =
+  | { readonly kind: 'ready'; readonly systemId: number }
+  | { readonly kind: 'none' }
+  | { readonly kind: 'ambiguous' };
 
 const EMPTY_COUNTS: SignatureCounts = { signatures: 0, anomalies: 0 };
 
@@ -143,24 +154,40 @@ export function formatSignatureAge(firstSeenAt: number, now: number): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-/** Resolves the active signed-in character's owned tracked location. */
-export function trackedPasteSystem(input: {
-  readonly characterId: number | null;
+/**
+ * Resolves the paste/signature-window system from the account's online tracked
+ * pilots on this map. Coverage (`feedFreshAt` non-null) is the online gate —
+ * last-known location alone must not unlock paste for a logged-off alt.
+ */
+export function trackedPasteTarget(input: {
   readonly ownTrackedCharacterIds: readonly number[];
   readonly tracked: readonly {
+    readonly userId: string;
     readonly characterId: number;
     readonly location: { readonly solarSystemId: number } | null;
   }[];
-}): number | null {
-  if (
-    input.characterId === null ||
-    !input.ownTrackedCharacterIds.includes(input.characterId)
-  ) {
-    return null;
+  /** Per-owner-character quantized feed freshness; null/missing = not covered. */
+  readonly freshness: ReadonlyMap<string, ReadonlyMap<number, number | null>>;
+}): TrackedPasteTarget {
+  const own = new Set(input.ownTrackedCharacterIds);
+  const systems = new Set<number>();
+  for (const row of input.tracked) {
+    if (!own.has(row.characterId) || row.location === null) continue;
+    const feedFreshAt =
+      input.freshness.get(row.userId)?.get(row.characterId) ?? null;
+    if (feedFreshAt === null) continue;
+    systems.add(row.location.solarSystemId);
   }
-  return input.tracked.find(
-    (row) => row.characterId === input.characterId && row.location !== null,
-  )?.location?.solarSystemId ?? null;
+  if (systems.size === 0) return { kind: 'none' };
+  if (systems.size > 1) return { kind: 'ambiguous' };
+  const systemId = systems.values().next().value;
+  if (systemId === undefined) return { kind: 'none' };
+  return { kind: 'ready', systemId };
+}
+
+/** System id for window filtering when the paste target is unambiguous. */
+export function trackedPasteSystemId(target: TrackedPasteTarget): number | null {
+  return target.kind === 'ready' ? target.systemId : null;
 }
 
 /** Whether a document paste target owns normal text insertion. */
@@ -183,7 +210,7 @@ export function isScannerPasteCandidate(text: string): boolean {
 export function scannerPasteDecision(
   text: string,
   canEdit: boolean,
-  systemId: number | null,
+  target: TrackedPasteTarget,
 ): ScannerPasteDecision | null {
   if (!isScannerPasteCandidate(text)) return null;
   const parsed = parseScannerPaste(text);
@@ -191,6 +218,7 @@ export function scannerPasteDecision(
     return { kind: 'reject', rejectCount: parsed.rejects.length };
   }
   if (!canEdit) return { kind: 'read-only' };
-  if (systemId === null) return { kind: 'untracked' };
-  return { kind: 'apply', systemId, rows: parsed.rows };
+  if (target.kind === 'none') return { kind: 'untracked' };
+  if (target.kind === 'ambiguous') return { kind: 'ambiguous' };
+  return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
 }
