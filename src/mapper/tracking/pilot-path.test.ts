@@ -42,6 +42,7 @@ test('derivePilotPath returns inclusive paths and nulls past the jump bound', ()
     }),
   ).toEqual([11]);
 
+  // 34 is 15 jumps out — exactly at the bound; 35 is 16 — one past it.
   expect(PILOT_PATH_MAX_JUMPS).toBe(15);
   expect(
     derivePilotPath({

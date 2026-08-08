@@ -73,7 +73,7 @@ function derive(
   });
 }
 
-test('presence honesty: live/stale/docked/AFK precedence and location-as-proof', () => {
+test('presence honesty: feed freshness decides live vs stale', () => {
   const stationary = derive(
     [
       row({
@@ -117,7 +117,9 @@ test('presence honesty: live/stale/docked/AFK precedence and location-as-proof',
       freshness: new Map([[1, null]]),
     }).get(JITA)?.pilots[0]?.state,
   ).toBe('live');
+});
 
+test('presence honesty: docking and location-as-proof', () => {
   const station = derive([row({ characterId: 1, stationId: 60_003_760 })]).get(JITA)?.pilots[0];
   const structure = derive([row({ characterId: 1, structureId: 1_035_466_617_946 })]).get(JITA)
     ?.pilots[0];
@@ -125,6 +127,10 @@ test('presence honesty: live/stale/docked/AFK precedence and location-as-proof',
   expect(structure?.docked).toBe(true);
   expect(station && presenceStatusWord(station)).toBe('Docked');
 
+  expect(derive([row({ characterId: 1, location: null })]).size).toBe(0);
+});
+
+test('presence honesty: AFK marks own pilots only and yields to staleness', () => {
   const afkPresence = derive([row({ characterId: 1 }), row({ characterId: 2 })], {
     ownCharacterIds: [1],
     ownAfk: true,
@@ -152,19 +158,18 @@ test('presence honesty: live/stale/docked/AFK precedence and location-as-proof',
   }).get(JITA)?.pilots[0];
   expect(staleAfkDocked && presenceStatusWord(staleAfkDocked)).toBe('Stale');
   expect(afkDocked && presenceStatusWord(afkDocked)).toBe('AFK');
-
-  expect(derive([row({ characterId: 1, location: null })]).size).toBe(0);
 });
 
 test('presence shape groups, dedupes, isolates owners, and labels friendlies', () => {
   const presence = derive([
     row({ characterId: 9, solarSystemId: JITA }),
-    row({ characterId: 3, solarSystemId: JITA }),
+    row({ characterId: 3, solarSystemId: JITA, shipTypeId: 28_606 }),
     row({ characterId: 5, solarSystemId: AMARR }),
   ]);
   expect(presence.get(JITA)?.pilots.map((p) => p.characterId)).toEqual([3, 9]);
   expect(presence.get(AMARR)?.pilots.map((p) => p.characterId)).toEqual([5]);
-  expect(presence.get(JITA)?.pilots[0]?.shipTypeId).toBe(670);
+  // Distinctive override (not the row() default) proves ship type passes through.
+  expect(presence.get(JITA)?.pilots[0]?.shipTypeId).toBe(28_606);
 
   const deduped = derive([
     row({ characterId: 1, solarSystemId: AMARR, transitionObservedAt: NOW - 120_000 }),

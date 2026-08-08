@@ -14,14 +14,19 @@ if [ ! -f "$PGDATA/PG_VERSION" ]; then
   exit 1
 fi
 
-# Already accepting connections (e.g. started elsewhere)? Just follow along so
-# this terminal stays attached without a second postmaster fighting for :5433.
-if "$PGBIN/pg_isready" -h localhost -p 5433 -U lgi >/dev/null 2>&1; then
-  echo "postgres already accepting connections on :5433"
+# A postmaster already owns THIS data dir (e.g. started elsewhere)? Just follow
+# along so this terminal stays attached without starting a second postmaster on
+# the same cluster. Gate on the data directory, not the port: pg_isready only
+# proves something answers on :5433 (which could be another cluster entirely,
+# or miss a postmaster still in crash recovery).
+if "$PGBIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1; then
+  echo "postgres already running for $PGDATA"
   exec tail -n +1 -F /tmp/lgi-pg.log 2>/dev/null || exec sleep infinity
 fi
 
-# Clear any stale pid left by a snapshot, then hand the terminal to postgres.
-rm -f "$PGDATA/postmaster.pid"
+# Hand the terminal to postgres. Do NOT delete postmaster.pid here: postgres
+# itself removes a pid file it can prove stale and refuses only when a live
+# postmaster may still own the data dir — exactly the case where starting
+# another one would corrupt it.
 echo "starting postgres (foreground) on :5433"
 exec "$PGBIN/postgres" -D "$PGDATA"

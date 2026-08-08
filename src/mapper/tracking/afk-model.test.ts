@@ -85,6 +85,7 @@ test('AFK config overrides and server backstop ordering', () => {
   };
   expect(afkConfigFromOverrides(undefined, undefined)).toEqual(production);
   expect(afkConfigFromOverrides('', 'soon')).toEqual(production);
+  // Zero/negative would mean an instant prompt — refused.
   expect(afkConfigFromOverrides('0', '-5')).toEqual(production);
 
   // Sole falsifier: engine must not go cold before the client AFK UI can prompt.

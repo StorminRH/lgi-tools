@@ -50,6 +50,7 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
   expect(still).toContain('map-node-disc');
   expect(still).toContain('data-chain-node-widgets');
   expect(still).not.toContain('data-pilot-presence');
+  // Two occurrences: header + disc.
   expect(still.match(/pointer-events-auto/g)).toHaveLength(2);
 
   const noClass = renderToStaticMarkup(
@@ -133,6 +134,10 @@ test('outbound arrow mounts by assignment, tones by liveness, and stays inside f
     renderEdge(new Map([['other-edge', { towardSystemId: 2, live: true }]])),
   ).not.toContain('data-pilot-arrow');
 
+  // The stub draws exactly FOG_EDGE_CUT_FRACTION of a fog-truncated segment from
+  // the non-fogged end — the arrow's fraction must sit strictly inside that span,
+  // derived from the SAME constant, so retuning the cut can never strand the
+  // glyph in the cloud past the end of its own line.
   expect(outboundArrowFraction('source')).toBeLessThan(FOG_EDGE_CUT_FRACTION);
   expect(outboundArrowFraction('target')).toBeLessThan(FOG_EDGE_CUT_FRACTION);
   expect(outboundArrowFraction('source')).toBeGreaterThan(0);

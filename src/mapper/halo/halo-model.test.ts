@@ -149,6 +149,7 @@ test('halo links claim first, omit fogged cross-links, and truncate at caps', ()
         },
       }),
     ).systems.map((system) => system.systemId),
+    // Ring order then sorted-neighbour order: 1, 2 (ring 1), then 3 (ring 2).
   ).toEqual([1, 2, 3]);
 
   expect(

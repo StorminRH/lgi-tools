@@ -176,6 +176,7 @@ test('paintFog lays cloud, erases reveals, scales by strength, and restores cont
     (entry) => entry.op === 'composite' && entry.args[0] === 'destination-out',
   );
   expect(fillIndex).toBeLessThan(eraseIndex);
+  // Stamps: 2 discs + stroke chain (length 200, spacing 40 → 6 stamps) + 1 wake.
   expect(log.filter((entry) => entry.op === 'drawImage').length).toBe(2 + 6 + 1);
 
   const dynamic = recordingContext();
