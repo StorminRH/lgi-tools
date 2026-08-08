@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Doc } from '@/data/convex/data-model';
 import {
+  appendStubFacts,
   chainSignature,
   connectionDetailsFromRows,
   factsFromSnapshot,
@@ -9,6 +10,10 @@ import {
   layoutConfigKey,
   layoutPostKey,
   normalizeMapAccess,
+  placedStubConnections,
+  stubLayoutRows,
+  stubLayoutSignature,
+  stubPositionsFromLayout,
   unresolvedHolesFromRows,
 } from './use-map-chain';
 import {
@@ -44,6 +49,26 @@ function connections(
   complete = true,
 ) {
   return { rows, complete };
+}
+
+function unresolvedConnection(
+  partial: Omit<Partial<Doc<'mapConnections'>>, '_id'> & { readonly _id: string },
+): Doc<'mapConnections'> {
+  const { _id, ...fields } = partial;
+  return {
+    _id,
+    _creationTime: partial._creationTime ?? 1,
+    mapId: 'map-a',
+    fromSystemId: JITA,
+    toSystemId: null,
+    wormholeTypeCode: null,
+    massState: null,
+    shipSize: null,
+    eolAt: null,
+    deletedAt: null,
+    purgeAfter: null,
+    ...fields,
+  } as Doc<'mapConnections'>;
 }
 
 const keepPositions: PlacementAssigner = ({ systems: candidates }) => {
@@ -153,6 +178,66 @@ describe('factsFromSnapshot', () => {
   });
 });
 
+describe('unresolved wormhole layout facts', () => {
+  it('places only scanned rows with live anchors and excludes a resolved-feed overlap', () => {
+    const summaries = unresolvedHolesFromRows([
+      unresolvedConnection({ _id: 'c1', fromSignatureId: 'ABC-123' }),
+      unresolvedConnection({ _id: 'unscanned' }),
+      unresolvedConnection({
+        _id: 'off-map',
+        fromSystemId: AMARR,
+        fromSignatureId: 'DEF-456',
+      }),
+      unresolvedConnection({ _id: 'resolved-overlap', fromSignatureId: 'GHI-789' }),
+    ]);
+    const layoutRows = stubLayoutRows(
+      summaries,
+      [{ systemId: JITA }],
+      [{ _id: 'resolved-overlap' }],
+    );
+
+    expect(layoutRows).toHaveLength(1);
+    expect(layoutRows[0]).toMatchObject({
+      connectionId: 'c1',
+      fromSystemId: JITA,
+      fromSignatureId: 'ABC-123',
+      layoutSystemId: -1,
+    });
+    expect(stubLayoutSignature(layoutRows)).toBe(`c1:${JITA}>-1`);
+
+    const facts = appendStubFacts(
+      { systems: [{ systemId: JITA }], connections: [] },
+      layoutRows,
+    );
+    expect(facts).toEqual({
+      systems: [{ systemId: JITA }, { systemId: -1 }],
+      connections: [{ fromSystemId: JITA, toSystemId: -1 }],
+    });
+
+    const positions = stubPositionsFromLayout(
+      layoutRows,
+      new Map([
+        [-1, { x: 300, y: 0 }],
+        [-4, { x: 600, y: 0 }],
+      ]),
+    );
+    expect(placedStubConnections(layoutRows, positions)).toEqual([
+      {
+        connectionId: 'c1',
+        fromSystemId: JITA,
+        signatureId: 'ABC-123',
+        wormholeTypeCode: null,
+        position: { x: 300, y: 0 },
+      },
+    ]);
+    expect(
+      placedStubConnections(layoutRows, new Map([
+        ['resolved-overlap', { x: 600, y: 0 }],
+      ])),
+    ).toEqual([]);
+  });
+});
+
 describe('layout-then-merge posted-key guard', () => {
   it('includes dial fingerprint and revision so config and re-lock re-merge', () => {
     const signature = chainSignature(systems([JITA]), connections([]));
@@ -179,6 +264,14 @@ describe('layout-then-merge posted-key guard', () => {
     // Omitted halo (empty-halo callers) stays stable with itself.
     expect(layoutPostKey(signature, configKey, 0)).toBe(
       layoutPostKey(signature, configKey, 0),
+    );
+  });
+
+  it('includes the stub fingerprint so paste and resolution re-post layout', () => {
+    const signature = chainSignature(systems([JITA]), connections([]));
+    const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
+    expect(layoutPostKey(signature, configKey, 0, '', `c1:${JITA}>-1`)).not.toBe(
+      layoutPostKey(signature, configKey, 0, '', ''),
     );
   });
 

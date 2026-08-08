@@ -74,7 +74,7 @@ export function edgePresentation(data: ChainEdgeData | undefined): {
     data?.tombstoneState === 'dying' && 'map-edge-dying',
     // Derived halo gate links read dimmer than authored truth (DC-3's
     // visibly-provisional rule applied to lines).
-    data?.halo === true && 'map-edge-derived',
+    (data?.halo === true || data?.stub === true) && 'map-edge-derived',
     edgeMotionClass(data?.motion),
   );
   return {

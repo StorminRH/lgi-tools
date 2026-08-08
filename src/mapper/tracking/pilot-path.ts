@@ -241,7 +241,12 @@ export function edgeIdOfPairIndex(
 ): (a: number, b: number) => string | null {
   const byPair = new Map<string, string>();
   for (const edge of edges) {
-    const key = pairKey(Number(edge.source), Number(edge.target));
+    const source = Number(edge.source);
+    const target = Number(edge.target);
+    // Synthetic unresolved-wormhole endpoints are not EVE systems and can
+    // never participate in the static-gate path used for pilot arrows.
+    if (!Number.isFinite(source) || !Number.isFinite(target)) continue;
+    const key = pairKey(source, target);
     if (!byPair.has(key)) byPair.set(key, edge.id);
   }
   return (a, b) => byPair.get(pairKey(a, b)) ?? null;

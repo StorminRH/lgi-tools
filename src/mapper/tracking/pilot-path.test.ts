@@ -131,3 +131,13 @@ test('deriveOutboundArrows mounts, dedupes, and keeps shared-arrow liveness hone
   expect(parseArrowPilotKey(arrowPilotKey(summary))).toEqual([...summary]);
   expect(parseArrowPilotKey('')).toEqual([]);
 });
+
+test('edge pair lookup ignores synthetic non-system stub endpoints', () => {
+  const lookup = edgeIdOfPairIndex([
+    { id: 'stub-edge', source: '10', target: 'stub:connection' },
+    { id: 'system-edge', source: '10', target: '11' },
+  ]);
+
+  expect(lookup(10, 11)).toBe('system-edge');
+  expect(lookup(10, Number.NaN)).toBeNull();
+});

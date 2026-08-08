@@ -92,6 +92,28 @@ test('halo nodes mark drawn vs fogged; authored nodes stay unmarked', () => {
   expect(authored).not.toMatch(/data-chain-node-derived|data-chain-node-fogged|border-dashed/);
 });
 
+test('wormhole stubs reuse the derived ghost presentation without interactive chrome', () => {
+  const props = {
+    id: 'stub:c1',
+    data: {
+      name: 'ABC-123',
+      className: null,
+      stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
+    },
+    dragging: false,
+    isConnectable: false,
+  } as unknown as NodeProps<ChainNode>;
+  const rendered = renderToStaticMarkup(createElement(SystemNode, props));
+
+  expect(rendered).toContain('data-chain-node-stub');
+  expect(rendered).toContain('data-chain-node-derived');
+  expect(rendered).toContain('ABC-123');
+  expect(rendered).toContain('border-dashed');
+  expect(rendered).toContain('opacity-75');
+  expect(rendered).not.toContain('pointer-events-auto');
+  expect(rendered).not.toContain('data-pilot-presence');
+});
+
 test('outbound arrow mounts by assignment, tones by liveness, and stays inside fog cut', () => {
   const frameNode = (x: number, y: number) => ({
     internals: { positionAbsolute: { x, y } },
@@ -243,4 +265,5 @@ test('edge motion classes map fade/grow/rev/heavy/dying and loop dash', () => {
     'map-edge-dying',
   );
   expect(edgePresentation({ loop: false, tombstoneState: 'active' }).className).toBeUndefined();
+  expect(edgePresentation({ loop: false, stub: true }).className).toBe('map-edge-derived');
 });

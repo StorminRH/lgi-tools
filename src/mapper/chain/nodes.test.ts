@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { ChainNode } from '../canvas/SystemNode';
 import { deriveChainTree } from '../layout/facts';
 import type { SystemLabel } from './labels';
-import { buildEdges, syncNodes } from './nodes';
+import {
+  buildEdges,
+  STUB_NODE_ID_PREFIX,
+  syncNodes,
+  type PlacedStubConnection,
+} from './nodes';
 import {
   applyUserPlacement,
   EMPTY_CHAIN_STATE,
@@ -424,5 +429,99 @@ describe('halo edge projection', () => {
       [`halo:${JITA}>${RING1}`, 'target'],
       [`halo:${RING3}>${JITA}`, 'source'],
     ]);
+  });
+});
+
+// ── OW5 (4.0.4.3.1) — unresolved wormhole stubs on the node ladder ──────
+
+const placedStub = (
+  overrides: Partial<PlacedStubConnection> = {},
+): PlacedStubConnection => ({
+  connectionId: 'stub-connection',
+  fromSystemId: JITA,
+  signatureId: 'ABC-123',
+  wormholeTypeCode: null,
+  position: { x: 300, y: 0 },
+  ...overrides,
+});
+
+describe('wormhole stub projection', () => {
+  it('spawns exactly one ghosted, interaction-inert stub and its derived edge', () => {
+    const state = stateFor([JITA]);
+    const stub = placedStub();
+    const nodes = syncNodes(
+      [],
+      state.systems,
+      fallbackLabel,
+      NO_DRAG,
+      [],
+      [stub],
+    );
+
+    expect(nodes.map((node) => node.id)).toEqual([
+      String(JITA),
+      `${STUB_NODE_ID_PREFIX}${stub.connectionId}`,
+    ]);
+    expect(nodes[1]).toMatchObject({
+      position: { x: 300, y: 0 },
+      draggable: false,
+      selectable: false,
+      selected: false,
+      connectable: false,
+      focusable: false,
+      style: { pointerEvents: 'none' },
+      data: {
+        name: 'ABC-123',
+        className: null,
+        stub: {
+          connectionId: 'stub-connection',
+          fromSystemId: JITA,
+          signatureId: 'ABC-123',
+        },
+      },
+    });
+    expect(buildEdges(state.connections, new Map(), Date.now(), [], new Set(), [stub]))
+      .toEqual([
+        {
+          id: 'stub-connection',
+          source: String(JITA),
+          target: `${STUB_NODE_ID_PREFIX}stub-connection`,
+          data: { loop: false, tombstoneState: 'active', stub: true },
+        },
+      ]);
+  });
+
+  it('retires the stub when the same connection resolves and renders one authored destination', () => {
+    const stub = placedStub();
+    const before = syncNodes(
+      [],
+      stateFor([JITA]).systems,
+      fallbackLabel,
+      NO_DRAG,
+      [],
+      [stub],
+    );
+    const resolved = stateFor([JITA, AMARR]);
+    const after = syncNodes(
+      before,
+      resolved.systems,
+      fallbackLabel,
+      NO_DRAG,
+    );
+
+    expect(after.filter((node) => node.id === String(AMARR))).toHaveLength(1);
+    expect(after.some((node) => node.id.startsWith(STUB_NODE_ID_PREFIX))).toBe(false);
+  });
+
+  it('renders no canvas artifact when no known-wormhole row reaches the stub input', () => {
+    const nodes = syncNodes(
+      [],
+      stateFor([JITA]).systems,
+      fallbackLabel,
+      NO_DRAG,
+      [],
+      [],
+    );
+    expect(nodes.map((node) => node.id)).toEqual([String(JITA)]);
   });
 });

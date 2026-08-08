@@ -68,7 +68,7 @@ import { TrackingHeartbeat } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
-import { buildEdges, isHaloEdgeId, syncNodes } from './nodes';
+import { buildEdges, isHaloEdgeId, isStubNodeId, syncNodes } from './nodes';
 import { useChainAuthoringMutations } from './optimistic-authoring';
 import { useMapChain, type MapAccessState } from './use-map-chain';
 
@@ -148,6 +148,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     treeParents,
     rootSystemId,
     halo,
+    stubs,
     neighboursOf,
     pinPlacement,
     releasePlacements,
@@ -169,9 +170,16 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
 
   useEffect(() => {
     setNodes((previous) =>
-      syncNodes(previous, state.systems, labelOf, draggingRef.current, halo.systems),
+      syncNodes(
+        previous,
+        state.systems,
+        labelOf,
+        draggingRef.current,
+        halo.systems,
+        stubs,
+      ),
     );
-  }, [state.systems, labelOf, halo.systems]);
+  }, [state.systems, labelOf, halo.systems, stubs]);
 
   // Which halo systems sit under the fog — the edge builder truncates lines
   // into the cloud, and the arrow derivation excludes them from the drawn set.
@@ -191,6 +199,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
         connectionPresentationNow,
         halo.links,
         foggedSystemIds,
+        stubs,
       ),
     [
       state.connections,
@@ -198,6 +207,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       connectionPresentationNow,
       halo.links,
       foggedSystemIds,
+      stubs,
     ],
   );
 
@@ -243,7 +253,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
 
   /** Every node one gesture is moving, which is the selection when there is one. */
   const draggedIds = (dragged: readonly ChainNode[]) =>
-    dragged.map((node) => Number(node.id));
+    dragged.flatMap((node) => isStubNodeId(node.id) ? [] : [Number(node.id)]);
 
   const startDrag = useCallback(
     (dragged: readonly ChainNode[]) => setDrag(draggedIds(dragged), true),
@@ -254,7 +264,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     (dragged: readonly ChainNode[]) => {
       // Pin every node the gesture moved. Pinning only the grabbed one would leave its companions
       // unstamped, and the very next merge would return them to their assigner positions.
-      for (const node of dragged) pinPlacement(Number(node.id), node.position);
+      for (const node of dragged) {
+        if (!isStubNodeId(node.id)) pinPlacement(Number(node.id), node.position);
+      }
       setDrag(draggedIds(dragged), false);
     },
     [pinPlacement, setDrag],
@@ -290,6 +302,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   // the camera host; React Flow's own selection behavior runs untouched.
   const onNodeClick = useCallback<NodeMouseHandler<ChainNode>>(
     (_event, clicked) => {
+      if (isStubNodeId(clicked.id)) return;
       focusTokenRef.current += 1;
       setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
       setSelectedConnectionId(null);
@@ -302,7 +315,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       if (canEdit !== true) return;
       // Derived halo systems are rendered, never written (HC-2): no authoring
       // menu may anchor to one until a jump upgrades it to authored truth.
-      if (node.data.halo !== undefined) return;
+      if (node.data.halo !== undefined || isStubNodeId(node.id)) return;
       event.preventDefault();
       setSelectedConnectionId(null);
       setNodeMenu({
@@ -318,7 +331,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     (_event, edge) => {
       if (canEdit !== true) return;
       // Derived halo gate links have no connection document to edit.
-      if (isHaloEdgeId(edge.id)) return;
+      if (isHaloEdgeId(edge.id) || edge.data?.stub === true) return;
       // Every other edge id is a Convex connection document id by construction (buildEdges).
       setSelectedConnectionId(edge.id as Id<'mapConnections'>);
     },
@@ -339,7 +352,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
 
   // Id-derived (the join key), so per-frame drag renders reuse the same set
   // and the camera host's effects don't churn (drag hardening, IS-5).
-  const nodeIdsKey = nodes.map((node) => node.id).join(',');
+  const nodeIdsKey = nodes
+    .flatMap((node) => isStubNodeId(node.id) ? [] : [node.id])
+    .join(',');
   const nodeIds = useMemo(
     () =>
       new Set(

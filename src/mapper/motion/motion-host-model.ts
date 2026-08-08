@@ -315,6 +315,9 @@ function deriveNode(
   host: MotionHostState,
   dragging: ReadonlySet<number>,
 ): ChainNode {
+  // Stub ids name connection documents rather than numeric systems and carry
+  // no reconciler intents. Their kernel-owned presentation passes through.
+  if (node.data.stub !== undefined) return node;
   const systemId = Number(node.id);
   if (dragging.has(systemId)) return node;
   const displaced = host.displacements.get(systemId);
