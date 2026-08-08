@@ -2,10 +2,10 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
-import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import { auth } from '@/platform/auth/auth';
@@ -31,13 +31,7 @@ async function StructuresContent() {
   ]);
 
   return (
-    <>
-      <PageHead
-        crumb="structures"
-        title="Structures"
-        subtitle="Build a custom structure to place a build in, or share your corporation’s structures with every member — pick a type and rigs to apply their bonuses in the planner."
-      />
-
+    <div className="flex w-full flex-col gap-6">
       <Card>
         <SectionHeader size="md" label="Custom structures" hint={`${saved.length} saved`} />
         <div className="px-3.5 py-3.5">
@@ -50,19 +44,33 @@ async function StructuresContent() {
       </Card>
 
       <CorpStructureSection corps={corps} structureTypes={structureTypes} structureRigs={structureRigs} />
-    </>
+    </div>
+  );
+}
+
+function StructuresLoading() {
+  return (
+    <div className="flex w-full flex-col gap-6" role="status" aria-label="Loading structures">
+      <Skeleton aria-hidden="true" className="h-56 w-full rounded-card" />
+      <Skeleton aria-hidden="true" className="h-40 w-full rounded-card" />
+    </div>
   );
 }
 
 /**
  * Renders the /structures route surface and owns its page-level composition, metadata boundary,
- * and fallback presentation.
+ * and fallback presentation. PageHead stays in the static shell; the session-gated builder streams.
  */
 export default function StructuresPage() {
   return (
     <PageShell mode="reading">
       <div className="flex flex-col items-center gap-0 pb-20">
-        <Suspense fallback={<LoadingLabel />}>
+        <PageHead
+          crumb="structures"
+          title="Structures"
+          subtitle="Build a custom structure to place a build in, or share your corporation’s structures with every member — pick a type and rigs to apply their bonuses in the planner."
+        />
+        <Suspense fallback={<StructuresLoading />}>
           <StructuresContent />
         </Suspense>
       </div>

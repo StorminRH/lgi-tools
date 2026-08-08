@@ -11,6 +11,7 @@ minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   - next@16.3.0
   - eslint-config-next@16.3.0
+  - "@next/playwright@16.3.0"
   # Operator-approved (2026-08-07): js-yaml 4.3.1 security patch adopted ~3h
   # before its window cleared (published 2026-07-31T17:39Z). Removable
   # immediately after 2026-08-07T17:39Z.

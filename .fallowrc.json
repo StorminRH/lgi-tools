@@ -38,7 +38,7 @@
     "convex/**/*.test.ts"
   ],
 
-  "ignoreDependencies": ["convex-test", "@edge-runtime/vm", "playwright", "@playwright/test"],
+  "ignoreDependencies": ["convex-test", "@edge-runtime/vm", "playwright", "@playwright/test", "@next/playwright"],
 
   "rules": {
     "unused-files": "error",

@@ -30,6 +30,10 @@ const nextConfig: NextConfig = {
   // static rendering is gone (3.0.4.6). It also drives `use cache`/`cacheLife`/
   // `cacheTag`; do not reintroduce a script nonce without re-checking this.
   cacheComponents: true,
+  // Instant Navigations (Next 16.3): prefetch one reusable App Shell per route
+  // instead of a full per-link payload. Requires cacheComponents. Instant Insights
+  // validates Page/Default segments in next dev by default.
+  partialPrefetching: true,
   // CCP's official third-party image server. Serves character portraits today
   // (used by the login chip and admin dashboard) and will serve type icons,
   // blueprint art, and ship renders for the 3.1 Industry Planner visual pass.

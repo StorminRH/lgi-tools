@@ -292,19 +292,10 @@
   propagation value today. *Size:* M. *Trigger:* the next time one of these
   families needs a second consumer or a behavior change.
 
-- **Dev-log shared-cache write is rejected in production** (found during the 3.9.3.8
-  production smoke). *What:* `/devlog` still returns and renders HTTP 200, but the
-  `loadDevlog()` value introduced to `'use cache: remote'` in 3.9.3.5 is rejected by
-  Vercel's remote cache with HTTP 413; the function then exits 128. Determine whether
-  the highlighted full-document tree must be split into smaller cache entries or moved
-  back to a cache profile that can hold it, while preserving the content-browser
-  performance intent. *Why deferred:* discovered after the description-only 3.9.3.8 PR
-  had merged; the fix changes runtime caching and needs its own characterization and
-  production verification. **Deferred to a later app-wide fix (Ryan, 2026-07-19):** it
-  renders 200 in production, so it is not a version-close blocker; fold it into the
-  app-wide caching/bundle pass rather than a standalone hotfix. *Size:* S–M. *Trigger:*
-  the app-wide caching/perf initiative; reproduce against a cold cache and prove zero
-  deployment-targeted error logs after the fix.
+- ~~**Dev-log shared-cache write is rejected in production**~~ — addressed in the
+  Next.js 16.3 Instant Navigations pass: `loadDevlog()` moved back to plain
+  `'use cache'` (the /changelog profile) so the oversized highlighted tree is no
+  longer rejected by Vercel's remote cache with HTTP 413.
 
 - **F3 — app-wide First Load JS trim.** *What:* `/industry/[id]` ships 332 KB gz First
   Load JS, but 312 KB is the shared framework/app baseline every route pays (`/` is the
@@ -342,22 +333,12 @@
 
 ## Next.js 16.3 instant navigations
 
-- **Adopt the `instant()` Playwright helper in ux-check + audit surfaces for
-  instant navigation** (operator-requested 2026-08-07 at the 16.3 adoption).
-  *What:* two-part follow-on to the Next.js 16.3 upgrade: (a) bake the
-  `@next/playwright` `instant()` assertion into the ux-check probe runner so
-  changed routes can assert which UI is visible with zero network round trips,
-  and surface the new Instant Insights signal during dev; (b) a comprehensive
-  audit of existing surfaces (site pages, planner, devlog, atlas chrome) for
-  slow navigations, applying the 16.3 runtime-prerender patterns route by
-  route — moving blocking data reads below Suspense boundaries or into
-  `'use cache'` regions — and keeping each fixed route's failing-then-passing
-  `instant()` test in the suite as a regression guard (the v0 case-study loop;
-  Vercel's `next-cache-components-optimizer` skill encodes it). *Why deferred:*
-  the 16.3 adoption PR is dependency-only; the audit changes route rendering
-  and needs its own UX gates. *Size:* M–L. *Trigger:* the next app-wide
-  rendering/perf pass — pairs with the client-settled-static investigation in
-  Infra & bundle.
+- ~~**Adopt the `instant()` Playwright helper in ux-check + audit surfaces**~~ —
+  shipped on the Instant Navigations pass: `partialPrefetching: true`,
+  `@next/playwright` `instant()` injected into the ux-check probe runner,
+  chrome-shaped Suspense shells for atlas + session pages, AppHeader Suspense,
+  and `instant-nav-*` regression probes. Client-settled static for session pages
+  remains deferred below (anti-flash tradeoff unchanged).
 
 ## Accessibility
 

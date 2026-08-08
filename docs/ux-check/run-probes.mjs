@@ -8,6 +8,7 @@
 // websocket keeps the network busy forever. Proactive `shot()` is a no-op —
 // screenshots land only when a viewport run fails.
 
+import { instant as nextInstant } from '@next/playwright';
 import { chromium, firefox, webkit, devices } from 'playwright';
 import { access, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -337,12 +338,19 @@ async function runViewport(browser, definition, viewport, baseUrl, opts, auth) {
     page = await context.newPage();
     diagnostics = watchPage(page, definition.allowConsole);
     await installCspCollector(page);
+    // Next 16.3 Instant Navigations helper: scopes assertions to the App Shell /
+    // prefetched UI while holding back dynamic streams. Prefer soft <Link>
+    // navigations; pass { baseURL: baseUrl } when page.goto is the first hop.
+    // Requires next dev (or exposeTestingApiInProductionBuild). Warm-cache assumed.
+    const instant = (fn, options) =>
+      nextInstant(page, fn, { baseURL: baseUrl, ...options });
     const ctx = {
       page,
       viewport,
       baseUrl,
       check,
       shot,
+      instant,
       engine: opts.engine,
       storageState: opts.storageState,
       createContext,
