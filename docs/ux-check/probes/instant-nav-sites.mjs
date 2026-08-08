@@ -14,12 +14,15 @@ export default {
     await instant(async () => {
       await sitesLink.click();
       await page.waitForURL((url) => url.pathname === '/sites', { timeout: 15000 });
-      const shell = page.locator('[data-page-shell]');
-      check('sites shell mounts instantly', await shell.isVisible());
-      const heading = page.getByRole('heading', { level: 1 });
+      const heading = page.getByRole('heading', { level: 1 }).first();
+      const text = ((await heading.textContent()) ?? '').trim();
       check(
-        'sites heading is in the instant shell',
-        (await heading.count()) > 0 && (await heading.first().isVisible()),
+        `sites heading is in the instant shell (${text || 'missing'})`,
+        /wormhole sites/i.test(text),
+      );
+      check(
+        'sites workspace shell mounts instantly',
+        await page.locator('[data-page-shell-mode="workspace"]').first().isVisible(),
       );
     });
 

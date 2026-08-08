@@ -84,8 +84,8 @@ async function SettingsContent() {
 
 function SettingsLoading() {
   return (
-    <div className="flex w-full flex-col gap-6" role="status" aria-label="Loading account settings">
-      <Skeleton aria-hidden="true" className="h-40 w-full rounded-card" />
+    <div className="flex w-full flex-col gap-6">
+      <Skeleton label="Loading account settings" className="h-40 w-full rounded-card" />
       <Skeleton aria-hidden="true" className="h-28 w-full rounded-card" />
     </div>
   );

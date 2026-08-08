@@ -50,8 +50,8 @@ async function StructuresContent() {
 
 function StructuresLoading() {
   return (
-    <div className="flex w-full flex-col gap-6" role="status" aria-label="Loading structures">
-      <Skeleton aria-hidden="true" className="h-56 w-full rounded-card" />
+    <div className="flex w-full flex-col gap-6">
+      <Skeleton label="Loading structures" className="h-56 w-full rounded-card" />
       <Skeleton aria-hidden="true" className="h-40 w-full rounded-card" />
     </div>
   );
