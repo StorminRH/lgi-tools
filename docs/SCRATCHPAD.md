@@ -9,7 +9,10 @@
 
 ## Now
 
-- **OW progress:** `7/7 complete — awaiting close-out`.
+- **OW progress:** `6/7 complete` — OW7's automated evidence is green; the
+  **G-1 operator browser review is PENDING** (operator unavailable 2026-08-08),
+  so do not mark `7/7 complete — awaiting close-out` until the disposition
+  below is recorded.
 - **OW7 automated evidence (2026-08-08):** durable two-client probe
   `atlas-signature-lifecycle` green 18/18 on a fresh disposable map (paste →
   re-paste zero-churn → per-kind missing → dismiss/Remove-confirm/undo →
@@ -18,12 +21,12 @@
   the pilot, chain-root dock keeps the origin summary);
   `atlas-signature-chrome` 8/8. `pnpm verify` passed at implementation commit
   `705764df` (4,959 passed / 1 skipped; Fallow clean over 97 session-changed
-  files against `36790747`); primitive-checker CLEAN. SCRATCHPAD evidence commit
-  `9d3b2072`.
-- **G-1 disposition:** **approve** (2026-08-08) — operator completed the local
-  browser review of paste → re-paste → confirmation/undo → stubs → jump
-  resolution (review map `92cba7c1-c575-4437-9c0a-995218a8a814` and/or earlier
-  one-shot states). No findings. SC-10.2 satisfied; close-out may open the PR.
+  files against `36790747`); primitive-checker CLEAN.
+- **G-1 disposition:** PENDING — operator: open `/atlas?map=92cba7c1-c575-4437-9c0a-995218a8a814`
+  (end state: origin J113551 + resolved J160650, three sig rows + one anomaly)
+  and optionally `70d1abac-…`/`ee003ccc-…` (earlier one-shot states), or run a
+  fresh pass with `UX_SIG_MAP_ID=<new map>` after seeding; record the
+  disposition here, then set `7/7 complete — awaiting close-out`.
 - **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
   fixtures covering five evidence categories; additive signature/connection
   schema fields and death-latest index census. Focused proof: parser 5/5,
@@ -74,23 +77,26 @@
   484/484, single `decideCollapse` call-site inspection; `pnpm verify` passed
   at implementation commit `88e3b94a` (4,958 passed / 1 skipped; Fallow clean
   over 93 changed files against `8dce9774`); primitive-checker CLEAN.
-- **OW completed:** OW7 — ux-check two-client signature lifecycle + chrome probes
-  green (`atlas-signature-lifecycle` 18/18, `atlas-signature-chrome` 8/8 at
-  `705764df`); G-1 operator browser review disposition **approve** (no findings)
-  recorded 2026-08-08. Session Ordered work complete — awaiting close-out.
-- **Next-agent notes:** Ordered work for **4.0.4.3.1** is complete on
-  `lifecycle/4.0.4.3`. Run **close-out in a fresh chat, planned mode only** (no
-  further OW). G-1 is approved — do not re-run ux-check. Branch was rebased
-  2026-08-08 onto `origin/main` `36790747` (Next 16.3 Instant Navigations
-  #373/#374/#375); OW commit SHAs above are the rebased equivalents. Probe
-  gotchas for as-built: (1) `pnpm e2e:seed` resets `user.role` — re-grant ADMIN
-  to `e2e-pilot`; (2) seed disposable maps with a fresh synthetic affiliation
-  stamp (`affiliation_refreshed_at = now()` for character 9000001); (3)
-  lifecycle probe is one-shot — new map per run. Design behaviors pinned (not
-  bugs): signature-labeled jump confirmation, scanner window follows tracked
-  system after jump, dock stays on chain root. Ceiling sweep needs
-  `deathLatestAt + 4h` past before cron collapse; paste confident removal needs
-  only the ceiling (no grace).
+- **Next-agent notes:** `lifecycle/4.0.4.3` was rebased 2026-08-08 onto
+  `origin/main` `36790747` (the Next 16.3 Instant Navigations adoption
+  #373/#374/#375), by operator direction; the OW commit SHAs above are the
+  rebased equivalents. OW7's automated sweep is done — only the G-1 operator
+  disposition remains, then close-out (from a fresh chat, planned mode).
+  Probe-environment gotchas hit this run: (1) `pnpm e2e:seed` resets
+  `user.role` — re-grant ADMIN to `e2e-pilot` or `/atlas` shows the wall and
+  `waitForEditableMap` times out; (2) seeding a disposable map needs a fresh
+  synthetic affiliation stamp first
+  (`update characters set affiliation_refreshed_at = now() where character_id=9000001;`
+  — the ~1h TTL expires between runs and projection then fails "transiently"
+  on the fake character); (3) the lifecycle probe is one-shot — seed a NEW map
+  per run (insert Neon `maps` row for `e2e-pilot` + `projectMapAccess`).
+  Design behaviors the probe pinned (not bugs): the auto-linked jump shows the
+  signature-labeled informed-confirmation prompt (4.0.4.2.2 direction), the
+  scanner window follows the pilot's tracked system after the jump, and the
+  dock stays on the chain root. Sweep gotchas for later G-1 passes:
+  expired-ceiling holes need `deathLatestAt + 4h` in the past before the cron
+  collapses them; paste-driven confident removal needs only the ceiling passed
+  (no grace). Do not run close-out from the OW7 chat.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -98,9 +104,9 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.3.1** Ordered work is complete on
-  `lifecycle/4.0.4.3` (`7/7` — awaiting close-out). Do not start another OW
-  step; ship via close-out.
+- **CURRENT / NEXT:** session **4.0.4.3.1** is executing on
+  `lifecycle/4.0.4.3`; OW6 is complete and OW7 (the UX/operator gate) is next.
+  Execute one Ordered work step per `start-session` chat.
 - **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
   render honest presence in the frame, dock, and summary; authored k-space
