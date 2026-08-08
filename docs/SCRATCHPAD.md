@@ -9,7 +9,7 @@
 
 ## Now
 
-- **OW progress:** `3/7 complete` — next: **The wormhole row editor**.
+- **OW progress:** `4/7 complete` — next: **Ghosted stub nodes**.
 - **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
   fixtures covering five evidence categories; additive signature/connection
   schema fields and death-latest index census. Focused proof: parser 5/5,
@@ -31,16 +31,22 @@
   8/8 and affected mapper bundle 163/163; `pnpm verify` passed at implementation
   commit `64ab075d` (4,953 passed / 138 skipped; Fallow clean over 63 changed
   files against `8dce9774`); primitive-checker CLEAN.
-- **Next-agent notes:** Resume 4.0.4.3.1 at OW4 only. Add the wormhole-row
-  context editor by reusing the shipped connection field groups and mutations;
-  use the statics-first picker seam plus `/api/universe/statics/[systemId]`,
-  retain search-only degradation on route outage, and rebase
-  `wormholeTypeWindowProposal` / `ConnectionWindowSource` on
-  `firstSeenAt ?? _creationTime` (migrated rows included). Render the typed code
-  in Name and class in Group. Do not begin stub nodes, collapse triggers, or the
-  UX gate. Keep signature paging separate from `useMapChain`, keep resolved
-  removal fenced until OW6, and preserve the OW3 document listener's
-  editable/popup suppression while the editor is open.
+- **OW completed:** OW4 — labelled row actions and right-click enhancement over
+  the same `mapConnections` row and shipped `ConnectionFields`; identify-as
+  convergence; statics-first type search with typed public route and honest
+  search-only outage degradation; side-aware type/hint controls; typed-code /
+  class row presentation; and first-seen-anchored lifetime proposals. Focused
+  proof: 13 files / 255 tests; `pnpm verify` passed at implementation commit
+  `926b9c13` (4,807 passed / 138 skipped; Fallow clean over 84 changed files
+  against `8dce9774`); primitive-checker CLEAN.
+- **Next-agent notes:** Resume 4.0.4.3.1 at OW5 only. Add the `stub:` synthetic
+  node-id family and ghosted, pointer-inert, never-draggable node data/presentation
+  derived only from unresolved wormhole connection rows. Preserve the same-row
+  jump seam so a resolved `toSystemId` retires the stub and yields the ordinary
+  authored destination without an ID collision; keep signature IDs in candidate
+  labels. Prove spawn-on-paste, no duplicate after resolution, and that unknown
+  groups never reach the canvas. Do not begin collapse triggers or the OW7 UX
+  gate; keep resolved removal fenced until OW6.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -49,7 +55,7 @@
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
 - **CURRENT / NEXT:** session **4.0.4.3.1** is executing on
-  `lifecycle/4.0.4.3`; OW3 is complete and OW4 is next. Execute one Ordered
+  `lifecycle/4.0.4.3`; OW4 is complete and OW5 is next. Execute one Ordered
   work step per `start-session` chat; OW7 owns the required UX/operator pause.
 - **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
