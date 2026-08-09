@@ -124,7 +124,7 @@ describe('MapAccessGate', () => {
 });
 
 describe('MapLayout', () => {
-  it('owns the full viewport frame and clips canvas overflow', () => {
+  it('frames the full viewport and keeps the development wall as the Suspense fallback', () => {
     const frame = MapLayout({
       children: createElement('div', { 'data-map-canvas': '' }),
     });
@@ -133,12 +133,7 @@ describe('MapLayout', () => {
     expect(frame.props.className).toContain('h-[100dvh]');
     expect(frame.props.className).toContain('w-full');
     expect(frame.props.className).toContain('overflow-hidden');
-  });
 
-  it('uses the development wall as the Suspense fallback so soft nav is not blank', () => {
-    const frame = MapLayout({
-      children: createElement('div', { 'data-map-canvas': '' }),
-    });
     const suspense = frame.props.children;
     expect(suspense.type).toBe(Suspense);
     const fallbackMarkup = renderToStaticMarkup(suspense.props.fallback);
