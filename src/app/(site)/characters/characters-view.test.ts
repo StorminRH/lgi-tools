@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
 import type { LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
@@ -15,45 +15,37 @@ const character = (over: Partial<LinkedCharacter> = {}): LinkedCharacter => ({
   ...over,
 });
 
-describe('deriveCharacterRowView', () => {
+test('deriveCharacterRowView reports healthy, disconnected, and missing-scope reconnect labels', () => {
   // The healthy negative: falsifies the view's wiring into deriveCharacterHealth
   // (scope-health.test.ts owns the comparator itself). Scopes arrive REVERSED so
   // an order-sensitive comparison regression fails here too.
-  it('reports a fully-scoped character healthy with no reconnect label', () => {
-    const view = deriveCharacterRowView({
-      scope: [...EVE_SCOPES].reverse().join(','),
-      hasRefreshToken: true,
-    });
-    expect(view.needsReconnect).toBe(false);
-    expect(view.healthLabel).toBeNull();
-    expect(view.scopes.length).toBeGreaterThan(0);
+  const healthy = deriveCharacterRowView({
+    scope: [...EVE_SCOPES].reverse().join(','),
+    hasRefreshToken: true,
   });
+  expect(healthy.needsReconnect).toBe(false);
+  expect(healthy.healthLabel).toBeNull();
+  expect(healthy.scopes.length).toBeGreaterThan(0);
 
-  it('labels a token-less character Disconnected', () => {
-    const view = deriveCharacterRowView({ scope: 'publicData', hasRefreshToken: false });
-    expect(view.needsReconnect).toBe(true);
-    expect(view.healthLabel).toBe('Disconnected');
+  const disconnected = deriveCharacterRowView({
+    scope: 'publicData',
+    hasRefreshToken: false,
   });
+  expect(disconnected.needsReconnect).toBe(true);
+  expect(disconnected.healthLabel).toBe('Disconnected');
 
-  it('labels a scope-short character Missing scopes when a token is present', () => {
-    const view = deriveCharacterRowView({ scope: 'publicData', hasRefreshToken: true });
-    expect(view.needsReconnect).toBe(true);
-    expect(view.healthLabel).toBe('Missing scopes');
+  const missingScopes = deriveCharacterRowView({
+    scope: 'publicData',
+    hasRefreshToken: true,
   });
+  expect(missingScopes.needsReconnect).toBe(true);
+  expect(missingScopes.healthLabel).toBe('Missing scopes');
 });
 
-describe('deriveAbsorbedCharacter', () => {
-  it('resolves the absorbed character by id from the roster', () => {
-    const roster = [character({ characterId: 1 }), character({ characterId: 2, name: 'Alt' })];
-    expect(deriveAbsorbedCharacter('2', roster)?.name).toBe('Alt');
-  });
-
-  it('returns undefined for a non-string param', () => {
-    expect(deriveAbsorbedCharacter(undefined, [character()])).toBeUndefined();
-    expect(deriveAbsorbedCharacter(['1', '2'], [character()])).toBeUndefined();
-  });
-
-  it('returns undefined for an id not present in the roster', () => {
-    expect(deriveAbsorbedCharacter('999', [character({ characterId: 1 })])).toBeUndefined();
-  });
+test('deriveAbsorbedCharacter resolves roster ids and rejects invalid params', () => {
+  const roster = [character({ characterId: 1 }), character({ characterId: 2, name: 'Alt' })];
+  expect(deriveAbsorbedCharacter('2', roster)?.name).toBe('Alt');
+  expect(deriveAbsorbedCharacter(undefined, [character()])).toBeUndefined();
+  expect(deriveAbsorbedCharacter(['1', '2'], [character()])).toBeUndefined();
+  expect(deriveAbsorbedCharacter('999', [character({ characterId: 1 })])).toBeUndefined();
 });
