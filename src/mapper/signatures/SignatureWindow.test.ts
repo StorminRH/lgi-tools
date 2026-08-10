@@ -196,13 +196,14 @@ function render(
 }
 
 describe('SignatureWindow component prompt and filter states', () => {
-  it('renders sectioned Signatures, flat Anomalies, and bottom-left chrome', () => {
+  it('renders sectioned Signatures chrome for the root system and stays empty without a root', () => {
     const html = render(1, new Set());
     expect(html).toContain('data-map-window="signatures"');
     expect(html).toContain('data-map-window-placement="docked-bottom-left"');
     expect(html).toContain('data-tabs-default="signature"');
     expect(html).toContain('Signatures');
     expect(html).toContain('Anomalies');
+    expect(html).toContain('data-signature-id="ABC-123"');
     expect(html).toContain('data-scanner-section="unknown"');
     expect(html).toContain('data-scanner-section="wormholes"');
     expect(html).toContain('data-scanner-section="combat"');
@@ -217,7 +218,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('Harvestables');
     expect(html).toContain('Hacking');
     expect(html).toContain('data-chevron');
-    expect(html).toContain('ABC-123');
     expect(html).toContain('Sansha Hideout');
     expect(html).toContain('Barren Perimeter Reservoir');
     expect(html).toContain('Unsecured Frontier');
@@ -239,32 +239,35 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('scroll-area');
     expect(html).not.toContain('>Group<');
     expect(html).not.toContain('>Scanner<');
+    // Root-system rows render without requiring a tracked online character.
     expect(html).not.toContain('Track an online character');
+
+    const empty = render(null, new Set());
+    expect(empty).toContain('data-map-window="signatures"');
+    expect(empty).not.toContain('data-signature-id="ABC-123"');
+    expect(empty).not.toContain('data-scanner-section=');
   });
 
-  it('highlights missing rows and shows one bulk prompt above the scanner', () => {
-    const html = render(1, new Set(['ABC-123']));
-    expect(html).toContain('data-signature-missing="true"');
-    expect(html).toContain('data-signature-missing-prompt');
-    expect(html).toContain('1 signature missing from scan');
-    expect(html).toContain('Dismiss');
-    expect(html).toContain('Remove');
-    expect(html).not.toContain('map-signature-missing-actions');
-    expect(html).not.toContain('data-confirm-dialog');
-  });
+  it('highlights missing rows, pluralizes the bulk prompt, and keys it to the paste target', () => {
+    const singular = render(1, new Set(['ABC-123']));
+    expect(singular).toContain('data-signature-missing="true"');
+    expect(singular).toContain('data-signature-missing-prompt');
+    expect(singular).toContain('1 signature missing from scan');
+    expect(singular).toContain('Dismiss');
+    expect(singular).toContain('Remove');
+    expect(singular).not.toContain('map-signature-missing-actions');
+    expect(singular).not.toContain('data-confirm-dialog');
 
-  it('pluralizes the bulk missing prompt for multiple IDs', () => {
-    const html = render(1, new Set(['ABC-123', 'CBA-120']));
-    expect(html).toContain('2 signatures missing from scan');
-  });
+    expect(render(1, new Set(['ABC-123', 'CBA-120']))).toContain(
+      '2 signatures missing from scan',
+    );
 
-  it('shows the prompt for a paste-target system the window does not list', () => {
     // The pilot pasted down the chain: the prompt follows the paste target
     // (missingCount) while row highlighting stays scoped to the listed system.
-    const html = render(1, new Set(), 3);
-    expect(html).toContain('data-signature-missing-prompt');
-    expect(html).toContain('3 signatures missing from scan');
-    expect(html).not.toContain('data-signature-missing="true"');
+    const remote = render(1, new Set(), 3);
+    expect(remote).toContain('data-signature-missing-prompt');
+    expect(remote).toContain('3 signatures missing from scan');
+    expect(remote).not.toContain('data-signature-missing="true"');
   });
 
   it('stacks missing-scan and ambiguous-jump prompts in one scanner rail', () => {
@@ -290,13 +293,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-scanner-prompt-rail');
     expect(html).toContain('data-signature-missing-prompt');
     expect(html).toContain('data-signature-jump-prompt');
-  });
-
-  it('stays empty when the map has no chain root yet', () => {
-    const html = render(null, new Set());
-    expect(html).toContain('data-map-window="signatures"');
-    expect(html).not.toContain('data-signature-id="ABC-123"');
-    expect(html).not.toContain('data-scanner-section=');
   });
 
   it('opens catalogue sites for viewers with live Est. ISK while combat stays static', () => {

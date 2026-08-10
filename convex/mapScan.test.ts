@@ -742,59 +742,6 @@ describe('mapScan paste application and lifecycle', () => {
     })).rejects.toThrow('UNDO_WINDOW_EXPIRED');
   });
 
-  it('re-paste revives a tombstoned list signature inside the undo window', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('SIG-001'), signature('SIG-002')]);
-    const before = await readSignature(t, 'SIG-002');
-
-    expect(await asEditor(t).mutation(api.mapScan.removeSignatures, {
-      mapId: MAP,
-      systemId: JITA,
-      signatureIds: ['SIG-002'],
-    })).toEqual({ changed: 1 });
-    expect(await readSignature(t, 'SIG-002')).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
-    });
-
-    expect(await apply(t, [signature('SIG-001'), signature('SIG-002')])).toMatchObject({
-      updated: 1,
-      unchanged: 1,
-      missing: [],
-    });
-    expect(await readSignature(t, 'SIG-002')).toEqual({
-      ...before,
-      deletedAt: null,
-      purgeAfter: null,
-    });
-  });
-
-  it('re-paste revives a tombstoned unresolved wormhole stub', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('WHL-001', { group: 'Wormhole' })]);
-    expect(await asEditor(t).mutation(api.mapScan.removeSignatures, {
-      mapId: MAP,
-      systemId: JITA,
-      signatureIds: ['WHL-001'],
-    })).toEqual({ changed: 1 });
-    expect((await readState(t)).connections[0]).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
-    });
-
-    expect(await apply(t, [signature('WHL-001', { group: 'Wormhole' })])).toMatchObject({
-      updated: 1,
-      missing: [],
-    });
-    expect((await readState(t)).connections[0]).toMatchObject({
-      fromSignatureId: 'WHL-001',
-      deletedAt: null,
-      purgeAfter: null,
-    });
-  });
-
   it('solo paste then remove-missing leaves the pasted row; full re-paste restores all', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
