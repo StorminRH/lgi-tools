@@ -425,6 +425,13 @@ async function resolveConfirmation(
   } catch {
     return retry('convex-resolve');
   }
+  await eliminateAfterCommit(
+    database,
+    userId,
+    request.mapId,
+    emission,
+    dependencies,
+  );
   const provenance = input.operation === 'confirm' ? 'confirmed' : 'human';
   let emitted = false;
   try {

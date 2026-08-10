@@ -9,14 +9,23 @@ import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { systemClassText } from '@/data/eve-data/system-identity';
 import type { ScannedRow, SigGroup } from '@/data/maps/scan-parse';
-import type { ConnectionAuthoringApi } from '../authoring/connection-authoring-api';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
-import type {
-  ConnectionDetail,
-  UnresolvedHoleSummary,
+import {
+  useUniverseAssets,
+  type ConnectionDetail,
+  type UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
 import { feedFreshnessIndex } from '../tracking/presence-model';
 import { ActiveSignatureEditor } from './ActiveSignatureEditor';
+import {
+  answerAndAnnounce,
+  type ConnectionAuthoringApi,
+} from './connection-authoring-api';
+import {
+  jumpAnswerTarget,
+  pendingJumpResolution,
+  type JumpResolutionCandidate,
+} from './jump-resolution';
 import {
   SignatureRowsProvider,
   type OpenSignatureEditor,
@@ -45,7 +54,7 @@ interface MissingSignatures {
 }
 
 function connectionRows(
-  resolved: ReadonlyMap<string, ConnectionDetail>,
+  resolved: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolved: readonly UnresolvedHoleSummary[],
 ): readonly ConnectionSignatureInput[] {
   return [...resolved.values(), ...unresolved];
@@ -53,7 +62,7 @@ function connectionRows(
 
 function useSignaturePage(
   mapId: string,
-  connectionDetails: ReadonlyMap<string, ConnectionDetail>,
+  connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
 ) {
   const signatures = useDrainedPages(
@@ -221,7 +230,7 @@ export function SignatureProvider({
   /** Chain root — the scanner window lists this system's rows, like the dock. */
   readonly rootSystemId: number | null;
   readonly canEdit: boolean;
-  readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
+  readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
   readonly authoring: ConnectionAuthoringApi;
   /** The connection the map's one Signature Editor is open on, owned by the host. */
@@ -257,6 +266,40 @@ export function SignatureProvider({
   useScannerPaste({ canEdit, pasteTarget, applyRows });
   const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
   const identifyRow = useIdentifySignature(mapId);
+  const assets = useUniverseAssets();
+  const [dismissedResolutions, setDismissedResolutions] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const jumpResolution = useMemo(
+    () =>
+      canEdit
+        ? pendingJumpResolution(
+            connectionDetails,
+            unresolvedHoles,
+            dismissedResolutions,
+            assets === null ? null : (id: number) => assets.systemInfo(id),
+          )
+        : null,
+    [assets, canEdit, connectionDetails, dismissedResolutions, unresolvedHoles],
+  );
+  const dismissResolution = useCallback((connectionId: string) => {
+    setDismissedResolutions((previous) =>
+      new Set(previous).add(connectionId),
+    );
+  }, []);
+  const pickJumpCandidate = useCallback(
+    (candidate: JumpResolutionCandidate) => {
+      const connectionId = jumpResolution?.connectionId;
+      if (connectionId === undefined) return;
+      void answerAndAnnounce({
+        mapId,
+        connectionId,
+        targetConnectionId: jumpAnswerTarget(candidate),
+        dismiss: () => dismissResolution(connectionId),
+      });
+    },
+    [dismissResolution, jumpResolution, mapId],
+  );
   // One editor for the whole map: the scanner row and the canvas edge menu
   // both name a connection id through the host's single state (ruling D-F).
   const closeEditor = useCallback(
@@ -293,6 +336,8 @@ export function SignatureProvider({
         now={now}
         onDismissMissing={dismissMissing}
         onRemoveMissing={removeMissingRows}
+        jumpResolution={jumpResolution}
+        onPickJumpCandidate={pickJumpCandidate}
         onIdentify={identifyRow}
         onOpenEditor={openEditor}
       />

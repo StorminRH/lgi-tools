@@ -12,7 +12,7 @@
 - **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
   Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
   main after #377 shipped 4.0.4.3.1).
-- **OW progress:** 6/8 complete — next: OW-7 "The jump prompt".
+- **OW progress:** 7/8 complete — next: OW-8 "ux-check and the G-1 pause".
 - **OW completed:**
   - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
     (`systemIdentityReadout` + `systemClassText`, ladder moved from
@@ -89,6 +89,22 @@
     (gate-runner, 548 files/5082 tests, Fallow complexity 0 with the same
     OW-4 clone-group warn); primitive-checker CLEAN after retiring the
     orphaned `setConnectionTypedSide` client wiring. Commit: this branch head.
+  - OW-7 The jump prompt — the ambiguous-jump model, dispatchers and
+    `ConnectionAuthoringApi` moved into `src/mapper/signatures/`; new
+    scanner-overlay `SignatureJumpPrompt` names the shared destination
+    identity readout and lists the exact ordered `matchJump` survivors, while
+    zero/one survivors never prompt and any stale partial list is withheld
+    whole. The scanner prompt rail stacks jump and missing-scan states; a pick
+    confirms or re-associates through the existing route, which now cascades
+    elimination after the committed answer. The floating prompt and
+    authoring-owned model are deleted; automatic-jump/lifecycle probes use the
+    new pick flow. Proof: prompt header/order/pick, exact/stale/unique model,
+    dispatcher, one-survivor Convex state, resolver cascade and mapper-registry
+    suites; both retirement `rg` checks zero-hit; protected parser/lifecycle
+    diff empty; `pnpm verify` green (gate-runner, 520 files/4944 tests, Fallow
+    0 blocking issues with the same OW-4 bearer-door clone warning);
+    primitive-checker CLEAN after removing a forwarding re-export of the
+    shared readout. Commit: this branch head.
 - **Next-agent notes (4.0.4.3.2):** (1) D-E render decisions to re-confirm at
   the OW-8 pause: the TONE colors the whole readout span; system nodes have no
   disc chip anymore (chip is stub-only, showing the typed wormhole code);
@@ -135,24 +151,34 @@
   (9) OW-6 kept the OW-5 cascade behavior when the row editor moved into the
   pop-out: `ActiveSignatureEditor` still routes a RESOLVED row's type entry
   through `applyWormholeType` and leaves an unresolved stub on the plain
-  setter. (10) OW-6 residuals for OW-7 / close-out: the floating
-  `JumpResolutionPrompt` is still hosted by `MapAuthoringOverlay` by design
-  (OW-7 replaces it with the scanner overlay and deletes both the prompt and
-  that host's second job); `convex/mapAuthoring.setConnectionTypedSide` now
-  has NO client caller — `typedSide` is still written by `mapScan`/
-  `mapFixtures` and read by `mapJump`, so the mutation was left in place and
-  needs an explicit retire-or-keep ruling. (11) The editor is anchored in
+  setter. (10) OW-7 retired the floating `JumpResolutionPrompt` and left
+  `MapAuthoringOverlay` ledger-only. The separate
+  `convex/mapAuthoring.setConnectionTypedSide` residual still has NO client
+  caller — `typedSide` is written by `mapScan`/`mapFixtures` and read by
+  `mapJump`, so the mutation remains for an explicit close-out ruling. (11)
+  The editor is anchored in
   SCREEN space beside the scanner dock, never to canvas geometry: React Flow
   pans/zooms by mutating a viewport transform, which fires neither scroll nor
   resize, and Base UI exposes no animation-frame anchor tracking (docs
   brief) — do not "fix" this by re-anchoring it to an edge.
   `MAP_SCANNER_EDITOR_CLASS` restates `MAP_SCANNER_DOCK_CLASS`'s width as its
   left offset; change them together. (12) Destruction has one owner:
-  `connectionLifecycleActions` in `authoring/connection-authoring-api.ts`.
+  `connectionLifecycleActions` in
+  `signatures/connection-authoring-api.ts`.
   `surface.test.ts` pins the allowlist of files that may name
   `severConnection`/`restoreSeveredBranch`/`restoreConnection`, so a new
   Delete entry point must route through that factory rather than widening the
-  list.
+  list. (13) The OW-7 prompt selector is
+  `[data-signature-jump-prompt]`, with one
+  `[data-signature-jump-candidate]` button per exact survivor. Unique assumed
+  survivors resolve without `pendingCandidates`; multi-survivor ordering stays
+  owned exclusively by `matchJump`. If a stored survivor disappears before
+  render, withhold the whole stale prompt rather than shortening it. Prompt
+  answers cascade elimination server-side after the topology commit; clients
+  must not add a second elimination POST. OW-8's updated
+  `atlas-automatic-jump` probe picks the second survivor and expects both
+  clients to settle; the lifecycle probe now expects its unique match to show
+  no prompt. Missing-scan and jump prompts share one scanner rail and stack.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from

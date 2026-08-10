@@ -116,17 +116,14 @@ describe('mapper source contract', () => {
   it('walks the whole mapper zone', () => {
     expect(mapperFiles().toSorted()).toEqual([
       'authoring/HomePrompt.tsx',
-      'authoring/JumpResolutionPrompt.tsx',
       'authoring/MapAuthoringOverlay.tsx',
       'authoring/NodeAddMenu.tsx',
       'authoring/RightsTransitionToast.tsx',
-      'authoring/connection-authoring-api.ts',
       'authoring/connection-editor-mode.ts',
       'authoring/connection-field-group.tsx',
       'authoring/connection-field-setters.ts',
       'authoring/connection-fields.tsx',
       'authoring/connection-intelligence.ts',
-      'authoring/jump-resolution.ts',
       'authoring/rights-transition.ts',
       'authoring/sever-toast.ts',
       'authoring/use-wormhole-editor-data.ts',
@@ -183,13 +180,17 @@ describe('mapper source contract', () => {
       'motion/use-motion.ts',
       'signatures/ActiveSignatureEditor.tsx',
       'signatures/SignatureEditor.tsx',
+      'signatures/SignatureJumpPrompt.tsx',
       'signatures/SignatureProvider.tsx',
       'signatures/SignatureWindow.tsx',
+      'signatures/connection-authoring-api.ts',
       'signatures/editor-leader.ts',
+      'signatures/jump-resolution.ts',
       'signatures/signature-context.tsx',
       'signatures/signature-elimination-client.ts',
       'signatures/signature-model.ts',
       'signatures/signature-toast.ts',
+      'signatures/system-readout.ts',
       'signatures/use-scanner-paste.ts',
       'signatures/use-system-statics.ts',
       'tracking/AfkGate.tsx',
@@ -231,7 +232,7 @@ describe('mapper source contract', () => {
     // `connectionLifecycleActions`, never by naming the mutations itself.
     const allowed = new Set([
       'chain/optimistic-authoring.ts',
-      'authoring/connection-authoring-api.ts',
+      'signatures/connection-authoring-api.ts',
       'authoring/MapAuthoringOverlay.tsx',
     ]);
     for (const file of mapperFiles()) {
@@ -243,7 +244,7 @@ describe('mapper source contract', () => {
       if (!namesDestruction) continue;
       expect(allowed.has(file), file).toBe(true);
     }
-    const api = sourceOf('authoring/connection-authoring-api.ts');
+    const api = sourceOf('signatures/connection-authoring-api.ts');
     expect(api).toContain('severConnection');
     expect(api).toContain('restoreSeveredBranch');
     expect(api).toContain('restoreConnection');

@@ -7,10 +7,8 @@ import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
-import {
-  ActiveSignatureEditor,
-  destinationReadout,
-} from './ActiveSignatureEditor';
+import { ActiveSignatureEditor } from './ActiveSignatureEditor';
+import { destinationReadout } from './system-readout';
 
 const assets = vi.hoisted(() => ({ systemInfo: vi.fn(() => null) }));
 

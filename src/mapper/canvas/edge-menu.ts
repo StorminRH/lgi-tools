@@ -8,7 +8,7 @@ import type { Id } from '@/data/convex/data-model';
 import {
   connectionLifecycleActions,
   type ConnectionAuthoringApi,
-} from '../authoring/connection-authoring-api';
+} from '../signatures/connection-authoring-api';
 import { isHaloEdgeId } from '../chain/nodes';
 
 /** One opened edge menu: the connection it acts on and where it was opened. */

@@ -290,18 +290,14 @@ export default {
       (await stubCount(page)) === 0 && (await stubCount(second.page)) === 0,
     );
 
-    // Signature-first matching asks an informed confirmation, labeled with the
-    // consumed signature (4.0.4.2.2 direction; PD-3 signature-ID labels).
-    const prompt = page.locator('[data-map-jump-prompt]');
-    await prompt.waitFor({ state: 'visible', timeout: 15_000 });
+    // A unique survivor resolves without a prompt; ambiguity alone asks the
+    // scanner-overlay question (4.0.4.3.2 ruling D-H).
     check(
-      'auto-link asks informed confirmation labeled with the signature',
-      /CBA-120/.test((await prompt.textContent()) ?? ''),
+      'unique survivor auto-resolves without a jump prompt',
+      (await page.locator('[data-signature-jump-prompt]').count()) === 0,
     );
-    await page.locator('[data-map-jump-confirm]').click();
-    await prompt.waitFor({ state: 'detached', timeout: 10_000 });
     check(
-      'confirmation settles two authored systems and one real edge',
+      'the unique match settles two authored systems and one real edge',
       (await page.locator('[data-chain-node]').count()) === 2
       && (await page.locator('.react-flow__edge').count()) === 1,
     );

@@ -562,7 +562,9 @@ async function resolveCandidateTopology(
     toSystemId: args.toSolarSystemId,
     destinationProvenance: selection.provenance,
     pendingCandidates:
-      selection.provenance === 'assumed' ? [...selection.survivors] : undefined,
+      selection.provenance === 'assumed' && selection.survivors.length > 1
+        ? [...selection.survivors]
+        : undefined,
     observedMassKg: nextObservedMass(candidate, observedShipMassKg),
     observationKey: candidate.observationKey ?? args.observationKey,
   } as const;

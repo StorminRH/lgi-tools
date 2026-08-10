@@ -6,6 +6,7 @@ import type {
 } from '../chain/use-map-chain';
 import {
   hasPendingResolution,
+  jumpAnswerTarget,
   jumpCandidateLabel,
   jumpResolutionCandidates,
   pendingJumpResolution,
@@ -82,14 +83,16 @@ function pending(partial: Partial<ConnectionDetail> = {}): ConnectionDetail {
 }
 
 describe('jump resolution', () => {
-  it('requires assumed live survivors, labels candidates, and drops resolved stubs', () => {
+  it('requires exact multi-survivor ambiguity and preserves matcher order', () => {
     expect(hasPendingResolution(pending())).toBe(true);
     expect(hasPendingResolution(pending({ destinationProvenance: 'jump-verified' }))).toBe(false);
     expect(hasPendingResolution(pending({ pendingCandidates: null }))).toBe(false);
     expect(hasPendingResolution(pending({ pendingCandidates: [] }))).toBe(false);
+    expect(hasPendingResolution(pending({ pendingCandidates: [C1] }))).toBe(false);
     expect(hasPendingResolution(pending({ deletedAt: 5 }))).toBe(false);
 
     const candidates = jumpResolutionCandidates(pending(), HOLES);
+    if (candidates === null) throw new Error('expected exact survivor candidates');
     expect(candidates).toEqual([
       {
         connectionId: C1,
@@ -106,38 +109,50 @@ describe('jump resolution', () => {
     ]);
     expect(jumpCandidateLabel(candidates[0]!)).toBe('ABC-123 · K162');
     expect(jumpCandidateLabel(candidates[1]!)).toBe('DEF-456 · Unidentified');
+    expect(jumpAnswerTarget(candidates[0]!)).toBeNull();
+    expect(jumpAnswerTarget(candidates[1]!)).toBe(STUB);
 
-    expect(jumpResolutionCandidates(pending(), [])).toEqual([
-      {
-        connectionId: C1,
-        signatureId: 'ABC-123',
-        wormholeTypeCode: 'K162',
-        isCurrent: true,
-      },
-    ]);
+    expect(jumpResolutionCandidates(pending(), [])).toBeNull();
+    expect(
+      jumpResolutionCandidates(
+        pending({ pendingCandidates: [STUB, C1] }),
+        HOLES,
+      )?.map((candidate) => candidate.connectionId),
+    ).toEqual([STUB, C1]);
   });
 
-  it('surfaces the newest pending row, honors dismissal, and ignores settled rows', () => {
+  it('surfaces the newest exact prompt with the shared destination readout', () => {
     const older = pending();
     const newer = pending({
       connectionId: 'c9' as Id<'mapConnections'>,
       _creationTime: 9,
-      pendingCandidates: ['c9' as Id<'mapConnections'>],
+      pendingCandidates: ['c9' as Id<'mapConnections'>, STUB],
     });
     const details = new Map([
       [older.connectionId, older],
       [newer.connectionId, newer],
     ]);
 
-    expect(pendingJumpResolution(details, HOLES, new Set())?.connectionId).toBe('c9');
+    const systemInfo = (id: number) =>
+      id === 2
+        ? { id, name: 'J123456', security: -1, whClassId: 4 }
+        : null;
+    expect(pendingJumpResolution(details, HOLES, new Set(), systemInfo)).toEqual(
+      expect.objectContaining({
+        connectionId: 'c9',
+        destination: { label: 'J123456 - C4', tone: 'text-wh-c4' },
+      }),
+    );
     expect(
-      pendingJumpResolution(details, HOLES, new Set(['c9']))?.connectionId,
+      pendingJumpResolution(details, HOLES, new Set(['c9']), systemInfo)?.connectionId,
     ).toBe('c1');
-    expect(pendingJumpResolution(details, HOLES, new Set(['c1', 'c9']))).toBeNull();
+    expect(
+      pendingJumpResolution(details, HOLES, new Set(['c1', 'c9']), systemInfo),
+    ).toBeNull();
 
     const settled = detail({ connectionId: C1, destinationProvenance: 'jump-verified' });
     expect(
-      pendingJumpResolution(new Map([[C1, settled]]), HOLES, new Set()),
+      pendingJumpResolution(new Map([[C1, settled]]), HOLES, new Set(), systemInfo),
     ).toBeNull();
   });
 });

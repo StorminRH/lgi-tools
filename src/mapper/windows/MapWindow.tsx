@@ -32,19 +32,21 @@ const ADOPTED_POPUP_SELECTOR = [
 
 // The scanner dock's effective height is min(24rem, 100vw-2rem, 100dvh-7rem):
 // a square sized by the width clamp, then capped by the viewport-height clamp.
-// The prompt class below re-states that same expression as its bottom offset so
-// the prompt tracks the dock at every viewport size — change them TOGETHER.
+// The prompt rail below re-states that same expression as its bottom offset so
+// every scanner prompt tracks the dock at every viewport size — change them
+// TOGETHER.
 
 /** Placement classes for the docked-bottom-left scanner square. */
 export const MAP_SCANNER_DOCK_CLASS =
   'bottom-4 left-4 size-[min(24rem,calc(100vw-2rem))] max-h-[calc(100dvh-7rem)]';
 
 /**
- * Frosted missing-signatures prompt parked just above the scanner dock.
- * Static Tailwind string so the utility is discoverable at build time.
+ * Scanner prompt rail parked just above the dock. Missing-scan and ambiguous-
+ * jump prompts share it so simultaneous states stack instead of overlapping.
+ * Static Tailwind string so every utility is discoverable at build time.
  */
-export const MAP_SCANNER_MISSING_PROMPT_CLASS =
-  'pointer-events-auto absolute bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] left-4 z-sticky w-[min(24rem,calc(100vw-2rem))]';
+export const MAP_SCANNER_PROMPT_RAIL_CLASS =
+  'pointer-events-auto absolute bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] left-4 z-sticky flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2';
 
 /**
  * The Signature Editor pop-out, parked immediately right of the scanner dock

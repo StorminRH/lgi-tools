@@ -24,9 +24,14 @@ import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
-  MAP_SCANNER_MISSING_PROMPT_CLASS,
+  MAP_SCANNER_PROMPT_RAIL_CLASS,
   MapWindow,
 } from '../windows/MapWindow';
+import { SignatureJumpPrompt } from './SignatureJumpPrompt';
+import type {
+  JumpResolutionCandidate,
+  JumpResolutionModel,
+} from './jump-resolution';
 import {
   filterSignatureRows,
   formatSignatureAge,
@@ -524,6 +529,9 @@ interface SignatureWindowProps {
   readonly now: number;
   readonly onDismissMissing: () => void;
   readonly onRemoveMissing: () => Promise<void>;
+  /** Newest exact multi-survivor jump awaiting a signature pick. */
+  readonly jumpResolution: JumpResolutionModel | null;
+  readonly onPickJumpCandidate: (candidate: JumpResolutionCandidate) => void;
   readonly onIdentify: (
     row: SignatureWindowRow,
     group: SigGroup,
@@ -572,7 +580,6 @@ function MissingSignaturesPrompt({
     <div
       data-signature-missing-prompt
       className={cn(
-        MAP_SCANNER_MISSING_PROMPT_CLASS,
         'flex flex-col gap-2 rounded-card p-3 text-ui',
         mapFrostedSurface,
       )}
@@ -751,12 +758,20 @@ export function SignatureWindow(props: SignatureWindowProps) {
       data-signature-window-layer
       className="pointer-events-none absolute inset-0 z-sticky"
     >
-      <MissingSignaturesPrompt
-        count={props.missingCount}
-        canEdit={props.canEdit}
-        onDismiss={props.onDismissMissing}
-        onRemove={removeMissing}
-      />
+      <div data-scanner-prompt-rail className={MAP_SCANNER_PROMPT_RAIL_CLASS}>
+        <MissingSignaturesPrompt
+          count={props.missingCount}
+          canEdit={props.canEdit}
+          onDismiss={props.onDismissMissing}
+          onRemove={removeMissing}
+        />
+        {props.canEdit && props.jumpResolution !== null ? (
+          <SignatureJumpPrompt
+            resolution={props.jumpResolution}
+            onPick={props.onPickJumpCandidate}
+          />
+        ) : null}
+      </div>
       <ScannerWindowFrame {...props} onOpenActions={openRowActions} />
       <IdentifySignatureMenu
         action={rowAction}

@@ -1,7 +1,7 @@
 // Session 4.0.4.2.2 G-1: two authenticated clients observe the real tracked
 // transition → doorbell → server resolver path. The first jump auto-links one
-// typed survivor and decrements mass; the second leaves an ambiguous popup for
-// operator review. One-shot by design: the authored map remains populated.
+// typed survivor and decrements mass; the second picks from the exact ambiguous
+// survivor list in the scanner overlay. One-shot by design.
 import {
   automaticJumpMapId,
   automaticJumpRoute,
@@ -197,8 +197,8 @@ export default {
     );
     check(
       'unambiguous match needs no confirmation prompt',
-      (await page.locator('[data-map-jump-prompt]').count()) === 0
-      && (await second.page.locator('[data-map-jump-prompt]').count()) === 0,
+      (await page.locator('[data-signature-jump-prompt]').count()) === 0
+      && (await second.page.locator('[data-signature-jump-prompt]').count()) === 0,
     );
 
     await calmMapCamera(page);
@@ -256,28 +256,31 @@ export default {
     await Promise.all([
       waitForTopology(page, 3, 2),
       waitForTopology(second.page, 3, 2),
-      page.locator('[data-map-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
-      second.page.locator('[data-map-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
+      page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
+      second.page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
     ]);
+    const primaryPrompt = page.locator('[data-signature-jump-prompt]');
+    const secondaryPrompt = second.page.locator('[data-signature-jump-prompt]');
+    const primaryCandidates = primaryPrompt.locator('[data-signature-jump-candidate]');
+    const secondaryCandidates = secondaryPrompt.locator('[data-signature-jump-candidate]');
     check(
-      'ambiguous result fans out and offers confirm/correct on both clients',
-      (await page.locator('[data-map-jump-confirm]').count()) === 1
-      && (await page.locator('[data-map-jump-correct]').count()) >= 1
-      && (await second.page.locator('[data-map-jump-confirm]').count()) === 1
-      && (await second.page.locator('[data-map-jump-correct]').count()) >= 1,
+      'ambiguous result fans out the same survivor-only scanner prompt',
+      /J114342 - C3/.test((await primaryPrompt.textContent()) ?? '')
+      && (await primaryCandidates.count()) === 2
+      && (await secondaryCandidates.count()) === 2,
     );
 
-    // Next's dev-only route-status portal occupies this same bottom-right
-    // corner. Exercise the prompt's keyboard path so that non-production
-    // overlay cannot steal the pointer from its visible Dismiss control.
-    const dismiss = page.locator('[data-map-jump-dismiss]');
-    await dismiss.focus();
-    await dismiss.press('Enter');
-    await page.locator('[data-map-jump-prompt]').waitFor({ state: 'detached', timeout: 10_000 });
+    // Pick the second survivor; the server moves the destination facts,
+    // cascades elimination, and fans out the settled state.
+    await primaryCandidates.nth(1).click();
+    await Promise.all([
+      primaryPrompt.waitFor({ state: 'detached', timeout: 10_000 }),
+      secondaryPrompt.waitFor({ state: 'detached', timeout: 10_000 }),
+    ]);
     check(
-      'dismissal is client-local and leaves the other client prompt pending',
-      (await page.locator('[data-map-jump-prompt]').count()) === 0
-      && (await second.page.locator('[data-map-jump-prompt]').count()) === 1,
+      'signature pick settles the shared prompt on both clients',
+      (await page.locator('[data-signature-jump-prompt]').count()) === 0
+      && (await second.page.locator('[data-signature-jump-prompt]').count()) === 0,
     );
   },
 };

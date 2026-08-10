@@ -6,8 +6,8 @@ import type { Id } from '@/data/convex/data-model';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
 import type { ConnectionDetail } from '../chain/use-map-chain';
 import { postJumpRequest } from '../jump-client';
-import type { ConnectionFieldAuthoringApi } from './connection-field-setters';
-import { announceSeverOutcome } from './sever-toast';
+import type { ConnectionFieldAuthoringApi } from '../authoring/connection-field-setters';
+import { announceSeverOutcome } from '../authoring/sever-toast';
 
 /** Full authoring surface: shared fields plus connection lifecycle. */
 export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {

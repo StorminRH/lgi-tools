@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { SignatureWindow } from './SignatureWindow';
+import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';
 
 vi.mock('@/components/ui/tabs', () => ({
@@ -158,6 +159,7 @@ function render(
   scannerSystemId: number | null,
   missingIds: ReadonlySet<string>,
   missingCount = missingIds.size,
+  jumpResolution: JumpResolutionModel | null = null,
 ): string {
   return renderToStaticMarkup(
     createElement(SignatureWindow, {
@@ -170,6 +172,8 @@ function render(
       now: 60_000,
       onDismissMissing: vi.fn(),
       onRemoveMissing: vi.fn(async () => undefined),
+      jumpResolution,
+      onPickJumpCandidate: vi.fn(),
       onIdentify: vi.fn(async () => undefined),
       onOpenEditor: vi.fn(),
     }),
@@ -245,6 +249,31 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-signature-missing-prompt');
     expect(html).toContain('3 signatures missing from scan');
     expect(html).not.toContain('data-signature-missing="true"');
+  });
+
+  it('stacks missing-scan and ambiguous-jump prompts in one scanner rail', () => {
+    const jumpResolution: JumpResolutionModel = {
+      connectionId: 'connection-1' as Id<'mapConnections'>,
+      destination: { label: 'J123456 - C4', tone: 'text-wh-c4' },
+      candidates: [
+        {
+          connectionId: 'connection-1' as Id<'mapConnections'>,
+          signatureId: 'WHL-001',
+          wormholeTypeCode: 'B274',
+          isCurrent: true,
+        },
+        {
+          connectionId: 'connection-2' as Id<'mapConnections'>,
+          signatureId: 'XYZ-999',
+          wormholeTypeCode: null,
+          isCurrent: false,
+        },
+      ],
+    };
+    const html = render(1, new Set(['ABC-123']), 1, jumpResolution);
+    expect(html).toContain('data-scanner-prompt-rail');
+    expect(html).toContain('data-signature-missing-prompt');
+    expect(html).toContain('data-signature-jump-prompt');
   });
 
   it('shows root-system rows without a tracked online character', () => {

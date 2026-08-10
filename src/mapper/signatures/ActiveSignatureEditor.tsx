@@ -8,19 +8,14 @@
 // stays presentation plus its drawn row tie.
 import { useEffect } from 'react';
 import type { Id } from '@/data/convex/data-model';
-import {
-  systemIdentityReadout,
-  type SystemIdentityReadout,
-} from '@/data/eve-data/system-identity';
-import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import {
   applyWormholeType,
   connectionLifecycleActions,
   type ConnectionAuthoringApi,
-} from '../authoring/connection-authoring-api';
+} from './connection-authoring-api';
 import { connectionEditorMode } from '../authoring/connection-editor-mode';
 import { connectionFieldSetters } from '../authoring/connection-field-setters';
-import { resolveSystemLabel } from '../chain/labels';
 import {
   useUniverseAssets,
   type ConnectionDetail,
@@ -28,6 +23,7 @@ import {
   type UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
 import { SignatureEditor } from './SignatureEditor';
+import { destinationReadout } from './system-readout';
 
 /** Whether the row has a resolved destination (the card-parity type path). */
 function isResolvedConnection(
@@ -60,27 +56,6 @@ export interface ActiveSignatureEditorProps {
   readonly onClose: () => void;
   /** Focuses one system on the canvas from the locked Leads-to readout. */
   readonly onFocusSystem?: (systemId: number) => void;
-}
-
-/**
- * The destination identity readout, or null while the hole is unresolved.
- *
- * Pure and exported so the locked Leads-to answer is proved without a
- * directory load: it must be the SAME readout the canvas node shows, and a
- * system whose directory entry has not landed yet falls back to its bare id
- * rather than becoming a loading state.
- */
-export function destinationReadout(
-  toSystemId: number | null,
-  systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
-): SystemIdentityReadout | null {
-  if (toSystemId === null) return null;
-  const label = resolveSystemLabel(toSystemId, systemInfo);
-  return systemIdentityReadout({
-    name: label.name,
-    security: label.security ?? null,
-    whClassId: label.whClassId ?? null,
-  });
 }
 
 function useDestinationReadout(

@@ -461,8 +461,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           <MapAuthoringOverlay
             mapId={mapId}
             canEdit={canEdit === true}
-            connectionDetails={connectionDetails}
-            unresolvedHoles={unresolvedHoles}
             connectionPresentationNow={connectionPresentationNow}
             events={events}
             authoring={authoring}

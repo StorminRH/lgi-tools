@@ -345,6 +345,18 @@ describe('jump resolver composition', () => {
       mapId: MAP,
       connectionId: 'connection-1',
     });
+    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
+      1,
+      database,
+      USER,
+      { mapId: MAP, systemId: ORIGIN },
+    );
+    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
+      2,
+      database,
+      USER,
+      { mapId: MAP, systemId: DESTINATION },
+    );
     expect(h.insertWhObservation).toHaveBeenCalledWith(
       database,
       expect.objectContaining({ provenance: 'confirmed' }),
@@ -508,5 +520,6 @@ describe('jump resolver composition', () => {
     });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
     expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'observation-key');
+    expect(h.resolveSignatureElimination).toHaveBeenCalledTimes(2);
   });
 });

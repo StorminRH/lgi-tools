@@ -3,10 +3,13 @@
 // matcher's deterministic ordering; this module only resolves those ids to
 // display facts and decides which pending resolution to surface.
 import type { Id } from '@/data/convex/data-model';
+import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
+import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
+import { destinationReadout } from './system-readout';
 
 /** One selectable candidate for a pending auto-link resolution. */
 export interface JumpResolutionCandidate {
@@ -20,7 +23,15 @@ export interface JumpResolutionCandidate {
 /** One pending assumed resolution: the resolved row plus its recorded survivors. */
 export interface JumpResolutionModel {
   readonly connectionId: Id<'mapConnections'>;
+  readonly destination: SystemIdentityReadout;
   readonly candidates: readonly JumpResolutionCandidate[];
+}
+
+/** Route target for one survivor pick: null confirms the already-linked row. */
+export function jumpAnswerTarget(
+  candidate: JumpResolutionCandidate,
+): Id<'mapConnections'> | null {
+  return candidate.isCurrent ? null : candidate.connectionId;
 }
 
 /** Whether one connection row still carries an answerable assumed auto-link. */
@@ -28,20 +39,19 @@ export function hasPendingResolution(connection: ConnectionDetail): boolean {
   return (
     connection.destinationProvenance === 'assumed' &&
     connection.pendingCandidates !== null &&
-    connection.pendingCandidates.length > 0 &&
+    connection.pendingCandidates.length > 1 &&
     connection.deletedAt === null
   );
 }
 
 /**
- * Resolves the recorded survivor ids to labeled candidates. The resolved row
- * itself leads; other survivors label from the live unresolved feed and drop
- * out silently once they resolve or tombstone elsewhere.
+ * Resolves the recorded survivor ids to labeled candidates in the matcher's
+ * exact order. Any now-unrepresentable survivor makes the whole prompt stale.
  */
 export function jumpResolutionCandidates(
   connection: ConnectionDetail,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
-): readonly JumpResolutionCandidate[] {
+): readonly JumpResolutionCandidate[] | null {
   const candidates: JumpResolutionCandidate[] = [];
   for (const candidateId of connection.pendingCandidates ?? []) {
     if (candidateId === connection.connectionId) {
@@ -54,7 +64,10 @@ export function jumpResolutionCandidates(
       continue;
     }
     const hole = unresolvedHoles.find((row) => row.connectionId === candidateId);
-    if (hole === undefined) continue;
+    // The stored array is the matcher's exact survivor list. If a concurrent
+    // update makes one survivor unrepresentable, withhold the stale prompt as
+    // a whole instead of silently presenting a shortened, dishonest list.
+    if (hole === undefined) return null;
     candidates.push({
       connectionId: hole.connectionId,
       signatureId: hole.fromSignatureId,
@@ -62,34 +75,36 @@ export function jumpResolutionCandidates(
       isCurrent: false,
     });
   }
-  return candidates.toSorted(
-    (left, right) => Number(right.isCurrent) - Number(left.isCurrent),
-  );
+  return candidates;
 }
 
 /**
- * The newest pending assumed resolution not locally dismissed, or null. One at
- * a time keeps the prompt non-blocking; older pending rows stay answerable
- * from their connection cards.
+ * The newest exact multi-survivor resolution not locally answered, or null.
+ * One at a time keeps the scanner prompt rail non-blocking.
  */
 export function pendingJumpResolution(
   details: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
   dismissed: ReadonlySet<string>,
+  systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
 ): JumpResolutionModel | null {
-  let newest: ConnectionDetail | null = null;
+  let newest: JumpResolutionModel | null = null;
+  let newestCreatedAt = Number.NEGATIVE_INFINITY;
   for (const connection of details.values()) {
     if (!hasPendingResolution(connection)) continue;
     if (dismissed.has(connection.connectionId)) continue;
-    if (newest === null || connection._creationTime > newest._creationTime) {
-      newest = connection;
-    }
+    const candidates = jumpResolutionCandidates(connection, unresolvedHoles);
+    const destination = destinationReadout(connection.toSystemId, systemInfo);
+    if (candidates === null || candidates.length <= 1 || destination === null) continue;
+    if (connection._creationTime <= newestCreatedAt) continue;
+    newestCreatedAt = connection._creationTime;
+    newest = {
+      connectionId: connection.connectionId,
+      destination,
+      candidates,
+    };
   }
-  if (newest === null) return null;
-  return {
-    connectionId: newest.connectionId,
-    candidates: jumpResolutionCandidates(newest, unresolvedHoles),
-  };
+  return newest;
 }
 
 /** Short human label for one candidate: signature identity plus typed code. */
