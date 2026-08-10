@@ -12,8 +12,7 @@
 - **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
   Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
   main after #377 shipped 4.0.4.3.1).
-- **OW progress:** 1/8 complete — next: OW-2 "Statics ghost stubs and stub
-  accounting".
+- **OW progress:** 2/8 complete — next: OW-3 "The pure eliminator".
 - **OW completed:**
   - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
     (`systemIdentityReadout` + `systemClassText`, ladder moved from
@@ -24,6 +23,16 @@
     matrix + node/dock component tests + `rg systemClassLabel` zero hits
     (SC-5.1–5.3); `pnpm verify` green (gate-runner, 508 files/4870 tests,
     fallow 0 findings); primitive-checker CLEAN after chip fix. Commit: this
+    branch head.
+  - OW-2 Statics ghost stubs and stub accounting — new pure
+    `src/data/maps/stub-accounting.ts` owns D-D's believed-holes rule;
+    `use-system-statics.ts` reuses the cached statics route + session codex;
+    `nodes.ts`/the existing `chainSystem` renderer now carry stable
+    `static-stub:` leaves through the shared layout kernel. Proof: all four
+    D-D worked cases + multiset/degraded cases, node set/replacement/collapse
+    return, layout fingerprint/placement, exact `<code> - <class>` inert
+    presentation (SC-3.2, SC-4.1–4.3); `pnpm verify` green (gate-runner, 510
+    files/4884 tests, Fallow 0 issues); primitive-checker CLEAN. Commit: this
     branch head.
 - **Next-agent notes (4.0.4.3.2):** (1) D-E render decisions to re-confirm at
   the OW-8 pause: the TONE colors the whole readout span; system nodes have no
@@ -36,7 +45,14 @@
   auto-generate `text-*` utilities and plain `.ts` files are content-scanned;
   React Flow v12 `nodeLookup` primitive selectors are the documented pattern.
   (4) `check-universe-assets.ts` keeps its own partial CLASS_LABELS census
-  list (script-side report vocabulary, not a display rule).
+  list (script-side report vocabulary, not a display rule). (5) OW-2 keeps
+  statics presentation fully derived: `static-stub:<system>:<code>:<ordinal>`
+  identities survive duplicate-code slots; a local-side code-carrying live
+  hole replaces its matching static and a tombstone/collapse returns it. The
+  first unidentified scan rows claim existing statics/sig-less lines and only
+  the deterministic surplus remains as ordinary `stub:` leaves — no type is
+  inferred here. Statics or codex failure withholds that system's static
+  claims without retaining stale results; paste-driven stubs remain usable.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from

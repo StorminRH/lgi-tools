@@ -59,9 +59,14 @@ import {
   LAYOUT_KERNEL_TEARDOWN,
   useLayoutKernel,
 } from '../layout/use-layout-kernel';
+import { useSystemStaticSlots } from '../signatures/use-system-statics';
 import type { ChainPosition, MapChainIntent } from './intents';
 import { resolveSystemLabel, type SystemLabel } from './labels';
-import type { PlacedStubConnection } from './nodes';
+import {
+  planStubNodes,
+  type PlacedStub,
+  type PlannedStub,
+} from './nodes';
 import { assignerFromPositions } from './placement';
 import {
   applyUserPlacement,
@@ -214,6 +219,10 @@ interface StubLayoutRow extends UnresolvedHoleSummary {
   readonly layoutSystemId: number;
 }
 
+type AccountedStubLayoutRow = PlannedStub & {
+  readonly layoutSystemId: number;
+};
+
 /**
  * Selects scanned unresolved rows whose authored anchor is present and assigns
  * deterministic kernel-only ids in subscription order. A row already visible
@@ -245,17 +254,45 @@ export function stubLayoutRows(
   return stubs;
 }
 
+/**
+ * Retains the scanned rows selected by accounting at their original surrogate
+ * ids, then assigns non-colliding ids to the guaranteed-static leaves.
+ */
+export function accountedStubLayoutRows(
+  planned: readonly PlannedStub[],
+  scanned: readonly StubLayoutRow[],
+): readonly AccountedStubLayoutRow[] {
+  const scannedIds = new Map<string, number>(
+    scanned.map((row) => [row.connectionId, row.layoutSystemId]),
+  );
+  let nextStatic = scanned.length + 1;
+  const rows: AccountedStubLayoutRow[] = [];
+  for (const stub of planned) {
+    if ('staticId' in stub) {
+      rows.push({ ...stub, layoutSystemId: -(nextStatic++) });
+      continue;
+    }
+    const layoutSystemId = scannedIds.get(stub.connectionId);
+    if (layoutSystemId !== undefined) rows.push({ ...stub, layoutSystemId });
+  }
+  return rows;
+}
+
+function stubKey(row: PlannedStub): string {
+  return 'staticId' in row ? `static:${row.staticId}` : row.connectionId;
+}
+
 /** Content key for the unresolved rows that participate in kernel layout. */
-export function stubLayoutSignature(rows: readonly StubLayoutRow[]): string {
+export function stubLayoutSignature(rows: readonly AccountedStubLayoutRow[]): string {
   return rows
-    .map((row) => `${row.connectionId}:${row.fromSystemId}>${row.layoutSystemId}`)
+    .map((row) => `${stubKey(row)}:${row.fromSystemId}>${row.layoutSystemId}`)
     .join(',');
 }
 
 /** Appends unresolved wormholes as leaf facts without changing authored identities. */
 export function appendStubFacts(
   facts: LayoutFacts,
-  rows: readonly StubLayoutRow[],
+  rows: readonly AccountedStubLayoutRow[],
 ): LayoutFacts {
   if (rows.length === 0) return facts;
   return {
@@ -276,32 +313,27 @@ export function appendStubFacts(
 
 /** Maps a kernel reply back from surrogate ids to durable connection ids. */
 export function stubPositionsFromLayout(
-  rows: readonly StubLayoutRow[],
+  rows: readonly AccountedStubLayoutRow[],
   positions: ReadonlyMap<number, ChainPosition>,
 ): ReadonlyMap<string, ChainPosition> {
   const placed = new Map<string, ChainPosition>();
   for (const row of rows) {
     const position = positions.get(row.layoutSystemId);
-    if (position !== undefined) placed.set(row.connectionId, position);
+    if (position !== undefined) placed.set(stubKey(row), position);
   }
   return placed;
 }
 
 /** Joins current display facts to the latest kernel-owned stub positions. */
-export function placedStubConnections(
-  rows: readonly StubLayoutRow[],
+export function placedStubs(
+  rows: readonly AccountedStubLayoutRow[],
   positions: ReadonlyMap<string, ChainPosition>,
-): readonly PlacedStubConnection[] {
+): readonly PlacedStub[] {
   return rows.flatMap((row) => {
-    const position = positions.get(row.connectionId);
+    const position = positions.get(stubKey(row));
     if (position === undefined) return [];
-    return [{
-      connectionId: row.connectionId,
-      fromSystemId: row.fromSystemId,
-      signatureId: row.fromSignatureId,
-      wormholeTypeCode: row.wormholeTypeCode,
-      position,
-    }];
+    const { layoutSystemId: _layoutSystemId, ...stub } = row;
+    return [{ ...stub, position }];
   });
 }
 
@@ -477,7 +509,7 @@ export interface MapChain {
    */
   readonly halo: PlacedHalo;
   /** Kernel-placed unresolved wormhole endpoints, keyed externally by their connection rows. */
-  readonly stubs: readonly PlacedStubConnection[];
+  readonly stubs: readonly PlacedStub[];
   /** Sorted gate neighbours from the static asset; empty until it loads. */
   readonly neighboursOf: (systemId: number) => readonly number[];
   /** Stamps a dropped node's position as user-owned, protecting it until re-lock releases it. */
@@ -589,9 +621,29 @@ export function useMapChain(
     () => unresolvedHolesFromRows(subscribedUnresolved.rows),
     [subscribedUnresolved.rows],
   );
-  const stubLayout = useMemo(
+  const scannedStubLayout = useMemo(
     () => stubLayoutRows(unresolvedHoles, systems.rows, connections.rows),
     [unresolvedHoles, systems.rows, connections.rows],
+  );
+  const authoredKey = systems.rows.map((row) => row.systemId).join(',');
+  const staticsBySystem = useSystemStaticSlots(authoredKey);
+  const plannedStubs = useMemo(
+    () => planStubNodes({
+      systemIds: systems.rows.map((row) => row.systemId),
+      signatures: scannedStubLayout.map((row) => ({
+        connectionId: row.connectionId,
+        fromSystemId: row.fromSystemId,
+        signatureId: row.fromSignatureId,
+        wormholeTypeCode: row.wormholeTypeCode,
+      })),
+      connections: connections.rows,
+      staticsBySystem,
+    }),
+    [systems.rows, scannedStubLayout, connections.rows, staticsBySystem],
+  );
+  const stubLayout = useMemo(
+    () => accountedStubLayoutRows(plannedStubs, scannedStubLayout),
+    [plannedStubs, scannedStubLayout],
   );
   const [connectionPresentationNow, setConnectionPresentationNow] = useState(
     () => Date.now(),
@@ -637,7 +689,6 @@ export function useMapChain(
   // per render, never per frame — the PD-3 cost boundary). The authored ids
   // are rebuilt FROM the key string so the dependency list is honest: the key
   // and the loaded asset are the only inputs the derivation reads.
-  const authoredKey = systems.rows.map((row) => row.systemId).join(',');
   const halo = useMemo(() => {
     if (assets === null || authoredKey.length === 0) return EMPTY_HALO;
     return deriveHalo({
@@ -744,7 +795,7 @@ export function useMapChain(
     );
   }, [postKey, systems, connections, layout, config, halo, stubLayout]);
   const stubs = useMemo(
-    () => placedStubConnections(stubLayout, stubPositions),
+    () => placedStubs(stubLayout, stubPositions),
     [stubLayout, stubPositions],
   );
   const labelOf = useCallback(

@@ -42,12 +42,19 @@ export type ChainNodeData = {
    * node hides itself rather than relying on paint order.
    */
   halo?: { readonly ring: number; readonly fogged: boolean };
-  /** Present only on a scanned wormhole whose destination has not been visited yet. */
-  stub?: {
-    readonly connectionId: string;
-    readonly fromSystemId: number;
-    readonly signatureId: string;
-  };
+  /** Present only on a scanned wormhole or guaranteed-static derived ghost. */
+  stub?:
+    | {
+        readonly connectionId: string;
+        readonly fromSystemId: number;
+        readonly signatureId: string;
+      }
+    | {
+        readonly staticId: string;
+        readonly fromSystemId: number;
+        readonly code: string;
+        readonly className: string;
+      };
 };
 
 /** The only node kind this session ships. */
@@ -94,10 +101,12 @@ export function nodeMotionClass(
 /** Pure presentation flags shared by every authored, halo, and stub node render. */
 function nodePresentation(data: ChainNodeData) {
   const stub = data.stub !== undefined;
+  const staticStub = data.stub !== undefined && 'staticId' in data.stub;
   const fogged = data.halo?.fogged === true;
   const exiting = data.motion !== undefined && data.motion.phase !== 'entering';
   return {
     stub,
+    staticStub,
     fogged,
     derived: data.halo !== undefined || stub,
     chromeClass: fogged || stub || exiting ? null : 'pointer-events-auto',
@@ -125,7 +134,7 @@ export function nodeHeader(
 
 /** Renders one system as a widget frame: header name, centered disc, widget slots. */
 function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<ChainNode>) {
-  const { stub, derived, fogged, chromeClass } = nodePresentation(data);
+  const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data, derived);
   // The wrapper is pointer-inert for every node (`INERT_NODE_STYLE` in
   // chain/nodes.ts); only the visible chrome re-enables pointer events, so
@@ -139,6 +148,7 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
       data-chain-node-derived={derived || undefined}
       data-chain-node-fogged={fogged || undefined}
       data-chain-node-stub={stub || undefined}
+      data-chain-node-static-stub={staticStub || undefined}
       className={cn(
         'relative h-full w-full',
         // Provisional presentation: derived systems read dimmer than authored

@@ -185,6 +185,7 @@ describe('mapper source contract', () => {
       'signatures/signature-model.ts',
       'signatures/signature-toast.ts',
       'signatures/use-scanner-paste.ts',
+      'signatures/use-system-statics.ts',
       'tracking/AfkGate.tsx',
       'tracking/JumpDoorbellObserver.tsx',
       'tracking/OutboundArrowProvider.tsx',

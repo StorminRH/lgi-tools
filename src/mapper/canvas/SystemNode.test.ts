@@ -174,6 +174,32 @@ test('wormhole stubs reuse the derived ghost presentation without interactive ch
   expect(rendered).not.toContain('data-pilot-presence');
 });
 
+test('static stubs render the exact code-class label through the same inert ghost chrome', () => {
+  const props = {
+    id: 'static-stub:31000001:C247:1',
+    data: {
+      name: 'C247 - C3',
+      className: 'C247',
+      stub: {
+        staticId: '31000001:C247:1',
+        fromSystemId: 31_000_001,
+        code: 'C247',
+        className: 'C3',
+      },
+    },
+    dragging: false,
+    isConnectable: false,
+  } as unknown as NodeProps<ChainNode>;
+  const rendered = renderToStaticMarkup(createElement(SystemNode, props));
+
+  expect(rendered).toContain('data-chain-node-static-stub');
+  expect(rendered).toContain('C247 - C3');
+  expect(rendered).toContain('>C247<');
+  expect(rendered).toContain('border-dashed');
+  expect(rendered).not.toContain('pointer-events-auto');
+  expect(rendered).not.toContain('data-pilot-presence');
+});
+
 test('outbound arrow mounts by assignment, tones by liveness, and stays inside fog cut', () => {
   const frameNode = (x: number, y: number) => ({
     internals: { positionAbsolute: { x, y } },
