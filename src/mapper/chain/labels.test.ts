@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
-import { resolveSystemLabel, systemClassLabel } from './labels';
+import { resolveSystemLabel } from './labels';
 
 const JITA = 30_000_142;
 const HOLE = 31_000_001;
@@ -20,39 +20,9 @@ function entry(
   return { id, name, whClassId, security: null };
 }
 
-describe('system class labels', () => {
-  it.each([
-    [1, 'C1'],
-    [2, 'C2'],
-    [3, 'C3'],
-    [4, 'C4'],
-    [5, 'C5'],
-    [6, 'C6'],
-    [7, 'HS'],
-    [8, 'LS'],
-    [9, 'NS'],
-    [12, 'Thera'],
-    [13, 'C13'],
-    [14, 'Drifter'],
-    [15, 'Drifter'],
-    [16, 'Drifter'],
-    [17, 'Drifter'],
-    [18, 'Drifter'],
-    [25, 'Pochven'],
-  ])('labels class id %i as %s', (classId, label) => {
-    expect(systemClassLabel(classId)).toBe(label);
-  });
-
-  it('has no chip for a k-space system', () => {
-    expect(systemClassLabel(null)).toBeNull();
-  });
-
-  it('has no chip for an id the SDE does not assign', () => {
-    // 99 is synthetic — no real system carries it. The set assertion above is what guards real ids.
-    expect(systemClassLabel(99)).toBeNull();
-  });
-});
-
+// The class-id → text ladder itself is owned and tested by
+// `src/data/eve-data/system-identity.test.ts`; this file covers only the
+// directory-entry resolution and its silent fallbacks.
 describe('node label resolution', () => {
   it('renders a known system’s directory name and class', () => {
     const label = resolveSystemLabel(

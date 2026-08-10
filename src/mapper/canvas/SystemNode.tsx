@@ -19,6 +19,7 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 import { cn } from '@/components/ui/cn';
+import { systemIdentityReadout } from '@/data/eve-data/system-identity';
 import type { NodeMotion } from '../motion/motion-contract';
 import { PilotPresenceBadge } from './PilotPresenceBadge';
 
@@ -103,9 +104,29 @@ function nodePresentation(data: ChainNodeData) {
   } as const;
 }
 
+/**
+ * The header line for one node. A stub is a signature, not a system, and keeps
+ * its bare signature-id header; systems render the shared identity readout
+ * (D-E). Derived ghosts keep the muted header tone so provisional content
+ * still reads dimmer than authored truth.
+ */
+export function nodeHeader(
+  data: ChainNodeData,
+  derived: boolean,
+): { readonly text: string; readonly toneClass: string } {
+  if (data.stub !== undefined) return { text: data.name, toneClass: 'text-muted' };
+  const readout = systemIdentityReadout({
+    name: data.name,
+    security: data.security ?? null,
+    whClassId: data.whClassId ?? null,
+  });
+  return { text: readout.label, toneClass: derived ? 'text-muted' : readout.tone };
+}
+
 /** Renders one system as a widget frame: header name, centered disc, widget slots. */
 function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<ChainNode>) {
   const { stub, derived, fogged, chromeClass } = nodePresentation(data);
+  const header = nodeHeader(data, derived);
   // The wrapper is pointer-inert for every node (`INERT_NODE_STYLE` in
   // chain/nodes.ts); only the visible chrome re-enables pointer events, so
   // the invisible frame margin cannot catch clicks, drags, or hovers. Ghosts
@@ -131,11 +152,11 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
         data-chain-node-name
         className={cn(
           'absolute inset-x-1 top-1 truncate text-center font-data text-ui',
-          derived ? 'text-muted' : 'text-name',
+          header.toneClass,
           chromeClass,
         )}
       >
-        {data.name}
+        {header.text}
       </span>
       <div
         className={cn(
@@ -150,7 +171,11 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
           isConnectable={isConnectable}
           className={CENTER_HANDLE_CLASS}
         />
-        {data.className !== null && (
+        {/* The class fact has ONE render site on a system node — the header
+            readout (D-E) — so the disc chip survives only on stubs, where it
+            carries a different fact: the scanned signature's wormhole type
+            code from 4.0.4.3.1. */}
+        {stub && data.className !== null && (
           <span
             data-chain-node-class
             className="font-data text-micro uppercase tracking-label text-muted"

@@ -9,17 +9,44 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.3.1** in close-out on `lifecycle/4.0.4.3`
-  (per-session PR). G-1 approved 2026-08-09; close-out adversarial round
-  (holistic + ownership + interface + reliability) accepted ~20 root causes,
-  all fixed on-branch — headline fixes: paste-revive scoped to a stub's own
-  lifetime (never `runBranchRestore` from `applyScan`; dead ceiling / expired
-  undo / conflicting group stay inert); ceiling sweep re-ranged onto live-only
-  `by_deleted_death_latest` with per-row failure isolation; missing prompt
-  keyed to the paste-target system, not the chain root; row-editor type entry
-  routes `applyWormholeType` for resolved rows; removal/restore uses exact
-  per-ID lookups past the whole-system bound; list/stub removals ledger
-  restorable `signatures_removed`/`signatures_restored` events.
+- **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
+  Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
+  main after #377 shipped 4.0.4.3.1).
+- **OW progress:** 1/8 complete — next: OW-2 "Statics ghost stubs and stub
+  accounting".
+- **OW completed:**
+  - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
+    (`systemIdentityReadout` + `systemClassText`, ladder moved from
+    `chain/labels.ts`), `--color-wh-c1..c6` ramp tokens, SystemNode header +
+    dock/summary body render the one readout, system disc chip retired
+    (stub-only), `mode`/Security-Status row removed, probe
+    `atlas-signature-chrome.mjs` updated. Proof: `system-identity.test.ts`
+    matrix + node/dock component tests + `rg systemClassLabel` zero hits
+    (SC-5.1–5.3); `pnpm verify` green (gate-runner, 508 files/4870 tests,
+    fallow 0 findings); primitive-checker CLEAN after chip fix. Commit: this
+    branch head.
+- **Next-agent notes (4.0.4.3.2):** (1) D-E render decisions to re-confirm at
+  the OW-8 pause: the TONE colors the whole readout span; system nodes have no
+  disc chip anymore (chip is stub-only, showing the typed wormhole code);
+  dock+summary show one `data-identity-readout` row (Security Status row
+  retired); dock window TITLE stays the plain name; Thera=teal, Pochven=red,
+  Drifter=purple, C13 shares the C6 deep-red. (2) `ChainNodeData.className` is
+  now consumed only by stub nodes — OW-2's `static-stub:` family reshapes this
+  anyway. (3) Docs briefs confirmed: Tailwind v4 `@theme --color-*` tokens
+  auto-generate `text-*` utilities and plain `.ts` files are content-scanned;
+  React Flow v12 `nodeLookup` primitive selectors are the documented pattern.
+  (4) `check-universe-assets.ts` keeps its own partial CLASS_LABELS census
+  list (script-side report vocabulary, not a display rule).
+- **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
+  round accepted ~20 root causes, all fixed on-branch — headline fixes:
+  paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from
+  `applyScan`; dead ceiling / expired undo / conflicting group stay inert);
+  ceiling sweep re-ranged onto live-only `by_deleted_death_latest` with
+  per-row failure isolation; missing prompt keyed to the paste-target system,
+  not the chain root; row-editor type entry routes `applyWormholeType` for
+  resolved rows; removal/restore uses exact per-ID lookups past the
+  whole-system bound; list/stub removals ledger restorable
+  `signatures_removed`/`signatures_restored` events.
 - **Durable 4.0.4.3.1 gotchas:** (1) The account-level paste gate needs live
   feed coverage — on probe maps the tokenless engine wipes the synthetic
   pilot's `coveredCharacterIds` within ~30s, so probes re-stamp via

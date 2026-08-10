@@ -10,7 +10,7 @@ import { useStore } from '@xyflow/react';
 /** One node-data string field, identity-stable across position-only updates. */
 export function useNodeDataString(
   systemId: number | null,
-  field: 'name' | 'className',
+  field: 'name',
 ): string | null {
   return useStore((state) => {
     if (systemId === null) return null;
@@ -23,7 +23,7 @@ export function useNodeDataString(
 /** One node-data number field, stable across position-only updates. */
 export function useNodeDataNumber(
   systemId: number | null,
-  field: 'security',
+  field: 'security' | 'whClassId',
 ): number | null {
   return useStore((state) => {
     if (systemId === null) return null;

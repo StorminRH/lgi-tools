@@ -28,22 +28,23 @@ vi.mock('@xyflow/react', async () => {
   };
 });
 
-function nodeMarkup(name: string, className: string | null): string {
-  const props = { data: { name, className } } as unknown as NodeProps<ChainNode>;
+function nodeMarkup(name: string, whClassId: number | null): string {
+  const props = {
+    data: { name, className: null, security: whClassId === null ? null : -1, whClassId },
+  } as unknown as NodeProps<ChainNode>;
   return renderToStaticMarkup(createElement(SystemNode, props));
 }
 
 // ── SC-3 · DC-3 — what a populated node actually says ───────────────────────
 describe('system node rendering', () => {
-  it('shows the directory name and its class chip', () => {
-    const markup = nodeMarkup('J123456', 'C5');
+  it('shows the directory name with its class in the header readout (D-E)', () => {
+    const markup = nodeMarkup('J123456', 5);
 
-    expect(markup).toContain('J123456');
-    expect(markup).toContain('data-chain-node-class');
-    expect(markup).toContain('C5');
+    expect(markup).toContain('J123456 - C5');
+    expect(markup).not.toContain('data-chain-node-class');
   });
 
-  it('omits the class chip entirely for a system with no class', () => {
+  it('shows the bare name for a system with no class and no security', () => {
     const markup = nodeMarkup('Jita', null);
 
     expect(markup).toContain('Jita');
@@ -78,7 +79,7 @@ describe('map surface inspection', () => {
         state === 'empty'
           ? await emptyCanvasMarkup()
           : state === 'populated'
-            ? nodeMarkup('J123456', 'C5')
+            ? nodeMarkup('J123456', 5)
             : renderToStaticMarkup(createElement(NoMapAccess));
 
       expect(markup).not.toMatch(/progressbar|aria-busy|spinner/i);

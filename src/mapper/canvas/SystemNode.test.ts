@@ -14,6 +14,7 @@ import {
   outboundArrowFraction,
 } from './ChainLinkEdge';
 import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
+import { systemIdentityReadout } from '@/data/eve-data/system-identity';
 import { PresenceBadgeView } from './PilotPresenceBadge';
 import { SystemNode, nodeMotionClass, type ChainNode } from './SystemNode';
 
@@ -35,7 +36,7 @@ vi.mock('@xyflow/react', async () => {
 
 function markup(motion: NodeMotion | undefined, dragging = false): string {
   const props = {
-    data: { name: 'J123456', className: 'C5', motion },
+    data: { name: 'J123456', className: 'C5', security: -1, whClassId: 5, motion },
     dragging,
   } as unknown as NodeProps<ChainNode>;
   return renderToStaticMarkup(createElement(SystemNode, props));
@@ -44,9 +45,10 @@ function markup(motion: NodeMotion | undefined, dragging = false): string {
 test('widget frame carries header, disc, slots, and pointer-inert chrome rules', () => {
   const still = markup(undefined);
   expect(still).toContain('data-chain-node-name');
-  expect(still).toContain('J123456');
-  expect(still).toContain('data-chain-node-class');
-  expect(still).toContain('C5');
+  // The class fact renders once, in the header readout — never as a system
+  // disc chip (D-E).
+  expect(still).toContain('J123456 - C5');
+  expect(still).not.toContain('data-chain-node-class');
   expect(still).toContain('map-node-disc');
   expect(still).toContain('data-chain-node-widgets');
   expect(still).not.toContain('data-pilot-presence');
@@ -64,6 +66,64 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
 
   expect(markup({ phase: 'departing' })).not.toContain('pointer-events-auto');
   expect(markup({ phase: 'entering' }).match(/pointer-events-auto/g)).toHaveLength(2);
+});
+
+test('the header renders the shared identity readout in its tone (D-E)', () => {
+  const nodeMarkup = (data: Record<string, unknown>) =>
+    renderToStaticMarkup(
+      createElement(SystemNode, {
+        data,
+        dragging: false,
+      } as unknown as NodeProps<ChainNode>),
+    );
+
+  // J-space and k-space both render the helper's exact label and tone — the
+  // node header IS the shared rule's output, not a second formatting path.
+  const jspace = systemIdentityReadout({ name: 'J123456', security: -1, whClassId: 4 });
+  const jspaceNode = nodeMarkup({
+    name: 'J123456',
+    className: 'C4',
+    security: -1,
+    whClassId: 4,
+  });
+  expect(jspace).toEqual({ label: 'J123456 - C4', tone: 'text-wh-c4' });
+  expect(jspaceNode).toContain(jspace.label);
+  expect(jspaceNode).toContain(jspace.tone);
+
+  const kspace = systemIdentityReadout({ name: 'Jita', security: 0.946, whClassId: null });
+  const kspaceNode = nodeMarkup({
+    name: 'Jita',
+    className: null,
+    security: 0.946,
+    whClassId: null,
+  });
+  expect(kspace).toEqual({ label: 'Jita - 0.9', tone: 'text-sec-09' });
+  expect(kspaceNode).toContain(kspace.label);
+  expect(kspaceNode).toContain(kspace.tone);
+
+  // A derived halo system keeps the muted ghost header: readout label, no tone.
+  const halo = nodeMarkup({
+    name: 'Perimeter',
+    className: null,
+    security: 0.9,
+    whClassId: null,
+    halo: { ring: 1, fogged: false },
+  });
+  expect(halo).toContain('Perimeter - 0.9');
+  expect(halo).toContain('text-muted');
+  expect(halo).not.toContain('text-sec-09');
+
+  // A stub is a signature, not a system — its header stays the bare sig id,
+  // and the disc chip survives only here, carrying the typed wormhole code.
+  const stub = nodeMarkup({
+    name: 'ABC-123',
+    className: 'K162',
+    stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
+  });
+  expect(stub).toContain('ABC-123');
+  expect(stub).not.toContain('ABC-123 - ');
+  expect(stub).toContain('data-chain-node-class');
+  expect(stub).toContain('K162');
 });
 
 test('halo nodes mark drawn vs fogged; authored nodes stay unmarked', () => {

@@ -6,10 +6,10 @@ import { api } from '@/data/convex/api';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
+import { systemClassText } from '@/data/eve-data/system-identity';
 import type { ScannedRow, SigGroup } from '@/data/maps/scan-parse';
 import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
-import { systemClassLabel } from '../chain/labels';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
@@ -66,7 +66,7 @@ function useSignaturePage(
         const entry = codex?.byCode(code) ?? null;
         return entry === null || entry.farSide
           ? null
-          : systemClassLabel(entry.targetClass);
+          : systemClassText(entry.targetClass);
       }),
     [signatures.rows, connections, codex],
   );

@@ -166,7 +166,7 @@ function DockSurface({
       // (bring-to-front) is unreachable by construction.
       onActivate={() => undefined}
     >
-      <SystemIntelligenceBody systemId={rootSystemId} mode="dock" />
+      <SystemIntelligenceBody systemId={rootSystemId} />
     </MapWindow>
   );
 }
