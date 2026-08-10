@@ -5,7 +5,7 @@ import {
   blankMapId,
   blankMapRoute,
   calmMapCamera,
-  clickFirstEdge,
+  openFirstEdgeEditor,
   openAddConnectionMenu,
   pickSystemSearch,
   restoreMapAccess,
@@ -14,19 +14,18 @@ import {
 } from '../lib/authoring-helpers.mjs';
 
 async function pickSelect(page, ariaLabel, optionName) {
-  // Edge-anchored cards can sit outside the CSS viewport during camera settle;
-  // open/choose via DOM events scoped to the connection card.
+  // Open/choose via DOM events scoped to the Signature Editor pop-out.
   await page.waitForFunction(
     (label) =>
       document.querySelector(
-        `[data-map-window="connection-details"] [aria-label="${label}"]`,
+        `[data-map-window="signature-editor"] [aria-label="${label}"]`,
       ) instanceof HTMLElement,
     ariaLabel,
     { timeout: 10_000 },
   );
   await page.evaluate((label) => {
     const control = document.querySelector(
-      `[data-map-window="connection-details"] [aria-label="${label}"]`,
+      `[data-map-window="signature-editor"] [aria-label="${label}"]`,
     );
     if (!(control instanceof HTMLElement)) throw new Error(`missing select ${label}`);
     control.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
@@ -150,22 +149,22 @@ export default {
     await calmMapCamera(second.page);
     // Let birth/camera settle so the edge midpoint (and card) are stable.
     await page.waitForTimeout(1600);
-    await clickFirstEdge(page);
-    await pickSelect(page, 'Ship size', 'L');
-    await pickSelect(page, 'Mass stability', 'Stable');
-    await pickSelect(page, 'Life stage', 'Less than 1 day');
+    await openFirstEdgeEditor(page);
+    await pickSelect(page, 'Size', 'L');
+    await pickSelect(page, 'Mass', 'More than 50% remaining');
+    await pickSelect(page, 'Reliable Lifetime', 'Less than 1 day remaining');
     await page.waitForTimeout(800);
 
     // Second client opens the same edge and observes the written values.
-    await clickFirstEdge(second.page);
-    const sizeB = (await second.page.getByRole('combobox', { name: 'Ship size' }).textContent()) ?? '';
+    await openFirstEdgeEditor(second.page);
+    const sizeB = (await second.page.getByRole('combobox', { name: 'Size' }).textContent()) ?? '';
     const massB =
-      (await second.page.getByRole('combobox', { name: 'Mass stability' }).textContent()) ?? '';
+      (await second.page.getByRole('combobox', { name: 'Mass' }).textContent()) ?? '';
     const lifeB =
-      (await second.page.getByRole('combobox', { name: 'Life stage' }).textContent()) ?? '';
-    check('ship size fans out to the second client', /\bL\b/.test(sizeB));
-    check('stability fans out to the second client', /stable/i.test(massB));
-    check('life stage fans out to the second client', /1 day/i.test(lifeB));
+      (await second.page.getByRole('combobox', { name: 'Reliable Lifetime' }).textContent()) ?? '';
+    check('size fans out to the second client', /\bL\b/.test(sizeB));
+    check('mass fans out to the second client', /more than 50%/i.test(massB));
+    check('reliable lifetime fans out to the second client', /1 day/i.test(lifeB));
     await shot('two-clients-after-edit');
     await shot('two-clients-after-edit-b', { page: second.page });
 
@@ -199,8 +198,8 @@ export default {
           || (await second.page.locator('[data-chain-no-access]').count()) === 1,
       );
       check(
-        'connection details card is gone after revocation',
-        (await page.locator('[data-map-connection-details]').count()) === 0,
+        'the Signature Editor is gone after revocation',
+        (await page.locator('[data-map-window="signature-editor"]').count()) === 0,
       );
       await shot('two-clients-after-revoke');
     } finally {

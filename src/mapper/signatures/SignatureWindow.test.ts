@@ -30,8 +30,6 @@ vi.mock('@/components/ui/pointer-menu', () => ({
   pointerAnchor: () => null,
 }));
 
-vi.mock('./WormholeRowEditor', () => ({ WormholeRowEditor: () => null }));
-
 vi.mock('../authoring/use-wormhole-editor-data', () => ({
   useWormholeCodexData: () => ({
     codex: {
@@ -173,19 +171,7 @@ function render(
       onDismissMissing: vi.fn(),
       onRemoveMissing: vi.fn(async () => undefined),
       onIdentify: vi.fn(async () => undefined),
-      mapId: 'map-a',
-      authoring: {
-        setConnectionWormholeType: vi.fn(),
-        setConnectionShipSize: vi.fn(),
-        setConnectionMassState: vi.fn(),
-        setConnectionLifeStage: vi.fn(),
-        setConnectionDestinationHint: vi.fn(),
-        setConnectionTypedSide: vi.fn(),
-        severConnection: vi.fn(),
-        restoreSeveredBranch: vi.fn(),
-        restoreConnection: vi.fn(),
-        restoreSignatures: vi.fn(),
-      },
+      onOpenEditor: vi.fn(),
     }),
   );
 }

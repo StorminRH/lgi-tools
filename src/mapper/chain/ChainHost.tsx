@@ -26,20 +26,18 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
-import type { Id } from '@/data/convex/data-model';
 import {
   atlasAutoLayout,
   atlasCameraFollow,
   atlasClickFocus,
 } from '@/lib/preferences';
-import { ConnectionAuthoringOverlay } from '../authoring/ConnectionAuthoringOverlay';
 import { HomePrompt } from '../authoring/HomePrompt';
-import {
-  NodeAddMenu,
-  type NodeMenuAnchor,
-} from '../authoring/NodeAddMenu';
+import { MapAuthoringOverlay } from '../authoring/MapAuthoringOverlay';
+import { NodeAddMenu } from '../authoring/NodeAddMenu';
 import { RightsTransitionToast } from '../authoring/RightsTransitionToast';
 import { ChainSurface, type ChainSurfaceProps } from '../canvas/ChainSurface';
+import { EdgeContextMenu } from '../canvas/EdgeContextMenu';
+import { edgeMenuActions, edgeMenuConnectionId } from '../canvas/edge-menu';
 import { MapControls } from '../canvas/MapControls';
 import type { ChainNode } from '../canvas/SystemNode';
 import {
@@ -68,8 +66,9 @@ import { TrackingHeartbeat } from '../tracking/TrackingControls';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
-import { buildEdges, isHaloEdgeId, isStubNodeId, syncNodes } from './nodes';
+import { buildEdges, isStubNodeId, syncNodes } from './nodes';
 import { useChainAuthoringMutations } from './optimistic-authoring';
+import { useAuthoringMenus } from './use-authoring-menus';
 import { useMapChain, type MapAccessState } from './use-map-chain';
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
@@ -155,18 +154,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   } = useMapChain(mapId, dragging, config, haloLimits);
   const authoring = useChainAuthoringMutations();
   const [nodes, setNodes] = useState<ChainNode[]>([]);
-  const [nodeMenu, setNodeMenu] = useState<NodeMenuAnchor | null>(null);
-  // Guarded adjust-during-render: losing edit rights unmounts NodeAddMenu
-  // before its onOpenChange can fire, so drop the stale anchor here or the
-  // menu re-mounts open at old coordinates when rights come back.
-  const [prevCanEdit, setPrevCanEdit] = useState(canEdit);
-  if (prevCanEdit !== canEdit) {
-    setPrevCanEdit(canEdit);
-    if (canEdit !== true && nodeMenu !== null) setNodeMenu(null);
-  }
-  const [selectedConnectionId, setSelectedConnectionId] = useState<
-    Id<'mapConnections'> | null
-  >(null);
+  const menus = useAuthoringMenus(canEdit);
 
   useEffect(() => {
     setNodes((previous) =>
@@ -305,10 +293,15 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       if (isStubNodeId(clicked.id)) return;
       focusTokenRef.current += 1;
       setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
-      setSelectedConnectionId(null);
     },
     [],
   );
+
+  /** Flies the camera to one system — the editor's locked Leads-to readout. */
+  const focusSystem = useCallback((systemId: number) => {
+    focusTokenRef.current += 1;
+    setFocusRequest({ nodeId: String(systemId), token: focusTokenRef.current });
+  }, []);
 
   const onNodeContextMenu = useCallback<NodeMouseHandler<ChainNode>>(
     (event, node) => {
@@ -317,25 +310,45 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       // menu may anchor to one until a jump upgrades it to authored truth.
       if (node.data.halo !== undefined || isStubNodeId(node.id)) return;
       event.preventDefault();
-      setSelectedConnectionId(null);
-      setNodeMenu({
+      menus.openNodeMenu({
         systemId: Number(node.id),
         clientX: event.clientX,
         clientY: event.clientY,
       });
     },
-    [canEdit],
+    [canEdit, menus],
   );
 
-  const onEdgeClick = useCallback<EdgeMouseHandler>(
-    (_event, edge) => {
-      if (canEdit !== true) return;
-      // Derived halo gate links have no connection document to edit.
-      if (isHaloEdgeId(edge.id) || edge.data?.stub === true) return;
-      // Every other edge id is a Convex connection document id by construction (buildEdges).
-      setSelectedConnectionId(edge.id as Id<'mapConnections'>);
+  const onEdgeContextMenu = useCallback<EdgeMouseHandler>(
+    (event, edge) => {
+      const connectionId = edgeMenuConnectionId({
+        edgeId: edge.id,
+        stub: edge.data?.stub === true,
+        canEdit: canEdit === true,
+      });
+      if (connectionId === null) return;
+      // React Flow forwards the event untouched — the native menu is ours to
+      // suppress (docs brief).
+      event.preventDefault();
+      menus.openEdgeMenu({
+        connectionId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
     },
-    [canEdit],
+    [canEdit, menus],
+  );
+
+  const edgeActions = useMemo(
+    () =>
+      edgeMenuActions({
+        mapId,
+        authoring,
+        openEditor: menus.setEditingConnectionId,
+        closeEditor: () => menus.setEditingConnectionId(null),
+        closeMenu: menus.closeEdgeMenu,
+      }),
+    [mapId, authoring, menus],
   );
 
   const deselectNodes = useCallback(() => {
@@ -388,6 +401,9 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           connectionDetails={connectionDetails}
           unresolvedHoles={unresolvedHoles}
           authoring={authoring}
+          editingConnectionId={menus.editingConnectionId}
+          onEditingConnectionIdChange={menus.setEditingConnectionId}
+          onFocusSystem={focusSystem}
         >
           <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
           <OutboundArrowProvider
@@ -410,7 +426,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
               onSelectionDragStop={onSelectionDragStop}
               onNodeClick={onNodeClick}
               onNodeContextMenu={onNodeContextMenu}
-              onEdgeClick={onEdgeClick}
+              onEdgeContextMenu={onEdgeContextMenu}
             >
               <MapControls
                 config={config}
@@ -442,7 +458,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           />
           <RightsTransitionToast canEdit={canEdit} />
           {canEdit === true ? <JumpDoorbellObserver mapId={mapId} /> : null}
-          <ConnectionAuthoringOverlay
+          <MapAuthoringOverlay
             mapId={mapId}
             canEdit={canEdit === true}
             connectionDetails={connectionDetails}
@@ -450,8 +466,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
             connectionPresentationNow={connectionPresentationNow}
             events={events}
             authoring={authoring}
-            selectedConnectionId={selectedConnectionId}
-            onSelectedConnectionIdChange={setSelectedConnectionId}
           />
           {showHomePrompt ? (
             <HomePrompt
@@ -462,20 +476,30 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
             />
           ) : null}
           {canEdit === true ? (
-            <NodeAddMenu
-              mapId={mapId}
-              menu={nodeMenu}
-              onMenuOpenChange={(open) => {
-                if (!open) setNodeMenu(null);
-              }}
-              onAdd={(fromSystemId, toSystemId) => {
-                void authoring.addSystemFromNode({
-                  mapId,
-                  fromSystemId,
-                  toSystemId,
-                });
-              }}
-            />
+            <>
+              <EdgeContextMenu
+                menu={menus.edgeMenu}
+                onOpenChange={(open) => {
+                  if (!open) menus.closeEdgeMenu();
+                }}
+                onEdit={edgeActions.onEdit}
+                onDelete={edgeActions.onDelete}
+              />
+              <NodeAddMenu
+                mapId={mapId}
+                menu={menus.nodeMenu}
+                onMenuOpenChange={(open) => {
+                  if (!open) menus.closeNodeMenu();
+                }}
+                onAdd={(fromSystemId, toSystemId) => {
+                  void authoring.addSystemFromNode({
+                    mapId,
+                    fromSystemId,
+                    toSystemId,
+                  });
+                }}
+              />
+            </>
           ) : null}
           </ReactFlowProvider>
         </SignatureProvider>

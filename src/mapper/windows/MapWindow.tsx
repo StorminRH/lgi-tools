@@ -46,6 +46,15 @@ export const MAP_SCANNER_DOCK_CLASS =
 export const MAP_SCANNER_MISSING_PROMPT_CLASS =
   'pointer-events-auto absolute bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] left-4 z-sticky w-[min(24rem,calc(100vw-2rem))]';
 
+/**
+ * The Signature Editor pop-out, parked immediately right of the scanner dock
+ * and sharing its bottom edge — the dock's own width expression is restated
+ * here as the left offset, so the two track together at every viewport size.
+ * Change it with {@link MAP_SCANNER_DOCK_CLASS}.
+ */
+export const MAP_SCANNER_EDITOR_CLASS =
+  'bottom-4 left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)] h-auto max-h-[calc(100dvh-7rem)] w-72 max-w-[calc(100vw-2rem)]';
+
 /** Whether an adopted Base UI popup currently owns Escape. */
 export function isAdoptedPopupOpen(): boolean {
   return typeof document !== 'undefined' && document.querySelector(ADOPTED_POPUP_SELECTOR) !== null;
@@ -103,11 +112,12 @@ function placementClassName(
     // Square sibling for the scanner: tabs own top-left chrome; list scrolls inside.
     return MAP_SCANNER_DOCK_CLASS;
   }
-  // node-anchored and edge-anchored both ride `--map-window-transform`.
-  if (placement.kind === 'edge-anchored') {
-    // The height bound keeps the card's scroll body engaged on short
-    // viewports; the position clamp alone cannot shrink an h-auto card.
-    return 'left-0 top-0 h-auto max-h-[calc(100%-2rem)] w-72 [transform:var(--map-window-transform)]';
+  if (placement.kind === 'scanner-anchored') {
+    // Screen-space beside the scanner, deliberately NOT anchored to canvas
+    // geometry: React Flow pans and zooms by mutating a viewport transform,
+    // which fires no scroll or resize, so a floating anchor cannot track it
+    // (Base UI exposes no animation-frame tracking — docs brief).
+    return MAP_SCANNER_EDITOR_CLASS;
   }
   return 'left-0 top-0 h-52 w-72 [transform:var(--map-window-transform)]';
 }
@@ -164,7 +174,7 @@ function windowChromeClass(
       ? cn('pointer-events-none rounded-ctl', mapOverlaySurface)
       : cn('pointer-events-auto rounded-card', mapFrostedSurface),
     placementClassName(placement, overlay),
-    (placement.kind === 'edge-anchored' || placement.kind === 'node-anchored')
+    (placement.kind === 'scanner-anchored' || placement.kind === 'node-anchored')
       && 'map-node-enter',
   );
 }

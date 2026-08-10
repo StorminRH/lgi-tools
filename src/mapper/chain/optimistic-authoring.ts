@@ -472,22 +472,6 @@ export function optimisticSetConnectionDestinationHint(
   });
 }
 
-/** Optimistically patches which side owns the manually entered type code. */
-export function optimisticSetConnectionTypedSide(
-  localStore: OptimisticLocalStore,
-  args: {
-    mapId: string;
-    connectionId: string;
-    value: 'from' | 'to';
-  },
-): void {
-  optimisticPatchConnection(localStore, {
-    mapId: args.mapId,
-    connectionId: args.connectionId,
-    patch: { typedSide: args.value },
-  });
-}
-
 /** Wires one field-scoped connection setter to a single-key optimistic patch. */
 function optimisticConnectionField(
   field: 'wormholeTypeCode' | 'shipSize' | 'massState',
@@ -544,11 +528,6 @@ export function useChainAuthoringMutations() {
       optimisticSetConnectionDestinationHint,
     ),
   );
-  const setConnectionTypedSide = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setConnectionTypedSide).withOptimisticUpdate(
-      optimisticSetConnectionTypedSide,
-    ),
-  );
   const severConnection = swallowMutationRejection(
     useMutation(api.mapAuthoring.severConnection).withOptimisticUpdate(
       optimisticSeverConnection,
@@ -598,7 +577,6 @@ export function useChainAuthoringMutations() {
     setConnectionShipSize,
     setConnectionMassState,
     setConnectionDestinationHint,
-    setConnectionTypedSide,
     setConnectionLifeStage: async (args: {
       mapId: string;
       connection: ConnectionWindowSource;

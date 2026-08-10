@@ -2,8 +2,9 @@
 import {
   authoringMapId,
   authoringRoute,
-  clickFirstEdge,
   ensureJumpEdge,
+  openFirstEdgeEditor,
+  signatureEditor,
   waitForEditableMap,
 } from '../lib/authoring-helpers.mjs';
 
@@ -23,8 +24,8 @@ export default {
 
     await waitForEditableMap(page);
     await ensureJumpEdge(page, mapId);
-    await clickFirstEdge(page);
-    const card = page.locator('[data-map-window="connection-details"]');
+    await openFirstEdgeEditor(page);
+    const card = signatureEditor(page);
     await card.waitFor({ state: 'attached', timeout: 15_000 });
 
     // Give the session wormhole codex a chance to resolve a pre-typed edge
@@ -74,12 +75,12 @@ export default {
       (await card.locator('[data-map-connection-codex]').count()) === 1,
     );
     check(
-      'ship size is a locked readout',
+      'size is a locked readout',
       (await card.locator('[data-map-connection-size-locked]').count()) === 1,
     );
     check(
-      'typed hole has no editable ship-size select',
-      (await card.getByRole('combobox', { name: 'Ship size' }).count()) === 0,
+      'typed hole has no editable size select',
+      (await card.getByRole('combobox', { name: 'Size' }).count()) === 0,
     );
     check(
       'mass range readout is present',
@@ -90,8 +91,12 @@ export default {
       (await card.locator('[data-map-connection-lifetime]').count()) === 1,
     );
     check(
-      'sever control is present',
-      (await card.locator('[data-map-connection-sever]').count()) === 1,
+      'delete control is present',
+      (await card.locator('[data-map-connection-delete]').count()) === 1,
+    );
+    check(
+      'the stats block carries no Codex heading',
+      !/>Codex</.test(await card.innerHTML()),
     );
 
     await shot('connection-intelligence');

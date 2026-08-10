@@ -7,9 +7,9 @@ import {
   answerAndAnnounce,
   answerJumpResolution,
   applyWormholeType,
-  ConnectionAuthoringOverlay,
   severAndAnnounce,
-} from './ConnectionAuthoringOverlay';
+} from './connection-authoring-api';
+import { MapAuthoringOverlay } from './MapAuthoringOverlay';
 
 const announce = vi.hoisted(() => vi.fn());
 const postJump = vi.hoisted(() =>
@@ -38,23 +38,7 @@ vi.mock('../log/MapEventLog', () => ({
     }),
 }));
 
-vi.mock('./ConnectionDetailsCard', () => ({
-  ConnectionDetailsCard: (props: {
-    mode: string;
-    connection: ConnectionDetail;
-    resolutionControls?: unknown;
-  }) =>
-    createElement('div', {
-      'data-map-connection-details': '',
-      'data-mode': props.mode,
-      'data-connection-id': props.connection.connectionId,
-      'data-has-resolution':
-        props.resolutionControls === undefined ? 'false' : 'true',
-    }),
-}));
-
 const NOW = 10_000;
-const UNDO_MS = 24 * 60 * 60 * 1000;
 
 function detail(
   partial: Partial<ConnectionDetail> & { connectionId: Id<'mapConnections'> },
@@ -91,7 +75,6 @@ function authoring() {
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
     setConnectionDestinationHint: vi.fn(),
-    setConnectionTypedSide: vi.fn(),
     severConnection: vi.fn(
       async (): Promise<
         | { outcome: 'retained' }
@@ -101,14 +84,40 @@ function authoring() {
     ),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
-        restoreSignatures: vi.fn(),
+    restoreSignatures: vi.fn(),
   };
 }
 
-describe('ConnectionAuthoringOverlay', () => {
-  it('always mounts the ledger and hides the card without a selection', () => {
+const PENDING_HOLE = {
+  connectionId: 'stub-2' as Id<'mapConnections'>,
+  _creationTime: 1,
+  fromSystemId: 1,
+  fromSignatureId: 'DEF-456',
+  fromSignalPct: null,
+  firstSeenAt: null,
+  wormholeTypeCode: null,
+  toSystemId: null,
+  typedSide: null,
+  massState: null,
+  shipSize: null,
+  lifeStage: null,
+  lifeStageObservedAt: null,
+  deathEarliestAt: null,
+  deathLatestAt: null,
+  deletedAt: null,
+  purgeAfter: null,
+  fromDestinationHint: null,
+  toDestinationHint: null,
+  destinationProvenance: null,
+  pendingCandidates: null,
+  observedMassKg: null,
+  observedMassAtStateKg: null,
+} as const;
+
+describe('MapAuthoringOverlay', () => {
+  it('mounts the ledger and no connection card of its own', () => {
     const markup = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
+      createElement(MapAuthoringOverlay, {
         mapId: 'map-a',
         canEdit: true,
         connectionDetails: new Map(),
@@ -116,97 +125,12 @@ describe('ConnectionAuthoringOverlay', () => {
         connectionPresentationNow: NOW,
         events: [],
         authoring: authoring(),
-        selectedConnectionId: null,
-        onSelectedConnectionIdChange: vi.fn(),
       }),
     );
     expect(markup).toContain('data-map-event-log');
+    // The edge-anchored card is retired (ruling D-F) — one editor now.
     expect(markup).not.toContain('data-map-connection-details');
-  });
-
-  it('opens the card in edit mode for a live connection when canEdit', () => {
-    const connectionId = 'c1' as Id<'mapConnections'>;
-    const markup = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
-        mapId: 'map-a',
-        canEdit: true,
-        connectionDetails: new Map([[connectionId, detail({ connectionId })]]),
-        unresolvedHoles: [],
-        connectionPresentationNow: NOW,
-        events: [],
-        authoring: authoring(),
-        selectedConnectionId: connectionId,
-        onSelectedConnectionIdChange: vi.fn(),
-      }),
-    );
-    expect(markup).toContain('data-mode="edit"');
-    expect(markup).toContain('data-connection-id="c1"');
-  });
-
-  it('opens restore mode for a dying connection and withholds the card for viewers', () => {
-    const connectionId = 'c2' as Id<'mapConnections'>;
-    const dying = detail({
-      connectionId,
-      deletedAt: NOW - 1_000,
-      purgeAfter: NOW + UNDO_MS,
-    });
-    const editor = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
-        mapId: 'map-a',
-        canEdit: true,
-        connectionDetails: new Map([[connectionId, dying]]),
-        unresolvedHoles: [],
-        connectionPresentationNow: NOW,
-        events: [],
-        authoring: authoring(),
-        selectedConnectionId: connectionId,
-        onSelectedConnectionIdChange: vi.fn(),
-      }),
-    );
-    expect(editor).toContain('data-mode="restore"');
-
-    const viewer = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
-        mapId: 'map-a',
-        canEdit: false,
-        connectionDetails: new Map([[connectionId, dying]]),
-        unresolvedHoles: [],
-        connectionPresentationNow: NOW,
-        events: [],
-        authoring: authoring(),
-        selectedConnectionId: connectionId,
-        onSelectedConnectionIdChange: vi.fn(),
-      }),
-    );
-    expect(viewer).toContain('data-can-edit="false"');
-    expect(viewer).not.toContain('data-map-connection-details');
-  });
-
-  it('withholds the card for a skeleton selection', () => {
-    const connectionId = 'c3' as Id<'mapConnections'>;
-    const markup = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
-        mapId: 'map-a',
-        canEdit: true,
-        connectionDetails: new Map([
-          [
-            connectionId,
-            detail({
-              connectionId,
-              deletedAt: NOW - 1_000,
-              purgeAfter: null,
-            }),
-          ],
-        ]),
-        unresolvedHoles: [],
-        connectionPresentationNow: NOW,
-        events: [],
-        authoring: authoring(),
-        selectedConnectionId: connectionId,
-        onSelectedConnectionIdChange: vi.fn(),
-      }),
-    );
-    expect(markup).not.toContain('data-map-connection-details');
+    expect(markup).not.toContain('data-map-connection-fields');
   });
 
   it('surfaces the pending auto-link prompt for editors only', () => {
@@ -218,44 +142,15 @@ describe('ConnectionAuthoringOverlay', () => {
       destinationProvenance: 'assumed',
       pendingCandidates: [connectionId, 'stub-2' as Id<'mapConnections'>],
     });
-    const holes = [
-      {
-        connectionId: 'stub-2' as Id<'mapConnections'>,
-        _creationTime: 1,
-        fromSystemId: 1,
-        fromSignatureId: 'DEF-456',
-        fromSignalPct: null,
-        firstSeenAt: null,
-        wormholeTypeCode: null,
-        toSystemId: null,
-        typedSide: null,
-        massState: null,
-        shipSize: null,
-        lifeStage: null,
-        lifeStageObservedAt: null,
-        deathEarliestAt: null,
-        deathLatestAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-        fromDestinationHint: null,
-        toDestinationHint: null,
-        destinationProvenance: null,
-        pendingCandidates: null,
-        observedMassKg: null,
-        observedMassAtStateKg: null,
-      },
-    ];
     const editor = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
+      createElement(MapAuthoringOverlay, {
         mapId: 'map-a',
         canEdit: true,
         connectionDetails: new Map([[connectionId, pending]]),
-        unresolvedHoles: holes,
+        unresolvedHoles: [PENDING_HOLE],
         connectionPresentationNow: NOW,
         events: [],
         authoring: authoring(),
-        selectedConnectionId: null,
-        onSelectedConnectionIdChange: vi.fn(),
       }),
     );
     expect(editor).toContain('data-map-jump-prompt');
@@ -266,63 +161,21 @@ describe('ConnectionAuthoringOverlay', () => {
     expect(editor).toContain('data-map-jump-dismiss');
 
     const viewer = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
+      createElement(MapAuthoringOverlay, {
         mapId: 'map-a',
         canEdit: false,
         connectionDetails: new Map([[connectionId, pending]]),
-        unresolvedHoles: holes,
+        unresolvedHoles: [PENDING_HOLE],
         connectionPresentationNow: NOW,
         events: [],
         authoring: authoring(),
-        selectedConnectionId: null,
-        onSelectedConnectionIdChange: vi.fn(),
       }),
     );
     expect(viewer).not.toContain('data-map-jump-prompt');
   });
+});
 
-  it('keeps a pending resolution answerable from the opened card', () => {
-    const connectionId = 'c1' as Id<'mapConnections'>;
-    const pending = detail({
-      connectionId,
-      fromSignatureId: 'ABC-123',
-      wormholeTypeCode: 'K162',
-      destinationProvenance: 'assumed',
-      pendingCandidates: [connectionId],
-    });
-    const markup = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
-        mapId: 'map-a',
-        canEdit: true,
-        connectionDetails: new Map([[connectionId, pending]]),
-        unresolvedHoles: [],
-        connectionPresentationNow: NOW,
-        events: [],
-        authoring: authoring(),
-        selectedConnectionId: connectionId,
-        onSelectedConnectionIdChange: vi.fn(),
-      }),
-    );
-    expect(markup).toContain('data-has-resolution="true"');
-
-    const settled = renderToStaticMarkup(
-      createElement(ConnectionAuthoringOverlay, {
-        mapId: 'map-a',
-        canEdit: true,
-        connectionDetails: new Map([
-          [connectionId, detail({ connectionId })],
-        ]),
-        unresolvedHoles: [],
-        connectionPresentationNow: NOW,
-        events: [],
-        authoring: authoring(),
-        selectedConnectionId: connectionId,
-        onSelectedConnectionIdChange: vi.fn(),
-      }),
-    );
-    expect(settled).toContain('data-has-resolution="false"');
-  });
-
+describe('connection authoring dispatchers', () => {
   it('dispatches confirm and correct answers through the jump route', async () => {
     postJump.mockClear();
     await answerJumpResolution({
@@ -352,7 +205,6 @@ describe('ConnectionAuthoringOverlay', () => {
   });
 
   it('dismisses a prompt only on a delivered answer and announces failures', async () => {
-    // Delivered: dismiss fires, no failure toast.
     postJump.mockClear();
     toastError.mockClear();
     const dismissed = vi.fn();
@@ -365,7 +217,6 @@ describe('ConnectionAuthoringOverlay', () => {
     expect(dismissed).toHaveBeenCalledTimes(1);
     expect(toastError).not.toHaveBeenCalled();
 
-    // Lost race / transport failure: prompt stays, the user is told.
     for (const outcome of [null, { status: 'retry', reason: 'convex-resolve' }]) {
       postJump.mockResolvedValueOnce(outcome as never);
       const keep = vi.fn();

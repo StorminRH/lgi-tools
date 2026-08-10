@@ -2,12 +2,8 @@
 export type WindowPlacement =
   | { readonly kind: 'docked' }
   | { readonly kind: 'docked-bottom-left' }
-  | { readonly kind: 'node-anchored'; readonly systemId: number }
-  | {
-      readonly kind: 'edge-anchored';
-      readonly fromSystemId: number;
-      readonly toSystemId: number;
-    };
+  | { readonly kind: 'scanner-anchored' }
+  | { readonly kind: 'node-anchored'; readonly systemId: number };
 
 /** The two stable identities in the window stack. */
 export type MapWindowId = 'dock' | 'summary';
@@ -48,9 +44,9 @@ export function deriveSurfaces(input: SurfaceInputs): SurfaceDerivation {
 /** The two semantic surface kinds used by keyboard arbitration. */
 export type WindowSurfaceKind = 'dock' | 'card';
 
-/** Escape surface kind implied by a placement — only anchored cards dismiss. */
+/** Escape surface kind implied by a placement — only dismissable cards dismiss. */
 export function surfaceKindOf(placement: WindowPlacement): WindowSurfaceKind {
-  return placement.kind === 'node-anchored' || placement.kind === 'edge-anchored'
+  return placement.kind === 'node-anchored' || placement.kind === 'scanner-anchored'
     ? 'card'
     : 'dock';
 }

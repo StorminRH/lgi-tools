@@ -4,7 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type MouseEvent,
   type RefObject,
   type ReactNode,
 } from 'react';
@@ -22,7 +21,6 @@ import { Tabs } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/toast';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
-import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
@@ -39,13 +37,13 @@ import {
   type ScannerSectionId,
   type SignatureWindowRow,
 } from './signature-model';
-import { WormholeRowEditor } from './WormholeRowEditor';
+import type { OpenSignatureEditor } from './signature-context';
 
+/** One unresolved row's pending group-identification menu. */
 interface RowActionAnchor {
   readonly row: SignatureWindowRow;
   readonly clientX: number;
   readonly clientY: number;
-  readonly kind: 'identify' | 'edit';
 }
 
 type OpenRowActions = (
@@ -60,14 +58,6 @@ function openRowActionsAtStart(
 ): void {
   const bounds = trigger.getBoundingClientRect();
   onOpenActions(trigger, bounds.left + 12, bounds.top + 12);
-}
-
-function handleRowContextMenu(
-  event: MouseEvent<HTMLButtonElement>,
-  onOpenActions: OpenRowActions,
-): void {
-  event.preventDefault();
-  onOpenActions(event.currentTarget, event.clientX, event.clientY);
 }
 
 function SignalFill({ signalPct }: { readonly signalPct: number | null }) {
@@ -145,12 +135,14 @@ function SignatureRowContent({
   );
   if (!editable) return <div className={className}>{children}</div>;
   return (
+    // Left-click only (ruling D-F): a wormhole row opens the Signature Editor
+    // and an unresolved row opens the identification menu. The duplicate
+    // right-click path is retired — the canvas owns right-click now.
     <Button
       variant="bare"
       aria-label={rowActionLabel(row)}
       className={className}
       onClick={(event) => openRowActionsAtStart(event.currentTarget, onOpenActions)}
-      onContextMenu={(event) => handleRowContextMenu(event, onOpenActions)}
     >
       {children}
     </Button>
@@ -536,8 +528,8 @@ interface SignatureWindowProps {
     row: SignatureWindowRow,
     group: SigGroup,
   ) => Promise<void>;
-  readonly mapId: string;
-  readonly authoring: ConnectionAuthoringApi;
+  /** Opens the map's one Signature Editor on a wormhole row's connection. */
+  readonly onOpenEditor: OpenSignatureEditor;
 }
 
 interface ScannerWindowFrameProps
@@ -681,7 +673,7 @@ function IdentifySignatureMenu({
   readonly onIdentify: SignatureWindowProps['onIdentify'];
   readonly onClose: () => void;
 }) {
-  const identifying = action?.kind === 'identify' ? action : null;
+  const identifying = action;
   const identify = (group: SigGroup) => {
     if (identifying === null) return;
     const row = identifying.row;
@@ -726,36 +718,6 @@ function IdentifySignatureMenu({
   );
 }
 
-function ActiveWormholeRowEditor({
-  action,
-  mapId,
-  authoring,
-  finalFocus,
-  now,
-  onClose,
-}: {
-  readonly action: RowActionAnchor | null;
-  readonly mapId: string;
-  readonly authoring: ConnectionAuthoringApi;
-  readonly finalFocus: RefObject<HTMLElement | null>;
-  readonly now: number;
-  readonly onClose: () => void;
-}) {
-  if (action?.kind !== 'edit' || action.row.connection === null) return null;
-  return (
-    <WormholeRowEditor
-      mapId={mapId}
-      connection={action.row.connection}
-      authoring={authoring}
-      anchor={{ clientX: action.clientX, clientY: action.clientY, finalFocus }}
-      now={now}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    />
-  );
-}
-
 /** Permanent bottom-left scanner window composed beside the managed map stack. */
 export function SignatureWindow(props: SignatureWindowProps) {
   const rowActionFocus = useRef<HTMLElement | null>(null);
@@ -774,13 +736,14 @@ export function SignatureWindow(props: SignatureWindowProps) {
     clientX: number,
     clientY: number,
   ) => {
+    // A migrated wormhole row goes straight to the one editor; an unresolved
+    // row still picks its group from the pointer menu first (ruling D-F).
+    if (row.connection !== null) {
+      props.onOpenEditor(row.connection.connectionId);
+      return;
+    }
     rowActionFocus.current = trigger;
-    setRowAction({
-      row,
-      clientX,
-      clientY,
-      kind: row.connection === null ? 'identify' : 'edit',
-    });
+    setRowAction({ row, clientX, clientY });
   };
 
   return (
@@ -799,14 +762,6 @@ export function SignatureWindow(props: SignatureWindowProps) {
         action={rowAction}
         finalFocus={rowActionFocus}
         onIdentify={props.onIdentify}
-        onClose={closeRowAction}
-      />
-      <ActiveWormholeRowEditor
-        action={rowAction}
-        mapId={props.mapId}
-        authoring={props.authoring}
-        finalFocus={rowActionFocus}
-        now={props.now}
         onClose={closeRowAction}
       />
     </div>

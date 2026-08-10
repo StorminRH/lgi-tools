@@ -6,7 +6,8 @@ import {
   automaticJumpMapId,
   automaticJumpRoute,
   calmMapCamera,
-  clickFirstEdge,
+  openFirstEdgeEditor,
+  signatureEditor,
   convexRun,
   waitForEditableMap,
 } from '../lib/authoring-helpers.mjs';
@@ -201,8 +202,8 @@ export default {
     );
 
     await calmMapCamera(page);
-    await clickFirstEdge(page);
-    const card = page.locator('[data-map-window="connection-details"]');
+    await openFirstEdgeEditor(page);
+    const card = signatureEditor(page);
     const typeInput = card.getByPlaceholder('Type code — e.g. B274 or K162');
     check(
       'unambiguous slot auto-links as C247',

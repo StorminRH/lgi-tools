@@ -521,8 +521,13 @@ export interface MapChain {
   readonly releasePlacements: () => void;
 }
 
-/** The session-memoized directory, or `null` until it lands. A failure stays null, silently. */
-function useUniverseAssets(): UniverseAssets | null {
+/**
+ * The session-memoized directory, or `null` until it lands. A failure stays null, silently.
+ *
+ * Exported as the mapper's one directory hook: the Signature Editor resolves its destination
+ * readout from the same session load the canvas labels from, rather than opening a second one.
+ */
+export function useUniverseAssets(): UniverseAssets | null {
   const [assets, setAssets] = useState<UniverseAssets | null>(null);
 
   useEffect(() => {

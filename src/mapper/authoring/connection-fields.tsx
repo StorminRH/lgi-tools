@@ -1,12 +1,22 @@
 'use client';
 
+// The Signature Editor's field body (4.0.4.3.2 operator ruling D-G).
+//
+// Player language throughout: the Mass and Reliable Lifetime vocabularies read
+// exactly as EVE's own in-space wording, while the stored vocabularies
+// (`stable/reduced/critical`, `under_1_day/…`) are untouched. The field ORDER
+// is part of the ruling — wormhole type (with its headerless stats block),
+// Size, Mass, Reliable Lifetime, Leads to, Delete — so the tests assert
+// position, not just presence.
+//
+// Pure of window/leader chrome so field wiring stays unit-testable.
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { Tooltip } from '@/components/ui/tooltip';
+import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import {
   CONNECTION_MASS_STATES,
-  FAR_SIDE_WORMHOLE_CODE,
   WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_LIFE_STAGES,
   WORMHOLE_SIZE_CLASSES,
@@ -20,6 +30,7 @@ import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import {
   ConnectionFieldGroup,
   encodeOptionalField,
+  FieldActionReadout,
   FieldReadout,
   OptionalSelectField,
   UNSET_FIELD,
@@ -34,23 +45,24 @@ import {
   type LifetimeRowDisplay,
   type MassRowDisplay,
 } from './connection-intelligence';
-import type { JumpResolutionModel } from './jump-resolution';
-import {
-  JumpResolutionChoices,
-  type JumpResolutionAnswers,
-} from './JumpResolutionPrompt';
 import {
   wormholeTypeSearch,
   type WormholeTypeErr,
   type WormholeTypeParams,
 } from './wormhole-type-search';
 
+/** In-game mass wording over the unchanged stored shake-state vocabulary. */
+const MASS_LABELS: Record<ConnectionMassState, string> = {
+  stable: 'More than 50% remaining',
+  reduced: 'Less than 50% remaining',
+  critical: 'Less than 10% remaining',
+};
 
 const MASS_ITEMS = [
   { value: UNSET_FIELD, label: 'Unset' },
   ...CONNECTION_MASS_STATES.map((value) => ({
     value,
-    label: value.charAt(0).toUpperCase() + value.slice(1),
+    label: MASS_LABELS[value],
   })),
 ];
 
@@ -59,11 +71,12 @@ const SIZE_ITEMS = [
   ...WORMHOLE_SIZE_CLASSES.map((value) => ({ value, label: value })),
 ];
 
+/** In-game lifetime wording over the unchanged stored life-stage vocabulary. */
 const LIFE_LABELS: Record<WormholeLifeStage, string> = {
-  under_1_day: 'Less than 1 day',
-  under_4_hours: 'Less than 4 hours',
-  under_1_hour: 'Less than 1 hour',
-  expired: 'Expired',
+  under_1_day: 'Less than 1 day remaining',
+  under_4_hours: 'Less than 4 hours remaining',
+  under_1_hour: 'Less than 1 hour remaining',
+  expired: 'Expired, closure imminent',
 };
 
 const LIFE_ITEMS = [
@@ -94,23 +107,14 @@ const HINT_ITEMS = [
   })),
 ];
 
-/** Field-scoped setters the card calls for one connection. */
+/** Field-scoped setters the editor calls for one connection. */
 export interface ConnectionFieldSetters {
   readonly setWormholeType: (value: string | null) => void;
   readonly setShipSize: (value: WormholeSizeClass | null) => void;
   readonly setMassState: (value: ConnectionMassState | null) => void;
   readonly setLifeStage: (value: WormholeLifeStage | null) => void;
-  readonly setTypedSide: (value: 'from' | 'to') => void;
-  readonly setDestinationHint: (
-    side: 'from' | 'to',
-    value: WormholeDestinationHint | null,
-  ) => void;
-}
-
-/** The card's pending auto-link group: the recorded survivors plus answers. */
-export interface ConnectionResolutionControls {
-  readonly resolution: JumpResolutionModel;
-  readonly answers: JumpResolutionAnswers;
+  /** The one "Leads to" hint; the origin side is the editor's own viewpoint. */
+  readonly setLeadsTo: (value: WormholeDestinationHint | null) => void;
 }
 
 /** Props for the connection field form body. */
@@ -125,15 +129,20 @@ export interface ConnectionFieldsProps {
   readonly now: number;
   /** Restore-only mode freezes every field control and shows Restore. */
   readonly mode: 'edit' | 'restore';
-  /** Present while an assumed auto-link is still answerable on this row. */
-  readonly resolutionControls?: ConnectionResolutionControls;
-  readonly onSever?: () => void;
+  /**
+   * The destination system's identity readout once the hole is resolved. Its
+   * presence locks "Leads to" to the settled answer (D-G); absent, the field
+   * stays the human hint dropdown.
+   */
+  readonly destination?: SystemIdentityReadout | null;
+  readonly onFocusDestination?: () => void;
+  readonly onDelete?: () => void;
   readonly onRestore?: () => void;
 }
 
 /**
- * Human-authored connection facts plus codex-driven intelligence. Pure of
- * window/follower chrome so field wiring stays unit-testable.
+ * Human-authored connection facts plus codex-driven intelligence, in the
+ * ruling D-G order.
  */
 export function ConnectionFields({
   connection,
@@ -144,8 +153,9 @@ export function ConnectionFields({
   setters,
   now,
   mode,
-  resolutionControls,
-  onSever,
+  destination,
+  onFocusDestination,
+  onDelete,
   onRestore,
 }: ConnectionFieldsProps) {
   const readOnly = mode === 'restore';
@@ -163,9 +173,6 @@ export function ConnectionFields({
           Severed connection — restore within the undo window.
         </p>
       ) : null}
-      {!readOnly && resolutionControls !== undefined ? (
-        <ResolutionField controls={resolutionControls} />
-      ) : null}
       <TypeField
         connection={connection}
         codes={codes}
@@ -173,11 +180,6 @@ export function ConnectionFields({
         codexReady={codexReady}
         readOnly={readOnly}
         onChange={setters.setWormholeType}
-      />
-      <TypedSideField
-        connection={connection}
-        readOnly={readOnly}
-        onChange={setters.setTypedSide}
       />
       <CodexPanel entry={entry} />
       <SizeField
@@ -187,53 +189,32 @@ export function ConnectionFields({
         readOnly={readOnly}
         onChange={setters.setShipSize}
       />
-      <StabilityField
+      <MassSection
         connection={connection}
+        entry={entry}
         readOnly={readOnly}
         onChange={setters.setMassState}
       />
-      <MassEstimate entry={entry} connection={connection} />
-      <LifeStageField
+      <LifetimeSection
         connection={connection}
+        entry={entry}
+        now={now}
         readOnly={readOnly}
         onChange={setters.setLifeStage}
       />
-      <LifetimeEstimate connection={connection} entry={entry} now={now} />
       <LeadsToField
-        side="from"
         connection={connection}
+        destination={destination ?? null}
         readOnly={readOnly}
-        onChange={(value) => setters.setDestinationHint('from', value)}
-      />
-      <LeadsToField
-        side="to"
-        connection={connection}
-        readOnly={readOnly}
-        onChange={(value) => setters.setDestinationHint('to', value)}
+        onFocusDestination={onFocusDestination}
+        onChange={setters.setLeadsTo}
       />
       <ConnectionActions
         mode={mode}
-        onSever={onSever}
+        onDelete={onDelete}
         onRestore={onRestore}
       />
     </div>
-  );
-}
-
-function ResolutionField({
-  controls,
-}: {
-  readonly controls: ConnectionResolutionControls;
-}) {
-  return (
-    <ConnectionFieldGroup label="Auto-link">
-      <div data-map-connection-resolution className="flex w-full flex-col gap-1">
-        <JumpResolutionChoices
-          resolution={controls.resolution}
-          answers={controls.answers}
-        />
-      </div>
-    </ConnectionFieldGroup>
   );
 }
 
@@ -281,42 +262,6 @@ function TypeField({
   );
 }
 
-const TYPED_SIDE_ITEMS = [
-  { value: 'from', label: 'Origin side' },
-  { value: 'to', label: 'Far side' },
-] as const;
-
-function TypedSideField({
-  connection,
-  readOnly,
-  onChange,
-}: {
-  readonly connection: ConnectionEditorDetail;
-  readonly readOnly: boolean;
-  readonly onChange: (value: 'from' | 'to') => void;
-}) {
-  if (connection.wormholeTypeCode === null) return null;
-  const value = connection.typedSide ?? 'from';
-  return (
-    <ConnectionFieldGroup label="Typed side">
-      {readOnly ? (
-        <FieldReadout
-          attr="data-map-connection-typed-side-readout"
-          text={value === 'from' ? 'Origin side' : 'Far side'}
-        />
-      ) : (
-        <Select
-          ariaLabel="Typed side"
-          align="center"
-          value={value}
-          items={TYPED_SIDE_ITEMS}
-          onValueChange={(next) => onChange(next as 'from' | 'to')}
-        />
-      )}
-    </ConnectionFieldGroup>
-  );
-}
-
 function CodexPanel({ entry }: { readonly entry: WormholeCodexEntry | null }) {
   const codex = codexPanelFacts(entry);
   if (codex === null) return null;
@@ -325,13 +270,12 @@ function CodexPanel({ entry }: { readonly entry: WormholeCodexEntry | null }) {
 
 function CodexPanelBody({ facts }: { readonly facts: CodexPanelFacts }) {
   return (
+    // Headerless (D-G): the block sits directly under the type it describes,
+    // so a "Codex" caption only repeated what the position already says.
     <div
       data-map-connection-codex
       className="flex w-full flex-col gap-1 rounded-ctl border border-border-soft px-2 py-1.5 text-center"
     >
-      <span className="font-data text-label uppercase tracking-label text-isk">
-        Codex
-      </span>
       <CodexFact label="Total mass" value={formatFactKg(facts.totalMassKg)} />
       <CodexFact label="Per-jump" value={formatFactKg(facts.maxJumpMassKg)} />
       {facts.massRegenKg > 0 ? (
@@ -365,8 +309,8 @@ function SizeField({
       : (connection.shipSize ?? 'Unset');
   return (
     <OptionalSelectField
-      label="Ship size"
-      ariaLabel="Ship size"
+      label="Size"
+      ariaLabel="Size"
       items={SIZE_ITEMS}
       value={connection.shipSize}
       readOnly={lockedSize || readOnly}
@@ -377,81 +321,51 @@ function SizeField({
   );
 }
 
-function StabilityField({
+/** Mass: the in-game shake report plus its one derived remaining-mass line. */
+function MassSection({
   connection,
+  entry,
   readOnly,
   onChange,
 }: {
   readonly connection: ConnectionEditorDetail;
+  readonly entry: WormholeCodexEntry | null;
   readonly readOnly: boolean;
   readonly onChange: (value: ConnectionMassState | null) => void;
 }) {
   return (
-    <OptionalSelectField
-      label="Stability"
-      ariaLabel="Mass stability"
-      items={MASS_ITEMS}
-      value={connection.massState}
-      readOnly={readOnly}
-      readoutAttr="data-map-connection-mass-state-readout"
-      readoutText={connection.massState ?? 'Unset'}
-      onChange={(value) => onChange(value as ConnectionMassState | null)}
-    />
-  );
-}
-
-function LeadsToField({
-  side,
-  connection,
-  readOnly,
-  onChange,
-}: {
-  readonly side: 'from' | 'to';
-  readonly connection: ConnectionEditorDetail;
-  readonly readOnly: boolean;
-  readonly onChange: (value: WormholeDestinationHint | null) => void;
-}) {
-  // D11: hide only the side a typed origin code already decides. The opposite
-  // side remains human-authored through its shipped side-aware mutation field.
-  const typedSide = connection.typedSide ?? 'from';
-  const showable = connection.wormholeTypeCode === null
-    || connection.wormholeTypeCode === FAR_SIDE_WORMHOLE_CODE
-    || typedSide !== side;
-  if (!showable) return null;
-  const hint = side === 'from'
-    ? connection.fromDestinationHint
-    : (connection.toDestinationHint ?? null);
-  const label = side === 'from' ? 'Origin leads to' : 'Far side leads to';
-  return (
-    <OptionalSelectField
-      label={label}
-      ariaLabel={label}
-      items={HINT_ITEMS}
-      value={hint}
-      readOnly={readOnly}
-      readoutAttr="data-map-connection-leads-readout"
-      readoutText={hint === null ? 'Unset' : HINT_LABELS[hint]}
-      onChange={(value) => onChange(value as WormholeDestinationHint | null)}
-    />
-  );
-}
-
-function MassEstimate({
-  entry,
-  connection,
-}: {
-  readonly entry: WormholeCodexEntry | null;
-  readonly connection: ConnectionEditorDetail;
-}) {
-  return (
-    <MassEstimateView
-      display={massRowDisplay(
-        entry,
-        connection.massState,
-        connection.observedMassKg,
-        connection.observedMassAtStateKg,
+    <ConnectionFieldGroup label="Mass">
+      {readOnly ? (
+        <FieldReadout
+          attr="data-map-connection-mass-state-readout"
+          text={
+            connection.massState === null
+              ? 'Unset'
+              : MASS_LABELS[connection.massState]
+          }
+        />
+      ) : (
+        <Select
+          ariaLabel="Mass"
+          align="center"
+          value={encodeOptionalField(connection.massState)}
+          items={MASS_ITEMS}
+          onValueChange={(next) =>
+            onChange(
+              next === UNSET_FIELD ? null : (next as ConnectionMassState),
+            )
+          }
+        />
       )}
-    />
+      <MassEstimateView
+        display={massRowDisplay(
+          entry,
+          connection.massState,
+          connection.observedMassKg,
+          connection.observedMassAtStateKg,
+        )}
+      />
+    </ConnectionFieldGroup>
   );
 }
 
@@ -482,44 +396,46 @@ function MassEstimateView({ display }: { readonly display: MassRowDisplay }) {
   return null;
 }
 
-function LifeStageField({
+/** Reliable Lifetime: the in-game report plus its one derived countdown line. */
+function LifetimeSection({
   connection,
+  entry,
+  now,
   readOnly,
   onChange,
 }: {
   readonly connection: ConnectionEditorDetail;
+  readonly entry: WormholeCodexEntry | null;
+  readonly now: number;
   readonly readOnly: boolean;
   readonly onChange: (value: WormholeLifeStage | null) => void;
 }) {
   return (
-    <OptionalSelectField
-      label="Life stage"
-      ariaLabel="Life stage"
-      items={LIFE_ITEMS}
-      value={connection.lifeStage}
-      readOnly={readOnly}
-      readoutAttr="data-map-connection-life-readout"
-      readoutText={
-        connection.lifeStage === null ? 'Unset' : LIFE_LABELS[connection.lifeStage]
-      }
-      onChange={(value) => onChange(value as WormholeLifeStage | null)}
-    />
-  );
-}
-
-function LifetimeEstimate({
-  connection,
-  entry,
-  now,
-}: {
-  readonly connection: ConnectionEditorDetail;
-  readonly entry: WormholeCodexEntry | null;
-  readonly now: number;
-}) {
-  return (
-    <LifetimeEstimateView
-      display={lifetimeRowDisplay(connection, entry, now)}
-    />
+    <ConnectionFieldGroup label="Reliable Lifetime">
+      {readOnly ? (
+        <FieldReadout
+          attr="data-map-connection-life-readout"
+          text={
+            connection.lifeStage === null
+              ? 'Unset'
+              : LIFE_LABELS[connection.lifeStage]
+          }
+        />
+      ) : (
+        <Select
+          ariaLabel="Reliable Lifetime"
+          align="center"
+          value={encodeOptionalField(connection.lifeStage)}
+          items={LIFE_ITEMS}
+          onValueChange={(next) =>
+            onChange(next === UNSET_FIELD ? null : (next as WormholeLifeStage))
+          }
+        />
+      )}
+      <LifetimeEstimateView
+        display={lifetimeRowDisplay(connection, entry, now)}
+      />
+    </ConnectionFieldGroup>
   );
 }
 
@@ -556,25 +472,71 @@ function LifetimeEstimateView({
   return null;
 }
 
+/**
+ * Leads to: one field (D-G). While the far end is unknown it is the human
+ * hint dropdown; once the hole resolves it locks to the destination's identity
+ * readout — the one rule every other surface renders — and clicking focuses
+ * that system on the canvas.
+ */
+function LeadsToField({
+  connection,
+  destination,
+  readOnly,
+  onFocusDestination,
+  onChange,
+}: {
+  readonly connection: ConnectionEditorDetail;
+  readonly destination: SystemIdentityReadout | null;
+  readonly readOnly: boolean;
+  readonly onFocusDestination?: () => void;
+  readonly onChange: (value: WormholeDestinationHint | null) => void;
+}) {
+  if (destination !== null) {
+    return (
+      <ConnectionFieldGroup label="Leads to">
+        <FieldActionReadout
+          attr="data-map-connection-leads-locked"
+          text={destination.label}
+          toneClass={destination.tone}
+          onClick={onFocusDestination}
+        />
+      </ConnectionFieldGroup>
+    );
+  }
+  const hint = connection.fromDestinationHint;
+  return (
+    <OptionalSelectField
+      label="Leads to"
+      ariaLabel="Leads to"
+      items={HINT_ITEMS}
+      value={hint}
+      readOnly={readOnly}
+      readoutAttr="data-map-connection-leads-readout"
+      readoutText={hint === null ? 'Unset' : HINT_LABELS[hint]}
+      onChange={(value) => onChange(value as WormholeDestinationHint | null)}
+    />
+  );
+}
+
 function ConnectionActions({
   mode,
-  onSever,
+  onDelete,
   onRestore,
 }: {
   readonly mode: 'edit' | 'restore';
-  readonly onSever?: () => void;
+  readonly onDelete?: () => void;
   readonly onRestore?: () => void;
 }) {
-  if (mode === 'edit' && onSever !== undefined) {
+  if (mode === 'edit' && onDelete !== undefined) {
     return (
       <div className="flex w-full justify-center">
         <Button
           variant="danger"
           size="sm"
-          data-map-connection-sever
-          onClick={onSever}
+          data-map-connection-delete
+          onClick={onDelete}
         >
-          Sever
+          Delete
         </Button>
       </div>
     );

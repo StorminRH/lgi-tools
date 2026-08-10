@@ -20,6 +20,9 @@ vi.mock('@/components/ui/select', () => ({
       'data-select': props.ariaLabel,
       'data-value': props.value,
       'data-options': props.items.map((item) => item.value).join(','),
+      // Ruling D-G is about the WORDS players read, so the option labels are
+      // part of the contract, not just the stored values.
+      'data-labels': props.items.map((item) => item.label).join('|'),
     }),
 }));
 
@@ -96,8 +99,7 @@ const SETTERS = {
   setShipSize: vi.fn(),
   setMassState: vi.fn(),
   setLifeStage: vi.fn(),
-  setTypedSide: vi.fn(),
-  setDestinationHint: vi.fn(),
+  setLeadsTo: vi.fn(),
 };
 
 describe('optional field encode/decode', () => {
@@ -108,54 +110,115 @@ describe('optional field encode/decode', () => {
   });
 });
 
-describe('connection fields form', () => {
-  it('wires edit-mode fields, locks typed size, and gates leads-to plus regen rows', () => {
-    const base = renderToStaticMarkup(
+describe('Signature Editor field body (ruling D-G)', () => {
+  it('renders the six fields in the ruling order', () => {
+    const markup = renderToStaticMarkup(
       createElement(ConnectionFields, {
-        connection: CONNECTION,
+        connection: { ...CONNECTION, toSystemId: null, shipSize: null },
         codexReady: true,
-        codes: ['B274', 'K162'],
+        codes: ['B274'],
+        entry: TYPED,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+        onDelete: vi.fn(),
+      }),
+    );
+    const order = [
+      'Wormhole type',
+      'data-map-connection-codex',
+      '>Size<',
+      '>Mass<',
+      'Reliable Lifetime',
+      'Leads to',
+      'data-map-connection-delete',
+    ];
+    const positions = order.map((needle) => markup.indexOf(needle));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    for (const [index, position] of positions.entries()) {
+      if (index === 0) continue;
+      expect(position).toBeGreaterThan(positions[index - 1] as number);
+    }
+  });
+
+  it('speaks the in-game mass and lifetime wording over the stored vocabularies', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: { ...CONNECTION, toSystemId: null },
+        codexReady: true,
+        codes: ['B274'],
         entry: null,
         now: 1,
         mode: 'edit',
         setters: SETTERS,
       }),
     );
-    expect(base).toContain('data-map-connection-fields');
-    expect(base).toContain('data-terminal-search');
-    expect(base).toContain('data-initial="B274"');
-    expect(base).toContain('data-select="Mass stability"');
-    expect(base).toContain(`data-value="${UNSET_FIELD}"`);
-    expect(base).toContain('data-select="Ship size"');
-    expect(base).toContain('data-value="M"');
-    expect(base).toContain('data-select="Life stage"');
+    expect(markup).toContain('data-select="Mass"');
+    expect(markup).toContain('data-options=",stable,reduced,critical"');
+    expect(markup).toContain(
+      'data-labels="Unset|More than 50% remaining|Less than 50% remaining|Less than 10% remaining"',
+    );
+    expect(markup).toContain('data-select="Reliable Lifetime"');
+    expect(markup).toContain(
+      'data-options=",under_1_day,under_4_hours,under_1_hour,expired"',
+    );
+    expect(markup).toContain(
+      'data-labels="Unset|Less than 1 day remaining|Less than 4 hours remaining|Less than 1 hour remaining|Expired, closure imminent"',
+    );
+  });
 
+  it('retires the typed-side, far-side and auto-link controls', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: { ...CONNECTION, toSystemId: null },
+        codexReady: true,
+        codes: ['B274', 'K162'],
+        entry: K162,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+      }),
+    );
+    expect(markup).not.toContain('Typed side');
+    expect(markup).not.toContain('Origin');
+    expect(markup).not.toContain('Far side');
+    expect(markup).not.toContain('Auto-link');
+    expect(markup).not.toContain('data-map-connection-resolution');
+    // One Leads-to field, not two.
+    expect(markup.split('data-select="Leads to"')).toHaveLength(2);
+  });
+
+  it('locks the type-derived size and drops the stats-block heading', () => {
     const typed = renderToStaticMarkup(
       createElement(ConnectionFields, {
-        connection: CONNECTION,
+        connection: { ...CONNECTION, toSystemId: null },
         codexReady: true,
         codes: ['B274'],
         entry: TYPED,
         now: 1,
         mode: 'edit',
-        onSever: vi.fn(),
         setters: SETTERS,
       }),
     );
     expect(typed).toContain('data-map-connection-codex');
     expect(typed).toContain('data-map-codex-fact="Total mass"');
+    expect(typed).toContain('data-map-codex-fact="Per-jump"');
+    expect(typed).toContain('data-map-codex-fact="Lifetime"');
+    expect(typed).toContain('data-map-codex-fact="Size"');
+    expect(typed).not.toContain('>Codex<');
     expect(typed).toContain('data-map-connection-size-locked');
-    expect(typed).toContain('>L<');
-    expect(typed).not.toContain('data-select="Ship size"');
+    expect(typed).not.toContain('data-select="Size"');
     expect(typed).toContain('data-map-connection-mass-range');
-    expect(typed).toContain('–');
-    expect(typed).toContain('data-map-connection-sever');
-    expect(typed).not.toContain('data-select="Leads to"');
     expect(typed).not.toContain('data-map-codex-fact="Regeneration"');
 
     const k162 = renderToStaticMarkup(
       createElement(ConnectionFields, {
-        connection: { ...CONNECTION, wormholeTypeCode: 'K162', shipSize: null },
+        connection: {
+          ...CONNECTION,
+          toSystemId: null,
+          wormholeTypeCode: 'K162',
+          shipSize: null,
+        },
         codexReady: true,
         codes: ['K162'],
         entry: K162,
@@ -165,28 +228,12 @@ describe('connection fields form', () => {
       }),
     );
     expect(k162).not.toContain('data-map-connection-codex');
-    expect(k162).toContain('data-select="Ship size"');
+    expect(k162).toContain('data-select="Size"');
     expect(k162).not.toContain('data-map-connection-size-locked');
-    expect(k162).toContain('data-select="Origin leads to"');
-    expect(k162).toContain('data-select="Far side leads to"');
-
-    const untyped = renderToStaticMarkup(
-      createElement(ConnectionFields, {
-        connection: { ...CONNECTION, wormholeTypeCode: null },
-        codexReady: true,
-        codes: [],
-        entry: null,
-        now: 1,
-        mode: 'edit',
-        setters: SETTERS,
-      }),
-    );
-    expect(untyped).toContain('data-select="Origin leads to"');
-    expect(untyped).toContain('data-select="Far side leads to"');
 
     const regen = renderToStaticMarkup(
       createElement(ConnectionFields, {
-        connection: CONNECTION,
+        connection: { ...CONNECTION, toSystemId: null },
         codexReady: true,
         codes: ['B274'],
         entry: { ...TYPED, massRegen: 500_000_000 },
@@ -199,49 +246,8 @@ describe('connection fields form', () => {
     expect(regen).toContain('data-map-connection-mass-regen');
   });
 
-  it('shows answerable auto-link controls when supplied and opens restore-only mode without editors', () => {
-    const pending = renderToStaticMarkup(
-      createElement(ConnectionFields, {
-        connection: {
-          ...CONNECTION,
-          wormholeTypeCode: 'K162',
-          destinationProvenance: 'assumed' as const,
-          pendingCandidates: [CONNECTION.connectionId],
-        },
-        codexReady: true,
-        codes: ['K162'],
-        entry: K162,
-        now: 1,
-        mode: 'edit',
-        setters: SETTERS,
-        resolutionControls: {
-          resolution: {
-            connectionId: CONNECTION.connectionId,
-            candidates: [
-              {
-                connectionId: CONNECTION.connectionId,
-                signatureId: 'ABC-123',
-                wormholeTypeCode: 'K162',
-                isCurrent: true,
-              },
-              {
-                connectionId: 'stub-2' as Id<'mapConnections'>,
-                signatureId: 'DEF-456',
-                wormholeTypeCode: null,
-                isCurrent: false,
-              },
-            ],
-          },
-          answers: { onConfirm: vi.fn(), onCorrect: vi.fn() },
-        },
-      }),
-    );
-    expect(pending).toContain('data-map-connection-resolution');
-    expect(pending).toContain('data-map-jump-confirm');
-    expect(pending).toContain('data-map-jump-correct="stub-2"');
-    expect(pending).toContain('DEF-456');
-
-    const plain = renderToStaticMarkup(
+  it('locks Leads to onto a known destination and keeps the hint dropdown otherwise', () => {
+    const resolved = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: CONNECTION,
         codexReady: true,
@@ -250,14 +256,54 @@ describe('connection fields form', () => {
         now: 1,
         mode: 'edit',
         setters: SETTERS,
+        destination: { label: 'J123456 - C4', tone: 'text-wh-c4' },
+        onFocusDestination: vi.fn(),
       }),
     );
-    expect(plain).not.toContain('data-map-connection-resolution');
+    expect(resolved).toContain('data-map-connection-leads-locked');
+    expect(resolved).toContain('J123456 - C4');
+    expect(resolved).toContain('text-wh-c4');
+    expect(resolved).not.toContain('data-select="Leads to"');
+
+    const unresolved = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: { ...CONNECTION, toSystemId: null },
+        codexReady: true,
+        codes: ['B274'],
+        entry: TYPED,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+        destination: null,
+      }),
+    );
+    expect(unresolved).toContain('data-select="Leads to"');
+    expect(unresolved).not.toContain('data-map-connection-leads-locked');
+  });
+
+  it('offers Delete while live and Restore only inside the undo window', () => {
+    const live = renderToStaticMarkup(
+      createElement(ConnectionFields, {
+        connection: { ...CONNECTION, toSystemId: null },
+        codexReady: true,
+        codes: ['B274'],
+        entry: TYPED,
+        now: 1,
+        mode: 'edit',
+        setters: SETTERS,
+        onDelete: vi.fn(),
+      }),
+    );
+    expect(live).toContain('data-map-connection-delete');
+    expect(live).toContain('>Delete<');
+    expect(live).not.toContain('>Sever<');
+    expect(live).not.toContain('data-map-connection-restore');
 
     const restore = renderToStaticMarkup(
       createElement(ConnectionFields, {
         connection: {
           ...CONNECTION,
+          toSystemId: null,
           deletedAt: 100,
           purgeAfter: 100 + 24 * 60 * 60 * 1000,
         },
@@ -272,8 +318,10 @@ describe('connection fields form', () => {
     );
     expect(restore).toContain('data-map-connection-restore-mode');
     expect(restore).toContain('data-map-connection-restore');
-    expect(restore).not.toContain('data-map-connection-sever');
+    expect(restore).not.toContain('data-map-connection-delete');
     expect(restore).not.toContain('data-terminal-search');
-    expect(restore).not.toContain('data-select="Mass stability"');
+    expect(restore).not.toContain('data-select="Mass"');
+    expect(restore).toContain('data-map-connection-mass-state-readout');
+    expect(restore).toContain('data-map-connection-life-readout');
   });
 });

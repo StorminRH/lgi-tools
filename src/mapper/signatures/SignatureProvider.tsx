@@ -3,19 +3,24 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from '@/components/ui/toast';
 import { api } from '@/data/convex/api';
+import type { Id } from '@/data/convex/data-model';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { systemClassText } from '@/data/eve-data/system-identity';
 import type { ScannedRow, SigGroup } from '@/data/maps/scan-parse';
-import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
+import type { ConnectionAuthoringApi } from '../authoring/connection-authoring-api';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
 import { feedFreshnessIndex } from '../tracking/presence-model';
-import { SignatureRowsProvider } from './signature-context';
+import { ActiveSignatureEditor } from './ActiveSignatureEditor';
+import {
+  SignatureRowsProvider,
+  type OpenSignatureEditor,
+} from './signature-context';
 import { eliminateSignaturesAndAnnounce } from './signature-elimination-client';
 import {
   buildSignatureRows,
@@ -207,6 +212,9 @@ export function SignatureProvider({
   connectionDetails,
   unresolvedHoles,
   authoring,
+  editingConnectionId,
+  onEditingConnectionIdChange,
+  onFocusSystem,
   children,
 }: {
   readonly mapId: string;
@@ -216,6 +224,13 @@ export function SignatureProvider({
   readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
   readonly authoring: ConnectionAuthoringApi;
+  /** The connection the map's one Signature Editor is open on, owned by the host. */
+  readonly editingConnectionId: Id<'mapConnections'> | null;
+  readonly onEditingConnectionIdChange: (
+    connectionId: Id<'mapConnections'> | null,
+  ) => void;
+  /** Focuses one system on the canvas (the editor's locked Leads-to readout). */
+  readonly onFocusSystem?: (systemId: number) => void;
   readonly children: ReactNode;
 }) {
   const { rows, complete } = useSignaturePage(
@@ -242,7 +257,17 @@ export function SignatureProvider({
   useScannerPaste({ canEdit, pasteTarget, applyRows });
   const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
   const identifyRow = useIdentifySignature(mapId);
-  const now = useSignatureClock(rows.length > 0);
+  // One editor for the whole map: the scanner row and the canvas edge menu
+  // both name a connection id through the host's single state (ruling D-F).
+  const closeEditor = useCallback(
+    () => onEditingConnectionIdChange(null),
+    [onEditingConnectionIdChange],
+  );
+  const openEditor = useCallback<OpenSignatureEditor>(
+    (connectionId) => onEditingConnectionIdChange(connectionId),
+    [onEditingConnectionIdChange],
+  );
+  const now = useSignatureClock(rows.length > 0 || editingConnectionId !== null);
   const missingIds = missingIdsForSystem(missingBySystem, missingSystemId);
   // Row highlighting can only mark rows the window actually lists.
   const highlightIds =
@@ -269,9 +294,20 @@ export function SignatureProvider({
         onDismissMissing={dismissMissing}
         onRemoveMissing={removeMissingRows}
         onIdentify={identifyRow}
-        mapId={mapId}
-        authoring={authoring}
+        onOpenEditor={openEditor}
       />
+      {canEdit ? (
+        <ActiveSignatureEditor
+          mapId={mapId}
+          connectionId={editingConnectionId}
+          connectionDetails={connectionDetails}
+          unresolvedHoles={unresolvedHoles}
+          authoring={authoring}
+          now={now}
+          onClose={closeEditor}
+          onFocusSystem={onFocusSystem}
+        />
+      ) : null}
     </SignatureRowsProvider>
   );
 }

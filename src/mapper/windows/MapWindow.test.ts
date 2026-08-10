@@ -79,23 +79,21 @@ describe('MapWindow isolation markup', () => {
     expect(html).not.toContain('bottom-16');
   });
 
-  it('plays the node birth overshoot on edge-anchored cards', () => {
+  it('plays the node birth overshoot on the scanner-anchored editor', () => {
     const html = renderToStaticMarkup(
       createElement(MapWindow, {
-        windowId: 'connection-details',
-        title: 'Connection',
-        placement: {
-          kind: 'edge-anchored',
-          fromSystemId: 1,
-          toSystemId: 2,
-        },
+        windowId: 'signature-editor',
+        title: 'Signature Editor',
+        placement: { kind: 'scanner-anchored' },
         stackIndex: 1,
         onClose: vi.fn(),
         onActivate: vi.fn(),
       }, createElement('p', null, 'content')),
     );
     expect(html).toContain('map-node-enter');
-    expect(html).toContain('data-map-window-placement="edge-anchored"');
+    expect(html).toContain('data-map-window-placement="scanner-anchored"');
+    // Parked beside the dock in screen space, never riding a canvas transform.
+    expect(html).not.toContain('--map-window-transform');
   });
 
   it('owns the one bottom-left geometry variant for the signature sibling', () => {

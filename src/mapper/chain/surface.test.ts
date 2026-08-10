@@ -115,17 +115,17 @@ describe('mapper source contract', () => {
   // Guards every loop below: an empty or broken file walk would make them all pass vacuously.
   it('walks the whole mapper zone', () => {
     expect(mapperFiles().toSorted()).toEqual([
-      'authoring/ConnectionAuthoringOverlay.tsx',
-      'authoring/ConnectionDetailsCard.tsx',
       'authoring/HomePrompt.tsx',
       'authoring/JumpResolutionPrompt.tsx',
+      'authoring/MapAuthoringOverlay.tsx',
       'authoring/NodeAddMenu.tsx',
       'authoring/RightsTransitionToast.tsx',
+      'authoring/connection-authoring-api.ts',
+      'authoring/connection-editor-mode.ts',
       'authoring/connection-field-group.tsx',
       'authoring/connection-field-setters.ts',
       'authoring/connection-fields.tsx',
       'authoring/connection-intelligence.ts',
-      'authoring/connection-selection.ts',
       'authoring/jump-resolution.ts',
       'authoring/rights-transition.ts',
       'authoring/sever-toast.ts',
@@ -133,12 +133,14 @@ describe('mapper source contract', () => {
       'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',
       'canvas/ChainSurface.tsx',
+      'canvas/EdgeContextMenu.tsx',
       'canvas/MapCanvas.tsx',
       'canvas/MapControls.tsx',
       'canvas/PilotPresenceBadge.tsx',
       'canvas/SystemNode.tsx',
       'canvas/camera-follow-model.ts',
       'canvas/edge-geometry.ts',
+      'canvas/edge-menu.ts',
       'canvas/map-controls-model.ts',
       'canvas/use-camera-follow.ts',
       'chain/ChainHost.tsx',
@@ -149,6 +151,7 @@ describe('mapper source contract', () => {
       'chain/optimistic-authoring.ts',
       'chain/placement.ts',
       'chain/reconciler.ts',
+      'chain/use-authoring-menus.ts',
       'chain/use-map-chain.ts',
       'fog/FogLayer.tsx',
       'fog/fog-host.ts',
@@ -178,9 +181,11 @@ describe('mapper source contract', () => {
       'motion/motion-host-model.ts',
       'motion/tween-model.ts',
       'motion/use-motion.ts',
+      'signatures/ActiveSignatureEditor.tsx',
+      'signatures/SignatureEditor.tsx',
       'signatures/SignatureProvider.tsx',
       'signatures/SignatureWindow.tsx',
-      'signatures/WormholeRowEditor.tsx',
+      'signatures/editor-leader.ts',
       'signatures/signature-context.tsx',
       'signatures/signature-elimination-client.ts',
       'signatures/signature-model.ts',
@@ -221,9 +226,13 @@ describe('mapper source contract', () => {
   });
 
   it('routes UI destruction only through sever and the public restore pair', () => {
+    // One mutation owner, one dispatcher owner, one ledger. Every UI entry
+    // point (editor Delete, edge-menu Delete) reaches destruction through
+    // `connectionLifecycleActions`, never by naming the mutations itself.
     const allowed = new Set([
       'chain/optimistic-authoring.ts',
-      'authoring/ConnectionAuthoringOverlay.tsx',
+      'authoring/connection-authoring-api.ts',
+      'authoring/MapAuthoringOverlay.tsx',
     ]);
     for (const file of mapperFiles()) {
       const source = sourceOf(file);
@@ -234,10 +243,10 @@ describe('mapper source contract', () => {
       if (!namesDestruction) continue;
       expect(allowed.has(file), file).toBe(true);
     }
-    const overlay = sourceOf('authoring/ConnectionAuthoringOverlay.tsx');
-    expect(overlay).toContain('severConnection');
-    expect(overlay).toContain('restoreSeveredBranch');
-    expect(overlay).toContain('restoreConnection');
+    const api = sourceOf('authoring/connection-authoring-api.ts');
+    expect(api).toContain('severConnection');
+    expect(api).toContain('restoreSeveredBranch');
+    expect(api).toContain('restoreConnection');
   });
 
   it('keeps the window layer off the hot nodes array', () => {

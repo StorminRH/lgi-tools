@@ -12,7 +12,7 @@
 - **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
   Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
   main after #377 shipped 4.0.4.3.1).
-- **OW progress:** 5/8 complete — next: OW-6 "The Signature Editor".
+- **OW progress:** 6/8 complete — next: OW-7 "The jump prompt".
 - **OW completed:**
   - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
     (`systemIdentityReadout` + `systemClassText`, ladder moved from
@@ -68,6 +68,27 @@
     Fallow 1 non-blocking clone-group warn — the same OW-4 door-helper
     advisory); primitive-checker CLEAN after the key-minting extraction.
     Commit: this branch head.
+  - OW-6 The Signature Editor — `connection-fields.tsx` reworked to the D-G
+    set (wormhole type + headerless stats block, Size, Mass, Reliable
+    Lifetime, Leads to, Delete) in player wording over the unchanged stored
+    vocabularies; new scanner-anchored `SignatureEditor` pop-out
+    (`ActiveSignatureEditor` resolves it, pure `editor-leader.ts` draws the
+    bracket + leader line to the originating row); scanner wormhole rows open
+    it on left-click and the row right-click path is gone; new
+    `canvas/edge-menu.ts` + `EdgeContextMenu` give connection lines
+    right-click Edit/Delete through `onEdgeContextMenu`; the edge-click card
+    (`ConnectionAuthoringOverlay` → `MapAuthoringOverlay`,
+    `ConnectionDetailsCard`, `WormholeRowEditor`, the edge-follower half of
+    `follower-model.ts`, `edge-anchored` placement, the Auto-link section and
+    the typed-side control) is retired. Proof: field order/label matrix incl.
+    exact in-game Mass and Reliable Lifetime strings, Leads-to lock/readout,
+    Size lock, Delete/Restore; edge-menu model + Edit/Delete wiring;
+    editor-host and leader-geometry matrices; `rg` clean of `onEdgeClick`,
+    `ConnectionAuthoringOverlay`, `ConnectionDetailsCard`, `ResolutionField`,
+    `resolutionControls` (SC-6.1–6.3, SC-7.3); `pnpm verify` green
+    (gate-runner, 548 files/5082 tests, Fallow complexity 0 with the same
+    OW-4 clone-group warn); primitive-checker CLEAN after retiring the
+    orphaned `setConnectionTypedSide` client wiring. Commit: this branch head.
 - **Next-agent notes (4.0.4.3.2):** (1) D-E render decisions to re-confirm at
   the OW-8 pause: the TONE colors the whole readout span; system nodes have no
   disc chip anymore (chip is stub-only, showing the typed wormhole code);
@@ -111,9 +132,27 @@
   connections stay owned by the jump resolver, so the two emitters never
   overlap. The manual-type path needs no editor change: the
   `setConnectionWormholeType` dispatcher already cascades elimination.
-  (9) OW-6 reworks `connection-fields.tsx` and `WormholeRowEditor.tsx`; the
-  latter's type-entry comment now describes the OW-5 cascade — keep that
-  behavior when the editor moves into the pop-out.
+  (9) OW-6 kept the OW-5 cascade behavior when the row editor moved into the
+  pop-out: `ActiveSignatureEditor` still routes a RESOLVED row's type entry
+  through `applyWormholeType` and leaves an unresolved stub on the plain
+  setter. (10) OW-6 residuals for OW-7 / close-out: the floating
+  `JumpResolutionPrompt` is still hosted by `MapAuthoringOverlay` by design
+  (OW-7 replaces it with the scanner overlay and deletes both the prompt and
+  that host's second job); `convex/mapAuthoring.setConnectionTypedSide` now
+  has NO client caller — `typedSide` is still written by `mapScan`/
+  `mapFixtures` and read by `mapJump`, so the mutation was left in place and
+  needs an explicit retire-or-keep ruling. (11) The editor is anchored in
+  SCREEN space beside the scanner dock, never to canvas geometry: React Flow
+  pans/zooms by mutating a viewport transform, which fires neither scroll nor
+  resize, and Base UI exposes no animation-frame anchor tracking (docs
+  brief) — do not "fix" this by re-anchoring it to an edge.
+  `MAP_SCANNER_EDITOR_CLASS` restates `MAP_SCANNER_DOCK_CLASS`'s width as its
+  left offset; change them together. (12) Destruction has one owner:
+  `connectionLifecycleActions` in `authoring/connection-authoring-api.ts`.
+  `surface.test.ts` pins the allowlist of files that may name
+  `severConnection`/`restoreSeveredBranch`/`restoreConnection`, so a new
+  Delete entry point must route through that factory rather than widening the
+  list.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from
