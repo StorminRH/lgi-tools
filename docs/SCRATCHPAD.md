@@ -12,7 +12,7 @@
 - **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
   Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
   main after #377 shipped 4.0.4.3.1).
-- **OW progress:** 2/8 complete — next: OW-3 "The pure eliminator".
+- **OW progress:** 3/8 complete — next: OW-4 "Elimination plumbing".
 - **OW completed:**
   - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
     (`systemIdentityReadout` + `systemClassText`, ladder moved from
@@ -34,6 +34,14 @@
     presentation (SC-3.2, SC-4.1–4.3); `pnpm verify` green (gate-runner, 510
     files/4884 tests, Fallow 0 issues); primitive-checker CLEAN. Commit: this
     branch head.
+  - OW-3 The pure eliminator — new pure
+    `src/data/maps/signature-eliminator.ts` owns PD-1 answer-key crossing and
+    PD-2 quiet contradiction/insufficiency results over endpoint-local facts,
+    with assumed-tier type and far-side-link deductions. Proof: 10-case
+    inference matrix covers single/two-static, history, K162+B274→H296,
+    far-side link, multiset, tier protection, contradiction and insufficiency
+    (SC-1.1–1.5, SC-2.3); `pnpm verify` green (gate-runner, 511 files/4894
+    tests, Fallow 0 issues); primitive-checker CLEAN. Commit: this branch head.
 - **Next-agent notes (4.0.4.3.2):** (1) D-E render decisions to re-confirm at
   the OW-8 pause: the TONE colors the whole readout span; system nodes have no
   disc chip anymore (chip is stub-only, showing the typed wormhole code);
@@ -53,6 +61,11 @@
   the deterministic surplus remains as ordinary `stub:` leaves — no type is
   inferred here. Statics or codex failure withholds that system's static
   claims without retaining stale results; paste-driven stubs remain usable.
+  (6) OW-3 accepts only live endpoint-local plain facts: OW-4 must project
+  Convex rows outside the data slice, withhold tombstones, keep
+  statics-unavailable outside the solver, and stamp its fixed `assumed`
+  deductions through the tier-gated door. `matchJump` remains the sole owner
+  of jump survivors; the eliminator has no runtime caller until OW-4.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from
