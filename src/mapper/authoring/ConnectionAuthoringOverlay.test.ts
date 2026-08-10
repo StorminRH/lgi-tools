@@ -63,6 +63,8 @@ function detail(
     _creationTime: 1,
     fromSystemId: 1,
     toSystemId: 2,
+    fromSignalPct: null,
+    firstSeenAt: null,
     wormholeTypeCode: null,
     massState: null,
     shipSize: null,
@@ -89,6 +91,7 @@ function authoring() {
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
     setConnectionDestinationHint: vi.fn(),
+    setConnectionTypedSide: vi.fn(),
     severConnection: vi.fn(
       async (): Promise<
         | { outcome: 'retained' }
@@ -98,6 +101,7 @@ function authoring() {
     ),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
+        restoreSignatures: vi.fn(),
   };
 }
 
@@ -217,9 +221,28 @@ describe('ConnectionAuthoringOverlay', () => {
     const holes = [
       {
         connectionId: 'stub-2' as Id<'mapConnections'>,
+        _creationTime: 1,
         fromSystemId: 1,
         fromSignatureId: 'DEF-456',
+        fromSignalPct: null,
+        firstSeenAt: null,
         wormholeTypeCode: null,
+        toSystemId: null,
+        typedSide: null,
+        massState: null,
+        shipSize: null,
+        lifeStage: null,
+        lifeStageObservedAt: null,
+        deathEarliestAt: null,
+        deathLatestAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+        fromDestinationHint: null,
+        toDestinationHint: null,
+        destinationProvenance: null,
+        pendingCandidates: null,
+        observedMassKg: null,
+        observedMassAtStateKg: null,
       },
     ];
     const editor = renderToStaticMarkup(

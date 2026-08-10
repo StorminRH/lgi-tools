@@ -82,6 +82,18 @@ export const fogBudgetRoute = () => {
   return mapId ? `/atlas?map=${mapId}` : '/atlas';
 };
 
+/**
+ * Dedicated one-shot map for the signature-lifecycle UX gate (4.0.4.3.1 G-1).
+ * Disposable like the jump map: seed a fresh empty map per run — the probe
+ * leaves its pasted signatures, authored jump, and collapse ledger behind.
+ */
+export const signatureLifecycleMapId = () => process.env.UX_SIG_MAP_ID ?? null;
+
+export const signatureLifecycleRoute = () => {
+  const mapId = signatureLifecycleMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
 /** Wait until the chain host has answered access for an editor. */
 export async function waitForEditableMap(page, { timeout = 60_000 } = {}) {
   await page.waitForFunction(

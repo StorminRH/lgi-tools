@@ -70,7 +70,10 @@ const CONNECTION = {
   _creationTime: 1,
   fromSystemId: 30_000_142,
   toSystemId: 30_002_187,
+  fromSignalPct: null,
+  firstSeenAt: null,
   wormholeTypeCode: 'B274',
+  typedSide: 'from' as const,
   massState: null,
   shipSize: 'M' as const,
   lifeStage: 'under_1_day' as const,
@@ -81,6 +84,7 @@ const CONNECTION = {
   purgeAfter: null,
   fromSignatureId: null,
   fromDestinationHint: null,
+  toDestinationHint: null,
   destinationProvenance: null,
   pendingCandidates: null,
   observedMassKg: null,
@@ -92,6 +96,7 @@ const SETTERS = {
   setShipSize: vi.fn(),
   setMassState: vi.fn(),
   setLifeStage: vi.fn(),
+  setTypedSide: vi.fn(),
   setDestinationHint: vi.fn(),
 };
 
@@ -162,7 +167,8 @@ describe('connection fields form', () => {
     expect(k162).not.toContain('data-map-connection-codex');
     expect(k162).toContain('data-select="Ship size"');
     expect(k162).not.toContain('data-map-connection-size-locked');
-    expect(k162).toContain('data-select="Leads to"');
+    expect(k162).toContain('data-select="Origin leads to"');
+    expect(k162).toContain('data-select="Far side leads to"');
 
     const untyped = renderToStaticMarkup(
       createElement(ConnectionFields, {
@@ -175,7 +181,8 @@ describe('connection fields form', () => {
         setters: SETTERS,
       }),
     );
-    expect(untyped).toContain('data-select="Leads to"');
+    expect(untyped).toContain('data-select="Origin leads to"');
+    expect(untyped).toContain('data-select="Far side leads to"');
 
     const regen = renderToStaticMarkup(
       createElement(ConnectionFields, {

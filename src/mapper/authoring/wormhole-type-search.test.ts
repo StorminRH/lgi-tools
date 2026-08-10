@@ -72,4 +72,20 @@ describe('wormhole type search', () => {
       'C729',
     ]);
   });
+
+  it('places the origin system statics first and degrades to ordinary search', async () => {
+    const preferred = wormholeTypeSearch(CODES, {
+      preferredCodes: ['N770', 'B274', 'N770', 'Z999'],
+    });
+    await expect(preferred.suggest('')).resolves.toEqual([
+      'B274',
+      'N770',
+      'C247',
+      'K162',
+    ]);
+    await expect(preferred.suggest('k')).resolves.toEqual(['K162']);
+
+    const searchOnly = wormholeTypeSearch(CODES, { preferredCodes: [] });
+    await expect(searchOnly.suggest('')).resolves.toEqual([...CODES]);
+  });
 });

@@ -10,6 +10,7 @@ import {
   massStateValidator,
   noteTargetKindValidator,
   optionalTimestampValidator,
+  scannedKindValidator,
   shipSizeValidator,
   typedSideValidator,
   wormholeTypeCodeValidator,
@@ -193,7 +194,12 @@ export default defineSchema({
   // far endpoint on the same durable row. Endpoints are system IDs, never
   // document references. Remaining lifetime is the death window
   // pair `deathEarliestAt`/`deathLatestAt` (absolute instants; clients derive
-  // the countdown, no scheduler ever flips a state). `eolAt` is vestigial — a
+  // the countdown). One narrow sanctioned scheduler exception exists by
+  // 4.0.4.3.1 operator ruling: the 15-minute ceiling sweep collapses a
+  // connection only past `deathLatestAt + CEILING_COLLAPSE_GRACE_MS` — death
+  // already certain — through the same collapse core every manual trigger
+  // uses; every other countdown remains client-derived display. `eolAt` is
+  // vestigial — a
   // superseded mark-EOL design with no production writer; it stays null.
   // lifeStage is the human-observed Reliable Lifetime bucket; estimates that
   // consume lifeStageObservedAt belong to a later session.
@@ -218,6 +224,8 @@ export default defineSchema({
     observedMassAtStateKg: v.optional(v.number()),
     observationKey: v.optional(v.string()),
     pendingCandidates: v.optional(v.array(v.id('mapConnections'))),
+    fromSignalPct: v.optional(v.union(v.number(), v.null())),
+    firstSeenAt: v.optional(v.number()),
     lifeStage: v.optional(lifeStageValidator),
     lifeStageObservedAt: optionalTimestampValidator,
     deathEarliestAt: optionalTimestampValidator,
@@ -228,6 +236,10 @@ export default defineSchema({
     .index('by_map', ['mapId'])
     .index('by_map_from', ['mapId', 'fromSystemId'])
     .index('by_map_to', ['mapId', 'toSystemId'])
+    // Ceiling-sweep range: leading with the tombstone field keeps every
+    // already-collapsed row out of the sweep's candidate range by construction,
+    // so the bounded batch never head-of-line-blocks on its own prior work.
+    .index('by_deleted_death_latest', ['deletedAt', 'deathLatestAt'])
     .index('by_purge_after', ['purgeAfter']),
 
   // Exactly-once jump-processing state is deliberately separate from the
@@ -267,8 +279,10 @@ export default defineSchema({
     mapId: v.string(),
     systemId: v.number(),
     signatureId: v.string(),
+    kind: v.optional(scannedKindValidator),
     group: v.union(v.string(), v.null()),
     typeName: v.union(v.string(), v.null()),
+    signalPct: v.optional(v.union(v.number(), v.null())),
     // Non-null only with group 'wormhole'. An identified-as-wormhole-but-untyped
     // signature stores null here; K162 is a real far-side code, never a stand-in
     // for unknown.

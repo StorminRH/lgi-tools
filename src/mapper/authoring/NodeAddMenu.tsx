@@ -6,9 +6,9 @@ import {
   PointerMenu,
   MenuItem,
   menuRow,
-  pointerAnchor,
   type MenuAnchor,
 } from '@/components/ui/pointer-menu';
+import { pointerAnchor } from '@/components/ui/overlay-positioning';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import {
   useSystemSearch,
@@ -83,7 +83,7 @@ export function NodeAddMenu({
           <div className="flex items-start justify-between gap-2">
             <DialogTitle
               id={titleId}
-              className="font-display text-heading font-bold tracking-copy text-name"
+              className="font-display text-h3 font-semibold tracking-copy uppercase text-name"
             >
               Add connection
             </DialogTitle>
@@ -91,7 +91,7 @@ export function NodeAddMenu({
               ×
             </DialogClose>
           </div>
-          <p className="text-ui text-muted">
+          <p className="font-ui text-ui leading-relaxed text-muted">
             Pick a destination system. Loops back to systems already on the map
             are allowed.
           </p>

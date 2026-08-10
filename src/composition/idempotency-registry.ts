@@ -159,6 +159,17 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
 
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
   {
+    id: 'convex/crons:map signature purge',
+    workKind: 'convex-cron',
+    module: 'convex/crons.ts',
+    redeliverySource:
+      'The 15-minute Convex interval may run again after an earlier bounded batch partially drained expired signature tombstones.',
+    verdict: 'inherently-idempotent',
+    vendor: 'convex',
+    evidence:
+      'The internal mutation ranges only purgeAfter values that are currently expired, deletes each matching document atomically, and reports exact continuation truth; a repeat sees only the remaining indexed range.',
+  },
+  {
     id: 'convex/crons:map chain purge',
     workKind: 'convex-cron',
     module: 'convex/crons.ts',
@@ -168,6 +179,17 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
     vendor: 'convex',
     evidence:
       'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.',
+  },
+  {
+    id: 'convex/crons:map ceiling collapse',
+    workKind: 'convex-cron',
+    module: 'convex/crons.ts',
+    redeliverySource:
+      'The 15-minute Convex interval may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
+    verdict: 'inherently-idempotent',
+    vendor: 'convex',
+    evidence:
+      'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.',
   },
   {
     id: 'convex/crons:sync engine scan',

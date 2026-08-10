@@ -39,8 +39,9 @@ export default {
     if (await dials.count()) {
       await page.getByText('Layout dials').click();
       check(
-        'the bottom-left dial group opens above the audit log',
-        await page.getByText('Ring spacing').isVisible(),
+        'the bottom-right dial group opens with the chrome chips',
+        (await page.getByText('Ring spacing').isVisible())
+          && (await dials.getAttribute('data-position')) !== 'bottom-left',
       );
     } else {
       check('dev layout dials are absent outside development (expected)', true);

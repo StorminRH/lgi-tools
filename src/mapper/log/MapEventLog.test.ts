@@ -86,6 +86,9 @@ describe('MapEventLog', () => {
       }),
     );
     expect(editor).toContain('data-map-event-restore');
+    expect(editor).toContain('data-map-event-undoable="true"');
+    expect(editor).toContain('map-chip-undo-pulse');
+    expect(editor).toContain('bottom-4 right-14');
     expect(editor).toContain('Events - 2');
     expect(editor).toContain('Removed 2 downstream systems');
     expect(editor).toContain('Pilot');
@@ -100,5 +103,6 @@ describe('MapEventLog', () => {
     );
     expect(viewer).toContain('data-map-event-row');
     expect(viewer).not.toContain('data-map-event-restore');
+    expect(viewer).not.toContain('map-chip-undo-pulse');
   });
 });

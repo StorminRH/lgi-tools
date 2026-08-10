@@ -197,7 +197,7 @@ export const watchMapConnections = query({
 
 /**
  * Subscribes to one page of active unresolved wormhole slots. This is a
- * separate feed for matching/prompt consumers; the canvas never subscribes to it.
+ * separate feed for canvas stubs and matching/prompt consumers.
  */
 export const watchUnresolvedHoles = query({
   args: { mapId: v.string(), paginationOpts: paginationOptsValidator },

@@ -1,0 +1,123 @@
+import { ConvexError } from 'convex/values';
+import type { Doc } from '../_generated/dataModel';
+import type { MutationCtx, QueryCtx } from '../_generated/server';
+
+/** Minimum age before invisible signature activity bookkeeping may write again. */
+export const SIGNATURE_ACTIVITY_STALE_MS = 60_000;
+
+/** One signature's ephemeral identity inside one mapped system lifetime. */
+export interface SignatureKey {
+  readonly mapId: string;
+  readonly systemId: number;
+  readonly signatureId: string;
+}
+
+/** Finds one signature through the exact compound identity index. */
+export function findMapSignature(ctx: QueryCtx, key: SignatureKey) {
+  return ctx.db
+    .query('mapSignatures')
+    .withIndex('by_map_signature', (q) =>
+      q.eq('mapId', key.mapId).eq('systemId', key.systemId).eq('signatureId', key.signatureId),
+    )
+    .unique();
+}
+
+/** Finds the invisible activity companion for one signature identity. */
+export function findSignatureActivity(ctx: QueryCtx, key: SignatureKey) {
+  return ctx.db
+    .query('mapSignatureActivity')
+    .withIndex('by_map_signature', (q) =>
+      q.eq('mapId', key.mapId).eq('systemId', key.systemId).eq('signatureId', key.signatureId),
+    )
+    .unique();
+}
+
+/**
+ * Touches only the activity companion, with an equality/debounce return before
+ * every repeat write.
+ */
+export async function touchSignatureActivity(
+  ctx: MutationCtx,
+  key: SignatureKey,
+  observedAt = Date.now(),
+): Promise<'inserted' | 'patched' | 'unchanged'> {
+  const existing = await findSignatureActivity(ctx, key);
+  return await touchKnownSignatureActivity(ctx, key, existing, observedAt);
+}
+
+/** Touches a caller-preloaded activity row without performing another read. */
+export async function touchKnownSignatureActivity(
+  ctx: MutationCtx,
+  key: SignatureKey,
+  existing: Doc<'mapSignatureActivity'> | null,
+  observedAt = Date.now(),
+): Promise<'inserted' | 'patched' | 'unchanged'> {
+  if (existing === null) {
+    await ctx.db.insert('mapSignatureActivity', { ...key, lastSeenAt: observedAt });
+    return 'inserted';
+  }
+  if (observedAt - existing.lastSeenAt < SIGNATURE_ACTIVITY_STALE_MS) return 'unchanged';
+  await ctx.db.patch(existing._id, { lastSeenAt: observedAt });
+  return 'patched';
+}
+
+/** Deletes one activity companion if present. */
+export async function deleteSignatureActivity(
+  ctx: MutationCtx,
+  key: SignatureKey,
+): Promise<void> {
+  const activity = await findSignatureActivity(ctx, key);
+  if (activity !== null) await ctx.db.delete(activity._id);
+}
+
+/** Applies or clears a valid paired tombstone, skipping an identical state. */
+export async function applySignatureTombstone(
+  ctx: MutationCtx,
+  key: SignatureKey,
+  deletedAt: number | null,
+  purgeAfter: number | null,
+): Promise<{ readonly tombstoned: boolean; readonly changed: boolean }> {
+  requireTombstonePair(deletedAt, purgeAfter);
+  const signature = await findMapSignature(ctx, key);
+  if (signature === null) {
+    throw new ConvexError({
+      code: 'UNKNOWN_SIGNATURE',
+      detail: `No signature ${key.signatureId} on map ${key.mapId}.`,
+    });
+  }
+  const activity = deletedAt === null ? null : await findSignatureActivity(ctx, key);
+  return await applyKnownSignatureTombstone(ctx, signature, activity, deletedAt, purgeAfter);
+}
+
+/** Applies a tombstone to caller-preloaded rows without another database read. */
+export async function applyKnownSignatureTombstone(
+  ctx: MutationCtx,
+  signature: Doc<'mapSignatures'>,
+  activity: Doc<'mapSignatureActivity'> | null,
+  deletedAt: number | null,
+  purgeAfter: number | null,
+): Promise<{ readonly tombstoned: boolean; readonly changed: boolean }> {
+  requireTombstonePair(deletedAt, purgeAfter);
+  if (signature.deletedAt === deletedAt && signature.purgeAfter === purgeAfter) {
+    return { tombstoned: deletedAt !== null, changed: false };
+  }
+  await ctx.db.patch(signature._id, { deletedAt, purgeAfter });
+  if (deletedAt !== null && activity !== null) await ctx.db.delete(activity._id);
+  return { tombstoned: deletedAt !== null, changed: true };
+}
+
+/** Requires tombstone timestamps to be absent or finite, paired, and ordered. */
+function requireTombstonePair(deletedAt: number | null, purgeAfter: number | null): void {
+  if (deletedAt === null && purgeAfter === null) return;
+  const paired = deletedAt !== null
+    && purgeAfter !== null
+    && Number.isFinite(deletedAt)
+    && Number.isFinite(purgeAfter)
+    && purgeAfter > deletedAt;
+  if (!paired) {
+    throw new ConvexError({
+      code: 'INVALID_TOMBSTONE',
+      detail: 'deletedAt and purgeAfter must both be null, or both finite with purgeAfter later.',
+    });
+  }
+}

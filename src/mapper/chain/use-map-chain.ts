@@ -61,6 +61,7 @@ import {
 } from '../layout/use-layout-kernel';
 import type { ChainPosition, MapChainIntent } from './intents';
 import { resolveSystemLabel, type SystemLabel } from './labels';
+import type { PlacedStubConnection } from './nodes';
 import { assignerFromPositions } from './placement';
 import {
   applyUserPlacement,
@@ -113,12 +114,15 @@ function mapSubscriptionArgs(mapId: string | null): 'skip' | { mapId: string } {
  * Live connection fields the authoring card edits. Topology stays in reconciled
  * state; these travel beside it so a field patch never forces a layout merge.
  */
-export interface ConnectionDetail {
+export interface ConnectionEditorDetail {
   readonly connectionId: Id<'mapConnections'>;
   readonly _creationTime: number;
   readonly fromSystemId: number;
-  readonly toSystemId: number;
+  readonly toSystemId: number | null;
+  readonly fromSignalPct: number | null;
+  readonly firstSeenAt: number | null;
   readonly wormholeTypeCode: string | null;
+  readonly typedSide?: 'from' | 'to' | null;
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
   readonly lifeStage: WormholeLifeStage | null;
@@ -129,11 +133,47 @@ export interface ConnectionDetail {
   readonly purgeAfter: number | null;
   readonly fromSignatureId: string | null;
   readonly fromDestinationHint: WormholeDestinationHint | null;
+  readonly toDestinationHint?: WormholeDestinationHint | null;
   readonly destinationProvenance: ConnectionProvenance | null;
   /** The recorded survivor list an `assumed` auto-link left for confirm/correct. */
   readonly pendingCandidates: readonly Id<'mapConnections'>[] | null;
   readonly observedMassKg: number | null;
   readonly observedMassAtStateKg: number | null;
+}
+
+/** A resolved connection whose destination can anchor the canvas details card. */
+export interface ConnectionDetail extends ConnectionEditorDetail {
+  readonly toSystemId: number;
+}
+
+function connectionEditorDetail(
+  row: Doc<'mapConnections'>,
+): ConnectionEditorDetail {
+  return {
+    connectionId: row._id,
+    _creationTime: row._creationTime,
+    fromSystemId: row.fromSystemId,
+    toSystemId: row.toSystemId,
+    fromSignalPct: optionalOrNull(row.fromSignalPct),
+    firstSeenAt: optionalOrNull(row.firstSeenAt),
+    wormholeTypeCode: row.wormholeTypeCode,
+    typedSide: optionalOrNull(row.typedSide),
+    massState: row.massState,
+    shipSize: row.shipSize,
+    lifeStage: optionalOrNull(row.lifeStage),
+    lifeStageObservedAt: optionalOrNull(row.lifeStageObservedAt),
+    deathEarliestAt: optionalOrNull(row.deathEarliestAt),
+    deathLatestAt: optionalOrNull(row.deathLatestAt),
+    deletedAt: optionalOrNull(row.deletedAt),
+    purgeAfter: optionalOrNull(row.purgeAfter),
+    fromSignatureId: optionalOrNull(row.fromSignatureId),
+    fromDestinationHint: optionalOrNull(row.fromDestinationHint),
+    toDestinationHint: optionalOrNull(row.toDestinationHint),
+    destinationProvenance: optionalOrNull(row.destinationProvenance),
+    pendingCandidates: optionalOrNull(row.pendingCandidates),
+    observedMassKg: optionalOrNull(row.observedMassKg),
+    observedMassAtStateKg: optionalOrNull(row.observedMassAtStateKg),
+  };
 }
 
 function optionalOrNull<Value>(value: Value | null | undefined): Value | null {
@@ -149,37 +189,14 @@ export function connectionDetailsFromRows(
     // The public subscription is resolved-only; keep this projection guarded
     // as a second boundary for direct/test callers holding a schema-wide Doc.
     if (row.toSystemId === null) continue;
-    details.set(row._id, {
-      connectionId: row._id,
-      _creationTime: row._creationTime,
-      fromSystemId: row.fromSystemId,
-      toSystemId: row.toSystemId,
-      wormholeTypeCode: row.wormholeTypeCode,
-      massState: row.massState,
-      shipSize: row.shipSize,
-      lifeStage: optionalOrNull(row.lifeStage),
-      lifeStageObservedAt: optionalOrNull(row.lifeStageObservedAt),
-      deathEarliestAt: optionalOrNull(row.deathEarliestAt),
-      deathLatestAt: optionalOrNull(row.deathLatestAt),
-      deletedAt: optionalOrNull(row.deletedAt),
-      purgeAfter: optionalOrNull(row.purgeAfter),
-      fromSignatureId: optionalOrNull(row.fromSignatureId),
-      fromDestinationHint: optionalOrNull(row.fromDestinationHint),
-      destinationProvenance: optionalOrNull(row.destinationProvenance),
-      pendingCandidates: optionalOrNull(row.pendingCandidates),
-      observedMassKg: optionalOrNull(row.observedMassKg),
-      observedMassAtStateKg: optionalOrNull(row.observedMassAtStateKg),
-    });
+    details.set(row._id, connectionEditorDetail(row) as ConnectionDetail);
   }
   return details;
 }
 
 /** One scanned-but-unexplored wormhole slot, projected for prompt labeling. */
-export interface UnresolvedHoleSummary {
-  readonly connectionId: Id<'mapConnections'>;
-  readonly fromSystemId: number;
-  readonly fromSignatureId: string | null;
-  readonly wormholeTypeCode: string | null;
+export interface UnresolvedHoleSummary extends ConnectionEditorDetail {
+  readonly toSystemId: null;
 }
 
 /** Projects subscribed unresolved-slot documents into stable prompt summaries. */
@@ -188,12 +205,104 @@ export function unresolvedHolesFromRows(
 ): readonly UnresolvedHoleSummary[] {
   return rows
     .filter((row) => row.toSystemId === null && !isTombstoned(row))
-    .map((row) => ({
-      connectionId: row._id,
+    .map((row) => connectionEditorDetail(row) as UnresolvedHoleSummary);
+}
+
+interface StubLayoutRow extends UnresolvedHoleSummary {
+  readonly fromSignatureId: string;
+  /** Negative kernel-only id; EVE system ids are positive, so it cannot collide. */
+  readonly layoutSystemId: number;
+}
+
+/**
+ * Selects scanned unresolved rows whose authored anchor is present and assigns
+ * deterministic kernel-only ids in subscription order. A row already visible
+ * in the resolved feed is excluded during a split-subscription handover.
+ */
+export function stubLayoutRows(
+  rows: readonly UnresolvedHoleSummary[],
+  systems: readonly { readonly systemId: number }[],
+  resolvedConnections: readonly { readonly _id: string }[],
+): readonly StubLayoutRow[] {
+  const authored = new Set(systems.map((row) => row.systemId));
+  const resolved = new Set(resolvedConnections.map((row) => row._id));
+  const stubs: StubLayoutRow[] = [];
+  for (const [index, row] of rows.entries()) {
+    const signatureId = row.fromSignatureId;
+    if (
+      signatureId === null ||
+      !authored.has(row.fromSystemId) ||
+      resolved.has(row.connectionId)
+    ) {
+      continue;
+    }
+    stubs.push({
+      ...row,
+      fromSignatureId: signatureId,
+      layoutSystemId: -(index + 1),
+    });
+  }
+  return stubs;
+}
+
+/** Content key for the unresolved rows that participate in kernel layout. */
+export function stubLayoutSignature(rows: readonly StubLayoutRow[]): string {
+  return rows
+    .map((row) => `${row.connectionId}:${row.fromSystemId}>${row.layoutSystemId}`)
+    .join(',');
+}
+
+/** Appends unresolved wormholes as leaf facts without changing authored identities. */
+export function appendStubFacts(
+  facts: LayoutFacts,
+  rows: readonly StubLayoutRow[],
+): LayoutFacts {
+  if (rows.length === 0) return facts;
+  return {
+    ...facts,
+    systems: [
+      ...facts.systems,
+      ...rows.map((row) => ({ systemId: row.layoutSystemId })),
+    ],
+    connections: [
+      ...facts.connections,
+      ...rows.map((row) => ({
+        fromSystemId: row.fromSystemId,
+        toSystemId: row.layoutSystemId,
+      })),
+    ],
+  };
+}
+
+/** Maps a kernel reply back from surrogate ids to durable connection ids. */
+export function stubPositionsFromLayout(
+  rows: readonly StubLayoutRow[],
+  positions: ReadonlyMap<number, ChainPosition>,
+): ReadonlyMap<string, ChainPosition> {
+  const placed = new Map<string, ChainPosition>();
+  for (const row of rows) {
+    const position = positions.get(row.layoutSystemId);
+    if (position !== undefined) placed.set(row.connectionId, position);
+  }
+  return placed;
+}
+
+/** Joins current display facts to the latest kernel-owned stub positions. */
+export function placedStubConnections(
+  rows: readonly StubLayoutRow[],
+  positions: ReadonlyMap<string, ChainPosition>,
+): readonly PlacedStubConnection[] {
+  return rows.flatMap((row) => {
+    const position = positions.get(row.connectionId);
+    if (position === undefined) return [];
+    return [{
+      connectionId: row.connectionId,
       fromSystemId: row.fromSystemId,
-      fromSignatureId: optionalOrNull(row.fromSignatureId),
+      signatureId: row.fromSignatureId,
       wormholeTypeCode: row.wormholeTypeCode,
-    }));
+      position,
+    }];
+  });
 }
 
 /** The row shapes the signature summarizes, kept minimal so the function stays pure and testable. */
@@ -295,7 +404,7 @@ export function layoutConfigKey(config: LayoutConfig): string {
 
 /**
  * Posted key: chain content, dial fingerprint, the re-lock revision bump, and
- * the halo fingerprint. The halo component is structural layout input, not
+ * the halo/stub fingerprints. Both derived components are structural layout input, not
  * motion or fog state (the HC-4 rule stands): the adjacency asset landing
  * changes the facts the kernel must place without changing the authored
  * signature, and an unfingerprinted halo would silently never re-post.
@@ -305,8 +414,9 @@ export function layoutPostKey(
   configKey: string,
   revision: number,
   haloKey = '',
+  stubKey = '',
 ): string {
-  return `${signature}#${configKey}@${revision}~${haloKey}`;
+  return `${signature}#${configKey}@${revision}~${haloKey}^${stubKey}`;
 }
 
 const EMPTY_NEIGHBOURS: readonly number[] = [];
@@ -366,6 +476,8 @@ export interface MapChain {
    * (HC-1): nothing here is ever written anywhere.
    */
   readonly halo: PlacedHalo;
+  /** Kernel-placed unresolved wormhole endpoints, keyed externally by their connection rows. */
+  readonly stubs: readonly PlacedStubConnection[];
   /** Sorted gate neighbours from the static asset; empty until it loads. */
   readonly neighboursOf: (systemId: number) => readonly number[];
   /** Stamps a dropped node's position as user-owned, protecting it until re-lock releases it. */
@@ -477,6 +589,10 @@ export function useMapChain(
     () => unresolvedHolesFromRows(subscribedUnresolved.rows),
     [subscribedUnresolved.rows],
   );
+  const stubLayout = useMemo(
+    () => stubLayoutRows(unresolvedHoles, systems.rows, connections.rows),
+    [unresolvedHoles, systems.rows, connections.rows],
+  );
   const [connectionPresentationNow, setConnectionPresentationNow] = useState(
     () => Date.now(),
   );
@@ -499,6 +615,9 @@ export function useMapChain(
   );
   const [rootSystemId, setRootSystemId] = useState<number | null>(null);
   const [placedHalo, setPlacedHalo] = useState<PlacedHalo>(EMPTY_PLACED_HALO);
+  const [stubPositions, setStubPositions] = useState<ReadonlyMap<string, ChainPosition>>(
+    () => new Map(),
+  );
   const [layoutRevision, setLayoutRevision] = useState(0);
   const requestStateRef = useRef<KernelRequestState>(initialKernelRequestState());
   const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
@@ -535,11 +654,18 @@ export function useMapChain(
     });
   }, [authoredKey, assets, haloLimits]);
   const haloKey = useMemo(() => haloSignature(halo), [halo]);
+  const stubKey = useMemo(() => stubLayoutSignature(stubLayout), [stubLayout]);
 
   const layout = useLayoutKernel();
   const signature = chainSignature(systems, connections);
   const configKey = layoutConfigKey(config);
-  const postKey = layoutPostKey(signature, configKey, layoutRevision, haloKey);
+  const postKey = layoutPostKey(
+    signature,
+    configKey,
+    layoutRevision,
+    haloKey,
+    stubKey,
+  );
 
   useEffect(() => {
     const posted = postRequest(requestStateRef.current, postKey);
@@ -567,7 +693,10 @@ export function useMapChain(
     // Halo systems and gate links enter the same kernel as ordinary facts
     // entries, appended after every authored entry so the authored tree —
     // root above all — is untouched.
-    const facts = appendHaloFacts(factsFromSnapshot(snapshot), halo);
+    const facts = appendStubFacts(
+      appendHaloFacts(factsFromSnapshot(snapshot), halo),
+      stubLayout,
+    );
 
     // `config` is captured directly: its identity only changes on a real dial
     // commit, and any such commit also changes `postKey`, so this adds no
@@ -599,6 +728,7 @@ export function useMapChain(
                 links: halo.links,
               },
         );
+        setStubPositions(stubPositionsFromLayout(stubLayout, positions));
         const tree = deriveChainTree(facts);
         setTreeParents(tree.parents);
         setRootSystemId(tree.rootSystemId);
@@ -612,7 +742,11 @@ export function useMapChain(
         requestStateRef.current = failRequest(requestStateRef.current, requestId);
       },
     );
-  }, [postKey, systems, connections, layout, config, halo]);
+  }, [postKey, systems, connections, layout, config, halo, stubLayout]);
+  const stubs = useMemo(
+    () => placedStubConnections(stubLayout, stubPositions),
+    [stubLayout, stubPositions],
+  );
   const labelOf = useCallback(
     (systemId: number): SystemLabel =>
       resolveSystemLabel(
@@ -661,6 +795,7 @@ export function useMapChain(
     treeParents,
     rootSystemId,
     halo: placedHalo,
+    stubs,
     neighboursOf,
     pinPlacement,
     releasePlacements,

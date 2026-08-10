@@ -8,6 +8,10 @@ function systemCount(event: MapEventRow): number {
   return 'systemIds' in event.payload ? event.payload.systemIds.length : 0;
 }
 
+function signatureIdCount(event: MapEventRow): number {
+  return 'signatureIds' in event.payload ? event.payload.signatureIds.length : 0;
+}
+
 /** Human-readable event line for one despawn-ledger kind. */
 export function mapEventLabel(event: MapEventRow): string {
   switch (event.kind) {
@@ -23,14 +27,38 @@ export function mapEventLabel(event: MapEventRow): string {
     }
     case 'connection_restored':
       return 'Restored connection';
+    case 'signatures_removed': {
+      const count = signatureIdCount(event);
+      return `Removed ${count} signature${count === 1 ? '' : 's'}`;
+    }
+    case 'signatures_restored': {
+      const count = signatureIdCount(event);
+      return `Restored ${count} signature${count === 1 ? '' : 's'}`;
+    }
     default:
       return event.kind;
   }
 }
 
-/** Connection id carried by every basic despawn-ledger payload. */
-export function mapEventConnectionId(event: MapEventRow): string {
-  return event.payload.connectionId;
+/** The editor action one restorable ledger row offers. */
+export type MapEventRestoreAction =
+  | { readonly kind: 'branch'; readonly connectionId: string }
+  | {
+      readonly kind: 'signatures';
+      readonly systemId: number;
+      readonly signatureIds: readonly string[];
+    };
+
+/** Resolves the Restore action for one restorable ledger row. */
+export function mapEventRestoreAction(event: MapEventRow): MapEventRestoreAction {
+  if ('signatureIds' in event.payload) {
+    return {
+      kind: 'signatures',
+      systemId: event.payload.systemId,
+      signatureIds: event.payload.signatureIds,
+    };
+  }
+  return { kind: 'branch', connectionId: event.payload.connectionId };
 }
 
 /**
@@ -40,7 +68,8 @@ export function mapEventConnectionId(event: MapEventRow): string {
 export function mapEventRestorable(event: MapEventRow, now: number): boolean {
   if (
     event.kind !== 'connection_severed_retained' &&
-    event.kind !== 'branch_removed'
+    event.kind !== 'branch_removed' &&
+    event.kind !== 'signatures_removed'
   ) {
     return false;
   }

@@ -31,17 +31,10 @@ const popup = cva(cn('flex flex-col outline-none', panelSurface), {
 });
 
 type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
+type PopupProps = React.ComponentProps<typeof Base.Popup>;
 type DataAttributes = {
   [key: `data-${string}`]: string | number | boolean | undefined;
 };
-
-/** A zero-size Floating UI virtual element at a client pointer coordinate. */
-export function pointerAnchor(clientX: number, clientY: number): MenuAnchor {
-  return {
-    getBoundingClientRect: () =>
-      DOMRect.fromRect({ width: 0, height: 0, x: clientX, y: clientY }),
-  };
-}
 
 /**
  * Renders a controlled, triggerless menu at a virtual pointer anchor; callers own
@@ -59,11 +52,12 @@ export function PointerMenu({
   sideOffset = 4,
   modal = false,
   popupProps,
+  finalFocus,
   className,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Virtual or element anchor; typically {@link pointerAnchor} at the click. */
+  /** Virtual or element anchor; typically `pointerAnchor` (overlay-positioning) at the click. */
   anchor: MenuAnchor | null;
   children: ReactNode;
   label: string;
@@ -73,6 +67,7 @@ export function PointerMenu({
   sideOffset?: PositionerProps['sideOffset'];
   modal?: boolean;
   popupProps?: DataAttributes;
+  finalFocus?: PopupProps['finalFocus'];
   className?: string;
 }) {
   // Inside an overlay the popup must share the overlay's stacking context;
@@ -92,6 +87,7 @@ export function PointerMenu({
           <Base.Popup
             {...popupProps}
             aria-label={label}
+            finalFocus={finalFocus}
             className={cn(popup({ tone }), className)}
           >
             {children}

@@ -39,7 +39,8 @@ describe('MapControls', () => {
     vi.stubEnv('NODE_ENV', 'development');
     const html = renderToStaticMarkup(createElement(MapControls, panelProps()));
     expect(html).toContain('data-map-dev-dials');
-    expect(html).toContain('bottom-left');
+    expect(html).toContain('bottom-right');
+    expect(html).toContain('mr-64');
     expect(html).toContain('Layout dials');
     expect(html).toContain('Motion dials');
     expect(html).toContain('Halo dials');

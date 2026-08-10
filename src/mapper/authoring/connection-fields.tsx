@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { Tooltip } from '@/components/ui/tooltip';
 import {
@@ -15,7 +16,7 @@ import {
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
-import type { ConnectionDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import {
   ConnectionFieldGroup,
   encodeOptionalField,
@@ -99,7 +100,11 @@ export interface ConnectionFieldSetters {
   readonly setShipSize: (value: WormholeSizeClass | null) => void;
   readonly setMassState: (value: ConnectionMassState | null) => void;
   readonly setLifeStage: (value: WormholeLifeStage | null) => void;
-  readonly setDestinationHint: (value: WormholeDestinationHint | null) => void;
+  readonly setTypedSide: (value: 'from' | 'to') => void;
+  readonly setDestinationHint: (
+    side: 'from' | 'to',
+    value: WormholeDestinationHint | null,
+  ) => void;
 }
 
 /** The card's pending auto-link group: the recorded survivors plus answers. */
@@ -110,8 +115,9 @@ export interface ConnectionResolutionControls {
 
 /** Props for the connection field form body. */
 export interface ConnectionFieldsProps {
-  readonly connection: ConnectionDetail;
+  readonly connection: ConnectionEditorDetail;
   readonly codes: readonly string[];
+  readonly preferredCodes?: readonly string[];
   /** False while the codex is unloaded — the type field parses leniently. */
   readonly codexReady: boolean;
   readonly entry: WormholeCodexEntry | null;
@@ -132,6 +138,7 @@ export interface ConnectionFieldsProps {
 export function ConnectionFields({
   connection,
   codes,
+  preferredCodes,
   codexReady,
   entry,
   setters,
@@ -162,9 +169,15 @@ export function ConnectionFields({
       <TypeField
         connection={connection}
         codes={codes}
+        preferredCodes={preferredCodes}
         codexReady={codexReady}
         readOnly={readOnly}
         onChange={setters.setWormholeType}
+      />
+      <TypedSideField
+        connection={connection}
+        readOnly={readOnly}
+        onChange={setters.setTypedSide}
       />
       <CodexPanel entry={entry} />
       <SizeField
@@ -187,9 +200,16 @@ export function ConnectionFields({
       />
       <LifetimeEstimate connection={connection} entry={entry} now={now} />
       <LeadsToField
+        side="from"
         connection={connection}
         readOnly={readOnly}
-        onChange={setters.setDestinationHint}
+        onChange={(value) => setters.setDestinationHint('from', value)}
+      />
+      <LeadsToField
+        side="to"
+        connection={connection}
+        readOnly={readOnly}
+        onChange={(value) => setters.setDestinationHint('to', value)}
       />
       <ConnectionActions
         mode={mode}
@@ -220,17 +240,22 @@ function ResolutionField({
 function TypeField({
   connection,
   codes,
+  preferredCodes,
   codexReady,
   readOnly,
   onChange,
 }: {
-  readonly connection: ConnectionDetail;
+  readonly connection: ConnectionEditorDetail;
   readonly codes: readonly string[];
+  readonly preferredCodes?: readonly string[];
   readonly codexReady: boolean;
   readonly readOnly: boolean;
   readonly onChange: (value: string | null) => void;
 }) {
-  const search = wormholeTypeSearch(codes, { lenient: !codexReady });
+  const search = wormholeTypeSearch(codes, {
+    lenient: !codexReady,
+    preferredCodes,
+  });
   const typeInitial = encodeOptionalField(connection.wormholeTypeCode);
   return (
     <ConnectionFieldGroup label="Wormhole type">
@@ -250,6 +275,42 @@ function TypeField({
           onSubmit={(params) => onChange(params.code)}
           onClear={() => onChange(null)}
           errorLabel="Type"
+        />
+      )}
+    </ConnectionFieldGroup>
+  );
+}
+
+const TYPED_SIDE_ITEMS = [
+  { value: 'from', label: 'Origin side' },
+  { value: 'to', label: 'Far side' },
+] as const;
+
+function TypedSideField({
+  connection,
+  readOnly,
+  onChange,
+}: {
+  readonly connection: ConnectionEditorDetail;
+  readonly readOnly: boolean;
+  readonly onChange: (value: 'from' | 'to') => void;
+}) {
+  if (connection.wormholeTypeCode === null) return null;
+  const value = connection.typedSide ?? 'from';
+  return (
+    <ConnectionFieldGroup label="Typed side">
+      {readOnly ? (
+        <FieldReadout
+          attr="data-map-connection-typed-side-readout"
+          text={value === 'from' ? 'Origin side' : 'Far side'}
+        />
+      ) : (
+        <Select
+          ariaLabel="Typed side"
+          align="center"
+          value={value}
+          items={TYPED_SIDE_ITEMS}
+          onValueChange={(next) => onChange(next as 'from' | 'to')}
         />
       )}
     </ConnectionFieldGroup>
@@ -292,7 +353,7 @@ function SizeField({
   readOnly,
   onChange,
 }: {
-  readonly connection: ConnectionDetail;
+  readonly connection: ConnectionEditorDetail;
   readonly entry: WormholeCodexEntry | null;
   readonly lockedSize: boolean;
   readonly readOnly: boolean;
@@ -321,7 +382,7 @@ function StabilityField({
   readOnly,
   onChange,
 }: {
-  readonly connection: ConnectionDetail;
+  readonly connection: ConnectionEditorDetail;
   readonly readOnly: boolean;
   readonly onChange: (value: ConnectionMassState | null) => void;
 }) {
@@ -340,25 +401,31 @@ function StabilityField({
 }
 
 function LeadsToField({
+  side,
   connection,
   readOnly,
   onChange,
 }: {
-  readonly connection: ConnectionDetail;
+  readonly side: 'from' | 'to';
+  readonly connection: ConnectionEditorDetail;
   readonly readOnly: boolean;
   readonly onChange: (value: WormholeDestinationHint | null) => void;
 }) {
-  // D11: no manual field the codex can fill — a typed origin-side hole already
-  // knows where it leads, so the hint control exists only for K162/unidentified.
-  const showable =
-    connection.wormholeTypeCode === null ||
-    connection.wormholeTypeCode === FAR_SIDE_WORMHOLE_CODE;
+  // D11: hide only the side a typed origin code already decides. The opposite
+  // side remains human-authored through its shipped side-aware mutation field.
+  const typedSide = connection.typedSide ?? 'from';
+  const showable = connection.wormholeTypeCode === null
+    || connection.wormholeTypeCode === FAR_SIDE_WORMHOLE_CODE
+    || typedSide !== side;
   if (!showable) return null;
-  const hint = connection.fromDestinationHint;
+  const hint = side === 'from'
+    ? connection.fromDestinationHint
+    : (connection.toDestinationHint ?? null);
+  const label = side === 'from' ? 'Origin leads to' : 'Far side leads to';
   return (
     <OptionalSelectField
-      label="Leads to"
-      ariaLabel="Leads to"
+      label={label}
+      ariaLabel={label}
       items={HINT_ITEMS}
       value={hint}
       readOnly={readOnly}
@@ -374,7 +441,7 @@ function MassEstimate({
   connection,
 }: {
   readonly entry: WormholeCodexEntry | null;
-  readonly connection: ConnectionDetail;
+  readonly connection: ConnectionEditorDetail;
 }) {
   return (
     <MassEstimateView
@@ -420,7 +487,7 @@ function LifeStageField({
   readOnly,
   onChange,
 }: {
-  readonly connection: ConnectionDetail;
+  readonly connection: ConnectionEditorDetail;
   readonly readOnly: boolean;
   readonly onChange: (value: WormholeLifeStage | null) => void;
 }) {
@@ -445,7 +512,7 @@ function LifetimeEstimate({
   entry,
   now,
 }: {
-  readonly connection: ConnectionDetail;
+  readonly connection: ConnectionEditorDetail;
   readonly entry: WormholeCodexEntry | null;
   readonly now: number;
 }) {

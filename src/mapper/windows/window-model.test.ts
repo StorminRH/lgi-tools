@@ -39,6 +39,7 @@ describe('map window presence', () => {
 describe('map window keyboard and stack', () => {
   it('derives Escape kinds, dismisses owned outside clicks, and reconciles the live stack', () => {
     expect(surfaceKindOf({ kind: 'docked' })).toBe('dock');
+    expect(surfaceKindOf({ kind: 'docked-bottom-left' })).toBe('dock');
     expect(surfaceKindOf({ kind: 'node-anchored', systemId: 2 })).toBe('card');
     expect(
       surfaceKindOf({

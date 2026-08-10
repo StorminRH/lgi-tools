@@ -30,6 +30,8 @@ import { PilotPresenceBadge } from './PilotPresenceBadge';
 export type ChainNodeData = {
   name: string;
   className: string | null;
+  security?: number | null;
+  whClassId?: number | null;
   motion?: NodeMotion;
   /**
    * Present only on derived halo systems (4.0.4.2.3 OW3); an authored node
@@ -39,6 +41,12 @@ export type ChainNodeData = {
    * node hides itself rather than relying on paint order.
    */
   halo?: { readonly ring: number; readonly fogged: boolean };
+  /** Present only on a scanned wormhole whose destination has not been visited yet. */
+  stub?: {
+    readonly connectionId: string;
+    readonly fromSystemId: number;
+    readonly signatureId: string;
+  };
 };
 
 /** The only node kind this session ships. */
@@ -82,16 +90,26 @@ export function nodeMotionClass(
   return motion.heavy === true ? 'map-node-exit-heavy' : 'map-node-exit';
 }
 
-/** Renders one system as a widget frame: header name, centered disc, widget slots. */
-function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
-  const derived = data.halo !== undefined;
+/** Pure presentation flags shared by every authored, halo, and stub node render. */
+function nodePresentation(data: ChainNodeData) {
+  const stub = data.stub !== undefined;
   const fogged = data.halo?.fogged === true;
+  const exiting = data.motion !== undefined && data.motion.phase !== 'entering';
+  return {
+    stub,
+    fogged,
+    derived: data.halo !== undefined || stub,
+    chromeClass: fogged || stub || exiting ? null : 'pointer-events-auto',
+  } as const;
+}
+
+/** Renders one system as a widget frame: header name, centered disc, widget slots. */
+function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<ChainNode>) {
+  const { stub, derived, fogged, chromeClass } = nodePresentation(data);
   // The wrapper is pointer-inert for every node (`INERT_NODE_STYLE` in
   // chain/nodes.ts); only the visible chrome re-enables pointer events, so
   // the invisible frame margin cannot catch clicks, drags, or hovers. Ghosts
   // (exit motion) and the fogged ring re-enable nothing and stay fully inert.
-  const ghost = data.motion !== undefined && data.motion.phase !== 'entering';
-  const chromeClass = fogged || ghost ? null : 'pointer-events-auto';
   return (
     <div
       data-chain-node
@@ -99,6 +117,7 @@ function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
       data-dragging={dragging || undefined}
       data-chain-node-derived={derived || undefined}
       data-chain-node-fogged={fogged || undefined}
+      data-chain-node-stub={stub || undefined}
       className={cn(
         'relative h-full w-full',
         // Provisional presentation: derived systems read dimmer than authored
@@ -125,7 +144,12 @@ function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
           chromeClass,
         )}
       >
-        <Handle type="target" position={Position.Left} className={CENTER_HANDLE_CLASS} />
+        <Handle
+          type="target"
+          position={Position.Left}
+          isConnectable={isConnectable}
+          className={CENTER_HANDLE_CLASS}
+        />
         {data.className !== null && (
           <span
             data-chain-node-class
@@ -134,12 +158,17 @@ function SystemNodeComponent({ id, data, dragging }: NodeProps<ChainNode>) {
             {data.className}
           </span>
         )}
-        <Handle type="source" position={Position.Right} className={CENTER_HANDLE_CLASS} />
+        <Handle
+          type="source"
+          position={Position.Right}
+          isConnectable={isConnectable}
+          className={CENTER_HANDLE_CLASS}
+        />
         <div
           data-chain-node-widgets
           className="absolute -right-[13px] -top-[3px] flex items-center justify-end gap-0.5"
         >
-          <PilotPresenceBadge systemId={Number(id)} />
+          {stub ? null : <PilotPresenceBadge systemId={Number(id)} />}
         </div>
       </div>
     </div>

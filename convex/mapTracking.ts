@@ -14,6 +14,7 @@ import {
   type MutationCtx,
   mutation,
   query,
+  type QueryCtx,
 } from './_generated/server';
 import { requireMapAccess, tryMapAccess } from './lib/mapAccess';
 import { getSyncSubject } from './lib/subjects';
@@ -30,6 +31,19 @@ export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
 // this; hitting it truncates the overlay rather than blowing the transaction
 // read budget on a hot reactive query.
 const TRACKING_MAP_SCAN_CAP = 256;
+
+function findCharacterLocation(
+  ctx: QueryCtx,
+  userId: string,
+  characterId: number,
+) {
+  return ctx.db
+    .query('characterLocation')
+    .withIndex('by_user_character', (q) =>
+      q.eq('userId', userId).eq('characterId', characterId),
+    )
+    .unique();
+}
 
 /**
  * Distinct character ids the user currently tracks on any map — the sync
@@ -118,12 +132,7 @@ export const forMap = query({
 
     const tracked = [];
     for (const row of rows) {
-      const location = await ctx.db
-        .query('characterLocation')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', row.userId).eq('characterId', row.characterId),
-        )
-        .unique();
+      const location = await findCharacterLocation(ctx, row.userId, row.characterId);
       tracked.push({
         userId: row.userId,
         characterId: row.characterId,
@@ -258,6 +267,37 @@ export const feedFreshness = query({
     };
   },
 });
+
+/**
+ * Solar systems currently holding at least one tracked pilot on one map — the
+ * presence input the collapse triggers feed the shared collapse core. Joins
+ * exactly like `forMap`: each tracking row to its own (userId, characterId)
+ * location document, so a forged row still discloses and retains nothing.
+ */
+export async function readTrackedPilotSystemIds(
+  ctx: QueryCtx,
+  mapId: string,
+): Promise<ReadonlySet<number>> {
+  const rows = await ctx.db
+    .query('mapTracking')
+    .withIndex('by_map', (q) => q.eq('mapId', mapId))
+    .take(TRACKING_MAP_SCAN_CAP + 1);
+  // Fail closed rather than truncate: this set feeds the collapse core's
+  // pilot-present retention, and a silently dropped pilot could let a sweep
+  // collapse a branch that still holds a tracked character.
+  if (rows.length > TRACKING_MAP_SCAN_CAP) {
+    throw new ConvexError({
+      code: 'TRACKING_SCAN_LIMIT',
+      detail: `Map ${mapId} exceeds the ${TRACKING_MAP_SCAN_CAP}-row tracked-presence bound.`,
+    });
+  }
+  const systemIds = new Set<number>();
+  for (const row of rows) {
+    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
+    if (location !== null) systemIds.add(location.solarSystemId);
+  }
+  return systemIds;
+}
 
 // ── Teardown helpers — mapAccessProjection (revocation cascade, map teardown,
 // account claims door) calls these instead of restating the queries, so the

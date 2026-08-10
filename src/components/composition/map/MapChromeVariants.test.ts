@@ -92,9 +92,14 @@ describe('map chrome variants', () => {
     const compact = renderToStaticMarkup(
       createElement(FeedbackButton, { compact: true }),
     );
+    const embedded = renderToStaticMarkup(
+      createElement(FeedbackButton, { compact: true, embedded: true }),
+    );
     expect(standard).toContain('>Feedback</button>');
     expect(standard).not.toContain('aria-label=');
     expect(compact).toContain('aria-label="Send feedback"');
     expect(compact).toContain('>?</button>');
+    expect(embedded).toContain('data-map-feedback-chip="true"');
+    expect(embedded).not.toContain('fixed bottom-4 right-4');
   });
 });

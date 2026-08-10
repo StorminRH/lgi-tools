@@ -31,11 +31,13 @@ import {
   CHAIN_PURGE_BATCH,
   purgeExpiredChainTombstones as purgeExpiredChainTombstonesCore,
 } from './lib/mapChainCleanup';
+import { deleteSignatureActivity } from './lib/mapSignatures';
 import {
   beginSystemEdit,
   findSystem,
   requireSystemId,
 } from './lib/mapSystemLookup';
+import { readTrackedPilotSystemIds } from './mapTracking';
 import {
   chainTombstoneStamps,
   isTombstoned,
@@ -43,6 +45,7 @@ import {
 import {
   decideCollapse,
   type CollapseDecision,
+  type PilotsPresent,
 } from '@/data/maps/chain-collapse';
 import {
   MAP_EVENT_RETENTION_MS,
@@ -79,11 +82,6 @@ interface BoundedMapTopology {
   readonly connections: readonly Doc<'mapConnections'>[];
 }
 
-interface GatedTopologyConnection {
-  readonly topology: BoundedMapTopology;
-  readonly connection: Doc<'mapConnections'>;
-}
-
 /** Loads both map-owned topology tables within one explicit transaction cap. */
 async function readBoundedMapTopology(
   ctx: MutationCtx,
@@ -109,14 +107,12 @@ async function readBoundedMapTopology(
   return { systems, connections };
 }
 
-/** Gates, bounds, and resolves one connection without duplicating entry seams. */
-async function gatedTopologyConnection(
-  ctx: MutationCtx,
+/** Resolves one connection inside an already-loaded bounded topology. */
+function requireTopologyConnection(
+  topology: BoundedMapTopology,
   mapId: string,
   connectionId: Id<'mapConnections'>,
-): Promise<GatedTopologyConnection> {
-  await requireMapAccess(ctx, mapId, 'edit');
-  const topology = await readBoundedMapTopology(ctx, mapId);
+): Doc<'mapConnections'> {
   const connection = topology.connections.find((row) => row._id === connectionId);
   if (connection === undefined) {
     throw new ConvexError({
@@ -124,17 +120,17 @@ async function gatedTopologyConnection(
       detail: `No connection ${connectionId} on map ${mapId}.`,
     });
   }
-  return { topology, connection };
+  return connection;
 }
 
 /** Resolves the display actor from the already-authorized Convex identity. */
-async function eventActor(ctx: MutationCtx): Promise<string> {
+export async function eventActor(ctx: MutationCtx): Promise<string> {
   const identity = await ctx.auth.getUserIdentity();
   return typeof identity?.name === 'string' ? identity.name : 'unknown';
 }
 
 /** Inserts one typed ledger row in the caller's mutation transaction. */
-async function writeMapEvent<Kind extends MapEventKind>(
+export async function writeMapEvent<Kind extends MapEventKind>(
   ctx: MutationCtx,
   input: {
     readonly mapId: string;
@@ -144,12 +140,25 @@ async function writeMapEvent<Kind extends MapEventKind>(
     readonly payload: MapEventPayloadByKind[Kind];
   },
 ): Promise<void> {
+  // Re-materialize the payload's arrays: callers hand in readonly shapes while
+  // the stored document type is mutable.
+  const payload = 'signatureIds' in input.payload
+    ? {
+        systemId: input.payload.systemId,
+        signatureIds: [...input.payload.signatureIds],
+      }
+    : 'systemIds' in input.payload
+      ? {
+          connectionId: input.payload.connectionId,
+          systemIds: [...input.payload.systemIds],
+        }
+      : { connectionId: input.payload.connectionId };
   await ctx.db.insert('mapEvents', {
     mapId: input.mapId,
     at: input.at,
     kind: input.kind,
     actor: input.actor,
-    payload: input.payload,
+    payload,
     purgeAfter: input.at + MAP_EVENT_RETENTION_MS,
   });
 }
@@ -774,6 +783,7 @@ function uniqueTombstoneStamp(
 function collapseDecision(
   topology: BoundedMapTopology,
   cut: Doc<'mapConnections'>,
+  pilotsPresent: PilotsPresent,
 ): CollapseDecision {
   if (isTombstoned(cut)) {
     throw new ConvexError({
@@ -821,8 +831,40 @@ function collapseDecision(
       toSystemId: row.toSystemId,
     })),
     isKnownSpace: isKnownSpaceSystemId,
-    pilotsPresent: 'unknown',
+    pilotsPresent,
   });
+}
+
+/**
+ * Pilot knowledge a collapse trigger supplies: a literal verdict, or the
+ * tracked pilots' current systems for the core to grade against the orphan set.
+ */
+export type CollapsePilotsPresent =
+  | PilotsPresent
+  | { readonly trackedInSystemIds: ReadonlySet<number> };
+
+/**
+ * Resolves the collapse decision for one cut under the trigger's pilot
+ * knowledge. Tracked presence is graded against the would-be-orphaned set: a
+ * tracked pilot inside it upgrades the verdict to 'present', which retains
+ * every component and removes the dead connection alone.
+ */
+function collapseOutcome(
+  topology: BoundedMapTopology,
+  cut: Doc<'mapConnections'>,
+  pilotsPresent: CollapsePilotsPresent,
+): CollapseDecision {
+  if (typeof pilotsPresent === 'string') {
+    return collapseDecision(topology, cut, pilotsPresent);
+  }
+  const preview = collapseDecision(topology, cut, 'absent');
+  if (preview.kind === 'retain') return preview;
+  const pilotInOrphanedBranch = preview.systemIds.some((systemId) =>
+    pilotsPresent.trackedInSystemIds.has(systemId),
+  );
+  return pilotInOrphanedBranch
+    ? collapseDecision(topology, cut, 'present')
+    : preview;
 }
 
 type RemoveCollapseDecision = Extract<CollapseDecision, { kind: 'remove' }>;
@@ -850,11 +892,25 @@ function shouldRearmSkeleton(
     && touchesRemovedSystem;
 }
 
+/** Removes the last-seen companion of one tombstoned scanner-born connection. */
+async function deleteConnectionActivity(
+  ctx: MutationCtx,
+  connection: Doc<'mapConnections'>,
+): Promise<void> {
+  if (connection.fromSignatureId === undefined) return;
+  await deleteSignatureActivity(ctx, {
+    mapId: connection.mapId,
+    systemId: connection.fromSystemId,
+    signatureId: connection.fromSignatureId,
+  });
+}
+
 /** Commits the retained-edge stamp and its matching event. */
 async function writeRetainedSever(
   input: SeverWriteContext,
 ): Promise<{ outcome: 'retained' }> {
   await input.ctx.db.patch(input.cut._id, input.stamps);
+  await deleteConnectionActivity(input.ctx, input.cut);
   await writeMapEvent(input.ctx, {
     mapId: input.mapId,
     at: input.deletedAt,
@@ -892,9 +948,11 @@ async function stampRemovedRows(
   }
   for (const connection of connections) {
     await input.ctx.db.patch(connection._id, input.stamps);
+    await deleteConnectionActivity(input.ctx, connection);
   }
   for (const stub of incidentStubs) {
     await input.ctx.db.patch(stub._id, input.stamps);
+    await deleteConnectionActivity(input.ctx, stub);
   }
   for (const connection of skeletonsToRearm) {
     await input.ctx.db.patch(connection._id, {
@@ -920,36 +978,73 @@ async function writeRemovedSever(
   return { outcome: 'removed', systemIds };
 }
 
+/** One collapse request an already-authorized trigger hands the shared core. */
+export interface RunCollapseInput {
+  readonly mapId: string;
+  readonly connectionId: Id<'mapConnections'>;
+  readonly actor: string;
+  readonly pilotsPresent: CollapsePilotsPresent;
+}
+
+/** The committed outcome of one collapse transaction. */
+export type RunCollapseResult =
+  | { readonly outcome: 'retained' }
+  | { readonly outcome: 'removed'; readonly systemIds: number[] };
+
+/**
+ * The one identity-parameterized collapse core. Every destructive trigger —
+ * manual sever, confirmed re-paste removal, confident removal, and the ceiling
+ * sweep — resolves the same decision and commits the same shared-stamp writes
+ * and ledger event in the caller's transaction. Callers authorize first.
+ */
+export async function runCollapse(
+  ctx: MutationCtx,
+  input: RunCollapseInput,
+): Promise<RunCollapseResult> {
+  const topology = await readBoundedMapTopology(ctx, input.mapId);
+  const cut = requireTopologyConnection(topology, input.mapId, input.connectionId);
+  const decision = collapseOutcome(topology, cut, input.pilotsPresent);
+  const deletedAt = uniqueTombstoneStamp(topology, Date.now());
+  const stamps = chainTombstoneStamps(deletedAt);
+  const writeContext = {
+    ctx,
+    mapId: input.mapId,
+    topology,
+    cut,
+    actor: input.actor,
+    deletedAt,
+    stamps,
+  } satisfies SeverWriteContext;
+  if (decision.kind === 'retain') {
+    return await writeRetainedSever(writeContext);
+  }
+  return await writeRemovedSever(writeContext, decision);
+}
+
+async function gatedConnectionEdit<T>(
+  ctx: MutationCtx,
+  mapId: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  await requireMapAccess(ctx, mapId, 'edit');
+  return await run();
+}
+
 /**
  * Severs one live connection through the single server-computed collapse core.
  * All row stamps and the matching ledger event commit in this transaction.
  */
 export const severConnection = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    const { topology, connection: cut } = await gatedTopologyConnection(
-      ctx,
-      mapId,
-      connectionId,
-    );
-    const decision = collapseDecision(topology, cut);
-    const actor = await eventActor(ctx);
-    const deletedAt = uniqueTombstoneStamp(topology, Date.now());
-    const stamps = chainTombstoneStamps(deletedAt);
-    const writeContext = {
-      ctx,
-      mapId,
-      topology,
-      cut,
-      actor,
-      deletedAt,
-      stamps,
-    } satisfies SeverWriteContext;
-    if (decision.kind === 'retain') {
-      return await writeRetainedSever(writeContext);
-    }
-    return await writeRemovedSever(writeContext, decision);
-  },
+  handler: async (ctx, { mapId, connectionId }) =>
+    await gatedConnectionEdit(ctx, mapId, async () =>
+      runCollapse(ctx, {
+        mapId,
+        connectionId,
+        actor: await eventActor(ctx),
+        pilotsPresent: 'unknown',
+      }),
+    ),
 });
 
 async function requireRestorableEndpoints(
@@ -979,58 +1074,73 @@ async function requireRestorableEndpoints(
 }
 
 /**
+ * Restores every surviving row carrying one sever transaction's shared stamp —
+ * the undo half of {@link runCollapse}, shared by the branch-restore mutation
+ * and the signature flow's resolved-wormhole undo. Callers authorize first.
+ * A repeated call is an identity-preserving no-op and writes no duplicate event.
+ */
+export async function runBranchRestore(
+  ctx: MutationCtx,
+  input: { readonly mapId: string; readonly connectionId: Id<'mapConnections'>; readonly actor: string },
+): Promise<{ restored: true }> {
+  const { mapId, connectionId } = input;
+  const topology = await readBoundedMapTopology(ctx, mapId);
+  const connection = requireTopologyConnection(topology, mapId, connectionId);
+  if (!isTombstoned(connection)) return { restored: true as const };
+
+  const deletedAt = connection.deletedAt;
+  const systems = topology.systems.filter(
+    (row) => row.deletedAt === deletedAt,
+  );
+  const connections = topology.connections.filter(
+    (row) => row.deletedAt === deletedAt,
+  );
+  // Every restored connection needs two live endpoints. An endpoint outside
+  // this sever's shared-stamp set may have been tombstoned by a LATER sever;
+  // restoring around it would create a live connection with a dead endpoint,
+  // which the collapse core rejects as INVALID_MAP_TOPOLOGY forever after.
+  const restoredSystemIds = new Set(systems.map((row) => row.systemId));
+  await requireRestorableEndpoints(
+    ctx,
+    mapId,
+    topology,
+    connections,
+    restoredSystemIds,
+  );
+  for (const system of systems) {
+    await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
+  }
+  for (const row of connections) {
+    await ctx.db.patch(row._id, { deletedAt: null, purgeAfter: null });
+  }
+  const at = Date.now();
+  await writeMapEvent(ctx, {
+    mapId,
+    at,
+    kind: 'branch_restored',
+    actor: input.actor,
+    payload: {
+      connectionId: String(connectionId),
+      systemIds: systems.map((row) => row.systemId).sort((a, b) => a - b),
+    },
+  });
+  return { restored: true as const };
+}
+
+/**
  * Restores every surviving row carrying one sever transaction's shared stamp.
  * A repeated call is an identity-preserving no-op and writes no duplicate event.
  */
 export const restoreSeveredBranch = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    const { topology, connection } = await gatedTopologyConnection(
-      ctx,
-      mapId,
-      connectionId,
-    );
-    if (!isTombstoned(connection)) return { restored: true as const };
-
-    const deletedAt = connection.deletedAt;
-    const systems = topology.systems.filter(
-      (row) => row.deletedAt === deletedAt,
-    );
-    const connections = topology.connections.filter(
-      (row) => row.deletedAt === deletedAt,
-    );
-    // Every restored connection needs two live endpoints. An endpoint outside
-    // this sever's shared-stamp set may have been tombstoned by a LATER sever;
-    // restoring around it would create a live connection with a dead endpoint,
-    // which the collapse core rejects as INVALID_MAP_TOPOLOGY forever after.
-    const restoredSystemIds = new Set(systems.map((row) => row.systemId));
-    await requireRestorableEndpoints(
-      ctx,
-      mapId,
-      topology,
-      connections,
-      restoredSystemIds,
-    );
-    const actor = await eventActor(ctx);
-    for (const system of systems) {
-      await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
-    }
-    for (const row of connections) {
-      await ctx.db.patch(row._id, { deletedAt: null, purgeAfter: null });
-    }
-    const at = Date.now();
-    await writeMapEvent(ctx, {
-      mapId,
-      at,
-      kind: 'branch_restored',
-      actor,
-      payload: {
-        connectionId: String(connectionId),
-        systemIds: systems.map((row) => row.systemId).sort((a, b) => a - b),
-      },
-    });
-    return { restored: true as const };
-  },
+  handler: async (ctx, { mapId, connectionId }) =>
+    await gatedConnectionEdit(ctx, mapId, async () =>
+      runBranchRestore(ctx, {
+        mapId,
+        connectionId,
+        actor: await eventActor(ctx),
+      }),
+    ),
 });
 
 /**
@@ -1053,6 +1163,188 @@ export const restoreConnection = mutation({
     }
     return { restored: true as const };
   },
+});
+
+/**
+ * Grace past a stored `deathLatestAt` ceiling before the sweep may collapse.
+ * The ceiling itself already overestimates remaining life (first-seen is a
+ * lower bound on age), so ceiling + grace can never precede a hole's true
+ * death — the HC-2 guarantee that expiry never removes a live connection.
+ */
+export const CEILING_COLLAPSE_GRACE_MS = 4 * 60 * 60 * 1000;
+
+/**
+ * Rows one ceiling sweep call processes. Each resolved collapse reads a
+ * bounded topology plus the map's tracked-pilot join, so the batch stays small
+ * and the 15-minute cadence plus `hasMore` drain any backlog.
+ */
+export const CEILING_SWEEP_BATCH = 8;
+
+/**
+ * Candidate rows one sweep call may read past failures. A row whose collapse
+ * fails (for example an over-bound map) stays live at the head of the due
+ * range, so the sweep reads a wider window and skips failing maps within it
+ * rather than letting a poisoned head starve every other map's expiry.
+ */
+export const CEILING_SWEEP_SCAN = 64;
+
+/** Ledger actor for scheduler-driven ceiling collapses (no caller identity). */
+export const CEILING_SWEEP_ACTOR = 'lifetime expiry';
+
+/**
+ * Reads the due live-ceiling candidates. Live rows only, by construction: the
+ * index leads with `deletedAt`, so a collapsed row (finite stamp) leaves the
+ * candidate range the moment it is written and the bounded batch never
+ * re-reads its own prior work. Two equality scans cover both live
+ * representations — field absent and explicit null — because a Convex index
+ * equality matches exactly one of them. The `> null` lower bound stays
+ * load-bearing: undefined/null order below every number, so a bare
+ * `<= cutoff` would match every windowless live row.
+ */
+async function readDueCeilings(
+  ctx: MutationCtx,
+  cutoff: number,
+): Promise<{ due: Doc<'mapConnections'>[]; overflow: boolean }> {
+  const range = (deletedAt: null | undefined) =>
+    ctx.db
+      .query('mapConnections')
+      .withIndex('by_deleted_death_latest', (q) =>
+        q
+          .eq('deletedAt', deletedAt)
+          .gt('deathLatestAt', null)
+          .lte('deathLatestAt', cutoff),
+      )
+      .take(CEILING_SWEEP_SCAN + 1);
+  const [unset, nulled] = await Promise.all([range(undefined), range(null)]);
+  return {
+    due: [...unset, ...nulled].sort(
+      (left, right) => (left.deathLatestAt ?? 0) - (right.deathLatestAt ?? 0),
+    ),
+    overflow: unset.length > CEILING_SWEEP_SCAN || nulled.length > CEILING_SWEEP_SCAN,
+  };
+}
+
+/**
+ * Collapses one due resolved row, reporting failure instead of throwing.
+ * Safe to continue past a failure: the presence read and runCollapse throw
+ * only before this row's first write (the bounded reads and pure collapse
+ * decision all precede the stamp writes), so a caught failure has committed
+ * nothing for this row and it stays live for a later sweep.
+ */
+async function collapseDueRow(
+  ctx: MutationCtx,
+  row: Doc<'mapConnections'>,
+  trackedByMap: Map<string, ReadonlySet<number>>,
+): Promise<boolean> {
+  try {
+    let tracked = trackedByMap.get(row.mapId);
+    if (tracked === undefined) {
+      tracked = await readTrackedPilotSystemIds(ctx, row.mapId);
+      trackedByMap.set(row.mapId, tracked);
+    }
+    await runCollapse(ctx, {
+      mapId: row.mapId,
+      connectionId: row._id,
+      actor: CEILING_SWEEP_ACTOR,
+      pilotsPresent: { trackedInSystemIds: tracked },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type RemovedStubEvents = Map<
+  string,
+  { mapId: string; systemId: number; signatureIds: string[] }
+>;
+
+/** Accumulates one swept stub into its per-(map, system) removal event. */
+function recordRemovedStub(events: RemovedStubEvents, stub: Doc<'mapConnections'>): void {
+  if (stub.fromSignatureId === undefined) return;
+  const key = `${stub.mapId}:${stub.fromSystemId}`;
+  const entry = events.get(key) ?? {
+    mapId: stub.mapId,
+    systemId: stub.fromSystemId,
+    signatureIds: [],
+  };
+  entry.signatureIds.push(stub.fromSignatureId);
+  events.set(key, entry);
+}
+
+/**
+ * Collapses connections whose death ceiling passed more than the grace ago —
+ * the one sanctioned scheduler trigger. Resolved cuts route through
+ * {@link runCollapse} with pilot presence from tracking; expired unresolved
+ * stubs tombstone directly (no branch decision exists for a stub).
+ */
+export async function sweepExpiredCeilings(
+  ctx: MutationCtx,
+  now: number,
+): Promise<{
+  collapsed: number;
+  removedStubs: number;
+  skipped: number;
+  failed: number;
+  hasMore: boolean;
+}> {
+  const { due, overflow } = await readDueCeilings(ctx, now - CEILING_COLLAPSE_GRACE_MS);
+  const trackedByMap = new Map<string, ReadonlySet<number>>();
+  const failedMapIds = new Set<string>();
+  const stubEvents: RemovedStubEvents = new Map();
+  let collapsed = 0;
+  let removedStubs = 0;
+  let skipped = 0;
+  let failed = 0;
+  let index = 0;
+  for (; index < due.length && collapsed + removedStubs < CEILING_SWEEP_BATCH; index += 1) {
+    // `due` is proven non-sparse by the loop bound; index access is total.
+    const row = due[index]!;
+    if (failedMapIds.has(row.mapId)) {
+      failed += 1;
+      continue;
+    }
+    // Re-read: an earlier collapse in this batch may have tombstoned this row
+    // as branch collateral. Tombstoned or purged rows are skipped, so a sweep
+    // meeting an already-severed row stays idempotent.
+    const fresh = await ctx.db.get(row._id);
+    if (fresh === null || isTombstoned(fresh)) {
+      skipped += 1;
+      continue;
+    }
+    if (fresh.toSystemId === null) {
+      await ctx.db.patch(fresh._id, chainTombstoneStamps(now));
+      await deleteConnectionActivity(ctx, fresh);
+      recordRemovedStub(stubEvents, fresh);
+      removedStubs += 1;
+    } else if (await collapseDueRow(ctx, fresh, trackedByMap)) {
+      collapsed += 1;
+    } else {
+      // Memoized as failing so the map's sibling rows do not burn the batch.
+      failedMapIds.add(fresh.mapId);
+      failed += 1;
+    }
+  }
+  for (const entry of stubEvents.values()) {
+    // Silently swept stubs leave a restorable paper trail.
+    await writeMapEvent(ctx, {
+      mapId: entry.mapId,
+      at: now,
+      kind: 'signatures_removed',
+      actor: CEILING_SWEEP_ACTOR,
+      payload: { systemId: entry.systemId, signatureIds: entry.signatureIds },
+    });
+  }
+  return { collapsed, removedStubs, skipped, failed, hasMore: index < due.length || overflow };
+}
+
+/**
+ * Cron entry for the grace-buffered ceiling sweep — the recorded narrow
+ * exception to "no scheduler flips a state" (death already certain).
+ */
+export const collapseExpiredConnections = internalMutation({
+  args: {},
+  handler: async (ctx) => await sweepExpiredCeilings(ctx, Date.now()),
 });
 
 /**

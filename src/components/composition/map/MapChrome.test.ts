@@ -10,8 +10,11 @@ vi.mock('@/components/composition/account/AccountMenu', () => ({
 }));
 
 vi.mock('@/components/composition/FeedbackButton', () => ({
-  FeedbackButton: ({ compact }: { compact?: boolean }) =>
-    createElement('div', { 'data-feedback-compact': String(compact) }),
+  FeedbackButton: ({ compact, embedded }: { compact?: boolean; embedded?: boolean }) =>
+    createElement('div', {
+      'data-feedback-compact': String(compact),
+      'data-feedback-embedded': String(embedded),
+    }),
 }));
 
 vi.mock('./MapMenu', () => ({
@@ -43,6 +46,9 @@ describe('MapChrome', () => {
     expect(markup).toContain('data-account-menu');
     expect(markup).toContain('right-4 top-4');
     expect(markup).toContain('data-feedback-compact="true"');
+    expect(markup).toContain('data-feedback-embedded="true"');
+    expect(markup).toContain('data-map-chrome-chips');
+    expect(markup).toContain('bottom-4 right-4');
     expect(markup).toMatch(
       /<div data-map-search-slot="true" aria-hidden="true"[^>]*><\/div>/,
     );

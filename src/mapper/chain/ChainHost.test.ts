@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     severConnection: vi.fn(),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
+        restoreSignatures: vi.fn(),
   },
 }));
 
@@ -52,6 +53,10 @@ vi.mock('../tracking/PresenceProvider', () => ({
 
 vi.mock('../tracking/JumpDoorbellObserver', () => ({
   JumpDoorbellObserver: () => null,
+}));
+
+vi.mock('../signatures/SignatureProvider', () => ({
+  SignatureProvider: ({ children }: { children?: unknown }) => children,
 }));
 
 vi.mock('@xyflow/react', async () => {
@@ -127,10 +132,16 @@ function withAccess(
     events: [],
     state: { systems: new Map(), connections: new Map() },
     intents: [],
-    labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
+    labelOf: (systemId: number) => ({
+      name: String(systemId),
+      className: null,
+      security: null,
+      whClassId: null,
+    }),
     treeParents: new Map(),
     rootSystemId: null,
     halo: { systems: [], links: [] },
+    stubs: [],
     neighboursOf: () => [],
     pinPlacement: mocks.pinPlacement,
     releasePlacements: vi.fn(),
@@ -155,7 +166,15 @@ function surfaceProps(): Record<string, (...args: never[]) => void> {
 }
 
 function node(systemId: number, x: number, y: number) {
-  return { id: String(systemId), position: { x, y } };
+  return { id: String(systemId), position: { x, y }, data: {} };
+}
+
+function stubNode(connectionId: string, x: number, y: number) {
+  return {
+    id: `stub:${connectionId}`,
+    position: { x, y },
+    data: { stub: { connectionId, fromSystemId: 30_000_142, signatureId: 'ABC-123' } },
+  };
 }
 
 describe('chain host auth gate', () => {
@@ -270,6 +289,7 @@ describe('chain host access states', () => {
       treeParents: new Map(),
       rootSystemId: null,
       halo: { systems: [], links: [] },
+      stubs: [],
       neighboursOf: () => [],
       pinPlacement: mocks.pinPlacement,
       releasePlacements: vi.fn(),
@@ -336,6 +356,19 @@ describe('chain host group drag', () => {
       [30_000_142, { x: 1, y: 2 }],
       [30_002_187, { x: 3, y: 4 }],
     ]);
+  });
+
+  it('never feeds a synthetic stub id into numeric drag placement', async () => {
+    await renderHost();
+    const authored = node(30_000_142, 1, 2);
+    const stub = stubNode('c1', 300, 0);
+
+    surfaceProps().onNodeDragStop?.(
+      ...([{}, authored, [authored, stub]] as unknown as never[]),
+    );
+
+    expect(mocks.pinPlacement).toHaveBeenCalledOnce();
+    expect(mocks.pinPlacement).toHaveBeenCalledWith(30_000_142, { x: 1, y: 2 });
   });
 
   it('offers no delete key and no keyboard node movement on the surface', async () => {

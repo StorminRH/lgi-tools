@@ -73,6 +73,21 @@
    * EVE overview's red-for-hostiles convention. Surfaced as text-hostile. */
   --color-hostile: #dd4444;
 
+  /* In-game system security status colors (CCP Developer Docs — System
+   * Security / Security Status Colors). Banded on the rounded 0.1 display
+   * value; else covers ≤0.0 (null-sec and negative WH true-sec). */
+  --color-sec-10: #2c75e1;
+  --color-sec-09: #399aeb;
+  --color-sec-08: #4ecef8;
+  --color-sec-07: #60dba3;
+  --color-sec-06: #71e754;
+  --color-sec-05: #f5ff83;
+  --color-sec-04: #dc6c06;
+  --color-sec-03: #ce440f;
+  --color-sec-02: #bb1116;
+  --color-sec-01: #731f1f;
+  --color-sec-null: #8d3163;
+
   /* Alert red — bright attention red for urgent transient states (dying map
    * edges, and later any other "this needs eyes now" chrome). Brighter than
    * --color-hostile so it still reads through opacity pulses and library
@@ -1178,6 +1193,36 @@ details[data-collapsible][open] > summary [data-chevron] {
   --map-motion-fast: 250ms;
   --map-motion-mid: 1000ms;
   --map-motion-slow: 1000ms;
+}
+
+/* Bottom-right map chrome quietly calls attention to a still-undoable event. */
+@keyframes map-chip-undo-pulse {
+  0%, 100% { box-shadow: var(--shadow-dd); }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--color-card-glow-ring),
+      0 0 10px var(--color-card-glow-shadow);
+  }
+}
+.map-chip-undo-pulse {
+  animation: map-chip-undo-pulse 2.4s ease-in-out infinite;
+}
+
+/* Scanner completion paints beneath row copy without a JSX style attribute. */
+[data-signature-row] [data-signature-signal-fill] {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  width: var(--signature-signal, 0%);
+  background: var(--color-row-hover);
+  opacity: 0.65;
+}
+.map-signature-missing {
+  color: var(--color-tone-red-soft);
+  background: var(--color-pill-red-soft-bg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-chip-undo-pulse { animation: none; }
 }
 
 /* Birth: slightly small, dim, and soft — softness IS the low-opacity sub-scale

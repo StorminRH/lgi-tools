@@ -106,10 +106,10 @@ function MapControlsComponent({
   return (
     <Panel
       data-map-dev-dials
-      position="bottom-left"
+      position="bottom-right"
       className={cn(
-        // mb-14 clears the collapsed audit-log strip (bottom-2 + header).
-        'nopan nodrag nowheel mb-14! ml-4! mr-2! mt-2! flex max-h-[calc(100dvh-6rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
+        // The mapper chrome's bottom-right chip rail owns this development-only slot.
+        'nopan nodrag nowheel mb-2! ml-2! mr-64! mt-2! flex max-h-[calc(100dvh-2rem)] w-56 flex-col gap-2 overflow-y-auto rounded-card p-2 text-ui',
         mapFrostedSurface,
       )}
     >

@@ -76,9 +76,9 @@ export function JumpResolutionPrompt({
   return (
     <div
       data-map-jump-prompt
-      // bottom-16 clears the fixed bottom-right feedback button (z-dropdown
-      // beats z-sticky, so overlap would cover Dismiss).
-      className="pointer-events-none absolute bottom-16 right-4 z-sticky flex justify-end"
+      // The bottom-right chip rail can expand upward (audit history); keep the
+      // non-blocking answer prompt above that chrome rather than behind it.
+      className="pointer-events-none absolute bottom-[15rem] right-4 z-sticky flex justify-end"
     >
       <div
         className={cn(
@@ -86,7 +86,7 @@ export function JumpResolutionPrompt({
           mapFrostedSurface,
         )}
       >
-        <span className="text-label uppercase tracking-label text-muted">
+        <span className="font-data text-label uppercase tracking-label text-muted">
           Auto-linked signature
         </span>
         {current !== null ? (

@@ -18,6 +18,7 @@ import type { SearchSource } from '@/platform/search';
 import { fuzzyMatch } from '@/platform/search/match';
 import { rankFuzzyResults } from '@/platform/search/rank';
 import { systemsEndpoint } from './api-contract';
+import { roundSecurityStatus } from './security';
 
 /**
  * One searchable solar system — the wire shape for /api/industry/systems.
@@ -74,7 +75,7 @@ export function getLoadedSystems(): SystemSearchEntry[] | null {
 
 /** The display form of a system's security status, shared by the location slots. */
 export function formatSec(sec: number | null): string {
-  return sec === null ? '—' : sec.toFixed(1);
+  return sec === null ? '—' : roundSecurityStatus(sec).toFixed(1);
 }
 
 /**

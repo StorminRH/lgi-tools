@@ -19,3 +19,16 @@ export function useNodeDataString(
     return typeof value === 'string' ? value : null;
   });
 }
+
+/** One node-data number field, stable across position-only updates. */
+export function useNodeDataNumber(
+  systemId: number | null,
+  field: 'security',
+): number | null {
+  return useStore((state) => {
+    if (systemId === null) return null;
+    const node = state.nodeLookup.get(String(systemId));
+    const value = node?.data[field];
+    return typeof value === 'number' ? value : null;
+  });
+}

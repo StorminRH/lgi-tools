@@ -6,7 +6,7 @@ import type { WindowPlacement } from './window-model';
 
 function render(
   placement: WindowPlacement,
-  overrides: { showCloseButton?: boolean } = {},
+  overrides: { showCloseButton?: boolean; showHeader?: boolean } = {},
 ): string {
   return renderToStaticMarkup(
     createElement(
@@ -44,6 +44,9 @@ describe('MapWindow isolation markup', () => {
 
     expect(render({ kind: 'docked' }, { showCloseButton: false })).not.toContain(
       'Close Test window',
+    );
+    expect(render({ kind: 'docked' }, { showHeader: false })).not.toContain(
+      '>Test window<',
     );
   });
 
@@ -93,5 +96,19 @@ describe('MapWindow isolation markup', () => {
     );
     expect(html).toContain('map-node-enter');
     expect(html).toContain('data-map-window-placement="edge-anchored"');
+  });
+
+  it('owns the one bottom-left geometry variant for the signature sibling', () => {
+    const html = render({ kind: 'docked-bottom-left' });
+    expect(html).toContain('data-map-window-placement="docked-bottom-left"');
+    expect(html).toContain('bottom-4 left-4');
+    expect(html).toContain('size-[min(24rem,calc(100vw-2rem))]');
+  });
+
+  it('covers node-anchored placement and Escape keydown wiring', () => {
+    const html = render({ kind: 'node-anchored', systemId: 30_000_142 });
+    expect(html).toContain('data-map-window-placement="node-anchored"');
+    expect(html).toContain('[transform:var(--map-window-transform)]');
+    expect(html).toContain('h-52 w-72');
   });
 });

@@ -60,25 +60,45 @@ describe('node label resolution', () => {
       directory([entry(HOLE, 'J123456', 5)]),
     );
 
-    expect(label).toEqual({ name: 'J123456', className: 'C5' });
+    expect(label).toEqual({
+      name: 'J123456',
+      className: 'C5',
+      security: null,
+      whClassId: 5,
+    });
   });
 
   it('renders a known k-space system with no class chip', () => {
     const label = resolveSystemLabel(JITA, directory([entry(JITA, 'Jita', null)]));
 
-    expect(label).toEqual({ name: 'Jita', className: null });
+    expect(label).toEqual({
+      name: 'Jita',
+      className: null,
+      security: null,
+      whClassId: null,
+    });
   });
 
   it('falls back to the bare id for an unknown system, with no class chip', () => {
     const label = resolveSystemLabel(JITA, directory([]));
 
-    expect(label).toEqual({ name: String(JITA), className: null });
+    expect(label).toEqual({
+      name: String(JITA),
+      className: null,
+      security: null,
+      whClassId: null,
+    });
   });
 
   // HC-5: an unloaded directory is not a loading state, just a plainer label.
   it('falls back silently when the directory has not loaded', () => {
     const label = resolveSystemLabel(JITA, null);
 
-    expect(label).toEqual({ name: String(JITA), className: null });
+    expect(label).toEqual({
+      name: String(JITA),
+      className: null,
+      security: null,
+      whClassId: null,
+    });
   });
 });

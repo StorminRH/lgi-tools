@@ -15,5 +15,17 @@ crons.interval(
   internal.mapAuthoring.purgeExpiredChainTombstones,
   {},
 );
+crons.interval(
+  'map signature purge',
+  { minutes: 15 },
+  internal.mapScan.purgeExpiredSignatureTombstones,
+  {},
+);
+crons.interval(
+  'map ceiling collapse',
+  { minutes: 15 },
+  internal.mapAuthoring.collapseExpiredConnections,
+  {},
+);
 
 export default crons;

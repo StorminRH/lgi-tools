@@ -49,8 +49,11 @@ export function MapChrome({
         aria-hidden="true"
         className="absolute left-1/2 top-4 h-10 w-72 -translate-x-1/2"
       />
-      <div className="pointer-events-auto">
-        <FeedbackButton compact />
+      <div
+        data-map-chrome-chips
+        className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2"
+      >
+        <FeedbackButton compact embedded />
       </div>
     </div>
   );

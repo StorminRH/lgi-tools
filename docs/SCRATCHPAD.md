@@ -9,6 +9,34 @@
 
 ## Now
 
+- **CURRENT:** session **4.0.4.3.1** in close-out on `lifecycle/4.0.4.3`
+  (per-session PR). G-1 approved 2026-08-09; close-out adversarial round
+  (holistic + ownership + interface + reliability) accepted ~20 root causes,
+  all fixed on-branch — headline fixes: paste-revive scoped to a stub's own
+  lifetime (never `runBranchRestore` from `applyScan`; dead ceiling / expired
+  undo / conflicting group stay inert); ceiling sweep re-ranged onto live-only
+  `by_deleted_death_latest` with per-row failure isolation; missing prompt
+  keyed to the paste-target system, not the chain root; row-editor type entry
+  routes `applyWormholeType` for resolved rows; removal/restore uses exact
+  per-ID lookups past the whole-system bound; list/stub removals ledger
+  restorable `signatures_removed`/`signatures_restored` events.
+- **Durable 4.0.4.3.1 gotchas:** (1) The account-level paste gate needs live
+  feed coverage — on probe maps the tokenless engine wipes the synthetic
+  pilot's `coveredCharacterIds` within ~30s, so probes re-stamp via
+  `seedTrackedLocationFixture` (same transition epoch, fresh `feedFreshAt`)
+  before every paste after the first. (2) The chrome probe needs a POPULATED
+  map (`waitForWindowMap` wants ≥2 nodes) — run it on the lifecycle probe's
+  map after that one-shot run. (3) `runCollapse`/`runBranchRestore` throw only
+  BEFORE their first write — the sweep's per-row catch depends on that
+  decision-then-write shape; keep it. (4) Independent stub tombstones must
+  never share a collapse's stamp: single-row tombstones stamp before resolved
+  collapses so `uniqueTombstoneStamp` (read-your-writes) avoids them.
+  (5) Convex index `eq(field, null)` does not match absent fields — the sweep
+  reads both `undefined` and `null` live representations.
+- **Probe gotchas (durable):** `pnpm e2e:seed` resets `user.role` — re-grant
+  ADMIN to `e2e-pilot`; seed disposable maps with a fresh synthetic affiliation
+  stamp (`affiliation_refreshed_at = now()` for character 9000001); lifecycle
+  probe is one-shot — new map per run.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -16,12 +44,7 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.2.3** is complete on
-  `lifecycle/4.0.4.2`; planned close-out is delivering the final per-session
-  PR for sub-version 4.0.4.2. After merge and production proof, update from
-  `origin/main` and rerun the resolver; expected next work is 4.0.4.3
-  signatures planning.
-- **Shipped 4.0.4.2.3 (awaiting merge):** every system is a declared 120×88
+- **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
   render honest presence in the frame, dock, and summary; authored k-space
   exits derive a bounded deterministic halo; a world-anchored canvas fogs

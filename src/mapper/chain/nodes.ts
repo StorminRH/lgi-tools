@@ -16,6 +16,7 @@ import {
 import type { HaloLink, PlacedHaloSystem } from '../halo/halo-model';
 import { pairKey } from '../lib/pair-key';
 import type { EdgeMotion } from '../motion/motion-contract';
+import type { ChainPosition } from './intents';
 import type { SystemLabel } from './labels';
 import type { ChainState } from './reconciler';
 
@@ -32,6 +33,8 @@ export type ChainEdgeData = {
   readonly tombstoneState?: Exclude<ChainTombstoneState, 'skeleton'>;
   /** Present only on derived halo gate links; authored connections carry none. */
   readonly halo?: true;
+  /** Present only on the derived edge from an authored system to an unresolved wormhole stub. */
+  readonly stub?: true;
   /**
    * Present when exactly one endpoint sits under the fog (halo-model never
    * links two fogged systems): the renderer truncates the line so it visibly
@@ -48,9 +51,26 @@ export type ChainEdgeData = {
  */
 export const HALO_EDGE_ID_PREFIX = 'halo:';
 
+/** Synthetic node-id family for unresolved wormhole connection rows. */
+export const STUB_NODE_ID_PREFIX = 'stub:';
+
 /** Whether one canvas edge id names a derived halo gate link. */
 export function isHaloEdgeId(edgeId: string): boolean {
   return edgeId.startsWith(HALO_EDGE_ID_PREFIX);
+}
+
+/** Whether one canvas node id names a derived unresolved-wormhole stub. */
+export function isStubNodeId(nodeId: string): boolean {
+  return nodeId.startsWith(STUB_NODE_ID_PREFIX);
+}
+
+/** One unresolved wormhole connection after the layout kernel has placed its synthetic endpoint. */
+export interface PlacedStubConnection {
+  readonly connectionId: string;
+  readonly fromSystemId: number;
+  readonly signatureId: string;
+  readonly wormholeTypeCode: string | null;
+  readonly position: ChainPosition;
 }
 
 /** One edge on the canvas. Structural subset of React Flow's `Edge`. */
@@ -91,7 +111,7 @@ function stripDerivedControls(node: ChainNode): ChainNode {
 
 /**
  * Rebuilds the node list from reconciled state, preserving the live position of any dragging node,
- * then appends the derived halo systems.
+ * then appends the kernel-placed derived halo systems and unresolved wormhole stubs.
  *
  * Arrivals, departures, and labels follow reconciled state exactly. Positions do not: an id in
  * `dragging` keeps whatever position the pointer has given it, which is what makes an incoming
@@ -104,6 +124,11 @@ function stripDerivedControls(node: ChainNode): ChainNode {
  * system whose id is already reconciled contributes nothing — the authored
  * node owns the id, which is what makes the derived → authored upgrade a
  * single node's field change rather than a duplicate.
+ *
+ * Stub ids name connection documents, not systems. A jump fills that same
+ * row's `toSystemId`, removing it from the unresolved feed while the ordinary
+ * numeric destination enters reconciled truth. The two id families cannot
+ * collide, and the layout reply swaps their membership in one commit.
  */
 export function syncNodes(
   previous: readonly ChainNode[],
@@ -111,6 +136,7 @@ export function syncNodes(
   labelOf: (systemId: number) => SystemLabel,
   dragging: ReadonlySet<number>,
   halo: readonly PlacedHaloSystem[] = [],
+  stubs: readonly PlacedStubConnection[] = [],
 ): ChainNode[] {
   const localById = new Map(previous.map((node) => [node.id, node]));
 
@@ -133,7 +159,12 @@ export function syncNodes(
       height: SYSTEM_FRAME_HEIGHT,
       position: holdLocal ? local.position : placed.position,
       style: INERT_NODE_STYLE,
-      data: { name: label.name, className: label.className },
+      data: {
+        name: label.name,
+        className: label.className,
+        security: label.security ?? null,
+        whClassId: label.whClassId ?? null,
+      },
     };
   });
 
@@ -156,6 +187,8 @@ export function syncNodes(
         data: {
           name: label.name,
           className: label.className,
+          security: label.security ?? null,
+          whClassId: label.whClassId ?? null,
           halo: { ring: placed.ring, fogged: placed.fogged },
         },
       };
@@ -167,7 +200,39 @@ export function syncNodes(
       };
     });
 
-  return [...authored, ...haloNodes];
+  const stubNodes = stubs
+    .filter((stub) => systems.has(stub.fromSystemId))
+    .map((stub): ChainNode => {
+      const id = `${STUB_NODE_ID_PREFIX}${stub.connectionId}`;
+      const local = localById.get(id);
+      return {
+        ...(local === undefined ? undefined : local),
+        id,
+        type: CHAIN_NODE_TYPE,
+        width: SYSTEM_FRAME_WIDTH,
+        height: SYSTEM_FRAME_HEIGHT,
+        position: stub.position,
+        draggable: false,
+        selectable: false,
+        selected: false,
+        connectable: false,
+        focusable: false,
+        style: INERT_NODE_STYLE,
+        data: {
+          name: stub.signatureId,
+          className: stub.wormholeTypeCode,
+          security: null,
+          whClassId: null,
+          stub: {
+            connectionId: stub.connectionId,
+            fromSystemId: stub.fromSystemId,
+            signatureId: stub.signatureId,
+          },
+        },
+      };
+    });
+
+  return [...authored, ...haloNodes, ...stubNodes];
 }
 
 const EMPTY_FOGGED_IDS: ReadonlySet<number> = new Set();
@@ -188,6 +253,7 @@ export function buildEdges(
   now = Date.now(),
   haloLinks: readonly HaloLink[] = [],
   foggedSystemIds: ReadonlySet<number> = EMPTY_FOGGED_IDS,
+  stubs: readonly PlacedStubConnection[] = [],
 ): ChainEdge[] {
   const claim = newPairClaim(treeParents);
   const edges: ChainEdge[] = [];
@@ -207,6 +273,16 @@ export function buildEdges(
       target: String(toSystemId),
       data: { loop: !solid, tombstoneState },
     });
+  }
+  for (const stub of stubs) {
+    if (!connections.has(stub.connectionId)) {
+      edges.push({
+        id: stub.connectionId,
+        source: String(stub.fromSystemId),
+        target: `${STUB_NODE_ID_PREFIX}${stub.connectionId}`,
+        data: { loop: false, tombstoneState: 'active', stub: true },
+      });
+    }
   }
   appendHaloEdges(edges, haloLinks, claim, foggedSystemIds);
   return edges;
