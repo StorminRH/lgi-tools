@@ -14,8 +14,7 @@
   still PENDING** — do not mark `7/7 complete — awaiting close-out` until the
   disposition below is recorded after a fresh visual pass (bulk missing prompt,
   ID-first revive, no Remove confirm dialog).
-- **Mid-session polish (2026-08-09) — uncommitted until this chat commits; then
-  pick up for G-1:**
+- **Mid-session polish (2026-08-09) — committed `6de4f09d`; pick up for G-1:**
   - **Scanner UX:** sectioned Signatures tab (Unknown → Wormholes → Combat →
     Harvestables → Hacking); column recipes; 24rem headerless dock; CCP security
     colors on dock Security Status; house typography → Atlas.
