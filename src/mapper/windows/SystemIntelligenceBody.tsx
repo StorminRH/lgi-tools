@@ -14,7 +14,7 @@
 // shared /api/eve/names hook, with row assembly in the tested presence model.
 import { cn } from '@/components/ui/cn';
 import { useEntityNames } from '@/components/use-entity-names';
-import { systemSecurityClass } from '@/data/eve-data/security';
+import { securityStatusTextClass } from '@/data/eve-data/security';
 import { formatSec } from '@/data/eve-data/systems-search';
 import { useSignatureCounts } from '../signatures/signature-context';
 import {
@@ -42,15 +42,6 @@ const STATUS_CLASS: Record<PresenceStatusWord, string> = {
   Stale: 'text-muted',
 };
 
-function securityStatusLabel(
-  security: number | null,
-  whClassId: number | null,
-): string {
-  return systemSecurityClass(security, whClassId) === 'wormhole'
-    ? 'Wormhole'
-    : formatSec(security);
-}
-
 function IntelligenceHeader({
   systemId,
   showIdentity,
@@ -61,7 +52,6 @@ function IntelligenceHeader({
   const name = useNodeDataString(systemId, 'name');
   const className = useNodeDataString(systemId, 'className');
   const security = useNodeDataNumber(systemId, 'security');
-  const whClassId = useNodeDataNumber(systemId, 'whClassId');
   return (
     <section data-intel-section="summary" className="flex flex-col gap-1">
       {showIdentity ? (
@@ -74,10 +64,18 @@ function IntelligenceHeader({
           )}
         </div>
       ) : null}
-      <div className="flex items-baseline justify-between gap-3 font-data text-micro">
-        <span className="uppercase tracking-label text-muted">Security Status</span>
-        <span data-security-status className="text-name">
-          {securityStatusLabel(security, whClassId)}
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-data text-label uppercase tracking-label text-muted">
+          Security Status
+        </span>
+        <span
+          data-security-status
+          className={cn(
+            'font-data text-micro tabular-nums',
+            securityStatusTextClass(security),
+          )}
+        >
+          {formatSec(security)}
         </span>
       </div>
     </section>

@@ -7,6 +7,7 @@ import { isAdoptedPopupOpen } from '../windows/MapWindow';
 import {
   isEditablePasteTarget,
   scannerPasteDecision,
+  scannerPasteRefusalToast,
   type ScannerPasteDecision,
   type TrackedPasteTarget,
 } from './signature-model';
@@ -31,39 +32,12 @@ function yieldsToFocusedSurface(event: ClipboardEvent): boolean {
   ].some(Boolean);
 }
 
-function refusalToast(decision: Exclude<ScannerPasteDecision, { kind: 'apply' }>) {
-  if (decision.kind === 'reject') {
-    const suffix = decision.rejectCount === 1 ? '' : 's';
-    return {
-      message: `Scanner paste rejected — ${decision.rejectCount} row${suffix} need attention.`,
-      options: { id: 'scanner-paste:rejected', duration: 5_000 },
-    };
-  }
-  if (decision.kind === 'read-only') {
-    return {
-      message: 'Edit access is required to apply scanner output.',
-      options: { id: 'scanner-paste:read-only' },
-    };
-  }
-  if (decision.kind === 'ambiguous') {
-    return {
-      message:
-        'Tracked characters are in different systems — paste target is ambiguous.',
-      options: { id: 'scanner-paste:ambiguous', duration: 5_000 },
-    };
-  }
-  return {
-    message: 'Track an online character before pasting scanner output.',
-    options: { id: 'scanner-paste:untracked' },
-  };
-}
-
 function reportPasteDecision(
   decision: ScannerPasteDecision,
   applyRows: (systemId: number, rows: readonly ScannedRow[]) => Promise<void>,
 ): void {
   if (decision.kind !== 'apply') {
-    const refusal = refusalToast(decision);
+    const refusal = scannerPasteRefusalToast(decision);
     toast.error(refusal.message, refusal.options);
     return;
   }

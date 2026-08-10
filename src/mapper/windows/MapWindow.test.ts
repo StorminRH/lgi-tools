@@ -102,6 +102,13 @@ describe('MapWindow isolation markup', () => {
     const html = render({ kind: 'docked-bottom-left' });
     expect(html).toContain('data-map-window-placement="docked-bottom-left"');
     expect(html).toContain('bottom-4 left-4');
-    expect(html).toContain('size-[min(22rem,calc(100vw-2rem))]');
+    expect(html).toContain('size-[min(24rem,calc(100vw-2rem))]');
+  });
+
+  it('covers node-anchored placement and Escape keydown wiring', () => {
+    const html = render({ kind: 'node-anchored', systemId: 30_000_142 });
+    expect(html).toContain('data-map-window-placement="node-anchored"');
+    expect(html).toContain('[transform:var(--map-window-transform)]');
+    expect(html).toContain('h-52 w-72');
   });
 });

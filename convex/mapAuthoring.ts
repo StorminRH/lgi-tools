@@ -1008,21 +1008,30 @@ export async function runCollapse(
   return await writeRemovedSever(writeContext, decision);
 }
 
+async function gatedConnectionEdit<T>(
+  ctx: MutationCtx,
+  mapId: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  await requireMapAccess(ctx, mapId, 'edit');
+  return await run();
+}
+
 /**
  * Severs one live connection through the single server-computed collapse core.
  * All row stamps and the matching ledger event commit in this transaction.
  */
 export const severConnection = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    await requireMapAccess(ctx, mapId, 'edit');
-    return await runCollapse(ctx, {
-      mapId,
-      connectionId,
-      actor: await eventActor(ctx),
-      pilotsPresent: 'unknown',
-    });
-  },
+  handler: async (ctx, { mapId, connectionId }) =>
+    await gatedConnectionEdit(ctx, mapId, async () =>
+      runCollapse(ctx, {
+        mapId,
+        connectionId,
+        actor: await eventActor(ctx),
+        pilotsPresent: 'unknown',
+      }),
+    ),
 });
 
 async function requireRestorableEndpoints(
@@ -1111,14 +1120,14 @@ export async function runBranchRestore(
  */
 export const restoreSeveredBranch = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    await requireMapAccess(ctx, mapId, 'edit');
-    return await runBranchRestore(ctx, {
-      mapId,
-      connectionId,
-      actor: await eventActor(ctx),
-    });
-  },
+  handler: async (ctx, { mapId, connectionId }) =>
+    await gatedConnectionEdit(ctx, mapId, async () =>
+      runBranchRestore(ctx, {
+        mapId,
+        connectionId,
+        actor: await eventActor(ctx),
+      }),
+    ),
 });
 
 /**

@@ -22,7 +22,10 @@ describe('SystemIntelligenceBody', () => {
     );
     expect(dock).not.toContain('data-intel-identity');
     expect(dock).toContain('Security Status');
-    expect(dock).toContain('Wormhole');
+    expect(dock).toContain('font-data text-label uppercase tracking-label text-muted');
+    expect(dock).toContain('-1.0');
+    expect(dock).toContain('text-sec-null');
+    expect(dock).not.toContain('Wormhole');
     expect(dock).toContain('3 signatures · 2 anomalies');
   });
 

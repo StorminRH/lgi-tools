@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import type { Id } from '@/data/convex/data-model';
 import { SignatureWindow } from './SignatureWindow';
 import type { SignatureWindowRow } from './signature-model';
 
@@ -17,15 +18,6 @@ vi.mock('@/components/ui/tabs', () => ({
   ),
 }));
 
-vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: (props: { open: boolean; confirmLabel: string }) =>
-    createElement('div', {
-      'data-confirm-dialog': '',
-      'data-open': String(props.open),
-      'data-confirm-label': props.confirmLabel,
-    }),
-}));
-
 vi.mock('@/components/ui/button', () => ({
   Button: ({ children, ...props }: { children?: React.ReactNode }) =>
     createElement('button', props, children),
@@ -39,6 +31,31 @@ vi.mock('@/components/ui/pointer-menu', () => ({
 }));
 
 vi.mock('./WormholeRowEditor', () => ({ WormholeRowEditor: () => null }));
+
+vi.mock('../authoring/use-wormhole-editor-data', () => ({
+  useWormholeCodexData: () => ({
+    codex: {
+      byCode: (code: string) =>
+        code === 'B274'
+          ? {
+              code: 'B274',
+              typeId: 1,
+              farSide: false,
+              totalMass: 2_000_000_000,
+              maxJumpMass: 375_000_000,
+              massRegen: 0,
+              lifetimeMinutes: 960,
+              sizeClass: 'L',
+              targetClass: 7,
+            }
+          : null,
+      codes: () => ['B274'],
+    },
+    codes: ['B274'],
+    entry: null,
+    codexReady: true,
+  }),
+}));
 
 const ROWS: readonly SignatureWindowRow[] = [
   {
@@ -54,6 +71,78 @@ const ROWS: readonly SignatureWindowRow[] = [
     className: null,
   },
   {
+    key: 'sig-combat',
+    systemId: 1,
+    signatureId: 'CBT-001',
+    kind: 'signature',
+    group: 'Combat Site',
+    name: 'Sansha Hideout',
+    signalPct: 100,
+    firstSeenAt: 0,
+    connection: null,
+    className: null,
+  },
+  {
+    key: 'sig-gas',
+    systemId: 1,
+    signatureId: 'GAS-001',
+    kind: 'signature',
+    group: 'Gas Site',
+    name: 'Barren Perimeter Reservoir',
+    signalPct: 100,
+    firstSeenAt: 0,
+    connection: null,
+    className: null,
+  },
+  {
+    key: 'sig-data',
+    systemId: 1,
+    signatureId: 'DAT-001',
+    kind: 'signature',
+    group: 'Data Site',
+    name: 'Unsecured Frontier',
+    signalPct: 100,
+    firstSeenAt: 0,
+    connection: null,
+    className: null,
+  },
+  {
+    key: 'sig-wh',
+    systemId: 1,
+    signatureId: 'WHL-001',
+    kind: 'signature',
+    group: 'Wormhole',
+    name: 'B274',
+    signalPct: 100,
+    firstSeenAt: 0,
+    connection: {
+      connectionId: 'connection-1' as Id<'mapConnections'>,
+      _creationTime: 2_000,
+      fromSystemId: 1,
+      toSystemId: null,
+      fromSignatureId: 'WHL-001',
+      fromSignalPct: 100,
+      firstSeenAt: 0,
+      wormholeTypeCode: 'B274',
+      typedSide: null,
+      massState: null,
+      shipSize: 'M',
+      lifeStage: null,
+      lifeStageObservedAt: null,
+      deathEarliestAt: null,
+      deathLatestAt: null,
+      deletedAt: null,
+      purgeAfter: null,
+      fromDestinationHint: null,
+      toDestinationHint: null,
+      destinationProvenance: null,
+      pendingCandidates: null,
+      observedMassKg: null,
+      observedMassAtStateKg: null,
+    },
+    className: 'HS',
+  },
+  {
     key: 'sig-2',
     systemId: 1,
     signatureId: 'ANO-456',
@@ -67,17 +156,17 @@ const ROWS: readonly SignatureWindowRow[] = [
   },
 ];
 
-function render(activeSystemId: number | null, missingIds: ReadonlySet<string>): string {
+function render(scannerSystemId: number | null, missingIds: ReadonlySet<string>): string {
   return renderToStaticMarkup(
     createElement(SignatureWindow, {
-      activeSystemId,
+      scannerSystemId,
       rows: ROWS,
       missingIds,
       canEdit: true,
       complete: true,
       now: 60_000,
       onDismissMissing: vi.fn(),
-      onRemove: vi.fn(async () => undefined),
+      onRemoveMissing: vi.fn(async () => undefined),
       onIdentify: vi.fn(async () => undefined),
       mapId: 'map-a',
       authoring: {
@@ -95,36 +184,77 @@ function render(activeSystemId: number | null, missingIds: ReadonlySet<string>):
   );
 }
 
-describe('SignatureWindow component confirmation and filter states', () => {
-  it('renders counted tabs, ID/group/name columns, and the bottom-left primitive', () => {
+describe('SignatureWindow component prompt and filter states', () => {
+  it('renders sectioned Signatures, flat Anomalies, and bottom-left chrome', () => {
     const html = render(1, new Set());
     expect(html).toContain('data-map-window="signatures"');
     expect(html).toContain('data-map-window-placement="docked-bottom-left"');
     expect(html).toContain('data-tabs-default="signature"');
     expect(html).toContain('Signatures');
     expect(html).toContain('Anomalies');
+    expect(html).toContain('data-scanner-section="unknown"');
+    expect(html).toContain('data-scanner-section="wormholes"');
+    expect(html).toContain('data-scanner-section="combat"');
+    expect(html).toContain('data-scanner-section="harvestables"');
+    expect(html).toContain('data-scanner-section="hacking"');
+    expect(html).toContain('data-collapsible');
+    expect(html).toContain('data-scanner-sections');
+    expect(html).toContain('data-scanner-section-body');
+    expect(html).toContain('Unknown');
+    expect(html).toContain('Wormholes');
+    expect(html).toContain('Combat');
+    expect(html).toContain('Harvestables');
+    expect(html).toContain('Hacking');
+    expect(html).toContain('data-chevron');
     expect(html).toContain('ABC-123');
+    expect(html).toContain('Sansha Hideout');
+    expect(html).toContain('Barren Perimeter Reservoir');
+    expect(html).toContain('Unsecured Frontier');
     expect(html).toContain('Forgotten Frontier');
+    expect(html).toContain('Size');
+    expect(html).toContain('Lifetime');
+    expect(html).toContain('Est. ISK');
+    expect(html).toContain('>L<');
+    expect(html).toContain('≤ ');
+    expect(html).not.toContain('Less than 4 hours');
+    expect(html).toContain('data-signature-row-open');
+    expect(html).toContain('data-signature-isk-placeholder');
     expect(html).toContain('data-signature-signal-fill');
+    expect(html).toContain('scroll-area');
+    expect(html).not.toContain('>Group<');
     expect(html).not.toContain('>Scanner<');
     expect(html).not.toContain('Track an online character');
   });
 
-  it('highlights a missing row behind Remove/dismiss confirmation affordances', () => {
+  it('highlights missing rows and shows one bulk prompt above the scanner', () => {
     const html = render(1, new Set(['ABC-123']));
     expect(html).toContain('data-signature-missing="true"');
+    expect(html).toContain('data-signature-missing-prompt');
+    expect(html).toContain('1 signature missing from scan');
     expect(html).toContain('Dismiss');
     expect(html).toContain('Remove');
-    expect(html).toContain('data-confirm-dialog');
-    expect(html).toContain('data-confirm-label="Remove"');
+    expect(html).not.toContain('map-signature-missing-actions');
+    expect(html).not.toContain('data-confirm-dialog');
   });
 
-  it('keeps the window when untracked without retargeting to a selected node', () => {
-    const html = render(null, new Set());
+  it('pluralizes the bulk missing prompt for multiple IDs', () => {
+    const html = render(1, new Set(['ABC-123', 'CBA-120']));
+    expect(html).toContain('2 signatures missing from scan');
+  });
+
+  it('shows root-system rows without a tracked online character', () => {
+    const html = render(1, new Set());
     expect(html).toContain('data-map-window="signatures"');
     expect(html).toContain('Signatures');
     expect(html).toContain('Anomalies');
-    expect(html).not.toContain('data-signature-id="ABC-123"');
+    expect(html).toContain('data-signature-id="ABC-123"');
     expect(html).not.toContain('Track an online character');
+  });
+
+  it('stays empty when the map has no chain root yet', () => {
+    const html = render(null, new Set());
+    expect(html).toContain('data-map-window="signatures"');
+    expect(html).not.toContain('data-signature-id="ABC-123"');
+    expect(html).not.toContain('data-scanner-section=');
   });
 });

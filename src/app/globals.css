@@ -73,6 +73,21 @@
    * EVE overview's red-for-hostiles convention. Surfaced as text-hostile. */
   --color-hostile: #dd4444;
 
+  /* In-game system security status colors (CCP Developer Docs — System
+   * Security / Security Status Colors). Banded on the rounded 0.1 display
+   * value; else covers ≤0.0 (null-sec and negative WH true-sec). */
+  --color-sec-10: #2c75e1;
+  --color-sec-09: #399aeb;
+  --color-sec-08: #4ecef8;
+  --color-sec-07: #60dba3;
+  --color-sec-06: #71e754;
+  --color-sec-05: #f5ff83;
+  --color-sec-04: #dc6c06;
+  --color-sec-03: #ce440f;
+  --color-sec-02: #bb1116;
+  --color-sec-01: #731f1f;
+  --color-sec-null: #8d3163;
+
   /* Alert red — bright attention red for urgent transient states (dying map
    * edges, and later any other "this needs eyes now" chrome). Brighter than
    * --color-hostile so it still reads through opacity pulses and library

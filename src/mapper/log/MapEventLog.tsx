@@ -53,7 +53,7 @@ export function MapEventLog({
             <span className="flex w-full items-center gap-2">
               <span
                 data-map-event-log-toggle
-                className="text-label uppercase tracking-label text-muted"
+                className="font-data text-label uppercase tracking-label text-muted"
               >
                 Audit Log
               </span>

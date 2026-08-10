@@ -18,7 +18,6 @@ import { feedFreshnessIndex } from '../tracking/presence-model';
 import { SignatureRowsProvider } from './signature-context';
 import {
   buildSignatureRows,
-  trackedPasteSystemId,
   trackedPasteTarget,
   type ConnectionSignatureInput,
   type SignatureWindowRow,
@@ -36,7 +35,7 @@ const NONE_TARGET: TrackedPasteTarget = { kind: 'none' };
 interface MissingSignatures {
   readonly bySystem: ReadonlyMap<number, ReadonlySet<string>>;
   readonly replace: (systemId: number, signatureIds: readonly string[]) => void;
-  readonly clear: (systemId: number, signatureId: string) => void;
+  readonly clearAll: (systemId: number) => void;
 }
 
 function connectionRows(
@@ -122,16 +121,10 @@ function useMissingSignatures(): MissingSignatures {
   const replace = useCallback((systemId: number, signatureIds: readonly string[]) => {
     setBySystem((previous) => new Map(previous).set(systemId, new Set(signatureIds)));
   }, []);
-  const clear = useCallback((systemId: number, signatureId: string) => {
-    setBySystem((previous) => {
-      const next = new Map(previous);
-      const held = new Set(next.get(systemId) ?? []);
-      held.delete(signatureId);
-      next.set(systemId, held);
-      return next;
-    });
+  const clearAll = useCallback((systemId: number) => {
+    setBySystem((previous) => new Map(previous).set(systemId, new Set()));
   }, []);
-  return { bySystem, replace, clear };
+  return { bySystem, replace, clearAll };
 }
 
 function useApplySignatureScan(
@@ -152,34 +145,38 @@ function useApplySignatureScan(
   );
 }
 
-function useRemoveSignature(
+function useRemoveMissingSignatures(
   mapId: string,
-  clearMissing: MissingSignatures['clear'],
+  clearAllMissing: MissingSignatures['clearAll'],
 ) {
   const removeSignatures = useMutation(api.mapScan.removeSignatures);
   const restoreSignatures = useMutation(api.mapScan.restoreSignatures);
   return useCallback(
-    async (row: SignatureWindowRow): Promise<void> => {
-      const signatureIds = [row.signatureId];
-      await removeSignatures({ mapId, systemId: row.systemId, signatureIds });
-      clearMissing(row.systemId, row.signatureId);
+    async (systemId: number, signatureIds: readonly string[]): Promise<void> => {
+      if (signatureIds.length === 0) return;
+      await removeSignatures({
+        mapId,
+        systemId,
+        signatureIds: [...signatureIds],
+      });
+      clearAllMissing(systemId);
       announceSignatureRemoval({
-        systemId: row.systemId,
+        systemId,
         signatureIds,
         onUndo: () => {
           void restoreSignatures({
             mapId,
-            systemId: row.systemId,
-            signatureIds,
+            systemId,
+            signatureIds: [...signatureIds],
           }).catch(() => {
             toast.error('Signature could not be restored.', {
-              id: `signature-restore:${row.systemId}:${row.signatureId}`,
+              id: `signature-restore:${systemId}:batch`,
             });
           });
         },
       });
     },
-    [clearMissing, mapId, removeSignatures, restoreSignatures],
+    [clearAllMissing, mapId, removeSignatures, restoreSignatures],
   );
 }
 
@@ -198,6 +195,7 @@ function missingIdsForSystem(
  */
 export function SignatureProvider({
   mapId,
+  rootSystemId,
   canEdit,
   connectionDetails,
   unresolvedHoles,
@@ -205,6 +203,8 @@ export function SignatureProvider({
   children,
 }: {
   readonly mapId: string;
+  /** Chain root — the scanner window lists this system's rows, like the dock. */
+  readonly rootSystemId: number | null;
   readonly canEdit: boolean;
   readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
@@ -217,29 +217,34 @@ export function SignatureProvider({
     unresolvedHoles,
   );
   const pasteTarget = useTrackedPasteTarget(mapId);
-  const activeSystemId = trackedPasteSystemId(pasteTarget);
-  const { bySystem: missingBySystem, replace, clear } = useMissingSignatures();
+  const scannerSystemId = rootSystemId;
+  const { bySystem: missingBySystem, replace, clearAll } = useMissingSignatures();
   const applyRows = useApplySignatureScan(mapId, replace);
   useScannerPaste({ canEdit, pasteTarget, applyRows });
-  const removeRow = useRemoveSignature(mapId, clear);
+  const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
   const identifyRow = useIdentifySignature(mapId);
   const now = useSignatureClock(rows.length > 0);
-  const dismissMissing = useCallback((signatureId: string) => {
-    if (activeSystemId !== null) clear(activeSystemId, signatureId);
-  }, [activeSystemId, clear]);
+  const missingIds = missingIdsForSystem(missingBySystem, scannerSystemId);
+  const dismissMissing = useCallback(() => {
+    if (scannerSystemId !== null) clearAll(scannerSystemId);
+  }, [scannerSystemId, clearAll]);
+  const removeMissingRows = useCallback(async () => {
+    if (scannerSystemId === null || missingIds.size === 0) return;
+    await removeMissing(scannerSystemId, [...missingIds]);
+  }, [missingIds, removeMissing, scannerSystemId]);
 
   return (
     <SignatureRowsProvider value={rows}>
       {children}
       <SignatureWindow
-        activeSystemId={activeSystemId}
+        scannerSystemId={scannerSystemId}
         rows={rows}
-        missingIds={missingIdsForSystem(missingBySystem, activeSystemId)}
+        missingIds={missingIds}
         canEdit={canEdit}
         complete={complete}
         now={now}
         onDismissMissing={dismissMissing}
-        onRemove={removeRow}
+        onRemoveMissing={removeMissingRows}
         onIdentify={identifyRow}
         mapId={mapId}
         authoring={authoring}

@@ -450,6 +450,42 @@ positions, and configuration now would violate the simplicity rule by shipping
 controls before a real need exists. *Size:* S–M. *Trigger:* repeated obstruction
 observed during the 4.0 map-content and overlay-window UX gates.
 
+## Atlas interaction
+
+> Operator-noted gaps from the 4.0.4.3 signature-paste polish pass (2026-08-09).
+> Not for today's session — capture for a future Atlas interaction slice.
+
+- **Retarget persistent windows to the pilot's current system, not the chain root**
+  (operator direction 2026-08-09). *What:* the chain-root dock, the bottom-left
+  scanner window, and any future persistent system-scoped surfaces should show intel
+  for **the system the user's character is currently in** — not `rootSystemId`. When a
+  tractor pilot jumps out of root, both the dock and the scanner window should update
+  to that destination system. The list will often be empty until someone pastes a scan
+  there; collaborative map data still persists, so another pilot's earlier paste
+  should populate it for everyone with map access. *Why deferred:* mid-session signature
+  polish paused before G-1; retargeting needs a deliberate pass on fallbacks (logged-off
+  character, multi-alt ambiguity, which pilot wins) without re-breaking collaborative
+  visibility. *Size:* M. *Trigger:* the next Atlas interaction or signatures polish
+  session after G-1 disposition.
+
+- **Root node opens the standard System Info card, not a privileged dock.** *What:*
+  clicking the root should surface the same node-anchored System Info summary card
+  other systems get on selection — root is not a special UI hub. The persistent dock
+  and scanner window follow the pilot; root intel is on-demand via the card like every
+  other system. *Why deferred:* same slice as the retargeting item above. *Size:* S
+  (mostly wiring/derivation). *Trigger:* with the current-system window retarget.
+
+- **Stop overloading chain root as an interaction anchor.** *What:* `rootSystemId` is
+  the compass/layout kernel's starting point only — tree derivation, radial placement,
+  attachment order. It is not a "current system" for users. Today it is overloaded as a
+  stand-in for interactive readouts ("current-system dock" comments, dock body,
+  scanner-window filter, signature counts) even though location tracking already ships
+  for paste and presence. Peel those UI surfaces off root and bind them to tracked
+  current system (with honest fallbacks when nobody is online). *Why deferred:* product
+  decision recorded here; implementation couples to the retargeting work above. *Size:*
+  M (derivation + window wiring + tests/probes). *Trigger:* the Atlas interaction slice
+  that owns current-system window behavior.
+
 ## React Flow attribution — styled credit home
 
 **What:** give React Flow a deliberate styled credit — e.g. an isk-green footer

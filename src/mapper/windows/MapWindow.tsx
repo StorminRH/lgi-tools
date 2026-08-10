@@ -30,6 +30,17 @@ const ADOPTED_POPUP_SELECTOR = [
   '[data-open] [role="menu"]',
 ].join(',');
 
+/** Placement classes for the docked-bottom-left scanner square. */
+export const MAP_SCANNER_DOCK_CLASS =
+  'bottom-4 left-4 size-[min(24rem,calc(100vw-2rem))] max-h-[calc(100dvh-7rem)]';
+
+/**
+ * Frosted missing-signatures prompt parked just above the scanner dock.
+ * Static Tailwind string so the utility is discoverable at build time.
+ */
+export const MAP_SCANNER_MISSING_PROMPT_CLASS =
+  'pointer-events-auto absolute bottom-[calc(1rem+24rem+0.5rem)] left-4 z-sticky w-[min(24rem,calc(100vw-2rem))]';
+
 /** Whether an adopted Base UI popup currently owns Escape. */
 export function isAdoptedPopupOpen(): boolean {
   return typeof document !== 'undefined' && document.querySelector(ADOPTED_POPUP_SELECTOR) !== null;
@@ -85,7 +96,7 @@ function placementClassName(
   }
   if (placement.kind === 'docked-bottom-left') {
     // Square sibling for the scanner: tabs own top-left chrome; list scrolls inside.
-    return 'bottom-4 left-4 size-[min(22rem,calc(100vw-2rem))] max-h-[calc(100dvh-7rem)]';
+    return MAP_SCANNER_DOCK_CLASS;
   }
   // node-anchored and edge-anchored both ride `--map-window-transform`.
   if (placement.kind === 'edge-anchored') {
@@ -138,6 +149,40 @@ function WindowHeader({
   );
 }
 
+function windowChromeClass(
+  placement: WindowPlacement,
+  overlay: boolean,
+): string {
+  return cn(
+    'nokey absolute z-[var(--map-window-z)] flex min-h-0 flex-col overflow-hidden text-ui',
+    overlay
+      ? cn('pointer-events-none rounded-ctl', mapOverlaySurface)
+      : cn('pointer-events-auto rounded-card', mapFrostedSurface),
+    placementClassName(placement, overlay),
+    (placement.kind === 'edge-anchored' || placement.kind === 'node-anchored')
+      && 'map-node-enter',
+  );
+}
+
+function windowBodyClass(
+  placement: WindowPlacement,
+  overlay: boolean,
+): string {
+  const scannerDock = placement.kind === 'docked-bottom-left';
+  return cn(
+    scrollArea,
+    'min-h-0 flex-1 overscroll-contain',
+    scannerDock ? 'flex flex-col overflow-hidden p-0' : 'overflow-y-auto',
+    overlay
+      ? 'px-2.5 pb-2 pt-0.5 text-left'
+      : scannerDock
+        ? null
+        // pl compensates the painted 10px track when both-edges is ignored
+        // (some engines only reserve the classic right gutter).
+        : 'py-2 pl-[22px] pr-3',
+  );
+}
+
 /** The map's single window primitive: chrome and isolation only. */
 export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
   function MapWindow(
@@ -157,6 +202,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
   ) {
     const surfaceKind = surfaceKindOf(placement);
     const rootRef = useRef<HTMLDivElement | null>(null);
+    const overlay = appearance === 'overlay';
 
     useEffect(() => {
       const element = rootRef.current;
@@ -181,26 +227,13 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
       event.stopPropagation();
     };
 
-    const overlay = appearance === 'overlay';
-
     return (
       <section
         ref={setRootRef}
         data-map-window={windowId}
         data-map-window-placement={placement.kind}
         data-map-window-appearance={appearance}
-        className={cn(
-          'nokey absolute z-[var(--map-window-z)] flex min-h-0 flex-col overflow-hidden text-ui',
-          overlay
-            ? // Passive readout: nothing inside is interactive, so the canvas
-              // (node clicks, drags, box-select, pans) stays reachable under it.
-              cn('pointer-events-none rounded-ctl', mapOverlaySurface)
-            : cn('pointer-events-auto rounded-card', mapFrostedSurface),
-          placementClassName(placement, overlay),
-          (placement.kind === 'edge-anchored' ||
-            placement.kind === 'node-anchored') &&
-            'map-node-enter',
-        )}
+        className={windowChromeClass(placement, overlay)}
         onKeyDown={overlay ? undefined : handleKeyDown}
         onPointerDown={overlay ? undefined : onActivate}
       >
@@ -214,20 +247,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         ) : null}
         <div
           data-map-window-scroll
-          className={cn(
-            scrollArea,
-            'min-h-0 flex-1 overscroll-contain',
-            placement.kind === 'docked-bottom-left'
-              ? 'flex flex-col overflow-hidden p-0'
-              : 'overflow-y-auto',
-            overlay
-              ? 'px-2.5 pb-2 pt-0.5 text-left'
-              : placement.kind === 'docked-bottom-left'
-                ? null
-                : // pl compensates the painted 10px track when both-edges is ignored
-                  // (some engines only reserve the classic right gutter).
-                  'py-2 pl-[22px] pr-3',
-          )}
+          className={windowBodyClass(placement, overlay)}
         >
           {children}
         </div>

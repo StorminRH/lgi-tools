@@ -55,9 +55,10 @@ describe('matchSystem', () => {
 });
 
 describe('formatSec', () => {
-  it('renders one decimal, with a dash for unknown security', () => {
+  it('renders one decimal with CCP rounding, with a dash for unknown security', () => {
     expect(formatSec(0.9)).toBe('0.9');
     expect(formatSec(-0.99)).toBe('-1.0');
+    expect(formatSec(0.04)).toBe('0.1');
     expect(formatSec(null)).toBe('—');
   });
 });

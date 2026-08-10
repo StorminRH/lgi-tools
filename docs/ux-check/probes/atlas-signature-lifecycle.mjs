@@ -1,6 +1,6 @@
 // Session 4.0.4.3.1 G-1: two authenticated clients watch the full scanner
 // lifecycle on a fresh disposable map — paste → re-paste (no churn) → per-kind
-// missing confirmation (dismiss, remove, undo) → ghosted stub surfacing →
+// missing (dismiss, remove, undo) → ghosted stub surfacing →
 // typed-code editing → real jump resolving the stub into an authored system.
 // One-shot by design: the map keeps its rows, jump, and ledger for review.
 import {
@@ -166,29 +166,25 @@ export default {
         .locator('[data-signature-id="EAR-696"][data-signature-missing]')
         .count()) === 0,
     );
-    await earRow.getByRole('button', { name: 'Dismiss' }).click();
+    const missingPrompt = () => page.locator('[data-signature-missing-prompt]');
+    await missingPrompt().getByRole('button', { name: 'Dismiss' }).click();
     await page.waitForTimeout(400);
     check(
       'dismiss keeps the row and clears the highlight',
       (await earRow.count()) === 1
       && (await page
         .locator('[data-signature-id="EAR-696"][data-signature-missing]')
-        .count()) === 0,
+        .count()) === 0
+      && (await missingPrompt().count()) === 0,
     );
 
-    // Flag it again, remove through the confirmation dialog, then undo.
+    // Flag it again, remove from the bulk prompt (no confirm dialog), then undo.
     await pasteScan(page, SCAN_WITHOUT_EAR);
     await earRow
       .locator('xpath=self::*[@data-signature-missing]')
       .waitFor({ state: 'attached', timeout: 15_000 });
-    await earRow.getByRole('button', { name: 'Remove' }).click();
-    const dialog = page.getByRole('dialog');
-    await dialog.waitFor({ state: 'visible', timeout: 10_000 });
-    check(
-      'removal asks for confirmation with the 24-hour consequence',
-      /Remove EAR-696\?/.test((await dialog.textContent()) ?? ''),
-    );
-    await dialog.getByRole('button', { name: 'Remove' }).click();
+    await missingPrompt().waitFor({ state: 'visible', timeout: 10_000 });
+    await missingPrompt().getByRole('button', { name: 'Remove' }).click();
     await Promise.all([
       page
         .locator('[data-signature-id="EAR-696"]')
@@ -197,7 +193,7 @@ export default {
         .locator('[data-signature-id="EAR-696"]')
         .waitFor({ state: 'detached', timeout: 15_000 }),
     ]);
-    check('confirmed removal leaves both clients', true);
+    check('prompt Remove leaves both clients', true);
     const undo = page.getByRole('button', { name: 'Undo' });
     await undo.waitFor({ state: 'visible', timeout: 5_000 });
     await undo.click();
@@ -230,17 +226,15 @@ export default {
       cbaText.includes('C247') && cbaText.includes('C3'),
     );
 
-    // Remove the second, untyped hole via the same confirmation flow — its
+    // Remove the second, untyped hole via the same prompt Remove — its
     // stub departs both clients through the one collapse pathway.
     await pasteScan(page, SCAN_WITHOUT_LXX);
     const lxxRow = signatureRow(page, 'LXX-844');
     await lxxRow
       .locator('xpath=self::*[@data-signature-missing]')
       .waitFor({ state: 'attached', timeout: 15_000 });
-    await lxxRow.getByRole('button', { name: 'Remove' }).click();
-    const lxxDialog = page.getByRole('dialog');
-    await lxxDialog.waitFor({ state: 'visible', timeout: 10_000 });
-    await lxxDialog.getByRole('button', { name: 'Remove' }).click();
+    await missingPrompt().waitFor({ state: 'visible', timeout: 10_000 });
+    await missingPrompt().getByRole('button', { name: 'Remove' }).click();
     await Promise.all([
       waitForTopology(page, 2, 1), // origin + one remaining stub.
       waitForTopology(second.page, 2, 1),
@@ -293,11 +287,11 @@ export default {
       && (await page.locator('.react-flow__edge').count()) === 1,
     );
 
-    // The scanner window follows the pilot to the destination; the origin's
-    // rows stay reachable through its System Info card, not by retargeting.
+    // The scanner window stays on the chain root; the pilot's destination
+    // rows are reachable through that system's summary card, not by retargeting.
     check(
-      'scanner window follows the pilot to the destination system',
-      new RegExp(`Current system ${DESTINATION_SYSTEM_ID}`).test(
+      'scanner window keeps the chain-root signature rows after the jump',
+      /ABC-123/.test(
         (await page.locator('[data-signature-window]').textContent()) ?? '',
       ),
     );

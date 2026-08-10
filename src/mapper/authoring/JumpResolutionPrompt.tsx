@@ -86,7 +86,7 @@ export function JumpResolutionPrompt({
           mapFrostedSurface,
         )}
       >
-        <span className="text-label uppercase tracking-label text-muted">
+        <span className="font-data text-label uppercase tracking-label text-muted">
           Auto-linked signature
         </span>
         {current !== null ? (

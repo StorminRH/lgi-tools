@@ -10,25 +10,33 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Collapsible } from '@/components/ui/collapsible';
 import {
   MenuItem,
   menuRow,
   PointerMenu,
   pointerAnchor,
 } from '@/components/ui/pointer-menu';
+import { scrollArea } from '@/components/ui/scroll-area';
 import { Tabs } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/toast';
-import {
-  SIG_GROUPS,
-  type ScannedKind,
-  type SigGroup,
-} from '@/data/maps/scan-parse';
+import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
 import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
-import { MapWindow } from '../windows/MapWindow';
+import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
+import { mapFrostedSurface } from '../map-frosted-surface';
+import {
+  MAP_SCANNER_MISSING_PROMPT_CLASS,
+  MapWindow,
+} from '../windows/MapWindow';
 import {
   filterSignatureRows,
   formatSignatureAge,
+  groupSignatureSections,
+  scannerWormholeLifetime,
+  scannerWormholeSize,
+  type ScannerSection,
+  type ScannerSectionId,
   type SignatureWindowRow,
 } from './signature-model';
 import { WormholeRowEditor } from './WormholeRowEditor';
@@ -77,9 +85,9 @@ interface SignatureRowProps {
   readonly row: SignatureWindowRow;
   readonly missing: boolean;
   readonly canEdit: boolean;
-  readonly now: number;
-  readonly onDismiss: () => void;
-  readonly onRequestRemove: (trigger: HTMLButtonElement) => void;
+  readonly columnsClassName: string;
+  readonly cells: ReactNode;
+  readonly showOpenAffordance: boolean;
   readonly onOpenActions: OpenRowActions;
 }
 
@@ -100,31 +108,41 @@ function signatureName(row: SignatureWindowRow): string {
   return row.name ?? 'Unresolved';
 }
 
-function signatureGroup(row: SignatureWindowRow): string {
-  return row.className ?? row.group ?? 'Unknown';
-}
-
 function rowActionLabel(row: SignatureWindowRow): string {
   return row.connection === null
     ? `Identify signature ${row.signatureId}`
     : `Edit wormhole ${row.signatureId}`;
 }
 
-const SIGNATURE_ROW_COLS =
-  'grid w-full grid-cols-[3.75rem_5.75rem_minmax(0,1fr)_2.25rem] items-center gap-2';
+const SECTION_COLUMNS: Readonly<Record<ScannerSectionId, string>> = {
+  unknown: 'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_2.25rem] items-center gap-2',
+  wormholes:
+    'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_2rem_minmax(4.5rem,auto)_2.25rem] items-center gap-2',
+  combat: 'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_4.75rem] items-center gap-2',
+  harvestables: 'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_4.75rem] items-center gap-2',
+  hacking: 'grid w-full grid-cols-[3.75rem_minmax(0,1fr)] items-center gap-2',
+};
+
+const ANOMALY_COLUMNS =
+  'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_2.25rem] items-center gap-2';
 
 function SignatureRowContent({
   row,
   editable,
   onOpenActions,
+  columnsClassName,
   children,
 }: {
   readonly row: SignatureWindowRow;
   readonly editable: boolean;
   readonly onOpenActions: OpenRowActions;
+  readonly columnsClassName: string;
   readonly children: ReactNode;
 }) {
-  const className = cn('relative z-base text-left', SIGNATURE_ROW_COLS);
+  const className = cn(
+    'relative z-base min-h-7 w-full flex-1 text-left',
+    columnsClassName,
+  );
   if (!editable) return <div className={className}>{children}</div>;
   return (
     <Button
@@ -139,59 +157,13 @@ function SignatureRowContent({
   );
 }
 
-function MissingSignatureActions({
-  canEdit,
-  onDismiss,
-  onRequestRemove,
-}: Pick<SignatureRowProps, 'canEdit' | 'onDismiss' | 'onRequestRemove'>) {
-  return (
-    <div className="map-signature-missing-actions relative z-base col-span-4 flex justify-end gap-1 border-t pt-1">
-      <Button
-        variant="bare"
-        className="px-2.5 py-[5px] text-nav text-muted hover:text-name"
-        onClick={onDismiss}
-      >
-        Dismiss
-      </Button>
-      {canEdit ? (
-        <Button
-          variant="danger"
-          size="sm"
-          onClick={(event) => onRequestRemove(event.currentTarget)}
-        >
-          Remove
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-function OptionalMissingSignatureActions({
-  missing,
-  canEdit,
-  onDismiss,
-  onRequestRemove,
-}: Pick<
-  SignatureRowProps,
-  'missing' | 'canEdit' | 'onDismiss' | 'onRequestRemove'
->) {
-  if (!missing) return null;
-  return (
-    <MissingSignatureActions
-      canEdit={canEdit}
-      onDismiss={onDismiss}
-      onRequestRemove={onRequestRemove}
-    />
-  );
-}
-
 function SignatureRow({
   row,
   missing,
   canEdit,
-  now,
-  onDismiss,
-  onRequestRemove,
+  columnsClassName,
+  cells,
+  showOpenAffordance,
   onOpenActions,
 }: SignatureRowProps) {
   const editable = rowIsEditable(row, canEdit);
@@ -201,7 +173,7 @@ function SignatureRow({
       data-signature-id={row.signatureId}
       data-signature-missing={missingDataAttribute(missing)}
       className={cn(
-        'relative isolate min-h-9 overflow-hidden rounded-ctl px-2 py-1 font-data text-micro',
+        'group/sig-row relative isolate flex min-h-9 flex-col overflow-hidden rounded-ctl px-2 py-1 font-data text-micro transition-colors hover:bg-row-hover',
         signatureRowTone(missing),
       )}
     >
@@ -210,32 +182,279 @@ function SignatureRow({
         row={row}
         editable={editable}
         onOpenActions={onOpenActions}
+        columnsClassName={columnsClassName}
       >
-        <span className="text-center text-isk tabular-nums">{row.signatureId}</span>
-        <span className="truncate text-muted">{signatureGroup(row)}</span>
-        <span className="truncate text-name">{signatureName(row)}</span>
-        <span className="text-center text-muted tabular-nums">
-          {formatSignatureAge(row.firstSeenAt, now)}
-        </span>
+        {cells}
       </SignatureRowContent>
-      <OptionalMissingSignatureActions
-        missing={missing}
-        canEdit={canEdit}
-        onDismiss={onDismiss}
-        onRequestRemove={onRequestRemove}
-      />
+      {showOpenAffordance ? (
+        <span
+          data-signature-row-open
+          aria-hidden
+          className="pointer-events-none absolute right-1.5 top-1/2 z-base -translate-y-1/2 font-ui text-nav font-semibold text-name opacity-0 transition-opacity duration-fast motion-reduce:transition-none group-hover/sig-row:opacity-100 group-has-[:focus-visible]/sig-row:opacity-100"
+        >
+          &gt;
+        </span>
+      ) : null}
     </li>
   );
 }
 
-function SignatureTable({
+function IdCell({ row }: { readonly row: SignatureWindowRow }) {
+  return <span className="text-center text-isk tabular-nums">{row.signatureId}</span>;
+}
+
+function NameCell({ row }: { readonly row: SignatureWindowRow }) {
+  return <span className="truncate text-name">{signatureName(row)}</span>;
+}
+
+function AgeCell({
+  row,
+  now,
+}: {
+  readonly row: SignatureWindowRow;
+  readonly now: number;
+}) {
+  return (
+    <span className="text-center text-muted tabular-nums">
+      {formatSignatureAge(row.firstSeenAt, now)}
+    </span>
+  );
+}
+
+function BlankIskCell() {
+  return (
+    <span data-signature-isk-placeholder className="text-right text-muted tabular-nums">
+      —
+    </span>
+  );
+}
+
+function sectionCells(
+  sectionId: ScannerSectionId,
+  row: SignatureWindowRow,
+  now: number,
+  entry: WormholeCodexEntry | null,
+): ReactNode {
+  switch (sectionId) {
+    case 'unknown':
+      return (
+        <>
+          <IdCell row={row} />
+          <NameCell row={row} />
+          <AgeCell row={row} now={now} />
+        </>
+      );
+    case 'wormholes':
+      return (
+        <>
+          <IdCell row={row} />
+          <NameCell row={row} />
+          <span className="text-center text-muted tabular-nums">
+            {scannerWormholeSize(row.connection, entry)}
+          </span>
+          <span className="truncate text-center text-muted">
+            {scannerWormholeLifetime(row.connection, entry, now)}
+          </span>
+          <AgeCell row={row} now={now} />
+        </>
+      );
+    case 'combat':
+    case 'harvestables':
+      return (
+        <>
+          <IdCell row={row} />
+          <NameCell row={row} />
+          <BlankIskCell />
+        </>
+      );
+    case 'hacking':
+      return (
+        <>
+          <IdCell row={row} />
+          <NameCell row={row} />
+        </>
+      );
+  }
+}
+
+function sectionHeaders(sectionId: ScannerSectionId): readonly string[] {
+  switch (sectionId) {
+    case 'unknown':
+      return ['ID', 'Name', 'Age'];
+    case 'wormholes':
+      return ['ID', 'Name', 'Size', 'Lifetime', 'Age'];
+    case 'combat':
+    case 'harvestables':
+      return ['ID', 'Name', 'Est. ISK'];
+    case 'hacking':
+      return ['ID', 'Name'];
+  }
+}
+
+function ColumnHeader({
+  columnsClassName,
+  labels,
+}: {
+  readonly columnsClassName: string;
+  readonly labels: readonly string[];
+}) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        columnsClassName,
+        'px-2 font-data text-label uppercase tracking-label text-muted',
+      )}
+    >
+      {labels.map((label) => (
+        <span
+          key={label}
+          className={label === 'Est. ISK' || label === 'Name' ? 'text-left' : 'text-center'}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ScannerSectionBlock({
+  section,
+  missingIds,
+  canEdit,
+  now,
+  resolveEntry,
+  onOpenActions,
+}: {
+  readonly section: ScannerSection;
+  readonly missingIds: ReadonlySet<string>;
+  readonly canEdit: boolean;
+  readonly now: number;
+  readonly resolveEntry: (code: string | null) => WormholeCodexEntry | null;
+  readonly onOpenActions: (
+    row: SignatureWindowRow,
+    trigger: HTMLElement,
+    clientX: number,
+    clientY: number,
+  ) => void;
+}) {
+  const columnsClassName = SECTION_COLUMNS[section.id];
+  return (
+    <section
+      data-scanner-section={section.id}
+      className="border-b border-border-soft last:border-b-0"
+    >
+      <Collapsible
+        defaultOpen
+        className="border-0"
+        headerClassName="justify-center border-b border-border-soft px-2 py-1"
+        header={
+          <span className="relative flex w-full items-center justify-center">
+            <span className="font-data text-label uppercase tracking-label text-name">
+              {section.title}
+            </span>
+            <span
+              data-chevron
+              aria-hidden
+              className="absolute right-0 inline-block shrink-0 text-micro text-muted transition-transform"
+            >
+              ▾
+            </span>
+          </span>
+        }
+      >
+        <div
+          data-scanner-section-body
+          className="flex flex-col gap-1.5 border-l border-border-soft py-1 pl-2"
+        >
+          <ColumnHeader
+            columnsClassName={columnsClassName}
+            labels={sectionHeaders(section.id)}
+          />
+          <ul className="flex flex-col gap-1">
+            {section.rows.map((row) => {
+              const entry = resolveEntry(row.connection?.wormholeTypeCode ?? null);
+              return (
+                <SignatureRow
+                  key={row.key}
+                  row={row}
+                  missing={missingIds.has(row.signatureId)}
+                  canEdit={canEdit}
+                  columnsClassName={columnsClassName}
+                  cells={sectionCells(section.id, row, now, entry)}
+                  showOpenAffordance={row.connection !== null}
+                  onOpenActions={(trigger, clientX, clientY) =>
+                    onOpenActions(row, trigger, clientX, clientY)
+                  }
+                />
+              );
+            })}
+          </ul>
+        </div>
+      </Collapsible>
+    </section>
+  );
+}
+
+function SignaturesTabBody({
+  rows,
+  scannerSystemId,
+  missingIds,
+  canEdit,
+  complete,
+  now,
+  onOpenActions,
+}: {
+  readonly rows: readonly SignatureWindowRow[];
+  readonly scannerSystemId: number | null;
+  readonly missingIds: ReadonlySet<string>;
+  readonly canEdit: boolean;
+  readonly complete: boolean;
+  readonly now: number;
+  readonly onOpenActions: (
+    row: SignatureWindowRow,
+    trigger: HTMLElement,
+    clientX: number,
+    clientY: number,
+  ) => void;
+}) {
+  const { codex } = useWormholeCodexData(null);
+  const resolveEntry = (code: string | null): WormholeCodexEntry | null =>
+    code === null || codex === null ? null : codex.byCode(code);
+  const sections = groupSignatureSections(rows, scannerSystemId);
+  if (sections.length === 0) {
+    return (
+      <p
+        data-signature-empty
+        className="rounded-ctl border border-border-soft px-3 py-4 text-center font-data text-micro text-muted"
+      >
+        {complete ? 'No scanner rows in this system.' : 'Reading scanner rows…'}
+      </p>
+    );
+  }
+  return (
+    <div data-scanner-sections className="flex flex-col">
+      {sections.map((section) => (
+        <ScannerSectionBlock
+          key={section.id}
+          section={section}
+          missingIds={missingIds}
+          canEdit={canEdit}
+          now={now}
+          resolveEntry={resolveEntry}
+          onOpenActions={onOpenActions}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AnomalyTable({
   rows,
   missingIds,
   canEdit,
   complete,
   now,
-  onDismiss,
-  onRequestRemove,
   onOpenActions,
 }: {
   readonly rows: readonly SignatureWindowRow[];
@@ -243,11 +462,6 @@ function SignatureTable({
   readonly canEdit: boolean;
   readonly complete: boolean;
   readonly now: number;
-  readonly onDismiss: (signatureId: string) => void;
-  readonly onRequestRemove: (
-    row: SignatureWindowRow,
-    trigger: HTMLButtonElement,
-  ) => void;
   readonly onOpenActions: (
     row: SignatureWindowRow,
     trigger: HTMLElement,
@@ -257,18 +471,7 @@ function SignatureTable({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div
-        aria-hidden
-        className={cn(
-          SIGNATURE_ROW_COLS,
-          'px-2 font-ui text-label uppercase tracking-label text-muted',
-        )}
-      >
-        <span className="text-center">ID</span>
-        <span className="text-center">Group</span>
-        <span className="text-center">Name</span>
-        <span className="text-center">Age</span>
-      </div>
+      <ColumnHeader columnsClassName={ANOMALY_COLUMNS} labels={['ID', 'Name', 'Age']} />
       {rows.length === 0 ? (
         <p
           data-signature-empty
@@ -284,9 +487,15 @@ function SignatureTable({
               row={row}
               missing={missingIds.has(row.signatureId)}
               canEdit={canEdit}
-              now={now}
-              onDismiss={() => onDismiss(row.signatureId)}
-              onRequestRemove={(trigger) => onRequestRemove(row, trigger)}
+              columnsClassName={ANOMALY_COLUMNS}
+              cells={
+                <>
+                  <IdCell row={row} />
+                  <NameCell row={row} />
+                  <AgeCell row={row} now={now} />
+                </>
+              }
+              showOpenAffordance={false}
               onOpenActions={(trigger, clientX, clientY) =>
                 onOpenActions(row, trigger, clientX, clientY)
               }
@@ -299,14 +508,15 @@ function SignatureTable({
 }
 
 interface SignatureWindowProps {
-  readonly activeSystemId: number | null;
+  /** Map chain root — same system scope as the dock scanner summary. */
+  readonly scannerSystemId: number | null;
   readonly rows: readonly SignatureWindowRow[];
   readonly missingIds: ReadonlySet<string>;
   readonly canEdit: boolean;
   readonly complete: boolean;
   readonly now: number;
-  readonly onDismissMissing: (signatureId: string) => void;
-  readonly onRemove: (row: SignatureWindowRow) => Promise<void>;
+  readonly onDismissMissing: () => void;
+  readonly onRemoveMissing: () => Promise<void>;
   readonly onIdentify: (
     row: SignatureWindowRow,
     group: SigGroup,
@@ -318,18 +528,13 @@ interface SignatureWindowProps {
 interface ScannerWindowFrameProps
   extends Pick<
     SignatureWindowProps,
-    | 'activeSystemId'
+    | 'scannerSystemId'
     | 'rows'
     | 'missingIds'
     | 'canEdit'
     | 'complete'
     | 'now'
-    | 'onDismissMissing'
   > {
-  readonly onRequestRemove: (
-    row: SignatureWindowRow,
-    trigger: HTMLButtonElement,
-  ) => void;
   readonly onOpenActions: (
     row: SignatureWindowRow,
     trigger: HTMLElement,
@@ -338,18 +543,48 @@ interface ScannerWindowFrameProps
   ) => void;
 }
 
-function tableForKind(kind: ScannedKind, props: ScannerWindowFrameProps) {
+function missingPromptCopy(count: number): string {
+  return count === 1
+    ? '1 signature missing from scan'
+    : `${count} signatures missing from scan`;
+}
+
+function MissingSignaturesPrompt({
+  count,
+  canEdit,
+  onDismiss,
+  onRemove,
+}: {
+  readonly count: number;
+  readonly canEdit: boolean;
+  readonly onDismiss: () => void;
+  readonly onRemove: () => void;
+}) {
+  if (count === 0) return null;
   return (
-    <SignatureTable
-      rows={filterSignatureRows(props.rows, props.activeSystemId, kind)}
-      missingIds={props.missingIds}
-      canEdit={props.canEdit}
-      complete={props.complete}
-      now={props.now}
-      onDismiss={props.onDismissMissing}
-      onRequestRemove={props.onRequestRemove}
-      onOpenActions={props.onOpenActions}
-    />
+    <div
+      data-signature-missing-prompt
+      className={cn(
+        MAP_SCANNER_MISSING_PROMPT_CLASS,
+        'flex flex-col gap-2 rounded-card p-3 text-ui',
+        mapFrostedSurface,
+      )}
+    >
+      <span className="font-data text-label uppercase tracking-label text-muted">
+        Missing from scan
+      </span>
+      <p className="font-data text-micro text-name">{missingPromptCopy(count)}</p>
+      <div className="flex justify-end gap-1">
+        <Button variant="ghost" size="sm" onClick={onDismiss}>
+          Dismiss
+        </Button>
+        {canEdit ? (
+          <Button variant="danger" size="sm" onClick={onRemove}>
+            Remove
+          </Button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -375,70 +610,48 @@ function ScannerWindowFrame(props: ScannerWindowFrameProps) {
           className="flex min-h-0 flex-1 flex-col"
           listClassName="w-full shrink-0 gap-0"
           tabClassName="flex flex-1 justify-center px-2 text-center"
-          panelClassName="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-2"
+          panelClassName={cn(
+            scrollArea,
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-2',
+          )}
           tabs={[
             {
               value: 'signature',
               label: 'Signatures',
-              content: tableForKind('signature', props),
+              content: (
+                <SignaturesTabBody
+                  rows={props.rows}
+                  scannerSystemId={props.scannerSystemId}
+                  missingIds={props.missingIds}
+                  canEdit={props.canEdit}
+                  complete={props.complete}
+                  now={props.now}
+                  onOpenActions={props.onOpenActions}
+                />
+              ),
             },
             {
               value: 'anomaly',
               label: 'Anomalies',
-              content: tableForKind('anomaly', props),
+              content: (
+                <AnomalyTable
+                  rows={filterSignatureRows(
+                    props.rows,
+                    props.scannerSystemId,
+                    'anomaly',
+                  )}
+                  missingIds={props.missingIds}
+                  canEdit={props.canEdit}
+                  complete={props.complete}
+                  now={props.now}
+                  onOpenActions={props.onOpenActions}
+                />
+              ),
             },
           ]}
         />
       </div>
     </MapWindow>
-  );
-}
-
-function SignatureRemovalDialog({
-  pending,
-  busy,
-  error,
-  finalFocus,
-  onRemove,
-  onPendingChange,
-  onBusyChange,
-  onErrorChange,
-}: {
-  readonly pending: SignatureWindowRow | null;
-  readonly busy: boolean;
-  readonly error: string | null;
-  readonly finalFocus: RefObject<HTMLElement | null>;
-  readonly onRemove: SignatureWindowProps['onRemove'];
-  readonly onPendingChange: (row: SignatureWindowRow | null) => void;
-  readonly onBusyChange: (busy: boolean) => void;
-  readonly onErrorChange: (error: string | null) => void;
-}) {
-  const confirm = () => {
-    if (pending === null) return;
-    onBusyChange(true);
-    onErrorChange(null);
-    void onRemove(pending)
-      .then(
-        () => onPendingChange(null),
-        () => onErrorChange('The signature could not be removed. Try again.'),
-      )
-      .finally(() => onBusyChange(false));
-  };
-  return (
-    <ConfirmDialog
-      open={pending !== null}
-      onOpenChange={(open) => {
-        if (!open) onPendingChange(null);
-      }}
-      title={`Remove ${pending?.signatureId ?? 'signature'}?`}
-      consequence="This row will disappear from the map for 24 hours unless you undo it."
-      busy={busy}
-      error={error}
-      confirmLabel="Remove"
-      busyLabel="Removing…"
-      onConfirm={confirm}
-      finalFocus={finalFocus}
-    />
   );
 }
 
@@ -524,20 +737,15 @@ function ActiveWormholeRowEditor({
 
 /** Permanent bottom-left scanner window composed beside the managed map stack. */
 export function SignatureWindow(props: SignatureWindowProps) {
-  const [pending, setPending] = useState<SignatureWindowRow | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const finalFocus = useRef<HTMLElement | null>(null);
   const rowActionFocus = useRef<HTMLElement | null>(null);
   const [rowAction, setRowAction] = useState<RowActionAnchor | null>(null);
   const closeRowAction = () => setRowAction(null);
-  const requestRemove = (
-    row: SignatureWindowRow,
-    trigger: HTMLButtonElement,
-  ) => {
-    finalFocus.current = trigger;
-    setError(null);
-    setPending(row);
+  const removeMissing = () => {
+    void props.onRemoveMissing().catch(() => {
+      toast.error('The signatures could not be removed. Try again.', {
+        id: 'signature-remove:batch',
+      });
+    });
   };
   const openRowActions = (
     row: SignatureWindowRow,
@@ -559,21 +767,13 @@ export function SignatureWindow(props: SignatureWindowProps) {
       data-signature-window-layer
       className="pointer-events-none absolute inset-0 z-sticky"
     >
-      <ScannerWindowFrame
-        {...props}
-        onRequestRemove={requestRemove}
-        onOpenActions={openRowActions}
+      <MissingSignaturesPrompt
+        count={props.missingIds.size}
+        canEdit={props.canEdit}
+        onDismiss={props.onDismissMissing}
+        onRemove={removeMissing}
       />
-      <SignatureRemovalDialog
-        pending={pending}
-        busy={busy}
-        error={error}
-        finalFocus={finalFocus}
-        onRemove={props.onRemove}
-        onPendingChange={setPending}
-        onBusyChange={setBusy}
-        onErrorChange={setError}
-      />
+      <ScannerWindowFrame {...props} onOpenActions={openRowActions} />
       <IdentifySignatureMenu
         action={rowAction}
         finalFocus={rowActionFocus}

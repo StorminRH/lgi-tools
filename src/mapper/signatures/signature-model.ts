@@ -1,4 +1,5 @@
 import type { Doc } from '@/data/convex/data-model';
+import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import {
   parseScannerPaste,
   type ScannedKind,
@@ -6,6 +7,10 @@ import {
   type SigGroup,
 } from '@/data/maps/scan-parse';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
+import {
+  isCodexSizeLocked,
+  lifetimeRowDisplay,
+} from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 
 /** One signature-window row, independent of its Convex storage owner. */
@@ -118,6 +123,54 @@ export function buildSignatureRows(
   );
 }
 
+/** Presentation buckets for the Signatures tab (not stored SigGroup values). */
+export const SCANNER_SECTION_ORDER = [
+  'unknown',
+  'wormholes',
+  'combat',
+  'harvestables',
+  'hacking',
+] as const;
+
+/** One Signatures-tab presentation section. */
+export type ScannerSectionId = (typeof SCANNER_SECTION_ORDER)[number];
+
+/** Visible section titles in scanner order. */
+export const SCANNER_SECTION_TITLES: Readonly<Record<ScannerSectionId, string>> = {
+  unknown: 'Unknown',
+  wormholes: 'Wormholes',
+  combat: 'Combat',
+  harvestables: 'Harvestables',
+  hacking: 'Hacking',
+};
+
+/** One non-empty Signatures-tab section with its rows. */
+export interface ScannerSection {
+  readonly id: ScannerSectionId;
+  readonly title: string;
+  readonly rows: readonly SignatureWindowRow[];
+}
+
+/** Maps a stored signature group onto a Signatures-tab section. */
+export function scannerSectionForGroup(
+  group: SigGroup | null,
+): ScannerSectionId {
+  switch (group) {
+    case null:
+      return 'unknown';
+    case 'Wormhole':
+      return 'wormholes';
+    case 'Combat Site':
+      return 'combat';
+    case 'Gas Site':
+    case 'Ore Site':
+      return 'harvestables';
+    case 'Data Site':
+    case 'Relic Site':
+      return 'hacking';
+  }
+}
+
 /** Rows for one system and tab, in stable scanner-ID order. */
 export function filterSignatureRows(
   rows: readonly SignatureWindowRow[],
@@ -126,6 +179,66 @@ export function filterSignatureRows(
 ): readonly SignatureWindowRow[] {
   if (systemId === null) return [];
   return rows.filter((row) => row.systemId === systemId && row.kind === kind);
+}
+
+/**
+ * Buckets one system's Cosmic Signature rows into non-empty presentation
+ * sections (Unknown first). Anomalies stay on their own tab.
+ */
+export function groupSignatureSections(
+  rows: readonly SignatureWindowRow[],
+  systemId: number | null,
+): readonly ScannerSection[] {
+  if (systemId === null) return [];
+  const buckets = new Map<ScannerSectionId, SignatureWindowRow[]>(
+    SCANNER_SECTION_ORDER.map((id) => [id, []]),
+  );
+  for (const row of rows) {
+    if (row.systemId !== systemId || row.kind !== 'signature') continue;
+    buckets.get(scannerSectionForGroup(row.group))!.push(row);
+  }
+  const sections: ScannerSection[] = [];
+  for (const id of SCANNER_SECTION_ORDER) {
+    const sectionRows = buckets.get(id) ?? [];
+    if (sectionRows.length === 0) continue;
+    sections.push({
+      id,
+      title: SCANNER_SECTION_TITLES[id],
+      rows: sectionRows,
+    });
+  }
+  return sections;
+}
+
+/**
+ * Scanner Size cell: typed non-K162 codex size class, else stored ship size,
+ * else an honest placeholder.
+ */
+export function scannerWormholeSize(
+  connection: Pick<ConnectionEditorDetail, 'shipSize'> | null,
+  entry: WormholeCodexEntry | null,
+): string {
+  if (isCodexSizeLocked(entry) && entry !== null && entry.farSide === false) {
+    return entry.sizeClass;
+  }
+  return connection?.shipSize ?? '—';
+}
+
+/**
+ * Scanner Lifetime cell: same remaining-lifetime readout as the connection
+ * editor (death-window range, typed SDE ceiling, or unset).
+ */
+export function scannerWormholeLifetime(
+  connection: Pick<
+    ConnectionEditorDetail,
+    '_creationTime' | 'deathEarliestAt' | 'deathLatestAt' | 'lifeStage'
+  > | null,
+  entry: WormholeCodexEntry | null,
+  now: number,
+): string {
+  if (connection === null) return '—';
+  const display = lifetimeRowDisplay(connection, entry, now);
+  return display.kind === 'unset' ? '—' : display.label;
 }
 
 /** Counts one system's signatures and anomalies. */
@@ -155,9 +268,10 @@ export function formatSignatureAge(firstSeenAt: number, now: number): string {
 }
 
 /**
- * Resolves the paste/signature-window system from the account's online tracked
- * pilots on this map. Coverage (`feedFreshAt` non-null) is the online gate —
- * last-known location alone must not unlock paste for a logged-off alt.
+ * Resolves the paste target from the account's online tracked pilots on this
+ * map. Coverage (`feedFreshAt` non-null) is the online gate — last-known
+ * location alone must not unlock paste for a logged-off alt. The scanner
+ * window lists the chain root instead (see SignatureProvider).
  */
 export function trackedPasteTarget(input: {
   readonly ownTrackedCharacterIds: readonly number[];
@@ -183,11 +297,6 @@ export function trackedPasteTarget(input: {
   const systemId = systems.values().next().value;
   if (systemId === undefined) return { kind: 'none' };
   return { kind: 'ready', systemId };
-}
-
-/** System id for window filtering when the paste target is unambiguous. */
-export function trackedPasteSystemId(target: TrackedPasteTarget): number | null {
-  return target.kind === 'ready' ? target.systemId : null;
 }
 
 /** Whether a document paste target owns normal text insertion. */
@@ -221,4 +330,34 @@ export function scannerPasteDecision(
   if (target.kind === 'none') return { kind: 'untracked' };
   if (target.kind === 'ambiguous') return { kind: 'ambiguous' };
   return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
+}
+
+/** Toast copy for a non-apply scanner paste decision. */
+export function scannerPasteRefusalToast(
+  decision: Exclude<ScannerPasteDecision, { kind: 'apply' }>,
+): { readonly message: string; readonly options: { readonly id: string; readonly duration?: number } } {
+  if (decision.kind === 'reject') {
+    const suffix = decision.rejectCount === 1 ? '' : 's';
+    return {
+      message: `Scanner paste rejected — ${decision.rejectCount} row${suffix} need attention.`,
+      options: { id: 'scanner-paste:rejected', duration: 5_000 },
+    };
+  }
+  if (decision.kind === 'read-only') {
+    return {
+      message: 'Edit access is required to apply scanner output.',
+      options: { id: 'scanner-paste:read-only' },
+    };
+  }
+  if (decision.kind === 'ambiguous') {
+    return {
+      message:
+        'Tracked characters are in different systems — paste target is ambiguous.',
+      options: { id: 'scanner-paste:ambiguous', duration: 5_000 },
+    };
+  }
+  return {
+    message: 'Track an online character before pasting scanner output.',
+    options: { id: 'scanner-paste:untracked' },
+  };
 }

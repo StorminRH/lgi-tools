@@ -1574,7 +1574,8 @@ describe('map authoring', () => {
       // Every destructive trigger outside severConnection routes through the
       // extracted core rather than a sibling implementation.
       expect(scanSource).toContain('runCollapse(');
-      expect(authoringSource).toContain('return await runCollapse(ctx, {');
+      expect(authoringSource).toContain('runCollapse(ctx, {');
+      expect(authoringSource).toContain('gatedConnectionEdit');
       expect(cronSource).toContain("'map ceiling collapse'");
       expect(cronSource).toContain('internal.mapAuthoring.collapseExpiredConnections');
     });

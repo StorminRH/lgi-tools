@@ -44,3 +44,37 @@ export function systemSecurityClass(
   if (securityStatus > 0.0) return 'low';
   return 'null';
 }
+
+/**
+ * Rounds raw SDE/ESI securityStatus to the one-decimal value shown in-game
+ * (CCP System Security guide): normal half-up to 0.1, except any positive
+ * value below 0.05 displays as 0.1 (never as 0.0).
+ */
+export function roundSecurityStatus(securityStatus: number): number {
+  if (securityStatus === 0) return 0;
+  if (securityStatus > 0 && securityStatus < 0.05) return 0.1;
+  return Math.round(securityStatus * 10) / 10;
+}
+
+/**
+ * Tailwind text class for the in-game security-status color band (CCP
+ * Developer Docs “Security Status Colors”), keyed off the rounded display
+ * value. Null status stays muted.
+ */
+export function securityStatusTextClass(
+  securityStatus: number | null,
+): string {
+  if (securityStatus === null) return 'text-muted';
+  const rounded = roundSecurityStatus(securityStatus);
+  if (rounded >= 1.0) return 'text-sec-10';
+  if (rounded >= 0.9) return 'text-sec-09';
+  if (rounded >= 0.8) return 'text-sec-08';
+  if (rounded >= 0.7) return 'text-sec-07';
+  if (rounded >= 0.6) return 'text-sec-06';
+  if (rounded >= 0.5) return 'text-sec-05';
+  if (rounded >= 0.4) return 'text-sec-04';
+  if (rounded >= 0.3) return 'text-sec-03';
+  if (rounded >= 0.2) return 'text-sec-02';
+  if (rounded >= 0.1) return 'text-sec-01';
+  return 'text-sec-null';
+}

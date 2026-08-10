@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { systemSecurityClass } from './security';
+import {
+  roundSecurityStatus,
+  securityStatusTextClass,
+  systemSecurityClass,
+} from './security';
 
 describe('systemSecurityClass', () => {
   it('classifies hi-sec from security status (0.45 rounds up to hi-sec)', () => {
@@ -38,5 +42,25 @@ describe('systemSecurityClass', () => {
 
   it('defaults an untagged system (null security status, no class) to hi-sec', () => {
     expect(systemSecurityClass(null, null)).toBe('high');
+  });
+});
+
+describe('roundSecurityStatus and securityStatusTextClass', () => {
+  it('rounds like the in-game display, including the positive-sub-0.05 rule', () => {
+    expect(roundSecurityStatus(0)).toBe(0);
+    expect(roundSecurityStatus(0.04)).toBe(0.1);
+    expect(roundSecurityStatus(0.45)).toBe(0.5);
+    expect(roundSecurityStatus(-0.99)).toBe(-1.0);
+  });
+
+  it('maps rounded bands to the CCP security-status color tokens', () => {
+    expect(securityStatusTextClass(1.0)).toBe('text-sec-10');
+    expect(securityStatusTextClass(0.94)).toBe('text-sec-09');
+    expect(securityStatusTextClass(0.5)).toBe('text-sec-05');
+    expect(securityStatusTextClass(0.4)).toBe('text-sec-04');
+    expect(securityStatusTextClass(0.1)).toBe('text-sec-01');
+    expect(securityStatusTextClass(0)).toBe('text-sec-null');
+    expect(securityStatusTextClass(-1)).toBe('text-sec-null');
+    expect(securityStatusTextClass(null)).toBe('text-muted');
   });
 });

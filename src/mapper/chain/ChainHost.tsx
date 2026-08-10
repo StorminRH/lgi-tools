@@ -383,6 +383,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       <MapPresenceProvider mapId={mapId}>
         <SignatureProvider
           mapId={mapId}
+          rootSystemId={rootSystemId}
           canEdit={canEdit === true}
           connectionDetails={connectionDetails}
           unresolvedHoles={unresolvedHoles}

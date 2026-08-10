@@ -244,12 +244,6 @@ function rowMaps<Row extends { signatureId: string }>(rows: readonly Row[]): Map
   return new Map(rows.map((row) => [row.signatureId, row]));
 }
 
-function connectionMap(rows: readonly Doc<'mapConnections'>[]): Map<string, Doc<'mapConnections'>> {
-  return new Map(
-    rows.flatMap((row) => row.fromSignatureId === undefined ? [] : [[row.fromSignatureId, row]]),
-  );
-}
-
 function activityKey(mapId: string, systemId: number, signatureId: string) {
   return { mapId, systemId, signatureId };
 }
@@ -283,6 +277,31 @@ function scanKnowledge(row: ScannedRow) {
   return knowledge;
 }
 
+/**
+ * Applies one clipboard row using signatureId as the only identity join.
+ * Storage shape (list vs wormhole connection) and clipboard group are decided
+ * after that lookup — group/name/signal are payload, not the match key.
+ */
+async function applyScannedRow(
+  ctx: MutationCtx,
+  state: ScanState,
+  row: ScannedRow,
+  mapId: string,
+  systemId: number,
+  now: number,
+): Promise<ApplyOutcome> {
+  const connection = findConnectionForSignature(state.connections, row.signatureId);
+  // A connection (live or tombstoned) already owns this id.
+  if (connection !== undefined) {
+    return await applyWormholeRow(ctx, state, row, mapId, systemId, now);
+  }
+  // No connection yet: Wormhole group creates/migrates; otherwise list upsert/revive.
+  if (row.group === 'Wormhole') {
+    return await applyWormholeRow(ctx, state, row, mapId, systemId, now);
+  }
+  return await applyListRow(ctx, state, row, mapId, systemId, now);
+}
+
 async function applyListRow(
   ctx: MutationCtx,
   state: ScanState,
@@ -292,15 +311,8 @@ async function applyListRow(
   now: number,
 ): Promise<ApplyOutcome> {
   const signatures = rowMaps(state.signatures);
-  const connections = connectionMap(state.connections);
-  if (connections.has(row.signatureId)) {
-    await touchScanActivity(ctx, state, mapId, systemId, row.signatureId, now);
-    return 'unchanged';
-  }
-
   const key = activityKey(mapId, systemId, row.signatureId);
   const existing = signatures.get(row.signatureId);
-  if (existing !== undefined && isTombstoned(existing)) return 'unchanged';
   const knowledge = scanKnowledge(row);
   let outcome: ApplyOutcome = 'inserted';
   if (existing === undefined) {
@@ -310,6 +322,14 @@ async function applyListRow(
       deletedAt: null,
       purgeAfter: null,
     });
+  } else if (isTombstoned(existing)) {
+    // Re-paste within the undo window revives the same document identity.
+    await applyKnownSignatureTombstone(ctx, existing, null, null, null);
+    const merged = mergeSignatureKnowledge(existing, knowledge);
+    if (merged.outcome === 'enriched') {
+      await ctx.db.patch(existing._id, merged.patch);
+    }
+    outcome = 'updated';
   } else {
     const merged = mergeSignatureKnowledge(existing, knowledge);
     if (merged.outcome === 'enriched') {
@@ -440,6 +460,24 @@ async function writeWormholeConnection(
   return Object.keys(patch).length > 0 ? 'updated' : 'unchanged';
 }
 
+async function reviveTombstonedWormholeConnection(
+  ctx: MutationCtx,
+  mapId: string,
+  connection: Doc<'mapConnections'>,
+): Promise<Doc<'mapConnections'> | null> {
+  if (!isTombstoned(connection)) return connection;
+  if (connection.toSystemId !== null) {
+    await runBranchRestore(ctx, {
+      mapId,
+      connectionId: connection._id,
+      actor: await eventActor(ctx),
+    });
+  } else {
+    await tombstoneConnectionRow(ctx, connection, undefined, null, null);
+  }
+  return await ctx.db.get(connection._id);
+}
+
 async function applyWormholeRow(
   ctx: MutationCtx,
   state: ScanState,
@@ -448,10 +486,20 @@ async function applyWormholeRow(
   systemId: number,
   now: number,
 ): Promise<ApplyOutcome> {
-  const signature = rowMaps(state.signatures).get(row.signatureId);
-  const connection = findConnectionForSignature(state.connections, row.signatureId);
-  if (signature !== undefined && isTombstoned(signature)) return 'unchanged';
-  if (connection !== undefined && isTombstoned(connection)) return 'unchanged';
+  let signature = rowMaps(state.signatures).get(row.signatureId);
+  let connection = findConnectionForSignature(state.connections, row.signatureId);
+  let revived = false;
+
+  if (signature !== undefined && isTombstoned(signature)) {
+    await applyKnownSignatureTombstone(ctx, signature, null, null, null);
+    signature = { ...signature, deletedAt: null, purgeAfter: null };
+    revived = true;
+  }
+  if (connection !== undefined && isTombstoned(connection)) {
+    connection = (await reviveTombstonedWormholeConnection(ctx, mapId, connection))
+      ?? undefined;
+    revived = true;
+  }
 
   const facts = wormholeMigrationFacts(signature, row, now);
   if (facts.outcome === 'conflict') {
@@ -459,9 +507,17 @@ async function applyWormholeRow(
     return 'unchanged';
   }
 
-  const outcome = await writeWormholeConnection(ctx, connection, facts, row, mapId, systemId);
+  const outcome = await writeWormholeConnection(
+    ctx,
+    connection,
+    facts,
+    row,
+    mapId,
+    systemId,
+  );
   if (signature !== undefined) await ctx.db.delete(signature._id);
   await touchScanActivity(ctx, state, mapId, systemId, row.signatureId, now);
+  if (revived && outcome === 'unchanged') return 'updated';
   return outcome;
 }
 
@@ -569,9 +625,7 @@ export const applyScan = mutation({
     const counts = { inserted: 0, updated: 0, unchanged: 0, migrated: 0 };
 
     for (const row of normalizedRows) {
-      const outcome = row.group === 'Wormhole'
-        ? await applyWormholeRow(ctx, state, row, mapId, systemId, now)
-        : await applyListRow(ctx, state, row, mapId, systemId, now);
+      const outcome = await applyScannedRow(ctx, state, row, mapId, systemId, now);
       counts[outcome] += 1;
     }
 

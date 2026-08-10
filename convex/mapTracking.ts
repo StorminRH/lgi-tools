@@ -32,6 +32,19 @@ export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
 // read budget on a hot reactive query.
 const TRACKING_MAP_SCAN_CAP = 256;
 
+function findCharacterLocation(
+  ctx: QueryCtx,
+  userId: string,
+  characterId: number,
+) {
+  return ctx.db
+    .query('characterLocation')
+    .withIndex('by_user_character', (q) =>
+      q.eq('userId', userId).eq('characterId', characterId),
+    )
+    .unique();
+}
+
 /**
  * Distinct character ids the user currently tracks on any map — the sync
  * action's poll-set half (intersected with Neon enumeration + eligibility).
@@ -119,12 +132,7 @@ export const forMap = query({
 
     const tracked = [];
     for (const row of rows) {
-      const location = await ctx.db
-        .query('characterLocation')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', row.userId).eq('characterId', row.characterId),
-        )
-        .unique();
+      const location = await findCharacterLocation(ctx, row.userId, row.characterId);
       tracked.push({
         userId: row.userId,
         characterId: row.characterId,
@@ -276,12 +284,7 @@ export async function readTrackedPilotSystemIds(
     .take(TRACKING_MAP_SCAN_CAP);
   const systemIds = new Set<number>();
   for (const row of rows) {
-    const location = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', row.userId).eq('characterId', row.characterId),
-      )
-      .unique();
+    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
     if (location !== null) systemIds.add(location.solarSystemId);
   }
   return systemIds;
