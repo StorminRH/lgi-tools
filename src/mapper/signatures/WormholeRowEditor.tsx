@@ -3,8 +3,14 @@
 import type { RefObject } from 'react';
 import { PointerPopover } from '@/components/ui/popover';
 import { pointerAnchor } from '@/components/ui/overlay-positioning';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
-import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
+import type {
+  ConnectionDetail,
+  ConnectionEditorDetail,
+} from '../chain/use-map-chain';
+import {
+  applyWormholeType,
+  type ConnectionAuthoringApi,
+} from '../authoring/ConnectionAuthoringOverlay';
 import { connectionFieldSetters } from '../authoring/connection-field-setters';
 import { ConnectionFields } from '../authoring/connection-fields';
 import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
@@ -14,6 +20,13 @@ export interface WormholeRowEditorAnchor {
   readonly clientX: number;
   readonly clientY: number;
   readonly finalFocus: RefObject<HTMLElement | null>;
+}
+
+/** Whether the row's connection has a resolved destination (card-parity path). */
+function isResolvedConnection(
+  connection: ConnectionEditorDetail,
+): connection is ConnectionDetail {
+  return connection.toSystemId !== null;
 }
 
 /** Reuses the shipped connection fields for one unresolved or resolved signature row. */
@@ -52,7 +65,18 @@ export function WormholeRowEditor({
         preferredCodes={preferredCodes}
         codexReady={codexReady}
         entry={entry}
-        setters={connectionFieldSetters(mapId, connection, authoring)}
+        setters={connectionFieldSetters(mapId, connection, authoring, (value) => {
+          // Parity with the connection card: type entry on a RESOLVED row runs
+          // the same typed-hole notification (observation emit + superseded-row
+          // repair), so identical user intent cannot produce divergent Neon
+          // state. Scanned unresolved stubs stay mutation-only — observation
+          // emission for scanned rows belongs to 4.0.4.3.3 (contract OOS-2).
+          if (isResolvedConnection(connection)) {
+            void applyWormholeType({ mapId, connection, value, authoring });
+            return;
+          }
+          void authoring.setConnectionWormholeType({ mapId, connection, value });
+        })}
         now={now}
         mode="edit"
       />

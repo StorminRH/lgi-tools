@@ -63,6 +63,24 @@ export function isScannerSignatureId(value: string): boolean {
   return SIGNATURE_ID.test(value);
 }
 
+// Derived from the same closed vocabulary as the line parser so a widened
+// format never splits the cheap candidate gate from the real parse.
+const KIND_LABEL_PATTERN = new RegExp(
+  `(?:${Object.keys(KINDS).join('|')})`,
+);
+const LEADING_SIGNATURE_ID_PATTERN = new RegExp(
+  `(?:^|\\n)${SIGNATURE_ID.source.slice(1, -1)}\\t`,
+);
+
+/**
+ * Whether page-level paste capture may treat clipboard text as scanner-shaped.
+ * A cheap pre-parse gate only — `parseScannerPaste` remains the sole judge of
+ * whether the text actually parses.
+ */
+export function isScannerPasteCandidate(text: string): boolean {
+  return KIND_LABEL_PATTERN.test(text) || LEADING_SIGNATURE_ID_PATTERN.test(text);
+}
+
 function reject(lineNumber: number, raw: string, reason: ScanRejectReason): RejectedLine {
   return { lineNumber, raw, reason };
 }

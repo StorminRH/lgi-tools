@@ -30,6 +30,11 @@ const ADOPTED_POPUP_SELECTOR = [
   '[data-open] [role="menu"]',
 ].join(',');
 
+// The scanner dock's effective height is min(24rem, 100vw-2rem, 100dvh-7rem):
+// a square sized by the width clamp, then capped by the viewport-height clamp.
+// The prompt class below re-states that same expression as its bottom offset so
+// the prompt tracks the dock at every viewport size — change them TOGETHER.
+
 /** Placement classes for the docked-bottom-left scanner square. */
 export const MAP_SCANNER_DOCK_CLASS =
   'bottom-4 left-4 size-[min(24rem,calc(100vw-2rem))] max-h-[calc(100dvh-7rem)]';
@@ -39,7 +44,7 @@ export const MAP_SCANNER_DOCK_CLASS =
  * Static Tailwind string so the utility is discoverable at build time.
  */
 export const MAP_SCANNER_MISSING_PROMPT_CLASS =
-  'pointer-events-auto absolute bottom-[calc(1rem+24rem+0.5rem)] left-4 z-sticky w-[min(24rem,calc(100vw-2rem))]';
+  'pointer-events-auto absolute bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] left-4 z-sticky w-[min(24rem,calc(100vw-2rem))]';
 
 /** Whether an adopted Base UI popup currently owns Escape. */
 export function isAdoptedPopupOpen(): boolean {

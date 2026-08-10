@@ -6,9 +6,9 @@ import {
   PointerMenu,
   MenuItem,
   menuRow,
-  pointerAnchor,
   type MenuAnchor,
 } from '@/components/ui/pointer-menu';
+import { pointerAnchor } from '@/components/ui/overlay-positioning';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import {
   useSystemSearch,

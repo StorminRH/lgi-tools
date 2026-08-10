@@ -189,7 +189,7 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
     verdict: 'inherently-idempotent',
     vendor: 'convex',
     evidence:
-      'The internal mutation ranges only finite deathLatestAt values past the collapse grace, re-reads each row before acting so tombstoned or purged rows are skipped, and every collapse routes through the shared-stamp core; a repeat observes only rows the previous batch left live.',
+      'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.',
   },
   {
     id: 'convex/crons:sync engine scan',

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     severConnection: vi.fn(),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
+        restoreSignatures: vi.fn(),
   },
 }));
 

@@ -1408,7 +1408,7 @@ describe('map authoring', () => {
       });
 
       expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
-        .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, hasMore: false });
+        .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
 
       const tombstoned = await Promise.all([
         readConnection(t, ids.cut!),
@@ -1456,7 +1456,7 @@ describe('map authoring', () => {
       });
 
       expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
-        .toEqual({ collapsed: 0, removedStubs: 0, skipped: 0, hasMore: false });
+        .toEqual({ collapsed: 0, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
       for (const key of ['alive', 'in-grace', 'windowless'] as const) {
         expect(await readConnection(t, ids[key]!)).toMatchObject({ deletedAt: null });
       }
@@ -1480,7 +1480,7 @@ describe('map authoring', () => {
       await trackPilotAt(t, WH_B);
 
       expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
-        .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, hasMore: false });
+        .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
 
       expect(await readConnection(t, ids.cut!)).toMatchObject({ deletedAt: NOW });
       expect(await readConnection(t, ids['a-b']!)).toMatchObject({ deletedAt: null });
@@ -1542,7 +1542,7 @@ describe('map authoring', () => {
       });
 
       expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
-        .toEqual({ collapsed: 0, removedStubs: 1, skipped: 1, hasMore: false });
+        .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 0, hasMore: false });
       expect(await readConnection(t, stubId)).toMatchObject({
         deletedAt: NOW,
         purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
@@ -1555,12 +1555,149 @@ describe('map authoring', () => {
           .collect(),
       );
       expect(activities).toEqual([]);
-      expect(await readEvents(t)).toEqual([]);
+      // A silently removed stub leaves a restorable paper trail.
+      expect(await readEvents(t)).toEqual([
+        expect.objectContaining({
+          kind: 'signatures_removed',
+          actor: CEILING_SWEEP_ACTOR,
+          payload: { systemId: JITA, signatureIds: ['WHL-009'] },
+        }),
+      ]);
 
-      // Idempotent repeat: both rows are tombstoned now, nothing changes.
+      // Idempotent repeat: tombstoned rows have left the live-only candidate
+      // range entirely, so the sweep sees an empty batch.
       expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
-        .toEqual({ collapsed: 0, removedStubs: 0, skipped: 2, hasMore: false });
+        .toEqual({ collapsed: 0, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
       expect(await readConnection(t, stubId)).toMatchObject({ deletedAt: NOW });
+    });
+
+    it('tombstoned expired rows never occupy the sweep batch', async () => {
+      const t = convexTest(schema, modules);
+      await seedEmpty(t);
+      const stubId = await t.run(async (ctx) => {
+        await ctx.db.insert('mapSystems', {
+          mapId: MAP_A,
+          systemId: JITA,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+        // Nine already-collapsed rows with the OLDEST ceilings: under a
+        // deathLatestAt-only range these owned the batch head for their whole
+        // undo window and starved the live row below.
+        for (let i = 0; i < 9; i += 1) {
+          await ctx.db.insert('mapConnections', {
+            mapId: MAP_A,
+            fromSystemId: JITA,
+            toSystemId: null,
+            wormholeTypeCode: null,
+            massState: null,
+            shipSize: null,
+            eolAt: null,
+            deathEarliestAt: EXPIRED - 120_000,
+            deathLatestAt: EXPIRED - 60_000 + i,
+            deletedAt: NOW - 120_000,
+            purgeAfter: NOW + 60_000,
+          });
+        }
+        return await ctx.db.insert('mapConnections', {
+          mapId: MAP_A,
+          fromSystemId: JITA,
+          toSystemId: null,
+          fromSignatureId: 'WHL-010',
+          wormholeTypeCode: null,
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          deathEarliestAt: EXPIRED - 60_000,
+          deathLatestAt: EXPIRED,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+      });
+
+      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+        .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 0, hasMore: false });
+      expect(await readConnection(t, stubId)).toMatchObject({ deletedAt: NOW });
+    });
+
+    it('isolates a failing map and still sweeps the rest of the batch', async () => {
+      const t = convexTest(schema, modules);
+      await seedEmpty(t);
+      const { poisonedA, poisonedB, otherStub } = await t.run(async (ctx) => {
+        await ctx.db.insert('mapSystems', {
+          mapId: MAP_A,
+          systemId: JITA,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+        await ctx.db.insert('mapSystems', {
+          mapId: MAP_A,
+          systemId: WH_A,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+        // Push MAP_A over the bounded-topology cap so every resolved collapse
+        // on it throws MAP_TOO_LARGE.
+        for (let i = 0; i < 128; i += 1) {
+          await ctx.db.insert('mapConnections', {
+            mapId: MAP_A,
+            fromSystemId: JITA,
+            toSystemId: null,
+            wormholeTypeCode: null,
+            massState: null,
+            shipSize: null,
+            eolAt: null,
+            deathEarliestAt: null,
+            deathLatestAt: null,
+            deletedAt: null,
+            purgeAfter: null,
+          });
+        }
+        const resolvedShape = {
+          mapId: MAP_A,
+          fromSystemId: JITA,
+          toSystemId: WH_A,
+          wormholeTypeCode: null,
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          deletedAt: null,
+          purgeAfter: null,
+        };
+        const a = await ctx.db.insert('mapConnections', {
+          ...resolvedShape,
+          deathEarliestAt: EXPIRED - 60_000,
+          deathLatestAt: EXPIRED,
+        });
+        const b = await ctx.db.insert('mapConnections', {
+          ...resolvedShape,
+          deathEarliestAt: EXPIRED - 60_000,
+          deathLatestAt: EXPIRED + 100,
+        });
+        const stub = await ctx.db.insert('mapConnections', {
+          mapId: 'map-elsewhere',
+          fromSystemId: AMARR,
+          toSystemId: null,
+          fromSignatureId: 'WHL-011',
+          wormholeTypeCode: null,
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          deathEarliestAt: EXPIRED - 60_000,
+          deathLatestAt: EXPIRED + 200,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+        return { poisonedA: a, poisonedB: b, otherStub: stub };
+      });
+
+      // First MAP_A row fails live (MAP_TOO_LARGE), the second via the per-map
+      // failure memo; the other map's expired stub is still swept.
+      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+        .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 2, hasMore: false });
+      expect(await readConnection(t, poisonedA)).toMatchObject({ deletedAt: null });
+      expect(await readConnection(t, poisonedB)).toMatchObject({ deletedAt: null });
+      expect(await readConnection(t, otherStub)).toMatchObject({ deletedAt: NOW });
     });
 
     it('keeps one collapse-decision owner and registers the sweep cron', () => {

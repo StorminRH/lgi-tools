@@ -15,8 +15,8 @@ import {
   MenuItem,
   menuRow,
   PointerMenu,
-  pointerAnchor,
 } from '@/components/ui/pointer-menu';
+import { pointerAnchor } from '@/components/ui/overlay-positioning';
 import { scrollArea } from '@/components/ui/scroll-area';
 import { Tabs } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/toast';
@@ -248,7 +248,19 @@ function sectionCells(
       return (
         <>
           <IdCell row={row} />
-          <NameCell row={row} />
+          {/* Typed code plus its codex-derived destination class — the class
+              label rode the retired Group column and must stay on the row. */}
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <NameCell row={row} />
+            {row.className !== null ? (
+              <span
+                data-signature-class
+                className="shrink-0 font-data text-micro uppercase tracking-label text-muted"
+              >
+                {row.className}
+              </span>
+            ) : null}
+          </span>
           <span className="text-center text-muted tabular-nums">
             {scannerWormholeSize(row.connection, entry)}
           </span>
@@ -382,7 +394,7 @@ function ScannerSectionBlock({
                   canEdit={canEdit}
                   columnsClassName={columnsClassName}
                   cells={sectionCells(section.id, row, now, entry)}
-                  showOpenAffordance={row.connection !== null}
+                  showOpenAffordance={rowIsEditable(row, canEdit)}
                   onOpenActions={(trigger, clientX, clientY) =>
                     onOpenActions(row, trigger, clientX, clientY)
                   }
@@ -495,7 +507,7 @@ function AnomalyTable({
                   <AgeCell row={row} now={now} />
                 </>
               }
-              showOpenAffordance={false}
+              showOpenAffordance={rowIsEditable(row, canEdit)}
               onOpenActions={(trigger, clientX, clientY) =>
                 onOpenActions(row, trigger, clientX, clientY)
               }
@@ -511,7 +523,10 @@ interface SignatureWindowProps {
   /** Map chain root — same system scope as the dock scanner summary. */
   readonly scannerSystemId: number | null;
   readonly rows: readonly SignatureWindowRow[];
+  /** Row-highlight IDs, already scoped to the listed scanner system. */
   readonly missingIds: ReadonlySet<string>;
+  /** Missing rows for the last paste-target system, which may differ from the listed one. */
+  readonly missingCount: number;
   readonly canEdit: boolean;
   readonly complete: boolean;
   readonly now: number;
@@ -701,6 +716,12 @@ function IdentifySignatureMenu({
           {group}
         </MenuItem>
       ))}
+      <p
+        data-signature-identify-note
+        className="px-2 pb-1 pt-0.5 font-data text-micro text-muted"
+      >
+        Identification is permanent
+      </p>
     </PointerMenu>
   );
 }
@@ -768,7 +789,7 @@ export function SignatureWindow(props: SignatureWindowProps) {
       className="pointer-events-none absolute inset-0 z-sticky"
     >
       <MissingSignaturesPrompt
-        count={props.missingIds.size}
+        count={props.missingCount}
         canEdit={props.canEdit}
         onDismiss={props.onDismissMissing}
         onRemove={removeMissing}

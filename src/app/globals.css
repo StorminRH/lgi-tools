@@ -1221,10 +1221,6 @@ details[data-collapsible][open] > summary [data-chevron] {
   color: var(--color-tone-red-soft);
   background: var(--color-pill-red-soft-bg);
 }
-.map-signature-missing-actions {
-  border-color: var(--color-pill-red-soft-border);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .map-chip-undo-pulse { animation: none; }
 }

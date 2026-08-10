@@ -9,6 +9,7 @@ import type {
 } from '../chain/use-map-chain';
 import { postJumpRequest } from '../jump-client';
 import { MapEventLog } from '../log/MapEventLog';
+import type { MapEventRestoreAction } from '../log/map-event-copy';
 import { ConnectionDetailsCard } from './ConnectionDetailsCard';
 import type { ConnectionResolutionControls } from './connection-fields';
 import {
@@ -51,6 +52,11 @@ export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
   readonly restoreConnection: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
+  }) => Promise<unknown>;
+  readonly restoreSignatures: (args: {
+    mapId: string;
+    systemId: number;
+    signatureIds: string[];
   }) => Promise<unknown>;
 }
 
@@ -110,6 +116,23 @@ export function ConnectionAuthoringOverlay({
     [authoring, mapId],
   );
 
+  // Ledger Restore routes by payload: branch undo for collapse events,
+  // signature restore for list/stub removal events.
+  const restoreFromEvent = useCallback(
+    (action: MapEventRestoreAction) => {
+      if (action.kind === 'signatures') {
+        void authoring.restoreSignatures({
+          mapId,
+          systemId: action.systemId,
+          signatureIds: [...action.signatureIds],
+        });
+        return;
+      }
+      restoreSeveredBranch(action.connectionId);
+    },
+    [authoring, mapId, restoreSeveredBranch],
+  );
+
   // Locally dismissed pending resolutions: the assumed association stands and
   // the connection card keeps the same choices answerable later.
   const [dismissedResolutions, setDismissedResolutions] =
@@ -164,7 +187,7 @@ export function ConnectionAuthoringOverlay({
         events={events}
         canEdit={canEdit}
         now={now}
-        onRestore={restoreSeveredBranch}
+        onRestore={restoreFromEvent}
       />
       {promptResolution !== null ? (
         <JumpResolutionPrompt

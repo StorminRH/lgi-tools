@@ -130,7 +130,7 @@ export async function eventActor(ctx: MutationCtx): Promise<string> {
 }
 
 /** Inserts one typed ledger row in the caller's mutation transaction. */
-async function writeMapEvent<Kind extends MapEventKind>(
+export async function writeMapEvent<Kind extends MapEventKind>(
   ctx: MutationCtx,
   input: {
     readonly mapId: string;
@@ -140,12 +140,25 @@ async function writeMapEvent<Kind extends MapEventKind>(
     readonly payload: MapEventPayloadByKind[Kind];
   },
 ): Promise<void> {
+  // Re-materialize the payload's arrays: callers hand in readonly shapes while
+  // the stored document type is mutable.
+  const payload = 'signatureIds' in input.payload
+    ? {
+        systemId: input.payload.systemId,
+        signatureIds: [...input.payload.signatureIds],
+      }
+    : 'systemIds' in input.payload
+      ? {
+          connectionId: input.payload.connectionId,
+          systemIds: [...input.payload.systemIds],
+        }
+      : { connectionId: input.payload.connectionId };
   await ctx.db.insert('mapEvents', {
     mapId: input.mapId,
     at: input.at,
     kind: input.kind,
     actor: input.actor,
-    payload: input.payload,
+    payload,
     purgeAfter: input.at + MAP_EVENT_RETENTION_MS,
   });
 }
@@ -1167,8 +1180,97 @@ export const CEILING_COLLAPSE_GRACE_MS = 4 * 60 * 60 * 1000;
  */
 export const CEILING_SWEEP_BATCH = 8;
 
+/**
+ * Candidate rows one sweep call may read past failures. A row whose collapse
+ * fails (for example an over-bound map) stays live at the head of the due
+ * range, so the sweep reads a wider window and skips failing maps within it
+ * rather than letting a poisoned head starve every other map's expiry.
+ */
+export const CEILING_SWEEP_SCAN = 64;
+
 /** Ledger actor for scheduler-driven ceiling collapses (no caller identity). */
 export const CEILING_SWEEP_ACTOR = 'lifetime expiry';
+
+/**
+ * Reads the due live-ceiling candidates. Live rows only, by construction: the
+ * index leads with `deletedAt`, so a collapsed row (finite stamp) leaves the
+ * candidate range the moment it is written and the bounded batch never
+ * re-reads its own prior work. Two equality scans cover both live
+ * representations — field absent and explicit null — because a Convex index
+ * equality matches exactly one of them. The `> null` lower bound stays
+ * load-bearing: undefined/null order below every number, so a bare
+ * `<= cutoff` would match every windowless live row.
+ */
+async function readDueCeilings(
+  ctx: MutationCtx,
+  cutoff: number,
+): Promise<{ due: Doc<'mapConnections'>[]; overflow: boolean }> {
+  const range = (deletedAt: null | undefined) =>
+    ctx.db
+      .query('mapConnections')
+      .withIndex('by_deleted_death_latest', (q) =>
+        q
+          .eq('deletedAt', deletedAt)
+          .gt('deathLatestAt', null)
+          .lte('deathLatestAt', cutoff),
+      )
+      .take(CEILING_SWEEP_SCAN + 1);
+  const [unset, nulled] = await Promise.all([range(undefined), range(null)]);
+  return {
+    due: [...unset, ...nulled].sort(
+      (left, right) => (left.deathLatestAt ?? 0) - (right.deathLatestAt ?? 0),
+    ),
+    overflow: unset.length > CEILING_SWEEP_SCAN || nulled.length > CEILING_SWEEP_SCAN,
+  };
+}
+
+/**
+ * Collapses one due resolved row, reporting failure instead of throwing.
+ * Safe to continue past a failure: the presence read and runCollapse throw
+ * only before this row's first write (the bounded reads and pure collapse
+ * decision all precede the stamp writes), so a caught failure has committed
+ * nothing for this row and it stays live for a later sweep.
+ */
+async function collapseDueRow(
+  ctx: MutationCtx,
+  row: Doc<'mapConnections'>,
+  trackedByMap: Map<string, ReadonlySet<number>>,
+): Promise<boolean> {
+  try {
+    let tracked = trackedByMap.get(row.mapId);
+    if (tracked === undefined) {
+      tracked = await readTrackedPilotSystemIds(ctx, row.mapId);
+      trackedByMap.set(row.mapId, tracked);
+    }
+    await runCollapse(ctx, {
+      mapId: row.mapId,
+      connectionId: row._id,
+      actor: CEILING_SWEEP_ACTOR,
+      pilotsPresent: { trackedInSystemIds: tracked },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type RemovedStubEvents = Map<
+  string,
+  { mapId: string; systemId: number; signatureIds: string[] }
+>;
+
+/** Accumulates one swept stub into its per-(map, system) removal event. */
+function recordRemovedStub(events: RemovedStubEvents, stub: Doc<'mapConnections'>): void {
+  if (stub.fromSignatureId === undefined) return;
+  const key = `${stub.mapId}:${stub.fromSystemId}`;
+  const entry = events.get(key) ?? {
+    mapId: stub.mapId,
+    systemId: stub.fromSystemId,
+    signatureIds: [],
+  };
+  entry.signatureIds.push(stub.fromSignatureId);
+  events.set(key, entry);
+}
 
 /**
  * Collapses connections whose death ceiling passed more than the grace ago —
@@ -1179,24 +1281,29 @@ export const CEILING_SWEEP_ACTOR = 'lifetime expiry';
 export async function sweepExpiredCeilings(
   ctx: MutationCtx,
   now: number,
-): Promise<{ collapsed: number; removedStubs: number; skipped: number; hasMore: boolean }> {
-  const cutoff = now - CEILING_COLLAPSE_GRACE_MS;
-  // The `> null` lower bound is load-bearing: undefined/null order below every
-  // number in Convex indexes, so a bare `<= cutoff` would match every
-  // windowless connection in the table.
-  const due = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_death_latest', (q) =>
-      q.gt('deathLatestAt', null).lte('deathLatestAt', cutoff),
-    )
-    .take(CEILING_SWEEP_BATCH + 1);
-  const batch = due.slice(0, CEILING_SWEEP_BATCH);
-
+): Promise<{
+  collapsed: number;
+  removedStubs: number;
+  skipped: number;
+  failed: number;
+  hasMore: boolean;
+}> {
+  const { due, overflow } = await readDueCeilings(ctx, now - CEILING_COLLAPSE_GRACE_MS);
   const trackedByMap = new Map<string, ReadonlySet<number>>();
+  const failedMapIds = new Set<string>();
+  const stubEvents: RemovedStubEvents = new Map();
   let collapsed = 0;
   let removedStubs = 0;
   let skipped = 0;
-  for (const row of batch) {
+  let failed = 0;
+  let index = 0;
+  for (; index < due.length && collapsed + removedStubs < CEILING_SWEEP_BATCH; index += 1) {
+    // `due` is proven non-sparse by the loop bound; index access is total.
+    const row = due[index]!;
+    if (failedMapIds.has(row.mapId)) {
+      failed += 1;
+      continue;
+    }
     // Re-read: an earlier collapse in this batch may have tombstoned this row
     // as branch collateral. Tombstoned or purged rows are skipped, so a sweep
     // meeting an already-severed row stays idempotent.
@@ -1208,23 +1315,27 @@ export async function sweepExpiredCeilings(
     if (fresh.toSystemId === null) {
       await ctx.db.patch(fresh._id, chainTombstoneStamps(now));
       await deleteConnectionActivity(ctx, fresh);
+      recordRemovedStub(stubEvents, fresh);
       removedStubs += 1;
-      continue;
+    } else if (await collapseDueRow(ctx, fresh, trackedByMap)) {
+      collapsed += 1;
+    } else {
+      // Memoized as failing so the map's sibling rows do not burn the batch.
+      failedMapIds.add(fresh.mapId);
+      failed += 1;
     }
-    let tracked = trackedByMap.get(fresh.mapId);
-    if (tracked === undefined) {
-      tracked = await readTrackedPilotSystemIds(ctx, fresh.mapId);
-      trackedByMap.set(fresh.mapId, tracked);
-    }
-    await runCollapse(ctx, {
-      mapId: fresh.mapId,
-      connectionId: fresh._id,
-      actor: CEILING_SWEEP_ACTOR,
-      pilotsPresent: { trackedInSystemIds: tracked },
-    });
-    collapsed += 1;
   }
-  return { collapsed, removedStubs, skipped, hasMore: due.length > batch.length };
+  for (const entry of stubEvents.values()) {
+    // Silently swept stubs leave a restorable paper trail.
+    await writeMapEvent(ctx, {
+      mapId: entry.mapId,
+      at: now,
+      kind: 'signatures_removed',
+      actor: CEILING_SWEEP_ACTOR,
+      payload: { systemId: entry.systemId, signatureIds: entry.signatureIds },
+    });
+  }
+  return { collapsed, removedStubs, skipped, failed, hasMore: index < due.length || overflow };
 }
 
 /**

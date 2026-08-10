@@ -36,9 +36,6 @@ type DataAttributes = {
   [key: `data-${string}`]: string | number | boolean | undefined;
 };
 
-/** A zero-size Floating UI virtual element at a client pointer coordinate. */
-export { pointerAnchor } from './overlay-positioning';
-
 /**
  * Renders a controlled, triggerless menu at a virtual pointer anchor; callers own
  * open state and semantic content while this primitive owns presentation.
@@ -60,7 +57,7 @@ export function PointerMenu({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Virtual or element anchor; typically {@link pointerAnchor} at the click. */
+  /** Virtual or element anchor; typically `pointerAnchor` (overlay-positioning) at the click. */
   anchor: MenuAnchor | null;
   children: ReactNode;
   label: string;

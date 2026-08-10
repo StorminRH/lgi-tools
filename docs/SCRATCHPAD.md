@@ -9,103 +9,34 @@
 
 ## Now
 
-- **OW progress:** `7/7 complete — awaiting close-out`.
-- **Mid-session polish (2026-08-09) — committed `6de4f09d`:**
-  - **Scanner UX:** sectioned Signatures tab (Unknown → Wormholes → Combat →
-    Harvestables → Hacking); column recipes; 24rem headerless dock; CCP security
-    colors on dock Security Status; house typography → Atlas.
-  - **Missing signatures:** one frosted bulk prompt above the scanner
-    (`Dismiss` / `Remove`); per-row actions and confirm dialog removed; batch
-    remove + one undo toast.
-  - **Paste revive:** `applyScan` is signature-ID-first across list + connection
-    tables; tombstoned rows revive on re-paste (operator override of prior
-    inert-tombstone paste rule for this path).
-  - **Gates:** focused mapper/mapScan suites green;
-    `FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify` green
-    (4,974 passed / 1 skipped; Fallow clean over 108 session-changed files);
-    primitive-checker CLEAN.
-- **OW7 automated evidence (2026-08-08):** durable two-client probe
-  `atlas-signature-lifecycle` green 18/18 on a fresh disposable map (paste →
-  re-paste zero-churn → per-kind missing → dismiss/Remove/undo →
-  ghosted stubs → typed C247 via the statics-first editor → real doorbell jump
-  retiring the stub behind the signature-labeled confirmation, window follows
-  the pilot, chain-root dock keeps the origin summary);
-  `atlas-signature-chrome` 8/8. `pnpm verify` passed at implementation commit
-  `705764df` (4,959 passed / 1 skipped; Fallow clean over 97 session-changed
-  files against `36790747`); primitive-checker CLEAN. Probe later updated for
-  bulk prompt without confirm (`6de4f09d`).
-- **G-1 disposition:** **approve** (2026-08-09) — operator completed local
-  browser review after polish on review map
-  `92cba7c1-c575-4437-9c0a-995218a8a814` (sectioned scanner, bulk missing
-  Dismiss/Remove with no confirm dialog, ID-first re-paste revive, stubs /
-  jump path). No findings. SC-10.2 satisfied; close-out may open the PR.
-- **OW completed:** OW1 — pure English scanner parser + four operator raw-paste
-  fixtures covering five evidence categories; additive signature/connection
-  schema fields and death-latest index census. Focused proof: parser 5/5,
-  reject filter 1/1, schema census 1/1; `pnpm verify` passed at implementation
-  commit `d5b4cb3b` (5,057 passed / 1 skipped; Fallow clean over 6 changed
-  files against `71fd4846`).
-- **OW completed:** OW2 — gated, tracked-system paste application; monotonic
-  signature knowledge; signature-to-connection convergence; per-kind missing
-  decisions; 60-second activity debounce; 24-hour remove/restore; paged live
-  signature reads; and bounded 15-minute purge. Focused proof: lifecycle 3/3,
-  map-scan workflows 16/16, fixtures 50/50, jump 6/6, idempotency 16/16;
-  `pnpm verify` passed at implementation commit `62d2b50e` (4,940 passed / 138
-  skipped; Fallow clean over 19 session-changed files against `71fd4846`).
-- **OW completed:** OW3 — permanent bottom-left signature window with counted
-  kind tabs, migrated wormhole rows, signal/age presentation, active-tracked
-  paste refusal, missing-row Remove/dismiss confirmation, and keyed undo;
-  bottom-right audit/feedback/dev chrome; deduplicated dock identity plus
-  Security Status and shared signature summaries. Focused proof: confirmation
-  8/8 and affected mapper bundle 163/163; `pnpm verify` passed at implementation
-  commit `9c2923dd` (4,953 passed / 138 skipped; Fallow clean over 63 changed
-  files against `8dce9774`); primitive-checker CLEAN.
-- **OW completed:** OW4 — labelled row actions and right-click enhancement over
-  the same `mapConnections` row and shipped `ConnectionFields`; identify-as
-  convergence; statics-first type search with typed public route and honest
-  search-only outage degradation; side-aware type/hint controls; typed-code /
-  class row presentation; and first-seen-anchored lifetime proposals. Focused
-  proof: 13 files / 255 tests; `pnpm verify` passed at implementation commit
-  `079cdc68` (4,807 passed / 138 skipped; Fallow clean over 84 changed files
-  against `8dce9774`); primitive-checker CLEAN.
-- **OW completed:** OW5 — deterministic kernel-placed `stub:` nodes and connected
-  provisional edges for scanned unresolved wormholes; ghosted interaction-inert
-  presentation; numeric-consumer guards; and resolved/unresolved handover
-  deduplication preserving the same-row jump seam and signature-bearing candidate
-  labels. Focused proof: mapper/node/jump-label bundle 71/71 plus wormhole boundary
-  1/1; `pnpm verify` passed at implementation commit `155d24e6` (4,815 passed /
-  138 skipped; Fallow clean over 90 changed files against `8dce9774`);
-  primitive-checker CLEAN after its handover finding was corrected and re-proven.
-- **OW completed:** OW6 — identity-parameterized `runCollapse`/`runBranchRestore`
-  cores extracted from `severConnection`/`restoreSeveredBranch` (public mutations
-  stay thin authenticated wrappers; existing sever/undo suites proven green on the
-  extraction alone before any new caller); confirmed removal, confident removal,
-  and the new 15-minute grace-buffered `by_death_latest` ceiling sweep
-  (`CEILING_COLLAPSE_GRACE_MS` 4h, batch 8, re-read idempotency) all route through
-  the one core with pilot presence from tracking; resolved-row undo restores the
-  shared-stamp branch; collapse now clears signature-activity companions;
-  scheduler-exception comment + cron + idempotency-registry entries recorded.
-  Focused proof: mapAuthoring/mapScan/idempotency 106/106, affected bundle
-  484/484, single `decideCollapse` call-site inspection; `pnpm verify` passed
-  at implementation commit `88e3b94a` (4,958 passed / 1 skipped; Fallow clean
-  over 93 changed files against `8dce9774`); primitive-checker CLEAN.
-- **OW completed:** OW7 — ux-check two-client signature lifecycle + chrome probes
-  green (`atlas-signature-lifecycle` / `atlas-signature-chrome` at `705764df`);
-  mid-session scanner polish + ID-first paste revive + bulk missing prompt at
-  `6de4f09d`; G-1 operator browser review disposition **approve** (no findings)
-  recorded 2026-08-09. Session Ordered work complete — awaiting close-out.
-- **Next-agent notes:** Ordered work for **4.0.4.3.1** is complete on
-  `lifecycle/4.0.4.3`. Run **close-out in a fresh chat, planned mode only** (no
-  further OW). G-1 is approved — do not re-run ux-check. Design note for
-  as-built/review: operator directed ID-first paste revive of tombstones
-  (overrides prior inert-tombstone paste wording in HC-3 for `applyScan`).
-  Branch was rebased 2026-08-08 onto `origin/main` `36790747`. Probe gotchas for
-  as-built: (1) `pnpm e2e:seed` resets `user.role` — re-grant ADMIN to
-  `e2e-pilot`; (2) seed disposable maps with a fresh synthetic affiliation stamp
-  (`affiliation_refreshed_at = now()` for character 9000001); (3) lifecycle probe
-  is one-shot — new map per run. Auto-link still uses the signature-labeled
-  informed-confirmation prompt (4.0.4.2.2). Restore prod AFK timers in
-  `.env.local` before ship if still shortened for testing.
+- **CURRENT:** session **4.0.4.3.1** in close-out on `lifecycle/4.0.4.3`
+  (per-session PR). G-1 approved 2026-08-09; close-out adversarial round
+  (holistic + ownership + interface + reliability) accepted ~20 root causes,
+  all fixed on-branch — headline fixes: paste-revive scoped to a stub's own
+  lifetime (never `runBranchRestore` from `applyScan`; dead ceiling / expired
+  undo / conflicting group stay inert); ceiling sweep re-ranged onto live-only
+  `by_deleted_death_latest` with per-row failure isolation; missing prompt
+  keyed to the paste-target system, not the chain root; row-editor type entry
+  routes `applyWormholeType` for resolved rows; removal/restore uses exact
+  per-ID lookups past the whole-system bound; list/stub removals ledger
+  restorable `signatures_removed`/`signatures_restored` events.
+- **Durable 4.0.4.3.1 gotchas:** (1) The account-level paste gate needs live
+  feed coverage — on probe maps the tokenless engine wipes the synthetic
+  pilot's `coveredCharacterIds` within ~30s, so probes re-stamp via
+  `seedTrackedLocationFixture` (same transition epoch, fresh `feedFreshAt`)
+  before every paste after the first. (2) The chrome probe needs a POPULATED
+  map (`waitForWindowMap` wants ≥2 nodes) — run it on the lifecycle probe's
+  map after that one-shot run. (3) `runCollapse`/`runBranchRestore` throw only
+  BEFORE their first write — the sweep's per-row catch depends on that
+  decision-then-write shape; keep it. (4) Independent stub tombstones must
+  never share a collapse's stamp: single-row tombstones stamp before resolved
+  collapses so `uniqueTombstoneStamp` (read-your-writes) avoids them.
+  (5) Convex index `eq(field, null)` does not match absent fields — the sweep
+  reads both `undefined` and `null` live representations.
+- **Probe gotchas (durable):** `pnpm e2e:seed` resets `user.role` — re-grant
+  ADMIN to `e2e-pilot`; seed disposable maps with a fresh synthetic affiliation
+  stamp (`affiliation_refreshed_at = now()` for character 9000001); lifecycle
+  probe is one-shot — new map per run.
 - **Durable tooling gotcha (Playwright / Deployment Protection):** never put
   `VERCEL_AUTOMATION_BYPASS_SECRET` in Playwright `extraHTTPHeaders` — that
   sends it to every third-party origin. Use
@@ -113,8 +44,6 @@
   `auth-storage.json` stay under gitignored `docs/ux-check/captures/`.
   `ensure-vercel-automation-bypass.py` is bootstrap/rotate only once
   `.env.local` is seeded.
-- **CURRENT / NEXT:** session **4.0.4.3.1** Ordered work complete on
-  `lifecycle/4.0.4.3` — awaiting close-out (G-1 approved 2026-08-09).
 - **Shipped 4.0.4.2.3:** every system is a declared 120×88
   widget frame; edges and followers share frame geometry; tracked pilots
   render honest presence in the frame, dock, and summary; authored k-space

@@ -269,6 +269,7 @@ describe('mapScan paste application and lifecycle', () => {
       updated: 0,
       unchanged: 2,
       migrated: 0,
+      conflicted: 0,
       removedConfident: 0,
       missing: [],
     });
@@ -583,6 +584,18 @@ describe('mapScan paste application and lifecycle', () => {
       deletedAt: NOW,
       purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
     });
+    // The silent stub removal leaves a restorable ledger trail.
+    const events = await t.run(async (ctx) => await ctx.db
+      .query('mapEvents')
+      .withIndex('by_map', (q) => q.eq('mapId', MAP))
+      .collect());
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'signatures_removed',
+        actor: 'Editor Pilot',
+        payload: { systemId: JITA, signatureIds: ['WHL-001'] },
+      }),
+    ]);
   });
 
   it('routes confirmed resolved removal through the collapse core and undoes the branch', async () => {
@@ -698,6 +711,197 @@ describe('mapScan paste application and lifecycle', () => {
       signatureIds: ['WHL-001'],
     })).toEqual({ changed: 1 });
     expect((await readState(t)).connections[0]).toEqual(before);
+  });
+
+  it('paste never resurrects a collapsed resolved branch — the ledger undo owns it', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WHL-001', { group: 'Wormhole' })]);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: WH_FAR });
+      const connection = (await ctx.db.query('mapConnections').collect())[0]!;
+      await ctx.db.patch(connection._id, { toSystemId: WH_FAR });
+    });
+    await asEditor(t).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['WHL-001'],
+    });
+    const corpse = await readState(t);
+
+    // A stale clipboard still lists the dead hole's signature. The paste must
+    // not branch-restore the collapsed topology (HC-3: a resolved collapse is
+    // a closed lifetime for paste purposes).
+    expect(await apply(t, [signature('WHL-001', { group: 'Wormhole' })])).toMatchObject({
+      unchanged: 1,
+      missing: [],
+    });
+    expect(await readState(t)).toEqual(corpse);
+    expect(await t.run(async (ctx) => (await ctx.db
+      .query('mapSystems')
+      .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', WH_FAR))
+      .unique()))).toMatchObject({ deletedAt: NOW });
+  });
+
+  it('a passed ceiling closes a stub lifetime — re-paste stays inert until purge', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WHL-001', { group: 'Wormhole' })]);
+    await t.run(async (ctx) => {
+      const connection = (await ctx.db.query('mapConnections').collect())[0]!;
+      await ctx.db.patch(connection._id, {
+        deathEarliestAt: NOW - 2_000,
+        deathLatestAt: NOW - 1_000,
+      });
+    });
+    await asEditor(t).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['WHL-001'],
+    });
+
+    expect(await apply(t, [signature('WHL-001', { group: 'Wormhole' })])).toMatchObject({
+      unchanged: 1,
+    });
+    expect((await readState(t)).connections[0]).toMatchObject({ deletedAt: NOW });
+  });
+
+  it('a conflicting non-wormhole group never revives a stub tombstone', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WHL-001', { group: 'Wormhole' })]);
+    await asEditor(t).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['WHL-001'],
+    });
+
+    // Same ID, different thing: HC-3 says this is a NEW lifetime, not the hole.
+    expect(await apply(t, [signature('WHL-001', { group: 'Data Site' })])).toMatchObject({
+      unchanged: 1,
+    });
+    expect((await readState(t)).connections[0]).toMatchObject({ deletedAt: NOW });
+  });
+
+  it('reports a refused contradiction as conflicted, keeping stored knowledge', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('SIG-001', { group: 'Data Site', name: 'Sanctum Sprawl' })]);
+
+    expect(await apply(t, [signature('SIG-001', { group: 'Relic Site' })])).toMatchObject({
+      conflicted: 1,
+      unchanged: 0,
+      missing: [],
+    });
+    expect(await readSignature(t, 'SIG-001')).toMatchObject({ group: 'Data Site' });
+  });
+
+  it('removal and restore stay available beyond the whole-system scan bound', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 257; i += 1) {
+        await ctx.db.insert('mapSignatures', {
+          mapId: MAP,
+          systemId: JITA,
+          signatureId: `AAA-${String(i).padStart(3, '0')}`,
+          group: null,
+          typeName: null,
+          wormholeTypeCode: null,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+      }
+    });
+
+    // The whole-system paste read is over its bound…
+    await expect(apply(t, [signature('SIG-001')])).rejects.toThrow('MAP_SIGNATURE_SCAN_LIMIT');
+    // …but cleanup must remain available: exact per-ID lookups carry removal.
+    expect(await asEditor(t).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['AAA-000'],
+    })).toEqual({ changed: 1 });
+    expect(await asEditor(t).mutation(api.mapScan.restoreSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['AAA-000'],
+    })).toEqual({ changed: 1 });
+    expect(await readSignature(t, 'AAA-000')).toMatchObject({ deletedAt: null });
+  });
+
+  it('confirmed list removals ledger one restorable event and their undo another', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('SIG-001'), signature('WHL-001', { group: 'Wormhole' })]);
+
+    await asEditor(t).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['SIG-001', 'WHL-001'],
+    });
+    await asEditor(t).mutation(api.mapScan.restoreSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['SIG-001', 'WHL-001'],
+    });
+    const events = await t.run(async (ctx) => await ctx.db
+      .query('mapEvents')
+      .withIndex('by_map', (q) => q.eq('mapId', MAP))
+      .collect());
+    expect(events).toEqual([
+      expect.objectContaining({
+        kind: 'signatures_removed',
+        actor: 'Editor Pilot',
+        payload: { systemId: JITA, signatureIds: ['SIG-001', 'WHL-001'] },
+      }),
+      expect.objectContaining({
+        kind: 'signatures_restored',
+        actor: 'Editor Pilot',
+        payload: { systemId: JITA, signatureIds: ['SIG-001', 'WHL-001'] },
+      }),
+    ]);
+  });
+
+  it('an independent stub removed beside a branch collapse never rides its undo', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [
+      signature('WHL-001', { group: 'Wormhole' }),
+      signature('WHL-002', { group: 'Wormhole' }),
+    ]);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: WH_FAR });
+      const resolved = (await ctx.db.query('mapConnections').collect())
+        .find((row) => row.fromSignatureId === 'WHL-002')!;
+      await ctx.db.patch(resolved._id, { toSystemId: WH_FAR });
+    });
+
+    // One bulk removal covering the resolved row AND the independent stub —
+    // the resolved id deliberately listed first to prove ordering, not luck.
+    await asEditor(t).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['WHL-002', 'WHL-001'],
+    });
+    const removed = await readState(t);
+    const stubStamp = removed.connections.find((row) => row.fromSignatureId === 'WHL-001')!;
+    const branchStamp = removed.connections.find((row) => row.fromSignatureId === 'WHL-002')!;
+    expect(stubStamp.deletedAt).not.toBeNull();
+    expect(branchStamp.deletedAt).not.toBeNull();
+    // Distinct stamps are the mechanism: the branch undo restores by stamp.
+    expect(stubStamp.deletedAt).not.toBe(branchStamp.deletedAt);
+
+    await asEditor(t).mutation(api.mapScan.restoreSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['WHL-002'],
+    });
+    const restored = await readState(t);
+    expect(restored.connections.find((row) => row.fromSignatureId === 'WHL-002'))
+      .toMatchObject({ deletedAt: null });
+    expect(restored.connections.find((row) => row.fromSignatureId === 'WHL-001'))
+      .toMatchObject({ deletedAt: stubStamp.deletedAt });
   });
 
   it('pages active signatures behind live map access', async () => {

@@ -156,12 +156,17 @@ const ROWS: readonly SignatureWindowRow[] = [
   },
 ];
 
-function render(scannerSystemId: number | null, missingIds: ReadonlySet<string>): string {
+function render(
+  scannerSystemId: number | null,
+  missingIds: ReadonlySet<string>,
+  missingCount = missingIds.size,
+): string {
   return renderToStaticMarkup(
     createElement(SignatureWindow, {
       scannerSystemId,
       rows: ROWS,
       missingIds,
+      missingCount,
       canEdit: true,
       complete: true,
       now: 60_000,
@@ -179,6 +184,7 @@ function render(scannerSystemId: number | null, missingIds: ReadonlySet<string>)
         severConnection: vi.fn(),
         restoreSeveredBranch: vi.fn(),
         restoreConnection: vi.fn(),
+        restoreSignatures: vi.fn(),
       },
     }),
   );
@@ -213,6 +219,10 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('Forgotten Frontier');
     expect(html).toContain('Size');
     expect(html).toContain('Lifetime');
+    // The typed code's destination class stays on the wormhole row after the
+    // Group column's retirement.
+    expect(html).toContain('data-signature-class');
+    expect(html).toContain('>HS<');
     expect(html).toContain('Est. ISK');
     expect(html).toContain('>L<');
     expect(html).toContain('≤ ');
@@ -240,6 +250,15 @@ describe('SignatureWindow component prompt and filter states', () => {
   it('pluralizes the bulk missing prompt for multiple IDs', () => {
     const html = render(1, new Set(['ABC-123', 'CBA-120']));
     expect(html).toContain('2 signatures missing from scan');
+  });
+
+  it('shows the prompt for a paste-target system the window does not list', () => {
+    // The pilot pasted down the chain: the prompt follows the paste target
+    // (missingCount) while row highlighting stays scoped to the listed system.
+    const html = render(1, new Set(), 3);
+    expect(html).toContain('data-signature-missing-prompt');
+    expect(html).toContain('3 signatures missing from scan');
+    expect(html).not.toContain('data-signature-missing="true"');
   });
 
   it('shows root-system rows without a tracked online character', () => {

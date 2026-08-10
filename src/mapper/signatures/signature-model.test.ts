@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Doc, Id } from '@/data/convex/data-model';
+import { isScannerPasteCandidate } from '@/data/maps/scan-parse';
 import {
   buildSignatureRows,
   filterSignatureRows,
   formatSignatureAge,
   groupSignatureSections,
   isEditablePasteTarget,
-  isScannerPasteCandidate,
   scannerPasteDecision,
   scannerPasteRefusalToast,
   scannerSectionForGroup,
@@ -407,6 +407,11 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteDecision('ordinary clipboard text', true, READY)).toBeNull();
     expect(scannerPasteDecision(valid, false, READY)).toEqual({ kind: 'read-only' });
     expect(scannerPasteDecision(valid, true, NONE)).toEqual({ kind: 'untracked' });
+    // Warm-up honesty: an undelivered tracking feed must never read as
+    // "untracked" — the pilot may well be tracked and online.
+    expect(scannerPasteDecision(valid, true, { kind: 'loading' })).toEqual({
+      kind: 'loading',
+    });
     expect(scannerPasteDecision(valid, true, AMBIGUOUS)).toEqual({ kind: 'ambiguous' });
     expect(scannerPasteDecision(valid, true, READY)).toMatchObject({
       kind: 'apply',
@@ -439,5 +444,30 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteRefusalToast({ kind: 'untracked' }).options.id).toBe(
       'scanner-paste:untracked',
     );
+    expect(scannerPasteRefusalToast({ kind: 'loading' }).options.id).toBe(
+      'scanner-paste:loading',
+    );
+  });
+
+  it('sections schema-legal legacy group strings as unidentified instead of crashing', () => {
+    const legacy: SignatureWindowRow = {
+      key: 'legacy',
+      systemId: SYSTEM,
+      signatureId: 'LEG-001',
+      kind: 'signature',
+      // Stored rows may carry pre-vocabulary strings (legacy lowercase); the
+      // cast mirrors the schema's v.union(v.string(), v.null()) reality.
+      group: 'wormhole' as SignatureWindowRow['group'],
+      name: null,
+      signalPct: null,
+      firstSeenAt: 1,
+      connection: null,
+      className: null,
+    };
+    expect(scannerSectionForGroup(legacy.group)).toBe('unknown');
+    const sections = groupSignatureSections([legacy], SYSTEM);
+    expect(sections).toHaveLength(1);
+    expect(sections[0]?.id).toBe('unknown');
+    expect(sections[0]?.rows.map((row) => row.signatureId)).toEqual(['LEG-001']);
   });
 });

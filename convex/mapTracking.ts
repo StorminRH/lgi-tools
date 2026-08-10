@@ -281,7 +281,16 @@ export async function readTrackedPilotSystemIds(
   const rows = await ctx.db
     .query('mapTracking')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .take(TRACKING_MAP_SCAN_CAP);
+    .take(TRACKING_MAP_SCAN_CAP + 1);
+  // Fail closed rather than truncate: this set feeds the collapse core's
+  // pilot-present retention, and a silently dropped pilot could let a sweep
+  // collapse a branch that still holds a tracked character.
+  if (rows.length > TRACKING_MAP_SCAN_CAP) {
+    throw new ConvexError({
+      code: 'TRACKING_SCAN_LIMIT',
+      detail: `Map ${mapId} exceeds the ${TRACKING_MAP_SCAN_CAP}-row tracked-presence bound.`,
+    });
+  }
   const systemIds = new Set<number>();
   for (const row of rows) {
     const location = await findCharacterLocation(ctx, row.userId, row.characterId);

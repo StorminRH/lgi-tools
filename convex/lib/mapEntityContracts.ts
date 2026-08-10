@@ -1,8 +1,9 @@
 // Convex-local chain entity rules: the connection/note boundary validators and the pure
-// signature-knowledge merge. These are shared ONLY by convex/schema.ts and the fixture boundary in
-// convex/mapFixtures.ts — they are deliberately not exported to src/, because the durable side owns
-// no chain payload. The stable wormhole/size vocabulary is imported from its single pure owner in
-// the eve-data reference core rather than re-declared here.
+// signature-knowledge merge. These are shared ONLY by convex/schema.ts, the fixture boundary in
+// convex/mapFixtures.ts, and the production scan surface in convex/mapScan.ts — they are
+// deliberately not exported to src/, because the durable side owns no chain payload. The stable
+// wormhole/size vocabulary is imported from its single pure owner in the eve-data reference core
+// rather than re-declared here.
 import { ConvexError, v } from 'convex/values';
 import {
   CONNECTION_PROVENANCES,
@@ -20,6 +21,7 @@ import type { MapRole } from '@/data/maps/access-contract';
 import { MAP_EVENT_KINDS } from '@/data/maps/chain-events';
 import {
   SCANNED_KINDS,
+  SIG_GROUPS,
   type ScannedKind,
 } from '@/data/maps/scan-parse';
 
@@ -79,8 +81,12 @@ export const typedSideValidator = v.union(v.literal('from'), v.literal('to'));
 
 /** Schema validator derived from the parser-owned scan-kind vocabulary. */
 export const scannedKindValidator = v.union(
-  v.literal(SCANNED_KINDS[0]),
-  v.literal(SCANNED_KINDS[1]),
+  ...SCANNED_KINDS.map((kind) => v.literal(kind)),
+);
+
+/** Schema validator derived from the parser-owned closed signature-group vocabulary. */
+export const sigGroupValidator = v.union(
+  ...SIG_GROUPS.map((group) => v.literal(group)),
 );
 
 /** Schema validator for the closed destination-hint vocabulary. */
@@ -144,6 +150,7 @@ export const mapEventKindValidator = v.union(
 export const mapEventPayloadValidator = v.union(
   v.object({ connectionId: v.string() }),
   v.object({ connectionId: v.string(), systemIds: v.array(v.number()) }),
+  v.object({ systemId: v.number(), signatureIds: v.array(v.string()) }),
 );
 
 /** Schema validator for a canonical wormhole code, null while the type is unidentified. */

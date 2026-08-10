@@ -23,7 +23,7 @@ export function useNodeDataString(
 /** One node-data number field, stable across position-only updates. */
 export function useNodeDataNumber(
   systemId: number | null,
-  field: 'security' | 'whClassId',
+  field: 'security',
 ): number | null {
   return useStore((state) => {
     if (systemId === null) return null;

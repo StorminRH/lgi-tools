@@ -46,10 +46,6 @@ import {
   findSystem,
   requireSystemId,
 } from './lib/mapSystemLookup';
-import {
-  purgeExpiredSignatures,
-  SIGNATURE_PURGE_BATCH,
-} from './lib/mapSignatureCleanup';
 import { getSyncSubject, newIdleSubject } from './lib/subjects';
 
 /**
@@ -919,14 +915,3 @@ export const setSignatureTombstone = internalMutation({
   },
 });
 
-/**
- * Drains expired signature tombstones in one bounded batch, reporting whether another call is
- * required. Capped at {@link SIGNATURE_PURGE_BATCH}; the cleanup core owns the index range.
- */
-export const purgeExpiredSignatureTombstones = internalMutation({
-  args: {},
-  handler: async (ctx) => await purgeExpiredSignatures(ctx, Date.now()),
-});
-
-/** Re-exported so the proof suite pins the same cap the cleanup owner enforces. */
-export { SIGNATURE_PURGE_BATCH };

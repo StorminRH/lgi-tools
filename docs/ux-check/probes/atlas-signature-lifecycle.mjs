@@ -98,6 +98,7 @@ export default {
     await calmMapCamera(page);
 
     // Track the pilot into the origin so paste has a verified target system.
+    const seededTransitionAt = Date.now();
     await doorbellAfter(page, async () => {
       await convexRun('mapFixtures:seedTrackedLocationFixture', {
         mapId,
@@ -105,9 +106,24 @@ export default {
         characterId: CHARACTER_ID,
         solarSystemId: ORIGIN_SYSTEM_ID,
         shipTypeId: SHIP_TYPE_ID,
-        transitionObservedAt: Date.now(),
+        transitionObservedAt: seededTransitionAt,
       });
     });
+    // The live tokenless engine overwrites the synthetic pilot's coverage
+    // stamp within one ~30s cycle, and account-level paste requires a covered
+    // online pilot. Re-stamp (same transition epoch — no doorbell re-ring)
+    // before each later paste so the gate sees honest coverage, exactly as a
+    // real pilot's clean engine run would provide.
+    const restampFreshness = () =>
+      convexRun('mapFixtures:seedTrackedLocationFixture', {
+        mapId,
+        userId,
+        characterId: CHARACTER_ID,
+        solarSystemId: ORIGIN_SYSTEM_ID,
+        shipTypeId: SHIP_TYPE_ID,
+        transitionObservedAt: seededTransitionAt,
+        feedFreshAt: Date.now(),
+      });
     await Promise.all([
       waitForTopology(page, 1, 0),
       waitForTopology(second.page, 1, 0),
@@ -129,7 +145,7 @@ export default {
       && (await signatureRow(second.page, 'EAR-696').count()) === 1,
     );
     check(
-      'tab labels carry per-kind counts',
+      'both scanner kind tabs render',
       (await page.getByRole('tab', { name: 'Signatures' }).count()) === 1
       && (await page.getByRole('tab', { name: 'Anomalies' }).count()) === 1,
     );
@@ -155,6 +171,7 @@ export default {
     );
 
     // Paste without EAR-696: per-kind missing flags it on the pasting client only.
+    await restampFreshness();
     await pasteScan(page, SCAN_WITHOUT_EAR);
     const earRow = signatureRow(page, 'EAR-696');
     await earRow
@@ -179,6 +196,7 @@ export default {
     );
 
     // Flag it again, remove from the bulk prompt (no confirm dialog), then undo.
+    await restampFreshness();
     await pasteScan(page, SCAN_WITHOUT_EAR);
     await earRow
       .locator('xpath=self::*[@data-signature-missing]')
@@ -228,6 +246,7 @@ export default {
 
     // Remove the second, untyped hole via the same prompt Remove — its
     // stub departs both clients through the one collapse pathway.
+    await restampFreshness();
     await pasteScan(page, SCAN_WITHOUT_LXX);
     const lxxRow = signatureRow(page, 'LXX-844');
     await lxxRow
@@ -291,7 +310,7 @@ export default {
     // rows are reachable through that system's summary card, not by retargeting.
     check(
       'scanner window keeps the chain-root signature rows after the jump',
-      /ABC-123/.test(
+      /CBA-120/.test(
         (await page.locator('[data-signature-window]').textContent()) ?? '',
       ),
     );

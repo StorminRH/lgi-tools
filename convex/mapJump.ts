@@ -17,8 +17,10 @@ import {
   requireMapAccessForUser,
   tryMapAccessForUser,
 } from './lib/mapAccess';
-import { readOriginConnections } from './lib/mapConnectionLookup';
-import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
+import {
+  readOriginConnections,
+  requireLiveConnectionOnMap,
+} from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoring';
 import { isTombstoned } from '@/data/maps/chain-contract';

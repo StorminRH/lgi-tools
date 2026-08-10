@@ -10,6 +10,7 @@ import {
   massStateValidator,
   noteTargetKindValidator,
   optionalTimestampValidator,
+  scannedKindValidator,
   shipSizeValidator,
   typedSideValidator,
   wormholeTypeCodeValidator,
@@ -235,7 +236,10 @@ export default defineSchema({
     .index('by_map', ['mapId'])
     .index('by_map_from', ['mapId', 'fromSystemId'])
     .index('by_map_to', ['mapId', 'toSystemId'])
-    .index('by_death_latest', ['deathLatestAt'])
+    // Ceiling-sweep range: leading with the tombstone field keeps every
+    // already-collapsed row out of the sweep's candidate range by construction,
+    // so the bounded batch never head-of-line-blocks on its own prior work.
+    .index('by_deleted_death_latest', ['deletedAt', 'deathLatestAt'])
     .index('by_purge_after', ['purgeAfter']),
 
   // Exactly-once jump-processing state is deliberately separate from the
@@ -275,7 +279,7 @@ export default defineSchema({
     mapId: v.string(),
     systemId: v.number(),
     signatureId: v.string(),
-    kind: v.optional(v.union(v.literal('signature'), v.literal('anomaly'))),
+    kind: v.optional(scannedKindValidator),
     group: v.union(v.string(), v.null()),
     typeName: v.union(v.string(), v.null()),
     signalPct: v.optional(v.union(v.number(), v.null())),

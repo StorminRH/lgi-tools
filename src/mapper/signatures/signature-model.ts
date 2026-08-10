@@ -1,6 +1,7 @@
 import type { Doc } from '@/data/convex/data-model';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import {
+  isScannerPasteCandidate,
   parseScannerPaste,
   type ScannedKind,
   type ScannedRow,
@@ -44,16 +45,20 @@ export type ScannerPasteDecision =
   | { readonly kind: 'reject'; readonly rejectCount: number }
   | { readonly kind: 'read-only' }
   | { readonly kind: 'untracked' }
+  | { readonly kind: 'loading' }
   | { readonly kind: 'ambiguous' };
 
 /**
  * Account-level paste target from the caller's online tracked pilots.
- * `ambiguous` is the interim refusal when two+ online tracked pilots sit in
- * different systems (backlog: multi-system paste disambiguation).
+ * `loading` is the truthful warm-up state while the tracking subscriptions
+ * have not delivered yet — never reported as "untracked". `ambiguous` is the
+ * interim refusal when two+ online tracked pilots sit in different systems
+ * (backlog: multi-system paste disambiguation).
  */
 export type TrackedPasteTarget =
   | { readonly kind: 'ready'; readonly systemId: number }
   | { readonly kind: 'none' }
+  | { readonly kind: 'loading' }
   | { readonly kind: 'ambiguous' };
 
 const EMPTY_COUNTS: SignatureCounts = { signatures: 0, anomalies: 0 };
@@ -168,6 +173,10 @@ export function scannerSectionForGroup(
     case 'Data Site':
     case 'Relic Site':
       return 'hacking';
+    default:
+      // Schema-legal but non-vocabulary strings (legacy lowercase fixtures)
+      // render as unidentified rather than crashing the section bucketing.
+      return 'unknown';
   }
 }
 
@@ -307,14 +316,6 @@ export function isEditablePasteTarget(target: EventTarget | null): boolean {
   );
 }
 
-/** Whether page-level paste capture may treat text as scanner-shaped. */
-export function isScannerPasteCandidate(text: string): boolean {
-  return (
-    /(?:Cosmic Signature|Cosmic Anomaly)/.test(text) ||
-    /(?:^|\n)[A-Z]{3}-\d{3}\t/.test(text)
-  );
-}
-
 /** Classifies scanner-shaped clipboard text without applying or reporting it. */
 export function scannerPasteDecision(
   text: string,
@@ -328,6 +329,7 @@ export function scannerPasteDecision(
   }
   if (!canEdit) return { kind: 'read-only' };
   if (target.kind === 'none') return { kind: 'untracked' };
+  if (target.kind === 'loading') return { kind: 'loading' };
   if (target.kind === 'ambiguous') return { kind: 'ambiguous' };
   return { kind: 'apply', systemId: target.systemId, rows: parsed.rows };
 }
@@ -354,6 +356,12 @@ export function scannerPasteRefusalToast(
       message:
         'Tracked characters are in different systems — paste target is ambiguous.',
       options: { id: 'scanner-paste:ambiguous', duration: 5_000 },
+    };
+  }
+  if (decision.kind === 'loading') {
+    return {
+      message: 'Location tracking is still loading — paste again in a moment.',
+      options: { id: 'scanner-paste:loading', duration: 5_000 },
     };
   }
   return {

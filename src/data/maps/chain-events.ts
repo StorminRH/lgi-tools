@@ -4,6 +4,8 @@ export const MAP_EVENT_KINDS = [
   'branch_removed',
   'branch_restored',
   'connection_restored',
+  'signatures_removed',
+  'signatures_restored',
 ] as const;
 
 /** One basic despawn-ledger event kind. */
@@ -21,6 +23,14 @@ export interface MapEventPayloadByKind {
     readonly systemIds: readonly number[];
   };
   readonly connection_restored: { readonly connectionId: string };
+  readonly signatures_removed: {
+    readonly systemId: number;
+    readonly signatureIds: readonly string[];
+  };
+  readonly signatures_restored: {
+    readonly systemId: number;
+    readonly signatureIds: readonly string[];
+  };
 }
 
 /** One payload accepted by the basic despawn ledger. */

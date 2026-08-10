@@ -5,8 +5,8 @@ import { api, internal } from './_generated/api';
 import {
   FIXTURE_CONNECTION_SCAN_LIMIT,
   MAP_FIXTURE_PAGE_SIZE,
-  SIGNATURE_PURGE_BATCH,
 } from './mapFixtures';
+import { SIGNATURE_PURGE_BATCH } from './mapScan';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -227,7 +227,7 @@ describe('map chain fixtures', () => {
           by_purge_after: ['purgeAfter'],
         },
         mapConnections: {
-          by_death_latest: ['deathLatestAt'],
+          by_deleted_death_latest: ['deletedAt', 'deathLatestAt'],
           by_map: ['mapId'],
           by_map_from: ['mapId', 'fromSystemId'],
           by_map_to: ['mapId', 'toSystemId'],
@@ -1330,7 +1330,7 @@ describe('map chain fixtures', () => {
           });
         });
 
-        const result = await t.mutation(internal.mapFixtures.purgeExpiredSignatureTombstones, {});
+        const result = await t.mutation(internal.mapScan.purgeExpiredSignatureTombstones, {});
         expect(result).toEqual({
           deletedCount: SIGNATURE_PURGE_BATCH,
           hasMore: expectedHasMore,
@@ -1375,7 +1375,7 @@ describe('map chain fixtures', () => {
       const before = await t.run(async (ctx) =>
         await ctx.db.query('mapSignatureActivity').collect(),
       );
-      const result = await t.mutation(internal.mapFixtures.purgeExpiredSignatureTombstones, {});
+      const result = await t.mutation(internal.mapScan.purgeExpiredSignatureTombstones, {});
       expect(result).toEqual({ deletedCount: 3, hasMore: false });
 
       expect(await t.run(async (ctx) => await ctx.db.query('mapSignatures').collect())).toEqual([]);

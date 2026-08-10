@@ -562,6 +562,11 @@ export function useChainAuthoringMutations() {
       optimisticRestoreConnection,
     ),
   );
+  // Ledger undo for list/stub signature removals. No optimistic patch: the
+  // signature page is its own subscription outside the chain local store.
+  const restoreSignatures = swallowMutationRejection(
+    useMutation(api.mapScan.restoreSignatures),
+  );
 
   return {
     setHomeSystem,
@@ -606,5 +611,6 @@ export function useChainAuthoringMutations() {
     severConnection,
     restoreSeveredBranch,
     restoreConnection,
+    restoreSignatures,
   };
 }

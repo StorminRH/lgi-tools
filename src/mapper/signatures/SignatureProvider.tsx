@@ -30,7 +30,7 @@ import { useScannerPaste } from './use-scanner-paste';
 const SIGNATURE_PAGE_SIZE = 100;
 const SIGNATURE_AGE_TICK_MS = 60_000;
 const EMPTY_MISSING: ReadonlySet<string> = new Set();
-const NONE_TARGET: TrackedPasteTarget = { kind: 'none' };
+const LOADING_TARGET: TrackedPasteTarget = { kind: 'loading' };
 
 interface MissingSignatures {
   readonly bySystem: ReadonlyMap<number, ReadonlySet<string>>;
@@ -93,8 +93,10 @@ function useTrackedPasteTarget(mapId: string): TrackedPasteTarget {
   const freshness = useLiveValue(api.mapTracking.feedFreshness, { mapId });
   return useMemo(
     () =>
-      tracking === undefined
-        ? NONE_TARGET
+      // Both subscriptions must have delivered before "untracked" is a
+      // truthful verdict — a warm-up paste reports loading, not a refusal.
+      tracking === undefined || freshness === undefined
+        ? LOADING_TARGET
         : trackedPasteTarget({
             ownTrackedCharacterIds: tracking.ownTrackedCharacterIds,
             tracked: tracking.tracked,
@@ -219,19 +221,34 @@ export function SignatureProvider({
   const pasteTarget = useTrackedPasteTarget(mapId);
   const scannerSystemId = rootSystemId;
   const { bySystem: missingBySystem, replace, clearAll } = useMissingSignatures();
-  const applyRows = useApplySignatureScan(mapId, replace);
+  // The missing-confirmation flow follows the system the paste was APPLIED to
+  // (the pilot's tracked system), which is not necessarily the chain root the
+  // scanner window lists — a scan pasted down the chain must still surface its
+  // Dismiss/Remove prompt.
+  const [missingSystemId, setMissingSystemId] = useState<number | null>(null);
+  const replaceForPaste = useCallback(
+    (systemId: number, signatureIds: readonly string[]) => {
+      replace(systemId, signatureIds);
+      setMissingSystemId(systemId);
+    },
+    [replace],
+  );
+  const applyRows = useApplySignatureScan(mapId, replaceForPaste);
   useScannerPaste({ canEdit, pasteTarget, applyRows });
   const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
   const identifyRow = useIdentifySignature(mapId);
   const now = useSignatureClock(rows.length > 0);
-  const missingIds = missingIdsForSystem(missingBySystem, scannerSystemId);
+  const missingIds = missingIdsForSystem(missingBySystem, missingSystemId);
+  // Row highlighting can only mark rows the window actually lists.
+  const highlightIds =
+    missingSystemId === scannerSystemId ? missingIds : EMPTY_MISSING;
   const dismissMissing = useCallback(() => {
-    if (scannerSystemId !== null) clearAll(scannerSystemId);
-  }, [scannerSystemId, clearAll]);
+    if (missingSystemId !== null) clearAll(missingSystemId);
+  }, [missingSystemId, clearAll]);
   const removeMissingRows = useCallback(async () => {
-    if (scannerSystemId === null || missingIds.size === 0) return;
-    await removeMissing(scannerSystemId, [...missingIds]);
-  }, [missingIds, removeMissing, scannerSystemId]);
+    if (missingSystemId === null || missingIds.size === 0) return;
+    await removeMissing(missingSystemId, [...missingIds]);
+  }, [missingIds, removeMissing, missingSystemId]);
 
   return (
     <SignatureRowsProvider value={rows}>
@@ -239,7 +256,8 @@ export function SignatureProvider({
       <SignatureWindow
         scannerSystemId={scannerSystemId}
         rows={rows}
-        missingIds={missingIds}
+        missingIds={highlightIds}
+        missingCount={missingIds.size}
         canEdit={canEdit}
         complete={complete}
         now={now}

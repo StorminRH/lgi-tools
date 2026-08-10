@@ -68,14 +68,26 @@ function IntelligenceHeader({
         <span className="font-data text-label uppercase tracking-label text-muted">
           Security Status
         </span>
-        <span
-          data-security-status
-          className={cn(
-            'font-data text-micro tabular-nums',
-            securityStatusTextClass(security),
-          )}
-        >
-          {formatSec(security)}
+        <span className="flex items-baseline gap-2">
+          {/* The dock hides the identity row, so the space class rides the
+              security row there — a J-space "-1.0" alone reads as null-sec. */}
+          {!showIdentity && className !== null ? (
+            <span
+              data-security-class
+              className="font-data text-micro uppercase tracking-label text-muted"
+            >
+              {className}
+            </span>
+          ) : null}
+          <span
+            data-security-status
+            className={cn(
+              'font-data text-micro tabular-nums',
+              securityStatusTextClass(security),
+            )}
+          >
+            {formatSec(security)}
+          </span>
         </span>
       </div>
     </section>

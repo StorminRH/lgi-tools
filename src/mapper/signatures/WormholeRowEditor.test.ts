@@ -41,6 +41,7 @@ function authoring(): ConnectionAuthoringApi {
     severConnection: vi.fn(),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
+        restoreSignatures: vi.fn(),
   };
 }
 

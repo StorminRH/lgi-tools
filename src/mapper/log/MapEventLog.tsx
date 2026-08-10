@@ -6,9 +6,10 @@ import { Collapsible } from '@/components/ui/collapsible';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
   formatEventTime,
-  mapEventConnectionId,
   mapEventLabel,
   mapEventRestorable,
+  mapEventRestoreAction,
+  type MapEventRestoreAction,
   type MapEventRow,
 } from './map-event-copy';
 
@@ -17,7 +18,7 @@ export interface MapEventLogProps {
   readonly events: readonly MapEventRow[];
   readonly canEdit: boolean;
   readonly now: number;
-  readonly onRestore: (connectionId: string) => void;
+  readonly onRestore: (action: MapEventRestoreAction) => void;
 }
 
 /**
@@ -38,9 +39,12 @@ export function MapEventLog({
       data-map-event-undoable={undoable || undefined}
       className="pointer-events-none absolute bottom-4 right-14 z-sticky flex justify-end"
     >
+      {/* Width lives on the collapsed header chip, not this container, so the
+          wider expanded rows region grows leftward inside the right-anchored
+          wrapper instead of overflowing past the viewport edge. */}
       <div
         className={cn(
-          'pointer-events-auto w-44 rounded-card text-ui',
+          'pointer-events-auto rounded-card text-ui',
           undoable && 'map-chip-undo-pulse',
           mapFrostedSurface,
         )}
@@ -50,7 +54,7 @@ export function MapEventLog({
           className="border-0"
           headerClassName="px-2.5 py-1.5"
           header={
-            <span className="flex w-full items-center gap-2">
+            <span className="flex w-[9.75rem] items-center gap-2">
               <span
                 data-map-event-log-toggle
                 className="font-data text-label uppercase tracking-label text-muted"
@@ -116,7 +120,7 @@ function EventRow({
   readonly event: MapEventRow;
   readonly canEdit: boolean;
   readonly now: number;
-  readonly onRestore: (connectionId: string) => void;
+  readonly onRestore: (action: MapEventRestoreAction) => void;
 }) {
   const restorable = canEdit && mapEventRestorable(event, now);
   return (
@@ -139,7 +143,7 @@ function EventRow({
           size="sm"
           data-map-event-restore
           className="shrink-0 px-1.5 py-0.5 text-micro"
-          onClick={() => onRestore(mapEventConnectionId(event))}
+          onClick={() => onRestore(mapEventRestoreAction(event))}
         >
           Restore
         </Button>

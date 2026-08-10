@@ -101,6 +101,7 @@ function authoring() {
     ),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
+        restoreSignatures: vi.fn(),
   };
 }
 
