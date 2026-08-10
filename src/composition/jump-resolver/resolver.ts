@@ -16,6 +16,7 @@ import {
 import { readShipMassByType } from '@/data/eve-data/queries';
 import { matchJump } from '@/data/maps/hole-matching';
 import { classifyMovement } from '@/data/maps/movement-classification';
+import { resolveSignatureElimination } from '@/composition/signature-elimination/resolver';
 import {
   deleteWhObservation,
   insertWhObservation,
@@ -64,6 +65,8 @@ export interface JumpResolverDependencies {
   readonly newObservationKey: () => string;
   readonly now: () => number;
   readonly reportEmissionFailure: (cause: unknown) => void;
+  readonly resolveSignatureElimination: typeof resolveSignatureElimination;
+  readonly reportEliminationFailure: (cause: unknown) => void;
 }
 
 const productionDependencies: JumpResolverDependencies = {
@@ -82,6 +85,10 @@ const productionDependencies: JumpResolverDependencies = {
   now: Date.now,
   reportEmissionFailure: (cause) => {
     console.error('Wormhole observation emission failed after Convex commit', cause);
+  },
+  resolveSignatureElimination,
+  reportEliminationFailure: (cause) => {
+    console.error('Signature elimination failed after Convex commit', cause);
   },
 };
 
@@ -257,6 +264,32 @@ async function emitAfterCommit(
   }
 }
 
+async function eliminateAfterCommit(
+  database: AnyPgDb,
+  userId: string,
+  mapId: string,
+  emission: ConnectionEmissionFacts,
+  dependencies: JumpResolverDependencies,
+): Promise<void> {
+  const systemIds = new Set([
+    emission.fromSystemId,
+    ...(emission.toSystemId === null ? [] : [emission.toSystemId]),
+  ]);
+  for (const systemId of systemIds) {
+    try {
+      await dependencies.resolveSignatureElimination(
+        database,
+        userId,
+        { mapId, systemId },
+      );
+    } catch (cause) {
+      // The topology commit already landed; elimination is a convergent
+      // follow-up and must not turn a real jump into a retryable movement.
+      dependencies.reportEliminationFailure(cause);
+    }
+  }
+}
+
 async function resolveDoorbell(
   database: AnyPgDb,
   userId: string,
@@ -360,6 +393,13 @@ async function resolveDoorbell(
   if ('reason' in resolved) {
     return { status: 'processed', outcome: 'converged', emitted: false };
   }
+  await eliminateAfterCommit(
+    database,
+    userId,
+    request.mapId,
+    resolved.emission,
+    dependencies,
+  );
   // Emission follows what the mutation actually stamped, never the matcher's
   // pre-transaction verdict: on a convergence the touched row is a different
   // document whose stored provenance governs (HC-3 — an inferred identity

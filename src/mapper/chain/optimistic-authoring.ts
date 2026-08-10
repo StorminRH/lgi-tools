@@ -35,6 +35,8 @@ import type {
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
+import { eliminateSignaturesAndAnnounce } from '../signatures/signature-elimination-client';
+import type { ConnectionEditorDetail } from './use-map-chain';
 
 /** One optimistic system page row — structural match for `watchMapSystems`. */
 export interface OptimisticSystemRow {
@@ -573,19 +575,25 @@ export function useChainAuthoringMutations() {
     addSystemFromNode,
     setConnectionWormholeType: async (args: {
       mapId: string;
-      connection: ConnectionWindowSource;
+      connection: ConnectionEditorDetail;
       value: string | null;
     }) => {
       const proposal = wormholeTypeWindowProposal(
         args.connection,
         await lifetimeMinutesFor(args.value),
       );
-      return await setConnectionWormholeType({
+      const result = await setConnectionWormholeType({
         mapId: args.mapId,
         connectionId: args.connection.connectionId,
         value: args.value,
         ...windowArgs(proposal),
       });
+      if (result === undefined) return undefined;
+      await eliminateSignaturesAndAnnounce({
+        mapId: args.mapId,
+        systemId: args.connection.fromSystemId,
+      });
+      return result;
     },
     setConnectionShipSize,
     setConnectionMassState,

@@ -182,6 +182,7 @@ describe('mapper source contract', () => {
       'signatures/SignatureWindow.tsx',
       'signatures/WormholeRowEditor.tsx',
       'signatures/signature-context.tsx',
+      'signatures/signature-elimination-client.ts',
       'signatures/signature-model.ts',
       'signatures/signature-toast.ts',
       'signatures/use-scanner-paste.ts',

@@ -16,6 +16,7 @@ import type {
 } from '../chain/use-map-chain';
 import { feedFreshnessIndex } from '../tracking/presence-model';
 import { SignatureRowsProvider } from './signature-context';
+import { eliminateSignaturesAndAnnounce } from './signature-elimination-client';
 import {
   buildSignatureRows,
   trackedPasteTarget,
@@ -83,6 +84,9 @@ function useIdentifySignature(mapId: string) {
         signatureId: row.signatureId,
         group,
       });
+      if (group === 'Wormhole') {
+        await eliminateSignaturesAndAnnounce({ mapId, systemId: row.systemId });
+      }
     },
     [identifySignature, mapId],
   );
@@ -142,6 +146,7 @@ function useApplySignatureScan(
         `Scan applied — ${result.inserted + result.updated + result.migrated} changed, ${result.unchanged} unchanged.`,
         { id: 'scanner-paste:applied', duration: 3_000 },
       );
+      await eliminateSignaturesAndAnnounce({ mapId, systemId });
     },
     [applyScan, mapId, replaceMissing],
   );

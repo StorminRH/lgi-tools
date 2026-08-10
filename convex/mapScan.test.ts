@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { api, internal } from './_generated/api';
+import type { Id } from './_generated/dataModel';
 import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
 import schema from './schema';
 
@@ -234,6 +235,138 @@ describe('mapScan paste application and lifecycle', () => {
         toSystemId: null,
       }),
     ]);
+  });
+
+  it('projects live elimination evidence and tier-gates one atomic deduction batch', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [
+      signature('AAA-111', { group: 'Wormhole' }),
+      signature('BBB-222', { group: 'Wormhole' }),
+    ]);
+
+    await expect(t.query(internal.mapScan.eliminationEvidence, {
+      userId: 'stranger',
+      mapId: MAP,
+      systemId: JITA,
+    })).resolves.toEqual({ canEdit: false, signatures: [], connections: [] });
+    const evidence = await t.query(internal.mapScan.eliminationEvidence, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+    });
+    expect(evidence).toMatchObject({
+      canEdit: true,
+      signatures: [
+        { signatureId: 'AAA-111', wormholeTypeCode: null, typeProvenance: null },
+        { signatureId: 'BBB-222', wormholeTypeCode: null, typeProvenance: null },
+      ],
+      connections: [],
+    });
+
+    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{
+        signatureId: 'AAA-111',
+        typeCode: 'B274',
+        provenance: 'assumed',
+      }],
+    })).toEqual([{ signatureId: 'AAA-111', outcome: 'applied' }]);
+    const assumed = (await readState(t)).connections.find(
+      (row) => row.fromSignatureId === 'AAA-111',
+    );
+    if (assumed === undefined) throw new Error('missing assumed deduction row');
+    expect(assumed).toMatchObject({
+      wormholeTypeCode: 'B274',
+      typedSide: 'from',
+      typeProvenance: 'assumed',
+    });
+
+    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{
+        signatureId: 'AAA-111',
+        typeCode: 'B274',
+        provenance: 'assumed',
+      }],
+    })).toEqual([{ signatureId: 'AAA-111', outcome: 'unchanged' }]);
+
+    await asEditor(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+      mapId: MAP,
+      connectionId: assumed._id,
+      value: 'H296',
+    });
+    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{
+        signatureId: 'AAA-111',
+        typeCode: 'B274',
+        provenance: 'assumed',
+      }],
+    })).toEqual([{ signatureId: 'AAA-111', outcome: 'protected' }]);
+    expect((await readState(t)).connections.find(
+      (row) => row.fromSignatureId === 'AAA-111',
+    )).toMatchObject({ wormholeTypeCode: 'H296', typeProvenance: 'human' });
+
+    await asEditor(t).mutation(api.mapScan.removeSignatures, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureIds: ['BBB-222'],
+    });
+    expect((await t.query(internal.mapScan.eliminationEvidence, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+    })).signatures.map((row) => row.signatureId)).toEqual(['AAA-111']);
+  });
+
+  it('links a far-side signature into the live resolved row without collapse', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
+    let targetId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      targetId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+
+    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{
+        signatureId: 'KSI-162',
+        connectionId: targetId,
+        provenance: 'assumed',
+      }],
+    })).toEqual([{ signatureId: 'KSI-162', outcome: 'applied' }]);
+    const rows = await t.run(async (ctx) => await ctx.db
+      .query('mapConnections')
+      .withIndex('by_map', (q) => q.eq('mapId', MAP))
+      .collect());
+    expect(rows).toEqual([
+      expect.objectContaining({ _id: targetId, toSignatureId: 'KSI-162' }),
+    ]);
+    expect(await t.run(async (ctx) => await ctx.db.query('mapEvents').collect()))
+      .toEqual([]);
   });
 
   it('re-paste after jump resolution enriches the same connection without duplicating it', async () => {

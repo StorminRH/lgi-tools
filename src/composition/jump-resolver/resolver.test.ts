@@ -60,6 +60,8 @@ const h = {
   newObservationKey: vi.fn(),
   now: vi.fn(),
   reportEmissionFailure: vi.fn(),
+  resolveSignatureElimination: vi.fn(),
+  reportEliminationFailure: vi.fn(),
 };
 
 const dependencies = h as unknown as JumpResolverDependencies;
@@ -113,6 +115,7 @@ beforeEach(() => {
   h.insertWhObservation.mockResolvedValue({});
   h.newObservationKey.mockReturnValue('observation-key');
   h.now.mockReturnValue(TRANSITION_AT);
+  h.resolveSignatureElimination.mockResolvedValue({ status: 'quiet' });
 });
 
 describe('jump resolver composition', () => {
@@ -218,6 +221,18 @@ describe('jump resolver composition', () => {
         transitionObservedAt: TRANSITION_AT,
         observedShipMassKg: 12_000_000,
       }),
+    );
+    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
+      1,
+      database,
+      USER,
+      { mapId: MAP, systemId: ORIGIN },
+    );
+    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
+      2,
+      database,
+      USER,
+      { mapId: MAP, systemId: DESTINATION },
     );
   });
 

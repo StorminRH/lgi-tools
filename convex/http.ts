@@ -9,6 +9,7 @@
 //   POST /purge-map-access         — per-user mapAccess claim teardown for account purge.
 //   POST /jump-evidence            — one consistent tracked-transition evidence packet.
 //   POST /resolve-jump             — one transactional automatic-jump write/answer.
+//   POST /signature-elimination    — bounded evidence read or atomic assumed deduction batch.
 import { httpRouter } from 'convex/server';
 import { z } from 'zod';
 import { MAP_ROLES } from '@/data/maps/access-contract';
@@ -124,6 +125,35 @@ const resolveJumpBodySchema = z.discriminatedUnion('operation', [
   }),
 ]);
 
+const eliminationDeductionSchema = z.union([
+  z.strictObject({
+    signatureId: z.string().min(1),
+    typeCode: z.string().min(1),
+    provenance: z.literal('assumed'),
+  }),
+  z.strictObject({
+    signatureId: z.string().min(1),
+    connectionId: z.string().min(1),
+    provenance: z.literal('assumed'),
+  }),
+]);
+
+const signatureEliminationBodySchema = z.discriminatedUnion('operation', [
+  z.strictObject({
+    operation: z.literal('evidence'),
+    userId: z.string().min(1),
+    mapId: z.string().min(1),
+    systemId: z.number().int().positive(),
+  }),
+  z.strictObject({
+    operation: z.literal('apply'),
+    userId: z.string().min(1),
+    mapId: z.string().min(1),
+    systemId: z.number().int().positive(),
+    deductions: z.array(eliminationDeductionSchema).min(1),
+  }),
+]);
+
 // Shared service-auth guard: HTTP actions are bearer-gated by the same secret
 // the deployment already holds (verified here in the opposite direction from the
 // Next internal endpoints). True only on a valid Bearer match.
@@ -233,6 +263,42 @@ http.route({
         observedShipMassKg: body.data.observedShipMassKg,
         observationKey: body.data.observationKey,
         decision,
+      }),
+    );
+  }),
+});
+
+http.route({
+  path: '/signature-elimination',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+    const raw = await readJsonBody(req);
+    if (raw === null) return new Response('Bad Request', { status: 400 });
+    const body = signatureEliminationBodySchema.safeParse(raw);
+    if (!body.success) return new Response('Bad Request', { status: 400 });
+    if (body.data.operation === 'evidence') {
+      return Response.json(
+        await ctx.runQuery(internal.mapScan.eliminationEvidence, {
+          userId: body.data.userId,
+          mapId: body.data.mapId,
+          systemId: body.data.systemId,
+        }),
+      );
+    }
+    return Response.json(
+      await ctx.runMutation(internal.mapScan.applyEliminationDeductions, {
+        userId: body.data.userId,
+        mapId: body.data.mapId,
+        systemId: body.data.systemId,
+        deductions: body.data.deductions.map((deduction) =>
+          'connectionId' in deduction
+            ? {
+                ...deduction,
+                connectionId: deduction.connectionId as Id<'mapConnections'>,
+              }
+            : deduction,
+        ),
       }),
     );
   }),

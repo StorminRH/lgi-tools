@@ -12,7 +12,7 @@
 - **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
   Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
   main after #377 shipped 4.0.4.3.1).
-- **OW progress:** 3/8 complete — next: OW-4 "Elimination plumbing".
+- **OW progress:** 4/8 complete — next: OW-5 "Deduction logging".
 - **OW completed:**
   - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
     (`systemIdentityReadout` + `systemClassText`, ladder moved from
@@ -42,6 +42,16 @@
     far-side link, multiset, tier protection, contradiction and insufficiency
     (SC-1.1–1.5, SC-2.3); `pnpm verify` green (gate-runner, 511 files/4894
     tests, Fallow 0 issues); primitive-checker CLEAN. Commit: this branch head.
+  - OW-4 Elimination plumbing — new authenticated composition/route and
+    bearer Convex evidence/write door project bounded live endpoint facts,
+    apply only assumed-tier type/link deductions atomically, and cascade after
+    paste, identify, manual type, and committed jumps; acting users alone see
+    applied-deduction toasts, and no observation is emitted yet. Proof:
+    Convex tier/access/tombstone/link tests, statics-unavailable zero-write
+    route/composition tests, client trigger and jump-cascade tests; `pnpm
+    verify` green (gate-runner, Fallow clean with one non-blocking localized
+    door-helper similarity advisory); primitive-checker CLEAN. Commit: this
+    branch head.
 - **Next-agent notes (4.0.4.3.2):** (1) D-E render decisions to re-confirm at
   the OW-8 pause: the TONE colors the whole readout span; system nodes have no
   disc chip anymore (chip is stub-only, showing the typed wormhole code);
@@ -66,6 +76,16 @@
   statics-unavailable outside the solver, and stamp its fixed `assumed`
   deductions through the tier-gated door. `matchJump` remains the sole owner
   of jump survivors; the eliminator has no runtime caller until OW-4.
+  (7) OW-4's elimination door adds no subscription or cadence, so its
+  bytes-per-watched-hour cost is zero. Each evidence or apply pass reads one
+  access claim, one system, and at most 128 origin + 128 destination
+  connections (258 docs on a successful pass; 260 including both overflow
+  probes before a bounded refusal). Apply accepts at most 256 deductions and
+  writes at most two documents per link deduction (512 worst-case writes;
+  type deductions write one); equality/protected/stale outcomes write zero.
+  (8) OW-5 owns observation logging from the per-deduction outcomes. Preserve
+  OW-4's no-observation boundary until that step, then emit only applied
+  assumed facts and keep human overrides on the existing dedupe key.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from
