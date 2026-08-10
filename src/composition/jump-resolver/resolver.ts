@@ -3,7 +3,7 @@ import type { AnyPgDb } from '@/lib/db-types';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
   effectiveWormholeClassId,
-  FAR_SIDE_WORMHOLE_CODE,
+  type ConnectionProvenance,
 } from '@/data/eve-data/wormhole-contract';
 import {
   getAdjacencyGraph,
@@ -17,10 +17,10 @@ import { readShipMassByType } from '@/data/eve-data/queries';
 import { matchJump } from '@/data/maps/hole-matching';
 import { classifyMovement } from '@/data/maps/movement-classification';
 import { resolveSignatureElimination } from '@/composition/signature-elimination/resolver';
+import { observationFor } from '@/data/wh-observations/emission';
 import {
   deleteWhObservation,
   insertWhObservation,
-  type WhObservationProvenance,
 } from '@/data/wh-observations/queries';
 import { readSystemStaticsForSystem } from '@/data/wh-statics/queries';
 import type {
@@ -187,17 +187,6 @@ const RETRYABLE_STALE_REASONS: ReadonlySet<string> = new Set([
   'candidate',
 ]);
 
-/** Observation tier for a stored connection provenance; null never emits. */
-function emissionTier(
-  provenance: ConnectionEmissionFacts['destinationProvenance'],
-): WhObservationProvenance | null {
-  return provenance === 'jump-verified'
-    || provenance === 'human'
-    || provenance === 'confirmed'
-    ? provenance
-    : null;
-}
-
 function typedSideFacts(
   emission: ConnectionEmissionFacts,
 ): { typedSystemId: number; destinationSystemId: number } | null {
@@ -216,36 +205,33 @@ function typedSideFacts(
 async function emitObservation(
   database: AnyPgDb,
   emission: ConnectionEmissionFacts,
-  provenance: WhObservationProvenance,
+  provenance: ConnectionProvenance,
   dependencies: JumpResolverDependencies,
 ): Promise<boolean> {
   const sides = typedSideFacts(emission);
-  if (
-    sides === null
-    || emission.wormholeTypeCode === null
-    || emission.wormholeTypeCode === FAR_SIDE_WORMHOLE_CODE
-    || emission.observationKey === null
-  ) {
-    return false;
-  }
+  if (sides === null) return false;
 
   const [systems, codex] = await Promise.all([
     dependencies.getSystemDirectory(),
     dependencies.getWormholeCodex(),
   ]);
-  const entry = codex.types.find(
-    (candidate) => candidate.code === emission.wormholeTypeCode,
-  );
   const destination = systemFacts(systems, sides.destinationSystemId);
-  if (entry === undefined || entry.farSide || destination === null) return false;
-  if (entry.targetClass !== effectiveWormholeClassId(destination)) return false;
+  if (destination === null) return false;
+  const observation = observationFor(
+    {
+      typedSystemId: sides.typedSystemId,
+      whTypeCode: emission.wormholeTypeCode,
+      provenance,
+      dedupeKey: emission.observationKey,
+      destinationClassId: effectiveWormholeClassId(destination),
+    },
+    codex.types,
+  );
+  if (observation === null) return false;
 
   await dependencies.insertWhObservation(database, {
-    solarSystemId: sides.typedSystemId,
-    whTypeCode: entry.code,
-    provenance,
+    ...observation,
     observedAt: new Date(dependencies.now()),
-    dedupeKey: emission.observationKey,
   });
   return true;
 }
@@ -253,7 +239,7 @@ async function emitObservation(
 async function emitAfterCommit(
   database: AnyPgDb,
   emission: ConnectionEmissionFacts,
-  provenance: WhObservationProvenance,
+  provenance: ConnectionProvenance,
   dependencies: JumpResolverDependencies,
 ): Promise<boolean> {
   try {
@@ -402,10 +388,11 @@ async function resolveDoorbell(
   );
   // Emission follows what the mutation actually stamped, never the matcher's
   // pre-transaction verdict: on a convergence the touched row is a different
-  // document whose stored provenance governs (HC-3 — an inferred identity
-  // must not gain observation tier, and a human tier must not be overwritten
-  // by a jump-verified refresh).
-  const tier = emissionTier(resolved.emission.destinationProvenance);
+  // document whose stored provenance governs (HC-3 — a human tier must not be
+  // overwritten by a jump-verified refresh). Every tier now emits under its own
+  // tag, `assumed` included (operator ruling D-B): the corpus records how each
+  // identity was learned rather than discarding the weaker evidence.
+  const tier = resolved.emission.destinationProvenance;
   const emitted = tier === null
     ? false
     : await emitAfterCommit(database, resolved.emission, tier, dependencies);

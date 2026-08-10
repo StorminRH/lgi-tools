@@ -64,6 +64,7 @@ import {
   purgeExpiredSignatures,
   SIGNATURE_PURGE_BATCH,
 } from './lib/mapSignatureCleanup';
+import { stampObservationKey } from './lib/observationKey';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import {
   readTrackedPilotSystemIds,
@@ -100,6 +101,9 @@ const eliminationOutcomeValidator = v.object({
     v.literal('protected'),
     v.literal('stale'),
   ),
+  // The row's stable per-hole observation key, so the caller can log or repair
+  // the identification this outcome settled. Null when no live row owns one.
+  observationKey: v.union(v.string(), v.null()),
 });
 
 const eliminationEvidenceValidator = v.object({
@@ -109,6 +113,7 @@ const eliminationEvidenceValidator = v.object({
       signatureId: v.string(),
       wormholeTypeCode: v.union(v.string(), v.null()),
       typeProvenance: v.union(connectionProvenanceValidator, v.null()),
+      observationKey: v.union(v.string(), v.null()),
     }),
   ),
   connections: v.array(
@@ -784,6 +789,7 @@ export const eliminationEvidence = internalQuery({
             signatureId,
             wormholeTypeCode: connection.wormholeTypeCode,
             typeProvenance: connection.typeProvenance ?? null,
+            observationKey: connection.observationKey ?? null,
           }];
     });
     const connections = rows.touching
@@ -833,6 +839,7 @@ function requireEliminationDeductions(
 type EliminationOutcome = {
   readonly signatureId: string;
   readonly outcome: 'applied' | 'unchanged' | 'protected' | 'stale';
+  readonly observationKey: string | null;
 };
 
 async function applyTypeDeduction(
@@ -842,27 +849,32 @@ async function applyTypeDeduction(
   typeCode: string,
 ): Promise<EliminationOutcome> {
   if (source === undefined || source.toSystemId !== null || isTombstoned(source)) {
-    return { signatureId, outcome: 'stale' };
+    return { signatureId, outcome: 'stale', observationKey: null };
   }
+  const observationKey = source.observationKey ?? null;
   if (
     source.wormholeTypeCode === typeCode
     && source.typeProvenance === 'assumed'
     && source.typedSide === 'from'
   ) {
-    return { signatureId, outcome: 'unchanged' };
+    return { signatureId, outcome: 'unchanged', observationKey };
   }
   if (
     source.wormholeTypeCode !== null
     && source.typeProvenance !== 'assumed'
   ) {
-    return { signatureId, outcome: 'protected' };
+    return { signatureId, outcome: 'protected', observationKey };
   }
+  // A deduced identity is observation-eligible (ruling D-B), so it stamps the
+  // row's dedupe key through the same owner the manual setter uses.
+  const stamped = stampObservationKey(source.observationKey);
   await ctx.db.patch(source._id, {
     wormholeTypeCode: typeCode,
     typedSide: 'from',
     typeProvenance: 'assumed',
+    ...stamped.patch,
   });
-  return { signatureId, outcome: 'applied' };
+  return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
 }
 
 async function applyLinkDeduction(
@@ -880,15 +892,17 @@ async function applyLinkDeduction(
     || target.toSystemId === null
     || isTombstoned(target)
   ) {
-    return { signatureId, outcome: 'stale' };
+    return { signatureId, outcome: 'stale', observationKey: null };
   }
+  const observationKey = source.observationKey ?? null;
   const side = endpointSide(target, systemId);
-  if (side === null) return { signatureId, outcome: 'stale' };
+  if (side === null) return { signatureId, outcome: 'stale', observationKey };
   const current = side === 'from' ? target.fromSignatureId : target.toSignatureId;
   if (current !== undefined) {
     return {
       signatureId,
       outcome: current === signatureId ? 'unchanged' : 'protected',
+      observationKey,
     };
   }
   await ctx.db.patch(
@@ -897,8 +911,10 @@ async function applyLinkDeduction(
       ? { fromSignatureId: signatureId }
       : { toSignatureId: signatureId },
   );
+  // The stub row and its dedupe key die here: the identity now belongs to the
+  // resolved connection, which carries its own key through the jump channel.
   await ctx.db.delete(source._id);
-  return { signatureId, outcome: 'applied' };
+  return { signatureId, outcome: 'applied', observationKey };
 }
 
 /** Atomically revalidates and applies one assumed-tier deduction batch. */
@@ -919,6 +935,7 @@ export const applyEliminationDeductions = internalMutation({
       return deductions.map(({ signatureId }) => ({
         signatureId,
         outcome: 'stale' as const,
+        observationKey: null,
       }));
     }
     const rows = await readEliminationConnections(ctx, mapId, systemId);

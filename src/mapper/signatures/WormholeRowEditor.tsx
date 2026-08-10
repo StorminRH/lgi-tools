@@ -69,8 +69,9 @@ export function WormholeRowEditor({
           // Parity with the connection card: type entry on a RESOLVED row runs
           // the same typed-hole notification (observation emit + superseded-row
           // repair), so identical user intent cannot produce divergent Neon
-          // state. Scanned unresolved stubs stay mutation-only — observation
-          // emission for scanned rows belongs to 4.0.4.3.3 (contract OOS-2).
+          // state. A scanned unresolved stub needs no second channel — its
+          // setter already cascades the elimination pass, which logs that row's
+          // identity at its own tier and corrects the key in place (ruling D-B).
           if (isResolvedConnection(connection)) {
             void applyWormholeType({ mapId, connection, value, authoring });
             return;

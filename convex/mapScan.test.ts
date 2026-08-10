@@ -264,7 +264,7 @@ describe('mapScan paste application and lifecycle', () => {
       connections: [],
     });
 
-    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+    const applied = await t.mutation(internal.mapScan.applyEliminationDeductions, {
       userId: EDITOR,
       mapId: MAP,
       systemId: JITA,
@@ -273,7 +273,14 @@ describe('mapScan paste application and lifecycle', () => {
         typeCode: 'B274',
         provenance: 'assumed',
       }],
-    })).toEqual([{ signatureId: 'AAA-111', outcome: 'applied' }]);
+    });
+    // The deduction stamps the fact and mints the row's per-hole dedupe key in
+    // the same transaction, so the caller can log the identification (D-B).
+    const observationKey = applied[0]?.observationKey ?? null;
+    expect(applied).toEqual([
+      { signatureId: 'AAA-111', outcome: 'applied', observationKey },
+    ]);
+    expect(observationKey).toEqual(expect.any(String));
     const assumed = (await readState(t)).connections.find(
       (row) => row.fromSignatureId === 'AAA-111',
     );
@@ -282,6 +289,7 @@ describe('mapScan paste application and lifecycle', () => {
       wormholeTypeCode: 'B274',
       typedSide: 'from',
       typeProvenance: 'assumed',
+      observationKey,
     });
 
     expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
@@ -293,7 +301,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeCode: 'B274',
         provenance: 'assumed',
       }],
-    })).toEqual([{ signatureId: 'AAA-111', outcome: 'unchanged' }]);
+    })).toEqual([
+      { signatureId: 'AAA-111', outcome: 'unchanged', observationKey },
+    ]);
 
     await asEditor(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
       mapId: MAP,
@@ -309,7 +319,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeCode: 'B274',
         provenance: 'assumed',
       }],
-    })).toEqual([{ signatureId: 'AAA-111', outcome: 'protected' }]);
+    })).toEqual([
+      { signatureId: 'AAA-111', outcome: 'protected', observationKey },
+    ]);
     expect((await readState(t)).connections.find(
       (row) => row.fromSignatureId === 'AAA-111',
     )).toMatchObject({ wormholeTypeCode: 'H296', typeProvenance: 'human' });
@@ -319,11 +331,20 @@ describe('mapScan paste application and lifecycle', () => {
       systemId: JITA,
       signatureIds: ['BBB-222'],
     });
-    expect((await t.query(internal.mapScan.eliminationEvidence, {
+    // A person's correction rides the SAME key, so the logged identification
+    // is rewritten in place rather than duplicated.
+    expect(await t.query(internal.mapScan.eliminationEvidence, {
       userId: EDITOR,
       mapId: MAP,
       systemId: JITA,
-    })).signatures.map((row) => row.signatureId)).toEqual(['AAA-111']);
+    })).toMatchObject({
+      signatures: [{
+        signatureId: 'AAA-111',
+        wormholeTypeCode: 'H296',
+        typeProvenance: 'human',
+        observationKey,
+      }],
+    });
   });
 
   it('links a far-side signature into the live resolved row without collapse', async () => {
@@ -348,6 +369,8 @@ describe('mapScan paste application and lifecycle', () => {
       });
     });
 
+    // The stub carried no identity of its own, so the link reports no key to
+    // repair; the resolved row it joined owns identity through the jump door.
     expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
       userId: EDITOR,
       mapId: MAP,
@@ -357,7 +380,9 @@ describe('mapScan paste application and lifecycle', () => {
         connectionId: targetId,
         provenance: 'assumed',
       }],
-    })).toEqual([{ signatureId: 'KSI-162', outcome: 'applied' }]);
+    })).toEqual([
+      { signatureId: 'KSI-162', outcome: 'applied', observationKey: null },
+    ]);
     const rows = await t.run(async (ctx) => await ctx.db
       .query('mapConnections')
       .withIndex('by_map', (q) => q.eq('mapId', MAP))

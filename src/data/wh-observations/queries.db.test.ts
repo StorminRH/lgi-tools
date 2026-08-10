@@ -119,4 +119,54 @@ describe.skipIf(!harness.reachable)('wormhole observations (real Postgres)', () 
       }),
     ).rejects.toThrow(/attributable type code/);
   });
+
+  it('stores a machine deduction tagged assumed and lets a person correct it in place', async () => {
+    const deduced = await insertWhObservation(harness.db, {
+      solarSystemId: 31_000_001,
+      whTypeCode: 'B274',
+      provenance: 'assumed',
+      observedAt: new Date('2026-08-06T14:37:42.123Z'),
+      dedupeKey: 'deduced-hole-key',
+    });
+    expect(deduced).toMatchObject({
+      whTypeCode: 'B274',
+      provenance: 'assumed',
+      dedupeKey: 'deduced-hole-key',
+    });
+
+    // Ruling D-B: a person's later identification rewrites the SAME per-hole
+    // row rather than leaving the machine's guess beside it.
+    await insertWhObservation(harness.db, {
+      solarSystemId: 31_000_001,
+      whTypeCode: 'H296',
+      provenance: 'human',
+      observedAt: new Date('2026-08-06T15:02:00.000Z'),
+      dedupeKey: 'deduced-hole-key',
+    });
+    const rows = await harness.db.select().from(whObservations);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      whTypeCode: 'H296',
+      provenance: 'human',
+      dedupeKey: 'deduced-hole-key',
+    });
+  });
+
+  it('keeps the K162 and hour-coarse checks the migration did not drop', async () => {
+    // The provenance check is gone; these two are the retained database floor,
+    // proven past the application guard that normally rejects K162 first.
+    await expect(harness.sql`
+      INSERT INTO ${harness.sql(SCHEMA)}.wh_observations
+        (solar_system_id, wh_type_code, provenance, observed_at, dedupe_key)
+      VALUES (31000001, 'K162', 'assumed', TIMESTAMPTZ '2026-08-06 14:00:00+00', 'raw-far-side')
+    `).rejects.toThrow(/wh_observations_attributable_type/);
+
+    await expect(harness.sql`
+      INSERT INTO ${harness.sql(SCHEMA)}.wh_observations
+        (solar_system_id, wh_type_code, provenance, observed_at, dedupe_key)
+      VALUES (31000001, 'B274', 'assumed', TIMESTAMPTZ '2026-08-06 14:37:00+00', 'raw-fine-grained')
+    `).rejects.toThrow(/wh_observations_hour_coarse/);
+
+    expect(await harness.db.select().from(whObservations)).toHaveLength(0);
+  });
 });

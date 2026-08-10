@@ -12,6 +12,7 @@ const evidenceSchema = z.strictObject({
       signatureId: z.string().min(1),
       wormholeTypeCode: z.string().nullable(),
       typeProvenance: z.enum(CONNECTION_PROVENANCES).nullable(),
+      observationKey: z.string().nullable(),
     }),
   ),
   connections: z.array(
@@ -27,6 +28,7 @@ const outcomesSchema = z.array(
   z.strictObject({
     signatureId: z.string().min(1),
     outcome: z.enum(['applied', 'unchanged', 'protected', 'stale']),
+    observationKey: z.string().nullable(),
   }),
 );
 

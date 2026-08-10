@@ -32,6 +32,7 @@ import {
   purgeExpiredChainTombstones as purgeExpiredChainTombstonesCore,
 } from './lib/mapChainCleanup';
 import { deleteSignatureActivity } from './lib/mapSignatures';
+import { stampObservationKey } from './lib/observationKey';
 import {
   beginSystemEdit,
   findSystem,
@@ -517,13 +518,11 @@ export const setConnectionWormholeType = mutation({
     await ctx.db.patch(connectionId, {
       wormholeTypeCode: value,
       ...identityPatch,
-      // Typing a hole makes it observation-eligible (human tier through the
-      // jump route), so a row that was never jump-authored needs its stable
-      // per-connection dedupe key minted here. Seeded-PRNG UUIDs are
-      // mutation-safe; an OCC retry rolls the whole write back with the key.
-      ...(value !== null && connection.observationKey === undefined
-        ? { observationKey: crypto.randomUUID() }
-        : {}),
+      // Typing a hole makes it observation-eligible, so a row that was never
+      // jump-authored takes its dedupe key from the shared stamping rule.
+      ...(value === null
+        ? {}
+        : stampObservationKey(connection.observationKey).patch),
       ...deathWindowPatch(window),
     });
     return { changed: true };

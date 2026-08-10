@@ -12,7 +12,7 @@
 - **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
   Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
   main after #377 shipped 4.0.4.3.1).
-- **OW progress:** 4/8 complete — next: OW-5 "Deduction logging".
+- **OW progress:** 5/8 complete — next: OW-6 "The Signature Editor".
 - **OW completed:**
   - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
     (`systemIdentityReadout` + `systemClassText`, ladder moved from
@@ -52,6 +52,22 @@
     verify` green (gate-runner, Fallow clean with one non-blocking localized
     door-helper similarity advisory); primitive-checker CLEAN. Commit: this
     branch head.
+  - OW-5 Deduction logging — migration `0054_admit_assumed_observations`
+    drops only `wh_observations_verified_provenance`; new pure
+    `src/data/wh-observations/emission.ts` (`observationFor`) is the sole
+    attributability guard for both emitters; the jump resolver's
+    sub-`confirmed` tier filter is gone so a stored `assumed` identity logs
+    tagged `assumed`; the elimination pass logs each live scanned row at its
+    stored tier and removes what a correction vacated; the Convex elimination
+    door carries the per-hole `observationKey`, minted through the new shared
+    `convex/lib/observationKey.ts` that `setConnectionWormholeType` now also
+    uses. Proof: real-Postgres assumed/override/K162+hour-coarse cases,
+    emission matrix, elimination logging matrix (deduced, override, vacated,
+    stale, migrated, degraded, failure), jump-resolver assumed emission
+    (SC-8.1–8.4); `pnpm verify` green (gate-runner, 545 files/5062 tests,
+    Fallow 1 non-blocking clone-group warn — the same OW-4 door-helper
+    advisory); primitive-checker CLEAN after the key-minting extraction.
+    Commit: this branch head.
 - **Next-agent notes (4.0.4.3.2):** (1) D-E render decisions to re-confirm at
   the OW-8 pause: the TONE colors the whole readout span; system nodes have no
   disc chip anymore (chip is stub-only, showing the typed wormhole code);
@@ -83,9 +99,21 @@
   probes before a bounded refusal). Apply accepts at most 256 deductions and
   writes at most two documents per link deduction (512 worst-case writes;
   type deductions write one); equality/protected/stale outcomes write zero.
-  (8) OW-5 owns observation logging from the per-deduction outcomes. Preserve
-  OW-4's no-observation boundary until that step, then emit only applied
-  assumed facts and keep human overrides on the existing dedupe key.
+  (8) OW-5 settled observation logging as a row-level rule, not a
+  per-deduction one: the elimination pass logs the identity every live scanned
+  row of the system carries at its stored tier, because a human override
+  produces NO deduction and would otherwise leave the machine's superseded
+  guess standing. Emission is skipped entirely when statics are unavailable
+  (SC-3.1) and runs after the write batch, so `quiet` passes still correct.
+  Only an `applied` outcome may introduce a key the evidence snapshot did not
+  show — that is what stops a lost race from deleting the winner's row.
+  Unresolved scanned rows are logged by the elimination pass; resolved
+  connections stay owned by the jump resolver, so the two emitters never
+  overlap. The manual-type path needs no editor change: the
+  `setConnectionWormholeType` dispatcher already cascades elimination.
+  (9) OW-6 reworks `connection-fields.tsx` and `WormholeRowEditor.tsx`; the
+  latter's type-entry comment now describes the OW-5 cascade — keep that
+  behavior when the editor moves into the pop-out.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from

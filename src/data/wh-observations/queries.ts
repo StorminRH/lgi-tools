@@ -7,17 +7,12 @@ import {
 import type { AnyPgDb } from '@/lib/db-types';
 import { whObservations } from './schema';
 
-/** Provenance tiers that may enter the D16 observation stream. */
-export type WhObservationProvenance = Exclude<
-  ConnectionProvenance,
-  'assumed'
->;
-
 /** The complete privacy-safe input for one corrected-in-place D16 observation. */
 export interface WhObservationInput {
   readonly solarSystemId: number;
   readonly whTypeCode: string;
-  readonly provenance: WhObservationProvenance;
+  /** Every connection tier is admitted; `assumed` marks a machine deduction (D-B). */
+  readonly provenance: ConnectionProvenance;
   readonly observedAt: Date;
   readonly dedupeKey: string;
 }

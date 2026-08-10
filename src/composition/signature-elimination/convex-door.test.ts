@@ -42,7 +42,7 @@ describe('signature elimination Convex door', () => {
         connections: [],
       }))
       .mockResolvedValueOnce(Response.json([
-        { signatureId: 'AAA-111', outcome: 'applied' },
+        { signatureId: 'AAA-111', outcome: 'applied', observationKey: 'key-1' },
       ]));
 
     await expect(
@@ -57,7 +57,9 @@ describe('signature elimination Convex door', () => {
         typeCode: 'B274',
         provenance: 'assumed',
       }],
-    })).resolves.toEqual([{ signatureId: 'AAA-111', outcome: 'applied' }]);
+    })).resolves.toEqual([
+      { signatureId: 'AAA-111', outcome: 'applied', observationKey: 'key-1' },
+    ]);
 
     expect(h.fetchWithTimeout).toHaveBeenNthCalledWith(
       1,
