@@ -446,7 +446,7 @@ const placedStub = (
 });
 
 describe('wormhole stub projection', () => {
-  it('spawns exactly one ghosted, interaction-inert stub and its derived edge', () => {
+  it('spawns one inert stub, retires it on resolve, and renders nothing without input', () => {
     const state = stateFor([JITA]);
     const stub = placedStub();
     const nodes = syncNodes(
@@ -489,18 +489,8 @@ describe('wormhole stub projection', () => {
           data: { loop: false, tombstoneState: 'active', stub: true },
         },
       ]);
-  });
 
-  it('retires the stub when the same connection resolves and renders one authored destination', () => {
-    const stub = placedStub();
-    const before = syncNodes(
-      [],
-      stateFor([JITA]).systems,
-      fallbackLabel,
-      NO_DRAG,
-      [],
-      [stub],
-    );
+    const before = nodes;
     const resolved = stateFor([JITA, AMARR]);
     const after = syncNodes(
       before,
@@ -508,20 +498,12 @@ describe('wormhole stub projection', () => {
       fallbackLabel,
       NO_DRAG,
     );
-
     expect(after.filter((node) => node.id === String(AMARR))).toHaveLength(1);
     expect(after.some((node) => node.id.startsWith(STUB_NODE_ID_PREFIX))).toBe(false);
-  });
 
-  it('renders no canvas artifact when no known-wormhole row reaches the stub input', () => {
-    const nodes = syncNodes(
-      [],
-      stateFor([JITA]).systems,
-      fallbackLabel,
-      NO_DRAG,
-      [],
-      [],
-    );
-    expect(nodes.map((node) => node.id)).toEqual([String(JITA)]);
+    expect(
+      syncNodes([], stateFor([JITA]).systems, fallbackLabel, NO_DRAG, [], [])
+        .map((node) => node.id),
+    ).toEqual([String(JITA)]);
   });
 });

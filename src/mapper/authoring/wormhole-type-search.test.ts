@@ -4,18 +4,15 @@ import { wormholeTypeSearch } from './wormhole-type-search';
 const CODES = ['B274', 'C247', 'K162', 'N770'] as const;
 
 describe('wormhole type search', () => {
-  const search = wormholeTypeSearch(CODES);
+  it('parses known codes, rejects unknowns, and accepts lenient canonical codes', () => {
+    const search = wormholeTypeSearch(CODES);
 
-  it('parses a known code and empty input as unset', () => {
     expect(search.parse('b274')).toEqual({
       ok: true,
       params: { code: 'B274' },
     });
     expect(search.parse('')).toEqual({ ok: true, params: { code: null } });
     expect(search.parse('   ')).toEqual({ ok: true, params: { code: null } });
-  });
-
-  it('rejects unknown or malformed codes', () => {
     expect(search.parse('Z999')).toEqual({
       ok: false,
       error: { kind: 'not_found' },
@@ -24,9 +21,7 @@ describe('wormhole type search', () => {
       ok: false,
       error: { kind: 'not_found' },
     });
-  });
 
-  it('accepts canonical codes leniently when the codex is unavailable', () => {
     const lenient = wormholeTypeSearch([], { lenient: true });
     expect(lenient.parse('Z999')).toEqual({
       ok: true,
@@ -38,7 +33,12 @@ describe('wormhole type search', () => {
     });
   });
 
-  it('bounds suggestions to the suggest limit', async () => {
+  it('suggests bounded, deduped prefixes with origin statics first', async () => {
+    const search = wormholeTypeSearch(CODES);
+    await expect(search.suggest('k')).resolves.toEqual(['K162']);
+    await expect(search.suggest('')).resolves.toEqual([...CODES]);
+    await expect(search.suggest('B')).resolves.toEqual(['B274']);
+
     const many = Array.from(
       { length: 20 },
       (_, index) => `C${String(index + 100)}`,
@@ -46,15 +46,7 @@ describe('wormhole type search', () => {
     const bounded = wormholeTypeSearch(many);
     await expect(bounded.suggest('')).resolves.toHaveLength(12);
     await expect(bounded.suggest('C')).resolves.toHaveLength(12);
-  });
 
-  it('suggests prefix matches including K162', async () => {
-    await expect(search.suggest('k')).resolves.toEqual(['K162']);
-    await expect(search.suggest('')).resolves.toEqual([...CODES]);
-    await expect(search.suggest('B')).resolves.toEqual(['B274']);
-  });
-
-  it('collapses duplicate SDE codes in suggestions', async () => {
     const searchWithDupes = wormholeTypeSearch([
       'C729',
       'C729',
@@ -71,9 +63,7 @@ describe('wormhole type search', () => {
       'C008',
       'C729',
     ]);
-  });
 
-  it('places the origin system statics first and degrades to ordinary search', async () => {
     const preferred = wormholeTypeSearch(CODES, {
       preferredCodes: ['N770', 'B274', 'N770', 'Z999'],
     });

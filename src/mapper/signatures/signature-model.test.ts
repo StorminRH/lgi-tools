@@ -248,9 +248,30 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         SYSTEM,
       ).map((section) => section.id),
     ).toEqual(['wormholes']);
+
+    // Schema-legal legacy group strings must land unidentified instead of crashing.
+    const legacy: SignatureWindowRow = {
+      key: 'legacy',
+      systemId: SYSTEM,
+      signatureId: 'LEG-001',
+      kind: 'signature',
+      // Stored rows may carry pre-vocabulary strings (legacy lowercase); the
+      // cast mirrors the schema's v.union(v.string(), v.null()) reality.
+      group: 'wormhole' as SignatureWindowRow['group'],
+      name: null,
+      signalPct: null,
+      firstSeenAt: 1,
+      connection: null,
+      className: null,
+    };
+    expect(scannerSectionForGroup(legacy.group)).toBe('unknown');
+    const legacySections = groupSignatureSections([legacy], SYSTEM);
+    expect(legacySections).toHaveLength(1);
+    expect(legacySections[0]?.id).toBe('unknown');
+    expect(legacySections[0]?.rows.map((row) => row.signatureId)).toEqual(['LEG-001']);
   });
 
-  it('reads wormhole size and remaining lifetime from codex like the row editor', () => {
+  it('reads wormhole size, remaining lifetime, and shared age clock like the row editor', () => {
     const typed: WormholeCodexEntry = {
       code: 'B274',
       typeId: 1,
@@ -304,9 +325,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         now,
       ),
     ).toBe('Expired');
-  });
 
-  it('formats the shared client clock without one timer per row', () => {
     expect(formatSignatureAge(1_000, 1_000)).toBe('<1m');
     expect(formatSignatureAge(1_000, 6 * 60_000 + 1_000)).toBe('6m');
     expect(formatSignatureAge(1_000, 3 * 60 * 60_000 + 1_000)).toBe('3h');
@@ -389,20 +408,14 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     ).toEqual({ kind: 'none' });
   });
 
-  it('claims scanner-shaped text while leaving ordinary clipboard text alone', () => {
-    expect(
-      isScannerPasteCandidate(
-        'ABC-123\tCosmic Signature\tWormhole\tUnstable Wormhole\t100%\t1 AU',
-      ),
-    ).toBe(true);
+  it('classifies scanner pastes before side effects and maps refusals to toast copy', () => {
+    const valid =
+      'ABC-123\tCosmic Signature\tWormhole\tUnstable Wormhole\t100%\t1 AU';
+
+    expect(isScannerPasteCandidate(valid)).toBe(true);
     expect(isScannerPasteCandidate('ABC-123\tUnexpected Kind\t\t\t\t1 AU')).toBe(true);
     expect(isScannerPasteCandidate('ordinary clipboard text')).toBe(false);
     expect(isEditablePasteTarget(null)).toBe(false);
-  });
-
-  it('classifies apply, confirmation refusal, and malformed scanner pastes before side effects', () => {
-    const valid =
-      'ABC-123\tCosmic Signature\tWormhole\tUnstable Wormhole\t100%\t1 AU';
 
     expect(scannerPasteDecision('ordinary clipboard text', true, READY)).toBeNull();
     expect(scannerPasteDecision(valid, false, READY)).toEqual({ kind: 'read-only' });
@@ -425,9 +438,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         READY,
       ),
     ).toMatchObject({ kind: 'reject', rejectCount: 1 });
-  });
 
-  it('maps non-apply paste decisions to refusal toast copy', () => {
     expect(scannerPasteRefusalToast({ kind: 'reject', rejectCount: 1 })).toEqual({
       message: 'Scanner paste rejected — 1 row need attention.',
       options: { id: 'scanner-paste:rejected', duration: 5_000 },
@@ -447,27 +458,5 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerPasteRefusalToast({ kind: 'loading' }).options.id).toBe(
       'scanner-paste:loading',
     );
-  });
-
-  it('sections schema-legal legacy group strings as unidentified instead of crashing', () => {
-    const legacy: SignatureWindowRow = {
-      key: 'legacy',
-      systemId: SYSTEM,
-      signatureId: 'LEG-001',
-      kind: 'signature',
-      // Stored rows may carry pre-vocabulary strings (legacy lowercase); the
-      // cast mirrors the schema's v.union(v.string(), v.null()) reality.
-      group: 'wormhole' as SignatureWindowRow['group'],
-      name: null,
-      signalPct: null,
-      firstSeenAt: 1,
-      connection: null,
-      className: null,
-    };
-    expect(scannerSectionForGroup(legacy.group)).toBe('unknown');
-    const sections = groupSignatureSections([legacy], SYSTEM);
-    expect(sections).toHaveLength(1);
-    expect(sections[0]?.id).toBe('unknown');
-    expect(sections[0]?.rows.map((row) => row.signatureId)).toEqual(['LEG-001']);
   });
 });
