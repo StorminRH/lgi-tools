@@ -8,18 +8,20 @@ import {
   type EliminationSignature,
 } from './signature-eliminator';
 
+const B274_CODEX_ENTRY: WormholeCodexEntry = {
+  code: 'B274',
+  typeId: 1,
+  farSide: false,
+  totalMass: 2_000_000_000,
+  maxJumpMass: 300_000_000,
+  massRegen: 0,
+  lifetimeMinutes: 1_440,
+  sizeClass: 'L',
+  targetClass: 7,
+};
+
 const CODEX: readonly WormholeCodexEntry[] = [
-  {
-    code: 'B274',
-    typeId: 1,
-    farSide: false,
-    totalMass: 2_000_000_000,
-    maxJumpMass: 300_000_000,
-    massRegen: 0,
-    lifetimeMinutes: 1_440,
-    sizeClass: 'L',
-    targetClass: 7,
-  },
+  B274_CODEX_ENTRY,
   {
     code: 'H296',
     typeId: 2,
@@ -240,6 +242,39 @@ const INFERENCE_CASES = [
     input: input({
       staticTypeCodes: ['B274', 'H296'],
       signatures: [signature('AAA-111')],
+    }),
+    expected: { deductions: [], quiet: true },
+  },
+  {
+    name: 'attribute-identical duplicate code entries keep inference live',
+    input: input({
+      staticTypeCodes: ['B274'],
+      signatures: [signature('AAA-111')],
+      codex: [
+        ...CODEX,
+        { ...B274_CODEX_ENTRY, typeId: 99 },
+      ],
+    }),
+    expected: {
+      deductions: [
+        { signatureId: 'AAA-111', typeCode: 'B274', provenance: 'assumed' },
+      ],
+      quiet: false,
+    },
+  },
+  {
+    name: 'a conflicting duplicate code entry fails closed',
+    input: input({
+      staticTypeCodes: ['B274'],
+      signatures: [signature('AAA-111')],
+      codex: [
+        ...CODEX,
+        {
+          ...B274_CODEX_ENTRY,
+          typeId: 100,
+          maxJumpMass: B274_CODEX_ENTRY.maxJumpMass - 1,
+        },
+      ],
     }),
     expected: { deductions: [], quiet: true },
   },

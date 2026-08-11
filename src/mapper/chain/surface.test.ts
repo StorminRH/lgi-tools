@@ -37,18 +37,22 @@ function nodeMarkup(name: string, whClassId: number | null): string {
 
 // ── SC-3 · DC-3 — what a populated node actually says ───────────────────────
 describe('system node rendering', () => {
-  it('shows the directory name with its class in the header readout (D-E)', () => {
+  it('shows the plain directory name above its colored class indicator', () => {
     const markup = nodeMarkup('J123456', 5);
 
-    expect(markup).toContain('J123456 - C5');
-    expect(markup).not.toContain('data-chain-node-class');
+    expect(markup).toContain('>J123456<');
+    expect(markup).toContain('data-chain-node-classification');
+    expect(markup).toContain('>C5<');
+    expect(markup).toContain('text-wh-c5');
+    expect(markup).not.toContain('J123456 - C5');
+    expect(markup).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
   });
 
   it('shows the bare name for a system with no class and no security', () => {
     const markup = nodeMarkup('Jita', null);
 
     expect(markup).toContain('Jita');
-    expect(markup).not.toContain('data-chain-node-class');
+    expect(markup).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
   });
 });
 

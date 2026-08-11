@@ -10,6 +10,13 @@ import { apiFetch } from '@/transport/api-client';
 
 const ELIMINATION_REQUEST_TIMEOUT_MS = 15_000;
 
+/** Natural-language list for one aggregate identification toast. */
+function signatureIdList(signatureIds: readonly string[]): string {
+  if (signatureIds.length === 1) return signatureIds[0]!;
+  if (signatureIds.length === 2) return `${signatureIds[0]} and ${signatureIds[1]}`;
+  return `${signatureIds.slice(0, -1).join(', ')}, and ${signatureIds.at(-1)}`;
+}
+
 /** Posts one acting-user elimination pass and announces only applied deductions. */
 export async function eliminateSignaturesAndAnnounce(
   body: SignatureEliminationRequest,
@@ -19,10 +26,11 @@ export async function eliminateSignaturesAndAnnounce(
     signal: AbortSignal.timeout(ELIMINATION_REQUEST_TIMEOUT_MS),
   });
   if (!outcome.ok) return null;
-  if (outcome.data.status === 'applied' && outcome.data.deduced > 0) {
-    const suffix = outcome.data.deduced === 1 ? '' : 's';
+  if (outcome.data.status === 'applied') {
+    const { signatureIds } = outcome.data;
+    const verb = signatureIds.length === 1 ? 'has' : 'have';
     toast.success(
-      `${outcome.data.deduced} signature${suffix} identified by elimination.`,
+      `${signatureIdList(signatureIds)} ${verb} been identified.`,
       { id: `signature-elimination:${body.mapId}:${body.systemId}` },
     );
   }

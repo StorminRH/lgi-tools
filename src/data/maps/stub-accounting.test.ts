@@ -7,8 +7,8 @@ import {
 } from './stub-accounting';
 
 const STATICS: readonly StaticStubSlot[] = [
-  { id: 'B274:1', code: 'B274', className: 'HS' },
-  { id: 'H296:1', code: 'H296', className: 'C5' },
+  { id: 'B274:1', code: 'B274', className: 'HS', whClassId: 7 },
+  { id: 'H296:1', code: 'H296', className: 'C5', whClassId: 5 },
 ];
 
 const signatures = (
@@ -94,8 +94,8 @@ describe('stub accounting', () => {
 
   it('keeps duplicate static identities stable while consuming the multiset', () => {
     const duplicateStatics = [
-      { id: 'C247:1', code: 'C247', className: 'C3' },
-      { id: 'C247:2', code: 'C247', className: 'C3' },
+      { id: 'C247:1', code: 'C247', className: 'C3', whClassId: 3 },
+      { id: 'C247:2', code: 'C247', className: 'C3', whClassId: 3 },
     ];
     expect(
       believedHoles({

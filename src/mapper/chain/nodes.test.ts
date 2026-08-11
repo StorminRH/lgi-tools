@@ -446,6 +446,7 @@ const placedStub = (
   fromSystemId: JITA,
   signatureId: 'ABC-123',
   wormholeTypeCode: null,
+  whClassId: null,
   position: { x: 300, y: 0 },
   ...overrides,
 });
@@ -534,8 +535,8 @@ describe('wormhole stub projection', () => {
 // ── OW2 (4.0.4.3.2) — statics ghosts and D-D accounting ────────────────
 
 const SYSTEM_STATICS = [
-  { id: `${JITA}:B274:1`, code: 'B274', className: 'HS' },
-  { id: `${JITA}:H296:1`, code: 'H296', className: 'C5' },
+  { id: `${JITA}:B274:1`, code: 'B274', className: 'HS', whClassId: 7 },
+  { id: `${JITA}:H296:1`, code: 'H296', className: 'C5', whClassId: 5 },
 ];
 
 function placePlannedStubs(
@@ -555,6 +556,7 @@ describe('static wormhole stub projection', () => {
         fromSystemId: JITA,
         signatureId,
         wormholeTypeCode: null,
+        whClassId: null,
       }),
     );
     const planned = planStubNodes({
@@ -579,8 +581,14 @@ describe('static wormhole stub projection', () => {
     expect(nodes.slice(1).map((node) => node.data.name)).toEqual([
       'CCC-333',
       'DDD-444',
-      'B274 - HS',
-      'H296 - C5',
+      'B274',
+      'H296',
+    ]);
+    expect(nodes.slice(1).map((node) => node.data.whClassId)).toEqual([
+      null,
+      null,
+      7,
+      5,
     ]);
     expect(nodes.filter((node) => node.id.startsWith(STATIC_STUB_NODE_ID_PREFIX)))
       .toHaveLength(2);
@@ -634,6 +642,7 @@ describe('static wormhole stub projection', () => {
         fromSystemId: JITA,
         signatureId: 'ABC-123',
         wormholeTypeCode: null,
+        whClassId: null,
       }],
       connections: [],
       staticsBySystem: new Map(),

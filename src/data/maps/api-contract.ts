@@ -12,7 +12,10 @@ export const signatureEliminationRequestSchema = z.strictObject({
 
 /** One honest elimination outcome returned to the acting mapper client. */
 export const signatureEliminationResponseSchema = z.discriminatedUnion('status', [
-  z.strictObject({ status: z.literal('applied'), deduced: z.number().int().nonnegative() }),
+  z.strictObject({
+    status: z.literal('applied'),
+    signatureIds: z.array(z.string().min(1)).min(1),
+  }),
   z.strictObject({ status: z.literal('quiet') }),
   z.strictObject({ status: z.literal('statics-unavailable') }),
 ]);

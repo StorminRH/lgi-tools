@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { systemClassText, systemIdentityReadout } from './system-identity';
+import {
+  systemClassificationReadout,
+  systemClassText,
+  systemDestinationClassReadout,
+  systemIdentityReadout,
+} from './system-identity';
 
 describe('system class text', () => {
   it.each([
@@ -110,5 +115,42 @@ describe('J-space identity readouts (D-E)', () => {
     expect(
       systemIdentityReadout({ name: 'J170552', security: null, whClassId: 2 }),
     ).toEqual({ label: 'J170552 - C2', tone: 'text-wh-c2' });
+  });
+});
+
+describe('independently placeable classification readouts', () => {
+  it('returns only the colored J-space class', () => {
+    expect(systemClassificationReadout({ security: -1, whClassId: 4 })).toEqual({
+      label: 'C4',
+      tone: 'text-wh-c4',
+    });
+  });
+
+  it('returns only rounded, colored k-space security', () => {
+    expect(
+      systemClassificationReadout({ security: 0.946, whClassId: null }),
+    ).toEqual({ label: '0.9', tone: 'text-sec-09' });
+  });
+
+  it('returns no indicator when classification facts are unresolved', () => {
+    expect(
+      systemClassificationReadout({ security: null, whClassId: null }),
+    ).toBeNull();
+  });
+});
+
+describe('codex destination-class readouts', () => {
+  it.each([
+    [3, 'C3', 'text-wh-c3'],
+    [7, 'HS', 'text-sec-05'],
+    [8, 'LS', 'text-sec-04'],
+    [9, 'NS', 'text-sec-null'],
+  ])('renders class id %i as %s in %s', (whClassId, label, tone) => {
+    expect(systemDestinationClassReadout(whClassId)).toEqual({ label, tone });
+  });
+
+  it('does not fabricate a destination class for an unknown id', () => {
+    expect(systemDestinationClassReadout(null)).toBeNull();
+    expect(systemDestinationClassReadout(99)).toBeNull();
   });
 });

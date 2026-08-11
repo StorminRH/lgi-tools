@@ -35,8 +35,10 @@ export default {
 
     const dock = mapWindow(page, 'dock');
     check(
-      'the dock carries the one identity readout (D-E) and scanner summary',
+      'the dock header carries one colored classification without a duplicated body identity',
       (await dock.locator('[data-identity-readout]').count()) === 1
+        && (await dock.locator('[data-identity-classification]').count()) === 1
+        && (await dock.locator('[data-intel-section="summary"]').count()) === 0
         && (await dock.locator('[data-security-status]').count()) === 0
         && (await dock.locator('[data-intel-section="signatures"]').count()) === 1,
     );

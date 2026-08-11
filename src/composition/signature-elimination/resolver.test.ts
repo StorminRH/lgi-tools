@@ -85,7 +85,7 @@ describe('signature elimination composition', () => {
   it('applies the pure answer-key deduction through one batch door', async () => {
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
-    ).resolves.toEqual({ status: 'applied', deduced: 1 });
+    ).resolves.toEqual({ status: 'applied', signatureIds: ['AAA-111'] });
     expect(h.applyEliminationDeductions).toHaveBeenCalledWith({
       userId: 'user-1',
       ...request,
@@ -209,7 +209,7 @@ describe('signature elimination composition', () => {
     ]);
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
-    ).resolves.toEqual({ status: 'applied', deduced: 1 });
+    ).resolves.toEqual({ status: 'applied', signatureIds: ['AAA-111'] });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
     expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'hole-key');
   });
@@ -234,7 +234,7 @@ describe('signature elimination composition', () => {
     h.insertWhObservation.mockRejectedValueOnce(new Error('neon down'));
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
-    ).resolves.toEqual({ status: 'applied', deduced: 1 });
+    ).resolves.toEqual({ status: 'applied', signatureIds: ['AAA-111'] });
     expect(h.reportEmissionFailure).toHaveBeenCalledTimes(1);
   });
 

@@ -1,4 +1,5 @@
 import { unstable_rethrow } from 'next/navigation';
+import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
 import { checkAdmin, type SessionCheckResult } from '@/platform/auth/route-guards';
@@ -41,6 +42,11 @@ export async function MapAccessGate({
 }: {
   children: React.ReactNode;
 }) {
+  // Better Auth consults the current clock while resolving a session. Stop
+  // prerendering before that guarded work; the parent Suspense boundary keeps
+  // the development wall in the static shell while this runs per request.
+  await connection();
+
   let gate: SessionCheckResult;
   try {
     gate = await checkAdmin();

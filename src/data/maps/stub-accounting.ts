@@ -12,6 +12,7 @@ export interface StaticStubSlot {
   readonly id: string;
   readonly code: string;
   readonly className: string;
+  readonly whClassId: number;
 }
 
 /** One live scanned wormhole row that could draw its existing signature stub. */

@@ -210,6 +210,7 @@ describe('unresolved wormhole layout facts', () => {
         fromSystemId: JITA,
         signatureId: 'ABC-123',
         wormholeTypeCode: null,
+        whClassId: null,
       },
     ], scannedRows);
     expect(stubLayoutSignature(layoutRows)).toBe(`c1:${JITA}>-1`);
@@ -236,6 +237,7 @@ describe('unresolved wormhole layout facts', () => {
         fromSystemId: JITA,
         signatureId: 'ABC-123',
         wormholeTypeCode: null,
+        whClassId: null,
         position: { x: 300, y: 0 },
       },
     ]);
@@ -260,12 +262,14 @@ describe('unresolved wormhole layout facts', () => {
         fromSystemId: JITA,
         signatureId: 'ABC-123',
         wormholeTypeCode: null,
+        whClassId: null,
       },
       {
         staticId: `${JITA}:C247:1`,
         fromSystemId: JITA,
         code: 'C247',
         className: 'C3',
+        whClassId: 3,
       },
     ], scannedRows);
 
@@ -295,6 +299,7 @@ describe('unresolved wormhole layout facts', () => {
         fromSystemId: JITA,
         signatureId: 'ABC-123',
         wormholeTypeCode: null,
+        whClassId: null,
         position: { x: 300, y: 0 },
       },
       {
@@ -302,6 +307,7 @@ describe('unresolved wormhole layout facts', () => {
         fromSystemId: JITA,
         code: 'C247',
         className: 'C3',
+        whClassId: 3,
         position: { x: 480, y: 0 },
       },
     ]);

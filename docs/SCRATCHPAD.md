@@ -12,7 +12,7 @@
 - **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
   Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
   main after #377 shipped 4.0.4.3.1).
-- **OW progress:** 7/8 complete — next: OW-8 "ux-check and the G-1 pause".
+- **OW progress:** 8/8 complete — awaiting close-out.
 - **OW completed:**
   - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
     (`systemIdentityReadout` + `systemClassText`, ladder moved from
@@ -105,18 +105,42 @@
     0 blocking issues with the same OW-4 bearer-door clone warning);
     primitive-checker CLEAN after removing a forwarding re-export of the
     shared readout. Commit: this branch head.
-- **Next-agent notes (4.0.4.3.2):** (1) D-E render decisions to re-confirm at
-  the OW-8 pause: the TONE colors the whole readout span; system nodes have no
-  disc chip anymore (chip is stub-only, showing the typed wormhole code);
-  dock+summary show one `data-identity-readout` row (Security Status row
-  retired); dock window TITLE stays the plain name; Thera=teal, Pochven=red,
-  Drifter=purple, C13 shares the C6 deep-red. (2) `ChainNodeData.className` is
-  now consumed only by stub nodes — OW-2's `static-stub:` family reshapes this
-  anyway. (3) Docs briefs confirmed: Tailwind v4 `@theme --color-*` tokens
+  - OW-8 ux-check and G-1 pause — authenticated Atlas route/readout, lifecycle,
+    automatic-jump, Signature Editor, prompt, stub-accounting and acting-user
+    toast probes passed on disposable maps (3/3 probes, 51 checks, zero
+    console/page/HTTP errors); the operator then approved the live behavior
+    after visual rework: system and ghost identifiers above the disc, colored
+    class/security inside, dock/summary titles de-duplicated, and elimination
+    toast copy names the exact signature id. Follow-up route hardening keeps
+    the admin gate request-bound with `connection()` and opts the intentionally
+    wall-replaceable Atlas leaf out of instant validation; a fresh browser load
+    produced zero errors. Final proof: focused post-G-1 regressions 11 files /
+    156 tests plus route/auth 3 files / 13 tests; `pnpm verify` green
+    (gate-runner, 521 files/4956 tests, Fallow dead code 0 / complexity 0 with
+    the existing non-blocking bearer-door clone advisory); protected parser /
+    lifecycle diff empty; primitive-checker CLEAN. G-1 disposition: approved
+    by the operator on 2026-08-10. Commit: this branch head.
+- **Next-agent notes (4.0.4.3.2):** (1) G-1 ratified the final D-E presentation:
+  authored/halo nodes keep the neutral system name above the disc and render
+  the colored class or rounded security inside; dock and summary headers keep
+  one neutral name plus one colored classification accessory, with no duplicate
+  identity row in the body. Ghosts follow the same hierarchy: scanned signature
+  id or guaranteed-static code above, codex destination class inside in the
+  shared tones; untyped/K162 ghosts stay blank rather than fabricating a class.
+  (2) Elimination responses carry the exact applied `signatureIds`; acting-user
+  toast copy is `<signature id> has been identified.` (natural-list plural for
+  multiple ids). Attribute-identical duplicate codex rows are accepted, while
+  conflicting same-code rows fail closed. (3) Atlas auth must remain inside the
+  layout's Suspense boundary with `await connection()` before `checkAdmin()`;
+  `atlas/page.tsx` also keeps `instant = false` because an unauthorized staged
+  render intentionally replaces that leaf with the development wall. These
+  solve separate Next 16.3 current-time and dropped-segment diagnostics and are
+  pinned by `layout.test.ts` + `atlas/page.test.ts`. (4) Docs briefs confirmed:
+  Tailwind v4 `@theme --color-*` tokens
   auto-generate `text-*` utilities and plain `.ts` files are content-scanned;
   React Flow v12 `nodeLookup` primitive selectors are the documented pattern.
-  (4) `check-universe-assets.ts` keeps its own partial CLASS_LABELS census
-  list (script-side report vocabulary, not a display rule). (5) OW-2 keeps
+  (5) `check-universe-assets.ts` keeps its own partial CLASS_LABELS census
+  list (script-side report vocabulary, not a display rule). (6) OW-2 keeps
   statics presentation fully derived: `static-stub:<system>:<code>:<ordinal>`
   identities survive duplicate-code slots; a local-side code-carrying live
   hole replaces its matching static and a tombstone/collapse returns it. The
@@ -124,19 +148,19 @@
   the deterministic surplus remains as ordinary `stub:` leaves — no type is
   inferred here. Statics or codex failure withholds that system's static
   claims without retaining stale results; paste-driven stubs remain usable.
-  (6) OW-3 accepts only live endpoint-local plain facts: OW-4 must project
+  (7) OW-3 accepts only live endpoint-local plain facts: OW-4 must project
   Convex rows outside the data slice, withhold tombstones, keep
   statics-unavailable outside the solver, and stamp its fixed `assumed`
   deductions through the tier-gated door. `matchJump` remains the sole owner
   of jump survivors; the eliminator has no runtime caller until OW-4.
-  (7) OW-4's elimination door adds no subscription or cadence, so its
+  (8) OW-4's elimination door adds no subscription or cadence, so its
   bytes-per-watched-hour cost is zero. Each evidence or apply pass reads one
   access claim, one system, and at most 128 origin + 128 destination
   connections (258 docs on a successful pass; 260 including both overflow
   probes before a bounded refusal). Apply accepts at most 256 deductions and
   writes at most two documents per link deduction (512 worst-case writes;
   type deductions write one); equality/protected/stale outcomes write zero.
-  (8) OW-5 settled observation logging as a row-level rule, not a
+  (9) OW-5 settled observation logging as a row-level rule, not a
   per-deduction one: the elimination pass logs the identity every live scanned
   row of the system carries at its stored tier, because a human override
   produces NO deduction and would otherwise leave the machine's superseded
@@ -148,27 +172,27 @@
   connections stay owned by the jump resolver, so the two emitters never
   overlap. The manual-type path needs no editor change: the
   `setConnectionWormholeType` dispatcher already cascades elimination.
-  (9) OW-6 kept the OW-5 cascade behavior when the row editor moved into the
+  (10) OW-6 kept the OW-5 cascade behavior when the row editor moved into the
   pop-out: `ActiveSignatureEditor` still routes a RESOLVED row's type entry
   through `applyWormholeType` and leaves an unresolved stub on the plain
-  setter. (10) OW-7 retired the floating `JumpResolutionPrompt` and left
+  setter. (11) OW-7 retired the floating `JumpResolutionPrompt` and left
   `MapAuthoringOverlay` ledger-only. The separate
   `convex/mapAuthoring.setConnectionTypedSide` residual still has NO client
   caller — `typedSide` is written by `mapScan`/`mapFixtures` and read by
-  `mapJump`, so the mutation remains for an explicit close-out ruling. (11)
+  `mapJump`, so the mutation remains for an explicit close-out ruling. (12)
   The editor is anchored in
   SCREEN space beside the scanner dock, never to canvas geometry: React Flow
   pans/zooms by mutating a viewport transform, which fires neither scroll nor
   resize, and Base UI exposes no animation-frame anchor tracking (docs
   brief) — do not "fix" this by re-anchoring it to an edge.
   `MAP_SCANNER_EDITOR_CLASS` restates `MAP_SCANNER_DOCK_CLASS`'s width as its
-  left offset; change them together. (12) Destruction has one owner:
+  left offset; change them together. (13) Destruction has one owner:
   `connectionLifecycleActions` in
   `signatures/connection-authoring-api.ts`.
   `surface.test.ts` pins the allowlist of files that may name
   `severConnection`/`restoreSeveredBranch`/`restoreConnection`, so a new
   Delete entry point must route through that factory rather than widening the
-  list. (13) The OW-7 prompt selector is
+  list. (14) The OW-7 prompt selector is
   `[data-signature-jump-prompt]`, with one
   `[data-signature-jump-candidate]` button per exact survivor. Unique assumed
   survivors resolve without `pendingCandidates`; multi-survivor ordering stays

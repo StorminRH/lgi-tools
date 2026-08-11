@@ -1,13 +1,11 @@
 // The one system-identity readout rule (4.0.4.3.2 operator ruling D-E).
 //
-// Every surface that names a system — chain-canvas node headers, the
-// current-system dock, and later the jump prompt — renders through
-// `systemIdentityReadout`, so "what a system is called and what color that
-// carries" has exactly one owner. K-space reads `<name> - <rounded security>`
-// in the in-game security tone; J-space reads `<name> - C<class>` with the
-// class colored on a light-green (C1) → deep-red (C6) ramp; C13 rides the
-// dangerous end of that ramp; Thera, Pochven, and the Drifter complexes keep
-// their own distinct tones.
+// Every surface that names a system derives its class/security indicator from
+// `systemClassificationReadout`, so "what classification is shown and what
+// color it carries" has exactly one owner. Canvas nodes and the current-system
+// dock render the plain system name separately from that colored indicator;
+// sentence-like surfaces can keep consuming the composed
+// `systemIdentityReadout` label.
 //
 // This module is also the sole home of the class-id → chip-text ladder that
 // previously lived (deliberately duplicated) in `src/mapper/chain/labels.ts`;
@@ -72,6 +70,12 @@ export interface SystemIdentityReadout {
   readonly tone: string;
 }
 
+/** The independently placeable class/security indicator beside a plain system name. */
+export interface SystemClassificationReadout {
+  readonly label: string;
+  readonly tone: string;
+}
+
 /**
  * The J-space class tone ramp (D-E): light-green (C1) → deep-red (C6). Tokens
  * live in the `@theme` block of `globals.css`; C13 deliberately shares C6's
@@ -96,6 +100,48 @@ const CLASS_TONES_BY_ID = new Map<number, string>([
 ]);
 
 /**
+ * Broad known-space destination classes have no exact security value until a
+ * destination system is known. These tones therefore represent the category,
+ * not a fabricated numeric status: the boundary high-, low-, and null-sec
+ * colors keep the same visual language as authored systems.
+ */
+const DESTINATION_CLASS_TONES_BY_ID = new Map<number, string>([
+  [7, 'text-sec-05'],
+  [8, 'text-sec-04'],
+  [9, 'text-sec-null'],
+]);
+
+/** A codex destination class rendered without pretending its exact security is known. */
+export function systemDestinationClassReadout(
+  whClassId: number | null,
+): SystemClassificationReadout | null {
+  if (whClassId === null) return null;
+  const label = systemClassText(whClassId);
+  const tone = CLASS_TONES_BY_ID.get(whClassId)
+    ?? DESTINATION_CLASS_TONES_BY_ID.get(whClassId);
+  return label === null || tone === undefined ? null : { label, tone };
+}
+
+/**
+ * The colored portion of a system identity, without its plain system name.
+ * Known J-space classes win over security; k-space renders rounded security;
+ * an unresolved system has no indicator.
+ */
+export function systemClassificationReadout(
+  facts: Pick<SystemIdentityFacts, 'security' | 'whClassId'>,
+): SystemClassificationReadout | null {
+  const { security, whClassId } = facts;
+  if (whClassId !== null && CLASS_TONES_BY_ID.has(whClassId)) {
+    return systemDestinationClassReadout(whClassId);
+  }
+  if (security === null) return null;
+  return {
+    label: roundSecurityStatus(security).toFixed(1),
+    tone: securityStatusTextClass(security),
+  };
+}
+
+/**
  * The identity readout for one system (operator ruling D-E).
  *
  * K-space class ids (7/8/9) and unclassed systems render the security form;
@@ -107,16 +153,10 @@ const CLASS_TONES_BY_ID = new Map<number, string>([
 export function systemIdentityReadout(
   facts: SystemIdentityFacts,
 ): SystemIdentityReadout {
-  const { name, security, whClassId } = facts;
-  const tone = whClassId === null ? undefined : CLASS_TONES_BY_ID.get(whClassId);
-  if (tone !== undefined) {
-    // Non-null tone implies the ladder covers the id; both maps share keys
-    // except k-space 7/8/9, which fall through to the security form below.
-    return { label: `${name} - ${systemClassText(whClassId)}`, tone };
-  }
-  if (security === null) return { label: name, tone: 'text-name' };
+  const classification = systemClassificationReadout(facts);
+  if (classification === null) return { label: facts.name, tone: 'text-name' };
   return {
-    label: `${name} - ${roundSecurityStatus(security).toFixed(1)}`,
-    tone: securityStatusTextClass(security),
+    label: `${facts.name} - ${classification.label}`,
+    tone: classification.tone,
   };
 }

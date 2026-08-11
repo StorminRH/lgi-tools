@@ -91,8 +91,10 @@ export default {
       });
     });
     await Promise.all([
-      waitForTopology(page, 1, 0),
-      waitForTopology(second.page, 1, 0),
+      // J113551 is identified immediately, so its C247 and N766 guaranteed
+      // statics exist before any authored jump.
+      waitForTopology(page, 3, 2),
+      waitForTopology(second.page, 3, 2),
     ]);
     check(
       'initial subscribed location honestly re-anchors without inventing an edge',
@@ -185,15 +187,16 @@ export default {
       && ['authored', 'converged'].includes(verified?.outcome),
     );
     await Promise.all([
-      waitForTopology(page, 2, 1),
-      waitForTopology(second.page, 2, 1),
+      // Two authored systems plus the unresolved N766 and destination U210.
+      waitForTopology(page, 4, 3),
+      waitForTopology(second.page, 4, 3),
     ]);
     check(
-      'verified jump fans out two nodes and one edge to both clients',
-      (await page.locator('[data-chain-node]').count()) === 2
-      && (await second.page.locator('[data-chain-node]').count()) === 2
-      && (await page.locator('.react-flow__edge').count()) === 1
-      && (await second.page.locator('.react-flow__edge').count()) === 1,
+      'verified jump fans out authored truth plus both open holes to both clients',
+      (await page.locator('[data-chain-node]').count()) === 4
+      && (await second.page.locator('[data-chain-node]').count()) === 4
+      && (await page.locator('.react-flow__edge').count()) === 3
+      && (await second.page.locator('.react-flow__edge').count()) === 3,
     );
     check(
       'unambiguous match needs no confirmation prompt',
@@ -254,8 +257,11 @@ export default {
       && ['authored', 'converged'].includes(ambiguous?.outcome),
     );
     await Promise.all([
-      waitForTopology(page, 3, 2),
-      waitForTopology(second.page, 3, 2),
+      // Three authored systems, two origin signature ghosts, and one U210
+      // static on each destination. The new sig-less resolved line claims the
+      // other unidentified candidate under the believed-holes rule.
+      waitForTopology(page, 7, 6),
+      waitForTopology(second.page, 7, 6),
       page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
       second.page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
     ]);

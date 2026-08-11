@@ -198,6 +198,10 @@ export async function resolveSignatureElimination(
     dependencies.reportEmissionFailure(cause);
   }
 
-  const deduced = outcomes.filter((outcome) => outcome.outcome === 'applied').length;
-  return deduced === 0 ? quiet() : { status: 'applied', deduced };
+  const signatureIds = outcomes
+    .filter((outcome) => outcome.outcome === 'applied')
+    .map((outcome) => outcome.signatureId);
+  return signatureIds.length === 0
+    ? quiet()
+    : { status: 'applied', signatureIds };
 }

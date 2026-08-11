@@ -27,11 +27,13 @@ it('decorates duplicate statics with stable per-system multiset identities', () 
       id: '31000001:C247:1',
       code: 'C247',
       className: 'C3',
+      whClassId: 3,
     },
     {
       id: '31000001:C247:2',
       code: 'C247',
       className: 'C3',
+      whClassId: 3,
     },
   ]);
 });

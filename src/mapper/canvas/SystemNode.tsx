@@ -1,9 +1,10 @@
 'use client';
 
 // One system node on the chain canvas: an invisible widget frame whose bounds
-// ARE the node box — the system name in the frame header, the class-labeled
-// disc centered inside, and widget slots on the disc (pilot presence on the
-// top-right rim first; gas/anomaly readouts extend the rail later).
+// ARE the node box — the plain system name in the frame header, its colored
+// class/security indicator centered inside the disc, and widget slots on the
+// disc (pilot presence on the top-right rim first; gas/anomaly readouts extend
+// the rail later).
 //
 // The frame is declared data-side (`width`/`height` on the node object, set by
 // `syncNodes`) so React Flow sizes the wrapper before any DOM measurement:
@@ -19,7 +20,10 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 import { cn } from '@/components/ui/cn';
-import { systemIdentityReadout } from '@/data/eve-data/system-identity';
+import {
+  systemClassificationReadout,
+  systemDestinationClassReadout,
+} from '@/data/eve-data/system-identity';
 import type { NodeMotion } from '../motion/motion-contract';
 import { PilotPresenceBadge } from './PilotPresenceBadge';
 
@@ -54,6 +58,7 @@ export type ChainNodeData = {
         readonly fromSystemId: number;
         readonly code: string;
         readonly className: string;
+        readonly whClassId: number;
       };
 };
 
@@ -114,28 +119,28 @@ function nodePresentation(data: ChainNodeData) {
 }
 
 /**
- * The header line for one node. A stub is a signature, not a system, and keeps
- * its bare signature-id header; systems render the shared identity readout
- * (D-E). Derived ghosts keep the muted header tone so provisional content
- * still reads dimmer than authored truth.
+ * The header line for one node. Systems keep their name and scanned stubs keep
+ * their signature id; guaranteed-static stubs use their wormhole code. Every
+ * header stays neutral while derived ghosts remain visually provisional
+ * through the frame's opacity.
  */
-export function nodeHeader(
-  data: ChainNodeData,
-  derived: boolean,
-): { readonly text: string; readonly toneClass: string } {
-  if (data.stub !== undefined) return { text: data.name, toneClass: 'text-muted' };
-  const readout = systemIdentityReadout({
-    name: data.name,
-    security: data.security ?? null,
-    whClassId: data.whClassId ?? null,
-  });
-  return { text: readout.label, toneClass: derived ? 'text-muted' : readout.tone };
+export function nodeHeader(data: ChainNodeData): {
+  readonly text: string;
+  readonly toneClass: string;
+} {
+  return { text: data.name, toneClass: 'text-name' };
 }
 
 /** Renders one system as a widget frame: header name, centered disc, widget slots. */
 function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<ChainNode>) {
   const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
-  const header = nodeHeader(data, derived);
+  const header = nodeHeader(data);
+  const classification = stub
+    ? systemDestinationClassReadout(data.whClassId ?? null)
+    : systemClassificationReadout({
+        security: data.security ?? null,
+        whClassId: data.whClassId ?? null,
+      });
   // The wrapper is pointer-inert for every node (`INERT_NODE_STYLE` in
   // chain/nodes.ts); only the visible chrome re-enables pointer events, so
   // the invisible frame margin cannot catch clicks, drags, or hovers. Ghosts
@@ -181,18 +186,19 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
           isConnectable={isConnectable}
           className={CENTER_HANDLE_CLASS}
         />
-        {/* The class fact has ONE render site on a system node — the header
-            readout (D-E) — so the disc chip survives only on stubs, where it
-            carries a different fact: the scanned signature's wormhole type
-            code from 4.0.4.3.1. */}
-        {stub && data.className !== null && (
+        {/* Every node keeps its identity above the disc and its colored,
+            truthful class/security indicator inside it. */}
+        {classification !== null ? (
           <span
-            data-chain-node-class
-            className="font-data text-micro uppercase tracking-label text-muted"
+            data-chain-node-classification
+            className={cn(
+              'font-data text-label font-bold uppercase tracking-label',
+              classification.tone,
+            )}
           >
-            {data.className}
+            {classification.label}
           </span>
-        )}
+        ) : null}
         <Handle
           type="source"
           position={Position.Right}

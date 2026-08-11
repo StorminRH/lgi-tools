@@ -25,7 +25,10 @@ import {
   type MapWindowId,
 } from './window-model';
 import { useNodeDataString } from './node-fields';
-import { SystemIntelligenceBody } from './SystemIntelligenceBody';
+import {
+  SystemIntelligenceBody,
+  SystemTitleAccessory,
+} from './SystemIntelligenceBody';
 
 const subscribeMounted = () => () => undefined;
 const clientMountedSnapshot = () => true;
@@ -157,6 +160,7 @@ function DockSurface({
     <MapWindow
       windowId="dock"
       title={dockTitle(title, rootSystemId)}
+      titleAccessory={<SystemTitleAccessory systemId={rootSystemId} />}
       placement={{ kind: 'docked' }}
       appearance="overlay"
       stackIndex={stackIndex}
@@ -192,6 +196,7 @@ function SummarySurface({
       ref={cardRef}
       windowId="summary"
       title={title ?? String(summaryId)}
+      titleAccessory={<SystemTitleAccessory systemId={summaryId} />}
       placement={{ kind: 'node-anchored', systemId: summaryId }}
       stackIndex={stackIndex}
       onClose={onClose}

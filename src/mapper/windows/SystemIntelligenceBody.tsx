@@ -2,11 +2,11 @@
 
 // The system intelligence body shared by the node summary card and the
 // click-through dock (which is pointer-inert — everything here stays
-// non-interactive text). Operator-directed shape (4.0.4.3.2 D-E): one
-// identity readout up top — `Name - 0.7` / `J123456 - C4` in its identity
-// tone, through the same shared rule the canvas nodes render — then a minimal
-// two-column friendlies readout: pilot name left, one single-word status
-// right, nothing more. Sections are keyed (`data-intel-section`) so future
+// non-interactive text). The MapWindow header owns the one system name plus
+// its colored class/security accessory; this body begins with scanner facts,
+// then a minimal two-column friendlies readout: pilot name left, one
+// single-word status right, nothing more. Sections are keyed
+// (`data-intel-section`) so future
 // widget readouts (gas, anomalies) append as sibling sections without
 // restructuring.
 //
@@ -17,7 +17,7 @@
 // tested presence model.
 import { cn } from '@/components/ui/cn';
 import { useEntityNames } from '@/components/use-entity-names';
-import { systemIdentityReadout } from '@/data/eve-data/system-identity';
+import { systemClassificationReadout } from '@/data/eve-data/system-identity';
 import { useSignatureCounts } from '../signatures/signature-context';
 import {
   friendlyRows,
@@ -25,7 +25,7 @@ import {
   type PresenceStatusWord,
 } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
-import { useNodeDataNumber, useNodeDataString } from './node-fields';
+import { useNodeDataNumber } from './node-fields';
 
 const NO_PILOTS: readonly never[] = [];
 
@@ -44,28 +44,29 @@ const STATUS_CLASS: Record<PresenceStatusWord, string> = {
   Stale: 'text-muted',
 };
 
-function IntelligenceHeader({ systemId }: { readonly systemId: number }) {
-  const name = useNodeDataString(systemId, 'name');
+/** Colored class/security detail appended to a MapWindow's plain system title. */
+export function SystemTitleAccessory({
+  systemId,
+}: {
+  readonly systemId: number;
+}) {
   const security = useNodeDataNumber(systemId, 'security');
   const whClassId = useNodeDataNumber(systemId, 'whClassId');
-  // The one identity rule (D-E): the readout already carries the rounded
-  // security or the class, so no separate Security Status row survives it.
-  const readout = systemIdentityReadout({
-    name: name ?? String(systemId),
+  const classification = systemClassificationReadout({
     security,
     whClassId,
   });
+  if (classification === null) return null;
   return (
-    <section data-intel-section="summary" className="flex flex-col gap-1">
-      <div data-intel-identity className="flex items-baseline gap-2">
-        <span
-          data-identity-readout
-          className={cn('font-data text-ui tabular-nums', readout.tone)}
-        >
-          {readout.label}
-        </span>
-      </div>
-    </section>
+    <span data-identity-readout>
+      <span className="text-name"> {' — '}</span>
+      <span
+        data-identity-classification
+        className={cn('tabular-nums', classification.tone)}
+      >
+        {classification.label}
+      </span>
+    </span>
   );
 }
 
@@ -114,12 +115,11 @@ function FriendliesSection({ rows }: { readonly rows: readonly FriendlyRowModel[
   );
 }
 
-/** Shared body for the dock and node summary — one identity readout, scanner counts, friendlies. */
+/** Shared body for the dock and node summary — scanner counts and friendlies below the title. */
 export function SystemIntelligenceBody({ systemId }: { readonly systemId: number }) {
   const rows = useFriendlyRows(systemId);
   return (
     <div data-system-intel className="flex flex-col items-stretch gap-3 text-left">
-      <IntelligenceHeader systemId={systemId} />
       <SignatureSummary systemId={systemId} />
       <FriendliesSection rows={rows} />
     </div>

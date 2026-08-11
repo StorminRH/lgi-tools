@@ -66,6 +66,8 @@ export function isAdoptedPopupOpen(): boolean {
 export interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
+  /** Optional inline detail that inherits the title typography but owns its tone. */
+  readonly titleAccessory?: ReactNode;
   readonly placement: WindowPlacement;
   readonly stackIndex: number;
   readonly onClose: () => void;
@@ -126,11 +128,13 @@ function placementClassName(
 
 function WindowHeader({
   title,
+  titleAccessory,
   overlay,
   showCloseButton,
   onClose,
 }: {
   readonly title: string;
+  readonly titleAccessory?: ReactNode;
   readonly overlay: boolean;
   readonly showCloseButton: boolean;
   readonly onClose: () => void;
@@ -151,6 +155,7 @@ function WindowHeader({
         )}
       >
         {title}
+        {titleAccessory}
       </h2>
       {showCloseButton ? (
         <Button
@@ -206,6 +211,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
     {
       windowId,
       title,
+      titleAccessory,
       placement,
       stackIndex,
       onClose,
@@ -257,6 +263,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         {showHeader ? (
           <WindowHeader
             title={title}
+            titleAccessory={titleAccessory}
             overlay={overlay}
             showCloseButton={showCloseButton}
             onClose={onClose}

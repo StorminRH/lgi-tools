@@ -63,9 +63,28 @@ type FixedCrossing =
 
 const QUIET_RESULT: EliminationResult = { deductions: [], quiet: true };
 
+function sameCodeMeaning(
+  left: WormholeCodexEntry,
+  right: WormholeCodexEntry,
+): boolean {
+  if (left.farSide !== right.farSide) return false;
+  if (left.farSide) return true;
+  if (right.farSide) return false;
+  return left.totalMass === right.totalMass
+    && left.maxJumpMass === right.maxJumpMass
+    && left.massRegen === right.massRegen
+    && left.lifetimeMinutes === right.lifetimeMinutes
+    && left.sizeClass === right.sizeClass
+    && left.targetClass === right.targetClass;
+}
+
 function codebook(input: EliminationInput): ReadonlyMap<string, WormholeCodexEntry> | null {
-  const byCode = new Map(input.codex.map((entry) => [entry.code, entry]));
-  if (byCode.size !== input.codex.length) return null;
+  const byCode = new Map<string, WormholeCodexEntry>();
+  for (const entry of input.codex) {
+    const existing = byCode.get(entry.code);
+    if (existing !== undefined && !sameCodeMeaning(existing, entry)) return null;
+    if (existing === undefined) byCode.set(entry.code, entry);
+  }
 
   const staticsValid = input.staticTypeCodes.every((code) => {
     const entry = byCode.get(code);

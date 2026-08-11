@@ -59,7 +59,10 @@ import {
   LAYOUT_KERNEL_TEARDOWN,
   useLayoutKernel,
 } from '../layout/use-layout-kernel';
-import { useSystemStaticSlots } from '../signatures/use-system-statics';
+import {
+  destinationClassIdForCode,
+  useSystemStaticSlots,
+} from '../signatures/use-system-statics';
 import type { ChainPosition, MapChainIntent } from './intents';
 import { resolveSystemLabel, type SystemLabel } from './labels';
 import {
@@ -631,7 +634,7 @@ export function useMapChain(
     [unresolvedHoles, systems.rows, connections.rows],
   );
   const authoredKey = systems.rows.map((row) => row.systemId).join(',');
-  const staticsBySystem = useSystemStaticSlots(authoredKey);
+  const staticSlots = useSystemStaticSlots(authoredKey);
   const plannedStubs = useMemo(
     () => planStubNodes({
       systemIds: systems.rows.map((row) => row.systemId),
@@ -640,11 +643,14 @@ export function useMapChain(
         fromSystemId: row.fromSystemId,
         signatureId: row.fromSignatureId,
         wormholeTypeCode: row.wormholeTypeCode,
+        whClassId: row.wormholeTypeCode === null
+          ? null
+          : destinationClassIdForCode(row.wormholeTypeCode, staticSlots.codex),
       })),
       connections: connections.rows,
-      staticsBySystem,
+      staticsBySystem: staticSlots.bySystem,
     }),
-    [systems.rows, scannedStubLayout, connections.rows, staticsBySystem],
+    [systems.rows, scannedStubLayout, connections.rows, staticSlots],
   );
   const stubLayout = useMemo(
     () => accountedStubLayoutRows(plannedStubs, scannedStubLayout),

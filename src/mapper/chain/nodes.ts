@@ -81,6 +81,7 @@ export interface PlacedStubConnection {
   readonly fromSystemId: number;
   readonly signatureId: string;
   readonly wormholeTypeCode: string | null;
+  readonly whClassId: number | null;
   readonly position: ChainPosition;
 }
 
@@ -90,6 +91,7 @@ export interface PlacedStaticStub {
   readonly fromSystemId: number;
   readonly code: string;
   readonly className: string;
+  readonly whClassId: number;
   readonly position: ChainPosition;
 }
 
@@ -102,6 +104,7 @@ export interface StubPlanningSignature {
   readonly fromSystemId: number;
   readonly signatureId: string;
   readonly wormholeTypeCode: string | null;
+  readonly whClassId: number | null;
 }
 
 /** Live resolved line passed into the endpoint-side accounting projection. */
@@ -176,6 +179,7 @@ export function planStubNodes(input: {
         fromSystemId: systemId,
         code: stub.code,
         className: stub.className,
+        whClassId: stub.whClassId,
       })),
     );
   }
@@ -340,16 +344,17 @@ export function syncNodes(
         focusable: false,
         style: INERT_NODE_STYLE,
         data: {
-          name: isStatic ? `${stub.code} - ${stub.className}` : stub.signatureId,
-          className: isStatic ? stub.code : stub.wormholeTypeCode,
+          name: isStatic ? stub.code : stub.signatureId,
+          className: isStatic ? stub.className : null,
           security: null,
-          whClassId: null,
+          whClassId: stub.whClassId,
           stub: isStatic
             ? {
                 staticId: stub.staticId,
                 fromSystemId: stub.fromSystemId,
                 code: stub.code,
                 className: stub.className,
+                whClassId: stub.whClassId,
               }
             : {
                 connectionId: stub.connectionId,
