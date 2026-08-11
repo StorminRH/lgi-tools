@@ -199,8 +199,24 @@ PR open when the head is unchanged.
 ## After merge and production proof (shared)
 
 1. Clean local feature branch and any manual Vercel preview + Neon branch.
-2. Wait for the merge-SHA production deployment Ready (Vercel CLI).
+2. Wait for the merge-SHA production deployment with the delivery waiter
+   (not the Vercel MCP, not a hand-rolled `vercel`/`zsh` poll):
+
+   ```bash
+   python3 tools/cli.py delivery wait-prod-deploy <merge-sha>
+   ```
+
+   Fail closed on timeout, failed/inactive deploy, or when Production tip
+   moves to a different commit. Do not substitute ad-hoc CLI loops for this
+   gate.
 3. Agent production proof — Playwright log-driven, not a visual browser pass:
+   - Browser cache: Cursor agent shells often set `PLAYWRIGHT_BROWSERS_PATH`
+     under `cursor-sandbox-cache/`. That path is session-scoped and is **not**
+     the host install. Before any prod/UX Playwright command, if that variable
+     contains `cursor-sandbox-cache`, point it at the host cache
+     (`$HOME/Library/Caches/ms-playwright` on macOS) or unset it. Only run
+     `pnpm exec playwright install chromium` when the host cache is actually
+     missing the required revision — never as a default close-out step.
    - Always: `pnpm verify:prod` (or `pnpm verify:site-routes -- <url>`).
      Origin-scoped bypass via `scripts/ux-remote-auth.mjs` / env — never
      context-wide `extraHTTPHeaders`.

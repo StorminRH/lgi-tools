@@ -20,6 +20,7 @@ COMMANDS = {
     ("delivery", "poll-pr-gate"): "tools.delivery.poll_pr_gate",
     ("delivery", "repair-gh-auth"): "tools.delivery.repair_gh_auth",
     ("delivery", "scrub-pr-body"): "tools.delivery.scrub_pr_body",
+    ("delivery", "wait-prod-deploy"): "tools.delivery.wait_prod_deploy",
     ("lifecycle", "capture-version-start"): "tools.lifecycle.capture_version_start",
     ("lifecycle", "check-evidence"): "tools.lifecycle.check_lifecycle_evidence",
     ("lifecycle", "check-pending-changelog"): "tools.lifecycle.check_pending_changelog",
