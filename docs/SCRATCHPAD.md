@@ -43,7 +43,7 @@
     stays static blue-loot. **G-1 disposition:** operator approved
     (2026-08-11) — site viewer, standalone measure, full signature flow, and
     scanner live Est. ISK signed off. Focused OW-5 suites + verify green
-    (SHA pending record commit).
+    ().
 - **Next-agent notes:** (1) Close-out only — do not re-run OW or ux-check;
     consume G-1 approve above. (2) Standalone detail measure is
     `max-w-[32rem]` (card only); RelatedSites stays full width. (3) Site
