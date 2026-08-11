@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import type { JumpResolutionModel } from './jump-resolution';
 import { SignatureJumpPrompt } from './SignatureJumpPrompt';
@@ -38,39 +38,32 @@ const RESOLUTION: JumpResolutionModel = {
 
 beforeEach(() => buttonProps.mockClear());
 
-describe('SignatureJumpPrompt', () => {
-  it('shows the destination readout and only the ordered matcher survivors', () => {
-    const markup = renderToStaticMarkup(
-      createElement(SignatureJumpPrompt, {
-        resolution: RESOLUTION,
-        onPick: vi.fn(),
-      }),
-    );
+it('shows ordered matcher survivors and dispatches the exact picked button', () => {
+  const onPick = vi.fn();
+  const markup = renderToStaticMarkup(
+    createElement(SignatureJumpPrompt, {
+      resolution: RESOLUTION,
+      onPick,
+    }),
+  );
 
-    expect(markup).toContain('data-signature-jump-prompt');
-    expect(markup).toContain('data-identity-readout');
-    expect(markup).toContain('J123456 - C4');
-    expect(markup).toContain('Which signature did you jump through?');
-    expect(markup.indexOf('ABC-123 · K162')).toBeLessThan(
-      markup.indexOf('DEF-456 · Unidentified'),
-    );
-    expect(markup).not.toContain('Confirm');
-    expect(markup).not.toContain('Dismiss');
-  });
+  expect(markup).toContain('data-signature-jump-prompt');
+  expect(markup).toContain('data-identity-readout');
+  expect(markup).toContain('J123456 - C4');
+  expect(markup).toContain('Which signature did you jump through?');
+  expect(markup.indexOf('ABC-123 · K162')).toBeLessThan(
+    markup.indexOf('DEF-456 · Unidentified'),
+  );
+  expect(markup).not.toContain('Confirm');
+  expect(markup).not.toContain('Dismiss');
 
-  it('dispatches the exact picked survivor from its button handler', () => {
-    const onPick = vi.fn();
-    renderToStaticMarkup(
-      createElement(SignatureJumpPrompt, { resolution: RESOLUTION, onPick }),
+  const alternative = buttonProps.mock.calls
+    .map(([props]) => props as Record<string, unknown>)
+    .find(
+      (props) =>
+        props['data-signature-jump-candidate'] === 'stub-2',
     );
-    const alternative = buttonProps.mock.calls
-      .map(([props]) => props as Record<string, unknown>)
-      .find(
-        (props) =>
-          props['data-signature-jump-candidate'] === 'stub-2',
-      );
-    expect(alternative).toBeDefined();
-    (alternative?.['onClick'] as () => void)();
-    expect(onPick).toHaveBeenCalledWith(RESOLUTION.candidates[1]);
-  });
+  expect(alternative).toBeDefined();
+  (alternative?.['onClick'] as () => void)();
+  expect(onPick).toHaveBeenCalledWith(RESOLUTION.candidates[1]);
 });

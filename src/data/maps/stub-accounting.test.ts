@@ -71,7 +71,7 @@ describe('stub accounting', () => {
     expect(plan.unknownCount).toBe(unknownCount);
   });
 
-  it('replaces a matching static with its code-carrying hole and restores it on collapse', () => {
+  it('matches static codes, restores on collapse, keeps duplicate multisets, and degrades without statics', () => {
     const matched = believedHoles({
       statics: STATICS,
       signatures: [],
@@ -90,9 +90,7 @@ describe('stub accounting', () => {
       'B274',
       'H296',
     ]);
-  });
 
-  it('keeps duplicate static identities stable while consuming the multiset', () => {
     const duplicateStatics = [
       { id: 'C247:1', code: 'C247', className: 'C3', whClassId: 3 },
       { id: 'C247:2', code: 'C247', className: 'C3', whClassId: 3 },
@@ -104,9 +102,7 @@ describe('stub accounting', () => {
         connections: [],
       }).staticStubs,
     ).toEqual([duplicateStatics[0]]);
-  });
 
-  it('degrades to no statics without hiding ordinary scanned rows', () => {
     expect(
       believedHoles({
         statics: [],
