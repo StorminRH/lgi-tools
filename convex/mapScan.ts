@@ -90,6 +90,7 @@ const eliminationDeductionValidator = v.union(
     signatureId: v.string(),
     connectionId: v.id('mapConnections'),
     provenance: v.literal('assumed'),
+    expectedTypeCode: v.union(v.string(), v.null()),
   }),
 );
 
@@ -883,6 +884,7 @@ async function applyLinkDeduction(
   target: Doc<'mapConnections'> | undefined,
   systemId: number,
   signatureId: string,
+  expectedTypeCode: string | null,
 ): Promise<EliminationOutcome> {
   if (
     source === undefined
@@ -895,6 +897,11 @@ async function applyLinkDeduction(
     return { signatureId, outcome: 'stale', observationKey: null };
   }
   const observationKey = source.observationKey ?? null;
+  // Evidence was read in a prior transaction. Refuse when the stub's type no
+  // longer matches the decision — a concurrent human retype must win.
+  if ((source.wormholeTypeCode ?? null) !== expectedTypeCode) {
+    return { signatureId, outcome: 'stale', observationKey };
+  }
   const side = endpointSide(target, systemId);
   if (side === null) return { signatureId, outcome: 'stale', observationKey };
   const current = side === 'from' ? target.fromSignatureId : target.toSignatureId;
@@ -905,16 +912,47 @@ async function applyLinkDeduction(
       observationKey,
     };
   }
+  // Carry human-entered stub knowledge onto the resolved row before the stub
+  // document dies — inference must not erase a person's mass/size/lifetime.
+  const knowledge = linkKnowledgePatch(source, target);
   await ctx.db.patch(
     target._id,
-    side === 'from'
-      ? { fromSignatureId: signatureId }
-      : { toSignatureId: signatureId },
+    {
+      ...(side === 'from'
+        ? { fromSignatureId: signatureId }
+        : { toSignatureId: signatureId }),
+      ...knowledge,
+    },
   );
   // The stub row and its dedupe key die here: the identity now belongs to the
   // resolved connection, which carries its own key through the jump channel.
   await ctx.db.delete(source._id);
   return { signatureId, outcome: 'applied', observationKey };
+}
+
+/** Copies only unset target fields from a stub that is about to be deleted. */
+function linkKnowledgePatch(
+  source: Doc<'mapConnections'>,
+  target: Doc<'mapConnections'>,
+): Partial<Doc<'mapConnections'>> {
+  const patch: Partial<Doc<'mapConnections'>> = {};
+  if (target.massState === null && source.massState !== null) {
+    patch.massState = source.massState;
+    if (source.observedMassAtStateKg !== undefined) {
+      patch.observedMassAtStateKg = source.observedMassAtStateKg;
+    }
+  }
+  if (target.shipSize === null && source.shipSize !== null) {
+    patch.shipSize = source.shipSize;
+  }
+  if (
+    target.deathEarliestAt === undefined
+    && source.deathEarliestAt !== undefined
+  ) {
+    patch.deathEarliestAt = source.deathEarliestAt;
+    patch.deathLatestAt = source.deathLatestAt;
+  }
+  return patch;
 }
 
 /** Atomically revalidates and applies one assumed-tier deduction batch. */
@@ -964,6 +1002,7 @@ export const applyEliminationDeductions = internalMutation({
               byId.get(deduction.connectionId),
               systemId,
               deduction.signatureId,
+              deduction.expectedTypeCode,
             ),
       );
     }

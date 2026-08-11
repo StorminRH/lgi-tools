@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import {
   FAR_SIDE_WORMHOLE_CODE,
   isWormholeTypeCode,
@@ -15,6 +15,12 @@ export interface WhObservationInput {
   readonly provenance: ConnectionProvenance;
   readonly observedAt: Date;
   readonly dedupeKey: string;
+}
+
+/** One elimination-pass corpus reconcile: upserts plus vacated-key deletes. */
+export interface WhObservationReconcile {
+  readonly upserts: readonly WhObservationInput[];
+  readonly deleteKeys: readonly string[];
 }
 
 function excluded(column: string) {
@@ -92,4 +98,41 @@ export async function insertWhObservation(
     throw new Error('Wormhole observation upsert returned no row.');
   }
   return stored;
+}
+
+/**
+ * Applies one elimination-pass corpus update as at most one multi-row upsert
+ * and one keyed delete. Neon-http has no interactive transaction, so the two
+ * statements stay independent round-trips; callers treat the corpus as
+ * convergent follow-up work.
+ */
+export async function reconcileWhObservations(
+  database: AnyPgDb,
+  reconcile: WhObservationReconcile,
+): Promise<void> {
+  if (reconcile.upserts.length > 0) {
+    for (const input of reconcile.upserts) assertObservationInput(input);
+    await database
+      .insert(whObservations)
+      .values(
+        reconcile.upserts.map((input) => ({
+          ...input,
+          observedAt: toObservationHour(input.observedAt),
+        })),
+      )
+      .onConflictDoUpdate({
+        target: whObservations.dedupeKey,
+        set: {
+          solarSystemId: excluded(whObservations.solarSystemId.name),
+          whTypeCode: excluded(whObservations.whTypeCode.name),
+          provenance: excluded(whObservations.provenance.name),
+          observedAt: excluded(whObservations.observedAt.name),
+        },
+      });
+  }
+  if (reconcile.deleteKeys.length > 0) {
+    await database
+      .delete(whObservations)
+      .where(inArray(whObservations.dedupeKey, [...reconcile.deleteKeys]));
+  }
 }

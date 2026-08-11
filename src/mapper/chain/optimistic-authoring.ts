@@ -568,9 +568,13 @@ export function useChainAuthoringMutations() {
         ...windowArgs(proposal),
       });
       if (result === undefined) return undefined;
+      const typedSystemId = args.connection.typedSide === 'to'
+        && args.connection.toSystemId !== null
+        ? args.connection.toSystemId
+        : args.connection.fromSystemId;
       await eliminateSignaturesAndAnnounce({
         mapId: args.mapId,
-        systemId: args.connection.fromSystemId,
+        systemId: typedSystemId,
       });
       return result;
     },

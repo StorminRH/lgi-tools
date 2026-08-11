@@ -14,8 +14,8 @@ import type {
 } from '@/data/maps/api-contract';
 import { observationFor } from '@/data/wh-observations/emission';
 import {
-  deleteWhObservation,
-  insertWhObservation,
+  reconcileWhObservations,
+  type WhObservationInput,
 } from '@/data/wh-observations/queries';
 import { readSystemStaticsForSystem } from '@/data/wh-statics/queries';
 import {
@@ -32,8 +32,7 @@ export interface SignatureEliminationDependencies {
   readonly readSystemStaticsForSystem: typeof readSystemStaticsForSystem;
   readonly getWormholeCodex: typeof getWormholeCodex;
   readonly eliminateSignatures: typeof eliminateSignatures;
-  readonly insertWhObservation: typeof insertWhObservation;
-  readonly deleteWhObservation: typeof deleteWhObservation;
+  readonly reconcileWhObservations: typeof reconcileWhObservations;
   readonly now: () => number;
   readonly reportEmissionFailure: (cause: unknown) => void;
 }
@@ -44,27 +43,34 @@ const productionDependencies: SignatureEliminationDependencies = {
   readSystemStaticsForSystem,
   getWormholeCodex,
   eliminateSignatures,
-  insertWhObservation,
-  deleteWhObservation,
+  reconcileWhObservations,
   now: Date.now,
   reportEmissionFailure: (cause) => {
     console.error('Wormhole observation logging failed after elimination', cause);
   },
 };
 
-async function readAnswerKey(
+async function readCodex(
+  dependencies: SignatureEliminationDependencies,
+): Promise<readonly WormholeCodexEntry[] | null> {
+  try {
+    return (await dependencies.getWormholeCodex()).types;
+  } catch {
+    return null;
+  }
+}
+
+async function readStaticTypeCodes(
   database: AnyPgDb,
   systemId: number,
   dependencies: SignatureEliminationDependencies,
-) {
+): Promise<readonly string[] | null> {
   try {
-    const [staticTypeCodes, codex] = await Promise.all([
-      dependencies.readSystemStaticsForSystem(database, systemId),
-      dependencies.getWormholeCodex(),
-    ]);
-    return staticTypeCodes.length === 0
-      ? null
-      : { staticTypeCodes, codex: codex.types };
+    const staticTypeCodes = await dependencies.readSystemStaticsForSystem(
+      database,
+      systemId,
+    );
+    return staticTypeCodes.length === 0 ? null : staticTypeCodes;
   } catch {
     return null;
   }
@@ -123,6 +129,8 @@ async function logIdentifications(
   dependencies: SignatureEliminationDependencies,
 ): Promise<void> {
   const observedAt = new Date(dependencies.now());
+  const upserts: WhObservationInput[] = [];
+  const deleteKeys: string[] = [];
   for (const identity of settled) {
     const observation = identity.migrated
       ? null
@@ -137,11 +145,12 @@ async function logIdentifications(
           codex,
         );
     if (observation !== null) {
-      await dependencies.insertWhObservation(database, { ...observation, observedAt });
+      upserts.push({ ...observation, observedAt });
     } else if (identity.observationKey !== null) {
-      await dependencies.deleteWhObservation(database, identity.observationKey);
+      deleteKeys.push(identity.observationKey);
     }
   }
+  await dependencies.reconcileWhObservations(database, { upserts, deleteKeys });
 }
 
 /** Runs one authenticated cross-store elimination pass and logs what it settles. */
@@ -158,15 +167,23 @@ export async function resolveSignatureElimination(
   );
   if (!evidence.canEdit) return quiet();
 
-  const answerKey = await readAnswerKey(database, request.systemId, dependencies);
-  if (answerKey === null) return { status: 'statics-unavailable' };
+  const [codex, staticTypeCodes] = await Promise.all([
+    readCodex(dependencies),
+    readStaticTypeCodes(database, request.systemId, dependencies),
+  ]);
 
-  const result = dependencies.eliminateSignatures({
-    ...answerKey,
-    signatures: evidence.signatures,
-    connections: evidence.connections,
-  });
-  const deductions = result.quiet ? [] : result.deductions;
+  const deductions = staticTypeCodes === null || codex === null
+    ? []
+    : (() => {
+        const result = dependencies.eliminateSignatures({
+          staticTypeCodes,
+          codex,
+          signatures: evidence.signatures,
+          connections: evidence.connections,
+        });
+        return result.quiet ? [] : result.deductions;
+      })();
+
   const outcomes = deductions.length === 0
     ? []
     : await dependencies.applyEliminationDeductions({
@@ -176,26 +193,34 @@ export async function resolveSignatureElimination(
         deductions,
       });
 
-  const byDeduction = new Map(deductions.map((entry) => [entry.signatureId, entry]));
-  const byOutcome = new Map(outcomes.map((entry) => [entry.signatureId, entry]));
-  try {
-    await logIdentifications(
-      database,
-      request.systemId,
-      evidence.signatures.map((signature) =>
-        settleIdentity(
-          signature,
-          byDeduction.get(signature.signatureId),
-          byOutcome.get(signature.signatureId),
+  // Observation logging is independent of statics availability (ruling D-B):
+  // a person's typed identity must still enter the corpus when inference is off.
+  if (codex !== null) {
+    const byDeduction = new Map(deductions.map((entry) => [entry.signatureId, entry]));
+    const byOutcome = new Map(outcomes.map((entry) => [entry.signatureId, entry]));
+    try {
+      await logIdentifications(
+        database,
+        request.systemId,
+        evidence.signatures.map((signature) =>
+          settleIdentity(
+            signature,
+            byDeduction.get(signature.signatureId),
+            byOutcome.get(signature.signatureId),
+          ),
         ),
-      ),
-      answerKey.codex,
-      dependencies,
-    );
-  } catch (cause) {
-    // The map facts already landed; the corpus is a convergent follow-up that
-    // must never turn an applied deduction into a failed pass.
-    dependencies.reportEmissionFailure(cause);
+        codex,
+        dependencies,
+      );
+    } catch (cause) {
+      // The map facts already landed; the corpus is a convergent follow-up that
+      // must never turn an applied deduction into a failed pass.
+      dependencies.reportEmissionFailure(cause);
+    }
+  }
+
+  if (staticTypeCodes === null || codex === null) {
+    return { status: 'statics-unavailable' };
   }
 
   const signatureIds = outcomes

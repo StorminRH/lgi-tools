@@ -165,6 +165,7 @@ const INFERENCE_CASES = [
           signatureId: 'AAA-111',
           connectionId: 'inbound',
           provenance: 'assumed',
+          expectedTypeCode: 'K162',
         },
       ],
       quiet: false,

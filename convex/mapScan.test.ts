@@ -379,6 +379,7 @@ describe('mapScan paste application and lifecycle', () => {
         signatureId: 'KSI-162',
         connectionId: targetId,
         provenance: 'assumed',
+        expectedTypeCode: null,
       }],
     })).toEqual([
       { signatureId: 'KSI-162', outcome: 'applied', observationKey: null },
@@ -392,6 +393,115 @@ describe('mapScan paste application and lifecycle', () => {
     ]);
     expect(await t.run(async (ctx) => await ctx.db.query('mapEvents').collect()))
       .toEqual([]);
+  });
+
+  it('refuses a stale link when the stub type changed after evidence', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
+    let stubId = '' as Id<'mapConnections'>;
+    let targetId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      const stub = (await ctx.db.query('mapConnections').collect())[0]!;
+      stubId = stub._id;
+      await ctx.db.patch(stubId, {
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+      });
+      targetId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+
+    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{
+        signatureId: 'KSI-162',
+        connectionId: targetId,
+        provenance: 'assumed',
+        expectedTypeCode: null,
+      }],
+    })).toEqual([
+      {
+        signatureId: 'KSI-162',
+        outcome: 'stale',
+        observationKey: null,
+      },
+    ]);
+    expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toMatchObject({
+      wormholeTypeCode: 'B274',
+      typeProvenance: 'human',
+    });
+    expect(
+      (await t.run(async (ctx) => await ctx.db.get(targetId)))?.toSignatureId,
+    ).toBeUndefined();
+  });
+
+  it('carries human stub mass and size onto the resolved row when linking', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
+    let targetId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      const stub = (await ctx.db.query('mapConnections').collect())[0]!;
+      await ctx.db.patch(stub._id, {
+        massState: 'stable',
+        observedMassAtStateKg: 1_000_000_000,
+        shipSize: 'M',
+        deathEarliestAt: 1_000,
+        deathLatestAt: 2_000,
+      });
+      targetId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+
+    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{
+        signatureId: 'KSI-162',
+        connectionId: targetId,
+        provenance: 'assumed',
+        expectedTypeCode: null,
+      }],
+    })).toEqual([
+      { signatureId: 'KSI-162', outcome: 'applied', observationKey: null },
+    ]);
+    expect(await t.run(async (ctx) => await ctx.db.get(targetId))).toMatchObject({
+      toSignatureId: 'KSI-162',
+      massState: 'stable',
+      observedMassAtStateKg: 1_000_000_000,
+      shipSize: 'M',
+      deathEarliestAt: 1_000,
+      deathLatestAt: 2_000,
+    });
   });
 
   it('re-paste after jump resolution enriches the same connection without duplicating it', async () => {

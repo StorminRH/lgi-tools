@@ -41,8 +41,7 @@ const h = {
   readSystemStaticsForSystem: vi.fn(),
   getWormholeCodex: vi.fn(),
   eliminateSignatures,
-  insertWhObservation: vi.fn(),
-  deleteWhObservation: vi.fn(),
+  reconcileWhObservations: vi.fn(),
   now: vi.fn(),
   reportEmissionFailure: vi.fn(),
 };
@@ -64,6 +63,20 @@ function signature(
   };
 }
 
+function observationUpsert(overrides: {
+  whTypeCode: string;
+  provenance: string;
+  dedupeKey: string;
+}) {
+  return {
+    solarSystemId: request.systemId,
+    whTypeCode: overrides.whTypeCode,
+    provenance: overrides.provenance,
+    observedAt: new Date(OBSERVED_AT),
+    dedupeKey: overrides.dedupeKey,
+  };
+}
+
 beforeEach(() => {
   h.readEliminationEvidence.mockReset().mockResolvedValue({
     canEdit: true,
@@ -75,8 +88,7 @@ beforeEach(() => {
   ]);
   h.readSystemStaticsForSystem.mockReset().mockResolvedValue(['B274']);
   h.getWormholeCodex.mockReset().mockResolvedValue(codex);
-  h.insertWhObservation.mockReset().mockResolvedValue({});
-  h.deleteWhObservation.mockReset().mockResolvedValue(undefined);
+  h.reconcileWhObservations.mockReset().mockResolvedValue(undefined);
   h.now.mockReset().mockReturnValue(OBSERVED_AT);
   h.reportEmissionFailure.mockReset();
 });
@@ -99,15 +111,14 @@ describe('signature elimination composition', () => {
 
   it('logs a deduced identification as exactly one assumed observation', async () => {
     await resolveSignatureElimination(database, 'user-1', request, dependencies);
-    expect(h.insertWhObservation).toHaveBeenCalledTimes(1);
-    expect(h.insertWhObservation).toHaveBeenCalledWith(database, {
-      solarSystemId: request.systemId,
-      whTypeCode: 'B274',
-      provenance: 'assumed',
-      observedAt: new Date(OBSERVED_AT),
-      dedupeKey: 'hole-key',
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [observationUpsert({
+        whTypeCode: 'B274',
+        provenance: 'assumed',
+        dedupeKey: 'hole-key',
+      })],
+      deleteKeys: [],
     });
-    expect(h.deleteWhObservation).not.toHaveBeenCalled();
   });
 
   it("corrects a person's override in place under the deduction's own key", async () => {
@@ -126,12 +137,13 @@ describe('signature elimination composition', () => {
       resolveSignatureElimination(database, 'user-1', request, dependencies),
     ).resolves.toEqual({ status: 'quiet' });
     expect(h.applyEliminationDeductions).not.toHaveBeenCalled();
-    expect(h.insertWhObservation).toHaveBeenCalledWith(database, {
-      solarSystemId: request.systemId,
-      whTypeCode: 'B274',
-      provenance: 'human',
-      observedAt: new Date(OBSERVED_AT),
-      dedupeKey: 'hole-key',
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [observationUpsert({
+        whTypeCode: 'B274',
+        provenance: 'human',
+        dedupeKey: 'hole-key',
+      })],
+      deleteKeys: [],
     });
   });
 
@@ -146,8 +158,10 @@ describe('signature elimination composition', () => {
       connections: [],
     });
     await resolveSignatureElimination(database, 'user-1', request, dependencies);
-    expect(h.insertWhObservation).not.toHaveBeenCalled();
-    expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'hole-key');
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [],
+      deleteKeys: ['hole-key'],
+    });
   });
 
   it('logs nothing for an untyped row, even when a racing write protected it', async () => {
@@ -157,8 +171,10 @@ describe('signature elimination composition', () => {
       { signatureId: 'AAA-111', outcome: 'protected', observationKey: 'hole-key' },
     ]);
     await resolveSignatureElimination(database, 'user-1', request, dependencies);
-    expect(h.insertWhObservation).not.toHaveBeenCalled();
-    expect(h.deleteWhObservation).not.toHaveBeenCalled();
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [],
+      deleteKeys: [],
+    });
   });
 
   it('keeps the observed identity when the row went stale mid-pass', async () => {
@@ -180,14 +196,14 @@ describe('signature elimination composition', () => {
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
     ).resolves.toEqual({ status: 'quiet' });
-    expect(h.insertWhObservation).toHaveBeenCalledWith(database, {
-      solarSystemId: request.systemId,
-      whTypeCode: 'B274',
-      provenance: 'assumed',
-      observedAt: new Date(OBSERVED_AT),
-      dedupeKey: 'hole-key',
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [observationUpsert({
+        whTypeCode: 'B274',
+        provenance: 'assumed',
+        dedupeKey: 'hole-key',
+      })],
+      deleteKeys: [],
     });
-    expect(h.deleteWhObservation).not.toHaveBeenCalled();
   });
 
   it('removes the stub key when a link deduction migrates the identity', async () => {
@@ -210,11 +226,13 @@ describe('signature elimination composition', () => {
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
     ).resolves.toEqual({ status: 'applied', signatureIds: ['AAA-111'] });
-    expect(h.insertWhObservation).not.toHaveBeenCalled();
-    expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'hole-key');
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [],
+      deleteKeys: ['hole-key'],
+    });
   });
 
-  it('degrades unavailable or absent statics with zero Convex and zero corpus writes', async () => {
+  it('degrades unavailable or absent statics with zero Convex writes', async () => {
     h.readSystemStaticsForSystem.mockRejectedValueOnce(new Error('offline'));
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
@@ -226,12 +244,35 @@ describe('signature elimination composition', () => {
       resolveSignatureElimination(database, 'user-1', request, dependencies),
     ).resolves.toEqual({ status: 'statics-unavailable' });
     expect(h.applyEliminationDeductions).not.toHaveBeenCalled();
-    expect(h.insertWhObservation).not.toHaveBeenCalled();
-    expect(h.deleteWhObservation).not.toHaveBeenCalled();
+  });
+
+  it('still logs a human identification when statics are unavailable', async () => {
+    h.readEliminationEvidence.mockResolvedValueOnce({
+      canEdit: true,
+      signatures: [signature({
+        wormholeTypeCode: 'B274',
+        typeProvenance: 'human',
+        observationKey: 'hole-key',
+      })],
+      connections: [],
+    });
+    h.readSystemStaticsForSystem.mockResolvedValueOnce([]);
+    await expect(
+      resolveSignatureElimination(database, 'user-1', request, dependencies),
+    ).resolves.toEqual({ status: 'statics-unavailable' });
+    expect(h.applyEliminationDeductions).not.toHaveBeenCalled();
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [observationUpsert({
+        whTypeCode: 'B274',
+        provenance: 'human',
+        dedupeKey: 'hole-key',
+      })],
+      deleteKeys: [],
+    });
   });
 
   it('reports a corpus failure without failing the applied deduction', async () => {
-    h.insertWhObservation.mockRejectedValueOnce(new Error('neon down'));
+    h.reconcileWhObservations.mockRejectedValueOnce(new Error('neon down'));
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
     ).resolves.toEqual({ status: 'applied', signatureIds: ['AAA-111'] });

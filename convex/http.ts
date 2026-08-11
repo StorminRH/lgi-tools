@@ -135,6 +135,7 @@ const eliminationDeductionSchema = z.union([
     signatureId: z.string().min(1),
     connectionId: z.string().min(1),
     provenance: z.literal('assumed'),
+    expectedTypeCode: z.string().min(1).nullable(),
   }),
 ]);
 

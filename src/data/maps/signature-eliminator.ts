@@ -36,7 +36,15 @@ interface AssumedDeduction {
 /** One machine-safe type fill or far-side connection link. */
 export type EliminationDeduction = AssumedDeduction & (
   | { readonly typeCode: string }
-  | { readonly connectionId: string }
+  | {
+      readonly connectionId: string;
+      /**
+       * The stub's type code when this link was decided (null when untyped).
+       * The apply door rejects the write when the live stub no longer matches,
+       * so a person cannot lose a concurrent retype to a stale link delete.
+       */
+      readonly expectedTypeCode: string | null;
+    }
 );
 
 /** Pure deductions, or the deliberately indistinguishable quiet outcome. */
@@ -209,6 +217,7 @@ function crossFixedFacts(
         signatureId: signature.signatureId,
         connectionId: crossing.connection.connectionId,
         provenance: 'assumed',
+        expectedTypeCode: signature.wormholeTypeCode,
       });
     }
   }
@@ -290,6 +299,7 @@ export function eliminateSignatures(input: EliminationInput): EliminationResult 
           signatureId,
           connectionId: connection.connectionId,
           provenance: 'assumed',
+          expectedTypeCode: signature.wormholeTypeCode,
         });
       }
     }

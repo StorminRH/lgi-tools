@@ -92,6 +92,9 @@ describe('MapWindow isolation markup', () => {
     );
     expect(html).toContain('map-node-enter');
     expect(html).toContain('data-map-window-placement="scanner-anchored"');
+    // Stacks above the dock on narrow viewports; parks beside it from md up.
+    expect(html).toContain('md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)]');
+    expect(html).toContain('bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)]');
     // Parked beside the dock in screen space, never riding a canvas transform.
     expect(html).not.toContain('--map-window-transform');
   });
