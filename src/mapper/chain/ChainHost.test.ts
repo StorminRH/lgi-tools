@@ -37,8 +37,8 @@ vi.mock('../authoring/RightsTransitionToast', () => ({
   RightsTransitionToast: () => null,
 }));
 
-vi.mock('../authoring/ConnectionAuthoringOverlay', () => ({
-  ConnectionAuthoringOverlay: () => null,
+vi.mock('../authoring/MapAuthoringOverlay', () => ({
+  MapAuthoringOverlay: () => null,
 }));
 
 vi.mock('../tracking/TrackingControls', () => ({

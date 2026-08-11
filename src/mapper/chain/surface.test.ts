@@ -28,26 +28,31 @@ vi.mock('@xyflow/react', async () => {
   };
 });
 
-function nodeMarkup(name: string, className: string | null): string {
-  const props = { data: { name, className } } as unknown as NodeProps<ChainNode>;
+function nodeMarkup(name: string, whClassId: number | null): string {
+  const props = {
+    data: { name, className: null, security: whClassId === null ? null : -1, whClassId },
+  } as unknown as NodeProps<ChainNode>;
   return renderToStaticMarkup(createElement(SystemNode, props));
 }
 
 // ── SC-3 · DC-3 — what a populated node actually says ───────────────────────
 describe('system node rendering', () => {
-  it('shows the directory name and its class chip', () => {
-    const markup = nodeMarkup('J123456', 'C5');
+  it('shows the plain directory name above its colored class indicator', () => {
+    const markup = nodeMarkup('J123456', 5);
 
-    expect(markup).toContain('J123456');
-    expect(markup).toContain('data-chain-node-class');
-    expect(markup).toContain('C5');
+    expect(markup).toContain('>J123456<');
+    expect(markup).toContain('data-chain-node-classification');
+    expect(markup).toContain('>C5<');
+    expect(markup).toContain('text-wh-c5');
+    expect(markup).not.toContain('J123456 - C5');
+    expect(markup).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
   });
 
-  it('omits the class chip entirely for a system with no class', () => {
+  it('shows the bare name for a system with no class and no security', () => {
     const markup = nodeMarkup('Jita', null);
 
     expect(markup).toContain('Jita');
-    expect(markup).not.toContain('data-chain-node-class');
+    expect(markup).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
   });
 });
 
@@ -78,7 +83,7 @@ describe('map surface inspection', () => {
         state === 'empty'
           ? await emptyCanvasMarkup()
           : state === 'populated'
-            ? nodeMarkup('J123456', 'C5')
+            ? nodeMarkup('J123456', 5)
             : renderToStaticMarkup(createElement(NoMapAccess));
 
       expect(markup).not.toMatch(/progressbar|aria-busy|spinner/i);
@@ -114,30 +119,29 @@ describe('mapper source contract', () => {
   // Guards every loop below: an empty or broken file walk would make them all pass vacuously.
   it('walks the whole mapper zone', () => {
     expect(mapperFiles().toSorted()).toEqual([
-      'authoring/ConnectionAuthoringOverlay.tsx',
-      'authoring/ConnectionDetailsCard.tsx',
       'authoring/HomePrompt.tsx',
-      'authoring/JumpResolutionPrompt.tsx',
+      'authoring/MapAuthoringOverlay.tsx',
       'authoring/NodeAddMenu.tsx',
       'authoring/RightsTransitionToast.tsx',
+      'authoring/connection-editor-mode.ts',
       'authoring/connection-field-group.tsx',
       'authoring/connection-field-setters.ts',
       'authoring/connection-fields.tsx',
       'authoring/connection-intelligence.ts',
-      'authoring/connection-selection.ts',
-      'authoring/jump-resolution.ts',
       'authoring/rights-transition.ts',
       'authoring/sever-toast.ts',
       'authoring/use-wormhole-editor-data.ts',
       'authoring/wormhole-type-search.ts',
       'canvas/ChainLinkEdge.tsx',
       'canvas/ChainSurface.tsx',
+      'canvas/EdgeContextMenu.tsx',
       'canvas/MapCanvas.tsx',
       'canvas/MapControls.tsx',
       'canvas/PilotPresenceBadge.tsx',
       'canvas/SystemNode.tsx',
       'canvas/camera-follow-model.ts',
       'canvas/edge-geometry.ts',
+      'canvas/edge-menu.ts',
       'canvas/map-controls-model.ts',
       'canvas/use-camera-follow.ts',
       'chain/ChainHost.tsx',
@@ -148,6 +152,7 @@ describe('mapper source contract', () => {
       'chain/optimistic-authoring.ts',
       'chain/placement.ts',
       'chain/reconciler.ts',
+      'chain/use-authoring-menus.ts',
       'chain/use-map-chain.ts',
       'fog/FogLayer.tsx',
       'fog/fog-host.ts',
@@ -177,13 +182,21 @@ describe('mapper source contract', () => {
       'motion/motion-host-model.ts',
       'motion/tween-model.ts',
       'motion/use-motion.ts',
+      'signatures/ActiveSignatureEditor.tsx',
+      'signatures/SignatureEditor.tsx',
+      'signatures/SignatureJumpPrompt.tsx',
       'signatures/SignatureProvider.tsx',
       'signatures/SignatureWindow.tsx',
-      'signatures/WormholeRowEditor.tsx',
+      'signatures/connection-authoring-api.ts',
+      'signatures/editor-leader.ts',
+      'signatures/jump-resolution.ts',
       'signatures/signature-context.tsx',
+      'signatures/signature-elimination-client.ts',
       'signatures/signature-model.ts',
       'signatures/signature-toast.ts',
+      'signatures/system-readout.ts',
       'signatures/use-scanner-paste.ts',
+      'signatures/use-system-statics.ts',
       'tracking/AfkGate.tsx',
       'tracking/JumpDoorbellObserver.tsx',
       'tracking/OutboundArrowProvider.tsx',
@@ -218,9 +231,13 @@ describe('mapper source contract', () => {
   });
 
   it('routes UI destruction only through sever and the public restore pair', () => {
+    // One mutation owner, one dispatcher owner, one ledger. Every UI entry
+    // point (editor Delete, edge-menu Delete) reaches destruction through
+    // `connectionLifecycleActions`, never by naming the mutations itself.
     const allowed = new Set([
       'chain/optimistic-authoring.ts',
-      'authoring/ConnectionAuthoringOverlay.tsx',
+      'signatures/connection-authoring-api.ts',
+      'authoring/MapAuthoringOverlay.tsx',
     ]);
     for (const file of mapperFiles()) {
       const source = sourceOf(file);
@@ -231,10 +248,10 @@ describe('mapper source contract', () => {
       if (!namesDestruction) continue;
       expect(allowed.has(file), file).toBe(true);
     }
-    const overlay = sourceOf('authoring/ConnectionAuthoringOverlay.tsx');
-    expect(overlay).toContain('severConnection');
-    expect(overlay).toContain('restoreSeveredBranch');
-    expect(overlay).toContain('restoreConnection');
+    const api = sourceOf('signatures/connection-authoring-api.ts');
+    expect(api).toContain('severConnection');
+    expect(api).toContain('restoreSeveredBranch');
+    expect(api).toContain('restoreConnection');
   });
 
   it('keeps the window layer off the hot nodes array', () => {

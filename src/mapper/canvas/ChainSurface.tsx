@@ -44,8 +44,13 @@ export interface ChainSurfaceProps {
   readonly onNodeClick?: NodeMouseHandler<ChainNode>;
   /** Node right-click / long-press seam for the add-from-node menu. */
   readonly onNodeContextMenu?: NodeMouseHandler<ChainNode>;
-  /** Edge-click seam for the connection details card. */
-  readonly onEdgeClick?: EdgeMouseHandler;
+  /**
+   * Edge right-click seam for the connection Edit/Delete menu. React Flow
+   * passes the event straight through without calling `preventDefault`, so the
+   * handler must suppress the native menu itself. Built-in click-to-select is
+   * governed separately (`elementsSelectable`) and stays as shipped.
+   */
+  readonly onEdgeContextMenu?: EdgeMouseHandler;
   /**
    * Whether nodes may be dragged. Default `true` preserves the empty-canvas
    * contract; the live host passes the map-lock state (locked → false).
@@ -87,7 +92,7 @@ export function ChainSurface({
   onSelectionDragStop,
   onNodeClick,
   onNodeContextMenu,
-  onEdgeClick,
+  onEdgeContextMenu,
   nodesDraggable = true,
   motion,
   children,
@@ -123,7 +128,7 @@ export function ChainSurface({
         onSelectionDragStop={onSelectionDragStop}
         onNodeClick={onNodeClick}
         onNodeContextMenu={onNodeContextMenu}
-        onEdgeClick={onEdgeClick}
+        onEdgeContextMenu={onEdgeContextMenu}
         // RF's dark theme paints a solid pane; keep it clear so the nebula shows.
         className="bg-transparent!"
       >

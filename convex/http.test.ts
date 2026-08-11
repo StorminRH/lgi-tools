@@ -15,7 +15,8 @@ const post = (
     | '/project-map-access'
     | '/purge-map-access'
     | '/jump-evidence'
-    | '/resolve-jump',
+    | '/resolve-jump'
+    | '/signature-elimination',
   body: BodyInit | null,
   authorized = true,
 ) =>
@@ -238,6 +239,33 @@ describe('jump resolver doors', () => {
         observedMassKg: 10_000_000,
       }),
     ]);
+  });
+});
+
+describe('signature elimination door', () => {
+  it('rejects before parsing without the bearer and returns clean malformed JSON', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    expect((await post('/signature-elimination', 'not json', false)).status).toBe(401);
+    expect((await post('/signature-elimination', 'not json')).status).toBe(400);
+  });
+
+  it('returns access-safe empty evidence for a valid server request', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    const res = await post(
+      '/signature-elimination',
+      JSON.stringify({
+        operation: 'evidence',
+        userId: 'user-1',
+        mapId: 'map-1',
+        systemId: 31_000_001,
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      canEdit: false,
+      signatures: [],
+      connections: [],
+    });
   });
 });
 

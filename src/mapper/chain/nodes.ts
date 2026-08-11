@@ -13,6 +13,10 @@ import {
   chainTombstoneState,
   type ChainTombstoneState,
 } from '@/data/maps/chain-contract';
+import {
+  believedHoles,
+  type StaticStubSlot,
+} from '@/data/maps/stub-accounting';
 import type { HaloLink, PlacedHaloSystem } from '../halo/halo-model';
 import { pairKey } from '../lib/pair-key';
 import type { EdgeMotion } from '../motion/motion-contract';
@@ -54,6 +58,12 @@ export const HALO_EDGE_ID_PREFIX = 'halo:';
 /** Synthetic node-id family for unresolved wormhole connection rows. */
 export const STUB_NODE_ID_PREFIX = 'stub:';
 
+/** Synthetic node-id family for guaranteed-but-unmatched system statics. */
+export const STATIC_STUB_NODE_ID_PREFIX = 'static-stub:';
+
+/** Synthetic edge-id family joining one system to its static ghost. */
+export const STATIC_STUB_EDGE_ID_PREFIX = 'static-stub-edge:';
+
 /** Whether one canvas edge id names a derived halo gate link. */
 export function isHaloEdgeId(edgeId: string): boolean {
   return edgeId.startsWith(HALO_EDGE_ID_PREFIX);
@@ -61,7 +71,8 @@ export function isHaloEdgeId(edgeId: string): boolean {
 
 /** Whether one canvas node id names a derived unresolved-wormhole stub. */
 export function isStubNodeId(nodeId: string): boolean {
-  return nodeId.startsWith(STUB_NODE_ID_PREFIX);
+  return nodeId.startsWith(STUB_NODE_ID_PREFIX)
+    || nodeId.startsWith(STATIC_STUB_NODE_ID_PREFIX);
 }
 
 /** One unresolved wormhole connection after the layout kernel has placed its synthetic endpoint. */
@@ -70,7 +81,120 @@ export interface PlacedStubConnection {
   readonly fromSystemId: number;
   readonly signatureId: string;
   readonly wormholeTypeCode: string | null;
+  readonly whClassId: number | null;
   readonly position: ChainPosition;
+}
+
+/** One guaranteed static after accounting and kernel placement. */
+export interface PlacedStaticStub {
+  readonly staticId: string;
+  readonly fromSystemId: number;
+  readonly code: string;
+  readonly className: string;
+  readonly whClassId: number;
+  readonly position: ChainPosition;
+}
+
+/** Every derived wormhole leaf the shared chain node renderer accepts. */
+export type PlacedStub = PlacedStubConnection | PlacedStaticStub;
+
+/** Unplaced scanned row passed into the believed-holes projection. */
+export interface StubPlanningSignature {
+  readonly connectionId: string;
+  readonly fromSystemId: number;
+  readonly signatureId: string;
+  readonly wormholeTypeCode: string | null;
+  readonly whClassId: number | null;
+}
+
+/** Live resolved line passed into the endpoint-side accounting projection. */
+export interface StubPlanningConnection {
+  readonly fromSystemId: number;
+  readonly toSystemId: number;
+  readonly wormholeTypeCode: string | null;
+  readonly typedSide?: 'from' | 'to' | null;
+  readonly fromSignatureId?: string | null;
+  readonly toSignatureId?: string | null;
+  readonly deletedAt?: number | null;
+}
+
+/** One derived leaf before the layout kernel assigns its position. */
+export type PlannedStub =
+  | Omit<PlacedStubConnection, 'position'>
+  | Omit<PlacedStaticStub, 'position'>;
+
+function localConnectionFacts(
+  connection: StubPlanningConnection,
+  systemId: number,
+): { readonly wormholeTypeCode: string | null; readonly linkedSignature: boolean } {
+  const fromSide = connection.fromSystemId === systemId;
+  const typedSide = connection.wormholeTypeCode === null
+    ? null
+    : (connection.typedSide ?? 'from');
+  return {
+    wormholeTypeCode:
+      (fromSide && typedSide === 'from') || (!fromSide && typedSide === 'to')
+        ? connection.wormholeTypeCode
+        : null,
+    linkedSignature: fromSide
+      ? connection.fromSignatureId != null
+      : connection.toSignatureId != null,
+  };
+}
+
+/**
+ * Projects map-shared system, signature, connection, and static facts through
+ * the one believed-holes rule before any derived leaf enters layout.
+ */
+export function planStubNodes(input: {
+  readonly systemIds: readonly number[];
+  readonly signatures: readonly StubPlanningSignature[];
+  readonly connections: readonly StubPlanningConnection[];
+  readonly staticsBySystem: ReadonlyMap<number, readonly StaticStubSlot[]>;
+}): readonly PlannedStub[] {
+  const planned: PlannedStub[] = [];
+  for (const systemId of input.systemIds) {
+    const signatures = input.signatures.filter(
+      (signature) => signature.fromSystemId === systemId,
+    );
+    const connections = input.connections.filter(
+      (connection) =>
+        connection.deletedAt == null
+        && (connection.fromSystemId === systemId || connection.toSystemId === systemId),
+    );
+    const plan = believedHoles({
+      statics: input.staticsBySystem.get(systemId) ?? [],
+      signatures: signatures.map((signature) => ({
+        id: signature.connectionId,
+        wormholeTypeCode: signature.wormholeTypeCode,
+      })),
+      connections: connections.map((connection) =>
+        localConnectionFacts(connection, systemId)),
+    });
+    const drawnSignatures = new Set(plan.signatureStubIds);
+    planned.push(
+      ...signatures.filter((signature) => drawnSignatures.has(signature.connectionId)),
+      ...plan.staticStubs.map((stub) => ({
+        staticId: stub.id,
+        fromSystemId: systemId,
+        code: stub.code,
+        className: stub.className,
+        whClassId: stub.whClassId,
+      })),
+    );
+  }
+  return planned;
+}
+
+function staticStub(stub: PlacedStub): stub is PlacedStaticStub {
+  return 'staticId' in stub;
+}
+
+/** Stable React Flow node id for either derived stub family. */
+export function stubNodeId(stub: PlacedStub): string {
+  return staticStub(stub)
+    ? `${STATIC_STUB_NODE_ID_PREFIX}${stub.staticId}`
+    : `${STUB_NODE_ID_PREFIX}${stub.connectionId}`;
 }
 
 /** One edge on the canvas. Structural subset of React Flow's `Edge`. */
@@ -136,7 +260,7 @@ export function syncNodes(
   labelOf: (systemId: number) => SystemLabel,
   dragging: ReadonlySet<number>,
   halo: readonly PlacedHaloSystem[] = [],
-  stubs: readonly PlacedStubConnection[] = [],
+  stubs: readonly PlacedStub[] = [],
 ): ChainNode[] {
   const localById = new Map(previous.map((node) => [node.id, node]));
 
@@ -203,8 +327,9 @@ export function syncNodes(
   const stubNodes = stubs
     .filter((stub) => systems.has(stub.fromSystemId))
     .map((stub): ChainNode => {
-      const id = `${STUB_NODE_ID_PREFIX}${stub.connectionId}`;
+      const id = stubNodeId(stub);
       const local = localById.get(id);
+      const isStatic = staticStub(stub);
       return {
         ...(local === undefined ? undefined : local),
         id,
@@ -219,15 +344,23 @@ export function syncNodes(
         focusable: false,
         style: INERT_NODE_STYLE,
         data: {
-          name: stub.signatureId,
-          className: stub.wormholeTypeCode,
+          name: isStatic ? stub.code : stub.signatureId,
+          className: isStatic ? stub.className : null,
           security: null,
-          whClassId: null,
-          stub: {
-            connectionId: stub.connectionId,
-            fromSystemId: stub.fromSystemId,
-            signatureId: stub.signatureId,
-          },
+          whClassId: stub.whClassId,
+          stub: isStatic
+            ? {
+                staticId: stub.staticId,
+                fromSystemId: stub.fromSystemId,
+                code: stub.code,
+                className: stub.className,
+                whClassId: stub.whClassId,
+              }
+            : {
+                connectionId: stub.connectionId,
+                fromSystemId: stub.fromSystemId,
+                signatureId: stub.signatureId,
+              },
         },
       };
     });
@@ -253,7 +386,7 @@ export function buildEdges(
   now = Date.now(),
   haloLinks: readonly HaloLink[] = [],
   foggedSystemIds: ReadonlySet<number> = EMPTY_FOGGED_IDS,
-  stubs: readonly PlacedStubConnection[] = [],
+  stubs: readonly PlacedStub[] = [],
 ): ChainEdge[] {
   const claim = newPairClaim(treeParents);
   const edges: ChainEdge[] = [];
@@ -275,11 +408,13 @@ export function buildEdges(
     });
   }
   for (const stub of stubs) {
-    if (!connections.has(stub.connectionId)) {
+    if (staticStub(stub) || !connections.has(stub.connectionId)) {
       edges.push({
-        id: stub.connectionId,
+        id: staticStub(stub)
+          ? `${STATIC_STUB_EDGE_ID_PREFIX}${stub.staticId}`
+          : stub.connectionId,
         source: String(stub.fromSystemId),
-        target: `${STUB_NODE_ID_PREFIX}${stub.connectionId}`,
+        target: stubNodeId(stub),
         data: { loop: false, tombstoneState: 'active', stub: true },
       });
     }

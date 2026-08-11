@@ -1,7 +1,8 @@
 // Session 4.0.4.3.1 G-1: two authenticated clients watch the full scanner
 // lifecycle on a fresh disposable map — paste → re-paste (no churn) → per-kind
-// missing (dismiss, remove, undo) → ghosted stub surfacing →
-// typed-code editing → real jump resolving the stub into an authored system.
+// missing (dismiss, remove, undo) → guaranteed-statics accounting →
+// typed-code elimination + toast → real jump resolving one stub while the
+// other guaranteed static remains visible.
 // One-shot by design: the map keeps its rows, jump, and ledger for review.
 import {
   calmMapCamera,
@@ -65,8 +66,25 @@ async function waitForSignatureRows(page, expected) {
   );
 }
 
+async function waitForSignatureText(page, signatureId, expected) {
+  await page.waitForFunction(
+    ({ id, text }) =>
+      document
+        .querySelector(`[data-signature-row][data-signature-id="${id}"]`)
+        ?.textContent?.includes(text) === true,
+    { id: signatureId, text: expected },
+    { timeout: 30_000 },
+  );
+}
+
 async function stubCount(page) {
   return await page.locator('[data-chain-node-stub]').count();
+}
+
+async function hasStubReadout(stub, name, classification) {
+  return (await stub.locator('[data-chain-node-name]').textContent()) === name
+    && (await stub.locator('[data-chain-node-classification]').textContent())
+      === classification;
 }
 
 export default {
@@ -125,11 +143,23 @@ export default {
         feedFreshAt: Date.now(),
       });
     await Promise.all([
-      waitForTopology(page, 1, 0),
-      waitForTopology(second.page, 1, 0),
+      waitForTopology(page, 3, 2),
+      waitForTopology(second.page, 3, 2),
     ]);
+    const initialStaticStubs = page.locator('[data-chain-node-static-stub]');
+    check(
+      'identified J-space draws both guaranteed statics before any scan',
+      (await initialStaticStubs.count()) === 2
+      && await hasStubReadout(initialStaticStubs.nth(0), 'C247', 'C3')
+      && await hasStubReadout(initialStaticStubs.nth(1), 'N766', 'C2'),
+    );
 
-    // Paste 1: full scan → rows in the window, wormholes as ghosted stubs.
+    // Paste 1: unidentified rows claim the already-drawn static holes first,
+    // so the canvas keeps two ghosts rather than double-counting four holes.
+    // Static/codex convergence can outlive the tokenless engine's first
+    // coverage sweep, so refresh the synthetic pilot immediately before the
+    // paste just as every later paste does.
+    await restampFreshness();
     await pasteScan(page, FULL_SCAN);
     await Promise.all([
       waitForSignatureRows(page, 4), // Signatures tab: CBA, LXX, IHJ, EAR.
@@ -150,7 +180,7 @@ export default {
       && (await page.getByRole('tab', { name: 'Anomalies' }).count()) === 1,
     );
     check(
-      'wormhole rows spawn exactly two ghosted stub nodes on both clients',
+      'unidentified wormhole rows reuse exactly two believed-hole ghosts',
       (await stubCount(page)) === 2 && (await stubCount(second.page)) === 2,
     );
     check(
@@ -224,7 +254,8 @@ export default {
     ]);
     check('undo restores the row on both clients', true);
 
-    // Type C247 on CBA-120 through the row editor (statics-first picker seam).
+    // Type C247 on CBA-120 through the row editor. The one remaining unknown
+    // must eliminate to N766; only the acting client gets the transient toast.
     await signatureRow(page, 'CBA-120')
       .getByRole('button', { name: 'Edit wormhole CBA-120' })
       .click();
@@ -232,16 +263,36 @@ export default {
     await typeInput.waitFor({ state: 'visible', timeout: 10_000 });
     await typeInput.fill('C247');
     await page.waitForTimeout(600);
+    const eliminationToast = page.locator('[data-sonner-toast]', {
+      hasText: 'LXX-844 has been identified.',
+    });
+    const eliminationAppeared = eliminationToast.waitFor({
+      state: 'visible',
+      timeout: 15_000,
+    });
     await typeInput.press('Enter');
-    await page.waitForTimeout(800);
-    await page.keyboard.press('Escape');
+    await eliminationAppeared;
+    await Promise.all([
+      waitForSignatureText(page, 'LXX-844', 'N766'),
+      waitForSignatureText(second.page, 'LXX-844', 'N766'),
+    ]);
+    check(
+      'C247 entry eliminates LXX-844 to N766 and toasts only the acting client',
+      (await eliminationToast.count()) === 1
+      && (await second.page.locator('[data-sonner-toast]', {
+        hasText: 'LXX-844 has been identified.',
+      }).count()) === 0,
+    );
+    await page.getByRole('button', { name: 'Close Signature Editor' }).click();
     await page
       .getByPlaceholder('Type code — e.g. B274 or K162')
       .waitFor({ state: 'detached', timeout: 10_000 });
     const cbaText = (await signatureRow(page, 'CBA-120').textContent()) ?? '';
     check(
-      'typed code and its class render on the row',
-      cbaText.includes('C247') && cbaText.includes('C3'),
+      'typed and eliminated codes render with their destination classes',
+      cbaText.includes('C247') && cbaText.includes('C3')
+      && /N766/.test((await signatureRow(page, 'LXX-844').textContent()) ?? '')
+      && /C2/.test((await signatureRow(page, 'LXX-844').textContent()) ?? ''),
     );
 
     // Remove the second, untyped hole via the same prompt Remove — its
@@ -255,12 +306,23 @@ export default {
     await missingPrompt().waitFor({ state: 'visible', timeout: 10_000 });
     await missingPrompt().getByRole('button', { name: 'Remove' }).click();
     await Promise.all([
-      waitForTopology(page, 2, 1), // origin + one remaining stub.
-      waitForTopology(second.page, 2, 1),
+      lxxRow.waitFor({ state: 'detached', timeout: 15_000 }),
+      signatureRow(second.page, 'LXX-844').waitFor({
+        state: 'detached',
+        timeout: 15_000,
+      }),
+      waitForTopology(page, 3, 2), // origin + C247 row + restored N766 static.
+      waitForTopology(second.page, 3, 2),
     ]);
     check(
-      'wormhole removal collapses its stub on both clients',
-      (await stubCount(page)) === 1 && (await stubCount(second.page)) === 1,
+      'wormhole removal restores its guaranteed static on both clients',
+      (await page.locator('[data-chain-node-static-stub]').count()) === 1
+      && (await second.page.locator('[data-chain-node-static-stub]').count()) === 1
+      && await hasStubReadout(
+        page.locator('[data-chain-node-static-stub]'),
+        'N766',
+        'C2',
+      ),
     );
 
     // Jump through the typed hole: the stub resolves into the authored system
@@ -282,28 +344,30 @@ export default {
       && ['authored', 'converged'].includes(jump?.outcome),
     );
     await Promise.all([
-      waitForTopology(page, 2, 1), // two authored systems, one real edge.
-      waitForTopology(second.page, 2, 1),
+      // Both identified systems carry their guaranteed open statics: the
+      // origin's N766 and the destination's U210.
+      waitForTopology(page, 4, 3),
+      waitForTopology(second.page, 4, 3),
     ]);
     check(
-      'jump resolution retires the stub into an authored node on both clients',
-      (await stubCount(page)) === 0 && (await stubCount(second.page)) === 0,
+      'jump resolution retires C247 while both systems keep their open statics',
+      (await stubCount(page)) === 2 && (await stubCount(second.page)) === 2
+      && (await page.locator('[data-chain-node-static-stub]').allTextContents())
+        .some((text) => text.includes('N766') && text.includes('C2'))
+      && (await page.locator('[data-chain-node-static-stub]').allTextContents())
+        .some((text) => text.includes('U210')),
     );
 
-    // Signature-first matching asks an informed confirmation, labeled with the
-    // consumed signature (4.0.4.2.2 direction; PD-3 signature-ID labels).
-    const prompt = page.locator('[data-map-jump-prompt]');
-    await prompt.waitFor({ state: 'visible', timeout: 15_000 });
+    // A unique survivor resolves without a prompt; ambiguity alone asks the
+    // scanner-overlay question (4.0.4.3.2 ruling D-H).
     check(
-      'auto-link asks informed confirmation labeled with the signature',
-      /CBA-120/.test((await prompt.textContent()) ?? ''),
+      'unique survivor auto-resolves without a jump prompt',
+      (await page.locator('[data-signature-jump-prompt]').count()) === 0,
     );
-    await page.locator('[data-map-jump-confirm]').click();
-    await prompt.waitFor({ state: 'detached', timeout: 10_000 });
     check(
-      'confirmation settles two authored systems and one real edge',
-      (await page.locator('[data-chain-node]').count()) === 2
-      && (await page.locator('.react-flow__edge').count()) === 1,
+      'the unique match settles two systems plus both remaining statics',
+      (await page.locator('[data-chain-node]').count()) === 4
+      && (await page.locator('.react-flow__edge').count()) === 3,
     );
 
     // The scanner window stays on the chain root; the pilot's destination

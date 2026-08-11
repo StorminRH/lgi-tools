@@ -88,6 +88,19 @@
   --color-sec-01: #731f1f;
   --color-sec-null: #8d3163;
 
+  /* Wormhole class ramp (4.0.4.3.2 D-E) — identity readouts color a J-space
+   * system's class on a light-green (C1) → deep-red (C6) danger ramp; C13
+   * shares the C6 end. Thera/Pochven/Drifter use existing distinct tones
+   * (--color-tone-teal / -red / -purple), not this ramp. The c2/c5/c6 stops
+   * deliberately reuse the sec-06/sec-03/sec-02 hues so the two danger scales
+   * stay in one visual family; retune them together. */
+  --color-wh-c1: #8ce27a;
+  --color-wh-c2: #71e754;
+  --color-wh-c3: #d6e05a;
+  --color-wh-c4: #dc8c2e;
+  --color-wh-c5: #ce440f;
+  --color-wh-c6: #bb1116;
+
   /* Alert red — bright attention red for urgent transient states (dying map
    * edges, and later any other "this needs eyes now" chrome). Brighter than
    * --color-hostile so it still reads through opacity pulses and library

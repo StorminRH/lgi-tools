@@ -4,7 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type MouseEvent,
   type RefObject,
   type ReactNode,
 } from 'react';
@@ -22,13 +21,17 @@ import { Tabs } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/toast';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
-import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
-  MAP_SCANNER_MISSING_PROMPT_CLASS,
+  MAP_SCANNER_PROMPT_RAIL_CLASS,
   MapWindow,
 } from '../windows/MapWindow';
+import { SignatureJumpPrompt } from './SignatureJumpPrompt';
+import type {
+  JumpResolutionCandidate,
+  JumpResolutionModel,
+} from './jump-resolution';
 import {
   filterSignatureRows,
   formatSignatureAge,
@@ -39,13 +42,13 @@ import {
   type ScannerSectionId,
   type SignatureWindowRow,
 } from './signature-model';
-import { WormholeRowEditor } from './WormholeRowEditor';
+import type { OpenSignatureEditor } from './signature-context';
 
+/** One unresolved row's pending group-identification menu. */
 interface RowActionAnchor {
   readonly row: SignatureWindowRow;
   readonly clientX: number;
   readonly clientY: number;
-  readonly kind: 'identify' | 'edit';
 }
 
 type OpenRowActions = (
@@ -60,14 +63,6 @@ function openRowActionsAtStart(
 ): void {
   const bounds = trigger.getBoundingClientRect();
   onOpenActions(trigger, bounds.left + 12, bounds.top + 12);
-}
-
-function handleRowContextMenu(
-  event: MouseEvent<HTMLButtonElement>,
-  onOpenActions: OpenRowActions,
-): void {
-  event.preventDefault();
-  onOpenActions(event.currentTarget, event.clientX, event.clientY);
 }
 
 function SignalFill({ signalPct }: { readonly signalPct: number | null }) {
@@ -145,12 +140,14 @@ function SignatureRowContent({
   );
   if (!editable) return <div className={className}>{children}</div>;
   return (
+    // Left-click only (ruling D-F): a wormhole row opens the Signature Editor
+    // and an unresolved row opens the identification menu. The duplicate
+    // right-click path is retired — the canvas owns right-click now.
     <Button
       variant="bare"
       aria-label={rowActionLabel(row)}
       className={className}
       onClick={(event) => openRowActionsAtStart(event.currentTarget, onOpenActions)}
-      onContextMenu={(event) => handleRowContextMenu(event, onOpenActions)}
     >
       {children}
     </Button>
@@ -532,12 +529,15 @@ interface SignatureWindowProps {
   readonly now: number;
   readonly onDismissMissing: () => void;
   readonly onRemoveMissing: () => Promise<void>;
+  /** Newest exact multi-survivor jump awaiting a signature pick. */
+  readonly jumpResolution: JumpResolutionModel | null;
+  readonly onPickJumpCandidate: (candidate: JumpResolutionCandidate) => void;
   readonly onIdentify: (
     row: SignatureWindowRow,
     group: SigGroup,
   ) => Promise<void>;
-  readonly mapId: string;
-  readonly authoring: ConnectionAuthoringApi;
+  /** Opens the map's one Signature Editor on a wormhole row's connection. */
+  readonly onOpenEditor: OpenSignatureEditor;
 }
 
 interface ScannerWindowFrameProps
@@ -580,7 +580,6 @@ function MissingSignaturesPrompt({
     <div
       data-signature-missing-prompt
       className={cn(
-        MAP_SCANNER_MISSING_PROMPT_CLASS,
         'flex flex-col gap-2 rounded-card p-3 text-ui',
         mapFrostedSurface,
       )}
@@ -681,7 +680,7 @@ function IdentifySignatureMenu({
   readonly onIdentify: SignatureWindowProps['onIdentify'];
   readonly onClose: () => void;
 }) {
-  const identifying = action?.kind === 'identify' ? action : null;
+  const identifying = action;
   const identify = (group: SigGroup) => {
     if (identifying === null) return;
     const row = identifying.row;
@@ -726,36 +725,6 @@ function IdentifySignatureMenu({
   );
 }
 
-function ActiveWormholeRowEditor({
-  action,
-  mapId,
-  authoring,
-  finalFocus,
-  now,
-  onClose,
-}: {
-  readonly action: RowActionAnchor | null;
-  readonly mapId: string;
-  readonly authoring: ConnectionAuthoringApi;
-  readonly finalFocus: RefObject<HTMLElement | null>;
-  readonly now: number;
-  readonly onClose: () => void;
-}) {
-  if (action?.kind !== 'edit' || action.row.connection === null) return null;
-  return (
-    <WormholeRowEditor
-      mapId={mapId}
-      connection={action.row.connection}
-      authoring={authoring}
-      anchor={{ clientX: action.clientX, clientY: action.clientY, finalFocus }}
-      now={now}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    />
-  );
-}
-
 /** Permanent bottom-left scanner window composed beside the managed map stack. */
 export function SignatureWindow(props: SignatureWindowProps) {
   const rowActionFocus = useRef<HTMLElement | null>(null);
@@ -774,13 +743,14 @@ export function SignatureWindow(props: SignatureWindowProps) {
     clientX: number,
     clientY: number,
   ) => {
+    // A migrated wormhole row goes straight to the one editor; an unresolved
+    // row still picks its group from the pointer menu first (ruling D-F).
+    if (row.connection !== null) {
+      props.onOpenEditor(row.connection.connectionId);
+      return;
+    }
     rowActionFocus.current = trigger;
-    setRowAction({
-      row,
-      clientX,
-      clientY,
-      kind: row.connection === null ? 'identify' : 'edit',
-    });
+    setRowAction({ row, clientX, clientY });
   };
 
   return (
@@ -788,25 +758,25 @@ export function SignatureWindow(props: SignatureWindowProps) {
       data-signature-window-layer
       className="pointer-events-none absolute inset-0 z-sticky"
     >
-      <MissingSignaturesPrompt
-        count={props.missingCount}
-        canEdit={props.canEdit}
-        onDismiss={props.onDismissMissing}
-        onRemove={removeMissing}
-      />
+      <div data-scanner-prompt-rail className={MAP_SCANNER_PROMPT_RAIL_CLASS}>
+        <MissingSignaturesPrompt
+          count={props.missingCount}
+          canEdit={props.canEdit}
+          onDismiss={props.onDismissMissing}
+          onRemove={removeMissing}
+        />
+        {props.canEdit && props.jumpResolution !== null ? (
+          <SignatureJumpPrompt
+            resolution={props.jumpResolution}
+            onPick={props.onPickJumpCandidate}
+          />
+        ) : null}
+      </div>
       <ScannerWindowFrame {...props} onOpenActions={openRowActions} />
       <IdentifySignatureMenu
         action={rowAction}
         finalFocus={rowActionFocus}
         onIdentify={props.onIdentify}
-        onClose={closeRowAction}
-      />
-      <ActiveWormholeRowEditor
-        action={rowAction}
-        mapId={props.mapId}
-        authoring={props.authoring}
-        finalFocus={rowActionFocus}
-        now={props.now}
         onClose={closeRowAction}
       />
     </div>

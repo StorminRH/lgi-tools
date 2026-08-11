@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Doc } from '@/data/convex/data-model';
 import {
+  accountedStubLayoutRows,
   appendStubFacts,
   chainSignature,
   connectionDetailsFromRows,
@@ -10,7 +11,7 @@ import {
   layoutConfigKey,
   layoutPostKey,
   normalizeMapAccess,
-  placedStubConnections,
+  placedStubs,
   stubLayoutRows,
   stubLayoutSignature,
   stubPositionsFromLayout,
@@ -190,19 +191,28 @@ describe('unresolved wormhole layout facts', () => {
       }),
       unresolvedConnection({ _id: 'resolved-overlap', fromSignatureId: 'GHI-789' }),
     ]);
-    const layoutRows = stubLayoutRows(
+    const scannedRows = stubLayoutRows(
       summaries,
       [{ systemId: JITA }],
       [{ _id: 'resolved-overlap' }],
     );
 
-    expect(layoutRows).toHaveLength(1);
-    expect(layoutRows[0]).toMatchObject({
+    expect(scannedRows).toHaveLength(1);
+    expect(scannedRows[0]).toMatchObject({
       connectionId: 'c1',
       fromSystemId: JITA,
       fromSignatureId: 'ABC-123',
       layoutSystemId: -1,
     });
+    const layoutRows = accountedStubLayoutRows([
+      {
+        connectionId: 'c1',
+        fromSystemId: JITA,
+        signatureId: 'ABC-123',
+        wormholeTypeCode: null,
+        whClassId: null,
+      },
+    ], scannedRows);
     expect(stubLayoutSignature(layoutRows)).toBe(`c1:${JITA}>-1`);
 
     const facts = appendStubFacts(
@@ -221,20 +231,86 @@ describe('unresolved wormhole layout facts', () => {
         [-4, { x: 600, y: 0 }],
       ]),
     );
-    expect(placedStubConnections(layoutRows, positions)).toEqual([
+    expect(placedStubs(layoutRows, positions)).toEqual([
       {
         connectionId: 'c1',
         fromSystemId: JITA,
         signatureId: 'ABC-123',
         wormholeTypeCode: null,
+        whClassId: null,
         position: { x: 300, y: 0 },
       },
     ]);
     expect(
-      placedStubConnections(layoutRows, new Map([
+      placedStubs(layoutRows, new Map([
         ['resolved-overlap', { x: 600, y: 0 }],
       ])),
     ).toEqual([]);
+  });
+
+  it('fingerprints and places static ghosts beside selected scanned rows', () => {
+    const scannedRows = stubLayoutRows(
+      unresolvedHolesFromRows([
+        unresolvedConnection({ _id: 'scan-1', fromSignatureId: 'ABC-123' }),
+      ]),
+      [{ systemId: JITA }],
+      [],
+    );
+    const layoutRows = accountedStubLayoutRows([
+      {
+        connectionId: 'scan-1',
+        fromSystemId: JITA,
+        signatureId: 'ABC-123',
+        wormholeTypeCode: null,
+        whClassId: null,
+      },
+      {
+        staticId: `${JITA}:C247:1`,
+        fromSystemId: JITA,
+        code: 'C247',
+        className: 'C3',
+        whClassId: 3,
+      },
+    ], scannedRows);
+
+    expect(stubLayoutSignature(layoutRows)).toBe(
+      `scan-1:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
+    );
+    const facts = appendStubFacts(
+      { systems: [{ systemId: JITA }], connections: [] },
+      layoutRows,
+    );
+    expect(facts.systems).toEqual([
+      { systemId: JITA },
+      { systemId: -1 },
+      { systemId: -2 },
+    ]);
+    expect(
+      placedStubs(
+        layoutRows,
+        stubPositionsFromLayout(layoutRows, new Map([
+          [-1, { x: 300, y: 0 }],
+          [-2, { x: 480, y: 0 }],
+        ])),
+      ),
+    ).toEqual([
+      {
+        connectionId: 'scan-1',
+        fromSystemId: JITA,
+        signatureId: 'ABC-123',
+        wormholeTypeCode: null,
+        whClassId: null,
+        position: { x: 300, y: 0 },
+      },
+      {
+        staticId: `${JITA}:C247:1`,
+        fromSystemId: JITA,
+        code: 'C247',
+        className: 'C3',
+        whClassId: 3,
+        position: { x: 480, y: 0 },
+      },
+    ]);
   });
 });
 

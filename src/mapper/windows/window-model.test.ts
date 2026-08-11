@@ -41,13 +41,7 @@ describe('map window keyboard and stack', () => {
     expect(surfaceKindOf({ kind: 'docked' })).toBe('dock');
     expect(surfaceKindOf({ kind: 'docked-bottom-left' })).toBe('dock');
     expect(surfaceKindOf({ kind: 'node-anchored', systemId: 2 })).toBe('card');
-    expect(
-      surfaceKindOf({
-        kind: 'edge-anchored',
-        fromSystemId: 1,
-        toSystemId: 2,
-      }),
-    ).toBe('card');
+    expect(surfaceKindOf({ kind: 'scanner-anchored' })).toBe('card');
 
     expect(
       keydownAction({

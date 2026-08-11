@@ -5,6 +5,8 @@
 // sentinel, or a read-only readout in restore/locked modes. Extracted so every
 // card field states only its vocabulary and wiring, never the block chrome.
 import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/components/ui/cn';
 import { Select } from '@/components/ui/select';
 
 /** Select sentinel for null / unset field values. */
@@ -39,7 +41,9 @@ export function ConnectionFieldGroup({
       <span className="font-data text-label uppercase tracking-label text-isk">
         {label}
       </span>
-      <div className="w-full">{children}</div>
+      {/* Column, not a bare block: a field group may carry its control plus
+          one derived estimate line (Mass, Reliable Lifetime — ruling D-G). */}
+      <div className="flex w-full flex-col gap-1">{children}</div>
     </div>
   );
 }
@@ -56,6 +60,34 @@ export function FieldReadout({
     <span {...{ [attr]: '' }} className={READOUT_CLASS}>
       {text}
     </span>
+  );
+}
+
+/**
+ * A settled readout that still acts — the locked Leads-to destination, whose
+ * only remaining affordance is focusing that system on the canvas. Wears the
+ * same chrome as {@link FieldReadout} plus the caller's identity tone.
+ */
+export function FieldActionReadout({
+  attr,
+  text,
+  toneClass,
+  onClick,
+}: {
+  readonly attr: string;
+  readonly text: string;
+  readonly toneClass?: string;
+  readonly onClick?: () => void;
+}) {
+  return (
+    <Button
+      variant="bare"
+      {...{ [attr]: '' }}
+      className={cn(READOUT_CLASS, 'cursor-pointer justify-center', toneClass)}
+      onClick={onClick}
+    >
+      {text}
+    </Button>
   );
 }
 

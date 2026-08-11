@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
-import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
-import { connectionFieldSetters } from '../authoring/connection-field-setters';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import {
+  connectionFieldSetters,
+  type ConnectionFieldAuthoringApi,
+} from './connection-field-setters';
 
 const CONNECTION: ConnectionEditorDetail = {
   connectionId: 'connection-1' as Id<'mapConnections'>,
@@ -30,30 +32,25 @@ const CONNECTION: ConnectionEditorDetail = {
   observedMassAtStateKg: null,
 };
 
-function authoring(): ConnectionAuthoringApi {
+function authoring(): ConnectionFieldAuthoringApi {
   return {
     setConnectionWormholeType: vi.fn(),
     setConnectionShipSize: vi.fn(),
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
     setConnectionDestinationHint: vi.fn(),
-    setConnectionTypedSide: vi.fn(),
-    severConnection: vi.fn(),
-    restoreSeveredBranch: vi.fn(),
-    restoreConnection: vi.fn(),
-        restoreSignatures: vi.fn(),
   };
 }
 
-describe('wormhole row editor', () => {
-  it('routes the shared connection fields to the existing connection mutations', () => {
+describe('connectionFieldSetters', () => {
+  it('routes the editor field body to the existing connection mutations', () => {
     const api = authoring();
     const setters = connectionFieldSetters('map-a', CONNECTION, api);
 
     setters.setWormholeType('B274');
     setters.setLifeStage('under_4_hours');
-    setters.setTypedSide('to');
-    setters.setDestinationHint('to', 'dangerous');
+    setters.setShipSize('L');
+    setters.setMassState('critical');
 
     expect(api.setConnectionWormholeType).toHaveBeenCalledWith({
       mapId: 'map-a',
@@ -65,16 +62,35 @@ describe('wormhole row editor', () => {
       connection: CONNECTION,
       value: 'under_4_hours',
     });
-    expect(api.setConnectionTypedSide).toHaveBeenCalledWith({
+    expect(api.setConnectionShipSize).toHaveBeenCalledWith({
       mapId: 'map-a',
       connectionId: CONNECTION.connectionId,
-      value: 'to',
+      value: 'L',
     });
+    expect(api.setConnectionMassState).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connectionId: CONNECTION.connectionId,
+      value: 'critical',
+    });
+  });
+
+  it('sends the one Leads-to hint from the editor origin side', () => {
+    const api = authoring();
+    connectionFieldSetters('map-a', CONNECTION, api).setLeadsTo('dangerous');
     expect(api.setConnectionDestinationHint).toHaveBeenCalledWith({
       mapId: 'map-a',
       connectionId: CONNECTION.connectionId,
-      side: 'to',
+      side: 'from',
       value: 'dangerous',
     });
+  });
+
+  it('lets a host override the type dispatch without touching the other fields', () => {
+    const api = authoring();
+    const typed = vi.fn();
+    const setters = connectionFieldSetters('map-a', CONNECTION, api, typed);
+    setters.setWormholeType('K162');
+    expect(typed).toHaveBeenCalledWith('K162');
+    expect(api.setConnectionWormholeType).not.toHaveBeenCalled();
   });
 });

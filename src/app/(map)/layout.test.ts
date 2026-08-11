@@ -5,6 +5,7 @@ import MapLayout, { MapAccessGate } from './layout';
 
 const mocks = vi.hoisted(() => ({
   checkAdmin: vi.fn(),
+  connection: vi.fn(),
   rethrow: vi.fn(),
 }));
 
@@ -17,6 +18,10 @@ vi.mock('@/platform/auth/route-guards', () => ({
 // wall, a throwing stub stands in for a real PPR/redirect signal.
 vi.mock('next/navigation', () => ({
   unstable_rethrow: (err: unknown) => mocks.rethrow(err),
+}));
+
+vi.mock('next/server', () => ({
+  connection: () => mocks.connection(),
 }));
 
 vi.mock('@/components/composition/map/MapChrome', () => ({
@@ -44,6 +49,8 @@ const session = {
 describe('MapAccessGate', () => {
   beforeEach(() => {
     mocks.checkAdmin.mockReset();
+    mocks.connection.mockReset();
+    mocks.connection.mockResolvedValue(undefined);
     mocks.rethrow.mockReset();
   });
 
@@ -65,6 +72,10 @@ describe('MapAccessGate', () => {
     expect(wall).toContain('under development');
     expect(wall).not.toContain('data-map-canvas');
     expect(wall).not.toContain('data-map-chrome');
+    expect(mocks.connection).toHaveBeenCalledOnce();
+    expect(mocks.connection.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.checkAdmin.mock.invocationCallOrder[0]!,
+    );
 
     mocks.checkAdmin.mockResolvedValue({ ok: true, session });
     const admin = renderToStaticMarkup(

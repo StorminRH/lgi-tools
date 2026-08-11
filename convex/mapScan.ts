@@ -19,15 +19,22 @@ import {
   isScannerSignatureId,
   type ScannedRow,
 } from '@/data/maps/scan-parse';
+import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 import type { Doc } from './_generated/dataModel';
 import {
   internalMutation,
+  internalQuery,
   mutation,
   query,
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
-import { requireMapAccess, tryMapAccess } from './lib/mapAccess';
+import {
+  requireMapAccess,
+  requireMapAccessForUser,
+  tryMapAccess,
+  tryMapAccessForUser,
+} from './lib/mapAccess';
 import {
   findConnectionForSignature,
   readOriginConnections,
@@ -42,6 +49,7 @@ import {
 import {
   mergeSignatureKnowledge,
   normalizeSignatureKnowledge,
+  connectionProvenanceValidator,
   scannedKindValidator,
   sigGroupValidator,
   validateSignatureKnowledge,
@@ -56,6 +64,7 @@ import {
   purgeExpiredSignatures,
   SIGNATURE_PURGE_BATCH,
 } from './lib/mapSignatureCleanup';
+import { stampObservationKey } from './lib/observationKey';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import {
   readTrackedPilotSystemIds,
@@ -67,6 +76,55 @@ export const MAP_SCAN_ROW_LIMIT = 256;
 
 /** Maximum rows returned by one live signature page. */
 export const MAP_SIGNATURE_PAGE_SIZE = 100;
+
+/** Maximum destination-side rows one elimination transaction may inspect. */
+export const MAP_ELIMINATION_CONNECTION_LIMIT = 128;
+
+const eliminationDeductionValidator = v.union(
+  v.object({
+    signatureId: v.string(),
+    typeCode: v.string(),
+    provenance: v.literal('assumed'),
+  }),
+  v.object({
+    signatureId: v.string(),
+    connectionId: v.id('mapConnections'),
+    provenance: v.literal('assumed'),
+    expectedTypeCode: v.union(v.string(), v.null()),
+  }),
+);
+
+const eliminationOutcomeValidator = v.object({
+  signatureId: v.string(),
+  outcome: v.union(
+    v.literal('applied'),
+    v.literal('unchanged'),
+    v.literal('protected'),
+    v.literal('stale'),
+  ),
+  // The row's stable per-hole observation key, so the caller can log or repair
+  // the identification this outcome settled. Null when no live row owns one.
+  observationKey: v.union(v.string(), v.null()),
+});
+
+const eliminationEvidenceValidator = v.object({
+  canEdit: v.boolean(),
+  signatures: v.array(
+    v.object({
+      signatureId: v.string(),
+      wormholeTypeCode: v.union(v.string(), v.null()),
+      typeProvenance: v.union(connectionProvenanceValidator, v.null()),
+      observationKey: v.union(v.string(), v.null()),
+    }),
+  ),
+  connections: v.array(
+    v.object({
+      connectionId: v.id('mapConnections'),
+      wormholeTypeCode: v.union(v.string(), v.null()),
+      linkedSignature: v.boolean(),
+    }),
+  ),
+});
 
 const scanRowValidator = v.object({
   signatureId: v.string(),
@@ -644,6 +702,313 @@ async function removeConfidentRows(
   }
   return removed;
 }
+
+async function readDestinationConnections(
+  ctx: QueryCtx,
+  mapId: string,
+  systemId: number,
+): Promise<Doc<'mapConnections'>[]> {
+  const rows = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map_to', (q) => q.eq('mapId', mapId).eq('toSystemId', systemId))
+    .take(MAP_ELIMINATION_CONNECTION_LIMIT + 1);
+  if (rows.length > MAP_ELIMINATION_CONNECTION_LIMIT) {
+    throw new ConvexError({
+      code: 'MAP_ELIMINATION_SCAN_LIMIT',
+      detail: `Map ${mapId} exceeds the elimination destination read bound.`,
+    });
+  }
+  return rows;
+}
+
+function endpointSide(
+  connection: Doc<'mapConnections'>,
+  systemId: number,
+): 'from' | 'to' | null {
+  if (connection.fromSystemId === systemId) return 'from';
+  return connection.toSystemId === systemId ? 'to' : null;
+}
+
+function endpointTypeCode(
+  connection: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+): string | null {
+  if (connection.wormholeTypeCode === null) return null;
+  const typedSide = connection.typedSide ?? 'from';
+  return typedSide === side ? connection.wormholeTypeCode : null;
+}
+
+function endpointOwnsSignature(
+  connection: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+): boolean {
+  return side === 'from'
+    ? connection.fromSignatureId !== undefined
+    : connection.toSignatureId !== undefined;
+}
+
+async function readEliminationConnections(
+  ctx: QueryCtx,
+  mapId: string,
+  systemId: number,
+): Promise<{
+  readonly from: Doc<'mapConnections'>[];
+  readonly touching: Doc<'mapConnections'>[];
+}> {
+  const [from, to] = await Promise.all([
+    readOriginConnections(ctx, mapId, systemId),
+    readDestinationConnections(ctx, mapId, systemId),
+  ]);
+  const touching = new Map(
+    [...from, ...to].map((connection) => [connection._id, connection]),
+  );
+  return { from, touching: [...touching.values()] };
+}
+
+/** Reads bounded live endpoint facts for server-owned signature elimination. */
+export const eliminationEvidence = internalQuery({
+  args: { userId: v.string(), mapId: v.string(), systemId: v.number() },
+  returns: eliminationEvidenceValidator,
+  handler: async (ctx, { userId, mapId, systemId }) => {
+    const principal = await tryMapAccessForUser(ctx, mapId, userId, 'edit');
+    if (principal === null) {
+      return { canEdit: false as const, signatures: [], connections: [] };
+    }
+    requireSystemId(systemId);
+    const system = await findSystem(ctx, mapId, systemId);
+    if (system === null || isTombstoned(system)) {
+      return { canEdit: true as const, signatures: [], connections: [] };
+    }
+
+    const rows = await readEliminationConnections(ctx, mapId, systemId);
+    const liveFrom = rows.from.filter((connection) => !isTombstoned(connection));
+    const signatures = liveFrom.flatMap((connection) => {
+      const signatureId = connection.fromSignatureId;
+      return connection.toSystemId !== null || signatureId === undefined
+        ? []
+        : [{
+            signatureId,
+            wormholeTypeCode: connection.wormholeTypeCode,
+            typeProvenance: connection.typeProvenance ?? null,
+            observationKey: connection.observationKey ?? null,
+          }];
+    });
+    const connections = rows.touching
+      .filter(
+        (connection) => connection.toSystemId !== null && !isTombstoned(connection),
+      )
+      .flatMap((connection) => {
+        const side = endpointSide(connection, systemId);
+        return side === null
+          ? []
+          : [{
+              connectionId: connection._id,
+              wormholeTypeCode: endpointTypeCode(connection, side),
+              linkedSignature: endpointOwnsSignature(connection, side),
+            }];
+      });
+    return { canEdit: true as const, signatures, connections };
+  },
+});
+
+function requireEliminationDeductions(
+  deductions: readonly {
+    readonly signatureId: string;
+    readonly typeCode?: string;
+    readonly connectionId?: string;
+  }[],
+): void {
+  if (deductions.length === 0 || deductions.length > MAP_SCAN_ROW_LIMIT) {
+    throw new ConvexError({ code: 'INVALID_ELIMINATION_SIZE' });
+  }
+  const signatureIds = new Set<string>();
+  for (const deduction of deductions) {
+    if (
+      !isScannerSignatureId(deduction.signatureId)
+      || signatureIds.has(deduction.signatureId)
+      || (
+        deduction.typeCode !== undefined
+        && !isWormholeTypeCode(deduction.typeCode)
+      )
+    ) {
+      throw new ConvexError({ code: 'INVALID_ELIMINATION_DEDUCTION' });
+    }
+    signatureIds.add(deduction.signatureId);
+  }
+}
+
+type EliminationOutcome = {
+  readonly signatureId: string;
+  readonly outcome: 'applied' | 'unchanged' | 'protected' | 'stale';
+  readonly observationKey: string | null;
+};
+
+async function applyTypeDeduction(
+  ctx: MutationCtx,
+  source: Doc<'mapConnections'> | undefined,
+  signatureId: string,
+  typeCode: string,
+): Promise<EliminationOutcome> {
+  if (source === undefined || source.toSystemId !== null || isTombstoned(source)) {
+    return { signatureId, outcome: 'stale', observationKey: null };
+  }
+  const observationKey = source.observationKey ?? null;
+  if (
+    source.wormholeTypeCode === typeCode
+    && source.typeProvenance === 'assumed'
+    && source.typedSide === 'from'
+  ) {
+    return { signatureId, outcome: 'unchanged', observationKey };
+  }
+  if (
+    source.wormholeTypeCode !== null
+    && source.typeProvenance !== 'assumed'
+  ) {
+    return { signatureId, outcome: 'protected', observationKey };
+  }
+  // A deduced identity is observation-eligible (ruling D-B), so it stamps the
+  // row's dedupe key through the same owner the manual setter uses.
+  const stamped = stampObservationKey(source.observationKey);
+  await ctx.db.patch(source._id, {
+    wormholeTypeCode: typeCode,
+    typedSide: 'from',
+    typeProvenance: 'assumed',
+    ...stamped.patch,
+  });
+  return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
+}
+
+async function applyLinkDeduction(
+  ctx: MutationCtx,
+  source: Doc<'mapConnections'> | undefined,
+  target: Doc<'mapConnections'> | undefined,
+  systemId: number,
+  signatureId: string,
+  expectedTypeCode: string | null,
+): Promise<EliminationOutcome> {
+  if (
+    source === undefined
+    || source.toSystemId !== null
+    || isTombstoned(source)
+    || target === undefined
+    || target.toSystemId === null
+    || isTombstoned(target)
+  ) {
+    return { signatureId, outcome: 'stale', observationKey: null };
+  }
+  const observationKey = source.observationKey ?? null;
+  // Evidence was read in a prior transaction. Refuse when the stub's type no
+  // longer matches the decision — a concurrent human retype must win.
+  if ((source.wormholeTypeCode ?? null) !== expectedTypeCode) {
+    return { signatureId, outcome: 'stale', observationKey };
+  }
+  const side = endpointSide(target, systemId);
+  if (side === null) return { signatureId, outcome: 'stale', observationKey };
+  const current = side === 'from' ? target.fromSignatureId : target.toSignatureId;
+  if (current !== undefined) {
+    return {
+      signatureId,
+      outcome: current === signatureId ? 'unchanged' : 'protected',
+      observationKey,
+    };
+  }
+  // Carry human-entered stub knowledge onto the resolved row before the stub
+  // document dies — inference must not erase a person's mass/size/lifetime.
+  const knowledge = linkKnowledgePatch(source, target);
+  await ctx.db.patch(
+    target._id,
+    {
+      ...(side === 'from'
+        ? { fromSignatureId: signatureId }
+        : { toSignatureId: signatureId }),
+      ...knowledge,
+    },
+  );
+  // The stub row and its dedupe key die here: the identity now belongs to the
+  // resolved connection, which carries its own key through the jump channel.
+  await ctx.db.delete(source._id);
+  return { signatureId, outcome: 'applied', observationKey };
+}
+
+/** Copies only unset target fields from a stub that is about to be deleted. */
+function linkKnowledgePatch(
+  source: Doc<'mapConnections'>,
+  target: Doc<'mapConnections'>,
+): Partial<Doc<'mapConnections'>> {
+  const patch: Partial<Doc<'mapConnections'>> = {};
+  if (target.massState === null && source.massState !== null) {
+    patch.massState = source.massState;
+    if (source.observedMassAtStateKg !== undefined) {
+      patch.observedMassAtStateKg = source.observedMassAtStateKg;
+    }
+  }
+  if (target.shipSize === null && source.shipSize !== null) {
+    patch.shipSize = source.shipSize;
+  }
+  if (
+    target.deathEarliestAt === undefined
+    && source.deathEarliestAt !== undefined
+  ) {
+    patch.deathEarliestAt = source.deathEarliestAt;
+    patch.deathLatestAt = source.deathLatestAt;
+  }
+  return patch;
+}
+
+/** Atomically revalidates and applies one assumed-tier deduction batch. */
+export const applyEliminationDeductions = internalMutation({
+  args: {
+    userId: v.string(),
+    mapId: v.string(),
+    systemId: v.number(),
+    deductions: v.array(eliminationDeductionValidator),
+  },
+  returns: v.array(eliminationOutcomeValidator),
+  handler: async (ctx, { userId, mapId, systemId, deductions }) => {
+    await requireMapAccessForUser(ctx, mapId, userId, 'edit');
+    requireSystemId(systemId);
+    requireEliminationDeductions(deductions);
+    const system = await findSystem(ctx, mapId, systemId);
+    if (system === null || isTombstoned(system)) {
+      return deductions.map(({ signatureId }) => ({
+        signatureId,
+        outcome: 'stale' as const,
+        observationKey: null,
+      }));
+    }
+    const rows = await readEliminationConnections(ctx, mapId, systemId);
+    const bySignature = new Map(
+      rows.from.flatMap((connection) => {
+        const signatureId = connection.fromSignatureId;
+        return signatureId === undefined ? [] : [[signatureId, connection] as const];
+      }),
+    );
+    const byId = new Map(rows.touching.map((connection) => [connection._id, connection]));
+
+    const outcomes: EliminationOutcome[] = [];
+    for (const deduction of deductions) {
+      const source = bySignature.get(deduction.signatureId);
+      outcomes.push(
+        'typeCode' in deduction
+          ? await applyTypeDeduction(
+              ctx,
+              source,
+              deduction.signatureId,
+              deduction.typeCode,
+            )
+          : await applyLinkDeduction(
+              ctx,
+              source,
+              byId.get(deduction.connectionId),
+              systemId,
+              deduction.signatureId,
+              deduction.expectedTypeCode,
+            ),
+      );
+    }
+    return outcomes;
+  },
+});
 
 /** Applies one parsed scan only to the caller's live tracked map system. */
 export const applyScan = mutation({

@@ -32,19 +32,31 @@ const ADOPTED_POPUP_SELECTOR = [
 
 // The scanner dock's effective height is min(24rem, 100vw-2rem, 100dvh-7rem):
 // a square sized by the width clamp, then capped by the viewport-height clamp.
-// The prompt class below re-states that same expression as its bottom offset so
-// the prompt tracks the dock at every viewport size — change them TOGETHER.
+// The prompt rail below re-states that same expression as its bottom offset so
+// every scanner prompt tracks the dock at every viewport size — change them
+// TOGETHER.
 
 /** Placement classes for the docked-bottom-left scanner square. */
 export const MAP_SCANNER_DOCK_CLASS =
   'bottom-4 left-4 size-[min(24rem,calc(100vw-2rem))] max-h-[calc(100dvh-7rem)]';
 
 /**
- * Frosted missing-signatures prompt parked just above the scanner dock.
- * Static Tailwind string so the utility is discoverable at build time.
+ * Scanner prompt rail parked just above the dock. Missing-scan and ambiguous-
+ * jump prompts share it so simultaneous states stack instead of overlapping.
+ * Static Tailwind string so every utility is discoverable at build time.
  */
-export const MAP_SCANNER_MISSING_PROMPT_CLASS =
-  'pointer-events-auto absolute bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] left-4 z-sticky w-[min(24rem,calc(100vw-2rem))]';
+export const MAP_SCANNER_PROMPT_RAIL_CLASS =
+  'pointer-events-auto absolute bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] left-4 z-sticky flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2';
+
+/**
+ * The Signature Editor pop-out. On viewports wide enough for the scanner dock
+ * plus a 18rem panel, it parks immediately right of the dock and shares its
+ * bottom edge. On narrower viewports it stacks above the dock (same bottom
+ * offset recipe as the prompt rail) so the panel stays fully on-screen.
+ * Change it with {@link MAP_SCANNER_DOCK_CLASS}.
+ */
+export const MAP_SCANNER_EDITOR_CLASS =
+  'left-4 right-4 bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-7rem)] w-auto md:bottom-4 md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)] md:right-auto md:w-72 md:max-w-[calc(100vw-2rem)]';
 
 /** Whether an adopted Base UI popup currently owns Escape. */
 export function isAdoptedPopupOpen(): boolean {
@@ -55,6 +67,8 @@ export function isAdoptedPopupOpen(): boolean {
 export interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
+  /** Optional inline detail that inherits the title typography but owns its tone. */
+  readonly titleAccessory?: ReactNode;
   readonly placement: WindowPlacement;
   readonly stackIndex: number;
   readonly onClose: () => void;
@@ -103,22 +117,25 @@ function placementClassName(
     // Square sibling for the scanner: tabs own top-left chrome; list scrolls inside.
     return MAP_SCANNER_DOCK_CLASS;
   }
-  // node-anchored and edge-anchored both ride `--map-window-transform`.
-  if (placement.kind === 'edge-anchored') {
-    // The height bound keeps the card's scroll body engaged on short
-    // viewports; the position clamp alone cannot shrink an h-auto card.
-    return 'left-0 top-0 h-auto max-h-[calc(100%-2rem)] w-72 [transform:var(--map-window-transform)]';
+  if (placement.kind === 'scanner-anchored') {
+    // Screen-space beside the scanner, deliberately NOT anchored to canvas
+    // geometry: React Flow pans and zooms by mutating a viewport transform,
+    // which fires no scroll or resize, so a floating anchor cannot track it
+    // (Base UI exposes no animation-frame tracking — docs brief).
+    return MAP_SCANNER_EDITOR_CLASS;
   }
   return 'left-0 top-0 h-52 w-72 [transform:var(--map-window-transform)]';
 }
 
 function WindowHeader({
   title,
+  titleAccessory,
   overlay,
   showCloseButton,
   onClose,
 }: {
   readonly title: string;
+  readonly titleAccessory?: ReactNode;
   readonly overlay: boolean;
   readonly showCloseButton: boolean;
   readonly onClose: () => void;
@@ -139,6 +156,7 @@ function WindowHeader({
         )}
       >
         {title}
+        {titleAccessory}
       </h2>
       {showCloseButton ? (
         <Button
@@ -164,7 +182,7 @@ function windowChromeClass(
       ? cn('pointer-events-none rounded-ctl', mapOverlaySurface)
       : cn('pointer-events-auto rounded-card', mapFrostedSurface),
     placementClassName(placement, overlay),
-    (placement.kind === 'edge-anchored' || placement.kind === 'node-anchored')
+    (placement.kind === 'scanner-anchored' || placement.kind === 'node-anchored')
       && 'map-node-enter',
   );
 }
@@ -194,6 +212,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
     {
       windowId,
       title,
+      titleAccessory,
       placement,
       stackIndex,
       onClose,
@@ -245,6 +264,7 @@ export const MapWindow = forwardRef<HTMLDivElement, MapWindowProps>(
         {showHeader ? (
           <WindowHeader
             title={title}
+            titleAccessory={titleAccessory}
             overlay={overlay}
             showCloseButton={showCloseButton}
             onClose={onClose}

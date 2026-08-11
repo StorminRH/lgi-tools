@@ -150,25 +150,32 @@ export async function calmMapCamera(page) {
   await calmAtlasCamera(page);
 }
 
+/** The Signature Editor pop-out parked beside the scanner dock. */
+export function signatureEditor(page) {
+  return page.locator('[data-map-window="signature-editor"]');
+}
+
 /**
- * Click the first connection edge. React Flow edge `<g>` groups are often
- * reported as hidden by Playwright even when painted, so click by geometry
- * (path preferred) rather than a visibility wait.
+ * Right-click the first connection edge and pick Edit, opening the map's one
+ * Signature Editor. React Flow edge `<g>` groups are often reported as hidden
+ * by Playwright even when painted, so click by geometry (path preferred)
+ * rather than a visibility wait.
  */
-export async function clickFirstEdge(page) {
+export async function openFirstEdgeEditor(page) {
   await calmMapCamera(page);
   const path = page.locator('.react-flow__edge .react-flow__edge-path').first();
   await path.waitFor({ state: 'attached', timeout: 30_000 });
   await page.waitForTimeout(400);
   const box = await path.boundingBox();
   if (box === null) throw new Error('edge path has no bounding box');
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  const card = page.locator('[data-map-window="connection-details"]');
-  await card.waitFor({ state: 'attached', timeout: 15_000 });
-  // Edge-anchored transform can leave the card partially outside; force-scroll.
-  await card.evaluate((element) => {
-    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, {
+    button: 'right',
   });
+  await page
+    .locator('[data-map-edge-menu]')
+    .waitFor({ state: 'visible', timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Edit' }).click();
+  await signatureEditor(page).waitFor({ state: 'attached', timeout: 15_000 });
 }
 
 /** Tear down every projected Convex claim for a map (revocation demo). */

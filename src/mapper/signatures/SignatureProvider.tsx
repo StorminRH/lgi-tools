@@ -3,19 +3,34 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toast } from '@/components/ui/toast';
 import { api } from '@/data/convex/api';
+import type { Id } from '@/data/convex/data-model';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
+import { systemClassText } from '@/data/eve-data/system-identity';
 import type { ScannedRow, SigGroup } from '@/data/maps/scan-parse';
-import type { ConnectionAuthoringApi } from '../authoring/ConnectionAuthoringOverlay';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
-import { systemClassLabel } from '../chain/labels';
-import type {
-  ConnectionDetail,
-  UnresolvedHoleSummary,
+import {
+  useUniverseAssets,
+  type ConnectionDetail,
+  type UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
 import { feedFreshnessIndex } from '../tracking/presence-model';
-import { SignatureRowsProvider } from './signature-context';
+import { ActiveSignatureEditor } from './ActiveSignatureEditor';
+import {
+  answerAndAnnounce,
+  type ConnectionAuthoringApi,
+} from './connection-authoring-api';
+import {
+  jumpAnswerTarget,
+  pendingJumpResolution,
+  type JumpResolutionCandidate,
+} from './jump-resolution';
+import {
+  SignatureRowsProvider,
+  type OpenSignatureEditor,
+} from './signature-context';
+import { eliminateSignaturesAndAnnounce } from './signature-elimination-client';
 import {
   buildSignatureRows,
   trackedPasteTarget,
@@ -39,7 +54,7 @@ interface MissingSignatures {
 }
 
 function connectionRows(
-  resolved: ReadonlyMap<string, ConnectionDetail>,
+  resolved: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolved: readonly UnresolvedHoleSummary[],
 ): readonly ConnectionSignatureInput[] {
   return [...resolved.values(), ...unresolved];
@@ -47,7 +62,7 @@ function connectionRows(
 
 function useSignaturePage(
   mapId: string,
-  connectionDetails: ReadonlyMap<string, ConnectionDetail>,
+  connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
 ) {
   const signatures = useDrainedPages(
@@ -66,7 +81,7 @@ function useSignaturePage(
         const entry = codex?.byCode(code) ?? null;
         return entry === null || entry.farSide
           ? null
-          : systemClassLabel(entry.targetClass);
+          : systemClassText(entry.targetClass);
       }),
     [signatures.rows, connections, codex],
   );
@@ -83,6 +98,9 @@ function useIdentifySignature(mapId: string) {
         signatureId: row.signatureId,
         group,
       });
+      if (group === 'Wormhole') {
+        await eliminateSignaturesAndAnnounce({ mapId, systemId: row.systemId });
+      }
     },
     [identifySignature, mapId],
   );
@@ -142,6 +160,7 @@ function useApplySignatureScan(
         `Scan applied — ${result.inserted + result.updated + result.migrated} changed, ${result.unchanged} unchanged.`,
         { id: 'scanner-paste:applied', duration: 3_000 },
       );
+      await eliminateSignaturesAndAnnounce({ mapId, systemId });
     },
     [applyScan, mapId, replaceMissing],
   );
@@ -202,15 +221,25 @@ export function SignatureProvider({
   connectionDetails,
   unresolvedHoles,
   authoring,
+  editingConnectionId,
+  onEditingConnectionIdChange,
+  onFocusSystem,
   children,
 }: {
   readonly mapId: string;
   /** Chain root — the scanner window lists this system's rows, like the dock. */
   readonly rootSystemId: number | null;
   readonly canEdit: boolean;
-  readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
+  readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
   readonly authoring: ConnectionAuthoringApi;
+  /** The connection the map's one Signature Editor is open on, owned by the host. */
+  readonly editingConnectionId: Id<'mapConnections'> | null;
+  readonly onEditingConnectionIdChange: (
+    connectionId: Id<'mapConnections'> | null,
+  ) => void;
+  /** Focuses one system on the canvas (the editor's locked Leads-to readout). */
+  readonly onFocusSystem?: (systemId: number) => void;
   readonly children: ReactNode;
 }) {
   const { rows, complete } = useSignaturePage(
@@ -237,7 +266,51 @@ export function SignatureProvider({
   useScannerPaste({ canEdit, pasteTarget, applyRows });
   const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
   const identifyRow = useIdentifySignature(mapId);
-  const now = useSignatureClock(rows.length > 0);
+  const assets = useUniverseAssets();
+  const [dismissedResolutions, setDismissedResolutions] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const jumpResolution = useMemo(
+    () =>
+      canEdit
+        ? pendingJumpResolution(
+            connectionDetails,
+            unresolvedHoles,
+            dismissedResolutions,
+            assets === null ? null : (id: number) => assets.systemInfo(id),
+          )
+        : null,
+    [assets, canEdit, connectionDetails, dismissedResolutions, unresolvedHoles],
+  );
+  const dismissResolution = useCallback((connectionId: string) => {
+    setDismissedResolutions((previous) =>
+      new Set(previous).add(connectionId),
+    );
+  }, []);
+  const pickJumpCandidate = useCallback(
+    (candidate: JumpResolutionCandidate) => {
+      const connectionId = jumpResolution?.connectionId;
+      if (connectionId === undefined) return;
+      void answerAndAnnounce({
+        mapId,
+        connectionId,
+        targetConnectionId: jumpAnswerTarget(candidate),
+        dismiss: () => dismissResolution(connectionId),
+      });
+    },
+    [dismissResolution, jumpResolution, mapId],
+  );
+  // One editor for the whole map: the scanner row and the canvas edge menu
+  // both name a connection id through the host's single state (ruling D-F).
+  const closeEditor = useCallback(
+    () => onEditingConnectionIdChange(null),
+    [onEditingConnectionIdChange],
+  );
+  const openEditor = useCallback<OpenSignatureEditor>(
+    (connectionId) => onEditingConnectionIdChange(connectionId),
+    [onEditingConnectionIdChange],
+  );
+  const now = useSignatureClock(rows.length > 0 || editingConnectionId !== null);
   const missingIds = missingIdsForSystem(missingBySystem, missingSystemId);
   // Row highlighting can only mark rows the window actually lists.
   const highlightIds =
@@ -263,10 +336,23 @@ export function SignatureProvider({
         now={now}
         onDismissMissing={dismissMissing}
         onRemoveMissing={removeMissingRows}
+        jumpResolution={jumpResolution}
+        onPickJumpCandidate={pickJumpCandidate}
         onIdentify={identifyRow}
-        mapId={mapId}
-        authoring={authoring}
+        onOpenEditor={openEditor}
       />
+      {canEdit ? (
+        <ActiveSignatureEditor
+          mapId={mapId}
+          connectionId={editingConnectionId}
+          connectionDetails={connectionDetails}
+          unresolvedHoles={unresolvedHoles}
+          authoring={authoring}
+          now={now}
+          onClose={closeEditor}
+          onFocusSystem={onFocusSystem}
+        />
+      ) : null}
     </SignatureRowsProvider>
   );
 }

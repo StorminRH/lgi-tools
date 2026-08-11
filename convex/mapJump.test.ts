@@ -347,6 +347,32 @@ describe('automatic jump authoring', () => {
     expect(restored.second).toMatchObject({ toSystemId: null });
   });
 
+  it('auto-resolves one assumed survivor without durable prompt state', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    const candidateId = await seedCandidate(t, 'AAA', null);
+
+    await t.mutation(
+      internal.mapJump.resolveJumpAuthoring,
+      authorArgs({
+        decision: {
+          kind: 'resolve',
+          candidateId,
+          provenance: 'assumed',
+          candidateIds: [candidateId],
+          survivors: [candidateId],
+        },
+      }),
+    );
+    const resolved = await t.run(async (ctx) => await ctx.db.get(candidateId));
+    expect(resolved).toMatchObject({
+      toSystemId: DESTINATION,
+      destinationProvenance: 'assumed',
+    });
+    expect(resolved?.pendingCandidates).toBeUndefined();
+  });
+
   it('inserts without candidates and converges a reverse crossing onto the same connection', async () => {
     const t = convexTest(schema, modules);
     await grant(t, EDITOR, ['editor']);

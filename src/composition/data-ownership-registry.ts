@@ -550,7 +550,6 @@ export const DATA_OWNERSHIP = [
     invariants: [
       'check(wh_observations_attributable_type)',
       'check(wh_observations_hour_coarse)',
-      'check(wh_observations_verified_provenance)',
       'unique(dedupe_key)',
     ],
     boundary: KEYED_UPSERT,

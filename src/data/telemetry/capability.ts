@@ -47,14 +47,14 @@ export type CapabilityFeature = (typeof CAPABILITY_FEATURES)[number];
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
 /**
- * Closed catalogue of the 41 instrumented operations: 18 mutation routes through `runMutationRoute`,
+ * Closed catalogue of the 42 instrumented operations: 19 mutation routes through `runMutationRoute`,
  * 8 cron routes through `defineCronRoute`, 8 direct mutation routes that deliberately sit outside
  * the mutation shell, 6 POST-bodied tool reads, and the queued ESI-refresh job runner. Adding a
  * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
  * census covers the rest, so an operation cannot ship unnamed.
  */
 export const CAPABILITIES = {
-  // ── Mutation routes through `runMutationRoute` (18) ────────────────────
+  // ── Mutation routes through `runMutationRoute` (19) ────────────────────
   'account.switch-active-character': { feature: 'account', operation: 'switch-active-character', kind: 'mutation' },
   'account.unlink-character': { feature: 'account', operation: 'unlink-character', kind: 'mutation' },
   'account.purge-character': { feature: 'account', operation: 'purge-character', kind: 'mutation' },
@@ -94,6 +94,7 @@ export const CAPABILITIES = {
   'planner.delete-saved-plan': { feature: 'planner', operation: 'delete-saved-plan', kind: 'mutation' },
   'planner.rename-saved-plan': { feature: 'planner', operation: 'rename-saved-plan', kind: 'mutation' },
   'planner.favorite-saved-plan': { feature: 'planner', operation: 'favorite-saved-plan', kind: 'mutation' },
+  'maps.eliminate-signatures': { feature: 'maps', operation: 'eliminate-signatures', kind: 'mutation' },
   'maps.resolve-jump': { feature: 'maps', operation: 'resolve-jump', kind: 'mutation' },
   'admin.unlink-character': { feature: 'admin', operation: 'unlink-character', kind: 'mutation' },
   'admin.revoke-user-sessions': { feature: 'admin', operation: 'revoke-user-sessions', kind: 'mutation' },

@@ -35,7 +35,7 @@ vi.mock('@xyflow/react', async () => {
 
 function markup(motion: NodeMotion | undefined, dragging = false): string {
   const props = {
-    data: { name: 'J123456', className: 'C5', motion },
+    data: { name: 'J123456', className: 'C5', security: -1, whClassId: 5, motion },
     dragging,
   } as unknown as NodeProps<ChainNode>;
   return renderToStaticMarkup(createElement(SystemNode, props));
@@ -44,9 +44,12 @@ function markup(motion: NodeMotion | undefined, dragging = false): string {
 test('widget frame carries header, disc, slots, and pointer-inert chrome rules', () => {
   const still = markup(undefined);
   expect(still).toContain('data-chain-node-name');
-  expect(still).toContain('J123456');
-  expect(still).toContain('data-chain-node-class');
-  expect(still).toContain('C5');
+  expect(still).toContain('>J123456<');
+  expect(still).not.toContain('J123456 - C5');
+  expect(still).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
+  expect(still).toContain('data-chain-node-classification');
+  expect(still).toContain('>C5<');
+  expect(still).toContain('text-wh-c5');
   expect(still).toContain('map-node-disc');
   expect(still).toContain('data-chain-node-widgets');
   expect(still).not.toContain('data-pilot-presence');
@@ -59,11 +62,73 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
       dragging: false,
     } as unknown as NodeProps<ChainNode>),
   );
-  expect(noClass).not.toContain('data-chain-node-class');
+  expect(noClass).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
   expect(noClass).toContain('data-chain-node-name');
 
   expect(markup({ phase: 'departing' })).not.toContain('pointer-events-auto');
   expect(markup({ phase: 'entering' }).match(/pointer-events-auto/g)).toHaveLength(2);
+});
+
+test('the header keeps the plain name while the disc owns the colored classification', () => {
+  const nodeMarkup = (data: Record<string, unknown>) =>
+    renderToStaticMarkup(
+      createElement(SystemNode, {
+        data,
+        dragging: false,
+      } as unknown as NodeProps<ChainNode>),
+    );
+
+  const jspaceNode = nodeMarkup({
+    name: 'J123456',
+    className: 'C4',
+    security: -1,
+    whClassId: 4,
+  });
+  expect(jspaceNode).toContain('>J123456<');
+  expect(jspaceNode).toContain('>C4<');
+  expect(jspaceNode).toContain('text-wh-c4');
+  expect(jspaceNode).not.toContain('J123456 - C4');
+
+  const kspaceNode = nodeMarkup({
+    name: 'Jita',
+    className: null,
+    security: 0.946,
+    whClassId: null,
+  });
+  expect(kspaceNode).toContain('>Jita<');
+  expect(kspaceNode).toContain('>0.9<');
+  expect(kspaceNode).toContain('text-sec-09');
+  expect(kspaceNode).not.toContain('Jita - 0.9');
+
+  // A derived halo keeps a neutral name plus colored security; the frame opacity
+  // continues to distinguish provisional content.
+  const halo = nodeMarkup({
+    name: 'Perimeter',
+    className: null,
+    security: 0.9,
+    whClassId: null,
+    halo: { ring: 1, fogged: false },
+  });
+  expect(halo).toContain('>Perimeter<');
+  expect(halo).toContain('>0.9<');
+  expect(halo).toContain('text-name');
+  expect(halo).toContain('text-sec-09');
+  expect(halo).toContain('opacity-75');
+
+  // A typed stub keeps its signature identity above and shows the codex-derived
+  // destination class inside the disc.
+  const stub = nodeMarkup({
+    name: 'ABC-123',
+    className: null,
+    whClassId: 3,
+    stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
+  });
+  expect(stub).toContain('ABC-123');
+  expect(stub).not.toContain('ABC-123 - ');
+  expect(stub).toContain('text-name');
+  expect(stub).toContain('data-chain-node-classification');
+  expect(stub).toContain('>C3<');
+  expect(stub).toContain('text-wh-c3');
 });
 
 test('halo nodes mark drawn vs fogged; authored nodes stay unmarked', () => {
@@ -110,6 +175,36 @@ test('wormhole stubs reuse the derived ghost presentation without interactive ch
   expect(rendered).toContain('ABC-123');
   expect(rendered).toContain('border-dashed');
   expect(rendered).toContain('opacity-75');
+  expect(rendered).not.toContain('pointer-events-auto');
+  expect(rendered).not.toContain('data-pilot-presence');
+});
+
+test('static stubs separate their code header from the colored destination class', () => {
+  const props = {
+    id: 'static-stub:31000001:C247:1',
+    data: {
+      name: 'C247',
+      className: 'C3',
+      whClassId: 3,
+      stub: {
+        staticId: '31000001:C247:1',
+        fromSystemId: 31_000_001,
+        code: 'C247',
+        className: 'C3',
+        whClassId: 3,
+      },
+    },
+    dragging: false,
+    isConnectable: false,
+  } as unknown as NodeProps<ChainNode>;
+  const rendered = renderToStaticMarkup(createElement(SystemNode, props));
+
+  expect(rendered).toContain('data-chain-node-static-stub');
+  expect(rendered).toContain('>C247<');
+  expect(rendered).toContain('>C3<');
+  expect(rendered).toContain('text-wh-c3');
+  expect(rendered).not.toContain('C247 - C3');
+  expect(rendered).toContain('border-dashed');
   expect(rendered).not.toContain('pointer-events-auto');
   expect(rendered).not.toContain('data-pilot-presence');
 });

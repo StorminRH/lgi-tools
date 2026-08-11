@@ -19,6 +19,9 @@ export const whObservationProvenanceEnum = pgEnum(
 /**
  * Privacy-safe D16 observation corpus. The five fields deliberately exclude map, user,
  * character, and destination identity; one per-hole-lifetime key is corrected in place.
+ * Every tier is admitted, including machine-deduced `assumed` rows (operator ruling
+ * D-B): the stored tier is what lets a consumer weight or exclude them, so no check
+ * constrains provenance. K162 exclusion and hour-coarse timestamps remain enforced.
  */
 export const whObservations = pgTable(
   'wh_observations',
@@ -39,10 +42,6 @@ export const whObservations = pgTable(
     check(
       'wh_observations_attributable_type',
       sql`${table.whTypeCode} <> 'K162'`,
-    ),
-    check(
-      'wh_observations_verified_provenance',
-      sql`${table.provenance} <> 'assumed'`,
     ),
     check(
       'wh_observations_hour_coarse',

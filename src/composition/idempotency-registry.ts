@@ -385,6 +385,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mutationRoute('src/app/api/account/saved-plans/favorite/route.ts', 'inherently-idempotent', 'Sets a plan’s favorite flag by id to a named boolean; a repeat sets the same flag.'),
   mutationRoute('src/app/api/admin/role/route.ts', 'inherently-idempotent', 'Sets a user’s role to a named value; a repeat sets the same role.'),
   mutationRoute('src/app/api/admin/wh-statics/route.ts', 'key-protected', 'Refresh uses the shared advisory lock, serializes snapshot writes, reuses an identical latest non-rejected ETag and digest instead of superseding it, and refuses a response whose pre-lock baseline no longer matches the newest snapshot; rejected observations remain eligible for a later pending review. Promote and reject accept only a pending snapshot, so a repeated review action is refused without changing the promoted copy.'),
+  mutationRoute('src/app/api/maps/signature-elimination/route.ts', 'inherently-idempotent', 'The Convex deduction door re-reads every target atomically, skips equal writes, and refuses any field no longer null or assumed; repeating a pass therefore converges without overwriting human facts.'),
   mutationRoute('src/app/api/maps/jump/route.ts', 'inherently-idempotent', 'Convex atomically stamps each genuine location transition before applying its odometer effect; a repeated request for the same transition observes the stamp and converges without applying mass twice.'),
 
   // ── Delete-shaped mutations: the second delete finds nothing ────────────

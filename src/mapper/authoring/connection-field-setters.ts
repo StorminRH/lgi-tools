@@ -26,11 +26,6 @@ export interface ConnectionFieldAuthoringApi {
     side: 'from' | 'to';
     value: WormholeDestinationHint | null;
   }) => Promise<unknown>;
-  readonly setConnectionTypedSide: (args: {
-    mapId: string;
-    connectionId: Id<'mapConnections'>;
-    value: 'from' | 'to';
-  }) => Promise<unknown>;
   readonly setConnectionLifeStage: (args: {
     mapId: string;
     connection: ConnectionEditorDetail;
@@ -59,14 +54,14 @@ export function connectionFieldSetters(
     setLifeStage: (value) => {
       void authoring.setConnectionLifeStage({ mapId, connection, value });
     },
-    setTypedSide: (value) => {
-      void authoring.setConnectionTypedSide({ mapId, connectionId, value });
-    },
-    setDestinationHint: (side, value) => {
+    // One "Leads to" field (ruling D-G): the editor always speaks from the
+    // origin endpoint it was opened on, so the side is decided here rather
+    // than surfaced as a second control.
+    setLeadsTo: (value) => {
       void authoring.setConnectionDestinationHint({
         mapId,
         connectionId,
-        side,
+        side: 'from',
         value,
       });
     },

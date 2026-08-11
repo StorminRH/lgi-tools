@@ -9,17 +9,44 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.3.1** in close-out on `lifecycle/4.0.4.3`
-  (per-session PR). G-1 approved 2026-08-09; close-out adversarial round
-  (holistic + ownership + interface + reliability) accepted ~20 root causes,
-  all fixed on-branch — headline fixes: paste-revive scoped to a stub's own
-  lifetime (never `runBranchRestore` from `applyScan`; dead ceiling / expired
-  undo / conflicting group stay inert); ceiling sweep re-ranged onto live-only
-  `by_deleted_death_latest` with per-row failure isolation; missing prompt
-  keyed to the paste-target system, not the chain root; row-editor type entry
-  routes `applyWormholeType` for resolved rows; removal/restore uses exact
-  per-ID lookups past the whole-system bound; list/stub removals ledger
-  restorable `signatures_removed`/`signatures_restored` events.
+- **CURRENT:** session **4.0.4.3.2** close-out on `lifecycle/4.0.4.3`
+  (per-session PR; plan `Complete`; release triplet `4.0.4.3.2`).
+- **Handoff:** after this PR merges and production proof, recreate
+  `lifecycle/4.0.4.3` from main and run `start-session` — expected next is
+  plan-session for **4.0.4.3.3** (ranking / sites-widget), which must consume
+  ruling D-B (assumed observations admitted) and the Signature Editor / jump
+  prompt surfaces shipped here. Reconcile contract 4.0.4.3.3 HC-2 with D-B.
+- **Durable 4.0.4.3.2 gotchas:** (1) G-1 identity: authored/halo keep the
+  neutral name above the disc and colored class/security inside; dock/summary
+  keep one name + one colored accessory; ghosts put sig id or static code
+  above and destination class inside; untyped/K162 ghosts stay blank. (2)
+  Elimination toasts name exact `signatureIds` (`<id> has been identified.` /
+  natural-list plural). (3) Atlas admin auth stays inside Suspense with
+  `await connection()` before `checkAdmin()`; `atlas/page.tsx` keeps
+  `instant = false`. (4) Link deductions carry `expectedTypeCode` and refuse
+  when the live stub type diverges; human mass/size/death on the stub merge
+  onto the resolved row before the stub deletes. (5) Observation logging is
+  independent of statics — unavailable statics disable deductions only; human
+  identities still reconcile through `reconcileWhObservations`. (6) Manual
+  type cascade uses the attributable endpoint (`typedSide === 'to'` →
+  `toSystemId`). (7) Signature Editor stacks above the scanner on narrow
+  viewports (`MAP_SCANNER_EDITOR_CLASS`); screen-space anchor — do not
+  re-bind to canvas transforms. (8) `setConnectionTypedSide` remains without a
+  client caller; `typedSide` is still written by mapScan/mapFixtures and read
+  by mapJump. (9) Statics presentation is derived
+  (`static-stub:<system>:<code>:<ordinal>`); paste stubs stay usable when
+  statics/codex fail. (10) Probe paste needs `seedTrackedLocationFixture`
+  re-stamp; chrome probe needs a populated map.
+- **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
+  round accepted ~20 root causes, all fixed on-branch — headline fixes:
+  paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from
+  `applyScan`; dead ceiling / expired undo / conflicting group stay inert);
+  ceiling sweep re-ranged onto live-only `by_deleted_death_latest` with
+  per-row failure isolation; missing prompt keyed to the paste-target system,
+  not the chain root; row-editor type entry routes `applyWormholeType` for
+  resolved rows; removal/restore uses exact per-ID lookups past the
+  whole-system bound; list/stub removals ledger restorable
+  `signatures_removed`/`signatures_restored` events.
 - **Durable 4.0.4.3.1 gotchas:** (1) The account-level paste gate needs live
   feed coverage — on probe maps the tokenless engine wipes the synthetic
   pilot's `coveredCharacterIds` within ~30s, so probes re-stamp via

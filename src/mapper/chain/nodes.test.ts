@@ -4,8 +4,13 @@ import { deriveChainTree } from '../layout/facts';
 import type { SystemLabel } from './labels';
 import {
   buildEdges,
+  planStubNodes,
+  STATIC_STUB_EDGE_ID_PREFIX,
+  STATIC_STUB_NODE_ID_PREFIX,
   STUB_NODE_ID_PREFIX,
+  stubNodeId,
   syncNodes,
+  type PlacedStub,
   type PlacedStubConnection,
 } from './nodes';
 import {
@@ -441,6 +446,7 @@ const placedStub = (
   fromSystemId: JITA,
   signatureId: 'ABC-123',
   wormholeTypeCode: null,
+  whClassId: null,
   position: { x: 300, y: 0 },
   ...overrides,
 });
@@ -523,5 +529,135 @@ describe('wormhole stub projection', () => {
       [],
     );
     expect(nodes.map((node) => node.id)).toEqual([String(JITA)]);
+  });
+});
+
+// ── OW2 (4.0.4.3.2) — statics ghosts and D-D accounting ────────────────
+
+const SYSTEM_STATICS = [
+  { id: `${JITA}:B274:1`, code: 'B274', className: 'HS', whClassId: 7 },
+  { id: `${JITA}:H296:1`, code: 'H296', className: 'C5', whClassId: 5 },
+];
+
+function placePlannedStubs(
+  planned: ReturnType<typeof planStubNodes>,
+): readonly PlacedStub[] {
+  return planned.map((stub, index) => ({
+    ...stub,
+    position: { x: 300 + index * 180, y: 0 },
+  }));
+}
+
+describe('static wormhole stub projection', () => {
+  it('renders exactly the believed-holes plan for the two-statics/four-sigs case', () => {
+    const signatures = ['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map(
+      (signatureId) => ({
+        connectionId: `connection-${signatureId}`,
+        fromSystemId: JITA,
+        signatureId,
+        wormholeTypeCode: null,
+        whClassId: null,
+      }),
+    );
+    const planned = planStubNodes({
+      systemIds: [JITA],
+      signatures,
+      connections: [],
+      staticsBySystem: new Map([[JITA, SYSTEM_STATICS]]),
+    });
+    const placed = placePlannedStubs(planned);
+    const nodes = syncNodes(
+      [],
+      stateFor([JITA]).systems,
+      fallbackLabel,
+      NO_DRAG,
+      [],
+      placed,
+    );
+
+    expect(nodes.slice(1).map((node) => node.id)).toEqual(
+      placed.map(stubNodeId),
+    );
+    expect(nodes.slice(1).map((node) => node.data.name)).toEqual([
+      'CCC-333',
+      'DDD-444',
+      'B274',
+      'H296',
+    ]);
+    expect(nodes.slice(1).map((node) => node.data.whClassId)).toEqual([
+      null,
+      null,
+      7,
+      5,
+    ]);
+    expect(nodes.filter((node) => node.id.startsWith(STATIC_STUB_NODE_ID_PREFIX)))
+      .toHaveLength(2);
+  });
+
+  it('replaces a matching static with a code-carrying line and restores it after collapse', () => {
+    const liveConnection = {
+      fromSystemId: JITA,
+      toSystemId: AMARR,
+      wormholeTypeCode: 'B274',
+      typedSide: 'from' as const,
+      fromSignatureId: 'ABC-123',
+      toSignatureId: null,
+      deletedAt: null,
+    };
+    const input = {
+      systemIds: [JITA],
+      signatures: [],
+      staticsBySystem: new Map([[JITA, SYSTEM_STATICS]]),
+    };
+    const matched = placePlannedStubs(planStubNodes({
+      ...input,
+      connections: [liveConnection],
+    }));
+    expect(matched.map(stubNodeId)).toEqual([
+      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:H296:1`,
+    ]);
+
+    const collapsed = placePlannedStubs(planStubNodes({
+      ...input,
+      connections: [{ ...liveConnection, deletedAt: 1 }],
+    }));
+    expect(collapsed.map(stubNodeId)).toEqual([
+      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:B274:1`,
+      `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:H296:1`,
+    ]);
+    expect(
+      buildEdges(new Map(), new Map(), Date.now(), [], new Set(), collapsed)
+        .map((edge) => edge.id),
+    ).toEqual([
+      `${STATIC_STUB_EDGE_ID_PREFIX}${JITA}:B274:1`,
+      `${STATIC_STUB_EDGE_ID_PREFIX}${JITA}:H296:1`,
+    ]);
+  });
+
+  it('renders zero static ghosts in degraded mode while preserving the pasted stub', () => {
+    const placed = placePlannedStubs(planStubNodes({
+      systemIds: [JITA],
+      signatures: [{
+        connectionId: 'scan-1',
+        fromSystemId: JITA,
+        signatureId: 'ABC-123',
+        wormholeTypeCode: null,
+        whClassId: null,
+      }],
+      connections: [],
+      staticsBySystem: new Map(),
+    }));
+    const nodes = syncNodes(
+      [],
+      stateFor([JITA]).systems,
+      fallbackLabel,
+      NO_DRAG,
+      [],
+      placed,
+    );
+
+    expect(nodes.filter((node) => node.id.startsWith(STATIC_STUB_NODE_ID_PREFIX)))
+      .toEqual([]);
+    expect(nodes.map((node) => node.id)).toEqual([String(JITA), 'stub:scan-1']);
   });
 });

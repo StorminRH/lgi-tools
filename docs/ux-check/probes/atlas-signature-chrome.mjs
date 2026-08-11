@@ -35,12 +35,11 @@ export default {
 
     const dock = mapWindow(page, 'dock');
     check(
-      'the dock omits its repeated identity line',
-      (await dock.locator('[data-intel-identity]').count()) === 0,
-    );
-    check(
-      'the dock carries Security Status and scanner summary',
-      (await dock.locator('[data-security-status]').count()) === 1
+      'the dock header carries one colored classification without a duplicated body identity',
+      (await dock.locator('[data-identity-readout]').count()) === 1
+        && (await dock.locator('[data-identity-classification]').count()) === 1
+        && (await dock.locator('[data-intel-section="summary"]').count()) === 0
+        && (await dock.locator('[data-security-status]').count()) === 0
         && (await dock.locator('[data-intel-section="signatures"]').count()) === 1,
     );
 

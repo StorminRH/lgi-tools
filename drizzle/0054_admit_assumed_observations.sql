@@ -1,0 +1,1 @@
+ALTER TABLE "wh_observations" DROP CONSTRAINT "wh_observations_verified_provenance";

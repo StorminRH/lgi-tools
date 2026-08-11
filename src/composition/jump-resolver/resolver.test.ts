@@ -60,6 +60,8 @@ const h = {
   newObservationKey: vi.fn(),
   now: vi.fn(),
   reportEmissionFailure: vi.fn(),
+  resolveSignatureElimination: vi.fn(),
+  reportEliminationFailure: vi.fn(),
 };
 
 const dependencies = h as unknown as JumpResolverDependencies;
@@ -113,6 +115,7 @@ beforeEach(() => {
   h.insertWhObservation.mockResolvedValue({});
   h.newObservationKey.mockReturnValue('observation-key');
   h.now.mockReturnValue(TRANSITION_AT);
+  h.resolveSignatureElimination.mockResolvedValue({ status: 'quiet' });
 });
 
 describe('jump resolver composition', () => {
@@ -219,9 +222,21 @@ describe('jump resolver composition', () => {
         observedShipMassKg: 12_000_000,
       }),
     );
+    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
+      1,
+      database,
+      USER,
+      { mapId: MAP, systemId: ORIGIN },
+    );
+    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
+      2,
+      database,
+      USER,
+      { mapId: MAP, systemId: DESTINATION },
+    );
   });
 
-  it('emits a jump-verified lone typed survivor but never emits an assumed match', async () => {
+  it('emits a lone typed survivor as jump-verified and an inferred match as assumed', async () => {
     h.readTransitionEvidence.mockResolvedValueOnce(
       transitionEvidence({
         candidates: [{
@@ -274,7 +289,18 @@ describe('jump resolver composition', () => {
       { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
       dependencies,
     );
-    expect(h.insertWhObservation).not.toHaveBeenCalled();
+    // Ruling D-B: the weaker evidence is kept, tagged for what it is, rather
+    // than discarded — exactly one row, at the tier the mutation stamped.
+    expect(h.insertWhObservation).toHaveBeenCalledTimes(1);
+    expect(h.insertWhObservation).toHaveBeenCalledWith(
+      database,
+      expect.objectContaining({
+        solarSystemId: ORIGIN,
+        whTypeCode: 'C247',
+        provenance: 'assumed',
+        dedupeKey: 'observation-key',
+      }),
+    );
     expect(h.authorJump).toHaveBeenLastCalledWith(
       expect.objectContaining({
         decision: expect.objectContaining({ provenance: 'assumed' }),
@@ -319,6 +345,18 @@ describe('jump resolver composition', () => {
       mapId: MAP,
       connectionId: 'connection-1',
     });
+    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
+      1,
+      database,
+      USER,
+      { mapId: MAP, systemId: ORIGIN },
+    );
+    expect(h.resolveSignatureElimination).toHaveBeenNthCalledWith(
+      2,
+      database,
+      USER,
+      { mapId: MAP, systemId: DESTINATION },
+    );
     expect(h.insertWhObservation).toHaveBeenCalledWith(
       database,
       expect.objectContaining({ provenance: 'confirmed' }),
@@ -376,7 +414,7 @@ describe('jump resolver composition', () => {
   it('emission follows the stored provenance of a converged pair, never the matcher verdict', async () => {
     // Matcher sees a lone typed consistent survivor (jump-verified verdict),
     // but the mutation converged onto an existing pair whose association is
-    // still assumed — no gold-tier row may be written for it.
+    // still assumed — the row is logged at THAT tier, never inflated.
     h.readTransitionEvidence.mockResolvedValueOnce(
       transitionEvidence({
         candidates: [{ id: 'connection-9', wormholeTypeCode: 'C247', sizeClass: 'L' }],
@@ -394,8 +432,11 @@ describe('jump resolver composition', () => {
         { kind: 'doorbell', mapId: MAP, characterId: CHARACTER },
         dependencies,
       ),
-    ).resolves.toEqual({ status: 'processed', outcome: 'converged', emitted: false });
-    expect(h.insertWhObservation).not.toHaveBeenCalled();
+    ).resolves.toEqual({ status: 'processed', outcome: 'converged', emitted: true });
+    expect(h.insertWhObservation).toHaveBeenCalledWith(
+      database,
+      expect.objectContaining({ provenance: 'assumed' }),
+    );
 
     // A converged pair whose identity was human-typed refreshes at ITS tier —
     // the return-jump upsert must not inflate it to jump-verified.
@@ -479,5 +520,6 @@ describe('jump resolver composition', () => {
     });
     expect(h.insertWhObservation).not.toHaveBeenCalled();
     expect(h.deleteWhObservation).toHaveBeenCalledWith(database, 'observation-key');
+    expect(h.resolveSignatureElimination).toHaveBeenCalledTimes(2);
   });
 });

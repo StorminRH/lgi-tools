@@ -35,6 +35,8 @@ import type {
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
+import { eliminateSignaturesAndAnnounce } from '../signatures/signature-elimination-client';
+import type { ConnectionEditorDetail } from './use-map-chain';
 
 /** One optimistic system page row — structural match for `watchMapSystems`. */
 export interface OptimisticSystemRow {
@@ -470,22 +472,6 @@ export function optimisticSetConnectionDestinationHint(
   });
 }
 
-/** Optimistically patches which side owns the manually entered type code. */
-export function optimisticSetConnectionTypedSide(
-  localStore: OptimisticLocalStore,
-  args: {
-    mapId: string;
-    connectionId: string;
-    value: 'from' | 'to';
-  },
-): void {
-  optimisticPatchConnection(localStore, {
-    mapId: args.mapId,
-    connectionId: args.connectionId,
-    patch: { typedSide: args.value },
-  });
-}
-
 /** Wires one field-scoped connection setter to a single-key optimistic patch. */
 function optimisticConnectionField(
   field: 'wormholeTypeCode' | 'shipSize' | 'massState',
@@ -542,11 +528,6 @@ export function useChainAuthoringMutations() {
       optimisticSetConnectionDestinationHint,
     ),
   );
-  const setConnectionTypedSide = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setConnectionTypedSide).withOptimisticUpdate(
-      optimisticSetConnectionTypedSide,
-    ),
-  );
   const severConnection = swallowMutationRejection(
     useMutation(api.mapAuthoring.severConnection).withOptimisticUpdate(
       optimisticSeverConnection,
@@ -573,24 +554,33 @@ export function useChainAuthoringMutations() {
     addSystemFromNode,
     setConnectionWormholeType: async (args: {
       mapId: string;
-      connection: ConnectionWindowSource;
+      connection: ConnectionEditorDetail;
       value: string | null;
     }) => {
       const proposal = wormholeTypeWindowProposal(
         args.connection,
         await lifetimeMinutesFor(args.value),
       );
-      return await setConnectionWormholeType({
+      const result = await setConnectionWormholeType({
         mapId: args.mapId,
         connectionId: args.connection.connectionId,
         value: args.value,
         ...windowArgs(proposal),
       });
+      if (result === undefined) return undefined;
+      const typedSystemId = args.connection.typedSide === 'to'
+        && args.connection.toSystemId !== null
+        ? args.connection.toSystemId
+        : args.connection.fromSystemId;
+      await eliminateSignaturesAndAnnounce({
+        mapId: args.mapId,
+        systemId: typedSystemId,
+      });
+      return result;
     },
     setConnectionShipSize,
     setConnectionMassState,
     setConnectionDestinationHint,
-    setConnectionTypedSide,
     setConnectionLifeStage: async (args: {
       mapId: string;
       connection: ConnectionWindowSource;
