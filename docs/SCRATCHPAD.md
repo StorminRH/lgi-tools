@@ -9,13 +9,22 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.3.2** close-out on `lifecycle/4.0.4.3`
-  (per-session PR; plan `Complete`; release triplet `4.0.4.3.2`).
-- **Handoff:** after this PR merges and production proof, recreate
-  `lifecycle/4.0.4.3` from main and run `start-session` — expected next is
-  plan-session for **4.0.4.3.3** (ranking / sites-widget), which must consume
-  ruling D-B (assumed observations admitted) and the Signature Editor / jump
-  prompt surfaces shipped here. Reconcile contract 4.0.4.3.3 HC-2 with D-B.
+- **CURRENT:** session **4.0.4.3.3** on `lifecycle/4.0.4.3` (signature
+  viewer / site-card hosting / observation proof; plan Approved).
+- **OW progress:** `1/5 complete` — next: Standalone site-card presentation.
+- **OW completed:**
+  - OW-1 Land the four 4.0.4.3.2 corrections — `linkKnowledgePatch` carries
+    lifeStage/lifeStageObservedAt (timestamped Unset both directions),
+    `MAP_SCANNER_EDITOR_CLASS` caps max-height above the narrow-stack anchor,
+    lifecycle probe re-stamps before identical re-paste, automatic-jump probe
+    asserts static-stub readouts; focused mapScan+windows + verify green.
+- **Next-agent notes:** (1) lifeStage carry treats “never recorded” as both
+  fields nullish; a timestamped Unset on target wins, and a timestamped Unset
+  on the dying stub survives onto an unobserved target. (2) Narrow-stack
+  max-h uses the same bottom-offset recipe as the panel’s `bottom-[…]`; md
+  parks with `md:max-h-[calc(100dvh-2rem)]`. (3) HC-2 is superseded by D-B
+  (assumed observations admitted) — recorded in the plan; no code change.
+  (4) Ranking graduation and provenance chrome stay out of scope (PD-2/PD-3).
 - **Durable 4.0.4.3.2 gotchas:** (1) G-1 identity: authored/halo keep the
   neutral name above the disc and colored class/security inside; dock/summary
   keep one name + one colored accessory; ghosts put sig id or static code
@@ -24,8 +33,9 @@
   natural-list plural). (3) Atlas admin auth stays inside Suspense with
   `await connection()` before `checkAdmin()`; `atlas/page.tsx` keeps
   `instant = false`. (4) Link deductions carry `expectedTypeCode` and refuse
-  when the live stub type diverges; human mass/size/death on the stub merge
-  onto the resolved row before the stub deletes. (5) Observation logging is
+  when the live stub type diverges; human mass/size/death/lifeStage on the stub
+  merge onto the resolved row before the stub deletes (Unset is timestamped).
+  (5) Observation logging is
   independent of statics — unavailable statics disable deductions only; human
   identities still reconcile through `reconcileWhObservations`. (6) Manual
   type cascade uses the attributable endpoint (`typedSide === 'to'` →
@@ -36,7 +46,8 @@
   by mapJump. (9) Statics presentation is derived
   (`static-stub:<system>:<code>:<ordinal>`); paste stubs stay usable when
   statics/codex fail. (10) Probe paste needs `seedTrackedLocationFixture`
-  re-stamp; chrome probe needs a populated map.
+  re-stamp before every paste including identical re-paste; chrome probe needs
+  a populated map.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from

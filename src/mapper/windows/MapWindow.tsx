@@ -52,11 +52,12 @@ export const MAP_SCANNER_PROMPT_RAIL_CLASS =
  * The Signature Editor pop-out. On viewports wide enough for the scanner dock
  * plus a 18rem panel, it parks immediately right of the dock and shares its
  * bottom edge. On narrower viewports it stacks above the dock (same bottom
- * offset recipe as the prompt rail) so the panel stays fully on-screen.
- * Change it with {@link MAP_SCANNER_DOCK_CLASS}.
+ * offset recipe as the prompt rail) and caps max-height to the space above
+ * that anchor so the panel never extends past the viewport top — the body
+ * scrolls internally. Change it with {@link MAP_SCANNER_DOCK_CLASS}.
  */
 export const MAP_SCANNER_EDITOR_CLASS =
-  'left-4 right-4 bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-7rem)] w-auto md:bottom-4 md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)] md:right-auto md:w-72 md:max-w-[calc(100vw-2rem)]';
+  'left-4 right-4 bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-4 md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)] md:right-auto md:w-72 md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-2rem)]';
 
 /** Whether an adopted Base UI popup currently owns Escape. */
 export function isAdoptedPopupOpen(): boolean {

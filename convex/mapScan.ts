@@ -945,6 +945,19 @@ function linkKnowledgePatch(
   if (target.shipSize === null && source.shipSize !== null) {
     patch.shipSize = source.shipSize;
   }
+  // Carry only when the target never recorded a lifetime decision. A timestamped
+  // `lifeStage: null` is an explicit Unset — on the target it must win; on the
+  // dying stub it must survive onto an unobserved resolved row.
+  if (
+    target.lifeStage == null
+    && target.lifeStageObservedAt == null
+    && (source.lifeStage != null || source.lifeStageObservedAt != null)
+  ) {
+    patch.lifeStage = source.lifeStage ?? null;
+    if (source.lifeStageObservedAt !== undefined) {
+      patch.lifeStageObservedAt = source.lifeStageObservedAt;
+    }
+  }
   if (
     target.deathEarliestAt === undefined
     && source.deathEarliestAt !== undefined

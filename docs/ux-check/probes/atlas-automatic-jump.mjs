@@ -96,10 +96,20 @@ export default {
       waitForTopology(page, 3, 2),
       waitForTopology(second.page, 3, 2),
     ]);
+    async function hasStubReadout(stub, name, classification) {
+      return (await stub.locator('[data-chain-node-name]').textContent()) === name
+        && (await stub.locator('[data-chain-node-classification]').textContent())
+          === classification;
+    }
+    const initialStaticStubs = page.locator('[data-chain-node-static-stub]');
     check(
       'initial subscribed location honestly re-anchors without inventing an edge',
-      (initial?.status === 'skipped' && initial?.reason === 're-anchor')
-      || (initial?.status === 'processed' && initial?.outcome === 'converged'),
+      ((initial?.status === 'skipped' && initial?.reason === 're-anchor')
+        || (initial?.status === 'processed' && initial?.outcome === 'converged'))
+      && (await initialStaticStubs.count()) === 2
+      && await hasStubReadout(initialStaticStubs.nth(0), 'C247', 'C3')
+      && await hasStubReadout(initialStaticStubs.nth(1), 'N766', 'C2')
+      && (await second.page.locator('[data-chain-node-static-stub]').count()) === 2,
     );
 
     const accountTrigger = page.locator('[data-account-menu-trigger]');
@@ -191,12 +201,18 @@ export default {
       waitForTopology(page, 4, 3),
       waitForTopology(second.page, 4, 3),
     ]);
+    const postJumpStubs = page.locator('[data-chain-node-static-stub]');
+    const postJumpStubTexts = await postJumpStubs.allTextContents();
     check(
       'verified jump fans out authored truth plus both open holes to both clients',
       (await page.locator('[data-chain-node]').count()) === 4
       && (await second.page.locator('[data-chain-node]').count()) === 4
       && (await page.locator('.react-flow__edge').count()) === 3
-      && (await second.page.locator('.react-flow__edge').count()) === 3,
+      && (await second.page.locator('.react-flow__edge').count()) === 3
+      // Typed unresolved N766 claimed its static slot; destination opens U210.
+      && postJumpStubTexts.some((text) => text.includes('U210'))
+      && (await second.page.locator('[data-chain-node-static-stub]').allTextContents())
+        .some((text) => text.includes('U210')),
     );
     check(
       'unambiguous match needs no confirmation prompt',

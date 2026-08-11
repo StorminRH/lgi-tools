@@ -95,6 +95,11 @@ describe('MapWindow isolation markup', () => {
     // Stacks above the dock on narrow viewports; parks beside it from md up.
     expect(html).toContain('md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)]');
     expect(html).toContain('bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)]');
+    // Narrow stack caps to the space above the dock anchor; md uses bottom-4.
+    expect(html).toContain(
+      'max-h-[calc(100dvh-(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)-1rem)]',
+    );
+    expect(html).toContain('md:max-h-[calc(100dvh-2rem)]');
     // Parked beside the dock in screen space, never riding a canvas transform.
     expect(html).not.toContain('--map-window-transform');
   });
