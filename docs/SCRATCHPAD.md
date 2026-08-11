@@ -17,7 +17,8 @@
     lifeStage/lifeStageObservedAt (timestamped Unset both directions),
     `MAP_SCANNER_EDITOR_CLASS` caps max-height above the narrow-stack anchor,
     lifecycle probe re-stamps before identical re-paste, automatic-jump probe
-    asserts static-stub readouts; focused mapScan+windows + verify green.
+    asserts static-stub readouts; focused mapScan+windows + verify green
+    (`11bae01c`).
 - **Next-agent notes:** (1) lifeStage carry treats “never recorded” as both
   fields nullish; a timestamped Unset on target wins, and a timestamped Unset
   on the dying stub survives onto an unobserved target. (2) Narrow-stack
