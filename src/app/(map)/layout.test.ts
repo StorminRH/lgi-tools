@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   checkAdmin: vi.fn(),
   connection: vi.fn(),
   rethrow: vi.fn(),
+  getScannerSiteIndex: vi.fn(),
+  getSiteSearchIndex: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
@@ -22,6 +24,26 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('next/server', () => ({
   connection: () => mocks.connection(),
+}));
+
+vi.mock('@/features/wormhole-sites/queries', () => ({
+  getScannerSiteIndex: () => mocks.getScannerSiteIndex(),
+  getSiteSearchIndex: () => mocks.getSiteSearchIndex(),
+}));
+
+vi.mock('@/features/wormhole-sites/site-catalogue', () => ({
+  SiteCatalogueProvider: ({
+    siteIndex,
+    children,
+  }: {
+    siteIndex: readonly { id: number; name: string }[];
+    children: React.ReactNode;
+  }) =>
+    createElement(
+      'div',
+      { 'data-site-catalogue': '', 'data-map-site-index': String(siteIndex.length) },
+      children,
+    ),
 }));
 
 vi.mock('@/components/composition/map/MapChrome', () => ({
@@ -52,6 +74,14 @@ describe('MapAccessGate', () => {
     mocks.connection.mockReset();
     mocks.connection.mockResolvedValue(undefined);
     mocks.rethrow.mockReset();
+    mocks.getScannerSiteIndex.mockReset();
+    mocks.getScannerSiteIndex.mockResolvedValue([
+      { id: 49, name: 'Barren Perimeter Reservoir' },
+    ]);
+    mocks.getSiteSearchIndex.mockReset();
+    mocks.getSiteSearchIndex.mockResolvedValue([
+      { id: 1, name: 'Forgotten Perimeter Coronation Platform' },
+    ]);
   });
 
   // Restores the console spies unconditionally: a manual restore at the end of a
@@ -84,9 +114,12 @@ describe('MapAccessGate', () => {
       }),
     );
     expect(admin).toContain('data-map-chrome');
+    expect(admin).toContain('data-site-catalogue');
+    expect(admin).toContain('data-map-site-index="1"');
     expect(admin).toContain('data-map-contextual-section="true"');
     expect(admin).toContain('data-map-canvas');
     expect(admin).not.toContain('data-map-development-wall');
+    expect(mocks.getScannerSiteIndex).toHaveBeenCalled();
 
     mocks.checkAdmin.mockResolvedValue({
       ok: true,
@@ -131,6 +164,43 @@ describe('MapAccessGate', () => {
       MapAccessGate({ children: createElement('div', { 'data-map-canvas': '' }) }),
     ).rejects.toBe(signal);
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('keeps an authorized map up when the priced scanner catalogue fails', async () => {
+    mocks.checkAdmin.mockResolvedValue({ ok: true, session });
+    const pricedErr = new Error('prices unavailable');
+    mocks.getScannerSiteIndex.mockRejectedValue(pricedErr);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const degraded = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-map-canvas': '' }),
+      }),
+    );
+
+    expect(degraded).toContain('data-map-chrome');
+    expect(degraded).toContain('data-map-canvas');
+    expect(degraded).toContain('data-map-site-index="1"');
+    expect(degraded).not.toContain('data-map-development-wall');
+    expect(mocks.getSiteSearchIndex).toHaveBeenCalled();
+    expect(mocks.rethrow).toHaveBeenCalledWith(pricedErr);
+    expect(consoleError).toHaveBeenCalledWith(
+      '[map] scanner site catalogue unavailable; degrading',
+      pricedErr,
+    );
+
+    mocks.getSiteSearchIndex.mockRejectedValue(new Error('catalogue down'));
+    consoleError.mockClear();
+    mocks.rethrow.mockClear();
+    const empty = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-map-canvas': '' }),
+      }),
+    );
+    expect(empty).toContain('data-map-chrome');
+    expect(empty).toContain('data-map-canvas');
+    expect(empty).toContain('data-map-site-index="0"');
+    expect(empty).not.toContain('data-map-development-wall');
   });
 });
 

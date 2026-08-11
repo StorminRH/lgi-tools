@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { cache, Suspense } from 'react';
 import { JsonLd } from '@/components/composition/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';
 import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-id';
@@ -118,18 +119,33 @@ async function SiteDeepLinkMeta({
   if (typeof sp.class === 'string') qs.set('class', sp.class);
   const backHref = qs.toString() ? `/sites?${qs}` : '/sites';
 
+  // Relative "Xm ago" reads the wall clock inside formatRelativeTime only when
+  // lastPriceUpdate is non-null — Suspense fallback keeps it null so the
+  // prerender shell never touches Date.now() (react-hooks/purity).
   return (
-    <DeepLinkMetaView backHref={backHref} source={source} lastPriceUpdate={lastUpdatedAt} />
+    <DeepLinkMetaView
+      backHref={backHref}
+      source={source}
+      lastPriceUpdate={lastUpdatedAt}
+    />
+  );
+}
+
+function SiteDetailFallback() {
+  return (
+    <div className="flex w-full flex-col items-center gap-4 pb-20">
+      <Skeleton label="Loading site" className="h-4 w-40 self-start" />
+      <Skeleton aria-hidden="true" className="h-10 w-full max-w-[32rem]" />
+      <Skeleton aria-hidden="true" className="h-64 w-full max-w-[32rem]" />
+    </div>
   );
 }
 
 /**
- * The site content (name, resources, waves, prices) prerenders into the static
- * shell so crawlers see it in the initial HTML; live prices ride the cached
- * `getPricedSiteDetail` (refreshed hourly by the prices cron via its tag). Only
- * the back link + freshness strip read request-time data, from the Suspense hole.
+ * Params-bound site body. Kept under a page-level Suspense boundary so Instant
+ * navigations keep the shared shell while the cached detail streams in.
  */
-export default async function SiteDetailPage({
+export async function SiteDetailContent({
   params,
   searchParams,
 }: {
@@ -152,24 +168,51 @@ export default async function SiteDetailPage({
   ]);
 
   return (
+    <>
+      <JsonLd data={breadcrumbJsonLd} />
+      {/* Entity-detail pages self-title: they open content-first (no visible
+          PageHead), so the page title lives in this sr-only <h1> for a11y/SEO.
+          PageHead is the list/section header; the detail is its own surface. */}
+      <h1 className="sr-only">{site.name}</h1>
+      <Suspense
+        fallback={
+          <DeepLinkMetaView
+            backHref="/sites"
+            source={site.sourceTab}
+            lastPriceUpdate={null}
+          />
+        }
+      >
+        <SiteDeepLinkMeta source={site.sourceTab} searchParams={searchParams} />
+      </Suspense>
+      <div className="w-full">
+        {/* G-1: ~2/3 of the house reading measure so the card is not over-wide. */}
+        <div className="mx-auto w-full max-w-[32rem]">
+          <SiteCard site={site} presentation="standalone" />
+        </div>
+        <RelatedSites sites={relatedSites} />
+      </div>
+    </>
+  );
+}
+
+/**
+ * Site detail route. `params` stay below Suspense (Instant Navigation); the
+ * site content itself is `'use cache'`-backed so known ids still prerender.
+ */
+export default function SiteDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  return (
     <PageShell mode="detail">
       <div className="flex flex-col items-center pb-20 gap-0">
-        <JsonLd data={breadcrumbJsonLd} />
-        {/* Entity-detail pages self-title: they open content-first (no visible
-            PageHead), so the page title lives in this sr-only <h1> for a11y/SEO.
-            PageHead is the list/section header; the detail is its own surface. */}
-        <h1 className="sr-only">{site.name}</h1>
-        <Suspense
-          fallback={
-            <DeepLinkMetaView backHref="/sites" source={site.sourceTab} lastPriceUpdate={null} />
-          }
-        >
-          <SiteDeepLinkMeta source={site.sourceTab} searchParams={searchParams} />
+        <Suspense fallback={<SiteDetailFallback />}>
+          <SiteDetailContent params={params} searchParams={searchParams} />
         </Suspense>
-        <div className="w-full">
-          <SiteCard site={site} defaultOpen />
-          <RelatedSites sites={relatedSites} />
-        </div>
       </div>
     </PageShell>
   );

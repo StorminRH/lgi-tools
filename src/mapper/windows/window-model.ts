@@ -1,8 +1,18 @@
+/**
+ * Measure for scanner-anchored panels. Editor stays compact field chrome;
+ * site matches a typical /sites catalogue card column (~22rem at md).
+ */
+export type ScannerAnchoredMeasure = 'editor' | 'site';
+
 /** Where and how one map window renders; the primitive never decides placement. */
 export type WindowPlacement =
   | { readonly kind: 'docked' }
   | { readonly kind: 'docked-bottom-left' }
-  | { readonly kind: 'scanner-anchored' }
+  | {
+      readonly kind: 'scanner-anchored';
+      /** Defaults to editor when omitted. */
+      readonly measure?: ScannerAnchoredMeasure;
+    }
   | { readonly kind: 'node-anchored'; readonly systemId: number };
 
 /** The two stable identities in the window stack. */

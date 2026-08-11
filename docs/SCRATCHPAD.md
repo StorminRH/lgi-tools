@@ -9,13 +9,37 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.3.2** close-out on `lifecycle/4.0.4.3`
-  (per-session PR; plan `Complete`; release triplet `4.0.4.3.2`).
-- **Handoff:** after this PR merges and production proof, recreate
-  `lifecycle/4.0.4.3` from main and run `start-session` — expected next is
-  plan-session for **4.0.4.3.3** (ranking / sites-widget), which must consume
-  ruling D-B (assumed observations admitted) and the Signature Editor / jump
-  prompt surfaces shipped here. Reconcile contract 4.0.4.3.3 HC-2 with D-B.
+- **CURRENT:** session **4.0.4.3.3** close-out on `lifecycle/4.0.4.3`
+  (per-session PR; plan `Complete`; release triplet `4.0.4.3.3`; sub-version
+  4.0.4.3 terminal). Resolver next after merge: **4.0.4.4.1**.
+- **Handoff:** after this PR merges and production proof, update from
+  `origin/main`, run `python3 tools/cli.py lifecycle resolve --pretty`, and
+  return to `start-session` — expected next is plan-session for
+  **4.0.4.4.1** (maps & access session 1).
+- **G-1 disposition:** operator approved (2026-08-11) — site viewer
+  (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
+  `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off
+  before the PR opened.
+- **Durable 4.0.4.3.3 gotchas:** (1) Atlas seeds the scanner catalogue through
+  `SiteCatalogueProvider` in `MapAccessGate` via `getScannerSiteIndex`
+  (hourly priced + `liveRecipes`); AppHeader/sitemap keep lightweight
+  `getSiteSearchIndex` (`cacheLife('max')`) — do not re-couple them.
+  (2) Mapper imports scanner live prices and `useSiteCatalogue` only through
+  `@/features/wormhole-sites/widget`. (3) Site viewer uses
+  `MAP_SCANNER_SITE_VIEWER_CLASS` / `measure: 'site'` (`md:w-[22rem]`, no
+  title ×); editor stays `md:w-72`. (4) Standalone `/sites/[id]` measure is
+  `max-w-[32rem]` (card only); RelatedSites stays full width. (5) Interactive
+  scanner rows use an sr-only action prefix — never `aria-label` that would
+  hide ID / name / Est. ISK. (6) HC-2 superseded by D-B; ranking graduation
+  and provenance chrome stay OOS (PD-2/PD-3). (7) Neon `wh_observations`
+  writers remain jump-resolver + signature-elimination only. (8) Stale
+  human-retype race against elimination is an accepted known limitation —
+  next pass heals the corpus.
+- **Prior session (4.0.4.3.2, shipped in PR #380):** Signature Editor,
+  statics stubs, eliminator, assumed-tier logging (D-B), jump prompt in
+  scanner; close-out adversarial round fixed stale-link `expectedTypeCode`,
+  stub knowledge merge, statics-independent observation logging, typedSide
+  cascade endpoint, and narrow-viewport editor stack.
 - **Durable 4.0.4.3.2 gotchas:** (1) G-1 identity: authored/halo keep the
   neutral name above the disc and colored class/security inside; dock/summary
   keep one name + one colored accessory; ghosts put sig id or static code
@@ -24,8 +48,9 @@
   natural-list plural). (3) Atlas admin auth stays inside Suspense with
   `await connection()` before `checkAdmin()`; `atlas/page.tsx` keeps
   `instant = false`. (4) Link deductions carry `expectedTypeCode` and refuse
-  when the live stub type diverges; human mass/size/death on the stub merge
-  onto the resolved row before the stub deletes. (5) Observation logging is
+  when the live stub type diverges; human mass/size/death/lifeStage on the stub
+  merge onto the resolved row before the stub deletes (Unset is timestamped).
+  (5) Observation logging is
   independent of statics — unavailable statics disable deductions only; human
   identities still reconcile through `reconcileWhObservations`. (6) Manual
   type cascade uses the attributable endpoint (`typedSide === 'to'` →
@@ -36,7 +61,8 @@
   by mapJump. (9) Statics presentation is derived
   (`static-stub:<system>:<code>:<ordinal>`); paste stubs stay usable when
   statics/codex fail. (10) Probe paste needs `seedTrackedLocationFixture`
-  re-stamp; chrome probe needs a populated map.
+  re-stamp before every paste including identical re-paste; chrome probe needs
+  a populated map.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from

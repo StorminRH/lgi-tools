@@ -191,6 +191,9 @@ export default {
     );
 
     // Re-paste the identical scan: no new rows, no new nodes, no churn.
+    // Coverage can expire between pastes on the tokenless probe engine — stamp
+    // again immediately before the identical re-paste, same as every other paste.
+    await restampFreshness();
     await pasteScan(page, FULL_SCAN);
     await page.waitForTimeout(1_500);
     check(

@@ -401,8 +401,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           connectionDetails={connectionDetails}
           unresolvedHoles={unresolvedHoles}
           authoring={authoring}
-          editingConnectionId={menus.editingConnectionId}
-          onEditingConnectionIdChange={menus.setEditingConnectionId}
+          panelTarget={menus.panelTarget}
+          onPanelTargetChange={menus.setPanelTarget}
           onFocusSystem={focusSystem}
         >
           <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>

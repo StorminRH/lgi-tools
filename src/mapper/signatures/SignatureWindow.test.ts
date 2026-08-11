@@ -1,10 +1,23 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
 import { SignatureWindow } from './SignatureWindow';
 import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';
+
+vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
+  useRefreshOnView: () => ({
+    prices: new Map(),
+    isPending: () => false,
+    refreshing: false,
+  }),
+}));
+
+afterEach(() => {
+  setSiteNameIndex([]);
+});
 
 vi.mock('@/components/ui/tabs', () => ({
   Tabs: (props: {
@@ -176,6 +189,7 @@ function render(
       onPickJumpCandidate: vi.fn(),
       onIdentify: vi.fn(async () => undefined),
       onOpenEditor: vi.fn(),
+      onOpenSite: vi.fn(),
     }),
   );
 }
@@ -218,7 +232,8 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('≤ ');
     expect(html).not.toContain('Less than 4 hours');
     expect(html).toContain('data-signature-row-open');
-    expect(html).toContain('data-signature-isk-placeholder');
+    // Unmatched combat/harvestable names stay as the empty Est. ISK dash.
+    expect(html).toContain('data-signature-isk="empty"');
     expect(html).toContain('data-signature-signal-fill');
     expect(html).toContain('scroll-area');
     expect(html).not.toContain('>Group<');
@@ -290,5 +305,60 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-map-window="signatures"');
     expect(html).not.toContain('data-signature-id="ABC-123"');
     expect(html).not.toContain('data-scanner-section=');
+  });
+
+  it('gives catalogue-matched site rows the open affordance for read-only viewers', () => {
+    setSiteNameIndex([
+      // Live-priced total (not the historical sheet 82.4M).
+      { id: 49, name: 'Barren Perimeter Reservoir', estIsk: 28_100_000 },
+    ]);
+    const html = renderToStaticMarkup(
+      createElement(SignatureWindow, {
+        scannerSystemId: 1,
+        rows: ROWS,
+        missingIds: new Set<string>(),
+        missingCount: 0,
+        canEdit: false,
+        complete: true,
+        now: 60_000,
+        onDismissMissing: vi.fn(),
+        onRemoveMissing: vi.fn(async () => undefined),
+        jumpResolution: null,
+        onPickJumpCandidate: vi.fn(),
+        onIdentify: vi.fn(async () => undefined),
+        onOpenEditor: vi.fn(),
+        onOpenSite: vi.fn(),
+      }),
+    );
+    // Gas site matches the catalogue; combat/k-space names and wormholes stay inert.
+    // Action verb is an sr-only prefix so ID / name / Est. ISK stay in the
+    // accessible name (aria-label would replace those descendants).
+    expect(html).toContain('sr-only">View site ');
+    expect(html).toContain('Barren Perimeter Reservoir');
+    expect(html).toContain('data-signature-id="GAS-001"');
+    expect(html).toContain('data-signature-row-open');
+    expect(html).toContain('data-signature-isk="value"');
+    expect(html).toContain('28.1M');
+    expect(html).not.toContain('aria-label=');
+    expect(html).not.toContain('sr-only">Edit wormhole ');
+    expect(html).not.toContain('sr-only">View site Sansha');
+  });
+
+  it('flashes LivePrice for harvestable recipes while combat Est. ISK stays static', () => {
+    setSiteNameIndex([
+      {
+        id: 49,
+        name: 'Barren Perimeter Reservoir',
+        estIsk: 28_100_000,
+        liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
+      },
+      { id: 1, name: 'Sansha Hideout', estIsk: 12_000_000 },
+    ]);
+    const html = render(1, new Set());
+    expect(html).toContain('data-price-state="settled"');
+    expect(html).toContain('28.1M');
+    expect(html).toContain('12.0M');
+    // Combat headline is a plain span — only the harvestable cell uses LivePrice.
+    expect(html.match(/data-price-state="/g)?.length).toBe(1);
   });
 });

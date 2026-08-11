@@ -25,6 +25,8 @@ Roles:
 - `gate-runner` — Gate result
 - `primitive-checker` — reviewer-verdict (OW step + ordinary adversarial
   integrative seat)
+- `holistic-reviewer` — reviewer-verdict (OW step integrative seat + lifecycle
+  adversarial integrative seat)
 
 ## Repository map
 

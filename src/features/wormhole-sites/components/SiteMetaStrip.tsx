@@ -4,13 +4,16 @@
 // already-computed values in.
 import { formatRelativeTime } from '@/lib/format/time';
 
-/** Renders a site's class, signature, trigger, and completion metadata. */
+/** Renders source-tab and last-price-update metadata above the deep-link card. */
 export function SiteMetaStrip({
   source,
   lastPriceUpdate,
+  now,
 }: {
   source: string;
   lastPriceUpdate: Date | null;
+  /** Optional injectable clock for tests; production omits it. */
+  now?: number;
 }) {
   return (
     <div className="flex items-center gap-8 px-1 py-3 border-y border-border-soft text-ui">
@@ -24,7 +27,9 @@ export function SiteMetaStrip({
         <span className="text-label tracking-eyebrow uppercase text-muted">
           Last price update
         </span>
-        <span className="text-name font-data">{formatRelativeTime(lastPriceUpdate)}</span>
+        <span className="text-name font-data">
+          {formatRelativeTime(lastPriceUpdate, now)}
+        </span>
       </div>
     </div>
   );

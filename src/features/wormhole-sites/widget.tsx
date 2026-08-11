@@ -8,6 +8,15 @@ import { apiFetch } from '@/transport/api-client';
 import { siteDetailEndpoint, type SiteDetail } from './api-contract';
 import { SiteCard } from './components/SiteCard';
 
+/** Scanner Est. ISK cell and its refresh-on-view provider for harvestable rows. */
+export {
+  ScannerEstIskCell,
+  ScannerLivePricesProvider,
+} from './components/ScannerLivePrices';
+
+/** Reactive site catalogue lookups for atlas scanner row affordances and Est. ISK. */
+export { useSiteCatalogue } from './site-catalogue';
+
 /** Host-owned inputs for the embeddable sites card; the host supplies only identity and a box. */
 export interface SiteCardWidgetProps {
   siteId: number;
@@ -56,7 +65,7 @@ function WidgetContent({ state }: { state: WidgetState }) {
     <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:auto]">
       <SiteCard
         site={state.site}
-        defaultOpen
+        presentation="standalone"
         contentAlign="center"
         className="border-0 bg-transparent shadow-none"
       />

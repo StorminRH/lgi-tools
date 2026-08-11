@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type RefObject,
@@ -21,6 +22,11 @@ import { Tabs } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/toast';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
+import {
+  ScannerEstIskCell,
+  ScannerLivePricesProvider,
+  useSiteCatalogue,
+} from '@/features/wormhole-sites/widget';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
@@ -36,6 +42,7 @@ import {
   filterSignatureRows,
   formatSignatureAge,
   groupSignatureSections,
+  scannerSectionForGroup,
   scannerWormholeLifetime,
   scannerWormholeSize,
   type ScannerSection,
@@ -43,6 +50,11 @@ import {
   type SignatureWindowRow,
 } from './signature-model';
 import type { OpenSignatureEditor } from './signature-context';
+import {
+  applyScannerRowOpenAction,
+  scannerRowOpenAction,
+  scannerRowShowsOpenAffordance,
+} from './scanner-row-open';
 
 /** One unresolved row's pending group-identification menu. */
 interface RowActionAnchor {
@@ -80,15 +92,11 @@ interface SignatureRowProps {
   readonly row: SignatureWindowRow;
   readonly missing: boolean;
   readonly canEdit: boolean;
+  readonly resolveSiteId: (name: string) => number | null;
   readonly columnsClassName: string;
   readonly cells: ReactNode;
   readonly showOpenAffordance: boolean;
   readonly onOpenActions: OpenRowActions;
-}
-
-function rowIsEditable(row: SignatureWindowRow, canEdit: boolean): boolean {
-  if (!canEdit) return false;
-  return row.connection !== null || row.group === null;
 }
 
 function missingDataAttribute(missing: boolean): true | undefined {
@@ -103,10 +111,16 @@ function signatureName(row: SignatureWindowRow): string {
   return row.name ?? 'Unresolved';
 }
 
-function rowActionLabel(row: SignatureWindowRow): string {
-  return row.connection === null
-    ? `Identify signature ${row.signatureId}`
-    : `Edit wormhole ${row.signatureId}`;
+/** Screen-reader action verb prefixed ahead of the row's visible cells. */
+function rowActionPrefix(
+  row: SignatureWindowRow,
+  canEdit: boolean,
+  resolveSiteId: (name: string) => number | null,
+): string {
+  const action = scannerRowOpenAction(row, canEdit, resolveSiteId);
+  if (action?.kind === 'connection') return 'Edit wormhole';
+  if (action?.kind === 'site') return 'View site';
+  return 'Identify signature';
 }
 
 const SECTION_COLUMNS: Readonly<Record<ScannerSectionId, string>> = {
@@ -123,13 +137,17 @@ const ANOMALY_COLUMNS =
 
 function SignatureRowContent({
   row,
-  editable,
+  interactive,
+  canEdit,
+  resolveSiteId,
   onOpenActions,
   columnsClassName,
   children,
 }: {
   readonly row: SignatureWindowRow;
-  readonly editable: boolean;
+  readonly interactive: boolean;
+  readonly canEdit: boolean;
+  readonly resolveSiteId: (name: string) => number | null;
   readonly onOpenActions: OpenRowActions;
   readonly columnsClassName: string;
   readonly children: ReactNode;
@@ -138,17 +156,20 @@ function SignatureRowContent({
     'relative z-base min-h-7 w-full flex-1 text-left',
     columnsClassName,
   );
-  if (!editable) return <div className={className}>{children}</div>;
+  if (!interactive) return <div className={className}>{children}</div>;
   return (
-    // Left-click only (ruling D-F): a wormhole row opens the Signature Editor
-    // and an unresolved row opens the identification menu. The duplicate
-    // right-click path is retired — the canvas owns right-click now.
+    // Left-click only (ruling D-F): a wormhole row opens the Signature Editor,
+    // a catalogue-matched site opens the site viewer, and an unresolved row
+    // opens the identification menu. The duplicate right-click path is
+    // retired — the canvas owns right-click now.
+    // No aria-label: it would replace descendant ID / name / Est. ISK. A
+    // visually hidden action prefix keeps the verb while cells stay in the name.
     <Button
       variant="bare"
-      aria-label={rowActionLabel(row)}
       className={className}
       onClick={(event) => openRowActionsAtStart(event.currentTarget, onOpenActions)}
     >
+      <span className="sr-only">{rowActionPrefix(row, canEdit, resolveSiteId)} </span>
       {children}
     </Button>
   );
@@ -158,12 +179,13 @@ function SignatureRow({
   row,
   missing,
   canEdit,
+  resolveSiteId,
   columnsClassName,
   cells,
   showOpenAffordance,
   onOpenActions,
 }: SignatureRowProps) {
-  const editable = rowIsEditable(row, canEdit);
+  const interactive = showOpenAffordance;
   return (
     <li
       data-signature-row
@@ -177,7 +199,9 @@ function SignatureRow({
       <SignalFill signalPct={row.signalPct} />
       <SignatureRowContent
         row={row}
-        editable={editable}
+        interactive={interactive}
+        canEdit={canEdit}
+        resolveSiteId={resolveSiteId}
         onOpenActions={onOpenActions}
         columnsClassName={columnsClassName}
       >
@@ -214,14 +238,6 @@ function AgeCell({
   return (
     <span className="text-center text-muted tabular-nums">
       {formatSignatureAge(row.firstSeenAt, now)}
-    </span>
-  );
-}
-
-function BlankIskCell() {
-  return (
-    <span data-signature-isk-placeholder className="text-right text-muted tabular-nums">
-      —
     </span>
   );
 }
@@ -268,12 +284,19 @@ function sectionCells(
         </>
       );
     case 'combat':
+      return (
+        <>
+          <IdCell row={row} />
+          <NameCell row={row} />
+          <ScannerEstIskCell siteName={row.name} live={false} />
+        </>
+      );
     case 'harvestables':
       return (
         <>
           <IdCell row={row} />
           <NameCell row={row} />
-          <BlankIskCell />
+          <ScannerEstIskCell siteName={row.name} live />
         </>
       );
     case 'hacking':
@@ -331,6 +354,7 @@ function ScannerSectionBlock({
   section,
   missingIds,
   canEdit,
+  resolveSiteId,
   now,
   resolveEntry,
   onOpenActions,
@@ -338,6 +362,7 @@ function ScannerSectionBlock({
   readonly section: ScannerSection;
   readonly missingIds: ReadonlySet<string>;
   readonly canEdit: boolean;
+  readonly resolveSiteId: (name: string) => number | null;
   readonly now: number;
   readonly resolveEntry: (code: string | null) => WormholeCodexEntry | null;
   readonly onOpenActions: (
@@ -389,9 +414,14 @@ function ScannerSectionBlock({
                   row={row}
                   missing={missingIds.has(row.signatureId)}
                   canEdit={canEdit}
+                  resolveSiteId={resolveSiteId}
                   columnsClassName={columnsClassName}
                   cells={sectionCells(section.id, row, now, entry)}
-                  showOpenAffordance={rowIsEditable(row, canEdit)}
+                  showOpenAffordance={scannerRowShowsOpenAffordance(
+                    row,
+                    canEdit,
+                    resolveSiteId,
+                  )}
                   onOpenActions={(trigger, clientX, clientY) =>
                     onOpenActions(row, trigger, clientX, clientY)
                   }
@@ -410,6 +440,7 @@ function SignaturesTabBody({
   scannerSystemId,
   missingIds,
   canEdit,
+  resolveSiteId,
   complete,
   now,
   onOpenActions,
@@ -418,6 +449,7 @@ function SignaturesTabBody({
   readonly scannerSystemId: number | null;
   readonly missingIds: ReadonlySet<string>;
   readonly canEdit: boolean;
+  readonly resolveSiteId: (name: string) => number | null;
   readonly complete: boolean;
   readonly now: number;
   readonly onOpenActions: (
@@ -449,6 +481,7 @@ function SignaturesTabBody({
           section={section}
           missingIds={missingIds}
           canEdit={canEdit}
+          resolveSiteId={resolveSiteId}
           now={now}
           resolveEntry={resolveEntry}
           onOpenActions={onOpenActions}
@@ -462,6 +495,7 @@ function AnomalyTable({
   rows,
   missingIds,
   canEdit,
+  resolveSiteId,
   complete,
   now,
   onOpenActions,
@@ -469,6 +503,7 @@ function AnomalyTable({
   readonly rows: readonly SignatureWindowRow[];
   readonly missingIds: ReadonlySet<string>;
   readonly canEdit: boolean;
+  readonly resolveSiteId: (name: string) => number | null;
   readonly complete: boolean;
   readonly now: number;
   readonly onOpenActions: (
@@ -496,6 +531,7 @@ function AnomalyTable({
               row={row}
               missing={missingIds.has(row.signatureId)}
               canEdit={canEdit}
+              resolveSiteId={resolveSiteId}
               columnsClassName={ANOMALY_COLUMNS}
               cells={
                 <>
@@ -504,7 +540,11 @@ function AnomalyTable({
                   <AgeCell row={row} now={now} />
                 </>
               }
-              showOpenAffordance={rowIsEditable(row, canEdit)}
+              showOpenAffordance={scannerRowShowsOpenAffordance(
+                row,
+                canEdit,
+                resolveSiteId,
+              )}
               onOpenActions={(trigger, clientX, clientY) =>
                 onOpenActions(row, trigger, clientX, clientY)
               }
@@ -538,6 +578,8 @@ interface SignatureWindowProps {
   ) => Promise<void>;
   /** Opens the map's one Signature Editor on a wormhole row's connection. */
   readonly onOpenEditor: OpenSignatureEditor;
+  /** Opens the read-only site viewer for a catalogue-matched site row. */
+  readonly onOpenSite: (siteId: number, signatureId: string) => void;
 }
 
 interface ScannerWindowFrameProps
@@ -550,6 +592,7 @@ interface ScannerWindowFrameProps
     | 'complete'
     | 'now'
   > {
+  readonly resolveSiteId: (name: string) => number | null;
   readonly onOpenActions: (
     row: SignatureWindowRow,
     trigger: HTMLElement,
@@ -638,6 +681,7 @@ function ScannerWindowFrame(props: ScannerWindowFrameProps) {
                   scannerSystemId={props.scannerSystemId}
                   missingIds={props.missingIds}
                   canEdit={props.canEdit}
+                  resolveSiteId={props.resolveSiteId}
                   complete={props.complete}
                   now={props.now}
                   onOpenActions={props.onOpenActions}
@@ -656,6 +700,7 @@ function ScannerWindowFrame(props: ScannerWindowFrameProps) {
                   )}
                   missingIds={props.missingIds}
                   canEdit={props.canEdit}
+                  resolveSiteId={props.resolveSiteId}
                   complete={props.complete}
                   now={props.now}
                   onOpenActions={props.onOpenActions}
@@ -725,10 +770,31 @@ function IdentifySignatureMenu({
   );
 }
 
+/** Named harvestable rows in the listed scanner system (live Est. ISK scope). */
+function harvestableNamesForScanner(
+  rows: readonly SignatureWindowRow[],
+  scannerSystemId: number | null,
+): string[] {
+  if (scannerSystemId === null) return [];
+  const names: string[] = [];
+  for (const row of rows) {
+    if (row.systemId !== scannerSystemId || row.name === null) continue;
+    if (scannerSectionForGroup(row.group) !== 'harvestables') continue;
+    names.push(row.name);
+  }
+  return names;
+}
+
 /** Permanent bottom-left scanner window composed beside the managed map stack. */
 export function SignatureWindow(props: SignatureWindowProps) {
+  const catalogue = useSiteCatalogue();
+  const resolveSiteId = catalogue.siteIdForName;
   const rowActionFocus = useRef<HTMLElement | null>(null);
   const [rowAction, setRowAction] = useState<RowActionAnchor | null>(null);
+  const harvestableNames = useMemo(
+    () => harvestableNamesForScanner(props.rows, props.scannerSystemId),
+    [props.rows, props.scannerSystemId],
+  );
   const closeRowAction = () => setRowAction(null);
   const removeMissing = () => {
     void props.onRemoveMissing().catch(() => {
@@ -743,42 +809,52 @@ export function SignatureWindow(props: SignatureWindowProps) {
     clientX: number,
     clientY: number,
   ) => {
-    // A migrated wormhole row goes straight to the one editor; an unresolved
-    // row still picks its group from the pointer menu first (ruling D-F).
-    if (row.connection !== null) {
-      props.onOpenEditor(row.connection.connectionId);
-      return;
-    }
-    rowActionFocus.current = trigger;
-    setRowAction({ row, clientX, clientY });
+    applyScannerRowOpenAction(
+      scannerRowOpenAction(row, props.canEdit, resolveSiteId),
+      {
+        openEditor: props.onOpenEditor,
+        openSite: props.onOpenSite,
+        openIdentify: (identifyRow, identifyTrigger, x, y) => {
+          rowActionFocus.current = identifyTrigger;
+          setRowAction({ row: identifyRow, clientX: x, clientY: y });
+        },
+      },
+      { row, trigger, clientX, clientY },
+    );
   };
 
   return (
-    <div
-      data-signature-window-layer
-      className="pointer-events-none absolute inset-0 z-sticky"
-    >
-      <div data-scanner-prompt-rail className={MAP_SCANNER_PROMPT_RAIL_CLASS}>
-        <MissingSignaturesPrompt
-          count={props.missingCount}
-          canEdit={props.canEdit}
-          onDismiss={props.onDismissMissing}
-          onRemove={removeMissing}
-        />
-        {props.canEdit && props.jumpResolution !== null ? (
-          <SignatureJumpPrompt
-            resolution={props.jumpResolution}
-            onPick={props.onPickJumpCandidate}
+    <ScannerLivePricesProvider harvestableNames={harvestableNames}>
+      <div
+        data-signature-window-layer
+        className="pointer-events-none absolute inset-0 z-sticky"
+      >
+        <div data-scanner-prompt-rail className={MAP_SCANNER_PROMPT_RAIL_CLASS}>
+          <MissingSignaturesPrompt
+            count={props.missingCount}
+            canEdit={props.canEdit}
+            onDismiss={props.onDismissMissing}
+            onRemove={removeMissing}
           />
-        ) : null}
+          {props.canEdit && props.jumpResolution !== null ? (
+            <SignatureJumpPrompt
+              resolution={props.jumpResolution}
+              onPick={props.onPickJumpCandidate}
+            />
+          ) : null}
+        </div>
+        <ScannerWindowFrame
+          {...props}
+          resolveSiteId={resolveSiteId}
+          onOpenActions={openRowActions}
+        />
+        <IdentifySignatureMenu
+          action={rowAction}
+          finalFocus={rowActionFocus}
+          onIdentify={props.onIdentify}
+          onClose={closeRowAction}
+        />
       </div>
-      <ScannerWindowFrame {...props} onOpenActions={openRowActions} />
-      <IdentifySignatureMenu
-        action={rowAction}
-        finalFocus={rowActionFocus}
-        onIdentify={props.onIdentify}
-        onClose={closeRowAction}
-      />
-    </div>
+    </ScannerLivePricesProvider>
   );
 }

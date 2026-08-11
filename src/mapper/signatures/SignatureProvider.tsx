@@ -16,7 +16,7 @@ import {
   type UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
 import { feedFreshnessIndex } from '../tracking/presence-model';
-import { ActiveSignatureEditor } from './ActiveSignatureEditor';
+import { ActiveScannerPanel } from './ActiveScannerPanel';
 import {
   answerAndAnnounce,
   type ConnectionAuthoringApi,
@@ -29,6 +29,7 @@ import {
 import {
   SignatureRowsProvider,
   type OpenSignatureEditor,
+  type ScannerPanelTarget,
 } from './signature-context';
 import { eliminateSignaturesAndAnnounce } from './signature-elimination-client';
 import {
@@ -221,8 +222,8 @@ export function SignatureProvider({
   connectionDetails,
   unresolvedHoles,
   authoring,
-  editingConnectionId,
-  onEditingConnectionIdChange,
+  panelTarget,
+  onPanelTargetChange,
   onFocusSystem,
   children,
 }: {
@@ -233,11 +234,9 @@ export function SignatureProvider({
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
   readonly authoring: ConnectionAuthoringApi;
-  /** The connection the map's one Signature Editor is open on, owned by the host. */
-  readonly editingConnectionId: Id<'mapConnections'> | null;
-  readonly onEditingConnectionIdChange: (
-    connectionId: Id<'mapConnections'> | null,
-  ) => void;
+  /** The scanner panel's single open target, owned by the host. */
+  readonly panelTarget: ScannerPanelTarget;
+  readonly onPanelTargetChange: (target: ScannerPanelTarget) => void;
   /** Focuses one system on the canvas (the editor's locked Leads-to readout). */
   readonly onFocusSystem?: (systemId: number) => void;
   readonly children: ReactNode;
@@ -300,17 +299,23 @@ export function SignatureProvider({
     },
     [dismissResolution, jumpResolution, mapId],
   );
-  // One editor for the whole map: the scanner row and the canvas edge menu
-  // both name a connection id through the host's single state (ruling D-F).
-  const closeEditor = useCallback(
-    () => onEditingConnectionIdChange(null),
-    [onEditingConnectionIdChange],
+  // One scanner panel for the whole map: connection edit and site view share
+  // chrome; the scanner row and the canvas edge menu reach the same host state.
+  const closePanel = useCallback(
+    () => onPanelTargetChange(null),
+    [onPanelTargetChange],
   );
   const openEditor = useCallback<OpenSignatureEditor>(
-    (connectionId) => onEditingConnectionIdChange(connectionId),
-    [onEditingConnectionIdChange],
+    (connectionId) =>
+      onPanelTargetChange({ kind: 'connection', connectionId }),
+    [onPanelTargetChange],
   );
-  const now = useSignatureClock(rows.length > 0 || editingConnectionId !== null);
+  const openSite = useCallback(
+    (siteId: number, signatureId: string) =>
+      onPanelTargetChange({ kind: 'site', siteId, signatureId }),
+    [onPanelTargetChange],
+  );
+  const now = useSignatureClock(rows.length > 0 || panelTarget !== null);
   const missingIds = missingIdsForSystem(missingBySystem, missingSystemId);
   // Row highlighting can only mark rows the window actually lists.
   const highlightIds =
@@ -340,19 +345,19 @@ export function SignatureProvider({
         onPickJumpCandidate={pickJumpCandidate}
         onIdentify={identifyRow}
         onOpenEditor={openEditor}
+        onOpenSite={openSite}
       />
-      {canEdit ? (
-        <ActiveSignatureEditor
-          mapId={mapId}
-          connectionId={editingConnectionId}
-          connectionDetails={connectionDetails}
-          unresolvedHoles={unresolvedHoles}
-          authoring={authoring}
-          now={now}
-          onClose={closeEditor}
-          onFocusSystem={onFocusSystem}
-        />
-      ) : null}
+      <ActiveScannerPanel
+        mapId={mapId}
+        panelTarget={panelTarget}
+        canEdit={canEdit}
+        connectionDetails={connectionDetails}
+        unresolvedHoles={unresolvedHoles}
+        authoring={authoring}
+        now={now}
+        onClose={closePanel}
+        onFocusSystem={onFocusSystem}
+      />
     </SignatureRowsProvider>
   );
 }

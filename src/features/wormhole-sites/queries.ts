@@ -9,6 +9,8 @@ import type { CombatStats } from '@/data/npc-stats/types';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { classRangeIncludes, gasClassRange } from './gas-classes';
 import { overlayLivePrices } from './live-prices';
+import { liveRecipesForSearch } from './live-recipes-for-search';
+import type { SiteLiveRecipe } from './site-name-lookup';
 import type { Npc, SiteDetail, SiteListItem, SiteResource, Wave, WormholeClass, SiteType } from './types';
 
 const SITE_LIST_COLUMNS = {
@@ -332,10 +334,9 @@ export async function listSiteDetails(filters: {
 }
 
 /**
- * Minimal site shape for the global search dropdown. Server-rendered once
- * in AppHeader and passed to the client via AppHeaderShell, so the search
- * dropdown can filter against name/class/type without a per-keystroke
- * round-trip. ~69 rows today; trivial payload.
+ * Compact catalogue row for global search and scanner name/ISK seeding.
+ * Server-rendered once (AppHeader / map layout) and passed to the client so
+ * search and scanner lookups stay zero-RPC. ~69 rows; liveRecipes stay light.
  */
 export type SiteSearchEntry = {
   id: number;
@@ -344,12 +345,13 @@ export type SiteSearchEntry = {
   wormholeClass: WormholeClass | null;
   blueLootIsk: number | null;
   resourceValueIsk: number | null;
+  /** Live-eligible harvestable resources for scanner refresh-on-view. */
+  liveRecipes?: readonly SiteLiveRecipe[];
 };
 
 /**
  * Cached count of catalogued wormhole sites, for the home dashboard's status
- * card. Same deploy-static catalogue as getSiteSearchIndex — the build ID
- * invalidates it.
+ * card. Deploy-static row count — the build ID invalidates it.
  */
 export async function getCachedSiteCount(): Promise<number> {
   'use cache';
@@ -360,11 +362,12 @@ export async function getCachedSiteCount(): Promise<number> {
   });
 }
 
-/** Returns the deploy-cached lightweight wormhole-site catalogue used by search and static routes. */
+/**
+ * Deploy-static lightweight catalogue for AppHeader search, sitemap, and
+ * static params. Does not load NPC waves or live prices — those stay on
+ * {@link getScannerSiteIndex} / {@link listPricedSiteDetails}.
+ */
 export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
-  // The wormhole catalogue is deploy-static (seeded once by migration, untouched
-  // by either cron), so cache it into the prerender shell and let the build ID
-  // invalidate it on deploy. Consumed by AppHeader and the sitemap.
   'use cache';
   cacheLife('max');
   return withColdStartRetry(() =>
@@ -380,6 +383,27 @@ export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
       .from(sites)
       .orderBy(sites.sourceTab, sites.name),
   );
+}
+
+/**
+ * Live-priced scanner catalogue: exact name→id, headline Est. ISK, and
+ * harvestable live recipes. Isolated from {@link getSiteSearchIndex} so
+ * header/sitemap/static params are not blocked on the hourly price overlay.
+ */
+export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
+  'use cache';
+  cacheLife('hours');
+  cacheTag(PRICES_FRESHNESS_TAG);
+  const priced = await listPricedSiteDetails();
+  return priced.map((site) => ({
+    id: site.id,
+    name: site.name,
+    siteType: site.siteType,
+    wormholeClass: site.wormholeClass,
+    blueLootIsk: site.blueLootIsk,
+    resourceValueIsk: site.resourceValueIsk,
+    liveRecipes: liveRecipesForSearch(site.resources),
+  }));
 }
 
 /**
