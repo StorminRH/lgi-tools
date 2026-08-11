@@ -9,200 +9,34 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.3.2** (signature inference & provenance) in
-  Ordered work on `lifecycle/4.0.4.3` (per-session PR; branch recreated from
-  main after #377 shipped 4.0.4.3.1).
-- **OW progress:** 8/8 complete — awaiting close-out.
-- **OW completed:**
-  - OW-1 System identity readouts — new `src/data/eve-data/system-identity.ts`
-    (`systemIdentityReadout` + `systemClassText`, ladder moved from
-    `chain/labels.ts`), `--color-wh-c1..c6` ramp tokens, SystemNode header +
-    dock/summary body render the one readout, system disc chip retired
-    (stub-only), `mode`/Security-Status row removed, probe
-    `atlas-signature-chrome.mjs` updated. Proof: `system-identity.test.ts`
-    matrix + node/dock component tests + `rg systemClassLabel` zero hits
-    (SC-5.1–5.3); `pnpm verify` green (gate-runner, 508 files/4870 tests,
-    fallow 0 findings); primitive-checker CLEAN after chip fix. Commit: this
-    branch head.
-  - OW-2 Statics ghost stubs and stub accounting — new pure
-    `src/data/maps/stub-accounting.ts` owns D-D's believed-holes rule;
-    `use-system-statics.ts` reuses the cached statics route + session codex;
-    `nodes.ts`/the existing `chainSystem` renderer now carry stable
-    `static-stub:` leaves through the shared layout kernel. Proof: all four
-    D-D worked cases + multiset/degraded cases, node set/replacement/collapse
-    return, layout fingerprint/placement, exact `<code> - <class>` inert
-    presentation (SC-3.2, SC-4.1–4.3); `pnpm verify` green (gate-runner, 510
-    files/4884 tests, Fallow 0 issues); primitive-checker CLEAN. Commit: this
-    branch head.
-  - OW-3 The pure eliminator — new pure
-    `src/data/maps/signature-eliminator.ts` owns PD-1 answer-key crossing and
-    PD-2 quiet contradiction/insufficiency results over endpoint-local facts,
-    with assumed-tier type and far-side-link deductions. Proof: 10-case
-    inference matrix covers single/two-static, history, K162+B274→H296,
-    far-side link, multiset, tier protection, contradiction and insufficiency
-    (SC-1.1–1.5, SC-2.3); `pnpm verify` green (gate-runner, 511 files/4894
-    tests, Fallow 0 issues); primitive-checker CLEAN. Commit: this branch head.
-  - OW-4 Elimination plumbing — new authenticated composition/route and
-    bearer Convex evidence/write door project bounded live endpoint facts,
-    apply only assumed-tier type/link deductions atomically, and cascade after
-    paste, identify, manual type, and committed jumps; acting users alone see
-    applied-deduction toasts, and no observation is emitted yet. Proof:
-    Convex tier/access/tombstone/link tests, statics-unavailable zero-write
-    route/composition tests, client trigger and jump-cascade tests; `pnpm
-    verify` green (gate-runner, Fallow clean with one non-blocking localized
-    door-helper similarity advisory); primitive-checker CLEAN. Commit: this
-    branch head.
-  - OW-5 Deduction logging — migration `0054_admit_assumed_observations`
-    drops only `wh_observations_verified_provenance`; new pure
-    `src/data/wh-observations/emission.ts` (`observationFor`) is the sole
-    attributability guard for both emitters; the jump resolver's
-    sub-`confirmed` tier filter is gone so a stored `assumed` identity logs
-    tagged `assumed`; the elimination pass logs each live scanned row at its
-    stored tier and removes what a correction vacated; the Convex elimination
-    door carries the per-hole `observationKey`, minted through the new shared
-    `convex/lib/observationKey.ts` that `setConnectionWormholeType` now also
-    uses. Proof: real-Postgres assumed/override/K162+hour-coarse cases,
-    emission matrix, elimination logging matrix (deduced, override, vacated,
-    stale, migrated, degraded, failure), jump-resolver assumed emission
-    (SC-8.1–8.4); `pnpm verify` green (gate-runner, 545 files/5062 tests,
-    Fallow 1 non-blocking clone-group warn — the same OW-4 door-helper
-    advisory); primitive-checker CLEAN after the key-minting extraction.
-    Commit: this branch head.
-  - OW-6 The Signature Editor — `connection-fields.tsx` reworked to the D-G
-    set (wormhole type + headerless stats block, Size, Mass, Reliable
-    Lifetime, Leads to, Delete) in player wording over the unchanged stored
-    vocabularies; new scanner-anchored `SignatureEditor` pop-out
-    (`ActiveSignatureEditor` resolves it, pure `editor-leader.ts` draws the
-    bracket + leader line to the originating row); scanner wormhole rows open
-    it on left-click and the row right-click path is gone; new
-    `canvas/edge-menu.ts` + `EdgeContextMenu` give connection lines
-    right-click Edit/Delete through `onEdgeContextMenu`; the edge-click card
-    (`ConnectionAuthoringOverlay` → `MapAuthoringOverlay`,
-    `ConnectionDetailsCard`, `WormholeRowEditor`, the edge-follower half of
-    `follower-model.ts`, `edge-anchored` placement, the Auto-link section and
-    the typed-side control) is retired. Proof: field order/label matrix incl.
-    exact in-game Mass and Reliable Lifetime strings, Leads-to lock/readout,
-    Size lock, Delete/Restore; edge-menu model + Edit/Delete wiring;
-    editor-host and leader-geometry matrices; `rg` clean of `onEdgeClick`,
-    `ConnectionAuthoringOverlay`, `ConnectionDetailsCard`, `ResolutionField`,
-    `resolutionControls` (SC-6.1–6.3, SC-7.3); `pnpm verify` green
-    (gate-runner, 548 files/5082 tests, Fallow complexity 0 with the same
-    OW-4 clone-group warn); primitive-checker CLEAN after retiring the
-    orphaned `setConnectionTypedSide` client wiring. Commit: this branch head.
-  - OW-7 The jump prompt — the ambiguous-jump model, dispatchers and
-    `ConnectionAuthoringApi` moved into `src/mapper/signatures/`; new
-    scanner-overlay `SignatureJumpPrompt` names the shared destination
-    identity readout and lists the exact ordered `matchJump` survivors, while
-    zero/one survivors never prompt and any stale partial list is withheld
-    whole. The scanner prompt rail stacks jump and missing-scan states; a pick
-    confirms or re-associates through the existing route, which now cascades
-    elimination after the committed answer. The floating prompt and
-    authoring-owned model are deleted; automatic-jump/lifecycle probes use the
-    new pick flow. Proof: prompt header/order/pick, exact/stale/unique model,
-    dispatcher, one-survivor Convex state, resolver cascade and mapper-registry
-    suites; both retirement `rg` checks zero-hit; protected parser/lifecycle
-    diff empty; `pnpm verify` green (gate-runner, 520 files/4944 tests, Fallow
-    0 blocking issues with the same OW-4 bearer-door clone warning);
-    primitive-checker CLEAN after removing a forwarding re-export of the
-    shared readout. Commit: this branch head.
-  - OW-8 ux-check and G-1 pause — authenticated Atlas route/readout, lifecycle,
-    automatic-jump, Signature Editor, prompt, stub-accounting and acting-user
-    toast probes passed on disposable maps (3/3 probes, 51 checks, zero
-    console/page/HTTP errors); the operator then approved the live behavior
-    after visual rework: system and ghost identifiers above the disc, colored
-    class/security inside, dock/summary titles de-duplicated, and elimination
-    toast copy names the exact signature id. Follow-up route hardening keeps
-    the admin gate request-bound with `connection()` and opts the intentionally
-    wall-replaceable Atlas leaf out of instant validation; a fresh browser load
-    produced zero errors. Final proof: focused post-G-1 regressions 11 files /
-    156 tests plus route/auth 3 files / 13 tests; `pnpm verify` green
-    (gate-runner, 521 files/4956 tests, Fallow dead code 0 / complexity 0 with
-    the existing non-blocking bearer-door clone advisory); protected parser /
-    lifecycle diff empty; primitive-checker CLEAN. G-1 disposition: approved
-    by the operator on 2026-08-10. Commit: this branch head.
-- **Next-agent notes (4.0.4.3.2):** (1) G-1 ratified the final D-E presentation:
-  authored/halo nodes keep the neutral system name above the disc and render
-  the colored class or rounded security inside; dock and summary headers keep
-  one neutral name plus one colored classification accessory, with no duplicate
-  identity row in the body. Ghosts follow the same hierarchy: scanned signature
-  id or guaranteed-static code above, codex destination class inside in the
-  shared tones; untyped/K162 ghosts stay blank rather than fabricating a class.
-  (2) Elimination responses carry the exact applied `signatureIds`; acting-user
-  toast copy is `<signature id> has been identified.` (natural-list plural for
-  multiple ids). Attribute-identical duplicate codex rows are accepted, while
-  conflicting same-code rows fail closed. (3) Atlas auth must remain inside the
-  layout's Suspense boundary with `await connection()` before `checkAdmin()`;
-  `atlas/page.tsx` also keeps `instant = false` because an unauthorized staged
-  render intentionally replaces that leaf with the development wall. These
-  solve separate Next 16.3 current-time and dropped-segment diagnostics and are
-  pinned by `layout.test.ts` + `atlas/page.test.ts`. (4) Docs briefs confirmed:
-  Tailwind v4 `@theme --color-*` tokens
-  auto-generate `text-*` utilities and plain `.ts` files are content-scanned;
-  React Flow v12 `nodeLookup` primitive selectors are the documented pattern.
-  (5) `check-universe-assets.ts` keeps its own partial CLASS_LABELS census
-  list (script-side report vocabulary, not a display rule). (6) OW-2 keeps
-  statics presentation fully derived: `static-stub:<system>:<code>:<ordinal>`
-  identities survive duplicate-code slots; a local-side code-carrying live
-  hole replaces its matching static and a tombstone/collapse returns it. The
-  first unidentified scan rows claim existing statics/sig-less lines and only
-  the deterministic surplus remains as ordinary `stub:` leaves — no type is
-  inferred here. Statics or codex failure withholds that system's static
-  claims without retaining stale results; paste-driven stubs remain usable.
-  (7) OW-3 accepts only live endpoint-local plain facts: OW-4 must project
-  Convex rows outside the data slice, withhold tombstones, keep
-  statics-unavailable outside the solver, and stamp its fixed `assumed`
-  deductions through the tier-gated door. `matchJump` remains the sole owner
-  of jump survivors; the eliminator has no runtime caller until OW-4.
-  (8) OW-4's elimination door adds no subscription or cadence, so its
-  bytes-per-watched-hour cost is zero. Each evidence or apply pass reads one
-  access claim, one system, and at most 128 origin + 128 destination
-  connections (258 docs on a successful pass; 260 including both overflow
-  probes before a bounded refusal). Apply accepts at most 256 deductions and
-  writes at most two documents per link deduction (512 worst-case writes;
-  type deductions write one); equality/protected/stale outcomes write zero.
-  (9) OW-5 settled observation logging as a row-level rule, not a
-  per-deduction one: the elimination pass logs the identity every live scanned
-  row of the system carries at its stored tier, because a human override
-  produces NO deduction and would otherwise leave the machine's superseded
-  guess standing. Emission is skipped entirely when statics are unavailable
-  (SC-3.1) and runs after the write batch, so `quiet` passes still correct.
-  Only an `applied` outcome may introduce a key the evidence snapshot did not
-  show — that is what stops a lost race from deleting the winner's row.
-  Unresolved scanned rows are logged by the elimination pass; resolved
-  connections stay owned by the jump resolver, so the two emitters never
-  overlap. The manual-type path needs no editor change: the
-  `setConnectionWormholeType` dispatcher already cascades elimination.
-  (10) OW-6 kept the OW-5 cascade behavior when the row editor moved into the
-  pop-out: `ActiveSignatureEditor` still routes a RESOLVED row's type entry
-  through `applyWormholeType` and leaves an unresolved stub on the plain
-  setter. (11) OW-7 retired the floating `JumpResolutionPrompt` and left
-  `MapAuthoringOverlay` ledger-only. The separate
-  `convex/mapAuthoring.setConnectionTypedSide` residual still has NO client
-  caller — `typedSide` is written by `mapScan`/`mapFixtures` and read by
-  `mapJump`, so the mutation remains for an explicit close-out ruling. (12)
-  The editor is anchored in
-  SCREEN space beside the scanner dock, never to canvas geometry: React Flow
-  pans/zooms by mutating a viewport transform, which fires neither scroll nor
-  resize, and Base UI exposes no animation-frame anchor tracking (docs
-  brief) — do not "fix" this by re-anchoring it to an edge.
-  `MAP_SCANNER_EDITOR_CLASS` restates `MAP_SCANNER_DOCK_CLASS`'s width as its
-  left offset; change them together. (13) Destruction has one owner:
-  `connectionLifecycleActions` in
-  `signatures/connection-authoring-api.ts`.
-  `surface.test.ts` pins the allowlist of files that may name
-  `severConnection`/`restoreSeveredBranch`/`restoreConnection`, so a new
-  Delete entry point must route through that factory rather than widening the
-  list. (14) The OW-7 prompt selector is
-  `[data-signature-jump-prompt]`, with one
-  `[data-signature-jump-candidate]` button per exact survivor. Unique assumed
-  survivors resolve without `pendingCandidates`; multi-survivor ordering stays
-  owned exclusively by `matchJump`. If a stored survivor disappears before
-  render, withhold the whole stale prompt rather than shortening it. Prompt
-  answers cascade elimination server-side after the topology commit; clients
-  must not add a second elimination POST. OW-8's updated
-  `atlas-automatic-jump` probe picks the second survivor and expects both
-  clients to settle; the lifecycle probe now expects its unique match to show
-  no prompt. Missing-scan and jump prompts share one scanner rail and stack.
+- **CURRENT:** session **4.0.4.3.2** close-out on `lifecycle/4.0.4.3`
+  (per-session PR; plan `Complete`; release triplet `4.0.4.3.2`).
+- **Handoff:** after this PR merges and production proof, recreate
+  `lifecycle/4.0.4.3` from main and run `start-session` — expected next is
+  plan-session for **4.0.4.3.3** (ranking / sites-widget), which must consume
+  ruling D-B (assumed observations admitted) and the Signature Editor / jump
+  prompt surfaces shipped here. Reconcile contract 4.0.4.3.3 HC-2 with D-B.
+- **Durable 4.0.4.3.2 gotchas:** (1) G-1 identity: authored/halo keep the
+  neutral name above the disc and colored class/security inside; dock/summary
+  keep one name + one colored accessory; ghosts put sig id or static code
+  above and destination class inside; untyped/K162 ghosts stay blank. (2)
+  Elimination toasts name exact `signatureIds` (`<id> has been identified.` /
+  natural-list plural). (3) Atlas admin auth stays inside Suspense with
+  `await connection()` before `checkAdmin()`; `atlas/page.tsx` keeps
+  `instant = false`. (4) Link deductions carry `expectedTypeCode` and refuse
+  when the live stub type diverges; human mass/size/death on the stub merge
+  onto the resolved row before the stub deletes. (5) Observation logging is
+  independent of statics — unavailable statics disable deductions only; human
+  identities still reconcile through `reconcileWhObservations`. (6) Manual
+  type cascade uses the attributable endpoint (`typedSide === 'to'` →
+  `toSystemId`). (7) Signature Editor stacks above the scanner on narrow
+  viewports (`MAP_SCANNER_EDITOR_CLASS`); screen-space anchor — do not
+  re-bind to canvas transforms. (8) `setConnectionTypedSide` remains without a
+  client caller; `typedSide` is still written by mapScan/mapFixtures and read
+  by mapJump. (9) Statics presentation is derived
+  (`static-stub:<system>:<code>:<ordinal>`); paste stubs stay usable when
+  statics/codex fail. (10) Probe paste needs `seedTrackedLocationFixture`
+  re-stamp; chrome probe needs a populated map.
 - **Prior session (4.0.4.3.1, shipped in PR #377):** close-out adversarial
   round accepted ~20 root causes, all fixed on-branch — headline fixes:
   paste-revive scoped to a stub's own lifetime (never `runBranchRestore` from
