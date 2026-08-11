@@ -6,9 +6,14 @@ import { Banner } from '@/components/ui/banner';
 import { Dialog } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import type { Session } from '@/platform/auth/types';
 import { apiFetch } from '@/transport/api-client';
 import { feedbackEndpoint } from '../api-contract';
+import {
+  FEEDBACK_CATEGORY_SELECT_ITEMS,
+  type FeedbackCategory,
+} from '../categories';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from '../constants';
 import {
   FEEDBACK_NETWORK_ERROR_MESSAGE,
@@ -19,9 +24,15 @@ import {
 
 // Fire the feedback request and map the outcome to the next state — the friendly
 // error copy per status lives in {@link feedbackErrorMessage}.
-async function submitFeedback(message: string, path: string): Promise<SubmitState> {
+async function submitFeedback(
+  message: string,
+  path: string,
+  category: FeedbackCategory,
+): Promise<SubmitState> {
   try {
-    const result = await apiFetch(feedbackEndpoint, { body: { message, path } });
+    const result = await apiFetch(feedbackEndpoint, {
+      body: { message, path, category },
+    });
     if (!result.ok) return { kind: 'error', message: feedbackErrorMessage(result) };
     return { kind: 'success' };
   } catch {
@@ -58,6 +69,31 @@ function FeedbackMeta({
           <span className="font-data text-text normal-case tracking-normal">{path}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+// Category select — caption + Select (not Field/label: Select is self-labelled
+// via ariaLabel; a wrapping label would steal clicks onto the trigger).
+function FeedbackCategoryField({
+  category,
+  disabled,
+  onCategoryChange,
+}: {
+  category: string;
+  disabled: boolean;
+  onCategoryChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-label uppercase tracking-wide text-muted">Category</span>
+      <Select
+        value={category}
+        onValueChange={onCategoryChange}
+        items={FEEDBACK_CATEGORY_SELECT_ITEMS}
+        ariaLabel="Category"
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -109,12 +145,12 @@ function FeedbackBody({
 function FeedbackFooter({
   state,
   disabled,
-  message,
+  canSend,
   onClose,
 }: {
   state: SubmitState;
   disabled: boolean;
-  message: string;
+  canSend: boolean;
   onClose: () => void;
 }) {
   if (state.kind === 'success') {
@@ -129,12 +165,7 @@ function FeedbackFooter({
       <Button variant="secondary" size="sm" onClick={onClose} disabled={disabled}>
         Cancel
       </Button>
-      <Button
-        type="submit"
-        variant="primary"
-        size="sm"
-        disabled={disabled || message.trim().length === 0}
-      >
+      <Button type="submit" variant="primary" size="sm" disabled={disabled || !canSend}>
         {state.kind === 'submitting' ? 'Sending…' : 'Send'}
       </Button>
     </>
@@ -161,6 +192,7 @@ export function FeedbackModal({
   const titleId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [message, setMessage] = useState('');
+  const [category, setCategory] = useState<FeedbackCategory>('bug');
   const [path, setPath] = useState('');
   const [state, setState] = useState<SubmitState>({ kind: 'idle' });
 
@@ -176,25 +208,29 @@ export function FeedbackModal({
     /* eslint-disable react-hooks/set-state-in-effect */
     setPath(window.location.pathname + window.location.search);
     setMessage('');
+    setCategory('bug');
     setState({ kind: 'idle' });
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [open]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const gate = feedbackSubmitGate(message, state);
+    const gate = feedbackSubmitGate(message, category, state);
     if (gate !== 'ok') {
       if (gate === 'empty') {
         setState({ kind: 'error', message: 'Please enter a message before sending.' });
+      } else if (gate === 'no_category') {
+        setState({ kind: 'error', message: 'Please choose a category before sending.' });
       }
       return;
     }
     setState({ kind: 'submitting' });
-    setState(await submitFeedback(message, path));
+    setState(await submitFeedback(message, path, category));
   }
 
   const charsLeft = FEEDBACK_MESSAGE_MAX_LENGTH - message.length;
   const disabled = state.kind === 'submitting';
+  const canSend = message.trim().length > 0;
 
   return (
     <Dialog
@@ -227,6 +263,13 @@ export function FeedbackModal({
 
         <div className="px-4 py-3 flex flex-col gap-3">
           <FeedbackMeta loading={loading} session={session} path={path} />
+          {state.kind !== 'success' && (
+            <FeedbackCategoryField
+              category={category}
+              disabled={disabled}
+              onCategoryChange={(value) => setCategory(value as FeedbackCategory)}
+            />
+          )}
           <FeedbackBody
             state={state}
             message={message}
@@ -238,7 +281,12 @@ export function FeedbackModal({
         </div>
 
         <footer className="px-4 py-3 border-t border-border flex items-center justify-end gap-3">
-          <FeedbackFooter state={state} disabled={disabled} message={message} onClose={onClose} />
+          <FeedbackFooter
+            state={state}
+            disabled={disabled}
+            canSend={canSend}
+            onClose={onClose}
+          />
         </footer>
       </form>
     </Dialog>

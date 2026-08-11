@@ -1,19 +1,17 @@
 # BACKLOG — LGI.tools
 
-> Deferred work items with no version assigned. **Un-prioritized** — a backlog, not
-> a plan: no sequencing, no commitments, no version numbers. Each entry =
-> *what / why-deferred / rough size / dependency-or-trigger*. Pull an item into a
-> version when its trigger fires; delete it here when it ships.
+> **Frozen for operator audit (2026-08-11).** Do **not** add new entries here.
+> New deferred work opens a GitHub Issue on `StorminRH/lgi-tools` (title prefixed
+> `[Backlog]`, body: *what / why-deferred / rough size / trigger*). Existing
+> bullets below stay until the operator keeps, issues, or drops them; this file
+> is no longer the write path for close-out cuts.
 >
-> Created 2026-06-14 at the v3.5.4 close-out — migrated out of `docs/SCRATCHPAD.md`
-> (the old "Backlog (no version assigned)" section) + the 3.5.4a audit's
-> deferred/declined findings + its operator-checklist cells, so SCRATCHPAD holds
-> live/forward state and this holds the someday pile.
+> Historical shape: un-prioritized someday pile (no sequencing, no version
+> numbers). Created 2026-06-14 at the v3.5.4 close-out — migrated out of
+> `docs/SCRATCHPAD.md` + the 3.5.4a audit's deferred/declined findings.
 >
-> NOT here (they live in SCRATCHPAD / CLAUDE.md as ongoing status, not deferred dev
-> work): operator env chores (contact form, Discord ops webhook, Speed Insights),
-> the consolidated authed PROD pass, the Convex cost-model unknown, credential
-> rotations, the fallow trial, the infra-audit spend cap.
+> NOT here (they live in SCRATCHPAD as ongoing status, not deferred dev work):
+> operator env chores, credential rotations, and similar ops notes.
 
 ---
 

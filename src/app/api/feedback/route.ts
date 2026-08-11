@@ -4,64 +4,34 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/platform/auth/session';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { APP_VERSION } from '@/config/app-version';
-import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
   FEEDBACK_PATH_MAX_LENGTH,
   feedbackEndpoint,
   feedbackRequestSchema,
 } from '@/features/feedback/api-contract';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from '@/features/feedback/constants';
+import { createFeedbackGithubIssue } from '@/features/feedback/create-github-issue';
 import {
   dependencyUnavailableFailure,
   validationFailure,
 } from '@/lib/failure';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { readEnv } from '@/lib/env';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { sanitiseUserText } from '@/lib/sanitise';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-// Per-IP rate limit. Feedback POSTs fan out to a Discord webhook, so an
-// unthrottled endpoint is a webhook-spam vector. 5/min is generous for a
-// real user typing thoughtfully but cuts a scripted flood off fast.
+// Per-IP rate limit. Feedback POSTs open GitHub Issues, so an unthrottled
+// endpoint is an issue-spam vector. 5/min is generous for a real user typing
+// thoughtfully but cuts a scripted flood off fast.
 const FEEDBACK_LIMIT_PER_MINUTE = 5;
 
-interface DiscordEmbed {
-  title: string;
-  description: string;
-  author: { name: string };
-  fields: Array<{ name: string; value: string; inline?: boolean }>;
-  footer: { text: string };
-  timestamp: string;
-}
-
-function buildEmbed({
-  message,
-  path,
-  authorName,
-}: {
-  message: string;
-  path: string;
-  authorName: string;
-}): DiscordEmbed {
-  return {
-    title: 'New feedback',
-    description: message,
-    author: { name: authorName },
-    fields: [{ name: 'Page', value: `\`${path}\``, inline: false }],
-    footer: { text: `LGI.tools v${APP_VERSION}` },
-    timestamp: new Date().toISOString(),
-  };
-}
-
 /**
- * POST-only. Accepts JSON `{ message, path }`. Reads session server-side so
- * character attribution can't be forged. Forwards to Discord webhook; on
- * success, logs `feedback_submitted` to usage_logs (per the 2.8.4 audit
- * pattern — one operational record, not a separate feedback table).
- * Discord failure returns 502 and does NOT log telemetry; the action didn't
- * happen.
+ * POST-only. Accepts JSON `{ message, path, category }`. Reads session
+ * server-side so character attribution can't be forged. Opens a GitHub Issue;
+ * on success, logs `feedback_submitted` to usage_logs (per the 2.8.4 audit
+ * pattern — one operational record, not a separate feedback table). GitHub
+ * failure returns 502 and does NOT log telemetry; the action didn't happen.
  */
 // authz: public
 export const POST = capabilityRoute('feedback.submit-feedback', handlePost);
@@ -100,12 +70,11 @@ async function handlePost(request: NextRequest): Promise<Response> {
   }
 
   const session = await getSession();
-  const authorName = session
-    ? `${session.name} (#${session.characterId})`
-    : 'Anonymous';
+  // Name only in the public issue body — character ids stay out of GitHub.
+  const authorName = session ? session.name : 'Anonymous';
+  const category = parsed.data.category;
 
-  const webhookUrl = readEnv('DISCORD_WEBHOOK_URL');
-  if (!webhookUrl) {
+  if (!readEnv('GITHUB_FEEDBACK_TOKEN')) {
     return apiResponse(
       feedbackEndpoint,
       503,
@@ -117,38 +86,35 @@ async function handlePost(request: NextRequest): Promise<Response> {
     );
   }
 
-  const embed = buildEmbed({ message, path, authorName });
-
-  let discordResponse: Response;
+  let githubResponse: Response;
   try {
-    discordResponse = await fetchWithTimeout(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': OUTBOUND_USER_AGENT,
-      },
-      body: JSON.stringify({ embeds: [embed] }),
+    githubResponse = await createFeedbackGithubIssue({
+      message,
+      path,
+      category,
+      authorName,
+      appVersion: APP_VERSION,
     });
   } catch (cause) {
     return apiResponse(
       feedbackEndpoint,
       502,
       dependencyUnavailableFailure(
-        'discord_failed',
+        'github_failed',
         502,
-        { cause, detail: 'Could not reach Discord' },
+        { cause, detail: 'Could not reach GitHub' },
       ),
     );
   }
 
-  if (!discordResponse.ok) {
+  if (!githubResponse.ok) {
     return apiResponse(
       feedbackEndpoint,
       502,
       dependencyUnavailableFailure(
-        'discord_failed',
+        'github_failed',
         502,
-        { detail: 'Discord rejected the feedback' },
+        { detail: 'GitHub rejected the feedback' },
       ),
     );
   }
@@ -156,7 +122,7 @@ async function handlePost(request: NextRequest): Promise<Response> {
   void logUsageEvent({
     action: 'feedback_submitted',
     characterId: session?.characterId ?? null,
-    metadata: { messageLength: message.length, path },
+    metadata: { messageLength: message.length, path, category },
   }).catch((err) => console.error('[feedback] telemetry write failed', err));
 
   return apiResponse(feedbackEndpoint, 204);

@@ -27,6 +27,7 @@ export type VendorIntegrationId =
   | 'neon-postgres'
   | 'vercel-platform'
   | 'github-tooling'
+  | 'github-issues'
   | 'google-search-console'
   | 'discord-webhooks'
   | 'fuzzwork'
@@ -186,6 +187,22 @@ export const vendorResilienceRegistry: Record<
       'Fail-closed: a missing binary, an unreadable repo identity, or a failed request is a refusal, never a crash and never a silently-clean result.',
     telemetryFields: "None; outcomes are the routine's own reported verdict.",
   },
+  'github-issues': {
+    wrapper: {
+      module: 'src/features/feedback/create-github-issue.ts',
+      symbol: 'createFeedbackGithubIssue',
+    },
+    timeout: '10s per request (OUTBOUND_FETCH_TIMEOUT_MS via fetchWithTimeout).',
+    retryableErrors: 'None.',
+    backoff: 'None.',
+    rateLimit:
+      "GitHub's authenticated REST limits; delivery volume is user feedback submissions already capped at 5/min per IP.",
+    idempotency:
+      'Non-idempotent — a retry would open a duplicate issue, which is why none is attempted.',
+    degradation:
+      'Unset GITHUB_FEEDBACK_TOKEN surfaces 503 feedback_unconfigured; GitHub transport or rejection surfaces 502 github_failed to the submitter and skips telemetry.',
+    telemetryFields: "'feedback_submitted'.",
+  },
   'google-search-console': {
     wrapper: { module: 'src/data/gsc/source.ts', symbol: 'querySearchAnalytics' },
     timeout:
@@ -205,12 +222,12 @@ export const vendorResilienceRegistry: Record<
     retryableErrors: 'None.',
     backoff: 'None.',
     rateLimit:
-      "Discord's own webhook limits; delivery volume is operator alerts and feedback submissions.",
+      "Discord's own webhook limits; delivery volume is operator alerts only.",
     idempotency:
       'Non-idempotent — a retry would post a duplicate message, which is why none is attempted.',
     degradation:
-      'Per caller: the operator alert path is fire-and-forget and an unset webhook URL skips delivery silently while telemetry still records; the feedback route surfaces a failure to the submitter.',
-    telemetryFields: "'feedback_submitted', 'public_esi_budget_alerted'.",
+      'Fire-and-forget: an unset DISCORD_ALERT_WEBHOOK_URL skips delivery silently while telemetry still records.',
+    telemetryFields: "'public_esi_budget_alerted'.",
   },
   fuzzwork: {
     wrapper: {

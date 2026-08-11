@@ -8,8 +8,8 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
 /**
  * Floating feedback affordance. Fixed to the bottom-right corner so it's
  * reachable at any scroll position. Click opens the feedback modal in
- * place; submissions POST to /api/feedback which forwards to a Discord
- * webhook and logs to usage_logs.
+ * place; submissions POST to /api/feedback which opens a GitHub Issue and
+ * logs to usage_logs.
  *
  * Reads login state here (the shared component layer may import the auth
  * feature) and feeds it to the modal as props, so the feedback feature stays
