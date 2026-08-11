@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
   rethrow: vi.fn(),
   getScannerSiteIndex: vi.fn(),
+  getSiteSearchIndex: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
@@ -27,6 +28,7 @@ vi.mock('next/server', () => ({
 
 vi.mock('@/features/wormhole-sites/queries', () => ({
   getScannerSiteIndex: () => mocks.getScannerSiteIndex(),
+  getSiteSearchIndex: () => mocks.getSiteSearchIndex(),
 }));
 
 vi.mock('@/features/wormhole-sites/site-catalogue', () => ({
@@ -75,6 +77,10 @@ describe('MapAccessGate', () => {
     mocks.getScannerSiteIndex.mockReset();
     mocks.getScannerSiteIndex.mockResolvedValue([
       { id: 49, name: 'Barren Perimeter Reservoir' },
+    ]);
+    mocks.getSiteSearchIndex.mockReset();
+    mocks.getSiteSearchIndex.mockResolvedValue([
+      { id: 1, name: 'Forgotten Perimeter Coronation Platform' },
     ]);
   });
 
@@ -158,6 +164,43 @@ describe('MapAccessGate', () => {
       MapAccessGate({ children: createElement('div', { 'data-map-canvas': '' }) }),
     ).rejects.toBe(signal);
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('keeps an authorized map up when the priced scanner catalogue fails', async () => {
+    mocks.checkAdmin.mockResolvedValue({ ok: true, session });
+    const pricedErr = new Error('prices unavailable');
+    mocks.getScannerSiteIndex.mockRejectedValue(pricedErr);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const degraded = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-map-canvas': '' }),
+      }),
+    );
+
+    expect(degraded).toContain('data-map-chrome');
+    expect(degraded).toContain('data-map-canvas');
+    expect(degraded).toContain('data-map-site-index="1"');
+    expect(degraded).not.toContain('data-map-development-wall');
+    expect(mocks.getSiteSearchIndex).toHaveBeenCalled();
+    expect(mocks.rethrow).toHaveBeenCalledWith(pricedErr);
+    expect(consoleError).toHaveBeenCalledWith(
+      '[map] scanner site catalogue unavailable; degrading',
+      pricedErr,
+    );
+
+    mocks.getSiteSearchIndex.mockRejectedValue(new Error('catalogue down'));
+    consoleError.mockClear();
+    mocks.rethrow.mockClear();
+    const empty = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-map-canvas': '' }),
+      }),
+    );
+    expect(empty).toContain('data-map-chrome');
+    expect(empty).toContain('data-map-canvas');
+    expect(empty).toContain('data-map-site-index="0"');
+    expect(empty).not.toContain('data-map-development-wall');
   });
 });
 

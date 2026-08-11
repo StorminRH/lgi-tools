@@ -102,6 +102,7 @@ export default {
           === classification;
     }
     const initialStaticStubs = page.locator('[data-chain-node-static-stub]');
+    const secondStaticStubs = second.page.locator('[data-chain-node-static-stub]');
     check(
       'initial subscribed location honestly re-anchors without inventing an edge',
       ((initial?.status === 'skipped' && initial?.reason === 're-anchor')
@@ -109,7 +110,9 @@ export default {
       && (await initialStaticStubs.count()) === 2
       && await hasStubReadout(initialStaticStubs.nth(0), 'C247', 'C3')
       && await hasStubReadout(initialStaticStubs.nth(1), 'N766', 'C2')
-      && (await second.page.locator('[data-chain-node-static-stub]').count()) === 2,
+      && (await secondStaticStubs.count()) === 2
+      && await hasStubReadout(secondStaticStubs.nth(0), 'C247', 'C3')
+      && await hasStubReadout(secondStaticStubs.nth(1), 'N766', 'C2'),
     );
 
     const accountTrigger = page.locator('[data-account-menu-trigger]');

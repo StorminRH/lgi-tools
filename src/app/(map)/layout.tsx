@@ -2,11 +2,36 @@ import { unstable_rethrow } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
-import { getScannerSiteIndex } from '@/features/wormhole-sites/queries';
+import {
+  getScannerSiteIndex,
+  getSiteSearchIndex,
+  type SiteSearchEntry,
+} from '@/features/wormhole-sites/queries';
 import { SiteCatalogueProvider } from '@/features/wormhole-sites/site-catalogue';
 import { checkAdmin, type SessionCheckResult } from '@/platform/auth/route-guards';
 import type { Session } from '@/platform/auth/types';
 import { MapTrackingMenu } from './MapTrackingMenu';
+
+/**
+ * Loads the atlas scanner catalogue without taking down an authorized map.
+ * Prefers the hourly priced index; falls back to the deploy-static catalogue,
+ * then to an empty seed (site-row affordances stay off until the next success).
+ */
+async function loadScannerCatalogue(): Promise<readonly SiteSearchEntry[]> {
+  try {
+    return await getScannerSiteIndex();
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error('[map] scanner site catalogue unavailable; degrading', err);
+  }
+  try {
+    return await getSiteSearchIndex();
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error('[map] lightweight site catalogue unavailable; empty seed', err);
+  }
+  return [];
+}
 
 function MapDevelopmentWall() {
   return (
@@ -68,9 +93,9 @@ export async function MapAccessGate({
           portraitUrl: gate.session.portraitUrl,
           role: gate.session.role,
         };
-  // Live-priced scanner catalogue only — AppHeader/sitemap keep the lightweight
-  // getSiteSearchIndex path so price-overlay latency cannot wall those surfaces.
-  const siteIndex = await getScannerSiteIndex();
+  // Live-priced scanner catalogue preferred; failures must not wall the map.
+  // AppHeader/sitemap keep calling getSiteSearchIndex directly on their own.
+  const siteIndex = await loadScannerCatalogue();
 
   return (
     <SiteCatalogueProvider siteIndex={siteIndex}>

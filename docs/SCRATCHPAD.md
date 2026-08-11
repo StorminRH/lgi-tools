@@ -11,11 +11,11 @@
 
 - **CURRENT:** session **4.0.4.3.3** close-out on `lifecycle/4.0.4.3`
   (per-session PR; plan `Complete`; release triplet `4.0.4.3.3`; sub-version
-  4.0.4.3 terminal).
+  4.0.4.3 terminal). Resolver next after merge: **4.0.4.4.1**.
 - **Handoff:** after this PR merges and production proof, update from
   `origin/main`, run `python3 tools/cli.py lifecycle resolve --pretty`, and
-  return to `start-session` — expected next is plan-version / plan-session
-  for **4.0.4.4** (maps & access).
+  return to `start-session` — expected next is plan-session for
+  **4.0.4.4.1** (maps & access session 1).
 - **G-1 disposition:** operator approved (2026-08-11) — site viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off

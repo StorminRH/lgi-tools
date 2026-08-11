@@ -44,6 +44,16 @@ describe('scannerLiveEstIsk', () => {
       pending: false,
     });
   });
+
+  it('keeps total null when every recipe lacks seed and live price', () => {
+    expect(
+      scannerLiveEstIsk(
+        [{ typeId: 30370, units: 1_000, seedIsk: null }],
+        () => undefined,
+        () => false,
+      ),
+    ).toEqual({ total: null, pending: false });
+  });
 });
 
 describe('scannerLiveTypeIdsForNames', () => {

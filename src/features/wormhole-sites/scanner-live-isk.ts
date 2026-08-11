@@ -26,10 +26,11 @@ export function scannerLiveEstIsk(
   if (recipes.length === 0) {
     return { total: null, pending: false };
   }
-  let total = 0;
+  let total: number | null = null;
   let pending = false;
   for (const recipe of recipes) {
-    total += recipeLiveIsk(recipe, priceOf(recipe.typeId)?.pct5Buy) ?? 0;
+    const value = recipeLiveIsk(recipe, priceOf(recipe.typeId)?.pct5Buy);
+    if (value !== null) total = (total ?? 0) + value;
     if (isPending(recipe.typeId)) pending = true;
   }
   return { total, pending };

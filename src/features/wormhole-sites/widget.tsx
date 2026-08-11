@@ -8,11 +8,13 @@ import { apiFetch } from '@/transport/api-client';
 import { siteDetailEndpoint, type SiteDetail } from './api-contract';
 import { SiteCard } from './components/SiteCard';
 
+/** Scanner Est. ISK cell and its refresh-on-view provider for harvestable rows. */
 export {
   ScannerEstIskCell,
   ScannerLivePricesProvider,
 } from './components/ScannerLivePrices';
 
+/** Reactive site catalogue lookups for atlas scanner row affordances and Est. ISK. */
 export { useSiteCatalogue } from './site-catalogue';
 
 /** Host-owned inputs for the embeddable sites card; the host supplies only identity and a box. */

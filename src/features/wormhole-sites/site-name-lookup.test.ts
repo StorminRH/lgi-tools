@@ -20,9 +20,12 @@ function catalogueFromSeed(): readonly { id: number; name: string }[] {
   for (const match of text.matchAll(pat)) {
     const seededId = Number(match[1]);
     if (seededId < 71 || seededId > 139) continue;
+    // Capture group 2 is required by `pat` (quoted name column).
+    const name = match[2];
+    if (name == null) continue;
     rows.push({
       id: seededId - 70,
-      name: match[2]!.replaceAll("''", "'"),
+      name: name.replaceAll("''", "'"),
     });
   }
   return rows;
