@@ -347,14 +347,16 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
-  it('links a far-side signature into the live resolved row without collapse', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
-    let targetId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
+  it('links a far-side signature with mass carry and refuses stale type races', async () => {
+    // Happy path: stub with no identity of its own links into the resolved row
+    // without collapse or a key to repair — the destination owns identity.
+    const linked = convexTest(schema, modules);
+    await seed(linked);
+    await apply(linked, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
+    let linkedTarget = '' as Id<'mapConnections'>;
+    await linked.run(async (ctx) => {
       await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      targetId = await ctx.db.insert('mapConnections', {
+      linkedTarget = await ctx.db.insert('mapConnections', {
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -368,40 +370,35 @@ describe('mapScan paste application and lifecycle', () => {
         purgeAfter: null,
       });
     });
-
-    // The stub carried no identity of its own, so the link reports no key to
-    // repair; the resolved row it joined owns identity through the jump door.
-    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+    expect(await linked.mutation(internal.mapScan.applyEliminationDeductions, {
       userId: EDITOR,
       mapId: MAP,
       systemId: JITA,
       deductions: [{
         signatureId: 'KSI-162',
-        connectionId: targetId,
+        connectionId: linkedTarget,
         provenance: 'assumed',
         expectedTypeCode: null,
       }],
     })).toEqual([
       { signatureId: 'KSI-162', outcome: 'applied', observationKey: null },
     ]);
-    const rows = await t.run(async (ctx) => await ctx.db
+    expect(await linked.run(async (ctx) => await ctx.db
       .query('mapConnections')
       .withIndex('by_map', (q) => q.eq('mapId', MAP))
-      .collect());
-    expect(rows).toEqual([
-      expect.objectContaining({ _id: targetId, toSignatureId: 'KSI-162' }),
+      .collect())).toEqual([
+      expect.objectContaining({ _id: linkedTarget, toSignatureId: 'KSI-162' }),
     ]);
-    expect(await t.run(async (ctx) => await ctx.db.query('mapEvents').collect()))
+    expect(await linked.run(async (ctx) => await ctx.db.query('mapEvents').collect()))
       .toEqual([]);
-  });
 
-  it('refuses a stale link when the stub type changed after evidence', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
+    // Stale: a stub whose type changed after evidence must not delete or link.
+    const stale = convexTest(schema, modules);
+    await seed(stale);
+    await apply(stale, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
     let stubId = '' as Id<'mapConnections'>;
-    let targetId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
+    let staleTarget = '' as Id<'mapConnections'>;
+    await stale.run(async (ctx) => {
       await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
       const stub = (await ctx.db.query('mapConnections').collect())[0]!;
       stubId = stub._id;
@@ -410,7 +407,7 @@ describe('mapScan paste application and lifecycle', () => {
         typedSide: 'from',
         typeProvenance: 'human',
       });
-      targetId = await ctx.db.insert('mapConnections', {
+      staleTarget = await ctx.db.insert('mapConnections', {
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -424,39 +421,33 @@ describe('mapScan paste application and lifecycle', () => {
         purgeAfter: null,
       });
     });
-
-    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+    expect(await stale.mutation(internal.mapScan.applyEliminationDeductions, {
       userId: EDITOR,
       mapId: MAP,
       systemId: JITA,
       deductions: [{
         signatureId: 'KSI-162',
-        connectionId: targetId,
+        connectionId: staleTarget,
         provenance: 'assumed',
         expectedTypeCode: null,
       }],
     })).toEqual([
-      {
-        signatureId: 'KSI-162',
-        outcome: 'stale',
-        observationKey: null,
-      },
+      { signatureId: 'KSI-162', outcome: 'stale', observationKey: null },
     ]);
-    expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toMatchObject({
+    expect(await stale.run(async (ctx) => await ctx.db.get(stubId))).toMatchObject({
       wormholeTypeCode: 'B274',
       typeProvenance: 'human',
     });
     expect(
-      (await t.run(async (ctx) => await ctx.db.get(targetId)))?.toSignatureId,
+      (await stale.run(async (ctx) => await ctx.db.get(staleTarget)))?.toSignatureId,
     ).toBeUndefined();
-  });
 
-  it('carries human stub mass and size onto the resolved row when linking', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
-    let targetId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
+    // Mass/size/lifetime ride the stub onto the resolved row when linking.
+    const carried = convexTest(schema, modules);
+    await seed(carried);
+    await apply(carried, [signature('KSI-162', { group: 'Wormhole', name: 'K162' })]);
+    let carriedTarget = '' as Id<'mapConnections'>;
+    await carried.run(async (ctx) => {
       await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
       const stub = (await ctx.db.query('mapConnections').collect())[0]!;
       await ctx.db.patch(stub._id, {
@@ -466,7 +457,7 @@ describe('mapScan paste application and lifecycle', () => {
         deathEarliestAt: 1_000,
         deathLatestAt: 2_000,
       });
-      targetId = await ctx.db.insert('mapConnections', {
+      carriedTarget = await ctx.db.insert('mapConnections', {
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -480,21 +471,20 @@ describe('mapScan paste application and lifecycle', () => {
         purgeAfter: null,
       });
     });
-
-    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+    expect(await carried.mutation(internal.mapScan.applyEliminationDeductions, {
       userId: EDITOR,
       mapId: MAP,
       systemId: JITA,
       deductions: [{
         signatureId: 'KSI-162',
-        connectionId: targetId,
+        connectionId: carriedTarget,
         provenance: 'assumed',
         expectedTypeCode: null,
       }],
     })).toEqual([
       { signatureId: 'KSI-162', outcome: 'applied', observationKey: null },
     ]);
-    expect(await t.run(async (ctx) => await ctx.db.get(targetId))).toMatchObject({
+    expect(await carried.run(async (ctx) => await ctx.db.get(carriedTarget))).toMatchObject({
       toSignatureId: 'KSI-162',
       massState: 'stable',
       observedMassAtStateKg: 1_000_000_000,
