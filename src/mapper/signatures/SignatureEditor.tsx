@@ -26,6 +26,7 @@ import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import { isAdoptedPopupOpen, MapWindow } from '../windows/MapWindow';
 import {
   isOutsideClickGesture,
+  keydownAction,
   outsideDismissAction,
 } from '../windows/window-model';
 import { editorLeader, type EditorLeader } from './editor-leader';
@@ -101,7 +102,7 @@ function useEditorLeader(
   return leader;
 }
 
-/** Dismisses on a true outside click; a map pan or drag leaves it open. */
+/** Dismisses on Escape or a true outside click; a map pan or drag leaves it open. */
 function useOutsideDismiss(
   panelRef: React.RefObject<HTMLDivElement | null>,
   onClose: () => void,
@@ -157,13 +158,27 @@ function useOutsideDismiss(
       if (action === 'dismiss-card') onClose();
     };
 
+    // Document-level Escape matches MapWindowLayer's card dismissal: the
+    // panel's own onKeyDown only fires when focus is already inside it.
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const action = keydownAction({
+        key: event.key,
+        surfaceKind: 'card',
+        popupOpen: isAdoptedPopupOpen(),
+        defaultPrevented: event.defaultPrevented,
+      });
+      if (action === 'dismiss-card') onClose();
+    };
+
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('pointerup', handlePointerUp);
     document.addEventListener('pointercancel', clearDown);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('pointerup', handlePointerUp);
       document.removeEventListener('pointercancel', clearDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [panelRef, onClose]);
 }
