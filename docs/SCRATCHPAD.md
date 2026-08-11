@@ -11,8 +11,7 @@
 
 - **CURRENT:** session **4.0.4.3.3** on `lifecycle/4.0.4.3` (signature
   viewer / site-card hosting / observation proof; plan Approved).
-- **OW progress:** `3/5 complete` — next: Prove the observation collection
-  end-to-end.
+- **OW progress:** `4/5 complete` — next: UX gate (G-1).
 - **OW completed:**
   - OW-1 Land the four 4.0.4.3.2 corrections — `linkKnowledgePatch` carries
     lifeStage/lifeStageObservedAt (timestamped Unset both directions),
@@ -30,17 +29,25 @@
     `siteIdForSiteName` + seed drift test; `MapAccessGate`/`MapChrome` seed
     the index on atlas (no AppHeader); site view not canEdit-gated;
     focused signatures+lookup+layout + verify green (`f1411cb6`).
-- **Next-agent notes:** (1) Standalone measure is `mx-auto w-full max-w-reading`
-  around the card only — RelatedSites stays full detail width; G-1 may retune
-  the reading measure. (2) Atlas seeds `setSiteSearchIndex` via MapChrome —
-  do not assume AppHeader; name lookup and Sites search share that seed.
-  (3) `defaultOpen` is gone from SiteCard — catalogue always lazy-collapses.
-  (4) lifeStage carry treats “never recorded” as both fields nullish;
-  timestamped Unset on target wins. (5) Narrow-stack max-h matches the panel’s
-  `bottom-[…]` recipe; md parks with `md:max-h-[calc(100dvh-2rem)]`.
-  (6) HC-2 superseded by D-B; ranking/provenance chrome stay OOS (PD-2/PD-3).
-  (7) OW-4 is proof-only unless a gap is exposed — do not change ranking or
-  add provenance UI.
+  - OW-4 Observation collection proof — proof-only, no gap; SC-3/SC-4 green
+    across jump-resolver (confirmed/human/jump-verified), signature-elimination
+    (assumed + vacate), mapJump (`destinationProvenance: jump-verified`), and
+    wh-observations real-Postgres (five-column privacy, correction-in-place,
+    K162/hour-coarse checks); ranking/provenance chrome untouched; verify
+    green (commit SHA follows).
+- **Next-agent notes:** (1) OW-5 owns ux-check over `/atlas` + `/sites/[id]`
+  and the G-1 operator pause (site viewer, standalone measure, full signature
+  flow) — do not open the PR before the disposition is recorded. (2) Standalone
+  measure is `mx-auto w-full max-w-reading` around the card only — RelatedSites
+  stays full detail width; G-1 may retune. (3) Atlas seeds `setSiteSearchIndex`
+  via MapChrome — do not assume AppHeader. (4) `defaultOpen` is gone from
+  SiteCard — catalogue always lazy-collapses. (5) lifeStage carry treats
+  “never recorded” as both fields nullish; timestamped Unset on target wins.
+  (6) Narrow-stack max-h matches the panel’s `bottom-[…]` recipe; md parks
+  with `md:max-h-[calc(100dvh-2rem)]`. (7) HC-2 superseded by D-B;
+  ranking/provenance chrome stay OOS (PD-2/PD-3). (8) Neon `wh_observations`
+  writers remain jump-resolver + signature-elimination only; Convex stamps
+  connection provenance and never inserts the corpus.
 - **Durable 4.0.4.3.2 gotchas:** (1) G-1 identity: authored/halo keep the
   neutral name above the disc and colored class/security inside; dock/summary
   keep one name + one colored accessory; ghosts put sig id or static code
