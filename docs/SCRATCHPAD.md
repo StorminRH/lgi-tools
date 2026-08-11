@@ -34,7 +34,7 @@
     (assumed + vacate), mapJump (`destinationProvenance: jump-verified`), and
     wh-observations real-Postgres (five-column privacy, correction-in-place,
     K162/hour-coarse checks); ranking/provenance chrome untouched; verify
-    green (commit SHA follows).
+    green (`32f90c35`).
 - **Next-agent notes:** (1) OW-5 owns ux-check over `/atlas` + `/sites/[id]`
   and the G-1 operator pause (site viewer, standalone measure, full signature
   flow) — do not open the PR before the disposition is recorded. (2) Standalone
