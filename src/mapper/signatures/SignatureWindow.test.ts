@@ -331,13 +331,17 @@ describe('SignatureWindow component prompt and filter states', () => {
       }),
     );
     // Gas site matches the catalogue; combat/k-space names and wormholes stay inert.
-    expect(html).toContain('aria-label="View site Barren Perimeter Reservoir"');
+    // Action verb is an sr-only prefix so ID / name / Est. ISK stay in the
+    // accessible name (aria-label would replace those descendants).
+    expect(html).toContain('sr-only">View site ');
+    expect(html).toContain('Barren Perimeter Reservoir');
     expect(html).toContain('data-signature-id="GAS-001"');
     expect(html).toContain('data-signature-row-open');
     expect(html).toContain('data-signature-isk="value"');
     expect(html).toContain('28.1M');
-    expect(html).not.toContain('aria-label="Edit wormhole WHL-001"');
-    expect(html).not.toContain('aria-label="View site Sansha Hideout"');
+    expect(html).not.toContain('aria-label=');
+    expect(html).not.toContain('sr-only">Edit wormhole ');
+    expect(html).not.toContain('sr-only">View site Sansha');
   });
 
   it('flashes LivePrice for harvestable recipes while combat Est. ISK stays static', () => {

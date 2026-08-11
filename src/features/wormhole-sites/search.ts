@@ -1,8 +1,8 @@
 // Sites search source. Reads from a module-scoped site index that
-// AppHeaderShell (GlobalSearch) and MapChrome seed once at mount via
-// `setSiteSearchIndex()` — keeps the per-keystroke matcher synchronous
-// and zero-RPC. The server seed is `getSiteSearchIndex()` (live-priced
-// resource totals, same overlay as the site card).
+// AppHeaderShell (GlobalSearch) seeds at mount and SiteCatalogueProvider
+// mirrors for the atlas — keeps the per-keystroke matcher synchronous
+// and zero-RPC. AppHeader uses getSiteSearchIndex(); the atlas scanner
+// uses getScannerSiteIndex() for live-priced Est. ISK + recipes.
 
 import type { SearchResult, SearchSource } from '@/platform/search';
 import { fuzzyMatch, type FuzzyMatch } from '@/platform/search/match';

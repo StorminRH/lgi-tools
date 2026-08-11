@@ -1,8 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { listRegisteredSources } from '@/platform/search';
-import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
 import { MapChrome } from './MapChrome';
 
 vi.mock('@/components/composition/account/AccountMenu', () => ({
@@ -22,21 +21,6 @@ vi.mock('./MapMenu', () => ({
   MapMenu: () => createElement('div', { 'data-map-menu': '' }),
 }));
 
-const SITE_INDEX = [
-  {
-    id: 49,
-    name: 'Barren Perimeter Reservoir',
-    siteType: 'gas' as const,
-    wormholeClass: null,
-    blueLootIsk: null,
-    resourceValueIsk: 1,
-  },
-];
-
-afterEach(() => {
-  setSiteNameIndex([]);
-});
-
 describe('MapChrome', () => {
   it('registers the systems search source so atlas pickers can suggest', () => {
     // MapChrome's side-effect import is the atlas boot path for register-all;
@@ -55,7 +39,6 @@ describe('MapChrome', () => {
           portraitUrl: '/portrait.png',
           role: 'ADMIN',
         },
-        siteIndex: SITE_INDEX,
       }),
     );
 
@@ -80,7 +63,6 @@ describe('MapChrome', () => {
           portraitUrl: '/portrait.png',
           role: 'ADMIN',
         },
-        siteIndex: SITE_INDEX,
         contextualSection: createElement('div', { 'data-map-settings': '' }),
       }),
     );
@@ -91,7 +73,7 @@ describe('MapChrome', () => {
 
   it('omits only the account control when an authorized user has no active character', () => {
     const markup = renderToStaticMarkup(
-      createElement(MapChrome, { session: null, siteIndex: SITE_INDEX }),
+      createElement(MapChrome, { session: null }),
     );
 
     expect(markup).toContain('data-map-menu');

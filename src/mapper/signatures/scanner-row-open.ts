@@ -31,10 +31,13 @@ export interface ScannerRowOpenHandlers {
 /**
  * Resolves the click action for one scanner row. Catalogue-matched site rows
  * open for any viewer; connection edit and identify stay canEdit-gated.
+ * Pass a reactive `resolveSiteId` from {@link useSiteCatalogue} on the atlas
+ * so first paint matches the layout-seeded index.
  */
 export function scannerRowOpenAction(
   row: SignatureWindowRow,
   canEdit: boolean,
+  resolveSiteId: (name: string) => number | null = siteIdForSiteName,
 ): ScannerRowOpenAction {
   if (row.connection !== null) {
     return canEdit
@@ -42,7 +45,7 @@ export function scannerRowOpenAction(
       : null;
   }
   if (row.name !== null) {
-    const siteId = siteIdForSiteName(row.name);
+    const siteId = resolveSiteId(row.name);
     if (siteId !== null) {
       return {
         kind: 'site',
@@ -59,8 +62,9 @@ export function scannerRowOpenAction(
 export function scannerRowShowsOpenAffordance(
   row: SignatureWindowRow,
   canEdit: boolean,
+  resolveSiteId: (name: string) => number | null = siteIdForSiteName,
 ): boolean {
-  return scannerRowOpenAction(row, canEdit) !== null;
+  return scannerRowOpenAction(row, canEdit, resolveSiteId) !== null;
 }
 
 /**

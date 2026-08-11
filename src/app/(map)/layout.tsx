@@ -2,7 +2,8 @@ import { unstable_rethrow } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
-import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
+import { getScannerSiteIndex } from '@/features/wormhole-sites/queries';
+import { SiteCatalogueProvider } from '@/features/wormhole-sites/site-catalogue';
 import { checkAdmin, type SessionCheckResult } from '@/platform/auth/route-guards';
 import type { Session } from '@/platform/auth/types';
 import { MapTrackingMenu } from './MapTrackingMenu';
@@ -67,19 +68,18 @@ export async function MapAccessGate({
           portraitUrl: gate.session.portraitUrl,
           role: gate.session.role,
         };
-  // Same live-priced catalogue seed AppHeader uses for GlobalSearch — map
-  // routes need it for scanner site-row affordances without the site header.
-  const siteIndex = await getSiteSearchIndex();
+  // Live-priced scanner catalogue only — AppHeader/sitemap keep the lightweight
+  // getSiteSearchIndex path so price-overlay latency cannot wall those surfaces.
+  const siteIndex = await getScannerSiteIndex();
 
   return (
-    <>
+    <SiteCatalogueProvider siteIndex={siteIndex}>
       <MapChrome
         session={session}
-        siteIndex={siteIndex}
         contextualSection={<MapTrackingMenu />}
       />
       {children}
-    </>
+    </SiteCatalogueProvider>
   );
 }
 

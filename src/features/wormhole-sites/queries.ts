@@ -335,7 +335,7 @@ export async function listSiteDetails(filters: {
 
 /**
  * Compact catalogue row for global search and scanner name/ISK seeding.
- * Server-rendered once (AppHeader / MapChrome) and passed to the client so
+ * Server-rendered once (AppHeader / map layout) and passed to the client so
  * search and scanner lookups stay zero-RPC. ~69 rows; liveRecipes stay light.
  */
 export type SiteSearchEntry = {
@@ -363,12 +363,37 @@ export async function getCachedSiteCount(): Promise<number> {
 }
 
 /**
- * Lightweight catalogue for search, scanner Est. ISK, and static params.
- * Structure is deploy-static; `resourceValueIsk` is the same live-Jita overlay
- * the site card / `/sites` table use (via {@link listPricedSiteDetails}), so
- * scanner and card headline totals stay aligned.
+ * Deploy-static lightweight catalogue for AppHeader search, sitemap, and
+ * static params. Does not load NPC waves or live prices — those stay on
+ * {@link getScannerSiteIndex} / {@link listPricedSiteDetails}.
  */
 export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
+  'use cache';
+  cacheLife('max');
+  return withColdStartRetry(() =>
+    db
+      .select({
+        id: sites.id,
+        name: sites.name,
+        siteType: sites.siteType,
+        wormholeClass: sites.wormholeClass,
+        blueLootIsk: sites.blueLootIsk,
+        resourceValueIsk: sites.resourceValueIsk,
+      })
+      .from(sites)
+      .orderBy(sites.sourceTab, sites.name),
+  );
+}
+
+/**
+ * Live-priced scanner catalogue: exact name→id, headline Est. ISK, and
+ * harvestable live recipes. Isolated from {@link getSiteSearchIndex} so
+ * header/sitemap/static params are not blocked on the hourly price overlay.
+ */
+export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
+  'use cache';
+  cacheLife('hours');
+  cacheTag(PRICES_FRESHNESS_TAG);
   const priced = await listPricedSiteDetails();
   return priced.map((site) => ({
     id: site.id,

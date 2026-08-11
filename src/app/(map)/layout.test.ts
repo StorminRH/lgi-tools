@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   checkAdmin: vi.fn(),
   connection: vi.fn(),
   rethrow: vi.fn(),
-  getSiteSearchIndex: vi.fn(),
+  getScannerSiteIndex: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
@@ -26,23 +26,35 @@ vi.mock('next/server', () => ({
 }));
 
 vi.mock('@/features/wormhole-sites/queries', () => ({
-  getSiteSearchIndex: () => mocks.getSiteSearchIndex(),
+  getScannerSiteIndex: () => mocks.getScannerSiteIndex(),
+}));
+
+vi.mock('@/features/wormhole-sites/site-catalogue', () => ({
+  SiteCatalogueProvider: ({
+    siteIndex,
+    children,
+  }: {
+    siteIndex: readonly { id: number; name: string }[];
+    children: React.ReactNode;
+  }) =>
+    createElement(
+      'div',
+      { 'data-site-catalogue': '', 'data-map-site-index': String(siteIndex.length) },
+      children,
+    ),
 }));
 
 vi.mock('@/components/composition/map/MapChrome', () => ({
   MapChrome: ({
     session: value,
-    siteIndex,
     contextualSection,
   }: {
     session: unknown;
-    siteIndex: readonly { id: number; name: string }[];
     contextualSection?: React.ReactNode;
   }) =>
     createElement('div', {
       'data-map-chrome': '',
       'data-map-account-session': String(value != null),
-      'data-map-site-index': String(siteIndex.length),
       'data-map-contextual-section': String(contextualSection != null),
     }),
 }));
@@ -60,8 +72,8 @@ describe('MapAccessGate', () => {
     mocks.connection.mockReset();
     mocks.connection.mockResolvedValue(undefined);
     mocks.rethrow.mockReset();
-    mocks.getSiteSearchIndex.mockReset();
-    mocks.getSiteSearchIndex.mockResolvedValue([
+    mocks.getScannerSiteIndex.mockReset();
+    mocks.getScannerSiteIndex.mockResolvedValue([
       { id: 49, name: 'Barren Perimeter Reservoir' },
     ]);
   });
@@ -96,11 +108,12 @@ describe('MapAccessGate', () => {
       }),
     );
     expect(admin).toContain('data-map-chrome');
+    expect(admin).toContain('data-site-catalogue');
     expect(admin).toContain('data-map-site-index="1"');
     expect(admin).toContain('data-map-contextual-section="true"');
     expect(admin).toContain('data-map-canvas');
     expect(admin).not.toContain('data-map-development-wall');
-    expect(mocks.getSiteSearchIndex).toHaveBeenCalled();
+    expect(mocks.getScannerSiteIndex).toHaveBeenCalled();
 
     mocks.checkAdmin.mockResolvedValue({
       ok: true,

@@ -9,52 +9,37 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.3.3** on `lifecycle/4.0.4.3` (signature
-  viewer / site-card hosting / observation proof; plan Approved).
-- **OW progress:** `5/5 complete — awaiting close-out`.
-- **OW completed:**
-  - OW-1 Land the four 4.0.4.3.2 corrections — `linkKnowledgePatch` carries
-    lifeStage/lifeStageObservedAt (timestamped Unset both directions),
-    `MAP_SCANNER_EDITOR_CLASS` caps max-height above the narrow-stack anchor,
-    lifecycle probe re-stamps before identical re-paste, automatic-jump probe
-    asserts static-stub readouts; focused mapScan+windows + verify green
-    (`11bae01c`).
-  - OW-2 Standalone site-card presentation — `SiteCard` `presentation`
-    catalogue|standalone (no Collapsible/hover/extras on standalone; hover
-    owned by presentation not alignment); `/sites/[id]` + widget adopt it
-    with `max-w-reading` (G-1 may retune); focused SiteCard+page + verify
-    green (`b24d11e8`).
-  - OW-3 Signature viewer primitive — host `panelTarget` union
-    (connection|site); shared `ScannerAnchoredPanel` chrome; catalogue
-    `siteIdForSiteName` + seed drift test; `MapAccessGate`/`MapChrome` seed
-    the index on atlas (no AppHeader); site view not canEdit-gated;
-    focused signatures+lookup+layout + verify green (`f1411cb6`).
-  - OW-4 Observation collection proof — proof-only, no gap; SC-3/SC-4 green
-    across jump-resolver (confirmed/human/jump-verified), signature-elimination
-    (assumed + vacate), mapJump (`destinationProvenance: jump-verified`), and
-    wh-observations real-Postgres (five-column privacy, correction-in-place,
-    K162/hour-coarse checks); ranking/provenance chrome untouched; verify
-    green (`32f90c35`).
-  - OW-5 UX gate (G-1) — probes `atlas-signature-viewer` +
-    `sites-standalone-detail`; site viewer wider measure (`md:w-[22rem]`,
-    no title ×); `/sites/[id]` `max-w-[32rem]` + Suspense params; scanner
-    Est. ISK from live-priced catalogue seed; harvestable rows arm
-    `ScannerLivePrices` (`LivePrice` pending→flash) via widget seam; combat
-    stays static blue-loot. **G-1 disposition:** operator approved
-    (2026-08-11) — site viewer, standalone measure, full signature flow, and
-    scanner live Est. ISK signed off. Focused OW-5 suites + verify green
-    (`29a94d9b`).
-- **Next-agent notes:** (1) Close-out only — do not re-run OW or ux-check;
-    consume G-1 approve above. (2) Standalone detail measure is
-    `max-w-[32rem]` (card only); RelatedSites stays full width. (3) Site
-    viewer uses `MAP_SCANNER_SITE_VIEWER_CLASS` / `measure: 'site'`; editor
-    stays `md:w-72`. (4) `getSiteSearchIndex` derives from
-    `listPricedSiteDetails` (hourly) and seeds `liveRecipes` + `estIsk`.
-    (5) Scanner live prices import through `@/features/wormhole-sites/widget`
-    only. (6) Atlas seeds via MapChrome — do not assume AppHeader. (7) HC-2
-    superseded by D-B; ranking/provenance chrome stay OOS (PD-2/PD-3).
-    (8) Neon `wh_observations` writers remain jump-resolver +
-    signature-elimination only.
+- **CURRENT:** session **4.0.4.3.3** close-out on `lifecycle/4.0.4.3`
+  (per-session PR; plan `Complete`; release triplet `4.0.4.3.3`; sub-version
+  4.0.4.3 terminal).
+- **Handoff:** after this PR merges and production proof, update from
+  `origin/main`, run `python3 tools/cli.py lifecycle resolve --pretty`, and
+  return to `start-session` — expected next is plan-version / plan-session
+  for **4.0.4.4** (maps & access).
+- **G-1 disposition:** operator approved (2026-08-11) — site viewer
+  (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
+  `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off
+  before the PR opened.
+- **Durable 4.0.4.3.3 gotchas:** (1) Atlas seeds the scanner catalogue through
+  `SiteCatalogueProvider` in `MapAccessGate` via `getScannerSiteIndex`
+  (hourly priced + `liveRecipes`); AppHeader/sitemap keep lightweight
+  `getSiteSearchIndex` (`cacheLife('max')`) — do not re-couple them.
+  (2) Mapper imports scanner live prices and `useSiteCatalogue` only through
+  `@/features/wormhole-sites/widget`. (3) Site viewer uses
+  `MAP_SCANNER_SITE_VIEWER_CLASS` / `measure: 'site'` (`md:w-[22rem]`, no
+  title ×); editor stays `md:w-72`. (4) Standalone `/sites/[id]` measure is
+  `max-w-[32rem]` (card only); RelatedSites stays full width. (5) Interactive
+  scanner rows use an sr-only action prefix — never `aria-label` that would
+  hide ID / name / Est. ISK. (6) HC-2 superseded by D-B; ranking graduation
+  and provenance chrome stay OOS (PD-2/PD-3). (7) Neon `wh_observations`
+  writers remain jump-resolver + signature-elimination only. (8) Stale
+  human-retype race against elimination is an accepted known limitation —
+  next pass heals the corpus.
+- **Prior session (4.0.4.3.2, shipped in PR #380):** Signature Editor,
+  statics stubs, eliminator, assumed-tier logging (D-B), jump prompt in
+  scanner; close-out adversarial round fixed stale-link `expectedTypeCode`,
+  stub knowledge merge, statics-independent observation logging, typedSide
+  cascade endpoint, and narrow-viewport editor stack.
 - **Durable 4.0.4.3.2 gotchas:** (1) G-1 identity: authored/halo keep the
   neutral name above the disc and colored class/security inside; dock/summary
   keep one name + one colored accessory; ghosts put sig id or static code

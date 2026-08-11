@@ -18,10 +18,7 @@ import {
   scannerLiveTypeIdKey,
   scannerLiveTypeIdsForNames,
 } from '../scanner-live-isk';
-import {
-  siteEstIskForSiteName,
-  siteLiveRecipesForSiteName,
-} from '../site-name-lookup';
+import { useSiteCatalogue } from '../site-catalogue';
 
 type ScannerLiveValue = {
   readonly priceOf: (typeId: number) => RefreshedPrice | undefined;
@@ -51,9 +48,10 @@ export function ScannerLivePricesProvider({
   readonly harvestableNames: readonly string[];
   readonly children?: ReactNode;
 }) {
+  const catalogue = useSiteCatalogue();
   const typeIds = useMemo(
-    () => scannerLiveTypeIdsForNames(harvestableNames, siteLiveRecipesForSiteName),
-    [harvestableNames],
+    () => scannerLiveTypeIdsForNames(harvestableNames, catalogue.liveRecipesForName),
+    [catalogue, harvestableNames],
   );
   const typeIdKey = scannerLiveTypeIdKey(typeIds);
   return (
@@ -99,16 +97,17 @@ export function ScannerEstIskCell({
   readonly live: boolean;
 }) {
   const scannerLive = useScannerLive();
+  const catalogue = useSiteCatalogue();
   if (siteName === null) {
     return <StaticEstIsk isk={null} />;
   }
 
-  const seed = siteEstIskForSiteName(siteName);
+  const seed = catalogue.estIskForName(siteName);
   if (!live) {
     return <StaticEstIsk isk={seed} />;
   }
 
-  const recipes = siteLiveRecipesForSiteName(siteName);
+  const recipes = catalogue.liveRecipesForName(siteName);
   if (recipes.length === 0) {
     return <StaticEstIsk isk={seed} />;
   }

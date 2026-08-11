@@ -106,7 +106,8 @@ by hand where needed, and never see a refresh control.
 | 4.0.4.2.3 | Auto-mapping session 3 of 3 — fog, halo, and pilot presence (per-session PR delivery record) | §4.0.4.2 | 1 of 3 | COMPLETE |
 | 4.0.4.3.1 | Signatures session 1 of 3 — scanner parsing, lifecycle and stub nodes (per-session PR delivery record) | §4.0.4.3 | 1 of 3 | COMPLETE |
 | 4.0.4.3.2 | Signatures session 2 of 3 — statics stubs, eliminator, Signature Editor (per-session PR delivery record) | §4.0.4.3 | 1 of 3 | COMPLETE |
-| 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 3 (PR per session) | PLANNED |
+| 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 3 (PR per session) | COMPLETE |
+| 4.0.4.3.3 | Signatures session 3 of 3 — signature viewer, site-card hosting, observation proof (per-session PR delivery record) | §4.0.4.3 | 1 of 3 | COMPLETE |
 | 4.0.4.4 | Maps & access (landing, switcher, roles, archive) | §4.0.4.4 | 4 | PLANNED |
 
 *(Elective health campaign: none scheduled — the campaign queue is empty at the

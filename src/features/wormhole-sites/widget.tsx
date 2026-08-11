@@ -13,6 +13,8 @@ export {
   ScannerLivePricesProvider,
 } from './components/ScannerLivePrices';
 
+export { useSiteCatalogue } from './site-catalogue';
+
 /** Host-owned inputs for the embeddable sites card; the host supplies only identity and a box. */
 export interface SiteCardWidgetProps {
   siteId: number;
