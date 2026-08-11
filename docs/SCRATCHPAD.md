@@ -29,7 +29,7 @@
     (connection|site); shared `ScannerAnchoredPanel` chrome; catalogue
     `siteIdForSiteName` + seed drift test; `MapAccessGate`/`MapChrome` seed
     the index on atlas (no AppHeader); site view not canEdit-gated;
-    focused signatures+lookup+layout + verify green (commit SHA below).
+    focused signatures+lookup+layout + verify green (`f1411cb6`).
 - **Next-agent notes:** (1) Standalone measure is `mx-auto w-full max-w-reading`
   around the card only — RelatedSites stays full detail width; G-1 may retune
   the reading measure. (2) Atlas seeds `setSiteSearchIndex` via MapChrome —
