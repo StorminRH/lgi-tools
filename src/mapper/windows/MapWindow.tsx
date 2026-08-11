@@ -48,6 +48,11 @@ export const MAP_SCANNER_DOCK_CLASS =
 export const MAP_SCANNER_PROMPT_RAIL_CLASS =
   'pointer-events-auto absolute bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] left-4 z-sticky flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2';
 
+// Shared scanner-anchored parking (narrow-stack + md dock-right). Width is the
+// only measure fork — editor stays 18rem fields; site viewer needs ~22rem.
+const MAP_SCANNER_ANCHORED_GEOMETRY =
+  'left-4 right-4 bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-4 md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)] md:right-auto md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-2rem)]';
+
 /**
  * The Signature Editor pop-out. On viewports wide enough for the scanner dock
  * plus a 18rem panel, it parks immediately right of the dock and shares its
@@ -57,7 +62,15 @@ export const MAP_SCANNER_PROMPT_RAIL_CLASS =
  * scrolls internally. Change it with {@link MAP_SCANNER_DOCK_CLASS}.
  */
 export const MAP_SCANNER_EDITOR_CLASS =
-  'left-4 right-4 bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-4 md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)] md:right-auto md:w-72 md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-2rem)]';
+  `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-72`;
+
+/**
+ * Site-viewer pop-out: same scanner-anchored parking as the editor, but at a
+ * catalogue-card column width (~22rem) so header stats and wave rows do not
+ * wrap/clip. Geometry is shared via {@link MAP_SCANNER_ANCHORED_GEOMETRY}.
+ */
+export const MAP_SCANNER_SITE_VIEWER_CLASS =
+  `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-[22rem]`;
 
 /** Whether an adopted Base UI popup currently owns Escape. */
 export function isAdoptedPopupOpen(): boolean {
@@ -123,7 +136,9 @@ function placementClassName(
     // geometry: React Flow pans and zooms by mutating a viewport transform,
     // which fires no scroll or resize, so a floating anchor cannot track it
     // (Base UI exposes no animation-frame tracking — docs brief).
-    return MAP_SCANNER_EDITOR_CLASS;
+    return placement.measure === 'site'
+      ? MAP_SCANNER_SITE_VIEWER_CLASS
+      : MAP_SCANNER_EDITOR_CLASS;
   }
   return 'left-0 top-0 h-52 w-72 [transform:var(--map-window-transform)]';
 }

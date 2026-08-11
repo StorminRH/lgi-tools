@@ -11,7 +11,7 @@
 
 - **CURRENT:** session **4.0.4.3.3** on `lifecycle/4.0.4.3` (signature
   viewer / site-card hosting / observation proof; plan Approved).
-- **OW progress:** `4/5 complete` — next: UX gate (G-1).
+- **OW progress:** `5/5 complete — awaiting close-out`.
 - **OW completed:**
   - OW-1 Land the four 4.0.4.3.2 corrections — `linkKnowledgePatch` carries
     lifeStage/lifeStageObservedAt (timestamped Unset both directions),
@@ -35,19 +35,26 @@
     wh-observations real-Postgres (five-column privacy, correction-in-place,
     K162/hour-coarse checks); ranking/provenance chrome untouched; verify
     green (`32f90c35`).
-- **Next-agent notes:** (1) OW-5 owns ux-check over `/atlas` + `/sites/[id]`
-  and the G-1 operator pause (site viewer, standalone measure, full signature
-  flow) — do not open the PR before the disposition is recorded. (2) Standalone
-  measure is `mx-auto w-full max-w-reading` around the card only — RelatedSites
-  stays full detail width; G-1 may retune. (3) Atlas seeds `setSiteSearchIndex`
-  via MapChrome — do not assume AppHeader. (4) `defaultOpen` is gone from
-  SiteCard — catalogue always lazy-collapses. (5) lifeStage carry treats
-  “never recorded” as both fields nullish; timestamped Unset on target wins.
-  (6) Narrow-stack max-h matches the panel’s `bottom-[…]` recipe; md parks
-  with `md:max-h-[calc(100dvh-2rem)]`. (7) HC-2 superseded by D-B;
-  ranking/provenance chrome stay OOS (PD-2/PD-3). (8) Neon `wh_observations`
-  writers remain jump-resolver + signature-elimination only; Convex stamps
-  connection provenance and never inserts the corpus.
+  - OW-5 UX gate (G-1) — probes `atlas-signature-viewer` +
+    `sites-standalone-detail`; site viewer wider measure (`md:w-[22rem]`,
+    no title ×); `/sites/[id]` `max-w-[32rem]` + Suspense params; scanner
+    Est. ISK from live-priced catalogue seed; harvestable rows arm
+    `ScannerLivePrices` (`LivePrice` pending→flash) via widget seam; combat
+    stays static blue-loot. **G-1 disposition:** operator approved
+    (2026-08-11) — site viewer, standalone measure, full signature flow, and
+    scanner live Est. ISK signed off. Focused OW-5 suites + verify green
+    (SHA pending record commit).
+- **Next-agent notes:** (1) Close-out only — do not re-run OW or ux-check;
+    consume G-1 approve above. (2) Standalone detail measure is
+    `max-w-[32rem]` (card only); RelatedSites stays full width. (3) Site
+    viewer uses `MAP_SCANNER_SITE_VIEWER_CLASS` / `measure: 'site'`; editor
+    stays `md:w-72`. (4) `getSiteSearchIndex` derives from
+    `listPricedSiteDetails` (hourly) and seeds `liveRecipes` + `estIsk`.
+    (5) Scanner live prices import through `@/features/wormhole-sites/widget`
+    only. (6) Atlas seeds via MapChrome — do not assume AppHeader. (7) HC-2
+    superseded by D-B; ranking/provenance chrome stay OOS (PD-2/PD-3).
+    (8) Neon `wh_observations` writers remain jump-resolver +
+    signature-elimination only.
 - **Durable 4.0.4.3.2 gotchas:** (1) G-1 identity: authored/halo keep the
   neutral name above the disc and colored class/security inside; dock/summary
   keep one name + one colored accessory; ghosts put sig id or static code

@@ -26,6 +26,8 @@ export function ActiveSiteViewer({
       signatureId={signatureId}
       windowId="site-viewer"
       title="Site"
+      measure="site"
+      showCloseButton={false}
       onClose={onClose}
       layerProps={{ 'data-site-viewer': 'true' }}
     >

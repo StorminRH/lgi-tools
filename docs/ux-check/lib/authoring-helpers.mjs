@@ -94,6 +94,19 @@ export const signatureLifecycleRoute = () => {
   return mapId ? `/atlas?map=${mapId}` : '/atlas';
 };
 
+/**
+ * Dedicated one-shot map for the signature site-viewer UX gate (4.0.4.3.3 G-1).
+ * Disposable: seed a fresh empty map per run — the probe leaves a pasted
+ * catalogue site row and any opened viewer state behind.
+ */
+export const signatureViewerMapId = () =>
+  process.env.UX_SITE_VIEWER_MAP_ID ?? null;
+
+export const signatureViewerRoute = () => {
+  const mapId = signatureViewerMapId();
+  return mapId ? `/atlas?map=${mapId}` : '/atlas';
+};
+
 /** Wait until the chain host has answered access for an editor. */
 export async function waitForEditableMap(page, { timeout = 60_000 } = {}) {
   await page.waitForFunction(

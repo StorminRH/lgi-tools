@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   setSiteNameIndex,
+  siteEstIskForSiteName,
   siteIdForSiteName,
+  siteLiveRecipesForSiteName,
 } from './site-name-lookup';
 
 afterEach(() => {
@@ -51,6 +53,35 @@ describe('siteIdForSiteName', () => {
 
     setSiteNameIndex([]);
     expect(siteIdForSiteName('Barren Perimeter Reservoir')).toBeNull();
+  });
+
+  it('carries catalogue headline Est. ISK beside the id', () => {
+    setSiteNameIndex([
+      { id: 49, name: 'Barren Perimeter Reservoir', estIsk: 82_432_500 },
+      { id: 1, name: 'Forgotten Perimeter Coronation Platform' },
+    ]);
+    expect(siteEstIskForSiteName('Barren Perimeter Reservoir')).toBe(82_432_500);
+    expect(siteEstIskForSiteName('Forgotten Perimeter Coronation Platform')).toBeNull();
+    expect(siteEstIskForSiteName('Sansha Hideout')).toBeNull();
+  });
+
+  it('seeds live-eligible harvestable recipes beside Est. ISK', () => {
+    setSiteNameIndex([
+      {
+        id: 49,
+        name: 'Barren Perimeter Reservoir',
+        estIsk: 28_100_000,
+        liveRecipes: [{ typeId: 30370, units: 2_500, seedIsk: 28_100_000 }],
+      },
+      { id: 1, name: 'Forgotten Perimeter Coronation Platform', estIsk: 12_000_000 },
+    ]);
+    expect(siteLiveRecipesForSiteName('Barren Perimeter Reservoir')).toEqual([
+      { typeId: 30370, units: 2_500, seedIsk: 28_100_000 },
+    ]);
+    expect(siteLiveRecipesForSiteName('Forgotten Perimeter Coronation Platform')).toEqual(
+      [],
+    );
+    expect(siteLiveRecipesForSiteName('Sansha Hideout')).toEqual([]);
   });
 });
 

@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type RefObject,
@@ -21,6 +22,10 @@ import { Tabs } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/toast';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
+import {
+  ScannerEstIskCell,
+  ScannerLivePricesProvider,
+} from '@/features/wormhole-sites/widget';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
@@ -36,6 +41,7 @@ import {
   filterSignatureRows,
   formatSignatureAge,
   groupSignatureSections,
+  scannerSectionForGroup,
   scannerWormholeLifetime,
   scannerWormholeSize,
   type ScannerSection,
@@ -230,14 +236,6 @@ function AgeCell({
   );
 }
 
-function BlankIskCell() {
-  return (
-    <span data-signature-isk-placeholder className="text-right text-muted tabular-nums">
-      —
-    </span>
-  );
-}
-
 function sectionCells(
   sectionId: ScannerSectionId,
   row: SignatureWindowRow,
@@ -280,12 +278,19 @@ function sectionCells(
         </>
       );
     case 'combat':
+      return (
+        <>
+          <IdCell row={row} />
+          <NameCell row={row} />
+          <ScannerEstIskCell siteName={row.name} live={false} />
+        </>
+      );
     case 'harvestables':
       return (
         <>
           <IdCell row={row} />
           <NameCell row={row} />
-          <BlankIskCell />
+          <ScannerEstIskCell siteName={row.name} live />
         </>
       );
     case 'hacking':
@@ -745,10 +750,29 @@ function IdentifySignatureMenu({
   );
 }
 
+/** Named harvestable rows in the listed scanner system (live Est. ISK scope). */
+function harvestableNamesForScanner(
+  rows: readonly SignatureWindowRow[],
+  scannerSystemId: number | null,
+): string[] {
+  if (scannerSystemId === null) return [];
+  const names: string[] = [];
+  for (const row of rows) {
+    if (row.systemId !== scannerSystemId || row.name === null) continue;
+    if (scannerSectionForGroup(row.group) !== 'harvestables') continue;
+    names.push(row.name);
+  }
+  return names;
+}
+
 /** Permanent bottom-left scanner window composed beside the managed map stack. */
 export function SignatureWindow(props: SignatureWindowProps) {
   const rowActionFocus = useRef<HTMLElement | null>(null);
   const [rowAction, setRowAction] = useState<RowActionAnchor | null>(null);
+  const harvestableNames = useMemo(
+    () => harvestableNamesForScanner(props.rows, props.scannerSystemId),
+    [props.rows, props.scannerSystemId],
+  );
   const closeRowAction = () => setRowAction(null);
   const removeMissing = () => {
     void props.onRemoveMissing().catch(() => {
@@ -778,31 +802,33 @@ export function SignatureWindow(props: SignatureWindowProps) {
   };
 
   return (
-    <div
-      data-signature-window-layer
-      className="pointer-events-none absolute inset-0 z-sticky"
-    >
-      <div data-scanner-prompt-rail className={MAP_SCANNER_PROMPT_RAIL_CLASS}>
-        <MissingSignaturesPrompt
-          count={props.missingCount}
-          canEdit={props.canEdit}
-          onDismiss={props.onDismissMissing}
-          onRemove={removeMissing}
-        />
-        {props.canEdit && props.jumpResolution !== null ? (
-          <SignatureJumpPrompt
-            resolution={props.jumpResolution}
-            onPick={props.onPickJumpCandidate}
+    <ScannerLivePricesProvider harvestableNames={harvestableNames}>
+      <div
+        data-signature-window-layer
+        className="pointer-events-none absolute inset-0 z-sticky"
+      >
+        <div data-scanner-prompt-rail className={MAP_SCANNER_PROMPT_RAIL_CLASS}>
+          <MissingSignaturesPrompt
+            count={props.missingCount}
+            canEdit={props.canEdit}
+            onDismiss={props.onDismissMissing}
+            onRemove={removeMissing}
           />
-        ) : null}
+          {props.canEdit && props.jumpResolution !== null ? (
+            <SignatureJumpPrompt
+              resolution={props.jumpResolution}
+              onPick={props.onPickJumpCandidate}
+            />
+          ) : null}
+        </div>
+        <ScannerWindowFrame {...props} onOpenActions={openRowActions} />
+        <IdentifySignatureMenu
+          action={rowAction}
+          finalFocus={rowActionFocus}
+          onIdentify={props.onIdentify}
+          onClose={closeRowAction}
+        />
       </div>
-      <ScannerWindowFrame {...props} onOpenActions={openRowActions} />
-      <IdentifySignatureMenu
-        action={rowAction}
-        finalFocus={rowActionFocus}
-        onIdentify={props.onIdentify}
-        onClose={closeRowAction}
-      />
-    </div>
+    </ScannerLivePricesProvider>
   );
 }

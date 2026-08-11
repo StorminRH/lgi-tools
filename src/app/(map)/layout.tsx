@@ -67,8 +67,8 @@ export async function MapAccessGate({
           portraitUrl: gate.session.portraitUrl,
           role: gate.session.role,
         };
-  // Same deploy-static catalogue AppHeader seeds for GlobalSearch — map routes
-  // need it for scanner site-row affordances without mounting the site header.
+  // Same live-priced catalogue seed AppHeader uses for GlobalSearch — map
+  // routes need it for scanner site-row affordances without the site header.
   const siteIndex = await getSiteSearchIndex();
 
   return (

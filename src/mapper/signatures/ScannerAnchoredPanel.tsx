@@ -16,6 +16,7 @@ import {
   isOutsideClickGesture,
   keydownAction,
   outsideDismissAction,
+  type ScannerAnchoredMeasure,
 } from '../windows/window-model';
 import { editorLeader, type EditorLeader } from './editor-leader';
 
@@ -195,6 +196,13 @@ export interface ScannerAnchoredPanelProps {
   readonly windowId: string;
   readonly title: string;
   readonly onClose: () => void;
+  /**
+   * Panel measure: editor (compact fields) or site (catalogue-card width).
+   * Defaults to editor.
+   */
+  readonly measure?: ScannerAnchoredMeasure;
+  /** When false, omit the title-bar × (Escape / outside-click still dismiss). */
+  readonly showCloseButton?: boolean;
   /** Extra attributes on the pointer-inert layer (e.g. connection mode). */
   readonly layerProps?: Record<string, string | undefined>;
   readonly children: ReactNode;
@@ -210,6 +218,8 @@ export function ScannerAnchoredPanel({
   windowId,
   title,
   onClose,
+  measure = 'editor',
+  showCloseButton = true,
   layerProps,
   children,
 }: ScannerAnchoredPanelProps) {
@@ -230,9 +240,10 @@ export function ScannerAnchoredPanel({
         ref={panelRef}
         windowId={windowId}
         title={title}
-        placement={{ kind: 'scanner-anchored' }}
+        placement={{ kind: 'scanner-anchored', measure }}
         stackIndex={3}
         onClose={onClose}
+        showCloseButton={showCloseButton}
         onActivate={() => undefined}
       >
         {children}

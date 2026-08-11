@@ -7,18 +7,11 @@ import { formatClassRange, gasClassRange } from '../gas-classes';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
 import { displayableResources } from '../resource-display';
 import { siteClassSet } from '../site-filter';
+import { primarySiteIsk } from '../site-primary-isk';
 import type { SiteDetail } from '../types';
 import { LazySiteDetails } from './LazySiteDetails';
 import { SiteLiveProvider } from './SiteResourcesLive';
 import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
-
-function isWaveDriven(s: SiteDetail): boolean {
-  return s.siteType === 'combat' || s.siteType === 'relic' || s.siteType === 'data';
-}
-
-function primaryIskFor(s: SiteDetail): number | null {
-  return isWaveDriven(s) ? s.blueLootIsk : s.resourceValueIsk;
-}
 
 const COLUMNS: SortableColumn<SiteDetail>[] = [
   {
@@ -43,7 +36,7 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
     key: 'isk',
     label: 'ISK',
     align: 'right',
-    render: (s) => <span className="tabular-nums">{formatIskShort(primaryIskFor(s))}</span>,
+    render: (s) => <span className="tabular-nums">{formatIskShort(primarySiteIsk(s))}</span>,
   },
   {
     key: 'blueLoot',

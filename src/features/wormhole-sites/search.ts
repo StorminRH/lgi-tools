@@ -1,8 +1,8 @@
 // Sites search source. Reads from a module-scoped site index that
 // AppHeaderShell (GlobalSearch) and MapChrome seed once at mount via
 // `setSiteSearchIndex()` — keeps the per-keystroke matcher synchronous
-// and zero-RPC, while the data itself is server-rendered from
-// `getSiteSearchIndex()`.
+// and zero-RPC. The server seed is `getSiteSearchIndex()` (live-priced
+// resource totals, same overlay as the site card).
 
 import type { SearchResult, SearchSource } from '@/platform/search';
 import { fuzzyMatch, type FuzzyMatch } from '@/platform/search/match';
@@ -10,27 +10,28 @@ import { formatIskCompact } from '@/lib/format/isk';
 import type { SiteSearchEntry } from './queries';
 import { CLASS_TONE, SITE_TYPE_LABEL } from './components/wormhole-styles';
 import { setSiteNameIndex } from './site-name-lookup';
+import { primarySiteIsk } from './site-primary-isk';
 
 let SITE_INDEX: SiteSearchEntry[] = [];
 
 /** Injects the immutable wormhole-site search catalogue consumed by the registered source. */
 export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
-  // Exact name→id for scanner site-row affordances shares this seed.
-  setSiteNameIndex(entries);
+  // Exact name→id (+ Est. ISK + live recipes) for scanner site rows shares this seed.
+  setSiteNameIndex(
+    entries.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      estIsk: primarySiteIsk(entry),
+      liveRecipes: entry.liveRecipes ?? [],
+    })),
+  );
 }
 
 // The result-icon badge colour, as an abstract tone (the render layer maps it to
 // tokens). The wormhole-class → tone knowledge stays here in the sites feature.
 function iconTone(entry: SiteSearchEntry): string {
   return entry.wormholeClass ? CLASS_TONE[entry.wormholeClass] : 'neutral';
-}
-
-function primaryIsk(entry: SiteSearchEntry): number | null {
-  if (entry.siteType === 'combat' || entry.siteType === 'relic' || entry.siteType === 'data') {
-    return entry.blueLootIsk;
-  }
-  return entry.resourceValueIsk;
 }
 
 const CLASS_ORDER: Record<string, number> = {
@@ -60,14 +61,14 @@ export const sitesSearchSource: SearchSource = {
       const ca = a.entry.wormholeClass ? CLASS_ORDER[a.entry.wormholeClass] ?? 9 : 9;
       const cb = b.entry.wormholeClass ? CLASS_ORDER[b.entry.wormholeClass] ?? 9 : 9;
       if (ca !== cb) return ca - cb;
-      return (primaryIsk(b.entry) ?? 0) - (primaryIsk(a.entry) ?? 0);
+      return (primarySiteIsk(b.entry) ?? 0) - (primarySiteIsk(a.entry) ?? 0);
     });
 
     return matches.map<SearchResult>(({ entry, match }) => ({
       kind: 'site',
       id: `site:${entry.id}`,
       label: entry.name,
-      sub: `${SITE_TYPE_LABEL[entry.siteType]} · ${formatIskCompact(primaryIsk(entry))}`,
+      sub: `${SITE_TYPE_LABEL[entry.siteType]} · ${formatIskCompact(primarySiteIsk(entry))}`,
       href: `/sites/${entry.id}`,
       iconText: entry.wormholeClass ?? '—',
       iconTone: iconTone(entry),

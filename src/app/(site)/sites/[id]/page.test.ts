@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import SiteDetailPage from './page';
+import SiteDetailPage, { SiteDetailContent } from './page';
 
 const mocks = vi.hoisted(() => ({
   getPricedSiteDetail: vi.fn(),
@@ -95,14 +95,27 @@ describe('SiteDetailPage', () => {
     mocks.selectRelatedSites.mockReturnValue([]);
   });
 
-  it('hosts the standalone card inside the reading measure', async () => {
-    const tree = await SiteDetailPage({
+  it('keeps params under Suspense for Instant navigations', () => {
+    const tree = SiteDetailPage({
+      params: Promise.resolve({ id: '1' }),
+      searchParams: Promise.resolve({}),
+    });
+    const html = renderToStaticMarkup(tree);
+    // Sync shell only — params-bound content streams inside Suspense.
+    expect(html).toContain('Loading site');
+    expect(html).toContain('max-w-[32rem]');
+    expect(mocks.getPricedSiteDetail).not.toHaveBeenCalled();
+  });
+
+  it('hosts the standalone card inside the G-1 detail measure', async () => {
+    const tree = await SiteDetailContent({
       params: Promise.resolve({ id: '1' }),
       searchParams: Promise.resolve({}),
     });
     const html = renderToStaticMarkup(tree);
 
-    expect(html).toContain('max-w-reading');
+    expect(html).toContain('max-w-[32rem]');
+    expect(html).not.toContain('max-w-reading');
     expect(html).toContain('data-presentation="standalone"');
     expect(html).toContain('Forgotten Perimeter Coronation Platform');
     expect(html).toContain('data-related-sites');

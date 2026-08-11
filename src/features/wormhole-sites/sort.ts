@@ -1,4 +1,5 @@
 import { gasClassRange } from './gas-classes';
+import { primarySiteIsk } from './site-primary-isk';
 import type { SiteDetail, WormholeClass } from './types';
 
 /**
@@ -59,8 +60,7 @@ export function defaultDirFor(key: SortableKey): SortDir {
 }
 
 function siteIskValue(s: SiteDetail): number | null {
-  const isWaveDriven = s.siteType === 'combat' || s.siteType === 'relic' || s.siteType === 'data';
-  return isWaveDriven ? s.blueLootIsk : s.resourceValueIsk;
+  return primarySiteIsk(s);
 }
 
 /**

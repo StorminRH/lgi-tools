@@ -7,6 +7,14 @@ import { SignatureWindow } from './SignatureWindow';
 import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';
 
+vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
+  useRefreshOnView: () => ({
+    prices: new Map(),
+    isPending: () => false,
+    refreshing: false,
+  }),
+}));
+
 afterEach(() => {
   setSiteNameIndex([]);
 });
@@ -224,7 +232,8 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('≤ ');
     expect(html).not.toContain('Less than 4 hours');
     expect(html).toContain('data-signature-row-open');
-    expect(html).toContain('data-signature-isk-placeholder');
+    // Unmatched combat/harvestable names stay as the empty Est. ISK dash.
+    expect(html).toContain('data-signature-isk="empty"');
     expect(html).toContain('data-signature-signal-fill');
     expect(html).toContain('scroll-area');
     expect(html).not.toContain('>Group<');
@@ -299,7 +308,10 @@ describe('SignatureWindow component prompt and filter states', () => {
   });
 
   it('gives catalogue-matched site rows the open affordance for read-only viewers', () => {
-    setSiteNameIndex([{ id: 49, name: 'Barren Perimeter Reservoir' }]);
+    setSiteNameIndex([
+      // Live-priced total (not the historical sheet 82.4M).
+      { id: 49, name: 'Barren Perimeter Reservoir', estIsk: 28_100_000 },
+    ]);
     const html = renderToStaticMarkup(
       createElement(SignatureWindow, {
         scannerSystemId: 1,
@@ -322,7 +334,27 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('aria-label="View site Barren Perimeter Reservoir"');
     expect(html).toContain('data-signature-id="GAS-001"');
     expect(html).toContain('data-signature-row-open');
+    expect(html).toContain('data-signature-isk="value"');
+    expect(html).toContain('28.1M');
     expect(html).not.toContain('aria-label="Edit wormhole WHL-001"');
     expect(html).not.toContain('aria-label="View site Sansha Hideout"');
+  });
+
+  it('flashes LivePrice for harvestable recipes while combat Est. ISK stays static', () => {
+    setSiteNameIndex([
+      {
+        id: 49,
+        name: 'Barren Perimeter Reservoir',
+        estIsk: 28_100_000,
+        liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
+      },
+      { id: 1, name: 'Sansha Hideout', estIsk: 12_000_000 },
+    ]);
+    const html = render(1, new Set());
+    expect(html).toContain('data-price-state="settled"');
+    expect(html).toContain('28.1M');
+    expect(html).toContain('12.0M');
+    // Combat headline is a plain span — only the harvestable cell uses LivePrice.
+    expect(html.match(/data-price-state="/g)?.length).toBe(1);
   });
 });
