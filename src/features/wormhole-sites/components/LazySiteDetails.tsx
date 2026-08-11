@@ -15,9 +15,10 @@ import { SiteDetailsBody } from './SiteDetailsBody';
  *
  * Once opened it stays mounted (re-open is instant; live-price state persists).
  * `flushSync` on the toggle renders the body before the browser paints the open
- * state, so there's no empty-then-pop flash. The `<SiteCard defaultOpen>` path
- * (the /sites/[id] detail page) renders `SiteDetailsBody` directly server-side
- * instead — keeping that page's NPC content in the initial HTML for SEO.
+ * state, so there's no empty-then-pop flash. The standalone `SiteCard`
+ * presentation (the /sites/[id] detail page and embeds) renders
+ * `SiteDetailsBody` directly server-side instead — keeping that page's NPC
+ * content in the initial HTML for SEO.
  *
  * The wrapper is `display:contents` so the body lays out exactly as it did when
  * it was a direct child of `<details>` (card) or `.sites-table-expanded` (table).

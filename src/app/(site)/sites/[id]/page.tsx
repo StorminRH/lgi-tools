@@ -167,7 +167,10 @@ export default async function SiteDetailPage({
           <SiteDeepLinkMeta source={site.sourceTab} searchParams={searchParams} />
         </Suspense>
         <div className="w-full">
-          <SiteCard site={site} defaultOpen />
+          {/* Standalone measure starts at the house reading width; G-1 may retune. */}
+          <div className="mx-auto w-full max-w-reading">
+            <SiteCard site={site} presentation="standalone" />
+          </div>
           <RelatedSites sites={relatedSites} />
         </div>
       </div>

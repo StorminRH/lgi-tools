@@ -56,7 +56,7 @@ function WidgetContent({ state }: { state: WidgetState }) {
     <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:auto]">
       <SiteCard
         site={state.site}
-        defaultOpen
+        presentation="standalone"
         contentAlign="center"
         className="border-0 bg-transparent shadow-none"
       />
