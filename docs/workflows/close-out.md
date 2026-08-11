@@ -48,7 +48,7 @@ only phases invalidated by a later change.
 1. Fix in-scope session problems on the branch. Prefer absorb here; defer only
    on explicit operator scope cut by opening a GitHub Issue titled
    `[Backlog] <short what>` with body fields *what / why-deferred / size /
-   trigger* (do not append to the frozen `docs/backlog.md`).
+   trigger* (do not append to `docs/backlog.md` — that file is only an index).
 2. Judgment review (record not-touched when irrelevant):
    - **Scope** — remove unneeded work. `adversarial-review` owns depth /
      duplication / amplification — do not repeat those audits here.
