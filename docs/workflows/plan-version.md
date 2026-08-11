@@ -8,8 +8,8 @@ headings are provisional until this procedure completes.
 ## Execution contract
 
 Inputs: a `plan-version` resolver directive, active master plan, live repository,
-current baseline and state, relevant open `[Backlog]` GitHub Issues (see
-`docs/backlog.md` for the migrated index), and artifact schemas.
+current baseline and state, relevant open `[Backlog]` GitHub Issues, and
+artifact schemas.
 
 Output: an operator-approved roadmap topology followed by one schema-complete
 contract and index entry per approved frontier-agent execution bundle. Do not

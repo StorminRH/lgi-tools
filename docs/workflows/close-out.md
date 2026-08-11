@@ -48,7 +48,7 @@ only phases invalidated by a later change.
 1. Fix in-scope session problems on the branch. Prefer absorb here; defer only
    on explicit operator scope cut by opening a GitHub Issue titled
    `[Backlog] <short what>` with body fields *what / why-deferred / size /
-   trigger* (do not append to `docs/backlog.md` — that file is only an index).
+   trigger*.
 2. Judgment review (record not-touched when irrelevant):
    - **Scope** — remove unneeded work. `adversarial-review` owns depth /
      duplication / amplification — do not repeat those audits here.
@@ -124,7 +124,7 @@ PR open when the head is unchanged.
    command or suite name is not proof. Missing observable → `BLOCKED`.
    Never return this session to `plan-session`.
 2. Reconcile `docs/SCRATCHPAD.md` (durable gotchas only; collapse OW rows).
-   Operator-cut scope is a GitHub Issue (`[Backlog] …`), not `docs/backlog.md`.
+   Operator-cut scope is a GitHub Issue (`[Backlog] …`).
 3. Cheap checks that can still edit: agent policy + `python3 tools/cli.py test`
    after guide/skill/hook/policy changes; doc refs; pending-changelog checker;
    baseline-claims / watch-trigger reporters; plan-named checkers.

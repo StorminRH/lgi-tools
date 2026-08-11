@@ -246,7 +246,6 @@ class DocRefsTests(unittest.TestCase):
             "version-audits/3.10/PLAN.md",
             "SCRATCHPAD.md",
             "VERSION_3_10_PLAN.md",
-            "backlog.md",
             "CODE_HEALTH_BASELINE.md",
         )
         for source in record_sources:
@@ -272,14 +271,14 @@ class DocRefsTests(unittest.TestCase):
 
     def test_record_source_relative_reference_still_warns(self) -> None:
         self.fixture.write(
-            "backlog.md",
+            "SCRATCHPAD.md",
             "Future archive: ../LGI Tools Document Archive/missing.\n",
         )
         self.assertEqual(
             [
                 (
                     "warn",
-                    "docs/backlog.md:1: archive reference does not resolve: "
+                    "docs/SCRATCHPAD.md:1: archive reference does not resolve: "
                     "../LGI Tools Document Archive/missing",
                 )
             ],
