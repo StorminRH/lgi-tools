@@ -23,7 +23,7 @@
     catalogue|standalone (no Collapsible/hover/extras on standalone; hover
     owned by presentation not alignment); `/sites/[id]` + widget adopt it
     with `max-w-reading` (G-1 may retune); focused SiteCard+page + verify
-    green.
+    green (`b24d11e8`).
 - **Next-agent notes:** (1) Standalone measure is `mx-auto w-full max-w-reading`
   around the card only — RelatedSites stays full detail width; G-1 may retune
   the reading measure. (2) Widget already presents standalone; OW-3 hosts it
