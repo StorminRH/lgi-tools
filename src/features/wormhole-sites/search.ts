@@ -1,19 +1,23 @@
 // Sites search source. Reads from a module-scoped site index that
-// AppHeaderShell seeds once at mount via `setSiteSearchIndex()` — keeps
-// the per-keystroke matcher synchronous and zero-RPC, while the data
-// itself is server-rendered from `getSiteSearchIndex()`.
+// AppHeaderShell (GlobalSearch) and MapChrome seed once at mount via
+// `setSiteSearchIndex()` — keeps the per-keystroke matcher synchronous
+// and zero-RPC, while the data itself is server-rendered from
+// `getSiteSearchIndex()`.
 
 import type { SearchResult, SearchSource } from '@/platform/search';
 import { fuzzyMatch, type FuzzyMatch } from '@/platform/search/match';
 import { formatIskCompact } from '@/lib/format/isk';
 import type { SiteSearchEntry } from './queries';
 import { CLASS_TONE, SITE_TYPE_LABEL } from './components/wormhole-styles';
+import { setSiteNameIndex } from './site-name-lookup';
 
 let SITE_INDEX: SiteSearchEntry[] = [];
 
 /** Injects the immutable wormhole-site search catalogue consumed by the registered source. */
 export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
+  // Exact name→id for scanner site-row affordances shares this seed.
+  setSiteNameIndex(entries);
 }
 
 // The result-icon badge colour, as an abstract tone (the render layer maps it to

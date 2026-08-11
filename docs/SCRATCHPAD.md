@@ -11,7 +11,8 @@
 
 - **CURRENT:** session **4.0.4.3.3** on `lifecycle/4.0.4.3` (signature
   viewer / site-card hosting / observation proof; plan Approved).
-- **OW progress:** `2/5 complete` — next: The signature viewer primitive.
+- **OW progress:** `3/5 complete` — next: Prove the observation collection
+  end-to-end.
 - **OW completed:**
   - OW-1 Land the four 4.0.4.3.2 corrections — `linkKnowledgePatch` carries
     lifeStage/lifeStageObservedAt (timestamped Unset both directions),
@@ -24,15 +25,22 @@
     owned by presentation not alignment); `/sites/[id]` + widget adopt it
     with `max-w-reading` (G-1 may retune); focused SiteCard+page + verify
     green (`b24d11e8`).
+  - OW-3 Signature viewer primitive — host `panelTarget` union
+    (connection|site); shared `ScannerAnchoredPanel` chrome; catalogue
+    `siteIdForSiteName` + seed drift test; `MapAccessGate`/`MapChrome` seed
+    the index on atlas (no AppHeader); site view not canEdit-gated;
+    focused signatures+lookup+layout + verify green (commit SHA below).
 - **Next-agent notes:** (1) Standalone measure is `mx-auto w-full max-w-reading`
   around the card only — RelatedSites stays full detail width; G-1 may retune
-  the reading measure. (2) Widget already presents standalone; OW-3 hosts it
-  in the scanner panel (name→siteId lookup + connection-or-site target).
+  the reading measure. (2) Atlas seeds `setSiteSearchIndex` via MapChrome —
+  do not assume AppHeader; name lookup and Sites search share that seed.
   (3) `defaultOpen` is gone from SiteCard — catalogue always lazy-collapses.
   (4) lifeStage carry treats “never recorded” as both fields nullish;
   timestamped Unset on target wins. (5) Narrow-stack max-h matches the panel’s
   `bottom-[…]` recipe; md parks with `md:max-h-[calc(100dvh-2rem)]`.
   (6) HC-2 superseded by D-B; ranking/provenance chrome stay OOS (PD-2/PD-3).
+  (7) OW-4 is proof-only unless a gap is exposed — do not change ranking or
+  add provenance UI.
 - **Durable 4.0.4.3.2 gotchas:** (1) G-1 identity: authored/halo keep the
   neutral name above the disc and colored class/security inside; dock/summary
   keep one name + one colored accessory; ghosts put sig id or static code

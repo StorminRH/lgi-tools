@@ -43,6 +43,11 @@ import {
   type SignatureWindowRow,
 } from './signature-model';
 import type { OpenSignatureEditor } from './signature-context';
+import {
+  applyScannerRowOpenAction,
+  scannerRowOpenAction,
+  scannerRowShowsOpenAffordance,
+} from './scanner-row-open';
 
 /** One unresolved row's pending group-identification menu. */
 interface RowActionAnchor {
@@ -86,11 +91,6 @@ interface SignatureRowProps {
   readonly onOpenActions: OpenRowActions;
 }
 
-function rowIsEditable(row: SignatureWindowRow, canEdit: boolean): boolean {
-  if (!canEdit) return false;
-  return row.connection !== null || row.group === null;
-}
-
 function missingDataAttribute(missing: boolean): true | undefined {
   return missing ? true : undefined;
 }
@@ -103,10 +103,18 @@ function signatureName(row: SignatureWindowRow): string {
   return row.name ?? 'Unresolved';
 }
 
-function rowActionLabel(row: SignatureWindowRow): string {
-  return row.connection === null
-    ? `Identify signature ${row.signatureId}`
-    : `Edit wormhole ${row.signatureId}`;
+function rowActionLabel(
+  row: SignatureWindowRow,
+  canEdit: boolean,
+): string {
+  const action = scannerRowOpenAction(row, canEdit);
+  if (action?.kind === 'connection') {
+    return `Edit wormhole ${row.signatureId}`;
+  }
+  if (action?.kind === 'site') {
+    return `View site ${row.name ?? row.signatureId}`;
+  }
+  return `Identify signature ${row.signatureId}`;
 }
 
 const SECTION_COLUMNS: Readonly<Record<ScannerSectionId, string>> = {
@@ -123,13 +131,15 @@ const ANOMALY_COLUMNS =
 
 function SignatureRowContent({
   row,
-  editable,
+  interactive,
+  canEdit,
   onOpenActions,
   columnsClassName,
   children,
 }: {
   readonly row: SignatureWindowRow;
-  readonly editable: boolean;
+  readonly interactive: boolean;
+  readonly canEdit: boolean;
   readonly onOpenActions: OpenRowActions;
   readonly columnsClassName: string;
   readonly children: ReactNode;
@@ -138,14 +148,15 @@ function SignatureRowContent({
     'relative z-base min-h-7 w-full flex-1 text-left',
     columnsClassName,
   );
-  if (!editable) return <div className={className}>{children}</div>;
+  if (!interactive) return <div className={className}>{children}</div>;
   return (
-    // Left-click only (ruling D-F): a wormhole row opens the Signature Editor
-    // and an unresolved row opens the identification menu. The duplicate
-    // right-click path is retired — the canvas owns right-click now.
+    // Left-click only (ruling D-F): a wormhole row opens the Signature Editor,
+    // a catalogue-matched site opens the site viewer, and an unresolved row
+    // opens the identification menu. The duplicate right-click path is
+    // retired — the canvas owns right-click now.
     <Button
       variant="bare"
-      aria-label={rowActionLabel(row)}
+      aria-label={rowActionLabel(row, canEdit)}
       className={className}
       onClick={(event) => openRowActionsAtStart(event.currentTarget, onOpenActions)}
     >
@@ -163,7 +174,7 @@ function SignatureRow({
   showOpenAffordance,
   onOpenActions,
 }: SignatureRowProps) {
-  const editable = rowIsEditable(row, canEdit);
+  const interactive = showOpenAffordance;
   return (
     <li
       data-signature-row
@@ -177,7 +188,8 @@ function SignatureRow({
       <SignalFill signalPct={row.signalPct} />
       <SignatureRowContent
         row={row}
-        editable={editable}
+        interactive={interactive}
+        canEdit={canEdit}
         onOpenActions={onOpenActions}
         columnsClassName={columnsClassName}
       >
@@ -391,7 +403,10 @@ function ScannerSectionBlock({
                   canEdit={canEdit}
                   columnsClassName={columnsClassName}
                   cells={sectionCells(section.id, row, now, entry)}
-                  showOpenAffordance={rowIsEditable(row, canEdit)}
+                  showOpenAffordance={scannerRowShowsOpenAffordance(
+                    row,
+                    canEdit,
+                  )}
                   onOpenActions={(trigger, clientX, clientY) =>
                     onOpenActions(row, trigger, clientX, clientY)
                   }
@@ -504,7 +519,10 @@ function AnomalyTable({
                   <AgeCell row={row} now={now} />
                 </>
               }
-              showOpenAffordance={rowIsEditable(row, canEdit)}
+              showOpenAffordance={scannerRowShowsOpenAffordance(
+                row,
+                canEdit,
+              )}
               onOpenActions={(trigger, clientX, clientY) =>
                 onOpenActions(row, trigger, clientX, clientY)
               }
@@ -538,6 +556,8 @@ interface SignatureWindowProps {
   ) => Promise<void>;
   /** Opens the map's one Signature Editor on a wormhole row's connection. */
   readonly onOpenEditor: OpenSignatureEditor;
+  /** Opens the read-only site viewer for a catalogue-matched site row. */
+  readonly onOpenSite: (siteId: number, signatureId: string) => void;
 }
 
 interface ScannerWindowFrameProps
@@ -743,14 +763,18 @@ export function SignatureWindow(props: SignatureWindowProps) {
     clientX: number,
     clientY: number,
   ) => {
-    // A migrated wormhole row goes straight to the one editor; an unresolved
-    // row still picks its group from the pointer menu first (ruling D-F).
-    if (row.connection !== null) {
-      props.onOpenEditor(row.connection.connectionId);
-      return;
-    }
-    rowActionFocus.current = trigger;
-    setRowAction({ row, clientX, clientY });
+    applyScannerRowOpenAction(
+      scannerRowOpenAction(row, props.canEdit),
+      {
+        openEditor: props.onOpenEditor,
+        openSite: props.onOpenSite,
+        openIdentify: (identifyRow, identifyTrigger, x, y) => {
+          rowActionFocus.current = identifyTrigger;
+          setRowAction({ row: identifyRow, clientX: x, clientY: y });
+        },
+      },
+      { row, trigger, clientX, clientY },
+    );
   };
 
   return (

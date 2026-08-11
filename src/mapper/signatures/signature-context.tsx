@@ -20,8 +20,24 @@ export function useSignatureCounts(systemId: number): SignatureCounts {
 }
 
 /**
+ * The scanner panel's single open target: a connection edit or a read-only
+ * site view.
+ */
+export type ScannerPanelTarget =
+  | {
+      readonly kind: 'connection';
+      readonly connectionId: Id<'mapConnections'>;
+    }
+  | {
+      readonly kind: 'site';
+      readonly siteId: number;
+      readonly signatureId: string;
+    }
+  | null;
+
+/**
  * Opens the map's one Signature Editor on a connection (ruling D-F). The chain
- * host owns which connection is open, so the scanner row and the canvas edge
+ * host owns which panel target is open, so the scanner row and the canvas edge
  * menu reach the same pop-out instead of growing a second editing surface.
  */
 export type OpenSignatureEditor = (

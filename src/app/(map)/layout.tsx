@@ -2,6 +2,7 @@ import { unstable_rethrow } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
+import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 import { checkAdmin, type SessionCheckResult } from '@/platform/auth/route-guards';
 import type { Session } from '@/platform/auth/types';
 import { MapTrackingMenu } from './MapTrackingMenu';
@@ -66,10 +67,17 @@ export async function MapAccessGate({
           portraitUrl: gate.session.portraitUrl,
           role: gate.session.role,
         };
+  // Same deploy-static catalogue AppHeader seeds for GlobalSearch — map routes
+  // need it for scanner site-row affordances without mounting the site header.
+  const siteIndex = await getSiteSearchIndex();
 
   return (
     <>
-      <MapChrome session={session} contextualSection={<MapTrackingMenu />} />
+      <MapChrome
+        session={session}
+        siteIndex={siteIndex}
+        contextualSection={<MapTrackingMenu />}
+      />
       {children}
     </>
   );

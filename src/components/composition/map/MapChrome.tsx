@@ -1,8 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { AccountMenu } from '@/components/composition/account/AccountMenu';
 import { FeedbackButton } from '@/components/composition/FeedbackButton';
+import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
+import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { Session } from '@/platform/auth/types';
 import { MapMenu } from './MapMenu';
 
@@ -19,11 +21,20 @@ import '@/composition/search/register-all';
  */
 export function MapChrome({
   session,
+  siteIndex,
   contextualSection,
 }: {
   session: Session | null;
+  /** Deploy-static sites catalogue — seeds scanner name→id and Sites search. */
+  siteIndex: readonly SiteSearchEntry[];
   contextualSection?: ReactNode;
 }) {
+  // Map routes never mount AppHeaderShell/GlobalSearch; seed the same module
+  // index here so catalogue-matched scanner rows get site-viewer affordances.
+  useEffect(() => {
+    setSiteSearchIndex([...siteIndex]);
+  }, [siteIndex]);
+
   return (
     <div
       data-map-chrome

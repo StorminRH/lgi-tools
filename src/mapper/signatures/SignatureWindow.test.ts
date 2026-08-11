@@ -1,10 +1,15 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
 import { SignatureWindow } from './SignatureWindow';
 import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';
+
+afterEach(() => {
+  setSiteNameIndex([]);
+});
 
 vi.mock('@/components/ui/tabs', () => ({
   Tabs: (props: {
@@ -176,6 +181,7 @@ function render(
       onPickJumpCandidate: vi.fn(),
       onIdentify: vi.fn(async () => undefined),
       onOpenEditor: vi.fn(),
+      onOpenSite: vi.fn(),
     }),
   );
 }
@@ -290,5 +296,33 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-map-window="signatures"');
     expect(html).not.toContain('data-signature-id="ABC-123"');
     expect(html).not.toContain('data-scanner-section=');
+  });
+
+  it('gives catalogue-matched site rows the open affordance for read-only viewers', () => {
+    setSiteNameIndex([{ id: 49, name: 'Barren Perimeter Reservoir' }]);
+    const html = renderToStaticMarkup(
+      createElement(SignatureWindow, {
+        scannerSystemId: 1,
+        rows: ROWS,
+        missingIds: new Set<string>(),
+        missingCount: 0,
+        canEdit: false,
+        complete: true,
+        now: 60_000,
+        onDismissMissing: vi.fn(),
+        onRemoveMissing: vi.fn(async () => undefined),
+        jumpResolution: null,
+        onPickJumpCandidate: vi.fn(),
+        onIdentify: vi.fn(async () => undefined),
+        onOpenEditor: vi.fn(),
+        onOpenSite: vi.fn(),
+      }),
+    );
+    // Gas site matches the catalogue; combat/k-space names and wormholes stay inert.
+    expect(html).toContain('aria-label="View site Barren Perimeter Reservoir"');
+    expect(html).toContain('data-signature-id="GAS-001"');
+    expect(html).toContain('data-signature-row-open');
+    expect(html).not.toContain('aria-label="Edit wormhole WHL-001"');
+    expect(html).not.toContain('aria-label="View site Sansha Hideout"');
   });
 });
