@@ -88,10 +88,11 @@ Require a green Gate result packet for every command. Failures return
 `BLOCKED`; diagnose and fix here, re-run `gate-runner`, and do not hand off
 while red. Do not launch `adversarial-review` here — that belongs to close-out.
 
-On green gates, launch a fresh `primitive-checker` against this step's
-working-tree diff and named surfaces. On `FINDINGS`, fix, re-prove, re-run
-`gate-runner`, and re-launch `primitive-checker` — do not hand off while dirty.
-On `CLEAN` (or every accepted finding corrected and re-reviewed clean), update
+On green gates, launch a fresh `primitive-checker` and a fresh
+`holistic-reviewer` in parallel against this step's working-tree diff and named
+surfaces. On `FINDINGS` from either seat, fix, re-prove, re-run `gate-runner`,
+and re-launch both reviewers — do not hand off while dirty. On `CLEAN` from
+both (or every accepted finding corrected and re-reviewed clean), update
 `docs/SCRATCHPAD.md` **Now** with:
 
 - **OW progress:** `k/n complete` — next step title, or `n/n complete —
@@ -117,7 +118,7 @@ Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 SCRATCHPAD: docs/SCRATCHPAD.md (OW progress + next-agent notes).
 Completed OW 1..<k> (commit <sha>). Next: Ordered work step <k+1> — <title from plan>.
-Do not replan; do not close-out; execute only that step, then gate-runner + primitive-checker + commit + handoff.
+Do not replan; do not close-out; execute only that step, then gate-runner + primitive-checker + holistic-reviewer + commit + handoff.
 ```
 
 When this was the last Ordered work step:

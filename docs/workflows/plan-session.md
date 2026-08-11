@@ -62,8 +62,9 @@ and present a complete schema plan for approval.
    opening inside Ordered work — those belong under End of session Delivery.
    When `UX gate` is Yes, size a dedicated UX Ordered work step that invokes
    `ux-check` and completes the operator pause; never nest that gate under
-   close-out Delivery. Per-step commit after green gates and `primitive-checker` is
-   part of Ordered work under `start-session`, not End of session Delivery.
+   close-out Delivery. Per-step commit after green gates, `primitive-checker`, and
+   `holistic-reviewer` is part of Ordered work under `start-session`, not End of
+   session Delivery.
 3. Resolve every contract planning decision (`PD-N` and consequential choices)
    during this walk. Do not escalate ordinary local implementation details;
    surface choices that change behavior, ownership, risk, or scope. For every

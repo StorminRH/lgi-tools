@@ -198,6 +198,7 @@
         "gate-runner",
         "Do not launch `adversarial-review` here",
         "primitive-checker",
+        "holistic-reviewer",
         "commit the verified OW scope",
         "Stop and resume"
       ]
