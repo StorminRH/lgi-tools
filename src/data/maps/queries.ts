@@ -37,6 +37,24 @@ export interface CreateMapGrant {
   readonly role: Extract<MapRole, 'viewer' | 'editor'>;
 }
 
+/** One exact durable grant change before the full access projection reconverges. */
+export type MapGrantChange =
+  | {
+      readonly operation: 'upsert';
+      readonly grant: {
+        readonly ownerType: MapAccessOwnerType;
+        readonly ownerId: number;
+        readonly role: MapRole;
+      };
+    }
+  | {
+      readonly operation: 'revoke';
+      readonly principal: {
+        readonly ownerType: MapAccessOwnerType;
+        readonly ownerId: number;
+      };
+    };
+
 /** How the current viewer reaches one authorized map. */
 export type MapAuthorizationProvenance =
   | { readonly kind: 'created' }
@@ -382,6 +400,118 @@ export async function getMapGrants(
     })
     .from(mapAccess)
     .where(eq(mapAccess.mapId, mapId));
+}
+
+function authorizationRows(result: Awaited<ReturnType<AnyPgDb['execute']>>) {
+  return Array.isArray(result) ? result : result.rows;
+}
+
+type MapGrantUpsert = Extract<MapGrantChange, { readonly operation: 'upsert' }>;
+type MapGrantRevoke = Extract<MapGrantChange, { readonly operation: 'revoke' }>;
+
+function activeMapAdminSelection(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+) {
+  const characterIds = JSON.stringify(principals.characterIds);
+  const corporationIds = JSON.stringify(principals.corporationIds);
+  return sql`
+    SELECT ${maps.id}
+    FROM ${maps}
+    WHERE ${maps.id} = ${mapId}
+      AND ${maps.archivedAt} IS NULL
+      AND ${maps.tombstonedAt} IS NULL
+      AND (
+        ${maps.userId} = ${userId}
+        OR EXISTS (
+          SELECT 1
+          FROM ${mapAccess} AS authority
+          WHERE authority.map_id = ${maps.id}
+            AND authority.role = 'admin'::"public"."map_role"
+            AND (
+              (
+                authority.owner_type = 'character'::"public"."map_access_owner_type"
+                AND authority.owner_id IN (
+                  SELECT value::bigint
+                  FROM jsonb_array_elements_text(${characterIds}::jsonb)
+                )
+              )
+              OR (
+                authority.owner_type = 'corporation'::"public"."map_access_owner_type"
+                AND authority.owner_id IN (
+                  SELECT value::bigint
+                  FROM jsonb_array_elements_text(${corporationIds}::jsonb)
+                )
+              )
+            )
+        )
+      )
+  `;
+}
+
+async function applyAuthorizedMapGrantUpsert(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  change: MapGrantUpsert,
+  database: AnyPgDb,
+): Promise<boolean> {
+  const result = await database.execute<{ authorized: boolean }>(sql`
+      WITH authorized_map AS (
+        ${activeMapAdminSelection(userId, principals, mapId)}
+      ), changed AS (
+        INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
+        SELECT
+          authorized_map.id,
+          ${change.grant.ownerType}::"public"."map_access_owner_type",
+          ${change.grant.ownerId},
+          ${change.grant.role}::"public"."map_role"
+        FROM authorized_map
+        ON CONFLICT (map_id, owner_type, owner_id)
+        DO UPDATE SET role = EXCLUDED.role
+      )
+      SELECT EXISTS (SELECT 1 FROM authorized_map) AS authorized
+    `);
+  return authorizationRows(result)[0]?.authorized === true;
+}
+
+async function applyAuthorizedMapGrantRevoke(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  change: MapGrantRevoke,
+  database: AnyPgDb,
+): Promise<boolean> {
+  const result = await database.execute<{ authorized: boolean }>(sql`
+    WITH authorized_map AS (
+      ${activeMapAdminSelection(userId, principals, mapId)}
+    ), changed AS (
+      DELETE FROM ${mapAccess}
+      WHERE ${mapAccess.mapId} IN (SELECT id FROM authorized_map)
+        AND ${mapAccess.ownerType} = ${change.principal.ownerType}
+        AND ${mapAccess.ownerId} = ${change.principal.ownerId}
+    )
+    SELECT EXISTS (SELECT 1 FROM authorized_map) AS authorized
+  `);
+  return authorizationRows(result)[0]?.authorized === true;
+}
+
+/**
+ * Atomically requires admin authority on one active map and applies one
+ * idempotent grant upsert or exact revocation. The caller owns the required
+ * post-commit full-state projection and must not project when this returns false.
+ */
+export function applyAuthorizedMapGrantChange(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  change: MapGrantChange,
+  database: AnyPgDb = db,
+): Promise<boolean> {
+  return change.operation === 'upsert'
+    ? applyAuthorizedMapGrantUpsert(userId, principals, mapId, change, database)
+    : applyAuthorizedMapGrantRevoke(userId, principals, mapId, change, database);
 }
 
 /**

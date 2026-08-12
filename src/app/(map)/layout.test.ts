@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   rethrow: vi.fn(),
   getScannerSiteIndex: vi.fn(),
   getSiteSearchIndex: vi.fn(),
+  listMapCorporationOptions: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
@@ -46,22 +47,30 @@ vi.mock('@/features/wormhole-sites/site-catalogue', () => ({
     ),
 }));
 
+vi.mock('@/composition/map-access', () => ({
+  listMapCorporationOptions: mocks.listMapCorporationOptions,
+}));
+
 vi.mock('@/components/composition/map/MapChrome', () => ({
   MapChrome: ({
     session: value,
     contextualSection,
+    corporations,
   }: {
     session: unknown;
     contextualSection?: React.ReactNode;
+    corporations?: readonly unknown[];
   }) =>
     createElement('div', {
       'data-map-chrome': '',
       'data-map-account-session': String(value != null),
       'data-map-contextual-section': String(contextualSection != null),
+      'data-map-corporation-count': String(corporations?.length ?? 0),
     }),
 }));
 
 const session = {
+  user: { id: 'user-1' },
   characterId: 1,
   name: 'Mapper',
   portraitUrl: '/portrait.png',
@@ -81,6 +90,10 @@ describe('MapAccessGate', () => {
     mocks.getSiteSearchIndex.mockReset();
     mocks.getSiteSearchIndex.mockResolvedValue([
       { id: 1, name: 'Forgotten Perimeter Coronation Platform' },
+    ]);
+    mocks.listMapCorporationOptions.mockReset();
+    mocks.listMapCorporationOptions.mockResolvedValue([
+      { corporationId: 99, name: 'Signal Cartel' },
     ]);
   });
 
@@ -117,6 +130,7 @@ describe('MapAccessGate', () => {
     expect(admin).toContain('data-site-catalogue');
     expect(admin).toContain('data-map-site-index="1"');
     expect(admin).toContain('data-map-contextual-section="true"');
+    expect(admin).toContain('data-map-corporation-count="1"');
     expect(admin).toContain('data-map-canvas');
     expect(admin).not.toContain('data-map-development-wall');
     expect(mocks.getScannerSiteIndex).toHaveBeenCalled();

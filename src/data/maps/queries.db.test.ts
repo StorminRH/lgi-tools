@@ -8,6 +8,7 @@ import {
   seedUser,
 } from '@/db/test-support/db-test-harness';
 import {
+  applyAuthorizedMapGrantChange,
   compensateFailedMapCreation,
   createMapAtomic,
   getUserIdsInCorporations,
@@ -213,6 +214,117 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     await compensateFailedMapCreation(mapId, harness.db);
     await expect(harness.db.select().from(maps)).resolves.toEqual([]);
     await expect(harness.db.select().from(mapAccess)).resolves.toEqual([]);
+  });
+
+  it('upserts and revokes only the exact delegated principal', async () => {
+    await seedUser(harness.db, 'creator');
+    const mapId = '30000000-0000-4000-8000-000000000001';
+    await harness.db.insert(maps).values({
+      id: mapId,
+      userId: 'creator',
+      name: 'Managed chain',
+    });
+    await harness.db.insert(mapAccess).values([
+      { mapId, ownerType: 'character', ownerId: 42, role: 'viewer' },
+      { mapId, ownerType: 'corporation', ownerId: 99, role: 'viewer' },
+    ]);
+
+    const upsert = {
+      operation: 'upsert' as const,
+      grant: { ownerType: 'character' as const, ownerId: 42, role: 'admin' as const },
+    };
+    await expect(
+      applyAuthorizedMapGrantChange(
+        'creator',
+        { characterIds: [], corporationIds: [] },
+        mapId,
+        upsert,
+        harness.db,
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      applyAuthorizedMapGrantChange(
+        'creator',
+        { characterIds: [], corporationIds: [] },
+        mapId,
+        upsert,
+        harness.db,
+      ),
+    ).resolves.toBe(true);
+    await applyAuthorizedMapGrantChange(
+      'creator',
+      { characterIds: [], corporationIds: [] },
+      mapId,
+      {
+        operation: 'revoke',
+        principal: { ownerType: 'corporation', ownerId: 99 },
+      },
+      harness.db,
+    );
+
+    await expect(
+      applyAuthorizedMapGrantChange(
+        'delegated-admin',
+        { characterIds: [42], corporationIds: [] },
+        mapId,
+        {
+          operation: 'upsert',
+          grant: { ownerType: 'character', ownerId: 7, role: 'viewer' },
+        },
+        harness.db,
+      ),
+    ).resolves.toBe(true);
+
+    await expect(
+      harness.db.select().from(mapAccess).where(eq(mapAccess.mapId, mapId)),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        ownerType: 'character',
+        ownerId: 42,
+        role: 'admin',
+      }),
+      expect.objectContaining({
+        ownerType: 'character',
+        ownerId: 7,
+        role: 'viewer',
+      }),
+    ]);
+
+    await harness.db.update(maps).set({ archivedAt: new Date() }).where(eq(maps.id, mapId));
+    await expect(
+      applyAuthorizedMapGrantChange(
+        'creator',
+        { characterIds: [], corporationIds: [] },
+        mapId,
+        {
+          operation: 'upsert',
+          grant: { ownerType: 'character', ownerId: 8, role: 'viewer' },
+        },
+        harness.db,
+      ),
+    ).resolves.toBe(false);
+    await harness.db
+      .update(maps)
+      .set({ archivedAt: null, tombstonedAt: new Date() })
+      .where(eq(maps.id, mapId));
+    await expect(
+      applyAuthorizedMapGrantChange(
+        'creator',
+        { characterIds: [], corporationIds: [] },
+        mapId,
+        {
+          operation: 'revoke',
+          principal: { ownerType: 'character', ownerId: 7 },
+        },
+        harness.db,
+      ),
+    ).resolves.toBe(false);
+    await expect(
+      harness.db.select().from(mapAccess).where(eq(mapAccess.mapId, mapId)),
+    ).resolves.toHaveLength(2);
+    await expect(
+      harness.db.select().from(maps).where(eq(maps.id, mapId)),
+    ).resolves.toHaveLength(1);
   });
 
 });

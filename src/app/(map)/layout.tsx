@@ -2,6 +2,7 @@ import { unstable_rethrow } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
+import { listMapCorporationOptions } from '@/composition/map-access';
 import {
   getScannerSiteIndex,
   getSiteSearchIndex,
@@ -31,6 +32,16 @@ async function loadScannerCatalogue(): Promise<readonly SiteSearchEntry[]> {
     console.error('[map] lightweight site catalogue unavailable; empty seed', err);
   }
   return [];
+}
+
+async function loadMapCorporations(userId: string) {
+  try {
+    return await listMapCorporationOptions(userId);
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error('[map] corporation options unavailable; empty seed', err);
+    return [];
+  }
 }
 
 function MapDevelopmentWall() {
@@ -95,13 +106,17 @@ export async function MapAccessGate({
         };
   // Live-priced scanner catalogue preferred; failures must not wall the map.
   // AppHeader/sitemap keep calling getSiteSearchIndex directly on their own.
-  const siteIndex = await loadScannerCatalogue();
+  const [siteIndex, corporations] = await Promise.all([
+    loadScannerCatalogue(),
+    loadMapCorporations(gate.session.user.id),
+  ]);
 
   return (
     <SiteCatalogueProvider siteIndex={siteIndex}>
       <MapChrome
         session={session}
         contextualSection={<MapTrackingMenu />}
+        corporations={corporations}
       />
       {children}
     </SiteCatalogueProvider>

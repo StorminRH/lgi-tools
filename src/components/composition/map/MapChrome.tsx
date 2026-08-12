@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { AccountMenu } from '@/components/composition/account/AccountMenu';
 import { FeedbackButton } from '@/components/composition/FeedbackButton';
 import type { Session } from '@/platform/auth/types';
+import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import { MapMenu } from './MapMenu';
 
 // Side-effect import: registers every search source on the CLIENT instance of
@@ -20,9 +21,11 @@ import '@/composition/search/register-all';
 export function MapChrome({
   session,
   contextualSection,
+  corporations = [],
 }: {
   session: Session | null;
   contextualSection?: ReactNode;
+  corporations?: readonly CorporationAccessOption[];
 }) {
   return (
     <div
@@ -42,7 +45,7 @@ export function MapChrome({
             />
           </div>
         ) : null}
-        <MapMenu />
+        <MapMenu corporations={corporations} />
       </div>
       <div
         data-map-search-slot

@@ -711,7 +711,7 @@ export const DATA_OWNERSHIP = [
     ],
     boundary: {
       kind: 'single-statement',
-      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant editing arrives later in 4.0.4.4.',
+      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant edits atomically require admin authority on an unarchived, untombstoned map and apply one composite-keyed upsert or exact revoke, then reconverge the complete one-way Convex projection only after the guarded write succeeds.',
     },
     dataClass: 'personal',
   },

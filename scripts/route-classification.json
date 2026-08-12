@@ -37,6 +37,7 @@
     "/api/universe/statics/[systemId]": "Dynamic path-addressed JSON handler over the shared tag-cached promoted wormhole statics dataset; valid unknown systems return an empty picker list.",
     "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic.",
     "/api/maps/jump": "Dynamic authenticated mutation route: doorbell/confirm/typed-hole jump-resolver entries verify the session user per request, read Convex evidence + Neon geography, and dispatch the transactional authoring door — genuinely per-request.",
+    "/api/maps/access": "Dynamic authenticated mutation route: each request requires map-admin authority, commits one Neon grant upsert or revoke, and reconverges the complete one-way Convex access projection.",
     "/api/maps/create": "Dynamic authenticated mutation route: each request rate-limits one user, commits one Neon map-plus-grants transaction, and drives the one-way Convex access projection.",
     "/api/maps/search-characters": "Dynamic authenticated read route: each request selects an owned linked token for scoped ESI typeahead or uses the public exact-name fallback when no scoped token exists.",
     "/api/maps/signature-elimination": "Dynamic authenticated mutation route: each acting-user trigger reads current Convex map evidence and promoted Neon statics, runs the pure eliminator, and dispatches one transactional assumed-tier write batch."
@@ -115,6 +116,7 @@
     "/api/industry/blueprints": "static",
     "/api/industry/systems": "static",
     "/api/maps/jump": "dynamic",
+    "/api/maps/access": "dynamic",
     "/api/maps/create": "dynamic",
     "/api/maps/search-characters": "dynamic",
     "/api/maps/signature-elimination": "dynamic",

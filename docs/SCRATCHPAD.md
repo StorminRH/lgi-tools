@@ -12,14 +12,20 @@
 - **CURRENT:** executing approved session **4.0.4.4.1** on
   `lifecycle/4.0.4.4` (frozen plan `Approved`, execution status remains
   `Pending` by policy; release triplet `4.0.4.4.1`).
-- **OW progress:** **2/7 complete — next: Access editor + creation dialog.**
+- **OW progress:** **3/7 complete — next: Switcher chrome.**
 - **OW completed:** OW-1 durable foundation — viewer/editor/admin migration,
   Neon-only authorized/trash listings, bounded staged map creation, one-way
   projection, and compensating recovery. OW-2 character search — 15-scope auth
   vocabulary, owned-token ESI typeahead, exact public fallback, strict bounded
   name enrichment, and the authenticated maps search route; focused 9 files /
   333 tests, route census 93, and origin-main-pinned `pnpm verify` green (5,030
-  tests; Fallow zero issues).
+  tests; Fallow zero issues). OW-3 access editor + creation dialog — shared
+  explicit-role editor, isolated character-search controller, Atlas-menu
+  creation door with five-second interstitial and close-before-push handoff,
+  and active-map/admin-atomic grant upsert/revoke followed by one-way
+  re-projection; focused suite, strict TypeScript, full `pnpm verify`, primitive
+  review, and holistic review green; live revoke returned 204 and removed
+  access without reload in 103 ms.
 - **Next-agent notes:** (1) creation atomically inserts a hidden row with
   `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
   with a 2 s whole-attempt bound, then publishes by clearing both markers;
@@ -36,10 +42,20 @@
   exact public resolution. Scoped/token/name failures return 503 and never
   silently fall back. (5) Entity-name caching throws inside `use cache: remote`
   on upstream/malformed results so transient failures are not cached as null;
-  both strict and best-effort callers share the eight-request worker cap.
-- **Handoff:** resume through `start-session`; execute only OW-3 Access editor
-  + creation dialog, then its focused gate, final full verify, fresh reviewers,
-  local commit, and handoff. Do not advance into OW-4 or close-out.
+  both strict and best-effort callers share the eight-request worker cap. (6)
+  `AccessListEditor` remains transport-free; `CharacterSearchControl` owns the
+  debounce/cancellation/API path, and future OW-4/OW-6 doors supply their own
+  management mutations and current-grant reads. (7) `POST /api/maps/access`
+  accepts one discriminated upsert/revoke and atomically requires creator or a
+  matching `admin` principal on an unarchived, untombstoned map in the same SQL
+  statement; denial never projects, while a post-write projection failure
+  leaves Neon authoritative for an identical healing retry. (8) The creation
+  dialog is reachable from the existing Atlas menu and receives fresh current
+  corporation principals; later catalogue/create-card and switcher/cog doors
+  must reuse it rather than create parallel flows.
+- **Handoff:** resume through `start-session`; execute only OW-4 Switcher
+  chrome, then its focused gate, final full verify, fresh reviewers, local
+  commit, and handoff. Do not advance into OW-5 or close-out.
 - **G-1 disposition:** operator approved (2026-08-11) — site viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off

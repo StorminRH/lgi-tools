@@ -47,7 +47,7 @@ export type CapabilityFeature = (typeof CAPABILITY_FEATURES)[number];
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
 /**
- * Closed catalogue of the 44 instrumented operations: 20 mutations and one authenticated read
+ * Closed catalogue of the 45 instrumented operations: 21 mutations and one authenticated read
  * through `runMutationRoute`, 8 cron routes through `defineCronRoute`, 8 direct mutation routes
  * that deliberately sit outside the mutation shell, 6 other POST-bodied tool reads, and the
  * queued ESI-refresh job runner. Adding a
@@ -55,7 +55,7 @@ export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
  * census covers the rest, so an operation cannot ship unnamed.
  */
 export const CAPABILITIES = {
-  // ── Mutation routes through `runMutationRoute` (20) ────────────────────
+  // ── Mutation routes through `runMutationRoute` (21) ────────────────────
   'account.switch-active-character': { feature: 'account', operation: 'switch-active-character', kind: 'mutation' },
   'account.unlink-character': { feature: 'account', operation: 'unlink-character', kind: 'mutation' },
   'account.purge-character': { feature: 'account', operation: 'purge-character', kind: 'mutation' },
@@ -96,6 +96,7 @@ export const CAPABILITIES = {
   'planner.rename-saved-plan': { feature: 'planner', operation: 'rename-saved-plan', kind: 'mutation' },
   'planner.favorite-saved-plan': { feature: 'planner', operation: 'favorite-saved-plan', kind: 'mutation' },
   'maps.create-map': { feature: 'maps', operation: 'create-map', kind: 'mutation' },
+  'maps.update-access': { feature: 'maps', operation: 'update-access', kind: 'mutation' },
   'maps.eliminate-signatures': { feature: 'maps', operation: 'eliminate-signatures', kind: 'mutation' },
   'maps.resolve-jump': { feature: 'maps', operation: 'resolve-jump', kind: 'mutation' },
   'admin.unlink-character': { feature: 'admin', operation: 'unlink-character', kind: 'mutation' },

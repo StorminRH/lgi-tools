@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
-import { MAP_ACCESS_OWNER_TYPES } from './access-contract';
+import { defineEndpoint, emptyBody, jsonBody, problem } from '@/transport/endpoint';
+import { MAP_ACCESS_OWNER_TYPES, MAP_ROLES } from './access-contract';
 
 const mapIdSchema = z.string().trim().min(1).max(200);
 const connectionIdSchema = z.string().trim().min(1).max(200);
@@ -144,6 +144,42 @@ export const signatureEliminationEndpoint = defineEndpoint({
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
     403: problem('cross_origin'),
+  },
+});
+
+const mapAccessPrincipalSchema = z.strictObject({
+  ownerType: z.enum(MAP_ACCESS_OWNER_TYPES),
+  ownerId: z.number().int().positive().safe(),
+});
+
+/** One admin-authored durable grant upsert or exact principal revocation. */
+export const updateMapAccessRequestSchema = z.discriminatedUnion('operation', [
+  z.strictObject({
+    operation: z.literal('upsert'),
+    mapId: mapIdSchema,
+    grant: mapAccessPrincipalSchema.extend({ role: z.enum(MAP_ROLES) }),
+  }),
+  z.strictObject({
+    operation: z.literal('revoke'),
+    mapId: mapIdSchema,
+    principal: mapAccessPrincipalSchema,
+  }),
+]);
+
+/** Validated set-shaped map grant mutation accepted by the access authority path. */
+export type UpdateMapAccessRequest = z.infer<typeof updateMapAccessRequestSchema>;
+
+/** Authenticated admin-only endpoint for durable grant edits plus re-projection. */
+export const updateMapAccessEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/maps/access',
+  request: updateMapAccessRequestSchema,
+  responses: {
+    204: emptyBody(),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('cross_origin', 'map_admin_required'),
+    503: problem('map_projection_unavailable'),
   },
 });
 

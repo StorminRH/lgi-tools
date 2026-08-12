@@ -3,6 +3,7 @@ import {
   type MapAccess,
   type MapPrincipals,
 } from '@/data/maps/access';
+import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import {
   getMapAccessSubject,
   getMapGrants,
@@ -16,6 +17,7 @@ import {
 } from '@/platform/auth/affiliation-store';
 import { refreshStaleAffiliationsForUserWithOutcome } from '@/platform/auth/affiliation';
 import { memberCorpIds } from '@/platform/auth/membership';
+import { resolveEntityNames } from '@/data/eve-data/entity-names';
 
 /** Principals plus whether the preceding stale refresh hit a transient ESI failure. */
 export interface ResolvedMapPrincipals {
@@ -51,6 +53,18 @@ export async function resolveMapPrincipalsWithOutcome(
 export async function resolveMapPrincipals(userId: string): Promise<MapPrincipals> {
   const { principals } = await resolveMapPrincipalsWithOutcome(userId);
   return principals;
+}
+
+/** Lists the user's fresh corporation principals with resilient display names. */
+export async function listMapCorporationOptions(
+  userId: string,
+): Promise<CorporationAccessOption[]> {
+  const { corporationIds } = await resolveMapPrincipals(userId);
+  const names = await resolveEntityNames([...corporationIds]);
+  return corporationIds.map((corporationId) => ({
+    corporationId,
+    name: names[String(corporationId)] ?? `Corporation ${corporationId}`,
+  }));
 }
 
 /**

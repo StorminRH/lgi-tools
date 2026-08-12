@@ -74,9 +74,9 @@ function isInstrumented(source: string): boolean {
 
 describe('capability coverage', () => {
   it('walks every POST-bearing route file in the tree', () => {
-    // 35 instrumented plus the 4 pinned exclusions. A census written against a
+    // 36 instrumented plus the 4 pinned exclusions. A census written against a
     // smaller number would silently stop covering later routes.
-    expect(postRoutes).toHaveLength(39);
+    expect(postRoutes).toHaveLength(40);
   });
 
   it.each(postRoutes.map(({ relative }) => relative))(
@@ -131,8 +131,8 @@ describe('capability coverage', () => {
       claimed.push(...ids);
     }
 
-    expect(claimed).toHaveLength(35);
-    expect(new Set(claimed).size).toBe(35);
+    expect(claimed).toHaveLength(36);
+    expect(new Set(claimed).size).toBe(36);
     expect(claimed).toContain('admin.wh-statics-review');
   });
 });

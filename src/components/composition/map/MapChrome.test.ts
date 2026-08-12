@@ -18,7 +18,11 @@ vi.mock('@/components/composition/FeedbackButton', () => ({
 }));
 
 vi.mock('./MapMenu', () => ({
-  MapMenu: () => createElement('div', { 'data-map-menu': '' }),
+  MapMenu: ({ corporations }: { corporations?: readonly unknown[] }) =>
+    createElement('div', {
+      'data-map-menu': '',
+      'data-map-corporation-count': String(corporations?.length ?? 0),
+    }),
 }));
 
 describe('MapChrome', () => {
@@ -39,10 +43,12 @@ describe('MapChrome', () => {
           portraitUrl: '/portrait.png',
           role: 'ADMIN',
         },
+        corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
       }),
     );
 
     expect(markup).toContain('data-map-menu');
+    expect(markup).toContain('data-map-corporation-count="1"');
     expect(markup).toContain('data-account-menu');
     expect(markup).toContain('right-4 top-4');
     expect(markup).toContain('data-feedback-compact="true"');

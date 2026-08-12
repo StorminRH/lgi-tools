@@ -14,6 +14,13 @@ export const MAP_ACCESS_OWNER_TYPES = ['character', 'corporation'] as const;
 /** One persisted map-grant principal kind. */
 export type MapAccessOwnerType = (typeof MAP_ACCESS_OWNER_TYPES)[number];
 
+/** One current corporation prepared for map-access selection UI. */
+export interface CorporationAccessOption {
+  readonly corporationId: number;
+  readonly name: string;
+  readonly logoUrl?: string;
+}
+
 /** The capabilities one role may carry on one map. */
 export const MAP_CAPABILITIES = ['view', 'edit'] as const;
 

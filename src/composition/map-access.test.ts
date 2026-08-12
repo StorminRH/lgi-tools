@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   listDeletedRestorableMapsForPrincipals: vi.fn(),
   getUserAffiliations: vi.fn(),
   refreshStaleAffiliationsForUserWithOutcome: vi.fn(),
+  resolveEntityNames: vi.fn(),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -22,11 +23,15 @@ vi.mock('@/platform/auth/affiliation-store', () => ({
 vi.mock('@/platform/auth/affiliation', () => ({
   refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
 }));
+vi.mock('@/data/eve-data/entity-names', () => ({
+  resolveEntityNames: mocks.resolveEntityNames,
+}));
 
 import {
   getMapAccess,
   listAuthorizedMaps,
   listDeletedRestorableMaps,
+  listMapCorporationOptions,
   resolveMapPrincipals,
 } from './map-access';
 
@@ -58,6 +63,7 @@ beforeEach(() => {
   mocks.getMapGrants.mockResolvedValue([]);
   mocks.listAuthorizedMapsForPrincipals.mockResolvedValue([]);
   mocks.listDeletedRestorableMapsForPrincipals.mockResolvedValue([]);
+  mocks.resolveEntityNames.mockResolvedValue({});
 });
 
 describe('map listings', () => {
@@ -83,6 +89,22 @@ describe('map listings', () => {
       'user-1',
       { characterIds: [42], corporationIds: [99] },
     );
+  });
+});
+
+describe('map corporation options', () => {
+  it('uses the fresh principal set and degrades a missing display name honestly', async () => {
+    mocks.getUserAffiliations.mockResolvedValue([
+      affiliation(42, 99, new Date()),
+      affiliation(43, 100, new Date()),
+    ]);
+    mocks.resolveEntityNames.mockResolvedValue({ '99': 'Signal Cartel' });
+
+    await expect(listMapCorporationOptions('user-1')).resolves.toEqual([
+      { corporationId: 99, name: 'Signal Cartel' },
+      { corporationId: 100, name: 'Corporation 100' },
+    ]);
+    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100]);
   });
 });
 
