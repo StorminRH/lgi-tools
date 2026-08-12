@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,7 +32,6 @@ import {
   type AccessPrincipalOption,
 } from './access-editor-model';
 import { mapAccessFailureMessage, updateMapAccess } from './map-access-client';
-import { deleteMap, mapLifecycleFailureMessage } from './map-lifecycle-client';
 
 /** Props for the controlled shared map-access management door. */
 export interface MapAccessDialogProps {
@@ -134,29 +133,6 @@ function useAccessGrantEditor(
   return { grants, busyKey, error, commitRole, revoke, addPrincipal };
 }
 
-function useMapDeletion(mapId: string, onDeleted: () => void) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function removeMap() {
-    setDeleting(true);
-    setError(null);
-    const outcome = await deleteMap({ mapId });
-    setDeleting(false);
-    if (!outcome.ok) return setError(mapLifecycleFailureMessage('delete'));
-    onDeleted();
-    const next = new URLSearchParams(searchParams.toString());
-    if (next.get('map') !== mapId) return router.refresh();
-    next.delete('map');
-    const query = next.toString();
-    router.push(query === '' ? '/atlas' : `/atlas?${query}`);
-  }
-
-  return { deleting, error, removeMap };
-}
-
 /**
  * Manages one map's delegated grants through the existing transport-free
  * editor and the sole Neon-then-projection mutation route.
@@ -172,9 +148,8 @@ export function MapAccessDialog({
 }: MapAccessDialogProps) {
   const titleId = useId();
   const access = useAccessGrantEditor(mapId, initialGrants);
-  const deletion = useMapDeletion(mapId, () => onOpenChange(false));
-  const disabled = access.busyKey !== null || deletion.deleting;
-  const error = access.error ?? deletion.error;
+  const disabled = access.busyKey !== null;
+  const error = access.error;
 
   return (
     <Dialog
@@ -227,15 +202,7 @@ export function MapAccessDialog({
         {error !== null ? <Banner tone="warn">{error}</Banner> : null}
       </div>
 
-      <footer className="flex items-center justify-between border-t border-border-soft px-4 py-3">
-        <Button
-          variant="danger"
-          size="sm"
-          disabled={disabled}
-          onClick={() => void deletion.removeMap()}
-        >
-          {deletion.deleting ? 'Deleting…' : 'Delete map'}
-        </Button>
+      <footer className="flex items-center justify-end border-t border-border-soft px-4 py-3">
         <DialogClose
           render={<Button variant="secondary" size="sm" />}
           disabled={disabled}

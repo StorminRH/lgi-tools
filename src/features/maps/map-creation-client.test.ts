@@ -4,6 +4,8 @@ import {
   handoffCreatedMap,
   MAP_CREATION_INTERSTITIAL_MIN_MS,
   mapCreationFailureMessage,
+  mapCreationSubmitStart,
+  runMapCreationSubmit,
 } from './map-creation-client';
 
 const INPUT = { name: 'Home chain', grants: [] };
@@ -110,5 +112,73 @@ describe('handoffCreatedMap', () => {
       'created:map/one',
       'navigate:/atlas?map=map%2Fone',
     ]);
+  });
+});
+
+describe('mapCreationSubmitStart', () => {
+  it('ignores an in-flight submit, surfaces draft errors, then starts transport', () => {
+    expect(mapCreationSubmitStart(true, { ok: true, input: INPUT })).toEqual({
+      kind: 'ignored',
+    });
+    expect(
+      mapCreationSubmitStart(false, { ok: false, message: 'Enter a map name.' }),
+    ).toEqual({ kind: 'invalid', message: 'Enter a map name.' });
+    expect(mapCreationSubmitStart(false, { ok: true, input: INPUT })).toEqual({
+      kind: 'begin',
+      input: INPUT,
+    });
+  });
+});
+
+describe('runMapCreationSubmit', () => {
+  it('walks ignore, invalid, failed, and created outcomes through the dialog actions', async () => {
+    const events: string[] = [];
+    const actions = {
+      onInvalid: (message: string) => events.push(`invalid:${message}`),
+      onBegin: () => events.push('begin'),
+      onFailed: (message: string) => events.push(`failed:${message}`),
+      onCreated: (mapId: string) => events.push(`created:${mapId}`),
+    };
+
+    await runMapCreationSubmit(true, { ok: true, input: INPUT }, async () => {
+      throw new Error('create must not run while busy');
+    }, actions);
+    expect(events).toEqual([]);
+
+    await runMapCreationSubmit(
+      false,
+      { ok: false, message: 'Enter a map name.' },
+      async () => {
+        throw new Error('create must not run for an invalid draft');
+      },
+      actions,
+    );
+    expect(events).toEqual(['invalid:Enter a map name.']);
+
+    events.length = 0;
+    await runMapCreationSubmit(false, { ok: true, input: INPUT }, async () => {
+      return {
+        ok: false,
+        kind: 'api' as const,
+        status: 503 as const,
+        error: {
+          type: 'https://lgi.tools/problems/dependency-unavailable',
+          title: 'Dependency unavailable',
+          status: 503,
+          code: 'map_projection_unavailable',
+          correlationId: 'correlation-id',
+        },
+      };
+    }, actions);
+    expect(events).toEqual([
+      'begin',
+      'failed:Map access could not be projected. The attempted map was rolled back; try again.',
+    ]);
+
+    events.length = 0;
+    await runMapCreationSubmit(false, { ok: true, input: INPUT }, async () => {
+      return { ok: true, status: 201 as const, data: { mapId: 'map-9' } };
+    }, actions);
+    expect(events).toEqual(['begin', 'created:map-9']);
   });
 });

@@ -13,6 +13,39 @@ const visibleWindowContent = (page) =>
     }),
   );
 
+async function ensureSecondMap(page, firstMapId) {
+  const provided = process.env.UX_SECOND_MAP_ID;
+  if (provided && provided !== firstMapId) return provided;
+
+  await page.getByRole('button', { name: 'Atlas menu' }).click();
+  await page.getByRole('menuitem', { name: 'Create map' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Create map' });
+  await dialog.waitFor({ state: 'visible', timeout: 10_000 });
+  const stamp = new Date().toISOString().replaceAll(/[:.]/g, '-');
+  await dialog.getByLabel('Map name').fill(`UX switcher ${stamp}`);
+  const removeGrant = dialog.getByRole('button', { name: 'Remove' });
+  while ((await removeGrant.count()) > 0) {
+    await removeGrant.first().click();
+  }
+  await dialog.getByRole('button', { name: 'Create map' }).click();
+  await page.locator('[data-map-home-prompt]').waitFor({ state: 'visible', timeout: 30_000 });
+  const createdId = new URL(page.url()).searchParams.get('map');
+  if (createdId === null || createdId === firstMapId) return null;
+
+  const trigger = page.locator('[data-map-switcher-trigger]');
+  await trigger.waitFor({ state: 'visible', timeout: 60_000 });
+  await trigger.click();
+  await page.locator(`[data-map-switcher-map="${firstMapId}"]`).click();
+  await page.waitForURL((url) => url.searchParams.get('map') === firstMapId, {
+    timeout: 15_000,
+    waitUntil: 'domcontentloaded',
+  });
+  await page
+    .locator(`[data-map-switcher-trigger][data-map-id="${firstMapId}"]`)
+    .waitFor({ state: 'visible', timeout: 60_000 });
+  return createdId;
+}
+
 export default {
   name: 'atlas-map-switcher',
   route: route(),
@@ -21,14 +54,17 @@ export default {
   settle: 1500,
   async run({ page, check }) {
     const firstMapId = process.env.UX_MAP_ID;
-    const secondMapId = process.env.UX_SECOND_MAP_ID;
-    if (!firstMapId || !secondMapId) {
-      check('UX_MAP_ID and UX_SECOND_MAP_ID identify two authorized maps', false);
+    if (!firstMapId) {
+      check('UX_MAP_ID identifies the populated first map', false);
       return;
     }
 
     const trigger = page.locator('[data-map-switcher-trigger]');
     await trigger.waitFor({ state: 'visible', timeout: 60_000 });
+    const secondMapId = await ensureSecondMap(page, firstMapId);
+    check('a second authorized map is available to switch to', Boolean(secondMapId));
+    if (!secondMapId) return;
+
     check('the selected map name is the top-center switcher trigger', await trigger.isVisible());
     check('the first map is selected', (await trigger.getAttribute('data-map-id')) === firstMapId);
     const firstNames = new Set(await visibleNodeNames(page));

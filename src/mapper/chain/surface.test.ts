@@ -128,6 +128,7 @@ describe('mapper source contract', () => {
       'authoring/connection-field-setters.ts',
       'authoring/connection-fields.tsx',
       'authoring/connection-intelligence.ts',
+      'authoring/home-prompt-model.ts',
       'authoring/rights-transition.ts',
       'authoring/sever-toast.ts',
       'authoring/use-wormhole-editor-data.ts',

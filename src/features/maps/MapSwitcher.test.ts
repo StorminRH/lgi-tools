@@ -20,15 +20,17 @@ vi.mock('@/components/ui/menu', () => ({
     trigger,
     triggerProps,
     children,
+    className,
   }: {
     trigger: React.ReactNode;
     triggerProps?: Record<string, unknown> & { ref?: React.Ref<HTMLButtonElement> };
     children: React.ReactNode;
+    className?: string;
   }) => {
     const { ref: _ref, ...buttonProps } = triggerProps ?? {};
     return createElement(
       'div',
-      { 'data-menu': '' },
+      { 'data-menu': '', className },
       createElement('button', buttonProps, trigger),
       children,
     );
@@ -94,6 +96,7 @@ describe('MapSwitcher', () => {
       }),
     );
     expect(absent).toBe('');
+    expect(absent).not.toContain('data-map-switcher-trigger');
 
     mocks.searchParams = new URLSearchParams('map=map-a');
     const selected = renderToStaticMarkup(
@@ -113,6 +116,9 @@ describe('MapSwitcher', () => {
     expect(selected).toContain('aria-current="page"');
     expect(selected).toContain('data-map-switcher-manage="map-a"');
     expect(selected).not.toContain('data-map-switcher-manage="map-b"');
+    expect(selected).toContain('scroll-area');
+    expect(selected).toContain('max-h-[min(24rem,var(--available-height))]');
+    expect(selected).toContain('overflow-y-auto');
   });
 
   it('preserves unrelated query values and produces a push-safe encoded map target', () => {

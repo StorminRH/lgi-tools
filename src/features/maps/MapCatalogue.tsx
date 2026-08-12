@@ -6,6 +6,9 @@ import { useMemo, useRef, useState } from 'react';
 import { EveImage } from '@/components/eve-image';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { PageHead } from '@/components/ui/page-head';
+import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
@@ -27,6 +30,7 @@ import {
   reconcileAuthorityScopedMapDialogs,
 } from './map-dialog-state';
 import { mapSelectionHref } from './map-navigation';
+import { useMapDeletion } from './use-map-deletion';
 
 /** One self-hiding catalogue section derived without changing listing order. */
 export interface MapCatalogueSection {
@@ -60,7 +64,7 @@ export function mapCatalogueSections(
 
 function PlusGlyph() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className="size-8 stroke-current" fill="none">
+    <svg viewBox="0 0 24 24" aria-hidden className="size-[18px] stroke-current" fill="none">
       <path d="M12 5v14M5 12h14" strokeWidth="1.5" />
     </svg>
   );
@@ -114,11 +118,13 @@ function CatalogueMapCard({
   href,
   corporationById,
   onManage,
+  onDelete,
 }: {
   readonly map: AuthorizedMapRow;
   readonly href: string;
   readonly corporationById: ReadonlyMap<number, CorporationAccessOption>;
   readonly onManage: (map: AuthorizedMapRow, opener: HTMLElement) => void;
+  readonly onDelete: (map: AuthorizedMapRow, opener: HTMLElement) => void;
 }) {
   return (
     <Card
@@ -148,7 +154,16 @@ function CatalogueMapCard({
         </div>
       </Link>
       {map.role === 'admin' ? (
-        <div className="flex justify-end border-t border-border-soft px-4 py-3">
+        <div className="flex items-center justify-between gap-2 border-t border-border-soft px-3 py-2">
+          <Button
+            variant="bare"
+            aria-label={`Delete ${map.name}`}
+            data-map-catalogue-delete={map.id}
+            className="p-2 text-hostile hover:text-dps-high"
+            onClick={(event) => onDelete(map, event.currentTarget)}
+          >
+            <TrashGlyph />
+          </Button>
           <Button
             size="sm"
             variant="secondary"
@@ -169,12 +184,14 @@ function CatalogueSection({
   searchParams,
   corporationById,
   onManage,
+  onDelete,
 }: {
   readonly section: MapCatalogueSection;
   readonly pathname: string;
   readonly searchParams: Pick<URLSearchParams, 'toString'>;
   readonly corporationById: ReadonlyMap<number, CorporationAccessOption>;
   readonly onManage: (map: AuthorizedMapRow, opener: HTMLElement) => void;
+  readonly onDelete: (map: AuthorizedMapRow, opener: HTMLElement) => void;
 }) {
   if (section.maps.length === 0) return null;
   return (
@@ -190,6 +207,7 @@ function CatalogueSection({
             href={mapSelectionHref(pathname, searchParams, map.id)}
             corporationById={corporationById}
             onManage={onManage}
+            onDelete={onDelete}
           />
         ))}
       </div>
@@ -221,56 +239,85 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
   const creationOpenerRef = useRef<HTMLElement | null>(null);
   const trashOpenerRef = useRef<HTMLElement | null>(null);
   const editOpenerRef = useRef<HTMLElement | null>(null);
-  const catalogueRef = useRef<HTMLElement | null>(null);
+  const deleteOpenerRef = useRef<HTMLElement | null>(null);
+  const catalogueRef = useRef<HTMLDivElement | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const deletion = useMapDeletion();
   const sections = mapCatalogueSections(maps);
   const corporationById = useMemo(
     () => new Map(corporations.map((corporation) => [corporation.corporationId, corporation])),
     [corporations],
   );
 
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="primary"
+        size="sm"
+        data-map-catalogue-create
+        className="gap-2"
+        onClick={(event) => {
+          creationOpenerRef.current = event.currentTarget;
+          setStoredDialogs((current) => ({ ...current, creationOpen: true }));
+        }}
+      >
+        <PlusGlyph />
+        Create new map
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        data-map-catalogue-trash
+        className="gap-2"
+        onClick={(event) => {
+          trashOpenerRef.current = event.currentTarget;
+          setStoredDialogs((current) => ({ ...current, trashOpen: true }));
+        }}
+      >
+        <TrashGlyph />
+        Trash{deletedMaps.length > 0 ? ` (${deletedMaps.length})` : ''}
+      </Button>
+    </div>
+  );
+
   const surface = !listingAvailable ? (
-    <main
+    <div
       ref={catalogueRef}
       tabIndex={-1}
       data-map-catalogue
       data-map-catalogue-unavailable
-      className="flex h-full min-h-0 items-center justify-center bg-bg-deep px-6 text-center outline-none"
+      className="outline-none"
     >
-      <Card className="flex max-w-lg flex-col items-center gap-4 p-6">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
-            Map catalogue unavailable
-          </h1>
-          <p className="font-ui text-ui leading-relaxed text-muted">
-            Atlas could not load your authorized maps. Retry before creating or managing a map.
-          </p>
-        </div>
-        <Button variant="primary" onClick={() => router.refresh()}>
-          Try again
-        </Button>
-      </Card>
-    </main>
+      <PageShell mode="workspace">
+        <PageHead size="hero" crumb="atlas" title="Atlas" />
+        <Card className="flex max-w-lg flex-col items-center gap-4 p-6 text-center">
+          <div className="flex flex-col gap-1.5">
+            <h2 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
+              Map catalogue unavailable
+            </h2>
+            <p className="font-ui text-ui leading-relaxed text-muted">
+              Atlas could not load your authorized maps. Retry before creating or managing a map.
+            </p>
+          </div>
+          <Button variant="primary" onClick={() => router.refresh()}>
+            Try again
+          </Button>
+        </Card>
+      </PageShell>
+    </div>
   ) : (
-    <main
+    <div
       ref={catalogueRef}
       tabIndex={-1}
       data-map-catalogue
-      className="relative h-full min-h-0 bg-bg-deep outline-none"
+      className="outline-none"
     >
-      <div
-        data-map-catalogue-scroll
-        className="h-full min-h-0 overflow-y-auto overscroll-contain px-4 pb-28 pt-20 sm:px-6 lg:px-10"
-      >
-          <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-            <header className="flex flex-col gap-1">
-              <div className="font-data text-label uppercase tracking-eyebrow text-isk">
-                Atlas
-              </div>
-              <h1 className="font-display text-display font-bold uppercase tracking-copy text-name">
-                Map catalogue
-              </h1>
-            </header>
-
+      <PageShell mode="workspace">
+        <PageHead size="hero" crumb="atlas" title="Atlas" meta={headerActions} />
+        <div className="flex flex-col gap-9 pb-16">
             {maps.length === 0 ? (
               <p data-map-catalogue-empty-hint className="font-ui text-ui text-muted">
                 Create a map to begin charting a chain.
@@ -291,45 +338,15 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
                     editingMapId: map.id,
                   }));
                 }}
+                onDelete={(map, opener) => {
+                  deleteOpenerRef.current = opener;
+                  setPendingDelete({ id: map.id, name: map.name });
+                }}
               />
             ))}
-
-            <Card hover data-map-catalogue-create-card className="overflow-hidden">
-              <Button
-                variant="bare"
-                data-map-catalogue-create
-                className="flex min-h-48 w-full flex-col items-start justify-center gap-3 p-5 text-left text-muted hover:text-isk"
-                onClick={(event) => {
-                  creationOpenerRef.current = event.currentTarget;
-                  setStoredDialogs((current) => ({
-                    ...current,
-                    creationOpen: true,
-                  }));
-                }}
-              >
-                <PlusGlyph />
-                <span className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
-                  Create new map
-                </span>
-              </Button>
-            </Card>
-          </div>
         </div>
-
-        <Button
-          variant="secondary"
-          size="sm"
-          data-map-catalogue-trash
-          className="absolute bottom-4 left-4 z-sticky gap-2 bg-section"
-          onClick={(event) => {
-            trashOpenerRef.current = event.currentTarget;
-            setStoredDialogs((current) => ({ ...current, trashOpen: true }));
-          }}
-        >
-          <TrashGlyph />
-          Trash{deletedMaps.length > 0 ? ` (${deletedMaps.length})` : ''}
-        </Button>
-    </main>
+      </PageShell>
+    </div>
   );
 
   const finalFocus = (opener: HTMLElement | null) =>
@@ -340,18 +357,13 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
       {surface}
 
       <MapLifecycleDialogs
-        creationOpen={dialogs.creationOpen}
-        trashOpen={dialogs.trashOpen}
-        onCreationOpenChange={(open) =>
-          setStoredDialogs((current) => ({ ...current, creationOpen: open }))
-        }
-        onTrashOpenChange={(open) =>
-          setStoredDialogs((current) => ({ ...current, trashOpen: open }))
-        }
+        dialogs={dialogs}
+        onDialogsChange={setStoredDialogs}
         corporations={corporations}
         deletedMaps={deletedMaps}
-        creationFocus={() => finalFocus(creationOpenerRef.current)}
-        trashFocus={() => finalFocus(trashOpenerRef.current)}
+        creationOpenerRef={creationOpenerRef}
+        trashOpenerRef={trashOpenerRef}
+        hostRef={catalogueRef}
       />
       {dialogs.editingMapId !== null ? (
         <MapAccessDialog
@@ -373,11 +385,31 @@ function MapCatalogueContent({ data }: { readonly data: MapCatalogueData }) {
           }
         />
       ) : null}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deletion.deleting) setPendingDelete(null);
+        }}
+        title="Delete map?"
+        consequence={
+          pendingDelete === null
+            ? ''
+            : `${pendingDelete.name} leaves the catalogue. Restore it from Trash within 30 days.`
+        }
+        busy={deletion.deleting}
+        error={deletion.error}
+        confirmLabel="Delete map"
+        onConfirm={() => {
+          if (pendingDelete === null) return;
+          void deletion.removeMap(pendingDelete.id, () => setPendingDelete(null));
+        }}
+        finalFocus={deleteOpenerRef}
+      />
     </>
   );
 }
 
-/** Renders the metadata-only Atlas landing from the exact map-chrome snapshot. */
+/** Renders the metadata-only Atlas landing as a site-framed catalogue. */
 export function MapCatalogue() {
   const data = useMapCatalogueData();
   return <MapCatalogueContent data={data} />;

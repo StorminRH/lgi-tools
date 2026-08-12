@@ -38,6 +38,7 @@ export function FeedbackButton({
         onClick={() => setOpen(true)}
         className={embedded ? undefined : 'fixed bottom-4 right-4 z-dropdown'}
         data-map-feedback-chip={embedded || undefined}
+        data-site-feedback={embedded ? undefined : ''}
       >
         {compact ? '?' : 'Feedback'}
       </Button>

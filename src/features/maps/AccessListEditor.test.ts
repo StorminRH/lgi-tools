@@ -50,4 +50,30 @@ describe('AccessListEditor', () => {
     expect(markup).toContain('No linked corporations available.');
     expect(markup).not.toContain('>Admin<');
   });
+
+  it('keeps an unchosen principal controlled with no selected role', () => {
+    const markup = renderToStaticMarkup(
+      createElement(AccessListEditor, {
+        mode: 'create',
+        corporations: [],
+        currentGrants: [
+          {
+            ownerType: 'character',
+            ownerId: 42,
+            name: 'Scout',
+            role: null,
+          },
+        ],
+        onPrincipalAdd: vi.fn(),
+        onRoleChange: vi.fn(),
+        onPrincipalRemove: vi.fn(),
+      }),
+    );
+
+    expect(markup).toContain('data-map-access-principal="character:42"');
+    expect(markup).toContain('Scout');
+    expect(markup).toContain('Read-only');
+    expect(markup).toContain('Write');
+    expect(markup).not.toContain('data-checked');
+  });
 });

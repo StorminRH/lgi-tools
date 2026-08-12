@@ -10,7 +10,6 @@ import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { DeletedRestorableMapRow } from '@/data/maps/queries';
 import {
   closedMapDialogs,
-  connectedDialogFocus,
   mapDialogAuthorityKey,
   reconcileAuthorityScopedMapDialogs,
 } from '@/features/maps/map-dialog-state';
@@ -116,22 +115,13 @@ export function MapMenu({
         </MenuLinkItem>
       </Menu>
       <MapLifecycleDialogs
-        creationOpen={dialogs.creationOpen}
-        trashOpen={dialogs.trashOpen}
-        onCreationOpenChange={(open) =>
-          setStoredDialogs((current) => ({ ...current, creationOpen: open }))
-        }
-        onTrashOpenChange={(open) =>
-          setStoredDialogs((current) => ({ ...current, trashOpen: open }))
-        }
+        dialogs={dialogs}
+        onDialogsChange={setStoredDialogs}
         corporations={corporations}
         deletedMaps={deletedMaps}
-        creationFocus={() =>
-          connectedDialogFocus(creationOpenerRef.current, ownerRef.current)
-        }
-        trashFocus={() =>
-          connectedDialogFocus(trashOpenerRef.current, ownerRef.current)
-        }
+        creationOpenerRef={creationOpenerRef}
+        trashOpenerRef={trashOpenerRef}
+        hostRef={ownerRef}
       />
     </div>
   );

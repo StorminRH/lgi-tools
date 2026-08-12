@@ -49,6 +49,7 @@ export async function POST(request: Request): Promise<Response> {
     handle: async ({ userId }, body) => {
       const result = await createProjectedMap(userId, body);
       if (!result.ok) {
+        console.error('[map] create projection failed', result.cause);
         return apiResponse(
           createMapEndpoint,
           503,

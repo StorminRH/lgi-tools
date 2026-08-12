@@ -1,7 +1,7 @@
-import { createElement, Suspense } from 'react';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import MapLayout, { MapAccessGate } from './layout';
+import { AtlasBound } from './AtlasBound';
 
 const mocks = vi.hoisted(() => ({
   checkAdmin: vi.fn(),
@@ -16,9 +16,6 @@ vi.mock('@/platform/auth/route-guards', () => ({
   checkAdmin: mocks.checkAdmin,
 }));
 
-// The gate delegates framework-signal handling to next/navigation's
-// unstable_rethrow: a no-op stub leaves a genuine failure to fail closed to the
-// wall, a throwing stub stands in for a real PPR/redirect signal.
 vi.mock('next/navigation', () => ({
   unstable_rethrow: (err: unknown) => mocks.rethrow(err),
 }));
@@ -81,18 +78,15 @@ vi.mock('@/composition/map-access', () => ({
   listMapChromeData: mocks.listMapChromeData,
 }));
 
-vi.mock('@/components/composition/map/MapChrome', () => ({
-  MapChrome: ({
-    session: value,
-    contextualSection,
-  }: {
-    session: unknown;
-    contextualSection?: React.ReactNode;
-  }) =>
+vi.mock('@/features/maps/MapCatalogue', () => ({
+  MapCatalogue: () => createElement('div', { 'data-map-catalogue': '' }),
+}));
+
+vi.mock('./AtlasCanvasFrame', () => ({
+  AtlasCanvasFrame: ({ session }: { session: unknown }) =>
     createElement('div', {
-      'data-map-chrome': '',
-      'data-map-account-session': String(value != null),
-      'data-map-contextual-section': String(contextualSection != null),
+      'data-map-canvas-frame': '',
+      'data-map-account-session': String(session != null),
     }),
 }));
 
@@ -104,7 +98,7 @@ const session = {
   role: 'ADMIN',
 };
 
-describe('MapAccessGate', () => {
+describe('AtlasBound', () => {
   beforeEach(() => {
     mocks.checkAdmin.mockReset();
     mocks.connection.mockReset();
@@ -127,77 +121,55 @@ describe('MapAccessGate', () => {
     });
   });
 
-  // Restores the console spies unconditionally: a manual restore at the end of a
-  // test body is skipped when an assertion above it throws, leaving the stub
-  // active and hiding later diagnostics.
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('walls non-admins, admits admins (with or without a character), fails closed on auth errors, and rethrows framework signals', async () => {
+  it('walls non-admins, admits the catalogue or canvas, fails closed on auth errors, and rethrows framework signals', async () => {
     mocks.checkAdmin.mockResolvedValue({ ok: false, failure: { code: 'forbidden' } });
-    const wall = renderToStaticMarkup(
-      await MapAccessGate({
-        children: createElement('div', { 'data-map-canvas': '' }),
-      }),
-    );
+    const wall = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
     expect(wall).toContain('data-map-development-wall');
     expect(wall).toContain('under development');
-    expect(wall).not.toContain('data-map-canvas');
-    expect(wall).not.toContain('data-map-chrome');
+    expect(wall).not.toContain('data-map-catalogue');
+    expect(wall).not.toContain('data-map-canvas-frame');
     expect(mocks.connection).toHaveBeenCalledOnce();
     expect(mocks.connection.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.checkAdmin.mock.invocationCallOrder[0]!,
     );
 
     mocks.checkAdmin.mockResolvedValue({ ok: true, session });
-    const admin = renderToStaticMarkup(
-      await MapAccessGate({
-        children: createElement('div', { 'data-map-canvas': '' }),
-      }),
-    );
-    expect(admin).toContain('data-map-chrome');
-    expect(admin).toContain('data-site-catalogue');
-    expect(admin).toContain('data-map-site-index="1"');
-    expect(admin).toContain('data-map-contextual-section="true"');
-    expect(admin).toContain('data-map-catalogue-provider');
-    expect(admin).toContain('data-provider-map-count="1"');
-    expect(admin).toContain('data-provider-deleted-count="1"');
-    expect(admin).toContain('data-provider-corporation-count="1"');
-    expect(admin).toContain('data-provider-grant-count="1"');
-    expect(admin).toContain('data-provider-listing-available="true"');
-    expect(admin).toContain('data-map-canvas');
-    expect(admin).not.toContain('data-map-development-wall');
+    const landing = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
+    expect(landing).toContain('data-map-catalogue');
+    expect(landing).toContain('data-site-catalogue');
+    expect(landing).toContain('data-map-site-index="1"');
+    expect(landing).toContain('data-map-catalogue-provider');
+    expect(landing).toContain('data-provider-map-count="1"');
+    expect(landing).toContain('data-provider-listing-available="true"');
+    expect(landing).not.toContain('data-map-canvas-frame');
+    expect(landing).not.toContain('data-map-development-wall');
     expect(mocks.getScannerSiteIndex).toHaveBeenCalled();
     expect(mocks.listMapChromeData).toHaveBeenCalledOnce();
+
+    const canvas = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    expect(canvas).toContain('data-map-canvas-frame');
+    expect(canvas).toContain('data-map-account-session="true"');
+    expect(canvas).not.toContain('data-map-catalogue=""');
+    expect(canvas).not.toContain('data-map-development-wall');
 
     mocks.checkAdmin.mockResolvedValue({
       ok: true,
       session: { ...session, characterId: null },
     });
-    const noCharacter = renderToStaticMarkup(
-      await MapAccessGate({
-        children: createElement('div', { 'data-map-canvas': '' }),
-      }),
-    );
-    expect(noCharacter).toContain('data-map-chrome');
+    const noCharacter = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    expect(noCharacter).toContain('data-map-canvas-frame');
     expect(noCharacter).toContain('data-map-account-session="false"');
-    expect(noCharacter).toContain('data-map-canvas');
-    expect(noCharacter).not.toContain('data-map-development-wall');
 
     const err = new Error('session store unavailable');
     mocks.checkAdmin.mockRejectedValue(err);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const failed = renderToStaticMarkup(
-      await MapAccessGate({
-        children: createElement('div', { 'data-map-canvas': '' }),
-      }),
-    );
-    // error.tsx covers a segment's children, not its own layout, so an escaping
-    // throw here would leave the map without its recovery surface.
+    const failed = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
     expect(failed).toContain('data-map-development-wall');
-    expect(failed).not.toContain('data-map-canvas');
-    expect(failed).not.toContain('data-map-chrome');
+    expect(failed).not.toContain('data-map-catalogue');
     expect(mocks.rethrow).toHaveBeenCalledWith(err);
     expect(consoleError).toHaveBeenCalledWith(
       '[map] authorization check unavailable',
@@ -210,9 +182,7 @@ describe('MapAccessGate', () => {
       throw rethrowErr;
     });
     consoleError.mockClear();
-    await expect(
-      MapAccessGate({ children: createElement('div', { 'data-map-canvas': '' }) }),
-    ).rejects.toBe(signal);
+    await expect(AtlasBound({ mapSelected: false })).rejects.toBe(signal);
     expect(consoleError).not.toHaveBeenCalled();
   });
 
@@ -222,14 +192,9 @@ describe('MapAccessGate', () => {
     mocks.getScannerSiteIndex.mockRejectedValue(pricedErr);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const degraded = renderToStaticMarkup(
-      await MapAccessGate({
-        children: createElement('div', { 'data-map-canvas': '' }),
-      }),
-    );
+    const degraded = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
 
-    expect(degraded).toContain('data-map-chrome');
-    expect(degraded).toContain('data-map-canvas');
+    expect(degraded).toContain('data-map-canvas-frame');
     expect(degraded).toContain('data-map-site-index="1"');
     expect(degraded).not.toContain('data-map-development-wall');
     expect(mocks.getSiteSearchIndex).toHaveBeenCalled();
@@ -242,13 +207,8 @@ describe('MapAccessGate', () => {
     mocks.getSiteSearchIndex.mockRejectedValue(new Error('catalogue down'));
     consoleError.mockClear();
     mocks.rethrow.mockClear();
-    const empty = renderToStaticMarkup(
-      await MapAccessGate({
-        children: createElement('div', { 'data-map-canvas': '' }),
-      }),
-    );
-    expect(empty).toContain('data-map-chrome');
-    expect(empty).toContain('data-map-canvas');
+    const empty = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    expect(empty).toContain('data-map-canvas-frame');
     expect(empty).toContain('data-map-site-index="0"');
     expect(empty).not.toContain('data-map-development-wall');
   });
@@ -259,14 +219,9 @@ describe('MapAccessGate', () => {
     mocks.listMapChromeData.mockRejectedValue(listingError);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const degraded = renderToStaticMarkup(
-      await MapAccessGate({
-        children: createElement('div', { 'data-atlas-entry': '' }),
-      }),
-    );
+    const degraded = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
 
-    expect(degraded).toContain('data-map-chrome');
-    expect(degraded).toContain('data-atlas-entry');
+    expect(degraded).toContain('data-map-catalogue');
     expect(degraded).toContain('data-provider-map-count="0"');
     expect(degraded).toContain('data-provider-listing-available="false"');
     expect(degraded).not.toContain('data-map-development-wall');
@@ -275,29 +230,5 @@ describe('MapAccessGate', () => {
       '[map] map listing unavailable; retry required',
       listingError,
     );
-  });
-});
-
-describe('MapLayout', () => {
-  it('owns the full viewport frame and clips canvas overflow', () => {
-    const frame = MapLayout({
-      children: createElement('div', { 'data-map-canvas': '' }),
-    });
-
-    expect(frame.props.className).toContain('relative');
-    expect(frame.props.className).toContain('h-[100dvh]');
-    expect(frame.props.className).toContain('w-full');
-    expect(frame.props.className).toContain('overflow-hidden');
-  });
-
-  it('uses the development wall as the Suspense fallback so soft nav is not blank', () => {
-    const frame = MapLayout({
-      children: createElement('div', { 'data-map-canvas': '' }),
-    });
-    const suspense = frame.props.children;
-    expect(suspense.type).toBe(Suspense);
-    const fallbackMarkup = renderToStaticMarkup(suspense.props.fallback);
-    expect(fallbackMarkup).toContain('data-map-development-wall');
-    expect(fallbackMarkup).toContain('Mapping the unknown');
   });
 });

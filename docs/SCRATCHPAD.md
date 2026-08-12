@@ -12,7 +12,7 @@
 - **CURRENT:** executing approved session **4.0.4.4.1** on
   `lifecycle/4.0.4.4` (frozen plan `Approved`, execution status remains
   `Pending` by policy; release triplet `4.0.4.4.1`).
-- **OW progress:** **6/7 complete — next: UX gate.**
+- **OW progress:** **7/7 complete — awaiting close-out**.
 - **OW completed:** OW-1 durable foundation — viewer/editor/admin migration,
   Neon-only authorized/trash listings, bounded staged map creation, one-way
   projection, and compensating recovery. OW-2 character search — 15-scope auth
@@ -44,7 +44,12 @@
   zero maps; create/trash stay keyed to listing availability while a lost
   access-edit drops without reopening on restore. Focused 18 files / 62 tests,
   full `pnpm verify` (5,294 tests; Fallow zero issues, one warn clone), and
-  fresh primitive/holistic reviews green.
+  fresh primitive/holistic reviews green. OW-7 UX gate — `/atlas` moved into
+  the site route group with PageHead landing and `AtlasCanvasFrame` canvas
+  cover; G-1 chrome (header create, card delete, scrolling switcher gear,
+  HomePrompt Dialog); dev-only E2E affiliation skip; DEP-8 `navHidden` Atlas
+  strip. Focused 37 files / 147 tests; origin-main-pinned `pnpm verify` green
+  (5,306 tests; Fallow zero issues in 182 changed files).
 - **Next-agent notes:** (1) creation atomically inserts a hidden row with
   `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
   with a 2 s whole-attempt bound, then publishes by clearing both markers;
@@ -69,8 +74,8 @@
   matching `admin` principal on an unarchived, untombstoned map in the same SQL
   statement; denial never projects, while a post-write projection failure
   leaves Neon authoritative for an identical healing retry. (8) The creation
-  dialog is reachable from the Atlas menu and the catalogue create card through
-  shared `MapLifecycleDialogs`, and receives fresh current corporation
+  dialog is reachable from the Atlas menu and the catalogue header create
+  control through shared `MapLifecycleDialogs`, and receives fresh current corporation
   principals. (9) `MapChrome` receives one
   `listMapChromeData` snapshot: the exact authorized rows, current corporation
   options, and grants only for maps whose creator/admin authority is rechecked
@@ -84,26 +89,49 @@
   The daily cron processes at most 25 due maps and tombstones only after the
   bearer door reports every map-keyed Convex table clean. The switch probe uses
   `UX_MAP_ID` + `UX_SECOND_MAP_ID`; choose a first map with node/window content
-  absent from the second so the stale-content canary is meaningful. (11) OW-6
-  landing: `AtlasEntry` branches on `?map=` presence (an empty value still
-  opens the canvas). Catalogue, switcher, and menu share one
+  absent from the second so the stale-content canary is meaningful. (11) OW-6/7
+  landing: `/atlas` lives in the site route group so the landing keeps the
+  global header. Atlas is `navHidden` until wall-drop (DEP-8); reach it at
+  `/atlas` or via tool search. `AtlasBound` walls non-admins; the landing paints
+  `lgi://atlas` / Atlas through `PageHead` like Industry and Sites. A selected
+  map covers that chrome with `AtlasCanvasFrame`. The development wall is not
+  a loading fallback. Catalogue, switcher, and menu share one
   `listMapChromeData` snapshot via `MapCatalogueDataProvider`; listing failure
   renders `data-map-catalogue-unavailable`, never the zero-map hint. Create and
-  trash stay keyed to listing availability so a restore refresh does not close
-  TrashWindow; `dropLostAdminEdit` clears a lost access-edit id so
+  trash live in the PageHead meta slot; admin cards keep Edit access and a
+  separate bottom-left delete icon. Manage-access no longer deletes. The
+  canvas switcher list caps at ~10 rows then scrolls; the manage glyph is a
+  gear. Create/trash stay keyed to listing
+  availability so a restore refresh does not close TrashWindow;
+  `dropLostAdminEdit` clears a lost access-edit id so
   restore/regrant cannot reopen the dialog. Reuse `MapLifecycleDialogs` and
-  `mapSelectionHref`. `/atlas` remains `partial` with `instant = false`. OW-7
-  owns SC-7.2/SC-7.3 probes and G-1 — no production code beyond probe
-  definitions.
-- **Handoff:** resume through `start-session`; execute only OW-7 UX gate, then
-  its focused gate, final full verify, fresh reviewers, local commit, and
-  handoff. Do not close-out.
-- **G-1 disposition:** operator approved (2026-08-11) — site viewer
+  `mapSelectionHref`. `/atlas` remains `partial` with `instant = false`.
+  OW-7 UX gate: `/atlas` is the site-framed landing (`PageShell` / `PageHead`);
+  a selected map covers site chrome via `AtlasCanvasFrame` (`data-map-canvas-frame`
+  hides `.app-header`, `[data-site-footer]`, and `[data-site-feedback]` — not
+  generic `footer`, so dialog action bars stay visible). Create lives in the
+  PageHead meta slot; admin cards keep Edit access and a bottom-left delete
+  icon; manage-access is Done-only. The canvas switcher list caps at ~10 rows
+  then scrolls; the manage glyph is a gear. HomePrompt is a required Dialog
+  with tracking/offline current-system. Affiliation ESI omits synthetic
+  character `9000001` only in `NODE_ENV === 'development'`; production still
+  fail-closes on 400. Atlas stays `navHidden` until wall-drop (DEP-8); `/atlas`
+  and tool search still reach it. Operator G-1 (2026-08-12): opened Atlas,
+  created a map, switched access, edited the map. Log-driven probes
+  atlas-wall, atlas-map-catalogue, atlas-map-access, atlas-map-switcher,
+  atlas-map-create, atlas-map-lifecycle, and instant-nav-atlas green.
+- **Handoff:** resume through `start-session`; Ordered work is complete.
+  Run close-out in planned mode only (no further OW).
+- **G-1 disposition:** operator approved (2026-08-12) for session 4.0.4.4.1 —
+  opened Atlas, created a map, switched access, and edited the map. Site-framed
+  landing, header create, card delete icon, manage-access without delete,
+  scrolling switcher gear, and HomePrompt Dialog signed off. Atlas remains off
+  the public header strip until wall-drop. Prior 4.0.4.3.3 site-viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
-  `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off
-  before the PR opened.
+  `max-w-[32rem]`, full signature flow, and scanner live Est. ISK remain
+  signed off.
 - **Durable 4.0.4.3.3 gotchas:** (1) Atlas seeds the scanner catalogue through
-  `SiteCatalogueProvider` in `MapAccessGate` via `getScannerSiteIndex`
+  `SiteCatalogueProvider` in `AtlasBound` via `getScannerSiteIndex`
   (hourly priced + `liveRecipes`); AppHeader/sitemap keep lightweight
   `getSiteSearchIndex` (`cacheLife('max')`) — do not re-couple them.
   (2) Mapper imports scanner live prices and `useSiteCatalogue` only through

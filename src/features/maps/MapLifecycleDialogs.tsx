@@ -1,44 +1,54 @@
 'use client';
 
-import type { DialogFocusTarget } from '@/components/ui/dialog';
+import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
 import type { DeletedRestorableMapRow } from '@/data/maps/queries';
 import { MapCreationDialog } from './MapCreationDialog';
 import { TrashWindow } from './TrashWindow';
+import {
+  connectedDialogFocus,
+  type AuthorityScopedMapDialogs,
+} from './map-dialog-state';
 
 /** Shared create and trash doors for the Atlas menu and landing catalogue. */
 export function MapLifecycleDialogs({
-  creationOpen,
-  trashOpen,
-  onCreationOpenChange,
-  onTrashOpenChange,
+  dialogs,
+  onDialogsChange,
   corporations,
   deletedMaps,
-  creationFocus,
-  trashFocus,
+  creationOpenerRef,
+  trashOpenerRef,
+  hostRef,
 }: {
-  readonly creationOpen: boolean;
-  readonly trashOpen: boolean;
-  readonly onCreationOpenChange: (open: boolean) => void;
-  readonly onTrashOpenChange: (open: boolean) => void;
+  readonly dialogs: Pick<AuthorityScopedMapDialogs, 'creationOpen' | 'trashOpen'>;
+  readonly onDialogsChange: Dispatch<SetStateAction<AuthorityScopedMapDialogs>>;
   readonly corporations: readonly CorporationAccessOption[];
   readonly deletedMaps: readonly DeletedRestorableMapRow[];
-  readonly creationFocus: DialogFocusTarget;
-  readonly trashFocus: DialogFocusTarget;
+  readonly creationOpenerRef: RefObject<HTMLElement | null>;
+  readonly trashOpenerRef: RefObject<HTMLElement | null>;
+  readonly hostRef: RefObject<HTMLElement | null>;
 }) {
   return (
     <>
       <MapCreationDialog
-        open={creationOpen}
-        onOpenChange={onCreationOpenChange}
+        open={dialogs.creationOpen}
+        onOpenChange={(open) =>
+          onDialogsChange((current) => ({ ...current, creationOpen: open }))
+        }
         corporations={corporations}
-        openerRef={creationFocus}
+        openerRef={() =>
+          connectedDialogFocus(creationOpenerRef.current, hostRef.current)
+        }
       />
       <TrashWindow
-        open={trashOpen}
-        onOpenChange={onTrashOpenChange}
+        open={dialogs.trashOpen}
+        onOpenChange={(open) =>
+          onDialogsChange((current) => ({ ...current, trashOpen: open }))
+        }
         maps={deletedMaps}
-        finalFocus={trashFocus}
+        finalFocus={() =>
+          connectedDialogFocus(trashOpenerRef.current, hostRef.current)
+        }
       />
     </>
   );

@@ -86,7 +86,8 @@ describe('MapAccessDialog', () => {
     expect(markup).toContain('data-access-grants="42:Scout:editor"');
     expect(markup).toContain('data-character-search');
     expect(markup).toContain('data-has-final-focus="true"');
-    expect(markup).toContain('Delete map');
+    expect(markup).toContain('Done');
+    expect(markup).not.toContain('Delete map');
   });
 
   it('reconciles a refreshed grant snapshot after a concurrent revocation', () => {

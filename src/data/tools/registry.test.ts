@@ -8,6 +8,7 @@ describe('visibleNavTools', () => {
     const labels = visibleNavTools().map((t) => t.label);
     expect(labels).toContain('Wormhole Sites');
     expect(labels).toContain('Industry Planner');
+    expect(labels).not.toContain('Atlas'); // navHidden until wall-drop
     expect(labels).not.toContain('Skill Queues'); // navHidden
     expect(labels).not.toContain('Industry Jobs'); // navHidden
   });

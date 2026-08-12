@@ -133,6 +133,7 @@ describe('MapChrome', () => {
     expect(markup).toContain('data-map-actions-available="true"');
     expect(markup).toContain('data-account-menu');
     expect(markup).toContain('right-4 top-4');
+    expect(markup).toContain('absolute inset-0');
     expect(markup).toContain('data-feedback-compact="true"');
     expect(markup).toContain('data-feedback-embedded="true"');
     expect(markup).toContain('data-map-chrome-chips');

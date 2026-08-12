@@ -128,11 +128,15 @@ describe('POST /api/maps/create', () => {
   });
 
   it('returns the declared degraded response only after compensated projection failure', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const cause = new Error('projection unavailable');
     h.createProjectedMap.mockResolvedValueOnce({
       ok: false,
-      cause: new Error('projection unavailable'),
+      cause,
     });
 
     expect((await POST(request(VALID_BODY))).status).toBe(503);
+    expect(consoleError).toHaveBeenCalledWith('[map] create projection failed', cause);
+    consoleError.mockRestore();
   });
 });

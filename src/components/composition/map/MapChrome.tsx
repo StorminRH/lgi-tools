@@ -9,11 +9,11 @@ import type { Session } from '@/platform/auth/types';
 import { MapMenu } from './MapMenu';
 
 // Side-effect import: registers every search source on the CLIENT instance of
-// the registry. Map routes do not mount AppHeaderShell, so this shell is the
-// atlas boot path for the same wiring the industry planner pickers rely on —
-// without it, HomePrompt / NodeAddMenu `useSystemSearch().suggest` dispatches
-// `searchAll(..., ['systems'])` against an empty registry and the list stays
-// blank while Enter-to-parse (the separately loaded index) still works.
+// the registry. Atlas canvas chrome is the boot path when the site header is
+// hidden; without it, HomePrompt / NodeAddMenu `useSystemSearch().suggest`
+// dispatches `searchAll(..., ['systems'])` against an empty registry and the
+// list stays blank while Enter-to-parse (the separately loaded index) still
+// works.
 import '@/composition/search/register-all';
 
 /**

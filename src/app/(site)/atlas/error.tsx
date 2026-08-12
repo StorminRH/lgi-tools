@@ -6,9 +6,9 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 
 /**
- * Renders a viewport-filling recovery surface for unhandled map-route errors.
+ * Renders a viewport-filling recovery surface for unhandled atlas-route errors.
  */
-export default function MapError({
+export default function AtlasError({
   error,
   unstable_retry,
 }: {
@@ -16,11 +16,11 @@ export default function MapError({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    console.error('[map/error.tsx]', error);
+    console.error('[atlas/error.tsx]', error);
   }, [error]);
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col items-center justify-center gap-6 px-6 text-center">
+    <div className="flex min-h-[70vh] w-full flex-col items-center justify-center gap-6 px-6 text-center">
       <div className="font-data text-label uppercase tracking-eyebrow text-muted">
         Atlas signal lost
       </div>

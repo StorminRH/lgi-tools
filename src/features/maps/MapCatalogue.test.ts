@@ -68,6 +68,17 @@ vi.mock('./TrashWindow', () => ({
     }),
 }));
 
+vi.mock('@/components/ui/confirm-dialog', () => ({
+  ConfirmDialog: ({
+    open,
+    title,
+  }: {
+    open: boolean;
+    title: React.ReactNode;
+  }) =>
+    createElement('div', { 'data-map-delete-confirm': String(open) }, title),
+}));
+
 import {
   MapCatalogue,
   mapCatalogueSections,
@@ -165,8 +176,21 @@ describe('MapCatalogue', () => {
     expect(markup).toContain('data-alt=""');
     expect(markup).toContain('href="/atlas?panel=signatures&amp;map=map-direct"');
     expect(markup).toContain('data-map-catalogue-edit="map-created"');
+    expect(markup).toContain('data-map-catalogue-delete="map-created"');
+    expect(markup).toContain('aria-label="Delete Home Chain"');
+    expect(markup).toContain('Edit access');
+    expect(markup).not.toContain('>Delete</');
     expect(markup).not.toContain('data-map-catalogue-edit="map-corporation"');
+    expect(markup).not.toContain('data-map-catalogue-delete="map-corporation"');
     expect(markup).not.toContain('data-map-catalogue-edit="map-direct"');
+    expect(markup).toContain('data-page-shell');
+    expect(markup).toContain('lgi://</span>atlas');
+    expect(markup).toContain('>Atlas</h1>');
+    expect(markup).not.toContain('Map catalogue');
+    expect(markup).toContain('data-map-catalogue-create');
+    expect(markup).not.toContain('data-map-catalogue-create-card');
+    expect(markup).toContain('Create new map');
+    expect(markup).toContain('data-map-delete-confirm="false"');
     expect(markup).toContain('data-map-creation-dialog-probe="false"');
     expect(markup).toContain('data-corporation-count="1"');
     expect(markup).toContain('data-trash-window-probe="false"');
@@ -176,19 +200,25 @@ describe('MapCatalogue', () => {
     expect(markup).toContain('Trash (1)');
   });
 
-  it('keeps the create card last and owns structural scrolling inside the clipped frame', () => {
+  it('puts create and trash in the page header instead of a trailing create card', () => {
     const markup = renderCatalogue();
-    expect(markup).toContain('data-map-catalogue-scroll');
-    expect(markup).toContain('h-full min-h-0 overflow-y-auto overscroll-contain');
-    expect(markup.lastIndexOf('data-map-catalogue-create-card')).toBeGreaterThan(
-      markup.lastIndexOf('data-map-catalogue-card'),
+    expect(markup).toContain('data-page-shell');
+    expect(markup).toContain('data-page-shell-mode="workspace"');
+    expect(markup).not.toContain('data-map-catalogue-scroll');
+    expect(markup).not.toContain('data-map-catalogue-create-card');
+    expect(markup.indexOf('data-map-catalogue-create')).toBeLessThan(
+      markup.indexOf('data-map-catalogue-card'),
+    );
+    expect(markup.indexOf('data-map-catalogue-create')).toBeLessThan(
+      markup.indexOf('data-map-catalogue-trash'),
     );
   });
 
-  it('shows only the create card and one short hint when no maps are authorized', () => {
+  it('keeps the empty-catalogue hint and header create control when no maps are authorized', () => {
     const markup = renderCatalogue([]);
-    expect(markup).toContain('data-map-catalogue-create-card');
+    expect(markup).toContain('data-map-catalogue-create');
     expect(markup).toContain('Create new map');
+    expect(markup).not.toContain('data-map-catalogue-create-card');
     expect(markup).toContain('data-map-catalogue-empty-hint');
     expect(markup).toContain('Create a map to begin charting a chain.');
     expect(markup).not.toContain('data-map-catalogue-card=');
@@ -203,7 +233,7 @@ describe('MapCatalogue', () => {
     expect(markup).toContain('Map catalogue unavailable');
     expect(markup).toContain('Try again');
     expect(markup).not.toContain('data-map-catalogue-empty-hint');
-    expect(markup).not.toContain('data-map-catalogue-create-card');
+    expect(markup).not.toContain('data-map-catalogue-create');
     expect(markup).not.toContain('data-map-catalogue-trash');
   });
 });

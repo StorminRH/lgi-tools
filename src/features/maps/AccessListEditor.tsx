@@ -176,7 +176,7 @@ export function AccessListEditor({
                 <RadioGroup
                   label={`Access for ${grant.name}`}
                   options={options}
-                  value={grant.role ?? undefined}
+                  value={grant.role}
                   disabled={disabled}
                   onValueChange={(role) => onRoleChange(grant, role as MapRole)}
                   className="md:min-w-28"

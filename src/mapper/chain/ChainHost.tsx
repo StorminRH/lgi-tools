@@ -386,7 +386,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   return (
     <div
       ref={shellRef}
-      className="h-full w-full"
+      className="relative h-full w-full"
       data-map-shell=""
       data-map-can-edit={canEdit === true ? 'true' : 'false'}
     >
@@ -465,14 +465,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
             events={events}
             authoring={authoring}
           />
-          {showHomePrompt ? (
-            <HomePrompt
-              mapId={mapId}
-              onPick={(systemId) => {
-                void authoring.setHomeSystem({ mapId, systemId });
-              }}
-            />
-          ) : null}
           {canEdit === true ? (
             <>
               <EdgeContextMenu
@@ -501,6 +493,16 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           ) : null}
           </ReactFlowProvider>
         </SignatureProvider>
+        {/* Dialog portals to body at z-overlay; kept outside SignatureProvider
+            so a degraded in-tree fallback still paints after the scanner. */}
+        {showHomePrompt ? (
+          <HomePrompt
+            mapId={mapId}
+            onPick={(systemId) => {
+              void authoring.setHomeSystem({ mapId, systemId });
+            }}
+          />
+        ) : null}
       </MapPresenceProvider>
     </div>
   );

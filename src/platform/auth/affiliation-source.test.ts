@@ -35,6 +35,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   __resetEsiGateForTests();
 });
 
@@ -138,5 +139,38 @@ describe('fetchAffiliations', () => {
       rows: [],
       transientFailure: true,
     });
+  });
+
+  it('in development, omits the local synthetic E2E character before calling ESI', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+
+    await expect(fetchAffiliations([9_000_001])).resolves.toEqual({
+      rows: [],
+      transientFailure: false,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fetchMock.mockResolvedValue(
+      jsonResponse([{ character_id: 102, corporation_id: 3000 }]),
+    );
+    const result = await fetchAffiliations([9_000_001, 102]);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual([102]);
+    expect(result).toEqual({
+      rows: [{ characterId: 102, corporationId: 3000, allianceId: null, factionId: null }],
+      transientFailure: false,
+    });
+  });
+
+  it('in production, still sends every id and treats ESI 400 as transient', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Invalid character ID' }), { status: 400 }),
+    );
+
+    await expect(fetchAffiliations([9_000_001, 102])).resolves.toEqual({
+      rows: [],
+      transientFailure: true,
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual([9_000_001, 102]);
   });
 });

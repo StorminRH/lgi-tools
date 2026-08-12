@@ -37,7 +37,7 @@ import {
 import {
   createMapWithMinimumInterstitial,
   handoffCreatedMap,
-  mapCreationFailureMessage,
+  runMapCreationSubmit,
 } from './map-creation-client';
 
 type CreationPhase =
@@ -144,29 +144,31 @@ function useMapCreationDialog({
   }
 
   async function submit() {
-    if (submittingRef.current) return;
-    const prepared = prepareMapCreation(name, grants, MAX_MAP_NAME_LENGTH);
-    if (!prepared.ok) {
-      setFormError(prepared.message);
-      return;
-    }
-
-    submittingRef.current = true;
-    setFormError(null);
-    setPhase({ kind: 'creating' });
-    const outcome = await createMapWithMinimumInterstitial(prepared.input);
-    if (!outcome.ok) {
-      submittingRef.current = false;
-      setPhase({ kind: 'error', message: mapCreationFailureMessage(outcome) });
-      return;
-    }
-
-    handoffCreatedMap(outcome.data.mapId, {
-      reset: resetForm,
-      close: () => onOpenChange(false),
-      onCreated: onCreated ?? NOOP_CREATED,
-      navigate: (href) => router.push(href),
-    });
+    await runMapCreationSubmit(
+      submittingRef.current,
+      prepareMapCreation(name, grants, MAX_MAP_NAME_LENGTH),
+      createMapWithMinimumInterstitial,
+      {
+        onInvalid: setFormError,
+        onBegin: () => {
+          submittingRef.current = true;
+          setFormError(null);
+          setPhase({ kind: 'creating' });
+        },
+        onFailed: (message) => {
+          submittingRef.current = false;
+          setPhase({ kind: 'error', message });
+        },
+        onCreated: (mapId) => {
+          handoffCreatedMap(mapId, {
+            reset: resetForm,
+            close: () => onOpenChange(false),
+            onCreated: onCreated ?? NOOP_CREATED,
+            navigate: (href) => router.push(href),
+          });
+        },
+      },
+    );
   }
 
   return {

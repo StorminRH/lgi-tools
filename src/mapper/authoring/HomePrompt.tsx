@@ -1,13 +1,20 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, useRef } from 'react';
+import { useActiveCharacterId } from '@/components/use-account-characters';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogTitle } from '@/components/ui/dialog';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import {
+  useSystemName,
   useSystemSearch,
   type SystemErr,
   type SystemParams,
 } from '@/components/use-system-search';
+import { api } from '@/data/convex/api';
+import { useLiveValue } from '@/data/convex/use-live-value';
+import { useSetMapTracking } from '../tracking/TrackingControls';
+import { homeCurrentSystem, type HomeCurrentSystem } from './home-prompt-model';
 
 /** Props for the empty-map home-system prompt. */
 export interface HomePromptProps {
@@ -16,61 +23,112 @@ export interface HomePromptProps {
 }
 
 /**
- * Centered empty-map prompt: system search plus a disabled "Use current system"
- * control annotated as requiring live tracking (4.0.4.2). Renders only when the
- * host has already gated on `canEdit` and a complete empty systems page.
+ * Required first-run Dialog: system search plus current-system / start-tracking.
+ * Stays open (`open` held true, no close control) until the host unmounts it
+ * after a home system is set. Renders only when the host has already gated on
+ * `canEdit` and a complete empty systems page.
  */
 export function HomePrompt({ mapId, onPick }: HomePromptProps) {
   const { parse, suggest } = useSystemSearch();
   const titleId = useId();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const characterId = useActiveCharacterId();
+  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const freshness = useLiveValue(api.mapTracking.feedFreshness, { mapId });
+  const setTracking = useSetMapTracking();
+  const current = homeCurrentSystem({ characterId, tracking, freshness });
+  const currentSystemId = current.kind === 'ready' ? current.systemId : null;
+  const currentSystemName = useSystemName(currentSystemId);
 
   return (
-    <div
-      data-map-home-prompt
-      data-map-id={mapId}
-      className="pointer-events-none absolute inset-0 z-sticky flex items-center justify-center px-6"
+    <Dialog
+      open
+      labelledBy={titleId}
+      initialFocus={searchInputRef}
+      className="w-[min(24rem,calc(100vw-2rem))] p-5"
     >
-      <section
-        aria-labelledby={titleId}
-        className="pointer-events-auto flex w-full max-w-md flex-col gap-4 border border-border-idle bg-bg-deep p-5 shadow-dd"
+      <div
+        data-map-home-prompt
+        data-map-id={mapId}
+        className="flex flex-col gap-4"
       >
-        <div className="flex flex-col gap-1">
-          <p className="font-data text-label uppercase tracking-eyebrow text-muted">
-            Atlas · new map
-          </p>
-          <h2
-            id={titleId}
-            className="font-display text-title font-bold tracking-copy text-name"
-          >
-            Set your home system
-          </h2>
-          <p className="text-ui leading-relaxed text-muted">
-            The first system becomes the map root. Connections grow from here.
-          </p>
-        </div>
+        <DialogTitle
+          id={titleId}
+          className="text-center font-display text-title font-bold tracking-copy text-name"
+        >
+          Set your home system
+        </DialogTitle>
         <TerminalSearch<SystemParams, SystemErr>
           initialValue=""
           placeholder="Search systems — type a name"
           parse={parse}
           suggest={suggest}
+          inputRef={searchInputRef}
           errorMessage={() => 'No system matches that name.'}
           onSubmit={(params) => onPick(params.system.id)}
           onClear={() => undefined}
           errorLabel="System"
         />
-        <Button
-          type="button"
-          variant="secondary"
-          disabled
-          data-map-home-current-disabled
-          className="flex h-auto w-full flex-col items-start gap-0.5 px-3 py-2 text-left"
-        >
-          <span className="font-ui text-nav">Use current system</span>
-          <span className="font-data text-micro text-faint">
-            Requires live tracking · arrives in 4.0.4.2
-          </span>
-        </Button>
-      </section>
-    </div>
+        <CurrentSystemControl
+          current={current}
+          currentSystemName={currentSystemName}
+          onPick={onPick}
+          onStartTracking={() => {
+            if (characterId === null) return;
+            void setTracking({ mapId, characterId, tracked: true });
+          }}
+        />
+      </div>
+    </Dialog>
+  );
+}
+
+function CurrentSystemControl({
+  current,
+  currentSystemName,
+  onPick,
+  onStartTracking,
+}: {
+  readonly current: HomeCurrentSystem;
+  readonly currentSystemName: string | null;
+  readonly onPick: (systemId: number) => void;
+  readonly onStartTracking: () => void;
+}) {
+  if (current.kind === 'untracked') {
+    return (
+      <Button
+        type="button"
+        variant="secondary"
+        data-map-home-start-tracking
+        className="w-full"
+        onClick={onStartTracking}
+      >
+        Start tracking
+      </Button>
+    );
+  }
+
+  const ready = current.kind === 'ready';
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      disabled={!ready}
+      data-map-home-current-disabled={ready ? undefined : true}
+      data-map-home-current={ready ? current.systemId : undefined}
+      className="flex h-auto w-full flex-col items-start gap-0.5 px-3 py-2 text-left"
+      onClick={() => {
+        if (!ready) return;
+        onPick(current.systemId);
+      }}
+    >
+      <span className="font-ui text-nav">Use current system</span>
+      {ready && currentSystemName !== null ? (
+        <span className="font-data text-micro text-muted">{currentSystemName}</span>
+      ) : null}
+      {current.kind === 'offline' ? (
+        <span className="font-data text-micro text-muted">Character is offline</span>
+      ) : null}
+    </Button>
   );
 }

@@ -25,6 +25,29 @@ vi.mock('@/data/convex/use-convex-authed', () => ({
   useConvexAuthed: () => mocks.authed,
 }));
 
+vi.mock('@/data/convex/use-live-value', () => ({
+  useLiveValue: () => undefined,
+}));
+
+vi.mock('@/data/convex/use-mutation', () => ({
+  useMutation: () => vi.fn(),
+}));
+
+vi.mock('@/components/use-account-characters', () => ({
+  useActiveCharacterId: () => 1,
+}));
+
+vi.mock('@/components/ui/dialog', () => ({
+  Dialog: ({ children }: { children: React.ReactNode }) =>
+    createElement('div', { role: 'dialog' }, children),
+  DialogTitle: ({ children, id }: { children: React.ReactNode; id?: string }) =>
+    createElement('h2', { id }, children),
+  DialogClose: ({ children }: { children: React.ReactNode }) =>
+    createElement('button', null, children),
+  DialogDescription: ({ children }: { children: React.ReactNode }) =>
+    createElement('p', null, children),
+}));
+
 vi.mock('./use-map-chain', () => ({
   useMapChain: mocks.useMapChain,
 }));
@@ -43,6 +66,7 @@ vi.mock('../authoring/MapAuthoringOverlay', () => ({
 
 vi.mock('../tracking/TrackingControls', () => ({
   TrackingHeartbeat: () => null,
+  useSetMapTracking: () => vi.fn(),
 }));
 
 // The presence host subscribes through the Convex client; these markup tests
@@ -55,9 +79,18 @@ vi.mock('../tracking/JumpDoorbellObserver', () => ({
   JumpDoorbellObserver: () => null,
 }));
 
-vi.mock('../signatures/SignatureProvider', () => ({
-  SignatureProvider: ({ children }: { children?: unknown }) => children,
-}));
+vi.mock('../signatures/SignatureProvider', async () => {
+  const { createElement: element } = await import('react');
+  return {
+    SignatureProvider: ({ children }: { children?: unknown }) =>
+      element(
+        'div',
+        { 'data-signature-provider': '' },
+        children as never,
+        element('div', { 'data-signature-window-layer': '' }),
+      ),
+  };
+});
 
 vi.mock('@xyflow/react', async () => {
   const { createElement: element } = await import('react');
@@ -272,6 +305,9 @@ describe('chain host access states', () => {
     expect(markup).toContain('data-map-home-prompt');
     expect(markup).toContain('Set your home system');
     expect(markup).toContain('data-map-home-current-disabled');
+    expect(markup.indexOf('data-map-home-prompt')).toBeGreaterThan(
+      markup.indexOf('data-signature-window-layer'),
+    );
   });
 
   it('hides the home prompt when live systems exist even before merge lands', async () => {
