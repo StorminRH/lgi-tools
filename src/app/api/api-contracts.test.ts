@@ -346,13 +346,13 @@ respond(endpoint, 200, { ok: true });`);
 
 describe('API route inventories', () => {
   it('pins the complete route and exemption totals', () => {
-    expect(ALL_ROUTE_FILES).toHaveLength(62);
-    expect(FIRST_PARTY_ROUTE_FILES).toHaveLength(61);
+    expect(ALL_ROUTE_FILES).toHaveLength(63);
+    expect(FIRST_PARTY_ROUTE_FILES).toHaveLength(62);
     expect(CRON_ROUTES.size).toBe(8);
     expect(FORM_ROUTES.size).toBe(8);
     expect(LIBRARY_OWNED.size).toBe(1);
-    expect(V2_ROUTE_FILES).toHaveLength(45);
-    expect(countV2Endpoints()).toBe(47);
+    expect(V2_ROUTE_FILES).toHaveLength(46);
+    expect(countV2Endpoints()).toBe(48);
   });
 
   it.each(FIRST_PARTY_ROUTE_FILES)('%s has one truthful input classification', (file) => {
@@ -399,7 +399,7 @@ describe('API route inventories', () => {
 // renamed or deleted fails instead of lingering as an orphan.
 describe('endpoint → route association', () => {
   it('pins the declared endpoint total', () => {
-    expect(DECLARED_ENDPOINTS).toHaveLength(47);
+    expect(DECLARED_ENDPOINTS).toHaveLength(48);
     expect(DECLARED_ENDPOINTS).toHaveLength(countV2Endpoints());
   });
 

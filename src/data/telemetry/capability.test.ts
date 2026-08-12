@@ -41,13 +41,14 @@ function recordedMetadata(
 }
 
 describe('capability catalogue', () => {
-  it('names all 43 instrumented operations exactly once', () => {
-    expect(new Set(ids).size).toBe(43);
+  it('names all 44 instrumented operations exactly once', () => {
+    expect(new Set(ids).size).toBe(44);
     expect(ids).toContain('admin.wh-statics-review');
     expect(ids).toContain('cron.refresh-wh-statics');
     expect(ids).toContain('maps.create-map');
     expect(ids).toContain('maps.eliminate-signatures');
     expect(ids).toContain('maps.resolve-jump');
+    expect(ids).toContain('maps.search-characters');
   });
 
   it('keeps operation names unique within each feature', () => {

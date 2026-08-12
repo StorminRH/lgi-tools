@@ -13,6 +13,8 @@ export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
 export const EVE_ISSUER = 'https://login.eveonline.com';
 /** Required audience claim for verified EVE access tokens. */
 export const EVE_AUDIENCE = 'EVE Online';
+/** ESI scope that unlocks authenticated character typeahead search. */
+export const EVE_CHARACTER_SEARCH_SCOPE = 'esi-search.search_structures.v1';
 
 /**
  * EVE's account-level dashboard where a pilot reviews and revokes third-party app access.
@@ -38,4 +40,5 @@ export const EVE_SCOPES = [
   'esi-location.read_location.v1',
   'esi-location.read_ship_type.v1',
   'esi-corporations.read_structures.v1',
+  EVE_CHARACTER_SEARCH_SCOPE,
 ] as const;

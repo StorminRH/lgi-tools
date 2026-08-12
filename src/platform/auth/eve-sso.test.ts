@@ -26,7 +26,9 @@ describe('EVE_SCOPES', () => {
   // the corp owned-structures read (esi-corporations.read_structures.v1) for the
   // planner's build-location catalogue, taking it to twelve; 4.0.4.2.1 re-admitted
   // the location and ship-type reads (also pruned in 3.7.1.1) for tracked-location
-  // sync, taking it to fourteen. Naming trap still worth pinning: the skill-queue
+  // sync, taking it to fourteen; 4.0.4.4.1 added the authenticated ESI search
+  // scope for character typeahead, taking it to fifteen. Naming trap still worth
+  // pinning: the skill-queue
   // read lives under `esi-skills`, NOT `esi-skillqueue`. (`read_attributes` does
   // not exist; /attributes is gated by `read_skills`.) The corp roles read lives
   // under `esi-characters`, NOT `esi-corporations` — but the corp BLUEPRINTS and
@@ -50,6 +52,7 @@ describe('EVE_SCOPES', () => {
       'esi-location.read_location.v1',
       'esi-location.read_ship_type.v1',
       'esi-corporations.read_structures.v1',
+      'esi-search.search_structures.v1',
     ]);
   });
 
@@ -58,7 +61,10 @@ describe('EVE_SCOPES', () => {
     // `manage_`/`write_` capability. Catches a write scope slipping in (the kind
     // that grants mutate-the-character access we never need).
     for (const scope of EVE_SCOPES) {
-      const readOnly = scope === 'publicData' || /\.read_/.test(scope);
+      const readOnly =
+        scope === 'publicData' ||
+        /\.read_/.test(scope) ||
+        scope === 'esi-search.search_structures.v1';
       expect(readOnly, `${scope} is not a read-only scope`).toBe(true);
     }
   });

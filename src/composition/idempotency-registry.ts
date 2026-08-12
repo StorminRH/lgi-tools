@@ -367,6 +367,7 @@ function mutationRoute(
 
 const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   // ── POST-bodied tool reads: no write, so re-running is free ─────────────
+  mutationRoute('src/app/api/maps/search-characters/route.ts', 'key-protected', 'Character results are read-only, while token vending may refresh encrypted EVE credentials or invalid-grant state; those writes use ciphertext-keyed compare-and-swap and a repeat reflects the stored winner rather than applying an unsafe second mutation.'),
   readRoute('src/app/api/eve/names/route.ts', 'Pure resolution of posted ids through the ESI gate; writes nothing.'),
   readRoute('src/app/api/industry/build-location/route.ts', 'Pure resolution over reference data; writes nothing.'),
   readRoute('src/app/api/industry/owned-assets/route.ts', 'Read of the caller’s own stored assets; writes nothing.'),

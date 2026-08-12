@@ -47,9 +47,10 @@ export type CapabilityFeature = (typeof CAPABILITY_FEATURES)[number];
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
 /**
- * Closed catalogue of the 43 instrumented operations: 20 mutation routes through `runMutationRoute`,
- * 8 cron routes through `defineCronRoute`, 8 direct mutation routes that deliberately sit outside
- * the mutation shell, 6 POST-bodied tool reads, and the queued ESI-refresh job runner. Adding a
+ * Closed catalogue of the 44 instrumented operations: 20 mutations and one authenticated read
+ * through `runMutationRoute`, 8 cron routes through `defineCronRoute`, 8 direct mutation routes
+ * that deliberately sit outside the mutation shell, 6 other POST-bodied tool reads, and the
+ * queued ESI-refresh job runner. Adding a
  * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
  * census covers the rest, so an operation cannot ship unnamed.
  */
@@ -120,7 +121,8 @@ export const CAPABILITIES = {
   'market.refresh-market-history': { feature: 'market', operation: 'refresh-market-history', kind: 'mutation' },
   'feedback.submit-feedback': { feature: 'feedback', operation: 'submit-feedback', kind: 'mutation' },
 
-  // ── POST-bodied tool reads (6) ─────────────────────────────────────────
+  // ── POST-bodied tool reads (7) ─────────────────────────────────────────
+  'maps.search-characters': { feature: 'maps', operation: 'search-characters', kind: 'read' },
   'planner.resolve-entity-names': { feature: 'planner', operation: 'resolve-entity-names', kind: 'read' },
   'planner.resolve-build-location': { feature: 'planner', operation: 'resolve-build-location', kind: 'read' },
   'planner.read-owned-assets': { feature: 'planner', operation: 'read-owned-assets', kind: 'read' },

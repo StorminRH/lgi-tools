@@ -9,6 +9,10 @@ const connectionIdSchema = z.string().trim().min(1).max(200);
 export const MAX_MAP_NAME_LENGTH = 120;
 /** Maximum number of explicit principal grants accepted in one create statement. */
 export const MAX_MAP_CREATE_GRANTS = 100;
+/** Minimum normalized character-search length accepted by both ESI search paths. */
+export const MIN_CHARACTER_SEARCH_LENGTH = 3;
+/** Maximum normalized character-search length accepted by the exact-name fallback. */
+export const MAX_CHARACTER_SEARCH_LENGTH = 100;
 
 const createMapGrantSchema = z.strictObject({
   ownerType: z.enum(MAP_ACCESS_OWNER_TYPES),
@@ -55,6 +59,52 @@ export const createMapEndpoint = defineEndpoint({
     403: problem('cross_origin'),
     429: problem('rate_limited'),
     503: problem('map_projection_unavailable'),
+  },
+});
+
+/** Untrusted character-search request normalized before any linked-token or ESI work. */
+export const searchCharactersRequestSchema = z.strictObject({
+  search: z
+    .string()
+    .trim()
+    .min(MIN_CHARACTER_SEARCH_LENGTH)
+    .max(MAX_CHARACTER_SEARCH_LENGTH),
+});
+
+const characterSearchResultSchema = z.strictObject({
+  characterId: z.number().int().positive().safe(),
+  name: z.string().min(1),
+  portraitUrl: z.string().url(),
+});
+
+/** Character-search result with an explicit capability mode for the consuming typeahead. */
+export const searchCharactersResponseSchema = z.discriminatedUnion('mode', [
+  z.strictObject({
+    mode: z.literal('typeahead'),
+    results: z.array(characterSearchResultSchema),
+  }),
+  z.strictObject({
+    mode: z.literal('exact'),
+    results: z.array(characterSearchResultSchema),
+  }),
+]);
+
+/** Validated character-search request accepted by server composition. */
+export type SearchCharactersRequest = z.infer<typeof searchCharactersRequestSchema>;
+/** Typed scoped or exact character-search response consumed by the access editor. */
+export type SearchCharactersResponse = z.infer<typeof searchCharactersResponseSchema>;
+
+/** Authenticated first-party endpoint for scoped character search with exact fallback. */
+export const searchCharactersEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/maps/search-characters',
+  request: searchCharactersRequestSchema,
+  responses: {
+    200: jsonBody(searchCharactersResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('cross_origin'),
+    503: problem('character_search_unavailable'),
   },
 });
 

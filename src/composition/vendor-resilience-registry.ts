@@ -88,9 +88,9 @@ export const vendorResilienceRegistry: Record<
     rateLimit:
       "The shared Redis scoreboard owns CCP's per-IP error budget: two-minute-bucket self counts plus the server's error-limit echo, evaluated before dispatch. Refusals are recorded by markRecentBudgetExhaustion.",
     idempotency:
-      'Reads only; every ESI call through this gate is a GET, so a repeat is safe.',
+      'Read-only ESI operations only: GET queries plus public POST resolvers whose JSON bodies name lookup inputs and perform no mutation, so a repeat is safe.',
     degradation:
-      'Typed failures from src/lib/problem — callers fall back to Neon-persisted data or the Fuzzwork price source rather than surfacing an error.',
+      'Per caller: background and price reads fall back to stored data or Fuzzwork; interactive character search returns its declared unavailable problem when scoped or exact live resolution cannot complete.',
     telemetryFields:
       "'price_source_degraded', 'public_esi_budget_alert_claimed', 'public_esi_budget_alerted'.",
   },

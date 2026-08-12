@@ -30,7 +30,7 @@ const RESOLVE_CONCURRENCY = 8;
 // `use cache` would not persist across requests on Vercel). A length-1 POST
 // isolates each id: an unknown id 404s only its own lookup, never poisoning a
 // batch.
-async function fetchEntityName(id: number): Promise<string | null> {
+async function fetchEntityName(id: number): Promise<string> {
   'use cache: remote';
   cacheTag(entityNameTag(id));
   cacheLife(NAME_CACHE_LIFE);
@@ -39,10 +39,42 @@ async function fetchEntityName(id: number): Promise<string | null> {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify([id]),
   });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { category: string; id: number; name: string }[];
-  const row = data.find((d) => d.id === id);
-  return row && typeof row.name === 'string' ? row.name : null;
+  if (!res.ok) throw new Error(`EVE entity name request failed (${res.status})`);
+  const data: unknown = await res.json();
+  if (!Array.isArray(data)) throw new Error('EVE entity name response was malformed');
+  const row = data.find(
+    (candidate): candidate is { id: number; name: string } =>
+      typeof candidate === 'object' &&
+      candidate !== null &&
+      'id' in candidate &&
+      candidate.id === id &&
+      'name' in candidate &&
+      typeof candidate.name === 'string' &&
+      candidate.name.length > 0,
+  );
+  if (row === undefined) throw new Error(`EVE entity name missing for ${id}`);
+  return row.name;
+}
+
+async function resolveEntityNamesBounded(
+  ids: number[],
+  resolveOne: (id: number) => Promise<string | null>,
+): Promise<Record<string, string>> {
+  const unique = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0);
+  const names: Record<string, string> = {};
+  let cursor = 0;
+  const runners = Array.from(
+    { length: Math.min(RESOLVE_CONCURRENCY, unique.length) },
+    async () => {
+      while (cursor < unique.length) {
+        const id = unique[cursor++]!; // cursor < unique.length checked above
+        const name = await resolveOne(id);
+        if (name !== null) names[String(id)] = name;
+      }
+    },
+  );
+  await Promise.all(runners);
+  return names;
 }
 
 /**
@@ -52,23 +84,24 @@ async function fetchEntityName(id: number): Promise<string | null> {
  * or a flaky lookup) is simply absent — the board falls back to a generic label.
  */
 export async function resolveEntityNames(ids: number[]): Promise<Record<string, string>> {
-  const unique = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0);
-  const names: Record<string, string> = {};
-  let cursor = 0;
-  const runners = Array.from(
-    { length: Math.min(RESOLVE_CONCURRENCY, unique.length) },
-    async () => {
-      while (cursor < unique.length) {
-        const id = unique[cursor++]!; // cursor < unique.length checked in the while condition
-        try {
-          const name = await fetchEntityName(id);
-          if (name !== null) names[String(id)] = name;
-        } catch {
-          // Best-effort: leave this id unresolved.
-        }
-      }
-    },
-  );
-  await Promise.all(runners);
-  return names;
+  return resolveEntityNamesBounded(ids, async (id) => {
+    try {
+      return await fetchEntityName(id);
+    } catch {
+      return null;
+    }
+  });
+}
+
+/**
+ * Resolves every supplied EVE entity id or throws when the public resolver cannot provide one.
+ * Use this only when the caller already obtained authoritative live ids and partial enrichment
+ * would misrepresent an upstream outage as an empty result.
+ */
+export async function resolveEntityNamesStrict(
+  ids: number[],
+): Promise<Record<string, string>> {
+  return resolveEntityNamesBounded(ids, async (id) => {
+    return fetchEntityName(id);
+  });
 }

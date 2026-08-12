@@ -12,10 +12,14 @@
 - **CURRENT:** executing approved session **4.0.4.4.1** on
   `lifecycle/4.0.4.4` (frozen plan `Approved`, execution status remains
   `Pending` by policy; release triplet `4.0.4.4.1`).
-- **OW progress:** **1/7 complete — next: Character search.**
+- **OW progress:** **2/7 complete — next: Access editor + creation dialog.**
 - **OW completed:** OW-1 durable foundation — viewer/editor/admin migration,
   Neon-only authorized/trash listings, bounded staged map creation, one-way
-  projection, and compensating recovery.
+  projection, and compensating recovery. OW-2 character search — 15-scope auth
+  vocabulary, owned-token ESI typeahead, exact public fallback, strict bounded
+  name enrichment, and the authenticated maps search route; focused 9 files /
+  333 tests, route census 93, and origin-main-pinned `pnpm verify` green (5,030
+  tests; Fallow zero issues).
 - **Next-agent notes:** (1) creation atomically inserts a hidden row with
   `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
   with a 2 s whole-attempt bound, then publishes by clearing both markers;
@@ -26,10 +30,16 @@
   writer emits `admin` and the single read seam normalizes legacy claims.
   Delivery still needs an all-live-map projection resync, then a later
   one-line legacy-validator contraction after production convergence. (4)
-  OW-2 requires fresh ESI + Zod documentation briefs before code changes.
-- **Handoff:** resume through `start-session`; execute only OW-2 Character
-  search, then its focused gate, final full verify, fresh reviewers, local
-  commit, and handoff. Do not advance into OW-3 or close-out.
+  OW-3 consumes `POST /api/maps/search-characters`: input is trimmed 3–100,
+  response is `{ mode: 'typeahead' | 'exact', results }`; existing linked
+  grants need reconnect before scoped typeahead, while no scoped token uses
+  exact public resolution. Scoped/token/name failures return 503 and never
+  silently fall back. (5) Entity-name caching throws inside `use cache: remote`
+  on upstream/malformed results so transient failures are not cached as null;
+  both strict and best-effort callers share the eight-request worker cap.
+- **Handoff:** resume through `start-session`; execute only OW-3 Access editor
+  + creation dialog, then its focused gate, final full verify, fresh reviewers,
+  local commit, and handoff. Do not advance into OW-4 or close-out.
 - **G-1 disposition:** operator approved (2026-08-11) — site viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off
