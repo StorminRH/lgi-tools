@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
 import {
   SiteCatalogueProvider,
   useSiteCatalogue,
@@ -19,47 +19,42 @@ function Probe({ name }: { readonly name: string }) {
   });
 }
 
-describe('SiteCatalogueProvider', () => {
-  it('resolves catalogue-matched names on the first render from props', () => {
-    // Module index stays empty — the provider must not depend on a later effect.
-    expect(siteIdForSiteName('Barren Perimeter Reservoir')).toBeNull();
+test('SiteCatalogueProvider resolves from props on first render and falls back to the module index', () => {
+  // Module index stays empty — the provider must not depend on a later effect.
+  expect(siteIdForSiteName('Barren Perimeter Reservoir')).toBeNull();
 
-    const markup = renderToStaticMarkup(
-      createElement(
-        SiteCatalogueProvider,
-        {
-          siteIndex: [
-            {
-              id: 49,
-              name: 'Barren Perimeter Reservoir',
-              siteType: 'gas',
-              wormholeClass: null,
-              blueLootIsk: null,
-              resourceValueIsk: 82_432_500,
-              liveRecipes: [{ typeId: 30370, units: 2_500, seedIsk: 28_100_000 }],
-            },
-          ],
-        },
-        createElement(Probe, { name: 'Barren Perimeter Reservoir' }),
-      ),
-    );
-
-    expect(markup).toContain('data-site-id="49"');
-    expect(markup).toContain('data-est-isk="82432500"');
-  });
-
-  it('falls back to the module index outside a provider', () => {
-    setSiteNameIndex([
+  const fromProps = renderToStaticMarkup(
+    createElement(
+      SiteCatalogueProvider,
       {
-        id: 49,
-        name: 'Barren Perimeter Reservoir',
-        estIsk: 1,
-        liveRecipes: [],
+        siteIndex: [
+          {
+            id: 49,
+            name: 'Barren Perimeter Reservoir',
+            siteType: 'gas',
+            wormholeClass: null,
+            blueLootIsk: null,
+            resourceValueIsk: 82_432_500,
+            liveRecipes: [{ typeId: 30370, units: 2_500, seedIsk: 28_100_000 }],
+          },
+        ],
       },
-    ]);
-    const markup = renderToStaticMarkup(
       createElement(Probe, { name: 'Barren Perimeter Reservoir' }),
-    );
-    expect(markup).toContain('data-site-id="49"');
-  });
+    ),
+  );
+  expect(fromProps).toContain('data-site-id="49"');
+  expect(fromProps).toContain('data-est-isk="82432500"');
+
+  setSiteNameIndex([
+    {
+      id: 49,
+      name: 'Barren Perimeter Reservoir',
+      estIsk: 1,
+      liveRecipes: [],
+    },
+  ]);
+  const fromModule = renderToStaticMarkup(
+    createElement(Probe, { name: 'Barren Perimeter Reservoir' }),
+  );
+  expect(fromModule).toContain('data-site-id="49"');
 });

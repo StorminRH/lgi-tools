@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import SiteDetailPage, { SiteDetailContent } from './page';
 
 const mocks = vi.hoisted(() => ({
@@ -84,41 +84,37 @@ const site = {
   resources: [],
 };
 
-describe('SiteDetailPage', () => {
-  beforeEach(() => {
-    mocks.getPricedSiteDetail.mockReset();
-    mocks.getSiteSearchIndex.mockReset();
-    mocks.selectRelatedSites.mockReset();
-    mocks.notFound.mockClear();
-    mocks.getPricedSiteDetail.mockResolvedValue(site);
-    mocks.getSiteSearchIndex.mockResolvedValue([site]);
-    mocks.selectRelatedSites.mockReturnValue([]);
-  });
+beforeEach(() => {
+  mocks.getPricedSiteDetail.mockReset();
+  mocks.getSiteSearchIndex.mockReset();
+  mocks.selectRelatedSites.mockReset();
+  mocks.notFound.mockClear();
+  mocks.getPricedSiteDetail.mockResolvedValue(site);
+  mocks.getSiteSearchIndex.mockResolvedValue([site]);
+  mocks.selectRelatedSites.mockReturnValue([]);
+});
 
-  it('keeps params under Suspense for Instant navigations', () => {
-    const tree = SiteDetailPage({
-      params: Promise.resolve({ id: '1' }),
-      searchParams: Promise.resolve({}),
-    });
-    const html = renderToStaticMarkup(tree);
-    // Sync shell only — params-bound content streams inside Suspense.
-    expect(html).toContain('Loading site');
-    expect(html).toContain('max-w-[32rem]');
-    expect(mocks.getPricedSiteDetail).not.toHaveBeenCalled();
+test('site detail keeps params under Suspense then hosts the standalone card', async () => {
+  const shell = SiteDetailPage({
+    params: Promise.resolve({ id: '1' }),
+    searchParams: Promise.resolve({}),
   });
+  const shellHtml = renderToStaticMarkup(shell);
+  // Sync shell only — params-bound content streams inside Suspense.
+  expect(shellHtml).toContain('Loading site');
+  expect(shellHtml).toContain('max-w-[32rem]');
+  expect(mocks.getPricedSiteDetail).not.toHaveBeenCalled();
 
-  it('hosts the standalone card inside the G-1 detail measure', async () => {
-    const tree = await SiteDetailContent({
-      params: Promise.resolve({ id: '1' }),
-      searchParams: Promise.resolve({}),
-    });
-    const html = renderToStaticMarkup(tree);
-
-    expect(html).toContain('max-w-[32rem]');
-    expect(html).not.toContain('max-w-reading');
-    expect(html).toContain('data-presentation="standalone"');
-    expect(html).toContain('Forgotten Perimeter Coronation Platform');
-    expect(html).toContain('data-related-sites');
-    expect(mocks.getPricedSiteDetail).toHaveBeenCalledWith(1);
+  const tree = await SiteDetailContent({
+    params: Promise.resolve({ id: '1' }),
+    searchParams: Promise.resolve({}),
   });
+  const html = renderToStaticMarkup(tree);
+
+  expect(html).toContain('max-w-[32rem]');
+  expect(html).not.toContain('max-w-reading');
+  expect(html).toContain('data-presentation="standalone"');
+  expect(html).toContain('Forgotten Perimeter Coronation Platform');
+  expect(html).toContain('data-related-sites');
+  expect(mocks.getPricedSiteDetail).toHaveBeenCalledWith(1);
 });

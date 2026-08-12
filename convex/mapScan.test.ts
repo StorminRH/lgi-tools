@@ -498,145 +498,89 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
-  it('keeps the resolved row lifeStage when the stub also carries one', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('KSI-163', { group: 'Wormhole', name: 'K162' })]);
-    let targetId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const stub = (await ctx.db.query('mapConnections').collect())[0]!;
-      await ctx.db.patch(stub._id, {
-        lifeStage: 'under_1_day',
-        lifeStageObservedAt: 1_500,
+  it('prefers resolved lifeStage (including timestamped Unset) and carries stub Unset onto unobserved rows', async () => {
+    async function linkStub(
+      signatureId: string,
+      stubLife: { lifeStage: 'under_1_day' | null; lifeStageObservedAt: number },
+      targetLife:
+        | { lifeStage: 'expired' | null; lifeStageObservedAt: number }
+        | Record<string, never>,
+    ): Promise<{ t: ScanDb; targetId: Id<'mapConnections'> }> {
+      const t = convexTest(schema, modules);
+      await seed(t);
+      await apply(t, [signature(signatureId, { group: 'Wormhole', name: 'K162' })]);
+      let targetId = '' as Id<'mapConnections'>;
+      await t.run(async (ctx) => {
+        await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+        const stub = (await ctx.db.query('mapConnections').collect())[0]!;
+        await ctx.db.patch(stub._id, stubLife);
+        targetId = await ctx.db.insert('mapConnections', {
+          mapId: MAP,
+          fromSystemId: AMARR,
+          toSystemId: JITA,
+          wormholeTypeCode: 'B274',
+          typedSide: 'from',
+          typeProvenance: 'human',
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          deletedAt: null,
+          purgeAfter: null,
+          ...targetLife,
+        });
       });
-      targetId = await ctx.db.insert('mapConnections', {
+      expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+        userId: EDITOR,
         mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: JITA,
-        wormholeTypeCode: 'B274',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        massState: null,
-        shipSize: null,
-        lifeStage: 'expired',
-        lifeStageObservedAt: 9_000,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-    });
+        systemId: JITA,
+        deductions: [{
+          signatureId,
+          connectionId: targetId,
+          provenance: 'assumed',
+          expectedTypeCode: null,
+        }],
+      })).toEqual([
+        { signatureId, outcome: 'applied', observationKey: null },
+      ]);
+      return { t, targetId };
+    }
 
-    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
-      userId: EDITOR,
-      mapId: MAP,
-      systemId: JITA,
-      deductions: [{
-        signatureId: 'KSI-163',
-        connectionId: targetId,
-        provenance: 'assumed',
-        expectedTypeCode: null,
-      }],
-    })).toEqual([
-      { signatureId: 'KSI-163', outcome: 'applied', observationKey: null },
-    ]);
-    expect(await t.run(async (ctx) => await ctx.db.get(targetId))).toMatchObject({
+    const keepsResolved = await linkStub(
+      'KSI-163',
+      { lifeStage: 'under_1_day', lifeStageObservedAt: 1_500 },
+      { lifeStage: 'expired', lifeStageObservedAt: 9_000 },
+    );
+    expect(
+      await keepsResolved.t.run(async (ctx) => await ctx.db.get(keepsResolved.targetId)),
+    ).toMatchObject({
       toSignatureId: 'KSI-163',
       lifeStage: 'expired',
       lifeStageObservedAt: 9_000,
     });
-  });
 
-  it('keeps a timestamped Unset lifeStage instead of resurrecting the stub', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('KSI-164', { group: 'Wormhole', name: 'K162' })]);
-    let targetId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const stub = (await ctx.db.query('mapConnections').collect())[0]!;
-      await ctx.db.patch(stub._id, {
-        lifeStage: 'under_1_day',
-        lifeStageObservedAt: 1_500,
-      });
-      targetId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: JITA,
-        wormholeTypeCode: 'B274',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        massState: null,
-        shipSize: null,
-        lifeStage: null,
-        lifeStageObservedAt: 9_000,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-    });
-
-    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
-      userId: EDITOR,
-      mapId: MAP,
-      systemId: JITA,
-      deductions: [{
-        signatureId: 'KSI-164',
-        connectionId: targetId,
-        provenance: 'assumed',
-        expectedTypeCode: null,
-      }],
-    })).toEqual([
-      { signatureId: 'KSI-164', outcome: 'applied', observationKey: null },
-    ]);
-    expect(await t.run(async (ctx) => await ctx.db.get(targetId))).toMatchObject({
+    const keepsUnset = await linkStub(
+      'KSI-164',
+      { lifeStage: 'under_1_day', lifeStageObservedAt: 1_500 },
+      { lifeStage: null, lifeStageObservedAt: 9_000 },
+    );
+    expect(
+      await keepsUnset.t.run(async (ctx) => await ctx.db.get(keepsUnset.targetId)),
+    ).toMatchObject({
       toSignatureId: 'KSI-164',
       lifeStage: null,
       lifeStageObservedAt: 9_000,
     });
-  });
 
-  it('carries a timestamped Unset from the stub onto an unobserved resolved row', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('KSI-165', { group: 'Wormhole', name: 'K162' })]);
-    let targetId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const stub = (await ctx.db.query('mapConnections').collect())[0]!;
-      await ctx.db.patch(stub._id, {
-        lifeStage: null,
-        lifeStageObservedAt: 1_500,
-      });
-      targetId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: JITA,
-        wormholeTypeCode: 'B274',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-    });
-
-    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
-      userId: EDITOR,
-      mapId: MAP,
-      systemId: JITA,
-      deductions: [{
-        signatureId: 'KSI-165',
-        connectionId: targetId,
-        provenance: 'assumed',
-        expectedTypeCode: null,
-      }],
-    })).toEqual([
-      { signatureId: 'KSI-165', outcome: 'applied', observationKey: null },
-    ]);
-    expect(await t.run(async (ctx) => await ctx.db.get(targetId))).toMatchObject({
+    const carriesStubUnset = await linkStub(
+      'KSI-165',
+      { lifeStage: null, lifeStageObservedAt: 1_500 },
+      {},
+    );
+    expect(
+      await carriesStubUnset.t.run(
+        async (ctx) => await ctx.db.get(carriesStubUnset.targetId),
+      ),
+    ).toMatchObject({
       toSignatureId: 'KSI-165',
       lifeStage: null,
       lifeStageObservedAt: 1_500,
