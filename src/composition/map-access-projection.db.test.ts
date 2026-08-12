@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { eq } from 'drizzle-orm';
 import {
   createDbTestHarness,
   seedCharacter,
@@ -111,7 +112,13 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
       { userId: 'char-owner', roles: ['editor'] },
       { userId: 'corp-member', roles: ['viewer'] },
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
     ]);
+
+    await harness.db
+      .update(maps)
+      .set({ archivedAt: new Date('2026-08-12T00:00:00.000Z') })
+      .where(eq(maps.id, mapId));
+    await expect(computeMapAccessClaims(mapId)).resolves.toEqual([]);
   });
 });

@@ -32,12 +32,11 @@ const TEMPLATE_FETCH_RE = /\b(?:fetch|fetchWithTimeout)\s*\(\s*`[^`]*\/api\//g;
 const RESPONSE_ASSERTION_RE = /\.json\(\)\s*\)?\s+as\s+(?!unknown\s*(?:[;,)\]]|$))/gm;
 
 /**
- * External, untrusted upstreams whose bodies are deliberately not first-party
- * contracts: CCP's ESI name resolvers and Google Search Console. Pinned by
+ * External, untrusted upstreams whose bodies still require a direct assertion:
+ * the station-name resolver and Google Search Console. Pinned by
  * exact path and count so the list cannot grow silently.
  */
 const RESPONSE_ASSERTION_ALLOWLIST = [
-  'src/data/eve-data/entity-names.ts',
   'src/data/eve-data/station-names.ts',
   'src/data/gsc/source.ts',
 ];

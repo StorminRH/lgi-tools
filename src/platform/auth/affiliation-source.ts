@@ -17,6 +17,11 @@ import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/pla
 // ESI's per-request id cap (maxItems). One bulk call covers up to 1000 chars.
 const AFFILIATION_BATCH_MAX = 1000;
 
+// Local Playwright seed (`e2e/identity.ts` `E2E_CHARACTER_ID`). ESI 400s this
+// id as "Invalid character ID", and a mixed batch then fail-closes the whole
+// refresh. Production never seeds this character; skip it only in `next dev`.
+const LOCAL_SYNTHETIC_CHARACTER_ID = 9_000_001;
+
 // Boundary schema — corp id is required, alliance/faction are present only when
 // the corp is in an alliance/militia. z.object ignores unknown keys, so an
 // upstream field addition can't break parsing.
@@ -113,12 +118,17 @@ async function fetchAffiliationBatch(batch: number[]): Promise<BatchOutcome> {
  * definitive deleted-id 404 contributes no row for that id (and is bisected out
  * of mixed batches) without marking the aggregate transient; a 5xx/budget
  * refusal or unreadable body sets `transientFailure` so projection can refuse
- * to converge on a silently shrunken set.
+ * to converge on a silently shrunken set. In `NODE_ENV === 'development'` only,
+ * the local synthetic E2E character is omitted before dispatch so a seeded
+ * fake id cannot 400 a mixed batch; production still sends every id.
  */
 export async function fetchAffiliations(
   characterIds: number[],
 ): Promise<AffiliationFetchResult> {
-  const unique = dedupe(characterIds);
+  const unique =
+    process.env.NODE_ENV === 'development'
+      ? dedupe(characterIds).filter((id) => id !== LOCAL_SYNTHETIC_CHARACTER_ID)
+      : dedupe(characterIds);
   if (unique.length === 0) return { rows: [], transientFailure: false };
 
   const out: AffiliationRow[] = [];

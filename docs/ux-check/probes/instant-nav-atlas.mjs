@@ -1,7 +1,8 @@
 /**
- * Instant Navigations guard: /atlas must show a chrome-shaped shell (development
- * wall or map frame) rather than a blank viewport while the admin gate resolves.
- * Uses the initial-load form of instant() — atlas is outside the public soft-nav strip.
+ * Instant Navigations guard: /atlas must show the site header and Atlas
+ * PageHead rather than a blank viewport or the development wall while the
+ * administrator gate resolves. Uses the initial-load form of instant() —
+ * atlas is reachable by URL while remaining off the public tool strip.
  */
 export default {
   name: 'instant-nav-atlas',
@@ -14,20 +15,28 @@ export default {
         waitUntil: 'domcontentloaded',
         timeout: 60000,
       });
-      const wall = page.locator('[data-map-development-wall]');
-      const chrome = page.locator('[data-map-chrome]');
-      const hasWall = (await wall.count()) > 0 && (await wall.isVisible());
-      const hasChrome = (await chrome.count()) > 0;
       check(
-        'atlas shows wall or map chrome in the static shell (not blank)',
-        hasWall || hasChrome,
+        'atlas keeps the global site header in the instant shell',
+        await page.locator('header.app-header').isVisible(),
       );
-      if (hasWall) {
-        check(
-          'development wall heading is visible',
-          /mapping the unknown/i.test((await wall.locator('h1').textContent()) ?? ''),
-        );
-      }
+      const shell = page.locator('[data-page-shell]');
+      check(
+        'atlas paints the PageHead shell while the gate resolves',
+        await shell.isVisible(),
+      );
+      const shellText = (await shell.textContent()) ?? '';
+      check(
+        'atlas paints lgi://atlas while the gate resolves',
+        /lgi:\/\/atlas/i.test(shellText),
+      );
+      check(
+        'atlas paints the Atlas title while the gate resolves',
+        /Atlas/.test((await shell.locator('h1').textContent()) ?? ''),
+      );
+      check(
+        'the development wall is not the loading shell',
+        (await page.locator('[data-map-development-wall]').count()) === 0,
+      );
     });
   },
 };

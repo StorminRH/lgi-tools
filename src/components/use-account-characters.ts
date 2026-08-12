@@ -17,6 +17,16 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { deriveRoster, type BuildCharacter } from './run-as-state';
 
 /**
+ * Active character id for the current session. Shared-zone door so mapper and
+ * features can key personal location without importing auth components.
+ */
+export function useActiveCharacterId(): number | null {
+  const { session, loading } = useAuth();
+  if (loading) return null;
+  return session?.characterId ?? null;
+}
+
+/**
  * Encapsulates the account characters subscription and state lifecycle; callers provide lookup
  * keys where required and render the returned state.
  */

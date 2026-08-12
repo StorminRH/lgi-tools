@@ -48,12 +48,17 @@ export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
   return <AfkDialog afk={afk} />;
 }
 
+/** Client mutation for this map's per-character tracking opt-in. */
+export function useSetMapTracking() {
+  return useMutation(api.mapTracking.setTracking);
+}
+
 /** Lists the signed-in pilot's linked characters as map-menu tracking controls. */
 export function TrackingControls({ mapId }: { readonly mapId: string }) {
   const characters = useAccountCharacters();
   const access = useLiveValue(api.mapChain.watchMapAccess, { mapId });
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const setTracking = useMutation(api.mapTracking.setTracking);
+  const setTracking = useSetMapTracking();
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
 
   if (access?.granted !== true || characters === null || tracking === undefined) {

@@ -45,7 +45,7 @@ export class ProjectionUnavailableError extends Error {
 
 /**
  * Computes the complete desired claim set for one map from durable Neon state.
- * Creator resolves to ['owner']; every candidate user reached by a character or
+ * Creator resolves to ['admin']; every candidate user reached by a character or
  * corporation grant is resolved through resolveMapPrincipals and the single
  * resolveMatchedMapRoles rule. Users with an empty role set are omitted. A
  * missing map returns the empty set (its projection tears down). Deterministic:
@@ -59,9 +59,13 @@ export class ProjectionUnavailableError extends Error {
  * definitive 404 for deleted characters) contribute no corp roles via
  * memberCorpIds fail-closed and do not block convergence.
  */
-export async function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]> {
+async function computeMapAccessClaimsForState(
+  mapId: string,
+  allowArchived: boolean,
+): Promise<MapAccessClaim[]> {
   const map = await getMapAccessSubject(mapId);
   if (map === null) return [];
+  if (map.archivedAt !== null && !allowArchived) return [];
 
   const grants = await getMapGrants(mapId);
   const characterIds = [
@@ -123,9 +127,16 @@ export async function computeMapAccessClaims(mapId: string): Promise<MapAccessCl
   return claims;
 }
 
+/** Computes ordinary/resync claims, always denying archived durable maps. */
+export function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]> {
+  return computeMapAccessClaimsForState(mapId, false);
+}
+
 async function postProjection(
   path: '/project-map-access' | '/purge-map-access',
   body: unknown,
+  timeoutMs?: number,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   const secret = readEnv('CONVEX_SERVICE_SECRET');
@@ -144,14 +155,19 @@ async function postProjection(
 
   let response: Response;
   try {
-    response = await fetchWithTimeout(`${siteUrl}${path}`, {
+    const init = {
       method: 'POST',
       headers: {
         authorization: `Bearer ${secret}`,
         'content-type': 'application/json',
       },
       body: JSON.stringify(body),
-    });
+      signal,
+    };
+    response =
+      timeoutMs === undefined
+        ? await fetchWithTimeout(`${siteUrl}${path}`, init)
+        : await fetchWithTimeout(`${siteUrl}${path}`, init, timeoutMs);
   } catch (cause) {
     throw new ProjectionUnavailableError(
       `Map access projection unavailable: ${path} request failed`,
@@ -168,16 +184,49 @@ async function postProjection(
   return response.json();
 }
 
-/**
- * Projects one map's durable access into Convex: computes the desired set and
- * POSTs it to the bearer-gated /project-map-access door. One-way by
- * construction — it sends state and returns Convex's reconcile counts; it
- * never reads Convex to decide durable truth.
- */
-export async function projectMapAccess(mapId: string): Promise<ProjectionResult> {
-  const claims = await computeMapAccessClaims(mapId);
-  const result = await postProjection('/project-map-access', { mapId, claims });
+interface ProjectMapAccessOptions {
+  readonly timeoutMs?: number;
+  readonly signal?: AbortSignal;
+}
+
+async function projectMapAccessState(
+  mapId: string,
+  options: ProjectMapAccessOptions,
+  allowArchived: boolean,
+): Promise<ProjectionResult> {
+  if (options.signal?.aborted) {
+    throw new ProjectionUnavailableError('Map access projection cancelled before computation');
+  }
+  const claims = await computeMapAccessClaimsForState(mapId, allowArchived);
+  if (options.signal?.aborted) {
+    throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
+  }
+  const result = await postProjection(
+    '/project-map-access',
+    { mapId, claims },
+    options.timeoutMs,
+    options.signal,
+  );
   return result as ProjectionResult;
+}
+
+/**
+ * Projects active durable access into Convex, or empty claims for an archived
+ * map. One-way by construction: Convex never decides durable truth.
+ */
+export function projectMapAccess(
+  mapId: string,
+  options: ProjectMapAccessOptions = {},
+): Promise<ProjectionResult> {
+  return projectMapAccessState(mapId, options, false);
+}
+
+/** Creation-only projection for the deliberately archived hidden staging row. */
+export function projectStagedMapAccess(
+  mapId: string,
+  options: ProjectMapAccessOptions = {},
+): Promise<ProjectionResult> {
+  return projectMapAccessState(mapId, options, true);
 }
 
 /**

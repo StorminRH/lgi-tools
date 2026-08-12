@@ -11,8 +11,14 @@ import {
 } from '@/db/test-support/db-test-harness';
 
 const revokeMock = vi.hoisted(() => vi.fn());
+const mapPurge = vi.hoisted(() => ({
+  purgeMapChain: vi.fn().mockResolvedValue({ deleted: 0, remaining: false }),
+}));
 vi.mock('@/platform/auth/eve-token-service', () => ({
   revokeCharacterToken: (characterId: number) => revokeMock(characterId),
+}));
+vi.mock('@/composition/map-purge', () => ({
+  purgeMapChain: mapPurge.purgeMapChain,
 }));
 
 import { nukeAccount, purgeOwnCharacter } from './account-purge';
@@ -95,6 +101,10 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
   beforeEach(async () => {
     revokeMock.mockReset();
     revokeMock.mockResolvedValue(undefined);
+    mapPurge.purgeMapChain.mockReset().mockResolvedValue({
+      deleted: 0,
+      remaining: false,
+    });
     await seedUser(harness.db, USER_ID, {
       name: 'Purge Pilot',
       email: syntheticEmail(FIRST_CHAR),
@@ -305,6 +315,9 @@ describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () 
 
     await nukeAccount(USER_ID);
 
+    expect(mapPurge.purgeMapChain).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+    );
     expect(revokeMock.mock.calls).toEqual([[FIRST_CHAR], [SECOND_CHAR]]);
     expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await countClonedRows('character_skills')).toBe(0);

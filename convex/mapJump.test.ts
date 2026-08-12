@@ -21,7 +21,7 @@ type Chain = TestConvex<typeof schema>;
 async function grant(
   t: Chain,
   userId: string,
-  roles: ('viewer' | 'editor' | 'owner')[],
+  roles: ('viewer' | 'editor' | 'admin')[],
 ): Promise<void> {
   await t.run(async (ctx) => {
     await ctx.db.insert('mapAccess', { mapId: MAP, userId, roles });

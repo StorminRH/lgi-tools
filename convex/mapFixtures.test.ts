@@ -32,7 +32,7 @@ async function grant(
   t: Chain,
   mapId: string,
   userId: string,
-  roles: ('viewer' | 'editor' | 'owner')[],
+  roles: ('viewer' | 'editor' | 'admin')[],
 ): Promise<void> {
   await t.run(async (ctx) => {
     await ctx.db.insert('mapAccess', { mapId, userId, roles });
@@ -1091,7 +1091,7 @@ describe('map chain fixtures', () => {
       // Neon may match one user through several principals; the projected set keeps every
       // capability rather than collapsing to a display role. Production writes live on
       // mapAuthoring; prove the unioned claim still grants edit there.
-      await grant(t, MAP_A, OWNER, ['owner', 'viewer']);
+      await grant(t, MAP_A, OWNER, ['admin', 'viewer']);
       await expect(
         asEditor(t, OWNER).mutation(api.mapAuthoring.setHomeSystem, {
           mapId: MAP_A,

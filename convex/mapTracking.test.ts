@@ -28,7 +28,7 @@ function asUser(t: Chain, userId: string) {
 async function grant(
   t: Chain,
   mapId: string,
-  claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'owner'> }>,
+  claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
 ) {
   return t.mutation(internal.mapAccessProjection.reconcileMapClaims, { mapId, claims });
 }
@@ -60,8 +60,8 @@ async function readTracking(t: Chain, mapId?: string) {
 describe('mapTracking.setTracking', () => {
   it('opts one character into tracking per map and tears it down independently', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
-    await grant(t, MAP_B, [{ userId: OWNER, roles: ['owner'] }]);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await grant(t, MAP_B, [{ userId: OWNER, roles: ['admin'] }]);
 
     await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
       mapId: MAP_A,
@@ -92,7 +92,7 @@ describe('mapTracking.setTracking', () => {
 
   it('is idempotent on repeated opt-in and opt-out', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
 
     await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
       mapId: MAP_A,
@@ -123,7 +123,7 @@ describe('mapTracking.setTracking', () => {
 
   it('refuses opt-in beyond the per-(map, user) cap but keeps toggle-off/re-add working', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     const caller = asUser(t, OWNER);
     await t.run(async (ctx) => {
       for (let index = 0; index < TRACKED_CHARACTERS_PER_MAP_USER_CAP; index += 1) {
@@ -178,7 +178,7 @@ describe('mapTracking.forMap', () => {
   it('joins tracking rows to location by (userId, characterId) and discloses nothing for a forged row', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
-      { userId: OWNER, roles: ['owner'] },
+      { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
 
@@ -225,7 +225,7 @@ describe('mapTracking.forMap', () => {
   it('answers owner-scoped feed freshness: covered characters get the quantized bucket, everyone else null', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
-      { userId: OWNER, roles: ['owner'] },
+      { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
     await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
@@ -300,7 +300,7 @@ describe('mapTracking.forMap', () => {
 
   it('answers feedFreshness as an empty list without access (subscription doctrine)', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     const result = await asUser(t, EDITOR).query(api.mapTracking.feedFreshness, {
       mapId: MAP_A,
     });
@@ -309,7 +309,7 @@ describe('mapTracking.forMap', () => {
 
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,
@@ -327,7 +327,7 @@ describe('mapTracking revocation cascade', () => {
   it('deletes the revoked user\'s mapTracking rows in the same reconcile apply', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
-      { userId: OWNER, roles: ['owner'] },
+      { userId: OWNER, roles: ['admin'] },
       { userId: EDITOR, roles: ['editor'] },
     ]);
     await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
@@ -342,7 +342,7 @@ describe('mapTracking revocation cascade', () => {
     });
 
     // Revoke EDITOR — OWNER's tracking must survive; EDITOR's must vanish.
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
 
     expect(await readTracking(t, MAP_A)).toEqual([
       { mapId: MAP_A, userId: OWNER, characterId: CHAR },
@@ -351,7 +351,7 @@ describe('mapTracking revocation cascade', () => {
 
   it('sweeps every mapTracking row on full map teardown (claims: [])', async () => {
     const t = convexTest(schema, modules);
-    await grant(t, MAP_A, [{ userId: OWNER, roles: ['owner'] }]);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
       mapId: MAP_A,
       characterId: CHAR,

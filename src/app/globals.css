@@ -365,6 +365,19 @@ body {
   line-height: 1.65;
 }
 
+/* Selected Atlas maps cover the site chrome with a fixed canvas. Hide the
+ * site-frame header, footer, and feedback chip so only map chrome remains.
+ * Target `[data-site-footer]`, not the generic `footer` element — dialog
+ * action bars also use `<footer>`. */
+body:has([data-map-canvas-frame]) {
+  overflow: hidden;
+}
+body:has([data-map-canvas-frame]) .app-header,
+body:has([data-map-canvas-frame]) [data-site-footer],
+body:has([data-map-canvas-frame]) [data-site-feedback] {
+  display: none;
+}
+
 code,
 kbd,
 samp,

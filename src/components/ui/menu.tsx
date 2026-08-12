@@ -10,6 +10,7 @@ import {
   menuSection,
   menuSectionLabel,
   menuSeparator,
+  panelSurface,
   panelSurfaceSolid,
 } from './dropdown-panel';
 import type { Tone } from './tones';
@@ -39,13 +40,17 @@ export type MenuTone = Extract<Tone, 'neutral'>;
 // placement-specific row composition.
 // Menus stay square with full-width rows, so they take the surface atom, not the full
 // dropdownPanel (which adds card radius + a 5px inset the Select popup wants).
-const popup = cva(cn('flex flex-col outline-none', panelSurfaceSolid), {
+const popup = cva('flex flex-col outline-none', {
   variants: {
     tone: {
       neutral: '',
     } satisfies Record<MenuTone, string>,
+    surface: {
+      solid: panelSurfaceSolid,
+      frosted: panelSurface,
+    },
   },
-  defaultVariants: { tone: 'neutral' },
+  defaultVariants: { tone: 'neutral', surface: 'solid' },
 });
 
 type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
@@ -53,6 +58,9 @@ type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
 export type MenuAnchor = PositionerProps['anchor'];
 type DataAttributes = {
   [key: `data-${string}`]: string | number | boolean | undefined;
+};
+type MenuTriggerProps = DataAttributes & {
+  ref?: React.Ref<HTMLButtonElement>;
 };
 
 /**
@@ -64,6 +72,7 @@ export function Menu({
   children,
   label,
   tone = 'neutral',
+  surface = 'solid',
   side = 'bottom',
   align = 'end',
   sideOffset = 0,
@@ -83,6 +92,9 @@ export function Menu({
   // ship unnamed in the accessibility tree.
   label: string;
   tone?: MenuTone;
+  // Nav menus use the solid chrome tray; small page pop-outs may opt into the
+  // shared frosted dropdown surface without reimplementing Base UI behavior.
+  surface?: 'solid' | 'frosted';
   side?: PositionerProps['side'];
   align?: PositionerProps['align'];
   sideOffset?: PositionerProps['sideOffset'];
@@ -96,7 +108,7 @@ export function Menu({
   // site, like the abstract-tone pattern across the UI primitives).
   triggerClassName?: string;
   // Stable trigger hooks for automation; behavior remains owned here.
-  triggerProps?: DataAttributes;
+  triggerProps?: MenuTriggerProps;
   // Stable popup hooks for automation; behavior remains owned here.
   popupProps?: DataAttributes;
   // Extra classes merged onto the popup (the surface look + sizing).
@@ -118,7 +130,7 @@ export function Menu({
           <Base.Popup
             {...popupProps}
             aria-label={label}
-            className={cn(popup({ tone }), className)}
+            className={cn(popup({ tone, surface }), className)}
           >
             {children}
           </Base.Popup>

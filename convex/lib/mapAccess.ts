@@ -7,6 +7,7 @@
 // until it lands a production map has no claim row and every call here fails closed.
 import { ConvexError } from 'convex/values';
 import {
+  canonicalizeMapRoles,
   rolesAllow,
   type MapCapability,
   type MapRole,
@@ -127,9 +128,17 @@ async function resolveMapPrincipal(
     .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
     .unique();
 
-  if (claim === null || !rolesAllow(claim.roles, requiredCapability)) {
+  if (claim === null) {
     return null;
   }
 
-  return { userId, roles: claim.roles };
+  // Claims written before the 4.0.4.4 expand/contract deployment may still
+  // store `owner`. Normalize at the single read seam so no caller observes the
+  // legacy vocabulary while the delivery resync converges storage to `admin`.
+  const roles = canonicalizeMapRoles(
+    claim.roles.map((role) => (role === 'owner' ? 'admin' : role)),
+  );
+  if (!rolesAllow(roles, requiredCapability)) return null;
+
+  return { userId, roles };
 }

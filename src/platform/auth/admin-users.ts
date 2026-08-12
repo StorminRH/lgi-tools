@@ -264,7 +264,8 @@ export async function reassignCharacter({
     .limit(1);
 
   if (!remaining) {
-    // Tear down Convex map claims before FK cascade deletes owned Neon maps.
+    // Fully purge owned collaborative chains before the FK cascade removes
+    // their only durable map identity.
     await runBeforeUserDelete(fromUserId);
     await db.delete(user).where(eq(user.id, fromUserId));
     await runAfterCharacterLinkChanged(characterId);

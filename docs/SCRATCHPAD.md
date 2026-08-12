@@ -9,19 +9,59 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.3.3** close-out on `lifecycle/4.0.4.3`
-  (per-session PR; plan `Complete`; release triplet `4.0.4.3.3`; sub-version
-  4.0.4.3 terminal). Resolver next after merge: **4.0.4.4.1**.
-- **Handoff:** after this PR merges and production proof, update from
-  `origin/main`, run `python3 tools/cli.py lifecycle resolve --pretty`, and
-  return to `start-session` — expected next is plan-session for
-  **4.0.4.4.1** (maps & access session 1).
-- **G-1 disposition:** operator approved (2026-08-11) — site viewer
+- **CURRENT:** planned close-out of session **4.0.4.4.1** on
+  `lifecycle/4.0.4.4` (plan `Complete`; release triplet `4.0.4.4`). Review
+  corrections and delivery records are on the branch; as-built waits for the
+  sub-version PR number.
+- **Handoff:** finish close-out (verify, draft PR, as-built, external review,
+  merge, production proof), then `python3 tools/cli.py lifecycle resolve
+  --pretty` and return to `start-session`. Every roadmap row is terminal, so
+  the expected directive is version-audit planning. After production proof,
+  run the one-shot projection resync over live maps so Convex claims converge
+  to `admin`, then a later one-line legacy-validator contraction.
+- **G-1 disposition:** operator approved (2026-08-12) for session 4.0.4.4.1 —
+  opened Atlas, created a map, switched access, and edited the map. Site-framed
+  landing, header create, card delete icon, manage-access without delete,
+  scrolling switcher gear, and HomePrompt Dialog signed off. Atlas remains off
+  the public header strip until wall-drop. Prior 4.0.4.3.3 site-viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
-  `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off
-  before the PR opened.
+  `max-w-[32rem]`, full signature flow, and scanner live Est. ISK remain
+  signed off.
+- **Durable 4.0.4.4.1 gotchas:** (1) Creation inserts a hidden row with
+  `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
+  with a 2 s attempt bound, then publishes by clearing both markers. Exhausted
+  delete retries leave a listing-invisible row queued for purge. The daily
+  sweep ignores purge-requested rows younger than `MAP_STAGED_PURGE_HOLD_MS`
+  (30 s, past the 20 s creation window). (2) Names cap at 120 characters and
+  100 unique viewer/editor grants; `map-create` is 5/min per authenticated
+  user. (3) Convex storage still admits legacy `owner`; writers emit `admin`
+  and the read seam normalizes. Delivery still needs an all-live-map
+  projection resync, then a one-line validator contraction. (4)
+  `POST /api/maps/search-characters` is trimmed 3–100;
+  `{ mode: 'typeahead' | 'exact', results }`; scoped/token/name failures
+  return 503 and never silently fall back. (5) Entity-name caching throws
+  inside `use cache: remote` on upstream/malformed results. (6)
+  `AccessListEditor` is transport-free; `CharacterSearchControl` owns the
+  search path. (7) Access upsert/revoke atomically requires creator or admin
+  on an unarchived, untombstoned map; denial never projects. (8) Catalogue,
+  switcher, and menu share one `listMapChromeData` snapshot.
+  `projectStagedMapAccess` is the sole archived-map projection exception.
+  Full-chain purge must finish before account-row cascade. Cron processes at
+  most 25 due maps and tombstones only after a clean nine-table sweep. (9)
+  `/atlas` is the site-framed landing (`PageShell` / `PageHead`); a selected
+  map covers site chrome via `AtlasCanvasFrame` (`data-map-canvas-frame` hides
+  `.app-header`, `[data-site-footer]`, and `[data-site-feedback]` — not
+  generic `footer`). Atlas is `navHidden` until wall-drop. HomePrompt is a
+  required Dialog. Affiliation ESI omits synthetic character `9000001` only
+  in `NODE_ENV === 'development'`. `/atlas` remains `partial` with
+  `instant = false`. Long map names truncate in the centered switcher
+  (`max-w-[min(20rem,calc(100%-14rem))]`) and wrap on cards and the access
+  dialog. (10) Close-out review contested a durable versioned projection
+  queue: Neon stays authoritative; failed teardown after archive is the
+  accepted resync/purge residual. Do not add a projection work queue in
+  audit follow-up without an explicit operator decision.
 - **Durable 4.0.4.3.3 gotchas:** (1) Atlas seeds the scanner catalogue through
-  `SiteCatalogueProvider` in `MapAccessGate` via `getScannerSiteIndex`
+  `SiteCatalogueProvider` in `AtlasBound` via `getScannerSiteIndex`
   (hourly priced + `liveRecipes`); AppHeader/sitemap keep lightweight
   `getSiteSearchIndex` (`cacheLife('max')`) — do not re-couple them.
   (2) Mapper imports scanner live prices and `useSiteCatalogue` only through
@@ -344,8 +384,10 @@
 ```
 - **Deferred by operator ruling:** automatic corp-membership-drift trigger after
   a projection run; resync remains the correction tool until a later session.
-- **Accepted residuals:** (1) a deleted map whose teardown POST failed has no
-  automatic healer — operator must resync those logged map ids; (2) a projection
+- **Accepted residuals:** (1) a deleted map whose immediate teardown POST failed
+  remains inaccessible through Neon listings and is fully cleaned by the daily
+  purge after grace (or creator fast-forward); operator resync remains the
+  in-grace immediate healer. (2) A projection
   racing a concurrent user purge can re-insert claims until the purge door or a
   resync runs again.
 - **Refresh-shortfall:** projection throws only on transient ESI failure

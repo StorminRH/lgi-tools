@@ -4,8 +4,8 @@
 import {
   projectMapAccess,
   purgeUserMapAccessProjection,
-  teardownMapAccessProjection,
 } from '@/composition/map-access-projection';
+import { purgeMapChain } from '@/composition/map-purge';
 import {
   getCharacterCorporationId,
   getMapIdsWithCharacterGrant,
@@ -43,16 +43,14 @@ export async function reprojectMapsForCharacter(characterId: number): Promise<vo
 }
 
 /**
- * Tears down Convex claims for maps a user owns and purges that user's claims
- * on every map. Call before the user row is deleted (FK cascade removes Neon
- * maps without reaching the maps purge contributor).
+ * Purges every owned collaborative chain before the user-row cascade removes
+ * its durable map identity, then clears any claims the user holds on shared maps.
+ * Full-chain failures propagate so the user row remains retryable.
  */
 export async function teardownProjectionsForDeletedUser(userId: string): Promise<void> {
   const ownedMapIds = await getOwnedMapIds(userId);
   for (const mapId of ownedMapIds) {
-    await bestEffort('map-access-identity', 'teardown', mapId, () =>
-      teardownMapAccessProjection(mapId),
-    );
+    await purgeMapChain(mapId);
   }
   await bestEffort('map-access-identity', 'user claim purge', userId, () =>
     purgeUserMapAccessProjection(userId),

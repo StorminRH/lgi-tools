@@ -27,7 +27,7 @@ describe('resolveMapRole', () => {
         grants: [],
         principals: EMPTY_PRINCIPALS,
       }),
-    ).toEqual({ role: 'owner', canView: true, canEdit: true });
+    ).toEqual({ role: 'admin', canView: true, canEdit: true });
   });
 
   it.each([
@@ -60,7 +60,7 @@ describe('resolveMapRole', () => {
     },
     {
       label: 'delegated grants against an empty principal set',
-      grants: [grant('character', 42, 'owner'), grant('corporation', 99, 'editor')],
+      grants: [grant('character', 42, 'admin'), grant('corporation', 99, 'editor')],
       principals: EMPTY_PRINCIPALS,
     },
   ])('denies $label', ({ grants, principals }) => {
@@ -144,7 +144,7 @@ describe('resolveMatchedMapRoles', () => {
   });
 
   it.each([
-    { label: 'the creator', isCreator: true, expected: ['owner'] },
+    { label: 'the creator', isCreator: true, expected: ['admin'] },
     { label: 'no match', isCreator: false, expected: [] },
   ])('resolves $label', ({ isCreator, expected }) => {
     expect(
@@ -158,7 +158,7 @@ describe('capability predicates', () => {
     { role: 'viewer', capability: 'view', expected: true },
     { role: 'viewer', capability: 'edit', expected: false },
     { role: 'editor', capability: 'edit', expected: true },
-    { role: 'owner', capability: 'edit', expected: true },
+    { role: 'admin', capability: 'edit', expected: true },
   ] as const)('$role $capability is $expected', ({ role, capability, expected }) => {
     expect(roleAllows(role, capability)).toBe(expected);
   });

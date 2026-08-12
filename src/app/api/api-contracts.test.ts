@@ -19,6 +19,7 @@ const CRON_ROUTES = new Set([
   'cron/refresh-gsc/route.ts',
   'cron/refresh-industry-indices/route.ts',
   'cron/refresh-prices/route.ts',
+  'cron/purge-maps/route.ts',
   'cron/refresh-sde/route.ts',
   'cron/refresh-wh-statics/route.ts',
   'cron/sync-sweeper/route.ts',
@@ -346,13 +347,13 @@ respond(endpoint, 200, { ok: true });`);
 
 describe('API route inventories', () => {
   it('pins the complete route and exemption totals', () => {
-    expect(ALL_ROUTE_FILES).toHaveLength(61);
-    expect(FIRST_PARTY_ROUTE_FILES).toHaveLength(60);
-    expect(CRON_ROUTES.size).toBe(8);
+    expect(ALL_ROUTE_FILES).toHaveLength(68);
+    expect(FIRST_PARTY_ROUTE_FILES).toHaveLength(67);
+    expect(CRON_ROUTES.size).toBe(9);
     expect(FORM_ROUTES.size).toBe(8);
     expect(LIBRARY_OWNED.size).toBe(1);
-    expect(V2_ROUTE_FILES).toHaveLength(44);
-    expect(countV2Endpoints()).toBe(46);
+    expect(V2_ROUTE_FILES).toHaveLength(50);
+    expect(countV2Endpoints()).toBe(52);
   });
 
   it.each(FIRST_PARTY_ROUTE_FILES)('%s has one truthful input classification', (file) => {
@@ -399,7 +400,7 @@ describe('API route inventories', () => {
 // renamed or deleted fails instead of lingering as an orphan.
 describe('endpoint → route association', () => {
   it('pins the declared endpoint total', () => {
-    expect(DECLARED_ENDPOINTS).toHaveLength(46);
+    expect(DECLARED_ENDPOINTS).toHaveLength(52);
     expect(DECLARED_ENDPOINTS).toHaveLength(countV2Endpoints());
   });
 

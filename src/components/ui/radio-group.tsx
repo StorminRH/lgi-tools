@@ -17,7 +17,8 @@ export interface RadioOption {
 
 /**
  * Renders the domain-neutral radio group with house behavior and tokens; callers own semantic
- * meaning and content while this primitive owns presentation.
+ * meaning and content while this primitive owns presentation. Pass `value={null}` to stay
+ * controlled with no selection; omit `value` only for an uncontrolled group.
  */
 export function RadioGroup({
   label,
@@ -31,19 +32,22 @@ export function RadioGroup({
 }: {
   label: string;
   options: readonly RadioOption[];
-  value?: string;
+  value?: string | null;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
   name?: string;
   disabled?: boolean;
   className?: string;
 }) {
+  const controlled = value !== undefined;
   return (
     <BaseGroup
       aria-label={label}
-      value={value}
-      defaultValue={defaultValue}
-      onValueChange={(next) => onValueChange?.(next)}
+      {...(controlled ? { value } : { defaultValue })}
+      onValueChange={(next) => {
+        if (next == null) return;
+        onValueChange?.(next);
+      }}
       name={name}
       disabled={disabled}
       className={cn('flex flex-col gap-2.5', className)}

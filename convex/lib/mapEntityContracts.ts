@@ -73,8 +73,12 @@ const SHIP_SIZE_LITERALS = {
 const MAP_ROLE_LITERALS = {
   viewer: v.literal('viewer'),
   editor: v.literal('editor'),
-  owner: v.literal('owner'),
+  admin: v.literal('admin'),
 } as const satisfies Record<MapRole, unknown>;
+
+// Temporary expand/contract compatibility for claims written before 4.0.4.4.
+// New writers derive from MAP_ROLES and therefore cannot emit this literal.
+const legacyMapOwnerRoleValidator = v.literal('owner');
 
 /** Schema validator for the side whose wormhole type is attributable. */
 export const typedSideValidator = v.union(v.literal('from'), v.literal('to'));
@@ -131,11 +135,19 @@ export const shipSizeValidator = v.union(
   v.null(),
 );
 
-/** Schema validator for the projected role claim, bound to the shared Neon role vocabulary. */
+/** Writer validator bound to the current shared Neon role vocabulary. */
+export const currentMapRoleValidator = v.union(
+  MAP_ROLE_LITERALS.viewer,
+  MAP_ROLE_LITERALS.editor,
+  MAP_ROLE_LITERALS.admin,
+);
+
+/** Storage validator that temporarily admits claims written before 4.0.4.4. */
 export const mapRoleValidator = v.union(
   MAP_ROLE_LITERALS.viewer,
   MAP_ROLE_LITERALS.editor,
-  MAP_ROLE_LITERALS.owner,
+  MAP_ROLE_LITERALS.admin,
+  legacyMapOwnerRoleValidator,
 );
 
 /**

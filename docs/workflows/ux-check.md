@@ -53,8 +53,12 @@ curl -sf -o /dev/null http://localhost:3000 && echo UP || echo DOWN
 Reuse an answering server when it represents the current worktree. Otherwise
 start what the routes need: `pnpm dev` (Next.js + configured local Docker
 Postgres) or `pnpm dev:all` (also repo-managed Postgres and Convex). Browse
-`http://localhost:3000`, never `127.0.0.1`. Before first run:
-`pnpm exec playwright install chromium`.
+`http://localhost:3000`, never `127.0.0.1`. Browser binaries live in the host
+Playwright cache (macOS: `$HOME/Library/Caches/ms-playwright`). If
+`PLAYWRIGHT_BROWSERS_PATH` points under `cursor-sandbox-cache/`, redirect it to
+that host cache or unset it before launch — do not re-download into the sandbox
+path. Only when the host cache lacks the required revision: `pnpm exec
+playwright install chromium`.
 
 ## 3. Run the log-driven route sweep
 

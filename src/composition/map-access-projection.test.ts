@@ -47,6 +47,7 @@ vi.mock('@/lib/env', () => ({
 import {
   computeMapAccessClaims,
   projectMapAccess,
+  projectStagedMapAccess,
   ProjectionUnavailableError,
 } from './map-access-projection';
 
@@ -91,9 +92,9 @@ beforeEach(() => {
 });
 
 describe('computeMapAccessClaims', () => {
-  it('returns creator-only owner claim for a map with no grants', async () => {
+  it('returns a creator-only admin claim for a map with no grants', async () => {
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
     ]);
   });
 
@@ -108,7 +109,7 @@ describe('computeMapAccessClaims', () => {
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'grantee', roles: ['editor'] },
     ]);
   });
@@ -124,7 +125,7 @@ describe('computeMapAccessClaims', () => {
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'member', roles: ['viewer'] },
     ]);
     expect(mocks.listStaleLinkedCharacterIds).toHaveBeenCalledOnce();
@@ -146,7 +147,7 @@ describe('computeMapAccessClaims', () => {
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'joined', roles: ['viewer'] },
     ]);
     expect(mocks.refreshAffiliationsWithOutcome).toHaveBeenCalledWith([77]);
@@ -179,7 +180,7 @@ describe('computeMapAccessClaims', () => {
     mocks.getUserAffiliations.mockResolvedValue([affiliation(42, 990, new Date())]);
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'multi', roles: ['editor', 'viewer'] },
     ]);
   });
@@ -191,13 +192,23 @@ describe('computeMapAccessClaims', () => {
     mocks.getUserIdsInCorporations.mockResolvedValue(new Set());
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
     ]);
   });
 
   it('returns an empty set for a missing map', async () => {
     mocks.getMapAccessSubject.mockResolvedValue(null);
     await expect(computeMapAccessClaims('missing')).resolves.toEqual([]);
+  });
+
+  it('returns an empty set for archived maps', async () => {
+    mocks.getMapAccessSubject.mockResolvedValue({
+      userId: 'creator',
+      archivedAt: new Date('2026-08-12T00:00:00.000Z'),
+    });
+
+    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([]);
+    expect(mocks.getMapGrants).not.toHaveBeenCalled();
   });
 
   it('converges when a completed refresh leaves a biomassed character stale (404 omissions)', async () => {
@@ -219,7 +230,7 @@ describe('computeMapAccessClaims', () => {
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
     ]);
   });
 
@@ -256,7 +267,7 @@ describe('computeMapAccessClaims', () => {
 
     // Character principal still matches; only corp membership is fail-closed on staleness.
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'stale', roles: ['viewer'] },
     ]);
   });
@@ -285,7 +296,7 @@ describe('projectMapAccess transport', () => {
         }),
         body: JSON.stringify({
           mapId: 'map-1',
-          claims: [{ userId: 'creator', roles: ['owner'] }],
+          claims: [{ userId: 'creator', roles: ['admin'] }],
         }),
       }),
     );
@@ -296,9 +307,67 @@ describe('projectMapAccess transport', () => {
     await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
   });
 
+  it('reconciles archived maps to an empty claim set during ordinary reprojection', async () => {
+    mocks.getMapAccessSubject.mockResolvedValue({
+      userId: 'creator',
+      archivedAt: new Date('2026-08-12T00:00:00.000Z'),
+    });
+    mocks.fetchWithTimeout.mockResolvedValue(
+      Response.json({ inserted: 0, updated: 0, deleted: 1, unchanged: 0 }),
+    );
+
+    await projectMapAccess('map-1');
+
+    expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
+      'http://127.0.0.1:3211/project-map-access',
+      expect.objectContaining({
+        body: JSON.stringify({ mapId: 'map-1', claims: [] }),
+      }),
+    );
+  });
+
+  it('projects the hidden archived staging row only through the creation seam', async () => {
+    mocks.getMapAccessSubject.mockResolvedValue({
+      userId: 'creator',
+      archivedAt: new Date('2026-08-12T00:00:00.000Z'),
+    });
+    mocks.fetchWithTimeout.mockResolvedValue(
+      Response.json({ inserted: 1, updated: 0, deleted: 0, unchanged: 0 }),
+    );
+
+    await projectStagedMapAccess('map-1');
+
+    expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
+      'http://127.0.0.1:3211/project-map-access',
+      expect.objectContaining({
+        body: JSON.stringify({
+          mapId: 'map-1',
+          claims: [{ userId: 'creator', roles: ['admin'] }],
+        }),
+      }),
+    );
+  });
+
   it('throws when Convex env is unset', async () => {
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
     mocks.readEnv.mockReturnValue(undefined);
     await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+  });
+
+  it('does not deliver claims when computation finishes after cancellation', async () => {
+    let releaseSubject: ((value: { userId: string; archivedAt: null }) => void) | undefined;
+    mocks.getMapAccessSubject.mockReturnValue(
+      new Promise((resolve) => {
+        releaseSubject = resolve;
+      }),
+    );
+    const controller = new AbortController();
+    const projection = projectMapAccess('map-1', { signal: controller.signal });
+
+    controller.abort(new DOMException('timed out', 'TimeoutError'));
+    releaseSubject?.({ userId: 'creator', archivedAt: null });
+
+    await expect(projection).rejects.toBeInstanceOf(ProjectionUnavailableError);
+    expect(mocks.fetchWithTimeout).not.toHaveBeenCalled();
   });
 });

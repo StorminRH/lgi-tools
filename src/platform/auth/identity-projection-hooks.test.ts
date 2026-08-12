@@ -10,15 +10,14 @@ describe('identity-projection-hooks', () => {
     registerIdentityProjectionHooks({});
   });
 
-  it('logs a breadcrumb and no-ops when hooks are unregistered', async () => {
+  it('fails closed before user deletion when the required hook is unregistered', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    await expect(runBeforeUserDelete('user-1')).resolves.toBeUndefined();
+    await expect(runBeforeUserDelete('user-1')).rejects.toThrow(
+      'Required before-user-delete map purge hook is not registered',
+    );
     await expect(runAfterCharacterLinkChanged(100)).resolves.toBeUndefined();
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[identity-projection] beforeUserDelete skipped for user-1: action unregistered',
-    );
     expect(errorSpy).toHaveBeenCalledWith(
       '[identity-projection] afterCharacterLinkChanged skipped for 100: action unregistered',
     );
@@ -37,7 +36,7 @@ describe('identity-projection-hooks', () => {
     expect(afterCharacterLinkChanged).toHaveBeenCalledWith(200);
   });
 
-  it('swallows hook failures so identity deletes still proceed', async () => {
+  it('propagates delete-hook failures but keeps character reprojection best effort', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     registerIdentityProjectionHooks({
       beforeUserDelete: async () => {
@@ -48,9 +47,9 @@ describe('identity-projection-hooks', () => {
       },
     });
 
-    await expect(runBeforeUserDelete('user-1')).resolves.toBeUndefined();
+    await expect(runBeforeUserDelete('user-1')).rejects.toThrow('convex down');
     await expect(runAfterCharacterLinkChanged(100)).resolves.toBeUndefined();
-    expect(errorSpy).toHaveBeenCalledTimes(2);
+    expect(errorSpy).toHaveBeenCalledOnce();
     errorSpy.mockRestore();
   });
 });

@@ -1,5 +1,5 @@
 // SC-1.1 / SC-6.1: editor on a blank map sees the centered home prompt with
-// both options; tracking option stays disabled. Requires auth + blank map id.
+// both options. Current-system enablement depends on a live location sample.
 import {
   blankMapId,
   blankMapRoute,
@@ -33,13 +33,12 @@ export default {
       (await page.getByPlaceholder('Search systems — type a name').count()) === 1,
     );
 
-    const tracking = page.locator('[data-map-home-current-disabled]');
-    check('Use current system option is visible', await tracking.isVisible());
-    check('Use current system option is disabled', await tracking.isDisabled());
-    check(
-      'tracking annotation points at 4.0.4.2',
-      (await tracking.textContent())?.includes('Requires live tracking') === true,
-    );
+    const current = page.getByRole('button', { name: /Use current system|Start tracking/ });
+    check('current-system or start-tracking option is visible', await current.isVisible());
+    const copy = (await prompt.textContent()) ?? '';
+    check('stale tracking annotation is gone', !copy.includes('Requires live tracking'));
+    check('no 4.0.4.2 placeholder remains', !copy.includes('4.0.4.2'));
+    check('eyebrow copy is gone', !copy.includes('Atlas · new map'));
     check(
       'no chain nodes exist on the blank map',
       (await page.locator('[data-chain-node]').count()) === 0,

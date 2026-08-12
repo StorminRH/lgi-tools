@@ -34,6 +34,16 @@ export const TOOLS: Tool[] = [
     description: 'Live · /industry',
   },
   {
+    label: 'Atlas',
+    abbr: 'AT',
+    href: '/atlas',
+    matchPrefix: '/atlas',
+    description: 'Live · /atlas',
+    // DEP-8: no public navigation link until the development wall drops.
+    // Landing stays at /atlas and in tool search.
+    navHidden: true,
+  },
+  {
     label: 'Skill Queues',
     abbr: 'SQ',
     href: '/skills',

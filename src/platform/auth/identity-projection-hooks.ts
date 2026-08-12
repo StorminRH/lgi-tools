@@ -1,7 +1,7 @@
 import { bestEffort } from '@/lib/best-effort';
 
 /**
- * Optional Convex map-access projection side-effects for identity mutations.
+ * Composition-owned Convex map side-effects for identity mutations.
  * Composition registers these because platform/auth cannot import composition
  * under Fallow. Absent hooks, Neon identity work still completes; claims heal
  * on the next successful projection or resync.
@@ -24,16 +24,15 @@ export function registerIdentityProjectionHooks(next: IdentityProjectionHooks): 
 
 /**
  * Runs before a user row is deleted because it has no remaining EVE accounts.
- * Best-effort: identity deletion must not abort on a Convex outage.
+ * Required: deleting the durable row before its owned collaborative chains are
+ * gone would strand unselectable personal data.
  */
 export async function runBeforeUserDelete(userId: string): Promise<void> {
   const action = hooks?.beforeUserDelete;
-  await bestEffort(
-    'identity-projection',
-    'beforeUserDelete',
-    userId,
-    action === undefined ? undefined : () => action(userId),
-  );
+  if (action === undefined) {
+    throw new Error('Required before-user-delete map purge hook is not registered');
+  }
+  await action(userId);
 }
 
 /**

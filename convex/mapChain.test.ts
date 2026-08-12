@@ -31,7 +31,7 @@ async function grant(
   t: Chain,
   mapId: string,
   userId: string,
-  roles: ('viewer' | 'editor' | 'owner')[],
+  roles: ('viewer' | 'editor' | 'admin')[],
 ): Promise<void> {
   await t.run(async (ctx) => {
     await ctx.db.insert('mapAccess', { mapId, userId, roles });

@@ -51,10 +51,10 @@ export interface MapRoleInput {
  * `MAP_ROLE_PRECEDENCE` so equal sets serialize identically. This is the capability-preserving
  * projection: it keeps every matched role rather than collapsing to a display role, so a caller
  * matching through several principals cannot silently lose a capability. Map creation is
- * authoritative on its own and resolves to `owner` without consulting delegated grants.
+ * authoritative on its own and resolves to `admin` without consulting delegated grants.
  */
 export function resolveMatchedMapRoles(input: MapRoleInput): readonly MapRole[] {
-  if (input.isCreator) return ['owner'];
+  if (input.isCreator) return ['admin'];
 
   const matchedRoles = new Set<MapRole>();
   for (const grant of input.grants) {

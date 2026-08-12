@@ -104,6 +104,16 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
       'Guarded by the ADVISORY_LOCK_AFFILIATION_REFRESH session advisory lock; a second run returns the declared busy body.',
   },
   {
+    id: 'cron/purge-maps',
+    workKind: 'vercel-cron',
+    cronPath: '/api/cron/purge-maps',
+    module: 'src/app/api/cron/purge-maps/declaration.ts',
+    redeliverySource: VERCEL_CRON_REDELIVERY,
+    verdict: 'key-protected',
+    evidence:
+      'defineCronRoute serializes the daily sweep under ADVISORY_LOCK_MAP_PURGE; each Convex batch deletes only remaining indexed rows, and Neon tombstones only after a clean terminal response.',
+  },
+  {
     id: 'cron/refresh-prices',
     workKind: 'vercel-cron',
     cronPath: '/api/cron/refresh-prices',
@@ -367,6 +377,7 @@ function mutationRoute(
 
 const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   // ── POST-bodied tool reads: no write, so re-running is free ─────────────
+  mutationRoute('src/app/api/maps/search-characters/route.ts', 'key-protected', 'Character results are read-only, while token vending may refresh encrypted EVE credentials or invalid-grant state; those writes use ciphertext-keyed compare-and-swap and a repeat reflects the stored winner rather than applying an unsafe second mutation.'),
   readRoute('src/app/api/eve/names/route.ts', 'Pure resolution of posted ids through the ESI gate; writes nothing.'),
   readRoute('src/app/api/industry/build-location/route.ts', 'Pure resolution over reference data; writes nothing.'),
   readRoute('src/app/api/industry/owned-assets/route.ts', 'Read of the caller’s own stored assets; writes nothing.'),
@@ -387,6 +398,10 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mutationRoute('src/app/api/admin/wh-statics/route.ts', 'key-protected', 'Refresh uses the shared advisory lock, serializes snapshot writes, reuses an identical latest non-rejected ETag and digest instead of superseding it, and refuses a response whose pre-lock baseline no longer matches the newest snapshot; rejected observations remain eligible for a later pending review. Promote and reject accept only a pending snapshot, so a repeated review action is refused without changing the promoted copy.'),
   mutationRoute('src/app/api/maps/signature-elimination/route.ts', 'inherently-idempotent', 'The Convex deduction door re-reads every target atomically, skips equal writes, and refuses any field no longer null or assumed; repeating a pass therefore converges without overwriting human facts.'),
   mutationRoute('src/app/api/maps/jump/route.ts', 'inherently-idempotent', 'Convex atomically stamps each genuine location transition before applying its odometer effect; a repeated request for the same transition observes the stamp and converges without applying mass twice.'),
+  mutationRoute('src/app/api/maps/access/route.ts', 'inherently-idempotent', 'Upsert sets one composite-keyed durable grant to the posted role and revoke deletes that exact key; an identical repeat leaves Neon in the same state, then recomputes and delivers the complete one-way access projection.'),
+  mutationRoute('src/app/api/maps/delete/route.ts', 'inherently-idempotent', 'The guarded update transitions only an active map into archive; a repeat finds no active row, changes nothing, and cannot start collaborative purge.'),
+  mutationRoute('src/app/api/maps/restore/route.ts', 'inherently-idempotent', 'The guarded update clears archive only inside grace before purge begins; a repeat finds no archived row and changes nothing.'),
+  mutationRoute('src/app/api/maps/purge-now/route.ts', 'inherently-idempotent', 'The creator-only guarded update sets purge_requested_at only while it is null; a repeat cannot advance the timestamp or invoke collaborative deletion directly.'),
 
   // ── Delete-shaped mutations: the second delete finds nothing ────────────
   mutationRoute('src/app/api/account/saved-plans/delete/route.ts', 'inherently-idempotent', 'Deletes one owned plan by id; the second delete matches no row and returns not found.'),
@@ -399,6 +414,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mutationRoute('src/app/api/admin/sessions/revoke/route.ts', 'inherently-idempotent', 'Revokes all of one user’s sessions; a repeat revokes an already-empty set.'),
 
   // ── Create-shaped and effectful mutations ──────────────────────────────
+  mutationRoute('src/app/api/maps/create/route.ts', 'accepted-risk', 'A repeated authenticated submit can create another visible map. Nothing redelivers the request, the route is limited to five creates per user per minute, each durable map-plus-grants insert is atomic, and projection failure compensates that insert before the route reports failure.'),
   mutationRoute('src/app/api/account/saved-plans/route.ts', 'accepted-risk', 'A double submit can create a second plan. Nothing redelivers it, the route already enforces a per-user plan cap, and a client-supplied key would add a protection HC-4 bars where the risk is not real; the duplicate is user-visible and user-deletable.'),
   mutationRoute('src/app/api/account/custom-structures/route.ts', 'accepted-risk', 'A double submit can create a second custom structure. Nothing redelivers it, the route already enforces a per-user cap, and the duplicate is user-visible and user-deletable.'),
   mutationRoute('src/app/api/feedback/route.ts', 'accepted-risk', 'A double submit can deliver a second Discord message and telemetry row. Rate-limited per client, no durable state is corrupted, and deduplicating free-text feedback would suppress genuine repeat reports.'),

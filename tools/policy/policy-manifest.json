@@ -37,6 +37,7 @@
     "tools/lifecycle/resolve_development_state.py",
     "tools/lifecycle/check_release_consistency.py",
     "tools/delivery/merge_clean_pr.py",
+    "tools/delivery/wait_prod_deploy.py",
     "tools/policy/check_agent_policy.py",
     "tools/policy/check_all.py",
     "tools/policy/check_doc_refs.py",
@@ -247,7 +248,8 @@
         "mark it ready for review exactly once",
         "poll-pr-gate",
         "Merge \\(shared\\)",
-        "After merge and production proof"
+        "After merge and production proof",
+        "wait-prod-deploy"
       ],
       "forbidden": [
         "invoke `ux-check`, present its diagnostics"

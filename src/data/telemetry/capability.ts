@@ -47,14 +47,15 @@ export type CapabilityFeature = (typeof CAPABILITY_FEATURES)[number];
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
 /**
- * Closed catalogue of the 42 instrumented operations: 19 mutation routes through `runMutationRoute`,
- * 8 cron routes through `defineCronRoute`, 8 direct mutation routes that deliberately sit outside
- * the mutation shell, 6 POST-bodied tool reads, and the queued ESI-refresh job runner. Adding a
+ * Closed catalogue of the 45 instrumented operations: 21 mutations and one authenticated read
+ * through `runMutationRoute`, 8 cron routes through `defineCronRoute`, 8 direct mutation routes
+ * that deliberately sit outside the mutation shell, 6 other POST-bodied tool reads, and the
+ * queued ESI-refresh job runner. Adding a
  * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
  * census covers the rest, so an operation cannot ship unnamed.
  */
 export const CAPABILITIES = {
-  // ── Mutation routes through `runMutationRoute` (19) ────────────────────
+  // ── Mutation routes through `runMutationRoute` (21) ────────────────────
   'account.switch-active-character': { feature: 'account', operation: 'switch-active-character', kind: 'mutation' },
   'account.unlink-character': { feature: 'account', operation: 'unlink-character', kind: 'mutation' },
   'account.purge-character': { feature: 'account', operation: 'purge-character', kind: 'mutation' },
@@ -94,6 +95,11 @@ export const CAPABILITIES = {
   'planner.delete-saved-plan': { feature: 'planner', operation: 'delete-saved-plan', kind: 'mutation' },
   'planner.rename-saved-plan': { feature: 'planner', operation: 'rename-saved-plan', kind: 'mutation' },
   'planner.favorite-saved-plan': { feature: 'planner', operation: 'favorite-saved-plan', kind: 'mutation' },
+  'maps.create-map': { feature: 'maps', operation: 'create-map', kind: 'mutation' },
+  'maps.update-access': { feature: 'maps', operation: 'update-access', kind: 'mutation' },
+  'maps.delete-map': { feature: 'maps', operation: 'delete-map', kind: 'mutation' },
+  'maps.restore-map': { feature: 'maps', operation: 'restore-map', kind: 'mutation' },
+  'maps.request-map-purge': { feature: 'maps', operation: 'request-map-purge', kind: 'mutation' },
   'maps.eliminate-signatures': { feature: 'maps', operation: 'eliminate-signatures', kind: 'mutation' },
   'maps.resolve-jump': { feature: 'maps', operation: 'resolve-jump', kind: 'mutation' },
   'admin.unlink-character': { feature: 'admin', operation: 'unlink-character', kind: 'mutation' },
@@ -108,6 +114,7 @@ export const CAPABILITIES = {
   'cron.refresh-sde': { feature: 'cron', operation: 'refresh-sde', kind: 'cron' },
   'cron.refresh-wh-statics': { feature: 'cron', operation: 'refresh-wh-statics', kind: 'cron' },
   'cron.sync-sweeper': { feature: 'cron', operation: 'sync-sweeper', kind: 'cron' },
+  'cron.purge-maps': { feature: 'cron', operation: 'purge-maps', kind: 'cron' },
 
   // ── Direct mutation routes outside the mutation shell (8) ──────────────
   'account.delete-account': { feature: 'account', operation: 'delete-account', kind: 'mutation' },
@@ -119,7 +126,8 @@ export const CAPABILITIES = {
   'market.refresh-market-history': { feature: 'market', operation: 'refresh-market-history', kind: 'mutation' },
   'feedback.submit-feedback': { feature: 'feedback', operation: 'submit-feedback', kind: 'mutation' },
 
-  // ── POST-bodied tool reads (6) ─────────────────────────────────────────
+  // ── POST-bodied tool reads (7) ─────────────────────────────────────────
+  'maps.search-characters': { feature: 'maps', operation: 'search-characters', kind: 'read' },
   'planner.resolve-entity-names': { feature: 'planner', operation: 'resolve-entity-names', kind: 'read' },
   'planner.resolve-build-location': { feature: 'planner', operation: 'resolve-build-location', kind: 'read' },
   'planner.read-owned-assets': { feature: 'planner', operation: 'read-owned-assets', kind: 'read' },
