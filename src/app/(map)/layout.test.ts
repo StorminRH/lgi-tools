@@ -164,20 +164,18 @@ describe('MapAccessGate', () => {
       MapAccessGate({ children: createElement('div', { 'data-map-canvas': '' }) }),
     ).rejects.toBe(signal);
     expect(consoleError).not.toHaveBeenCalled();
-  });
 
-  it('keeps an authorized map up when the priced scanner catalogue fails', async () => {
+    // Priced scanner catalogue failure must not wall an authorized map.
     mocks.checkAdmin.mockResolvedValue({ ok: true, session });
+    mocks.rethrow.mockReset();
     const pricedErr = new Error('prices unavailable');
     mocks.getScannerSiteIndex.mockRejectedValue(pricedErr);
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-
+    consoleError.mockClear();
     const degraded = renderToStaticMarkup(
       await MapAccessGate({
         children: createElement('div', { 'data-map-canvas': '' }),
       }),
     );
-
     expect(degraded).toContain('data-map-chrome');
     expect(degraded).toContain('data-map-canvas');
     expect(degraded).toContain('data-map-site-index="1"');
@@ -205,7 +203,7 @@ describe('MapAccessGate', () => {
 });
 
 describe('MapLayout', () => {
-  it('owns the full viewport frame and clips canvas overflow', () => {
+  it('owns the full viewport frame and uses the development wall as Suspense fallback', () => {
     const frame = MapLayout({
       children: createElement('div', { 'data-map-canvas': '' }),
     });
@@ -214,12 +212,7 @@ describe('MapLayout', () => {
     expect(frame.props.className).toContain('h-[100dvh]');
     expect(frame.props.className).toContain('w-full');
     expect(frame.props.className).toContain('overflow-hidden');
-  });
 
-  it('uses the development wall as the Suspense fallback so soft nav is not blank', () => {
-    const frame = MapLayout({
-      children: createElement('div', { 'data-map-canvas': '' }),
-    });
     const suspense = frame.props.children;
     expect(suspense.type).toBe(Suspense);
     const fallbackMarkup = renderToStaticMarkup(suspense.props.fallback);

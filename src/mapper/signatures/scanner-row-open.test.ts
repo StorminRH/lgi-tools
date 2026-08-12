@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
 import {
@@ -59,111 +59,99 @@ const WH: SignatureWindowRow = row({
   },
 });
 
-describe('scannerRowOpenAction', () => {
-  it('opens catalogue sites for any viewer, gates connection edit, and leaves inert rows alone', () => {
-    setSiteNameIndex([
-      { id: 49, name: 'Barren Perimeter Reservoir' },
-      { id: 17, name: 'Forgotten Frontier Quarantine Outpost' },
-    ]);
+test('scanner row open gates catalogue sites, edit, identify, and host dispatch', () => {
+  setSiteNameIndex([
+    { id: 49, name: 'Barren Perimeter Reservoir' },
+    { id: 17, name: 'Forgotten Frontier Quarantine Outpost' },
+  ]);
 
-    const gas = row({
-      signatureId: 'GAS-001',
-      group: 'Gas Site',
-      name: 'Barren Perimeter Reservoir',
-    });
-    const anomaly = row({
-      signatureId: 'ANO-001',
-      kind: 'anomaly',
-      group: 'Combat Site',
-      name: 'Forgotten Frontier Quarantine Outpost',
-    });
-    const unknownName = row({
-      signatureId: 'CBT-001',
-      group: 'Combat Site',
-      name: 'Sansha Hideout',
-    });
-    const unnamed = row({
-      signatureId: 'ABC-123',
-      group: null,
-      name: null,
-    });
-    const partial = row({
-      signatureId: 'ANO-456',
-      kind: 'anomaly',
-      group: 'Combat Site',
-      name: 'Forgotten Frontier',
-    });
-
-    // Editor can open wormholes and identify unresolved rows.
-    expect(scannerRowOpenAction(WH, true)).toEqual({
-      kind: 'connection',
-      connectionId: 'connection-1',
-    });
-    expect(scannerRowOpenAction(unnamed, true)).toEqual({ kind: 'identify' });
-
-    // Catalogue sites open without edit rights; unmatched / partial stay inert.
-    expect(scannerRowOpenAction(gas, false)).toEqual({
-      kind: 'site',
-      siteId: 49,
-      signatureId: 'GAS-001',
-    });
-    expect(scannerRowOpenAction(anomaly, false)).toEqual({
-      kind: 'site',
-      siteId: 17,
-      signatureId: 'ANO-001',
-    });
-    expect(scannerRowOpenAction(unknownName, true)).toBeNull();
-    expect(scannerRowOpenAction(partial, true)).toBeNull();
-    expect(scannerRowOpenAction(WH, false)).toBeNull();
-    expect(scannerRowOpenAction(unnamed, false)).toBeNull();
-
-    expect(scannerRowShowsOpenAffordance(gas, false)).toBe(true);
-    expect(scannerRowShowsOpenAffordance(unknownName, true)).toBe(false);
-    expect(scannerRowShowsOpenAffordance(WH, true)).toBe(true);
-    expect(scannerRowShowsOpenAffordance(WH, false)).toBe(false);
+  const gas = row({
+    signatureId: 'GAS-001',
+    group: 'Gas Site',
+    name: 'Barren Perimeter Reservoir',
+  });
+  const anomaly = row({
+    signatureId: 'ANO-001',
+    kind: 'anomaly',
+    group: 'Combat Site',
+    name: 'Forgotten Frontier Quarantine Outpost',
+  });
+  const unknownName = row({
+    signatureId: 'CBT-001',
+    group: 'Combat Site',
+    name: 'Sansha Hideout',
+  });
+  const unnamed = row({
+    signatureId: 'ABC-123',
+    group: null,
+    name: null,
+  });
+  const partial = row({
+    signatureId: 'ANO-456',
+    kind: 'anomaly',
+    group: 'Combat Site',
+    name: 'Forgotten Frontier',
   });
 
-  it('dispatches each open action through the host callbacks', () => {
-    const openEditor = vi.fn();
-    const openSite = vi.fn();
-    const openIdentify = vi.fn();
-    const handlers = { openEditor, openSite, openIdentify };
-    const gas = row({
-      signatureId: 'GAS-001',
-      group: 'Gas Site',
-      name: 'Barren Perimeter Reservoir',
-    });
-    const trigger = {} as HTMLElement;
-
-    applyScannerRowOpenAction(null, handlers, {
-      row: gas,
-      trigger,
-      clientX: 1,
-      clientY: 2,
-    });
-    expect(openEditor).not.toHaveBeenCalled();
-    expect(openSite).not.toHaveBeenCalled();
-    expect(openIdentify).not.toHaveBeenCalled();
-
-    applyScannerRowOpenAction(
-      { kind: 'connection', connectionId: 'connection-1' as Id<'mapConnections'> },
-      handlers,
-      { row: WH, trigger, clientX: 1, clientY: 2 },
-    );
-    expect(openEditor).toHaveBeenCalledWith('connection-1');
-
-    applyScannerRowOpenAction(
-      { kind: 'site', siteId: 49, signatureId: 'GAS-001' },
-      handlers,
-      { row: gas, trigger, clientX: 3, clientY: 4 },
-    );
-    expect(openSite).toHaveBeenCalledWith(49, 'GAS-001');
-
-    applyScannerRowOpenAction(
-      { kind: 'identify' },
-      handlers,
-      { row: gas, trigger, clientX: 5, clientY: 6 },
-    );
-    expect(openIdentify).toHaveBeenCalledWith(gas, trigger, 5, 6);
+  expect(scannerRowOpenAction(WH, true)).toEqual({
+    kind: 'connection',
+    connectionId: 'connection-1',
   });
+  expect(scannerRowOpenAction(unnamed, true)).toEqual({ kind: 'identify' });
+  expect(scannerRowOpenAction(gas, false)).toEqual({
+    kind: 'site',
+    siteId: 49,
+    signatureId: 'GAS-001',
+  });
+  expect(scannerRowOpenAction(anomaly, false)).toEqual({
+    kind: 'site',
+    siteId: 17,
+    signatureId: 'ANO-001',
+  });
+  expect(scannerRowOpenAction(unknownName, true)).toBeNull();
+  expect(scannerRowOpenAction(partial, true)).toBeNull();
+  expect(scannerRowOpenAction(WH, false)).toBeNull();
+  expect(scannerRowOpenAction(unnamed, false)).toBeNull();
+
+  expect(scannerRowShowsOpenAffordance(gas, false)).toBe(true);
+  expect(scannerRowShowsOpenAffordance(unknownName, true)).toBe(false);
+  expect(scannerRowShowsOpenAffordance(WH, true)).toBe(true);
+  expect(scannerRowShowsOpenAffordance(WH, false)).toBe(false);
+
+  const openEditor = vi.fn();
+  const openSite = vi.fn();
+  const openIdentify = vi.fn();
+  const handlers = { openEditor, openSite, openIdentify };
+  const trigger = {} as HTMLElement;
+
+  applyScannerRowOpenAction(null, handlers, {
+    row: gas,
+    trigger,
+    clientX: 1,
+    clientY: 2,
+  });
+  expect(openEditor).not.toHaveBeenCalled();
+  expect(openSite).not.toHaveBeenCalled();
+  expect(openIdentify).not.toHaveBeenCalled();
+
+  applyScannerRowOpenAction(
+    { kind: 'connection', connectionId: 'connection-1' as Id<'mapConnections'> },
+    handlers,
+    { row: WH, trigger, clientX: 1, clientY: 2 },
+  );
+  expect(openEditor).toHaveBeenCalledWith('connection-1');
+
+  applyScannerRowOpenAction(
+    { kind: 'site', siteId: 49, signatureId: 'GAS-001' },
+    handlers,
+    { row: gas, trigger, clientX: 3, clientY: 4 },
+  );
+  expect(openSite).toHaveBeenCalledWith(49, 'GAS-001');
+
+  applyScannerRowOpenAction(
+    { kind: 'identify' },
+    handlers,
+    { row: gas, trigger, clientX: 5, clientY: 6 },
+  );
+  expect(openIdentify).toHaveBeenCalledWith(gas, trigger, 5, 6);
 });

@@ -79,8 +79,8 @@ describe('MapWindow isolation markup', () => {
     expect(html).not.toContain('bottom-16');
   });
 
-  it('plays the node birth overshoot on the scanner-anchored editor', () => {
-    const html = renderToStaticMarkup(
+  it('parks scanner-anchored editor and site measures beside the dock', () => {
+    const editor = renderToStaticMarkup(
       createElement(MapWindow, {
         windowId: 'signature-editor',
         title: 'Signature Editor',
@@ -90,23 +90,21 @@ describe('MapWindow isolation markup', () => {
         onActivate: vi.fn(),
       }, createElement('p', null, 'content')),
     );
-    expect(html).toContain('map-node-enter');
-    expect(html).toContain('data-map-window-placement="scanner-anchored"');
+    expect(editor).toContain('map-node-enter');
+    expect(editor).toContain('data-map-window-placement="scanner-anchored"');
     // Stacks above the dock on narrow viewports; parks beside it from md up.
-    expect(html).toContain('md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)]');
-    expect(html).toContain('bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)]');
+    expect(editor).toContain('md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)]');
+    expect(editor).toContain('bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)]');
     // Narrow stack caps to the space above the dock anchor; md uses bottom-4.
-    expect(html).toContain(
+    expect(editor).toContain(
       'max-h-[calc(100dvh-(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)-1rem)]',
     );
-    expect(html).toContain('md:max-h-[calc(100dvh-2rem)]');
-    expect(html).toContain('md:w-72');
+    expect(editor).toContain('md:max-h-[calc(100dvh-2rem)]');
+    expect(editor).toContain('md:w-72');
     // Parked beside the dock in screen space, never riding a canvas transform.
-    expect(html).not.toContain('--map-window-transform');
-  });
+    expect(editor).not.toContain('--map-window-transform');
 
-  it('widens the scanner-anchored site measure to a catalogue card column', () => {
-    const html = renderToStaticMarkup(
+    const site = renderToStaticMarkup(
       createElement(MapWindow, {
         windowId: 'site-viewer',
         title: 'Site',
@@ -117,9 +115,9 @@ describe('MapWindow isolation markup', () => {
         onActivate: vi.fn(),
       }, createElement('p', null, 'content')),
     );
-    expect(html).toContain('md:w-[22rem]');
-    expect(html).not.toContain('md:w-72');
-    expect(html).not.toContain('Close Site');
+    expect(site).toContain('md:w-[22rem]');
+    expect(site).not.toContain('md:w-72');
+    expect(site).not.toContain('Close Site');
   });
 
   it('owns the one bottom-left geometry variant for the signature sibling', () => {

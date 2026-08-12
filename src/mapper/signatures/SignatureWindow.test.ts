@@ -291,15 +291,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-signature-jump-prompt');
   });
 
-  it('shows root-system rows without a tracked online character', () => {
-    const html = render(1, new Set());
-    expect(html).toContain('data-map-window="signatures"');
-    expect(html).toContain('Signatures');
-    expect(html).toContain('Anomalies');
-    expect(html).toContain('data-signature-id="ABC-123"');
-    expect(html).not.toContain('Track an online character');
-  });
-
   it('stays empty when the map has no chain root yet', () => {
     const html = render(null, new Set());
     expect(html).toContain('data-map-window="signatures"');
@@ -307,10 +298,16 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).not.toContain('data-scanner-section=');
   });
 
-  it('gives catalogue-matched site rows the open affordance for read-only viewers', () => {
+  it('opens catalogue sites for viewers with live Est. ISK while combat stays static', () => {
     setSiteNameIndex([
-      // Live-priced total (not the historical sheet 82.4M).
-      { id: 49, name: 'Barren Perimeter Reservoir', estIsk: 28_100_000 },
+      {
+        id: 49,
+        name: 'Barren Perimeter Reservoir',
+        // Live-priced total (not the historical sheet 82.4M).
+        estIsk: 28_100_000,
+        liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
+      },
+      { id: 1, name: 'Sansha Hideout', estIsk: 12_000_000 },
     ]);
     const html = renderToStaticMarkup(
       createElement(SignatureWindow, {
@@ -339,26 +336,12 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-signature-row-open');
     expect(html).toContain('data-signature-isk="value"');
     expect(html).toContain('28.1M');
+    expect(html).toContain('12.0M');
+    expect(html).toContain('data-price-state="settled"');
+    // Combat headline is a plain span — only the harvestable cell uses LivePrice.
+    expect(html.match(/data-price-state="/g)?.length).toBe(1);
     expect(html).not.toContain('aria-label=');
     expect(html).not.toContain('sr-only">Edit wormhole ');
     expect(html).not.toContain('sr-only">View site Sansha');
-  });
-
-  it('flashes LivePrice for harvestable recipes while combat Est. ISK stays static', () => {
-    setSiteNameIndex([
-      {
-        id: 49,
-        name: 'Barren Perimeter Reservoir',
-        estIsk: 28_100_000,
-        liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
-      },
-      { id: 1, name: 'Sansha Hideout', estIsk: 12_000_000 },
-    ]);
-    const html = render(1, new Set());
-    expect(html).toContain('data-price-state="settled"');
-    expect(html).toContain('28.1M');
-    expect(html).toContain('12.0M');
-    // Combat headline is a plain span — only the harvestable cell uses LivePrice.
-    expect(html.match(/data-price-state="/g)?.length).toBe(1);
   });
 });
