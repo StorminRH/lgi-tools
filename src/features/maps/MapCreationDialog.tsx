@@ -17,6 +17,7 @@ import {
   DialogClose,
   DialogDescription,
   DialogTitle,
+  type DialogFocusTarget,
 } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -104,7 +105,7 @@ export interface MapCreationDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly corporations: readonly CorporationAccessOption[];
-  readonly openerRef?: RefObject<HTMLElement | null>;
+  readonly openerRef?: DialogFocusTarget;
   readonly onCreated?: (mapId: string) => void;
 }
 

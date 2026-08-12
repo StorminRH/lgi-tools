@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { MapCanvas } from '@/mapper';
+import { AtlasEntry } from './AtlasEntry';
 
 /**
  * The parent admin wall intentionally replaces this page for unauthorized
@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Renders the empty atlas canvas supplied by the mapper host layer.
+ * Renders the client query branch inside the map layout's request-time hole.
  */
 export default function AtlasPage() {
-  return <MapCanvas />;
+  return <AtlasEntry />;
 }

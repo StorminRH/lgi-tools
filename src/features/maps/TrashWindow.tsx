@@ -11,6 +11,7 @@ import {
   DialogClose,
   DialogDescription,
   DialogTitle,
+  type DialogFocusTarget,
 } from '@/components/ui/dialog';
 import type { DeletedRestorableMapRow } from '@/data/maps/queries';
 import {
@@ -92,10 +93,12 @@ export function TrashWindow({
   open,
   onOpenChange,
   maps,
+  finalFocus,
 }: {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly maps: readonly DeletedRestorableMapRow[];
+  readonly finalFocus?: DialogFocusTarget;
 }) {
   const router = useRouter();
   const titleId = useId();
@@ -158,6 +161,7 @@ export function TrashWindow({
           if (busy === null && !confirmOpen) onOpenChange(next);
         }}
         labelledBy={titleId}
+        finalFocus={finalFocus}
         className="max-h-[calc(100dvh-2rem)] w-[min(38rem,calc(100vw-2rem))] overflow-y-auto"
       >
         <header className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">

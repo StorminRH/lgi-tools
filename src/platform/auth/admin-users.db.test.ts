@@ -1,11 +1,23 @@
 import { eq } from 'drizzle-orm';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDbTestHarness,
   seedEveAccount as insertEveAccount,
   seedUser as insertUser,
 } from '@/db/test-support/db-test-harness';
 import { getStoredActiveCharacterId } from './linked-characters';
+
+const hooks = vi.hoisted(() => ({
+  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('./identity-projection-hooks', () => ({
+  runBeforeUserDelete: (userId: string) => hooks.runBeforeUserDelete(userId),
+  runAfterCharacterLinkChanged: (characterId: number) =>
+    hooks.runAfterCharacterLinkChanged(characterId),
+}));
+
 import {
   CHARACTER_SEARCH_LIMIT,
   deleteLinkedCharacter,
@@ -50,6 +62,8 @@ const SURVIVOR_CHAR = 90000022;
 
 describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => {
   beforeEach(async () => {
+    hooks.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
+    hooks.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
     await seedUser(SOURCE_ID, { name: 'Source Pilot' });
     await seedUser(TARGET_ID, { name: 'Target Pilot' });
   });
@@ -174,6 +188,7 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
         toUserId: TARGET_ID,
       }),
     ).resolves.toEqual({ sourceDeleted: true });
+    expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
 
     const [moved] = await harness.db
       .select({ userId: account.userId })
@@ -214,6 +229,7 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
         toUserId: TARGET_ID,
       }),
     ).resolves.toEqual({ sourceDeleted: true });
+    expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
 
     await expect(getUserById(SOURCE_ID)).resolves.toBeNull();
     await expect(revokeUserSessions(SOURCE_ID)).resolves.toBe(0);

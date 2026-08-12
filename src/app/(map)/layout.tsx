@@ -2,13 +2,17 @@ import { unstable_rethrow } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
-import { listMapChromeData } from '@/composition/map-access';
+import {
+  listMapChromeData,
+  type MapChromeData,
+} from '@/composition/map-access';
 import {
   getScannerSiteIndex,
   getSiteSearchIndex,
   type SiteSearchEntry,
 } from '@/features/wormhole-sites/queries';
 import { SiteCatalogueProvider } from '@/features/wormhole-sites/site-catalogue';
+import { MapCatalogueDataProvider } from '@/features/maps/map-catalogue-data';
 import { checkAdmin, type SessionCheckResult } from '@/platform/auth/route-guards';
 import type { Session } from '@/platform/auth/types';
 import { MapTrackingMenu } from './MapTrackingMenu';
@@ -36,11 +40,20 @@ async function loadScannerCatalogue(): Promise<readonly SiteSearchEntry[]> {
 
 async function loadMapChromeData(userId: string) {
   try {
-    return await listMapChromeData(userId);
+    return {
+      data: await listMapChromeData(userId),
+      listingAvailable: true,
+    } as const;
   } catch (err) {
     unstable_rethrow(err);
-    console.error('[map] switcher data unavailable; empty seed', err);
-    return { maps: [], deletedMaps: [], corporations: [], grantsByMapId: {} };
+    console.error('[map] map listing unavailable; retry required', err);
+    const data: MapChromeData = {
+      maps: [],
+      deletedMaps: [],
+      corporations: [],
+      grantsByMapId: {},
+    };
+    return { data, listingAvailable: false } as const;
   }
 }
 
@@ -106,22 +119,27 @@ export async function MapAccessGate({
         };
   // Live-priced scanner catalogue preferred; failures must not wall the map.
   // AppHeader/sitemap keep calling getSiteSearchIndex directly on their own.
-  const [siteIndex, chromeData] = await Promise.all([
+  const [siteIndex, chromeSnapshot] = await Promise.all([
     loadScannerCatalogue(),
     loadMapChromeData(gate.session.user.id),
   ]);
+  const chromeData = chromeSnapshot.data;
 
   return (
     <SiteCatalogueProvider siteIndex={siteIndex}>
-      <MapChrome
-        session={session}
-        contextualSection={<MapTrackingMenu />}
+      <MapCatalogueDataProvider
         corporations={chromeData.corporations}
         maps={chromeData.maps}
         deletedMaps={chromeData.deletedMaps}
         grantsByMapId={chromeData.grantsByMapId}
-      />
-      {children}
+        listingAvailable={chromeSnapshot.listingAvailable}
+      >
+        <MapChrome
+          session={session}
+          contextualSection={<MapTrackingMenu />}
+        />
+        {children}
+      </MapCatalogueDataProvider>
     </SiteCatalogueProvider>
   );
 }

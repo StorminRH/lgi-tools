@@ -7,6 +7,7 @@ import {
   createMapGrantsFromDrafts,
   characterSearchPopupOpen,
   initialCreationAccessDrafts,
+  mapRoleLabel,
   prepareMapCreation,
   removeAccessPrincipal,
   setAccessDraftRole,
@@ -77,6 +78,11 @@ describe('map access editor model', () => {
 
     expect(accessRolesForMode('create')).toEqual(['viewer', 'editor']);
     expect(accessRolesForMode('manage')).toEqual(['viewer', 'editor', 'admin']);
+    expect(['viewer', 'editor', 'admin'].map((role) => mapRoleLabel(role as 'viewer' | 'editor' | 'admin'))).toEqual([
+      'Read-only',
+      'Write',
+      'Admin',
+    ]);
     expect(refused[0]?.role).toBeNull();
     expect(accepted[0]?.role).toBe('admin');
     expect(accessDraftsComplete('manage', accepted)).toBe(true);

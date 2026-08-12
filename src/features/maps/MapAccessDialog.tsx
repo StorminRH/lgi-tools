@@ -5,7 +5,6 @@ import {
   useId,
   useRef,
   useState,
-  type RefObject,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Banner } from '@/components/ui/banner';
@@ -15,6 +14,7 @@ import {
   DialogClose,
   DialogDescription,
   DialogTitle,
+  type DialogFocusTarget,
 } from '@/components/ui/dialog';
 import type {
   CorporationAccessOption,
@@ -40,7 +40,7 @@ export interface MapAccessDialogProps {
   readonly mapName: string;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly finalFocus: RefObject<HTMLElement | null>;
+  readonly finalFocus: DialogFocusTarget;
   readonly corporations: readonly CorporationAccessOption[];
   readonly initialGrants: readonly MapAccessGrantOption[];
 }

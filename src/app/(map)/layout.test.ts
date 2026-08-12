@@ -47,6 +47,36 @@ vi.mock('@/features/wormhole-sites/site-catalogue', () => ({
     ),
 }));
 
+vi.mock('@/features/maps/map-catalogue-data', () => ({
+  MapCatalogueDataProvider: ({
+    maps,
+    deletedMaps,
+    corporations,
+    grantsByMapId,
+    listingAvailable,
+    children,
+  }: {
+    maps: readonly unknown[];
+    deletedMaps: readonly unknown[];
+    corporations: readonly unknown[];
+    grantsByMapId: Readonly<Record<string, readonly unknown[]>>;
+    listingAvailable: boolean;
+    children: React.ReactNode;
+  }) =>
+    createElement(
+      'div',
+      {
+        'data-map-catalogue-provider': '',
+        'data-provider-map-count': String(maps.length),
+        'data-provider-deleted-count': String(deletedMaps.length),
+        'data-provider-corporation-count': String(corporations.length),
+        'data-provider-grant-count': String(grantsByMapId['map-a']?.length ?? 0),
+        'data-provider-listing-available': String(listingAvailable),
+      },
+      children,
+    ),
+}));
+
 vi.mock('@/composition/map-access', () => ({
   listMapChromeData: mocks.listMapChromeData,
 }));
@@ -55,23 +85,14 @@ vi.mock('@/components/composition/map/MapChrome', () => ({
   MapChrome: ({
     session: value,
     contextualSection,
-    corporations,
-    maps,
-    grantsByMapId,
   }: {
     session: unknown;
     contextualSection?: React.ReactNode;
-    corporations?: readonly unknown[];
-    maps?: readonly unknown[];
-    grantsByMapId?: Readonly<Record<string, readonly unknown[]>>;
   }) =>
     createElement('div', {
       'data-map-chrome': '',
       'data-map-account-session': String(value != null),
       'data-map-contextual-section': String(contextualSection != null),
-      'data-map-corporation-count': String(corporations?.length ?? 0),
-      'data-map-list-count': String(maps?.length ?? 0),
-      'data-map-grant-count': String(grantsByMapId?.['map-a']?.length ?? 0),
     }),
 }));
 
@@ -139,12 +160,16 @@ describe('MapAccessGate', () => {
     expect(admin).toContain('data-site-catalogue');
     expect(admin).toContain('data-map-site-index="1"');
     expect(admin).toContain('data-map-contextual-section="true"');
-    expect(admin).toContain('data-map-corporation-count="1"');
-    expect(admin).toContain('data-map-list-count="1"');
-    expect(admin).toContain('data-map-grant-count="1"');
+    expect(admin).toContain('data-map-catalogue-provider');
+    expect(admin).toContain('data-provider-map-count="1"');
+    expect(admin).toContain('data-provider-deleted-count="1"');
+    expect(admin).toContain('data-provider-corporation-count="1"');
+    expect(admin).toContain('data-provider-grant-count="1"');
+    expect(admin).toContain('data-provider-listing-available="true"');
     expect(admin).toContain('data-map-canvas');
     expect(admin).not.toContain('data-map-development-wall');
     expect(mocks.getScannerSiteIndex).toHaveBeenCalled();
+    expect(mocks.listMapChromeData).toHaveBeenCalledOnce();
 
     mocks.checkAdmin.mockResolvedValue({
       ok: true,
@@ -226,6 +251,30 @@ describe('MapAccessGate', () => {
     expect(empty).toContain('data-map-canvas');
     expect(empty).toContain('data-map-site-index="0"');
     expect(empty).not.toContain('data-map-development-wall');
+  });
+
+  it('marks a failed map listing as unavailable instead of a true empty catalogue', async () => {
+    mocks.checkAdmin.mockResolvedValue({ ok: true, session });
+    const listingError = new Error('map listing unavailable');
+    mocks.listMapChromeData.mockRejectedValue(listingError);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const degraded = renderToStaticMarkup(
+      await MapAccessGate({
+        children: createElement('div', { 'data-atlas-entry': '' }),
+      }),
+    );
+
+    expect(degraded).toContain('data-map-chrome');
+    expect(degraded).toContain('data-atlas-entry');
+    expect(degraded).toContain('data-provider-map-count="0"');
+    expect(degraded).toContain('data-provider-listing-available="false"');
+    expect(degraded).not.toContain('data-map-development-wall');
+    expect(mocks.rethrow).toHaveBeenCalledWith(listingError);
+    expect(consoleError).toHaveBeenCalledWith(
+      '[map] map listing unavailable; retry required',
+      listingError,
+    );
   });
 });
 

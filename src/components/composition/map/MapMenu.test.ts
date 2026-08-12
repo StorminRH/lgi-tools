@@ -19,20 +19,24 @@ vi.mock('@/components/ui/menu', () => ({
 vi.mock('@/features/maps/MapCreationDialog', () => ({
   MapCreationDialog: ({
     corporations,
+    open,
   }: {
     corporations: readonly { corporationId: number }[];
+    open: boolean;
   }) =>
     createElement('div', {
       'data-map-creation-door': '',
       'data-corporation-count': corporations.length,
+      'data-map-creation-open': String(open),
     }),
 }));
 
 vi.mock('@/features/maps/TrashWindow', () => ({
-  TrashWindow: ({ maps }: { maps: readonly unknown[] }) =>
+  TrashWindow: ({ maps, open }: { maps: readonly unknown[]; open: boolean }) =>
     createElement('div', {
       'data-trash-window': '',
       'data-trash-count': maps.length,
+      'data-trash-open': String(open),
     }),
 }));
 
@@ -63,5 +67,15 @@ describe('MapMenu', () => {
     expect(markup).toContain('Trash (1)');
     expect(markup).toContain('data-trash-window');
     expect(markup).toContain('data-trash-count="1"');
+  });
+
+  it('hides and closes map actions when the shared listing is unavailable', () => {
+    const markup = renderToStaticMarkup(
+      createElement(MapMenu, { mapActionsAvailable: false }),
+    );
+    expect(markup).not.toContain('Create map');
+    expect(markup).not.toContain('>Trash<');
+    expect(markup).toContain('data-map-creation-open="false"');
+    expect(markup).toContain('data-trash-open="false"');
   });
 });

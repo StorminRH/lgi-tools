@@ -13,20 +13,16 @@ import {
   accessPrincipalKey,
   accessRolesForMode,
   corporationAccessPrincipal,
+  mapRoleLabel,
   type AccessEditorMode,
   type AccessGrantDraft,
   type AccessPrincipalOption,
 } from './access-editor-model';
-const ROLE_LABELS: Readonly<Record<MapRole, string>> = {
-  viewer: 'Read-only',
-  editor: 'Write',
-  admin: 'Admin',
-};
 
 function roleOptions(mode: AccessEditorMode): RadioOption[] {
   return accessRolesForMode(mode).map((role) => ({
     value: role,
-    label: ROLE_LABELS[role],
+    label: mapRoleLabel(role),
   }));
 }
 

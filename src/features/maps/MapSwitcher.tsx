@@ -9,17 +9,14 @@ import type {
 } from '@/data/maps/access-contract';
 import type { AuthorizedMapRow } from '@/data/maps/queries';
 import { MapAccessDialog } from './MapAccessDialog';
-
-/** Creates a query-preserving history destination for one selected map. */
-export function mapSwitcherHref(
-  pathname: string,
-  searchParams: Pick<URLSearchParams, 'toString'>,
-  mapId: string,
-): string {
-  const next = new URLSearchParams(searchParams.toString());
-  next.set('map', mapId);
-  return `${pathname}?${next.toString()}`;
-}
+import {
+  closedMapDialogs,
+  connectedDialogFocus,
+  currentAdminMap,
+  mapDialogAuthorityKey,
+  reconcileAuthorityScopedMapDialogs,
+} from './map-dialog-state';
+import { mapSelectionHref } from './map-navigation';
 
 function CogGlyph() {
   return (
@@ -38,10 +35,12 @@ export function MapSwitcher({
   maps,
   corporations,
   grantsByMapId,
+  focusFallback,
 }: {
   readonly maps: readonly AuthorizedMapRow[];
   readonly corporations: readonly CorporationAccessOption[];
   readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
+  readonly focusFallback?: React.RefObject<HTMLElement | null>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -50,7 +49,13 @@ export function MapSwitcher({
   const selected = maps.find((map) => map.id === selectedId);
   const refreshedMissingId = useRef<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const [editingMap, setEditingMap] = useState<AuthorizedMapRow | null>(null);
+  const authorityKey = mapDialogAuthorityKey(true, maps);
+  const [storedDialogs, setStoredDialogs] = useState(() =>
+    closedMapDialogs(authorityKey),
+  );
+  const dialogs = reconcileAuthorityScopedMapDialogs(storedDialogs, authorityKey);
+  if (dialogs !== storedDialogs) setStoredDialogs(dialogs);
+  const currentEditingMap = currentAdminMap(maps, dialogs.editingMapId);
 
   useEffect(() => {
     if (
@@ -99,7 +104,7 @@ export function MapSwitcher({
               }`}
               onClick={() => {
                 if (map.id !== selected.id) {
-                  router.push(mapSwitcherHref(pathname, searchParams, map.id));
+                  router.push(mapSelectionHref(pathname, searchParams, map.id));
                 }
               }}
             >
@@ -111,7 +116,12 @@ export function MapSwitcher({
                 aria-label={`Manage ${map.name}`}
                 data-map-switcher-manage={map.id}
                 className="flex cursor-pointer items-center rounded-r-ctl px-2.5 text-muted outline-none data-[highlighted]:bg-row-active data-[highlighted]:text-name"
-                onClick={() => setEditingMap(map)}
+                onClick={() =>
+                  setStoredDialogs((current) => ({
+                    ...current,
+                    editingMapId: map.id,
+                  }))
+                }
               >
                 <CogGlyph />
               </MenuItem>
@@ -121,18 +131,26 @@ export function MapSwitcher({
           </div>
         ))}
       </Menu>
-      {editingMap !== null ? (
+      {dialogs.editingMapId !== null ? (
         <MapAccessDialog
-          key={editingMap.id}
-          mapId={editingMap.id}
-          mapName={editingMap.name}
-          open
-          finalFocus={triggerRef}
+          key={dialogs.editingMapId}
+          mapId={dialogs.editingMapId}
+          mapName={currentEditingMap?.name ?? 'map'}
+          open={currentEditingMap !== null}
+          finalFocus={() =>
+            connectedDialogFocus(triggerRef.current, focusFallback?.current)
+          }
           onOpenChange={(open) => {
-            if (!open) setEditingMap(null);
+            if (!open) {
+              setStoredDialogs((current) => ({ ...current, editingMapId: null }));
+            }
           }}
           corporations={corporations}
-          initialGrants={grantsByMapId[editingMap.id] ?? []}
+          initialGrants={
+            currentEditingMap === null
+              ? []
+              : grantsByMapId[currentEditingMap.id] ?? []
+          }
         />
       ) : null}
     </>

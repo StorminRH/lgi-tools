@@ -23,6 +23,16 @@ export interface AccessGrantDraft extends AccessPrincipalOption {
 
 const CREATE_ROLES = ['viewer', 'editor'] as const;
 const MANAGE_ROLES = ['viewer', 'editor', 'admin'] as const;
+const MAP_ROLE_LABELS: Readonly<Record<MapRole, string>> = {
+  viewer: 'Read-only',
+  editor: 'Write',
+  admin: 'Admin',
+};
+
+/** User-facing plain-text label for one durable map role. */
+export function mapRoleLabel(role: MapRole): string {
+  return MAP_ROLE_LABELS[role];
+}
 
 /** Closed role choices for each editor mode; no choice is implied by selection. */
 export function accessRolesForMode(mode: AccessEditorMode): readonly MapRole[] {

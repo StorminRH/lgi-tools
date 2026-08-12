@@ -2,7 +2,12 @@
 
 import { Dialog as Base } from '@base-ui/react/dialog';
 import { cva } from 'class-variance-authority';
-import { useState, type ReactNode, type RefObject } from 'react';
+import {
+  useState,
+  type ComponentProps,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { cn } from './cn';
 import { OverlayPortalContainerProvider } from './overlay-portal-container';
 import type { Tone } from './tones';
@@ -22,6 +27,9 @@ import type { Tone } from './tones';
  * abstract values before rendering.
  */
 export type DialogTone = Extract<Tone, 'neutral'>;
+
+/** Installed Base UI focus-return contract exposed through the house dialog wrapper. */
+export type DialogFocusTarget = ComponentProps<typeof Base.Popup>['finalFocus'];
 
 // Abstract tone → token classes (no raw hex). `neutral` is the raised-slate
 // surface (matches the shared Modal box). Centring uses fixed + translate (a
@@ -72,7 +80,7 @@ export function Dialog({
   className?: string;
   // Where focus returns on close. Pass the opener when there's no Base UI
   // Trigger to restore to (the default would guess "previously focused").
-  finalFocus?: RefObject<HTMLElement | null>;
+  finalFocus?: DialogFocusTarget;
   // Where focus moves on open (default: first tabbable element, or the popup on
   // touch to avoid the virtual keyboard).
   initialFocus?: RefObject<HTMLElement | null>;

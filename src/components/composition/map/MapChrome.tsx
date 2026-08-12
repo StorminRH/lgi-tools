@@ -1,15 +1,11 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { AccountMenu } from '@/components/composition/account/AccountMenu';
 import { FeedbackButton } from '@/components/composition/FeedbackButton';
-import type { Session } from '@/platform/auth/types';
-import type {
-  CorporationAccessOption,
-  MapAccessGrantOption,
-} from '@/data/maps/access-contract';
-import type { AuthorizedMapRow, DeletedRestorableMapRow } from '@/data/maps/queries';
+import { useMapCatalogueData } from '@/features/maps/map-catalogue-data';
 import { MapSwitcher } from '@/features/maps/MapSwitcher';
+import type { Session } from '@/platform/auth/types';
 import { MapMenu } from './MapMenu';
 
 // Side-effect import: registers every search source on the CLIENT instance of
@@ -26,18 +22,18 @@ import '@/composition/search/register-all';
 export function MapChrome({
   session,
   contextualSection,
-  corporations = [],
-  maps = [],
-  deletedMaps = [],
-  grantsByMapId = {},
 }: {
   session: Session | null;
   contextualSection?: ReactNode;
-  corporations?: readonly CorporationAccessOption[];
-  maps?: readonly AuthorizedMapRow[];
-  deletedMaps?: readonly DeletedRestorableMapRow[];
-  grantsByMapId?: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
 }) {
+  const {
+    corporations,
+    maps,
+    deletedMaps,
+    grantsByMapId,
+    listingAvailable,
+  } = useMapCatalogueData();
+  const switcherFocusFallback = useRef<HTMLDivElement | null>(null);
   return (
     <div
       data-map-chrome
@@ -56,9 +52,15 @@ export function MapChrome({
             />
           </div>
         ) : null}
-        <MapMenu corporations={corporations} deletedMaps={deletedMaps} />
+        <MapMenu
+          corporations={corporations}
+          deletedMaps={deletedMaps}
+          mapActionsAvailable={listingAvailable}
+        />
       </div>
       <div
+        ref={switcherFocusFallback}
+        tabIndex={-1}
         data-map-search-slot
         className="pointer-events-auto absolute left-1/2 top-4 -translate-x-1/2"
       >
@@ -66,6 +68,7 @@ export function MapChrome({
           maps={maps}
           corporations={corporations}
           grantsByMapId={grantsByMapId}
+          focusFallback={switcherFocusFallback}
         />
       </div>
       <div

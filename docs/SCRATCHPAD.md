@@ -12,7 +12,7 @@
 - **CURRENT:** executing approved session **4.0.4.4.1** on
   `lifecycle/4.0.4.4` (frozen plan `Approved`, execution status remains
   `Pending` by policy; release triplet `4.0.4.4.1`).
-- **OW progress:** **5/7 complete — next: Landing catalogue.**
+- **OW progress:** **6/7 complete — next: UX gate.**
 - **OW completed:** OW-1 durable foundation — viewer/editor/admin migration,
   Neon-only authorized/trash listings, bounded staged map creation, one-way
   projection, and compensating recovery. OW-2 character search — 15-scope auth
@@ -37,7 +37,14 @@
   purge, daily locked tombstone sweep, and required full-chain account cleanup;
   focused 75 files / 651 tests, strict TypeScript, full `pnpm verify` (5,125
   tests; Fallow zero issues in 127 changed files), and fresh primitive/holistic
-  reviews green.
+  reviews green. OW-6 landing catalogue — no-map Atlas composes three
+  self-hiding provenance sections from the single listing snapshot, metadata
+  cards, an always-present create card (alone plus one hint at zero maps), a
+  trash entry, and admin card edit buttons; listing failure is distinct from
+  zero maps; create/trash stay keyed to listing availability while a lost
+  access-edit drops without reopening on restore. Focused 18 files / 62 tests,
+  full `pnpm verify` (5,294 tests; Fallow zero issues, one warn clone), and
+  fresh primitive/holistic reviews green.
 - **Next-agent notes:** (1) creation atomically inserts a hidden row with
   `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
   with a 2 s whole-attempt bound, then publishes by clearing both markers;
@@ -62,9 +69,9 @@
   matching `admin` principal on an unarchived, untombstoned map in the same SQL
   statement; denial never projects, while a post-write projection failure
   leaves Neon authoritative for an identical healing retry. (8) The creation
-  dialog is reachable from the existing Atlas menu and receives fresh current
-  corporation principals; the later catalogue/create-card door must reuse it
-  rather than create a parallel flow. (9) `MapChrome` receives one
+  dialog is reachable from the Atlas menu and the catalogue create card through
+  shared `MapLifecycleDialogs`, and receives fresh current corporation
+  principals. (9) `MapChrome` receives one
   `listMapChromeData` snapshot: the exact authorized rows, current corporation
   options, and grants only for maps whose creator/admin authority is rechecked
   atomically inside the batch grant query. The persistent switcher refreshes a
@@ -75,14 +82,22 @@
   `projectStagedMapAccess` is the sole creation-only exception. Full-chain
   purge must succeed before any user-row cascade removes owned map identities.
   The daily cron processes at most 25 due maps and tombstones only after the
-  bearer door reports every map-keyed Convex table clean. OW-6 should reuse
-  `deletedMaps` and `TrashWindow` for the catalogue trash entry. The switch
-  probe uses `UX_MAP_ID` + `UX_SECOND_MAP_ID`; choose a first map with
-  node/window content absent from the second so the stale-content canary is
-  meaningful.
-- **Handoff:** resume through `start-session`; execute only OW-6 Landing
-  catalogue, then its focused gate, final full verify, fresh reviewers, local
-  commit, and handoff. Do not advance into OW-7 or close-out.
+  bearer door reports every map-keyed Convex table clean. The switch probe uses
+  `UX_MAP_ID` + `UX_SECOND_MAP_ID`; choose a first map with node/window content
+  absent from the second so the stale-content canary is meaningful. (11) OW-6
+  landing: `AtlasEntry` branches on `?map=` presence (an empty value still
+  opens the canvas). Catalogue, switcher, and menu share one
+  `listMapChromeData` snapshot via `MapCatalogueDataProvider`; listing failure
+  renders `data-map-catalogue-unavailable`, never the zero-map hint. Create and
+  trash stay keyed to listing availability so a restore refresh does not close
+  TrashWindow; `dropLostAdminEdit` clears a lost access-edit id so
+  restore/regrant cannot reopen the dialog. Reuse `MapLifecycleDialogs` and
+  `mapSelectionHref`. `/atlas` remains `partial` with `instant = false`. OW-7
+  owns SC-7.2/SC-7.3 probes and G-1 — no production code beyond probe
+  definitions.
+- **Handoff:** resume through `start-session`; execute only OW-7 UX gate, then
+  its focused gate, final full verify, fresh reviewers, local commit, and
+  handoff. Do not close-out.
 - **G-1 disposition:** operator approved (2026-08-11) — site viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off

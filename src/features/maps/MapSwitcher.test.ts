@@ -56,7 +56,8 @@ vi.mock('./MapAccessDialog', () => ({
     }),
 }));
 
-import { MapSwitcher, mapSwitcherHref } from './MapSwitcher';
+import { MapSwitcher } from './MapSwitcher';
+import { mapSelectionHref } from './map-navigation';
 
 const MAPS = [
   {
@@ -116,7 +117,7 @@ describe('MapSwitcher', () => {
 
   it('preserves unrelated query values and produces a push-safe encoded map target', () => {
     expect(
-      mapSwitcherHref(
+      mapSelectionHref(
         '/atlas',
         new URLSearchParams('map=old&panel=signatures'),
         'map/one',
