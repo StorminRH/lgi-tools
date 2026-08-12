@@ -162,10 +162,10 @@ export function MapAccessDialog({
       className="max-h-[calc(100dvh-2rem)] w-[min(46rem,calc(100vw-2rem))] overflow-y-auto"
     >
       <header className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <DialogTitle
             id={titleId}
-            className="font-display text-h2 font-semibold tracking-copy uppercase text-name"
+            className="min-w-0 break-words font-display text-h2 font-semibold tracking-copy uppercase text-name"
           >
             Manage {mapName}
           </DialogTitle>

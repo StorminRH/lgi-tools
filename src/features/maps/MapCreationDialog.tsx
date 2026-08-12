@@ -65,9 +65,11 @@ function Compass({ failed = false }: { failed?: boolean }) {
 
 function CreationInterstitial({
   phase,
+  titleId,
   onRetry,
 }: {
   phase: Extract<CreationPhase, { kind: 'creating' | 'error' }>;
+  titleId: string;
   onRetry: () => void;
 }) {
   const failed = phase.kind === 'error';
@@ -78,14 +80,17 @@ function CreationInterstitial({
     >
       <Compass failed={failed} />
       <div className="flex max-w-sm flex-col gap-1.5">
-        <h2 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
+        <DialogTitle
+          id={titleId}
+          className="font-display text-h2 font-semibold tracking-copy uppercase text-name"
+        >
           {failed ? 'Map creation paused' : 'Creating your map'}
-        </h2>
-        <p className="font-ui text-ui leading-relaxed text-muted">
+        </DialogTitle>
+        <DialogDescription className="font-ui text-ui leading-relaxed text-muted">
           {failed
             ? phase.message
             : 'Committing the map and confirming access before the first jump.'}
-        </p>
+        </DialogDescription>
       </div>
       {failed ? (
         <Button variant="primary" onClick={onRetry}>
@@ -327,6 +332,7 @@ export function MapCreationDialog({
       {controller.phase.kind === 'creating' || controller.phase.kind === 'error' ? (
         <CreationInterstitial
           phase={controller.phase}
+          titleId={titleId}
           onRetry={() => void controller.submit()}
         />
       ) : (

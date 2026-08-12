@@ -9,119 +9,16 @@
 
 ## Now
 
-- **CURRENT:** executing approved session **4.0.4.4.1** on
-  `lifecycle/4.0.4.4` (frozen plan `Approved`, execution status remains
-  `Pending` by policy; release triplet `4.0.4.4.1`).
-- **OW progress:** **7/7 complete — awaiting close-out**.
-- **OW completed:** OW-1 durable foundation — viewer/editor/admin migration,
-  Neon-only authorized/trash listings, bounded staged map creation, one-way
-  projection, and compensating recovery. OW-2 character search — 15-scope auth
-  vocabulary, owned-token ESI typeahead, exact public fallback, strict bounded
-  name enrichment, and the authenticated maps search route; focused 9 files /
-  333 tests, route census 93, and origin-main-pinned `pnpm verify` green (5,030
-  tests; Fallow zero issues). OW-3 access editor + creation dialog — shared
-  explicit-role editor, isolated character-search controller, Atlas-menu
-  creation door with five-second interstitial and close-before-push handoff,
-  and active-map/admin-atomic grant upsert/revoke followed by one-way
-  re-projection; focused suite, strict TypeScript, full `pnpm verify`, primitive
-  review, and holistic review green; live revoke returned 204 and removed
-  access without reload in 103 ms. OW-4 switcher chrome — the single Neon
-  authorized listing now seeds the top-center frosted map switcher and
-  admin-only access doors; query-preserving push navigation, keyed retargeting,
-  authoritative grant-snapshot reconciliation, and atomically re-authorized
-  management-grant reads are covered by 56 focused tests, strict TypeScript,
-  full `pnpm verify` (5,065 tests; Fallow zero issues), clean primitive/holistic
-  reviews, and a two-map node/window/history probe with all eight checks green.
-  OW-5 delete lifecycle — admin delete with 30-day restore, creator-only purge
-  fast-forward, multi-select trash, census-backed resumable nine-table Convex
-  purge, daily locked tombstone sweep, and required full-chain account cleanup;
-  focused 75 files / 651 tests, strict TypeScript, full `pnpm verify` (5,125
-  tests; Fallow zero issues in 127 changed files), and fresh primitive/holistic
-  reviews green. OW-6 landing catalogue — no-map Atlas composes three
-  self-hiding provenance sections from the single listing snapshot, metadata
-  cards, an always-present create card (alone plus one hint at zero maps), a
-  trash entry, and admin card edit buttons; listing failure is distinct from
-  zero maps; create/trash stay keyed to listing availability while a lost
-  access-edit drops without reopening on restore. Focused 18 files / 62 tests,
-  full `pnpm verify` (5,294 tests; Fallow zero issues, one warn clone), and
-  fresh primitive/holistic reviews green. OW-7 UX gate — `/atlas` moved into
-  the site route group with PageHead landing and `AtlasCanvasFrame` canvas
-  cover; G-1 chrome (header create, card delete, scrolling switcher gear,
-  HomePrompt Dialog); dev-only E2E affiliation skip; DEP-8 `navHidden` Atlas
-  strip. Focused 37 files / 147 tests; origin-main-pinned `pnpm verify` green
-  (5,306 tests; Fallow zero issues in 182 changed files).
-- **Next-agent notes:** (1) creation atomically inserts a hidden row with
-  `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
-  with a 2 s whole-attempt bound, then publishes by clearing both markers;
-  exhausted delete retries leave a listing-invisible row durably queued for
-  OW-5 purge. (2) Create accepts names up to 120 characters and at most 100
-  unique viewer/editor grants; rate limit is 5/min per memoized authenticated
-  user. (3) Convex storage temporarily admits legacy `owner`, but every current
-  writer emits `admin` and the single read seam normalizes legacy claims.
-  Delivery still needs an all-live-map projection resync, then a later
-  one-line legacy-validator contraction after production convergence. (4)
-  OW-3 consumes `POST /api/maps/search-characters`: input is trimmed 3–100,
-  response is `{ mode: 'typeahead' | 'exact', results }`; existing linked
-  grants need reconnect before scoped typeahead, while no scoped token uses
-  exact public resolution. Scoped/token/name failures return 503 and never
-  silently fall back. (5) Entity-name caching throws inside `use cache: remote`
-  on upstream/malformed results so transient failures are not cached as null;
-  both strict and best-effort callers share the eight-request worker cap. (6)
-  `AccessListEditor` remains transport-free; `CharacterSearchControl` owns the
-  debounce/cancellation/API path, while the OW-4 cog door supplies its own
-  management mutations and server-owned current-grant seed. (7) `POST /api/maps/access`
-  accepts one discriminated upsert/revoke and atomically requires creator or a
-  matching `admin` principal on an unarchived, untombstoned map in the same SQL
-  statement; denial never projects, while a post-write projection failure
-  leaves Neon authoritative for an identical healing retry. (8) The creation
-  dialog is reachable from the Atlas menu and the catalogue header create
-  control through shared `MapLifecycleDialogs`, and receives fresh current corporation
-  principals. (9) `MapChrome` receives one
-  `listMapChromeData` snapshot: the exact authorized rows, current corporation
-  options, and grants only for maps whose creator/admin authority is rechecked
-  atomically inside the batch grant query. The persistent switcher refreshes a
-  newly created missing selection once; access updates refresh the server
-  snapshot, reconcile concurrent revoke/role changes, and return dialog focus
-  to the top-center trigger. (10) OW-5 lifecycle routes accept UUID map ids
-  only. Ordinary projection returns empty claims for archived maps;
-  `projectStagedMapAccess` is the sole creation-only exception. Full-chain
-  purge must succeed before any user-row cascade removes owned map identities.
-  The daily cron processes at most 25 due maps and tombstones only after the
-  bearer door reports every map-keyed Convex table clean. The switch probe uses
-  `UX_MAP_ID` + `UX_SECOND_MAP_ID`; choose a first map with node/window content
-  absent from the second so the stale-content canary is meaningful. (11) OW-6/7
-  landing: `/atlas` lives in the site route group so the landing keeps the
-  global header. Atlas is `navHidden` until wall-drop (DEP-8); reach it at
-  `/atlas` or via tool search. `AtlasBound` walls non-admins; the landing paints
-  `lgi://atlas` / Atlas through `PageHead` like Industry and Sites. A selected
-  map covers that chrome with `AtlasCanvasFrame`. The development wall is not
-  a loading fallback. Catalogue, switcher, and menu share one
-  `listMapChromeData` snapshot via `MapCatalogueDataProvider`; listing failure
-  renders `data-map-catalogue-unavailable`, never the zero-map hint. Create and
-  trash live in the PageHead meta slot; admin cards keep Edit access and a
-  separate bottom-left delete icon. Manage-access no longer deletes. The
-  canvas switcher list caps at ~10 rows then scrolls; the manage glyph is a
-  gear. Create/trash stay keyed to listing
-  availability so a restore refresh does not close TrashWindow;
-  `dropLostAdminEdit` clears a lost access-edit id so
-  restore/regrant cannot reopen the dialog. Reuse `MapLifecycleDialogs` and
-  `mapSelectionHref`. `/atlas` remains `partial` with `instant = false`.
-  OW-7 UX gate: `/atlas` is the site-framed landing (`PageShell` / `PageHead`);
-  a selected map covers site chrome via `AtlasCanvasFrame` (`data-map-canvas-frame`
-  hides `.app-header`, `[data-site-footer]`, and `[data-site-feedback]` — not
-  generic `footer`, so dialog action bars stay visible). Create lives in the
-  PageHead meta slot; admin cards keep Edit access and a bottom-left delete
-  icon; manage-access is Done-only. The canvas switcher list caps at ~10 rows
-  then scrolls; the manage glyph is a gear. HomePrompt is a required Dialog
-  with tracking/offline current-system. Affiliation ESI omits synthetic
-  character `9000001` only in `NODE_ENV === 'development'`; production still
-  fail-closes on 400. Atlas stays `navHidden` until wall-drop (DEP-8); `/atlas`
-  and tool search still reach it. Operator G-1 (2026-08-12): opened Atlas,
-  created a map, switched access, edited the map. Log-driven probes
-  atlas-wall, atlas-map-catalogue, atlas-map-access, atlas-map-switcher,
-  atlas-map-create, atlas-map-lifecycle, and instant-nav-atlas green.
-- **Handoff:** resume through `start-session`; Ordered work is complete.
-  Run close-out in planned mode only (no further OW).
+- **CURRENT:** planned close-out of session **4.0.4.4.1** on
+  `lifecycle/4.0.4.4` (plan `Complete`; release triplet `4.0.4.4`). Review
+  corrections and delivery records are on the branch; as-built waits for the
+  sub-version PR number.
+- **Handoff:** finish close-out (verify, draft PR, as-built, external review,
+  merge, production proof), then `python3 tools/cli.py lifecycle resolve
+  --pretty` and return to `start-session`. Every roadmap row is terminal, so
+  the expected directive is version-audit planning. After production proof,
+  run the one-shot projection resync over live maps so Convex claims converge
+  to `admin`, then a later one-line legacy-validator contraction.
 - **G-1 disposition:** operator approved (2026-08-12) for session 4.0.4.4.1 —
   opened Atlas, created a map, switched access, and edited the map. Site-framed
   landing, header create, card delete icon, manage-access without delete,
@@ -130,6 +27,39 @@
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK remain
   signed off.
+- **Durable 4.0.4.4.1 gotchas:** (1) Creation inserts a hidden row with
+  `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
+  with a 2 s attempt bound, then publishes by clearing both markers. Exhausted
+  delete retries leave a listing-invisible row queued for purge. The daily
+  sweep ignores purge-requested rows younger than `MAP_STAGED_PURGE_HOLD_MS`
+  (30 s, past the 20 s creation window). (2) Names cap at 120 characters and
+  100 unique viewer/editor grants; `map-create` is 5/min per authenticated
+  user. (3) Convex storage still admits legacy `owner`; writers emit `admin`
+  and the read seam normalizes. Delivery still needs an all-live-map
+  projection resync, then a one-line validator contraction. (4)
+  `POST /api/maps/search-characters` is trimmed 3–100;
+  `{ mode: 'typeahead' | 'exact', results }`; scoped/token/name failures
+  return 503 and never silently fall back. (5) Entity-name caching throws
+  inside `use cache: remote` on upstream/malformed results. (6)
+  `AccessListEditor` is transport-free; `CharacterSearchControl` owns the
+  search path. (7) Access upsert/revoke atomically requires creator or admin
+  on an unarchived, untombstoned map; denial never projects. (8) Catalogue,
+  switcher, and menu share one `listMapChromeData` snapshot.
+  `projectStagedMapAccess` is the sole archived-map projection exception.
+  Full-chain purge must finish before account-row cascade. Cron processes at
+  most 25 due maps and tombstones only after a clean nine-table sweep. (9)
+  `/atlas` is the site-framed landing (`PageShell` / `PageHead`); a selected
+  map covers site chrome via `AtlasCanvasFrame` (`data-map-canvas-frame` hides
+  `.app-header`, `[data-site-footer]`, and `[data-site-feedback]` — not
+  generic `footer`). Atlas is `navHidden` until wall-drop. HomePrompt is a
+  required Dialog. Affiliation ESI omits synthetic character `9000001` only
+  in `NODE_ENV === 'development'`. `/atlas` remains `partial` with
+  `instant = false`. Long map names truncate in the centered switcher
+  (`max-w-[min(20rem,calc(100%-14rem))]`) and wrap on cards and the access
+  dialog. (10) Close-out review contested a durable versioned projection
+  queue: Neon stays authoritative; failed teardown after archive is the
+  accepted resync/purge residual. Do not add a projection work queue in
+  audit follow-up without an explicit operator decision.
 - **Durable 4.0.4.3.3 gotchas:** (1) Atlas seeds the scanner catalogue through
   `SiteCatalogueProvider` in `AtlasBound` via `getScannerSiteIndex`
   (hourly priced + `liveRecipes`); AppHeader/sitemap keep lightweight

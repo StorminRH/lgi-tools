@@ -94,7 +94,7 @@ export function MapSwitcher({
           'data-map-id': selected.id,
         }}
         popupProps={{ 'data-map-switcher-panel': '' }}
-        triggerClassName="glass-panel-faint flex h-10 max-w-80 cursor-pointer items-center rounded-card border border-border-idle px-3.5 font-display text-h3 font-bold tracking-copy text-name shadow-dd outline-none transition-colors hover:border-border-active focus-visible:border-border-active focus-visible:ring-1 focus-visible:ring-isk-sub"
+        triggerClassName="glass-panel-faint flex h-10 w-max max-w-full min-w-0 cursor-pointer items-center rounded-card border border-border-idle px-3.5 font-display text-h3 font-bold tracking-copy text-name shadow-dd outline-none transition-colors hover:border-border-active focus-visible:border-border-active focus-visible:ring-1 focus-visible:ring-isk-sub"
         className={`${scrollArea} grid min-w-72 grid-cols-[minmax(0,1fr)_auto] rounded-card p-[5px] max-h-[min(24rem,var(--available-height))] overflow-y-auto overscroll-contain`}
         surface="frosted"
         side="bottom"

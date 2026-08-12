@@ -12,6 +12,13 @@ import { maps } from './schema';
 /** Maximum due maps one daily sweep claims, bounding one function invocation. */
 export const MAP_PURGE_MAPS_PER_RUN = 25;
 
+/**
+ * Staged creations are born purge-queued for compensating recovery. Hold them
+ * past the 20 s creation-projection deadline so the daily sweep cannot claim an
+ * in-flight insert.
+ */
+export const MAP_STAGED_PURGE_HOLD_MS = 30_000;
+
 /** Dedicated session advisory lock for the daily cross-store map purge. */
 export const ADVISORY_LOCK_MAP_PURGE = 8_273_619_019;
 
@@ -113,23 +120,32 @@ export async function requestAuthorizedMapPurge(
   return updated.length === 1;
 }
 
+function purgeEligibility(now: Date) {
+  const graceCutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
+  const stagedHoldCutoff = new Date(now.getTime() - MAP_STAGED_PURGE_HOLD_MS);
+  return and(
+    isNotNull(maps.archivedAt),
+    isNull(maps.tombstonedAt),
+    or(
+      and(
+        isNotNull(maps.purgeRequestedAt),
+        lte(maps.createdAt, stagedHoldCutoff),
+      ),
+      lte(maps.archivedAt, graceCutoff),
+    ),
+  );
+}
+
 /** Lists one bounded, deterministic set of maps eligible for collaborative purge. */
 export async function listPurgeableMaps(
   now: Date = new Date(),
   limit = MAP_PURGE_MAPS_PER_RUN,
   database: AnyPgDb = db,
 ): Promise<PurgeableMap[]> {
-  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   return database
     .select({ id: maps.id })
     .from(maps)
-    .where(
-      and(
-        isNotNull(maps.archivedAt),
-        isNull(maps.tombstonedAt),
-        or(isNotNull(maps.purgeRequestedAt), lte(maps.archivedAt, cutoff)),
-      ),
-    )
+    .where(purgeEligibility(now))
     .orderBy(
       asc(sql`coalesce(${maps.purgeRequestedAt}, ${maps.archivedAt})`),
       asc(maps.id),
@@ -143,18 +159,10 @@ export async function tombstonePurgedMap(
   now: Date = new Date(),
   database: AnyPgDb = db,
 ): Promise<boolean> {
-  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const updated = await database
     .update(maps)
     .set({ tombstonedAt: now, updatedAt: now })
-    .where(
-      and(
-        eq(maps.id, mapId),
-        isNotNull(maps.archivedAt),
-        isNull(maps.tombstonedAt),
-        or(isNotNull(maps.purgeRequestedAt), lte(maps.archivedAt, cutoff)),
-      ),
-    )
+    .where(and(eq(maps.id, mapId), purgeEligibility(now)))
     .returning({ id: maps.id });
   return updated.length === 1;
 }

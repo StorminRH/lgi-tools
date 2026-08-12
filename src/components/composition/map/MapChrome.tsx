@@ -62,7 +62,7 @@ export function MapChrome({
         ref={switcherFocusFallback}
         tabIndex={-1}
         data-map-search-slot
-        className="pointer-events-auto absolute left-1/2 top-4 -translate-x-1/2"
+        className="pointer-events-auto absolute left-1/2 top-4 min-w-0 max-w-[min(20rem,calc(100%-14rem))] -translate-x-1/2"
       >
         <MapSwitcher
           maps={maps}

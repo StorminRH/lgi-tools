@@ -14,6 +14,7 @@ describe('CharacterSearchControl', () => {
 
     expect(markup).toContain('data-map-character-search');
     expect(markup).toContain('Search characters');
+    expect(markup).toContain('aria-describedby');
     expect(markup).toContain('Search by character name.');
   });
 });

@@ -137,8 +137,8 @@ function CatalogueMapCard({
         data-map-catalogue-open={map.id}
         className="flex flex-1 flex-col gap-4 p-5 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub"
       >
-        <div className="flex flex-col gap-1">
-          <h2 className="font-display text-h2 font-semibold tracking-copy uppercase text-name">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 className="min-w-0 break-words font-display text-h2 font-semibold tracking-copy uppercase text-name">
             {map.name}
           </h2>
           {map.provenance.kind === 'created' ? null : (

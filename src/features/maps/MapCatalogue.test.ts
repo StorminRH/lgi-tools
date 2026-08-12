@@ -163,6 +163,7 @@ describe('MapCatalogue', () => {
     expect(markup).toContain('Corporation maps');
     expect(markup).toContain('Shared with you');
     expect(markup).toContain('Home Chain');
+    expect(markup).toContain('break-words');
     expect(markup).toContain('Corp Chain');
     expect(markup).toContain('Shared Chain');
     expect(markup).toContain('Your access: Admin');

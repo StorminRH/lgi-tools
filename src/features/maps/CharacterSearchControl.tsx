@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import * as Combobox from '@/components/ui/combobox';
 import {
@@ -162,6 +162,7 @@ export function CharacterSearchControl({
     query,
     setPopupOpen,
   } = useCharacterSearch(selectedKeys);
+  const hintId = useId();
 
   return (
     <div className="flex flex-col gap-1.5" data-map-character-search>
@@ -180,6 +181,7 @@ export function CharacterSearchControl({
       >
         <Combobox.Field
           aria-label="Search characters"
+          aria-describedby={hintId}
           placeholder="Character name"
           autoComplete="off"
           spellCheck={false}
@@ -219,6 +221,7 @@ export function CharacterSearchControl({
         ) : null}
       </Combobox.Root>
       <span
+        id={hintId}
         className={
           hintFailed
             ? 'font-ui text-label text-tone-red'

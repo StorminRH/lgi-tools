@@ -19,11 +19,13 @@ vi.mock('@/components/ui/menu', () => ({
   Menu: ({
     trigger,
     triggerProps,
+    triggerClassName,
     children,
     className,
   }: {
     trigger: React.ReactNode;
     triggerProps?: Record<string, unknown> & { ref?: React.Ref<HTMLButtonElement> };
+    triggerClassName?: string;
     children: React.ReactNode;
     className?: string;
   }) => {
@@ -31,7 +33,7 @@ vi.mock('@/components/ui/menu', () => ({
     return createElement(
       'div',
       { 'data-menu': '', className },
-      createElement('button', buttonProps, trigger),
+      createElement('button', { ...buttonProps, className: triggerClassName }, trigger),
       children,
     );
   },
@@ -116,6 +118,9 @@ describe('MapSwitcher', () => {
     expect(selected).toContain('aria-current="page"');
     expect(selected).toContain('data-map-switcher-manage="map-a"');
     expect(selected).not.toContain('data-map-switcher-manage="map-b"');
+    expect(selected).toContain('max-w-full');
+    expect(selected).toContain('min-w-0');
+    expect(selected).toContain('truncate');
     expect(selected).toContain('scroll-area');
     expect(selected).toContain('max-h-[min(24rem,var(--available-height))]');
     expect(selected).toContain('overflow-y-auto');

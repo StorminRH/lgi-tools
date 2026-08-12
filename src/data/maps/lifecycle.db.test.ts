@@ -8,11 +8,13 @@ import { MAP_DELETE_GRACE_MS } from './queries';
 import {
   archiveAuthorizedMap,
   listPurgeableMaps,
+  MAP_STAGED_PURGE_HOLD_MS,
   requestAuthorizedMapPurge,
   restoreAuthorizedMap,
   tombstonePurgedMap,
 } from './lifecycle';
 import {
+  createMapAtomic,
   listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals,
 } from './queries';
@@ -54,6 +56,7 @@ async function seedManagedMap() {
     id: MAP_ID,
     userId: CREATOR,
     name: 'Lifecycle map',
+    createdAt: new Date(NOW.getTime() - MAP_STAGED_PURGE_HOLD_MS - 1_000),
   });
   await harness.db.insert(mapAccess).values({
     mapId: MAP_ID,
@@ -148,6 +151,18 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
       ),
     ).resolves.toEqual([]);
     await expect(harness.db.select().from(maps)).resolves.toHaveLength(1);
+  });
+
+  it('holds a staged in-flight creation out of the sweep until the projection window closes', async () => {
+    await seedUser(harness.db, CREATOR);
+    const mapId = await createMapAtomic(CREATOR, 'Staged chain', [], harness.db);
+    const now = new Date();
+
+    await expect(listPurgeableMaps(now, 25, harness.db)).resolves.toEqual([]);
+    await expect(
+      listPurgeableMaps(new Date(now.getTime() + MAP_STAGED_PURGE_HOLD_MS), 25, harness.db),
+    ).resolves.toEqual([{ id: mapId }]);
+    await expect(tombstonePurgedMap(mapId, now, harness.db)).resolves.toBe(false);
   });
 
   it('selects elapsed grace and tombstones only a still-eligible row', async () => {

@@ -24,8 +24,8 @@ vi.mock('@/components/ui/dialog', () => ({
     createElement('button', null, children),
   DialogDescription: ({ children }: { children: React.ReactNode }) =>
     createElement('p', null, children),
-  DialogTitle: ({ children }: { children: React.ReactNode }) =>
-    createElement('h2', null, children),
+  DialogTitle: ({ children, ...props }: { children: React.ReactNode }) =>
+    createElement('h2', props, children),
 }));
 
 vi.mock('./CharacterSearchControl', () => ({
@@ -82,6 +82,8 @@ describe('MapAccessDialog', () => {
     );
 
     expect(markup).toContain('Manage Alpha');
+    expect(markup).toContain('break-words');
+    expect(markup).toContain('min-w-0');
     expect(markup).toContain('data-access-editor-mode="manage"');
     expect(markup).toContain('data-access-grants="42:Scout:editor"');
     expect(markup).toContain('data-character-search');
