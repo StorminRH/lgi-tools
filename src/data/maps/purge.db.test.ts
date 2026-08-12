@@ -13,7 +13,7 @@ import { mapAccess, maps } from './schema';
 
 const hooks = {
   projectMap: vi.fn(),
-  teardownMap: vi.fn(),
+  purgeMapChain: vi.fn(),
   purgeUserClaims: vi.fn(),
 };
 
@@ -43,7 +43,7 @@ const harness = await createDbTestHarness({
 beforeEach(() => {
   vi.clearAllMocks();
   hooks.projectMap.mockResolvedValue(undefined);
-  hooks.teardownMap.mockResolvedValue(undefined);
+  hooks.purgeMapChain.mockResolvedValue(undefined);
   hooks.purgeUserClaims.mockResolvedValue(undefined);
   registerMapAccessProjectionPurgeHooks(hooks);
 });
@@ -162,7 +162,7 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
     ).toMatchObject([
       { ownerId: 43, mapId: '22222222-2222-4222-8222-222222222222' },
     ]);
-    expect(hooks.teardownMap).toHaveBeenCalledWith(
+    expect(hooks.purgeMapChain).toHaveBeenCalledWith(
       '11111111-1111-4111-8111-111111111111',
     );
     expect(hooks.purgeUserClaims).toHaveBeenCalledWith('owner');
@@ -195,5 +195,22 @@ describe.skipIf(!harness.reachable)('maps purge contributor (real Postgres)', ()
     expect(await harness.db.select().from(mapAccess)).toEqual([]);
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+
+  it('keeps owned Neon maps retryable when collaborative purge fails', async () => {
+    hooks.purgeMapChain.mockRejectedValueOnce(new Error('door down'));
+    await seedUser(harness.db, 'owner');
+    await harness.db.insert(maps).values({
+      id: '11111111-1111-4111-8111-111111111111',
+      userId: 'owner',
+      name: 'Map',
+    });
+
+    await expect(
+      mapsPurgeContributor.purgeUser?.({ kind: 'user', userId: 'owner' }),
+    ).rejects.toThrow('door down');
+    await expect(
+      harness.db.select().from(maps).where(eq(maps.userId, 'owner')),
+    ).resolves.toHaveLength(1);
   });
 });

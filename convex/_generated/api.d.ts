@@ -31,6 +31,7 @@ import type * as mapChain from "../mapChain.js";
 import type * as mapFixtures from "../mapFixtures.js";
 import type * as mapJump from "../mapJump.js";
 import type * as mapJumpBookkeeping from "../mapJumpBookkeeping.js";
+import type * as mapPurge from "../mapPurge.js";
 import type * as mapScan from "../mapScan.js";
 import type * as mapTracking from "../mapTracking.js";
 import type * as onlineStatus from "../onlineStatus.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   mapFixtures: typeof mapFixtures;
   mapJump: typeof mapJump;
   mapJumpBookkeeping: typeof mapJumpBookkeeping;
+  mapPurge: typeof mapPurge;
   mapScan: typeof mapScan;
   mapTracking: typeof mapTracking;
   onlineStatus: typeof onlineStatus;

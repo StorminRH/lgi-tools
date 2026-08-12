@@ -9,6 +9,7 @@ import { refreshIndustryIndicesDeclaration } from './refresh-industry-indices/de
 import { refreshPricesDeclaration } from './refresh-prices/declaration';
 import { refreshSdeDeclaration } from './refresh-sde/declaration';
 import { refreshWhStaticsDeclaration } from './refresh-wh-statics/declaration';
+import { purgeMapsDeclaration } from './purge-maps/declaration';
 import { syncSweeperDeclaration } from './sync-sweeper/declaration';
 
 type CronSpec = {
@@ -36,6 +37,7 @@ const cronRegistry = {
   '/api/cron/refresh-wh-statics': {
     declaration: refreshWhStaticsDeclaration,
   },
+  '/api/cron/purge-maps': { declaration: purgeMapsDeclaration },
   '/api/cron/sync-sweeper': { declaration: syncSweeperDeclaration },
 } satisfies Record<string, CronRegistryEntry>;
 

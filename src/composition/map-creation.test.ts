@@ -23,7 +23,10 @@ describe('createProjectedMap', () => {
     expect(createMap).toHaveBeenCalledWith('user-1', 'Home chain', INPUT.grants);
     expect(project).toHaveBeenCalledWith(
       'map-1',
-      expect.objectContaining({ timeoutMs: 2_000, signal: expect.any(AbortSignal) }),
+      expect.objectContaining({
+        timeoutMs: 2_000,
+        signal: expect.any(AbortSignal),
+      }),
     );
     expect(publish).toHaveBeenCalledWith('map-1');
     expect(compensate).not.toHaveBeenCalled();

@@ -7,6 +7,7 @@
 //   POST /purge-location-tracking  — characterLocation + mapTracking teardown for a Neon-side purge.
 //   POST /project-map-access       — one-way Neon→Convex mapAccess claim reconcile.
 //   POST /purge-map-access         — per-user mapAccess claim teardown for account purge.
+//   POST /purge-map-chain          — complete bounded collaborative map teardown.
 //   POST /jump-evidence            — one consistent tracked-transition evidence packet.
 //   POST /resolve-jump             — one transactional automatic-jump write/answer.
 //   POST /signature-elimination    — bounded evidence read or atomic assumed deduction batch.
@@ -65,6 +66,10 @@ const projectMapAccessBodySchema = z
 
 const purgeMapAccessBodySchema = z.object({
   userId: z.string(),
+});
+
+const purgeMapChainBodySchema = z.object({
+  mapId: z.string().min(1),
 });
 
 const jumpEvidenceBodySchema = z.discriminatedUnion('mode', [
@@ -397,6 +402,28 @@ http.route({
       if (!batch.hasMore) {
         return Response.json({ deleted });
       }
+    }
+    return new Response('Purge batch limit exceeded', { status: 503 });
+  }),
+});
+
+http.route({
+  path: '/purge-map-chain',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+    const raw = await readJsonBody(req);
+    if (raw === null) return new Response('Bad Request', { status: 400 });
+    const body = purgeMapChainBodySchema.safeParse(raw);
+    if (!body.success) return new Response('Bad Request', { status: 400 });
+
+    let deleted = 0;
+    for (let batchIndex = 0; batchIndex < MAX_PURGE_BATCHES; batchIndex += 1) {
+      const batch = await ctx.runMutation(internal.mapPurge.purgeMapBatch, {
+        mapId: body.data.mapId,
+      });
+      deleted += batch.deleted;
+      if (!batch.hasMore) return Response.json({ deleted, remaining: false });
     }
     return new Response('Purge batch limit exceeded', { status: 503 });
   }),

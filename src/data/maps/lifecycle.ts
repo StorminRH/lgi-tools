@@ -1,0 +1,160 @@
+import { and, asc, eq, gte, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
+import { db } from '@/db';
+import type { AnyPgDb } from '@/lib/db-types';
+import type { MapPrincipals } from './access';
+import {
+  authorizedAdminMapsSelection,
+  mapAuthorizationRows,
+} from './authorization-sql';
+import { MAP_DELETE_GRACE_MS } from './queries';
+import { maps } from './schema';
+
+/** Maximum due maps one daily sweep claims, bounding one function invocation. */
+export const MAP_PURGE_MAPS_PER_RUN = 25;
+
+/** Dedicated session advisory lock for the daily cross-store map purge. */
+export const ADVISORY_LOCK_MAP_PURGE = 8_273_619_019;
+
+/** One durable map selected for collaborative purge. */
+export interface PurgeableMap {
+  readonly id: string;
+}
+
+function oneAuthorizedRow(
+  result: Awaited<ReturnType<AnyPgDb['execute']>>,
+): boolean {
+  return mapAuthorizationRows(result).length === 1;
+}
+
+/** Atomically requires active-map admin authority and starts the undo window. */
+export async function archiveAuthorizedMap(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  now: Date = new Date(),
+  database: AnyPgDb = db,
+): Promise<boolean> {
+  const nowIso = now.toISOString();
+  const result = await database.execute(sql`
+    WITH authorized_map AS (
+      ${authorizedAdminMapsSelection(
+        userId,
+        principals,
+        [mapId],
+        sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
+      )}
+    )
+    UPDATE ${maps}
+    SET archived_at = ${nowIso}::timestamptz,
+        purge_requested_at = NULL,
+        updated_at = ${nowIso}::timestamptz
+    WHERE ${maps.id} IN (SELECT id FROM authorized_map)
+    RETURNING ${maps.id}
+  `);
+  return oneAuthorizedRow(result);
+}
+
+/**
+ * Atomically requires archived-map admin authority inside grace and restores
+ * the durable map only while no purge or tombstone has begun.
+ */
+export async function restoreAuthorizedMap(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+  now: Date = new Date(),
+  database: AnyPgDb = db,
+): Promise<boolean> {
+  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
+  const cutoffIso = cutoff.toISOString();
+  const nowIso = now.toISOString();
+  const result = await database.execute(sql`
+    WITH authorized_map AS (
+      ${authorizedAdminMapsSelection(
+        userId,
+        principals,
+        [mapId],
+        sql`${maps.archivedAt} IS NOT NULL
+          AND ${maps.archivedAt} > ${cutoffIso}::timestamptz
+          AND ${maps.purgeRequestedAt} IS NULL
+          AND ${maps.tombstonedAt} IS NULL`,
+      )}
+    )
+    UPDATE ${maps}
+    SET archived_at = NULL, updated_at = ${nowIso}::timestamptz
+    WHERE ${maps.id} IN (SELECT id FROM authorized_map)
+    RETURNING ${maps.id}
+  `);
+  return oneAuthorizedRow(result);
+}
+
+/** Creator-only fast-forward: queues an archived, in-grace map for the cron. */
+export async function requestAuthorizedMapPurge(
+  userId: string,
+  mapId: string,
+  now: Date = new Date(),
+  database: AnyPgDb = db,
+): Promise<boolean> {
+  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
+  const updated = await database
+    .update(maps)
+    .set({ purgeRequestedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(maps.id, mapId),
+        eq(maps.userId, userId),
+        isNotNull(maps.archivedAt),
+        gte(maps.archivedAt, cutoff),
+        isNull(maps.tombstonedAt),
+        isNull(maps.purgeRequestedAt),
+      ),
+    )
+    .returning({ id: maps.id });
+  return updated.length === 1;
+}
+
+/** Lists one bounded, deterministic set of maps eligible for collaborative purge. */
+export async function listPurgeableMaps(
+  now: Date = new Date(),
+  limit = MAP_PURGE_MAPS_PER_RUN,
+  database: AnyPgDb = db,
+): Promise<PurgeableMap[]> {
+  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
+  return database
+    .select({ id: maps.id })
+    .from(maps)
+    .where(
+      and(
+        isNotNull(maps.archivedAt),
+        isNull(maps.tombstonedAt),
+        or(isNotNull(maps.purgeRequestedAt), lte(maps.archivedAt, cutoff)),
+      ),
+    )
+    .orderBy(
+      asc(sql`coalesce(${maps.purgeRequestedAt}, ${maps.archivedAt})`),
+      asc(maps.id),
+    )
+    .limit(limit);
+}
+
+/** Marks one still-eligible row after a clean collaborative sweep. */
+export async function tombstonePurgedMap(
+  mapId: string,
+  now: Date = new Date(),
+  database: AnyPgDb = db,
+): Promise<boolean> {
+  const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
+  const updated = await database
+    .update(maps)
+    .set({ tombstonedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(maps.id, mapId),
+        isNotNull(maps.archivedAt),
+        isNull(maps.tombstonedAt),
+        or(isNotNull(maps.purgeRequestedAt), lte(maps.archivedAt, cutoff)),
+      ),
+    )
+    .returning({ id: maps.id });
+  return updated.length === 1;
+}

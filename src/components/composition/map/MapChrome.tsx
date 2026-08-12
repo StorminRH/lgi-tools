@@ -8,7 +8,7 @@ import type {
   CorporationAccessOption,
   MapAccessGrantOption,
 } from '@/data/maps/access-contract';
-import type { AuthorizedMapRow } from '@/data/maps/queries';
+import type { AuthorizedMapRow, DeletedRestorableMapRow } from '@/data/maps/queries';
 import { MapSwitcher } from '@/features/maps/MapSwitcher';
 import { MapMenu } from './MapMenu';
 
@@ -28,12 +28,14 @@ export function MapChrome({
   contextualSection,
   corporations = [],
   maps = [],
+  deletedMaps = [],
   grantsByMapId = {},
 }: {
   session: Session | null;
   contextualSection?: ReactNode;
   corporations?: readonly CorporationAccessOption[];
   maps?: readonly AuthorizedMapRow[];
+  deletedMaps?: readonly DeletedRestorableMapRow[];
   grantsByMapId?: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
 }) {
   return (
@@ -54,7 +56,7 @@ export function MapChrome({
             />
           </div>
         ) : null}
-        <MapMenu corporations={corporations} />
+        <MapMenu corporations={corporations} deletedMaps={deletedMaps} />
       </div>
       <div
         data-map-search-slot

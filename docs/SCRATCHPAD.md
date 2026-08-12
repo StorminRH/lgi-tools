@@ -12,7 +12,7 @@
 - **CURRENT:** executing approved session **4.0.4.4.1** on
   `lifecycle/4.0.4.4` (frozen plan `Approved`, execution status remains
   `Pending` by policy; release triplet `4.0.4.4.1`).
-- **OW progress:** **4/7 complete — next: Delete lifecycle.**
+- **OW progress:** **5/7 complete — next: Landing catalogue.**
 - **OW completed:** OW-1 durable foundation — viewer/editor/admin migration,
   Neon-only authorized/trash listings, bounded staged map creation, one-way
   projection, and compensating recovery. OW-2 character search — 15-scope auth
@@ -32,6 +32,12 @@
   management-grant reads are covered by 56 focused tests, strict TypeScript,
   full `pnpm verify` (5,065 tests; Fallow zero issues), clean primitive/holistic
   reviews, and a two-map node/window/history probe with all eight checks green.
+  OW-5 delete lifecycle — admin delete with 30-day restore, creator-only purge
+  fast-forward, multi-select trash, census-backed resumable nine-table Convex
+  purge, daily locked tombstone sweep, and required full-chain account cleanup;
+  focused 75 files / 651 tests, strict TypeScript, full `pnpm verify` (5,125
+  tests; Fallow zero issues in 127 changed files), and fresh primitive/holistic
+  reviews green.
 - **Next-agent notes:** (1) creation atomically inserts a hidden row with
   `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
   with a 2 s whole-attempt bound, then publishes by clearing both markers;
@@ -64,13 +70,19 @@
   atomically inside the batch grant query. The persistent switcher refreshes a
   newly created missing selection once; access updates refresh the server
   snapshot, reconcile concurrent revoke/role changes, and return dialog focus
-  to the top-center trigger. OW-5 can add delete/restore actions to this cog
-  shell but owns every lifecycle route and mutation. The switch probe uses
-  `UX_MAP_ID` + `UX_SECOND_MAP_ID`; choose a first map with node/window content
-  absent from the second so the stale-content canary is meaningful.
-- **Handoff:** resume through `start-session`; execute only OW-5 Delete
-  lifecycle, then its focused gate, final full verify, fresh reviewers, local
-  commit, and handoff. Do not advance into OW-6 or close-out.
+  to the top-center trigger. (10) OW-5 lifecycle routes accept UUID map ids
+  only. Ordinary projection returns empty claims for archived maps;
+  `projectStagedMapAccess` is the sole creation-only exception. Full-chain
+  purge must succeed before any user-row cascade removes owned map identities.
+  The daily cron processes at most 25 due maps and tombstones only after the
+  bearer door reports every map-keyed Convex table clean. OW-6 should reuse
+  `deletedMaps` and `TrashWindow` for the catalogue trash entry. The switch
+  probe uses `UX_MAP_ID` + `UX_SECOND_MAP_ID`; choose a first map with
+  node/window content absent from the second so the stale-content canary is
+  meaningful.
+- **Handoff:** resume through `start-session`; execute only OW-6 Landing
+  catalogue, then its focused gate, final full verify, fresh reviewers, local
+  commit, and handoff. Do not advance into OW-7 or close-out.
 - **G-1 disposition:** operator approved (2026-08-11) — site viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off
@@ -399,8 +411,10 @@
 ```
 - **Deferred by operator ruling:** automatic corp-membership-drift trigger after
   a projection run; resync remains the correction tool until a later session.
-- **Accepted residuals:** (1) a deleted map whose teardown POST failed has no
-  automatic healer — operator must resync those logged map ids; (2) a projection
+- **Accepted residuals:** (1) a deleted map whose immediate teardown POST failed
+  remains inaccessible through Neon listings and is fully cleaned by the daily
+  purge after grace (or creator fast-forward); operator resync remains the
+  in-grace immediate healer. (2) A projection
   racing a concurrent user purge can re-insert claims until the purge door or a
   resync runs again.
 - **Refresh-shortfall:** projection throws only on transient ESI failure

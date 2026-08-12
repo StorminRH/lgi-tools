@@ -1,4 +1,4 @@
-import { projectMapAccess } from '@/composition/map-access-projection';
+import { projectStagedMapAccess } from '@/composition/map-access-projection';
 import type { CreateMapRequest } from '@/data/maps/api-contract';
 import {
   compensateFailedMapCreation,
@@ -13,7 +13,7 @@ const COMPENSATION_RETRY_OFFSETS_MS = [0, 250, 1_000] as const;
 
 type CreateMap = typeof createMapAtomic;
 type Compensate = typeof compensateFailedMapCreation;
-type Project = typeof projectMapAccess;
+type Project = typeof projectStagedMapAccess;
 type Publish = typeof publishCreatedMap;
 
 interface MapCreationDependencies {
@@ -117,7 +117,7 @@ export async function createProjectedMap(
 ): Promise<CreateProjectedMapResult> {
   const createMap = dependencies.createMap ?? createMapAtomic;
   const compensate = dependencies.compensate ?? compensateFailedMapCreation;
-  const project = dependencies.project ?? projectMapAccess;
+  const project = dependencies.project ?? projectStagedMapAccess;
   const publish = dependencies.publish ?? publishCreatedMap;
   const now = dependencies.now ?? Date.now;
   const pause = dependencies.pause ?? delay;

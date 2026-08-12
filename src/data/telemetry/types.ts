@@ -42,6 +42,7 @@ export const SERVER_USAGE_ACTIONS = [
   'cron_esi_refresh_jobs', // 15-min idle-silent drain of deferred owner-sync work
   'cron_affiliations', // nightly corp-affiliation refresh outcome — busy / refreshed (3.7.3.2)
   'cron_wh_statics', // weekly community statics feed outcome — unchanged / unavailable / snapshot pending
+  'cron_map_purge', // daily bounded collaborative map purge + durable tombstone outcome
   'eve_token_refresh_invalid_grant', // EVE rejected the submitted refresh token as invalid / expired / revoked
   'eve_token_refresh_timeout', // the EVE SSO refresh request exceeded the shared outbound timeout
   'eve_token_refresh_connection', // the EVE SSO refresh request failed before an HTTP response

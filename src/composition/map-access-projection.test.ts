@@ -47,6 +47,7 @@ vi.mock('@/lib/env', () => ({
 import {
   computeMapAccessClaims,
   projectMapAccess,
+  projectStagedMapAccess,
   ProjectionUnavailableError,
 } from './map-access-projection';
 
@@ -200,6 +201,16 @@ describe('computeMapAccessClaims', () => {
     await expect(computeMapAccessClaims('missing')).resolves.toEqual([]);
   });
 
+  it('returns an empty set for archived maps', async () => {
+    mocks.getMapAccessSubject.mockResolvedValue({
+      userId: 'creator',
+      archivedAt: new Date('2026-08-12T00:00:00.000Z'),
+    });
+
+    await expect(computeMapAccessClaims('map-1')).resolves.toEqual([]);
+    expect(mocks.getMapGrants).not.toHaveBeenCalled();
+  });
+
   it('converges when a completed refresh leaves a biomassed character stale (404 omissions)', async () => {
     // ESI 404-poisoned batch: refresh completed without transient failure, but the
     // dead character's refreshedAt stays stale — corp roles fail closed, compute continues.
@@ -294,6 +305,47 @@ describe('projectMapAccess transport', () => {
   it('throws when the door answers non-2xx', async () => {
     mocks.fetchWithTimeout.mockResolvedValue(new Response('nope', { status: 503 }));
     await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+  });
+
+  it('reconciles archived maps to an empty claim set during ordinary reprojection', async () => {
+    mocks.getMapAccessSubject.mockResolvedValue({
+      userId: 'creator',
+      archivedAt: new Date('2026-08-12T00:00:00.000Z'),
+    });
+    mocks.fetchWithTimeout.mockResolvedValue(
+      Response.json({ inserted: 0, updated: 0, deleted: 1, unchanged: 0 }),
+    );
+
+    await projectMapAccess('map-1');
+
+    expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
+      'http://127.0.0.1:3211/project-map-access',
+      expect.objectContaining({
+        body: JSON.stringify({ mapId: 'map-1', claims: [] }),
+      }),
+    );
+  });
+
+  it('projects the hidden archived staging row only through the creation seam', async () => {
+    mocks.getMapAccessSubject.mockResolvedValue({
+      userId: 'creator',
+      archivedAt: new Date('2026-08-12T00:00:00.000Z'),
+    });
+    mocks.fetchWithTimeout.mockResolvedValue(
+      Response.json({ inserted: 1, updated: 0, deleted: 0, unchanged: 0 }),
+    );
+
+    await projectStagedMapAccess('map-1');
+
+    expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
+      'http://127.0.0.1:3211/project-map-access',
+      expect.objectContaining({
+        body: JSON.stringify({
+          mapId: 'map-1',
+          claims: [{ userId: 'creator', roles: ['admin'] }],
+        }),
+      }),
+    );
   });
 
   it('throws when Convex env is unset', async () => {

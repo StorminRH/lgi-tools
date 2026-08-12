@@ -26,6 +26,10 @@ import {
   maps,
   type MapAccessOwnerType,
 } from './schema';
+import {
+  authorizedAdminMapsSelection,
+  mapAuthorizationRows,
+} from './authorization-sql';
 
 /** Thirty-day undo window shared by restorable-list reads and the later purge owner. */
 export const MAP_DELETE_GRACE_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -439,7 +443,7 @@ export async function getAuthorizedMapGrantsForMaps(
     INNER JOIN authorized_map ON authorized_map.id = delegated_grant.map_id
     ORDER BY delegated_grant.map_id, delegated_grant.owner_type, delegated_grant.owner_id
   `);
-  return authorizationRows(result).map(
+  return mapAuthorizationRows(result).map(
     (row: {
       mapId: string;
       ownerType: MapAccessOwnerType;
@@ -452,10 +456,6 @@ export async function getAuthorizedMapGrantsForMaps(
   );
 }
 
-function authorizationRows(result: Awaited<ReturnType<AnyPgDb['execute']>>) {
-  return Array.isArray(result) ? result : result.rows;
-}
-
 type MapGrantUpsert = Extract<MapGrantChange, { readonly operation: 'upsert' }>;
 type MapGrantRevoke = Extract<MapGrantChange, { readonly operation: 'revoke' }>;
 
@@ -464,44 +464,12 @@ function activeMapsAdminSelection(
   principals: MapPrincipals,
   mapIds: readonly string[],
 ) {
-  const characterIds = JSON.stringify(principals.characterIds);
-  const corporationIds = JSON.stringify(principals.corporationIds);
-  const requestedMapIds = JSON.stringify(mapIds);
-  return sql`
-    SELECT ${maps.id}
-    FROM ${maps}
-    WHERE ${maps.id} IN (
-        SELECT value::uuid
-        FROM jsonb_array_elements_text(${requestedMapIds}::jsonb)
-      )
-      AND ${maps.archivedAt} IS NULL
-      AND ${maps.tombstonedAt} IS NULL
-      AND (
-        ${maps.userId} = ${userId}
-        OR EXISTS (
-          SELECT 1
-          FROM ${mapAccess} AS authority
-          WHERE authority.map_id = ${maps.id}
-            AND authority.role = 'admin'::"public"."map_role"
-            AND (
-              (
-                authority.owner_type = 'character'::"public"."map_access_owner_type"
-                AND authority.owner_id IN (
-                  SELECT value::bigint
-                  FROM jsonb_array_elements_text(${characterIds}::jsonb)
-                )
-              )
-              OR (
-                authority.owner_type = 'corporation'::"public"."map_access_owner_type"
-                AND authority.owner_id IN (
-                  SELECT value::bigint
-                  FROM jsonb_array_elements_text(${corporationIds}::jsonb)
-                )
-              )
-            )
-        )
-      )
-  `;
+  return authorizedAdminMapsSelection(
+    userId,
+    principals,
+    mapIds,
+    sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
+  );
 }
 
 function activeMapAdminSelection(
@@ -535,7 +503,7 @@ async function applyAuthorizedMapGrantUpsert(
       )
       SELECT EXISTS (SELECT 1 FROM authorized_map) AS authorized
     `);
-  return authorizationRows(result)[0]?.authorized === true;
+  return mapAuthorizationRows(result)[0]?.authorized === true;
 }
 
 async function applyAuthorizedMapGrantRevoke(
@@ -556,7 +524,7 @@ async function applyAuthorizedMapGrantRevoke(
     )
     SELECT EXISTS (SELECT 1 FROM authorized_map) AS authorized
   `);
-  return authorizationRows(result)[0]?.authorized === true;
+  return mapAuthorizationRows(result)[0]?.authorized === true;
 }
 
 /**

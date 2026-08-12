@@ -39,6 +39,10 @@
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/cron/purge-maps",
+      "schedule": "10 10 * * *"
+    },
+    {
       "path": "/api/cron/sync-sweeper",
       "schedule": "*/15 * * * *"
     }

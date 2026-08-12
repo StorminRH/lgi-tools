@@ -7,7 +7,7 @@ import {
   useState,
   type RefObject,
 } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,7 @@ import {
   type AccessPrincipalOption,
 } from './access-editor-model';
 import { mapAccessFailureMessage, updateMapAccess } from './map-access-client';
+import { deleteMap, mapLifecycleFailureMessage } from './map-lifecycle-client';
 
 /** Props for the controlled shared map-access management door. */
 export interface MapAccessDialogProps {
@@ -76,21 +77,11 @@ export function reconcileAccessGrantDrafts(
   return [...initialDrafts(serverGrants), ...pendingDrafts];
 }
 
-/**
- * Manages one map's delegated grants through the existing transport-free
- * editor and the sole Neon-then-projection mutation route.
- */
-export function MapAccessDialog({
-  mapId,
-  mapName,
-  open,
-  onOpenChange,
-  finalFocus,
-  corporations,
-  initialGrants,
-}: MapAccessDialogProps) {
+function useAccessGrantEditor(
+  mapId: string,
+  initialGrants: readonly MapAccessGrantOption[],
+) {
   const router = useRouter();
-  const titleId = useId();
   const [grants, setGrants] = useState<AccessGrantDraft[]>(() =>
     initialDrafts(initialGrants),
   );
@@ -115,10 +106,7 @@ export function MapAccessDialog({
       grant: { ownerType: principal.ownerType, ownerId: principal.ownerId, role },
     });
     setBusyKey(null);
-    if (!outcome.ok) {
-      setError(mapAccessFailureMessage(outcome));
-      return;
-    }
+    if (!outcome.ok) return setError(mapAccessFailureMessage(outcome));
     setGrants((current) => setAccessDraftRole('manage', current, principal, role));
     router.refresh();
   }
@@ -133,10 +121,7 @@ export function MapAccessDialog({
       principal: { ownerType: principal.ownerType, ownerId: principal.ownerId },
     });
     setBusyKey(null);
-    if (!outcome.ok) {
-      setError(mapAccessFailureMessage(outcome));
-      return;
-    }
+    if (!outcome.ok) return setError(mapAccessFailureMessage(outcome));
     setGrants((current) => removeAccessPrincipal(current, principal));
     router.refresh();
   }
@@ -146,11 +131,56 @@ export function MapAccessDialog({
     setError(null);
   }
 
+  return { grants, busyKey, error, commitRole, revoke, addPrincipal };
+}
+
+function useMapDeletion(mapId: string, onDeleted: () => void) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function removeMap() {
+    setDeleting(true);
+    setError(null);
+    const outcome = await deleteMap({ mapId });
+    setDeleting(false);
+    if (!outcome.ok) return setError(mapLifecycleFailureMessage('delete'));
+    onDeleted();
+    const next = new URLSearchParams(searchParams.toString());
+    if (next.get('map') !== mapId) return router.refresh();
+    next.delete('map');
+    const query = next.toString();
+    router.push(query === '' ? '/atlas' : `/atlas?${query}`);
+  }
+
+  return { deleting, error, removeMap };
+}
+
+/**
+ * Manages one map's delegated grants through the existing transport-free
+ * editor and the sole Neon-then-projection mutation route.
+ */
+export function MapAccessDialog({
+  mapId,
+  mapName,
+  open,
+  onOpenChange,
+  finalFocus,
+  corporations,
+  initialGrants,
+}: MapAccessDialogProps) {
+  const titleId = useId();
+  const access = useAccessGrantEditor(mapId, initialGrants);
+  const deletion = useMapDeletion(mapId, () => onOpenChange(false));
+  const disabled = access.busyKey !== null || deletion.deleting;
+  const error = access.error ?? deletion.error;
+
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (busyKey === null) onOpenChange(next);
+        if (!disabled) onOpenChange(next);
       }}
       labelledBy={titleId}
       finalFocus={finalFocus}
@@ -171,7 +201,7 @@ export function MapAccessDialog({
         <DialogClose
           render={<Button variant="ghost" size="sm" />}
           aria-label="Close map access"
-          disabled={busyKey !== null}
+          disabled={disabled}
         >
           ×
         </DialogClose>
@@ -180,27 +210,35 @@ export function MapAccessDialog({
       <div className="flex flex-col gap-4 px-4 py-4">
         <AccessListEditor
           mode="manage"
-          currentGrants={grants}
+          currentGrants={access.grants}
           corporations={corporations}
-          disabled={busyKey !== null}
-          onPrincipalAdd={addPrincipal}
-          onRoleChange={(principal, role) => void commitRole(principal, role)}
-          onPrincipalRemove={(principal) => void revoke(principal)}
+          disabled={disabled}
+          onPrincipalAdd={access.addPrincipal}
+          onRoleChange={(principal, role) => void access.commitRole(principal, role)}
+          onPrincipalRemove={(principal) => void access.revoke(principal)}
           characterSearch={
             <CharacterSearchControl
-              disabled={busyKey !== null}
-              selectedPrincipals={grants}
-              onSelect={addPrincipal}
+              disabled={access.busyKey !== null}
+              selectedPrincipals={access.grants}
+              onSelect={access.addPrincipal}
             />
           }
         />
         {error !== null ? <Banner tone="warn">{error}</Banner> : null}
       </div>
 
-      <footer className="flex items-center justify-end border-t border-border-soft px-4 py-3">
+      <footer className="flex items-center justify-between border-t border-border-soft px-4 py-3">
+        <Button
+          variant="danger"
+          size="sm"
+          disabled={disabled}
+          onClick={() => void deletion.removeMap()}
+        >
+          {deletion.deleting ? 'Deleting…' : 'Delete map'}
+        </Button>
         <DialogClose
           render={<Button variant="secondary" size="sm" />}
-          disabled={busyKey !== null}
+          disabled={disabled}
         >
           Done
         </DialogClose>

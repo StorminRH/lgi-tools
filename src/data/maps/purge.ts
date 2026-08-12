@@ -11,14 +11,14 @@ import {
 import { mapAccess, maps } from './schema';
 
 /**
- * Optional one-way Convex projection side-effects for maps purge. Composition
- * registers these because the data slice cannot import composition under Fallow,
- * and re-projection needs resolveMapPrincipals. Absent hooks, Neon teardown still
- * completes; claims heal on the next successful projection or resync.
+ * Composition-owned Convex side-effects for maps purge. Composition registers
+ * these because the data slice cannot import composition under Fallow. Whole-map
+ * chain purge is required before Neon identity deletion; claim reconciliation
+ * remains best effort after other durable credential changes.
  */
 export interface MapAccessProjectionPurgeHooks {
   readonly projectMap: (mapId: string) => Promise<void>;
-  readonly teardownMap: (mapId: string) => Promise<void>;
+  readonly purgeMapChain: (mapId: string) => Promise<void>;
   readonly purgeUserClaims: (userId: string) => Promise<void>;
 }
 
@@ -54,8 +54,9 @@ export async function deleteOwnedMaps(userId: string): Promise<void> {
 /**
  * Credential-tier teardown for durable map access. Character transfer destroys direct grants
  * before the character can resolve under a new human; whole-user purge deletes owned maps and
- * their cascading grants. After durable deletes, registered Convex projection hooks re-project
- * or tear down claims best-effort so the Neon purge never aborts on a Convex outage.
+ * their cascading grants. Whole-user purge first removes each owned collaborative
+ * chain through the required bearer door so a failed purge remains retryable;
+ * other projection reconciliation stays best effort.
  */
 export const mapsPurgeContributor: PurgeContributor = {
   name: 'maps',
@@ -84,17 +85,18 @@ export const mapsPurgeContributor: PurgeContributor = {
   },
   async purgeUser({ userId }) {
     const ownedMapIds = await getOwnedMapIds(userId);
+    const hooks = projectionHooks;
+    if (ownedMapIds.length > 0 && hooks === null) {
+      throw new Error('Map chain purge hook is not registered');
+    }
+    // Collaborative chain rows are primary user-authored data. Purge them
+    // before deleting their Neon map identity so a failed door remains
+    // retryable instead of creating an unreachable orphan.
+    for (const mapId of ownedMapIds) {
+      await hooks?.purgeMapChain(mapId);
+    }
     await deleteOwnedMaps(userId);
 
-    const hooks = projectionHooks;
-    for (const mapId of ownedMapIds) {
-      await bestEffort(
-        'maps/purge',
-        'teardown',
-        mapId,
-        hooks ? () => hooks.teardownMap(mapId) : undefined,
-      );
-    }
     await bestEffort(
       'maps/purge',
       'user claim purge',

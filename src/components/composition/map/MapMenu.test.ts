@@ -28,6 +28,14 @@ vi.mock('@/features/maps/MapCreationDialog', () => ({
     }),
 }));
 
+vi.mock('@/features/maps/TrashWindow', () => ({
+  TrashWindow: ({ maps }: { maps: readonly unknown[] }) =>
+    createElement('div', {
+      'data-trash-window': '',
+      'data-trash-count': maps.length,
+    }),
+}));
+
 import { MapMenu } from './MapMenu';
 
 describe('MapMenu', () => {
@@ -35,11 +43,25 @@ describe('MapMenu', () => {
     const markup = renderToStaticMarkup(
       createElement(MapMenu, {
         corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
+        deletedMaps: [
+          {
+            id: 'map-a',
+            name: 'Alpha',
+            createdAt: new Date(),
+            archivedAt: new Date(),
+            creatorName: 'Mapper',
+            role: 'admin',
+            provenance: { kind: 'created' },
+          },
+        ],
       }),
     );
 
     expect(markup).toContain('Create map');
     expect(markup).toContain('data-map-creation-door');
     expect(markup).toContain('data-corporation-count="1"');
+    expect(markup).toContain('Trash (1)');
+    expect(markup).toContain('data-trash-window');
+    expect(markup).toContain('data-trash-count="1"');
   });
 });

@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   getMapIdsWithCorporationGrants: vi.fn(),
   getOwnedMapIds: vi.fn(),
   projectMapAccess: vi.fn(),
-  teardownMapAccessProjection: vi.fn(),
+  purgeMapChain: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
   registerIdentityProjectionHooks: vi.fn(),
 }));
@@ -20,8 +20,11 @@ vi.mock('@/data/maps/queries', () => ({
 
 vi.mock('@/composition/map-access-projection', () => ({
   projectMapAccess: mocks.projectMapAccess,
-  teardownMapAccessProjection: mocks.teardownMapAccessProjection,
   purgeUserMapAccessProjection: mocks.purgeUserMapAccessProjection,
+}));
+
+vi.mock('@/composition/map-purge', () => ({
+  purgeMapChain: mocks.purgeMapChain,
 }));
 
 vi.mock('@/platform/auth/identity-projection-hooks', () => ({
@@ -46,12 +49,7 @@ beforeEach(() => {
     deleted: 0,
     unchanged: 0,
   });
-  mocks.teardownMapAccessProjection.mockResolvedValue({
-    inserted: 0,
-    updated: 0,
-    deleted: 0,
-    unchanged: 0,
-  });
+  mocks.purgeMapChain.mockResolvedValue({ deleted: 0, remaining: false });
   mocks.purgeUserMapAccessProjection.mockResolvedValue({ deleted: 0 });
 });
 
@@ -80,13 +78,23 @@ describe('map-access-identity', () => {
     errorSpy.mockRestore();
   });
 
-  it('tears down owned maps then purges the deleted user claims', async () => {
+  it('fully purges owned map chains then clears the deleted user claims', async () => {
     mocks.getOwnedMapIds.mockResolvedValue(['owned-1', 'owned-2']);
 
     await teardownProjectionsForDeletedUser('user-gone');
 
-    expect(mocks.teardownMapAccessProjection).toHaveBeenCalledWith('owned-1');
-    expect(mocks.teardownMapAccessProjection).toHaveBeenCalledWith('owned-2');
+    expect(mocks.purgeMapChain).toHaveBeenCalledWith('owned-1');
+    expect(mocks.purgeMapChain).toHaveBeenCalledWith('owned-2');
     expect(mocks.purgeUserMapAccessProjection).toHaveBeenCalledWith('user-gone');
+  });
+
+  it('propagates a full-chain failure before clearing claims', async () => {
+    mocks.getOwnedMapIds.mockResolvedValue(['owned-1', 'owned-2']);
+    const failure = new Error('convex down');
+    mocks.purgeMapChain.mockRejectedValueOnce(failure);
+
+    await expect(teardownProjectionsForDeletedUser('user-gone')).rejects.toBe(failure);
+    expect(mocks.purgeMapChain).toHaveBeenCalledTimes(1);
+    expect(mocks.purgeUserMapAccessProjection).not.toHaveBeenCalled();
   });
 });

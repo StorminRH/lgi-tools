@@ -697,7 +697,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'User-facing creation inserts a hidden purge-queued map plus selected map_access grants in one atomic CTE before one-way access projection, then publishes by clearing both markers. Compensation retries deletion and cascades grants; exhausted cleanup stays hidden for the later purge owner. Credential-tier deletion and the dev-only replay seed remain separate owned paths.',
+      note: 'User-facing creation inserts a hidden purge-queued map plus selected map_access grants in one atomic CTE before one-way access projection, then publishes by clearing both markers. Delete and restore are atomic authorization-guarded lifecycle updates; creator-only permanent delete queues the map for the bounded daily purge, which tombstones only after all map-keyed Convex documents are gone. Compensation retries deletion and cascades grants; exhausted cleanup stays hidden for the later purge owner. Whole-account deletion uses the same full-chain purge before removing the Neon identity. The dev-only replay seed remains a separate owned path.',
     },
     dataClass: 'personal',
   },
@@ -711,7 +711,7 @@ export const DATA_OWNERSHIP = [
     ],
     boundary: {
       kind: 'single-statement',
-      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant edits atomically require admin authority on an unarchived, untombstoned map and apply one composite-keyed upsert or exact revoke, then reconverge the complete one-way Convex projection only after the guarded write succeeds.',
+      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant edits atomically require admin authority on an unarchived, untombstoned map and apply one composite-keyed upsert or exact revoke, then reconverge the complete one-way Convex projection only after the guarded write succeeds. Lifecycle archive tears the projection down only after the durable guard succeeds; restore re-projects only after its durable guard succeeds.',
     },
     dataClass: 'personal',
   },

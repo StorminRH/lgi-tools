@@ -45,7 +45,8 @@ export async function reconcileAfterCharacterRemoval(
 
   const [firstRemaining] = remaining;
   if (firstRemaining === undefined) {
-    // Tear down Convex map claims before FK cascade deletes owned Neon maps.
+    // Fully purge owned collaborative chains before the FK cascade removes
+    // their only durable map identity.
     await runBeforeUserDelete(userId);
     await db.delete(user).where(eq(user.id, userId));
     return { accountEmptied: true };

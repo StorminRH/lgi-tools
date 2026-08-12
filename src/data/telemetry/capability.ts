@@ -97,6 +97,9 @@ export const CAPABILITIES = {
   'planner.favorite-saved-plan': { feature: 'planner', operation: 'favorite-saved-plan', kind: 'mutation' },
   'maps.create-map': { feature: 'maps', operation: 'create-map', kind: 'mutation' },
   'maps.update-access': { feature: 'maps', operation: 'update-access', kind: 'mutation' },
+  'maps.delete-map': { feature: 'maps', operation: 'delete-map', kind: 'mutation' },
+  'maps.restore-map': { feature: 'maps', operation: 'restore-map', kind: 'mutation' },
+  'maps.request-map-purge': { feature: 'maps', operation: 'request-map-purge', kind: 'mutation' },
   'maps.eliminate-signatures': { feature: 'maps', operation: 'eliminate-signatures', kind: 'mutation' },
   'maps.resolve-jump': { feature: 'maps', operation: 'resolve-jump', kind: 'mutation' },
   'admin.unlink-character': { feature: 'admin', operation: 'unlink-character', kind: 'mutation' },
@@ -111,6 +114,7 @@ export const CAPABILITIES = {
   'cron.refresh-sde': { feature: 'cron', operation: 'refresh-sde', kind: 'cron' },
   'cron.refresh-wh-statics': { feature: 'cron', operation: 'refresh-wh-statics', kind: 'cron' },
   'cron.sync-sweeper': { feature: 'cron', operation: 'sync-sweeper', kind: 'cron' },
+  'cron.purge-maps': { feature: 'cron', operation: 'purge-maps', kind: 'cron' },
 
   // ── Direct mutation routes outside the mutation shell (8) ──────────────
   'account.delete-account': { feature: 'account', operation: 'delete-account', kind: 'mutation' },

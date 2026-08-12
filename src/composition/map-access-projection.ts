@@ -59,9 +59,13 @@ export class ProjectionUnavailableError extends Error {
  * definitive 404 for deleted characters) contribute no corp roles via
  * memberCorpIds fail-closed and do not block convergence.
  */
-export async function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]> {
+async function computeMapAccessClaimsForState(
+  mapId: string,
+  allowArchived: boolean,
+): Promise<MapAccessClaim[]> {
   const map = await getMapAccessSubject(mapId);
   if (map === null) return [];
+  if (map.archivedAt !== null && !allowArchived) return [];
 
   const grants = await getMapGrants(mapId);
   const characterIds = [
@@ -123,6 +127,11 @@ export async function computeMapAccessClaims(mapId: string): Promise<MapAccessCl
   return claims;
 }
 
+/** Computes ordinary/resync claims, always denying archived durable maps. */
+export function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]> {
+  return computeMapAccessClaimsForState(mapId, false);
+}
+
 async function postProjection(
   path: '/project-map-access' | '/purge-map-access',
   body: unknown,
@@ -175,23 +184,20 @@ async function postProjection(
   return response.json();
 }
 
-/**
- * Projects one map's durable access into Convex: computes the desired set and
- * POSTs it to the bearer-gated /project-map-access door. One-way by
- * construction — it sends state and returns Convex's reconcile counts; it
- * never reads Convex to decide durable truth.
- */
-export async function projectMapAccess(
+interface ProjectMapAccessOptions {
+  readonly timeoutMs?: number;
+  readonly signal?: AbortSignal;
+}
+
+async function projectMapAccessState(
   mapId: string,
-  options: {
-    readonly timeoutMs?: number;
-    readonly signal?: AbortSignal;
-  } = {},
+  options: ProjectMapAccessOptions,
+  allowArchived: boolean,
 ): Promise<ProjectionResult> {
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before computation');
   }
-  const claims = await computeMapAccessClaims(mapId);
+  const claims = await computeMapAccessClaimsForState(mapId, allowArchived);
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
   }
@@ -202,6 +208,25 @@ export async function projectMapAccess(
     options.signal,
   );
   return result as ProjectionResult;
+}
+
+/**
+ * Projects active durable access into Convex, or empty claims for an archived
+ * map. One-way by construction: Convex never decides durable truth.
+ */
+export function projectMapAccess(
+  mapId: string,
+  options: ProjectMapAccessOptions = {},
+): Promise<ProjectionResult> {
+  return projectMapAccessState(mapId, options, false);
+}
+
+/** Creation-only projection for the deliberately archived hidden staging row. */
+export function projectStagedMapAccess(
+  mapId: string,
+  options: ProjectMapAccessOptions = {},
+): Promise<ProjectionResult> {
+  return projectMapAccessState(mapId, options, true);
 }
 
 /**

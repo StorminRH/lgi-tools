@@ -105,6 +105,17 @@ describe('map chrome data', () => {
       { id: 'map-a', name: 'Alpha', role: 'admin' },
       { id: 'map-b', name: 'Bravo', role: 'viewer' },
     ]);
+    mocks.listDeletedRestorableMapsForPrincipals.mockResolvedValue([
+      {
+        id: 'map-deleted',
+        name: 'Deleted',
+        createdAt: new Date('2026-08-01T10:00:00.000Z'),
+        creatorName: 'Mapper',
+        role: 'admin',
+        archivedAt: new Date('2026-08-12T10:00:00.000Z'),
+        provenance: { kind: 'created' },
+      },
+    ]);
     mocks.getAuthorizedMapGrantsForMaps.mockResolvedValue([
       {
         mapId: 'map-a',
@@ -129,6 +140,17 @@ describe('map chrome data', () => {
         { id: 'map-a', name: 'Alpha', role: 'admin' },
         { id: 'map-b', name: 'Bravo', role: 'viewer' },
       ],
+      deletedMaps: [
+        {
+          id: 'map-deleted',
+          name: 'Deleted',
+          createdAt: new Date('2026-08-01T10:00:00.000Z'),
+          creatorName: 'Mapper',
+          role: 'admin',
+          archivedAt: new Date('2026-08-12T10:00:00.000Z'),
+          provenance: { kind: 'created' },
+        },
+      ],
       corporations: [
         { corporationId: 99, name: 'Signal Cartel' },
         { corporationId: 100, name: 'Corporation 100' },
@@ -151,6 +173,10 @@ describe('map chrome data', () => {
       },
     });
     expect(mocks.listAuthorizedMapsForPrincipals).toHaveBeenCalledWith(
+      'user-1',
+      { characterIds: [42, 43], corporationIds: [99, 100] },
+    );
+    expect(mocks.listDeletedRestorableMapsForPrincipals).toHaveBeenCalledWith(
       'user-1',
       { characterIds: [42, 43], corporationIds: [99, 100] },
     );

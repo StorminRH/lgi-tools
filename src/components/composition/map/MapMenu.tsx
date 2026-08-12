@@ -7,7 +7,9 @@ import { Menu, MenuItem, MenuLinkItem, menuRow } from '@/components/ui/menu';
 import { navigationMenuLink } from '@/components/ui/navigation-menu';
 import { visibleNavTools } from '@/data/tools/registry';
 import type { CorporationAccessOption } from '@/data/maps/access-contract';
+import type { DeletedRestorableMapRow } from '@/data/maps/queries';
 import { MapCreationDialog } from '@/features/maps/MapCreationDialog';
+import { TrashWindow } from '@/features/maps/TrashWindow';
 
 /**
  * Renders map-safe navigation and the creation door while external links open
@@ -15,10 +17,13 @@ import { MapCreationDialog } from '@/features/maps/MapCreationDialog';
  */
 export function MapMenu({
   corporations = [],
+  deletedMaps = [],
 }: {
   readonly corporations?: readonly CorporationAccessOption[];
+  readonly deletedMaps?: readonly DeletedRestorableMapRow[];
 }) {
   const [creationOpen, setCreationOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
 
   return (
     <>
@@ -51,6 +56,13 @@ export function MapMenu({
         >
           Create map
         </MenuItem>
+        <MenuItem
+          closeOnClick
+          className={menuRow}
+          onClick={() => setTrashOpen(true)}
+        >
+          Trash{deletedMaps.length > 0 ? ` (${deletedMaps.length})` : ''}
+        </MenuItem>
         {visibleNavTools().map((tool) =>
           tool.href ? (
             <MenuLinkItem
@@ -80,6 +92,11 @@ export function MapMenu({
         open={creationOpen}
         onOpenChange={setCreationOpen}
         corporations={corporations}
+      />
+      <TrashWindow
+        open={trashOpen}
+        onOpenChange={setTrashOpen}
+        maps={deletedMaps}
       />
     </>
   );

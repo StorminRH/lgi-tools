@@ -14,6 +14,7 @@ const post = (
     | '/purge-location-tracking'
     | '/project-map-access'
     | '/purge-map-access'
+    | '/purge-map-chain'
     | '/jump-evidence'
     | '/resolve-jump'
     | '/signature-elimination',
@@ -390,5 +391,70 @@ describe('POST /purge-map-access', () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ deleted: 129 });
+  });
+});
+
+describe('POST /purge-map-chain', () => {
+  it('rejects bad auth and malformed bodies before mutation work', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    expect(
+      (await post('/purge-map-chain', JSON.stringify({ mapId: 'map-1' }), false)).status,
+    ).toBe(401);
+    expect((await post('/purge-map-chain', 'not json')).status).toBe(400);
+    expect((await post('/purge-map-chain', JSON.stringify({ mapId: '' }))).status).toBe(400);
+  });
+
+  it('drains multiple batches across map tables and preserves another map', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 129; index += 1) {
+        await ctx.db.insert('mapNotes', {
+          mapId: 'map-large',
+          targetKind: 'map',
+          targetId: `note-${index}`,
+          body: 'delete',
+        });
+      }
+      await ctx.db.insert('mapAccess', {
+        mapId: 'map-large',
+        userId: 'user',
+        roles: ['admin'],
+      });
+      await ctx.db.insert('mapNotes', {
+        mapId: 'map-other',
+        targetKind: 'map',
+        targetId: 'keep',
+        body: 'keep',
+      });
+    });
+
+    const res = await t.fetch('/purge-map-chain', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({ mapId: 'map-large' }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: 130, remaining: false });
+    await expect(
+      t.run(async (ctx) => ({
+        access: await ctx.db
+          .query('mapAccess')
+          .withIndex('by_map', (query) => query.eq('mapId', 'map-large'))
+          .collect(),
+        notes: await ctx.db
+          .query('mapNotes')
+          .withIndex('by_map', (query) => query.eq('mapId', 'map-large'))
+          .collect(),
+        other: await ctx.db
+          .query('mapNotes')
+          .withIndex('by_map', (query) => query.eq('mapId', 'map-other'))
+          .collect(),
+      })),
+    ).resolves.toEqual({
+      access: [],
+      notes: [],
+      other: [expect.objectContaining({ mapId: 'map-other', body: 'keep' })],
+    });
   });
 });

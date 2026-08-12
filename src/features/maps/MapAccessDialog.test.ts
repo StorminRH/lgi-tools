@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams('map=map-a'),
 }));
 
 vi.mock('@/components/ui/dialog', () => ({
@@ -85,6 +86,7 @@ describe('MapAccessDialog', () => {
     expect(markup).toContain('data-access-grants="42:Scout:editor"');
     expect(markup).toContain('data-character-search');
     expect(markup).toContain('data-has-final-focus="true"');
+    expect(markup).toContain('Delete map');
   });
 
   it('reconciles a refreshed grant snapshot after a concurrent revocation', () => {

@@ -104,6 +104,16 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
       'Guarded by the ADVISORY_LOCK_AFFILIATION_REFRESH session advisory lock; a second run returns the declared busy body.',
   },
   {
+    id: 'cron/purge-maps',
+    workKind: 'vercel-cron',
+    cronPath: '/api/cron/purge-maps',
+    module: 'src/app/api/cron/purge-maps/declaration.ts',
+    redeliverySource: VERCEL_CRON_REDELIVERY,
+    verdict: 'key-protected',
+    evidence:
+      'defineCronRoute serializes the daily sweep under ADVISORY_LOCK_MAP_PURGE; each Convex batch deletes only remaining indexed rows, and Neon tombstones only after a clean terminal response.',
+  },
+  {
     id: 'cron/refresh-prices',
     workKind: 'vercel-cron',
     cronPath: '/api/cron/refresh-prices',
@@ -389,6 +399,9 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mutationRoute('src/app/api/maps/signature-elimination/route.ts', 'inherently-idempotent', 'The Convex deduction door re-reads every target atomically, skips equal writes, and refuses any field no longer null or assumed; repeating a pass therefore converges without overwriting human facts.'),
   mutationRoute('src/app/api/maps/jump/route.ts', 'inherently-idempotent', 'Convex atomically stamps each genuine location transition before applying its odometer effect; a repeated request for the same transition observes the stamp and converges without applying mass twice.'),
   mutationRoute('src/app/api/maps/access/route.ts', 'inherently-idempotent', 'Upsert sets one composite-keyed durable grant to the posted role and revoke deletes that exact key; an identical repeat leaves Neon in the same state, then recomputes and delivers the complete one-way access projection.'),
+  mutationRoute('src/app/api/maps/delete/route.ts', 'inherently-idempotent', 'The guarded update transitions only an active map into archive; a repeat finds no active row, changes nothing, and cannot start collaborative purge.'),
+  mutationRoute('src/app/api/maps/restore/route.ts', 'inherently-idempotent', 'The guarded update clears archive only inside grace before purge begins; a repeat finds no archived row and changes nothing.'),
+  mutationRoute('src/app/api/maps/purge-now/route.ts', 'inherently-idempotent', 'The creator-only guarded update sets purge_requested_at only while it is null; a repeat cannot advance the timestamp or invoke collaborative deletion directly.'),
 
   // ── Delete-shaped mutations: the second delete finds nothing ────────────
   mutationRoute('src/app/api/account/saved-plans/delete/route.ts', 'inherently-idempotent', 'Deletes one owned plan by id; the second delete matches no row and returns not found.'),

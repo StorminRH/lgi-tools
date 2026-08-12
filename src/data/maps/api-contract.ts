@@ -183,6 +183,62 @@ export const updateMapAccessEndpoint = defineEndpoint({
   },
 });
 
+/** One durable map lifecycle mutation target. */
+export const mapLifecycleRequestSchema = z.strictObject({ mapId: z.uuid() });
+
+/** Validated delete, restore, or purge-request target. */
+export type MapLifecycleRequest = z.infer<typeof mapLifecycleRequestSchema>;
+
+/** Wire response for the daily bounded map-purge cron. */
+export type CronPurgeMapsResponse =
+  | { readonly status: 'busy' }
+  | {
+      readonly status: 'purged';
+      readonly selected: number;
+      readonly tombstoned: number;
+      readonly deletedDocuments: number;
+      readonly projectionPending: number;
+    };
+
+/** Authenticated admin-only endpoint that begins the thirty-day undo window. */
+export const deleteMapEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/maps/delete',
+  request: mapLifecycleRequestSchema,
+  responses: {
+    204: emptyBody(),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('cross_origin', 'map_admin_required'),
+  },
+});
+
+/** Authenticated admin-only endpoint that restores an in-grace archived map. */
+export const restoreMapEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/maps/restore',
+  request: mapLifecycleRequestSchema,
+  responses: {
+    204: emptyBody(),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('cross_origin', 'map_restore_unavailable'),
+  },
+});
+
+/** Creator-only endpoint that fast-forwards an archived map into the next sweep. */
+export const purgeMapNowEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/maps/purge-now',
+  request: mapLifecycleRequestSchema,
+  responses: {
+    204: emptyBody(),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('cross_origin', 'map_creator_required'),
+  },
+});
+
 /** Untrusted jump-resolver request; identity and movement facts never enter through this body. */
 export const jumpResolverRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({

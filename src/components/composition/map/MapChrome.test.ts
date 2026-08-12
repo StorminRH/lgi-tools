@@ -18,10 +18,11 @@ vi.mock('@/components/composition/FeedbackButton', () => ({
 }));
 
 vi.mock('./MapMenu', () => ({
-  MapMenu: ({ corporations }: { corporations?: readonly unknown[] }) =>
+  MapMenu: ({ corporations, deletedMaps }: { corporations?: readonly unknown[]; deletedMaps?: readonly unknown[] }) =>
     createElement('div', {
       'data-map-menu': '',
       'data-map-corporation-count': String(corporations?.length ?? 0),
+      'data-deleted-map-count': String(deletedMaps?.length ?? 0),
     }),
 }));
 
@@ -49,6 +50,15 @@ describe('MapChrome', () => {
           role: 'ADMIN',
         },
         corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
+        deletedMaps: [{
+          id: 'map-deleted',
+          name: 'Deleted',
+          createdAt: new Date(),
+          creatorName: 'Mapper',
+          role: 'admin',
+          archivedAt: new Date(),
+          provenance: { kind: 'created' },
+        }],
         maps: [
           {
             id: 'map-a',
@@ -64,6 +74,7 @@ describe('MapChrome', () => {
 
     expect(markup).toContain('data-map-menu');
     expect(markup).toContain('data-map-corporation-count="1"');
+    expect(markup).toContain('data-deleted-map-count="1"');
     expect(markup).toContain('data-account-menu');
     expect(markup).toContain('right-4 top-4');
     expect(markup).toContain('data-feedback-compact="true"');

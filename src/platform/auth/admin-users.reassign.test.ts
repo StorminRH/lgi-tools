@@ -46,8 +46,8 @@ beforeEach(() => {
   state.results = [];
   state.calls.delete = 0;
   state.calls.update = 0;
-  hooks.runBeforeUserDelete.mockClear();
-  hooks.runAfterCharacterLinkChanged.mockClear();
+  hooks.runBeforeUserDelete.mockReset().mockResolvedValue(undefined);
+  hooks.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
 });
 
 describe('reassignCharacter', () => {
@@ -64,6 +64,22 @@ describe('reassignCharacter', () => {
     expect(state.calls.delete).toBe(1);
     expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith('eve-user-2');
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith(100);
+  });
+
+  it('keeps the source user when required collaborative purge fails', async () => {
+    const failure = new Error('map purge unavailable');
+    hooks.runBeforeUserDelete.mockRejectedValueOnce(failure);
+    state.results = [undefined, []];
+
+    await expect(
+      reassignCharacter({
+        characterId: 100,
+        fromUserId: 'eve-user-2',
+        toUserId: 'admin-1',
+      }),
+    ).rejects.toBe(failure);
+    expect(state.calls.delete).toBe(0);
+    expect(hooks.runAfterCharacterLinkChanged).not.toHaveBeenCalled();
   });
 
 });

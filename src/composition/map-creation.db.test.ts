@@ -37,6 +37,7 @@ const harness = await createDbTestHarness({
 describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)', () => {
   it('publishes a successfully projected staged map', async () => {
     await seedUser(harness.db, 'creator');
+    const project = vi.fn().mockResolvedValue(undefined);
 
     const result = await createProjectedMap(
       'creator',
@@ -49,11 +50,15 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
           createMapAtomic(userId, name, grants, harness.db),
         compensate: (mapId) => compensateFailedMapCreation(mapId, harness.db),
         publish: (mapId) => publishCreatedMap(mapId, harness.db),
-        project: vi.fn().mockResolvedValue(undefined),
+        project,
       },
     );
 
     expect(result).toMatchObject({ ok: true });
+    expect(project).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     const [stored] = await harness.db.select().from(maps);
     expect(stored).toMatchObject({
       archivedAt: null,

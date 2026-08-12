@@ -40,7 +40,7 @@ async function loadMapChromeData(userId: string) {
   } catch (err) {
     unstable_rethrow(err);
     console.error('[map] switcher data unavailable; empty seed', err);
-    return { maps: [], corporations: [], grantsByMapId: {} };
+    return { maps: [], deletedMaps: [], corporations: [], grantsByMapId: {} };
   }
 }
 
@@ -118,6 +118,7 @@ export async function MapAccessGate({
         contextualSection={<MapTrackingMenu />}
         corporations={chromeData.corporations}
         maps={chromeData.maps}
+        deletedMaps={chromeData.deletedMaps}
         grantsByMapId={chromeData.grantsByMapId}
       />
       {children}

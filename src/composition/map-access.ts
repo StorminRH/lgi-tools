@@ -32,6 +32,7 @@ export interface ResolvedMapPrincipals {
 /** Request-time Atlas chrome data derived from the single durable map listing. */
 export interface MapChromeData {
   readonly maps: readonly AuthorizedMapRow[];
+  readonly deletedMaps: readonly DeletedRestorableMapRow[];
   readonly corporations: readonly CorporationAccessOption[];
   readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
 }
@@ -73,7 +74,10 @@ export async function resolveMapPrincipals(userId: string): Promise<MapPrincipal
  */
 export async function listMapChromeData(userId: string): Promise<MapChromeData> {
   const principals = await resolveMapPrincipals(userId);
-  const maps = await listAuthorizedMapsForPrincipals(userId, principals);
+  const [maps, deletedMaps] = await Promise.all([
+    listAuthorizedMapsForPrincipals(userId, principals),
+    listDeletedRestorableMapsForPrincipals(userId, principals),
+  ]);
   const adminMapIds = maps
     .filter((map) => map.role === 'admin')
     .map((map) => map.id);
@@ -101,7 +105,7 @@ export async function listMapChromeData(userId: string): Promise<MapChromeData> 
         `${grant.ownerType === 'character' ? 'Character' : 'Corporation'} ${grant.ownerId}`,
     });
   }
-  return { maps, corporations, grantsByMapId };
+  return { maps, deletedMaps, corporations, grantsByMapId };
 }
 
 /**

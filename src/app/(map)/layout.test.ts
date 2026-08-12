@@ -101,6 +101,7 @@ describe('MapAccessGate', () => {
     mocks.listMapChromeData.mockResolvedValue({
       corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
       maps: [{ id: 'map-a', name: 'Alpha' }],
+      deletedMaps: [{ id: 'map-deleted', name: 'Deleted' }],
       grantsByMapId: { 'map-a': [{ ownerId: 42 }] },
     });
   });
