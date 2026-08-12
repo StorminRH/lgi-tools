@@ -74,9 +74,10 @@ by hand where needed, and never see a refresh control.
 > original `plan-version` topology compressed the narrative's 16 sub-versions
 > plus the version-opening obligations to 14 sub-versions / 16 sessions. The
 > approved lower-context restructure preserves those 14 sub-versions and every
-> outcome while expanding execution to **24 sessions** (23 at the 2026-07-30
-> restructure; the 2026-08-04 operator amendment added the 4.0.4.4 Atlas
-> landing catalogue session `4.0.4.4.4`). Its independent
+> outcome while expanding execution to **21 sessions** (23 at the 2026-07-30
+> restructure; the 2026-08-04 operator amendment added a fourth 4.0.4.4 Atlas
+> landing catalogue session; the 2026-08-11 operator amendment merged
+> 4.0.4.4's four sessions into one continuous maps & access session). Its independent
 > topology challenge removed boundaries justified only by ordinary
 > producer/consumer order.
 > Sub-version identifiers keep their narrative numbers so no identifier ever
@@ -108,7 +109,7 @@ by hand where needed, and never see a refresh control.
 | 4.0.4.3.2 | Signatures session 2 of 3 — statics stubs, eliminator, Signature Editor (per-session PR delivery record) | §4.0.4.3 | 1 of 3 | COMPLETE |
 | 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 3 (PR per session) | COMPLETE |
 | 4.0.4.3.3 | Signatures session 3 of 3 — signature viewer, site-card hosting, observation proof (per-session PR delivery record) | §4.0.4.3 | 1 of 3 | COMPLETE |
-| 4.0.4.4 | Maps & access (landing, switcher, roles, archive) | §4.0.4.4 | 4 | PLANNED |
+| 4.0.4.4 | Maps & access (landing, switcher, roles, archive) | §4.0.4.4 | 1 | PLANNED |
 
 *(Elective health campaign: none scheduled — the campaign queue is empty at the
 3.9 cycle-2 baseline, and 4.0 is a flagship feature version; the decision is
