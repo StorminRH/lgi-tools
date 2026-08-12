@@ -111,7 +111,7 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([
       { userId: 'char-owner', roles: ['editor'] },
       { userId: 'corp-member', roles: ['viewer'] },
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
     ]);
   });
 });

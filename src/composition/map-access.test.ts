@@ -4,6 +4,8 @@ import type { CachedAffiliation } from '@/platform/auth/membership';
 const mocks = vi.hoisted(() => ({
   getMapAccessSubject: vi.fn(),
   getMapGrants: vi.fn(),
+  listAuthorizedMapsForPrincipals: vi.fn(),
+  listDeletedRestorableMapsForPrincipals: vi.fn(),
   getUserAffiliations: vi.fn(),
   refreshStaleAffiliationsForUserWithOutcome: vi.fn(),
 }));
@@ -11,6 +13,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/data/maps/queries', () => ({
   getMapAccessSubject: mocks.getMapAccessSubject,
   getMapGrants: mocks.getMapGrants,
+  listAuthorizedMapsForPrincipals: mocks.listAuthorizedMapsForPrincipals,
+  listDeletedRestorableMapsForPrincipals: mocks.listDeletedRestorableMapsForPrincipals,
 }));
 vi.mock('@/platform/auth/affiliation-store', () => ({
   getUserAffiliations: mocks.getUserAffiliations,
@@ -19,7 +23,12 @@ vi.mock('@/platform/auth/affiliation', () => ({
   refreshStaleAffiliationsForUserWithOutcome: mocks.refreshStaleAffiliationsForUserWithOutcome,
 }));
 
-import { getMapAccess, resolveMapPrincipals } from './map-access';
+import {
+  getMapAccess,
+  listAuthorizedMaps,
+  listDeletedRestorableMaps,
+  resolveMapPrincipals,
+} from './map-access';
 
 function affiliation(
   characterId: number,
@@ -47,6 +56,34 @@ beforeEach(() => {
     archivedAt: null,
   });
   mocks.getMapGrants.mockResolvedValue([]);
+  mocks.listAuthorizedMapsForPrincipals.mockResolvedValue([]);
+  mocks.listDeletedRestorableMapsForPrincipals.mockResolvedValue([]);
+});
+
+describe('map listings', () => {
+  it('resolves principals once and delegates the authorized listing to its data owner', async () => {
+    mocks.getUserAffiliations.mockResolvedValue([affiliation(42, 99, new Date())]);
+    const expected = [{ id: 'map-1' }];
+    mocks.listAuthorizedMapsForPrincipals.mockResolvedValue(expected);
+
+    await expect(listAuthorizedMaps('user-1')).resolves.toBe(expected);
+    expect(mocks.listAuthorizedMapsForPrincipals).toHaveBeenCalledWith('user-1', {
+      characterIds: [42],
+      corporationIds: [99],
+    });
+  });
+
+  it('resolves the same principals for the restorable listing owner', async () => {
+    mocks.getUserAffiliations.mockResolvedValue([affiliation(42, 99, new Date())]);
+    const expected = [{ id: 'map-deleted' }];
+    mocks.listDeletedRestorableMapsForPrincipals.mockResolvedValue(expected);
+
+    await expect(listDeletedRestorableMaps('user-1')).resolves.toBe(expected);
+    expect(mocks.listDeletedRestorableMapsForPrincipals).toHaveBeenCalledWith(
+      'user-1',
+      { characterIds: [42], corporationIds: [99] },
+    );
+  });
 });
 
 describe('resolveMapPrincipals', () => {
@@ -84,7 +121,7 @@ describe('getMapAccess', () => {
       userId: 'creator',
       affiliations: [],
       grants: [],
-      expected: { role: 'owner', canView: true, canEdit: true },
+      expected: { role: 'admin', canView: true, canEdit: true },
     },
     {
       label: 'corporation editor',
@@ -104,7 +141,7 @@ describe('getMapAccess', () => {
       label: 'unrelated user',
       userId: 'unrelated',
       affiliations: [affiliation(7, 8, new Date())],
-      grants: [{ ownerType: 'character', ownerId: 42, role: 'owner' }],
+      grants: [{ ownerType: 'character', ownerId: 42, role: 'admin' }],
       expected: { role: null, canView: false, canEdit: false },
     },
   ] as const)(

@@ -12,7 +12,7 @@ import {
 } from '@/data/maps/access-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { mapRoleValidator } from './lib/mapEntityContracts';
+import { currentMapRoleValidator } from './lib/mapEntityContracts';
 import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
@@ -36,7 +36,10 @@ export interface UserClaimsPurgeResult {
   readonly hasMore: boolean;
 }
 
-function rolesEqual(left: readonly MapRole[], right: readonly MapRole[]): boolean {
+function rolesEqual(
+  left: readonly (MapRole | 'owner')[],
+  right: readonly MapRole[],
+): boolean {
   return left.length === right.length && left.every((role, index) => role === right[index]);
 }
 
@@ -128,7 +131,7 @@ export const reconcileMapClaims = internalMutation({
     claims: v.array(
       v.object({
         userId: v.string(),
-        roles: v.array(mapRoleValidator),
+        roles: v.array(currentMapRoleValidator),
       }),
     ),
   },

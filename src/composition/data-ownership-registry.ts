@@ -691,13 +691,13 @@ export const DATA_OWNERSHIP = [
       {
         by: 'scripts',
         reason:
-          'The dev-only map replay tool (src/scripts/map-replay.ts) seeds one disposable local map row so a generated corpus chain has a home to replay into; real map creation remains deferred to 4.0.4.4 and never runs through this path.',
+          'The dev-only map replay tool (src/scripts/map-replay.ts) seeds one disposable local map row so a generated corpus chain has a home to replay into; the user-facing creation path is owned separately by data/maps.',
       },
     ],
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'The current runtime write surface is credential-tier deletion during account teardown plus the dev-only replay seed above. Map creation and archive writes remain deferred to 4.0.4.4; the authorization gate is read-only.',
+      note: 'User-facing creation inserts a hidden purge-queued map plus selected map_access grants in one atomic CTE before one-way access projection, then publishes by clearing both markers. Compensation retries deletion and cascades grants; exhausted cleanup stays hidden for the later purge owner. Credential-tier deletion and the dev-only replay seed remain separate owned paths.',
     },
     dataClass: 'personal',
   },
@@ -711,7 +711,7 @@ export const DATA_OWNERSHIP = [
     ],
     boundary: {
       kind: 'single-statement',
-      note: 'The current runtime write surface is credential-tier deletion of one character grant, plus cascade deletion with its map. Grant creation and editing remain deferred to 4.0.4.4.',
+      note: 'Creation writes explicitly selected grants inside the same atomic CTE as the map row; compensation and account teardown delete them through the map foreign-key cascade. Grant editing arrives later in 4.0.4.4.',
     },
     dataClass: 'personal',
   },

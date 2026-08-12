@@ -399,6 +399,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mutationRoute('src/app/api/admin/sessions/revoke/route.ts', 'inherently-idempotent', 'Revokes all of one user’s sessions; a repeat revokes an already-empty set.'),
 
   // ── Create-shaped and effectful mutations ──────────────────────────────
+  mutationRoute('src/app/api/maps/create/route.ts', 'accepted-risk', 'A repeated authenticated submit can create another visible map. Nothing redelivers the request, the route is limited to five creates per user per minute, each durable map-plus-grants insert is atomic, and projection failure compensates that insert before the route reports failure.'),
   mutationRoute('src/app/api/account/saved-plans/route.ts', 'accepted-risk', 'A double submit can create a second plan. Nothing redelivers it, the route already enforces a per-user plan cap, and a client-supplied key would add a protection HC-4 bars where the risk is not real; the duplicate is user-visible and user-deletable.'),
   mutationRoute('src/app/api/account/custom-structures/route.ts', 'accepted-risk', 'A double submit can create a second custom structure. Nothing redelivers it, the route already enforces a per-user cap, and the duplicate is user-visible and user-deletable.'),
   mutationRoute('src/app/api/feedback/route.ts', 'accepted-risk', 'A double submit can deliver a second Discord message and telemetry row. Rate-limited per client, no durable state is corrupted, and deduplicating free-text feedback would suppress genuine repeat reports.'),

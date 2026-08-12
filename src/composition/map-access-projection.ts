@@ -45,7 +45,7 @@ export class ProjectionUnavailableError extends Error {
 
 /**
  * Computes the complete desired claim set for one map from durable Neon state.
- * Creator resolves to ['owner']; every candidate user reached by a character or
+ * Creator resolves to ['admin']; every candidate user reached by a character or
  * corporation grant is resolved through resolveMapPrincipals and the single
  * resolveMatchedMapRoles rule. Users with an empty role set are omitted. A
  * missing map returns the empty set (its projection tears down). Deterministic:
@@ -126,6 +126,8 @@ export async function computeMapAccessClaims(mapId: string): Promise<MapAccessCl
 async function postProjection(
   path: '/project-map-access' | '/purge-map-access',
   body: unknown,
+  timeoutMs?: number,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
   const secret = readEnv('CONVEX_SERVICE_SECRET');
@@ -144,14 +146,19 @@ async function postProjection(
 
   let response: Response;
   try {
-    response = await fetchWithTimeout(`${siteUrl}${path}`, {
+    const init = {
       method: 'POST',
       headers: {
         authorization: `Bearer ${secret}`,
         'content-type': 'application/json',
       },
       body: JSON.stringify(body),
-    });
+      signal,
+    };
+    response =
+      timeoutMs === undefined
+        ? await fetchWithTimeout(`${siteUrl}${path}`, init)
+        : await fetchWithTimeout(`${siteUrl}${path}`, init, timeoutMs);
   } catch (cause) {
     throw new ProjectionUnavailableError(
       `Map access projection unavailable: ${path} request failed`,
@@ -174,9 +181,26 @@ async function postProjection(
  * construction — it sends state and returns Convex's reconcile counts; it
  * never reads Convex to decide durable truth.
  */
-export async function projectMapAccess(mapId: string): Promise<ProjectionResult> {
+export async function projectMapAccess(
+  mapId: string,
+  options: {
+    readonly timeoutMs?: number;
+    readonly signal?: AbortSignal;
+  } = {},
+): Promise<ProjectionResult> {
+  if (options.signal?.aborted) {
+    throw new ProjectionUnavailableError('Map access projection cancelled before computation');
+  }
   const claims = await computeMapAccessClaims(mapId);
-  const result = await postProjection('/project-map-access', { mapId, claims });
+  if (options.signal?.aborted) {
+    throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
+  }
+  const result = await postProjection(
+    '/project-map-access',
+    { mapId, claims },
+    options.timeoutMs,
+    options.signal,
+  );
   return result as ProjectionResult;
 }
 

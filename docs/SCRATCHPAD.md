@@ -9,14 +9,27 @@
 
 ## Now
 
-- **CURRENT:** session **4.0.4.3.3** close-out on `lifecycle/4.0.4.3`
-  (per-session PR; plan `Complete`; release triplet `4.0.4.3.3`; sub-version
-  4.0.4.3 terminal). Resolver next after merge: **4.0.4.4.1**.
-- **Handoff:** after this PR merges and production proof, update from
-  `origin/main`, run `python3 tools/cli.py lifecycle resolve --pretty`, and
-  return to `start-session` — expected next is plan-session for
-  **4.0.4.4.1** (merged maps & access session per the 2026-08-11 operator
-  amendment).
+- **CURRENT:** executing approved session **4.0.4.4.1** on
+  `lifecycle/4.0.4.4` (frozen plan `Approved`, execution status remains
+  `Pending` by policy; release triplet `4.0.4.4.1`).
+- **OW progress:** **1/7 complete — next: Character search.**
+- **OW completed:** OW-1 durable foundation — viewer/editor/admin migration,
+  Neon-only authorized/trash listings, bounded staged map creation, one-way
+  projection, and compensating recovery.
+- **Next-agent notes:** (1) creation atomically inserts a hidden row with
+  `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
+  with a 2 s whole-attempt bound, then publishes by clearing both markers;
+  exhausted delete retries leave a listing-invisible row durably queued for
+  OW-5 purge. (2) Create accepts names up to 120 characters and at most 100
+  unique viewer/editor grants; rate limit is 5/min per memoized authenticated
+  user. (3) Convex storage temporarily admits legacy `owner`, but every current
+  writer emits `admin` and the single read seam normalizes legacy claims.
+  Delivery still needs an all-live-map projection resync, then a later
+  one-line legacy-validator contraction after production convergence. (4)
+  OW-2 requires fresh ESI + Zod documentation briefs before code changes.
+- **Handoff:** resume through `start-session`; execute only OW-2 Character
+  search, then its focused gate, final full verify, fresh reviewers, local
+  commit, and handoff. Do not advance into OW-3 or close-out.
 - **G-1 disposition:** operator approved (2026-08-11) — site viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off

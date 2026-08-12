@@ -91,9 +91,9 @@ beforeEach(() => {
 });
 
 describe('computeMapAccessClaims', () => {
-  it('returns creator-only owner claim for a map with no grants', async () => {
+  it('returns a creator-only admin claim for a map with no grants', async () => {
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
     ]);
   });
 
@@ -108,7 +108,7 @@ describe('computeMapAccessClaims', () => {
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'grantee', roles: ['editor'] },
     ]);
   });
@@ -124,7 +124,7 @@ describe('computeMapAccessClaims', () => {
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'member', roles: ['viewer'] },
     ]);
     expect(mocks.listStaleLinkedCharacterIds).toHaveBeenCalledOnce();
@@ -146,7 +146,7 @@ describe('computeMapAccessClaims', () => {
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'joined', roles: ['viewer'] },
     ]);
     expect(mocks.refreshAffiliationsWithOutcome).toHaveBeenCalledWith([77]);
@@ -179,7 +179,7 @@ describe('computeMapAccessClaims', () => {
     mocks.getUserAffiliations.mockResolvedValue([affiliation(42, 990, new Date())]);
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'multi', roles: ['editor', 'viewer'] },
     ]);
   });
@@ -191,7 +191,7 @@ describe('computeMapAccessClaims', () => {
     mocks.getUserIdsInCorporations.mockResolvedValue(new Set());
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
     ]);
   });
 
@@ -219,7 +219,7 @@ describe('computeMapAccessClaims', () => {
     });
 
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
     ]);
   });
 
@@ -256,7 +256,7 @@ describe('computeMapAccessClaims', () => {
 
     // Character principal still matches; only corp membership is fail-closed on staleness.
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
-      { userId: 'creator', roles: ['owner'] },
+      { userId: 'creator', roles: ['admin'] },
       { userId: 'stale', roles: ['viewer'] },
     ]);
   });
@@ -285,7 +285,7 @@ describe('projectMapAccess transport', () => {
         }),
         body: JSON.stringify({
           mapId: 'map-1',
-          claims: [{ userId: 'creator', roles: ['owner'] }],
+          claims: [{ userId: 'creator', roles: ['admin'] }],
         }),
       }),
     );
@@ -300,5 +300,22 @@ describe('projectMapAccess transport', () => {
     vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
     mocks.readEnv.mockReturnValue(undefined);
     await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+  });
+
+  it('does not deliver claims when computation finishes after cancellation', async () => {
+    let releaseSubject: ((value: { userId: string; archivedAt: null }) => void) | undefined;
+    mocks.getMapAccessSubject.mockReturnValue(
+      new Promise((resolve) => {
+        releaseSubject = resolve;
+      }),
+    );
+    const controller = new AbortController();
+    const projection = projectMapAccess('map-1', { signal: controller.signal });
+
+    controller.abort(new DOMException('timed out', 'TimeoutError'));
+    releaseSubject?.({ userId: 'creator', archivedAt: null });
+
+    await expect(projection).rejects.toBeInstanceOf(ProjectionUnavailableError);
+    expect(mocks.fetchWithTimeout).not.toHaveBeenCalled();
   });
 });

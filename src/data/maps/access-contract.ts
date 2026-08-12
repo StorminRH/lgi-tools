@@ -4,10 +4,15 @@
 // import; behaviour lives in ./access.ts and in the Convex gate that consumes this record.
 
 /** Persisted map roles; this tuple is the single TypeScript and Postgres vocabulary. */
-export const MAP_ROLES = ['viewer', 'editor', 'owner'] as const;
+export const MAP_ROLES = ['viewer', 'editor', 'admin'] as const;
 
 /** One persisted map role. */
 export type MapRole = (typeof MAP_ROLES)[number];
+
+/** Principal kinds that may receive a delegated map grant. */
+export const MAP_ACCESS_OWNER_TYPES = ['character', 'corporation'] as const;
+/** One persisted map-grant principal kind. */
+export type MapAccessOwnerType = (typeof MAP_ACCESS_OWNER_TYPES)[number];
 
 /** The capabilities one role may carry on one map. */
 export const MAP_CAPABILITIES = ['view', 'edit'] as const;
@@ -25,7 +30,7 @@ export interface MapRoleCapabilities {
 export const MAP_ROLE_CAPABILITIES: Readonly<Record<MapRole, MapRoleCapabilities>> = {
   viewer: { canView: true, canEdit: false },
   editor: { canView: true, canEdit: true },
-  owner: { canView: true, canEdit: true },
+  admin: { canView: true, canEdit: true },
 };
 
 /**
@@ -33,7 +38,7 @@ export const MAP_ROLE_CAPABILITIES: Readonly<Record<MapRole, MapRoleCapabilities
  * deterministic serialization order. It does not grant capabilities; those are unioned independently
  * through {@link MAP_ROLE_CAPABILITIES}.
  */
-export const MAP_ROLE_PRECEDENCE: readonly MapRole[] = ['owner', 'editor', 'viewer'];
+export const MAP_ROLE_PRECEDENCE: readonly MapRole[] = ['admin', 'editor', 'viewer'];
 
 /**
  * Deduplicates and orders roles by {@link MAP_ROLE_PRECEDENCE}, appending any

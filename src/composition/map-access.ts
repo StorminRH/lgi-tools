@@ -3,7 +3,14 @@ import {
   type MapAccess,
   type MapPrincipals,
 } from '@/data/maps/access';
-import { getMapAccessSubject, getMapGrants } from '@/data/maps/queries';
+import {
+  getMapAccessSubject,
+  getMapGrants,
+  listAuthorizedMapsForPrincipals,
+  listDeletedRestorableMapsForPrincipals,
+  type AuthorizedMapRow,
+  type DeletedRestorableMapRow,
+} from '@/data/maps/queries';
 import {
   getUserAffiliations,
 } from '@/platform/auth/affiliation-store';
@@ -62,4 +69,19 @@ export async function getMapAccess(userId: string, mapId: string): Promise<MapAc
     grants,
     principals,
   });
+}
+
+/** Lists every live durable map the user may view through the single principal resolver. */
+export async function listAuthorizedMaps(userId: string): Promise<AuthorizedMapRow[]> {
+  return listAuthorizedMapsForPrincipals(userId, await resolveMapPrincipals(userId));
+}
+
+/** Lists in-grace deleted maps the user may restore through the same authority inputs. */
+export async function listDeletedRestorableMaps(
+  userId: string,
+): Promise<DeletedRestorableMapRow[]> {
+  return listDeletedRestorableMapsForPrincipals(
+    userId,
+    await resolveMapPrincipals(userId),
+  );
 }

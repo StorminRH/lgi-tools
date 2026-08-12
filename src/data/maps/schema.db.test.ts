@@ -91,6 +91,18 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
         data_type: 'timestamp with time zone',
         is_nullable: 'YES',
       },
+      {
+        table_name: 'maps',
+        column_name: 'tombstoned_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'YES',
+      },
+      {
+        table_name: 'maps',
+        column_name: 'purge_requested_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'YES',
+      },
     ]);
 
     const constraints = await harness.sql<{
@@ -168,7 +180,7 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
     ]);
   });
 
-  it('role extension keeps a seeded access row physically unchanged', async () => {
+  it('renames the legacy owner role without rewriting a seeded access row', async () => {
     await harness.sql.unsafe(
       `CREATE TYPE "${SCHEMA}".map_role AS ENUM ('viewer', 'editor', 'owner')`,
     );
@@ -180,12 +192,10 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
     const mapId = randomUUID();
     await seedUser(harness.db, 'extension-owner');
     await harness.db.insert(maps).values({ id: mapId, userId: 'extension-owner', name: 'Probe' });
-    await harness.db.insert(mapAccess).values({
-      mapId,
-      ownerType: 'character',
-      ownerId: 42,
-      role: 'viewer',
-    });
+    await harness.sql`
+      INSERT INTO map_access (map_id, owner_type, owner_id, role)
+      VALUES (${mapId}, 'character', 42, 'owner')
+    `;
     const [before] = await harness.sql<{ ctid: string; role: string }[]>`
       SELECT ctid::text AS ctid, role::text AS role
       FROM map_access
@@ -193,7 +203,7 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
     `;
 
     await harness.sql.unsafe(
-      `ALTER TYPE "${SCHEMA}".map_role ADD VALUE 'access_manager'`,
+      `ALTER TYPE "${SCHEMA}".map_role RENAME VALUE 'owner' TO 'admin'`,
     );
     const [after] = await harness.sql<{ ctid: string; role: string }[]>`
       SELECT ctid::text AS ctid, role::text AS role
@@ -201,7 +211,8 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
       WHERE map_id = ${mapId}
     `;
 
-    expect(after).toEqual(before);
-    expect(after?.role).toBe('viewer');
+    expect(after?.ctid).toBe(before?.ctid);
+    expect(before?.role).toBe('owner');
+    expect(after?.role).toBe('admin');
   });
 });

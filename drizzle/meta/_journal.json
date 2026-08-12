@@ -386,6 +386,20 @@
       "when": 1786398762830,
       "tag": "0054_admit_assumed_observations",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1786522760368,
+      "tag": "0055_map_lifecycle_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1786522777630,
+      "tag": "0056_map_lifecycle_schema",
+      "breakpoints": true
     }
   ]
 }

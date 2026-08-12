@@ -274,7 +274,7 @@ describe('POST /project-map-access', () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
     const res = await post(
       '/project-map-access',
-      JSON.stringify({ mapId: 'map-1', claims: [{ userId: 'u1', roles: ['owner'] }] }),
+      JSON.stringify({ mapId: 'map-1', claims: [{ userId: 'u1', roles: ['admin'] }] }),
       false,
     );
     expect(res.status).toBe(401);
@@ -286,11 +286,11 @@ describe('POST /project-map-access', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns a clean 400 for an out-of-vocabulary role', async () => {
+  it('rejects the legacy owner role at the current writer boundary', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
     const res = await post(
       '/project-map-access',
-      JSON.stringify({ mapId: 'map-1', claims: [{ userId: 'u1', roles: ['admin'] }] }),
+      JSON.stringify({ mapId: 'map-1', claims: [{ userId: 'u1', roles: ['owner'] }] }),
     );
     expect(res.status).toBe(400);
   });
@@ -325,7 +325,7 @@ describe('POST /project-map-access', () => {
       '/project-map-access',
       JSON.stringify({
         mapId: 'map-1',
-        claims: [{ userId: 'u1', roles: ['owner'] }],
+        claims: [{ userId: 'u1', roles: ['admin'] }],
       }),
     );
     expect(res.status).toBe(200);
