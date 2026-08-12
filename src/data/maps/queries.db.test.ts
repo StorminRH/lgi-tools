@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { account } from '@/db/auth-schema';
 import {
@@ -11,6 +11,7 @@ import {
   applyAuthorizedMapGrantChange,
   compensateFailedMapCreation,
   createMapAtomic,
+  getAuthorizedMapGrantsForMaps,
   getUserIdsInCorporations,
   getUserIdsOwningCharacters,
   listAuthorizedMapsForPrincipals,
@@ -325,6 +326,110 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     await expect(
       harness.db.select().from(maps).where(eq(maps.id, mapId)),
     ).resolves.toHaveLength(1);
+  });
+
+  it('reads management grants only while current active-map admin authority holds', async () => {
+    await seedUser(harness.db, 'creator');
+    await seedUser(harness.db, 'delegated');
+    await harness.db.insert(maps).values([
+      {
+        id: '31000000-0000-4000-8000-000000000001',
+        userId: 'creator',
+        name: 'Alpha',
+      },
+      {
+        id: '31000000-0000-4000-8000-000000000002',
+        userId: 'delegated',
+        name: 'Bravo',
+      },
+      {
+        id: '31000000-0000-4000-8000-000000000003',
+        userId: 'creator',
+        name: 'Viewer only',
+      },
+    ]);
+    await harness.db.insert(mapAccess).values([
+      {
+        mapId: '31000000-0000-4000-8000-000000000001',
+        ownerType: 'character',
+        ownerId: 42,
+        role: 'admin',
+      },
+      {
+        mapId: '31000000-0000-4000-8000-000000000002',
+        ownerType: 'corporation',
+        ownerId: 99,
+        role: 'viewer',
+      },
+      {
+        mapId: '31000000-0000-4000-8000-000000000003',
+        ownerType: 'corporation',
+        ownerId: 99,
+        role: 'viewer',
+      },
+    ]);
+
+    await expect(
+      getAuthorizedMapGrantsForMaps(
+        'delegated',
+        { characterIds: [42], corporationIds: [99] },
+        [
+          '31000000-0000-4000-8000-000000000001',
+          '31000000-0000-4000-8000-000000000002',
+          '31000000-0000-4000-8000-000000000003',
+        ],
+        harness.db,
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          mapId: '31000000-0000-4000-8000-000000000001',
+          ownerId: 42,
+        }),
+        expect.objectContaining({
+          mapId: '31000000-0000-4000-8000-000000000002',
+          ownerId: 99,
+        }),
+      ]),
+    );
+    const listed = await getAuthorizedMapGrantsForMaps(
+      'delegated',
+      { characterIds: [42], corporationIds: [99] },
+      [
+        '31000000-0000-4000-8000-000000000001',
+        '31000000-0000-4000-8000-000000000002',
+        '31000000-0000-4000-8000-000000000003',
+      ],
+      harness.db,
+    );
+    expect(listed.some((grant) => grant.mapId.endsWith('0003'))).toBe(false);
+
+    await harness.db
+      .update(mapAccess)
+      .set({ role: 'viewer' })
+      .where(
+        and(
+          eq(mapAccess.mapId, '31000000-0000-4000-8000-000000000001'),
+          eq(mapAccess.ownerType, 'character'),
+          eq(mapAccess.ownerId, 42),
+        ),
+      );
+    await expect(
+      getAuthorizedMapGrantsForMaps(
+        'delegated',
+        { characterIds: [42], corporationIds: [99] },
+        ['31000000-0000-4000-8000-000000000001'],
+        harness.db,
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      getAuthorizedMapGrantsForMaps(
+        'delegated',
+        { characterIds: [42], corporationIds: [99] },
+        [],
+        harness.db,
+      ),
+    ).resolves.toEqual([]);
   });
 
 });

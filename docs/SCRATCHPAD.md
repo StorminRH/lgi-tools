@@ -12,7 +12,7 @@
 - **CURRENT:** executing approved session **4.0.4.4.1** on
   `lifecycle/4.0.4.4` (frozen plan `Approved`, execution status remains
   `Pending` by policy; release triplet `4.0.4.4.1`).
-- **OW progress:** **3/7 complete — next: Switcher chrome.**
+- **OW progress:** **4/7 complete — next: Delete lifecycle.**
 - **OW completed:** OW-1 durable foundation — viewer/editor/admin migration,
   Neon-only authorized/trash listings, bounded staged map creation, one-way
   projection, and compensating recovery. OW-2 character search — 15-scope auth
@@ -25,7 +25,13 @@
   and active-map/admin-atomic grant upsert/revoke followed by one-way
   re-projection; focused suite, strict TypeScript, full `pnpm verify`, primitive
   review, and holistic review green; live revoke returned 204 and removed
-  access without reload in 103 ms.
+  access without reload in 103 ms. OW-4 switcher chrome — the single Neon
+  authorized listing now seeds the top-center frosted map switcher and
+  admin-only access doors; query-preserving push navigation, keyed retargeting,
+  authoritative grant-snapshot reconciliation, and atomically re-authorized
+  management-grant reads are covered by 56 focused tests, strict TypeScript,
+  full `pnpm verify` (5,065 tests; Fallow zero issues), clean primitive/holistic
+  reviews, and a two-map node/window/history probe with all eight checks green.
 - **Next-agent notes:** (1) creation atomically inserts a hidden row with
   `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
   with a 2 s whole-attempt bound, then publishes by clearing both markers;
@@ -44,18 +50,27 @@
   on upstream/malformed results so transient failures are not cached as null;
   both strict and best-effort callers share the eight-request worker cap. (6)
   `AccessListEditor` remains transport-free; `CharacterSearchControl` owns the
-  debounce/cancellation/API path, and future OW-4/OW-6 doors supply their own
-  management mutations and current-grant reads. (7) `POST /api/maps/access`
+  debounce/cancellation/API path, while the OW-4 cog door supplies its own
+  management mutations and server-owned current-grant seed. (7) `POST /api/maps/access`
   accepts one discriminated upsert/revoke and atomically requires creator or a
   matching `admin` principal on an unarchived, untombstoned map in the same SQL
   statement; denial never projects, while a post-write projection failure
   leaves Neon authoritative for an identical healing retry. (8) The creation
   dialog is reachable from the existing Atlas menu and receives fresh current
-  corporation principals; later catalogue/create-card and switcher/cog doors
-  must reuse it rather than create parallel flows.
-- **Handoff:** resume through `start-session`; execute only OW-4 Switcher
-  chrome, then its focused gate, final full verify, fresh reviewers, local
-  commit, and handoff. Do not advance into OW-5 or close-out.
+  corporation principals; the later catalogue/create-card door must reuse it
+  rather than create a parallel flow. (9) `MapChrome` receives one
+  `listMapChromeData` snapshot: the exact authorized rows, current corporation
+  options, and grants only for maps whose creator/admin authority is rechecked
+  atomically inside the batch grant query. The persistent switcher refreshes a
+  newly created missing selection once; access updates refresh the server
+  snapshot, reconcile concurrent revoke/role changes, and return dialog focus
+  to the top-center trigger. OW-5 can add delete/restore actions to this cog
+  shell but owns every lifecycle route and mutation. The switch probe uses
+  `UX_MAP_ID` + `UX_SECOND_MAP_ID`; choose a first map with node/window content
+  absent from the second so the stale-content canary is meaningful.
+- **Handoff:** resume through `start-session`; execute only OW-5 Delete
+  lifecycle, then its focused gate, final full verify, fresh reviewers, local
+  commit, and handoff. Do not advance into OW-6 or close-out.
 - **G-1 disposition:** operator approved (2026-08-11) — site viewer
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK signed off

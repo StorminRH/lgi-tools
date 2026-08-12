@@ -21,6 +21,14 @@ export interface CorporationAccessOption {
   readonly logoUrl?: string;
 }
 
+/** One delegated grant enriched for the shared access-management editor. */
+export interface MapAccessGrantOption {
+  readonly ownerType: MapAccessOwnerType;
+  readonly ownerId: number;
+  readonly role: MapRole;
+  readonly name: string;
+}
+
 /** The capabilities one role may carry on one map. */
 export const MAP_CAPABILITIES = ['view', 'edit'] as const;
 

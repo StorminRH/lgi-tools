@@ -4,6 +4,7 @@ import type { CachedAffiliation } from '@/platform/auth/membership';
 const mocks = vi.hoisted(() => ({
   getMapAccessSubject: vi.fn(),
   getMapGrants: vi.fn(),
+  getAuthorizedMapGrantsForMaps: vi.fn(),
   listAuthorizedMapsForPrincipals: vi.fn(),
   listDeletedRestorableMapsForPrincipals: vi.fn(),
   getUserAffiliations: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/data/maps/queries', () => ({
   getMapAccessSubject: mocks.getMapAccessSubject,
   getMapGrants: mocks.getMapGrants,
+  getAuthorizedMapGrantsForMaps: mocks.getAuthorizedMapGrantsForMaps,
   listAuthorizedMapsForPrincipals: mocks.listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals: mocks.listDeletedRestorableMapsForPrincipals,
 }));
@@ -31,7 +33,7 @@ import {
   getMapAccess,
   listAuthorizedMaps,
   listDeletedRestorableMaps,
-  listMapCorporationOptions,
+  listMapChromeData,
   resolveMapPrincipals,
 } from './map-access';
 
@@ -61,6 +63,7 @@ beforeEach(() => {
     archivedAt: null,
   });
   mocks.getMapGrants.mockResolvedValue([]);
+  mocks.getAuthorizedMapGrantsForMaps.mockResolvedValue([]);
   mocks.listAuthorizedMapsForPrincipals.mockResolvedValue([]);
   mocks.listDeletedRestorableMapsForPrincipals.mockResolvedValue([]);
   mocks.resolveEntityNames.mockResolvedValue({});
@@ -92,19 +95,72 @@ describe('map listings', () => {
   });
 });
 
-describe('map corporation options', () => {
-  it('uses the fresh principal set and degrades a missing display name honestly', async () => {
+describe('map chrome data', () => {
+  it('uses one fresh principal set for the authorized list, corporations, and batched admin grants', async () => {
     mocks.getUserAffiliations.mockResolvedValue([
       affiliation(42, 99, new Date()),
       affiliation(43, 100, new Date()),
     ]);
-    mocks.resolveEntityNames.mockResolvedValue({ '99': 'Signal Cartel' });
-
-    await expect(listMapCorporationOptions('user-1')).resolves.toEqual([
-      { corporationId: 99, name: 'Signal Cartel' },
-      { corporationId: 100, name: 'Corporation 100' },
+    mocks.listAuthorizedMapsForPrincipals.mockResolvedValue([
+      { id: 'map-a', name: 'Alpha', role: 'admin' },
+      { id: 'map-b', name: 'Bravo', role: 'viewer' },
     ]);
-    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100]);
+    mocks.getAuthorizedMapGrantsForMaps.mockResolvedValue([
+      {
+        mapId: 'map-a',
+        ownerType: 'character',
+        ownerId: 42,
+        role: 'editor',
+      },
+      {
+        mapId: 'map-a',
+        ownerType: 'corporation',
+        ownerId: 100,
+        role: 'viewer',
+      },
+    ]);
+    mocks.resolveEntityNames.mockResolvedValue({
+      '42': 'Scout',
+      '99': 'Signal Cartel',
+    });
+
+    await expect(listMapChromeData('user-1')).resolves.toEqual({
+      maps: [
+        { id: 'map-a', name: 'Alpha', role: 'admin' },
+        { id: 'map-b', name: 'Bravo', role: 'viewer' },
+      ],
+      corporations: [
+        { corporationId: 99, name: 'Signal Cartel' },
+        { corporationId: 100, name: 'Corporation 100' },
+      ],
+      grantsByMapId: {
+        'map-a': [
+          {
+            ownerType: 'character',
+            ownerId: 42,
+            role: 'editor',
+            name: 'Scout',
+          },
+          {
+            ownerType: 'corporation',
+            ownerId: 100,
+            role: 'viewer',
+            name: 'Corporation 100',
+          },
+        ],
+      },
+    });
+    expect(mocks.listAuthorizedMapsForPrincipals).toHaveBeenCalledWith(
+      'user-1',
+      { characterIds: [42, 43], corporationIds: [99, 100] },
+    );
+    expect(mocks.getAuthorizedMapGrantsForMaps).toHaveBeenCalledWith(
+      'user-1',
+      { characterIds: [42, 43], corporationIds: [99, 100] },
+      ['map-a'],
+    );
+    expect(mocks.resolveEntityNames).toHaveBeenCalledWith([99, 100, 42, 100]);
+    expect(mocks.refreshStaleAffiliationsForUserWithOutcome).toHaveBeenCalledOnce();
   });
 });
 

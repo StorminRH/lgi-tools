@@ -2,7 +2,7 @@ import { unstable_rethrow } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { MapChrome } from '@/components/composition/map/MapChrome';
-import { listMapCorporationOptions } from '@/composition/map-access';
+import { listMapChromeData } from '@/composition/map-access';
 import {
   getScannerSiteIndex,
   getSiteSearchIndex,
@@ -34,13 +34,13 @@ async function loadScannerCatalogue(): Promise<readonly SiteSearchEntry[]> {
   return [];
 }
 
-async function loadMapCorporations(userId: string) {
+async function loadMapChromeData(userId: string) {
   try {
-    return await listMapCorporationOptions(userId);
+    return await listMapChromeData(userId);
   } catch (err) {
     unstable_rethrow(err);
-    console.error('[map] corporation options unavailable; empty seed', err);
-    return [];
+    console.error('[map] switcher data unavailable; empty seed', err);
+    return { maps: [], corporations: [], grantsByMapId: {} };
   }
 }
 
@@ -106,9 +106,9 @@ export async function MapAccessGate({
         };
   // Live-priced scanner catalogue preferred; failures must not wall the map.
   // AppHeader/sitemap keep calling getSiteSearchIndex directly on their own.
-  const [siteIndex, corporations] = await Promise.all([
+  const [siteIndex, chromeData] = await Promise.all([
     loadScannerCatalogue(),
-    loadMapCorporations(gate.session.user.id),
+    loadMapChromeData(gate.session.user.id),
   ]);
 
   return (
@@ -116,7 +116,9 @@ export async function MapAccessGate({
       <MapChrome
         session={session}
         contextualSection={<MapTrackingMenu />}
-        corporations={corporations}
+        corporations={chromeData.corporations}
+        maps={chromeData.maps}
+        grantsByMapId={chromeData.grantsByMapId}
       />
       {children}
     </SiteCatalogueProvider>

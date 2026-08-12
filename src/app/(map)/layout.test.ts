@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   rethrow: vi.fn(),
   getScannerSiteIndex: vi.fn(),
   getSiteSearchIndex: vi.fn(),
-  listMapCorporationOptions: vi.fn(),
+  listMapChromeData: vi.fn(),
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
@@ -48,7 +48,7 @@ vi.mock('@/features/wormhole-sites/site-catalogue', () => ({
 }));
 
 vi.mock('@/composition/map-access', () => ({
-  listMapCorporationOptions: mocks.listMapCorporationOptions,
+  listMapChromeData: mocks.listMapChromeData,
 }));
 
 vi.mock('@/components/composition/map/MapChrome', () => ({
@@ -56,16 +56,22 @@ vi.mock('@/components/composition/map/MapChrome', () => ({
     session: value,
     contextualSection,
     corporations,
+    maps,
+    grantsByMapId,
   }: {
     session: unknown;
     contextualSection?: React.ReactNode;
     corporations?: readonly unknown[];
+    maps?: readonly unknown[];
+    grantsByMapId?: Readonly<Record<string, readonly unknown[]>>;
   }) =>
     createElement('div', {
       'data-map-chrome': '',
       'data-map-account-session': String(value != null),
       'data-map-contextual-section': String(contextualSection != null),
       'data-map-corporation-count': String(corporations?.length ?? 0),
+      'data-map-list-count': String(maps?.length ?? 0),
+      'data-map-grant-count': String(grantsByMapId?.['map-a']?.length ?? 0),
     }),
 }));
 
@@ -91,10 +97,12 @@ describe('MapAccessGate', () => {
     mocks.getSiteSearchIndex.mockResolvedValue([
       { id: 1, name: 'Forgotten Perimeter Coronation Platform' },
     ]);
-    mocks.listMapCorporationOptions.mockReset();
-    mocks.listMapCorporationOptions.mockResolvedValue([
-      { corporationId: 99, name: 'Signal Cartel' },
-    ]);
+    mocks.listMapChromeData.mockReset();
+    mocks.listMapChromeData.mockResolvedValue({
+      corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
+      maps: [{ id: 'map-a', name: 'Alpha' }],
+      grantsByMapId: { 'map-a': [{ ownerId: 42 }] },
+    });
   });
 
   // Restores the console spies unconditionally: a manual restore at the end of a
@@ -131,6 +139,8 @@ describe('MapAccessGate', () => {
     expect(admin).toContain('data-map-site-index="1"');
     expect(admin).toContain('data-map-contextual-section="true"');
     expect(admin).toContain('data-map-corporation-count="1"');
+    expect(admin).toContain('data-map-list-count="1"');
+    expect(admin).toContain('data-map-grant-count="1"');
     expect(admin).toContain('data-map-canvas');
     expect(admin).not.toContain('data-map-development-wall');
     expect(mocks.getScannerSiteIndex).toHaveBeenCalled();

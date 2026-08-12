@@ -3,10 +3,14 @@ import {
   type MapAccess,
   type MapPrincipals,
 } from '@/data/maps/access';
-import type { CorporationAccessOption } from '@/data/maps/access-contract';
+import type {
+  CorporationAccessOption,
+  MapAccessGrantOption,
+} from '@/data/maps/access-contract';
 import {
   getMapAccessSubject,
   getMapGrants,
+  getAuthorizedMapGrantsForMaps,
   listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals,
   type AuthorizedMapRow,
@@ -23,6 +27,13 @@ import { resolveEntityNames } from '@/data/eve-data/entity-names';
 export interface ResolvedMapPrincipals {
   readonly principals: MapPrincipals;
   readonly refreshTransientFailure: boolean;
+}
+
+/** Request-time Atlas chrome data derived from the single durable map listing. */
+export interface MapChromeData {
+  readonly maps: readonly AuthorizedMapRow[];
+  readonly corporations: readonly CorporationAccessOption[];
+  readonly grantsByMapId: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
 }
 
 /**
@@ -55,16 +66,42 @@ export async function resolveMapPrincipals(userId: string): Promise<MapPrincipal
   return principals;
 }
 
-/** Lists the user's fresh corporation principals with resilient display names. */
-export async function listMapCorporationOptions(
-  userId: string,
-): Promise<CorporationAccessOption[]> {
-  const { corporationIds } = await resolveMapPrincipals(userId);
-  const names = await resolveEntityNames([...corporationIds]);
-  return corporationIds.map((corporationId) => ({
+/**
+ * Loads the Atlas switcher and access-management seed through one principal
+ * resolution and the single authorized-list owner. Grant rows are fetched in
+ * one batch only for maps where the effective role permits management.
+ */
+export async function listMapChromeData(userId: string): Promise<MapChromeData> {
+  const principals = await resolveMapPrincipals(userId);
+  const maps = await listAuthorizedMapsForPrincipals(userId, principals);
+  const adminMapIds = maps
+    .filter((map) => map.role === 'admin')
+    .map((map) => map.id);
+  const grants = await getAuthorizedMapGrantsForMaps(
+    userId,
+    principals,
+    adminMapIds,
+  );
+  const names = await resolveEntityNames([
+    ...principals.corporationIds,
+    ...grants.map((grant) => grant.ownerId),
+  ]);
+  const corporations = principals.corporationIds.map((corporationId) => ({
     corporationId,
     name: names[String(corporationId)] ?? `Corporation ${corporationId}`,
   }));
+  const grantsByMapId: Record<string, MapAccessGrantOption[]> = Object.fromEntries(
+    adminMapIds.map((mapId) => [mapId, []]),
+  );
+  for (const { mapId, ...grant } of grants) {
+    grantsByMapId[mapId]?.push({
+      ...grant,
+      name:
+        names[String(grant.ownerId)] ??
+        `${grant.ownerType === 'character' ? 'Character' : 'Corporation'} ${grant.ownerId}`,
+    });
+  }
+  return { maps, corporations, grantsByMapId };
 }
 
 /**

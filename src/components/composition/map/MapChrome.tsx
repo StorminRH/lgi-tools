@@ -4,7 +4,12 @@ import type { ReactNode } from 'react';
 import { AccountMenu } from '@/components/composition/account/AccountMenu';
 import { FeedbackButton } from '@/components/composition/FeedbackButton';
 import type { Session } from '@/platform/auth/types';
-import type { CorporationAccessOption } from '@/data/maps/access-contract';
+import type {
+  CorporationAccessOption,
+  MapAccessGrantOption,
+} from '@/data/maps/access-contract';
+import type { AuthorizedMapRow } from '@/data/maps/queries';
+import { MapSwitcher } from '@/features/maps/MapSwitcher';
 import { MapMenu } from './MapMenu';
 
 // Side-effect import: registers every search source on the CLIENT instance of
@@ -22,10 +27,14 @@ export function MapChrome({
   session,
   contextualSection,
   corporations = [],
+  maps = [],
+  grantsByMapId = {},
 }: {
   session: Session | null;
   contextualSection?: ReactNode;
   corporations?: readonly CorporationAccessOption[];
+  maps?: readonly AuthorizedMapRow[];
+  grantsByMapId?: Readonly<Record<string, readonly MapAccessGrantOption[]>>;
 }) {
   return (
     <div
@@ -49,9 +58,14 @@ export function MapChrome({
       </div>
       <div
         data-map-search-slot
-        aria-hidden="true"
-        className="absolute left-1/2 top-4 h-10 w-72 -translate-x-1/2"
-      />
+        className="pointer-events-auto absolute left-1/2 top-4 -translate-x-1/2"
+      >
+        <MapSwitcher
+          maps={maps}
+          corporations={corporations}
+          grantsByMapId={grantsByMapId}
+        />
+      </div>
       <div
         data-map-chrome-chips
         className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2"

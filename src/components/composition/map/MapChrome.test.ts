@@ -25,6 +25,11 @@ vi.mock('./MapMenu', () => ({
     }),
 }));
 
+vi.mock('@/features/maps/MapSwitcher', () => ({
+  MapSwitcher: ({ maps }: { maps: readonly unknown[] }) =>
+    createElement('div', { 'data-map-switcher': '', 'data-map-count': maps.length }),
+}));
+
 describe('MapChrome', () => {
   it('registers the systems search source so atlas pickers can suggest', () => {
     // MapChrome's side-effect import is the atlas boot path for register-all;
@@ -44,6 +49,16 @@ describe('MapChrome', () => {
           role: 'ADMIN',
         },
         corporations: [{ corporationId: 99, name: 'Signal Cartel' }],
+        maps: [
+          {
+            id: 'map-a',
+            name: 'Alpha',
+            createdAt: new Date(),
+            creatorName: 'Mapper',
+            role: 'admin',
+            provenance: { kind: 'created' },
+          },
+        ],
       }),
     );
 
@@ -55,9 +70,9 @@ describe('MapChrome', () => {
     expect(markup).toContain('data-feedback-embedded="true"');
     expect(markup).toContain('data-map-chrome-chips');
     expect(markup).toContain('bottom-4 right-4');
-    expect(markup).toMatch(
-      /<div data-map-search-slot="true" aria-hidden="true"[^>]*><\/div>/,
-    );
+    expect(markup).toContain('data-map-search-slot');
+    expect(markup).toContain('data-map-switcher');
+    expect(markup).toContain('data-map-count="1"');
   });
 
   it('forwards the map-owned contextual settings into the account menu', () => {
@@ -84,6 +99,7 @@ describe('MapChrome', () => {
 
     expect(markup).toContain('data-map-menu');
     expect(markup).toContain('data-map-search-slot');
+    expect(markup).toContain('data-map-switcher');
     expect(markup).toContain('data-feedback-compact="true"');
     expect(markup).not.toContain('data-account-menu');
   });

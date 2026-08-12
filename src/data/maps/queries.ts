@@ -76,6 +76,11 @@ export interface DeletedRestorableMapRow extends AuthorizedMapRow {
   readonly archivedAt: Date;
 }
 
+/** One delegated grant paired with its owning map for batched management reads. */
+export interface MapGrantRow extends MapGrant {
+  readonly mapId: string;
+}
+
 interface RawAuthorizedMapRow {
   readonly id: string;
   readonly userId: string;
@@ -402,6 +407,51 @@ export async function getMapGrants(
     .where(eq(mapAccess.mapId, mapId));
 }
 
+/**
+ * Reads delegated grants for requested active maps only while this statement
+ * independently confirms the caller's current creator/admin authority.
+ */
+export async function getAuthorizedMapGrantsForMaps(
+  userId: string,
+  principals: MapPrincipals,
+  mapIds: readonly string[],
+  database: AnyPgDb = db,
+): Promise<MapGrantRow[]> {
+  const uniqueMapIds = [...new Set(mapIds)];
+  if (uniqueMapIds.length === 0) return [];
+  const result = await database.execute<
+    Record<string, unknown> & {
+      mapId: string;
+      ownerType: MapAccessOwnerType;
+      ownerId: number | string;
+      role: MapRole;
+    }
+  >(sql`
+    WITH authorized_map AS (
+      ${activeMapsAdminSelection(userId, principals, uniqueMapIds)}
+    )
+    SELECT
+      delegated_grant.map_id AS "mapId",
+      delegated_grant.owner_type AS "ownerType",
+      delegated_grant.owner_id AS "ownerId",
+      delegated_grant.role AS "role"
+    FROM ${mapAccess} AS delegated_grant
+    INNER JOIN authorized_map ON authorized_map.id = delegated_grant.map_id
+    ORDER BY delegated_grant.map_id, delegated_grant.owner_type, delegated_grant.owner_id
+  `);
+  return authorizationRows(result).map(
+    (row: {
+      mapId: string;
+      ownerType: MapAccessOwnerType;
+      ownerId: number | string;
+      role: MapRole;
+    }) => ({
+      ...row,
+      ownerId: Number(row.ownerId),
+    }),
+  );
+}
+
 function authorizationRows(result: Awaited<ReturnType<AnyPgDb['execute']>>) {
   return Array.isArray(result) ? result : result.rows;
 }
@@ -409,17 +459,21 @@ function authorizationRows(result: Awaited<ReturnType<AnyPgDb['execute']>>) {
 type MapGrantUpsert = Extract<MapGrantChange, { readonly operation: 'upsert' }>;
 type MapGrantRevoke = Extract<MapGrantChange, { readonly operation: 'revoke' }>;
 
-function activeMapAdminSelection(
+function activeMapsAdminSelection(
   userId: string,
   principals: MapPrincipals,
-  mapId: string,
+  mapIds: readonly string[],
 ) {
   const characterIds = JSON.stringify(principals.characterIds);
   const corporationIds = JSON.stringify(principals.corporationIds);
+  const requestedMapIds = JSON.stringify(mapIds);
   return sql`
     SELECT ${maps.id}
     FROM ${maps}
-    WHERE ${maps.id} = ${mapId}
+    WHERE ${maps.id} IN (
+        SELECT value::uuid
+        FROM jsonb_array_elements_text(${requestedMapIds}::jsonb)
+      )
       AND ${maps.archivedAt} IS NULL
       AND ${maps.tombstonedAt} IS NULL
       AND (
@@ -448,6 +502,14 @@ function activeMapAdminSelection(
         )
       )
   `;
+}
+
+function activeMapAdminSelection(
+  userId: string,
+  principals: MapPrincipals,
+  mapId: string,
+) {
+  return activeMapsAdminSelection(userId, principals, [mapId]);
 }
 
 async function applyAuthorizedMapGrantUpsert(
