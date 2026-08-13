@@ -133,6 +133,7 @@ const ROWS: readonly SignatureWindowRow[] = [
       fromSystemId: 1,
       toSystemId: null,
       fromSignatureId: 'WHL-001',
+      toSignatureId: null,
       fromSignalPct: 100,
       firstSeenAt: 0,
       wormholeTypeCode: 'B274',

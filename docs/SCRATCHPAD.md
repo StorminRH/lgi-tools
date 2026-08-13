@@ -27,6 +27,11 @@
   (`md:w-[22rem]`, no title ×), standalone `/sites/[id]` measure
   `max-w-[32rem]`, full signature flow, and scanner live Est. ISK remain
   signed off.
+- **Durable mapper live-tracking (ordinary 2026-08-12):** Ghost statics on a
+  typed wormhole root share the jump-created path; production misses are empty
+  or unpromoted Neon wormhole statics plus a cache wipe when one code is bad.
+  Jump continuity is poll-to-poll (45s between covered runs), not location-doc
+  age — sitting with Atlas open does not burn the window.
 - **Durable 4.0.4.4.1 gotchas:** (1) Creation inserts a hidden row with
   `archived_at` + `purge_requested_at`, projects on the 0/+2/+5/+10 s ladder
   with a 2 s attempt bound, then publishes by clearing both markers. Exhausted

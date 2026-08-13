@@ -26,6 +26,7 @@ function detail(
     deletedAt: null,
     purgeAfter: null,
     fromSignatureId: null,
+    toSignatureId: null,
     fromDestinationHint: null,
     destinationProvenance: null,
     pendingCandidates: null,

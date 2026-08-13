@@ -5,7 +5,6 @@ import { toast } from '@/components/ui/toast';
 import { api } from '@/data/convex/api';
 import type { Id } from '@/data/convex/data-model';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
-import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { systemClassText } from '@/data/eve-data/system-identity';
 import type { ScannedRow, SigGroup } from '@/data/maps/scan-parse';
@@ -15,7 +14,7 @@ import {
   type ConnectionDetail,
   type UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
-import { feedFreshnessIndex } from '../tracking/presence-model';
+import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import { ActiveScannerPanel } from './ActiveScannerPanel';
 import {
   answerAndAnnounce,
@@ -34,10 +33,8 @@ import {
 import { eliminateSignaturesAndAnnounce } from './signature-elimination-client';
 import {
   buildSignatureRows,
-  trackedPasteTarget,
   type ConnectionSignatureInput,
   type SignatureWindowRow,
-  type TrackedPasteTarget,
 } from './signature-model';
 import { announceSignatureRemoval } from './signature-toast';
 import { SignatureWindow } from './SignatureWindow';
@@ -46,7 +43,6 @@ import { useScannerPaste } from './use-scanner-paste';
 const SIGNATURE_PAGE_SIZE = 100;
 const SIGNATURE_AGE_TICK_MS = 60_000;
 const EMPTY_MISSING: ReadonlySet<string> = new Set();
-const LOADING_TARGET: TrackedPasteTarget = { kind: 'loading' };
 
 interface MissingSignatures {
   readonly bySystem: ReadonlyMap<number, ReadonlySet<string>>;
@@ -104,24 +100,6 @@ function useIdentifySignature(mapId: string) {
       }
     },
     [identifySignature, mapId],
-  );
-}
-
-function useTrackedPasteTarget(mapId: string): TrackedPasteTarget {
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const freshness = useLiveValue(api.mapTracking.feedFreshness, { mapId });
-  return useMemo(
-    () =>
-      // Both subscriptions must have delivered before "untracked" is a
-      // truthful verdict — a warm-up paste reports loading, not a refusal.
-      tracking === undefined || freshness === undefined
-        ? LOADING_TARGET
-        : trackedPasteTarget({
-            ownTrackedCharacterIds: tracking.ownTrackedCharacterIds,
-            tracked: tracking.tracked,
-            freshness: feedFreshnessIndex(freshness),
-          }),
-    [tracking, freshness],
   );
 }
 
@@ -217,7 +195,8 @@ function missingIdsForSystem(
  */
 export function SignatureProvider({
   mapId,
-  rootSystemId,
+  scannerSystemId,
+  pasteTarget,
   canEdit,
   connectionDetails,
   unresolvedHoles,
@@ -228,8 +207,9 @@ export function SignatureProvider({
   children,
 }: {
   readonly mapId: string;
-  /** Chain root — the scanner window lists this system's rows, like the dock. */
-  readonly rootSystemId: number | null;
+  /** Live tracked system when ready; otherwise the chain-root fallback. */
+  readonly scannerSystemId: number | null;
+  readonly pasteTarget: TrackedSystemTarget;
   readonly canEdit: boolean;
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
@@ -246,13 +226,10 @@ export function SignatureProvider({
     connectionDetails,
     unresolvedHoles,
   );
-  const pasteTarget = useTrackedPasteTarget(mapId);
-  const scannerSystemId = rootSystemId;
   const { bySystem: missingBySystem, replace, clearAll } = useMissingSignatures();
-  // The missing-confirmation flow follows the system the paste was APPLIED to
-  // (the pilot's tracked system), which is not necessarily the chain root the
-  // scanner window lists — a scan pasted down the chain must still surface its
-  // Dismiss/Remove prompt.
+  // Missing confirmation follows the system the paste was applied to. When the
+  // window is on the chain-root fallback, a down-chain paste still surfaces
+  // its Dismiss/Remove prompt even if those rows are not listed.
   const [missingSystemId, setMissingSystemId] = useState<number | null>(null);
   const replaceForPaste = useCallback(
     (systemId: number, signatureIds: readonly string[]) => {
@@ -306,8 +283,12 @@ export function SignatureProvider({
     [onPanelTargetChange],
   );
   const openEditor = useCallback<OpenSignatureEditor>(
-    (connectionId) =>
-      onPanelTargetChange({ kind: 'connection', connectionId }),
+    (connectionId, signatureId) =>
+      onPanelTargetChange({
+        kind: 'connection',
+        connectionId,
+        signatureId: signatureId ?? null,
+      }),
     [onPanelTargetChange],
   );
   const openSite = useCallback(

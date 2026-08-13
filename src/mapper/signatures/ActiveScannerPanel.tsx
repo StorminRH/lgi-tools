@@ -53,6 +53,7 @@ export function ActiveScannerPanel({
       <ActiveSignatureEditor
         mapId={mapId}
         connectionId={panelTarget.connectionId}
+        anchorSignatureId={panelTarget.signatureId}
         connectionDetails={connectionDetails}
         unresolvedHoles={unresolvedHoles}
         authoring={authoring}

@@ -62,6 +62,7 @@ function base() {
     deletedAt: null,
     purgeAfter: null,
     fromSignatureId: null,
+    toSignatureId: null,
     fromDestinationHint: null,
     toDestinationHint: null,
     destinationProvenance: null,

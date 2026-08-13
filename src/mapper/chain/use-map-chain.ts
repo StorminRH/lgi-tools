@@ -140,6 +140,7 @@ export interface ConnectionEditorDetail {
   readonly deletedAt: number | null;
   readonly purgeAfter: number | null;
   readonly fromSignatureId: string | null;
+  readonly toSignatureId: string | null;
   readonly fromDestinationHint: WormholeDestinationHint | null;
   readonly toDestinationHint?: WormholeDestinationHint | null;
   readonly destinationProvenance: ConnectionProvenance | null;
@@ -175,6 +176,7 @@ function connectionEditorDetail(
     deletedAt: optionalOrNull(row.deletedAt),
     purgeAfter: optionalOrNull(row.purgeAfter),
     fromSignatureId: optionalOrNull(row.fromSignatureId),
+    toSignatureId: optionalOrNull(row.toSignatureId),
     fromDestinationHint: optionalOrNull(row.fromDestinationHint),
     toDestinationHint: optionalOrNull(row.toDestinationHint),
     destinationProvenance: optionalOrNull(row.destinationProvenance),

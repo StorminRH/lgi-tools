@@ -5,6 +5,14 @@ import { HomePrompt } from './HomePrompt';
 
 const mocks = vi.hoisted(() => ({
   characterId: 101 as number | null,
+  characters: [] as
+    | {
+        characterId: number;
+        name: string;
+        portraitUrl: string;
+        needsReconnect: boolean;
+      }[]
+    | null,
   tracking: undefined as
     | {
         ownTrackedCharacterIds: readonly number[];
@@ -24,6 +32,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/components/use-account-characters', () => ({
   useActiveCharacterId: () => mocks.characterId,
+  useAccountCharacters: () => mocks.characters,
+}));
+
+vi.mock('@/components/character-portrait', () => ({
+  CharacterPortrait: ({ name }: { name: string }) =>
+    createElement('img', { alt: name }),
 }));
 
 vi.mock('@/data/convex/use-live-value', () => ({
@@ -86,6 +100,7 @@ function renderPrompt(): string {
 describe('HomePrompt', () => {
   it('uses the dialog shell and switches current-system copy with tracking coverage', () => {
     mocks.characterId = 101;
+    mocks.characters = [];
     mocks.tracking = undefined;
     mocks.freshness = undefined;
     mocks.systemName = null;
@@ -127,5 +142,49 @@ describe('HomePrompt', () => {
     expect(live).toContain('data-map-home-current="30000142"');
     expect(live).toContain('Jita');
     expect(live).not.toContain('Character is offline');
+  });
+
+  it('lists linked characters as tracking toggles and uses a live alt as current system', () => {
+    mocks.characterId = 101;
+    mocks.characters = [
+      {
+        characterId: 101,
+        name: 'Session Pilot',
+        portraitUrl: '/session.png',
+        needsReconnect: false,
+      },
+      {
+        characterId: 202,
+        name: 'In Space',
+        portraitUrl: '/space.png',
+        needsReconnect: false,
+      },
+    ];
+    mocks.tracking = {
+      ownTrackedCharacterIds: [101, 202],
+      tracked: [
+        { characterId: 101, location: { solarSystemId: 30_000_142 } },
+        { characterId: 202, location: { solarSystemId: 31_001_677 } },
+      ],
+    };
+    mocks.freshness = {
+      fresh: [
+        { characterId: 101, feedFreshAt: null },
+        { characterId: 202, feedFreshAt: 1 },
+      ],
+    };
+    mocks.systemName = 'J113551';
+
+    const html = renderPrompt();
+    expect(html).toContain('data-map-home-tracking');
+    expect(html).toContain('Track a character in space');
+    expect(html).toContain('data-map-home-track-character="101"');
+    expect(html).toContain('data-map-home-track-character="202"');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('Stop tracking Session Pilot');
+    expect(html).toContain('Stop tracking In Space');
+    expect(html).toContain('data-map-home-current="31001677"');
+    expect(html).toContain('J113551');
+    expect(html).not.toContain('Character is offline');
   });
 });

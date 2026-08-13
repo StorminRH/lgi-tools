@@ -63,4 +63,59 @@ describe('homeCurrentSystem', () => {
       systemId: JITA,
     });
   });
+
+  it('uses a live tracked alt when the session character is offline or untracked', () => {
+    const alt = 202;
+    const altSystem = 31_001_677;
+    const sessionOfflineAltLive = {
+      tracking: {
+        ownTrackedCharacterIds: [CHAR, alt],
+        tracked: [
+          { characterId: CHAR, location: { solarSystemId: JITA } },
+          { characterId: alt, location: { solarSystemId: altSystem } },
+        ],
+      },
+      freshness: {
+        fresh: [
+          { characterId: CHAR, feedFreshAt: null },
+          { characterId: alt, feedFreshAt: 1_700_000_000_000 },
+        ],
+      },
+    };
+    expect(
+      homeCurrentSystem({ characterId: CHAR, ...sessionOfflineAltLive }),
+    ).toEqual({ kind: 'ready', systemId: altSystem });
+
+    const onlyAltTracked = {
+      tracking: {
+        ownTrackedCharacterIds: [alt],
+        tracked: [{ characterId: alt, location: { solarSystemId: altSystem } }],
+      },
+      freshness: { fresh: [{ characterId: alt, feedFreshAt: 1_700_000_000_000 }] },
+    };
+    expect(homeCurrentSystem({ characterId: CHAR, ...onlyAltTracked })).toEqual({
+      kind: 'ready',
+      systemId: altSystem,
+    });
+
+    const bothLive = {
+      tracking: {
+        ownTrackedCharacterIds: [CHAR, alt],
+        tracked: [
+          { characterId: CHAR, location: { solarSystemId: JITA } },
+          { characterId: alt, location: { solarSystemId: altSystem } },
+        ],
+      },
+      freshness: {
+        fresh: [
+          { characterId: CHAR, feedFreshAt: 1_700_000_000_000 },
+          { characterId: alt, feedFreshAt: 1_700_000_000_000 },
+        ],
+      },
+    };
+    expect(homeCurrentSystem({ characterId: CHAR, ...bothLive })).toEqual({
+      kind: 'ready',
+      systemId: JITA,
+    });
+  });
 });

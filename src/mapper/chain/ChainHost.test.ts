@@ -35,6 +35,7 @@ vi.mock('@/data/convex/use-mutation', () => ({
 
 vi.mock('@/components/use-account-characters', () => ({
   useActiveCharacterId: () => 1,
+  useAccountCharacters: () => null,
 }));
 
 vi.mock('@/components/ui/dialog', () => ({

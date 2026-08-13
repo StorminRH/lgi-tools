@@ -10,9 +10,10 @@
 //   2. At drag stop the position is stamped `user` in reconciled state, which protects it
 //      from the placement seam until re-lock clears every user stamp.
 //
-// Everything drawn here comes from the reconciler (contract DC-7). This module reads no Convex page
-// directly and adds no mutation surface — layout/motion dials are client-local only; map lock,
-// camera follow, and click focus are autosaved preferences.
+// Everything drawn here comes from the reconciler (contract DC-7). This module
+// adds no mutation surface — layout/motion dials are client-local only; map
+// lock, camera follow, and click focus are autosaved preferences. Tracking
+// subscriptions here only retarget the dock and scanner onto the live system.
 import {
   applyNodeChanges,
   ReactFlowProvider,
@@ -63,7 +64,9 @@ import { JumpDoorbellObserver } from '../tracking/JumpDoorbellObserver';
 import { OutboundArrowProvider } from '../tracking/OutboundArrowProvider';
 import { MapPresenceProvider } from '../tracking/PresenceProvider';
 import { TrackingHeartbeat } from '../tracking/TrackingControls';
+import { useTrackedSystemTarget } from '../tracking/use-tracked-system';
 import { MapWindowLayer } from '../windows/MapWindowLayer';
+import { persistentWindowSystemId } from '../windows/window-model';
 import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, isStubNodeId, syncNodes } from './nodes';
@@ -375,6 +378,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       ),
     [nodeIdsKey],
   );
+  const trackedSystem = useTrackedSystemTarget(mapId);
+  const windowSystemId = persistentWindowSystemId(trackedSystem, rootSystemId);
 
   // Revoked-versus-empty comes from the access subscription, never from a row count (DC-4). It is
   // live, so a re-granted claim brings the map back here without a reload. `undefined` is "not yet
@@ -396,7 +401,8 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       <MapPresenceProvider mapId={mapId}>
         <SignatureProvider
           mapId={mapId}
-          rootSystemId={rootSystemId}
+          scannerSystemId={windowSystemId}
+          pasteTarget={trackedSystem}
           canEdit={canEdit === true}
           connectionDetails={connectionDetails}
           unresolvedHoles={unresolvedHoles}
@@ -453,7 +459,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
             </MotionLayer>
           </OutboundArrowProvider>
           <MapWindowLayer
-            rootSystemId={rootSystemId}
+            dockSystemId={windowSystemId}
             onDeselect={deselectNodes}
           />
           <RightsTransitionToast canEdit={canEdit} />

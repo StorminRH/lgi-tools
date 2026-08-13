@@ -43,6 +43,7 @@ const CONNECTION: ConnectionEditorDetail = {
   deletedAt: null,
   purgeAfter: null,
   fromSignatureId: 'ABC-123',
+  toSignatureId: null,
   fromDestinationHint: null,
   toDestinationHint: null,
   destinationProvenance: null,
