@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe('map lifecycle composition', () => {
-  it('archives durably before tearing down the projection', async () => {
+  it('archives then projects delete/restore, refuses unauthorized work, and keeps durable success when projection is pending', async () => {
     const order: string[] = [];
     const archiveMap = vi.fn(async () => {
       order.push('neon');
@@ -34,36 +34,29 @@ describe('map lifecycle composition', () => {
     ).resolves.toEqual({ ok: true, projectionPending: false });
     expect(archiveMap).toHaveBeenCalledWith('user', PRINCIPALS, 'map-1');
     expect(order).toEqual(['neon', 'projection']);
-  });
 
-  it('never projects a refused delete or restore', async () => {
-    const teardownAccess = vi.fn();
-    const projectAccess = vi.fn();
+    const refusedTeardown = vi.fn();
+    const refusedProject = vi.fn();
     const common = { resolvePrincipals: vi.fn().mockResolvedValue(PRINCIPALS) };
-
     await expect(
       deleteMapForUser('user', INPUT, {
         ...common,
         archiveMap: vi.fn().mockResolvedValue(false),
-        teardownAccess,
+        teardownAccess: refusedTeardown,
       }),
     ).resolves.toEqual({ ok: false });
     await expect(
       restoreMapForUser('user', INPUT, {
         ...common,
         restoreMap: vi.fn().mockResolvedValue(false),
-        projectAccess,
+        projectAccess: refusedProject,
       }),
     ).resolves.toEqual({ ok: false });
-    expect(teardownAccess).not.toHaveBeenCalled();
-    expect(projectAccess).not.toHaveBeenCalled();
-  });
+    expect(refusedTeardown).not.toHaveBeenCalled();
+    expect(refusedProject).not.toHaveBeenCalled();
 
-  it('keeps durable delete and restore successful when typed projection delivery is pending', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const unavailable = new ProjectionUnavailableError('offline');
-    const common = { resolvePrincipals: vi.fn().mockResolvedValue(PRINCIPALS) };
-
     await expect(
       deleteMapForUser('user', INPUT, {
         ...common,

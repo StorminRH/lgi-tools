@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { RadioGroup } from './radio-group';
 
 const OPTIONS = [
@@ -8,32 +8,26 @@ const OPTIONS = [
   { value: 'editor', label: 'Write' },
 ] as const;
 
-describe('RadioGroup', () => {
-  it('stays controlled with no selection when value is null', () => {
-    const markup = renderToStaticMarkup(
-      createElement(RadioGroup, {
-        label: 'Access',
-        options: OPTIONS,
-        value: null,
-        onValueChange: vi.fn(),
-      }),
-    );
+it('stays controlled with no selection until a matching value is chosen', () => {
+  const empty = renderToStaticMarkup(
+    createElement(RadioGroup, {
+      label: 'Access',
+      options: OPTIONS,
+      value: null,
+      onValueChange: vi.fn(),
+    }),
+  );
+  expect(empty).toContain('Read-only');
+  expect(empty).toContain('Write');
+  expect(empty).not.toContain('data-checked');
 
-    expect(markup).toContain('Read-only');
-    expect(markup).toContain('Write');
-    expect(markup).not.toContain('data-checked');
-  });
-
-  it('marks the matching option when a value is selected', () => {
-    const markup = renderToStaticMarkup(
-      createElement(RadioGroup, {
-        label: 'Access',
-        options: OPTIONS,
-        value: 'editor',
-        onValueChange: vi.fn(),
-      }),
-    );
-
-    expect(markup).toContain('data-checked');
-  });
+  const selected = renderToStaticMarkup(
+    createElement(RadioGroup, {
+      label: 'Access',
+      options: OPTIONS,
+      value: 'editor',
+      onValueChange: vi.fn(),
+    }),
+  );
+  expect(selected).toContain('data-checked');
 });
