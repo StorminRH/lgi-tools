@@ -31,7 +31,7 @@ function titleAccessoryMarkup(): string {
 }
 
 describe('SystemIntelligenceBody', () => {
-  it('renders the colored J-space class as a title accessory without repeating the name', () => {
+  it('renders class or security as a title accessory and omits it until data resolves', () => {
     Object.assign(fields, { security: -1, whClassId: 5 });
 
     const accessory = titleAccessoryMarkup();
@@ -47,18 +47,13 @@ describe('SystemIntelligenceBody', () => {
     expect(body).not.toContain('Security Status');
     expect(body).not.toContain('-1.0');
     expect(body).toContain('3 signatures · 2 anomalies');
-  });
 
-  it('renders rounded k-space security as the colored title accessory', () => {
     Object.assign(fields, { security: 0.946, whClassId: null });
+    const kspace = titleAccessoryMarkup();
+    expect(kspace).toContain('>0.9<');
+    expect(kspace).toContain('text-sec-09');
+    expect(kspace).not.toContain('Jita');
 
-    const accessory = titleAccessoryMarkup();
-    expect(accessory).toContain('>0.9<');
-    expect(accessory).toContain('text-sec-09');
-    expect(accessory).not.toContain('Jita');
-  });
-
-  it('omits the accessory before classification data resolves', () => {
     Object.assign(fields, { security: null, whClassId: null });
     expect(titleAccessoryMarkup()).toBe('');
   });

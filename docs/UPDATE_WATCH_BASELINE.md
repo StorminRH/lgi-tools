@@ -61,8 +61,9 @@ tooling).
     "@convex-dev/rate-limiter": { "acknowledgedMajor": 0 },
     "@convex-dev/workpool": { "acknowledgedMajor": 0 },
     "@edge-runtime/vm": { "acknowledgedMajor": 5 },
-    "@neondatabase/config": { "acknowledgedMajor": 0 },
+    "@neondatabase/config": { "acknowledgedMajor": 1 },
     "@neondatabase/serverless": { "acknowledgedMajor": 1 },
+    "@next/playwright": { "acknowledgedMajor": 16 },
     "@playwright/test": { "acknowledgedMajor": 1 },
     "@shikijs/langs": { "acknowledgedMajor": 4 },
     "@shikijs/themes": { "acknowledgedMajor": 4 },
@@ -92,11 +93,11 @@ tooling).
     "eslint": { "acknowledgedMajor": 10 },
     "eslint-config-next": { "acknowledgedMajor": 16 },
     "eslint-import-resolver-typescript": { "acknowledgedMajor": 4 },
-    "eslint-plugin-jsdoc": { "acknowledgedMajor": 63 },
+    "eslint-plugin-jsdoc": { "acknowledgedMajor": 64 },
     "eslint-plugin-tsdoc": { "acknowledgedMajor": 0 },
     "fallow": { "acknowledgedMajor": 3 },
-    "fuzzysort": { "acknowledgedMajor": 3 },
-    "google-auth-library": { "acknowledgedMajor": 10 },
+    "fuzzysort": { "acknowledgedMajor": 4 },
+    "google-auth-library": { "acknowledgedMajor": 11 },
     "jose": { "acknowledgedMajor": 6 },
     "next": { "acknowledgedMajor": 16 },
     "playwright": { "acknowledgedMajor": 1 },
@@ -126,7 +127,7 @@ tooling).
       "name": "Vercel / Next.js",
       "watch": ["https://vercel.com/atom", "https://nextjs.org/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-08-07",
+      "scanSince": "2026-08-13",
       "acknowledgedItems": [
         "https://vercel.com/blog/how-searchable-ships-customer-requested-features-in-30-minutes-on-vercel",
         "https://vercel.com/blog/vercel-agent",
@@ -214,18 +215,41 @@ tooling).
         "https://vercel.com/changelog/vercel-marketplace-agent-skills",
         "https://vercel.com/changelog/ling-3-0-tiny-is-now-available-on-ai-gateway",
         "https://vercel.com/changelog/introducing-agent-plugins-1-0-0",
-        "https://nextjs.org/blog/making-v0-navigations-instant"
+        "https://nextjs.org/blog/making-v0-navigations-instant",
+        "https://vercel.com/changelog/grok-imagine-image-2-0-preview-now-available-on-vercel-ai-gateway",
+        "https://vercel.com/changelog/vercel-ai-gateway-and-vercel-sandbox-now-available-on-hermes-agent",
+        "https://vercel.com/changelog/vercel-container-registry-repositories-can-now-be-made-public",
+        "https://vercel.com/changelog/audit-log-drains-now-support-datadog-splunk-and-panther",
+        "https://vercel.com/changelog/free-domain-now-included-with-new-pro-subscriptions",
+        "https://vercel.com/blog/a-sandbox-without-a-network-boundary-is-only-half-a-sandbox",
+        "https://vercel.com/changelog/vercel-sandbox-managed-images",
+        "https://vercel.com/changelog/simplified-onboarding-for-deepsec",
+        "https://vercel.com/changelog/bun-serve-entrypoint-for-vercel-functions",
+        "https://vercel.com/changelog/vercel-connect-adds-observability-support",
+        "https://vercel.com/changelog/enterprise-managed-users",
+        "https://vercel.com/changelog/vercel-cli-100-services",
+        "https://vercel.com/blog/everything-hackable-will-get-hacked",
+        "https://vercel.com/blog/deepseek-overtakes-google-on-volume-cost-per-token-falls",
+        "https://vercel.com/changelog/launchdarkly-is-now-available-on-the-vercel-marketplace",
+        "https://vercel.com/changelog/deepseek-v4-pro-now-runs-updated-weights-on-ai-gateway",
+        "https://vercel.com/changelog/exa-web-search-free-through-august-31-on-ai-gateway-and-eve",
+        "https://vercel.com/blog/building-a-software-factory-for-ai-sdk",
+        "https://vercel.com/changelog/set-up-coding-agents-in-one-command-with-ai-gateway",
+        "https://vercel.com/changelog/free-domain-for-one-year-now-for-all-pro-teams",
+        "https://vercel.com/changelog/grok-4-6-now-available-on-ai-gateway",
+        "https://vercel.com/blog/how-we-migrated-the-database-behind-every-vercel-build"
       ]
     },
     {
       "name": "Neon",
       "watch": ["https://neon.com/docs/changelog/rss.xml"],
       "idRule": "url",
-      "scanSince": "2026-08-01",
+      "scanSince": "2026-08-13",
       "acknowledgedItems": [
         "https://neon.com/docs/changelog/2026-07-24",
         "https://neon.com/docs/changelog/2026-07-31",
-        "https://neon.com/docs/changelog/2026-07-17"
+        "https://neon.com/docs/changelog/2026-07-17",
+        "https://neon.com/docs/changelog/2026-08-07"
       ]
     },
     {
@@ -244,7 +268,7 @@ tooling).
       "name": "Upstash",
       "watch": ["https://upstash.com/blog/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-08-07",
+      "scanSince": "2026-08-13",
       "acknowledgedItems": [
         "https://upstash.com/blog/durable-workflow-engines-compared-every-major-option-in-2026",
         "https://upstash.com/blog/context7-vs-static-llm-knowledge-benchmarking-coding-assistants",
@@ -256,7 +280,9 @@ tooling).
         "https://upstash.com/blog/running-claude-code-in-a-remote-sandbox-with-upstash-box",
         "https://upstash.com/blog/upstash-vs-aws-elasticache-serverless-redis-pricing-and-performance-2026",
         "https://upstash.com/blog/redis-cloud-pricing-in-2026-plans-costs-and-real-examples",
-        "https://upstash.com/blog/upstash-agentkit-redis-memory-rag-and-chat-history-for-ai-agents"
+        "https://upstash.com/blog/upstash-agentkit-redis-memory-rag-and-chat-history-for-ai-agents",
+        "https://upstash.com/blog/context7-portable-agent-plugin",
+        "https://upstash.com/blog/how-background-coding-agents-keep-working"
       ]
     }
   ],

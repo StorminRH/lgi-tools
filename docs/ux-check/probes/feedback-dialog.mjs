@@ -22,6 +22,18 @@ export default {
     const textarea = page.getByRole('textbox', { name: 'Feedback' });
     const focused = await textarea.evaluate((element) => element === document.activeElement);
     check('Field label moves focus into the textarea', focused);
+    const category = dialog.getByRole('combobox', { name: 'Category' });
+    check('Category select is present', (await category.count()) === 1);
+    check('Category defaults to Bug', ((await category.textContent()) ?? '').includes('Bug'));
+    await category.click();
+    const feature = page.getByRole('option', { name: 'Feature request' });
+    await feature.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    check('Category popup lists Feature request', await feature.isVisible());
+    await feature.click();
+    check(
+      'Category trigger shows Feature request',
+      ((await category.textContent()) ?? '').includes('Feature request'),
+    );
     await textarea.fill('UI system probe');
     await shot('open');
     await page.keyboard.press('Escape');

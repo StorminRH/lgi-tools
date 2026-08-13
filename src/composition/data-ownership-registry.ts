@@ -801,7 +801,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert, update, or delete per user action. The per-user plan cap is application-enforced (count, then insert) and cannot be expressed as a plain constraint; its compensating delete over-corrects under concurrency and is recorded in docs/backlog.md rather than fixed here.',
+      note: 'One insert, update, or delete per user action. The per-user plan cap is application-enforced (count, then insert) and cannot be expressed as a plain constraint; its compensating delete can over-correct under concurrency — operator-declined as impractical for human click rates (2026-08-11 triage).',
     },
     dataClass: 'personal',
   },
@@ -812,7 +812,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert, update, or delete per user action. The per-user structure cap is application-enforced with no compensating recount, so two concurrent saves at the cap can both succeed; recorded in docs/backlog.md rather than fixed here, since a cardinality rule needs a trigger or counter column this contract does not authorize.',
+      note: 'One insert, update, or delete per user action. The per-user structure cap is application-enforced with no compensating recount, so two concurrent saves at the cap can both succeed — operator-declined as impractical for human click rates (2026-08-11 triage); a cardinality rule would need a trigger or counter column.',
     },
     dataClass: 'personal',
   },

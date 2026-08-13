@@ -6,7 +6,7 @@ import {
 } from './signature-lifecycle';
 
 describe('signature lifecycle decisions', () => {
-  it('computes missing rows only for kinds represented in the paste', () => {
+  it('scopes missing rows to paste-represented kinds and requires a finite ceiling', () => {
     const existing = [
       { signatureId: 'SIG-001', kind: 'signature' as const },
       { signatureId: 'SIG-002' },
@@ -17,16 +17,13 @@ describe('signature lifecycle decisions', () => {
       { signatureId: 'SIG-001', kind: 'signature' },
     ])).toEqual([{ signatureId: 'SIG-002' }]);
     expect(signatureKind(existing[1]!)).toBe('signature');
-  });
 
-  it('reports no anomaly missing rows when a filtered paste contains no anomalies', () => {
+    // Filtered paste with no anomalies must not invent anomaly missing rows.
     expect(findMissingSignatures(
       [{ signatureId: 'ANO-001', kind: 'anomaly' }],
       [{ signatureId: 'SIG-001', kind: 'signature' }],
     )).toEqual([]);
-  });
 
-  it('requires a finite elapsed ceiling for confident removal', () => {
     const now = 1_800_000_000_000;
     expect(isConfidentMissingRemoval({ signatureId: 'A', deathLatestAt: now }, now)).toBe(true);
     expect(isConfidentMissingRemoval({ signatureId: 'B', deathLatestAt: now + 1 }, now)).toBe(false);

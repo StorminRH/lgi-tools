@@ -43,6 +43,7 @@ const EXPECTED_INTEGRATIONS: readonly VendorIntegrationId[] = [
   'neon-postgres',
   'vercel-platform',
   'github-tooling',
+  'github-issues',
   'google-search-console',
   'discord-webhooks',
   'fuzzwork',

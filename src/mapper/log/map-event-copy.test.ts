@@ -89,7 +89,7 @@ describe('map event copy', () => {
     ).toBe('Restored 2 signatures');
   });
 
-  it('exposes Restore only for in-window removal/sever rows', () => {
+  it('exposes Restore only for in-window removal/sever or signature rows', () => {
     const now = 10_000;
     const removed = event({
       kind: 'branch_removed',
@@ -115,34 +115,31 @@ describe('map event copy', () => {
       payload: { connectionId: 'c1', systemIds: [1] },
     });
     expect(mapEventRestorable(restored, now)).toBe(false);
-  });
 
-  it('routes signature-removal rows to the signature restore action', () => {
-    const now = 10_000;
-    const removed = event({
+    const signaturesRemoved = event({
       kind: 'signatures_removed',
       at: now - 1_000,
       payload: { systemId: 30_000_142, signatureIds: ['ABC-123', 'DEF-456'] },
     });
-    expect(mapEventRestorable(removed, now)).toBe(true);
-    expect(mapEventRestoreAction(removed)).toEqual({
+    expect(mapEventRestorable(signaturesRemoved, now)).toBe(true);
+    expect(mapEventRestoreAction(signaturesRemoved)).toEqual({
       kind: 'signatures',
       systemId: 30_000_142,
       signatureIds: ['ABC-123', 'DEF-456'],
     });
 
-    const expired = event({
+    const signaturesExpired = event({
       kind: 'signatures_removed',
       at: now - MAP_CHAIN_UNDO_WINDOW_MS - 1,
       payload: { systemId: 30_000_142, signatureIds: ['ABC-123'] },
     });
-    expect(mapEventRestorable(expired, now)).toBe(false);
+    expect(mapEventRestorable(signaturesExpired, now)).toBe(false);
 
-    const restoredRow = event({
+    const signaturesRestored = event({
       kind: 'signatures_restored',
       at: now,
       payload: { systemId: 30_000_142, signatureIds: ['ABC-123'] },
     });
-    expect(mapEventRestorable(restoredRow, now)).toBe(false);
+    expect(mapEventRestorable(signaturesRestored, now)).toBe(false);
   });
 });

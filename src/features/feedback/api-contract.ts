@@ -5,6 +5,7 @@ import {
   emptyBody,
   problem,
 } from '@/transport/endpoint';
+import { FEEDBACK_CATEGORIES } from './categories';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from './constants';
 
 /**
@@ -14,6 +15,13 @@ import { FEEDBACK_MESSAGE_MAX_LENGTH } from './constants';
  */
 export const FEEDBACK_PATH_MAX_LENGTH = 512;
 
+const feedbackCategorySchema = z.enum(
+  FEEDBACK_CATEGORIES.map((entry) => entry.value) as [
+    (typeof FEEDBACK_CATEGORIES)[number]['value'],
+    ...(typeof FEEDBACK_CATEGORIES)[number]['value'][],
+  ],
+);
+
 /**
  * Bounded loose — the route's post-parse sanitiseUserText() trims and slices
  * to the real caps; the *4 multiplier here just rejects runaway 100KB bodies
@@ -22,6 +30,7 @@ export const FEEDBACK_PATH_MAX_LENGTH = 512;
 export const feedbackRequestSchema = z.object({
   message: z.string().min(1).max(FEEDBACK_MESSAGE_MAX_LENGTH * 4),
   path: z.string().max(FEEDBACK_PATH_MAX_LENGTH * 4),
+  category: feedbackCategorySchema,
 });
 
 /** Complete request and per-status response contract for feedback submission. */
@@ -34,7 +43,7 @@ export const feedbackEndpoint = defineEndpoint({
     400: problem('invalid_json', 'invalid_body', 'message_empty', 'path_invalid'),
     403: problem('cross_origin'),
     429: problem('rate_limited'),
-    502: problem('discord_failed'),
+    502: problem('github_failed'),
     503: problem('feedback_unconfigured'),
   },
 });

@@ -81,7 +81,7 @@ async function expectProblem(
 describe('POST /api/feedback', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv('DISCORD_WEBHOOK_URL', 'https://discord.example/webhook/test');
+    vi.stubEnv('GITHUB_FEEDBACK_TOKEN', 'ghp_test_token');
     getSessionMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
@@ -96,14 +96,20 @@ describe('POST /api/feedback', () => {
     vi.unstubAllGlobals();
   });
 
-  it('forwards a logged-in submission to Discord and logs the event', async () => {
+  it('opens a GitHub issue for a logged-in submission and logs the event', async () => {
     getSessionMock.mockResolvedValue(SESSION);
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ number: 42 }), { status: 201 }),
+    );
 
     const { POST } = await importRoute();
     const res = await POST(
       buildRequest(
-        { message: 'sites browser is broken on C3 relic', path: '/sites?class=c3' },
+        {
+          message: 'sites browser is broken on C3 relic',
+          path: '/sites?class=c3',
+          category: 'bug',
+        },
         'http://localhost:3000',
       ),
     );
@@ -112,44 +118,58 @@ describe('POST /api/feedback', () => {
     expect(res.body).toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe('https://discord.example/webhook/test');
-    // Outbound identity header (T-3): the Discord webhook must self-identify
-    // like every other outbound surface.
-    expect(new Headers((init as RequestInit).headers).get('User-Agent')).toBe(
-      OUTBOUND_USER_AGENT,
-    );
+    expect(url).toBe('https://api.github.com/repos/StorminRH/lgi-tools/issues');
+    const headers = new Headers((init as RequestInit).headers);
+    expect(headers.get('User-Agent')).toBe(OUTBOUND_USER_AGENT);
+    expect(headers.get('Authorization')).toBe('Bearer ghp_test_token');
+    expect(headers.get('Accept')).toBe('application/vnd.github+json');
     const payload = JSON.parse((init as RequestInit).body as string);
-    expect(payload.embeds[0].author.name).toBe('Test Pilot (#1000000000)');
-    expect(payload.embeds[0].description).toBe('sites browser is broken on C3 relic');
-    expect(payload.embeds[0].fields[0].name).toBe('Page');
-    expect(payload.embeds[0].fields[0].value).toBe('`/sites?class=c3`');
+    expect(payload.title).toBe('[Bug] sites browser is broken on C3 relic');
+    expect(payload.labels).toEqual(['bug']);
+    expect(payload.body).toContain('sites browser is broken on C3 relic');
+    expect(payload.body).toContain('**Submitted by:** Test Pilot');
+    expect(payload.body).toContain('`/sites?class=c3`');
+    expect(payload.body).not.toContain('#1000000000');
 
     expect(logUsageEventMock).toHaveBeenCalledOnce();
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'feedback_submitted',
       characterId: 1000000000,
-      metadata: { messageLength: 'sites browser is broken on C3 relic'.length, path: '/sites?class=c3' },
+      metadata: {
+        messageLength: 'sites browser is broken on C3 relic'.length,
+        path: '/sites?class=c3',
+        category: 'bug',
+      },
     });
   });
 
   it('attributes an anonymous submission and logs with null characterId', async () => {
     getSessionMock.mockResolvedValue(null);
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ number: 1 }), { status: 201 }));
 
     const { POST } = await importRoute();
     const res = await POST(
-      buildRequest({ message: 'love the changelog', path: '/changelog' }),
+      buildRequest({
+        message: 'love the changelog',
+        path: '/changelog',
+        category: 'other',
+      }),
     );
 
     expect(res.status).toBe(204);
     const payload = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
-    expect(payload.embeds[0].author.name).toBe('Anonymous');
-    expect(payload.embeds[0].fields[0].value).toBe('`/changelog`');
+    expect(payload.title).toBe('[Other] love the changelog');
+    expect(payload.labels).toBeUndefined();
+    expect(payload.body).toContain('**Submitted by:** Anonymous');
 
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'feedback_submitted',
       characterId: null,
-      metadata: { messageLength: 'love the changelog'.length, path: '/changelog' },
+      metadata: {
+        messageLength: 'love the changelog'.length,
+        path: '/changelog',
+        category: 'other',
+      },
     });
   });
 
@@ -157,7 +177,7 @@ describe('POST /api/feedback', () => {
     const { POST } = await importRoute();
     const res = await POST(
       buildRequest(
-        { message: 'hello', path: '/sites' },
+        { message: 'hello', path: '/sites', category: 'bug' },
         'https://foreign.example',
       ),
     );
@@ -175,17 +195,27 @@ describe('POST /api/feedback', () => {
   it('returns 400 when message is empty after trim', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     const { POST } = await importRoute();
-    const res = await POST(buildRequest({ message: '    ', path: '/sites' }));
+    const res = await POST(
+      buildRequest({ message: '    ', path: '/sites', category: 'bug' }),
+    );
     await expectProblem(res, 400, 'message_empty', 'message must not be empty');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(logUsageEventMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when category is missing', async () => {
+    getSessionMock.mockResolvedValue(SESSION);
+    const { POST } = await importRoute();
+    const res = await POST(buildRequest({ message: 'hi', path: '/sites' }));
+    await expectProblem(res, 400, 'invalid_body');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 when message exceeds the input cap (>8000 chars)', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     const { POST } = await importRoute();
     const res = await POST(
-      buildRequest({ message: 'x'.repeat(8001), path: '/sites' }),
+      buildRequest({ message: 'x'.repeat(8001), path: '/sites', category: 'bug' }),
     );
     await expectProblem(res, 400, 'invalid_body');
     expect(fetchMock).not.toHaveBeenCalled();
@@ -194,7 +224,9 @@ describe('POST /api/feedback', () => {
   it('returns 400 when path does not start with a slash', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     const { POST } = await importRoute();
-    const res = await POST(buildRequest({ message: 'hi', path: 'not-a-path' }));
+    const res = await POST(
+      buildRequest({ message: 'hi', path: 'not-a-path', category: 'bug' }),
+    );
     await expectProblem(res, 400, 'path_invalid', 'path must start with /');
     expect(checkRateLimitMock).toHaveBeenCalledOnce();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -203,7 +235,13 @@ describe('POST /api/feedback', () => {
   it('returns 400 when path exceeds the input cap (>2048 chars)', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     const { POST } = await importRoute();
-    const res = await POST(buildRequest({ message: 'hi', path: '/' + 'x'.repeat(2049) }));
+    const res = await POST(
+      buildRequest({
+        message: 'hi',
+        path: '/' + 'x'.repeat(2049),
+        category: 'bug',
+      }),
+    );
     await expectProblem(res, 400, 'invalid_body');
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -220,42 +258,64 @@ describe('POST /api/feedback', () => {
   it('returns 400 when message is not a string', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     const { POST } = await importRoute();
-    const res = await POST(buildRequest({ message: 42, path: '/sites' }));
+    const res = await POST(
+      buildRequest({ message: 42, path: '/sites', category: 'bug' }),
+    );
     await expectProblem(res, 400, 'invalid_body');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('strips control characters from message and path before forwarding', async () => {
     getSessionMock.mockResolvedValue(SESSION);
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ number: 1 }), { status: 201 }));
 
     const { POST } = await importRoute();
     const res = await POST(
       buildRequest({
         message: 'hello\u0000world\u0007',
         path: '/sites\u0000?q=test',
+        category: 'feature',
       }),
     );
 
     expect(res.status).toBe(204);
     const payload = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
-    expect(payload.embeds[0].description).toBe('helloworld');
-    expect(payload.embeds[0].fields[0].value).toBe('`/sites?q=test`');
+    expect(payload.title).toBe('[Feature request] helloworld');
+    expect(payload.body).toContain('helloworld');
+    expect(payload.body).toContain('`/sites?q=test`');
+    expect(payload.labels).toEqual(['enhancement']);
   });
 
-  it('returns 502 and skips telemetry when Discord responds non-2xx', async () => {
+  it('returns 502 and skips telemetry when GitHub responds non-2xx', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     fetchMock.mockResolvedValue(new Response('rate limited', { status: 429 }));
 
     const { POST } = await importRoute();
-    const res = await POST(buildRequest({ message: 'hi', path: '/sites' }));
+    const res = await POST(
+      buildRequest({ message: 'hi', path: '/sites', category: 'bug' }),
+    );
     await expectProblem(
       res,
       502,
-      'discord_failed',
-      'Discord rejected the feedback',
+      'github_failed',
+      'GitHub rejected the feedback',
     );
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
+  it('returns 503 when the GitHub token is unset', async () => {
+    vi.stubEnv('GITHUB_FEEDBACK_TOKEN', '');
+    getSessionMock.mockResolvedValue(SESSION);
+    const { POST } = await importRoute();
+    const res = await POST(
+      buildRequest({ message: 'hi', path: '/sites', category: 'bug' }),
+    );
+    await expectProblem(
+      res,
+      503,
+      'feedback_unconfigured',
+      'Feedback channel is not configured',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { EdgeContextMenu } from './EdgeContextMenu';
 import {
@@ -50,68 +50,55 @@ vi.mock('@/components/ui/overlay-positioning', () => ({
 
 const CONNECTION_ID = 'c1' as Id<'mapConnections'>;
 
-describe('edgeMenuConnectionId', () => {
-  it('names the connection document an authored line stands for', () => {
-    expect(
-      edgeMenuConnectionId({ edgeId: 'c1', stub: false, canEdit: true }),
-    ).toBe('c1');
-  });
-
-  it('withholds the menu from viewers', () => {
-    expect(
-      edgeMenuConnectionId({ edgeId: 'c1', stub: false, canEdit: false }),
-    ).toBeNull();
-  });
-
-  it('withholds the menu from derived halo links and unresolved stubs', () => {
-    expect(
-      edgeMenuConnectionId({ edgeId: 'halo:1:2', stub: false, canEdit: true }),
-    ).toBeNull();
-    expect(
-      edgeMenuConnectionId({ edgeId: 'c1', stub: true, canEdit: true }),
-    ).toBeNull();
-  });
+it('names authored editable connections only', () => {
+  expect(
+    edgeMenuConnectionId({ edgeId: 'c1', stub: false, canEdit: true }),
+  ).toBe('c1');
+  expect(
+    edgeMenuConnectionId({ edgeId: 'c1', stub: false, canEdit: false }),
+  ).toBeNull();
+  expect(
+    edgeMenuConnectionId({ edgeId: 'halo:1:2', stub: false, canEdit: true }),
+  ).toBeNull();
+  expect(
+    edgeMenuConnectionId({ edgeId: 'c1', stub: true, canEdit: true }),
+  ).toBeNull();
 });
 
-describe('EdgeContextMenu', () => {
+it('offers Edit and Delete when anchored and stays closed otherwise', () => {
   const menu: EdgeMenuAnchor = {
     connectionId: CONNECTION_ID,
     clientX: 40,
     clientY: 90,
   };
+  const open = renderToStaticMarkup(
+    createElement(EdgeContextMenu, {
+      menu,
+      onEdit: vi.fn(),
+      onDelete: vi.fn(),
+      onOpenChange: vi.fn(),
+    }),
+  );
+  expect(open).toContain('data-pointer-menu="Connection actions"');
+  expect(open).toContain('data-open="true"');
+  expect(open).toContain('data-anchored="true"');
+  expect(open).toContain('>Edit<');
+  expect(open).toContain('>Delete<');
+  expect(open.match(/role="menuitem"/g)).toHaveLength(2);
 
-  it('offers exactly Edit and Delete at the pointer', () => {
-    const markup = renderToStaticMarkup(
-      createElement(EdgeContextMenu, {
-        menu,
-        onEdit: vi.fn(),
-        onDelete: vi.fn(),
-        onOpenChange: vi.fn(),
-      }),
-    );
-    expect(markup).toContain('data-pointer-menu="Connection actions"');
-    expect(markup).toContain('data-open="true"');
-    expect(markup).toContain('data-anchored="true"');
-    expect(markup).toContain('>Edit<');
-    expect(markup).toContain('>Delete<');
-    expect(markup.match(/role="menuitem"/g)).toHaveLength(2);
-  });
-
-  it('stays closed and unanchored with nothing right-clicked', () => {
-    const markup = renderToStaticMarkup(
-      createElement(EdgeContextMenu, {
-        menu: null,
-        onEdit: vi.fn(),
-        onDelete: vi.fn(),
-        onOpenChange: vi.fn(),
-      }),
-    );
-    expect(markup).toContain('data-open="false"');
-    expect(markup).toContain('data-anchored="false"');
-  });
+  const closed = renderToStaticMarkup(
+    createElement(EdgeContextMenu, {
+      menu: null,
+      onEdit: vi.fn(),
+      onDelete: vi.fn(),
+      onOpenChange: vi.fn(),
+    }),
+  );
+  expect(closed).toContain('data-open="false"');
+  expect(closed).toContain('data-anchored="false"');
 });
 
-describe('edgeMenuActions', () => {
+it('opens the Signature Editor on Edit and severs through the shipped undo pathway on Delete', async () => {
   function authoring() {
     return {
       setConnectionWormholeType: vi.fn(),
@@ -134,44 +121,40 @@ describe('edgeMenuActions', () => {
     clientY: 2,
   };
 
-  it('opens the one Signature Editor on Edit', () => {
-    const openEditor = vi.fn();
-    const closeMenu = vi.fn();
-    edgeMenuActions({
-      mapId: 'map-a',
-      authoring: authoring(),
-      openEditor,
-      closeEditor: vi.fn(),
-      closeMenu,
-    }).onEdit(menu);
-    expect(closeMenu).toHaveBeenCalledOnce();
-    expect(openEditor).toHaveBeenCalledWith(CONNECTION_ID);
+  const openEditor = vi.fn();
+  const closeMenu = vi.fn();
+  edgeMenuActions({
+    mapId: 'map-a',
+    authoring: authoring(),
+    openEditor,
+    closeEditor: vi.fn(),
+    closeMenu,
+  }).onEdit(menu);
+  expect(closeMenu).toHaveBeenCalledOnce();
+  expect(openEditor).toHaveBeenCalledWith(CONNECTION_ID);
+
+  announce.mockClear();
+  const api = authoring();
+  const closeEditor = vi.fn();
+  edgeMenuActions({
+    mapId: 'map-a',
+    authoring: api,
+    openEditor: vi.fn(),
+    closeEditor,
+    closeMenu: vi.fn(),
+  }).onDelete(menu);
+  await vi.waitFor(() => expect(announce).toHaveBeenCalledOnce());
+  expect(api.severConnection).toHaveBeenCalledWith({
+    mapId: 'map-a',
+    connectionId: CONNECTION_ID,
   });
+  expect(closeEditor).toHaveBeenCalledOnce();
 
-  it('severs through the shipped undo pathway on Delete', async () => {
-    announce.mockClear();
-    const api = authoring();
-    const closeEditor = vi.fn();
-    edgeMenuActions({
-      mapId: 'map-a',
-      authoring: api,
-      openEditor: vi.fn(),
-      closeEditor,
-      closeMenu: vi.fn(),
-    }).onDelete(menu);
-    await vi.waitFor(() => expect(announce).toHaveBeenCalledOnce());
-    expect(api.severConnection).toHaveBeenCalledWith({
-      mapId: 'map-a',
-      connectionId: CONNECTION_ID,
-    });
-    expect(closeEditor).toHaveBeenCalledOnce();
-
-    // The announced undo is the shipped branch restore, not a second rule.
-    const call = announce.mock.calls[0]?.[0] as { onUndo: () => void };
-    call.onUndo();
-    expect(api.restoreSeveredBranch).toHaveBeenCalledWith({
-      mapId: 'map-a',
-      connectionId: CONNECTION_ID,
-    });
+  // The announced undo is the shipped branch restore, not a second rule.
+  const call = announce.mock.calls[0]?.[0] as { onUndo: () => void };
+  call.onUndo();
+  expect(api.restoreSeveredBranch).toHaveBeenCalledWith({
+    mapId: 'map-a',
+    connectionId: CONNECTION_ID,
   });
 });

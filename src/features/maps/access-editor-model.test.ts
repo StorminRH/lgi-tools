@@ -19,9 +19,8 @@ const CORPORATION = {
 };
 
 describe('map access editor model', () => {
-  it('preselects one corporation without defaulting its role', () => {
+  it('builds create drafts from one corp, stays private otherwise, and prepares named grants', () => {
     const drafts = initialCreationAccessDrafts([CORPORATION]);
-
     expect(drafts).toEqual([
       {
         ownerType: 'corporation',
@@ -38,9 +37,7 @@ describe('map access editor model', () => {
     expect(createMapGrantsFromDrafts(explicit)).toEqual([
       { ownerType: 'corporation', ownerId: 99, role: 'viewer' },
     ]);
-  });
 
-  it('starts private with zero or several corporations', () => {
     expect(initialCreationAccessDrafts([])).toEqual([]);
     expect(
       initialCreationAccessDrafts([
@@ -49,46 +46,7 @@ describe('map access editor model', () => {
       ]),
     ).toEqual([]);
     expect(createMapGrantsFromDrafts([])).toEqual([]);
-  });
 
-  it('deduplicates principals, requires their role, and removes the exact key', () => {
-    const character = {
-      ownerType: 'character' as const,
-      ownerId: 42,
-      name: 'Scout',
-    };
-    const added = addAccessPrincipal([], character);
-    const duplicate = addAccessPrincipal(added, { ...character, name: 'Renamed Scout' });
-
-    expect(duplicate).toEqual(added);
-    expect(accessPrincipalKey(character)).toBe('character:42');
-    expect(accessDraftsComplete('create', added)).toBe(false);
-    expect(removeAccessPrincipal(added, character)).toEqual([]);
-  });
-
-  it('keeps admin management-only and accepts every explicit management role', () => {
-    const principal = {
-      ownerType: 'character' as const,
-      ownerId: 42,
-      name: 'Scout',
-      role: null,
-    };
-    const refused = setAccessDraftRole('create', [principal], principal, 'admin');
-    const accepted = setAccessDraftRole('manage', [principal], principal, 'admin');
-
-    expect(accessRolesForMode('create')).toEqual(['viewer', 'editor']);
-    expect(accessRolesForMode('manage')).toEqual(['viewer', 'editor', 'admin']);
-    expect(['viewer', 'editor', 'admin'].map((role) => mapRoleLabel(role as 'viewer' | 'editor' | 'admin'))).toEqual([
-      'Read-only',
-      'Write',
-      'Admin',
-    ]);
-    expect(refused[0]?.role).toBeNull();
-    expect(accepted[0]?.role).toBe('admin');
-    expect(accessDraftsComplete('manage', accepted)).toBe(true);
-  });
-
-  it('prepares only a named creation draft whose selected principals have roles', () => {
     expect(prepareMapCreation('   ', [], 80)).toEqual({
       ok: false,
       message: 'Enter a map name up to 80 characters.',
@@ -109,7 +67,38 @@ describe('map access editor model', () => {
     });
   });
 
-  it('keeps an Escape or outside-dismiss request closed while results remain', () => {
+  it('deduplicates principals, gates admin to manage mode, and keeps dismiss closed with results', () => {
+    const character = {
+      ownerType: 'character' as const,
+      ownerId: 42,
+      name: 'Scout',
+    };
+    const added = addAccessPrincipal([], character);
+    const duplicate = addAccessPrincipal(added, { ...character, name: 'Renamed Scout' });
+
+    expect(duplicate).toEqual(added);
+    expect(accessPrincipalKey(character)).toBe('character:42');
+    expect(accessDraftsComplete('create', added)).toBe(false);
+    expect(removeAccessPrincipal(added, character)).toEqual([]);
+
+    const principal = {
+      ownerType: 'character' as const,
+      ownerId: 42,
+      name: 'Scout',
+      role: null,
+    };
+    const refused = setAccessDraftRole('create', [principal], principal, 'admin');
+    const accepted = setAccessDraftRole('manage', [principal], principal, 'admin');
+
+    expect(accessRolesForMode('create')).toEqual(['viewer', 'editor']);
+    expect(accessRolesForMode('manage')).toEqual(['viewer', 'editor', 'admin']);
+    expect(
+      (['viewer', 'editor', 'admin'] as const).map((role) => mapRoleLabel(role)),
+    ).toEqual(['Read-only', 'Write', 'Admin']);
+    expect(refused[0]?.role).toBeNull();
+    expect(accepted[0]?.role).toBe('admin');
+    expect(accessDraftsComplete('manage', accepted)).toBe(true);
+
     expect(characterSearchPopupOpen(false, 3)).toBe(false);
     expect(characterSearchPopupOpen(true, 3)).toBe(true);
     expect(characterSearchPopupOpen(true, 0)).toBe(false);

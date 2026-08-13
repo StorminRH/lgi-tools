@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import type { ContentNavModel } from './content-browser-view';
 import {
   contentBrowserHref,
@@ -7,17 +7,23 @@ import {
   titleForSlug,
 } from './content-browser-view';
 
-describe('content browser navigation', () => {
-  it('uses the first flat item as the landing document', () => {
-    const model: ContentNavModel = {
-      items: [{ slug: 'newest', title: 'Newest' }],
-      groups: [],
-    };
-    expect(landingContentSlug(model)).toBe('newest');
-  });
+const mixedModel: ContentNavModel = {
+  items: [{ slug: 'intro', title: 'Introduction' }],
+  groups: [
+    {
+      slug: 'platform',
+      title: 'Platform',
+      items: [{ slug: 'vercel', title: 'Vercel' }],
+    },
+  ],
+};
 
-  it('falls back to the first grouped item when the flat list is empty', () => {
-    const model: ContentNavModel = {
+test('landingContentSlug and titleForSlug resolve flat, grouped, and empty navigation', () => {
+  expect(landingContentSlug({ items: [{ slug: 'newest', title: 'Newest' }], groups: [] })).toBe(
+    'newest',
+  );
+  expect(
+    landingContentSlug({
       items: [],
       groups: [
         {
@@ -26,54 +32,29 @@ describe('content browser navigation', () => {
           items: [{ slug: 'vercel', title: 'Vercel' }],
         },
       ],
-    };
-    expect(landingContentSlug(model)).toBe('vercel');
-  });
+    }),
+  ).toBe('vercel');
+  expect(landingContentSlug({ items: [], groups: [] })).toBeNull();
 
-  it('returns null when the model has no documents', () => {
-    expect(landingContentSlug({ items: [], groups: [] })).toBeNull();
-  });
+  expect(titleForSlug(mixedModel, 'intro')).toBe('Introduction');
+  expect(titleForSlug(mixedModel, 'vercel')).toBe('Vercel');
+  expect(titleForSlug(mixedModel, 'missing')).toBeNull();
+  expect(titleForSlug(mixedModel, null)).toBeNull();
+});
 
-  it('looks up flat and grouped document titles without inventing missing routes', () => {
-    const model: ContentNavModel = {
-      items: [{ slug: 'intro', title: 'Introduction' }],
-      groups: [
-        {
-          slug: 'platform',
-          title: 'Platform',
-          items: [{ slug: 'vercel', title: 'Vercel' }],
-        },
-      ],
-    };
-    expect(titleForSlug(model, 'intro')).toBe('Introduction');
-    expect(titleForSlug(model, 'vercel')).toBe('Vercel');
-    expect(titleForSlug(model, 'missing')).toBeNull();
-    expect(titleForSlug(model, null)).toBeNull();
-  });
+test('deriveActiveContentSlug and contentBrowserHref keep landing and child routes honest', () => {
+  expect(deriveActiveContentSlug('/devlog', '/devlog', 'introduction')).toBe('introduction');
+  expect(deriveActiveContentSlug('/devlog/', '/devlog/', 'introduction')).toBe('introduction');
+  expect(deriveActiveContentSlug('/devlog/vercel', '/devlog', 'introduction')).toBe('vercel');
+  expect(deriveActiveContentSlug('/devlog/vercel/', '/devlog', 'introduction')).toBe('vercel');
 
-  it('resolves base routes and their trailing slash to the landing document', () => {
-    expect(deriveActiveContentSlug('/devlog', '/devlog', 'introduction')).toBe('introduction');
-    expect(deriveActiveContentSlug('/devlog/', '/devlog/', 'introduction')).toBe('introduction');
-  });
+  expect(deriveActiveContentSlug('/skills', '/devlog', 'introduction')).toBeNull();
+  expect(deriveActiveContentSlug('/devlog/a/b', '/devlog', 'introduction')).toBeNull();
+  expect(deriveActiveContentSlug('/', '/devlog', 'introduction')).toBeNull();
 
-  it('resolves one child segment with or without a trailing slash', () => {
-    expect(deriveActiveContentSlug('/devlog/vercel', '/devlog', 'introduction')).toBe('vercel');
-    expect(deriveActiveContentSlug('/devlog/vercel/', '/devlog', 'introduction')).toBe('vercel');
-  });
+  expect(deriveActiveContentSlug('/docs.v2/item', '/docs.v2', 'intro')).toBe('item');
+  expect(deriveActiveContentSlug('/docsXv2/item', '/docs.v2', 'intro')).toBeNull();
 
-  it('rejects unrelated and deeper paths', () => {
-    expect(deriveActiveContentSlug('/skills', '/devlog', 'introduction')).toBeNull();
-    expect(deriveActiveContentSlug('/devlog/a/b', '/devlog', 'introduction')).toBeNull();
-    expect(deriveActiveContentSlug('/', '/devlog', 'introduction')).toBeNull();
-  });
-
-  it('treats base-path punctuation literally without regex matching', () => {
-    expect(deriveActiveContentSlug('/docs.v2/item', '/docs.v2', 'intro')).toBe('item');
-    expect(deriveActiveContentSlug('/docsXv2/item', '/docs.v2', 'intro')).toBeNull();
-  });
-
-  it('builds the landing href at the base path and other hrefs below it', () => {
-    expect(contentBrowserHref('/devlog/', 'introduction', 'introduction')).toBe('/devlog');
-    expect(contentBrowserHref('/devlog', 'vercel', 'introduction')).toBe('/devlog/vercel');
-  });
+  expect(contentBrowserHref('/devlog/', 'introduction', 'introduction')).toBe('/devlog');
+  expect(contentBrowserHref('/devlog', 'vercel', 'introduction')).toBe('/devlog/vercel');
 });

@@ -45,9 +45,10 @@ only phases invalidated by a later change.
 
 ## End-of-session review and local proof (shared)
 
-1. Fix in-scope session problems on the branch. Prefer absorb here; backlog
-   only on explicit operator scope cut (`docs/backlog.md`: what, why, size,
-   trigger).
+1. Fix in-scope session problems on the branch. Prefer absorb here; defer only
+   on explicit operator scope cut by opening a GitHub Issue titled
+   `[Backlog] <short what>` with body fields *what / why-deferred / size /
+   trigger*.
 2. Judgment review (record not-touched when irrelevant):
    - **Scope** — remove unneeded work. `adversarial-review` owns depth /
      duplication / amplification — do not repeat those audits here.
@@ -123,7 +124,7 @@ PR open when the head is unchanged.
    command or suite name is not proof. Missing observable → `BLOCKED`.
    Never return this session to `plan-session`.
 2. Reconcile `docs/SCRATCHPAD.md` (durable gotchas only; collapse OW rows).
-   Operator-cut scope stays only in `docs/backlog.md`.
+   Operator-cut scope is a GitHub Issue (`[Backlog] …`).
 3. Cheap checks that can still edit: agent policy + `python3 tools/cli.py test`
    after guide/skill/hook/policy changes; doc refs; pending-changelog checker;
    baseline-claims / watch-trigger reporters; plan-named checkers.
@@ -183,8 +184,8 @@ PR open when the head is unchanged.
 5. Collect all findings (Greptile, CodeRabbit, Bugbot). Cursor is advisory.
    Triage without widening scope: **Fix** in-scope; **Justify** via
    `@greptileai` (wait for the bot — reply alone does not resolve); **Defer**
-   only on explicit operator cut → `docs/backlog.md`. One push per round after
-   invalidated evidence is green. Pending justification → `BLOCKED`.
+   only on explicit operator cut → GitHub Issue `[Backlog] …`. One push per
+   round after invalidated evidence is green. Pending justification → `BLOCKED`.
 
 ## Merge (shared)
 

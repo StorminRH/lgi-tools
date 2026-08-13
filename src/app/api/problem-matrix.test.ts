@@ -167,7 +167,7 @@ async function expectProblem(
 
 beforeEach(() => {
   vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-  vi.stubEnv('DISCORD_WEBHOOK_URL', 'https://discord.example/webhook');
+  vi.stubEnv('GITHUB_FEEDBACK_TOKEN', 'ghp_test_token');
   h.checkAdmin.mockReset().mockResolvedValue({ ok: true, session: ADMIN_SESSION });
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.getSession.mockReset().mockResolvedValue(null);
@@ -213,7 +213,11 @@ describe('route-level problem status matrix', () => {
     );
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', { message: 'hello', path: 'not-a-path' }),
+        jsonRequest('/api/feedback', {
+          message: 'hello',
+          path: 'not-a-path',
+          category: 'bug',
+        }),
       ),
       400,
       'path_invalid',
@@ -327,7 +331,11 @@ describe('route-level problem status matrix', () => {
       },
     });
     const response = await postFeedback(
-      jsonRequest('/api/feedback', { message: 'hello', path: '/sites' }),
+      jsonRequest('/api/feedback', {
+        message: 'hello',
+        path: '/sites',
+        category: 'bug',
+      }),
     );
     await expectProblem(response, 429, 'rate_limited');
     expect(response.headers.get('Retry-After')).toBe('11');
@@ -345,18 +353,26 @@ describe('route-level problem status matrix', () => {
     h.fetchWithTimeout.mockResolvedValue(new Response('denied', { status: 429 }));
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', { message: 'hello', path: '/sites' }),
+        jsonRequest('/api/feedback', {
+          message: 'hello',
+          path: '/sites',
+          category: 'bug',
+        }),
       ),
       502,
-      'discord_failed',
+      'github_failed',
     );
   });
 
   it('covers a 503 feedback dependency', async () => {
-    vi.stubEnv('DISCORD_WEBHOOK_URL', '');
+    vi.stubEnv('GITHUB_FEEDBACK_TOKEN', '');
     await expectProblem(
       await postFeedback(
-        jsonRequest('/api/feedback', { message: 'hello', path: '/sites' }),
+        jsonRequest('/api/feedback', {
+          message: 'hello',
+          path: '/sites',
+          category: 'bug',
+        }),
       ),
       503,
       'feedback_unconfigured',
@@ -378,16 +394,20 @@ describe('route-level problem status matrix', () => {
     expect(text).toContain('Safe dependency failure');
   });
 
-  it('never leaks a rejected feedback webhook cause through the real route', async () => {
-    const seededSecret = 'seeded-feedback-webhook-secret';
+  it('never leaks a rejected feedback GitHub cause through the real route', async () => {
+    const seededSecret = 'seeded-feedback-github-secret';
     h.fetchWithTimeout.mockRejectedValueOnce(new Error(seededSecret));
 
     const response = await postFeedback(
-      jsonRequest('/api/feedback', { message: 'hello', path: '/sites' }),
+      jsonRequest('/api/feedback', {
+        message: 'hello',
+        path: '/sites',
+        category: 'bug',
+      }),
     );
-    const text = await expectProblem(response, 502, 'discord_failed');
+    const text = await expectProblem(response, 502, 'github_failed');
 
     expect(text).not.toContain(seededSecret);
-    expect(text).toContain('Could not reach Discord');
+    expect(text).toContain('Could not reach GitHub');
   });
 });

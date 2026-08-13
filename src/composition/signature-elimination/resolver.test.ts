@@ -94,7 +94,7 @@ beforeEach(() => {
 });
 
 describe('signature elimination composition', () => {
-  it('applies the pure answer-key deduction through one batch door', async () => {
+  it('applies the answer-key deduction and logs exactly one assumed observation', async () => {
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
     ).resolves.toEqual({ status: 'applied', signatureIds: ['AAA-111'] });
@@ -107,10 +107,6 @@ describe('signature elimination composition', () => {
         provenance: 'assumed',
       }],
     });
-  });
-
-  it('logs a deduced identification as exactly one assumed observation', async () => {
-    await resolveSignatureElimination(database, 'user-1', request, dependencies);
     expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
       upserts: [observationUpsert({
         whTypeCode: 'B274',
@@ -121,7 +117,7 @@ describe('signature elimination composition', () => {
     });
   });
 
-  it("corrects a person's override in place under the deduction's own key", async () => {
+  it('corrects a human override in place and removes vacated or migrated keys', async () => {
     // A human retype leaves nothing to deduce, so the pass is quiet — but the
     // corpus must stop asserting the machine's superseded guess.
     h.readEliminationEvidence.mockResolvedValueOnce({
@@ -145,9 +141,7 @@ describe('signature elimination composition', () => {
       })],
       deleteKeys: [],
     });
-  });
 
-  it('removes a logged identification a correction has vacated', async () => {
     h.readEliminationEvidence.mockResolvedValueOnce({
       canEdit: true,
       signatures: [signature({
@@ -162,9 +156,33 @@ describe('signature elimination composition', () => {
       upserts: [],
       deleteKeys: ['hole-key'],
     });
+
+    h.readEliminationEvidence.mockResolvedValueOnce({
+      canEdit: true,
+      signatures: [signature({
+        wormholeTypeCode: 'C247',
+        typeProvenance: 'human',
+        observationKey: 'hole-key',
+      })],
+      connections: [{
+        connectionId: 'connection-1',
+        wormholeTypeCode: 'C247',
+        linkedSignature: false,
+      }],
+    });
+    h.applyEliminationDeductions.mockResolvedValueOnce([
+      { signatureId: 'AAA-111', outcome: 'applied', observationKey: 'hole-key' },
+    ]);
+    await expect(
+      resolveSignatureElimination(database, 'user-1', request, dependencies),
+    ).resolves.toEqual({ status: 'applied', signatureIds: ['AAA-111'] });
+    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
+      upserts: [],
+      deleteKeys: ['hole-key'],
+    });
   });
 
-  it('logs nothing for an untyped row, even when a racing write protected it', async () => {
+  it('keeps snapshot honesty across protected and stale races', async () => {
     // A lost race reports the winner's key; the pass still logs only the
     // identity its own snapshot read, so it cannot delete the winner's row.
     h.applyEliminationDeductions.mockResolvedValueOnce([
@@ -175,9 +193,7 @@ describe('signature elimination composition', () => {
       upserts: [],
       deleteKeys: [],
     });
-  });
 
-  it('keeps the observed identity when the row went stale mid-pass', async () => {
     // The scanned row was removed or resolved between the evidence read and
     // the write. A later removal does not falsify what was observed, so the
     // logged identity stands rather than being deleted.
@@ -206,33 +222,7 @@ describe('signature elimination composition', () => {
     });
   });
 
-  it('removes the stub key when a link deduction migrates the identity', async () => {
-    h.readEliminationEvidence.mockResolvedValueOnce({
-      canEdit: true,
-      signatures: [signature({
-        wormholeTypeCode: 'C247',
-        typeProvenance: 'human',
-        observationKey: 'hole-key',
-      })],
-      connections: [{
-        connectionId: 'connection-1',
-        wormholeTypeCode: 'C247',
-        linkedSignature: false,
-      }],
-    });
-    h.applyEliminationDeductions.mockResolvedValueOnce([
-      { signatureId: 'AAA-111', outcome: 'applied', observationKey: 'hole-key' },
-    ]);
-    await expect(
-      resolveSignatureElimination(database, 'user-1', request, dependencies),
-    ).resolves.toEqual({ status: 'applied', signatureIds: ['AAA-111'] });
-    expect(h.reconcileWhObservations).toHaveBeenCalledWith(database, {
-      upserts: [],
-      deleteKeys: ['hole-key'],
-    });
-  });
-
-  it('degrades unavailable or absent statics with zero Convex writes', async () => {
+  it('degrades unavailable statics, still logs human ids, and reports corpus failure without failing apply', async () => {
     h.readSystemStaticsForSystem.mockRejectedValueOnce(new Error('offline'));
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),
@@ -244,9 +234,7 @@ describe('signature elimination composition', () => {
       resolveSignatureElimination(database, 'user-1', request, dependencies),
     ).resolves.toEqual({ status: 'statics-unavailable' });
     expect(h.applyEliminationDeductions).not.toHaveBeenCalled();
-  });
 
-  it('still logs a human identification when statics are unavailable', async () => {
     h.readEliminationEvidence.mockResolvedValueOnce({
       canEdit: true,
       signatures: [signature({
@@ -269,9 +257,7 @@ describe('signature elimination composition', () => {
       })],
       deleteKeys: [],
     });
-  });
 
-  it('reports a corpus failure without failing the applied deduction', async () => {
     h.reconcileWhObservations.mockRejectedValueOnce(new Error('neon down'));
     await expect(
       resolveSignatureElimination(database, 'user-1', request, dependencies),

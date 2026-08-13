@@ -30,25 +30,20 @@ async function freshModule() {
 }
 
 describe('matchSystem', () => {
-  it('prefers an exact (case-insensitive) name match', () => {
+  it('prefers exact names, fuzzy-ranks prefixes, and returns null for misses', () => {
     expect(matchSystem(SYSTEMS, 'jita')?.id).toBe(30000142);
     expect(matchSystem(SYSTEMS, '  AMARR ')?.id).toBe(3);
     // Exact beats the fuzzy-ranked prefix pool even when prefixes exist.
     expect(matchSystem(SYSTEMS, 'j100001')?.id).toBe(31000001);
-  });
 
-  it('falls back to the highest fuzzy-scored prefix match, not the first in sort order', () => {
     // 'j' prefixes J100001, Jita, and Jarizza. J100001 sorts FIRST (digits
     // before letters), so a first-prefix-wins rule would silently send
     // `j` + Enter to a wormhole system; the fuzzy rank picks the short
     // K-space name instead.
     expect(matchSystem(SYSTEMS, 'j')?.name).toBe('Jita');
-    // …while an unambiguous prefix resolves normally.
     expect(matchSystem(SYSTEMS, 'jar')?.id).toBe(2);
     expect(matchSystem(SYSTEMS, 'j1')?.name).toBe('J100001');
-  });
 
-  it('returns null when nothing matches (and for an empty query)', () => {
     expect(matchSystem(SYSTEMS, 'zzz')).toBeNull();
     expect(matchSystem(SYSTEMS, '   ')).toBeNull();
   });

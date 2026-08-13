@@ -24,51 +24,34 @@ function entry(
 // `src/data/eve-data/system-identity.test.ts`; this file covers only the
 // directory-entry resolution and its silent fallbacks.
 describe('node label resolution', () => {
-  it('renders a known system’s directory name and class', () => {
-    const label = resolveSystemLabel(
-      HOLE,
-      directory([entry(HOLE, 'J123456', 5)]),
-    );
-
-    expect(label).toEqual({
+  it('resolves directory names with class/security fields and bare-id fallbacks', () => {
+    expect(
+      resolveSystemLabel(HOLE, directory([entry(HOLE, 'J123456', 5)])),
+    ).toEqual({
       name: 'J123456',
       className: 'C5',
       security: null,
       whClassId: 5,
     });
-  });
 
-  it('renders a known k-space system with no class chip', () => {
-    const label = resolveSystemLabel(JITA, directory([entry(JITA, 'Jita', null)]));
-
-    expect(label).toEqual({
+    expect(
+      resolveSystemLabel(JITA, directory([entry(JITA, 'Jita', null)])),
+    ).toEqual({
       name: 'Jita',
       className: null,
       security: null,
       whClassId: null,
     });
-  });
 
-  it('falls back to the bare id for an unknown system, with no class chip', () => {
-    const label = resolveSystemLabel(JITA, directory([]));
-
-    expect(label).toEqual({
+    // Unknown system and an unloaded directory both fall back to the bare id
+    // with no class chip — HC-5: unloaded is not a loading state.
+    const bare = {
       name: String(JITA),
       className: null,
       security: null,
       whClassId: null,
-    });
-  });
-
-  // HC-5: an unloaded directory is not a loading state, just a plainer label.
-  it('falls back silently when the directory has not loaded', () => {
-    const label = resolveSystemLabel(JITA, null);
-
-    expect(label).toEqual({
-      name: String(JITA),
-      className: null,
-      security: null,
-      whClassId: null,
-    });
+    };
+    expect(resolveSystemLabel(JITA, directory([]))).toEqual(bare);
+    expect(resolveSystemLabel(JITA, null)).toEqual(bare);
   });
 });

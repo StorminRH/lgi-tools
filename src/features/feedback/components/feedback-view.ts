@@ -1,5 +1,6 @@
 import type { OutcomeOf } from '@/transport/endpoint';
 import { feedbackEndpoint } from '../api-contract';
+import { isFeedbackCategory } from '../categories';
 
 /** Closed feedback submission state for idle, sending, success, and failure presentation. */
 export type SubmitState =
@@ -14,10 +15,15 @@ export const FEEDBACK_NETWORK_ERROR_MESSAGE =
 
 /**
  * Whether a submit should proceed: `busy` while one is already in flight (silent
- * no-op), `empty` for a blank message (show the inline error), else `ok`.
+ * no-op), `empty` for a blank message, `no_category` when none is chosen, else `ok`.
  */
-export function feedbackSubmitGate(message: string, state: SubmitState): 'busy' | 'empty' | 'ok' {
+export function feedbackSubmitGate(
+  message: string,
+  category: string,
+  state: SubmitState,
+): 'busy' | 'empty' | 'no_category' | 'ok' {
   if (state.kind === 'submitting') return 'busy';
+  if (!isFeedbackCategory(category)) return 'no_category';
   if (message.trim().length === 0) return 'empty';
   return 'ok';
 }

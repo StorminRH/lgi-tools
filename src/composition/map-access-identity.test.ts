@@ -54,35 +54,26 @@ beforeEach(() => {
 });
 
 describe('map-access-identity', () => {
-  it('unions character-grant and corp-grant map ids for one character', async () => {
+  it('unions affected maps, re-projects through failures, and tears down owned chains before claims', async () => {
     mocks.getCharacterCorporationId.mockResolvedValue(9800);
     mocks.getMapIdsWithCharacterGrant.mockResolvedValue(['map-a', 'map-b']);
     mocks.getMapIdsWithCorporationGrants.mockResolvedValue(['map-b', 'map-c']);
 
     await expect(mapIdsAffectedByCharacter(100)).resolves.toEqual(['map-a', 'map-b', 'map-c']);
     expect(mocks.getMapIdsWithCorporationGrants).toHaveBeenCalledWith([9800]);
-  });
 
-  it('re-projects every affected map and continues after a projection failure', async () => {
-    mocks.getMapIdsWithCharacterGrant.mockResolvedValue(['map-a', 'map-b']);
     mocks.projectMapAccess
       .mockRejectedValueOnce(new Error('convex down'))
       .mockResolvedValueOnce({ inserted: 0, updated: 0, deleted: 1, unchanged: 0 });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
     await reprojectMapsForCharacter(100);
-
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-a');
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-b');
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
-  });
 
-  it('fully purges owned map chains then clears the deleted user claims', async () => {
     mocks.getOwnedMapIds.mockResolvedValue(['owned-1', 'owned-2']);
-
     await teardownProjectionsForDeletedUser('user-gone');
-
     expect(mocks.purgeMapChain).toHaveBeenCalledWith('owned-1');
     expect(mocks.purgeMapChain).toHaveBeenCalledWith('owned-2');
     expect(mocks.purgeUserMapAccessProjection).toHaveBeenCalledWith('user-gone');

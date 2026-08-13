@@ -33,7 +33,7 @@ const REQUIRED_ENV = {
   ESI_SNAPSHOT_ENCRYPTION_KEY: required,
   CONVEX_SERVICE_SECRET: required,
   CRON_SECRET: required,
-  DISCORD_WEBHOOK_URL: required,
+  GITHUB_FEEDBACK_TOKEN: required,
   DISCORD_ALERT_WEBHOOK_URL: required,
   GSC_SERVICE_ACCOUNT_JSON: required,
   GSC_SITE_URL: required,

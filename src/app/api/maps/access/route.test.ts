@@ -39,20 +39,15 @@ beforeEach(() => {
 });
 
 describe('POST /api/maps/access', () => {
-  it('applies one validated admin grant update', async () => {
-    const response = await POST(request(UPSERT));
-
-    expect(response.status).toBe(204);
+  it('applies validated upsert and revoke through the same authority path', async () => {
+    expect((await POST(request(UPSERT))).status).toBe(204);
     expect(h.applyMapAccessUpdate).toHaveBeenCalledWith('user-1', UPSERT);
-  });
 
-  it('passes an exact revoke operation through the same authority path', async () => {
     const revoke = {
       operation: 'revoke',
       mapId: 'map-1',
       principal: { ownerType: 'corporation', ownerId: 99 },
     };
-
     expect((await POST(request(revoke))).status).toBe(204);
     expect(h.applyMapAccessUpdate).toHaveBeenCalledWith('user-1', revoke);
   });

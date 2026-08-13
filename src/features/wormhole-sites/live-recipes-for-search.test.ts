@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { liveRecipesForSearch } from './live-recipes-for-search';
 import type { SiteResource } from './types';
 
@@ -20,32 +20,26 @@ function resource(overrides: Partial<SiteResource>): SiteResource {
   };
 }
 
-describe('liveRecipesForSearch', () => {
-  it('keeps only live-eligible resources with positive units and a type id', () => {
-    expect(
-      liveRecipesForSearch([
-        resource({ id: 1 }),
-        resource({ id: 2, liveEligible: false, typeId: 1 }),
-        resource({ id: 3, typeId: null }),
-        resource({ id: 4, units: null }),
-        resource({ id: 5, units: 0 }),
-        resource({
-          id: 6,
-          typeId: 30371,
-          units: 500,
-          effectiveIsk: 5_000_000,
-        }),
-      ]),
-    ).toEqual([
-      { typeId: 30370, units: 1_000, seedIsk: 28_100_000 },
-      { typeId: 30371, units: 500, seedIsk: 5_000_000 },
-    ]);
-  });
+test('liveRecipesForSearch keeps only live-eligible resources with type id and units', () => {
+  expect(liveRecipesForSearch([])).toEqual([]);
+  expect(liveRecipesForSearch([resource({ liveEligible: false })])).toEqual([]);
 
-  it('returns an empty list when nothing is live-eligible', () => {
-    expect(liveRecipesForSearch([])).toEqual([]);
-    expect(
-      liveRecipesForSearch([resource({ liveEligible: false })]),
-    ).toEqual([]);
-  });
+  expect(
+    liveRecipesForSearch([
+      resource({ id: 1 }),
+      resource({ id: 2, liveEligible: false, typeId: 1 }),
+      resource({ id: 3, typeId: null }),
+      resource({ id: 4, units: null }),
+      resource({ id: 5, units: 0 }),
+      resource({
+        id: 6,
+        typeId: 30371,
+        units: 500,
+        effectiveIsk: 5_000_000,
+      }),
+    ]),
+  ).toEqual([
+    { typeId: 30370, units: 1_000, seedIsk: 28_100_000 },
+    { typeId: 30371, units: 500, seedIsk: 5_000_000 },
+  ]);
 });

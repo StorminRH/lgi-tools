@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { diffRoutes, discoveredKeys, isRouteFile, routeKey } from './route-presence.mjs';
 
 describe('isRouteFile', () => {
-  it('accepts page/route and supported metadata files across ts+js', () => {
+  it('accepts page/route and supported metadata files and rejects non-routes', () => {
     for (const base of [
       'page.tsx',
       'route.ts',
@@ -18,49 +18,34 @@ describe('isRouteFile', () => {
     ]) {
       expect(isRouteFile(base)).toBe(true);
     }
-  });
 
-  it('rejects non-route files', () => {
     for (const base of ['layout.tsx', 'helpers.ts', 'page.css', 'not-found.tsx']) {
       expect(isRouteFile(base)).toBe(false);
     }
-  });
 
-  it('rejects favicon.ico, which the post-build check filters instead', () => {
-    // Discovering it would report a false missing route: it deliberately has no
-    // entry in route-classification.json.
+    // Discovering favicon.ico would report a false missing route: it deliberately
+    // has no entry in route-classification.json; the post-build check filters it.
     expect(isRouteFile('favicon.ico')).toBe(false);
   });
 });
 
 describe('routeKey', () => {
-  it('maps the root page to /', () => {
+  it('maps pages, API routes, and route groups to their served paths', () => {
     expect(routeKey('page.tsx')).toBe('/');
-  });
-
-  it('maps a nested route to its directory path', () => {
     expect(routeKey('sites/[id]/page.tsx')).toBe('/sites/[id]');
     expect(routeKey('api/account/structures/route.ts')).toBe('/api/account/structures');
-  });
-
-  it('drops route-group segments from nested and root paths', () => {
     expect(routeKey('(site)/sites/[id]/page.tsx')).toBe('/sites/[id]');
     expect(routeKey('(site)/page.tsx')).toBe('/');
-  });
-
-  it('maps sitemap and robots to their served paths', () => {
     expect(routeKey('sitemap.ts')).toBe('/sitemap.xml');
     expect(routeKey('robots.tsx')).toBe('/robots.txt');
     expect(routeKey('docs/sitemap.ts')).toBe('/docs/sitemap.xml');
   });
 
-  it('maps social-image metadata files to their served paths', () => {
+  it('maps social-image and icon metadata files, including route-group hashes', () => {
     expect(routeKey('opengraph-image.tsx')).toBe('/opengraph-image');
     expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe('/sites/[id]/opengraph-image');
     expect(routeKey('docs/twitter-image.js')).toBe('/docs/twitter-image');
-  });
 
-  it('carries the hash Next appends to a social image under a route group', () => {
     // A group is invisible in the served path but not in the built route id:
     // Next appends djb2Hash of the grouped parent so two handlers sharing a
     // public path stay distinct. This key must match the id the build manifest
@@ -76,9 +61,7 @@ describe('routeKey', () => {
     expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe(
       '/sites/[id]/opengraph-image',
     );
-  });
 
-  it('keeps the extension when mapping icon images, unlike social images', () => {
     expect(routeKey('icon.svg')).toBe('/icon.svg');
     expect(routeKey('docs/icon.png')).toBe('/docs/icon.png');
   });
@@ -95,17 +78,18 @@ describe('discoveredKeys', () => {
 });
 
 describe('diffRoutes', () => {
-  it('reports both a missing route and a stale entry, sorted', () => {
+  it('reports missing and stale routes when sets diverge, and nothing when they match', () => {
     const discovered = new Set(['/', '/sites', '/industry']);
     const classified = new Set(['/', '/sites', '/legacy']);
     expect(diffRoutes(discovered, classified)).toEqual({
       missing: ['/industry'],
       stale: ['/legacy'],
     });
-  });
 
-  it('is empty when the sets match', () => {
-    const s = new Set(['/', '/sites']);
-    expect(diffRoutes(s, new Set(['/', '/sites']))).toEqual({ missing: [], stale: [] });
+    const matched = new Set(['/', '/sites']);
+    expect(diffRoutes(matched, new Set(['/', '/sites']))).toEqual({
+      missing: [],
+      stale: [],
+    });
   });
 });
