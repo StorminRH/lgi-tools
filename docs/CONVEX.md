@@ -93,4 +93,5 @@ hardcode duplicates.
 5. No-change detectable? → skip the write.
 6. Needs live cadence? → new dataset on the existing engine. No new timer.
 7. Doc sized to the subscriber? → trim unused fields.
-8. State the I/O budget in the session SCRATCHPAD.
+8. State the I/O budget in the session as-built Successor notes, or for
+   ordinary work in the delivering PR Notes.

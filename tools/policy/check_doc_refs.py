@@ -182,7 +182,6 @@ _RECORD_SOURCES = (
     ("docs/session-contracts/**", "approved session contracts are frozen history"),
     ("docs/session-as-built/**", "final session records preserve delivered history"),
     ("docs/version-audits/**", "version audit plans and evidence are frozen history"),
-    ("docs/SCRATCHPAD.md", "session handoff history is a durable record"),
     ("docs/VERSION_*_PLAN.md", "the active roadmap is resolver-owned living state"),
     (
         "docs/CODE_HEALTH_BASELINE.md",
@@ -230,10 +229,16 @@ _ARCHIVE_REDIRECTS = (
         "v3.8 UI audit was archived with its version bundle",
     ),
     (
-        "docs/SCRATCHPAD.md",
+        "docs/**",
         "docs/lgi-component-kit-lab.html",
         "../LGI Tools Document Archive/versions/3.8/lgi-component-kit-lab.html",
         "component lab was archived with the v3.8 bundle",
+    ),
+    (
+        "docs/**",
+        "docs/SCRATCHPAD.md",
+        "../LGI Tools Document Archive/pre-4.1/SCRATCHPAD_4.0.md",
+        "living scratchpad was archived; gotchas live in session as-builts",
     ),
 )
 
@@ -316,13 +321,13 @@ def _allowlisted(source: str, token: str) -> bool:
 def _is_record_source(source: str) -> bool:
     """Return whether a scanned document is RECORD (exempt from path errors).
 
-    RECORD is frozen history (prior/current plans, contracts, audits, and
-    SCRATCHPAD) and machine-owned living state (the active roadmap, backlog,
-    and code-health baseline). These legitimately reference archived, deleted,
-    or not-yet-created paths, are never rewritten to satisfy this checker, and
-    have their real validity owned by the resolver and check_baseline_claims —
-    not by generic path existence. Only the plain unresolved-repository-path
-    error is suppressed; archive-redirect and ``../`` warnings still fire.
+    RECORD is frozen history (prior/current plans, contracts, and audits) and
+    machine-owned living state (the active roadmap, backlog, and code-health
+    baseline). These legitimately reference archived, deleted, or not-yet-created
+    paths, are never rewritten to satisfy this checker, and have their real
+    validity owned by the resolver and check_baseline_claims — not by generic
+    path existence. Only the plain unresolved-repository-path error is
+    suppressed; archive-redirect and ``../`` warnings still fire.
     """
     return any(
         fnmatch(source, source_glob) and bool(reason.strip())

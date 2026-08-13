@@ -244,7 +244,6 @@ class DocRefsTests(unittest.TestCase):
             "session-contracts/3.10/nested/contract.md",
             "session-as-built/3.10/3.10.0.1.md",
             "version-audits/3.10/PLAN.md",
-            "SCRATCHPAD.md",
             "VERSION_3_10_PLAN.md",
             "CODE_HEALTH_BASELINE.md",
         )
@@ -269,16 +268,32 @@ class DocRefsTests(unittest.TestCase):
             self.rendered(),
         )
 
+    def test_archived_scratchpad_redirects_instead_of_error(self) -> None:
+        self.fixture.write(
+            "CONVEX.md",
+            "See `docs/SCRATCHPAD.md`.\n",
+        )
+        self.assertEqual(
+            [
+                (
+                    "warn",
+                    "docs/CONVEX.md:1: archive reference does not resolve: "
+                    "../LGI Tools Document Archive/pre-4.1/SCRATCHPAD_4.0.md",
+                )
+            ],
+            self.rendered(),
+        )
+
     def test_record_source_relative_reference_still_warns(self) -> None:
         self.fixture.write(
-            "SCRATCHPAD.md",
+            "VERSION_3_10_PLAN.md",
             "Future archive: ../LGI Tools Document Archive/missing.\n",
         )
         self.assertEqual(
             [
                 (
                     "warn",
-                    "docs/SCRATCHPAD.md:1: archive reference does not resolve: "
+                    "docs/VERSION_3_10_PLAN.md:1: archive reference does not resolve: "
                     "../LGI Tools Document Archive/missing",
                 )
             ],

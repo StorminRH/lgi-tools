@@ -94,7 +94,8 @@ dropped with the reason. `None.` when nothing was cut.
 ## Successor notes
 
 Traps, non-obvious constraints, and looks-wrong-but-deliberate decisions the
-next session must not relearn. `None.` when there are none.
+next session must not relearn. This is the durable gotcha store. `None.` when
+there are none.
 
 ## Verification summary
 

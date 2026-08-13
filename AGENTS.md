@@ -16,7 +16,7 @@ Before writing or editing production or test code, launch `docs-researcher` for
 every material external technology in the change (React, Next.js, Convex, Base
 UI, React Flow, Vitest, and peers). Require a Documentation brief before
 generation; do not implement from training memory. Skip the docs gate for docs,
-SCRATCHPAD, policy, or other pure non-code edits.
+policy, or other pure non-code edits.
 
 Use `repo-mapper` for material relationship, consumer, dependency, or
 blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
