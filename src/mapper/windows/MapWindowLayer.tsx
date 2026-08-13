@@ -210,6 +210,7 @@ function SummarySurface({
 
 /** Props supplied by the chain host to the sibling window layer. */
 export interface MapWindowLayerProps {
+  /** Resolved system the persistent dock renders; null hides the dock. */
   readonly dockSystemId: number | null;
   readonly onDeselect: () => void;
 }

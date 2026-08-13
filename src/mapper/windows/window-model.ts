@@ -22,6 +22,7 @@ export type MapWindowId = 'dock' | 'summary';
 
 /** Inputs to the pure surface-presence derivation. */
 export interface SurfaceInputs {
+  /** Persistent dock system; null hides the dock. Selecting it suppresses the summary card. */
   readonly dockSystemId: number | null;
   readonly selectedIds: readonly number[];
   readonly boxSelectActive: boolean;

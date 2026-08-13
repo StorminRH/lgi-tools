@@ -117,5 +117,46 @@ describe('homeCurrentSystem', () => {
       kind: 'ready',
       systemId: JITA,
     });
+
+    const twoAltsDifferentSystems = {
+      tracking: {
+        ownTrackedCharacterIds: [CHAR, alt, 303],
+        tracked: [
+          { characterId: CHAR, location: { solarSystemId: JITA } },
+          { characterId: alt, location: { solarSystemId: altSystem } },
+          { characterId: 303, location: { solarSystemId: JITA } },
+        ],
+      },
+      freshness: {
+        fresh: [
+          { characterId: CHAR, feedFreshAt: null },
+          { characterId: alt, feedFreshAt: 1_700_000_000_000 },
+          { characterId: 303, feedFreshAt: 1_700_000_000_000 },
+        ],
+      },
+    };
+    expect(
+      homeCurrentSystem({ characterId: CHAR, ...twoAltsDifferentSystems }),
+    ).toEqual({ kind: 'offline' });
+
+    const twoAltsSameSystem = {
+      tracking: {
+        ownTrackedCharacterIds: [CHAR, alt, 303],
+        tracked: [
+          { characterId: alt, location: { solarSystemId: altSystem } },
+          { characterId: 303, location: { solarSystemId: altSystem } },
+        ],
+      },
+      freshness: {
+        fresh: [
+          { characterId: alt, feedFreshAt: 1_700_000_000_000 },
+          { characterId: 303, feedFreshAt: 1_700_000_000_000 },
+        ],
+      },
+    };
+    expect(homeCurrentSystem({ characterId: CHAR, ...twoAltsSameSystem })).toEqual({
+      kind: 'ready',
+      systemId: altSystem,
+    });
   });
 });

@@ -379,12 +379,12 @@ export default {
       (await page.locator('[data-signature-window]').textContent()) ?? '';
     check(
       'scanner window lists the destination after the jump, not the origin scan',
-      !/CBA-120/.test(scannerText),
+      !/CBA-120/.test(scannerText) && !/LXX-844/.test(scannerText),
     );
     const dockText = (await mapWindow(page, 'dock').textContent()) ?? '';
     check(
-      'the current-system dock leaves the origin scanner summary',
-      !/3 signatures/.test(dockText),
+      'the current-system dock follows the destination',
+      /J160650/.test(dockText) && !/3 signatures/.test(dockText),
     );
   },
 };
