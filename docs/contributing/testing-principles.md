@@ -72,46 +72,7 @@ arrange steps in shared hooks beyond what the harness owns.
 - House registry / Fallow / ESI-dataset declaration suites are load-bearing
   gates — do not delete them as "cruft" without an explicit replacement.
 
-## Examples
-
-### Factory helper
-
-```ts
-import { expect, test } from 'vitest'
-
-const createPlannerInput = (overrides: Partial<{ runs: number; me: number }> = {}) => ({
-  runs: 1,
-  me: 10,
-  ...overrides,
-})
-
-test('planner scores a single-run blueprint', () => {
-  const input = createPlannerInput({ me: 0 })
-  // act + assert the whole journey here
-  expect(input.runs).toBe(1)
-})
-```
-
-### Longer workflow over many tiny cases
-
-```ts
-import { expect, test } from 'vitest'
-
-test('owner transfer absorbs the source account and revokes map access', async () => {
-  const source = await seedOwnerAccount()
-  const target = await seedOwnerAccount()
-
-  await transferOwnership({ from: source.id, to: target.id })
-
-  expect(await listCharacters(source.id)).toEqual([])
-  expect(await listCharacters(target.id)).toEqual(
-    expect.arrayContaining([expect.objectContaining({ characterId: source.pilotId })]),
-  )
-  await expect(readMapAs(source.id)).rejects.toThrow(/access/i)
-})
-```
-
-### Low-signal patterns to delete
+## Low-signal patterns to delete
 
 - `expect(MAGIC).toBe(42)` after `import { MAGIC } from './constants'`
 - `readFileSync('globals.css')` asserting keyframe offset strings

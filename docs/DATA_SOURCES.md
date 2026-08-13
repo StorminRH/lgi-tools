@@ -107,10 +107,6 @@ the watch without acting on it.
 
 ---
 
-## How to extend this doc
-
-When a new feature needs data, before writing ingest: (1) check the **SDE schema docs** for static
-fields and the **ESI API Explorer** for live ones; (2) add a row here with the resolved source +
-exact file/endpoint + any semantic gotcha (the thing the raw schema won't tell you); (3) if it's a
-true GAP, note the external option and that it must not block core functionality. One row per data
-domain; update when its status changes (e.g. "not yet ingested" → "shipped 3.x").
+When a new feature needs data, check the SDE schema docs or ESI API Explorer
+first, then add one row here with the resolved source, exact file or endpoint,
+and any semantic gotcha the raw schema will not tell you.
