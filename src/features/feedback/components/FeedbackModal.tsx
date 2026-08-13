@@ -240,10 +240,10 @@ export function FeedbackModal({
       }}
       labelledBy={titleId}
       initialFocus={textareaRef}
-      className="w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)]"
+      className="flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(560px,calc(100vw-2rem))] flex-col"
     >
-      <form onSubmit={handleSubmit} className="flex flex-col">
-        <header className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2
             id={titleId}
             className="font-display font-bold text-h3 tracking-copy uppercase text-name"
@@ -261,7 +261,7 @@ export function FeedbackModal({
           </Button>
         </header>
 
-        <div className="px-4 py-3 flex flex-col gap-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-3">
           <FeedbackMeta loading={loading} session={session} path={path} />
           {state.kind !== 'success' && (
             <FeedbackCategoryField
@@ -280,7 +280,7 @@ export function FeedbackModal({
           />
         </div>
 
-        <footer className="px-4 py-3 border-t border-border flex items-center justify-end gap-3">
+        <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-border px-4 py-3">
           <FeedbackFooter
             state={state}
             disabled={disabled}

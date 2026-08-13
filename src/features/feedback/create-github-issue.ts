@@ -10,10 +10,8 @@ import {
   feedbackCategoryOf,
 } from './categories';
 
-/** Public repo that receives in-app feedback as Issues. */
-export const FEEDBACK_GITHUB_OWNER = 'StorminRH';
-/** Repository name paired with {@link FEEDBACK_GITHUB_OWNER}. */
-export const FEEDBACK_GITHUB_REPO = 'lgi-tools';
+const FEEDBACK_GITHUB_OWNER = 'StorminRH';
+const FEEDBACK_GITHUB_REPO = 'lgi-tools';
 
 const GITHUB_API_VERSION = '2022-11-28';
 
