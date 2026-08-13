@@ -1,5 +1,9 @@
 # docs/ux-check — UX verification workspace
 
+Route sweeps, operator visual pause, and remote log-probe procedure live in
+the `ux-check` skill. This directory owns durable probe definitions, the
+shared probe runner, and generated capture artifacts.
+
 The durable probe harness, probe definitions, and this guide are tracked project
 tooling. Generated reports and failure artifacts under `captures/` remain
 ignored local evidence and can be deleted at any time.

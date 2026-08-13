@@ -2,7 +2,7 @@
 // Assertion surface is status + console + page errors + network diagnostics.
 // Screenshots only when a route×viewport fails (written under
 // docs/ux-check/captures/). Agents do not visually approve the UI; the operator
-// does after the log report. See docs/workflows/ux-check.md.
+// does after the log report. Agent procedure lives in the ux-check skill.
 
 import { chromium } from 'playwright';
 import { mkdir, rm, writeFile } from 'node:fs/promises';

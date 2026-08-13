@@ -8,10 +8,9 @@ It is written once at session close, never reopened, and archived with the
 version bundle beside the contract and plan pairs.
 
 Record only what the next planning agent cannot recover from the code, the
-plan, or the changelog. Aggressive brevity is the standard: a session that
-shipped exactly per plan produces a near-empty record, and `None.` is the
-expected value for sections with nothing to report. Do not restate the diff,
-narrate chronology, or duplicate changelog content.
+plan, or the changelog. A session that shipped exactly per plan produces a
+near-empty record. `None.` is the expected value for sections with nothing to
+report. Do not restate the diff or duplicate changelog content.
 
 An as-built record starts with this frame:
 
@@ -95,7 +94,8 @@ dropped with the reason. `None.` when nothing was cut.
 ## Successor notes
 
 Traps, non-obvious constraints, and looks-wrong-but-deliberate decisions the
-next session must not relearn. `None.` when there are none.
+next session must not relearn. This is the durable gotcha store. `None.` when
+there are none.
 
 ## Verification summary
 

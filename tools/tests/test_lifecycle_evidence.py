@@ -36,7 +36,6 @@ class LifecycleFixture:
             ),
             encoding="utf-8",
         )
-        self.write_scratchpad("9.9.1.1")
         self.write_baseline("")
 
     def close(self) -> None:
@@ -77,13 +76,6 @@ class LifecycleFixture:
             f"**Contract digest:** `sha256:{digest}`\n"
             f"**Execution status:** {execution}\n"
             "**Baseline effect:** Neutral\n",
-            encoding="utf-8",
-        )
-
-    def write_scratchpad(self, session: str) -> None:
-        (self.docs / "SCRATCHPAD.md").write_text(
-            "# Scratchpad\n\n## Now\n\n"
-            f"**NEXT = run {session}.**\n\n## Backlog\n",
             encoding="utf-8",
         )
 
@@ -155,12 +147,6 @@ class LifecycleEvidenceTests(unittest.TestCase):
         self.fixture.write_roadmap("SHIPPED")
         finding = self.matching("execution remains Pending")
         self.assertEqual(("docs/session-plans/9.9/9.9.1.1.md", 5), (finding.path, finding.line))
-        self.assertEqual("warn", finding.severity)
-
-    def test_scratchpad_now_mismatch_is_a_warning(self) -> None:
-        self.fixture.write_scratchpad("9.9.9.9")
-        finding = self.matching("SCRATCHPAD Now does not name")
-        self.assertEqual(("docs/SCRATCHPAD.md", 3), (finding.path, finding.line))
         self.assertEqual("warn", finding.severity)
 
     def test_watch_and_trigger_asymmetry_is_an_error(self) -> None:

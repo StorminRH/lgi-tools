@@ -2,8 +2,8 @@
 """Cross-check lifecycle evidence that the stage resolver does not own.
 
 The checker is read-only. Contradictory artifact states are errors; snapshot
-timing (a stale SCRATCHPAD or delivery evidence awaiting its marker flip) is a
-warning. Markdown marker and lifecycle-table parsing stay owned by
+timing (delivery evidence awaiting its marker flip) is a warning. Markdown
+marker and lifecycle-table parsing stay owned by
 ``resolve_development_state.py`` and are imported rather than reimplemented.
 """
 
@@ -22,12 +22,10 @@ from tools.lifecycle.resolve_development_state import (
     marker,
     parse_audit_findings,
     parse_contract_index,
-    resolve,
 )
 
 
 _AF_ID = re.compile(r"AF-\d{3}")
-_SESSION_ID = re.compile(r"\d+\.\d+\.\d+(?:\.\d+)*")
 
 
 @dataclass(frozen=True)
@@ -41,29 +39,6 @@ class _BaselineEvidence:
 def _relative(root: Path, path: Path) -> str:
     """Return a stable repo-relative path for a finding."""
     return path.relative_to(root).as_posix()
-
-
-def _heading_section(path: Path, heading: str) -> list[tuple[int, str]]:
-    """Return numbered lines below a level-two heading through the next peer."""
-    if not path.is_file():
-        return []
-    lines = path.read_text(encoding="utf-8").splitlines()
-    start = next(
-        (
-            index
-            for index, line in enumerate(lines)
-            if line.strip().casefold() == f"## {heading}".casefold()
-        ),
-        None,
-    )
-    if start is None:
-        return []
-    result: list[tuple[int, str]] = []
-    for index in range(start + 1, len(lines)):
-        if lines[index].startswith("## "):
-            break
-        result.append((index + 1, lines[index]))
-    return result
 
 
 def _parse_baseline(path: Path) -> _BaselineEvidence:
@@ -157,35 +132,6 @@ def _execution_evidence_findings(
                 )
             )
     return findings
-
-
-def _scratchpad_findings(root: Path) -> list[Finding]:
-    """Warn when SCRATCHPAD Now omits the resolver-selected session."""
-    state, errors = resolve(root)
-    selected = state.get("session")
-    if errors or not isinstance(selected, str):
-        return []
-    path = root / "docs/SCRATCHPAD.md"
-    raw_path = _relative(root, path)
-    if not path.is_file():
-        return [Finding(raw_path, 1, "SCRATCHPAD is missing", "error")]
-    now = _heading_section(path, "Now")
-    named = {
-        match.group(0)
-        for _line_number, line in now
-        if "**CURRENT" in line or "**NEXT" in line
-        for match in _SESSION_ID.finditer(line)
-    }
-    if selected in named:
-        return []
-    return [
-        Finding(
-            raw_path,
-            find_line(path, "## Now"),
-            f"SCRATCHPAD Now does not name resolver-selected session {selected}",
-            "warn",
-        )
-    ]
 
 
 def _baseline_symmetry_findings(
@@ -335,7 +281,6 @@ def collect_findings(root: Path) -> list[Finding]:
     contract_index = root / "docs/session-contracts" / version / "INDEX.md"
     baseline_path = root / "docs/CODE_HEALTH_BASELINE.md"
     findings = _execution_evidence_findings(root, roadmap, rows, contract_index)
-    findings.extend(_scratchpad_findings(root))
     if not baseline_path.is_file():
         findings.append(
             Finding(

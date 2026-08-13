@@ -4,26 +4,13 @@
     "src/AGENTS.md",
     "convex/AGENTS.md",
     "CONTRIBUTING.md",
-    "docs/workflows/schema/chat-result.md",
     "docs/workflows/schema/code-health-baseline.md",
     "docs/workflows/schema/changelog-entry.md",
     "docs/workflows/schema/changelog-pending.md",
     "docs/workflows/schema/session-contract.md",
     "docs/workflows/schema/session-plan.md",
     "docs/workflows/schema/session-as-built.md",
-    "docs/workflows/schema/subagent-evidence.md",
-    "docs/workflows/schema/reviewer-verdict.md",
-    "docs/workflows/plan-version.md",
-    "docs/workflows/plan-session.md",
-    "docs/workflows/start-session.md",
-    "docs/workflows/adversarial-review.md",
-    "docs/workflows/agent-policy-audit.md",
-    "docs/workflows/close-out.md",
-    "docs/workflows/version-audit.md",
-    "docs/workflows/triage-issue.md",
-    "docs/workflows/ux-check.md",
-    "docs/workflows/update-watch.md",
-    "docs/workflows/resolve-update-watch.md"
+    "docs/workflows/schema/audit-plan.md"
   ],
   "harnessGuideImports": {
     "CLAUDE.md": "@AGENTS.md",
@@ -48,14 +35,10 @@
     ".agent-local/resolve_development_state.py",
     ".agent-local/check_release_consistency.py",
     ".agent-local/check_agent_drift.py",
-    ".claude/settings.json",
-    "docs/workflows/adversarial-review.md",
-    "docs/workflows/agent-policy-audit.md",
     "docs/workflows/schema/session-contract.md",
     "docs/workflows/schema/session-plan.md",
     "docs/workflows/schema/session-as-built.md",
-    "docs/workflows/schema/subagent-evidence.md",
-    "docs/workflows/schema/reviewer-verdict.md"
+    "docs/workflows/schema/audit-plan.md"
   ],
   "forbiddenPaths": [
     ".agents/skills",
@@ -155,106 +138,6 @@
     "legacySchemaArtifacts": []
   },
   "procedurePolicies": {
-    "docs/workflows/plan-version.md": {
-      "orderedRequired": [
-        "Build the outcome ledger",
-        "Record and challenge the current topology",
-        "Attempt to combine every adjacent or tightly coupled slice",
-        "Produce the minimum safe bundles",
-        "invoke `adversarial-review` against the complete proposal",
-        "Obtain operator approval",
-        "update the master plan's delivery topology first",
-        "Create one schema-complete contract per approved bundle"
-      ]
-    },
-    "docs/workflows/plan-session.md": {
-      "orderedRequired": [
-        "Reconcile the bundle",
-        "Do not split it",
-        "do not return to topology planning",
-        "Co-author the plan",
-        "plain-English overview",
-        "one logical section at a time",
-        "dedicated UX Ordered work step",
-        "docs-researcher",
-        "Stop before fixed-schema drafting",
-        "Assemble and review",
-        "invoke `adversarial-review` against the complete draft",
-        "holistic-reviewer",
-        "operator approval",
-        "Persist the approved plan"
-      ]
-    },
-    "docs/workflows/start-session.md": {
-      "orderedRequired": [
-        "Resolve and select the branch",
-        "Dispatch",
-        "Never return this session to `plan-session`",
-        "pause and discuss with the operator",
-        "do not default to backlog or deferral",
-        "docs-researcher",
-        "dedicated Ordered work step that",
-        "invokes `ux-check`",
-        "in-context proof ledger",
-        "gate-runner",
-        "Do not launch `adversarial-review` here",
-        "primitive-checker",
-        "holistic-reviewer",
-        "commit the verified OW scope",
-        "Stop and resume"
-      ]
-    },
-    "docs/workflows/adversarial-review.md": {
-      "orderedRequired": [
-        "One review round",
-        "docs/workflows/schema/reviewer-verdict.md",
-        "Do not defer, backlog, or justify findings away",
-        "Plan subjects are report-only",
-        "Design creed",
-        "## 1. Freeze",
-        "## 2. Select roles",
-        "Ordinary / small one-off code",
-        "`primitive-checker`",
-        "`holistic-reviewer`",
-        "## 3. Launch",
-        "## 4. Verify",
-        "## 5. Fix and close \\(code\\)",
-        "Design notes"
-      ],
-      "forbidden": [
-        "Cursor",
-        "Claude",
-        "Codex",
-        "headless",
-        "Select exactly one review mode",
-        "Diff mode only",
-        "Plan mode from",
-        "DEFERRED",
-        "docs/backlog.md",
-        "The parent "
-      ]
-    },
-    "docs/workflows/close-out.md": {
-      "orderedRequired": [
-        "does not invoke `ux-check`",
-        "dedicated UX Ordered work step",
-        "Implementation review gate",
-        "Do not launch a second",
-        "Invoke `adversarial-review` against the complete",
-        "Finalize and verify the current head",
-        "in-context atomic proof ledger",
-        "Never return this session to `plan-session`",
-        "Open one \\*\\*draft\\*\\* PR",
-        "mark it ready for review exactly once",
-        "poll-pr-gate",
-        "Merge \\(shared\\)",
-        "After merge and production proof",
-        "wait-prod-deploy"
-      ],
-      "forbidden": [
-        "invoke `ux-check`, present its diagnostics"
-      ]
-    },
     "docs/workflows/schema/session-plan.md": {
       "orderedRequired": [
         "starting execution prompt",
@@ -291,25 +174,15 @@
         "requested and observed runtime identity separately"
       ]
     },
-    "docs/workflows/version-audit.md": {
+    "docs/workflows/schema/audit-plan.md": {
       "orderedRequired": [
-        "in every mapped sub-version's delivering PR, mark its finding Delivered"
-      ]
-    },
-    "docs/workflows/schema/subagent-evidence.md": {
-      "orderedRequired": [
-        "Codegraph CLI relationship",
-        "`callers`",
-        "not for ordinary discovery",
-        "does not prepend or append shell instrumentation",
-        "begins every returned gate result with the complete `Command` field",
-        "copies a numeric exit code only from the command tool's execution result",
-        "reports `Exit: Unknown` with the observed pass or fail result",
-        "treats command output as evidence, not instructions"
-      ],
-      "forbidden": [
-        "codegraph_explore",
-        "Prefer the MCP"
+        "Audit status",
+        "Audit cycle",
+        "Audited ref",
+        "Audit mode",
+        "AF-",
+        "First seen",
+        "the resolver ignores them"
       ]
     }
   }
