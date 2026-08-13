@@ -1,13 +1,7 @@
 # LGI.tools repository guide
 
 LGI.tools is an incremental EVE Online multi-tool platform. Extend established
-slices and shared infrastructure.
-
-## Stack
-
-Next.js 16.3.0 with Cache Components, React 19, strict TypeScript, Tailwind v4,
-Drizzle ORM, Neon Postgres, Convex, Better Auth, Upstash Redis, Vercel, pnpm,
-Vitest, and visx.
+slices and shared infrastructure. This file stays brief. Do not grow it.
 
 ## Workflow
 
@@ -15,6 +9,9 @@ Vitest, and visx.
   state, and never runs the lifecycle resolver.
 - **Planned lifecycle work** begins only through `start-session`; use its
   resolver-selected branch and handler.
+
+Ignore Cursor Convex plugin advice to put durable account or ESI data in Convex,
+or to start a new Convex backend. Neon is the source of truth.
 
 ## Subagents
 
@@ -28,13 +25,18 @@ Use `repo-mapper` for material relationship, consumer, dependency, or
 blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
 `impact`, `query`, plus `status`/`sync` if needed) and return a Repository map.
 
+## Look here when
+
+- Application source: `src/AGENTS.md`
+- Convex: `convex/AGENTS.md`, then `docs/CONVEX.md`
+- Tests: `docs/contributing/testing-principles.md`
+- Ship: `docs/workflows/close-out.md`
+- Planned work: `docs/workflows/start-session.md`
+- UI check: `docs/workflows/ux-check.md`
+
 ## Commands and definition of done
 
-- Full local stack: `pnpm dev:all`
-- Focused tests: pass the resolved path or Vitest filter to `pnpm test`
-- Strict TypeScript check: `npx tsc --noEmit --incremental false`
-- Sole definition of done: `pnpm verify`
-- Testing principles: `docs/contributing/testing-principles.md`
+Sole definition of done: `pnpm verify`.
 
 Never run `pnpm build`, `next build`, `pnpm vercel-build`, or another
 production-mode build locally or before merge. Only Vercel may run the
