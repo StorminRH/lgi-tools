@@ -12,20 +12,15 @@ current baseline and state, relevant open `[Backlog]` GitHub Issues, and
 artifact schemas.
 
 Output: an operator-approved roadmap topology followed by one schema-complete
-contract and index entry per approved frontier-agent execution bundle. Do not
-create session implementation plans here.
+contract and index entry per approved execution bundle. Do not create session
+implementation plans here.
 
 ## Build the outcome ledger
 
 1. Require the resolver directive to name `plan-version`; otherwise report it
    and return to `start-session`.
 2. Read the master plan, live code and tests, baseline, SCRATCHPAD, relevant
-   open `[Backlog]` GitHub Issues, and contract schema. Use `repo-mapper`
-   (Codegraph CLI: `callers`, `callees`, `impact`, `query`; return a Repository
-   map) only for material relationship, consumer, dependency, or blast-radius
-   claims; keep conceptual discovery on Explore, semantic search, and grep. Use current primary
-   documentation when moving implementation assumptions depend materially on
-   external behavior.
+   open `[Backlog]` GitHub Issues, and contract schema.
 3. Extract an outcome ledger that preserves every goal, invariant, required
    cleanup, dependency, acceptance outcome, UX gate, and operator decision
    without accepting roadmap delivery headings as boundaries.
@@ -50,20 +45,17 @@ create session implementation plans here.
 
 ## Produce the minimum safe bundles
 
-1. Propose the fewest safe frontier-agent bundles. The default is one autonomous
-   agent, one context-rich session, one branch, and one reviewable PR.
+1. Propose the fewest safe bundles. The default is one agent, one session, one
+   branch, and one reviewable PR.
 2. For each bundle show covered outcome-ledger items, internal phases, shared
    owners, verification, pause/stop behavior, split triggers, and any genuine
    size or risk concern.
 3. Present current versus proposed counts and a complete current-to-proposed
    bundle map.
-4. Run the planning approval gate: invoke `adversarial-review` against the complete proposal,
-   fixed outcomes, and source evidence. The review must
-   attempt every sensible merge and reject boundaries justified only by headings
-   or ordinary implementation order. Reconcile every verified finding from that
-   one review pass. Continue only with `PASS` (`BLOCKED` stops;
-   `CORRECTIONS_REQUIRED` requires operator-controlled re-review after fixes —
-   do not auto-relaunch).
+4. Invoke `adversarial-review` against the complete proposal, fixed outcomes,
+   and source evidence. The review must attempt every sensible merge and reject
+   boundaries justified only by headings or ordinary implementation order.
+   Continue only with `PASS`.
 
 ## Approve before writing
 
@@ -73,10 +65,11 @@ create session implementation plans here.
 2. Obtain operator approval for the revised topology while the repository remains
    unchanged.
 3. After approval, update the master plan's delivery topology first.
-4. At topology approval, run `python3 tools/cli.py lifecycle capture-version-start` and
-   apply its promoted Snapshot/Metrics output to `docs/CODE_HEALTH_BASELINE.md`
-   when this adoption opens a new master version; skip when the baseline's
-   `Version-start ref` already matches the committed Code ref.
+4. At topology approval, run `python3 tools/cli.py lifecycle capture-version-start`
+   and apply its promoted Snapshot/Metrics output to
+   `docs/CODE_HEALTH_BASELINE.md` when this adoption opens a new master version;
+   skip when the baseline's `Version-start ref` already matches the committed
+   Code ref.
 5. Reconcile stale unexecuted contracts and index entries next.
 6. Create one schema-complete contract per approved bundle last. A contract may
    cover several roadmap sections and must include the execution frame.

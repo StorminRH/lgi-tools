@@ -13,9 +13,7 @@ Output: exactly one `PLANNED`, `REMEDIATION_PLANNED`, `REMEDIATION_REQUIRED`,
 `COMPLETE`, or `BLOCKED`. Planning persists only approved artifacts. Execution
 replaces the baseline and may archive only via resolver verified
 `archive-needed`. No merge, deployment, production, or destructive-recovery
-authority. `BLOCKED` on stale procedure digest, missing approval, incomplete
-measurement, unresolved actionable finding, failed gate, or invalid resolver
-transition.
+authority.
 
 Baseline form: `docs/workflows/schema/code-health-baseline.md`. Findings,
 rationale, cycles, approvals, and remediation mappings live in the
@@ -26,29 +24,25 @@ version-tagged audit plan.
 1. Require resolver `plan-version-audit` for lifecycle Version close. Explicit
    operator request may select Periodic (never archives).
 2. Read baseline, this procedure, master plan, contracts, session plans,
-   changelog, SCRATCHPAD, backlog, live configuration.
+   changelog, SCRATCHPAD, and relevant open `[Backlog]` GitHub Issues.
 3. Design measurements, commands, artifact inventory, hotspot/drift questions,
    baseline replacement, verification, and any version-close archive destination.
 4. Present the shape; invoke `adversarial-review` on the complete plan and
-   evidence; reconcile every verified finding from that one pass; obtain
-   operator approval. Do not auto-relaunch.
-5. Persist Approved cycle-1 plan with full audited ref and procedure digest. If
-   a procedure change stale-dated an in-progress plan, preserve cycle history,
-   AF ledger, statuses, and mappings while reconciling scope.
+   evidence; obtain operator approval. Do not auto-relaunch.
+5. Persist Approved cycle-1 plan with full audited ref and procedure digest.
 6. Rerun resolver and drift gate; report directive; stop.
 
 ## Entry mode: plan-audit-remediation
 
 1. Require resolver `plan-audit-remediation`. Read baseline, audit plan/ledger,
-   master plan, schemas, SCRATCHPAD, backlog, live code, and Codegraph evidence
-   (`repo-mapper` / `callers`, `callees`, `impact`, `query`) for open findings.
+   master plan, schemas, SCRATCHPAD, and live code for open findings.
 2. For every open Floss or Campaign, diagnose violated ownership, interface,
    change-axis, or coverage principle. Define end-state and characterization
    evidence; do not copy a metric.
 3. Apply plan-version topology audit to the full finding set. Fewest safe
    bundles; map every open AF id; map no unaudited scope.
 4. Present topology; invoke `adversarial-review` on topology and evidence;
-   reconcile verified findings; obtain approval before mutation.
+   obtain approval before mutation.
 5. Update roadmap topology, then contracts/index; mark mapped findings Planned;
    set Remediation in progress. Do not create session plans.
 6. Rerun resolver and drift gate; report directive; stop.
@@ -62,70 +56,34 @@ never a targeted diff.
 ## Step 0 — Validate the transition
 
 1. Run `python3 tools/cli.py lifecycle resolve --pretty`.
-2. Require handler `version-audit`. Action distinguishes initial/resumed close,
-   complete restart after remediation, or verified archive. Else `BLOCKED` with
-   the full directive as evidence; never select a sibling handler. Explicit
-   periodic may run while sessions remain only from an approved
-   `Audit mode: Periodic` plan; it never archives.
+2. Require handler `version-audit`. Else `BLOCKED` with the full directive as
+   evidence. Explicit periodic may run while sessions remain only from an
+   approved `Audit mode: Periodic` plan; it never archives.
 3. Verify plan `Procedure digest` equals SHA-256 of current
    `docs/workflows/version-audit.md`; mismatch → `plan-version-audit`.
 4. On complete-restart: verify every mapped remediation sub-version has terminal
    merge evidence; advance `Audit cycle`; set `Audited ref` to canonical `main`;
-   set `Audit status: Approved`. Rerun every measurement and gate.
-5. Read in order: `docs/workflows/adversarial-review.md` (design creed);
-   `docs/CODE_HEALTH_BASELINE.md`; approved audit plan; completed master plan and
-   version-close checklist; contract index, contracts, session plans, changelog,
-   SCRATCHPAD shipped evidence.
-6. Record previous baseline Snapshot and Metrics before overwrite. Read
-   classifications, hotspot analysis, rails, and campaign routing from the audit
-   plan and backlog.
+   set `Audit status: Approved`.
+5. Read the approved audit plan, baseline, contracts, session plans, changelog,
+   and SCRATCHPAD shipped evidence.
+6. Record previous baseline Snapshot and Metrics before overwrite.
 
 ## Step 1 — Measure
 
-Run and record numbers from the approved audit plan. At minimum:
-
-```bash
-find src convex \( -name "*.ts" -o -name "*.tsx" \) ! -name "*.test.*" ! -path "*_generated*" | wc -l
-find src convex \( -name "*.test.ts" -o -name "*.test.tsx" \) ! -path "*_generated*" | wc -l
-find src convex \( -name "*.ts" -o -name "*.tsx" \) ! -name "*.test.*" ! -path "*_generated*" -print0 | xargs -0 wc -l | sort -rn | head -16
-# Export PREVIOUS_BASELINE_DATE first.
-git log --since="$PREVIOUS_BASELINE_DATE" --name-only --pretty=format: -- src convex | sort | uniq -c | sort -rn | head -25
-pnpm test:coverage
-pnpm fallow:health
-grep -n "thresholdOverrides" -A 20 .fallowrc.json
-# Export PREVIOUS_BASELINE_REF first.
-git diff "$PREVIOUS_BASELINE_REF" -- fallow-baselines/dupes.json .fallowrc.json
-grep -rn "eslint-disable\|@ts-expect-error\|fallow-ignore" src convex | wc -l
-```
-
-Also measure every known-wide surface in `docs/CODE_HEALTH_BASELINE.md`
-(export/interface/consumer counts per row). Exact commands live in the approved
-audit plan. `fallow:health` may exit nonzero — record it; not gating
+Run and record numbers from the approved audit plan. Exact commands live in
+that plan. `fallow:health` may exit nonzero — record it; it is not gating
 `pnpm fallow`. Remove `coverage/` after final checks.
 
 ## Step 2 — Re-rank hotspots
 
 Hotspot = interface breadth + unrelated change axes + churn, not mere length.
-Judge each candidate:
-
-| Dimension | Question |
-| --- | --- |
-| Interface breadth | How many caller-visible concepts exist, and did they grow? |
-| Change axes | Does the module change for unrelated reasons? |
-| Churn | Did multiple sessions touch it during this version? |
-| Amplification | Did one logical change fan out through consumers? |
-| Cohesion defense | Is it deep and cohesive, or accreting? |
-
-Record ranking and fix directions in the audit plan. Reaffirm protected-module
-and bounded-cleanup rules from `docs/workflows/adversarial-review.md`; “make it
-smaller” is not enough. Amend that design creed only for a durable principle or
-classification rule — never by copying live metrics into it.
+Record ranking and fix directions in the audit plan. “Make it smaller” is not
+enough.
 
 ## Step 3 — Review drift no PR-level gate sees
 
 - **Boundary drift:** zone growth, new `allow` entries, composition inside a
-  participating slice. Apply ownership and change-amplification judgment from
-  `docs/workflows/adversarial-review.md`.
+  participating slice.
 - **Override staleness:** every Fallow override/suppression is a loan. Remove
   stale; classify live with rationale and date.
 - **Duplication baseline:** each accepted clone group is boring shape or leaked
@@ -134,7 +92,7 @@ classification rule — never by copying live metrics into it.
   durable principle.
 - **Docs truth:** reconcile prose with reality, including `README.md`,
   `CONTRIBUTING.md`, `SECURITY.md`, `.github/` templates, `.env.example`, and
-  `/legal`. Untruthful public docs are findings.
+  `/legal`.
 - **Lifecycle truth:** contracts, approved session plans, close-out evidence, and
   master-plan terminal statuses must agree.
 
@@ -145,20 +103,11 @@ One bucket per finding:
 1. **Floss:** bounded improvement, no structural campaign. Periodic: may enter
    backlog. Version-close: actionable; remediate before archive.
 2. **Campaign:** bounded structural work with its own sub-version. Define
-   interface end-state, characterization tests, done conditions. One-campaign
-   cap is elective new-version planning only; close audit schedules every
-   confirmed campaign before archive. Split by change axis, not helper type.
-   Temporary façades only for migration, then remove. Preserve behavior; keep
-   focused tests green.
+   interface end-state, characterization tests, done conditions.
 3. **Watch:** pressure without enough evidence. Baseline carries the exact
-   metric/trigger that promotes to Floss or Campaign. Only non-blocking
-   close-audit class. Ledger: `Watch` + AF id — never restate the trigger.
-   Countable trigger = one fenced `watch-trigger` under its carrier
-   (`docs/workflows/schema/code-health-baseline.md` +
-   `tools/quality/check_watch_triggers.py`; do not restate/extend here).
-   **Trip-form:** true = fired; any line for an AF id trips. Tripped = **warn**
-   (`promote AF-NNN`); classification stays an audit decision. Non-countable
-   judgment stays in the audit-plan diagnosis, never the data-only baseline.
+   metric/trigger that promotes to Floss or Campaign. Countable trigger = one
+   fenced `watch-trigger` under its carrier
+   (`docs/workflows/schema/code-health-baseline.md`).
 
 Audit-plan ledger:
 
@@ -169,23 +118,15 @@ Audit-plan ledger:
 ```
 
 Ids monotonic within the version. Status: `Open`, `Planned`, `Delivered`,
-`Verified`, or `Watch`. Failed delivered outcome → reuse id, return to Open;
-never duplicate. New findings take the next id. Ledger owns classifications,
-remediation routing, and campaign order. Baseline owns registered metrics and
-optional Watch trigger carriers.
+`Verified`, or `Watch`. Failed delivered outcome → reuse id, return to Open.
 
 ## Step 5 — Overwrite the baseline
 
 Replace `docs/CODE_HEALTH_BASELINE.md` in full using only
-`docs/workflows/schema/code-health-baseline.md` (headings, identity, metric rows,
-columns, delta rules, Watch carriers). Do not restate or extend that form here.
-
-Full audit: measure every registered row; `Measurement scope: Full audit`;
-advance Snapshot to audited ref. Preserve frozen `Version-start`; update every
-`Current` and derived `Delta`. Hotspot rankings, trends, rails, classifications,
-and campaign scheduling stay in the audit plan or backlog. Between full audits,
-`adversarial-review` may do only schema-allowed targeted `Current` updates — no
-invented notes, comparison fields, or history sections.
+`docs/workflows/schema/code-health-baseline.md`. Full audit: measure every
+registered row; `Measurement scope: Full audit`; advance Snapshot to audited
+ref. Preserve frozen `Version-start`; update every `Current` and derived
+`Delta`.
 
 ## Step 6 — Remediate, repeat, or archive
 
@@ -196,20 +137,20 @@ Version close with any Floss or Campaign:
 1. set each actionable finding Open; set `Audit status: Remediation required`;
 2. update SCRATCHPAD to audit remediation planning;
 3. run resolver, report directive, return control to `start-session`;
-4. stop — no archive, no next-handler selection, no next master-version plan;
+4. stop — no archive;
 5. after `plan-audit-remediation` maps work, use normal session plans, branches,
    PRs, design review, and close-out;
 6. in every mapped sub-version's delivering PR, mark its finding Delivered so
    the marker is already authoritative when that PR merges; when all rows are
    terminal on `main`, rerun the resolver and let its directive start the next
-   full cycle. Never defer the Delivered edit to post-merge reconciliation.
+   full cycle.
 
 Clean version close:
 
 1. run master-plan version-close checks against actual terminal/deferred
-   decisions, not obsolete checklist text;
+   decisions;
 2. mark Delivered → Verified only when this fresh cycle proves each required
-   outcome; every Floss/Campaign Verified; no new actionable finding this cycle;
+   outcome;
 3. every audit gate pass; baseline Code ref equals `Audited ref`; set
    `**Audit status:** Complete`;
 4. follow resolver `archive-needed`: archive master plan, contracts, session

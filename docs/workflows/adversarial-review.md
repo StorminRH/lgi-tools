@@ -82,11 +82,9 @@ cannot settle it, return `BLOCKED` and report the dispute in chat.
 1. Reproduce or disprove every reported failure.
 2. Accept or reject each root cause once (`BLOCKER` / `MAJOR` / `MINOR` per
    `reviewer-verdict.md`).
-3. Report false positives and anything needing operator judgment in chat — do
-   not bury them as deferrals or backlog entries.
+3. Report false positives and anything needing operator judgment in chat.
 
-Do not re-run a second discovery pass that duplicates selected seats. Use
-design-creed red flags only as checks against reported findings.
+Do not re-run a second discovery pass that duplicates selected seats.
 
 **Plans:** `PASS` if clean; `CORRECTIONS_REQUIRED` if verified defects remain.
 **Code:** continue to §5.
@@ -96,13 +94,6 @@ design-creed red flags only as checks against reported findings.
 Fix accepted in-scope findings on the branch. Re-check with the focused test
 that covers the fix. If a fix would change product scope, architecture, or
 policy, stop and report it in chat (`BLOCKED` or `CORRECTIONS_REQUIRED`).
-
-Also confirm:
-
-- changed `src/` / `convex/` exports carry required contract comments;
-- new/changed behavior has behavioral tests (not coverage padding);
-- no metric-only fragmentation or CRAP/complexity overrides;
-- touched baseline hotspots stay truthful, or stop for operator decision.
 
 If opening a PR, write a short `Design notes:` block for `## Notes` (owners,
 deep/changed interfaces, any operator-approved boundary decision). Audit

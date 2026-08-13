@@ -15,13 +15,11 @@ Select one mode:
 
 Repository policy is the source of truth. Machine-global skill installations are
 deployment targets, not policy owners. Editing or installing global skills
-requires explicit operator authority — never infer it from a repository-only
-repair.
+requires explicit operator authority.
 
 ## 1. Establish scope and owners
 
-1. Read this procedure and any affected owning workflow or schema. Apply the
-   nearest scoped guide when the change touches that surface.
+1. Read this procedure and any affected owning workflow or schema.
 2. Record the operator's authority, requested outcome, allowed edit surface, and
    required pause.
 3. Inventory: `AGENTS.md` / scoped guides / import-only harness guides;
@@ -49,11 +47,9 @@ operator request
 Check that global skills are thin portable adapters with only `name` and
 `description` frontmatter; each reads the applicable repository guide and
 exactly one owning procedure; repository policy does not depend on a named
-application, model, or mirrored skill tree; capability requirements describe
-behavior and block truthfully when absent; ordinary-safe policy checks do not
-inspect global applications, credentials, plugins, models, or skill
-installations; lifecycle state is read only by lifecycle workflows; hooks remind
-or guardrail without duplicating prose policy; frozen plans and as-built records
+application or model; ordinary-safe policy checks do not inspect global
+applications, credentials, plugins, models, or skill installations; lifecycle
+state is read only by lifecycle workflows; frozen plans and as-built records
 are not rewritten to modernize historical commands; and any retained
 `.agent-local/` script is a thin compatibility entrypoint to `tools/cli.py`.
 
@@ -62,30 +58,19 @@ are not rewritten to modernize historical commands; and any retained
 In Repair mode: (1) update the canonical guide, workflow, or schema first;
 (2) update the manifest and visible tool implementation; (3) update tests and
 hooks; (4) update global skills last, keeping them thin; (5) remove obsolete
-mirrored adapters, parity checks, and product-specific runners; and (6) preserve
-only the compatibility entrypoints required by frozen artifacts.
+mirrored adapters; and (6) preserve only the compatibility entrypoints required
+by frozen artifacts.
 
-Do not add a second policy owner, machine-global parity gate, lifecycle side
-effect, or product-specific fallback. Do not commit, push, open a PR, merge, or
+Do not add a second policy owner. Do not commit, push, open a PR, merge, or
 deploy unless the operator separately invokes the owning delivery procedure.
 
 ## 4. Validate
-
-Run:
 
 ```bash
 python3 tools/cli.py policy check
 python3 tools/cli.py test
 python3 tools/cli.py policy check-doc-refs --check --pretty
 git diff --check
-```
-
-When global skills changed, validate every changed skill with an Agent Skills
-validator and confirm in-scope harnesses can discover the global source or their
-approved links. For a repository repair, run the current definition of done:
-
-```bash
-FALLOW_AUDIT_BASE="$(git rev-parse origin/main)" pnpm verify
 ```
 
 Never run the lifecycle resolver or release-consistency checker as part of this

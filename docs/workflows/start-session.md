@@ -12,7 +12,7 @@ directive, and a worktree whose local changes have an explicit disposition.
 Output: one dispatched handler result followed by a fresh resolver directive,
 or a stop at the directive's named pause. Planning outcomes are terminal unless
 the operator approved a one-time bootstrap transition. When the handler is
-`start-session`, output is one Ordered work step plus `OW_HANDOFF` (or a
+`start-session`, output is one Ordered work (OW) step plus `OW_HANDOFF` (or a
 pause/block), not the full session through close-out.
 
 ## Resolve and select the branch
@@ -21,8 +21,8 @@ pause/block), not the full session through close-out.
    directive's action, reason, authority, primary artifact, branch, and pause.
    Do not infer a stage from the current branch.
 2. Stop when the worktree contains unexplained changes. Preserve authorized
-   work; never discard it. In-progress lifecycle work is explained when
-   SCRATCHPAD `OW progress` names that session on the directive branch.
+   work. In-progress lifecycle work is explained when SCRATCHPAD `OW progress`
+   names that session on the directive branch.
 3. Fetch `origin/main`, resolve the active sub-version from that ref, and use
    the directive's exact `lifecycle/<sub-version>` branch.
 4. Resume and fast-forward that branch when it exists remotely; otherwise create
@@ -49,33 +49,30 @@ pause/block), not the full session through close-out.
 When the handler is `start-session`, read the approved contract and plan, prior
 session as-built records in the active version, master-plan context, agent-guide
 chain, baseline, and SCRATCHPAD. Reconcile digests, prerequisites, interfaces,
-branch, and assumptions against live code and current primary documentation.
-Correct mechanical drift in scope.
+branch, and assumptions against live code. Correct mechanical drift in scope.
 
 The approved plan is the starting execution prompt, not an immutable script.
 Never return this session to `plan-session`, and never rewrite the contract.
-When an installed framework or runtime limit, live evidence, or clearer path
-invalidates a named plan interface or step, pause and discuss with the operator
+When live evidence invalidates a named plan interface or step, pause and discuss with the operator
 in plain English. Present the conflict and bounded alternatives, settle the
 replacement, continue under that direction, and record the divergence for the
-as-built. Do not unilaterally invent a replacement, and do not default to backlog or deferral;
+as-built. Do not invent a replacement, and
+do not default to backlog or deferral;
 those cuts are rare and operator-driven only.
 
-If SCRATCHPAD already shows all Ordered work complete for this session
+If SCRATCHPAD already shows all Ordered work complete
 (`n/n complete — awaiting close-out`), return `OW_HANDOFF` with the close-out
-handoff prompt below. Do not implement further OW steps.
+handoff prompt below.
 
 Otherwise take the next incomplete Ordered work step from `### Ordered work`
 and SCRATCHPAD `OW progress` (1-based; absent progress means step 1). Execute
-only that step plus any attached operator pause. Before writing or editing
-production or test code for the step, launch `docs-researcher` for every
-material external technology and require a Documentation brief; skip only for
-docs-only, SCRATCHPAD, policy-only, or other pure non-code edits. When the
-contract or plan `UX gate` is Yes, the plan must include a dedicated Ordered work step that
+only that step plus any attached operator pause. The docs-researcher gate in
+root `AGENTS.md` applies. When the contract or plan `UX gate` is Yes, the plan
+must include a dedicated Ordered work step that
 invokes `ux-check` and completes the operator pause before
-`n/n complete — awaiting close-out`; that step owns the UI gate, and close-out
-does not re-run it. Maintain an in-context proof ledger with one result for
-every atomic proof row owned by that step.
+`n/n complete — awaiting close-out`. Close-out consumes that disposition.
+Maintain an in-context proof ledger with one result for every atomic proof row
+owned by that step.
 
 After the step's focused proof, invoke `gate-runner` with those focused
 evidence commands, then:
@@ -85,29 +82,23 @@ FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify
 ```
 
 Require a green Gate result packet for every command. Failures return
-`BLOCKED`; diagnose and fix here, re-run `gate-runner`, and do not hand off
-while red. Do not launch `adversarial-review` here — that belongs to close-out.
+`BLOCKED`. Do not launch `adversarial-review` here — that belongs to close-out.
 
 On green gates, launch a fresh `primitive-checker` and a fresh
-`holistic-reviewer` in parallel against this step's working-tree diff and named
-surfaces. On `FINDINGS` from either seat, fix, re-prove, re-run `gate-runner`,
-and re-launch both reviewers — do not hand off while dirty. On `CLEAN` from
-both (or every accepted finding corrected and re-reviewed clean), update
-`docs/SCRATCHPAD.md` **Now** with:
+`holistic-reviewer` in parallel against this step's working-tree diff. On
+`FINDINGS`, fix, re-prove, re-run `gate-runner`, and re-launch both reviewers.
+On `CLEAN` from both (or every accepted finding corrected and re-reviewed
+clean), update `docs/SCRATCHPAD.md` **Now** with:
 
 - **OW progress:** `k/n complete` — next step title, or `n/n complete —
   awaiting close-out` when this was the last step
-- **OW completed:** one short line per finished step (surfaces, focused proof,
-  verify pass pointer, commit SHA)
+- **OW completed:** one short line per finished step
 - **Next-agent notes:** gotchas, open operator dispositions, paths to reopen
 
 Then commit the verified OW scope (implementation, tests, and SCRATCHPAD OW
-fields) in the repository's conventional plain-English style. Do not push from
-the OW chat.
-
-Do not rewrite the frozen session plan. Do not change `Execution status`
-(close-out owns that). Do not start the next Ordered work step or close-out in
-this chat.
+fields). Do not push from the OW chat. Do not rewrite the frozen session plan.
+Do not change `Execution status`. Do not start the next Ordered work step or
+close-out in this chat.
 
 Stop with `OW_HANDOFF` and a copy-paste handoff prompt. When more Ordered work
 remains:
@@ -135,12 +126,9 @@ Run close-out in planned mode only (no further OW).
 
 Stop on a named operator gate, an unresolved in-session design discussion,
 failed mandatory check, unexplained worktree state, missing authority, or after
-a completed Ordered work step (`OW_HANDOFF`). Preserve completed evidence. On
-resumption, re-enter through this procedure, select the same deterministic
-branch, rerun the resolver and pre-dispatch gate, treat SCRATCHPAD OW fields as
-the disposition for in-progress lifecycle worktree changes, and continue at the
-next incomplete Ordered work step only — do not replan and do not re-run green
-completed steps unless live state invalidated them.
+a completed Ordered work step (`OW_HANDOFF`). On resumption, re-enter through
+this procedure, select the same branch, rerun the resolver and pre-dispatch
+gate, and continue at the next incomplete Ordered work step only.
 
 ## Return the result
 
@@ -157,6 +145,5 @@ After the dispatched handler stops, apply
 ```
 
 When the outcome is `OW_HANDOFF`, render the four bullets, then a single fenced
-copy-paste handoff prompt (the non-final or last-OW template above) so the
-operator can open a new chat. That trailing fence is the only chat-result
-exception allowed for this procedure.
+copy-paste handoff prompt (the non-final or last-OW template above). That
+trailing fence is the only chat-result exception allowed for this procedure.

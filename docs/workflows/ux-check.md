@@ -2,12 +2,11 @@
 
 Exercise changed user-facing routes with **log-driven Playwright** (assertions,
 console, page errors, network). Write screenshots/traces under
-`docs/ux-check/captures/` on failure only. Operator reviews visual feel in
+`docs/ux-check/captures/` on failure only. The operator reviews visual feel in
 their browser — never always-on screenshots or agent visual approval.
 
 Local aid only: not a `pnpm verify` or CI gate. Sweeps/probes exit non-zero on
 hard assertion/console/page failures; network findings still need disposition.
-Use `adversarial-review` when a finding is ownership or interface decay.
 
 ## Execution contract
 
@@ -24,7 +23,7 @@ Output: `UX_EVIDENCE` naming probed routes/viewports, diagnostics, failure
 artifact paths, an **operator visual checklist**, and review status. `BLOCKED`
 when the stack cannot represent required behavior or a diagnostic stays
 unexplained. Clean sweep → `READY_FOR_REVIEW` with review `Pending`, then
-pause. Do not open a PR from this workflow.
+pause. Do not open a PR from this workflow. Close-out consumes the disposition.
 
 ## 1. Resolve the capture surface
 
@@ -35,9 +34,7 @@ git diff --name-only $(git merge-base HEAD origin/main)..HEAD
 git diff --name-only
 ```
 
-Map route files directly. For shared feature/UI code, find consumers. Use
-`repo-mapper` (Codegraph: `callers`, `callees`, `impact`, `query`) only for
-material relationship, consumer, dependency, or blast-radius claims. Replace
+Map route files directly. For shared feature/UI code, find consumers. Replace
 dynamic segments with real local identifiers from the owning list page or
 database — never example ids as fixtures.
 
@@ -51,14 +48,14 @@ curl -sf -o /dev/null http://localhost:3000 && echo UP || echo DOWN
 ```
 
 Reuse an answering server when it represents the current worktree. Otherwise
-start what the routes need: `pnpm dev` (Next.js + configured local Docker
-Postgres) or `pnpm dev:all` (also repo-managed Postgres and Convex). Browse
-`http://localhost:3000`, never `127.0.0.1`. Browser binaries live in the host
-Playwright cache (macOS: `$HOME/Library/Caches/ms-playwright`). If
-`PLAYWRIGHT_BROWSERS_PATH` points under `cursor-sandbox-cache/`, redirect it to
-that host cache or unset it before launch — do not re-download into the sandbox
-path. Only when the host cache lacks the required revision: `pnpm exec
-playwright install chromium`.
+start what the routes need (`pnpm dev` locally; see root `AGENTS.md` for Cloud
+Agent caveats). Browse `http://localhost:3000`, never `127.0.0.1`.
+
+Browser binaries live in the host Playwright cache (macOS:
+`$HOME/Library/Caches/ms-playwright`). If `PLAYWRIGHT_BROWSERS_PATH` points
+under `cursor-sandbox-cache/`, redirect it to that host cache or unset it
+before launch — do not re-download into the sandbox path. Only when the host
+cache lacks the required revision: `pnpm exec playwright install chromium`.
 
 ## 3. Run the log-driven route sweep
 
@@ -75,9 +72,6 @@ Evidence: gitignored `docs/ux-check/captures/report.json`. Failure PNGs:
 
 ## 4. Run required open-state probes
 
-Shared runner for dialogs, popovers, menus, toasts, mock-backed states, or
-other durable interactions:
-
 ```bash
 node docs/ux-check/run-probes.mjs --list
 node docs/ux-check/run-probes.mjs nav-menu overlay-open
@@ -87,34 +81,31 @@ node docs/ux-check/run-probes.mjs --storage-state=docs/ux-check/captures/auth-st
 
 Isolated desktop/mobile contexts; writes
 `docs/ux-check/captures/probes/report.json`. Fails on assertion failure, probe
-crash, `style-src` violation, unfiltered console error, or uncaught page error;
-network findings still need disposition. Proactive `shot()` is a no-op; failure
-screenshots write automatically. Add recurring interactions under
-`docs/ux-check/probes/` per `docs/ux-check/README.md`. No standalone Playwright
-launchers. Delete temporary `*-probe.mjs` scripts before close-out.
+crash, `style-src` violation, unfiltered console error, or uncaught page error.
+Add recurring interactions under `docs/ux-check/probes/` per
+`docs/ux-check/README.md`. No standalone Playwright launchers. Delete temporary
+`*-probe.mjs` scripts before close-out.
 
 ## 5. Optional authenticated smoke
 
 When account-adjacent shells matter and Vitest cannot falsify them:
-`pnpm test:e2e`. See `docs/contributing/end-to-end-testing.md`. Keep the suite
-tiny.
+`pnpm test:e2e`. Keep the suite tiny. See
+`docs/contributing/end-to-end-testing.md`.
 
 ## 6. Report and pause for operator visual review
 
 1. Read `docs/ux-check/captures/report.json` and, when run,
    `docs/ux-check/captures/probes/report.json` (and e2e report).
 2. Report every console/page error, failed request, and 4xx/5xx by route or
-   probe and viewport — first diagnostic and disposition. Link failure artifacts
-   for diagnosis only.
+   probe and viewport.
 3. Do not open the site to approve layout. Build an operator checklist of
    routes/interactions to open locally.
 4. Return `UX_EVIDENCE`, pause for operator browser review. Do not open a PR.
-   `close-out` consumes the disposition — no re-run or pause.
 
 Planned lifecycle with `UX gate: Yes`: dedicated Ordered work step under
-`start-session` — finish the operator pause before `n/n complete — awaiting
-close-out`. Ordinary work: run standalone, finish the pause, then `close-out`.
-Sequence: `ux-check` → operator review → `close-out`.
+`start-session` — finish the operator pause before
+`n/n complete — awaiting close-out`. Ordinary work: run standalone, finish the
+pause, then `close-out`.
 
 ## Remote / production log probes
 
