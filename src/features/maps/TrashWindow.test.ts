@@ -53,7 +53,7 @@ const MAPS = [
 ];
 
 describe('TrashWindow', () => {
-  it('renders multi-select restore with one permanent-delete confirmation', () => {
+  it('renders multi-select restore, creator-only purge eligibility, and selection pruning', () => {
     const markup = renderToStaticMarkup(
       createElement(TrashWindow, {
         open: true,
@@ -65,39 +65,32 @@ describe('TrashWindow', () => {
     expect(markup).toContain('Select Delegated map');
     expect(markup).toContain('Restore');
     expect(markup.match(/data-confirm-dialog/g)).toHaveLength(1);
-  });
 
-  it('keeps permanent-delete eligibility creator-only', () => {
     expect(selectedCreatorMapIds(MAPS, new Set(['created', 'delegated']))).toEqual([
       'created',
     ]);
-  });
-
-  it('runs a selected lifecycle batch serially and stops at the first refusal', async () => {
-    const action = vi.fn()
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce({ ok: false });
-    await expect(runMapLifecycleBatch(['a', 'b', 'c'], action)).resolves.toEqual({
-      succeeded: ['a'],
-      complete: false,
-    });
-    expect(action).toHaveBeenCalledTimes(2);
-    expect(action).toHaveBeenNthCalledWith(1, { mapId: 'a' });
-    expect(action).toHaveBeenNthCalledWith(2, { mapId: 'b' });
-  });
-
-  it('reports success after applying every selected lifecycle action', async () => {
-    const action = vi.fn().mockResolvedValue({ ok: true });
-    await expect(runMapLifecycleBatch(['a', 'b'], action)).resolves.toEqual({
-      succeeded: ['a', 'b'],
-      complete: true,
-    });
-    expect(action).toHaveBeenCalledTimes(2);
-  });
-
-  it('drops successful hidden rows while retaining failed and unattempted selections', () => {
     expect(
       [...pruneTrashSelection(new Set(['a', 'b', 'c']), ['a'])],
     ).toEqual(['b', 'c']);
+  });
+
+  it('runs a selected lifecycle batch serially, stopping at the first refusal', async () => {
+    const refused = vi.fn()
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: false });
+    await expect(runMapLifecycleBatch(['a', 'b', 'c'], refused)).resolves.toEqual({
+      succeeded: ['a'],
+      complete: false,
+    });
+    expect(refused).toHaveBeenCalledTimes(2);
+    expect(refused).toHaveBeenNthCalledWith(1, { mapId: 'a' });
+    expect(refused).toHaveBeenNthCalledWith(2, { mapId: 'b' });
+
+    const succeeded = vi.fn().mockResolvedValue({ ok: true });
+    await expect(runMapLifecycleBatch(['a', 'b'], succeeded)).resolves.toEqual({
+      succeeded: ['a', 'b'],
+      complete: true,
+    });
+    expect(succeeded).toHaveBeenCalledTimes(2);
   });
 });

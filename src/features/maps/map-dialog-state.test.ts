@@ -19,15 +19,13 @@ const ADMIN_MAP: AuthorizedMapRow = {
 };
 
 describe('map dialog state', () => {
-  it('closes edit state when refreshed authority is downgraded or removed', () => {
+  it('closes create/trash/edit across authority loss and keeps recovery closed', () => {
     expect(currentAdminMap([ADMIN_MAP], ADMIN_MAP.id)).toBe(ADMIN_MAP);
     expect(
       currentAdminMap([{ ...ADMIN_MAP, role: 'editor' }], ADMIN_MAP.id),
     ).toBeNull();
     expect(currentAdminMap([], ADMIN_MAP.id)).toBeNull();
-  });
 
-  it('clears retained state across authority loss and keeps recovery closed', () => {
     const authorized = mapDialogAuthorityKey(true, [ADMIN_MAP]);
     const unavailable = mapDialogAuthorityKey(false, []);
     const downgraded = mapDialogAuthorityKey(true, [
@@ -48,32 +46,25 @@ describe('map dialog state', () => {
     expect(lost).toEqual(closedMapDialogs('unavailable'));
     expect(downgradedState).toEqual(closedMapDialogs('available:'));
     expect(recoveredClosed).toEqual(closedMapDialogs('available:map-admin'));
-  });
 
-  it('returns a connected opener and otherwise the fallback owner', () => {
-    const opener = { isConnected: true } as HTMLElement;
-    const fallback = { isConnected: true } as HTMLElement;
-    expect(connectedDialogFocus(opener, fallback)).toBe(opener);
-    expect(connectedDialogFocus({ isConnected: false } as HTMLElement, fallback)).toBe(
-      fallback,
-    );
-    expect(connectedDialogFocus(null, fallback)).toBe(fallback);
-    expect(connectedDialogFocus(undefined, undefined)).toBeNull();
-  });
-
-  it('keeps listing-only dialog identity stable when the admin map set changes', () => {
     const listingOnly = mapDialogAuthorityKey(true, []);
-    const opened = { ...closedMapDialogs(listingOnly), trashOpen: true, creationOpen: true };
-    expect(reconcileAuthorityScopedMapDialogs(opened, listingOnly)).toBe(opened);
+    const listingOpened = {
+      ...closedMapDialogs(listingOnly),
+      trashOpen: true,
+      creationOpen: true,
+    };
+    expect(reconcileAuthorityScopedMapDialogs(listingOpened, listingOnly)).toBe(
+      listingOpened,
+    );
     expect(
       reconcileAuthorityScopedMapDialogs(
-        opened,
+        listingOpened,
         mapDialogAuthorityKey(true, [ADMIN_MAP]),
       ),
     ).toEqual(closedMapDialogs('available:map-admin'));
   });
 
-  it('drops a lost access-edit id without closing create or trash, and stays closed on recovery', () => {
+  it('drops a lost access-edit id without closing create or trash, and focuses a connected opener', () => {
     const listingOnly = mapDialogAuthorityKey(true, []);
     const opened = {
       ...closedMapDialogs(listingOnly),
@@ -94,5 +85,14 @@ describe('map dialog state', () => {
     );
     expect(recovered.editingMapId).toBeNull();
     expect(recovered.trashOpen).toBe(true);
+
+    const opener = { isConnected: true } as HTMLElement;
+    const fallback = { isConnected: true } as HTMLElement;
+    expect(connectedDialogFocus(opener, fallback)).toBe(opener);
+    expect(connectedDialogFocus({ isConnected: false } as HTMLElement, fallback)).toBe(
+      fallback,
+    );
+    expect(connectedDialogFocus(null, fallback)).toBe(fallback);
+    expect(connectedDialogFocus(undefined, undefined)).toBeNull();
   });
 });

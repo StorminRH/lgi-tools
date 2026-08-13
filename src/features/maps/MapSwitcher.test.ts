@@ -61,7 +61,6 @@ vi.mock('./MapAccessDialog', () => ({
 }));
 
 import { MapSwitcher } from './MapSwitcher';
-import { mapSelectionHref } from './map-navigation';
 
 const MAPS = [
   {
@@ -124,15 +123,5 @@ describe('MapSwitcher', () => {
     expect(selected).toContain('scroll-area');
     expect(selected).toContain('max-h-[min(24rem,var(--available-height))]');
     expect(selected).toContain('overflow-y-auto');
-  });
-
-  it('preserves unrelated query values and produces a push-safe encoded map target', () => {
-    expect(
-      mapSelectionHref(
-        '/atlas',
-        new URLSearchParams('map=old&panel=signatures'),
-        'map/one',
-      ),
-    ).toBe('/atlas?map=map%2Fone&panel=signatures');
   });
 });

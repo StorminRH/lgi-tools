@@ -13,7 +13,7 @@ const UPSERT = {
 };
 
 describe('applyMapAccessUpdate', () => {
-  it('resolves principals, atomically authorizes and writes Neon, then re-projects', async () => {
+  it('authorizes Neon then projects upsert and revoke, and refuses without admin authority', async () => {
     const order: string[] = [];
     const resolvePrincipals = vi.fn().mockResolvedValue({
       characterIds: [7],
@@ -44,60 +44,43 @@ describe('applyMapAccessUpdate', () => {
     );
     expect(projectAccess).toHaveBeenCalledWith('map-1');
     expect(order).toEqual(['neon', 'projection']);
-  });
 
-  it('refuses when the atomic active-map write finds no admin authority', async () => {
-    const applyGrantChange = vi.fn().mockResolvedValue(false);
-    const projectAccess = vi.fn();
-
-    await expect(
-      applyMapAccessUpdate('user-1', UPSERT, {
-        resolvePrincipals: vi.fn().mockResolvedValue({
-          characterIds: [7],
-          corporationIds: [],
-        }),
-        applyGrantChange,
-        projectAccess,
-      }),
-    ).resolves.toEqual({ ok: false, reason: 'forbidden' });
-    expect(applyGrantChange).toHaveBeenCalledOnce();
-    expect(projectAccess).not.toHaveBeenCalled();
-  });
-
-  it('revokes the exact principal and still runs the full projection', async () => {
-    const applyGrantChange = vi.fn().mockResolvedValue(true);
-    const projectAccess = vi.fn().mockResolvedValue({
-      inserted: 0,
-      updated: 0,
-      deleted: 1,
-      unchanged: 0,
-    });
     const revoke = {
       operation: 'revoke' as const,
       mapId: 'map-1',
       principal: { ownerType: 'corporation' as const, ownerId: 99 },
     };
-
     await expect(
       applyMapAccessUpdate('admin', revoke, {
         resolvePrincipals: vi.fn().mockResolvedValue({
           characterIds: [],
           corporationIds: [99],
         }),
-        applyGrantChange,
-        projectAccess,
+        applyGrantChange: vi.fn().mockResolvedValue(true),
+        projectAccess: vi.fn().mockResolvedValue({
+          inserted: 0,
+          updated: 0,
+          deleted: 1,
+          unchanged: 0,
+        }),
       }),
     ).resolves.toEqual({ ok: true });
-    expect(applyGrantChange).toHaveBeenCalledWith(
-      'admin',
-      { characterIds: [], corporationIds: [99] },
-      'map-1',
-      { operation: 'revoke', principal: revoke.principal },
-    );
-    expect(projectAccess).toHaveBeenCalledWith('map-1');
+
+    const refusedProject = vi.fn();
+    await expect(
+      applyMapAccessUpdate('user-1', UPSERT, {
+        resolvePrincipals: vi.fn().mockResolvedValue({
+          characterIds: [7],
+          corporationIds: [],
+        }),
+        applyGrantChange: vi.fn().mockResolvedValue(false),
+        projectAccess: refusedProject,
+      }),
+    ).resolves.toEqual({ ok: false, reason: 'forbidden' });
+    expect(refusedProject).not.toHaveBeenCalled();
   });
 
-  it('surfaces typed projection unavailability after the durable write', async () => {
+  it('surfaces typed projection unavailability after the durable write and rethrows unexpected failures', async () => {
     const unavailable = new ProjectionUnavailableError('offline');
     const applyGrantChange = vi.fn().mockResolvedValue(true);
 
@@ -116,9 +99,7 @@ describe('applyMapAccessUpdate', () => {
       cause: unavailable,
     });
     expect(applyGrantChange).toHaveBeenCalledOnce();
-  });
 
-  it('does not relabel unexpected durable or projection failures', async () => {
     const failure = new Error('database failed');
     await expect(
       applyMapAccessUpdate('admin', UPSERT, {

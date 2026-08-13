@@ -163,11 +163,8 @@ describe('capability predicates', () => {
     expect(roleAllows(role, capability)).toBe(expected);
   });
 
-  it('denies a role that carries no capability record', () => {
+  it('denies unknown or empty role sets and unions capabilities across a set', () => {
     expect(roleAllows('ghost' as MapRole, 'view')).toBe(false);
-  });
-
-  it('unions across a role set and denies an empty one', () => {
     expect(rolesAllow(['viewer', 'editor'], 'edit')).toBe(true);
     expect(rolesAllow(['viewer'], 'edit')).toBe(false);
     expect(rolesAllow([], 'view')).toBe(false);

@@ -199,11 +199,6 @@ describe('MapCatalogue', () => {
     expect(markup).toContain('data-has-opener-ref="true"');
     expect(markup).toContain('data-has-final-focus="true"');
     expect(markup).toContain('Trash (1)');
-  });
-
-  it('puts create and trash in the page header instead of a trailing create card', () => {
-    const markup = renderCatalogue();
-    expect(markup).toContain('data-page-shell');
     expect(markup).toContain('data-page-shell-mode="workspace"');
     expect(markup).not.toContain('data-map-catalogue-scroll');
     expect(markup).not.toContain('data-map-catalogue-create-card');
