@@ -123,11 +123,6 @@ _ALLOWLIST = (
         "approved future probe-definitions directory created by Session 3.9.2.5",
     ),
     (
-        "docs/backlog.md",
-        "scripts/fallow-trial-log.mjs",
-        "deferred stale-artifact cleanup remains owned by the 3.9.3.1 backlog triage",
-    ),
-    (
         "docs/**",
         "docs/ux-check/profiles/",
         "approved future gitignored profiler-output directory created by Session 3.9.3.4.1",
@@ -189,7 +184,6 @@ _RECORD_SOURCES = (
     ("docs/version-audits/**", "version audit plans and evidence are frozen history"),
     ("docs/SCRATCHPAD.md", "session handoff history is a durable record"),
     ("docs/VERSION_*_PLAN.md", "the active roadmap is resolver-owned living state"),
-    ("docs/backlog.md", "deferred work is machine-owned living state"),
     (
         "docs/CODE_HEALTH_BASELINE.md",
         "the health baseline is validated by purpose-built checkers",

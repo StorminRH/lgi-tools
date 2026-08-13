@@ -11,17 +11,24 @@ import {
 
 describe('feedbackSubmitGate', () => {
   it('is busy while a submit is in flight', () => {
-    expect(feedbackSubmitGate('hi', { kind: 'submitting' })).toBe('busy');
+    expect(feedbackSubmitGate('hi', 'bug', { kind: 'submitting' })).toBe('busy');
+  });
+
+  it('is no_category when the category is missing or unknown', () => {
+    expect(feedbackSubmitGate('hi', '', { kind: 'idle' })).toBe('no_category');
+    expect(feedbackSubmitGate('hi', 'nope', { kind: 'idle' })).toBe('no_category');
   });
 
   it('is empty for a blank or whitespace-only message', () => {
-    expect(feedbackSubmitGate('', { kind: 'idle' })).toBe('empty');
-    expect(feedbackSubmitGate('   ', { kind: 'idle' })).toBe('empty');
+    expect(feedbackSubmitGate('', 'bug', { kind: 'idle' })).toBe('empty');
+    expect(feedbackSubmitGate('   ', 'feature', { kind: 'idle' })).toBe('empty');
   });
 
-  it('is ok for a real message when not already submitting', () => {
-    expect(feedbackSubmitGate('found a bug', { kind: 'idle' })).toBe('ok');
-    expect(feedbackSubmitGate('found a bug', { kind: 'error', message: 'x' })).toBe('ok');
+  it('is ok for a real message with a category when not already submitting', () => {
+    expect(feedbackSubmitGate('found a bug', 'bug', { kind: 'idle' })).toBe('ok');
+    expect(
+      feedbackSubmitGate('found a bug', 'ux', { kind: 'error', message: 'x' }),
+    ).toBe('ok');
   });
 });
 
@@ -62,9 +69,9 @@ describe('feedbackErrorMessage', () => {
       type: 'https://lgi.tools/problems/test',
       title: 'Test',
       status: 502,
-      code: 'discord_failed' as const,
+      code: 'github_failed' as const,
       correlationId: 'correlation-id',
-    }) as ProblemBody & { code: 'discord_failed' },
+    }) as ProblemBody & { code: 'github_failed' },
   };
 
   it('surfaces a 400 validation detail, or a fallback for an empty body', () => {

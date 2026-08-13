@@ -438,7 +438,7 @@ active health and update-watch state. The full scratchpad as it stood at the
   `docs/contributing/testing-principles.md`. Local `pnpm verify` with the db
   harness reachable remains the gate of record when real-Postgres suites are
   the sole falsifier.
-- Deferred, unassigned work: `docs/backlog.md`.
+- Deferred, unassigned work: open a GitHub Issue titled `[Backlog] …`.
 - User-facing and internal ship history: `content/changelog/` and git history.
 - Per-session planned delivery truth from the 3.10 binding floor:
   `../LGI Tools Document Archive/versions/3.10/session-as-built/`.

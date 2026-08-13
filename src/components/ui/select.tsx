@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { dropdownGroupLabel, dropdownItem, dropdownPanel } from './dropdown-panel';
 import { fieldText, fieldVariants, focusWell, type FieldSize } from './input';
+import { useOverlayPortalContainer } from './overlay-portal-container';
 import { scrollArea } from './scroll-area';
 
 // The platform's one dropdown-select primitive — the idiomatic Base UI Select,
@@ -121,6 +122,10 @@ export function Select({
   align?: SelectAlign;
 }) {
   const centered = align === 'center';
+  // Prefer the enclosing Dialog/Drawer popup so the list stacks above the
+  // overlay (same seam as Combobox/Popover/PointerMenu). Outside an overlay,
+  // omit container and keep the default body portal.
+  const overlayContainer = useOverlayPortalContainer();
   return (
     <Base.Root
       items={labelMapOf(items)}
@@ -162,7 +167,7 @@ export function Select({
           ▾
         </Base.Icon>
       </Base.Trigger>
-      <Base.Portal>
+      <Base.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
         <Base.Positioner side="bottom" sideOffset={4} alignItemWithTrigger={false} className="z-dropdown">
           <Base.Popup
             aria-label={ariaLabel}
