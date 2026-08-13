@@ -166,11 +166,10 @@ repeatable census in `src/esi-datasets/ui-adoption.test.ts`.
 
 ## UI components & overlays
 
-Interactive source work follows [`src/AGENTS.md`](src/AGENTS.md), the sole owner
-of the adopted-library roster, wrapper seams, styling rules, accessibility
-behavior, and route-registration requirements. Contributors consume the shared
-`src/components/ui/` primitives instead of importing their underlying libraries
-from feature code.
+Interactive source work uses the shared `src/components/ui/` primitives instead
+of importing their underlying libraries from feature code. Lint and Fallow
+enforce the wrapper seams; remaining landmines (route registration, Tooltip vs
+Popover, nonce CSP) live in [`src/AGENTS.md`](src/AGENTS.md).
 
 ## Architecture invariants
 

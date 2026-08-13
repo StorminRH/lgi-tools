@@ -7,8 +7,8 @@ map, and [`architecture-map.md`](architecture-map.md) is its generated view.
 Dependencies flow from entry points through composition and product slices
 toward platform and foundational capabilities. Cross-slice orchestration stays
 above the participating slices; product features and data slices do not become
-mutual dependency networks. Source ownership rules live beside the source in
-[`src/AGENTS.md`](../src/AGENTS.md).
+mutual dependency networks. [`src/AGENTS.md`](../src/AGENTS.md) lists only
+source landmines that Fallow and lint do not catch.
 
 ## Feature widget surfaces
 
