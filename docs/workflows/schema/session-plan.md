@@ -5,7 +5,7 @@ starting execution prompt for one session: bind the contract product
 boundary to a decision-dense implementation blueprint. At approval, leave no
 open material design choices for unilateral invention; during execution, live
 operator discussion may reshape interfaces or steps without returning to
-`plan-session`. `docs/workflows/plan-session.md` owns investigation, review,
+`plan-session`. The `plan-session` skill owns investigation, review,
 approval, persistence, and handoff.
 
 An approved plan starts with this frame:
@@ -188,6 +188,6 @@ Proof identifiers are unique and contiguous within each criterion (`SC-1.1`, `SC
 - Confirm every `DONE =` item is evidenced and every `hard_constraints` boundary held.
 - **Delivery:** [exactly push in-branch after OW commits, open a PR, merge, or stop with a non-code artifact].
 - **Lifecycle artifacts:** [plan marker, roadmap, changelog, baseline, SCRATCHPAD, or archive updates this session owns; omit the rest].
-- **Handoff:** [exact resolver rerun, next-session pointer, or terminal pause after delivery]. Per-OW chat handoffs are owned by `docs/workflows/start-session.md`.
+- **Handoff:** [exact resolver rerun, next-session pointer, or terminal pause after delivery]. Per-OW chat handoffs are owned by the `start-session` skill.
 
 Overwrite on re-approval; do not append an execution log. Record in-session reshapes after approval in the session as-built — do not rewrite this frozen prompt mid-execution.

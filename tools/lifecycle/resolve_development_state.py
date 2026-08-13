@@ -19,6 +19,7 @@ DEFAULT_ROOT = ROOT
 CONTRACT_SCHEMA_RELPATH = "docs/workflows/schema/session-contract.md"
 PLAN_SCHEMA_RELPATH = "docs/workflows/schema/session-plan.md"
 AS_BUILT_SCHEMA_RELPATH = "docs/workflows/schema/session-as-built.md"
+AUDIT_PLAN_SCHEMA_RELPATH = "docs/workflows/schema/audit-plan.md"
 # Sessions in sub-versions at or above this floor require an as-built record
 # once their plan is Complete; earlier sessions predate the record species.
 AS_BUILT_BINDING_FLOOR = (3, 10, 2, 1)
@@ -27,7 +28,6 @@ AS_BUILT_BINDING_FLOOR = (3, 10, 2, 1)
 ATOMIC_PLAN_BINDING_FLOOR = (4, 0, 2, 2, 2)
 # As-built records from this session onward carry criterion and review receipts.
 EXECUTION_RECEIPT_BINDING_FLOOR = (4, 0, 2, 2, 1)
-AUDIT_PROCEDURE_RELPATH = "docs/workflows/version-audit.md"
 POLICY_MANIFEST_RELPATH = "tools/policy/policy-manifest.json"
 RELEASE_CONSISTENCY_GATE = "python3 tools/cli.py lifecycle check-release --check"
 TERMINAL = ("SHIPPED", "COMPLETE", "DEFERRED", "CANCELLED")
@@ -968,13 +968,10 @@ def audit_contract(path: Path, root: Path) -> tuple[str | None, list[AuditFindin
     if (marker(path, "Audit mode") or "").casefold() != "version close":
         return None, [], errors, "The audit plan is not a Version close plan."
 
-    procedure = root / AUDIT_PROCEDURE_RELPATH
-    if not procedure.is_file():
-        errors.append(f"missing audit procedure: {AUDIT_PROCEDURE_RELPATH}")
-        return None, [], errors, "The canonical audit procedure is missing."
-    expected = f"sha256:{sha256(procedure)}"
-    if marker(path, "Procedure digest") != expected:
-        return None, [], errors, "The audit plan is stale because its procedure digest does not match."
+    schema = root / AUDIT_PLAN_SCHEMA_RELPATH
+    if not schema.is_file():
+        errors.append(f"missing canonical audit-plan schema: {AUDIT_PLAN_SCHEMA_RELPATH}")
+        return None, [], errors, "The canonical audit-plan schema is missing."
 
     status = (marker(path, "Audit status") or "").casefold()
     if status not in AUDIT_STATUSES:
@@ -989,7 +986,7 @@ def audit_contract(path: Path, root: Path) -> tuple[str | None, list[AuditFindin
 
     findings, finding_errors = parse_audit_findings(path)
     errors.extend(f"{path.relative_to(root)}: {error}" for error in finding_errors)
-    return status or None, findings, errors, "The version-close audit state matches the current procedure."
+    return status or None, findings, errors, "The version-close audit plan is present and parseable."
 
 
 def invalid_state(common: dict[str, object], reason: str, errors: list[str]) -> tuple[dict[str, object], list[str]]:
@@ -1028,14 +1025,7 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
 
     if audit_plan.is_file() and (marker(audit_plan, "Audit mode") or "").casefold() == "version close":
         common["auditPlan"] = str(audit_plan.relative_to(root))
-        audit_status, findings, audit_errors, audit_reason = audit_contract(audit_plan, root)
-        if audit_reason.startswith("The audit plan is stale"):
-            return {
-                **common,
-                "stage": "audit-plan-needed",
-                "auditPlan": str(audit_plan.relative_to(root)),
-                "reason": audit_reason,
-            }, errors
+        audit_status, findings, audit_errors, _ = audit_contract(audit_plan, root)
         errors.extend(audit_errors)
         if audit_errors:
             return invalid_state(common, "The version-close audit metadata or finding ledger is invalid.", errors)

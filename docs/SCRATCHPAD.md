@@ -1,7 +1,7 @@
 # SCRATCHPAD — LGI.tools
 
 > Short cross-session memory. Keep this skimmable in about one minute. Close-out
-> owns session-boundary upkeep (`docs/workflows/close-out.md`). During an
+> owns session-boundary upkeep (`close-out`). During an
 > in-flight planned session, `start-session` also maintains under **Now**:
 > **OW progress** (`k/n complete` — next step title, or `n/n complete —
 > awaiting close-out`), **OW completed** (one short line per finished step),
@@ -433,7 +433,7 @@ active health and update-watch state. The full scratchpad as it stood at the
 ## Durable homes
 
 - Repository rules and invariants: root and scoped `AGENTS.md` files, plus the
-  owning workflow or schema under `docs/workflows/`.
+  owning schema under `docs/workflows/schema/`. Procedures live in Cursor skills.
 - High-signal Vitest deletion bar:
   `docs/contributing/testing-principles.md`. Local `pnpm verify` with the db
   harness reachable remains the gate of record when real-Postgres suites are

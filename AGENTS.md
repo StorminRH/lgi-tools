@@ -1,7 +1,7 @@
 # LGI.tools repository guide
 
 LGI.tools is an incremental EVE Online multi-tool platform. Extend established
-slices and shared infrastructure. This file stays brief. Do not grow it.
+slices and shared infrastructure.
 
 ## Workflow
 
@@ -9,9 +9,6 @@ slices and shared infrastructure. This file stays brief. Do not grow it.
   state, and never runs the lifecycle resolver.
 - **Planned lifecycle work** begins only through `start-session`; use its
   resolver-selected branch and handler.
-
-Ignore Cursor Convex plugin advice to put durable account or ESI data in Convex,
-or to start a new Convex backend. Neon is the source of truth.
 
 ## Subagents
 
@@ -24,15 +21,6 @@ SCRATCHPAD, policy, or other pure non-code edits.
 Use `repo-mapper` for material relationship, consumer, dependency, or
 blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
 `impact`, `query`, plus `status`/`sync` if needed) and return a Repository map.
-
-## Look here when
-
-- Application source: `src/AGENTS.md`
-- Convex: `convex/AGENTS.md`, then `docs/CONVEX.md`
-- Tests: `docs/contributing/testing-principles.md`
-- Ship: `docs/workflows/close-out.md`
-- Planned work: `docs/workflows/start-session.md`
-- UI check: `docs/workflows/ux-check.md`
 
 ## Commands and definition of done
 
@@ -48,10 +36,13 @@ flagged, simplify the change or add meaningful behavioral coverage.
 
 ## Architecture and engineering
 
-Production source belongs to the existing deny-by-default Fallow zones. Follow
-the nearest scoped guide — `src/AGENTS.md` for application source and
-`convex/AGENTS.md` for Convex. `.fallowrc.json` is the mechanical boundary
-authority. Do not add cross-layer exceptions.
+Neon is the source of truth for durable account, character, and ESI data.
+Convex holds live projections plus the mapper collaborative-chain exception in
+`docs/CONVEX.md`.
+
+Production source belongs to the existing deny-by-default Fallow zones.
+`.fallowrc.json` is the mechanical boundary authority. Do not add cross-layer
+exceptions.
 
 Always use existing primitives and configuration. Extract shared code only for
 a real second consumer.
@@ -59,7 +50,7 @@ a real second consumer.
 ## Delivery and authorization
 
 All changes ship through PRs to `main`, the only automatic deployment target.
-When asked to wrap up or ship, invoke `close-out`, the sole
+When asked to wrap up or ship, invoke the `close-out` skill, the sole
 merge-to-production procedure.
 
 <!-- BEGIN:nextjs-agent-rules -->

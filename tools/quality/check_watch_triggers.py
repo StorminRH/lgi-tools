@@ -2,7 +2,7 @@
 """Evaluate fenced Watch triggers from the live code-health baseline.
 
 The grammar is the closed trip-form specification in
-``docs/workflows/version-audit.md``:
+``docs/workflows/schema/code-health-baseline.md``:
 when an expression is true, its Watch finding is reported as a warning for
 operator review. The checker never edits the baseline or promotes a finding.
 Unparseable expressions and unmeasurable subjects are blocking contradictions.

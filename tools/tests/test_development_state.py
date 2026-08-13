@@ -80,9 +80,6 @@ class ResolverFixture:
         self.root = Path(self.temporary.name)
         self.docs = self.root / "docs"
         self.docs.mkdir()
-        procedure = self.docs / "workflows/version-audit.md"
-        procedure.parent.mkdir(parents=True, exist_ok=True)
-        procedure.write_text("# Audit procedure\n", encoding="utf-8")
         self.write_schemas()
         self.write_roadmap("COMPLETE")
         self.write_baseline(SHA)
@@ -148,10 +145,12 @@ class ResolverFixture:
             + "\n",
             encoding="utf-8",
         )
+        (directory / "audit-plan.md").write_text(
+            "# Audit plan schema\n",
+            encoding="utf-8",
+        )
 
-    def write_audit(self, status: str, finding_status: str | None = None, *, digest: str | None = None) -> None:
-        procedure = self.docs / "workflows/version-audit.md"
-        procedure_digest = digest or hashlib.sha256(procedure.read_bytes()).hexdigest()
+    def write_audit(self, status: str, finding_status: str | None = None) -> None:
         findings = ""
         if finding_status:
             findings = (
@@ -168,8 +167,6 @@ class ResolverFixture:
             "**Audit cycle:** 1\n"
             f"**Audited ref:** `{SHA}`\n"
             "**Audit mode:** Version close\n"
-            "**Procedure:** `docs/workflows/version-audit.md`\n"
-            f"**Procedure digest:** `sha256:{procedure_digest}`\n"
             f"{findings}",
             encoding="utf-8",
         )
@@ -516,13 +513,13 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual("audit-ready", self.stage())
         self.assertEqual("version-audit", self.handler())
 
-    def test_missing_audit_procedure_returns_invalid_state(self) -> None:
+    def test_missing_audit_plan_schema_returns_invalid_state(self) -> None:
         self.fixture.write_audit("Approved")
-        (self.fixture.docs / "workflows/version-audit.md").unlink()
+        (self.fixture.docs / "workflows/schema/audit-plan.md").unlink()
         state, errors = resolve(self.fixture.root)
         self.assertEqual("invalid", state["stage"])
         self.assertIn(
-            "missing audit procedure: docs/workflows/version-audit.md",
+            "missing canonical audit-plan schema: docs/workflows/schema/audit-plan.md",
             errors,
         )
 
@@ -1591,14 +1588,6 @@ class DevelopmentStateTests(unittest.TestCase):
         state, errors = resolve(self.fixture.root)
         self.assertEqual("invalid", state["stage"])
         self.assertTrue(errors)
-
-    def test_stale_procedure_requires_plan_reconciliation(self) -> None:
-        self.fixture.write_audit("Remediation required", "Open", digest="0" * 64)
-        before = (self.fixture.docs / "version-audits/9.9/PLAN.md").read_text(encoding="utf-8")
-        self.assertEqual("audit-plan-needed", self.stage())
-        self.assertEqual("plan-version-audit", self.handler())
-        after = (self.fixture.docs / "version-audits/9.9/PLAN.md").read_text(encoding="utf-8")
-        self.assertEqual(before, after)
 
     def test_missing_contracts_route_to_version_planning(self) -> None:
         self.fixture.write_roadmap("PLANNED")

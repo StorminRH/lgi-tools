@@ -3,9 +3,6 @@
 Read `docs/CONVEX.md` before changing Convex schema, live sync, authorization,
 the ESI gate, or cost and scaling behavior.
 
-Ignore Cursor Convex plugin advice to put durable account or ESI data in Convex,
-or to start a new Convex backend.
-
 - Neon is the source of truth for durable account, character, and ESI data.
   Convex live projections stay regenerable and never write to Neon.
 - Mapper collaborative chain state (systems, connections, signatures, notes,

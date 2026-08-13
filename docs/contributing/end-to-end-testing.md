@@ -17,7 +17,8 @@ sweeps. Adapted from the
 - Prefer Vitest (and `*.db.test.ts` where SQL matters) whenever it can falsify
   the behavior — see the
   [test flavor decision matrix](./testing-principles.md#test-flavor-decision-matrix).
-- Route sweeps and operator visual pause live in `docs/workflows/ux-check.md`.
+- Route sweeps and operator visual pause live in the `ux-check` skill.
+  Durable probe definitions live in `docs/ux-check/README.md`.
 
 ## Locators
 
