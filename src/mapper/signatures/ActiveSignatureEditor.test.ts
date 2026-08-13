@@ -10,7 +10,9 @@ import type {
 import { ActiveSignatureEditor } from './ActiveSignatureEditor';
 import { destinationReadout } from './system-readout';
 
-const assets = vi.hoisted(() => ({ systemInfo: vi.fn(() => null) }));
+const assets = vi.hoisted(() => ({
+  systemInfo: vi.fn<(id: number) => SystemDirectoryEntry | null>(() => null),
+}));
 
 vi.mock('../chain/use-map-chain', () => ({
   useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
@@ -164,7 +166,7 @@ it('restores inside the undo window, closes when the row left the feed, and lock
     name: 'J123456',
     security: -1,
     whClassId: 4,
-  } as unknown as null);
+  });
   const locked = render(RESOLVED_ID);
   expect(locked).toContain('data-map-connection-leads-locked');
   expect(locked).toContain('J123456 - C4');

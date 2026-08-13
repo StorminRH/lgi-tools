@@ -89,8 +89,8 @@ code. `None.` when the session changed no durable surface worth mapping.
 Work found during execution and deliberately not done. Prefer absorbing
 corrections in-session; backlog or later-session cuts are extremely rare and
 operator-driven. When present, each item names where it went: a `[Backlog]`
-GitHub Issue, a named later session, or dropped with the reason. `None.` when
-nothing was cut.
+GitHub Issue with its number or canonical URL, a named later session, or
+dropped with the reason. `None.` when nothing was cut.
 
 ## Successor notes
 

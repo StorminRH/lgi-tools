@@ -512,7 +512,10 @@ describe('mapScan paste application and lifecycle', () => {
       let targetId = '' as Id<'mapConnections'>;
       await t.run(async (ctx) => {
         await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-        const stub = (await ctx.db.query('mapConnections').collect())[0]!;
+        const stub = (await ctx.db.query('mapConnections').collect())[0];
+        if (stub === undefined) {
+          throw new Error('expected the pasted wormhole stub before linking');
+        }
         await ctx.db.patch(stub._id, stubLife);
         targetId = await ctx.db.insert('mapConnections', {
           mapId: MAP,

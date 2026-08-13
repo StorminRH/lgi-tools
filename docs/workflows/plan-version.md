@@ -21,9 +21,9 @@ create session implementation plans here.
    and return to `start-session`.
 2. Read the master plan, live code and tests, baseline, SCRATCHPAD, relevant
    open `[Backlog]` GitHub Issues, and contract schema. Use `repo-mapper`
-   (Codegraph CLI: `callers`, `callees`, `impact`, `query`) only for material
-   relationship, consumer, dependency, or blast-radius claims; keep conceptual
-   discovery on Explore, semantic search, and grep. Use current primary
+   (Codegraph CLI: `callers`, `callees`, `impact`, `query`; return a Repository
+   map) only for material relationship, consumer, dependency, or blast-radius
+   claims; keep conceptual discovery on Explore, semantic search, and grep. Use current primary
    documentation when moving implementation assumptions depend materially on
    external behavior.
 3. Extract an outcome ledger that preserves every goal, invariant, required

@@ -324,12 +324,14 @@ describe('SignatureWindow component prompt and filter states', () => {
         onOpenSite: vi.fn(),
       }),
     );
-    // Gas site matches the catalogue; combat/k-space names and wormholes stay inert.
-    // Action verb is an sr-only prefix so ID / name / Est. ISK stay in the
-    // accessible name (aria-label would replace those descendants).
-    expect(html).toContain('sr-only">View site ');
+    // Catalogue-matched names (gas and combat) open the read-only site viewer;
+    // wormholes stay inert for a viewer. Action verb is an sr-only prefix so
+    // ID / name / Est. ISK stay in the accessible name.
+    expect(html.match(/sr-only">View site /g)?.length).toBe(2);
     expect(html).toContain('Barren Perimeter Reservoir');
+    expect(html).toContain('Sansha Hideout');
     expect(html).toContain('data-signature-id="GAS-001"');
+    expect(html).toContain('data-signature-id="CBT-001"');
     expect(html).toContain('data-signature-row-open');
     expect(html).toContain('data-signature-isk="value"');
     expect(html).toContain('28.1M');
@@ -339,6 +341,5 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html.match(/data-price-state="/g)?.length).toBe(1);
     expect(html).not.toContain('aria-label=');
     expect(html).not.toContain('sr-only">Edit wormhole ');
-    expect(html).not.toContain('sr-only">View site Sansha');
   });
 });
