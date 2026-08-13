@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Doc, Id } from '@/data/convex/data-model';
 import { isScannerPasteCandidate } from '@/data/maps/scan-parse';
+import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import {
   buildSignatureRows,
   filterSignatureRows,
@@ -13,26 +14,15 @@ import {
   scannerWormholeLifetime,
   scannerWormholeSize,
   signatureCounts,
-  trackedPasteTarget,
   type ConnectionSignatureInput,
   type SignatureWindowRow,
-  type TrackedPasteTarget,
 } from './signature-model';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 
 const SYSTEM = 31_000_001;
-const OWNER = 'owner';
-const READY: TrackedPasteTarget = { kind: 'ready', systemId: SYSTEM };
-const NONE: TrackedPasteTarget = { kind: 'none' };
-const AMBIGUOUS: TrackedPasteTarget = { kind: 'ambiguous' };
-
-function freshness(
-  entries: readonly { characterId: number; feedFreshAt: number | null }[],
-): ReadonlyMap<string, ReadonlyMap<number, number | null>> {
-  return new Map([
-    [OWNER, new Map(entries.map((entry) => [entry.characterId, entry.feedFreshAt]))],
-  ]);
-}
+const READY: TrackedSystemTarget = { kind: 'ready', systemId: SYSTEM };
+const NONE: TrackedSystemTarget = { kind: 'none' };
+const AMBIGUOUS: TrackedSystemTarget = { kind: 'ambiguous' };
 
 function signature(
   partial: Partial<Doc<'mapSignatures'>> & { signatureId: string },
@@ -60,6 +50,7 @@ function connection(
     fromSystemId: SYSTEM,
     toSystemId: null,
     fromSignatureId: 'WHL-001',
+    toSignatureId: null,
     fromSignalPct: 75,
     firstSeenAt: 1_500,
     wormholeTypeCode: null,
@@ -118,6 +109,53 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       className: 'HS',
       connection: expect.objectContaining({ connectionId: 'connection-1' }),
     });
+  });
+
+  it('lists the linked hole on both scanners after a far-side link', () => {
+    const fromSystemId = SYSTEM;
+    const toSystemId = SYSTEM + 1;
+    const rows = buildSignatureRows(
+      [],
+      [
+        connection({
+          fromSystemId,
+          toSystemId,
+          fromSignatureId: 'JNW-622',
+          toSignatureId: 'YXX-744',
+          wormholeTypeCode: 'P060',
+          typedSide: 'from',
+        }),
+      ],
+      (code) => (code === 'P060' ? 'C1' : null),
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(
+      rows.find((row) => row.systemId === fromSystemId && row.signatureId === 'JNW-622'),
+    ).toMatchObject({
+      key: 'connection:connection-1',
+      group: 'Wormhole',
+      name: 'P060',
+      className: 'C1',
+      connection: expect.objectContaining({
+        connectionId: 'connection-1',
+        toSignatureId: 'YXX-744',
+      }),
+    });
+    expect(
+      rows.find((row) => row.systemId === toSystemId && row.signatureId === 'YXX-744'),
+    ).toMatchObject({
+      key: 'connection:connection-1:to',
+      systemId: toSystemId,
+      signatureId: 'YXX-744',
+      group: 'Wormhole',
+      name: 'K162',
+      className: null,
+      connection: expect.objectContaining({ toSignatureId: 'YXX-744' }),
+    });
+    expect(
+      filterSignatureRows(rows, toSystemId, 'signature').map((row) => row.signatureId),
+    ).toEqual(['YXX-744']);
   });
 
   it('buckets Cosmic Signatures into ordered non-empty presentation sections', () => {
@@ -311,82 +349,6 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(formatSignatureAge(1_000, 6 * 60_000 + 1_000)).toBe('6m');
     expect(formatSignatureAge(1_000, 3 * 60 * 60_000 + 1_000)).toBe('3h');
     expect(formatSignatureAge(1_000, 2 * 24 * 60 * 60_000 + 1_000)).toBe('2d');
-  });
-
-  it('targets any online tracked pilot and refuses offline, empty, or multi-system state', () => {
-    const tracked = [
-      {
-        userId: OWNER,
-        characterId: 7,
-        location: { solarSystemId: SYSTEM },
-      },
-      {
-        userId: OWNER,
-        characterId: 8,
-        location: { solarSystemId: SYSTEM + 1 },
-      },
-    ];
-    expect(
-      trackedPasteTarget({
-        ownTrackedCharacterIds: [7, 8],
-        tracked,
-        freshness: freshness([
-          { characterId: 7, feedFreshAt: 1 },
-          { characterId: 8, feedFreshAt: null },
-        ]),
-      }),
-    ).toEqual({ kind: 'ready', systemId: SYSTEM });
-    expect(
-      trackedPasteTarget({
-        ownTrackedCharacterIds: [7, 8],
-        tracked,
-        freshness: freshness([
-          { characterId: 7, feedFreshAt: 1 },
-          { characterId: 8, feedFreshAt: 1 },
-        ]),
-      }),
-    ).toEqual({ kind: 'ambiguous' });
-    expect(
-      trackedPasteTarget({
-        ownTrackedCharacterIds: [7, 8],
-        tracked: [
-          {
-            userId: OWNER,
-            characterId: 7,
-            location: { solarSystemId: SYSTEM },
-          },
-          {
-            userId: OWNER,
-            characterId: 8,
-            location: { solarSystemId: SYSTEM },
-          },
-        ],
-        freshness: freshness([
-          { characterId: 7, feedFreshAt: 1 },
-          { characterId: 8, feedFreshAt: 1 },
-        ]),
-      }),
-    ).toEqual({ kind: 'ready', systemId: SYSTEM });
-    expect(
-      trackedPasteTarget({
-        ownTrackedCharacterIds: [7],
-        tracked: [{ userId: OWNER, characterId: 7, location: null }],
-        freshness: freshness([{ characterId: 7, feedFreshAt: 1 }]),
-      }),
-    ).toEqual({ kind: 'none' });
-    expect(
-      trackedPasteTarget({
-        ownTrackedCharacterIds: [7],
-        tracked: [
-          {
-            userId: OWNER,
-            characterId: 7,
-            location: { solarSystemId: SYSTEM },
-          },
-        ],
-        freshness: freshness([{ characterId: 7, feedFreshAt: null }]),
-      }),
-    ).toEqual({ kind: 'none' });
   });
 
   it('claims scanner-shaped text while leaving ordinary clipboard text alone', () => {

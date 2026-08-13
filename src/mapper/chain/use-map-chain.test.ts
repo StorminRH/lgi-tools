@@ -540,6 +540,7 @@ describe('client subscription projections', () => {
         fromSystemId: JITA,
         toSystemId: null,
         fromSignatureId: 'ABC-123',
+        toSignatureId: null,
         fromSignalPct: null,
         firstSeenAt: null,
         wormholeTypeCode: null,

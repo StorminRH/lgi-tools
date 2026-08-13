@@ -38,6 +38,7 @@ const WH: SignatureWindowRow = row({
     fromSystemId: 1,
     toSystemId: null,
     fromSignatureId: 'WHL-001',
+    toSignatureId: null,
     fromSignalPct: 100,
     firstSeenAt: 0,
     wormholeTypeCode: 'B274',
@@ -98,6 +99,7 @@ describe('scannerRowOpenAction', () => {
     expect(scannerRowOpenAction(WH, true)).toEqual({
       kind: 'connection',
       connectionId: 'connection-1',
+      signatureId: 'WHL-001',
     });
     expect(scannerRowOpenAction(unnamed, true)).toEqual({ kind: 'identify' });
 
@@ -146,11 +148,11 @@ describe('scannerRowOpenAction', () => {
     expect(openIdentify).not.toHaveBeenCalled();
 
     applyScannerRowOpenAction(
-      { kind: 'connection', connectionId: 'connection-1' as Id<'mapConnections'> },
+      { kind: 'connection', connectionId: 'connection-1' as Id<'mapConnections'>, signatureId: 'WHL-001' },
       handlers,
       { row: WH, trigger, clientX: 1, clientY: 2 },
     );
-    expect(openEditor).toHaveBeenCalledWith('connection-1');
+    expect(openEditor).toHaveBeenCalledWith('connection-1', 'WHL-001');
 
     applyScannerRowOpenAction(
       { kind: 'site', siteId: 49, signatureId: 'GAS-001' },
@@ -165,5 +167,26 @@ describe('scannerRowOpenAction', () => {
       { row: gas, trigger, clientX: 5, clientY: 6 },
     );
     expect(openIdentify).toHaveBeenCalledWith(gas, trigger, 5, 6);
+  });
+
+  it('opens the far-side linked row against its own signature id', () => {
+    const far: SignatureWindowRow = {
+      ...WH,
+      signatureId: 'YXX-744',
+      systemId: 2,
+      name: 'K162',
+      connection: WH.connection === null
+        ? null
+        : {
+            ...WH.connection,
+            toSystemId: 2,
+            toSignatureId: 'YXX-744',
+          },
+    };
+    expect(scannerRowOpenAction(far, true)).toEqual({
+      kind: 'connection',
+      connectionId: 'connection-1',
+      signatureId: 'YXX-744',
+    });
   });
 });

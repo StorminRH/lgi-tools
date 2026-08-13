@@ -2,6 +2,7 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
+import { JUMP_CONTINUITY_MS } from './characterLocation';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -444,6 +445,48 @@ describe('characterLocation.applySyncResults', () => {
       etagLocation: 'loc-docked',
     });
     expect((await readDoc(t))?.observedAt).not.toBe(1_700_000_000_000);
+  });
+
+  it('stamps prevFresh true when the previous covered run finished 17s ago', async () => {
+    // Live sitting-then-jump: lastFinishedAt was 17s before apply, character
+    // still in coveredCharacterIds. The old 15s window stamped prevFresh
+    // false and the doorbell skipped re-anchor.
+    const t = convexTest(schema, modules);
+    expect(JUMP_CONTINUITY_MS).toBeGreaterThan(17_000);
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        'syncSubjects',
+        subjectRow({
+          lastFinishedAt: Date.now() - 17_000,
+          syncedCharacterIds: [CHAR_A],
+          coveredCharacterIds: [CHAR_A],
+        }),
+      );
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+
+    await apply(t, {
+      results: [
+        {
+          characterId: CHAR_A,
+          solarSystemId: 30_000_144,
+          stationId: null,
+          structureId: null,
+          shipTypeId: 11_985,
+          systemChanged: true,
+          etagLocation: 'loc2',
+          etagShip: 'ship2',
+          expiresAt: WINDOW,
+          error: null,
+        },
+      ],
+    });
+
+    expect(await readDoc(t)).toMatchObject({
+      solarSystemId: 30_000_144,
+      prevSolarSystemId: 30_000_142,
+      prevFresh: true,
+    });
   });
 
   it('stamps prevFresh false when the previous run is outside JUMP_CONTINUITY_MS', async () => {

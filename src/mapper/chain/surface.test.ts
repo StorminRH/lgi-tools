@@ -214,6 +214,8 @@ describe('mapper source contract', () => {
       'tracking/pilot-path.ts',
       'tracking/presence-context.ts',
       'tracking/presence-model.ts',
+      'tracking/tracked-system.ts',
+      'tracking/use-tracked-system.ts',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
       'windows/MapWindowLeader.tsx',

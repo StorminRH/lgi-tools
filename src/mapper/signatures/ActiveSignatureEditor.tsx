@@ -49,6 +49,8 @@ function editedConnection(
 export interface ActiveSignatureEditorProps {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'> | null;
+  /** Scanner row the leader should bracket; null falls back to fromSignatureId. */
+  readonly anchorSignatureId?: string | null;
   readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
   readonly authoring: ConnectionAuthoringApi;
@@ -72,6 +74,7 @@ function useDestinationReadout(
 export function ActiveSignatureEditor({
   mapId,
   connectionId,
+  anchorSignatureId = null,
   connectionDetails,
   unresolvedHoles,
   authoring,
@@ -104,6 +107,7 @@ export function ActiveSignatureEditor({
   return (
     <SignatureEditor
       connection={edited}
+      anchorSignatureId={anchorSignatureId}
       mode={selection.mode}
       now={now}
       destination={destination}

@@ -3,13 +3,13 @@
 import { useEffect } from 'react';
 import { toast } from '@/components/ui/toast';
 import type { ScannedRow } from '@/data/maps/scan-parse';
+import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import { isAdoptedPopupOpen } from '../windows/MapWindow';
 import {
   isEditablePasteTarget,
   scannerPasteDecision,
   scannerPasteRefusalToast,
   type ScannerPasteDecision,
-  type TrackedPasteTarget,
 } from './signature-model';
 
 function scanFailureMessage(error: unknown): string {
@@ -52,7 +52,7 @@ function reportPasteDecision(
 /** Owns the Atlas page's one cleaned-up document-level scanner paste listener. */
 export function useScannerPaste(input: {
   readonly canEdit: boolean;
-  readonly pasteTarget: TrackedPasteTarget;
+  readonly pasteTarget: TrackedSystemTarget;
   readonly applyRows: (
     systemId: number,
     rows: readonly ScannedRow[],

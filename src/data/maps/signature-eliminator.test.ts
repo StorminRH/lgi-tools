@@ -149,6 +149,33 @@ const INFERENCE_CASES = [
     },
   },
   {
+    name: 'four wormholes with two statics fill the last unidentified as the remaining static',
+    input: input({
+      staticTypeCodes: ['B274', 'H296'],
+      signatures: [
+        signature('AAA-111', {
+          wormholeTypeCode: 'K162',
+          typeProvenance: 'human',
+        }),
+        signature('BBB-222', {
+          wormholeTypeCode: 'K162',
+          typeProvenance: 'human',
+        }),
+        signature('CCC-333', {
+          wormholeTypeCode: 'B274',
+          typeProvenance: 'human',
+        }),
+        signature('DDD-444'),
+      ],
+    }),
+    expected: {
+      deductions: [
+        { signatureId: 'DDD-444', typeCode: 'H296', provenance: 'assumed' },
+      ],
+      quiet: false,
+    },
+  },
+  {
     name: 'a typed K162 uniquely links the sig-less inbound connection',
     input: input({
       signatures: [

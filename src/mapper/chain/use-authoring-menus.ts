@@ -66,7 +66,7 @@ export function useAuthoringMenus(canEdit: boolean | undefined): AuthoringMenus 
       setPanelTarget(
         connectionId === null
           ? null
-          : { kind: 'connection', connectionId },
+          : { kind: 'connection', connectionId, signatureId: null },
       );
     },
     [],

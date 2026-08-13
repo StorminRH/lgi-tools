@@ -373,21 +373,18 @@ export default {
       && (await page.locator('.react-flow__edge').count()) === 3,
     );
 
-    // The scanner window stays on the chain root; the pilot's destination
-    // rows are reachable through that system's summary card, not by retargeting.
+    // The scanner window and dock follow the jumping pilot. Origin rows
+    // leave the scanner; destination intel is empty until someone pastes.
+    const scannerText =
+      (await page.locator('[data-signature-window]').textContent()) ?? '';
     check(
-      'scanner window keeps the chain-root signature rows after the jump',
-      /CBA-120/.test(
-        (await page.locator('[data-signature-window]').textContent()) ?? '',
-      ),
+      'scanner window lists the destination after the jump, not the origin scan',
+      !/CBA-120/.test(scannerText) && !/LXX-844/.test(scannerText),
     );
-    // The chain-root dock renders the origin's shared intelligence body, so
-    // its scanner summary proves the resolved wormhole's row survived with
-    // its system (3 signatures: CBA-120, IHJ-610, EAR-696 · 1 anomaly).
     const dockText = (await mapWindow(page, 'dock').textContent()) ?? '';
     check(
-      'the chain-root dock keeps the origin scanner summary',
-      /3 signatures/.test(dockText) && /1 anomal/.test(dockText),
+      'the current-system dock follows the destination',
+      /J160650/.test(dockText) && !/3 signatures/.test(dockText),
     );
   },
 };

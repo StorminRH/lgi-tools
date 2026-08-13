@@ -12,6 +12,7 @@ describe('scannerPanelBodyKind', () => {
     const connection = {
       kind: 'connection' as const,
       connectionId: 'connection-1' as Id<'mapConnections'>,
+      signatureId: null,
     };
 
     expect(scannerPanelBodyKind(site, false)).toBe('site');

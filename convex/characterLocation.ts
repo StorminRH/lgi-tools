@@ -28,10 +28,16 @@ import { purgeScopeArgs } from './lib/syncFields';
 
 /**
  * Two consecutive fresh samples must land within this window for a jump
- * verdict to trust the previous system (three 5s cadence floors). Larger gaps
- * stamp prevFresh=false → re-anchor. Classifier-side; not an engine cadence.
+ * verdict to trust the previous system. Larger gaps stamp prevFresh=false →
+ * re-anchor. Classifier-side; not an engine cadence.
+ *
+ * Sized for three floors of the live location loop (~15s ESI cache + apply),
+ * not the 5s cadence floor: a sitting then jumping pilot whose previous
+ * covered run finished 17s ago is still watched. The 30s engine scan is the
+ * watchdog when a sibling alt clears minExpiresAt; 45s still sits inside
+ * that scan plus slack, and under the 60s unwatched-gap proof.
  */
-export const JUMP_CONTINUITY_MS = 15_000;
+export const JUMP_CONTINUITY_MS = 45_000;
 
 /**
  * The calling user's own location docs. Map members join through

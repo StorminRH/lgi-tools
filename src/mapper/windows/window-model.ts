@@ -1,3 +1,5 @@
+import type { TrackedSystemTarget } from '../tracking/tracked-system';
+
 /**
  * Measure for scanner-anchored panels. Editor stays compact field chrome;
  * site matches a typical /sites catalogue card column (~22rem at md).
@@ -20,29 +22,45 @@ export type MapWindowId = 'dock' | 'summary';
 
 /** Inputs to the pure surface-presence derivation. */
 export interface SurfaceInputs {
-  readonly rootSystemId: number | null;
+  /** Persistent dock system; null hides the dock. Selecting it suppresses the summary card. */
+  readonly dockSystemId: number | null;
   readonly selectedIds: readonly number[];
   readonly boxSelectActive: boolean;
 }
 
-/** One live surface set derived from selection and root presence. */
+/** One live surface set derived from selection and dock presence. */
 export interface SurfaceDerivation {
   readonly surfaces: readonly MapWindowId[];
   readonly summarySystemId: number | null;
 }
 
 /**
+ * Persistent dock/scanner system: the live tracked location when exactly one
+ * system is covered, otherwise the chain-root fallback (offline, loading, or
+ * two+ alts in different systems). Paste policy is separate
+ * (`scannerPasteDecision`); changing paste disambiguation must not retarget
+ * this fallback.
+ */
+export function persistentWindowSystemId(
+  target: TrackedSystemTarget,
+  rootSystemId: number | null,
+): number | null {
+  return target.kind === 'ready' ? target.systemId : rootSystemId;
+}
+
+/**
  * Pure presence decisions for map windows. The current-system dock is
- * persistent whenever a root exists; only the node-summary card comes and goes.
+ * persistent whenever a dock system exists; only the node-summary card comes
+ * and goes. Selecting the dock's own system does not open a second card.
  */
 export function deriveSurfaces(input: SurfaceInputs): SurfaceDerivation {
   const surfaces: MapWindowId[] = [];
   let summarySystemId: number | null = null;
-  if (input.rootSystemId !== null) surfaces.push('dock');
+  if (input.dockSystemId !== null) surfaces.push('dock');
   if (
     !input.boxSelectActive &&
     input.selectedIds.length === 1 &&
-    input.selectedIds[0] !== input.rootSystemId
+    input.selectedIds[0] !== input.dockSystemId
   ) {
     summarySystemId = input.selectedIds[0] ?? null;
     if (summarySystemId !== null) surfaces.push('summary');

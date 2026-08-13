@@ -7,7 +7,11 @@ import type { SignatureWindowRow } from './signature-model';
  * the unresolved identify menu, or nothing.
  */
 export type ScannerRowOpenAction =
-  | { readonly kind: 'connection'; readonly connectionId: Id<'mapConnections'> }
+  | {
+      readonly kind: 'connection';
+      readonly connectionId: Id<'mapConnections'>;
+      readonly signatureId: string;
+    }
   | {
       readonly kind: 'site';
       readonly siteId: number;
@@ -18,7 +22,10 @@ export type ScannerRowOpenAction =
 
 /** Host callbacks that apply a resolved scanner-row open action. */
 export interface ScannerRowOpenHandlers {
-  readonly openEditor: (connectionId: Id<'mapConnections'>) => void;
+  readonly openEditor: (
+    connectionId: Id<'mapConnections'>,
+    signatureId: string,
+  ) => void;
   readonly openSite: (siteId: number, signatureId: string) => void;
   readonly openIdentify: (
     row: SignatureWindowRow,
@@ -41,7 +48,11 @@ export function scannerRowOpenAction(
 ): ScannerRowOpenAction {
   if (row.connection !== null) {
     return canEdit
-      ? { kind: 'connection', connectionId: row.connection.connectionId }
+      ? {
+          kind: 'connection',
+          connectionId: row.connection.connectionId,
+          signatureId: row.signatureId,
+        }
       : null;
   }
   if (row.name !== null) {
@@ -83,7 +94,7 @@ export function applyScannerRowOpenAction(
 ): void {
   if (action === null) return;
   if (action.kind === 'connection') {
-    handlers.openEditor(action.connectionId);
+    handlers.openEditor(action.connectionId, action.signatureId);
     return;
   }
   if (action.kind === 'site') {

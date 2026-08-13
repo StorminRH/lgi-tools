@@ -8,11 +8,13 @@ import {
   type SigGroup,
 } from '@/data/maps/scan-parse';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
+import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
 import {
   isCodexSizeLocked,
   lifetimeRowDisplay,
 } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { TrackedSystemTarget } from '../tracking/tracked-system';
 
 /** One signature-window row, independent of its Convex storage owner. */
 export interface SignatureWindowRow {
@@ -48,19 +50,6 @@ export type ScannerPasteDecision =
   | { readonly kind: 'loading' }
   | { readonly kind: 'ambiguous' };
 
-/**
- * Account-level paste target from the caller's online tracked pilots.
- * `loading` is the truthful warm-up state while the tracking subscriptions
- * have not delivered yet — never reported as "untracked". `ambiguous` is the
- * interim refusal when two+ online tracked pilots sit in different systems
- * (backlog: multi-system paste disambiguation).
- */
-export type TrackedPasteTarget =
-  | { readonly kind: 'ready'; readonly systemId: number }
-  | { readonly kind: 'none' }
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'ambiguous' };
-
 const EMPTY_COUNTS: SignatureCounts = { signatures: 0, anomalies: 0 };
 
 function signatureDocumentRow(
@@ -80,31 +69,54 @@ function signatureDocumentRow(
   };
 }
 
-function connectionRow(
+function localWormholeTypeCode(
   row: ConnectionSignatureInput,
+  side: 'from' | 'to',
+): string | null {
+  if (row.wormholeTypeCode === null) return null;
+  const typedSide = row.typedSide ?? 'from';
+  if (side === typedSide) return row.wormholeTypeCode;
+  return FAR_SIDE_WORMHOLE_CODE;
+}
+
+function connectionSideRow(
+  row: ConnectionSignatureInput,
+  side: 'from' | 'to',
   classLabelOf: (code: string) => string | null,
 ): SignatureWindowRow | null {
-  if (row.fromSignatureId === null || row.deletedAt != null) return null;
+  const signatureId = side === 'from' ? row.fromSignatureId : row.toSignatureId;
+  const systemId = side === 'from' ? row.fromSystemId : row.toSystemId;
+  if (signatureId === null || systemId === null) return null;
+  const name = localWormholeTypeCode(row, side);
   return {
-    key: `connection:${row.connectionId}`,
-    systemId: row.fromSystemId,
-    signatureId: row.fromSignatureId,
+    key: side === 'from' ? `connection:${row.connectionId}` : `connection:${row.connectionId}:to`,
+    systemId,
+    signatureId,
     kind: 'signature',
     group: 'Wormhole',
-    name: row.wormholeTypeCode,
-    signalPct: row.fromSignalPct,
+    name,
+    signalPct: side === 'from' ? row.fromSignalPct : null,
     firstSeenAt: row.firstSeenAt ?? row._creationTime,
     connection: row,
-    className:
-      row.wormholeTypeCode === null
-        ? null
-        : classLabelOf(row.wormholeTypeCode),
+    className: name === null ? null : classLabelOf(name),
   };
+}
+
+function connectionRowsForScanner(
+  row: ConnectionSignatureInput,
+  classLabelOf: (code: string) => string | null,
+): readonly SignatureWindowRow[] {
+  if (row.deletedAt != null) return [];
+  return [
+    connectionSideRow(row, 'from', classLabelOf),
+    connectionSideRow(row, 'to', classLabelOf),
+  ].filter((projected) => projected !== null);
 }
 
 /**
  * Merges list-owned rows with migrated wormhole rows, preferring the durable
- * connection during a transient migration overlap.
+ * connection during a transient migration overlap. A linked hole appears on
+ * both endpoint systems.
  */
 export function buildSignatureRows(
   signatures: readonly Doc<'mapSignatures'>[],
@@ -117,9 +129,9 @@ export function buildSignatureRows(
     byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
   }
   for (const row of connections) {
-    const projected = connectionRow(row, classLabelOf);
-    if (projected === null) continue;
-    byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
+    for (const projected of connectionRowsForScanner(row, classLabelOf)) {
+      byIdentity.set(`${projected.systemId}:${projected.signatureId}`, projected);
+    }
   }
   return [...byIdentity.values()].toSorted(
     (left, right) =>
@@ -276,38 +288,6 @@ export function formatSignatureAge(firstSeenAt: number, now: number): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-/**
- * Resolves the paste target from the account's online tracked pilots on this
- * map. Coverage (`feedFreshAt` non-null) is the online gate — last-known
- * location alone must not unlock paste for a logged-off alt. The scanner
- * window lists the chain root instead (see SignatureProvider).
- */
-export function trackedPasteTarget(input: {
-  readonly ownTrackedCharacterIds: readonly number[];
-  readonly tracked: readonly {
-    readonly userId: string;
-    readonly characterId: number;
-    readonly location: { readonly solarSystemId: number } | null;
-  }[];
-  /** Per-owner-character quantized feed freshness; null/missing = not covered. */
-  readonly freshness: ReadonlyMap<string, ReadonlyMap<number, number | null>>;
-}): TrackedPasteTarget {
-  const own = new Set(input.ownTrackedCharacterIds);
-  const systems = new Set<number>();
-  for (const row of input.tracked) {
-    if (!own.has(row.characterId) || row.location === null) continue;
-    const feedFreshAt =
-      input.freshness.get(row.userId)?.get(row.characterId) ?? null;
-    if (feedFreshAt === null) continue;
-    systems.add(row.location.solarSystemId);
-  }
-  if (systems.size === 0) return { kind: 'none' };
-  if (systems.size > 1) return { kind: 'ambiguous' };
-  const systemId = systems.values().next().value;
-  if (systemId === undefined) return { kind: 'none' };
-  return { kind: 'ready', systemId };
-}
-
 /** Whether a document paste target owns normal text insertion. */
 export function isEditablePasteTarget(target: EventTarget | null): boolean {
   if (typeof Element === 'undefined') return false;
@@ -316,11 +296,14 @@ export function isEditablePasteTarget(target: EventTarget | null): boolean {
   );
 }
 
-/** Classifies scanner-shaped clipboard text without applying or reporting it. */
+/** Classifies scanner-shaped clipboard text without applying or reporting it.
+ * Window routing (`persistentWindowSystemId`) is a separate consumer of the
+ * same tracked-system target.
+ */
 export function scannerPasteDecision(
   text: string,
   canEdit: boolean,
-  target: TrackedPasteTarget,
+  target: TrackedSystemTarget,
 ): ScannerPasteDecision | null {
   if (!isScannerPasteCandidate(text)) return null;
   const parsed = parseScannerPaste(text);

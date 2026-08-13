@@ -5,22 +5,33 @@ import {
   keydownAction,
   isOutsideClickGesture,
   outsideDismissAction,
+  persistentWindowSystemId,
   reconcileStack,
   surfaceKindOf,
   topmost,
 } from './window-model';
 
 const base = {
-  rootSystemId: 1,
+  dockSystemId: 1,
   selectedIds: [] as number[],
   boxSelectActive: false,
 };
 
 describe('map window presence', () => {
-  it('keeps the root dock standing and shows a card only for one settled non-root selection', () => {
+  it('points persistent windows at the ready tracked system and falls back otherwise', () => {
+    expect(
+      persistentWindowSystemId({ kind: 'ready', systemId: 31_000_001 }, 1),
+    ).toBe(31_000_001);
+    expect(persistentWindowSystemId({ kind: 'none' }, 1)).toBe(1);
+    expect(persistentWindowSystemId({ kind: 'loading' }, 1)).toBe(1);
+    expect(persistentWindowSystemId({ kind: 'ambiguous' }, 1)).toBe(1);
+    expect(persistentWindowSystemId({ kind: 'none' }, null)).toBeNull();
+  });
+
+  it('keeps the current-system dock standing and shows a card only for one settled non-dock selection', () => {
     expect(deriveSurfaces(base).surfaces).toEqual(['dock']);
     expect(deriveSurfaces({ ...base, selectedIds: [1] }).surfaces).toEqual(['dock']);
-    expect(deriveSurfaces({ ...base, rootSystemId: null }).surfaces).toEqual([]);
+    expect(deriveSurfaces({ ...base, dockSystemId: null }).surfaces).toEqual([]);
 
     expect(deriveSurfaces({ ...base, selectedIds: [2] })).toMatchObject({
       surfaces: ['dock', 'summary'],
@@ -33,6 +44,15 @@ describe('map window presence', () => {
       surfaces: ['dock'],
       summarySystemId: null,
     });
+    expect(
+      deriveSurfaces({ ...base, dockSystemId: 2, selectedIds: [1] }),
+    ).toMatchObject({
+      surfaces: ['dock', 'summary'],
+      summarySystemId: 1,
+    });
+    expect(
+      deriveSurfaces({ ...base, dockSystemId: 2, selectedIds: [2] }),
+    ).toMatchObject({ surfaces: ['dock'], summarySystemId: null });
   });
 });
 

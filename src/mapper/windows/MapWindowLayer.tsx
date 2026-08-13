@@ -59,12 +59,12 @@ function useNodeName(systemId: number | null): string | undefined {
 }
 
 function useSurfacePresence(input: {
-  readonly rootSystemId: number | null;
+  readonly dockSystemId: number | null;
   readonly boxSelectActive: boolean;
   readonly selectedIds: readonly number[];
 }) {
   const derivation = deriveSurfaces({
-    rootSystemId: input.rootSystemId,
+    dockSystemId: input.dockSystemId,
     selectedIds: input.selectedIds,
     boxSelectActive: input.boxSelectActive,
   });
@@ -140,27 +140,27 @@ function useCardDismissal(cardOpen: boolean, onDeselect: () => void): void {
   }, [cardOpen, onDeselect]);
 }
 
-function dockTitle(title: string | undefined, rootSystemId: number): string {
-  return title ?? String(rootSystemId);
+function dockTitle(title: string | undefined, dockSystemId: number): string {
+  return title ?? String(dockSystemId);
 }
 
 function DockSurface({
   visible,
-  rootSystemId,
+  dockSystemId,
   title,
   stackIndex,
 }: {
   readonly visible: boolean;
-  readonly rootSystemId: number | null;
+  readonly dockSystemId: number | null;
   readonly title: string | undefined;
   readonly stackIndex: number;
 }) {
-  if (!visible || rootSystemId === null) return null;
+  if (!visible || dockSystemId === null) return null;
   return (
     <MapWindow
       windowId="dock"
-      title={dockTitle(title, rootSystemId)}
-      titleAccessory={<SystemTitleAccessory systemId={rootSystemId} />}
+      title={dockTitle(title, dockSystemId)}
+      titleAccessory={<SystemTitleAccessory systemId={dockSystemId} />}
       placement={{ kind: 'docked' }}
       appearance="overlay"
       stackIndex={stackIndex}
@@ -170,7 +170,7 @@ function DockSurface({
       // (bring-to-front) is unreachable by construction.
       onActivate={() => undefined}
     >
-      <SystemIntelligenceBody systemId={rootSystemId} />
+      <SystemIntelligenceBody systemId={dockSystemId} />
     </MapWindow>
   );
 }
@@ -210,7 +210,8 @@ function SummarySurface({
 
 /** Props supplied by the chain host to the sibling window layer. */
 export interface MapWindowLayerProps {
-  readonly rootSystemId: number | null;
+  /** Resolved system the persistent dock renders; null hides the dock. */
+  readonly dockSystemId: number | null;
   readonly onDeselect: () => void;
 }
 
@@ -233,7 +234,7 @@ export function MapWindowLayer(props: MapWindowLayerProps) {
 }
 
 function MountedMapWindowLayer({
-  rootSystemId,
+  dockSystemId,
   onDeselect,
 }: MapWindowLayerProps) {
   const store = useStoreApi<ChainNode>();
@@ -242,12 +243,12 @@ function MountedMapWindowLayer({
   const cardRef = useRef<HTMLDivElement | null>(null);
   const leaderRef = useRef<MapWindowLeaderHandle | null>(null);
   const { liveIds, summarySystemId } = useSurfacePresence({
-    rootSystemId,
+    dockSystemId,
     boxSelectActive,
     selectedIds,
   });
   const { renderedStack, activate } = useWindowStack(liveIds);
-  const rootTitle = useNodeName(rootSystemId);
+  const dockTitleName = useNodeName(dockSystemId);
   const summaryTitle = useNodeName(summarySystemId);
   const followerStore = useMemo<NodeFollowerStore>(
     () => ({
@@ -269,8 +270,8 @@ function MountedMapWindowLayer({
       <MapWindowLeader ref={leaderRef} />
       <DockSurface
         visible={liveIds.includes('dock')}
-        rootSystemId={rootSystemId}
-        title={rootTitle}
+        dockSystemId={dockSystemId}
+        title={dockTitleName}
         stackIndex={zIndex('dock')}
       />
       <SummarySurface

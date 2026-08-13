@@ -5,9 +5,13 @@ import type { Id } from '@/data/convex/data-model';
 import { ActiveScannerPanel } from './ActiveScannerPanel';
 
 vi.mock('./ActiveSignatureEditor', () => ({
-  ActiveSignatureEditor: (props: { connectionId: string }) =>
+  ActiveSignatureEditor: (props: {
+    connectionId: string;
+    anchorSignatureId?: string | null;
+  }) =>
     createElement('div', {
       'data-active-signature-editor': props.connectionId,
+      'data-editor-anchor': props.anchorSignatureId ?? '',
     }),
 }));
 
@@ -61,17 +65,30 @@ describe('ActiveScannerPanel', () => {
       {
         kind: 'connection',
         connectionId: 'connection-1' as Id<'mapConnections'>,
+        signatureId: null,
       },
       true,
     );
     expect(editor).toContain('data-active-signature-editor="connection-1"');
+    expect(editor).toContain('data-editor-anchor=""');
     expect(editor).not.toContain('data-active-site-viewer');
+
+    const far = render(
+      {
+        kind: 'connection',
+        connectionId: 'connection-1' as Id<'mapConnections'>,
+        signatureId: 'YXX-744',
+      },
+      true,
+    );
+    expect(far).toContain('data-editor-anchor="YXX-744"');
 
     expect(
       render(
         {
           kind: 'connection',
           connectionId: 'connection-1' as Id<'mapConnections'>,
+          signatureId: 'YXX-744',
         },
         false,
       ),

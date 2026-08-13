@@ -1,8 +1,13 @@
 'use client';
 
 import { useId, useRef } from 'react';
-import { useActiveCharacterId } from '@/components/use-account-characters';
+import { CharacterPortrait } from '@/components/character-portrait';
+import {
+  useAccountCharacters,
+  useActiveCharacterId,
+} from '@/components/use-account-characters';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/components/ui/cn';
 import { Dialog, DialogTitle } from '@/components/ui/dialog';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import {
@@ -26,19 +31,23 @@ export interface HomePromptProps {
  * Required first-run Dialog: system search plus current-system / start-tracking.
  * Stays open (`open` held true, no close control) until the host unmounts it
  * after a home system is set. Renders only when the host has already gated on
- * `canEdit` and a complete empty systems page.
+ * `canEdit` and a complete empty systems page. Portrait toggles opt in any
+ * linked character — not only the session character — so an in-space alt can
+ * supply the current system.
  */
 export function HomePrompt({ mapId, onPick }: HomePromptProps) {
   const { parse, suggest } = useSystemSearch();
   const titleId = useId();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const characterId = useActiveCharacterId();
+  const characters = useAccountCharacters();
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
   const freshness = useLiveValue(api.mapTracking.feedFreshness, { mapId });
   const setTracking = useSetMapTracking();
   const current = homeCurrentSystem({ characterId, tracking, freshness });
   const currentSystemId = current.kind === 'ready' ? current.systemId : null;
   const currentSystemName = useSystemName(currentSystemId);
+  const trackedIds = new Set(tracking?.ownTrackedCharacterIds ?? []);
 
   return (
     <Dialog
@@ -69,6 +78,53 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
           onClear={() => undefined}
           errorLabel="System"
         />
+        {characters !== null && characters.length > 0 ? (
+          <div
+            data-map-home-tracking
+            className="flex flex-col gap-2"
+            role="group"
+            aria-label="Tracking"
+          >
+            <span className="font-ui text-micro text-muted">
+              Track a character in space
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {characters.map((character) => {
+                const pressed = trackedIds.has(character.characterId);
+                return (
+                  <Button
+                    key={character.characterId}
+                    type="button"
+                    variant="bare"
+                    aria-pressed={pressed}
+                    aria-label={`${pressed ? 'Stop tracking' : 'Track'} ${character.name}`}
+                    data-map-home-track-character={character.characterId}
+                    className={cn(
+                      'box-border flex size-10 shrink-0 items-center justify-center rounded-full border-2 p-0.5 leading-none outline-none transition-[border-color,opacity,filter] motion-reduce:transition-none',
+                      pressed
+                        ? 'border-isk opacity-100 grayscale-0'
+                        : 'border-transparent opacity-35 grayscale',
+                    )}
+                    onClick={() => {
+                      void setTracking({
+                        mapId,
+                        characterId: character.characterId,
+                        tracked: !pressed,
+                      });
+                    }}
+                  >
+                    <CharacterPortrait
+                      characterId={character.characterId}
+                      name={character.name}
+                      size={32}
+                      src={character.portraitUrl}
+                    />
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         <CurrentSystemControl
           current={current}
           currentSystemName={currentSystemName}

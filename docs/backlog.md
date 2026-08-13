@@ -450,41 +450,38 @@ positions, and configuration now would violate the simplicity rule by shipping
 controls before a real need exists. *Size:* S–M. *Trigger:* repeated obstruction
 observed during the 4.0 map-content and overlay-window UX gates.
 
-## Atlas interaction
+## Mapper — scanner chrome polish
 
-> Operator-noted gaps from the 4.0.4.3 signature-paste polish pass (2026-08-09).
-> Not for today's session — capture for a future Atlas interaction slice.
+Operator-cut from the 2026-08-12 live mapper repro. Not in this ship.
 
-- **Retarget persistent windows to the pilot's current system, not the chain root**
-  (operator direction 2026-08-09). *What:* the chain-root dock, the bottom-left
-  scanner window, and any future persistent system-scoped surfaces should show intel
-  for **the system the user's character is currently in** — not `rootSystemId`. When a
-  tractor pilot jumps out of root, both the dock and the scanner window should update
-  to that destination system. The list will often be empty until someone pastes a scan
-  there; collaborative map data still persists, so another pilot's earlier paste
-  should populate it for everyone with map access. *Why deferred:* mid-session signature
-  polish paused before G-1; retargeting needs a deliberate pass on fallbacks (logged-off
-  character, multi-alt ambiguity, which pilot wins) without re-breaking collaborative
-  visibility. *Size:* M. *Trigger:* the next Atlas interaction or signatures polish
-  session after G-1 disposition.
+- **Anomaly site width clips.** *What:* site names and content in the anomalies
+  view get clipped. Preference is reactive width plus vertical scroll when the
+  content is taller, so nothing is lost. *Why deferred:* scanner chrome, not the
+  live-tracking path. *Size:* S. *Trigger:* next scanner layout polish.
 
-- **Root node opens the standard System Info card, not a privileged dock.** *What:*
-  clicking the root should surface the same node-anchored System Info summary card
-  other systems get on selection — root is not a special UI hub. The persistent dock
-  and scanner window follow the pilot; root intel is on-demand via the card like every
-  other system. *Why deferred:* same slice as the retargeting item above. *Size:* S
-  (mostly wiring/derivation). *Trigger:* with the current-system window retarget.
+- **Unidentified signature left-click menu.** *What:* left-clicking a signature
+  that is not identified opens a menu the operator is unhappy with. No further
+  detail yet. *Why deferred:* product direction still thin. *Size:* S. *Trigger:*
+  next scanner interaction pass with a concrete menu ruling.
 
-- **Stop overloading chain root as an interaction anchor.** *What:* `rootSystemId` is
-  the compass/layout kernel's starting point only — tree derivation, radial placement,
-  attachment order. It is not a "current system" for users. Today it is overloaded as a
-  stand-in for interactive readouts ("current-system dock" comments, dock body,
-  scanner-window filter, signature counts) even though location tracking already ships
-  for paste and presence. Peel those UI surfaces off root and bind them to tracked
-  current system (with honest fallbacks when nobody is online). *Why deferred:* product
-  decision recorded here; implementation couples to the retargeting work above. *Size:*
-  M (derivation + window wiring + tests/probes). *Trigger:* the Atlas interaction slice
-  that owns current-system window behavior.
+- **Scanner header: type-icon filters instead of Signatures/Anomalies tabs.**
+  *What:* SVG icons for Wormholes, Combat, Gas, and Hacking (Relic and Data)
+  replace the signatures-vs-anomalies tab bar. Clicking an icon toggles it
+  (bright vs dim) and filters the list. *Why deferred:* header redesign, not
+  tracking. *Size:* M. *Trigger:* next scanner chrome slice.
+
+- **ISK totals and Combat/Anomaly grouping.** *What:* total-value rows for
+  Harvestables and Combat. Most wormhole Combat sites are Anomalies, so they sit
+  on the Anomalies tab and their ISK does not show. Recategorize so those sites
+  land in the right group; combining the two lists (see type-icon filters) is
+  part of making that work. *Why deferred:* depends on the header/filter pass.
+  *Size:* M. *Trigger:* with the type-icon filter slice.
+
+- **Wormhole identify UI does not surface statics first.** *What:* the type-entry
+  field opens terminal search and does not present the system's statics at the
+  top. Searching by hand is not a good enough interaction. *Why deferred:*
+  identify-field presentation, not the live-tracking path. *Size:* S. *Trigger:*
+  next wormhole identify polish.
 
 ## React Flow attribution — styled credit home
 

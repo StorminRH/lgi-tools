@@ -21,6 +21,8 @@ import { ScannerAnchoredPanel } from './ScannerAnchoredPanel';
 /** Props for the scanner-anchored Signature Editor pop-out. */
 export interface SignatureEditorProps {
   readonly connection: ConnectionEditorDetail;
+  /** Scanner row the leader should bracket; null uses the origin signature. */
+  readonly anchorSignatureId?: string | null;
   readonly setters: ConnectionFieldSetters;
   readonly now: number;
   readonly mode: 'edit' | 'restore';
@@ -39,6 +41,7 @@ export interface SignatureEditorProps {
  */
 export function SignatureEditor({
   connection,
+  anchorSignatureId = null,
   setters,
   now,
   mode,
@@ -55,7 +58,7 @@ export function SignatureEditor({
 
   return (
     <ScannerAnchoredPanel
-      signatureId={connection.fromSignatureId}
+      signatureId={anchorSignatureId ?? connection.fromSignatureId}
       windowId="signature-editor"
       title="Signature Editor"
       onClose={onClose}
