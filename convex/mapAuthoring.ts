@@ -500,17 +500,20 @@ export const setConnectionWormholeType = mutation({
           typedSide: undefined,
           typeProvenance: undefined,
           pendingCandidates: undefined,
+          pendingResolutionCharacterId: undefined,
         }
       : {
           typedSide: connection.typedSide ?? ('from' as const),
           typeProvenance: 'human' as const,
           pendingCandidates: undefined,
+          pendingResolutionCharacterId: undefined,
         };
     if (
       connection.wormholeTypeCode === value
       && connection.typedSide === identityPatch.typedSide
       && connection.typeProvenance === identityPatch.typeProvenance
       && connection.pendingCandidates === undefined
+      && connection.pendingResolutionCharacterId === undefined
       && sameDeathWindow(connection, window)
     ) {
       return { changed: false };
@@ -548,6 +551,7 @@ export const setConnectionTypedSide = mutation({
       connection.typedSide === value
       && connection.typeProvenance === 'human'
       && connection.pendingCandidates === undefined
+      && connection.pendingResolutionCharacterId === undefined
     ) {
       return { changed: false };
     }
@@ -555,6 +559,7 @@ export const setConnectionTypedSide = mutation({
       typedSide: value,
       typeProvenance: 'human',
       pendingCandidates: undefined,
+      pendingResolutionCharacterId: undefined,
     });
     return { changed: true };
   },
@@ -572,12 +577,17 @@ export const setConnectionDestinationHint = mutation({
     const connection = await requireLiveConnection(ctx, mapId, connectionId);
     const field = side === 'from' ? 'fromDestinationHint' : 'toDestinationHint';
     const normalized = value ?? undefined;
-    if (connection[field] === normalized && connection.pendingCandidates === undefined) {
+    if (
+      connection[field] === normalized
+      && connection.pendingCandidates === undefined
+      && connection.pendingResolutionCharacterId === undefined
+    ) {
       return { changed: false };
     }
     await ctx.db.patch(connectionId, {
       [field]: normalized,
       pendingCandidates: undefined,
+      pendingResolutionCharacterId: undefined,
     });
     return { changed: true };
   },

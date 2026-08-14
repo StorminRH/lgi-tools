@@ -103,6 +103,13 @@ export function ActiveSignatureEditor({
     connectionId: edited.connectionId,
     authoring,
     onDone: onClose,
+    stub:
+      edited.toSystemId === null && edited.fromSignatureId !== null
+        ? {
+            systemId: edited.fromSystemId,
+            signatureId: edited.fromSignatureId,
+          }
+        : null,
   });
   return (
     <SignatureEditor

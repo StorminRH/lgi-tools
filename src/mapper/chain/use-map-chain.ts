@@ -146,6 +146,8 @@ export interface ConnectionEditorDetail {
   readonly destinationProvenance: ConnectionProvenance | null;
   /** The recorded survivor list an `assumed` auto-link left for confirm/correct. */
   readonly pendingCandidates: readonly Id<'mapConnections'>[] | null;
+  /** Tracked character that owes the answer for a pending assumed prompt. */
+  readonly pendingResolutionCharacterId: number | null;
   readonly observedMassKg: number | null;
   readonly observedMassAtStateKg: number | null;
 }
@@ -181,6 +183,9 @@ function connectionEditorDetail(
     toDestinationHint: optionalOrNull(row.toDestinationHint),
     destinationProvenance: optionalOrNull(row.destinationProvenance),
     pendingCandidates: optionalOrNull(row.pendingCandidates),
+    pendingResolutionCharacterId: optionalOrNull(
+      row.pendingResolutionCharacterId,
+    ),
     observedMassKg: optionalOrNull(row.observedMassKg),
     observedMassAtStateKg: optionalOrNull(row.observedMassAtStateKg),
   };

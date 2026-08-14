@@ -558,13 +558,13 @@ async function resolveCandidateTopology(
   observedShipMassKg: number | null,
 ): Promise<TopologyResult> {
   const { candidate } = selection;
+  const ambiguous =
+    selection.provenance === 'assumed' && selection.survivors.length > 1;
   const patch = {
     toSystemId: args.toSolarSystemId,
     destinationProvenance: selection.provenance,
-    pendingCandidates:
-      selection.provenance === 'assumed' && selection.survivors.length > 1
-        ? [...selection.survivors]
-        : undefined,
+    pendingCandidates: ambiguous ? [...selection.survivors] : undefined,
+    pendingResolutionCharacterId: ambiguous ? args.characterId : undefined,
     observedMassKg: nextObservedMass(candidate, observedShipMassKg),
     observationKey: candidate.observationKey ?? args.observationKey,
   } as const;
@@ -695,16 +695,19 @@ export const confirmJumpIdentity = internalMutation({
     if (
       connection.destinationProvenance !== 'confirmed'
       || connection.pendingCandidates !== undefined
+      || connection.pendingResolutionCharacterId !== undefined
     ) {
       await ctx.db.patch(connectionId, {
         destinationProvenance: 'confirmed',
         pendingCandidates: undefined,
+        pendingResolutionCharacterId: undefined,
       });
     }
     return emissionFacts({
       ...connection,
       destinationProvenance: 'confirmed',
       pendingCandidates: undefined,
+      pendingResolutionCharacterId: undefined,
     });
   },
 });
@@ -754,6 +757,7 @@ export const reassociateJumpDestination = internalMutation({
       observedMassAtStateKg: source.observedMassAtStateKg,
       observationKey: source.observationKey,
       pendingCandidates: undefined,
+      pendingResolutionCharacterId: undefined,
     };
     await ctx.db.patch(target._id, moved);
     await ctx.db.patch(source._id, {
@@ -765,6 +769,7 @@ export const reassociateJumpDestination = internalMutation({
       observedMassAtStateKg: undefined,
       observationKey: undefined,
       pendingCandidates: undefined,
+      pendingResolutionCharacterId: undefined,
     });
     return emissionFacts({ ...target, ...moved });
   },

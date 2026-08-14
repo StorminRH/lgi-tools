@@ -224,6 +224,10 @@ export default defineSchema({
     observedMassAtStateKg: v.optional(v.number()),
     observationKey: v.optional(v.string()),
     pendingCandidates: v.optional(v.array(v.id('mapConnections'))),
+    // Which tracked character created an assumed multi-survivor prompt. The
+    // scanner answers surface only to clients that track this character so a
+    // jump by one pilot does not ask every editor on the map.
+    pendingResolutionCharacterId: v.optional(v.number()),
     fromSignalPct: v.optional(v.union(v.number(), v.null())),
     firstSeenAt: v.optional(v.number()),
     lifeStage: v.optional(lifeStageValidator),

@@ -111,6 +111,7 @@ it('opens the Signature Editor on Edit and severs through the shipped undo pathw
       ),
       restoreSeveredBranch: vi.fn(),
       restoreConnection: vi.fn(),
+      removeSignatures: vi.fn(),
       restoreSignatures: vi.fn(),
     };
   }

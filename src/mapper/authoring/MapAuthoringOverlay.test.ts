@@ -22,6 +22,7 @@ function authoring() {
     severConnection: vi.fn(),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
+    removeSignatures: vi.fn(),
     restoreSignatures: vi.fn(),
   };
 }

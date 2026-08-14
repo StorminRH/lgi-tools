@@ -150,6 +150,7 @@ const ROWS: readonly SignatureWindowRow[] = [
       toDestinationHint: null,
       destinationProvenance: null,
       pendingCandidates: null,
+    pendingResolutionCharacterId: null,
       observedMassKg: null,
       observedMassAtStateKg: null,
     },

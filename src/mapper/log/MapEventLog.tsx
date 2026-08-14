@@ -45,7 +45,6 @@ export function MapEventLog({
       <div
         className={cn(
           'pointer-events-auto rounded-card text-ui',
-          undoable && 'map-chip-undo-pulse',
           mapFrostedSurface,
         )}
       >
