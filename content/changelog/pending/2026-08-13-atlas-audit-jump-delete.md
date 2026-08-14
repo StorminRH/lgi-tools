@@ -4,7 +4,8 @@ source: stormin/combine-atlas-neon-audit
 ---
 
 #### Changed
-- Live Convex traffic no longer wakes Neon on every tick: location sync holds a short-lived EVE access-token lease, and the website JWT is minted once per session.
+- Convex location sync no longer wakes Neon on every tick; it holds a short-lived EVE access-token lease.
+- The website JWT is minted once per session.
 - Empty complete Atlas scanner views stay blank instead of showing a no-rows placeholder.
 - Atlas connection lines only catch the pointer when Edit or Delete can run.
 

@@ -134,6 +134,17 @@ export const putAccessLease = internalMutation({
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
+    // Same mutation as the write: unlink/transfer purge deletes tracking with
+    // the lease, so a late upsert cannot resurrect a credential after teardown.
+    // Untrack also removes tracking and skips this write; any already-held lease
+    // stays (CONVEX.md), and the next tracked run vends again.
+    const tracking = await ctx.db
+      .query('mapTracking')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', args.userId).eq('characterId', args.characterId),
+      )
+      .first();
+    if (tracking === null) return;
     const existing = await ctx.db
       .query('characterLocationAccess')
       .withIndex('by_user_character', (q) =>

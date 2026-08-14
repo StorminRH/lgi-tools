@@ -82,8 +82,10 @@ hardcode duplicates.
   Convex queries never read the lease table. Unlink / reassign / user-delete /
   owner-hash transfer POST `/purge-location-tracking` (same door as account
   purge). Untrack is a toggle (`mapTracking` only) and does not teardown
-  location or the lease. ESI 401/403 drops the held lease so the next run
-  re-vends instead of replaying a dead token until `expiresAt`.
+  location or the lease. `putAccessLease` no-ops when tracking is already gone,
+  so an in-flight sync cannot recreate a lease after unlink or transfer.
+  ESI 401/403 drops the held lease so the next run re-vends instead of
+  replaying a dead token until `expiresAt`.
 - **Website JWT is mint-once.** Better Auth's Convex-facing JWT matches the
   session lifetime (7 days). The browser reuses it until `exp` or logout
   (`clearAuth`). `/token` does not re-prove login through a Neon heartbeat

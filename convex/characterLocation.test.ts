@@ -259,6 +259,44 @@ describe('characterLocation.purgeForUser', () => {
   });
 });
 
+describe('characterLocation.putAccessLease', () => {
+  it('does not resurrect a lease after tracking teardown', async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.characterLocation.putAccessLease, {
+      userId: USER,
+      characterId: CHAR_A,
+      accessToken: 'tok-late',
+      expiresAt: GEN + 1_200_000,
+    });
+    const leases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
+    expect(leases).toEqual([]);
+  });
+
+  it('upserts when a mapTracking row still exists', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', {
+        mapId: 'map-a',
+        userId: USER,
+        characterId: CHAR_A,
+      });
+    });
+    await t.mutation(internal.characterLocation.putAccessLease, {
+      userId: USER,
+      characterId: CHAR_A,
+      accessToken: 'tok-fresh',
+      expiresAt: GEN + 1_200_000,
+    });
+    const lease = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationAccess')
+        .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', CHAR_A))
+        .unique(),
+    );
+    expect(lease).toMatchObject({ accessToken: 'tok-fresh', expiresAt: GEN + 1_200_000 });
+  });
+});
+
 describe('characterLocation.clearAccessLease', () => {
   it('deletes only the named character lease and is a no-op when absent', async () => {
     const t = convexTest(schema, modules);
