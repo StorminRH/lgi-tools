@@ -2,10 +2,10 @@
 // (no "use node"; the shared ESI gate is runtime-portable). One run refreshes
 // location for the caller's tracked characters:
 //
-//   heldState (system + dual etags + held online probe) → eve-characters
-//   (Neon enumeration) → mapTracking.trackedCharacterIds → poll set =
-//   registry ∩ enum → per character: eligibility + token + online probe
-//   (held-reuse inside its ~60s window, else conditional /online) →
+//   heldState (system + dual etags + held online probe) →
+//   mapTracking.trackedCharacterIds → access lease (vend only when missing
+//   or past Neon's expiresAt) → per character: online probe (held-reuse
+//   inside its ~60s window, else conditional /online) →
 //   ONLINE: /location (+ /ship on system change); OFFLINE: no location read,
 //   the online expiry becomes the character's window → ONE applySyncResults.
 //
@@ -20,7 +20,6 @@
 // recorded per-character or run-level error. The engine chains a dispatch on
 // clean-yield success (~5s while watched); the 30s scan is the retry/watchdog.
 import { v } from 'convex/values';
-import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import {
   parseLocationBody,
   parseOnlineBody,
@@ -31,13 +30,11 @@ import {
   decideOnlineProbe,
   type HeldOnlineState,
 } from '@/data/location-tracking/online-probe';
-import { canSyncLocation } from '@/data/location-tracking/sync-eligibility';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { readEsiAuthed, type RlSnapshot } from '@/platform/esi/authed-read';
 import { internal } from './_generated/api';
-import { internalAction } from './_generated/server';
+import { internalAction, type ActionCtx } from './_generated/server';
 import {
-  fetchEnumeratedCharacters,
   requireSyncEnv,
   resolveExpiresAt,
   type SyncEnv,
@@ -53,7 +50,10 @@ const FALLBACK_TTL_MS = 5_000;
 // expiry, so the subject re-arms at the probe cadence, never the 5s floor.
 const ONLINE_FALLBACK_TTL_MS = 60_000;
 
-type SyncCharacter = EveCharactersResponse['characters'][number];
+interface AccessLease {
+  accessToken: string;
+  expiresAt: number;
+}
 
 interface HeldState {
   solarSystemId: number | null;
@@ -107,25 +107,36 @@ export const syncUser = internalAction({
     // shapes (plus the key) — index them as-is.
     const heldByCharacter = new Map(held.locations.map((h) => [h.characterId, h]));
     const heldOnlineByCharacter = new Map(held.online.map((h) => [h.characterId, h]));
-    const characters = await fetchEnumeratedCharacters(env, userId);
     const trackedIds = await ctx.runQuery(internal.mapTracking.trackedCharacterIds, {
       userId,
     });
-    const tracked = new Set(trackedIds);
-    const pollSet = characters.filter((c) => tracked.has(c.characterId));
+    const leases = await ctx.runQuery(internal.characterLocation.accessLeases, { userId });
+    const leaseByCharacter = new Map(leases.map((row) => [row.characterId, row]));
+    const now = Date.now();
 
     const results: CharacterResult[] = [];
     const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
     let runError: string | null = null;
 
-    for (const character of pollSet) {
-      const heldState = heldByCharacter.get(character.characterId) ?? {
+    for (const characterId of trackedIds) {
+      const heldState = heldByCharacter.get(characterId) ?? {
         solarSystemId: null,
         etagLocation: null,
         etagShip: null,
       };
-      const heldOnline = heldOnlineByCharacter.get(character.characterId);
-      const outcome = await syncLocationCharacter(env, userId, character, heldState, heldOnline, rl);
+      const heldOnline = heldOnlineByCharacter.get(characterId);
+      const lease = leaseByCharacter.get(characterId);
+      const outcome = await syncLocationCharacter(
+        ctx,
+        env,
+        userId,
+        characterId,
+        heldState,
+        heldOnline,
+        lease,
+        now,
+        rl,
+      );
       if (outcome.kind === 'skip') continue;
       results.push(outcome.result);
       if (outcome.kind === 'stop') {
@@ -137,7 +148,7 @@ export const syncUser = internalAction({
     await ctx.runMutation(internal.characterLocation.applySyncResults, {
       userId,
       generation,
-      enumeratedCharacterIds: characters.map((c) => c.characterId),
+      enumeratedCharacterIds: trackedIds,
       trackedCharacterIds: trackedIds,
       results,
       lastError: runError,
@@ -147,29 +158,39 @@ export const syncUser = internalAction({
 });
 
 async function syncLocationCharacter(
+  ctx: ActionCtx,
   env: SyncEnv,
   userId: string,
-  character: SyncCharacter,
+  characterId: number,
   held: HeldState,
   heldOnline: HeldOnlineState | undefined,
+  lease: AccessLease | undefined,
+  now: number,
   rl: RlSnapshot,
 ): Promise<CharacterOutcome> {
-  const characterId = character.characterId;
-  if (!canSyncLocation(character)) {
-    return { kind: 'result', result: errorResult(characterId, 'reauth_required', held) };
-  }
-
-  const vend = await vendCharacterToken(env, userId, characterId);
-  if (vend.kind === 'skip') return { kind: 'skip' };
-  if (vend.kind !== 'token') {
-    const code = vend.kind === 'reauth' ? 'reauth_required' : 'token_unavailable';
-    return { kind: 'result', result: errorResult(characterId, code, held) };
+  let accessToken: string;
+  if (lease !== undefined && now < lease.expiresAt) {
+    accessToken = lease.accessToken;
+  } else {
+    const vend = await vendCharacterToken(env, userId, characterId);
+    if (vend.kind === 'skip') return { kind: 'skip' };
+    if (vend.kind !== 'token') {
+      const code = vend.kind === 'reauth' ? 'reauth_required' : 'token_unavailable';
+      return { kind: 'result', result: errorResult(characterId, code, held) };
+    }
+    accessToken = vend.accessToken;
+    await ctx.runMutation(internal.characterLocation.putAccessLease, {
+      userId,
+      characterId,
+      accessToken: vend.accessToken,
+      expiresAt: vend.expiresAt,
+    });
   }
 
   try {
     return {
       kind: 'result',
-      result: await readProbeThenLocation(characterId, vend.accessToken, held, heldOnline, rl),
+      result: await readProbeThenLocation(characterId, accessToken, held, heldOnline, rl),
     };
   } catch (error) {
     if (error instanceof EsiBudgetExhaustedError) {

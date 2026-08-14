@@ -89,12 +89,12 @@ export async function fetchEnumeratedCharacters(
 /**
  * One per-character token vend. The refresh token never reaches Convex — the
  * endpoint returns only a short-lived access token. The status ladder is the
- * recorded taxonomy: 404 = unlinked between enumeration and vend (the next
- * run's enumeration deletes the doc — skip silently); 409 = reauth required;
+ * recorded taxonomy: 404 = unlinked between tracking and vend (identity
+ * teardown deletes the docs — skip silently); 409 = reauth required;
  * any other non-ok = token unavailable.
  */
 export type TokenVend =
-  | { kind: 'token'; accessToken: string }
+  | { kind: 'token'; accessToken: string; expiresAt: number }
   | { kind: 'skip' }
   | { kind: 'reauth' }
   | { kind: 'unavailable' };
@@ -118,7 +118,13 @@ export async function vendCharacterToken(
     secret: env.secret,
     body: { userId, characterId },
   });
-  if (outcome.ok) return { kind: 'token', accessToken: outcome.data.accessToken };
+  if (outcome.ok) {
+    return {
+      kind: 'token',
+      accessToken: outcome.data.accessToken,
+      expiresAt: outcome.data.expiresAt,
+    };
+  }
   if (outcome.kind === 'network') throw outcome.cause;
   if (outcome.status === 404) return { kind: 'skip' };
   if (outcome.status === 409) return { kind: 'reauth' };

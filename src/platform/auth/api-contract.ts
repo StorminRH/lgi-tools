@@ -29,11 +29,15 @@ export const eveTokenRequestSchema = z.object({
 });
 
 /**
- * 200 response type imported by convex/ in 3.4.3. Carries ONLY the short-lived
- * access token: the consumer's ESI reads own their freshness windows, so no
- * expiry/identity/scope metadata rides this wire (PL-013).
+ * 200 response imported by convex/. Carries the short-lived access token and
+ * Neon's `expiresAt` (unix ms) so the consumer can hold the lease until that
+ * instant. The 5s ESI location cache window is still owned by the consumer
+ * (PL-013); this expiry is the OAuth access-token lease, not that cache.
  */
-const eveTokenResponseSchema = z.object({ accessToken: z.string() });
+const eveTokenResponseSchema = z.object({
+  accessToken: z.string(),
+  expiresAt: z.number().int().positive(),
+});
 /** Fresh EVE access token vended to the authenticated internal sync caller. */
 export type EveTokenOkResponse = z.infer<typeof eveTokenResponseSchema>;
 

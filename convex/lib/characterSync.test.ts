@@ -38,11 +38,15 @@ afterEach(() => {
 
 describe('vendCharacterToken', () => {
   it('sends both the owning user and character identifiers with service auth', async () => {
-    const fetchMock = stubFetch(Response.json({ accessToken: 'fresh-token' }));
+    const fetchMock = stubFetch(Response.json({ accessToken: 'fresh-token', expiresAt: 1_700_000_000_000 }));
 
     const result = await vendCharacterToken(ENV, 'user-1', 90000001);
 
-    expect(result).toEqual({ kind: 'token', accessToken: 'fresh-token' });
+    expect(result).toEqual({
+      kind: 'token',
+      accessToken: 'fresh-token',
+      expiresAt: 1_700_000_000_000,
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://app.test/api/internal/eve-token',
       expect.objectContaining({

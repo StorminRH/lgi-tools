@@ -3,26 +3,37 @@
 // Bridges the existing Better Auth client state into Convex (3.4.3). Convex
 // wants a useAuth hook returning {isLoading, isAuthenticated, fetchAccessToken};
 // we derive the first two from AuthProvider's context and mint the ES256 JWT
-// from the spine's /api/auth/token on demand (Convex re-calls fetchAccessToken
-// whenever it needs a fresh one, so no client-side caching — every GET mints).
-// Must be mounted INSIDE <AuthProvider>.
+// from the spine's /api/auth/token. The helper reuses a still-valid JWT until
+// expiry (or forceRefreshToken); Convex's client also reuses the first mint
+// (`initialAuthTokenReuse`). Must be mounted INSIDE <AuthProvider>.
 //
 // The returned object is memoized on PRIMITIVES (loading, session !== null):
 // AuthProvider rebuilds its context value every render, and an identity-
 // unstable useAuth result would bounce Convex back into the loading state.
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { ConvexProviderWithAuth } from 'convex/react';
 import { convexClient } from '@/data/convex/client';
-import { fetchConvexAccessToken } from '../auth-client';
+import {
+  clearCachedConvexAccessToken,
+  fetchConvexAccessToken,
+} from '../auth-client';
 import { useAuth } from './AuthProvider';
 
 function useAuthForConvex() {
   const { session, loading } = useAuth();
   const isAuthenticated = session !== null;
 
+  useEffect(() => {
+    if (!loading && !isAuthenticated) clearCachedConvexAccessToken();
+  }, [loading, isAuthenticated]);
+
   // The jwt client plugin owns the mint call and its null-on-failure contract.
-  const fetchAccessToken = useCallback(() => fetchConvexAccessToken(), []);
+  const fetchAccessToken = useCallback(
+    ({ forceRefreshToken }: { forceRefreshToken: boolean }) =>
+      fetchConvexAccessToken({ forceRefreshToken }),
+    [],
+  );
 
   return useMemo(
     () => ({ isLoading: loading, isAuthenticated, fetchAccessToken }),

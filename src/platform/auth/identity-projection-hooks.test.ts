@@ -16,10 +16,10 @@ describe('identity-projection-hooks', () => {
     await expect(runBeforeUserDelete('user-1')).rejects.toThrow(
       'Required before-user-delete map purge hook is not registered',
     );
-    await expect(runAfterCharacterLinkChanged(100)).resolves.toBeUndefined();
+    await expect(runAfterCharacterLinkChanged({ userId: 'user-1', characterId: 100 })).resolves.toBeUndefined();
 
     expect(errorSpy).toHaveBeenCalledWith(
-      '[identity-projection] afterCharacterLinkChanged skipped for 100: action unregistered',
+      '[identity-projection] afterCharacterLinkChanged skipped for user-1:100: action unregistered',
     );
     errorSpy.mockRestore();
   });
@@ -30,10 +30,10 @@ describe('identity-projection-hooks', () => {
     registerIdentityProjectionHooks({ beforeUserDelete, afterCharacterLinkChanged });
 
     await runBeforeUserDelete('user-1');
-    await runAfterCharacterLinkChanged(200);
+    await runAfterCharacterLinkChanged({ userId: 'user-1', characterId: 200 });
 
     expect(beforeUserDelete).toHaveBeenCalledWith('user-1');
-    expect(afterCharacterLinkChanged).toHaveBeenCalledWith(200);
+    expect(afterCharacterLinkChanged).toHaveBeenCalledWith({ userId: 'user-1', characterId: 200 });
   });
 
   it('propagates delete-hook failures but keeps character reprojection best effort', async () => {
@@ -48,7 +48,7 @@ describe('identity-projection-hooks', () => {
     });
 
     await expect(runBeforeUserDelete('user-1')).rejects.toThrow('convex down');
-    await expect(runAfterCharacterLinkChanged(100)).resolves.toBeUndefined();
+    await expect(runAfterCharacterLinkChanged({ userId: 'user-1', characterId: 100 })).resolves.toBeUndefined();
     expect(errorSpy).toHaveBeenCalledOnce();
     errorSpy.mockRestore();
   });

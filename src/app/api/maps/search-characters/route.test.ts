@@ -68,7 +68,7 @@ beforeEach(() => {
   h.esiFetch.mockReset();
   h.getFreshAccessTokenForCharacter
     .mockReset()
-    .mockResolvedValue({ kind: 'ok', accessToken: 'scoped-token' });
+    .mockResolvedValue({ kind: 'ok', accessToken: 'scoped-token', expiresAt: 1 });
   h.listLinkedCharacters.mockReset().mockResolvedValue([SCOPED_CHARACTER]);
   h.logUsageEvent.mockReset().mockResolvedValue(undefined);
   h.resolveEntityNamesStrict.mockReset().mockResolvedValue({
