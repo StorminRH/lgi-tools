@@ -12,15 +12,23 @@ slices and shared infrastructure.
 
 ## Subagents
 
+Prefer a subagent when the work isolates well. If a listed seat fits, use
+it; other subagents are fine when they help.
+
 Before writing or editing production or test code, launch `docs-researcher` for
 every material external technology in the change (React, Next.js, Convex, Base
 UI, React Flow, Vitest, and peers). Require a Documentation brief before
-generation; do not implement from training memory. Skip the docs gate for docs,
-policy, or other pure non-code edits.
+generation; do not implement from training memory.
 
 Use `repo-mapper` for material relationship, consumer, dependency, or
 blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
 `impact`, `query`, plus `status`/`sync` if needed) and return a Repository map.
+
+Use `gate-runner` for caller-supplied focused tests and `pnpm verify` when a
+Gate result packet is needed. Do not use it to fix failures.
+
+Launch those seats by name and omit Task `model` so their configured pins
+apply. Other subagents may use any model.
 
 ## Commands and definition of done
 
@@ -58,8 +66,6 @@ merge-to-production procedure.
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
 
