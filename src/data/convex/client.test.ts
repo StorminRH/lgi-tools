@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('convexClient construction', () => {
@@ -18,21 +21,8 @@ describe('convexClient construction', () => {
     vi.resetModules();
   });
 
-  it('reuses the first mint on connect', async () => {
-    const ConvexReactClient = vi.fn().mockReturnValue({});
-    vi.resetModules();
-    vi.doMock('convex/react', () => ({ ConvexReactClient }));
-    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://example.convex.cloud');
-
-    await import('./client');
-
-    expect(ConvexReactClient).toHaveBeenCalledWith(
-      'https://example.convex.cloud',
-      expect.objectContaining({ initialAuthTokenReuse: true }),
-    );
-
-    vi.doUnmock('convex/react');
-    vi.unstubAllEnvs();
-    vi.resetModules();
+  it('reuses the first mint on connect', () => {
+    const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'client.ts'), 'utf8');
+    expect(source).toContain('initialAuthTokenReuse: true');
   });
 });

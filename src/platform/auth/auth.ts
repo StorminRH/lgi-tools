@@ -248,7 +248,7 @@ const options = {
         // Match the session cookie: mint once, trust until expiry or logout.
         expirationTime: '7d',
         // /token uses Better Auth's original getSession (not customSession), so
-        // this path never calls resolveActiveCharacter / Neon enrichment.
+        // this path never runs Neon character enrichment.
         definePayload: ({ user: u }) => ({
           role: (u.role as CharacterRole | undefined) ?? 'USER',
           name: u.name,

@@ -112,7 +112,7 @@ describe('fetchConvexAccessToken', () => {
   it('drops a held mint on logout so a later session cannot reuse it', async () => {
     const exp = Math.floor(Date.now() / 1000) + 3600;
     const token = `hdr.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.sig`;
-    fetchMock.mockResolvedValue(Response.json({ token }));
+    fetchMock.mockImplementation(() => Promise.resolve(Response.json({ token })));
 
     const { fetchConvexAccessToken, clearCachedConvexAccessToken } = await import('./auth-client');
 
