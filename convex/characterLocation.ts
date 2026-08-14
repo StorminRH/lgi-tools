@@ -159,6 +159,27 @@ export const putAccessLease = internalMutation({
   },
 });
 
+/**
+ * Drop one character's access lease. ESI 401/403 means the held token is dead;
+ * the next sync vends again instead of replaying it until Neon expiresAt.
+ * Idempotent when the row is already gone. Does not touch location or tracking.
+ */
+export const clearAccessLease = internalMutation({
+  args: {
+    userId: v.string(),
+    characterId: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('characterLocationAccess')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', args.userId).eq('characterId', args.characterId),
+      )
+      .unique();
+    if (existing !== null) await ctx.db.delete(existing._id);
+  },
+});
+
 // Per-character outcome the action hands back. `solarSystemId` null means a
 // 304, an offline probe, or an error (then `error` is set). Offline pilots
 // keep any held location (collapse retention / last-known); map presence
@@ -233,7 +254,7 @@ export const applySyncResults = internalMutation({
 });
 
 // Index one payload table's rows by character. Unlinked characters are
-// removed by purgeForUser (unlink/reassign/user-delete), not here — feeding
+// removed by purgeForUser (unlink/reassign/user-delete/owner-hash), not here — feeding
 // the tracked set into a delete-if-missing pass would turn untrack into a
 // destroy of last-known location.
 function indexByCharacter<D extends { characterId: number }>(docs: D[]): Map<number, D> {

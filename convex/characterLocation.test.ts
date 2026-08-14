@@ -259,6 +259,35 @@ describe('characterLocation.purgeForUser', () => {
   });
 });
 
+describe('characterLocation.clearAccessLease', () => {
+  it('deletes only the named character lease and is a no-op when absent', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+
+    await t.mutation(internal.characterLocation.clearAccessLease, {
+      userId: USER,
+      characterId: CHAR_A,
+    });
+    await t.mutation(internal.characterLocation.clearAccessLease, {
+      userId: USER,
+      characterId: CHAR_A,
+    });
+
+    const leases = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationAccess')
+        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .collect(),
+    );
+    expect(leases.map((doc) => doc.characterId)).toEqual([CHAR_B]);
+    expect(await readDoc(t, CHAR_A)).not.toBeNull();
+  });
+});
+
 describe('POST /purge-location-tracking', () => {
   it('rejects a request without the service bearer token', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);

@@ -41,9 +41,9 @@ export function edgeMenuConnectionId(input: {
  * Whether this line should stay hit-testable. Same authority as the context
  * menu, plus departing ghosts — a fading stroke is not an authoring surface.
  *
- * React Flow marks `selectable: false` edges `.inactive` (`pointer-events:
- * none` on the wrapper `<g>`), so the pane pans through. Path CSS alone
- * cannot do that: `edge.style` lands on the visible stroke, not the wrapper.
+ * React Flow marks unselectable edges inactive (pointer-events none on the
+ * wrapper group), so the pane pans through. Path CSS alone cannot do that:
+ * edge.style lands on the visible stroke, not the wrapper.
  */
 export function edgeAllowsPointerActions(
   edge: ChainEdge,

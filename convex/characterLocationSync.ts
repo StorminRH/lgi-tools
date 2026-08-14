@@ -188,10 +188,14 @@ async function syncLocationCharacter(
   }
 
   try {
-    return {
-      kind: 'result',
-      result: await readProbeThenLocation(characterId, accessToken, held, heldOnline, rl),
-    };
+    const result = await readProbeThenLocation(characterId, accessToken, held, heldOnline, rl);
+    if (result.error === 'esi_401' || result.error === 'esi_403') {
+      await ctx.runMutation(internal.characterLocation.clearAccessLease, {
+        userId,
+        characterId,
+      });
+    }
+    return { kind: 'result', result };
   } catch (error) {
     if (error instanceof EsiBudgetExhaustedError) {
       return {

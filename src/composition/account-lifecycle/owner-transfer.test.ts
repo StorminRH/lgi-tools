@@ -5,6 +5,19 @@ import { syntheticEmail } from '@/platform/auth/synthetic-email';
 // reach lives here: a multi-character prior owner left untouched when the freed
 // character is neither their identity email nor their active character. The
 // chainable thenable emulates Drizzle's builder (FIFO results, counted writes).
+const hooks = vi.hoisted(() => ({
+  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/platform/auth/identity-projection-hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/platform/auth/identity-projection-hooks')>();
+  return {
+    ...actual,
+    runAfterCharacterLinkChanged: (...args: unknown[]) =>
+      hooks.runAfterCharacterLinkChanged(...args),
+  };
+});
+
 const { chain, state } = vi.hoisted(() => {
   const state = {
     results: [] as unknown[],
@@ -66,6 +79,7 @@ beforeEach(() => {
   state.results = [];
   state.calls.delete = 0;
   state.calls.update = 0;
+  hooks.runAfterCharacterLinkChanged.mockReset().mockResolvedValue(undefined);
 });
 
 describe('purgeTransferredCharacter', () => {
@@ -81,5 +95,9 @@ describe('purgeTransferredCharacter', () => {
     await purgeTransferredCharacter(USER, CHAR);
     // Account + direct grant deleted; only the character reset update runs.
     expect(state.calls).toEqual({ delete: 2, update: 1 });
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+      userId: USER,
+      characterId: CHAR,
+    });
   });
 });

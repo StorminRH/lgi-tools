@@ -443,6 +443,21 @@ describe('characterLocationSync.syncUser', () => {
     const doc = await readDoc(t);
     expect(doc?.solarSystemId).toBe(SYSTEM_A);
     expect(doc?.etagLocation).toBe('loc0');
+    expect(await readLease(t)).toBeNull();
+  });
+
+  it('drops a held access lease on ESI 403 without vending this run', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    await seedOnline(t);
+    await seedLease(t);
+    const fetchFn = stubFetch({ esi: () => new Response(null, { status: 403 }) });
+
+    await run(t);
+
+    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+    expect(await readLease(t)).toBeNull();
   });
 
   it('reuses a held online answer inside its window — no /online read', async () => {
