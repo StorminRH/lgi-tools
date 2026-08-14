@@ -435,6 +435,17 @@ function ScannerSectionBlock({
   );
 }
 
+function ScannerRowsLoading() {
+  return (
+    <p
+      data-signature-empty
+      className="px-3 py-4 text-center font-data text-micro text-muted"
+    >
+      Reading scanner rows…
+    </p>
+  );
+}
+
 function SignaturesTabBody({
   rows,
   scannerSystemId,
@@ -464,14 +475,7 @@ function SignaturesTabBody({
     code === null || codex === null ? null : codex.byCode(code);
   const sections = groupSignatureSections(rows, scannerSystemId);
   if (sections.length === 0) {
-    return (
-      <p
-        data-signature-empty
-        className="rounded-ctl border border-border-soft px-3 py-4 text-center font-data text-micro text-muted"
-      >
-        {complete ? 'No scanner rows in this system.' : 'Reading scanner rows…'}
-      </p>
-    );
+    return complete ? null : <ScannerRowsLoading />;
   }
   return (
     <div data-scanner-sections className="flex flex-col">
@@ -513,45 +517,39 @@ function AnomalyTable({
     clientY: number,
   ) => void;
 }) {
+  if (rows.length === 0) {
+    return complete ? null : <ScannerRowsLoading />;
+  }
   return (
     <div className="flex flex-col gap-1.5">
       <ColumnHeader columnsClassName={ANOMALY_COLUMNS} labels={['ID', 'Name', 'Age']} />
-      {rows.length === 0 ? (
-        <p
-          data-signature-empty
-          className="rounded-ctl border border-border-soft px-3 py-4 text-center font-data text-micro text-muted"
-        >
-          {complete ? 'No scanner rows in this system.' : 'Reading scanner rows…'}
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {rows.map((row) => (
-            <SignatureRow
-              key={row.key}
-              row={row}
-              missing={missingIds.has(row.signatureId)}
-              canEdit={canEdit}
-              resolveSiteId={resolveSiteId}
-              columnsClassName={ANOMALY_COLUMNS}
-              cells={
-                <>
-                  <IdCell row={row} />
-                  <NameCell row={row} />
-                  <AgeCell row={row} now={now} />
-                </>
-              }
-              showOpenAffordance={scannerRowShowsOpenAffordance(
-                row,
-                canEdit,
-                resolveSiteId,
-              )}
-              onOpenActions={(trigger, clientX, clientY) =>
-                onOpenActions(row, trigger, clientX, clientY)
-              }
-            />
-          ))}
-        </ul>
-      )}
+      <ul className="flex flex-col gap-1">
+        {rows.map((row) => (
+          <SignatureRow
+            key={row.key}
+            row={row}
+            missing={missingIds.has(row.signatureId)}
+            canEdit={canEdit}
+            resolveSiteId={resolveSiteId}
+            columnsClassName={ANOMALY_COLUMNS}
+            cells={
+              <>
+                <IdCell row={row} />
+                <NameCell row={row} />
+                <AgeCell row={row} now={now} />
+              </>
+            }
+            showOpenAffordance={scannerRowShowsOpenAffordance(
+              row,
+              canEdit,
+              resolveSiteId,
+            )}
+            onOpenActions={(trigger, clientX, clientY) =>
+              onOpenActions(row, trigger, clientX, clientY)
+            }
+          />
+        ))}
+      </ul>
     </div>
   );
 }

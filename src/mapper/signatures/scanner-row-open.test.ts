@@ -55,6 +55,7 @@ const WH: SignatureWindowRow = row({
     toDestinationHint: null,
     destinationProvenance: null,
     pendingCandidates: null,
+    pendingResolutionCharacterId: null,
     observedMassKg: null,
     observedMassAtStateKg: null,
   },

@@ -11,7 +11,7 @@ import { useLiveValue } from '@/data/convex/use-live-value';
 import { postJumpRequest } from '../jump-client';
 import {
   DOORBELL_RETRY_INTERVAL_MS,
-  ringPendingTransitions,
+  ringOwnDoorbells,
   type DoorbellMemoryEntry,
 } from './doorbell-model';
 
@@ -27,10 +27,7 @@ export function JumpDoorbellObserver({ mapId }: { readonly mapId: string }) {
   // re-subscribing the timer. The model's synchronous in-flight marking keeps
   // a development double-invoked effect from double-ringing.
   const ringPending = useEffectEvent(() => {
-    const memory = memoryRef.current;
-    const tracked = tracking?.tracked;
-    if (memory === null || tracked === undefined) return;
-    void ringPendingTransitions(memory, tracked, (characterId) =>
+    ringOwnDoorbells(memoryRef.current, tracking, (characterId) =>
       postJumpRequest({ kind: 'doorbell', mapId, characterId }),
     );
   });

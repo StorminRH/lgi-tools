@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EveCharactersResponse } from '@/platform/auth/api-contract';
+import { problemBodySchema } from '@/lib/problem';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { internal } from './_generated/api';
 import schema from './schema';
@@ -30,8 +30,23 @@ const permissiveScoreboard = {
   },
 };
 
+const TOKEN_EXP = Date.now() + 1_200_000;
+
 function jsonResponse(body: unknown, headers: Record<string, string> = {}, status = 200) {
   return new Response(JSON.stringify(body), { status, headers });
+}
+
+function problemResponse(code: string, status: number) {
+  return Response.json(
+    problemBodySchema.parse({
+      type: `https://lgi.tools/problems/${code}`,
+      title: 'Request failed',
+      status,
+      code,
+      correlationId: 'correlation-id',
+    }),
+    { status },
+  );
 }
 
 const RL = {
@@ -43,30 +58,14 @@ const RL = {
   'X-Ratelimit-Used': '1',
 };
 
-type Character = EveCharactersResponse['characters'][number];
-
-function eligible(characterId = 101): Character {
-  return {
-    characterId,
-    name: `Pilot ${characterId}`,
-    hasRefreshToken: true,
-    missingScopes: [],
-    corporationId: null,
-  };
-}
-
 function stubFetch(opts: {
-  characters?: Character[];
   token?: () => Response;
   esi?: (url: string) => Response;
 }) {
   const fn = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
-    if (url.endsWith('/api/internal/eve-characters')) {
-      return jsonResponse({ characters: opts.characters ?? [eligible()] });
-    }
     if (url.endsWith('/api/internal/eve-token')) {
-      return (opts.token ?? (() => jsonResponse({ accessToken: 'tok' })))();
+      return (opts.token ?? (() => jsonResponse({ accessToken: 'tok', expiresAt: TOKEN_EXP })))();
     }
     if (opts.esi) return opts.esi(url);
     throw new Error(`unexpected url ${url}`);
@@ -152,6 +151,15 @@ function readOnlineRow(t: TestConvex<typeof schema>, characterId = 101) {
   );
 }
 
+function readLease(t: TestConvex<typeof schema>, characterId = 101) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('characterLocationAccess')
+      .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
+      .unique(),
+  );
+}
+
 function readDoc(t: TestConvex<typeof schema>, characterId = 101) {
   return t.run((ctx) =>
     ctx.db
@@ -159,6 +167,23 @@ function readDoc(t: TestConvex<typeof schema>, characterId = 101) {
       .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
       .unique(),
   );
+}
+
+async function seedLease(
+  t: TestConvex<typeof schema>,
+  overrides: Partial<{ accessToken: string; expiresAt: number }> = {},
+  characterId = 101,
+) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert('characterLocationAccess', {
+      userId: USER,
+      characterId,
+      accessToken: 'leased-tok',
+      expiresAt: Date.now() + 600_000,
+      updatedAt: Date.now(),
+      ...overrides,
+    });
+  });
 }
 
 function run(t: TestConvex<typeof schema>) {
@@ -204,6 +229,9 @@ describe('characterLocationSync.syncUser', () => {
     });
     expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(true);
     expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(true);
+    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/eve-characters'))).toBe(false);
+    const lease = await readLease(t);
+    expect(lease).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
   });
 
   it('keeps the held document byte-identical on a 304', async () => {
@@ -362,20 +390,19 @@ describe('characterLocationSync.syncUser', () => {
     expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
   });
 
-  it('records reauth_required for an ineligible tracked character', async () => {
+  it('records reauth_required when vend returns 409', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
     await seedTracking(t);
     const fetchFn = stubFetch({
-      characters: [
-        { ...eligible(101), missingScopes: ['esi-location.read_location.v1'] },
-      ],
+      token: () => problemResponse('reauth_required', 409),
     });
 
     await run(t);
 
     expect(await readDoc(t)).toBeNull();
-    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
+    expect(await readLease(t)).toBeNull();
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
@@ -416,6 +443,21 @@ describe('characterLocationSync.syncUser', () => {
     const doc = await readDoc(t);
     expect(doc?.solarSystemId).toBe(SYSTEM_A);
     expect(doc?.etagLocation).toBe('loc0');
+    expect(await readLease(t)).toBeNull();
+  });
+
+  it('drops a held access lease on ESI 403 without vending this run', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    await seedOnline(t);
+    await seedLease(t);
+    const fetchFn = stubFetch({ esi: () => new Response(null, { status: 403 }) });
+
+    await run(t);
+
+    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+    expect(await readLease(t)).toBeNull();
   });
 
   it('reuses a held online answer inside its window — no /online read', async () => {
@@ -539,30 +581,54 @@ describe('characterLocationSync.syncUser', () => {
     expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(true);
   });
 
-  it('records reauth_required for a tracked character missing only the online scope', async () => {
+  it('reuses a still-valid access lease and skips the Neon vend', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
     await seedTracking(t);
+    await seedOnline(t);
+    await seedLease(t);
     const fetchFn = stubFetch({
-      characters: [
-        { ...eligible(101), missingScopes: ['esi-location.read_online.v1'] },
-      ],
+      esi: (url) => {
+        if (url.includes('/location')) {
+          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+        }
+        if (url.includes('/ship')) {
+          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+        }
+        throw new Error(`unexpected esi ${url}`);
+      },
     });
 
     await run(t);
 
-    // The probe is part of the location gate: without its scope there is no
-    // stop condition, so the character records reauth rather than tracking.
     expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) =>
-          q.eq('userId', USER).eq('dataset', 'characterLocation'),
-        )
-        .unique(),
-    );
-    expect(subject?.minExpiresAt).toBeNull();
-    expect(subject?.lastError).toBeNull();
+    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/eve-characters'))).toBe(false);
+    expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
+    expect((await readLease(t))?.accessToken).toBe('leased-tok');
+  });
+
+  it('vends again when the held lease is at or past Neon expiresAt', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    await seedOnline(t);
+    await seedLease(t, { expiresAt: Date.now() - 1, accessToken: 'stale-tok' });
+    const fetchFn = stubFetch({
+      esi: (url) => {
+        if (url.includes('/location')) {
+          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
+        }
+        if (url.includes('/ship')) {
+          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
+        }
+        throw new Error(`unexpected esi ${url}`);
+      },
+    });
+
+    await run(t);
+
+    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
+    expect(await readLease(t)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
   });
 });

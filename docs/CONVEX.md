@@ -77,7 +77,19 @@ hardcode duplicates.
 ## Secrets, env, and deploy
 
 - **Refresh token never leaves Neon.** Convex receives only short-lived
-  per-character access tokens from the service-authed Neon-side endpoint.
+  per-character access tokens from the service-authed Neon-side endpoint and
+  holds each as a lease until Neon's `expiresAt`, then vends once. Public
+  Convex queries never read the lease table. Unlink / reassign / user-delete /
+  owner-hash transfer POST `/purge-location-tracking` (same door as account
+  purge). Untrack is a toggle (`mapTracking` only) and does not teardown
+  location or the lease. `putAccessLease` no-ops when tracking is already gone,
+  so an in-flight sync cannot recreate a lease after unlink or transfer.
+  ESI 401/403 drops the held lease so the next run re-vends instead of
+  replaying a dead token until `expiresAt`.
+- **Website JWT is mint-once.** Better Auth's Convex-facing JWT matches the
+  session lifetime (7 days). The browser reuses it until `exp` or logout
+  (`clearAuth`). `/token` does not re-prove login through a Neon heartbeat
+  (`resolveActiveCharacter` stays off this path; JWKS is process-cached).
 - **Env split.** `CONVEX_SERVICE_SECRET` in Convex env — never EVE credentials.
   Identity and token secrets stay Neon-side. `CONVEX_DEPLOY_KEY` in Vercel.
 - **CSP:** Convex origin in `connect-src` only — https + wss, exact

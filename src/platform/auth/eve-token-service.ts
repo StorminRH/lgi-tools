@@ -55,7 +55,7 @@ const TOKEN_REFRESH_FAILURE_ACTIONS = {
  * retryable upstream failure.
  */
 export type FreshTokenResult =
-  | { kind: 'ok'; accessToken: string }
+  | { kind: 'ok'; accessToken: string; expiresAt: number }
   | { kind: 'not_found' }
   | { kind: 'reauth_required' }
   | { kind: 'upstream_error' };
@@ -109,7 +109,9 @@ function readCachedToken(row: LoadedAccountRow): FreshTokenResult | null {
     return null;
   }
   const accessToken = decryptToken(row.accessToken);
-  return accessToken === null ? null : { kind: 'ok', accessToken };
+  return accessToken === null
+    ? null
+    : { kind: 'ok', accessToken, expiresAt: row.accessTokenExpiresAt.getTime() };
 }
 
 // A conditional write affected 0 rows: a concurrent vend rotated this account's
@@ -134,7 +136,7 @@ async function reflectStoredToken(characterId: number): Promise<FreshTokenResult
   if (row.accessTokenExpiresAt.getTime() - Date.now() <= ACCESS_TOKEN_REFRESH_SKEW_MS) {
     return { kind: 'reauth_required' };
   }
-  return { kind: 'ok', accessToken: access };
+  return { kind: 'ok', accessToken: access, expiresAt: row.accessTokenExpiresAt.getTime() };
 }
 
 async function recordInvalidGrant(
@@ -343,5 +345,5 @@ export async function getFreshAccessTokenForCharacter(
     });
   }
 
-  return { kind: 'ok', accessToken: result.access_token };
+  return { kind: 'ok', accessToken: result.access_token, expiresAt: expiresAt.getTime() };
 }

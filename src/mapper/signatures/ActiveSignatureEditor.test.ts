@@ -69,6 +69,7 @@ function base() {
     toDestinationHint: null,
     destinationProvenance: null,
     pendingCandidates: null,
+    pendingResolutionCharacterId: null,
     observedMassKg: null,
     observedMassAtStateKg: null,
   };
@@ -97,6 +98,7 @@ function authoring() {
     severConnection: vi.fn(),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
+    removeSignatures: vi.fn(),
     restoreSignatures: vi.fn(),
   };
 }

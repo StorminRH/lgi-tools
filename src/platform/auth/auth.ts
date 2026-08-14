@@ -33,6 +33,7 @@ import { resolveActiveCharacter, upsertCharacterOnLogin } from './linked-charact
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { getCharacterOwnerReconciler } from './owner-reconcile-hook';
 import { runAfterCharacterLinkChanged } from './identity-projection-hooks';
+import { getCachedJwks } from './jwks-cache';
 import { account, jwks, session, user, verification } from '@/db/auth-schema';
 import { syntheticEmail } from './synthetic-email';
 import { encryptToken } from './token-crypto';
@@ -72,7 +73,7 @@ const options = {
           if (acct.providerId !== EVE_PROVIDER_ID) return;
           const characterId = Number(acct.accountId);
           if (!Number.isFinite(characterId)) return;
-          await runAfterCharacterLinkChanged(characterId);
+          await runAfterCharacterLinkChanged({ userId: acct.userId, characterId });
         },
       },
       update: { before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }) },
@@ -244,11 +245,16 @@ const options = {
       jwt: {
         issuer: readEnv('BETTER_AUTH_URL'),
         audience: 'convex',
+        // Match the session cookie: mint once, trust until expiry or logout.
+        expirationTime: '7d',
+        // /token uses Better Auth's original getSession (not customSession), so
+        // this path never runs Neon character enrichment.
         definePayload: ({ user: u }) => ({
           role: (u.role as CharacterRole | undefined) ?? 'USER',
           name: u.name,
         }),
       },
+      adapter: { getJwks: getCachedJwks },
       // Don't attach a signed JWT to every session response — Convex pulls one
       // deliberately from /api/auth/token. Recommended with OAuth provider plugins.
       disableSettingJwtHeader: true,

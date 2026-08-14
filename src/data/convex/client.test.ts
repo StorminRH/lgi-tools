@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 describe('convexClient construction', () => {
@@ -16,5 +19,10 @@ describe('convexClient construction', () => {
     random.mockRestore();
     vi.unstubAllEnvs();
     vi.resetModules();
+  });
+
+  it('reuses the first mint on connect', () => {
+    const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'client.ts'), 'utf8');
+    expect(source).toContain('initialAuthTokenReuse: true');
   });
 });

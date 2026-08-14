@@ -62,6 +62,11 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
+const teardownLocationTrackingMock = vi.hoisted(() => vi.fn());
+vi.mock('@/data/location-tracking/purge', () => ({
+  teardownLocationTracking: (...args: unknown[]) => teardownLocationTrackingMock(...args),
+}));
+
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
 // Real identity wiring: map-access-identity registers hooks; the route uses the
@@ -97,6 +102,7 @@ describe('POST /api/account/characters/unlink', () => {
     projectMapAccessMock.mockReset();
     teardownMapAccessProjectionMock.mockReset();
     purgeUserMapAccessProjectionMock.mockReset();
+    teardownLocationTrackingMock.mockReset().mockResolvedValue(undefined);
     logUsageEventMock.mockResolvedValue(undefined);
     getCharacterCorporationIdMock.mockResolvedValue(null);
     getMapIdsWithCharacterGrantMock.mockResolvedValue([]);
@@ -147,6 +153,7 @@ describe('POST /api/account/characters/unlink', () => {
       headers: expect.any(Headers),
     });
     expect(getMapIdsWithCharacterGrantMock).toHaveBeenCalledWith(100);
+    expect(teardownLocationTrackingMock).toHaveBeenCalledWith('eve-user-1', 100);
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-1');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
   });

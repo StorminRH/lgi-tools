@@ -28,3 +28,8 @@ that lint, Fallow, and nearby code do not catch. Do not grow it.
   does.
 - When replacing an interaction, ship the new one and delete the old in the
   same change.
+- Atlas jump-answer prompts stay scoped to the tracked character that jumped
+  (`pendingResolutionCharacterId` + `ownTrackedCharacterIds`). Doorbells ring
+  only that client's own tracked characters — never every feed row on the map.
+- Unresolved wormhole stubs delete through `removeSignatures`, not
+  `severConnection` (null destinations have no branch to collapse).

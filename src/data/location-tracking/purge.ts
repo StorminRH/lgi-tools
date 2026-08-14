@@ -1,18 +1,19 @@
-// Convex characterLocation + mapTracking teardown — the purge contributor for
-// the two location-tracking homes that live in Convex, not Neon (4.0.4.2.1;
-// NON_NEON_HOMES entries). The schema-reflection gate can't see a Convex table,
-// so this contributor claims NO Neon table — its job is purely to reach across
-// to the deployment and delete the live tracking/location docs that no later
-// sync would orphan-clean for a removed account.
+// Convex characterLocation + mapTracking + access-lease teardown — the purge
+// contributor for the location-tracking homes that live in Convex, not Neon
+// (4.0.4.2.1; NON_NEON_HOMES entries). The schema-reflection gate can't see a
+// Convex table, so this contributor claims NO Neon table — its job is purely
+// to reach across to the deployment and delete live tracking/location/lease
+// docs. Identity hooks (unlink / reassign / user-delete) share this primitive;
+// apply no longer orphan-cleans against a Neon enum.
 //
 // BEST-EFFORT, NEVER THROWS: the orchestrator awaits each contributor with no
 // try/catch (composition/purge/orchestrator.ts), so a thrown error here would
 // abort the Neon purge mid-tier. Unlike the online-status contributor this
 // residue is NOT harmless-regenerable: mapTracking is a durable opt-in and a
-// deleted account has no later sync to orphan-clean either table, so a failed
-// delete must be DETECTABLE — bestEffort logs the structured failure line —
-// and the purge-map-access door's tracking sweep is the in-deployment
-// backstop for the mapTracking half.
+// deleted account has no later sync to rebuild it, so a failed delete must be
+// DETECTABLE — bestEffort logs the structured failure line — and the
+// purge-map-access door's tracking sweep is the in-deployment backstop for
+// the mapTracking half.
 import { bestEffort } from '@/lib/best-effort';
 import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
@@ -47,6 +48,18 @@ async function postPurgeLocationTracking(
 }
 
 /**
+ * Shared Convex location-tracking teardown: unlink, reassign, user-delete, and
+ * account purge all hit the same `/purge-location-tracking` door. Best-effort
+ * and never throws — identity mutations must complete even if Convex is down.
+ */
+export async function teardownLocationTracking(
+  userId: string,
+  characterId: number | null,
+): Promise<void> {
+  await postPurgeLocationTracking(userId, characterId);
+}
+
+/**
  * Personal-data purge contributor for location-tracking Convex homes; this data
  * slice owns deleting its user- and character-keyed rows.
  */
@@ -59,6 +72,6 @@ export const locationTrackingPurgeContributor: PurgeContributor = {
   tier: 'durable',
   claims: [],
   purgeCharacter: ({ userId, characterId }) =>
-    postPurgeLocationTracking(userId, characterId),
-  purgeUser: ({ userId }) => postPurgeLocationTracking(userId, null),
+    teardownLocationTracking(userId, characterId),
+  purgeUser: ({ userId }) => teardownLocationTracking(userId, null),
 };

@@ -39,6 +39,7 @@ describe('SystemIntelligenceBody', () => {
     expect(accessory).toContain('data-identity-classification');
     expect(accessory).toContain('>C5<');
     expect(accessory).toContain('text-wh-c5');
+    expect(accessory).not.toContain(' — ');
     expect(accessory).not.toContain('J123456');
 
     const body = bodyMarkup();

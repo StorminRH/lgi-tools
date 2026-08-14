@@ -175,7 +175,7 @@ beforeEach(() => {
   h.logUsageEvent.mockReset().mockResolvedValue(undefined);
   h.checkRateLimit.mockReset().mockResolvedValue({ ok: true });
   h.fetchWithTimeout.mockReset().mockResolvedValue(new Response(null, { status: 204 }));
-  h.tokenService.mockReset().mockResolvedValue({ kind: 'ok', accessToken: 'token' });
+  h.tokenService.mockReset().mockResolvedValue({ kind: 'ok', accessToken: 'token', expiresAt: 1 });
   h.accountBelongsToUser.mockReset().mockResolvedValue(true);
   h.stationManagerGate.mockReset().mockResolvedValue({ ok: true });
   h.getCorpStructures.mockReset().mockResolvedValue(new Map());

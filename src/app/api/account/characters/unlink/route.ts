@@ -77,7 +77,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       // Better Auth unlink does not go through deleteLinkedCharacter; re-project
       // via the never-throw identity hook runner so a Neon enumeration blip
       // cannot 500 a committed unlink or skip the active-pointer repoint.
-      await runAfterCharacterLinkChanged(characterId);
+      await runAfterCharacterLinkChanged({ userId: session.user.id, characterId });
 
       // Re-point the active character if we just removed it (the oldest remaining one
       // becomes active). Read the stored active id FRESH rather than trusting the

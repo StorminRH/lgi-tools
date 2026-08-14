@@ -12,15 +12,23 @@ slices and shared infrastructure.
 
 ## Subagents
 
+Prefer a subagent when the work isolates well. If a listed seat fits, use
+it; other subagents are fine when they help.
+
 Before writing or editing production or test code, launch `docs-researcher` for
 every material external technology in the change (React, Next.js, Convex, Base
 UI, React Flow, Vitest, and peers). Require a Documentation brief before
-generation; do not implement from training memory. Skip the docs gate for docs,
-policy, or other pure non-code edits.
+generation; do not implement from training memory.
 
 Use `repo-mapper` for material relationship, consumer, dependency, or
 blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
 `impact`, `query`, plus `status`/`sync` if needed) and return a Repository map.
+
+Use `gate-runner` for caller-supplied focused tests and `pnpm verify` when a
+Gate result packet is needed. Do not use it to fix failures.
+
+Launch those seats by name and omit Task `model` so the agent file pin
+applies. Do not pass `inherit` or a slug; those override the pin.
 
 ## Commands and definition of done
 

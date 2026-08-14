@@ -4,8 +4,8 @@
 // revocation/map teardown cascade-delete inside mapAccessProjection.
 //
 // Ownership is structural: setTracking always writes under the caller's JWT
-// subject, and the sync action (OW3) enumerates/vends tokens only for the
-// caller's characters. A forged tracking row naming someone else's character
+// subject, and the sync action polls mapTracking then vends tokens only for
+// those tracked ids. A forged tracking row naming someone else's character
 // joins to no location document.
 import { ConvexError, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';

@@ -166,7 +166,7 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
       <span
         data-chain-node-name
         className={cn(
-          'absolute inset-x-1 top-1 truncate text-center font-data text-ui',
+          'absolute inset-x-1 top-1 truncate text-center font-ui text-nav font-bold',
           header.toneClass,
           chromeClass,
         )}
@@ -192,7 +192,7 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
           <span
             data-chain-node-classification
             className={cn(
-              'font-data text-label font-bold uppercase tracking-label',
+              'font-ui text-nav font-bold uppercase tracking-label',
               classification.tone,
             )}
           >

@@ -29,6 +29,7 @@ const CONNECTION: ConnectionEditorDetail = {
   toDestinationHint: null,
   destinationProvenance: null,
   pendingCandidates: null,
+    pendingResolutionCharacterId: null,
   observedMassKg: null,
   observedMassAtStateKg: null,
 };

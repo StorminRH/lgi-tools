@@ -92,6 +92,7 @@ describe('purge registry gate', () => {
   it('the location-tracking Convex homes are explicitly accounted for', () => {
     expect(NON_NEON_HOMES.some((h) => h.home === 'convex:characterLocation')).toBe(true);
     expect(NON_NEON_HOMES.some((h) => h.home === 'convex:characterLocationOnline')).toBe(true);
+    expect(NON_NEON_HOMES.some((h) => h.home === 'convex:characterLocationAccess')).toBe(true);
     expect(NON_NEON_HOMES.some((h) => h.home === 'convex:mapTracking')).toBe(true);
     expect(NON_NEON_HOMES.some((h) => h.home === 'convex:mapJumpBookkeeping')).toBe(true);
     expect(

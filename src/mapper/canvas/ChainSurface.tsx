@@ -47,8 +47,9 @@ export interface ChainSurfaceProps {
   /**
    * Edge right-click seam for the connection Edit/Delete menu. React Flow
    * passes the event straight through without calling `preventDefault`, so the
-   * handler must suppress the native menu itself. Built-in click-to-select is
-   * governed separately (`elementsSelectable`) and stays as shipped.
+   * handler must suppress the native menu itself. Non-actionable lines are
+   * `selectable: false` (RF `.inactive`, pan-through); authored editable
+   * connections stay selectable so this handler can fire.
    */
   readonly onEdgeContextMenu?: EdgeMouseHandler;
   /**

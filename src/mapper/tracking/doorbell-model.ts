@@ -31,6 +31,43 @@ export interface TrackedDoorbellRow {
   readonly location: { readonly transitionObservedAt: number | null } | null;
 }
 
+/**
+ * Restricts the shared map feed to this client's own tracked characters.
+ * Returns null while the feed is still loading so the observer stays quiet.
+ */
+export function ownTrackedDoorbellRows(
+  tracked: readonly TrackedDoorbellRow[] | undefined,
+  ownIds: readonly number[] | undefined,
+): readonly TrackedDoorbellRow[] | null {
+  if (tracked === undefined || ownIds === undefined) return null;
+  const own = new Set(ownIds);
+  return tracked.filter((row) => own.has(row.characterId));
+}
+
+/** The live tracking payload the observer needs to decide who to ring. */
+export interface DoorbellTrackingFeed {
+  readonly tracked: readonly TrackedDoorbellRow[];
+  readonly ownTrackedCharacterIds: readonly number[];
+}
+
+/**
+ * One observer tick: skip until memory and feed exist, then ring only this
+ * client's tracked characters. The observer stays a thin driver.
+ */
+export function ringOwnDoorbells(
+  memory: Map<number, DoorbellMemoryEntry> | null,
+  tracking: DoorbellTrackingFeed | null | undefined,
+  ring: (characterId: number) => Promise<JumpResolverResponse | null>,
+): void {
+  if (memory === null || tracking === null || tracking === undefined) return;
+  const ownTracked = ownTrackedDoorbellRows(
+    tracking.tracked,
+    tracking.ownTrackedCharacterIds,
+  );
+  if (ownTracked === null) return;
+  void ringPendingTransitions(memory, ownTracked, ring);
+}
+
 /** One decided ring: which character, for which observed transition. */
 export interface PendingDoorbell {
   readonly characterId: number;

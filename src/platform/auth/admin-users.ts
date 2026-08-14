@@ -192,7 +192,7 @@ export async function deleteLinkedCharacter(
     .returning({ id: account.id });
   if (deleted.length === 0) return false;
   // Grants remain; re-project so the detached user loses character-derived claims.
-  await runAfterCharacterLinkChanged(characterId);
+  await runAfterCharacterLinkChanged({ userId, characterId });
   return true;
 }
 
@@ -268,7 +268,7 @@ export async function reassignCharacter({
     // their only durable map identity.
     await runBeforeUserDelete(fromUserId);
     await db.delete(user).where(eq(user.id, fromUserId));
-    await runAfterCharacterLinkChanged(characterId);
+    await runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
     return { sourceDeleted: true };
   }
 
@@ -276,6 +276,6 @@ export async function reassignCharacter({
   if (active === characterId) {
     await repointActiveToOldest(fromUserId);
   }
-  await runAfterCharacterLinkChanged(characterId);
+  await runAfterCharacterLinkChanged({ userId: fromUserId, characterId });
   return { sourceDeleted: false };
 }

@@ -32,6 +32,16 @@ function locationDoc(userId: string, characterId: number) {
   };
 }
 
+function accessLease(userId: string, characterId: number) {
+  return {
+    userId,
+    characterId,
+    accessToken: `tok-${characterId}`,
+    expiresAt: GEN + 1_200_000,
+    updatedAt: GEN,
+  };
+}
+
 function subjectRow(overrides: Record<string, unknown> = {}) {
   return {
     dataset: 'characterLocation' as const,
@@ -162,6 +172,9 @@ describe('characterLocation.purgeForUser', () => {
         characterId: 90_999_999,
         lastProcessedTransitionAt: 3,
       });
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
+      await ctx.db.insert('characterLocationAccess', accessLease(OTHER, CHAR_A));
     });
 
     const out = await t.mutation(internal.characterLocation.purgeForUser, {
@@ -173,10 +186,12 @@ describe('characterLocation.purgeForUser', () => {
     const remainingLocations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
     const remainingTracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
     const remainingOnline = await t.run((ctx) => ctx.db.query('characterLocationOnline').collect());
+    const remainingLeases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
     expect(remainingLocations.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingTracking.map((doc) => doc.userId)).toEqual([OTHER]);
     // Held probe rows leave with the account — same door, same cascade.
     expect(remainingOnline.map((doc) => doc.userId)).toEqual([OTHER]);
+    expect(remainingLeases.map((doc) => doc.userId)).toEqual([OTHER]);
   });
 
   it('deletes only the named character\'s location and tracking rows', async () => {
@@ -204,6 +219,8 @@ describe('characterLocation.purgeForUser', () => {
         characterId: CHAR_B,
         lastProcessedTransitionAt: 2,
       });
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
     });
 
     const out = await t.mutation(internal.characterLocation.purgeForUser, {
@@ -223,6 +240,13 @@ describe('characterLocation.purgeForUser', () => {
     );
     expect(locations.map((doc) => doc.characterId)).toEqual([CHAR_B]);
     expect(tracking.map((doc) => doc.characterId)).toEqual([CHAR_B]);
+    const leases = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationAccess')
+        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .collect(),
+    );
+    expect(leases.map((doc) => doc.characterId)).toEqual([CHAR_B]);
   });
 
   it('is a no-op when there is nothing to delete', async () => {
@@ -232,6 +256,73 @@ describe('characterLocation.purgeForUser', () => {
       characterId: null,
     });
     expect(out).toEqual({ deletedLocations: 0, deletedTracking: 0, deletedBookkeeping: 0 });
+  });
+});
+
+describe('characterLocation.putAccessLease', () => {
+  it('does not resurrect a lease after tracking teardown', async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.characterLocation.putAccessLease, {
+      userId: USER,
+      characterId: CHAR_A,
+      accessToken: 'tok-late',
+      expiresAt: GEN + 1_200_000,
+    });
+    const leases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
+    expect(leases).toEqual([]);
+  });
+
+  it('upserts when a mapTracking row still exists', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapTracking', {
+        mapId: 'map-a',
+        userId: USER,
+        characterId: CHAR_A,
+      });
+    });
+    await t.mutation(internal.characterLocation.putAccessLease, {
+      userId: USER,
+      characterId: CHAR_A,
+      accessToken: 'tok-fresh',
+      expiresAt: GEN + 1_200_000,
+    });
+    const lease = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationAccess')
+        .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', CHAR_A))
+        .unique(),
+    );
+    expect(lease).toMatchObject({ accessToken: 'tok-fresh', expiresAt: GEN + 1_200_000 });
+  });
+});
+
+describe('characterLocation.clearAccessLease', () => {
+  it('deletes only the named character lease and is a no-op when absent', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+    });
+
+    await t.mutation(internal.characterLocation.clearAccessLease, {
+      userId: USER,
+      characterId: CHAR_A,
+    });
+    await t.mutation(internal.characterLocation.clearAccessLease, {
+      userId: USER,
+      characterId: CHAR_A,
+    });
+
+    const leases = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationAccess')
+        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .collect(),
+    );
+    expect(leases.map((doc) => doc.characterId)).toEqual([CHAR_B]);
+    expect(await readDoc(t, CHAR_A)).not.toBeNull();
   });
 });
 
@@ -287,6 +378,17 @@ describe('characterLocation.forViewer', () => {
   it('returns null when signed out', async () => {
     const t = convexTest(schema, modules);
     expect(await t.query(api.characterLocation.forViewer, {})).toBeNull();
+  });
+
+  it('never exposes an access-token lease on the public viewer query', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
+    });
+    const view = await t.withIdentity({ subject: USER }).query(api.characterLocation.forViewer, {});
+    expect(JSON.stringify(view)).not.toContain('tok-');
+    expect(JSON.stringify(view)).not.toContain('accessToken');
   });
 
   it('returns the viewer location facts when signed in', async () => {
@@ -625,7 +727,9 @@ describe('characterLocation.applySyncResults', () => {
     expect(subject?.syncedCharacterIds).toEqual([CHAR_A, CHAR_B]);
   });
 
-  it('orphan-cleans a character no longer in the Neon enumeration', async () => {
+  it('keeps last-known location for a character missing from this run\'s tracked set', async () => {
+    // Untrack is a toggle: apply must not destroy last-known when the poll set
+    // shrinks. Unlink/reassign teardown is purgeForUser, not this path.
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow());
@@ -655,7 +759,7 @@ describe('characterLocation.applySyncResults', () => {
     const remaining = await t.run((ctx) =>
       ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
     );
-    expect(remaining.map((d) => d.characterId)).toEqual([CHAR_A]);
+    expect(remaining.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
   });
 
   it('excludes an offline probe result from the covered set (no fabricated continuity)', async () => {
@@ -792,7 +896,7 @@ describe('characterLocation.applySyncResults', () => {
     expect(patched).toMatchObject({ online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 });
   });
 
-  it('orphan-cleans held online-probe rows alongside location docs', async () => {
+  it('keeps held online-probe rows for a character missing from this run\'s tracked set', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow());
@@ -819,7 +923,7 @@ describe('characterLocation.applySyncResults', () => {
         .withIndex('by_user', (q) => q.eq('userId', USER))
         .collect(),
     );
-    expect(remaining.map((d) => d.characterId)).toEqual([CHAR_A]);
+    expect(remaining.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
   });
 
 });

@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
 import {
   DOORBELL_ATTEMPT_CAP,
+  ownTrackedDoorbellRows,
   pendingDoorbells,
   ringAnswered,
   ringDispatched,
+  ringOwnDoorbells,
   ringPendingTransitions,
   type DoorbellMemoryEntry,
 } from './doorbell-model';
@@ -21,6 +23,44 @@ function response(
   }
   return { status, reason: 'x' } as JumpResolverResponse;
 }
+
+describe('ownTrackedDoorbellRows', () => {
+  it('stays quiet until both the feed and the own-id list have arrived', () => {
+    expect(ownTrackedDoorbellRows(undefined, [101])).toBeNull();
+    expect(ownTrackedDoorbellRows([tracked(101, 5_000)], undefined)).toBeNull();
+    expect(ownTrackedDoorbellRows(undefined, undefined)).toBeNull();
+  });
+
+  it('keeps only this client\'s tracked characters from the shared map feed', () => {
+    expect(
+      ownTrackedDoorbellRows(
+        [tracked(101, 5_000), tracked(202, 6_000), tracked(303, 7_000)],
+        [101, 303],
+      ),
+    ).toEqual([tracked(101, 5_000), tracked(303, 7_000)]);
+    expect(ownTrackedDoorbellRows([tracked(101, 5_000)], [])).toEqual([]);
+  });
+});
+
+describe('ringOwnDoorbells', () => {
+  it('does not ring until memory and a loaded feed exist, then only own characters', async () => {
+    const ring = vi.fn(async () => response('processed'));
+    const memory = new Map<number, DoorbellMemoryEntry>();
+    const feed = {
+      tracked: [tracked(101, 5_000), tracked(202, 6_000)],
+      ownTrackedCharacterIds: [101],
+    };
+
+    ringOwnDoorbells(null, feed, ring);
+    ringOwnDoorbells(memory, undefined, ring);
+    ringOwnDoorbells(memory, null, ring);
+    expect(ring).not.toHaveBeenCalled();
+
+    ringOwnDoorbells(memory, feed, ring);
+    await vi.waitFor(() => expect(ring).toHaveBeenCalledTimes(1));
+    expect(ring).toHaveBeenCalledWith(101);
+  });
+});
 
 describe('pendingDoorbells', () => {
   it('rings fresh transitions once per transitionObservedAt with retry, cap, and in-flight rules', () => {

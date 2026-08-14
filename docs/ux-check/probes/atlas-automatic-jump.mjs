@@ -281,6 +281,8 @@ export default {
       // other unidentified candidate under the believed-holes rule.
       waitForTopology(page, 7, 6),
       waitForTopology(second.page, 7, 6),
+      // Same authenticated account on both clients tracks the jumping
+      // character, so both see the prompt. A different account would not.
       page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
       second.page.locator('[data-signature-jump-prompt]').waitFor({ state: 'visible', timeout: 30_000 }),
     ]);
@@ -289,7 +291,7 @@ export default {
     const primaryCandidates = primaryPrompt.locator('[data-signature-jump-candidate]');
     const secondaryCandidates = secondaryPrompt.locator('[data-signature-jump-candidate]');
     check(
-      'ambiguous result fans out the same survivor-only scanner prompt',
+      'ambiguous result fans out the jumper-scoped scanner prompt on both same-account clients',
       /J114342 - C3/.test((await primaryPrompt.textContent()) ?? '')
       && (await primaryCandidates.count()) === 2
       && (await secondaryCandidates.count()) === 2,

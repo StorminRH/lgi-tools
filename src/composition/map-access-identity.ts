@@ -6,6 +6,7 @@ import {
   purgeUserMapAccessProjection,
 } from '@/composition/map-access-projection';
 import { purgeMapChain } from '@/composition/map-purge';
+import { teardownLocationTracking } from '@/data/location-tracking/purge';
 import {
   getCharacterCorporationId,
   getMapIdsWithCharacterGrant,
@@ -55,9 +56,18 @@ export async function teardownProjectionsForDeletedUser(userId: string): Promise
   await bestEffort('map-access-identity', 'user claim purge', userId, () =>
     purgeUserMapAccessProjection(userId),
   );
+  await teardownLocationTracking(userId, null);
+}
+
+async function afterCharacterLinkChanged(args: {
+  userId: string;
+  characterId: number;
+}): Promise<void> {
+  await reprojectMapsForCharacter(args.characterId);
+  await teardownLocationTracking(args.userId, args.characterId);
 }
 
 registerIdentityProjectionHooks({
   beforeUserDelete: teardownProjectionsForDeletedUser,
-  afterCharacterLinkChanged: reprojectMapsForCharacter,
+  afterCharacterLinkChanged,
 });
