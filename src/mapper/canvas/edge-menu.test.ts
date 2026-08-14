@@ -2,10 +2,13 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import type { ChainEdge } from '../chain/nodes';
 import { EdgeContextMenu } from './EdgeContextMenu';
 import {
+  edgeAllowsPointerActions,
   edgeMenuActions,
   edgeMenuConnectionId,
+  withEdgePointerPolicy,
   type EdgeMenuAnchor,
 } from './edge-menu';
 
@@ -63,6 +66,63 @@ it('names authored editable connections only', () => {
   expect(
     edgeMenuConnectionId({ edgeId: 'c1', stub: true, canEdit: true }),
   ).toBeNull();
+});
+
+function chainEdge(
+  overrides: Partial<ChainEdge> & Pick<ChainEdge, 'id' | 'data'>,
+): ChainEdge {
+  return { source: '1', target: '2', ...overrides };
+}
+
+it('keeps authored editable lines hit-testable and makes every other line inert', () => {
+  const authored = chainEdge({ id: 'c1', data: { loop: false } });
+  const halo = chainEdge({
+    id: 'halo:1>2',
+    data: { loop: false, halo: true },
+  });
+  const stub = chainEdge({
+    id: 'stub-edge',
+    data: { loop: false, stub: true },
+  });
+  const departing = chainEdge({
+    id: 'c1',
+    data: {
+      loop: false,
+      motion: { phase: 'departing', flavor: 'fade', reverse: false, heavy: false },
+    },
+  });
+
+  expect(edgeAllowsPointerActions(authored, true)).toBe(true);
+  expect(edgeAllowsPointerActions(authored, false)).toBe(false);
+  expect(edgeAllowsPointerActions(halo, true)).toBe(false);
+  expect(edgeAllowsPointerActions(stub, true)).toBe(false);
+  expect(edgeAllowsPointerActions(departing, true)).toBe(false);
+
+  const [live, derived, ghost, stubbed] = withEdgePointerPolicy(
+    [authored, halo, departing, stub],
+    true,
+  );
+  expect(live).toBe(authored);
+  expect(live?.selectable).toBeUndefined();
+  expect(derived).toMatchObject({
+    id: 'halo:1>2',
+    selectable: false,
+    focusable: false,
+  });
+  expect(ghost).toMatchObject({ id: 'c1', selectable: false, focusable: false });
+  expect(stubbed).toMatchObject({
+    id: 'stub-edge',
+    selectable: false,
+    focusable: false,
+  });
+  expect(withEdgePointerPolicy([authored], false)[0]).toMatchObject({
+    id: 'c1',
+    selectable: false,
+    focusable: false,
+  });
+
+  const alreadyInert = { ...halo, selectable: false, focusable: false };
+  expect(withEdgePointerPolicy([alreadyInert], true)[0]).toBe(alreadyInert);
 });
 
 it('offers Edit and Delete when anchored and stays closed otherwise', () => {

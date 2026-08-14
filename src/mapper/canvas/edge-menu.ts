@@ -5,11 +5,11 @@
 // React Flow does not call `preventDefault` for `onEdgeContextMenu` and the
 // handler is a thin adapter around this rule.
 import type { Id } from '@/data/convex/data-model';
+import { isHaloEdgeId, type ChainEdge } from '../chain/nodes';
 import {
   connectionLifecycleActions,
   type ConnectionAuthoringApi,
 } from '../signatures/connection-authoring-api';
-import { isHaloEdgeId } from '../chain/nodes';
 
 /** One opened edge menu: the connection it acts on and where it was opened. */
 export interface EdgeMenuAnchor {
@@ -35,6 +35,50 @@ export function edgeMenuConnectionId(input: {
   if (!input.canEdit) return null;
   if (isHaloEdgeId(input.edgeId) || input.stub) return null;
   return input.edgeId as Id<'mapConnections'>;
+}
+
+/**
+ * Whether this line should stay hit-testable. Same authority as the context
+ * menu, plus departing ghosts — a fading stroke is not an authoring surface.
+ *
+ * React Flow marks `selectable: false` edges `.inactive` (`pointer-events:
+ * none` on the wrapper `<g>`), so the pane pans through. Path CSS alone
+ * cannot do that: `edge.style` lands on the visible stroke, not the wrapper.
+ */
+export function edgeAllowsPointerActions(
+  edge: ChainEdge,
+  canEdit: boolean,
+): boolean {
+  if (edge.data.motion?.phase === 'departing') return false;
+  return (
+    edgeMenuConnectionId({
+      edgeId: edge.id,
+      stub: edge.data.stub === true,
+      canEdit,
+    }) !== null
+  );
+}
+
+/**
+ * Stamps RF hit-testing from `edgeAllowsPointerActions`. Actionable lines keep
+ * the library default (selectable) so `onEdgeContextMenu` still fires; every
+ * other line is inert. Identity-stable when the flags are already correct.
+ */
+export function withEdgePointerPolicy(
+  edges: readonly ChainEdge[],
+  canEdit: boolean,
+): ChainEdge[] {
+  return edges.map((edge) => {
+    if (edgeAllowsPointerActions(edge, canEdit)) {
+      if (edge.selectable === undefined && edge.focusable === undefined) {
+        return edge;
+      }
+      const { selectable: _selectable, focusable: _focusable, ...rest } = edge;
+      return rest;
+    }
+    if (edge.selectable === false && edge.focusable === false) return edge;
+    return { ...edge, selectable: false, focusable: false };
+  });
 }
 
 /** What the two menu rows do; the host supplies only its own state seams. */

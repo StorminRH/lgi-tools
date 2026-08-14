@@ -27,8 +27,8 @@ blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
 Use `gate-runner` for caller-supplied focused tests and `pnpm verify` when a
 Gate result packet is needed. Do not use it to fix failures.
 
-Launch those seats by name and omit Task `model` so their configured pins
-apply. Other subagents may use any model.
+Launch those seats by name and omit Task `model` so the agent file pin
+applies. Do not pass `inherit` or a slug; those override the pin.
 
 ## Commands and definition of done
 
@@ -66,6 +66,8 @@ merge-to-production procedure.
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
 

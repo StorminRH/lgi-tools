@@ -38,7 +38,11 @@ import { NodeAddMenu } from '../authoring/NodeAddMenu';
 import { RightsTransitionToast } from '../authoring/RightsTransitionToast';
 import { ChainSurface, type ChainSurfaceProps } from '../canvas/ChainSurface';
 import { EdgeContextMenu } from '../canvas/EdgeContextMenu';
-import { edgeMenuActions, edgeMenuConnectionId } from '../canvas/edge-menu';
+import {
+  edgeMenuActions,
+  edgeMenuConnectionId,
+  withEdgePointerPolicy,
+} from '../canvas/edge-menu';
 import { MapControls } from '../canvas/MapControls';
 import type { ChainNode } from '../canvas/SystemNode';
 import {
@@ -424,6 +428,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
               dragging={dragging}
               motionConfig={motionConfig}
               fogConfig={fogConfig}
+              canEdit={canEdit === true}
               nodesDraggable={!locked}
               onNodesChange={onNodesChange}
               onNodeDragStart={onNodeDragStart}
@@ -523,6 +528,7 @@ interface MotionLayerProps
   readonly dragging: ReadonlySet<number>;
   readonly motionConfig: MotionConfig;
   readonly fogConfig: FogConfig;
+  readonly canEdit: boolean;
   readonly children?: ReactNode;
 }
 
@@ -541,6 +547,7 @@ function MotionLayer({
   dragging,
   motionConfig,
   fogConfig,
+  canEdit,
   children,
   ...surface
 }: MotionLayerProps) {
@@ -552,10 +559,14 @@ function MotionLayer({
     motionConfig,
     BROWSER_MOTION_SEAMS,
   );
+  const edges = useMemo(
+    () => withEdgePointerPolicy(presentation.edges, canEdit),
+    [presentation.edges, canEdit],
+  );
   return (
     <ChainSurface
       nodes={presentation.nodes}
-      edges={presentation.edges}
+      edges={edges}
       motion={motionConfig}
       {...surface}
     >
@@ -563,7 +574,7 @@ function MotionLayer({
           cloud can never disagree with the drawn canvas (OW4). */}
       <FogLayer
         nodes={presentation.nodes}
-        edges={presentation.edges}
+        edges={edges}
         motion={motionConfig}
         config={fogConfig}
       />

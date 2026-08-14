@@ -45,6 +45,11 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
   const still = markup(undefined);
   expect(still).toContain('data-chain-node-name');
   expect(still).toContain('>J123456<');
+  expect(still).toContain('font-ui');
+  expect(still).toContain('text-nav');
+  expect(still).toContain('font-bold');
+  expect(still).not.toContain('font-data');
+  expect(still).not.toContain('text-ui');
   expect(still).not.toContain('J123456 - C5');
   expect(still).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
   expect(still).toContain('data-chain-node-classification');

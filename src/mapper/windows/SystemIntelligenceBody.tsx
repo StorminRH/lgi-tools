@@ -59,7 +59,7 @@ export function SystemTitleAccessory({
   if (classification === null) return null;
   return (
     <span data-identity-readout>
-      <span className="text-name"> {' — '}</span>
+      {' '}
       <span
         data-identity-classification
         className={cn('tabular-nums', classification.tone)}

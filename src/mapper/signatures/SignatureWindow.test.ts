@@ -175,15 +175,19 @@ function render(
   missingIds: ReadonlySet<string>,
   missingCount = missingIds.size,
   jumpResolution: JumpResolutionModel | null = null,
+  options: {
+    readonly rows?: readonly SignatureWindowRow[];
+    readonly complete?: boolean;
+  } = {},
 ): string {
   return renderToStaticMarkup(
     createElement(SignatureWindow, {
       scannerSystemId,
-      rows: ROWS,
+      rows: options.rows ?? ROWS,
       missingIds,
       missingCount,
       canEdit: true,
-      complete: true,
+      complete: options.complete ?? true,
       now: 60_000,
       onDismissMissing: vi.fn(),
       onRemoveMissing: vi.fn(async () => undefined),
@@ -247,6 +251,28 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(empty).toContain('data-map-window="signatures"');
     expect(empty).not.toContain('data-signature-id="ABC-123"');
     expect(empty).not.toContain('data-scanner-section=');
+    expect(empty).not.toContain('No scanner rows in this system.');
+    expect(empty).not.toContain('data-signature-empty');
+  });
+
+  it('leaves a complete empty scan blank and only shows loading copy while unread', () => {
+    const completeEmpty = render(1, new Set(), 0, null, {
+      rows: [],
+      complete: true,
+    });
+    expect(completeEmpty).toContain('data-map-window="signatures"');
+    expect(completeEmpty).not.toContain('No scanner rows in this system.');
+    expect(completeEmpty).not.toContain('data-signature-empty');
+    expect(completeEmpty).not.toContain('Reading scanner rows…');
+    expect(completeEmpty).not.toContain('data-scanner-sections');
+
+    const loading = render(1, new Set(), 0, null, {
+      rows: [],
+      complete: false,
+    });
+    expect(loading).toContain('data-signature-empty');
+    expect(loading).toContain('Reading scanner rows…');
+    expect(loading).not.toContain('No scanner rows in this system.');
   });
 
   it('highlights missing rows, pluralizes the bulk prompt, and keys it to the paste target', () => {

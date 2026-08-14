@@ -203,6 +203,12 @@ export interface ChainEdge {
   readonly source: string;
   readonly target: string;
   readonly data: ChainEdgeData;
+  /**
+   * False when the line has no Edit/Delete (RF `.inactive` → pan-through).
+   * Authored editable connections leave this unset so the wrapper stays hit-testable.
+   */
+  readonly selectable?: boolean;
+  readonly focusable?: boolean;
 }
 
 /**
