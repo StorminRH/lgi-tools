@@ -29,8 +29,14 @@ export function JumpDoorbellObserver({ mapId }: { readonly mapId: string }) {
   const ringPending = useEffectEvent(() => {
     const memory = memoryRef.current;
     const tracked = tracking?.tracked;
-    if (memory === null || tracked === undefined) return;
-    void ringPendingTransitions(memory, tracked, (characterId) =>
+    const ownIds = tracking?.ownTrackedCharacterIds;
+    if (memory === null || tracked === undefined || ownIds === undefined) return;
+    // Only ring for this client's own tracked characters. The shared feed
+    // includes every opt-in on the map; ringing peers' transitions made every
+    // editor process (and prompt for) someone else's jump.
+    const own = new Set(ownIds);
+    const ownTracked = tracked.filter((row) => own.has(row.characterId));
+    void ringPendingTransitions(memory, ownTracked, (characterId) =>
       postJumpRequest({ kind: 'doorbell', mapId, characterId }),
     );
   });

@@ -468,6 +468,7 @@ describe('client subscription projections', () => {
       fromDestinationHint: null,
       destinationProvenance: null,
       pendingCandidates: null,
+    pendingResolutionCharacterId: null,
       observedMassKg: null,
       observedMassAtStateKg: null,
     });
@@ -499,6 +500,7 @@ describe('client subscription projections', () => {
       fromDestinationHint: 'deadly',
       destinationProvenance: 'assumed',
       pendingCandidates: ['c1', 'stub-2'],
+      pendingResolutionCharacterId: null,
       observedMassKg: 300_000_000,
       observedMassAtStateKg: 100_000_000,
     });
@@ -557,6 +559,7 @@ describe('client subscription projections', () => {
         toDestinationHint: null,
         destinationProvenance: null,
         pendingCandidates: null,
+    pendingResolutionCharacterId: null,
         observedMassKg: null,
         observedMassAtStateKg: null,
       },

@@ -5,6 +5,7 @@ import { toast } from '@/components/ui/toast';
 import { api } from '@/data/convex/api';
 import type { Id } from '@/data/convex/data-model';
 import { useDrainedPages } from '@/data/convex/use-drained-pages';
+import { useLiveValue } from '@/data/convex/use-live-value';
 import { useMutation } from '@/data/convex/use-mutation';
 import { systemClassText } from '@/data/eve-data/system-identity';
 import type { ScannedRow, SigGroup } from '@/data/maps/scan-parse';
@@ -243,6 +244,11 @@ export function SignatureProvider({
   const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
   const identifyRow = useIdentifySignature(mapId);
   const assets = useUniverseAssets();
+  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const ownCharacterIds = useMemo(
+    () => new Set(tracking?.ownTrackedCharacterIds ?? []),
+    [tracking?.ownTrackedCharacterIds],
+  );
   const [dismissedResolutions, setDismissedResolutions] = useState<
     ReadonlySet<string>
   >(() => new Set());
@@ -254,9 +260,17 @@ export function SignatureProvider({
             unresolvedHoles,
             dismissedResolutions,
             assets === null ? null : (id: number) => assets.systemInfo(id),
+            ownCharacterIds,
           )
         : null,
-    [assets, canEdit, connectionDetails, dismissedResolutions, unresolvedHoles],
+    [
+      assets,
+      canEdit,
+      connectionDetails,
+      dismissedResolutions,
+      ownCharacterIds,
+      unresolvedHoles,
+    ],
   );
   const dismissResolution = useCallback((connectionId: string) => {
     setDismissedResolutions((previous) =>

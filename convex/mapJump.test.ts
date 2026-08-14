@@ -292,6 +292,7 @@ describe('automatic jump authoring', () => {
       toSystemId: DESTINATION,
       destinationProvenance: 'assumed',
       pendingCandidates: [firstId, secondId],
+      pendingResolutionCharacterId: CHARACTER,
     });
 
     const confirmed = await t.mutation(internal.mapJump.confirmJumpIdentity, {
@@ -308,6 +309,10 @@ describe('automatic jump authoring', () => {
     });
     expect(
       (await t.run(async (ctx) => await ctx.db.get(firstId)))?.pendingCandidates,
+    ).toBeUndefined();
+    expect(
+      (await t.run(async (ctx) => await ctx.db.get(firstId)))
+        ?.pendingResolutionCharacterId,
     ).toBeUndefined();
 
     await t.mutation(internal.mapJump.reassociateJumpDestination, {

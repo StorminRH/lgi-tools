@@ -183,6 +183,7 @@ describe('map chain fixtures', () => {
           'observedMassAtStateKg',
           'observedMassKg',
           'pendingCandidates',
+          'pendingResolutionCharacterId',
           'purgeAfter',
           'shipSize',
           'toDestinationHint',

@@ -18,7 +18,10 @@ vi.mock('../authoring/sever-toast', () => ({
   announceSeverOutcome: announce,
 }));
 vi.mock('@/components/ui/toast', () => ({
-  toast: { error: toastError },
+  toast: { error: toastError, success: vi.fn() },
+}));
+vi.mock('./signature-toast', () => ({
+  announceSignatureRemoval: vi.fn(),
 }));
 vi.mock('../jump-client', () => ({
   postJumpRequest: postJump,
@@ -47,6 +50,7 @@ function detail(
     fromDestinationHint: null,
     destinationProvenance: null,
     pendingCandidates: null,
+    pendingResolutionCharacterId: null,
     observedMassKg: null,
     observedMassAtStateKg: null,
     ...partial,
@@ -69,6 +73,7 @@ function authoring() {
     ),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
+    removeSignatures: vi.fn(),
     restoreSignatures: vi.fn(),
   };
 }
@@ -176,5 +181,40 @@ describe('connection authoring dispatchers', () => {
     });
     expect(onDone).not.toHaveBeenCalled();
     expect(announce).not.toHaveBeenCalled();
+  });
+
+  it('deletes unresolved stubs through removeSignatures, not sever', async () => {
+    const { connectionLifecycleActions, removeStubAndAnnounce } = await import(
+      './connection-authoring-api'
+    );
+    const api = authoring();
+    api.removeSignatures.mockResolvedValueOnce({ changed: 1 });
+    const onDone = vi.fn();
+    connectionLifecycleActions({
+      mapId: 'map-a',
+      connectionId: 'stub-1' as Id<'mapConnections'>,
+      authoring: api,
+      onDone,
+      stub: { systemId: 7, signatureId: 'ABC-123' },
+    }).remove();
+    await vi.waitFor(() => expect(api.removeSignatures).toHaveBeenCalledOnce());
+    expect(api.severConnection).not.toHaveBeenCalled();
+    expect(api.removeSignatures).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      systemId: 7,
+      signatureIds: ['ABC-123'],
+    });
+    expect(onDone).toHaveBeenCalledOnce();
+
+    api.removeSignatures.mockResolvedValueOnce(undefined);
+    toastError.mockClear();
+    await removeStubAndAnnounce({
+      mapId: 'map-a',
+      systemId: 7,
+      signatureId: 'ABC-123',
+      authoring: api,
+      onDone: vi.fn(),
+    });
+    expect(toastError).toHaveBeenCalledOnce();
   });
 });

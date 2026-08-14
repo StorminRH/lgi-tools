@@ -79,19 +79,24 @@ export function jumpResolutionCandidates(
 }
 
 /**
- * The newest exact multi-survivor resolution not locally answered, or null.
- * One at a time keeps the scanner prompt rail non-blocking.
+ * The newest exact multi-survivor resolution owned by one of this client's
+ * tracked characters and not locally answered, or null. One at a time keeps
+ * the scanner prompt rail non-blocking; scoping keeps another pilot's jump
+ * from asking every editor on the map.
  */
 export function pendingJumpResolution(
   details: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
   unresolvedHoles: readonly UnresolvedHoleSummary[],
   dismissed: ReadonlySet<string>,
   systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
+  ownCharacterIds: ReadonlySet<number>,
 ): JumpResolutionModel | null {
   let newest: JumpResolutionModel | null = null;
   let newestCreatedAt = Number.NEGATIVE_INFINITY;
   for (const connection of details.values()) {
     if (!hasPendingResolution(connection)) continue;
+    const ownerId = connection.pendingResolutionCharacterId;
+    if (ownerId === null || !ownCharacterIds.has(ownerId)) continue;
     if (dismissed.has(connection.connectionId)) continue;
     const candidates = jumpResolutionCandidates(connection, unresolvedHoles);
     const destination = destinationReadout(connection.toSystemId, systemInfo);

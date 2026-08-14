@@ -35,6 +35,7 @@ function detail(
     fromDestinationHint: null,
     destinationProvenance: null,
     pendingCandidates: null,
+    pendingResolutionCharacterId: null,
     observedMassKg: null,
     observedMassAtStateKg: null,
     ...partial,
@@ -68,6 +69,7 @@ const HOLES: readonly UnresolvedHoleSummary[] = [
     toDestinationHint: null,
     destinationProvenance: null,
     pendingCandidates: null,
+    pendingResolutionCharacterId: null,
     observedMassKg: null,
     observedMassAtStateKg: null,
   },
@@ -80,9 +82,12 @@ function pending(partial: Partial<ConnectionDetail> = {}): ConnectionDetail {
     wormholeTypeCode: 'K162',
     destinationProvenance: 'assumed',
     pendingCandidates: [C1, STUB],
+    pendingResolutionCharacterId: 101,
     ...partial,
   });
 }
+
+const OWN = new Set([101]);
 
 describe('jump resolution', () => {
   it('requires exact multi-survivor ambiguity and preserves matcher order', () => {
@@ -123,7 +128,7 @@ describe('jump resolution', () => {
     ).toEqual([STUB, C1]);
   });
 
-  it('surfaces the newest exact prompt with the shared destination readout', () => {
+  it('surfaces the newest exact prompt only for this client\'s tracked characters', () => {
     const older = pending();
     const newer = pending({
       connectionId: 'c9' as Id<'mapConnections'>,
@@ -139,22 +144,42 @@ describe('jump resolution', () => {
       id === 2
         ? { id, name: 'J123456', security: -1, whClassId: 4 }
         : null;
-    expect(pendingJumpResolution(details, HOLES, new Set(), systemInfo)).toEqual(
+    expect(pendingJumpResolution(details, HOLES, new Set(), systemInfo, OWN)).toEqual(
       expect.objectContaining({
         connectionId: 'c9',
         destination: { label: 'J123456 - C4', tone: 'text-wh-c4' },
       }),
     );
     expect(
-      pendingJumpResolution(details, HOLES, new Set(['c9']), systemInfo)?.connectionId,
+      pendingJumpResolution(details, HOLES, new Set(['c9']), systemInfo, OWN)?.connectionId,
     ).toBe('c1');
     expect(
-      pendingJumpResolution(details, HOLES, new Set(['c1', 'c9']), systemInfo),
+      pendingJumpResolution(details, HOLES, new Set(['c1', 'c9']), systemInfo, OWN),
     ).toBeNull();
 
     const settled = detail({ connectionId: C1, destinationProvenance: 'jump-verified' });
     expect(
-      pendingJumpResolution(new Map([[C1, settled]]), HOLES, new Set(), systemInfo),
+      pendingJumpResolution(new Map([[C1, settled]]), HOLES, new Set(), systemInfo, OWN),
+    ).toBeNull();
+
+    // Another pilot's assumed link stays invisible even when still pending.
+    expect(
+      pendingJumpResolution(
+        details,
+        HOLES,
+        new Set(),
+        systemInfo,
+        new Set([999]),
+      ),
+    ).toBeNull();
+    expect(
+      pendingJumpResolution(
+        new Map([[C1, pending({ pendingResolutionCharacterId: null })]]),
+        HOLES,
+        new Set(),
+        systemInfo,
+        OWN,
+      ),
     ).toBeNull();
   });
 });

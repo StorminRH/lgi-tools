@@ -8,6 +8,7 @@ import type { ConnectionDetail } from '../chain/use-map-chain';
 import { postJumpRequest } from '../jump-client';
 import type { ConnectionFieldAuthoringApi } from '../authoring/connection-field-setters';
 import { announceSeverOutcome } from '../authoring/sever-toast';
+import { announceSignatureRemoval } from './signature-toast';
 
 /** Full authoring surface: shared fields plus connection lifecycle. */
 export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
@@ -26,6 +27,11 @@ export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
   readonly restoreConnection: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
+  }) => Promise<unknown>;
+  readonly removeSignatures: (args: {
+    mapId: string;
+    systemId: number;
+    signatureIds: string[];
   }) => Promise<unknown>;
   readonly restoreSignatures: (args: {
     mapId: string;
@@ -107,10 +113,11 @@ export interface ConnectionLifecycleActions {
 /**
  * The one place a UI surface gets connection destruction from.
  *
- * The editor's Delete and the edge menu's Delete are the same act, so they
- * share this factory rather than each re-deriving "sever, then offer the
- * branch restore as undo" — a second copy is how the two entry points would
- * drift into two removal rules.
+ * The editor's Delete and the edge menu's Delete are the same act for resolved
+ * lines (sever + branch restore undo). Unresolved scanned stubs have no branch
+ * to collapse — Delete tombstones them through removeSignatures, the same path
+ * paste confirmation and the ceiling sweep use, so a restored expired stub can
+ * actually leave the scanner again.
  */
 export function connectionLifecycleActions(input: {
   readonly mapId: string;
@@ -118,9 +125,27 @@ export function connectionLifecycleActions(input: {
   readonly authoring: ConnectionAuthoringApi;
   /** Runs after a held removal or a restore — typically closing the editor. */
   readonly onDone: () => void;
+  /**
+   * When set, Delete tombstones this unresolved stub via removeSignatures
+   * instead of severConnection (which refuses null destinations).
+   */
+  readonly stub?: {
+    readonly systemId: number;
+    readonly signatureId: string;
+  } | null;
 }): ConnectionLifecycleActions {
   return {
     remove: () => {
+      if (input.stub != null) {
+        void removeStubAndAnnounce({
+          mapId: input.mapId,
+          systemId: input.stub.systemId,
+          signatureId: input.stub.signatureId,
+          authoring: input.authoring,
+          onDone: input.onDone,
+        });
+        return;
+      }
       void severAndAnnounce({
         mapId: input.mapId,
         connectionId: input.connectionId,
@@ -142,6 +167,45 @@ export function connectionLifecycleActions(input: {
       input.onDone();
     },
   };
+}
+
+/** Tombstones one unresolved stub and offers the signature-restore undo. */
+export async function removeStubAndAnnounce(input: {
+  readonly mapId: string;
+  readonly systemId: number;
+  readonly signatureId: string;
+  readonly authoring: ConnectionAuthoringApi;
+  readonly onDone: () => void;
+}): Promise<void> {
+  const result = await input.authoring.removeSignatures({
+    mapId: input.mapId,
+    systemId: input.systemId,
+    signatureIds: [input.signatureId],
+  });
+  if (result === undefined) {
+    toast.error('Signature could not be removed.', {
+      id: `signature-remove:${input.systemId}:${input.signatureId}`,
+    });
+    return;
+  }
+  input.onDone();
+  announceSignatureRemoval({
+    systemId: input.systemId,
+    signatureIds: [input.signatureId],
+    onUndo: () => {
+      void input.authoring
+        .restoreSignatures({
+          mapId: input.mapId,
+          systemId: input.systemId,
+          signatureIds: [input.signatureId],
+        })
+        .catch(() => {
+          toast.error('Signature could not be restored.', {
+            id: `signature-restore:${input.systemId}:${input.signatureId}`,
+          });
+        });
+    },
+  });
 }
 
 /** Announces one sever outcome; exported for focused proof of the toast path. */
