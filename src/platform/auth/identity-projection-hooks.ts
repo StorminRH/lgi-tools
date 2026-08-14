@@ -8,7 +8,10 @@ import { bestEffort } from '@/lib/best-effort';
  */
 export interface IdentityProjectionHooks {
   readonly beforeUserDelete?: (userId: string) => Promise<void>;
-  readonly afterCharacterLinkChanged?: (characterId: number) => Promise<void>;
+  readonly afterCharacterLinkChanged?: (args: {
+    userId: string;
+    characterId: number;
+  }) => Promise<void>;
 }
 
 let hooks: IdentityProjectionHooks | null = null;
@@ -37,14 +40,18 @@ export async function runBeforeUserDelete(userId: string): Promise<void> {
 
 /**
  * Runs after a character account row is unlinked or moved between users.
+ * `userId` is the user **losing** the character (source on reassign).
  * Best-effort: Neon identity work must not abort on a Convex outage.
  */
-export async function runAfterCharacterLinkChanged(characterId: number): Promise<void> {
+export async function runAfterCharacterLinkChanged(args: {
+  userId: string;
+  characterId: number;
+}): Promise<void> {
   const action = hooks?.afterCharacterLinkChanged;
   await bestEffort(
     'identity-projection',
     'afterCharacterLinkChanged',
-    String(characterId),
-    action === undefined ? undefined : () => action(characterId),
+    `${args.userId}:${args.characterId}`,
+    action === undefined ? undefined : () => action(args),
   );
 }

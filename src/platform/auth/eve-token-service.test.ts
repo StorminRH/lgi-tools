@@ -97,17 +97,22 @@ describe('getFreshAccessTokenForCharacter', () => {
   });
 
   it('hands back a still-valid cached access token without hitting EVE', async () => {
+    const expires = future();
     h.selectRows = [
       {
         id: 'acc1',
         accessToken: encryptToken('cached-access'),
         refreshToken: encryptToken('stored-refresh'),
-        accessTokenExpiresAt: future(),
+        accessTokenExpiresAt: expires,
         scope: null,
       },
     ];
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
-    expect(result).toMatchObject({ kind: 'ok', accessToken: 'cached-access' });
+    expect(result).toEqual({
+      kind: 'ok',
+      accessToken: 'cached-access',
+      expiresAt: expires.getTime(),
+    });
     expect(h.refreshEveTokenMock).not.toHaveBeenCalled();
     expect(h.updateSpy).not.toHaveBeenCalled();
   });

@@ -82,6 +82,46 @@ describe('fetchConvexAccessToken', () => {
     expect(requested).toContain('/api/auth/token');
   });
 
+  it('reuses a still-valid mint until exp', async () => {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const token = `hdr.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.sig`;
+    fetchMock.mockResolvedValue(Response.json({ token }));
+
+    const { fetchConvexAccessToken } = await import('./auth-client');
+
+    await expect(fetchConvexAccessToken()).resolves.toBe(token);
+    await expect(fetchConvexAccessToken()).resolves.toBe(token);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('remints when Convex asks for a forced refresh', async () => {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const first = `hdr.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.sig`;
+    const second = `hdr.${Buffer.from(JSON.stringify({ exp: exp + 1 })).toString('base64url')}.sig`;
+    fetchMock
+      .mockResolvedValueOnce(Response.json({ token: first }))
+      .mockResolvedValueOnce(Response.json({ token: second }));
+
+    const { fetchConvexAccessToken } = await import('./auth-client');
+
+    await expect(fetchConvexAccessToken()).resolves.toBe(first);
+    await expect(fetchConvexAccessToken({ forceRefreshToken: true })).resolves.toBe(second);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops a held mint on logout so a later session cannot reuse it', async () => {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const token = `hdr.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.sig`;
+    fetchMock.mockResolvedValue(Response.json({ token }));
+
+    const { fetchConvexAccessToken, clearCachedConvexAccessToken } = await import('./auth-client');
+
+    await expect(fetchConvexAccessToken()).resolves.toBe(token);
+    clearCachedConvexAccessToken();
+    await expect(fetchConvexAccessToken()).resolves.toBe(token);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('returns null when the caller is anonymous', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ message: 'Unauthorized' }), {

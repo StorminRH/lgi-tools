@@ -14,8 +14,8 @@ const hooks = vi.hoisted(() => ({
 
 vi.mock('./identity-projection-hooks', () => ({
   runBeforeUserDelete: (userId: string) => hooks.runBeforeUserDelete(userId),
-  runAfterCharacterLinkChanged: (characterId: number) =>
-    hooks.runAfterCharacterLinkChanged(characterId),
+  runAfterCharacterLinkChanged: (args: { userId: string; characterId: number }) =>
+    hooks.runAfterCharacterLinkChanged(args),
 }));
 
 import {
@@ -165,6 +165,10 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
     });
     await expect(setUserRole('missing-user', 'ADMIN')).resolves.toBeNull();
     await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR)).resolves.toBe(true);
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+      userId: SOURCE_ID,
+      characterId: MOVED_CHAR,
+    });
     await expect(deleteLinkedCharacter(SOURCE_ID, MOVED_CHAR)).resolves.toBe(false);
   });
 
@@ -189,6 +193,10 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
       }),
     ).resolves.toEqual({ sourceDeleted: true });
     expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith(SOURCE_ID);
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+      userId: SOURCE_ID,
+      characterId: MOVED_CHAR,
+    });
 
     const [moved] = await harness.db
       .select({ userId: account.userId })
@@ -214,6 +222,10 @@ describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => 
         toUserId: TARGET_ID,
       }),
     ).resolves.toEqual({ sourceDeleted: false });
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+      userId: SOURCE_ID,
+      characterId: MOVED_CHAR,
+    });
     await expect(getStoredActiveCharacterId(SOURCE_ID)).resolves.toBe(SURVIVOR_CHAR);
     await expect(getUserById(SOURCE_ID)).resolves.not.toBeNull();
   });

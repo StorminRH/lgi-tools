@@ -42,6 +42,7 @@ export async function POST(req: Request): Promise<Response> {
     case 'ok':
       return apiResponse(eveTokenEndpoint, 200, {
         accessToken: result.accessToken,
+        expiresAt: result.expiresAt,
       });
     case 'not_found':
       return apiResponse(eveTokenEndpoint, 404, notFoundFailure());

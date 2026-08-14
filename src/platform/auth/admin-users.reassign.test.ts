@@ -36,8 +36,8 @@ const hooks = vi.hoisted(() => ({
 
 vi.mock('./identity-projection-hooks', () => ({
   runBeforeUserDelete: (userId: string) => hooks.runBeforeUserDelete(userId),
-  runAfterCharacterLinkChanged: (characterId: number) =>
-    hooks.runAfterCharacterLinkChanged(characterId),
+  runAfterCharacterLinkChanged: (args: { userId: string; characterId: number }) =>
+    hooks.runAfterCharacterLinkChanged(args),
 }));
 
 import { reassignCharacter } from './admin-users';
@@ -63,7 +63,10 @@ describe('reassignCharacter', () => {
     expect(out).toEqual({ sourceDeleted: true });
     expect(state.calls.delete).toBe(1);
     expect(hooks.runBeforeUserDelete).toHaveBeenCalledWith('eve-user-2');
-    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith(100);
+    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
+      userId: 'eve-user-2',
+      characterId: 100,
+    });
   });
 
   it('keeps the source user when required collaborative purge fails', async () => {

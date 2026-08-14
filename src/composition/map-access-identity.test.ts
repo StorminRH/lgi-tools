@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   purgeMapChain: vi.fn(),
   purgeUserMapAccessProjection: vi.fn(),
   registerIdentityProjectionHooks: vi.fn(),
+  teardownLocationTracking: vi.fn(),
 }));
 
 vi.mock('@/data/maps/queries', () => ({
@@ -27,6 +28,10 @@ vi.mock('@/composition/map-purge', () => ({
   purgeMapChain: mocks.purgeMapChain,
 }));
 
+vi.mock('@/data/location-tracking/purge', () => ({
+  teardownLocationTracking: mocks.teardownLocationTracking,
+}));
+
 vi.mock('@/platform/auth/identity-projection-hooks', () => ({
   registerIdentityProjectionHooks: mocks.registerIdentityProjectionHooks,
 }));
@@ -36,6 +41,10 @@ import {
   reprojectMapsForCharacter,
   teardownProjectionsForDeletedUser,
 } from './map-access-identity';
+
+const registeredHooks = mocks.registerIdentityProjectionHooks.mock.calls[0]![0] as {
+  afterCharacterLinkChanged: (args: { userId: string; characterId: number }) => Promise<void>;
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -51,6 +60,7 @@ beforeEach(() => {
   });
   mocks.purgeMapChain.mockResolvedValue({ deleted: 0, remaining: false });
   mocks.purgeUserMapAccessProjection.mockResolvedValue({ deleted: 0 });
+  mocks.teardownLocationTracking.mockResolvedValue(undefined);
 });
 
 describe('map-access-identity', () => {
@@ -77,6 +87,12 @@ describe('map-access-identity', () => {
     expect(mocks.purgeMapChain).toHaveBeenCalledWith('owned-1');
     expect(mocks.purgeMapChain).toHaveBeenCalledWith('owned-2');
     expect(mocks.purgeUserMapAccessProjection).toHaveBeenCalledWith('user-gone');
+    expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('user-gone', null);
+  });
+
+  it('tears down location tracking for the user losing a character', async () => {
+    await registeredHooks.afterCharacterLinkChanged({ userId: 'from-user', characterId: 42 });
+    expect(mocks.teardownLocationTracking).toHaveBeenCalledWith('from-user', 42);
   });
 
   it('propagates a full-chain failure before clearing claims', async () => {
@@ -87,5 +103,6 @@ describe('map-access-identity', () => {
     await expect(teardownProjectionsForDeletedUser('user-gone')).rejects.toBe(failure);
     expect(mocks.purgeMapChain).toHaveBeenCalledTimes(1);
     expect(mocks.purgeUserMapAccessProjection).not.toHaveBeenCalled();
+    expect(mocks.teardownLocationTracking).not.toHaveBeenCalled();
   });
 });

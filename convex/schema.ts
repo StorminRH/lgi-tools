@@ -385,7 +385,7 @@ export default defineSchema({
   // Rule 2). NOTHING subscribes to this table: the engine's pacing reads the
   // subject row's minExpiresAt, and the action reads these rows through
   // heldState inside its run. Regenerable; purged with characterLocation via
-  // the same /purge-location-tracking door and orphan-cleaned by the apply.
+  // the same /purge-location-tracking door. Apply no longer orphan-cleans this table.
   characterLocationOnline: defineTable({
     userId: v.string(),
     characterId: v.number(),
@@ -397,6 +397,20 @@ export default defineSchema({
     // held flag inside this window and re-reads past it, so tracked pilots
     // never bill more than ~1/min of /online reads regardless of the 5s loop.
     onlineExpiresAt: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // Short-lived EVE access-token lease for the location sync. NOTHING
+  // subscribes to this table — public queries must never read it. Convex
+  // holds the token until Neon's expiresAt, then vends once. Refresh tokens
+  // never leave Neon. Purged with characterLocation via the same door.
+  characterLocationAccess: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    accessToken: v.string(),
+    expiresAt: v.number(),
+    updatedAt: v.number(),
   })
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),

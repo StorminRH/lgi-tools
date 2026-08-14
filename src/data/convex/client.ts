@@ -40,5 +40,5 @@ const consoleLogger = {
  * when the URL is absent.
  */
 export const convexClient: ConvexReactClient | null = url
-  ? new ConvexReactClient(url, { logger: consoleLogger })
+  ? new ConvexReactClient(url, { logger: consoleLogger, initialAuthTokenReuse: true })
   : null;

@@ -17,4 +17,22 @@ describe('convexClient construction', () => {
     vi.unstubAllEnvs();
     vi.resetModules();
   });
+
+  it('reuses the first mint on connect', async () => {
+    const ConvexReactClient = vi.fn().mockReturnValue({});
+    vi.resetModules();
+    vi.doMock('convex/react', () => ({ ConvexReactClient }));
+    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://example.convex.cloud');
+
+    await import('./client');
+
+    expect(ConvexReactClient).toHaveBeenCalledWith(
+      'https://example.convex.cloud',
+      expect.objectContaining({ initialAuthTokenReuse: true }),
+    );
+
+    vi.doUnmock('convex/react');
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
 });

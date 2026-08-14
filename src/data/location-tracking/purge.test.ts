@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { locationTrackingPurgeContributor } from './purge';
+import { locationTrackingPurgeContributor, teardownLocationTracking } from './purge';
 
 const USER = 'eve-user-1';
 const CHAR = 90_000_001;
@@ -95,5 +95,15 @@ describe('locationTrackingPurgeContributor', () => {
     delete process.env.NEXT_PUBLIC_CONVEX_URL;
     await locationTrackingPurgeContributor.purgeUser?.({ kind: 'user', userId: USER });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('teardownLocationTracking', () => {
+  it('is the same Convex purge door the contributor uses', async () => {
+    await teardownLocationTracking(USER, CHAR);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('https://example.convex.site/purge-location-tracking');
+    expect(JSON.parse(init?.body as string)).toEqual({ userId: USER, characterId: CHAR });
   });
 });

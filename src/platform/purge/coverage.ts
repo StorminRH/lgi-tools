@@ -89,18 +89,26 @@ export const NON_NEON_HOMES = [
   {
     home: 'convex:characterLocation',
     coveredBy:
-      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser); engine orphan-clean in the location apply (OW3) is the backstop for linked-character drift',
+      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser); identity hooks (unlink / reassign / user-delete) hit the same door so Convex is not polled for roster drift',
     explicitTeardown: 'src/data/location-tracking/purge.ts — shipped 4.0.4.2.1',
     reason:
-      'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Lazy orphan-clean alone cannot cover an account-nuke, so the location-tracking contributor tears it down explicitly during runPurge.',
+      'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Apply no longer orphan-cleans against a Neon enum; identity teardown and account purge are the only deletes.',
   },
   {
     home: 'convex:characterLocationOnline',
     coveredBy:
-      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser, which drains it beside characterLocation); the location apply orphan-cleans rows for unlinked characters as the backstop',
+      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser, which drains it beside characterLocation); identity hooks hit the same door',
     explicitTeardown: 'src/data/location-tracking/purge.ts — same door as characterLocation',
     reason:
       'the location sync’s held online-probe state (is the pilot logged in, ETag, cache window) — its own unsubscribed table so per-probe expiry writes cannot invalidate mapTracking.forMap. User/character-keyed like characterLocation and torn down through the identical purge cascade.',
+  },
+  {
+    home: 'convex:characterLocationAccess',
+    coveredBy:
+      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser, which drains access leases beside location and tracking); identity hooks hit the same door',
+    explicitTeardown: 'src/data/location-tracking/purge.ts — same door as characterLocation',
+    reason:
+      'short-lived EVE access-token lease for the location sync. Unsubscribed — public queries never read it. Refresh tokens stay Neon-only. Torn down with the character so an unlink cannot leave a usable ESI token in Convex.',
   },
   {
     home: 'convex:mapTracking',

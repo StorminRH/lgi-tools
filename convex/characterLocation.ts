@@ -3,8 +3,8 @@
 // Canonical shape: client heartbeat (engine) → chain-on-success ~5s loop
 // while watched and a tracked pilot is online (30s scan is the retry/
 // watchdog; the sync's own /online probe paces an all-offline subject at
-// ~60s) → Workpool → characterLocationSync.syncUser (action: Neon enum ∩
-// mapTracking, online probe + location + ship-on-change) → applySyncResults
+// ~60s) → Workpool → characterLocationSync.syncUser (action: mapTracking
+// poll set, access lease, online probe + location + ship-on-change) → applySyncResults
 // (ONE batched mutation, generation-guarded) → forViewer /
 // mapTracking.forMap. The client never calls the action directly.
 //
@@ -105,6 +105,60 @@ export const heldState = internalQuery({
   },
 });
 
+/**
+ * Access-token leases for this user. Internal-only — never on forViewer / forMap.
+ */
+export const accessLeases = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    const rows = await ctx.db
+      .query('characterLocationAccess')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    return rows.map((row) => ({
+      characterId: row.characterId,
+      accessToken: row.accessToken,
+      expiresAt: row.expiresAt,
+    }));
+  },
+});
+
+/**
+ * Upsert one character's EVE access-token lease. Stores Neon's expiresAt.
+ */
+export const putAccessLease = internalMutation({
+  args: {
+    userId: v.string(),
+    characterId: v.number(),
+    accessToken: v.string(),
+    expiresAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('characterLocationAccess')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', args.userId).eq('characterId', args.characterId),
+      )
+      .unique();
+    const now = Date.now();
+    if (existing !== null) {
+      await ctx.db.patch(existing._id, {
+        accessToken: args.accessToken,
+        expiresAt: args.expiresAt,
+        updatedAt: now,
+      });
+      return;
+    }
+    await ctx.db.insert('characterLocationAccess', {
+      userId: args.userId,
+      characterId: args.characterId,
+      accessToken: args.accessToken,
+      expiresAt: args.expiresAt,
+      updatedAt: now,
+    });
+  },
+});
+
 // Per-character outcome the action hands back. `solarSystemId` null means a
 // 304, an offline probe, or an error (then `error` is set). Offline pilots
 // keep any held location (collapse retention / last-known); map presence
@@ -131,9 +185,9 @@ type CharacterResult = Infer<typeof characterResultValidator>;
 /**
  * The run's single batched write. Idempotent upserts keyed by
  * userId+characterId; the generation guard makes a superseded run's late apply
- * a no-op. Orphan-cleans against the full Neon enumeration; stamps
- * syncedCharacterIds from the tracked poll set so a newly tracked hint goes
- * stale immediately.
+ * a no-op. Stamps syncedCharacterIds from the tracked poll set so a newly
+ * tracked hint goes stale immediately. Unlinked characters are torn down by
+ * purgeForUser, not this apply.
  */
 export const applySyncResults = internalMutation({
   args: {
@@ -145,7 +199,6 @@ export const applySyncResults = internalMutation({
     const subject = await getSyncSubject(ctx.db, 'characterLocation', args.userId);
     if (subject === null || subject.lastRequestedAt !== args.generation) return;
 
-    const enumerated = new Set(args.enumeratedCharacterIds);
     const docs = await ctx.db
       .query('characterLocation')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
@@ -154,8 +207,8 @@ export const applySyncResults = internalMutation({
       .query('characterLocationOnline')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .collect();
-    const byCharacter = await indexAndOrphanClean(ctx, docs, enumerated);
-    const onlineByCharacter = await indexAndOrphanClean(ctx, onlineDocs, enumerated);
+    const byCharacter = indexByCharacter(docs);
+    const onlineByCharacter = indexByCharacter(onlineDocs);
     const now = Date.now();
 
     const outcome = await applyCharacterResults(ctx, args, byCharacter, onlineByCharacter, subject, now);
@@ -179,17 +232,14 @@ export const applySyncResults = internalMutation({
   },
 });
 
-// Index one payload table's rows by character, deleting rows for characters
-// no longer linked to the user (the lazy orphan-clean both tables share).
-// Takes the already-collected docs — Convex's index-builder generics don't
-// accept union table names, so the typed reads stay at the call sites.
-async function indexAndOrphanClean<
-  D extends { _id: Doc<'characterLocation'>['_id'] | Doc<'characterLocationOnline'>['_id']; characterId: number },
->(ctx: MutationCtx, docs: D[], enumerated: Set<number>): Promise<Map<number, D>> {
+// Index one payload table's rows by character. Unlinked characters are
+// removed by purgeForUser (unlink/reassign/user-delete), not here — feeding
+// the tracked set into a delete-if-missing pass would turn untrack into a
+// destroy of last-known location.
+function indexByCharacter<D extends { characterId: number }>(docs: D[]): Map<number, D> {
   const byCharacter = new Map<number, D>();
   for (const doc of docs) {
-    if (enumerated.has(doc.characterId)) byCharacter.set(doc.characterId, doc);
-    else await ctx.db.delete(doc._id);
+    byCharacter.set(doc.characterId, doc);
   }
   return byCharacter;
 }
@@ -387,7 +437,7 @@ function locationChanged(
 /**
  * Explicit teardown for a Neon-side account/character purge. characterId null
  * tears down the whole user (account-nuke): every characterLocation doc,
- * held online-probe row, and mapTracking row for that user. A number tears
+ * held online-probe row, access lease, and mapTracking row for that user. A number tears
  * down one character. Idempotent: deleting absent rows is a no-op.
  */
 export const purgeForUser = internalMutation({
@@ -408,10 +458,14 @@ export const purgeForUser = internalMutation({
     const tracking = scoped(
       await ctx.db.query('mapTracking').withIndex('by_user_character', (q) => q.eq('userId', userId)).collect(),
     );
+    const accessLeases = scoped(
+      await ctx.db.query('characterLocationAccess').withIndex('by_user_character', (q) => q.eq('userId', userId)).collect(),
+    );
 
     for (const doc of locations) await ctx.db.delete(doc._id);
     for (const doc of heldOnline) await ctx.db.delete(doc._id);
     for (const doc of tracking) await ctx.db.delete(doc._id);
+    for (const doc of accessLeases) await ctx.db.delete(doc._id);
 
     // Jump-bookkeeping stamps are character-keyed and deliberately survive
     // untrack/retrack, but an account/character purge removes the character
