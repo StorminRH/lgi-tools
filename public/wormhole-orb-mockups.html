@@ -124,26 +124,28 @@
       width: 200px;
       height: 200px;
       border-radius: 50%;
-      overflow: hidden;
+      overflow: visible;
       isolation: isolate;
     }
     .stage.sm .pond { width: 55px; height: 55px; }
 
     .pond .core {
       position: absolute;
-      inset: 22%;
+      inset: 28%;
       border-radius: 50%;
       background:
         radial-gradient(circle at 38% 32%,
-          rgba(255, 244, 214, 0.55) 0 6%,
-          transparent 22%),
+          rgba(255, 244, 214, 0.16) 0 5%,
+          transparent 18%),
         radial-gradient(circle,
-          #0a0c10 0 55%,
-          color-mix(in srgb, var(--c) 35%, #0a0c10) 100%);
-      box-shadow: 0 0 18px color-mix(in srgb, var(--c) 22%, transparent);
+          #0a0c10 0 62%,
+          color-mix(in srgb, var(--c) 22%, #0a0c10) 100%);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--c) 12%, transparent);
       z-index: 2;
     }
-    .stage.sm .pond .core { inset: 20%; }
+    .stage.sm .pond .core { inset: 26%; }
+    .pond.fine .core { inset: 38%; }
+    .stage.sm .pond.fine .core { inset: 34%; }
 
     .pond .field {
       position: absolute;
@@ -159,78 +161,80 @@
     }
 
     .ring {
+      --i: 0;
+      --n: 4;
       position: absolute;
-      inset: 8%;
+      inset: 4%;
       border-radius: 50%;
       border: 1.5px solid color-mix(in srgb, var(--c) 80%, #fff);
-      opacity: 0;
-      transform: scale(0.18);
+      opacity: calc(0.52 * (1 - var(--i) / var(--n)));
+      transform: scale(calc(0.28 + 0.68 * var(--i) / var(--n)));
       pointer-events: none;
     }
     .stage.sm .ring { border-width: 1px; }
 
     @keyframes ripple-out {
-      0%   { transform: scale(0.16); opacity: 0.7; }
-      35%  { opacity: 0.45; }
+      0%   { transform: scale(0.2); opacity: 0.65; }
+      40%  { opacity: 0.38; }
       100% { transform: scale(1); opacity: 0; }
     }
 
-    .pond .ring { animation: ripple-out 2.8s linear infinite; }
-    .pond .ring:nth-child(2) { animation-delay: -0.7s; }
-    .pond .ring:nth-child(3) { animation-delay: -1.4s; }
-    .pond .ring:nth-child(4) { animation-delay: -2.1s; }
+    .pond:hover .ring,
+    body.show-wisps .pond .ring {
+      animation: ripple-out 2.8s linear infinite;
+      animation-delay: calc(var(--i) * -0.7s);
+    }
 
     /* Fine packed rings — more like the in-game concentric bands. */
     .pond.fine .ring {
-      inset: 6%;
+      inset: 2%;
       border-width: 1px;
-      animation-duration: 3.6s;
+      opacity: calc(0.48 * (1 - var(--i) / var(--n)));
+      transform: scale(calc(0.24 + 0.74 * var(--i) / var(--n)));
     }
-    .pond.fine .ring:nth-child(2) { animation-delay: -0.45s; }
-    .pond.fine .ring:nth-child(3) { animation-delay: -0.9s; }
-    .pond.fine .ring:nth-child(4) { animation-delay: -1.35s; }
-    .pond.fine .ring:nth-child(5) { animation-delay: -1.8s; }
-    .pond.fine .ring:nth-child(6) { animation-delay: -2.25s; }
-    .pond.fine .ring:nth-child(7) { animation-delay: -2.7s; }
-    .pond.fine .ring:nth-child(8) { animation-delay: -3.15s; }
+    .pond.fine:hover .ring,
+    body.show-wisps .pond.fine .ring {
+      animation-duration: 3.6s;
+      animation-delay: calc(var(--i) * -0.4s);
+    }
 
     /* Wisps travel outward along a ray. They do not orbit. */
     .wisp {
       position: absolute;
       left: 50%;
       top: 50%;
-      width: 10%;
-      height: 28%;
+      width: 7%;
+      height: 26%;
       margin: 0;
       border-radius: 40%;
       background: linear-gradient(
         to top,
         transparent,
-        color-mix(in srgb, var(--c) 85%, #fff) 40%,
+        color-mix(in srgb, var(--c) 85%, #fff) 45%,
         transparent
       );
-      filter: blur(3px);
+      filter: blur(2.5px);
       opacity: 0;
       transform-origin: 50% 100%;
+      transform: translate(-50%, -100%) rotate(var(--a));
       pointer-events: none;
       z-index: 1;
     }
     .pond:hover .wisp,
     body.show-wisps .pond .wisp {
-      animation: wisp-out 1.6s ease-out infinite;
+      animation: wisp-out var(--dur, 1.5s) ease-out infinite;
+      animation-delay: var(--delay, 0s);
     }
-    .wisp.d2 { animation-delay: 0.35s; }
-    .wisp.d3 { animation-delay: 0.7s; }
 
     @keyframes wisp-out {
       0% {
         opacity: 0;
-        transform: translate(-50%, -50%) rotate(var(--a)) translateY(-18%) scaleY(0.35);
+        transform: translate(-50%, -100%) rotate(var(--a)) translateY(8%) scaleY(0.4);
       }
-      18% { opacity: 0.85; }
+      16% { opacity: 0.8; }
       100% {
         opacity: 0;
-        transform: translate(-50%, -50%) rotate(var(--a)) translateY(-58%) scaleY(1.15);
+        transform: translate(-50%, -100%) rotate(var(--a)) translateY(-130%) scaleY(1.05);
       }
     }
 
@@ -243,15 +247,12 @@
 
     @media (prefers-reduced-motion: reduce) {
       .pond .ring,
+      .pond:hover .ring,
+      body.show-wisps .pond .ring,
       .pond:hover .wisp,
       body.show-wisps .pond .wisp {
         animation: none !important;
       }
-      .pond .ring {
-        opacity: 0.28;
-        transform: scale(0.55);
-      }
-      .pond .ring:nth-child(3) { transform: scale(0.78); opacity: 0.14; }
     }
   </style>
 </head>
@@ -259,11 +260,11 @@
   <div class="wrap">
     <h1>Wormhole ripple studies</h1>
     <p class="lede">
-      Top-down water drop, not a spinning orb. Rings
+      Top-down water drop, not a spinning orb. At rest the bands are a
+      <strong>still rendering</strong>. On hover they
       <strong>spread from the center and fade</strong> — strongest in the
-      middle, more transparent as they reach the rim. Wisps
-      <strong>travel outward</strong> on hover (or with the toggle). The core
-      stays opaque enough to hold a class chip.
+      middle, quieter at the rim — and wisps
+      <strong>fire outward in random directions</strong>.
     </p>
 
     <div class="toolbar">
@@ -271,17 +272,15 @@
         <input id="wisp-toggle" type="checkbox" />
         Preview wisps on every node
       </label>
-      <span class="hint">Hover also works. Reduced motion freezes the rings as two static bands.</span>
+      <span class="hint">Hover starts the expansion and random outward wisps. Reduced motion keeps the still stack.</span>
     </div>
 
     <section class="study">
       <h2>1. CSS drop ripples</h2>
       <p class="meta">
         <span class="tech">CSS</span>
-        Four rings scale from the core to the rim and fade out, staggered so
-        it reads as a continuous drop. A radial mask keeps the inner rings
-        louder than the edge. Hover wisps shoot away from center along fixed
-        rays — no spin.
+        Still concentric bands at rest. On hover the rings expand and fade,
+        and wisps fire outward on random bearings.
       </p>
       <div class="row" id="css-row"></div>
     </section>
@@ -290,8 +289,8 @@
       <h2>2. Packed CSS bands</h2>
       <p class="meta">
         <span class="tech">CSS</span>
-        Same motion, more rings, slower. Closer to the in-game stack of
-        concentric bands. Still expanding-and-fading, not rotating.
+        Smaller core so the packed bands have more room. Still stack at
+        rest; hover expands the rings and sends wisps out in all directions.
       </p>
       <div class="row" id="fine-row"></div>
     </section>
@@ -300,10 +299,8 @@
       <h2>3. Canvas drop + outward wisps</h2>
       <p class="meta">
         <span class="tech">Canvas 2D</span>
-        Rings are spawned at the core, grow, and lose alpha with radius.
-        On hover, short wisps are emitted on random bearings and drift
-        outward until they fade. Idle map still paints; the extra wisp
-        spawn is hover-only.
+        Still rings at rest. Hover grows them outward and emits wisps on
+        random bearings.
       </p>
       <div class="row" id="canvas-row"></div>
     </section>
@@ -320,9 +317,11 @@
     };
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const onWispMode = [];
     const wispToggle = document.getElementById('wisp-toggle');
     wispToggle.addEventListener('change', () => {
       document.body.classList.toggle('show-wisps', wispToggle.checked);
+      for (const fn of onWispMode) fn(wispToggle.checked);
     });
 
     function specimen(stageClass, inner, cap) {
@@ -338,31 +337,39 @@
       return spec;
     }
 
-    function cssPond(color, { fine = false, wisps = 5 } = {}) {
+    function scatterWisps(pond, count) {
+      pond.querySelectorAll('.wisp').forEach((node) => node.remove());
+      const core = pond.querySelector('.core');
+      for (let i = 0; i < count; i += 1) {
+        const wisp = document.createElement('div');
+        wisp.className = 'wisp';
+        wisp.style.setProperty('--a', `${Math.random() * 360}deg`);
+        wisp.style.setProperty('--delay', `${(Math.random() * 1.2).toFixed(2)}s`);
+        wisp.style.setProperty('--dur', `${(1.15 + Math.random() * 0.7).toFixed(2)}s`);
+        pond.insertBefore(wisp, core);
+      }
+    }
+
+    function cssPond(color, { fine = false, wisps = 8 } = {}) {
       const pond = document.createElement('div');
       pond.className = 'pond' + (fine ? ' fine' : '');
       pond.style.setProperty('--c', color.css);
       const field = document.createElement('div');
       field.className = 'field';
       pond.appendChild(field);
-      const ringCount = fine ? 8 : 4;
+      const ringCount = fine ? 10 : 4;
       for (let i = 0; i < ringCount; i += 1) {
         const ring = document.createElement('div');
         ring.className = 'ring';
+        ring.style.setProperty('--i', String(i));
+        ring.style.setProperty('--n', String(ringCount - 1));
         pond.appendChild(ring);
       }
-      const angles = fine
-        ? [8, 52, 118, 168, 214, 268, 312]
-        : [12, 78, 150, 210, 292];
-      angles.slice(0, wisps).forEach((deg, i) => {
-        const wisp = document.createElement('div');
-        wisp.className = 'wisp' + (i % 3 === 1 ? ' d2' : i % 3 === 2 ? ' d3' : '');
-        wisp.style.setProperty('--a', deg + 'deg');
-        pond.appendChild(wisp);
-      });
       const core = document.createElement('div');
       core.className = 'core';
       pond.appendChild(core);
+      scatterWisps(pond, wisps);
+      pond.addEventListener('pointerenter', () => scatterWisps(pond, wisps));
       const chip = document.createElement('span');
       chip.className = 'chip';
       chip.style.color = color.css;
@@ -380,9 +387,9 @@
 
     const fineRow = document.getElementById('fine-row');
     for (const key of ['c4', 'teal', 'c3']) {
-      fineRow.appendChild(specimen('lg', cssPond(COLORS[key], { fine: true, wisps: 7 }), `200px · ${COLORS[key].label}`));
+      fineRow.appendChild(specimen('lg', cssPond(COLORS[key], { fine: true, wisps: 10 }), `200px · ${COLORS[key].label}`));
     }
-    fineRow.appendChild(specimen('sm', cssPond(COLORS.c4, { fine: true, wisps: 5 }), '55px'));
+    fineRow.appendChild(specimen('sm', cssPond(COLORS.c4, { fine: true, wisps: 8 }), '55px'));
 
     function mountCanvas(color, size) {
       const canvas = document.createElement('canvas');
@@ -418,6 +425,10 @@
         });
       }
 
+      function live() {
+        return (hover || document.body.classList.contains('show-wisps')) && !reduce;
+      }
+
       function draw(dt) {
         ctx.clearRect(0, 0, w, w);
         ctx.save();
@@ -433,9 +444,10 @@
         ctx.fillStyle = field;
         ctx.fillRect(0, 0, w, w);
 
+        const moving = dt > 0;
         for (const ring of rings) {
-          ring.age = (ring.age + dt / 2.8) % 1;
-          const t = ring.age;
+          if (moving) ring.age = (ring.age + dt / 2.8) % 1;
+          const t = moving ? ring.age : ring.rest;
           const radius = R * (0.16 + t * 0.84);
           const alpha = (1 - t) * (1 - t) * 0.7;
           ctx.beginPath();
@@ -445,13 +457,14 @@
           ctx.stroke();
         }
 
-        const showWisps = hover || document.body.classList.contains('show-wisps');
-        if (showWisps && !reduce) {
+        if (moving) {
           lastSpawn += dt;
-          if (lastSpawn > 0.18) {
+          if (lastSpawn > 0.16) {
             spawnWisp();
             lastSpawn = 0;
           }
+        } else {
+          wisps.length = 0;
         }
         for (let i = wisps.length - 1; i >= 0; i -= 1) {
           const wisp = wisps[i];
@@ -475,11 +488,11 @@
           ctx.stroke();
         }
 
-        const coreR = R * 0.28;
-        const core = ctx.createRadialGradient(cx - coreR * 0.3, cy - coreR * 0.35, coreR * 0.1, cx, cy, coreR);
-        core.addColorStop(0, 'rgba(255,244,214,0.45)');
-        core.addColorStop(0.35, '#0a0c10');
-        core.addColorStop(1, `rgba(${rgb},0.25)`);
+        const coreR = R * 0.2;
+        const core = ctx.createRadialGradient(cx - coreR * 0.25, cy - coreR * 0.3, coreR * 0.12, cx, cy, coreR);
+        core.addColorStop(0, 'rgba(255,244,214,0.14)');
+        core.addColorStop(0.4, '#0a0c10');
+        core.addColorStop(1, `rgba(${rgb},0.18)`);
         ctx.beginPath();
         ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
         ctx.fillStyle = core;
@@ -493,16 +506,33 @@
         ctx.fillText(label, cx, cy + 1);
       }
 
+      rings.forEach((ring, i) => {
+        ring.rest = 0.18 + (i / (rings.length - 1)) * 0.62;
+        ring.age = ring.rest;
+      });
+
       let last = performance.now();
       const loop = (now) => {
         const dt = Math.min(0.05, (now - last) / 1000);
         last = now;
-        draw(reduce ? 0 : dt);
+        if (!live()) {
+          raf = 0;
+          draw(0);
+          return;
+        }
+        draw(dt);
         raf = requestAnimationFrame(loop);
       };
-      raf = requestAnimationFrame(loop);
-      canvas.addEventListener('pointerenter', () => { hover = true; });
+      const kick = () => {
+        if (!raf) {
+          last = performance.now();
+          raf = requestAnimationFrame(loop);
+        }
+      };
+      draw(0);
+      canvas.addEventListener('pointerenter', () => { hover = true; kick(); });
       canvas.addEventListener('pointerleave', () => { hover = false; });
+      onWispMode.push((on) => { if (on) kick(); });
       return canvas;
     }
 
