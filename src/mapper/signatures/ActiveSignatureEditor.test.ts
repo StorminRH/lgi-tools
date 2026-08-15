@@ -29,8 +29,15 @@ vi.mock('../authoring/use-wormhole-editor-data', () => ({
 }));
 
 vi.mock('@/components/ui/select', () => ({
-  Select: (props: { ariaLabel: string }) =>
-    createElement('div', { 'data-select': props.ariaLabel }),
+  Select: (props: {
+    ariaLabel: string;
+    items?: readonly { value: string; label: string }[];
+  }) =>
+    createElement('div', {
+      'data-select': props.ariaLabel,
+      'data-options': (props.items ?? []).map((item) => item.value).join(','),
+      'data-labels': (props.items ?? []).map((item) => item.label).join('|'),
+    }),
 }));
 
 vi.mock('@/components/ui/terminal-search', () => ({
@@ -95,6 +102,7 @@ function authoring() {
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
     setConnectionDestinationHint: vi.fn(),
+    linkStubToResolvedConnection: vi.fn(),
     severConnection: vi.fn(),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),
@@ -139,9 +147,12 @@ it('opens edit for resolved and unresolved holes, and mounts nothing until named
   const stub = render(STUB_ID);
   expect(stub).toContain('data-map-window="signature-editor"');
   expect(stub).toContain('data-map-connection-mode="edit"');
-  // No destination yet: Leads to stays the human hint dropdown.
+  // No destination yet: Leads to stays the human hint dropdown, plus the
+  // already-known inbound as a named origin pick rather than an auto-link.
   expect(stub).toContain('data-select="Leads to"');
   expect(stub).not.toContain('data-map-connection-leads-locked');
+  expect(stub).toContain('origin:resolved-1');
+  expect(stub).toContain('31000002');
 });
 
 it('restores inside the undo window, closes when the row left the feed, and locks Leads to', () => {

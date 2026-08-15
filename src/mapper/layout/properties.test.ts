@@ -50,11 +50,9 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
     }
   });
 
-  it('holds the shipped default (proportional, G-1 dials) to its pinned crossing budget', async () => {
-    // The operator ratified proportional at ring 300 / separation 150 / fan 3 with these two
-    // measured single crossings in view (G-1, 2026-08-02). Any NEW crossing is a regression;
-    // an engine improvement that removes one should lower this pin deliberately.
-    const budget: Record<string, number> = { 'seed32-n42': 1, 'seed42-n60': 1 };
+  it('holds the shipped default (fixed-slot, 2026-08-14 dials) to zero spanning-tree crossings', async () => {
+    // Operator retune 2026-08-14: ring 170 / separation 120 / fan 1 / fixed-slot /
+    // compass-8. A new spanning-tree crossing is a regression.
     for (const entry of PROOF_CORPUS) {
       const chain = generateChain(entry);
       const positions = await compassKernel(chain, DEFAULT_LAYOUT_CONFIG);
@@ -62,7 +60,7 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
       expect(
         report.treeTreeCrossings,
         `seed ${entry.seed} n=${entry.size} spanning-tree crossings vs ratified budget`,
-      ).toBe(budget[`seed${entry.seed}-n${entry.size}`] ?? 0);
+      ).toBe(0);
     }
   });
 
@@ -95,7 +93,7 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
       [A, ...children],
       children.map((child) => [A, child] as const),
     );
-    const tight = { ...DEFAULT_LAYOUT_CONFIG, minSeparation: 200 };
+    const tight = { ...DEFAULT_LAYOUT_CONFIG, ringSpacing: 220, minSeparation: 200 };
     const positions = await compassKernel(star, tight);
     expect(positions.size).toBe(7);
     expect(separationViolations(positions, tight.minSeparation)).toEqual([]);

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { ChainNode } from '../canvas/SystemNode';
+import {
+  SYSTEM_FRAME_HEIGHT,
+  SYSTEM_FRAME_WIDTH,
+  type ChainNode,
+} from '../canvas/SystemNode';
 import { deriveChainTree } from '../layout/facts';
 import type { SystemLabel } from './labels';
 import {
@@ -74,8 +78,8 @@ describe('canvas node projection', () => {
       {
         id: String(JITA),
         type: 'chainSystem',
-        width: 120,
-        height: 88,
+        width: SYSTEM_FRAME_WIDTH,
+        height: SYSTEM_FRAME_HEIGHT,
         position: positionOfSlot(0),
         style: { pointerEvents: 'none' },
         data: {
@@ -88,8 +92,8 @@ describe('canvas node projection', () => {
       {
         id: String(AMARR),
         type: 'chainSystem',
-        width: 120,
-        height: 88,
+        width: SYSTEM_FRAME_WIDTH,
+        height: SYSTEM_FRAME_HEIGHT,
         position: positionOfSlot(1),
         style: { pointerEvents: 'none' },
         data: {
@@ -313,8 +317,8 @@ describe('halo node projection', () => {
     );
     const drawn = nodes[1];
     expect(drawn).toMatchObject({
-      width: 120,
-      height: 88,
+      width: SYSTEM_FRAME_WIDTH,
+      height: SYSTEM_FRAME_HEIGHT,
       position: { x: 500, y: 500 },
       draggable: false,
       data: { halo: { ring: 1, fogged: false } },
@@ -479,6 +483,7 @@ describe('wormhole stub projection', () => {
       data: {
         name: 'ABC-123',
         className: null,
+        destinationHint: null,
         stub: {
           connectionId: 'stub-connection',
           fromSystemId: JITA,
@@ -546,6 +551,7 @@ describe('static wormhole stub projection', () => {
       signatures,
       connections: [],
       staticsBySystem: new Map([[JITA, SYSTEM_STATICS]]),
+      rootSystemId: JITA,
     });
     const placed = placePlannedStubs(planned);
     const nodes = syncNodes(
@@ -590,6 +596,7 @@ describe('static wormhole stub projection', () => {
       systemIds: [JITA],
       signatures: [],
       staticsBySystem: new Map([[JITA, SYSTEM_STATICS]]),
+      rootSystemId: JITA,
     };
     const matched = placePlannedStubs(planStubNodes({
       ...input,
@@ -628,6 +635,7 @@ describe('static wormhole stub projection', () => {
       }],
       connections: [],
       staticsBySystem: new Map(),
+      rootSystemId: JITA,
     }));
     const nodes = syncNodes(
       [],
@@ -641,5 +649,46 @@ describe('static wormhole stub projection', () => {
     expect(nodes.filter((node) => node.id.startsWith(STATIC_STUB_NODE_ID_PREFIX)))
       .toEqual([]);
     expect(nodes.map((node) => node.id)).toEqual([String(JITA), 'stub:scan-1']);
+  });
+
+  it('reserves the inbound hole on a non-root system so four unidentified sigs draw one Unknown', () => {
+    const signatures = ['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map(
+      (signatureId) => ({
+        connectionId: `connection-${signatureId}`,
+        fromSystemId: AMARR,
+        signatureId,
+        wormholeTypeCode: null,
+        whClassId: null,
+      }),
+    );
+    const planned = planStubNodes({
+      systemIds: [AMARR],
+      signatures,
+      connections: [],
+      staticsBySystem: new Map([[AMARR, SYSTEM_STATICS]]),
+      rootSystemId: JITA,
+    });
+    expect(planned.filter((stub) => 'connectionId' in stub)).toHaveLength(1);
+    expect(planned.filter((stub) => 'staticId' in stub)).toHaveLength(2);
+  });
+
+  it('copies a stored Leads-to hint onto the scanned stub node', () => {
+    const stub = placedStub({
+      wormholeTypeCode: 'K162',
+      destinationHint: 'unknown',
+    });
+    const nodes = syncNodes(
+      [],
+      stateFor([JITA]).systems,
+      fallbackLabel,
+      NO_DRAG,
+      [],
+      [stub],
+    );
+    expect(nodes[1]?.data).toMatchObject({
+      name: 'ABC-123',
+      whClassId: null,
+      destinationHint: 'unknown',
+    });
   });
 });

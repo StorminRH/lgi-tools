@@ -498,6 +498,54 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
+  it('links a scanned stub onto a known inbound when the operator picks Leads to', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('ABC-123', { group: 'Wormhole' })]);
+    let stubId = '' as Id<'mapConnections'>;
+    let inboundId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      const stub = (await ctx.db.query('mapConnections').collect())[0];
+      if (stub === undefined) {
+        throw new Error('expected the pasted wormhole stub before linking');
+      }
+      stubId = stub._id;
+      inboundId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    await expect(
+      t.withIdentity({ subject: VIEWER, name: 'Viewer' }).mutation(
+        api.mapScan.linkStubToResolvedConnection,
+        {
+          mapId: MAP,
+          stubConnectionId: stubId,
+          resolvedConnectionId: inboundId,
+        },
+      ),
+    ).rejects.toThrow('FORBIDDEN');
+    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: stubId,
+      resolvedConnectionId: inboundId,
+    })).resolves.toEqual({ outcome: 'applied' });
+    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+      toSignatureId: 'ABC-123',
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toBeNull();
+  });
+
   it('prefers resolved lifeStage (including timestamped Unset) and carries stub Unset onto unobserved rows', async () => {
     async function linkStub(
       signatureId: string,

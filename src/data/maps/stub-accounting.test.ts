@@ -31,14 +31,20 @@ const line = (
 describe('stub accounting', () => {
   it.each([
     {
-      name: 'two statics plus four unidentified sigs draw two Unknown surplus stubs',
-      input: { statics: STATICS, signatures: signatures(4), connections: [] },
+      name: 'root: two statics plus four unidentified sigs draw two Unknown surplus stubs',
+      input: { statics: STATICS, signatures: signatures(4), connections: [], isRoot: true },
       expectedIds: ['B274:1', 'H296:1', 'SIG-3', 'SIG-4'],
       unknownCount: 2,
     },
     {
+      name: 'non-root: two statics plus four unidentified sigs reserve the inbound and draw one Unknown',
+      input: { statics: STATICS, signatures: signatures(4), connections: [], isRoot: false },
+      expectedIds: ['B274:1', 'H296:1', 'SIG-4'],
+      unknownCount: 1,
+    },
+    {
       name: 'two statics plus one unidentified sig stay at the two guaranteed holes',
-      input: { statics: STATICS, signatures: signatures(1), connections: [] },
+      input: { statics: STATICS, signatures: signatures(1), connections: [], isRoot: true },
       expectedIds: ['B274:1', 'H296:1'],
       unknownCount: 0,
     },
@@ -48,6 +54,7 @@ describe('stub accounting', () => {
         statics: STATICS,
         signatures: signatures(1, 'K162'),
         connections: [],
+        isRoot: true,
       },
       expectedIds: ['B274:1', 'H296:1', 'SIG-1'],
       unknownCount: 0,
@@ -58,6 +65,7 @@ describe('stub accounting', () => {
         statics: STATICS,
         signatures: signatures(4),
         connections: [line()],
+        isRoot: false,
       },
       expectedIds: ['B274:1', 'H296:1', 'SIG-4'],
       unknownCount: 1,
@@ -78,6 +86,7 @@ describe('stub accounting', () => {
       connections: [
         line({ wormholeTypeCode: 'B274', linkedSignature: true }),
       ],
+      isRoot: true,
     });
     expect(matched.staticStubs.map((stub) => stub.code)).toEqual(['H296']);
 
@@ -85,6 +94,7 @@ describe('stub accounting', () => {
       statics: STATICS,
       signatures: [],
       connections: [],
+      isRoot: true,
     });
     expect(collapsed.staticStubs.map((stub) => stub.code)).toEqual([
       'B274',
@@ -100,6 +110,7 @@ describe('stub accounting', () => {
         statics: duplicateStatics,
         signatures: signatures(1, 'C247'),
         connections: [],
+        isRoot: true,
       }).staticStubs,
     ).toEqual([duplicateStatics[0]]);
 
@@ -108,6 +119,7 @@ describe('stub accounting', () => {
         statics: [],
         signatures: signatures(2),
         connections: [],
+        isRoot: true,
       }),
     ).toEqual({
       staticStubs: [],

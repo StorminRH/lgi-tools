@@ -1,13 +1,13 @@
 'use client';
 
-// One chain connection, drawn frame boundary to frame boundary.
+// One chain connection, drawn disc rim to disc rim.
 //
 // The floating-edge pattern: instead of anchoring to handle positions (whose
 // library CSS nudges them off-center), the edge computes its line from frame
-// center to frame center clipped to each endpoint's own frame box — so every
-// connection aims at the centered disc and terminates exactly on the widget
-// frame's boundary, with no reliance on the frame masking anything. The whole
-// policy (unknown dimensions, touching frames, the path itself) lives in
+// center to frame center clipped to each endpoint's disc — so every connection
+// aims at the centered disc, runs through the transparent widget frame, and
+// terminates on the disc rim under the name and widget rail. The whole policy
+// (unknown dimensions, touching discs, the path itself) lives in
 // `edge-geometry.ts`, where it is unit-tested; this component only binds it
 // to React Flow.
 //
@@ -173,7 +173,7 @@ function OutboundArrowLabel({
   );
 }
 
-/** Renders one connection as a straight segment clipped to both frame boxes. */
+/** Renders one connection as a straight segment clipped to both disc rims. */
 function ChainLinkEdgeComponent({
   id,
   source,

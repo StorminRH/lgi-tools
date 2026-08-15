@@ -129,6 +129,7 @@ describe('mapper source contract', () => {
       'authoring/connection-fields.tsx',
       'authoring/connection-intelligence.ts',
       'authoring/home-prompt-model.ts',
+      'authoring/leads-to-origin.ts',
       'authoring/rights-transition.ts',
       'authoring/sever-toast.ts',
       'authoring/use-wormhole-editor-data.ts',
@@ -271,6 +272,20 @@ describe('mapper source contract', () => {
     expect(layer).toContain('useSelectedSystemIds');
     expect(layer).toContain('useNodeName');
     expect(host).not.toMatch(/MapWindowLayer[\s\S]*nodes=\{nodes\}/);
+  });
+
+  it('stacks the node info card above the scanner sibling layer', () => {
+    // MapWindowLayer and SignatureWindow are equal-band siblings; later DOM
+    // order used to paint the scanner over the summary card. The card layer
+    // owns z-float (20) so it wins without raising inner --map-window-z.
+    expect(sourceOf('windows/MapWindowLayer.tsx')).toContain('z-float');
+    expect(sourceOf('signatures/SignatureWindow.tsx')).toContain(
+      'data-signature-window-layer',
+    );
+    expect(sourceOf('signatures/SignatureWindow.tsx')).toContain('z-sticky');
+    expect(sourceOf('signatures/ScannerAnchoredPanel.tsx')).toContain(
+      'z-sticky',
+    );
   });
 
   it('imports no Convex package directly — the data slice owns the client', () => {

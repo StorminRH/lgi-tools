@@ -11,6 +11,10 @@
 // previously lived (deliberately duplicated) in `src/mapper/chain/labels.ts`;
 // that file now consumes `systemClassText` from here.
 import { roundSecurityStatus, securityStatusTextClass } from './security';
+import {
+  destinationHintSoleClassId,
+  type WormholeDestinationHint,
+} from './wormhole-contract';
 
 /**
  * The complete class-id → chip-text ladder, mirroring the authoritative
@@ -120,6 +124,30 @@ export function systemDestinationClassReadout(
   const tone = CLASS_TONES_BY_ID.get(whClassId)
     ?? DESTINATION_CLASS_TONES_BY_ID.get(whClassId);
   return label === null || tone === undefined ? null : { label, tone };
+}
+
+/**
+ * Disc-short labels for Leads-to buckets that do not name one class.
+ * Unique hints reuse `systemDestinationClassReadout` so HS/C6/Thera stay
+ * identical to typed stubs. Bucket chips stay honest (`C1–C3`, not `C1`).
+ */
+const HINT_BUCKET_READOUT: Partial<
+  Record<WormholeDestinationHint, SystemClassificationReadout>
+> = {
+  // C13 is the shattered member of this bucket. The chip matches the editor
+  // wording "Unknown (C1–C3)" rather than listing C13 as a fourth class.
+  unknown: { label: 'C1–C3', tone: 'text-wh-c2' },
+  dangerous: { label: 'C4–C5', tone: 'text-wh-c4' },
+};
+
+/** The class chip for a stored destination hint on an unresolved stub. */
+export function systemDestinationHintReadout(
+  hint: WormholeDestinationHint | null,
+): SystemClassificationReadout | null {
+  if (hint === null) return null;
+  const soleClassId = destinationHintSoleClassId(hint);
+  if (soleClassId !== null) return systemDestinationClassReadout(soleClassId);
+  return HINT_BUCKET_READOUT[hint] ?? null;
 }
 
 /**

@@ -1,7 +1,4 @@
-import {
-  FAR_SIDE_WORMHOLE_CODE,
-  type ConnectionProvenance,
-} from '@/data/eve-data/wormhole-contract';
+import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 
 /** One live scanner row not yet linked to a resolved connection. */
@@ -124,11 +121,9 @@ function connectionAdmits(
   connection: EliminationConnection,
   typeCode: string,
 ): boolean {
-  return connection.wormholeTypeCode === typeCode
-    || (
-      connection.wormholeTypeCode === null
-      && typeCode === FAR_SIDE_WORMHOLE_CODE
-    );
+  // Untyped inbound lines do not uniquely admit K162 (or any other code).
+  // Several K162s can share a system; the way home is a human Leads-to pick.
+  return connection.wormholeTypeCode === typeCode;
 }
 
 function fixedType(signature: EliminationSignature): string | null {
@@ -284,25 +279,17 @@ export function eliminateSignatures(input: EliminationInput): EliminationResult 
 
   const deductions = [...crossed.deductions];
   const [signature] = writable;
-  if (writable.length === 1 && signature !== undefined && openSlotCount === 1) {
-    const signatureId = signature.signatureId;
-    if (openStatics.code !== null) {
-      deductions.push({
-        signatureId,
-        typeCode: openStatics.code,
-        provenance: 'assumed',
-      });
-    } else {
-      const [connection] = remainingConnections;
-      if (connection !== undefined) {
-        deductions.push({
-          signatureId,
-          connectionId: connection.connectionId,
-          provenance: 'assumed',
-          expectedTypeCode: signature.wormholeTypeCode,
-        });
-      }
-    }
+  if (
+    writable.length === 1
+    && signature !== undefined
+    && openSlotCount === 1
+    && openStatics.code !== null
+  ) {
+    deductions.push({
+      signatureId: signature.signatureId,
+      typeCode: openStatics.code,
+      provenance: 'assumed',
+    });
   }
 
   deductions.sort(bySignatureId);

@@ -15,7 +15,14 @@ import {
 } from './ChainLinkEdge';
 import { FOG_EDGE_CUT_FRACTION } from '../fog/fog-model';
 import { PresenceBadgeView } from './PilotPresenceBadge';
-import { SystemNode, nodeMotionClass, type ChainNode } from './SystemNode';
+import {
+  SYSTEM_FRAME_HEIGHT,
+  SYSTEM_FRAME_WIDTH,
+  SystemNode,
+  chipFontSizePx,
+  nodeMotionClass,
+  type ChainNode,
+} from './SystemNode';
 
 const { internalNodes } = vi.hoisted(() => ({
   internalNodes: new Map<string, unknown>(),
@@ -55,7 +62,10 @@ test('widget frame carries header, disc, slots, and pointer-inert chrome rules',
   expect(still).toContain('data-chain-node-classification');
   expect(still).toContain('>C5<');
   expect(still).toContain('text-wh-c5');
+  expect(still).toContain('whitespace-nowrap');
+  expect(still).toContain('tracking-optical');
   expect(still).toContain('map-node-disc');
+  expect(still).toContain('size-[55px]');
   expect(still).toContain('data-chain-node-widgets');
   expect(still).not.toContain('data-pilot-presence');
   // Two occurrences: header + disc.
@@ -134,6 +144,40 @@ test('the header keeps the plain name while the disc owns the colored classifica
   expect(stub).toContain('data-chain-node-classification');
   expect(stub).toContain('>C3<');
   expect(stub).toContain('text-wh-c3');
+
+  // A K162 (or untyped) stub with a Leads-to bucket shows that class on the
+  // disc before anyone jumps — C1–C3 stays a bucket, not a fake C1.
+  const hinted = nodeMarkup({
+    name: 'ABC-123',
+    className: null,
+    whClassId: null,
+    destinationHint: 'unknown',
+    stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
+  });
+  expect(hinted).toContain('>ABC-123<');
+  expect(hinted).toContain('data-chain-node-classification');
+  expect(hinted).toContain('>C1–C3<');
+  expect(hinted).toContain('text-wh-c2');
+  expect(hinted).not.toContain('>C1<');
+
+  // A typed near-side code still wins over a stored hint.
+  const typedOverHint = nodeMarkup({
+    name: 'ABC-123',
+    className: null,
+    whClassId: 7,
+    destinationHint: 'unknown',
+    stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
+  });
+  expect(typedOverHint).toContain('>HS<');
+  expect(typedOverHint).not.toContain('C1–C3');
+
+  const blankStub = nodeMarkup({
+    name: 'ABC-123',
+    className: null,
+    whClassId: null,
+    stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
+  });
+  expect(blankStub).not.toContain('data-chain-node-classification');
 });
 
 test('halo nodes mark drawn vs fogged; authored nodes stay unmarked', () => {
@@ -218,8 +262,8 @@ test('outbound arrow mounts by assignment, tones by liveness, and stays inside f
   const frameNode = (x: number, y: number) => ({
     internals: { positionAbsolute: { x, y } },
     measured: {},
-    width: 120,
-    height: 88,
+    width: SYSTEM_FRAME_WIDTH,
+    height: SYSTEM_FRAME_HEIGHT,
   });
   const edgeProps = {
     id: 'e1',
@@ -366,4 +410,13 @@ test('edge motion classes map fade/grow/rev/heavy/dying and loop dash', () => {
   );
   expect(edgePresentation({ loop: false, tombstoneState: 'active' }).className).toBeUndefined();
   expect(edgePresentation({ loop: false, stub: true }).className).toBe('map-edge-derived');
+});
+
+test('chip font size keeps short labels and shrinks overflow to the disc', () => {
+  expect(chipFontSizePx(20, 36, 14)).toBe(14);
+  expect(chipFontSizePx(36, 36, 14)).toBe(14);
+  expect(chipFontSizePx(72, 36, 14)).toBe(8);
+  expect(chipFontSizePx(72, 36, 14, 6)).toBe(7);
+  expect(chipFontSizePx(72, 0, 14)).toBe(14);
+  expect(chipFontSizePx(72, 36, 0)).toBe(0);
 });

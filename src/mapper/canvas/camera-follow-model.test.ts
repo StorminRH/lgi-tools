@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import type { MapChainIntent } from '../chain/intents';
 import type { PlacedSystem } from '../chain/reconciler';
 import { DEFAULT_MOTION_CONFIG } from '../motion/motion-contract';
+import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from './SystemNode';
 import {
   CAMERA_FIT_MAX_ZOOM,
   IDLE_FLIGHT,
@@ -30,7 +31,7 @@ const MOVED: readonly MapChainIntent[] = [
 ];
 
 /** The widget-frame box camera math pads and centers with in these tests. */
-const FRAME = { width: 120, height: 88 };
+const FRAME = { width: SYSTEM_FRAME_WIDTH, height: SYSTEM_FRAME_HEIGHT };
 const DEPARTED: readonly MapChainIntent[] = [{ kind: 'system-departed', systemId: 1 }];
 
 const placed = (systemId: number, x: number, y: number): [number, PlacedSystem] => [
@@ -104,7 +105,12 @@ test('fit execution returns bounds, waits, skips, and marks framed across one ti
     frame: FRAME,
   });
   expect(warranted.consume).toBe(true);
-  expect(warranted.bounds).toEqual({ x: 0, y: 0, width: 120, height: 88 });
+  expect(warranted.bounds).toEqual({
+    x: 0,
+    y: 0,
+    width: SYSTEM_FRAME_WIDTH,
+    height: SYSTEM_FRAME_HEIGHT,
+  });
 
   const skipped = decideFitExecution({
     intents: DEPARTED,
@@ -184,7 +190,10 @@ test('focus gating centers measured or declared frames only when allowed', () =>
     x: 140,
     y: 230,
   });
-  expect(focusCenter({ x: 100, y: 200 }, FRAME)).toEqual({ x: 160, y: 244 });
+  expect(focusCenter({ x: 100, y: 200 }, FRAME)).toEqual({
+    x: 100 + SYSTEM_FRAME_WIDTH / 2,
+    y: 200 + SYSTEM_FRAME_HEIGHT / 2,
+  });
   expect(focusCenter(null, FRAME)).toBeNull();
 });
 
@@ -204,8 +213,8 @@ test('camera easing, chain bounds, and flight lifecycle keep product pins', () =
   expect(chainBounds(new Map([placed(1, 0, 0), placed(2, 300, -150)]), FRAME)).toEqual({
     x: 0,
     y: -150,
-    width: 300 + 120,
-    height: 150 + 88,
+    width: 300 + SYSTEM_FRAME_WIDTH,
+    height: 150 + SYSTEM_FRAME_HEIGHT,
   });
   // fitBounds ignores option maxZoom and uses the store ceiling (2.5).
   expect(CAMERA_FIT_MAX_ZOOM).toBeLessThan(2.5);

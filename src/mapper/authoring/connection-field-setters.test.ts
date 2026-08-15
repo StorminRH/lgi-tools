@@ -41,6 +41,7 @@ function authoring(): ConnectionFieldAuthoringApi {
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
     setConnectionDestinationHint: vi.fn(),
+    linkStubToResolvedConnection: vi.fn(),
   };
 }
 
@@ -84,6 +85,16 @@ describe('connectionFieldSetters', () => {
       connectionId: CONNECTION.connectionId,
       side: 'from',
       value: 'dangerous',
+    });
+  });
+
+  it('sends a Leads-to origin pick as an explicit stub link', () => {
+    const api = authoring();
+    connectionFieldSetters('map-a', CONNECTION, api).linkToOrigin('resolved-1');
+    expect(api.linkStubToResolvedConnection).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      stubConnectionId: CONNECTION.connectionId,
+      resolvedConnectionId: 'resolved-1',
     });
   });
 

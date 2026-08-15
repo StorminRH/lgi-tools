@@ -226,7 +226,7 @@ export function MapWindowLayer(props: MapWindowLayerProps) {
     return (
       <div
         data-map-window-layer
-        className="pointer-events-none absolute inset-0 z-sticky"
+        className="pointer-events-none absolute inset-0 z-float"
       />
     );
   }
@@ -265,7 +265,7 @@ function MountedMapWindowLayer({
   return (
     <div
       data-map-window-layer
-      className="pointer-events-none absolute inset-0 z-sticky"
+      className="pointer-events-none absolute inset-0 z-float"
     >
       <MapWindowLeader ref={leaderRef} />
       <DockSurface

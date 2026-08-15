@@ -31,6 +31,11 @@ export interface ConnectionFieldAuthoringApi {
     connection: ConnectionEditorDetail;
     value: ConnectionEditorDetail['lifeStage'];
   }) => Promise<unknown>;
+  readonly linkStubToResolvedConnection: (args: {
+    mapId: string;
+    stubConnectionId: Id<'mapConnections'>;
+    resolvedConnectionId: Id<'mapConnections'>;
+  }) => Promise<unknown>;
 }
 
 /** Binds the shipped connection field body to one existing connection row. */
@@ -63,6 +68,13 @@ export function connectionFieldSetters(
         connectionId,
         side: 'from',
         value,
+      });
+    },
+    linkToOrigin: (resolvedConnectionId) => {
+      void authoring.linkStubToResolvedConnection({
+        mapId,
+        stubConnectionId: connectionId,
+        resolvedConnectionId: resolvedConnectionId as Id<'mapConnections'>,
       });
     },
   };

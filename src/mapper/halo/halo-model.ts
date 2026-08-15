@@ -18,13 +18,14 @@ import { pairKey } from '../lib/pair-key';
 import type { LayoutFacts } from '../layout/layout-contract';
 
 /**
- * Ring depths drawn as visible halo systems. Pinned constant tuned at the
- * G-1 gate; no runtime configuration surface (operator direction, plan PD-2).
+ * Ring depths drawn as visible halo systems. Zero is the shipping off
+ * state (2026-08-14): the halo machinery stays, but production places no
+ * neighbour rings. No runtime configuration surface (plan PD-2).
  */
-export const HALO_DRAWN_RINGS = 1;
+export const HALO_DRAWN_RINGS = 0;
 
 /** Ring depths placed under fog beyond the drawn rings; see `HALO_DRAWN_RINGS`. */
-export const HALO_FOGGED_RINGS = 1;
+export const HALO_FOGGED_RINGS = 0;
 
 /** Hard cap on systems any single authored exit may claim. */
 export const HALO_MAX_SYSTEMS_PER_EXIT = 10;

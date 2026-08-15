@@ -8,7 +8,6 @@
 // stays presentation plus its drawn row tie.
 import { useEffect } from 'react';
 import type { Id } from '@/data/convex/data-model';
-import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import {
   applyWormholeType,
   connectionLifecycleActions,
@@ -16,6 +15,7 @@ import {
 } from './connection-authoring-api';
 import { connectionEditorMode } from '../authoring/connection-editor-mode';
 import { connectionFieldSetters } from '../authoring/connection-field-setters';
+import { originLeadCandidates } from '../authoring/leads-to-origin';
 import {
   useUniverseAssets,
   type ConnectionDetail,
@@ -60,16 +60,6 @@ export interface ActiveSignatureEditorProps {
   readonly onFocusSystem?: (systemId: number) => void;
 }
 
-function useDestinationReadout(
-  toSystemId: number | null,
-): SystemIdentityReadout | null {
-  const assets = useUniverseAssets();
-  return destinationReadout(
-    toSystemId,
-    assets === null ? null : (id: number) => assets.systemInfo(id),
-  );
-}
-
 /** Mounts the editor for the currently edited connection, or nothing. */
 export function ActiveSignatureEditor({
   mapId,
@@ -88,7 +78,22 @@ export function ActiveSignatureEditor({
     unresolvedHoles,
   );
   const selection = connectionEditorMode(connection, now);
-  const destination = useDestinationReadout(connection?.toSystemId ?? null);
+  const assets = useUniverseAssets();
+  const systemInfo = assets === null ? null : (id: number) => assets.systemInfo(id);
+  const destination = destinationReadout(connection?.toSystemId ?? null, systemInfo);
+  const originLeads =
+    connection === null || connection.toSystemId !== null
+      ? []
+      : originLeadCandidates(
+          connection.fromSystemId,
+          connection.connectionId,
+          [...connectionDetails.values()],
+        ).map((candidate) => ({
+          connectionId: candidate.connectionId,
+          label:
+            destinationReadout(candidate.systemId, systemInfo)?.label
+            ?? String(candidate.systemId),
+        }));
 
   // A row that tombstones past its undo window, or leaves the feed entirely,
   // closes the editor rather than freezing a stale copy of itself on screen.
@@ -118,6 +123,7 @@ export function ActiveSignatureEditor({
       mode={selection.mode}
       now={now}
       destination={destination}
+      originLeads={originLeads}
       onFocusDestination={
         edited.toSystemId === null || onFocusSystem === undefined
           ? undefined

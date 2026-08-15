@@ -650,12 +650,14 @@ export function useMapChain(
         fromSystemId: row.fromSystemId,
         signatureId: row.fromSignatureId,
         wormholeTypeCode: row.wormholeTypeCode,
+        destinationHint: row.fromDestinationHint,
         whClassId: row.wormholeTypeCode === null
           ? null
           : destinationClassIdForCode(row.wormholeTypeCode, staticSlots.codex),
       })),
       connections: connections.rows,
       staticsBySystem: staticSlots.bySystem,
+      rootSystemId: systems.rows[0]?.systemId ?? null,
     }),
     [systems.rows, scannedStubLayout, connections.rows, staticSlots],
   );

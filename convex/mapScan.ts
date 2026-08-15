@@ -38,6 +38,7 @@ import {
 import {
   findConnectionForSignature,
   readOriginConnections,
+  requireLiveConnectionOnMap,
 } from './lib/mapConnectionLookup';
 import {
   eventActor,
@@ -1020,6 +1021,48 @@ export const applyEliminationDeductions = internalMutation({
       );
     }
     return outcomes;
+  },
+});
+
+/**
+ * Attaches one unresolved scanned stub to a known inbound line the operator
+ * picked in Leads to. Reuses the elimination link writer so mass, size, and
+ * lifetime carry the same way a deduced link would — without inferring which
+ * K162 is the way home.
+ */
+export const linkStubToResolvedConnection = mutation({
+  args: {
+    mapId: v.string(),
+    stubConnectionId: v.id('mapConnections'),
+    resolvedConnectionId: v.id('mapConnections'),
+  },
+  handler: async (ctx, { mapId, stubConnectionId, resolvedConnectionId }) => {
+    await requireMapAccess(ctx, mapId, 'edit');
+    const stub = await requireLiveConnectionOnMap(ctx, mapId, stubConnectionId);
+    const target = await requireLiveConnectionOnMap(
+      ctx,
+      mapId,
+      resolvedConnectionId,
+    );
+    const signatureId = stub.fromSignatureId;
+    if (signatureId === undefined) {
+      throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
+    }
+    const outcome = await applyLinkDeduction(
+      ctx,
+      stub,
+      target,
+      stub.fromSystemId,
+      signatureId,
+      stub.wormholeTypeCode ?? null,
+    );
+    if (outcome.outcome !== 'applied' && outcome.outcome !== 'unchanged') {
+      throw new ConvexError({
+        code: 'INVALID_REASSOCIATION',
+        detail: `Cannot link stub ${stubConnectionId} onto ${resolvedConnectionId}.`,
+      });
+    }
+    return { outcome: outcome.outcome };
   },
 });
 

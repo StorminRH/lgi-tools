@@ -1,4 +1,5 @@
-import { endpointFrame, frameCenter } from '../canvas/edge-geometry';
+import { SYSTEM_DISC_SIZE } from '../canvas/SystemNode';
+import { endpointFrame, frameCenter, pointOnRayAtRadius } from '../canvas/edge-geometry';
 
 /** The internal React Flow node fields the isolated follower is allowed to read. */
 export interface FollowerNode {
@@ -41,7 +42,7 @@ export interface ScreenPoint {
   readonly y: number;
 }
 
-/** One leader segment from the card rim to the map anchor. */
+/** One leader segment from the card rim to the disc rim. */
 export interface LeaderSegment {
   readonly x1: number;
   readonly y1: number;
@@ -64,7 +65,10 @@ export const CARD_ANCHOR_GAP = 40;
 /** Which horizontal half of the anchor the card prefers to occupy. */
 export type CardAnchorSide = 'left' | 'right';
 
-/** Minimum rim-to-anchor distance before a leader line is drawn. */
+/** Which 45° lift the leader prefers (screen y-down: up is negative y). */
+export type CardAnchorLift = 'up' | 'down';
+
+/** Minimum rim-to-rim distance before a leader line is drawn. */
 export const LEADER_MIN_DISTANCE = 12;
 
 /** Fallback size matching the node-anchored `w-72 h-52` chrome before layout. */
@@ -108,12 +112,20 @@ function anchoredFollowerWrite(
   card: ScreenSize,
   layer: ScreenSize,
   side: CardAnchorSide | null,
-): { readonly write: FollowerWrite; readonly side: CardAnchorSide } {
+  lift: CardAnchorLift | null,
+  discRadius: number,
+): {
+  readonly write: FollowerWrite;
+  readonly side: CardAnchorSide;
+  readonly lift: CardAnchorLift;
+} {
   const placement = placeAnchoredCard({
     anchor: screenAnchor,
     card,
     viewport: layer,
     side,
+    lift,
+    discRadius,
   });
   return {
     write: {
@@ -121,6 +133,7 @@ function anchoredFollowerWrite(
       leader: placement.leader,
     },
     side: placement.side,
+    lift: placement.lift,
   };
 }
 
@@ -137,11 +150,92 @@ export function nearestCardPoint(
   };
 }
 
+function signX(side: CardAnchorSide): number {
+  return side === 'right' ? 1 : -1;
+}
+
+function signY(lift: CardAnchorLift): number {
+  return lift === 'up' ? -1 : 1;
+}
+
+/**
+ * Where a 45° ray from `origin` first hits the card, or `null` when that
+ * diagonal misses the rectangle (a clamped card sitting off the ray).
+ */
+function diagonalCardHit(
+  origin: ScreenPoint,
+  side: CardAnchorSide,
+  lift: CardAnchorLift,
+  left: number,
+  top: number,
+  card: ScreenSize,
+): ScreenPoint | null {
+  const sx = signX(side);
+  const sy = signY(lift);
+  const edgeX = side === 'right' ? left : left + card.width;
+  const dx = edgeX - origin.x;
+  if (dx * sx > 0) {
+    const hitY = origin.y + sy * Math.abs(dx);
+    if (hitY >= top && hitY <= top + card.height) {
+      return { x: edgeX, y: hitY };
+    }
+  }
+  const edgeY = lift === 'up' ? top : top + card.height;
+  const dy = edgeY - origin.y;
+  if (dy * sy > 0) {
+    const hitX = origin.x + sx * Math.abs(dy);
+    if (hitX >= left && hitX <= left + card.width) {
+      return { x: hitX, y: edgeY };
+    }
+  }
+  return null;
+}
+
+/** Disc-rim point on the ray from `center` toward `toward`. */
+function discRimToward(
+  center: ScreenPoint,
+  toward: ScreenPoint,
+  radius: number,
+): ScreenPoint {
+  return pointOnRayAtRadius(center, toward, radius) ?? center;
+}
+
+function leaderAlongRay(
+  center: ScreenPoint,
+  toward: ScreenPoint,
+  radius: number,
+  leaderMin: number,
+): LeaderSegment | null {
+  const dx = toward.x - center.x;
+  const dy = toward.y - center.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance <= radius || distance - radius < leaderMin) return null;
+  const rim = discRimToward(center, toward, radius);
+  return { x1: toward.x, y1: toward.y, x2: rim.x, y2: rim.y };
+}
+
+function chooseLift(
+  preferred: CardAnchorLift | null,
+  tryLift: (lift: CardAnchorLift) => LeaderSegment | null,
+): { readonly lift: CardAnchorLift; readonly leader: LeaderSegment | null } {
+  const first: CardAnchorLift = preferred ?? 'up';
+  const second: CardAnchorLift = first === 'up' ? 'down' : 'up';
+  const firstLeader = tryLift(first);
+  if (firstLeader !== null) return { lift: first, leader: firstLeader };
+  const secondLeader = tryLift(second);
+  if (secondLeader !== null) return { lift: second, leader: secondLeader };
+  return { lift: first, leader: null };
+}
+
 /**
  * Places a card near an anchor in screen/layer space: prefer the open
  * horizontal half on first placement, then keep that side sticky so camera
  * pans push the card against the viewport instead of flipping it. Vertically
  * center on the anchor, then inset-clamp so the card stays readable.
+ *
+ * The leader leaves the system disc at 45° (sticky up/down) and ends on the
+ * disc rim, the same clip chain edges use, so it never runs through the disc
+ * or straight off the center.
  */
 export function placeAnchoredCard(input: {
   readonly anchor: ScreenPoint;
@@ -150,23 +244,34 @@ export function placeAnchoredCard(input: {
   readonly gap?: number;
   readonly padding?: number;
   readonly leaderMinDistance?: number;
+  readonly discRadius?: number;
   /** Sticky side from a prior frame; omit to choose from the midline. */
   readonly side?: CardAnchorSide | null;
+  /** Sticky 45° lift from a prior frame; omit to prefer up, then down. */
+  readonly lift?: CardAnchorLift | null;
 }): {
   readonly left: number;
   readonly top: number;
   readonly leader: LeaderSegment | null;
   readonly side: CardAnchorSide;
+  readonly lift: CardAnchorLift;
 } {
   const gap = input.gap ?? CARD_ANCHOR_GAP;
   const padding = input.padding ?? CARD_VIEWPORT_PADDING;
   const leaderMin = input.leaderMinDistance ?? LEADER_MIN_DISTANCE;
+  const radius = input.discRadius ?? 0;
   const { anchor, card, viewport } = input;
 
   const side: CardAnchorSide =
     input.side ?? (anchor.x >= viewport.width / 2 ? 'left' : 'right');
   const preferLeft = side === 'left';
-  let left = preferLeft ? anchor.x - gap - card.width : anchor.x + gap;
+  // A 45° ray from a vertically centered card hits the near vertical edge only
+  // when horizontal clearance is at most half the card height. Cap so max zoom
+  // cannot fall back to a horizontal nearest-edge segment.
+  const clearance = Math.min(radius + gap, card.height / 2);
+  let left = preferLeft
+    ? anchor.x - clearance - card.width
+    : anchor.x + clearance;
   let top = anchor.y - card.height / 2;
 
   const maxLeft = Math.max(padding, viewport.width - card.width - padding);
@@ -174,14 +279,16 @@ export function placeAnchoredCard(input: {
   left = clamp(left, padding, maxLeft);
   top = clamp(top, padding, maxTop);
 
-  const from = nearestCardPoint(left, top, card, anchor);
-  const distance = Math.hypot(from.x - anchor.x, from.y - anchor.y);
+  const chosen = chooseLift(input.lift ?? null, (lift) => {
+    const hit = diagonalCardHit(anchor, side, lift, left, top, card);
+    return hit === null ? null : leaderAlongRay(anchor, hit, radius, leaderMin);
+  });
+  const fallbackToward = nearestCardPoint(left, top, card, anchor);
   const leader =
-    distance >= leaderMin
-      ? { x1: from.x, y1: from.y, x2: anchor.x, y2: anchor.y }
-      : null;
+    chosen.leader ??
+    leaderAlongRay(anchor, fallbackToward, radius, leaderMin);
 
-  return { left, top, leader, side };
+  return { left, top, leader, side, lift: chosen.lift };
 }
 
 /** Measured card size, or the fallback when the element has not laid out yet. */
@@ -244,6 +351,7 @@ interface FollowerBaseline {
   readonly layerWidth: number;
   readonly layerHeight: number;
   readonly side: CardAnchorSide;
+  readonly lift: CardAnchorLift;
 }
 
 /** One follower decision; `null` means leave the DOM untouched. */
@@ -257,6 +365,7 @@ export interface FollowerDecision {
  * A new anchor always writes once; unchanged facts write nothing. Anchor
  * center flows through `endpointFrame` / `frameCenter` — the same frame
  * owner edges and cameras use (declared dims cover the pre-measure window).
+ * The leader clips to the disc rim at 45° rather than the frame center.
  */
 export function computeFollowerTransform(
   baseline: FollowerBaseline | null,
@@ -282,6 +391,8 @@ export function computeFollowerTransform(
     layer,
     // Retargeting a new node picks a fresh side; same node keeps sticky side.
     baseline !== null && baseline.anchorId === anchorId ? baseline.side : null,
+    baseline !== null && baseline.anchorId === anchorId ? baseline.lift : null,
+    (SYSTEM_DISC_SIZE / 2) * zoom,
   );
   const next: FollowerBaseline = {
     anchorId,
@@ -297,6 +408,7 @@ export function computeFollowerTransform(
     layerWidth: layer.width,
     layerHeight: layer.height,
     side: placed.side,
+    lift: placed.lift,
   };
   if (
     baseline !== null &&
@@ -306,6 +418,7 @@ export function computeFollowerTransform(
     baseline.width === next.width &&
     baseline.height === next.height &&
     baseline.side === next.side &&
+    baseline.lift === next.lift &&
     sameSharedFollowerFrame(baseline, next)
   ) {
     return null;

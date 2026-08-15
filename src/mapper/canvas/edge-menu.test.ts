@@ -166,6 +166,7 @@ it('opens the Signature Editor on Edit and severs through the shipped undo pathw
       setConnectionMassState: vi.fn(),
       setConnectionLifeStage: vi.fn(),
       setConnectionDestinationHint: vi.fn(),
+      linkStubToResolvedConnection: vi.fn(),
       severConnection: vi.fn(
         async (): Promise<{ outcome: 'retained' }> => ({ outcome: 'retained' }),
       ),

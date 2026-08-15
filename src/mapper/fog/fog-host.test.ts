@@ -3,14 +3,18 @@ import { DEFAULT_MOTION_CONFIG } from '../motion/motion-contract';
 import { createFogHostRuntime, runFogTick, type FogTickIo } from './fog-host';
 import { DEFAULT_FOG_CONFIG, deriveFogReveals } from './fog-model';
 import type { FogPaintContext } from './fog-painter';
-import type { ChainNode } from '../canvas/SystemNode';
+import {
+  SYSTEM_FRAME_HEIGHT,
+  SYSTEM_FRAME_WIDTH,
+  type ChainNode,
+} from '../canvas/SystemNode';
 
 function chainNode(id: number, x: number, y: number): ChainNode {
   return {
     id: String(id),
     type: 'chainSystem',
-    width: 120,
-    height: 88,
+    width: SYSTEM_FRAME_WIDTH,
+    height: SYSTEM_FRAME_HEIGHT,
     position: { x, y },
     data: { name: `S${id}`, className: null },
   };

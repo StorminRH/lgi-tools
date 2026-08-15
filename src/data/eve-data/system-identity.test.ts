@@ -3,6 +3,7 @@ import {
   systemClassificationReadout,
   systemClassText,
   systemDestinationClassReadout,
+  systemDestinationHintReadout,
   systemIdentityReadout,
 } from './system-identity';
 
@@ -126,4 +127,29 @@ it.each([
 it('does not fabricate a destination class for an unknown id', () => {
   expect(systemDestinationClassReadout(null)).toBeNull();
   expect(systemDestinationClassReadout(99)).toBeNull();
+});
+
+it.each([
+  ['unknown', 'C1–C3', 'text-wh-c2'],
+  ['dangerous', 'C4–C5', 'text-wh-c4'],
+  ['deadly', 'C6', 'text-wh-c6'],
+  ['hisec', 'HS', 'text-sec-05'],
+  ['lowsec', 'LS', 'text-sec-04'],
+  ['nullsec', 'NS', 'text-sec-null'],
+  ['thera', 'Thera', 'text-tone-teal'],
+  ['pochven', 'Pochven', 'text-tone-red'],
+  ['drifter', 'Drifter', 'text-tone-purple'],
+] as const)('destination hint %s reads %s in %s', (hint, label, tone) => {
+  expect(systemDestinationHintReadout(hint)).toEqual({ label, tone });
+});
+
+it('keeps the unknown chip as C1–C3 even though the bucket also admits shattered C13', () => {
+  expect(systemDestinationHintReadout('unknown')).toEqual({
+    label: 'C1–C3',
+    tone: 'text-wh-c2',
+  });
+});
+
+it('omits a destination-hint chip when the field is unset', () => {
+  expect(systemDestinationHintReadout(null)).toBeNull();
 });

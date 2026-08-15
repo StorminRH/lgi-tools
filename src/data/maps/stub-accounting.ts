@@ -1,10 +1,12 @@
 /**
  * One stub per hole we believe exists. Unidentified scanned wormhole sigs are
- * presumed to be the statics first; only the surplus draws as Unknown.
+ * presumed to be the statics first, then the way back on a non-root system;
+ * only the surplus draws as Unknown.
  *
  * This is presentation accounting, not inference: it never assigns a type to
  * a signature. It only decides which already-known holes need their own ghost
- * on the canvas so the picture never double-counts a static or a known line.
+ * on the canvas so the picture never double-counts a static, a known line, or
+ * the inbound path on a system that is not the map home.
  */
 
 /** One stable slot in a system's statics multiset. */
@@ -44,6 +46,12 @@ export interface StubAccountingInput {
   readonly statics: readonly StaticStubSlot[];
   readonly signatures: readonly ScannedStubHole[];
   readonly connections: readonly ConnectionStubHole[];
+  /**
+   * Home / layout root. Only the root skips the implicit return-hole reserve;
+   * every other system treats at least one scanned unidentified wormhole as
+   * the way back (an unlinked resolved line already counts as that slot).
+   */
+  readonly isRoot: boolean;
 }
 
 function claimedCodeCounts(input: StubAccountingInput): Map<string, number> {
@@ -89,9 +97,10 @@ export function believedHoles(input: StubAccountingInput): StubPlan {
   const unlinkedLines = input.connections.filter(
     (connection) => !connection.linkedSignature,
   ).length;
+  const returnSlots = input.isRoot ? unlinkedLines : Math.max(unlinkedLines, 1);
   const unknownCount = Math.max(
     0,
-    unidentified.length - staticStubs.length - unlinkedLines,
+    unidentified.length - staticStubs.length - returnSlots,
   );
   const firstUnknown = unidentified.length - unknownCount;
   let unidentifiedIndex = 0;

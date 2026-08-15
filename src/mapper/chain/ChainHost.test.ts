@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
     setConnectionShipSize: vi.fn(),
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
+    setConnectionDestinationHint: vi.fn(),
+    linkStubToResolvedConnection: vi.fn(),
     severConnection: vi.fn(),
     restoreSeveredBranch: vi.fn(),
     restoreConnection: vi.fn(),

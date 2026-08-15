@@ -45,6 +45,7 @@ import {
   type LifetimeRowDisplay,
   type MassRowDisplay,
 } from './connection-intelligence';
+import { dispatchLeadsToChange, encodeOriginLead } from './leads-to-origin';
 import {
   wormholeTypeSearch,
   type WormholeTypeErr,
@@ -99,14 +100,6 @@ const HINT_LABELS: Record<WormholeDestinationHint, string> = {
   drifter: 'Drifter',
 };
 
-const HINT_ITEMS = [
-  { value: UNSET_FIELD, label: 'Unset' },
-  ...WORMHOLE_DESTINATION_HINTS.map((value) => ({
-    value,
-    label: HINT_LABELS[value],
-  })),
-];
-
 /** Field-scoped setters the editor calls for one connection. */
 export interface ConnectionFieldSetters {
   readonly setWormholeType: (value: string | null) => void;
@@ -115,6 +108,14 @@ export interface ConnectionFieldSetters {
   readonly setLifeStage: (value: WormholeLifeStage | null) => void;
   /** The one "Leads to" hint; the origin side is the editor's own viewpoint. */
   readonly setLeadsTo: (value: WormholeDestinationHint | null) => void;
+  /** Attaches this stub to a known inbound line the operator picked. */
+  readonly linkToOrigin: (resolvedConnectionId: string) => void;
+}
+
+/** One named origin system offered in Leads to while the far end is unknown. */
+export interface OriginLeadOption {
+  readonly connectionId: string;
+  readonly label: string;
 }
 
 /** Props for the connection field form body. */
@@ -138,6 +139,11 @@ export interface ConnectionFieldsProps {
   readonly onFocusDestination?: () => void;
   readonly onDelete?: () => void;
   readonly onRestore?: () => void;
+  /**
+   * Known inbound systems this unresolved stub may attach to. Empty for a
+   * resolved hole, whose Leads to field is already locked.
+   */
+  readonly originLeads?: readonly OriginLeadOption[];
 }
 
 /**
@@ -157,6 +163,7 @@ export function ConnectionFields({
   onFocusDestination,
   onDelete,
   onRestore,
+  originLeads = [],
 }: ConnectionFieldsProps) {
   const readOnly = mode === 'restore';
   const lockedSize = isCodexSizeLocked(entry);
@@ -205,9 +212,11 @@ export function ConnectionFields({
       <LeadsToField
         connection={connection}
         destination={destination ?? null}
+        originLeads={originLeads}
         readOnly={readOnly}
         onFocusDestination={onFocusDestination}
-        onChange={setters.setLeadsTo}
+        onChangeHint={setters.setLeadsTo}
+        onLinkOrigin={setters.linkToOrigin}
       />
       <ConnectionActions
         mode={mode}
@@ -474,22 +483,27 @@ function LifetimeEstimateView({
 
 /**
  * Leads to: one field (D-G). While the far end is unknown it is the human
- * hint dropdown; once the hole resolves it locks to the destination's identity
- * readout — the one rule every other surface renders — and clicking focuses
- * that system on the canvas.
+ * hint dropdown, plus any already-known inbound systems the operator can
+ * attach this stub to. Once the hole resolves it locks to the destination's
+ * identity readout — the one rule every other surface renders — and clicking
+ * focuses that system on the canvas.
  */
 function LeadsToField({
   connection,
   destination,
+  originLeads,
   readOnly,
   onFocusDestination,
-  onChange,
+  onChangeHint,
+  onLinkOrigin,
 }: {
   readonly connection: ConnectionEditorDetail;
   readonly destination: SystemIdentityReadout | null;
+  readonly originLeads: readonly OriginLeadOption[];
   readonly readOnly: boolean;
   readonly onFocusDestination?: () => void;
-  readonly onChange: (value: WormholeDestinationHint | null) => void;
+  readonly onChangeHint: (value: WormholeDestinationHint | null) => void;
+  readonly onLinkOrigin: (resolvedConnectionId: string) => void;
 }) {
   if (destination !== null) {
     return (
@@ -504,16 +518,31 @@ function LeadsToField({
     );
   }
   const hint = connection.fromDestinationHint;
+  const items = [
+    { value: UNSET_FIELD, label: 'Unset' },
+    ...originLeads.map((option) => ({
+      value: encodeOriginLead(option.connectionId),
+      label: option.label,
+    })),
+    ...WORMHOLE_DESTINATION_HINTS.map((value) => ({
+      value,
+      label: HINT_LABELS[value],
+    })),
+  ];
   return (
     <OptionalSelectField
       label="Leads to"
       ariaLabel="Leads to"
-      items={HINT_ITEMS}
+      items={items}
       value={hint}
       readOnly={readOnly}
       readoutAttr="data-map-connection-leads-readout"
       readoutText={hint === null ? 'Unset' : HINT_LABELS[hint]}
-      onChange={(value) => onChange(value as WormholeDestinationHint | null)}
+      onChange={(value) =>
+        dispatchLeadsToChange(value, onLinkOrigin, (hint) =>
+          onChangeHint(hint as WormholeDestinationHint | null),
+        )
+      }
     />
   );
 }
