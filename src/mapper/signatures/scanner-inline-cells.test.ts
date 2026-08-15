@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
+import { UNSET_FIELD } from '../authoring/connection-field-group';
 import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
 import {
   commitScannerIdentifyQuery,
@@ -98,7 +99,7 @@ describe('scannerLeadsSuggestionGroups', () => {
       {
         label: 'Class',
         items: [
-          { value: '', text: 'Unset', meta: '' },
+          { value: UNSET_FIELD, text: 'Unset', meta: '' },
           { value: 'hint:hisec', text: 'High-sec', meta: '' },
           { value: 'hint:lowsec', text: 'Low-sec', meta: '' },
           { value: 'hint:nullsec', text: 'Null-sec', meta: '' },
@@ -129,7 +130,7 @@ describe('scannerLeadsSuggestionGroups', () => {
       {
         label: 'Class',
         items: [
-          { value: '', text: 'Unset', meta: '' },
+          { value: UNSET_FIELD, text: 'Unset', meta: '' },
           { value: 'hint:hisec', text: 'High-sec', meta: '' },
           { value: 'hint:lowsec', text: 'Low-sec', meta: '' },
           { value: 'hint:nullsec', text: 'Null-sec', meta: '' },
@@ -170,7 +171,7 @@ describe('commitScannerLeadsValue', () => {
     const onChange = vi.fn();
     const onSetDestination = vi.fn();
     const onLinkOrigin = vi.fn();
-    commitScannerLeadsValue('', onChange, onSetDestination, onLinkOrigin);
+    commitScannerLeadsValue(UNSET_FIELD, onChange, onSetDestination, onLinkOrigin);
     expect(onSetDestination).toHaveBeenCalledWith(null);
     expect(onChange).not.toHaveBeenCalled();
     expect(onLinkOrigin).not.toHaveBeenCalled();

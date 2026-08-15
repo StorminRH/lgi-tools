@@ -73,8 +73,9 @@ export function editorLeader(input: {
 
   const top = rowTop - origin.top;
   const rawBottom = rowBottom - origin.top;
+  const floor = Math.max(rawBottom, top + MIN_BRACKET_PX);
   const bottom =
-    clip === undefined ? Math.max(rawBottom, top + MIN_BRACKET_PX) : rawBottom;
+    clip === undefined ? floor : Math.min(floor, clip.bottom - origin.top);
   const middle = (top + bottom) / 2;
   const panelTop = panel.top - origin.top;
   const panelBottom = panel.bottom - origin.top;

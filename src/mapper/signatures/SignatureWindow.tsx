@@ -557,6 +557,7 @@ function ScannerSectionBlock({
   canEdit,
   resolveSiteId,
   cells,
+  onIdentify,
   onOpenActions,
 }: {
   readonly section: ScannerSection;
@@ -564,6 +565,7 @@ function ScannerSectionBlock({
   readonly canEdit: boolean;
   readonly resolveSiteId: (name: string) => number | null;
   readonly cells: (row: SignatureWindowRow) => ReactNode;
+  readonly onIdentify?: WormholeCellContext['onIdentify'];
   readonly onOpenActions: (
     row: SignatureWindowRow,
     trigger: HTMLElement,
@@ -614,7 +616,10 @@ function ScannerSectionBlock({
                 row.connection !== null &&
                 canEdit;
               const inlineIdentify =
-                section.id === 'unknown' && canEdit && row.group === null;
+                section.id === 'unknown'
+                && canEdit
+                && row.group === null
+                && onIdentify !== undefined;
               return (
                 <SignatureRow
                   key={row.key}
@@ -685,30 +690,44 @@ function ScannerSections({
 }) {
   const editorData = useWormholeEditorData(scannerSystemId ?? 0, null);
   const assets = useUniverseAssets();
-  const systemInfo = assets === null ? null : (id: number) => assets.systemInfo(id);
-  const classLabelOf = (code: string): string | null => {
+  const classLabelOf = useCallback((code: string): string | null => {
     const entry = editorData.codex?.byCode(code) ?? null;
     if (entry === null || entry.farSide) return null;
     return systemClassText(entry.targetClass);
-  };
-  const ctx: WormholeCellContext = {
+  }, [editorData.codex]);
+  const ctx: WormholeCellContext = useMemo(() => {
+    const systemInfo =
+      assets === null ? null : (id: number) => assets.systemInfo(id);
+    return {
+      now,
+      canEdit,
+      codes: editorData.codes,
+      preferredCodes: editorData.preferredCodes,
+      classLabelOf,
+      destinationOf: (connection) =>
+        destinationReadout(connection.toSystemId, systemInfo),
+      bindConnectionSetters,
+      entryOf: (connection) => {
+        const code = connection.wormholeTypeCode;
+        if (code === null) return null;
+        return editorData.codex?.byCode(code) ?? null;
+      },
+      originLeadsOf: (connection) =>
+        originLeadOptions(connection, originLeadConnections, systemInfo),
+      onIdentify,
+    };
+  }, [
     now,
     canEdit,
-    codes: editorData.codes,
-    preferredCodes: editorData.preferredCodes,
+    editorData.codes,
+    editorData.preferredCodes,
+    editorData.codex,
     classLabelOf,
-    destinationOf: (connection) =>
-      destinationReadout(connection.toSystemId, systemInfo),
+    assets,
     bindConnectionSetters,
-    entryOf: (connection) => {
-      const code = connection.wormholeTypeCode;
-      if (code === null) return null;
-      return editorData.codex?.byCode(code) ?? null;
-    },
-    originLeadsOf: (connection) =>
-      originLeadOptions(connection, originLeadConnections, systemInfo),
+    originLeadConnections,
     onIdentify,
-  };
+  ]);
   const sections = groupSignatureSections(rows, scannerSystemId);
   if (sections.length === 0) {
     return complete ? null : <ScannerRowsLoading />;
@@ -723,6 +742,7 @@ function ScannerSections({
           canEdit={canEdit}
           resolveSiteId={resolveSiteId}
           cells={(row) => sectionCells(section.id, row, ctx)}
+          onIdentify={onIdentify}
           onOpenActions={onOpenActions}
         />
       ))}

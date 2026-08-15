@@ -604,6 +604,34 @@ export const setConnectionDestinationHint = mutation({
   },
 });
 
+function destinationEqualityCleanup(
+  connection: Doc<'mapConnections'>,
+  toSystemId: number | null,
+): Partial<Doc<'mapConnections'>> | null {
+  const hasPending =
+    connection.pendingCandidates !== undefined
+    || connection.pendingResolutionCharacterId !== undefined;
+  if (toSystemId === null) {
+    const hasHint =
+      connection.fromDestinationHint !== undefined
+      || connection.toDestinationHint !== undefined;
+    if (!hasHint && !hasPending) return null;
+    return {
+      fromDestinationHint: undefined,
+      toDestinationHint: undefined,
+      destinationProvenance: undefined,
+      pendingCandidates: undefined,
+      pendingResolutionCharacterId: undefined,
+    };
+  }
+  if (connection.destinationProvenance === 'human' && !hasPending) return null;
+  return {
+    destinationProvenance: 'human',
+    pendingCandidates: undefined,
+    pendingResolutionCharacterId: undefined,
+  };
+}
+
 /**
  * Retargets or clears a connection's resolved destination. A human correction
  * keeps the hole (type, mass, life, near-side signature) and points it at a
@@ -620,34 +648,10 @@ export const setConnectionDestination = mutation({
   handler: async (ctx, { mapId, connectionId, toSystemId }) => {
     const connection = await requireLiveConnection(ctx, mapId, connectionId);
     if (connection.toSystemId === toSystemId) {
-      if (toSystemId === null) {
-        const hasHint =
-          connection.fromDestinationHint !== undefined
-          || connection.toDestinationHint !== undefined;
-        const hasPending =
-          connection.pendingCandidates !== undefined
-          || connection.pendingResolutionCharacterId !== undefined;
-        if (hasHint || hasPending) {
-          await ctx.db.patch(connectionId, {
-            fromDestinationHint: undefined,
-            toDestinationHint: undefined,
-            destinationProvenance: undefined,
-            pendingCandidates: undefined,
-            pendingResolutionCharacterId: undefined,
-          });
-          return { changed: true };
-        }
-        return { changed: false };
-      }
-      if (connection.destinationProvenance !== 'human') {
-        await ctx.db.patch(connectionId, {
-          destinationProvenance: 'human',
-          pendingCandidates: undefined,
-          pendingResolutionCharacterId: undefined,
-        });
-        return { changed: true };
-      }
-      return { changed: false };
+      const cleanup = destinationEqualityCleanup(connection, toSystemId);
+      if (cleanup === null) return { changed: false };
+      await ctx.db.patch(connectionId, cleanup);
+      return { changed: true };
     }
     if (toSystemId === null) {
       await ctx.db.patch(connectionId, {

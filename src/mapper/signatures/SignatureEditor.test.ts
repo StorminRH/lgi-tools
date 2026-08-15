@@ -196,13 +196,18 @@ it('measureEditorLeader returns null without boxes and delegates when all three 
   };
   const leader = measureEditorLeader(layer, panel, row);
   expect(leader?.bracket).toEqual({ x: 183, top: 100, bottom: 128 });
+  const selectors: string[] = [];
   const clippedRow = {
     ...box({ left: 10, right: 180, top: 60, bottom: 120 }),
-    closest: () => box({ left: 0, right: 200, top: 80, bottom: 200 }),
+    closest: (selector: string) => {
+      selectors.push(selector);
+      return box({ left: 0, right: 200, top: 80, bottom: 200 });
+    },
   };
   expect(measureEditorLeader(layer, panel, clippedRow)?.bracket).toEqual({
     x: 183,
     top: 80,
     bottom: 120,
   });
+  expect(selectors).toEqual(['[data-scanner-scroll]']);
 });

@@ -184,7 +184,7 @@ const GROUP_TYPE_LABELS: Readonly<Record<SigGroup, string>> = {
 
 /** Short Type-column label for one stored group, or null when unidentified. */
 export function scannerGroupTypeLabel(group: SigGroup | null): string | null {
-  return group === null ? null : GROUP_TYPE_LABELS[group];
+  return group === null ? null : (GROUP_TYPE_LABELS[group] ?? null);
 }
 
 /** Maps a stored signature group onto a scanner section. */

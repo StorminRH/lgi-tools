@@ -694,6 +694,19 @@ describe('map authoring', () => {
           toSystemId: AMARR,
         }),
       ).resolves.toEqual({ changed: false });
+      await t.run(async (ctx) => {
+        await ctx.db.patch(connectionId, { pendingCandidates: [connectionId] });
+      });
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          toSystemId: AMARR,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(
+        (await readConnection(t, connectionId))?.pendingCandidates,
+      ).toBeUndefined();
 
       await expect(
         asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {

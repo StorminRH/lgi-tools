@@ -579,20 +579,19 @@ function LeadsToField({
 }
 
 /** Accepts a bare system name or the identity readout ("J120924 - C2"). */
-export function parseDestinationSystem(
-  parse: (input: string) =>
-    | { ok: true; params: SystemParams }
-    | { ok: false; error: SystemErr },
+export function parseDestinationSystem<P extends { system: { id: number } }>(
+  parse: (input: string) => { ok: true; params: P } | { ok: false },
   input: string,
   originSystemId?: number,
-): { ok: true; params: SystemParams } | { ok: false; error: SystemErr } {
+): { ok: true; params: P } | { ok: false; error: SystemErr } {
   const direct = parse(input);
   const parsed = direct.ok
     ? direct
     : input.lastIndexOf(' - ') > 0
       ? parse(input.slice(0, input.lastIndexOf(' - ')))
       : direct;
-  if (parsed.ok && parsed.params.system.id === originSystemId) {
+  if (!parsed.ok) return { ok: false, error: { kind: 'not_found' } };
+  if (parsed.params.system.id === originSystemId) {
     return { ok: false, error: { kind: 'not_found' } };
   }
   return parsed;

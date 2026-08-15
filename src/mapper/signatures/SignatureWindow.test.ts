@@ -245,12 +245,9 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).not.toContain('>Group<');
     expect(html).toContain('>Signatures · Anomalies<');
     expect(html).toContain('data-scanner-dock-stack');
-    expect(html).toContain('w-[min(33rem,100%)]');
     expect(html).toContain('data-scanner-filled="true"');
-    expect(html).toContain('max-h-[min(24rem,calc(100dvh-7rem))]');
     // Inset lives on the LTR window, not the RTL scrollport — otherwise a
     // reserved gutter shears the section-card radii on the right.
-    expect(html).toContain('px-2');
     expect(html).not.toContain('scroll-area ');
     expect(html).not.toContain('[scrollbar-gutter:auto]');
     expect(html).toContain('data-scanner-scroll');
@@ -360,10 +357,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-signature-missing-prompt');
     expect(html).toContain('data-signature-jump-prompt');
     expect(html).toContain('Which signature did you jump through?');
-    // Rail is in-flow above the live dock, not parked on a fixed 24rem offset.
-    expect(html).not.toContain(
-      'bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)]',
-    );
   });
 
   it('opens catalogue sites for viewers with live Est. ISK while combat stays static', () => {

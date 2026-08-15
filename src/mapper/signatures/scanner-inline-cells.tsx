@@ -27,9 +27,10 @@ import {
   encodeOptionalField,
   UNSET_FIELD,
 } from '../authoring/connection-field-group';
-import type {
-  ConnectionFieldSetters,
-  OriginLeadOption,
+import {
+  parseDestinationSystem,
+  type ConnectionFieldSetters,
+  type OriginLeadOption,
 } from '../authoring/connection-fields';
 import { decodeOriginLead, encodeOriginLead } from '../authoring/leads-to-origin';
 import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
@@ -645,20 +646,8 @@ export function commitScannerLeadsQuery(
     );
     return;
   }
-  const parsed = parse(trimmed);
-  if (parsed.ok) {
-    if (parsed.params.system.id !== originSystemId) {
-      onSetDestination(parsed.params.system.id);
-    }
-    return;
-  }
-  const dash = trimmed.lastIndexOf(' - ');
-  if (dash > 0) {
-    const named = parse(trimmed.slice(0, dash));
-    if (named.ok && named.params.system.id !== originSystemId) {
-      onSetDestination(named.params.system.id);
-    }
-  }
+  const parsed = parseDestinationSystem(parse, trimmed, originSystemId);
+  if (parsed.ok) onSetDestination(parsed.params.system.id);
 }
 
 function typeGroupsAsComboItems(
