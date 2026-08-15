@@ -116,7 +116,7 @@ by hand where needed, and never see a refresh control.
 | 4.0.4.3.3 | Signatures session 3 of 3 — signature viewer, site-card hosting, observation proof (per-session PR delivery record) | §4.0.4.3 | 1 of 3 | COMPLETE |
 | 4.0.4.4 | Maps & access (landing, switcher, roles, archive) | §4.0.4.4 | 1 | COMPLETE |
 | **Phase 5 — Audit remediation** | | | | |
-| 4.0.5.1 | Cycle-1 audit floss (AF-010, AF-011, AF-012) | §4.0.5.1 | 1 | PLANNED |
+| 4.0.5.1 | Cycle-1 audit floss (AF-010, AF-011, AF-012) | §4.0.5.1 | 1 | COMPLETE |
 
 *(Elective health campaign: none scheduled — the campaign queue is empty at the
 3.9 cycle-2 baseline, and 4.0 is a flagship feature version; the decision is
