@@ -1,9 +1,9 @@
 // SC-2.2 / SC-2.3 / V-4: a forced re-layout (dial commit) glides its movers
-// with every edge endpoint tracking its node's frame perimeter on every
-// sampled frame (halo fog stubs keep only the visible end on a frame), and
-// the in-page frame-time series across the glide measurement window holds
-// the dev-mode budget at the 50–60 node ceiling. Requires authenticated
-// storage state and UX_MAP_ID pointing at a replayed 50–60 node chain.
+// with every edge endpoint tracking its node's disc rim on every sampled
+// frame (halo fog stubs keep only the visible end on a disc), and the
+// in-page frame-time series across the glide measurement window holds the
+// dev-mode budget at the 50–60 node ceiling. Requires authenticated storage
+// state and UX_MAP_ID pointing at a replayed 50–60 node chain.
 import {
   frameStats,
   installMotionMetrics,
@@ -16,46 +16,41 @@ import {
 import { readNodePositions } from '../lib/read-node-positions.mjs';
 
 /** Widget-frame fallbacks mirrored from SystemNode declared dimensions. */
-const FRAME_WIDTH = 120;
-const FRAME_HEIGHT = 88;
+const FRAME_WIDTH = 150;
+const FRAME_HEIGHT = 110;
+/** Visible disc radius; edges clip here, not at the transparent frame box. */
+const DISC_RADIUS = 27.5;
 
 /**
- * Distance from an edge endpoint to one node's frame perimeter (0 = on the
- * boundary). Matches `endpointFrame` / `frameSegment` clipping: lines exit
- * at the axis-aligned box, not a disc rim.
+ * Distance from an edge endpoint to one node's disc rim (0 = on the rim).
+ * Matches `endpointFrame` / `frameSegment` clipping: lines exit at the disc.
  */
-function frameBoundaryError(endpoint, node) {
+function discRimError(endpoint, node) {
   const width = typeof node.width === 'number' && node.width > 0 ? node.width : FRAME_WIDTH;
   const height =
     typeof node.height === 'number' && node.height > 0 ? node.height : FRAME_HEIGHT;
-  const left = node.x;
-  const right = node.x + width;
-  const top = node.y;
-  const bottom = node.y + height;
-  const clampedX = Math.min(Math.max(endpoint.x, left), right);
-  const clampedY = Math.min(Math.max(endpoint.y, top), bottom);
-  const outside = Math.hypot(endpoint.x - clampedX, endpoint.y - clampedY);
-  if (outside > 0) return outside;
-  return Math.min(endpoint.x - left, right - endpoint.x, endpoint.y - top, bottom - endpoint.y);
+  const cx = node.x + width / 2;
+  const cy = node.y + height / 2;
+  return Math.abs(Math.hypot(endpoint.x - cx, endpoint.y - cy) - DISC_RADIUS);
 }
 
-/** True when some node's frame perimeter carries this endpoint. */
-function onSomeFrame(endpoint, nodes, tolerance) {
+/** True when some node's disc rim carries this endpoint. */
+function onSomeDisc(endpoint, nodes, tolerance) {
   return nodes.some(
     (node) =>
       node.x !== null
       && node.y !== null
-      && frameBoundaryError(endpoint, node) <= tolerance,
+      && discRimError(endpoint, node) <= tolerance,
   );
 }
 
 /**
- * Full frame-to-frame edges keep both ends on a perimeter; fog stubs (halo
- * edges into ring-3) keep only the visible end on a frame and cut short.
+ * Full disc-to-disc edges keep both ends on a rim; fog stubs (halo edges
+ * into ring-3) keep only the visible end on a disc and cut short.
  */
 function edgeTracksFrames(edge, nodes, tolerance) {
-  const startOn = onSomeFrame({ x: edge.x1, y: edge.y1 }, nodes, tolerance);
-  const endOn = onSomeFrame({ x: edge.x2, y: edge.y2 }, nodes, tolerance);
+  const startOn = onSomeDisc({ x: edge.x1, y: edge.y1 }, nodes, tolerance);
+  const endOn = onSomeDisc({ x: edge.x2, y: edge.y2 }, nodes, tolerance);
   if (startOn && endOn) return true;
   const fogStub = typeof edge.id === 'string' && edge.id.startsWith('halo:');
   return fogStub && (startOn || endOn);
@@ -133,8 +128,8 @@ export default {
     );
 
     // Edge tracking: on EVERY sampled frame, each parsed edge follows
-    // frame-box clipping (both ends on a perimeter, or a halo fog stub with
-    // the visible end on a frame). A desynchronized edge strands an endpoint.
+    // disc-rim clipping (both ends on a rim, or a halo fog stub with the
+    // visible end on a disc). A desynchronized edge strands an endpoint.
     let checkedEdges = 0;
     const desynchronized = geometry.some((frame) =>
       frame.edges.some((edge) => {

@@ -103,6 +103,19 @@ export function hintAdmitsClass(
 }
 
 /**
+ * The single destination class a hint names, or `null` when the hint is a
+ * bucket (C1–C3, C4–C5). Drifter returns 14 so the chip can reuse the existing
+ * class ladder; the five complexes share one label.
+ */
+export function destinationHintSoleClassId(
+  hint: WormholeDestinationHint,
+): number | null {
+  if (hint === 'drifter') return 14;
+  const classes = HINT_CLASSES[hint];
+  return classes.length === 1 ? classes[0]! : null;
+}
+
+/**
  * Observed mass-stability vocabulary for one wormhole connection. Null on a
  * stored row means "not yet observed" and is outside this tuple — freshness is
  * a human observation, never a fabricated default.

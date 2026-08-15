@@ -9,15 +9,17 @@ import {
   HALO_FOGGED_RINGS,
   haloSignature,
   type HaloInput,
+  type HaloLimits,
 } from './halo-model';
 
 // A small deterministic k-space neighbourhood around exit 100:
 //
-//   ring 1: 1, 2        (gates from 100) — drawn at the pinned depth
-//   ring 2: 3 (via 1), 4 (via 2) — fogged at the pinned depth
-//   ring 3+: beyond the pinned extent (reachable only via deeper dials)
+//   ring 1: 1, 2        (gates from 100) — drawn when extent is on
+//   ring 2: 3 (via 1), 4 (via 2) — fogged when extent is on
+//   ring 3+: beyond that 1+1 extent (reachable only via deeper dials)
 //
-// Neighbour lists are sorted, mirroring the client asset's contract.
+// Shipping pins are 0+0 (no rings). Neighbour lists are sorted, mirroring
+// the client asset's contract.
 const ADJACENCY = new Map<number, readonly number[]>([
   [100, [1, 2]],
   [101, [3]],
@@ -52,23 +54,37 @@ function inputFor(authored: readonly number[], overrides: Partial<HaloInput> = {
   };
 }
 
+/** Explicit on-extent used to prove the halo machinery still works while pins are off. */
+const RINGS_ON: HaloLimits = {
+  drawnRings: 1,
+  foggedRings: 1,
+  maxSystemsPerExit: 10,
+  maxSystemsTotal: 150,
+};
+
+test('pinned zero-ring extent derives an empty halo from a k-space exit', () => {
+  expect(HALO_DRAWN_RINGS).toBe(0);
+  expect(HALO_FOGGED_RINGS).toBe(0);
+  expect(deriveHalo(inputFor([100]))).toBe(EMPTY_HALO);
+  expect(deriveHalo(inputFor([100], { limits: { ...RINGS_ON, drawnRings: 0, foggedRings: 0 } })))
+    .toBe(EMPTY_HALO);
+});
+
 test('deriveHalo fans rings, excludes authored, and stays deterministic', () => {
-  const halo = deriveHalo(inputFor([100]));
+  const halo = deriveHalo(inputFor([100], { limits: RINGS_ON }));
   const byId = new Map(halo.systems.map((system) => [system.systemId, system]));
 
-  expect(HALO_DRAWN_RINGS).toBe(1);
-  expect(HALO_FOGGED_RINGS).toBe(1);
   expect([...byId.keys()].toSorted((a, b) => a - b)).toEqual([1, 2, 3, 4]);
   expect(byId.get(1)).toMatchObject({ ring: 1, fogged: false });
   expect(byId.get(2)).toMatchObject({ ring: 1, fogged: false });
   expect(byId.get(3)).toMatchObject({ ring: 2, fogged: true });
   expect(byId.get(4)).toMatchObject({ ring: 2, fogged: true });
 
-  expect(deriveHalo(inputFor([200]))).toBe(EMPTY_HALO);
-  expect(deriveHalo(inputFor([999]))).toBe(EMPTY_HALO);
-  expect(deriveHalo(inputFor([]))).toBe(EMPTY_HALO);
+  expect(deriveHalo(inputFor([200], { limits: RINGS_ON }))).toBe(EMPTY_HALO);
+  expect(deriveHalo(inputFor([999], { limits: RINGS_ON }))).toBe(EMPTY_HALO);
+  expect(deriveHalo(inputFor([], { limits: RINGS_ON }))).toBe(EMPTY_HALO);
 
-  const withAuthored = deriveHalo(inputFor([100, 1]));
+  const withAuthored = deriveHalo(inputFor([100, 1], { limits: RINGS_ON }));
   expect(withAuthored.systems.some((system) => system.systemId === 1)).toBe(false);
   expect(
     withAuthored.links.some(
@@ -77,15 +93,19 @@ test('deriveHalo fans rings, excludes authored, and stays deterministic', () => 
     ),
   ).toBe(true);
 
-  const first = deriveHalo(inputFor([100, 101]));
-  expect(JSON.stringify(deriveHalo(inputFor([100, 101])))).toBe(JSON.stringify(first));
-  const singleExit = deriveHalo(inputFor([100]));
-  expect(haloSignature(deriveHalo(inputFor([100])))).toBe(haloSignature(singleExit));
+  const first = deriveHalo(inputFor([100, 101], { limits: RINGS_ON }));
+  expect(JSON.stringify(deriveHalo(inputFor([100, 101], { limits: RINGS_ON })))).toBe(
+    JSON.stringify(first),
+  );
+  const singleExit = deriveHalo(inputFor([100], { limits: RINGS_ON }));
+  expect(haloSignature(deriveHalo(inputFor([100], { limits: RINGS_ON })))).toBe(
+    haloSignature(singleExit),
+  );
   expect(haloSignature(first)).not.toBe(haloSignature(singleExit));
   expect(haloSignature(EMPTY_HALO)).toBe('#');
 
   const permuted = deriveHalo({
-    ...inputFor([101, 100]),
+    ...inputFor([101, 100], { limits: RINGS_ON }),
     authoredSystems: [
       { systemId: 101, order: 0 },
       { systemId: 100, order: 1 },
@@ -97,7 +117,7 @@ test('deriveHalo fans rings, excludes authored, and stays deterministic', () => 
 });
 
 test('halo links claim first, omit fogged cross-links, and truncate at caps', () => {
-  const halo = deriveHalo(inputFor([100]));
+  const halo = deriveHalo(inputFor([100], { limits: RINGS_ON }));
   const claimLinks = halo.links.slice(0, halo.systems.length);
   for (const [index, system] of halo.systems.entries()) {
     expect(claimLinks[index]?.b).toBe(system.systemId);
@@ -182,7 +202,7 @@ test('halo links claim first, omit fogged cross-links, and truncate at caps', ()
 });
 
 test('appendHaloFacts appends after authored entries and preserves tree depth', () => {
-  const halo = deriveHalo(inputFor([100]));
+  const halo = deriveHalo(inputFor([100], { limits: RINGS_ON }));
   const facts = appendHaloFacts(
     {
       systems: [{ systemId: 200 }, { systemId: 100 }],
@@ -198,7 +218,7 @@ test('appendHaloFacts appends after authored entries and preserves tree depth', 
   const emptyFacts = { systems: [{ systemId: 200 }], connections: [] };
   expect(appendHaloFacts(emptyFacts, EMPTY_HALO)).toBe(emptyFacts);
 
-  const treeHalo = deriveHalo(inputFor([200, 100]));
+  const treeHalo = deriveHalo(inputFor([200, 100], { limits: RINGS_ON }));
   const tree = deriveChainTree(
     appendHaloFacts(
       {

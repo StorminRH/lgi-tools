@@ -176,7 +176,7 @@ const INFERENCE_CASES = [
     },
   },
   {
-    name: 'a typed K162 uniquely links the sig-less inbound connection',
+    name: 'a typed K162 does not assume the sig-less inbound is the way home',
     input: input({
       signatures: [
         signature('AAA-111', {
@@ -186,17 +186,15 @@ const INFERENCE_CASES = [
       ],
       connections: [connection('inbound', { linkedSignature: false })],
     }),
-    expected: {
-      deductions: [
-        {
-          signatureId: 'AAA-111',
-          connectionId: 'inbound',
-          provenance: 'assumed',
-          expectedTypeCode: 'K162',
-        },
-      ],
-      quiet: false,
-    },
+    expected: { deductions: [], quiet: true },
+  },
+  {
+    name: 'an unidentified signature does not last-slot onto the sig-less inbound',
+    input: input({
+      signatures: [signature('AAA-111')],
+      connections: [connection('inbound', { linkedSignature: false })],
+    }),
+    expected: { deductions: [], quiet: true },
   },
   {
     name: 'an over-claimed static multiset contradicts quietly',

@@ -551,6 +551,9 @@ export function useChainAuthoringMutations() {
   const restoreSignatures = swallowMutationRejection(
     useMutation(api.mapScan.restoreSignatures),
   );
+  const linkStubToResolvedConnection = swallowMutationRejection(
+    useMutation(api.mapScan.linkStubToResolvedConnection),
+  );
 
   return {
     setHomeSystem,
@@ -606,5 +609,6 @@ export function useChainAuthoringMutations() {
     restoreConnection,
     removeSignatures,
     restoreSignatures,
+    linkStubToResolvedConnection,
   };
 }

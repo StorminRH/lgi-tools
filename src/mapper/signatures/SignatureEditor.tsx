@@ -13,6 +13,7 @@ import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import {
   ConnectionFields,
   type ConnectionFieldSetters,
+  type OriginLeadOption,
 } from '../authoring/connection-fields';
 import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
@@ -28,6 +29,8 @@ export interface SignatureEditorProps {
   readonly mode: 'edit' | 'restore';
   /** The destination's identity readout once the hole is resolved. */
   readonly destination: SystemIdentityReadout | null;
+  /** Known inbound systems this unresolved stub may attach to. */
+  readonly originLeads?: readonly OriginLeadOption[];
   readonly onFocusDestination?: () => void;
   readonly onDelete: () => void;
   readonly onRestore: () => void;
@@ -46,6 +49,7 @@ export function SignatureEditor({
   now,
   mode,
   destination,
+  originLeads = [],
   onFocusDestination,
   onDelete,
   onRestore,
@@ -74,6 +78,7 @@ export function SignatureEditor({
         now={now}
         mode={mode}
         destination={destination}
+        originLeads={originLeads}
         onFocusDestination={onFocusDestination}
         onDelete={onDelete}
         onRestore={onRestore}

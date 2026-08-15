@@ -59,6 +59,7 @@ const SETTERS = {
   setMassState: vi.fn(),
   setLifeStage: vi.fn(),
   setLeadsTo: vi.fn(),
+  linkToOrigin: vi.fn(),
 };
 
 function render(overrides: Partial<Parameters<typeof SignatureEditor>[0]> = {}) {

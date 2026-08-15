@@ -9,6 +9,7 @@ import {
   SYSTEM_FRAME_WIDTH,
   type ChainNode,
 } from '../canvas/SystemNode';
+import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
 import {
   chainTombstoneState,
   type ChainTombstoneState,
@@ -82,6 +83,7 @@ export interface PlacedStubConnection {
   readonly signatureId: string;
   readonly wormholeTypeCode: string | null;
   readonly whClassId: number | null;
+  readonly destinationHint?: WormholeDestinationHint | null;
   readonly position: ChainPosition;
 }
 
@@ -105,6 +107,7 @@ export interface StubPlanningSignature {
   readonly signatureId: string;
   readonly wormholeTypeCode: string | null;
   readonly whClassId: number | null;
+  readonly destinationHint?: WormholeDestinationHint | null;
 }
 
 /** Live resolved line passed into the endpoint-side accounting projection. */
@@ -151,6 +154,8 @@ export function planStubNodes(input: {
   readonly signatures: readonly StubPlanningSignature[];
   readonly connections: readonly StubPlanningConnection[];
   readonly staticsBySystem: ReadonlyMap<number, readonly StaticStubSlot[]>;
+  /** Map home / layout root; non-root systems reserve one inbound hole. */
+  readonly rootSystemId: number | null;
 }): readonly PlannedStub[] {
   const planned: PlannedStub[] = [];
   for (const systemId of input.systemIds) {
@@ -170,6 +175,7 @@ export function planStubNodes(input: {
       })),
       connections: connections.map((connection) =>
         localConnectionFacts(connection, systemId)),
+      isRoot: systemId === input.rootSystemId,
     });
     const drawnSignatures = new Set(plan.signatureStubIds);
     planned.push(
@@ -354,6 +360,9 @@ export function syncNodes(
           className: isStatic ? stub.className : null,
           security: null,
           whClassId: stub.whClassId,
+          ...(isStatic
+            ? {}
+            : { destinationHint: stub.destinationHint ?? null }),
           stub: isStatic
             ? {
                 staticId: stub.staticId,

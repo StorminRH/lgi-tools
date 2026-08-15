@@ -1,5 +1,9 @@
 import { expect, test } from 'vitest';
-import type { ChainNode } from '../canvas/SystemNode';
+import {
+  SYSTEM_FRAME_HEIGHT,
+  SYSTEM_FRAME_WIDTH,
+  type ChainNode,
+} from '../canvas/SystemNode';
 import type { ChainEdge } from '../chain/nodes';
 import { DEFAULT_MOTION_CONFIG } from '../motion/motion-contract';
 import {
@@ -17,7 +21,7 @@ import {
   type FogRevealSet,
 } from './fog-model';
 
-/** A presentation node at a frame top-left, with the declared 120×88 frame. */
+/** A presentation node at a frame top-left, with the declared widget frame. */
 function node(
   id: number,
   x: number,
@@ -27,8 +31,8 @@ function node(
   return {
     id: String(id),
     type: 'chainSystem',
-    width: 120,
-    height: 88,
+    width: SYSTEM_FRAME_WIDTH,
+    height: SYSTEM_FRAME_HEIGHT,
     position: { x, y },
     data: { name: `S${id}`, className: null, ...extra },
   };
@@ -61,8 +65,8 @@ test('deriveFogReveals membership: discs, fogged exclusion, and stroke endpoints
       [],
     ).discs,
   ).toEqual([
-    { key: 'd:1', x: 60, y: 44, phase: 'steady', heavy: false },
-    { key: 'd:2', x: 260, y: 144, phase: 'departing', heavy: true },
+    { key: 'd:1', x: SYSTEM_FRAME_WIDTH / 2, y: SYSTEM_FRAME_HEIGHT / 2, phase: 'steady', heavy: false },
+    { key: 'd:2', x: 200 + SYSTEM_FRAME_WIDTH / 2, y: 100 + SYSTEM_FRAME_HEIGHT / 2, phase: 'departing', heavy: true },
   ]);
 
   expect(
@@ -84,7 +88,12 @@ test('deriveFogReveals membership: discs, fogged exclusion, and stroke endpoints
     [edge('a', 1, 2), edge('halo:2>3', 2, 3, { halo: true }), edge('b', 1, 9)],
   );
   expect(strokes.strokes.map((stroke) => stroke.key)).toEqual(['s:a']);
-  expect(strokes.strokes[0]).toMatchObject({ x1: 60, y1: 44, x2: 260, y2: 44 });
+  expect(strokes.strokes[0]).toMatchObject({
+    x1: SYSTEM_FRAME_WIDTH / 2,
+    y1: SYSTEM_FRAME_HEIGHT / 2,
+    x2: 200 + SYSTEM_FRAME_WIDTH / 2,
+    y2: SYSTEM_FRAME_HEIGHT / 2,
+  });
 
   expect(
     deriveFogReveals(
@@ -167,7 +176,7 @@ test('fog timeline opens, closes, vanishes, and reopens across motion windows', 
   );
   const fading = midway.discs.find((disc) => disc.key === 'd:2');
   expect(fading).toBeDefined();
-  expect(fading?.x).toBe(260);
+  expect(fading?.x).toBe(200 + SYSTEM_FRAME_WIDTH / 2);
   expect(fading?.strength).toBeLessThan(1);
   const settled = advanceFogTimeline(
     midway.timeline,
@@ -211,7 +220,9 @@ test('fog timeline opens, closes, vanishes, and reopens across motion windows', 
     42,
   );
   expect(snap.animating).toBe(false);
-  expect(snap.discs).toEqual([{ key: 'd:1', x: 60, y: 44, strength: 1 }]);
+  expect(snap.discs).toEqual([
+    { key: 'd:1', x: SYSTEM_FRAME_WIDTH / 2, y: SYSTEM_FRAME_HEIGHT / 2, strength: 1 },
+  ]);
   expect(snap.strokes.map((stroke) => stroke.strength)).toEqual([1]);
 });
 

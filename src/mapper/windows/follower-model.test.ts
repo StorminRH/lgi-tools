@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  SYSTEM_DISC_SIZE,
+  SYSTEM_FRAME_HEIGHT,
+  SYSTEM_FRAME_WIDTH,
+} from '../canvas/SystemNode';
+import {
+  CARD_ANCHOR_GAP,
   NODE_CARD_FALLBACK,
   computeFollowerTransform,
   createNodeFollower,
-  nearestCardPoint,
   placeAnchoredCard,
   type FollowerState,
   type FollowerWrite,
@@ -56,6 +61,13 @@ describe('placeAnchoredCard', () => {
     expect(placed.left).toBe(700 - 40 - 288);
     expect(placed.top).toBe(300 - 208 / 2);
     expect(placed.leader).not.toBeNull();
+    expect(placed.lift).toBe('up');
+    expect(placed.leader).toEqual({
+      x1: 700 - 40,
+      y1: 300 - 40,
+      x2: 700,
+      y2: 300,
+    });
   });
 
   it('flips right when the anchor is on the left half', () => {
@@ -67,6 +79,13 @@ describe('placeAnchoredCard', () => {
     expect(placed.side).toBe('right');
     expect(placed.left).toBe(100 + 40);
     expect(placed.top).toBe(300 - 208 / 2);
+    expect(placed.lift).toBe('up');
+    expect(placed.leader).toEqual({
+      x1: 100 + 40,
+      y1: 300 - 40,
+      x2: 100,
+      y2: 300,
+    });
   });
 
   it('keeps a sticky side across the midline by pushing instead of flipping', () => {
@@ -104,22 +123,54 @@ describe('placeAnchoredCard', () => {
     expect(placed.top).toBe(16);
   });
 
-  it('omits the leader when the card rim already sits on the anchor', () => {
+  it('omits the leader when the disc covers the 45° card hit', () => {
     const placed = placeAnchoredCard({
       anchor: { x: 200, y: 200 },
       card: { width: 100, height: 100 },
       viewport: { width: 800, height: 600 },
       gap: 0,
+      discRadius: 80,
       leaderMinDistance: 12,
     });
-    // With gap 0 and left-half preference, card starts at x=200 — rim on the anchor.
-    expect(
-      nearestCardPoint(placed.left, placed.top, { width: 100, height: 100 }, {
-        x: 200,
-        y: 200,
-      }),
-    ).toEqual({ x: 200, y: 200 });
     expect(placed.leader).toBeNull();
+  });
+
+  it('clips the 45° leader to the disc rim', () => {
+    const discRadius = 27.5;
+    const placed = placeAnchoredCard({
+      anchor: { x: 100, y: 300 },
+      card: { width: 288, height: 208 },
+      viewport: { width: 800, height: 600 },
+      discRadius,
+    });
+    const clearance = discRadius + CARD_ANCHOR_GAP;
+    expect(placed.side).toBe('right');
+    expect(placed.left).toBe(100 + clearance);
+    expect(placed.lift).toBe('up');
+    const hitX = 100 + clearance;
+    const hitY = 300 - clearance;
+    const dist = Math.hypot(clearance, clearance);
+    expect(placed.leader).toEqual({
+      x1: hitX,
+      y1: hitY,
+      x2: expect.closeTo(100 + clearance * (discRadius / dist), 10),
+      y2: expect.closeTo(300 - clearance * (discRadius / dist), 10),
+    });
+  });
+
+  it('keeps a 45° leader at maximum zoom when disc clearance exceeds half the card height', () => {
+    const discRadius = 27.5 * 2.5;
+    const placed = placeAnchoredCard({
+      anchor: { x: 400, y: 400 },
+      card: { width: 288, height: 208 },
+      viewport: { width: 1440, height: 900 },
+      discRadius,
+    });
+    expect(placed.leader).not.toBeNull();
+    const leader = placed.leader!;
+    expect(Math.abs(leader.x1 - leader.x2)).toBeCloseTo(
+      Math.abs(leader.y1 - leader.y2),
+    );
   });
 });
 
@@ -128,6 +179,7 @@ describe('node follower model', () => {
     const layer = { width: 800, height: 600 };
     const card = NODE_CARD_FALLBACK;
     // Anchor center at tx+(x+w/2)*zoom = 100+(10+36)*2 = 192, ty+(y+h/2)*zoom = 50+(20+36)*2 = 162
+    // Card sits past the zoomed disc rim: 192 + 27.5*2 + 40 = 287.
     const first = computeFollowerTransform(
       null,
       '2',
@@ -137,7 +189,9 @@ describe('node follower model', () => {
       card,
       layer,
     );
-    expect(first?.write.transform).toBe('translate(232px, 58px)');
+    expect(first?.write.transform).toBe(
+      `translate(${192 + (SYSTEM_DISC_SIZE / 2) * 2 + CARD_ANCHOR_GAP}px, 58px)`,
+    );
     expect(first?.write.leader).not.toBeNull();
     expect(
       computeFollowerTransform(
@@ -205,19 +259,21 @@ describe('node follower model', () => {
   it('positions from declared frame dimensions before measurement lands', () => {
     const layer = { width: 800, height: 600 };
     const card = NODE_CARD_FALLBACK;
-    // Declared 120×88 frame: center (60, 44) → screen (60, 44) at identity camera.
+    // Declared widget frame: center sits at half the frame; identity camera.
     const first = computeFollowerTransform(
       null,
       '2',
       [0, 0, 1],
-      declaredNode(0, 0, 120, 88),
+      declaredNode(0, 0, SYSTEM_FRAME_WIDTH, SYSTEM_FRAME_HEIGHT),
       true,
       card,
       layer,
     );
-    expect(first?.write.transform).toBe('translate(100px, 16px)');
-    expect(first?.baseline.width).toBe(120);
-    expect(first?.baseline.height).toBe(88);
+    expect(first?.write.transform).toBe(
+      `translate(${SYSTEM_FRAME_WIDTH / 2 + SYSTEM_DISC_SIZE / 2 + CARD_ANCHOR_GAP}px, 16px)`,
+    );
+    expect(first?.baseline.width).toBe(SYSTEM_FRAME_WIDTH);
+    expect(first?.baseline.height).toBe(SYSTEM_FRAME_HEIGHT);
   });
 });
 

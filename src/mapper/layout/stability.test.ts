@@ -1,9 +1,8 @@
 // Contract DC-3 (AC-2, V-1), as operator-relaxed in plan PD-3: spawn movement is a measured,
-// configured behavior. Under the `fixed-slot` posture every add moves nothing; under
-// `proportional` — the SHIPPED default since the integration session's G-1 ratification
-// (2026-08-02) — a sector fill re-spreads exactly the affected sibling group and the subtrees
-// riding on it. Both postures keep their exact moved-set guarantees gated here, each under its
-// own explicit config.
+// configured behavior. Under the `fixed-slot` posture — the shipped default since the
+// 2026-08-14 compass retune — every add moves nothing; under `proportional` a sector fill
+// re-spreads exactly the affected sibling group and the subtrees riding on it. Both postures
+// keep their exact moved-set guarantees gated here, each under its own explicit config.
 import { describe, expect, it } from 'vitest';
 import { compassKernel } from './compass';
 import { deriveChainTree } from './facts';
@@ -21,7 +20,11 @@ const C = 31_000_003;
 const D = 31_000_004;
 const E = 31_000_005;
 
-const PROPORTIONAL = { ...DEFAULT_LAYOUT_CONFIG, wedgePolicy: 'proportional' as const };
+const PROPORTIONAL = {
+  ...DEFAULT_LAYOUT_CONFIG,
+  wedgePolicy: 'proportional' as const,
+  siblingSpread: 3,
+};
 const FIXED_SLOT = { ...DEFAULT_LAYOUT_CONFIG, wedgePolicy: 'fixed-slot' as const };
 
 function facts(

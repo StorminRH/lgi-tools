@@ -132,19 +132,17 @@ export const DIRECTION_PRESETS = {
 export type DirectionPresetId = keyof typeof DIRECTION_PRESETS;
 
 /**
- * The shipping configuration — the operator's live-tuning ratification from the
- * integration session's G-1 gate (session 4.0.3.1.2, 2026-08-02): tuned against
- * paced replays of the proof corpus with the dials exposed. `proportional`
- * supersedes the selection gate's provisional `fixed-slot` posture by that same
- * operator authority; sector fills re-spread the affected sibling group, which
- * the ratification accepted with eyes on the motion the next sub-version will
- * animate.
+ * The shipping configuration — operator-ratified compass dials (2026-08-14):
+ * ring 170, separation 120, fan 1, fixed-slot, compass-8. `fixed-slot` is the
+ * production wedge posture: each child occupies a creation-index slot, so
+ * adding a sibling moves nothing that already exists. Ring and separation
+ * stepped out after the 25% node scale so discs keep a little air between them.
  */
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
-  ringSpacing: 300,
-  minSeparation: 150,
-  wedgePolicy: 'proportional',
-  siblingSpread: 3,
+  ringSpacing: 170,
+  minSeparation: 120,
+  wedgePolicy: 'fixed-slot',
+  siblingSpread: 1,
   directionSequence: COMPASS_HEADINGS,
 };
 

@@ -289,6 +289,7 @@
   --ease-panel: cubic-bezier(0.2,0.85,0.25,1);
   --z-index-base: 0;
   --z-index-sticky: 10;
+  --z-index-float: 20;
   --z-index-dropdown: 40;
   --z-index-overlay: 50;
   /* The sitewide film-grain layer (.page-grain) sits ABOVE overlay chrome on
@@ -1273,6 +1274,13 @@ details[data-collapsible][open] > summary [data-chevron] {
   box-shadow:
     0 0 0 1px var(--color-card-glow-ring),
     0 0 12px var(--color-card-glow-shadow);
+}
+
+/* Disc chips start at nav size and shrink via `--chip-fs` (set after mount)
+ * so C1–C3 / Pochven / Drifter stay on one line instead of wrapping. */
+.map-node-disc [data-chain-node-classification] {
+  --chip-fs: var(--text-nav);
+  font-size: var(--chip-fs);
 }
 
 /* Ghosts: departed nodes replaying their exit are presentation-only — no

@@ -18,12 +18,14 @@
 // only, never position — and is suppressed wholesale while the node is being
 // dragged (HC-2).
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { cn } from '@/components/ui/cn';
 import {
   systemClassificationReadout,
   systemDestinationClassReadout,
+  systemDestinationHintReadout,
 } from '@/data/eve-data/system-identity';
+import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
 import type { NodeMotion } from '../motion/motion-contract';
 import { PilotPresenceBadge } from './PilotPresenceBadge';
 
@@ -37,6 +39,12 @@ export type ChainNodeData = {
   className: string | null;
   security?: number | null;
   whClassId?: number | null;
+  /**
+   * Scanned unresolved stubs only: the stored Leads-to bucket. Typed near-side
+   * codes still win via `whClassId`; this is the fallback when that is null
+   * (K162 / untyped).
+   */
+  destinationHint?: WormholeDestinationHint | null;
   motion?: NodeMotion;
   /**
    * Present only on derived halo systems (4.0.4.2.3 OW3); an authored node
@@ -70,22 +78,29 @@ export const CHAIN_NODE_TYPE = 'chainSystem';
 
 /**
  * The widget frame's width in canvas pixels — the node box every consumer
- * shares: `syncNodes` declares it on the node object, `edge-geometry` clips
- * connection lines to this box, and the camera pads fit bounds with it.
- * Deliberately px (not rem-derived) so browser base-font settings cannot
- * desynchronize the rendered frame from these constants.
+ * shares: `syncNodes` declares it on the node object, `edge-geometry` aims
+ * through this box's center (the disc sits there), and the camera pads fit
+ * bounds with it. Deliberately px (not rem-derived) so browser base-font
+ * settings cannot desynchronize the rendered frame from these constants.
  */
-export const SYSTEM_FRAME_WIDTH = 120;
+export const SYSTEM_FRAME_WIDTH = 150;
 
 /** The widget frame's height in canvas pixels; see `SYSTEM_FRAME_WIDTH`. */
-export const SYSTEM_FRAME_HEIGHT = 88;
+export const SYSTEM_FRAME_HEIGHT = 110;
+
+/**
+ * Visible system disc diameter in canvas pixels, centered in the widget
+ * frame. Connection lines clip to this circle so they pass through the
+ * transparent frame and sit under the name and widget rail.
+ */
+export const SYSTEM_DISC_SIZE = 55;
 
 /**
  * The handles exist because React Flow requires them for an edge's endpoints
- * to be valid; the chain edge computes its own frame-to-frame geometry and
- * never reads their positions. They stay invisible and inert at the disc's
- * center (opacity, not `display: none` — a display-none handle would measure
- * at the frame's top-left corner).
+ * to be valid; the chain edge computes its own disc-rim geometry and never
+ * reads their positions. They stay invisible and inert at the disc's center
+ * (opacity, not `display: none` — a display-none handle would measure at the
+ * frame's top-left corner).
  */
 const CENTER_HANDLE_CLASS =
   'left-1/2! top-1/2! -translate-x-1/2! -translate-y-1/2! opacity-0 pointer-events-none';
@@ -131,16 +146,126 @@ export function nodeHeader(data: ChainNodeData): {
   return { text: data.name, toneClass: 'text-name' };
 }
 
+/**
+ * Font size that keeps one chip label on a single line inside the disc.
+ * `scrollWidth` is the unwrapped glyph width; `clientWidth` is the disc's
+ * usable inner width. Short labels keep `basePx`; long ones shrink toward
+ * `minPx` instead of wrapping.
+ */
+export function chipFontSizePx(
+  scrollWidth: number,
+  clientWidth: number,
+  basePx: number,
+  minPx = 8,
+): number {
+  if (!(basePx > 0) || clientWidth <= 0 || scrollWidth <= clientWidth) {
+    return basePx;
+  }
+  return Math.max(minPx, (basePx * clientWidth) / scrollWidth);
+}
+
+/** Colored class/security chip that scales to the disc instead of wrapping. */
+function ClassificationChip({
+  label,
+  tone,
+}: {
+  readonly label: string;
+  readonly tone: string;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    el.style.removeProperty('--chip-fs');
+    const basePx = Number.parseFloat(getComputedStyle(el).fontSize);
+    const fitted = chipFontSizePx(el.scrollWidth, el.clientWidth, basePx);
+    if (fitted < basePx) {
+      el.style.setProperty('--chip-fs', `${fitted}px`);
+    }
+  }, [label]);
+  return (
+    <span
+      ref={ref}
+      data-chain-node-classification
+      className={cn(
+        'min-w-0 max-w-full overflow-hidden whitespace-nowrap px-0.5 font-ui font-bold uppercase leading-none tracking-optical',
+        tone,
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+function nodeClassification(data: ChainNodeData, stub: boolean) {
+  if (stub) {
+    return (
+      systemDestinationClassReadout(data.whClassId ?? null)
+      ?? systemDestinationHintReadout(data.destinationHint ?? null)
+    );
+  }
+  return systemClassificationReadout({
+    security: data.security ?? null,
+    whClassId: data.whClassId ?? null,
+  });
+}
+
+function NodeDisc({
+  derived,
+  chromeClass,
+  isConnectable,
+  classification,
+  stub,
+  systemId,
+}: {
+  readonly derived: boolean;
+  readonly chromeClass: string | null;
+  readonly isConnectable: boolean | undefined;
+  readonly classification: { readonly label: string; readonly tone: string } | null;
+  readonly stub: boolean;
+  readonly systemId: number;
+}) {
+  return (
+    <div
+      className={cn(
+        'map-node-disc absolute left-1/2 top-1/2 flex size-[55px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section',
+        derived && 'border-dashed',
+        chromeClass,
+      )}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        isConnectable={isConnectable}
+        className={CENTER_HANDLE_CLASS}
+      />
+      {classification !== null ? (
+        <ClassificationChip
+          label={classification.label}
+          tone={classification.tone}
+        />
+      ) : null}
+      <Handle
+        type="source"
+        position={Position.Right}
+        isConnectable={isConnectable}
+        className={CENTER_HANDLE_CLASS}
+      />
+      <div
+        data-chain-node-widgets
+        className="absolute -right-[16px] -top-[4px] flex items-center justify-end gap-0.5"
+      >
+        {stub ? null : <PilotPresenceBadge systemId={systemId} />}
+      </div>
+    </div>
+  );
+}
+
 /** Renders one system as a widget frame: header name, centered disc, widget slots. */
 function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<ChainNode>) {
   const { stub, staticStub, derived, fogged, chromeClass } = nodePresentation(data);
   const header = nodeHeader(data);
-  const classification = stub
-    ? systemDestinationClassReadout(data.whClassId ?? null)
-    : systemClassificationReadout({
-        security: data.security ?? null,
-        whClassId: data.whClassId ?? null,
-      });
+  const classification = nodeClassification(data, stub);
   // The wrapper is pointer-inert for every node (`INERT_NODE_STYLE` in
   // chain/nodes.ts); only the visible chrome re-enables pointer events, so
   // the invisible frame margin cannot catch clicks, drags, or hovers. Ghosts
@@ -156,9 +281,6 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
       data-chain-node-static-stub={staticStub || undefined}
       className={cn(
         'relative h-full w-full',
-        // Provisional presentation: derived systems read dimmer than authored
-        // truth; the fogged ring is invisible under the cloud (the fog canvas
-        // paints below nodes, so the node hides itself — SC-3.2).
         derived && (fogged ? 'opacity-0' : 'opacity-75'),
         nodeMotionClass(data.motion, dragging),
       )}
@@ -173,45 +295,14 @@ function SystemNodeComponent({ id, data, dragging, isConnectable }: NodeProps<Ch
       >
         {header.text}
       </span>
-      <div
-        className={cn(
-          'map-node-disc absolute left-1/2 top-1/2 flex size-[44px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border-idle bg-section',
-          derived && 'border-dashed',
-          chromeClass,
-        )}
-      >
-        <Handle
-          type="target"
-          position={Position.Left}
-          isConnectable={isConnectable}
-          className={CENTER_HANDLE_CLASS}
-        />
-        {/* Every node keeps its identity above the disc and its colored,
-            truthful class/security indicator inside it. */}
-        {classification !== null ? (
-          <span
-            data-chain-node-classification
-            className={cn(
-              'font-ui text-nav font-bold uppercase tracking-label',
-              classification.tone,
-            )}
-          >
-            {classification.label}
-          </span>
-        ) : null}
-        <Handle
-          type="source"
-          position={Position.Right}
-          isConnectable={isConnectable}
-          className={CENTER_HANDLE_CLASS}
-        />
-        <div
-          data-chain-node-widgets
-          className="absolute -right-[13px] -top-[3px] flex items-center justify-end gap-0.5"
-        >
-          {stub ? null : <PilotPresenceBadge systemId={Number(id)} />}
-        </div>
-      </div>
+      <NodeDisc
+        derived={derived}
+        chromeClass={chromeClass}
+        isConnectable={isConnectable}
+        classification={classification}
+        stub={stub}
+        systemId={Number(id)}
+      />
     </div>
   );
 }

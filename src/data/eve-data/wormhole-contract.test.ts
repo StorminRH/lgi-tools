@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  destinationHintSoleClassId,
   hintAdmitsClass,
   isKnownSpaceSystemId,
   remainingMassAfterTravel,
@@ -82,5 +83,22 @@ describe('wormhole-contract mass and destination math', () => {
   it('owns the stable known-space ID boundary', () => {
     expect(isKnownSpaceSystemId(30_999_999)).toBe(true);
     expect(isKnownSpaceSystemId(31_000_000)).toBe(false);
+  });
+
+  it.each([
+    ['hisec', 7],
+    ['lowsec', 8],
+    ['nullsec', 9],
+    ['deadly', 6],
+    ['thera', 12],
+    ['pochven', 25],
+    ['drifter', 14],
+  ] as const)('%s names sole class %i', (hint, classId) => {
+    expect(destinationHintSoleClassId(hint)).toBe(classId);
+  });
+
+  it('leaves C1–C3 and C4–C5 as buckets with no sole class', () => {
+    expect(destinationHintSoleClassId('unknown')).toBeNull();
+    expect(destinationHintSoleClassId('dangerous')).toBeNull();
   });
 });

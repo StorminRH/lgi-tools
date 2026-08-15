@@ -209,7 +209,11 @@ describe('reconcileChain driven by kernel-produced positions', () => {
     return position;
   }
 
-  const PROPORTIONAL = { ...DEFAULT_LAYOUT_CONFIG, wedgePolicy: 'proportional' as const };
+  const PROPORTIONAL = {
+    ...DEFAULT_LAYOUT_CONFIG,
+    wedgePolicy: 'proportional' as const,
+    siblingSpread: 3,
+  };
 
   it('emits exact system-appeared intents at kernel positions on first appearance', async () => {
     const positions = await compassKernel(factsOf([A, B], [[A, B]]));

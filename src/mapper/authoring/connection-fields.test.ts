@@ -102,6 +102,7 @@ const SETTERS = {
   setMassState: vi.fn(),
   setLifeStage: vi.fn(),
   setLeadsTo: vi.fn(),
+  linkToOrigin: vi.fn(),
 };
 
 it('round-trips null through the unset sentinel', () => {
@@ -261,6 +262,23 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   );
   expect(unresolved).toContain('data-select="Leads to"');
   expect(unresolved).not.toContain('data-map-connection-leads-locked');
+
+  const withOrigin = renderToStaticMarkup(
+    createElement(ConnectionFields, {
+      connection: { ...CONNECTION, toSystemId: null },
+      codexReady: true,
+      codes: ['B274'],
+      entry: TYPED,
+      now: 1,
+      mode: 'edit',
+      setters: SETTERS,
+      originLeads: [{ connectionId: 'inbound-1', label: 'J160650 - C3' }],
+    }),
+  );
+  expect(withOrigin).toContain('data-select="Leads to"');
+  expect(withOrigin).toContain('origin:inbound-1');
+  expect(withOrigin).toContain('J160650 - C3');
+  expect(withOrigin).not.toContain('>Origin<');
 
   const live = renderToStaticMarkup(
     createElement(ConnectionFields, {

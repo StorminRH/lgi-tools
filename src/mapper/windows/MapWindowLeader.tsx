@@ -11,7 +11,7 @@ export interface MapWindowLeaderHandle {
 }
 
 /**
- * Screen-space green leader from an anchored card to its map target. Hidden
+ * Screen-space green leader from an anchored card to its disc rim. Hidden
  * until the follower reports a segment long enough to need the cue.
  */
 export const MapWindowLeader = forwardRef<MapWindowLeaderHandle>(
