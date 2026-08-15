@@ -10,11 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          # fallow audit derives its base from git history (merge-base against
-          # the PR base / origin default), so it needs full history, not a
-          # shallow clone.
-          fetch-depth: 0
 
       - uses: pnpm/action-setup@v6
 
@@ -35,31 +30,11 @@ jobs:
       # route added or removed without its classification entry here in plain CI.
       - run: pnpm assert:routes-present
 
-      # Run the suite WITH coverage so the fallow audit below reads real
-      # per-function coverage (coverage/coverage-final.json, which fallow
-      # auto-detects). Without it the audit falls back to a static estimate
-      # whose new-only attribution can misflag PRE-EXISTING complexity and
-      # cross-file duplication as "introduced" the moment a PR pulls an already-
-      # complex/duplicated file into its diff — which a cross-cutting refactor
-      # (e.g. repointing a shared util's imports across many feature files)
-      # inevitably does. Real coverage makes the inherited-vs-introduced call
-      # accurate, semantically matching the coverage-backed `pnpm verify` gate.
+      # Coverage-backed Vitest suite. The fallow step below is whole-repo
+      # dead-code + duplication and does not use coverage for attribution;
+      # `pnpm fallow:health` (report-only) can still read this file.
       - run: pnpm test:coverage
 
-      # fallow audit is the static gate of record (dead code, duplication,
-      # complexity, architecture boundaries), scoped to the PR diff with
-      # new-only attribution. FALLOW_AUDIT_BASE pins the base so detection is
-      # robust on the merge-commit checkout; a main push falls back to the
-      # commit before the push. fallow is a static analyzer (no DB needed); it
-      # consumes the coverage emitted by the step above.
-      #
-      # The `pnpm fallow` script carries `--fail-on-issues`, so the gate now
-      # fails on ANY finding the changeset INTRODUCES — duplication included
-      # (previously warn-only) alongside the warn-level rules (circular deps,
-      # unresolved imports, etc.). Inherited findings stay excluded by the
-      # new-only attribution, so a PR is only blocked by problems it adds, not
-      # by pre-existing ones it happens to touch. Sanctioned existing clones live
-      # in fallow-baselines/dupes.json.
+      # Whole-repo Fallow gate (dead code, duplication, architecture
+      # boundaries). Inherited findings fail the same as new ones.
       - run: pnpm fallow
-        env:
-          FALLOW_AUDIT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}

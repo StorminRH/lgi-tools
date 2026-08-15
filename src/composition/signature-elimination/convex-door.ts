@@ -1,9 +1,7 @@
 import { z } from 'zod';
 import { CONNECTION_PROVENANCES } from '@/data/eve-data/wormhole-contract';
 import type { EliminationDeduction } from '@/data/maps/signature-eliminator';
-import { readEnv } from '@/lib/env';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { deriveConvexSiteUrl } from '@/lib/sync-engine';
+import { postConvexHttpDoor } from '@/lib/convex-http-door';
 
 const evidenceSchema = z.strictObject({
   canEdit: z.boolean(),
@@ -46,57 +44,14 @@ export class EliminationConvexUnavailableError extends Error {
   }
 }
 
-async function postDoor<T>(
-  body: unknown,
-  schema: z.ZodType<T>,
-): Promise<T> {
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  const secret = readEnv('CONVEX_SERVICE_SECRET');
-  const siteUrl = convexUrl ? deriveConvexSiteUrl(convexUrl) : null;
-  if (siteUrl === null || !secret) {
-    throw new EliminationConvexUnavailableError(
-      'Signature elimination unavailable: Convex URL or service secret is unset',
-    );
-  }
-
-  let response: Response;
-  try {
-    response = await fetchWithTimeout(`${siteUrl}/signature-elimination`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${secret}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (cause) {
-    throw new EliminationConvexUnavailableError(
-      'Signature elimination Convex request failed',
-      { cause },
-    );
-  }
-  if (!response.ok) {
-    throw new EliminationConvexUnavailableError(
-      `Signature elimination Convex door answered ${response.status}`,
-    );
-  }
-
-  let decoded: unknown;
-  try {
-    decoded = await response.json();
-  } catch (cause) {
-    throw new EliminationConvexUnavailableError(
-      'Signature elimination Convex door returned invalid JSON',
-      { cause },
-    );
-  }
-  const parsed = schema.safeParse(decoded);
-  if (!parsed.success) {
-    throw new EliminationConvexUnavailableError(
-      'Signature elimination Convex door returned an invalid contract',
-    );
-  }
-  return parsed.data;
+function postDoor<T>(body: unknown, schema: z.ZodType<T>): Promise<T> {
+  return postConvexHttpDoor({
+    path: '/signature-elimination',
+    body,
+    schema,
+    error: EliminationConvexUnavailableError,
+    label: 'Signature elimination unavailable',
+  });
 }
 
 /** Reads one access-checked live evidence snapshot for a map system. */

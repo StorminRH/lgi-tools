@@ -38,9 +38,9 @@ Never run `pnpm build`, `next build`, `pnpm vercel-build`, or another
 production-mode build locally or before merge. Only Vercel may run the
 production build after the change reaches `main`.
 
-Fallow is a gate. Do not add waivers or baseline entries to get around it. If
-flagged, simplify the change or add meaningful behavioral coverage.
-`pnpm fallow:health` is report only.
+Fallow is a whole-repo gate. Do not add waivers or baseline entries to get
+around it. If flagged, simplify the change or add meaningful behavioral
+coverage. `pnpm fallow:health` is report only.
 
 ## Architecture and engineering
 
