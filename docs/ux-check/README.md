@@ -16,7 +16,7 @@ ignored local evidence and can be deleted at any time.
 | `probes/*.mjs` | Small durable probe definitions | Tracked; one module per recurring feature check |
 | `captures/probes/` | Probe failure screenshots plus `report.json` | Ignored; wiped when the probe runner starts |
 | `captures/` | `pnpm ux-check` report + failure PNGs; `auth-storage.json` from `pnpm e2e:seed` | Ignored |
-| `../contributing/end-to-end-testing.md` | Tiny Playwright smoke suite policy (`pnpm test:e2e`) | Tracked |
+| `docs/contributing/end-to-end-testing.md` | Tiny Playwright smoke suite policy (`pnpm test:e2e`) | Tracked |
 
 ## Run durable probes
 

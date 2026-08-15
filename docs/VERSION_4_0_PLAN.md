@@ -83,6 +83,11 @@ by hand where needed, and never see a refresh control.
 > Sub-version identifiers keep their narrative numbers so no identifier ever
 > denotes different content; merged bundles absorb adjacent numbers and leave
 > gaps. `Covers` maps each bundle to the phase sections below.
+>
+> **2026-08-15 audit-remediation extension.** Cycle-1 version-close left three
+> open Floss findings (AF-010, AF-011, AF-012). Approved topology adds Phase 5
+> as one sub-version / one session / one PR (`4.0.5.1` / `4.0.5.1.1`), raising
+> the live session count to **22**. Watch AF-006/007/008 stay unmapped.
 
 | Sub-version | Theme | Covers | Sessions | Status |
 |---|---|---|---|---|
@@ -110,6 +115,8 @@ by hand where needed, and never see a refresh control.
 | 4.0.4.3 | Signatures (parse, lifecycle, inference) | §4.0.4.3 | 3 (PR per session) | COMPLETE |
 | 4.0.4.3.3 | Signatures session 3 of 3 — signature viewer, site-card hosting, observation proof (per-session PR delivery record) | §4.0.4.3 | 1 of 3 | COMPLETE |
 | 4.0.4.4 | Maps & access (landing, switcher, roles, archive) | §4.0.4.4 | 1 | COMPLETE |
+| **Phase 5 — Audit remediation** | | | | |
+| 4.0.5.1 | Cycle-1 audit floss (AF-010, AF-011, AF-012) | §4.0.5.1 | 1 | COMPLETE |
 
 *(Elective health campaign: none scheduled — the campaign queue is empty at the
 3.9 cycle-2 baseline, and 4.0 is a flagship feature version; the decision is
@@ -1155,6 +1162,72 @@ modified. Effect: Neutral.
 the landing-catalogue demo; `pnpm verify`; changelog + bump. On merge: every roadmap row is terminal → the
 resolver directs audit planning; the wall-drop (release) happens only after
 the 4.0 audit completes.
+
+## Phase 5 — Audit remediation (4.0.5.x)
+
+**Arc thesis.** Cycle-1 version-close found three bounded Floss defects and no
+Campaign. They share one reviewable PR: unused primitive surface, leaked
+Convex HTTP transport, and one docs-truth path the reference checker misreads.
+
+---
+
+### 4.0.5.1 — Cycle-1 audit floss
+
+**Objective.** Close AF-010, AF-011, and AF-012 so the version-close audit can
+restart against current `main` with no open Floss or Campaign rows.
+
+**UX gate:** No.
+
+**Done means.**
+- AF-010: `src/components/ui/popover.tsx` exports only consumed primitives;
+  `PointerPopover` is absent from the export surface and the import graph.
+- AF-011: one shared helper owns Convex HTTP transport, status, JSON, and
+  contract parse; jump-resolver and signature-elimination own only path, body,
+  schema, and error class. Fallow does not report clone group `dup:50ee3d46`.
+  A documented accepted clone is allowed only if a real shared owner still
+  cannot satisfy Fallow without changing slice HTTP contracts.
+- AF-012: the `docs/ux-check/README.md` layout table names the live repo-root
+  path `docs/contributing/end-to-end-testing.md`, or that row is dropped;
+  `check-doc-refs` is warning-free on that line; the audit-ledger diagnosis
+  names the checker's `../` archive-reference rule instead of a deleted file.
+- The delivering PR marks AF-010, AF-011, and AF-012 Delivered.
+
+**In scope.** The unused popover export (or proof it is already gone), the
+shared Convex service-door owner (or proof it already owns transport), the
+ux-check layout-table citation, the AF-012 ledger diagnosis correction, the
+three Delivered markers, and the sub-version changelog plus application-version
+bump.
+
+**Out of scope.** Watch AF-006/007/008; baseline Current-cell refresh and
+Code-ref advance; master-plan AF-009 citation drift; mapper unreachable-Fallow
+warning; `SectionHeader` CRAP; carry-forwards (D1, Convex Pro, membership,
+OCC, EVE-Scout); redesigning `check-doc-refs` to resolve relative paths from
+the source file.
+
+**Hard constraints.**
+- Map only AF-010, AF-011, and AF-012; absorb no unaudited scope.
+- Slice HTTP contracts (path, body, schema, error class) stay with their
+  composition owners; the shared door owns transport only.
+- Making `check-doc-refs` warning-free must retarget or drop the one layout
+  row, not change the checker's archive-reference rule.
+
+**Dependencies.** Cycle-1 audit ledger in `docs/version-audits/4.0/PLAN.md`.
+Live `main` may already satisfy AF-010 and AF-011 via PR #429; the session
+proves those end-states or finishes them.
+
+**Decisions the session plan must resolve.** Whether each of AF-010 and AF-011
+is already true on live `main` or still needs a code change; whether remaining
+slice `postDoor` wrappers still form a Fallow clone; whether AF-012 retargets
+the layout-table path or drops the row.
+
+**Baseline & hotspot note.** Neutral. Touches no Watch-listed surface
+(AF-006/007/008). Planning must confirm the shared door does not widen
+`convex/engine.ts` or the mapper host layer.
+
+**Delivery evidence.** Characterization that `PointerPopover` is gone; Fallow
+clone-group evidence for the shared door; warning-free `check-doc-refs` on the
+ux-check layout line; ledger rows Planned→Delivered for AF-010/011/012;
+`pnpm verify`; changelog + bump.
 
 ## Carry-forwards / open items
 
