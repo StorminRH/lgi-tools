@@ -59,7 +59,6 @@ tooling).
   "dependencies": {
     "@base-ui/react": { "acknowledgedMajor": 1 },
     "@convex-dev/rate-limiter": { "acknowledgedMajor": 0 },
-    "@convex-dev/workpool": { "acknowledgedMajor": 0 },
     "@edge-runtime/vm": { "acknowledgedMajor": 5 },
     "@neondatabase/config": { "acknowledgedMajor": 1 },
     "@neondatabase/serverless": { "acknowledgedMajor": 1 },

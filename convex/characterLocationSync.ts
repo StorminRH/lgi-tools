@@ -16,9 +16,11 @@
 // instead of the 5s location floor. The next login's probe resumes the fast
 // loop automatically.
 //
-// Throw = transient (network, ESI 5xx, Neon 5xx); everything else becomes a
-// recorded per-character or run-level error. The engine chains a dispatch on
-// clean-yield success (~5s while watched); the 30s scan is the retry/watchdog.
+// Throw = transient (network, ESI 5xx, Neon 5xx); the action completes the
+// subject as failed (does not rethrow) and the engine schedules a 5s hop
+// while presence is fresh. Everything else becomes a recorded per-character
+// or run-level error. Clean-yield success still chains (~5s while watched);
+// the 30s scan is the backup if a hop never fires.
 import { v } from 'convex/values';
 import {
   parseLocationBody,
@@ -100,62 +102,84 @@ type CharacterOutcome =
 export const syncUser = internalAction({
   args: { userId: v.string(), generation: v.number() },
   handler: async (ctx, { userId, generation }) => {
-    const env = requireSyncEnv();
-
-    const held = await ctx.runQuery(internal.characterLocation.heldState, { userId });
-    // The heldState rows already carry exactly the HeldState / HeldOnlineState
-    // shapes (plus the key) — index them as-is.
-    const heldByCharacter = new Map(held.locations.map((h) => [h.characterId, h]));
-    const heldOnlineByCharacter = new Map(held.online.map((h) => [h.characterId, h]));
-    const trackedIds = await ctx.runQuery(internal.mapTracking.trackedCharacterIds, {
-      userId,
-    });
-    const leases = await ctx.runQuery(internal.characterLocation.accessLeases, { userId });
-    const leaseByCharacter = new Map(leases.map((row) => [row.characterId, row]));
-    const now = Date.now();
-
-    const results: CharacterResult[] = [];
-    const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
-    let runError: string | null = null;
-
-    for (const characterId of trackedIds) {
-      const heldState = heldByCharacter.get(characterId) ?? {
-        solarSystemId: null,
-        etagLocation: null,
-        etagShip: null,
+    let result: { kind: 'success' } | { kind: 'failed'; error: string };
+    try {
+      await runLocationSync(ctx, userId, generation);
+      result = { kind: 'success' };
+    } catch (error) {
+      result = {
+        kind: 'failed',
+        error: error instanceof Error ? error.message : String(error),
       };
-      const heldOnline = heldOnlineByCharacter.get(characterId);
-      const lease = leaseByCharacter.get(characterId);
-      const outcome = await syncLocationCharacter(
-        ctx,
-        env,
-        userId,
-        characterId,
-        heldState,
-        heldOnline,
-        lease,
-        now,
-        rl,
-      );
-      if (outcome.kind === 'skip') continue;
-      results.push(outcome.result);
-      if (outcome.kind === 'stop') {
-        runError = outcome.runError;
-        break;
-      }
     }
-
-    await ctx.runMutation(internal.characterLocation.applySyncResults, {
-      userId,
-      generation,
-      enumeratedCharacterIds: trackedIds,
-      trackedCharacterIds: trackedIds,
-      results,
-      lastError: runError,
-      ...rl,
+    await ctx.runMutation(internal.engine.onSyncComplete, {
+      workId: String(generation),
+      context: { dataset: 'characterLocation', userId },
+      result,
     });
   },
 });
+
+async function runLocationSync(
+  ctx: ActionCtx,
+  userId: string,
+  generation: number,
+): Promise<void> {
+  const env = requireSyncEnv();
+
+  const held = await ctx.runQuery(internal.characterLocation.heldState, { userId });
+  // The heldState rows already carry exactly the HeldState / HeldOnlineState
+  // shapes (plus the key) — index them as-is.
+  const heldByCharacter = new Map(held.locations.map((h) => [h.characterId, h]));
+  const heldOnlineByCharacter = new Map(held.online.map((h) => [h.characterId, h]));
+  const trackedIds = await ctx.runQuery(internal.mapTracking.trackedCharacterIds, {
+    userId,
+  });
+  const leases = await ctx.runQuery(internal.characterLocation.accessLeases, { userId });
+  const leaseByCharacter = new Map(leases.map((row) => [row.characterId, row]));
+  const now = Date.now();
+
+  const results: CharacterResult[] = [];
+  const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
+  let runError: string | null = null;
+
+  for (const characterId of trackedIds) {
+    const heldState = heldByCharacter.get(characterId) ?? {
+      solarSystemId: null,
+      etagLocation: null,
+      etagShip: null,
+    };
+    const heldOnline = heldOnlineByCharacter.get(characterId);
+    const lease = leaseByCharacter.get(characterId);
+    const outcome = await syncLocationCharacter(
+      ctx,
+      env,
+      userId,
+      characterId,
+      heldState,
+      heldOnline,
+      lease,
+      now,
+      rl,
+    );
+    if (outcome.kind === 'skip') continue;
+    results.push(outcome.result);
+    if (outcome.kind === 'stop') {
+      runError = outcome.runError;
+      break;
+    }
+  }
+
+  await ctx.runMutation(internal.characterLocation.applySyncResults, {
+    userId,
+    generation,
+    enumeratedCharacterIds: trackedIds,
+    trackedCharacterIds: trackedIds,
+    results,
+    lastError: runError,
+    ...rl,
+  });
+}
 
 async function syncLocationCharacter(
   ctx: ActionCtx,
@@ -287,8 +311,7 @@ async function resolveOnlineProbe(
   if (read.kind === 'unchanged') {
     // A 304 should only arrive when we sent the held ETag; a 304 with no held
     // state is a protocol violation from upstream — record it as a contract
-    // error for this character rather than throwing the run into the
-    // Workpool's transient-retry path.
+    // error for this character rather than failing the whole run.
     if (heldOnline === undefined) return 'contract_error';
     return {
       online: heldOnline.online,

@@ -1,6 +1,5 @@
 // @vitest-environment edge-runtime
 import { RateLimiter } from '@convex-dev/rate-limiter';
-import { Workpool } from '@convex-dev/workpool';
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -13,20 +12,30 @@ import { api, internal } from './_generated/api';
 import { SCAN_DISPATCH_BATCH } from './engine';
 import schema from './schema';
 
-// Make the dispatch path inert in convex-test: the rate limiter always admits and
-// the workpool enqueue returns a fake workId, so a dispatched subject just flips
-// to 'running' without touching the real components (same posture as the existing
+// Make the dispatch path inert in convex-test: the rate limiter always admits,
+// and tests never flush scheduled syncUser actions, so a dispatched subject
+// just flips to 'running' without touching ESI (same posture as the existing
 // rate-limited-dispatch sweep test, which mocks the limiter to refuse).
 function stubDispatch() {
   vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: true, retryAfter: 0 } as never);
-  vi.spyOn(Workpool.prototype, 'enqueueAction').mockResolvedValue('w-test' as never);
+}
+
+async function scheduledFunctionsNamed(
+  t: ReturnType<typeof convexTest>,
+  name: string,
+) {
+  return t.run(async (ctx) => {
+    const rows = await ctx.db.system.query('_scheduled_functions').collect();
+    return rows.filter((row) => row.name.includes(name));
+  });
 }
 
 async function scheduledChainDispatches(t: ReturnType<typeof convexTest>) {
-  return t.run(async (ctx) => {
-    const rows = await ctx.db.system.query('_scheduled_functions').collect();
-    return rows.filter((row) => row.name.includes('chainDispatch'));
-  });
+  return scheduledFunctionsNamed(t, 'chainDispatch');
+}
+
+async function scheduledSyncUsers(t: ReturnType<typeof convexTest>) {
+  return scheduledFunctionsNamed(t, 'syncUser');
 }
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -449,7 +458,7 @@ describe('engine.onSyncComplete', () => {
       }));
     });
 
-    await callComplete(t, { kind: 'success', returnValue: null });
+    await callComplete(t, { kind: 'success' });
 
     const subject = await t.run((ctx) =>
       ctx.db
@@ -474,7 +483,7 @@ describe('engine.onSyncComplete', () => {
       }));
     });
 
-    await callComplete(t, { kind: 'success', returnValue: null });
+    await callComplete(t, { kind: 'success' });
 
     const subject = await t.run((ctx) =>
       ctx.db
@@ -497,7 +506,7 @@ describe('engine.onSyncComplete', () => {
       }));
     });
 
-    await callComplete(t, { kind: 'success', returnValue: null }, 'stale-work');
+    await callComplete(t, { kind: 'success' }, 'stale-work');
 
     const subject = await t.run((ctx) =>
       ctx.db
@@ -548,7 +557,7 @@ describe('engine chain-on-success', () => {
       });
     });
 
-    await callLocationComplete(t, { kind: 'success', returnValue: null });
+    await callLocationComplete(t, { kind: 'success' });
 
     const boundary = computeChainBoundary(minExpiresAt, 5_000, now);
     const subject = await t.run((ctx) =>
@@ -565,7 +574,11 @@ describe('engine chain-on-success', () => {
     expect(pending[0]?.scheduledTime).toBe(boundary);
     expect(pending[0]?.args).toEqual([{ dataset: 'characterLocation', userId: USER }]);
 
-    await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+    vi.setSystemTime(boundary);
+    await t.mutation(internal.engine.chainDispatch, {
+      dataset: 'characterLocation',
+      userId: USER,
+    });
 
     const afterHop = await t.run((ctx) =>
       ctx.db
@@ -574,12 +587,71 @@ describe('engine chain-on-success', () => {
         .unique(),
     );
     expect(afterHop?.status).toBe('running');
-    expect(afterHop?.workId).toBe('w-test');
+    expect(afterHop?.workId).toBe(String(Date.now()));
     // dispatch parks nextDueAt one cadence floor out — the next hop's arm.
     expect(afterHop?.nextDueAt).toBe(Date.now() + 5_000);
+    expect(await scheduledSyncUsers(t)).toHaveLength(1);
   });
 
-  it('never chains a failed completion', async () => {
+  it('chains a failed completion at the cadence floor while presence is fresh', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
+    const t = convexTest(schema, modules);
+    stubDispatch();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation',
+        status: 'running',
+        lastRequestedAt: now,
+        workId: 'w1',
+        minExpiresAt: now + 5_000,
+        syncedCharacterIds: [101],
+        coveredCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+      });
+    });
+
+    await callLocationComplete(t, { kind: 'failed', error: 'boom' });
+
+    const boundary = now + 5_000;
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('idle');
+    expect(subject?.nextDueAt).toBe(boundary);
+    expect(subject?.lastError?.startsWith('sync_failed:')).toBe(true);
+
+    const pending = await scheduledChainDispatches(t);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.scheduledTime).toBe(boundary);
+
+    vi.setSystemTime(boundary);
+    await t.mutation(internal.engine.chainDispatch, {
+      dataset: 'characterLocation',
+      userId: USER,
+    });
+
+    const afterHop = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(afterHop?.status).toBe('running');
+    expect(afterHop?.workId).toBe(String(Date.now()));
+    expect(await scheduledSyncUsers(t)).toHaveLength(1);
+  });
+
+  it('never chains a failed completion when presence is cold', async () => {
     const t = convexTest(schema, modules);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const now = Date.now();
@@ -591,13 +663,12 @@ describe('engine chain-on-success', () => {
         workId: 'w1',
         minExpiresAt: now + 5_000,
         syncedCharacterIds: [101],
-        // Covered set present so the FAILURE is the only reason not to chain.
         coveredCharacterIds: [101],
       }));
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: USER,
-        lastSeenAt: now,
+        lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 1,
       });
     });
 
@@ -637,7 +708,7 @@ describe('engine chain-on-success', () => {
       });
     });
 
-    await callLocationComplete(t, { kind: 'success', returnValue: null });
+    await callLocationComplete(t, { kind: 'success' });
 
     expect(await scheduledChainDispatches(t)).toHaveLength(0);
     const subject = await t.run((ctx) =>
@@ -669,7 +740,7 @@ describe('engine chain-on-success', () => {
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt: now });
     });
 
-    await callLocationComplete(t, { kind: 'success', returnValue: null });
+    await callLocationComplete(t, { kind: 'success' });
 
     expect(await scheduledChainDispatches(t)).toHaveLength(0);
     const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
@@ -718,7 +789,7 @@ describe('engine chain-on-success', () => {
         }
       });
 
-      await callLocationComplete(t, { kind: 'success', returnValue: null });
+      await callLocationComplete(t, { kind: 'success' });
 
       expect(await scheduledChainDispatches(t)).toHaveLength(0);
       const subject = await t.run((ctx) =>
@@ -740,7 +811,6 @@ describe('engine chain-on-success', () => {
     const limit = vi
       .spyOn(RateLimiter.prototype, 'limit')
       .mockResolvedValue({ ok: true, retryAfter: 0 } as never);
-    vi.spyOn(Workpool.prototype, 'enqueueAction').mockResolvedValue('w-test' as never);
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({
         dataset: 'characterLocation',
@@ -812,7 +882,7 @@ describe('engine.sweep', () => {
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u1', lastSeenAt: now });
     });
     // Force the per-token-group limiter to refuse: dispatch parks the row and
-    // returns without enqueuing (so this never touches the workpool).
+    // returns without scheduling the sync action.
     vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: false, retryAfter: 1000 });
 
     const counts = await t.mutation(internal.engine.sweep, {});

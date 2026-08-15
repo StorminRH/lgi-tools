@@ -23,14 +23,16 @@
 //
 // Mechanism: heartbeats maintain presence and dispatch immediately when the
 // data is stale; a static 30s cron (convex/crons.ts) scans subjects whose
-// nextDueAt has arrived, skips cold or still-running ones, and dispatches
-// the rest through the Workpool (bounded parallelism + durable retries) with
-// per-token-group rate smoothing. nextDueAt is written when a run completes
-// — "next run after the last finished", CCP's staggering guidance — off the
-// stored ESI cache windows, floored at the dataset cadence, plus jitter.
-// Dedup is the subject row itself: one running guard, one workId, one
-// generation token, all serialized by Convex OCC. Cold-stop is simply the
-// scan skipping the subject — nothing to cancel or tear down.
+// nextDueAt has arrived, skips cold or still-running ones, and schedules
+// the rest as actions (ctx.scheduler.runAfter(0)) with per-token-group rate
+// smoothing. nextDueAt is written when a run completes — "next run after
+// the last finished", CCP's staggering guidance — off the stored ESI cache
+// windows, floored at the dataset cadence. A clean yield or a thrown failure
+// schedules the next hop at that instant; jitter only applies when the scan
+// is the retry owner (zero-yield / cold). Dedup is the subject row itself:
+// one running guard, one workId, one generation token, all serialized by
+// Convex OCC. Cold-stop is simply the scan skipping the subject — nothing
+// to cancel or tear down.
 //
 // ── Cost model (Convex billing; every function execution bills as one call,
 // component internals and reactive re-runs included. Tiers verified 2026-06:
@@ -38,12 +40,12 @@
 // (1M calls + 1 GB DB I/O + 20 GB-hr action compute / mo); Professional —
 // $25/dev/mo (25M calls + 50 GB DB I/O). Passing Free's caps drops you onto
 // Starter pay-as-you-go, not a Free→Pro cliff. ──
-// Idle floor ≈ 94k calls/mo with zero traffic: this 30s scan (86.4k), the
-// 15-min Vercel sweep chain (HTTP action + sweep mutation, 5.8k), and the
-// Workpool's own 30-min healthcheck cron (1.4k). The sweep mutation's DB I/O is
-// bounded by its live working sets — the overdue backlog, the concurrently-
-// watched set, and per-run retention crossings — not by the total retained-
-// subject count (3.5.e2 retired its full-table scan for three indexed ranges).
+// Idle floor ≈ 92k calls/mo with zero traffic: this 30s scan (86.4k) and the
+// 15-min Vercel sweep chain (HTTP action + sweep mutation, 5.8k). The sweep
+// mutation's DB I/O is bounded by its live working sets — the overdue backlog,
+// the concurrently-watched set, and per-run retention crossings — not by the
+// total retained-subject count (3.5.e2 retired its full-table scan for three
+// indexed ranges).
 // Per watched tab: 3 heartbeats/min while visible (≈180 calls/hr); a HIDDEN
 // tab keeps beating at the browser-throttled rate (~1/min) until the client
 // AFK flow stops it (prompt after 1h continuously hidden, beats stop 5 min
@@ -52,11 +54,9 @@
 // beat writes only the syncPresence row, so interval beats no longer re-run
 // forViewer and no longer re-read the heavy tracker payload — the per-beat DB
 // I/O term that bound first on Free for multi-alt users (a 5-alt watcher
-// re-reading ~5 payloads 3×/min) is gone. Per dispatched run: ~11 marginal
-// calls (limit + enqueue + wrapper + action + heldState + apply + complete +
-// onComplete + ~3 forViewer echoes — a genuine status change still re-runs
-// forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
-// amortizes across a burst).
+// re-reading ~5 payloads 3×/min) is gone. Per dispatched run: ~8 marginal
+// calls (limit + schedule + action + heldState + apply + onComplete + ~3
+// forViewer echoes — a genuine status change still re-runs forViewer).
 // Watched-hour: characterLocation
 // with chain-on-success is ~12 runs/min (~10k–30k calls/watched-hour) while
 // the Atlas tab is OPEN — visible or hidden behind the game — AND a tracked
@@ -71,7 +71,6 @@
 // inside ONE action (action compute + bandwidth scale, calls don't) — and since
 // 3.5.e1 DB I/O no longer scales with the payload re-read on every beat either.
 import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
-import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
 import {
   classifyDueSubject,
@@ -94,12 +93,6 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
 import { getPresence, getSyncSubject, newIdleSubject } from './lib/subjects';
 import { drainCharacterOnline } from './onlineStatus';
-
-// Bounded fan-out across hot subjects. Retries ride the pool (exponential
-// backoff; the actions' error taxonomy already reserves throwing for
-// transient failures, so a retry is always safe and idempotent — the
-// generation guard makes a duplicate apply a no-op).
-const pool = new Workpool(components.workpool, { maxParallelism: 4 });
 
 // Dispatch smoothing per ESI token-bucket group — a herd guard for re-arm
 // bursts (deploy, sweep), NOT a budget: the gate's Redis scoreboard stays
@@ -143,8 +136,8 @@ const SWEEP_DELETE_BATCH = 512;
  * the ceiling; far above any realistic single-run set (the audit models ~0.021×
  * users due/tick → ~210 at 10k users, not reached until tens of thousands), so
  * normal operation stays single-run. Per-row cost against the ceiling is one
- * indexed presence/subject read — the dispatch path's rate-limiter + workpool
- * calls are isolated Convex components, billed against their own budget.
+ * indexed presence/subject read — the dispatch path's rate-limiter call is
+ * an isolated Convex component, billed against its own budget.
  */
 export const SCAN_DISPATCH_BATCH = 1024;
 
@@ -330,26 +323,27 @@ export const scan = internalMutation({
   },
 });
 
-// Start one run for a subject: rate-limit per token group, enqueue the
+// Start one run for a subject: rate-limit per token group, schedule the
 // dataset's sync action, mark the row running. lastRequestedAt is the
 // generation token (a superseded run's late apply no-ops on it) and workId
-// pairs the run with its completion. nextDueAt is parked one cadence out so
-// the row stays in the scan set — a healthy completion overwrites it; a
-// wedged run gets taken over by the scan after STALE_RUNNING_MS.
+// pairs the run with its completion (String(generation)). nextDueAt is parked
+// one cadence out so the row stays in the scan set — a healthy completion
+// overwrites it; a wedged run gets taken over by the scan after
+// STALE_RUNNING_MS.
 //
 // Why a millisecond timestamp is a sound generation token despite the
 // granularity (3.5.e3 verification): a SUPERSEDING dispatch overwrites
 // lastRequestedAt only after isRunningFresh is false, which for a still-'running'
 // row forces a ≥STALE_RUNNING_MS gap — so the new token can never equal the run
 // it supersedes, and the old run's late apply no-ops on the mismatch. Concurrent
-// same-subject dispatches are OCC-serialized on this row (the enqueue and the
+// same-subject dispatches are OCC-serialized on this row (the schedule and the
 // patch below commit as ONE transaction), so exactly one run ever holds a given
 // token; the loser re-runs, re-reads the now-'running' row, and isRunningFresh
-// bails it. Load-bearing if refactoring: keep the enqueue transactional with —
+// bails it. Load-bearing if refactoring: keep the schedule transactional with —
 // and before — the patch; keep STALE_RUNNING_MS ≫ run duration; keep
 // isRunningFresh inside the handler so it's re-checked on each OCC retry.
-// Returns true iff a run was actually enqueued. A rate-limiter refusal parks
-// nextDueAt and returns false WITHOUT enqueuing — the sweep's `dispatched`
+// Returns true iff a run was actually scheduled. A rate-limiter refusal parks
+// nextDueAt and returns false WITHOUT scheduling — the sweep's `dispatched`
 // counter (the watchdog's "is the Convex scan alive?" signal) must not count
 // it, or a re-arm herd that the limiter smooths reads as a dead scan.
 async function dispatch(
@@ -371,16 +365,11 @@ async function dispatch(
     await ctx.db.patch(subject._id, { nextDueAt: now + retryAfter });
     return false;
   }
-  const workId = await pool.enqueueAction(
-    ctx,
-    SYNC_REFS[subject.dataset],
-    { userId: subject.userId, generation: now },
-    {
-      retry: { maxAttempts: 4, initialBackoffMs: 1000, base: 2 },
-      onComplete: internal.engine.onSyncComplete,
-      context: { dataset: subject.dataset, userId: subject.userId },
-    },
-  );
+  const workId = String(now);
+  await ctx.scheduler.runAfter(0, SYNC_REFS[subject.dataset], {
+    userId: subject.userId,
+    generation: now,
+  });
   await ctx.db.patch(subject._id, {
     status: 'running',
     lastRequestedAt: now,
@@ -415,18 +404,18 @@ export const chainDispatch = internalMutation({
 });
 
 /**
- * A completed run's next-due decision, in precedence order: failed → jittered
- * floor re-arm (a first-ever run failing terminally would otherwise park
- * nextDueAt null and leave the scan set, so a viewer staying on the page
- * would get no retry at all; the scan's cold-retire still cleans the row once
- * the viewer leaves); synced nothing → park at null until a heartbeat brings
- * targets; chain-eligible (chainOnSuccess + clean yield + fresh presence) →
- * the jitter-free chain boundary with a scheduled hop (jitter would land the
- * hop later than its own due check and silently degrade cadence to the 30s
- * scan); otherwise → the jittered cache-window re-arm. A zero-yield
- * "success" — budget stop, all-reauth roster, empty poll set — is chain-
- * INELIGIBLE (no character covered cleanly per the apply's stamp), so a
- * protective state is never hammered at the 5s floor.
+ * A completed run's next-due decision, in precedence order: failed + fresh
+ * presence → jitter-free floor hop (same instant on nextDueAt and chainAt so
+ * the next poll does not wait for the 30s scan); failed + cold → jittered
+ * floor re-arm with no hop (scan retires the row); synced nothing → park at
+ * null until a heartbeat brings targets; chain-eligible (chainOnSuccess +
+ * clean yield + fresh presence) → the jitter-free chain boundary with a
+ * scheduled hop (jitter would land the hop later than its own due check and
+ * silently degrade cadence to the 30s scan); otherwise → the jittered
+ * cache-window re-arm. A zero-yield "success" — budget stop, all-reauth
+ * roster, empty poll set — is chain-INELIGIBLE (no character covered cleanly
+ * per the apply's stamp), so a protective state is never hammered at the 5s
+ * floor.
  */
 async function resolveCompletionSchedule(
   ctx: MutationCtx,
@@ -438,6 +427,11 @@ async function resolveCompletionSchedule(
   now: number,
 ): Promise<{ nextDueAt: number | null; chainAt: number | null }> {
   if (failed) {
+    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+    if (!isColdFromPresence(presence, coldAfterMs, now)) {
+      const boundary = now + cadenceFloorMs;
+      return { nextDueAt: boundary, chainAt: boundary };
+    }
     return { nextDueAt: computeNextDueAt(null, cadenceFloorMs, now), chainAt: null };
   }
   if (subject.syncedCharacterIds.length === 0) {
@@ -464,14 +458,21 @@ async function resolveCompletionSchedule(
 }
 
 /**
- * Exactly-once run epilogue from the Workpool: clear 'running', surface a
+ * Exactly-once run epilogue from the sync action: clear 'running', surface a
  * terminal failure, and arm the next due time per resolveCompletionSchedule,
  * scheduling the chainDispatch hop when one is due. Matched by workId, so a
  * taken-over run's late completion no-ops rather than clearing the new run's
  * status.
  */
 export const onSyncComplete = internalMutation({
-  args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
+  args: {
+    workId: v.string(),
+    context: v.object({ dataset: syncDatasetValidator, userId: v.string() }),
+    result: v.union(
+      v.object({ kind: v.literal('success') }),
+      v.object({ kind: v.literal('failed'), error: v.string() }),
+    ),
+  },
   handler: async (ctx, { workId, context, result }) => {
     // A retired dataset's late completion (in-flight across its retirement
     // deploy) has nothing to re-arm; the sweep GC deletes its row.
@@ -511,8 +512,8 @@ export const onSyncComplete = internalMutation({
       // A terminal failure means the apply never ran, so the old cache
       // window is unverified — clear it (the #95 "errored, re-syncable now"
       // meaning) so the next mount/visible heartbeat dispatches immediately
-      // instead of treating the stale window as fresh. The scan still paces
-      // retries at the cadence floor.
+      // instead of treating the stale window as fresh. A fresh-presence
+      // failure also schedules the 5s hop; the scan is the backup.
       ...(failed
         ? { lastError: `sync_failed: ${result.error.slice(0, 500)}`, minExpiresAt: null }
         : {}),

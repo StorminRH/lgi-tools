@@ -47,9 +47,9 @@ export default defineSchema({
     // Doubles as the run's generation token (shipped name kept): a late
     // applySyncResults from a taken-over run no-ops unless it matches.
     lastRequestedAt: v.number(),
-    // The workpool item currently owning this subject — onSyncComplete
-    // matches on it, so a superseded run's completion can't clear a newer
-    // run's status.
+    // The scheduled run currently owning this subject — onSyncComplete
+    // matches on it (String(generation)), so a superseded run's completion
+    // can't clear a newer run's status.
     workId: v.union(v.string(), v.null()),
     // When the scan should next dispatch this subject; null retires it from
     // the scan set (cold, or nothing to sync) until a heartbeat revives it.
