@@ -19,6 +19,21 @@ export function formatUtcDate(value: Date | string | null): string {
   return UTC_DAY.format(date);
 }
 
+const UTC_TIME = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'UTC',
+  hourCycle: 'h23',
+});
+
+/** Clock time in UTC ("15:00"), for client cards that also prerender. */
+export function formatUtcTime(value: Date | number | null): string {
+  if (value == null) return '—';
+  const date = typeof value === 'number' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return '—';
+  return UTC_TIME.format(date);
+}
+
 /** ISO calendar day ("2026-06-19") for admin readouts that key/label by date. */
 export function formatIsoDay(date: Date): string {
   return date.toISOString().slice(0, 10);

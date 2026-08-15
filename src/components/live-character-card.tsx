@@ -17,6 +17,7 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
+import { formatUtcTime } from '@/lib/format/time';
 import { emptyDataText, syncErrorMeta } from './live-character-sync';
 
 /**
@@ -73,54 +74,29 @@ export function LiveCharacterCard({
   reconnectReason?: ReactNode;
   children?: ReactNode;
 }) {
-  // The card body once this character's access is granted: a sync-error notice
-  // (only when connected), the "as of" header, and the null/empty/rows tristate.
   const grantedContent = (
-    <>
-      {!character.needsReconnect && syncError != null && (
-        <Callout className="mx-3.5 my-2" label={syncErrorMeta(syncError).label}>
-          {hasData && lastSyncedAt != null
-            ? `Couldn't refresh — showing data as of ${new Date(lastSyncedAt).toLocaleTimeString()}.`
-            : `Couldn't fetch this character's ${noun} yet.`}
-        </Callout>
-      )}
-
-      <SectionHeader
-        label={sectionLabel}
-        hint={
-          hasData && lastSyncedAt != null
-            ? `as of ${new Date(lastSyncedAt).toLocaleTimeString()}`
-            : undefined
-        }
-      />
-
-      {!hasData ? (
-        <EmptyState>{emptyDataText(character.needsReconnect, syncing)}</EmptyState>
-      ) : isEmpty ? (
-        <EmptyState>{emptyRowsText}</EmptyState>
-      ) : (
-        children
-      )}
-    </>
+    <LiveCharacterCardBody
+      character={character}
+      emptyRowsText={emptyRowsText}
+      hasData={hasData}
+      isEmpty={isEmpty}
+      lastSyncedAt={lastSyncedAt}
+      noun={noun}
+      sectionLabel={sectionLabel}
+      syncError={syncError}
+      syncing={syncing}
+    >
+      {children}
+    </LiveCharacterCardBody>
   );
 
   return (
     <Card>
-      <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
-        <CharacterPortrait
-          characterId={character.characterId}
-          name={character.name}
-          size={36}
-          src={character.portraitUrl}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="font-display font-bold text-h3 text-name truncate">
-            {character.name}
-          </div>
-          {subtitle}
-        </div>
-        {headerRight}
-      </div>
+      <LiveCharacterCardHeader
+        character={character}
+        headerRight={headerRight}
+        subtitle={subtitle}
+      />
 
       {reconnectAction !== undefined ? (
         <AccessGate
@@ -146,6 +122,87 @@ export function LiveCharacterCard({
         </>
       )}
     </Card>
+  );
+}
+
+function LiveCharacterCardHeader({
+  character,
+  headerRight,
+  subtitle,
+}: {
+  character: PanelCharacter;
+  headerRight?: ReactNode;
+  subtitle?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
+      <CharacterPortrait
+        characterId={character.characterId}
+        name={character.name}
+        size={36}
+        src={character.portraitUrl}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="font-display font-bold text-h3 text-name truncate">
+          {character.name}
+        </div>
+        {subtitle}
+      </div>
+      {headerRight}
+    </div>
+  );
+}
+
+function LiveCharacterCardBody({
+  character,
+  children,
+  emptyRowsText,
+  hasData,
+  isEmpty,
+  lastSyncedAt,
+  noun,
+  sectionLabel,
+  syncError,
+  syncing,
+}: {
+  character: PanelCharacter;
+  children?: ReactNode;
+  emptyRowsText: string;
+  hasData: boolean;
+  isEmpty: boolean;
+  lastSyncedAt: number | null | undefined;
+  noun: string;
+  sectionLabel: string;
+  syncError: string | null | undefined;
+  syncing: boolean;
+}) {
+  return (
+    <>
+      {!character.needsReconnect && syncError != null && (
+        <Callout className="mx-3.5 my-2" label={syncErrorMeta(syncError).label}>
+          {hasData && lastSyncedAt != null
+            ? `Couldn't refresh — showing data as of ${formatUtcTime(lastSyncedAt)}.`
+            : `Couldn't fetch this character's ${noun} yet.`}
+        </Callout>
+      )}
+
+      <SectionHeader
+        label={sectionLabel}
+        hint={
+          hasData && lastSyncedAt != null
+            ? `as of ${formatUtcTime(lastSyncedAt)}`
+            : undefined
+        }
+      />
+
+      {!hasData ? (
+        <EmptyState>{emptyDataText(character.needsReconnect, syncing)}</EmptyState>
+      ) : isEmpty ? (
+        <EmptyState>{emptyRowsText}</EmptyState>
+      ) : (
+        children
+      )}
+    </>
   );
 }
 

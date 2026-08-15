@@ -26,7 +26,7 @@ import {
   useStore,
   useStoreApi,
 } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { ChainEdge } from '../chain/nodes';
 import type { MotionConfig } from '../motion/motion-contract';
@@ -83,13 +83,57 @@ function readFogColor(canvas: HTMLCanvasElement | null): string | null {
  * chain. Must mount inside `<ReactFlow>` (ChainSurface's children slot).
  */
 export function FogLayer({ nodes, edges, motion, config }: FogLayerProps) {
+  const canvasRef = useFogHost({ nodes, edges, motion, config });
+  return (
+    <ViewportPortal>
+      {/* Direct portal child by contract — see the stacking note above. */}
+      <canvas ref={canvasRef} data-map-fog aria-hidden className="map-fog" />
+    </ViewportPortal>
+  );
+}
+
+function useFogHost({
+  nodes,
+  edges,
+  motion,
+  config,
+}: FogLayerProps): RefObject<HTMLCanvasElement | null> {
   const store = useStoreApi();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef(createFogHostRuntime());
-  const frameIdRef = useRef(0);
   const reveals = useMemo(() => deriveFogReveals(nodes, edges), [nodes, edges]);
   const inputsRef = useRef({ reveals, motion, config });
+  // Scheduler publishes tickRef before this host's schedule-firing effects run
+  // in the same commit, so the first paint cannot call a stale tick.
+  const schedule = useFogScheduler(canvasRef, runtimeRef, inputsRef, store);
 
+  useEffect(() => {
+    inputsRef.current = { reveals, motion, config };
+    schedule();
+  }, [reveals, motion, config, schedule]);
+
+  const onViewportEnd = useCallback(() => schedule(), [schedule]);
+  useOnViewportChange({ onEnd: onViewportEnd });
+
+  const paneKey = useStore((state) => `${state.width}x${state.height}`);
+  useEffect(() => {
+    schedule();
+  }, [paneKey, schedule]);
+
+  return canvasRef;
+}
+
+function useFogScheduler(
+  canvasRef: RefObject<HTMLCanvasElement | null>,
+  runtimeRef: RefObject<ReturnType<typeof createFogHostRuntime>>,
+  inputsRef: RefObject<{
+    reveals: ReturnType<typeof deriveFogReveals>;
+    motion: MotionConfig;
+    config: FogConfig;
+  }>,
+  store: ReturnType<typeof useStoreApi>,
+): () => void {
+  const frameIdRef = useRef(0);
   const tickRef = useRef<() => void>(() => undefined);
 
   const schedule = useCallback(() => {
@@ -117,28 +161,11 @@ export function FogLayer({ nodes, edges, motion, config }: FogLayerProps) {
       inputsRef.current,
     );
     if (again) schedule();
-  }, [store, schedule]);
+  }, [canvasRef, inputsRef, runtimeRef, schedule, store]);
 
-  // Ref-published before the scheduling effects below run in the same commit.
   useEffect(() => {
     tickRef.current = tick;
   }, [tick]);
-
-  useEffect(() => {
-    inputsRef.current = { reveals, motion, config };
-    schedule();
-  }, [reveals, motion, config, schedule]);
-
-  // Gesture settle: repaint only if the cover or zoom bucket demands it —
-  // `decideFogPlacement` decides; pan/zoom itself rides the viewport transform.
-  const onViewportEnd = useCallback(() => schedule(), [schedule]);
-  useOnViewportChange({ onEnd: onViewportEnd });
-
-  // Pane resize (a primitive selector: re-renders only when the size flips).
-  const paneKey = useStore((state) => `${state.width}x${state.height}`);
-  useEffect(() => {
-    schedule();
-  }, [paneKey, schedule]);
 
   useEffect(
     () => () => {
@@ -148,10 +175,5 @@ export function FogLayer({ nodes, edges, motion, config }: FogLayerProps) {
     [],
   );
 
-  return (
-    <ViewportPortal>
-      {/* Direct portal child by contract — see the stacking note above. */}
-      <canvas ref={canvasRef} data-map-fog aria-hidden className="map-fog" />
-    </ViewportPortal>
-  );
+  return schedule;
 }

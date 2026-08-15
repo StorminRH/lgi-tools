@@ -161,60 +161,14 @@ function useOverrideSetters(
   return { set, reset };
 }
 
-/**
- * Publishes pricing state to descendants; the provider owns subscription and update lifecycle
- * while children consume it.
- */
-export function PricingProvider({
-  structure,
-  pricingPromise,
-  historyPromise,
-  initialBuildCharacterId,
-  children,
-}: {
-  structure: BlueprintStructure;
-  pricingPromise: Promise<BlueprintPricing | null>;
-  historyPromise: Promise<MarketHistoryInputs[]>;
-  // The build-character preference's cookie value, read in the page's Suspense
-  // hole (the ssrReadable idiom) so a hard reload never flashes the active
-  // character while the server preference GET resolves.
-  initialBuildCharacterId: number | null;
-  children: ReactNode;
-}) {
-  const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
-  const [seeded, setSeeded] = useState(false);
-  const [marketHistory, setMarketHistory] = useState<Map<number, MarketHistoryInputs>>(
-    () => new Map(),
-  );
+function usePlannerPrefs(initialBuildCharacterId: number | null) {
   const [runs, setRunsState] = useState(1);
-  const [location, setLocationState] = useState<SelectedLocation | null>(null);
-  const [station, setStationState] = useState<SelectedStation | null>(null);
-  // The structures the caller can place this build in (3.7.9.1.4), fetched on open
-  // (the owned-blueprints pattern), and the single selected structure over them.
-  const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
-  const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
-  // The build character (ACCOUNT.8): the persisted preference id + the roster it
-  // resolves against. The roster read lives in the shared useAccountCharacters
-  // hook, keyed on the auth identity — so a planner mounted signed-out picks the
-  // roster up when the session lands, and a failed read settles empty (fail-open)
-  // rather than pending forever. The preference value is a primitive, and the
-  // resolution is derived IN RENDER (never an effect dep — the .7 identity rule);
-  // the resolved character joins no compute path this session (see the context
-  // field's doc).
   const [rawBuildCharacterId, setBuildCharacter] = usePreference(plannerBuildCharacter, {
     serverValue: initialBuildCharacterId,
   });
-  // The input-cost basis (Raw|Item, 3.7.21.1). Item (marginal) is the fallback;
-  // a saved Raw re-assembles after the seed lands (the owned-ME settle class —
-  // the shared seed always carries the marginal default).
   const [costBasis, setCostBasis] = usePreference(industryCostBasis);
-  // The saved build-system identifier (planner.buildLocation) — provider-owned
-  // since 3.7.23.1 alongside applyBuildSystem below (one write seam, one
-  // restore). Only the id triple persists; live data is re-fetched on restore.
   const [savedBuildLocation, setSavedBuildLocation] = usePreference(plannerBuildLocation);
   const preferencesReady = usePreferencesReady();
-  // Gross/Net margin view + the multibuy panel's scope — lifted here (3.7.23.1)
-  // so every planner-configurable lives on the provider (the template rule).
   const [marginMode, setMarginMode] = useState<MarginMode>('net');
   const [multibuyMode, setMultibuyMode] = useState<NetMode>('Remaining');
   const [multibuyUncheckedTiers, setMultibuyUncheckedTiersState] = useState<ReadonlySet<number>>(
@@ -228,54 +182,60 @@ export function PricingProvider({
     rawBuildCharacterId,
     buildCharacters,
   );
-  // The selected character's trained levels (3.7.19.1) — query-keyed on the
-  // resolved id, fail-open to null (no selection / pending roster / never
-  // synced), so the factors below collapse to the identity in every degraded
-  // state and the time figures render the no-skill baseline.
   const buildCharacterSkillLevels = useBuildCharacterSkillLevels(
     buildCharacter?.characterId ?? null,
   );
-  // The reaction slot's refinery + its own system (security-only). Live-only, reset
-  // with the planner. Independent of `location` (the build slot's system).
+  const setRuns = useCallback((n: number) => {
+    setRunsState(Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1);
+  }, []);
+  return {
+    buildCharacter,
+    buildCharacterPending,
+    buildCharacterSkillLevels,
+    buildCharacters,
+    costBasis,
+    marginMode,
+    multibuyMode,
+    multibuyUncheckedTiers,
+    preferencesReady,
+    runs,
+    savedBuildLocation,
+    setBuildCharacter,
+    setCostBasis,
+    setMarginMode,
+    setMultibuyMode,
+    setMultibuyUncheckedTiers,
+    setRuns,
+    setSavedBuildLocation,
+  };
+}
+
+function usePlannerLocationState(structure: BlueprintStructure) {
+  const [location, setLocationState] = useState<SelectedLocation | null>(null);
+  const [station, setStationState] = useState<SelectedStation | null>(null);
+  const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
+  const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
   const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
   const [reactionSystem, setReactionSystem] = useState<SelectedReactionSystem | null>(null);
-  const reactionSecurity = reactionSystem?.security ?? null;
-  // The REACTION system's fee inputs (3.7.13.3 — the #187 seam live): its 'reaction'
-  // cost index + the blueprint's adjusted prices, fetched below for a reaction
-  // blueprint once a reaction system is picked. Query-keyed by BOTH the system
-  // and the blueprint it was fetched FOR (the sync-setState-free invalidation
-  // shape): the state is only ever set from the fetch callback, and
-  // `reactionLocation` below derives to null whenever either key stops matching
-  // — so an unpick or a blueprint switch needs no effect-body clear, a prior
-  // blueprint's adjusted prices can never feed this one's EIV, and the net path
-  // stays honestly unavailable until real inputs exist (never a fake zero).
   const [fetchedReactionLocation, setFetchedReactionLocation] =
     useState<ReactionLocationSnapshot | null>(null);
+  const reactionSecurity = reactionSystem?.security ?? null;
   const reactionLocation = selectReactionLocation({
     activityId: structure.activityId,
     blueprintTypeId: structure.blueprintTypeId,
     reactionSystemId: reactionSystem?.systemId ?? null,
     fetched: fetchedReactionLocation,
   });
-  // The no-double-select rule holds in STATE, not just in the option lists: picking
-  // the reaction slot's refinery as the build structure vacates the reaction slot.
-  // (Its dropdown filters that structure out, so leaving the state set would silently
-  // keep scaling reaction rigs against the stale slot's system and render an orphaned
-  // bonus pill beside a select reading "none".)
   const setSelectedStructure = useCallback(
-    (structure: AvailableStructure | null) => {
-      setSelectedStructureState(structure);
-      if (buildSelectionVacatesReaction(structure, reactionStructure)) {
+    (next: AvailableStructure | null) => {
+      setSelectedStructureState(next);
+      if (buildSelectionVacatesReaction(next, reactionStructure)) {
         setReactionStructure(null);
         setReactionSystem(null);
       }
     },
     [reactionStructure],
   );
-  // Per-node engine factors derived from the two picks + each one's OWN system security
-  // (3.7.9.1.4 / 3.7.12.2). The routing derives roles (a refinery → reactions; a build
-  // structure → manufacturing; a lone refinery → the whole chain). NO_STRUCTURE_FACTORS
-  // (all no-ops) when nothing is selected, so the plan stays byte-identical.
   const structureFactors = useMemo<StructureFactors>(
     () =>
       structureFactorsFor({
@@ -287,137 +247,62 @@ export function PricingProvider({
       }),
     [selectedStructure, location?.security, reactionStructure, reactionSecurity, structure.nodeActivityByBlueprint],
   );
-  // The per-slot readout pills — each slot shows only the bonus for what it hosts.
   const { build: buildStructureReadout, reaction: reactionStructureReadout } = useMemo(
     () => structureReadouts({ selectedStructure, reactionStructure, factors: structureFactors }),
     [selectedStructure, reactionStructure, structureFactors],
   );
-  // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
-  // per type). null until the owned-blueprints read settles; empty for a
-  // logged-out caller or one owning none of this build's blueprints — either way
-  // the cost basis falls back to ME0 (the byte-identical gross path).
-  const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
-  // The owned-component readout detail (TE / owner / location), built from the same
-  // read as `ownedMe` but kept on its own channel — the orb popover consumes it; the
-  // cost compute never does.
-  const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
-  // The caller's owned ASSETS (3.7.7.2), keyed by material/product type id: on-hand
-  // units + holdings, for the QTY ring + asset ledger. null until the owned-assets
-  // read settles; empty for a logged-out caller or one owning none of this build's
-  // items — either way every ring stays empty and every ledger shows '—'. Never read
-  // by the cost compute.
-  const [ownedAssets, setOwnedAssets] = useState<Map<number, OwnedAssetEntry> | null>(null);
-  // Manual per-node ME overrides (what-if), keyed by blueprint type id — client-only,
-  // never persisted, reset when the planner remounts on a new blueprint (`structure`).
-  const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
-  // Manual per-node TE overrides (what-if), the time-side twin of `meOverrides`.
-  const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
-  const priceSnapshotRef = useRef<PriceSnapshot | null>(null);
-  if (priceSnapshotRef.current === null) priceSnapshotRef.current = createPriceSnapshot();
-  const priceSnapshot = priceSnapshotRef.current;
-  // Refs mirror current runs/location/pricing so the single assemble() and the
-  // recompute effect read them without making the refresh loop or the effect
-  // restart on every change.
-  const runsRef = useRef(runs);
-  const locationRef = useRef(location);
-  const pricingRef = useRef(pricing);
-  const ownedMeRef = useRef(ownedMe);
-  const meOverridesRef = useRef(meOverrides);
-  const structureFactorsRef = useRef(structureFactors);
-  const selectedStructureRef = useRef(selectedStructure);
-  const reactionStructureRef = useRef(reactionStructure);
-  const reactionLocationRef = useRef(reactionLocation);
-  const costBasisRef = useRef(costBasis);
-  useEffect(() => {
-    runsRef.current = runs;
-    locationRef.current = location;
-    pricingRef.current = pricing;
-    ownedMeRef.current = ownedMe;
-    meOverridesRef.current = meOverrides;
-    structureFactorsRef.current = structureFactors;
-    selectedStructureRef.current = selectedStructure;
-    reactionStructureRef.current = reactionStructure;
-    reactionLocationRef.current = reactionLocation;
-    costBasisRef.current = costBasis;
-  });
-
-  // THE one recompute, used by both the live-price path and the runs/location
-  // path, so the streamed figure and every re-derived figure are computed by the
-  // same assembler — no drift. Live batch wins over the seed per type; the fee
-  // inputs are supplied only when a fee source exists (the build location for
-  // manufacturing, the reaction location — or a build-slot refinery — for a
-  // reaction blueprint), so with neither it's gross-only.
-  const assemble = useCallback(() => {
-    const sf = structureFactorsRef.current;
-    // Fee composition (3.7.13.3) — the routing rules (mfg tax reads the BUILD
-    // slot only; the reaction fee reads the reaction host with the build-slot-
-    // refinery fallback) live in the pure composeFeeInputs, tested beside the
-    // rest of the structure routing.
-    const fee = composeFeeInputs({
-      location: locationRef.current,
-      reactionLocation: reactionLocationRef.current,
-      buildStructure: selectedStructureRef.current,
-      reactionStructure: reactionStructureRef.current,
-      structureCostBonusPct: sf.structureCostBonusPct,
-    });
-    // Owned-ME overlay + manual overrides: the cost basis is recomputed at each
-    // buildable's effective ME (a manual override wins, else the owned ME). No owned
-    // data and no overrides → meOf stays undefined → ME0 gross basis. With overrides
-    // empty it equals the owned-only meOf → byte-identical to the pre-override plan.
-    const owned = ownedMeRef.current;
-    const overrides = meOverridesRef.current;
-    const meOf = owned || overrides.size ? effectiveMeOf(owned, overrides) : undefined;
-    setPricing(
-      assemblePricing(structure, priceSnapshot.lookup, {
-        runs: runsRef.current,
-        fee,
-        meOf,
-        // The structure material factor composes alongside owned ME; passed only
-        // when a structure is active, so the gross seed path stays byte-identical.
-        structureMeFactorOf: sf.active ? sf.structureMeFactorOf : undefined,
-        // The Raw|Item toggle (3.7.21.1) — switches the summary's cost basis;
-        // the rows stay batched inside the assembler.
-        basis: costBasisRef.current,
-      }),
-    );
-  }, [structure, priceSnapshot]);
-
-  // Settle the store from the streamed read. Mark it seeded either way (so a
-  // null result reads as "unavailable", not "loading"); only adopt a non-null
-  // snapshot, and only the first one — a refresh batch may already have
-  // advanced it.
-  const seed = useCallback(
-    (initial: BlueprintPricing | null) => {
-      const settlement = priceSnapshot.seed(initial);
-      setSeeded(settlement.seeded);
-      setPricing(settlement.settle);
-    },
-    [priceSnapshot],
-  );
-
-  const setRuns = useCallback((n: number) => {
-    setRunsState(Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1);
-  }, []);
-
   const setLocation = useCallback((loc: SelectedLocation | null) => {
     setLocationState(loc);
-    setStationState(null); // a new (or cleared) system invalidates the station pick
+    setStationState(null);
   }, []);
-
   const setStation = useCallback(
     (stationId: number | null, stationName: string | null) => {
-      // Station refinement is its own state — not part of `location` — so this
-      // never changes the recompute effect's `location` dep.
       setStationState(stationId === null ? null : { id: stationId, name: stationName ?? '' });
     },
     [],
   );
+  return {
+    availableStructures,
+    buildStructureReadout,
+    location,
+    reactionLocation,
+    reactionStructure,
+    reactionStructureReadout,
+    reactionSystem,
+    selectedStructure,
+    setAvailableStructures,
+    setFetchedReactionLocation,
+    setLocation,
+    setReactionStructure,
+    setReactionSystem,
+    setSelectedStructure,
+    setStation,
+    station,
+    structureFactors,
+  };
+}
 
-  // Load a system's live build data and seed the store (moved from the
-  // selector, 3.7.23.1). The generation/abort guard lives in the pure applier
-  // (build-system-apply.ts, tested there); every input here is stable, so ONE
-  // instance — one counter — serializes a manual pick, a lock deduce, the mount
-  // restore, and a template load (last-request-wins).
+function usePlannerLocationWrites(
+  structure: BlueprintStructure,
+  location: SelectedLocation | null,
+  setLocation: (loc: SelectedLocation | null) => void,
+  savedBuildLocation: {
+    systemId: number;
+    systemName: string;
+    security: number | null;
+  } | null,
+  setSavedBuildLocation: (
+    value: {
+      systemId: number;
+      systemName: string;
+      security: number | null;
+    } | null,
+  ) => void,
+  preferencesReady: boolean,
+  reactionSystemId: number | null,
+  setFetchedReactionLocation: Dispatch<SetStateAction<ReactionLocationSnapshot | null>>,
+  setAvailableStructures: Dispatch<SetStateAction<AvailableStructure[] | null>>,
+) {
   const applyBuildSystem = useMemo(
     () =>
       createBuildSystemApplier({
@@ -442,18 +327,10 @@ export function PricingProvider({
       }),
     [structure.blueprintTypeId, setLocation, setSavedBuildLocation],
   );
-
-  // Clear the pick AND the saved preference — the selector's Clear affordance
-  // and a template's saved-null build system both land here.
   const clearBuildLocation = useCallback(() => {
     setLocation(null);
     setSavedBuildLocation(null);
   }, [setLocation, setSavedBuildLocation]);
-
-  // Restore the saved build system once the authoritative preference tier has
-  // settled: re-fetch its live data for THIS blueprint and seed the store. Runs
-  // once; skipped if something already picked (a manual pick — or a template
-  // apply — wins, and the generation guard covers the in-flight overlap).
   const restoredRef = useRef(false);
   useEffect(() => {
     const savedLocationToRestore = savedBuildLocationRestoreOf({
@@ -466,85 +343,49 @@ export function PricingProvider({
     restoredRef.current = true;
     void applyBuildSystem(savedLocationToRestore, { persist: false });
   }, [preferencesReady, savedBuildLocation, location, applyBuildSystem]);
-
-  // Manual ME / TE override setters (what-if) — `set` clamps (ME 0–10, TE 0–20),
-  // `reset` drops the entry so the node tracks its owned value again.
-  const { set: setMeOverride, reset: resetMeOverride } = useOverrideSetters(setMeOverrides, clampMe);
-  const { set: setTeOverride, reset: resetTeOverride } = useOverrideSetters(setTeOverrides, clampTe);
-
-  // Owned TE, derived from the readout detail (the time-side twin of `ownedMe`) — one
-  // source, no second fetch. null until the owned read settles.
-  const ownedTe = useMemo<Map<number, number> | null>(
-    () => (ownedDetail ? new Map([...ownedDetail].map(([bp, d]) => [bp, d.te])) : null),
-    [ownedDetail],
+  const readReactionLocation = useCallback(
+    async (signal: AbortSignal): Promise<ReactionLocationSnapshot | null> => {
+      if (reactionSystemId === null) return null;
+      const res = await apiFetch(buildLocationEndpoint, {
+        body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
+        cache: 'no-store',
+        signal,
+      });
+      return res.ok
+        ? {
+            systemId: reactionSystemId,
+            blueprintTypeId: structure.blueprintTypeId,
+            costIndex: res.data.costIndices.reaction ?? null,
+            adjustedPrices: new Map(
+              res.data.adjustedPrices.map((price) => [price.typeId, price.adjustedPrice]),
+            ),
+          }
+        : null;
+    },
+    [reactionSystemId, structure.blueprintTypeId],
   );
-
-  // The exact ME inputs of the shared ledger, as one stable object — also handed
-  // to consumers that run their own walk off the same tree (the multibuy export),
-  // so they can never drift from the ledger on ME/structure factors.
-  const ledgerMeOpts = useMemo<MeOptions>(
-    () => ({
-      meOf: effectiveMeOf(ownedMe, meOverrides),
-      topBlueprintTypeId: structure.blueprintTypeId,
-      // The selected structure's material factor by node activity (3.7.9.1.3);
-      // a no-op (×1) when nothing is selected, so the tiers stay byte-identical.
-      structureMeFactorOf: structureFactors.structureMeFactorOf,
-    }),
-    [structure.blueprintTypeId, ownedMe, meOverrides, structureFactors],
+  useResourceRead(readReactionLocation, {
+    enabled: structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null,
+    onData: setFetchedReactionLocation,
+  });
+  const readAvailableStructures = useCallback(
+    async (signal: AbortSignal): Promise<AvailableStructure[] | null> => {
+      const res = await apiFetch(availableStructuresEndpoint, { cache: 'no-store', signal });
+      return res.ok ? res.data.structures : null;
+    },
+    [],
   );
+  useResourceRead(readAvailableStructures, {
+    enabled: true,
+    onData: setAvailableStructures,
+  });
+  return { applyBuildSystem, clearBuildLocation };
+}
 
-  // The ME-aware batch ledger — computed ONCE here and shared (the build plan reads
-  // it from context), so the cost tiers and the build-time totals read one source and
-  // can't disagree, and the topological walk runs once per change, not twice.
-  const ledger = useMemo<BatchLedger>(
-    () => computeBatchLedgerWithMe(structure.tree, runs, ledgerMeOpts),
-    [structure.tree, runs, ledgerMeOpts],
-  );
-
-  // The selected build character's per-node skills→time factors (3.7.19.1).
-  // Identity (×1) when levels are null — the all-or-nothing fail-open — so the
-  // time figures stay byte-identical to the no-character baseline.
-  const skillTimeFactors = useMemo<SkillTimeFactors>(
-    () =>
-      skillTimeFactorsFor({
-        levels: buildCharacterSkillLevels,
-        nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
-        nodeTimeSkills: structure.nodeTimeSkills,
-      }),
-    [buildCharacterSkillLevels, structure],
-  );
-
-  // The TE-adjusted build-time figures. Its OWN memo, separate from the cost
-  // `assemble()` — TE never enters the cost path. Reads the shared ME ledger for
-  // per-node batched runs, then applies effective TE per blueprint.
-  const buildTimes = useMemo<BuildTimes>(
-    () =>
-      computeBuildTimes({
-        topBlueprintTypeId: structure.blueprintTypeId,
-        topProductTypeId: structure.product.typeId,
-        topJobSeconds: structure.topJobSeconds,
-        nodeJobSeconds: structure.nodeJobSeconds,
-        runs,
-        builds: ledger.builds,
-        teOf: effectiveTeOf(ownedTe, teOverrides),
-        nameOf: (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
-        // The selected structure's time factor by node activity (3.7.9.1.3);
-        // a no-op (×1) when nothing is selected.
-        structureTeFactorOf: structureFactors.structureTeFactorOf,
-        // The selected build character's skills factor (3.7.19.1); a no-op (×1)
-        // when no character is selected or its levels are unknown.
-        skillTimeFactorOf: skillTimeFactors.skillTimeFactorOf,
-      }),
-    [structure, runs, ledger, ownedTe, teOverrides, structureFactors, skillTimeFactors],
-  );
-
-  // Every viewed price re-confirmed live on view — across the raw cost basis,
-  // the product, and the buildable intermediates. We refresh the whole set, not
-  // just stale rows: the seed is shown dimmed as the last-known and each row
-  // flashes to its confirmed value as the batch lands (the engine's per-item
-  // coalescing makes a fresh item cache-hit and flash back near-instantly, so
-  // always-refresh stays cheap). Stable across batches — `structure` is a stable
-  // prop — so the hook captures it once when the loop fires.
+function usePlannerOwnedResources(structure: BlueprintStructure) {
+  const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
+  const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
+  const [ownedAssets, setOwnedAssets] = useState<Map<number, OwnedAssetEntry> | null>(null);
   const toRefresh = useMemo(
     () => [
       ...new Set<number>([
@@ -555,57 +396,6 @@ export function PricingProvider({
     ],
     [structure],
   );
-
-  // Recompute the whole snapshot after each batch so margin and every badge
-  // update as prices stream in. Persist the batch in the snapshot first so a
-  // later runs/location change still recomputes over it.
-  const onBatch = useCallback(
-    (refreshed: Map<number, RefreshedPrice>) => {
-      priceSnapshot.applyBatch(refreshed);
-      assemble();
-    },
-    [assemble, priceSnapshot],
-  );
-
-  // The shared refresh loop. Gated on `seeded && !!pricing` (a one-shot
-  // false→true): it starts once the seed lands and never re-fires, so deep
-  // builds (>1 batch) run to completion.
-  const { refreshing } = useRefreshOnView(toRefresh, {
-    enabled: seeded && !!pricing,
-    onBatch,
-  });
-
-  // Surface the planner's on-view price refresh in the sitewide loading toast —
-  // one coarse window per blueprint open (not per row).
-  useLoadingToast(refreshing);
-
-  // History score inputs: merge the warm server seed and the on-view refresh
-  // into one store (newest per type wins). The product type's history is
-  // refreshed on view (stale-gated server-side); 3.5.3b's Market Score reads it.
-  const mergeHistory = useCallback((items: Iterable<MarketHistoryInputs>) => {
-    setMarketHistory((prev) => {
-      const next = new Map(prev);
-      for (const i of items) next.set(i.typeId, i);
-      return next;
-    });
-  }, []);
-  const onHistoryResult = useCallback(
-    (map: Map<number, MarketHistoryInputs>) => mergeHistory(map.values()),
-    [mergeHistory],
-  );
-  // On-view history refresh for the product type only — fires when the seed
-  // settles, parallel to the price loop and off the margin path.
-  useRefreshHistoryOnView([structure.product.typeId], {
-    enabled: seeded,
-    onResult: onHistoryResult,
-  });
-
-  // Owned-blueprint ME overlay (3.7.5.2): fetch the caller's owned ME for this
-  // build's blueprints once on open — per-user data can't live in the static
-  // seed, so it arrives client-side (the net-margin pattern). The read fires its
-  // own stale-gated server-side refresh; we never refetch on a runs/location
-  // recompute, so it's one call per blueprint open. Logged-out / owning none of
-  // these → empty map → the cost basis stays the ME0 gross basis.
   const ownedBlueprintTypeIds = useMemo(
     () => collectBlueprintTypeIds(structure.tree, structure.blueprintTypeId),
     [structure],
@@ -629,15 +419,6 @@ export function PricingProvider({
     enabled: true,
     onData: applyOwnedBlueprints,
   });
-
-  // Owned-asset overlay (3.7.7.2): fetch the caller's on-hand quantity + holdings
-  // for every material/product in this build, once on open — per-user data can't
-  // live in the static seed, so it arrives client-side (the owned-BP / net-margin
-  // pattern). The read fires its own stale-gated server-side refresh; we never
-  // refetch on a runs/ME recompute, so it's one call per blueprint open. The id set
-  // is `toRefresh` (every priced node — raws + buildables + the product), the same
-  // set the price loop uses, memoised on `structure`. Logged-out / owning none →
-  // empty map → every QTY ring stays empty + every ledger shows '—' (placeholders).
   const readOwnedAssets = useCallback(
     async (signal: AbortSignal): Promise<Map<number, OwnedAssetEntry> | null> => {
       const res = await apiFetch(ownedAssetsEndpoint, {
@@ -653,93 +434,126 @@ export function PricingProvider({
     enabled: true,
     onData: setOwnedAssets,
   });
+  return { ownedAssets, ownedDetail, ownedMe, toRefresh };
+}
 
-  // Reaction build-location fetch (3.7.13.3, the #187 seam live): for a REACTION
-  // blueprint, the top job fees against the REACTION system's 'reaction' index, so
-  // picking a reaction system fetches that system's fee inputs. Provider-owned
-  // (not in the selector) because the system is set from TWO places — the search
-  // submit and the corp deduce-lock — and one effect covers both. Gated to
-  // reaction blueprints (a manufacturing build's reaction slot only scales rigs —
-  // no fetch). Failure or unmount leaves null: net stays honestly unavailable.
-  const reactionSystemId = reactionSystem?.systemId ?? null;
-  const readReactionLocation = useCallback(
-    async (signal: AbortSignal): Promise<ReactionLocationSnapshot | null> => {
-      if (reactionSystemId === null) return null;
-      const res = await apiFetch(buildLocationEndpoint, {
-        body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
-        cache: 'no-store',
-        signal,
-      });
-      return res.ok
-        ? {
-            systemId: reactionSystemId,
-            blueprintTypeId: structure.blueprintTypeId,
-            costIndex: res.data.costIndices.reaction ?? null,
-            adjustedPrices: new Map(
-              res.data.adjustedPrices.map((price) => [price.typeId, price.adjustedPrice]),
-            ),
-          }
-        : null;
-    },
-    [reactionSystemId, structure.blueprintTypeId],
-  );
-  // Unpicking needs no clear: `reactionLocation` derives to null the moment the
-  // stored query keys stop matching.
-  useResourceRead(readReactionLocation, {
-    enabled: structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null,
-    onData: setFetchedReactionLocation,
+interface PriceAssembleMirrors {
+  readonly costBasis: 'batched' | 'marginal';
+  readonly location: SelectedLocation | null;
+  readonly meOverrides: Map<number, number>;
+  readonly ownedMe: Map<number, number> | null;
+  readonly reactionLocation: ReactionLocationSnapshot | null;
+  readonly reactionStructure: AvailableStructure | null;
+  readonly runs: number;
+  readonly selectedStructure: AvailableStructure | null;
+  readonly structureFactors: StructureFactors;
+}
+
+function usePriceClock(structure: BlueprintStructure, mirrors: PriceAssembleMirrors) {
+  const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
+  const [seeded, setSeeded] = useState(false);
+  const [priceSnapshot] = useState(() => createPriceSnapshot());
+  const mirrorsRef = useRef(mirrors);
+  const pricingRef = useRef(pricing);
+  useEffect(() => {
+    mirrorsRef.current = mirrors;
+    pricingRef.current = pricing;
   });
-
-  // Available build structures (3.7.9.1.3): the caller's custom (and, next session,
-  // corp) structures with resolved dogma, fetched once on open — per-user data
-  // can't live in the static seed. Global to the user, so it doesn't refetch per
-  // blueprint. Logged-out / none → empty list → the selector shows its empty state.
-  const readAvailableStructures = useCallback(
-    async (signal: AbortSignal): Promise<AvailableStructure[] | null> => {
-      const res = await apiFetch(availableStructuresEndpoint, { cache: 'no-store', signal });
-      return res.ok ? res.data.structures : null;
+  const assemble = useCallback(() => {
+    const current = mirrorsRef.current;
+    const sf = current.structureFactors;
+    const fee = composeFeeInputs({
+      location: current.location,
+      reactionLocation: current.reactionLocation,
+      buildStructure: current.selectedStructure,
+      reactionStructure: current.reactionStructure,
+      structureCostBonusPct: sf.structureCostBonusPct,
+    });
+    const owned = current.ownedMe;
+    const overrides = current.meOverrides;
+    const meOf = owned || overrides.size ? effectiveMeOf(owned, overrides) : undefined;
+    setPricing(
+      assemblePricing(structure, priceSnapshot.lookup, {
+        runs: current.runs,
+        fee,
+        meOf,
+        structureMeFactorOf: sf.active ? sf.structureMeFactorOf : undefined,
+        basis: current.costBasis,
+      }),
+    );
+  }, [structure, priceSnapshot]);
+  const seed = useCallback(
+    (initial: BlueprintPricing | null) => {
+      const settlement = priceSnapshot.seed(initial);
+      setSeeded(settlement.seeded);
+      setPricing(settlement.settle);
     },
-    [],
+    [priceSnapshot],
   );
-  useResourceRead(readAvailableStructures, {
-    enabled: true,
-    onData: setAvailableStructures,
-  });
-
-  // Recompute when runs, location, the owned-ME overlay, or a manual override
-  // changes — independent of the one-shot refresh loop, which never fires onBatch
-  // again once it finishes. Reads the latest pricing via a ref (not a dep) so it
-  // fires only on a real runs/location/ME change, never on its own setPricing
-  // (which would loop). Guarded on a settled non-null seed so it never overwrites
-  // the "unavailable" state, and deferred via a 0ms timer so setState isn't called
-  // synchronously from the effect body (the Cache-Components-safe shape used by
-  // PricingSeeder).
+  // Recompute when runs, location, owned-ME, or a manual override changes —
+  // independent of the one-shot refresh loop. Reads the latest pricing via a
+  // ref (not a dep) so it never loops on its own setPricing. Guarded on a
+  // settled non-null seed, and deferred via a 0ms timer so setState is not
+  // called synchronously from the effect body.
   useEffect(() => {
     if (!seeded || !pricingRef.current) return;
     const t = setTimeout(() => assemble(), 0);
     return () => clearTimeout(t);
-    // selectedStructure/reactionStructure ride along for the facility tax:
-    // structureFactors alone can miss a pick that resolves no bonus (the shared
-    // NO_STRUCTURE_FACTORS identity) whose tax must still apply.
   }, [
-    runs,
-    location,
-    reactionLocation,
-    selectedStructure,
-    reactionStructure,
-    ownedMe,
-    meOverrides,
-    structureFactors,
-    costBasis,
+    mirrors.runs,
+    mirrors.location,
+    mirrors.reactionLocation,
+    mirrors.selectedStructure,
+    mirrors.reactionStructure,
+    mirrors.ownedMe,
+    mirrors.meOverrides,
+    mirrors.structureFactors,
+    mirrors.costBasis,
     seeded,
     assemble,
   ]);
+  return { assemble, priceSnapshot, pricing, seed, seeded };
+}
 
-  // The product's Market Score — pure, no fetch. Re-derives when runs change
-  // (via output units), when the product's history lands, and when a price/depth
-  // refresh updates the product row. Reads depth from the reactive
-  // pricing.product (seeded global market data, advanced seed→live by
-  // assemble()), and history from the marketHistory store.
+function useMarketRefresh(
+  structure: BlueprintStructure,
+  seeded: boolean,
+  pricing: BlueprintPricing | null,
+  assemble: () => void,
+  priceSnapshot: PriceSnapshot,
+  runs: number,
+  toRefresh: number[],
+) {
+  const [marketHistory, setMarketHistory] = useState<Map<number, MarketHistoryInputs>>(
+    () => new Map(),
+  );
+  const onBatch = useCallback(
+    (refreshed: Map<number, RefreshedPrice>) => {
+      priceSnapshot.applyBatch(refreshed);
+      assemble();
+    },
+    [assemble, priceSnapshot],
+  );
+  const { refreshing } = useRefreshOnView(toRefresh, {
+    enabled: seeded && !!pricing,
+    onBatch,
+  });
+  useLoadingToast(refreshing);
+  const mergeHistory = useCallback((items: Iterable<MarketHistoryInputs>) => {
+    setMarketHistory((prev) => {
+      const next = new Map(prev);
+      for (const i of items) next.set(i.typeId, i);
+      return next;
+    });
+  }, []);
+  const onHistoryResult = useCallback(
+    (map: Map<number, MarketHistoryInputs>) => mergeHistory(map.values()),
+    [mergeHistory],
+  );
+  useRefreshHistoryOnView([structure.product.typeId], {
+    enabled: seeded,
+    onResult: onHistoryResult,
+  });
   const marketScore = useMemo(
     () =>
       computeMarketScore(
@@ -752,137 +566,271 @@ export function PricingProvider({
       ),
     [structure, runs, marketHistory, pricing],
   );
+  return { marketHistory, marketScore, mergeHistory, refreshing };
+}
 
-  // Mirrors assemble()'s reaction fee-input presence so the Net toggle enables
-  // exactly when the fee math has something to compute (the reaction-slot fetch,
-  // or the build-slot-refinery fallback whose index rides on `location`).
+function usePlannerLedger(
+  structure: BlueprintStructure,
+  runs: number,
+  ownedMe: Map<number, number> | null,
+  ownedDetail: Map<number, OwnedComponentDetail> | null,
+  structureFactors: StructureFactors,
+  buildCharacterSkillLevels: ReturnType<typeof useBuildCharacterSkillLevels>,
+) {
+  const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
+  const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
+  const { set: setMeOverride, reset: resetMeOverride } = useOverrideSetters(setMeOverrides, clampMe);
+  const { set: setTeOverride, reset: resetTeOverride } = useOverrideSetters(setTeOverrides, clampTe);
+  const ownedTe = useMemo<Map<number, number> | null>(
+    () => (ownedDetail ? new Map([...ownedDetail].map(([bp, d]) => [bp, d.te])) : null),
+    [ownedDetail],
+  );
+  const ledgerMeOpts = useMemo<MeOptions>(
+    () => ({
+      meOf: effectiveMeOf(ownedMe, meOverrides),
+      topBlueprintTypeId: structure.blueprintTypeId,
+      structureMeFactorOf: structureFactors.structureMeFactorOf,
+    }),
+    [structure.blueprintTypeId, ownedMe, meOverrides, structureFactors],
+  );
+  const ledger = useMemo<BatchLedger>(
+    () => computeBatchLedgerWithMe(structure.tree, runs, ledgerMeOpts),
+    [structure.tree, runs, ledgerMeOpts],
+  );
+  const skillTimeFactors = useMemo<SkillTimeFactors>(
+    () =>
+      skillTimeFactorsFor({
+        levels: buildCharacterSkillLevels,
+        nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
+        nodeTimeSkills: structure.nodeTimeSkills,
+      }),
+    [buildCharacterSkillLevels, structure],
+  );
+  const buildTimes = useMemo<BuildTimes>(
+    () =>
+      computeBuildTimes({
+        topBlueprintTypeId: structure.blueprintTypeId,
+        topProductTypeId: structure.product.typeId,
+        topJobSeconds: structure.topJobSeconds,
+        nodeJobSeconds: structure.nodeJobSeconds,
+        runs,
+        builds: ledger.builds,
+        teOf: effectiveTeOf(ownedTe, teOverrides),
+        nameOf: (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
+        structureTeFactorOf: structureFactors.structureTeFactorOf,
+        skillTimeFactorOf: skillTimeFactors.skillTimeFactorOf,
+      }),
+    [structure, runs, ledger, ownedTe, teOverrides, structureFactors, skillTimeFactors],
+  );
+  return {
+    buildTimes,
+    ledger,
+    ledgerMeOpts,
+    meOverrides,
+    ownedTe,
+    resetMeOverride,
+    resetTeOverride,
+    setMeOverride,
+    setTeOverride,
+    skillTimeFactors,
+    teOverrides,
+  };
+}
+
+/**
+ * Publishes pricing state to descendants; the provider owns subscription and update lifecycle
+ * while children consume it.
+ */
+export function PricingProvider({
+  structure,
+  pricingPromise,
+  historyPromise,
+  initialBuildCharacterId,
+  children,
+}: {
+  structure: BlueprintStructure;
+  pricingPromise: Promise<BlueprintPricing | null>;
+  historyPromise: Promise<MarketHistoryInputs[]>;
+  // The build-character preference's cookie value, read in the page's Suspense
+  // hole (the ssrReadable idiom) so a hard reload never flashes the active
+  // character while the server preference GET resolves.
+  initialBuildCharacterId: number | null;
+  children: ReactNode;
+}) {
+  const prefs = usePlannerPrefs(initialBuildCharacterId);
+  const locationState = usePlannerLocationState(structure);
+  const { applyBuildSystem, clearBuildLocation } = usePlannerLocationWrites(
+    structure,
+    locationState.location,
+    locationState.setLocation,
+    prefs.savedBuildLocation,
+    prefs.setSavedBuildLocation,
+    prefs.preferencesReady,
+    locationState.reactionSystem?.systemId ?? null,
+    locationState.setFetchedReactionLocation,
+    locationState.setAvailableStructures,
+  );
+  const owned = usePlannerOwnedResources(structure);
+  const ledger = usePlannerLedger(
+    structure,
+    prefs.runs,
+    owned.ownedMe,
+    owned.ownedDetail,
+    locationState.structureFactors,
+    prefs.buildCharacterSkillLevels,
+  );
+  const clock = usePriceClock(structure, {
+    costBasis: prefs.costBasis,
+    location: locationState.location,
+    meOverrides: ledger.meOverrides,
+    ownedMe: owned.ownedMe,
+    reactionLocation: locationState.reactionLocation,
+    reactionStructure: locationState.reactionStructure,
+    runs: prefs.runs,
+    selectedStructure: locationState.selectedStructure,
+    structureFactors: locationState.structureFactors,
+  });
+  const market = useMarketRefresh(
+    structure,
+    clock.seeded,
+    clock.pricing,
+    clock.assemble,
+    clock.priceSnapshot,
+    prefs.runs,
+    owned.toRefresh,
+  );
   const reactionNetAvailable = isReactionNetAvailable({
     activityId: structure.activityId,
-    reactionLocation,
-    buildStructure: selectedStructure,
-    hasBuildLocation: location !== null,
+    reactionLocation: locationState.reactionLocation,
+    buildStructure: locationState.selectedStructure,
+    hasBuildLocation: locationState.location !== null,
   });
-
   const marketDataValue = useMemo<MarketDataValue>(
-    () => ({ pricing, seeded, refreshing, marketHistory, marketScore }),
-    [pricing, seeded, refreshing, marketHistory, marketScore],
+    () => ({
+      pricing: clock.pricing,
+      seeded: clock.seeded,
+      refreshing: market.refreshing,
+      marketHistory: market.marketHistory,
+      marketScore: market.marketScore,
+    }),
+    [clock.pricing, clock.seeded, market.refreshing, market.marketHistory, market.marketScore],
   );
   const plannerConfigValue = useMemo<PlannerConfigValue>(
     () => ({
-      runs,
-      setRuns,
-      costBasis,
-      setCostBasis,
-      marginMode,
-      setMarginMode,
-      multibuyMode,
-      setMultibuyMode,
-      multibuyUncheckedTiers,
-      setMultibuyUncheckedTiers,
+      runs: prefs.runs,
+      setRuns: prefs.setRuns,
+      costBasis: prefs.costBasis,
+      setCostBasis: prefs.setCostBasis,
+      marginMode: prefs.marginMode,
+      setMarginMode: prefs.setMarginMode,
+      multibuyMode: prefs.multibuyMode,
+      setMultibuyMode: prefs.setMultibuyMode,
+      multibuyUncheckedTiers: prefs.multibuyUncheckedTiers,
+      setMultibuyUncheckedTiers: prefs.setMultibuyUncheckedTiers,
     }),
     [
-      runs,
-      setRuns,
-      costBasis,
-      setCostBasis,
-      marginMode,
-      setMarginMode,
-      multibuyMode,
-      setMultibuyMode,
-      multibuyUncheckedTiers,
-      setMultibuyUncheckedTiers,
+      prefs.runs,
+      prefs.setRuns,
+      prefs.costBasis,
+      prefs.setCostBasis,
+      prefs.marginMode,
+      prefs.setMarginMode,
+      prefs.multibuyMode,
+      prefs.setMultibuyMode,
+      prefs.multibuyUncheckedTiers,
+      prefs.setMultibuyUncheckedTiers,
     ],
   );
   const buildSetupValue = useMemo<BuildSetupValue>(
     () => ({
-      location,
-      setLocation,
-      station,
-      setStation,
+      location: locationState.location,
+      setLocation: locationState.setLocation,
+      station: locationState.station,
+      setStation: locationState.setStation,
       applyBuildSystem,
       clearBuildLocation,
-      savedBuildLocation,
-      availableStructures,
-      selectedStructure,
-      setSelectedStructure,
-      reactionStructure,
-      setReactionStructure,
-      reactionSystem,
-      setReactionSystem,
-      structureFactors,
-      buildStructureReadout,
-      reactionStructureReadout,
+      savedBuildLocation: prefs.savedBuildLocation,
+      availableStructures: locationState.availableStructures,
+      selectedStructure: locationState.selectedStructure,
+      setSelectedStructure: locationState.setSelectedStructure,
+      reactionStructure: locationState.reactionStructure,
+      setReactionStructure: locationState.setReactionStructure,
+      reactionSystem: locationState.reactionSystem,
+      setReactionSystem: locationState.setReactionSystem,
+      structureFactors: locationState.structureFactors,
+      buildStructureReadout: locationState.buildStructureReadout,
+      reactionStructureReadout: locationState.reactionStructureReadout,
       reactionNetAvailable,
     }),
     [
-      location,
-      setLocation,
-      station,
-      setStation,
+      locationState.location,
+      locationState.setLocation,
+      locationState.station,
+      locationState.setStation,
       applyBuildSystem,
       clearBuildLocation,
-      savedBuildLocation,
-      availableStructures,
-      selectedStructure,
-      setSelectedStructure,
-      reactionStructure,
-      setReactionStructure,
-      reactionSystem,
-      setReactionSystem,
-      structureFactors,
-      buildStructureReadout,
-      reactionStructureReadout,
+      prefs.savedBuildLocation,
+      locationState.availableStructures,
+      locationState.selectedStructure,
+      locationState.setSelectedStructure,
+      locationState.reactionStructure,
+      locationState.setReactionStructure,
+      locationState.reactionSystem,
+      locationState.setReactionSystem,
+      locationState.structureFactors,
+      locationState.buildStructureReadout,
+      locationState.reactionStructureReadout,
       reactionNetAvailable,
     ],
   );
   const buildCharacterValue = useMemo<BuildCharacterValue>(
     () => ({
-      buildCharacter,
-      buildCharacterPending,
-      buildCharacters,
-      setBuildCharacter,
-      buildCharacterSkillLevels,
-      skillTimeFactors,
+      buildCharacter: prefs.buildCharacter,
+      buildCharacterPending: prefs.buildCharacterPending,
+      buildCharacters: prefs.buildCharacters,
+      setBuildCharacter: prefs.setBuildCharacter,
+      buildCharacterSkillLevels: prefs.buildCharacterSkillLevels,
+      skillTimeFactors: ledger.skillTimeFactors,
     }),
     [
-      buildCharacter,
-      buildCharacterPending,
-      buildCharacters,
-      setBuildCharacter,
-      buildCharacterSkillLevels,
-      skillTimeFactors,
+      prefs.buildCharacter,
+      prefs.buildCharacterPending,
+      prefs.buildCharacters,
+      prefs.setBuildCharacter,
+      prefs.buildCharacterSkillLevels,
+      ledger.skillTimeFactors,
     ],
   );
   const buildPlanValue = useMemo<BuildPlanValue>(
     () => ({
-      ownedMe,
-      ownedDetail,
-      ownedAssets,
-      ownedTe,
-      meOverrides,
-      setMeOverride,
-      resetMeOverride,
-      teOverrides,
-      setTeOverride,
-      resetTeOverride,
-      ledger,
-      ledgerMeOpts,
-      buildTimes,
+      ownedMe: owned.ownedMe,
+      ownedDetail: owned.ownedDetail,
+      ownedAssets: owned.ownedAssets,
+      ownedTe: ledger.ownedTe,
+      meOverrides: ledger.meOverrides,
+      setMeOverride: ledger.setMeOverride,
+      resetMeOverride: ledger.resetMeOverride,
+      teOverrides: ledger.teOverrides,
+      setTeOverride: ledger.setTeOverride,
+      resetTeOverride: ledger.resetTeOverride,
+      ledger: ledger.ledger,
+      ledgerMeOpts: ledger.ledgerMeOpts,
+      buildTimes: ledger.buildTimes,
     }),
     [
-      ownedMe,
-      ownedDetail,
-      ownedAssets,
-      ownedTe,
-      meOverrides,
-      setMeOverride,
-      resetMeOverride,
-      teOverrides,
-      setTeOverride,
-      resetTeOverride,
-      ledger,
-      ledgerMeOpts,
-      buildTimes,
+      owned.ownedMe,
+      owned.ownedDetail,
+      owned.ownedAssets,
+      ledger.ownedTe,
+      ledger.meOverrides,
+      ledger.setMeOverride,
+      ledger.resetMeOverride,
+      ledger.teOverrides,
+      ledger.setTeOverride,
+      ledger.resetTeOverride,
+      ledger.ledger,
+      ledger.ledgerMeOpts,
+      ledger.buildTimes,
     ],
   );
 
@@ -896,10 +844,10 @@ export function PricingProvider({
     >
       {children}
       <Suspense fallback={null}>
-        <PricingSeeder pricingPromise={pricingPromise} onSeed={seed} />
+        <PricingSeeder pricingPromise={pricingPromise} onSeed={clock.seed} />
       </Suspense>
       <Suspense fallback={null}>
-        <HistorySeeder historyPromise={historyPromise} onSeed={mergeHistory} />
+        <HistorySeeder historyPromise={historyPromise} onSeed={market.mergeHistory} />
       </Suspense>
     </PlannerContextProviders>
   );

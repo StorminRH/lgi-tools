@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatIsoDay, formatRelativeTime, formatRemaining, formatUtcDate } from './time';
+import { formatIsoDay, formatRelativeTime, formatRemaining, formatUtcDate, formatUtcTime } from './time';
 
 describe('time formatters', () => {
   it('formats UTC calendar dates including bare YYYY-MM-DD changelog pins', () => {
@@ -9,6 +9,9 @@ describe('time formatters', () => {
     expect(formatUtcDate('2025-12-31')).toBe('31 Dec 2025');
     expect(formatUtcDate(null)).toBe('—');
     expect(formatUtcDate('not a date')).toBe('—');
+    expect(formatUtcTime(new Date('2026-06-19T15:00:00.000Z'))).toBe('15:00');
+    expect(formatUtcTime(Date.parse('2026-01-02T23:30:00.000Z'))).toBe('23:30');
+    expect(formatUtcTime(null)).toBe('—');
     expect(formatIsoDay(new Date('2026-06-19T15:00:00.000Z'))).toBe('2026-06-19');
   });
 
