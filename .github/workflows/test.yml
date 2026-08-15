@@ -30,11 +30,10 @@ jobs:
       # route added or removed without its classification entry here in plain CI.
       - run: pnpm assert:routes-present
 
-      # Coverage-backed Vitest suite. The fallow step below is whole-repo
-      # dead-code + duplication and does not use coverage for attribution;
-      # `pnpm fallow:health` (report-only) can still read this file.
+      # Coverage-backed Vitest suite. The fallow step below reads
+      # coverage/coverage-final.json for health/CRAP.
       - run: pnpm test:coverage
 
       # Whole-repo Fallow gate (dead code, duplication, architecture
-      # boundaries). Inherited findings fail the same as new ones.
+      # boundaries, health). Inherited findings fail the same as new ones.
       - run: pnpm fallow
