@@ -355,4 +355,8 @@ it('parses a destination identity readout by stripping the class suffix', () => 
     ok: false,
     error: { kind: 'not_found' },
   });
+  expect(parseDestinationSystem(parse, 'J120924', 31_000_001)).toEqual({
+    ok: false,
+    error: { kind: 'not_found' },
+  });
 });

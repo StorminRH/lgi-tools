@@ -758,6 +758,20 @@ describe('map authoring', () => {
       expect(
         (await readConnection(t, connectionId))?.fromDestinationHint,
       ).toBeUndefined();
+
+      await t.run(async (ctx) => {
+        await ctx.db.patch(connectionId, { pendingCandidates: [connectionId] });
+      });
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          toSystemId: null,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(
+        (await readConnection(t, connectionId))?.pendingCandidates,
+      ).toBeUndefined();
     });
   });
 

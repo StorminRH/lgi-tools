@@ -412,7 +412,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     // Combat headline is a plain span — only the harvestable cell uses LivePrice.
     expect(html.match(/data-price-state="/g)?.length).toBe(1);
     expect(html).not.toContain('aria-label="View site');
-    expect(html).toContain('aria-label="Mass WHL-001"');
+    expect(html).toContain('Mass WHL-001');
     expect(html).not.toContain('sr-only">Edit wormhole ');
   });
 });

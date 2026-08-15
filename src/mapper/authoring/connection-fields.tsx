@@ -533,7 +533,13 @@ function LeadsToField({
           key={`${connection.connectionId}:${destination.label}`}
           initialValue={destination.label}
           placeholder="System name — e.g. J120924"
-          parse={(input) => parseDestinationSystem(search.parse, input)}
+          parse={(input) =>
+            parseDestinationSystem(
+              search.parse,
+              input,
+              connection.fromSystemId,
+            )
+          }
           suggest={search.suggest}
           errorMessage={() => 'No system matches that name.'}
           onSubmit={(params) => onSetDestination(params.system.id)}
@@ -578,12 +584,18 @@ export function parseDestinationSystem(
     | { ok: true; params: SystemParams }
     | { ok: false; error: SystemErr },
   input: string,
+  originSystemId?: number,
 ): { ok: true; params: SystemParams } | { ok: false; error: SystemErr } {
   const direct = parse(input);
-  if (direct.ok) return direct;
-  const dash = input.lastIndexOf(' - ');
-  if (dash > 0) return parse(input.slice(0, dash));
-  return direct;
+  const parsed = direct.ok
+    ? direct
+    : input.lastIndexOf(' - ') > 0
+      ? parse(input.slice(0, input.lastIndexOf(' - ')))
+      : direct;
+  if (parsed.ok && parsed.params.system.id === originSystemId) {
+    return { ok: false, error: { kind: 'not_found' } };
+  }
+  return parsed;
 }
 
 function ConnectionActions({

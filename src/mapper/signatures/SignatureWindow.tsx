@@ -310,83 +310,49 @@ interface WormholeCellContext {
   ) => void;
 }
 
-function wormholeCells(
+function scannerRowDestination(
   row: SignatureWindowRow,
   ctx: WormholeCellContext,
-): ReactNode {
+) {
   const connection = row.connection;
-  const farSide = row.endpoint === 'to';
-  const setters =
-    ctx.canEdit && connection !== null && !farSide
-      ? ctx.bindConnectionSetters?.(connection)
-      : undefined;
-  const destination =
-    connection === null
-      ? null
-      : farSide
-        ? ctx.destinationOf({
-            ...connection,
-            toSystemId: connection.fromSystemId,
-          })
-        : ctx.destinationOf(connection);
-  const entry = connection === null ? null : ctx.entryOf(connection);
-  const lifeEstimate = scannerLifeUpperBound(connection, entry, ctx.now);
-  const lifeText =
-    lifeEstimate === '—'
-      ? scannerLifeReadout(connection?.lifeStage ?? null)
-      : lifeEstimate;
-  if (setters !== undefined && connection !== null) {
-    return (
-      <>
-        <IdCell row={row} now={ctx.now} />
-        <ScannerTypeCombo
-          key={scannerTypeCellKey(connection.connectionId, row.name)}
-          code={row.name}
-          className={row.className}
-          codes={ctx.codes}
-          preferredCodes={ctx.preferredCodes}
-          classLabelOf={ctx.classLabelOf}
-          rowId={row.signatureId}
-          disabled={false}
-          onCommit={setters.setWormholeType}
-        />
-        <ScannerMassSelect
-          value={connection.massState}
-          rowId={row.signatureId}
-          disabled={false}
-          onChange={setters.setMassState}
-        />
-        <ScannerLifeSelect
-          value={connection.lifeStage}
-          connection={connection}
-          entry={entry}
-          now={ctx.now}
-          rowId={row.signatureId}
-          disabled={false}
-          onChange={setters.setLifeStage}
-        />
-        <ScannerLeadsControl
-          key={scannerLeadsCellKey(
-            connection.connectionId,
-            destination?.label,
-            connection.fromDestinationHint,
-          )}
-          hint={connection.fromDestinationHint}
-          destination={destination}
-          originLeads={ctx.originLeadsOf(connection)}
-          originSystemId={connection.fromSystemId}
-          rowId={row.signatureId}
-          disabled={false}
-          onChange={setters.setLeadsTo}
-          onSetDestination={setters.setDestination}
-          onLinkOrigin={setters.linkToOrigin}
-        />
-      </>
-    );
+  if (connection === null) return null;
+  if (row.endpoint === 'to') {
+    return ctx.destinationOf({
+      ...connection,
+      toSystemId: connection.fromSystemId,
+    });
   }
+  return ctx.destinationOf(connection);
+}
+
+function scannerRowHint(
+  connection: SignatureWindowRow['connection'],
+  farSide: boolean,
+) {
+  if (connection === null) return null;
+  return farSide
+    ? (connection.toDestinationHint ?? null)
+    : (connection.fromDestinationHint ?? null);
+}
+
+function ReadOnlyWormholeCells({
+  row,
+  connection,
+  destination,
+  lifeText,
+  farSide,
+  now,
+}: {
+  readonly row: SignatureWindowRow;
+  readonly connection: SignatureWindowRow['connection'];
+  readonly destination: ReturnType<WormholeCellContext['destinationOf']> | null;
+  readonly lifeText: string;
+  readonly farSide: boolean;
+  readonly now: number;
+}) {
   return (
     <>
-      <IdCell row={row} now={ctx.now} />
+      <IdCell row={row} now={now} />
       <span className="flex min-w-0 items-baseline gap-1.5">
         <NameCell row={row} />
         {row.className !== null ? (
@@ -398,15 +364,96 @@ function wormholeCells(
           </span>
         ) : null}
       </span>
-      <span className="truncate text-muted" aria-label={`Mass ${row.signatureId}`}>
+      <span className="truncate text-muted">
+        <span className="sr-only">{`Mass ${row.signatureId} `}</span>
         {scannerMassReadout(connection?.massState ?? null)}
       </span>
-      <span className="truncate text-muted" aria-label={`Reliable Lifetime ${row.signatureId}`}>
+      <span className="truncate text-muted">
+        <span className="sr-only">{`Reliable Lifetime ${row.signatureId} `}</span>
         {lifeText}
       </span>
-      <span className="truncate text-muted" aria-label={`Destination ${row.signatureId}`}>
-        {scannerLeadsReadout(connection?.fromDestinationHint ?? null, destination)}
+      <span className="truncate text-muted">
+        <span className="sr-only">{`Destination ${row.signatureId} `}</span>
+        {scannerLeadsReadout(scannerRowHint(connection, farSide), destination)}
       </span>
+    </>
+  );
+}
+
+function wormholeCells(
+  row: SignatureWindowRow,
+  ctx: WormholeCellContext,
+): ReactNode {
+  const connection = row.connection;
+  const farSide = row.endpoint === 'to';
+  const setters =
+    ctx.canEdit && connection !== null && !farSide
+      ? ctx.bindConnectionSetters?.(connection)
+      : undefined;
+  const destination = scannerRowDestination(row, ctx);
+  const entry = connection === null ? null : ctx.entryOf(connection);
+  const lifeEstimate = scannerLifeUpperBound(connection, entry, ctx.now);
+  const lifeText =
+    lifeEstimate === '—'
+      ? scannerLifeReadout(connection?.lifeStage ?? null)
+      : lifeEstimate;
+  if (setters === undefined || connection === null) {
+    return (
+      <ReadOnlyWormholeCells
+        row={row}
+        connection={connection}
+        destination={destination}
+        lifeText={lifeText}
+        farSide={farSide}
+        now={ctx.now}
+      />
+    );
+  }
+  return (
+    <>
+      <IdCell row={row} now={ctx.now} />
+      <ScannerTypeCombo
+        key={scannerTypeCellKey(connection.connectionId, row.name)}
+        code={row.name}
+        className={row.className}
+        codes={ctx.codes}
+        preferredCodes={ctx.preferredCodes}
+        classLabelOf={ctx.classLabelOf}
+        rowId={row.signatureId}
+        disabled={false}
+        onCommit={setters.setWormholeType}
+      />
+      <ScannerMassSelect
+        value={connection.massState}
+        rowId={row.signatureId}
+        disabled={false}
+        onChange={setters.setMassState}
+      />
+      <ScannerLifeSelect
+        value={connection.lifeStage}
+        connection={connection}
+        entry={entry}
+        now={ctx.now}
+        rowId={row.signatureId}
+        disabled={false}
+        onChange={setters.setLifeStage}
+      />
+      <ScannerLeadsControl
+        key={scannerLeadsCellKey(
+          connection.connectionId,
+          destination?.label,
+          connection.fromDestinationHint,
+        )}
+        hint={connection.fromDestinationHint}
+        destination={destination}
+        originLeads={ctx.originLeadsOf(connection)}
+        originSystemId={connection.fromSystemId}
+        rowId={row.signatureId}
+        disabled={false}
+        onChange={setters.setLeadsTo}
+        onSetDestination={setters.setDestination}
+        onLinkOrigin={setters.linkToOrigin}
+      />
     </>
   );
 }

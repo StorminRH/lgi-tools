@@ -26,6 +26,7 @@ export interface ConnectionFieldAuthoringApi {
     side: 'from' | 'to';
     value: WormholeDestinationHint | null;
   }) => Promise<unknown>;
+  /** Retargets the hole to a system id, or `null` to clear the destination without severing. */
   readonly setConnectionDestination: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;

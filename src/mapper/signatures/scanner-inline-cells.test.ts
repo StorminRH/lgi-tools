@@ -266,6 +266,16 @@ describe('commitScannerLeadsQuery', () => {
     expect(onSetDestination).toHaveBeenCalledWith(31_000_001);
     onSetDestination.mockClear();
     commitScannerLeadsQuery(
+      '  J120924 - C2  ',
+      parse,
+      [],
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+    );
+    expect(onSetDestination).toHaveBeenCalledWith(31_000_001);
+    onSetDestination.mockClear();
+    commitScannerLeadsQuery(
       'J120924 - C2',
       parse,
       [],

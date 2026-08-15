@@ -645,16 +645,16 @@ export function commitScannerLeadsQuery(
     );
     return;
   }
-  const parsed = parse(text);
+  const parsed = parse(trimmed);
   if (parsed.ok) {
     if (parsed.params.system.id !== originSystemId) {
       onSetDestination(parsed.params.system.id);
     }
     return;
   }
-  const dash = text.lastIndexOf(' - ');
+  const dash = trimmed.lastIndexOf(' - ');
   if (dash > 0) {
-    const named = parse(text.slice(0, dash));
+    const named = parse(trimmed.slice(0, dash));
     if (named.ok && named.params.system.id !== originSystemId) {
       onSetDestination(named.params.system.id);
     }

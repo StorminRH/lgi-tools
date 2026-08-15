@@ -624,7 +624,10 @@ export const setConnectionDestination = mutation({
         const hasHint =
           connection.fromDestinationHint !== undefined
           || connection.toDestinationHint !== undefined;
-        if (hasHint) {
+        const hasPending =
+          connection.pendingCandidates !== undefined
+          || connection.pendingResolutionCharacterId !== undefined;
+        if (hasHint || hasPending) {
           await ctx.db.patch(connectionId, {
             fromDestinationHint: undefined,
             toDestinationHint: undefined,
