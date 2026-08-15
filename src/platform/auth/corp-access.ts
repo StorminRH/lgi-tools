@@ -20,9 +20,7 @@ import { getUserAffiliations, recordCorpAccessDecision } from './affiliation-sto
  * Why a decision went the way it did. Plain text in the audit ledger (no DB enum),
  * so a finer-grained reason can be added later without a migration.
  */
-export const CORP_ACCESS_REASONS = ['member', 'not_member'] as const;
-/** Closed reasons a linked character is or is not eligible to read corporation data. */
-export type CorpAccessReason = (typeof CORP_ACCESS_REASONS)[number];
+export type CorpAccessReason = 'member' | 'not_member';
 
 /** Corporation-access verdict with eligible character IDs and the reason shown to callers. */
 export interface CorpAccessDecision {

@@ -126,10 +126,10 @@ export const CONNECTION_MASS_STATES = ['stable', 'reduced', 'critical'] as const
 export type ConnectionMassState = (typeof CONNECTION_MASS_STATES)[number];
 
 /** Spawn-mass variance applied to non-regenerating wormhole estimates. */
-export const WORMHOLE_MASS_VARIANCE = 0.1;
+const WORMHOLE_MASS_VARIANCE = 0.1;
 
 /** Remaining-mass fraction intervals implied by each observed shake state. */
-export const WORMHOLE_MASS_STATE_THRESHOLDS = {
+const WORMHOLE_MASS_STATE_THRESHOLDS = {
   stable: { minFraction: 0.5, maxFraction: 1 },
   reduced: { minFraction: 0.1, maxFraction: 0.5 },
   critical: { minFraction: 0, maxFraction: 0.1 },

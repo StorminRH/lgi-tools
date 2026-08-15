@@ -15,7 +15,7 @@ import { corpStructureRigs, corpStructures, corpStructureSharing, corpStructureS
 import type { CorpStructureRow, CorpStructureSharingState, CorpStructuresSyncState } from './types';
 
 /** One cache tag per corp so a refresh busts exactly that corp's cached read. */
-export function corpStructuresTag(corporationId: number): string {
+function corpStructuresTag(corporationId: number): string {
   return `corp-structures:${corporationId}`;
 }
 

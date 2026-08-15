@@ -55,7 +55,7 @@ export interface StructureFactors {
 }
 
 /** Identity structure factors used when no facility or rig bonus applies. */
-export const NO_STRUCTURE_FACTORS: StructureFactors = {
+const NO_STRUCTURE_FACTORS: StructureFactors = {
   structureMeFactorOf: () => 1,
   structureTeFactorOf: () => 1,
   structureCostBonusPct: 0,

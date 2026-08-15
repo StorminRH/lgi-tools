@@ -29,11 +29,8 @@ export interface MapAccessGrantOption {
   readonly name: string;
 }
 
-/** The capabilities one role may carry on one map. */
-export const MAP_CAPABILITIES = ['view', 'edit'] as const;
-
 /** One map capability a caller may be required to hold. */
-export type MapCapability = (typeof MAP_CAPABILITIES)[number];
+export type MapCapability = 'view' | 'edit';
 
 /** The capability flags carried by a single role. */
 export interface MapRoleCapabilities {
@@ -68,7 +65,7 @@ export function canonicalizeMapRoles(roles: readonly MapRole[]): MapRole[] {
 }
 
 // Which capability flag answers which capability. `satisfies` makes this total: adding a value to
-// MAP_CAPABILITIES without adding its flag here is a compile error, so a new capability can never
+// MapCapability without adding its flag here is a compile error, so a new capability can never
 // fall through to an unrelated flag and silently grant itself.
 const CAPABILITY_FLAGS = {
   view: 'canView',

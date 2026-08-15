@@ -36,10 +36,10 @@ const viewerCorpStructuresSchema = z.object({
 });
 
 /**
- * Exported as the slice's canonical wire shape: the route response and typed
+ * Canonical wire shape for this slice: the route response and typed
  * endpoint below both derive from it.
  */
-export const corpStructuresResponseSchema = z.object({
+const corpStructuresResponseSchema = z.object({
   corporations: z.array(viewerCorpStructuresSchema),
 });
 
@@ -81,7 +81,7 @@ export type SetCorpStructureSharingRequest = z.input<typeof setCorpStructureShar
  * Boundary validator for corp structure sharing response schema; successful parsing yields the
  * normalized owned structures input consumed internally.
  */
-export const corpStructureSharingResponseSchema = z.object({
+const corpStructureSharingResponseSchema = z.object({
   corporationId: z.number(),
   enabled: z.boolean(),
 });
@@ -141,7 +141,7 @@ export type SetCorpStructureRigsRequest = z.input<typeof setCorpStructureRigsReq
  * Boundary validator for corp structure rigs response schema; successful parsing yields the
  * normalized owned structures input consumed internally.
  */
-export const corpStructureRigsResponseSchema = z.object({
+const corpStructureRigsResponseSchema = z.object({
   structureId: z.number(),
   rigTypeIds: z.array(z.number()),
   taxPct: z.number().nullable(),

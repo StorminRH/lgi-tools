@@ -10,7 +10,7 @@ import { MAP_DELETE_GRACE_MS } from './queries';
 import { maps } from './schema';
 
 /** Maximum due maps one daily sweep claims, bounding one function invocation. */
-export const MAP_PURGE_MAPS_PER_RUN = 25;
+const MAP_PURGE_MAPS_PER_RUN = 25;
 
 /**
  * Staged creations are born purge-queued for compensating recovery. Hold them

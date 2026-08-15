@@ -81,7 +81,7 @@ export type MapCreationSubmitFinish =
   | { readonly kind: 'created'; readonly mapId: string };
 
 /** Maps one create-endpoint outcome onto the dialog's success or retry state. */
-export function mapCreationSubmitFinish(
+function mapCreationSubmitFinish(
   outcome: Awaited<ReturnType<typeof createMapWithMinimumInterstitial>>,
 ): MapCreationSubmitFinish {
   if (!outcome.ok) {

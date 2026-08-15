@@ -35,7 +35,7 @@ export function registerMapAccessProjectionPurgeHooks(
 }
 
 /** Deletes every direct character grant for one character id. */
-export async function deleteCharacterMapGrants(characterId: number): Promise<void> {
+async function deleteCharacterMapGrants(characterId: number): Promise<void> {
   await db
     .delete(mapAccess)
     .where(
@@ -47,7 +47,7 @@ export async function deleteCharacterMapGrants(characterId: number): Promise<voi
 }
 
 /** Deletes every map owned by one user (grants cascade with the map rows). */
-export async function deleteOwnedMaps(userId: string): Promise<void> {
+async function deleteOwnedMaps(userId: string): Promise<void> {
   await db.delete(maps).where(eq(maps.userId, userId));
 }
 

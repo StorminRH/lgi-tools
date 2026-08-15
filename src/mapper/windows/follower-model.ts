@@ -57,7 +57,7 @@ export interface FollowerWrite {
 }
 
 /** Inset from the viewport edge so cards never kiss the chrome. */
-export const CARD_VIEWPORT_PADDING = 16;
+const CARD_VIEWPORT_PADDING = 16;
 
 /** Preferred gap between the anchor and the near card edge. */
 export const CARD_ANCHOR_GAP = 40;
@@ -69,13 +69,13 @@ export type CardAnchorSide = 'left' | 'right';
 export type CardAnchorLift = 'up' | 'down';
 
 /** Minimum rim-to-rim distance before a leader line is drawn. */
-export const LEADER_MIN_DISTANCE = 12;
+const LEADER_MIN_DISTANCE = 12;
 
 /** Fallback size matching the node-anchored `w-72 h-52` chrome before layout. */
 export const NODE_CARD_FALLBACK: ScreenSize = { width: 288, height: 208 };
 
 /** Fallback layer size when the React Flow host is absent or unmeasured. */
-export const LAYER_SIZE_FALLBACK: ScreenSize = { width: 1440, height: 900 };
+const LAYER_SIZE_FALLBACK: ScreenSize = { width: 1440, height: 900 };
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -138,7 +138,7 @@ function anchoredFollowerWrite(
 }
 
 /** Nearest point on the card rectangle to the anchor (for the leader root). */
-export function nearestCardPoint(
+function nearestCardPoint(
   left: number,
   top: number,
   card: ScreenSize,
@@ -292,7 +292,7 @@ export function placeAnchoredCard(input: {
 }
 
 /** Measured card size, or the fallback when the element has not laid out yet. */
-export function measureCardSize(
+function measureCardSize(
   element: HTMLElement,
   fallback: ScreenSize,
 ): ScreenSize {
@@ -303,7 +303,7 @@ export function measureCardSize(
 }
 
 /** Layer size from the React Flow host, with a safe fallback. */
-export function measureLayerSize(domNode: HTMLElement | null): ScreenSize {
+function measureLayerSize(domNode: HTMLElement | null): ScreenSize {
   if (domNode === null) return LAYER_SIZE_FALLBACK;
   const width = domNode.clientWidth;
   const height = domNode.clientHeight;

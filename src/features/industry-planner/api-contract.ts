@@ -37,7 +37,7 @@ export const blueprintIndexEntrySchema = z.object({
  * Boundary validator for blueprints response schema; successful parsing yields the normalized
  * industry planner input consumed internally.
  */
-export const blueprintsResponseSchema = z.object({
+const blueprintsResponseSchema = z.object({
   blueprints: z.array(blueprintIndexEntrySchema),
 });
 /**
@@ -137,7 +137,7 @@ const ownedBlueprintMeEntrySchema = z.object({
  * Boundary validator for owned blueprints response schema; successful parsing yields the
  * normalized industry planner input consumed internally.
  */
-export const ownedBlueprintsResponseSchema = z.object({
+const ownedBlueprintsResponseSchema = z.object({
   blueprints: z.array(ownedBlueprintMeEntrySchema),
 }) satisfies z.ZodType<OwnedBlueprintsResponse>;
 
@@ -185,7 +185,7 @@ const ownedAssetEntrySchema = z.object({
  * Boundary validator for owned assets response schema; successful parsing yields the normalized
  * industry planner input consumed internally.
  */
-export const ownedAssetsResponseSchema = z.object({
+const ownedAssetsResponseSchema = z.object({
   assets: z.array(ownedAssetEntrySchema),
 }) satisfies z.ZodType<OwnedAssetsResponse>;
 
@@ -222,7 +222,7 @@ export const skillLevelsRequestSchema = z.object({
  * Boundary validator for skill levels response schema; successful parsing yields the normalized
  * industry planner input consumed internally.
  */
-export const skillLevelsResponseSchema = z.object({
+const skillLevelsResponseSchema = z.object({
   // skill type id (string key, JSON-native) → active_skill_level.
   levels: z.record(z.string(), z.number()).nullable(),
 });
@@ -318,7 +318,7 @@ export const MAX_SAVED_PLANS_PER_USER = 50;
  * A generous ceiling for one serialized snapshot — inputs only; a fully
  * configured plan today is well under 2 KB.
  */
-export const MAX_SAVED_PLAN_SNAPSHOT_BYTES = 16_384;
+const MAX_SAVED_PLAN_SNAPSHOT_BYTES = 16_384;
 
 const savedPlanId = z.string().min(1).max(100);
 const savedPlanName = z.string().trim().min(1).max(MAX_SAVED_PLAN_NAME_LEN);
@@ -344,7 +344,7 @@ export type SavedPlanRow = z.infer<typeof savedPlanRowSchema>;
  * Boundary validator for saved plans response schema; successful parsing yields the normalized
  * industry planner input consumed internally.
  */
-export const savedPlansResponseSchema = z.object({
+const savedPlansResponseSchema = z.object({
   plans: z.array(savedPlanRowSchema),
 });
 /**

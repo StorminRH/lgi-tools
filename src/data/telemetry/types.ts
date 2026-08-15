@@ -11,60 +11,53 @@ export const CLIENT_USAGE_ACTIONS = ['page_view', 'terminal_search'] as const;
  * never accepted from a client. The auth/admin/feedback audit trail plus the
  * 3.0.10 observability health signals.
  */
-export const SERVER_USAGE_ACTIONS = [
-  'auth_login',
-  'auth_logout',
-  'role_change',
-  'character_switch', // active-character switch on the /characters page (3.4.2)
-  'character_unlink', // a linked EVE character removed on the /characters page (3.4.2)
-  'admin_character_unlink', // admin force-unlinked a character from any user
-  'admin_force_logout', // admin revoked all of a user's sessions
-  'admin_character_reassign', // admin moved a character onto their own account
-  'admin_esi_job_requeued', // admin returned a dead-lettered ESI refresh job to the normal queue
-  'feedback_submitted',
-  'cross_origin_mutation', // log-only signal for a browser mutation from a foreign origin
+type ServerUsageAction =
+  | 'auth_login'
+  | 'auth_logout'
+  | 'role_change'
+  | 'character_switch' // active-character switch on the /characters page (3.4.2)
+  | 'character_unlink' // a linked EVE character removed on the /characters page (3.4.2)
+  | 'admin_character_unlink' // admin force-unlinked a character from any user
+  | 'admin_force_logout' // admin revoked all of a user's sessions
+  | 'admin_character_reassign' // admin moved a character onto their own account
+  | 'admin_esi_job_requeued' // admin returned a dead-lettered ESI refresh job to the normal queue
+  | 'feedback_submitted'
+  | 'cross_origin_mutation' // log-only signal for a browser mutation from a foreign origin
   // 3.0.10 observability:
-  'price_source_degraded', // ESI→Fuzzwork degradation / budget exhaustion (O-1, S-2)
-  'market_price_refresh', // on-demand price refresh timing, volume, and source mix
-  'market_price_write_behind', // on-demand price persistence outcome
-  'market_history_refresh', // on-demand history timing and fresh/warm/stale mix
-  'market_history_write_behind', // on-demand history persistence outcome
-  'owned_data_read', // authenticated owned-data endpoint timing and result volume
-  'planner_open_timing', // server-only planner structure/pricing/history/shell timing
-  'neon_cold_start_retry', // recovered or exhausted Neon cold-start retry envelope
-  'public_esi_budget_alert_claimed', // short-lived lease acquired before public budget alert delivery
-  'public_esi_budget_alerted', // aggregation-path marker for a dispatched public exhaustion alert
-  'cron_prices', // hourly price-cron outcome — refreshed / skipped (O-2, O-3)
-  'cron_industry_indices', // daily industry cost-index + adjusted-price cron outcome (3.5.1b)
-  'cron_sde', // daily SDE-cron outcome (O-2, O-3)
-  'cron_gsc', // daily Google-Search-Console sync outcome — synced / skipped / failed (3.3.3)
-  'cron_sync_sweeper', // 15-min sync-engine watchdog — dispatched>0 means the Convex scan lagged (3.4.9)
-  'cron_esi_refresh_jobs', // 15-min idle-silent drain of deferred owner-sync work
-  'cron_affiliations', // nightly corp-affiliation refresh outcome — busy / refreshed (3.7.3.2)
-  'cron_wh_statics', // weekly community statics feed outcome — unchanged / unavailable / snapshot pending
-  'cron_map_purge', // daily bounded collaborative map purge + durable tombstone outcome
-  'eve_token_refresh_invalid_grant', // EVE rejected the submitted refresh token as invalid / expired / revoked
-  'eve_token_refresh_timeout', // the EVE SSO refresh request exceeded the shared outbound timeout
-  'eve_token_refresh_connection', // the EVE SSO refresh request failed before an HTTP response
-  'eve_token_refresh_provider_5xx', // EVE SSO returned a provider-side 5xx response
-  'eve_token_refresh_unexpected', // any other non-success or malformed EVE SSO refresh response
-  'eve_token_refresh_race', // a vend hit invalid_grant on a token a concurrent vend had already rotated — the signal EVE has enabled invalidating refresh-token rotation (OOB-AUTH)
-  'account_purge', // a self-service character-purge or account-nuke completed (ACCOUNT.2). IDENTITY-FREE (D-6): logged with NO character id; metadata carries only { scope: 'character' | 'account' }
-  'auth_absorb', // "Add character" absorbed a stray duplicate account via the OAuth proof (ACCOUNT.3). Audit trail for a disputed move; metadata carries { fromUserId, toUserId, sourceDeleted }
-  'capability_outcome', // one instrumented operation's outcome record (3.10.3.1); metadata is CapabilityOutcomeRecord from capability.ts. Server self-observation, so getDailyCounts excludes it from the user-activity panel
-] as const;
+  | 'price_source_degraded' // ESI→Fuzzwork degradation / budget exhaustion (O-1, S-2)
+  | 'market_price_refresh' // on-demand price refresh timing, volume, and source mix
+  | 'market_price_write_behind' // on-demand price persistence outcome
+  | 'market_history_refresh' // on-demand history timing and fresh/warm/stale mix
+  | 'market_history_write_behind' // on-demand history persistence outcome
+  | 'owned_data_read' // authenticated owned-data endpoint timing and result volume
+  | 'planner_open_timing' // server-only planner structure/pricing/history/shell timing
+  | 'neon_cold_start_retry' // recovered or exhausted Neon cold-start retry envelope
+  | 'public_esi_budget_alert_claimed' // short-lived lease acquired before public budget alert delivery
+  | 'public_esi_budget_alerted' // aggregation-path marker for a dispatched public exhaustion alert
+  | 'cron_prices' // hourly price-cron outcome — refreshed / skipped (O-2, O-3)
+  | 'cron_industry_indices' // daily industry cost-index + adjusted-price cron outcome (3.5.1b)
+  | 'cron_sde' // daily SDE-cron outcome (O-2, O-3)
+  | 'cron_gsc' // daily Google-Search-Console sync outcome — synced / skipped / failed (3.3.3)
+  | 'cron_sync_sweeper' // 15-min sync-engine watchdog — dispatched>0 means the Convex scan lagged (3.4.9)
+  | 'cron_esi_refresh_jobs' // 15-min idle-silent drain of deferred owner-sync work
+  | 'cron_affiliations' // nightly corp-affiliation refresh outcome — busy / refreshed (3.7.3.2)
+  | 'cron_wh_statics' // weekly community statics feed outcome — unchanged / unavailable / snapshot pending
+  | 'cron_map_purge' // daily bounded collaborative map purge + durable tombstone outcome
+  | 'eve_token_refresh_invalid_grant' // EVE rejected the submitted refresh token as invalid / expired / revoked
+  | 'eve_token_refresh_timeout' // the EVE SSO refresh request exceeded the shared outbound timeout
+  | 'eve_token_refresh_connection' // the EVE SSO refresh request failed before an HTTP response
+  | 'eve_token_refresh_provider_5xx' // EVE SSO returned a provider-side 5xx response
+  | 'eve_token_refresh_unexpected' // any other non-success or malformed EVE SSO refresh response
+  | 'eve_token_refresh_race' // a vend hit invalid_grant on a token a concurrent vend had already rotated — the signal EVE has enabled invalidating refresh-token rotation (OOB-AUTH)
+  | 'account_purge' // a self-service character-purge or account-nuke completed (ACCOUNT.2). IDENTITY-FREE (D-6): logged with NO character id; metadata carries only { scope: 'character' | 'account' }
+  | 'auth_absorb' // "Add character" absorbed a stray duplicate account via the OAuth proof (ACCOUNT.3). Audit trail for a disputed move; metadata carries { fromUserId, toUserId, sourceDeleted }
+  | 'capability_outcome'; // one instrumented operation's outcome record (3.10.3.1); metadata is CapabilityOutcomeRecord from capability.ts. Server self-observation, so getDailyCounts excludes it from the user-activity panel
 
 /**
- * Closed enumeration of recognised actions. Extending: add to the client or
- * server list above. No migration needed because the DB column is plain text.
+ * Closed enumeration of recognised actions. Extending: add to the client const
+ * or the server union above. No migration needed because the DB column is plain text.
  */
-export const USAGE_ACTIONS = [
-  ...CLIENT_USAGE_ACTIONS,
-  ...SERVER_USAGE_ACTIONS,
-] as const;
-
-/** Closed telemetry action vocabulary accepted by usage aggregation queries. */
-export type UsageAction = (typeof USAGE_ACTIONS)[number];
+export type UsageAction = (typeof CLIENT_USAGE_ACTIONS)[number] | ServerUsageAction;
 
 /** Absolute telemetry query window with inclusive from and exclusive to timestamps. */
 export interface DateRange {

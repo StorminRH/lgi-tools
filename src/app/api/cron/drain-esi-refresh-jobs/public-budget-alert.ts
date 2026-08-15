@@ -12,12 +12,12 @@ import { hasRecentBudgetExhaustion } from '@/platform/esi/exhaustion-marker';
  * Canonical App Router policy for public esi budget alert window minutes; consumers derive
  * behavior from this single ordered definition. Values are minutes.
  */
-export const PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES = 15;
+const PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES = 15;
 /**
  * Canonical App Router policy for public esi budget alert threshold; consumers derive behavior
  * from this single ordered definition.
  */
-export const PUBLIC_ESI_BUDGET_ALERT_THRESHOLD = 3;
+const PUBLIC_ESI_BUDGET_ALERT_THRESHOLD = 3;
 
 /**
  * Outcome of the public ESI budget-alert policy, distinguishing a low count, an active suppression

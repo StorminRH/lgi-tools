@@ -96,7 +96,7 @@ function applyOverrides(
  * valid inside the just-fetched system). buildSystem sits last-but-one so its
  * await never lets a user race window into the synchronous applies.
  */
-export const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } = {
+const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } = {
   runs: {
     schema: snapshotFieldSchemas.runs,
     fallback: 1,

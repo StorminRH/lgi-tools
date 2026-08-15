@@ -15,7 +15,7 @@ import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
 /** One cache tag per owner so a refresh busts exactly that owner's cached read. */
-export function ownedAssetsTag(owner: OwnerKey): string {
+function ownedAssetsTag(owner: OwnerKey): string {
   return `owned-assets:${owner.ownerType}:${owner.ownerId}`;
 }
 

@@ -28,14 +28,14 @@ export const HALO_DRAWN_RINGS = 0;
 export const HALO_FOGGED_RINGS = 0;
 
 /** Hard cap on systems any single authored exit may claim. */
-export const HALO_MAX_SYSTEMS_PER_EXIT = 10;
+const HALO_MAX_SYSTEMS_PER_EXIT = 10;
 
 /**
  * Hard aggregate cap across every exit, so a many-exit chain's halo load has
  * a bound the frame-budget proof can pin. Truncation is deterministic:
  * shortest depth first, then authored-exit creation order.
  */
-export const HALO_MAX_SYSTEMS_TOTAL = 150;
+const HALO_MAX_SYSTEMS_TOTAL = 150;
 
 /** One derived halo system: its shortest gate distance and fog placement. */
 export interface HaloSystem {

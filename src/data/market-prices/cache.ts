@@ -18,10 +18,10 @@ export type CachedRefreshResult =
 
 /**
  * Reads the most recent updated_at. Returns null when the table is empty
- * — no batch has ever been written. Exported so the page can render
- * initial freshness without triggering a refresh.
+ * — no batch has ever been written. Exported wrappers reuse this local helper
+ * so the page can render initial freshness without triggering a refresh.
  */
-export async function getPricesFreshness(
+async function getPricesFreshness(
   db: AnyPgDb,
 ): Promise<{ lastUpdatedAt: Date | null }> {
   const [row] = await db

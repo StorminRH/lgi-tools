@@ -82,7 +82,7 @@ export function optimisticTempId(table: 'mapSystems' | 'mapConnections'): string
 }
 
 /** Whether any loaded systems page already carries a live row for `systemId`. */
-export function liveSystemPresent(
+function liveSystemPresent(
   localStore: OptimisticLocalStore,
   mapId: string,
   systemId: number,
@@ -288,7 +288,7 @@ export function optimisticRestoreSeveredBranch(
 }
 
 /** Optimistically clears a connection tombstone. */
-export function optimisticRestoreConnection(
+function optimisticRestoreConnection(
   localStore: OptimisticLocalStore,
   args: { mapId: string; connectionId: string },
 ): void {
@@ -453,7 +453,7 @@ type ConnectionFieldArgs = {
 };
 
 /** Optimistic patch for one side's destination hint (null clears the field). */
-export function optimisticSetConnectionDestinationHint(
+function optimisticSetConnectionDestinationHint(
   localStore: OptimisticLocalStore,
   args: {
     mapId: string;

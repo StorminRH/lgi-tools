@@ -34,7 +34,7 @@ export const INDUSTRY_SKILL_ID = 3380;
 /**
  * Percentage-point time adjustment per trained level for industry time.
  */
-export const INDUSTRY_TIME_PCT_PER_LEVEL = -4;
+const INDUSTRY_TIME_PCT_PER_LEVEL = -4;
 /**
  * Canonical EVE skill identifier for advanced industry; callers use the SDE identity directly.
  */
@@ -42,7 +42,7 @@ export const ADVANCED_INDUSTRY_SKILL_ID = 3388;
 /**
  * Percentage-point time adjustment per trained level for advanced industry time.
  */
-export const ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL = -3;
+const ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL = -3;
 /**
  * Canonical EVE skill identifier for reactions; callers use the SDE identity directly.
  */
@@ -50,7 +50,7 @@ export const REACTIONS_SKILL_ID = 45746;
 /**
  * Percentage-point time adjustment per trained level for reactions time.
  */
-export const REACTIONS_TIME_PCT_PER_LEVEL = -4;
+const REACTIONS_TIME_PCT_PER_LEVEL = -4;
 
 /** Multiplicative time factors for base industry, advanced industry, and reaction skills. */
 export interface SkillTimeFactors {

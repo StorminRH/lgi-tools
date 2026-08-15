@@ -24,7 +24,7 @@ import { MapPresenceContext } from './presence-context';
 import { derivePresenceFromPayload } from './presence-model';
 
 /** Coarse staleness re-evaluation cadence; payload changes re-derive at once. */
-export const PRESENCE_TICK_MS = 30_000;
+const PRESENCE_TICK_MS = 30_000;
 
 /** Hosts presence derivation + the AFK gate for everything under the canvas shell. */
 export function MapPresenceProvider({

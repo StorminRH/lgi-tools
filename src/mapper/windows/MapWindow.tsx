@@ -37,7 +37,7 @@ const ADOPTED_POPUP_SELECTOR = [
 // TOGETHER.
 
 /** Placement classes for the docked-bottom-left scanner square. */
-export const MAP_SCANNER_DOCK_CLASS =
+const MAP_SCANNER_DOCK_CLASS =
   'bottom-4 left-4 size-[min(24rem,calc(100vw-2rem))] max-h-[calc(100dvh-7rem)]';
 
 /**
@@ -61,7 +61,7 @@ const MAP_SCANNER_ANCHORED_GEOMETRY =
  * that anchor so the panel never extends past the viewport top — the body
  * scrolls internally. Change it with {@link MAP_SCANNER_DOCK_CLASS}.
  */
-export const MAP_SCANNER_EDITOR_CLASS =
+const MAP_SCANNER_EDITOR_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-72`;
 
 /**
@@ -69,7 +69,7 @@ export const MAP_SCANNER_EDITOR_CLASS =
  * catalogue-card column width (~22rem) so header stats and wave rows do not
  * wrap/clip. Geometry is shared via {@link MAP_SCANNER_ANCHORED_GEOMETRY}.
  */
-export const MAP_SCANNER_SITE_VIEWER_CLASS =
+const MAP_SCANNER_SITE_VIEWER_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} md:w-[22rem]`;
 
 /** Whether an adopted Base UI popup currently owns Escape. */

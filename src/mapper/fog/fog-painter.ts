@@ -19,7 +19,7 @@ export interface FogRect {
  * of the larger visible dimension: pan slack, so ordinary pans stay inside
  * the painted cover until the gesture-end repaint recenters it.
  */
-export const FOG_COVER_MARGIN_FRACTION = 0.5;
+const FOG_COVER_MARGIN_FRACTION = 0.5;
 
 /**
  * Backing-store pixel budget. Beyond it the backing scale degrades rather

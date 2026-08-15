@@ -141,7 +141,7 @@ export function buildSignatureRows(
 }
 
 /** Presentation buckets for the Signatures tab (not stored SigGroup values). */
-export const SCANNER_SECTION_ORDER = [
+const SCANNER_SECTION_ORDER = [
   'unknown',
   'wormholes',
   'combat',
@@ -153,7 +153,7 @@ export const SCANNER_SECTION_ORDER = [
 export type ScannerSectionId = (typeof SCANNER_SECTION_ORDER)[number];
 
 /** Visible section titles in scanner order. */
-export const SCANNER_SECTION_TITLES: Readonly<Record<ScannerSectionId, string>> = {
+const SCANNER_SECTION_TITLES: Readonly<Record<ScannerSectionId, string>> = {
   unknown: 'Unknown',
   wormholes: 'Wormholes',
   combat: 'Combat',

@@ -35,7 +35,7 @@ import { decryptToken, encryptToken } from './token-crypto';
  * Refresh proactively when the stored access token has under a minute of life
  * left, so a vended token always carries usable headroom for the caller's call.
  */
-export const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
+const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
 /**
  * Duration in milliseconds for invalid grant confirmation grace; callers share this policy value
  * instead of inventing another window.

@@ -13,7 +13,7 @@ import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
  * alone is deliberately out-of-scope: corp-shared tables (the corp-structures
  * catalogue) are not torn down by a personal purge.
  */
-export const PURGE_DIRECT_IDENTITY_COLUMNS = ['user_id', 'character_id'] as const;
+const PURGE_DIRECT_IDENTITY_COLUMNS = ['user_id', 'character_id'] as const;
 
 const IDENTITY_TABLE_NAMES = new Set(['user', 'characters']);
 

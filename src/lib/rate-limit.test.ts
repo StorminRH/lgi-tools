@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clientIdentifier } from './rate-limit';
 
 const limitMock = vi.fn();
 const redisCtorSpy = vi.fn();
@@ -208,8 +209,7 @@ describe('rateLimit', () => {
 });
 
 describe('clientIdentifier', () => {
-  it('prefers the platform-set x-real-ip over a client-controllable x-forwarded-for', async () => {
-    const { clientIdentifier } = await importHelper();
+  it('prefers the platform-set x-real-ip over a client-controllable x-forwarded-for', () => {
     const headers = new Headers({
       'x-real-ip': '198.51.100.7',
       'x-forwarded-for': '203.0.113.5, 10.0.0.1',
@@ -217,14 +217,12 @@ describe('clientIdentifier', () => {
     expect(clientIdentifier(headers)).toBe('198.51.100.7');
   });
 
-  it('falls back to the first x-forwarded-for IP when x-real-ip is missing', async () => {
-    const { clientIdentifier } = await importHelper();
+  it('falls back to the first x-forwarded-for IP when x-real-ip is missing', () => {
     const headers = new Headers({ 'x-forwarded-for': '203.0.113.5, 10.0.0.1' });
     expect(clientIdentifier(headers)).toBe('203.0.113.5');
   });
 
-  it('falls back to "unknown" when neither header is present', async () => {
-    const { clientIdentifier } = await importHelper();
+  it('falls back to "unknown" when neither header is present', () => {
     expect(clientIdentifier(new Headers())).toBe('unknown');
   });
 });

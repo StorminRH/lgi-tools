@@ -26,7 +26,7 @@ interface NpcArgs {
 }
 
 /** Builds a deterministic NPC fixture with caller overrides for wormhole-site tests and previews. */
-export function npc(
+function npc(
   order: number,
   {
     quantity,
@@ -63,7 +63,7 @@ export function npc(
 }
 
 /** Builds a deterministic wave fixture containing the supplied NPC groups. */
-export function wave(
+function wave(
   waveNumber: number,
   label: string,
   dpsTotal: number,
@@ -94,7 +94,7 @@ export function wave(
 }
 
 /** Builds a deterministic site-resource fixture with caller-provided quantities and value. */
-export function resource(
+function resource(
   order: number,
   kind: SiteResource['resourceKind'],
   name: string,

@@ -76,7 +76,7 @@ export interface LinkedCharacter {
  * synthesised name/portrait when the profile row is missing, and flag whether a
  * usable refresh token is still on file. Pure — the join lives in the query.
  */
-export function toLinkedCharacter(r: {
+function toLinkedCharacter(r: {
   accountId: string;
   scope: string | null;
   refreshToken: string | null;

@@ -3,9 +3,13 @@
 // Client-side identity provider. The root layout doesn't read the session at
 // render time (3.0.4.7) — this provider subscribes to Better Auth's session via
 // useSession() and shares it through context, so the header and feedback modal
-// fill in login state after the static shell paints. `loading` is true until the
-// first fetch resolves; consumers render a neutral state during that window
-// rather than flashing logged-out.
+// fill in login state after the static shell paints.
+//
+// The published snapshot stays frozen (`session: null`, `loading: true`) through
+// SSR and the first client render. useState(false) plus a post-commit effect is
+// the documented two-pass. Session stays withheld until that release and while
+// Better Auth is pending, so consumers that ignore `loading` cannot paint a
+// different first tree than the server.
 //
 // The AuthState shape (session/isAdmin/loading) is unchanged from the pre-3.4.1
 // /api/auth/me version, so every consumer (LoginButton, GlobalSearch,
@@ -13,21 +17,11 @@
 // customSession plugin (its superadmin branch reads an env var) and arrives via
 // useSession().
 
-import { createContext, useContext, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { authClient } from '../auth-client';
-import type { Session } from '../types';
-
-/** Client authentication context with session, loading state, and explicit refresh action. */
-export interface AuthState {
-  session: Session | null;
-  isAdmin: boolean;
-  loading: boolean;
-}
+import { resolveAuthState, type AuthState } from './auth-state';
 
 const AuthContext = createContext<AuthState | null>(null);
-const subscribeHydration = () => () => undefined;
-const clientHydrationSnapshot = () => true;
-const serverHydrationSnapshot = () => false;
 
 /**
  * Publishes auth state to descendants; the provider owns subscription and update lifecycle while
@@ -35,29 +29,18 @@ const serverHydrationSnapshot = () => false;
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data, isPending } = authClient.useSession();
-  const hydrated = useSyncExternalStore(
-    subscribeHydration,
-    clientHydrationSnapshot,
-    serverHydrationSnapshot,
-  );
+  const [released, setReleased] = useState(false);
 
-  // A real session always carries an active character (one per user in 3.4.1a).
-  let session: Session | null = null;
-  let isAdmin = false;
-  if (data != null && data.characterId != null) {
-    session = {
-      characterId: data.characterId,
-      name: data.name,
-      portraitUrl: data.portraitUrl,
-      role: data.role,
-    };
-    isAdmin = data.isAdmin;
-  }
+  useEffect(() => {
+    // Official hydrate two-pass: first paint matches the server hold, then
+    // release after commit. The extra render is the documented hold, not derived
+    // state — see react.dev useEffect "Displaying different content on the
+    // server and the client".
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration two-pass
+    setReleased(true);
+  }, []);
 
-  // Better Auth may expose a settled empty store during server rendering but a
-  // pending fetch on the first browser render. Keep both hydration snapshots on
-  // the same neutral shell; the client snapshot releases it after hydration.
-  const state: AuthState = { session, isAdmin, loading: !hydrated || isPending };
+  const state = resolveAuthState(released, data ?? null, isPending);
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
 }

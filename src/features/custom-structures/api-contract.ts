@@ -28,7 +28,7 @@ export const MAX_CUSTOM_STRUCTURES_PER_USER = 50;
  * Boundary validator for max structure fit len; successful parsing yields the normalized custom
  * structures input consumed internally.
  */
-export const MAX_STRUCTURE_FIT_LEN = 8000; // a generous clipboard ceiling
+const MAX_STRUCTURE_FIT_LEN = 8000; // a generous clipboard ceiling
 
 const typeId = z.number().int().positive().max(PG_INT4_MAX);
 
@@ -52,7 +52,7 @@ const customStructureRowSchema = z.object({
  * Boundary validator for custom structures response schema; successful parsing yields the
  * normalized custom structures input consumed internally.
  */
-export const customStructuresResponseSchema = z.object({
+const customStructuresResponseSchema = z.object({
   structures: z.array(customStructureRowSchema),
 });
 /**
@@ -214,7 +214,7 @@ export type ParseStructureFitRequest = z.input<typeof parseStructureFitRequestSc
  * Boundary validator for parse structure fit response schema; successful parsing yields the
  * normalized custom structures input consumed internally.
  */
-export const parseStructureFitResponseSchema = z.object({
+const parseStructureFitResponseSchema = z.object({
   parsed: z
     .object({ structureTypeId: z.number(), rigTypeIds: z.array(z.number()) })
     .nullable(),

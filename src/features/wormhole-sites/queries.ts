@@ -410,7 +410,7 @@ export async function getScannerSiteIndex(): Promise<SiteSearchEntry[]> {
  * Loads one complete wormhole-site record with waves, NPCs, resources, and derived values, or null
  * when absent.
  */
-export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
+async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   // The catalogue is deploy-static (seeded once by migration, untouched by either
   // cron), so cache the structural read into the prerender shell and let the build
   // ID invalidate it — same pattern as getSiteSearchIndex. Live prices are layered

@@ -101,7 +101,7 @@ export function keydownAction(input: {
 }
 
 /** Max movement (px) still treated as a click for outside-dismiss; pans stay open. */
-export const OUTSIDE_CLICK_SLOP_PX = 4;
+const OUTSIDE_CLICK_SLOP_PX = 4;
 
 /**
  * Whether a pointer gesture stayed within the click slop (not a pan/drag).

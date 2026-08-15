@@ -16,7 +16,7 @@ import { isIsoCalendarDate } from '@/lib/iso-date';
  * Closed, canonically ordered set of change types; consumers derive validation, unions, and
  * iteration from this one list.
  */
-export const CHANGE_TYPES = ['Added', 'Changed', 'Fixed', 'Removed'] as const;
+const CHANGE_TYPES = ['Added', 'Changed', 'Fixed', 'Removed'] as const;
 /** Closed changelog entry categories used for labels and semantic tones. */
 export type ChangeType = (typeof CHANGE_TYPES)[number];
 
@@ -49,7 +49,7 @@ export type ChangelogMaster = {
 // `### v3.6.4 — 2026-06-14` — the version (with an optional leading `v`) and an
 // ISO date, separated by an em-dash or hyphen.
 const ENTRY_HEADING = /^###\s+v?([\d.]+)\s+[—-]\s+(\d{4}-\d{2}-\d{2})\s*$/;
-const GROUP_HEADING = /^####\s+(Added|Changed|Fixed|Removed)\s*$/;
+const GROUP_HEADING = new RegExp(`^####\\s+(${CHANGE_TYPES.join('|')})\\s*$`);
 const BULLET = /^-\s+(.+)$/;
 
 function parseEntryHeading(line: string): Pick<ChangelogEntry, 'version' | 'date'> | null {
