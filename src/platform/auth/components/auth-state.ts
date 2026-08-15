@@ -8,7 +8,7 @@ export interface AuthState {
 }
 
 /** Slice of Better Auth `useSession().data` that the client snapshot reads. */
-export type AuthSessionData = {
+type AuthSessionData = {
   characterId: number | null;
   name: string;
   portraitUrl: string;

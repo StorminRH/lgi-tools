@@ -6,11 +6,10 @@
 // fill in login state after the static shell paints.
 //
 // The published snapshot stays frozen (`session: null`, `loading: true`) through
-// SSR and the hydration commit. A `true`/`false` useSyncExternalStore pair is
-// the wrong hold: React 19 hydrates from getServerSnapshot, and a differing
-// getSnapshot is a recovery-path mismatch. useState(false) + a post-commit
-// effect is the documented two-pass. Session is also withheld while Better Auth
-// is pending, so consumers that ignore `loading` cannot leak a client-only tree.
+// SSR and the first client render. useState(false) plus a post-commit effect is
+// the documented two-pass. Session stays withheld until that release and while
+// Better Auth is pending, so consumers that ignore `loading` cannot paint a
+// different first tree than the server.
 //
 // The AuthState shape (session/isAdmin/loading) is unchanged from the pre-3.4.1
 // /api/auth/me version, so every consumer (LoginButton, GlobalSearch,
@@ -21,8 +20,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { authClient } from '../auth-client';
 import { resolveAuthState, type AuthState } from './auth-state';
-
-export type { AuthState };
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -36,10 +33,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Official hydrate two-pass: first paint matches the server hold, then
-    // release. Deferred one macrotask so this is not a synchronous setState in
-    // the effect body (react-hooks/set-state-in-effect).
-    const timer = setTimeout(() => setReleased(true), 0);
-    return () => clearTimeout(timer);
+    // release after commit. The extra render is the documented hold, not derived
+    // state — see react.dev useEffect "Displaying different content on the
+    // server and the client".
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration two-pass
+    setReleased(true);
   }, []);
 
   const state = resolveAuthState(released, data ?? null, isPending);

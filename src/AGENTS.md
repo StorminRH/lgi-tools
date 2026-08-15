@@ -33,3 +33,7 @@ that lint, Fallow, and nearby code do not catch. Do not grow it.
   only that client's own tracked characters — never every feed row on the map.
 - Unresolved wormhole stubs delete through `removeSignatures`, not
   `severConnection` (null destinations have no branch to collapse).
+- `AuthProvider` must publish `session: null` through SSR and the first client
+  render (`useState(false)` plus a post-commit release). Do not publish a
+  client-only session during that hold — consumers that ignore `loading`
+  (home column, search) will paint a different tree.
