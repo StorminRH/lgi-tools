@@ -103,6 +103,42 @@
     }
     .stage.lg { width: 220px; height: 220px; }
     .stage.sm { width: 90px; height: 90px; }
+    .today {
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      border: 1px solid #1f262f;
+      background: #121820;
+    }
+    .today .chip { color: var(--c5); }
+    .chain {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      min-height: 130px;
+      padding: 16px 8px;
+      border: 1px dashed var(--line);
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .chain .node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: 150px;
+    }
+    .chain .sys {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--name);
+    }
+    .chain .link {
+      width: 36px;
+      height: 1px;
+      margin-bottom: 22px;
+      background: #3a4554;
+    }
 
     .chip {
       position: absolute;
@@ -181,8 +217,8 @@
 
     .pond:hover .ring,
     body.show-wisps .pond .ring {
-      animation: ripple-out 2.8s linear infinite;
-      animation-delay: calc(var(--i) * -0.7s);
+      animation: ripple-out 7s linear infinite;
+      animation-delay: calc(var(--i) * -1.75s);
     }
 
     /* Fine packed rings — more like the in-game concentric bands. */
@@ -194,8 +230,8 @@
     }
     .pond.fine:hover .ring,
     body.show-wisps .pond.fine .ring {
-      animation-duration: 3.6s;
-      animation-delay: calc(var(--i) * -0.4s);
+      animation-duration: 9s;
+      animation-delay: calc(var(--i) * -1s);
     }
 
     /* Wisps travel outward along a ray. They do not orbit. */
@@ -274,6 +310,18 @@
       </label>
       <span class="hint">Hover starts the expansion and random outward wisps. Reduced motion keeps the still stack.</span>
     </div>
+
+    <section class="study">
+      <h2>Atlas scale — 55px disc</h2>
+      <p class="meta">
+        <span class="tech">SYSTEM_DISC_SIZE</span>
+        Live Atlas nodes are a <strong>55×55 canvas-pixel disc</strong> inside
+        a 150×110 widget frame. At zoom 1 that is 55 CSS pixels on screen;
+        the map can zoom from 0.2 to 2.5. This row is CSS drop ripples at
+        that exact disc size, next to the shipped circle.
+      </p>
+      <div class="chain" id="atlas-row"></div>
+    </section>
 
     <section class="study">
       <h2>1. CSS drop ripples</h2>
@@ -378,6 +426,36 @@
       return pond;
     }
 
+    const atlasRow = document.getElementById('atlas-row');
+    const today = document.createElement('div');
+    today.className = 'node';
+    today.innerHTML = '<div class="sys">Today</div>';
+    const todayStage = document.createElement('div');
+    todayStage.className = 'stage sm';
+    todayStage.innerHTML = '<div class="today"><span class="chip">C5</span></div>';
+    today.appendChild(todayStage);
+    atlasRow.appendChild(today);
+    [
+      { name: 'Jita', color: 'c1', chip: '0.9' },
+      { name: 'J123456', color: 'c5', chip: 'C5' },
+      { name: 'J654321', color: 'c6', chip: 'C6' },
+      { name: 'Thera', color: 'teal', chip: 'Thera' },
+    ].forEach((node) => {
+      const link = document.createElement('div');
+      link.className = 'link';
+      atlasRow.appendChild(link);
+      const wrap = document.createElement('div');
+      wrap.className = 'node';
+      wrap.innerHTML = `<div class="sys">${node.name}</div>`;
+      const stage = document.createElement('div');
+      stage.className = 'stage sm';
+      const pond = cssPond(COLORS[node.color]);
+      pond.querySelector('.chip').textContent = node.chip;
+      stage.appendChild(pond);
+      wrap.appendChild(stage);
+      atlasRow.appendChild(wrap);
+    });
+
     const cssRow = document.getElementById('css-row');
     for (const key of ['c5', 'c1', 'teal']) {
       cssRow.appendChild(specimen('lg', cssPond(COLORS[key]), `200px · ${COLORS[key].label}`));
@@ -446,7 +524,7 @@
 
         const moving = dt > 0;
         for (const ring of rings) {
-          if (moving) ring.age = (ring.age + dt / 2.8) % 1;
+          if (moving) ring.age = (ring.age + dt / 7) % 1;
           const t = moving ? ring.age : ring.rest;
           const radius = R * (0.16 + t * 0.84);
           const alpha = (1 - t) * (1 - t) * 0.7;
