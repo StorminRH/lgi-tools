@@ -73,9 +73,109 @@ export function LiveCharacterCard({
   reconnectReason?: ReactNode;
   children?: ReactNode;
 }) {
-  // The card body once this character's access is granted: a sync-error notice
-  // (only when connected), the "as of" header, and the null/empty/rows tristate.
   const grantedContent = (
+    <LiveCharacterCardBody
+      character={character}
+      emptyRowsText={emptyRowsText}
+      hasData={hasData}
+      isEmpty={isEmpty}
+      lastSyncedAt={lastSyncedAt}
+      noun={noun}
+      sectionLabel={sectionLabel}
+      syncError={syncError}
+      syncing={syncing}
+    >
+      {children}
+    </LiveCharacterCardBody>
+  );
+
+  return (
+    <Card>
+      <LiveCharacterCardHeader
+        character={character}
+        headerRight={headerRight}
+        subtitle={subtitle}
+      />
+
+      {reconnectAction !== undefined ? (
+        <AccessGate
+          blocked={character.needsReconnect}
+          reason={reconnectReason}
+          action={reconnectAction}
+          className="m-3.5"
+        >
+          {grantedContent}
+        </AccessGate>
+      ) : (
+        <>
+          {character.needsReconnect && (
+            <Callout className="mx-3.5 my-2" label="Reconnect">
+              This character is missing {scopePhrase} —{' '}
+              <a href="/characters" className="underline text-name">
+                reconnect it on the Characters page
+              </a>{' '}
+              to sync its {noun}.
+            </Callout>
+          )}
+          {grantedContent}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function LiveCharacterCardHeader({
+  character,
+  headerRight,
+  subtitle,
+}: {
+  character: PanelCharacter;
+  headerRight?: ReactNode;
+  subtitle?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
+      <CharacterPortrait
+        characterId={character.characterId}
+        name={character.name}
+        size={36}
+        src={character.portraitUrl}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="font-display font-bold text-h3 text-name truncate">
+          {character.name}
+        </div>
+        {subtitle}
+      </div>
+      {headerRight}
+    </div>
+  );
+}
+
+function LiveCharacterCardBody({
+  character,
+  children,
+  emptyRowsText,
+  hasData,
+  isEmpty,
+  lastSyncedAt,
+  noun,
+  sectionLabel,
+  syncError,
+  syncing,
+}: {
+  character: PanelCharacter;
+  children?: ReactNode;
+  emptyRowsText: string;
+  hasData: boolean;
+  isEmpty: boolean;
+  lastSyncedAt: number | null | undefined;
+  noun: string;
+  sectionLabel: string;
+  syncError: string | null | undefined;
+  syncing: boolean;
+}) {
+  return (
     <>
       {!character.needsReconnect && syncError != null && (
         <Callout className="mx-3.5 my-2" label={syncErrorMeta(syncError).label}>
@@ -102,50 +202,6 @@ export function LiveCharacterCard({
         children
       )}
     </>
-  );
-
-  return (
-    <Card>
-      <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
-        <CharacterPortrait
-          characterId={character.characterId}
-          name={character.name}
-          size={36}
-          src={character.portraitUrl}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="font-display font-bold text-h3 text-name truncate">
-            {character.name}
-          </div>
-          {subtitle}
-        </div>
-        {headerRight}
-      </div>
-
-      {reconnectAction !== undefined ? (
-        <AccessGate
-          blocked={character.needsReconnect}
-          reason={reconnectReason}
-          action={reconnectAction}
-          className="m-3.5"
-        >
-          {grantedContent}
-        </AccessGate>
-      ) : (
-        <>
-          {character.needsReconnect && (
-            <Callout className="mx-3.5 my-2" label="Reconnect">
-              This character is missing {scopePhrase} —{' '}
-              <a href="/characters" className="underline text-name">
-                reconnect it on the Characters page
-              </a>{' '}
-              to sync its {noun}.
-            </Callout>
-          )}
-          {grantedContent}
-        </>
-      )}
-    </Card>
   );
 }
 

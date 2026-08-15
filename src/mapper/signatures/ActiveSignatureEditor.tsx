@@ -102,7 +102,45 @@ export function ActiveSignatureEditor({
   }, [connectionId, selection, onClose]);
 
   if (selection === null) return null;
-  const edited = selection.connection;
+  return (
+    <ActiveSignatureEditorView
+      anchorSignatureId={anchorSignatureId}
+      authoring={authoring}
+      destination={destination}
+      edited={selection.connection}
+      mapId={mapId}
+      mode={selection.mode}
+      now={now}
+      onClose={onClose}
+      onFocusSystem={onFocusSystem}
+      originLeads={originLeads}
+    />
+  );
+}
+
+function ActiveSignatureEditorView({
+  anchorSignatureId,
+  authoring,
+  destination,
+  edited,
+  mapId,
+  mode,
+  now,
+  onClose,
+  onFocusSystem,
+  originLeads,
+}: {
+  readonly anchorSignatureId: string | null;
+  readonly authoring: ConnectionAuthoringApi;
+  readonly destination: ReturnType<typeof destinationReadout>;
+  readonly edited: ConnectionEditorDetail;
+  readonly mapId: string;
+  readonly mode: NonNullable<ReturnType<typeof connectionEditorMode>>['mode'];
+  readonly now: number;
+  readonly onClose: () => void;
+  readonly onFocusSystem?: (systemId: number) => void;
+  readonly originLeads: readonly { connectionId: string; label: string }[];
+}) {
   const lifecycle = connectionLifecycleActions({
     mapId,
     connectionId: edited.connectionId,
@@ -120,7 +158,7 @@ export function ActiveSignatureEditor({
     <SignatureEditor
       connection={edited}
       anchorSignatureId={anchorSignatureId}
-      mode={selection.mode}
+      mode={mode}
       now={now}
       destination={destination}
       originLeads={originLeads}

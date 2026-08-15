@@ -74,34 +74,50 @@ export function Stepper({
         className,
       )}
     >
-      <NumberField.Group
-        className={cn(
-          'inline-flex items-center',
-          !inline && 'overflow-hidden rounded-ctl border border-border bg-bg',
-        )}
-      >
-        <NumberField.Decrement aria-label={`Decrease ${ariaLabel}`} className={btn}>
-          {inline ? '▼' : '–'}
-        </NumberField.Decrement>
-        <NumberField.Input
-          aria-label={ariaLabel}
-          className={cn(
-            'bg-transparent text-center font-data text-ui text-name outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
-            inline
-              ? 'w-[22px] tabular-nums'
-              : 'h-7 w-12 border-x border-border-soft focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub',
-            valueClassName,
-          )}
-        />
-        <NumberField.Increment aria-label={`Increase ${ariaLabel}`} className={btn}>
-          {inline ? '▲' : '+'}
-        </NumberField.Increment>
-      </NumberField.Group>
+      {stepperField({ ariaLabel, btn, inline, valueClassName })}
       {(trailing != null || reserveTrailing) && (
         <span className="inline-flex w-3.5 shrink-0 items-center justify-center">
           {trailing}
         </span>
       )}
     </NumberField.Root>
+  );
+}
+
+function stepperField({
+  ariaLabel,
+  btn,
+  inline,
+  valueClassName,
+}: {
+  ariaLabel: string;
+  btn: string;
+  inline: boolean;
+  valueClassName?: string;
+}) {
+  return (
+    <NumberField.Group
+      className={cn(
+        'inline-flex items-center',
+        !inline && 'overflow-hidden rounded-ctl border border-border bg-bg',
+      )}
+    >
+      <NumberField.Decrement aria-label={`Decrease ${ariaLabel}`} className={btn}>
+        {inline ? '▼' : '–'}
+      </NumberField.Decrement>
+      <NumberField.Input
+        aria-label={ariaLabel}
+        className={cn(
+          'bg-transparent text-center font-data text-ui text-name outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+          inline
+            ? 'w-[22px] tabular-nums'
+            : 'h-7 w-12 border-x border-border-soft focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-isk-sub',
+          valueClassName,
+        )}
+      />
+      <NumberField.Increment aria-label={`Increase ${ariaLabel}`} className={btn}>
+        {inline ? '▲' : '+'}
+      </NumberField.Increment>
+    </NumberField.Group>
   );
 }

@@ -378,16 +378,11 @@ function SavedStructuresList({
   );
 }
 
-/** Renders the controlled custom-structure editor for hull, rigs, tax, name, and saved facility actions. */
-export function CustomStructureBuilder({
-  structureTypes,
-  structureRigs,
-  initial,
-}: {
-  structureTypes: StructureTypeOption[];
-  structureRigs: StructureRigOption[];
-  initial: CustomStructureRow[];
-}) {
+function useCustomStructureDraft(
+  structureTypes: StructureTypeOption[],
+  structureRigs: StructureRigOption[],
+  initial: CustomStructureRow[],
+) {
   const [structures, setStructures] = useState<CustomStructureRow[]>(initial);
   const [structureTypeId, setStructureTypeId] = useState<number | null>(null);
   const [rigSlots, setRigSlots] = useState<(number | null)[]>(() => slotIndices.map(() => null));
@@ -412,6 +407,81 @@ export function CustomStructureBuilder({
     [structureTypes],
   );
   const rigName = useMemo(() => new Map(structureRigs.map((r) => [r.typeId, r.name])), [structureRigs]);
+
+  return {
+    busy,
+    error,
+    name,
+    parse,
+    paste,
+    pin,
+    pinningId,
+    rigName,
+    rigSlots,
+    rowTaxDraft,
+    setBusy,
+    setError,
+    setName,
+    setPaste,
+    setPin,
+    setPinningId,
+    setRigSlots,
+    setRowTaxDraft,
+    setStructures,
+    setStructureTypeId,
+    setTaxDraft,
+    setTaxingId,
+    structureTypeId,
+    structures,
+    suggest,
+    systems,
+    taxDraft,
+    taxingId,
+    typeName,
+  };
+}
+
+/** Renders the controlled custom-structure editor for hull, rigs, tax, name, and saved facility actions. */
+export function CustomStructureBuilder({
+  structureTypes,
+  structureRigs,
+  initial,
+}: {
+  structureTypes: StructureTypeOption[];
+  structureRigs: StructureRigOption[];
+  initial: CustomStructureRow[];
+}) {
+  const {
+    busy,
+    error,
+    name,
+    parse,
+    paste,
+    pin,
+    pinningId,
+    rigName,
+    rigSlots,
+    rowTaxDraft,
+    setBusy,
+    setError,
+    setName,
+    setPaste,
+    setPin,
+    setPinningId,
+    setRigSlots,
+    setRowTaxDraft,
+    setStructures,
+    setStructureTypeId,
+    setTaxDraft,
+    setTaxingId,
+    structureTypeId,
+    structures,
+    suggest,
+    systems,
+    taxDraft,
+    taxingId,
+    typeName,
+  } = useCustomStructureDraft(structureTypes, structureRigs, initial);
 
   const { structure, validRigs, canSave } = deriveBuilderView({
     structureTypeId,

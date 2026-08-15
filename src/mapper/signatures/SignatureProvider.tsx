@@ -190,43 +190,11 @@ function missingIdsForSystem(
     : (bySystem.get(systemId) ?? EMPTY_MISSING);
 }
 
-/**
- * Owns the signature page, tracked paste target, removal flow, and the shared
- * row context consumed by the permanent window and System Info cards.
- */
-export function SignatureProvider({
-  mapId,
-  scannerSystemId,
-  pasteTarget,
-  canEdit,
-  connectionDetails,
-  unresolvedHoles,
-  authoring,
-  panelTarget,
-  onPanelTargetChange,
-  onFocusSystem,
-  children,
-}: {
-  readonly mapId: string;
-  /** Live tracked system when ready; otherwise the chain-root fallback. */
-  readonly scannerSystemId: number | null;
-  readonly pasteTarget: TrackedSystemTarget;
-  readonly canEdit: boolean;
-  readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
-  readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
-  readonly authoring: ConnectionAuthoringApi;
-  /** The scanner panel's single open target, owned by the host. */
-  readonly panelTarget: ScannerPanelTarget;
-  readonly onPanelTargetChange: (target: ScannerPanelTarget) => void;
-  /** Focuses one system on the canvas (the editor's locked Leads-to readout). */
-  readonly onFocusSystem?: (systemId: number) => void;
-  readonly children: ReactNode;
-}) {
-  const { rows, complete } = useSignaturePage(
-    mapId,
-    connectionDetails,
-    unresolvedHoles,
-  );
+function useSignatureMissingFlow(
+  mapId: string,
+  canEdit: boolean,
+  pasteTarget: TrackedSystemTarget,
+) {
   const { bySystem: missingBySystem, replace, clearAll } = useMissingSignatures();
   // Missing confirmation follows the system the paste was applied to. When the
   // window is on the chain-root fallback, a down-chain paste still surfaces
@@ -242,7 +210,24 @@ export function SignatureProvider({
   const applyRows = useApplySignatureScan(mapId, replaceForPaste);
   useScannerPaste({ canEdit, pasteTarget, applyRows });
   const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
-  const identifyRow = useIdentifySignature(mapId);
+  const dismissMissing = useCallback(() => {
+    if (missingSystemId !== null) clearAll(missingSystemId);
+  }, [missingSystemId, clearAll]);
+  return {
+    clearAll,
+    dismissMissing,
+    missingBySystem,
+    missingSystemId,
+    removeMissing,
+  };
+}
+
+function useSignatureJumpFlow(
+  mapId: string,
+  canEdit: boolean,
+  connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>,
+  unresolvedHoles: readonly UnresolvedHoleSummary[],
+) {
   const assets = useUniverseAssets();
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
   const ownCharacterIds = useMemo(
@@ -290,6 +275,113 @@ export function SignatureProvider({
     },
     [dismissResolution, jumpResolution, mapId],
   );
+  return { jumpResolution, pickJumpCandidate };
+}
+
+/**
+ * Owns the signature page, tracked paste target, removal flow, and the shared
+ * row context consumed by the permanent window and System Info cards.
+ */
+export function SignatureProvider({
+  mapId,
+  scannerSystemId,
+  pasteTarget,
+  canEdit,
+  connectionDetails,
+  unresolvedHoles,
+  authoring,
+  panelTarget,
+  onPanelTargetChange,
+  onFocusSystem,
+  children,
+}: {
+  readonly mapId: string;
+  /** Live tracked system when ready; otherwise the chain-root fallback. */
+  readonly scannerSystemId: number | null;
+  readonly pasteTarget: TrackedSystemTarget;
+  readonly canEdit: boolean;
+  readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
+  readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
+  readonly authoring: ConnectionAuthoringApi;
+  /** The scanner panel's single open target, owned by the host. */
+  readonly panelTarget: ScannerPanelTarget;
+  readonly onPanelTargetChange: (target: ScannerPanelTarget) => void;
+  /** Focuses one system on the canvas (the editor's locked Leads-to readout). */
+  readonly onFocusSystem?: (systemId: number) => void;
+  readonly children: ReactNode;
+}) {
+  const { rows, complete } = useSignaturePage(
+    mapId,
+    connectionDetails,
+    unresolvedHoles,
+  );
+  const {
+    dismissMissing,
+    missingBySystem,
+    missingSystemId,
+    removeMissing,
+  } = useSignatureMissingFlow(mapId, canEdit, pasteTarget);
+  const identifyRow = useIdentifySignature(mapId);
+  const { jumpResolution, pickJumpCandidate } = useSignatureJumpFlow(
+    mapId,
+    canEdit,
+    connectionDetails,
+    unresolvedHoles,
+  );
+  const panel = useSignaturePanel(
+    onPanelTargetChange,
+    rows.length > 0 || panelTarget !== null,
+    missingBySystem,
+    missingSystemId,
+    scannerSystemId,
+    removeMissing,
+  );
+
+  return (
+    <SignatureRowsProvider value={rows}>
+      {children}
+      <SignatureWindow
+        scannerSystemId={scannerSystemId}
+        rows={rows}
+        missingIds={panel.highlightIds}
+        missingCount={panel.missingIds.size}
+        canEdit={canEdit}
+        complete={complete}
+        now={panel.now}
+        onDismissMissing={dismissMissing}
+        onRemoveMissing={panel.removeMissingRows}
+        jumpResolution={jumpResolution}
+        onPickJumpCandidate={pickJumpCandidate}
+        onIdentify={identifyRow}
+        onOpenEditor={panel.openEditor}
+        onOpenSite={panel.openSite}
+      />
+      <ActiveScannerPanel
+        mapId={mapId}
+        panelTarget={panelTarget}
+        canEdit={canEdit}
+        connectionDetails={connectionDetails}
+        unresolvedHoles={unresolvedHoles}
+        authoring={authoring}
+        now={panel.now}
+        onClose={panel.closePanel}
+        onFocusSystem={onFocusSystem}
+      />
+    </SignatureRowsProvider>
+  );
+}
+
+function useSignaturePanel(
+  onPanelTargetChange: (target: ScannerPanelTarget) => void,
+  clockActive: boolean,
+  missingBySystem: MissingSignatures['bySystem'],
+  missingSystemId: number | null,
+  scannerSystemId: number | null,
+  removeMissing: (
+    systemId: number,
+    signatureIds: readonly string[],
+  ) => Promise<void>,
+) {
   // One scanner panel for the whole map: connection edit and site view share
   // chrome; the scanner row and the canvas edge menu reach the same host state.
   const closePanel = useCallback(
@@ -310,49 +402,23 @@ export function SignatureProvider({
       onPanelTargetChange({ kind: 'site', siteId, signatureId }),
     [onPanelTargetChange],
   );
-  const now = useSignatureClock(rows.length > 0 || panelTarget !== null);
+  const now = useSignatureClock(clockActive);
   const missingIds = missingIdsForSystem(missingBySystem, missingSystemId);
   // Row highlighting can only mark rows the window actually lists.
   const highlightIds =
     missingSystemId === scannerSystemId ? missingIds : EMPTY_MISSING;
-  const dismissMissing = useCallback(() => {
-    if (missingSystemId !== null) clearAll(missingSystemId);
-  }, [missingSystemId, clearAll]);
   const removeMissingRows = useCallback(async () => {
     if (missingSystemId === null || missingIds.size === 0) return;
     await removeMissing(missingSystemId, [...missingIds]);
   }, [missingIds, removeMissing, missingSystemId]);
-
-  return (
-    <SignatureRowsProvider value={rows}>
-      {children}
-      <SignatureWindow
-        scannerSystemId={scannerSystemId}
-        rows={rows}
-        missingIds={highlightIds}
-        missingCount={missingIds.size}
-        canEdit={canEdit}
-        complete={complete}
-        now={now}
-        onDismissMissing={dismissMissing}
-        onRemoveMissing={removeMissingRows}
-        jumpResolution={jumpResolution}
-        onPickJumpCandidate={pickJumpCandidate}
-        onIdentify={identifyRow}
-        onOpenEditor={openEditor}
-        onOpenSite={openSite}
-      />
-      <ActiveScannerPanel
-        mapId={mapId}
-        panelTarget={panelTarget}
-        canEdit={canEdit}
-        connectionDetails={connectionDetails}
-        unresolvedHoles={unresolvedHoles}
-        authoring={authoring}
-        now={now}
-        onClose={closePanel}
-        onFocusSystem={onFocusSystem}
-      />
-    </SignatureRowsProvider>
-  );
+  return {
+    closePanel,
+    highlightIds,
+    missingIds,
+    now,
+    openEditor,
+    openSite,
+    removeMissingRows,
+  };
 }
+

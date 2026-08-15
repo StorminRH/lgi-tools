@@ -559,30 +559,8 @@ export function useUniverseAssets(): UniverseAssets | null {
   return assets;
 }
 
-/**
- * Subscribes to one map's chain and returns the reconciled picture.
- *
- * `mapId` of `null` subscribes to nothing. That is NOT sufficient on its own when no Convex
- * deployment is configured — the underlying hooks still require a provider even when skipped — so the
- * caller must also keep this hook unmounted behind the null-client gate.
- *
- * `draggingIds` is the canvas's active-drag set. The reconciler additionally protects every
- * user-placed node from its own state, so omitting one here cannot move it (HC-1). The set is
- * mirrored into a ref and read at apply time so protection cannot go stale across the async window.
- *
- * `config` is the live dial state; changing it bumps the layout revision so the
- * pipeline re-posts.
- *
- * `haloLimits` is the development-only G-1 extent dial; omitted (or the
- * pinned object) it changes nothing — the halo fingerprint in the post key
- * re-posts layout when a dial commit changes the derivation.
- */
-export function useMapChain(
-  mapId: string | null,
-  draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,
-  config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
-  haloLimits?: HaloLimits,
-): MapChain {
+/** Subscribes and normalizes the split chain pages for one map. */
+function useMapChainPages(mapId: string | null) {
   const args = mapSubscriptionArgs(mapId);
   // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
   // the map returns without a reload. `canEdit` shares that claim row.
@@ -626,8 +604,6 @@ export function useMapChain(
     [subscribedConnections.rows, subscribedConnections.complete],
   );
   const events = subscribedEvents ?? EMPTY_MAP_EVENTS;
-  const systemsComplete = systems.complete;
-  const liveSystemCount = systems.rows.length;
   const connectionDetails = useMemo(
     () => connectionDetailsFromRows(connections.rows),
     [connections.rows],
@@ -665,6 +641,23 @@ export function useMapChain(
     () => accountedStubLayoutRows(plannedStubs, scannedStubLayout),
     [plannedStubs, scannedStubLayout],
   );
+
+  return {
+    access,
+    authoredKey,
+    canEdit,
+    connectionDetails,
+    connections,
+    events,
+    stubLayout,
+    systems,
+    unresolvedHoles,
+  };
+}
+
+function useConnectionPresentationNow(
+  connections: ReturnType<typeof useMapChainPages>['connections'],
+) {
   const [connectionPresentationNow, setConnectionPresentationNow] = useState(
     () => Date.now(),
   );
@@ -681,28 +674,14 @@ export function useMapChain(
     return () => window.clearInterval(timer);
   }, [hasDyingConnection]);
 
-  const [merge, setMerge] = useState<ChainMerge>(INITIAL_MERGE);
-  const [treeParents, setTreeParents] = useState<ReadonlyMap<number, number>>(
-    () => new Map(),
-  );
-  const [rootSystemId, setRootSystemId] = useState<number | null>(null);
-  const [placedHalo, setPlacedHalo] = useState<PlacedHalo>(EMPTY_PLACED_HALO);
-  const [stubPositions, setStubPositions] = useState<ReadonlyMap<string, ChainPosition>>(
-    () => new Map(),
-  );
-  const [layoutRevision, setLayoutRevision] = useState(0);
-  const requestStateRef = useRef<KernelRequestState>(initialKernelRequestState());
-  const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
+  return connectionPresentationNow;
+}
 
-  // Mirrored after commit (render must stay pure): declared before the posting
-  // effect so the ref is current before any post in the same commit. An apply
-  // callback landing in the paint gap before this runs reads a one-render-old
-  // set; the rendered node is still safe because `syncNodes` holds the local
-  // position for every actively dragging id, and drag stop re-stamps `user`.
-  useEffect(() => {
-    draggingRef.current = draggingIds;
-  }, [draggingIds]);
-
+function useMapChainHalo(
+  authoredKey: string,
+  stubLayout: readonly AccountedStubLayoutRow[],
+  haloLimits?: HaloLimits,
+) {
   const assets = useUniverseAssets();
 
   // The halo derivation is memoized on the authored-truth signature (never
@@ -726,6 +705,55 @@ export function useMapChain(
   }, [authoredKey, assets, haloLimits]);
   const haloKey = useMemo(() => haloSignature(halo), [halo]);
   const stubKey = useMemo(() => stubLayoutSignature(stubLayout), [stubLayout]);
+  const labelOf = useCallback(
+    (systemId: number): SystemLabel =>
+      resolveSystemLabel(
+        systemId,
+        assets === null ? null : (id: number) => assets.systemInfo(id),
+      ),
+    [assets],
+  );
+
+  const neighboursOf = useCallback(
+    (systemId: number): readonly number[] =>
+      assets === null ? EMPTY_NEIGHBOURS : assets.neighbours(systemId),
+    [assets],
+  );
+
+  return { halo, haloKey, labelOf, neighboursOf, stubKey };
+}
+
+function useMapChainMerge(
+  systems: ReturnType<typeof useMapChainPages>['systems'],
+  connections: ReturnType<typeof useMapChainPages>['connections'],
+  stubLayout: readonly AccountedStubLayoutRow[],
+  halo: ReturnType<typeof deriveHalo>,
+  haloKey: string,
+  stubKey: string,
+  draggingIds: ReadonlySet<number>,
+  config: LayoutConfig,
+) {
+  const [merge, setMerge] = useState<ChainMerge>(INITIAL_MERGE);
+  const [treeParents, setTreeParents] = useState<ReadonlyMap<number, number>>(
+    () => new Map(),
+  );
+  const [rootSystemId, setRootSystemId] = useState<number | null>(null);
+  const [placedHalo, setPlacedHalo] = useState<PlacedHalo>(EMPTY_PLACED_HALO);
+  const [stubPositions, setStubPositions] = useState<ReadonlyMap<string, ChainPosition>>(
+    () => new Map(),
+  );
+  const [layoutRevision, setLayoutRevision] = useState(0);
+  const requestStateRef = useRef<KernelRequestState>(initialKernelRequestState());
+  const draggingRef = useRef<ReadonlySet<number>>(EMPTY_DRAG_SET);
+
+  // Mirrored after commit (render must stay pure): declared before the posting
+  // effect so the ref is current before any post in the same commit. An apply
+  // callback landing in the paint gap before this runs reads a one-render-old
+  // set; the rendered node is still safe because `syncNodes` holds the local
+  // position for every actively dragging id, and drag stop re-stamps `user`.
+  useEffect(() => {
+    draggingRef.current = draggingIds;
+  }, [draggingIds]);
 
   const layout = useLayoutKernel();
   const signature = chainSignature(systems, connections);
@@ -818,20 +846,6 @@ export function useMapChain(
     () => placedStubs(stubLayout, stubPositions),
     [stubLayout, stubPositions],
   );
-  const labelOf = useCallback(
-    (systemId: number): SystemLabel =>
-      resolveSystemLabel(
-        systemId,
-        assets === null ? null : (id: number) => assets.systemInfo(id),
-      ),
-    [assets],
-  );
-
-  const neighboursOf = useCallback(
-    (systemId: number): readonly number[] =>
-      assets === null ? EMPTY_NEIGHBOURS : assets.neighbours(systemId),
-    [assets],
-  );
 
   const pinPlacement = useCallback(
     (systemId: number, position: ChainPosition) => {
@@ -852,13 +866,74 @@ export function useMapChain(
   }, [setMerge, setLayoutRevision]);
 
   return {
-    access,
-    canEdit,
-    systemsComplete,
-    liveSystemCount,
-    connectionDetails,
-    unresolvedHoles,
-    events,
+    merge,
+    pinPlacement,
+    placedHalo,
+    releasePlacements,
+    rootSystemId,
+    stubs,
+    treeParents,
+  };
+}
+
+/**
+ * Subscribes to one map's chain and returns the reconciled picture.
+ *
+ * `mapId` of `null` subscribes to nothing. That is NOT sufficient on its own when no Convex
+ * deployment is configured — the underlying hooks still require a provider even when skipped — so the
+ * caller must also keep this hook unmounted behind the null-client gate.
+ *
+ * `draggingIds` is the canvas's active-drag set. The reconciler additionally protects every
+ * user-placed node from its own state, so omitting one here cannot move it (HC-1). The set is
+ * mirrored into a ref and read at apply time so protection cannot go stale across the async window.
+ *
+ * `config` is the live dial state; changing it bumps the layout revision so the
+ * pipeline re-posts.
+ *
+ * `haloLimits` is the development-only G-1 extent dial; omitted (or the
+ * pinned object) it changes nothing — the halo fingerprint in the post key
+ * re-posts layout when a dial commit changes the derivation.
+ */
+export function useMapChain(
+  mapId: string | null,
+  draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,
+  config: LayoutConfig = DEFAULT_LAYOUT_CONFIG,
+  haloLimits?: HaloLimits,
+): MapChain {
+  const pages = useMapChainPages(mapId);
+  const connectionPresentationNow = useConnectionPresentationNow(pages.connections);
+  const { halo, haloKey, labelOf, neighboursOf, stubKey } = useMapChainHalo(
+    pages.authoredKey,
+    pages.stubLayout,
+    haloLimits,
+  );
+  const {
+    merge,
+    pinPlacement,
+    placedHalo,
+    releasePlacements,
+    rootSystemId,
+    stubs,
+    treeParents,
+  } = useMapChainMerge(
+    pages.systems,
+    pages.connections,
+    pages.stubLayout,
+    halo,
+    haloKey,
+    stubKey,
+    draggingIds,
+    config,
+  );
+
+  return {
+    access: pages.access,
+    canEdit: pages.canEdit,
+    systemsComplete: pages.systems.complete,
+    liveSystemCount: pages.systems.rows.length,
+    connectionDetails: pages.connectionDetails,
+    unresolvedHoles: pages.unresolvedHoles,
+    events: pages.events,
     connectionPresentationNow,
     state: merge.state,
     intents: merge.intents,

@@ -24,7 +24,7 @@ import {
   type OnNodeDrag,
   type SelectionDragHandler,
 } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { useConvexAuthed } from '@/data/convex/use-convex-authed';
 import {
@@ -75,7 +75,7 @@ import type { MapChainIntent } from './intents';
 import { NoMapAccess } from './NoMapAccess';
 import { buildEdges, isStubNodeId, syncNodes } from './nodes';
 import { useChainAuthoringMutations } from './optimistic-authoring';
-import { useAuthoringMenus } from './use-authoring-menus';
+import { useAuthoringMenus, type AuthoringMenus } from './use-authoring-menus';
 import { useMapChain, type MapAccessState } from './use-map-chain';
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
@@ -101,8 +101,7 @@ export function ChainHost({ mapId }: { readonly mapId: string }) {
   return <ChainLive mapId={mapId} />;
 }
 
-/** Subscribes to one map and renders its live chain on the canvas surface. */
-function ChainLive({ mapId }: { readonly mapId: string }) {
+function useChainDials() {
   const [dragging, setDragging] = useState<ReadonlySet<number>>(EMPTY_DRAG_SET);
   // Mirrors `dragging` for use inside the sync effect without making the effect depend on it: a drag
   // start must not itself trigger a resync.
@@ -139,29 +138,39 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     }
   }, [motionConfig]);
 
-  const {
-    access,
-    canEdit,
-    systemsComplete,
-    liveSystemCount,
-    connectionDetails,
-    unresolvedHoles,
-    connectionPresentationNow,
-    events,
-    state,
-    intents,
-    labelOf,
-    treeParents,
-    rootSystemId,
-    halo,
-    stubs,
-    neighboursOf,
-    pinPlacement,
-    releasePlacements,
-  } = useMapChain(mapId, dragging, config, haloLimits);
-  const authoring = useChainAuthoringMutations();
+  return {
+    config,
+    dragging,
+    draggingRef,
+    fogConfig,
+    focusOnClick,
+    focusRequest,
+    focusTokenRef,
+    follow,
+    haloLimits,
+    locked,
+    motionConfig,
+    setConfig,
+    setDragging,
+    setFocusRequest,
+    setFogConfig,
+    setHaloLimits,
+    setMotionConfig,
+    shellRef,
+    wasLockedRef,
+  };
+}
+
+function useChainNodeSync(
+  state: ReturnType<typeof useMapChain>['state'],
+  labelOf: ReturnType<typeof useMapChain>['labelOf'],
+  halo: ReturnType<typeof useMapChain>['halo'],
+  stubs: ReturnType<typeof useMapChain>['stubs'],
+  treeParents: ReturnType<typeof useMapChain>['treeParents'],
+  connectionPresentationNow: number,
+  draggingRef: RefObject<ReadonlySet<number>>,
+) {
   const [nodes, setNodes] = useState<ChainNode[]>([]);
-  const menus = useAuthoringMenus(canEdit);
 
   useEffect(() => {
     setNodes((previous) =>
@@ -174,7 +183,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
         stubs,
       ),
     );
-  }, [state.systems, labelOf, halo.systems, stubs]);
+  }, [state.systems, labelOf, halo.systems, stubs, draggingRef]);
 
   // Which halo systems sit under the fog — the edge builder truncates lines
   // into the cloud, and the arrow derivation excludes them from the drawn set.
@@ -228,6 +237,44 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     setNodes((previous) => applyNodeChanges(changes, previous));
   }, []);
 
+  const deselectNodes = useCallback(() => {
+    setNodes((previous) => {
+      const changes: NodeChange<ChainNode>[] = previous
+        .filter((node) => node.selected)
+        .map((node) => ({ id: node.id, type: 'select', selected: false }));
+      return changes.length === 0 ? previous : applyNodeChanges(changes, previous);
+    });
+  }, []);
+
+  // Id-derived (the join key), so per-frame drag renders reuse the same set
+  // and the camera host's effects don't churn (drag hardening, IS-5).
+  const nodeIdsKey = nodes
+    .flatMap((node) => isStubNodeId(node.id) ? [] : [node.id])
+    .join(',');
+  const nodeIds = useMemo(
+    () =>
+      new Set(
+        nodeIdsKey.length === 0 ? [] : nodeIdsKey.split(',').map(Number),
+      ),
+    [nodeIdsKey],
+  );
+
+  return {
+    deselectNodes,
+    drawnSystemIds,
+    edges,
+    nodeIds,
+    nodes,
+    onNodesChange,
+    truth,
+  };
+}
+
+function useChainDrag(
+  draggingRef: RefObject<ReadonlySet<number>>,
+  setDragging: (next: ReadonlySet<number>) => void,
+  pinPlacement: ReturnType<typeof useMapChain>['pinPlacement'],
+) {
   /**
    * Adds or removes a whole gesture's worth of node ids from the drag set.
    *
@@ -244,7 +291,7 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     }
     draggingRef.current = next;
     setDragging(next);
-  }, []);
+  }, [draggingRef, setDragging]);
 
   /** Every node one gesture is moving, which is the selection when there is one. */
   const draggedIds = (dragged: readonly ChainNode[]) =>
@@ -288,10 +335,29 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     [stopDrag],
   );
 
+  return {
+    onNodeDragStart,
+    onNodeDragStop,
+    onSelectionDragStart,
+    onSelectionDragStop,
+  };
+}
+
+function useChainFocusMenus(
+  locked: boolean,
+  wasLockedRef: RefObject<boolean>,
+  releasePlacements: ReturnType<typeof useMapChain>['releasePlacements'],
+  canEdit: boolean | undefined,
+  menus: AuthoringMenus,
+  mapId: string,
+  authoring: ReturnType<typeof useChainAuthoringMutations>,
+  focusTokenRef: RefObject<number>,
+  setFocusRequest: (request: CameraFocusRequest | null) => void,
+) {
   useEffect(() => {
     if (locked && !wasLockedRef.current) releasePlacements();
     wasLockedRef.current = locked;
-  }, [locked, releasePlacements]);
+  }, [locked, releasePlacements, wasLockedRef]);
 
   // Focus is additive to selection: this handler only records the click for
   // the camera host; React Flow's own selection behavior runs untouched.
@@ -301,14 +367,14 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
       focusTokenRef.current += 1;
       setFocusRequest({ nodeId: clicked.id, token: focusTokenRef.current });
     },
-    [],
+    [focusTokenRef, setFocusRequest],
   );
 
   /** Flies the camera to one system — the editor's locked Leads-to readout. */
   const focusSystem = useCallback((systemId: number) => {
     focusTokenRef.current += 1;
     setFocusRequest({ nodeId: String(systemId), token: focusTokenRef.current });
-  }, []);
+  }, [focusTokenRef, setFocusRequest]);
 
   const onNodeContextMenu = useCallback<NodeMouseHandler<ChainNode>>(
     (event, node) => {
@@ -358,30 +424,103 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
     [mapId, authoring, menus],
   );
 
-  const deselectNodes = useCallback(() => {
-    setNodes((previous) => {
-      const changes: NodeChange<ChainNode>[] = previous
-        .filter((node) => node.selected)
-        .map((node) => ({ id: node.id, type: 'select', selected: false }));
-      return changes.length === 0 ? previous : applyNodeChanges(changes, previous);
-    });
-  }, []);
+  return {
+    edgeActions,
+    focusSystem,
+    onEdgeContextMenu,
+    onNodeClick,
+    onNodeContextMenu,
+  };
+}
+
+/** Subscribes to one map and renders its live chain on the canvas surface. */
+function ChainLive({ mapId }: { readonly mapId: string }) {
+  const {
+    config,
+    dragging,
+    draggingRef,
+    fogConfig,
+    focusOnClick,
+    focusRequest,
+    focusTokenRef,
+    follow,
+    haloLimits,
+    locked,
+    motionConfig,
+    setConfig,
+    setDragging,
+    setFocusRequest,
+    setFogConfig,
+    setHaloLimits,
+    setMotionConfig,
+    shellRef,
+    wasLockedRef,
+  } = useChainDials();
+
+  const {
+    access,
+    canEdit,
+    systemsComplete,
+    liveSystemCount,
+    connectionDetails,
+    unresolvedHoles,
+    connectionPresentationNow,
+    events,
+    state,
+    intents,
+    labelOf,
+    treeParents,
+    rootSystemId,
+    halo,
+    stubs,
+    neighboursOf,
+    pinPlacement,
+    releasePlacements,
+  } = useMapChain(mapId, dragging, config, haloLimits);
+  const authoring = useChainAuthoringMutations();
+  const menus = useAuthoringMenus(canEdit);
+  const {
+    deselectNodes,
+    drawnSystemIds,
+    edges,
+    nodeIds,
+    onNodesChange,
+    truth,
+  } = useChainNodeSync(
+    state,
+    labelOf,
+    halo,
+    stubs,
+    treeParents,
+    connectionPresentationNow,
+    draggingRef,
+  );
+  const {
+    onNodeDragStart,
+    onNodeDragStop,
+    onSelectionDragStart,
+    onSelectionDragStop,
+  } = useChainDrag(draggingRef, setDragging, pinPlacement);
+  const {
+    edgeActions,
+    focusSystem,
+    onEdgeContextMenu,
+    onNodeClick,
+    onNodeContextMenu,
+  } = useChainFocusMenus(
+    locked,
+    wasLockedRef,
+    releasePlacements,
+    canEdit,
+    menus,
+    mapId,
+    authoring,
+    focusTokenRef,
+    setFocusRequest,
+  );
 
   const showHomePrompt =
     canEdit === true && systemsComplete && liveSystemCount === 0;
-
-  // Id-derived (the join key), so per-frame drag renders reuse the same set
-  // and the camera host's effects don't churn (drag hardening, IS-5).
-  const nodeIdsKey = nodes
-    .flatMap((node) => isStubNodeId(node.id) ? [] : [node.id])
-    .join(',');
-  const nodeIds = useMemo(
-    () =>
-      new Set(
-        nodeIdsKey.length === 0 ? [] : nodeIdsKey.split(',').map(Number),
-      ),
-    [nodeIdsKey],
-  );
   const trackedSystem = useTrackedSystemTarget(mapId);
   const windowSystemId = persistentWindowSystemId(trackedSystem, rootSystemId);
 

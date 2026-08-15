@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "$schema": "./node_modules/fallow/schema.json",
 
   "ignoreExportsUsedInFile": false,
 
@@ -55,7 +55,8 @@
     "boundary-violation": "error",
     "coverage-gaps": "off",
     "stale-suppressions": "warn",
-    "feature-flags": "off"
+    "feature-flags": "off",
+    "dev-dependencies-in-production": "off"
   },
 
   "health": {
