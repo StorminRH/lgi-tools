@@ -17,6 +17,7 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
+import { formatUtcTime } from '@/lib/format/time';
 import { emptyDataText, syncErrorMeta } from './live-character-sync';
 
 /**
@@ -180,7 +181,7 @@ function LiveCharacterCardBody({
       {!character.needsReconnect && syncError != null && (
         <Callout className="mx-3.5 my-2" label={syncErrorMeta(syncError).label}>
           {hasData && lastSyncedAt != null
-            ? `Couldn't refresh — showing data as of ${new Date(lastSyncedAt).toLocaleTimeString()}.`
+            ? `Couldn't refresh — showing data as of ${formatUtcTime(lastSyncedAt)}.`
             : `Couldn't fetch this character's ${noun} yet.`}
         </Callout>
       )}
@@ -189,7 +190,7 @@ function LiveCharacterCardBody({
         label={sectionLabel}
         hint={
           hasData && lastSyncedAt != null
-            ? `as of ${new Date(lastSyncedAt).toLocaleTimeString()}`
+            ? `as of ${formatUtcTime(lastSyncedAt)}`
             : undefined
         }
       />
