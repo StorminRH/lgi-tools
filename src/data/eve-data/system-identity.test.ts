@@ -143,6 +143,13 @@ it.each([
   expect(systemDestinationHintReadout(hint)).toEqual({ label, tone });
 });
 
+it('keeps the unknown chip as C1–C3 even though the bucket also admits shattered C13', () => {
+  expect(systemDestinationHintReadout('unknown')).toEqual({
+    label: 'C1–C3',
+    tone: 'text-wh-c2',
+  });
+});
+
 it('omits a destination-hint chip when the field is unset', () => {
   expect(systemDestinationHintReadout(null)).toBeNull();
 });

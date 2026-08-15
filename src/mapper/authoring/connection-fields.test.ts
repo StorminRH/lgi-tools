@@ -10,20 +10,27 @@ import {
 } from './connection-field-group';
 import { ConnectionFields } from './connection-fields';
 
+const selectHandlers = new Map<string, (next: string) => void>();
+
 vi.mock('@/components/ui/select', () => ({
   Select: (props: {
     ariaLabel: string;
     value: string;
     items: readonly { value: string; label: string }[];
-  }) =>
-    createElement('div', {
+    onValueChange?: (next: string) => void;
+  }) => {
+    if (props.onValueChange !== undefined) {
+      selectHandlers.set(props.ariaLabel, props.onValueChange);
+    }
+    return createElement('div', {
       'data-select': props.ariaLabel,
       'data-value': props.value,
       'data-options': props.items.map((item) => item.value).join(','),
       // Ruling D-G is about the WORDS players read, so the option labels are
       // part of the contract, not just the stored values.
       'data-labels': props.items.map((item) => item.label).join('|'),
-    }),
+    });
+  },
 }));
 
 vi.mock('@/components/ui/terminal-search', () => ({
@@ -279,6 +286,18 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   expect(withOrigin).toContain('origin:inbound-1');
   expect(withOrigin).toContain('J160650 - C3');
   expect(withOrigin).not.toContain('>Origin<');
+
+  SETTERS.linkToOrigin.mockClear();
+  SETTERS.setLeadsTo.mockClear();
+  const onLeadsChange = selectHandlers.get('Leads to');
+  expect(onLeadsChange).toBeTypeOf('function');
+  onLeadsChange?.('origin:inbound-1');
+  expect(SETTERS.linkToOrigin).toHaveBeenCalledWith('inbound-1');
+  expect(SETTERS.setLeadsTo).not.toHaveBeenCalled();
+  SETTERS.linkToOrigin.mockClear();
+  onLeadsChange?.('unknown');
+  expect(SETTERS.setLeadsTo).toHaveBeenCalledWith('unknown');
+  expect(SETTERS.linkToOrigin).not.toHaveBeenCalled();
 
   const live = renderToStaticMarkup(
     createElement(ConnectionFields, {

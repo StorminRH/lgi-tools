@@ -134,6 +134,8 @@ export function systemDestinationClassReadout(
 const HINT_BUCKET_READOUT: Partial<
   Record<WormholeDestinationHint, SystemClassificationReadout>
 > = {
+  // C13 is the shattered member of this bucket. The chip matches the editor
+  // wording "Unknown (C1–C3)" rather than listing C13 as a fourth class.
   unknown: { label: 'C1–C3', tone: 'text-wh-c2' },
   dangerous: { label: 'C4–C5', tone: 'text-wh-c4' },
 };

@@ -167,9 +167,11 @@ describe('placeAnchoredCard', () => {
       discRadius,
     });
     expect(placed.leader).not.toBeNull();
-    const leader = placed.leader!;
-    expect(Math.abs(leader.x1 - leader.x2)).toBeCloseTo(
-      Math.abs(leader.y1 - leader.y2),
+    if (placed.leader === null) {
+      throw new Error('expected a leader line at maximum zoom');
+    }
+    expect(Math.abs(placed.leader.x1 - placed.leader.x2)).toBeCloseTo(
+      Math.abs(placed.leader.y1 - placed.leader.y2),
     );
   });
 });

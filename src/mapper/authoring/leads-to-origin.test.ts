@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   decodeOriginLead,
+  dispatchLeadsToChange,
   encodeOriginLead,
   originLeadCandidates,
   type OriginLeadConnection,
@@ -30,6 +31,22 @@ describe('origin lead encoding', () => {
     expect(decodeOriginLead('hisec')).toBeNull();
     expect(decodeOriginLead(null)).toBeNull();
     expect(decodeOriginLead('origin:')).toBeNull();
+  });
+
+  it('routes an origin pick to link and a class hint to setLeadsTo', () => {
+    const onLinkOrigin = vi.fn();
+    const onChangeHint = vi.fn();
+    dispatchLeadsToChange('origin:inbound-1', onLinkOrigin, onChangeHint);
+    expect(onLinkOrigin).toHaveBeenCalledWith('inbound-1');
+    expect(onChangeHint).not.toHaveBeenCalled();
+    onLinkOrigin.mockClear();
+    dispatchLeadsToChange('unknown', onLinkOrigin, onChangeHint);
+    expect(onChangeHint).toHaveBeenCalledWith('unknown');
+    expect(onLinkOrigin).not.toHaveBeenCalled();
+    onChangeHint.mockClear();
+    dispatchLeadsToChange(null, onLinkOrigin, onChangeHint);
+    expect(onChangeHint).toHaveBeenCalledWith(null);
+    expect(onLinkOrigin).not.toHaveBeenCalled();
   });
 });
 

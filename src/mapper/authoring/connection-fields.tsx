@@ -45,10 +45,7 @@ import {
   type LifetimeRowDisplay,
   type MassRowDisplay,
 } from './connection-intelligence';
-import {
-  encodeOriginLead,
-  decodeOriginLead,
-} from './leads-to-origin';
+import { dispatchLeadsToChange, encodeOriginLead } from './leads-to-origin';
 import {
   wormholeTypeSearch,
   type WormholeTypeErr,
@@ -541,14 +538,11 @@ function LeadsToField({
       readOnly={readOnly}
       readoutAttr="data-map-connection-leads-readout"
       readoutText={hint === null ? 'Unset' : HINT_LABELS[hint]}
-      onChange={(value) => {
-        const originId = decodeOriginLead(value);
-        if (originId !== null) {
-          onLinkOrigin(originId);
-          return;
-        }
-        onChangeHint(value as WormholeDestinationHint | null);
-      }}
+      onChange={(value) =>
+        dispatchLeadsToChange(value, onLinkOrigin, (hint) =>
+          onChangeHint(hint as WormholeDestinationHint | null),
+        )
+      }
     />
   );
 }

@@ -1280,6 +1280,7 @@ details[data-collapsible][open] > summary [data-chevron] {
  * so C1–C3 / Pochven / Drifter stay on one line instead of wrapping. */
 .map-node-disc [data-chain-node-classification] {
   --chip-fs: var(--text-nav);
+
   font-size: var(--chip-fs);
 }
 

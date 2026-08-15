@@ -13,6 +13,20 @@ export function decodeOriginLead(value: string | null): string | null {
   return connectionId.length > 0 ? connectionId : null;
 }
 
+/** Routes a Leads-to pick to origin-link or class-hint without mixing the two. */
+export function dispatchLeadsToChange(
+  value: string | null,
+  onLinkOrigin: (resolvedConnectionId: string) => void,
+  onChangeHint: (value: string | null) => void,
+): void {
+  const originId = decodeOriginLead(value);
+  if (originId !== null) {
+    onLinkOrigin(originId);
+    return;
+  }
+  onChangeHint(value);
+}
+
 /** One resolved inbound line a stub may attach to. */
 export interface OriginLeadCandidate {
   readonly connectionId: string;
