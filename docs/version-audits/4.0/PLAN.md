@@ -1,6 +1,6 @@
 # Audit plan — Version 4.0 "The Living Map"
 
-**Audit status:** Remediation required
+**Audit status:** Remediation in progress
 **Audit cycle:** 1
 **Audited ref:** `3daa21f54143cb48c5f69d669cb72aa9ae276530`
 **Audit mode:** Version close
@@ -437,9 +437,9 @@ window/canvas tests) plus `idempotency-registry.ts` and `data-ownership-registry
 
 | ID | First seen | Class | Principle diagnosis | Required outcome | Remediation | Status |
 | --- | ---: | --- | --- | --- | --- | --- |
-| AF-010 | 1 | Floss | unused `PointerPopover` export in `src/components/ui/popover.tsx` (introduced #377, never consumed; Signature Editor uses `ScannerAnchoredPanel`) | delete the unused export or give it its one consumer | — | Open |
-| AF-011 | 1 | Floss | new whole-version clone group `dup:50ee3d46` — `postDoor` in `src/composition/jump-resolver/convex-door.ts` and `src/composition/signature-elimination/convex-door.ts` fails version-start-pinned `pnpm fallow` | one shared Convex service-door helper, or a documented accepted clone | — | Open |
-| AF-012 | 1 | Floss | `docs/ux-check/README.md` still points at deleted `docs/contributing/end-to-end-testing.md` | retarget or drop the layout-table row so `check-doc-refs` is warning-free | — | Open |
+| AF-010 | 1 | Floss | unused `PointerPopover` export in `src/components/ui/popover.tsx` (introduced #377, never consumed; Signature Editor uses `ScannerAnchoredPanel`) | delete the unused export or give it its one consumer | 4.0.5.1 | Planned |
+| AF-011 | 1 | Floss | new whole-version clone group `dup:50ee3d46` — `postDoor` in `src/composition/jump-resolver/convex-door.ts` and `src/composition/signature-elimination/convex-door.ts` fails version-start-pinned `pnpm fallow` | one shared Convex service-door helper, or a documented accepted clone | 4.0.5.1 | Planned |
+| AF-012 | 1 | Floss | `docs/ux-check/README.md` layout table uses a `../` path that `check-doc-refs` treats as a repo-root archive reference, so live `docs/contributing/end-to-end-testing.md` does not resolve | retarget or drop the layout-table row so `check-doc-refs` is warning-free | 4.0.5.1 | Planned |
 
 Carried Watch findings (baseline `## Watch findings`):
 
