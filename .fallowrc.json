@@ -43,7 +43,7 @@
   "rules": {
     "unused-files": "error",
     "unused-exports": "error",
-    "unused-types": "off",
+    "unused-types": "error",
     "unused-dependencies": "error",
     "unlisted-dependencies": "error",
     "unused-enum-members": "error",

@@ -46,9 +46,6 @@ export const entityNamesRequestSchema = z.object({
 const entityNamesResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
-/** Resolved EVE entity names keyed by numeric ID; unresolved IDs are intentionally absent. */
-export type EntityNamesResponse = z.infer<typeof entityNamesResponseSchema>;
-
 /** Complete SDE pipeline outcome returned by the refresh cron after a reingest. */
 export type SdePipelineSummary = {
   ingest: IngestSummary;
@@ -113,9 +110,6 @@ export const systemSearchEntrySchema = z.object({
 const systemsResponseSchema = z.object({
   systems: z.array(systemSearchEntrySchema),
 });
-/** Solar-system search response containing normalized ID, name, security, and region fields. */
-export type SystemsResponse = z.infer<typeof systemsResponseSchema>;
-
 /**
  * Typed endpoint definition for systems endpoint; method, path, request, and response contracts
  * remain coupled here.

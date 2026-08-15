@@ -26,7 +26,7 @@ const MAX_CHAIN_DEPTH = 10;
  * One Neon cold-start retry observation with attempt count and elapsed milliseconds; it contains
  * no query text or user identity.
  */
-export interface NeonColdStartMetric {
+interface NeonColdStartMetric {
   outcome: 'recovered' | 'exhausted';
   attempts: number;
   totalDelayMs: number;

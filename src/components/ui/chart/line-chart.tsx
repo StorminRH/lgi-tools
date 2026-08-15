@@ -23,7 +23,7 @@ type NumericScale = ((value: number) => number) & {
  * Display-ready line chart axis consumed by the shared visualization layer; callers keep all
  * numeric values in one consistent unit.
  */
-export type LineChartAxis = (ctx: {
+type LineChartAxis = (ctx: {
   xScale: NumericScale;
   yScale: NumericScale;
   xs: number[];

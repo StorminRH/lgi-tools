@@ -89,8 +89,6 @@ const searchCharactersResponseSchema = z.discriminatedUnion('mode', [
   }),
 ]);
 
-/** Validated character-search request accepted by server composition. */
-export type SearchCharactersRequest = z.infer<typeof searchCharactersRequestSchema>;
 /** Typed scoped or exact character-search response consumed by the access editor. */
 export type SearchCharactersResponse = z.infer<typeof searchCharactersResponseSchema>;
 

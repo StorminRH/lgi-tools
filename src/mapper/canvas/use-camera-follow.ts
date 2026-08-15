@@ -148,7 +148,7 @@ export interface CameraFocusRequest {
 }
 
 /** Everything the camera host consumes. */
-export interface CameraFollowProps {
+interface CameraFollowProps {
   readonly intents: readonly MapChainIntent[];
   readonly follow: boolean;
   readonly dragging: ReadonlySet<number>;

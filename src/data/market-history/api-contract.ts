@@ -44,9 +44,6 @@ export const wireHistoryInputsSchema = z.object({
 const refreshHistoryResponseSchema = z.object({
   inputs: z.array(wireHistoryInputsSchema),
 });
-/** Typed market-history refresh result with source, freshness, and write-behind state. */
-export type RefreshHistoryResponse = z.infer<typeof refreshHistoryResponseSchema>;
-
 /**
  * Typed endpoint definition for refresh history endpoint; method, path, request, and response
  * contracts remain coupled here.
