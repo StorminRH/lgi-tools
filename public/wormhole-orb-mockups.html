@@ -103,6 +103,10 @@
     }
     .stage.lg { width: 220px; height: 220px; }
     .stage.sm { width: 90px; height: 90px; }
+    /* 55 × 1.5 ≈ 83; 84px so the faded bands read as large as today's solid disc. */
+    .stage.atlas { width: 120px; height: 120px; }
+    .stage.atlas .pond { width: 84px; height: 84px; }
+    .stage.atlas .chip { font-size: 12px; }
     .today {
       width: 55px;
       height: 55px;
@@ -312,13 +316,13 @@
     </div>
 
     <section class="study">
-      <h2>Atlas scale — 55px disc</h2>
+      <h2>Atlas scale — shipped 55px vs drop ripples at 84px</h2>
       <p class="meta">
         <span class="tech">SYSTEM_DISC_SIZE</span>
-        Live Atlas nodes are a <strong>55×55 canvas-pixel disc</strong> inside
-        a 150×110 widget frame. At zoom 1 that is 55 CSS pixels on screen;
-        the map can zoom from 0.2 to 2.5. This row is CSS drop ripples at
-        that exact disc size, next to the shipped circle.
+        Live Atlas discs are <strong>55×55</strong> (the “Today” circle).
+        The faded drop-ripple field reads smaller at that box, so these
+        CSS drop nodes are <strong>84px (55 × 1.5)</strong> — still inside
+        the 150×110 widget frame. Hover to expand the rings.
       </p>
       <div class="chain" id="atlas-row"></div>
     </section>
@@ -431,7 +435,7 @@
     today.className = 'node';
     today.innerHTML = '<div class="sys">Today</div>';
     const todayStage = document.createElement('div');
-    todayStage.className = 'stage sm';
+    todayStage.className = 'stage atlas';
     todayStage.innerHTML = '<div class="today"><span class="chip">C5</span></div>';
     today.appendChild(todayStage);
     atlasRow.appendChild(today);
@@ -448,7 +452,7 @@
       wrap.className = 'node';
       wrap.innerHTML = `<div class="sys">${node.name}</div>`;
       const stage = document.createElement('div');
-      stage.className = 'stage sm';
+      stage.className = 'stage atlas';
       const pond = cssPond(COLORS[node.color]);
       pond.querySelector('.chip').textContent = node.chip;
       stage.appendChild(pond);
@@ -460,8 +464,8 @@
     for (const key of ['c5', 'c1', 'teal']) {
       cssRow.appendChild(specimen('lg', cssPond(COLORS[key]), `200px · ${COLORS[key].label}`));
     }
-    cssRow.appendChild(specimen('sm', cssPond(COLORS.c5), '55px'));
-    cssRow.appendChild(specimen('sm', cssPond(COLORS.c6), '55px · C6'));
+    cssRow.appendChild(specimen('atlas', cssPond(COLORS.c5), '84px'));
+    cssRow.appendChild(specimen('atlas', cssPond(COLORS.c6), '84px · C6'));
 
     const fineRow = document.getElementById('fine-row');
     for (const key of ['c4', 'teal', 'c3']) {
