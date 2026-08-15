@@ -4,9 +4,7 @@ import {
   WORMHOLE_DESTINATION_HINTS,
   WORMHOLE_SIZE_CLASSES,
 } from '@/data/eve-data/wormhole-contract';
-import { readEnv } from '@/lib/env';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { deriveConvexSiteUrl } from '@/lib/sync-engine';
+import { postConvexHttpDoor } from '@/lib/convex-http-door';
 
 const emissionFactsSchema = z.strictObject({
   connectionId: z.string().min(1),
@@ -126,58 +124,18 @@ export class JumpConvexUnavailableError extends Error {
   }
 }
 
-async function postDoor<T>(
+function postDoor<T>(
   path: '/jump-evidence' | '/resolve-jump',
   body: unknown,
   schema: z.ZodType<T>,
 ): Promise<T> {
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  const secret = readEnv('CONVEX_SERVICE_SECRET');
-  const siteUrl = convexUrl ? deriveConvexSiteUrl(convexUrl) : null;
-  if (siteUrl === null || !secret) {
-    throw new JumpConvexUnavailableError(
-      'Jump resolver unavailable: Convex URL or service secret is unset',
-    );
-  }
-
-  let response: Response;
-  try {
-    response = await fetchWithTimeout(`${siteUrl}${path}`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${secret}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (cause) {
-    throw new JumpConvexUnavailableError(
-      `Jump resolver unavailable: ${path} request failed`,
-      { cause },
-    );
-  }
-  if (!response.ok) {
-    throw new JumpConvexUnavailableError(
-      `Jump resolver unavailable: ${path} answered ${response.status}`,
-    );
-  }
-
-  let decoded: unknown;
-  try {
-    decoded = await response.json();
-  } catch (cause) {
-    throw new JumpConvexUnavailableError(
-      `Jump resolver unavailable: ${path} returned invalid JSON`,
-      { cause },
-    );
-  }
-  const parsed = schema.safeParse(decoded);
-  if (!parsed.success) {
-    throw new JumpConvexUnavailableError(
-      `Jump resolver unavailable: ${path} returned an invalid contract`,
-    );
-  }
-  return parsed.data;
+  return postConvexHttpDoor({
+    path,
+    body,
+    schema,
+    error: JumpConvexUnavailableError,
+    label: 'Jump resolver unavailable',
+  });
 }
 
 /** Reads one consistent transition packet through the established evidence door. */

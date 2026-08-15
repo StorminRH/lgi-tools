@@ -46,10 +46,10 @@
     "unused-types": "off",
     "unused-dependencies": "error",
     "unlisted-dependencies": "error",
-    "unused-enum-members": "warn",
-    "unused-class-members": "warn",
-    "unresolved-imports": "warn",
-    "duplicate-exports": "warn",
+    "unused-enum-members": "error",
+    "unused-class-members": "error",
+    "unresolved-imports": "error",
+    "duplicate-exports": "error",
     "circular-dependencies": "error",
     "re-export-cycle": "error",
     "boundary-violation": "error",
@@ -292,10 +292,5 @@
         "eslint.config.mjs"
       ]
     }
-  },
-
-  "audit": {
-    "gate": "new-only",
-    "dupesBaseline": "fallow-baselines/dupes.json"
   }
 }

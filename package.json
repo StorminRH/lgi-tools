@@ -54,7 +54,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "fallow": "fallow audit --fail-on-issues",
+    "fallow": "fallow dead-code --fail-on-issues && fallow dupes --fail-on-issues",
     "fallow:health": "fallow health --coverage coverage/coverage-final.json",
     "verify": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm fallow"
   },
