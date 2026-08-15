@@ -53,16 +53,18 @@ function jsonLines(rows: unknown[]): string {
   return rows.map((row) => (typeof row === 'string' ? row : JSON.stringify(row))).join('\n');
 }
 
-function fakeDb(): PostgresJsDb {
+function fakeDb(): { db: PostgresJsDb; values: ReturnType<typeof vi.fn> } {
+  const values = vi.fn((batch: unknown[]) => Promise.resolve(structuredClone(batch)));
   const tx = {
     execute: vi.fn().mockResolvedValue(undefined),
-    insert: () => ({
-      values: (batch: unknown[]) => Promise.resolve(batch),
-    }),
+    insert: () => ({ values }),
   };
   return {
-    transaction: async (fn: (inner: typeof tx) => Promise<void>) => fn(tx),
-  } as unknown as PostgresJsDb;
+    db: {
+      transaction: async (fn: (inner: typeof tx) => Promise<void>) => fn(tx),
+    } as unknown as PostgresJsDb,
+    values,
+  };
 }
 
 beforeAll(async () => {
@@ -168,7 +170,9 @@ beforeEach(() => {
 
 describe('runIngest', () => {
   it('streams batched JSONL and maps the flagged dogma and blueprint rows', async () => {
-    const result = await runIngest(fakeDb());
+    const { db, values } = fakeDb();
+    const result = await runIngest(db);
+    const batches = values.mock.calls.map(([batch]) => batch as Record<string, unknown>[]);
 
     expect(result).toEqual({
       categoriesWritten: 501,
@@ -180,6 +184,77 @@ describe('runIngest', () => {
       ...EMPTY_UNIVERSE_SUMMARY,
       durationMs: expect.any(Number),
     });
+    expect(batches).toHaveLength(7);
+    expect(batches[0]).toHaveLength(500);
+    expect(batches[0]![0]).toEqual({
+      id: 1,
+      name: 'Category 1',
+      iconId: null,
+      published: true,
+    });
+    expect(batches[1]).toEqual([
+      { id: 501, name: 'Category 501', iconId: null, published: true },
+    ]);
+    expect(batches[2]).toEqual([
+      {
+        id: 10,
+        categoryId: 1,
+        name: 'Group 10',
+        iconId: null,
+        useBasePrice: false,
+        anchored: false,
+        anchorable: false,
+        fittableNonSingleton: false,
+        published: true,
+      },
+    ]);
+    expect(batches[3]).toEqual([
+      {
+        id: 100,
+        groupId: 10,
+        name: 'Type 100',
+        description: null,
+        mass: null,
+        volume: null,
+        capacity: null,
+        portionSize: null,
+        raceId: null,
+        basePrice: null,
+        published: true,
+        marketGroupId: null,
+        iconId: null,
+        soundId: null,
+        graphicId: null,
+      },
+    ]);
+    expect(batches[4]).toEqual([
+      {
+        id: 20,
+        name: 'massMultiplier',
+        description: null,
+        iconId: null,
+        defaultValue: null,
+        published: true,
+        displayName: null,
+        unitId: null,
+        stackable: false,
+        highIsGood: false,
+        categoryId: null,
+      },
+    ]);
+    expect(batches[5]).toEqual([{ typeId: 100, attributes: { '20': 1.5 } }]);
+    expect(batches[6]).toEqual([
+      {
+        blueprintTypeId: 1000,
+        maxProductionLimit: 10,
+        activities: { manufacturing: { time: 60 } },
+      },
+      {
+        blueprintTypeId: 1001,
+        maxProductionLimit: 20,
+        activities: { reaction: { time: 120 } },
+      },
+    ]);
     expect(mocks.parseUniverse).toHaveBeenCalledWith(fixturePaths);
     expect(mocks.emitUniverseNeon).toHaveBeenCalledWith(expect.anything(), EMPTY_UNIVERSE);
     expect(mocks.cleanupSdeJsonl).toHaveBeenCalledWith(fixturePaths);
