@@ -350,7 +350,7 @@ describe('map authoring', () => {
             mapId: MAP_A,
             connectionId,
           }),
-        ).resolves.toEqual({ outcome: 'retained' });
+        ).resolves.toEqual({ outcome: 'removed', systemIds: [AMARR] });
         return;
       }
 
@@ -1014,7 +1014,7 @@ describe('map authoring', () => {
       ]);
     });
 
-    it('retains a severed component containing a known-space exit', async () => {
+    it('removes a severed component even when it contains a known-space exit', async () => {
       const t = convexTest(schema, modules);
       const ids = await seedTopology(
         t,
@@ -1030,8 +1030,8 @@ describe('map authoring', () => {
           mapId: MAP_A,
           connectionId: ids.cut!,
         }),
-      ).resolves.toEqual({ outcome: 'retained' });
-      expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: null });
+      ).resolves.toEqual({ outcome: 'removed', systemIds: [JITA] });
+      expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: NOW });
     });
 
     it('removes a dead branch with incident connections and round-trips every identity', async () => {
@@ -1175,7 +1175,7 @@ describe('map authoring', () => {
       expect(await readConnection(t, stub.connectionId)).toMatchObject({ deletedAt: NOW });
     });
 
-    it('evaluates an interior sever inside a retained known-space island', async () => {
+    it('removes a known-space exit and its wormhole-only children together', async () => {
       const t = convexTest(schema, modules);
       const ids = await seedTopology(
         t,
@@ -1186,20 +1186,19 @@ describe('map authoring', () => {
           { key: 'interior', fromSystemId: JITA, toSystemId: WH_B },
         ],
       );
-      await asUser(t).mutation(api.mapAuthoring.severConnection, {
-        mapId: MAP_A,
-        connectionId: ids['island-cut']!,
-      });
 
       await expect(
         asUser(t).mutation(api.mapAuthoring.severConnection, {
           mapId: MAP_A,
-          connectionId: ids.interior!,
+          connectionId: ids['island-cut']!,
         }),
-      ).resolves.toEqual({ outcome: 'removed', systemIds: [WH_B] });
-      expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: null });
-      expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW + 1 });
+      ).resolves.toEqual({ outcome: 'removed', systemIds: [JITA, WH_B] });
+      expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: NOW });
+      expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW });
       expect(await readConnection(t, ids['island-cut']!)).toMatchObject({
+        deletedAt: NOW,
+      });
+      expect(await readConnection(t, ids.interior!)).toMatchObject({
         deletedAt: NOW,
       });
     });
