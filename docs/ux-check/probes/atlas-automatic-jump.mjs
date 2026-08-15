@@ -115,9 +115,9 @@ export default {
       && await hasStubReadout(secondStaticStubs.nth(1), 'N766', 'C2'),
     );
 
-    const accountTrigger = page.locator('[data-account-menu-trigger]');
+    const accountTrigger = page.locator('[data-account-menu-trigger]').filter({ visible: true });
     await accountTrigger.click();
-    const accountMenu = page.locator('[data-account-menu-popup]');
+    const accountMenu = page.locator('[data-account-menu-popup]').filter({ visible: true });
     await accountMenu.waitFor({ state: 'visible', timeout: 10_000 });
     const mapSettings = accountMenu.locator('[data-page-menu-section]');
     const trackingSection = accountMenu.locator('[data-map-tracking]');

@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import { cn } from '@/components/ui/cn';
 import * as Combobox from '@/components/ui/combobox';
+import { scrollArea } from '@/components/ui/scroll-area';
 import { Select } from '@/components/ui/select';
 import { useSystemSearch } from '@/components/use-system-search';
 import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
@@ -80,6 +81,14 @@ const CHIP =
 const COMBO_FIELD =
   'w-full min-w-0 max-w-full overflow-hidden border-transparent bg-transparent px-1 shadow-none ' +
   'data-[popup-open]:border-isk data-[popup-open]:bg-transparent data-[popup-open]:shadow-none';
+
+function consumeScannerEnter(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.key !== 'Enter') return false;
+  event.preventDefault();
+  event.stopPropagation();
+  event.nativeEvent.stopImmediatePropagation();
+  return true;
+}
 
 const IDENTIFY_PREFIX = 'group:';
 const TYPE_PREFIX = 'type:';
@@ -192,6 +201,7 @@ export function ScannerTypeCombo({
   codes,
   preferredCodes,
   classLabelOf,
+  rowId,
   disabled,
   onCommit,
 }: {
@@ -200,6 +210,7 @@ export function ScannerTypeCombo({
   readonly codes: readonly string[];
   readonly preferredCodes: readonly string[];
   readonly classLabelOf: (code: string) => string | null;
+  readonly rowId: string;
   readonly disabled: boolean;
   readonly onCommit: (value: string | null) => void;
 }) {
@@ -214,6 +225,8 @@ export function ScannerTypeCombo({
     [codes, preferredCodes],
   );
   const popup = useCloseOnScannerScroll();
+  const browsing = query.trim().length === 0;
+  const panelGroups = typeGroupsAsComboItems(groups, classLabelOf);
   return (
     <Combobox.Root
       open={popup.open}
@@ -236,12 +249,13 @@ export function ScannerTypeCombo({
           size="sm"
           placeholder="Unresolved"
           disabled={disabled}
+          aria-label={`Type ${rowId}`}
           className={cn(
             scannerSelectedFieldClass(code !== null),
             code === null && 'font-normal',
           )}
           onKeyDown={(event) => {
-            if (event.key !== 'Enter') return;
+            if (!consumeScannerEnter(event)) return;
             const parsed = search.parse(query);
             if (parsed.ok) onCommit(parsed.params.code);
           }}
@@ -255,39 +269,12 @@ export function ScannerTypeCombo({
           </span>
         ) : null}
       </div>
-      <Combobox.Panel className="min-w-44 shadow-dd" align="start">
-        {items.length === 0 ? (
-          <p className="px-2.5 py-2 font-ui text-label text-muted">No match</p>
-        ) : null}
-        <Combobox.List>
-          {groups.map((group) =>
-            group.items.length === 0 ? null : (
-              <Combobox.Group key={group.label} items={[...group.items]}>
-                {query.trim().length === 0 ? (
-                  <Combobox.GroupLabel>{group.label}</Combobox.GroupLabel>
-                ) : null}
-                {group.items.map((item) => (
-                  <Combobox.Item
-                    key={item}
-                    value={item}
-                    className="flex justify-between gap-3 px-2.5 py-1.5 font-ui text-ui text-isk"
-                  >
-                    {item}
-                    <span className="text-muted">
-                      {item === FAR_SIDE_WORMHOLE_CODE ? '' : (classLabelOf(item) ?? '')}
-                    </span>
-                  </Combobox.Item>
-                ))}
-              </Combobox.Group>
-            ),
-          )}
-        </Combobox.List>
-        {query.trim().length === 0 ? (
-          <p className="px-2.5 pb-1.5 pt-1 font-ui text-label text-muted">
-            Type to search other holes…
-          </p>
-        ) : null}
-      </Combobox.Panel>
+      <ScannerComboPanel
+        groups={panelGroups}
+        itemValues={items}
+        showLabels={browsing}
+        footer={browsing ? 'Type to search other holes…' : null}
+      />
     </Combobox.Root>
   );
 }
@@ -297,14 +284,16 @@ export function ScannerIdentifyCombo({
   codes,
   preferredCodes,
   classLabelOf,
+  rowId,
   disabled,
   onIdentify,
 }: {
   readonly codes: readonly string[];
   readonly preferredCodes: readonly string[];
   readonly classLabelOf: (code: string) => string | null;
+  readonly rowId: string;
   readonly disabled: boolean;
-  readonly onIdentify: (group: SigGroup) => void;
+  readonly onIdentify: (group: SigGroup, wormholeTypeCode?: string) => void;
 }) {
   const [query, setQuery] = useState('');
   const groups = useMemo(
@@ -321,23 +310,12 @@ export function ScannerIdentifyCombo({
       onIdentify(value.slice(IDENTIFY_PREFIX.length) as SigGroup);
       return;
     }
-    if (value.startsWith(TYPE_PREFIX)) onIdentify('Wormhole');
-  };
-  const commitQuery = (text: string) => {
-    const parsed = search.parse(text);
-    if (parsed.ok) {
-      onIdentify('Wormhole');
-      return;
+    if (value.startsWith(TYPE_PREFIX)) {
+      onIdentify('Wormhole', value.slice(TYPE_PREFIX.length));
     }
-    const needle = text.trim().toLowerCase();
-    if (needle.length === 0) return;
-    const group = SIG_GROUPS.find((entry) => {
-      const label = (scannerGroupTypeLabel(entry) ?? entry).toLowerCase();
-      return label === needle || entry.toLowerCase() === needle;
-    });
-    if (group !== undefined) onIdentify(group);
   };
   const popup = useCloseOnScannerScroll();
+  const browsing = query.trim().length === 0;
   return (
     <Combobox.Root
       open={popup.open}
@@ -358,48 +336,19 @@ export function ScannerIdentifyCombo({
         size="sm"
         placeholder="Unresolved"
         disabled={disabled}
+        aria-label={`Name ${rowId}`}
         className={cn(scannerSelectedFieldClass(false), 'font-normal')}
         onKeyDown={(event) => {
-          if (event.key !== 'Enter') return;
-          commitQuery(query);
+          if (!consumeScannerEnter(event)) return;
+          commitScannerIdentifyQuery(query, search.parse, onIdentify);
         }}
       />
-      <Combobox.Panel className="min-w-44 shadow-dd" align="start">
-        {items.length === 0 ? (
-          <p className="px-2.5 py-2 font-ui text-label text-muted">No match</p>
-        ) : null}
-        <Combobox.List>
-          {groups.map((group) =>
-            group.items.length === 0 ? null : (
-              <Combobox.Group
-                key={group.label}
-                items={group.items.map((item) => item.value)}
-              >
-                {query.trim().length === 0 ? (
-                  <Combobox.GroupLabel>{group.label}</Combobox.GroupLabel>
-                ) : null}
-                {group.items.map((item) => (
-                  <Combobox.Item
-                    key={item.value}
-                    value={item.value}
-                    className="flex justify-between gap-3 px-2.5 py-1.5 font-ui text-ui text-isk"
-                  >
-                    {item.text}
-                    {item.meta !== '' ? (
-                      <span className="text-muted">{item.meta}</span>
-                    ) : null}
-                  </Combobox.Item>
-                ))}
-              </Combobox.Group>
-            ),
-          )}
-        </Combobox.List>
-        {query.trim().length === 0 ? (
-          <p className="px-2.5 pb-1.5 pt-1 font-ui text-label text-muted">
-            Type to search other holes…
-          </p>
-        ) : null}
-      </Combobox.Panel>
+      <ScannerComboPanel
+        groups={groups}
+        itemValues={items}
+        showLabels={browsing}
+        footer={browsing ? 'Type to search other holes…' : null}
+      />
     </Combobox.Root>
   );
 }
@@ -413,10 +362,12 @@ function scannerSelectedFieldClass(selected: boolean): string {
 /** Compact mass select using in-game wording in the list and short trigger text. */
 export function ScannerMassSelect({
   value,
+  rowId,
   disabled,
   onChange,
 }: {
   readonly value: ConnectionEditorDetail['massState'];
+  readonly rowId: string;
   readonly disabled: boolean;
   readonly onChange: ConnectionFieldSetters['setMassState'];
 }) {
@@ -427,7 +378,7 @@ export function ScannerMassSelect({
       open={popup.open}
       onOpenChange={popup.onOpenChange}
       size="sm"
-      ariaLabel="Mass"
+      ariaLabel={`Mass ${rowId}`}
       disabled={disabled}
       caret={!selected}
       className={scannerSelectedFieldClass(selected)}
@@ -453,6 +404,7 @@ export function ScannerLifeSelect({
   connection,
   entry,
   now,
+  rowId,
   disabled,
   onChange,
 }: {
@@ -460,6 +412,7 @@ export function ScannerLifeSelect({
   readonly connection: ConnectionEditorDetail | null;
   readonly entry: WormholeCodexEntry | null;
   readonly now: number;
+  readonly rowId: string;
   readonly disabled: boolean;
   readonly onChange: ConnectionFieldSetters['setLifeStage'];
 }) {
@@ -471,7 +424,7 @@ export function ScannerLifeSelect({
       open={popup.open}
       onOpenChange={popup.onOpenChange}
       size="sm"
-      ariaLabel="Reliable Lifetime"
+      ariaLabel={`Reliable Lifetime ${rowId}`}
       disabled={disabled}
       caret={!selected}
       className={scannerSelectedFieldClass(selected)}
@@ -522,6 +475,7 @@ export function scannerLeadsSuggestionGroups(
   systems: readonly SystemSearchEntry[],
   seed: string,
   originLeads: readonly OriginLeadOption[] = [],
+  originSystemId?: number,
 ): readonly ScannerLeadsSuggestionGroup[] {
   const needle = query.trim().toLowerCase();
   const browsing = needle.length === 0 || query === seed;
@@ -559,6 +513,7 @@ export function scannerLeadsSuggestionGroups(
     return [...originGroup, { label: 'Class', items: [unsetItem, ...hintItems] }];
   }
   const systemItems = systems
+    .filter((entry) => entry.id !== originSystemId)
     .filter((entry) => entry.name.toLowerCase().startsWith(needle))
     .slice(0, 12)
     .map((entry) => ({
@@ -587,6 +542,7 @@ export function commitScannerLeadsValue(
   onChange: ConnectionFieldSetters['setLeadsTo'],
   onSetDestination: ConnectionFieldSetters['setDestination'],
   onLinkOrigin: ConnectionFieldSetters['linkToOrigin'],
+  originSystemId?: number,
 ): void {
   const originId = decodeOriginLead(value);
   if (originId !== null) {
@@ -595,20 +551,182 @@ export function commitScannerLeadsValue(
   }
   if (value === UNSET_FIELD) {
     onSetDestination(null);
-    onChange(null);
     return;
   }
   if (value.startsWith(HINT_PREFIX)) {
-    onSetDestination(null);
     onChange(value.slice(HINT_PREFIX.length) as WormholeDestinationHint);
     return;
   }
   if (value.startsWith(SYSTEM_PREFIX)) {
     const systemId = Number(value.slice(SYSTEM_PREFIX.length));
-    if (Number.isSafeInteger(systemId) && systemId > 0) {
+    if (
+      Number.isSafeInteger(systemId)
+      && systemId > 0
+      && systemId !== originSystemId
+    ) {
       onSetDestination(systemId);
     }
   }
+}
+
+/** Commits typed identify-cell text as a wormhole type or a site group. */
+export function commitScannerIdentifyQuery(
+  text: string,
+  parse: ReturnType<typeof wormholeTypeSearch>['parse'],
+  onIdentify: (group: SigGroup, wormholeTypeCode?: string) => void,
+): void {
+  const parsed = parse(text);
+  if (parsed.ok && parsed.params.code !== null) {
+    onIdentify('Wormhole', parsed.params.code);
+    return;
+  }
+  const needle = text.trim().toLowerCase();
+  if (needle.length === 0) return;
+  const group = SIG_GROUPS.find((entry) => {
+    const label = (scannerGroupTypeLabel(entry) ?? entry).toLowerCase();
+    return label === needle || entry.toLowerCase() === needle;
+  });
+  if (group !== undefined) onIdentify(group);
+}
+
+/** Commits typed destination-cell text as unset, origin, hint, or system. */
+export function commitScannerLeadsQuery(
+  text: string,
+  parse: (input: string) =>
+    | { ok: true; params: { system: { id: number } } }
+    | { ok: false },
+  originLeads: readonly OriginLeadOption[],
+  onChange: ConnectionFieldSetters['setLeadsTo'],
+  onSetDestination: ConnectionFieldSetters['setDestination'],
+  onLinkOrigin: ConnectionFieldSetters['linkToOrigin'],
+  originSystemId?: number,
+): void {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    commitScannerLeadsValue(
+      UNSET_FIELD,
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+      originSystemId,
+    );
+    return;
+  }
+  const originMatch = originLeads.find((option) => {
+    const label = option.label.toLowerCase();
+    return (
+      label === trimmed.toLowerCase()
+      || label.startsWith(`${trimmed.toLowerCase()} - `)
+    );
+  });
+  if (originMatch !== undefined) {
+    commitScannerLeadsValue(
+      encodeOriginLead(originMatch.connectionId),
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+      originSystemId,
+    );
+    return;
+  }
+  const hintMatch = WORMHOLE_DESTINATION_HINTS.find((value) => {
+    return (
+      HINT_LABELS[value].toLowerCase() === trimmed.toLowerCase()
+      || value === trimmed.toLowerCase()
+    );
+  });
+  if (hintMatch !== undefined) {
+    commitScannerLeadsValue(
+      `${HINT_PREFIX}${hintMatch}`,
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+      originSystemId,
+    );
+    return;
+  }
+  const parsed = parse(text);
+  if (parsed.ok) {
+    if (parsed.params.system.id !== originSystemId) {
+      onSetDestination(parsed.params.system.id);
+    }
+    return;
+  }
+  const dash = text.lastIndexOf(' - ');
+  if (dash > 0) {
+    const named = parse(text.slice(0, dash));
+    if (named.ok && named.params.system.id !== originSystemId) {
+      onSetDestination(named.params.system.id);
+    }
+  }
+}
+
+function typeGroupsAsComboItems(
+  groups: readonly ScannerTypeSuggestionGroup[],
+  classLabelOf: (code: string) => string | null,
+): readonly ScannerIdentifySuggestionGroup[] {
+  return groups.map((group) => ({
+    label: group.label,
+    items: group.items.map((code) => ({
+      value: code,
+      text: code,
+      meta: code === FAR_SIDE_WORMHOLE_CODE ? '' : (classLabelOf(code) ?? ''),
+    })),
+  }));
+}
+
+function ScannerComboPanel({
+  groups,
+  itemValues,
+  showLabels,
+  footer,
+}: {
+  readonly groups: readonly ScannerIdentifySuggestionGroup[];
+  readonly itemValues: readonly string[];
+  readonly showLabels: boolean;
+  readonly footer: string | null;
+}) {
+  return (
+    <Combobox.Panel
+      className={`${scrollArea} min-w-44 max-h-[min(24rem,var(--available-height,24rem))] overflow-y-auto shadow-dd`}
+      align="start"
+    >
+      {itemValues.length === 0 ? (
+        <p className="px-2.5 py-2 font-ui text-label text-muted">No match</p>
+      ) : null}
+      <Combobox.List>
+        {groups.map((group) =>
+          group.items.length === 0 ? null : (
+            <Combobox.Group
+              key={group.label}
+              items={group.items.map((item) => item.value)}
+            >
+              {showLabels ? (
+                <Combobox.GroupLabel>{group.label}</Combobox.GroupLabel>
+              ) : null}
+              {group.items.map((item) => (
+                <Combobox.Item
+                  key={item.value}
+                  value={item.value}
+                  className="flex justify-between gap-3 px-2.5 py-1.5 font-ui text-ui text-isk"
+                >
+                  {item.text}
+                  {item.meta !== '' ? (
+                    <span className="text-muted">{item.meta}</span>
+                  ) : null}
+                </Combobox.Item>
+              ))}
+            </Combobox.Group>
+          ),
+        )}
+      </Combobox.List>
+      {footer !== null ? (
+        <p className="px-2.5 pb-1.5 pt-1 font-ui text-label text-muted">
+          {footer}
+        </p>
+      ) : null}
+    </Combobox.Panel>
+  );
 }
 
 /** Compact destination combobox: class hints on click, systems on type. */
@@ -616,6 +734,8 @@ export function ScannerLeadsControl({
   hint,
   destination,
   originLeads,
+  originSystemId,
+  rowId,
   disabled,
   onChange,
   onSetDestination,
@@ -624,6 +744,8 @@ export function ScannerLeadsControl({
   readonly hint: WormholeDestinationHint | null;
   readonly destination: SystemIdentityReadout | null;
   readonly originLeads: readonly OriginLeadOption[];
+  readonly originSystemId: number;
+  readonly rowId: string;
   readonly disabled: boolean;
   readonly onChange: ConnectionFieldSetters['setLeadsTo'];
   readonly onSetDestination: ConnectionFieldSetters['setDestination'];
@@ -632,55 +754,25 @@ export function ScannerLeadsControl({
   const seed = scannerLeadsSeed(hint, destination);
   const [query, setQuery] = useState(seed);
   const { systems, parse } = useSystemSearch();
-  const offeredLeads = destination === null ? originLeads : [];
+  const offeredLeads = useMemo(
+    () => (destination === null ? originLeads : []),
+    [destination, originLeads],
+  );
   const groups = useMemo(
-    () => scannerLeadsSuggestionGroups(query, systems, seed, offeredLeads),
-    [query, systems, seed, offeredLeads],
+    () =>
+      scannerLeadsSuggestionGroups(
+        query,
+        systems,
+        seed,
+        offeredLeads,
+        originSystemId,
+      ),
+    [query, systems, seed, offeredLeads, originSystemId],
   );
   const items = groups.flatMap((group) => group.items.map((item) => item.value));
   const resolved = destination !== null || hint !== null;
   const popup = useCloseOnScannerScroll();
-  const commitValue = (value: string) => {
-    commitScannerLeadsValue(value, onChange, onSetDestination, onLinkOrigin);
-  };
-  const commitQuery = (text: string) => {
-    const trimmed = text.trim();
-    if (trimmed.length === 0) {
-      commitValue(UNSET_FIELD);
-      return;
-    }
-    const originMatch = offeredLeads.find((option) => {
-      const label = option.label.toLowerCase();
-      return (
-        label === trimmed.toLowerCase()
-        || label.startsWith(`${trimmed.toLowerCase()} - `)
-      );
-    });
-    if (originMatch !== undefined) {
-      commitValue(encodeOriginLead(originMatch.connectionId));
-      return;
-    }
-    const hintMatch = WORMHOLE_DESTINATION_HINTS.find((value) => {
-      return (
-        HINT_LABELS[value].toLowerCase() === trimmed.toLowerCase()
-        || value === trimmed.toLowerCase()
-      );
-    });
-    if (hintMatch !== undefined) {
-      commitValue(`${HINT_PREFIX}${hintMatch}`);
-      return;
-    }
-    const parsed = parse(text);
-    if (parsed.ok) {
-      onSetDestination(parsed.params.system.id);
-      return;
-    }
-    const dash = text.lastIndexOf(' - ');
-    if (dash > 0) {
-      const named = parse(text.slice(0, dash));
-      if (named.ok) onSetDestination(named.params.system.id);
-    }
-  };
+  const browsing = query.trim().length === 0 || query === seed;
   return (
     <Combobox.Root
       open={popup.open}
@@ -688,7 +780,13 @@ export function ScannerLeadsControl({
       value={query}
       onValueChange={(next, details) => {
         if (details.reason === 'item-press') {
-          commitValue(next);
+          commitScannerLeadsValue(
+            next,
+            onChange,
+            onSetDestination,
+            onLinkOrigin,
+            originSystemId,
+          );
           return;
         }
         setQuery(next);
@@ -701,52 +799,30 @@ export function ScannerLeadsControl({
         size="sm"
         placeholder="Unresolved"
         disabled={disabled}
-        aria-label="Destination"
+        aria-label={`Destination ${rowId}`}
         className={cn(
           scannerSelectedFieldClass(resolved),
           resolved ? destination?.tone : 'font-normal',
         )}
         onKeyDown={(event) => {
-          if (event.key !== 'Enter') return;
-          commitQuery(query);
+          if (!consumeScannerEnter(event)) return;
+          commitScannerLeadsQuery(
+            query,
+            parse,
+            offeredLeads,
+            onChange,
+            onSetDestination,
+            onLinkOrigin,
+            originSystemId,
+          );
         }}
       />
-      <Combobox.Panel className="min-w-44 shadow-dd" align="start">
-        {items.length === 0 ? (
-          <p className="px-2.5 py-2 font-ui text-label text-muted">No match</p>
-        ) : null}
-        <Combobox.List>
-          {groups.map((group) =>
-            group.items.length === 0 ? null : (
-              <Combobox.Group
-                key={group.label}
-                items={group.items.map((item) => item.value)}
-              >
-                {query.trim().length === 0 || query === seed ? (
-                  <Combobox.GroupLabel>{group.label}</Combobox.GroupLabel>
-                ) : null}
-                {group.items.map((item) => (
-                  <Combobox.Item
-                    key={item.value}
-                    value={item.value}
-                    className="flex justify-between gap-3 px-2.5 py-1.5 font-ui text-ui text-isk"
-                  >
-                    {item.text}
-                    {item.meta !== '' ? (
-                      <span className="text-muted">{item.meta}</span>
-                    ) : null}
-                  </Combobox.Item>
-                ))}
-              </Combobox.Group>
-            ),
-          )}
-        </Combobox.List>
-        {query.trim().length === 0 || query === seed ? (
-          <p className="px-2.5 pb-1.5 pt-1 font-ui text-label text-muted">
-            Type to search systems…
-          </p>
-        ) : null}
-      </Combobox.Panel>
+      <ScannerComboPanel
+        groups={groups}
+        itemValues={items}
+        showLabels={browsing}
+        footer={browsing ? 'Type to search systems…' : null}
+      />
     </Combobox.Root>
   );
 }

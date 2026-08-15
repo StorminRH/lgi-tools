@@ -140,6 +140,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       group: 'Wormhole',
       name: 'P060',
       className: 'C1',
+      endpoint: 'from',
       connection: expect.objectContaining({
         connectionId: 'connection-1',
         toSignatureId: 'YXX-744',
@@ -149,6 +150,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       rows.find((row) => row.systemId === toSystemId && row.signatureId === 'YXX-744'),
     ).toMatchObject({
       key: 'connection:connection-1:to',
+      endpoint: 'to',
       systemId: toSystemId,
       signatureId: 'YXX-744',
       group: 'Wormhole',

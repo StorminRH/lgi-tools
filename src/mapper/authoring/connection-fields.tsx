@@ -142,7 +142,6 @@ export interface ConnectionFieldsProps {
    * back to the class-hint dropdown.
    */
   readonly destination?: SystemIdentityReadout | null;
-  readonly onFocusDestination?: () => void;
   readonly onDelete?: () => void;
   readonly onRestore?: () => void;
   /**

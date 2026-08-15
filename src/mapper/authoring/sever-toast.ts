@@ -3,6 +3,7 @@ import { toast } from '@/components/ui/toast';
 /** Result shape returned by the sever mutation after a successful write. */
 export type SeverOutcome =
   | { readonly outcome: 'retained' }
+  | { readonly outcome: 'already_applied' }
   | { readonly outcome: 'removed'; readonly systemIds: readonly number[] };
 
 /**
@@ -15,6 +16,7 @@ export function announceSeverOutcome(input: {
   readonly onUndo: () => void;
   readonly durationMs?: number;
 }): void {
+  if (input.result.outcome === 'already_applied') return;
   const id = `sever:${input.connectionId}`;
   const duration = input.durationMs ?? 3_000;
   const message =

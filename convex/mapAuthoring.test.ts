@@ -657,6 +657,7 @@ describe('map authoring', () => {
       expect(await readConnection(t, connectionId)).toMatchObject({
         typedSide: 'to',
         typeProvenance: 'human',
+        toSystemId: null,
         toDestinationHint: 'dangerous',
       });
 
@@ -675,6 +676,17 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
 
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          toSystemId: AMARR,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        toSystemId: AMARR,
+        destinationProvenance: 'human',
+      });
       await expect(
         asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
           mapId: MAP_A,
@@ -725,6 +737,27 @@ describe('map authoring', () => {
         systemId: DODIXIE,
         deletedAt: null,
       });
+
+      await asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+        mapId: MAP_A,
+        connectionId,
+        side: 'from',
+        value: 'dangerous',
+      });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        toSystemId: null,
+        fromDestinationHint: 'dangerous',
+      });
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          toSystemId: null,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(
+        (await readConnection(t, connectionId))?.fromDestinationHint,
+      ).toBeUndefined();
     });
   });
 
@@ -1306,7 +1339,7 @@ describe('map authoring', () => {
           mapId: MAP_A,
           connectionId: cutA,
         }),
-      ).resolves.toEqual({ outcome: 'retained' });
+      ).resolves.toEqual({ outcome: 'already_applied' });
       expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: NOW });
       expect(await readEvents(t)).toHaveLength(2);
 

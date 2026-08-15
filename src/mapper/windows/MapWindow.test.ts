@@ -103,6 +103,7 @@ describe('MapWindow isolation markup', () => {
     );
     expect(editor).toContain('md:max-h-[calc(100dvh-2rem)]');
     expect(editor).toContain('md:w-72');
+    expect(editor).toContain('md:max-w-[calc(100vw-min(33rem,100vw)-2.5rem)]');
     // Parked beside the dock in screen space, never riding a canvas transform.
     expect(editor).not.toContain('--map-window-transform');
 

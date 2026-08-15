@@ -31,7 +31,6 @@ export interface SignatureEditorProps {
   readonly destination: SystemIdentityReadout | null;
   /** Known inbound systems this unresolved stub may attach to. */
   readonly originLeads?: readonly OriginLeadOption[];
-  readonly onFocusDestination?: () => void;
   readonly onDelete: () => void;
   readonly onRestore: () => void;
   readonly onClose: () => void;
@@ -50,7 +49,6 @@ export function SignatureEditor({
   mode,
   destination,
   originLeads = [],
-  onFocusDestination,
   onDelete,
   onRestore,
   onClose,
@@ -79,7 +77,6 @@ export function SignatureEditor({
         mode={mode}
         destination={destination}
         originLeads={originLeads}
-        onFocusDestination={onFocusDestination}
         onDelete={onDelete}
         onRestore={onRestore}
       />

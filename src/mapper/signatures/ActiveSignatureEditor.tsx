@@ -56,8 +56,6 @@ export interface ActiveSignatureEditorProps {
   readonly authoring: ConnectionAuthoringApi;
   readonly now: number;
   readonly onClose: () => void;
-  /** Focuses one system on the canvas from the locked Leads-to readout. */
-  readonly onFocusSystem?: (systemId: number) => void;
 }
 
 /** Mounts the editor for the currently edited connection, or nothing. */
@@ -70,7 +68,6 @@ export function ActiveSignatureEditor({
   authoring,
   now,
   onClose,
-  onFocusSystem,
 }: ActiveSignatureEditorProps) {
   const connection = editedConnection(
     connectionId,
@@ -104,7 +101,6 @@ export function ActiveSignatureEditor({
       mode={selection.mode}
       now={now}
       onClose={onClose}
-      onFocusSystem={onFocusSystem}
       originLeads={originLeads}
     />
   );
@@ -119,7 +115,6 @@ function ActiveSignatureEditorView({
   mode,
   now,
   onClose,
-  onFocusSystem,
   originLeads,
 }: {
   readonly anchorSignatureId: string | null;
@@ -130,7 +125,6 @@ function ActiveSignatureEditorView({
   readonly mode: NonNullable<ReturnType<typeof connectionEditorMode>>['mode'];
   readonly now: number;
   readonly onClose: () => void;
-  readonly onFocusSystem?: (systemId: number) => void;
   readonly originLeads: readonly { connectionId: string; label: string }[];
 }) {
   const lifecycle = connectionLifecycleActions({
@@ -154,11 +148,6 @@ function ActiveSignatureEditorView({
       now={now}
       destination={destination}
       originLeads={originLeads}
-      onFocusDestination={
-        edited.toSystemId === null || onFocusSystem === undefined
-          ? undefined
-          : () => onFocusSystem(edited.toSystemId as number)
-      }
       setters={connectionFieldSetters(mapId, edited, authoring, (value) => {
         // Parity with the retired connection card: type entry on a RESOLVED
         // row runs the same typed-hole notification (observation emit plus

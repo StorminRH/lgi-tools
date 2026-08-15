@@ -20,7 +20,6 @@ export interface ActiveScannerPanelProps {
   readonly authoring: ConnectionAuthoringApi;
   readonly now: number;
   readonly onClose: () => void;
-  readonly onFocusSystem?: (systemId: number) => void;
 }
 
 /**
@@ -36,7 +35,6 @@ export function ActiveScannerPanel({
   authoring,
   now,
   onClose,
-  onFocusSystem,
 }: ActiveScannerPanelProps) {
   const body = scannerPanelBodyKind(panelTarget, canEdit);
   if (body === 'site' && panelTarget?.kind === 'site') {
@@ -59,7 +57,6 @@ export function ActiveScannerPanel({
         authoring={authoring}
         now={now}
         onClose={onClose}
-        onFocusSystem={onFocusSystem}
       />
     );
   }

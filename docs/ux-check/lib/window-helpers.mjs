@@ -1,7 +1,10 @@
 /** Open the portrait/account menu and return its popup locator. */
 export async function openAtlasMenu(page) {
-  await page.locator('[data-account-menu-trigger]').click();
-  const popup = page.locator('[data-account-menu-popup]');
+  // Instant Navigations can keep a hidden site-header clone (`display: none`
+  // under the canvas frame) with a second trigger. Visibility filters that out,
+  // matching mapCanvas.
+  await page.locator('[data-account-menu-trigger]').filter({ visible: true }).click();
+  const popup = page.locator('[data-account-menu-popup]').filter({ visible: true });
   await popup.waitFor({ state: 'visible', timeout: 10_000 });
   return popup;
 }
@@ -33,6 +36,14 @@ export async function setAtlasMapPreference(page, name, desired) {
 
 /** Turn off both camera-motion preferences in one menu round trip. */
 export async function calmAtlasCamera(page) {
+  const homePrompt = page.locator('[data-map-home-prompt]');
+  if (await homePrompt.isVisible().catch(() => false)) {
+    const input = homePrompt.getByPlaceholder(/Search systems/i);
+    await input.click();
+    await input.fill('J113551');
+    await input.press('Enter');
+    await homePrompt.waitFor({ state: 'hidden', timeout: 15_000 });
+  }
   const popup = await openAtlasMenu(page);
   for (const name of ['camera follow', 'click focus']) {
     const control = popup.getByRole('switch', { name });

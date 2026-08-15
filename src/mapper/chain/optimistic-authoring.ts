@@ -82,6 +82,28 @@ export function optimisticTempId(table: 'mapSystems' | 'mapConnections'): string
 }
 
 /** Whether any loaded systems page already carries a live row for `systemId`. */
+function insertOptimisticSystemIfAbsent(
+  localStore: OptimisticLocalStore,
+  mapId: string,
+  systemId: number,
+  now: number,
+): void {
+  if (liveSystemPresent(localStore, mapId, systemId)) return;
+  insertAtBottomIfLoaded({
+    paginatedQuery: api.mapChain.watchMapSystems,
+    argsToMatch: { mapId },
+    localQueryStore: localStore,
+    item: {
+      _id: optimisticTempId('mapSystems'),
+      _creationTime: now,
+      mapId,
+      systemId,
+      deletedAt: null,
+      purgeAfter: null,
+    } as never,
+  });
+}
+
 function liveSystemPresent(
   localStore: OptimisticLocalStore,
   mapId: string,
@@ -141,24 +163,15 @@ export function optimisticAddSystemFromNode(
   if (args.fromSystemId === args.toSystemId) return;
   if (!liveSystemPresent(localStore, args.mapId, args.fromSystemId)) return;
 
-  if (!liveSystemPresent(localStore, args.mapId, args.toSystemId)) {
-    // Append — systems pages are ascending creation order and resolveRoot
-    // takes facts.systems[0]. Prepending would make the destination the
-    // transient root for the mutation round trip.
-    insertAtBottomIfLoaded({
-      paginatedQuery: api.mapChain.watchMapSystems,
-      argsToMatch: { mapId: args.mapId },
-      localQueryStore: localStore,
-      item: {
-        _id: optimisticTempId('mapSystems'),
-        _creationTime: now,
-        mapId: args.mapId,
-        systemId: args.toSystemId,
-        deletedAt: null,
-        purgeAfter: null,
-      } as never,
-    });
-  }
+  // Append — systems pages are ascending creation order and resolveRoot
+  // takes facts.systems[0]. Prepending would make the destination the
+  // transient root for the mutation round trip.
+  insertOptimisticSystemIfAbsent(
+    localStore,
+    args.mapId,
+    args.toSystemId,
+    now,
+  );
 
   insertAtTop({
     paginatedQuery: api.mapChain.watchMapConnections,
@@ -184,30 +197,56 @@ export function optimisticAddSystemFromNode(
   });
 }
 
-/** Patches one connection field across every loaded connections page. */
+type ConnectionFieldPatch = Partial<
+  Pick<
+    OptimisticConnectionRow,
+    | 'wormholeTypeCode'
+    | 'typedSide'
+    | 'shipSize'
+    | 'massState'
+    | 'lifeStage'
+    | 'lifeStageObservedAt'
+    | 'fromDestinationHint'
+    | 'toDestinationHint'
+    | 'deathEarliestAt'
+    | 'deathLatestAt'
+    | 'deletedAt'
+    | 'purgeAfter'
+  >
+>;
+
+/** Drops one connection from every loaded page of one feed and returns it. */
+function takeConnectionFromPages<
+  Query extends
+    | typeof api.mapChain.watchMapConnections
+    | typeof api.mapChain.watchUnresolvedHoles,
+>(
+  localStore: OptimisticLocalStore,
+  query: Query,
+  mapId: string,
+  connectionId: string,
+): OptimisticConnectionRow | null {
+  let taken: OptimisticConnectionRow | null = null;
+  for (const { args, value } of localStore.getAllQueries(query)) {
+    if (value === undefined || args.mapId !== mapId) continue;
+    const match = value.page.find((row) => row._id === connectionId);
+    if (match === undefined) continue;
+    taken = match as OptimisticConnectionRow;
+    localStore.setQuery(query, args, {
+      ...value,
+      page: value.page.filter((row) => row._id !== connectionId),
+    } as never);
+  }
+  return taken;
+}
+
+/** Same-list field edits. Destination resolve/unresolve is a feed move. */
 export function optimisticPatchConnection(
   localStore: OptimisticLocalStore,
   args: {
     mapId: string;
     connectionId: string;
-    patch: Partial<
-      Pick<
-        OptimisticConnectionRow,
-        | 'wormholeTypeCode'
-        | 'typedSide'
-        | 'shipSize'
-        | 'massState'
-        | 'lifeStage'
-        | 'lifeStageObservedAt'
-        | 'toSystemId'
-        | 'fromDestinationHint'
-        | 'toDestinationHint'
-        | 'deathEarliestAt'
-        | 'deathLatestAt'
-        | 'deletedAt'
-        | 'purgeAfter'
-      >
-    >;
+    patch: ConnectionFieldPatch;
   },
 ): void {
   optimisticallyUpdateValueInPaginatedQuery(
@@ -463,28 +502,54 @@ export function optimisticSetConnectionDestination(
   },
   now = Date.now(),
 ): void {
-  if (
-    args.toSystemId !== null
-    && !liveSystemPresent(localStore, args.mapId, args.toSystemId)
-  ) {
-    insertAtBottomIfLoaded({
-      paginatedQuery: api.mapChain.watchMapSystems,
+  if (args.toSystemId !== null) {
+    insertOptimisticSystemIfAbsent(
+      localStore,
+      args.mapId,
+      args.toSystemId,
+      now,
+    );
+  }
+  const resolved = takeConnectionFromPages(
+    localStore,
+    api.mapChain.watchMapConnections,
+    args.mapId,
+    args.connectionId,
+  );
+  const unresolved = takeConnectionFromPages(
+    localStore,
+    api.mapChain.watchUnresolvedHoles,
+    args.mapId,
+    args.connectionId,
+  );
+  const existing = resolved ?? unresolved;
+  if (existing === null) return;
+
+  if (args.toSystemId === null) {
+    insertAtTop({
+      paginatedQuery: api.mapChain.watchUnresolvedHoles,
       argsToMatch: { mapId: args.mapId },
       localQueryStore: localStore,
       item: {
-        _id: optimisticTempId('mapSystems'),
-        _creationTime: now,
-        mapId: args.mapId,
-        systemId: args.toSystemId,
-        deletedAt: null,
-        purgeAfter: null,
+        ...existing,
+        toSystemId: null,
+        fromDestinationHint: undefined,
+        toDestinationHint: undefined,
       } as never,
     });
+    return;
   }
-  optimisticPatchConnection(localStore, {
-    mapId: args.mapId,
-    connectionId: args.connectionId,
-    patch: { toSystemId: args.toSystemId },
+
+  insertAtTop({
+    paginatedQuery: api.mapChain.watchMapConnections,
+    argsToMatch: { mapId: args.mapId },
+    localQueryStore: localStore,
+    item: {
+      ...existing,
+      toSystemId: args.toSystemId,
+      fromDestinationHint: undefined,
+      toDestinationHint: undefined,
+    } as never,
   });
 }
 

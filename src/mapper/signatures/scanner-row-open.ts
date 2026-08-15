@@ -78,7 +78,7 @@ export function scannerRowShowsOpenAffordance(
 export function applyScannerRowOpenAction(
   action: ScannerRowOpenAction,
   handlers: ScannerRowOpenHandlers,
-  context: {
+  _context: {
     readonly row: SignatureWindowRow;
     readonly trigger: HTMLElement;
     readonly clientX: number;

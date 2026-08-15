@@ -370,12 +370,6 @@ function useChainFocusMenus(
     [focusTokenRef, setFocusRequest],
   );
 
-  /** Flies the camera to one system — the editor's locked Leads-to readout. */
-  const focusSystem = useCallback((systemId: number) => {
-    focusTokenRef.current += 1;
-    setFocusRequest({ nodeId: String(systemId), token: focusTokenRef.current });
-  }, [focusTokenRef, setFocusRequest]);
-
   const onNodeContextMenu = useCallback<NodeMouseHandler<ChainNode>>(
     (event, node) => {
       if (canEdit !== true) return;
@@ -426,7 +420,6 @@ function useChainFocusMenus(
 
   return {
     edgeActions,
-    focusSystem,
     onEdgeContextMenu,
     onNodeClick,
     onNodeContextMenu,
@@ -503,7 +496,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
   } = useChainDrag(draggingRef, setDragging, pinPlacement);
   const {
     edgeActions,
-    focusSystem,
     onEdgeContextMenu,
     onNodeClick,
     onNodeContextMenu,
@@ -552,7 +544,6 @@ function ChainLive({ mapId }: { readonly mapId: string }) {
           authoring={authoring}
           panelTarget={menus.panelTarget}
           onPanelTargetChange={menus.setPanelTarget}
-          onFocusSystem={focusSystem}
         >
           <ReactFlowProvider initialMinZoom={0.2} initialMaxZoom={2.5}>
           <OutboundArrowProvider

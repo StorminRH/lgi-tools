@@ -27,6 +27,40 @@ function rowElement(signatureId: string | null): Element | null {
   );
 }
 
+type MeasuredBox = {
+  getBoundingClientRect(): DOMRect;
+};
+
+type MeasuredRow = MeasuredBox & {
+  closest(selector: string): MeasuredBox | null;
+};
+
+/** Turns live layer/panel/row boxes into the drawn leader, or null. */
+export function measureEditorLeader(
+  layer: MeasuredBox | null,
+  panel: MeasuredBox | null,
+  row: MeasuredRow | null,
+): EditorLeader | null {
+  if (layer === null || panel === null || row === null) return null;
+  const origin = layer.getBoundingClientRect();
+  const clipEl = row.closest('[data-scanner-scroll]');
+  const clipRect = clipEl?.getBoundingClientRect();
+  return editorLeader({
+    row: row.getBoundingClientRect(),
+    panel: panel.getBoundingClientRect(),
+    origin: { left: origin.left, top: origin.top },
+    clip:
+      clipRect === undefined
+        ? undefined
+        : {
+            left: clipRect.left,
+            right: clipRect.right,
+            top: clipRect.top,
+            bottom: clipRect.bottom,
+          },
+  });
+}
+
 /** Tracks the bracket/leader geometry joining the panel to its scanner row. */
 function useEditorLeader(
   signatureId: string | null,
@@ -36,31 +70,8 @@ function useEditorLeader(
   const [leader, setLeader] = useState<EditorLeader | null>(null);
 
   const measure = useCallback(() => {
-    const layer = layerRef.current;
-    const panel = panelRef.current;
-    const row = rowElement(signatureId);
-    if (layer === null || panel === null || row === null) {
-      setLeader(null);
-      return;
-    }
-    const origin = layer.getBoundingClientRect();
-    const clipEl = row.closest('[data-scanner-scroll]');
-    const clipRect = clipEl?.getBoundingClientRect();
     setLeader(
-      editorLeader({
-        row: row.getBoundingClientRect(),
-        panel: panel.getBoundingClientRect(),
-        origin: { left: origin.left, top: origin.top },
-        clip:
-          clipRect === undefined
-            ? undefined
-            : {
-                left: clipRect.left,
-                right: clipRect.right,
-                top: clipRect.top,
-                bottom: clipRect.bottom,
-              },
-      }),
+      measureEditorLeader(layerRef.current, panelRef.current, rowElement(signatureId)),
     );
   }, [layerRef, panelRef, signatureId]);
 

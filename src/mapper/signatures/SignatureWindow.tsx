@@ -253,6 +253,7 @@ function IdCell({
     <Tooltip content={`Age ${formatSignatureAge(row.firstSeenAt, now)}`}>
       <span className="whitespace-nowrap text-isk tabular-nums">
         {row.signatureId}
+        <span className="sr-only">{` Age ${formatSignatureAge(row.firstSeenAt, now)}`}</span>
       </span>
     </Tooltip>
   );
@@ -302,7 +303,11 @@ interface WormholeCellContext {
   readonly originLeadsOf: (
     connection: ConnectionEditorDetail,
   ) => ReturnType<typeof originLeadOptions>;
-  readonly onIdentify?: (row: SignatureWindowRow, group: SigGroup) => void;
+  readonly onIdentify?: (
+    row: SignatureWindowRow,
+    group: SigGroup,
+    wormholeTypeCode?: string,
+  ) => void;
 }
 
 function wormholeCells(
@@ -310,12 +315,20 @@ function wormholeCells(
   ctx: WormholeCellContext,
 ): ReactNode {
   const connection = row.connection;
+  const farSide = row.endpoint === 'to';
   const setters =
-    ctx.canEdit && connection !== null
+    ctx.canEdit && connection !== null && !farSide
       ? ctx.bindConnectionSetters?.(connection)
       : undefined;
   const destination =
-    connection === null ? null : ctx.destinationOf(connection);
+    connection === null
+      ? null
+      : farSide
+        ? ctx.destinationOf({
+            ...connection,
+            toSystemId: connection.fromSystemId,
+          })
+        : ctx.destinationOf(connection);
   const entry = connection === null ? null : ctx.entryOf(connection);
   const lifeEstimate = scannerLifeUpperBound(connection, entry, ctx.now);
   const lifeText =
@@ -333,11 +346,13 @@ function wormholeCells(
           codes={ctx.codes}
           preferredCodes={ctx.preferredCodes}
           classLabelOf={ctx.classLabelOf}
+          rowId={row.signatureId}
           disabled={false}
           onCommit={setters.setWormholeType}
         />
         <ScannerMassSelect
           value={connection.massState}
+          rowId={row.signatureId}
           disabled={false}
           onChange={setters.setMassState}
         />
@@ -346,6 +361,7 @@ function wormholeCells(
           connection={connection}
           entry={entry}
           now={ctx.now}
+          rowId={row.signatureId}
           disabled={false}
           onChange={setters.setLifeStage}
         />
@@ -358,6 +374,8 @@ function wormholeCells(
           hint={connection.fromDestinationHint}
           destination={destination}
           originLeads={ctx.originLeadsOf(connection)}
+          originSystemId={connection.fromSystemId}
+          rowId={row.signatureId}
           disabled={false}
           onChange={setters.setLeadsTo}
           onSetDestination={setters.setDestination}
@@ -380,13 +398,13 @@ function wormholeCells(
           </span>
         ) : null}
       </span>
-      <span className="truncate text-muted">
+      <span className="truncate text-muted" aria-label={`Mass ${row.signatureId}`}>
         {scannerMassReadout(connection?.massState ?? null)}
       </span>
-      <span className="truncate text-muted">
+      <span className="truncate text-muted" aria-label={`Reliable Lifetime ${row.signatureId}`}>
         {lifeText}
       </span>
-      <span className="truncate text-muted">
+      <span className="truncate text-muted" aria-label={`Destination ${row.signatureId}`}>
         {scannerLeadsReadout(connection?.fromDestinationHint ?? null, destination)}
       </span>
     </>
@@ -408,8 +426,9 @@ function sectionCells(
               codes={ctx.codes}
               preferredCodes={ctx.preferredCodes}
               classLabelOf={ctx.classLabelOf}
+              rowId={row.signatureId}
               disabled={false}
-              onIdentify={(group) => ctx.onIdentify?.(row, group)}
+              onIdentify={(group, code) => ctx.onIdentify?.(row, group, code)}
             />
           ) : (
             <NameCell row={row} />
@@ -473,7 +492,7 @@ function ColumnHeader({
       aria-hidden
       className={cn(
         columnsClassName,
-        'px-2.5 font-ui text-label font-medium uppercase tracking-label text-faint',
+        'px-2.5 font-ui text-label font-medium uppercase tracking-label text-muted',
       )}
     >
       {labels.map((label) => (
@@ -683,6 +702,7 @@ interface SignatureWindowProps {
   readonly onIdentify: (
     row: SignatureWindowRow,
     group: SigGroup,
+    wormholeTypeCode?: string,
   ) => Promise<void>;
   /** Opens the map's one Signature Editor on a wormhole row's connection. */
   readonly onOpenEditor: OpenSignatureEditor;
@@ -694,8 +714,6 @@ interface SignatureWindowProps {
   ) => ConnectionFieldSetters;
   /** Resolved inbound lines the Destination cell can offer as a return pick. */
   readonly originLeadConnections?: readonly OriginLeadConnection[];
-  /** Kept for caller compatibility; destination is now an editable field. */
-  readonly onFocusSystem?: (systemId: number) => void;
 }
 
 interface ScannerWindowFrameProps
@@ -785,13 +803,14 @@ function ScannerListScroller({
   const bump = useScannerScrollBump();
   const observerRef = useRef<ResizeObserver | null>(null);
   const [fading, setFading] = useState(false);
-  const [overflowing, setOverflowing] = useState(false);
+  const [canScrollEnd, setCanScrollEnd] = useState(false);
   const measure = useCallback((el: HTMLDivElement) => {
     const nextFade = el.scrollTop > 0;
-    const nextOverflow = el.scrollHeight > el.clientHeight + 1;
+    const nextCanScrollEnd =
+      el.scrollTop + el.clientHeight < el.scrollHeight - 1;
     setFading((current) => (current === nextFade ? current : nextFade));
-    setOverflowing((current) =>
-      current === nextOverflow ? current : nextOverflow,
+    setCanScrollEnd((current) =>
+      current === nextCanScrollEnd ? current : nextCanScrollEnd,
     );
   }, []);
   const setScrollNode = useCallback(
@@ -821,7 +840,7 @@ function ScannerListScroller({
         onScroll={onScroll}
         className={cn(
           'scroll-area-start min-h-0 min-w-0 max-w-full flex-auto overflow-y-auto overscroll-contain',
-          overflowing && 'scanner-scroll-fade-end',
+          canScrollEnd && 'scanner-scroll-fade-end',
           fading && 'scanner-scroll-fade-start',
         )}
       >
@@ -840,7 +859,7 @@ function ScannerListScroller({
         data-scanner-scroll-frost="end"
         className={cn(
           'scanner-scroll-frost scanner-scroll-frost-end',
-          overflowing && 'is-active',
+          canScrollEnd && 'is-active',
         )}
       />
     </div>
@@ -924,8 +943,12 @@ export function SignatureWindow(props: SignatureWindowProps) {
       });
     });
   };
-  const identifyRow = (row: SignatureWindowRow, group: SigGroup) =>
-    props.onIdentify(row, group).catch(() => {
+  const identifyRow = (
+    row: SignatureWindowRow,
+    group: SigGroup,
+    wormholeTypeCode?: string,
+  ) =>
+    props.onIdentify(row, group, wormholeTypeCode).catch(() => {
       toast.error('The signature could not be identified.', {
         id: `signature-identify:${row.systemId}:${row.signatureId}`,
       });

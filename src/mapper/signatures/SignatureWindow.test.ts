@@ -229,6 +229,9 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('>HS<');
     expect(html).toContain('Est. ISK');
     expect(html).not.toContain('>Age<');
+    expect(html).toContain('Age ');
+    expect(html).not.toContain('tabindex="0"');
+    expect(html).toContain('text-muted');
     expect(html).not.toContain('>Size<');
     expect(html).not.toContain('>Lifetime<');
     expect(html).not.toContain('data-signature-row-open');
@@ -408,7 +411,8 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-price-state="settled"');
     // Combat headline is a plain span — only the harvestable cell uses LivePrice.
     expect(html.match(/data-price-state="/g)?.length).toBe(1);
-    expect(html).not.toContain('aria-label=');
+    expect(html).not.toContain('aria-label="View site');
+    expect(html).toContain('aria-label="Mass WHL-001"');
     expect(html).not.toContain('sr-only">Edit wormhole ');
   });
 });

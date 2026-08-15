@@ -451,146 +451,124 @@ export function CustomStructureBuilder({
   structureRigs: StructureRigOption[];
   initial: CustomStructureRow[];
 }) {
-  const {
-    busy,
-    error,
-    name,
-    parse,
-    paste,
-    pin,
-    pinningId,
-    rigName,
-    rigSlots,
-    rowTaxDraft,
-    setBusy,
-    setError,
-    setName,
-    setPaste,
-    setPin,
-    setPinningId,
-    setRigSlots,
-    setRowTaxDraft,
-    setStructures,
-    setStructureTypeId,
-    setTaxDraft,
-    setTaxingId,
-    structureTypeId,
-    structures,
-    suggest,
-    systems,
-    taxDraft,
-    taxingId,
-    typeName,
-  } = useCustomStructureDraft(structureTypes, structureRigs, initial);
+  const draft = useCustomStructureDraft(structureTypes, structureRigs, initial);
 
   const { structure, validRigs, canSave } = deriveBuilderView({
-    structureTypeId,
+    structureTypeId: draft.structureTypeId,
     structureTypes,
     structureRigs,
-    name,
-    busy,
+    name: draft.name,
+    busy: draft.busy,
   });
 
   function chooseStructure(id: number | null) {
-    setStructureTypeId(id);
+    draft.setStructureTypeId(id);
     // A new structure type may invalidate the fitted rigs — clear them.
-    setRigSlots(slotIndices.map(() => null));
-    setError(null);
+    draft.setRigSlots(slotIndices.map(() => null));
+    draft.setError(null);
   }
 
   async function onParse() {
-    if (!canReadFit(paste, busy)) return;
-    setBusy(true);
-    setError(null);
-    const res = await apiFetch(parseStructureFitEndpoint, { body: { fit: paste }, cache: 'no-store' });
-    setBusy(false);
+    if (!canReadFit(draft.paste, draft.busy)) return;
+    draft.setBusy(true);
+    draft.setError(null);
+    const res = await apiFetch(parseStructureFitEndpoint, {
+      body: { fit: draft.paste },
+      cache: 'no-store',
+    });
+    draft.setBusy(false);
     if (!res.ok) {
-      setError('Could not read that fit.');
+      draft.setError('Could not read that fit.');
       return;
     }
     const parsed = res.data.parsed;
     if (!parsed) {
-      setError('No structure found in that text — paste the in-game "Copy to Clipboard" fit.');
+      draft.setError('No structure found in that text — paste the in-game "Copy to Clipboard" fit.');
       return;
     }
-    setStructureTypeId(parsed.structureTypeId);
-    setRigSlots(slotsFromParsedFit(parsed.rigTypeIds, slotIndices));
-    setName(resolveFitName(name, parsed.structureTypeId, typeName));
+    draft.setStructureTypeId(parsed.structureTypeId);
+    draft.setRigSlots(slotsFromParsedFit(parsed.rigTypeIds, slotIndices));
+    draft.setName(resolveFitName(draft.name, parsed.structureTypeId, draft.typeName));
   }
 
   async function onSave() {
-    const ready = readyBuildInput(structureTypeId, name, busy);
+    const ready = readyBuildInput(draft.structureTypeId, draft.name, draft.busy);
     if (!ready) return;
-    const tax = parseFacilityTaxDraft(taxDraft);
+    const tax = parseFacilityTaxDraft(draft.taxDraft);
     if (!tax.ok) {
-      setError(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty).`);
+      draft.setError(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty).`);
       return;
     }
-    setBusy(true);
-    setError(null);
+    draft.setBusy(true);
+    draft.setError(null);
     const res = await apiFetch(createCustomStructureEndpoint, {
-      body: buildCreateStructurePayload({ ...ready, rigSlots, pin, taxValue: tax.value }),
+      body: buildCreateStructurePayload({
+        ...ready,
+        rigSlots: draft.rigSlots,
+        pin: draft.pin,
+        taxValue: tax.value,
+      }),
       cache: 'no-store',
     });
-    setBusy(false);
+    draft.setBusy(false);
     if (!res.ok) {
-      setError('Could not save — check the structure and rigs.');
+      draft.setError('Could not save — check the structure and rigs.');
       return;
     }
-    setStructures(res.data.structures);
-    setName('');
-    setPaste('');
-    setPin(null);
-    setTaxDraft('');
+    draft.setStructures(res.data.structures);
+    draft.setName('');
+    draft.setPaste('');
+    draft.setPin(null);
+    draft.setTaxDraft('');
     chooseStructure(null);
   }
 
   async function onDelete(id: string) {
-    if (busy) return;
-    setBusy(true);
+    if (draft.busy) return;
+    draft.setBusy(true);
     const res = await apiFetch(deleteCustomStructureEndpoint, { body: { id }, cache: 'no-store' });
-    setBusy(false);
-    if (res.ok) setStructures(res.data.structures);
+    draft.setBusy(false);
+    if (res.ok) draft.setStructures(res.data.structures);
   }
 
   async function onSetPin(id: string, systemId: number | null) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
+    if (draft.busy) return;
+    draft.setBusy(true);
+    draft.setError(null);
     const res = await apiFetch(setCustomStructurePinEndpoint, { body: { id, systemId }, cache: 'no-store' });
-    setBusy(false);
+    draft.setBusy(false);
     if (!res.ok) {
       // The inline picker stays open for a retry — without this the failed
       // attempt would be indistinguishable from a slow one.
-      setError('Could not update the pin — try again.');
+      draft.setError('Could not update the pin — try again.');
       return;
     }
-    setStructures(res.data.structures);
-    setPinningId(null);
+    draft.setStructures(res.data.structures);
+    draft.setPinningId(null);
   }
 
   // Set or clear (null) a saved structure's facility tax — the onSetPin twin.
   async function onSetTax(id: string, taxPct: number | null) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
+    if (draft.busy) return;
+    draft.setBusy(true);
+    draft.setError(null);
     const res = await apiFetch(setCustomStructureTaxEndpoint, { body: { id, taxPct }, cache: 'no-store' });
-    setBusy(false);
+    draft.setBusy(false);
     if (!res.ok) {
-      setError('Could not update the tax — try again.');
+      draft.setError('Could not update the tax — try again.');
       return;
     }
-    setStructures(res.data.structures);
-    setTaxingId(null);
+    draft.setStructures(res.data.structures);
+    draft.setTaxingId(null);
   }
 
   function togglePinning(id: string) {
-    setPinningId(pinningId === id ? null : id);
+    draft.setPinningId(draft.pinningId === id ? null : id);
   }
 
   function toggleTaxing(id: string, taxPct: number | null) {
-    setTaxingId(taxingId === id ? null : id);
-    setRowTaxDraft(taxDraftFromStored(taxPct));
+    draft.setTaxingId(draft.taxingId === id ? null : id);
+    draft.setRowTaxDraft(taxDraftFromStored(taxPct));
   }
 
   return (
@@ -603,8 +581,8 @@ export function CustomStructureBuilder({
           hint="Use the in-game Copy to Clipboard format."
         >
           <Textarea
-            value={paste}
-            onChange={(e) => setPaste(e.target.value)}
+            value={draft.paste}
+            onChange={(e) => draft.setPaste(e.target.value)}
             rows={3}
             placeholder={'[Azbel, My Build Azbel]\nStandup L-Set Equipment Manufacturing Efficiency II\n…'}
             aria-label="Structure fit"
@@ -616,22 +594,22 @@ export function CustomStructureBuilder({
             variant="bare"
             type="button"
             onClick={onParse}
-            disabled={!canReadFit(paste, busy)}
+            disabled={!canReadFit(draft.paste, draft.busy)}
             className="self-start text-label uppercase tracking-wide text-tone-blue hover:underline disabled:text-muted disabled:no-underline"
           >
             Read fit →
           </Button>
         </div>
 
-        <StructureTypeSelect value={structureTypeId} types={structureTypes} onChange={chooseStructure} />
+        <StructureTypeSelect value={draft.structureTypeId} types={structureTypes} onChange={chooseStructure} />
 
         {structure && (
           <RigSupply
             validRigs={validRigs}
             maxSlots={MAX_CUSTOM_STRUCTURE_RIGS}
-            slots={rigSlots}
-            onSlotsChange={setRigSlots}
-            disabled={busy}
+            slots={draft.rigSlots}
+            onSlotsChange={draft.setRigSlots}
+            disabled={draft.busy}
           />
         )}
 
@@ -639,9 +617,9 @@ export function CustomStructureBuilder({
           <span className="text-label uppercase tracking-wide text-muted">Name</span>
           <Input
             type="text"
-            value={name}
+            value={draft.name}
             maxLength={MAX_CUSTOM_STRUCTURE_NAME_LEN}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => draft.setName(e.target.value)}
             placeholder="e.g. Null ME Azbel"
             aria-label="Structure name"
             className="w-full max-w-[320px]"
@@ -654,11 +632,11 @@ export function CustomStructureBuilder({
         <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-wide text-muted">Pin to system (optional)</span>
           <PinField
-            pin={pin}
-            parse={parse}
-            suggest={suggest}
-            onPick={setPin}
-            onClear={() => setPin(null)}
+            pin={draft.pin}
+            parse={draft.parse}
+            suggest={draft.suggest}
+            onPick={draft.setPin}
+            onClear={() => draft.setPin(null)}
           />
         </div>
 
@@ -674,15 +652,15 @@ export function CustomStructureBuilder({
             min={0}
             max={MAX_FACILITY_TAX_PCT}
             step="0.01"
-            value={taxDraft}
-            onChange={(e) => setTaxDraft(e.target.value)}
+            value={draft.taxDraft}
+            onChange={(e) => draft.setTaxDraft(e.target.value)}
             placeholder="Empty = 0.25% assumed"
             aria-label="Facility tax percent"
             className="w-full max-w-[320px]"
           />
         </div>
 
-        {error && <Banner tone="warn">{error}</Banner>}
+        {draft.error && <Banner tone="warn">{draft.error}</Banner>}
 
         <Button variant="primary" onClick={onSave} disabled={!canSave} className="self-start">
           Save structure
@@ -691,24 +669,28 @@ export function CustomStructureBuilder({
 
       <div className="flex flex-col gap-2 border-t border-border-soft pt-4">
         <span className="text-label uppercase tracking-wide text-muted">
-          Your structures ({structures.length})
+          Your structures ({draft.structures.length})
         </span>
         <SavedStructuresList
-          structures={structures}
-          view={(s) => deriveSavedRowView(s, { typeName, rigName, systems })}
-          busy={busy}
-          parse={parse}
-          suggest={suggest}
-          pinningId={pinningId}
-          taxingId={taxingId}
-          rowTaxDraft={rowTaxDraft}
-          onRowTaxDraftChange={setRowTaxDraft}
+          structures={draft.structures}
+          view={(s) => deriveSavedRowView(s, {
+            typeName: draft.typeName,
+            rigName: draft.rigName,
+            systems: draft.systems,
+          })}
+          busy={draft.busy}
+          parse={draft.parse}
+          suggest={draft.suggest}
+          pinningId={draft.pinningId}
+          taxingId={draft.taxingId}
+          rowTaxDraft={draft.rowTaxDraft}
+          onRowTaxDraftChange={draft.setRowTaxDraft}
           onTogglePin={togglePinning}
           onToggleTax={toggleTaxing}
           onSetPin={onSetPin}
           onSetTax={onSetTax}
           onDelete={onDelete}
-          onError={setError}
+          onError={draft.setError}
         />
       </div>
     </div>

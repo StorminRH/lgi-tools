@@ -223,6 +223,7 @@ describe('mapScan paste application and lifecycle', () => {
       systemId: JITA,
       signatureId: 'WHL-001',
       group: 'Wormhole',
+      wormholeTypeCode: 'C247',
     });
     expect(migrated.changed).toBe(true);
     expect(migrated.connectionId).not.toBeNull();
@@ -233,8 +234,22 @@ describe('mapScan paste application and lifecycle', () => {
         fromSignatureId: 'WHL-001',
         firstSeenAt: before?._creationTime,
         toSystemId: null,
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        observationKey: expect.any(String),
       }),
     ]);
+
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'WHL-001',
+        group: 'Wormhole',
+        wormholeTypeCode: 'C247',
+      }),
+    ).toEqual({ changed: false, connectionId: migrated.connectionId });
   });
 
   it('projects live elimination evidence and tier-gates one atomic deduction batch', async () => {

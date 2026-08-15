@@ -48,6 +48,15 @@ describe('announceSeverOutcome', () => {
     );
   });
 
+  it('does not announce an already-applied second Delete', () => {
+    announceSeverOutcome({
+      connectionId: 'c2',
+      result: { outcome: 'already_applied' },
+      onUndo: vi.fn(),
+    });
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
   it('announces a retained branch without a removed-system count', () => {
     announceSeverOutcome({
       connectionId: 'c2',

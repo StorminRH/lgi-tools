@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { Id } from '@/data/convex/data-model';
 import { originLeadOptions } from './origin-leads';
 
 const STUB = {
-  connectionId: 'stub-1',
+  connectionId: 'stub-1' as Id<'mapConnections'>,
   fromSystemId: 31_000_001,
   toSystemId: null as number | null,
 };
@@ -10,7 +11,7 @@ const STUB = {
 describe('originLeadOptions', () => {
   it('labels inbound systems and stays empty once the stub is resolved', () => {
     const inbound = {
-      connectionId: 'inbound',
+      connectionId: 'inbound' as Id<'mapConnections'>,
       fromSystemId: 31_000_002,
       toSystemId: 31_000_001,
       fromSignatureId: null,

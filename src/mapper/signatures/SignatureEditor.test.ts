@@ -4,6 +4,7 @@ import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import { editorLeader } from './editor-leader';
+import { measureEditorLeader } from './ScannerAnchoredPanel';
 import { SignatureEditor } from './SignatureEditor';
 
 vi.mock('../authoring/use-wormhole-editor-data', () => ({
@@ -175,4 +176,33 @@ it('editorLeader brackets the row, clamps landing, offsets origin, and refuses c
       clip,
     }),
   ).toBeNull();
+});
+
+it('measureEditorLeader returns null without boxes and delegates when all three exist', () => {
+  expect(measureEditorLeader(null, null, null)).toBeNull();
+  const box = (rect: {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  }) => ({
+    getBoundingClientRect: () => rect as DOMRect,
+  });
+  const layer = box({ left: 0, right: 800, top: 0, bottom: 600 });
+  const panel = box({ left: 200, right: 480, top: 40, bottom: 400 });
+  const row = {
+    ...box({ left: 10, right: 180, top: 100, bottom: 128 }),
+    closest: () => null,
+  };
+  const leader = measureEditorLeader(layer, panel, row);
+  expect(leader?.bracket).toEqual({ x: 183, top: 100, bottom: 128 });
+  const clippedRow = {
+    ...box({ left: 10, right: 180, top: 60, bottom: 120 }),
+    closest: () => box({ left: 0, right: 200, top: 80, bottom: 200 }),
+  };
+  expect(measureEditorLeader(layer, panel, clippedRow)?.bracket).toEqual({
+    x: 183,
+    top: 80,
+    bottom: 120,
+  });
 });

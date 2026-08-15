@@ -248,7 +248,6 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
       mode: 'edit',
       setters: SETTERS,
       destination: { label: 'J123456 - C4', tone: 'text-wh-c4' },
-      onFocusDestination: vi.fn(),
     }),
   );
   expect(resolved).not.toContain('data-map-connection-leads-locked');

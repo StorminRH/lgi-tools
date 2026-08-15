@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -45,8 +44,10 @@ export function useCloseOnScannerScroll(): {
 } {
   const { epoch } = useContext(ScannerScrollEpochContext);
   const [open, setOpen] = useState(false);
-  useEffect(() => {
+  const [prevEpoch, setPrevEpoch] = useState(epoch);
+  if (epoch !== prevEpoch) {
+    setPrevEpoch(epoch);
     setOpen(false);
-  }, [epoch]);
+  }
   return { open, onOpenChange: setOpen };
 }

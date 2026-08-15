@@ -57,7 +57,7 @@ export const MAP_SCANNER_DOCK_STACK_CLASS =
 // only measure fork — editor stays 18rem fields; site viewer sizes to its card.
 // Narrow `bottom` / `max-h` use the dock's 24rem cap, not its live height.
 const MAP_SCANNER_ANCHORED_GEOMETRY =
-  'left-0 right-0 bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-0 md:left-[calc(min(33rem,100vw)+0.5rem)] md:right-auto md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-2rem)]';
+  'left-0 right-0 bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)] h-auto max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)] w-auto md:bottom-0 md:left-[calc(min(33rem,100vw)+0.5rem)] md:right-auto md:max-h-[calc(100dvh-2rem)] md:max-w-[calc(100vw-min(33rem,100vw)-2.5rem)]';
 
 /**
  * The Signature Editor pop-out. On viewports wide enough for the scanner dock

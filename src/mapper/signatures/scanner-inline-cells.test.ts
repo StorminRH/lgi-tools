@@ -1,7 +1,15 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
+import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
 import {
+  commitScannerIdentifyQuery,
+  commitScannerLeadsQuery,
   commitScannerLeadsValue,
+  ScannerIdentifyCombo,
+  ScannerLeadsControl,
+  ScannerTypeCombo,
   scannerIdentifySuggestionGroups,
   scannerLeadsSeed,
   scannerLeadsSuggestionGroups,
@@ -164,12 +172,12 @@ describe('commitScannerLeadsValue', () => {
     const onLinkOrigin = vi.fn();
     commitScannerLeadsValue('', onChange, onSetDestination, onLinkOrigin);
     expect(onSetDestination).toHaveBeenCalledWith(null);
-    expect(onChange).toHaveBeenCalledWith(null);
+    expect(onChange).not.toHaveBeenCalled();
     expect(onLinkOrigin).not.toHaveBeenCalled();
     onChange.mockClear();
     onSetDestination.mockClear();
     commitScannerLeadsValue('hint:dangerous', onChange, onSetDestination, onLinkOrigin);
-    expect(onSetDestination).toHaveBeenCalledWith(null);
+    expect(onSetDestination).not.toHaveBeenCalled();
     expect(onChange).toHaveBeenCalledWith('dangerous');
     onChange.mockClear();
     onSetDestination.mockClear();
@@ -181,6 +189,142 @@ describe('commitScannerLeadsValue', () => {
     expect(onLinkOrigin).toHaveBeenCalledWith('inbound');
     expect(onSetDestination).not.toHaveBeenCalled();
     expect(onChange).not.toHaveBeenCalled();
+    onLinkOrigin.mockClear();
+    commitScannerLeadsValue(
+      'system:31000001',
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+      31_000_001,
+    );
+    expect(onSetDestination).not.toHaveBeenCalled();
+  });
+});
+
+describe('commitScannerIdentifyQuery', () => {
+  const parse = wormholeTypeSearch(CODES, { preferredCodes: ['N110'] }).parse;
+
+  it('identifies a typed hole code as Wormhole and a group label as that group', () => {
+    const onIdentify = vi.fn();
+    commitScannerIdentifyQuery('C247', parse, onIdentify);
+    expect(onIdentify).toHaveBeenCalledWith('Wormhole', 'C247');
+    onIdentify.mockClear();
+    commitScannerIdentifyQuery('gas', parse, onIdentify);
+    expect(onIdentify).toHaveBeenCalledWith('Gas Site');
+    onIdentify.mockClear();
+    commitScannerIdentifyQuery('zzzz', parse, onIdentify);
+    expect(onIdentify).not.toHaveBeenCalled();
+  });
+});
+
+describe('commitScannerLeadsQuery', () => {
+  const parse = (input: string) =>
+    input.startsWith('J12')
+      ? { ok: true as const, params: { system: { id: 31_000_001 } } }
+      : { ok: false as const };
+
+  it('clears, links an origin, applies a hint, or resolves a system name', () => {
+    const onChange = vi.fn();
+    const onSetDestination = vi.fn();
+    const onLinkOrigin = vi.fn();
+    const leads = [{ connectionId: 'inbound', label: 'J160650 - C3' }];
+    commitScannerLeadsQuery('', parse, leads, onChange, onSetDestination, onLinkOrigin);
+    expect(onSetDestination).toHaveBeenCalledWith(null);
+    expect(onChange).not.toHaveBeenCalled();
+    onChange.mockClear();
+    onSetDestination.mockClear();
+    commitScannerLeadsQuery(
+      'J160650',
+      parse,
+      leads,
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+    );
+    expect(onLinkOrigin).toHaveBeenCalledWith('inbound');
+    onLinkOrigin.mockClear();
+    commitScannerLeadsQuery(
+      'Dangerous (C4–C5)',
+      parse,
+      [],
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+    );
+    expect(onSetDestination).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith('dangerous');
+    onChange.mockClear();
+    onSetDestination.mockClear();
+    commitScannerLeadsQuery(
+      'J120924 - C2',
+      parse,
+      [],
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+    );
+    expect(onSetDestination).toHaveBeenCalledWith(31_000_001);
+    onSetDestination.mockClear();
+    commitScannerLeadsQuery(
+      'J120924 - C2',
+      parse,
+      [],
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+      31_000_001,
+    );
+    expect(onSetDestination).not.toHaveBeenCalled();
+  });
+});
+
+describe('scanner combo closed-field chrome', () => {
+  it('labels the type, name, and destination fields', () => {
+    const type = renderToStaticMarkup(
+      createElement(ScannerTypeCombo, {
+        code: 'C247',
+        className: 'C3',
+        codes: CODES,
+        preferredCodes: ['C247'],
+        classLabelOf: () => 'C3',
+        rowId: 'WHL-001',
+        disabled: false,
+        onCommit: vi.fn(),
+      }),
+    );
+    expect(type).toContain('aria-label="Type WHL-001"');
+    expect(type).toContain('placeholder="Unresolved"');
+    expect(type).toContain('data-signature-class');
+    expect(type).toContain('C3');
+
+    const identify = renderToStaticMarkup(
+      createElement(ScannerIdentifyCombo, {
+        codes: CODES,
+        preferredCodes: ['N110'],
+        classLabelOf: () => 'HS',
+        rowId: 'ABC-123',
+        disabled: false,
+        onIdentify: vi.fn(),
+      }),
+    );
+    expect(identify).toContain('aria-label="Name ABC-123"');
+    expect(identify).toContain('placeholder="Unresolved"');
+
+    const leads = renderToStaticMarkup(
+      createElement(ScannerLeadsControl, {
+        hint: null,
+        destination: { label: 'J120924 - C2', tone: 'text-wh-c2' },
+        originLeads: [],
+        originSystemId: 31_000_142,
+        rowId: 'WHL-001',
+        disabled: false,
+        onChange: vi.fn(),
+        onSetDestination: vi.fn(),
+        onLinkOrigin: vi.fn(),
+      }),
+    );
+    expect(leads).toContain('aria-label="Destination WHL-001"');
+    expect(leads).toContain('J120924 - C2');
   });
 });
 

@@ -465,8 +465,8 @@ pre {
   position: absolute;
   inset-inline: 0;
   height: 2rem;
-  -webkit-backdrop-filter: blur(8px) saturate(var(--glass-saturate));
-  backdrop-filter: blur(8px) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 
 .scanner-scroll-frost-start {

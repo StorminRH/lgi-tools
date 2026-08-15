@@ -68,12 +68,34 @@ async function waitForSignatureRows(page, expected) {
 
 async function waitForSignatureText(page, signatureId, expected) {
   await page.waitForFunction(
-    ({ id, text }) =>
-      document
-        .querySelector(`[data-signature-row][data-signature-id="${id}"]`)
-        ?.textContent?.includes(text) === true,
+    ({ id, text }) => {
+      const row = document.querySelector(
+        `[data-signature-row][data-signature-id="${id}"]`,
+      );
+      if (row === null) return false;
+      if (row.textContent?.includes(text) === true) return true;
+      return [...row.querySelectorAll('input')].some((input) =>
+        input.value.includes(text),
+      );
+    },
     { id: signatureId, text: expected },
     { timeout: 30_000 },
+  );
+}
+
+async function signatureRowShows(page, signatureId, expected) {
+  return page.evaluate(
+    ({ id, text }) => {
+      const row = document.querySelector(
+        `[data-signature-row][data-signature-id="${id}"]`,
+      );
+      if (row === null) return false;
+      if (row.textContent?.includes(text) === true) return true;
+      return [...row.querySelectorAll('input')].some((input) =>
+        input.value.includes(text),
+      );
+    },
+    { id: signatureId, text: expected },
   );
 }
 
@@ -163,7 +185,7 @@ export default {
     await pasteScan(page, FULL_SCAN);
     await Promise.all([
       waitForSignatureRows(page, 5), // CBA, LXX, IHJ, EAR, plus TFZ anomaly.
-      waitForSignatureRows(second.page, 4),
+      waitForSignatureRows(second.page, 5),
       waitForTopology(page, 3, 2), // origin + two stubs, two provisional edges.
       waitForTopology(second.page, 3, 2),
     ]);
@@ -260,7 +282,7 @@ export default {
 
     // Type C247 on CBA-120 in the inline type cell. The one remaining unknown
     // must eliminate to N766; only the acting client gets the transient toast.
-    const typeInput = signatureRow(page, 'CBA-120').getByPlaceholder('Unresolved');
+    const typeInput = signatureRow(page, 'CBA-120').getByLabel('Type');
     await typeInput.waitFor({ state: 'visible', timeout: 10_000 });
     await typeInput.fill('C247');
     await page.waitForTimeout(600);
@@ -287,12 +309,12 @@ export default {
     await page
       .getByPlaceholder('Type code — e.g. B274 or K162')
       .waitFor({ state: 'detached', timeout: 10_000 });
-    const cbaText = (await signatureRow(page, 'CBA-120').textContent()) ?? '';
     check(
       'typed and eliminated codes render with their destination classes',
-      cbaText.includes('C247') && cbaText.includes('C3')
-      && /N766/.test((await signatureRow(page, 'LXX-844').textContent()) ?? '')
-      && /C2/.test((await signatureRow(page, 'LXX-844').textContent()) ?? ''),
+      (await signatureRowShows(page, 'CBA-120', 'C247'))
+      && (await signatureRowShows(page, 'CBA-120', 'C3'))
+      && (await signatureRowShows(page, 'LXX-844', 'N766'))
+      && (await signatureRowShows(page, 'LXX-844', 'C2')),
     );
 
     // Remove the second, untyped hole via the same prompt Remove — its

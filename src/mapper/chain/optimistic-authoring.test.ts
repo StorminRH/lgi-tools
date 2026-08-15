@@ -9,6 +9,7 @@ import {
   optimisticAddSystemFromNode,
   optimisticPatchConnection,
   optimisticRestoreSeveredBranch,
+  optimisticSetConnectionDestination,
   optimisticSetConnectionLifeStage,
   optimisticSetHomeSystem,
   optimisticSetConnectionWormholeType,
@@ -272,6 +273,40 @@ describe('optimisticPatchConnection', () => {
       typedSide: 'to',
       toDestinationHint: 'dangerous',
     });
+  });
+});
+
+describe('optimisticSetConnectionDestination', () => {
+  it('moves a stub onto the resolved feed and a resolved hole back to stubs', () => {
+    const store = mockStore({
+      systems: [systemRow(JITA)],
+      unresolved: [connectionRow('stub', JITA, AMARR, { toSystemId: null })],
+    });
+    optimisticSetConnectionDestination(store, {
+      mapId: MAP,
+      connectionId: 'stub',
+      toSystemId: AMARR,
+    });
+    expect(store.unresolved).toHaveLength(0);
+    expect(store.connections).toEqual([
+      expect.objectContaining({ _id: 'stub', toSystemId: AMARR }),
+    ]);
+    expect(store.systems.some((row) => row.systemId === AMARR)).toBe(true);
+
+    optimisticSetConnectionDestination(store, {
+      mapId: MAP,
+      connectionId: 'stub',
+      toSystemId: null,
+    });
+    expect(store.connections).toHaveLength(0);
+    expect(store.unresolved).toEqual([
+      expect.objectContaining({
+        _id: 'stub',
+        toSystemId: null,
+        fromDestinationHint: undefined,
+        toDestinationHint: undefined,
+      }),
+    ]);
   });
 });
 

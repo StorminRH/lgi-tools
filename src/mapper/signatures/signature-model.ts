@@ -29,6 +29,8 @@ export interface SignatureWindowRow {
   readonly firstSeenAt: number;
   /** Shared editor row after a wormhole signature has migrated. */
   readonly connection: ConnectionEditorDetail | null;
+  /** Which endpoint this row is projected from; omitted for list-owned rows. */
+  readonly endpoint?: 'from' | 'to';
   /** Destination class derived from the typed wormhole code. */
   readonly className: string | null;
 }
@@ -100,6 +102,7 @@ function connectionSideRow(
     firstSeenAt: row.firstSeenAt ?? row._creationTime,
     connection: row,
     className: name === null ? null : classLabelOf(name),
+    endpoint: side,
   };
 }
 

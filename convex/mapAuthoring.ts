@@ -578,13 +578,25 @@ export const setConnectionDestinationHint = mutation({
     const normalized = value ?? undefined;
     if (
       connection[field] === normalized
+      && (normalized === undefined || connection.toSystemId === null)
       && connection.pendingCandidates === undefined
       && connection.pendingResolutionCharacterId === undefined
     ) {
       return { changed: false };
     }
+    if (normalized !== undefined) {
+      await ctx.db.patch(connectionId, {
+        [field]: normalized,
+        toSystemId: null,
+        toSignatureId: undefined,
+        destinationProvenance: undefined,
+        pendingCandidates: undefined,
+        pendingResolutionCharacterId: undefined,
+      });
+      return { changed: true };
+    }
     await ctx.db.patch(connectionId, {
-      [field]: normalized,
+      [field]: undefined,
       pendingCandidates: undefined,
       pendingResolutionCharacterId: undefined,
     });
@@ -607,11 +619,39 @@ export const setConnectionDestination = mutation({
   },
   handler: async (ctx, { mapId, connectionId, toSystemId }) => {
     const connection = await requireLiveConnection(ctx, mapId, connectionId);
-    if (connection.toSystemId === toSystemId) return { changed: false };
+    if (connection.toSystemId === toSystemId) {
+      if (toSystemId === null) {
+        const hasHint =
+          connection.fromDestinationHint !== undefined
+          || connection.toDestinationHint !== undefined;
+        if (hasHint) {
+          await ctx.db.patch(connectionId, {
+            fromDestinationHint: undefined,
+            toDestinationHint: undefined,
+            destinationProvenance: undefined,
+            pendingCandidates: undefined,
+            pendingResolutionCharacterId: undefined,
+          });
+          return { changed: true };
+        }
+        return { changed: false };
+      }
+      if (connection.destinationProvenance !== 'human') {
+        await ctx.db.patch(connectionId, {
+          destinationProvenance: 'human',
+          pendingCandidates: undefined,
+          pendingResolutionCharacterId: undefined,
+        });
+        return { changed: true };
+      }
+      return { changed: false };
+    }
     if (toSystemId === null) {
       await ctx.db.patch(connectionId, {
         toSystemId: null,
         toSignatureId: undefined,
+        fromDestinationHint: undefined,
+        toDestinationHint: undefined,
         destinationProvenance: undefined,
         pendingCandidates: undefined,
         pendingResolutionCharacterId: undefined,
@@ -629,6 +669,8 @@ export const setConnectionDestination = mutation({
     await ctx.db.patch(connectionId, {
       toSystemId,
       toSignatureId: undefined,
+      fromDestinationHint: undefined,
+      toDestinationHint: undefined,
       destinationProvenance: 'human',
       pendingCandidates: undefined,
       pendingResolutionCharacterId: undefined,
@@ -1041,6 +1083,7 @@ export interface RunCollapseInput {
 /** The committed outcome of one collapse transaction. */
 export type RunCollapseResult =
   | { readonly outcome: 'retained' }
+  | { readonly outcome: 'already_applied' }
   | { readonly outcome: 'removed'; readonly systemIds: number[] };
 
 /**
@@ -1059,7 +1102,7 @@ export async function runCollapse(
   // already-applied work: commit nothing and mint no stamp. Re-running
   // collapse would share a new stamp across two severs and break restore.
   if (isTombstoned(cut)) {
-    return { outcome: 'retained' };
+    return { outcome: 'already_applied' };
   }
   const decision = collapseOutcome(topology, cut, input.pilotsPresent);
   const deletedAt = uniqueTombstoneStamp(topology, Date.now());

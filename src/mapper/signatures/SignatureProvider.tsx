@@ -91,12 +91,17 @@ function useSignaturePage(
 function useIdentifySignature(mapId: string) {
   const identifySignature = useMutation(api.mapScan.identifySignature);
   return useCallback(
-    async (row: SignatureWindowRow, group: SigGroup): Promise<void> => {
+    async (
+      row: SignatureWindowRow,
+      group: SigGroup,
+      wormholeTypeCode?: string,
+    ): Promise<void> => {
       await identifySignature({
         mapId,
         systemId: row.systemId,
         signatureId: row.signatureId,
         group,
+        ...(wormholeTypeCode ? { wormholeTypeCode } : {}),
       });
       if (group === 'Wormhole') {
         await eliminateSignaturesAndAnnounce({ mapId, systemId: row.systemId });
@@ -294,7 +299,6 @@ export function SignatureProvider({
   authoring,
   panelTarget,
   onPanelTargetChange,
-  onFocusSystem,
   children,
 }: {
   readonly mapId: string;
@@ -308,8 +312,6 @@ export function SignatureProvider({
   /** The scanner panel's single open target, owned by the host. */
   readonly panelTarget: ScannerPanelTarget;
   readonly onPanelTargetChange: (target: ScannerPanelTarget) => void;
-  /** Focuses one system on the canvas (the editor's locked Leads-to readout). */
-  readonly onFocusSystem?: (systemId: number) => void;
   readonly children: ReactNode;
 }) {
   const { rows, complete } = useSignaturePage(
@@ -357,7 +359,6 @@ export function SignatureProvider({
         onIdentify={identifyRow}
         onOpenEditor={panel.openEditor}
         onOpenSite={panel.openSite}
-        onFocusSystem={onFocusSystem}
         originLeadConnections={[...connectionDetails.values()]}
         bindConnectionSetters={(connection) =>
           connectionFieldSetters(mapId, connection, authoring, (value) => {
@@ -387,7 +388,6 @@ export function SignatureProvider({
         authoring={authoring}
         now={panel.now}
         onClose={panel.closePanel}
-        onFocusSystem={onFocusSystem}
       />
     </SignatureRowsProvider>
   );
