@@ -59,7 +59,6 @@ import {
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
 import {
-  isKnownSpaceSystemId,
   isWormholeTypeCode,
   type ConnectionMassState,
   type WormholeSizeClass,
@@ -839,7 +838,6 @@ function collapseDecision(
       fromSystemId: row.fromSystemId,
       toSystemId: row.toSystemId,
     })),
-    isKnownSpace: isKnownSpaceSystemId,
     pilotsPresent,
   });
 }

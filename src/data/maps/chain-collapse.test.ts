@@ -20,7 +20,6 @@ function input(
       { id: 'root-a', fromSystemId: ROOT, toSystemId: A },
       { id: 'cut', fromSystemId: A, toSystemId: B },
     ],
-    isKnownSpace: (systemId) => systemId < 31_000_000,
     pilotsPresent: 'unknown',
     ...overrides,
   };
@@ -42,10 +41,13 @@ describe('chain collapse', () => {
     },
   );
 
-  it('retains components with present pilots or a k-space exit', () => {
+  it('retains components with present pilots', () => {
     expect(decideCollapse(input({ pilotsPresent: 'present' }))).toEqual({
       kind: 'retain',
     });
+  });
+
+  it('removes a cut-off k-space exit without present pilots', () => {
     expect(
       decideCollapse(
         input({
@@ -60,7 +62,11 @@ describe('chain collapse', () => {
           ],
         }),
       ),
-    ).toEqual({ kind: 'retain' });
+    ).toEqual({
+      kind: 'remove',
+      systemIds: [K_SPACE],
+      connectionIds: ['cut'],
+    });
   });
 
   it('retains a loop edge whose endpoints remain connected', () => {

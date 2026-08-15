@@ -19,7 +19,6 @@ export interface CollapseDecisionInput {
   readonly cutConnectionId: string;
   readonly systems: readonly CollapseSystem[];
   readonly connections: readonly CollapseConnection[];
-  readonly isKnownSpace: (systemId: number) => boolean;
   readonly pilotsPresent: PilotsPresent;
 }
 
@@ -51,7 +50,9 @@ function componentFrom(
 /**
  * Computes the one collapse outcome for a cut edge. Only the cut endpoints'
  * components participate, so severing inside a retained island never
- * re-examines unrelated islands.
+ * re-examines unrelated islands. A component is retained when it still holds
+ * the map root or present pilots — a k-space system alone is not a keep
+ * reason.
  */
 export function decideCollapse(input: CollapseDecisionInput): CollapseDecision {
   const cut = input.connections.find(
@@ -85,9 +86,8 @@ export function decideCollapse(input: CollapseDecisionInput): CollapseDecision {
   const removeSystemIds = new Set<number>();
   for (const component of components) {
     const retained =
-      [...component].some(
-        (systemId) => rootIds.has(systemId) || input.isKnownSpace(systemId),
-      ) || input.pilotsPresent === 'present';
+      [...component].some((systemId) => rootIds.has(systemId))
+      || input.pilotsPresent === 'present';
     if (!retained) {
       for (const systemId of component) removeSystemIds.add(systemId);
     }
