@@ -51,7 +51,7 @@ export interface OwnedDatasetPort<TRow> {
 }
 
 /** The per-dataset knobs — everything that genuinely differs between the twins. */
-export interface OwnedDatasetSpec<TRow> {
+interface OwnedDatasetSpec<TRow> {
   // The ESI path segment: 'assets' | 'blueprints'.
   resource: string;
   // The staleness gate, closing over the slice's TTL.

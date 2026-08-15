@@ -76,7 +76,7 @@ export function mapCreationSubmitStart(
 }
 
 /** Closed create-request outcome after the interstitial has elapsed. */
-export type MapCreationSubmitFinish =
+type MapCreationSubmitFinish =
   | { readonly kind: 'failed'; readonly message: string }
   | { readonly kind: 'created'; readonly mapId: string };
 

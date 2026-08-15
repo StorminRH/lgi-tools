@@ -26,7 +26,7 @@ import type { PostgresJsDb } from '@/lib/db-types';
 
 
 /** Aggregate row counts produced by one SDE seed stage for operator reporting. */
-export type SeedSummary = {
+type SeedSummary = {
   tracked: number;
   missing: number;
   inserted: number;

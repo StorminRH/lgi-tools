@@ -44,10 +44,10 @@ export interface ApplyCtx {
  * The configurable fields alone (the snapshot minus its identity fields) —
  * the one type expression every generic index below shares.
  */
-export type TemplateFields = { [K in TemplateFieldKey]: PlanSnapshotV1[K] };
+type TemplateFields = { [K in TemplateFieldKey]: PlanSnapshotV1[K] };
 
 /** One versioned template field definition owning extraction, validation, and application. */
-export interface TemplateField<K extends TemplateFieldKey> {
+interface TemplateField<K extends TemplateFieldKey> {
   schema: z.ZodType<TemplateFields[K]>;
   // The unset default — what a malformed saved value degrades to, and what an
   // absent field (an older snapshot after the shape grew) applies as.

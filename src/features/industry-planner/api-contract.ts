@@ -41,11 +41,6 @@ const blueprintsResponseSchema = z.object({
   blueprints: z.array(blueprintIndexEntrySchema),
 });
 /**
- * Searchable blueprint index entries returned by the planner blueprint endpoint.
- */
-export type BlueprintsResponse = z.infer<typeof blueprintsResponseSchema>;
-
-/**
  * Typed endpoint definition for blueprints endpoint; method, path, request, and response contracts
  * remain coupled here.
  */
@@ -91,12 +86,6 @@ export const buildLocationResponseSchema = z.object({
     z.object({ typeId: z.number(), adjustedPrice: z.number() }),
   ),
 }) satisfies z.ZodType<BuildLocationData>;
-/**
- * Resolved build-location data for one system or structure selection, including the applicable
- * indices and facility modifiers.
- */
-export type BuildLocationResponse = z.infer<typeof buildLocationResponseSchema>;
-
 /**
  * Typed endpoint definition for build location endpoint; method, path, request, and response
  * contracts remain coupled here.
@@ -227,12 +216,6 @@ const skillLevelsResponseSchema = z.object({
   levels: z.record(z.string(), z.number()).nullable(),
 });
 /**
- * Requested planner skill levels keyed by skill id; null means no authenticated character data is
- * available.
- */
-export type SkillLevelsResponse = z.infer<typeof skillLevelsResponseSchema>;
-
-/**
  * Typed endpoint definition for skill levels endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
@@ -348,12 +331,6 @@ const savedPlansResponseSchema = z.object({
   plans: z.array(savedPlanRowSchema),
 });
 /**
- * Saved planner builds owned by the authenticated user, in stable server ordering for list and
- * tile views.
- */
-export type SavedPlansResponse = z.infer<typeof savedPlansResponseSchema>;
-
-/**
  * ── GET /api/account/saved-plans ──────────────────────────────────────────
  * No request body; the response is savedPlansResponseSchema above.
  */
@@ -381,11 +358,6 @@ export const createSavedPlanRequestSchema = z.object({
   ),
 });
 /**
- * Create payload containing the validated plan name and complete serializable planner snapshot.
- */
-export type CreateSavedPlanRequest = z.input<typeof createSavedPlanRequestSchema>;
-
-/**
  * Typed endpoint definition for create saved plan endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
@@ -408,11 +380,6 @@ export const renameSavedPlanRequestSchema = z.object({
   name: savedPlanName,
 });
 /**
- * Rename payload for one user-owned saved plan.
- */
-export type RenameSavedPlanRequest = z.input<typeof renameSavedPlanRequestSchema>;
-
-/**
  * Typed endpoint definition for rename saved plan endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
@@ -434,11 +401,6 @@ export const favoriteSavedPlanRequestSchema = z.object({
   favorite: z.boolean(),
 });
 /**
- * Favorite-state mutation payload for one user-owned saved plan.
- */
-export type FavoriteSavedPlanRequest = z.input<typeof favoriteSavedPlanRequestSchema>;
-
-/**
  * Typed endpoint definition for favorite saved plan endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
@@ -458,11 +420,6 @@ export const favoriteSavedPlanEndpoint = defineEndpoint({
 export const deleteSavedPlanRequestSchema = z.object({
   id: savedPlanId,
 });
-/**
- * Delete payload identifying one user-owned saved plan.
- */
-export type DeleteSavedPlanRequest = z.input<typeof deleteSavedPlanRequestSchema>;
-
 /**
  * Typed endpoint definition for delete saved plan endpoint; method, path, request, and response
  * contracts remain coupled here.

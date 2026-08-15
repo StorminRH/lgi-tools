@@ -56,7 +56,6 @@ export {
   EsiServerError,
   EsiContractError,
   ESI_BUDGET_FLOOR,
-  type EsiBudgetExhaustedReason,
 } from './errors';
 // Test seams + the options type live with the engine in ./dispatch.
 export { __resetEsiGateForTests, __setScoreboardForTests } from './dispatch';

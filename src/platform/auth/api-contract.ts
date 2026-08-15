@@ -224,11 +224,6 @@ export const purgeCharacterRequestSchema = z.object({
 // redirect + logs out only then.
 const purgeCharacterResponseSchema = z.object({ accountEmptied: z.boolean() });
 /**
- * Character-purge result indicating whether removing the character also emptied and deleted the
- * owning account.
- */
-export type PurgeCharacterResponse = z.infer<typeof purgeCharacterResponseSchema>;
-/**
  * Boundary validator for purge character endpoint; successful parsing yields the normalized auth
  * input consumed internally.
  */
@@ -247,10 +242,6 @@ export const purgeCharacterEndpoint = defineEndpoint({
 
 // POST /api/account/delete — nuke the caller's entire account. No request body.
 const accountDeleteResponseSchema = z.object({ ok: z.literal(true) });
-/**
- * Successful full-account deletion acknowledgement.
- */
-export type AccountDeleteResponse = z.infer<typeof accountDeleteResponseSchema>;
 /** Full-account deletion endpoint with no request body and closed response statuses. */
 export const accountDeleteEndpoint = defineEndpoint({
   method: 'POST',
@@ -267,10 +258,6 @@ export const accountDeleteEndpoint = defineEndpoint({
 // POST /api/account/sessions/revoke — log the caller out everywhere. No request
 // body; `revoked` is the number of sessions removed.
 const sessionsRevokeResponseSchema = z.object({ revoked: z.number() });
-/**
- * Session-revocation result reporting how many matching sessions were removed.
- */
-export type SessionsRevokeResponse = z.infer<typeof sessionsRevokeResponseSchema>;
 /**
  * Typed endpoint definition for sessions revoke endpoint; method, path, request, and response
  * contracts remain coupled here.

@@ -15,7 +15,7 @@ import type { EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './typ
  * endpoint-specific read/save the spec closes over). TState is the slice's per-character
  * sync state; it carries the staleness stamp the gate reads.
  */
-export interface CharacterSyncBase<TState> {
+interface CharacterSyncBase<TState> {
   now(): Date;
   // The user's linked characters with scope health (no corp id — character-only).
   listCharacters(userId: string): Promise<Array<Omit<EnumeratedOwner, 'corporationId'>>>;
@@ -25,7 +25,7 @@ export interface CharacterSyncBase<TState> {
 }
 
 /** The per-dataset knobs — everything that genuinely differs between the twins. */
-export interface CharacterDatasetSpec<TState, TSave> {
+interface CharacterDatasetSpec<TState, TSave> {
   // The staleness gate, closing over the slice's TTL.
   isStale(lastRefreshedAt: Date | null, now: Date): boolean;
   // Whether a character may sync this dataset (refresh token + scopes).

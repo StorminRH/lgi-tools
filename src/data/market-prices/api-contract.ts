@@ -68,9 +68,6 @@ export const wirePriceSchema = z.object({
  * market prices input consumed internally.
  */
 const refreshPricesResponseSchema = z.object({ prices: z.array(wirePriceSchema) });
-/** Typed market-price refresh result with source counts, freshness, and write-behind state. */
-export type RefreshPricesResponse = z.infer<typeof refreshPricesResponseSchema>;
-
 /**
  * Typed endpoint definition for refresh prices endpoint; method, path, request, and response
  * contracts remain coupled here.

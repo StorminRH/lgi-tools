@@ -56,12 +56,6 @@ const customStructuresResponseSchema = z.object({
   structures: z.array(customStructureRowSchema),
 });
 /**
- * Validated custom structures owned by the authenticated user, in the server's canonical row
- * shape.
- */
-export type CustomStructuresResponse = z.infer<typeof customStructuresResponseSchema>;
-
-/**
  * ── POST /api/account/custom-structures ──────────────────────────────────
  * Save one custom structure. The route is the trust boundary: it confirms the
  * type is a real industry structure and every rig fits it (validation.ts), and
@@ -80,12 +74,6 @@ export const createCustomStructureRequestSchema = z.object({
   // (there is no stored value to clobber).
   taxPct: facilityTaxPct.nullable().default(null),
 });
-/**
- * Create payload for a user-owned structure, including its location, facility type, rigs, and
- * optional tax override.
- */
-export type CreateCustomStructureRequest = z.input<typeof createCustomStructureRequestSchema>;
-
 /**
  * Typed endpoint definition for create custom structure endpoint; method, path, request, and
  * response contracts remain coupled here.
@@ -112,11 +100,6 @@ export const deleteCustomStructureRequestSchema = z.object({
   id: z.string().min(1).max(100),
 });
 /**
- * Delete payload identifying the user-owned custom structure to remove.
- */
-export type DeleteCustomStructureRequest = z.input<typeof deleteCustomStructureRequestSchema>;
-
-/**
  * Typed endpoint definition for delete custom structure endpoint; method, path, request, and
  * response contracts remain coupled here.
  */
@@ -142,11 +125,6 @@ export const setCustomStructurePinRequestSchema = z.object({
   id: z.string().min(1).max(100),
   systemId: typeId.nullable(),
 });
-/**
- * Pin mutation payload; a null system id clears the structure's planner pin.
- */
-export type SetCustomStructurePinRequest = z.input<typeof setCustomStructurePinRequestSchema>;
-
 /**
  * Typed endpoint definition for set custom structure pin endpoint; method, path, request, and
  * response contracts remain coupled here.
@@ -175,11 +153,6 @@ export const setCustomStructureTaxRequestSchema = z.object({
   taxPct: facilityTaxPct.nullable(),
 });
 /**
- * Tax mutation payload; a null percentage restores the structure's default facility tax.
- */
-export type SetCustomStructureTaxRequest = z.input<typeof setCustomStructureTaxRequestSchema>;
-
-/**
  * Typed endpoint definition for set custom structure tax endpoint; method, path, request, and
  * response contracts remain coupled here.
  */
@@ -206,11 +179,6 @@ export const parseStructureFitRequestSchema = z.object({
   fit: z.string().min(1).max(MAX_STRUCTURE_FIT_LEN),
 });
 /**
- * Raw in-game structure fit text accepted for bounded server-side parsing.
- */
-export type ParseStructureFitRequest = z.input<typeof parseStructureFitRequestSchema>;
-
-/**
  * Boundary validator for parse structure fit response schema; successful parsing yields the
  * normalized custom structures input consumed internally.
  */
@@ -219,12 +187,6 @@ const parseStructureFitResponseSchema = z.object({
     .object({ structureTypeId: z.number(), rigTypeIds: z.array(z.number()) })
     .nullable(),
 });
-/**
- * Parsed fit result with the resolved structure, system, and rig identities; unresolved fit parts
- * remain null rather than being guessed.
- */
-export type ParseStructureFitResponse = z.infer<typeof parseStructureFitResponseSchema>;
-
 /**
  * Typed endpoint definition for parse structure fit endpoint; method, path, request, and response
  * contracts remain coupled here.

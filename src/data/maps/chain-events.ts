@@ -33,8 +33,5 @@ export interface MapEventPayloadByKind {
   };
 }
 
-/** One payload accepted by the basic despawn ledger. */
-export type MapEventPayload = MapEventPayloadByKind[MapEventKind];
-
 /** Seven-day retention for the shared basic map-event ledger. */
 export const MAP_EVENT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;

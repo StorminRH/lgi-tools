@@ -78,7 +78,7 @@ export function isAdoptedPopupOpen(): boolean {
 }
 
 /** Props for the map's single window primitive. */
-export interface MapWindowProps {
+interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
   /** Optional inline detail that inherits the title typography but owns its tone. */

@@ -9,7 +9,7 @@ import type { AfkGateState } from './AfkGate';
 import type { SystemPresence } from './presence-model';
 
 /** What the presence context provides to canvas and window consumers. */
-export interface MapPresenceValue {
+interface MapPresenceValue {
   readonly presence: ReadonlyMap<number, SystemPresence>;
   readonly afk: AfkGateState;
 }

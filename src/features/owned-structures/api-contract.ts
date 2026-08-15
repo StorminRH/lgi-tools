@@ -43,12 +43,6 @@ const corpStructuresResponseSchema = z.object({
   corporations: z.array(viewerCorpStructuresSchema),
 });
 
-/**
- * Corporation structures visible to the active character, paired with access and freshness
- * metadata for the current read.
- */
-export type CorpStructuresResponse = z.infer<typeof corpStructuresResponseSchema>;
-
 /** Typed corporation-structure catalogue endpoint for the current viewer. */
 export const corpStructuresEndpoint = defineEndpoint({
   method: 'GET',
@@ -72,12 +66,6 @@ export const setCorpStructureSharingRequestSchema = z.object({
   enabled: z.boolean(),
 });
 /**
- * Corporation-sharing mutation payload selecting whether eligible account characters may use the
- * stored structures.
- */
-export type SetCorpStructureSharingRequest = z.input<typeof setCorpStructureSharingRequestSchema>;
-
-/**
  * Boundary validator for corp structure sharing response schema; successful parsing yields the
  * normalized owned structures input consumed internally.
  */
@@ -85,11 +73,6 @@ const corpStructureSharingResponseSchema = z.object({
   corporationId: z.number(),
   enabled: z.boolean(),
 });
-/**
- * Saved corporation-structure sharing state returned after the authenticated mutation completes.
- */
-export type CorpStructureSharingResponse = z.infer<typeof corpStructureSharingResponseSchema>;
-
 /**
  * Typed endpoint definition for set corp structure sharing endpoint; method, path, request, and
  * response contracts remain coupled here.
@@ -133,11 +116,6 @@ export const setCorpStructureRigsRequestSchema = z.object({
   taxPct: z.number().min(0).max(MAX_FACILITY_TAX_PCT).nullable().optional(),
 });
 /**
- * Corporation-structure override payload; omitted or null fields clear the saved rig or tax value.
- */
-export type SetCorpStructureRigsRequest = z.input<typeof setCorpStructureRigsRequestSchema>;
-
-/**
  * Boundary validator for corp structure rigs response schema; successful parsing yields the
  * normalized owned structures input consumed internally.
  */
@@ -146,12 +124,6 @@ const corpStructureRigsResponseSchema = z.object({
   rigTypeIds: z.array(z.number()),
   taxPct: z.number().nullable(),
 });
-/**
- * Validated rig and tax configuration for one corporation structure, including nullable values
- * when no override is stored.
- */
-export type CorpStructureRigsResponse = z.infer<typeof corpStructureRigsResponseSchema>;
-
 /**
  * Typed endpoint definition for set corp structure rigs endpoint; method, path, request, and
  * response contracts remain coupled here.

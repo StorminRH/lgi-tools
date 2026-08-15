@@ -10,7 +10,7 @@ import type { ContentNavModel } from './content-browser-view';
 import { Drawer } from './drawer';
 import { scrollArea } from './scroll-area';
 
-export type { ContentNavGroup, ContentNavItem, ContentNavModel } from './content-browser-view';
+export type { ContentNavModel } from './content-browser-view';
 export { landingContentSlug } from './content-browser-view';
 
 /**

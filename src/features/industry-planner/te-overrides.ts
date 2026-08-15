@@ -37,6 +37,3 @@ export function effectiveTeOf(
 export function nodeTeState(owned: number | undefined, override: number | undefined): NodeMeState {
   return nodeMeState(owned, override);
 }
-
-/** Effective node time efficiency plus whether a user override is active. */
-export type NodeTeState = NodeMeState;
