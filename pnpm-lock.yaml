@@ -26,9 +26,6 @@ importers:
       '@convex-dev/rate-limiter':
         specifier: ^0.3.2
         version: 0.3.2(convex@1.42.3(react@19.2.7))(react@19.2.7)
-      '@convex-dev/workpool':
-        specifier: ^0.4.8
-        version: 0.4.8(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.42.3(react@19.2.7))(react@19.2.7)(typescript@5.9.3)(zod@4.4.3))(convex@1.42.3(react@19.2.7))
       '@neondatabase/serverless':
         specifier: ^1.1.0
         version: 1.1.0
@@ -384,12 +381,6 @@ packages:
     peerDependenciesMeta:
       react:
         optional: true
-
-  '@convex-dev/workpool@0.4.8':
-    resolution: {integrity: sha512-ExUV3dVxUK/m2gQGB0PGuTNX/8pNtJM1T2Z+iprEhu7/4UBKM5flmu5odKBcffDnTzlGTPUQ2X+dwzy8l9T19g==}
-    peerDependencies:
-      convex: ^1.36.1
-      convex-helpers: ^0.1.94
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
@@ -2170,28 +2161,6 @@ packages:
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
-
-  convex-helpers@0.1.119:
-    resolution: {integrity: sha512-fGNK9KAlBLk8Un729ZXBqD9S5jy910nxSrH6PloIL/Gl6TalFJvjN8+xCCwahlox8Ft+bb54SSg9MbcrsQb98w==}
-    hasBin: true
-    peerDependencies:
-      '@standard-schema/spec': ^1.0.0
-      convex: ^1.32.0
-      hono: ^4.0.5
-      react: ^17.0.2 || ^18.0.0 || ^19.0.0
-      typescript: ^5.5 || ^6.0.0
-      zod: ^3.25.0 || ^4.0.0
-    peerDependenciesMeta:
-      '@standard-schema/spec':
-        optional: true
-      hono:
-        optional: true
-      react:
-        optional: true
-      typescript:
-        optional: true
-      zod:
-        optional: true
 
   convex-test@0.0.54:
     resolution: {integrity: sha512-C0v2SQcuxrELAJRNzE6fQ686XDPor7UFoC22jcoJXeCRqhLo8ZIMZ4jyUHoo1UdAL2enCb0AbiprCVpLDN8u9Q==}
@@ -4393,11 +4362,6 @@ snapshots:
     optionalDependencies:
       react: 19.2.7
 
-  '@convex-dev/workpool@0.4.8(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.42.3(react@19.2.7))(react@19.2.7)(typescript@5.9.3)(zod@4.4.3))(convex@1.42.3(react@19.2.7))':
-    dependencies:
-      convex: 1.42.3(react@19.2.7)
-      convex-helpers: 0.1.119(@standard-schema/spec@1.1.0)(convex@1.42.3(react@19.2.7))(react@19.2.7)(typescript@5.9.3)(zod@4.4.3)
-
   '@drizzle-team/brocli@0.10.2': {}
 
   '@edge-runtime/primitives@6.0.0': {}
@@ -5881,15 +5845,6 @@ snapshots:
       yargs: 18.0.0
 
   convert-source-map@2.0.0: {}
-
-  convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.42.3(react@19.2.7))(react@19.2.7)(typescript@5.9.3)(zod@4.4.3):
-    dependencies:
-      convex: 1.42.3(react@19.2.7)
-    optionalDependencies:
-      '@standard-schema/spec': 1.1.0
-      react: 19.2.7
-      typescript: 5.9.3
-      zod: 4.4.3
 
   convex-test@0.0.54(convex@1.42.3(react@19.2.7)):
     dependencies:

@@ -92,7 +92,7 @@ function subjectRow(overrides: Record<string, unknown> = {}) {
     userId: USER,
     status: 'running' as const,
     lastRequestedAt: GEN,
-    workId: 'w1',
+    workId: String(GEN),
     nextDueAt: GEN + 30_000,
     minExpiresAt: null,
     syncedCharacterIds: [] as number[],
@@ -191,10 +191,15 @@ function run(t: TestConvex<typeof schema>) {
 }
 
 describe('characterLocationSync.syncUser', () => {
-  it('throws when the deployment env is unset', async () => {
+  it('completes as failed when the deployment env is unset', async () => {
     vi.unstubAllEnvs();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const t = convexTest(schema, modules);
-    await expect(run(t)).rejects.toThrow(/SITE_URL/);
+    await seedSubject(t);
+    await run(t);
+    const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
+    expect(subject?.status).toBe('idle');
+    expect(subject?.lastError).toMatch(/SITE_URL/);
   });
 
   it('writes a fresh 200 location + ship for a tracked character', async () => {

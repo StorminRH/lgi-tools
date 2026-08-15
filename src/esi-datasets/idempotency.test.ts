@@ -197,12 +197,15 @@ describe('idempotency registry verdicts', () => {
     expect(schema).toMatch(/esi_refresh_jobs_live_key_unique/);
   });
 
-  it('names the Workpool generation guard for the retried Convex sync action', () => {
+  it('names the generation guard for the scheduled Convex sync action', () => {
     const locationAction = IDEMPOTENCY_REGISTRY.find(
       (entry) => entry.id === 'convex/characterLocationSync:syncUser',
     );
     expect(locationAction?.evidence).toMatch(/generation.?guard/i);
-    expect(readFileSync(path.join(ROOT, 'convex/convex.config.ts'), 'utf8')).toMatch(
+    expect(locationAction?.evidence).toMatch(/workId/i);
+    expect(locationAction?.redeliverySource).toMatch(/scheduled Convex action/i);
+    expect(locationAction?.redeliverySource).toMatch(/at most once/i);
+    expect(readFileSync(path.join(ROOT, 'convex/convex.config.ts'), 'utf8')).not.toMatch(
       /[Ww]orkpool/,
     );
   });

@@ -130,11 +130,11 @@ export const HIDDEN_PRESENCE_MAX_MS = 90 * 60_000;
 export const RETENTION_MS = 7 * 24 * 60 * 60_000;
 
 /**
- * A 'running' status older than this is treated as stuck (e.g. the workpool
- * onComplete itself failed) and taken over by the next dispatch — without it
- * one wedged run would block the subject's syncs forever. Sized above the
- * worst-case retry envelope (4 attempts, ~1s/2s/4s backoff, seconds-long
- * runs). Carried verbatim from the 3.4.7/3.4.8 trackers.
+ * A 'running' status older than this is treated as stuck (e.g. the
+ * completion mutation itself failed) and taken over by the next dispatch —
+ * without it one wedged run would block the subject's syncs forever. Sized
+ * above a seconds-long ESI run. Carried verbatim from the 3.4.7/3.4.8
+ * trackers.
  */
 export const STALE_RUNNING_MS = 3 * 60_000;
 

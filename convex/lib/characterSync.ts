@@ -148,8 +148,8 @@ export function resolveExpiresAt(
 /**
  * Stamp the run's results onto the engine's subject row: the cache window the
  * next due time is computed from, the enumeration the heartbeat hint checks
- * against, and the rl* observability. status stays as-is — the workpool's
- * onComplete owns the lifecycle and clears it exactly once. Shared because the
+ * against, and the rl* observability. status stays as-is — the action's
+ * onSyncComplete owns the lifecycle and clears it exactly once. Shared because the
  * subject row is the same `syncSubjects` table for every tracker.
  */
 export interface SubjectStamp {

@@ -237,22 +237,22 @@ const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
     workKind: 'convex-mutation',
     module: 'convex/engine.ts',
     redeliverySource:
-      'Convex transactional retry, and a duplicate completion callback from a Workpool-retried sync action.',
+      'Convex transactional retry of a transient error inside the mutation.',
     verdict: 'inherently-idempotent',
     vendor: 'convex',
     evidence:
-      'Declared internalMutation whose generation guard (convex/engine.ts:84-85) makes a duplicate apply a no-op, so a late or repeated completion cannot rewind a newer sync.',
+      'Declared internalMutation whose workId ownership guard makes a late or repeated completion a no-op, so it cannot clear a newer run’s status.',
   },
   {
     id: 'convex/characterLocationSync:syncUser',
     workKind: 'convex-action',
     module: 'convex/characterLocationSync.ts',
     redeliverySource:
-      'The Convex Workpool (convex/convex.config.ts) runs the engine’s sync actions with durable exponential-backoff retries — the third retry owner, living in the Convex isolate.',
+      'A single scheduled Convex action (engine dispatch via scheduler.runAfter). Scheduled actions execute at most once and are not retried.',
     verdict: 'inherently-idempotent',
     vendor: 'convex',
     evidence:
-      'convex/engine.ts declares the safety condition: only transient failures throw, and the generation guard makes a duplicate apply a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId, so a retry converges.',
+      'convex/engine.ts declares the safety condition: only transient failures throw, and the generation guard on apply plus the workId guard on onSyncComplete make a duplicate write a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId.',
   },
 ];
 
