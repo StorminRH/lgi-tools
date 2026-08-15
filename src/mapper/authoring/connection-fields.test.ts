@@ -8,7 +8,7 @@ import {
   encodeOptionalField,
   UNSET_FIELD,
 } from './connection-field-group';
-import { ConnectionFields } from './connection-fields';
+import { ConnectionFields, parseDestinationSystem } from './connection-fields';
 
 const selectHandlers = new Map<string, (next: string) => void>();
 
@@ -109,6 +109,7 @@ const SETTERS = {
   setMassState: vi.fn(),
   setLifeStage: vi.fn(),
   setLeadsTo: vi.fn(),
+  setDestination: vi.fn(),
   linkToOrigin: vi.fn(),
 };
 
@@ -250,9 +251,9 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
       onFocusDestination: vi.fn(),
     }),
   );
-  expect(resolved).toContain('data-map-connection-leads-locked');
+  expect(resolved).not.toContain('data-map-connection-leads-locked');
   expect(resolved).toContain('J123456 - C4');
-  expect(resolved).toContain('text-wh-c4');
+  expect(resolved).toContain('System name — e.g. J120924');
   expect(resolved).not.toContain('data-select="Leads to"');
 
   const unresolved = renderToStaticMarkup(
@@ -340,4 +341,19 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
   expect(restore).not.toContain('data-select="Mass"');
   expect(restore).toContain('data-map-connection-mass-state-readout');
   expect(restore).toContain('data-map-connection-life-readout');
+});
+
+it('parses a destination identity readout by stripping the class suffix', () => {
+  const parse = (input: string) =>
+    input === 'J120924'
+      ? { ok: true as const, params: { system: { id: 31_000_001, name: 'J120924', security: null } } }
+      : { ok: false as const, error: { kind: 'not_found' as const } };
+  expect(parseDestinationSystem(parse, 'J120924 - C2')).toEqual({
+    ok: true,
+    params: { system: { id: 31_000_001, name: 'J120924', security: null } },
+  });
+  expect(parseDestinationSystem(parse, 'unknown-system')).toEqual({
+    ok: false,
+    error: { kind: 'not_found' },
+  });
 });

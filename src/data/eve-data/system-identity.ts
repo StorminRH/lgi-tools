@@ -106,11 +106,11 @@ const CLASS_TONES_BY_ID = new Map<number, string>([
 /**
  * Broad known-space destination classes have no exact security value until a
  * destination system is known. These tones therefore represent the category,
- * not a fabricated numeric status: the boundary high-, low-, and null-sec
- * colors keep the same visual language as authored systems.
+ * not a fabricated numeric status: high-sec blue, low-sec orange, and
+ * null-sec purple — the characteristic in-game colors for each band.
  */
 const DESTINATION_CLASS_TONES_BY_ID = new Map<number, string>([
-  [7, 'text-sec-05'],
+  [7, 'text-sec-10'],
   [8, 'text-sec-04'],
   [9, 'text-sec-null'],
 ]);

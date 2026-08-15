@@ -162,7 +162,7 @@ export default {
     await restampFreshness();
     await pasteScan(page, FULL_SCAN);
     await Promise.all([
-      waitForSignatureRows(page, 4), // Signatures tab: CBA, LXX, IHJ, EAR.
+      waitForSignatureRows(page, 5), // CBA, LXX, IHJ, EAR, plus TFZ anomaly.
       waitForSignatureRows(second.page, 4),
       waitForTopology(page, 3, 2), // origin + two stubs, two provisional edges.
       waitForTopology(second.page, 3, 2),
@@ -175,9 +175,10 @@ export default {
       && (await signatureRow(second.page, 'EAR-696').count()) === 1,
     );
     check(
-      'both scanner kind tabs render',
-      (await page.getByRole('tab', { name: 'Signatures' }).count()) === 1
-      && (await page.getByRole('tab', { name: 'Anomalies' }).count()) === 1,
+      'scanner groups render as cards',
+      (await page.locator('[data-scanner-section="wormholes"]').count()) === 1
+      && (await page.locator('[data-scanner-section="harvestables"]').count()) === 1
+      && (await page.locator('[data-scanner-section="unknown"]').count()) === 1,
     );
     check(
       'unidentified wormhole rows reuse exactly two believed-hole ghosts',
@@ -198,7 +199,7 @@ export default {
     await page.waitForTimeout(1_500);
     check(
       'unchanged re-paste leaves rows, stubs, and edges untouched',
-      (await page.locator('[data-signature-row]').count()) === 4
+      (await page.locator('[data-signature-row]').count()) === 5
       && (await stubCount(page)) === 2
       && (await page.locator('.react-flow__edge').count()) === 2,
     );
@@ -257,12 +258,9 @@ export default {
     ]);
     check('undo restores the row on both clients', true);
 
-    // Type C247 on CBA-120 through the row editor. The one remaining unknown
+    // Type C247 on CBA-120 in the inline type cell. The one remaining unknown
     // must eliminate to N766; only the acting client gets the transient toast.
-    await signatureRow(page, 'CBA-120')
-      .getByRole('button', { name: 'Edit wormhole CBA-120' })
-      .click();
-    const typeInput = page.getByPlaceholder('Type code — e.g. B274 or K162');
+    const typeInput = signatureRow(page, 'CBA-120').getByPlaceholder('Unresolved');
     await typeInput.waitFor({ state: 'visible', timeout: 10_000 });
     await typeInput.fill('C247');
     await page.waitForTimeout(600);
@@ -286,7 +284,6 @@ export default {
         hasText: 'LXX-844 has been identified.',
       }).count()) === 0,
     );
-    await page.getByRole('button', { name: 'Close Signature Editor' }).click();
     await page
       .getByPlaceholder('Type code — e.g. B274 or K162')
       .waitFor({ state: 'detached', timeout: 10_000 });

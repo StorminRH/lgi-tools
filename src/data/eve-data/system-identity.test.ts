@@ -117,7 +117,7 @@ it('renders independently placeable classification chips and omits unresolved fa
 
 it.each([
   [3, 'C3', 'text-wh-c3'],
-  [7, 'HS', 'text-sec-05'],
+  [7, 'HS', 'text-sec-10'],
   [8, 'LS', 'text-sec-04'],
   [9, 'NS', 'text-sec-null'],
 ])('destination class id %i reads %s in %s', (whClassId, label, tone) => {
@@ -133,7 +133,7 @@ it.each([
   ['unknown', 'C1–C3', 'text-wh-c2'],
   ['dangerous', 'C4–C5', 'text-wh-c4'],
   ['deadly', 'C6', 'text-wh-c6'],
-  ['hisec', 'HS', 'text-sec-05'],
+  ['hisec', 'HS', 'text-sec-10'],
   ['lowsec', 'LS', 'text-sec-04'],
   ['nullsec', 'NS', 'text-sec-null'],
   ['thera', 'Thera', 'text-tone-teal'],

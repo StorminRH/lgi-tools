@@ -91,15 +91,20 @@ it('keeps authored editable lines hit-testable and makes every other line inert'
       motion: { phase: 'departing', flavor: 'fade', reverse: false, heavy: false },
     },
   });
+  const dying = chainEdge({
+    id: 'c1',
+    data: { loop: false, tombstoneState: 'dying' },
+  });
 
   expect(edgeAllowsPointerActions(authored, true)).toBe(true);
   expect(edgeAllowsPointerActions(authored, false)).toBe(false);
   expect(edgeAllowsPointerActions(halo, true)).toBe(false);
   expect(edgeAllowsPointerActions(stub, true)).toBe(false);
   expect(edgeAllowsPointerActions(departing, true)).toBe(false);
+  expect(edgeAllowsPointerActions(dying, true)).toBe(false);
 
-  const [live, derived, ghost, stubbed] = withEdgePointerPolicy(
-    [authored, halo, departing, stub],
+  const [live, derived, ghost, stubbed, restorable] = withEdgePointerPolicy(
+    [authored, halo, departing, stub, dying],
     true,
   );
   expect(live).toBe(authored);
@@ -112,6 +117,11 @@ it('keeps authored editable lines hit-testable and makes every other line inert'
   expect(ghost).toMatchObject({ id: 'c1', selectable: false, focusable: false });
   expect(stubbed).toMatchObject({
     id: 'stub-edge',
+    selectable: false,
+    focusable: false,
+  });
+  expect(restorable).toMatchObject({
+    id: 'c1',
     selectable: false,
     focusable: false,
   });
@@ -166,6 +176,7 @@ it('opens the Signature Editor on Edit and severs through the shipped undo pathw
       setConnectionMassState: vi.fn(),
       setConnectionLifeStage: vi.fn(),
       setConnectionDestinationHint: vi.fn(),
+      setConnectionDestination: vi.fn(),
       linkStubToResolvedConnection: vi.fn(),
       severConnection: vi.fn(
         async (): Promise<{ outcome: 'retained' }> => ({ outcome: 'retained' }),

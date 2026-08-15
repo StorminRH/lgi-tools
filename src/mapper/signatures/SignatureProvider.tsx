@@ -19,8 +19,10 @@ import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import { ActiveScannerPanel } from './ActiveScannerPanel';
 import {
   answerAndAnnounce,
+  applyWormholeType,
   type ConnectionAuthoringApi,
 } from './connection-authoring-api';
+import { connectionFieldSetters } from '../authoring/connection-field-setters';
 import {
   jumpAnswerTarget,
   pendingJumpResolution,
@@ -355,6 +357,26 @@ export function SignatureProvider({
         onIdentify={identifyRow}
         onOpenEditor={panel.openEditor}
         onOpenSite={panel.openSite}
+        onFocusSystem={onFocusSystem}
+        originLeadConnections={[...connectionDetails.values()]}
+        bindConnectionSetters={(connection) =>
+          connectionFieldSetters(mapId, connection, authoring, (value) => {
+            if (connection.toSystemId !== null) {
+              void applyWormholeType({
+                mapId,
+                connection: connection as ConnectionDetail,
+                value,
+                authoring,
+              });
+              return;
+            }
+            void authoring.setConnectionWormholeType({
+              mapId,
+              connection,
+              value,
+            });
+          })
+        }
       />
       <ActiveScannerPanel
         mapId={mapId}

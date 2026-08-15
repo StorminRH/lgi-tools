@@ -177,6 +177,41 @@ export function lifetimeRowDisplay(
   return { kind: 'unset' };
 }
 
+/**
+ * Remaining-life upper bound for compact surfaces. Same algebra as
+ * `lifetimeRowDisplay`, without the range or ≤ prefix.
+ */
+export function lifetimeUpperBoundLabel(
+  connection: Pick<
+    ConnectionDetail,
+    | '_creationTime'
+    | 'deathEarliestAt'
+    | 'deathLatestAt'
+    | 'lifeStage'
+  >,
+  entry: WormholeCodexEntry | null,
+  now: number,
+): string | null {
+  const window = storedDeathWindow(connection);
+  if (window !== null) {
+    const display = lifetimeDisplay(window, now);
+    if (display.kind === 'expired') return 'Expired';
+    return formatDurationBound(display.latestRemainingMs);
+  }
+  if (
+    entry !== null &&
+    !entry.farSide &&
+    Number.isFinite(entry.lifetimeMinutes) &&
+    entry.lifetimeMinutes >= 0
+  ) {
+    const ceilingAt =
+      connection._creationTime + entry.lifetimeMinutes * 60_000;
+    const remainingMs = Math.max(0, ceilingAt - now);
+    return remainingMs === 0 ? 'Expired' : formatDurationBound(remainingMs);
+  }
+  return null;
+}
+
 function storedDeathWindow(connection: {
   readonly deathEarliestAt: number | null;
   readonly deathLatestAt: number | null;

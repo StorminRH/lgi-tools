@@ -10,7 +10,9 @@ import {
   isEditablePasteTarget,
   scannerPasteDecision,
   scannerPasteRefusalToast,
+  scannerGroupTypeLabel,
   scannerSectionForGroup,
+  scannerLifeUpperBound,
   scannerWormholeLifetime,
   scannerWormholeSize,
   signatureCounts,
@@ -265,6 +267,11 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     expect(scannerSectionForGroup(null)).toBe('unknown');
     expect(scannerSectionForGroup('Ore Site')).toBe('harvestables');
     expect(scannerSectionForGroup('Relic Site')).toBe('hacking');
+    expect(scannerGroupTypeLabel(null)).toBeNull();
+    expect(scannerGroupTypeLabel('Gas Site')).toBe('Gas');
+    expect(scannerGroupTypeLabel('Ore Site')).toBe('Ore');
+    expect(scannerGroupTypeLabel('Data Site')).toBe('Data');
+    expect(scannerGroupTypeLabel('Relic Site')).toBe('Relic');
     expect(groupSignatureSections(rows, null)).toEqual([]);
     expect(groupSignatureSections(rows, SYSTEM).map((section) => section.id)).toEqual([
       'unknown',
@@ -286,7 +293,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         rows.filter((row) => row.group === 'Wormhole' || row.kind === 'anomaly'),
         SYSTEM,
       ).map((section) => section.id),
-    ).toEqual(['wormholes']);
+    ).toEqual(['wormholes', 'combat']);
 
     // Schema-legal legacy group strings must land unidentified instead of crashing.
     const legacy: SignatureWindowRow = {
@@ -341,6 +348,8 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       farSide: true,
     })).toBe('M');
     expect(scannerWormholeLifetime(base, typed, now)).toBe('≤ 14h');
+    expect(scannerLifeUpperBound(base, typed, now)).toBe('14h');
+    expect(scannerLifeUpperBound(null, typed, now)).toBe('—');
     expect(scannerWormholeLifetime(base, null, now)).toBe('—');
     expect(
       scannerWormholeLifetime(
@@ -353,6 +362,17 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         now,
       ),
     ).toBe('~1h–4h');
+    expect(
+      scannerLifeUpperBound(
+        {
+          ...base,
+          deathEarliestAt: now + 60 * 60_000,
+          deathLatestAt: now + 4 * 60 * 60_000,
+        },
+        typed,
+        now,
+      ),
+    ).toBe('4h');
     expect(
       scannerWormholeLifetime(
         {

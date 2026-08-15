@@ -1,35 +1,35 @@
 'use client';
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type RefObject,
   type ReactNode,
+  type UIEvent,
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
 import { Collapsible } from '@/components/ui/collapsible';
-import {
-  MenuItem,
-  menuRow,
-  PointerMenu,
-} from '@/components/ui/pointer-menu';
-import { pointerAnchor } from '@/components/ui/overlay-positioning';
-import { scrollArea } from '@/components/ui/scroll-area';
-import { Tabs } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/toast';
-import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
-import { SIG_GROUPS, type SigGroup } from '@/data/maps/scan-parse';
+import { Tooltip } from '@/components/ui/tooltip';
+import { systemClassText } from '@/data/eve-data/system-identity';
+import type { SigGroup } from '@/data/maps/scan-parse';
 import {
   ScannerEstIskCell,
   ScannerLivePricesProvider,
   useSiteCatalogue,
 } from '@/features/wormhole-sites/widget';
-import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
+import type { ConnectionFieldSetters } from '../authoring/connection-fields';
+import type { OriginLeadConnection } from '../authoring/leads-to-origin';
+import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
+import { useUniverseAssets } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
+  MAP_SCANNER_DOCK_STACK_CLASS,
   MAP_SCANNER_PROMPT_RAIL_CLASS,
   MapWindow,
 } from '../windows/MapWindow';
@@ -39,35 +39,62 @@ import type {
   JumpResolutionModel,
 } from './jump-resolution';
 import {
-  filterSignatureRows,
   formatSignatureAge,
   groupSignatureSections,
+  scannerGroupTypeLabel,
+  scannerLifeUpperBound,
   scannerSectionForGroup,
-  scannerWormholeLifetime,
-  scannerWormholeSize,
   type ScannerSection,
   type ScannerSectionId,
   type SignatureWindowRow,
 } from './signature-model';
+import {
+  ScannerIdentifyCombo,
+  ScannerLeadsControl,
+  ScannerLifeSelect,
+  ScannerMassSelect,
+  ScannerTypeCombo,
+  scannerLeadsReadout,
+  scannerLifeReadout,
+  scannerMassReadout,
+} from './scanner-inline-cells';
+import { originLeadOptions } from './origin-leads';
+import { destinationReadout } from './system-readout';
 import type { OpenSignatureEditor } from './signature-context';
 import {
   applyScannerRowOpenAction,
   scannerRowOpenAction,
   scannerRowShowsOpenAffordance,
 } from './scanner-row-open';
-
-/** One unresolved row's pending group-identification menu. */
-interface RowActionAnchor {
-  readonly row: SignatureWindowRow;
-  readonly clientX: number;
-  readonly clientY: number;
-}
+import {
+  ScannerScrollEpochProvider,
+  useScannerScrollBump,
+} from './scanner-scroll-dismiss';
 
 type OpenRowActions = (
   trigger: HTMLElement,
   clientX: number,
   clientY: number,
 ) => void;
+
+/** Remount key for the Type combo — prefixed so an empty type cannot collide
+ *  with Destination in the same wormhole row. */
+export function scannerTypeCellKey(
+  connectionId: string,
+  typeName: string | null,
+): string {
+  return `type:${connectionId}:${typeName ?? ''}`;
+}
+
+/** Remount key for the Destination combo — prefixed so an empty dest/hint
+ *  cannot collide with Type in the same wormhole row. */
+export function scannerLeadsCellKey(
+  connectionId: string,
+  destinationLabel: string | null | undefined,
+  hint: string | null | undefined,
+): string {
+  return `leads:${connectionId}:${destinationLabel ?? hint ?? ''}`;
+}
 
 function openRowActionsAtStart(
   trigger: HTMLElement,
@@ -120,20 +147,21 @@ function rowActionPrefix(
   const action = scannerRowOpenAction(row, canEdit, resolveSiteId);
   if (action?.kind === 'connection') return 'Edit wormhole';
   if (action?.kind === 'site') return 'View site';
-  return 'Identify signature';
+  return 'Open signature';
 }
 
 const SECTION_COLUMNS: Readonly<Record<ScannerSectionId, string>> = {
-  unknown: 'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_2.25rem] items-center gap-2',
+  unknown:
+    'grid w-full min-w-0 grid-cols-[4.25rem_minmax(0,1fr)] items-center gap-2.5 [&>*]:min-w-0',
   wormholes:
-    'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_2rem_minmax(4.5rem,auto)_2.25rem] items-center gap-2',
-  combat: 'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_4.75rem] items-center gap-2',
-  harvestables: 'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_4.75rem] items-center gap-2',
-  hacking: 'grid w-full grid-cols-[3.75rem_minmax(0,1fr)] items-center gap-2',
+    'grid w-full min-w-0 grid-cols-[4.25rem_minmax(0,4.75rem)_minmax(0,4rem)_minmax(0,3.5rem)_minmax(0,1fr)] items-center gap-2.5 [&>*]:min-w-0',
+  combat:
+    'grid w-full min-w-0 grid-cols-[4.25rem_minmax(0,1fr)_3.6rem] items-center gap-2.5 [&>*]:min-w-0',
+  harvestables:
+    'grid w-full min-w-0 grid-cols-[4.25rem_3.75rem_minmax(0,1fr)_3.6rem] items-center gap-2.5 [&>*]:min-w-0',
+  hacking:
+    'grid w-full min-w-0 grid-cols-[4.25rem_3.75rem_minmax(0,1fr)] items-center gap-2.5 [&>*]:min-w-0',
 };
-
-const ANOMALY_COLUMNS =
-  'grid w-full grid-cols-[3.75rem_minmax(0,1fr)_2.25rem] items-center gap-2';
 
 function SignatureRowContent({
   row,
@@ -153,15 +181,15 @@ function SignatureRowContent({
   readonly children: ReactNode;
 }) {
   const className = cn(
-    'relative z-base min-h-7 w-full flex-1 text-left',
+    'relative z-base min-h-7 w-full min-w-0 flex-1 text-left',
     columnsClassName,
   );
   if (!interactive) return <div className={className}>{children}</div>;
   return (
-    // Left-click only (ruling D-F): a wormhole row opens the Signature Editor,
-    // a catalogue-matched site opens the site viewer, and an unresolved row
-    // opens the identification menu. The duplicate right-click path is
-    // retired — the canvas owns right-click now.
+    // Left-click only (ruling D-F): a wormhole row without inline cells opens
+    // the Signature Editor, and a catalogue-matched site opens the site
+    // viewer. Unresolved rows identify from the Name combobox. The duplicate
+    // right-click path is retired — the canvas owns right-click now.
     // No aria-label: it would replace descendant ID / name / Est. ISK. A
     // visually hidden action prefix keeps the verb while cells stay in the name.
     <Button
@@ -191,9 +219,12 @@ function SignatureRow({
       data-signature-row
       data-signature-id={row.signatureId}
       data-signature-missing={missingDataAttribute(missing)}
+      data-signature-row-open={showOpenAffordance ? true : undefined}
       className={cn(
-        'group/sig-row relative isolate flex min-h-9 flex-col overflow-hidden rounded-ctl px-2 py-1 font-data text-micro transition-colors hover:bg-row-hover',
+        'group/sig-row relative isolate flex min-h-8 flex-col px-2.5 py-1 font-ui text-ui',
         signatureRowTone(missing),
+        showOpenAffordance &&
+          'cursor-pointer transition-[transform,font-size] duration-fast motion-reduce:transition-none hover:-translate-y-1 hover:text-nav has-[:focus-visible]:-translate-y-1 has-[:focus-visible]:text-nav',
       )}
     >
       <SignalFill signalPct={row.signalPct} />
@@ -207,28 +238,11 @@ function SignatureRow({
       >
         {cells}
       </SignatureRowContent>
-      {showOpenAffordance ? (
-        <span
-          data-signature-row-open
-          aria-hidden
-          className="pointer-events-none absolute right-1.5 top-1/2 z-base -translate-y-1/2 font-ui text-nav font-semibold text-name opacity-0 transition-opacity duration-fast motion-reduce:transition-none group-hover/sig-row:opacity-100 group-has-[:focus-visible]/sig-row:opacity-100"
-        >
-          &gt;
-        </span>
-      ) : null}
     </li>
   );
 }
 
-function IdCell({ row }: { readonly row: SignatureWindowRow }) {
-  return <span className="text-center text-isk tabular-nums">{row.signatureId}</span>;
-}
-
-function NameCell({ row }: { readonly row: SignatureWindowRow }) {
-  return <span className="truncate text-name">{signatureName(row)}</span>;
-}
-
-function AgeCell({
+function IdCell({
   row,
   now,
 }: {
@@ -236,57 +250,178 @@ function AgeCell({
   readonly now: number;
 }) {
   return (
-    <span className="text-center text-muted tabular-nums">
-      {formatSignatureAge(row.firstSeenAt, now)}
+    <Tooltip content={`Age ${formatSignatureAge(row.firstSeenAt, now)}`}>
+      <span className="whitespace-nowrap text-isk tabular-nums">
+        {row.signatureId}
+      </span>
+    </Tooltip>
+  );
+}
+
+function NameCell({ row }: { readonly row: SignatureWindowRow }) {
+  const unresolved = row.name === null;
+  return (
+    <span
+      className={cn(
+        'truncate',
+        unresolved ? 'font-normal text-muted' : 'font-medium text-name',
+      )}
+    >
+      {signatureName(row)}
     </span>
+  );
+}
+
+function SiteTypeCell({ row }: { readonly row: SignatureWindowRow }) {
+  const label = scannerGroupTypeLabel(row.group);
+  return (
+    <span
+      data-signature-site-type={label ?? undefined}
+      className="truncate font-medium text-name"
+    >
+      {label ?? '—'}
+    </span>
+  );
+}
+
+interface WormholeCellContext {
+  readonly now: number;
+  readonly canEdit: boolean;
+  readonly codes: readonly string[];
+  readonly preferredCodes: readonly string[];
+  readonly classLabelOf: (code: string) => string | null;
+  readonly destinationOf: (
+    connection: ConnectionEditorDetail,
+  ) => ReturnType<typeof destinationReadout>;
+  readonly bindConnectionSetters?: (
+    connection: ConnectionEditorDetail,
+  ) => ConnectionFieldSetters;
+  readonly entryOf: (
+    connection: ConnectionEditorDetail,
+  ) => WormholeCodexEntry | null;
+  readonly originLeadsOf: (
+    connection: ConnectionEditorDetail,
+  ) => ReturnType<typeof originLeadOptions>;
+  readonly onIdentify?: (row: SignatureWindowRow, group: SigGroup) => void;
+}
+
+function wormholeCells(
+  row: SignatureWindowRow,
+  ctx: WormholeCellContext,
+): ReactNode {
+  const connection = row.connection;
+  const setters =
+    ctx.canEdit && connection !== null
+      ? ctx.bindConnectionSetters?.(connection)
+      : undefined;
+  const destination =
+    connection === null ? null : ctx.destinationOf(connection);
+  const entry = connection === null ? null : ctx.entryOf(connection);
+  const lifeEstimate = scannerLifeUpperBound(connection, entry, ctx.now);
+  const lifeText =
+    lifeEstimate === '—'
+      ? scannerLifeReadout(connection?.lifeStage ?? null)
+      : lifeEstimate;
+  if (setters !== undefined && connection !== null) {
+    return (
+      <>
+        <IdCell row={row} now={ctx.now} />
+        <ScannerTypeCombo
+          key={scannerTypeCellKey(connection.connectionId, row.name)}
+          code={row.name}
+          className={row.className}
+          codes={ctx.codes}
+          preferredCodes={ctx.preferredCodes}
+          classLabelOf={ctx.classLabelOf}
+          disabled={false}
+          onCommit={setters.setWormholeType}
+        />
+        <ScannerMassSelect
+          value={connection.massState}
+          disabled={false}
+          onChange={setters.setMassState}
+        />
+        <ScannerLifeSelect
+          value={connection.lifeStage}
+          connection={connection}
+          entry={entry}
+          now={ctx.now}
+          disabled={false}
+          onChange={setters.setLifeStage}
+        />
+        <ScannerLeadsControl
+          key={scannerLeadsCellKey(
+            connection.connectionId,
+            destination?.label,
+            connection.fromDestinationHint,
+          )}
+          hint={connection.fromDestinationHint}
+          destination={destination}
+          originLeads={ctx.originLeadsOf(connection)}
+          disabled={false}
+          onChange={setters.setLeadsTo}
+          onSetDestination={setters.setDestination}
+          onLinkOrigin={setters.linkToOrigin}
+        />
+      </>
+    );
+  }
+  return (
+    <>
+      <IdCell row={row} now={ctx.now} />
+      <span className="flex min-w-0 items-baseline gap-1.5">
+        <NameCell row={row} />
+        {row.className !== null ? (
+          <span
+            data-signature-class
+            className="shrink-0 font-ui text-micro uppercase tracking-label text-muted"
+          >
+            {row.className}
+          </span>
+        ) : null}
+      </span>
+      <span className="truncate text-muted">
+        {scannerMassReadout(connection?.massState ?? null)}
+      </span>
+      <span className="truncate text-muted">
+        {lifeText}
+      </span>
+      <span className="truncate text-muted">
+        {scannerLeadsReadout(connection?.fromDestinationHint ?? null, destination)}
+      </span>
+    </>
   );
 }
 
 function sectionCells(
   sectionId: ScannerSectionId,
   row: SignatureWindowRow,
-  now: number,
-  entry: WormholeCodexEntry | null,
+  ctx: WormholeCellContext,
 ): ReactNode {
   switch (sectionId) {
     case 'unknown':
       return (
         <>
-          <IdCell row={row} />
-          <NameCell row={row} />
-          <AgeCell row={row} now={now} />
+          <IdCell row={row} now={ctx.now} />
+          {ctx.canEdit && row.group === null && ctx.onIdentify !== undefined ? (
+            <ScannerIdentifyCombo
+              codes={ctx.codes}
+              preferredCodes={ctx.preferredCodes}
+              classLabelOf={ctx.classLabelOf}
+              disabled={false}
+              onIdentify={(group) => ctx.onIdentify?.(row, group)}
+            />
+          ) : (
+            <NameCell row={row} />
+          )}
         </>
       );
     case 'wormholes':
-      return (
-        <>
-          <IdCell row={row} />
-          {/* Typed code plus its codex-derived destination class — the class
-              label rode the retired Group column and must stay on the row. */}
-          <span className="flex min-w-0 items-baseline gap-1.5">
-            <NameCell row={row} />
-            {row.className !== null ? (
-              <span
-                data-signature-class
-                className="shrink-0 font-data text-micro uppercase tracking-label text-muted"
-              >
-                {row.className}
-              </span>
-            ) : null}
-          </span>
-          <span className="text-center text-muted tabular-nums">
-            {scannerWormholeSize(row.connection, entry)}
-          </span>
-          <span className="truncate text-center text-muted">
-            {scannerWormholeLifetime(row.connection, entry, now)}
-          </span>
-          <AgeCell row={row} now={now} />
-        </>
-      );
+      return wormholeCells(row, ctx);
     case 'combat':
       return (
         <>
-          <IdCell row={row} />
+          <IdCell row={row} now={ctx.now} />
           <NameCell row={row} />
           <ScannerEstIskCell siteName={row.name} live={false} />
         </>
@@ -294,7 +429,8 @@ function sectionCells(
     case 'harvestables':
       return (
         <>
-          <IdCell row={row} />
+          <IdCell row={row} now={ctx.now} />
+          <SiteTypeCell row={row} />
           <NameCell row={row} />
           <ScannerEstIskCell siteName={row.name} live />
         </>
@@ -302,7 +438,8 @@ function sectionCells(
     case 'hacking':
       return (
         <>
-          <IdCell row={row} />
+          <IdCell row={row} now={ctx.now} />
+          <SiteTypeCell row={row} />
           <NameCell row={row} />
         </>
       );
@@ -312,14 +449,15 @@ function sectionCells(
 function sectionHeaders(sectionId: ScannerSectionId): readonly string[] {
   switch (sectionId) {
     case 'unknown':
-      return ['ID', 'Name', 'Age'];
-    case 'wormholes':
-      return ['ID', 'Name', 'Size', 'Lifetime', 'Age'];
-    case 'combat':
-    case 'harvestables':
-      return ['ID', 'Name', 'Est. ISK'];
-    case 'hacking':
       return ['ID', 'Name'];
+    case 'wormholes':
+      return ['ID', 'Type', 'Mass', 'Life', 'Destination'];
+    case 'combat':
+      return ['ID', 'Name', 'Est. ISK'];
+    case 'harvestables':
+      return ['ID', 'Type', 'Name', 'Est. ISK'];
+    case 'hacking':
+      return ['ID', 'Type', 'Name'];
   }
 }
 
@@ -335,14 +473,11 @@ function ColumnHeader({
       aria-hidden
       className={cn(
         columnsClassName,
-        'px-2 font-data text-label uppercase tracking-label text-muted',
+        'px-2.5 font-ui text-label font-medium uppercase tracking-label text-faint',
       )}
     >
       {labels.map((label) => (
-        <span
-          key={label}
-          className={label === 'Est. ISK' || label === 'Name' ? 'text-left' : 'text-center'}
-        >
+        <span key={label} className="w-full text-center">
           {label}
         </span>
       ))}
@@ -355,16 +490,14 @@ function ScannerSectionBlock({
   missingIds,
   canEdit,
   resolveSiteId,
-  now,
-  resolveEntry,
+  cells,
   onOpenActions,
 }: {
   readonly section: ScannerSection;
   readonly missingIds: ReadonlySet<string>;
   readonly canEdit: boolean;
   readonly resolveSiteId: (name: string) => number | null;
-  readonly now: number;
-  readonly resolveEntry: (code: string | null) => WormholeCodexEntry | null;
+  readonly cells: (row: SignatureWindowRow) => ReactNode;
   readonly onOpenActions: (
     row: SignatureWindowRow,
     trigger: HTMLElement,
@@ -376,38 +509,46 @@ function ScannerSectionBlock({
   return (
     <section
       data-scanner-section={section.id}
-      className="border-b border-border-soft last:border-b-0"
+      className={cn(mapFrostedSurface, 'min-w-0 max-w-full')}
     >
       <Collapsible
         defaultOpen
         className="border-0"
-        headerClassName="justify-center border-b border-border-soft px-2 py-1"
+        headerClassName="border-0 px-2.5 py-1.5 hover:bg-transparent"
         header={
-          <span className="relative flex w-full items-center justify-center">
-            <span className="font-data text-label uppercase tracking-label text-name">
-              {section.title}
-            </span>
+          <span className="flex w-full items-center gap-2">
             <span
               data-chevron
               aria-hidden
-              className="absolute right-0 inline-block shrink-0 text-micro text-muted transition-transform"
+              className="inline-block shrink-0 text-micro text-muted transition-transform"
             >
               ▾
+            </span>
+            <span className="font-ui text-label font-semibold uppercase tracking-label text-muted">
+              {section.title}
+            </span>
+            <span
+              data-scanner-section-count
+              className="ml-auto rounded-ctl bg-bg-deep px-1.5 font-ui text-micro text-muted"
+            >
+              {section.rows.length}
             </span>
           </span>
         }
       >
-        <div
-          data-scanner-section-body
-          className="flex flex-col gap-1.5 border-l border-border-soft py-1 pl-2"
-        >
+        <div data-scanner-section-body className="flex flex-col pb-1">
           <ColumnHeader
             columnsClassName={columnsClassName}
             labels={sectionHeaders(section.id)}
           />
-          <ul className="flex flex-col gap-1">
+          <ul className="flex flex-col divide-y divide-border-soft">
             {section.rows.map((row) => {
-              const entry = resolveEntry(row.connection?.wormholeTypeCode ?? null);
+              const inlineWormhole =
+                section.id === 'wormholes' &&
+                row.connection !== null &&
+                canEdit;
+              const inlineIdentify =
+                section.id === 'unknown' && canEdit && row.group === null;
               return (
                 <SignatureRow
                   key={row.key}
@@ -416,12 +557,12 @@ function ScannerSectionBlock({
                   canEdit={canEdit}
                   resolveSiteId={resolveSiteId}
                   columnsClassName={columnsClassName}
-                  cells={sectionCells(section.id, row, now, entry)}
-                  showOpenAffordance={scannerRowShowsOpenAffordance(
-                    row,
-                    canEdit,
-                    resolveSiteId,
-                  )}
+                  cells={cells(row)}
+                  showOpenAffordance={
+                    !inlineWormhole &&
+                    !inlineIdentify &&
+                    scannerRowShowsOpenAffordance(row, canEdit, resolveSiteId)
+                  }
                   onOpenActions={(trigger, clientX, clientY) =>
                     onOpenActions(row, trigger, clientX, clientY)
                   }
@@ -439,14 +580,14 @@ function ScannerRowsLoading() {
   return (
     <p
       data-signature-empty
-      className="px-3 py-4 text-center font-data text-micro text-muted"
+      className="px-3 py-4 text-center font-ui text-ui text-muted"
     >
       Reading scanner rows…
     </p>
   );
 }
 
-function SignaturesTabBody({
+function ScannerSections({
   rows,
   scannerSystemId,
   missingIds,
@@ -454,6 +595,9 @@ function SignaturesTabBody({
   resolveSiteId,
   complete,
   now,
+  bindConnectionSetters,
+  originLeadConnections,
+  onIdentify,
   onOpenActions,
 }: {
   readonly rows: readonly SignatureWindowRow[];
@@ -463,6 +607,9 @@ function SignaturesTabBody({
   readonly resolveSiteId: (name: string) => number | null;
   readonly complete: boolean;
   readonly now: number;
+  readonly bindConnectionSetters?: WormholeCellContext['bindConnectionSetters'];
+  readonly originLeadConnections: readonly OriginLeadConnection[];
+  readonly onIdentify?: WormholeCellContext['onIdentify'];
   readonly onOpenActions: (
     row: SignatureWindowRow,
     trigger: HTMLElement,
@@ -470,15 +617,38 @@ function SignaturesTabBody({
     clientY: number,
   ) => void;
 }) {
-  const { codex } = useWormholeCodexData(null);
-  const resolveEntry = (code: string | null): WormholeCodexEntry | null =>
-    code === null || codex === null ? null : codex.byCode(code);
+  const editorData = useWormholeEditorData(scannerSystemId ?? 0, null);
+  const assets = useUniverseAssets();
+  const systemInfo = assets === null ? null : (id: number) => assets.systemInfo(id);
+  const classLabelOf = (code: string): string | null => {
+    const entry = editorData.codex?.byCode(code) ?? null;
+    if (entry === null || entry.farSide) return null;
+    return systemClassText(entry.targetClass);
+  };
+  const ctx: WormholeCellContext = {
+    now,
+    canEdit,
+    codes: editorData.codes,
+    preferredCodes: editorData.preferredCodes,
+    classLabelOf,
+    destinationOf: (connection) =>
+      destinationReadout(connection.toSystemId, systemInfo),
+    bindConnectionSetters,
+    entryOf: (connection) => {
+      const code = connection.wormholeTypeCode;
+      if (code === null) return null;
+      return editorData.codex?.byCode(code) ?? null;
+    },
+    originLeadsOf: (connection) =>
+      originLeadOptions(connection, originLeadConnections, systemInfo),
+    onIdentify,
+  };
   const sections = groupSignatureSections(rows, scannerSystemId);
   if (sections.length === 0) {
     return complete ? null : <ScannerRowsLoading />;
   }
   return (
-    <div data-scanner-sections className="flex flex-col">
+    <div data-scanner-sections className="flex flex-col gap-2.5">
       {sections.map((section) => (
         <ScannerSectionBlock
           key={section.id}
@@ -486,70 +656,10 @@ function SignaturesTabBody({
           missingIds={missingIds}
           canEdit={canEdit}
           resolveSiteId={resolveSiteId}
-          now={now}
-          resolveEntry={resolveEntry}
+          cells={(row) => sectionCells(section.id, row, ctx)}
           onOpenActions={onOpenActions}
         />
       ))}
-    </div>
-  );
-}
-
-function AnomalyTable({
-  rows,
-  missingIds,
-  canEdit,
-  resolveSiteId,
-  complete,
-  now,
-  onOpenActions,
-}: {
-  readonly rows: readonly SignatureWindowRow[];
-  readonly missingIds: ReadonlySet<string>;
-  readonly canEdit: boolean;
-  readonly resolveSiteId: (name: string) => number | null;
-  readonly complete: boolean;
-  readonly now: number;
-  readonly onOpenActions: (
-    row: SignatureWindowRow,
-    trigger: HTMLElement,
-    clientX: number,
-    clientY: number,
-  ) => void;
-}) {
-  if (rows.length === 0) {
-    return complete ? null : <ScannerRowsLoading />;
-  }
-  return (
-    <div className="flex flex-col gap-1.5">
-      <ColumnHeader columnsClassName={ANOMALY_COLUMNS} labels={['ID', 'Name', 'Age']} />
-      <ul className="flex flex-col gap-1">
-        {rows.map((row) => (
-          <SignatureRow
-            key={row.key}
-            row={row}
-            missing={missingIds.has(row.signatureId)}
-            canEdit={canEdit}
-            resolveSiteId={resolveSiteId}
-            columnsClassName={ANOMALY_COLUMNS}
-            cells={
-              <>
-                <IdCell row={row} />
-                <NameCell row={row} />
-                <AgeCell row={row} now={now} />
-              </>
-            }
-            showOpenAffordance={scannerRowShowsOpenAffordance(
-              row,
-              canEdit,
-              resolveSiteId,
-            )}
-            onOpenActions={(trigger, clientX, clientY) =>
-              onOpenActions(row, trigger, clientX, clientY)
-            }
-          />
-        ))}
-      </ul>
     </div>
   );
 }
@@ -578,6 +688,14 @@ interface SignatureWindowProps {
   readonly onOpenEditor: OpenSignatureEditor;
   /** Opens the read-only site viewer for a catalogue-matched site row. */
   readonly onOpenSite: (siteId: number, signatureId: string) => void;
+  /** Binds inline wormhole cells to the existing connection-field setters. */
+  readonly bindConnectionSetters?: (
+    connection: ConnectionEditorDetail,
+  ) => ConnectionFieldSetters;
+  /** Resolved inbound lines the Destination cell can offer as a return pick. */
+  readonly originLeadConnections?: readonly OriginLeadConnection[];
+  /** Kept for caller compatibility; destination is now an editable field. */
+  readonly onFocusSystem?: (systemId: number) => void;
 }
 
 interface ScannerWindowFrameProps
@@ -589,6 +707,9 @@ interface ScannerWindowFrameProps
     | 'canEdit'
     | 'complete'
     | 'now'
+    | 'bindConnectionSetters'
+    | 'originLeadConnections'
+    | 'onIdentify'
   > {
   readonly resolveSiteId: (name: string) => number | null;
   readonly onOpenActions: (
@@ -643,128 +764,133 @@ function MissingSignaturesPrompt({
   );
 }
 
-function ScannerWindowFrame(props: ScannerWindowFrameProps) {
+function ScannerPasteHint() {
   return (
-    <MapWindow
-      windowId="signatures"
-      title="Scanner"
-      placement={{ kind: 'docked-bottom-left' }}
-      stackIndex={1}
-      showHeader={false}
-      showCloseButton={false}
-      onClose={() => undefined}
-      onActivate={() => undefined}
+    <section
+      data-scanner-paste-hint
+      className={cn(mapFrostedSurface, 'min-w-0 max-w-full')}
     >
-      <div
-        data-signature-window
-        className="flex min-h-0 flex-1 flex-col"
-      >
-        <Tabs
-          label="Scanner row kinds"
-          defaultValue="signature"
-          className="flex min-h-0 flex-1 flex-col"
-          listClassName="w-full shrink-0 gap-0"
-          tabClassName="flex flex-1 justify-center px-2 text-center"
-          panelClassName={cn(
-            scrollArea,
-            'min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-2',
-          )}
-          tabs={[
-            {
-              value: 'signature',
-              label: 'Signatures',
-              content: (
-                <SignaturesTabBody
-                  rows={props.rows}
-                  scannerSystemId={props.scannerSystemId}
-                  missingIds={props.missingIds}
-                  canEdit={props.canEdit}
-                  resolveSiteId={props.resolveSiteId}
-                  complete={props.complete}
-                  now={props.now}
-                  onOpenActions={props.onOpenActions}
-                />
-              ),
-            },
-            {
-              value: 'anomaly',
-              label: 'Anomalies',
-              content: (
-                <AnomalyTable
-                  rows={filterSignatureRows(
-                    props.rows,
-                    props.scannerSystemId,
-                    'anomaly',
-                  )}
-                  missingIds={props.missingIds}
-                  canEdit={props.canEdit}
-                  resolveSiteId={props.resolveSiteId}
-                  complete={props.complete}
-                  now={props.now}
-                  onOpenActions={props.onOpenActions}
-                />
-              ),
-            },
-          ]}
-        />
-      </div>
-    </MapWindow>
+      <h3 className="px-2.5 py-1.5 text-center font-ui text-label font-semibold text-isk">
+        Paste signatures anywhere on the page.
+      </h3>
+    </section>
   );
 }
 
-function IdentifySignatureMenu({
-  action,
-  finalFocus,
-  onIdentify,
-  onClose,
+function ScannerListScroller({
+  children,
 }: {
-  readonly action: RowActionAnchor | null;
-  readonly finalFocus: RefObject<HTMLElement | null>;
-  readonly onIdentify: SignatureWindowProps['onIdentify'];
-  readonly onClose: () => void;
+  readonly children: ReactNode;
 }) {
-  const identifying = action;
-  const identify = (group: SigGroup) => {
-    if (identifying === null) return;
-    const row = identifying.row;
-    onClose();
-    void onIdentify(row, group).catch(() => {
-      toast.error('The signature could not be identified.', {
-        id: `signature-identify:${row.systemId}:${row.signatureId}`,
-      });
-    });
+  const bump = useScannerScrollBump();
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const [fading, setFading] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const measure = useCallback((el: HTMLDivElement) => {
+    const nextFade = el.scrollTop > 0;
+    const nextOverflow = el.scrollHeight > el.clientHeight + 1;
+    setFading((current) => (current === nextFade ? current : nextFade));
+    setOverflowing((current) =>
+      current === nextOverflow ? current : nextOverflow,
+    );
+  }, []);
+  const setScrollNode = useCallback(
+    (el: HTMLDivElement | null) => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      if (el === null) return;
+      const update = () => measure(el);
+      update();
+      const observer = new ResizeObserver(update);
+      observer.observe(el);
+      const inner = el.firstElementChild;
+      if (inner !== null) observer.observe(inner);
+      observerRef.current = observer;
+    },
+    [measure],
+  );
+  const onScroll = (event: UIEvent<HTMLDivElement>) => {
+    bump();
+    measure(event.currentTarget);
   };
   return (
-    <PointerMenu
-      open={identifying !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      anchor={
-        identifying === null
-          ? null
-          : pointerAnchor(identifying.clientX, identifying.clientY)
-      }
-      label="Identify signature as"
-      className="min-w-40"
-      finalFocus={finalFocus}
-    >
-      {SIG_GROUPS.map((group) => (
-        <MenuItem
-          key={group}
-          className={menuRow}
-          onClick={() => identify(group)}
-        >
-          {group}
-        </MenuItem>
-      ))}
-      <p
-        data-signature-identify-note
-        className="px-2 pb-1 pt-0.5 font-data text-micro text-muted"
+    <div className="relative flex min-h-0 flex-auto flex-col">
+      <div
+        ref={setScrollNode}
+        data-scanner-scroll
+        onScroll={onScroll}
+        className={cn(
+          'scroll-area-start min-h-0 min-w-0 max-w-full flex-auto overflow-y-auto overscroll-contain',
+          overflowing && 'scanner-scroll-fade-end',
+          fading && 'scanner-scroll-fade-start',
+        )}
       >
-        Identification is permanent
-      </p>
-    </PointerMenu>
+        <div className="min-w-0 w-full max-w-full">{children}</div>
+      </div>
+      <div
+        aria-hidden
+        data-scanner-scroll-frost="start"
+        className={cn(
+          'scanner-scroll-frost scanner-scroll-frost-start',
+          fading && 'is-active',
+        )}
+      />
+      <div
+        aria-hidden
+        data-scanner-scroll-frost="end"
+        className={cn(
+          'scanner-scroll-frost scanner-scroll-frost-end',
+          overflowing && 'is-active',
+        )}
+      />
+    </div>
+  );
+}
+
+function ScannerWindowFrame(props: ScannerWindowFrameProps) {
+  const filled =
+    groupSignatureSections(props.rows, props.scannerSystemId).length > 0;
+  const listOpen = filled || !props.complete;
+  return (
+    <ScannerScrollEpochProvider>
+      <MapWindow
+        windowId="signatures"
+        title="Signatures · Anomalies"
+        placement={{ kind: 'docked-bottom-left' }}
+        stackIndex={1}
+        showHeader
+        showCloseButton={false}
+        onClose={() => undefined}
+        onActivate={() => undefined}
+      >
+        <div
+          data-signature-window
+          data-scanner-filled={filled ? 'true' : 'false'}
+          className="flex min-h-0 min-w-0 flex-auto flex-col px-2 pb-1.5 pt-1"
+        >
+          {!filled && props.complete && props.canEdit ? (
+            <ScannerPasteHint />
+          ) : null}
+          {listOpen ? (
+            <ScannerListScroller>
+              <ScannerSections
+                rows={props.rows}
+                scannerSystemId={props.scannerSystemId}
+                missingIds={props.missingIds}
+                canEdit={props.canEdit}
+                resolveSiteId={props.resolveSiteId}
+                complete={props.complete}
+                now={props.now}
+                bindConnectionSetters={props.bindConnectionSetters}
+                originLeadConnections={props.originLeadConnections ?? []}
+                onIdentify={props.onIdentify}
+                onOpenActions={props.onOpenActions}
+              />
+            </ScannerListScroller>
+          ) : null}
+        </div>
+      </MapWindow>
+    </ScannerScrollEpochProvider>
   );
 }
 
@@ -787,13 +913,10 @@ function harvestableNamesForScanner(
 export function SignatureWindow(props: SignatureWindowProps) {
   const catalogue = useSiteCatalogue();
   const resolveSiteId = catalogue.siteIdForName;
-  const rowActionFocus = useRef<HTMLElement | null>(null);
-  const [rowAction, setRowAction] = useState<RowActionAnchor | null>(null);
   const harvestableNames = useMemo(
     () => harvestableNamesForScanner(props.rows, props.scannerSystemId),
     [props.rows, props.scannerSystemId],
   );
-  const closeRowAction = () => setRowAction(null);
   const removeMissing = () => {
     void props.onRemoveMissing().catch(() => {
       toast.error('The signatures could not be removed. Try again.', {
@@ -801,6 +924,12 @@ export function SignatureWindow(props: SignatureWindowProps) {
       });
     });
   };
+  const identifyRow = (row: SignatureWindowRow, group: SigGroup) =>
+    props.onIdentify(row, group).catch(() => {
+      toast.error('The signature could not be identified.', {
+        id: `signature-identify:${row.systemId}:${row.signatureId}`,
+      });
+    });
   const openRowActions = (
     row: SignatureWindowRow,
     trigger: HTMLElement,
@@ -812,10 +941,6 @@ export function SignatureWindow(props: SignatureWindowProps) {
       {
         openEditor: props.onOpenEditor,
         openSite: props.onOpenSite,
-        openIdentify: (identifyRow, identifyTrigger, x, y) => {
-          rowActionFocus.current = identifyTrigger;
-          setRowAction({ row: identifyRow, clientX: x, clientY: y });
-        },
       },
       { row, trigger, clientX, clientY },
     );
@@ -827,31 +952,37 @@ export function SignatureWindow(props: SignatureWindowProps) {
         data-signature-window-layer
         className="pointer-events-none absolute inset-0 z-sticky"
       >
-        <div data-scanner-prompt-rail className={MAP_SCANNER_PROMPT_RAIL_CLASS}>
-          <MissingSignaturesPrompt
-            count={props.missingCount}
-            canEdit={props.canEdit}
-            onDismiss={props.onDismissMissing}
-            onRemove={removeMissing}
-          />
-          {props.canEdit && props.jumpResolution !== null ? (
-            <SignatureJumpPrompt
-              resolution={props.jumpResolution}
-              onPick={props.onPickJumpCandidate}
-            />
+        <div
+          data-scanner-dock-stack
+          className={MAP_SCANNER_DOCK_STACK_CLASS}
+        >
+          {props.missingCount > 0
+          || (props.canEdit && props.jumpResolution !== null) ? (
+            <div
+              data-scanner-prompt-rail
+              className={MAP_SCANNER_PROMPT_RAIL_CLASS}
+            >
+              <MissingSignaturesPrompt
+                count={props.missingCount}
+                canEdit={props.canEdit}
+                onDismiss={props.onDismissMissing}
+                onRemove={removeMissing}
+              />
+              {props.canEdit && props.jumpResolution !== null ? (
+                <SignatureJumpPrompt
+                  resolution={props.jumpResolution}
+                  onPick={props.onPickJumpCandidate}
+                />
+              ) : null}
+            </div>
           ) : null}
+          <ScannerWindowFrame
+            {...props}
+            resolveSiteId={resolveSiteId}
+            onIdentify={identifyRow}
+            onOpenActions={openRowActions}
+          />
         </div>
-        <ScannerWindowFrame
-          {...props}
-          resolveSiteId={resolveSiteId}
-          onOpenActions={openRowActions}
-        />
-        <IdentifySignatureMenu
-          action={rowAction}
-          finalFocus={rowActionFocus}
-          onIdentify={props.onIdentify}
-          onClose={closeRowAction}
-        />
       </div>
     </ScannerLivePricesProvider>
   );

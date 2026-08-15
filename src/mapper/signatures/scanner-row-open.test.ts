@@ -61,7 +61,7 @@ const WH: SignatureWindowRow = row({
   },
 });
 
-test('scanner row open gates catalogue sites, edit, identify, and host dispatch', () => {
+test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
   setSiteNameIndex([
     { id: 49, name: 'Barren Perimeter Reservoir' },
     { id: 17, name: 'Forgotten Frontier Quarantine Outpost' },
@@ -100,7 +100,7 @@ test('scanner row open gates catalogue sites, edit, identify, and host dispatch'
     connectionId: 'connection-1',
     signatureId: 'WHL-001',
   });
-  expect(scannerRowOpenAction(unnamed, true)).toEqual({ kind: 'identify' });
+  expect(scannerRowOpenAction(unnamed, true)).toBeNull();
   expect(scannerRowOpenAction(gas, false)).toEqual({
     kind: 'site',
     siteId: 49,
@@ -142,8 +142,7 @@ test('scanner row open gates catalogue sites, edit, identify, and host dispatch'
 
   const openEditor = vi.fn();
   const openSite = vi.fn();
-  const openIdentify = vi.fn();
-  const handlers = { openEditor, openSite, openIdentify };
+  const handlers = { openEditor, openSite };
   const trigger = {} as HTMLElement;
 
   applyScannerRowOpenAction(null, handlers, {
@@ -154,7 +153,6 @@ test('scanner row open gates catalogue sites, edit, identify, and host dispatch'
   });
   expect(openEditor).not.toHaveBeenCalled();
   expect(openSite).not.toHaveBeenCalled();
-  expect(openIdentify).not.toHaveBeenCalled();
 
   applyScannerRowOpenAction(
     {
@@ -174,10 +172,4 @@ test('scanner row open gates catalogue sites, edit, identify, and host dispatch'
   );
   expect(openSite).toHaveBeenCalledWith(49, 'GAS-001');
 
-  applyScannerRowOpenAction(
-    { kind: 'identify' },
-    handlers,
-    { row: gas, trigger, clientX: 5, clientY: 6 },
-  );
-  expect(openIdentify).toHaveBeenCalledWith(gas, trigger, 5, 6);
 });

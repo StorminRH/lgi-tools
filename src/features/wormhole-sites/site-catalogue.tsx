@@ -13,6 +13,7 @@ import {
   siteEstIskForSiteName,
   siteIdForSiteName,
   siteLiveRecipesForSiteName,
+  siteNameIndexKeys,
   type SiteLiveRecipe,
 } from './site-name-lookup';
 import { primarySiteIsk } from './site-primary-isk';
@@ -45,7 +46,12 @@ export function SiteCatalogueProvider({
   readonly children?: ReactNode;
 }) {
   const lookups = useMemo<SiteCatalogueLookups>(() => {
-    const byName = new Map(siteIndex.map((entry) => [entry.name, entry]));
+    const byName = new Map<string, SiteSearchEntry>();
+    for (const entry of siteIndex) {
+      for (const key of siteNameIndexKeys(entry.name)) {
+        byName.set(key, entry);
+      }
+    }
     return {
       siteIdForName: (name) => byName.get(name)?.id ?? null,
       estIskForName: (name) => {

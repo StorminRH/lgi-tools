@@ -14,6 +14,11 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { Tooltip } from '@/components/ui/tooltip';
+import {
+  useSystemSearch,
+  type SystemErr,
+  type SystemParams,
+} from '@/components/use-system-search';
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import {
   CONNECTION_MASS_STATES,
@@ -30,7 +35,6 @@ import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import {
   ConnectionFieldGroup,
   encodeOptionalField,
-  FieldActionReadout,
   FieldReadout,
   OptionalSelectField,
   UNSET_FIELD,
@@ -108,6 +112,8 @@ export interface ConnectionFieldSetters {
   readonly setLifeStage: (value: WormholeLifeStage | null) => void;
   /** The one "Leads to" hint; the origin side is the editor's own viewpoint. */
   readonly setLeadsTo: (value: WormholeDestinationHint | null) => void;
+  /** Retargets or clears the resolved destination system. */
+  readonly setDestination: (toSystemId: number | null) => void;
   /** Attaches this stub to a known inbound line the operator picked. */
   readonly linkToOrigin: (resolvedConnectionId: string) => void;
 }
@@ -131,17 +137,17 @@ export interface ConnectionFieldsProps {
   /** Restore-only mode freezes every field control and shows Restore. */
   readonly mode: 'edit' | 'restore';
   /**
-   * The destination system's identity readout once the hole is resolved. Its
-   * presence locks "Leads to" to the settled answer (D-G); absent, the field
-   * stays the human hint dropdown.
+   * The destination system's identity readout once the hole is resolved. The
+   * field stays editable — type a new system name to retarget, or clear it
+   * back to the class-hint dropdown.
    */
   readonly destination?: SystemIdentityReadout | null;
   readonly onFocusDestination?: () => void;
   readonly onDelete?: () => void;
   readonly onRestore?: () => void;
   /**
-   * Known inbound systems this unresolved stub may attach to. Empty for a
-   * resolved hole, whose Leads to field is already locked.
+   * Known inbound systems this unresolved stub may attach to. Empty once the
+   * hole already has a typed destination.
    */
   readonly originLeads?: readonly OriginLeadOption[];
 }
@@ -160,7 +166,6 @@ export function ConnectionFields({
   now,
   mode,
   destination,
-  onFocusDestination,
   onDelete,
   onRestore,
   originLeads = [],
@@ -214,8 +219,8 @@ export function ConnectionFields({
         destination={destination ?? null}
         originLeads={originLeads}
         readOnly={readOnly}
-        onFocusDestination={onFocusDestination}
         onChangeHint={setters.setLeadsTo}
+        onSetDestination={setters.setDestination}
         onLinkOrigin={setters.linkToOrigin}
       />
       <ConnectionActions
@@ -484,40 +489,61 @@ function LifetimeEstimateView({
 /**
  * Leads to: one field (D-G). While the far end is unknown it is the human
  * hint dropdown, plus any already-known inbound systems the operator can
- * attach this stub to. Once the hole resolves it locks to the destination's
- * identity readout — the one rule every other surface renders — and clicking
- * focuses that system on the canvas.
+ * attach this stub to. Once a destination is set the field stays a typed
+ * system search so a wrong jump or return can be corrected in place.
  */
 function LeadsToField({
   connection,
   destination,
   originLeads,
   readOnly,
-  onFocusDestination,
   onChangeHint,
+  onSetDestination,
   onLinkOrigin,
 }: {
   readonly connection: ConnectionEditorDetail;
   readonly destination: SystemIdentityReadout | null;
   readonly originLeads: readonly OriginLeadOption[];
   readonly readOnly: boolean;
-  readonly onFocusDestination?: () => void;
   readonly onChangeHint: (value: WormholeDestinationHint | null) => void;
+  readonly onSetDestination: (toSystemId: number | null) => void;
   readonly onLinkOrigin: (resolvedConnectionId: string) => void;
 }) {
-  if (destination !== null) {
+  const search = useSystemSearch();
+  const hint = connection.fromDestinationHint;
+  if (readOnly) {
     return (
       <ConnectionFieldGroup label="Leads to">
-        <FieldActionReadout
-          attr="data-map-connection-leads-locked"
-          text={destination.label}
-          toneClass={destination.tone}
-          onClick={onFocusDestination}
+        <FieldReadout
+          attr="data-map-connection-leads-readout"
+          text={
+            destination !== null
+              ? destination.label
+              : hint === null
+                ? 'Unset'
+                : HINT_LABELS[hint]
+          }
         />
       </ConnectionFieldGroup>
     );
   }
-  const hint = connection.fromDestinationHint;
+  if (destination !== null) {
+    return (
+      <ConnectionFieldGroup label="Leads to">
+        <TerminalSearch<SystemParams, SystemErr>
+          key={`${connection.connectionId}:${destination.label}`}
+          initialValue={destination.label}
+          placeholder="System name — e.g. J120924"
+          parse={(input) => parseDestinationSystem(search.parse, input)}
+          suggest={search.suggest}
+          errorMessage={() => 'No system matches that name.'}
+          onSubmit={(params) => onSetDestination(params.system.id)}
+          onClear={() => onSetDestination(null)}
+          errorLabel="Destination"
+        />
+      </ConnectionFieldGroup>
+    );
+  }
   const items = [
     { value: UNSET_FIELD, label: 'Unset' },
     ...originLeads.map((option) => ({
@@ -535,16 +561,30 @@ function LeadsToField({
       ariaLabel="Leads to"
       items={items}
       value={hint}
-      readOnly={readOnly}
+      readOnly={false}
       readoutAttr="data-map-connection-leads-readout"
       readoutText={hint === null ? 'Unset' : HINT_LABELS[hint]}
       onChange={(value) =>
-        dispatchLeadsToChange(value, onLinkOrigin, (hint) =>
-          onChangeHint(hint as WormholeDestinationHint | null),
+        dispatchLeadsToChange(value, onLinkOrigin, (nextHint) =>
+          onChangeHint(nextHint as WormholeDestinationHint | null),
         )
       }
     />
   );
+}
+
+/** Accepts a bare system name or the identity readout ("J120924 - C2"). */
+export function parseDestinationSystem(
+  parse: (input: string) =>
+    | { ok: true; params: SystemParams }
+    | { ok: false; error: SystemErr },
+  input: string,
+): { ok: true; params: SystemParams } | { ok: false; error: SystemErr } {
+  const direct = parse(input);
+  if (direct.ok) return direct;
+  const dash = input.lastIndexOf(' - ');
+  if (dash > 0) return parse(input.slice(0, dash));
+  return direct;
 }
 
 function ConnectionActions({

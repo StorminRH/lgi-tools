@@ -59,6 +59,7 @@ const SETTERS = {
   setMassState: vi.fn(),
   setLifeStage: vi.fn(),
   setLeadsTo: vi.fn(),
+  setDestination: vi.fn(),
   linkToOrigin: vi.fn(),
 };
 
@@ -157,4 +158,21 @@ it('editorLeader brackets the row, clamps landing, offsets origin, and refuses c
     origin,
   });
   expect(squeezed?.bracket.bottom).toBe(110);
+
+  const clip = { left: 0, right: 200, top: 80, bottom: 200 };
+  const clipped = editorLeader({
+    row: { left: 10, right: 180, top: 60, bottom: 120 },
+    panel,
+    origin,
+    clip,
+  });
+  expect(clipped?.bracket).toEqual({ x: 183, top: 80, bottom: 120 });
+  expect(
+    editorLeader({
+      row: { left: 10, right: 180, top: 0, bottom: 40 },
+      panel,
+      origin,
+      clip,
+    }),
+  ).toBeNull();
 });

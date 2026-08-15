@@ -26,6 +26,11 @@ export interface ConnectionFieldAuthoringApi {
     side: 'from' | 'to';
     value: WormholeDestinationHint | null;
   }) => Promise<unknown>;
+  readonly setConnectionDestination: (args: {
+    mapId: string;
+    connectionId: Id<'mapConnections'>;
+    toSystemId: number | null;
+  }) => Promise<unknown>;
   readonly setConnectionLifeStage: (args: {
     mapId: string;
     connection: ConnectionEditorDetail;
@@ -68,6 +73,13 @@ export function connectionFieldSetters(
         connectionId,
         side: 'from',
         value,
+      });
+    },
+    setDestination: (toSystemId) => {
+      void authoring.setConnectionDestination({
+        mapId,
+        connectionId,
+        toSystemId,
       });
     },
     linkToOrigin: (resolvedConnectionId) => {

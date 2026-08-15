@@ -44,11 +44,22 @@ function useEditorLeader(
       return;
     }
     const origin = layer.getBoundingClientRect();
+    const clipEl = row.closest('[data-scanner-scroll]');
+    const clipRect = clipEl?.getBoundingClientRect();
     setLeader(
       editorLeader({
         row: row.getBoundingClientRect(),
         panel: panel.getBoundingClientRect(),
         origin: { left: origin.left, top: origin.top },
+        clip:
+          clipRect === undefined
+            ? undefined
+            : {
+                left: clipRect.left,
+                right: clipRect.right,
+                top: clipRect.top,
+                bottom: clipRect.bottom,
+              },
       }),
     );
   }, [layerRef, panelRef, signatureId]);

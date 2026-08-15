@@ -199,6 +199,7 @@ export function optimisticPatchConnection(
         | 'massState'
         | 'lifeStage'
         | 'lifeStageObservedAt'
+        | 'toSystemId'
         | 'fromDestinationHint'
         | 'toDestinationHint'
         | 'deathEarliestAt'
@@ -452,6 +453,41 @@ type ConnectionFieldArgs = {
     | 'lifeStage'];
 };
 
+/** Optimistic retarget or clear of a connection's resolved destination. */
+export function optimisticSetConnectionDestination(
+  localStore: OptimisticLocalStore,
+  args: {
+    mapId: string;
+    connectionId: string;
+    toSystemId: number | null;
+  },
+  now = Date.now(),
+): void {
+  if (
+    args.toSystemId !== null
+    && !liveSystemPresent(localStore, args.mapId, args.toSystemId)
+  ) {
+    insertAtBottomIfLoaded({
+      paginatedQuery: api.mapChain.watchMapSystems,
+      argsToMatch: { mapId: args.mapId },
+      localQueryStore: localStore,
+      item: {
+        _id: optimisticTempId('mapSystems'),
+        _creationTime: now,
+        mapId: args.mapId,
+        systemId: args.toSystemId,
+        deletedAt: null,
+        purgeAfter: null,
+      } as never,
+    });
+  }
+  optimisticPatchConnection(localStore, {
+    mapId: args.mapId,
+    connectionId: args.connectionId,
+    patch: { toSystemId: args.toSystemId },
+  });
+}
+
 /** Optimistic patch for one side's destination hint (null clears the field). */
 function optimisticSetConnectionDestinationHint(
   localStore: OptimisticLocalStore,
@@ -528,6 +564,11 @@ export function useChainAuthoringMutations() {
       optimisticSetConnectionDestinationHint,
     ),
   );
+  const setConnectionDestination = swallowMutationRejection(
+    useMutation(api.mapAuthoring.setConnectionDestination).withOptimisticUpdate(
+      optimisticSetConnectionDestination,
+    ),
+  );
   const severConnection = swallowMutationRejection(
     useMutation(api.mapAuthoring.severConnection).withOptimisticUpdate(
       optimisticSeverConnection,
@@ -587,6 +628,7 @@ export function useChainAuthoringMutations() {
     setConnectionShipSize,
     setConnectionMassState,
     setConnectionDestinationHint,
+    setConnectionDestination,
     setConnectionLifeStage: async (args: {
       mapId: string;
       connection: ConnectionWindowSource;

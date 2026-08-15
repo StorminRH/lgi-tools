@@ -31,7 +31,11 @@ export function ActiveSiteViewer({
       onClose={onClose}
       layerProps={{ 'data-site-viewer': 'true' }}
     >
-      <SiteCardWidget key={siteId} siteId={siteId} className="min-h-0 flex-1" />
+      <SiteCardWidget
+        key={siteId}
+        siteId={siteId}
+        className="min-h-0 w-max max-w-full flex-1"
+      />
     </ScannerAnchoredPanel>
   );
 }

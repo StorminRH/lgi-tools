@@ -128,13 +128,13 @@ export default {
     );
     check(
       'catalogue-matched site row shows the open affordance',
-      (await siteRow.locator('[data-signature-row-open]').count()) === 1
+      (await siteRow.getAttribute('data-signature-row-open')) === 'true'
         && (await page.getByRole('button', { name: `View site ${SITE_NAME}` }).count())
           === 1,
     );
     check(
       'catalogue-unmatched named site row stays inert',
-      (await unmatchedRow.locator('[data-signature-row-open]').count()) === 0
+      (await unmatchedRow.getAttribute('data-signature-row-open')) === null
         && (await unmatchedRow.getByRole('button').count()) === 0
         && (await page.getByRole('button', { name: `View site ${UNMATCHED_NAME}` }).count())
           === 0,

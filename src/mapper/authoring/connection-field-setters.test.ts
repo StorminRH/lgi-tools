@@ -41,6 +41,7 @@ function authoring(): ConnectionFieldAuthoringApi {
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
     setConnectionDestinationHint: vi.fn(),
+    setConnectionDestination: vi.fn(),
     linkStubToResolvedConnection: vi.fn(),
   };
 }
@@ -85,6 +86,22 @@ describe('connectionFieldSetters', () => {
       connectionId: CONNECTION.connectionId,
       side: 'from',
       value: 'dangerous',
+    });
+  });
+
+  it('sends a destination retarget through the keep-the-hole mutation', () => {
+    const api = authoring();
+    connectionFieldSetters('map-a', CONNECTION, api).setDestination(31_000_002);
+    expect(api.setConnectionDestination).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connectionId: CONNECTION.connectionId,
+      toSystemId: 31_000_002,
+    });
+    connectionFieldSetters('map-a', CONNECTION, api).setDestination(null);
+    expect(api.setConnectionDestination).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connectionId: CONNECTION.connectionId,
+      toSystemId: null,
     });
   });
 

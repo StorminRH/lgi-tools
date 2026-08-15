@@ -1,6 +1,10 @@
 import { createElement, type ComponentProps } from 'react';
 import { cn } from './cn';
 
+/** The solid Card surface — page panels and opaque Atlas chrome share this. */
+export const cardSurface =
+  'border border-border bg-section text-text rounded-card shadow-card-edge';
+
 /**
  * The card/panel surface ("Inset Instrument", 3.8.2.2): section fill, border, the
  * card radius, and a faint top-edge light (--shadow-card-edge). Absorbs the old
@@ -28,7 +32,7 @@ export function Card({
     as,
     {
       className: cn(
-        'border border-border bg-section text-text rounded-card shadow-card-edge',
+        cardSurface,
         font === 'data' ? 'font-data' : 'font-ui',
         hover &&
           'transition-[border-color,box-shadow] hover:border-card-glow-border hover:shadow-card-hover',

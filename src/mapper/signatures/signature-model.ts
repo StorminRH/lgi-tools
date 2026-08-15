@@ -12,6 +12,7 @@ import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
 import {
   isCodexSizeLocked,
   lifetimeRowDisplay,
+  lifetimeUpperBoundLabel,
 } from '../authoring/connection-intelligence';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
@@ -140,7 +141,7 @@ export function buildSignatureRows(
   );
 }
 
-/** Presentation buckets for the Signatures tab (not stored SigGroup values). */
+/** Presentation buckets for the scanner (not stored SigGroup values). */
 const SCANNER_SECTION_ORDER = [
   'unknown',
   'wormholes',
@@ -149,7 +150,7 @@ const SCANNER_SECTION_ORDER = [
   'hacking',
 ] as const;
 
-/** One Signatures-tab presentation section. */
+/** One scanner presentation section. */
 export type ScannerSectionId = (typeof SCANNER_SECTION_ORDER)[number];
 
 /** Visible section titles in scanner order. */
@@ -161,14 +162,29 @@ const SCANNER_SECTION_TITLES: Readonly<Record<ScannerSectionId, string>> = {
   hacking: 'Hacking',
 };
 
-/** One non-empty Signatures-tab section with its rows. */
+/** One non-empty scanner section with its rows. */
 export interface ScannerSection {
   readonly id: ScannerSectionId;
   readonly title: string;
   readonly rows: readonly SignatureWindowRow[];
 }
 
-/** Maps a stored signature group onto a Signatures-tab section. */
+/** Short Type-column labels for stored scanner groups. */
+const GROUP_TYPE_LABELS: Readonly<Record<SigGroup, string>> = {
+  Wormhole: 'Wormhole',
+  'Combat Site': 'Combat',
+  'Gas Site': 'Gas',
+  'Ore Site': 'Ore',
+  'Data Site': 'Data',
+  'Relic Site': 'Relic',
+};
+
+/** Short Type-column label for one stored group, or null when unidentified. */
+export function scannerGroupTypeLabel(group: SigGroup | null): string | null {
+  return group === null ? null : GROUP_TYPE_LABELS[group];
+}
+
+/** Maps a stored signature group onto a scanner section. */
 export function scannerSectionForGroup(
   group: SigGroup | null,
 ): ScannerSectionId {
@@ -203,8 +219,9 @@ export function filterSignatureRows(
 }
 
 /**
- * Buckets one system's Cosmic Signature rows into non-empty presentation
- * sections (Unknown first). Anomalies stay on their own tab.
+ * Buckets one system's scanner rows into non-empty presentation sections
+ * (Unknown first). Anomalies share the Combat / Harvestables / Hacking
+ * buckets with signatures of the same stored group.
  */
 export function groupSignatureSections(
   rows: readonly SignatureWindowRow[],
@@ -215,7 +232,7 @@ export function groupSignatureSections(
     SCANNER_SECTION_ORDER.map((id) => [id, []]),
   );
   for (const row of rows) {
-    if (row.systemId !== systemId || row.kind !== 'signature') continue;
+    if (row.systemId !== systemId) continue;
     buckets.get(scannerSectionForGroup(row.group))!.push(row);
   }
   const sections: ScannerSection[] = [];
@@ -260,6 +277,19 @@ export function scannerWormholeLifetime(
   if (connection === null) return '—';
   const display = lifetimeRowDisplay(connection, entry, now);
   return display.kind === 'unset' ? '—' : display.label;
+}
+
+/** Scanner Life cell: remaining-life upper bound, or an honest placeholder. */
+export function scannerLifeUpperBound(
+  connection: Pick<
+    ConnectionEditorDetail,
+    '_creationTime' | 'deathEarliestAt' | 'deathLatestAt' | 'lifeStage'
+  > | null,
+  entry: WormholeCodexEntry | null,
+  now: number,
+): string {
+  if (connection === null) return '—';
+  return lifetimeUpperBoundLabel(connection, entry, now) ?? '—';
 }
 
 /** Counts one system's signatures and anomalies. */

@@ -169,6 +169,7 @@ test('the header keeps the plain name while the disc owns the colored classifica
     stub: { connectionId: 'c1', fromSystemId: 1, signatureId: 'ABC-123' },
   });
   expect(typedOverHint).toContain('>HS<');
+  expect(typedOverHint).toContain('text-sec-10');
   expect(typedOverHint).not.toContain('C1–C3');
 
   const blankStub = nodeMarkup({

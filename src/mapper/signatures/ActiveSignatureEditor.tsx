@@ -15,7 +15,7 @@ import {
 } from './connection-authoring-api';
 import { connectionEditorMode } from '../authoring/connection-editor-mode';
 import { connectionFieldSetters } from '../authoring/connection-field-setters';
-import { originLeadCandidates } from '../authoring/leads-to-origin';
+import { originLeadOptions } from './origin-leads';
 import {
   useUniverseAssets,
   type ConnectionDetail,
@@ -81,19 +81,11 @@ export function ActiveSignatureEditor({
   const assets = useUniverseAssets();
   const systemInfo = assets === null ? null : (id: number) => assets.systemInfo(id);
   const destination = destinationReadout(connection?.toSystemId ?? null, systemInfo);
-  const originLeads =
-    connection === null || connection.toSystemId !== null
-      ? []
-      : originLeadCandidates(
-          connection.fromSystemId,
-          connection.connectionId,
-          [...connectionDetails.values()],
-        ).map((candidate) => ({
-          connectionId: candidate.connectionId,
-          label:
-            destinationReadout(candidate.systemId, systemInfo)?.label
-            ?? String(candidate.systemId),
-        }));
+  const originLeads = originLeadOptions(
+    connection,
+    [...connectionDetails.values()],
+    systemInfo,
+  );
 
   // A row that tombstones past its undo window, or leaves the feed entirely,
   // closes the editor rather than freezing a stale copy of itself on screen.

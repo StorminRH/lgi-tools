@@ -157,6 +157,7 @@ describe('map authoring', () => {
       'setConnectionWormholeType',
       'setConnectionTypedSide',
       'setConnectionDestinationHint',
+      'setConnectionDestination',
       'setConnectionShipSize',
       'setConnectionMassState',
       'setConnectionLifeStage',
@@ -179,6 +180,7 @@ describe('map authoring', () => {
         case 'setConnectionWormholeType':
         case 'setConnectionTypedSide':
         case 'setConnectionDestinationHint':
+        case 'setConnectionDestination':
         case 'setConnectionShipSize':
         case 'setConnectionMassState':
         case 'setConnectionLifeStage':
@@ -199,6 +201,9 @@ describe('map authoring', () => {
           }
           if (name === 'setConnectionDestinationHint') {
             return { mapId: MAP_A, connectionId, side: 'from', value: 'dangerous' };
+          }
+          if (name === 'setConnectionDestination') {
+            return { mapId: MAP_A, connectionId, toSystemId: DODIXIE };
           }
           if (name === 'setConnectionShipSize') {
             return { mapId: MAP_A, connectionId, value: 'M' };
@@ -294,6 +299,7 @@ describe('map authoring', () => {
         name === 'setConnectionWormholeType'
         || name === 'setConnectionTypedSide'
         || name === 'setConnectionDestinationHint'
+        || name === 'setConnectionDestination'
         || name === 'setConnectionShipSize'
         || name === 'setConnectionMassState'
         || name === 'setConnectionLifeStage'
@@ -321,6 +327,16 @@ describe('map authoring', () => {
               connectionId,
               side: 'from',
               value: 'dangerous',
+            }),
+          ).resolves.toEqual({ changed: true });
+          return;
+        }
+        if (name === 'setConnectionDestination') {
+          await expect(
+            asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+              mapId: MAP_A,
+              connectionId,
+              toSystemId: DODIXIE,
             }),
           ).resolves.toEqual({ changed: true });
           return;
@@ -654,6 +670,64 @@ describe('map authoring', () => {
     });
   });
 
+  describe('connection destination retarget', () => {
+    it('retargets, equality-skips, refuses a self-loop, and clears back to a stub', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          toSystemId: AMARR,
+        }),
+      ).resolves.toEqual({ changed: false });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          toSystemId: JITA,
+        }),
+      ).rejects.toThrow('SELF_LOOP');
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          toSystemId: DODIXIE,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        toSystemId: DODIXIE,
+        destinationProvenance: 'human',
+      });
+      expect(await readSystem(t, AMARR)).toMatchObject({
+        systemId: AMARR,
+        deletedAt: null,
+      });
+      expect(await readSystem(t, DODIXIE)).toMatchObject({
+        systemId: DODIXIE,
+        deletedAt: null,
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          toSystemId: null,
+        }),
+      ).resolves.toEqual({ changed: true });
+      const cleared = await readConnection(t, connectionId);
+      expect(cleared?.toSystemId).toBeNull();
+      expect(cleared?.destinationProvenance).toBeUndefined();
+      expect(await readSystem(t, DODIXIE)).toMatchObject({
+        systemId: DODIXIE,
+        deletedAt: null,
+      });
+    });
+  });
+
   describe('connection death windows', () => {
     const HOUR_MS = 60 * 60 * 1000;
 
@@ -947,6 +1021,7 @@ describe('map authoring', () => {
         'setConnectionWormholeType',
         'setConnectionTypedSide',
         'setConnectionDestinationHint',
+        'setConnectionDestination',
         'setConnectionShipSize',
         'setConnectionMassState',
         'setConnectionLifeStage',
@@ -1226,13 +1301,13 @@ describe('map authoring', () => {
       expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: NOW });
       expect(await readConnection(t, cutB)).toMatchObject({ deletedAt: NOW + 1 });
 
-      await expectConvexError(
+      await expect(
         asUser(t).mutation(api.mapAuthoring.severConnection, {
           mapId: MAP_A,
           connectionId: cutA,
         }),
-        'CONNECTION_TOMBSTONED',
-      );
+      ).resolves.toEqual({ outcome: 'retained' });
+      expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: NOW });
       expect(await readEvents(t)).toHaveLength(2);
 
       await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {

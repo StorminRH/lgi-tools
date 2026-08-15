@@ -19,7 +19,7 @@
   --color-bg-deep:     #060708;
   --color-bg:          #0b0d10;
   --color-section:     #0f1216;
-  --color-map-fog:     #12161e; /* atlas fog-of-war cloud (4.0.4.2.3); lifted above bg so the cloud reads over the nebula */
+  --color-map-fog:     #05070b; /* atlas fog-of-war cloud — near-black with a cool tint */
   --color-tooltip:     #161b22; /* raised slate for help-tooltip panels */
   --color-border:      #1d232c;
   --color-border-soft: #141821;
@@ -419,6 +419,76 @@ pre {
 }
 .scroll-area::-webkit-scrollbar-thumb:hover {
   background: var(--color-scroll-thumb-hover);
+}
+
+/* Left-edge scrollbar: RTL gutter, LTR content. Track border flips to the
+ * content side so the painted rail still reads as a divider. */
+.scroll-area-start {
+  direction: rtl;
+}
+.scroll-area-start > * {
+  direction: ltr;
+}
+.scroll-area-start::-webkit-scrollbar-track {
+  border-left: 0;
+  border-right: 1px solid var(--color-border-soft);
+}
+
+/* Scanner list: dissolve rows at the visible edges instead of a hard clip.
+ * The mask lives on the scrollport so the fade stays pinned as content moves.
+ * Both ends wait until the list actually overflows; the top also waits until
+ * the list has scrolled so the first card stays solid at rest. */
+.scanner-scroll-fade-end {
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 2rem);
+  mask-image: linear-gradient(to top, transparent 0, #000 2rem);
+}
+
+.scanner-scroll-fade-end.scanner-scroll-fade-start {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 2rem,
+    #000 calc(100% - 2rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 2rem,
+    #000 calc(100% - 2rem),
+    transparent 100%
+  );
+}
+
+.scanner-scroll-frost {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  height: 2rem;
+  -webkit-backdrop-filter: blur(8px) saturate(var(--glass-saturate));
+  backdrop-filter: blur(8px) saturate(var(--glass-saturate));
+}
+
+.scanner-scroll-frost-start {
+  top: 0;
+  opacity: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 100%);
+}
+
+.scanner-scroll-frost-start.is-active {
+  opacity: 1;
+}
+
+.scanner-scroll-frost-end {
+  bottom: 0;
+  opacity: 0;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, transparent 100%);
+}
+
+.scanner-scroll-frost-end.is-active {
+  opacity: 1;
 }
 
 /* Universal link hover vocabulary — every <a> transitions toward the green

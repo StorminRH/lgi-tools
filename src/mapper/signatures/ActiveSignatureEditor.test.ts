@@ -41,7 +41,12 @@ vi.mock('@/components/ui/select', () => ({
 }));
 
 vi.mock('@/components/ui/terminal-search', () => ({
-  TerminalSearch: () => createElement('div', { 'data-terminal-search': '' }),
+  TerminalSearch: (props: { initialValue: string; placeholder?: string }) =>
+    createElement('div', {
+      'data-terminal-search': '',
+      'data-initial': props.initialValue,
+      'data-placeholder': props.placeholder ?? '',
+    }),
 }));
 
 vi.mock('../jump-client', () => ({ postJumpRequest: vi.fn() }));
@@ -102,6 +107,7 @@ function authoring() {
     setConnectionMassState: vi.fn(),
     setConnectionLifeStage: vi.fn(),
     setConnectionDestinationHint: vi.fn(),
+    setConnectionDestination: vi.fn(),
     linkStubToResolvedConnection: vi.fn(),
     severConnection: vi.fn(),
     restoreSeveredBranch: vi.fn(),
@@ -155,7 +161,7 @@ it('opens edit for resolved and unresolved holes, and mounts nothing until named
   expect(stub).toContain('31000002');
 });
 
-it('restores inside the undo window, closes when the row left the feed, and locks Leads to', () => {
+it('restores inside the undo window, closes when the row left the feed, and keeps Leads to editable', () => {
   const dying: ConnectionDetail = {
     ...RESOLVED,
     deletedAt: NOW - 1_000,
@@ -181,8 +187,10 @@ it('restores inside the undo window, closes when the row left the feed, and lock
     whClassId: 4,
   });
   const locked = render(RESOLVED_ID);
-  expect(locked).toContain('data-map-connection-leads-locked');
+  expect(locked).not.toContain('data-map-connection-leads-locked');
   expect(locked).toContain('J123456 - C4');
+  expect(locked).toContain('System name — e.g. J120924');
+  expect(locked).not.toContain('data-select="Leads to"');
   assets.systemInfo.mockReturnValue(null);
 });
 

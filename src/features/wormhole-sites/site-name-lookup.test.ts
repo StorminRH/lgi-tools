@@ -48,6 +48,8 @@ test('site name index matches the deploy catalogue and carries Est. ISK plus liv
     expect(siteIdForSiteName(site.name)).toBe(site.id);
   }
   expect(siteIdForSiteName('Barren Perimeter Reservoir')).toBe(49);
+  expect(siteIdForSiteName('Ordinary Permiter Deposit')).toBe(63);
+  expect(siteIdForSiteName('Ordinary Perimeter Deposit')).toBe(63);
   expect(siteIdForSiteName('Sansha Hideout')).toBeNull();
   expect(siteIdForSiteName('Forgotten Frontier')).toBeNull();
   expect(siteIdForSiteName('')).toBeNull();

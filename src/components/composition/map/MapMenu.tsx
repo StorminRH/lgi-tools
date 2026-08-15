@@ -43,7 +43,7 @@ export function MapMenu({
       <Menu
         label="Atlas menu"
         trigger={<HamburgerGlyph />}
-        triggerClassName="inline-flex size-10 cursor-pointer items-center justify-center rounded-ctl border border-border bg-section text-muted shadow-card transition-colors hover:border-border-active hover:text-name"
+        triggerClassName="inline-flex size-10 cursor-pointer items-center justify-center rounded-ctl border border-border bg-section text-muted shadow-card-edge transition-colors hover:border-border-active hover:text-name"
         popupProps={{ 'data-map-menu-panel': '' }}
         className="min-w-60"
         side="bottom"
