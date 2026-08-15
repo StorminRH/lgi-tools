@@ -20,7 +20,7 @@ import type { DepthBand } from '@/data/market-prices/types';
  * price-stability / demand-consistency window). The 7d/90d windows are shown in
  * the breakdown for context only — they do NOT feed the score. PROVISIONAL.
  */
-export const SCORE_ADV_WINDOW_DAYS = 30 satisfies (typeof HISTORY_ADV_WINDOWS)[number];
+const SCORE_ADV_WINDOW_DAYS = 30 satisfies (typeof HISTORY_ADV_WINDOWS)[number];
 
 /**
  * The near-touch SELL band that stands in for "the wall ahead of you if you list

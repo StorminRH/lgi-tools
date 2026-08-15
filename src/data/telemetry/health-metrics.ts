@@ -126,17 +126,17 @@ export interface SubsystemStatus {
  * GSC sync outcomes (`summary.status` from the daily cron): `synced` is clean,
  * `skipped` is a benign no-op, `partial` completed with errors, `failed` failed.
  */
-export const GSC_HEALTHY_OUTCOMES = ['synced'] as const;
+const GSC_HEALTHY_OUTCOMES = ['synced'] as const;
 /**
  * Closed, canonically ordered set of gsc neutral outcomes; consumers derive validation, unions,
  * and iteration from this one list.
  */
-export const GSC_NEUTRAL_OUTCOMES = ['skipped'] as const;
+const GSC_NEUTRAL_OUTCOMES = ['skipped'] as const;
 /**
  * Closed, canonically ordered set of gsc degraded outcomes; consumers derive validation, unions,
  * and iteration from this one list.
  */
-export const GSC_DEGRADED_OUTCOMES = ['partial'] as const;
+const GSC_DEGRADED_OUTCOMES = ['partial'] as const;
 
 // Staleness slack over the schedule interval before a cron reads as late
 // (amber) or down (red). Crons drift by minutes run-to-run, so 1.25× absorbs

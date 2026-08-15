@@ -13,7 +13,7 @@ import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
 /** One cache tag per owner so a refresh busts exactly that owner's cached read. */
-export function ownedBlueprintsTag(owner: OwnerKey): string {
+function ownedBlueprintsTag(owner: OwnerKey): string {
   return `owned-blueprints:${owner.ownerType}:${owner.ownerId}`;
 }
 

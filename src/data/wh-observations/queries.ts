@@ -48,7 +48,7 @@ function assertObservationInput(input: WhObservationInput): void {
 }
 
 /** Returns a new Date truncated to its UTC hour without mutating the caller's value. */
-export function toObservationHour(value: Date): Date {
+function toObservationHour(value: Date): Date {
   const observedAt = new Date(value);
   if (Number.isNaN(observedAt.getTime())) {
     throw new Error('Wormhole observation requires a valid timestamp.');

@@ -23,21 +23,17 @@ import {
 } from '@/transport/correlation';
 import { emitCostMetric } from './cost-metrics';
 
-/** Closed product areas an instrumented operation can belong to. */
-export const CAPABILITY_FEATURES = [
-  'account',
-  'admin',
-  'planner',
-  'structures',
-  'market',
-  'maps',
-  'sync',
-  'cron',
-  'feedback',
-] as const;
-
 /** Closed product area owning one instrumented operation. */
-export type CapabilityFeature = (typeof CAPABILITY_FEATURES)[number];
+export type CapabilityFeature =
+  | 'account'
+  | 'admin'
+  | 'planner'
+  | 'structures'
+  | 'market'
+  | 'maps'
+  | 'sync'
+  | 'cron'
+  | 'feedback';
 
 /**
  * What sort of work an operation is. The service indicators select their populations from this

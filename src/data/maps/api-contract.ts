@@ -45,7 +45,7 @@ export const createMapRequestSchema = z
 export type CreateMapRequest = z.infer<typeof createMapRequestSchema>;
 
 /** Successful map creation response used by the first-run handoff. */
-export const createMapResponseSchema = z.strictObject({ mapId: mapIdSchema });
+const createMapResponseSchema = z.strictObject({ mapId: mapIdSchema });
 
 /** First-party endpoint for one authenticated atomic map creation. */
 export const createMapEndpoint = defineEndpoint({
@@ -78,7 +78,7 @@ const characterSearchResultSchema = z.strictObject({
 });
 
 /** Character-search result with an explicit capability mode for the consuming typeahead. */
-export const searchCharactersResponseSchema = z.discriminatedUnion('mode', [
+const searchCharactersResponseSchema = z.discriminatedUnion('mode', [
   z.strictObject({
     mode: z.literal('typeahead'),
     results: z.array(characterSearchResultSchema),
@@ -115,7 +115,7 @@ export const signatureEliminationRequestSchema = z.strictObject({
 });
 
 /** One honest elimination outcome returned to the acting mapper client. */
-export const signatureEliminationResponseSchema = z.discriminatedUnion('status', [
+const signatureEliminationResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({
     status: z.literal('applied'),
     signatureIds: z.array(z.string().min(1)).min(1),
@@ -263,7 +263,7 @@ export const jumpResolverRequestSchema = z.discriminatedUnion('kind', [
 export type JumpResolverRequest = z.infer<typeof jumpResolverRequestSchema>;
 
 /** Closed workflow result returned to the doorbell observer and authoring UI. */
-export const jumpResolverResponseSchema = z.discriminatedUnion('status', [
+const jumpResolverResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({
     status: z.literal('processed'),
     outcome: z.enum(['authored', 'converged', 'confirmed', 'reassociated', 'typed-hole']),

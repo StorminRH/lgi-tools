@@ -26,7 +26,7 @@ const siteMetadataShape = {
 };
 
 /** One catalogue row returned without the detail route's live price overlay. */
-export const siteListApiItemSchema = z.object({
+const siteListApiItemSchema = z.object({
   ...siteMetadataShape,
   sheetResourceValueIsk: z.number().nullable(),
 });
@@ -52,7 +52,7 @@ export const sitesEndpoint = defineEndpoint({
 // ── GET /api/sites/[id] ─────────────────────────────────────────────────
 
 /** One NPC row nested in a wormhole-site wave. */
-export const npcSchema = z.object({
+const npcSchema = z.object({
   id: z.number(),
   orderInWave: z.number(),
   triggerLabel: z.string().nullable(),
@@ -73,7 +73,7 @@ export const npcSchema = z.object({
 });
 
 /** One ordered wave and its nested NPC groups. */
-export const waveSchema = z.object({
+const waveSchema = z.object({
   id: z.number(),
   waveNumber: z.number(),
   waveLabel: z.string(),
@@ -88,7 +88,7 @@ export const waveSchema = z.object({
 });
 
 /** One harvestable site resource and its static or live value inputs. */
-export const siteResourceSchema = z.object({
+const siteResourceSchema = z.object({
   id: z.number(),
   orderInSite: z.number(),
   resourceKind: z.string(),
@@ -130,7 +130,7 @@ const PG_SERIAL_MAX = 2_147_483_647;
  * no hex/scientific notation, no trailing garbage that parseInt would
  * silently strip.
  */
-export const siteIdParamSchema = z.object({
+const siteIdParamSchema = z.object({
   id: z
     .string()
     .regex(/^[1-9]\d*$/)

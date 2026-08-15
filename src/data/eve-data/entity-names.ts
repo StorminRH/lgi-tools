@@ -12,7 +12,7 @@ import { esiFetch, esiUrl } from '@/platform/esi';
  * first lookup of an id serves everyone until the entry expires; the tag lets a
  * future explicit refresh bust exactly one id.
  */
-export function entityNameTag(id: number): string {
+function entityNameTag(id: number): string {
   return `eve-entity-name-${id}`;
 }
 

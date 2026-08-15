@@ -468,7 +468,7 @@ export function hashResolverInputs(
  * Hashes the blueprint resolver's normalized source rows into a deterministic content identity
  * used to skip unchanged rebuilds.
  */
-export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
+async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   const all = await db
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,

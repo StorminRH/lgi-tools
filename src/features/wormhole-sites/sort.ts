@@ -6,7 +6,7 @@ import type { SiteDetail, WormholeClass } from './types';
  * Closed, canonically ordered set of sortable keys; consumers derive validation, unions, and
  * iteration from this one list.
  */
-export const SORTABLE_KEYS = [
+const SORTABLE_KEYS = [
   'name',
   'type',
   'isk',

@@ -15,35 +15,26 @@ import type { IndustryJob, JobStatus } from './esi-projection';
 import { type JobCategory, jobCategory } from './industry-jobs-styles';
 
 /** Manufacturing slots: 1 + Mass Production + Advanced Mass Production. */
-export const MASS_PRODUCTION_SKILL_ID = 3387;
-/**
- * Canonical EVE skill identifier for advanced mass production; callers use the SDE identity
- * directly.
- */
-export const ADVANCED_MASS_PRODUCTION_SKILL_ID = 24625;
+const MASS_PRODUCTION_SKILL_ID = 3387;
+/** Canonical EVE skill identifier for advanced mass production. */
+const ADVANCED_MASS_PRODUCTION_SKILL_ID = 24625;
 /**
  * Science slots (research/copy/invention): 1 + Laboratory Operation +
  * Advanced Laboratory Operation.
  */
-export const LABORATORY_OPERATION_SKILL_ID = 3406;
-/**
- * Canonical EVE skill identifier for advanced laboratory operation; callers use the SDE identity
- * directly.
- */
-export const ADVANCED_LABORATORY_OPERATION_SKILL_ID = 24624;
+const LABORATORY_OPERATION_SKILL_ID = 3406;
+/** Canonical EVE skill identifier for advanced laboratory operation. */
+const ADVANCED_LABORATORY_OPERATION_SKILL_ID = 24624;
 /** Reaction slots: 1 + Mass Reactions + Advanced Mass Reactions. */
-export const MASS_REACTIONS_SKILL_ID = 45748;
-/**
- * Canonical EVE skill identifier for advanced mass reactions; callers use the SDE identity
- * directly.
- */
-export const ADVANCED_MASS_REACTIONS_SKILL_ID = 45749;
+const MASS_REACTIONS_SKILL_ID = 45748;
+/** Canonical EVE skill identifier for advanced mass reactions. */
+const ADVANCED_MASS_REACTIONS_SKILL_ID = 45749;
 
 /**
  * Closed, canonically ordered set of slot categories; consumers derive validation, unions, and
  * iteration from this one list.
  */
-export const SLOT_CATEGORIES: readonly JobCategory[] = ['manufacturing', 'science', 'reactions'];
+const SLOT_CATEGORIES: readonly JobCategory[] = ['manufacturing', 'science', 'reactions'];
 
 /** Maximum concurrent personal industry jobs by activity, derived from character skills. */
 export interface SlotCapacity {

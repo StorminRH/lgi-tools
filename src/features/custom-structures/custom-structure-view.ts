@@ -88,7 +88,7 @@ export function resolveFitName(
 }
 
 /** The pin's display name from the loaded universe index; the raw id is the fallback. */
-export function pinLabel(systemId: number, systems: SystemSearchEntry[]): string {
+function pinLabel(systemId: number, systems: SystemSearchEntry[]): string {
   const sys = systems.find((s) => s.id === systemId);
   return sys ? `${sys.name} ${formatSec(sys.security)}` : `System ${systemId}`;
 }

@@ -227,7 +227,7 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
  * Returns true on the FIRST in-corp pilot that holds the role; a pilot whose token
  * can't be vended or whose roles can't be read simply doesn't contribute.
  */
-export async function userHoldsCorpRole(
+async function userHoldsCorpRole(
   userId: string,
   corporationId: number,
   requiredRoles: readonly string[],

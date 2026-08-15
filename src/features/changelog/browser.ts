@@ -8,7 +8,7 @@ export type ChangelogDocument = {
 };
 
 /** Returns the stable URL slug for one changelog master version. */
-export function changelogMasterSlug(version: string): string {
+function changelogMasterSlug(version: string): string {
   return `v${version}`;
 }
 

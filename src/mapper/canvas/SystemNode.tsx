@@ -139,7 +139,7 @@ function nodePresentation(data: ChainNodeData) {
  * header stays neutral while derived ghosts remain visually provisional
  * through the frame's opacity.
  */
-export function nodeHeader(data: ChainNodeData): {
+function nodeHeader(data: ChainNodeData): {
   readonly text: string;
   readonly toneClass: string;
 } {

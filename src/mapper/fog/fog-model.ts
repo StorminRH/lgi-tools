@@ -20,13 +20,13 @@ import { springFamily, type MotionConfig } from '../motion/motion-contract';
  * constant tuned at the G-1 gate; no runtime configuration surface (operator
  * direction, plan PD-2 — the dev dial panel tunes it during the gate only).
  */
-export const FOG_REVEAL_RADIUS = 280;
+const FOG_REVEAL_RADIUS = 280;
 
 /** Corridor half-width of the reveal stroke along a fully-drawn edge. */
-export const FOG_STROKE_RADIUS = 120;
+const FOG_STROKE_RADIUS = 120;
 
 /** Cloud density over the covered canvas; see `FOG_REVEAL_RADIUS`. */
-export const FOG_OPACITY = 0.95;
+const FOG_OPACITY = 0.95;
 
 /**
  * Where a fogged-endpoint line cuts off, as a fraction of the drawn-to-fogged

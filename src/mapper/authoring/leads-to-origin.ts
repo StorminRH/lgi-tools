@@ -1,5 +1,5 @@
 /** Select value prefix for a named origin system already on the map. */
-export const ORIGIN_LEAD_PREFIX = 'origin:';
+const ORIGIN_LEAD_PREFIX = 'origin:';
 
 /** Encodes one resolved inbound connection as a Leads-to select value. */
 export function encodeOriginLead(connectionId: string): string {

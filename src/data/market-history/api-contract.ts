@@ -41,7 +41,7 @@ export const wireHistoryInputsSchema = z.object({
  * Boundary validator for refresh history response schema; successful parsing yields the normalized
  * market history input consumed internally.
  */
-export const refreshHistoryResponseSchema = z.object({
+const refreshHistoryResponseSchema = z.object({
   inputs: z.array(wireHistoryInputsSchema),
 });
 /** Typed market-history refresh result with source, freshness, and write-behind state. */

@@ -23,7 +23,7 @@ const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
  * coalescing every field to null (an un-refreshed character reads fail-closed).
  * Shared by the per-user and per-character affiliation reads. Pure.
  */
-export function rowToCachedAffiliation(
+function rowToCachedAffiliation(
   characterId: number,
   row: {
     corporationId: number | null;

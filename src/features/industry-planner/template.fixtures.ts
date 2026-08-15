@@ -33,7 +33,7 @@ export interface MockState {
 }
 
 /** Canonical deterministic structure fixture shared by template-manifest tests. */
-export const STRUCTURE: TemplateStructureView = {
+const STRUCTURE: TemplateStructureView = {
   blueprintTypeId: 999,
   // Two build nodes; 999 (the top blueprint) is valid for overrides too.
   nodeActivityByBlueprint: { 111: 1, 222: 11 },

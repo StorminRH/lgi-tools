@@ -15,10 +15,7 @@
  * Who acts when an indicator degrades. Closed because an unowned indicator is not an SLI.
  * For a single-operator project the honest values are the operator and CCP's upstream service.
  */
-export const SLI_OWNERS = ['operator', 'ccp-upstream'] as const;
-
-/** Closed owner vocabulary for a service indicator. */
-export type SliOwner = (typeof SLI_OWNERS)[number];
+export type SliOwner = 'operator' | 'ccp-upstream';
 
 /** Stable identifiers for the five indicators. */
 export const SLI_IDS = [

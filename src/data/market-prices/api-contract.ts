@@ -26,13 +26,13 @@ export const refreshPricesRequestSchema = z.object({
  * One near-touch depth rung on the wire. cumVolume rides as a number (stays
  * under MAX_SAFE_INTEGER for realistic volumes), unlike the bigint side totals.
  */
-export const wireDepthBandSchema = z.object({
+const wireDepthBandSchema = z.object({
   pct: z.number(),
   cumVolume: z.number(),
 }) satisfies z.ZodType<DepthBand>;
 
 /** The regional-discount callout payload — plain numbers end to end. */
-export const wireRegionalDiscountSchema = z.object({
+const wireRegionalDiscountSchema = z.object({
   systemId: z.number(),
   price: z.number(),
   units: z.number(),
@@ -67,7 +67,7 @@ export const wirePriceSchema = z.object({
  * Boundary validator for refresh prices response schema; successful parsing yields the normalized
  * market prices input consumed internally.
  */
-export const refreshPricesResponseSchema = z.object({ prices: z.array(wirePriceSchema) });
+const refreshPricesResponseSchema = z.object({ prices: z.array(wirePriceSchema) });
 /** Typed market-price refresh result with source counts, freshness, and write-behind state. */
 export type RefreshPricesResponse = z.infer<typeof refreshPricesResponseSchema>;
 

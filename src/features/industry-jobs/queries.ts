@@ -18,7 +18,7 @@ import {
 import type { CharacterJobsData, CharacterJobsSyncState, CorpJobsSyncState } from './types';
 
 /** One cache tag per character so a refresh busts exactly that character's cached read. */
-export function industryJobsTag(characterId: number): string {
+function industryJobsTag(characterId: number): string {
   return `industry-jobs:${characterId}`;
 }
 
@@ -110,7 +110,7 @@ export async function stampCharacterJobsFresh(characterId: number): Promise<void
 // ── CORP industry jobs (MIGRATE.B.3) — the corp twins, keyed (user, corp) ──
 
 /** One cache tag per (user, corp) so a refresh busts exactly that board's cached read. */
-export function corpIndustryJobsTag(userId: string, corporationId: number): string {
+function corpIndustryJobsTag(userId: string, corporationId: number): string {
   return `corp-industry-jobs:${userId}:${corporationId}`;
 }
 

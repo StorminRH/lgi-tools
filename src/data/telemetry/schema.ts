@@ -8,7 +8,7 @@ import { characters } from '@/db/auth-schema';
  * total reach, not just authenticated reach. FK with ON DELETE SET NULL
  * preserves the audit trail if a character row is ever pruned.
  *
- * `action` is text + a TS const array (USAGE_ACTIONS) rather than a pg enum:
+ * `action` is text + a TS union (UsageAction) rather than a pg enum:
  * the vocabulary grows with every feature and we don't want a migration per
  * addition. Same pattern as URL filter validation against SITE_TYPES.
  */

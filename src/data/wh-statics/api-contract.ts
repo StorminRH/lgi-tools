@@ -42,7 +42,7 @@ export const systemStaticsParamsSchema = z.object({
 });
 
 /** Small picker payload for one system; an unknown system owns no statics. */
-export const systemStaticsResponseSchema = z.object({
+const systemStaticsResponseSchema = z.object({
   statics: z.array(z.string()),
 });
 

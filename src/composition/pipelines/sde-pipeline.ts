@@ -40,7 +40,7 @@ export type SeedSummary = {
  * the 54 wormhole-site rows seeded by the wormhole-sites ingest stay
  * intact with their current prices.
  */
-export async function seedTrackedTypes(db: PostgresJsDb): Promise<SeedSummary> {
+async function seedTrackedTypes(db: PostgresJsDb): Promise<SeedSummary> {
   const tracked = await listTrackedTypeIds(db);
   const missing = await listMissingTypeIds(db, tracked);
   if (missing.length === 0) {

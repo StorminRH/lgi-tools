@@ -110,7 +110,7 @@ export const systemSearchEntrySchema = z.object({
  * Boundary validator for systems response schema; successful parsing yields the normalized eve
  * data input consumed internally.
  */
-export const systemsResponseSchema = z.object({
+const systemsResponseSchema = z.object({
   systems: z.array(systemSearchEntrySchema),
 });
 /** Solar-system search response containing normalized ID, name, security, and region fields. */
@@ -143,7 +143,7 @@ export const universeAssetVersionParamsSchema = z.object({
 });
 
 /** Current SDE build identifier used to address immutable universe assets. */
-export const universeAssetManifestResponseSchema = z.object({
+const universeAssetManifestResponseSchema = z.object({
   version: universeAssetVersionSchema,
 });
 
@@ -155,7 +155,7 @@ const systemDirectoryEntrySchema = z.object({
 });
 
 /** Versioned solar-system directory response. */
-export const systemDirectoryResponseSchema = z.object({
+const systemDirectoryResponseSchema = z.object({
   version: universeAssetVersionSchema,
   systems: z.array(systemDirectoryEntrySchema),
 }) satisfies z.ZodType<SystemDirectoryAsset>;
@@ -166,7 +166,7 @@ const adjacencyEntrySchema = z.tuple([
 ]);
 
 /** Versioned stargate-adjacency response. */
-export const adjacencyResponseSchema = z.object({
+const adjacencyResponseSchema = z.object({
   version: universeAssetVersionSchema,
   adjacency: z.array(adjacencyEntrySchema),
 }) satisfies z.ZodType<AdjacencyAsset>;
@@ -190,13 +190,13 @@ const farSideWormholeCodexEntrySchema = z.object({
 });
 
 /** Boundary validator for every typed or far-side wormhole codex row. */
-export const wormholeCodexEntrySchema = z.discriminatedUnion('farSide', [
+const wormholeCodexEntrySchema = z.discriminatedUnion('farSide', [
   typedWormholeCodexEntrySchema,
   farSideWormholeCodexEntrySchema,
 ]) satisfies z.ZodType<WormholeCodexEntry>;
 
 /** Versioned wormhole-type codex response. */
-export const wormholeCodexResponseSchema = z.object({
+const wormholeCodexResponseSchema = z.object({
   version: universeAssetVersionSchema,
   types: z.array(wormholeCodexEntrySchema),
 }) satisfies z.ZodType<WormholeCodexAsset>;

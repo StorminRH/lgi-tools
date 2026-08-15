@@ -54,7 +54,7 @@ export type ChainEdgeData = {
  * document ids, which can never start with this, so the two id families
  * cannot collide and interaction seams can cheaply tell them apart.
  */
-export const HALO_EDGE_ID_PREFIX = 'halo:';
+const HALO_EDGE_ID_PREFIX = 'halo:';
 
 /** Synthetic node-id family for unresolved wormhole connection rows. */
 export const STUB_NODE_ID_PREFIX = 'stub:';

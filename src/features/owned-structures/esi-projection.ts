@@ -16,7 +16,7 @@ import { z } from 'zod';
  * the structure) but kept optional so a single nameless structure never fails the
  * whole-body parse — it stores a null name and the selector falls back to the type.
  */
-export const corpStructureSchema = z.object({
+const corpStructureSchema = z.object({
   structure_id: z.number().int(),
   type_id: z.number().int(),
   system_id: z.number().int(),

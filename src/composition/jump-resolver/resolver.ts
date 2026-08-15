@@ -47,7 +47,7 @@ const CAPSULE_TYPE_ID = 670;
  * open (laptop shut, map closed for days) lapses to re-anchor semantics
  * instead of authoring a long-dead crossing as current map fact.
  */
-export const JUMP_CAPTURE_WINDOW_MS = 10 * 60_000;
+const JUMP_CAPTURE_WINDOW_MS = 10 * 60_000;
 
 /** Injectable runtime seams for deterministic route/composition proof. */
 export interface JumpResolverDependencies {
