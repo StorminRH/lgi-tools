@@ -25,15 +25,13 @@ function line(
 }
 
 describe('origin lead encoding', () => {
-  it('round-trips a connection id and ignores class hints', () => {
+  it('round-trips origin leads and routes picks to link vs setLeadsTo', () => {
     expect(encodeOriginLead('conn-1')).toBe('origin:conn-1');
     expect(decodeOriginLead('origin:conn-1')).toBe('conn-1');
     expect(decodeOriginLead('hisec')).toBeNull();
     expect(decodeOriginLead(null)).toBeNull();
     expect(decodeOriginLead('origin:')).toBeNull();
-  });
 
-  it('routes an origin pick to link and a class hint to setLeadsTo', () => {
     const onLinkOrigin = vi.fn();
     const onChangeHint = vi.fn();
     dispatchLeadsToChange('origin:inbound-1', onLinkOrigin, onChangeHint);
@@ -51,15 +49,24 @@ describe('origin lead encoding', () => {
 });
 
 describe('originLeadCandidates', () => {
-  it('offers a sig-less inbound whose other end is a live system', () => {
+  it('offers live sig-less inbounds from either orientation and skips stubs, tombs, and linked sides', () => {
     expect(
       originLeadCandidates(STUB_SYSTEM, 'stub-1', [
         line({ connectionId: 'inbound' }),
       ]),
     ).toEqual([{ connectionId: 'inbound', systemId: ORIGIN_SYSTEM }]);
-  });
 
-  it('skips the stub itself, tombstones, unresolved rows, and already-linked sides', () => {
+    expect(
+      originLeadCandidates(STUB_SYSTEM, 'stub-1', [
+        line({
+          connectionId: 'from-here',
+          fromSystemId: STUB_SYSTEM,
+          toSystemId: ORIGIN_SYSTEM,
+          fromSignatureId: null,
+        }),
+      ]),
+    ).toEqual([{ connectionId: 'from-here', systemId: ORIGIN_SYSTEM }]);
+
     expect(
       originLeadCandidates(STUB_SYSTEM, 'stub-1', [
         line({ connectionId: 'stub-1', fromSystemId: STUB_SYSTEM, toSystemId: null }),
@@ -73,18 +80,5 @@ describe('originLeadCandidates', () => {
         }),
       ]),
     ).toEqual([]);
-  });
-
-  it('reads the origin from either endpoint orientation', () => {
-    expect(
-      originLeadCandidates(STUB_SYSTEM, 'stub-1', [
-        line({
-          connectionId: 'from-here',
-          fromSystemId: STUB_SYSTEM,
-          toSystemId: ORIGIN_SYSTEM,
-          fromSignatureId: null,
-        }),
-      ]),
-    ).toEqual([{ connectionId: 'from-here', systemId: ORIGIN_SYSTEM }]);
   });
 });

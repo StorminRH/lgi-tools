@@ -593,14 +593,15 @@ describe('engine chain-on-success', () => {
     expect(await scheduledSyncUsers(t)).toHaveLength(1);
   });
 
-  it('chains a failed completion at the cadence floor while presence is fresh', async () => {
+  it('chains a failed completion at the cadence floor while presence is fresh, and never when cold', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
-    const t = convexTest(schema, modules);
-    stubDispatch();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const fresh = convexTest(schema, modules);
+    stubDispatch();
     const now = Date.now();
-    await t.run(async (ctx) => {
+    await fresh.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({
         dataset: 'characterLocation',
         status: 'running',
@@ -617,30 +618,30 @@ describe('engine chain-on-success', () => {
       });
     });
 
-    await callLocationComplete(t, { kind: 'failed', error: 'boom' });
+    await callLocationComplete(fresh, { kind: 'failed', error: 'boom' });
 
     const boundary = now + 5_000;
-    const subject = await t.run((ctx) =>
+    const freshSubject = await fresh.run((ctx) =>
       ctx.db
         .query('syncSubjects')
         .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
-    expect(subject?.status).toBe('idle');
-    expect(subject?.nextDueAt).toBe(boundary);
-    expect(subject?.lastError?.startsWith('sync_failed:')).toBe(true);
+    expect(freshSubject?.status).toBe('idle');
+    expect(freshSubject?.nextDueAt).toBe(boundary);
+    expect(freshSubject?.lastError?.startsWith('sync_failed:')).toBe(true);
 
-    const pending = await scheduledChainDispatches(t);
+    const pending = await scheduledChainDispatches(fresh);
     expect(pending).toHaveLength(1);
     expect(pending[0]?.scheduledTime).toBe(boundary);
 
     vi.setSystemTime(boundary);
-    await t.mutation(internal.engine.chainDispatch, {
+    await fresh.mutation(internal.engine.chainDispatch, {
       dataset: 'characterLocation',
       userId: USER,
     });
 
-    const afterHop = await t.run((ctx) =>
+    const afterHop = await fresh.run((ctx) =>
       ctx.db
         .query('syncSubjects')
         .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
@@ -648,14 +649,10 @@ describe('engine chain-on-success', () => {
     );
     expect(afterHop?.status).toBe('running');
     expect(afterHop?.workId).toBe(String(Date.now()));
-    expect(await scheduledSyncUsers(t)).toHaveLength(1);
-  });
+    expect(await scheduledSyncUsers(fresh)).toHaveLength(1);
 
-  it('never chains a failed completion when presence is cold', async () => {
-    const t = convexTest(schema, modules);
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const now = Date.now();
-    await t.run(async (ctx) => {
+    const cold = convexTest(schema, modules);
+    await cold.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({
         dataset: 'characterLocation',
         status: 'running',
@@ -672,18 +669,18 @@ describe('engine chain-on-success', () => {
       });
     });
 
-    await callLocationComplete(t, { kind: 'failed', error: 'boom' });
+    await callLocationComplete(cold, { kind: 'failed', error: 'boom' });
 
-    expect(await scheduledChainDispatches(t)).toHaveLength(0);
-    const subject = await t.run((ctx) =>
+    expect(await scheduledChainDispatches(cold)).toHaveLength(0);
+    const coldSubject = await cold.run((ctx) =>
       ctx.db
         .query('syncSubjects')
         .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
-    expect(subject?.status).toBe('idle');
-    expect(typeof subject?.nextDueAt).toBe('number');
-    expect(subject?.lastError?.startsWith('sync_failed:')).toBe(true);
+    expect(coldSubject?.status).toBe('idle');
+    expect(typeof coldSubject?.nextDueAt).toBe('number');
+    expect(coldSubject?.lastError?.startsWith('sync_failed:')).toBe(true);
   });
 
   it('never chains a cold-presence completion', async () => {

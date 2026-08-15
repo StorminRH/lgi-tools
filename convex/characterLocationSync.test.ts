@@ -421,11 +421,12 @@ describe('characterLocationSync.syncUser', () => {
     expect(subject?.syncedCharacterIds).toEqual([101]);
   });
 
-  it('keeps the last-known doc on ESI 4xx', async () => {
+  it('keeps the last-known doc on ESI 403, drops a held lease, and does not vend', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
     await seedTracking(t);
     await seedOnline(t);
+    await seedLease(t);
     await t.run((ctx) =>
       ctx.db.insert('characterLocation', {
         userId: USER,
@@ -441,26 +442,13 @@ describe('characterLocationSync.syncUser', () => {
         etagShip: 'ship0',
       }),
     );
-    stubFetch({ esi: () => new Response(null, { status: 403 }) });
+    const fetchFn = stubFetch({ esi: () => new Response(null, { status: 403 }) });
 
     await run(t);
 
     const doc = await readDoc(t);
     expect(doc?.solarSystemId).toBe(SYSTEM_A);
     expect(doc?.etagLocation).toBe('loc0');
-    expect(await readLease(t)).toBeNull();
-  });
-
-  it('drops a held access lease on ESI 403 without vending this run', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    await seedLease(t);
-    const fetchFn = stubFetch({ esi: () => new Response(null, { status: 403 }) });
-
-    await run(t);
-
     expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
     expect(await readLease(t)).toBeNull();
   });
@@ -586,14 +574,9 @@ describe('characterLocationSync.syncUser', () => {
     expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(true);
   });
 
-  it('reuses a still-valid access lease and skips the Neon vend', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    await seedLease(t);
-    const fetchFn = stubFetch({
-      esi: (url) => {
+  it('reuses a still-valid access lease and re-vends once Neon expiresAt lapses', async () => {
+    const locationShip = {
+      esi: (url: string) => {
         if (url.includes('/location')) {
           return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
         }
@@ -602,38 +585,29 @@ describe('characterLocationSync.syncUser', () => {
         }
         throw new Error(`unexpected esi ${url}`);
       },
-    });
+    };
 
-    await run(t);
+    const held = convexTest(schema, modules);
+    await seedSubject(held);
+    await seedTracking(held);
+    await seedOnline(held);
+    await seedLease(held);
+    const heldFetch = stubFetch(locationShip);
+    await run(held);
+    expect(heldFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+    expect(heldFetch.mock.calls.some(([u]) => String(u).includes('/eve-characters'))).toBe(false);
+    expect((await readDoc(held))?.solarSystemId).toBe(SYSTEM_A);
+    expect((await readLease(held))?.accessToken).toBe('leased-tok');
 
-    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/eve-characters'))).toBe(false);
-    expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
-    expect((await readLease(t))?.accessToken).toBe('leased-tok');
-  });
-
-  it('vends again when the held lease is at or past Neon expiresAt', async () => {
-    const t = convexTest(schema, modules);
-    await seedSubject(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    await seedLease(t, { expiresAt: Date.now() - 1, accessToken: 'stale-tok' });
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        if (url.includes('/location')) {
-          return jsonResponse({ solar_system_id: SYSTEM_A }, RL);
-        }
-        if (url.includes('/ship')) {
-          return jsonResponse({ ship_type_id: SHIP_A }, { ...RL, ETag: 'ship1' });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
-
-    await run(t);
-
-    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
-    expect(await readLease(t)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-    expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
+    const stale = convexTest(schema, modules);
+    await seedSubject(stale);
+    await seedTracking(stale);
+    await seedOnline(stale);
+    await seedLease(stale, { expiresAt: Date.now() - 1, accessToken: 'stale-tok' });
+    const staleFetch = stubFetch(locationShip);
+    await run(stale);
+    expect(staleFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
+    expect(await readLease(stale)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    expect((await readDoc(stale))?.solarSystemId).toBe(SYSTEM_A);
   });
 });
