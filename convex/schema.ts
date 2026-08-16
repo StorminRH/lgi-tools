@@ -101,6 +101,9 @@ export default defineSchema({
     // Last beating Atlas tab. Leave retires only when this matches, so a
     // second open tab or a reload's new mount is not killed by a stale close.
     tabId: v.optional(v.string()),
+    // Tab that just left. A delayed beat from this id must not warm presence
+    // or re-arm the subject; a different tab clears it and may recover.
+    leftTabId: v.optional(v.string()),
   })
     .index('by_user_dataset', ['userId', 'dataset'])
     // The sweep's two presence-driven passes range over this: rows within the

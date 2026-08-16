@@ -195,6 +195,10 @@ export const heartbeat = mutation({
     if (!isRegisteredDataset(dataset)) return;
     const userId = identity.subject;
     const now = Date.now();
+    const presence = await getPresence(ctx.db, dataset, userId);
+    // A leave fence: the closing tab's in-flight beat must not undo retire.
+    // A different tab (or a reload's new id) is allowed to recover.
+    if (presence !== null && isLeftTab(presence.leftTabId, tabId)) return;
 
     // Presence first, for every reason — into syncPresence, never the subject
     // row. This is the decoupling: a steady-state interval beat writes only
@@ -273,7 +277,7 @@ async function upsertPresence(
   const presence = await getPresence(ctx.db, dataset, userId);
   const wasCold =
     presence !== null && isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now);
-  const tabFields = tabId === undefined ? {} : { tabId };
+  const tabFields = tabId === undefined ? {} : { tabId, leftTabId: '' };
   if (presence === null) {
     await ctx.db.insert('syncPresence', {
       dataset,
@@ -326,10 +330,17 @@ export const leave = internalMutation({
       await ctx.db.patch(presence._id, {
         lastSeenAt: coldAt,
         lastVisibleAt: coldAt,
+        leftTabId: tabId,
       });
     }
     const subject = await getSyncSubject(ctx.db, dataset, userId);
     if (subject !== null) {
+      // Fence in-flight work: apply guards on lastRequestedAt, completion
+      // guards on workId. nextDueAt null also stops a scheduled chain hop.
+      await ctx.db.patch(subject._id, {
+        lastRequestedAt: 0,
+        workId: null,
+      });
       await retireFromScan(ctx, subject);
     } else if (dataset === 'characterLocation') {
       await clearCoverageForUser(ctx, userId);
@@ -337,6 +348,11 @@ export const leave = internalMutation({
     return { retired: true };
   },
 });
+
+/** True when this beat belongs to a tab that already left. */
+function isLeftTab(leftTabId: string | undefined, tabId: string | undefined): boolean {
+  return leftTabId !== undefined && leftTabId !== '' && (tabId === undefined || tabId === leftTabId);
+}
 
 /**
  * The 30s dispatcher (convex/crons.ts): one indexed range over due
