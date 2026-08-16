@@ -1,26 +1,40 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 import {
   SystemIntelligenceBody,
   SystemTitleAccessory,
 } from './SystemIntelligenceBody';
 
-// Mutable fixture facts so each case drives the mocked node-data selectors.
+// Mutable fixture facts so each case drives the mocked directory lookup.
 const fields = {
+  name: 'J123456',
   security: -1 as number | null,
   whClassId: 5 as number | null,
 };
+
+const assets = vi.hoisted(() => ({
+  systemInfo: vi.fn<(id: number) => SystemDirectoryEntry | null>(() => null),
+}));
 
 vi.mock('@/components/use-entity-names', () => ({ useEntityNames: () => ({}) }));
 vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }));
 vi.mock('../signatures/signature-context', () => ({
   useSignatureCounts: () => ({ signatures: 3, anomalies: 2 }),
 }));
-vi.mock('./node-fields', () => ({
-  useNodeDataNumber: (_systemId: number, field: string) =>
-    field === 'whClassId' ? fields.whClassId : fields.security,
+vi.mock('../chain/use-map-chain', () => ({
+  useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
 }));
+
+function directoryEntry(): SystemDirectoryEntry {
+  return {
+    id: 1,
+    name: fields.name,
+    security: fields.security,
+    whClassId: fields.whClassId,
+  };
+}
 
 function bodyMarkup(): string {
   return renderToStaticMarkup(createElement(SystemIntelligenceBody, { systemId: 1 }));
@@ -32,7 +46,8 @@ function titleAccessoryMarkup(): string {
 
 describe('SystemIntelligenceBody', () => {
   it('renders class or security as a title accessory and omits it until data resolves', () => {
-    Object.assign(fields, { security: -1, whClassId: 5 });
+    assets.systemInfo.mockImplementation(() => directoryEntry());
+    Object.assign(fields, { name: 'J123456', security: -1, whClassId: 5 });
 
     const accessory = titleAccessoryMarkup();
     expect(accessory).toContain('data-identity-readout');
@@ -49,13 +64,16 @@ describe('SystemIntelligenceBody', () => {
     expect(body).not.toContain('-1.0');
     expect(body).toContain('3 signatures · 2 anomalies');
 
-    Object.assign(fields, { security: 0.946, whClassId: null });
+    Object.assign(fields, { name: 'Jita', security: 0.946, whClassId: null });
     const kspace = titleAccessoryMarkup();
     expect(kspace).toContain('>0.9<');
     expect(kspace).toContain('text-sec-09');
     expect(kspace).not.toContain('Jita');
 
-    Object.assign(fields, { security: null, whClassId: null });
+    Object.assign(fields, { name: '30000142', security: null, whClassId: null });
+    expect(titleAccessoryMarkup()).toBe('');
+
+    assets.systemInfo.mockReturnValue(null);
     expect(titleAccessoryMarkup()).toBe('');
   });
 });

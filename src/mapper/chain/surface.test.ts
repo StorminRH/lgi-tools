@@ -225,7 +225,7 @@ describe('mapper source contract', () => {
       'windows/MapWindowLeader.tsx',
       'windows/SystemIntelligenceBody.tsx',
       'windows/follower-model.ts',
-      'windows/node-fields.ts',
+      'windows/use-system-label.ts',
       'windows/window-model.ts',
     ]);
   });
@@ -267,13 +267,15 @@ describe('mapper source contract', () => {
   });
 
   it('keeps the window layer off the hot nodes array', () => {
-    // PD-4: selection/title come from equality-stable store selectors so
+    // PD-4: selection stays on an equality-stable store selector so
     // position-only drag frames cannot re-render hosted window content.
+    // Titles come from the session directory, not node data, so off-map
+    // k-space still names.
     const layer = sourceOf('windows/MapWindowLayer.tsx');
     const host = sourceOf('chain/ChainHost.tsx');
     expect(layer).not.toMatch(/readonly nodes:/);
     expect(layer).toContain('useSelectedSystemIds');
-    expect(layer).toContain('useNodeName');
+    expect(layer).toContain('useSystemLabel');
     expect(host).not.toMatch(/MapWindowLayer[\s\S]*nodes=\{nodes\}/);
   });
 

@@ -24,11 +24,11 @@ import {
   reconcileStack,
   type MapWindowId,
 } from './window-model';
-import { useNodeDataString } from './node-fields';
 import {
   SystemIntelligenceBody,
   SystemTitleAccessory,
 } from './SystemIntelligenceBody';
+import { useSystemLabel } from './use-system-label';
 
 const subscribeMounted = () => () => undefined;
 const clientMountedSnapshot = () => true;
@@ -51,11 +51,6 @@ function useSelectedSystemIds(): readonly number[] {
         .map((node) => Number(node.id)),
     sameSelectedIds,
   );
-}
-
-/** One node's display name; position-only updates leave the string identity stable. */
-function useNodeName(systemId: number | null): string | undefined {
-  return useNodeDataString(systemId, 'name') ?? undefined;
 }
 
 function useSurfacePresence(input: {
@@ -248,8 +243,8 @@ function MountedMapWindowLayer({
     selectedIds,
   });
   const { renderedStack, activate } = useWindowStack(liveIds);
-  const dockTitleName = useNodeName(dockSystemId);
-  const summaryTitle = useNodeName(summarySystemId);
+  const dockTitleName = useSystemLabel(dockSystemId)?.name;
+  const summaryTitle = useSystemLabel(summarySystemId)?.name;
   const followerStore = useMemo<NodeFollowerStore>(
     () => ({
       getState: () => store.getState(),

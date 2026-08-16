@@ -10,11 +10,10 @@
 // widget readouts (gas, anomalies) append as sibling sections without
 // restructuring.
 //
-// Identity facts come from the same node data the canvas renders
-// (equality-stable store selectors, never the hot nodes array — the 4.0.3.3
-// window-layer rule); presence comes from the shared context; pilot names
-// resolve through the shared /api/eve/names hook, with row assembly in the
-// tested presence model.
+// Identity facts come from the session directory (off-map k-space still
+// names); presence comes from the shared context; pilot names resolve
+// through the shared /api/eve/names hook, with row assembly in the tested
+// presence model.
 import { cn } from '@/components/ui/cn';
 import { useEntityNames } from '@/components/use-entity-names';
 import { systemClassificationReadout } from '@/data/eve-data/system-identity';
@@ -25,7 +24,7 @@ import {
   type PresenceStatusWord,
 } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
-import { useNodeDataNumber } from './node-fields';
+import { useSystemLabel } from './use-system-label';
 
 const NO_PILOTS: readonly never[] = [];
 
@@ -50,11 +49,10 @@ export function SystemTitleAccessory({
 }: {
   readonly systemId: number;
 }) {
-  const security = useNodeDataNumber(systemId, 'security');
-  const whClassId = useNodeDataNumber(systemId, 'whClassId');
+  const label = useSystemLabel(systemId);
   const classification = systemClassificationReadout({
-    security,
-    whClassId,
+    security: label?.security ?? null,
+    whClassId: label?.whClassId ?? null,
   });
   if (classification === null) return null;
   return (
