@@ -360,23 +360,31 @@ export function SignatureProvider({
         onOpenEditor={panel.openEditor}
         onOpenSite={panel.openSite}
         originLeadConnections={[...connectionDetails.values()]}
-        bindConnectionSetters={(connection) =>
-          connectionFieldSetters(mapId, connection, authoring, (value) => {
-            if (connection.toSystemId !== null) {
-              void applyWormholeType({
+        bindConnectionSetters={(connection, side) =>
+          connectionFieldSetters(
+            mapId,
+            connection,
+            authoring,
+            (value) => {
+              if (connection.toSystemId !== null) {
+                void applyWormholeType({
+                  mapId,
+                  connection: connection as ConnectionDetail,
+                  value,
+                  side,
+                  authoring,
+                });
+                return;
+              }
+              void authoring.setConnectionWormholeType({
                 mapId,
-                connection: connection as ConnectionDetail,
+                connection,
                 value,
-                authoring,
+                side,
               });
-              return;
-            }
-            void authoring.setConnectionWormholeType({
-              mapId,
-              connection,
-              value,
-            });
-          })
+            },
+            side,
+          )
         }
       />
       <ActiveScannerPanel

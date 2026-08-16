@@ -8,6 +8,7 @@ import { OutboundArrowContext } from '../tracking/outbound-arrow-context';
 import type { OutboundArrow } from '../tracking/pilot-path';
 import type { PresencePilot, SystemPresence } from '../tracking/presence-model';
 import {
+  CHAIN_EDGE_INTERACTION_WIDTH,
   ChainLinkEdge,
   edgeMotionClass,
   edgePresentation,
@@ -411,6 +412,7 @@ test('edge motion classes map fade/grow/rev/heavy/dying and loop dash', () => {
   );
   expect(edgePresentation({ loop: false, tombstoneState: 'active' }).className).toBeUndefined();
   expect(edgePresentation({ loop: false, stub: true }).className).toBe('map-edge-derived');
+  expect(CHAIN_EDGE_INTERACTION_WIDTH).toBeGreaterThan(20);
 });
 
 test('chip font size keeps short labels and shrinks overflow to the disc', () => {

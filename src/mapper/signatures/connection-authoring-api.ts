@@ -90,12 +90,14 @@ export async function applyWormholeType(input: {
   readonly mapId: string;
   readonly connection: ConnectionDetail;
   readonly value: string | null;
+  readonly side?: 'from' | 'to';
   readonly authoring: ConnectionAuthoringApi;
 }): Promise<void> {
   const result = await input.authoring.setConnectionWormholeType({
     mapId: input.mapId,
     connection: input.connection,
     value: input.value,
+    side: input.side,
   });
   if (result === undefined) return;
   await postJumpRequest({

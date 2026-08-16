@@ -172,9 +172,11 @@ describe('map chain fixtures', () => {
           'eolAt',
           'firstSeenAt',
           'fromDestinationHint',
+          'fromDestinationSystemId',
           'fromSignalPct',
           'fromSignatureId',
           'fromSystemId',
+          'fromWormholeTypeCode',
           'lifeStage',
           'lifeStageObservedAt',
           'mapId',
@@ -187,8 +189,10 @@ describe('map chain fixtures', () => {
           'purgeAfter',
           'shipSize',
           'toDestinationHint',
+          'toDestinationSystemId',
           'toSignatureId',
           'toSystemId',
+          'toWormholeTypeCode',
           'typeProvenance',
           'typedSide',
           'wormholeTypeCode',
@@ -481,8 +485,7 @@ describe('map chain fixtures', () => {
       expect(after.bookkeeping).toEqual([]);
     });
 
-    // ── 4.0.4.2.3 — the probe-controlled subject-freshness stamp behind
-    //    mapTracking.feedFreshness ──────────────────────────────────────────
+    // ── 4.0.4.2.3 — the probe-controlled subject-freshness stamp ───────────
     it('stamps the owner\'s characterLocation subject freshness on seed and advance', async () => {
       const t = convexTest(schema, modules);
       const readSubject = () =>
@@ -506,7 +509,7 @@ describe('map chain fixtures', () => {
       const seeded = await readSubject();
       // Absent subject → a minimal idle row is created; the stamp defaults to
       // the transition time and covers the fixture character, exactly as a
-      // real clean run would — feedFreshness reads fresh only for covered ids.
+      // real clean run would.
       expect(seeded).toMatchObject({
         dataset: 'characterLocation',
         userId: EDITOR,

@@ -43,6 +43,18 @@ describe('node label resolution', () => {
       whClassId: null,
     });
 
+    expect(
+      resolveSystemLabel(
+        JITA,
+        directory([{ id: JITA, name: 'Jita', whClassId: null, security: 0.946 }]),
+      ),
+    ).toEqual({
+      name: 'Jita',
+      className: null,
+      security: 0.946,
+      whClassId: null,
+    });
+
     // Unknown system and an unloaded directory both fall back to the bare id
     // with no class chip — HC-5: unloaded is not a loading state.
     const bare = {

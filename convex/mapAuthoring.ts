@@ -33,6 +33,8 @@ import {
 } from './lib/mapChainCleanup';
 import { deleteSignatureActivity } from './lib/mapSignatures';
 import { stampObservationKey } from './lib/observationKey';
+import { doorDestination } from '@/data/maps/connection-door-destinations';
+import { connectionTypePatch } from '@/data/maps/connection-door-types';
 import {
   beginSystemEdit,
   findSystem,
@@ -353,6 +355,8 @@ async function addFromNode(
     fromSystemId,
     toSystemId,
     wormholeTypeCode: null,
+    fromWormholeTypeCode: null,
+    toWormholeTypeCode: null,
     massState: null,
     shipSize: null,
     eolAt: null,
@@ -474,12 +478,13 @@ export const setConnectionWormholeType = mutation({
     mapId: v.string(),
     connectionId: v.id('mapConnections'),
     value: wormholeTypeCodeValidator,
+    side: v.optional(typedSideValidator),
     deathEarliestAt: optionalTimestampValidator,
     deathLatestAt: optionalTimestampValidator,
   },
   handler: async (
     ctx,
-    { mapId, connectionId, value, deathEarliestAt, deathLatestAt },
+    { mapId, connectionId, value, side, deathEarliestAt, deathLatestAt },
   ) => {
     // Gate before semantic validation so unauthorized callers never learn
     // whether a code is well-formed (HC-2 / gate-first).
@@ -494,23 +499,27 @@ export const setConnectionWormholeType = mutation({
       deathEarliestAt,
       deathLatestAt,
     });
+    const door = side ?? 'from';
+    const typePatch = connectionTypePatch(connection, door, value);
     const identityPatch = value === null
       ? {
-          typedSide: undefined,
+          ...typePatch,
           typeProvenance: undefined,
           pendingCandidates: undefined,
           pendingResolutionCharacterId: undefined,
         }
       : {
-          typedSide: connection.typedSide ?? ('from' as const),
+          ...typePatch,
           typeProvenance: 'human' as const,
           pendingCandidates: undefined,
           pendingResolutionCharacterId: undefined,
         };
     if (
-      connection.wormholeTypeCode === value
-      && connection.typedSide === identityPatch.typedSide
-      && connection.typeProvenance === identityPatch.typeProvenance
+      connection.fromWormholeTypeCode === typePatch.fromWormholeTypeCode
+      && connection.toWormholeTypeCode === typePatch.toWormholeTypeCode
+      && connection.wormholeTypeCode === typePatch.wormholeTypeCode
+      && connection.typedSide === typePatch.typedSide
+      && connection.typeProvenance === (value === null ? undefined : 'human')
       && connection.pendingCandidates === undefined
       && connection.pendingResolutionCharacterId === undefined
       && sameDeathWindow(connection, window)
@@ -518,7 +527,6 @@ export const setConnectionWormholeType = mutation({
       return { changed: false };
     }
     await ctx.db.patch(connectionId, {
-      wormholeTypeCode: value,
       ...identityPatch,
       // Typing a hole makes it observation-eligible, so a row that was never
       // jump-authored takes its dedupe key from the shared stamping rule.
@@ -575,112 +583,69 @@ export const setConnectionDestinationHint = mutation({
   handler: async (ctx, { mapId, connectionId, side, value }) => {
     const connection = await requireLiveConnection(ctx, mapId, connectionId);
     const field = side === 'from' ? 'fromDestinationHint' : 'toDestinationHint';
+    const destField = side === 'from'
+      ? 'fromDestinationSystemId'
+      : 'toDestinationSystemId';
     const normalized = value ?? undefined;
     if (
       connection[field] === normalized
-      && (normalized === undefined || connection.toSystemId === null)
-      && connection.pendingCandidates === undefined
-      && connection.pendingResolutionCharacterId === undefined
+      && (normalized === undefined || connection[destField] === undefined)
     ) {
       return { changed: false };
     }
-    if (normalized !== undefined) {
-      await ctx.db.patch(connectionId, {
-        [field]: normalized,
-        toSystemId: null,
-        toSignatureId: undefined,
-        destinationProvenance: undefined,
-        pendingCandidates: undefined,
-        pendingResolutionCharacterId: undefined,
-      });
-      return { changed: true };
-    }
     await ctx.db.patch(connectionId, {
-      [field]: undefined,
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
+      [field]: normalized,
+      [destField]: undefined,
     });
     return { changed: true };
   },
 });
 
-function destinationEqualityCleanup(
-  connection: Doc<'mapConnections'>,
-  toSystemId: number | null,
-): Partial<Doc<'mapConnections'>> | null {
-  const hasPending =
-    connection.pendingCandidates !== undefined
-    || connection.pendingResolutionCharacterId !== undefined;
-  if (toSystemId === null) {
-    const hasHint =
-      connection.fromDestinationHint !== undefined
-      || connection.toDestinationHint !== undefined;
-    if (!hasHint && !hasPending) return null;
-    return {
-      fromDestinationHint: undefined,
-      toDestinationHint: undefined,
-      destinationProvenance: undefined,
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
-    };
-  }
-  if (connection.destinationProvenance === 'human' && !hasPending) return null;
-  return {
-    destinationProvenance: 'human',
-    pendingCandidates: undefined,
-    pendingResolutionCharacterId: undefined,
-  };
-}
-
 /**
- * Retargets or clears a connection's resolved destination. A human correction
- * keeps the hole (type, mass, life, near-side signature) and points it at a
- * different system — or back to an unresolved stub. Not sever: the old
- * destination system stays on the map. If that leftover loses every path to
- * the root it parks as a layout orphan until a live island edge is severed.
+ * Writes one door's Leads-to note. Does not move either location, spawn a
+ * system, or drop a signature. A value that matches the other location
+ * clears the override so display falls back to that location.
  */
 export const setConnectionDestination = mutation({
   args: {
     mapId: v.string(),
     connectionId: v.id('mapConnections'),
-    toSystemId: v.union(v.number(), v.null()),
+    side: typedSideValidator,
+    value: v.union(v.number(), v.null()),
   },
-  handler: async (ctx, { mapId, connectionId, toSystemId }) => {
+  handler: async (ctx, { mapId, connectionId, side, value }) => {
     const connection = await requireLiveConnection(ctx, mapId, connectionId);
-    if (connection.toSystemId === toSystemId) {
-      const cleanup = destinationEqualityCleanup(connection, toSystemId);
-      if (cleanup === null) return { changed: false };
-      await ctx.db.patch(connectionId, cleanup);
-      return { changed: true };
+    const destField = side === 'from'
+      ? 'fromDestinationSystemId'
+      : 'toDestinationSystemId';
+    const hintField = side === 'from' ? 'fromDestinationHint' : 'toDestinationHint';
+    const here = side === 'from' ? connection.fromSystemId : connection.toSystemId;
+    const derived = doorDestination(
+      connection.fromSystemId,
+      connection.toSystemId,
+      side,
+    );
+    let next: number | undefined;
+    if (value !== null) {
+      requireSystemId(value);
+      if (here !== null && value === here) {
+        throw new ConvexError({
+          code: 'SELF_LOOP',
+          detail: 'A connection must join two distinct systems.',
+        });
+      }
+      next = value === derived ? undefined : value;
     }
-    if (toSystemId === null) {
-      await ctx.db.patch(connectionId, {
-        toSystemId: null,
-        toSignatureId: undefined,
-        fromDestinationHint: undefined,
-        toDestinationHint: undefined,
-        destinationProvenance: undefined,
-        pendingCandidates: undefined,
-        pendingResolutionCharacterId: undefined,
-      });
-      return { changed: true };
+    const already = connection[destField];
+    if (
+      already === next
+      && (value !== null || connection[hintField] === undefined)
+    ) {
+      return { changed: false };
     }
-    requireSystemId(toSystemId);
-    if (toSystemId === connection.fromSystemId) {
-      throw new ConvexError({
-        code: 'SELF_LOOP',
-        detail: 'A connection must join two distinct systems.',
-      });
-    }
-    await upsertLiveDestination(ctx, mapId, toSystemId);
     await ctx.db.patch(connectionId, {
-      toSystemId,
-      toSignatureId: undefined,
-      fromDestinationHint: undefined,
-      toDestinationHint: undefined,
-      destinationProvenance: 'human',
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
+      [destField]: next,
+      [hintField]: undefined,
     });
     return { changed: true };
   },

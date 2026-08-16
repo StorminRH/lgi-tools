@@ -24,6 +24,11 @@ import {
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoring';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import {
+  connectionDoorTypes,
+  legacyTypeSnapshot,
+  storedDoorTypes,
+} from '@/data/maps/connection-door-types';
 
 /** Fail-closed bounds for one map's hot tracking and candidate ranges. */
 const JUMP_TRACKING_SCAN_CAP = 256;
@@ -183,22 +188,15 @@ async function readUnresolvedCandidates(
 
 /**
  * Typed codes of every live scanned origin-side wormhole row — resolved rows
- * included, so an already-resolved static keeps satisfying the census. Rows
- * typed from the far side (`typedSide: 'to'`) show K162 at this origin and
- * carry no origin-side code.
+ * included, so an already-resolved static keeps satisfying the census. The
+ * origin door is the code seen in this system; a blank origin door is omitted.
  */
 function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
-  return rows
-    .filter(
-      (row) =>
-        !isTombstoned(row)
-        && row.wormholeTypeCode !== null
-        && row.typedSide !== 'to',
-    )
-    .map((row) => {
-      // Non-null was proved in the filter above.
-      return row.wormholeTypeCode!;
-    });
+  return rows.flatMap((row) => {
+    if (isTombstoned(row)) return [];
+    const originType = storedDoorTypes(row).from;
+    return originType === null ? [] : [originType];
+  });
 }
 
 /** Reads both exact endpoint directions within explicit per-range bounds. */
@@ -234,12 +232,16 @@ function validObservedMass(value: number | null): number | null {
 }
 
 function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
+  const snapshot = legacyTypeSnapshot(
+    connectionDoorTypes(connection),
+    connection.typedSide ?? undefined,
+  );
   return {
     connectionId: connection._id,
     fromSystemId: connection.fromSystemId,
     toSystemId: connection.toSystemId,
-    wormholeTypeCode: connection.wormholeTypeCode,
-    typedSide: connection.typedSide ?? null,
+    wormholeTypeCode: snapshot.wormholeTypeCode,
+    typedSide: snapshot.typedSide ?? null,
     destinationProvenance: connection.destinationProvenance ?? null,
     observationKey: connection.observationKey ?? null,
   };
@@ -405,6 +407,8 @@ function connectionBase(
     fromSystemId,
     toSystemId,
     wormholeTypeCode: null,
+    fromWormholeTypeCode: null,
+    toWormholeTypeCode: null,
     massState: null,
     shipSize: null,
     eolAt: null,

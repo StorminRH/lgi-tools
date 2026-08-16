@@ -60,6 +60,7 @@ describe('connectionFieldSetters', () => {
       mapId: 'map-a',
       connection: CONNECTION,
       value: 'B274',
+      side: 'from',
     });
     expect(api.setConnectionLifeStage).toHaveBeenCalledWith({
       mapId: 'map-a',
@@ -89,19 +90,61 @@ describe('connectionFieldSetters', () => {
     });
   });
 
-  it('sends a destination retarget through the keep-the-hole mutation', () => {
+  it('sends a type write from the door the row was opened on', () => {
+    const api = authoring();
+    connectionFieldSetters(
+      'map-a',
+      CONNECTION,
+      api,
+      undefined,
+      'to',
+    ).setWormholeType('C247');
+    expect(api.setConnectionWormholeType).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connection: CONNECTION,
+      value: 'C247',
+      side: 'to',
+    });
+  });
+
+  it('sends a scanner far-side hint from the endpoint the row was opened on', () => {
+    const api = authoring();
+    connectionFieldSetters(
+      'map-a',
+      CONNECTION,
+      api,
+      undefined,
+      'to',
+    ).setLeadsTo('hisec');
+    expect(api.setConnectionDestinationHint).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connectionId: CONNECTION.connectionId,
+      side: 'to',
+      value: 'hisec',
+    });
+  });
+
+  it('sends a destination note for the door the row was opened on', () => {
     const api = authoring();
     connectionFieldSetters('map-a', CONNECTION, api).setDestination(31_000_002);
     expect(api.setConnectionDestination).toHaveBeenCalledWith({
       mapId: 'map-a',
       connectionId: CONNECTION.connectionId,
-      toSystemId: 31_000_002,
+      side: 'from',
+      value: 31_000_002,
     });
-    connectionFieldSetters('map-a', CONNECTION, api).setDestination(null);
+    connectionFieldSetters(
+      'map-a',
+      CONNECTION,
+      api,
+      undefined,
+      'to',
+    ).setDestination(null);
     expect(api.setConnectionDestination).toHaveBeenCalledWith({
       mapId: 'map-a',
       connectionId: CONNECTION.connectionId,
-      toSystemId: null,
+      side: 'to',
+      value: null,
     });
   });
 

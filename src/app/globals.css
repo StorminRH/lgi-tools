@@ -1399,6 +1399,22 @@ details[data-collapsible][open] > summary [data-chevron] {
   opacity: 0.45;
 }
 
+/* Authored connections: React Flow's helper path is stroke-opacity 0, so
+ * `visibleStroke` never hits it and the line feels 1px wide. Paint the
+ * helper and hit the stroke regardless of opacity. Stubs/ghosts stay
+ * `.inactive` (pointer-events: none). Hover glow matches node ISK green. */
+.react-flow__edge.selectable {
+  pointer-events: stroke;
+}
+.react-flow__edge.selectable .react-flow__edge-interaction {
+  stroke: transparent;
+  /* Beats BaseEdge's inline stroke-opacity: 0 so visibleStroke/stroke can hit. */
+  stroke-opacity: 1 !important;
+}
+.react-flow__edge.selectable:hover .react-flow__edge-path {
+  filter: drop-shadow(0 0 6px var(--color-card-glow-shadow));
+}
+
 /* Fog-of-war canvas (4.0.4.2.3 OW4): the DIRECT child of React Flow's
  * ViewportPortal. The viewport is a stacking context and the portal container
  * is not, so this negative z-index paints the cloud below the edge/node

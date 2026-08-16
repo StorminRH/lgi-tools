@@ -203,7 +203,7 @@ describe('map authoring', () => {
             return { mapId: MAP_A, connectionId, side: 'from', value: 'dangerous' };
           }
           if (name === 'setConnectionDestination') {
-            return { mapId: MAP_A, connectionId, toSystemId: DODIXIE };
+            return { mapId: MAP_A, connectionId, side: 'from', value: DODIXIE };
           }
           if (name === 'setConnectionShipSize') {
             return { mapId: MAP_A, connectionId, value: 'M' };
@@ -336,7 +336,8 @@ describe('map authoring', () => {
             asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
               mapId: MAP_A,
               connectionId,
-              toSystemId: DODIXIE,
+              side: 'from',
+              value: DODIXIE,
             }),
           ).resolves.toEqual({ changed: true });
           return;
@@ -629,6 +630,20 @@ describe('map authoring', () => {
         wormholeTypeCode: 'C247',
         typedSide: 'from',
         typeProvenance: 'human',
+        fromWormholeTypeCode: 'C247',
+        toWormholeTypeCode: 'K162',
+      });
+      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        mapId: MAP_A,
+        connectionId,
+        value: 'B274',
+        side: 'to',
+      });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        fromWormholeTypeCode: 'C247',
+        toWormholeTypeCode: 'B274',
+        wormholeTypeCode: 'B274',
+        typedSide: 'to',
       });
       expect((await readConnection(t, connectionId))?.pendingCandidates).toBeUndefined();
       // Typing a never-jump-authored hole mints its observation dedupe key so
@@ -657,7 +672,7 @@ describe('map authoring', () => {
       expect(await readConnection(t, connectionId)).toMatchObject({
         typedSide: 'to',
         typeProvenance: 'human',
-        toSystemId: null,
+        toSystemId: AMARR,
         toDestinationHint: 'dangerous',
       });
 
@@ -671,8 +686,8 @@ describe('map authoring', () => {
     });
   });
 
-  describe('connection destination retarget', () => {
-    it('retargets, equality-skips, refuses a self-loop, and clears back to a stub', async () => {
+  describe('connection destination notes', () => {
+    it('writes a Leads-to note without moving the line or spawning a system', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
 
@@ -680,39 +695,61 @@ describe('map authoring', () => {
         asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
-          toSystemId: AMARR,
-        }),
-      ).resolves.toEqual({ changed: true });
-      expect(await readConnection(t, connectionId)).toMatchObject({
-        toSystemId: AMARR,
-        destinationProvenance: 'human',
-      });
-      await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
-          mapId: MAP_A,
-          connectionId,
-          toSystemId: AMARR,
+          side: 'from',
+          value: AMARR,
         }),
       ).resolves.toEqual({ changed: false });
-      await t.run(async (ctx) => {
-        await ctx.db.patch(connectionId, { pendingCandidates: [connectionId] });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        fromSystemId: JITA,
+        toSystemId: AMARR,
       });
-      await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
-          mapId: MAP_A,
-          connectionId,
-          toSystemId: AMARR,
-        }),
-      ).resolves.toEqual({ changed: true });
       expect(
-        (await readConnection(t, connectionId))?.pendingCandidates,
+        (await readConnection(t, connectionId))?.fromDestinationSystemId,
       ).toBeUndefined();
 
       await expect(
         asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
-          toSystemId: JITA,
+          side: 'from',
+          value: DODIXIE,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        fromDestinationSystemId: DODIXIE,
+      });
+      expect(
+        (await readConnection(t, connectionId))?.destinationProvenance,
+      ).toBeUndefined();
+      expect(await readSystem(t, DODIXIE)).toBeNull();
+      expect(await readSystem(t, AMARR)).toMatchObject({
+        systemId: AMARR,
+        deletedAt: null,
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'to',
+          value: DODIXIE,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        fromDestinationSystemId: DODIXIE,
+        toDestinationSystemId: DODIXIE,
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'from',
+          value: JITA,
         }),
       ).rejects.toThrow('SELF_LOOP');
 
@@ -720,36 +757,14 @@ describe('map authoring', () => {
         asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
-          toSystemId: DODIXIE,
-        }),
-      ).resolves.toEqual({ changed: true });
-      expect(await readConnection(t, connectionId)).toMatchObject({
-        toSystemId: DODIXIE,
-        destinationProvenance: 'human',
-      });
-      expect(await readSystem(t, AMARR)).toMatchObject({
-        systemId: AMARR,
-        deletedAt: null,
-      });
-      expect(await readSystem(t, DODIXIE)).toMatchObject({
-        systemId: DODIXIE,
-        deletedAt: null,
-      });
-
-      await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
-          mapId: MAP_A,
-          connectionId,
-          toSystemId: null,
+          side: 'from',
+          value: null,
         }),
       ).resolves.toEqual({ changed: true });
       const cleared = await readConnection(t, connectionId);
-      expect(cleared?.toSystemId).toBeNull();
-      expect(cleared?.destinationProvenance).toBeUndefined();
-      expect(await readSystem(t, DODIXIE)).toMatchObject({
-        systemId: DODIXIE,
-        deletedAt: null,
-      });
+      expect(cleared?.toSystemId).toBe(AMARR);
+      expect(cleared?.fromDestinationSystemId).toBeUndefined();
+      expect(cleared?.toDestinationSystemId).toBe(DODIXIE);
 
       await asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
         mapId: MAP_A,
@@ -758,33 +773,67 @@ describe('map authoring', () => {
         value: 'dangerous',
       });
       expect(await readConnection(t, connectionId)).toMatchObject({
-        toSystemId: null,
+        toSystemId: AMARR,
         fromDestinationHint: 'dangerous',
       });
-      await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
-          mapId: MAP_A,
-          connectionId,
-          toSystemId: null,
-        }),
-      ).resolves.toEqual({ changed: true });
-      expect(
-        (await readConnection(t, connectionId))?.fromDestinationHint,
-      ).toBeUndefined();
+    });
 
+    it('leaves jump identity and pending answers alone when a Leads-to note changes', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
       await t.run(async (ctx) => {
-        await ctx.db.patch(connectionId, { pendingCandidates: [connectionId] });
+        await ctx.db.patch(connectionId, {
+          destinationProvenance: 'assumed',
+          pendingCandidates: [connectionId],
+          pendingResolutionCharacterId: 21_198_055_274,
+        });
       });
+
       await expect(
         asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
-          toSystemId: null,
+          side: 'from',
+          value: DODIXIE,
         }),
       ).resolves.toEqual({ changed: true });
-      expect(
-        (await readConnection(t, connectionId))?.pendingCandidates,
-      ).toBeUndefined();
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        fromDestinationSystemId: DODIXIE,
+        destinationProvenance: 'assumed',
+        pendingCandidates: [connectionId],
+        pendingResolutionCharacterId: 21_198_055_274,
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'from',
+          value: 'dangerous',
+        }),
+      ).resolves.toEqual({ changed: true });
+      const afterHint = await readConnection(t, connectionId);
+      expect(afterHint).toMatchObject({
+        fromDestinationHint: 'dangerous',
+        destinationProvenance: 'assumed',
+        pendingCandidates: [connectionId],
+        pendingResolutionCharacterId: 21_198_055_274,
+      });
+      expect(afterHint?.fromDestinationSystemId).toBeUndefined();
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'from',
+          value: null,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        destinationProvenance: 'assumed',
+        pendingCandidates: [connectionId],
+        pendingResolutionCharacterId: 21_198_055_274,
+      });
     });
   });
 

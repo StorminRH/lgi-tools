@@ -122,6 +122,7 @@ export interface ConnectionFieldSetters {
 export interface OriginLeadOption {
   readonly connectionId: string;
   readonly label: string;
+  readonly systemId: number;
 }
 
 /** Props for the connection field form body. */

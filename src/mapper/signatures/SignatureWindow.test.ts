@@ -8,6 +8,7 @@ import {
   scannerLeadsCellKey,
   scannerTypeCellKey,
 } from './SignatureWindow';
+import type { ConnectionFieldSetters } from '../authoring/connection-fields';
 import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';
 
@@ -407,5 +408,83 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).not.toContain('aria-label="View site');
     expect(html).toContain('Mass WHL-001');
     expect(html).not.toContain('sr-only">Edit wormhole ');
+  });
+
+  it('keeps wormhole scanner cells editable after a destination is set, including the far side', () => {
+    const setters: ConnectionFieldSetters = {
+      setWormholeType: vi.fn(),
+      setShipSize: vi.fn(),
+      setMassState: vi.fn(),
+      setLifeStage: vi.fn(),
+      setLeadsTo: vi.fn(),
+      setDestination: vi.fn(),
+      linkToOrigin: vi.fn(),
+    };
+    const origin = ROWS.find((row) => row.signatureId === 'WHL-001');
+    expect(origin?.connection).toBeTruthy();
+    const connection = {
+      ...origin!.connection!,
+      toSystemId: 2,
+      toSignatureId: 'FAR-001',
+    };
+    const originRow: SignatureWindowRow = {
+      ...origin!,
+      connection,
+    };
+    const farSideRow: SignatureWindowRow = {
+      key: 'connection:connection-1:to',
+      systemId: 2,
+      signatureId: 'FAR-001',
+      kind: 'signature',
+      group: 'Wormhole',
+      name: 'K162',
+      signalPct: null,
+      firstSeenAt: 0,
+      connection,
+      className: null,
+      endpoint: 'to',
+    };
+    const props = {
+      missingIds: new Set<string>(),
+      missingCount: 0,
+      canEdit: true,
+      complete: true,
+      now: 60_000,
+      onDismissMissing: vi.fn(),
+      onRemoveMissing: vi.fn(async () => undefined),
+      jumpResolution: null,
+      onPickJumpCandidate: vi.fn(),
+      onIdentify: vi.fn(async () => undefined),
+      onOpenEditor: vi.fn(),
+      onOpenSite: vi.fn(),
+      bindConnectionSetters: () => setters,
+    };
+    const originHtml = renderToStaticMarkup(
+      createElement(SignatureWindow, {
+        ...props,
+        scannerSystemId: 1,
+        rows: [originRow],
+      }),
+    );
+    expect(originHtml).toContain('aria-label="Type WHL-001"');
+    expect(originHtml).toContain('aria-label="Mass WHL-001"');
+    expect(originHtml).toContain('aria-label="Reliable Lifetime WHL-001"');
+    expect(originHtml).toContain('aria-label="Destination WHL-001"');
+    expect(originHtml).not.toContain('sr-only">Mass WHL-001');
+
+    const farHtml = renderToStaticMarkup(
+      createElement(SignatureWindow, {
+        ...props,
+        scannerSystemId: 2,
+        rows: [farSideRow],
+      }),
+    );
+    expect(farHtml).toContain('aria-label="Type FAR-001"');
+    expect(farHtml).toContain('aria-label="Mass FAR-001"');
+    expect(farHtml).toContain('aria-label="Reliable Lifetime FAR-001"');
+    expect(farHtml).toContain('aria-label="Destination FAR-001"');
+    expect(farHtml).not.toContain('sr-only">Mass FAR-001');
+    expect(originHtml).toContain('value="2"');
+    expect(farHtml).toContain('value="1"');
   });
 });

@@ -5,156 +5,123 @@ const JITA = 30_000_142;
 const CHAR = 101;
 
 describe('homeCurrentSystem', () => {
-  it('walks loading, untracked, offline, and live coverage', () => {
+  it('walks loading, untracked, offline, and last-known location', () => {
     expect(
       homeCurrentSystem({
         characterId: CHAR,
         tracking: undefined,
-        freshness: undefined,
       }),
     ).toEqual({ kind: 'loading' });
     expect(
       homeCurrentSystem({
         characterId: null,
         tracking: { ownTrackedCharacterIds: [], tracked: [] },
-        freshness: { fresh: [] },
       }),
     ).toEqual({ kind: 'loading' });
 
-    const empty = {
-      tracking: { ownTrackedCharacterIds: [] as number[], tracked: [] },
-      freshness: { fresh: [] },
-    };
-    expect(homeCurrentSystem({ characterId: CHAR, ...empty })).toEqual({
-      kind: 'untracked',
-    });
+    expect(
+      homeCurrentSystem({
+        characterId: CHAR,
+        tracking: { ownTrackedCharacterIds: [], tracked: [] },
+      }),
+    ).toEqual({ kind: 'untracked' });
 
-    const trackedOffline = {
-      tracking: {
-        ownTrackedCharacterIds: [CHAR],
-        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA } }],
-      },
-      freshness: { fresh: [{ characterId: CHAR, feedFreshAt: null }] },
-    };
-    expect(homeCurrentSystem({ characterId: CHAR, ...trackedOffline })).toEqual({
-      kind: 'offline',
-    });
+    expect(
+      homeCurrentSystem({
+        characterId: CHAR,
+        tracking: {
+          ownTrackedCharacterIds: [CHAR],
+          tracked: [{ characterId: CHAR, location: null }],
+        },
+      }),
+    ).toEqual({ kind: 'offline' });
 
-    const lastKnownUncovered = {
-      tracking: {
-        ownTrackedCharacterIds: [CHAR],
-        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA } }],
-      },
-      freshness: { fresh: [] },
-    };
-    expect(homeCurrentSystem({ characterId: CHAR, ...lastKnownUncovered })).toEqual({
-      kind: 'offline',
-    });
-
-    const live = {
-      tracking: {
-        ownTrackedCharacterIds: [CHAR],
-        tracked: [{ characterId: CHAR, location: { solarSystemId: JITA } }],
-      },
-      freshness: { fresh: [{ characterId: CHAR, feedFreshAt: 1_700_000_000_000 }] },
-    };
-    expect(homeCurrentSystem({ characterId: CHAR, ...live })).toEqual({
+    expect(
+      homeCurrentSystem({
+        characterId: CHAR,
+        tracking: {
+          ownTrackedCharacterIds: [CHAR],
+          tracked: [{ characterId: CHAR, location: { solarSystemId: JITA } }],
+        },
+      }),
+    ).toEqual({
       kind: 'ready',
       systemId: JITA,
     });
   });
 
-  it('uses a live tracked alt when the session character is offline or untracked', () => {
+  it('uses a tracked alt when the session character has no last-known system', () => {
     const alt = 202;
     const altSystem = 31_001_677;
-    const sessionOfflineAltLive = {
-      tracking: {
-        ownTrackedCharacterIds: [CHAR, alt],
-        tracked: [
-          { characterId: CHAR, location: { solarSystemId: JITA } },
-          { characterId: alt, location: { solarSystemId: altSystem } },
-        ],
-      },
-      freshness: {
-        fresh: [
-          { characterId: CHAR, feedFreshAt: null },
-          { characterId: alt, feedFreshAt: 1_700_000_000_000 },
-        ],
-      },
-    };
+
     expect(
-      homeCurrentSystem({ characterId: CHAR, ...sessionOfflineAltLive }),
+      homeCurrentSystem({
+        characterId: CHAR,
+        tracking: {
+          ownTrackedCharacterIds: [CHAR, alt],
+          tracked: [
+            { characterId: CHAR, location: null },
+            { characterId: alt, location: { solarSystemId: altSystem } },
+          ],
+        },
+      }),
     ).toEqual({ kind: 'ready', systemId: altSystem });
 
-    const onlyAltTracked = {
-      tracking: {
-        ownTrackedCharacterIds: [alt],
-        tracked: [{ characterId: alt, location: { solarSystemId: altSystem } }],
-      },
-      freshness: { fresh: [{ characterId: alt, feedFreshAt: 1_700_000_000_000 }] },
-    };
-    expect(homeCurrentSystem({ characterId: CHAR, ...onlyAltTracked })).toEqual({
+    expect(
+      homeCurrentSystem({
+        characterId: CHAR,
+        tracking: {
+          ownTrackedCharacterIds: [alt],
+          tracked: [{ characterId: alt, location: { solarSystemId: altSystem } }],
+        },
+      }),
+    ).toEqual({
       kind: 'ready',
       systemId: altSystem,
     });
 
-    const bothLive = {
-      tracking: {
-        ownTrackedCharacterIds: [CHAR, alt],
-        tracked: [
-          { characterId: CHAR, location: { solarSystemId: JITA } },
-          { characterId: alt, location: { solarSystemId: altSystem } },
-        ],
-      },
-      freshness: {
-        fresh: [
-          { characterId: CHAR, feedFreshAt: 1_700_000_000_000 },
-          { characterId: alt, feedFreshAt: 1_700_000_000_000 },
-        ],
-      },
-    };
-    expect(homeCurrentSystem({ characterId: CHAR, ...bothLive })).toEqual({
+    expect(
+      homeCurrentSystem({
+        characterId: CHAR,
+        tracking: {
+          ownTrackedCharacterIds: [CHAR, alt],
+          tracked: [
+            { characterId: CHAR, location: { solarSystemId: JITA } },
+            { characterId: alt, location: { solarSystemId: altSystem } },
+          ],
+        },
+      }),
+    ).toEqual({
       kind: 'ready',
       systemId: JITA,
     });
 
-    const twoAltsDifferentSystems = {
-      tracking: {
-        ownTrackedCharacterIds: [CHAR, alt, 303],
-        tracked: [
-          { characterId: CHAR, location: { solarSystemId: JITA } },
-          { characterId: alt, location: { solarSystemId: altSystem } },
-          { characterId: 303, location: { solarSystemId: JITA } },
-        ],
-      },
-      freshness: {
-        fresh: [
-          { characterId: CHAR, feedFreshAt: null },
-          { characterId: alt, feedFreshAt: 1_700_000_000_000 },
-          { characterId: 303, feedFreshAt: 1_700_000_000_000 },
-        ],
-      },
-    };
     expect(
-      homeCurrentSystem({ characterId: CHAR, ...twoAltsDifferentSystems }),
+      homeCurrentSystem({
+        characterId: CHAR,
+        tracking: {
+          ownTrackedCharacterIds: [CHAR, alt, 303],
+          tracked: [
+            { characterId: CHAR, location: null },
+            { characterId: alt, location: { solarSystemId: altSystem } },
+            { characterId: 303, location: { solarSystemId: JITA } },
+          ],
+        },
+      }),
     ).toEqual({ kind: 'offline' });
 
-    const twoAltsSameSystem = {
-      tracking: {
-        ownTrackedCharacterIds: [CHAR, alt, 303],
-        tracked: [
-          { characterId: alt, location: { solarSystemId: altSystem } },
-          { characterId: 303, location: { solarSystemId: altSystem } },
-        ],
-      },
-      freshness: {
-        fresh: [
-          { characterId: alt, feedFreshAt: 1_700_000_000_000 },
-          { characterId: 303, feedFreshAt: 1_700_000_000_000 },
-        ],
-      },
-    };
-    expect(homeCurrentSystem({ characterId: CHAR, ...twoAltsSameSystem })).toEqual({
+    expect(
+      homeCurrentSystem({
+        characterId: CHAR,
+        tracking: {
+          ownTrackedCharacterIds: [CHAR, alt, 303],
+          tracked: [
+            { characterId: alt, location: { solarSystemId: altSystem } },
+            { characterId: 303, location: { solarSystemId: altSystem } },
+          ],
+        },
+      }),
+    ).toEqual({
       kind: 'ready',
       systemId: altSystem,
     });

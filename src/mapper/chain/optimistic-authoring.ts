@@ -36,6 +36,7 @@ import type {
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
 import { eliminateSignaturesAndAnnounce } from '../signatures/signature-elimination-client';
+import { connectionTypePatch } from '@/data/maps/connection-door-types';
 import type { ConnectionEditorDetail } from './use-map-chain';
 
 /** One optimistic system page row — structural match for `watchMapSystems`. */
@@ -56,6 +57,8 @@ export interface OptimisticConnectionRow {
   readonly fromSystemId: number;
   readonly toSystemId: number | null;
   readonly wormholeTypeCode: string | null;
+  readonly fromWormholeTypeCode?: string | null;
+  readonly toWormholeTypeCode?: string | null;
   readonly typedSide?: 'from' | 'to';
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
@@ -64,10 +67,12 @@ export interface OptimisticConnectionRow {
   readonly lifeStageObservedAt?: number | null;
   readonly fromDestinationHint?: WormholeDestinationHint;
   readonly toDestinationHint?: WormholeDestinationHint;
+  readonly fromDestinationSystemId?: number;
+  readonly toDestinationSystemId?: number;
   readonly deathEarliestAt?: number | null;
   readonly deathLatestAt?: number | null;
-  readonly deletedAt: number | null;
-  readonly purgeAfter: number | null;
+  readonly deletedAt?: number | null;
+  readonly purgeAfter?: number | null;
 }
 
 /**
@@ -201,6 +206,8 @@ type ConnectionFieldPatch = Partial<
   Pick<
     OptimisticConnectionRow,
     | 'wormholeTypeCode'
+    | 'fromWormholeTypeCode'
+    | 'toWormholeTypeCode'
     | 'typedSide'
     | 'shipSize'
     | 'massState'
@@ -208,6 +215,8 @@ type ConnectionFieldPatch = Partial<
     | 'lifeStageObservedAt'
     | 'fromDestinationHint'
     | 'toDestinationHint'
+    | 'fromDestinationSystemId'
+    | 'toDestinationSystemId'
     | 'deathEarliestAt'
     | 'deathLatestAt'
     | 'deletedAt'
@@ -215,32 +224,7 @@ type ConnectionFieldPatch = Partial<
   >
 >;
 
-/** Drops one connection from every loaded page of one feed and returns it. */
-function takeConnectionFromPages<
-  Query extends
-    | typeof api.mapChain.watchMapConnections
-    | typeof api.mapChain.watchUnresolvedHoles,
->(
-  localStore: OptimisticLocalStore,
-  query: Query,
-  mapId: string,
-  connectionId: string,
-): OptimisticConnectionRow | null {
-  let taken: OptimisticConnectionRow | null = null;
-  for (const { args, value } of localStore.getAllQueries(query)) {
-    if (value === undefined || args.mapId !== mapId) continue;
-    const match = value.page.find((row) => row._id === connectionId);
-    if (match === undefined) continue;
-    taken = match as OptimisticConnectionRow;
-    localStore.setQuery(query, args, {
-      ...value,
-      page: value.page.filter((row) => row._id !== connectionId),
-    } as never);
-  }
-  return taken;
-}
-
-/** Same-list field edits. Destination resolve/unresolve is a feed move. */
+/** Same-list field edits. Leads-to notes stay on the existing row. */
 export function optimisticPatchConnection(
   localStore: OptimisticLocalStore,
   args: {
@@ -370,19 +354,32 @@ export function optimisticSetConnectionWormholeType(
     mapId: string;
     connectionId: string;
     value: string | null;
+    side?: 'from' | 'to';
     deathEarliestAt?: number | null;
     deathLatestAt?: number | null;
   },
 ): void {
-  optimisticPatchConnection(localStore, {
-    mapId: args.mapId,
-    connectionId: args.connectionId,
-    patch: {
-      wormholeTypeCode: args.value,
+  const apply = <Row extends OptimisticConnectionRow>(row: Row): Row => {
+    if (row._id !== args.connectionId) return row;
+    return {
+      ...row,
+      ...connectionTypePatch(row, args.side ?? 'from', args.value),
       deathEarliestAt: args.deathEarliestAt ?? null,
       deathLatestAt: args.deathLatestAt ?? null,
-    },
-  });
+    };
+  };
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChain.watchMapConnections,
+    { mapId: args.mapId },
+    apply,
+  );
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChain.watchUnresolvedHoles,
+    { mapId: args.mapId },
+    apply,
+  );
 }
 
 /** Connection facts needed to form a stale-safe explicit window proposal. */
@@ -492,64 +489,29 @@ type ConnectionFieldArgs = {
     | 'lifeStage'];
 };
 
-/** Optimistic retarget or clear of a connection's resolved destination. */
+/** Optimistic Leads-to note on one door. Does not spawn a system or move the line. */
 export function optimisticSetConnectionDestination(
   localStore: OptimisticLocalStore,
   args: {
     mapId: string;
     connectionId: string;
-    toSystemId: number | null;
+    side: 'from' | 'to';
+    value: number | null;
   },
-  now = Date.now(),
 ): void {
-  if (args.toSystemId !== null) {
-    insertOptimisticSystemIfAbsent(
-      localStore,
-      args.mapId,
-      args.toSystemId,
-      now,
-    );
-  }
-  const resolved = takeConnectionFromPages(
-    localStore,
-    api.mapChain.watchMapConnections,
-    args.mapId,
-    args.connectionId,
-  );
-  const unresolved = takeConnectionFromPages(
-    localStore,
-    api.mapChain.watchUnresolvedHoles,
-    args.mapId,
-    args.connectionId,
-  );
-  const existing = resolved ?? unresolved;
-  if (existing === null) return;
-
-  if (args.toSystemId === null) {
-    insertAtTop({
-      paginatedQuery: api.mapChain.watchUnresolvedHoles,
-      argsToMatch: { mapId: args.mapId },
-      localQueryStore: localStore,
-      item: {
-        ...existing,
-        toSystemId: null,
-        fromDestinationHint: undefined,
-        toDestinationHint: undefined,
-      } as never,
-    });
-    return;
-  }
-
-  insertAtTop({
-    paginatedQuery: api.mapChain.watchMapConnections,
-    argsToMatch: { mapId: args.mapId },
-    localQueryStore: localStore,
-    item: {
-      ...existing,
-      toSystemId: args.toSystemId,
-      fromDestinationHint: undefined,
-      toDestinationHint: undefined,
-    } as never,
+  const destField = args.side === 'from'
+    ? 'fromDestinationSystemId'
+    : 'toDestinationSystemId';
+  const hintField = args.side === 'from'
+    ? 'fromDestinationHint'
+    : 'toDestinationHint';
+  optimisticPatchConnection(localStore, {
+    mapId: args.mapId,
+    connectionId: args.connectionId,
+    patch: {
+      [destField]: args.value ?? undefined,
+      [hintField]: undefined,
+    },
   });
 }
 
@@ -568,8 +530,14 @@ function optimisticSetConnectionDestinationHint(
     connectionId: args.connectionId,
     patch:
       args.side === 'from'
-        ? { fromDestinationHint: args.value ?? undefined }
-        : { toDestinationHint: args.value ?? undefined },
+        ? {
+            fromDestinationHint: args.value ?? undefined,
+            fromDestinationSystemId: undefined,
+          }
+        : {
+            toDestinationHint: args.value ?? undefined,
+            toDestinationSystemId: undefined,
+          },
   });
 }
 
@@ -668,6 +636,7 @@ export function useChainAuthoringMutations() {
       mapId: string;
       connection: ConnectionEditorDetail;
       value: string | null;
+      side?: 'from' | 'to';
     }) => {
       const proposal = wormholeTypeWindowProposal(
         args.connection,
@@ -677,10 +646,11 @@ export function useChainAuthoringMutations() {
         mapId: args.mapId,
         connectionId: args.connection.connectionId,
         value: args.value,
+        side: args.side,
         ...windowArgs(proposal),
       });
       if (result === undefined) return undefined;
-      const typedSystemId = args.connection.typedSide === 'to'
+      const typedSystemId = args.side === 'to'
         && args.connection.toSystemId !== null
         ? args.connection.toSystemId
         : args.connection.fromSystemId;

@@ -40,6 +40,13 @@ import {
 /** The edge type key registered with React Flow. */
 export const CHAIN_EDGE_TYPE = 'chainLink';
 
+/**
+ * Invisible helper-path width for authored connections. Wider than React
+ * Flow's 20px default so a right-click to Edit does not require parking on
+ * the 1px stroke. Ghost and stub lines stay `.inactive` and ignore this.
+ */
+export const CHAIN_EDGE_INTERACTION_WIDTH = 32;
+
 /** Dash pattern for loop-closing connections — structure stays solid, shortcuts read as overlays. */
 const LOOP_DASH_CLASS = '[stroke-dasharray:6_4]';
 
@@ -198,6 +205,7 @@ function ChainLinkEdgeComponent({
         path={path}
         pathLength={presentation.pathLength}
         className={presentation.className}
+        interactionWidth={CHAIN_EDGE_INTERACTION_WIDTH}
       />
       {arrow !== null && sourceNode !== undefined && targetNode !== undefined && (
         <OutboundArrowLabel

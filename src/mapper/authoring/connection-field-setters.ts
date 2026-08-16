@@ -9,6 +9,7 @@ export interface ConnectionFieldAuthoringApi {
     mapId: string;
     connection: ConnectionEditorDetail;
     value: string | null;
+    side?: 'from' | 'to';
   }) => Promise<unknown>;
   readonly setConnectionShipSize: (args: {
     mapId: string;
@@ -26,11 +27,12 @@ export interface ConnectionFieldAuthoringApi {
     side: 'from' | 'to';
     value: WormholeDestinationHint | null;
   }) => Promise<unknown>;
-  /** Retargets the hole to a system id, or `null` to clear the destination without severing. */
+  /** Writes one door's Leads-to system note, or `null` to clear that note. */
   readonly setConnectionDestination: (args: {
     mapId: string;
     connectionId: Id<'mapConnections'>;
-    toSystemId: number | null;
+    side: 'from' | 'to';
+    value: number | null;
   }) => Promise<unknown>;
   readonly setConnectionLifeStage: (args: {
     mapId: string;
@@ -50,8 +52,9 @@ export function connectionFieldSetters(
   connection: ConnectionEditorDetail,
   authoring: ConnectionFieldAuthoringApi,
   setWormholeType = (value: string | null) => {
-    void authoring.setConnectionWormholeType({ mapId, connection, value });
+    void authoring.setConnectionWormholeType({ mapId, connection, value, side });
   },
+  side: 'from' | 'to' = 'from',
 ): ConnectionFieldSetters {
   const connectionId = connection.connectionId;
   return {
@@ -65,14 +68,13 @@ export function connectionFieldSetters(
     setLifeStage: (value) => {
       void authoring.setConnectionLifeStage({ mapId, connection, value });
     },
-    // One "Leads to" field (ruling D-G): the editor always speaks from the
-    // origin endpoint it was opened on, so the side is decided here rather
-    // than surfaced as a second control.
+    // One "Leads to" field (ruling D-G): the control speaks from the endpoint
+    // it was opened on. The popup editor always passes the origin side.
     setLeadsTo: (value) => {
       void authoring.setConnectionDestinationHint({
         mapId,
         connectionId,
-        side: 'from',
+        side,
         value,
       });
     },
@@ -80,7 +82,8 @@ export function connectionFieldSetters(
       void authoring.setConnectionDestination({
         mapId,
         connectionId,
-        toSystemId,
+        side,
+        value: toSystemId,
       });
     },
     linkToOrigin: (resolvedConnectionId) => {

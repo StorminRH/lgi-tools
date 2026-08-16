@@ -37,6 +37,10 @@ import {
   isTombstoned,
 } from '@/data/maps/chain-contract';
 import {
+  connectionDoorTypes,
+  legacyTypeSnapshot,
+} from '@/data/maps/connection-door-types';
+import {
   appendHaloFacts,
   deriveHalo,
   EMPTY_HALO,
@@ -130,6 +134,8 @@ export interface ConnectionEditorDetail {
   readonly fromSignalPct: number | null;
   readonly firstSeenAt: number | null;
   readonly wormholeTypeCode: string | null;
+  readonly fromWormholeTypeCode?: string | null;
+  readonly toWormholeTypeCode?: string | null;
   readonly typedSide?: 'from' | 'to' | null;
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
@@ -143,6 +149,8 @@ export interface ConnectionEditorDetail {
   readonly toSignatureId: string | null;
   readonly fromDestinationHint: WormholeDestinationHint | null;
   readonly toDestinationHint?: WormholeDestinationHint | null;
+  readonly fromDestinationSystemId?: number | null;
+  readonly toDestinationSystemId?: number | null;
   readonly destinationProvenance: ConnectionProvenance | null;
   /** The recorded survivor list an `assumed` auto-link left for confirm/correct. */
   readonly pendingCandidates: readonly Id<'mapConnections'>[] | null;
@@ -160,6 +168,8 @@ export interface ConnectionDetail extends ConnectionEditorDetail {
 function connectionEditorDetail(
   row: Doc<'mapConnections'>,
 ): ConnectionEditorDetail {
+  const doors = connectionDoorTypes(row);
+  const snapshot = legacyTypeSnapshot(doors, row.typedSide ?? undefined);
   return {
     connectionId: row._id,
     _creationTime: row._creationTime,
@@ -167,8 +177,10 @@ function connectionEditorDetail(
     toSystemId: row.toSystemId,
     fromSignalPct: optionalOrNull(row.fromSignalPct),
     firstSeenAt: optionalOrNull(row.firstSeenAt),
-    wormholeTypeCode: row.wormholeTypeCode,
-    typedSide: optionalOrNull(row.typedSide),
+    wormholeTypeCode: snapshot.wormholeTypeCode,
+    fromWormholeTypeCode: doors.from,
+    toWormholeTypeCode: doors.to,
+    typedSide: snapshot.typedSide ?? null,
     massState: row.massState,
     shipSize: row.shipSize,
     lifeStage: optionalOrNull(row.lifeStage),
@@ -181,6 +193,8 @@ function connectionEditorDetail(
     toSignatureId: optionalOrNull(row.toSignatureId),
     fromDestinationHint: optionalOrNull(row.fromDestinationHint),
     toDestinationHint: optionalOrNull(row.toDestinationHint),
+    fromDestinationSystemId: optionalOrNull(row.fromDestinationSystemId),
+    toDestinationSystemId: optionalOrNull(row.toDestinationSystemId),
     destinationProvenance: optionalOrNull(row.destinationProvenance),
     pendingCandidates: optionalOrNull(row.pendingCandidates),
     pendingResolutionCharacterId: optionalOrNull(
