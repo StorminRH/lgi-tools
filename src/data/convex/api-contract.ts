@@ -1,4 +1,6 @@
 // API wire contract owned by the convex slice (3.4.9).
+import { z } from 'zod';
+import { defineEndpoint, emptyBody, problem } from '@/transport/endpoint';
 
 /**
  * ── GET /api/cron/sync-sweeper (authz: cron) ────────────────────────────
@@ -17,3 +19,27 @@ export interface CronSyncSweeperResponse {
   deleted: number | null;
   durationMs: number;
 }
+
+/** Closed dataset the leave door will retire. */
+const leaveSyncDatasetSchema = z.literal('characterLocation');
+
+/** Untrusted beacon body. userId is never accepted from the client. */
+export const leaveSyncRequestSchema = z.strictObject({
+  dataset: leaveSyncDatasetSchema,
+  tabId: z.string().min(8).max(64),
+});
+
+/** First-party leave beacon. 204 because sendBeacon ignores the response. */
+export const leaveSyncEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/sync-leave',
+  request: leaveSyncRequestSchema,
+  responses: {
+    204: emptyBody(),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('cross_origin'),
+    429: problem('rate_limited'),
+    503: problem('leave_sync_unavailable'),
+  },
+});

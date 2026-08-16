@@ -42,8 +42,9 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
   const characterId = useActiveCharacterId();
   const characters = useAccountCharacters();
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const coverage = useLiveValue(api.mapTracking.coverage, { mapId });
   const setTracking = useSetMapTracking();
-  const current = homeCurrentSystem({ characterId, tracking });
+  const current = homeCurrentSystem({ characterId, tracking, coverage });
   const currentSystemId = current.kind === 'ready' ? current.systemId : null;
   const currentSystemName = useSystemName(currentSystemId);
   const trackedIds = new Set(tracking?.ownTrackedCharacterIds ?? []);

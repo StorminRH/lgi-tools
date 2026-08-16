@@ -6,3 +6,9 @@
  * native scrolling behavior.
  */
 export const scrollArea = 'scroll-area';
+
+/**
+ * Same painted rail, scrollbar on the inline-start edge. Use when the
+ * region sits on the left of the page so the thumb does not cover content.
+ */
+export const scrollAreaStart = `${scrollArea} scroll-area-start`;

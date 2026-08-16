@@ -43,15 +43,15 @@ export type CapabilityFeature =
 export type CapabilityKind = 'mutation' | 'read' | 'cron' | 'job';
 
 /**
- * Closed catalogue of the 45 instrumented operations: 21 mutations and one authenticated read
- * through `runMutationRoute`, 8 cron routes through `defineCronRoute`, 8 direct mutation routes
+ * Closed catalogue of the 50 instrumented operations: 25 mutations and one authenticated read
+ * through `runMutationRoute`, 9 cron routes through `defineCronRoute`, 8 direct mutation routes
  * that deliberately sit outside the mutation shell, 6 other POST-bodied tool reads, and the
  * queued ESI-refresh job runner. Adding a
  * route, cron, or job means adding its entry here; the shells take a `CapabilityId` and the route
  * census covers the rest, so an operation cannot ship unnamed.
  */
 export const CAPABILITIES = {
-  // ── Mutation routes through `runMutationRoute` (21) ────────────────────
+  // ── Mutation routes through `runMutationRoute` (25) ────────────────────
   'account.switch-active-character': { feature: 'account', operation: 'switch-active-character', kind: 'mutation' },
   'account.unlink-character': { feature: 'account', operation: 'unlink-character', kind: 'mutation' },
   'account.purge-character': { feature: 'account', operation: 'purge-character', kind: 'mutation' },
@@ -98,10 +98,11 @@ export const CAPABILITIES = {
   'maps.request-map-purge': { feature: 'maps', operation: 'request-map-purge', kind: 'mutation' },
   'maps.eliminate-signatures': { feature: 'maps', operation: 'eliminate-signatures', kind: 'mutation' },
   'maps.resolve-jump': { feature: 'maps', operation: 'resolve-jump', kind: 'mutation' },
+  'sync.leave-location': { feature: 'sync', operation: 'leave-location', kind: 'mutation' },
   'admin.unlink-character': { feature: 'admin', operation: 'unlink-character', kind: 'mutation' },
   'admin.revoke-user-sessions': { feature: 'admin', operation: 'revoke-user-sessions', kind: 'mutation' },
 
-  // ── Cron routes through `defineCronRoute` (8) ──────────────────────────
+  // ── Cron routes through `defineCronRoute` (9) ──────────────────────────
   'cron.drain-esi-refresh-jobs': { feature: 'cron', operation: 'drain-esi-refresh-jobs', kind: 'cron' },
   'cron.refresh-affiliations': { feature: 'cron', operation: 'refresh-affiliations', kind: 'cron' },
   'cron.refresh-gsc': { feature: 'cron', operation: 'refresh-gsc', kind: 'cron' },

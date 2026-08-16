@@ -1,20 +1,16 @@
 'use client';
 
 // The frame-slot presence indicator: a friendly character silhouette in the
-// top-right widget corner while a tracked pilot in this system has a live
-// feed, dimmed to muted once every feed is stale (visibly provisional,
-// contract DC-3). At-a-glance only — pilot names and statuses live in the
+// top-right widget corner while a tracked pilot in this system is present
+// and online. At-a-glance only — pilot names and statuses live in the
 // system intelligence body behind a click.
 //
-// Deliberately a tiny context-reading leaf: the provider's 30s staleness tick
+// Deliberately a tiny context-reading leaf: the provider's 30s tick
 // re-renders these leaves, not the memoized frames around them, and the
 // declared frame dimensions keep the wrapper box (and ResizeObserver) still
 // when the badge appears or disappears.
 import { cn } from '@/components/ui/cn';
-import {
-  presenceBadgeTone,
-  type SystemPresence,
-} from '../tracking/presence-model';
+import type { SystemPresence } from '../tracking/presence-model';
 import { useSystemPresence } from '../tracking/presence-context';
 
 /** Head-and-shoulders silhouette; decorative — detail lives in the intelligence body. */
@@ -39,16 +35,12 @@ export function PilotPresenceBadge({ systemId }: { readonly systemId: number }) 
   return <PresenceBadgeView presence={presence} />;
 }
 
-/** The pure badge markup; exported so unit tests render it without a provider. */
+/** Shows an online tracked pilot in the system corner badge. */
 export function PresenceBadgeView({ presence }: { readonly presence: SystemPresence }) {
-  const tone = presenceBadgeTone(presence);
   return (
     <span
-      data-pilot-presence={tone === 'green' ? 'live' : 'stale'}
-      className={cn(
-        'flex items-center gap-0.5',
-        tone === 'green' ? 'text-isk' : 'text-muted',
-      )}
+      data-pilot-presence="live"
+      className="flex items-center gap-0.5 text-isk"
     >
       <FriendlySilhouette />
       {presence.pilots.length > 1 && (

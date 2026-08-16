@@ -1,18 +1,15 @@
 // Pure pilot-presence derivation for the Atlas canvas (4.0.4.2.3 OW2).
 //
-// Last-known location is the presence pin. Closing Atlas stops the feed, so
-// the pin stays where we last saw the pilot until tracking starts again. A
-// row without a joined location contributes nothing (a forged row names a
-// document it cannot read).
+// Last-known location is kept for collapse retention. Pins and friendlies
+// only surface a pilot when the flip-only coverage row says they are
+// present and ESI-online. The map document and the location row stay
+// untouched; React joins `forMap` to `mapTracking.coverage`.
 //
-// Pure so the SC-3.1 state matrix is a unit test; the provider owns
-// subscriptions.
-
-/** Honest feed verdict for one tracked pilot. */
-export type PresenceState = 'live' | 'stale';
+// There is no in-between map state. A shown pilot is online; otherwise they
+// are absent. Docked vs In space is location, not presence.
 
 /** The single-word status vocabulary the intelligence body renders. */
-export type PresenceStatusWord = 'Stale' | 'AFK' | 'Docked' | 'In space';
+export type PresenceStatusWord = 'Docked' | 'In space';
 
 /** The location half of one `forMap` tracked row, as presence consumes it. */
 export interface TrackedLocationSnapshot {
@@ -38,9 +35,6 @@ export interface PresencePilot {
   readonly docked: boolean;
   /** Last observed movement (transition time; falls back to last change). */
   readonly lastMovementAt: number;
-  readonly state: PresenceState;
-  /** True only for the viewer's own characters while the local AFK gate is up. */
-  readonly ownAfk: boolean;
 }
 
 /** Everyone present in one system, sorted by character id. */
@@ -51,36 +45,31 @@ export interface SystemPresence {
 /** Inputs for one presence derivation pass. */
 export interface PresenceInput {
   readonly tracked: readonly TrackedPresenceRow[];
-  readonly ownCharacterIds: readonly number[];
-  /** The local AFK gate's prompt-open/paused verdict (own characters only). */
-  readonly ownAfk: boolean;
+  /** Per-owner-character covered flag; missing/false means hidden. */
+  readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
 }
 
-/** Prefers the live, then most recently moved, duplicate of one character. */
+/** Prefers the most recently moved duplicate of one character. */
 function betterPilot(a: PresencePilot, b: PresencePilot): PresencePilot {
-  if (a.state !== b.state) return a.state === 'live' ? a : b;
   return b.lastMovementAt > a.lastMovementAt ? b : a;
 }
 
 /**
  * Derives per-system pilot presence from `forMap` rows. Rows without a joined
- * location contribute nothing; duplicate character ids collapse to their
- * freshest evidence; output order is deterministic (pilots sorted by
- * character id) so renders and probes see a stable shape for identical inputs.
+ * location contribute nothing; uncovered rows stay off the map even when
+ * last-known location remains.
  */
 export function derivePresence(input: PresenceInput): ReadonlyMap<number, SystemPresence> {
-  const own = new Set(input.ownCharacterIds);
   const byCharacter = new Map<number, { systemId: number; pilot: PresencePilot }>();
 
   for (const row of input.tracked) {
     if (row.location === null) continue;
+    if (input.coverage.get(row.userId)?.get(row.characterId) !== true) continue;
     const pilot: PresencePilot = {
       characterId: row.characterId,
       shipTypeId: row.location.shipTypeId,
       docked: row.location.stationId !== null || row.location.structureId !== null,
       lastMovementAt: row.location.transitionObservedAt ?? row.location.observedAt,
-      state: 'live',
-      ownAfk: input.ownAfk && own.has(row.characterId),
     };
     const held = byCharacter.get(row.characterId);
     if (held === undefined || betterPilot(held.pilot, pilot) === pilot) {
@@ -109,39 +98,50 @@ export interface TrackingPayload {
   readonly ownTrackedCharacterIds: readonly number[];
 }
 
+/** The `coverage` payload shape presence consumes (undefined while loading). */
+export interface CoveragePayload {
+  readonly coverage: readonly {
+    userId: string;
+    characterId: number;
+    covered: boolean;
+  }[];
+}
+
 /**
- * Presence from a possibly-unloaded `forMap` payload — the provider's memo
- * body, kept pure and tested so the component seam stays branch-free.
+ * Indexes the coverage payload by owner then character id. An unloaded
+ * payload yields an empty index, which hides everyone — the honest verdict
+ * while the coverage subscription is still cold.
+ */
+export function coverageIndex(
+  payload: CoveragePayload | undefined,
+): ReadonlyMap<string, ReadonlyMap<number, boolean>> {
+  const index = new Map<string, Map<number, boolean>>();
+  for (const entry of payload?.coverage ?? []) {
+    const byCharacter = index.get(entry.userId) ?? new Map();
+    byCharacter.set(entry.characterId, entry.covered);
+    index.set(entry.userId, byCharacter);
+  }
+  return index;
+}
+
+/**
+ * Presence from possibly-unloaded `forMap` + `coverage` payloads — the
+ * provider's memo body, kept pure and tested so the component seam stays
+ * branch-free.
  */
 export function derivePresenceFromPayload(
   payload: TrackingPayload | undefined,
-  ownAfk: boolean,
+  coverage: CoveragePayload | undefined,
 ): ReadonlyMap<number, SystemPresence> {
   return derivePresence({
     tracked: payload?.tracked ?? [],
-    ownCharacterIds: payload?.ownTrackedCharacterIds ?? [],
-    ownAfk,
+    coverage: coverageIndex(coverage),
   });
 }
 
-/**
- * The one status word a pilot row displays. Precedence is operator-directed
- * (plan): `Stale` first (the feed is not talking — nothing else is
- * trustworthy), then `AFK` (own local gate), then `Docked`, then `In space`.
- */
+/** The one status word a pilot row displays: where they are, not whether. */
 export function presenceStatusWord(pilot: PresencePilot): PresenceStatusWord {
-  if (pilot.state === 'stale') return 'Stale';
-  if (pilot.ownAfk) return 'AFK';
-  if (pilot.docked) return 'Docked';
-  return 'In space';
-}
-
-/**
- * Frame-badge tone: green while anyone in the system is live, neutral once
- * every pilot's feed has gone stale (visibly provisional, contract DC-3).
- */
-export function presenceBadgeTone(presence: SystemPresence): 'green' | 'neutral' {
-  return presence.pilots.some((pilot) => pilot.state === 'live') ? 'green' : 'neutral';
+  return pilot.docked ? 'Docked' : 'In space';
 }
 
 /** One rendered friendlies row: resolved label + the single status word. */

@@ -242,14 +242,11 @@ describe('SignatureWindow component prompt and filter states', () => {
     // Unmatched combat/harvestable names stay as the empty Est. ISK dash.
     expect(html).toContain('data-signature-isk="empty"');
     expect(html).toContain('data-signature-signal-fill');
-    expect(html).toContain('scroll-area-start');
+    expect(html).toContain('scroll-area scroll-area-start');
     expect(html).not.toContain('>Group<');
     expect(html).toContain('>Signatures · Anomalies<');
     expect(html).toContain('data-scanner-dock-stack');
     expect(html).toContain('data-scanner-filled="true"');
-    // Inset lives on the LTR window, not the RTL scrollport — otherwise a
-    // reserved gutter shears the section-card radii on the right.
-    expect(html).not.toContain('scroll-area ');
     expect(html).not.toContain('[scrollbar-gutter:auto]');
     expect(html).toContain('data-scanner-scroll');
     expect(html).toContain('data-scanner-scroll-frost="start"');

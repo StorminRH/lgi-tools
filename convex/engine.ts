@@ -91,6 +91,7 @@ import {
 import { components, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
+import { clearCoverageForUser } from './lib/locationCoverage';
 import { getPresence, getSyncSubject, newIdleSubject } from './lib/subjects';
 import { drainCharacterOnline } from './onlineStatus';
 
@@ -182,8 +183,11 @@ export const heartbeat = mutation({
     // Whether the beating tab is visible. Optional and defaulting to true:
     // pre-field clients only ever beat while visible, so absence is honest.
     visible: v.optional(v.boolean()),
+    // Per-tab lease. Optional so a pre-field client still beats; leave uses
+    // it to ignore a close from a tab that is no longer the live beater.
+    tabId: v.optional(v.string()),
   },
-  handler: async (ctx, { dataset, characterIdsHint, reason, visible }) => {
+  handler: async (ctx, { dataset, characterIdsHint, reason, visible, tabId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) return;
     // A retired dataset's beat (a tab loaded before its retirement deploy)
@@ -191,12 +195,23 @@ export const heartbeat = mutation({
     if (!isRegisteredDataset(dataset)) return;
     const userId = identity.subject;
     const now = Date.now();
+    const presence = await getPresence(ctx.db, dataset, userId);
+    // A leave fence: the closing tab's in-flight beat must not undo retire.
+    // A different tab (or a reload's new id) is allowed to recover.
+    if (presence !== null && isLeftTab(presence.leftTabId, tabId)) return;
 
     // Presence first, for every reason — into syncPresence, never the subject
     // row. This is the decoupling: a steady-state interval beat writes only
     // this doc and returns, so it cannot invalidate forViewer's read of
     // syncSubjects.
-    const wasCold = await upsertPresence(ctx, dataset, userId, visible !== false, now);
+    const wasCold = await upsertPresence(
+      ctx,
+      dataset,
+      userId,
+      visible !== false,
+      now,
+      tabId,
+    );
 
     // A RECOVERY interval beat falls through to the on-view path: hidden tabs
     // now beat too, so a ≥coldAfterMs gap (OS suspend, websocket outage,
@@ -257,16 +272,25 @@ async function upsertPresence(
   userId: string,
   seenVisible: boolean,
   now: number,
+  tabId: string | undefined,
 ): Promise<boolean> {
   const presence = await getPresence(ctx.db, dataset, userId);
   const wasCold =
     presence !== null && isCold(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now);
+  const tabFields = tabId === undefined ? {} : { tabId, leftTabId: '' };
   if (presence === null) {
-    await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now, lastVisibleAt: now });
+    await ctx.db.insert('syncPresence', {
+      dataset,
+      userId,
+      lastSeenAt: now,
+      lastVisibleAt: now,
+      ...tabFields,
+    });
   } else {
     await ctx.db.patch(presence._id, {
       lastSeenAt: now,
       ...(seenVisible ? { lastVisibleAt: now } : {}),
+      ...tabFields,
     });
   }
   return wasCold;
@@ -274,8 +298,60 @@ async function upsertPresence(
 
 // Null the schedule so the row leaves the by_next_due range — a returning
 // heartbeat revives a live dataset's row; the drain GC deletes a retired one.
-function retireFromScan(ctx: MutationCtx, subject: Doc<'syncSubjects'>): Promise<void> {
-  return ctx.db.patch(subject._id, { nextDueAt: null });
+async function retireFromScan(ctx: MutationCtx, subject: Doc<'syncSubjects'>): Promise<void> {
+  await ctx.db.patch(subject._id, { nextDueAt: null });
+  if (subject.dataset === 'characterLocation') {
+    await clearCoverageForUser(ctx, subject.userId);
+  }
+}
+
+/**
+ * Tab-close leave: retire the location loop and hide pins when this tab is
+ * still the live beater. A newer tabId (second Atlas tab, or a reload that
+ * already mounted) is a no-op. Ages presence so a surviving tab's next
+ * interval beat is a recovery beat. Crash / killed process still wait for
+ * coldAfterMs — this path is best-effort.
+ */
+export const leave = internalMutation({
+  args: {
+    userId: v.string(),
+    dataset: syncDatasetValidator,
+    tabId: v.string(),
+  },
+  handler: async (ctx, { userId, dataset, tabId }) => {
+    if (!isRegisteredDataset(dataset)) return { retired: false };
+    const presence = await getPresence(ctx.db, dataset, userId);
+    if (presence !== null && presence.tabId !== undefined && presence.tabId !== tabId) {
+      return { retired: false };
+    }
+    const now = Date.now();
+    if (presence !== null) {
+      const coldAt = now - SYNC_DATASET_CONFIG[dataset].coldAfterMs - 1;
+      await ctx.db.patch(presence._id, {
+        lastSeenAt: coldAt,
+        lastVisibleAt: coldAt,
+        leftTabId: tabId,
+      });
+    }
+    const subject = await getSyncSubject(ctx.db, dataset, userId);
+    if (subject !== null) {
+      // Fence in-flight work: apply guards on lastRequestedAt, completion
+      // guards on workId. nextDueAt null also stops a scheduled chain hop.
+      await ctx.db.patch(subject._id, {
+        lastRequestedAt: 0,
+        workId: null,
+      });
+      await retireFromScan(ctx, subject);
+    } else if (dataset === 'characterLocation') {
+      await clearCoverageForUser(ctx, userId);
+    }
+    return { retired: true };
+  },
+});
+
+/** True when this beat belongs to a tab that already left. */
+function isLeftTab(leftTabId: string | undefined, tabId: string | undefined): boolean {
+  return leftTabId !== undefined && leftTabId !== '' && (tabId === undefined || tabId === leftTabId);
 }
 
 /**

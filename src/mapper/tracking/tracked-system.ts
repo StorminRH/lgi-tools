@@ -1,9 +1,9 @@
 /**
- * Account-level live-system target from the caller's tracked pilots.
+ * Account-level live-system target from the caller's online tracked pilots.
  * `loading` is the truthful warm-up state while tracking subscriptions have
- * not delivered — never reported as `none`. `ambiguous` is two+ tracked
- * pilots in different last-known systems (paste and window policies consume
- * this independently).
+ * not delivered — never reported as `none`. `ambiguous` is two+ covered
+ * pilots in different systems (paste and window policies consume this
+ * independently).
  */
 export type TrackedSystemTarget =
   | { readonly kind: 'ready'; readonly systemId: number }
@@ -12,21 +12,24 @@ export type TrackedSystemTarget =
   | { readonly kind: 'ambiguous' };
 
 /**
- * Resolves the unique last-known system from the account's tracked pilots on
- * this map. A missing location does not unlock a target; two different
- * last-known systems stay ambiguous.
+ * Resolves the unique covered system from the account's online tracked
+ * pilots on this map. Coverage is the present+online gate — last-known
+ * location alone must not unlock a live-system target.
  */
 export function trackedSystemTarget(input: {
   readonly ownTrackedCharacterIds: readonly number[];
   readonly tracked: readonly {
+    readonly userId: string;
     readonly characterId: number;
     readonly location: { readonly solarSystemId: number } | null;
   }[];
+  readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
 }): TrackedSystemTarget {
   const own = new Set(input.ownTrackedCharacterIds);
   const systems = new Set<number>();
   for (const row of input.tracked) {
     if (!own.has(row.characterId) || row.location === null) continue;
+    if (input.coverage.get(row.userId)?.get(row.characterId) !== true) continue;
     systems.add(row.location.solarSystemId);
   }
   if (systems.size === 0) return { kind: 'none' };

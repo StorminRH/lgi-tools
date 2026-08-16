@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
+import { coverageIndex } from './presence-model';
 import {
   trackedSystemTarget,
   type TrackedSystemTarget,
@@ -11,20 +12,22 @@ import {
 const LOADING_TARGET: TrackedSystemTarget = { kind: 'loading' };
 
 /**
- * Account-level last-known system target for this map. The tracking
- * subscription must have delivered before "untracked" is a truthful verdict.
- * Paste and persistent windows consume the result through their own policies.
+ * Account-level live-system target for this map. Both tracking subscriptions
+ * must have delivered before "untracked" is a truthful verdict. Paste and
+ * persistent windows consume the result through their own policies.
  */
 export function useTrackedSystemTarget(mapId: string): TrackedSystemTarget {
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const coverage = useLiveValue(api.mapTracking.coverage, { mapId });
   return useMemo(
     () =>
-      tracking === undefined
+      tracking === undefined || coverage === undefined
         ? LOADING_TARGET
         : trackedSystemTarget({
             ownTrackedCharacterIds: tracking.ownTrackedCharacterIds,
             tracked: tracking.tracked,
+            coverage: coverageIndex(coverage),
           }),
-    [tracking],
+    [tracking, coverage],
   );
 }

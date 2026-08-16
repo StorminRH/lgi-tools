@@ -461,7 +461,7 @@ describe('automatic jump authoring', () => {
     ).rejects.toThrow('FORBIDDEN');
   });
 
-  it('lapses off-map origins and tombstoned destinations without partial writes', async () => {
+  it('lapses off-map origins without partial writes', async () => {
     const offMap = convexTest(schema, modules);
     await grant(offMap, EDITOR, ['editor']);
     await seedTrackedTransition(offMap, { placeOrigin: false });
@@ -478,31 +478,110 @@ describe('automatic jump authoring', () => {
       connections: [],
       stamps: [],
     });
+  });
 
-    const tombstoned = convexTest(schema, modules);
-    await grant(tombstoned, EDITOR, ['editor']);
-    await seedTrackedTransition(tombstoned);
-    await tombstoned.run(async (ctx) => {
+  it('authors a new line when the destination or pair is already in trash', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    let trashedPairId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
       await ctx.db.insert('mapSystems', {
         mapId: MAP,
         systemId: DESTINATION,
         deletedAt: OBSERVED_AT - 1_000,
         purgeAfter: OBSERVED_AT + 60_000,
       });
+      trashedPairId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: ORIGIN,
+        toSystemId: DESTINATION,
+        wormholeTypeCode: null,
+        fromWormholeTypeCode: null,
+        toWormholeTypeCode: null,
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: OBSERVED_AT - 1_000,
+        purgeAfter: OBSERVED_AT + 60_000,
+      });
     });
+    const authored = await t.mutation(
+      internal.mapJump.resolveJumpAuthoring,
+      authorArgs({
+        decision: { kind: 'insert', candidateIds: [], survivors: [] },
+      }),
+    );
+    expect(authored.status).toBe('authored');
+    const state = await mapState(t);
+    const dest = state.systems.find((row) => row.systemId === DESTINATION);
+    expect(dest?.deletedAt ?? null).toBeNull();
+    const livePairs = state.connections.filter((row) => row.deletedAt == null);
+    expect(livePairs).toHaveLength(1);
+    expect(livePairs[0]?._id).not.toBe(trashedPairId);
+    const corpse = await t.run(async (ctx) => await ctx.db.get(trashedPairId));
+    expect(corpse).toMatchObject({ deletedAt: OBSERVED_AT - 1_000 });
+    expect(corpse?.purgeAfter).not.toBe(OBSERVED_AT + 60_000);
+    expect(corpse?.purgeAfter).toBeLessThanOrEqual(Date.now());
+    expect(state.stamps).toHaveLength(1);
+  });
+
+  it('resolves a remapped stub without leaving the collapsed pair dying', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, EDITOR, ['editor']);
+    await seedTrackedTransition(t);
+    const stubId = await seedCandidate(t, 'ABS-420', 'K162');
+    let corpseId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', {
+        mapId: MAP,
+        systemId: DESTINATION,
+        deletedAt: OBSERVED_AT - 1_000,
+        purgeAfter: OBSERVED_AT + 60_000,
+      });
+      corpseId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: ORIGIN,
+        toSystemId: DESTINATION,
+        fromSignatureId: 'ABS-420',
+        wormholeTypeCode: 'K162',
+        fromWormholeTypeCode: 'K162',
+        toWormholeTypeCode: null,
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: OBSERVED_AT - 1_000,
+        purgeAfter: OBSERVED_AT + 60_000,
+      });
+    });
+
     expect(
-      await tombstoned.mutation(
+      await t.mutation(
         internal.mapJump.resolveJumpAuthoring,
         authorArgs({
-          decision: { kind: 'insert', candidateIds: [], survivors: [] },
+          decision: {
+            kind: 'resolve',
+            candidateId: stubId,
+            provenance: 'jump-verified',
+            candidateIds: [stubId],
+            survivors: [stubId],
+          },
         }),
       ),
-    ).toEqual({ status: 'stale', reason: 'destination' });
-    const state = await mapState(tombstoned);
-    expect(state.systems).toHaveLength(2);
-    expect(state.connections).toEqual([]);
-    expect(state.stamps).toEqual([]);
+    ).toMatchObject({ status: 'authored' });
+
+    const livePairs = (await mapState(t)).connections.filter((row) => row.deletedAt == null);
+    expect(livePairs).toEqual([expect.objectContaining({
+      _id: stubId,
+      fromSignatureId: 'ABS-420',
+      toSystemId: DESTINATION,
+    })]);
+    const corpse = await t.run(async (ctx) => await ctx.db.get(corpseId));
+    expect(corpse).toMatchObject({ deletedAt: OBSERVED_AT - 1_000 });
+    expect(corpse?.purgeAfter).not.toBe(OBSERVED_AT + 60_000);
+    expect(corpse?.purgeAfter).toBeLessThanOrEqual(Date.now());
   });
+
   it('ignores forged tracking rows that join to no location document', async () => {
     const t = convexTest(schema, modules);
     await grant(t, EDITOR, ['editor']);

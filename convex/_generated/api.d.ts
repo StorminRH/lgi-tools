@@ -15,6 +15,7 @@ import type * as engine from "../engine.js";
 import type * as http from "../http.js";
 import type * as lib_bearerAuth from "../lib/bearerAuth.js";
 import type * as lib_characterSync from "../lib/characterSync.js";
+import type * as lib_locationCoverage from "../lib/locationCoverage.js";
 import type * as lib_mapAccess from "../lib/mapAccess.js";
 import type * as lib_mapChainCleanup from "../lib/mapChainCleanup.js";
 import type * as lib_mapConnectionLookup from "../lib/mapConnectionLookup.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/bearerAuth": typeof lib_bearerAuth;
   "lib/characterSync": typeof lib_characterSync;
+  "lib/locationCoverage": typeof lib_locationCoverage;
   "lib/mapAccess": typeof lib_mapAccess;
   "lib/mapChainCleanup": typeof lib_mapChainCleanup;
   "lib/mapConnectionLookup": typeof lib_mapConnectionLookup;

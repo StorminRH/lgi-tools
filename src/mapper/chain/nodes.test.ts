@@ -201,6 +201,38 @@ describe('canvas edge projection', () => {
     ]);
   });
 
+  it('hides a dying corpse when a live line already spans the same pair', () => {
+    const now = 1_700_000_000_000;
+    const state = reconcileChain(
+      EMPTY_CHAIN_STATE,
+      snapshot([JITA, AMARR], [
+        {
+          connectionId: 'live',
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+        },
+        {
+          connectionId: 'dying',
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          deletedAt: now - 1,
+          purgeAfter: now + 1,
+        },
+      ]),
+      NO_DRAG,
+      sequentialTestAssigner,
+    ).state;
+
+    expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
+      {
+        id: 'live',
+        source: String(JITA),
+        target: String(AMARR),
+        data: { loop: false, tombstoneState: 'active' },
+      },
+    ]);
+  });
+
   it('renders dying ties but keeps skeleton ties out of the canvas', () => {
     const now = 1_700_000_000_000;
     const state = reconcileChain(

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   computeChainBoundary,
   HIDDEN_PRESENCE_MAX_MS,
+  isColdFromPresence,
   RETENTION_MS,
   SYNC_DATASET_CONFIG,
 } from '@/lib/sync-engine';
@@ -234,6 +235,180 @@ describe('engine.heartbeat', () => {
     const afterLegacy = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(afterLegacy?.lastVisibleAt).toBeGreaterThan(123);
   });
+
+  it('stamps the beating tab id onto presence', async () => {
+    const t = convexTest(schema, modules);
+    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [],
+      reason: 'mount',
+      tabId: 'tab-one',
+    });
+    const presence = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(presence?.tabId).toBe('tab-one');
+  });
+});
+
+describe('engine.leave', () => {
+  it('retires a matching tab, ages presence, and ignores a newer tab', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        nextDueAt: now + 5_000,
+        lastRequestedAt: now,
+        workId: String(now),
+        syncedCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+        lastVisibleAt: now,
+        tabId: 'tab-a',
+      });
+      await ctx.db.insert('characterLocationCovered', {
+        userId: USER,
+        characterId: 101,
+      });
+    });
+
+    const ignored = await t.mutation(internal.engine.leave, {
+      userId: USER,
+      dataset: 'characterLocation',
+      tabId: 'tab-b',
+    });
+    expect(ignored).toEqual({ retired: false });
+    const stillHot = await t.run(async (ctx) => ({
+      subject: await ctx.db.query('syncSubjects').unique(),
+      covered: await ctx.db.query('characterLocationCovered').collect(),
+    }));
+    expect(stillHot.subject?.nextDueAt).toBe(now + 5_000);
+    expect(stillHot.covered).toHaveLength(1);
+
+    const retired = await t.mutation(internal.engine.leave, {
+      userId: USER,
+      dataset: 'characterLocation',
+      tabId: 'tab-a',
+    });
+    expect(retired).toEqual({ retired: true });
+    const after = await t.run(async (ctx) => ({
+      subject: await ctx.db.query('syncSubjects').unique(),
+      presence: await ctx.db.query('syncPresence').unique(),
+      covered: await ctx.db.query('characterLocationCovered').collect(),
+    }));
+    expect(after.subject?.nextDueAt).toBeNull();
+    expect(after.subject?.workId).toBeNull();
+    expect(after.subject?.lastRequestedAt).toBe(0);
+    expect(after.covered).toEqual([]);
+    expect(after.presence?.leftTabId).toBe('tab-a');
+    expect(
+      isColdFromPresence(
+        after.presence,
+        SYNC_DATASET_CONFIG.characterLocation.coldAfterMs,
+        Date.now(),
+      ),
+    ).toBe(true);
+  });
+
+  it('ignores a delayed beat from the tab that left and lets a new tab recover', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    stubDispatch();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        nextDueAt: now + 5_000,
+        syncedCharacterIds: [101],
+        minExpiresAt: null,
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+        lastVisibleAt: now,
+        tabId: 'tab-a',
+      });
+    });
+    await t.mutation(internal.engine.leave, {
+      userId: USER,
+      dataset: 'characterLocation',
+      tabId: 'tab-a',
+    });
+
+    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'interval',
+      tabId: 'tab-a',
+    });
+    const fenced = await t.run(async (ctx) => ({
+      subject: await ctx.db.query('syncSubjects').unique(),
+      presence: await ctx.db.query('syncPresence').unique(),
+    }));
+    expect(fenced.subject?.nextDueAt).toBeNull();
+    expect(fenced.presence?.leftTabId).toBe('tab-a');
+
+    await t.withIdentity({ subject: USER }).mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'interval',
+      visible: false,
+      tabId: 'tab-b',
+    });
+    const recovered = await t.run(async (ctx) => ({
+      subject: await ctx.db.query('syncSubjects').unique(),
+      presence: await ctx.db.query('syncPresence').unique(),
+    }));
+    expect(recovered.subject?.status).toBe('running');
+    expect(recovered.presence?.tabId).toBe('tab-b');
+    expect(recovered.presence?.leftTabId).toBe('');
+  });
+
+  it('recovers the remaining tab after an older tab beats last and then leaves', async () => {
+    const t = convexTest(schema, modules);
+    stubDispatch();
+    const authed = t.withIdentity({ subject: USER });
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'mount',
+      tabId: 'tab-a',
+    });
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'mount',
+      tabId: 'tab-b',
+    });
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'interval',
+      tabId: 'tab-a',
+    });
+    const lastBeater = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(lastBeater?.tabId).toBe('tab-a');
+
+    expect(await t.mutation(internal.engine.leave, {
+      userId: USER,
+      dataset: 'characterLocation',
+      tabId: 'tab-a',
+    })).toEqual({ retired: true });
+
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'interval',
+      tabId: 'tab-b',
+    });
+    const recovered = await t.run(async (ctx) => ({
+      subject: await ctx.db.query('syncSubjects').unique(),
+      presence: await ctx.db.query('syncPresence').unique(),
+    }));
+    expect(recovered.subject?.status).toBe('running');
+    expect(recovered.presence?.tabId).toBe('tab-b');
+    expect(recovered.presence?.leftTabId).toBe('');
+  });
 });
 
 describe('engine.scan', () => {
@@ -307,6 +482,10 @@ describe('engine.scan', () => {
     const now = Date.now();
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({ nextDueAt: now - 1000 }));
+      await ctx.db.insert('characterLocationCovered', {
+        userId: USER,
+        characterId: 9_000_001,
+      });
     });
     await t.mutation(internal.engine.scan, {});
     const subject = await t.run((ctx) =>
@@ -316,6 +495,13 @@ describe('engine.scan', () => {
         .unique(),
     );
     expect(subject?.nextDueAt).toBeNull();
+    const covered = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationCovered')
+        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .collect(),
+    );
+    expect(covered).toEqual([]);
   });
 
   it('skips a hot due subject whose run is still fresh', async () => {

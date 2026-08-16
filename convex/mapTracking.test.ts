@@ -218,6 +218,68 @@ describe('mapTracking.forMap', () => {
     expect(byUser.get(EDITOR)?.location).toBeNull();
   });
 
+  it('answers owner-scoped coverage: only flip-only rows count as covered', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR_B,
+      tracked: true,
+    });
+    await asUser(t, EDITOR).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationCovered', {
+        userId: OWNER,
+        characterId: CHAR,
+      });
+    });
+
+    const result = await asUser(t, OWNER).query(api.mapTracking.coverage, {
+      mapId: MAP_A,
+    });
+    const byOwnerCharacter = new Map(
+      result.coverage.map((entry) => [
+        `${entry.userId}/${entry.characterId}`,
+        entry.covered,
+      ]),
+    );
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR}`)).toBe(true);
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR_B}`)).toBe(false);
+    expect(byOwnerCharacter.get(`${EDITOR}/${CHAR}`)).toBe(false);
+    expect(result.coverage.map(({ userId, characterId }) => [userId, characterId])).toEqual([
+      [EDITOR, CHAR],
+      [OWNER, CHAR],
+      [OWNER, CHAR_B],
+    ]);
+    const overlay = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
+    const anyRow = overlay.tracked[0];
+    expect(anyRow).toBeDefined();
+    if (anyRow === undefined) throw new Error('expected a tracked overlay row');
+    expect('covered' in anyRow).toBe(false);
+  });
+
+  it('answers coverage as an empty list without access (subscription doctrine)', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const result = await asUser(t, EDITOR).query(api.mapTracking.coverage, {
+      mapId: MAP_A,
+    });
+    expect(result.coverage).toEqual([]);
+  });
+
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);

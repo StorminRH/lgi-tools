@@ -23,7 +23,10 @@ import {
 } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoring';
-import { isTombstoned } from '@/data/maps/chain-contract';
+import {
+  chainTombstoneState,
+  isTombstoned,
+} from '@/data/maps/chain-contract';
 import {
   connectionDoorTypes,
   legacyTypeSnapshot,
@@ -96,8 +99,6 @@ type StaleReason =
   | 'same-system'
   | 'transition'
   | 'origin'
-  | 'destination'
-  | 'connection-tombstone'
   | 'candidates'
   | 'survivors'
   | 'selected-candidate'
@@ -476,26 +477,13 @@ async function endpointLapse(
 ): Promise<StaleResult | null> {
   const origin = await findSystem(ctx, args.mapId, args.fromSolarSystemId);
   if (origin === null || isTombstoned(origin)) return stale('origin');
-  const destination = await findSystem(ctx, args.mapId, args.toSolarSystemId);
-  return destination !== null && isTombstoned(destination)
-    ? stale('destination')
-    : null;
+  return null;
 }
 
-async function selectExistingPair(
-  ctx: QueryCtx,
-  args: ResolveJumpInput,
-): Promise<Doc<'mapConnections'> | StaleResult | null> {
-  const pairRows = await readPairRows(
-    ctx,
-    args.mapId,
-    args.fromSolarSystemId,
-    args.toSolarSystemId,
-  );
+function selectExistingPair(
+  pairRows: readonly Doc<'mapConnections'>[],
+): Doc<'mapConnections'> | null {
   const livePairs = pairRows.filter((row) => !isTombstoned(row));
-  if (livePairs.length === 0 && pairRows.some(isTombstoned)) {
-    return stale('connection-tombstone');
-  }
   if (livePairs.length > 1) {
     throw new ConvexError({ code: 'DUPLICATE_LIVE_CONNECTION' });
   }
@@ -598,10 +586,30 @@ async function insertJumpTopology(
   return { outcome: 'authored', connection };
 }
 
+/**
+ * A remapped jump authors a new live pair. The collapsed corpse stays
+ * tombstoned (HC-3: jump does not undo the old hole) but its dying window
+ * closes so the canvas does not underline the new line with the old undo.
+ */
+async function supersedeDyingPairConnections(
+  ctx: MutationCtx,
+  pairRows: readonly Doc<'mapConnections'>[],
+  liveId: Id<'mapConnections'>,
+  now: number,
+): Promise<void> {
+  for (const row of pairRows) {
+    if (row._id === liveId) continue;
+    if (chainTombstoneState(row, now) !== 'dying') continue;
+    await ctx.db.patch(row._id, { purgeAfter: now });
+  }
+}
+
 async function authorNewTopology(
   ctx: MutationCtx,
   args: ResolveJumpInput,
   observedShipMassKg: number | null,
+  pairRows: readonly Doc<'mapConnections'>[],
+  now: number,
 ): Promise<TopologyResult | StaleResult> {
   const candidates = await readUnresolvedCandidates(
     ctx,
@@ -612,9 +620,11 @@ async function authorNewTopology(
   if ('status' in selection) return selection;
 
   await upsertLiveDestination(ctx, args.mapId, args.toSolarSystemId);
-  return selection.kind === 'resolve'
+  const authored = selection.kind === 'resolve'
     ? await resolveCandidateTopology(ctx, args, selection, observedShipMassKg)
     : await insertJumpTopology(ctx, args, observedShipMassKg);
+  await supersedeDyingPairConnections(ctx, pairRows, authored.connection._id, now);
+  return authored;
 }
 
 /**
@@ -651,10 +661,16 @@ export const resolveJumpAuthoring = internalMutation({
     const lapse = await endpointLapse(ctx, args);
     if (lapse !== null) return lapse;
 
-    const existingPair = await selectExistingPair(ctx, args);
-    if (existingPair !== null && 'status' in existingPair) return existingPair;
+    const pairRows = await readPairRows(
+      ctx,
+      args.mapId,
+      args.fromSolarSystemId,
+      args.toSolarSystemId,
+    );
+    const existingPair = await selectExistingPair(pairRows);
+    const now = Date.now();
     const topology = existingPair === null
-      ? await authorNewTopology(ctx, args, validated.observedShipMassKg)
+      ? await authorNewTopology(ctx, args, validated.observedShipMassKg, pairRows, now)
       : await convergeExistingPair(
           ctx,
           existingPair,

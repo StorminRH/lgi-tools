@@ -7,6 +7,14 @@ export interface HomePromptTracking {
   }[];
 }
 
+/** Coverage overlay the home prompt reads from `mapTracking.coverage`. */
+export interface HomePromptCoverage {
+  readonly coverage: readonly {
+    readonly characterId: number;
+    readonly covered: boolean;
+  }[];
+}
+
 /** What the home prompt's current-system control should do. */
 export type HomeCurrentSystem =
   | { readonly kind: 'loading' }
@@ -14,40 +22,51 @@ export type HomeCurrentSystem =
   | { readonly kind: 'offline' }
   | { readonly kind: 'ready'; readonly systemId: number };
 
-function lastKnownSystemId(
+function liveSystemId(
   characterId: number,
   tracking: HomePromptTracking,
+  coverage: HomePromptCoverage,
 ): number | null {
   if (!tracking.ownTrackedCharacterIds.includes(characterId)) return null;
+  const covered =
+    coverage.coverage.find((row) => row.characterId === characterId)?.covered
+    ?? false;
+  if (!covered) return null;
   return tracking.tracked.find((row) => row.characterId === characterId)
     ?.location?.solarSystemId ?? null;
 }
 
 /**
  * Derives the current-system control from this map's tracking opt-in and
- * last-known location. Loading subscriptions keep the control inert. The
- * session character wins when it has a last-known system; otherwise a unique
- * tracked last-known location on this map is a current-system seed (an
- * in-space alt is usable when the session character has no pin). Two+
- * last-known systems without a session-character pin stay offline so create
- * does not guess a root; paste and persistent windows refuse that case as
- * ambiguous on their own policy.
+ * present+online coverage. A last-known location without a covered sample
+ * is offline — not a current system. Loading subscriptions keep the
+ * control inert. The session character wins when it is live; otherwise a
+ * unique tracked live location on this map is a current-system seed.
  */
 export function homeCurrentSystem(input: {
   readonly characterId: number | null;
   readonly tracking: HomePromptTracking | undefined;
+  readonly coverage: HomePromptCoverage | undefined;
 }): HomeCurrentSystem {
-  if (input.characterId == null || input.tracking === undefined) {
+  if (
+    input.characterId == null
+    || input.tracking === undefined
+    || input.coverage === undefined
+  ) {
     return { kind: 'loading' };
   }
   if (input.tracking.ownTrackedCharacterIds.length === 0) {
     return { kind: 'untracked' };
   }
-  const preferred = lastKnownSystemId(input.characterId, input.tracking);
+  const preferred = liveSystemId(
+    input.characterId,
+    input.tracking,
+    input.coverage,
+  );
   if (preferred !== null) return { kind: 'ready', systemId: preferred };
   const systems = new Set<number>();
   for (const characterId of input.tracking.ownTrackedCharacterIds) {
-    const systemId = lastKnownSystemId(characterId, input.tracking);
+    const systemId = liveSystemId(characterId, input.tracking, input.coverage);
     if (systemId !== null) systems.add(systemId);
   }
   if (systems.size !== 1) return { kind: 'offline' };

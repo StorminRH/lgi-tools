@@ -563,6 +563,114 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toBeNull();
   });
 
+  it('re-paste of a linked way-home keeps the inbound door and does not spawn a stub', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WDE-796', { group: 'Wormhole' })]);
+    let stubId = '' as Id<'mapConnections'>;
+    let inboundId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      const stub = (await ctx.db.query('mapConnections').collect())[0];
+      if (stub === undefined) {
+        throw new Error('expected the pasted wormhole stub before linking');
+      }
+      stubId = stub._id;
+      inboundId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: stubId,
+      resolvedConnectionId: inboundId,
+    });
+
+    expect(await apply(t, [signature('WDE-796', { group: 'Wormhole' })])).toMatchObject({
+      unchanged: 1,
+      inserted: 0,
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+      toSignatureId: 'WDE-796',
+      toSystemId: JITA,
+    });
+    expect(await t.run(async (ctx) => (await ctx.db.query('mapConnections').collect())
+      .filter((row) => row.toSystemId === null))).toEqual([]);
+  });
+
+  it('re-paste absorbs a leftover way-home stub onto the inbound door', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WDE-796', { group: 'Wormhole' })]);
+    let stubId = '' as Id<'mapConnections'>;
+    let inboundId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      const stub = (await ctx.db.query('mapConnections').collect())[0];
+      if (stub === undefined) {
+        throw new Error('expected the pasted wormhole stub before linking');
+      }
+      stubId = stub._id;
+      inboundId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: stubId,
+      resolvedConnectionId: inboundId,
+    });
+    let leftoverId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      leftoverId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: null,
+        fromSignatureId: 'WDE-796',
+        wormholeTypeCode: 'K162',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        fromWormholeTypeCode: 'K162',
+        massState: 'stable',
+        shipSize: 'M',
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+
+    expect(await apply(t, [signature('WDE-796', { group: 'Wormhole' })])).toMatchObject({
+      updated: 1,
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(leftoverId))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+      toSignatureId: 'WDE-796',
+      toWormholeTypeCode: 'K162',
+      massState: 'stable',
+      shipSize: 'M',
+    });
+  });
+
   it('folds a unique leftover origin stub onto the resolved inbound', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
@@ -1403,13 +1511,15 @@ describe('mapScan paste application and lifecycle', () => {
     expect((await readState(t)).connections[0]).toEqual(before);
   });
 
-  it('paste never resurrects a collapsed resolved branch — the ledger undo owns it', async () => {
+  it('paste after a resolved collapse starts a new stub without restoring the branch', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
     await apply(t, [signature('WHL-001', { group: 'Wormhole' })]);
+    let corpseId = '' as Id<'mapConnections'>;
     await t.run(async (ctx) => {
       await ctx.db.insert('mapSystems', { mapId: MAP, systemId: WH_FAR });
       const connection = (await ctx.db.query('mapConnections').collect())[0]!;
+      corpseId = connection._id;
       await ctx.db.patch(connection._id, { toSystemId: WH_FAR });
     });
     await asEditor(t).mutation(api.mapScan.removeSignatures, {
@@ -1417,16 +1527,26 @@ describe('mapScan paste application and lifecycle', () => {
       systemId: JITA,
       signatureIds: ['WHL-001'],
     });
-    const corpse = await readState(t);
 
-    // A stale clipboard still lists the dead hole's signature. The paste must
-    // not branch-restore the collapsed topology (HC-3: a resolved collapse is
-    // a closed lifetime for paste purposes).
+    // Same clipboard id is a new lifetime. Paste must not branch-restore the
+    // collapsed topology (HC-3) — it inserts a fresh unresolved stub instead.
     expect(await apply(t, [signature('WHL-001', { group: 'Wormhole' })])).toMatchObject({
-      unchanged: 1,
+      inserted: 1,
+      unchanged: 0,
       missing: [],
     });
-    expect(await readState(t)).toEqual(corpse);
+    expect(await t.run(async (ctx) => await ctx.db.get(corpseId))).toMatchObject({
+      deletedAt: NOW,
+      toSystemId: WH_FAR,
+      fromSignatureId: 'WHL-001',
+    });
+    const live = await t.run(async (ctx) => (await ctx.db.query('mapConnections').collect())
+      .filter((row) => row.deletedAt == null));
+    expect(live).toEqual([expect.objectContaining({
+      fromSignatureId: 'WHL-001',
+      fromSystemId: JITA,
+      toSystemId: null,
+    })]);
     expect(await t.run(async (ctx) => (await ctx.db
       .query('mapSystems')
       .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', WH_FAR))

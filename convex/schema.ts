@@ -98,6 +98,12 @@ export default defineSchema({
     // came from visible-only clients, so lastSeenAt stands in (never write
     // null here — v.optional rejects it; omit the field instead).
     lastVisibleAt: v.optional(v.number()),
+    // Last beating Atlas tab. Leave retires only when this matches, so a
+    // second open tab or a reload's new mount is not killed by a stale close.
+    tabId: v.optional(v.string()),
+    // Tab that just left. A delayed beat from this id must not warm presence
+    // or re-arm the subject; a different tab clears it and may recover.
+    leftTabId: v.optional(v.string()),
   })
     .index('by_user_dataset', ['userId', 'dataset'])
     // The sweep's two presence-driven passes range over this: rows within the
@@ -380,6 +386,18 @@ export default defineSchema({
     observedAt: v.number(),
     etagLocation: v.union(v.string(), v.null()),
     etagShip: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // Flip-only present+online fact the map pin reads. A row exists only while
+  // the owner's location run last covered this character (ESI-online and
+  // sampled). Written only when that boolean changes — never on lastFinishedAt
+  // or probe expiry — so the map coverage query stays quiet. Regenerable;
+  // purged with characterLocation via the same door.
+  characterLocationCovered: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
   })
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),

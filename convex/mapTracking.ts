@@ -16,6 +16,7 @@ import {
   type QueryCtx,
 } from './_generated/server';
 import { requireMapAccess, tryMapAccess } from './lib/mapAccess';
+import { findCoverage } from './lib/locationCoverage';
 
 /**
  * Per-(map, user) tracked-character bound, enforced at opt-in. Bounds every
@@ -111,6 +112,8 @@ export const setTracking = mutation({
  * observedAt is LAST-CHANGE time (the 304 zero-write path never touches it),
  * so this read set changes only on real location/tracking/claim writes — the
  * doorbell's retry sizing and the map's push rate both rest on that.
+ * Present+online coverage lives on the sibling `coverage` query, which reads
+ * the flip-only `characterLocationCovered` rows so this one never has to.
  */
 export const forMap = query({
   args: { mapId: v.string() },
@@ -152,6 +155,62 @@ export const forMap = query({
         .filter((row) => row.userId === principal.userId)
         .map((row) => row.characterId)
         .sort((left, right) => left - right),
+    };
+  },
+});
+
+interface CoverageRow {
+  userId: string;
+  characterId: number;
+  covered: boolean;
+}
+
+/** Stable wire order without adding another decision to the reactive query. */
+function compareCoverageRows(left: CoverageRow, right: CoverageRow): number {
+  return (
+    left.userId.localeCompare(right.userId)
+    || left.characterId - right.characterId
+  );
+}
+
+/**
+ * Per-owner-character present+online coverage for one map's tracked pilots.
+ * Split from `forMap` so a coverage flip cannot invalidate the location
+ * overlay. Reads only flip-only `characterLocationCovered` rows — never
+ * syncSubjects or the online-probe expiry table. Output is sorted by owner
+ * then character id.
+ */
+export const coverage = query({
+  args: { mapId: v.string() },
+  handler: async (ctx, { mapId }) => {
+    const principal = await tryMapAccess(ctx, mapId, 'view');
+    if (principal === null) {
+      return {
+        coverage: [] as {
+          userId: string;
+          characterId: number;
+          covered: boolean;
+        }[],
+      };
+    }
+
+    const rows = await ctx.db
+      .query('mapTracking')
+      .withIndex('by_map', (q) => q.eq('mapId', mapId))
+      .take(TRACKING_MAP_SCAN_CAP);
+
+    const coverageRows: CoverageRow[] = [];
+    for (const row of rows) {
+      const held = await findCoverage(ctx, row.userId, row.characterId);
+      coverageRows.push({
+        userId: row.userId,
+        characterId: row.characterId,
+        covered: held !== null,
+      });
+    }
+
+    return {
+      coverage: coverageRows.sort(compareCoverageRows),
     };
   },
 });

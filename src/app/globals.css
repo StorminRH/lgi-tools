@@ -422,9 +422,12 @@ pre {
 }
 
 /* Left-edge scrollbar: RTL gutter, LTR content. Track border flips to the
- * content side so the painted rail still reads as a divider. */
+ * content side so the painted rail still reads as a divider. The start
+ * modifier is applied with `.scroll-area`; the stable gutter is off so a
+ * reserved right-side slot cannot shear card radii on an RTL scrollport. */
 .scroll-area-start {
   direction: rtl;
+  scrollbar-gutter: auto;
 }
 .scroll-area-start > * {
   direction: ltr;

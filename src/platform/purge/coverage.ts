@@ -95,6 +95,14 @@ export const NON_NEON_HOMES = [
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Apply no longer orphan-cleans against a Neon enum; identity teardown and account purge are the only deletes.',
   },
   {
+    home: 'convex:characterLocationCovered',
+    coveredBy:
+      'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser, which drains it beside characterLocation); identity hooks hit the same door',
+    explicitTeardown: 'src/data/location-tracking/purge.ts — same door as characterLocation',
+    reason:
+      'flip-only present+online rows the map pin reads. Written only when coverage changes, never on location or probe expiry. User/character-keyed like characterLocation and torn down through the identical purge cascade.',
+  },
+  {
     home: 'convex:characterLocationOnline',
     coveredBy:
       'explicit teardown via the location-tracking purge contributor (POST /purge-location-tracking → convex/characterLocation.purgeForUser, which drains it beside characterLocation); identity hooks hit the same door',

@@ -444,32 +444,32 @@ describe('map authoring', () => {
       );
     });
 
-    it('refuses a tombstoned destination (DESTINATION_TOMBSTONED)', async () => {
+    it('authors a new line when the destination is already in trash', async () => {
       const t = convexTest(schema, modules);
-      await seedJump(t);
-      // Sever the connection so Amarr can be tombstoned, then refuse re-add.
-      const connections = await t.run(async (ctx) =>
-        await ctx.db
-          .query('mapConnections')
-          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
-          .collect(),
-      );
+      const { connectionId: trashedId } = await seedJump(t);
       await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
         mapId: MAP_A,
-        connectionId: connections[0]!._id,
+        connectionId: trashedId,
       });
       await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
         mapId: MAP_A,
         systemId: AMARR,
       });
-      await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
-          mapId: MAP_A,
-          fromSystemId: JITA,
-          toSystemId: AMARR,
-        }),
-        'DESTINATION_TOMBSTONED',
-      );
+      const added = await asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
+        mapId: MAP_A,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+      });
+      expect(added.connectionId).not.toBe(trashedId);
+      expect(await readSystem(t, AMARR)).toMatchObject({ deletedAt: null });
+      expect(await readConnection(t, trashedId)).toMatchObject({
+        deletedAt: expect.any(Number),
+      });
+      expect(await readConnection(t, added.connectionId)).toMatchObject({
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        deletedAt: null,
+      });
     });
 
     it('inserts only a connection when the destination is already live (loop)', async () => {
