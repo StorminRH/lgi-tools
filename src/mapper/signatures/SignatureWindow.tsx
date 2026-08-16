@@ -296,6 +296,7 @@ interface WormholeCellContext {
   ) => ReturnType<typeof destinationReadout>;
   readonly bindConnectionSetters?: (
     connection: ConnectionEditorDetail,
+    side?: 'from' | 'to',
   ) => ConnectionFieldSetters;
   readonly entryOf: (
     connection: ConnectionEditorDetail,
@@ -387,8 +388,8 @@ function wormholeCells(
   const connection = row.connection;
   const farSide = row.endpoint === 'to';
   const setters =
-    ctx.canEdit && connection !== null && !farSide
-      ? ctx.bindConnectionSetters?.(connection)
+    ctx.canEdit && connection !== null
+      ? ctx.bindConnectionSetters?.(connection, row.endpoint ?? 'from')
       : undefined;
   const destination = scannerRowDestination(row, ctx);
   const entry = connection === null ? null : ctx.entryOf(connection);
@@ -397,6 +398,7 @@ function wormholeCells(
     lifeEstimate === '—'
       ? scannerLifeReadout(connection?.lifeStage ?? null)
       : lifeEstimate;
+  const hint = scannerRowHint(connection, farSide);
   if (setters === undefined || connection === null) {
     return (
       <ReadOnlyWormholeCells
@@ -442,12 +444,16 @@ function wormholeCells(
         key={scannerLeadsCellKey(
           connection.connectionId,
           destination?.label,
-          connection.fromDestinationHint,
+          hint,
         )}
-        hint={connection.fromDestinationHint}
+        hint={hint}
         destination={destination}
         originLeads={ctx.originLeadsOf(connection)}
-        originSystemId={connection.fromSystemId}
+        originSystemId={
+          farSide && connection.toSystemId !== null
+            ? connection.toSystemId
+            : connection.fromSystemId
+        }
         rowId={row.signatureId}
         disabled={false}
         onChange={setters.setLeadsTo}
@@ -778,6 +784,7 @@ interface SignatureWindowProps {
   /** Binds inline wormhole cells to the existing connection-field setters. */
   readonly bindConnectionSetters?: (
     connection: ConnectionEditorDetail,
+    side?: 'from' | 'to',
   ) => ConnectionFieldSetters;
   /** Resolved inbound lines the Destination cell can offer as a return pick. */
   readonly originLeadConnections?: readonly OriginLeadConnection[];

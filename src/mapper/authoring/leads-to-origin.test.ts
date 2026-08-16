@@ -4,6 +4,7 @@ import {
   dispatchLeadsToChange,
   encodeOriginLead,
   originLeadCandidates,
+  originLeadForSystem,
   type OriginLeadConnection,
 } from './leads-to-origin';
 
@@ -73,6 +74,18 @@ describe('originLeadCandidates', () => {
         }),
       ]),
     ).toEqual([]);
+  });
+
+  it('links a return-system pick only when exactly one inbound matches', () => {
+    const inbound = { connectionId: 'inbound', systemId: ORIGIN_SYSTEM };
+    expect(originLeadForSystem(ORIGIN_SYSTEM, [inbound])).toBe('inbound');
+    expect(originLeadForSystem(OTHER_SYSTEM, [inbound])).toBeNull();
+    expect(
+      originLeadForSystem(ORIGIN_SYSTEM, [
+        inbound,
+        { connectionId: 'other', systemId: ORIGIN_SYSTEM },
+      ]),
+    ).toBeNull();
   });
 
   it('reads the origin from either endpoint orientation', () => {

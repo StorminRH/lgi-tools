@@ -79,7 +79,11 @@ function localWormholeTypeCode(
   if (row.wormholeTypeCode === null) return null;
   const typedSide = row.typedSide ?? 'from';
   if (side === typedSide) return row.wormholeTypeCode;
-  return FAR_SIDE_WORMHOLE_CODE;
+  // The far side is K162 only when this hole has a named type. A stored K162
+  // does not invent a second K162 on the other end.
+  return row.wormholeTypeCode === FAR_SIDE_WORMHOLE_CODE
+    ? null
+    : FAR_SIDE_WORMHOLE_CODE;
 }
 
 function connectionSideRow(

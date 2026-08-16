@@ -89,6 +89,23 @@ describe('connectionFieldSetters', () => {
     });
   });
 
+  it('sends a scanner far-side hint from the endpoint the row was opened on', () => {
+    const api = authoring();
+    connectionFieldSetters(
+      'map-a',
+      CONNECTION,
+      api,
+      undefined,
+      'to',
+    ).setLeadsTo('hisec');
+    expect(api.setConnectionDestinationHint).toHaveBeenCalledWith({
+      mapId: 'map-a',
+      connectionId: CONNECTION.connectionId,
+      side: 'to',
+      value: 'hisec',
+    });
+  });
+
   it('sends a destination retarget through the keep-the-hole mutation', () => {
     const api = authoring();
     connectionFieldSetters('map-a', CONNECTION, api).setDestination(31_000_002);

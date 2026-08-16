@@ -24,7 +24,11 @@ describe('originLeadOptions', () => {
           ? { id, name: 'J160650', security: -1, whClassId: 3 }
           : null,
       ),
-    ).toEqual([{ connectionId: 'inbound', label: 'J160650 - C3' }]);
+    ).toEqual([{
+      connectionId: 'inbound',
+      systemId: 31_000_002,
+      label: 'J160650 - C3',
+    }]);
     expect(
       originLeadOptions({ ...STUB, toSystemId: 31_000_002 }, [inbound], null),
     ).toEqual([]);

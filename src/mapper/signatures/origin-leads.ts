@@ -26,6 +26,7 @@ export function originLeadOptions(
     connections,
   ).map((candidate) => ({
     connectionId: candidate.connectionId,
+    systemId: candidate.systemId,
     label:
       destinationReadout(candidate.systemId, systemInfo)?.label
       ?? String(candidate.systemId),

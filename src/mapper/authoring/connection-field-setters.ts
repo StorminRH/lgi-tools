@@ -52,6 +52,7 @@ export function connectionFieldSetters(
   setWormholeType = (value: string | null) => {
     void authoring.setConnectionWormholeType({ mapId, connection, value });
   },
+  side: 'from' | 'to' = 'from',
 ): ConnectionFieldSetters {
   const connectionId = connection.connectionId;
   return {
@@ -65,14 +66,13 @@ export function connectionFieldSetters(
     setLifeStage: (value) => {
       void authoring.setConnectionLifeStage({ mapId, connection, value });
     },
-    // One "Leads to" field (ruling D-G): the editor always speaks from the
-    // origin endpoint it was opened on, so the side is decided here rather
-    // than surfaced as a second control.
+    // One "Leads to" field (ruling D-G): the control speaks from the endpoint
+    // it was opened on. The popup editor always passes the origin side.
     setLeadsTo: (value) => {
       void authoring.setConnectionDestinationHint({
         mapId,
         connectionId,
-        side: 'from',
+        side,
         value,
       });
     },

@@ -32,7 +32,11 @@ import {
   type ConnectionFieldSetters,
   type OriginLeadOption,
 } from '../authoring/connection-fields';
-import { decodeOriginLead, encodeOriginLead } from '../authoring/leads-to-origin';
+import {
+  decodeOriginLead,
+  encodeOriginLead,
+  originLeadForSystem,
+} from '../authoring/leads-to-origin';
 import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
@@ -544,6 +548,7 @@ export function commitScannerLeadsValue(
   onSetDestination: ConnectionFieldSetters['setDestination'],
   onLinkOrigin: ConnectionFieldSetters['linkToOrigin'],
   originSystemId?: number,
+  originLeads: readonly OriginLeadOption[] = [],
 ): void {
   const originId = decodeOriginLead(value);
   if (originId !== null) {
@@ -565,6 +570,11 @@ export function commitScannerLeadsValue(
       && systemId > 0
       && systemId !== originSystemId
     ) {
+      const leadId = originLeadForSystem(systemId, originLeads);
+      if (leadId !== null) {
+        onLinkOrigin(leadId);
+        return;
+      }
       onSetDestination(systemId);
     }
   }
@@ -610,6 +620,7 @@ export function commitScannerLeadsQuery(
       onSetDestination,
       onLinkOrigin,
       originSystemId,
+      originLeads,
     );
     return;
   }
@@ -627,6 +638,7 @@ export function commitScannerLeadsQuery(
       onSetDestination,
       onLinkOrigin,
       originSystemId,
+      originLeads,
     );
     return;
   }
@@ -643,11 +655,21 @@ export function commitScannerLeadsQuery(
       onSetDestination,
       onLinkOrigin,
       originSystemId,
+      originLeads,
     );
     return;
   }
   const parsed = parseDestinationSystem(parse, trimmed, originSystemId);
-  if (parsed.ok) onSetDestination(parsed.params.system.id);
+  if (parsed.ok) {
+    commitScannerLeadsValue(
+      `${SYSTEM_PREFIX}${parsed.params.system.id}`,
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+      originSystemId,
+      originLeads,
+    );
+  }
 }
 
 function typeGroupsAsComboItems(
@@ -775,6 +797,7 @@ export function ScannerLeadsControl({
             onSetDestination,
             onLinkOrigin,
             originSystemId,
+            originLeads,
           );
           return;
         }

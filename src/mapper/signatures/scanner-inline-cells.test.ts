@@ -120,7 +120,7 @@ describe('scannerLeadsSuggestionGroups', () => {
   it('surfaces named origin systems first on an empty click', () => {
     expect(
       scannerLeadsSuggestionGroups('', systems, '', [
-        { connectionId: 'inbound', label: 'J160650 - C3' },
+        { connectionId: 'inbound', label: 'J160650 - C3', systemId: 31_000_002 },
       ]),
     ).toEqual([
       {
@@ -199,6 +199,31 @@ describe('commitScannerLeadsValue', () => {
       31_000_001,
     );
     expect(onSetDestination).not.toHaveBeenCalled();
+    onSetDestination.mockClear();
+    commitScannerLeadsValue(
+      'system:31000002',
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+      31_000_001,
+      [{ connectionId: 'inbound', label: 'J160650 - C3', systemId: 31_000_002 }],
+    );
+    expect(onLinkOrigin).toHaveBeenCalledWith('inbound');
+    expect(onSetDestination).not.toHaveBeenCalled();
+    onLinkOrigin.mockClear();
+    commitScannerLeadsValue(
+      'system:31000002',
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+      31_000_001,
+      [
+        { connectionId: 'inbound-a', label: 'J160650 - C3', systemId: 31_000_002 },
+        { connectionId: 'inbound-b', label: 'J160650 - C3', systemId: 31_000_002 },
+      ],
+    );
+    expect(onLinkOrigin).not.toHaveBeenCalled();
+    expect(onSetDestination).toHaveBeenCalledWith(31_000_002);
   });
 });
 
@@ -228,7 +253,11 @@ describe('commitScannerLeadsQuery', () => {
     const onChange = vi.fn();
     const onSetDestination = vi.fn();
     const onLinkOrigin = vi.fn();
-    const leads = [{ connectionId: 'inbound', label: 'J160650 - C3' }];
+    const leads = [{
+      connectionId: 'inbound',
+      label: 'J160650 - C3',
+      systemId: 31_000_002,
+    }];
     commitScannerLeadsQuery('', parse, leads, onChange, onSetDestination, onLinkOrigin);
     expect(onSetDestination).toHaveBeenCalledWith(null);
     expect(onChange).not.toHaveBeenCalled();
@@ -266,6 +295,17 @@ describe('commitScannerLeadsQuery', () => {
     );
     expect(onSetDestination).toHaveBeenCalledWith(31_000_001);
     onSetDestination.mockClear();
+    commitScannerLeadsQuery(
+      'J120924 - C2',
+      parse,
+      [{ connectionId: 'inbound', label: 'J160650 - C3', systemId: 31_000_001 }],
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+    );
+    expect(onLinkOrigin).toHaveBeenCalledWith('inbound');
+    expect(onSetDestination).not.toHaveBeenCalled();
+    onLinkOrigin.mockClear();
     commitScannerLeadsQuery(
       '  J120924 - C2  ',
       parse,

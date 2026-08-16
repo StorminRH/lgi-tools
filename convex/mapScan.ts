@@ -19,7 +19,10 @@ import {
   isScannerSignatureId,
   type ScannedRow,
 } from '@/data/maps/scan-parse';
-import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
+import {
+  FAR_SIDE_WORMHOLE_CODE,
+  isWormholeTypeCode,
+} from '@/data/eve-data/wormhole-contract';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
@@ -915,7 +918,7 @@ async function applyLinkDeduction(
   }
   // Carry human-entered stub knowledge onto the resolved row before the stub
   // document dies — inference must not erase a person's mass/size/lifetime.
-  const knowledge = linkKnowledgePatch(source, target);
+  const knowledge = linkKnowledgePatch(source, target, side);
   await ctx.db.patch(
     target._id,
     {
@@ -931,12 +934,41 @@ async function applyLinkDeduction(
   return { signatureId, outcome: 'applied', observationKey };
 }
 
+function isNamedWormholeType(code: string | null): boolean {
+  return code !== null && code !== FAR_SIDE_WORMHOLE_CODE;
+}
+
+/**
+ * Named inbound type stays on the origin side. A named stub type wins when
+ * the inbound is K162 or untyped. Two untyped sides stay untyped — never
+ * invent a K162.
+ */
+function linkTypePatch(
+  source: Doc<'mapConnections'>,
+  target: Doc<'mapConnections'>,
+  attachedSide: 'from' | 'to',
+): Partial<Doc<'mapConnections'>> {
+  const inboundCode = target.wormholeTypeCode ?? null;
+  const stubCode = source.wormholeTypeCode ?? null;
+  if (isNamedWormholeType(inboundCode)) return {};
+  if (isNamedWormholeType(stubCode)) {
+    return { wormholeTypeCode: stubCode, typedSide: attachedSide };
+  }
+  if (stubCode !== null && inboundCode === null) {
+    return { wormholeTypeCode: stubCode, typedSide: attachedSide };
+  }
+  return {};
+}
+
 /** Copies only unset target fields from a stub that is about to be deleted. */
 function linkKnowledgePatch(
   source: Doc<'mapConnections'>,
   target: Doc<'mapConnections'>,
+  attachedSide: 'from' | 'to',
 ): Partial<Doc<'mapConnections'>> {
-  const patch: Partial<Doc<'mapConnections'>> = {};
+  const patch: Partial<Doc<'mapConnections'>> = {
+    ...linkTypePatch(source, target, attachedSide),
+  };
   if (target.massState === null && source.massState !== null) {
     patch.massState = source.massState;
     if (source.observedMassAtStateKg !== undefined) {

@@ -561,6 +561,86 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toBeNull();
   });
 
+  it('keeps a named inbound type and adopts a named stub when the inbound is K162', async () => {
+    async function linkTypedStub(
+      stubType: string | null,
+      inboundType: { wormholeTypeCode: string | null; typedSide?: 'from' | 'to' },
+    ): Promise<{ inbound: Record<string, unknown> | null }> {
+      const t = convexTest(schema, modules);
+      await seed(t);
+      await apply(t, [signature('RET-001', { group: 'Wormhole' })]);
+      let stubId = '' as Id<'mapConnections'>;
+      let inboundId = '' as Id<'mapConnections'>;
+      await t.run(async (ctx) => {
+        await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+        const stub = (await ctx.db.query('mapConnections').collect())[0];
+        if (stub === undefined) {
+          throw new Error('expected the pasted wormhole stub before linking');
+        }
+        stubId = stub._id;
+        if (stubType !== null) {
+          await ctx.db.patch(stub._id, {
+            wormholeTypeCode: stubType,
+            typedSide: 'from',
+            typeProvenance: 'human',
+          });
+        }
+        inboundId = await ctx.db.insert('mapConnections', {
+          mapId: MAP,
+          fromSystemId: AMARR,
+          toSystemId: JITA,
+          wormholeTypeCode: inboundType.wormholeTypeCode,
+          typedSide: inboundType.typedSide,
+          typeProvenance: inboundType.wormholeTypeCode === null ? undefined : 'human',
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          deletedAt: null,
+          purgeAfter: null,
+        });
+      });
+      expect(await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+        mapId: MAP,
+        stubConnectionId: stubId,
+        resolvedConnectionId: inboundId,
+      })).toEqual({ outcome: 'applied' });
+      return {
+        inbound: await t.run(async (ctx) => await ctx.db.get(inboundId)),
+      };
+    }
+
+    expect(await linkTypedStub('C247', {
+      wormholeTypeCode: 'K162',
+      typedSide: 'from',
+    })).toMatchObject({
+      inbound: {
+        toSignatureId: 'RET-001',
+        wormholeTypeCode: 'C247',
+        typedSide: 'to',
+      },
+    });
+    expect(await linkTypedStub(null, {
+      wormholeTypeCode: 'K162',
+      typedSide: 'from',
+    })).toMatchObject({
+      inbound: {
+        toSignatureId: 'RET-001',
+        wormholeTypeCode: 'K162',
+        typedSide: 'from',
+      },
+    });
+    expect(await linkTypedStub('C247', {
+      wormholeTypeCode: 'B274',
+      typedSide: 'from',
+    })).toMatchObject({
+      inbound: {
+        toSignatureId: 'RET-001',
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+      },
+    });
+  });
+
   it('prefers resolved lifeStage (including timestamped Unset) and carries stub Unset onto unobserved rows', async () => {
     async function linkStub(
       signatureId: string,

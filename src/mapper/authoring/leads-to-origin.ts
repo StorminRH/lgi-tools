@@ -89,3 +89,15 @@ export function originLeadCandidates(
   }
   return candidates;
 }
+
+/**
+ * The one inbound line whose other end is this system, or null when none or
+ * more than one match — Atlas does not guess which hole is the way home.
+ */
+export function originLeadForSystem(
+  systemId: number,
+  leads: readonly { readonly connectionId: string; readonly systemId: number }[],
+): string | null {
+  const matches = leads.filter((lead) => lead.systemId === systemId);
+  return matches.length === 1 ? matches[0]!.connectionId : null;
+}

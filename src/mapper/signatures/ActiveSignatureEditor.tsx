@@ -125,7 +125,7 @@ function ActiveSignatureEditorView({
   readonly mode: NonNullable<ReturnType<typeof connectionEditorMode>>['mode'];
   readonly now: number;
   readonly onClose: () => void;
-  readonly originLeads: readonly { connectionId: string; label: string }[];
+  readonly originLeads: ReturnType<typeof originLeadOptions>;
 }) {
   const lifecycle = connectionLifecycleActions({
     mapId,

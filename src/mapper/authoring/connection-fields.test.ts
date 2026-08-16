@@ -279,7 +279,11 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
       now: 1,
       mode: 'edit',
       setters: SETTERS,
-      originLeads: [{ connectionId: 'inbound-1', label: 'J160650 - C3' }],
+      originLeads: [{
+        connectionId: 'inbound-1',
+        label: 'J160650 - C3',
+        systemId: 31_000_002,
+      }],
     }),
   );
   expect(withOrigin).toContain('data-select="Leads to"');
