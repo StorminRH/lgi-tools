@@ -5,6 +5,7 @@ import {
   encodeOriginLead,
   originLeadCandidates,
   originLeadForSystem,
+  originLeadForTypedLabel,
   type OriginLeadConnection,
 } from './leads-to-origin';
 
@@ -84,6 +85,18 @@ describe('originLeadCandidates', () => {
       originLeadForSystem(ORIGIN_SYSTEM, [
         inbound,
         { connectionId: 'other', systemId: ORIGIN_SYSTEM },
+      ]),
+    ).toBeNull();
+  });
+
+  it('links typed return-system text only when exactly one label matches', () => {
+    const inbound = { connectionId: 'inbound', label: 'J160650 - C3' };
+    expect(originLeadForTypedLabel('J160650', [inbound])).toBe('inbound');
+    expect(originLeadForTypedLabel('Jita', [inbound])).toBeNull();
+    expect(
+      originLeadForTypedLabel('J160650', [
+        inbound,
+        { connectionId: 'other', label: 'J160650 - C3' },
       ]),
     ).toBeNull();
   });

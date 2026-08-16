@@ -163,6 +163,32 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     ).toEqual(['YXX-744']);
   });
 
+  it('shows a stored entrance on one door and K162 on the other', () => {
+    const fromSystemId = SYSTEM;
+    const toSystemId = SYSTEM + 1;
+    const rows = buildSignatureRows(
+      [],
+      [
+        connection({
+          fromSystemId,
+          toSystemId,
+          fromSignatureId: 'JNW-622',
+          toSignatureId: 'YXX-744',
+          fromWormholeTypeCode: 'C247',
+          toWormholeTypeCode: 'K162',
+          wormholeTypeCode: 'C247',
+          typedSide: 'from',
+        }),
+      ],
+    );
+    expect(
+      rows.find((row) => row.signatureId === 'JNW-622'),
+    ).toMatchObject({ name: 'C247', endpoint: 'from' });
+    expect(
+      rows.find((row) => row.signatureId === 'YXX-744'),
+    ).toMatchObject({ name: 'K162', endpoint: 'to' });
+  });
+
   it('does not invent a K162 on the far side of a stored K162', () => {
     const fromSystemId = SYSTEM;
     const toSystemId = SYSTEM + 1;

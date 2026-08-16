@@ -8,7 +8,7 @@ import {
   type SigGroup,
 } from '@/data/maps/scan-parse';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
-import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
+import { connectionDoorTypes } from '@/data/maps/connection-door-types';
 import {
   isCodexSizeLocked,
   lifetimeRowDisplay,
@@ -76,14 +76,7 @@ function localWormholeTypeCode(
   row: ConnectionSignatureInput,
   side: 'from' | 'to',
 ): string | null {
-  if (row.wormholeTypeCode === null) return null;
-  const typedSide = row.typedSide ?? 'from';
-  if (side === typedSide) return row.wormholeTypeCode;
-  // The far side is K162 only when this hole has a named type. A stored K162
-  // does not invent a second K162 on the other end.
-  return row.wormholeTypeCode === FAR_SIDE_WORMHOLE_CODE
-    ? null
-    : FAR_SIDE_WORMHOLE_CODE;
+  return connectionDoorTypes(row)[side];
 }
 
 function connectionSideRow(

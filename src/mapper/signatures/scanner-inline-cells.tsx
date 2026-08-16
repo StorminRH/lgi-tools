@@ -36,6 +36,7 @@ import {
   decodeOriginLead,
   encodeOriginLead,
   originLeadForSystem,
+  originLeadForTypedLabel,
 } from '../authoring/leads-to-origin';
 import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
@@ -624,16 +625,10 @@ export function commitScannerLeadsQuery(
     );
     return;
   }
-  const originMatch = originLeads.find((option) => {
-    const label = option.label.toLowerCase();
-    return (
-      label === trimmed.toLowerCase()
-      || label.startsWith(`${trimmed.toLowerCase()} - `)
-    );
-  });
-  if (originMatch !== undefined) {
+  const originId = originLeadForTypedLabel(trimmed, originLeads);
+  if (originId !== null) {
     commitScannerLeadsValue(
-      encodeOriginLead(originMatch.connectionId),
+      encodeOriginLead(originId),
       onChange,
       onSetDestination,
       onLinkOrigin,

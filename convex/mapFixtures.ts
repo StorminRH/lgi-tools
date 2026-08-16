@@ -12,6 +12,7 @@
 //      lives in mapSignatureActivity, and a sub-threshold observation writes nothing.
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { connectionTypePatch } from '@/data/maps/connection-door-types';
 import {
   internalMutation,
   query,
@@ -262,10 +263,15 @@ function unresolvedHoleTypePatch(
   normalized: NormalizedUnresolvedHole,
 ): Partial<Doc<'mapConnections'>> {
   if (input.wormholeTypeCode === undefined) return {};
-  if (existing.wormholeTypeCode === normalized.wormholeTypeCode) return {};
+  const typePatch = connectionTypePatch(existing, 'from', normalized.wormholeTypeCode);
+  if (
+    existing.fromWormholeTypeCode === typePatch.fromWormholeTypeCode
+    && existing.toWormholeTypeCode === typePatch.toWormholeTypeCode
+  ) {
+    return {};
+  }
   return {
-    wormholeTypeCode: normalized.wormholeTypeCode,
-    typedSide: normalized.wormholeTypeCode === null ? undefined : 'from',
+    ...typePatch,
     typeProvenance: normalized.wormholeTypeCode === null ? undefined : 'human',
   };
 }
@@ -310,11 +316,10 @@ async function insertUnresolvedHole(
     fromSystemId: args.fromSystemId,
     toSystemId: null,
     fromSignatureId: args.fromSignatureId,
-    wormholeTypeCode: args.wormholeTypeCode,
+    ...connectionTypePatch({}, 'from', args.wormholeTypeCode),
     massState: null,
     shipSize: args.shipSize,
     eolAt: null,
-    typedSide: args.wormholeTypeCode === null ? undefined : 'from',
     typeProvenance: args.wormholeTypeCode === null ? undefined : 'human',
     fromDestinationHint: args.fromDestinationHint,
     deletedAt: null,

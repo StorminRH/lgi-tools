@@ -101,3 +101,20 @@ export function originLeadForSystem(
   const matches = leads.filter((lead) => lead.systemId === systemId);
   return matches.length === 1 ? matches[0]!.connectionId : null;
 }
+
+/**
+ * The one inbound whose label matches typed text, or null when none or more
+ * than one match. Same no-guess rule as {@link originLeadForSystem}.
+ */
+export function originLeadForTypedLabel(
+  text: string,
+  leads: readonly { readonly connectionId: string; readonly label: string }[],
+): string | null {
+  const needle = text.trim().toLowerCase();
+  if (needle.length === 0) return null;
+  const matches = leads.filter((option) => {
+    const label = option.label.toLowerCase();
+    return label === needle || label.startsWith(`${needle} - `);
+  });
+  return matches.length === 1 ? matches[0]!.connectionId : null;
+}

@@ -14,6 +14,7 @@ import {
   chainTombstoneState,
   type ChainTombstoneState,
 } from '@/data/maps/chain-contract';
+import { storedDoorTypes } from '@/data/maps/connection-door-types';
 import {
   believedHoles,
   type StaticStubSlot,
@@ -115,6 +116,8 @@ export interface StubPlanningConnection {
   readonly fromSystemId: number;
   readonly toSystemId: number;
   readonly wormholeTypeCode: string | null;
+  readonly fromWormholeTypeCode?: string | null;
+  readonly toWormholeTypeCode?: string | null;
   readonly typedSide?: 'from' | 'to' | null;
   readonly fromSignatureId?: string | null;
   readonly toSignatureId?: string | null;
@@ -131,14 +134,9 @@ function localConnectionFacts(
   systemId: number,
 ): { readonly wormholeTypeCode: string | null; readonly linkedSignature: boolean } {
   const fromSide = connection.fromSystemId === systemId;
-  const typedSide = connection.wormholeTypeCode === null
-    ? null
-    : (connection.typedSide ?? 'from');
+  const doors = storedDoorTypes(connection);
   return {
-    wormholeTypeCode:
-      (fromSide && typedSide === 'from') || (!fromSide && typedSide === 'to')
-        ? connection.wormholeTypeCode
-        : null,
+    wormholeTypeCode: fromSide ? doors.from : doors.to,
     linkedSignature: fromSide
       ? connection.fromSignatureId != null
       : connection.toSignatureId != null,

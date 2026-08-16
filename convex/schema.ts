@@ -215,9 +215,13 @@ export default defineSchema({
     // passed through the merged-model writers.
     fromSignatureId: v.optional(v.string()),
     toSignatureId: v.optional(v.string()),
+    fromWormholeTypeCode: v.optional(wormholeTypeCodeValidator),
+    toWormholeTypeCode: v.optional(wormholeTypeCodeValidator),
     typedSide: v.optional(typedSideValidator),
     fromDestinationHint: v.optional(destinationHintValidator),
     toDestinationHint: v.optional(destinationHintValidator),
+    fromDestinationSystemId: v.optional(v.number()),
+    toDestinationSystemId: v.optional(v.number()),
     typeProvenance: v.optional(connectionProvenanceValidator),
     destinationProvenance: v.optional(connectionProvenanceValidator),
     observedMassKg: v.optional(v.number()),

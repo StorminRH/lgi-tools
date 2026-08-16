@@ -327,6 +327,26 @@ describe('commitScannerLeadsQuery', () => {
     );
     expect(onSetDestination).not.toHaveBeenCalled();
   });
+
+  it('does not join a typed return system when two inbound labels match', () => {
+    const onChange = vi.fn();
+    const onSetDestination = vi.fn();
+    const onLinkOrigin = vi.fn();
+    commitScannerLeadsQuery(
+      'J160650',
+      () => ({ ok: false }),
+      [
+        { connectionId: 'first', label: 'J160650 - C3', systemId: 31_000_002 },
+        { connectionId: 'second', label: 'J160650 - C3', systemId: 31_000_002 },
+      ],
+      onChange,
+      onSetDestination,
+      onLinkOrigin,
+    );
+    expect(onLinkOrigin).not.toHaveBeenCalled();
+    expect(onSetDestination).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
 
 describe('scanner combo closed-field chrome', () => {

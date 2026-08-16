@@ -277,7 +277,7 @@ describe('optimisticPatchConnection', () => {
 });
 
 describe('optimisticSetConnectionDestination', () => {
-  it('moves a stub onto the resolved feed and a resolved hole back to stubs', () => {
+  it('writes a Leads-to note without spawning a system or moving the line', () => {
     const store = mockStore({
       systems: [systemRow(JITA)],
       unresolved: [connectionRow('stub', JITA, AMARR, { toSystemId: null })],
@@ -285,26 +285,30 @@ describe('optimisticSetConnectionDestination', () => {
     optimisticSetConnectionDestination(store, {
       mapId: MAP,
       connectionId: 'stub',
-      toSystemId: AMARR,
+      side: 'from',
+      value: AMARR,
     });
-    expect(store.unresolved).toHaveLength(0);
-    expect(store.connections).toEqual([
-      expect.objectContaining({ _id: 'stub', toSystemId: AMARR }),
-    ]);
-    expect(store.systems.some((row) => row.systemId === AMARR)).toBe(true);
-
-    optimisticSetConnectionDestination(store, {
-      mapId: MAP,
-      connectionId: 'stub',
-      toSystemId: null,
-    });
-    expect(store.connections).toHaveLength(0);
     expect(store.unresolved).toEqual([
       expect.objectContaining({
         _id: 'stub',
         toSystemId: null,
-        fromDestinationHint: undefined,
-        toDestinationHint: undefined,
+        fromDestinationSystemId: AMARR,
+      }),
+    ]);
+    expect(store.connections).toHaveLength(0);
+    expect(store.systems.some((row) => row.systemId === AMARR)).toBe(false);
+
+    optimisticSetConnectionDestination(store, {
+      mapId: MAP,
+      connectionId: 'stub',
+      side: 'from',
+      value: null,
+    });
+    expect(store.unresolved).toEqual([
+      expect.objectContaining({
+        _id: 'stub',
+        toSystemId: null,
+        fromDestinationSystemId: undefined,
       }),
     ]);
   });

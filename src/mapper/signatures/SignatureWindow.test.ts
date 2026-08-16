@@ -484,5 +484,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(farHtml).toContain('aria-label="Reliable Lifetime FAR-001"');
     expect(farHtml).toContain('aria-label="Destination FAR-001"');
     expect(farHtml).not.toContain('sr-only">Mass FAR-001');
+    expect(originHtml).toContain('value="2"');
+    expect(farHtml).toContain('value="1"');
   });
 });

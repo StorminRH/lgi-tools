@@ -58,6 +58,7 @@ import {
   scannerLifeReadout,
   scannerMassReadout,
 } from './scanner-inline-cells';
+import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import { originLeadOptions } from './origin-leads';
 import { destinationReadout } from './system-readout';
 import type { OpenSignatureEditor } from './signature-context';
@@ -317,13 +318,16 @@ function scannerRowDestination(
 ) {
   const connection = row.connection;
   if (connection === null) return null;
-  if (row.endpoint === 'to') {
-    return ctx.destinationOf({
-      ...connection,
-      toSystemId: connection.fromSystemId,
-    });
-  }
-  return ctx.destinationOf(connection);
+  return ctx.destinationOf({
+    ...connection,
+    toSystemId: doorLeadsTo(
+      connection.fromSystemId,
+      connection.toSystemId,
+      row.endpoint ?? 'from',
+      connection.fromDestinationSystemId,
+      connection.toDestinationSystemId,
+    ),
+  });
 }
 
 function scannerRowHint(

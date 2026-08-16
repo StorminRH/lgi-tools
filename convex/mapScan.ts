@@ -20,9 +20,16 @@ import {
   type ScannedRow,
 } from '@/data/maps/scan-parse';
 import {
-  FAR_SIDE_WORMHOLE_CODE,
-  isWormholeTypeCode,
-} from '@/data/eve-data/wormhole-contract';
+  absorbDoorKnowledge,
+  absorbDoorLeadsNote,
+  doorDestination,
+  uniqueCounterpartStub,
+} from '@/data/maps/connection-door-destinations';
+import {
+  connectionTypePatch,
+  storedDoorTypes,
+} from '@/data/maps/connection-door-types';
+import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
@@ -448,11 +455,10 @@ async function insertWormholeConnection(
     fromSignatureId: row.signatureId,
     fromSignalPct: row.signalPct,
     firstSeenAt,
-    wormholeTypeCode,
+    ...connectionTypePatch({}, 'from', wormholeTypeCode),
     massState: null,
     shipSize: null,
     eolAt: null,
-    typedSide: wormholeTypeCode === null ? undefined : 'from',
     typeProvenance: wormholeTypeCode === null ? undefined : 'human',
     deletedAt: null,
     purgeAfter: null,
@@ -737,9 +743,7 @@ function endpointTypeCode(
   connection: Doc<'mapConnections'>,
   side: 'from' | 'to',
 ): string | null {
-  if (connection.wormholeTypeCode === null) return null;
-  const typedSide = connection.typedSide ?? 'from';
-  return typedSide === side ? connection.wormholeTypeCode : null;
+  return storedDoorTypes(connection)[side];
 }
 
 function endpointOwnsSignature(
@@ -792,7 +796,7 @@ export const eliminationEvidence = internalQuery({
         ? []
         : [{
             signatureId,
-            wormholeTypeCode: connection.wormholeTypeCode,
+            wormholeTypeCode: storedDoorTypes(connection).from,
             typeProvenance: connection.typeProvenance ?? null,
             observationKey: connection.observationKey ?? null,
           }];
@@ -874,8 +878,7 @@ async function applyTypeDeduction(
   // row's dedupe key through the same owner the manual setter uses.
   const stamped = stampObservationKey(source.observationKey);
   await ctx.db.patch(source._id, {
-    wormholeTypeCode: typeCode,
-    typedSide: 'from',
+    ...connectionTypePatch(source, 'from', typeCode),
     typeProvenance: 'assumed',
     ...stamped.patch,
   });
@@ -919,86 +922,91 @@ async function applyLinkDeduction(
   // Carry human-entered stub knowledge onto the resolved row before the stub
   // document dies — inference must not erase a person's mass/size/lifetime.
   const knowledge = linkKnowledgePatch(source, target, side);
-  await ctx.db.patch(
-    target._id,
-    {
-      ...(side === 'from'
-        ? { fromSignatureId: signatureId }
-        : { toSignatureId: signatureId }),
-      ...knowledge,
-    },
-  );
+  const attached = {
+    ...(side === 'from'
+      ? { fromSignatureId: signatureId }
+      : { toSignatureId: signatureId }),
+    ...knowledge,
+  };
+  await ctx.db.patch(target._id, attached);
+  await absorbLeftoverOriginStub(ctx, { ...target, ...attached }, source._id, side);
   // The stub row and its dedupe key die here: the identity now belongs to the
   // resolved connection, which carries its own key through the jump channel.
   await ctx.db.delete(source._id);
   return { signatureId, outcome: 'applied', observationKey };
 }
 
-function isNamedWormholeType(code: string | null): boolean {
-  return code !== null && code !== FAR_SIDE_WORMHOLE_CODE;
+/**
+ * When the opposite door still has no signature, fold in the unique leftover
+ * stub on that system so both scanners share one row.
+ */
+async function absorbLeftoverOriginStub(
+  ctx: MutationCtx,
+  target: Doc<'mapConnections'>,
+  sourceId: Id<'mapConnections'>,
+  attachedSide: 'from' | 'to',
+): Promise<void> {
+  const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
+  const oppositeSystemId = oppositeSide === 'from'
+    ? target.fromSystemId
+    : target.toSystemId;
+  const oppositeSignature = oppositeSide === 'from'
+    ? target.fromSignatureId
+    : target.toSignatureId;
+  if (oppositeSystemId === null || oppositeSignature !== undefined) return;
+  const leftover = uniqueCounterpartStub(
+    await readOriginConnections(ctx, target.mapId, oppositeSystemId),
+    new Set([sourceId, target._id]),
+  );
+  if (leftover === null) return;
+  await ctx.db.patch(target._id, {
+    ...(oppositeSide === 'from'
+      ? {
+          fromSignatureId: leftover.fromSignatureId,
+          fromSignalPct: leftover.fromSignalPct,
+          firstSeenAt: leftover.firstSeenAt ?? target.firstSeenAt,
+        }
+      : { toSignatureId: leftover.fromSignatureId }),
+    ...absorbDoorKnowledge(target, leftover, oppositeSide),
+    ...leadsNotePatch(target, leftover.fromDestinationSystemId, oppositeSide),
+  });
+  await ctx.db.delete(leftover._id);
 }
 
 /**
- * Named inbound type stays on the origin side. A named stub type wins when
- * the inbound is K162 or untyped. Two untyped sides stay untyped — never
- * invent a K162.
+ * Entrance on the inbound door fills this door as K162. Otherwise the stub
+ * type is written on the attached door. Never invents an entrance. Also
+ * copies only unset hallway facts from the dying stub.
  */
-function linkTypePatch(
-  source: Doc<'mapConnections'>,
-  target: Doc<'mapConnections'>,
-  attachedSide: 'from' | 'to',
-): Partial<Doc<'mapConnections'>> {
-  const inboundCode = target.wormholeTypeCode ?? null;
-  const stubCode = source.wormholeTypeCode ?? null;
-  if (isNamedWormholeType(inboundCode)) return {};
-  if (isNamedWormholeType(stubCode)) {
-    return { wormholeTypeCode: stubCode, typedSide: attachedSide };
-  }
-  if (stubCode !== null && inboundCode === null) {
-    return { wormholeTypeCode: stubCode, typedSide: attachedSide };
-  }
-  return {};
-}
-
-/** Copies only unset target fields from a stub that is about to be deleted. */
 function linkKnowledgePatch(
   source: Doc<'mapConnections'>,
   target: Doc<'mapConnections'>,
   attachedSide: 'from' | 'to',
 ): Partial<Doc<'mapConnections'>> {
-  const patch: Partial<Doc<'mapConnections'>> = {
-    ...linkTypePatch(source, target, attachedSide),
+  return {
+    ...absorbDoorKnowledge(target, source, attachedSide),
+    ...leadsNotePatch(target, source.fromDestinationSystemId, attachedSide),
   };
-  if (target.massState === null && source.massState !== null) {
-    patch.massState = source.massState;
-    if (source.observedMassAtStateKg !== undefined) {
-      patch.observedMassAtStateKg = source.observedMassAtStateKg;
-    }
-  }
-  if (target.shipSize === null && source.shipSize !== null) {
-    patch.shipSize = source.shipSize;
-  }
-  // Carry only when the target never recorded a lifetime decision. A timestamped
-  // `lifeStage: null` is an explicit Unset — on the target it must win; on the
-  // dying stub it must survive onto an unobserved resolved row.
-  if (
-    target.lifeStage == null
-    && target.lifeStageObservedAt == null
-    && (source.lifeStage != null || source.lifeStageObservedAt != null)
-  ) {
-    patch.lifeStage = source.lifeStage ?? null;
-    if (source.lifeStageObservedAt !== undefined) {
-      patch.lifeStageObservedAt = source.lifeStageObservedAt;
-    }
-  }
-  if (
-    target.deathEarliestAt === undefined
-    && source.deathEarliestAt !== undefined
-  ) {
-    patch.deathEarliestAt = source.deathEarliestAt;
-    patch.deathLatestAt = source.deathLatestAt;
-  }
-  return patch;
+}
+
+/** Keep a mismatched typed Leads-to on the face being attached. */
+function leadsNotePatch(
+  surviving: Doc<'mapConnections'>,
+  stubTyped: number | undefined,
+  attachedSide: 'from' | 'to',
+): Partial<Doc<'mapConnections'>> {
+  const survivingTyped = attachedSide === 'from'
+    ? surviving.fromDestinationSystemId
+    : surviving.toDestinationSystemId;
+  const kept = absorbDoorLeadsNote(
+    survivingTyped,
+    stubTyped,
+    doorDestination(surviving.fromSystemId, surviving.toSystemId, attachedSide),
+  );
+  if (kept === undefined) return {};
+  return attachedSide === 'from'
+    ? { fromDestinationSystemId: kept }
+    : { toDestinationSystemId: kept };
 }
 
 /** Atomically revalidates and applies one assumed-tier deduction batch. */
@@ -1148,16 +1156,17 @@ async function stampIdentifiedWormholeType(
   }
   const connection = await ctx.db.get(connectionId);
   if (connection === null) return;
+  const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode);
   if (
-    connection.wormholeTypeCode === wormholeTypeCode
+    connection.fromWormholeTypeCode === typePatch.fromWormholeTypeCode
+    && connection.toWormholeTypeCode === typePatch.toWormholeTypeCode
     && connection.typeProvenance === 'human'
     && connection.observationKey !== undefined
   ) {
     return;
   }
   await ctx.db.patch(connectionId, {
-    wormholeTypeCode,
-    typedSide: connection.typedSide ?? 'from',
+    ...typePatch,
     typeProvenance: 'human',
     pendingCandidates: undefined,
     pendingResolutionCharacterId: undefined,

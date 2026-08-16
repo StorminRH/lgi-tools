@@ -371,6 +371,7 @@ export function SignatureProvider({
                   mapId,
                   connection: connection as ConnectionDetail,
                   value,
+                  side,
                   authoring,
                 });
                 return;
@@ -379,6 +380,7 @@ export function SignatureProvider({
                 mapId,
                 connection,
                 value,
+                side,
               });
             },
             side,

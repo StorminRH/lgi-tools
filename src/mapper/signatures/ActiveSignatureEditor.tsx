@@ -23,6 +23,7 @@ import {
   type UnresolvedHoleSummary,
 } from '../chain/use-map-chain';
 import { SignatureEditor } from './SignatureEditor';
+import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import { destinationReadout } from './system-readout';
 
 /** Whether the row has a resolved destination (the card-parity type path). */
@@ -77,7 +78,18 @@ export function ActiveSignatureEditor({
   const selection = connectionEditorMode(connection, now);
   const assets = useUniverseAssets();
   const systemInfo = assets === null ? null : (id: number) => assets.systemInfo(id);
-  const destination = destinationReadout(connection?.toSystemId ?? null, systemInfo);
+  const destination = destinationReadout(
+    connection === null
+      ? null
+      : doorLeadsTo(
+          connection.fromSystemId,
+          connection.toSystemId,
+          'from',
+          connection.fromDestinationSystemId,
+          connection.toDestinationSystemId,
+        ),
+    systemInfo,
+  );
   const originLeads = originLeadOptions(
     connection,
     [...connectionDetails.values()],
