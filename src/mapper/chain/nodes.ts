@@ -24,7 +24,7 @@ import { pairKey } from '../lib/pair-key';
 import type { EdgeMotion } from '../motion/motion-contract';
 import type { ChainPosition } from './intents';
 import type { SystemLabel } from './labels';
-import type { ChainState } from './reconciler';
+import type { ChainState, VisibleConnection } from './reconciler';
 
 /**
  * The chain edge payload — the one shape both the builder and renderer type
@@ -383,6 +383,40 @@ export function syncNodes(
 
 const EMPTY_FOGGED_IDS: ReadonlySet<number> = new Set();
 
+function livePairKeys(
+  connections: ChainState['connections'],
+  now: number,
+): ReadonlySet<string> {
+  const keys = new Set<string>();
+  for (const connection of connections.values()) {
+    if (chainTombstoneState(connection, now) === 'active') {
+      keys.add(pairKey(connection.fromSystemId, connection.toSystemId));
+    }
+  }
+  return keys;
+}
+
+/**
+ * Visible edge stage, or null when the row must not draw. A dying corpse
+ * that shares a pair with a live line stays off the canvas so jump-after-remap
+ * does not underline the new hole with the old undo.
+ */
+function edgeTombstoneState(
+  connection: VisibleConnection,
+  now: number,
+  livePairs: ReadonlySet<string>,
+): Exclude<ChainTombstoneState, 'skeleton'> | null {
+  const tombstoneState = chainTombstoneState(connection, now);
+  if (tombstoneState === 'skeleton') return null;
+  if (
+    tombstoneState === 'dying'
+    && livePairs.has(pairKey(connection.fromSystemId, connection.toSystemId))
+  ) {
+    return null;
+  }
+  return tombstoneState;
+}
+
 /**
  * Builds one edge per visible connection; withheld connections are simply absent from state.
  *
@@ -402,6 +436,7 @@ export function buildEdges(
   stubs: readonly PlacedStub[] = [],
 ): ChainEdge[] {
   const claim = newPairClaim(treeParents);
+  const livePairs = livePairKeys(connections, now);
   const edges: ChainEdge[] = [];
   for (const connection of connections.values()) {
     const { fromSystemId, toSystemId } = connection;
@@ -409,8 +444,8 @@ export function buildEdges(
     // Skeletons never render, so they must not claim the pair key either —
     // a claimed-then-dropped skeleton would force the surviving connection
     // on the same endpoints to draw dashed as a loop closure.
-    const tombstoneState = chainTombstoneState(connection, now);
-    if (tombstoneState === 'skeleton') continue;
+    const tombstoneState = edgeTombstoneState(connection, now, livePairs);
+    if (tombstoneState === null) continue;
 
     const solid = claim.claimSolid(fromSystemId, toSystemId);
     edges.push({

@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/cn';
+import { scrollAreaStart } from '@/components/ui/scroll-area';
 import { Collapsible } from '@/components/ui/collapsible';
 import { toast } from '@/components/ui/toast';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -917,7 +918,8 @@ function ScannerListScroller({
         data-scanner-scroll
         onScroll={onScroll}
         className={cn(
-          'scroll-area-start min-h-0 min-w-0 max-w-full flex-auto overflow-y-auto overscroll-contain',
+          scrollAreaStart,
+          'min-h-0 min-w-0 max-w-full flex-auto overflow-y-auto overscroll-contain',
           canScrollEnd && 'scanner-scroll-fade-end',
           fading && 'scanner-scroll-fade-start',
         )}

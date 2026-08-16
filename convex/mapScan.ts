@@ -46,8 +46,10 @@ import {
   tryMapAccessForUser,
 } from './lib/mapAccess';
 import {
-  findConnectionForSignature,
+  findLocalSignatureConnection,
+  findPasteConnection,
   readOriginConnections,
+  readTouchingConnections,
   requireLiveConnectionOnMap,
 } from './lib/mapConnectionLookup';
 import {
@@ -304,7 +306,7 @@ async function readScanState(
 ): Promise<ScanState> {
   const [signatures, connections, activities] = await Promise.all([
     readSystemSignatures(ctx, mapId, systemId),
-    readOriginConnections(ctx, mapId, systemId),
+    readTouchingConnections(ctx, mapId, systemId),
     readSystemActivities(ctx, mapId, systemId),
   ]);
   return { signatures, connections, activities };
@@ -360,8 +362,8 @@ async function applyScannedRow(
   systemId: number,
   now: number,
 ): Promise<ApplyOutcome> {
-  const connection = findConnectionForSignature(state.connections, row.signatureId);
-  // A connection (live or tombstoned) already owns this id.
+  const connection = findPasteConnection(state.connections, systemId, row.signatureId);
+  // A live door or revivable stub already owns this id.
   if (connection !== undefined) {
     return await applyWormholeRow(ctx, state, row, mapId, systemId, now);
   }
@@ -532,12 +534,46 @@ async function writeWormholeConnection(
 }
 
 /**
+ * Deletes a leftover origin stub that duplicates an inbound door already
+ * carrying this system's signature. Re-paste after a way-home link must not
+ * leave a second ghost.
+ */
+async function absorbDuplicateOriginStub(
+  ctx: MutationCtx,
+  state: ScanState,
+  inbound: Doc<'mapConnections'>,
+  systemId: number,
+  signatureId: string,
+): Promise<boolean> {
+  const duplicate = state.connections.find((row) =>
+    row._id !== inbound._id
+    && row.fromSystemId === systemId
+    && row.fromSignatureId === signatureId
+    && row.toSystemId === null
+    && !isTombstoned(row),
+  );
+  if (duplicate === undefined) return false;
+  const side = endpointSide(inbound, systemId);
+  if (side !== null) {
+    const knowledge = {
+      ...absorbDoorKnowledge(inbound, duplicate, side),
+      ...leadsNotePatch(inbound, duplicate.fromDestinationSystemId, side),
+    };
+    if (Object.keys(knowledge).length > 0) {
+      await ctx.db.patch(inbound._id, knowledge);
+    }
+  }
+  await ctx.db.delete(duplicate._id);
+  return true;
+}
+
+/**
  * Whether an ID-matched re-paste may revive one tombstoned unresolved stub.
  * The operator-directed ID-first revive is scoped to the SAME wormhole
  * lifetime (HC-3): a resolved collapse resurrects only through the ledger's
- * branch undo, and a passed ceiling, an expired undo window, or a conflicting
- * non-wormhole group marks the pasted ID as a NEW lifetime that stays inert
- * until the corpse purges.
+ * branch undo. The paste join skips that corpse so the same id can start a
+ * new stub. A passed ceiling, an expired undo window, or a conflicting
+ * non-wormhole group still refuses to revive the old stub document.
  */
 function mayReviveTombstonedConnection(
   connection: Doc<'mapConnections'>,
@@ -553,6 +589,45 @@ function mayReviveTombstonedConnection(
   return !ceilingPassed && !undoExpired && !conflictingGroup;
 }
 
+async function revivePasteConnection(
+  ctx: MutationCtx,
+  connection: Doc<'mapConnections'>,
+  row: ScannedRow,
+  now: number,
+): Promise<Doc<'mapConnections'> | 'unchanged'> {
+  if (!isTombstoned(connection)) return connection;
+  // Inert corpse: no write and no activity touch (collapse already cleared
+  // the companions), so the paste leaves the tombstone byte-identical.
+  if (!mayReviveTombstonedConnection(connection, row, now)) return 'unchanged';
+  await tombstoneConnectionRow(ctx, connection, undefined, null, null);
+  return { ...connection, deletedAt: null, purgeAfter: null };
+}
+
+/** Re-paste against an inbound door: keep one row, drop a leftover origin stub. */
+async function applyInboundPaste(
+  ctx: MutationCtx,
+  state: ScanState,
+  inbound: Doc<'mapConnections'>,
+  signature: Doc<'mapSignatures'> | undefined,
+  mapId: string,
+  systemId: number,
+  signatureId: string,
+  now: number,
+  revived: boolean,
+): Promise<ApplyOutcome> {
+  const absorbed = await absorbDuplicateOriginStub(
+    ctx,
+    state,
+    inbound,
+    systemId,
+    signatureId,
+  );
+  if (signature !== undefined) await ctx.db.delete(signature._id);
+  await touchScanActivity(ctx, state, mapId, systemId, signatureId, now);
+  if (absorbed || revived) return 'updated';
+  return 'unchanged';
+}
+
 async function applyWormholeRow(
   ctx: MutationCtx,
   state: ScanState,
@@ -562,29 +637,62 @@ async function applyWormholeRow(
   now: number,
 ): Promise<ApplyOutcome> {
   let signature = rowMaps(state.signatures).get(row.signatureId);
-  let connection = findConnectionForSignature(state.connections, row.signatureId);
+  const found = findPasteConnection(state.connections, systemId, row.signatureId);
+  let connection: Doc<'mapConnections'> | undefined;
   let revived = false;
-
-  if (connection !== undefined && isTombstoned(connection)) {
-    // Inert corpse: no write and no activity touch (collapse already cleared
-    // the companions), so the paste leaves the tombstone byte-identical.
-    if (!mayReviveTombstonedConnection(connection, row, now)) return 'unchanged';
-    await tombstoneConnectionRow(ctx, connection, undefined, null, null);
-    connection = { ...connection, deletedAt: null, purgeAfter: null };
-    revived = true;
+  if (found !== undefined) {
+    const revivedConnection = await revivePasteConnection(ctx, found, row, now);
+    if (revivedConnection === 'unchanged') return 'unchanged';
+    connection = revivedConnection;
+    revived = isTombstoned(found);
+    if (endpointSide(connection, systemId) === 'to') {
+      return await applyInboundPaste(
+        ctx,
+        state,
+        connection,
+        signature,
+        mapId,
+        systemId,
+        row.signatureId,
+        now,
+        revived,
+      );
+    }
   }
   if (signature !== undefined && isTombstoned(signature)) {
     await applyKnownSignatureTombstone(ctx, signature, null, null, null);
     signature = { ...signature, deletedAt: null, purgeAfter: null };
     revived = true;
   }
+  return await writeFreshWormholeRow(
+    ctx,
+    state,
+    signature,
+    connection,
+    row,
+    mapId,
+    systemId,
+    now,
+    revived,
+  );
+}
 
+async function writeFreshWormholeRow(
+  ctx: MutationCtx,
+  state: ScanState,
+  signature: Doc<'mapSignatures'> | undefined,
+  connection: Doc<'mapConnections'> | undefined,
+  row: ScannedRow,
+  mapId: string,
+  systemId: number,
+  now: number,
+  revived: boolean,
+): Promise<ApplyOutcome> {
   const facts = wormholeMigrationFacts(signature, row, now);
   if (facts.outcome === 'conflict') {
     await touchScanActivity(ctx, state, mapId, systemId, row.signatureId, now);
     return 'conflicted';
   }
-
   const outcome = await writeWormholeConnection(
     ctx,
     connection,
@@ -599,12 +707,28 @@ async function applyWormholeRow(
   return outcome;
 }
 
-function liveLifecycleRows(state: ScanState) {
+/** Origin-side lifecycle owner for confident-missing; never the inbound door. */
+function findOriginLifecycleConnection(
+  rows: readonly Doc<'mapConnections'>[],
+  systemId: number,
+  signatureId: string,
+): Doc<'mapConnections'> | undefined {
+  const matches = rows.filter(
+    (row) => row.fromSystemId === systemId && row.fromSignatureId === signatureId,
+  );
+  return matches.find((row) => !isTombstoned(row)) ?? matches[0];
+}
+
+function liveLifecycleRows(state: ScanState, systemId: number) {
   const signatures = state.signatures
     .filter((row) => !isTombstoned(row))
     .map((row) => ({ signatureId: row.signatureId, kind: row.kind }));
   const connections = state.connections
-    .filter((row) => !isTombstoned(row) && row.fromSignatureId !== undefined)
+    .filter((row) =>
+      !isTombstoned(row)
+      && row.fromSystemId === systemId
+      && row.fromSignatureId !== undefined,
+    )
     .flatMap((row) => row.fromSignatureId === undefined ? [] : [{
       signatureId: row.fromSignatureId,
       kind: 'signature' as const,
@@ -670,12 +794,20 @@ async function removeConfidentRows(
   // undo stamp against a fresh topology read, so stamping independent stub
   // tombstones first keeps them outside the branch's shared-stamp restore set.
   const ordered = [...missingIds].sort((left, right) => {
-    const leftResolved = findConnectionForSignature(state.connections, left)?.toSystemId !== null;
-    const rightResolved = findConnectionForSignature(state.connections, right)?.toSystemId !== null;
+    const leftResolved = findOriginLifecycleConnection(
+      state.connections,
+      systemId,
+      left,
+    )?.toSystemId !== null;
+    const rightResolved = findOriginLifecycleConnection(
+      state.connections,
+      systemId,
+      right,
+    )?.toSystemId !== null;
     return Number(leftResolved) - Number(rightResolved);
   });
   for (const signatureId of ordered) {
-    const known = findConnectionForSignature(state.connections, signatureId);
+    const known = findOriginLifecycleConnection(state.connections, systemId, signatureId);
     if (known === undefined) continue;
     // Re-read: an earlier collapse in this loop may already have tombstoned
     // this row as branch collateral.
@@ -1129,7 +1261,10 @@ export const applyScan = mutation({
     await requireTrackedSystem(ctx, mapId, systemId, principal.userId);
     const normalizedRows = requireBoundedRows(rows);
     const state = await readScanState(ctx, mapId, systemId);
-    const missingRows = findMissingSignatures(liveLifecycleRows(state), normalizedRows);
+    const missingRows = findMissingSignatures(
+      liveLifecycleRows(state, systemId),
+      normalizedRows,
+    );
     const now = Date.now();
     const counts = { inserted: 0, updated: 0, unchanged: 0, migrated: 0, conflicted: 0 };
 
@@ -1214,8 +1349,9 @@ async function identifyWormholeRow(
     systemId,
     Date.now(),
   );
-  const connection = findConnectionForSignature(
-    await readOriginConnections(ctx, mapId, systemId),
+  const connection = findLocalSignatureConnection(
+    await readTouchingConnections(ctx, mapId, systemId),
+    systemId,
     signature.signatureId,
   );
   if (connection === undefined) {
@@ -1251,8 +1387,9 @@ export const identifySignature = mutation({
     const signature = rowMaps(state.signatures).get(normalizedId);
     if (signature === undefined || isTombstoned(signature)) {
       if (group === 'Wormhole') {
-        const existing = findConnectionForSignature(
-          await readOriginConnections(ctx, mapId, systemId),
+        const existing = findLocalSignatureConnection(
+          await readTouchingConnections(ctx, mapId, systemId),
+          systemId,
           normalizedId,
         );
         if (existing !== undefined) {
@@ -1337,6 +1474,7 @@ interface SingleRowPass {
 async function tombstoneSingleRows(
   ctx: MutationCtx,
   state: ScanState,
+  systemId: number,
   signatureIds: readonly string[],
   write: SelectionWrite,
 ): Promise<SingleRowPass> {
@@ -1359,7 +1497,11 @@ async function tombstoneSingleRows(
       }
       continue;
     }
-    const connection = findConnectionForSignature(state.connections, signatureId);
+    const connection = findLocalSignatureConnection(
+      state.connections,
+      systemId,
+      signatureId,
+    );
     if (connection === undefined) continue;
     if (connection.toSystemId !== null) {
       pass.resolved.push(connection);
@@ -1389,7 +1531,7 @@ async function tombstoneSelected(
   write: SelectionWrite,
 ) {
   const pilots = trackedPresenceReader(ctx, mapId);
-  const pass = await tombstoneSingleRows(ctx, state, signatureIds, write);
+  const pass = await tombstoneSingleRows(ctx, state, systemId, signatureIds, write);
   let changed = pass.changed;
   for (const connection of pass.resolved) {
     const didChange = await changeSelectedResolvedConnection(
@@ -1456,13 +1598,14 @@ async function tombstoneConnectionRow(
 
 function requireUndoWindow(
   state: ScanState,
+  systemId: number,
   signatureIds: readonly string[],
   now: number,
 ): void {
   const signatures = rowMaps(state.signatures);
   for (const signatureId of signatureIds) {
     const row = signatures.get(signatureId)
-      ?? findConnectionForSignature(state.connections, signatureId);
+      ?? findLocalSignatureConnection(state.connections, systemId, signatureId);
     if (
       row !== undefined
       && isTombstoned(row)
@@ -1498,7 +1641,7 @@ async function readSelectionState(
         findSignatureActivity(ctx, { mapId, systemId, signatureId }),
       ),
     ),
-    readOriginConnections(ctx, mapId, systemId),
+    readTouchingConnections(ctx, mapId, systemId),
   ]);
   return {
     signatures: signatures.filter((row) => row !== null),
@@ -1518,7 +1661,7 @@ async function changeSignatureSelection(
   const ids = requireBoundedSignatureIds(signatureIds);
   const state = await readSelectionState(ctx, mapId, systemId, ids);
   const now = Date.now();
-  if (mode === 'restore') requireUndoWindow(state, ids, now);
+  if (mode === 'restore') requireUndoWindow(state, systemId, ids, now);
   const stamps = mode === 'remove'
     ? chainTombstoneStamps(now)
     : { deletedAt: null, purgeAfter: null };
