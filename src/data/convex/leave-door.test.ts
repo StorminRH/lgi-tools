@@ -2,14 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LeaveSyncDoorError, postLeaveSync } from './leave-door';
 
 let fetchSpy: ReturnType<typeof vi.spyOn>;
-let originalConvexUrl: string | undefined;
-let originalServiceSecret: string | undefined;
 
 beforeEach(() => {
-  originalConvexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  originalServiceSecret = process.env.CONVEX_SERVICE_SECRET;
-  process.env.NEXT_PUBLIC_CONVEX_URL = 'https://example.convex.cloud';
-  process.env.CONVEX_SERVICE_SECRET = 'svc-secret';
+  vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://example.convex.cloud');
+  vi.stubEnv('CONVEX_SERVICE_SECRET', 'svc-secret');
   fetchSpy = vi.spyOn(globalThis, 'fetch');
   fetchSpy.mockResolvedValue(
     new Response(JSON.stringify({ retired: true }), { status: 200 }),
@@ -18,10 +14,7 @@ beforeEach(() => {
 
 afterEach(() => {
   fetchSpy.mockRestore();
-  if (originalConvexUrl === undefined) delete process.env.NEXT_PUBLIC_CONVEX_URL;
-  else process.env.NEXT_PUBLIC_CONVEX_URL = originalConvexUrl;
-  if (originalServiceSecret === undefined) delete process.env.CONVEX_SERVICE_SECRET;
-  else process.env.CONVEX_SERVICE_SECRET = originalServiceSecret;
+  vi.unstubAllEnvs();
 });
 
 describe('postLeaveSync', () => {
@@ -33,6 +26,8 @@ describe('postLeaveSync', () => {
         tabId: 'tab-aaaa-bbbb',
       }),
     ).resolves.toEqual({ retired: true });
+    // One door call per leave; index the first recorded fetch only after
+    // that count is proven so a stray extra request cannot hide here.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe('https://example.convex.site/leave-sync');

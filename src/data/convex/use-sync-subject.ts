@@ -27,8 +27,8 @@ import { postLeaveBeacon, shouldSendLeave } from './leave-signal';
 
 /**
  * Keeps one dataset's sync subject alive for the given characters: mounts the
- * always-on heartbeat loop and tears it down on unmount or an empty
- * character set (the caller's pause switch).
+ * always-on heartbeat loop, stamps a per-tab id on each beat, and tears down
+ * on unmount or an empty character set (the caller's pause switch).
  */
 export function useSyncSubject(dataset: SyncDataset, characterIds: number[]) {
   const heartbeat = useMutation(api.engine.heartbeat);

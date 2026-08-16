@@ -35,7 +35,7 @@ export function PilotPresenceBadge({ systemId }: { readonly systemId: number }) 
   return <PresenceBadgeView presence={presence} />;
 }
 
-/** The pure badge markup; exported so unit tests render it without a provider. */
+/** Shows an online tracked pilot in the system corner badge. */
 export function PresenceBadgeView({ presence }: { readonly presence: SystemPresence }) {
   return (
     <span

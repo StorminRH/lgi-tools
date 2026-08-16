@@ -162,13 +162,13 @@ function OutboundArrowLabel({
   }, [transform]);
 
   if (transform === null) return null;
+  // Green while a present+online pilot stands behind the arrow.
   return (
     <EdgeLabelRenderer>
       <span
         ref={arrowRef}
         aria-hidden
         data-pilot-arrow
-        // Green while a present+online pilot stands behind the arrow.
         className={cn('map-pilot-arrow', live ? 'text-isk' : 'text-muted')}
       >
         <svg viewBox="0 0 12 12" className="size-3" fill="currentColor">

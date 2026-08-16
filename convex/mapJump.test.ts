@@ -521,6 +521,7 @@ describe('automatic jump authoring', () => {
     expect(livePairs[0]?._id).not.toBe(trashedPairId);
     const corpse = await t.run(async (ctx) => await ctx.db.get(trashedPairId));
     expect(corpse).toMatchObject({ deletedAt: OBSERVED_AT - 1_000 });
+    expect(corpse?.purgeAfter).not.toBe(OBSERVED_AT + 60_000);
     expect(corpse?.purgeAfter).toBeLessThanOrEqual(Date.now());
     expect(state.stamps).toHaveLength(1);
   });
@@ -577,6 +578,7 @@ describe('automatic jump authoring', () => {
     })]);
     const corpse = await t.run(async (ctx) => await ctx.db.get(corpseId));
     expect(corpse).toMatchObject({ deletedAt: OBSERVED_AT - 1_000 });
+    expect(corpse?.purgeAfter).not.toBe(OBSERVED_AT + 60_000);
     expect(corpse?.purgeAfter).toBeLessThanOrEqual(Date.now());
   });
 

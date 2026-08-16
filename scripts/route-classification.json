@@ -44,7 +44,8 @@
     "/api/cron/purge-maps": "Dynamic daily cron: lock-guarded bounded Neon eligibility scan, resumable Convex map-chain purge, then durable tombstone.",
     "/api/maps/create": "Dynamic authenticated mutation route: each request rate-limits one user, commits one Neon map-plus-grants transaction, and drives the one-way Convex access projection.",
     "/api/maps/search-characters": "Dynamic authenticated read route: each request selects an owned linked token for scoped ESI typeahead or uses the public exact-name fallback when no scoped token exists.",
-    "/api/maps/signature-elimination": "Dynamic authenticated mutation route: each acting-user trigger reads current Convex map evidence and promoted Neon statics, runs the pure eliminator, and dispatches one transactional assumed-tier write batch."
+    "/api/maps/signature-elimination": "Dynamic authenticated mutation route: each acting-user trigger reads current Convex map evidence and promoted Neon statics, runs the pure eliminator, and dispatches one transactional assumed-tier write batch.",
+    "/api/sync-leave": "Dynamic authenticated mutation: the Atlas pagehide beacon retires one tab's location sync subject per request."
   },
   "routes": {
     "/": "partial",
@@ -144,6 +145,7 @@
     "/api/preferences": "dynamic",
     "/api/sites": "dynamic",
     "/api/sites/[id]": "dynamic",
+    "/api/sync-leave": "dynamic",
     "/api/telemetry": "dynamic"
   }
 }

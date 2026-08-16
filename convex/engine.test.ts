@@ -363,6 +363,52 @@ describe('engine.leave', () => {
     expect(recovered.presence?.tabId).toBe('tab-b');
     expect(recovered.presence?.leftTabId).toBe('');
   });
+
+  it('recovers the remaining tab after an older tab beats last and then leaves', async () => {
+    const t = convexTest(schema, modules);
+    stubDispatch();
+    const authed = t.withIdentity({ subject: USER });
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'mount',
+      tabId: 'tab-a',
+    });
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'mount',
+      tabId: 'tab-b',
+    });
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'interval',
+      tabId: 'tab-a',
+    });
+    const lastBeater = await t.run((ctx) => ctx.db.query('syncPresence').unique());
+    expect(lastBeater?.tabId).toBe('tab-a');
+
+    expect(await t.mutation(internal.engine.leave, {
+      userId: USER,
+      dataset: 'characterLocation',
+      tabId: 'tab-a',
+    })).toEqual({ retired: true });
+
+    await authed.mutation(api.engine.heartbeat, {
+      dataset: 'characterLocation',
+      characterIdsHint: [101],
+      reason: 'interval',
+      tabId: 'tab-b',
+    });
+    const recovered = await t.run(async (ctx) => ({
+      subject: await ctx.db.query('syncSubjects').unique(),
+      presence: await ctx.db.query('syncPresence').unique(),
+    }));
+    expect(recovered.subject?.status).toBe('running');
+    expect(recovered.presence?.tabId).toBe('tab-b');
+    expect(recovered.presence?.leftTabId).toBe('');
+  });
 });
 
 describe('engine.scan', () => {
