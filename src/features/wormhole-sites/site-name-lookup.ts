@@ -1,8 +1,24 @@
 /**
  * Exact name → catalogue id (headline Est. ISK + live harvestable recipes)
  * for scanned site rows. Built from the same deploy-static catalogue the
- * global search index seeds; null id means no row affordance.
+ * global search index seeds; null id means no row affordance. Known
+ * catalogue-typo aliases also resolve so EVE paste names match.
  */
+
+/** Catalogue spellings that do not match the live EVE scanner name. */
+const SITE_NAME_ALIASES: readonly (readonly [string, string])[] = [
+  ['Ordinary Permiter Deposit', 'Ordinary Perimeter Deposit'],
+];
+
+/** Catalogue name plus any EVE-scanner alias that must hit the same row. */
+export function siteNameIndexKeys(name: string): readonly string[] {
+  const keys = [name];
+  for (const [typo, eve] of SITE_NAME_ALIASES) {
+    if (name === typo) keys.push(eve);
+    else if (name === eve) keys.push(typo);
+  }
+  return keys;
+}
 
 /** One live-eligible harvestable resource carried on the scanner name index. */
 export type SiteLiveRecipe = {
@@ -35,16 +51,18 @@ export type SiteNameIndexEntry = {
  * search-index seed so scanner affordances and global search share one source.
  */
 export function setSiteNameIndex(entries: readonly SiteNameIndexEntry[]): void {
-  BY_NAME = new Map(
-    entries.map((entry) => [
-      entry.name,
-      {
-        id: entry.id,
-        estIsk: entry.estIsk ?? null,
-        liveRecipes: entry.liveRecipes ?? [],
-      },
-    ]),
-  );
+  const byName = new Map<string, SiteNameRecord>();
+  for (const entry of entries) {
+    const record = {
+      id: entry.id,
+      estIsk: entry.estIsk ?? null,
+      liveRecipes: entry.liveRecipes ?? [],
+    };
+    for (const key of siteNameIndexKeys(entry.name)) {
+      byName.set(key, record);
+    }
+  }
+  BY_NAME = byName;
 }
 
 /**

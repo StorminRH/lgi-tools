@@ -20,7 +20,7 @@ import {
   type ScannedRow,
 } from '@/data/maps/scan-parse';
 import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
-import type { Doc } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
   internalQuery,
@@ -1102,6 +1102,76 @@ export const applyScan = mutation({
   },
 });
 
+async function stampIdentifiedWormholeType(
+  ctx: MutationCtx,
+  connectionId: Id<'mapConnections'>,
+  wormholeTypeCode: string | null | undefined,
+): Promise<void> {
+  if (!wormholeTypeCode) return;
+  if (!isWormholeTypeCode(wormholeTypeCode)) {
+    throw new ConvexError({
+      code: 'INVALID_WORMHOLE_CODE',
+      detail: `Unknown wormhole code "${wormholeTypeCode}".`,
+    });
+  }
+  const connection = await ctx.db.get(connectionId);
+  if (connection === null) return;
+  if (
+    connection.wormholeTypeCode === wormholeTypeCode
+    && connection.typeProvenance === 'human'
+    && connection.observationKey !== undefined
+  ) {
+    return;
+  }
+  await ctx.db.patch(connectionId, {
+    wormholeTypeCode,
+    typedSide: connection.typedSide ?? 'from',
+    typeProvenance: 'human',
+    pendingCandidates: undefined,
+    pendingResolutionCharacterId: undefined,
+    ...stampObservationKey(connection.observationKey).patch,
+  });
+}
+
+async function identifyWormholeRow(
+  ctx: MutationCtx,
+  state: ScanState,
+  signature: Doc<'mapSignatures'>,
+  mapId: string,
+  systemId: number,
+  wormholeTypeCode: string | null | undefined,
+): Promise<{ changed: boolean; connectionId: Id<'mapConnections'> }> {
+  if ((signature.kind ?? 'signature') !== 'signature') {
+    throw new ConvexError({ code: 'ANOMALY_CANNOT_BE_WORMHOLE' });
+  }
+  await applyWormholeRow(
+    ctx,
+    state,
+    {
+      signatureId: signature.signatureId,
+      kind: 'signature',
+      group: 'Wormhole',
+      name: signature.typeName,
+      signalPct: signature.signalPct ?? null,
+    },
+    mapId,
+    systemId,
+    Date.now(),
+  );
+  const connection = findConnectionForSignature(
+    await readOriginConnections(ctx, mapId, systemId),
+    signature.signatureId,
+  );
+  if (connection === undefined) {
+    throw new ConvexError({ code: 'SIGNATURE_MIGRATION_FAILED' });
+  }
+  await stampIdentifiedWormholeType(ctx, connection._id, wormholeTypeCode);
+  return {
+    changed: (signature.group ?? null) !== 'Wormhole',
+    connectionId: connection._id,
+  };
+}
+
 /**
  * Identifies one unresolved list row. Wormhole identification reuses the same
  * signature-to-connection convergence path as scanner paste.
@@ -1112,8 +1182,9 @@ export const identifySignature = mutation({
     systemId: v.number(),
     signatureId: v.string(),
     group: sigGroupValidator,
+    wormholeTypeCode: v.optional(v.union(v.string(), v.null())),
   },
-  handler: async (ctx, { mapId, systemId, signatureId, group }) => {
+  handler: async (ctx, { mapId, systemId, signatureId, group, wormholeTypeCode }) => {
     await requireMapAccess(ctx, mapId, 'edit');
     await requireLiveSystem(ctx, mapId, systemId);
     const [normalizedId] = requireBoundedSignatureIds([signatureId]);
@@ -1123,42 +1194,35 @@ export const identifySignature = mutation({
     const state = await readScanState(ctx, mapId, systemId);
     const signature = rowMaps(state.signatures).get(normalizedId);
     if (signature === undefined || isTombstoned(signature)) {
+      if (group === 'Wormhole') {
+        const existing = findConnectionForSignature(
+          await readOriginConnections(ctx, mapId, systemId),
+          normalizedId,
+        );
+        if (existing !== undefined) {
+          await stampIdentifiedWormholeType(ctx, existing._id, wormholeTypeCode);
+          return { changed: false, connectionId: existing._id };
+        }
+      }
       throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
     }
     const currentGroup = signature.group ?? null;
     if (currentGroup !== null && currentGroup !== group) {
       throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
     }
-    if (group !== 'Wormhole') {
-      if (currentGroup === group) return { changed: false, connectionId: null };
-      await ctx.db.patch(signature._id, { group });
-      return { changed: true, connectionId: null };
+    if (group === 'Wormhole') {
+      return identifyWormholeRow(
+        ctx,
+        state,
+        signature,
+        mapId,
+        systemId,
+        wormholeTypeCode,
+      );
     }
-    if ((signature.kind ?? 'signature') !== 'signature') {
-      throw new ConvexError({ code: 'ANOMALY_CANNOT_BE_WORMHOLE' });
-    }
-    await applyWormholeRow(
-      ctx,
-      state,
-      {
-        signatureId: normalizedId,
-        kind: 'signature',
-        group: 'Wormhole',
-        name: signature.typeName,
-        signalPct: signature.signalPct ?? null,
-      },
-      mapId,
-      systemId,
-      Date.now(),
-    );
-    const connection = findConnectionForSignature(
-      await readOriginConnections(ctx, mapId, systemId),
-      normalizedId,
-    );
-    if (connection === undefined) {
-      throw new ConvexError({ code: 'SIGNATURE_MIGRATION_FAILED' });
-    }
-    return { changed: currentGroup !== 'Wormhole', connectionId: connection._id };
+    if (currentGroup === group) return { changed: false, connectionId: null };
+    await ctx.db.patch(signature._id, { group });
+    return { changed: true, connectionId: null };
   },
 });
 

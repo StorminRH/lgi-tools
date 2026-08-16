@@ -3,7 +3,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
-import { SignatureWindow } from './SignatureWindow';
+import {
+  SignatureWindow,
+  scannerLeadsCellKey,
+  scannerTypeCellKey,
+} from './SignatureWindow';
 import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';
 
@@ -19,17 +23,8 @@ afterEach(() => {
   setSiteNameIndex([]);
 });
 
-vi.mock('@/components/ui/tabs', () => ({
-  Tabs: (props: {
-    defaultValue?: string;
-    tabs: readonly { value: string; label: string; content: React.ReactNode }[];
-  }) => createElement(
-    'div',
-    { 'data-tabs-default': props.defaultValue },
-    props.tabs.map((tab) =>
-      createElement('section', { key: tab.value, 'data-tab': tab.value }, tab.label, tab.content),
-    ),
-  ),
+vi.mock('@/components/ui/tooltip', () => ({
+  Tooltip: ({ children }: { children?: React.ReactNode }) => children,
 }));
 
 vi.mock('@/components/ui/button', () => ({
@@ -37,15 +32,8 @@ vi.mock('@/components/ui/button', () => ({
     createElement('button', props, children),
 }));
 
-vi.mock('@/components/ui/pointer-menu', () => ({
-  PointerMenu: () => null,
-  MenuItem: () => null,
-  menuRow: '',
-  pointerAnchor: () => null,
-}));
-
 vi.mock('../authoring/use-wormhole-editor-data', () => ({
-  useWormholeCodexData: () => ({
+  useWormholeEditorData: () => ({
     codex: {
       byCode: (code: string) =>
         code === 'B274'
@@ -64,9 +52,14 @@ vi.mock('../authoring/use-wormhole-editor-data', () => ({
       codes: () => ['B274'],
     },
     codes: ['B274'],
+    preferredCodes: ['B274'],
     entry: null,
     codexReady: true,
   }),
+}));
+
+vi.mock('../chain/use-map-chain', () => ({
+  useUniverseAssets: () => null,
 }));
 
 const ROWS: readonly SignatureWindowRow[] = [
@@ -205,9 +198,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     const html = render(1, new Set());
     expect(html).toContain('data-map-window="signatures"');
     expect(html).toContain('data-map-window-placement="docked-bottom-left"');
-    expect(html).toContain('data-tabs-default="signature"');
-    expect(html).toContain('Signatures');
-    expect(html).toContain('Anomalies');
     expect(html).toContain('data-signature-id="ABC-123"');
     expect(html).toContain('data-scanner-section="unknown"');
     expect(html).toContain('data-scanner-section="wormholes"');
@@ -227,40 +217,71 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('Barren Perimeter Reservoir');
     expect(html).toContain('Unsecured Frontier');
     expect(html).toContain('Forgotten Frontier');
-    expect(html).toContain('Size');
-    expect(html).toContain('Lifetime');
-    // The typed code's destination class stays on the wormhole row after the
-    // Group column's retirement.
+    expect(html).toContain('Type');
+    expect(html).toContain('data-signature-site-type="Gas"');
+    expect(html).toContain('data-signature-site-type="Data"');
+    expect(html).toContain('Mass');
+    expect(html).toContain('Life');
+    expect(html).toContain('Destination');
+    expect(html).not.toContain('>Leads<');
+    // The typed code's destination class stays on the wormhole row.
     expect(html).toContain('data-signature-class');
     expect(html).toContain('>HS<');
     expect(html).toContain('Est. ISK');
-    expect(html).toContain('>L<');
-    expect(html).toContain('≤ ');
-    expect(html).not.toContain('Less than 4 hours');
-    expect(html).toContain('data-signature-row-open');
+    expect(html).not.toContain('>Age<');
+    expect(html).toContain('Age ');
+    expect(html).not.toContain('tabindex="0"');
+    expect(html).toContain('text-muted');
+    expect(html).not.toContain('>Size<');
+    expect(html).not.toContain('>Lifetime<');
+    expect(html).not.toContain('data-signature-row-open');
+    expect(html).not.toContain('Identify signature');
+    expect(html).not.toContain('Identification is permanent');
+    expect(html).toContain('placeholder="Unresolved"');
     // Unmatched combat/harvestable names stay as the empty Est. ISK dash.
     expect(html).toContain('data-signature-isk="empty"');
     expect(html).toContain('data-signature-signal-fill');
-    expect(html).toContain('scroll-area');
+    expect(html).toContain('scroll-area-start');
     expect(html).not.toContain('>Group<');
-    expect(html).not.toContain('>Scanner<');
+    expect(html).toContain('>Signatures · Anomalies<');
+    expect(html).toContain('data-scanner-dock-stack');
+    expect(html).toContain('data-scanner-filled="true"');
+    // Inset lives on the LTR window, not the RTL scrollport — otherwise a
+    // reserved gutter shears the section-card radii on the right.
+    expect(html).not.toContain('scroll-area ');
+    expect(html).not.toContain('[scrollbar-gutter:auto]');
+    expect(html).toContain('data-scanner-scroll');
+    expect(html).toContain('data-scanner-scroll-frost="start"');
+    expect(html).toContain('data-scanner-scroll-frost="end"');
     // Root-system rows render without requiring a tracked online character.
     expect(html).not.toContain('Track an online character');
 
     const empty = render(null, new Set());
     expect(empty).toContain('data-map-window="signatures"');
+    expect(empty).toContain('data-scanner-dock-stack');
+    expect(empty).toContain('data-scanner-filled="false"');
+    expect(empty).toContain('data-scanner-paste-hint');
+    expect(empty).toContain('Paste signatures anywhere on the page.');
+    expect(empty).toContain('rounded-card');
+    expect(empty).toContain('bg-section');
+    expect(empty).toContain('text-isk');
     expect(empty).not.toContain('data-signature-id="ABC-123"');
     expect(empty).not.toContain('data-scanner-section=');
     expect(empty).not.toContain('No scanner rows in this system.');
     expect(empty).not.toContain('data-signature-empty');
   });
 
-  it('leaves a complete empty scan blank and only shows loading copy while unread', () => {
+  it('shows a paste hint on a complete empty scan and only shows loading copy while unread', () => {
     const completeEmpty = render(1, new Set(), 0, null, {
       rows: [],
       complete: true,
     });
     expect(completeEmpty).toContain('data-map-window="signatures"');
+    expect(completeEmpty).toContain('data-scanner-filled="false"');
+    expect(completeEmpty).toContain('data-scanner-paste-hint');
+    expect(completeEmpty).toContain('Paste signatures anywhere on the page.');
+    expect(completeEmpty).toContain('rounded-card');
+    expect(completeEmpty).toContain('bg-section');
     expect(completeEmpty).not.toContain('No scanner rows in this system.');
     expect(completeEmpty).not.toContain('data-signature-empty');
     expect(completeEmpty).not.toContain('Reading scanner rows…');
@@ -272,6 +293,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     });
     expect(loading).toContain('data-signature-empty');
     expect(loading).toContain('Reading scanner rows…');
+    expect(loading).not.toContain('data-scanner-paste-hint');
     expect(loading).not.toContain('No scanner rows in this system.');
   });
 
@@ -297,6 +319,19 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(remote).not.toContain('data-signature-missing="true"');
   });
 
+  it('keeps Type and Destination remount keys distinct when both values are empty', () => {
+    const connectionId = 'm577478djxw0qbjjh9dcntqabn8c965j';
+    expect(scannerTypeCellKey(connectionId, null)).toBe(
+      `type:${connectionId}:`,
+    );
+    expect(scannerLeadsCellKey(connectionId, undefined, null)).toBe(
+      `leads:${connectionId}:`,
+    );
+    expect(scannerTypeCellKey(connectionId, null)).not.toBe(
+      scannerLeadsCellKey(connectionId, undefined, null),
+    );
+  });
+
   it('stacks missing-scan and ambiguous-jump prompts in one scanner rail', () => {
     const jumpResolution: JumpResolutionModel = {
       connectionId: 'connection-1' as Id<'mapConnections'>,
@@ -317,9 +352,11 @@ describe('SignatureWindow component prompt and filter states', () => {
       ],
     };
     const html = render(1, new Set(['ABC-123']), 1, jumpResolution);
+    expect(html).toContain('data-scanner-dock-stack');
     expect(html).toContain('data-scanner-prompt-rail');
     expect(html).toContain('data-signature-missing-prompt');
     expect(html).toContain('data-signature-jump-prompt');
+    expect(html).toContain('Which signature did you jump through?');
   });
 
   it('opens catalogue sites for viewers with live Est. ISK while combat stays static', () => {
@@ -332,6 +369,7 @@ describe('SignatureWindow component prompt and filter states', () => {
         liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
       },
       { id: 1, name: 'Sansha Hideout', estIsk: 12_000_000 },
+      { id: 33, name: 'Unsecured Frontier', estIsk: 4_200_000 },
     ]);
     const html = renderToStaticMarkup(
       createElement(SignatureWindow, {
@@ -351,10 +389,10 @@ describe('SignatureWindow component prompt and filter states', () => {
         onOpenSite: vi.fn(),
       }),
     );
-    // Catalogue-matched names (gas and combat) open the read-only site viewer;
-    // wormholes stay inert for a viewer. Action verb is an sr-only prefix so
-    // ID / name / Est. ISK stay in the accessible name.
-    expect(html.match(/sr-only">View site /g)?.length).toBe(2);
+    // Catalogue-matched names (gas, combat, and data) open the read-only site
+    // viewer; wormholes stay inert for a viewer. Action verb is an sr-only
+    // prefix so ID / name / Est. ISK stay in the accessible name.
+    expect(html.match(/sr-only">View site /g)?.length).toBe(3);
     expect(html).toContain('Barren Perimeter Reservoir');
     expect(html).toContain('Sansha Hideout');
     expect(html).toContain('data-signature-id="GAS-001"');
@@ -366,7 +404,8 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('data-price-state="settled"');
     // Combat headline is a plain span — only the harvestable cell uses LivePrice.
     expect(html.match(/data-price-state="/g)?.length).toBe(1);
-    expect(html).not.toContain('aria-label=');
+    expect(html).not.toContain('aria-label="View site');
+    expect(html).toContain('Mass WHL-001');
     expect(html).not.toContain('sr-only">Edit wormhole ');
   });
 });

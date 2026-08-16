@@ -45,6 +45,27 @@ test('SiteCatalogueProvider resolves from props on first render and falls back t
   expect(fromProps).toContain('data-site-id="49"');
   expect(fromProps).toContain('data-est-isk="82432500"');
 
+  const oreAlias = renderToStaticMarkup(
+    createElement(
+      SiteCatalogueProvider,
+      {
+        siteIndex: [
+          {
+            id: 63,
+            name: 'Ordinary Permiter Deposit',
+            siteType: 'ore',
+            wormholeClass: null,
+            blueLootIsk: null,
+            resourceValueIsk: 2_000_000,
+          },
+        ],
+      },
+      createElement(Probe, { name: 'Ordinary Perimeter Deposit' }),
+    ),
+  );
+  expect(oreAlias).toContain('data-site-id="63"');
+  expect(oreAlias).toContain('data-est-isk="2000000"');
+
   setSiteNameIndex([
     {
       id: 49,

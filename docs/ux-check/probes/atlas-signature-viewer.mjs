@@ -60,8 +60,12 @@ function siteViewerLayer(page) {
   return page.locator('[data-site-viewer="true"]');
 }
 
+function viewSiteButton(page) {
+  return page.getByRole('button', { name: new RegExp(`View site.*${SITE_NAME}`) });
+}
+
 async function openSiteViewer(page) {
-  const open = page.getByRole('button', { name: `View site ${SITE_NAME}` });
+  const open = viewSiteButton(page);
   await open.waitFor({ state: 'visible', timeout: 15_000 });
   await open.click({ timeout: 10_000 });
   await siteViewer(page).waitFor({ state: 'visible', timeout: 15_000 });
@@ -128,13 +132,12 @@ export default {
     );
     check(
       'catalogue-matched site row shows the open affordance',
-      (await siteRow.locator('[data-signature-row-open]').count()) === 1
-        && (await page.getByRole('button', { name: `View site ${SITE_NAME}` }).count())
-          === 1,
+      (await siteRow.getAttribute('data-signature-row-open')) === 'true'
+        && (await viewSiteButton(page).count()) === 1,
     );
     check(
       'catalogue-unmatched named site row stays inert',
-      (await unmatchedRow.locator('[data-signature-row-open]').count()) === 0
+      (await unmatchedRow.getAttribute('data-signature-row-open')) === null
         && (await unmatchedRow.getByRole('button').count()) === 0
         && (await page.getByRole('button', { name: `View site ${UNMATCHED_NAME}` }).count())
           === 0,

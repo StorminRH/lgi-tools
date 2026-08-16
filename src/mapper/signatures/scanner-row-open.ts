@@ -4,7 +4,7 @@ import type { SignatureWindowRow } from './signature-model';
 
 /**
  * What a scanner row click opens: a connection edit, a read-only site view,
- * the unresolved identify menu, or nothing.
+ * or nothing. Unresolved rows identify from the inline Name combobox.
  */
 export type ScannerRowOpenAction =
   | {
@@ -17,7 +17,6 @@ export type ScannerRowOpenAction =
       readonly siteId: number;
       readonly signatureId: string;
     }
-  | { readonly kind: 'identify' }
   | null;
 
 /** Host callbacks that apply a resolved scanner-row open action. */
@@ -27,17 +26,12 @@ export interface ScannerRowOpenHandlers {
     signatureId: string,
   ) => void;
   readonly openSite: (siteId: number, signatureId: string) => void;
-  readonly openIdentify: (
-    row: SignatureWindowRow,
-    trigger: HTMLElement,
-    clientX: number,
-    clientY: number,
-  ) => void;
 }
 
 /**
  * Resolves the click action for one scanner row. Catalogue-matched site rows
- * open for any viewer; connection edit and identify stay canEdit-gated.
+ * (combat, gas, ore, data, relic) open for any viewer; connection edit stays
+ * canEdit-gated.
  * Pass a reactive `resolveSiteId` from {@link useSiteCatalogue} on the atlas
  * so first paint matches the layout-seeded index.
  */
@@ -65,7 +59,6 @@ export function scannerRowOpenAction(
       };
     }
   }
-  if (canEdit && row.group === null) return { kind: 'identify' };
   return null;
 }
 
@@ -85,7 +78,7 @@ export function scannerRowShowsOpenAffordance(
 export function applyScannerRowOpenAction(
   action: ScannerRowOpenAction,
   handlers: ScannerRowOpenHandlers,
-  context: {
+  _context: {
     readonly row: SignatureWindowRow;
     readonly trigger: HTMLElement;
     readonly clientX: number;
@@ -97,14 +90,5 @@ export function applyScannerRowOpenAction(
     handlers.openEditor(action.connectionId, action.signatureId);
     return;
   }
-  if (action.kind === 'site') {
-    handlers.openSite(action.siteId, action.signatureId);
-    return;
-  }
-  handlers.openIdentify(
-    context.row,
-    context.trigger,
-    context.clientX,
-    context.clientY,
-  );
+  handlers.openSite(action.siteId, action.signatureId);
 }

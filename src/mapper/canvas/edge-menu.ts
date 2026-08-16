@@ -50,6 +50,9 @@ export function edgeAllowsPointerActions(
   canEdit: boolean,
 ): boolean {
   if (edge.data.motion?.phase === 'departing') return false;
+  // Dying lines stay drawn for the undo window; Restore lives on the editor,
+  // not a second Delete that would re-enter collapse.
+  if (edge.data.tombstoneState === 'dying') return false;
   return (
     edgeMenuConnectionId({
       edgeId: edge.id,

@@ -17,6 +17,7 @@ export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
     connectionId: Id<'mapConnections'>;
   }) => Promise<
     | { outcome: 'retained' }
+    | { outcome: 'already_applied' }
     | { outcome: 'removed'; systemIds: number[] }
     | undefined
   >;

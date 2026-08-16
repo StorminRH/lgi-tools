@@ -578,13 +578,107 @@ export const setConnectionDestinationHint = mutation({
     const normalized = value ?? undefined;
     if (
       connection[field] === normalized
+      && (normalized === undefined || connection.toSystemId === null)
       && connection.pendingCandidates === undefined
       && connection.pendingResolutionCharacterId === undefined
     ) {
       return { changed: false };
     }
+    if (normalized !== undefined) {
+      await ctx.db.patch(connectionId, {
+        [field]: normalized,
+        toSystemId: null,
+        toSignatureId: undefined,
+        destinationProvenance: undefined,
+        pendingCandidates: undefined,
+        pendingResolutionCharacterId: undefined,
+      });
+      return { changed: true };
+    }
     await ctx.db.patch(connectionId, {
-      [field]: normalized,
+      [field]: undefined,
+      pendingCandidates: undefined,
+      pendingResolutionCharacterId: undefined,
+    });
+    return { changed: true };
+  },
+});
+
+function destinationEqualityCleanup(
+  connection: Doc<'mapConnections'>,
+  toSystemId: number | null,
+): Partial<Doc<'mapConnections'>> | null {
+  const hasPending =
+    connection.pendingCandidates !== undefined
+    || connection.pendingResolutionCharacterId !== undefined;
+  if (toSystemId === null) {
+    const hasHint =
+      connection.fromDestinationHint !== undefined
+      || connection.toDestinationHint !== undefined;
+    if (!hasHint && !hasPending) return null;
+    return {
+      fromDestinationHint: undefined,
+      toDestinationHint: undefined,
+      destinationProvenance: undefined,
+      pendingCandidates: undefined,
+      pendingResolutionCharacterId: undefined,
+    };
+  }
+  if (connection.destinationProvenance === 'human' && !hasPending) return null;
+  return {
+    destinationProvenance: 'human',
+    pendingCandidates: undefined,
+    pendingResolutionCharacterId: undefined,
+  };
+}
+
+/**
+ * Retargets or clears a connection's resolved destination. A human correction
+ * keeps the hole (type, mass, life, near-side signature) and points it at a
+ * different system — or back to an unresolved stub. Not sever: the old
+ * destination system stays on the map. If that leftover loses every path to
+ * the root it parks as a layout orphan until a live island edge is severed.
+ */
+export const setConnectionDestination = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    toSystemId: v.union(v.number(), v.null()),
+  },
+  handler: async (ctx, { mapId, connectionId, toSystemId }) => {
+    const connection = await requireLiveConnection(ctx, mapId, connectionId);
+    if (connection.toSystemId === toSystemId) {
+      const cleanup = destinationEqualityCleanup(connection, toSystemId);
+      if (cleanup === null) return { changed: false };
+      await ctx.db.patch(connectionId, cleanup);
+      return { changed: true };
+    }
+    if (toSystemId === null) {
+      await ctx.db.patch(connectionId, {
+        toSystemId: null,
+        toSignatureId: undefined,
+        fromDestinationHint: undefined,
+        toDestinationHint: undefined,
+        destinationProvenance: undefined,
+        pendingCandidates: undefined,
+        pendingResolutionCharacterId: undefined,
+      });
+      return { changed: true };
+    }
+    requireSystemId(toSystemId);
+    if (toSystemId === connection.fromSystemId) {
+      throw new ConvexError({
+        code: 'SELF_LOOP',
+        detail: 'A connection must join two distinct systems.',
+      });
+    }
+    await upsertLiveDestination(ctx, mapId, toSystemId);
+    await ctx.db.patch(connectionId, {
+      toSystemId,
+      toSignatureId: undefined,
+      fromDestinationHint: undefined,
+      toDestinationHint: undefined,
+      destinationProvenance: 'human',
       pendingCandidates: undefined,
       pendingResolutionCharacterId: undefined,
     });
@@ -996,6 +1090,7 @@ export interface RunCollapseInput {
 /** The committed outcome of one collapse transaction. */
 export type RunCollapseResult =
   | { readonly outcome: 'retained' }
+  | { readonly outcome: 'already_applied' }
   | { readonly outcome: 'removed'; readonly systemIds: number[] };
 
 /**
@@ -1010,6 +1105,12 @@ export async function runCollapse(
 ): Promise<RunCollapseResult> {
   const topology = await readBoundedMapTopology(ctx, input.mapId);
   const cut = requireTopologyConnection(topology, input.mapId, input.connectionId);
+  // A second Delete (or a dying leftover still drawn on the canvas) is
+  // already-applied work: commit nothing and mint no stamp. Re-running
+  // collapse would share a new stamp across two severs and break restore.
+  if (isTombstoned(cut)) {
+    return { outcome: 'already_applied' };
+  }
   const decision = collapseOutcome(topology, cut, input.pilotsPresent);
   const deletedAt = uniqueTombstoneStamp(topology, Date.now());
   const stamps = chainTombstoneStamps(deletedAt);

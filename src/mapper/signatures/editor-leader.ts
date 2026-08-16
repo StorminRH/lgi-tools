@@ -44,20 +44,26 @@ function clamp(value: number, low: number, high: number): number {
  * Derives the bracket and leader line joining one scanner row to the editor
  * panel, or `null` when the cue would be a lie.
  *
- * It is a lie in exactly three cases: a collapsed row (an unmounted or
- * scrolled-away row measures zero height), a panel that has not been laid out
- * yet, and a panel drawn left of its row — the editor is anchored to the right
- * of the scanner dock by construction, so a leftward line would point at
- * nothing the user can follow.
+ * It is a lie in exactly four cases: a collapsed row (an unmounted or
+ * scrolled-away row measures zero height), a row that no longer intersects
+ * the scanner clip, a panel that has not been laid out yet, and a panel
+ * drawn left of its row — the editor is anchored to the right of the
+ * scanner dock by construction, so a leftward line would point at nothing
+ * the user can follow.
  */
 export function editorLeader(input: {
   readonly row: LeaderRect;
   readonly panel: LeaderRect;
   /** The drawing layer's own client origin; output is layer-local. */
   readonly origin: { readonly left: number; readonly top: number };
+  /** Visible scanner list; the cue hides when the row leaves this rect. */
+  readonly clip?: LeaderRect;
 }): EditorLeader | null {
-  const { row, panel, origin } = input;
-  const rowHeight = row.bottom - row.top;
+  const { row, panel, origin, clip } = input;
+  const rowTop = clip === undefined ? row.top : Math.max(row.top, clip.top);
+  const rowBottom =
+    clip === undefined ? row.bottom : Math.min(row.bottom, clip.bottom);
+  const rowHeight = rowBottom - rowTop;
   const panelHeight = panel.bottom - panel.top;
   if (rowHeight <= 0 || panelHeight <= 0) return null;
 
@@ -65,8 +71,11 @@ export function editorLeader(input: {
   const panelLeft = panel.left - origin.left;
   if (panelLeft <= x) return null;
 
-  const top = row.top - origin.top;
-  const bottom = Math.max(row.bottom - origin.top, top + MIN_BRACKET_PX);
+  const top = rowTop - origin.top;
+  const rawBottom = rowBottom - origin.top;
+  const floor = Math.max(rawBottom, top + MIN_BRACKET_PX);
+  const bottom =
+    clip === undefined ? floor : Math.min(floor, clip.bottom - origin.top);
   const middle = (top + bottom) / 2;
   const panelTop = panel.top - origin.top;
   const panelBottom = panel.bottom - origin.top;

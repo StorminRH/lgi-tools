@@ -400,6 +400,13 @@
       "when": 1786522777630,
       "tag": "0056_map_lifecycle_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1786823754743,
+      "tag": "0057_ordinary_perimeter_deposit",
+      "breakpoints": true
     }
   ]
 }

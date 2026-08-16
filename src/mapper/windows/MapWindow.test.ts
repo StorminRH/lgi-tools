@@ -32,7 +32,9 @@ describe('MapWindow isolation markup', () => {
     expect(docked).toContain('nokey');
     expect(docked).toContain('data-map-window-scroll');
     expect(docked).toContain('data-map-window-appearance="panel"');
-    expect(docked).toContain('glass-panel');
+    expect(docked).toContain('bg-section');
+    expect(docked).toContain('shadow-card-edge');
+    expect(docked).not.toContain('glass-panel');
     expect(docked).not.toContain('h-[calc(100dvh-5.5rem)]');
     // The floating window machinery (drag handle, resize grip, pop toggle)
     // left with the persistent-overlay dock; nothing may resurrect silently.
@@ -93,14 +95,15 @@ describe('MapWindow isolation markup', () => {
     expect(editor).toContain('map-node-enter');
     expect(editor).toContain('data-map-window-placement="scanner-anchored"');
     // Stacks above the dock on narrow viewports; parks beside it from md up.
-    expect(editor).toContain('md:left-[calc(1rem+min(24rem,100vw-2rem)+0.5rem)]');
-    expect(editor).toContain('bottom-[calc(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)]');
-    // Narrow stack caps to the space above the dock anchor; md uses bottom-4.
+    expect(editor).toContain('md:left-[calc(min(33rem,100vw)+0.5rem)]');
+    expect(editor).toContain('bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)]');
+    // Narrow stack caps to the space above the dock; md sits on the bottom edge.
     expect(editor).toContain(
-      'max-h-[calc(100dvh-(1rem+min(24rem,100vw-2rem,100dvh-7rem)+0.5rem)-1rem)]',
+      'max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)]',
     );
     expect(editor).toContain('md:max-h-[calc(100dvh-2rem)]');
     expect(editor).toContain('md:w-72');
+    expect(editor).toContain('md:max-w-[calc(100vw-min(33rem,100vw)-2.5rem)]');
     // Parked beside the dock in screen space, never riding a canvas transform.
     expect(editor).not.toContain('--map-window-transform');
 
@@ -115,16 +118,28 @@ describe('MapWindow isolation markup', () => {
         onActivate: vi.fn(),
       }, createElement('p', null, 'content')),
     );
-    expect(site).toContain('md:w-[22rem]');
+    expect(site).toContain('md:w-max');
     expect(site).not.toContain('md:w-72');
+    expect(site).not.toContain('md:w-[22rem]');
     expect(site).not.toContain('Close Site');
   });
 
   it('owns the one bottom-left geometry variant for the signature sibling', () => {
     const html = render({ kind: 'docked-bottom-left' });
     expect(html).toContain('data-map-window-placement="docked-bottom-left"');
-    expect(html).toContain('bottom-4 left-4');
-    expect(html).toContain('size-[min(24rem,calc(100vw-2rem))]');
+    expect(html).toContain('relative');
+    expect(html).toContain('h-auto');
+    expect(html).toContain('max-h-[min(24rem,calc(100dvh-7rem))]');
+    expect(html).toContain('w-full');
+    expect(html).toContain('min-w-0');
+    expect(html).toContain('text-center');
+    expect(html).toContain('rounded-none');
+    expect(html).toContain('glass-panel-faint');
+    expect(html).toContain('text-lead');
+    expect(html).toContain('font-semibold');
+    expect(html).not.toContain('border-b border-border-soft');
+    expect(html).not.toContain('shadow-dd');
+    expect(html).not.toContain('border border-border-idle');
   });
 
   it('covers node-anchored placement and Escape keydown wiring', () => {

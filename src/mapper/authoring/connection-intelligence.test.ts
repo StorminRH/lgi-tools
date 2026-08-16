@@ -7,6 +7,7 @@ import {
   formatKilograms,
   isCodexSizeLocked,
   lifetimeRowDisplay,
+  lifetimeUpperBoundLabel,
   massRowDisplay,
 } from './connection-intelligence';
 
@@ -115,5 +116,28 @@ describe('connection intelligence', () => {
       ),
     ).toEqual({ kind: 'expired', label: 'Expired' });
     expect(formatDurationBound(90 * 60 * 1000)).toBe('1.5h');
+    expect(lifetimeUpperBoundLabel(CONNECTION, TYPED, 1_000)).toBe('16h');
+    expect(
+      lifetimeUpperBoundLabel(
+        {
+          ...CONNECTION,
+          deathEarliestAt: 1_000 + 4 * 60 * 60 * 1000,
+          deathLatestAt: 1_000 + 16 * 60 * 60 * 1000,
+        },
+        TYPED,
+        1_000,
+      ),
+    ).toBe('16h');
+    expect(
+      lifetimeUpperBoundLabel(
+        {
+          ...CONNECTION,
+          deathEarliestAt: 500,
+          deathLatestAt: 900,
+        },
+        TYPED,
+        1_000,
+      ),
+    ).toBe('Expired');
   });
 });

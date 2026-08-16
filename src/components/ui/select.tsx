@@ -27,7 +27,13 @@ import { scrollArea } from './scroll-area';
  * One caller-supplied select option; its value is the stable control key and its label or marker
  * is presentation-ready.
  */
-export type SelectOption = { value: string; label: ReactNode; disabled?: boolean };
+export type SelectOption = {
+  value: string;
+  label: ReactNode;
+  /** Closed-trigger text; defaults to `label` so the list and trigger stay in sync. */
+  triggerLabel?: ReactNode;
+  disabled?: boolean;
+};
 /**
  * One labelled select group containing ordered options; group labels are presentation only and
  * option values remain the control keys.
@@ -48,9 +54,11 @@ function labelMapOf(items: SelectItems): Record<string, ReactNode> {
   const map: Record<string, ReactNode> = {};
   for (const entry of items) {
     if (isGroup(entry)) {
-      for (const option of entry.options) map[option.value] = option.label;
+      for (const option of entry.options) {
+        map[option.value] = option.triggerLabel ?? option.label;
+      }
     } else {
-      map[entry.value] = entry.label;
+      map[entry.value] = entry.triggerLabel ?? entry.label;
     }
   }
   return map;
@@ -107,6 +115,9 @@ export function Select({
   disabled,
   className,
   align = 'start',
+  open,
+  onOpenChange,
+  caret = true,
 }: FieldSize & {
   // Controlled selected value (the encoded option value).
   value: string;
@@ -120,6 +131,11 @@ export function Select({
   className?: string;
   // Optical content alignment for the closed value and open list rows.
   align?: SelectAlign;
+  // Optional controlled popup; omit both to keep Base UI's uncontrolled open.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  // Closed-trigger caret. Flat scanner cells hide it once a value is set.
+  caret?: boolean;
 }) {
   const centered = align === 'center';
   // Prefer the enclosing Dialog/Drawer popup so the list stacks above the
@@ -132,6 +148,9 @@ export function Select({
       value={value}
       onValueChange={(next) => onValueChange(next as string)}
       disabled={disabled}
+      {...(open === undefined
+        ? {}
+        : { open, onOpenChange: (next: boolean) => onOpenChange?.(next) })}
     >
       <Base.Trigger
         aria-label={ariaLabel}
@@ -156,16 +175,18 @@ export function Select({
             centered ? 'w-full px-6 text-center' : 'flex-1',
           )}
         />
-        <Base.Icon
-          className={cn(
-            'shrink-0 text-muted',
-            // Absolute caret so the value centers in the full well width.
-            centered &&
-              'pointer-events-none absolute end-2 top-1/2 -translate-y-1/2',
-          )}
-        >
-          ▾
-        </Base.Icon>
+        {caret ? (
+          <Base.Icon
+            className={cn(
+              'shrink-0 text-muted',
+              // Absolute caret so the value centers in the full well width.
+              centered &&
+                'pointer-events-none absolute end-2 top-1/2 -translate-y-1/2',
+            )}
+          >
+            ▾
+          </Base.Icon>
+        ) : null}
       </Base.Trigger>
       <Base.Portal {...(overlayContainer ? { container: overlayContainer } : {})}>
         <Base.Positioner side="bottom" sideOffset={4} alignItemWithTrigger={false} className="z-dropdown">

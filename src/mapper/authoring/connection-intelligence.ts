@@ -131,30 +131,36 @@ export function massRowDisplay(
  * Builds the lifetime readout from the shared death window, falling back to the
  * typed spawn ceiling when no life-stage report has been stored yet.
  */
-export function lifetimeRowDisplay(
-  connection: Pick<
-    ConnectionDetail,
-    | '_creationTime'
-    | 'deathEarliestAt'
-    | 'deathLatestAt'
-    | 'lifeStage'
-  >,
+type LifetimeSource =
+  | { readonly kind: 'expired' }
+  | {
+      readonly kind: 'range';
+      readonly earliestRemainingMs: number;
+      readonly latestRemainingMs: number;
+    }
+  | { readonly kind: 'ceiling'; readonly remainingMs: number; readonly ceilingAt: number }
+  | { readonly kind: 'unset' };
+
+type LifetimeConnection = Pick<
+  ConnectionDetail,
+  '_creationTime' | 'deathEarliestAt' | 'deathLatestAt' | 'lifeStage'
+>;
+
+function lifetimeSource(
+  connection: LifetimeConnection,
   entry: WormholeCodexEntry | null,
   now: number,
-): LifetimeRowDisplay {
+): LifetimeSource {
   const window = storedDeathWindow(connection);
   if (window !== null) {
     const display = lifetimeDisplay(window, now);
-    if (display.kind === 'expired') {
-      return { kind: 'expired', label: 'Expired' };
-    }
+    if (display.kind === 'expired') return { kind: 'expired' };
     return {
       kind: 'range',
-      label: `~${formatDurationBound(display.earliestRemainingMs)}–${formatDurationBound(display.latestRemainingMs)}`,
-      title: countdownTitle(display.earliestRemainingMs, display.latestRemainingMs),
+      earliestRemainingMs: display.earliestRemainingMs,
+      latestRemainingMs: display.latestRemainingMs,
     };
   }
-
   if (
     entry !== null &&
     !entry.farSide &&
@@ -164,17 +170,51 @@ export function lifetimeRowDisplay(
     const ceilingAt =
       connection._creationTime + entry.lifetimeMinutes * 60_000;
     const remainingMs = Math.max(0, ceilingAt - now);
-    if (remainingMs === 0) {
-      return { kind: 'expired', label: 'Expired' };
-    }
+    if (remainingMs === 0) return { kind: 'expired' };
+    return { kind: 'ceiling', remainingMs, ceilingAt };
+  }
+  return { kind: 'unset' };
+}
+
+/** Builds the lifetime readout from the stored death window or typed ceiling. */
+export function lifetimeRowDisplay(
+  connection: LifetimeConnection,
+  entry: WormholeCodexEntry | null,
+  now: number,
+): LifetimeRowDisplay {
+  const source = lifetimeSource(connection, entry, now);
+  if (source.kind === 'expired') return { kind: 'expired', label: 'Expired' };
+  if (source.kind === 'range') {
     return {
-      kind: 'ceiling',
-      label: `≤ ${formatDurationBound(remainingMs)}`,
-      title: `Typed ceiling ${new Date(ceilingAt).toISOString()}`,
+      kind: 'range',
+      label: `~${formatDurationBound(source.earliestRemainingMs)}–${formatDurationBound(source.latestRemainingMs)}`,
+      title: countdownTitle(source.earliestRemainingMs, source.latestRemainingMs),
     };
   }
-
+  if (source.kind === 'ceiling') {
+    return {
+      kind: 'ceiling',
+      label: `≤ ${formatDurationBound(source.remainingMs)}`,
+      title: `Typed ceiling ${new Date(source.ceilingAt).toISOString()}`,
+    };
+  }
   return { kind: 'unset' };
+}
+
+/**
+ * Remaining-life upper bound for compact surfaces. Same algebra as
+ * `lifetimeRowDisplay`, without the range or ≤ prefix.
+ */
+export function lifetimeUpperBoundLabel(
+  connection: LifetimeConnection,
+  entry: WormholeCodexEntry | null,
+  now: number,
+): string | null {
+  const source = lifetimeSource(connection, entry, now);
+  if (source.kind === 'expired') return 'Expired';
+  if (source.kind === 'range') return formatDurationBound(source.latestRemainingMs);
+  if (source.kind === 'ceiling') return formatDurationBound(source.remainingMs);
+  return null;
 }
 
 function storedDeathWindow(connection: {

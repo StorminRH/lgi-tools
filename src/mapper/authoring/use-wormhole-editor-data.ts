@@ -63,6 +63,7 @@ export function useWormholeEditorData(
   } | null>(null);
 
   useEffect(() => {
+    if (systemId <= 0) return;
     const controller = new AbortController();
     let alive = true;
     loadSystemStatics(systemId, controller.signal).then(
