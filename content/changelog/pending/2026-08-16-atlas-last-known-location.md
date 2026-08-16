@@ -1,7 +1,7 @@
 ---
 date: 2026-08-16
-source: atlas-last-known-location
+source: atlas-present-online-presence
 ---
 
 #### Fixed
-- Atlas keeps showing the last known system after location coverage drops, until tracking starts again.
+- Atlas only shows a tracked pilot on the map when that owner is present and the character is online.

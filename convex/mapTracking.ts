@@ -8,6 +8,7 @@
 // those tracked ids. A forged tracking row naming someone else's character
 // joins to no location document.
 import { ConvexError, v } from 'convex/values';
+import type { Doc } from './_generated/dataModel';
 import {
   internalQuery,
   type MutationCtx,
@@ -16,6 +17,7 @@ import {
   type QueryCtx,
 } from './_generated/server';
 import { requireMapAccess, tryMapAccess } from './lib/mapAccess';
+import { getSyncSubject } from './lib/subjects';
 
 /**
  * Per-(map, user) tracked-character bound, enforced at opt-in. Bounds every
@@ -111,6 +113,8 @@ export const setTracking = mutation({
  * observedAt is LAST-CHANGE time (the 304 zero-write path never touches it),
  * so this read set changes only on real location/tracking/claim writes — the
  * doorbell's retry sizing and the map's push rate both rest on that.
+ * Present+online coverage lives on the sibling `feedFreshness` query, whose
+ * read set touches the hot per-run sync-subject stamp so this one never has to.
  */
 export const forMap = query({
   args: { mapId: v.string() },
@@ -152,6 +156,107 @@ export const forMap = query({
         .filter((row) => row.userId === principal.userId)
         .map((row) => row.characterId)
         .sort((left, right) => left - right),
+    };
+  },
+});
+
+/**
+ * Coverage quantum: `feedFreshAt` is floored to this bucket so the returned
+ * value — and therefore the subscription's push rate — changes at most once
+ * per bucket per owner, while the ~5s per-run subject stamp churns
+ * underneath. The client gone window (90s) stays coarser than one bucket, so
+ * quantization cannot flicker a still-running feed off the map.
+ */
+export const FEED_FRESHNESS_QUANTUM_MS = 60_000;
+
+interface FeedFreshnessRow {
+  userId: string;
+  characterId: number;
+  feedFreshAt: number | null;
+}
+
+/** Stable wire order without adding another decision to the reactive query. */
+function compareFeedFreshnessRows(
+  left: FeedFreshnessRow,
+  right: FeedFreshnessRow,
+): number {
+  return (
+    left.userId.localeCompare(right.userId)
+    || left.characterId - right.characterId
+  );
+}
+
+function coveredCharacters(subject: Doc<'syncSubjects'>): readonly number[] {
+  return subject.coveredCharacterIds ?? [];
+}
+
+/**
+ * Quantized proof that this owner's last completed run covered the pilot.
+ * That is the present+online gate: the subject only finishes while Atlas is
+ * watching, and coveredCharacterIds only includes ESI-online location
+ * observations.
+ */
+function feedFreshnessBucket(
+  subject: Doc<'syncSubjects'> | null,
+  characterId: number,
+): number | null {
+  if (subject === null) return null;
+  if (subject.lastFinishedAt === null) return null;
+  if (!coveredCharacters(subject).includes(characterId)) return null;
+  return (
+    Math.floor(subject.lastFinishedAt / FEED_FRESHNESS_QUANTUM_MS)
+    * FEED_FRESHNESS_QUANTUM_MS
+  );
+}
+
+/**
+ * Per-owner-character present+online coverage for one map's tracked pilots.
+ * Split from `forMap` so the hot characterLocation sync-subject stamp cannot
+ * invalidate the location overlay. A character is covered only when the
+ * owner's last run actually sampled them online (`coveredCharacterIds`).
+ * Output is sorted by owner then character id. No time source: that would
+ * defeat result-value stability.
+ */
+export const feedFreshness = query({
+  args: { mapId: v.string() },
+  handler: async (ctx, { mapId }) => {
+    const principal = await tryMapAccess(ctx, mapId, 'view');
+    if (principal === null) {
+      return {
+        fresh: [] as {
+          userId: string;
+          characterId: number;
+          feedFreshAt: number | null;
+        }[],
+      };
+    }
+
+    const rows = await ctx.db
+      .query('mapTracking')
+      .withIndex('by_map', (q) => q.eq('mapId', mapId))
+      .take(TRACKING_MAP_SCAN_CAP);
+
+    const subjectByUser = new Map<string, Doc<'syncSubjects'> | null>();
+    const subjectOf = async (userId: string) => {
+      const held = subjectByUser.get(userId);
+      if (held !== undefined) return held;
+      const subject = await getSyncSubject(ctx.db, 'characterLocation', userId);
+      subjectByUser.set(userId, subject);
+      return subject;
+    };
+
+    const fresh: FeedFreshnessRow[] = [];
+    for (const row of rows) {
+      const subject = await subjectOf(row.userId);
+      fresh.push({
+        userId: row.userId,
+        characterId: row.characterId,
+        feedFreshAt: feedFreshnessBucket(subject, row.characterId),
+      });
+    }
+
+    return {
+      fresh: fresh.sort(compareFeedFreshnessRows),
     };
   },
 });

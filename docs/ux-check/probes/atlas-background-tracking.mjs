@@ -2,14 +2,14 @@
 // validation): with the page hidden and the virtual clock far past the old
 // 60-second window, fixture jumps still land and pilot presence still
 // updates; past the AFK threshold the FEED ITSELF pauses (heartbeat frames
-// stop on the Convex websocket — the primary observable) and the last-known
-// pin stays. Composes the tracked-location fixtures with atlas-afk-gate's
+// stop on the Convex websocket — the primary observable) and the pin then
+// disappears. Composes the tracked-location fixtures with atlas-afk-gate's
 // virtual-clock + visibility-shadow technique.
 //
 // Fixture timestamps are split on purpose: `transitionObservedAt` uses REAL
 // time (the server's doorbell capture window compares against real now),
-// while `feedFreshAt` stamps the subject's lastFinishedAt for jump
-// continuity.
+// while `feedFreshAt` uses the page's VIRTUAL now (presence staleness is
+// evaluated against the virtualized client clock).
 //
 // Requires authenticated storage state and a fresh empty UX_BG_MAP_ID map
 // (disposable, like the jump probe's map — the authored jump stays behind).
@@ -305,16 +305,11 @@ export default {
       heartbeatFrames === beatsAtPause,
     );
 
-    // Last-known pin stays after the feed pauses; own AFK is the local gate.
-    const heldBadge = badgeIn(page, ORIGIN_SYSTEM_ID);
+    // After the feed pauses, coverage ages out. Last-known stays for
+    // collapse; the pin disappears instead of lingering.
     check(
-      'badge keeps the last-known live pin after the feed pauses',
-      (await heldBadge.getAttribute('data-pilot-presence')) === 'live',
-    );
-    check(
-      'dock row renders AFK for the own paused tracker',
-      (await dockRow.locator('[data-presence-status]').getAttribute('data-presence-status'))
-        === 'AFK',
+      'badge leaves once the feed has stopped',
+      (await badgeIn(page, ORIGIN_SYSTEM_ID).count()) === 0,
     );
 
     // ── Return + dismiss resumes the feed (headless flavor of the #368 item) ─

@@ -194,10 +194,11 @@ export const clearAccessLease = internalMutation({
 // Per-character outcome the action hands back. `solarSystemId` null means a
 // 304, an offline probe, or an error (then `error` is set). Offline pilots
 // keep any held location (collapse retention / last-known); map presence
-// shows that last-known pin. A 304 (`online: true` + null
-// system) still writes nothing to the payload table. The probe trio: `online`
-// null = probe never resolved; `onlineExpiresAt` non-null = a fresh probe
-// read to upsert into characterLocationOnline (null = held-reuse).
+// hides that pin unless the owner's feed currently covers the character. A
+// 304 (`online: true` + null system) still writes nothing to the payload
+// table. The probe trio: `online` null = probe never resolved;
+// `onlineExpiresAt` non-null = a fresh probe read to upsert into
+// characterLocationOnline (null = held-reuse).
 const characterResultValidator = v.object({
   ...characterSyncResultFields,
   solarSystemId: v.union(v.number(), v.null()),
@@ -363,8 +364,8 @@ async function applyLocationResult(
 ): Promise<number | null> {
   if (result.error !== null) return null;
   // 304 / offline — location unchanged; write nothing (HC-3 zero-write path).
-  // Held last-known stays for collapse retention; presence shows that pin
-  // until a later run writes a new system, not by deleting here.
+  // Held last-known stays for collapse retention. Presence hides the pin
+  // unless the owner's feed currently covers this character.
   if (result.solarSystemId === null) return result.expiresAt;
 
   const prevFresh = isPrevFresh(subject, result.characterId, now);

@@ -38,15 +38,15 @@ export function OutboundArrowProvider({
 }: OutboundArrowProviderProps) {
   const presence = useContext(MapPresenceContext)?.presence;
   // Content key: the presence map's identity churns on every 30-second
-  // staleness tick, but arrows depend only on membership + liveness — the
-  // bounded scan re-runs only when that content (or the canvas) changes.
+  // tick, but arrows depend only on membership — the bounded scan re-runs
+  // only when that content (or the canvas) changes.
   const pilotKey = useMemo(() => {
     if (presence === undefined || presence.size === 0) return '';
     return arrowPilotKey(
       [...presence.entries()]
-        .map(([systemId, system]) => ({
+        .map(([systemId]) => ({
           systemId,
-          live: system.pilots.some((pilot) => pilot.state === 'live'),
+          live: true,
         }))
         .sort((left, right) => left.systemId - right.systemId),
     );

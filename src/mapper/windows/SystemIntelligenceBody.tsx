@@ -39,8 +39,6 @@ function useFriendlyRows(systemId: number): readonly FriendlyRowModel[] {
 const STATUS_CLASS: Record<PresenceStatusWord, string> = {
   'In space': 'text-isk',
   Docked: 'text-text',
-  AFK: 'text-tone-orange',
-  Stale: 'text-muted',
 };
 
 /** Colored class/security detail appended to a MapWindow's plain system title. */

@@ -168,8 +168,7 @@ function OutboundArrowLabel({
         ref={arrowRef}
         aria-hidden
         data-pilot-arrow
-        // Staleness honesty on the one signal an off-map pilot has: green
-        // only while someone the arrow stands for is feed-live.
+        // Green while a present+online pilot stands behind the arrow.
         className={cn('map-pilot-arrow', live ? 'text-isk' : 'text-muted')}
       >
         <svg viewBox="0 0 12 12" className="size-3" fill="currentColor">

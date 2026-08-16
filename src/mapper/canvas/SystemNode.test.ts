@@ -318,21 +318,15 @@ test('presence badge tones, counts, motion markup, and drag suppression', () => 
     shipTypeId: null,
     docked: false,
     lastMovementAt: 0,
-    state: 'live',
-    ownAfk: false,
     ...overrides,
   });
   const badge = (presence: SystemPresence) =>
     renderToStaticMarkup(createElement(PresenceBadgeView, { presence }));
 
-  const live = badge({ pilots: [pilot({ state: 'stale' }), pilot({ characterId: 2 })] });
+  const live = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });
   expect(live).toContain('data-pilot-presence="live"');
   expect(live).toContain('text-isk');
   expect(live).toContain('<svg');
-
-  const stale = badge({ pilots: [pilot({ state: 'stale' })] });
-  expect(stale).toContain('data-pilot-presence="stale"');
-  expect(stale).toContain('text-muted');
 
   const one = badge({ pilots: [pilot({})] });
   const two = badge({ pilots: [pilot({}), pilot({ characterId: 2 })] });

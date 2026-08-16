@@ -3,7 +3,11 @@ import { convexTest, type TestConvex } from 'convex-test';
 import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
+import {
+  FEED_FRESHNESS_QUANTUM_MS,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './mapTracking';
+import { newIdleSubject } from './lib/subjects';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -216,6 +220,78 @@ describe('mapTracking.forMap', () => {
     expect(byUser.get(OWNER)?.location?.solarSystemId).toBe(30_000_142);
     expect(byUser.get(EDITOR)?.characterId).toBe(CHAR);
     expect(byUser.get(EDITOR)?.location).toBeNull();
+  });
+
+  it('answers owner-scoped feed freshness: covered characters get the quantized bucket, everyone else null', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]);
+    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+    await asUser(t, OWNER).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR_B,
+      tracked: true,
+    });
+    await asUser(t, EDITOR).mutation(api.mapTracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+
+    const finishedAt = 1_700_000_123_456;
+    const bucket =
+      Math.floor(finishedAt / FEED_FRESHNESS_QUANTUM_MS) * FEED_FRESHNESS_QUANTUM_MS;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', {
+        ...newIdleSubject('characterLocation', OWNER),
+        syncedCharacterIds: [CHAR],
+        coveredCharacterIds: [CHAR],
+        lastFinishedAt: finishedAt,
+      });
+      await ctx.db.insert('syncSubjects', {
+        ...newIdleSubject('onlineStatus', EDITOR),
+        lastFinishedAt: 1_700_000_999_999,
+      });
+    });
+
+    const result = await asUser(t, OWNER).query(api.mapTracking.feedFreshness, {
+      mapId: MAP_A,
+    });
+    const byOwnerCharacter = new Map(
+      result.fresh.map((entry) => [
+        `${entry.userId}/${entry.characterId}`,
+        entry.feedFreshAt,
+      ]),
+    );
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR}`)).toBe(bucket);
+    expect(bucket).not.toBe(finishedAt);
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR_B}`)).toBeNull();
+    expect(byOwnerCharacter.get(`${EDITOR}/${CHAR}`)).toBeNull();
+    expect(result.fresh.map(({ userId, characterId }) => [userId, characterId])).toEqual([
+      [EDITOR, CHAR],
+      [OWNER, CHAR],
+      [OWNER, CHAR_B],
+    ]);
+    const overlay = await asUser(t, OWNER).query(api.mapTracking.forMap, { mapId: MAP_A });
+    const anyRow = overlay.tracked[0];
+    expect(anyRow).toBeDefined();
+    if (anyRow === undefined) throw new Error('expected a tracked overlay row');
+    expect('feedFreshAt' in anyRow).toBe(false);
+  });
+
+  it('answers feedFreshness as an empty list without access (subscription doctrine)', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    const result = await asUser(t, EDITOR).query(api.mapTracking.feedFreshness, {
+      mapId: MAP_A,
+    });
+    expect(result.fresh).toEqual([]);
   });
 
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {
