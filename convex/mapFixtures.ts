@@ -382,13 +382,11 @@ function requireTrackedFixtureIdentity(
 
 /**
  * Stamps the owner's characterLocation sync-subject `lastFinishedAt` and
- * marks the fixture character covered — the probe-controlled freshness seam
- * behind `mapTracking.feedFreshness`. Headless probes drive the live/stale
- * presentation states honestly through this stamp: freshness counts only for
- * covered characters, so the stamp must cover the character it feeds exactly
- * as a real clean run would. Production freshness is written only by the sync
- * engine's apply, and this internal-fixture path is unreachable from
- * production code. Inserts a minimal idle subject when none exists yet.
+ * marks the fixture character covered — the same subject stamp a clean sync
+ * apply writes, so jump-continuity probes see a watched previous system.
+ * Production code writes this only through the sync engine's apply; this
+ * internal-fixture path is unreachable from production. Inserts a minimal
+ * idle subject when none exists yet.
  */
 async function stampSubjectFreshness(
   ctx: MutationCtx,
@@ -426,8 +424,8 @@ const trackedLocationFixtureResult = v.object({
  * Seeds the subscribed origin fact for a CLI-driven tracked-jump demo. This
  * fixture arranges source evidence only; the browser doorbell and production
  * resolver still own classification, authoring, matching, and mass updates.
- * Also stamps the owner's subject freshness (`feedFreshAt` when supplied,
- * else the transition time) so presence probes control the live/stale states.
+ * Also stamps the owner's subject (`feedFreshAt` when supplied, else the
+ * transition time) so jump-continuity probes see a watched previous system.
  */
 export const seedTrackedLocationFixture = internalMutation({
   args: {
