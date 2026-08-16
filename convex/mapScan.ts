@@ -928,8 +928,17 @@ async function applyLinkDeduction(
       : { toSignatureId: signatureId }),
     ...knowledge,
   };
-  await ctx.db.patch(target._id, attached);
-  await absorbLeftoverOriginStub(ctx, { ...target, ...attached }, source._id, side);
+  const leftover = await leftoverOriginStubAbsorb(
+    ctx,
+    { ...target, ...attached },
+    source._id,
+    side,
+  );
+  await ctx.db.patch(
+    target._id,
+    leftover === null ? attached : { ...attached, ...leftover.patch },
+  );
+  if (leftover !== null) await ctx.db.delete(leftover.id);
   // The stub row and its dedupe key die here: the identity now belongs to the
   // resolved connection, which carries its own key through the jump channel.
   await ctx.db.delete(source._id);
@@ -938,14 +947,18 @@ async function applyLinkDeduction(
 
 /**
  * When the opposite door still has no signature, fold in the unique leftover
- * stub on that system so both scanners share one row.
+ * stub on that system so both scanners share one row. Returns the leftover
+ * patch so the caller can write the surviving row once.
  */
-async function absorbLeftoverOriginStub(
+async function leftoverOriginStubAbsorb(
   ctx: MutationCtx,
   target: Doc<'mapConnections'>,
   sourceId: Id<'mapConnections'>,
   attachedSide: 'from' | 'to',
-): Promise<void> {
+): Promise<{
+  patch: Partial<Doc<'mapConnections'>>;
+  id: Id<'mapConnections'>;
+} | null> {
   const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
   const oppositeSystemId = oppositeSide === 'from'
     ? target.fromSystemId
@@ -953,24 +966,26 @@ async function absorbLeftoverOriginStub(
   const oppositeSignature = oppositeSide === 'from'
     ? target.fromSignatureId
     : target.toSignatureId;
-  if (oppositeSystemId === null || oppositeSignature !== undefined) return;
+  if (oppositeSystemId === null || oppositeSignature !== undefined) return null;
   const leftover = uniqueCounterpartStub(
     await readOriginConnections(ctx, target.mapId, oppositeSystemId),
     new Set([sourceId, target._id]),
   );
-  if (leftover === null) return;
-  await ctx.db.patch(target._id, {
-    ...(oppositeSide === 'from'
-      ? {
-          fromSignatureId: leftover.fromSignatureId,
-          fromSignalPct: leftover.fromSignalPct,
-          firstSeenAt: leftover.firstSeenAt ?? target.firstSeenAt,
-        }
-      : { toSignatureId: leftover.fromSignatureId }),
-    ...absorbDoorKnowledge(target, leftover, oppositeSide),
-    ...leadsNotePatch(target, leftover.fromDestinationSystemId, oppositeSide),
-  });
-  await ctx.db.delete(leftover._id);
+  if (leftover === null) return null;
+  return {
+    id: leftover._id,
+    patch: {
+      ...(oppositeSide === 'from'
+        ? {
+            fromSignatureId: leftover.fromSignatureId,
+            fromSignalPct: leftover.fromSignalPct,
+            firstSeenAt: leftover.firstSeenAt ?? target.firstSeenAt,
+          }
+        : { toSignatureId: leftover.fromSignatureId }),
+      ...absorbDoorKnowledge(target, leftover, oppositeSide),
+      ...leadsNotePatch(target, leftover.fromDestinationSystemId, oppositeSide),
+    },
+  };
 }
 
 /**

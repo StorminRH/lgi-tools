@@ -96,8 +96,6 @@ type StaleReason =
   | 'same-system'
   | 'transition'
   | 'origin'
-  | 'destination'
-  | 'connection-tombstone'
   | 'candidates'
   | 'survivors'
   | 'selected-candidate'
@@ -476,16 +474,13 @@ async function endpointLapse(
 ): Promise<StaleResult | null> {
   const origin = await findSystem(ctx, args.mapId, args.fromSolarSystemId);
   if (origin === null || isTombstoned(origin)) return stale('origin');
-  const destination = await findSystem(ctx, args.mapId, args.toSolarSystemId);
-  return destination !== null && isTombstoned(destination)
-    ? stale('destination')
-    : null;
+  return null;
 }
 
 async function selectExistingPair(
   ctx: QueryCtx,
   args: ResolveJumpInput,
-): Promise<Doc<'mapConnections'> | StaleResult | null> {
+): Promise<Doc<'mapConnections'> | null> {
   const pairRows = await readPairRows(
     ctx,
     args.mapId,
@@ -493,9 +488,6 @@ async function selectExistingPair(
     args.toSolarSystemId,
   );
   const livePairs = pairRows.filter((row) => !isTombstoned(row));
-  if (livePairs.length === 0 && pairRows.some(isTombstoned)) {
-    return stale('connection-tombstone');
-  }
   if (livePairs.length > 1) {
     throw new ConvexError({ code: 'DUPLICATE_LIVE_CONNECTION' });
   }
@@ -652,7 +644,6 @@ export const resolveJumpAuthoring = internalMutation({
     if (lapse !== null) return lapse;
 
     const existingPair = await selectExistingPair(ctx, args);
-    if (existingPair !== null && 'status' in existingPair) return existingPair;
     const topology = existingPair === null
       ? await authorNewTopology(ctx, args, validated.observedShipMassKg)
       : await convergeExistingPair(

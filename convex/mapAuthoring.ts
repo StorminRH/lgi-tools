@@ -310,20 +310,24 @@ async function requireLiveOrigin(
   }
 }
 
-/** Upserts one live destination while preserving the human restore boundary. */
+/**
+ * Places one live destination. A trashed system id comes back on the canvas
+ * on this same document — trash is undo for the old wormhole, not a lock on
+ * placing the system again. Callers insert a new connection; they do not
+ * merge the tombstoned line.
+ */
 export async function upsertLiveDestination(
   ctx: MutationCtx,
   mapId: string,
   toSystemId: number,
 ): Promise<Id<'mapSystems'>> {
   const destination = await findSystem(ctx, mapId, toSystemId);
-  if (destination !== null && isTombstoned(destination)) {
-    throw new ConvexError({
-      code: 'DESTINATION_TOMBSTONED',
-      detail: `Destination system ${toSystemId} is tombstoned on map ${mapId}; restore it instead.`,
-    });
+  if (destination !== null) {
+    if (isTombstoned(destination)) {
+      await ctx.db.patch(destination._id, { deletedAt: null, purgeAfter: null });
+    }
+    return destination._id;
   }
-  if (destination !== null) return destination._id;
   return await ctx.db.insert('mapSystems', {
     mapId,
     systemId: toSystemId,
