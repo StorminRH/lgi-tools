@@ -1,11 +1,9 @@
 import { expect, test } from 'vitest';
 import {
+  coverageIndex,
   derivePresence,
   derivePresenceFromPayload,
-  feedFreshnessIndex,
-  feedIsPresent,
   friendlyRows,
-  PRESENCE_FEED_GONE_AFTER_MS,
   presenceStatusWord,
   type TrackedPresenceRow,
 } from './presence-model';
@@ -14,8 +12,6 @@ const NOW = 1_700_000_000_000;
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
 const OWNER = 'owner';
-/** Older than PRESENCE_FEED_GONE_AFTER_MS — the feed has stopped. */
-const OLD = NOW - 400_000;
 
 function row(overrides: {
   userId?: string;
@@ -51,75 +47,38 @@ function row(overrides: {
 
 function derive(
   tracked: TrackedPresenceRow[],
-  options?: {
-    /** Per-character feed freshness; defaults to present for every row. */
-    freshness?: ReadonlyMap<number, number | null>;
-  },
+  options?: { coverage?: ReadonlyMap<number, boolean> },
 ) {
   return derivePresence({
     tracked,
-    freshness: new Map([
+    coverage: new Map([
       [
         OWNER,
-        options?.freshness ??
-          new Map(tracked.map((entry) => [entry.characterId, NOW - 1_000])),
+        options?.coverage
+          ?? new Map(tracked.map((entry) => [entry.characterId, true])),
       ],
     ]),
-    now: NOW,
   });
 }
 
-test('presence honesty: present+online shows, everything else hides', () => {
-  const stationary = derive(
-    [
-      row({
-        characterId: 1,
-        transitionObservedAt: NOW - 86_400_000,
-        observedAt: NOW - 86_400_000,
-      }),
-    ],
-    { freshness: new Map([[1, NOW - 5_000]]) },
-  ).get(JITA)?.pilots[0];
+test('presence honesty: covered shows, uncovered hides last-known', () => {
+  const stationary = derive([
+    row({
+      characterId: 1,
+      transitionObservedAt: NOW - 86_400_000,
+      observedAt: NOW - 86_400_000,
+    }),
+  ]).get(JITA)?.pilots[0];
   expect(stationary?.lastMovementAt).toBe(NOW - 86_400_000);
   expect(stationary && presenceStatusWord(stationary)).toBe('In space');
 
-  const boundary = derive(
-    [row({ characterId: 1, transitionObservedAt: OLD, observedAt: OLD })],
-    { freshness: new Map([[1, NOW - PRESENCE_FEED_GONE_AFTER_MS]]) },
-  );
-  const past = derive(
-    [row({ characterId: 1, transitionObservedAt: OLD, observedAt: OLD })],
-    { freshness: new Map([[1, NOW - PRESENCE_FEED_GONE_AFTER_MS - 1]]) },
-  );
-  expect(boundary.get(JITA)?.pilots).toHaveLength(1);
-  expect(past.size).toBe(0);
-
-  const nullEntry = derive(
-    [row({ characterId: 1, transitionObservedAt: OLD, observedAt: OLD })],
-    { freshness: new Map([[1, null]]) },
-  );
-  const missingEntry = derive(
-    [row({ characterId: 1, transitionObservedAt: OLD, observedAt: OLD })],
-    { freshness: new Map() },
-  );
-  expect(nullEntry.size).toBe(0);
-  expect(missingEntry.size).toBe(0);
-
-  // Recent observedAt alone cannot resurrect an uncovered or departed owner.
   expect(
-    derive([row({ characterId: 1, observedAt: NOW - 30_000 })], {
-      freshness: new Map([[1, null]]),
-    }).size,
+    derive([row({ characterId: 1 })], { coverage: new Map([[1, false]]) }).size,
   ).toBe(0);
   expect(
-    derive([row({ characterId: 1, observedAt: NOW - 30_000 })], {
-      freshness: new Map([[1, NOW - PRESENCE_FEED_GONE_AFTER_MS - 1]]),
-    }).size,
+    derive([row({ characterId: 1 })], { coverage: new Map() }).size,
   ).toBe(0);
-
-  expect(feedIsPresent(NOW - 1_000, NOW)).toBe(true);
-  expect(feedIsPresent(null, NOW)).toBe(false);
-  expect(feedIsPresent(NOW - PRESENCE_FEED_GONE_AFTER_MS - 1, NOW)).toBe(false);
+  expect(derive([row({ characterId: 1, location: null })]).size).toBe(0);
 });
 
 test('presence honesty: docking is location, not a third presence state', () => {
@@ -129,8 +88,6 @@ test('presence honesty: docking is location, not a third presence state', () => 
   expect(station?.docked).toBe(true);
   expect(structure?.docked).toBe(true);
   expect(station && presenceStatusWord(station)).toBe('Docked');
-
-  expect(derive([row({ characterId: 1, location: null })]).size).toBe(0);
 });
 
 test('presence shape groups, dedupes, isolates owners, and labels friendlies', () => {
@@ -154,95 +111,48 @@ test('presence shape groups, dedupes, isolates owners, and labels friendlies', (
   const isolated = derivePresence({
     tracked: [
       row({ userId: 'fresh-owner', characterId: 1, location: null }),
-      row({
-        userId: 'gone-owner',
-        characterId: 1,
-        transitionObservedAt: OLD,
-        observedAt: OLD,
-      }),
+      row({ userId: 'offline-owner', characterId: 1 }),
     ],
-    freshness: new Map<string, ReadonlyMap<number, number | null>>([
-      ['fresh-owner', new Map([[1, NOW - 1_000]])],
-      ['gone-owner', new Map([[1, NOW - PRESENCE_FEED_GONE_AFTER_MS - 1]])],
+    coverage: new Map([
+      ['fresh-owner', new Map([[1, true]])],
+      ['offline-owner', new Map([[1, false]])],
     ]),
-    now: NOW,
   });
   expect(isolated.size).toBe(0);
 
-  const uncoveredIsolated = derivePresence({
-    tracked: [
-      row({
-        userId: 'offline-owner',
-        characterId: 1,
-        transitionObservedAt: OLD,
-        observedAt: OLD,
-      }),
-    ],
-    freshness: new Map<string, ReadonlyMap<number, number | null>>([
-      ['offline-owner', new Map([[1, null]])],
-    ]),
-    now: NOW,
-  });
-  expect(uncoveredIsolated.size).toBe(0);
-
   const pilots =
-    derive(
-      [
-        row({ characterId: 7 }),
-        row({ characterId: 8, transitionObservedAt: OLD, observedAt: OLD }),
-      ],
-      {
-        freshness: new Map([
-          [7, NOW - 1_000],
-          [8, NOW - PRESENCE_FEED_GONE_AFTER_MS - 1],
-        ]),
-      },
-    ).get(JITA)?.pilots ?? [];
+    derive([row({ characterId: 7 }), row({ characterId: 8 })], {
+      coverage: new Map([[7, true], [8, false]]),
+    }).get(JITA)?.pilots ?? [];
   expect(friendlyRows(pilots, { '7': 'E2E Pilot' })).toEqual([
     { characterId: 7, label: 'E2E Pilot', word: 'In space' },
   ]);
-  expect(
-    derive(
-      [
-        row({ characterId: 7 }),
-        row({ characterId: 8, transitionObservedAt: OLD, observedAt: OLD }),
-      ],
-      { freshness: new Map([[7, NOW - 1_000], [8, null]]) },
-    )
-      .get(JITA)
-      ?.pilots.map((pilot) => pilot.characterId),
-  ).toEqual([7]);
 });
 
-test('payload path indexes freshness and hides while coverage is cold', () => {
-  expect(derivePresenceFromPayload(undefined, undefined, NOW).size).toBe(0);
+test('payload path indexes coverage and hides while coverage is cold', () => {
+  expect(derivePresenceFromPayload(undefined, undefined).size).toBe(0);
 
   const cold = derivePresenceFromPayload(
-    {
-      tracked: [row({ characterId: 7, transitionObservedAt: OLD, observedAt: OLD })],
-      ownTrackedCharacterIds: [],
-    },
+    { tracked: [row({ characterId: 7 })], ownTrackedCharacterIds: [] },
     undefined,
-    NOW,
   );
   expect(cold.size).toBe(0);
 
   const threaded = derivePresenceFromPayload(
     { tracked: [row({ characterId: 7 })], ownTrackedCharacterIds: [7] },
-    { fresh: [{ userId: OWNER, characterId: 7, feedFreshAt: NOW - 1_000 }] },
-    NOW,
+    { coverage: [{ userId: OWNER, characterId: 7, covered: true }] },
   );
   expect(threaded.get(JITA)?.pilots[0]?.characterId).toBe(7);
 
-  const index = feedFreshnessIndex({
-    fresh: [
-      { userId: OWNER, characterId: 3, feedFreshAt: NOW },
-      { userId: OWNER, characterId: 4, feedFreshAt: null },
-      { userId: 'other', characterId: 3, feedFreshAt: null },
+  const index = coverageIndex({
+    coverage: [
+      { userId: OWNER, characterId: 3, covered: true },
+      { userId: OWNER, characterId: 4, covered: false },
+      { userId: 'other', characterId: 3, covered: false },
     ],
   });
-  expect(index.get(OWNER)?.get(3)).toBe(NOW);
-  expect(index.get(OWNER)?.get(4)).toBeNull();
-  expect(index.get('other')?.get(3)).toBeNull();
-  expect(feedFreshnessIndex(undefined).size).toBe(0);
+  expect(index.get(OWNER)?.get(3)).toBe(true);
+  expect(index.get(OWNER)?.get(4)).toBe(false);
+  expect(index.get('other')?.get(3)).toBe(false);
+  expect(coverageIndex(undefined).size).toBe(0);
 });

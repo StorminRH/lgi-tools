@@ -22,11 +22,11 @@ const mocks = vi.hoisted(() => ({
         }[];
       }
     | undefined,
-  freshness: undefined as
+  coverage: undefined as
     | {
-        fresh: readonly {
+        coverage: readonly {
           characterId: number;
-          feedFreshAt: number | null;
+          covered: boolean;
         }[];
       }
     | undefined,
@@ -47,7 +47,7 @@ vi.mock('@/components/character-portrait', () => ({
 
 vi.mock('@/data/convex/use-live-value', () => ({
   useLiveValue: (query: unknown) =>
-    query === 'map-tracking-freshness' ? mocks.freshness : mocks.tracking,
+    query === 'map-tracking-coverage' ? mocks.coverage : mocks.tracking,
 }));
 
 vi.mock('../tracking/TrackingControls', () => ({
@@ -58,7 +58,7 @@ vi.mock('@/data/convex/api', () => ({
   api: {
     mapTracking: {
       forMap: 'map-tracking',
-      feedFreshness: 'map-tracking-freshness',
+      coverage: 'map-tracking-coverage',
       setTracking: 'set-tracking',
     },
   },
@@ -107,7 +107,7 @@ describe('HomePrompt', () => {
     mocks.characterId = 101;
     mocks.characters = [];
     mocks.tracking = undefined;
-    mocks.freshness = undefined;
+    mocks.coverage = undefined;
     mocks.systemName = null;
     mocks.onPick.mockReset();
 
@@ -124,7 +124,7 @@ describe('HomePrompt', () => {
     expect(loading).not.toContain('4.0.4.2');
 
     mocks.tracking = { ownTrackedCharacterIds: [], tracked: [] };
-    mocks.freshness = { fresh: [] };
+    mocks.coverage = { coverage: [] };
     const untracked = renderPrompt();
     expect(untracked).toContain('data-map-home-start-tracking');
     expect(untracked).toContain('Start tracking');
@@ -134,7 +134,7 @@ describe('HomePrompt', () => {
       ownTrackedCharacterIds: [101],
       tracked: [{ characterId: 101, location: { solarSystemId: 30_000_142 } }],
     };
-    mocks.freshness = { fresh: [{ characterId: 101, feedFreshAt: null }] };
+    mocks.coverage = { coverage: [{ characterId: 101, covered: false }] };
     const offline = renderPrompt();
     expect(offline).toContain('Use current system');
     expect(offline).toContain('Character is offline');
@@ -144,7 +144,7 @@ describe('HomePrompt', () => {
       ownTrackedCharacterIds: [101],
       tracked: [{ characterId: 101, location: { solarSystemId: 30_000_142 } }],
     };
-    mocks.freshness = { fresh: [{ characterId: 101, feedFreshAt: Date.now() }] };
+    mocks.coverage = { coverage: [{ characterId: 101, covered: true }] };
     mocks.systemName = 'Jita';
     const live = renderPrompt();
     expect(live).not.toContain('data-map-home-current-disabled');
@@ -176,10 +176,10 @@ describe('HomePrompt', () => {
         { characterId: 202, location: { solarSystemId: 31_001_677 } },
       ],
     };
-    mocks.freshness = {
-      fresh: [
-        { characterId: 101, feedFreshAt: null },
-        { characterId: 202, feedFreshAt: Date.now() },
+    mocks.coverage = {
+      coverage: [
+        { characterId: 101, covered: false },
+        { characterId: 202, covered: true },
       ],
     };
     mocks.systemName = 'J113551';

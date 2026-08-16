@@ -17,7 +17,8 @@ const post = (
     | '/purge-map-chain'
     | '/jump-evidence'
     | '/resolve-jump'
-    | '/signature-elimination',
+    | '/signature-elimination'
+    | '/leave-sync',
   body: BodyInit | null,
   authorized = true,
 ) =>
@@ -456,5 +457,93 @@ describe('POST /purge-map-chain', () => {
       notes: [],
       other: [expect.objectContaining({ mapId: 'map-other', body: 'keep' })],
     });
+  });
+});
+
+describe('POST /leave-sync', () => {
+  it('rejects a request without the service bearer token', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    const res = await post(
+      '/leave-sync',
+      JSON.stringify({
+        userId: 'user-1',
+        dataset: 'characterLocation',
+        tabId: 'tab-aaaa-bbbb',
+      }),
+      false,
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it('returns a clean 400 for a malformed body', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    const res = await post('/leave-sync', 'not json');
+    expect(res.status).toBe(400);
+  });
+
+  it('retires a matching tab and ignores a stale close', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', {
+        dataset: 'characterLocation',
+        userId: 'user-1',
+        status: 'idle',
+        lastRequestedAt: 0,
+        workId: null,
+        nextDueAt: Date.now() + 5_000,
+        minExpiresAt: null,
+        syncedCharacterIds: [101],
+        lastFinishedAt: Date.now(),
+        lastError: null,
+        coveredCharacterIds: [101],
+        rlGroup: null,
+        rlLimit: null,
+        rlRemaining: null,
+        rlUsed: null,
+      });
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: 'user-1',
+        lastSeenAt: Date.now(),
+        lastVisibleAt: Date.now(),
+        tabId: 'tab-live-aaaa',
+      });
+      await ctx.db.insert('characterLocationCovered', {
+        userId: 'user-1',
+        characterId: 101,
+      });
+    });
+
+    const stale = await t.fetch('/leave-sync', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({
+        userId: 'user-1',
+        dataset: 'characterLocation',
+        tabId: 'tab-stale-bbbb',
+      }),
+    });
+    expect(stale.status).toBe(200);
+    expect(await stale.json()).toEqual({ retired: false });
+
+    const live = await t.fetch('/leave-sync', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({
+        userId: 'user-1',
+        dataset: 'characterLocation',
+        tabId: 'tab-live-aaaa',
+      }),
+    });
+    expect(live.status).toBe(200);
+    expect(await live.json()).toEqual({ retired: true });
+
+    const after = await t.run(async (ctx) => ({
+      subject: await ctx.db.query('syncSubjects').unique(),
+      covered: await ctx.db.query('characterLocationCovered').collect(),
+    }));
+    expect(after.subject?.nextDueAt).toBeNull();
+    expect(after.covered).toEqual([]);
   });
 });

@@ -3,11 +3,7 @@ import { convexTest, type TestConvex } from 'convex-test';
 import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
-import {
-  FEED_FRESHNESS_QUANTUM_MS,
-  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
-} from './mapTracking';
-import { newIdleSubject } from './lib/subjects';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
 import schema from './schema';
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
@@ -222,7 +218,7 @@ describe('mapTracking.forMap', () => {
     expect(byUser.get(EDITOR)?.location).toBeNull();
   });
 
-  it('answers owner-scoped feed freshness: covered characters get the quantized bucket, everyone else null', async () => {
+  it('answers owner-scoped coverage: only flip-only rows count as covered', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
       { userId: OWNER, roles: ['admin'] },
@@ -244,36 +240,26 @@ describe('mapTracking.forMap', () => {
       tracked: true,
     });
 
-    const finishedAt = 1_700_000_123_456;
-    const bucket =
-      Math.floor(finishedAt / FEED_FRESHNESS_QUANTUM_MS) * FEED_FRESHNESS_QUANTUM_MS;
     await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', {
-        ...newIdleSubject('characterLocation', OWNER),
-        syncedCharacterIds: [CHAR],
-        coveredCharacterIds: [CHAR],
-        lastFinishedAt: finishedAt,
-      });
-      await ctx.db.insert('syncSubjects', {
-        ...newIdleSubject('onlineStatus', EDITOR),
-        lastFinishedAt: 1_700_000_999_999,
+      await ctx.db.insert('characterLocationCovered', {
+        userId: OWNER,
+        characterId: CHAR,
       });
     });
 
-    const result = await asUser(t, OWNER).query(api.mapTracking.feedFreshness, {
+    const result = await asUser(t, OWNER).query(api.mapTracking.coverage, {
       mapId: MAP_A,
     });
     const byOwnerCharacter = new Map(
-      result.fresh.map((entry) => [
+      result.coverage.map((entry) => [
         `${entry.userId}/${entry.characterId}`,
-        entry.feedFreshAt,
+        entry.covered,
       ]),
     );
-    expect(byOwnerCharacter.get(`${OWNER}/${CHAR}`)).toBe(bucket);
-    expect(bucket).not.toBe(finishedAt);
-    expect(byOwnerCharacter.get(`${OWNER}/${CHAR_B}`)).toBeNull();
-    expect(byOwnerCharacter.get(`${EDITOR}/${CHAR}`)).toBeNull();
-    expect(result.fresh.map(({ userId, characterId }) => [userId, characterId])).toEqual([
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR}`)).toBe(true);
+    expect(byOwnerCharacter.get(`${OWNER}/${CHAR_B}`)).toBe(false);
+    expect(byOwnerCharacter.get(`${EDITOR}/${CHAR}`)).toBe(false);
+    expect(result.coverage.map(({ userId, characterId }) => [userId, characterId])).toEqual([
       [EDITOR, CHAR],
       [OWNER, CHAR],
       [OWNER, CHAR_B],
@@ -282,16 +268,16 @@ describe('mapTracking.forMap', () => {
     const anyRow = overlay.tracked[0];
     expect(anyRow).toBeDefined();
     if (anyRow === undefined) throw new Error('expected a tracked overlay row');
-    expect('feedFreshAt' in anyRow).toBe(false);
+    expect('covered' in anyRow).toBe(false);
   });
 
-  it('answers feedFreshness as an empty list without access (subscription doctrine)', async () => {
+  it('answers coverage as an empty list without access (subscription doctrine)', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-    const result = await asUser(t, EDITOR).query(api.mapTracking.feedFreshness, {
+    const result = await asUser(t, EDITOR).query(api.mapTracking.coverage, {
       mapId: MAP_A,
     });
-    expect(result.fresh).toEqual([]);
+    expect(result.coverage).toEqual([]);
   });
 
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {

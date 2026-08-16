@@ -23,6 +23,7 @@ import {
   characterSyncResultFields,
   stampSyncSubject,
 } from './lib/characterSync';
+import { applyCoverageSet } from './lib/locationCoverage';
 import { getSyncSubject } from './lib/subjects';
 import { purgeScopeArgs } from './lib/syncFields';
 
@@ -261,7 +262,12 @@ export const applySyncResults = internalMutation({
       },
       now,
     );
-
+    await applyCoverageSet(
+      ctx,
+      args.userId,
+      args.trackedCharacterIds,
+      outcome.coveredCharacterIds,
+    );
   },
 });
 
@@ -494,11 +500,15 @@ export const purgeForUser = internalMutation({
     const accessLeases = scoped(
       await ctx.db.query('characterLocationAccess').withIndex('by_user_character', (q) => q.eq('userId', userId)).collect(),
     );
+    const covered = scoped(
+      await ctx.db.query('characterLocationCovered').withIndex('by_user_character', (q) => q.eq('userId', userId)).collect(),
+    );
 
     for (const doc of locations) await ctx.db.delete(doc._id);
     for (const doc of heldOnline) await ctx.db.delete(doc._id);
     for (const doc of tracking) await ctx.db.delete(doc._id);
     for (const doc of accessLeases) await ctx.db.delete(doc._id);
+    for (const doc of covered) await ctx.db.delete(doc._id);
 
     // Jump-bookkeeping stamps are character-keyed and deliberately survive
     // untrack/retrack, but an account/character purge removes the character

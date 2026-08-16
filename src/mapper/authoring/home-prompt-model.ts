@@ -1,5 +1,3 @@
-import { feedIsPresent } from '../tracking/presence-model';
-
 /** Tracking overlay the home prompt reads from `mapTracking.forMap`. */
 export interface HomePromptTracking {
   readonly ownTrackedCharacterIds: readonly number[];
@@ -9,11 +7,11 @@ export interface HomePromptTracking {
   }[];
 }
 
-/** Coverage overlay the home prompt reads from `mapTracking.feedFreshness`. */
-export interface HomePromptFreshness {
-  readonly fresh: readonly {
+/** Coverage overlay the home prompt reads from `mapTracking.coverage`. */
+export interface HomePromptCoverage {
+  readonly coverage: readonly {
     readonly characterId: number;
-    readonly feedFreshAt: number | null;
+    readonly covered: boolean;
   }[];
 }
 
@@ -27,35 +25,33 @@ export type HomeCurrentSystem =
 function liveSystemId(
   characterId: number,
   tracking: HomePromptTracking,
-  freshness: HomePromptFreshness,
-  now: number,
+  coverage: HomePromptCoverage,
 ): number | null {
   if (!tracking.ownTrackedCharacterIds.includes(characterId)) return null;
-  const feedFreshAt =
-    freshness.fresh.find((row) => row.characterId === characterId)?.feedFreshAt
-    ?? null;
-  if (!feedIsPresent(feedFreshAt, now)) return null;
+  const covered =
+    coverage.coverage.find((row) => row.characterId === characterId)?.covered
+    ?? false;
+  if (!covered) return null;
   return tracking.tracked.find((row) => row.characterId === characterId)
     ?.location?.solarSystemId ?? null;
 }
 
 /**
  * Derives the current-system control from this map's tracking opt-in and
- * present+online coverage. A last-known location without a live covered
- * sample is offline — not a current system. Loading subscriptions keep the
+ * present+online coverage. A last-known location without a covered sample
+ * is offline — not a current system. Loading subscriptions keep the
  * control inert. The session character wins when it is live; otherwise a
  * unique tracked live location on this map is a current-system seed.
  */
 export function homeCurrentSystem(input: {
   readonly characterId: number | null;
   readonly tracking: HomePromptTracking | undefined;
-  readonly freshness: HomePromptFreshness | undefined;
-  readonly now: number;
+  readonly coverage: HomePromptCoverage | undefined;
 }): HomeCurrentSystem {
   if (
     input.characterId == null
     || input.tracking === undefined
-    || input.freshness === undefined
+    || input.coverage === undefined
   ) {
     return { kind: 'loading' };
   }
@@ -65,18 +61,12 @@ export function homeCurrentSystem(input: {
   const preferred = liveSystemId(
     input.characterId,
     input.tracking,
-    input.freshness,
-    input.now,
+    input.coverage,
   );
   if (preferred !== null) return { kind: 'ready', systemId: preferred };
   const systems = new Set<number>();
   for (const characterId of input.tracking.ownTrackedCharacterIds) {
-    const systemId = liveSystemId(
-      characterId,
-      input.tracking,
-      input.freshness,
-      input.now,
-    );
+    const systemId = liveSystemId(characterId, input.tracking, input.coverage);
     if (systemId !== null) systems.add(systemId);
   }
   if (systems.size !== 1) return { kind: 'offline' };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
+import { useId, useRef } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import {
   useAccountCharacters,
@@ -42,10 +42,9 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
   const characterId = useActiveCharacterId();
   const characters = useAccountCharacters();
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const freshness = useLiveValue(api.mapTracking.feedFreshness, { mapId });
+  const coverage = useLiveValue(api.mapTracking.coverage, { mapId });
   const setTracking = useSetMapTracking();
-  const [now] = useState(() => Date.now());
-  const current = homeCurrentSystem({ characterId, tracking, freshness, now });
+  const current = homeCurrentSystem({ characterId, tracking, coverage });
   const currentSystemId = current.kind === 'ready' ? current.systemId : null;
   const currentSystemName = useSystemName(currentSystemId);
   const trackedIds = new Set(tracking?.ownTrackedCharacterIds ?? []);

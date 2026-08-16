@@ -19,6 +19,7 @@ import {
   type MutationCtx,
 } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
+import { clearCoverageForUser } from './lib/locationCoverage';
 import { requireMapAccess } from './lib/mapAccess';
 import {
   findConnectionForSignature,
@@ -408,6 +409,7 @@ async function stampSubjectFreshness(
         ? covered
         : [...covered, characterId],
     });
+    await stampCoverage(ctx, userId, characterId);
     return;
   }
   await ctx.db.insert('syncSubjects', {
@@ -415,7 +417,45 @@ async function stampSubjectFreshness(
     lastFinishedAt,
     coveredCharacterIds: [characterId],
   });
+  await stampCoverage(ctx, userId, characterId);
 }
+
+async function stampCoverage(
+  ctx: MutationCtx,
+  userId: string,
+  characterId: number,
+): Promise<void> {
+  const held = await ctx.db
+    .query('characterLocationCovered')
+    .withIndex('by_user_character', (q) =>
+      q.eq('userId', userId).eq('characterId', characterId),
+    )
+    .unique();
+  if (held === null) {
+    await ctx.db.insert('characterLocationCovered', { userId, characterId });
+  }
+}
+
+/** Probe helper: drop flip-only coverage so the pin join can hide. */
+export const clearTrackedCoverage = internalMutation({
+  args: {
+    userId: v.string(),
+    characterId: v.optional(v.number()),
+  },
+  handler: async (ctx, { userId, characterId }) => {
+    if (characterId === undefined) {
+      await clearCoverageForUser(ctx, userId);
+      return;
+    }
+    const held = await ctx.db
+      .query('characterLocationCovered')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', userId).eq('characterId', characterId),
+      )
+      .unique();
+    if (held !== null) await ctx.db.delete(held._id);
+  },
+});
 
 const trackedLocationFixtureResult = v.object({
   trackingId: v.id('mapTracking'),

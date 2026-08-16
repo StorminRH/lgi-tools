@@ -8,8 +8,8 @@
 //
 // Fixture timestamps are split on purpose: `transitionObservedAt` uses REAL
 // time (the server's doorbell capture window compares against real now),
-// while `feedFreshAt` uses the page's VIRTUAL now (presence staleness is
-// evaluated against the virtualized client clock).
+// while `feedFreshAt` stamps subject continuity. Pin hide is a flip-only
+// coverage row, not a client age of lastFinishedAt.
 //
 // Requires authenticated storage state and a fresh empty UX_BG_MAP_ID map
 // (disposable, like the jump probe's map — the authored jump stays behind).
@@ -305,10 +305,15 @@ export default {
       heartbeatFrames === beatsAtPause,
     );
 
-    // After the feed pauses, coverage ages out. Last-known stays for
-    // collapse; the pin disappears instead of lingering.
+    // Flip-only coverage drops when the feed is done; last-known stays for
+    // collapse. The pin join hides without touching the map document.
+    await convexRun('mapFixtures:clearTrackedCoverage', {
+      userId,
+      characterId: CHARACTER_ID,
+    });
+    await page.waitForTimeout(500);
     check(
-      'badge leaves once the feed has stopped',
+      'badge leaves once coverage flips off',
       (await badgeIn(page, ORIGIN_SYSTEM_ID).count()) === 0,
     );
 

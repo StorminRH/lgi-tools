@@ -175,6 +175,9 @@ describe('characterLocation.purgeForUser', () => {
       await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
       await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
       await ctx.db.insert('characterLocationAccess', accessLease(OTHER, CHAR_A));
+      await ctx.db.insert('characterLocationCovered', { userId: USER, characterId: CHAR_A });
+      await ctx.db.insert('characterLocationCovered', { userId: USER, characterId: CHAR_B });
+      await ctx.db.insert('characterLocationCovered', { userId: OTHER, characterId: CHAR_A });
     });
 
     const out = await t.mutation(internal.characterLocation.purgeForUser, {
@@ -187,11 +190,13 @@ describe('characterLocation.purgeForUser', () => {
     const remainingTracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
     const remainingOnline = await t.run((ctx) => ctx.db.query('characterLocationOnline').collect());
     const remainingLeases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
+    const remainingCovered = await t.run((ctx) => ctx.db.query('characterLocationCovered').collect());
     expect(remainingLocations.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingTracking.map((doc) => doc.userId)).toEqual([OTHER]);
     // Held probe rows leave with the account — same door, same cascade.
     expect(remainingOnline.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingLeases.map((doc) => doc.userId)).toEqual([OTHER]);
+    expect(remainingCovered.map((doc) => doc.userId)).toEqual([OTHER]);
   });
 
   it('deletes only the named character\'s location and tracking rows', async () => {
@@ -725,6 +730,13 @@ describe('characterLocation.applySyncResults', () => {
     );
     expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
     expect(subject?.syncedCharacterIds).toEqual([CHAR_A, CHAR_B]);
+    const covered = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationCovered')
+        .withIndex('by_user', (q) => q.eq('userId', USER))
+        .collect(),
+    );
+    expect(covered.map((doc) => doc.characterId)).toEqual([CHAR_A]);
   });
 
   it('keeps last-known location for a character missing from this run\'s tracked set', async () => {
@@ -873,6 +885,15 @@ describe('characterLocation.applySyncResults', () => {
     await apply(t, {
       results: [{ ...offlineResult, online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 }],
     });
+    const coveredAfterOffline = await t.run((ctx) =>
+      ctx.db
+        .query('characterLocationCovered')
+        .withIndex('by_user_character', (q) =>
+          q.eq('userId', USER).eq('characterId', CHAR_A),
+        )
+        .unique(),
+    );
+    expect(coveredAfterOffline).toBeNull();
     const readRow = () =>
       t.run((ctx) =>
         ctx.db

@@ -11,6 +11,7 @@
 //   POST /jump-evidence            — one consistent tracked-transition evidence packet.
 //   POST /resolve-jump             — one transactional automatic-jump write/answer.
 //   POST /signature-elimination    — bounded evidence read or atomic assumed deduction batch.
+//   POST /leave-sync               — tab-close retire of one user's location subject.
 import { httpRouter } from 'convex/server';
 import { z } from 'zod';
 import { MAP_ROLES } from '@/data/maps/access-contract';
@@ -34,6 +35,12 @@ const purgeOnlineBodySchema = z.object({
 const purgeLocationTrackingBodySchema = z.object({
   userId: z.string(),
   characterId: z.number().nullable(),
+});
+
+const leaveSyncBodySchema = z.object({
+  userId: z.string().min(1),
+  dataset: z.literal('characterLocation'),
+  tabId: z.string().min(8).max(64),
 });
 
 const mapRoleSchema = z.enum(MAP_ROLES);
@@ -329,6 +336,20 @@ http.route({
     }
     const counts = await ctx.runMutation(internal.onlineStatus.purgeForUser, body.data);
     return Response.json(counts);
+  }),
+});
+
+http.route({
+  path: '/leave-sync',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+    const raw = await readJsonBody(req);
+    if (raw === null) return new Response('Bad Request', { status: 400 });
+    const body = leaveSyncBodySchema.safeParse(raw);
+    if (!body.success) return new Response('Bad Request', { status: 400 });
+    const result = await ctx.runMutation(internal.engine.leave, body.data);
+    return Response.json(result);
   }),
 });
 

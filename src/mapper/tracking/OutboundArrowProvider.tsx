@@ -37,9 +37,8 @@ export function OutboundArrowProvider({
   children,
 }: OutboundArrowProviderProps) {
   const presence = useContext(MapPresenceContext)?.presence;
-  // Content key: the presence map's identity churns on every 30-second
-  // tick, but arrows depend only on membership — the bounded scan re-runs
-  // only when that content (or the canvas) changes.
+  // Content key: arrows depend only on which systems hold a covered pilot.
+  // The bounded scan re-runs only when that membership (or the canvas) changes.
   const pilotKey = useMemo(() => {
     if (presence === undefined || presence.size === 0) return '';
     return arrowPilotKey(

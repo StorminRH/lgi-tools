@@ -332,6 +332,7 @@ describe('ESI dataset registry live gate', () => {
     expect(mappedEntries).toEqual(convexEntries);
     expect(CONVEX_ESI_HOMES).toEqual([
       { home: 'convex:characterLocation', entry: 'character_location' },
+      { home: 'convex:characterLocationCovered', entry: 'character_location' },
       { home: 'convex:characterLocationOnline', entry: 'character_location' },
     ]);
   });

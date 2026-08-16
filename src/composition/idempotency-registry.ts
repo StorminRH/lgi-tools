@@ -428,6 +428,7 @@ const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
   mutationRoute('src/app/api/internal/eve-characters/route.ts', 'inherently-idempotent', 'Machine-to-machine read of linked characters for the Convex isolate; writes nothing.'),
   mutationRoute('src/app/api/internal/eve-token/route.ts', 'key-protected', 'Machine-to-machine token vend. Concurrent vends of a rotating refresh token are resolved by the stored-token row, and the eve_token_refresh_race telemetry records the losing vend rather than corrupting state.'),
   mutationRoute('src/app/api/telemetry/route.ts', 'accepted-risk', 'The client beacon can deliver the same page view twice. Counts are the product, an exactly-once beacon is not achievable from a browser, and no durable state beyond the count is affected.'),
+  mutationRoute('src/app/api/sync-leave/route.ts', 'inherently-idempotent', 'Tab-close leave retires one user×dataset subject when the posted tabId is still the live beater; a repeat or a stale tab is a no-op, and a newer tab is ignored.'),
 ];
 
 const FUTURE_ENTRIES: readonly IdempotencyEntry[] = [

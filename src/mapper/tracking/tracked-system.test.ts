@@ -1,16 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { PRESENCE_FEED_GONE_AFTER_MS } from './presence-model';
 import { trackedSystemTarget } from './tracked-system';
 
 const SYSTEM = 31_000_001;
 const OWNER = 'owner';
-const NOW = 1_700_000_000_000;
 
-function freshness(
-  entries: readonly { characterId: number; feedFreshAt: number | null }[],
-): ReadonlyMap<string, ReadonlyMap<number, number | null>> {
+function coverage(
+  entries: readonly { characterId: number; covered: boolean }[],
+): ReadonlyMap<string, ReadonlyMap<number, boolean>> {
   return new Map([
-    [OWNER, new Map(entries.map((entry) => [entry.characterId, entry.feedFreshAt]))],
+    [OWNER, new Map(entries.map((entry) => [entry.characterId, entry.covered]))],
   ]);
 }
 
@@ -32,22 +30,20 @@ describe('trackedSystemTarget', () => {
       trackedSystemTarget({
         ownTrackedCharacterIds: [7, 8],
         tracked,
-        freshness: freshness([
-          { characterId: 7, feedFreshAt: NOW },
-          { characterId: 8, feedFreshAt: null },
+        coverage: coverage([
+          { characterId: 7, covered: true },
+          { characterId: 8, covered: false },
         ]),
-        now: NOW,
       }),
     ).toEqual({ kind: 'ready', systemId: SYSTEM });
     expect(
       trackedSystemTarget({
         ownTrackedCharacterIds: [7, 8],
         tracked,
-        freshness: freshness([
-          { characterId: 7, feedFreshAt: NOW },
-          { characterId: 8, feedFreshAt: NOW },
+        coverage: coverage([
+          { characterId: 7, covered: true },
+          { characterId: 8, covered: true },
         ]),
-        now: NOW,
       }),
     ).toEqual({ kind: 'ambiguous' });
     expect(
@@ -65,19 +61,17 @@ describe('trackedSystemTarget', () => {
             location: { solarSystemId: SYSTEM },
           },
         ],
-        freshness: freshness([
-          { characterId: 7, feedFreshAt: NOW },
-          { characterId: 8, feedFreshAt: NOW },
+        coverage: coverage([
+          { characterId: 7, covered: true },
+          { characterId: 8, covered: true },
         ]),
-        now: NOW,
       }),
     ).toEqual({ kind: 'ready', systemId: SYSTEM });
     expect(
       trackedSystemTarget({
         ownTrackedCharacterIds: [7],
         tracked: [{ userId: OWNER, characterId: 7, location: null }],
-        freshness: freshness([{ characterId: 7, feedFreshAt: NOW }]),
-        now: NOW,
+        coverage: coverage([{ characterId: 7, covered: true }]),
       }),
     ).toEqual({ kind: 'none' });
     expect(
@@ -90,24 +84,7 @@ describe('trackedSystemTarget', () => {
             location: { solarSystemId: SYSTEM },
           },
         ],
-        freshness: freshness([{ characterId: 7, feedFreshAt: null }]),
-        now: NOW,
-      }),
-    ).toEqual({ kind: 'none' });
-    expect(
-      trackedSystemTarget({
-        ownTrackedCharacterIds: [7],
-        tracked: [
-          {
-            userId: OWNER,
-            characterId: 7,
-            location: { solarSystemId: SYSTEM },
-          },
-        ],
-        freshness: freshness([
-          { characterId: 7, feedFreshAt: NOW - PRESENCE_FEED_GONE_AFTER_MS - 1 },
-        ]),
-        now: NOW,
+        coverage: coverage([{ characterId: 7, covered: false }]),
       }),
     ).toEqual({ kind: 'none' });
   });

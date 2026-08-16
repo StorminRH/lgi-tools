@@ -1,31 +1,15 @@
 // Pure pilot-presence derivation for the Atlas canvas (4.0.4.2.3 OW2).
 //
 // Last-known location is kept for collapse retention. Pins and friendlies
-// only surface a pilot when the owner is present on Atlas and the character
-// is ESI-online. `feedFreshAt` is that gate, delivered per owner + character
-// by `mapTracking.feedFreshness` (quantized to 60s). A null or aged stamp
-// means they closed Atlas or logged off, so the pin hides even when a
-// characterLocation document still exists.
+// only surface a pilot when the flip-only coverage row says they are
+// present and ESI-online. The map document and the location row stay
+// untouched; React joins `forMap` to `mapTracking.coverage`.
 //
 // There is no in-between map state. A shown pilot is online; otherwise they
 // are absent. Docked vs In space is location, not presence.
-//
-// Pure and clock-injected so the SC-3.1 state matrix is a unit test; the
-// provider owns subscriptions and timers.
 
 /** The single-word status vocabulary the intelligence body renders. */
 export type PresenceStatusWord = 'Docked' | 'In space';
-
-/**
- * How long after the last coverage stamp we still treat the owner as present.
- * This is not the AFK hour. Background Atlas still heartbeats and the
- * location feed keeps finishing, so the stamp stays current for that hour.
- * This window only fires after the feed stops (tab closed, or AFK pause).
- * Sized to the 60s coverage bucket plus the 30s client tick — tight enough
- * that a closed tab does not linger, wide enough that a still-running feed
- * cannot flicker off between buckets.
- */
-export const PRESENCE_FEED_GONE_AFTER_MS = 90_000;
 
 /** The location half of one `forMap` tracked row, as presence consumes it. */
 export interface TrackedLocationSnapshot {
@@ -61,17 +45,8 @@ export interface SystemPresence {
 /** Inputs for one presence derivation pass. */
 export interface PresenceInput {
   readonly tracked: readonly TrackedPresenceRow[];
-  /** Per-owner-character quantized `feedFreshAt`; a missing entry means hidden. */
-  readonly freshness: ReadonlyMap<string, ReadonlyMap<number, number | null>>;
-  readonly now: number;
-}
-
-/**
- * Present+online: the owner's feed last covered this character and is still
- * running. A frozen stamp after they leave is not presence.
- */
-export function feedIsPresent(feedFreshAt: number | null, now: number): boolean {
-  return feedFreshAt !== null && now - feedFreshAt <= PRESENCE_FEED_GONE_AFTER_MS;
+  /** Per-owner-character covered flag; missing/false means hidden. */
+  readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
 }
 
 /** Prefers the most recently moved duplicate of one character. */
@@ -81,17 +56,15 @@ function betterPilot(a: PresencePilot, b: PresencePilot): PresencePilot {
 
 /**
  * Derives per-system pilot presence from `forMap` rows. Rows without a joined
- * location contribute nothing; rows whose owner is not present and online
- * stay off the map even when last-known location remains.
+ * location contribute nothing; uncovered rows stay off the map even when
+ * last-known location remains.
  */
 export function derivePresence(input: PresenceInput): ReadonlyMap<number, SystemPresence> {
   const byCharacter = new Map<number, { systemId: number; pilot: PresencePilot }>();
 
   for (const row of input.tracked) {
     if (row.location === null) continue;
-    const feedFreshAt =
-      input.freshness.get(row.userId)?.get(row.characterId) ?? null;
-    if (!feedIsPresent(feedFreshAt, input.now)) continue;
+    if (input.coverage.get(row.userId)?.get(row.characterId) !== true) continue;
     const pilot: PresencePilot = {
       characterId: row.characterId,
       shipTypeId: row.location.shipTypeId,
@@ -125,12 +98,12 @@ export interface TrackingPayload {
   readonly ownTrackedCharacterIds: readonly number[];
 }
 
-/** The `feedFreshness` payload shape presence consumes (undefined while loading). */
-export interface FeedFreshnessPayload {
-  readonly fresh: readonly {
+/** The `coverage` payload shape presence consumes (undefined while loading). */
+export interface CoveragePayload {
+  readonly coverage: readonly {
     userId: string;
     characterId: number;
-    feedFreshAt: number | null;
+    covered: boolean;
   }[];
 }
 
@@ -139,32 +112,30 @@ export interface FeedFreshnessPayload {
  * payload yields an empty index, which hides everyone — the honest verdict
  * while the coverage subscription is still cold.
  */
-export function feedFreshnessIndex(
-  payload: FeedFreshnessPayload | undefined,
-): ReadonlyMap<string, ReadonlyMap<number, number | null>> {
-  const index = new Map<string, Map<number, number | null>>();
-  for (const entry of payload?.fresh ?? []) {
+export function coverageIndex(
+  payload: CoveragePayload | undefined,
+): ReadonlyMap<string, ReadonlyMap<number, boolean>> {
+  const index = new Map<string, Map<number, boolean>>();
+  for (const entry of payload?.coverage ?? []) {
     const byCharacter = index.get(entry.userId) ?? new Map();
-    byCharacter.set(entry.characterId, entry.feedFreshAt);
+    byCharacter.set(entry.characterId, entry.covered);
     index.set(entry.userId, byCharacter);
   }
   return index;
 }
 
 /**
- * Presence from possibly-unloaded `forMap` + `feedFreshness` payloads — the
+ * Presence from possibly-unloaded `forMap` + `coverage` payloads — the
  * provider's memo body, kept pure and tested so the component seam stays
  * branch-free.
  */
 export function derivePresenceFromPayload(
   payload: TrackingPayload | undefined,
-  freshness: FeedFreshnessPayload | undefined,
-  now: number,
+  coverage: CoveragePayload | undefined,
 ): ReadonlyMap<number, SystemPresence> {
   return derivePresence({
     tracked: payload?.tracked ?? [],
-    freshness: feedFreshnessIndex(freshness),
-    now,
+    coverage: coverageIndex(coverage),
   });
 }
 

@@ -1,16 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
-import { feedFreshnessIndex } from './presence-model';
+import { coverageIndex } from './presence-model';
 import {
   trackedSystemTarget,
   type TrackedSystemTarget,
 } from './tracked-system';
 
 const LOADING_TARGET: TrackedSystemTarget = { kind: 'loading' };
-const PRESENCE_TICK_MS = 30_000;
 
 /**
  * Account-level live-system target for this map. Both tracking subscriptions
@@ -19,24 +18,16 @@ const PRESENCE_TICK_MS = 30_000;
  */
 export function useTrackedSystemTarget(mapId: string): TrackedSystemTarget {
   const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const freshness = useLiveValue(api.mapTracking.feedFreshness, { mapId });
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), PRESENCE_TICK_MS);
-    return () => clearInterval(timer);
-  }, []);
-
+  const coverage = useLiveValue(api.mapTracking.coverage, { mapId });
   return useMemo(
     () =>
-      tracking === undefined || freshness === undefined
+      tracking === undefined || coverage === undefined
         ? LOADING_TARGET
         : trackedSystemTarget({
             ownTrackedCharacterIds: tracking.ownTrackedCharacterIds,
             tracked: tracking.tracked,
-            freshness: feedFreshnessIndex(freshness),
-            now,
+            coverage: coverageIndex(coverage),
           }),
-    [tracking, freshness, now],
+    [tracking, coverage],
   );
 }

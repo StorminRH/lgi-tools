@@ -1,5 +1,3 @@
-import { feedIsPresent } from './presence-model';
-
 /**
  * Account-level live-system target from the caller's online tracked pilots.
  * `loading` is the truthful warm-up state while tracking subscriptions have
@@ -15,8 +13,8 @@ export type TrackedSystemTarget =
 
 /**
  * Resolves the unique covered system from the account's online tracked
- * pilots on this map. Present+online (`feedIsPresent`) is the gate —
- * last-known location alone must not unlock a live-system target.
+ * pilots on this map. Coverage is the present+online gate — last-known
+ * location alone must not unlock a live-system target.
  */
 export function trackedSystemTarget(input: {
   readonly ownTrackedCharacterIds: readonly number[];
@@ -25,17 +23,13 @@ export function trackedSystemTarget(input: {
     readonly characterId: number;
     readonly location: { readonly solarSystemId: number } | null;
   }[];
-  /** Per-owner-character quantized feed coverage; null/missing = not covered. */
-  readonly freshness: ReadonlyMap<string, ReadonlyMap<number, number | null>>;
-  readonly now: number;
+  readonly coverage: ReadonlyMap<string, ReadonlyMap<number, boolean>>;
 }): TrackedSystemTarget {
   const own = new Set(input.ownTrackedCharacterIds);
   const systems = new Set<number>();
   for (const row of input.tracked) {
     if (!own.has(row.characterId) || row.location === null) continue;
-    const feedFreshAt =
-      input.freshness.get(row.userId)?.get(row.characterId) ?? null;
-    if (!feedIsPresent(feedFreshAt, input.now)) continue;
+    if (input.coverage.get(row.userId)?.get(row.characterId) !== true) continue;
     systems.add(row.location.solarSystemId);
   }
   if (systems.size === 0) return { kind: 'none' };

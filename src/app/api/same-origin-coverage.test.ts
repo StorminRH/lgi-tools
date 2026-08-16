@@ -31,6 +31,7 @@ const PIPELINE_MUTATIONS = [
   'maps/search-characters/route.ts',
   'maps/signature-elimination/route.ts',
   'preferences/route.ts',
+  'sync-leave/route.ts',
 ] as const;
 
 const DIRECT_MUTATIONS = [
@@ -128,7 +129,7 @@ describe('same-origin mutation coverage', () => {
       ...Object.keys(EXEMPT_MUTATIONS),
     ];
 
-    expect(PIPELINE_MUTATIONS).toHaveLength(25);
+    expect(PIPELINE_MUTATIONS).toHaveLength(26);
     expect(DIRECT_MUTATIONS).toHaveLength(4);
     expect(ADMIN_MUTATIONS).toHaveLength(2);
     expect(Object.keys(EXEMPT_MUTATIONS)).toHaveLength(12);
