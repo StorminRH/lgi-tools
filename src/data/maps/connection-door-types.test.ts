@@ -116,4 +116,23 @@ describe('connection door types', () => {
       typedSide: 'from',
     });
   });
+
+  it('keeps a named far-side type in the one-code snapshot', () => {
+    expect(legacyTypeSnapshot({ from: 'C247', to: 'B274' }, 'to')).toEqual({
+      wormholeTypeCode: 'B274',
+      typedSide: 'to',
+    });
+    expect(
+      connectionTypePatch(
+        { fromWormholeTypeCode: 'C247', toWormholeTypeCode: 'K162' },
+        'to',
+        'B274',
+      ),
+    ).toEqual({
+      fromWormholeTypeCode: 'C247',
+      toWormholeTypeCode: 'B274',
+      wormholeTypeCode: 'B274',
+      typedSide: 'to',
+    });
+  });
 });

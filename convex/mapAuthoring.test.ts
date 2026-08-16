@@ -642,8 +642,8 @@ describe('map authoring', () => {
       expect(await readConnection(t, connectionId)).toMatchObject({
         fromWormholeTypeCode: 'C247',
         toWormholeTypeCode: 'B274',
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
+        wormholeTypeCode: 'B274',
+        typedSide: 'to',
       });
       expect((await readConnection(t, connectionId))?.pendingCandidates).toBeUndefined();
       // Typing a never-jump-authored hole mints its observation dedupe key so
@@ -719,8 +719,10 @@ describe('map authoring', () => {
         fromSystemId: JITA,
         toSystemId: AMARR,
         fromDestinationSystemId: DODIXIE,
-        destinationProvenance: 'human',
       });
+      expect(
+        (await readConnection(t, connectionId))?.destinationProvenance,
+      ).toBeUndefined();
       expect(await readSystem(t, DODIXIE)).toBeNull();
       expect(await readSystem(t, AMARR)).toMatchObject({
         systemId: AMARR,
@@ -773,6 +775,64 @@ describe('map authoring', () => {
       expect(await readConnection(t, connectionId)).toMatchObject({
         toSystemId: AMARR,
         fromDestinationHint: 'dangerous',
+      });
+    });
+
+    it('leaves jump identity and pending answers alone when a Leads-to note changes', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await t.run(async (ctx) => {
+        await ctx.db.patch(connectionId, {
+          destinationProvenance: 'assumed',
+          pendingCandidates: [connectionId],
+          pendingResolutionCharacterId: 21_198_055_274,
+        });
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'from',
+          value: DODIXIE,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        fromDestinationSystemId: DODIXIE,
+        destinationProvenance: 'assumed',
+        pendingCandidates: [connectionId],
+        pendingResolutionCharacterId: 21_198_055_274,
+      });
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'from',
+          value: 'dangerous',
+        }),
+      ).resolves.toEqual({ changed: true });
+      const afterHint = await readConnection(t, connectionId);
+      expect(afterHint).toMatchObject({
+        fromDestinationHint: 'dangerous',
+        destinationProvenance: 'assumed',
+        pendingCandidates: [connectionId],
+        pendingResolutionCharacterId: 21_198_055_274,
+      });
+      expect(afterHint?.fromDestinationSystemId).toBeUndefined();
+
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'from',
+          value: null,
+        }),
+      ).resolves.toEqual({ changed: true });
+      expect(await readConnection(t, connectionId)).toMatchObject({
+        destinationProvenance: 'assumed',
+        pendingCandidates: [connectionId],
+        pendingResolutionCharacterId: 21_198_055_274,
       });
     });
   });

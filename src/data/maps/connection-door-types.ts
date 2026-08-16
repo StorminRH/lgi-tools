@@ -116,10 +116,19 @@ export function applyReturnDoorType(
 }
 
 /** One-code snapshot so jump census and older readers still see a typed side. */
-export function legacyTypeSnapshot(doors: ConnectionDoorTypes): {
+export function legacyTypeSnapshot(
+  doors: ConnectionDoorTypes,
+  preferredSide?: ConnectionDoor,
+): {
   readonly wormholeTypeCode: string | null;
   readonly typedSide: ConnectionDoor | undefined;
 } {
+  if (preferredSide !== undefined) {
+    const preferred = preferredSide === 'from' ? doors.from : doors.to;
+    if (isEntranceType(preferred)) {
+      return { wormholeTypeCode: preferred, typedSide: preferredSide };
+    }
+  }
   if (isEntranceType(doors.from)) {
     return { wormholeTypeCode: doors.from, typedSide: 'from' };
   }
@@ -146,7 +155,7 @@ export function connectionTypePatch(
   return {
     fromWormholeTypeCode: doors.from,
     toWormholeTypeCode: doors.to,
-    ...legacyTypeSnapshot(doors),
+    ...legacyTypeSnapshot(doors, side),
   };
 }
 
@@ -165,6 +174,6 @@ export function returnDoorTypePatch(
   return {
     fromWormholeTypeCode: doors.from,
     toWormholeTypeCode: doors.to,
-    ...legacyTypeSnapshot(doors),
+    ...legacyTypeSnapshot(doors, attachedSide),
   };
 }

@@ -590,16 +590,12 @@ export const setConnectionDestinationHint = mutation({
     if (
       connection[field] === normalized
       && (normalized === undefined || connection[destField] === undefined)
-      && connection.pendingCandidates === undefined
-      && connection.pendingResolutionCharacterId === undefined
     ) {
       return { changed: false };
     }
     await ctx.db.patch(connectionId, {
       [field]: normalized,
       [destField]: undefined,
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
     });
     return { changed: true };
   },
@@ -641,22 +637,15 @@ export const setConnectionDestination = mutation({
       next = value === derived ? undefined : value;
     }
     const already = connection[destField];
-    const hasPending =
-      connection.pendingCandidates !== undefined
-      || connection.pendingResolutionCharacterId !== undefined;
     if (
       already === next
       && (value !== null || connection[hintField] === undefined)
-      && !hasPending
     ) {
       return { changed: false };
     }
     await ctx.db.patch(connectionId, {
       [destField]: next,
       [hintField]: undefined,
-      destinationProvenance: value === null ? undefined : 'human',
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
     });
     return { changed: true };
   },

@@ -232,7 +232,10 @@ function validObservedMass(value: number | null): number | null {
 }
 
 function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
-  const snapshot = legacyTypeSnapshot(connectionDoorTypes(connection));
+  const snapshot = legacyTypeSnapshot(
+    connectionDoorTypes(connection),
+    connection.typedSide ?? undefined,
+  );
   return {
     connectionId: connection._id,
     fromSystemId: connection.fromSystemId,

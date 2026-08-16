@@ -71,8 +71,8 @@ export interface OptimisticConnectionRow {
   readonly toDestinationSystemId?: number;
   readonly deathEarliestAt?: number | null;
   readonly deathLatestAt?: number | null;
-  readonly deletedAt: number | null;
-  readonly purgeAfter: number | null;
+  readonly deletedAt?: number | null;
+  readonly purgeAfter?: number | null;
 }
 
 /**
@@ -359,7 +359,7 @@ export function optimisticSetConnectionWormholeType(
     deathLatestAt?: number | null;
   },
 ): void {
-  const apply = (row: OptimisticConnectionRow) => {
+  const apply = <Row extends OptimisticConnectionRow>(row: Row): Row => {
     if (row._id !== args.connectionId) return row;
     return {
       ...row,

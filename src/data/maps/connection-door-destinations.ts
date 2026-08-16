@@ -1,7 +1,12 @@
 // One tunnel, two faces. You are in a system looking at one door. Leads-to
 // defaults to the other system. A typed system that is not that other
 // system stays on that face. A class note is not a typed system.
-import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
+import type {
+  ConnectionMassState,
+  ConnectionProvenance,
+  WormholeLifeStage,
+  WormholeSizeClass,
+} from '@/data/eve-data/wormhole-contract';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import {
   connectionDoorTypes,
@@ -66,13 +71,29 @@ export function absorbDoorLeadsNote(
 /** Fields a dying stub can carry onto the surviving hallway. */
 export interface DoorKnowledgeFields extends ConnectionTypeFields {
   readonly typeProvenance?: ConnectionProvenance | null;
-  readonly massState: string | null;
+  readonly massState: ConnectionMassState | null;
   readonly observedMassAtStateKg?: number;
-  readonly shipSize: string | null;
-  readonly lifeStage?: string | null;
+  readonly shipSize: WormholeSizeClass | null;
+  readonly lifeStage?: WormholeLifeStage | null;
   readonly lifeStageObservedAt?: number | null;
-  readonly deathEarliestAt?: number;
-  readonly deathLatestAt?: number;
+  readonly deathEarliestAt?: number | null;
+  readonly deathLatestAt?: number | null;
+}
+
+/** Mutable hallway facts written onto the surviving row. */
+export interface DoorKnowledgePatch {
+  fromWormholeTypeCode?: string | null;
+  toWormholeTypeCode?: string | null;
+  wormholeTypeCode?: string | null;
+  typedSide?: ConnectionDoor;
+  typeProvenance?: ConnectionProvenance;
+  massState?: ConnectionMassState | null;
+  observedMassAtStateKg?: number;
+  shipSize?: WormholeSizeClass | null;
+  lifeStage?: WormholeLifeStage | null;
+  lifeStageObservedAt?: number | null;
+  deathEarliestAt?: number | null;
+  deathLatestAt?: number | null;
 }
 
 const TYPE_PROVENANCE_RANK: Record<ConnectionProvenance, number> = {
@@ -120,8 +141,8 @@ export function absorbDoorKnowledge(
   surviving: DoorKnowledgeFields,
   stub: DoorKnowledgeFields,
   attachedSide: ConnectionDoor,
-): Partial<DoorKnowledgeFields> {
-  const patch: Partial<DoorKnowledgeFields> = {
+): DoorKnowledgePatch {
+  const patch: DoorKnowledgePatch = {
     ...returnDoorTypePatch(
       surviving,
       attachedSide,
@@ -147,10 +168,7 @@ export function absorbDoorKnowledge(
       patch.lifeStageObservedAt = stub.lifeStageObservedAt;
     }
   }
-  if (
-    surviving.deathEarliestAt === undefined
-    && stub.deathEarliestAt !== undefined
-  ) {
+  if (surviving.deathEarliestAt == null && stub.deathEarliestAt != null) {
     patch.deathEarliestAt = stub.deathEarliestAt;
     patch.deathLatestAt = stub.deathLatestAt;
   }

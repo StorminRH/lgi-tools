@@ -169,7 +169,7 @@ function connectionEditorDetail(
   row: Doc<'mapConnections'>,
 ): ConnectionEditorDetail {
   const doors = connectionDoorTypes(row);
-  const snapshot = legacyTypeSnapshot(doors);
+  const snapshot = legacyTypeSnapshot(doors, row.typedSide ?? undefined);
   return {
     connectionId: row._id,
     _creationTime: row._creationTime,
