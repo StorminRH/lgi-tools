@@ -1017,10 +1017,43 @@ async function applyTypeDeduction(
   return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
 }
 
+/** Mouth-scoped Destination note on one stored end, rewritten onto a stub. */
+function occupiedDestinationNote(
+  target: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+): {
+  readonly fromDestinationSystemId?: number;
+  readonly fromDestinationHint?: Doc<'mapConnections'>['fromDestinationHint'];
+} {
+  const systemId = side === 'from'
+    ? target.fromDestinationSystemId
+    : target.toDestinationSystemId;
+  const hint = side === 'from'
+    ? target.fromDestinationHint
+    : target.toDestinationHint;
+  return {
+    ...(systemId !== undefined ? { fromDestinationSystemId: systemId } : {}),
+    ...(hint !== undefined ? { fromDestinationHint: hint } : {}),
+  };
+}
+
+/** Drops the occupied mouth's Destination note so it cannot stick to the new hole. */
+function clearOccupiedDestinationNote(side: 'from' | 'to'): {
+  readonly fromDestinationSystemId?: undefined;
+  readonly toDestinationSystemId?: undefined;
+  readonly fromDestinationHint?: undefined;
+  readonly toDestinationHint?: undefined;
+} {
+  return side === 'from'
+    ? { fromDestinationSystemId: undefined, fromDestinationHint: undefined }
+    : { toDestinationSystemId: undefined, toDestinationHint: undefined };
+}
+
 /**
  * Recreates the signature currently occupying a resolved door as an unresolved
- * stub in this system. Door type rides with that ID; hallway mass, size, and
- * lifetime stay on the surviving connection. No jump observation key.
+ * stub in this system. Door type and that mouth's Destination note ride with
+ * the ID; hallway mass, size, and lifetime stay on the surviving connection.
+ * No jump observation key.
  */
 async function recreateOccupiedDoorAsStub(
   ctx: MutationCtx,
@@ -1042,6 +1075,7 @@ async function recreateOccupiedDoorAsStub(
     purgeAfter: null,
     ...connectionTypePatch({}, 'from', doorType),
     typeProvenance: doorType === null ? undefined : target.typeProvenance,
+    ...occupiedDestinationNote(target, side),
   });
 }
 
@@ -1077,7 +1111,6 @@ async function applyLinkDeduction(
     return { signatureId, outcome: 'unchanged', observationKey };
   }
   let surviving = target;
-  let skipAbsorb = false;
   if (current !== undefined) {
     // Machine deductions never evict a joined signature. A human Leads-to
     // pick may rehome the hallway onto this stub and restore the occupant.
@@ -1085,8 +1118,11 @@ async function applyLinkDeduction(
       return { signatureId, outcome: 'protected', observationKey };
     }
     await recreateOccupiedDoorAsStub(ctx, target, systemId, current, side);
-    surviving = { ...target, ...connectionTypePatch(target, side, null) };
-    skipAbsorb = true;
+    surviving = {
+      ...target,
+      ...connectionTypePatch(target, side, null),
+      ...clearOccupiedDestinationNote(side),
+    };
   }
   // Carry human-entered stub knowledge onto the resolved row before the stub
   // document dies — inference must not erase a person's mass/size/lifetime.
@@ -1095,16 +1131,15 @@ async function applyLinkDeduction(
     ...(side === 'from'
       ? { fromSignatureId: signatureId }
       : { toSignatureId: signatureId }),
+    ...(current !== undefined ? clearOccupiedDestinationNote(side) : {}),
     ...knowledge,
   };
-  const leftover = skipAbsorb
-    ? null
-    : await leftoverOriginStubAbsorb(
-      ctx,
-      { ...surviving, ...attached },
-      source._id,
-      side,
-    );
+  const leftover = await leftoverOriginStubAbsorb(
+    ctx,
+    { ...surviving, ...attached },
+    source._id,
+    side,
+  );
   await ctx.db.patch(
     target._id,
     leftover === null ? attached : { ...attached, ...leftover.patch },

@@ -636,6 +636,157 @@ describe('mapScan paste application and lifecycle', () => {
     expect(restored?.observationKey).toBeUndefined();
   });
 
+  it('absorbs a unique leftover origin stub when a Leads-to pick rehomes the hallway', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('ABC-123', { group: 'Wormhole', name: 'K162' })]);
+    let firstStubId = '' as Id<'mapConnections'>;
+    let inboundId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      const stub = (await ctx.db.query('mapConnections').collect())[0];
+      if (stub === undefined) {
+        throw new Error('expected the pasted wormhole stub before linking');
+      }
+      firstStubId = stub._id;
+      inboundId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: 'stable',
+        shipSize: 'M',
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: firstStubId,
+      resolvedConnectionId: inboundId,
+    });
+    let leftoverId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      leftoverId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: null,
+        fromSignatureId: 'STA-001',
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        fromWormholeTypeCode: 'B274',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    await apply(t, [
+      signature('ABC-123', { group: 'Wormhole', name: 'K162' }),
+      signature('DEF-456', { group: 'Wormhole' }),
+    ]);
+    const secondStubId = await t.run(async (ctx) => {
+      const stub = (await ctx.db.query('mapConnections').collect()).find(
+        (row) => row.fromSignatureId === 'DEF-456' && row.toSystemId === null,
+      );
+      if (stub === undefined) {
+        throw new Error('expected the second wormhole stub before reassigning');
+      }
+      return stub._id;
+    });
+    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: secondStubId,
+      resolvedConnectionId: inboundId,
+    })).resolves.toEqual({ outcome: 'applied' });
+    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+      fromSignatureId: 'STA-001',
+      toSignatureId: 'DEF-456',
+      fromWormholeTypeCode: 'B274',
+      toWormholeTypeCode: 'K162',
+      massState: 'stable',
+      shipSize: 'M',
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(leftoverId))).toBeNull();
+    expect(await t.run(async (ctx) => await ctx.db.get(secondStubId))).toBeNull();
+    expect(await t.run(async (ctx) =>
+      (await ctx.db.query('mapConnections').collect()).find(
+        (row) => row.fromSignatureId === 'ABC-123' && row.toSystemId === null,
+      ),
+    )).toMatchObject({ fromSystemId: JITA, fromWormholeTypeCode: 'K162' });
+  });
+
+  it('moves a mismatched Destination note onto the restored stub', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('ABC-123', { group: 'Wormhole', name: 'K162' })]);
+    let firstStubId = '' as Id<'mapConnections'>;
+    let inboundId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      const stub = (await ctx.db.query('mapConnections').collect())[0];
+      if (stub === undefined) {
+        throw new Error('expected the pasted wormhole stub before linking');
+      }
+      firstStubId = stub._id;
+      inboundId = await ctx.db.insert('mapConnections', {
+        mapId: MAP,
+        fromSystemId: AMARR,
+        toSystemId: JITA,
+        wormholeTypeCode: 'B274',
+        typedSide: 'from',
+        typeProvenance: 'human',
+        massState: null,
+        shipSize: null,
+        eolAt: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    });
+    await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: firstStubId,
+      resolvedConnectionId: inboundId,
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(inboundId, { toDestinationSystemId: DODIXIE });
+    });
+    await apply(t, [
+      signature('ABC-123', { group: 'Wormhole', name: 'K162' }),
+      signature('DEF-456', { group: 'Wormhole' }),
+    ]);
+    const secondStubId = await t.run(async (ctx) => {
+      const stub = (await ctx.db.query('mapConnections').collect()).find(
+        (row) => row.fromSignatureId === 'DEF-456' && row.toSystemId === null,
+      );
+      if (stub === undefined) {
+        throw new Error('expected the second wormhole stub before reassigning');
+      }
+      return stub._id;
+    });
+    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: secondStubId,
+      resolvedConnectionId: inboundId,
+    })).resolves.toEqual({ outcome: 'applied' });
+    const rehomed = await t.run(async (ctx) => await ctx.db.get(inboundId));
+    expect(rehomed).toMatchObject({ toSignatureId: 'DEF-456' });
+    expect(rehomed?.toDestinationSystemId).toBeUndefined();
+    expect(await t.run(async (ctx) =>
+      (await ctx.db.query('mapConnections').collect()).find(
+        (row) => row.fromSignatureId === 'ABC-123' && row.toSystemId === null,
+      ),
+    )).toMatchObject({
+      fromSystemId: JITA,
+      fromDestinationSystemId: DODIXIE,
+    });
+  });
+
   it('keeps an occupied inbound door when elimination tries to link a different stub', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
