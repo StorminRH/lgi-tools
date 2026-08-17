@@ -61,13 +61,12 @@ describe('originLeadCandidates', () => {
     ).toEqual([{ connectionId: 'inbound', systemId: ORIGIN_SYSTEM }]);
   });
 
-  it('skips the stub itself, tombstones, unresolved rows, and already-linked sides', () => {
+  it('skips the stub itself, tombstones, unresolved rows, and systems that do not touch here', () => {
     expect(
       originLeadCandidates(STUB_SYSTEM, 'stub-1', [
         line({ connectionId: 'stub-1', fromSystemId: STUB_SYSTEM, toSystemId: null }),
         line({ connectionId: 'dead', deletedAt: 1 }),
         line({ connectionId: 'ghost', toSystemId: null, fromSystemId: STUB_SYSTEM }),
-        line({ connectionId: 'linked', toSignatureId: 'ABC-123' }),
         line({
           connectionId: 'elsewhere',
           fromSystemId: ORIGIN_SYSTEM,
@@ -75,6 +74,14 @@ describe('originLeadCandidates', () => {
         }),
       ]),
     ).toEqual([]);
+  });
+
+  it('still offers an inbound whose local signature is already filled', () => {
+    expect(
+      originLeadCandidates(STUB_SYSTEM, 'stub-2', [
+        line({ connectionId: 'linked', toSignatureId: 'ABC-123' }),
+      ]),
+    ).toEqual([{ connectionId: 'linked', systemId: ORIGIN_SYSTEM }]);
   });
 
   it('links a return-system pick only when exactly one inbound matches', () => {

@@ -53,20 +53,12 @@ function otherEndpoint(
   return null;
 }
 
-function localSignatureLinked(
-  connection: OriginLeadConnection,
-  stubSystemId: number,
-): boolean {
-  if (connection.fromSystemId === stubSystemId) {
-    return connection.fromSignatureId != null;
-  }
-  return connection.toSignatureId != null;
-}
-
 /**
- * Resolved connections that already touch this stub's system with an empty
- * local signature slot. Atlas never guesses which of those is the way home;
- * the editor only offers them for a human pick.
+ * Resolved connections that already touch this stub's system, including
+ * inbounds whose local signature slot is already filled. Occupied doors stay
+ * listed so a human can move the join onto a different scanner ID. Atlas never
+ * guesses which of those is the way home; the editor only offers them for a
+ * human pick.
  */
 export function originLeadCandidates(
   stubSystemId: number,
@@ -82,9 +74,7 @@ export function originLeadCandidates(
       continue;
     }
     const other = otherEndpoint(connection, stubSystemId);
-    if (other === null || localSignatureLinked(connection, stubSystemId)) {
-      continue;
-    }
+    if (other === null) continue;
     candidates.push({ connectionId: connection.connectionId, systemId: other });
   }
   return candidates;
