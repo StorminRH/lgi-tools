@@ -2,9 +2,10 @@
 # Cloud Agent install phase for LGI.tools.
 #
 # Idempotent, source-derived bootstrap that runs after checkout. It refreshes
-# node dependencies, provisions a self-contained local PostgreSQL 16 cluster on
-# :5433 (matching docker-compose.yml / the request-path DATABASE_URL), writes a
-# dev .env.local, applies migrations, and seeds the EVE SDE the first time.
+# node dependencies, installs Playwright Chromium and Codegraph, provisions a
+# self-contained local PostgreSQL 16 cluster on :5433, writes a dev .env.local,
+# applies migrations, seeds the EVE SDE the first time, and runs one anonymous
+# `convex dev --once` so `:3210` is ready for the convex-dev terminal.
 #
 # No long-running process is started here; postgres is a transient the snapshot
 # preserves on disk and the `postgres` terminal in `.cursor/environment.json`
@@ -39,6 +40,22 @@ pnpm install --frozen-lockfile
 # already present for computer-use screenshots; this is the Playwright cache
 # the test runner actually launches. Idempotent: skips downloads when current.
 pnpm exec playwright install --with-deps chromium
+
+# User-global CLIs (Codegraph). Keep them off the system prefix so install
+# does not need root.
+NPM_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.npm-global}"
+mkdir -p "$NPM_PREFIX"
+npm config set prefix "$NPM_PREFIX"
+export PATH="$NPM_PREFIX/bin:$PATH"
+if ! grep -q '.npm-global/bin' "$HOME/.profile" 2>/dev/null; then
+  printf '\nexport PATH="%s/bin:$PATH"\n' "$NPM_PREFIX" >> "$HOME/.profile"
+fi
+npm install -g --no-fund --no-audit @colbymchenry/codegraph@1.5.0
+if [ -d .codegraph ]; then
+  codegraph sync
+else
+  codegraph init
+fi
 
 # --- Local Postgres cluster (owned by the agent user; no Docker/systemd) ---
 mkdir -p "$PGDATA"
@@ -88,6 +105,12 @@ ensure_secret BETTER_AUTH_SECRET
 ensure_secret EVE_TOKEN_ENCRYPTION_KEY
 ensure_secret ESI_SNAPSHOT_ENCRYPTION_KEY
 [ -n "$(val CRON_SECRET)" ] || set_var CRON_SECRET "$(openssl rand -hex 32)"
+[ -n "$(val CONVEX_SERVICE_SECRET)" ] || set_var CONVEX_SERVICE_SECRET "$(openssl rand -hex 32)"
+set_var BETTER_AUTH_URL http://localhost:3000
+set_var CONVEX_AGENT_MODE anonymous
+# Do not write NEXT_PUBLIC_CONVEX_URL / CONVEX_DEPLOYMENT here. `convex dev`
+# owns those (`http://127.0.0.1:3210` + `local:`). Never copy a laptop or
+# hosted pair into this file.
 
 # --- Schema + seed data ---
 # Pin every URL the node scripts resolve (migrate-url.ts reads
@@ -118,5 +141,23 @@ if [ "$started_pg" = 1 ]; then
   "$PGBIN/pg_ctl" -D "$PGDATA" -w stop >/dev/null 2>&1 || true
   started_pg=0
 fi
+
+# Download the anonymous local Convex backend and push once so the snapshot
+# already has `.convex/` + `NEXT_PUBLIC_CONVEX_URL`. The `convex-dev` terminal
+# reuses that deployment on boot. The first `--once` creates the deployment
+# and may fail until AUTH_* exist on it; env set then a second `--once` push.
+export CONVEX_AGENT_MODE=anonymous
+unset CONVEX_DEPLOY_KEY || true
+export AUTH_ISSUER_URL=http://localhost:3000
+export SITE_URL=http://localhost:3000
+export AUTH_JWKS='data:text/plain;charset=utf-8;base64,e30='
+export CONVEX_SERVICE_SECRET
+CONVEX_SERVICE_SECRET="$(val CONVEX_SERVICE_SECRET)"
+pnpm exec convex dev --once || true
+pnpm exec convex env set AUTH_ISSUER_URL http://localhost:3000
+pnpm exec convex env set SITE_URL http://localhost:3000
+printf '%s' "$AUTH_JWKS" | pnpm exec convex env set AUTH_JWKS
+printf '%s' "$CONVEX_SERVICE_SECRET" | pnpm exec convex env set CONVEX_SERVICE_SECRET
+pnpm exec convex dev --once
 
 echo "install.sh complete: postgres :5433 provisioned; market_prices rows: ${priced:-0}."
