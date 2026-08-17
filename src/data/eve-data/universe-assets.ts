@@ -61,7 +61,6 @@ export type { WormholeSizeClass };
 
 /** The K162 catalogue row. SDE calls this far-side; Atlas comments say incoming K162. */
 export interface FarSideWormholeCodexEntry {
-export interface FarSideWormholeCodexEntry {
   code: typeof FAR_SIDE_WORMHOLE_CODE;
   typeId: number;
   farSide: true;
