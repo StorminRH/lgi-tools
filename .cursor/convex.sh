@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Waits for the local Postgres terminal, then runs an anonymous local Convex
 # backend on :3210. Do not use a hosted Convex URL or CONVEX_DEPLOY_KEY here —
-# mapper fixture probes hardcode `--deployment local`, and Convex HTTP actions
-# must reach this VM's Next at http://localhost:3000.
+# mapper fixture probes run `convex run` against this anonymous backend, and
+# Convex HTTP actions must reach this VM's Next at http://localhost:3000.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

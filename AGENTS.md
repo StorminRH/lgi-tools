@@ -88,7 +88,8 @@ still live in the README/`package.json`. Non-obvious caveats:
   (no Docker here). Convex is a sibling terminal: `.cursor/convex.sh` runs
   `CONVEX_AGENT_MODE=anonymous pnpm exec convex dev` on `:3210`. Do not copy a
   laptop `local:` pair, a hosted `*.convex.cloud` URL, or `CONVEX_DEPLOY_KEY`.
-  Mapper fixture probes hardcode `--deployment local`.
+  Fixture probes call `convex run` against the selected `local:` or
+  `anonymous:` deployment and refuse a hosted URL.
 - **`.env.local` is auto-generated** with dev-only session/crypto secrets and
   the local DB URLs. Any Cloud Agent Secret you upload is injected as a real env
   var and overrides the `.env.local` fallback at runtime — do not upload a

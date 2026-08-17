@@ -213,11 +213,26 @@ export async function restoreMapAccess(mapId) {
   return stdout.trim();
 }
 
-/** Run an internal Convex fixture mutation via the CLI. */
+/**
+ * Run an internal Convex fixture mutation via the CLI.
+ *
+ * Uses the deployment selected in `.env.local`. `--deployment local` 401s on
+ * anonymous Cloud Agent backends (`anonymous:…`) because it resolves through
+ * api.convex.dev. Fail closed if CONVEX_DEPLOYMENT is missing or hosted.
+ */
 export async function convexRun(path, args) {
+  const deployment = process.env.CONVEX_DEPLOYMENT ?? '';
+  if (
+    !deployment.startsWith('local:') &&
+    !deployment.startsWith('anonymous:')
+  ) {
+    throw new Error(
+      `Refusing convex run: CONVEX_DEPLOYMENT=${deployment || '(unset)'} is not a local or anonymous backend`,
+    );
+  }
   const { stdout, stderr } = await execFileAsync(
     'pnpm',
-    ['exec', 'convex', 'run', path, JSON.stringify(args), '--deployment', 'local'],
+    ['exec', 'convex', 'run', path, JSON.stringify(args)],
     { cwd: process.cwd(), env: process.env, timeout: 30_000 },
   );
   if (stderr.trim()) console.error(stderr.trim());

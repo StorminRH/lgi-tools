@@ -41,10 +41,9 @@ if [ -z "$secret" ]; then
   exit 0
 fi
 
-# Do not pass `--deployment local` here: `convex env set --deployment local`
-# talks to api.convex.dev and 401s without a login. The anonymous backend is
-# selected by CONVEX_DEPLOYMENT=anonymous:anonymous-agent in .env.local.
-# Fixture probes still use `convex run --deployment local`.
+# Do not pass `--deployment local` here: that flag talks to api.convex.dev
+# and 401s without a login. The anonymous backend is selected by
+# CONVEX_DEPLOYMENT=anonymous:anonymous-agent in .env.local.
 convex_env() {
   pnpm exec convex env set "$@"
 }

@@ -16,7 +16,7 @@
     {
       "name": "convex-dev",
       "command": "bash .cursor/convex.sh",
-      "description": "Anonymous local Convex backend on http://127.0.0.1:3210 (CONVEX_AGENT_MODE=anonymous). Required for Atlas mapper probes and `convex run --deployment local`. Do not point the app at a hosted Convex URL."
+      "description": "Anonymous local Convex backend on http://127.0.0.1:3210 (CONVEX_AGENT_MODE=anonymous). Required for Atlas mapper probes and `convex run` against the selected anonymous/local deployment. Do not point the app at a hosted Convex URL."
     }
   ],
   "ports": [
