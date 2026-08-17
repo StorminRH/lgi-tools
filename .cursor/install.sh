@@ -51,6 +51,7 @@ if ! grep -q '.npm-global/bin' "$HOME/.profile" 2>/dev/null; then
   printf '\nexport PATH="%s/bin:$PATH"\n' "$NPM_PREFIX" >> "$HOME/.profile"
 fi
 npm install -g --no-fund --no-audit @colbymchenry/codegraph@1.5.0
+export CODEGRAPH_TELEMETRY=0
 if [ -d .codegraph ]; then
   codegraph sync
 else
