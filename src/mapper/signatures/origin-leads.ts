@@ -8,9 +8,9 @@ import { destinationReadout } from './system-readout';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 
 /**
- * Named inbound systems a scanner/editor stub can attach to, including
- * inbounds that already have a local signature. Empty once this hole already
- * has a resolved destination — linking then would be stale.
+ * Other systems on incoming hallways a scanner stub can attach to, including
+ * hallways whose mouth in this system already has a scanner ID. Empty once
+ * this hole already has the other system — linking then would be stale.
  */
 export function originLeadOptions(
   connection: Pick<

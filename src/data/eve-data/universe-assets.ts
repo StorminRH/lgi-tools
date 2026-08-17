@@ -59,14 +59,15 @@ export type AdjacencyEntry = [
 /** Wormhole jump-size vocabulary; owned by `./wormhole-contract` and re-exported for codex callers. */
 export type { WormholeSizeClass };
 
-/** The special untyped far-side wormhole entry. */
+/** The K162 catalogue row. SDE calls this far-side; Atlas comments say incoming K162. */
+export interface FarSideWormholeCodexEntry {
 export interface FarSideWormholeCodexEntry {
   code: typeof FAR_SIDE_WORMHOLE_CODE;
   typeId: number;
   farSide: true;
 }
 
-/** One typed wormhole's complete SDE-derived mass, lifetime, size, and destination contract. */
+/** One named wormhole's complete SDE-derived mass, lifetime, size, and destination contract. */
 export interface TypedWormholeCodexEntry {
   code: string;
   typeId: number;
@@ -79,7 +80,7 @@ export interface TypedWormholeCodexEntry {
   targetClass: number;
 }
 
-/** One wormhole code in the client codex, including K162's explicit far-side shape. */
+/** One wormhole code in the client codex, including K162's explicit incoming shape. */
 export type WormholeCodexEntry =
   | FarSideWormholeCodexEntry
   | TypedWormholeCodexEntry;

@@ -8,12 +8,12 @@ export interface EliminationSignature {
   readonly typeProvenance: ConnectionProvenance | null;
 }
 
-/** Endpoint-local facts for one live resolved connection touching the system. */
+/** Endpoint-local facts for one live resolved hallway touching this system. */
 export interface EliminationConnection {
   readonly connectionId: string;
-  /** A code typed on this system's side, or null when only the far side is known. */
+  /** Named or K162 type on this system's mouth, or null when only the other mouth is known. */
   readonly wormholeTypeCode: string | null;
-  /** Whether this system's side of the connection already owns a scanner row. */
+  /** Whether this system's mouth of the hallway already owns a scanner row. */
   readonly linkedSignature: boolean;
 }
 
@@ -30,7 +30,7 @@ interface AssumedDeduction {
   readonly provenance: 'assumed';
 }
 
-/** One machine-safe type fill or far-side connection link. */
+/** One machine-safe type fill or link onto a hallway that already has the other system. */
 export type EliminationDeduction = AssumedDeduction & (
   | { readonly typeCode: string }
   | {

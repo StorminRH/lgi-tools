@@ -1,6 +1,6 @@
-// One tunnel, two faces. You are in a system looking at one door. Leads-to
-// defaults to the other system. A typed system that is not that other
-// system stays on that face. A class note is not a typed system.
+// One hallway, two mouths. You are in a system looking at one hole. Leads-to
+// defaults to the other system on that hallway. A typed system that is not
+// that other system stays on this mouth. A class note is not a typed system.
 import type {
   ConnectionMassState,
   ConnectionProvenance,
@@ -15,7 +15,7 @@ import {
   type ConnectionTypeFields,
 } from '@/data/maps/connection-door-types';
 
-/** The other door's system, or null until both locations are known. */
+/** The other system's id on this hallway, or null until both systems are known. */
 export function doorDestination(
   fromSystemId: number,
   toSystemId: number | null,
@@ -26,7 +26,7 @@ export function doorDestination(
 }
 
 /**
- * Leads-to on one face. A typed system that is not the other location is
+ * Leads-to on this hole. A typed system that is not the other system is
  * kept (a typo stays a typo). Otherwise show the other system. Class notes
  * are not passed in here.
  */
@@ -39,7 +39,7 @@ export function keepTypedLeadsTo(
   return typedSystem;
 }
 
-/** Leads-to for the face you are looking at. */
+/** Leads-to for the hole you are looking at. */
 export function doorLeadsTo(
   fromSystemId: number,
   toSystemId: number | null,
@@ -54,8 +54,8 @@ export function doorLeadsTo(
 }
 
 /**
- * When folding one face onto the surviving row, keep a mismatched typed
- * system on that face. Do not invent an override when the face only had a
+ * When folding this hole onto the surviving hallway, keep a mismatched typed
+ * system on this mouth. Do not invent an override when the mouth only had a
  * class note or matched the other system.
  */
 export function absorbDoorLeadsNote(
