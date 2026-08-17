@@ -139,6 +139,10 @@ function competingSignatures(
   slots: StaticSlots,
 ): number {
   return signatures.filter((signature) => {
+    // Blank scanner rows can still be this connection's type. Operators type
+    // holes one by one; counting only already-typed competitors would pin the
+    // first K162 onto the way home while siblings are still unnamed.
+    if (signature.wormholeTypeCode === null) return true;
     const code = fixedType(signature);
     return code !== null
       && (slots.remaining.get(code) ?? 0) === 0
