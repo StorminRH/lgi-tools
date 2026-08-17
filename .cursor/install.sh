@@ -35,6 +35,11 @@ trap '[ "$started_pg" = 1 ] && "$PGBIN/pg_ctl" -D "$PGDATA" -w stop >/dev/null 2
 # --- Node dependencies (pinned pnpm + frozen lockfile) ---
 pnpm install --frozen-lockfile
 
+# Playwright Chromium for `pnpm test:e2e` / ux-check on this VM. Chrome is
+# already present for computer-use screenshots; this is the Playwright cache
+# the test runner actually launches. Idempotent: skips downloads when current.
+pnpm exec playwright install --with-deps chromium
+
 # --- Local Postgres cluster (owned by the agent user; no Docker/systemd) ---
 mkdir -p "$PGDATA"
 if [ ! -f "$PGDATA/PG_VERSION" ]; then

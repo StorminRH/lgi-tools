@@ -102,3 +102,13 @@ still live in the README/`package.json`. Non-obvious caveats:
   (`db:refresh-sde`, `db:refresh-prices`) resolve it with `??`, so the blank
   value shipped in `.env.example` does *not* fall back to `DATABASE_URL`; the
   install script points it at the same local cluster.
+- **Project skills live in `.cursor/skills/`.** Cloud Agents do not inherit
+  laptop `~/.cursor/skills/`. Keep the operative copies here so every cloud
+  session sees the same seats as local.
+- **Custom subagents live in `tools/cursor-runtime/agents/`.** `.cursor/agents/`
+  is a forbidden in-repo path. `.cursor/start.sh` mirrors those files into
+  `~/.cursor/agents/` on every boot so Task can launch them by name.
+- **Playwright Chromium is installed by `.cursor/install.sh`.** Use
+  `http://localhost:3000` (the `next-dev` terminal). Seed auth with
+  `pnpm e2e:seed`; do not expect a local Convex process on `:3210` unless a
+  Cloud Agent Secret provides a remote Convex deployment URL.
