@@ -90,7 +90,7 @@ export const MAP_SCAN_ROW_LIMIT = 256;
 /** Maximum rows returned by one live signature page. */
 export const MAP_SIGNATURE_PAGE_SIZE = 100;
 
-/** Maximum destination-side rows one elimination transaction may inspect. */
+/** Maximum hallway rows touching this system one elimination transaction may inspect. */
 export const MAP_ELIMINATION_CONNECTION_LIMIT = 128;
 
 const eliminationDeductionValidator = v.union(
@@ -534,8 +534,8 @@ async function writeWormholeConnection(
 }
 
 /**
- * Deletes a leftover origin stub that duplicates an inbound door already
- * carrying this system's signature. Re-paste after a way-home link must not
+ * Deletes a leftover stub in this system that duplicates an incoming mouth
+ * already carrying this scanner ID. Re-paste after linking a K162 must not
  * leave a second ghost.
  */
 async function absorbDuplicateOriginStub(
@@ -603,7 +603,7 @@ async function revivePasteConnection(
   return { ...connection, deletedAt: null, purgeAfter: null };
 }
 
-/** Re-paste against an inbound door: keep one row, drop a leftover origin stub. */
+/** Re-paste against an incoming mouth: keep one hallway row, drop a leftover stub. */
 async function applyInboundPaste(
   ctx: MutationCtx,
   state: ScanState,
@@ -707,7 +707,7 @@ async function writeFreshWormholeRow(
   return outcome;
 }
 
-/** Origin-side lifecycle owner for confident-missing; never the inbound door. */
+/** Lifecycle owner in this system for confident-missing; never the incoming mouth of a hallway. */
 function findOriginLifecycleConnection(
   rows: readonly Doc<'mapConnections'>[],
   systemId: number,
@@ -1017,6 +1017,68 @@ async function applyTypeDeduction(
   return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
 }
 
+/** Mouth-scoped Destination note on one stored end, rewritten onto a stub. */
+function occupiedDestinationNote(
+  target: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+): {
+  readonly fromDestinationSystemId?: number;
+  readonly fromDestinationHint?: Doc<'mapConnections'>['fromDestinationHint'];
+} {
+  const systemId = side === 'from'
+    ? target.fromDestinationSystemId
+    : target.toDestinationSystemId;
+  const hint = side === 'from'
+    ? target.fromDestinationHint
+    : target.toDestinationHint;
+  return {
+    ...(systemId !== undefined ? { fromDestinationSystemId: systemId } : {}),
+    ...(hint !== undefined ? { fromDestinationHint: hint } : {}),
+  };
+}
+
+/** Drops the occupied mouth's Destination note so it cannot stick to the new hole. */
+function clearOccupiedDestinationNote(side: 'from' | 'to'): {
+  readonly fromDestinationSystemId?: undefined;
+  readonly toDestinationSystemId?: undefined;
+  readonly fromDestinationHint?: undefined;
+  readonly toDestinationHint?: undefined;
+} {
+  return side === 'from'
+    ? { fromDestinationSystemId: undefined, fromDestinationHint: undefined }
+    : { toDestinationSystemId: undefined, toDestinationHint: undefined };
+}
+
+/**
+ * Recreates the signature currently occupying a resolved door as an unresolved
+ * stub in this system. Door type and that mouth's Destination note ride with
+ * the ID; hallway mass, size, and lifetime stay on the surviving connection.
+ * No jump observation key.
+ */
+async function recreateOccupiedDoorAsStub(
+  ctx: MutationCtx,
+  target: Doc<'mapConnections'>,
+  systemId: number,
+  occupant: string,
+  side: 'from' | 'to',
+): Promise<void> {
+  const doorType = storedDoorTypes(target)[side];
+  await ctx.db.insert('mapConnections', {
+    mapId: target.mapId,
+    fromSystemId: systemId,
+    toSystemId: null,
+    fromSignatureId: occupant,
+    massState: null,
+    shipSize: null,
+    eolAt: null,
+    deletedAt: null,
+    purgeAfter: null,
+    ...connectionTypePatch({}, 'from', doorType),
+    typeProvenance: doorType === null ? undefined : target.typeProvenance,
+    ...occupiedDestinationNote(target, side),
+  });
+}
+
 async function applyLinkDeduction(
   ctx: MutationCtx,
   source: Doc<'mapConnections'> | undefined,
@@ -1024,6 +1086,7 @@ async function applyLinkDeduction(
   systemId: number,
   signatureId: string,
   expectedTypeCode: string | null,
+  replaceOccupied = false,
 ): Promise<EliminationOutcome> {
   if (
     source === undefined
@@ -1044,25 +1107,36 @@ async function applyLinkDeduction(
   const side = endpointSide(target, systemId);
   if (side === null) return { signatureId, outcome: 'stale', observationKey };
   const current = side === 'from' ? target.fromSignatureId : target.toSignatureId;
+  if (current === signatureId) {
+    return { signatureId, outcome: 'unchanged', observationKey };
+  }
+  let surviving = target;
   if (current !== undefined) {
-    return {
-      signatureId,
-      outcome: current === signatureId ? 'unchanged' : 'protected',
-      observationKey,
+    // Machine deductions never evict a joined signature. A human Leads-to
+    // pick may rehome the hallway onto this stub and restore the occupant.
+    if (!replaceOccupied) {
+      return { signatureId, outcome: 'protected', observationKey };
+    }
+    await recreateOccupiedDoorAsStub(ctx, target, systemId, current, side);
+    surviving = {
+      ...target,
+      ...connectionTypePatch(target, side, null),
+      ...clearOccupiedDestinationNote(side),
     };
   }
   // Carry human-entered stub knowledge onto the resolved row before the stub
   // document dies — inference must not erase a person's mass/size/lifetime.
-  const knowledge = linkKnowledgePatch(source, target, side);
+  const knowledge = linkKnowledgePatch(source, surviving, side);
   const attached = {
     ...(side === 'from'
       ? { fromSignatureId: signatureId }
       : { toSignatureId: signatureId }),
+    ...(current !== undefined ? clearOccupiedDestinationNote(side) : {}),
     ...knowledge,
   };
   const leftover = await leftoverOriginStubAbsorb(
     ctx,
-    { ...target, ...attached },
+    { ...surviving, ...attached },
     source._id,
     side,
   );
@@ -1078,9 +1152,9 @@ async function applyLinkDeduction(
 }
 
 /**
- * When the opposite door still has no signature, fold in the unique leftover
- * stub on that system so both scanners share one row. Returns the leftover
- * patch so the caller can write the surviving row once.
+ * When the other system's mouth still has no scanner ID, fold in the unique
+ * leftover stub in that system so both scanners share one hallway. Returns
+ * the leftover patch so the caller can write the surviving row once.
  */
 async function leftoverOriginStubAbsorb(
   ctx: MutationCtx,
@@ -1121,9 +1195,9 @@ async function leftoverOriginStubAbsorb(
 }
 
 /**
- * Entrance on the inbound door fills this door as K162. Otherwise the stub
- * type is written on the attached door. Never invents an entrance. Also
- * copies only unset hallway facts from the dying stub.
+ * A named type on the other mouth fills this mouth as K162. Otherwise the
+ * stub type is written on the attached mouth. Never invents a named type.
+ * Also copies only unset hallway facts from the dying stub.
  */
 function linkKnowledgePatch(
   source: Doc<'mapConnections'>,
@@ -1136,7 +1210,7 @@ function linkKnowledgePatch(
   };
 }
 
-/** Keep a mismatched typed Leads-to on the face being attached. */
+/** Keep a mismatched typed Leads-to on the mouth being attached. */
 function leadsNotePatch(
   surviving: Doc<'mapConnections'>,
   stubTyped: number | undefined,
@@ -1212,10 +1286,11 @@ export const applyEliminationDeductions = internalMutation({
 });
 
 /**
- * Attaches one unresolved scanned stub to a known inbound line the operator
- * picked in Leads to. Reuses the elimination link writer so mass, size, and
- * lifetime carry the same way a deduced link would — without inferring which
- * K162 is the way home.
+ * Attaches one unresolved scanned stub to a known incoming hallway the
+ * operator picked in Leads to. Reuses the elimination link writer so mass,
+ * size, and lifetime carry the same way a deduced link would — without
+ * inferring which K162 is incoming from that system. A human pick may
+ * replace an occupied mouth and restore the previous signature as a stub.
  */
 export const linkStubToResolvedConnection = mutation({
   args: {
@@ -1242,6 +1317,7 @@ export const linkStubToResolvedConnection = mutation({
       stub.fromSystemId,
       signatureId,
       stub.wormholeTypeCode ?? null,
+      true,
     );
     if (outcome.outcome !== 'applied' && outcome.outcome !== 'unchanged') {
       throw new ConvexError({

@@ -55,6 +55,15 @@ exceptions.
 Always use existing primitives and configuration. Extract shared code only for
 a real second consumer.
 
+## Atlas wormhole language
+
+When discussing Atlas connections, use the glossary at the top of
+`src/data/maps/connection-door-types.ts`. Talk about a system (and its class
+when it matters), the wormholes in that system, outgoing named holes vs
+incoming K162s. Example: jump a P060, land in a C1, the way back is the K162.
+Do not call systems origin or far side. Stored `from`/`to` are document ends,
+not incoming vs outgoing.
+
 ## Delivery and authorization
 
 All changes ship through PRs to `main`, the only automatic deployment target.

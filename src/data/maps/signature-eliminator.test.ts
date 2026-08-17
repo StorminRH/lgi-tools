@@ -189,6 +189,88 @@ const INFERENCE_CASES = [
     expected: { deductions: [], quiet: true },
   },
   {
+    name: 'a typed K162 stays quiet while other scanner holes are still unidentified',
+    input: input({
+      staticTypeCodes: ['B274'],
+      signatures: [
+        signature('AAA-111', {
+          wormholeTypeCode: 'K162',
+          typeProvenance: 'human',
+        }),
+        signature('BBB-222'),
+        signature('CCC-333'),
+      ],
+      connections: [
+        connection('inbound', {
+          wormholeTypeCode: 'K162',
+          linkedSignature: false,
+        }),
+      ],
+    }),
+    expected: { deductions: [], quiet: true },
+  },
+  {
+    name: 'a uniquely attributable K162 links onto the typed inbound',
+    input: input({
+      signatures: [
+        signature('AAA-111', {
+          wormholeTypeCode: 'K162',
+          typeProvenance: 'human',
+        }),
+      ],
+      connections: [
+        connection('inbound', {
+          wormholeTypeCode: 'K162',
+          linkedSignature: false,
+        }),
+      ],
+    }),
+    expected: {
+      deductions: [
+        {
+          signatureId: 'AAA-111',
+          connectionId: 'inbound',
+          provenance: 'assumed',
+          expectedTypeCode: 'K162',
+        },
+      ],
+      quiet: false,
+    },
+  },
+  {
+    name: 'a typed K162 links once every other scanner hole already has a type',
+    input: input({
+      staticTypeCodes: ['B274'],
+      signatures: [
+        signature('AAA-111', {
+          wormholeTypeCode: 'K162',
+          typeProvenance: 'human',
+        }),
+        signature('BBB-222', {
+          wormholeTypeCode: 'B274',
+          typeProvenance: 'human',
+        }),
+      ],
+      connections: [
+        connection('inbound', {
+          wormholeTypeCode: 'K162',
+          linkedSignature: false,
+        }),
+      ],
+    }),
+    expected: {
+      deductions: [
+        {
+          signatureId: 'AAA-111',
+          connectionId: 'inbound',
+          provenance: 'assumed',
+          expectedTypeCode: 'K162',
+        },
+      ],
+      quiet: false,
+    },
+  },
+  {
     name: 'an unidentified signature does not last-slot onto the sig-less inbound',
     input: input({
       signatures: [signature('AAA-111')],

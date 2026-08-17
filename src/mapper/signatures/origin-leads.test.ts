@@ -33,4 +33,20 @@ describe('originLeadOptions', () => {
       originLeadOptions({ ...STUB, toSystemId: 31_000_002 }, [inbound], null),
     ).toEqual([]);
   });
+
+  it('still labels an occupied inbound for a different unresolved stub', () => {
+    const occupied = {
+      connectionId: 'inbound' as Id<'mapConnections'>,
+      fromSystemId: 31_000_002,
+      toSystemId: 31_000_001,
+      fromSignatureId: null,
+      toSignatureId: 'ABC-123',
+      deletedAt: null,
+    };
+    expect(originLeadOptions(STUB, [occupied], null)).toEqual([{
+      connectionId: 'inbound',
+      systemId: 31_000_002,
+      label: '31000002',
+    }]);
+  });
 });
