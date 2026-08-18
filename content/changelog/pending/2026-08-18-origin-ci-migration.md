@@ -4,4 +4,4 @@ source: stormin/origin-ci-migration-4df8
 ---
 
 #### Changed
-- Updated the Origin / Depot migration plan: Vercel previews replace local dev in most cases, feature work lands on a long-standing beta branch, GitHub is manual bot review only, and site feedback plus daily Cloud Agents move off GitHub after a tracker pick.
+- Updated the Origin / Depot migration plan: Vercel previews replace local dev, ephemeral Neon/Convex pairs tear down after proof, beta keeps one cheaper pair, Linear is the issue board, and GrokBots keep draft PRs for test-cleanup and refactor.

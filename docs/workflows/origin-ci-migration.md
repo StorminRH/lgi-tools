@@ -22,8 +22,9 @@ happen on the stack you will keep.
   replace laptop `pnpm dev` in most cases. Feature work lands on a
   long-standing `beta` branch. GitHub’s only job is a manual bot review
   of that beta before it goes to `main`. Production is a manual deploy.
-  Issues (site feedback, daily GrokBots, backlog) leave GitHub for a
-  Cursor-native tracker once one is chosen.
+  Issues (site feedback, update-watch, refactor process, backlog)
+  leave GitHub for Linear. GrokBots keep their draft-PR homes for
+  test-cleanup and refactor.
 - **DONE =** SC-1 through SC-10 below, plus: Origin-hosted repo, Depot
   Checks, preview-as-dev process, `beta` integration branch, GitHub
   bots manual-only on the beta dump, tracker + feedback + GrokBots
@@ -35,8 +36,8 @@ happen on the stack you will keep.
   - Buildkite native pipelines, Depot Mac runners, Depot Agent
     sandboxes.
   - Rewriting completed 4.0 as-builts or the Greptile devlog.
-  - Picking Linear (or a peer) in this plan PR — OW-14 explores; the
-    operator chooses.
+  - Implementing Linear or GrokBot retargets in this plan PR — OW-14
+    proves the connectors; OW-15/16 do the cut.
 
 <hard_constraints>
 
@@ -82,16 +83,20 @@ happen on the stack you will keep.
   `beta` → `main`. They are not the merge gate and must not run on
   every Origin PR.
 - **Plan:** Durable `beta` must not use Neon’s `preview/` prefix
-  (3-day TTL). Ephemeral PR previews may use `preview/*` and should be
-  treated as short-lived. Convex beta is a prod-type extra deployment.
-  Do not put a Production `CONVEX_DEPLOY_KEY` on Preview. Do not store
+  (`neon.ts` gives those a 3-day TTL). Ephemeral feature previews use
+  `preview/*` and are torn down (Neon branch + Convex preview
+  deployment) after the feature is proven. Convex beta is one
+  prod-type extra deployment, left up. Do not put a Production
+  `CONVEX_DEPLOY_KEY` on Preview. Do not store
   `NEXT_PUBLIC_CONVEX_URL` / `CONVEX_DEPLOYMENT` on Vercel Preview.
   Beta Convex `SITE_URL` / issuer must be the beta origin, not
   `lgi.tools`.
-- **Plan:** Origin has no issue tracker (repos, PRs, browse, apps).
+- **Plan:** Origin has no issue tracker. Linear is the intended home
+  (Cursor app, Cloud Agents, and GrokBots all have Linear connectors).
   Do not migrate `createFeedbackGithubIssue`, update-watch, close-out
-  `[Backlog]`, or GrokBot standing issues until OW-14 picks a home and
-  proves Cloud Agents can read/write it against an Origin repo.
+  `[Backlog]`, or the refactor process issue until OW-14 proves those
+  connectors against the Origin repo. Test-cleanup is a draft PR, not
+  an issue — do not invent an issue for it.
 - **Plan:** Delete `poll_pr_gate.py` and `merge_clean_pr.py` as a pair,
   only after a named replacement merge command exists. Keep
   `github_api.py`, `scrub_pr_body.py`, `repair_gh_auth.py` while any
@@ -108,9 +113,13 @@ happen on the stack you will keep.
 - **Plan:** Agents must not visually approve UX. After CI `e2e` exists,
   `ux-check` is operator visual on a Preview URL (or laptop when you
   choose) plus diagnosis.
-- **Plan:** Do not point `delete-neon-branch` at durable `beta`. Do not
-  claim signed-in Atlas on an ephemeral `*.vercel.app` preview without
-  a pre-registered EVE SSO callback.
+- **Plan:** Do not point `delete-neon-branch` at durable `beta`. Tear
+  down ephemeral Convex backends on purpose (Vercel ending a Preview
+  does not delete Convex; official cleanup is 5/14-day expiry,
+  dashboard delete, or Management API). Convex has no scale-to-zero;
+  pause exists but storage still bills. Do not claim signed-in Atlas
+  on an ephemeral `*.vercel.app` preview without a pre-registered EVE
+  SSO callback.
 - **Plan:** This Cloud Agent workspace cannot see Origin or Depot
   (GitHub remote, Origin CLI not logged in, no Depot CLI). Operator
   login and first Origin/Depot/Vercel proof happen on a machine they
@@ -134,7 +143,7 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 - `.cursor/skills/close-out/SKILL.md` — live Greptile 5/5 + wait-prod
 - `.cursor/skills/start-session/SKILL.md` — first isolated skill visit
 - `src/features/feedback/create-github-issue.ts` — only in-app Issues POST
-- `src/db/neon.ts` — `preview/*` 3-day TTL
+- `neon.ts` — Config-as-Code branch policy (`preview/` TTL + compute)
 - `playwright.config.ts` — always `pnpm dev` + `reuseExistingServer`
 - Official: [Origin](https://cursor.com/docs/origin),
   [Origin integrations](https://cursor.com/docs/origin/integrations),
@@ -152,11 +161,12 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 | Depot CLI | Not present here | No `depot` on this VM or the operator laptop at last check | OW-2 installs CLI where the operator works |
 | Live DoD | `pnpm verify` | AGENTS.md, close-out, CONTRIBUTING | OW-4 flips docs after `verify` is honest on Depot |
 | Live CI | GHA, no real SQL | `.github/workflows/test.yml` skips `*.db.test.ts` | OW-2/OW-3 replace this on Origin |
-| Preview/prod gaps | Known | Convex `deploy` has no `--preview-create`; placeholder AUTH; `SITE_URL` prod-shaped; no `neon config apply` in CI; crons Production-only; shared Upstash | OW-5 / OW-17 write dashboard facts before enabling many previews |
-| Issues | GitHub only | Origin has no issue tracker. 31 open issues on `StorminRH/lgi-tools` | OW-14 picks a home; OW-15/16 migrate writers |
-| Site feedback | GitHub REST | `createFeedbackGithubIssue` POSTs to `StorminRH/lgi-tools` with `GITHUB_FEEDBACK_TOKEN`. 503 if unset; 502 on GitHub failure | Do not retarget until OW-14 |
-| Daily GrokBots | Cloud Agents + standing GitHub issues | Open: [#444 Update watch](https://github.com/StorminRH/lgi-tools/issues/444), [#449 Refactor pass](https://github.com/StorminRH/lgi-tools/issues/449). Test-cleanup standing issue not found by that title in the open list. Skills: `update-watch`, `deslop`. Origin Automations can already point at an Origin repo | OW-16 retargets automations after the tracker exists |
-| Linear (candidate) | Not chosen | Free: $0, 250 issues, 2 teams, API + webhooks, Agent platform. GraphQL `issueCreate`. Cursor can `@cursor` from Linear; repo resolution docs still speak `owner/repo` (GitHub-shaped). Origin Automations are the documented Origin-native agent trigger | OW-14 must prove Origin remotes + issue create before cutting GitHub Issues |
+| Preview/prod gaps | Known | Convex preview key unused; `SITE_URL` prod-shaped; `neon.ts` is never auto-applied; crons Production-only; shared Upstash. Convex cost is the preview concern (no scale-to-zero) | OW-5 / OW-17: ephemeral teardown + one cheap sleeping `beta` |
+| Neon branch policy | In-repo, apply is manual | Repo-root `neon.ts`: `preview/*` gets `ttl: '3d'`, 0.25–1 CU, `suspendTimeout: '1m'`. Other new branches get no TTL and inherit defaults. Existing non-default branches are left alone until `updateExisting` | OW-17 adds a named `beta` arm (no TTL, cheap CU, fast suspend) and applies it |
+| Issues | GitHub only | Origin has no tracker. 31 open issues on `StorminRH/lgi-tools` | OW-14 proves Linear; OW-15 migrates feedback |
+| Site feedback | GitHub REST | `createFeedbackGithubIssue` POSTs to `StorminRH/lgi-tools` with `GITHUB_FEEDBACK_TOKEN` | Do not retarget until OW-14 |
+| Daily GrokBots | Schedule runners | They run on a schedule. When they need to write code they spawn a Cloud Agent in the build environment. **Update watch:** GrokBot itself files an issue (no Cloud Agent). **Refactor:** standing issue documents the process; work lives as a draft PR the agent updates. **Test cleanup:** draft PR only (rebased/updated daily); not an issue. Live GitHub: [#444](https://github.com/StorminRH/lgi-tools/issues/444), [#449](https://github.com/StorminRH/lgi-tools/issues/449) | OW-16 retargets: Linear for issues the bots file; Origin draft PRs for the two accumulators |
+| Linear | Intended tracker | Free plan + API. Cursor app, Cloud Agents, and GrokBots each have a Linear connector. Linear `@cursor` repo picker is still documented as GitHub-shaped `owner/repo` | OW-14 proves those connectors on the Origin repo; do not hunt a peer unless that proof fails |
 | Depot Developer plan | Purchased intent | Depot CI minutes and results. Unused: Mac runners, Registry, GHA runner minutes, extra-billed Agent sandboxes | Buy Depot CI only |
 | This plan PR | In progress | This file on `stormin/origin-ci-migration-4df8` | This chat only publishes the plan |
 
@@ -165,11 +175,12 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 You want to stop treating the laptop as the app and GitHub as the forge.
 Origin plus Depot plus Vercel-on-Origin can be the daily loop: CI on
 the PR, click the Preview, merge into `beta`, and only touch GitHub
-when bots should look at a release candidate. Issues and the three
-daily Cloud Agents still live on GitHub; Origin cannot host them, so a
-tracker (Linear is the first Cursor-native free candidate) has to land
-before feedback and GrokBots can leave. Origin and Depot first so
-every later visit uses the remotes you will keep.
+when bots should look at a release candidate. Temporary previews must
+not leave Neon and Convex running; `beta` keeps one cheaper pair.
+Issues that need a board (feedback, update-watch, refactor process)
+move to Linear because the Cursor app, Cloud Agents, and GrokBots
+already have that connector. Origin and Depot first so later visits
+use the remotes you will keep.
 
 ## Scope (the destination)
 
@@ -181,17 +192,21 @@ When the last Ordered work step is done:
   also run `next build` + `assert:routes` and Playwright against
   `next start`.
 - Opening an Origin PR (or pushing a non-`main` branch) creates a
-  Vercel Preview. That URL is the usual place to look at a feature.
-  Laptop `pnpm dev` is optional.
-- Passing feature work merges to Origin `beta`. `beta` may keep a
-  longer-lived preview of accumulated work.
+  Vercel Preview with its own Neon `preview/*` branch and Convex
+  preview deployment. That URL is the usual place to prove a feature.
+  After it is proven, both backends are torn down. Laptop `pnpm dev`
+  is optional.
+- Passing feature work merges to Origin `beta`. `beta` keeps one
+  Neon branch and one Convex deployment — cheaper/sleepier than
+  production — for accumulated testing.
 - When `beta` is ready: dump that SHA to GitHub, **manually** request
   Greptile/CodeRabbit, triage, fix on Origin, confirm Origin CI, merge
   Origin `beta` → Origin `main`, then **manually** deploy production.
 - Vercel no longer watches GitHub.
-- Issues (feedback, update-watch, slop/refactor, test cleanup,
-  `[Backlog]`, triage) live on the chosen tracker. GrokBots / Cloud
-  Agents run against the Origin repo and that tracker.
+- Linear holds issues (feedback, update-watch, refactor process,
+  `[Backlog]`, triage). Test-cleanup and refactor **work** stay draft
+  Origin PRs that GrokBots / spawned Cloud Agents rebase. Update-watch
+  stays issue-only (no Cloud Agent).
 - Each lifecycle skill has been visited in isolation against this
   model.
 
@@ -207,7 +222,7 @@ When the last Ordered work step is done:
 | Lifecycle rewrite | OW-6 through OW-11; one skill (or named pair) per chat |
 | Scripts | OW-12 |
 | Standing docs | OW-13 |
-| Issue tracker | OW-14 explore/pick; OW-15 feedback; OW-16 GrokBots |
+| Linear + GrokBots | OW-14 prove connectors; OW-15 feedback; OW-16 retarget |
 | Manual prod + standing beta | OW-17 |
 | GitHub bots-only | OW-8 writes the dump ritual; OW-17/close-out keep it |
 | This plan only | Current PR. Diff must not flip skills, CI, or `vercel.json` |
@@ -228,10 +243,10 @@ When the last Ordered work step is done:
   when you want speed. **Rejected:** per-PR previews stay off forever
   (overruled leftover).
 - **`vercel.json`:** `main: false` is mandatory. Allowing other
-  branches to deploy (Vercel default once the deny globs come off) is
-  the preview process. Confirm spend and Neon/Convex isolation in OW-5
-  before opening the floodgates; a naming convention is allowed if
-  every-branch previews are too expensive.
+  branches to deploy is the preview process. Convex cost is the
+  limiter (a preview backend does not sleep). A naming convention is
+  allowed if every-branch previews are too expensive. Every ephemeral
+  preview must tear down Neon + Convex after the feature is proven.
 - **Feature integration branch is Origin `beta`.** CI-green Origin PRs
   merge to `beta`, not `main`. `beta` → `main` is a deliberate
   promotion of accumulated work, after bots.
@@ -253,24 +268,46 @@ When the last Ordered work step is done:
   for SQL. Pure `*.test.ts` stays. Real SQL is `*.db.test.ts` on Depot.
 - **Lifecycle: isolated skill visits.** Origin/Depot/preview first so
   those visits use the new remotes, Checks, and Preview URLs.
-- **Issue tracker: not picked in this plan.** Leading candidate is
-  Linear (free, Cursor `@cursor` + MCP, GraphQL `issueCreate`, API on
-  Free). Hard facts for OW-14: Origin has no issues; Linear Free caps
-  at **250 issues** (do not import the whole closed GitHub history);
-  Linear’s Cloud Agent repo picker is still documented as
-  `owner/repo` / default GitHub repo — must prove an Origin remote
-  before cutting over; Cursor **Automations** are the documented way
-  to run Cloud Agents on Origin repos on a schedule (the GrokBot
-  path). Peers are in scope if Linear fails Origin proof.
+- **Linear is the issue board.** Cursor, Cloud Agents, and GrokBots
+  already have Linear connectors. Origin still has no issues. Free
+  cap is **250 issues** — do not import closed GitHub history. OW-14
+  proves the connectors on the Origin repo; hunt a peer only if that
+  proof fails. Linear `@cursor` repo picker is still documented as
+  GitHub-shaped `owner/repo`.
 - **Feedback writer:** keep GitHub until OW-14. Then replace
   `createFeedbackGithubIssue` (raw `fetch`, not Octokit) and the
   `feedback_unconfigured` / `github_failed` codes. Do not add Octokit
   on the way through.
-- **GrokBots:** they are Cursor Cloud Agents, not in-repo cron code.
-  Standing homes found: `#444` Update watch, `#449` Refactor pass.
-  Test-cleanup needs its issue named in OW-16 if it is not one of
-  those. After Origin + tracker: point the three automations at the
-  Origin repo and the new issue IDs.
+- **GrokBots are schedule runners, not the Cloud Agents.** They run
+  the daily jobs. When the job must write code they spawn a Cloud
+  Agent in the build environment.
+  - **Update watch:** GrokBot files/updates a Linear issue. No Cloud
+    Agent. Today `#444`.
+  - **Refactor / slop:** Linear (today `#449`) documents the process.
+    Accumulated work is a **draft PR** the spawned agent updates and
+    rebases.
+  - **Test cleanup:** **draft PR only** (updated/rebased daily). Not
+    an issue. Do not create a tracker ticket for it.
+- **Neon preview vs `beta`:** policy lives in repo-root `neon.ts`.
+  New `preview/*` → 3-day TTL, 0.25–1 CU, suspend in 1 minute. New
+  unnamed branches inherit defaults (no TTL). `beta` gets its own
+  arm: no TTL, cheap CU, short `suspendTimeout` (same cheap-sleep
+  pattern). Apply with `neon config apply` (`updateExisting` for a
+  branch that already exists). Dashboard is fine if the CLI needs a
+  hand. Do not name `beta` `preview/beta`.
+- **Convex preview vs `beta`:** cost is the reason to tear down
+  ephemeral previews. Official Convex has **no scale-to-zero**. Pause
+  stops function/bandwidth charges; storage still bills. Preview-type
+  backends expire 5 days (Free/Starter) or 14 days (paid) from
+  **creation**, not last use — that is a safety net, not the process.
+  Vercel ending a Preview does **not** delete Convex. Tear down with
+  dashboard delete or Management API
+  `POST /deployments/:name/delete`. Use a **preview deploy key** on
+  Vercel Preview so `npx convex deploy` creates `preview/[branch]`.
+  `beta` is `npx convex deployment create beta --type prod` — one
+  durable extra, no expiry. There is no official cheaper/slower
+  Convex SKU for beta; pause when idle if you want to stop function
+  charges. Do not put a prod key on Preview.
 - **Developer plan utilization:** Depot CI minutes and results only.
 - **Cloud Agent / Origin CLI:** browser login on a machine you
   control. Do not paste keys in chat.
@@ -311,6 +348,8 @@ product behavior.
 - `.depot/workflows/` — OW-2, OW-3.
 - `AGENTS.md`, CONTRIBUTING, PR template — OW-4, then OW-13.
 - `vercel.json` + Vercel project git settings — OW-5, OW-17.
+- `neon.ts` — preview TTL/compute and the `beta` cheap-sleep arm
+  (OW-5 / OW-17). Nothing applies until `neon config apply`.
 - `.cursor/skills/start-session/SKILL.md` — OW-6 only.
 - `.cursor/skills/plan-session/SKILL.md` — OW-7 only.
 - `.cursor/skills/close-out/SKILL.md` — OW-8 only.
@@ -351,10 +390,13 @@ Target daily path after OW-5:
 1. Agent works against `https://origin.cursor.com/{owner}/{repo}.git`.
 2. Local gate: `depot ci run --job verify`.
 3. Open an Origin PR. Depot runs the full pipeline. Vercel posts a
-   Preview URL. You (or `ux-check`) use that URL instead of laptop
+   Preview URL backed by Neon `preview/<branch>` and a Convex preview
+   deployment. You (or `ux-check`) use that URL instead of laptop
    `pnpm dev` unless you choose otherwise.
-4. Merge the Origin PR to **`beta`**. The standing `beta` preview
-   updates when you want accumulated work in one place.
+4. After the feature is proven, tear down that Neon branch and that
+   Convex preview. Merge the Origin PR to **`beta`**. The standing
+   `beta` preview (one Neon + one Convex, cheaper/sleepier) updates
+   when you want accumulated work in one place.
 5. Repeat until `beta` should go to production.
 
 When `beta` is ready for `main`:
@@ -365,11 +407,14 @@ When `beta` is ready for `main`:
 7. Merge Origin `beta` → Origin `main`. **Nothing deploys yet.**
 8. `vercel promote` the chosen Preview (usually `beta`) to Production.
 
-Issues (parallel, after OW-14):
+Issues and GrokBots (parallel, after OW-14):
 
-9. Site Feedback button → tracker (not GitHub).
-10. Daily GrokBots comment on / update their standing tracker issues
-    and open Origin PRs.
+9. Site Feedback button → Linear.
+10. Update-watch GrokBot files a Linear issue (no Cloud Agent).
+11. Refactor GrokBot may spawn a Cloud Agent that rebases the draft
+    Origin PR; the Linear issue stays the process note.
+12. Test-cleanup GrokBot may spawn a Cloud Agent that rebases the
+    draft Origin PR. No issue.
 
 ### Edge and failure behavior
 
@@ -380,20 +425,23 @@ Issues (parallel, after OW-14):
 - Vercel still watches GitHub after Origin is linked → two remotes can
   deploy. Disconnect GitHub only after Origin Preview proof, and keep
   `main: false` the whole time.
-- Every-branch previews too expensive or Convex-unsafe → name a branch
-  pattern in OW-5; do not re-disable all previews without a process.
+- Every-branch previews too expensive (Convex does not sleep) → name
+  a branch pattern in OW-5; tear down each ephemeral pair after
+  proof; do not re-disable all previews without a process.
 - Wrong Convex key on Preview → can push **production** Convex. Audit
-  keys before enabling many previews.
+  keys before enabling many previews. Vercel teardown without a
+  Convex delete leaves a billed backend until 5/14-day expiry.
 - EVE SSO → random `*.vercel.app` cannot sign in. Ephemeral previews
   stay anonymous-only until a stable callback exists. Signed-in Atlas
   checks use laptop or the durable `beta` URL once SSO is registered.
-- Linear `@cursor` cannot see the Origin repo → use Origin Automations
-  for the daily jobs; keep Linear as the issue board only, or pick
-  another tracker.
+- Linear `@cursor` cannot see the Origin repo → GrokBots still spawn
+  Cloud Agents in the build environment (Origin-native); Linear stays
+  the issue board. Pick a peer only if the Linear connector proof
+  fails.
 - Linear Free hits 250 issues → archive aggressively; do not import
   closed GitHub history.
-- Test-cleanup standing issue missing from the open-title list → name
-  or create it in OW-16; do not invent a GitHub number here.
+- Do not create a Linear issue for test-cleanup. Its home is the
+  draft PR.
 
 ### Ordered work
 
@@ -428,13 +476,17 @@ Do not implement a later step in an earlier chat.
 5. **Vercel-on-Origin preview process.** Prove one Preview URL from an
    Origin branch or PR (the usual “instead of `pnpm dev`” path). Write
    down dashboard facts: Convex key type per environment, Neon branch
-   names, Hobby vs Pro, whether GitHub is still connected. Then:
-   set `deploymentEnabled.main: false`; enable the preview pattern
-   you choose (all non-`main`, or a named convention); keep deny
-   globs if you are not opening every branch. Disconnect Vercel’s
-   GitHub git integration once Origin Preview is real. Do not enable
+   names, Hobby vs Pro, whether GitHub is still connected. Put a
+   **preview** `CONVEX_DEPLOY_KEY` on Vercel Preview only. Then: set
+   `deploymentEnabled.main: false`; enable the preview pattern you
+   choose; disconnect Vercel’s GitHub git integration once Origin
+   Preview is real. Document the teardown: delete Neon
+   `preview/<branch>` and the Convex preview deployment after the
+   feature is proven (PR-close workflow + Convex API/dashboard; do
+   not wait for 5/14-day expiry as the process). Do not enable
    Production auto-deploy. Do not migrate feedback. Prove: Origin PR
-   shows a Preview URL; a push to `main` does not start Production.
+   shows a Preview URL; `main` does not start Production; teardown
+   leaves no extra Neon/Convex pair.
 
 6. **Isolated visit: `start-session`.** Change only
    `.cursor/skills/start-session/SKILL.md` so resolver, dispatch, “what
@@ -484,38 +536,72 @@ Do not implement a later step in an earlier chat.
     production; Depot is the gate; Preview is the usual look;
     `*.db.test.ts` is a `verify` requirement.
 
-14. **Issue tracker exploration.** Compare Linear (first candidate)
-    and any peer you want against: free for a solo workspace, API
-    create for the feedback button, Cloud Agents / GrokBots can
-    comment and keep a standing issue, Cursor-native enough that you
-    will actually use it, Origin repo as the agent remote. Prove with
-    a written pick (or a documented defer). Do not migrate production
-    feedback in this chat. If Linear: create a workspace, one team,
-    confirm Free 250-issue headroom against the 31 open GitHub issues
-    (do not bulk-import closed history), and prove one Cloud Agent or
-    Automation can work on the Origin repo and write that workspace.
+14. **Linear connector proof.** Create (or reuse) a Linear workspace
+    on the Free plan. Confirm 250-issue headroom against the 31 open
+    GitHub issues (do not bulk-import closed history). Prove the
+    Cursor app, a Cloud Agent in the build environment, and a GrokBot
+    can each read/write that workspace. Point GrokBots at the Origin
+    repo for any spawned agent. Do not migrate production feedback in
+    this chat. Hunt a peer only if a connector cannot see Linear or
+    the spawned agent cannot work on Origin.
 
-15. **Feedback button retarget.** After OW-14 picks a tracker, change
+15. **Feedback button retarget.** After OW-14, change
     `createFeedbackGithubIssue` and its route/env/registry/tests so
-    the site button creates an issue there. Keep server-only raw
-    `fetch` (or the tracker’s official HTTP). Map 503/502 to the new
+    the site button creates a Linear issue. Keep server-only raw
+    `fetch` (GraphQL `issueCreate`). Map 503/502 to the new
     dependency. Prove with a test that the old GitHub URL is gone and
-    a staging submit (or contract test) hits the new API.
+    a staging submit (or contract test) hits Linear.
 
-16. **GrokBot / Cloud Agent homes.** Point the three daily automations
-    (update-watch, test cleanup, refactor/slop) at the Origin repo and
-    the standing issues on the new tracker. Recreate `#444` / `#449`
-    (and the missing test-cleanup home) there. Prove: one scheduled
-    or manual run comments on the new issue and opens or updates an
-    Origin PR, not a GitHub one.
+16. **GrokBot retarget.** Point the three scheduled GrokBots at Origin
+    + Linear, matching how each one actually lives:
+    - Update watch: GrokBot writes the Linear issue (no Cloud Agent).
+    - Refactor: move `#449`’s process note to Linear; keep the
+      accumulating **draft Origin PR**; spawn a Cloud Agent when
+      code must be written.
+    - Test cleanup: keep the accumulating **draft Origin PR**
+      (rebase/update daily); spawn a Cloud Agent when code must be
+      written; **no Linear issue**.
+    Prove each with one scheduled or manual run.
 
-17. **Manual production + standing `beta`.** Create durable Neon
-    (`beta` / `staging`, not `preview/`) and a prod-type Convex extra
-    deployment for the long-lived beta preview. Register EVE SSO on
-    that stable URL only if signed-in Atlas is in scope. Document
-    promote as the only production path. Prove: `beta` Preview stays
-    up; Origin `main` does not auto-deploy; `vercel promote` is the
-    documented prod action.
+17. **Manual production + standing `beta`.** In `neon.ts`, add a
+    named `beta` arm: no `ttl`, cheap CU (0.25–1), short
+    `suspendTimeout` (1m or 5m). Create the Neon branch as `beta`
+    (not `preview/beta`). `neon config apply` with `updateExisting`
+    (today’s `if (branch.exists) return {}` would skip it). Create
+    one Convex `npx convex deployment create beta --type prod`.
+    Register EVE SSO on that stable URL only if signed-in Atlas is
+    in scope. Document promote as the only production path. Prove:
+    `beta` Preview stays up on the cheap pair; ephemeral pairs are
+    gone after teardown; Origin `main` does not auto-deploy.
+
+### Preview backends (Neon + Convex)
+
+Two classes. Do not mix their names or teardown.
+
+**Ephemeral (prove a feature, then delete)**
+
+| | Neon | Convex |
+| --- | --- | --- |
+| Name | `preview/<git-branch>` (Vercel ↔ Neon integration) | `preview/[branch]` via **preview** deploy key |
+| Cost guard in-repo | `neon.ts`: `ttl: '3d'`, 0.25–1 CU, `suspendTimeout: '1m'` | None. No sleep / scale-to-zero. Pause is manual; storage still bills. Expiry 5d or 14d from **create** is a safety net |
+| Teardown | PR-close `delete-neon-branch` (today GitHub-only) or `neon branches delete`; then `neon config apply` so TTL is real | Dashboard delete or `POST /deployments/:name/delete`. Vercel ending the Preview does **not** delete this |
+| Process | Tear down after the feature is proven. Do not wait for TTL | Same. Do not wait for 5/14-day expiry |
+
+`neon.ts` does nothing until someone runs `neon config apply`. The Vercel
+integration creates the branch; apply only tunes it. Existing
+non-default branches are skipped unless `updateExisting`.
+
+**Standing `beta` (slower/cheaper than prod, left up)**
+
+| | Neon | Convex |
+| --- | --- | --- |
+| Name | `beta` (never `preview/beta`) | `npx convex deployment create beta --type prod` |
+| Cost | Named arm in `neon.ts`: no TTL, 0.25–1 CU, short suspend (1m or 5m). You already know Neon will sleep | No cheaper SKU. Official options: leave it (serverless function compute is unbilled on S-class); **pause** when you will not use it (function/bandwidth stop, storage continues) |
+| Teardown | Do not. Do not point `delete-neon-branch` here | Do not. Prod-type extras do not expire |
+
+Convex is the preview cost worry: each ephemeral backend is a full
+deployment until you delete it. Neon will idle in a minute once
+`neon.ts` is applied.
 
 ### Job recipes (for OW-2 and OW-3)
 
@@ -579,8 +665,9 @@ repo Playwright version. Upload failure artifacts only.
 2. Open one draft Origin PR. Scrub the body.
 3. Wait: `origin pr checks --watch`.
 4. Use the Vercel Preview URL (laptop `pnpm dev` only if you choose).
-5. Origin review. Merge to Origin `beta`. Stop. Do not promote.
-   Do not dump to GitHub. Do not request bots.
+5. Origin review. Tear down the feature Preview’s Neon `preview/*`
+   branch and Convex preview deployment. Merge to Origin `beta`.
+   Stop. Do not promote. Do not dump to GitHub. Do not request bots.
 
 ## 6. Take beta to main (bots + merge)
 
@@ -606,15 +693,16 @@ Product path today (only in-app create):
 `https://api.github.com/repos/StorminRH/lgi-tools/issues`
 (`GITHUB_FEEDBACK_TOKEN`, labels `bug` / `enhancement` only).
 
-Also GitHub-shaped, skill-owned:
+Also GitHub-shaped today, skill- or GrokBot-owned:
 
-- `update-watch` creates `Update watch — YYYY-MM-DD` (or reuses
-  standing `#444`).
+- Update-watch GrokBot creates `Update watch — YYYY-MM-DD` (or
+  standing `#444`). No Cloud Agent.
+- Refactor GrokBot: `#449` is the process note; work is a draft PR.
+- Test-cleanup GrokBot: draft PR only.
 - `close-out` can open `[Backlog] …`.
 - `triage-issue` comments/labels/closes.
-- GrokBots keep `#444` and `#449` (and the test-cleanup home).
 
-Linear create shape if OW-14 picks it (do not implement here):
+Linear create shape (OW-15, do not implement here):
 
 ```graphql
 mutation IssueCreate {
@@ -677,6 +765,7 @@ Name the replacement merge command in OW-8 first.
   | --- | --- | --- |
   | `SC-5.1` | Origin PR / branch | Vercel Preview URL is posted |
   | `SC-5.2` | Vercel project git settings + `vercel.json` | Connected repo is Origin; `main: false`; GitHub git disconnected |
+  | `SC-5.3` | After feature proof | Neon `preview/<branch>` gone; Convex preview deployment deleted (not merely expired) |
 
 - **SC-6 — Each named skill was visited in isolation.**
 
@@ -691,20 +780,21 @@ Name the replacement merge command in OW-8 first.
   | --- | --- | --- |
   | `SC-7.1` | `rg poll_pr_gate\\|merge_clean_pr` | No callers; both files gone |
 
-- **SC-8 — Tracker + feedback + GrokBots left GitHub.**
+- **SC-8 — Linear + GrokBots left GitHub Issues (except the bot dump).**
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
-  | `SC-8.1` | OW-14 note | Named tracker (or documented defer) |
+  | `SC-8.1` | OW-14 | Cursor app, one Cloud Agent, and one GrokBot can read/write Linear |
   | `SC-8.2` | Read `create-github-issue.ts` / successor after OW-15 | No `api.github.com/repos/StorminRH/lgi-tools/issues` POST |
-  | `SC-8.3` | Automation settings after OW-16 | Three daily jobs target Origin + the new standing issues |
+  | `SC-8.3` | After OW-16 | Update-watch writes Linear (no Cloud Agent); refactor has Linear process note + Origin draft PR; test-cleanup is Origin draft PR only |
 
 - **SC-9 — `beta` → `main` is manual prod.**
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
-  | `SC-9.1` | `vercel.json` + dashboard after OW-17 | `main: false`; durable Neon not `preview/`; Convex beta is prod-type |
-  | `SC-9.2` | Close-out + one dry-run | Promote is the documented prod action |
+  | `SC-9.1` | `neon.ts` + apply after OW-17 | `beta` has no TTL, cheap CU, short suspend; name is not `preview/` |
+  | `SC-9.2` | Convex dashboard | One prod-type extra named `beta`; Preview env uses a preview key |
+  | `SC-9.3` | Close-out + one dry-run | Promote is the documented prod action |
 
 - **SC-10 — This plan PR stayed documentation-only.**
 
