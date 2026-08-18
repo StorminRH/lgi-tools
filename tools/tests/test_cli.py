@@ -17,8 +17,7 @@ class CliTests(unittest.TestCase):
     def test_help_lists_public_groups(self) -> None:
         text = cli.usage()
         self.assertIn("lifecycle resolve", text)
-        self.assertIn("policy check", text)
-        self.assertIn("policy check-all", text)
+        self.assertIn("quality check-baseline", text)
         self.assertIn("update-watch collector", text)
 
     def test_unknown_command_is_usage_error(self) -> None:
@@ -27,13 +26,13 @@ class CliTests(unittest.TestCase):
 
     def test_command_dispatches_module_with_remaining_arguments(self) -> None:
         with patch("tools.cli.subprocess.call", return_value=7) as call:
-            result = cli.main(["policy", "check-doc-refs", "--check"])
+            result = cli.main(["quality", "check-env-example", "--check"])
         self.assertEqual(7, result)
         self.assertEqual(
             [
                 cli.sys.executable,
                 "-m",
-                "tools.policy.check_doc_refs",
+                "tools.quality.check_env_example",
                 "--check",
             ],
             call.call_args.args[0],

@@ -37,15 +37,15 @@ yarn-error.log*
 # vercel
 .vercel
 
-# local agent state (never tracked)
-/.agents/
-/.claude/skills/
+# machine-local agent state (never tracked)
+/.agents/local-only/
+/.claude/skills/local-only/
 .claude/settings.local.json
 .claude/launch.json
 .claude/worktrees/
-/.cursor/agents/
-/.codex/agents/
-/.codex/skills/
+/.cursor/agents/local-only/
+/.codex/agents/local-only/
+/.codex/skills/local-only/
 .local/agent/
 docs/ux-check/captures/
 docs/ux-check/profiles/

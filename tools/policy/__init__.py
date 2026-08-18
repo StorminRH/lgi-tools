@@ -1,1 +1,1 @@
-"""Repository-owned agent policy checks."""
+"""Lifecycle policy manifest for the resolver and document-format checks."""

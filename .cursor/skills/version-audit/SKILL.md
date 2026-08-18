@@ -122,7 +122,7 @@ Clean version close:
    plans, session-as-builts, and audit plan as one version bundle;
 5. keep `docs/CODE_HEALTH_BASELINE.md` active;
 6. report the next master-plan handoff or `awaiting master plan` in chat;
-7. run workflow-state resolver and `python3 tools/cli.py policy check`.
+7. run workflow-state resolver and `python3 tools/cli.py lifecycle check-evidence`.
 
 Never archive before baseline replacement is verified.
 

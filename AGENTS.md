@@ -118,9 +118,9 @@ still live in the README/`package.json`. Non-obvious caveats:
   and Cursor Team Kit live here too: `thermos`, `thermo-nuclear-review`,
   `thermo-nuclear-code-quality-review`, and `deslop`. Thermos owns the
   quality-review skill; do not keep a Team Kit duplicate.
-- **Custom subagents live in `tools/cursor-runtime/agents/`.** `.cursor/agents/`
-  is a forbidden in-repo path. `.cursor/start.sh` mirrors those files into
-  `~/.cursor/agents/` on every boot so Task can launch them by name.
+- **Custom subagents live in `.cursor/agents/`.** `.cursor/start.sh` mirrors
+  those files into `~/.cursor/agents/` on every boot so Task can launch them
+  by name.
 - **Playwright Chromium is installed by `.cursor/install.sh`.** Use
   `http://localhost:3000` (the `next-dev` terminal). Seed auth with
   `pnpm e2e:seed` on this VM; do not upload `auth-storage.json` or cookie jars.
