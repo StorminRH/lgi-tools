@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import json
 import re
 import sys
 
@@ -26,6 +27,7 @@ from tools.lifecycle.resolve_development_state import (
 
 
 _AF_ID = re.compile(r"AF-\d{3}")
+_POLICY_MANIFEST = Path("tools/policy/policy-manifest.json")
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,62 @@ class _BaselineEvidence:
 def _relative(root: Path, path: Path) -> str:
     """Return a stable repo-relative path for a finding."""
     return path.relative_to(root).as_posix()
+
+
+def _procedure_policy_findings(root: Path) -> list[Finding]:
+    """Check lifecycle schema files for required section wording."""
+    manifest_path = root / _POLICY_MANIFEST
+    if not manifest_path.is_file():
+        return []
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [
+            Finding(
+                _POLICY_MANIFEST.as_posix(),
+                1,
+                f"invalid JSON: {exc}",
+                "error",
+            )
+        ]
+    policies = manifest.get("procedurePolicies", {})
+    if not policies:
+        return []
+    if not isinstance(policies, dict):
+        return [
+            Finding(
+                _POLICY_MANIFEST.as_posix(),
+                1,
+                "procedurePolicies must be an object",
+                "error",
+            )
+        ]
+
+    findings: list[Finding] = []
+    for raw_path, raw_policy in policies.items():
+        path = root / str(raw_path)
+        if not path.is_file():
+            findings.append(
+                Finding(str(raw_path), 1, "missing procedure policy target", "error")
+            )
+            continue
+        text = path.read_text(encoding="utf-8")
+        policy = raw_policy if isinstance(raw_policy, dict) else {}
+        position = -1
+        for pattern in policy.get("orderedRequired", []):
+            match = re.search(str(pattern), text[position + 1 :], flags=re.IGNORECASE)
+            if match is None:
+                findings.append(
+                    Finding(
+                        str(raw_path),
+                        1,
+                        f"missing ordered policy `{pattern}`",
+                        "error",
+                    )
+                )
+                continue
+            position += match.end()
+    return findings
 
 
 def _parse_baseline(path: Path) -> _BaselineEvidence:
@@ -271,16 +329,18 @@ def _audit_roadmap_findings(
 
 def collect_findings(root: Path) -> list[Finding]:
     """Collect every cross-artifact contradiction and snapshot-timing warning."""
+    findings = _procedure_policy_findings(root)
     roadmap, version, rows, roadmap_errors = _active_roadmap(root)
     if roadmap is None or version is None:
-        return [
+        findings.extend(
             Finding("docs", 1, error, "error")
             for error in roadmap_errors
-        ]
+        )
+        return findings
 
     contract_index = root / "docs/session-contracts" / version / "INDEX.md"
     baseline_path = root / "docs/CODE_HEALTH_BASELINE.md"
-    findings = _execution_evidence_findings(root, roadmap, rows, contract_index)
+    findings.extend(_execution_evidence_findings(root, roadmap, rows, contract_index))
     if not baseline_path.is_file():
         findings.append(
             Finding(

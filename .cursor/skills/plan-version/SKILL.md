@@ -76,7 +76,7 @@ implementation plans here.
 5. Reconcile stale unexecuted contracts and index entries next.
 6. Create one schema-complete contract per approved bundle last. A contract may
    cover several roadmap sections and must include the execution frame.
-7. Run `python3 tools/cli.py policy check` and `python3 tools/cli.py test`, rerun
+7. Run `python3 tools/cli.py lifecycle check-evidence` and `python3 tools/cli.py test`, rerun
    the resolver, report the new directive, and stop. Material topology or
    contract changes require renewed approval.
 

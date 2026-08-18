@@ -187,6 +187,31 @@ class LifecycleEvidenceTests(unittest.TestCase):
         self.assertEqual(("docs/version-audits/9.9/PLAN.md", 5), (finding.path, finding.line))
         self.assertEqual("warn", finding.severity)
 
+    def test_procedure_policies_require_ordered_schema_wording(self) -> None:
+        schema = self.fixture.docs / "workflows/schema/session-plan.md"
+        schema.parent.mkdir(parents=True)
+        schema.write_text("Freeze\nLaunch\n", encoding="utf-8")
+        manifest = self.fixture.root / "tools/policy/policy-manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "developmentState": {"legacySchemaArtifacts": []},
+                    "procedurePolicies": {
+                        "docs/workflows/schema/session-plan.md": {
+                            "orderedRequired": ["Launch", "Freeze"]
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        finding = self.matching("missing ordered policy `Freeze`")
+        self.assertEqual(
+            ("docs/workflows/schema/session-plan.md", 1),
+            (finding.path, finding.line),
+        )
+        self.assertEqual("error", finding.severity)
+
 
 if __name__ == "__main__":
     unittest.main()
