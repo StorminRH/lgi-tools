@@ -209,6 +209,7 @@ describe('allowUnconfiguredUpstash', () => {
   it('allows the local/CI sidecar under production next start', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('VERCEL_ENV', '');
     const { allowUnconfiguredUpstash } = await importUpstash();
     expect(allowUnconfiguredUpstash()).toBe(true);
   });
@@ -216,6 +217,15 @@ describe('allowUnconfiguredUpstash', () => {
   it('stays fail-closed for a production deploy without the sidecar driver', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('LOCAL_DB_DRIVER', '');
+    vi.stubEnv('VERCEL_ENV', '');
+    const { allowUnconfiguredUpstash } = await importUpstash();
+    expect(allowUnconfiguredUpstash()).toBe(false);
+  });
+
+  it('stays fail-closed on Vercel even when the sidecar driver is set', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('VERCEL_ENV', 'production');
     const { allowUnconfiguredUpstash } = await importUpstash();
     expect(allowUnconfiguredUpstash()).toBe(false);
   });
