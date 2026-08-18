@@ -153,12 +153,27 @@ describe('rateLimit', () => {
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('LOCAL_DB_DRIVER', '');
     vi.stubEnv('NODE_ENV', 'production');
 
     const { rateLimit } = await importHelper();
     await expect(
       rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 }),
     ).rejects.toThrow(/UPSTASH_REDIS_REST_URL|KV_REST_API_URL/);
+  });
+
+  it('bypasses the limiter on the local/CI sidecar under production next start', async () => {
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const { rateLimit } = await importHelper();
+    const result = await rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 });
+    expect(result.ok).toBe(true);
+    expect(limitMock).not.toHaveBeenCalled();
   });
 
   it('reads KV_REST_API_URL / KV_REST_API_TOKEN (Vercel marketplace naming)', async () => {

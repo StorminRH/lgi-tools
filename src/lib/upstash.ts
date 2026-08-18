@@ -25,6 +25,16 @@ export function resolveUpstashRest(): { url: string; token: string } | null {
   return url && token ? { url, token } : null;
 }
 
+/**
+ * Missing Upstash may degrade in dev/test, and on the local/CI TCP sidecar
+ * (`LOCAL_DB_DRIVER=postgres-js` + `next start`). Vercel production never
+ * sets that driver, so a misconfigured deploy still fails closed.
+ */
+export function allowUnconfiguredUpstash(): boolean {
+  if (process.env.NODE_ENV !== 'production') return true;
+  return readEnv('LOCAL_DB_DRIVER') === 'postgres-js';
+}
+
 /** Upstash Redis client type, re-exported so wrapper consumers never import the vendor package. */
 export type UpstashRedis = Redis;
 
