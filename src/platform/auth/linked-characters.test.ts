@@ -106,12 +106,10 @@ describe('listLinkedCharacters', () => {
 });
 
 describe('resolveActiveCharacter', () => {
-  it('returns null when no linked accounts remain', async () => {
+  it('keeps, falls back, backfills, and clears when nothing is linked', async () => {
     await expect(resolveActiveCharacter('user-1', 90000001)).resolves.toBeNull();
     expect(updateWhere).not.toHaveBeenCalled();
-  });
 
-  it('keeps the preferred character when it is still linked', async () => {
     linkedRows = [
       {
         accountId: '90000001',
@@ -134,38 +132,22 @@ describe('resolveActiveCharacter', () => {
         affiliationRefreshedAt: null,
       },
     ];
-
     await expect(resolveActiveCharacter('user-1', 90000002)).resolves.toEqual({
       characterId: 90000002,
       name: 'Preferred',
       portraitUrl: 'https://img/2',
     });
     expect(updateWhere).not.toHaveBeenCalled();
-  });
 
-  it('falls back to the oldest linked character and backfills a stale preferred id', async () => {
-    linkedRows = [
-      {
-        accountId: '90000001',
-        scope: null,
-        refreshToken: null,
-        createdAt: LINKED_AT,
-        name: 'Oldest',
-        portraitUrl: 'https://img/1',
-        corporationId: null,
-        affiliationRefreshedAt: null,
-      },
-    ];
-
+    linkedRows = [linkedRows[0]!];
     await expect(resolveActiveCharacter('user-1', 90000099)).resolves.toEqual({
       characterId: 90000001,
       name: 'Oldest',
       portraitUrl: 'https://img/1',
     });
     expect(updateWhere).toHaveBeenCalled();
-  });
 
-  it('uses the oldest linked character when no preferred id is set', async () => {
+    updateWhere.mockClear();
     linkedRows = [
       {
         accountId: '90000001',
@@ -178,7 +160,6 @@ describe('resolveActiveCharacter', () => {
         affiliationRefreshedAt: null,
       },
     ];
-
     await expect(resolveActiveCharacter('user-1', null)).resolves.toEqual({
       characterId: 90000001,
       name: null,

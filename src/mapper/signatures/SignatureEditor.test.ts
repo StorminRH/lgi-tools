@@ -97,7 +97,7 @@ it('parks one titled scanner-anchored window without resolution chrome', () => {
   }
 });
 
-it('editorLeader brackets the row, clamps landing, offsets origin, and refuses collapsed or mislaid panels', () => {
+it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when boxes exist', () => {
   const origin = { left: 0, top: 0 };
   const panel = { left: 200, right: 480, top: 40, bottom: 400 };
 
@@ -176,9 +176,7 @@ it('editorLeader brackets the row, clamps landing, offsets origin, and refuses c
       clip,
     }),
   ).toBeNull();
-});
 
-it('measureEditorLeader returns null without boxes and delegates when all three exist', () => {
   expect(measureEditorLeader(null, null, null)).toBeNull();
   const box = (rect: {
     left: number;
@@ -189,13 +187,16 @@ it('measureEditorLeader returns null without boxes and delegates when all three 
     getBoundingClientRect: () => rect as DOMRect,
   });
   const layer = box({ left: 0, right: 800, top: 0, bottom: 600 });
-  const panel = box({ left: 200, right: 480, top: 40, bottom: 400 });
+  const panelEl = box({ left: 200, right: 480, top: 40, bottom: 400 });
   const row = {
     ...box({ left: 10, right: 180, top: 100, bottom: 128 }),
     closest: () => null,
   };
-  const leader = measureEditorLeader(layer, panel, row);
-  expect(leader?.bracket).toEqual({ x: 183, top: 100, bottom: 128 });
+  expect(measureEditorLeader(layer, panelEl, row)?.bracket).toEqual({
+    x: 183,
+    top: 100,
+    bottom: 128,
+  });
   const selectors: string[] = [];
   const clippedRow = {
     ...box({ left: 10, right: 180, top: 60, bottom: 120 }),
@@ -204,7 +205,7 @@ it('measureEditorLeader returns null without boxes and delegates when all three 
       return box({ left: 0, right: 200, top: 80, bottom: 200 });
     },
   };
-  expect(measureEditorLeader(layer, panel, clippedRow)?.bracket).toEqual({
+  expect(measureEditorLeader(layer, panelEl, clippedRow)?.bracket).toEqual({
     x: 183,
     top: 80,
     bottom: 120,

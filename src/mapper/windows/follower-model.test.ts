@@ -51,91 +51,76 @@ function cardElement(size = NODE_CARD_FALLBACK): HTMLElement {
 }
 
 describe('placeAnchoredCard', () => {
-  it('flips left when the anchor is on the right half and keeps viewport padding', () => {
-    const placed = placeAnchoredCard({
+  it('flips around the disc, sticks across the midline, and clamps into the padded viewport', () => {
+    const card = { width: 288, height: 208 };
+    const viewport = { width: 800, height: 600 };
+
+    const left = placeAnchoredCard({
       anchor: { x: 700, y: 300 },
-      card: { width: 288, height: 208 },
-      viewport: { width: 800, height: 600 },
+      card,
+      viewport,
     });
-    expect(placed.side).toBe('left');
-    expect(placed.left).toBe(700 - 40 - 288);
-    expect(placed.top).toBe(300 - 208 / 2);
-    expect(placed.leader).not.toBeNull();
-    expect(placed.lift).toBe('up');
-    expect(placed.leader).toEqual({
+    expect(left.side).toBe('left');
+    expect(left.left).toBe(700 - 40 - 288);
+    expect(left.top).toBe(300 - 208 / 2);
+    expect(left.lift).toBe('up');
+    expect(left.leader).toEqual({
       x1: 700 - 40,
       y1: 300 - 40,
       x2: 700,
       y2: 300,
     });
-  });
 
-  it('flips right when the anchor is on the left half', () => {
-    const placed = placeAnchoredCard({
+    const right = placeAnchoredCard({
       anchor: { x: 100, y: 300 },
-      card: { width: 288, height: 208 },
-      viewport: { width: 800, height: 600 },
+      card,
+      viewport,
     });
-    expect(placed.side).toBe('right');
-    expect(placed.left).toBe(100 + 40);
-    expect(placed.top).toBe(300 - 208 / 2);
-    expect(placed.lift).toBe('up');
-    expect(placed.leader).toEqual({
+    expect(right.side).toBe('right');
+    expect(right.left).toBe(100 + 40);
+    expect(right.top).toBe(300 - 208 / 2);
+    expect(right.lift).toBe('up');
+    expect(right.leader).toEqual({
       x1: 100 + 40,
       y1: 300 - 40,
       x2: 100,
       y2: 300,
     });
-  });
-
-  it('keeps a sticky side across the midline by pushing instead of flipping', () => {
-    const card = { width: 288, height: 208 };
-    const viewport = { width: 800, height: 600 };
-    const first = placeAnchoredCard({
-      anchor: { x: 100, y: 300 },
-      card,
-      viewport,
-    });
-    expect(first.side).toBe('right');
-    expect(first.left).toBe(140);
 
     const pushed = placeAnchoredCard({
       anchor: { x: 700, y: 300 },
       card,
       viewport,
-      side: first.side,
+      side: right.side,
     });
     // Sticky right would prefer 740; clamp pushes to the padded max instead of
     // flipping to the left-of-anchor seat (700 - 40 - 288 = 372).
     expect(pushed.side).toBe('right');
     expect(pushed.left).toBe(800 - 288 - 16);
     expect(pushed.left).not.toBe(700 - 40 - 288);
-  });
 
-  it('clamps into the padded viewport instead of clipping or hugging the edge', () => {
     // Preferred left-of-anchor seat overflows a narrow viewport → pin to padding.
-    const placed = placeAnchoredCard({
+    const clamped = placeAnchoredCard({
       anchor: { x: 300, y: 10 },
-      card: { width: 288, height: 208 },
+      card,
       viewport: { width: 320, height: 600 },
     });
-    expect(placed.left).toBe(16);
-    expect(placed.top).toBe(16);
+    expect(clamped.left).toBe(16);
+    expect(clamped.top).toBe(16);
   });
 
-  it('omits the leader when the disc covers the 45° card hit', () => {
-    const placed = placeAnchoredCard({
-      anchor: { x: 200, y: 200 },
-      card: { width: 100, height: 100 },
-      viewport: { width: 800, height: 600 },
-      gap: 0,
-      discRadius: 80,
-      leaderMinDistance: 12,
-    });
-    expect(placed.leader).toBeNull();
-  });
+  it('clips the 45° leader to the disc rim, omits it when covered, and keeps it at max zoom', () => {
+    expect(
+      placeAnchoredCard({
+        anchor: { x: 200, y: 200 },
+        card: { width: 100, height: 100 },
+        viewport: { width: 800, height: 600 },
+        gap: 0,
+        discRadius: 80,
+        leaderMinDistance: 12,
+      }).leader,
+    ).toBeNull();
 
-  it('clips the 45° leader to the disc rim', () => {
     const discRadius = 27.5;
     const placed = placeAnchoredCard({
       anchor: { x: 100, y: 300 },
@@ -156,22 +141,19 @@ describe('placeAnchoredCard', () => {
       x2: expect.closeTo(100 + clearance * (discRadius / dist), 10),
       y2: expect.closeTo(300 - clearance * (discRadius / dist), 10),
     });
-  });
 
-  it('keeps a 45° leader at maximum zoom when disc clearance exceeds half the card height', () => {
-    const discRadius = 27.5 * 2.5;
-    const placed = placeAnchoredCard({
+    const zoomed = placeAnchoredCard({
       anchor: { x: 400, y: 400 },
       card: { width: 288, height: 208 },
       viewport: { width: 1440, height: 900 },
-      discRadius,
+      discRadius: 27.5 * 2.5,
     });
-    expect(placed.leader).not.toBeNull();
-    if (placed.leader === null) {
+    expect(zoomed.leader).not.toBeNull();
+    if (zoomed.leader === null) {
       throw new Error('expected a leader line at maximum zoom');
     }
-    expect(Math.abs(placed.leader.x1 - placed.leader.x2)).toBeCloseTo(
-      Math.abs(placed.leader.y1 - placed.leader.y2),
+    expect(Math.abs(zoomed.leader.x1 - zoomed.leader.x2)).toBeCloseTo(
+      Math.abs(zoomed.leader.y1 - zoomed.leader.y2),
     );
   });
 });

@@ -103,15 +103,13 @@ describe('purgeTransferredCharacter', () => {
 });
 
 describe('reconcileCharacterOwner', () => {
-  it('no-ops without a JWT owner hash or a matching account row', async () => {
+  it('no-ops missing hash or row, backfills a blank hash, and purges when the stored hash disagrees', async () => {
     await reconcileCharacterOwner(CHAR, null);
     await reconcileCharacterOwner(CHAR, undefined);
     state.results = [[]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
     expect(state.calls).toEqual({ delete: 0, update: 0 });
-  });
 
-  it('backfills a missing stored hash and no-ops when the stored hash already matches', async () => {
     state.results = [[{ userId: USER, ownerHash: null }]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
     expect(state.calls.update).toBe(1);
@@ -120,9 +118,7 @@ describe('reconcileCharacterOwner', () => {
     state.results = [[{ userId: USER, ownerHash: 'owner-one' }]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
     expect(state.calls).toEqual({ delete: 0, update: 0 });
-  });
 
-  it('purges the prior owner when the stored hash disagrees', async () => {
     state.results = [
       [{ userId: USER, ownerHash: 'owner-old' }],
       [{ id: 'acc-1' }],
