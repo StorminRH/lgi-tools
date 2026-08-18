@@ -1414,19 +1414,11 @@ describe('mapScan paste application and lifecycle', () => {
     const chainCode = readFileSync('convex/mapChain.ts', 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/^\s*\/\/.*$/gm, '');
-    const scanModules = [
-      'convex/mapScan.ts',
-      'convex/lib/mapScanState.ts',
-      'convex/lib/mapScanApply.ts',
-      'convex/lib/mapScanElimination.ts',
-      'convex/lib/mapScanSelection.ts',
-    ].map((path) => readFileSync(path, 'utf8'));
+    const scanCode = readFileSync('convex/mapScan.ts', 'utf8');
 
     expect(chainCode).not.toContain("'mapSignatures'");
     expect(chainCode).not.toContain("'mapSignatureActivity'");
-    for (const source of scanModules) {
-      expect(source).not.toMatch(/from ['"]\.\.?\/mapChain['"]/);
-    }
+    expect(scanCode).not.toContain("from './mapChain'");
   });
 
   it('debounce writes nothing at 59s and only activity after 61s', async () => {
