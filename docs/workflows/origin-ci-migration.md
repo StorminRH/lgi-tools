@@ -20,8 +20,10 @@ happen on the stack you will keep.
 - **GOAL:** Origin is where you code, run CI, open previews, merge, and
   ship. Depot is the only gate and runs real Postgres. Vercel previews
   replace laptop `pnpm dev` in most cases. Feature work lands on a
-  long-standing `beta` branch. GitHub’s only job is a manual bot review
-  of that beta before it goes to `main`. Production is a manual deploy.
+  long-standing `beta` branch.   GitHub’s only job is a manual bot review
+  of that beta before it goes to `main`. Merging to `main` is the
+  **release** (one version bump, one public changelog). Production is
+  a separate manual promote.
   Issues (site feedback, update-watch, refactor process, backlog)
   leave GitHub for Linear. GrokBots keep their draft-PR homes for
   test-cleanup and refactor.
@@ -82,6 +84,13 @@ happen on the stack you will keep.
   only on the GitHub dump of `beta` when you are preparing to merge
   `beta` → `main`. They are not the merge gate and must not run on
   every Origin PR.
+- **Plan:** A merge to `beta` is not a release. Do not bump
+  `APP_VERSION`, do not publish a `### vX.Y.N` heading, and do not
+  fold pending changelog fragments when landing on `beta`. Those
+  happen once, when `beta` merges to `main`. Session contract numbers
+  (`X.Y.N.M`) stay internal planning IDs; they are not user-facing
+  versions. Do not rewrite completed 4.0 as-builts to pretend they
+  already worked this way.
 - **Plan:** Durable `beta` must not use Neon’s `preview/` prefix
   (`neon.ts` gives those a 3-day TTL). Ephemeral feature previews use
   `preview/*` and are torn down (Neon branch + Convex preview
@@ -179,8 +188,10 @@ when bots should look at a release candidate. Temporary previews must
 not leave Neon and Convex running; `beta` keeps one cheaper pair.
 Issues that need a board (feedback, update-watch, refactor process)
 move to Linear because the Cursor app, Cloud Agents, and GrokBots
-already have that connector. Origin and Depot first so later visits
-use the remotes you will keep.
+already have that connector. Planned sessions keep contracts and
+ordered work, but they stop minting a public version on every merge;
+`beta` is the integration line and `main` is the release cut. Origin
+and Depot first so later visits use the remotes you will keep.
 
 ## Scope (the destination)
 
@@ -196,12 +207,15 @@ When the last Ordered work step is done:
   preview deployment. That URL is the usual place to prove a feature.
   After it is proven, both backends are torn down. Laptop `pnpm dev`
   is optional.
-- Passing feature work merges to Origin `beta`. `beta` keeps one
-  Neon branch and one Convex deployment — cheaper/sleepier than
-  production — for accumulated testing.
+- Passing feature work (planned session or ordinary) merges to
+  Origin `beta`. No version bump. A pending changelog fragment
+  records what changed. `beta` keeps one Neon + one Convex pair
+  for accumulated testing.
 - When `beta` is ready: dump that SHA to GitHub, **manually** request
   Greptile/CodeRabbit, triage, fix on Origin, confirm Origin CI, merge
-  Origin `beta` → Origin `main`, then **manually** deploy production.
+  Origin `beta` → Origin `main` as a **release** (fold pending
+  fragments, publish one `### vX.Y.N`, set `APP_VERSION`), then
+  **manually** promote production.
 - Vercel no longer watches GitHub.
 - Linear holds issues (feedback, update-watch, refactor process,
   `[Backlog]`, triage). Test-cleanup and refactor **work** stay draft
@@ -248,8 +262,10 @@ When the last Ordered work step is done:
   allowed if every-branch previews are too expensive. Every ephemeral
   preview must tear down Neon + Convex after the feature is proven.
 - **Feature integration branch is Origin `beta`.** CI-green Origin PRs
-  merge to `beta`, not `main`. `beta` → `main` is a deliberate
-  promotion of accumulated work, after bots.
+  merge to `beta`, not `main`. `beta` → `main` is the **release
+  gate**: bots, one version bump, one public changelog, then a
+  separate promote. **Rejected:** bumping `APP_VERSION` on every
+  planned session the way 4.0 close-out does today.
 - **GitHub bots: dump `beta` only, request manually.** When `beta` has
   enough PRs (or too much work), clone that SHA to GitHub, manually
   request Greptile/CodeRabbit, triage as today, apply fixes on Origin,
@@ -266,8 +282,18 @@ When the last Ordered work step is done:
   `next start`. Agent runs `--job verify`. PR runs the full workflow.
 - **“No more mock tests”:** canned-row Vitest is not the CI stand-in
   for SQL. Pure `*.test.ts` stays. Real SQL is `*.db.test.ts` on Depot.
-- **Lifecycle: isolated skill visits.** Origin/Depot/preview first so
-  those visits use the new remotes, Checks, and Preview URLs.
+- **Lifecycle: isolated skill visits, then schemas follow the release
+  train.** Origin/Depot/preview first so those visits use the new
+  remotes. Contracts → plans → ordered work stay as the way you
+  *do* work. They stop being the way you *version* the product.
+- **Release train (traditional staging → release).** Many small
+  landings on `beta` (planned sessions and ordinary PRs). One release
+  when you cut `beta` → `main`. Pending fragments already exist for
+  ordinary work; planned sessions join that inbox instead of
+  publishing `### vX.Y.N` on every sub-version PR. You pick the
+  public number at cut time (`4.0.6`, or `4.1.0` if the theme
+  changed) — not from the last session id. Git tags (`v4.0.6`) are
+  optional later; not required to start.
 - **Linear is the issue board.** Cursor, Cloud Agents, and GrokBots
   already have Linear connectors. Origin still has no issues. Free
   cap is **250 issues** — do not import closed GitHub history. OW-14
@@ -311,6 +337,73 @@ When the last Ordered work step is done:
 - **Developer plan utilization:** Depot CI minutes and results only.
 - **Cloud Agent / Origin CLI:** browser login on a machine you
   control. Do not paste keys in chat.
+
+### Release model (what to keep, what to change)
+
+You already have most of a traditional release train. The missing piece
+is that **planned close-out treats every finished sub-version as a
+public release**: merge to `main`, bump `APP_VERSION` (today
+`4.0.5.1`), publish `### v4.0.5.1`, fold pending fragments. Ordinary
+work already does the right smaller thing (a pending fragment, no
+version). After this migration, **everything that lands on `beta`
+behaves like today’s ordinary work**. The version happens once, when
+you cut a release.
+
+Think of three layers. They stay separate:
+
+| Layer | What it is | When it moves |
+| --- | --- | --- |
+| **Work package** | Session contract → plan → ordered work (or an ordinary PR) | Merge to Origin `beta` when that slice is proven |
+| **Release** | One public number + one changelog entry + `APP_VERSION` | Merge Origin `beta` → `main` after bots |
+| **Production** | Users on `lgi.tools` | `vercel promote` of that `main` SHA |
+
+That is the usual staging-branch model: many commits on a pre-release
+line, one versioned cut, then a deploy. You do not need a new
+numbering invention to start.
+
+**Keep (this is project management, not releasing):**
+
+- Contracts, plans, and ordered work as the way a planned slice is
+  specified and executed.
+- As-builts as “what that session actually did.”
+- Pending fragments as the inbox of user-facing notes that are not
+  public yet (`docs/workflows/schema/changelog-pending.md`).
+- Ordinary vs planned as *how the work was authorized*, not as *whether
+  it gets a version*.
+
+**Change (this is releasing):**
+
+- Session id `4.0.5.1.1` is a planning label. It must not force
+  `APP_VERSION` `4.0.5.1`.
+- “Final session of a sub-version” no longer opens the release PR to
+  `main`. It merges to `beta` and drops a pending fragment like
+  everyone else.
+- “Shipped” in contracts/schemas splits: **landed** (on `beta`) vs
+  **released** (on `main`, version published) vs **in production**
+  (promoted).
+- Close-out grows a third ritual you ask for by name: **cut a
+  release** (bots + `beta` → `main` + fold + bump). Promote stays a
+  fourth, still only when you ask.
+
+**How to pick the public number at cut time (plain rule):**
+
+- Same master theme (`4.0` Atlas, etc.): increment the last published
+  `N` (`4.0.5` → `4.0.6`) for the whole bundle on `beta`, no matter
+  how many sessions or ordinary PRs piled up.
+- New theme / new master plan: start `4.1.0` (or whatever the new
+  `X.Y` is) as the first release of that line.
+- Do not mint a version per session “so the numbers match the
+  contracts.” Players see one date and one list of bullets.
+
+Optional later, not required: a git tag `v4.0.6` on the release
+commit. The site already keys off `APP_VERSION` and
+`content/changelog/vX.Y.md`.
+
+**What agents write on a beta landing:** exactly one pending fragment
+(planned or ordinary). No `content/changelog/v4.0.md` heading, no
+`src/config/app-version.ts` edit. The fold command you already have
+(`python3 tools/cli.py lifecycle fold-pending-changelog`) runs only
+on the release close-out.
 
 ### Audit-remediation mapping
 
@@ -404,8 +497,10 @@ When `beta` is ready for `main`:
 6. Dump that exact SHA to GitHub (branch, not a merge). Manually
    request Greptile and CodeRabbit. Triage. Fix on Origin. Re-check
    Depot on Origin.
-7. Merge Origin `beta` → Origin `main`. **Nothing deploys yet.**
-8. `vercel promote` the chosen Preview (usually `beta`) to Production.
+7. Cut a release: fold pending fragments, pick `X.Y.N`, set
+   `APP_VERSION`, merge Origin `beta` → Origin `main`. **Nothing
+   deploys to production yet.**
+8. `vercel promote` that release to Production when you ask.
 
 Issues and GrokBots (parallel, after OW-14):
 
@@ -495,18 +590,25 @@ Do not implement a later step in an earlier chat.
    rewritten flow on paper. Do not edit other skills.
 
 7. **Isolated visit: planned-session flow.** Change only
-   `plan-session` so a planned session is still something you want.
-   Prove by comparing one existing session plan’s OW shape to the
-   rewritten skill.
+   `plan-session` so a planned session is still something you want
+   (contract → plan → ordered work), and so its **delivery unit** is
+   a PR onto `beta`, not a sub-version release onto `main`. Prove by
+   comparing one existing session plan’s OW shape to the rewritten
+   skill. Do not bump versions in this chat.
 
 8. **Isolated visit: `close-out`.** Change only
-   `.cursor/skills/close-out/SKILL.md` so: ordinary feature close-out
-   merges to Origin `beta` after Depot is green; GitHub dump +
-   **manual** bot request happen only when taking `beta` → `main`;
-   merge actor is `origin pr merge` (or the command this visit names);
-   every merge stops without promote. Prove with a dry-run of a
-   feature-to-`beta` close-out and a `beta`-to-`main` close-out. Do
-   not flip production deploy in this chat.
+   `.cursor/skills/close-out/SKILL.md` so there are three named
+   rituals (plus promote):
+   - **Land on `beta`** (ordinary or planned, including a “final”
+     session): Depot green, Preview used, pending fragment, merge to
+     Origin `beta`. No `APP_VERSION`, no `### vX.Y.N`, no fold.
+   - **Cut a release** (only when you ask): dump `beta` to GitHub,
+     **manual** bots, fix on Origin, fold pending fragments, pick
+     the public `X.Y.N`, set `APP_VERSION`, merge `beta` → `main`.
+     Stop. Do not promote.
+   - **Promote** (only when you ask): `vercel promote`.
+   Prove with a paper dry-run of all three. Do not flip `vercel.json`
+   in this chat.
 
 9. **Isolated visit: `ux-check`.** Change only the ux-check skill and
    `docs/ux-check/README.md` so automated evidence is “Depot `e2e` was
@@ -530,11 +632,18 @@ Do not implement a later step in an earlier chat.
     `repair_gh_auth.py` until GitHub dump comments no longer need
     them. Prove: no caller remains for the deleted pair.
 
-13. **Standing docs after skills settle.** Change session schemas,
-    `docs/VERSION_4_0_PLAN.md` standing language (not completed rows),
-    contributing test docs, and README so: shipped-to-`beta` ≠
-    production; Depot is the gate; Preview is the usual look;
-    `*.db.test.ts` is a `verify` requirement.
+13. **Standing docs after skills settle.** Change
+    `docs/workflows/schema/session-contract.md` (delivery unit → PR
+    to `beta`; “shipped” splits landed / released / in production),
+    `session-plan.md`, `session-as-built.md` (merge SHA vs release
+    SHA vs promote SHA), `changelog-pending.md` (fold only on cut
+    release, including planned landings), `changelog-entry.md` (one
+    entry per cut, not per sub-version session), and
+    `docs/VERSION_4_0_PLAN.md` standing language (not completed
+    rows), plus contributing test docs and README. Depot is the
+    gate. Preview is the usual look. `*.db.test.ts` is a `verify`
+    requirement. Prove `check-doc-refs` / pending-changelog checker
+    clean on touched files.
 
 14. **Linear connector proof.** Create (or reuse) a Linear workspace
     on the Free plan. Confirm 250-issue headroom against the 31 open
@@ -659,27 +768,33 @@ repo Playwright version. Upload failure artifacts only.
 ### Target close-out shape (written in OW-8, not this PR)
 
 ```markdown
-## 5. Feature PR (lands on beta)
+## 5. Land on beta (ordinary or planned — including a “final” session)
 
 1. Reuse Depot `verify` when the head is unchanged.
 2. Open one draft Origin PR. Scrub the body.
 3. Wait: `origin pr checks --watch`.
 4. Use the Vercel Preview URL (laptop `pnpm dev` only if you choose).
-5. Origin review. Tear down the feature Preview’s Neon `preview/*`
+5. Write exactly one pending changelog fragment. Do not edit
+   `APP_VERSION` or `content/changelog/vX.Y.md`.
+6. Origin review. Tear down the feature Preview’s Neon `preview/*`
    branch and Convex preview deployment. Merge to Origin `beta`.
-   Stop. Do not promote. Do not dump to GitHub. Do not request bots.
+7. Stop. Do not promote. Do not dump to GitHub. Do not request bots.
+   Do not fold pending fragments.
 
-## 6. Take beta to main (bots + merge)
+## 6. Cut a release (only when you asked)
 
 1. Dump the `beta` SHA to GitHub. Manually request Greptile and
    CodeRabbit. Import findings. Fix on Origin. Never merge GitHub.
 2. Origin Depot full pipeline green on the fixed `beta`.
-3. `origin pr merge` (`beta` → `main`).
-4. Stop. Do not wait for Production.
+3. Fold every pending fragment. Pick the public `X.Y.N` (next patch
+   on this theme, or a new `X.Y.0`). Prepend `### vX.Y.N`. Set
+   `APP_VERSION`. Delete consumed fragments.
+4. `origin pr merge` (`beta` → `main`).
+5. Stop. Do not wait for Production.
 
 ## 7. Promote (only when you asked to ship production)
 
-1. `vercel promote <beta-or-sha>`.
+1. `vercel promote <main-release-or-beta-url>`.
 2. Fail-closed wait for that Production deployment.
 3. `pnpm verify:prod` (and account routes with cookie jar when needed).
 ```
@@ -772,7 +887,7 @@ Name the replacement merge command in OW-8 first.
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
   | `SC-6.1` | Git history for OW-6 through OW-11 | Separate chat/PR per skill |
-  | `SC-6.2` | Read close-out after OW-8 | Feature merge → `beta`; bots only on `beta` → `main`; no wait-prod |
+  | `SC-6.2` | Read close-out after OW-8 | Land → `beta` with a pending fragment and no version; cut release is a named ask; promote is a named ask |
 
 - **SC-7 — Bot helpers retired as a pair after a replacement exists.**
 
@@ -794,7 +909,8 @@ Name the replacement merge command in OW-8 first.
   | --- | --- | --- |
   | `SC-9.1` | `neon.ts` + apply after OW-17 | `beta` has no TTL, cheap CU, short suspend; name is not `preview/` |
   | `SC-9.2` | Convex dashboard | One prod-type extra named `beta`; Preview env uses a preview key |
-  | `SC-9.3` | Close-out + one dry-run | Promote is the documented prod action |
+  | `SC-9.3` | Close-out + schemas after OW-8 / OW-13 | `APP_VERSION` and `### vX.Y.N` change only on cut release; pending fold runs only then |
+  | `SC-9.4` | Close-out + one dry-run | Promote is the documented prod action |
 
 - **SC-10 — This plan PR stayed documentation-only.**
 
