@@ -4,4 +4,4 @@ source: stormin/origin-ci-migration-4df8
 ---
 
 #### Changed
-- Restructured the Origin / Depot migration as an ordinary-work plan with ordered steps: Origin and Depot first, then isolated lifecycle-skill visits, then manual production and a durable beta preview.
+- Updated the Origin / Depot migration plan: Vercel previews replace local dev in most cases, feature work lands on a long-standing beta branch, GitHub is manual bot review only, and site feedback plus daily Cloud Agents move off GitHub after a tracker pick.
