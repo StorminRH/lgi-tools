@@ -20,7 +20,9 @@ const LOCAL_DB_URL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
  * Configuration for one real-Postgres suite. `schema` must be unique per test
  * file. `tables` are cloned from the migrated local `public` schema via
  * `LIKE ... INCLUDING ALL`; list parents first so delete resets can wipe them
- * safely in reverse order. Foreign keys are not copied by `LIKE`, so suites
+ * safely in reverse order. Serial defaults still point at `public.*_id_seq`
+ * after the clone, so setup rebinds them onto sequences owned by the
+ * disposable schema. Foreign keys are not copied by `LIKE`, so suites
  * list the load-bearing relationships explicitly.
  */
 export interface DbTestHarnessOptions {
@@ -65,18 +67,37 @@ export interface DbTestHarness {
 }
 
 /**
+ * Resolve the suite URL and whether Postgres answered. An explicit
+ * `DATABASE_URL` that does not accept a connection fails closed so CI cannot
+ * treat skipped `*.db.test.ts` files as a green run. An unset URL still
+ * probes the local Docker default and skips when that daemon is down.
+ */
+export async function probeHarnessDatabase(
+  explicitUrl: string | undefined = readEnv('DATABASE_URL'),
+): Promise<{ baseUrl: string; reachable: boolean }> {
+  const baseUrl = explicitUrl ?? LOCAL_DB_URL;
+  const reachable = await canReachDb(baseUrl);
+  if (explicitUrl && !reachable) {
+    throw new Error(
+      'DATABASE_URL is set but Postgres did not accept a connection. ' +
+        'Refusing to skip *.db.test.ts.',
+    );
+  }
+  return { baseUrl, reachable };
+}
+
+/**
  * Own one real-Postgres suite's entire DB lifecycle. Call it once at test-file
  * top level: it probes `DATABASE_URL` or the local Docker default, registers
  * schema setup/reset/teardown hooks, and returns lazy handles. Disposable tables
  * clone the already-migrated local `public` schema, so run `pnpm db:migrate`
- * before the DB-backed suite. Unreachable databases skip cleanly instead of
- * failing collection.
+ * before the DB-backed suite. Unreachable local defaults skip cleanly instead of
+ * failing collection. A set-but-dead `DATABASE_URL` throws.
  */
 export async function createDbTestHarness(
   options: DbTestHarnessOptions,
 ): Promise<DbTestHarness> {
-  const baseUrl = readEnv('DATABASE_URL') ?? LOCAL_DB_URL;
-  const reachable = await canReachDb(baseUrl);
+  const { baseUrl, reachable } = await probeHarnessDatabase();
   let sql: Sql | undefined;
   let database: PostgresJsDatabase | undefined;
 
@@ -214,6 +235,7 @@ async function setupDisposableSchema(
       `CREATE TABLE "${schema}"."${table}" (LIKE public."${table}" INCLUDING ALL)`,
     );
   }
+  await rebindClonedSerialDefaults(sql, schema, tableNames);
 }
 
 function steerHarnessEnvironment(options: DbTestHarnessOptions, baseUrl: string): void {
@@ -223,6 +245,45 @@ function steerHarnessEnvironment(options: DbTestHarnessOptions, baseUrl: string)
   if (options.steerDbProxy) {
     vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
     vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, options.schema));
+  }
+}
+
+/**
+ * `LIKE ... INCLUDING ALL` copies serial `DEFAULT nextval('public.*_id_seq')`.
+ * Explicit-id seeds then leave that shared sequence at 1, so the next default
+ * insert collides on a fresh CI database. Give each cloned table its own
+ * sequence in the disposable schema.
+ */
+async function rebindClonedSerialDefaults(
+  sql: Sql,
+  schema: string,
+  tableNames: readonly string[],
+): Promise<void> {
+  for (const table of tableNames) {
+    const columns = (await sql.unsafe(
+      `SELECT a.attname AS column_name
+       FROM pg_attribute a
+       JOIN pg_class c ON c.oid = a.attrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+       WHERE n.nspname = '${schema}'
+         AND c.relname = '${table}'
+         AND a.attnum > 0
+         AND NOT a.attisdropped
+         AND a.attidentity = ''
+         AND pg_get_expr(ad.adbin, ad.adrelid) LIKE 'nextval(%'`,
+    )) as { column_name: string }[];
+
+    for (const { column_name: column } of columns) {
+      const sequence = `${table}_${column}_seq`;
+      await sql.unsafe(`CREATE SEQUENCE "${schema}"."${sequence}"`);
+      await sql.unsafe(
+        `ALTER TABLE "${schema}"."${table}" ALTER COLUMN "${column}" SET DEFAULT nextval('"${schema}"."${sequence}"')`,
+      );
+      await sql.unsafe(
+        `ALTER SEQUENCE "${schema}"."${sequence}" OWNED BY "${schema}"."${table}"."${column}"`,
+      );
+    }
   }
 }
 

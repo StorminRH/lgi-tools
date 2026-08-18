@@ -1,6 +1,6 @@
 import { asc, and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
+import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
 import { portraitUrl } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
@@ -121,7 +121,9 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
     .where(eveAccountsForUser(userId))
     .orderBy(asc(account.createdAt));
 
-  return rows.map(toLinkedCharacter).filter((r) => Number.isFinite(r.characterId));
+  return rows.flatMap((r) =>
+    parseLinkedAccountId(r.accountId) === null ? [] : [toLinkedCharacter(r)],
+  );
 }
 
 /** Linked character selected for active account operations. */

@@ -3,7 +3,7 @@ import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AffiliationRow } from './affiliation-source';
-import { characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
+import { characterProfileJoin, eveAccountsForUser, parseLinkedAccountId } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import type { CachedAffiliation } from './membership';
 import { account, characters, corpAccessAudit } from '@/db/auth-schema';
@@ -59,9 +59,10 @@ export async function getUserAffiliations(userId: string): Promise<CachedAffilia
     .leftJoin(characters, characterProfileJoin)
     .where(eveAccountsForUser(userId));
 
-  return rows
-    .map((r) => rowToCachedAffiliation(Number(r.accountId), r))
-    .filter((r) => Number.isFinite(r.characterId));
+  return rows.flatMap((r) => {
+    const characterId = parseLinkedAccountId(r.accountId);
+    return characterId === null ? [] : [rowToCachedAffiliation(characterId, r)];
+  });
 }
 
 /** One character's cached affiliation (null when the profile row doesn't exist). */

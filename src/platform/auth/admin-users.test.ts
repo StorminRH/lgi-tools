@@ -22,8 +22,6 @@ describe('searchUsersByLinkedCharacterName', () => {
 });
 
 describe('toAdminUser', () => {
-  // CI skips *.db.test.ts, so these mapping arms are the sole gate-of-record
-  // falsifiers for the privacy-bounded admin row shape.
   it('maps portrait, role, and characterId arms for the admin view', () => {
     const base = {
       userId: 'u1',

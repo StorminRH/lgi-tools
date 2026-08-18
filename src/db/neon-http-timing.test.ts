@@ -32,6 +32,7 @@ afterEach(() => {
 // `vi.resetModules()` gives each case a fresh module graph, so the sink must be
 // installed on the same `dependency-timing` instance `./index` will import.
 async function installedFetchFunction() {
+  vi.stubEnv('LOCAL_DB_DRIVER', '');
   vi.stubEnv('DATABASE_URL', NEON_URL);
   const recorded: Array<[DependencyKind, number]> = [];
   const { setDependencyTimingSink } = await import('@/lib/dependency-timing');
