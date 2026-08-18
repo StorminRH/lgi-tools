@@ -1,9 +1,9 @@
 {
   "plugins": {
-    "thermos": {
+    "cursor-team-kit": {
       "enabled": true
     },
-    "cursor-team-kit": {
+    "thermos": {
       "enabled": true
     }
   }
