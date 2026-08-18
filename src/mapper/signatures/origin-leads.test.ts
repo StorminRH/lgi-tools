@@ -9,7 +9,7 @@ const STUB = {
 };
 
 describe('originLeadOptions', () => {
-  it('labels inbound systems and stays empty once the stub is resolved', () => {
+  it('labels inbound systems, including occupied mouths, and stays empty once the stub is resolved', () => {
     const inbound = {
       connectionId: 'inbound' as Id<'mapConnections'>,
       fromSystemId: 31_000_002,
@@ -32,9 +32,7 @@ describe('originLeadOptions', () => {
     expect(
       originLeadOptions({ ...STUB, toSystemId: 31_000_002 }, [inbound], null),
     ).toEqual([]);
-  });
 
-  it('still labels an occupied inbound for a different unresolved stub', () => {
     const occupied = {
       connectionId: 'inbound' as Id<'mapConnections'>,
       fromSystemId: 31_000_002,

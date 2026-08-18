@@ -515,7 +515,7 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
-  it('links a scanned stub onto a known inbound when the operator picks Leads to', async () => {
+  it('links a scanned stub onto a known inbound and keeps that occupied door off elimination', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
     await apply(t, [signature('ABC-123', { group: 'Wormhole' })]);
@@ -561,9 +561,35 @@ describe('mapScan paste application and lifecycle', () => {
       toSignatureId: 'ABC-123',
     });
     expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toBeNull();
+
+    await apply(t, [
+      signature('ABC-123', { group: 'Wormhole' }),
+      signature('DEF-456', { group: 'Wormhole' }),
+    ]);
+    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
+      userId: EDITOR,
+      mapId: MAP,
+      systemId: JITA,
+      deductions: [{
+        signatureId: 'DEF-456',
+        connectionId: inboundId,
+        provenance: 'assumed',
+        expectedTypeCode: null,
+      }],
+    })).toEqual([
+      { signatureId: 'DEF-456', outcome: 'protected', observationKey: null },
+    ]);
+    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+      toSignatureId: 'ABC-123',
+    });
+    expect(await t.run(async (ctx) =>
+      (await ctx.db.query('mapConnections').collect()).find(
+        (row) => row.fromSignatureId === 'DEF-456' && row.toSystemId === null,
+      ),
+    )).toMatchObject({ fromSystemId: JITA });
   });
 
-  it('moves a Leads-to join onto another stub and restores the occupant as a stub', async () => {
+  it('rehomes a Leads-to join onto another stub, restores the occupant, and moves a mismatched Destination note with it', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
     await apply(t, [signature('ABC-123', { group: 'Wormhole', name: 'K162' })]);
@@ -595,6 +621,9 @@ describe('mapScan paste application and lifecycle', () => {
       stubConnectionId: firstStubId,
       resolvedConnectionId: inboundId,
     });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(inboundId, { toDestinationSystemId: DODIXIE });
+    });
     await apply(t, [
       signature('ABC-123', { group: 'Wormhole', name: 'K162' }),
       signature('DEF-456', { group: 'Wormhole' }),
@@ -613,13 +642,15 @@ describe('mapScan paste application and lifecycle', () => {
       stubConnectionId: secondStubId,
       resolvedConnectionId: inboundId,
     })).resolves.toEqual({ outcome: 'applied' });
-    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+    const rehomed = await t.run(async (ctx) => await ctx.db.get(inboundId));
+    expect(rehomed).toMatchObject({
       toSignatureId: 'DEF-456',
       toSystemId: JITA,
       fromSystemId: AMARR,
       massState: 'stable',
       shipSize: 'M',
     });
+    expect(rehomed?.toDestinationSystemId).toBeUndefined();
     expect(await t.run(async (ctx) => await ctx.db.get(secondStubId))).toBeNull();
     const restored = await t.run(async (ctx) =>
       (await ctx.db.query('mapConnections').collect()).find(
@@ -631,6 +662,7 @@ describe('mapScan paste application and lifecycle', () => {
       fromWormholeTypeCode: 'K162',
       massState: null,
       shipSize: null,
+      fromDestinationSystemId: DODIXIE,
     });
     expect(restored?._id).not.toBe(firstStubId);
     expect(restored?.observationKey).toBeUndefined();
@@ -719,131 +751,6 @@ describe('mapScan paste application and lifecycle', () => {
         (row) => row.fromSignatureId === 'ABC-123' && row.toSystemId === null,
       ),
     )).toMatchObject({ fromSystemId: JITA, fromWormholeTypeCode: 'K162' });
-  });
-
-  it('moves a mismatched Destination note onto the restored stub', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('ABC-123', { group: 'Wormhole', name: 'K162' })]);
-    let firstStubId = '' as Id<'mapConnections'>;
-    let inboundId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const stub = (await ctx.db.query('mapConnections').collect())[0];
-      if (stub === undefined) {
-        throw new Error('expected the pasted wormhole stub before linking');
-      }
-      firstStubId = stub._id;
-      inboundId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: JITA,
-        wormholeTypeCode: 'B274',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-    });
-    await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
-      mapId: MAP,
-      stubConnectionId: firstStubId,
-      resolvedConnectionId: inboundId,
-    });
-    await t.run(async (ctx) => {
-      await ctx.db.patch(inboundId, { toDestinationSystemId: DODIXIE });
-    });
-    await apply(t, [
-      signature('ABC-123', { group: 'Wormhole', name: 'K162' }),
-      signature('DEF-456', { group: 'Wormhole' }),
-    ]);
-    const secondStubId = await t.run(async (ctx) => {
-      const stub = (await ctx.db.query('mapConnections').collect()).find(
-        (row) => row.fromSignatureId === 'DEF-456' && row.toSystemId === null,
-      );
-      if (stub === undefined) {
-        throw new Error('expected the second wormhole stub before reassigning');
-      }
-      return stub._id;
-    });
-    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
-      mapId: MAP,
-      stubConnectionId: secondStubId,
-      resolvedConnectionId: inboundId,
-    })).resolves.toEqual({ outcome: 'applied' });
-    const rehomed = await t.run(async (ctx) => await ctx.db.get(inboundId));
-    expect(rehomed).toMatchObject({ toSignatureId: 'DEF-456' });
-    expect(rehomed?.toDestinationSystemId).toBeUndefined();
-    expect(await t.run(async (ctx) =>
-      (await ctx.db.query('mapConnections').collect()).find(
-        (row) => row.fromSignatureId === 'ABC-123' && row.toSystemId === null,
-      ),
-    )).toMatchObject({
-      fromSystemId: JITA,
-      fromDestinationSystemId: DODIXIE,
-    });
-  });
-
-  it('keeps an occupied inbound door when elimination tries to link a different stub', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('ABC-123', { group: 'Wormhole' })]);
-    let firstStubId = '' as Id<'mapConnections'>;
-    let inboundId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const stub = (await ctx.db.query('mapConnections').collect())[0];
-      if (stub === undefined) {
-        throw new Error('expected the pasted wormhole stub before linking');
-      }
-      firstStubId = stub._id;
-      inboundId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: JITA,
-        wormholeTypeCode: 'B274',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-    });
-    await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
-      mapId: MAP,
-      stubConnectionId: firstStubId,
-      resolvedConnectionId: inboundId,
-    });
-    await apply(t, [
-      signature('ABC-123', { group: 'Wormhole' }),
-      signature('DEF-456', { group: 'Wormhole' }),
-    ]);
-    expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
-      userId: EDITOR,
-      mapId: MAP,
-      systemId: JITA,
-      deductions: [{
-        signatureId: 'DEF-456',
-        connectionId: inboundId,
-        provenance: 'assumed',
-        expectedTypeCode: null,
-      }],
-    })).toEqual([
-      { signatureId: 'DEF-456', outcome: 'protected', observationKey: null },
-    ]);
-    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
-      toSignatureId: 'ABC-123',
-    });
-    expect(await t.run(async (ctx) =>
-      (await ctx.db.query('mapConnections').collect()).find(
-        (row) => row.fromSignatureId === 'DEF-456' && row.toSystemId === null,
-      ),
-    )).toMatchObject({ fromSystemId: JITA });
   });
 
   it('re-paste of a linked way-home keeps the inbound door and does not spawn a stub', async () => {

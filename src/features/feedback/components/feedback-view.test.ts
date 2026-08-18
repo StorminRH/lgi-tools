@@ -10,21 +10,12 @@ import {
 } from './feedback-view';
 
 describe('feedbackSubmitGate', () => {
-  it('is busy while a submit is in flight', () => {
+  it('blocks busy, missing category, and empty message before allowing submit', () => {
     expect(feedbackSubmitGate('hi', 'bug', { kind: 'submitting' })).toBe('busy');
-  });
-
-  it('is no_category when the category is missing or unknown', () => {
     expect(feedbackSubmitGate('hi', '', { kind: 'idle' })).toBe('no_category');
     expect(feedbackSubmitGate('hi', 'nope', { kind: 'idle' })).toBe('no_category');
-  });
-
-  it('is empty for a blank or whitespace-only message', () => {
     expect(feedbackSubmitGate('', 'bug', { kind: 'idle' })).toBe('empty');
     expect(feedbackSubmitGate('   ', 'feature', { kind: 'idle' })).toBe('empty');
-  });
-
-  it('is ok for a real message with a category when not already submitting', () => {
     expect(feedbackSubmitGate('found a bug', 'bug', { kind: 'idle' })).toBe('ok');
     expect(
       feedbackSubmitGate('found a bug', 'ux', { kind: 'error', message: 'x' }),
@@ -74,25 +65,19 @@ describe('feedbackErrorMessage', () => {
     }) as ProblemBody & { code: 'github_failed' },
   };
 
-  it('surfaces a 400 validation detail, or a fallback for an empty body', () => {
+  it('maps validation, rate-limit, dependency, network, and protocol failures to user copy', () => {
     expect(
       feedbackErrorMessage(problem400('invalid_body', 'Message too long.')),
     ).toBe('Message too long.');
     expect(feedbackErrorMessage(problem400('invalid_body'))).toBe(
       'Please check your message and try again.',
     );
-  });
-
-  it('gives a friendly line for rate-limit and server errors', () => {
     expect(feedbackErrorMessage(problem429)).toBe(
       'Too much feedback too fast — please wait a minute and try again.',
     );
     expect(feedbackErrorMessage(problem502)).toBe(
       'Something went wrong sending your feedback. Try again.',
     );
-  });
-
-  it('preserves the existing network copy and treats protocol drift as generic', () => {
     expect(
       feedbackErrorMessage({
         ok: false,

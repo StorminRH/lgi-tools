@@ -72,74 +72,43 @@ describe('fetchConvexAccessToken', () => {
     vi.unstubAllGlobals();
   });
 
-  it('mints a token from the jwt plugin endpoint for a signed-in caller', async () => {
-    fetchMock.mockResolvedValue(Response.json({ token: 'es256-jwt' }));
-
-    const { fetchConvexAccessToken } = await import('./auth-client');
-
-    await expect(fetchConvexAccessToken()).resolves.toBe('es256-jwt');
-    const requested = String(fetchMock.mock.calls[0]?.[0]);
-    expect(requested).toContain('/api/auth/token');
-  });
-
-  it('reuses a still-valid mint until exp', async () => {
-    const exp = Math.floor(Date.now() / 1000) + 3600;
-    const token = `hdr.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.sig`;
-    fetchMock.mockResolvedValue(Response.json({ token }));
-
-    const { fetchConvexAccessToken } = await import('./auth-client');
-
-    await expect(fetchConvexAccessToken()).resolves.toBe(token);
-    await expect(fetchConvexAccessToken()).resolves.toBe(token);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('remints when Convex asks for a forced refresh', async () => {
+  it('mints from /token, reuses until forced refresh or logout, and returns null on anon or transport failure', async () => {
     const exp = Math.floor(Date.now() / 1000) + 3600;
     const first = `hdr.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.sig`;
     const second = `hdr.${Buffer.from(JSON.stringify({ exp: exp + 1 })).toString('base64url')}.sig`;
     fetchMock
       .mockResolvedValueOnce(Response.json({ token: first }))
-      .mockResolvedValueOnce(Response.json({ token: second }));
-
-    const { fetchConvexAccessToken } = await import('./auth-client');
-
-    await expect(fetchConvexAccessToken()).resolves.toBe(first);
-    await expect(fetchConvexAccessToken({ forceRefreshToken: true })).resolves.toBe(second);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it('drops a held mint on logout so a later session cannot reuse it', async () => {
-    const exp = Math.floor(Date.now() / 1000) + 3600;
-    const token = `hdr.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.sig`;
-    fetchMock.mockImplementation(() => Promise.resolve(Response.json({ token })));
+      .mockResolvedValueOnce(Response.json({ token: second }))
+      .mockImplementation(() => Promise.resolve(Response.json({ token: first })));
 
     const { fetchConvexAccessToken, clearCachedConvexAccessToken } = await import('./auth-client');
 
-    await expect(fetchConvexAccessToken()).resolves.toBe(token);
-    clearCachedConvexAccessToken();
-    await expect(fetchConvexAccessToken()).resolves.toBe(token);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
+    await expect(fetchConvexAccessToken()).resolves.toBe(first);
+    const requested = String(fetchMock.mock.calls[0]?.[0]);
+    expect(requested).toContain('/api/auth/token');
+    await expect(fetchConvexAccessToken()).resolves.toBe(first);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-  it('returns null when the caller is anonymous', async () => {
-    fetchMock.mockResolvedValue(
+    await expect(fetchConvexAccessToken({ forceRefreshToken: true })).resolves.toBe(second);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    clearCachedConvexAccessToken();
+    await expect(fetchConvexAccessToken()).resolves.toBe(first);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    vi.resetModules();
+    fetchMock.mockReset().mockResolvedValue(
       new Response(JSON.stringify({ message: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       }),
     );
+    const anon = await import('./auth-client');
+    await expect(anon.fetchConvexAccessToken()).resolves.toBeNull();
 
-    const { fetchConvexAccessToken } = await import('./auth-client');
-
-    await expect(fetchConvexAccessToken()).resolves.toBeNull();
-  });
-
-  it('returns null rather than rejecting when the mint request fails', async () => {
-    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
-
-    const { fetchConvexAccessToken } = await import('./auth-client');
-
-    await expect(fetchConvexAccessToken()).resolves.toBeNull();
+    vi.resetModules();
+    fetchMock.mockReset().mockRejectedValue(new TypeError('Failed to fetch'));
+    const offline = await import('./auth-client');
+    await expect(offline.fetchConvexAccessToken()).resolves.toBeNull();
   });
 });

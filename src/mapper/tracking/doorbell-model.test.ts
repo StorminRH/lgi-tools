@@ -24,14 +24,11 @@ function response(
   return { status, reason: 'x' } as JumpResolverResponse;
 }
 
-describe('ownTrackedDoorbellRows', () => {
-  it('stays quiet until both the feed and the own-id list have arrived', () => {
+describe('own-character doorbell filter', () => {
+  it('waits for feed + own ids, keeps only this client\'s rows, and rings only those characters', async () => {
     expect(ownTrackedDoorbellRows(undefined, [101])).toBeNull();
     expect(ownTrackedDoorbellRows([tracked(101, 5_000)], undefined)).toBeNull();
     expect(ownTrackedDoorbellRows(undefined, undefined)).toBeNull();
-  });
-
-  it('keeps only this client\'s tracked characters from the shared map feed', () => {
     expect(
       ownTrackedDoorbellRows(
         [tracked(101, 5_000), tracked(202, 6_000), tracked(303, 7_000)],
@@ -39,11 +36,7 @@ describe('ownTrackedDoorbellRows', () => {
       ),
     ).toEqual([tracked(101, 5_000), tracked(303, 7_000)]);
     expect(ownTrackedDoorbellRows([tracked(101, 5_000)], [])).toEqual([]);
-  });
-});
 
-describe('ringOwnDoorbells', () => {
-  it('does not ring until memory and a loaded feed exist, then only own characters', async () => {
     const ring = vi.fn(async () => response('processed'));
     const memory = new Map<number, DoorbellMemoryEntry>();
     const feed = {
