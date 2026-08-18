@@ -4,4 +4,4 @@ source: stormin/origin-ci-migration-4df8
 ---
 
 #### Changed
-- Drafted the Origin-native ship path and the plan to run production builds and Playwright in CI.
+- Drafted the Origin-native ship path: Depot-first CI with real Postgres, a long-lived beta preview, and manual production deploys.
