@@ -167,9 +167,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
-
       - run: pnpm db:migrate
+
+      - run: pnpm build
 
       # Repo-pinned Playwright (package.json). Headless shell only — no
       # `channel` in playwright.config.ts.
