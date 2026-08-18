@@ -1,6 +1,5 @@
-// Production scanner-paste boundary. Public handlers are gate-first; one
-// applyScan transaction owns tracked-system verification, monotonic payload
-// merge, sig-to-connection migration, missing classification, and removals.
+// Production scanner-paste boundary. Gate-first registered handlers for paste,
+// identify, elimination, selection, watch, and purge. Internals live in lib.
 import {
   paginationOptsValidator,
   type PaginationOptions,
@@ -8,16 +7,13 @@ import {
 } from 'convex/server';
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { connectionTypePatch } from '@/data/maps/connection-door-types';
-import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 import { findMissingSignatures } from '@/data/maps/signature-lifecycle';
-import type { Doc, Id } from './_generated/dataModel';
+import type { Doc } from './_generated/dataModel';
 import {
   internalMutation,
   internalQuery,
   mutation,
   query,
-  type MutationCtx,
 } from './_generated/server';
 import {
   requireMapAccess,
@@ -25,18 +21,13 @@ import {
   tryMapAccess,
   tryMapAccessForUser,
 } from './lib/mapAccess';
-import {
-  findLocalSignatureConnection,
-  readTouchingConnections,
-  requireLiveConnectionOnMap,
-} from './lib/mapConnectionLookup';
+import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
 import { eventActor } from './mapAuthoring';
 import {
   connectionProvenanceValidator,
   scannedKindValidator,
   sigGroupValidator,
 } from './lib/mapEntityContracts';
-import { stampObservationKey } from './lib/observationKey';
 import {
   purgeExpiredSignatures,
   SIGNATURE_PURGE_BATCH,
@@ -45,16 +36,11 @@ import {
   MAP_SIGNATURE_PAGE_SIZE,
   readScanState,
   requireBoundedRows,
-  requireBoundedSignatureIds,
-  requireLiveSystem,
-  rowMaps,
-  type ScanState,
 } from './lib/mapScanState';
 import {
   applyScannedRow,
-  applyWormholeRow,
+  identifyScannedSignature,
   liveLifecycleRows,
-  removeConfidentRows,
   requireTrackedSystem,
 } from './lib/mapScanApply';
 import {
@@ -64,6 +50,7 @@ import {
 } from './lib/mapScanElimination';
 import {
   changeSignatureSelection,
+  removeConfidentRows,
   type SignatureSelectionMode,
 } from './lib/mapScanSelection';
 
@@ -250,78 +237,6 @@ export const applyScan = mutation({
   },
 });
 
-async function stampIdentifiedWormholeType(
-  ctx: MutationCtx,
-  connectionId: Id<'mapConnections'>,
-  wormholeTypeCode: string | null | undefined,
-): Promise<void> {
-  if (!wormholeTypeCode) return;
-  if (!isWormholeTypeCode(wormholeTypeCode)) {
-    throw new ConvexError({
-      code: 'INVALID_WORMHOLE_CODE',
-      detail: `Unknown wormhole code "${wormholeTypeCode}".`,
-    });
-  }
-  const connection = await ctx.db.get(connectionId);
-  if (connection === null) return;
-  const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode);
-  if (
-    connection.fromWormholeTypeCode === typePatch.fromWormholeTypeCode
-    && connection.toWormholeTypeCode === typePatch.toWormholeTypeCode
-    && connection.typeProvenance === 'human'
-    && connection.observationKey !== undefined
-  ) {
-    return;
-  }
-  await ctx.db.patch(connectionId, {
-    ...typePatch,
-    typeProvenance: 'human',
-    pendingCandidates: undefined,
-    pendingResolutionCharacterId: undefined,
-    ...stampObservationKey(connection.observationKey).patch,
-  });
-}
-
-async function identifyWormholeRow(
-  ctx: MutationCtx,
-  state: ScanState,
-  signature: Doc<'mapSignatures'>,
-  mapId: string,
-  systemId: number,
-  wormholeTypeCode: string | null | undefined,
-): Promise<{ changed: boolean; connectionId: Id<'mapConnections'> }> {
-  if ((signature.kind ?? 'signature') !== 'signature') {
-    throw new ConvexError({ code: 'ANOMALY_CANNOT_BE_WORMHOLE' });
-  }
-  await applyWormholeRow(
-    ctx,
-    state,
-    {
-      signatureId: signature.signatureId,
-      kind: 'signature',
-      group: 'Wormhole',
-      name: signature.typeName,
-      signalPct: signature.signalPct ?? null,
-    },
-    mapId,
-    systemId,
-    Date.now(),
-  );
-  const connection = findLocalSignatureConnection(
-    await readTouchingConnections(ctx, mapId, systemId),
-    systemId,
-    signature.signatureId,
-  );
-  if (connection === undefined) {
-    throw new ConvexError({ code: 'SIGNATURE_MIGRATION_FAILED' });
-  }
-  await stampIdentifiedWormholeType(ctx, connection._id, wormholeTypeCode);
-  return {
-    changed: (signature.group ?? null) !== 'Wormhole',
-    connectionId: connection._id,
-  };
-}
-
 /**
  * Identifies one unresolved list row. Wormhole identification reuses the same
  * signature-to-connection convergence path as scanner paste.
@@ -336,44 +251,14 @@ export const identifySignature = mutation({
   },
   handler: async (ctx, { mapId, systemId, signatureId, group, wormholeTypeCode }) => {
     await requireMapAccess(ctx, mapId, 'edit');
-    await requireLiveSystem(ctx, mapId, systemId);
-    const [normalizedId] = requireBoundedSignatureIds([signatureId]);
-    if (normalizedId === undefined) {
-      throw new ConvexError({ code: 'INVALID_SIGNATURE_ID' });
-    }
-    const state = await readScanState(ctx, mapId, systemId);
-    const signature = rowMaps(state.signatures).get(normalizedId);
-    if (signature === undefined || isTombstoned(signature)) {
-      if (group === 'Wormhole') {
-        const existing = findLocalSignatureConnection(
-          await readTouchingConnections(ctx, mapId, systemId),
-          systemId,
-          normalizedId,
-        );
-        if (existing !== undefined) {
-          await stampIdentifiedWormholeType(ctx, existing._id, wormholeTypeCode);
-          return { changed: false, connectionId: existing._id };
-        }
-      }
-      throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
-    }
-    const currentGroup = signature.group ?? null;
-    if (currentGroup !== null && currentGroup !== group) {
-      throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
-    }
-    if (group === 'Wormhole') {
-      return identifyWormholeRow(
-        ctx,
-        state,
-        signature,
-        mapId,
-        systemId,
-        wormholeTypeCode,
-      );
-    }
-    if (currentGroup === group) return { changed: false, connectionId: null };
-    await ctx.db.patch(signature._id, { group });
-    return { changed: true, connectionId: null };
+    return await identifyScannedSignature(
+      ctx,
+      mapId,
+      systemId,
+      signatureId,
+      group,
+      wormholeTypeCode,
+    );
   },
 });
 

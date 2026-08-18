@@ -1,19 +1,18 @@
 // Clipboard apply: paste merge, wormhole write/migration/stub-absorb, and
-// confident-missing removal.
-import { ConvexError } from 'convex/values';
-import { chainTombstoneStamps, isTombstoned } from '@/data/maps/chain-contract';
-import { isConfidentMissingRemoval } from '@/data/maps/signature-lifecycle';
+// wormhole identify through the same paste writer.
+import { ConvexError, type Infer } from 'convex/values';
+import { isTombstoned } from '@/data/maps/chain-contract';
+import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { absorbDoorKnowledge } from '@/data/maps/connection-door-destinations';
 import { connectionTypePatch } from '@/data/maps/connection-door-types';
-import type { Doc } from '../_generated/dataModel';
+import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import {
-  runCollapse,
-  writeMapEvent,
-  type CollapsePilotsPresent,
-} from '../mapAuthoring';
-import { findPasteConnection } from './mapConnectionLookup';
+  findLocalSignatureConnection,
+  findPasteConnection,
+  readTouchingConnections,
+} from './mapConnectionLookup';
 import {
   applyKnownSignatureTombstone,
   touchKnownSignatureActivity,
@@ -21,20 +20,29 @@ import {
 import {
   mergeSignatureKnowledge,
   normalizeSignatureKnowledge,
+  sigGroupValidator,
   validateSignatureKnowledge,
 } from './mapEntityContracts';
+import { stampObservationKey } from './observationKey';
 import { findSystem, requireSystemId } from './mapSystemLookup';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from '../mapTracking';
 import {
   endpointSide,
   leadsNotePatch,
+  readScanState,
+  requireBoundedSignatureIds,
+  requireLiveSystem,
   rowMaps,
   tombstoneConnectionRow,
-  trackedPresenceReader,
   type ScanState,
 } from './mapScanState';
 
 type ApplyOutcome = 'inserted' | 'updated' | 'unchanged' | 'migrated' | 'conflicted';
+
+type WormholeWrite = {
+  readonly outcome: ApplyOutcome;
+  readonly connectionId: Id<'mapConnections'> | undefined;
+};
 
 /**
  * Confirms the paste system is live on the map and one of the caller's
@@ -126,11 +134,11 @@ export async function applyScannedRow(
   const connection = findPasteConnection(state.connections, systemId, row.signatureId);
   // A live door or revivable stub already owns this id.
   if (connection !== undefined) {
-    return await applyWormholeRow(ctx, state, row, mapId, systemId, now);
+    return (await applyWormholeRow(ctx, state, row, mapId, systemId, now)).outcome;
   }
   // No connection yet: Wormhole group creates/migrates; otherwise list upsert/revive.
   if (row.group === 'Wormhole') {
-    return await applyWormholeRow(ctx, state, row, mapId, systemId, now);
+    return (await applyWormholeRow(ctx, state, row, mapId, systemId, now)).outcome;
   }
   return await applyListRow(ctx, state, row, mapId, systemId, now);
 }
@@ -210,8 +218,8 @@ async function insertWormholeConnection(
   row: ScannedRow,
   firstSeenAt: number,
   wormholeTypeCode: string | null,
-): Promise<void> {
-  await ctx.db.insert('mapConnections', {
+): Promise<Id<'mapConnections'>> {
+  return await ctx.db.insert('mapConnections', {
     mapId,
     fromSystemId: systemId,
     toSystemId: null,
@@ -273,9 +281,9 @@ async function writeWormholeConnection(
   row: ScannedRow,
   mapId: string,
   systemId: number,
-): Promise<ApplyOutcome> {
+): Promise<WormholeWrite> {
   if (connection === undefined) {
-    await insertWormholeConnection(
+    const connectionId = await insertWormholeConnection(
       ctx,
       mapId,
       systemId,
@@ -283,15 +291,18 @@ async function writeWormholeConnection(
       facts.firstSeenAt,
       facts.wormholeTypeCode,
     );
-    return facts.migrated ? 'migrated' : 'inserted';
+    return { outcome: facts.migrated ? 'migrated' : 'inserted', connectionId };
   }
   const patch = {
     ...connectionSignalPatch(connection, facts.signalPct),
     ...(connection.firstSeenAt === undefined ? { firstSeenAt: connection._creationTime } : {}),
   };
   if (Object.keys(patch).length > 0) await ctx.db.patch(connection._id, patch);
-  if (facts.migrated) return 'migrated';
-  return Object.keys(patch).length > 0 ? 'updated' : 'unchanged';
+  if (facts.migrated) return { outcome: 'migrated', connectionId: connection._id };
+  return {
+    outcome: Object.keys(patch).length > 0 ? 'updated' : 'unchanged',
+    connectionId: connection._id,
+  };
 }
 
 /**
@@ -373,7 +384,7 @@ async function applyInboundPaste(
   signatureId: string,
   now: number,
   revived: boolean,
-): Promise<ApplyOutcome> {
+): Promise<WormholeWrite> {
   const absorbed = await absorbDuplicateOriginStub(
     ctx,
     state,
@@ -383,26 +394,30 @@ async function applyInboundPaste(
   );
   if (signature !== undefined) await ctx.db.delete(signature._id);
   await touchScanActivity(ctx, state, mapId, systemId, signatureId, now);
-  if (absorbed || revived) return 'updated';
-  return 'unchanged';
+  return {
+    outcome: absorbed || revived ? 'updated' : 'unchanged',
+    connectionId: inbound._id,
+  };
 }
 
 /** Writes or migrates one wormhole paste row, including inbound stub absorb. */
-export async function applyWormholeRow(
+async function applyWormholeRow(
   ctx: MutationCtx,
   state: ScanState,
   row: ScannedRow,
   mapId: string,
   systemId: number,
   now: number,
-): Promise<ApplyOutcome> {
+): Promise<WormholeWrite> {
   let signature = rowMaps(state.signatures).get(row.signatureId);
   const found = findPasteConnection(state.connections, systemId, row.signatureId);
   let connection: Doc<'mapConnections'> | undefined;
   let revived = false;
   if (found !== undefined) {
     const revivedConnection = await revivePasteConnection(ctx, found, row, now);
-    if (revivedConnection === 'unchanged') return 'unchanged';
+    if (revivedConnection === 'unchanged') {
+      return { outcome: 'unchanged', connectionId: found._id };
+    }
     connection = revivedConnection;
     revived = isTombstoned(found);
     if (endpointSide(connection, systemId) === 'to') {
@@ -447,13 +462,13 @@ async function writeFreshWormholeRow(
   systemId: number,
   now: number,
   revived: boolean,
-): Promise<ApplyOutcome> {
+): Promise<WormholeWrite> {
   const facts = wormholeMigrationFacts(signature, row, now);
   if (facts.outcome === 'conflict') {
     await touchScanActivity(ctx, state, mapId, systemId, row.signatureId, now);
-    return 'conflicted';
+    return { outcome: 'conflicted', connectionId: connection?._id };
   }
-  const outcome = await writeWormholeConnection(
+  const written = await writeWormholeConnection(
     ctx,
     connection,
     facts,
@@ -463,20 +478,10 @@ async function writeFreshWormholeRow(
   );
   if (signature !== undefined) await ctx.db.delete(signature._id);
   await touchScanActivity(ctx, state, mapId, systemId, row.signatureId, now);
-  if (revived && outcome === 'unchanged') return 'updated';
-  return outcome;
-}
-
-/** Lifecycle owner in this system for confident-missing; never the incoming mouth of a hallway. */
-function findOriginLifecycleConnection(
-  rows: readonly Doc<'mapConnections'>[],
-  systemId: number,
-  signatureId: string,
-): Doc<'mapConnections'> | undefined {
-  const matches = rows.filter(
-    (row) => row.fromSystemId === systemId && row.fromSignatureId === signatureId,
-  );
-  return matches.find((row) => !isTombstoned(row)) ?? matches[0];
+  if (revived && written.outcome === 'unchanged') {
+    return { outcome: 'updated', connectionId: written.connectionId };
+  }
+  return written;
 }
 
 /** Live list rows plus origin-side wormhole doors used for missing classification. */
@@ -499,96 +504,121 @@ export function liveLifecycleRows(state: ScanState, systemId: number) {
   return [...byId.values()];
 }
 
-async function removeConfidentRow(
+async function stampIdentifiedWormholeType(
   ctx: MutationCtx,
-  state: ScanState,
-  connection: Doc<'mapConnections'>,
-  input: {
-    readonly mapId: string;
-    readonly signatureId: string;
-    readonly actor: string;
-    readonly now: number;
-    readonly pilots: () => Promise<CollapsePilotsPresent>;
-  },
+  connectionId: Id<'mapConnections'>,
+  wormholeTypeCode: string | null | undefined,
 ): Promise<void> {
-  if (connection.toSystemId !== null) {
-    await runCollapse(ctx, {
-      mapId: input.mapId,
-      connectionId: connection._id,
-      actor: input.actor,
-      pilotsPresent: await input.pilots(),
+  if (!wormholeTypeCode) return;
+  if (!isWormholeTypeCode(wormholeTypeCode)) {
+    throw new ConvexError({
+      code: 'INVALID_WORMHOLE_CODE',
+      detail: `Unknown wormhole code "${wormholeTypeCode}".`,
     });
+  }
+  const connection = await ctx.db.get(connectionId);
+  if (connection === null) return;
+  const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode);
+  if (
+    connection.fromWormholeTypeCode === typePatch.fromWormholeTypeCode
+    && connection.toWormholeTypeCode === typePatch.toWormholeTypeCode
+    && connection.typeProvenance === 'human'
+    && connection.observationKey !== undefined
+  ) {
     return;
   }
-  await ctx.db.patch(connection._id, chainTombstoneStamps(input.now));
-  const activity = state.activities.find((row) => row.signatureId === input.signatureId);
-  if (activity !== undefined) await ctx.db.delete(activity._id);
+  await ctx.db.patch(connectionId, {
+    ...typePatch,
+    typeProvenance: 'human',
+    pendingCandidates: undefined,
+    pendingResolutionCharacterId: undefined,
+    ...stampObservationKey(connection.observationKey).patch,
+  });
 }
 
-/** Tombstones confident-missing origin doors; resolved holes go through collapse. */
-export async function removeConfidentRows(
+async function identifyWormholeRow(
   ctx: MutationCtx,
   state: ScanState,
-  missingIds: readonly string[],
+  signature: Doc<'mapSignatures'>,
   mapId: string,
   systemId: number,
-  actor: string,
-  now: number,
-): Promise<Set<string>> {
-  const removed = new Set<string>();
-  const removedStubIds: string[] = [];
-  const pilots = trackedPresenceReader(ctx, mapId);
-  // Stubs stamp before resolved collapses: the collapse core mints its shared
-  // undo stamp against a fresh topology read, so stamping independent stub
-  // tombstones first keeps them outside the branch's shared-stamp restore set.
-  const ordered = [...missingIds].sort((left, right) => {
-    const leftResolved = findOriginLifecycleConnection(
-      state.connections,
-      systemId,
-      left,
-    )?.toSystemId !== null;
-    const rightResolved = findOriginLifecycleConnection(
-      state.connections,
-      systemId,
-      right,
-    )?.toSystemId !== null;
-    return Number(leftResolved) - Number(rightResolved);
-  });
-  for (const signatureId of ordered) {
-    const known = findOriginLifecycleConnection(state.connections, systemId, signatureId);
-    if (known === undefined) continue;
-    // Re-read: an earlier collapse in this loop may already have tombstoned
-    // this row as branch collateral.
-    const connection = await ctx.db.get(known._id);
-    if (
-      connection === null
-      || isTombstoned(connection)
-      || !isConfidentMissingRemoval({
-        signatureId,
-        deathLatestAt: connection.deathLatestAt,
-      }, now)
-    ) continue;
-    await removeConfidentRow(ctx, state, connection, {
-      mapId,
-      signatureId,
-      actor,
-      now,
-      pilots,
-    });
-    removed.add(signatureId);
-    if (connection.toSystemId === null) removedStubIds.push(signatureId);
+  wormholeTypeCode: string | null | undefined,
+): Promise<{ changed: boolean; connectionId: Id<'mapConnections'> }> {
+  if ((signature.kind ?? 'signature') !== 'signature') {
+    throw new ConvexError({ code: 'ANOMALY_CANNOT_BE_WORMHOLE' });
   }
-  if (removedStubIds.length > 0) {
-    // Resolved removals ledger through the collapse core; silent stub
-    // removals record their own restorable event so nothing disappears
-    // without a 24-hour paper trail.
-    await writeMapEvent(ctx, {
-      mapId,
-      at: now,
-      kind: 'signatures_removed',
-      actor,
-      payload: { systemId, signatureIds: removedStubIds },
-    });
+  const written = await applyWormholeRow(
+    ctx,
+    state,
+    {
+      signatureId: signature.signatureId,
+      kind: 'signature',
+      group: 'Wormhole',
+      name: signature.typeName,
+      signalPct: signature.signalPct ?? null,
+    },
+    mapId,
+    systemId,
+    Date.now(),
+  );
+  if (written.connectionId === undefined) {
+    throw new ConvexError({ code: 'SIGNATURE_MIGRATION_FAILED' });
   }
-  return removed;
+  await stampIdentifiedWormholeType(ctx, written.connectionId, wormholeTypeCode);
+  return {
+    changed: (signature.group ?? null) !== 'Wormhole',
+    connectionId: written.connectionId,
+  };
+}
+
+/**
+ * Identifies one unresolved list row. Wormhole identification reuses the same
+ * signature-to-connection convergence path as scanner paste.
+ */
+export async function identifyScannedSignature(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+  signatureId: string,
+  group: Infer<typeof sigGroupValidator>,
+  wormholeTypeCode: string | null | undefined,
+): Promise<{ changed: boolean; connectionId: Id<'mapConnections'> | null }> {
+  await requireLiveSystem(ctx, mapId, systemId);
+  const [normalizedId] = requireBoundedSignatureIds([signatureId]);
+  if (normalizedId === undefined) {
+    throw new ConvexError({ code: 'INVALID_SIGNATURE_ID' });
+  }
+  const state = await readScanState(ctx, mapId, systemId);
+  const signature = rowMaps(state.signatures).get(normalizedId);
+  if (signature === undefined || isTombstoned(signature)) {
+    if (group === 'Wormhole') {
+      const existing = findLocalSignatureConnection(
+        await readTouchingConnections(ctx, mapId, systemId),
+        systemId,
+        normalizedId,
+      );
+      if (existing !== undefined) {
+        await stampIdentifiedWormholeType(ctx, existing._id, wormholeTypeCode);
+        return { changed: false, connectionId: existing._id };
+      }
+    }
+    throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
+  }
+  const currentGroup = signature.group ?? null;
+  if (currentGroup !== null && currentGroup !== group) {
+    throw new ConvexError({ code: 'SIGNATURE_ALREADY_IDENTIFIED' });
+  }
+  if (group === 'Wormhole') {
+    return identifyWormholeRow(
+      ctx,
+      state,
+      signature,
+      mapId,
+      systemId,
+      wormholeTypeCode,
+    );
+  }
+  if (currentGroup === group) return { changed: false, connectionId: null };
+  await ctx.db.patch(signature._id, { group });
+  return { changed: true, connectionId: null };
 }

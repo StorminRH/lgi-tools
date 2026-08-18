@@ -29,7 +29,11 @@ export const MAP_SIGNATURE_PAGE_SIZE = 100;
 /** Maximum hallway rows touching this system one elimination transaction may inspect. */
 export const MAP_ELIMINATION_CONNECTION_LIMIT = 128;
 
-/** One system's signatures, touching connections, and activity companions. */
+/**
+ * Signature, connection, and activity rows a scan-boundary writer already loaded.
+ * `readScanState` loads one system; selection loads only the requested
+ * identities plus touching connections.
+ */
 export interface ScanState {
   readonly signatures: Doc<'mapSignatures'>[];
   readonly connections: Doc<'mapConnections'>[];

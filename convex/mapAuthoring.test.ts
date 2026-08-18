@@ -1897,7 +1897,7 @@ describe('map authoring', () => {
       expect(selectionSource).not.toContain('decideCollapse');
       // Every destructive trigger outside severConnection routes through the
       // extracted core rather than a sibling implementation.
-      expect(applySource).toContain('runCollapse(');
+      expect(applySource).not.toContain('runCollapse(');
       expect(selectionSource).toContain('runCollapse(');
       expect(authoringSource).toContain('runCollapse(ctx, {');
       expect(authoringSource).toContain('gatedConnectionEdit');
