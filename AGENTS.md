@@ -94,10 +94,11 @@ still live in the README/`package.json`. Non-obvious caveats:
   The migrated schema and the ingested EVE SDE are baked into the environment
   snapshot, so a normal boot needs no migration/ingest and no CCP network call.
 - **Use `pnpm dev`, not `pnpm dev:all`.** `dev:all` runs `docker compose up -d`
-  (no Docker here) and `convex dev` (needs a Convex cloud login that is not
-  provisioned). The app degrades gracefully without Convex, so `pnpm dev` (Next
-  on `:3000`) is the working local server — the `next-dev` terminal waits for
-  Postgres and runs it for you.
+  (no Docker here). Convex is a sibling terminal: `.cursor/convex.sh` runs
+  `CONVEX_AGENT_MODE=anonymous pnpm exec convex dev` on `:3210`. Do not copy a
+  laptop `local:` pair, a hosted `*.convex.cloud` URL, or `CONVEX_DEPLOY_KEY`.
+  Fixture probes call `convex run` against the selected `local:` or
+  `anonymous:` deployment and refuse a hosted URL.
 - **`.env.local` is auto-generated** with dev-only session/crypto secrets and
   the local DB URLs. Any Cloud Agent Secret you upload is injected as a real env
   var and overrides the `.env.local` fallback at runtime — do not upload a
@@ -111,3 +112,27 @@ still live in the README/`package.json`. Non-obvious caveats:
   (`db:refresh-sde`, `db:refresh-prices`) resolve it with `??`, so the blank
   value shipped in `.env.example` does *not* fall back to `DATABASE_URL`; the
   install script points it at the same local cluster.
+- **Project skills live in `.cursor/skills/`.** Cloud Agents do not inherit
+  laptop `~/.cursor/skills/`. Keep the operative copies here so every cloud
+  session sees the same seats as local. Official review skills from Thermos
+  and Cursor Team Kit live here too: `thermos`, `thermo-nuclear-review`,
+  `thermo-nuclear-code-quality-review`, and `deslop`. Thermos owns the
+  quality-review skill; do not keep a Team Kit duplicate.
+- **Custom subagents live in `tools/cursor-runtime/agents/`.** `.cursor/agents/`
+  is a forbidden in-repo path. `.cursor/start.sh` mirrors those files into
+  `~/.cursor/agents/` on every boot so Task can launch them by name.
+- **Playwright Chromium is installed by `.cursor/install.sh`.** Use
+  `http://localhost:3000` (the `next-dev` terminal). Seed auth with
+  `pnpm e2e:seed` on this VM; do not upload `auth-storage.json` or cookie jars.
+- **Anonymous Convex lives on `:3210`.** After Next is up, `.cursor/start.sh`
+  reconciles `AUTH_ISSUER_URL`, `SITE_URL`, `AUTH_JWKS` (from
+  `/api/auth/jwks`), and a VM-generated `CONVEX_SERVICE_SECRET` onto the local
+  deployment. Atlas `atlas-*` probes need both terminals; `pnpm verify`,
+  public e2e, and synthetic-auth smoke do not.
+- **Codegraph CLI** (`@colbymchenry/codegraph@1.5.0`) is installed globally
+  and `.codegraph/` is snapshotted. `repo-mapper` can run `codegraph sync`
+  after material source edits; a token is not required.
+- **Do not upload** production `DATABASE_URL` / `DATABASE_URL_UNPOOLED` /
+  `DATABASE_MIGRATION_URL`, hosted Convex URL/deployment, `CONVEX_DEPLOY_KEY`,
+  or a `~/.convex` access token. Preview log probes may use
+  `VERCEL_AUTOMATION_BYPASS_SECRET` only.

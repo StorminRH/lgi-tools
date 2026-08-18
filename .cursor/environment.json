@@ -1,6 +1,7 @@
 {
   "name": "LGI.tools",
   "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
   "terminals": [
     {
       "name": "postgres",
@@ -10,10 +11,16 @@
     {
       "name": "next-dev",
       "command": "bash .cursor/dev.sh",
-      "description": "Waits for Postgres, then runs the Next.js dev server on http://localhost:3000 (public pages + the DB-backed Wormhole Sites and Industry Planner tools). Use this rather than `pnpm dev:all`, which needs Docker and a Convex login that are not provisioned; the app degrades gracefully without Convex."
+      "description": "Waits for Postgres, then runs the Next.js dev server on http://localhost:3000. Use this rather than `pnpm dev:all` (Docker + a logged-in convex dev). Pair with the convex-dev terminal for Atlas/mapper."
+    },
+    {
+      "name": "convex-dev",
+      "command": "bash .cursor/convex.sh",
+      "description": "Anonymous local Convex backend on http://127.0.0.1:3210 (CONVEX_AGENT_MODE=anonymous). Required for Atlas mapper probes and `convex run` against the selected anonymous/local deployment. Do not point the app at a hosted Convex URL."
     }
   ],
   "ports": [
-    { "name": "next", "port": 3000 }
+    { "name": "next", "port": 3000 },
+    { "name": "convex", "port": 3210 }
   ]
 }
