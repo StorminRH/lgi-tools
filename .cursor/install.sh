@@ -110,8 +110,8 @@ ensure_secret ESI_SNAPSHOT_ENCRYPTION_KEY
 set_var BETTER_AUTH_URL http://localhost:3000
 set_var CONVEX_AGENT_MODE anonymous
 # Do not write NEXT_PUBLIC_CONVEX_URL / CONVEX_DEPLOYMENT here. `convex dev`
-# owns those (`http://127.0.0.1:3210` + `local:`). Never copy a laptop or
-# hosted pair into this file.
+# owns those (`http://127.0.0.1:3210` plus `local:` or `anonymous:`). Never
+# copy a laptop or hosted pair into this file.
 
 # --- Schema + seed data ---
 # Pin every URL the node scripts resolve (migrate-url.ts reads
