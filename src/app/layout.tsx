@@ -129,11 +129,10 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <TelemetryReporter />
         </Suspense>
-        {/* Only on Vercel (prod/preview), where the script is served same-origin.
-            In local dev the package loads its debug script cross-origin from
-            va.vercel-scripts.com, which the CSP blocks — and it can't report from
-            localhost anyway, so it's pure console noise. */}
-        {process.env.NODE_ENV === "production" && <SpeedInsights />}
+        {/* Only on Vercel prod/preview, where `/_vercel/speed-insights/*` exists.
+            `next start` in CI is NODE_ENV=production but is not Vercel. */}
+        {(readEnv("VERCEL_ENV") === "production" ||
+          readEnv("VERCEL_ENV") === "preview") && <SpeedInsights />}
       </body>
     </html>
   );
