@@ -19,19 +19,17 @@ happen on the stack you will keep.
 
 - **GOAL:** Origin is where you code, run CI, open previews, merge, and
   ship. Depot is the only gate and runs real Postgres. Vercel previews
-  replace laptop `pnpm dev` in most cases. Feature work lands on a
-  long-standing `beta` branch. GitHub’s only job is a manual bot review
-  of that beta before it goes to `main`. Merging to `main` is the
-  **release** (one version bump, one public changelog). Production is
-  a separate manual promote. Issues leave GitHub for Linear. After
-  that stack works, laptop Cursor and the Cloud Agent environment use
-  the same Cursor-native skills, seats, remotes, and tests — no
-  leftover local-only workarounds.
+  replace laptop `pnpm dev` in most cases. Work lands on
+  `development`. Reviewed chunks promote to `staging` when the file
+  count vs `staging` is around **100** (the bot-review bar). Merging
+  `staging` → `main` is the **release**. Production is a separate
+  manual promote. Issues leave GitHub for Linear. After that stack
+  works, laptop Cursor and Cloud Agents share one Cursor-native
+  workflow.
 - **DONE =** SC-1 through SC-11 below, plus: Origin-hosted repo, Depot
-  Checks, preview-as-dev process, `beta` integration branch, GitHub
-  bots manual-only on the beta dump, tracker + feedback + GrokBots
-  retargeted, each named skill visited in isolation, and local/cloud
-  parity on Cursor defaults.
+  Checks, preview-as-dev, `development` / `staging` / `main` lines,
+  GitHub bots only on ~100-file staging dumps, tracker + GrokBots
+  retargeted, skills visited in isolation, and local/cloud parity.
 - **OUT OF SCOPE:**
   - Implementing any Ordered work step in the same PR as this plan.
   - Deleting every canned-row `*.test.ts` (only the “CI substitute for
@@ -45,9 +43,11 @@ happen on the stack you will keep.
 <hard_constraints>
 
 - **Plan:** After cutover, Origin is source of truth. GitHub is a
-  disposable dump used only for review bots on `beta` before `main`.
-  Never merge the dump PR. Never accept bot-apply commits. Never push
-  Origin `main` to GitHub `main`.
+  disposable dump used only for review bots when promoting a
+  **~100-file** chunk from `development` to `staging`. Never merge
+  the dump PR. Never accept bot-apply commits. Never push Origin
+  `main` to GitHub `main`. Do not dump a larger-than-bar diff to
+  Greptile/CodeRabbit — they are not reliable past that size.
 - **Plan:** Do not rehearse CI on GitHub Actions and migrate later.
   Create or detach an Origin-hosted repo, then prove Depot there. Depot
   and Origin Apps do not run on an inbound GitHub mirror.
@@ -66,8 +66,8 @@ happen on the stack you will keep.
 - **Plan:** Vercel-for-Origin defaults to “non-`main` push = Preview,
   merge/`main` push = Production.” Keep `deploymentEnabled.main: false`
   so Origin merge to `main` does not ship `lgi.tools`. Production is
-  `vercel promote` (or the dashboard equivalent) after beta clears bots
-  and Origin CI.
+  `vercel promote` (or the dashboard equivalent) after you cut a
+  release from `staging`.
 - **Plan:** Previews are the usual way to exercise a feature. Laptop
   `pnpm dev` stays allowed when you want it. Do not require a laptop
   Next server for ordinary visual checks once a Preview URL exists.
@@ -80,26 +80,28 @@ happen on the stack you will keep.
   job `e2e` are PR-only on Depot.
 - **Plan:** Do not run `build:vercel` in the CI build job. Migrate /
   ingest / warm-neon stay deploy-time on the environment that is
-  actually going live (`beta` or Production).
+  actually going live (`staging` or Production).
 - **Plan:** Greptile and CodeRabbit are **manual request only**, and
-  only on the GitHub dump of `beta` when you are preparing to merge
-  `beta` → `main`. They are not the merge gate and must not run on
-  every Origin PR.
-- **Plan:** A merge to `beta` is not a release. Do not bump
-  `APP_VERSION`, do not publish a `### vX.Y.N` heading, and do not
-  fold pending changelog fragments when landing on `beta`. Those
-  happen once, when `beta` merges to `main`. Session contract numbers
-  (`X.Y.N.M`) stay internal planning IDs; they are not user-facing
-  versions. Do not rewrite completed 4.0 as-builts to pretend they
+  only on a GitHub dump whose file count vs `staging` is at or under
+  **~100**. That dump is the `development` → `staging` promote, not
+  every Origin PR and not the eventual `staging` → `main` release
+  unless that release is itself still under the bar. They are not the
+  merge gate.
+- **Plan:** A merge to `development` or `staging` is not a release.
+  Do not bump `APP_VERSION`, do not publish a `### vX.Y.N` heading,
+  and do not fold pending changelog fragments until `staging` merges
+  to `main`. Session contract numbers (`X.Y.N.M`) stay internal
+  planning IDs. Do not rewrite completed 4.0 as-builts to pretend they
   already worked this way.
-- **Plan:** Durable `beta` must not use Neon’s `preview/` prefix
+- **Plan:** Durable `staging` must not use Neon’s `preview/` prefix
   (`neon.ts` gives those a 3-day TTL). Ephemeral feature previews use
-  `preview/*` and are torn down (Neon branch + Convex preview
-  deployment) after the feature is proven. Convex beta is one
-  prod-type extra deployment, left up. Do not put a Production
+  `preview/*` and are torn down after the feature is proven.
+  `development` is the git integration line; it does **not** get a
+  second standing Convex (cost). Convex `staging` is one prod-type
+  extra deployment, left up. Do not put a Production
   `CONVEX_DEPLOY_KEY` on Preview. Do not store
   `NEXT_PUBLIC_CONVEX_URL` / `CONVEX_DEPLOYMENT` on Vercel Preview.
-  Beta Convex `SITE_URL` / issuer must be the beta origin, not
+  Staging Convex `SITE_URL` / issuer must be the staging origin, not
   `lgi.tools`.
 - **Plan:** Origin has no issue tracker. Linear is the intended home
   (Cursor app, Cloud Agents, and GrokBots all have Linear connectors).
@@ -123,7 +125,7 @@ happen on the stack you will keep.
 - **Plan:** Agents must not visually approve UX. After CI `e2e` exists,
   `ux-check` is operator visual on a Preview URL (or laptop when you
   choose) plus diagnosis.
-- **Plan:** Do not point `delete-neon-branch` at durable `beta`. Tear
+- **Plan:** Do not point `delete-neon-branch` at durable `staging`. Tear
   down ephemeral Convex backends on purpose (Vercel ending a Preview
   does not delete Convex; official cleanup is 5/14-day expiry,
   dashboard delete, or Management API). Convex has no scale-to-zero;
@@ -181,8 +183,8 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 | Depot CLI | Not present here | No `depot` on this VM or the operator laptop at last check | OW-2 installs CLI where the operator works |
 | Live DoD | `pnpm verify` | AGENTS.md, close-out, CONTRIBUTING | OW-4 flips docs after `verify` is honest on Depot |
 | Live CI | GHA, no real SQL | `.github/workflows/test.yml` skips `*.db.test.ts` | OW-2/OW-3 replace this on Origin |
-| Preview/prod gaps | Known | Convex preview key unused; `SITE_URL` prod-shaped; `neon.ts` is never auto-applied; crons Production-only; shared Upstash. Convex cost is the preview concern (no scale-to-zero) | OW-5 / OW-17: ephemeral teardown + one cheap sleeping `beta` |
-| Neon branch policy | In-repo, apply is manual | Repo-root `neon.ts`: `preview/*` gets `ttl: '3d'`, 0.25–1 CU, `suspendTimeout: '1m'`. Other new branches get no TTL and inherit defaults. Existing non-default branches are left alone until `updateExisting` | OW-17 adds a named `beta` arm (no TTL, cheap CU, fast suspend) and applies it |
+| Preview/prod gaps | Known | Convex preview key unused; `SITE_URL` prod-shaped; `neon.ts` is never auto-applied; crons Production-only; shared Upstash. Convex cost is the preview concern (no scale-to-zero) | OW-5 / OW-17: ephemeral teardown + one cheap sleeping `staging` |
+| Neon branch policy | In-repo, apply is manual | Repo-root `neon.ts`: `preview/*` gets `ttl: '3d'`, 0.25–1 CU, `suspendTimeout: '1m'`. Other new branches get no TTL and inherit defaults. Existing non-default branches are left alone until `updateExisting` | OW-17 adds a named `staging` arm (no TTL, cheap CU, fast suspend) and applies it |
 | Issues | GitHub only | Origin has no tracker. 31 open issues on `StorminRH/lgi-tools` | OW-14 proves Linear; OW-15 migrates feedback |
 | Site feedback | GitHub REST | `createFeedbackGithubIssue` POSTs to `StorminRH/lgi-tools` with `GITHUB_FEEDBACK_TOKEN` | Do not retarget until OW-14 |
 | Daily GrokBots | Schedule runners | They run on a schedule. When they need to write code they spawn a Cloud Agent in the build environment. **Update watch:** GrokBot itself files an issue (no Cloud Agent). **Refactor:** standing issue documents the process; work lives as a draft PR the agent updates. **Test cleanup:** draft PR only (rebased/updated daily); not an issue. Live GitHub: [#444](https://github.com/StorminRH/lgi-tools/issues/444), [#449](https://github.com/StorminRH/lgi-tools/issues/449) | OW-16 retargets: Linear for issues the bots file; Origin draft PRs for the two accumulators |
@@ -195,15 +197,17 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 
 You want to stop treating the laptop as the app and GitHub as the forge.
 Origin plus Depot plus Vercel-on-Origin can be the daily loop: CI on
-the PR, click the Preview, merge into `beta`, and only touch GitHub
-when bots should look at a release candidate. Temporary previews must
-not leave Neon and Convex running; `beta` keeps one cheaper pair.
+the PR, click the Preview, merge into `development`, and only touch
+GitHub when a ~100-file chunk is ready for `staging`. Temporary
+previews must not leave Neon and Convex running; `staging` keeps one
+cheaper pair.
 Issues that need a board (feedback, update-watch, refactor process)
 move to Linear because the Cursor app, Cloud Agents, and GrokBots
 already have that connector. Planned sessions keep contracts and
 ordered work, but they stop minting a public version on every merge;
-`beta` is the integration line and `main` is the release cut. Origin
-and Depot first so later visits use the remotes you will keep.
+`development` is the integration line, `staging` is the reviewed
+moving branch, and `main` is the release cut. Origin and Depot first
+so later visits use the remotes you will keep.
 
 ## Scope (the destination)
 
@@ -220,14 +224,17 @@ When the last Ordered work step is done:
   After it is proven, both backends are torn down. Laptop `pnpm dev`
   is optional.
 - Passing feature work (planned session or ordinary) merges to
-  Origin `beta`. No version bump. A pending changelog fragment
-  records what changed. `beta` keeps one Neon + one Convex pair
-  for accumulated testing.
-- When `beta` is ready: dump that SHA to GitHub, **manually** request
-  Greptile/CodeRabbit, triage, fix on Origin, confirm Origin CI, merge
-  Origin `beta` → Origin `main` as a **release** (fold pending
-  fragments, publish one `### vX.Y.N`, set `APP_VERSION`), then
-  **manually** promote production.
+  Origin `development`. No version bump. A pending changelog fragment
+  records what changed.
+- When `git diff --name-only staging...development` is around **100
+  files** and Depot is clean: dump that range to GitHub, **manually**
+  request Greptile/CodeRabbit, triage, fix on Origin, merge
+  `development` → `staging`. `staging` is the standing cheaper
+  preview of reviewed work.
+- When you want production: merge Origin `staging` → `main` as a
+  **release** (fold pending fragments, publish one `### vX.Y.N`, set
+  `APP_VERSION`), then **manually** promote. You may run several
+  staging promotes before one release.
 - Vercel no longer watches GitHub.
 - Linear holds issues (feedback, update-watch, refactor process,
   `[Backlog]`, triage). Test-cleanup and refactor **work** stay draft
@@ -253,7 +260,7 @@ When the last Ordered work step is done:
 | Scripts | OW-12 |
 | Standing docs | OW-13 |
 | Linear + GrokBots | OW-14 prove connectors; OW-15 feedback; OW-16 retarget |
-| Manual prod + standing beta | OW-17 |
+| Manual prod + standing staging | OW-17 |
 | GitHub bots-only | OW-8 writes the dump ritual; OW-17/close-out keep it |
 | Local / cloud parity | OW-18 last, after the stack works |
 | This plan only | Current PR. Diff must not flip skills, CI, or `vercel.json` |
@@ -269,28 +276,34 @@ When the last Ordered work step is done:
   prod. **Rejected:** keep GitHub as the deploy remote “just in case.”
 - **Previews replace laptop `pnpm dev` in most cases.** Process: push
   an Origin branch / open a PR → Vercel Preview URL → click it.
-  Sometimes that preview is short-lived (one feature). Sometimes
-  `beta` stays up as an accumulated preview. Laptop `pnpm dev` remains
-  when you want speed. **Rejected:** per-PR previews stay off forever
-  (overruled leftover).
+  Sometimes that preview is short-lived (one feature). `staging`
+  stays up as the reviewed accumulated preview. Laptop `pnpm dev`
+  remains when you want speed. **Rejected:** per-PR previews stay off
+  forever (overruled leftover).
 - **`vercel.json`:** `main: false` is mandatory. Allowing other
   branches to deploy is the preview process. Convex cost is the
   limiter (a preview backend does not sleep). A naming convention is
   allowed if every-branch previews are too expensive. Every ephemeral
   preview must tear down Neon + Convex after the feature is proven.
-- **Feature integration branch is Origin `beta`.** CI-green Origin PRs
-  merge to `beta`, not `main`. `beta` → `main` is the **release
-  gate**: bots, one version bump, one public changelog, then a
-  separate promote. **Rejected:** bumping `APP_VERSION` on every
-  planned session the way 4.0 close-out does today.
-- **GitHub bots: dump `beta` only, request manually.** When `beta` has
-  enough PRs (or too much work), clone that SHA to GitHub, manually
-  request Greptile/CodeRabbit, triage as today, apply fixes on Origin,
-  re-run Origin CI. Never merge GitHub. **Rejected:** bots on every
-  Origin PR; bots as the merge gate.
-- **Production:** merge Origin `beta` → `main`, then manual
-  `vercel promote` (or dashboard). Do not rely on Vercel-for-Origin’s
-  “merge to production branch ships prod.”
+- **Three git lines, not one `beta`.** `development` is where sessions
+  land. `staging` is the reviewed moving branch (durable preview).
+  `main` is the release cut. **Rejected:** one long `beta` that grows
+  past what Greptile/CodeRabbit can read, then one dump of the whole
+  pile.
+- **GitHub bot bar: ~100 files vs `staging`.** Measure
+  `git diff --name-only staging...development | wc -l`. When it is
+  around 100 and the chunk is clean, dump **that range**, request
+  bots manually, fix on Origin, fast-forward or merge into `staging`.
+  You may cut a smaller chunk; do not dump a larger one. Repeat until
+  `staging` holds everything you want in the next release.
+  **Rejected:** bots on every Origin PR; bots as the merge gate; one
+  giant dump at release time if it exceeds the bar (split first).
+- **Production:** merge Origin `staging` → `main`, then manual
+  `vercel promote`. Do not rely on Vercel-for-Origin’s “merge to
+  production branch ships prod.”
+- **One standing backend pair, on `staging`.** Convex is the cost.
+  Do not give `development` its own durable Convex. Feature PRs keep
+  ephemeral pairs and tear them down.
 - **Depot product: CI sandboxes with `jobs.<id>.services` Postgres.**
   **Rejected:** Container Builds / bake as the test DB.
 - **Job split:** `verify` = typecheck, lint, `assert:routes-present`,
@@ -303,14 +316,13 @@ When the last Ordered work step is done:
   train.** Origin/Depot/preview first so those visits use the new
   remotes. Contracts → plans → ordered work stay as the way you
   *do* work. They stop being the way you *version* the product.
-- **Release train (traditional staging → release).** Many small
-  landings on `beta` (planned sessions and ordinary PRs). One release
-  when you cut `beta` → `main`. Pending fragments already exist for
-  ordinary work; planned sessions join that inbox instead of
-  publishing `### vX.Y.N` on every sub-version PR. You pick the
-  public number at cut time (`4.0.6`, or `4.1.0` if the theme
-  changed) — not from the last session id. Git tags (`v4.0.6`) are
-  optional later; not required to start.
+- **Release train with a review staging line.** Many small landings
+  on `development`. Chunked bot review + promote to `staging` at the
+  ~100-file bar. One release when you cut `staging` → `main`. Pending
+  fragments accumulate from every landing; fold only at that cut.
+  You pick the public number at cut time (`4.0.6`, or `4.1.0` if the
+  theme changed) — not from the last session id. Git tags (`v4.0.6`)
+  are optional later.
 - **Linear is the issue board.** Cursor, Cloud Agents, and GrokBots
   already have Linear connectors. Origin still has no issues. Free
   cap is **250 issues** — do not import closed GitHub history. OW-14
@@ -331,26 +343,26 @@ When the last Ordered work step is done:
     rebases.
   - **Test cleanup:** **draft PR only** (updated/rebased daily). Not
     an issue. Do not create a tracker ticket for it.
-- **Neon preview vs `beta`:** policy lives in repo-root `neon.ts`.
+- **Neon preview vs `staging`:** policy lives in repo-root `neon.ts`.
   New `preview/*` → 3-day TTL, 0.25–1 CU, suspend in 1 minute. New
-  unnamed branches inherit defaults (no TTL). `beta` gets its own
-  arm: no TTL, cheap CU, short `suspendTimeout` (same cheap-sleep
-  pattern). Apply with `neon config apply` (`updateExisting` for a
-  branch that already exists). Dashboard is fine if the CLI needs a
-  hand. Do not name `beta` `preview/beta`.
-- **Convex preview vs `beta`:** cost is the reason to tear down
-  ephemeral previews. Official Convex has **no scale-to-zero**. Pause
-  stops function/bandwidth charges; storage still bills. Preview-type
+  unnamed branches inherit defaults (no TTL). `staging` gets its own
+  arm: no TTL, cheap CU, short `suspendTimeout`. Apply with
+  `neon config apply` (`updateExisting` for a branch that already
+  exists). Dashboard is fine if the CLI needs a hand. Do not name it
+  `preview/staging`.
+- **Convex preview vs `staging`:** cost is the reason to tear down
+  ephemeral previews and to skip a durable `development` backend.
+  Official Convex has **no scale-to-zero**. Pause stops
+  function/bandwidth charges; storage still bills. Preview-type
   backends expire 5 days (Free/Starter) or 14 days (paid) from
   **creation**, not last use — that is a safety net, not the process.
   Vercel ending a Preview does **not** delete Convex. Tear down with
   dashboard delete or Management API
   `POST /deployments/:name/delete`. Use a **preview deploy key** on
   Vercel Preview so `npx convex deploy` creates `preview/[branch]`.
-  `beta` is `npx convex deployment create beta --type prod` — one
-  durable extra, no expiry. There is no official cheaper/slower
-  Convex SKU for beta; pause when idle if you want to stop function
-  charges. Do not put a prod key on Preview.
+  `staging` is `npx convex deployment create staging --type prod` —
+  one durable extra, no expiry. Pause when idle if you want to stop
+  function charges. Do not put a prod key on Preview.
 - **Developer plan utilization:** Depot CI minutes and results only.
 - **Cloud Agent / Origin CLI:** browser login on a machine you
   control. Do not paste keys in chat.
@@ -371,21 +383,33 @@ is that **planned close-out treats every finished sub-version as a
 public release**: merge to `main`, bump `APP_VERSION` (today
 `4.0.5.1`), publish `### v4.0.5.1`, fold pending fragments. Ordinary
 work already does the right smaller thing (a pending fragment, no
-version). After this migration, **everything that lands on `beta`
+version). After this migration, **everything that lands on `development`
 behaves like today’s ordinary work**. The version happens once, when
-you cut a release.
+you cut `staging` → `main`.
 
-Think of three layers. They stay separate:
+Think of four layers. They stay separate:
 
 | Layer | What it is | When it moves |
 | --- | --- | --- |
-| **Work package** | Session contract → plan → ordered work (or an ordinary PR) | Merge to Origin `beta` when that slice is proven |
-| **Release** | One public number + one changelog entry + `APP_VERSION` | Merge Origin `beta` → `main` after bots |
+| **Work package** | Session contract → plan → ordered work (or an ordinary PR) | Merge to Origin `development` when that slice is proven |
+| **Review chunk** | Files on `development` that `staging` does not have yet | When `git diff --name-only staging...development` is around **100**, dump that range to GitHub, request bots, merge to `staging` |
+| **Release** | One public number + one changelog entry + `APP_VERSION` | Merge Origin `staging` → `main` |
 | **Production** | Users on `lgi.tools` | `vercel promote` of that `main` SHA |
 
-That is the usual staging-branch model: many commits on a pre-release
-line, one versioned cut, then a deploy. You do not need a new
-numbering invention to start.
+That is a development → staging → main train. Many small landings,
+chunked bot review at the file-count barn, one versioned cut, then a
+deploy. You do not need a new numbering invention to start.
+
+**Why `development` and `staging`, not one long `beta`:** Greptile
+and CodeRabbit are not reliable past ~100 files. A single
+integration branch that grows for weeks cannot be dumped whole. So
+`development` is the daily land (no version, pending fragment,
+ephemeral Preview). `staging` is the reviewed moving branch
+(durable cheaper Neon + one Convex, standing Preview). You run
+overwork sessions until the unreviewed file count vs `staging` is
+around 100, then you submit that chunk — not the whole pile. Repeat
+until `staging` holds what you want in the next release. Then one
+`staging` → `main` cut.
 
 **Keep (this is project management, not releasing):**
 
@@ -402,19 +426,23 @@ numbering invention to start.
 - Session id `4.0.5.1.1` is a planning label. It must not force
   `APP_VERSION` `4.0.5.1`.
 - “Final session of a sub-version” no longer opens the release PR to
-  `main`. It merges to `beta` and drops a pending fragment like
+  `main`. It merges to `development` and drops a pending fragment like
   everyone else.
-- “Shipped” in contracts/schemas splits: **landed** (on `beta`) vs
-  **released** (on `main`, version published) vs **in production**
-  (promoted).
-- Close-out grows a third ritual you ask for by name: **cut a
-  release** (bots + `beta` → `main` + fold + bump). Promote stays a
-  fourth, still only when you ask.
+- “Shipped” in contracts/schemas splits: **landed** (on
+  `development`) vs **reviewed** (on `staging`) vs **released** (on
+  `main`, version published) vs **in production** (promoted).
+- Close-out grows **four named rituals**:
+  1. **Land on `development`** (today’s default after this rewrite,
+     including a “final” session).
+  2. **Promote a review chunk** (bots + dump + merge to `staging`)
+     when the file count vs `staging` is around 100.
+  3. **Cut a release** (`staging` → `main` + fold + bump).
+  4. **Promote production** (named ask).
 
 **How to pick the public number at cut time (plain rule):**
 
 - Same master theme (`4.0` Atlas, etc.): increment the last published
-  `N` (`4.0.5` → `4.0.6`) for the whole bundle on `beta`, no matter
+  `N` (`4.0.5` → `4.0.6`) for the whole bundle on `staging`, no matter
   how many sessions or ordinary PRs piled up.
 - New theme / new master plan: start `4.1.0` (or whatever the new
   `X.Y` is) as the first release of that line.
@@ -425,7 +453,7 @@ Optional later, not required: a git tag `v4.0.6` on the release
 commit. The site already keys off `APP_VERSION` and
 `content/changelog/vX.Y.md`.
 
-**What agents write on a beta landing:** exactly one pending fragment
+**What agents write on a `development` landing:** exactly one pending fragment
 (planned or ordinary). No `content/changelog/v4.0.md` heading, no
 `src/config/app-version.ts` edit. The fold command you already have
 (`python3 tools/cli.py lifecycle fold-pending-changelog`) runs only
@@ -467,7 +495,7 @@ product behavior.
 - `.depot/workflows/` — OW-2, OW-3.
 - `AGENTS.md`, CONTRIBUTING, PR template — OW-4, then OW-13.
 - `vercel.json` + Vercel project git settings — OW-5, OW-17.
-- `neon.ts` — preview TTL/compute and the `beta` cheap-sleep arm
+- `neon.ts` — preview TTL/compute and the `staging` cheap-sleep arm
   (OW-5 / OW-17). Nothing applies until `neon config apply`.
 - `.cursor/skills/start-session/SKILL.md` — OW-6 only.
 - `.cursor/skills/plan-session/SKILL.md` — OW-7 only.
@@ -493,12 +521,13 @@ product behavior.
 - Full Depot workflow on an Origin PR — `verify` + `build` + `e2e`.
   Wait with `origin pr checks --watch`.
 - Origin branch / PR → Vercel Preview URL — usual feature look.
-- `origin pr merge` into `beta` — integration merge. Does not promote
-  production.
-- GitHub dump of the `beta` SHA + **manual** bot request — review
-  only. Never merge.
-- `origin pr merge` (`beta` → `main`) then `vercel promote` —
-  production.
+- `origin pr merge` into `development` — daily land. Does not
+  promote to `staging` or production.
+- GitHub dump of `staging...development` when the file count is
+  around **100** + **manual** bot request — review chunk only.
+  Never merge the dump. Then merge Origin `development` → `staging`.
+- `origin pr merge` (`staging` → `main`) then `vercel promote` —
+  release, then production.
 - Feedback: today `POST /repos/StorminRH/lgi-tools/issues`. After
   OW-15: the chosen tracker’s create API (Linear:
   `issueCreate` at `https://api.linear.app/graphql`).
@@ -515,19 +544,25 @@ Target daily path after OW-5:
    deployment. You (or `ux-check`) use that URL instead of laptop
    `pnpm dev` unless you choose otherwise.
 4. After the feature is proven, tear down that Neon branch and that
-   Convex preview. Merge the Origin PR to **`beta`**. The standing
-   `beta` preview (one Neon + one Convex, cheaper/sleepier) updates
-   when you want accumulated work in one place.
-5. Repeat until `beta` should go to production.
+   Convex preview. Merge the Origin PR to **`development`**. No
+   standing Convex on `development` — that line is git integration
+   only.
+5. Repeat overwork sessions. Measure
+   `git diff --name-only staging...development | wc -l`. When it is
+   around **100** and Depot is clean, dump **that range** to GitHub
+   (branch, not a merge). Manually request Greptile and CodeRabbit.
+   Triage. Fix on Origin. Re-check Depot. Merge Origin
+   `development` → `staging`. The standing `staging` preview (one
+   cheaper Neon + one Convex) updates. You may cut a smaller chunk;
+   do not dump a larger one.
+6. Repeat staging promotes until `staging` holds the next release.
 
-When `beta` is ready for `main`:
+When you ask for a release:
 
-6. Dump that exact SHA to GitHub (branch, not a merge). Manually
-   request Greptile and CodeRabbit. Triage. Fix on Origin. Re-check
-   Depot on Origin.
-7. Cut a release: fold pending fragments, pick `X.Y.N`, set
-   `APP_VERSION`, merge Origin `beta` → Origin `main`. **Nothing
-   deploys to production yet.**
+7. Fold pending fragments, pick `X.Y.N`, set `APP_VERSION`, merge
+   Origin `staging` → Origin `main`. **Nothing deploys to
+   production yet.** Do not dump the whole `staging` pile to bots
+   unless that remaining diff is still under the 100-file bar.
 8. `vercel promote` that release to Production when you ask.
 
 Issues and GrokBots (parallel, after OW-14):
@@ -556,7 +591,7 @@ Issues and GrokBots (parallel, after OW-14):
   Convex delete leaves a billed backend until 5/14-day expiry.
 - EVE SSO → random `*.vercel.app` cannot sign in. Ephemeral previews
   stay anonymous-only until a stable callback exists. Signed-in Atlas
-  checks use laptop or the durable `beta` URL once SSO is registered.
+  checks use laptop or the durable `staging` URL once SSO is registered.
 - Linear `@cursor` cannot see the Origin repo → GrokBots still spawn
   Cloud Agents in the build environment (Origin-native); Linear stays
   the issue board. Pick a peer only if the Linear connector proof
@@ -614,28 +649,34 @@ Do not implement a later step in an earlier chat.
 6. **Isolated visit: `start-session`.** Change only
    `.cursor/skills/start-session/SKILL.md` so resolver, dispatch, “what
    happens,” and the general start flow match Origin remotes, Depot
-   Checks, Preview-as-dev, and merge-to-`beta`. Prove by walking the
+   Checks, Preview-as-dev, and merge-to-`development`. Prove by walking the
    rewritten flow on paper. Do not edit other skills.
 
 7. **Isolated visit: planned-session flow.** Change only
    `plan-session` so a planned session is still something you want
    (contract → plan → ordered work), and so its **delivery unit** is
-   a PR onto `beta`, not a sub-version release onto `main`. Prove by
+   a PR onto `development`, not a sub-version release onto `main`. Prove by
    comparing one existing session plan’s OW shape to the rewritten
    skill. Do not bump versions in this chat.
 
 8. **Isolated visit: `close-out`.** Change only
-   `.cursor/skills/close-out/SKILL.md` so there are three named
-   rituals (plus promote):
-   - **Land on `beta`** (ordinary or planned, including a “final”
-     session): Depot green, Preview used, pending fragment, merge to
-     Origin `beta`. No `APP_VERSION`, no `### vX.Y.N`, no fold.
-   - **Cut a release** (only when you ask): dump `beta` to GitHub,
-     **manual** bots, fix on Origin, fold pending fragments, pick
-     the public `X.Y.N`, set `APP_VERSION`, merge `beta` → `main`.
-     Stop. Do not promote.
+   `.cursor/skills/close-out/SKILL.md` so there are four named
+   rituals:
+   - **Land on `development`** (ordinary or planned, including a
+     “final” session): Depot green, Preview used, pending fragment,
+     merge to Origin `development`. No `APP_VERSION`, no
+     `### vX.Y.N`, no fold, no GitHub dump.
+   - **Promote a review chunk** (when
+     `git diff --name-only staging...development` is around **100**
+     and you ask, or when you ask for a smaller clean chunk): dump
+     that range to GitHub, **manual** bots, fix on Origin, merge
+     `development` → `staging`. Never merge the dump. Never dump
+     more than the bar.
+   - **Cut a release** (only when you ask): fold pending fragments,
+     pick the public `X.Y.N`, set `APP_VERSION`, merge `staging` →
+     `main`. Stop. Do not promote.
    - **Promote** (only when you ask): `vercel promote`.
-   Prove with a paper dry-run of all three. Do not flip `vercel.json`
+   Prove with a paper dry-run of all four. Do not flip `vercel.json`
    in this chat.
 
 9. **Isolated visit: `ux-check`.** Change only the ux-check skill and
@@ -645,7 +686,7 @@ Do not implement a later step in an earlier chat.
 
 10. **Isolated visit: update-watch pair.** Change only
     `resolve-update-watch` and `update-watch` so review/merge follow
-    Origin + Depot + `beta`. Issue create/list may still be GitHub
+    Origin + Depot + `development`. Issue create/list may still be GitHub
     until OW-14. No `poll-pr-gate`. Must not merge or promote.
 
 11. **Isolated visits: remaining lifecycle skills.** One chat per
@@ -662,9 +703,10 @@ Do not implement a later step in an earlier chat.
 
 13. **Standing docs after skills settle.** Change
     `docs/workflows/schema/session-contract.md` (delivery unit → PR
-    to `beta`; “shipped” splits landed / released / in production),
-    `session-plan.md`, `session-as-built.md` (merge SHA vs release
-    SHA vs promote SHA), `changelog-pending.md` (fold only on cut
+    to `development`; “shipped” splits landed / reviewed / released /
+    in production),
+    `session-plan.md`, `session-as-built.md` (land SHA vs staging SHA
+    vs release SHA vs promote SHA), `changelog-pending.md` (fold only on cut
     release, including planned landings), `changelog-entry.md` (one
     entry per cut, not per sub-version session), and
     `docs/VERSION_4_0_PLAN.md` standing language (not completed
@@ -700,22 +742,23 @@ Do not implement a later step in an earlier chat.
       written; **no Linear issue**.
     Prove each with one scheduled or manual run.
 
-17. **Manual production + standing `beta`.** In `neon.ts`, add a
-    named `beta` arm: no `ttl`, cheap CU (0.25–1), short
-    `suspendTimeout` (1m or 5m). Create the Neon branch as `beta`
-    (not `preview/beta`). `neon config apply` with `updateExisting`
+17. **Manual production + standing `staging`.** In `neon.ts`, add a
+    named `staging` arm: no `ttl`, cheap CU (0.25–1), short
+    `suspendTimeout` (1m or 5m). Create the Neon branch as `staging`
+    (not `preview/staging`). `neon config apply` with `updateExisting`
     (today’s `if (branch.exists) return {}` would skip it). Create
-    one Convex `npx convex deployment create beta --type prod`.
+    one Convex `npx convex deployment create staging --type prod`.
     Register EVE SSO on that stable URL only if signed-in Atlas is
     in scope. Document promote as the only production path. Prove:
-    `beta` Preview stays up on the cheap pair; ephemeral pairs are
-    gone after teardown; Origin `main` does not auto-deploy.
+    `staging` Preview stays up on the cheap pair; ephemeral pairs are
+    gone after teardown; Origin `main` does not auto-deploy;
+    `development` has no second durable Convex.
 
 18. **Local / Cloud Agent parity (Cursor defaults).** Last step, only
     after OW-1–17 are working. Walk laptop Cursor and a Cloud Agent
     through the same loop: Origin remote, `depot ci run --job
     verify`, Preview URL (laptop `pnpm dev` optional), land on
-    `beta`. Change `.cursor/environment.json`, `install.sh`,
+    `development`. Change `.cursor/environment.json`, `install.sh`,
     `start.sh`, and `AGENTS.md` so they describe **one** workflow
     using Cursor’s environment schema
     (`https://cursor.com/docs/cloud-agent/setup`). Audit
@@ -727,7 +770,7 @@ Do not implement a later step in an earlier chat.
     official `CONVEX_AGENT_MODE=anonymous`). Do not add new
     workarounds. Do not upload production `DATABASE_URL` or a hosted
     Convex URL. Prove: a Cloud Agent on the Origin repo can run the
-    rewritten start-session / close-out land-on-`beta` path with the
+    rewritten start-session / close-out land-on-`development` path with the
     same files a laptop clone has.
 
 ### Local / cloud parity (OW-18)
@@ -764,11 +807,11 @@ Two classes. Do not mix their names or teardown.
 integration creates the branch; apply only tunes it. Existing
 non-default branches are skipped unless `updateExisting`.
 
-**Standing `beta` (slower/cheaper than prod, left up)**
+**Standing `staging` (slower/cheaper than prod, left up)**
 
 | | Neon | Convex |
 | --- | --- | --- |
-| Name | `beta` (never `preview/beta`) | `npx convex deployment create beta --type prod` |
+| Name | `staging` (never `preview/staging`) | `npx convex deployment create staging --type prod` |
 | Cost | Named arm in `neon.ts`: no TTL, 0.25–1 CU, short suspend (1m or 5m). You already know Neon will sleep | No cheaper SKU. Official options: leave it (serverless function compute is unbilled on S-class); **pause** when you will not use it (function/bandwidth stop, storage continues) |
 | Teardown | Do not. Do not point `delete-neon-branch` here | Do not. Prod-type extras do not expire |
 
@@ -832,7 +875,7 @@ repo Playwright version. Upload failure artifacts only.
 ### Target close-out shape (written in OW-8, not this PR)
 
 ```markdown
-## 5. Land on beta (ordinary or planned — including a “final” session)
+## 5. Land on development (ordinary or planned — including a “final” session)
 
 1. Reuse Depot `verify` when the head is unchanged.
 2. Open one draft Origin PR. Scrub the body.
@@ -841,24 +884,31 @@ repo Playwright version. Upload failure artifacts only.
 5. Write exactly one pending changelog fragment. Do not edit
    `APP_VERSION` or `content/changelog/vX.Y.md`.
 6. Origin review. Tear down the feature Preview’s Neon `preview/*`
-   branch and Convex preview deployment. Merge to Origin `beta`.
-7. Stop. Do not promote. Do not dump to GitHub. Do not request bots.
-   Do not fold pending fragments.
+   branch and Convex preview deployment. Merge to Origin `development`.
+7. Stop. Do not promote to staging. Do not dump to GitHub. Do not
+   request bots. Do not fold pending fragments.
 
-## 6. Cut a release (only when you asked)
+## 6. Promote a review chunk (when the file-count barn is met)
 
-1. Dump the `beta` SHA to GitHub. Manually request Greptile and
+1. Measure `git diff --name-only staging...development`. If it is
+   well over **100** files, split; do not dump the whole pile.
+2. Dump that range to GitHub. Manually request Greptile and
    CodeRabbit. Import findings. Fix on Origin. Never merge GitHub.
-2. Origin Depot full pipeline green on the fixed `beta`.
-3. Fold every pending fragment. Pick the public `X.Y.N` (next patch
+3. Origin Depot full pipeline green on the fixed range.
+4. `origin pr merge` (`development` → `staging`).
+5. Stop. Do not cut a release. Do not promote production.
+
+## 7. Cut a release (only when you asked)
+
+1. Fold every pending fragment. Pick the public `X.Y.N` (next patch
    on this theme, or a new `X.Y.0`). Prepend `### vX.Y.N`. Set
    `APP_VERSION`. Delete consumed fragments.
-4. `origin pr merge` (`beta` → `main`).
-5. Stop. Do not wait for Production.
+2. `origin pr merge` (`staging` → `main`).
+3. Stop. Do not wait for Production.
 
-## 7. Promote (only when you asked to ship production)
+## 8. Promote (only when you asked to ship production)
 
-1. `vercel promote <main-release-or-beta-url>`.
+1. `vercel promote <main-release-or-staging-url>`.
 2. Fail-closed wait for that Production deployment.
 3. `pnpm verify:prod` (and account routes with cookie jar when needed).
 ```
@@ -951,7 +1001,7 @@ Name the replacement merge command in OW-8 first.
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
   | `SC-6.1` | Git history for OW-6 through OW-11 | Separate chat/PR per skill |
-  | `SC-6.2` | Read close-out after OW-8 | Land → `beta` with a pending fragment and no version; cut release is a named ask; promote is a named ask |
+  | `SC-6.2` | Read close-out after OW-8 | Land → `development` with a pending fragment and no version; review chunk at ~100 files → `staging`; cut release and promote are named asks |
 
 - **SC-7 — Bot helpers retired as a pair after a replacement exists.**
 
@@ -967,14 +1017,14 @@ Name the replacement merge command in OW-8 first.
   | `SC-8.2` | Read `create-github-issue.ts` / successor after OW-15 | No `api.github.com/repos/StorminRH/lgi-tools/issues` POST |
   | `SC-8.3` | After OW-16 | Update-watch writes Linear (no Cloud Agent); refactor has Linear process note + Origin draft PR; test-cleanup is Origin draft PR only |
 
-- **SC-9 — `beta` → `main` is manual prod.**
+- **SC-9 — `staging` → `main` is the release; promote is prod.**
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
-  | `SC-9.1` | `neon.ts` + apply after OW-17 | `beta` has no TTL, cheap CU, short suspend; name is not `preview/` |
-  | `SC-9.2` | Convex dashboard | One prod-type extra named `beta`; Preview env uses a preview key |
+  | `SC-9.1` | `neon.ts` + apply after OW-17 | `staging` has no TTL, cheap CU, short suspend; name is not `preview/` |
+  | `SC-9.2` | Convex dashboard | One prod-type extra named `staging`; Preview env uses a preview key; `development` has no durable Convex |
   | `SC-9.3` | Close-out + schemas after OW-8 / OW-13 | `APP_VERSION` and `### vX.Y.N` change only on cut release; pending fold runs only then |
-  | `SC-9.4` | Close-out + one dry-run | Promote is the documented prod action |
+  | `SC-9.4` | Close-out + one dry-run | Review-chunk dump stays ≤ ~100 files vs `staging`; promote is the documented prod action |
 
 - **SC-10 — This plan PR stayed documentation-only.**
 
@@ -987,7 +1037,7 @@ Name the replacement merge command in OW-8 first.
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
   | `SC-11.1` | Compare laptop clone and Cloud Agent tree | Same tracked skills, seats, and docs; required files are not gitignored |
-  | `SC-11.2` | Cloud Agent dry-run of land-on-`beta` | Origin remote + `depot ci run --job verify` + same close-out steps as laptop |
+  | `SC-11.2` | Cloud Agent dry-run of land-on-`development` | Origin remote + `depot ci run --job verify` + same close-out steps as laptop |
   | `SC-11.3` | Read `AGENTS.md` + `environment.json` | One workflow; remaining Cloud notes are platform facts only |
 
 ## End of session
