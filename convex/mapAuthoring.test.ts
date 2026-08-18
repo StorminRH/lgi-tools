@@ -1886,14 +1886,19 @@ describe('map authoring', () => {
     it('keeps one collapse-decision owner and registers the sweep cron', () => {
       const authoringSource = readFileSync('convex/mapAuthoring.ts', 'utf8');
       const scanSource = readFileSync('convex/mapScan.ts', 'utf8');
+      const applySource = readFileSync('convex/lib/mapScanApply.ts', 'utf8');
+      const selectionSource = readFileSync('convex/lib/mapScanSelection.ts', 'utf8');
       const cronSource = readFileSync('convex/crons.ts', 'utf8');
 
       // decideCollapse has exactly one Convex call site: the extracted core here.
       expect(authoringSource.match(/decideCollapse\(/g)).toHaveLength(1);
       expect(scanSource).not.toContain('decideCollapse');
+      expect(applySource).not.toContain('decideCollapse');
+      expect(selectionSource).not.toContain('decideCollapse');
       // Every destructive trigger outside severConnection routes through the
       // extracted core rather than a sibling implementation.
-      expect(scanSource).toContain('runCollapse(');
+      expect(applySource).toContain('runCollapse(');
+      expect(selectionSource).toContain('runCollapse(');
       expect(authoringSource).toContain('runCollapse(ctx, {');
       expect(authoringSource).toContain('gatedConnectionEdit');
       expect(cronSource).toContain("'map ceiling collapse'");
