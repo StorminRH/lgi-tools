@@ -20,17 +20,18 @@ happen on the stack you will keep.
 - **GOAL:** Origin is where you code, run CI, open previews, merge, and
   ship. Depot is the only gate and runs real Postgres. Vercel previews
   replace laptop `pnpm dev` in most cases. Feature work lands on a
-  long-standing `beta` branch.   GitHub’s only job is a manual bot review
+  long-standing `beta` branch. GitHub’s only job is a manual bot review
   of that beta before it goes to `main`. Merging to `main` is the
   **release** (one version bump, one public changelog). Production is
-  a separate manual promote.
-  Issues (site feedback, update-watch, refactor process, backlog)
-  leave GitHub for Linear. GrokBots keep their draft-PR homes for
-  test-cleanup and refactor.
-- **DONE =** SC-1 through SC-10 below, plus: Origin-hosted repo, Depot
+  a separate manual promote. Issues leave GitHub for Linear. After
+  that stack works, laptop Cursor and the Cloud Agent environment use
+  the same Cursor-native skills, seats, remotes, and tests — no
+  leftover local-only workarounds.
+- **DONE =** SC-1 through SC-11 below, plus: Origin-hosted repo, Depot
   Checks, preview-as-dev process, `beta` integration branch, GitHub
   bots manual-only on the beta dump, tracker + feedback + GrokBots
-  retargeted, and each named skill visited in isolation.
+  retargeted, each named skill visited in isolation, and local/cloud
+  parity on Cursor defaults.
 - **OUT OF SCOPE:**
   - Implementing any Ordered work step in the same PR as this plan.
   - Deleting every canned-row `*.test.ts` (only the “CI substitute for
@@ -133,6 +134,16 @@ happen on the stack you will keep.
   (GitHub remote, Origin CLI not logged in, no Depot CLI). Operator
   login and first Origin/Depot/Vercel proof happen on a machine they
   control.
+- **Plan:** After the stack exists, local Cursor and Cloud Agents
+  share one workflow. Prefer Cursor defaults
+  (`.cursor/environment.json`, committed `.cursor/skills/` and
+  `.cursor/agents/`, Origin remotes, `depot ci run`, Preview URLs).
+  Do not add laptop-only or cloud-only workarounds. Do not ignore
+  skills, seats, or docs that both environments need. Keep ignoring
+  secrets (`.env*`), cookie jars, coverage, `node_modules`, and
+  machine-local `local-only/` trees. `CONVEX_AGENT_MODE=anonymous` is
+  the official Cloud Agent Convex default — keep it; do not copy a
+  laptop `local:` pair or a hosted Convex URL into the cloud env.
 
 </hard_constraints>
 
@@ -177,6 +188,7 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 | Daily GrokBots | Schedule runners | They run on a schedule. When they need to write code they spawn a Cloud Agent in the build environment. **Update watch:** GrokBot itself files an issue (no Cloud Agent). **Refactor:** standing issue documents the process; work lives as a draft PR the agent updates. **Test cleanup:** draft PR only (rebased/updated daily); not an issue. Live GitHub: [#444](https://github.com/StorminRH/lgi-tools/issues/444), [#449](https://github.com/StorminRH/lgi-tools/issues/449) | OW-16 retargets: Linear for issues the bots file; Origin draft PRs for the two accumulators |
 | Linear | Intended tracker | Free plan + API. Cursor app, Cloud Agents, and GrokBots each have a Linear connector. Linear `@cursor` repo picker is still documented as GitHub-shaped `owner/repo` | OW-14 proves those connectors on the Origin repo; do not hunt a peer unless that proof fails |
 | Depot Developer plan | Purchased intent | Depot CI minutes and results. Unused: Mac runners, Registry, GHA runner minutes, extra-billed Agent sandboxes | Buy Depot CI only |
+| Local vs Cloud Agent | Two workflows | Laptop: `pnpm dev:all` (Docker). Cloud: committed `.cursor/environment.json` + native Postgres on `:5433` + `CONVEX_AGENT_MODE=anonymous`. Skills/seats are tracked; `.gitignore` also ignores `local-only/` trees and `.codegraph/`. AGENTS.md carries a long Cloud-specific caveat list | OW-18 last: one Cursor-native path; audit ignore rules; shrink caveats to platform facts |
 | This plan PR | In progress | This file on `stormin/origin-ci-migration-4df8` | This chat only publishes the plan |
 
 ## Why now
@@ -223,6 +235,10 @@ When the last Ordered work step is done:
   stays issue-only (no Cloud Agent).
 - Each lifecycle skill has been visited in isolation against this
   model.
+- Laptop Cursor and Cloud Agents run the same skills, seats, Origin
+  remotes, Depot `verify`, and Preview-or-optional-`pnpm dev` loop.
+  Required files are tracked on Origin. Cloud install/start follow
+  Cursor’s environment schema, not a second undocumented stack.
 
 ### Scope coverage
 
@@ -239,6 +255,7 @@ When the last Ordered work step is done:
 | Linear + GrokBots | OW-14 prove connectors; OW-15 feedback; OW-16 retarget |
 | Manual prod + standing beta | OW-17 |
 | GitHub bots-only | OW-8 writes the dump ritual; OW-17/close-out keep it |
+| Local / cloud parity | OW-18 last, after the stack works |
 | This plan only | Current PR. Diff must not flip skills, CI, or `vercel.json` |
 
 ## Resolved implementation decisions
@@ -337,6 +354,15 @@ When the last Ordered work step is done:
 - **Developer plan utilization:** Depot CI minutes and results only.
 - **Cloud Agent / Origin CLI:** browser login on a machine you
   control. Do not paste keys in chat.
+- **Local / cloud parity last.** OW-18 runs only after Origin, Depot,
+  previews, release train, Linear, and GrokBots are working. Audit
+  `.gitignore`, `AGENTS.md` Cloud notes, `.cursor/install.sh` /
+  `start.sh` / `environment.json`, and any skill that says “locally
+  vs Cloud Agent.” Delete the second workflow. Use Cursor’s
+  environment schema and Origin-native remotes. A Cloud VM with no
+  Docker is a platform fact — express it as `environment.json`
+  terminals, not as a parallel `pnpm dev:all` path agents must
+  remember.
 
 ### Release model (what to keep, what to change)
 
@@ -458,6 +484,8 @@ product behavior.
 - Cursor Automations for update-watch / test-cleanup / slop — OW-16
   (platform, not this git tree).
 - `playwright.config.ts` — OW-3 (`CI` vs local split).
+- `.cursor/environment.json`, `.cursor/install.sh`, `.cursor/start.sh`,
+  `.gitignore`, Cloud notes in `AGENTS.md` — OW-18.
 
 ### Interfaces and contracts
 
@@ -682,6 +710,42 @@ Do not implement a later step in an earlier chat.
     in scope. Document promote as the only production path. Prove:
     `beta` Preview stays up on the cheap pair; ephemeral pairs are
     gone after teardown; Origin `main` does not auto-deploy.
+
+18. **Local / Cloud Agent parity (Cursor defaults).** Last step, only
+    after OW-1–17 are working. Walk laptop Cursor and a Cloud Agent
+    through the same loop: Origin remote, `depot ci run --job
+    verify`, Preview URL (laptop `pnpm dev` optional), land on
+    `beta`. Change `.cursor/environment.json`, `install.sh`,
+    `start.sh`, and `AGENTS.md` so they describe **one** workflow
+    using Cursor’s environment schema
+    (`https://cursor.com/docs/cloud-agent/setup`). Audit
+    `.gitignore`: track every skill, seat, and doc both sides need;
+    keep ignoring `.env*`, cookie jars, coverage, `node_modules`,
+    and true machine-local `local-only/` trees. Remove skill
+    branches that say “do this locally, do that on Cloud” unless
+    they name a platform fact (no Docker daemon on the Cloud VM;
+    official `CONVEX_AGENT_MODE=anonymous`). Do not add new
+    workarounds. Do not upload production `DATABASE_URL` or a hosted
+    Convex URL. Prove: a Cloud Agent on the Origin repo can run the
+    rewritten start-session / close-out land-on-`beta` path with the
+    same files a laptop clone has.
+
+### Local / cloud parity (OW-18)
+
+Cursor-intended Cloud setup is a committed `.cursor/environment.json`
+(`install`, `start`, `terminals`, `ports`) plus skills and agents in
+the git tree. That is the default to lean on. Laptop and Cloud then
+share Origin, Depot, and Preview as the daily loop.
+
+Leave ignored: secrets, Playwright cookie jars, coverage,
+`node_modules`, `.next`, and directories named `local-only/` that
+are truly one-machine scratch. Do not ignore a skill or seat because
+“Cloud does not need it.”
+
+`CONVEX_AGENT_MODE=anonymous` and a Cloud VM without Docker are
+platform defaults, not repo inventions. Express the latter as the
+`postgres` terminal in `environment.json`. Do not keep teaching
+agents `pnpm dev:all` (Docker Compose) as the Cloud path.
 
 ### Preview backends (Neon + Convex)
 
@@ -918,11 +982,19 @@ Name the replacement merge command in OW-8 first.
   | --- | --- | --- |
   | `SC-10.1` | Diff vs `main` for this publish | Skills, workflows, `vercel.json`, and delivery scripts unchanged |
 
+- **SC-11 — Laptop and Cloud Agent share one Cursor-native workflow.**
+
+  | Proof | Evidence action | Required observable |
+  | --- | --- | --- |
+  | `SC-11.1` | Compare laptop clone and Cloud Agent tree | Same tracked skills, seats, and docs; required files are not gitignored |
+  | `SC-11.2` | Cloud Agent dry-run of land-on-`beta` | Origin remote + `depot ci run --job verify` + same close-out steps as laptop |
+  | `SC-11.3` | Read `AGENTS.md` + `environment.json` | One workflow; remaining Cloud notes are platform facts only |
+
 ## End of session
 
 - Confirm every `DONE =` item is evidenced and every `hard_constraints`
-  boundary held — for **this** PR, only SC-10 applies. SC-1–SC-9 are
-  later chats.
+  boundary held — for **this** PR, only SC-10 applies. SC-1–SC-9 and
+  SC-11 are later chats.
 - **Delivery:** Push this plan in-branch and keep the existing PR
   updated. Stop. Do not start OW-1 in this chat.
 - **Lifecycle artifacts:** pending changelog fragment for the plan
