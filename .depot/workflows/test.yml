@@ -71,14 +71,29 @@ jobs:
 
   # PR-only production compile + render-mode classification. Laptops and
   # agents do not run `next build`. Cache `.next/cache` across PRs; do not
-  # run `build:vercel` (migrate / ingest stay deploy-time).
+  # run `build:vercel` (no SDE ingest / warm-neon). Sidecar + migrate are
+  # required because `generateStaticParams` for /sites/[id] reads `sites`.
   build:
     if: github.event_name == 'pull_request'
     runs-on: depot-ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
+      LOCAL_DB_DRIVER: postgres-js
       # betterAuth() constructs during `next build` page-data collection and
-      # rejects the library default secret. Dummy values only — no Neon, no
-      # cookies, no production auth.
+      # rejects the library default secret. Dummy values only.
       BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
     steps:
@@ -99,6 +114,8 @@ jobs:
             next-${{ runner.os }}-
 
       - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:migrate
 
       - run: pnpm build
 
