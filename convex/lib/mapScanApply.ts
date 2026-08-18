@@ -387,6 +387,7 @@ async function applyInboundPaste(
   return 'unchanged';
 }
 
+/** Writes or migrates one wormhole paste row, including inbound stub absorb. */
 export async function applyWormholeRow(
   ctx: MutationCtx,
   state: ScanState,
@@ -478,6 +479,7 @@ function findOriginLifecycleConnection(
   return matches.find((row) => !isTombstoned(row)) ?? matches[0];
 }
 
+/** Live list rows plus origin-side wormhole doors used for missing classification. */
 export function liveLifecycleRows(state: ScanState, systemId: number) {
   const signatures = state.signatures
     .filter((row) => !isTombstoned(row))
@@ -523,6 +525,7 @@ async function removeConfidentRow(
   if (activity !== undefined) await ctx.db.delete(activity._id);
 }
 
+/** Tombstones confident-missing origin doors; resolved holes go through collapse. */
 export async function removeConfidentRows(
   ctx: MutationCtx,
   state: ScanState,

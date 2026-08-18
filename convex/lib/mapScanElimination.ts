@@ -246,6 +246,7 @@ async function recreateOccupiedDoorAsStub(
   });
 }
 
+/** Attaches one unresolved stub to a resolved hallway, or reports stale/protected. */
 export async function applyLinkDeduction(
   ctx: MutationCtx,
   source: Doc<'mapConnections'> | undefined,

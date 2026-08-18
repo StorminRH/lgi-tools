@@ -27,6 +27,7 @@ import {
   type ScanState,
 } from './mapScanState';
 
+/** Operator selection: tombstone confirmed rows or restore them inside the undo window. */
 export type SignatureSelectionMode = 'remove' | 'restore';
 
 interface SelectionWrite {
@@ -238,6 +239,7 @@ async function readSelectionState(
   };
 }
 
+/** Tombstones or restores the named identities after the system is confirmed live. */
 export async function changeSignatureSelection(
   ctx: MutationCtx,
   mapId: string,

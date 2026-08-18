@@ -24,12 +24,14 @@ export const MAP_SIGNATURE_PAGE_SIZE = 100;
 /** Maximum hallway rows touching this system one elimination transaction may inspect. */
 export const MAP_ELIMINATION_CONNECTION_LIMIT = 128;
 
+/** One system's signatures, touching connections, and activity companions. */
 export interface ScanState {
   readonly signatures: Doc<'mapSignatures'>[];
   readonly connections: Doc<'mapConnections'>[];
   readonly activities: Doc<'mapSignatureActivity'>[];
 }
 
+/** Rejects an empty, oversized, invalid, or duplicate clipboard paste. */
 export function requireBoundedRows(rows: readonly ScannedRow[]): ScannedRow[] {
   if (rows.length === 0 || rows.length > MAP_SCAN_ROW_LIMIT) {
     throw new ConvexError({
@@ -57,6 +59,7 @@ export function requireBoundedRows(rows: readonly ScannedRow[]): ScannedRow[] {
   return normalized;
 }
 
+/** Rejects an empty, oversized, or invalid selected-id list and de-duplicates it. */
 export function requireBoundedSignatureIds(signatureIds: readonly string[]): string[] {
   if (signatureIds.length === 0 || signatureIds.length > MAP_SCAN_ROW_LIMIT) {
     throw new ConvexError({
@@ -71,6 +74,7 @@ export function requireBoundedSignatureIds(signatureIds: readonly string[]): str
   return normalized;
 }
 
+/** Requires the named system to exist and not be tombstoned on this map. */
 export async function requireLiveSystem(
   ctx: MutationCtx,
   mapId: string,
@@ -119,6 +123,7 @@ async function readSystemActivities(
   return rows;
 }
 
+/** Loads one system's bounded signatures, touching connections, and activities. */
 export async function readScanState(
   ctx: MutationCtx,
   mapId: string,
@@ -132,12 +137,14 @@ export async function readScanState(
   return { signatures, connections, activities };
 }
 
+/** Indexes rows by scanner signature id. */
 export function rowMaps<Row extends { signatureId: string }>(
   rows: readonly Row[],
 ): Map<string, Row> {
   return new Map(rows.map((row) => [row.signatureId, row]));
 }
 
+/** Which stored end of the hallway sits in this system, or null if neither. */
 export function endpointSide(
   connection: Doc<'mapConnections'>,
   systemId: number,
@@ -166,6 +173,7 @@ export function leadsNotePatch(
     : { toDestinationSystemId: kept };
 }
 
+/** Whether the requested tombstone or revive would change this row. */
 export function needsTombstoneChange(
   row: { readonly deletedAt?: number | null },
   deletedAt: number | null,
@@ -173,6 +181,7 @@ export function needsTombstoneChange(
   return deletedAt === null ? isTombstoned(row) : !isTombstoned(row);
 }
 
+/** Patches one connection's tombstone pair and deletes its activity on remove. */
 export async function tombstoneConnectionRow(
   ctx: MutationCtx,
   connection: Doc<'mapConnections'> | undefined,
