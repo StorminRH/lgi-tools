@@ -195,9 +195,11 @@ export default defineSchema({
     .index('by_map_system', ['mapId', 'systemId'])
     .index('by_purge_after', ['purgeAfter']),
 
-  // One document per wormhole identity on one map. A scanned-but-unexplored
-  // hole has a null destination and origin signature; resolving it fills the
-  // far endpoint on the same durable row. Endpoints are system IDs, never
+  // One document per wormhole hallway on one map. Each row has a mouth in
+  // two systems once both ends are known: outgoing named type or incoming
+  // K162, independent of the stored `from`/`to` labels. A scanned-but-still
+  // unidentified hole keeps `toSystemId` null until a jump or a human link
+  // fills the other system on this same row. Endpoints are system IDs, never
   // document references. Remaining lifetime is the death window
   // pair `deathEarliestAt`/`deathLatestAt` (absolute instants; clients derive
   // the countdown). One narrow sanctioned scheduler exception exists by

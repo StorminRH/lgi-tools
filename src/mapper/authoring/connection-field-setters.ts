@@ -68,8 +68,9 @@ export function connectionFieldSetters(
     setLifeStage: (value) => {
       void authoring.setConnectionLifeStage({ mapId, connection, value });
     },
-    // One "Leads to" field (ruling D-G): the control speaks from the endpoint
-    // it was opened on. The popup editor always passes the origin side.
+    // One "Leads to" field (ruling D-G): the control speaks from the mouth
+    // it was opened on. The popup editor always passes the `from` end (the
+    // system whose scanner you opened).
     setLeadsTo: (value) => {
       void authoring.setConnectionDestinationHint({
         mapId,

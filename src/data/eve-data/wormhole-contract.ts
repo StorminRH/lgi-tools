@@ -259,8 +259,9 @@ export const WORMHOLE_LIFE_STAGES = [
 export type WormholeLifeStage = (typeof WORMHOLE_LIFE_STAGES)[number];
 
 /**
- * The far-side wormhole code. K162 is a real code with its own signature identity — it is never a
- * stand-in for an unidentified wormhole, which stores a null type code instead.
+ * K162 — the incoming mouth. This is a real type with its own signature
+ * identity, never a stand-in for an unidentified hole (`null`). Codex and
+ * SDE still call this far-side; Atlas comments say incoming K162.
  */
 export const FAR_SIDE_WORMHOLE_CODE = 'K162';
 
@@ -273,7 +274,7 @@ export const WORMHOLE_TYPE_CODE = /^[A-Z]\d{3}$/;
 
 /**
  * Recognises a canonical wormhole type code: an uppercase letter followed by three digits, which
- * also admits the far-side {@link FAR_SIDE_WORMHOLE_CODE}. Codes — not SDE type IDs — are the stable
+ * also admits K162 ({@link FAR_SIDE_WORMHOLE_CODE}). Codes — not SDE type IDs — are the stable
  * vocabulary shared by stored observations, because a type ID is versioned by one SDE build.
  */
 export function isWormholeTypeCode(value: string): boolean {

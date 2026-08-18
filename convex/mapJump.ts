@@ -188,9 +188,10 @@ async function readUnresolvedCandidates(
 }
 
 /**
- * Typed codes of every live scanned origin-side wormhole row — resolved rows
- * included, so an already-resolved static keeps satisfying the census. The
- * origin door is the code seen in this system; a blank origin door is omitted.
+ * Named types of every live scanned hole on this system's `from` mouth —
+ * resolved hallways included, so an already-linked outgoing static still
+ * counts. The `from` mouth is where stubs store this system's type; a blank
+ * `from` mouth is omitted.
  */
 function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
   return rows.flatMap((row) => {
