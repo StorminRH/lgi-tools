@@ -31,7 +31,6 @@ jobs:
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
-      LOCAL_DB_DRIVER: postgres-js
     steps:
       - uses: actions/checkout@v6
 
