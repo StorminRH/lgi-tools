@@ -65,18 +65,37 @@ export interface DbTestHarness {
 }
 
 /**
+ * Resolve the suite URL and whether Postgres answered. An explicit
+ * `DATABASE_URL` that does not accept a connection fails closed so CI cannot
+ * treat skipped `*.db.test.ts` files as a green run. An unset URL still
+ * probes the local Docker default and skips when that daemon is down.
+ */
+export async function probeHarnessDatabase(
+  explicitUrl: string | undefined = readEnv('DATABASE_URL'),
+): Promise<{ baseUrl: string; reachable: boolean }> {
+  const baseUrl = explicitUrl ?? LOCAL_DB_URL;
+  const reachable = await canReachDb(baseUrl);
+  if (explicitUrl && !reachable) {
+    throw new Error(
+      'DATABASE_URL is set but Postgres did not accept a connection. ' +
+        'Refusing to skip *.db.test.ts.',
+    );
+  }
+  return { baseUrl, reachable };
+}
+
+/**
  * Own one real-Postgres suite's entire DB lifecycle. Call it once at test-file
  * top level: it probes `DATABASE_URL` or the local Docker default, registers
  * schema setup/reset/teardown hooks, and returns lazy handles. Disposable tables
  * clone the already-migrated local `public` schema, so run `pnpm db:migrate`
- * before the DB-backed suite. Unreachable databases skip cleanly instead of
- * failing collection.
+ * before the DB-backed suite. Unreachable local defaults skip cleanly instead of
+ * failing collection. A set-but-dead `DATABASE_URL` throws.
  */
 export async function createDbTestHarness(
   options: DbTestHarnessOptions,
 ): Promise<DbTestHarness> {
-  const baseUrl = readEnv('DATABASE_URL') ?? LOCAL_DB_URL;
-  const reachable = await canReachDb(baseUrl);
+  const { baseUrl, reachable } = await probeHarnessDatabase();
   let sql: Sql | undefined;
   let database: PostgresJsDatabase | undefined;
 

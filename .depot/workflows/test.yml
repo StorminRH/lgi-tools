@@ -1,10 +1,7 @@
-# Depot CI Migration
-# Source: .github/workflows/test.yml
-#
-# Changes made:
-# - Changed GitHub runs-on labels to their Depot equivalents
+# Depot CI verify — Origin train PRs and pushes.
+# GitHub Actions YAML on Depot compute. Not a GitHub Actions workflow.
 
-name: Test
+name: Verify
 on:
   pull_request:
     branches:
@@ -17,26 +14,55 @@ on:
       - staging
       - main
 jobs:
-  test:
-    runs-on: depot-ubuntu-latest # was: ubuntu-latest. Mapped standard GitHub runner to Depot equivalent.
+  verify:
+    runs-on: depot-ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v6
+
       - uses: pnpm/action-setup@v6
+
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
+
       - run: pnpm typecheck
+
       - run: pnpm lint
+
       # Lightweight presence gate (no build): every src/app route is classified
       # in route-classification.json and vice-versa. The full render-MODE assert
       # (assert:routes) needs `next build` and runs at deploy, so this catches a
       # route added or removed without its classification entry here in plain CI.
       - run: pnpm assert:routes-present
-      # Coverage-backed Vitest suite. The fallow step below reads
-      # coverage/coverage-final.json for health/CRAP.
+
+      - run: pnpm db:migrate
+
+      # Fresh sidecar has empty SDE tables. Suites that clone from public.eve_*
+      # fail rather than skip without this data.
+      - run: pnpm db:ingest:sde
+
+      # Coverage-backed Vitest suite, including real-Postgres *.db.test.ts.
+      # The fallow step below reads coverage/coverage-final.json for health/CRAP.
       - run: pnpm test:coverage
+
       # Whole-repo Fallow gate (dead code, duplication, architecture
       # boundaries, health). Inherited findings fail the same as new ones.
       - run: pnpm fallow
