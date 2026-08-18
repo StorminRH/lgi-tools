@@ -34,7 +34,8 @@ describe('directClient wiring (lock-holder connection)', () => {
   });
 
   it('fails closed when only a pooled connection is configured', async () => {
-    vi.stubEnv('DATABASE_URL', POOLED); // no DATABASE_URL_UNPOOLED
+    vi.stubEnv('DATABASE_URL', POOLED);
+    vi.stubEnv('DATABASE_URL_UNPOOLED', undefined);
     const { directClient } = await import('./index');
     expect(() => void directClient.reserve).toThrow(/-pooler/);
     expect(postgresMock).not.toHaveBeenCalled(); // threw before constructing
