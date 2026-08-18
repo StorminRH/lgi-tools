@@ -75,6 +75,12 @@ jobs:
   build:
     if: github.event_name == 'pull_request'
     runs-on: depot-ubuntu-24.04
+    env:
+      # betterAuth() constructs during `next build` page-data collection and
+      # rejects the library default secret. Dummy values only — no Neon, no
+      # cookies, no production auth.
+      BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
+      BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v6
 
