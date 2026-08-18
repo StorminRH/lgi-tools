@@ -29,3 +29,13 @@ export const eveAccountsForUser = (userId: string) =>
 export function accountMatch(characterId: number) {
   return and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId)));
 }
+
+/**
+ * Account ids are TEXT; character ids are numeric. Drop rows that cannot be a
+ * character id (the SQL join casts to bigint, so this is the JS-side twin).
+ * @internal
+ */
+export function parseLinkedAccountId(accountId: string): number | null {
+  const characterId = Number(accountId);
+  return Number.isFinite(characterId) ? characterId : null;
+}
