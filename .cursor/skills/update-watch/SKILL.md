@@ -46,10 +46,13 @@ mutation authority. The `resolve-update-watch` skill owns absorption.
    "$UPDATE_WATCH_STATE_DIR/state.json" --items
    "$UPDATE_WATCH_STATE_DIR/items.json" --out
    "$UPDATE_WATCH_STATE_DIR/verdict.json"`.
-5. Only on a clean `report` verdict, create the digest issue via `gh issue create`
-   or the environment's issue-creation tool, titled `Update watch — YYYY-MM-DD`
-   (run date), with the verdict's `issueBody` posted verbatim. Do not
-   hand-author, reorder, or re-escape the body.
+5. Only on a clean `report` verdict, publish the digest. Title is
+   `Update watch — YYYY-MM-DD` (run date). Reuse an existing open issue with
+   that exact title instead of creating a second one. Otherwise create it via
+   `gh issue create` or the environment's issue-creation tool, with the
+   verdict's `issueBody` posted verbatim. Do not hand-author, reorder, or
+   re-escape the body. If publication fails, return `REFUSED` and perform no
+   further outward write.
 6. On a `quiet` or `refused` verdict, perform no outward write.
 7. Print the collector's end-of-run summary verbatim as the final output.
 

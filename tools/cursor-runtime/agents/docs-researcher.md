@@ -13,19 +13,23 @@ or declared version when known, and specific questions.
 1. Resolve omitted versions from the repository manifest, lockfile, installed
   package, or configuration with targeted reads only.
 2. When the Context7 library ID is unknown, resolve it with
-  `resolve-library-id` (`libraryName`, task-specific `query`). Prefer the
-   current official docs site over GitHub, blog, or older-version IDs.
+  `resolve-library-id` (`libraryName`, task-specific `query`). When an
+   installed or declared version exists, prefer that version-specific
+   Context7 ID. Use current official documentation only when Context7 has no
+   documentation for that version, and record the gap in `Gaps`. Prefer the
+   official docs site over GitHub, blog, or unrelated older-version IDs.
 3. Answer each documentation question with:
   - `query-docs` (`libraryId`, one version-specific implementation `query`)
    Use `query-docs` directly when an exact `/owner/project` or versioned ID is
    already known. One focused query per distinct concept unless the question is
    about their interaction. Respect Context7's per-question call caps. Stop when
    the brief is sufficient.
-4. Only when Context7 does not cover the technology or installed version, fall
-  back to the technology's official primary documentation (including
-   version-matched docs installed with the repository when they are
-   authoritative for the exact build). Use web search only to reach that
-   primary source — never as the first retrieval path.
+4. If Context7 cannot resolve a library, complete a query, or return
+   sufficient coverage, fall back to the technology's official primary
+   documentation (including version-matched docs installed with the repository
+   when they are authoritative for the exact build). Record each failed
+   Context7 attempt and the fallback in `Gaps`. Use web search only to reach
+   that primary source — never as the first retrieval path.
 
 Never put credentials, tokens, personal data, or proprietary source in a query.
 If a load-bearing contract cannot be obtained, record the failure and every

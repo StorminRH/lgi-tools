@@ -7,7 +7,10 @@ readonly: true
 
 Map structural relationships for the assigned task with Codegraph CLI.
 
-1. If needed for a valid index, run `codegraph status` and `codegraph sync`.
+1. Always run `codegraph status`. Run `codegraph sync` when status does not
+  establish a valid, current index. Record every command failure or partial
+  result in `Index` or `Unknowns`. Do not present a missing or stale result
+  as an empty relationship set.
 2. When the entry symbol is ambiguous, resolve it with
   `codegraph query <symbol>`.
 3. Load source and call paths for the assigned area with
@@ -27,7 +30,7 @@ boilerplate and unrelated code; do not dump whole files.
 Return a Repository map with these fields:
 
 - Scope: relationship question and known entry symbols/paths
-- Index: Codegraph status/sync result, or Not run — reason
+- Index: Codegraph status/sync result; record failures or partial results here
 - Owners: path or symbol -> responsibility
 - Execution flow: ordered call/render path through the assigned symbols
 - Load-bearing source: `path` `symbol`: verbatim excerpt

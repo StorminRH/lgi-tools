@@ -50,8 +50,9 @@ convex_env() {
 
 convex_env AUTH_ISSUER_URL http://localhost:3000
 convex_env SITE_URL http://localhost:3000
-# Avoid argv exposure of the data URI in process lists.
+# Avoid argv exposure of secrets in process lists. Convex reads the
+# omitted value from stdin.
 printf '%s' "$jwks_uri" | convex_env AUTH_JWKS
-convex_env CONVEX_SERVICE_SECRET "$secret"
+printf '%s' "$secret" | convex_env CONVEX_SERVICE_SECRET
 
 echo "configure-convex-auth: set AUTH_ISSUER_URL, SITE_URL, AUTH_JWKS, CONVEX_SERVICE_SECRET on local Convex."

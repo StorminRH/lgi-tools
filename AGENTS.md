@@ -114,7 +114,10 @@ still live in the README/`package.json`. Non-obvious caveats:
   install script points it at the same local cluster.
 - **Project skills live in `.cursor/skills/`.** Cloud Agents do not inherit
   laptop `~/.cursor/skills/`. Keep the operative copies here so every cloud
-  session sees the same seats as local.
+  session sees the same seats as local. Official review skills from Thermos
+  and Cursor Team Kit live here too: `thermos`, `thermo-nuclear-review`,
+  `thermo-nuclear-code-quality-review`, and `deslop`. Thermos owns the
+  quality-review skill; do not keep a Team Kit duplicate.
 - **Custom subagents live in `tools/cursor-runtime/agents/`.** `.cursor/agents/`
   is a forbidden in-repo path. `.cursor/start.sh` mirrors those files into
   `~/.cursor/agents/` on every boot so Task can launch them by name.

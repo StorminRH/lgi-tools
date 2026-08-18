@@ -47,32 +47,38 @@ auto-merge. Later shipping resumes through `close-out` on the same branch and PR
    Cross-check advisories with `pnpm audit`. Resolve every unique advisory
    package name into `UPDATE_WATCH_PACKAGES`; when advisories exist, refuse an
    empty array. Then `pnpm why` each package.
-3. Create a dedicated branch off the default branch — never commit onto an
-   unrelated in-flight branch.
-4. **Security advisories — fix what is safely fixable.** Direct dependency: bump
+3. If nothing remains actionable or absorbable, do not create a changelog
+   fragment, branch, or PR. Close the digest with an explanatory comment and
+   stop (`NO_CHANGE`).
+4. Reuse the existing issue-linked branch when one is already open for this
+   digest. Otherwise create a dedicated branch off the default branch — never
+   commit onto an unrelated in-flight branch.
+5. **Security advisories — fix what is safely fixable.** Direct dependency: bump
    in `package.json`. Transitive: floor via `pnpm.overrides`. Pick the lowest
    patched version that clears the advisory and satisfies every dependent's
    range. If the only patched version is inside `minimumReleaseAge`, defer.
    Regenerate with `pnpm install --lockfile-only`.
-5. **Major versions** are acknowledgement decisions, not upgrades. Raise
+6. **Major versions** are acknowledgement decisions, not upgrades. Raise
    `acknowledgedMajor` in `docs/UPDATE_WATCH_BASELINE.md` only on operator
    decision.
-6. **Service/source items** are informational. Absorb into
+7. **Service/source items** are informational. Absorb into
    `docs/UPDATE_WATCH_BASELINE.md`: add each reported canonical id to
    `acknowledgedItems`, then advance `scanSince` only once every in-window item
    is acknowledged. Validate with
    `python3 tools/cli.py update-watch check-baseline`.
-7. Create exactly one ordinary pending changelog fragment under
+8. Create exactly one ordinary pending changelog fragment under
    `content/changelog/pending/` per `docs/workflows/schema/changelog-pending.md`.
-8. Invoke `adversarial-review` against the complete diff. Continue only with
+9. Invoke `adversarial-review` against the complete diff. Continue only with
    `PASS`. Then enter `close-out` at **Finalize and verify the current head**
    through commit and push — do not re-run the Implementation review gate. Do
    not merge.
-9. Open one draft PR stating what was fixed, deferred (and why), and absorbed.
-   Put `Closes #<issue>` so the digest closes only on a later `close-out` merge.
-   Apply the close-out PR privacy scrub, mark ready once, and run the batched
-   external-review loop — but do not enter merge or production-proof.
-10. Stop at `REVIEW_READY`. Leave the PR open; a later `close-out` reuses it.
+10. Reuse the existing review-only PR for this digest when one is already
+    open. Otherwise open one draft PR stating what was fixed, deferred (and
+    why), and absorbed. Put `Closes #<issue>` so the digest closes only on a
+    later `close-out` merge. Apply the close-out PR privacy scrub, mark ready
+    once, and run the batched external-review loop — but do not enter merge
+    or production-proof.
+11. Stop at `REVIEW_READY`. Leave the PR open; a later `close-out` reuses it.
 
 ## Issue lifecycle
 
