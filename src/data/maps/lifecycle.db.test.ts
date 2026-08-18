@@ -156,13 +156,25 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
   it('holds a staged in-flight creation out of the sweep until the projection window closes', async () => {
     await seedUser(harness.db, CREATOR);
     const mapId = await createMapAtomic(CREATOR, 'Staged chain', [], harness.db);
-    const now = new Date();
+    const [staged] = await harness.db.select().from(maps).where(eq(maps.id, mapId));
+    if (
+      staged?.createdAt === undefined ||
+      staged.archivedAt === null ||
+      staged.purgeRequestedAt === null
+    ) {
+      throw new Error('createMapAtomic did not persist a staged map with recovery markers');
+    }
+    const { createdAt } = staged;
 
-    await expect(listPurgeableMaps(now, 25, harness.db)).resolves.toEqual([]);
+    await expect(listPurgeableMaps(createdAt, 25, harness.db)).resolves.toEqual([]);
     await expect(
-      listPurgeableMaps(new Date(now.getTime() + MAP_STAGED_PURGE_HOLD_MS), 25, harness.db),
+      listPurgeableMaps(
+        new Date(createdAt.getTime() + MAP_STAGED_PURGE_HOLD_MS + 1_000),
+        25,
+        harness.db,
+      ),
     ).resolves.toEqual([{ id: mapId }]);
-    await expect(tombstonePurgedMap(mapId, now, harness.db)).resolves.toBe(false);
+    await expect(tombstonePurgedMap(mapId, createdAt, harness.db)).resolves.toBe(false);
   });
 
   it('selects elapsed grace and tombstones only a still-eligible row', async () => {

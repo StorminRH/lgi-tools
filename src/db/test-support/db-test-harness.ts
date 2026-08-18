@@ -20,7 +20,9 @@ const LOCAL_DB_URL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
  * Configuration for one real-Postgres suite. `schema` must be unique per test
  * file. `tables` are cloned from the migrated local `public` schema via
  * `LIKE ... INCLUDING ALL`; list parents first so delete resets can wipe them
- * safely in reverse order. Foreign keys are not copied by `LIKE`, so suites
+ * safely in reverse order. Serial defaults still point at `public.*_id_seq`
+ * after the clone, so setup rebinds them onto sequences owned by the
+ * disposable schema. Foreign keys are not copied by `LIKE`, so suites
  * list the load-bearing relationships explicitly.
  */
 export interface DbTestHarnessOptions {
@@ -233,6 +235,7 @@ async function setupDisposableSchema(
       `CREATE TABLE "${schema}"."${table}" (LIKE public."${table}" INCLUDING ALL)`,
     );
   }
+  await rebindClonedSerialDefaults(sql, schema, tableNames);
 }
 
 function steerHarnessEnvironment(options: DbTestHarnessOptions, baseUrl: string): void {
@@ -242,6 +245,45 @@ function steerHarnessEnvironment(options: DbTestHarnessOptions, baseUrl: string)
   if (options.steerDbProxy) {
     vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
     vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, options.schema));
+  }
+}
+
+/**
+ * `LIKE ... INCLUDING ALL` copies serial `DEFAULT nextval('public.*_id_seq')`.
+ * Explicit-id seeds then leave that shared sequence at 1, so the next default
+ * insert collides on a fresh CI database. Give each cloned table its own
+ * sequence in the disposable schema.
+ */
+async function rebindClonedSerialDefaults(
+  sql: Sql,
+  schema: string,
+  tableNames: readonly string[],
+): Promise<void> {
+  for (const table of tableNames) {
+    const columns = (await sql.unsafe(
+      `SELECT a.attname AS column_name
+       FROM pg_attribute a
+       JOIN pg_class c ON c.oid = a.attrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+       WHERE n.nspname = '${schema}'
+         AND c.relname = '${table}'
+         AND a.attnum > 0
+         AND NOT a.attisdropped
+         AND a.attidentity = ''
+         AND pg_get_expr(ad.adbin, ad.adrelid) LIKE 'nextval(%'`,
+    )) as { column_name: string }[];
+
+    for (const { column_name: column } of columns) {
+      const sequence = `${table}_${column}_seq`;
+      await sql.unsafe(`CREATE SEQUENCE "${schema}"."${sequence}"`);
+      await sql.unsafe(
+        `ALTER TABLE "${schema}"."${table}" ALTER COLUMN "${column}" SET DEFAULT nextval('"${schema}"."${sequence}"')`,
+      );
+      await sql.unsafe(
+        `ALTER SEQUENCE "${schema}"."${sequence}" OWNED BY "${schema}"."${table}"."${column}"`,
+      );
+    }
   }
 }
 

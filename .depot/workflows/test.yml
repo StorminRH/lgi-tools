@@ -31,6 +31,7 @@ jobs:
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
+      LOCAL_DB_DRIVER: postgres-js
     steps:
       - uses: actions/checkout@v6
 
@@ -56,7 +57,8 @@ jobs:
       - run: pnpm db:migrate
 
       # Fresh sidecar has empty SDE tables. Suites that clone from public.eve_*
-      # fail rather than skip without this data.
+      # fail rather than skip without this data. ingest-sde also records
+      # sde_version so wormhole-codex reads can stamp the cloned meta row.
       - run: pnpm db:ingest:sde
 
       # Coverage-backed Vitest suite, including real-Postgres *.db.test.ts.
