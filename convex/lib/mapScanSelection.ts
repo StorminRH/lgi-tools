@@ -1,7 +1,9 @@
-// Selection tombstone and restore for list rows, unresolved stubs, and
-// resolved wormholes.
+// Selection tombstone/restore and confident-missing removal. Both stamp
+// independent stubs before resolved collapses so those stubs stay outside the
+// collapse core's shared-stamp restore set.
 import { ConvexError } from 'convex/values';
 import { chainTombstoneStamps, isTombstoned } from '@/data/maps/chain-contract';
+import { isConfidentMissingRemoval } from '@/data/maps/signature-lifecycle';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import {
@@ -262,4 +264,110 @@ export async function changeSignatureSelection(
     actor: await eventActor(ctx),
     at: now,
   });
+}
+
+/** Lifecycle owner in this system for confident-missing; never the incoming mouth of a hallway. */
+function findOriginLifecycleConnection(
+  rows: readonly Doc<'mapConnections'>[],
+  systemId: number,
+  signatureId: string,
+): Doc<'mapConnections'> | undefined {
+  const matches = rows.filter(
+    (row) => row.fromSystemId === systemId && row.fromSignatureId === signatureId,
+  );
+  return matches.find((row) => !isTombstoned(row)) ?? matches[0];
+}
+
+async function removeConfidentRow(
+  ctx: MutationCtx,
+  state: ScanState,
+  connection: Doc<'mapConnections'>,
+  input: {
+    readonly mapId: string;
+    readonly signatureId: string;
+    readonly actor: string;
+    readonly now: number;
+    readonly pilots: () => Promise<CollapsePilotsPresent>;
+  },
+): Promise<void> {
+  if (connection.toSystemId !== null) {
+    await runCollapse(ctx, {
+      mapId: input.mapId,
+      connectionId: connection._id,
+      actor: input.actor,
+      pilotsPresent: await input.pilots(),
+    });
+    return;
+  }
+  await ctx.db.patch(connection._id, chainTombstoneStamps(input.now));
+  const activity = state.activities.find((row) => row.signatureId === input.signatureId);
+  if (activity !== undefined) await ctx.db.delete(activity._id);
+}
+
+/** Tombstones confident-missing origin doors; resolved holes go through collapse. */
+export async function removeConfidentRows(
+  ctx: MutationCtx,
+  state: ScanState,
+  missingIds: readonly string[],
+  mapId: string,
+  systemId: number,
+  actor: string,
+  now: number,
+): Promise<Set<string>> {
+  const removed = new Set<string>();
+  const removedStubIds: string[] = [];
+  const pilots = trackedPresenceReader(ctx, mapId);
+  // Stubs stamp before resolved collapses: the collapse core mints its shared
+  // undo stamp against a fresh topology read, so stamping independent stub
+  // tombstones first keeps them outside the branch's shared-stamp restore set.
+  const ordered = [...missingIds].sort((left, right) => {
+    const leftResolved = findOriginLifecycleConnection(
+      state.connections,
+      systemId,
+      left,
+    )?.toSystemId !== null;
+    const rightResolved = findOriginLifecycleConnection(
+      state.connections,
+      systemId,
+      right,
+    )?.toSystemId !== null;
+    return Number(leftResolved) - Number(rightResolved);
+  });
+  for (const signatureId of ordered) {
+    const known = findOriginLifecycleConnection(state.connections, systemId, signatureId);
+    if (known === undefined) continue;
+    // Re-read: an earlier collapse in this loop may already have tombstoned
+    // this row as branch collateral.
+    const connection = await ctx.db.get(known._id);
+    if (
+      connection === null
+      || isTombstoned(connection)
+      || !isConfidentMissingRemoval({
+        signatureId,
+        deathLatestAt: connection.deathLatestAt,
+      }, now)
+    ) continue;
+    await removeConfidentRow(ctx, state, connection, {
+      mapId,
+      signatureId,
+      actor,
+      now,
+      pilots,
+    });
+    removed.add(signatureId);
+    if (connection.toSystemId === null) removedStubIds.push(signatureId);
+  }
+  if (removedStubIds.length > 0) {
+    // Resolved removals ledger through the collapse core; silent stub
+    // removals record their own restorable event so nothing disappears
+    // without a 24-hour paper trail.
+    await writeMapEvent(ctx, {
+      mapId,
+      at: now,
+      kind: 'signatures_removed',
+      actor,
+      payload: { systemId, signatureIds: removedStubIds },
+    });
+  }
+  return removed;
 }
