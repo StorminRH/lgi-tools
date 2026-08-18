@@ -78,9 +78,9 @@ one PR per session.
 Sole design-and-independent-review stage before full verify. Do not launch a
 second adversarial round after it.
 
-1. Invoke `adversarial-review` against the complete working-tree change. Keep
-   the worktree stable. Contested items surface in chat. Continue only with
-   `PASS`.
+1. Invoke `adversarial-review` against `origin/main...HEAD` plus any
+   uncommitted patch. Keep the worktree stable. Contested items surface in
+   chat. Continue only with `PASS`.
 2. Finalize delivery records before gates and before opening a PR:
    - **Ordinary:** one pending fragment in `content/changelog/pending/` per
      `docs/workflows/schema/changelog-pending.md`. No version-identity /

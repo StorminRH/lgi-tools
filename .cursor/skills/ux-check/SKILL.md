@@ -135,5 +135,6 @@ second summary. Remaining detail stays in the report JSON files.
 - **Subject:** <concrete probed routes and viewports>; report `<report path>`
 - **Result:** <diagnostics/probe summary, naming any authenticated-state limitation and failure artifacts; ≤2 sentences>
 - **Operator checklist:** <routes/interactions for the operator to open visually>
+- **Disposition:** `Pending` after a clean sweep; `Approved` or `Changes requested` only after the operator visual pause
 - **Action:** <Pause for operator review (`Pending`), return to implementation, hand off to the next Ordered work step, or continue to close-out>
 - **Blocker:** <exact blocker or `None`>

@@ -1,7 +1,12 @@
 /** Shared helpers for Atlas gated-authoring probes (session 4.0.4.1.1). */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { config as loadDotenv } from 'dotenv';
 import { calmAtlasCamera } from './window-helpers.mjs';
+
+// Fill CONVEX_DEPLOYMENT from `.env.local` without overriding an explicit
+// ambient value. Probe runners do not load dotenv themselves.
+loadDotenv({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
 const execFileAsync = promisify(execFile);
 

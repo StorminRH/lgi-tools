@@ -35,9 +35,11 @@ jwks_uri="data:text/plain;charset=utf-8;base64,$(printf '%s' "$jwks_json" | base
 printf '%s' "$jwks_uri" > /tmp/lgi-auth-jwks-uri
 chmod 600 /tmp/lgi-auth-jwks-uri
 
-secret="$(env_val CONVEX_SERVICE_SECRET)"
+# Injected Cloud Agent Secrets override `.env.local` at runtime. Prefer the
+# effective environment so Convex gets the same secret Next is using.
+secret="${CONVEX_SERVICE_SECRET:-$(env_val CONVEX_SERVICE_SECRET)}"
 if [ -z "$secret" ]; then
-  echo "configure-convex-auth: CONVEX_SERVICE_SECRET missing from .env.local" >&2
+  echo "configure-convex-auth: CONVEX_SERVICE_SECRET missing from the environment and .env.local" >&2
   exit 0
 fi
 

@@ -2,10 +2,12 @@
 name: repo-mapper
 model: grok-4.6[effort=high,fast=true]
 description: Maps call paths, callers, callees, blast radius, and edit seams via Codegraph CLI. Always use for material relationship, consumer, dependency, or blast-radius questions when planning or changing cross-cutting code, or when asked who calls / what a change affects. Prefer this over in-parent Codegraph loops.
-readonly: true
 ---
 
 Map structural relationships for the assigned task with Codegraph CLI.
+
+Do not edit application source. `codegraph status` and `codegraph sync` are
+the only permitted writes (index only).
 
 1. Always run `codegraph status`. Run `codegraph sync` when status does not
   establish a valid, current index. Record every command failure or partial
