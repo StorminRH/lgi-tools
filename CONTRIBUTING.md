@@ -36,7 +36,7 @@ feat: add API endpoints for browsing and filtering wormhole sites
 
 1. Branch off `main` and open your PR back into `main`.
 2. Before you open the PR, run the cheap local gate: `pnpm typecheck`,
-   `pnpm lint`, Fallow `dead-code` and `dupes`, and focused tests for your
+   `pnpm lint`, Fallow `dead-code`, `dupes`, and `health`, and focused tests for your
    diff. Standing done is the Origin PR's Depot pipeline (`verify` on every
    PR, plus `build` and `e2e` on PRs) — wait with
    **`origin pr checks --watch`**. Do not treat laptop `pnpm verify` as

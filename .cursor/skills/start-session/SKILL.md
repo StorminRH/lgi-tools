@@ -88,6 +88,7 @@ pnpm typecheck
 pnpm lint
 pnpm exec fallow dead-code --fail-on-issues
 pnpm exec fallow dupes --fail-on-issues
+pnpm exec fallow health --fail-on-issues
 ```
 
 Require a green Gate result packet for every command. Failures return

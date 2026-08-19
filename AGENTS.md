@@ -25,7 +25,8 @@ blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
 
 Use `gate-runner` for the local cheap gate when a Gate result packet is
 needed and before commits: `pnpm typecheck`, `pnpm lint`, Fallow
-`dead-code` and `dupes`, and caller-supplied focused tests for the diff.
+`dead-code`, `dupes`, and `health` (CRAP, no `--coverage`), and
+caller-supplied focused tests for the diff.
 
 Launch those seats by name and omit Task `model` so the agent file pin
 applies. Do not pass `inherit` or a slug; those override the pin.

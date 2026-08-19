@@ -124,6 +124,7 @@ head is unchanged. Standing done is the Origin PR Depot pipeline in
    pnpm lint
    pnpm exec fallow dead-code --fail-on-issues
    pnpm exec fallow dupes --fail-on-issues
+   pnpm exec fallow health --fail-on-issues
    ```
 
    Plus caller-supplied focused tests for the diff. Skip focused tests when
