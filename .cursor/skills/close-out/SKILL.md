@@ -98,8 +98,9 @@ second adversarial round after it.
 
 ## 4. Finalize and verify the current head
 
-Single full verification checkpoint. Do not repeat at PR open when the head is
-unchanged.
+Local cheap gate before commit. Do not repeat that packet at PR open when the
+head is unchanged. Standing done is the Origin PR Depot pipeline in
+**The PR and external-review loop**.
 
 1. Diff still matches the reviewed subject plus corrections plus delivery
    records. Screen scope and PII. Planned: expand each plan `SC-N` into an
@@ -116,11 +117,18 @@ unchanged.
    runs release consistency. Fix before verify.
 4. Stop local long-running dev servers after review; clear stale build cache.
 5. Clean session-only ignored artifacts. Tracked guides/tools ship normally.
-6. Definition of done once:
+6. Local cheap gate once, through `gate-runner`:
 
    ```bash
-   FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify
+   pnpm typecheck
+   pnpm lint
+   pnpm exec fallow dead-code --fail-on-issues
+   pnpm exec fallow dupes --fail-on-issues
    ```
+
+   Plus caller-supplied focused tests for the diff. Skip focused tests when
+   the diff cannot affect them. Standing done is the Origin PR Depot
+   pipeline in **The PR and external-review loop**.
 
 7. Confirm the worktree still matches preflighted scope. Any application, test,
    executable, dependency-manifest, lockfile, or verification-configuration
@@ -134,12 +142,15 @@ unchanged.
 
 ## 5. The PR and external-review loop
 
-1. Reuse verify evidence when the head is unchanged since **Finalize and
+1. Reuse the cheap-gate packet when the head is unchanged since **Finalize and
    verify the current head**.
 2. Open one **draft** PR to `main` (or reuse the open review-only PR). Headings
    in order: `## What this does`, `## Why`, `## Notes`, `## Test plan`.
    Planned: with the PR number known, author the as-built, commit, push while
-   still draft.
+   still draft. After the PR exists, standing done is the Depot pipeline.
+   Wait with `origin pr checks --watch`. If Checks are empty while Depot is
+   running, use `depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4`
+   and `depot ci status <run-id> --org k2f4dzqwd4`.
 3. Privacy-scrub title/body:
 
    ```bash

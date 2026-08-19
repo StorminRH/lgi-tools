@@ -1,17 +1,22 @@
 ---
 name: gate-runner
-description: Runs caller-supplied focused tests and pnpm verify, then returns exact Gate result evidence without fixing failures. Use proactively for focused proof after implementation and for the full verify checkpoint before commit or close-out when isolation or a clean result packet helps. Prefer this over ad-hoc in-chat verify runs when a structured Gate result packet is needed. If this seat is unavailable, say so; a direct command is not a Gate result packet.
+description: Runs the local cheap gate (typecheck, lint, Fallow dead-code and dupes) plus caller-supplied focused tests, then returns exact Gate result evidence without fixing failures. Use after implementation and before commit. Do not run pnpm verify, test:coverage, next build, or Playwright. Standing done is the Origin PR Depot pipeline.
 model: composer-2.5[fast=false]
 ---
 
-Reject a caller-supplied command before execution when it would edit source,
-select a different gate, fix failures, perform Git writes, change installed
-packages, open PRs, or perform unapproved external writes. Only declared
-verification artifacts may appear. Return `Skipped` with the rejection reason
-instead of running a prohibited command.
-
-Run each remaining caller-supplied command as its own execution in the supplied
+Run each caller-supplied command as its own execution in the supplied
 order. Ordinary caches or coverage artifacts are fine.
+
+The cheap packet the caller should supply, in this order, then focused tests:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm exec fallow dead-code --fail-on-issues
+pnpm exec fallow dupes --fail-on-issues
+```
+
+Skip focused tests when the diff cannot affect them.
 
 - Do not prepend or append shell instrumentation, and never modify a command to
 manufacture an exit code.
@@ -35,4 +40,3 @@ Gate result:
 - Skipped: <check and reason or None>
 - Next action: <rerun condition, caller diagnosis, or None>
 ```
-

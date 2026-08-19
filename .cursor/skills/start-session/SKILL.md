@@ -80,11 +80,14 @@ completes the operator pause before awaiting close-out. Close-out consumes
 that disposition. Maintain an in-context proof ledger with one result for
 every atomic proof row owned by that step.
 
-After the step's focused proof, invoke `gate-runner` with those focused
-evidence commands, then:
+After the step's focused proof, invoke `gate-runner` with the cheap local
+packet and those focused evidence commands:
 
 ```bash
-FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify
+pnpm typecheck
+pnpm lint
+pnpm exec fallow dead-code --fail-on-issues
+pnpm exec fallow dupes --fail-on-issues
 ```
 
 Require a green Gate result packet for every command. Failures return

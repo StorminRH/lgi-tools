@@ -1,7 +1,6 @@
 # LGI.tools repository guide
 
-LGI.tools is an incremental EVE Online multi-tool platform. Extend established
-slices and shared infrastructure.
+LGI.tools is an incremental EVE Online multi-tool platform.
 
 ## Workflow
 
@@ -24,15 +23,17 @@ Use `repo-mapper` for material relationship, consumer, dependency, or
 blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
 `impact`, `query`, plus `status`/`sync` if needed) and return a Repository map.
 
-Use `gate-runner` for caller-supplied focused tests and `pnpm verify` when a
-Gate result packet is needed. Do not use it to fix failures.
+Use `gate-runner` for the local cheap gate when a Gate result packet is
+needed and before commits: `pnpm typecheck`, `pnpm lint`, Fallow
+`dead-code` and `dupes`, and caller-supplied focused tests for the diff.
 
 Launch those seats by name and omit Task `model` so the agent file pin
 applies. Do not pass `inherit` or a slug; those override the pin.
 
 ## Commands and definition of done
 
-Sole definition of done: `pnpm verify`.
+Standing definition of done: an Origin PR whose Depot pipeline is green.
+Wait with `origin pr checks --watch`.
 
 Never run `pnpm build`, `next build`, `pnpm vercel-build`, or another
 production-mode build locally or before merge. Only Vercel may run the
@@ -41,8 +42,7 @@ production build after the change reaches `main`.
 Origin PRs run `.depot/workflows/test.yml` on Depot (org `k2f4dzqwd4`).
 `verify` runs on every PR and train push; `build` and `e2e` are PR-only.
 Pass `--org k2f4dzqwd4` on Depot CLI when the account is in more than one
-org. `origin pr checks` can show no checks while Depot is already
-running — use the Depot CLI for live status. PR runs use a merge SHA
+org. Use the Depot CLI for live status. PR runs use a merge SHA
 (`refs/changes/N/merge`); `run list --sha` is that merge SHA, not always
 `HEAD`.
 
@@ -60,9 +60,10 @@ failure, `depot ci artifacts list <run-id> --org k2f4dzqwd4` then
 `auth-storage.json`. Do not run `depot build` (no app image). Do not
 change `runs-on` or merge unless asked.
 
-Fallow is a whole-repo gate. Do not add waivers or baseline entries to get
-around it. If flagged, simplify the change or add meaningful behavioral
-coverage.
+Fallow is a whole-repo gate on Depot `verify` (dead-code, dupes, and health
+against that run's coverage map). Locally run only `dead-code` and `dupes`.
+Do not add waivers or baseline entries to get around it. If flagged,
+simplify the change or add meaningful behavioral coverage.
 
 ## Architecture and engineering
 
