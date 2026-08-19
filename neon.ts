@@ -14,7 +14,7 @@
 //   `staging`              — the only long-lived Preview DB. No TTL.
 //   `preview/staging`      — same standing settings if a Vercel webhook uses that name.
 //   `preview/<git-branch>` — ephemeral test DBs (today: preview/development). 3-day TTL.
-import { defineConfig } from '@neondatabase/config/v1';
+import { defineConfig, type BranchTarget, type BranchTuning } from '@neondatabase/config/v1';
 
 const STANDING_PREVIEW_NAMES = new Set(['staging', 'preview/staging']);
 
@@ -29,24 +29,25 @@ const PREVIEW_COMPUTE = {
   },
 } as const;
 
+const PRODUCTION_POLICY = {
+  protected: true,
+  postgres: { computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 2 } },
+} as const;
+
+const STAGING_POLICY = { ...PREVIEW_COMPUTE } as const;
+
+const EPHEMERAL_PREVIEW_POLICY = {
+  ttl: '3d',
+  ...PREVIEW_COMPUTE,
+} as const;
+
+export function resolveNeonBranchPolicy(branch: BranchTarget): BranchTuning {
+  if (branch.isDefault) return PRODUCTION_POLICY;
+  if (STANDING_PREVIEW_NAMES.has(branch.name)) return STAGING_POLICY;
+  if (branch.name.startsWith('preview/')) return EPHEMERAL_PREVIEW_POLICY;
+  return {};
+}
+
 export default defineConfig({
-  branch: (branch) => {
-    if (branch.isDefault) {
-      return {
-        protected: true,
-        postgres: { computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 2 } },
-      };
-    }
-    if (STANDING_PREVIEW_NAMES.has(branch.name)) {
-      return { ...PREVIEW_COMPUTE };
-    }
-    if (branch.name.startsWith('preview/')) {
-      return {
-        ttl: '3d',
-        ...PREVIEW_COMPUTE,
-      };
-    }
-    if (branch.exists) return {};
-    return {};
-  },
+  branch: resolveNeonBranchPolicy,
 });
