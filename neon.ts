@@ -11,14 +11,14 @@
 //
 // Names:
 //   default (`main`)  — Production. Protected. Current live compute.
-//   `staging`         — long-lived Preview DB. No TTL. Cheap, sleeps in 5m.
-//   `development`     — long-lived Preview DB. Same cheap compute, no TTL.
-//   `preview/*`       — leftover webhook names only. 3-day TTL if one appears.
+//   `staging`         — the only long-lived Preview DB. No TTL. Cheap, sleeps in 5m.
+//   `development`     — short-lived stand-in for local dev. 3-day TTL.
+//   `preview/*`       — leftover webhook names. Same 3-day TTL if one appears.
 import { defineConfig } from '@neondatabase/config/v1';
 
-const STANDING_PREVIEW_NAMES = new Set(['staging', 'development']);
+const SHORT_LIVED_PREVIEW_NAMES = new Set(['development']);
 
-const STANDING_PREVIEW_COMPUTE = {
+const PREVIEW_COMPUTE = {
   postgres: {
     computeSettings: {
       autoscalingLimitMinCu: 0.25,
@@ -37,13 +37,13 @@ export default defineConfig({
         postgres: { computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 2 } },
       };
     }
-    if (STANDING_PREVIEW_NAMES.has(branch.name)) {
-      return { ...STANDING_PREVIEW_COMPUTE };
+    if (branch.name === 'staging') {
+      return { ...PREVIEW_COMPUTE };
     }
-    if (branch.name.startsWith('preview/')) {
+    if (SHORT_LIVED_PREVIEW_NAMES.has(branch.name) || branch.name.startsWith('preview/')) {
       return {
         ttl: '3d',
-        ...STANDING_PREVIEW_COMPUTE,
+        ...PREVIEW_COMPUTE,
       };
     }
     if (branch.exists) return {};
