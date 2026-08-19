@@ -54,12 +54,19 @@ jobs:
       # route added or removed without its classification entry here in plain CI.
       - run: pnpm assert:routes-present
 
+      # Durable org disk. Populate once (CCP zip + ingest + pg_dump -Fc);
+      # later verify jobs restore into the empty sidecar. Keyed by CCP
+      # sde_version + ingest-source hash. Public fork PRs skip the mount.
+      - uses: depot/cache-mount@v1
+        with:
+          name: lgi-tools-sde-seed
+          path: /mnt/sde-cache
+
       - run: pnpm db:migrate
 
-      # Fresh sidecar has empty SDE tables. Suites that clone from public.eve_*
-      # fail rather than skip without this data. ingest-sde also records
-      # sde_version so wormhole-codex reads can stamp the cloned meta row.
-      - run: pnpm db:ingest:sde
+      # Suites that clone from public.eve_* fail rather than skip without
+      # this data. Restore records sde_version the same way ingest-sde does.
+      - run: pnpm db:ci-sde-seed --cache-dir /mnt/sde-cache
 
       # Coverage-backed Vitest suite, including real-Postgres *.db.test.ts.
       # The fallow step below reads coverage/coverage-final.json for health/CRAP.
