@@ -23,17 +23,14 @@ import { hasCompleteSdeData } from './sde-bootstrap';
 import {
   SDE_SEED_SOURCE_FILES,
   type DockerPgCommand,
-  type SdeSeedAction,
   type SdeSeedPgTarget,
   buildSdeDumpDockerCommand,
   buildSdeRestoreDockerCommand,
-  hashSdeSeedSources,
-  parseSdeSeedArgs,
   parseSdeSeedPgTarget,
-  resolveSdeSeedAction,
+  prepareSdeSeedRun,
+  restoreTargetFromPlan,
   sdeSeedAnalyzeSql,
   sdeSeedDumpFileName,
-  sdeSeedDumpPath,
 } from './sde-seed-cache';
 
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
@@ -180,37 +177,38 @@ async function ingestAndMaybeDump(
 }
 
 async function main(): Promise<void> {
-  const args = parseSdeSeedArgs(process.argv.slice(2), readEnv('SDE_SEED_CACHE_DIR'));
-  const sourceHash = hashSdeSeedSources(await readSeedSourceContents());
-  const remoteVersion = await getRemoteSdeVersion();
-  const dumpPath =
-    args.cacheDir && remoteVersion
-      ? sdeSeedDumpPath(args.cacheDir, remoteVersion, sourceHash)
-      : null;
-  const action: SdeSeedAction = resolveSdeSeedAction({
-    cacheDir: args.cacheDir,
-    remoteVersion,
-    dumpExists: dumpPath ? existsSync(dumpPath) : false,
-    forceIngest: args.forceIngest,
+  const prepared = prepareSdeSeedRun({
+    argv: process.argv.slice(2),
+    cacheDirEnv: readEnv('SDE_SEED_CACHE_DIR'),
+    sourceContents: await readSeedSourceContents(),
+    remoteVersion: await getRemoteSdeVersion(),
+    dumpExists: existsSync,
   });
   const db = drizzle(client);
   const target = parseSdeSeedPgTarget(databaseUrl);
-
-  switch (action) {
-    case 'restore':
-      if (!args.cacheDir || !remoteVersion) {
-        throw new Error('SDE restore plan is missing a cache directory or remote version');
-      }
-      await restoreOrIngest(db, args.cacheDir, remoteVersion, sourceHash, target);
-      return;
-    case 'ingest':
-      await ingestAndMaybeDump(db, args.cacheDir, remoteVersion, sourceHash, target);
-      return;
-    default: {
-      const exhaustive: never = action;
-      throw new Error(`Unhandled SDE seed action: ${String(exhaustive)}`);
-    }
+  if (prepared.action === 'restore') {
+    const restoreAt = restoreTargetFromPlan(prepared);
+    await restoreOrIngest(
+      db,
+      restoreAt.cacheDir,
+      restoreAt.remoteVersion,
+      prepared.sourceHash,
+      target,
+    );
+    return;
   }
+  if (prepared.action === 'ingest') {
+    await ingestAndMaybeDump(
+      db,
+      prepared.cacheDir,
+      prepared.remoteVersion,
+      prepared.sourceHash,
+      target,
+    );
+    return;
+  }
+  const exhaustive: never = prepared.action;
+  throw new Error(`Unhandled SDE seed action: ${String(exhaustive)}`);
 }
 
 runScript(main, { client });

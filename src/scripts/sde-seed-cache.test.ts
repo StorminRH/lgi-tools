@@ -7,7 +7,9 @@ import {
   hashSdeSeedSources,
   parseSdeSeedArgs,
   parseSdeSeedPgTarget,
+  prepareSdeSeedRun,
   resolveSdeSeedAction,
+  restoreTargetFromPlan,
   sdeSeedAnalyzeSql,
   sdeSeedDumpFileName,
   sdeSeedDumpPath,
@@ -106,6 +108,77 @@ describe('resolveSdeSeedAction', () => {
     { name: 'forced ingest', patch: { forceIngest: true } },
   ])('ingests on $name', ({ patch }) => {
     expect(resolveSdeSeedAction({ ...hit, ...patch })).toBe('ingest');
+  });
+});
+
+describe('prepareSdeSeedRun', () => {
+  const sourceHash = hashSdeSeedSources(CONTENTS);
+  const dumpPath = sdeSeedDumpPath('/mnt/sde-cache', '3473160', sourceHash);
+
+  it('restores when the versioned dump exists', () => {
+    const seen: string[] = [];
+    const prepared = prepareSdeSeedRun({
+      argv: ['--cache-dir', '/mnt/sde-cache'],
+      cacheDirEnv: undefined,
+      sourceContents: CONTENTS,
+      remoteVersion: '3473160',
+      dumpExists: (path) => {
+        seen.push(path);
+        return path === dumpPath;
+      },
+    });
+    expect(seen).toEqual([dumpPath]);
+    expect(prepared).toEqual({
+      action: 'restore',
+      cacheDir: '/mnt/sde-cache',
+      remoteVersion: '3473160',
+      sourceHash,
+    });
+  });
+
+  it('ingests on a cache miss or when --force is set', () => {
+    expect(
+      prepareSdeSeedRun({
+        argv: ['--cache-dir', '/mnt/sde-cache'],
+        cacheDirEnv: undefined,
+        sourceContents: CONTENTS,
+        remoteVersion: '3473160',
+        dumpExists: () => false,
+      }).action,
+    ).toBe('ingest');
+    expect(
+      prepareSdeSeedRun({
+        argv: ['--cache-dir', '/mnt/sde-cache', '--force'],
+        cacheDirEnv: undefined,
+        sourceContents: CONTENTS,
+        remoteVersion: '3473160',
+        dumpExists: () => true,
+      }).action,
+    ).toBe('ingest');
+  });
+});
+
+describe('restoreTargetFromPlan', () => {
+  it('returns the cache dir and version from a restore plan', () => {
+    expect(
+      restoreTargetFromPlan({
+        action: 'restore',
+        cacheDir: '/mnt/sde-cache',
+        remoteVersion: '3473160',
+        sourceHash: 'abc',
+      }),
+    ).toEqual({ cacheDir: '/mnt/sde-cache', remoteVersion: '3473160' });
+  });
+
+  it('throws when the plan is missing a cache dir or version', () => {
+    expect(() =>
+      restoreTargetFromPlan({
+        action: 'restore',
+        cacheDir: null,
+        remoteVersion: '3473160',
+        sourceHash: 'abc',
+      }),
+    ).toThrow('missing a cache directory or remote version');
   });
 });
 

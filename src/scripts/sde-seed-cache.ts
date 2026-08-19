@@ -141,6 +141,55 @@ export function resolveSdeSeedAction(input: {
   return 'restore';
 }
 
+/** Resolved CLI + dump identity the CI entry executes. */
+export type PreparedSdeSeed = {
+  action: SdeSeedAction;
+  cacheDir: string | null;
+  remoteVersion: string | null;
+  sourceHash: string;
+};
+
+/**
+ * Builds the seed plan from argv, the CCP manifest, and whether the versioned
+ * dump is already on the cache disk.
+ */
+export function prepareSdeSeedRun(input: {
+  argv: readonly string[];
+  cacheDirEnv: string | undefined;
+  sourceContents: Readonly<Record<string, string>>;
+  remoteVersion: string | null;
+  dumpExists: (path: string) => boolean;
+}): PreparedSdeSeed {
+  const args = parseSdeSeedArgs(input.argv, input.cacheDirEnv);
+  const sourceHash = hashSdeSeedSources(input.sourceContents);
+  const dumpPath =
+    args.cacheDir !== null && input.remoteVersion !== null
+      ? sdeSeedDumpPath(args.cacheDir, input.remoteVersion, sourceHash)
+      : null;
+  return {
+    action: resolveSdeSeedAction({
+      cacheDir: args.cacheDir,
+      remoteVersion: input.remoteVersion,
+      dumpExists: dumpPath !== null && input.dumpExists(dumpPath),
+      forceIngest: args.forceIngest,
+    }),
+    cacheDir: args.cacheDir,
+    remoteVersion: input.remoteVersion,
+    sourceHash,
+  };
+}
+
+/** Narrows a restore plan to the cache path and CCP version the dump is keyed by. */
+export function restoreTargetFromPlan(prepared: PreparedSdeSeed): {
+  cacheDir: string;
+  remoteVersion: string;
+} {
+  if (prepared.cacheDir === null || prepared.remoteVersion === null) {
+    throw new Error('SDE restore plan is missing a cache directory or remote version');
+  }
+  return { cacheDir: prepared.cacheDir, remoteVersion: prepared.remoteVersion };
+}
+
 /**
  * Reads user/password/database/port from a Postgres URL. Host is always the
  * published sidecar on loopback when docker uses `--network host`.
