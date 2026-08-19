@@ -84,9 +84,63 @@ not incoming vs outgoing.
 
 ## Delivery and authorization
 
-All changes ship through PRs to `main`, the only automatic deployment target.
-When asked to wrap up or ship, invoke the `close-out` skill, the sole
-merge-to-production procedure.
+Feature work lands on Origin `development` through a PR. Merge there
+auto-deploys a Vercel Preview. That Preview is the test stand-in: Neon
+`preview/development` (3-day TTL) and Convex `preview/development`. When
+the test cycle is done, delete that Neon branch, the Convex preview, and
+the Vercel Preview. The next push to `development` spins them up again.
+
+When `development` has accumulated a reviewable pile, open a PR onto
+`staging`. Merge there updates the long-lived Preview: Neon `staging` and
+Convex `staging` (`proper-squid-200`).
+
+`main` is the only Production auto-deploy. When asked to wrap up or ship,
+invoke the `close-out` skill, the sole merge-to-production procedure.
+
+`vercel.json` auto-deploys `main`, `development`, and `staging` only.
+Neon project `lively-mode-73649525`. Convex team `stormin-s-projects`,
+project `lgi-tools`. Policy for Neon names and compute is repo-root
+`neon.ts`; apply with the CLI (nothing auto-applies it).
+
+```text
+vercel env ls
+vercel env add NAME preview <git-branch>
+vercel ls
+vercel remove <preview-url-or-id>
+
+neon branches list --project-id lively-mode-73649525
+neon branches get 'preview/development' --project-id lively-mode-73649525
+neon branches create --name 'preview/development' --project-id lively-mode-73649525 --cu 0.25-1
+neon branches delete 'preview/development' --project-id lively-mode-73649525
+neon config plan --project-id lively-mode-73649525 --branch 'preview/development' --config ./neon.ts
+neon config apply --project-id lively-mode-73649525 --branch 'preview/development' --config ./neon.ts --update-existing
+neon connection-string 'preview/development' --project-id lively-mode-73649525 --role-name neondb_owner --pooled
+
+npx convex deployment create staging --type prod
+npx convex insights --deployment preview/development
+npx convex insights --deployment proper-squid-200
+```
+
+Neon API: `GET` / `DELETE`
+`https://console.neon.tech/api/v2/projects/lively-mode-73649525/branches[/{branch_id}]`.
+Do not delete protected `main`. Apply to `main` needs `--allow-protected`.
+
+Convex has no CLI list or delete. Vercel ending a Preview does not delete
+Convex. List and delete with a team access token or PAT (not
+`CONVEX_DEPLOY_KEY`) against `https://api.convex.dev/v1`:
+
+```text
+GET  /teams/stormin-s-projects/projects/lgi-tools
+GET  /projects/<numeric-id>/list_deployments?deploymentType=preview
+POST /deployments/<animal-name>/delete
+```
+
+Delete path is the animal name (`robust-puffin-832`), not
+`preview/development`. Dashboard delete: that deployment → Settings →
+Delete deployment. Preview Convex expires 5d or 14d from create.
+
+MCP: Neon `list_projects` / `describe_project` / `create_branch` /
+`delete_branch`. Convex `status` / `logs`. Vercel is CLI (`vercel api`).
 
 <!-- BEGIN:nextjs-agent-rules -->
 
