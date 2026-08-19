@@ -22,10 +22,12 @@ happen on the stack you will keep.
   replace laptop `pnpm dev` in most cases. Work lands on
   `development`. Reviewed chunks promote to `staging` when the file
   count vs `staging` is around **100** (the bot-review bar). Merging
-  `staging` → `main` is the **release**. Production is a separate
-  manual promote. Issues leave GitHub for Linear. After that stack
-  works, laptop Cursor and Cloud Agents share one Cursor-native
-  workflow.
+  `staging` → `main` is the **release** and **Production** (Vercel
+  auto-deploys `main`). `development` is the short-lived Preview that
+  replaces laptop `pnpm dev` for ordinary looks. `staging` is the
+  long-lived Preview of reviewed work. Issues leave GitHub for Linear.
+  After that stack works, laptop Cursor and Cloud Agents share one
+  Cursor-native workflow.
 - **DONE =** SC-1 through SC-11 below, plus: Origin-hosted repo, Depot
   Checks, preview-as-dev, `development` / `staging` / `main` lines,
   GitHub bots only on ~100-file staging dumps, tracker + GrokBots
@@ -59,15 +61,15 @@ happen on the stack you will keep.
   is not “CI works” and not “previews work.” Need: Origin-hosted repo
   (not inbound mirror), app attached to that repo, a workflow or
   deployment that actually fires.
-- **Plan:** Vercel is linked to Origin (operator already did this).
-  Disconnect the GitHub git integration only after an Origin branch
-  produces a Preview URL and `main` is proven not to auto-deploy.
-  Origin repos are private and cannot deploy from a Vercel Hobby team.
-- **Plan:** Vercel-for-Origin defaults to “non-`main` push = Preview,
-  merge/`main` push = Production.” Keep `deploymentEnabled.main: false`
-  so Origin merge to `main` does not ship `lgi.tools`. Production is
-  `vercel promote` (or the dashboard equivalent) after you cut a
-  release from `staging`.
+- **Plan:** Disconnect the GitHub git integration only after an Origin
+  branch produces a Preview URL. Origin repos are private and cannot
+  deploy from a Vercel Hobby team.
+- **Plan:** Vercel-for-Origin: merge/`main` push = Production. That is
+  the production path — keep `deploymentEnabled.main: true`.
+  `development` auto-deploys a short-lived Preview. `staging`
+  auto-deploys the long-lived Preview. Other branches stay off
+  auto-deploy; a Preview from an Origin feature branch is **manual**
+  when you want one. There is no separate `vercel promote` step.
 - **Plan:** Previews are the usual way to exercise a feature. Laptop
   `pnpm dev` stays allowed when you want it. Do not require a laptop
   Next server for ordinary visual checks once a Preview URL exists.
@@ -94,12 +96,13 @@ happen on the stack you will keep.
   planning IDs. Do not rewrite completed 4.0 as-builts to pretend they
   already worked this way.
 - **Plan:** Durable `staging` must not use Neon’s `preview/` prefix
-  (`neon.ts` gives those a 3-day TTL). Ephemeral feature previews use
-  `preview/*` and are torn down after the feature is proven.
-  `development` is the git integration line; it does **not** get a
-  second standing Convex (cost). Convex `staging` is one prod-type
-  extra deployment, left up. Do not put a Production
-  `CONVEX_DEPLOY_KEY` on Preview. Do not store
+  (`neon.ts` gives those a 3-day TTL). `development` is the
+  short-lived Preview (ordinary looks instead of laptop `pnpm dev`).
+  `staging` is the long-lived Preview. Manual feature-branch Previews
+  use Neon `preview/*` and are torn down after the look is done.
+  Convex `staging` is one prod-type extra deployment, left up.
+  `development` Preview backends are ephemeral. Do not put a
+  Production `CONVEX_DEPLOY_KEY` on Preview. Do not store
   `NEXT_PUBLIC_CONVEX_URL` / `CONVEX_DEPLOYMENT` on Vercel Preview.
   Staging Convex `SITE_URL` / issuer must be the staging origin, not
   `lgi.tools`.
@@ -178,10 +181,10 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 | --- | --- | --- | --- |
 | Origin vs GitHub | GitHub is still SoT | Workspace remote is `github.com/storminrh/lgi-tools`. Origin CLI exists but is not logged in here | OW-1 creates or detaches before any CI or preview work |
 | Inbound mirror | Blocking for Depot / Vercel Apps | Official Origin docs: inbound “Sync from GitHub” keeps GitHub as SoT; Apps do not run on inbound mirrors | Do not treat Apps-page install as CI or previews |
-| Vercel ↔ Origin | Linked, not proven | Operator connected Vercel on the Origin codebase. Vercel-for-Origin is public beta; Origin repos need a paid Vercel team | OW-5 proves a Preview URL from an Origin branch, then disconnects GitHub git |
-| Vercel ↔ GitHub | Still live | `vercel.json` `main: true`; deny globs hide other branches | Keep `main: false` before Origin `main` exists or Vercel will ship prod |
+| Vercel ↔ Origin | Not the project git remote | Live `lgi-tools` project `link.type` is `github` / `StorminRH/lgi-tools` (API 2026-08-18). Team plan is Pro | OW-5 connects Origin, proves a **manual** Preview from an Origin branch, then disconnects GitHub |
+| Vercel ↔ GitHub | Still the deploy remote | `vercel.json` `main: true`; deny globs hide other branches. Recent deploys are Production-only | Keep `main: true`. Turn on `development` (short Preview) and `staging` (long Preview) only after Origin is the connected repo |
 | Depot CLI | Not present here | No `depot` on this VM or the operator laptop at last check | OW-2 installs CLI where the operator works |
-| Live DoD | `pnpm verify` | AGENTS.md, close-out, CONTRIBUTING | OW-4 flips docs after `verify` is honest on Depot |
+| Live DoD | Origin PR Depot pipeline | OW-4 landed on `stormin/depot-verify-dod` | Cheap local gate is typecheck / lint / Fallow dead-code+dupes / focused tests |
 | Live CI | GHA, no real SQL | `.github/workflows/test.yml` skips `*.db.test.ts` | OW-2/OW-3 replace this on Origin |
 | Preview/prod gaps | Known | Convex preview key unused; `SITE_URL` prod-shaped; `neon.ts` is never auto-applied; crons Production-only; shared Upstash. Convex cost is the preview concern (no scale-to-zero) | OW-5 / OW-17: ephemeral teardown + one cheap sleeping `staging` |
 | Neon branch policy | In-repo, apply is manual | Repo-root `neon.ts`: `preview/*` gets `ttl: '3d'`, 0.25–1 CU, `suspendTimeout: '1m'`. Other new branches get no TTL and inherit defaults. Existing non-default branches are left alone until `updateExisting` | OW-17 adds a named `staging` arm (no TTL, cheap CU, fast suspend) and applies it |
@@ -233,8 +236,8 @@ When the last Ordered work step is done:
   preview of reviewed work.
 - When you want production: merge Origin `staging` → `main` as a
   **release** (fold pending fragments, publish one `### vX.Y.N`, set
-  `APP_VERSION`), then **manually** promote. You may run several
-  staging promotes before one release.
+  `APP_VERSION`). Vercel auto-deploys Production. You may run several
+  staging review-chunk merges before one release.
 - Vercel no longer watches GitHub.
 - Linear holds issues (feedback, update-watch, refactor process,
   `[Backlog]`, triage). Test-cleanup and refactor **work** stay draft
@@ -260,7 +263,7 @@ When the last Ordered work step is done:
 | Scripts | OW-12 |
 | Standing docs | OW-13 |
 | Linear + GrokBots | OW-14 prove connectors; OW-15 feedback; OW-16 retarget |
-| Manual prod + standing staging | OW-17 |
+| Standing staging backends | OW-17 |
 | GitHub bots-only | OW-8 writes the dump ritual; OW-17/close-out keep it |
 | Local / cloud parity | OW-18 last, after the stack works |
 | This plan only | Current PR. Diff must not flip skills, CI, or `vercel.json` |
@@ -274,17 +277,17 @@ When the last Ordered work step is done:
   Vercel to Origin. After an Origin Preview is real, disconnect the
   GitHub integration so a leftover GitHub `main` push cannot ship
   prod. **Rejected:** keep GitHub as the deploy remote “just in case.”
-- **Previews replace laptop `pnpm dev` in most cases.** Process: push
-  an Origin branch / open a PR → Vercel Preview URL → click it.
-  Sometimes that preview is short-lived (one feature). `staging`
-  stays up as the reviewed accumulated preview. Laptop `pnpm dev`
-  remains when you want speed. **Rejected:** per-PR previews stay off
-  forever (overruled leftover).
-- **`vercel.json`:** `main: false` is mandatory. Allowing other
-  branches to deploy is the preview process. Convex cost is the
-  limiter (a preview backend does not sleep). A naming convention is
-  allowed if every-branch previews are too expensive. Every ephemeral
-  preview must tear down Neon + Convex after the feature is proven.
+- **Previews replace laptop `pnpm dev` in most cases.** `development`
+  is the short-lived Preview for ordinary looks. `staging` is the
+  long-lived Preview of reviewed work. A feature-branch Preview is
+  **manual** when you want one from an Origin branch. Laptop
+  `pnpm dev` remains when you want speed.
+- **`vercel.json`:** `main: true` (Production auto-deploy on merge).
+  Enable `development` and `staging` for Preview. Leave other
+  branches false so feature work does not mint a Convex backend on
+  every push. Manual Preview from an Origin branch is the proof that
+  Origin can deploy. Tear down ephemeral Neon + Convex after a
+  short-lived look is done.
 - **Three git lines, not one `beta`.** `development` is where sessions
   land. `staging` is the reviewed moving branch (durable preview).
   `main` is the release cut. **Rejected:** one long `beta` that grows
@@ -298,12 +301,12 @@ When the last Ordered work step is done:
   `staging` holds everything you want in the next release.
   **Rejected:** bots on every Origin PR; bots as the merge gate; one
   giant dump at release time if it exceeds the bar (split first).
-- **Production:** merge Origin `staging` → `main`, then manual
-  `vercel promote`. Do not rely on Vercel-for-Origin’s “merge to
-  production branch ships prod.”
+- **Production:** merge Origin `staging` → `main`. Vercel auto-deploys
+  Production from `main`. That merge is the deploy. No separate
+  `vercel promote`.
 - **One standing backend pair, on `staging`.** Convex is the cost.
-  Do not give `development` its own durable Convex. Feature PRs keep
-  ephemeral pairs and tear them down.
+  `development` Preview backends are short-lived. Feature-branch
+  Previews are manual and ephemeral.
 - **Depot product: CI sandboxes with `jobs.<id>.services` Postgres.**
   **Rejected:** Container Builds / bake as the test DB.
 - **Job split:** `verify` = typecheck, lint, `assert:routes-present`,
@@ -394,11 +397,11 @@ Think of four layers. They stay separate:
 | **Work package** | Session contract → plan → ordered work (or an ordinary PR) | Merge to Origin `development` when that slice is proven |
 | **Review chunk** | Files on `development` that `staging` does not have yet | When `git diff --name-only staging...development` is around **100**, dump that range to GitHub, request bots, merge to `staging` |
 | **Release** | One public number + one changelog entry + `APP_VERSION` | Merge Origin `staging` → `main` |
-| **Production** | Users on `lgi.tools` | `vercel promote` of that `main` SHA |
+| **Production** | Users on `lgi.tools` | Merge Origin `staging` → `main` (Vercel auto-deploys) |
 
 That is a development → staging → main train. Many small landings,
-chunked bot review at the file-count barn, one versioned cut, then a
-deploy. You do not need a new numbering invention to start.
+chunked bot review at the file-count barn, one versioned cut that
+auto-deploys. You do not need a new numbering invention to start.
 
 **Why `development` and `staging`, not one long `beta`:** Greptile
 and CodeRabbit are not reliable past ~100 files. A single
@@ -429,15 +432,17 @@ until `staging` holds what you want in the next release. Then one
   `main`. It merges to `development` and drops a pending fragment like
   everyone else.
 - “Shipped” in contracts/schemas splits: **landed** (on
-  `development`) vs **reviewed** (on `staging`) vs **released** (on
-  `main`, version published) vs **in production** (promoted).
-- Close-out grows **four named rituals**:
+  `development`, short-lived Preview) vs **reviewed** (on `staging`,
+  long-lived Preview) vs **released / in production** (on `main`,
+  version published, Vercel auto-deployed).
+- Close-out grows **three named rituals**:
   1. **Land on `development`** (today’s default after this rewrite,
-     including a “final” session).
+     including a “final” session). Short-lived Preview.
   2. **Promote a review chunk** (bots + dump + merge to `staging`)
-     when the file count vs `staging` is around 100.
-  3. **Cut a release** (`staging` → `main` + fold + bump).
-  4. **Promote production** (named ask).
+     when the file count vs `staging` is around 100. Long-lived
+     Preview updates.
+  3. **Cut a release** (`staging` → `main` + fold + bump). Production
+     auto-deploys.
 
 **How to pick the public number at cut time (plain rule):**
 
@@ -520,14 +525,15 @@ product behavior.
 - `depot ci run --workflow <file> --job verify` — agent/laptop gate.
 - Full Depot workflow on an Origin PR — `verify` + `build` + `e2e`.
   Wait with `origin pr checks --watch`.
-- Origin branch / PR → Vercel Preview URL — usual feature look.
+- Origin `development` push → short-lived Vercel Preview — usual look
+  instead of laptop `pnpm dev`. Feature-branch Preview is manual.
 - `origin pr merge` into `development` — daily land. Does not
   promote to `staging` or production.
 - GitHub dump of `staging...development` when the file count is
   around **100** + **manual** bot request — review chunk only.
   Never merge the dump. Then merge Origin `development` → `staging`.
-- `origin pr merge` (`staging` → `main`) then `vercel promote` —
-  release, then production.
+- `origin pr merge` (`staging` → `main`) — release and Production
+  auto-deploy.
 - Feedback: today `POST /repos/StorminRH/lgi-tools/issues`. After
   OW-15: the chosen tracker’s create API (Linear:
   `issueCreate` at `https://api.linear.app/graphql`).
@@ -538,32 +544,28 @@ product behavior.
 Target daily path after OW-5:
 
 1. Agent works against `https://origin.cursor.com/{owner}/{repo}.git`.
-2. Local gate: `depot ci run --job verify`.
-3. Open an Origin PR. Depot runs the full pipeline. Vercel posts a
-   Preview URL backed by Neon `preview/<branch>` and a Convex preview
-   deployment. You (or `ux-check`) use that URL instead of laptop
-   `pnpm dev` unless you choose otherwise.
-4. After the feature is proven, tear down that Neon branch and that
-   Convex preview. Merge the Origin PR to **`development`**. No
-   standing Convex on `development` — that line is git integration
-   only.
-5. Repeat overwork sessions. Measure
+2. Cheap local gate: typecheck, lint, Fallow dead-code + dupes, focused
+   tests. Standing done is the Origin PR Depot pipeline.
+3. Land on **`development`**. Depot runs. Vercel updates the
+   short-lived `development` Preview (Neon + ephemeral Convex). Use
+   that URL instead of laptop `pnpm dev` unless you choose otherwise.
+   A feature-branch Preview is manual when you want one.
+4. Repeat overwork sessions. Measure
    `git diff --name-only staging...development | wc -l`. When it is
    around **100** and Depot is clean, dump **that range** to GitHub
    (branch, not a merge). Manually request Greptile and CodeRabbit.
    Triage. Fix on Origin. Re-check Depot. Merge Origin
-   `development` → `staging`. The standing `staging` preview (one
+   `development` → `staging`. The long-lived `staging` Preview (one
    cheaper Neon + one Convex) updates. You may cut a smaller chunk;
    do not dump a larger one.
-6. Repeat staging promotes until `staging` holds the next release.
+5. Repeat staging promotes until `staging` holds the next release.
 
 When you ask for a release:
 
-7. Fold pending fragments, pick `X.Y.N`, set `APP_VERSION`, merge
-   Origin `staging` → Origin `main`. **Nothing deploys to
-   production yet.** Do not dump the whole `staging` pile to bots
-   unless that remaining diff is still under the 100-file bar.
-8. `vercel promote` that release to Production when you ask.
+6. Fold pending fragments, pick `X.Y.N`, set `APP_VERSION`, merge
+   Origin `staging` → Origin `main`. Vercel auto-deploys Production.
+   Do not dump the whole `staging` pile to bots unless that remaining
+   diff is still under the 100-file bar.
 
 Issues and GrokBots (parallel, after OW-14):
 
@@ -581,11 +583,11 @@ Issues and GrokBots (parallel, after OW-14):
 - `verify` with Postgres too slow → shrink the SDE fixture, not the
   job.
 - Vercel still watches GitHub after Origin is linked → two remotes can
-  deploy. Disconnect GitHub only after Origin Preview proof, and keep
-  `main: false` the whole time.
-- Every-branch previews too expensive (Convex does not sleep) → name
-  a branch pattern in OW-5; tear down each ephemeral pair after
-  proof; do not re-disable all previews without a process.
+  deploy. Disconnect GitHub only after Origin Preview proof. Keep
+  `main: true`.
+- Every-branch previews too expensive (Convex does not sleep) → only
+  `development` (short) and `staging` (long) auto-Preview; feature
+  branches stay manual.
 - Wrong Convex key on Preview → can push **production** Convex. Audit
   keys before enabling many previews. Vercel teardown without a
   Convex delete leaves a billed backend until 5/14-day expiry.
@@ -631,20 +633,22 @@ Do not implement a later step in an earlier chat.
    --watch`. Remove `pnpm verify` as the standing gate. Prove by
    reading those files.
 
-5. **Vercel-on-Origin preview process.** Prove one Preview URL from an
-   Origin branch or PR (the usual “instead of `pnpm dev`” path). Write
-   down dashboard facts: Convex key type per environment, Neon branch
-   names, Hobby vs Pro, whether GitHub is still connected. Put a
-   **preview** `CONVEX_DEPLOY_KEY` on Vercel Preview only. Then: set
-   `deploymentEnabled.main: false`; enable the preview pattern you
-   choose; disconnect Vercel’s GitHub git integration once Origin
-   Preview is real. Document the teardown: delete Neon
-   `preview/<branch>` and the Convex preview deployment after the
-   feature is proven (PR-close workflow + Convex API/dashboard; do
-   not wait for 5/14-day expiry as the process). Do not enable
-   Production auto-deploy. Do not migrate feedback. Prove: Origin PR
-   shows a Preview URL; `main` does not start Production; teardown
-   leaves no extra Neon/Convex pair.
+5. **Vercel-on-Origin preview process.** Connect the `lgi-tools` Vercel
+   project to Origin (`origin.cursor.com/stormin/lgi-tools`) if it is
+   still on GitHub. Prove one **manual** Preview from an Origin
+   branch (the usual “instead of `pnpm dev`” path). Write down
+   dashboard facts: Convex key type per environment, Neon branch
+   names, Hobby vs Pro, connected git remote. Put a **preview**
+   `CONVEX_DEPLOY_KEY` on Vercel Preview only. Keep
+   `deploymentEnabled.main: true`. Enable `development` (short-lived
+   Preview) and `staging` (long-lived Preview); leave other branches
+   off auto-deploy. Disconnect Vercel’s GitHub git integration once
+   an Origin Preview is real. Document teardown for short-lived
+   Previews: delete Neon `preview/<branch>` and the Convex preview
+   deployment after the look is done. Do not migrate feedback. Prove:
+   an Origin branch can produce a Preview URL; `main` still
+   auto-deploys Production; `development` and `staging` are the two
+   standing Preview lines.
 
 6. **Isolated visit: `start-session`.** Change only
    `.cursor/skills/start-session/SKILL.md` so resolver, dispatch, “what
@@ -660,7 +664,7 @@ Do not implement a later step in an earlier chat.
    skill. Do not bump versions in this chat.
 
 8. **Isolated visit: `close-out`.** Change only
-   `.cursor/skills/close-out/SKILL.md` so there are four named
+   `.cursor/skills/close-out/SKILL.md` so there are three named
    rituals:
    - **Land on `development`** (ordinary or planned, including a
      “final” session): Depot green, Preview used, pending fragment,
@@ -674,10 +678,9 @@ Do not implement a later step in an earlier chat.
      more than the bar.
    - **Cut a release** (only when you ask): fold pending fragments,
      pick the public `X.Y.N`, set `APP_VERSION`, merge `staging` →
-     `main`. Stop. Do not promote.
-   - **Promote** (only when you ask): `vercel promote`.
-   Prove with a paper dry-run of all four. Do not flip `vercel.json`
-   in this chat.
+     `main`. Vercel auto-deploys Production.
+   Prove with a paper dry-run of the three rituals. Do not flip
+   `vercel.json` in this chat.
 
 9. **Isolated visit: `ux-check`.** Change only the ux-check skill and
    `docs/ux-check/README.md` so automated evidence is “Depot `e2e` was
@@ -742,17 +745,17 @@ Do not implement a later step in an earlier chat.
       written; **no Linear issue**.
     Prove each with one scheduled or manual run.
 
-17. **Manual production + standing `staging`.** In `neon.ts`, add a
+17. **Standing `staging` backends.** In `neon.ts`, add a
     named `staging` arm: no `ttl`, cheap CU (0.25–1), short
     `suspendTimeout` (1m or 5m). Create the Neon branch as `staging`
     (not `preview/staging`). `neon config apply` with `updateExisting`
     (today’s `if (branch.exists) return {}` would skip it). Create
     one Convex `npx convex deployment create staging --type prod`.
     Register EVE SSO on that stable URL only if signed-in Atlas is
-    in scope. Document promote as the only production path. Prove:
-    `staging` Preview stays up on the cheap pair; ephemeral pairs are
-    gone after teardown; Origin `main` does not auto-deploy;
-    `development` has no second durable Convex.
+    in scope. Production path is merge to `main` (auto-deploy). Prove:
+    `staging` Preview stays up on the cheap pair; `development`
+    Preview backends are short-lived; Origin `main` auto-deploys
+    Production.
 
 18. **Local / Cloud Agent parity (Cursor defaults).** Last step, only
     after OW-1–17 are working. Walk laptop Cursor and a Cloud Agent
@@ -904,13 +907,8 @@ repo Playwright version. Upload failure artifacts only.
    on this theme, or a new `X.Y.0`). Prepend `### vX.Y.N`. Set
    `APP_VERSION`. Delete consumed fragments.
 2. `origin pr merge` (`staging` → `main`).
-3. Stop. Do not wait for Production.
-
-## 8. Promote (only when you asked to ship production)
-
-1. `vercel promote <main-release-or-staging-url>`.
-2. Fail-closed wait for that Production deployment.
-3. `pnpm verify:prod` (and account routes with cookie jar when needed).
+3. Vercel auto-deploys Production. Wait for that deployment, then
+   `pnpm verify:prod` (and account routes with cookie jar when needed).
 ```
 
 ### Feedback and issue writers (OW-15 / OW-16)
@@ -992,16 +990,16 @@ Name the replacement merge command in OW-8 first.
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
-  | `SC-5.1` | Origin PR / branch | Vercel Preview URL is posted |
-  | `SC-5.2` | Vercel project git settings + `vercel.json` | Connected repo is Origin; `main: false`; GitHub git disconnected |
-  | `SC-5.3` | After feature proof | Neon `preview/<branch>` gone; Convex preview deployment deleted (not merely expired) |
+  | `SC-5.1` | Origin branch (manual Preview) | Vercel Preview URL exists from Origin, not GitHub |
+  | `SC-5.2` | Vercel project git settings + `vercel.json` | Connected repo is Origin; `main: true`; `development` and `staging` Preview on; GitHub git disconnected |
+  | `SC-5.3` | After a short-lived look | Manual/feature Neon `preview/<branch>` gone; that Convex preview deleted (not merely expired) |
 
 - **SC-6 — Each named skill was visited in isolation.**
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
   | `SC-6.1` | Git history for OW-6 through OW-11 | Separate chat/PR per skill |
-  | `SC-6.2` | Read close-out after OW-8 | Land → `development` with a pending fragment and no version; review chunk at ~100 files → `staging`; cut release and promote are named asks |
+  | `SC-6.2` | Read close-out after OW-8 | Land → `development` with a pending fragment and no version; review chunk at ~100 files → `staging`; cut release is `staging` → `main` and auto-deploys Production |
 
 - **SC-7 — Bot helpers retired as a pair after a replacement exists.**
 
@@ -1017,14 +1015,14 @@ Name the replacement merge command in OW-8 first.
   | `SC-8.2` | Read `create-github-issue.ts` / successor after OW-15 | No `api.github.com/repos/StorminRH/lgi-tools/issues` POST |
   | `SC-8.3` | After OW-16 | Update-watch writes Linear (no Cloud Agent); refactor has Linear process note + Origin draft PR; test-cleanup is Origin draft PR only |
 
-- **SC-9 — `staging` → `main` is the release; promote is prod.**
+- **SC-9 — `staging` → `main` is the release and Production auto-deploy.**
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
   | `SC-9.1` | `neon.ts` + apply after OW-17 | `staging` has no TTL, cheap CU, short suspend; name is not `preview/` |
-  | `SC-9.2` | Convex dashboard | One prod-type extra named `staging`; Preview env uses a preview key; `development` has no durable Convex |
+  | `SC-9.2` | Convex dashboard | One prod-type extra named `staging`; Preview env uses a preview key; `development` Preview backends are short-lived |
   | `SC-9.3` | Close-out + schemas after OW-8 / OW-13 | `APP_VERSION` and `### vX.Y.N` change only on cut release; pending fold runs only then |
-  | `SC-9.4` | Close-out + one dry-run | Review-chunk dump stays ≤ ~100 files vs `staging`; promote is the documented prod action |
+  | `SC-9.4` | Close-out + one dry-run | Review-chunk dump stays ≤ ~100 files vs `staging`; merge to `main` is the documented prod action |
 
 - **SC-10 — This plan PR stayed documentation-only.**
 

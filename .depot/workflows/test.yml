@@ -54,12 +54,19 @@ jobs:
       # route added or removed without its classification entry here in plain CI.
       - run: pnpm assert:routes-present
 
+      # Durable org disk. Populate once (CCP zip + ingest + pg_dump -Fc);
+      # later verify jobs restore into the empty sidecar. Keyed by CCP
+      # sde_version + ingest-source hash. Public fork PRs skip the mount.
+      - uses: depot/cache-mount@v1
+        with:
+          name: lgi-tools-sde-seed
+          path: /mnt/sde-cache
+
       - run: pnpm db:migrate
 
-      # Fresh sidecar has empty SDE tables. Suites that clone from public.eve_*
-      # fail rather than skip without this data. ingest-sde also records
-      # sde_version so wormhole-codex reads can stamp the cloned meta row.
-      - run: pnpm db:ingest:sde
+      # Suites that clone from public.eve_* fail rather than skip without
+      # this data. Restore records sde_version the same way ingest-sde does.
+      - run: pnpm db:ci-sde-seed --cache-dir /mnt/sde-cache
 
       # Coverage-backed Vitest suite, including real-Postgres *.db.test.ts.
       # The fallow step below reads coverage/coverage-final.json for health/CRAP.
@@ -121,14 +128,27 @@ jobs:
 
       - run: pnpm assert:routes
 
-  # PR-only Playwright against `next start`. Sidecar Postgres + migrate +
-  # synthetic seed (no SDE zip). Rebuilds here so `next start` does not
-  # depend on artifact nesting. LOCAL_DB_DRIVER stays off `verify` so
-  # neon-http timing tests keep seeing an unset driver.
+      # `.next` is a hidden directory; v4 skips those unless this is set.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: .next
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # PR-only Playwright against `next start`. Reuses the `build` job's
+  # `.next`. Playwright image already has OS deps + headless shell
+  # (matches @playwright/test 1.61.1). Job-in-container reaches the
+  # sidecar at hostname `postgres`, not localhost. LOCAL_DB_DRIVER stays
+  # off `verify` so neon-http timing tests keep seeing an unset driver.
   e2e:
     if: github.event_name == 'pull_request'
     needs: [build]
     runs-on: depot-ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+      options: --ipc=host
     services:
       postgres:
         image: postgres:16
@@ -139,12 +159,10 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 5432:5432
     env:
       CI: true
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@postgres:5432/postgres
       LOCAL_DB_DRIVER: postgres-js
       BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
@@ -158,22 +176,14 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - uses: actions/cache@v4
+      - uses: actions/download-artifact@v4
         with:
-          path: .next/cache
-          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            next-${{ runner.os }}-
+          name: next-build
+          path: .next
 
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm db:migrate
-
-      - run: pnpm build
-
-      # Repo-pinned Playwright (package.json). Headless shell only — no
-      # `channel` in playwright.config.ts.
-      - run: pnpm exec playwright install --with-deps --only-shell
 
       - run: pnpm test:e2e
 

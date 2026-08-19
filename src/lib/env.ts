@@ -66,6 +66,9 @@ const VERBATIM_ENV = {
   NEXT_RUNTIME: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,
   LGI_SITES_SAMPLE: verbatim,
+  // Depot verify cache-disk path for the SDE seed dump. Empty ≡ unset; the
+  // seed entry falls back to --cache-dir or a CCP ingest with no dump write.
+  SDE_SEED_CACHE_DIR: verbatim,
 } as const;
 
 const SERVER_ENV = { ...REQUIRED_ENV, ...VERBATIM_ENV };

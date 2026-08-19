@@ -35,11 +35,13 @@ feat: add API endpoints for browsing and filtering wormhole sites
 ## Opening a pull request
 
 1. Branch off `main` and open your PR back into `main`.
-2. Run **`pnpm verify`** locally and confirm it passes — this bundles
-   `typecheck`, zero-warning `lint`, one coverage-enabled Vitest suite, and
-   `fallow` (dead code, duplication, complexity, and architecture boundaries).
-   CI installs with the frozen lockfile, runs those same four gates, and also
-   runs the route-classification presence check (`assert:routes-present`).
+2. Before you open the PR, run the cheap local gate: `pnpm typecheck`,
+   `pnpm lint`, Fallow `dead-code` and `dupes`, and focused tests for your
+   diff. Standing done is the Origin PR's Depot pipeline (`verify` on every
+   PR, plus `build` and `e2e` on PRs) — wait with
+   **`origin pr checks --watch`**. Do not treat laptop `pnpm verify` as
+   done, and do not run a full Depot `verify` locally just to run it again
+   on the PR.
 3. Fill in the PR template's **test plan** — what you verified and how.
 4. Reference the issue the PR resolves (e.g. `Fixes #123`).
 

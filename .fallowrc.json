@@ -9,6 +9,7 @@
     "src/scripts/ingest-sde-if-empty.ts",
     "src/scripts/warm-neon.ts",
     "src/scripts/ingest-sde.ts",
+    "src/scripts/ci-sde-seed.ts",
     "src/scripts/refresh-prices.ts",
     "src/scripts/refresh-sde.ts",
     "src/scripts/generate-architecture-map.ts",

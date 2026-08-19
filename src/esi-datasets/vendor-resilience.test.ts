@@ -62,6 +62,7 @@ const PRODUCTION_POSTGRES_SITES = [
   'src/scripts/backfill-users-if-empty.ts',
   'src/scripts/check-universe-assets.ts',
   'src/scripts/check-wh-statics.ts',
+  'src/scripts/ci-sde-seed.ts',
   'src/scripts/ingest-sde-if-empty.ts',
   'src/scripts/ingest-sde.ts',
   'src/scripts/migrate.ts',
