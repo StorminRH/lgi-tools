@@ -10,13 +10,13 @@
 // one untouched (absence never disables), so this stays a pure branch policy.
 //
 // Names:
-//   default (`main`)  — Production. Protected. Current live compute.
-//   `staging`         — the only long-lived Preview DB. No TTL. Cheap, sleeps in 5m.
-//   `development`     — short-lived stand-in for local dev. 3-day TTL.
-//   `preview/*`       — leftover webhook names. Same 3-day TTL if one appears.
+//   default (`main`)       — Production. Protected. Current live compute.
+//   `staging`              — the only long-lived Preview DB. No TTL.
+//   `preview/staging`      — same standing settings if a Vercel webhook uses that name.
+//   `preview/<git-branch>` — ephemeral test DBs (today: preview/development). 3-day TTL.
 import { defineConfig } from '@neondatabase/config/v1';
 
-const SHORT_LIVED_PREVIEW_NAMES = new Set(['development']);
+const STANDING_PREVIEW_NAMES = new Set(['staging', 'preview/staging']);
 
 const PREVIEW_COMPUTE = {
   postgres: {
@@ -37,10 +37,10 @@ export default defineConfig({
         postgres: { computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 2 } },
       };
     }
-    if (branch.name === 'staging') {
+    if (STANDING_PREVIEW_NAMES.has(branch.name)) {
       return { ...PREVIEW_COMPUTE };
     }
-    if (SHORT_LIVED_PREVIEW_NAMES.has(branch.name) || branch.name.startsWith('preview/')) {
+    if (branch.name.startsWith('preview/')) {
       return {
         ttl: '3d',
         ...PREVIEW_COMPUTE,
