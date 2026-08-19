@@ -190,6 +190,47 @@ describe('resolveUpstashRest', () => {
   });
 });
 
+describe('allowUnconfiguredUpstash', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('allows degradation outside production', async () => {
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('LOCAL_DB_DRIVER', '');
+    const { allowUnconfiguredUpstash } = await importUpstash();
+    expect(allowUnconfiguredUpstash()).toBe(true);
+  });
+
+  it('allows the local/CI sidecar under production next start', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('VERCEL_ENV', '');
+    const { allowUnconfiguredUpstash } = await importUpstash();
+    expect(allowUnconfiguredUpstash()).toBe(true);
+  });
+
+  it('stays fail-closed for a production deploy without the sidecar driver', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOCAL_DB_DRIVER', '');
+    vi.stubEnv('VERCEL_ENV', '');
+    const { allowUnconfiguredUpstash } = await importUpstash();
+    expect(allowUnconfiguredUpstash()).toBe(false);
+  });
+
+  it('stays fail-closed on Vercel even when the sidecar driver is set', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    const { allowUnconfiguredUpstash } = await importUpstash();
+    expect(allowUnconfiguredUpstash()).toBe(false);
+  });
+});
+
 describe('Redis command timing', () => {
   beforeEach(() => {
     vi.resetModules();

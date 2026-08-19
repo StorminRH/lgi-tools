@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { rateLimitedFailure } from "@/lib/failure";
-import { createUpstashClient, resolveUpstashRest } from "@/lib/upstash";
+import { allowUnconfiguredUpstash, createUpstashClient, resolveUpstashRest } from "@/lib/upstash";
 
 // Shared sliding-window rate limiter backed by Upstash Redis. Stateless
 // across Vercel serverless invocations (in-process counters don't survive
@@ -86,7 +86,7 @@ export async function rateLimit(
     // vitest don't require an Upstash account. Production fails closed:
     // a misconfigured deploy should 500 once and get fixed, never ship
     // an unlimited endpoint silently.
-    if (process.env.NODE_ENV !== "production") {
+    if (allowUnconfiguredUpstash()) {
       if (!warnedAboutMissingEnv && process.env.NODE_ENV === "development") {
         console.warn(
           "[rate-limit] KV_REST_API_URL / KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN) not set — rate limiting disabled in dev",

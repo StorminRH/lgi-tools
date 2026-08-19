@@ -490,11 +490,30 @@ describe('resolveScoreboard fallback selection', () => {
 
   it('returns null in production and logs the misconfiguration once', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOCAL_DB_DRIVER', '');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(resolveScoreboard()).toBeNull();
     expect(resolveScoreboard()).toBeNull();
     await expect(readEsiBudgetSnapshot()).resolves.toBeNull();
     expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the in-process scoreboard on the local/CI sidecar under production next start', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('VERCEL_ENV', '');
+
+    expect(resolveScoreboard()).not.toBeNull();
+  });
+
+  it('stays fail-closed on Vercel even when the sidecar driver is set', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(resolveScoreboard()).toBeNull();
+    expect(errorSpy).toHaveBeenCalled();
   });
 });

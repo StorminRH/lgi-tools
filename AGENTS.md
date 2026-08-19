@@ -38,6 +38,28 @@ Never run `pnpm build`, `next build`, `pnpm vercel-build`, or another
 production-mode build locally or before merge. Only Vercel may run the
 production build after the change reaches `main`.
 
+Origin PRs run `.depot/workflows/test.yml` on Depot (org `k2f4dzqwd4`).
+`verify` runs on every PR and train push; `build` and `e2e` are PR-only.
+Pass `--org k2f4dzqwd4` on Depot CLI when the account is in more than one
+org. `origin pr checks` can show no checks while Depot is already
+running — use the Depot CLI for live status. PR runs use a merge SHA
+(`refs/changes/N/merge`); `run list --sha` is that merge SHA, not always
+`HEAD`.
+
+```text
+origin pr checks
+depot ci run list --repo stormin/lgi-tools --pr N --org k2f4dzqwd4 -n 8
+depot ci status <run-id> --org k2f4dzqwd4
+depot ci diagnose --job <job-id> --org k2f4dzqwd4
+depot ci logs <attempt-id> --org k2f4dzqwd4
+```
+
+`status` prints the `logs` command and dashboard URL. On an `e2e`
+failure, `depot ci artifacts list <run-id> --org k2f4dzqwd4` then
+`depot ci artifacts download <artifact-id>`. Never fetch
+`auth-storage.json`. Do not run `depot build` (no app image). Do not
+change `runs-on` or merge unless asked.
+
 Fallow is a whole-repo gate. Do not add waivers or baseline entries to get
 around it. If flagged, simplify the change or add meaningful behavioral
 coverage.

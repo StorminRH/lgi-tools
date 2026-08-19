@@ -1,5 +1,6 @@
-# Depot CI verify — Origin train PRs and pushes.
+# Depot CI — Origin train PRs and pushes.
 # GitHub Actions YAML on Depot compute. Not a GitHub Actions workflow.
+# `verify` on every PR and train push. `build` and `e2e` are PR-only.
 
 name: Verify
 on:
@@ -67,3 +68,121 @@ jobs:
       # Whole-repo Fallow gate (dead code, duplication, architecture
       # boundaries, health). Inherited findings fail the same as new ones.
       - run: pnpm fallow
+
+  # PR-only production compile + render-mode classification. Laptops and
+  # agents do not run `next build`. Cache `.next/cache` across PRs; do not
+  # run `build:vercel` (no SDE ingest / warm-neon). Sidecar + migrate are
+  # required because `generateStaticParams` for /sites/[id] reads `sites`.
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: depot-ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
+      LOCAL_DB_DRIVER: postgres-js
+      # betterAuth() constructs during `next build` page-data collection and
+      # rejects the library default secret. Dummy values only.
+      BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
+      BETTER_AUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            next-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:migrate
+
+      - run: pnpm build
+
+      - run: pnpm assert:routes
+
+  # PR-only Playwright against `next start`. Sidecar Postgres + migrate +
+  # synthetic seed (no SDE zip). Rebuilds here so `next start` does not
+  # depend on artifact nesting. LOCAL_DB_DRIVER stays off `verify` so
+  # neon-http timing tests keep seeing an unset driver.
+  e2e:
+    if: github.event_name == 'pull_request'
+    needs: [build]
+    runs-on: depot-ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      CI: true
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
+      LOCAL_DB_DRIVER: postgres-js
+      BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
+      BETTER_AUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            next-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:migrate
+
+      - run: pnpm build
+
+      # Repo-pinned Playwright (package.json). Headless shell only — no
+      # `channel` in playwright.config.ts.
+      - run: pnpm exec playwright install --with-deps --only-shell
+
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-failure
+          path: |
+            docs/ux-check/captures/playwright
+            docs/ux-check/captures/e2e-report.json
+          if-no-files-found: ignore
+          retention-days: 7
