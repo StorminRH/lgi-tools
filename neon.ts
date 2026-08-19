@@ -8,37 +8,45 @@
 // Identity is Better Auth, and storage/AI are self-hosted, so the Neon service
 // integrations stay out of this file. Absence of a service leaves any existing
 // one untouched (absence never disables), so this stays a pure branch policy.
+//
+// Names:
+//   default (`main`)  — Production. Protected. Current live compute.
+//   `staging`         — long-lived Preview DB. No TTL. Cheap, sleeps in 5m.
+//   `development`     — long-lived Preview DB. Same cheap compute, no TTL.
+//   `preview/*`       — leftover webhook names only. 3-day TTL if one appears.
 import { defineConfig } from '@neondatabase/config/v1';
+
+const STANDING_PREVIEW_NAMES = new Set(['staging', 'development']);
+
+const STANDING_PREVIEW_COMPUTE = {
+  postgres: {
+    computeSettings: {
+      autoscalingLimitMinCu: 0.25,
+      autoscalingLimitMaxCu: 1,
+      // Launch cannot set 1m; 5m is the plan default and the shortest custom value.
+      suspendTimeout: '5m',
+    },
+  },
+} as const;
 
 export default defineConfig({
   branch: (branch) => {
-    // Production (Neon's default branch): protect it from accidental deletion,
-    // and pin compute to today's live values so this file — not the dashboard —
-    // is where prod is resized (edit here, then `neon config apply`).
     if (branch.isDefault) {
       return {
         protected: true,
         postgres: { computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 2 } },
       };
     }
-    // Any non-default branch that already exists on Neon: leave its live,
-    // possibly in-use settings alone.
-    if (branch.exists) return {};
-    // A brand-new preview branch: apply the cost guard — auto-expire a few days
-    // out so an abandoned preview cleans itself up, on cheap compute that scales
-    // to zero quickly when idle. Gated on the `preview/<branch>` naming the
-    // manual-preview flow uses (see the delete-neon-branch workflow), so the TTL
-    // only ever reaches ephemeral previews.
+    if (STANDING_PREVIEW_NAMES.has(branch.name)) {
+      return { ...STANDING_PREVIEW_COMPUTE };
+    }
     if (branch.name.startsWith('preview/')) {
       return {
         ttl: '3d',
-        postgres: {
-          computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 1, suspendTimeout: '1m' },
-        },
+        ...STANDING_PREVIEW_COMPUTE,
       };
     }
-    // Any other new non-default branch (e.g. a future long-lived `staging`):
-    // no TTL — it must not silently auto-expire — and inherit project defaults.
+    if (branch.exists) return {};
     return {};
   },
 });
