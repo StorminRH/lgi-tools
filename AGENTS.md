@@ -35,35 +35,54 @@ applies. Do not pass `inherit` or a slug; those override the pin.
 Standing definition of done: an Origin PR whose Depot pipeline is green.
 Wait with `origin pr checks --watch`.
 
-Never run `pnpm build`, `next build`, `pnpm vercel-build`, or another
-production-mode build locally or before merge. Only Vercel may run the
-production build after the change reaches `main`.
+The production-mode Next compile (`pnpm build`, `next build`,
+`pnpm vercel-build`) runs on Vercel after a change reaches `main`. Laptops
+and agents use `pnpm typecheck` / `pnpm lint` / focused tests, not that
+compile.
 
-Origin PRs run `.depot/workflows/test.yml` on Depot (org `k2f4dzqwd4`).
-`verify` runs on every PR and train push; `build` and `e2e` are PR-only.
-Pass `--org k2f4dzqwd4` on Depot CLI when the account is in more than one
-org. Use the Depot CLI for live status. PR runs use a merge SHA
+Origin PRs run `.depot/workflows/test.yml` on Depot (org `k2f4dzqwd4`,
+repo `stormin/lgi-tools`). `verify` runs on every PR and train push;
+`build` and `e2e` are PR-only. Pass `--org k2f4dzqwd4` on Depot CLI when
+the account is in more than one org. PR runs use a merge SHA
 (`refs/changes/N/merge`); `run list --sha` is that merge SHA, not always
-`HEAD`.
+`HEAD`. `run list` defaults to queued/running; add `--status finished`
+and/or `--status failed` for completed runs.
+
+`verify` mounts cache disk `lgi-tools-sde-seed` at `/mnt/sde-cache`,
+migrates a stock `postgres:16` sidecar, then runs
+`pnpm db:ci-sde-seed --cache-dir /mnt/sde-cache`. That restores
+`sde-{ccpVersion}-{ingestHash}.dump` when present, or ingests from CCP
+and writes the dump. `build` and `e2e` migrate only; they do not seed
+SDE. Disk names are org-global; this one is `lgi-tools-sde-seed`.
 
 ```text
 origin pr checks
+origin pr checks --watch
+
 depot ci run list --repo stormin/lgi-tools --pr N --org k2f4dzqwd4 -n 8
+depot ci run list --repo stormin/lgi-tools --pr N --org k2f4dzqwd4 --status finished --status failed -n 8
 depot ci status <run-id> --org k2f4dzqwd4
 depot ci diagnose --job <job-id> --org k2f4dzqwd4
 depot ci logs <attempt-id> --org k2f4dzqwd4
+depot ci logs <job-id> --follow --org k2f4dzqwd4
+depot ci logs <attempt-id> --timestamps --output-file logs.txt --org k2f4dzqwd4
+depot ci metrics --job <job-id> --org k2f4dzqwd4
+depot ci metrics --run <run-id> --org k2f4dzqwd4 -o json
+depot ci ssh <run-id> --job test.yml:verify --org k2f4dzqwd4
+depot ci retry <run-id> --job <job-id> --org k2f4dzqwd4
+depot ci artifacts list <run-id> --org k2f4dzqwd4
+depot ci artifacts download <artifact-id> --org k2f4dzqwd4
 ```
 
-`status` prints the `logs` command and dashboard URL. On an `e2e`
-failure, `depot ci artifacts list <run-id> --org k2f4dzqwd4` then
-`depot ci artifacts download <artifact-id>`. Never fetch
-`auth-storage.json`. Do not run `depot build` (no app image). Do not
-change `runs-on` or merge unless asked.
+`status` prints the `logs` command, dashboard URL, and an `ssh` line
+while a job is running. `diagnose` names the failed step. `metrics`
+returns job start/finish and CPU/memory samples. Failed `e2e` uploads
+`playwright-failure` (captures under `docs/ux-check/captures/`); skip
+`auth-storage.json` if it appears in an artifact list.
 
-Fallow is a whole-repo gate on Depot `verify` (dead-code, dupes, and health
-against that run's coverage map). Locally run only `dead-code` and `dupes`.
-Do not add waivers or baseline entries to get around it. If flagged,
-simplify the change or add meaningful behavioral coverage.
+Fallow on Depot `verify` is dead-code, dupes, and health against that
+run's `coverage/coverage-final.json`. The local cheap gate is
+`pnpm typecheck`, `pnpm lint`, and Fallow `dead-code` plus `dupes`.
 
 ## Architecture and engineering
 
