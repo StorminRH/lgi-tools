@@ -7,16 +7,18 @@ import {
 import { MAP_DELETE_GRACE_MS } from './queries';
 import {
   archiveAuthorizedMap,
-  listPurgeableMaps,
+  claimPurgeableMaps,
   MAP_STAGED_PURGE_HOLD_MS,
   requestAuthorizedMapPurge,
   restoreAuthorizedMap,
   tombstonePurgedMap,
 } from './lifecycle';
 import {
+  compensateFailedMapCreation,
   createMapAtomic,
   listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals,
+  publishCreatedMap,
 } from './queries';
 import { mapAccess, maps } from './schema';
 
@@ -139,7 +141,7 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     await expect(
       requestAuthorizedMapPurge(CREATOR, MAP_ID, NOW, harness.db),
     ).resolves.toBe(true);
-    await expect(listPurgeableMaps(NOW, 25, harness.db)).resolves.toEqual([
+    await expect(claimPurgeableMaps(NOW, 25, harness.db)).resolves.toEqual([
       { id: MAP_ID },
     ]);
     await expect(
@@ -166,9 +168,9 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     }
     const { createdAt } = staged;
 
-    await expect(listPurgeableMaps(createdAt, 25, harness.db)).resolves.toEqual([]);
+    await expect(claimPurgeableMaps(createdAt, 25, harness.db)).resolves.toEqual([]);
     await expect(
-      listPurgeableMaps(
+      claimPurgeableMaps(
         new Date(createdAt.getTime() + MAP_STAGED_PURGE_HOLD_MS + 1_000),
         25,
         harness.db,
@@ -177,12 +179,39 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     await expect(tombstonePurgedMap(mapId, createdAt, harness.db)).resolves.toBe(false);
   });
 
+  it('gives an elapsed staged purge claim exclusive ownership over publish and compensation', async () => {
+    await seedUser(harness.db, CREATOR);
+    const mapId = await createMapAtomic(CREATOR, 'Claimed staged chain', [], harness.db);
+    const [staged] = await harness.db.select().from(maps).where(eq(maps.id, mapId));
+    if (staged === undefined) throw new Error('missing staged map');
+    const afterHold = new Date(
+      staged.createdAt.getTime() + MAP_STAGED_PURGE_HOLD_MS + 1,
+    );
+
+    await expect(claimPurgeableMaps(afterHold, 25, harness.db)).resolves.toEqual([
+      { id: mapId },
+    ]);
+    await expect(publishCreatedMap(mapId, harness.db)).rejects.toThrow(
+      'Map creation publish expected one staged row',
+    );
+    await expect(
+      compensateFailedMapCreation(mapId, harness.db),
+    ).resolves.toEqual({ outcome: 'purge-owned' });
+    const [claimed] = await harness.db.select().from(maps).where(eq(maps.id, mapId));
+    expect(claimed).toMatchObject({
+      archivedAt: expect.any(Date),
+      purgeRequestedAt: expect.any(Date),
+      purgeClaimedAt: afterHold,
+      tombstonedAt: null,
+    });
+  });
+
   it('selects elapsed grace and tombstones only a still-eligible row', async () => {
     await seedManagedMap();
     await archiveAuthorizedMap(CREATOR, { characterIds: [], corporationIds: [] }, MAP_ID, NOW, harness.db);
     const afterGrace = new Date(NOW.getTime() + MAP_DELETE_GRACE_MS);
 
-    await expect(listPurgeableMaps(afterGrace, 25, harness.db)).resolves.toEqual([
+    await expect(claimPurgeableMaps(afterGrace, 25, harness.db)).resolves.toEqual([
       { id: MAP_ID },
     ]);
     await expect(tombstonePurgedMap(MAP_ID, afterGrace, harness.db)).resolves.toBe(true);

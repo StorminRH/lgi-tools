@@ -2,6 +2,7 @@ import {
   bigint,
   index,
   pgEnum,
+  pgSequence,
   pgTable,
   text,
   timestamp,
@@ -34,7 +35,13 @@ export const mapAccessOwnerTypeEnum = pgEnum(
   MAP_ACCESS_OWNER_TYPES,
 );
 
-/** Durable Neon identity and ownership for one collaborative map. */
+export const MAP_ACCESS_PROJECTION_REVISION_SEQUENCE =
+  'map_access_projection_revision';
+
+export const mapAccessProjectionRevisionSequence = pgSequence(
+  MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
+);
+
 export const maps = pgTable(
   'maps',
   {
@@ -48,6 +55,7 @@ export const maps = pgTable(
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     tombstonedAt: timestamp('tombstoned_at', { withTimezone: true }),
     purgeRequestedAt: timestamp('purge_requested_at', { withTimezone: true }),
+    purgeClaimedAt: timestamp('purge_claimed_at', { withTimezone: true }),
   },
   (table) => [index('maps_user_id_idx').on(table.userId)],
 );

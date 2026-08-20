@@ -1,0 +1,2 @@
+CREATE SEQUENCE "public"."map_access_projection_revision" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1;--> statement-breakpoint
+ALTER TABLE "maps" ADD COLUMN "purge_claimed_at" timestamp with time zone;

@@ -45,11 +45,10 @@ const leaveSyncBodySchema = z.object({
 
 const mapRoleSchema = z.enum(MAP_ROLES);
 
-// Full-state projection body: one map, the complete desired claim set. Zod rejects
-// empty roles and repeated userIds as clean 400s before the mutation runs.
 const projectMapAccessBodySchema = z
   .object({
     mapId: z.string(),
+    revision: z.number().int().positive(),
     claims: z.array(
       z.object({
         userId: z.string(),
@@ -366,10 +365,7 @@ http.route({
       internal.mapAccessProjection.reconcileMapClaims,
       body,
     );
-    if (body.claims.length === 0) {
-      // Map teardown owns durable exactly-once stamps, but drains them in
-      // bounded transactions. A 503 remains idempotently retryable after any
-      // completed batches instead of making a large map permanently undeletable.
+    if (body.claims.length === 0 && counts.outcome !== 'stale') {
       for (let batchIndex = 0; batchIndex < MAX_PURGE_BATCHES; batchIndex += 1) {
         const batch = await ctx.runMutation(internal.mapJumpBookkeeping.purgeForMap, {
           mapId: body.mapId,

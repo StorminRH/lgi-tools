@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { teardownMapAccessProjection } from '@/composition/map-access-projection';
 import {
-  listPurgeableMaps,
+  claimPurgeableMaps,
   tombstonePurgedMap,
 } from '@/data/maps/lifecycle';
 import { readEnv } from '@/lib/env';
@@ -81,7 +81,7 @@ export async function purgeMapChain(
 }
 
 interface MapPurgeDependencies {
-  readonly listMaps?: typeof listPurgeableMaps;
+  readonly claimMaps?: typeof claimPurgeableMaps;
   readonly purgeChain?: typeof purgeMapChain;
   readonly tombstoneMap?: typeof tombstonePurgedMap;
   readonly teardownAccess?: typeof teardownMapAccessProjection;
@@ -99,11 +99,11 @@ export async function purgeEligibleMaps(
   readonly deletedDocuments: number;
   readonly projectionPending: number;
 }> {
-  const listMaps = dependencies.listMaps ?? listPurgeableMaps;
+  const claimMaps = dependencies.claimMaps ?? claimPurgeableMaps;
   const purgeChain = dependencies.purgeChain ?? purgeMapChain;
   const tombstoneMap = dependencies.tombstoneMap ?? tombstonePurgedMap;
   const teardownAccess = dependencies.teardownAccess ?? teardownMapAccessProjection;
-  const due = await listMaps();
+  const due = await claimMaps();
   let tombstoned = 0;
   let deletedDocuments = 0;
   let projectionPending = 0;

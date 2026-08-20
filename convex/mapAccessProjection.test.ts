@@ -17,6 +17,7 @@ const EDITOR = 'user-editor';
 const VIEWER = 'user-viewer';
 
 type Chain = TestConvex<typeof schema>;
+let nextRevision = 1;
 
 function asUser(t: Chain, userId: string) {
   return t.withIdentity({ subject: userId });
@@ -27,7 +28,24 @@ async function reconcile(
   mapId: string,
   claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
 ) {
-  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, { mapId, claims });
+  const result = await reconcileAt(t, mapId, claims, nextRevision);
+  nextRevision += 1;
+  const { outcome, ...counts } = result;
+  expect(outcome).toBe('applied');
+  return counts;
+}
+
+function reconcileAt(
+  t: Chain,
+  mapId: string,
+  claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
+  revision: number,
+) {
+  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+    mapId,
+    revision,
+    claims,
+  });
 }
 
 async function readClaims(t: Chain, mapId: string) {
@@ -73,6 +91,36 @@ describe('reconcileMapClaims', () => {
     ]);
 
     expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 2 });
+    expect(await readClaims(t, MAP_A)).toEqual(before);
+  });
+
+  it('rejects an older delivery and accepts an exact retry without rewriting', async () => {
+    const t = convexTest(schema, modules);
+    const current = await reconcileAt(
+      t,
+      MAP_A,
+      [{ userId: OWNER, roles: ['admin'] }],
+      20,
+    );
+    expect(current).toMatchObject({ outcome: 'applied', inserted: 1 });
+    const before = await readClaims(t, MAP_A);
+
+    await expect(reconcileAt(t, MAP_A, [], 19)).resolves.toEqual({
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 0,
+      outcome: 'stale',
+    });
+    await expect(
+      reconcileAt(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }], 20),
+    ).resolves.toEqual({
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 0,
+      outcome: 'duplicate',
+    });
     expect(await readClaims(t, MAP_A)).toEqual(before);
   });
 

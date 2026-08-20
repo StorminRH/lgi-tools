@@ -1,4 +1,15 @@
-import { and, asc, eq, gte, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import type { MapPrincipals } from './access';
@@ -84,6 +95,7 @@ export async function restoreAuthorizedMap(
         sql`${maps.archivedAt} IS NOT NULL
           AND ${maps.archivedAt} > ${cutoffIso}::timestamptz
           AND ${maps.purgeRequestedAt} IS NULL
+          AND ${maps.purgeClaimedAt} IS NULL
           AND ${maps.tombstonedAt} IS NULL`,
       )}
     )
@@ -114,6 +126,7 @@ export async function requestAuthorizedMapPurge(
         gte(maps.archivedAt, cutoff),
         isNull(maps.tombstonedAt),
         isNull(maps.purgeRequestedAt),
+        isNull(maps.purgeClaimedAt),
       ),
     )
     .returning({ id: maps.id });
@@ -136,13 +149,18 @@ function purgeEligibility(now: Date) {
   );
 }
 
-/** Lists one bounded, deterministic set of maps eligible for collaborative purge. */
-export async function listPurgeableMaps(
+/**
+ * Atomically claims one bounded, deterministic due set. The outer conditional
+ * update arbitrates against publish and restore before any Convex deletion.
+ * Existing claims are reclaimable because the route-level advisory lock leaves
+ * no prior worker alive after its session ends.
+ */
+export async function claimPurgeableMaps(
   now: Date = new Date(),
   limit = MAP_PURGE_MAPS_PER_RUN,
   database: AnyPgDb = db,
 ): Promise<PurgeableMap[]> {
-  return database
+  const candidates = await database
     .select({ id: maps.id })
     .from(maps)
     .where(purgeEligibility(now))
@@ -151,9 +169,29 @@ export async function listPurgeableMaps(
       asc(maps.id),
     )
     .limit(limit);
+  if (candidates.length === 0) return [];
+
+  const claimed = await database
+    .update(maps)
+    .set({ purgeClaimedAt: now, updatedAt: now })
+    .where(
+      and(
+        inArray(
+          maps.id,
+          candidates.map(({ id }) => id),
+        ),
+        purgeEligibility(now),
+      ),
+    )
+    .returning({ id: maps.id });
+  const order = new Map(candidates.map(({ id }, index) => [id, index]));
+  return claimed.sort(
+    (left, right) =>
+      (order.get(left.id) ?? Number.MAX_SAFE_INTEGER)
+      - (order.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+  );
 }
 
-/** Marks one still-eligible row after a clean collaborative sweep. */
 export async function tombstonePurgedMap(
   mapId: string,
   now: Date = new Date(),
@@ -162,7 +200,13 @@ export async function tombstonePurgedMap(
   const updated = await database
     .update(maps)
     .set({ tombstonedAt: now, updatedAt: now })
-    .where(and(eq(maps.id, mapId), purgeEligibility(now)))
+    .where(
+      and(
+        eq(maps.id, mapId),
+        isNotNull(maps.purgeClaimedAt),
+        purgeEligibility(now),
+      ),
+    )
     .returning({ id: maps.id });
   return updated.length === 1;
 }
