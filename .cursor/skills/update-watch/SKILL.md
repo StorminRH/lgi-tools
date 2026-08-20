@@ -13,7 +13,8 @@ Required output is exactly one collector-rendered `REPORT`, `QUIET`, or
 `REFUSED` perform no outward write.
 
 This skill grants no repository, branch, PR, dependency, or baseline
-mutation authority. The `resolve-update-watch` skill owns absorption.
+mutation authority. Absorption is later ordinary work when the operator
+asks.
 
 ## Hard rules
 

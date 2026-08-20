@@ -163,7 +163,9 @@ the plan or the land required has an operator disposition.
    every accepted finding is corrected and re-reviewed clean, and the suite
    after that last review is green.
 5. Commit the verified OW scope, implementation and tests. Leave the frozen
-   session plan and `Execution status` untouched.
+   session plan untouched on every step except the last: on the last Ordered
+   work step, set `Execution status` to `Complete` in that land so the
+   resolver can plan the next session. Write no as-built here.
 6. Land and clean that commit onto `development`. Then run
    `python3 tools/cli.py lifecycle count-app-facing`. That command
    compares `origin/staging...origin/development` after this land, so
