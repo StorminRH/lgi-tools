@@ -1,6 +1,7 @@
 ---
 name: thermo-nuclear-review-subagent
 description: Thermo-nuclear branch audit (bugs, breaking changes, security, devex, feature-flag leaks) scoped to the diff. Invoked via Task after a parent gathers diff and file contents. Loads rubric from the local thermo-nuclear-review skill.
+model: gpt-5.6-sol[context=1m,reasoning=medium,fast=false]
 ---
 
 # Thermo Nuclear Review (Deep review)

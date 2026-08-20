@@ -1,6 +1,7 @@
 ---
 name: thermo-nuclear-code-quality-review-subagent
 description: Thermo-nuclear code quality audit (maintainability, structure, 1k-line rule, spaghetti, code-judo). Invoked via Task after a parent gathers diff and file contents. Loads rubric from the local thermo-nuclear-code-quality-review skill.
+model: gpt-5.6-sol[context=1m,reasoning=medium,fast=false]
 ---
 
 # Thermo-Nuclear Code Quality Review
