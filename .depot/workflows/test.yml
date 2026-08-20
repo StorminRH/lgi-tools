@@ -19,35 +19,25 @@ jobs:
     runs-on: depot-ubuntu-24.04
     services:
       postgres:
-        <<: &postgres-base
-          image: postgres:16
-          env:
-            POSTGRES_PASSWORD: postgres
-          options: >-
-            --health-cmd pg_isready
-            --health-interval 10s
-            --health-timeout 5s
-            --health-retries 5
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
         ports:
           - 5432:5432
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
     steps:
-      - <<: &step-checkout
-          uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - <<: &step-pnpm
-          uses: pnpm/action-setup@v6
+      - uses: ./.depot/actions/setup-node-pnpm
 
-      - <<: &step-node
-          uses: actions/setup-node@v6
-          with:
-            node-version: 24
-            cache: pnpm
-
-      - <<: &step-install
-          run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
       - run: pnpm typecheck
 
@@ -90,7 +80,14 @@ jobs:
     runs-on: depot-ubuntu-24.04
     services:
       postgres:
-        <<: *postgres-base
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
         ports:
           - 5432:5432
     env:
@@ -102,11 +99,9 @@ jobs:
       BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
     steps:
-      - *step-checkout
+      - uses: actions/checkout@v6
 
-      - *step-pnpm
-
-      - *step-node
+      - uses: ./.depot/actions/setup-node-pnpm
 
       - uses: actions/cache@v4
         with:
@@ -115,7 +110,7 @@ jobs:
           restore-keys: |
             next-${{ runner.os }}-
 
-      - *step-install
+      - run: pnpm install --frozen-lockfile
 
       - run: pnpm db:migrate
 
@@ -148,7 +143,14 @@ jobs:
       options: --ipc=host
     services:
       postgres:
-        <<: *postgres-base
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       CI: true
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
@@ -157,18 +159,16 @@ jobs:
       BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
     steps:
-      - *step-checkout
+      - uses: actions/checkout@v6
 
-      - *step-pnpm
-
-      - *step-node
+      - uses: ./.depot/actions/setup-node-pnpm
 
       - uses: actions/download-artifact@v4
         with:
           name: next-build
           path: .next
 
-      - *step-install
+      - run: pnpm install --frozen-lockfile
 
       - run: pnpm db:migrate
 
