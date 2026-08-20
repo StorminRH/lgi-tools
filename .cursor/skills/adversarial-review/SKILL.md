@@ -1,6 +1,6 @@
 ---
 name: adversarial-review
-description: Use before merging development onto staging, or staging onto main. Independent structure and behavior agents, then thermos and no-comments, on that frozen merge.
+description: Use before every merge onto staging or main. Independent structure and behavior agents, then thermos and no-comments, on that frozen merge.
 ---
 
 # Adversarial review
@@ -21,9 +21,9 @@ Prefer small deep interfaces, one owner per decision, current callers only,
 edge cases absorbed below stable seams, behavior-preserving refactors, and
 metrics as signals not design instructions.
 
-This skill is the review gate before merging `development` onto `staging`,
-and before merging `staging` onto `main`. Plans and Ordered work use
-`structure-reviewer` and `behavior-reviewer` from those skills.
+This skill is the review gate before every merge onto `staging` or
+`main`. Plans and Ordered work use `structure-reviewer` and
+`behavior-reviewer` from those skills.
 
 ## 1. Freeze
 
@@ -33,10 +33,12 @@ authority.
 Use the caller's subject when one is supplied. Otherwise pick the identity
 that matches the ask:
 
-- Merge to staging. The PR onto `staging`, or `development` and `staging`
-  SHAs. Keep the tree still until verdicts return.
-- Merge to main. The PR onto `main`, or `staging` and `main` SHAs. Keep the
-  tree still until verdicts return.
+- Merge to staging. The PR onto `staging`, or the ritual head and
+  `staging` SHAs. Usual head is `development`. Keep the tree still
+  until verdicts return.
+- Merge to main. The PR onto `main`, or the ritual head and `main`
+  SHAs. Usual head is `staging`. Keep the tree still until verdicts
+  return.
 - Verified defects on a named diff or working tree. Base plus head or patch
   digest, tree still until verdicts return.
 

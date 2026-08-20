@@ -73,8 +73,8 @@ preview, and Vercel Preview when the test cycle ends. The next push to
 Promote at 80 app-facing files versus `staging`. That Origin PR updates the
 long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
 
-`main` is the only Production auto-deploy. Promote or release through
-`close-out`.
+`main` is the only Production auto-deploy. Every merge onto `staging`
+or `main` goes through `close-out`.
 
 `vercel.json` auto-deploys `main`, `development`, and `staging` only. Neon
 project `lively-mode-73649525`. Convex team `stormin-s-projects`, project
