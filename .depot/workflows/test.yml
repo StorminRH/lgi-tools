@@ -19,30 +19,35 @@ jobs:
     runs-on: depot-ubuntu-24.04
     services:
       postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        <<: &postgres-base
+          image: postgres:16
+          env:
+            POSTGRES_PASSWORD: postgres
+          options: >-
+            --health-cmd pg_isready
+            --health-interval 10s
+            --health-timeout 5s
+            --health-retries 5
         ports:
           - 5432:5432
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       DATABASE_URL_UNPOOLED: postgres://postgres:postgres@localhost:5432/postgres
     steps:
-      - uses: actions/checkout@v6
+      - <<: &step-checkout
+          uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v6
+      - <<: &step-pnpm
+          uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
+      - <<: &step-node
+          uses: actions/setup-node@v6
+          with:
+            node-version: 24
+            cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - <<: &step-install
+          run: pnpm install --frozen-lockfile
 
       - run: pnpm typecheck
 
@@ -85,14 +90,7 @@ jobs:
     runs-on: depot-ubuntu-24.04
     services:
       postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        <<: *postgres-base
         ports:
           - 5432:5432
     env:
@@ -104,14 +102,11 @@ jobs:
       BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
     steps:
-      - uses: actions/checkout@v6
+      - *step-checkout
 
-      - uses: pnpm/action-setup@v6
+      - *step-pnpm
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
+      - *step-node
 
       - uses: actions/cache@v4
         with:
@@ -120,7 +115,7 @@ jobs:
           restore-keys: |
             next-${{ runner.os }}-
 
-      - run: pnpm install --frozen-lockfile
+      - *step-install
 
       - run: pnpm db:migrate
 
@@ -140,8 +135,10 @@ jobs:
   # PR-only Playwright against `next start`. Reuses the `build` job's
   # `.next`. Playwright image already has OS deps + headless shell
   # (matches @playwright/test 1.61.1). Job-in-container reaches the
-  # sidecar at hostname `postgres`, not localhost. LOCAL_DB_DRIVER stays
-  # off `verify` so neon-http timing tests keep seeing an unset driver.
+  # sidecar at hostname `postgres`, not localhost. LOCAL_DB_DRIVER selects
+  # the TCP driver for `next start`; Redis degrade is the hosted-Vercel
+  # predicate, so this flag is not a Redis signal. Leave it unset on
+  # `verify` so neon-http timing tests keep seeing an unset driver.
   e2e:
     if: github.event_name == 'pull_request'
     needs: [build]
@@ -151,14 +148,7 @@ jobs:
       options: --ipc=host
     services:
       postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        <<: *postgres-base
     env:
       CI: true
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
@@ -167,21 +157,18 @@ jobs:
       BETTER_AUTH_SECRET: e2e-ci-better-auth-secret-not-for-production
       BETTER_AUTH_URL: http://localhost:3000
     steps:
-      - uses: actions/checkout@v6
+      - *step-checkout
 
-      - uses: pnpm/action-setup@v6
+      - *step-pnpm
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
+      - *step-node
 
       - uses: actions/download-artifact@v4
         with:
           name: next-build
           path: .next
 
-      - run: pnpm install --frozen-lockfile
+      - *step-install
 
       - run: pnpm db:migrate
 
