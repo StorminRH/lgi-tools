@@ -42,10 +42,9 @@ unmerged.
 
 1. Fetch `origin/development` and `origin/staging`. Work from the
    `development` tip. Uncommitted Ordered work returns to `start-session`.
-2. Count app-facing files the way `start-session` does
-   (`git diff --name-only origin/staging...origin/development`). A
-   smaller clean chunk is fine when the operator asked for one. A pile
-   well over 100 is `BLOCKED`. Split first.
+2. Run `python3 tools/cli.py lifecycle count-app-facing`. A smaller
+   clean chunk is fine when the operator asked for one. A pile well
+   over 100 is `BLOCKED`. Split first.
 3. Invoke `adversarial-review` against `development` onto `staging`.
    Keep the tree still. Contested items go to chat. Continue only on
    `PASS`. Land accepted code fixes onto `development` through

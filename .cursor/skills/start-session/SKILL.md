@@ -151,14 +151,12 @@ the plan or the land required has an operator disposition.
    after that last review is green.
 5. Commit the verified OW scope, implementation and tests. Leave the frozen
    session plan and `Execution status` untouched.
-6. Land and clean that commit onto `development`. Then count app-facing
-   files in `git diff --name-only origin/staging...origin/development`.
-   App-facing means runtime, tests, CI, and committed config. Documentation
-   and policy are excluded: `.cursor/skills`, `.cursor/agents`, `AGENTS.md`,
-   `CONTRIBUTING.md`, `docs/`, changelog, PR templates, `.fallowrc.json`,
-   unless those files are the ask. Report `app-facing <n>/100` in the
-   handoff. At or over 100, the handoff names that a promote is due before
-   more app-facing work.
+6. Land and clean that commit onto `development`. Then run
+   `python3 tools/cli.py lifecycle count-app-facing`. That command
+   compares `origin/staging...origin/development` after this land, so
+   this step is in the number. Paste its `app-facing <n>/100` line into
+   the handoff. When it prints `promote is due`, say a promote is due
+   before more app-facing work.
 7. Pause for a visual look when the plan marked this step for one, or when
    the land presents something the operator can see on `development`
    (Preview, or laptop `pnpm dev` when they choose). That is about every

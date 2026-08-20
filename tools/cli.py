@@ -22,6 +22,7 @@ COMMANDS = {
     ("delivery", "scrub-pr-body"): "tools.delivery.scrub_pr_body",
     ("delivery", "wait-prod-deploy"): "tools.delivery.wait_prod_deploy",
     ("lifecycle", "capture-version-start"): "tools.lifecycle.capture_version_start",
+    ("lifecycle", "count-app-facing"): "tools.lifecycle.count_app_facing",
     ("lifecycle", "check-evidence"): "tools.lifecycle.check_lifecycle_evidence",
     ("lifecycle", "check-pending-changelog"): "tools.lifecycle.check_pending_changelog",
     ("lifecycle", "check-release"): "tools.lifecycle.check_release_consistency",
