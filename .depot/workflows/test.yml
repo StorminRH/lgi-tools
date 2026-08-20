@@ -35,12 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
+      - uses: ./.depot/actions/setup-node-pnpm
 
       - run: pnpm install --frozen-lockfile
 
@@ -106,12 +101,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
+      - uses: ./.depot/actions/setup-node-pnpm
 
       - uses: actions/cache@v4
         with:
@@ -140,8 +130,10 @@ jobs:
   # PR-only Playwright against `next start`. Reuses the `build` job's
   # `.next`. Playwright image already has OS deps + headless shell
   # (matches @playwright/test 1.61.1). Job-in-container reaches the
-  # sidecar at hostname `postgres`, not localhost. LOCAL_DB_DRIVER stays
-  # off `verify` so neon-http timing tests keep seeing an unset driver.
+  # sidecar at hostname `postgres`, not localhost. LOCAL_DB_DRIVER selects
+  # the TCP driver for `next start`; Redis degrade is the hosted-Vercel
+  # predicate, so this flag is not a Redis signal. Leave it unset on
+  # `verify` so neon-http timing tests keep seeing an unset driver.
   e2e:
     if: github.event_name == 'pull_request'
     needs: [build]
@@ -169,12 +161,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
+      - uses: ./.depot/actions/setup-node-pnpm
 
       - uses: actions/download-artifact@v4
         with:

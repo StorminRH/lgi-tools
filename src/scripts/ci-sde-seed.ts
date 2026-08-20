@@ -14,12 +14,12 @@ import postgres from 'postgres';
 import { readEnv, requireEnv } from '@/lib/env';
 import { PG_CONNECT_TIMEOUT_SECONDS } from '@/db';
 import { SDE_META_KEY_VERSION } from '../data/eve-data/constants';
-import { runIngest } from '../data/eve-data/ingest';
-import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
+import { getSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import type { PostgresJsDb } from '@/lib/db-types';
 import { runScript } from './script-runtime';
 import { hasCompleteSdeData } from './sde-bootstrap';
+import { ingestAndStampSdeVersion, readSdeSentinelCounts } from './sde-ingest-io';
 import {
   SDE_SEED_SOURCE_FILES,
   type DockerPgCommand,
@@ -28,7 +28,6 @@ import {
   buildSdeRestoreDockerCommand,
   parseSdeSeedPgTarget,
   prepareSdeSeedRun,
-  restoreTargetFromPlan,
   sdeSeedAnalyzeSql,
   sdeSeedDumpFileName,
 } from './sde-seed-cache';
@@ -58,34 +57,11 @@ async function runDockerPg(command: DockerPgCommand): Promise<void> {
   });
 }
 
-async function readSentinelCounts(db: PostgresJsDb): Promise<{
-  typeDogma: number;
-  npcStations: number;
-  systemJumps: number;
-}> {
-  const [countsRow] = await db.execute<{
-    rowCount: string;
-    universeRowCount: string;
-    jumpsRowCount: string;
-  }>(sql`
-    SELECT
-      (SELECT COUNT(*) FROM type_dogma)::text AS "rowCount",
-      (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount",
-      (SELECT COUNT(*) FROM eve_system_jumps)::text AS "jumpsRowCount"
-  `);
-  if (!countsRow) throw new Error('SDE sentinel count query returned no row');
-  return {
-    typeDogma: Number(countsRow.rowCount),
-    npcStations: Number(countsRow.universeRowCount),
-    systemJumps: Number(countsRow.jumpsRowCount),
-  };
-}
-
 async function seedLooksComplete(
   db: PostgresJsDb,
   expectedVersion: string | null,
 ): Promise<boolean> {
-  const counts = await readSentinelCounts(db);
+  const counts = await readSdeSentinelCounts(db);
   if (!hasCompleteSdeData(counts)) return false;
   if (expectedVersion === null) return true;
   const stored = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
@@ -96,17 +72,10 @@ async function ingestFromCcp(
   db: PostgresJsDb,
   remoteVersion: string | null,
 ): Promise<string> {
-  const summary = await runIngest(db);
-  const version = remoteVersion ?? (await getRemoteSdeVersion());
-  if (!version) {
-    throw new Error(
-      'SDE ingest succeeded but the CCP version manifest did not return a build number.',
-    );
-  }
-  await setSdeMetaValue(db, SDE_META_KEY_VERSION, version);
+  const { summary, sdeVersion } = await ingestAndStampSdeVersion(db, { remoteVersion });
   console.log('SDE ingest complete.');
-  console.log(JSON.stringify({ ...summary, sdeVersion: version }, null, 2));
-  return version;
+  console.log(JSON.stringify({ ...summary, sdeVersion }, null, 2));
+  return sdeVersion;
 }
 
 async function writeDump(
@@ -150,17 +119,14 @@ async function restoreOrIngest(
   const dumpFileName = sdeSeedDumpFileName(remoteVersion, sourceHash);
   try {
     await restoreDump(cacheDir, dumpFileName, target, db);
+    if (await seedLooksComplete(db, remoteVersion)) {
+      console.log(`SDE seed restored (${dumpFileName}).`);
+      return;
+    }
+    console.warn('SDE seed restore was incomplete; ingesting from CCP.');
   } catch (err) {
     console.warn('SDE seed restore failed; ingesting from CCP:', err);
-    const version = await ingestFromCcp(db, remoteVersion);
-    await writeDump(cacheDir, version, sourceHash, target);
-    return;
   }
-  if (await seedLooksComplete(db, remoteVersion)) {
-    console.log(`SDE seed restored (${dumpFileName}).`);
-    return;
-  }
-  console.warn('SDE seed restore was incomplete; ingesting from CCP.');
   const version = await ingestFromCcp(db, remoteVersion);
   await writeDump(cacheDir, version, sourceHash, target);
 }
@@ -186,29 +152,30 @@ async function main(): Promise<void> {
   });
   const db = drizzle(client);
   const target = parseSdeSeedPgTarget(databaseUrl);
-  if (prepared.action === 'restore') {
-    const restoreAt = restoreTargetFromPlan(prepared);
-    await restoreOrIngest(
-      db,
-      restoreAt.cacheDir,
-      restoreAt.remoteVersion,
-      prepared.sourceHash,
-      target,
-    );
-    return;
+  switch (prepared.action) {
+    case 'restore':
+      await restoreOrIngest(
+        db,
+        prepared.cacheDir,
+        prepared.remoteVersion,
+        prepared.sourceHash,
+        target,
+      );
+      return;
+    case 'ingest':
+      await ingestAndMaybeDump(
+        db,
+        prepared.cacheDir,
+        prepared.remoteVersion,
+        prepared.sourceHash,
+        target,
+      );
+      return;
+    default: {
+      const exhaustive: never = prepared;
+      throw new Error(`Unhandled SDE seed action: ${String(exhaustive)}`);
+    }
   }
-  if (prepared.action === 'ingest') {
-    await ingestAndMaybeDump(
-      db,
-      prepared.cacheDir,
-      prepared.remoteVersion,
-      prepared.sourceHash,
-      target,
-    );
-    return;
-  }
-  const exhaustive: never = prepared.action;
-  throw new Error(`Unhandled SDE seed action: ${String(exhaustive)}`);
 }
 
 runScript(main, { client });

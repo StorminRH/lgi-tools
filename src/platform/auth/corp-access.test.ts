@@ -7,7 +7,7 @@ import type { CachedAffiliation } from './membership';
 // memberCharacterIdInCorp) and its fail-closed behaviour run end to end. The audit
 // writer is spied to prove a row is recorded on BOTH allow and deny.
 const fetchAffiliationsMock = vi.fn();
-const upsertAffiliationsMock = vi.fn();
+const updateAffiliationsMock = vi.fn();
 const getUserAffiliationsMock = vi.fn();
 const recordCorpAccessDecisionMock = vi.fn();
 
@@ -16,7 +16,7 @@ vi.mock('./affiliation-source', () => ({
 }));
 vi.mock('./affiliation-store', () => ({
   getUserAffiliations: (...args: unknown[]) => getUserAffiliationsMock(...args),
-  upsertAffiliations: (...args: unknown[]) => upsertAffiliationsMock(...args),
+  updateAffiliations: (...args: unknown[]) => updateAffiliationsMock(...args),
   getCharacterAffiliation: vi.fn(),
   recordCorpAccessDecision: (...args: unknown[]) => recordCorpAccessDecisionMock(...args),
 }));
@@ -33,7 +33,7 @@ function rowFor(characterId: number, corporationId: number, refreshedAt: Date | 
 
 beforeEach(() => {
   fetchAffiliationsMock.mockReset().mockResolvedValue({ rows: [], transientFailure: false });
-  upsertAffiliationsMock.mockReset().mockResolvedValue(undefined);
+  updateAffiliationsMock.mockReset().mockResolvedValue(undefined);
   getUserAffiliationsMock.mockReset();
   recordCorpAccessDecisionMock.mockReset().mockResolvedValue(undefined);
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SDE_SEED_DUMP_FORMAT,
   SDE_SEED_SOURCE_FILES,
   SDE_SEED_TABLES,
   buildSdeDumpDockerCommand,
@@ -9,7 +10,6 @@ import {
   parseSdeSeedPgTarget,
   prepareSdeSeedRun,
   resolveSdeSeedAction,
-  restoreTargetFromPlan,
   sdeSeedAnalyzeSql,
   sdeSeedDumpFileName,
   sdeSeedDumpPath,
@@ -75,6 +75,26 @@ describe('hashSdeSeedSources', () => {
     expect(() => hashSdeSeedSources(rest)).toThrow(
       `Missing SDE seed source file: ${SDE_SEED_SOURCE_FILES[0]}`,
     );
+  });
+
+  it('changes when the dump format or table list changes', () => {
+    const first = hashSdeSeedSources(CONTENTS);
+    expect(
+      hashSdeSeedSources(CONTENTS, {
+        tables: SDE_SEED_TABLES,
+        format: `${SDE_SEED_DUMP_FORMAT}-next`,
+      }),
+    ).not.toBe(first);
+    expect(
+      hashSdeSeedSources(CONTENTS, {
+        tables: [...SDE_SEED_TABLES, 'extra_table'],
+        format: SDE_SEED_DUMP_FORMAT,
+      }),
+    ).not.toBe(first);
+  });
+
+  it('includes the coerce mapping in the hashed source list', () => {
+    expect(SDE_SEED_SOURCE_FILES).toContain('src/data/eve-data/coerce.ts');
   });
 });
 
@@ -155,30 +175,6 @@ describe('prepareSdeSeedRun', () => {
         dumpExists: () => true,
       }).action,
     ).toBe('ingest');
-  });
-});
-
-describe('restoreTargetFromPlan', () => {
-  it('returns the cache dir and version from a restore plan', () => {
-    expect(
-      restoreTargetFromPlan({
-        action: 'restore',
-        cacheDir: '/mnt/sde-cache',
-        remoteVersion: '3473160',
-        sourceHash: 'abc',
-      }),
-    ).toEqual({ cacheDir: '/mnt/sde-cache', remoteVersion: '3473160' });
-  });
-
-  it('throws when the plan is missing a cache dir or version', () => {
-    expect(() =>
-      restoreTargetFromPlan({
-        action: 'restore',
-        cacheDir: null,
-        remoteVersion: '3473160',
-        sourceHash: 'abc',
-      }),
-    ).toThrow('missing a cache directory or remote version');
   });
 });
 

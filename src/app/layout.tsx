@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/toast";
 import { PreferencesProvider } from "@/components/PreferencesProvider";
 import { PageMenuProvider } from "@/components/composition/PageMenuProvider";
 import { SITE_URL } from "@/config/site-url";
-import { readEnv } from "@/lib/env";
+import { isHostedVercel, readEnv } from "@/lib/env";
 
 const barlow = Barlow_Condensed({
   variable: "--font-barlow",
@@ -131,8 +131,7 @@ export default function RootLayout({
         </Suspense>
         {/* Only on Vercel prod/preview, where `/_vercel/speed-insights/*` exists.
             `next start` in CI is NODE_ENV=production but is not Vercel. */}
-        {(readEnv("VERCEL_ENV") === "production" ||
-          readEnv("VERCEL_ENV") === "preview") && <SpeedInsights />}
+        {isHostedVercel() && <SpeedInsights />}
       </body>
     </html>
   );

@@ -6,7 +6,7 @@
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { fetchAffiliations } from './affiliation-source';
 import { characterIsInCorp, isMemberOfCorp } from './membership';
-import { getCharacterAffiliation, getUserAffiliations, upsertAffiliations } from './affiliation-store';
+import { getCharacterAffiliation, getUserAffiliations, updateAffiliations } from './affiliation-store';
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
@@ -29,7 +29,7 @@ export interface AffiliationRefreshOutcome {
  * Fetch fresh affiliations for these characters and write them to the Neon cache.
  * Surfaces whether any batch failed transiently so projection can refuse to
  * converge; login/link/cron callers use {@link refreshAffiliations} which only
- * needs the row count.
+ * needs the row count. Writes through {@link updateAffiliations}.
  */
 export async function refreshAffiliationsWithOutcome(
   characterIds: number[],
@@ -37,7 +37,7 @@ export async function refreshAffiliationsWithOutcome(
   if (characterIds.length === 0) return { refreshed: 0, transientFailure: false };
   try {
     const { rows, transientFailure } = await fetchAffiliations(characterIds);
-    await upsertAffiliations(rows);
+    await updateAffiliations(rows);
     return { refreshed: rows.length, transientFailure };
   } catch (err) {
     console.error('[auth/affiliation] refresh failed', err);

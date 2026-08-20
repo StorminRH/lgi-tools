@@ -1,10 +1,6 @@
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
-/**
- * Tables `runIngest` + the CI version stamp write. Trees/prices are not
- * required by the Depot verify clone suites and stay empty after migrate.
- */
 export const SDE_SEED_TABLES = [
   'eve_categories',
   'eve_groups',
@@ -23,6 +19,7 @@ export const SDE_SEED_TABLES = [
 
 /** Source files whose contents change the rows a seed dump must represent. */
 export const SDE_SEED_SOURCE_FILES = [
+  'src/data/eve-data/coerce.ts',
   'src/data/eve-data/constants.ts',
   'src/data/eve-data/ingest.ts',
   'src/data/eve-data/meta.ts',
@@ -30,6 +27,9 @@ export const SDE_SEED_SOURCE_FILES = [
   'src/data/eve-data/source.ts',
   'src/data/eve-data/universe.ts',
 ] as const;
+
+/** Dump-format token hashed with the table list so a restore key cannot reuse an old layout. */
+export const SDE_SEED_DUMP_FORMAT = 'pg-dump-Fc-data-only-v1';
 
 const DUMP_PREFIX = 'sde-';
 const DUMP_SUFFIX = '.dump';
@@ -92,11 +92,21 @@ export function parseSdeSeedArgs(
   return { cacheDir, forceIngest };
 }
 
-/** SHA-256 prefix of the ingest sources, stable for the same file set. */
+/** SHA-256 prefix of dump format, table list, and ingest sources. */
 export function hashSdeSeedSources(
   contents: Readonly<Record<string, string>>,
+  identity: {
+    tables: readonly string[];
+    format: string;
+  } = { tables: SDE_SEED_TABLES, format: SDE_SEED_DUMP_FORMAT },
 ): string {
   const hash = createHash('sha256');
+  hash.update(identity.format);
+  hash.update('\n');
+  for (const table of identity.tables) {
+    hash.update(table);
+    hash.update('\n');
+  }
   for (const path of SDE_SEED_SOURCE_FILES) {
     const body = contents[path];
     if (body === undefined) {
@@ -142,12 +152,19 @@ export function resolveSdeSeedAction(input: {
 }
 
 /** Resolved CLI + dump identity the CI entry executes. */
-export type PreparedSdeSeed = {
-  action: SdeSeedAction;
-  cacheDir: string | null;
-  remoteVersion: string | null;
-  sourceHash: string;
-};
+export type PreparedSdeSeed =
+  | {
+      action: 'restore';
+      cacheDir: string;
+      remoteVersion: string;
+      sourceHash: string;
+    }
+  | {
+      action: 'ingest';
+      cacheDir: string | null;
+      remoteVersion: string | null;
+      sourceHash: string;
+    };
 
 /**
  * Builds the seed plan from argv, the CCP manifest, and whether the versioned
@@ -166,28 +183,29 @@ export function prepareSdeSeedRun(input: {
     args.cacheDir !== null && input.remoteVersion !== null
       ? sdeSeedDumpPath(args.cacheDir, input.remoteVersion, sourceHash)
       : null;
-  return {
-    action: resolveSdeSeedAction({
+  const action = resolveSdeSeedAction({
+    cacheDir: args.cacheDir,
+    remoteVersion: input.remoteVersion,
+    dumpExists: dumpPath !== null && input.dumpExists(dumpPath),
+    forceIngest: args.forceIngest,
+  });
+  if (action === 'restore') {
+    if (args.cacheDir === null || input.remoteVersion === null) {
+      throw new Error('SDE restore plan is missing a cache directory or remote version');
+    }
+    return {
+      action,
       cacheDir: args.cacheDir,
       remoteVersion: input.remoteVersion,
-      dumpExists: dumpPath !== null && input.dumpExists(dumpPath),
-      forceIngest: args.forceIngest,
-    }),
+      sourceHash,
+    };
+  }
+  return {
+    action,
     cacheDir: args.cacheDir,
     remoteVersion: input.remoteVersion,
     sourceHash,
   };
-}
-
-/** Narrows a restore plan to the cache path and CCP version the dump is keyed by. */
-export function restoreTargetFromPlan(prepared: PreparedSdeSeed): {
-  cacheDir: string;
-  remoteVersion: string;
-} {
-  if (prepared.cacheDir === null || prepared.remoteVersion === null) {
-    throw new Error('SDE restore plan is missing a cache directory or remote version');
-  }
-  return { cacheDir: prepared.cacheDir, remoteVersion: prepared.remoteVersion };
 }
 
 /**

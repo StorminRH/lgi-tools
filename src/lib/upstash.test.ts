@@ -188,6 +188,29 @@ describe('resolveUpstashRest', () => {
 
     expect(resolveUpstashRest()).toBeNull();
   });
+
+  it('uses the first complete pair and does not mix KV URL with Upstash token', async () => {
+    vi.stubEnv('KV_REST_API_URL', 'https://kv.example.upstash.io');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://direct.example.upstash.io');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'direct-token');
+    const { resolveUpstashRest } = await importUpstash();
+
+    expect(resolveUpstashRest()).toEqual({
+      url: 'https://direct.example.upstash.io',
+      token: 'direct-token',
+    });
+  });
+
+  it('returns null when neither pair is complete', async () => {
+    vi.stubEnv('KV_REST_API_URL', 'https://kv.example.upstash.io');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'orphan-token');
+    const { resolveUpstashRest } = await importUpstash();
+
+    expect(resolveUpstashRest()).toBeNull();
+  });
 });
 
 describe('allowUnconfiguredUpstash', () => {
@@ -199,33 +222,30 @@ describe('allowUnconfiguredUpstash', () => {
     vi.unstubAllEnvs();
   });
 
-  it('allows degradation outside production', async () => {
+  it('allows degradation outside hosted Vercel', async () => {
     vi.stubEnv('NODE_ENV', 'test');
-    vi.stubEnv('LOCAL_DB_DRIVER', '');
-    const { allowUnconfiguredUpstash } = await importUpstash();
-    expect(allowUnconfiguredUpstash()).toBe(true);
-  });
-
-  it('allows the local/CI sidecar under production next start', async () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
     vi.stubEnv('VERCEL_ENV', '');
     const { allowUnconfiguredUpstash } = await importUpstash();
     expect(allowUnconfiguredUpstash()).toBe(true);
   });
 
-  it('stays fail-closed for a production deploy without the sidecar driver', async () => {
+  it('allows degradation under production next start when VERCEL_ENV is unset', async () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('LOCAL_DB_DRIVER', '');
     vi.stubEnv('VERCEL_ENV', '');
+    const { allowUnconfiguredUpstash } = await importUpstash();
+    expect(allowUnconfiguredUpstash()).toBe(true);
+  });
+
+  it('stays fail-closed on hosted Vercel production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'production');
     const { allowUnconfiguredUpstash } = await importUpstash();
     expect(allowUnconfiguredUpstash()).toBe(false);
   });
 
-  it('stays fail-closed on Vercel even when the sidecar driver is set', async () => {
+  it('stays fail-closed on hosted Vercel preview', async () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'preview');
     const { allowUnconfiguredUpstash } = await importUpstash();
     expect(allowUnconfiguredUpstash()).toBe(false);
   });
