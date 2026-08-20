@@ -152,12 +152,19 @@ export function resolveSdeSeedAction(input: {
 }
 
 /** Resolved CLI + dump identity the CI entry executes. */
-export type PreparedSdeSeed = {
-  action: SdeSeedAction;
-  cacheDir: string | null;
-  remoteVersion: string | null;
-  sourceHash: string;
-};
+export type PreparedSdeSeed =
+  | {
+      action: 'restore';
+      cacheDir: string;
+      remoteVersion: string;
+      sourceHash: string;
+    }
+  | {
+      action: 'ingest';
+      cacheDir: string | null;
+      remoteVersion: string | null;
+      sourceHash: string;
+    };
 
 /**
  * Builds the seed plan from argv, the CCP manifest, and whether the versioned
@@ -176,28 +183,29 @@ export function prepareSdeSeedRun(input: {
     args.cacheDir !== null && input.remoteVersion !== null
       ? sdeSeedDumpPath(args.cacheDir, input.remoteVersion, sourceHash)
       : null;
-  return {
-    action: resolveSdeSeedAction({
+  const action = resolveSdeSeedAction({
+    cacheDir: args.cacheDir,
+    remoteVersion: input.remoteVersion,
+    dumpExists: dumpPath !== null && input.dumpExists(dumpPath),
+    forceIngest: args.forceIngest,
+  });
+  if (action === 'restore') {
+    if (args.cacheDir === null || input.remoteVersion === null) {
+      throw new Error('SDE restore plan is missing a cache directory or remote version');
+    }
+    return {
+      action,
       cacheDir: args.cacheDir,
       remoteVersion: input.remoteVersion,
-      dumpExists: dumpPath !== null && input.dumpExists(dumpPath),
-      forceIngest: args.forceIngest,
-    }),
+      sourceHash,
+    };
+  }
+  return {
+    action,
     cacheDir: args.cacheDir,
     remoteVersion: input.remoteVersion,
     sourceHash,
   };
-}
-
-/** Narrows a restore plan to the cache path and CCP version the dump is keyed by. */
-export function restoreTargetFromPlan(prepared: PreparedSdeSeed): {
-  cacheDir: string;
-  remoteVersion: string;
-} {
-  if (prepared.cacheDir === null || prepared.remoteVersion === null) {
-    throw new Error('SDE restore plan is missing a cache directory or remote version');
-  }
-  return { cacheDir: prepared.cacheDir, remoteVersion: prepared.remoteVersion };
 }
 
 /**

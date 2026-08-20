@@ -36,6 +36,7 @@ import { withAdvisoryLock } from '@/db/advisory-lock';
 import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl } from '@/db';
 import { runScript } from './script-runtime';
 import { describeSdeStandDown, hasCompleteSdeData } from './sde-bootstrap';
+import { readSdeSentinelCounts } from './sde-ingest-io';
 import { runSdePipeline } from '@/composition/pipelines/sde-pipeline';
 
 if (!readEnv('DATABASE_URL')) {
@@ -64,26 +65,8 @@ const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 // pipeline (empty tables) or stands down with the resolver-only rebuild
 // (populated tables). Runs under the caller's held advisory lock.
 async function ingestUnderLock(db: ReturnType<typeof drizzle>): Promise<void> {
-  // "Populated" means EVERY SDE dataset is present — see hasCompleteSdeData for
-  // why each sentinel table is checked (a freshly migrated table would else
-  // ship empty until the next CCP drift).
-  const [countsRow] = await db.execute<{
-    rowCount: string;
-    universeRowCount: string;
-    jumpsRowCount: string;
-  }>(sql`
-    SELECT
-      (SELECT COUNT(*) FROM type_dogma)::text AS "rowCount",
-      (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount",
-      (SELECT COUNT(*) FROM eve_system_jumps)::text AS "jumpsRowCount"
-  `);
-  // A bare-aggregate SELECT always returns exactly one row.
-  const { rowCount, universeRowCount, jumpsRowCount } = countsRow!;
-  const complete = hasCompleteSdeData({
-    typeDogma: Number(rowCount),
-    npcStations: Number(universeRowCount),
-    systemJumps: Number(jumpsRowCount),
-  });
+  const counts = await readSdeSentinelCounts(db);
+  const complete = hasCompleteSdeData(counts);
 
   const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
   const remoteVersion = await getRemoteSdeVersion();
@@ -103,7 +86,7 @@ async function ingestUnderLock(db: ReturnType<typeof drizzle>): Promise<void> {
   }
 
   // Tables are populated: never re-ingest at build time — just record why.
-  console.log(describeSdeStandDown(storedVersion, remoteVersion, rowCount));
+  console.log(describeSdeStandDown(storedVersion, remoteVersion, String(counts.typeDogma)));
 
   // The SDE *data* is left as-is, but the resolver's ALGORITHM may have
   // changed — its hash self-gates this to an instant no-op unless the math

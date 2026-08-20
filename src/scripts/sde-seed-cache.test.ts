@@ -10,7 +10,6 @@ import {
   parseSdeSeedPgTarget,
   prepareSdeSeedRun,
   resolveSdeSeedAction,
-  restoreTargetFromPlan,
   sdeSeedAnalyzeSql,
   sdeSeedDumpFileName,
   sdeSeedDumpPath,
@@ -176,30 +175,6 @@ describe('prepareSdeSeedRun', () => {
         dumpExists: () => true,
       }).action,
     ).toBe('ingest');
-  });
-});
-
-describe('restoreTargetFromPlan', () => {
-  it('returns the cache dir and version from a restore plan', () => {
-    expect(
-      restoreTargetFromPlan({
-        action: 'restore',
-        cacheDir: '/mnt/sde-cache',
-        remoteVersion: '3473160',
-        sourceHash: 'abc',
-      }),
-    ).toEqual({ cacheDir: '/mnt/sde-cache', remoteVersion: '3473160' });
-  });
-
-  it('throws when the plan is missing a cache dir or version', () => {
-    expect(() =>
-      restoreTargetFromPlan({
-        action: 'restore',
-        cacheDir: null,
-        remoteVersion: '3473160',
-        sourceHash: 'abc',
-      }),
-    ).toThrow('missing a cache directory or remote version');
   });
 });
 
