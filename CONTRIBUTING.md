@@ -6,9 +6,8 @@ see [Local development](README.md#local-development) in the README.
 
 ## Before you start
 
-- **Open an issue first for anything non-trivial** so we can agree on the shape
-  before code is written. Small, obvious fixes (typos, a broken link, a clear
-  one-line bug) can go straight to a PR.
+- **Agree on the shape first** for anything non-trivial. Small, obvious
+  fixes (typos, a broken link, a clear one-line bug) can land directly.
 - **Be civil.** Reviews are conversations.
 
 Architecture is deny-by-default Fallow (`.fallowrc.json`) plus lint. Use the
@@ -32,18 +31,16 @@ feat: add API endpoints for browsing and filtering wormhole sites
 - invalid filters return a clear error instead of an empty result
 ```
 
-## Opening a pull request
+## Landing and review
 
-1. Branch off `main` and open your PR back into `main`.
-2. Before you open the PR, run the cheap local gate: `pnpm typecheck`,
-   `pnpm lint`, Fallow `dead-code`, `dupes`, and `health`, and focused tests for your
-   diff. Standing done is the Origin PR's Depot pipeline (`verify` on every
-   PR, plus `build` and `e2e` on PRs) — wait with
-   **`origin pr checks --watch`**. Do not treat laptop `pnpm verify` as
-   done, and do not run a full Depot `verify` locally just to run it again
-   on the PR.
+1. Land on Origin `development`. Promote is an Origin PR
+   `development` → `staging`. Release is `staging` → `main`.
+2. Before you land, run the cheap local gate: `pnpm typecheck`,
+   `pnpm lint`, Fallow `dead-code`, `dupes`, and `health`, and focused tests
+   for your diff. A promote or release waits on that Origin PR's Depot
+   pipeline (`verify` on every PR, plus `build` and `e2e` on PRs) with
+   **`origin pr checks --watch`**. Laptop `pnpm verify` is not done.
 3. Fill in the PR template's **test plan** — what you verified and how.
-4. Reference the issue the PR resolves (e.g. `Fixes #123`).
 
 ## Conduct, security & license
 

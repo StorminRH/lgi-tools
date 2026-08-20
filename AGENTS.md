@@ -32,8 +32,9 @@ and model slugs override the pin.
 
 ## Done
 
-Done is an Origin PR whose Depot pipeline is green. Wait with
-`origin pr checks --watch`.
+Land on Origin `development` with the local gate from Seats. Promote
+(`development` → `staging`) and release (`staging` → `main`) wait on
+that Origin PR's Depot pipeline with `origin pr checks --watch`.
 
 Depot org `k2f4dzqwd4`, repo `stormin/lgi-tools`, workflow
 `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4` when the account is in
@@ -63,16 +64,17 @@ systems, not origin or far side.
 
 ## Delivery
 
-Feature work lands on Origin `development` through a PR. Merge auto-deploys a
+Feature work lands on Origin `development`. A push auto-deploys a
 Vercel Preview: Neon `preview/development` (3-day TTL, 0.25-1 CU from
 `neon.ts`) and Convex `preview/development`. Delete that Neon branch, Convex
 preview, and Vercel Preview when the test cycle ends. The next push to
 `development` creates them again.
 
-A reviewable pile on `development` opens a PR onto `staging`. Merge updates the
+Promote at 80 app-facing files versus `staging`. That Origin PR updates the
 long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
 
-`main` is the only Production auto-deploy. Wrap up or ship through `close-out`.
+`main` is the only Production auto-deploy. Promote or release through
+`close-out`.
 
 `vercel.json` auto-deploys `main`, `development`, and `staging` only. Neon
 project `lively-mode-73649525`. Convex team `stormin-s-projects`, project

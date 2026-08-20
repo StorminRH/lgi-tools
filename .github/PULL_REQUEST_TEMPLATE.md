@@ -15,7 +15,6 @@ project, not the file-by-file details.
 ## Notes
 
 <!-- Constraints, deliberate non-changes, rollout/review context, or "None." -->
-<!-- Fixes #123 -->
 
 ## Test plan
 
