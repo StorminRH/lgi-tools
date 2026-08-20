@@ -108,13 +108,8 @@ Settle every decision the contract required planning to surface.
 
 ### Audit-remediation mapping
 
-For a remediation contract, map each finding:
-
-| Finding | Principle-level outcome | Selected plan elements | Proving criteria |
-| --- | --- | --- | --- |
-| `AF-NNN` | [contract's required design outcome] | [owned surfaces, resolved decisions, ordered steps] | [`SC-N` identifiers] |
-
-Otherwise: `Not applicable — this is not an audit-remediation contract`.
+Write `Not applicable — audit-remediation is retired`. Keep this heading so
+existing plans stay valid.
 
 ## Design pressure and baseline effect
 
@@ -197,7 +192,7 @@ Proof identifiers are unique and contiguous within each criterion (`SC-1.1`, `SC
 - Confirm every `DONE =` item is evidenced and every `hard_constraints` boundary held.
 - **Delivery:** [land each Ordered work step on `development` through
   `start-session`; no land PR].
-- **Lifecycle artifacts:** [plan marker, roadmap, changelog, baseline, as-built, or archive updates this session owns; omit the rest].
+- **Lifecycle artifacts:** [plan marker, roadmap, changelog, as-built, or archive updates this session owns; omit the rest]. The last session of a version archives the master plan after its last Ordered work step.
 - **Handoff:** [exact resolver rerun, next-session pointer, or terminal pause after delivery]. Per-OW chat handoffs are owned by the `start-session` skill.
 
 Overwrite on re-approval; do not append an execution log. Record in-session reshapes after approval in the session as-built — do not rewrite this frozen prompt mid-execution.

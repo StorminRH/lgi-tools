@@ -24,7 +24,9 @@ unless the operator approved a one-time bootstrap transition. When the
 handler is `start-session`, output is one OW step landed on `development`
 plus `OW_HANDOFF`, or a pause/block. When the handler is `close-out`,
 dispatch that skill from `development` as a promote. After the promote,
-the next Start Session continues Ordered work or planning.
+the next Start Session continues Ordered work, planning, or archive.
+When the resolver stage is `archive-needed`, archive the completed
+version from `development`.
 
 ## 1. Resolve and select the branch
 
@@ -41,6 +43,8 @@ directive is the dispatch contract, and `preDispatchGate` passed.
    `development` or its short-lived branch.
 3. Fetch `origin/development` and `origin/staging`.
 4. Select the work branch from current `origin/development`:
+   - Handler `start-session` and stage `archive-needed`: stay on
+     `development`.
    - Handler `start-session`: `lifecycle/<session>-ow-<n>` for the next
      incomplete Ordered work step (`n` is 1-based). Create it from
      `origin/development` when it is missing. Resume it when it still exists
@@ -70,7 +74,9 @@ stopped at a null handler.
    unless the operator authorized a bootstrap transition in the approved
    session plan.
 4. Handler `close-out` runs the promote ritual to `PROMOTED` or `BLOCKED`,
-   then stop. The next Start Session continues Ordered work or planning.
+   then stop. The next Start Session continues Ordered work, planning, or
+   archive.
+5. Stage `archive-needed` runs Archive a completed version, then stop.
 
 ## 3. Land and clean
 
@@ -97,8 +103,8 @@ close-out.
 When the handler is `start-session`, read only what is not already in
 context: this session's approved contract and plan, and prior as-builts in
 the active version (Successor notes and Final surfaces). Do not re-read
-auto-loaded agent guides. Open the master plan or baseline only when this
-session's contract or plan names them. Reconcile digests, prerequisites,
+auto-loaded agent guides. Open the master plan only when this
+session's contract or plan names it. Reconcile digests, prerequisites,
 interfaces, branch, and assumptions against live code. Correct mechanical
 drift in scope.
 
@@ -111,6 +117,9 @@ continue under that direction, and
 record the divergence for the as-built. Do not invent a replacement, and do
 not default to backlog or deferral. Those cuts are rare and operator-driven
 only.
+
+If the resolver stage is `archive-needed`, run Archive a completed version
+and return `DISPATCHED`.
 
 If the last Ordered work handoff, or the operator, already says Ordered work
 is complete, return `OW_HANDOFF` with the last-OW handoff prompt below.
@@ -183,7 +192,13 @@ Next-agent notes: <gotchas, open operator dispositions, paths to reopen, or None
 Execute only that step, then local test suite + structure-reviewer + behavior-reviewer + commit + land and clean onto development + handoff.
 ```
 
-When this was the last Ordered work step:
+When this was the last Ordered work step and the resolver `finalSession`
+flag is true, promote first when the count printed `promote is due`. Then
+run Archive a completed version in this chat, or in the Start Session after
+that promote. Use the archived handoff.
+
+When this was the last Ordered work step of a session that is not the
+version's last session:
 
 ```text
 Planned session <id> Ordered work is complete. Last OW landed on development (<sha>). Source branch cleaned.
@@ -196,7 +211,34 @@ When the count is still under 80, plan the next session.
 Next-agent notes: <gotchas, open operator dispositions, or None>.
 ```
 
-## 5. Stop and resume
+When the version was archived:
+
+```text
+Version <X.Y> archived to <archive dest>. Last OW landed on development (<sha>).
+Live master plan, contracts, session plans, and as-builts are removed.
+Next Start Session waits on product direction for the next master plan.
+Next-agent notes: <gotchas, open operator dispositions, or None>.
+```
+
+## 5. Archive a completed version
+
+Done when `verify-archive --phase post` is green and the live version
+sources are gone from `docs/`.
+
+1. Mark every remaining nonterminal `## Status` row `COMPLETE` on the
+   master plan.
+2. Run `python3 tools/cli.py lifecycle verify-archive --phase pre`.
+3. Copy the master plan, `docs/session-contracts/<X.Y>/`,
+   `docs/session-plans/<X.Y>/`, and `docs/session-as-built/<X.Y>/` when
+   that last directory exists, to
+   `<repo parent>/LGI Tools Document Archive/versions/<X.Y>/`.
+4. Run `python3 tools/cli.py lifecycle verify-archive --phase post`.
+5. Delete those live sources. Leave `docs/workflows/` in the repo.
+6. Land and clean that commit onto `development`.
+
+Promote at 80 app-facing files runs before this archive when both are due.
+
+## 6. Stop and resume
 
 Stop on a named operator gate, an unresolved in-session design discussion,
 failed mandatory check, unexplained worktree state, missing authority, or
@@ -218,5 +260,6 @@ result in a code fence or prepend a second summary.
 - **Blocker:** <exact blocker or `None`>
 
 Exception — `OW_HANDOFF` only: after the four bullets, append exactly one
-fenced copy-paste handoff prompt (the non-final or last-OW template above).
-No other outcome may append chat content after the four bullets.
+fenced copy-paste handoff prompt (the mid-session, last-session, or
+archived template above). No other outcome may append chat content after
+the four bullets.

@@ -9,10 +9,6 @@
       "session-ready",
       "as-built-needed",
       "promote-needed",
-      "audit-plan-needed",
-      "audit-ready",
-      "audit-remediation-plan-needed",
-      "audit-restart-ready",
       "archive-needed",
       "invalid"
     ],
@@ -20,10 +16,7 @@
       "plan-version",
       "plan-session",
       "start-session",
-      "close-out",
-      "plan-version-audit",
-      "plan-audit-remediation",
-      "version-audit"
+      "close-out"
     ],
     "allowedModes": [
       "plan",
@@ -62,17 +55,6 @@
         "cannot invent authority after the fact",
         "one ordered line per plan criterion",
         "requested and observed runtime identity separately"
-      ]
-    },
-    "docs/workflows/schema/audit-plan.md": {
-      "orderedRequired": [
-        "Audit status",
-        "Audit cycle",
-        "Audited ref",
-        "Audit mode",
-        "AF-",
-        "First seen",
-        "the resolver ignores them"
       ]
     }
   }

@@ -46,10 +46,6 @@ Version contract index: exactly three columns mapping identifiers to files:
 | X.Y.N.1 | X.Y.N | `X.Y.N.1.md` |
 ```
 
-Audit-remediation contracts also name applicable `AF-NNN` finding IDs and
-principle-level outcomes. Map every open actionable finding to at least one
-contract; do not absorb unaudited scope.
-
 Within numbered sections, use stable identifiers unique within the contract:
 dependency (`DEP-N`, §2), done condition (`DC-N`, §3), in scope (`IS-N`, §4),
 out of scope (`OOS-N`, §5), hard constraint (`HC-N`, §6), planning decision
@@ -114,14 +110,15 @@ look.
 
 ## 11. Baseline/hotspot boundary
 
-State expected baseline direction, any known hotspot or campaign boundary from
-the version plan, and what planning must verify against the current baseline.
+State expected pressure on known hotspots from the version plan. Version-close
+audit and code-health baseline tracking are retired.
 
 ## 12. Close-out behavior
 
 Each Ordered work step already landed on `development`. Close-out does not
 open a land PR. Record when the plan marker may become `Complete`, and that
 promote starts at 80 app-facing files versus `staging` (shown as n/100).
-The resolver then sends Start Session to close-out. Close-out consumes
-recorded operator looks and any `ux-check` disposition; it does not re-run
-those pauses.
+The resolver then sends Start Session to close-out. The last Ordered work
+step of the version's last session archives the master plan after any due
+promote. Close-out consumes recorded operator looks and any `ux-check`
+disposition; it does not re-run those pauses.

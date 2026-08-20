@@ -15,8 +15,7 @@ When talking with the operator, write in plain English and invoke `unslop`
 on what you say.
 
 Inputs: a `plan-session` resolver directive, the selected contract and exact
-bytes, prior session as-built records, baseline/state, and live
-`origin/development`.
+bytes, prior session as-built records, and live `origin/development`.
 
 The contract is the planning prompt. Verify its claims against live code.
 Contracts stay frozen during and after planning; divergences settle in the

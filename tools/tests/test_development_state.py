@@ -146,32 +146,6 @@ class ResolverFixture:
             + "\n",
             encoding="utf-8",
         )
-        (directory / "audit-plan.md").write_text(
-            "# Audit plan schema\n",
-            encoding="utf-8",
-        )
-
-    def write_audit(self, status: str, finding_status: str | None = None) -> None:
-        findings = ""
-        if finding_status:
-            findings = (
-                "\n## Audit findings\n\n"
-                "| ID | First seen | Class | Principle diagnosis | Required outcome | Remediation | Status |\n"
-                "| --- | ---: | --- | --- | --- | --- | --- |\n"
-                f"| AF-001 | 1 | Campaign | leaked policy | one owner | 9.9.1.1 | {finding_status} |\n"
-            )
-        path = self.docs / "version-audits/9.9/PLAN.md"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            "# Audit plan\n\n"
-            f"**Audit status:** {status}\n"
-            "**Audit cycle:** 1\n"
-            f"**Audited ref:** `{SHA}`\n"
-            "**Audit mode:** Version close\n"
-            f"{findings}",
-            encoding="utf-8",
-        )
-
     def write_contract(
         self,
         ux_gate: str | None = "No",
@@ -509,24 +483,14 @@ class DevelopmentStateTests(unittest.TestCase):
             text=True,
         )
 
-    def test_initial_approved_audit_is_ready(self) -> None:
-        self.fixture.write_audit("Approved")
-        self.assertEqual("audit-ready", self.stage())
-        self.assertEqual("version-audit", self.handler())
-
-    def test_missing_audit_plan_schema_returns_invalid_state(self) -> None:
-        self.fixture.write_audit("Approved")
-        (self.fixture.docs / "workflows/schema/audit-plan.md").unlink()
-        state, errors = resolve(self.fixture.root)
-        self.assertEqual("invalid", state["stage"])
-        self.assertIn(
-            "missing canonical audit-plan schema: docs/workflows/schema/audit-plan.md",
-            errors,
-        )
-
-    def test_missing_audit_plan_routes_to_audit_planning(self) -> None:
-        self.assertEqual("audit-plan-needed", self.stage())
-        self.assertEqual("plan-version-audit", self.handler())
+    def test_terminal_roadmap_routes_to_archive(self) -> None:
+        self.assertEqual("archive-needed", self.stage())
+        self.assertEqual("start-session", self.handler())
+        state = self.resolved()
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("Archive the completed version 9.9 bundle", directive["action"])
+        self.assertEqual("development", directive["branch"])
 
     def test_terminal_roadmap_statuses_require_exact_tokens(self) -> None:
         for status in ("INCOMPLETE", "NOT SHIPPED", "SHIPPED (PR #247)"):
@@ -546,22 +510,18 @@ class DevelopmentStateTests(unittest.TestCase):
                 self.fixture.write_roadmap(status)
                 state, errors = resolve(self.fixture.root)
                 self.assertEqual([], errors)
-                self.assertEqual("audit-plan-needed", state["stage"])
+                self.assertEqual("archive-needed", state["stage"])
 
-    def test_open_finding_requires_remediation_plan(self) -> None:
-        self.fixture.write_audit("Remediation required", "Open")
-        self.assertEqual("audit-remediation-plan-needed", self.stage())
-        self.assertEqual("plan-audit-remediation", self.handler())
-
-    def test_remediation_routes_through_session_planning_and_execution(self) -> None:
+    def test_session_planning_and_execution_ignore_retired_audit_files(self) -> None:
         self.fixture.write_roadmap("PLANNED")
-        self.fixture.write_audit("Remediation in progress", "Planned")
         contract = self.fixture.write_contract()
         self.assertEqual("session-plan-needed", self.stage())
         self.assertEqual("plan-session", self.handler())
         self.fixture.write_session_plan(contract)
-        self.assertEqual("session-ready", self.stage())
+        state = self.resolved()
+        self.assertEqual("session-ready", state["stage"])
         self.assertEqual("start-session", self.handler())
+        self.assertTrue(state["finalSession"])
 
     def test_invalid_session_plan_marker_values_name_file_and_value(self) -> None:
         self.fixture.write_roadmap("PLANNED")
@@ -1567,39 +1527,32 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual([], warnings)
         self.assertEqual(default_payload, flagged_payload)
 
-    def test_delivered_remediation_restarts_audit(self) -> None:
-        self.fixture.write_audit("Remediation in progress", "Delivered")
+    def test_completed_last_session_with_open_row_archives(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+        self.fixture.write_as_built(contract)
         state = self.resolved()
-        self.assertEqual("audit-restart-ready", state["stage"])
-        self.assertEqual("version-audit", self.handler())
-        directive = state["directive"]
-        assert isinstance(directive, dict)
-        self.assertIn("cycle 2", directive["action"])
+        self.assertEqual("archive-needed", state["stage"])
+        self.assertEqual("start-session", self.handler())
 
-    def test_repeated_finding_reopens_remediation(self) -> None:
-        self.fixture.write_audit("Approved", "Delivered")
-        self.assertEqual("audit-ready", self.stage())
-        self.fixture.write_audit("Remediation required", "Open")
-        self.assertEqual("audit-remediation-plan-needed", self.stage())
-
-    def test_clean_complete_audit_can_archive(self) -> None:
-        self.fixture.write_audit("Complete", "Verified")
-        self.assertEqual("archive-needed", self.stage())
-        self.assertEqual("version-audit", self.handler())
-
-    def test_complete_audit_accepts_a_qualified_baseline_code_ref(self) -> None:
-        # The baseline schema documents the `Code ref` qualifier as optional, so a
-        # cell carrying one must still satisfy the Complete-audit ref match.
-        self.fixture.write_audit("Complete", "Verified")
-        self.fixture.write_baseline(f"{SHA}` on `main` (clean close)")
-        self.assertEqual("archive-needed", self.stage())
-
-    def test_complete_audit_rejects_a_mismatched_qualified_code_ref(self) -> None:
-        self.fixture.write_audit("Complete", "Verified")
-        self.fixture.write_baseline(f"{'b' * 40}` on `main` (clean close)")
-        state, errors = resolve(self.fixture.root)
-        self.assertEqual("invalid", state["stage"])
-        self.assertTrue(errors)
+    def test_earlier_of_two_sessions_is_not_the_final_session(self) -> None:
+        self.fixture.write_roadmap("PLANNED", sessions=2)
+        first = self.fixture.write_contract(session="9.9.1.1.1")
+        second = self.fixture.write_contract(session="9.9.1.1.2")
+        (self.fixture.docs / "session-contracts/9.9/INDEX.md").write_text(
+            "| Session | Sub-version | Contract |\n"
+            "| --- | --- | --- |\n"
+            "| 9.9.1.1.1 | 9.9.1.1 | `9.9.1.1.1.md` |\n"
+            "| 9.9.1.1.2 | 9.9.1.1 | `9.9.1.1.2.md` |\n",
+            encoding="utf-8",
+        )
+        self.fixture.write_session_plan(first)
+        self.fixture.write_session_plan(second)
+        state = self.resolved()
+        self.assertEqual("session-ready", state["stage"])
+        self.assertEqual("9.9.1.1.1", state["session"])
+        self.assertFalse(state["finalSession"])
 
     def test_missing_contracts_route_to_version_planning(self) -> None:
         self.fixture.write_roadmap("PLANNED")
@@ -1614,29 +1567,6 @@ class DevelopmentStateTests(unittest.TestCase):
         assert isinstance(directive, dict)
         self.assertIsNone(directive["handler"])
         self.assertEqual("report", directive["mode"])
-
-    def test_complete_audit_with_unresolved_finding_is_invalid(self) -> None:
-        self.fixture.write_audit("Complete", "Delivered")
-        state, errors = resolve(self.fixture.root)
-        self.assertEqual("invalid", state["stage"])
-        self.assertTrue(errors)
-        directive = state["directive"]
-        assert isinstance(directive, dict)
-        self.assertIsNone(directive["handler"])
-
-    def test_nonterminal_roadmap_cannot_remain_remediation_required(self) -> None:
-        self.fixture.write_roadmap("PLANNED")
-        self.fixture.write_audit("Remediation required", "Open")
-        self.fixture.write_contract()
-        state, errors = resolve(self.fixture.root)
-        self.assertEqual("invalid", state["stage"])
-        self.assertTrue(errors)
-
-    def test_in_progress_requires_actionable_work(self) -> None:
-        self.fixture.write_audit("Remediation in progress")
-        state, errors = resolve(self.fixture.root)
-        self.assertEqual("invalid", state["stage"])
-        self.assertTrue(errors)
 
     def test_session_ready_stays_when_app_facing_is_under_trigger(self) -> None:
         self.fixture.write_roadmap("PLANNED")
@@ -1686,18 +1616,25 @@ class DevelopmentStateTests(unittest.TestCase):
         assert isinstance(directive, dict)
         self.assertEqual("close-out", directive["handler"])
 
-    def test_audit_ready_does_not_promote_on_app_facing_count(self) -> None:
-        self.fixture.write_audit("Approved")
+    def test_archive_needed_promotes_when_app_facing_hits_trigger(self) -> None:
         state, errors = resolve(self.fixture.root, app_facing=80)
         self.assertEqual([], errors)
-        self.assertEqual("audit-ready", state["stage"])
+        self.assertEqual("promote-needed", state["stage"])
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertEqual("version-audit", directive["handler"])
+        self.assertEqual("close-out", directive["handler"])
+
+    def test_archive_needed_stays_when_app_facing_is_under_trigger(self) -> None:
+        state, errors = resolve(self.fixture.root, app_facing=79)
+        self.assertEqual([], errors)
+        self.assertEqual("archive-needed", state["stage"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("start-session", directive["handler"])
 
     def test_invalid_does_not_promote_on_app_facing_count(self) -> None:
         self.fixture.write_roadmap("PLANNED")
-        self.fixture.write_audit("Remediation required", "Open")
+        (self.fixture.docs / "workflows/schema/session-contract.md").unlink()
         self.fixture.write_contract()
         state, errors = resolve(self.fixture.root, app_facing=80)
         self.assertEqual("invalid", state["stage"])

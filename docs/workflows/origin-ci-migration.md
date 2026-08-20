@@ -694,7 +694,6 @@ Do not implement a later step in an earlier chat.
 
 11. **Isolated visits: remaining lifecycle skills.** One chat per
     skill, in the order you choose: `plan-version`,
-    `plan-version-audit`, `plan-audit-remediation`, `version-audit`,
     `triage-issue`, `adversarial-review`, `deslop` if the slop bot
     should own it. Each chat edits that skill only.
 

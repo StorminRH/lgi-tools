@@ -36,8 +36,6 @@ class LifecycleFixture:
             ),
             encoding="utf-8",
         )
-        self.write_baseline("")
-
     def close(self) -> None:
         self.temporary.cleanup()
 
@@ -78,28 +76,6 @@ class LifecycleFixture:
             "**Baseline effect:** Neutral\n",
             encoding="utf-8",
         )
-
-    def write_baseline(self, body: str) -> None:
-        (self.docs / "CODE_HEALTH_BASELINE.md").write_text(
-            "# Baseline\n\n"
-            f"{body}\n"
-            "## Campaign queue\n\n"
-            "| Priority | Campaign | Charter summary | Status | Trigger / next action |\n"
-            "| ---: | --- | --- | --- | --- |\n",
-            encoding="utf-8",
-        )
-
-    def write_audit(self, rows: list[str]) -> None:
-        path = self.docs / "version-audits/9.9/PLAN.md"
-        path.parent.mkdir(parents=True)
-        path.write_text(
-            "# Audit\n\n"
-            "| ID | First seen | Class | Principle diagnosis | Required outcome | Remediation | Status |\n"
-            "| --- | ---: | --- | --- | --- | --- | --- |\n"
-            + "".join(f"{row}\n" for row in rows),
-            encoding="utf-8",
-        )
-
 
 class LifecycleEvidenceTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -147,44 +123,6 @@ class LifecycleEvidenceTests(unittest.TestCase):
         self.fixture.write_roadmap("SHIPPED")
         finding = self.matching("execution remains Pending")
         self.assertEqual(("docs/session-plans/9.9/9.9.1.1.md", 5), (finding.path, finding.line))
-        self.assertEqual("warn", finding.severity)
-
-    def test_watch_and_trigger_asymmetry_is_an_error(self) -> None:
-        self.fixture.write_baseline("| Surface | Watch (AF-001) |\n")
-        finding = self.matching("Watch classification AF-001 has no watch-trigger")
-        self.assertEqual(("docs/CODE_HEALTH_BASELINE.md", 3), (finding.path, finding.line))
-        self.assertEqual("error", finding.severity)
-
-    def test_verified_audit_finding_cannot_keep_live_watch_evidence(self) -> None:
-        self.fixture.write_roadmap("SHIPPED")
-        self.fixture.write_plan("Complete")
-        self.fixture.write_baseline(
-            "| Surface | Watch (AF-001) |\n\n"
-            "```watch-trigger\nAF-001: exports(src/example.ts) >= 1\n```\n"
-        )
-        self.fixture.write_audit(
-            ["| AF-001 | 1 | Campaign | leak | one owner | 9.9.1.1 | Verified |"]
-        )
-        finding = self.matching("Verified but baseline still carries active evidence")
-        self.assertEqual(("docs/CODE_HEALTH_BASELINE.md", 3), (finding.path, finding.line))
-        self.assertEqual("error", finding.severity)
-
-    def test_terminal_remediation_with_open_finding_is_an_error(self) -> None:
-        self.fixture.write_roadmap("SHIPPED", "AF-001 owner")
-        self.fixture.write_plan("Complete")
-        self.fixture.write_audit(
-            ["| AF-001 | 1 | Campaign | leak | one owner | 9.9.1.1 | Open |"]
-        )
-        finding = self.matching("AF-001 remains Open")
-        self.assertEqual(("docs/VERSION_9_9_PLAN.md", 7), (finding.path, finding.line))
-        self.assertEqual("error", finding.severity)
-
-    def test_delivered_finding_with_open_roadmap_is_a_warning(self) -> None:
-        self.fixture.write_audit(
-            ["| AF-001 | 1 | Campaign | leak | one owner | 9.9.1.1 | Delivered |"]
-        )
-        finding = self.matching("Delivered while roadmap 9.9.1.1 is PLANNED")
-        self.assertEqual(("docs/version-audits/9.9/PLAN.md", 5), (finding.path, finding.line))
         self.assertEqual("warn", finding.severity)
 
     def test_procedure_policies_require_ordered_schema_wording(self) -> None:

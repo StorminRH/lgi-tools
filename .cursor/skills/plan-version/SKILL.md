@@ -21,8 +21,7 @@ dependencies are fixed. Its proposed sub-version, session, branch, and PR
 headings are provisional until this skill completes.
 
 Inputs: a `plan-version` resolver directive, active master plan, live
-`origin/development`, current baseline and state, relevant open issues, and
-artifact schemas.
+`origin/development`, relevant open issues, and artifact schemas.
 
 Output: an operator-approved feature grouping, then one schema-complete
 contract and index entry per feature. Session implementation plans are
@@ -39,8 +38,8 @@ delivery heading was taken as a feature.
 
 1. Require the resolver directive to name `plan-version`; otherwise report it
    and return to `start-session`.
-2. Read the master plan, live code and tests, baseline, prior as-builts in
-   the active version, relevant open issues, and
+2. Read the master plan, live code and tests, prior as-builts in the
+   active version, relevant open issues, and
    `docs/workflows/schema/session-contract.md`.
 3. Name the major features the version actually ships. That list is the
    session count you will argue for. Plumbing, layers, and review pauses
@@ -87,18 +86,13 @@ is gone.
    reason for every remaining split (`CLEAN` only).
 2. Obtain operator approval while the repository remains unchanged.
 3. After approval, update the master plan's delivery topology first.
-4. At topology approval, run
-   `python3 tools/cli.py lifecycle capture-version-start` and apply its
-   promoted Snapshot/Metrics output to the live code-health baseline when
-   this adoption opens a new master version. Skip when the baseline's
-   `Version-start ref` already matches the committed Code ref.
-5. Reconcile stale unexecuted contracts and index entries next.
-6. Create one schema-complete contract per approved feature last. Delivery
+4. Reconcile stale unexecuted contracts and index entries next.
+5. Create one schema-complete contract per approved feature last. Delivery
    unit is land-each-Ordered-work-step-on-`development`. Internal phases
    name movements inside the feature. They are not extra sessions.
-7. Land and clean those commits onto `development` using `start-session`
+6. Land and clean those commits onto `development` using `start-session`
    section 3.
-8. Run `python3 tools/cli.py lifecycle check-evidence` and
+7. Run `python3 tools/cli.py lifecycle check-evidence` and
    `python3 tools/cli.py test`, rerun the resolver, report the new
    directive, and stop. Material grouping or contract changes require
    renewed approval.

@@ -9,7 +9,6 @@ marker and lifecycle-table parsing stay owned by
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 import json
 import re
@@ -17,25 +16,14 @@ import sys
 
 from tools._lib.checker_common import Finding, find_line, run_checker
 from tools.lifecycle.resolve_development_state import (
-    AuditFinding as _AuditFinding,
     RoadmapRow as _RoadmapRow,
     active_roadmap as _active_roadmap,
     marker,
-    parse_audit_findings,
     parse_contract_index,
 )
 
 
-_AF_ID = re.compile(r"AF-\d{3}")
 _POLICY_MANIFEST = Path("tools/policy/policy-manifest.json")
-
-
-@dataclass(frozen=True)
-class _BaselineEvidence:
-    """Machine-readable AF carriers extracted from the live health baseline."""
-
-    watch: dict[str, int]
-    triggers: dict[str, int]
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -99,45 +87,6 @@ def _procedure_policy_findings(root: Path) -> list[Finding]:
     return findings
 
 
-def _parse_baseline(path: Path) -> _BaselineEvidence:
-    """Extract the baseline's canonical Watch carriers and triggers."""
-    watch: dict[str, int] = {}
-    triggers: dict[str, int] = {}
-    if path.is_file():
-        in_trigger = False
-        for line_number, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(),
-            start=1,
-        ):
-            if line.strip() == "```watch-trigger":
-                in_trigger = True
-                continue
-            if in_trigger and line.strip() == "```":
-                in_trigger = False
-                continue
-            if in_trigger:
-                match = re.match(r"\s*(AF-\d{3})\s*:", line)
-                if match:
-                    triggers.setdefault(match.group(1), line_number)
-            for match in re.finditer(r"Watch\s+\((AF-\d{3})\)", line):
-                watch.setdefault(match.group(1), line_number)
-    return _BaselineEvidence(watch, triggers)
-
-
-def _roadmap_line(path: Path, subversion: str) -> int:
-    """Return the roadmap table line for one sub-version."""
-    if not path.is_file():
-        return 1
-    pattern = re.compile(rf"^\|\s*\**{re.escape(subversion)}\**\s*\|")
-    for line_number, line in enumerate(
-        path.read_text(encoding="utf-8").splitlines(),
-        start=1,
-    ):
-        if pattern.match(line):
-            return line_number
-    return 1
-
-
 def _execution_evidence_findings(
     root: Path,
     roadmap: Path,
@@ -192,141 +141,6 @@ def _execution_evidence_findings(
     return findings
 
 
-def _baseline_symmetry_findings(
-    root: Path,
-    path: Path,
-    evidence: _BaselineEvidence,
-) -> list[Finding]:
-    """Require one Watch classification and one trigger for every Watch AF id."""
-    raw_path = _relative(root, path)
-    findings = [
-        Finding(
-            raw_path,
-            evidence.watch[identifier],
-            f"Watch classification {identifier} has no watch-trigger block",
-            "error",
-        )
-        for identifier in sorted(set(evidence.watch) - set(evidence.triggers))
-    ]
-    findings.extend(
-        Finding(
-            raw_path,
-            evidence.triggers[identifier],
-            f"watch-trigger {identifier} has no Watch classification",
-            "error",
-        )
-        for identifier in sorted(set(evidence.triggers) - set(evidence.watch))
-    )
-    return findings
-
-
-def _finding_line(path: Path, finding: _AuditFinding) -> int:
-    """Return the audit-ledger line for one finding id."""
-    return find_line(path, f"| {finding.identifier} |")
-
-
-def _audit_baseline_findings(
-    root: Path,
-    audit_path: Path,
-    audit_findings: list[_AuditFinding],
-    baseline_path: Path,
-    evidence: _BaselineEvidence,
-) -> list[Finding]:
-    """Cross-check audit statuses against canonical baseline Watch state."""
-    findings: list[Finding] = []
-    raw_audit = _relative(root, audit_path)
-    raw_baseline = _relative(root, baseline_path)
-
-    for finding in audit_findings:
-        identifier = finding.identifier
-        if finding.status == "watch" and identifier not in evidence.watch:
-            findings.append(
-                Finding(
-                    raw_audit,
-                    _finding_line(audit_path, finding),
-                    f"audit ledger says {identifier} is Watch but baseline does not",
-                    "error",
-                )
-            )
-        if finding.status == "verified":
-            carrier_line = evidence.watch.get(identifier) or evidence.triggers.get(
-                identifier
-            )
-            if carrier_line:
-                findings.append(
-                    Finding(
-                        raw_baseline,
-                        carrier_line,
-                        f"audit ledger says {identifier} is Verified but baseline still carries active evidence",
-                        "error",
-                    )
-                )
-    return findings
-
-
-def _roadmap_finding_rows(
-    roadmap: Path,
-    rows: list[_RoadmapRow],
-    audit_findings: list[_AuditFinding],
-) -> dict[str, list[_RoadmapRow]]:
-    """Map audit ids to roadmap rows by remediation id or an explicit row citation."""
-    by_subversion = {row.subversion: row for row in rows}
-    mapped: dict[str, list[_RoadmapRow]] = {}
-    for finding in audit_findings:
-        row = by_subversion.get(finding.remediation)
-        if row is not None:
-            mapped.setdefault(finding.identifier, []).append(row)
-    if roadmap.is_file():
-        for line in roadmap.read_text(encoding="utf-8").splitlines():
-            if not line.startswith("|"):
-                continue
-            cells = [cell.strip().strip("*") for cell in line.strip().strip("|").split("|")]
-            if not cells:
-                continue
-            row = by_subversion.get(cells[0])
-            if row is None:
-                continue
-            for identifier in _AF_ID.findall(line):
-                bucket = mapped.setdefault(identifier, [])
-                if row not in bucket:
-                    bucket.append(row)
-    return mapped
-
-
-def _audit_roadmap_findings(
-    root: Path,
-    roadmap: Path,
-    rows: list[_RoadmapRow],
-    audit_path: Path,
-    audit_findings: list[_AuditFinding],
-) -> list[Finding]:
-    """Cross-check actionable audit status against mapped remediation delivery."""
-    findings: list[Finding] = []
-    mapped = _roadmap_finding_rows(roadmap, rows, audit_findings)
-    raw_roadmap = _relative(root, roadmap)
-    for finding in audit_findings:
-        for row in mapped.get(finding.identifier, []):
-            if row.terminal and finding.status == "open":
-                findings.append(
-                    Finding(
-                        raw_roadmap,
-                        _roadmap_line(roadmap, row.subversion),
-                        f"roadmap {row.subversion} is {row.status} while {finding.identifier} remains Open",
-                        "error",
-                    )
-                )
-            if not row.terminal and finding.status in {"delivered", "verified"}:
-                findings.append(
-                    Finding(
-                        _relative(root, audit_path),
-                        _finding_line(audit_path, finding),
-                        f"audit ledger says {finding.identifier} is {finding.status.title()} while roadmap {row.subversion} is {row.status}",
-                        "warn",
-                    )
-                )
-    return findings
-
-
 def collect_findings(root: Path) -> list[Finding]:
     """Collect every cross-artifact contradiction and snapshot-timing warning."""
     findings = _procedure_policy_findings(root)
@@ -339,41 +153,7 @@ def collect_findings(root: Path) -> list[Finding]:
         return findings
 
     contract_index = root / "docs/session-contracts" / version / "INDEX.md"
-    baseline_path = root / "docs/CODE_HEALTH_BASELINE.md"
     findings.extend(_execution_evidence_findings(root, roadmap, rows, contract_index))
-    if not baseline_path.is_file():
-        findings.append(
-            Finding(
-                _relative(root, baseline_path),
-                1,
-                "code-health baseline is missing",
-                "error",
-            )
-        )
-        return findings
-
-    evidence = _parse_baseline(baseline_path)
-    findings.extend(_baseline_symmetry_findings(root, baseline_path, evidence))
-
-    audit_path = root / "docs/version-audits" / version / "PLAN.md"
-    if audit_path.is_file():
-        audit_findings, audit_errors = parse_audit_findings(audit_path)
-        findings.extend(
-            Finding(_relative(root, audit_path), 1, error, "error")
-            for error in audit_errors
-        )
-        findings.extend(
-            _audit_baseline_findings(
-                root,
-                audit_path,
-                audit_findings,
-                baseline_path,
-                evidence,
-            )
-        )
-        findings.extend(
-            _audit_roadmap_findings(root, roadmap, rows, audit_path, audit_findings)
-        )
     return findings
 
 

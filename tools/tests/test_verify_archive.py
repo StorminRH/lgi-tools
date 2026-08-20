@@ -15,9 +15,6 @@ from tools._lib.repository import ROOT
 from tools.lifecycle.verify_archive import collect_findings
 
 
-AUDITED_REF = "a" * 40
-
-
 class ArchiveFixture:
     def __init__(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -46,22 +43,6 @@ class ArchiveFixture:
         self.write("docs/session-contracts/9.9/9.9.1.1.md", "contract\n")
         self.write("docs/session-plans/9.9/9.9.1.1.md", "plan\n")
         self.write("docs/session-as-built/9.9/9.9.1.1.md", "as-built\n")
-        self.write(
-            "docs/version-audits/9.9/PLAN.md",
-            "**Audit status:** Complete\n"
-            "**Audit cycle:** 2\n"
-            f"**Audited ref:** {AUDITED_REF}\n\n"
-            "| ID | First seen | Class | Principle diagnosis | Required outcome | Remediation | Status |\n"
-            "| --- | ---: | --- | --- | --- | --- | --- |\n"
-            "| AF-001 | 1 | Campaign | fixture | fixed | 9.9.1.1 | Verified |\n"
-            "| AF-002 | 2 | Watch | pressure | watch | — | Watch |\n",
-        )
-        self.write(
-            "docs/CODE_HEALTH_BASELINE.md",
-            "# Baseline\n\n| Field | Value |\n| --- | --- |\n"
-            "| App version | 9.9.1.1 |\n"
-            f"| Code ref | `{AUDITED_REF}` on `main` |\n",
-        )
 
     def messages(self, phase: str = "pre") -> list[str]:
         args = argparse.Namespace(phase=phase, archive_root=self.archive_root)
@@ -71,11 +52,10 @@ class ArchiveFixture:
         destination = self.archive_root / "versions/9.9"
         destination.mkdir(parents=True, exist_ok=True)
         shutil.copy2(self.root / "docs/VERSION_9_9_PLAN.md", destination)
-        for name in ("session-contracts", "session-plans", "session-as-built", "version-audits"):
-            shutil.copytree(
-                self.root / "docs" / name / "9.9",
-                destination / name,
-            )
+        for name in ("session-contracts", "session-plans", "session-as-built"):
+            source = self.root / "docs" / name / "9.9"
+            if source.is_dir():
+                shutil.copytree(source, destination / name)
         return destination
 
 
@@ -98,17 +78,6 @@ class VerifyArchiveTests(unittest.TestCase):
             "| 9.9.1.1 | Fixture | 1 | PLANNED |\n",
         )
         self.assertTrue(any("not terminal" in message for message in self.fixture.messages()))
-
-    def test_new_unverified_actionable_finding_is_red(self) -> None:
-        audit = self.fixture.root / "docs/version-audits/9.9/PLAN.md"
-        audit.write_text(
-            audit.read_text(encoding="utf-8")
-            + "| AF-003 | 2 | Floss | new | fix | — | Open |\n",
-            encoding="utf-8",
-        )
-        messages = self.fixture.messages()
-        self.assertTrue(any("is not Verified" in message for message in messages))
-        self.assertTrue(any("current audit cycle" in message for message in messages))
 
     def test_post_reports_missing_and_differing_files(self) -> None:
         destination = self.fixture.copy_bundle()
@@ -148,14 +117,13 @@ class VerifyArchiveTests(unittest.TestCase):
             any("archive copy is missing" in message for message in self.fixture.messages("post"))
         )
 
-    def test_post_reports_missing_active_as_built_directory(self) -> None:
+    def test_post_allows_a_missing_as_built_directory(self) -> None:
         shutil.rmtree(self.fixture.root / "docs/session-as-built/9.9")
-        self.assertTrue(
-            any(
-                "docs/session-as-built/9.9:1: archive source set is missing or empty"
-                in message
-                for message in self.fixture.messages("post")
-            )
+        self.fixture.copy_bundle()
+        shutil.rmtree(self.fixture.archive_root / "versions/9.9/session-as-built", ignore_errors=True)
+        messages = self.fixture.messages("post")
+        self.assertFalse(
+            any("session-as-built" in message and "missing or empty" in message for message in messages)
         )
 
     def test_faithful_post_copy_is_green(self) -> None:
