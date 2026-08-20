@@ -187,8 +187,8 @@ Planned session <id> Ordered work is complete. Last OW landed on development (<s
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 App-facing vs staging: <n>/100.
-Continue planned work from origin/development. Close-out waits until the
-operator asks to promote development onto staging.
+Return to start-session and plan the next session. Do not promote for a
+small leftover. Promote when the operator asks, around 100 app-facing files.
 Next-agent notes: <gotchas, open operator dispositions, or None>.
 ```
 

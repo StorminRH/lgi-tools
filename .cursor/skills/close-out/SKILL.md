@@ -7,7 +7,8 @@ description: Promote development onto staging, or cut a staging-to-main release.
 
 Two rituals. Promote merges Origin `development` onto `staging`. Release
 merges Origin `staging` onto `main`. Pick the ritual from the ask. Ordered
-work stays on `development` through `start-session`.
+work stays on `development` through `start-session`. A finished session
+returns there to plan the next one. It does not open a PR.
 
 When talking with the operator, write in plain English and invoke `unslop`
 on what you say.
@@ -19,7 +20,8 @@ Done when this chat is one ritual, named from the ask.
 - **Promote** when the operator asked to promote, close out a review
   chunk, or merge `development` onto `staging`. The usual reason is an
   app-facing count versus `staging` approaching 100. The count does not
-  start this skill by itself.
+  start this skill by itself. A session that landed two files is not a
+  promote.
 - **Release** when the operator asked to cut a release, ship production,
   or merge `staging` onto `main`.
 
@@ -28,14 +30,15 @@ land or a session wrap, stop and point at `start-session`.
 
 Outputs. Exactly one:
 
-- `PROMOTED`. Origin `staging` holds the reviewed chunk. Dump PR unmerged.
+- `PROMOTED`. Origin PR merged to `staging`. Dump PR closed unmerged.
 - `RELEASED`. Origin `main` holds the cut. Production proof passed.
 - `BLOCKED`. Named gate, oversize dump, failed check, or missing ask.
 
 ## 2. Promote development onto staging
 
-Done when Origin `staging` is at the reviewed `development` tip, the
-GitHub dump PR is unmerged, and Depot was green on the Origin PR.
+Done when the Origin PR has merged to `staging`, as-builts for that
+delivery are on the PR, Depot was green, and the GitHub dump is closed
+unmerged.
 
 1. Fetch `origin/development` and `origin/staging`. Work from the
    `development` tip. Uncommitted Ordered work returns to `start-session`.
@@ -47,51 +50,56 @@ GitHub dump PR is unmerged, and Depot was green on the Origin PR.
    Keep the tree still. Contested items go to chat. Continue only on
    `PASS`. Land accepted code fixes onto `development` through
    `start-session` land and clean, then continue.
-4. Dump that range to GitHub for bots. Add a `github` remote to
+4. Author as-builts for the work this PR delivers to `staging`, per
+   `docs/workflows/schema/session-as-built.md`. One record per session
+   in the range. A session that still has work only on `development`
+   waits for a later promote. Put the records on the Origin PR. Do not
+   write an as-built after an Ordered work step.
+5. Open the Origin PR (`development` → `staging`) per **Origin PR**.
+   Wait until Depot is green.
+6. Dump that range to GitHub for bots. Add a `github` remote to
    `https://github.com/StorminRH/lgi-tools.git` when it is missing.
    Push Origin `staging` to GitHub `staging` so the dump base matches
    the already-reviewed line. Push Origin `development` to
    `dump/<YYYY-MM-DD>-<shortsha>`. Open a draft GitHub PR on
    `StorminRH/lgi-tools` (`dump/...` → `staging`) with `gh pr create`
-   or the GitHub MCP. Request Greptile and CodeRabbit by hand. Leave
-   the dump PR unmerged. Close it unmerged when the Origin merge is
-   done. Origin `main` stays off GitHub `main`.
-5. Open the Origin PR (`development` → `staging`) and merge it per
-   **Origin PR and merge**. **Fix** in-scope dump findings on Origin
-   and re-push the dump branch. **Justify** on the dump PR when the
-   finding is wrong. **Defer** only on an explicit operator cut by
-   opening a GitHub Issue `[Backlog] <short what>` with
-   *what / why-deferred / size / trigger*. One Origin push per round
-   after the local test suite is green on those fixes.
-6. Stop. No fold, no `APP_VERSION`, no Production.
+   or the GitHub MCP. Request Greptile and CodeRabbit by hand. Origin
+   `main` stays off GitHub `main`.
+7. Iterate dump findings until they are resolved. **Fix** in-scope
+   items on Origin and comment the fix on the Origin PR. Re-push the
+   dump branch. Wait until the Origin PR is Depot-green again.
+   **Justify** on the dump PR when the finding is wrong. **Defer** only
+   on an explicit operator cut by opening a GitHub Issue
+   `[Backlog] <short what>` with *what / why-deferred / size / trigger*.
+   One Origin push per round after the local test suite is green on
+   those fixes.
+8. Merge the Origin PR to `staging` per **Merge the Origin PR**. Then
+   close the dump PR unmerged. Stop. No `APP_VERSION`, no changelog, no
+   Production.
 
 ## 3. Cut a release
 
-Done when Origin `main` is at the cut, `APP_VERSION` and `### vX.Y.N`
-match, pending fragments consumed in that commit are gone, and
-production proof passed.
+Done when Origin `main` is at the cut, `APP_VERSION` matches the latest
+lifecycle identity already on `staging`, the changelog is written from
+those as-builts, and production proof passed.
 
 1. Confirm the operator asked for this ritual. Fetch `origin/staging`
    and `origin/main`. Work from the `staging` tip.
 2. Invoke `adversarial-review` against `staging` onto `main`. Same
    continue rule as promote. Land accepted code fixes onto `staging`
    through `start-session` land and clean.
-3. Propose the public number. Same master theme: increment the last
-   published `N` (`4.0.5` → `4.0.6`) for the whole bundle on `staging`.
-   New theme: start `X.Y.0`. Session ids do not mint the number.
-   Obtain approval before writing.
-4. Sync so pending fragments already on `origin/main` are present.
-   Fold with `python3 tools/cli.py lifecycle fold-pending-changelog`.
-   Apply that output per `docs/workflows/schema/changelog-pending.md`
-   and `docs/workflows/schema/changelog-entry.md`. Set `APP_VERSION`
-   in `src/config/app-version.ts`. Delete consumed fragments. Run
-   `python3 tools/cli.py lifecycle check-release --check --expect reconciled`
-   and `python3 tools/cli.py lifecycle check-pending-changelog`. Land
-   that commit onto `staging`.
+3. Set `APP_VERSION` in `src/config/app-version.ts` to the latest
+   lifecycle identity already on `staging`. That is the last session or
+   Ordered work number this train delivered (session `4.0.5`, first
+   Ordered work `4.0.5.1`). Do not ask for a number.
+4. Write the public changelog from the as-builts in `staging...main`.
+   Invoke `unslop` so players can read it. Form:
+   `docs/workflows/schema/changelog-entry.md`. Run
+   `python3 tools/cli.py lifecycle check-release --check --expect reconciled`.
+   Land that commit onto `staging`.
 5. Bots already saw this work at promote. Open the Origin PR
-   (`staging` → `main`) and merge it per **Origin PR and merge**.
-   `python3 tools/cli.py lifecycle check-release --check --expect reconciled`
-   rides this PR.
+   (`staging` → `main`) per **Origin PR**. Wait until Depot is green.
+   Merge it to `main` per **Merge the Origin PR**.
 6. Wait for the merge-SHA Production deploy:
 
    ```bash
@@ -110,9 +118,9 @@ production proof passed.
    `python3 tools/cli.py lifecycle resolve --pretty` and report it.
    Stop.
 
-## 4. Origin PR and merge
+## 4. Origin PR
 
-Done when the ritual's merge is on Origin and Depot was green.
+Done when the draft Origin PR exists and Depot is green.
 
 1. Open one draft Origin PR via ManagePullRequest. Head and base are
    the ritual's two lines. Headings in order: `## What this does`,
@@ -131,8 +139,14 @@ Done when the ritual's merge is on Origin and Depot was green.
    `depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4` and
    `depot ci status <run-id> --org k2f4dzqwd4`. Re-scrub after publish.
    Mark ready for review once.
-4. Merge with `origin pr merge`. Fast-forward the base line. Delete
-   leftover source branches. Leave `development`, `staging`, and `main`.
+
+## 5. Merge the Origin PR
+
+Done when the Origin PR is merged to its base line.
+
+Merge with `origin pr merge`. That merge is what moves the work onto
+`staging` or `main`. Delete leftover source branches. Leave
+`development`, `staging`, and `main`.
 
 ## Return
 
