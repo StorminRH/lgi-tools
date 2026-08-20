@@ -19,7 +19,7 @@ import {
   type MutationCtx,
 } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
-import { clearCoverageForUser } from './lib/locationCoverage';
+import { clearCoverageForUser, findCoverage } from './lib/locationCoverage';
 import { requireMapAccess } from './lib/mapAccess';
 import {
   findConnectionForSignature,
@@ -425,12 +425,7 @@ async function stampCoverage(
   userId: string,
   characterId: number,
 ): Promise<void> {
-  const held = await ctx.db
-    .query('characterLocationCovered')
-    .withIndex('by_user_character', (q) =>
-      q.eq('userId', userId).eq('characterId', characterId),
-    )
-    .unique();
+  const held = await findCoverage(ctx, userId, characterId);
   if (held === null) {
     await ctx.db.insert('characterLocationCovered', { userId, characterId });
   }
@@ -447,12 +442,7 @@ export const clearTrackedCoverage = internalMutation({
       await clearCoverageForUser(ctx, userId);
       return;
     }
-    const held = await ctx.db
-      .query('characterLocationCovered')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', userId).eq('characterId', characterId),
-      )
-      .unique();
+    const held = await findCoverage(ctx, userId, characterId);
     if (held !== null) await ctx.db.delete(held._id);
   },
 });
