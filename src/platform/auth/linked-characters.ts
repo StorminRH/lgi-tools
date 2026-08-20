@@ -11,11 +11,6 @@ interface UpsertInput {
   portraitUrl: string;
 }
 
-/**
- * Insert on first login, update name/portrait/lastLoginAt on every subsequent login.
- * `role` and `preferences` are deliberately absent from the conflict set: they're
- * owned by the admin/preferences UIs once written, and must survive re-logins.
- */
 export async function upsertCharacterOnLogin(input: UpsertInput): Promise<Character> {
   const now = new Date();
   const [row] = await db
@@ -77,11 +72,6 @@ function toLinkedCharacter(
   };
 }
 
-/**
- * Every EVE character linked to a user, oldest first. The page's data source —
- * NOT Better Auth's /list-accounts, which carries neither name/portrait nor the
- * token presence this needs (and would leak no useful health signal).
- */
 export async function listLinkedCharacters(userId: string): Promise<LinkedCharacter[]> {
   const rows = await db
     .select({
@@ -112,15 +102,6 @@ export interface ActiveCharacter {
   portraitUrl: string | null;
 }
 
-/**
- * Resolve the user's ACTIVE character for the session: the account named by
- * `preferredId` (user.activeCharacterId) when it's still linked, else the oldest
- * linked account. One indexed read (account_user_id_idx) + a characters PK join.
- * If `preferredId` is set but no longer linked (its character was unlinked
- * out-of-band), repoint user.activeCharacterId to the resolved char — fire-and-
- * forget so getSession never blocks on a write. Returns null only when the user
- * has no linked EVE account at all.
- */
 export async function resolveActiveCharacter(
   userId: string,
   preferredId: number | null,
@@ -160,10 +141,6 @@ export async function resolveActiveCharacter(
   return { characterId: chosen.characterId, name: chosen.name, portraitUrl: chosen.portraitUrl };
 }
 
-/**
- * True when the given character is one of this user's linked EVE accounts. The
- * ownership guard the switch/unlink routes gate on — never trust a posted id.
- */
 export async function accountBelongsToUser(userId: string, characterId: number): Promise<boolean> {
   const [row] = await db
     .select({ id: account.id })
@@ -202,12 +179,6 @@ export async function repointActiveToOldest(userId: string): Promise<number | nu
   return next;
 }
 
-/**
- * The user's CURRENTLY-stored active character id (NULL if none). Read fresh
- * from the row — used by unlink to decide whether to re-point, rather than
- * trusting the session snapshot captured at the top of the request (which a
- * concurrent switch could have made stale).
- */
 export async function getStoredActiveCharacterId(userId: string): Promise<number | null> {
   const [row] = await db
     .select({ activeCharacterId: user.activeCharacterId })

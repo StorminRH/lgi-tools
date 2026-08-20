@@ -28,11 +28,6 @@ function rowToCachedAffiliation(
   };
 }
 
-/**
- * A user's linked characters with their cached corp affiliation. The membership
- * helper (isUserCurrentMemberOfCorp) decides over this; an un-refreshed character
- * carries a null corp + null refreshedAt and reads fail-closed.
- */
 export async function getUserAffiliations(userId: string): Promise<CachedAffiliation[]> {
   const rows = await db
     .select({
@@ -70,11 +65,6 @@ export async function getCharacterAffiliation(
   return rowToCachedAffiliation(characterId, row);
 }
 
-/**
- * Linked characters whose affiliation is missing or older than the TTL — the
- * nightly cron's work list. DISTINCT because the same character can be linked by
- * more than one user; one refresh covers them all (affiliation is per-character).
- */
 export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   const cutoff = new Date(Date.now() - AFFILIATION_FRESHNESS.ttlMs);
   const rows = await db
@@ -96,12 +86,6 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-/**
- * Write fetched affiliations onto the `characters` cache. UPDATE (not upsert) —
- * the row always exists for a linked/logged-in character (upsertCharacterOnLogin
- * created it). Per-row at this scale (one `characters` row per pilot); batch via
- * VALUES later if the table ever grows large.
- */
 export async function upsertAffiliations(rows: AffiliationRow[]): Promise<void> {
   if (rows.length === 0) return;
   const now = new Date();

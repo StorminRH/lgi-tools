@@ -1,10 +1,6 @@
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
-/**
- * Tables `runIngest` + the CI version stamp write. Trees/prices are not
- * required by the Depot verify clone suites and stay empty after migrate.
- */
 export const SDE_SEED_TABLES = [
   'eve_categories',
   'eve_groups',
