@@ -21,7 +21,6 @@ COMMANDS = {
     ("delivery", "repair-gh-auth"): "tools.delivery.repair_gh_auth",
     ("delivery", "scrub-pr-body"): "tools.delivery.scrub_pr_body",
     ("delivery", "wait-prod-deploy"): "tools.delivery.wait_prod_deploy",
-    ("lifecycle", "capture-version-start"): "tools.lifecycle.capture_version_start",
     ("lifecycle", "count-app-facing"): "tools.lifecycle.count_app_facing",
     ("lifecycle", "check-evidence"): "tools.lifecycle.check_lifecycle_evidence",
     ("lifecycle", "check-pending-changelog"): "tools.lifecycle.check_pending_changelog",
@@ -29,9 +28,7 @@ COMMANDS = {
     ("lifecycle", "fold-pending-changelog"): "tools.lifecycle.fold_pending_changelog",
     ("lifecycle", "resolve"): "tools.lifecycle.resolve_development_state",
     ("lifecycle", "verify-archive"): "tools.lifecycle.verify_archive",
-    ("quality", "check-baseline"): "tools.quality.check_baseline_claims",
     ("quality", "check-env-example"): "tools.quality.check_env_example",
-    ("quality", "check-watch-triggers"): "tools.quality.check_watch_triggers",
     ("update-watch", "check-baseline"): "tools.update_watch.check_update_watch_baseline",
     ("update-watch", "collector"): "tools.update_watch.update_watch_collect",
 }

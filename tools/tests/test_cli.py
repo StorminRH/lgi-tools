@@ -17,7 +17,7 @@ class CliTests(unittest.TestCase):
     def test_help_lists_public_groups(self) -> None:
         text = cli.usage()
         self.assertIn("lifecycle resolve", text)
-        self.assertIn("quality check-baseline", text)
+        self.assertIn("quality check-env-example", text)
         self.assertIn("update-watch collector", text)
 
     def test_unknown_command_is_usage_error(self) -> None:

@@ -125,7 +125,7 @@ existing plans stay valid.
 ### Baseline effect and update
 
 - **Effect:** [`Improves`, `Neutral`, or `Temporary pressure`, matching the header marker] — [principle-level reason].
-- **Required update:** [exact baseline rows and measurements to refresh, or `None` with reason].
+- **Required update:** `None` — code-health baseline tracking is retired.
 
 ## Implementation blueprint
 

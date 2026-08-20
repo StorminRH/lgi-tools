@@ -26,7 +26,6 @@ from tools.lifecycle.resolve_development_state import (
 from tools._lib.repository import ROOT
 
 
-SHA = "a" * 40
 CONTRACT_TITLES = (
     "Objective",
     "Current context and dependencies",
@@ -83,7 +82,6 @@ class ResolverFixture:
         self.docs.mkdir()
         self.write_schemas()
         self.write_roadmap("COMPLETE")
-        self.write_baseline(SHA)
 
     def close(self) -> None:
         self.temporary.cleanup()
@@ -94,12 +92,6 @@ class ResolverFixture:
             "| Sub-version | Theme | Sessions | Status |\n"
             "| --- | --- | --- | --- |\n"
             f"| 9.9.1.1 | Fixture | {sessions} | {status} |\n",
-            encoding="utf-8",
-        )
-
-    def write_baseline(self, code_ref: str) -> None:
-        (self.docs / "CODE_HEALTH_BASELINE.md").write_text(
-            f"# Baseline\n\n| Field | Value |\n| --- | --- |\n| Code ref | `{code_ref}` |\n",
             encoding="utf-8",
         )
 
