@@ -1,6 +1,6 @@
 # Origin / Depot / ship-path migration — ordinary-work plan
 
-**Plan status:** Draft (living; operator reshapes between chats)
+**Plan status:** Draft (operator reshapes between chats)
 **Kind:** Ordinary work — not a numbered lifecycle session. Do not run
 `start-session` or the lifecycle resolver for this plan.
 **Planning standard:** `docs/workflows/schema/session-plan.md` (shape
@@ -10,7 +10,7 @@ execution chat)
 **Execution status:** Pending
 **Baseline effect:** Neutral
 
-**Settled loop (live):** Land each Ordered work step on `development`
+**Settled loop:** Land each Ordered work step on `development`
 (fast-forward, no land PR). Promote at 80 app-facing files versus
 `staging`. A dump over 100 files is blocked. Release is
 `staging` → `main`. As-builts land on the promote PR. The public
@@ -87,7 +87,7 @@ happen on the stack you will keep.
   close-out, CONTRIBUTING, and the PR template. Do not fall back to a
   laptop verify that skips `*.db.test.ts`.
 - **Plan:** Laptops and agents never run `next build`,
-  `pnpm vercel-build`, or Playwright as the local gate. Job `build` and
+  `pnpm vercel-build`, or Playwright as the local test suite. Job `build` and
   job `e2e` are PR-only on Depot.
 - **Plan:** Do not run `build:vercel` in the CI build job. Migrate /
   ingest / warm-neon stay deploy-time on the environment that is
@@ -192,7 +192,7 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 | Vercel ↔ Origin | Not the project git remote | Live `lgi-tools` project `link.type` is `github` / `StorminRH/lgi-tools` (API 2026-08-18). Team plan is Pro | OW-5 connects Origin, proves a **manual** Preview from an Origin branch, then disconnects GitHub |
 | Vercel ↔ GitHub | Still the deploy remote | `vercel.json` `main: true`; deny globs hide other branches. Recent deploys are Production-only | Keep `main: true`. Turn on `development` (short Preview) and `staging` (long Preview) only after Origin is the connected repo |
 | Depot CLI | Not present here | No `depot` on this VM or the operator laptop at last check | OW-2 installs CLI where the operator works |
-| Live DoD | Origin PR Depot pipeline | OW-4 landed on `stormin/depot-verify-dod` | Cheap local gate is typecheck / lint / Fallow dead-code+dupes / focused tests |
+| Live DoD | Origin PR Depot pipeline | OW-4 landed on `stormin/depot-verify-dod` | Local test suite is typecheck / lint / Fallow dead-code+dupes / focused tests |
 | Live CI | GHA, no real SQL | `.github/workflows/test.yml` skips `*.db.test.ts` | OW-2/OW-3 replace this on Origin |
 | Preview/prod gaps | Known | Convex preview key unused; `SITE_URL` prod-shaped; `neon.ts` is never auto-applied; crons Production-only; shared Upstash. Convex cost is the preview concern (no scale-to-zero) | OW-5 / OW-17: ephemeral teardown + one cheap sleeping `staging` |
 | Neon branch policy | In-repo, apply is manual | Repo-root `neon.ts`: `preview/*` gets `ttl: '3d'`, 0.25–1 CU, `suspendTimeout: '1m'`. Other new branches get no TTL and inherit defaults. Existing non-default branches are left alone until `updateExisting` | OW-17 adds a named `staging` arm (no TTL, cheap CU, fast suspend) and applies it |
@@ -504,7 +504,7 @@ product behavior.
 
 ### Interfaces and contracts
 
-- Cheap local gate on land: typecheck, lint, Fallow dead-code +
+- Local test suite on land: typecheck, lint, Fallow dead-code +
   dupes + health, focused tests.
 - Full Depot workflow on a promote or release Origin PR —
   `verify` + `build` + `e2e`. Wait with `origin pr checks --watch`.
@@ -528,7 +528,7 @@ product behavior.
 Target daily path after OW-5:
 
 1. Agent works against `https://origin.cursor.com/{owner}/{repo}.git`.
-2. Cheap local gate: typecheck, lint, Fallow dead-code + dupes +
+2. Local test suite: typecheck, lint, Fallow dead-code + dupes +
    health, focused tests.
 3. Land on **`development`** (fast-forward, then delete the source
    branch). Vercel updates the short-lived `development` Preview
@@ -610,7 +610,7 @@ Do not implement a later step in an earlier chat.
    and Playwright against `next start`. Prove with a PR whose Checks
    include both jobs.
 
-4. **Done.** Land uses the cheap local gate. Promote and release
+4. **Done.** Land uses the local test suite. Promote and release
    wait on that Origin PR's Depot pipeline. `pnpm verify` is not
    done.
 
@@ -892,7 +892,7 @@ mutation IssueCreate {
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
-  | `SC-4.1` | Read AGENTS.md, close-out DoD, CONTRIBUTING | Land uses the cheap local gate. Promote and release wait on that Origin PR's Depot pipeline |
+  | `SC-4.1` | Read AGENTS.md, close-out DoD, CONTRIBUTING | Land uses the local test suite. Promote and release wait on that Origin PR's Depot pipeline |
 
 - **SC-5 — Preview-as-dev on Origin; GitHub is not the deploy remote.**
 

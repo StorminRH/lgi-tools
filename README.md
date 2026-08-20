@@ -151,7 +151,7 @@ Contributions are welcome. Work lands on Origin `development`. See
 1. Agree on shape for anything non-trivial before writing code.
 2. Land on `development`. Promote is `development` → `staging`. Release
    is `staging` → `main`.
-3. Before you land, run the cheap local gate in CONTRIBUTING
+3. Before you land, run the local test suite in CONTRIBUTING
    (typecheck, lint, Fallow, focused tests). A promote or release waits
    on that Origin PR's Depot pipeline.
 4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —

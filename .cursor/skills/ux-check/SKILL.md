@@ -10,7 +10,7 @@ console, page errors, network). Write screenshots/traces under
 `docs/ux-check/captures/` on failure only. The operator reviews visual feel in
 their browser — never always-on screenshots or agent visual approval.
 
-Local aid only: not the cheap local gate or the standing Depot pipeline.
+Local aid only: not the local test suite or the standing Depot pipeline.
 Sweeps/probes exit non-zero on hard assertion/console/page failures; network
 findings still need disposition.
 

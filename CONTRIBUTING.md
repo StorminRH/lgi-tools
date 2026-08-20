@@ -35,7 +35,7 @@ feat: add API endpoints for browsing and filtering wormhole sites
 
 1. Land on Origin `development`. Promote is an Origin PR
    `development` → `staging`. Release is `staging` → `main`.
-2. Before you land, run the cheap local gate: `pnpm typecheck`,
+2. Before you land, run the local test suite: `pnpm typecheck`,
    `pnpm lint`, Fallow `dead-code`, `dupes`, and `health`, and focused tests
    for your diff. A promote or release waits on that Origin PR's Depot
    pipeline (`verify` on every PR, plus `build` and `e2e` on PRs) with

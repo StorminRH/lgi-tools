@@ -22,17 +22,17 @@ Launch `repo-mapper` for relationship, consumer, dependency, or blast-radius
 questions. It uses Codegraph (`callers`, `callees`, `impact`, `query`;
 `status`/`sync` if needed) and returns a Repository map.
 
-Launch `gate-runner` before commits, and whenever a Gate result packet is
-needed: `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`, `dupes`, and
-`health` (CRAP, no `--coverage`), plus caller-supplied focused tests for the
-diff.
+Launch `gate-runner` before commits, and whenever the local test suite
+needs a Gate result packet: `pnpm typecheck`, `pnpm lint`, Fallow
+`dead-code`, `dupes`, and `health` (CRAP, no `--coverage`), plus
+caller-supplied focused tests for the diff.
 
 Name those seats and omit Task `model` so the agent file pin applies. `inherit`
 and model slugs override the pin.
 
 ## Done
 
-Land on Origin `development` with the local gate from Seats. Promote
+Land on Origin `development` with the local test suite from Seats. Promote
 (`development` → `staging`) and release (`staging` → `main`) wait on
 that Origin PR's Depot pipeline with `origin pr checks --watch`.
 
