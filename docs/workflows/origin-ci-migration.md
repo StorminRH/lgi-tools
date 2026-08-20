@@ -14,8 +14,8 @@ execution chat)
 (fast-forward, no land PR). Promote at 80 app-facing files versus
 `staging`. A dump over 100 files is blocked. Release is
 `staging` → `main`. As-builts land on the promote PR. The public
-changelog is written at release from those as-builts. `close-out` has
-two rituals. Remaining work in this plan is `ux-check`, schemas,
+changelog is written at release from those as-builts. `close-out` is
+one process onto `staging` or `main`. Remaining work in this plan is `ux-check`, schemas,
 Linear/GrokBots, standing `staging` backends, and local/cloud parity.
 
 This file is the execution prompt for the migration. Publish it first.
@@ -273,7 +273,7 @@ When the last Ordered work step is done:
 | Standing docs | OW-13 |
 | Linear + GrokBots | OW-14 prove connectors; OW-15 feedback; OW-16 retarget |
 | Standing staging backends | OW-17 |
-| GitHub bots-only | OW-8 writes the dump ritual; OW-17/close-out keep it |
+| GitHub bots-only | OW-8 writes the dump; OW-17/close-out keep it |
 | Local / cloud parity | OW-18 last, after the stack works |
 | This plan only | Current PR. Diff must not flip skills, CI, or `vercel.json` |
 
@@ -430,9 +430,9 @@ next release. Then one `staging` → `main` cut.
   `development`, short-lived Preview) vs **reviewed** (on `staging`,
   long-lived Preview) vs **released / in production** (on `main`,
   version published, Vercel auto-deployed).
-- `close-out` has **two rituals**: promote (`development` →
-  `staging`) and release (`staging` → `main`). Land lives in
-  `start-session`.
+- `close-out` is **one process** onto `staging` or `main`. Usual
+  heads are `development` → `staging` and `staging` → `main`. The
+  GitHub dump runs onto `staging`. Land lives in `start-session`.
 
 **How to pick the public number at cut time (plain rule):**
 
@@ -644,7 +644,7 @@ Do not implement a later step in an earlier chat.
 7. **Done.** `plan-session` sizes thin Ordered work steps that land
    on `development`.
 
-8. **Done.** `close-out` has two rituals: promote and release.
+8. **Done.** `close-out` is one process onto `staging` or `main`.
 
 9. **Isolated visit: `ux-check`.** Change only the ux-check skill and
    `docs/ux-check/README.md` so automated evidence is “Depot `e2e` was
@@ -828,7 +828,7 @@ repo Playwright version. Upload failure artifacts only.
 
 ### Target close-out shape
 
-Live owner: `.cursor/skills/close-out/SKILL.md`. Two rituals. Land is
+Live owner: `.cursor/skills/close-out/SKILL.md`. One process. Land is
 `start-session`, not close-out.
 
 ### Feedback and issue writers (OW-15 / OW-16)

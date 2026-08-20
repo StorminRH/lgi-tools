@@ -30,13 +30,14 @@ This skill is the review gate before every merge onto `staging` or
 Done when the merge has a frozen identity and every change group has
 authority.
 
-Use the caller's subject when one is supplied. Otherwise pick the identity
-that matches the ask:
+Use the caller's subject when one is supplied. An isolated app-facing
+path list is that subject. Otherwise pick the identity that matches the
+ask:
 
-- Merge to staging. The PR onto `staging`, or the ritual head and
+- Merge to staging. The PR onto `staging`, or the head and
   `staging` SHAs. Usual head is `development`. Keep the tree still
   until verdicts return.
-- Merge to main. The PR onto `main`, or the ritual head and `main`
+- Merge to main. The PR onto `main`, or the head and `main`
   SHAs. Usual head is `staging`. Keep the tree still until verdicts
   return.
 - Verified defects on a named diff or working tree. Base plus head or patch
