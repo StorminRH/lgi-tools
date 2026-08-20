@@ -10,7 +10,6 @@ const TYPE_TONE: Record<ChangeType, PillTone> = {
   Removed: 'red',
 };
 
-/** Renders one dated changelog entry, overview prose, and grouped bullets. */
 export function EntryCard({ entry }: { entry: ChangelogEntry }) {
   return (
     <div className="grid grid-cols-1 gap-0 sm:grid-cols-[116px_1fr]">

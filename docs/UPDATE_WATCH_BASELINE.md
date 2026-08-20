@@ -92,7 +92,6 @@ tooling).
     "eslint": { "acknowledgedMajor": 10 },
     "eslint-config-next": { "acknowledgedMajor": 16 },
     "eslint-import-resolver-typescript": { "acknowledgedMajor": 4 },
-    "eslint-plugin-jsdoc": { "acknowledgedMajor": 64 },
     "eslint-plugin-tsdoc": { "acknowledgedMajor": 0 },
     "fallow": { "acknowledgedMajor": 3 },
     "fuzzysort": { "acknowledgedMajor": 4 },
