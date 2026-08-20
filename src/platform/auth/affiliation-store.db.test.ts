@@ -12,7 +12,7 @@ import {
   getUserAffiliations,
   listStaleLinkedCharacterIds,
   recordCorpAccessDecision,
-  upsertAffiliations,
+  updateAffiliations,
 } from './affiliation-store';
 import { characters, corpAccessAudit } from '@/db/auth-schema';
 
@@ -105,7 +105,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
   it('updates existing character rows, creates no missing row, and treats empty input as a no-op', async () => {
     await seedCharacter(FIRST_CHAR);
 
-    await upsertAffiliations([
+    await updateAffiliations([
       {
         characterId: FIRST_CHAR,
         corporationId: 98000021,
@@ -119,7 +119,7 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
         factionId: null,
       },
     ]);
-    await upsertAffiliations([]);
+    await updateAffiliations([]);
 
     const rows = await harness.db.select().from(characters).orderBy(asc(characters.characterId));
     expect(rows).toHaveLength(1);

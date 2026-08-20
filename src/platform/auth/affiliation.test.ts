@@ -7,7 +7,7 @@ const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
 // The ESI source and the Neon readers/writer are mocked — this exercises the
 // orchestration (refresh) + the fail-closed membership composition in isolation.
 const fetchAffiliationsMock = vi.fn();
-const upsertAffiliationsMock = vi.fn();
+const updateAffiliationsMock = vi.fn();
 const getUserAffiliationsMock = vi.fn();
 const getCharacterAffiliationMock = vi.fn();
 
@@ -15,7 +15,7 @@ vi.mock('./affiliation-source', () => ({
   fetchAffiliations: (...args: unknown[]) => fetchAffiliationsMock(...args),
 }));
 vi.mock('./affiliation-store', () => ({
-  upsertAffiliations: (...args: unknown[]) => upsertAffiliationsMock(...args),
+  updateAffiliations: (...args: unknown[]) => updateAffiliationsMock(...args),
   getUserAffiliations: (...args: unknown[]) => getUserAffiliationsMock(...args),
   getCharacterAffiliation: (...args: unknown[]) => getCharacterAffiliationMock(...args),
 }));
@@ -48,7 +48,7 @@ function staleRow(corporationId: number): CachedAffiliation {
 
 beforeEach(() => {
   fetchAffiliationsMock.mockReset();
-  upsertAffiliationsMock.mockReset();
+    updateAffiliationsMock.mockReset();
   getUserAffiliationsMock.mockReset();
   getCharacterAffiliationMock.mockReset();
 });
@@ -58,23 +58,23 @@ describe('refreshAffiliations', () => {
   it('fetches then upserts and returns the row count', async () => {
     const rows = [{ characterId: 101, corporationId: 2000, allianceId: null, factionId: null }];
     fetchAffiliationsMock.mockResolvedValue({ rows, transientFailure: false });
-    upsertAffiliationsMock.mockResolvedValue(undefined);
+    updateAffiliationsMock.mockResolvedValue(undefined);
 
     expect(await refreshAffiliations([101])).toBe(1);
     expect(fetchAffiliationsMock).toHaveBeenCalledWith([101]);
-    expect(upsertAffiliationsMock).toHaveBeenCalledWith(rows);
+    expect(updateAffiliationsMock).toHaveBeenCalledWith(rows);
   });
 
   it('short-circuits empty input (no fetch, no upsert)', async () => {
     expect(await refreshAffiliations([])).toBe(0);
     expect(fetchAffiliationsMock).not.toHaveBeenCalled();
-    expect(upsertAffiliationsMock).not.toHaveBeenCalled();
+    expect(updateAffiliationsMock).not.toHaveBeenCalled();
   });
 
   it('never throws and returns 0 when the source fails', async () => {
     fetchAffiliationsMock.mockRejectedValue(new Error('boom'));
     expect(await refreshAffiliations([101])).toBe(0);
-    expect(upsertAffiliationsMock).not.toHaveBeenCalled();
+    expect(updateAffiliationsMock).not.toHaveBeenCalled();
   });
 });
 
@@ -92,7 +92,7 @@ describe('refreshStaleAffiliationsForUser', () => {
       rowFor(103, null),
     ]);
     fetchAffiliationsMock.mockResolvedValue({ rows: [], transientFailure: false });
-    upsertAffiliationsMock.mockResolvedValue(undefined);
+    updateAffiliationsMock.mockResolvedValue(undefined);
 
     await refreshStaleAffiliationsForUser('u1');
 
@@ -112,7 +112,7 @@ describe('refreshStaleAffiliationsForUser', () => {
       rows: [{ characterId: 102, corporationId: 2000, allianceId: null, factionId: null }],
       transientFailure: false,
     });
-    upsertAffiliationsMock.mockResolvedValue(undefined);
+    updateAffiliationsMock.mockResolvedValue(undefined);
 
     expect(await refreshStaleAffiliationsForUser('u1')).toBe(1);
   });

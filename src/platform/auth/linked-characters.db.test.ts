@@ -13,7 +13,7 @@ import {
   repointActiveToOldest,
   resolveActiveCharacter,
   setActiveCharacter,
-  upsertCharacterOnLogin,
+  upsertCharacterLoginIdentity,
 } from './linked-characters';
 import { account, characters } from '@/db/auth-schema';
 
@@ -72,7 +72,7 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
       preferences: { pinned: true },
     });
 
-    await upsertCharacterOnLogin({
+    await upsertCharacterLoginIdentity({
       characterId: FIRST_CHAR,
       name: 'New Name',
       portraitUrl: 'https://images.example/new',

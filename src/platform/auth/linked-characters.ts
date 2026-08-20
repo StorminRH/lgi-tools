@@ -5,30 +5,39 @@ import { portraitUrl } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 
-interface UpsertInput {
+/** Login-owned character columns. Role and preferences are not in this write. */
+interface CharacterLoginIdentity {
   characterId: number;
   name: string;
   portraitUrl: string;
 }
 
-export async function upsertCharacterOnLogin(input: UpsertInput): Promise<Character> {
+type CharacterLoginIdentityWrite = {
+  name: string;
+  portraitUrl: string;
+  lastLoginAt: Date;
+  updatedAt: Date;
+};
+
+export async function upsertCharacterLoginIdentity(
+  input: CharacterLoginIdentity,
+): Promise<Character> {
   const now = new Date();
+  const loginIdentity: CharacterLoginIdentityWrite = {
+    name: input.name,
+    portraitUrl: input.portraitUrl,
+    lastLoginAt: now,
+    updatedAt: now,
+  };
   const [row] = await db
     .insert(characters)
     .values({
       characterId: input.characterId,
-      name: input.name,
-      portraitUrl: input.portraitUrl,
-      lastLoginAt: now,
+      ...loginIdentity,
     })
     .onConflictDoUpdate({
       target: characters.characterId,
-      set: {
-        name: input.name,
-        portraitUrl: input.portraitUrl,
-        lastLoginAt: now,
-        updatedAt: now,
-      },
+      set: loginIdentity,
     })
     .returning();
 
@@ -131,14 +140,18 @@ export async function resolveActiveCharacter(
   const chosen = preferred ?? first;
 
   if (preferredId != null && preferred === undefined) {
-    void db
-      .update(user)
-      .set({ activeCharacterId: chosen.characterId, updatedAt: new Date() })
-      .where(eq(user.id, userId))
-      .catch((err) => console.error('[auth] active-character backfill failed', err));
+    scheduleStaleActiveCharacterRepair(userId, chosen.characterId);
   }
 
   return { characterId: chosen.characterId, name: chosen.name, portraitUrl: chosen.portraitUrl };
+}
+
+function scheduleStaleActiveCharacterRepair(userId: string, characterId: number): void {
+  void db
+    .update(user)
+    .set({ activeCharacterId: characterId, updatedAt: new Date() })
+    .where(eq(user.id, userId))
+    .catch((err) => console.error('[auth] active-character backfill failed', err));
 }
 
 export async function accountBelongsToUser(userId: string, characterId: number): Promise<boolean> {

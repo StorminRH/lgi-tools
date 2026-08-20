@@ -29,7 +29,7 @@ import {
 } from './eve-sso';
 import { refreshAffiliations } from './affiliation';
 import { recordAbsorb } from './absorb-context';
-import { resolveActiveCharacter, upsertCharacterOnLogin } from './linked-characters';
+import { resolveActiveCharacter, upsertCharacterLoginIdentity } from './linked-characters';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { getCharacterOwnerReconciler } from './owner-reconcile-hook';
 import { runAfterCharacterLinkChanged } from './identity-projection-hooks';
@@ -203,9 +203,9 @@ const options = {
             // normal relink. Sign-ins carry no link state and never absorb.
             const { absorbed } = await absorbLinkedCharacterOnProof(character.characterId);
             if (absorbed) recordAbsorb(character.characterId);
-            await upsertCharacterOnLogin(character);
+            await upsertCharacterLoginIdentity(character);
             // Refresh this character's cached corp affiliation (3.7.3.2). Runs
-            // AFTER upsertCharacterOnLogin so the `characters` row exists even on
+            // AFTER upsertCharacterLoginIdentity so the `characters` row exists even on
             // a first link. Best-effort, fire-and-forget — an ESI call must never
             // block or fail sign-in (refreshAffiliations also swallows its own
             // errors); on-view + the nightly cron heal anything cut off here.

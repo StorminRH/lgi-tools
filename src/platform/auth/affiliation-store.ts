@@ -86,7 +86,7 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   });
 }
 
-export async function upsertAffiliations(rows: AffiliationRow[]): Promise<void> {
+export async function updateAffiliations(rows: AffiliationRow[]): Promise<void> {
   if (rows.length === 0) return;
   const now = new Date();
   for (const r of rows) {
