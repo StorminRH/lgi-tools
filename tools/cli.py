@@ -16,16 +16,12 @@ from tools._lib.repository import ROOT as REPOSITORY_ROOT
 
 COMMANDS = {
     ("delivery", "github-api"): "tools.delivery.github_api",
-    ("delivery", "merge-clean-pr"): "tools.delivery.merge_clean_pr",
-    ("delivery", "poll-pr-gate"): "tools.delivery.poll_pr_gate",
     ("delivery", "repair-gh-auth"): "tools.delivery.repair_gh_auth",
     ("delivery", "scrub-pr-body"): "tools.delivery.scrub_pr_body",
     ("delivery", "wait-prod-deploy"): "tools.delivery.wait_prod_deploy",
     ("lifecycle", "count-app-facing"): "tools.lifecycle.count_app_facing",
     ("lifecycle", "check-evidence"): "tools.lifecycle.check_lifecycle_evidence",
-    ("lifecycle", "check-pending-changelog"): "tools.lifecycle.check_pending_changelog",
     ("lifecycle", "check-release"): "tools.lifecycle.check_release_consistency",
-    ("lifecycle", "fold-pending-changelog"): "tools.lifecycle.fold_pending_changelog",
     ("lifecycle", "resolve"): "tools.lifecycle.resolve_development_state",
     ("lifecycle", "verify-archive"): "tools.lifecycle.verify_archive",
     ("quality", "check-env-example"): "tools.quality.check_env_example",

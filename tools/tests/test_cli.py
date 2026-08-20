@@ -19,6 +19,11 @@ class CliTests(unittest.TestCase):
         self.assertIn("lifecycle resolve", text)
         self.assertIn("quality check-env-example", text)
         self.assertIn("update-watch collector", text)
+        self.assertIn("update-watch check-baseline", text)
+        self.assertNotIn("poll-pr-gate", text)
+        self.assertNotIn("merge-clean-pr", text)
+        self.assertNotIn("fold-pending-changelog", text)
+        self.assertNotIn("check-pending-changelog", text)
 
     def test_unknown_command_is_usage_error(self) -> None:
         with redirect_stderr(StringIO()):
