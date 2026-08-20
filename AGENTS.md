@@ -185,11 +185,9 @@ still live in the README/`package.json`. Non-obvious caveats:
   (`db:refresh-sde`, `db:refresh-prices`) resolve it with `??`, so the blank
   value shipped in `.env.example` does *not* fall back to `DATABASE_URL`; the
   install script points it at the same local cluster.
-- **Project skills live in `.cursor/skills/`.** Official review skills from
-  Thermos and Cursor Team Kit live here too: `thermos`,
-  `thermo-nuclear-review`, `thermo-nuclear-code-quality-review`, and
-  `deslop`. Thermos owns the quality-review skill; do not keep a Team Kit
-  duplicate.
+- **Project skills live in `.cursor/skills/`.** Review skills here include
+  `thermos`, `thermo-nuclear-review`, `thermo-nuclear-code-quality-review`,
+  and `deslop`.
 - **Custom subagents live in `.cursor/agents/`.**
 - **Playwright Chromium is installed by `.cursor/install.sh`.** Use
   `http://localhost:3000` (the `next-dev` terminal). Seed auth with
