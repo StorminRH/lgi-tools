@@ -154,6 +154,7 @@ describe('rateLimit', () => {
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
     vi.stubEnv('LOCAL_DB_DRIVER', '');
+    vi.stubEnv('VERCEL_ENV', 'production');
     vi.stubEnv('NODE_ENV', 'production');
 
     const { rateLimit } = await importHelper();
@@ -162,12 +163,11 @@ describe('rateLimit', () => {
     ).rejects.toThrow(/UPSTASH_REDIS_REST_URL|KV_REST_API_URL/);
   });
 
-  it('bypasses the limiter on the local/CI sidecar under production next start', async () => {
+  it('bypasses the limiter under production next start when Vercel is not the host', async () => {
     vi.stubEnv('KV_REST_API_URL', '');
     vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
     vi.stubEnv('VERCEL_ENV', '');
     vi.stubEnv('NODE_ENV', 'production');
 

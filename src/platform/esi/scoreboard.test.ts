@@ -488,9 +488,9 @@ describe('resolveScoreboard fallback selection', () => {
     });
   });
 
-  it('returns null in production and logs the misconfiguration once', async () => {
+  it('returns null on hosted Vercel production and logs the misconfiguration once', async () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('LOCAL_DB_DRIVER', '');
+    vi.stubEnv('VERCEL_ENV', 'production');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(resolveScoreboard()).toBeNull();
@@ -499,9 +499,8 @@ describe('resolveScoreboard fallback selection', () => {
     expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the in-process scoreboard on the local/CI sidecar under production next start', async () => {
+  it('uses the in-process scoreboard under production next start when Vercel is not the host', async () => {
     vi.stubEnv('NODE_ENV', 'production');
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
     vi.stubEnv('VERCEL_ENV', '');
 
     expect(resolveScoreboard()).not.toBeNull();

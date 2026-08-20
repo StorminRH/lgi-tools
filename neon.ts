@@ -1,8 +1,9 @@
 // Committed Neon branch-configuration policy (Config-as-Code). The database's
 // desired branch state lives here in the repo — the same committed-config
 // discipline the rest of the stack has — dry-run with `neon config plan` and
-// reconciled with `neon config apply`. Nothing auto-applies it (no CI hook);
-// it takes effect only when someone runs the CLI against a branch.
+// reconcile with `pnpm neon:apply` (`neon config apply` plus a PATCH that
+// clears expiration on standing previews). `neon config apply` alone cannot
+// clear an existing `expiresAt`. Nothing auto-applies it (no CI hook).
 //
 // Branch policy ONLY: no services are declared (no `auth`/`dataApi`/`preview`).
 // Identity is Better Auth, and storage/AI are self-hosted, so the Neon service
@@ -46,6 +47,35 @@ export function resolveNeonBranchPolicy(branch: BranchTarget): BranchTuning {
   if (STANDING_PREVIEW_NAMES.has(branch.name)) return STAGING_POLICY;
   if (branch.name.startsWith('preview/')) return EPHEMERAL_PREVIEW_POLICY;
   return {};
+}
+
+/** True when a standing preview still has an expiration timestamp. */
+export function standingPreviewNeedsExpirationClear(branch: {
+  name: string;
+  expiresAt: string | null | undefined;
+}): boolean {
+  return STANDING_PREVIEW_NAMES.has(branch.name) && branch.expiresAt != null && branch.expiresAt !== '';
+}
+
+/**
+ * Clears expiration on every standing preview that still has one.
+ * `updateExpiration` owns the Neon PATCH; this only chooses which branches.
+ */
+export async function clearStandingPreviewExpirations(
+  branches: readonly {
+    id: string;
+    name: string;
+    expiresAt: string | null | undefined;
+  }[],
+  updateExpiration: (branchId: string) => Promise<void>,
+): Promise<string[]> {
+  const cleared: string[] = [];
+  for (const branch of branches) {
+    if (!standingPreviewNeedsExpirationClear(branch)) continue;
+    await updateExpiration(branch.id);
+    cleared.push(branch.name);
+  }
+  return cleared;
 }
 
 export default defineConfig({

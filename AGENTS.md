@@ -78,7 +78,7 @@ long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
 
 `vercel.json` auto-deploys `main`, `development`, and `staging` only. Neon
 project `lively-mode-73649525`. Convex team `stormin-s-projects`, project
-`lgi-tools`. Apply `neon.ts` with the CLI; nothing auto-applies it. Protected
+`lgi-tools`. Apply `neon.ts` with `pnpm neon:apply`; nothing auto-applies it. Protected
 Neon `main` needs `--allow-protected`. Connection strings use role
 `neondb_owner`.
 

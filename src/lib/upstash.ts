@@ -1,6 +1,6 @@
 import { Redis } from '@upstash/redis';
 import { addDependencyTiming } from '@/lib/dependency-timing';
-import { readEnv } from '@/lib/env';
+import { isHostedVercel, readEnv } from '@/lib/env';
 
 // The single Upstash Redis construction owner. Every consumer resolves its
 // client here so no call site can ship the SDK's implicit defaults — no request
@@ -18,23 +18,25 @@ import { readEnv } from '@/lib/env';
  * (direct signup) — or null when a complete credential pair is unavailable.
  * Callers own their unconfigured behavior.
  */
-export function resolveUpstashRest(): { url: string; token: string } | null {
-  const url = readEnv('KV_REST_API_URL') ?? readEnv('UPSTASH_REDIS_REST_URL');
-  const token =
-    readEnv('KV_REST_API_TOKEN') ?? readEnv('UPSTASH_REDIS_REST_TOKEN');
+function completeRestPair(
+  urlName: 'KV_REST_API_URL' | 'UPSTASH_REDIS_REST_URL',
+  tokenName: 'KV_REST_API_TOKEN' | 'UPSTASH_REDIS_REST_TOKEN',
+): { url: string; token: string } | null {
+  const url = readEnv(urlName);
+  const token = readEnv(tokenName);
   return url && token ? { url, token } : null;
 }
 
-/**
- * Missing Upstash may degrade in dev/test, and on the local/CI TCP sidecar
- * (`LOCAL_DB_DRIVER=postgres-js` + `next start`). Vercel production and
- * preview always fail closed, even if the sidecar driver is set by mistake.
- */
+export function resolveUpstashRest(): { url: string; token: string } | null {
+  return (
+    completeRestPair('KV_REST_API_URL', 'KV_REST_API_TOKEN')
+    ?? completeRestPair('UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN')
+  );
+}
+
+/** Missing Upstash may degrade anywhere that is not hosted Vercel production or preview. */
 export function allowUnconfiguredUpstash(): boolean {
-  const vercelEnv = readEnv('VERCEL_ENV');
-  if (vercelEnv === 'production' || vercelEnv === 'preview') return false;
-  if (process.env.NODE_ENV !== 'production') return true;
-  return readEnv('LOCAL_DB_DRIVER') === 'postgres-js';
+  return !isHostedVercel();
 }
 
 /** Upstash Redis client type, re-exported so wrapper consumers never import the vendor package. */

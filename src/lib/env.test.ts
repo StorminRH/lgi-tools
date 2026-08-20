@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readEnv, requireEnv } from './env';
+import { isHostedVercel, readEnv, requireEnv } from './env';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -45,5 +45,23 @@ describe('requireEnv', () => {
   it('throws when set but empty', () => {
     vi.stubEnv('DATABASE_URL', '');
     expect(() => requireEnv('DATABASE_URL')).toThrowError('DATABASE_URL is not set');
+  });
+});
+
+describe('isHostedVercel', () => {
+  it('is true only for Vercel production and preview', () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    expect(isHostedVercel()).toBe(true);
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    expect(isHostedVercel()).toBe(true);
+  });
+
+  it('is false for local, CI, and vercel development', () => {
+    vi.stubEnv('VERCEL_ENV', undefined);
+    expect(isHostedVercel()).toBe(false);
+    vi.stubEnv('VERCEL_ENV', '');
+    expect(isHostedVercel()).toBe(false);
+    vi.stubEnv('VERCEL_ENV', 'development');
+    expect(isHostedVercel()).toBe(false);
   });
 });

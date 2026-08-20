@@ -19,6 +19,7 @@
     "scripts/ux-remote-auth.mjs",
     "scripts/run-e2e.mjs",
     "scripts/verify-site-detail-routes.mjs",
+    "scripts/apply-neon-config.ts",
     "src/scripts/map-replay.ts",
     "src/scripts/project-map-access.ts",
     "drizzle.config.ts",

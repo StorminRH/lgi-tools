@@ -100,3 +100,9 @@ export function requireEnv(name: RequiredEnvName): string {
   if (!value) throw new Error(`${name} is not set`);
   return value;
 }
+
+/** Hosted Vercel production or preview. Local, CI `next start`, and `vercel dev` are not. */
+export function isHostedVercel(): boolean {
+  const vercelEnv = readEnv('VERCEL_ENV');
+  return vercelEnv === 'production' || vercelEnv === 'preview';
+}
