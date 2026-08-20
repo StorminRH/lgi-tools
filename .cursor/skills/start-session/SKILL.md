@@ -10,7 +10,9 @@ lifecycle state and handler selection. This skill owns branch selection,
 pre-dispatch validation, dispatch, resumption, land-on-development, and
 return behavior.
 
-`development` is the entry tip for every branch this skill cuts.
+`development` is the entry tip. Planning artifacts land there. Each Ordered
+work (OW) step uses one lifecycle branch, then lands on `development` and
+is cleaned.
 
 Inputs: current `origin/development`, live roadmap/contract/plan state, the
 resolver directive, and a worktree whose local changes have an explicit
@@ -19,8 +21,8 @@ disposition.
 Output: one dispatched handler result followed by a fresh resolver directive,
 or a stop at the directive's named pause. Planning outcomes are terminal
 unless the operator approved a one-time bootstrap transition. When the
-handler is `start-session`, output is one Ordered work (OW) step landed on
-`development` plus `OW_HANDOFF`, or a pause/block. Close-out is a later chat.
+handler is `start-session`, output is one OW step landed on `development`
+plus `OW_HANDOFF`, or a pause/block. Close-out is a later chat.
 
 ## 1. Resolve and select the branch
 
@@ -29,21 +31,23 @@ directive is the dispatch contract, and `preDispatchGate` passed.
 
 1. Run `python3 tools/cli.py lifecycle resolve --pretty` and report the
    directive's action, reason, authority, primary artifact, branch, and pause.
-   Do not infer a stage from the current branch.
+   The resolver names the stage.
 2. Stop when the worktree contains unexplained changes. Preserve authorized
-   work. In-progress work is explained when HEAD is this step's OW branch and
-   the dirty files belong to that step.
+   work. In-progress OW is explained when HEAD is this step's lifecycle
+   branch and the dirty files belong to that step. In-progress planning is
+   explained when the dirty files are that handler's artifact on
+   `development` or its short-lived branch.
 3. Fetch `origin/development` and `origin/staging`.
-4. Name and select the work branch from current `origin/development`:
+4. Select the work branch from current `origin/development`:
    - Handler `start-session`: `lifecycle/<session>-ow-<n>` for the next
      incomplete Ordered work step (`n` is 1-based). Create it from
-     `origin/development` when it is missing. Resume it when it exists and
-     its tip is not already on `origin/development`. A step whose tip is
-     already on `origin/development` is landed; take the next incomplete
-     step.
-   - Any other handler: the directive's `lifecycle/<sub-version>` branch,
-     created from `origin/development` when missing, otherwise resumed and
-     rebased onto `origin/development`.
+     `origin/development` when it is missing. Resume it when it still exists
+     and is not yet landed. A landed step has its commit on
+     `origin/development` and no leftover source branch; take the next
+     incomplete step.
+   - Planning and other handlers: persist on `development`, or on a
+     short-lived branch cut from `origin/development`. After approval, land
+     and clean onto `development`. The next OW branch is cut from that tip.
 5. Rerun the resolver on the selected branch. That second directive is the
    dispatch contract.
 6. Run its `preDispatchGate`. A recognized pre-PR, reconciled, or
@@ -55,16 +59,35 @@ Done when the named handler has run to its own stop, or this skill has
 stopped at a null handler.
 
 1. If `handler` is null, stop at the named pause.
-2. Otherwise invoke only the named skill. Do not select a sibling or
-   reconstruct its steps here.
-3. Follow that skill in order. Honor the directive's authority and every
-   operator pause.
-4. Planning handlers stay read-only until approval, persist only their
-   canonical artifact afterward, rerun the resolver, and stop. Execution
-   begins with a fresh start-session unless the operator authorized a
-   bootstrap transition in the approved session plan.
+2. Otherwise invoke only the named skill. Follow that skill in order. Honor
+   the directive's authority and every operator pause.
+3. Planning handlers stay read-only until approval, persist only their
+   canonical artifact, land and clean that commit onto `development`,
+   rerun the resolver, and stop. Execution begins with a fresh start-session
+   unless the operator authorized a bootstrap transition in the approved
+   session plan.
 
-## 3. Execute an approved session
+## 3. Land and clean
+
+Done when the named commit is on `origin/<line>`, this worktree is on that
+tip, and the source branch is gone from origin and this worktree.
+
+`<line>` is `development` for this skill. The same cleanup runs after a land
+onto `staging` or `main`.
+
+1. Fetch `origin/<line>`. Rebase the source branch onto it when the line has
+   moved. Re-run the local test suite after a rebase that carries
+   implementation commits.
+2. Fast-forward `origin/<line>` to this commit
+   (`git push origin HEAD:<line>`).
+3. Check out `<line>` at that tip. Delete the source branch on origin and
+   locally (`git push origin --delete <source>` when it was pushed, then
+   `git branch -D <source>`). Leave `development`, `staging`, and `main`.
+
+A `development` land uses this push. `adversarial-review` belongs to
+close-out.
+
+## 4. Execute an approved session
 
 When the handler is `start-session`, read only what is not already in
 context: this session's approved contract and plan, and prior as-builts in
@@ -109,9 +132,9 @@ skips this prelude.
 
 ### Prove, review, and land
 
-Done when the OW commit is on `origin/development`, the local test suite
-was green after the last review, and the handoff reports the app-facing
-count versus `staging`.
+Done when the OW commit is on `origin/development`, the source lifecycle
+branch is gone, the local test suite was green after the last review, and
+the handoff reports the app-facing count versus `staging`.
 
 1. After the step's focused proof, invoke `gate-runner` with the local test
    suite from AGENTS.md Seats plus those focused evidence commands. Require a
@@ -126,21 +149,14 @@ count versus `staging`.
    after that last review is green.
 5. Commit the verified OW scope, implementation and tests. Leave the frozen
    session plan and `Execution status` untouched.
-6. Fetch `origin/development`. Rebase the OW branch onto it when development
-   has moved, and re-run the local test suite after that rebase. Fast-forward
-   `origin/development` to this commit (`git push origin HEAD:development`).
-   Push the OW branch. No pull request. No Depot wait.
-   `adversarial-review` belongs to close-out.
-7. Count app-facing files in
-   `git diff --name-only origin/staging...origin/development`. App-facing
-   means runtime, tests, CI, and committed config. Documentation and policy
-   are excluded: `.cursor/skills`, `.cursor/agents`, `AGENTS.md`,
+6. Land and clean that commit onto `development`. Then count app-facing
+   files in `git diff --name-only origin/staging...origin/development`.
+   App-facing means runtime, tests, CI, and committed config. Documentation
+   and policy are excluded: `.cursor/skills`, `.cursor/agents`, `AGENTS.md`,
    `CONTRIBUTING.md`, `docs/`, changelog, PR templates, `.fallowrc.json`,
    unless those files are the ask. Report `app-facing <n>/100` in the
    handoff. At or over 100, the handoff names that a promote is due before
    more app-facing work.
-
-Do not start the next Ordered work step or close-out in this chat.
 
 Stop with `OW_HANDOFF` and a copy-paste handoff prompt. Mid-session progress
 and next-agent notes live in that prompt, not in git. When more Ordered work
@@ -150,16 +166,16 @@ remains:
 Continue planned session <id> via start-session. Next branch: `lifecycle/<id>-ow-<k+1>` from origin/development.
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
-Landed OW 1..<k> on development (<sha>). App-facing vs staging: <n>/100.
+Landed OW 1..<k> on development (<sha>). Source branch cleaned. App-facing vs staging: <n>/100.
 Next: Ordered work step <k+1> — <title from plan>.
 Next-agent notes: <gotchas, open operator dispositions, paths to reopen, or None>.
-Do not replan; do not close-out; execute only that step, then local test suite + structure-reviewer + behavior-reviewer + commit + land on development + handoff.
+Execute only that step, then local test suite + structure-reviewer + behavior-reviewer + commit + land and clean onto development + handoff.
 ```
 
 When this was the last Ordered work step:
 
 ```text
-Planned session <id> Ordered work is complete. Last OW landed on development (<sha>).
+Planned session <id> Ordered work is complete. Last OW landed on development (<sha>). Source branch cleaned.
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 App-facing vs staging: <n>/100.
@@ -167,14 +183,14 @@ Run close-out in planned mode only (no further OW).
 Next-agent notes: <gotchas, open operator dispositions, or None>.
 ```
 
-## 4. Stop and resume
+## 5. Stop and resume
 
 Stop on a named operator gate, an unresolved in-session design discussion,
 failed mandatory check, unexplained worktree state, missing authority, or
 after a completed Ordered work step (`OW_HANDOFF`). On resumption, re-enter
-through this skill, select the same OW branch when that step is not yet on
-`origin/development`, rerun the resolver and pre-dispatch gate, and continue
-at the next incomplete Ordered work step only.
+through this skill, select the same lifecycle branch when that step is not
+yet landed, rerun the resolver and pre-dispatch gate, and continue at the
+next incomplete Ordered work step only.
 
 ## Return
 
