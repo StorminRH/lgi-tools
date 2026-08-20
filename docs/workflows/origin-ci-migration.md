@@ -10,6 +10,14 @@ execution chat)
 **Execution status:** Pending
 **Baseline effect:** Neutral
 
+**Settled loop (live):** Land each Ordered work step on `development`
+(fast-forward, no land PR). Promote at 80 app-facing files versus
+`staging`. A dump over 100 files is blocked. Release is
+`staging` → `main`. As-builts land on the promote PR. The public
+changelog is written at release from those as-builts. `close-out` has
+two rituals. Remaining work in this plan is `ux-check`, schemas,
+Linear/GrokBots, standing `staging` backends, and local/cloud parity.
+
 This file is the execution prompt for the migration. Publish it first.
 Then run each Ordered work step as a later ordinary-work chat. Origin
 and Depot land first so later skill visits, previews, and tracker work
@@ -20,8 +28,8 @@ happen on the stack you will keep.
 - **GOAL:** Origin is where you code, run CI, open previews, merge, and
   ship. Depot is the only gate and runs real Postgres. Vercel previews
   replace laptop `pnpm dev` in most cases. Work lands on
-  `development`. Reviewed chunks promote to `staging` when the file
-  count vs `staging` is around **100** (the bot-review bar). Merging
+  `development`. Reviewed chunks promote to `staging` at **80
+  app-facing files**. Merging
   `staging` → `main` is the **release** and **Production** (Vercel
   auto-deploys `main`). `development` is the short-lived Preview that
   replaces laptop `pnpm dev` for ordinary looks. `staging` is the
@@ -30,7 +38,8 @@ happen on the stack you will keep.
   Cursor-native workflow.
 - **DONE =** SC-1 through SC-11 below, plus: Origin-hosted repo, Depot
   Checks, preview-as-dev, `development` / `staging` / `main` lines,
-  GitHub bots only on ~100-file staging dumps, tracker + GrokBots
+  GitHub bots only on promote dumps (80 app-facing, blocked well over
+  100 files), tracker + GrokBots
   retargeted, skills visited in isolation, and local/cloud parity.
 - **OUT OF SCOPE:**
   - Implementing any Ordered work step in the same PR as this plan.
@@ -91,7 +100,7 @@ happen on the stack you will keep.
   merge gate.
 - **Plan:** A merge to `development` or `staging` is not a release.
   Do not bump `APP_VERSION`, do not publish a `### vX.Y.N` heading,
-  and do not fold pending changelog fragments until `staging` merges
+  and do not write a public changelog until `staging` merges
   to `main`. Session contract numbers (`X.Y.N.M`) stay internal
   planning IDs. Do not rewrite completed 4.0 as-builts to pretend they
   already worked this way.
@@ -112,10 +121,9 @@ happen on the stack you will keep.
   `[Backlog]`, or the refactor process issue until OW-14 proves those
   connectors against the Origin repo. Test-cleanup is a draft PR, not
   an issue — do not invent an issue for it.
-- **Plan:** Delete `poll_pr_gate.py` and `merge_clean_pr.py` as a pair,
-  only after a named replacement merge command exists. Keep
-  `github_api.py`, `scrub_pr_body.py`, `repair_gh_auth.py` while any
-  remaining helper still uses them.
+- **Plan:** `poll_pr_gate.py` and `merge_clean_pr.py` are gone. Merge
+  with `origin pr merge`. Keep `github_api.py`, `scrub_pr_body.py`,
+  `repair_gh_auth.py` while the GitHub dump still needs them.
 - **Plan:** Do not commit `.env*`. Origin Private does not add extra
   secret files; `.gitignore` rides in the dump.
 - **Plan:** Do not shard Vitest unless one Istanbul
@@ -199,15 +207,14 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 ## Why now
 
 You want to stop treating the laptop as the app and GitHub as the forge.
-Origin plus Depot plus Vercel-on-Origin can be the daily loop: CI on
-the PR, click the Preview, merge into `development`, and only touch
-GitHub when a ~100-file chunk is ready for `staging`. Temporary
-previews must not leave Neon and Convex running; `staging` keeps one
-cheaper pair.
+Origin plus Depot plus Vercel-on-Origin is the daily loop: land on
+`development`, look at the Preview, promote at 80 app-facing files,
+and only touch GitHub for that dump. Temporary previews must not
+leave Neon and Convex running; `staging` keeps one cheaper pair.
 Issues that need a board (feedback, update-watch, refactor process)
 move to Linear because the Cursor app, Cloud Agents, and GrokBots
 already have that connector. Planned sessions keep contracts and
-ordered work, but they stop minting a public version on every merge;
+ordered work, but they stop minting a public version on every land;
 `development` is the integration line, `staging` is the reviewed
 moving branch, and `main` is the release cut. Origin and Depot first
 so later visits use the remotes you will keep.
@@ -226,16 +233,15 @@ When the last Ordered work step is done:
   preview deployment. That URL is the usual place to prove a feature.
   After it is proven, both backends are torn down. Laptop `pnpm dev`
   is optional.
-- Passing feature work (planned session or ordinary) merges to
-  Origin `development`. No version bump. A pending changelog fragment
-  records what changed.
-- When `git diff --name-only staging...development` is around **100
-  files** and Depot is clean: dump that range to GitHub, **manually**
-  request Greptile/CodeRabbit, triage, fix on Origin, merge
-  `development` → `staging`. `staging` is the standing cheaper
-  preview of reviewed work.
+- Passing feature work (planned session or ordinary) lands on
+  Origin `development`. No version bump. No land PR. No pending
+  changelog fragment.
+- When app-facing files versus `staging` hit **80** and Depot is
+  clean: promote `development` → `staging` through `close-out`. Dump
+  that range to GitHub for bots. A dump well over **100** files is
+  blocked. `staging` is the standing cheaper preview of reviewed work.
 - When you want production: merge Origin `staging` → `main` as a
-  **release** (fold pending fragments, publish one `### vX.Y.N`, set
+  **release** (write one `### vX.Y.N` from the as-builts, set
   `APP_VERSION`). Vercel auto-deploys Production. You may run several
   staging review-chunk merges before one release.
 - Vercel no longer watches GitHub.
@@ -293,13 +299,13 @@ When the last Ordered work step is done:
   `main` is the release cut. **Rejected:** one long `beta` that grows
   past what Greptile/CodeRabbit can read, then one dump of the whole
   pile.
-- **GitHub bot bar: ~100 files vs `staging`.** Measure
-  `git diff --name-only staging...development | wc -l`. When it is
-  around 100 and the chunk is clean, dump **that range**, request
-  bots manually, fix on Origin, fast-forward or merge into `staging`.
-  You may cut a smaller chunk; do not dump a larger one. Repeat until
-  `staging` holds everything you want in the next release.
-  **Rejected:** bots on every Origin PR; bots as the merge gate; one
+- **Promote at 80 app-facing files vs `staging`.** Measure with
+  `python3 tools/cli.py lifecycle count-app-facing`. Dump that range
+  to GitHub, request bots manually, fix on Origin, merge the Origin
+  PR onto `staging`. A dump well over **100** files is blocked.
+  You may cut a smaller chunk. Repeat until `staging` holds
+  everything you want in the next release.
+  **Rejected:** bots on every land; bots as the merge gate; one
   giant dump at release time if it exceeds the bar (split first).
 - **Production:** merge Origin `staging` → `main`. Vercel auto-deploys
   Production from `main`. That merge is the deploy. No separate
@@ -320,12 +326,11 @@ When the last Ordered work step is done:
   remotes. Contracts → plans → ordered work stay as the way you
   *do* work. They stop being the way you *version* the product.
 - **Release train with a review staging line.** Many small landings
-  on `development`. Chunked bot review + promote to `staging` at the
-  ~100-file bar. One release when you cut `staging` → `main`. Pending
-  fragments accumulate from every landing; fold only at that cut.
-  You pick the public number at cut time (`4.0.6`, or `4.1.0` if the
-  theme changed) — not from the last session id. Git tags (`v4.0.6`)
-  are optional later.
+  on `development`. Promote to `staging` at 80 app-facing files.
+  One release when you cut `staging` → `main`. As-builts accumulate
+  on each promote PR; the public changelog is written at that cut.
+  The public number is the latest lifecycle identity already on
+  `staging`. Git tags (`v4.0.6`) are optional later.
 - **Linear is the issue board.** Cursor, Cloud Agents, and GrokBots
   already have Linear connectors. Origin still has no issues. Free
   cap is **250 issues** — do not import closed GitHub history. OW-14
@@ -379,48 +384,35 @@ When the last Ordered work step is done:
   terminals, not as a parallel `pnpm dev:all` path agents must
   remember.
 
-### Release model (what to keep, what to change)
+### Release model
 
-You already have most of a traditional release train. The missing piece
-is that **planned close-out treats every finished sub-version as a
-public release**: merge to `main`, bump `APP_VERSION` (today
-`4.0.5.1`), publish `### v4.0.5.1`, fold pending fragments. Ordinary
-work already does the right smaller thing (a pending fragment, no
-version). After this migration, **everything that lands on `development`
-behaves like today’s ordinary work**. The version happens once, when
-you cut `staging` → `main`.
-
-Think of four layers. They stay separate:
+Four layers. They stay separate:
 
 | Layer | What it is | When it moves |
 | --- | --- | --- |
-| **Work package** | Session contract → plan → ordered work (or an ordinary PR) | Merge to Origin `development` when that slice is proven |
-| **Review chunk** | Files on `development` that `staging` does not have yet | When `git diff --name-only staging...development` is around **100**, dump that range to GitHub, request bots, merge to `staging` |
-| **Release** | One public number + one changelog entry + `APP_VERSION` | Merge Origin `staging` → `main` |
-| **Production** | Users on `lgi.tools` | Merge Origin `staging` → `main` (Vercel auto-deploys) |
+| **Work package** | Session contract → plan → ordered work (or ordinary work) | Fast-forward onto Origin `development` when that step is proven. No land PR. |
+| **Review chunk** | App-facing files on `development` that `staging` does not have yet | At **80** (`lifecycle count-app-facing`). Dump that range to GitHub, request bots, merge the Origin PR onto `staging`. A dump well over **100** is blocked. |
+| **Release** | One public number + one changelog entry + `APP_VERSION` | Merge Origin `staging` → `main`. Write the changelog from the as-builts on that range. |
+| **Production** | Users on `lgi.tools` | That same `staging` → `main` merge (Vercel auto-deploys) |
 
-That is a development → staging → main train. Many small landings,
-chunked bot review at the file-count barn, one versioned cut that
-auto-deploys. You do not need a new numbering invention to start.
+That is a development → staging → main train. Many small lands,
+promote at 80, one versioned cut that auto-deploys.
 
 **Why `development` and `staging`, not one long `beta`:** Greptile
 and CodeRabbit are not reliable past ~100 files. A single
 integration branch that grows for weeks cannot be dumped whole. So
-`development` is the daily land (no version, pending fragment,
-ephemeral Preview). `staging` is the reviewed moving branch
-(durable cheaper Neon + one Convex, standing Preview). You run
-overwork sessions until the unreviewed file count vs `staging` is
-around 100, then you submit that chunk — not the whole pile. Repeat
-until `staging` holds what you want in the next release. Then one
-`staging` → `main` cut.
+`development` is the daily land (no version, no changelog, ephemeral
+Preview). `staging` is the reviewed moving branch (durable cheaper
+Neon + one Convex, standing Preview). Promote writes as-builts on
+the Origin PR. Repeat until `staging` holds what you want in the
+next release. Then one `staging` → `main` cut.
 
 **Keep (this is project management, not releasing):**
 
 - Contracts, plans, and ordered work as the way a planned slice is
   specified and executed.
-- As-builts as “what that session actually did.”
-- Pending fragments as the inbox of user-facing notes that are not
-  public yet (`docs/workflows/schema/changelog-pending.md`).
+- As-builts as “what that session actually did,” written on the
+  promote PR.
 - Ordinary vs planned as *how the work was authorized*, not as *whether
   it gets a version*.
 
@@ -428,27 +420,21 @@ until `staging` holds what you want in the next release. Then one
 
 - Session id `4.0.5.1.1` is a planning label. It must not force
   `APP_VERSION` `4.0.5.1`.
-- “Final session of a sub-version” no longer opens the release PR to
-  `main`. It merges to `development` and drops a pending fragment like
-  everyone else.
+- A finished session lands on `development`. It does not open a
+  release PR and does not write a changelog fragment.
 - “Shipped” in contracts/schemas splits: **landed** (on
   `development`, short-lived Preview) vs **reviewed** (on `staging`,
   long-lived Preview) vs **released / in production** (on `main`,
   version published, Vercel auto-deployed).
-- Close-out grows **three named rituals**:
-  1. **Land on `development`** (today’s default after this rewrite,
-     including a “final” session). Short-lived Preview.
-  2. **Promote a review chunk** (bots + dump + merge to `staging`)
-     when the file count vs `staging` is around 100. Long-lived
-     Preview updates.
-  3. **Cut a release** (`staging` → `main` + fold + bump). Production
-     auto-deploys.
+- `close-out` has **two rituals**: promote (`development` →
+  `staging`) and release (`staging` → `main`). Land lives in
+  `start-session`.
 
 **How to pick the public number at cut time (plain rule):**
 
 - Same master theme (`4.0` Atlas, etc.): increment the last published
   `N` (`4.0.5` → `4.0.6`) for the whole bundle on `staging`, no matter
-  how many sessions or ordinary PRs piled up.
+  how many sessions or ordinary lands piled up.
 - New theme / new master plan: start `4.1.0` (or whatever the new
   `X.Y` is) as the first release of that line.
 - Do not mint a version per session “so the numbers match the
@@ -458,11 +444,10 @@ Optional later, not required: a git tag `v4.0.6` on the release
 commit. The site already keys off `APP_VERSION` and
 `content/changelog/vX.Y.md`.
 
-**What agents write on a `development` landing:** exactly one pending fragment
-(planned or ordinary). No `content/changelog/v4.0.md` heading, no
-`src/config/app-version.ts` edit. The fold command you already have
-(`python3 tools/cli.py lifecycle fold-pending-changelog`) runs only
-on the release close-out.
+**What agents write on a `development` landing:** nothing in
+`content/changelog/` and nothing in `src/config/app-version.ts`.
+Pending fragments stay retired. Release writes the public entry
+from the as-builts.
 
 ### Audit-remediation mapping
 
@@ -488,8 +473,7 @@ product behavior.
 
 - **Effect:** Neutral — this plan adds no production export and no
   Fallow pressure.
-- **Required update:** None for the plan PR. The feedback retarget
-  (OW-15) refreshes baseline only if a measured file changes.
+- **Required update:** None.
 
 ## Implementation blueprint
 
@@ -502,14 +486,12 @@ product behavior.
 - `vercel.json` + Vercel project git settings — OW-5, OW-17.
 - `neon.ts` — preview TTL/compute and the `staging` cheap-sleep arm
   (OW-5 / OW-17). Nothing applies until `neon config apply`.
-- `.cursor/skills/start-session/SKILL.md` — OW-6 only.
-- `.cursor/skills/plan-session/SKILL.md` — OW-7 only.
-- `.cursor/skills/close-out/SKILL.md` — OW-8 only.
+- `.cursor/skills/start-session/SKILL.md` — done.
+- `.cursor/skills/plan-session/SKILL.md` — done.
+- `.cursor/skills/close-out/SKILL.md` — done.
 - `.cursor/skills/ux-check/SKILL.md` — OW-9 only.
-- `.cursor/skills/resolve-update-watch/SKILL.md` and
-  `update-watch/SKILL.md` — OW-10 only.
-- Remaining lifecycle skills listed in OW-11 — one file per chat.
-- `tools/delivery/poll_pr_gate.py`, `merge_clean_pr.py` — OW-12.
+- `.cursor/skills/update-watch/SKILL.md` — done.
+- `tools/delivery/poll_pr_gate.py`, `merge_clean_pr.py` — deleted.
 - `src/features/feedback/create-github-issue.ts`,
   `src/app/api/feedback/route.ts`, `src/features/feedback/categories.ts`,
   `src/lib/env.ts`, `'github-issues'` in
@@ -522,16 +504,18 @@ product behavior.
 
 ### Interfaces and contracts
 
-- `depot ci run --workflow <file> --job verify` — agent/laptop gate.
-- Full Depot workflow on an Origin PR — `verify` + `build` + `e2e`.
-  Wait with `origin pr checks --watch`.
+- Cheap local gate on land: typecheck, lint, Fallow dead-code +
+  dupes + health, focused tests.
+- Full Depot workflow on a promote or release Origin PR —
+  `verify` + `build` + `e2e`. Wait with `origin pr checks --watch`.
 - Origin `development` push → short-lived Vercel Preview — usual look
   instead of laptop `pnpm dev`. Feature-branch Preview is manual.
-- `origin pr merge` into `development` — daily land. Does not
-  promote to `staging` or production.
-- GitHub dump of `staging...development` when the file count is
-  around **100** + **manual** bot request — review chunk only.
-  Never merge the dump. Then merge Origin `development` → `staging`.
+- Fast-forward onto `development` (`git push origin HEAD:development`)
+  — daily land. No land PR. Does not promote or release.
+- GitHub dump of `staging...development` at **80** app-facing files +
+  **manual** bot request — promote only. Never merge the dump. Then
+  merge the Origin PR onto `staging`. A dump well over **100** is
+  blocked.
 - `origin pr merge` (`staging` → `main`) — release and Production
   auto-deploy.
 - Feedback: today `POST /repos/StorminRH/lgi-tools/issues`. After
@@ -544,28 +528,27 @@ product behavior.
 Target daily path after OW-5:
 
 1. Agent works against `https://origin.cursor.com/{owner}/{repo}.git`.
-2. Cheap local gate: typecheck, lint, Fallow dead-code + dupes, focused
-   tests. Standing done is the Origin PR Depot pipeline.
-3. Land on **`development`**. Depot runs. Vercel updates the
-   short-lived `development` Preview (Neon + ephemeral Convex). Use
-   that URL instead of laptop `pnpm dev` unless you choose otherwise.
-   A feature-branch Preview is manual when you want one.
-4. Repeat overwork sessions. Measure
-   `git diff --name-only staging...development | wc -l`. When it is
-   around **100** and Depot is clean, dump **that range** to GitHub
-   (branch, not a merge). Manually request Greptile and CodeRabbit.
-   Triage. Fix on Origin. Re-check Depot. Merge Origin
-   `development` → `staging`. The long-lived `staging` Preview (one
-   cheaper Neon + one Convex) updates. You may cut a smaller chunk;
-   do not dump a larger one.
-5. Repeat staging promotes until `staging` holds the next release.
+2. Cheap local gate: typecheck, lint, Fallow dead-code + dupes +
+   health, focused tests.
+3. Land on **`development`** (fast-forward, then delete the source
+   branch). Vercel updates the short-lived `development` Preview
+   (Neon + ephemeral Convex). Use that URL instead of laptop
+   `pnpm dev` unless you choose otherwise. A feature-branch Preview
+   is manual when you want one.
+4. Repeat Ordered work. After each land run
+   `python3 tools/cli.py lifecycle count-app-facing`. At **80**,
+   `close-out` promotes: dump that range to GitHub, request Greptile
+   and CodeRabbit, fix on Origin, wait for Depot on the Origin PR,
+   merge onto `staging`. Write as-builts on that PR. A dump well
+   over **100** is blocked.
+5. Repeat promotes until `staging` holds the next release.
 
 When you ask for a release:
 
-6. Fold pending fragments, pick `X.Y.N`, set `APP_VERSION`, merge
+6. Write the public changelog from the as-builts, set `APP_VERSION`
+   to the latest lifecycle identity already on `staging`, merge
    Origin `staging` → Origin `main`. Vercel auto-deploys Production.
-   Do not dump the whole `staging` pile to bots unless that remaining
-   diff is still under the 100-file bar.
+   Bots already saw this work at promote.
 
 Issues and GrokBots (parallel, after OW-14):
 
@@ -627,11 +610,9 @@ Do not implement a later step in an earlier chat.
    and Playwright against `next start`. Prove with a PR whose Checks
    include both jobs.
 
-4. **Agent definition of done.** Change `AGENTS.md`, close-out’s DoD
-   line, CONTRIBUTING, and the PR template so agents run
-   `depot ci run --job verify` and wait with `origin pr checks
-   --watch`. Remove `pnpm verify` as the standing gate. Prove by
-   reading those files.
+4. **Done.** Land uses the cheap local gate. Promote and release
+   wait on that Origin PR's Depot pipeline. `pnpm verify` is not
+   done.
 
 5. **Vercel-on-Origin preview process.** Connect the `lgi-tools` Vercel
    project to Origin (`origin.cursor.com/stormin/lgi-tools`) if it is
@@ -650,72 +631,36 @@ Do not implement a later step in an earlier chat.
    auto-deploys Production; `development` and `staging` are the two
    standing Preview lines.
 
-6. **Isolated visit: `start-session`.** Change only
-   `.cursor/skills/start-session/SKILL.md` so resolver, dispatch, “what
-   happens,” and the general start flow match Origin remotes, Depot
-   Checks, Preview-as-dev, and merge-to-`development`. Prove by walking the
-   rewritten flow on paper. Do not edit other skills.
+6. **Done.** `start-session` lands each Ordered work step on
+   `development`.
 
-7. **Isolated visit: planned-session flow.** Change only
-   `plan-session` so a planned session is still something you want
-   (contract → plan → ordered work), and so its **delivery unit** is
-   a PR onto `development`, not a sub-version release onto `main`. Prove by
-   comparing one existing session plan’s OW shape to the rewritten
-   skill. Do not bump versions in this chat.
+7. **Done.** `plan-session` sizes thin Ordered work steps that land
+   on `development`.
 
-8. **Isolated visit: `close-out`.** Change only
-   `.cursor/skills/close-out/SKILL.md` so there are three named
-   rituals:
-   - **Land on `development`** (ordinary or planned, including a
-     “final” session): Depot green, Preview used, pending fragment,
-     merge to Origin `development`. No `APP_VERSION`, no
-     `### vX.Y.N`, no fold, no GitHub dump.
-   - **Promote a review chunk** (when
-     `git diff --name-only staging...development` is around **100**
-     and you ask, or when you ask for a smaller clean chunk): dump
-     that range to GitHub, **manual** bots, fix on Origin, merge
-     `development` → `staging`. Never merge the dump. Never dump
-     more than the bar.
-   - **Cut a release** (only when you ask): fold pending fragments,
-     pick the public `X.Y.N`, set `APP_VERSION`, merge `staging` →
-     `main`. Vercel auto-deploys Production.
-   Prove with a paper dry-run of the three rituals. Do not flip
-   `vercel.json` in this chat.
+8. **Done.** `close-out` has two rituals: promote and release.
 
 9. **Isolated visit: `ux-check`.** Change only the ux-check skill and
    `docs/ux-check/README.md` so automated evidence is “Depot `e2e` was
    green,” visual review uses the Vercel Preview URL (laptop optional),
    and agents still must not visually approve.
 
-10. **Isolated visit: update-watch pair.** Change only
-    `resolve-update-watch` and `update-watch` so review/merge follow
-    Origin + Depot + `development`. Issue create/list may still be GitHub
-    until OW-14. No `poll-pr-gate`. Must not merge or promote.
+10. **Done.** `update-watch` is report-only. Absorption is later
+    ordinary work when the operator asks. Issue create may stay
+    GitHub until OW-14.
 
-11. **Isolated visits: remaining lifecycle skills.** One chat per
-    skill, in the order you choose: `plan-version`,
-    `triage-issue`, `adversarial-review`, `deslop` if the slop bot
-    should own it. Each chat edits that skill only.
+11. **Done.** `plan-version`, `adversarial-review`, and `deslop` match
+    the settled loop. There is no `triage-issue` skill.
 
-12. **Delivery scripts.** After OW-8 names the replacement merge
-    command, delete `poll_pr_gate.py` and `merge_clean_pr.py` as a
-    pair. Keep `github_api.py`, `scrub_pr_body.py`,
-    `repair_gh_auth.py` until GitHub dump comments no longer need
-    them. Prove: no caller remains for the deleted pair.
+12. **Done.** `poll_pr_gate.py` and `merge_clean_pr.py` are gone.
+    Merge with `origin pr merge`. Pending-changelog fold and check
+    are gone.
 
-13. **Standing docs after skills settle.** Change
-    `docs/workflows/schema/session-contract.md` (delivery unit → PR
-    to `development`; “shipped” splits landed / reviewed / released /
-    in production),
-    `session-plan.md`, `session-as-built.md` (land SHA vs staging SHA
-    vs release SHA vs promote SHA), `changelog-pending.md` (fold only on cut
-    release, including planned landings), `changelog-entry.md` (one
-    entry per cut, not per sub-version session), and
-    `docs/VERSION_4_0_PLAN.md` standing language (not completed
-    rows), plus contributing test docs and README. Depot is the
-    gate. Preview is the usual look. `*.db.test.ts` is a `verify`
-    requirement. Prove `check-doc-refs` / pending-changelog checker
-    clean on touched files.
+13. **Standing schemas after skills settle.** Change the session
+    contract, plan, as-built, and changelog schemas so they match
+    the settled loop (land on `development`, as-builts on the promote
+    PR, changelog at release). Depot is the promote/release gate.
+    Preview is the usual look. `*.db.test.ts` is a Depot `verify`
+    requirement. Prove `check-doc-refs` clean on touched files.
 
 14. **Linear connector proof.** Create (or reuse) a Linear workspace
     on the Free plan. Confirm 250-issue headroom against the 31 open
@@ -874,41 +819,10 @@ repo Playwright version. Upload failure artifacts only.
 | Playwright | no | yes |
 | Where it runs | Depot VM | Depot VM |
 
-### Target close-out shape (written in OW-8, not this PR)
+### Target close-out shape
 
-```markdown
-## 5. Land on development (ordinary or planned — including a “final” session)
-
-1. Reuse Depot `verify` when the head is unchanged.
-2. Open one draft Origin PR. Scrub the body.
-3. Wait: `origin pr checks --watch`.
-4. Use the Vercel Preview URL (laptop `pnpm dev` only if you choose).
-5. Write exactly one pending changelog fragment. Do not edit
-   `APP_VERSION` or `content/changelog/vX.Y.md`.
-6. Origin review. Tear down the feature Preview’s Neon `preview/*`
-   branch and Convex preview deployment. Merge to Origin `development`.
-7. Stop. Do not promote to staging. Do not dump to GitHub. Do not
-   request bots. Do not fold pending fragments.
-
-## 6. Promote a review chunk (when the file-count barn is met)
-
-1. Measure `git diff --name-only staging...development`. If it is
-   well over **100** files, split; do not dump the whole pile.
-2. Dump that range to GitHub. Manually request Greptile and
-   CodeRabbit. Import findings. Fix on Origin. Never merge GitHub.
-3. Origin Depot full pipeline green on the fixed range.
-4. `origin pr merge` (`development` → `staging`).
-5. Stop. Do not cut a release. Do not promote production.
-
-## 7. Cut a release (only when you asked)
-
-1. Fold every pending fragment. Pick the public `X.Y.N` (next patch
-   on this theme, or a new `X.Y.0`). Prepend `### vX.Y.N`. Set
-   `APP_VERSION`. Delete consumed fragments.
-2. `origin pr merge` (`staging` → `main`).
-3. Vercel auto-deploys Production. Wait for that deployment, then
-   `pnpm verify:prod` (and account routes with cookie jar when needed).
-```
+Live owner: `.cursor/skills/close-out/SKILL.md`. Two rituals. Land is
+`start-session`, not close-out.
 
 ### Feedback and issue writers (OW-15 / OW-16)
 
@@ -926,7 +840,6 @@ Also GitHub-shaped today, skill- or GrokBot-owned:
 - Refactor GrokBot: `#449` is the process note; work is a draft PR.
 - Test-cleanup GrokBot: draft PR only.
 - `close-out` can open `[Backlog] …`.
-- `triage-issue` comments/labels/closes.
 
 Linear create shape (OW-15, do not implement here):
 
@@ -942,19 +855,15 @@ mutation IssueCreate {
 `POST https://api.linear.app/graphql` with `Authorization: <api key>`
 (no `Bearer` prefix per Linear’s personal-key docs).
 
-### Scripts to retire (OW-12)
+### Scripts
 
-| Keep until | Retire |
+| Keep | Gone |
 | --- | --- |
-| `delivery scrub-pr-body` | `delivery poll-pr-gate` (OW-12) |
-| `delivery repair-gh-auth` | `delivery merge-clean-pr` (OW-12) |
-| `delivery github-api` | Auto bot-gate predicates (OW-12) |
-| `wait-prod-deploy` until promote waiter exists | `wait-prod-deploy` as “every merge” (OW-8 / OW-17) |
-| `pnpm verify` until OW-4 | `pnpm verify` as definition of done (OW-4) |
-| `GITHUB_FEEDBACK_TOKEN` until OW-15 | GitHub Issues as the feedback sink |
-
-`poll_pr_gate.review_state` calls `merge_clean_pr.merge_blockers`.
-Name the replacement merge command in OW-8 first.
+| `delivery scrub-pr-body` | `delivery poll-pr-gate` |
+| `delivery repair-gh-auth` | `delivery merge-clean-pr` |
+| `delivery github-api` | `lifecycle fold-pending-changelog` |
+| `delivery wait-prod-deploy` on the release merge SHA | `lifecycle check-pending-changelog` |
+| `GITHUB_FEEDBACK_TOKEN` until OW-15 | `pnpm verify` as definition of done |
 
 ## Success criteria (agent-runnable — show the output)
 
@@ -983,7 +892,7 @@ Name the replacement merge command in OW-8 first.
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
-  | `SC-4.1` | Read AGENTS.md, close-out DoD, CONTRIBUTING | Standing gate is `depot ci run --job verify` |
+  | `SC-4.1` | Read AGENTS.md, close-out DoD, CONTRIBUTING | Land uses the cheap local gate. Promote and release wait on that Origin PR's Depot pipeline |
 
 - **SC-5 — Preview-as-dev on Origin; GitHub is not the deploy remote.**
 
@@ -998,7 +907,7 @@ Name the replacement merge command in OW-8 first.
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
   | `SC-6.1` | Git history for OW-6 through OW-11 | Separate chat/PR per skill |
-  | `SC-6.2` | Read close-out after OW-8 | Land → `development` with a pending fragment and no version; review chunk at ~100 files → `staging`; cut release is `staging` → `main` and auto-deploys Production |
+  | `SC-6.2` | Read close-out | Land is `start-session` onto `development`; promote at 80 app-facing files → `staging`; release is `staging` → `main` and auto-deploys Production |
 
 - **SC-7 — Bot helpers retired as a pair after a replacement exists.**
 
@@ -1020,8 +929,8 @@ Name the replacement merge command in OW-8 first.
   | --- | --- | --- |
   | `SC-9.1` | `neon.ts` + apply after OW-17 | `staging` has no TTL, cheap CU, short suspend; name is not `preview/` |
   | `SC-9.2` | Convex dashboard | One prod-type extra named `staging`; Preview env uses a preview key; `development` Preview backends are short-lived |
-  | `SC-9.3` | Close-out + schemas after OW-8 / OW-13 | `APP_VERSION` and `### vX.Y.N` change only on cut release; pending fold runs only then |
-  | `SC-9.4` | Close-out + one dry-run | Review-chunk dump stays ≤ ~100 files vs `staging`; merge to `main` is the documented prod action |
+  | `SC-9.3` | Close-out + schemas after OW-8 / OW-13 | `APP_VERSION` and `### vX.Y.N` change only on cut release; as-builts land on the promote PR |
+  | `SC-9.4` | Close-out + one dry-run | Promote starts at 80 app-facing files; a dump well over 100 is blocked; merge to `main` is the documented prod action |
 
 - **SC-10 — This plan PR stayed documentation-only.**
 
@@ -1042,13 +951,9 @@ Name the replacement merge command in OW-8 first.
 - Confirm every `DONE =` item is evidenced and every `hard_constraints`
   boundary held — for **this** PR, only SC-10 applies. SC-1–SC-9 and
   SC-11 are later chats.
-- **Delivery:** Push this plan in-branch and keep the existing PR
-  updated. Stop. Do not start OW-1 in this chat.
-- **Lifecycle artifacts:** pending changelog fragment for the plan
-  publish only. No version bump, no as-built, no roadmap row (ordinary
-  work, unnumbered).
-- **Handoff:** Next ordinary-work chat is OW-1 (Origin-hosted repo) on
-  a machine that can log into Origin. Reshape Ordered work in this
-  file if a visit should split or change order. Do not invoke
-  `start-session` unless you later decide a numbered session should
-  absorb a remaining step.
+- **Delivery:** Land remaining ordinary-work steps on `development`.
+- **Lifecycle artifacts:** none for this ordinary-work plan. No version
+  bump, no pending fragment, no roadmap row.
+- **Handoff:** Next ordinary-work chat is OW-9 (`ux-check`), then
+  schemas (OW-13). Do not invoke `start-session` unless a numbered
+  session should absorb a remaining step.
