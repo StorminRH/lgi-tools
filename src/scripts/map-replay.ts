@@ -150,32 +150,32 @@ function parseConnectionId(output: string, path: string): string {
   }
 }
 
-async function insertConnection(mapId: string, edge: LayoutEdge): Promise<string> {
-  console.log(`+ connection ${edge.fromSystemId} → ${edge.toSystemId}`);
-  const inserted = await convexRun('mapFixtures:insertConnectionFixture', {
+async function insertLayoutEdge(
+  label: string,
+  fixture: string,
+  mapId: string,
+  edge: LayoutEdge,
+): Promise<string> {
+  console.log(`+ ${label} ${edge.fromSystemId} → ${edge.toSystemId}`);
+  const inserted = await convexRun(fixture, {
     mapId,
     fromSystemId: edge.fromSystemId,
     toSystemId: edge.toSystemId,
     ...DEFAULT_CONNECTION,
   });
-  return parseConnectionId(inserted, 'mapFixtures:insertConnectionFixture');
+  return parseConnectionId(inserted, fixture);
 }
+
+const insertConnection = (mapId: string, edge: LayoutEdge) =>
+  insertLayoutEdge('connection', 'mapFixtures:insertConnectionFixture', mapId, edge);
 
 /**
  * One jump: the revealed system and its discovering connection land in a
  * single transaction, the way real mapping learns about a system — so the
  * canvas births the node already attached to the tree, never elsewhere first.
  */
-async function insertJump(mapId: string, edge: LayoutEdge): Promise<string> {
-  console.log(`+ jump ${edge.fromSystemId} → ${edge.toSystemId}`);
-  const inserted = await convexRun('mapFixtures:placeJumpFixture', {
-    mapId,
-    fromSystemId: edge.fromSystemId,
-    toSystemId: edge.toSystemId,
-    ...DEFAULT_CONNECTION,
-  });
-  return parseConnectionId(inserted, 'mapFixtures:placeJumpFixture');
-}
+const insertJump = (mapId: string, edge: LayoutEdge) =>
+  insertLayoutEdge('jump', 'mapFixtures:placeJumpFixture', mapId, edge);
 
 /** Narrates one step's skipped self-loops and freshly deferred edges. */
 function logStepNotes(step: SpawnStep): void {

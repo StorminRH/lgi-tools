@@ -1,33 +1,17 @@
-import { runMutationRoute } from '@/app/api/mutation-route';
+import { runMapLifecycleRoute } from '@/app/api/maps/lifecycle-route';
 import { requestMapPurgeForUser } from '@/composition/map-lifecycle';
-import {
-  mapLifecycleRequestSchema,
-  purgeMapNowEndpoint,
-} from '@/data/maps/api-contract';
-import { forbiddenFailure } from '@/lib/failure';
-import { checkUserId } from '@/platform/auth/route-guards';
-import { apiResponse } from '@/transport/api-response';
-import { readJsonBody } from '@/transport/route-body';
+import { purgeMapNowEndpoint } from '@/data/maps/api-contract';
 
 /** Creator-only grace fast-forward; the scheduled sweep remains the purge owner. */
 // authz: auth
 export async function POST(request: Request): Promise<Response> {
-  return runMutationRoute(request, {
+  return runMapLifecycleRoute(request, {
     capability: 'maps.request-map-purge',
-    authorize: checkUserId,
-    parse: (incoming) => readJsonBody(incoming, mapLifecycleRequestSchema),
-    handle: async ({ userId }, body) => {
-      const result = await requestMapPurgeForUser(userId, body);
-      return result.ok
-        ? apiResponse(purgeMapNowEndpoint, 204)
-        : apiResponse(
-            purgeMapNowEndpoint,
-            403,
-            forbiddenFailure(
-              'map_creator_required',
-              'Only the map creator can permanently delete this map',
-            ),
-          );
+    endpoint: purgeMapNowEndpoint,
+    run: requestMapPurgeForUser,
+    forbidden: {
+      code: 'map_creator_required',
+      detail: 'Only the map creator can permanently delete this map',
     },
   });
 }

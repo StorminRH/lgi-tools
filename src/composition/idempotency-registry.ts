@@ -167,93 +167,34 @@ const CRON_ENTRIES: readonly IdempotencyEntry[] = [
   },
 ];
 
+function convexEntry(
+  id: string,
+  workKind: Extract<IdempotencyWorkKind, 'convex-cron' | 'convex-mutation' | 'convex-action'>,
+  module: string,
+  redeliverySource: string,
+  evidence: string,
+): IdempotencyEntry {
+  return { id, workKind, module, redeliverySource, verdict: 'inherently-idempotent', vendor: 'convex', evidence };
+}
+
+const convexMapSignaturePurge = convexEntry('convex/crons:map signature purge', 'convex-cron', 'convex/crons.ts', 'The 15-minute Convex interval may run again after an earlier bounded batch partially drained expired signature tombstones.', 'The internal mutation ranges only purgeAfter values that are currently expired, deletes each matching document atomically, and reports exact continuation truth; a repeat sees only the remaining indexed range.');
+const convexMapChainPurge = convexEntry('convex/crons:map chain purge', 'convex-cron', 'convex/crons.ts', 'The 15-minute Convex interval may run again after an earlier batch partially drained the expiry ranges.', 'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.');
+const convexMapCeilingCollapse = convexEntry('convex/crons:map ceiling collapse', 'convex-cron', 'convex/crons.ts', 'The 15-minute Convex interval may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.', 'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.');
+const convexSyncEngineScan = convexEntry('convex/crons:sync engine scan', 'convex-cron', 'convex/crons.ts', 'The 30-second Convex interval cron, plus the external 15-minute Vercel sweeper that dispatches the same due subjects.', 'internal.engine.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.');
+const convexEngineScan = convexEntry('convex/engine:scan', 'convex-mutation', 'convex/engine.ts', 'Convex transactional retry of a transient error inside the mutation.', 'Declared internalMutation, so a retry re-runs the whole transaction atomically and cannot half-apply.');
+const convexEngineSweep = convexEntry('convex/engine:sweep', 'convex-mutation', 'convex/engine.ts', 'Convex transactional retry of a transient error inside the mutation.', 'Declared internalMutation reclaiming stranded in-flight subjects; reclaiming an already-reclaimed subject is a no-op within the same transaction.');
+const convexEngineOnSyncComplete = convexEntry('convex/engine:onSyncComplete', 'convex-mutation', 'convex/engine.ts', 'Convex transactional retry of a transient error inside the mutation.', 'Declared internalMutation whose workId ownership guard makes a late or repeated completion a no-op, so it cannot clear a newer run’s status.');
+const convexLocationSyncUser = convexEntry('convex/characterLocationSync:syncUser', 'convex-action', 'convex/characterLocationSync.ts', 'A single scheduled Convex action (engine dispatch via scheduler.runAfter). Scheduled actions execute at most once and are not retried.', 'convex/engine.ts declares the safety condition: only transient failures throw, and the generation guard on apply plus the workId guard on onSyncComplete make a duplicate write a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId.');
+
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
-  {
-    id: 'convex/crons:map signature purge',
-    workKind: 'convex-cron',
-    module: 'convex/crons.ts',
-    redeliverySource:
-      'The 15-minute Convex interval may run again after an earlier bounded batch partially drained expired signature tombstones.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'The internal mutation ranges only purgeAfter values that are currently expired, deletes each matching document atomically, and reports exact continuation truth; a repeat sees only the remaining indexed range.',
-  },
-  {
-    id: 'convex/crons:map chain purge',
-    workKind: 'convex-cron',
-    module: 'convex/crons.ts',
-    redeliverySource:
-      'The 15-minute Convex interval may run again after an earlier batch partially drained the expiry ranges.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'The internal mutation atomically deletes only currently expired rows or clears purgeAfter on live-endpoint skeleton ties; a repeat observes the remaining indexed range and cannot repeat a completed write.',
-  },
-  {
-    id: 'convex/crons:map ceiling collapse',
-    workKind: 'convex-cron',
-    module: 'convex/crons.ts',
-    redeliverySource:
-      'The 15-minute Convex interval may run again after an earlier bounded batch collapsed only part of the expired-ceiling range.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'The internal mutation ranges live rows only (the candidate index leads with the tombstone field, so a collapsed row leaves the range when stamped), re-reads each row before acting so in-batch branch collateral is skipped, isolates per-row failures without committing partial work, and every collapse routes through the shared-stamp core; a repeat observes only rows every previous batch left live.',
-  },
-  {
-    id: 'convex/crons:sync engine scan',
-    workKind: 'convex-cron',
-    module: 'convex/crons.ts',
-    redeliverySource:
-      'The 30-second Convex interval cron, plus the external 15-minute Vercel sweeper that dispatches the same due subjects.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'internal.engine.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.',
-  },
-  {
-    id: 'convex/engine:scan',
-    workKind: 'convex-mutation',
-    module: 'convex/engine.ts',
-    redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'Declared internalMutation, so a retry re-runs the whole transaction atomically and cannot half-apply.',
-  },
-  {
-    id: 'convex/engine:sweep',
-    workKind: 'convex-mutation',
-    module: 'convex/engine.ts',
-    redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'Declared internalMutation reclaiming stranded in-flight subjects; reclaiming an already-reclaimed subject is a no-op within the same transaction.',
-  },
-  {
-    id: 'convex/engine:onSyncComplete',
-    workKind: 'convex-mutation',
-    module: 'convex/engine.ts',
-    redeliverySource:
-      'Convex transactional retry of a transient error inside the mutation.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'Declared internalMutation whose workId ownership guard makes a late or repeated completion a no-op, so it cannot clear a newer run’s status.',
-  },
-  {
-    id: 'convex/characterLocationSync:syncUser',
-    workKind: 'convex-action',
-    module: 'convex/characterLocationSync.ts',
-    redeliverySource:
-      'A single scheduled Convex action (engine dispatch via scheduler.runAfter). Scheduled actions execute at most once and are not retried.',
-    verdict: 'inherently-idempotent',
-    vendor: 'convex',
-    evidence:
-      'convex/engine.ts declares the safety condition: only transient failures throw, and the generation guard on apply plus the workId guard on onSyncComplete make a duplicate write a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId.',
-  },
+  convexMapSignaturePurge,
+  convexMapChainPurge,
+  convexMapCeilingCollapse,
+  convexSyncEngineScan,
+  convexEngineScan,
+  convexEngineSweep,
+  convexEngineOnSyncComplete,
+  convexLocationSyncUser,
 ];
 
 const QUEUE_ENTRIES: readonly IdempotencyEntry[] = [
@@ -375,60 +316,96 @@ function mutationRoute(
   };
 }
 
+const mapsSearchCharactersRoute = mutationRoute('src/app/api/maps/search-characters/route.ts', 'key-protected', 'Character results are read-only, while token vending may refresh encrypted EVE credentials or invalid-grant state; those writes use ciphertext-keyed compare-and-swap and a repeat reflects the stored winner rather than applying an unsafe second mutation.');
+const eveNamesRoute = readRoute('src/app/api/eve/names/route.ts', 'Pure resolution of posted ids through the ESI gate; writes nothing.');
+const industryBuildLocationRoute = readRoute('src/app/api/industry/build-location/route.ts', 'Pure resolution over reference data; writes nothing.');
+const industryOwnedAssetsRoute = readRoute('src/app/api/industry/owned-assets/route.ts', 'Read of the caller’s own stored assets; writes nothing.');
+const industryOwnedBlueprintsRoute = readRoute('src/app/api/industry/owned-blueprints/route.ts', 'Read of the caller’s own stored blueprints; writes nothing.');
+const industrySkillLevelsRoute = readRoute('src/app/api/industry/skill-levels/route.ts', 'Read of the caller’s own stored skills; writes nothing.');
+const customStructuresParseFitRoute = readRoute('src/app/api/account/custom-structures/parse-fit/route.ts', 'Parses a pasted fit against reference data; writes nothing.');
+const accountActiveCharacterRoute = mutationRoute('src/app/api/account/active-character/route.ts', 'inherently-idempotent', 'Sets the active character to a named id; a repeat sets the same id.');
+const preferencesRoute = mutationRoute('src/app/api/preferences/route.ts', 'inherently-idempotent', 'Upserts one preference key to a named value; a repeat writes the same value.');
+const corpStructuresSharingRoute = mutationRoute('src/app/api/account/corp-structures/sharing/route.ts', 'inherently-idempotent', 'Sets a corporation’s sharing flag to a named boolean; a repeat sets the same flag.');
+const corpStructuresRigsRoute = mutationRoute('src/app/api/account/corp-structures/rigs/route.ts', 'inherently-idempotent', 'Replaces a structure’s rig set with the posted set; a repeat replaces it with the same set.');
+const customStructuresSetPinRoute = mutationRoute('src/app/api/account/custom-structures/set-pin/route.ts', 'inherently-idempotent', 'Sets a structure’s system pin to a named id; a repeat sets the same pin.');
+const customStructuresSetTaxRoute = mutationRoute('src/app/api/account/custom-structures/set-tax/route.ts', 'inherently-idempotent', 'Sets a structure’s tax rate to a named value; a repeat sets the same rate.');
+const savedPlansRenameRoute = mutationRoute('src/app/api/account/saved-plans/rename/route.ts', 'inherently-idempotent', 'Sets a plan’s name by id; a repeat sets the same name.');
+const savedPlansFavoriteRoute = mutationRoute('src/app/api/account/saved-plans/favorite/route.ts', 'inherently-idempotent', 'Sets a plan’s favorite flag by id to a named boolean; a repeat sets the same flag.');
+const adminRoleRoute = mutationRoute('src/app/api/admin/role/route.ts', 'inherently-idempotent', 'Sets a user’s role to a named value; a repeat sets the same role.');
+const adminWhStaticsRoute = mutationRoute('src/app/api/admin/wh-statics/route.ts', 'key-protected', 'Refresh uses the shared advisory lock, serializes snapshot writes, reuses an identical latest non-rejected ETag and digest instead of superseding it, and refuses a response whose pre-lock baseline no longer matches the newest snapshot; rejected observations remain eligible for a later pending review. Promote and reject accept only a pending snapshot, so a repeated review action is refused without changing the promoted copy.');
+const mapsSignatureEliminationRoute = mutationRoute('src/app/api/maps/signature-elimination/route.ts', 'inherently-idempotent', 'The Convex deduction door re-reads every target atomically, skips equal writes, and refuses any field no longer null or assumed; repeating a pass therefore converges without overwriting human facts.');
+const mapsJumpRoute = mutationRoute('src/app/api/maps/jump/route.ts', 'inherently-idempotent', 'Convex atomically stamps each genuine location transition before applying its odometer effect; a repeated request for the same transition observes the stamp and converges without applying mass twice.');
+const mapsAccessRoute = mutationRoute('src/app/api/maps/access/route.ts', 'inherently-idempotent', 'Upsert sets one composite-keyed durable grant to the posted role and revoke deletes that exact key; an identical repeat leaves Neon in the same state, then recomputes and delivers the complete one-way access projection.');
+const mapsDeleteRoute = mutationRoute('src/app/api/maps/delete/route.ts', 'inherently-idempotent', 'The guarded update transitions only an active map into archive; a repeat finds no active row, changes nothing, and cannot start collaborative purge.');
+const mapsRestoreRoute = mutationRoute('src/app/api/maps/restore/route.ts', 'inherently-idempotent', 'The guarded update clears archive only inside grace before purge begins; a repeat finds no archived row and changes nothing.');
+const mapsPurgeNowRoute = mutationRoute('src/app/api/maps/purge-now/route.ts', 'inherently-idempotent', 'The creator-only guarded update sets purge_requested_at only while it is null; a repeat cannot advance the timestamp or invoke collaborative deletion directly.');
+const savedPlansDeleteRoute = mutationRoute('src/app/api/account/saved-plans/delete/route.ts', 'inherently-idempotent', 'Deletes one owned plan by id; the second delete matches no row and returns not found.');
+const customStructuresDeleteRoute = mutationRoute('src/app/api/account/custom-structures/delete/route.ts', 'inherently-idempotent', 'Deletes one owned structure by id; the second delete matches no row.');
+const accountCharactersUnlinkRoute = mutationRoute('src/app/api/account/characters/unlink/route.ts', 'inherently-idempotent', 'Unlinks one owned character by id; the second unlink matches no linked account.');
+const adminCharactersUnlinkRoute = mutationRoute('src/app/api/admin/characters/unlink/route.ts', 'inherently-idempotent', 'Admin unlink of one character by id; the second matches no linked account.');
+const accountPurgeCharacterRoute = mutationRoute('src/app/api/account/purge-character/route.ts', 'inherently-idempotent', 'Purges one owned character’s data; a repeat finds nothing left to purge.');
+const accountDeleteRoute = mutationRoute('src/app/api/account/delete/route.ts', 'inherently-idempotent', 'Deletes the caller’s account and owned rows; a repeat finds no account and fails the identity gate.');
+const accountSessionsRevokeRoute = mutationRoute('src/app/api/account/sessions/revoke/route.ts', 'inherently-idempotent', 'Revokes all of the caller’s sessions; a repeat revokes an already-empty set.');
+const adminSessionsRevokeRoute = mutationRoute('src/app/api/admin/sessions/revoke/route.ts', 'inherently-idempotent', 'Revokes all of one user’s sessions; a repeat revokes an already-empty set.');
+const mapsCreateRoute = mutationRoute('src/app/api/maps/create/route.ts', 'accepted-risk', 'A repeated authenticated submit can create another visible map. Nothing redelivers the request, the route is limited to five creates per user per minute, each durable map-plus-grants insert is atomic, and projection failure compensates that insert before the route reports failure.');
+const savedPlansCreateRoute = mutationRoute('src/app/api/account/saved-plans/route.ts', 'accepted-risk', 'A double submit can create a second plan. Nothing redelivers it, the route already enforces a per-user plan cap, and a client-supplied key would add a protection HC-4 bars where the risk is not real; the duplicate is user-visible and user-deletable.');
+const customStructuresCreateRoute = mutationRoute('src/app/api/account/custom-structures/route.ts', 'accepted-risk', 'A double submit can create a second custom structure. Nothing redelivers it, the route already enforces a per-user cap, and the duplicate is user-visible and user-deletable.');
+const feedbackRoute = mutationRoute('src/app/api/feedback/route.ts', 'accepted-risk', 'A double submit can open a second GitHub Issue and telemetry row. Rate-limited per client, no durable state is corrupted, and deduplicating free-text feedback would suppress genuine repeat reports.');
+const adminCharactersReassignRoute = mutationRoute('src/app/api/admin/characters/reassign/route.ts', 'inherently-idempotent', 'Moves one character onto a named account; the second reassignment to the same target is a no-op and to a different target is a deliberate new decision.');
+const adminEsiJobsRetryRoute = mutationRoute('src/app/api/admin/esi-jobs/retry/route.ts', 'key-protected', 'Delegates to requeueDeadLetteredJob, a single atomic CTE returning requeued / superseded / not_found, so a double submit cannot create a second live job.');
+const marketPricesRefreshRoute = mutationRoute('src/app/api/market-prices/refresh/route.ts', 'inherently-idempotent', 'Refreshes prices for the posted type ids and persists write-behind as the new seed; a repeat re-reads and rewrites the same seed rows last-write-wins.');
+const marketHistoryRefreshRoute = mutationRoute('src/app/api/market-history/refresh/route.ts', 'inherently-idempotent', 'Refreshes history for the posted type ids and upserts per (typeId, date); a repeat rewrites the same rows.');
+const authCatchAllRoute = mutationRoute('src/app/api/auth/[...all]/route.ts', 'inherently-idempotent', 'Better Auth owns its own request lifecycle; session creation is keyed on its own token and a repeated callback is rejected or replaces the same session.');
+const internalEveCharactersRoute = mutationRoute('src/app/api/internal/eve-characters/route.ts', 'inherently-idempotent', 'Machine-to-machine read of linked characters for the Convex isolate; writes nothing.');
+const internalEveTokenRoute = mutationRoute('src/app/api/internal/eve-token/route.ts', 'key-protected', 'Machine-to-machine token vend. Concurrent vends of a rotating refresh token are resolved by the stored-token row, and the eve_token_refresh_race telemetry records the losing vend rather than corrupting state.');
+const telemetryRoute = mutationRoute('src/app/api/telemetry/route.ts', 'accepted-risk', 'The client beacon can deliver the same page view twice. Counts are the product, an exactly-once beacon is not achievable from a browser, and no durable state beyond the count is affected.');
+const syncLeaveRoute = mutationRoute('src/app/api/sync-leave/route.ts', 'inherently-idempotent', 'Tab-close leave retires one user×dataset subject when the posted tabId is still the live beater; a repeat or a stale tab is a no-op, and a newer tab is ignored.');
+
 const ROUTE_ENTRIES: readonly IdempotencyEntry[] = [
-  // ── POST-bodied tool reads: no write, so re-running is free ─────────────
-  mutationRoute('src/app/api/maps/search-characters/route.ts', 'key-protected', 'Character results are read-only, while token vending may refresh encrypted EVE credentials or invalid-grant state; those writes use ciphertext-keyed compare-and-swap and a repeat reflects the stored winner rather than applying an unsafe second mutation.'),
-  readRoute('src/app/api/eve/names/route.ts', 'Pure resolution of posted ids through the ESI gate; writes nothing.'),
-  readRoute('src/app/api/industry/build-location/route.ts', 'Pure resolution over reference data; writes nothing.'),
-  readRoute('src/app/api/industry/owned-assets/route.ts', 'Read of the caller’s own stored assets; writes nothing.'),
-  readRoute('src/app/api/industry/owned-blueprints/route.ts', 'Read of the caller’s own stored blueprints; writes nothing.'),
-  readRoute('src/app/api/industry/skill-levels/route.ts', 'Read of the caller’s own stored skills; writes nothing.'),
-  readRoute('src/app/api/account/custom-structures/parse-fit/route.ts', 'Parses a pasted fit against reference data; writes nothing.'),
-
-  // ── Set-shaped mutations: the second write states the same value ────────
-  mutationRoute('src/app/api/account/active-character/route.ts', 'inherently-idempotent', 'Sets the active character to a named id; a repeat sets the same id.'),
-  mutationRoute('src/app/api/preferences/route.ts', 'inherently-idempotent', 'Upserts one preference key to a named value; a repeat writes the same value.'),
-  mutationRoute('src/app/api/account/corp-structures/sharing/route.ts', 'inherently-idempotent', 'Sets a corporation’s sharing flag to a named boolean; a repeat sets the same flag.'),
-  mutationRoute('src/app/api/account/corp-structures/rigs/route.ts', 'inherently-idempotent', 'Replaces a structure’s rig set with the posted set; a repeat replaces it with the same set.'),
-  mutationRoute('src/app/api/account/custom-structures/set-pin/route.ts', 'inherently-idempotent', 'Sets a structure’s system pin to a named id; a repeat sets the same pin.'),
-  mutationRoute('src/app/api/account/custom-structures/set-tax/route.ts', 'inherently-idempotent', 'Sets a structure’s tax rate to a named value; a repeat sets the same rate.'),
-  mutationRoute('src/app/api/account/saved-plans/rename/route.ts', 'inherently-idempotent', 'Sets a plan’s name by id; a repeat sets the same name.'),
-  mutationRoute('src/app/api/account/saved-plans/favorite/route.ts', 'inherently-idempotent', 'Sets a plan’s favorite flag by id to a named boolean; a repeat sets the same flag.'),
-  mutationRoute('src/app/api/admin/role/route.ts', 'inherently-idempotent', 'Sets a user’s role to a named value; a repeat sets the same role.'),
-  mutationRoute('src/app/api/admin/wh-statics/route.ts', 'key-protected', 'Refresh uses the shared advisory lock, serializes snapshot writes, reuses an identical latest non-rejected ETag and digest instead of superseding it, and refuses a response whose pre-lock baseline no longer matches the newest snapshot; rejected observations remain eligible for a later pending review. Promote and reject accept only a pending snapshot, so a repeated review action is refused without changing the promoted copy.'),
-  mutationRoute('src/app/api/maps/signature-elimination/route.ts', 'inherently-idempotent', 'The Convex deduction door re-reads every target atomically, skips equal writes, and refuses any field no longer null or assumed; repeating a pass therefore converges without overwriting human facts.'),
-  mutationRoute('src/app/api/maps/jump/route.ts', 'inherently-idempotent', 'Convex atomically stamps each genuine location transition before applying its odometer effect; a repeated request for the same transition observes the stamp and converges without applying mass twice.'),
-  mutationRoute('src/app/api/maps/access/route.ts', 'inherently-idempotent', 'Upsert sets one composite-keyed durable grant to the posted role and revoke deletes that exact key; an identical repeat leaves Neon in the same state, then recomputes and delivers the complete one-way access projection.'),
-  mutationRoute('src/app/api/maps/delete/route.ts', 'inherently-idempotent', 'The guarded update transitions only an active map into archive; a repeat finds no active row, changes nothing, and cannot start collaborative purge.'),
-  mutationRoute('src/app/api/maps/restore/route.ts', 'inherently-idempotent', 'The guarded update clears archive only inside grace before purge begins; a repeat finds no archived row and changes nothing.'),
-  mutationRoute('src/app/api/maps/purge-now/route.ts', 'inherently-idempotent', 'The creator-only guarded update sets purge_requested_at only while it is null; a repeat cannot advance the timestamp or invoke collaborative deletion directly.'),
-
-  // ── Delete-shaped mutations: the second delete finds nothing ────────────
-  mutationRoute('src/app/api/account/saved-plans/delete/route.ts', 'inherently-idempotent', 'Deletes one owned plan by id; the second delete matches no row and returns not found.'),
-  mutationRoute('src/app/api/account/custom-structures/delete/route.ts', 'inherently-idempotent', 'Deletes one owned structure by id; the second delete matches no row.'),
-  mutationRoute('src/app/api/account/characters/unlink/route.ts', 'inherently-idempotent', 'Unlinks one owned character by id; the second unlink matches no linked account.'),
-  mutationRoute('src/app/api/admin/characters/unlink/route.ts', 'inherently-idempotent', 'Admin unlink of one character by id; the second matches no linked account.'),
-  mutationRoute('src/app/api/account/purge-character/route.ts', 'inherently-idempotent', 'Purges one owned character’s data; a repeat finds nothing left to purge.'),
-  mutationRoute('src/app/api/account/delete/route.ts', 'inherently-idempotent', 'Deletes the caller’s account and owned rows; a repeat finds no account and fails the identity gate.'),
-  mutationRoute('src/app/api/account/sessions/revoke/route.ts', 'inherently-idempotent', 'Revokes all of the caller’s sessions; a repeat revokes an already-empty set.'),
-  mutationRoute('src/app/api/admin/sessions/revoke/route.ts', 'inherently-idempotent', 'Revokes all of one user’s sessions; a repeat revokes an already-empty set.'),
-
-  // ── Create-shaped and effectful mutations ──────────────────────────────
-  mutationRoute('src/app/api/maps/create/route.ts', 'accepted-risk', 'A repeated authenticated submit can create another visible map. Nothing redelivers the request, the route is limited to five creates per user per minute, each durable map-plus-grants insert is atomic, and projection failure compensates that insert before the route reports failure.'),
-  mutationRoute('src/app/api/account/saved-plans/route.ts', 'accepted-risk', 'A double submit can create a second plan. Nothing redelivers it, the route already enforces a per-user plan cap, and a client-supplied key would add a protection HC-4 bars where the risk is not real; the duplicate is user-visible and user-deletable.'),
-  mutationRoute('src/app/api/account/custom-structures/route.ts', 'accepted-risk', 'A double submit can create a second custom structure. Nothing redelivers it, the route already enforces a per-user cap, and the duplicate is user-visible and user-deletable.'),
-  mutationRoute('src/app/api/feedback/route.ts', 'accepted-risk', 'A double submit can open a second GitHub Issue and telemetry row. Rate-limited per client, no durable state is corrupted, and deduplicating free-text feedback would suppress genuine repeat reports.'),
-  mutationRoute('src/app/api/admin/characters/reassign/route.ts', 'inherently-idempotent', 'Moves one character onto a named account; the second reassignment to the same target is a no-op and to a different target is a deliberate new decision.'),
-  mutationRoute('src/app/api/admin/esi-jobs/retry/route.ts', 'key-protected', 'Delegates to requeueDeadLetteredJob, a single atomic CTE returning requeued / superseded / not_found, so a double submit cannot create a second live job.'),
-  mutationRoute('src/app/api/market-prices/refresh/route.ts', 'inherently-idempotent', 'Refreshes prices for the posted type ids and persists write-behind as the new seed; a repeat re-reads and rewrites the same seed rows last-write-wins.'),
-  mutationRoute('src/app/api/market-history/refresh/route.ts', 'inherently-idempotent', 'Refreshes history for the posted type ids and upserts per (typeId, date); a repeat rewrites the same rows.'),
-
-  // ── The four uninstrumented POST surfaces, judged with the rest ─────────
-  mutationRoute('src/app/api/auth/[...all]/route.ts', 'inherently-idempotent', 'Better Auth owns its own request lifecycle; session creation is keyed on its own token and a repeated callback is rejected or replaces the same session.'),
-  mutationRoute('src/app/api/internal/eve-characters/route.ts', 'inherently-idempotent', 'Machine-to-machine read of linked characters for the Convex isolate; writes nothing.'),
-  mutationRoute('src/app/api/internal/eve-token/route.ts', 'key-protected', 'Machine-to-machine token vend. Concurrent vends of a rotating refresh token are resolved by the stored-token row, and the eve_token_refresh_race telemetry records the losing vend rather than corrupting state.'),
-  mutationRoute('src/app/api/telemetry/route.ts', 'accepted-risk', 'The client beacon can deliver the same page view twice. Counts are the product, an exactly-once beacon is not achievable from a browser, and no durable state beyond the count is affected.'),
-  mutationRoute('src/app/api/sync-leave/route.ts', 'inherently-idempotent', 'Tab-close leave retires one user×dataset subject when the posted tabId is still the live beater; a repeat or a stale tab is a no-op, and a newer tab is ignored.'),
+  mapsSearchCharactersRoute,
+  eveNamesRoute,
+  industryBuildLocationRoute,
+  industryOwnedAssetsRoute,
+  industryOwnedBlueprintsRoute,
+  industrySkillLevelsRoute,
+  customStructuresParseFitRoute,
+  accountActiveCharacterRoute,
+  preferencesRoute,
+  corpStructuresSharingRoute,
+  corpStructuresRigsRoute,
+  customStructuresSetPinRoute,
+  customStructuresSetTaxRoute,
+  savedPlansRenameRoute,
+  savedPlansFavoriteRoute,
+  adminRoleRoute,
+  adminWhStaticsRoute,
+  mapsSignatureEliminationRoute,
+  mapsJumpRoute,
+  mapsAccessRoute,
+  mapsDeleteRoute,
+  mapsRestoreRoute,
+  mapsPurgeNowRoute,
+  savedPlansDeleteRoute,
+  customStructuresDeleteRoute,
+  accountCharactersUnlinkRoute,
+  adminCharactersUnlinkRoute,
+  accountPurgeCharacterRoute,
+  accountDeleteRoute,
+  accountSessionsRevokeRoute,
+  adminSessionsRevokeRoute,
+  mapsCreateRoute,
+  savedPlansCreateRoute,
+  customStructuresCreateRoute,
+  feedbackRoute,
+  adminCharactersReassignRoute,
+  adminEsiJobsRetryRoute,
+  marketPricesRefreshRoute,
+  marketHistoryRefreshRoute,
+  authCatchAllRoute,
+  internalEveCharactersRoute,
+  internalEveTokenRoute,
+  telemetryRoute,
+  syncLeaveRoute,
 ];
 
 const FUTURE_ENTRIES: readonly IdempotencyEntry[] = [

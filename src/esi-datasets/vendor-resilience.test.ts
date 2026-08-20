@@ -59,15 +59,14 @@ const REDIS_CONSTRUCTION_SITES = ['src/lib/upstash.ts'];
 /** Production postgres-js construction sites, each of which must state its own bound. */
 const PRODUCTION_POSTGRES_SITES = [
   'src/db/index.ts',
-  'src/scripts/backfill-users-if-empty.ts',
   'src/scripts/check-universe-assets.ts',
   'src/scripts/check-wh-statics.ts',
   'src/scripts/ci-sde-seed.ts',
-  'src/scripts/ingest-sde-if-empty.ts',
   'src/scripts/ingest-sde.ts',
   'src/scripts/migrate.ts',
   'src/scripts/refresh-prices.ts',
   'src/scripts/refresh-sde.ts',
+  'src/scripts/script-runtime.ts',
 ];
 
 /**

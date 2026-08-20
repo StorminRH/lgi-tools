@@ -17,8 +17,8 @@ import {
   type MutationCtx,
   query,
 } from './_generated/server';
+import { collectByUser, viewerUserDocs } from './lib/indexedQuery';
 import {
-  authenticatedSubject,
   characterSyncApplyFields,
   characterSyncResultFields,
   stampSyncSubject,
@@ -48,27 +48,18 @@ export const JUMP_CONTINUITY_MS = 45_000;
  */
 export const forViewer = query({
   args: {},
-  handler: async (ctx) => {
-    const userId = await authenticatedSubject(ctx);
-    if (userId === null) return null;
-    const docs = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    return {
-      characters: docs.map((doc) => ({
-        characterId: doc.characterId,
-        solarSystemId: doc.solarSystemId,
-        stationId: doc.stationId,
-        structureId: doc.structureId,
-        shipTypeId: doc.shipTypeId,
-        prevSolarSystemId: doc.prevSolarSystemId,
-        prevFresh: doc.prevFresh,
-        transitionObservedAt: doc.transitionObservedAt ?? null,
-        observedAt: doc.observedAt,
-      })),
-    };
-  },
+  handler: async (ctx) =>
+    viewerUserDocs(ctx, 'characterLocation', (doc) => ({
+      characterId: doc.characterId,
+      solarSystemId: doc.solarSystemId,
+      stationId: doc.stationId,
+      structureId: doc.structureId,
+      shipTypeId: doc.shipTypeId,
+      prevSolarSystemId: doc.prevSolarSystemId,
+      prevFresh: doc.prevFresh,
+      transitionObservedAt: doc.transitionObservedAt ?? null,
+      observedAt: doc.observedAt,
+    })),
 });
 
 /**
@@ -112,10 +103,7 @@ export const heldState = internalQuery({
 export const accessLeases = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
-    const rows = await ctx.db
-      .query('characterLocationAccess')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
+    const rows = await collectByUser(ctx, 'characterLocationAccess', userId);
     return rows.map((row) => ({
       characterId: row.characterId,
       accessToken: row.accessToken,

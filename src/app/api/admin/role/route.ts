@@ -7,8 +7,7 @@ import {
   adminRoleFormSchema,
 } from '@/platform/auth/api-contract';
 import { getUserById, setUserRole } from '@/platform/auth/admin-users';
-import { checkAdmin } from '@/platform/auth/route-guards';
-import { requireSameOrigin } from '@/platform/auth/same-origin';
+import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { sanitiseUserText } from '@/lib/sanitise';
@@ -37,12 +36,10 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
 export const POST = capabilityRoute('admin.set-user-role', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
-  const gate = await checkAdmin();
-  if (!gate.ok) return problemResponse(gate.failure);
+  const gate = await adminMutationGate(request);
+  if (!gate.ok) return gate.response;
   const viewerUserId = gate.session.user.id;
   const actorCharacterId = gate.session.characterId;
-  const originCheck = requireSameOrigin(request);
-  if (!originCheck.ok) return problemResponse(originCheck.failure);
 
   const parsed = await parseFormBody(
     request,

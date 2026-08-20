@@ -11,7 +11,7 @@ import {
   WhStaticsSnapshotStateError,
 } from '@/data/wh-statics/queries';
 import { conflictFailure, validationFailure } from '@/lib/failure';
-import { checkAdminMutation } from '@/platform/auth/route-guards';
+import { adminMutationGate } from '@/app/api/admin-mutation';
 import { problemResponse } from '@/transport/api-response';
 import { parseFormBody } from '@/transport/route-body';
 
@@ -29,8 +29,8 @@ function redirectToReview(request: NextRequest, outcome: string): Response {
 export const POST = capabilityRoute('admin.wh-statics-review', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
-  const gate = await checkAdminMutation(request);
-  if (!gate.ok) return problemResponse(gate.failure);
+  const gate = await adminMutationGate(request);
+  if (!gate.ok) return gate.response;
   return handleAuthorizedPost(request);
 }
 

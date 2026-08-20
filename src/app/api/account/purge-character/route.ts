@@ -11,7 +11,7 @@ import '@/composition/map-access-identity';
 import { purgeOwnCharacter } from '@/composition/account-lifecycle/account-purge';
 import { validationFailure } from '@/lib/failure';
 import { checkSession } from '@/platform/auth/route-guards';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
@@ -29,13 +29,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     // Per-IP rate limit, still checked before the session read so a flood is
     // rejected at the cheapest point. A purge is a rare, deliberate action —
     // 10/min is generous. Runs as the shell's preflight so a 429 is recorded.
-    preflight: async () => {
-      const limit = await checkRateLimit(request, {
-        name: 'account-purge-character',
-        perMinute: 10,
-      });
-      return limit.ok ? null : apiResponse(purgeCharacterEndpoint, 429, limit.failure);
-    },
+    preflight: rateLimitPreflight(
+      request,
+      { name: 'account-purge-character', perMinute: 10 },
+      (failure) => apiResponse(purgeCharacterEndpoint, 429, failure),
+    ),
     authorize: checkSession,
     parse: async (incoming) => {
       const parsed = await readJsonBody(incoming, purgeCharacterRequestSchema);

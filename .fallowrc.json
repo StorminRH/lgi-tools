@@ -69,11 +69,11 @@
   },
 
   "duplicates": {
-    "mode": "mild",
+    "mode": "weak",
     "minTokens": 50,
     "minLines": 5,
     "minOccurrences": 2,
-    "threshold": 0,
+    "threshold": 0.000001,
     "ignoreDefaults": true,
     "ignore": [
       "**/*.test.ts",

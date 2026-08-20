@@ -6,6 +6,7 @@
 // never enter the `> null` range.
 import type { MutationCtx } from '../_generated/server';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { takeExpiredByPurgeAfter } from './indexedQuery';
 
 /** Maximum rows one cleanup call processes per table (systems, connections, events). */
 export const CHAIN_PURGE_BATCH = 128;
@@ -55,20 +56,24 @@ export async function purgeExpiredChainTombstones(
   ctx: MutationCtx,
   now: number,
 ): Promise<ChainPurgeResult> {
-  const expiredSystems = await ctx.db
-    .query('mapSystems')
-    .withIndex('by_purge_after', (q) => q.gt('purgeAfter', null).lte('purgeAfter', now))
-    .take(CHAIN_PURGE_BATCH + 1);
+  const expiredSystems = await takeExpiredByPurgeAfter(
+    ctx,
+    'mapSystems',
+    now,
+    CHAIN_PURGE_BATCH + 1,
+  );
 
   const systemsToDelete = expiredSystems.slice(0, CHAIN_PURGE_BATCH);
   for (const system of systemsToDelete) {
     await ctx.db.delete(system._id);
   }
 
-  const expiredConnections = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_purge_after', (q) => q.gt('purgeAfter', null).lte('purgeAfter', now))
-    .take(CHAIN_PURGE_BATCH + 1);
+  const expiredConnections = await takeExpiredByPurgeAfter(
+    ctx,
+    'mapConnections',
+    now,
+    CHAIN_PURGE_BATCH + 1,
+  );
 
   const connectionsToProcess = expiredConnections.slice(0, CHAIN_PURGE_BATCH);
   const livenessCache = new Map<string, boolean>();

@@ -39,6 +39,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
+import { queryByMapSignature, takeIndexedOrThrow } from './lib/indexedQuery';
 import {
   requireMapAccess,
   requireMapAccessForUser,
@@ -263,41 +264,28 @@ async function requireLiveSystem(ctx: MutationCtx, mapId: string, systemId: numb
   }
 }
 
-async function readSystemSignatures(
+async function readByMapSignature<T extends 'mapSignatures' | 'mapSignatureActivity'>(
   ctx: QueryCtx,
+  table: T,
   mapId: string,
   systemId: number,
-): Promise<Doc<'mapSignatures'>[]> {
-  const rows = await ctx.db
-    .query('mapSignatures')
-    .withIndex('by_map_signature', (q) => q.eq('mapId', mapId).eq('systemId', systemId))
-    .take(MAP_SCAN_ROW_LIMIT + 1);
-  if (rows.length > MAP_SCAN_ROW_LIMIT) {
-    throw new ConvexError({
+  noun: string,
+): Promise<Doc<T>[]> {
+  return takeIndexedOrThrow(
+    queryByMapSignature(ctx, table, mapId, systemId),
+    MAP_SCAN_ROW_LIMIT,
+    {
       code: 'MAP_SIGNATURE_SCAN_LIMIT',
-      detail: `System ${systemId} exceeds the ${MAP_SCAN_ROW_LIMIT}-signature scan bound.`,
-    });
-  }
-  return rows;
+      detail: `System ${systemId} exceeds the ${MAP_SCAN_ROW_LIMIT}-${noun} scan bound.`,
+    },
+  );
 }
 
-async function readSystemActivities(
-  ctx: QueryCtx,
-  mapId: string,
-  systemId: number,
-): Promise<Doc<'mapSignatureActivity'>[]> {
-  const rows = await ctx.db
-    .query('mapSignatureActivity')
-    .withIndex('by_map_signature', (q) => q.eq('mapId', mapId).eq('systemId', systemId))
-    .take(MAP_SCAN_ROW_LIMIT + 1);
-  if (rows.length > MAP_SCAN_ROW_LIMIT) {
-    throw new ConvexError({
-      code: 'MAP_SIGNATURE_SCAN_LIMIT',
-      detail: `System ${systemId} exceeds the ${MAP_SCAN_ROW_LIMIT}-activity scan bound.`,
-    });
-  }
-  return rows;
-}
+const readSystemSignatures = (ctx: QueryCtx, mapId: string, systemId: number) =>
+  readByMapSignature(ctx, 'mapSignatures', mapId, systemId, 'signature');
+
+const readSystemActivities = (ctx: QueryCtx, mapId: string, systemId: number) =>
+  readByMapSignature(ctx, 'mapSignatureActivity', mapId, systemId, 'activity');
 
 async function readScanState(
   ctx: MutationCtx,
@@ -845,23 +833,17 @@ async function removeConfidentRows(
   return removed;
 }
 
-async function readDestinationConnections(
-  ctx: QueryCtx,
-  mapId: string,
-  systemId: number,
-): Promise<Doc<'mapConnections'>[]> {
-  const rows = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_map_to', (q) => q.eq('mapId', mapId).eq('toSystemId', systemId))
-    .take(MAP_ELIMINATION_CONNECTION_LIMIT + 1);
-  if (rows.length > MAP_ELIMINATION_CONNECTION_LIMIT) {
-    throw new ConvexError({
+const readDestinationConnections = (ctx: QueryCtx, mapId: string, systemId: number) =>
+  takeIndexedOrThrow(
+    ctx.db
+      .query('mapConnections')
+      .withIndex('by_map_to', (q) => q.eq('mapId', mapId).eq('toSystemId', systemId)),
+    MAP_ELIMINATION_CONNECTION_LIMIT,
+    {
       code: 'MAP_ELIMINATION_SCAN_LIMIT',
       detail: `Map ${mapId} exceeds the elimination destination read bound.`,
-    });
-  }
-  return rows;
-}
+    },
+  );
 
 function endpointSide(
   connection: Doc<'mapConnections'>,

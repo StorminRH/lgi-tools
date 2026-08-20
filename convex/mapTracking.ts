@@ -15,6 +15,8 @@ import {
   query,
   type QueryCtx,
 } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { requireMapAccess, tryMapAccess } from './lib/mapAccess';
 import { findCoverage } from './lib/locationCoverage';
 
@@ -31,17 +33,34 @@ export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
 // read budget on a hot reactive query.
 const TRACKING_MAP_SCAN_CAP = 256;
 
-function findCharacterLocation(
-  ctx: QueryCtx,
-  userId: string,
-  characterId: number,
-) {
-  return ctx.db
-    .query('characterLocation')
-    .withIndex('by_user_character', (q) =>
-      q.eq('userId', userId).eq('characterId', characterId),
-    )
-    .unique();
+interface TrackingIdentity {
+  mapId: string;
+  userId: string;
+  characterId: number;
+}
+
+async function enableTracking(
+  ctx: MutationCtx,
+  identity: TrackingIdentity,
+  existing: readonly Doc<'mapTracking'>[],
+  match: Doc<'mapTracking'> | undefined,
+): Promise<void> {
+  if (match !== undefined) return;
+  if (existing.length >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
+    throw new ConvexError({
+      code: 'TRACKING_CAP_EXCEEDED',
+      detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
+    });
+  }
+  await ctx.db.insert('mapTracking', identity);
+}
+
+async function disableTracking(
+  ctx: MutationCtx,
+  match: Doc<'mapTracking'> | undefined,
+): Promise<void> {
+  if (match === undefined) return;
+  await ctx.db.delete(match._id);
 }
 
 /**
@@ -81,28 +100,57 @@ export const setTracking = mutation({
     const match = existing.find((row) => row.characterId === characterId);
 
     if (tracked) {
-      if (match === undefined) {
-        if (existing.length >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
-          throw new ConvexError({
-            code: 'TRACKING_CAP_EXCEEDED',
-            detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
-          });
-        }
-        await ctx.db.insert('mapTracking', {
+      await enableTracking(
+        ctx,
+        {
           mapId,
           userId: principal.userId,
           characterId,
-        });
-      }
+        },
+        existing,
+        match,
+      );
       return { tracked: true };
     }
 
-    if (match !== undefined) {
-      await ctx.db.delete(match._id);
-    }
+    await disableTracking(ctx, match);
     return { tracked: false };
   },
 });
+
+function trackedLocationPayload(location: Doc<'characterLocation'>) {
+  return {
+    solarSystemId: location.solarSystemId,
+    stationId: location.stationId,
+    structureId: location.structureId,
+    shipTypeId: location.shipTypeId,
+    prevSolarSystemId: location.prevSolarSystemId,
+    prevFresh: location.prevFresh,
+    transitionObservedAt: location.transitionObservedAt ?? null,
+    observedAt: location.observedAt,
+  };
+}
+
+async function readTrackedLocations(
+  ctx: QueryCtx,
+  rows: readonly Doc<'mapTracking'>[],
+) {
+  const tracked = [];
+  for (const row of rows) {
+    const location = await uniqueByUserCharacter(
+      ctx,
+      'characterLocation',
+      row.userId,
+      row.characterId,
+    );
+    tracked.push({
+      userId: row.userId,
+      characterId: row.characterId,
+      location: location === null ? null : trackedLocationPayload(location),
+    });
+  }
+  return tracked;
+}
 
 /**
  * Tracking rows for one map, joined to location by each row's own
@@ -128,27 +176,7 @@ export const forMap = query({
       .withIndex('by_map', (q) => q.eq('mapId', mapId))
       .take(TRACKING_MAP_SCAN_CAP);
 
-    const tracked = [];
-    for (const row of rows) {
-      const location = await findCharacterLocation(ctx, row.userId, row.characterId);
-      tracked.push({
-        userId: row.userId,
-        characterId: row.characterId,
-        location:
-          location === null
-            ? null
-            : {
-                solarSystemId: location.solarSystemId,
-                stationId: location.stationId,
-                structureId: location.structureId,
-                shipTypeId: location.shipTypeId,
-                prevSolarSystemId: location.prevSolarSystemId,
-                prevFresh: location.prevFresh,
-                transitionObservedAt: location.transitionObservedAt ?? null,
-                observedAt: location.observedAt,
-              },
-      });
-    }
+    const tracked = await readTrackedLocations(ctx, rows);
     return {
       tracked,
       ownTrackedCharacterIds: rows
@@ -240,7 +268,12 @@ export async function readTrackedPilotSystemIds(
   }
   const systemIds = new Set<number>();
   for (const row of rows) {
-    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
+    const location = await uniqueByUserCharacter(
+      ctx,
+      'characterLocation',
+      row.userId,
+      row.characterId,
+    );
     if (location !== null) systemIds.add(location.solarSystemId);
   }
   return systemIds;

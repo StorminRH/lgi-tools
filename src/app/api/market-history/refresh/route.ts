@@ -1,14 +1,11 @@
-import type { NextRequest } from 'next/server';
+import { marketRefreshRoute } from '@/app/api/market-refresh-route';
 import {
   refreshHistoryEndpoint,
 } from '@/data/market-history/api-contract';
-import { capabilityRoute } from '@/app/api/capability-route';
 import { ON_DEMAND_HISTORY_LIMIT_PER_MINUTE } from '@/data/market-history/constants';
 import { getLiveHistory } from '@/data/market-history/refresh-on-view';
 import { emitCostMetric } from '@/data/telemetry/cost-metrics';
-import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';
-import { readJsonBody } from '@/transport/route-body';
 
 // POST /api/market-history/refresh
 // Body: { typeIds: number[] }
@@ -40,43 +37,34 @@ export const maxDuration = 60;
  * Handles POST requests for /api/market-history/refresh; this route owns its authorization,
  * boundary validation, and typed response mapping.
  */
-export const POST = capabilityRoute('market.refresh-market-history', handlePost);
-
-async function handlePost(request: NextRequest): Promise<Response> {
-  const parsed = await readJsonBody(request, refreshHistoryEndpoint.request);
-  if (!parsed.ok) return apiResponse(refreshHistoryEndpoint, 400, parsed.failure);
-
-  const limit = await checkRateLimit(request, {
-    name: 'market-history-refresh',
-    perMinute: ON_DEMAND_HISTORY_LIMIT_PER_MINUTE,
-  });
-  if (!limit.ok) return apiResponse(refreshHistoryEndpoint, 429, limit.failure);
-
-  const typeIds = Array.from(new Set(parsed.data.typeIds));
-  const startedAt = Date.now();
-  const { inputs, degraded, metrics } = await getLiveHistory(typeIds, (result) => {
-    emitCostMetric('market_history_write_behind', { ...result });
-  });
-
-  emitCostMetric('market_history_refresh', {
-    ...metrics,
-    budgetExhausted: degraded.budgetExhausted,
-    durationMs: Date.now() - startedAt,
-  });
-
-  if (degraded.budgetExhausted) {
-    console.warn(
-      JSON.stringify({
-        scope: 'market-history/refresh',
-        budgetExhausted: true,
-        fetched: degraded.fetched,
-      }),
-    );
-  }
-
-  return apiResponse(refreshHistoryEndpoint, 200, {
-    inputs: typeIds
-      .map((typeId) => inputs.get(typeId))
-      .filter((row): row is NonNullable<typeof row> => row !== undefined),
-  });
-}
+export const POST = marketRefreshRoute(
+  'market.refresh-market-history',
+  refreshHistoryEndpoint,
+  { name: 'market-history-refresh', perMinute: ON_DEMAND_HISTORY_LIMIT_PER_MINUTE },
+  (typeIds) =>
+    getLiveHistory(typeIds, (result) => {
+      emitCostMetric('market_history_write_behind', { ...result });
+    }),
+  ({ typeIds, loaded, durationMs }) => {
+    const { inputs, degraded, metrics } = loaded;
+    emitCostMetric('market_history_refresh', {
+      ...metrics,
+      budgetExhausted: degraded.budgetExhausted,
+      durationMs,
+    });
+    if (degraded.budgetExhausted) {
+      console.warn(
+        JSON.stringify({
+          scope: 'market-history/refresh',
+          budgetExhausted: true,
+          fetched: degraded.fetched,
+        }),
+      );
+    }
+    return apiResponse(refreshHistoryEndpoint, 200, {
+      inputs: typeIds
+        .map((typeId) => inputs.get(typeId))
+        .filter((row): row is NonNullable<typeof row> => row !== undefined),
+    });
+  },
+);

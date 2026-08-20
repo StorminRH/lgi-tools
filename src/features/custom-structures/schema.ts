@@ -1,5 +1,6 @@
-import { doublePrecision, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { doublePrecision, integer, jsonb, pgTable } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
+import { ownedRowIdentityColumns } from '@/lib/db-columns';
 
 /**
  * Per-user, APP-AUTHORED custom structures (3.7.9) — a saved Upwell structure
@@ -22,12 +23,7 @@ import { user } from '@/db/auth-schema';
  * as JSONB (the corp_structure_syncs.page_etags precedent), not a pg array.
  */
 export const customStructures = pgTable('custom_structures', {
-  // App-generated (crypto.randomUUID) — opaque, never an ESI/SDE id.
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
+  ...ownedRowIdentityColumns(() => user.id),
   structureTypeId: integer('structure_type_id').notNull(),
   rigTypeIds: jsonb('rig_type_ids').$type<number[]>().notNull().default([]),
   systemId: integer('system_id'),
@@ -36,5 +32,4 @@ export const customStructures = pgTable('custom_structures', {
   // portable and pinned alike: the pin fixes WHERE (the cost-index system), the
   // tax stays a property of the imagined structure.
   taxPct: doublePrecision('tax_pct'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

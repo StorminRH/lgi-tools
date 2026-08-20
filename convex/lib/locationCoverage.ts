@@ -1,4 +1,5 @@
 import type { MutationCtx, QueryCtx } from '../_generated/server';
+import { uniqueByUserCharacter } from './indexedQuery';
 
 /**
  * Flip-only present+online rows. A document exists only while the owner's
@@ -47,10 +48,10 @@ export async function findCoverage(
   userId: string,
   characterId: number,
 ) {
-  return ctx.db
-    .query('characterLocationCovered')
-    .withIndex('by_user_character', (q) =>
-      q.eq('userId', userId).eq('characterId', characterId),
-    )
-    .unique();
+  return await uniqueByUserCharacter(
+    ctx,
+    'characterLocationCovered',
+    userId,
+    characterId,
+  );
 }

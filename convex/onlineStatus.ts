@@ -11,7 +11,7 @@
 //   - drainCharacterOnline: the sweep's temporary Pass D delegates the
 //     table's teardown here so characterOnline keeps ONE owner.
 import { internalMutation, type MutationCtx, query } from './_generated/server';
-import { authenticatedSubject } from './lib/characterSync';
+import { viewerUserDocs } from './lib/indexedQuery';
 import { purgeScopeArgs } from './lib/syncFields';
 
 /**
@@ -21,17 +21,11 @@ import { purgeScopeArgs } from './lib/syncFields';
  */
 export const forViewer = query({
   args: {},
-  handler: async (ctx) => {
-    const userId = await authenticatedSubject(ctx);
-    if (userId === null) return null;
-    const docs = await ctx.db
-      .query('characterOnline')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    return {
-      characters: docs.map((doc) => ({ characterId: doc.characterId, online: doc.online })),
-    };
-  },
+  handler: async (ctx) =>
+    viewerUserDocs(ctx, 'characterOnline', (doc) => ({
+      characterId: doc.characterId,
+      online: doc.online,
+    })),
 });
 
 /**
