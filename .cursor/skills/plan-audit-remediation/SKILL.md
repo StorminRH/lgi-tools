@@ -12,6 +12,9 @@ contracts. Same classification, baseline, remediation, and archive rules as the
 Planning persists only approved artifacts. Do not create session implementation
 plans. No merge, deployment, production, or destructive-recovery authority.
 
+When talking with the operator, write in plain English and invoke `unslop`
+on what you say.
+
 ## Procedure
 
 1. Require resolver `plan-audit-remediation`. Read baseline, the audit plan
@@ -20,8 +23,8 @@ plans. No merge, deployment, production, or destructive-recovery authority.
 2. For every open Floss or Campaign, diagnose violated ownership, interface,
    change-axis, or coverage principle. Define end-state and characterization
    evidence; do not copy a metric.
-3. Apply plan-version topology audit to the full finding set. Fewest safe
-   bundles; map every open AF id; map no unaudited scope.
+3. Apply plan-version grouping to the full finding set. Few feature-sized
+   sessions; map every open AF id; map no unaudited scope.
 4. Present topology; invoke `adversarial-review` on topology and evidence;
    obtain approval before mutation.
 5. Update roadmap topology, then contracts/index; mark mapped findings Planned;

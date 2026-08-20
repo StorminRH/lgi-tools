@@ -159,14 +159,15 @@ Otherwise: `Not applicable — this is not an audit-remediation contract`.
 3. **[Integration/reconciliation step].** Connect changed owners, remove or repoint superseded surfaces.
 
 Each numbered step is one execution chat under `start-session`. Size as many
-thin lookable slices as the bundle needs. Sequence so the operator can
-exercise a change on `development` often, not after a long backend run with
-the interface last. Close-out, promote, `thermos`, and `no-comments` stay
-out of Ordered work. After every app-facing land, the execute chat pauses
-for the operator look on `development`. When `Contract UX gate` is Yes,
-include a dedicated Ordered work step whose outcome is `ux-check` evidence
-plus the named `G-N` operator disposition, after there is something to look
-at. That step is not the first look. Name concrete surfaces.
+thin steps as the feature needs. The operator looks during these steps, not
+when the session ends. Mark a visual look on about every other step, and on
+any step that presents something the operator can see. A backend-only step
+can skip the look. Close-out, promote,
+`thermos`, and `no-comments` stay out of Ordered work. When `Contract UX
+gate` is Yes, include a dedicated Ordered work step whose outcome is
+`ux-check` evidence plus the named `G-N` operator disposition, after there
+is something to look at. That step is not the first look. Name concrete
+surfaces.
 
 ## Success criteria (agent-runnable — show the output)
 

@@ -1,98 +1,91 @@
 ---
 name: plan-version
-description: Convert a master version plan into the fewest safe session contracts. Use when beginning lifecycle planning for a new master version or the lifecycle resolver selects plan-version.
+description: Group a master version into a few feature-sized session contracts. Use when beginning lifecycle planning for a new master version or the lifecycle resolver selects plan-version.
 ---
 
 # Plan a version
 
-Turn one master-version outcome set into the fewest session contracts that
-still let the operator look at `development` throughout execution. The master
-plan's goals, required outcomes, invariants, cleanup, and genuine
+Group one master version into a few major features. Each feature is one
+session contract. `plan-session` later turns that contract into many Ordered
+work steps. The operator looks at `development` during those steps, not
+because a session ended.
+
+A session is a feature a player or operator would name. On a 4.0-shaped
+Atlas version that might be four contracts: how the map draws and behaves,
+paste, blank-map authoring, and one more if a fourth feature is real.
+Numbered slices (`4.0.1`, `4.0.2`, `4.0.3`) collapse into those features
+when they belong together.
+
+The master plan's goals, required outcomes, invariants, cleanup, and genuine
 dependencies are fixed. Its proposed sub-version, session, branch, and PR
 headings are provisional until this skill completes.
-
-Session count is the number of bundles that cannot share one execution, not
-the number of features. Ordered work inside a session carries the breakdown
-(five, ten, or twenty steps). `plan-session` sequences those steps as
-lookable slices on `development`.
 
 Inputs: a `plan-version` resolver directive, active master plan, live
 `origin/development`, current baseline and state, relevant open issues, and
 artifact schemas.
 
-Output: an operator-approved roadmap topology, then one schema-complete
-contract and index entry per approved bundle. Session implementation plans
-are `plan-session`.
+Output: an operator-approved feature grouping, then one schema-complete
+contract and index entry per feature. Session implementation plans are
+`plan-session`.
 
-## 1. Build the outcome ledger
+When talking with the operator, write in plain English and invoke `unslop`
+on what you say.
+
+## 1. Build the feature ledger
 
 Done when every master-plan goal, invariant, cleanup, dependency, acceptance
-outcome, UX gate, and operator decision has a ledger row, and no delivery
-heading was taken as a boundary.
+outcome, UX gate, and operator decision sits under a named feature, and no
+delivery heading was taken as a feature.
 
 1. Require the resolver directive to name `plan-version`; otherwise report it
    and return to `start-session`.
 2. Read the master plan, live code and tests, baseline, prior as-builts in
    the active version, relevant open issues, and
    `docs/workflows/schema/session-contract.md`.
-3. Extract the ledger from those outcomes. Count the features or capabilities
-   the version actually needs. That count is the work, not the session count.
+3. Name the major features the version actually ships. That list is the
+   session count you will argue for. Plumbing, layers, and review pauses
+   are not features.
 
-## 2. Record and challenge the current topology
+## 2. Co-author the grouping
 
-Done when every proposed boundary has a hard reason, or has been combined.
+Done when the operator has settled which features exist and which old
+headings fold into which feature.
 
-1. Count the current proposed sub-versions, sessions, planning cycles, and
-   close-out cycles.
-2. Map dependencies, overlapping file or decision owners, verification
-   gates, pauses, external waits, rollback boundaries, and risk domains.
-3. Combine every adjacent or tightly coupled slice. Different directories,
-   document types, roadmap headings, implementation layers, producer or
-   consumer order, plumbing before UX, checker before fixtures, or a
-   resumable review pause are not split reasons. Those become Ordered work
-   steps inside one session.
-4. Keep a boundary only for a real wait or soak, a decision that changes
-   later implementation, an independent rollback or deployment boundary,
-   unbounded discovery, a materially different high-risk domain, a
-   genuinely unreviewable app-facing pile, or explicitly approved parallel
-   work.
-5. For every surviving boundary complete: `This cannot be Ordered work
-   inside the adjacent session because …`. Combine it when the answer is
-   not compelling.
+1. Present a short grouping: each proposed feature, what it includes, and
+   which numbered slices or roadmap headings fold into it.
+2. Walk the grouping with the operator. Challenge a heading that is only a
+   layer, a wait, or a review checkpoint. Propose a merge when two headings
+   are one feature. Split only when they are two features.
+3. Keep a second session only for a real wait or soak, a decision that
+   changes later implementation, an independent rollback or deployment
+   boundary, unbounded discovery, a materially different high-risk domain,
+   or explicitly approved parallel work. A look on `development` is not a
+   session boundary.
 
-## 3. Produce the fewest safe bundles
+## 3. Review the grouping
 
-Done when the proposed session count is the minimum that the hard reasons
-support, and both reviewers returned `CLEAN` on that proposal.
+Done when both reviewers returned `CLEAN` on the settled grouping.
 
-1. Propose the fewest safe bundles. The default is one session for a
-   coherent outcome set, with many Ordered work steps, each landing on
-   `development`.
-2. For each bundle show covered ledger items, internal phases written as
-   lookable slices (not backend then interface), shared owners,
-   verification, operator looks on `development`, split triggers, and any
-   genuine size or risk concern.
-3. Present current versus proposed counts and a complete current-to-proposed
-   bundle map.
-4. Launch a fresh `structure-reviewer` and a fresh `behavior-reviewer` in
-   parallel against the proposal, fixed outcomes, and source evidence.
+1. For each feature show covered ledger items, the headings it absorbs,
+   internal phases as movements inside the feature, and split triggers.
+2. Present current heading count versus proposed feature count and a
+   complete heading-to-feature map.
+3. Launch a fresh `structure-reviewer` and a fresh `behavior-reviewer` in
+   parallel against the grouping, fixed outcomes, and source evidence.
    Launch them by those type names and omit Task `model`. The review must
-   attempt every sensible merge and reject boundaries justified only by
-   headings or ordinary implementation order. Continue when both return
-   `CLEAN`, or every accepted finding is corrected and re-reviewed clean.
+   reject a session that exists only to host a look or a layer. Continue
+   when both return `CLEAN`, or every accepted finding is corrected and
+   re-reviewed clean.
 
 ## 4. Approve before writing
 
-Done when the operator has approved the topology, the master plan and
+Done when the operator has approved the grouping, the master plan and
 contracts are on `origin/development`, and any short-lived source branch
 is gone.
 
-1. Present the fixed outcomes, current and proposed counts, bundle map,
-   internal phases, owner and gate overlaps, stop and split triggers, the
-   hard reason for every boundary, and any genuinely oversized bundle
-   (`CLEAN` only).
-2. Obtain operator approval for the revised topology while the repository
-   remains unchanged.
+1. Present the feature list, the heading-to-feature map, and the hard
+   reason for every remaining split (`CLEAN` only).
+2. Obtain operator approval while the repository remains unchanged.
 3. After approval, update the master plan's delivery topology first.
 4. At topology approval, run
    `python3 tools/cli.py lifecycle capture-version-start` and apply its
@@ -100,14 +93,14 @@ is gone.
    this adoption opens a new master version. Skip when the baseline's
    `Version-start ref` already matches the committed Code ref.
 5. Reconcile stale unexecuted contracts and index entries next.
-6. Create one schema-complete contract per approved bundle last. A contract
-   may cover several roadmap sections. Delivery unit is land-each-Ordered-
-   work-step-on-`development`. Internal phases name lookable slices.
+6. Create one schema-complete contract per approved feature last. Delivery
+   unit is land-each-Ordered-work-step-on-`development`. Internal phases
+   name movements inside the feature. They are not extra sessions.
 7. Land and clean those commits onto `development` using `start-session`
    section 3.
 8. Run `python3 tools/cli.py lifecycle check-evidence` and
    `python3 tools/cli.py test`, rerun the resolver, report the new
-   directive, and stop. Material topology or contract changes require
+   directive, and stop. Material grouping or contract changes require
    renewed approval.
 
 ## Return
@@ -118,6 +111,6 @@ out of a code fence, and write no second summary in front of it.
 ## Version topology: `APPROVED` | `BLOCKED`
 
 - **Subject:** Master `<X.Y>`; roadmap `<path>`
-- **Result:** <approval or stop reason; delivery counts; ≤2 sentences>
+- **Result:** <approval or stop reason; feature count; ≤2 sentences>
 - **Action:** <next lifecycle action>
 - **Blocker:** <exact blocker or `None`>

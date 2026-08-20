@@ -100,8 +100,9 @@ drift in scope.
 The approved plan is the starting execution prompt, not an immutable script.
 Never return this session to `plan-session`, and never rewrite the contract.
 When live evidence invalidates a named plan interface or step, pause and
-discuss with the operator in plain English. Present the conflict and bounded
-alternatives, settle the replacement, continue under that direction, and
+discuss with the operator in plain English. Invoke `unslop` on that talk.
+Present the conflict and bounded alternatives, settle the replacement,
+continue under that direction, and
 record the divergence for the as-built. Do not invent a replacement, and do
 not default to backlog or deferral. Those cuts are rare and operator-driven
 only.
@@ -134,8 +135,8 @@ skips this prelude.
 
 Done when the OW commit is on `origin/development`, the source lifecycle
 branch is gone, the local test suite was green after the last review, the
-handoff reports the app-facing count versus `staging`, and any app-facing
-land has an operator look disposition.
+handoff reports the app-facing count versus `staging`, and any visual look
+the plan or the land required has an operator disposition.
 
 1. After the step's focused proof, invoke `gate-runner` with the local test
    suite from AGENTS.md Seats plus those focused evidence commands. Require a
@@ -158,10 +159,12 @@ land has an operator look disposition.
    unless those files are the ask. Report `app-facing <n>/100` in the
    handoff. At or over 100, the handoff names that a promote is due before
    more app-facing work.
-7. After an app-facing land, pause for the operator to look at
-   `development` (Preview, or laptop `pnpm dev` when they choose). Record
-   their disposition in the handoff. That look is the gate to the next
-   Ordered work step.
+7. Pause for a visual look when the plan marked this step for one, or when
+   the land presents something the operator can see on `development`
+   (Preview, or laptop `pnpm dev` when they choose). That is about every
+   other step, and any time a visual exists. Record the disposition in the
+   handoff. It is the gate to the next Ordered work step. A backend-only
+   land continues without a look.
 
 Stop with `OW_HANDOFF` and a copy-paste handoff prompt. Mid-session progress
 and next-agent notes live in that prompt, not in git. When more Ordered work

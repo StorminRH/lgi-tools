@@ -11,6 +11,9 @@ remediation, and archive rules as the `version-audit` skill.
 Planning persists only the approved artifact. No merge, deployment, production,
 or destructive-recovery authority.
 
+When talking with the operator, write in plain English and invoke `unslop`
+on what you say.
+
 ## Procedure
 
 1. Require resolver `plan-version-audit` for lifecycle Version close. Explicit

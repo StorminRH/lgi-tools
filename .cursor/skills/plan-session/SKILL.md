@@ -5,11 +5,14 @@ description: Turn one approved lifecycle session contract into a reviewed, decis
 
 # Plan a lifecycle session
 
-Turn one approved session contract into a decision-complete implementation plan
-through iterative plain-English co-authoring with the operator. The contract is
-a starting prompt for product intent. `docs/workflows/schema/session-plan.md`
+Turn one approved feature contract into a decision-complete implementation
+plan through iterative co-authoring with the operator. The contract is a
+starting prompt for product intent. `docs/workflows/schema/session-plan.md`
 owns the artifact form. `start-session` owns execute branches and land and
 clean.
+
+When talking with the operator, write in plain English and invoke `unslop`
+on what you say.
 
 Inputs: a `plan-session` resolver directive, the selected contract and exact
 bytes, prior session as-built records, baseline/state, and live
@@ -55,24 +58,24 @@ delivery and handoff.
 
 Iterative discussion with the operator is the default. Research in the open.
 
-1. Present a short plain-English overview of what the contract implies this
-   session will build: destination, boundaries, and major unknowns.
+1. Present a short overview of what this feature will build: destination,
+   boundaries, and major unknowns.
 2. Walk the plan one logical section at a time with the operator. Suggested
    order: destination and scope; key decisions; interfaces and control flow;
    ordered work; success criteria and proof; delivery and handoff.
-3. Size Ordered work as many thin steps as the bundle needs (five, ten,
+3. Size Ordered work as many thin steps as the feature needs (five, ten,
    twenty). Each step is one `start-session` execute chat: the work, the
    local test suite, `structure-reviewer` and `behavior-reviewer`, then land
-   and clean onto `development`. Sequence those steps as lookable slices.
-   The operator should be able to exercise a change on `development` often,
-   not after a long backend run with the interface last. A step that has no
-   user-facing result yet still lands; the next step that does is the next
-   look. Close-out, promote, `thermos`, and `no-comments` stay out of
-   Ordered work. When `UX gate` is Yes, include `ux-check` after there is
-   something on `development` to look at. That step is not the first look.
-4. After every app-facing land, the execute chat pauses for the operator to
-   look at `development` (Preview, or laptop `pnpm dev` when they choose).
-   Their disposition is the gate to the next Ordered work step.
+   and clean onto `development`. The operator looks during these steps, not
+   when the session ends. Mark a visual look on about every other step, and
+   on any step that presents something the operator can see. A backend-only
+   step can skip the look. Close-out, promote, `thermos`, and `no-comments`
+   stay out of Ordered work. When `UX gate` is Yes, include `ux-check`
+   after there is something on `development` to look at. That step is not
+   the first look.
+4. A marked visual look pauses the execute chat so the operator can try
+   `development` (Preview, or laptop `pnpm dev` when they choose). Their
+   disposition is the gate to the next Ordered work step.
 5. Resolve every contract planning decision (`PD-N`) during this walk.
    Surface choices that change behavior, ownership, risk, or scope.
 6. Record delivery as land-on-`development`. The plan's `Branch` is the land
