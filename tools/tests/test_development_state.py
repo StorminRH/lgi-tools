@@ -833,7 +833,8 @@ class DevelopmentStateTests(unittest.TestCase):
                 "**Delivery unit:** One branch\n",
                 "Delivery unit must be one of: One agent session, one shared "
                 "sub-version branch, one PR per session | One agent session, "
-                "one shared sub-version branch, one sub-version PR",
+                "one shared sub-version branch, one sub-version PR | One agent "
+                "session, land each Ordered work step on development",
             ),
             "roadmap coverage": (
                 "**Roadmap coverage:** §9.9.1.1 fixture outcome\n",
@@ -1280,6 +1281,16 @@ class DevelopmentStateTests(unittest.TestCase):
             "one sub-version PR", "one PR per session"
         )
         contract.write_text(text, encoding="utf-8")
+        self.fixture.write_session_plan(contract)
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("session-ready", state["stage"])
+
+    def test_delivery_unit_accepts_land_each_ordered_work_step(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract(
+            delivery_unit=DELIVERY_UNITS[2],
+        )
         self.fixture.write_session_plan(contract)
         state, errors = resolve(self.fixture.root)
         self.assertEqual([], errors)

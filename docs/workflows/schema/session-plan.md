@@ -158,7 +158,15 @@ Otherwise: `Not applicable — this is not an audit-remediation contract`.
 2. **[Outcome-sized step].** Change `[named surfaces]` so [specific invariant or behavior holds]. Prove with [focused evidence].
 3. **[Integration/reconciliation step].** Connect changed owners, remove or repoint superseded surfaces.
 
-Each numbered step is one execution chat under `start-session`. Do not list close-out, adversarial review, push, or PR opening as Ordered work. When `Contract UX gate` is Yes, include one dedicated Ordered work step whose outcome is `ux-check` evidence plus the named `G-N` operator disposition. Name concrete surfaces. Avoid open-ended instructions.
+Each numbered step is one execution chat under `start-session`. Size as many
+thin lookable slices as the bundle needs. Sequence so the operator can
+exercise a change on `development` often, not after a long backend run with
+the interface last. Close-out, promote, `thermos`, and `no-comments` stay
+out of Ordered work. After every app-facing land, the execute chat pauses
+for the operator look on `development`. When `Contract UX gate` is Yes,
+include a dedicated Ordered work step whose outcome is `ux-check` evidence
+plus the named `G-N` operator disposition, after there is something to look
+at. That step is not the first look. Name concrete surfaces.
 
 ## Success criteria (agent-runnable — show the output)
 
@@ -186,7 +194,8 @@ Proof identifiers are unique and contiguous within each criterion (`SC-1.1`, `SC
 ## End of session
 
 - Confirm every `DONE =` item is evidenced and every `hard_constraints` boundary held.
-- **Delivery:** [exactly push in-branch after OW commits, open a PR, merge, or stop with a non-code artifact].
+- **Delivery:** [land each Ordered work step on `development` through
+  `start-session`; no land PR].
 - **Lifecycle artifacts:** [plan marker, roadmap, changelog, baseline, as-built, or archive updates this session owns; omit the rest].
 - **Handoff:** [exact resolver rerun, next-session pointer, or terminal pause after delivery]. Per-OW chat handoffs are owned by the `start-session` skill.
 

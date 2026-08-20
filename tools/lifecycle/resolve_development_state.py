@@ -41,6 +41,7 @@ MARKER_VOCABULARY = {
 DELIVERY_UNITS = (
     "One agent session, one shared sub-version branch, one PR per session",
     "One agent session, one shared sub-version branch, one sub-version PR",
+    "One agent session, land each Ordered work step on development",
 )
 AUDIT_STATUSES = {
     "approved",

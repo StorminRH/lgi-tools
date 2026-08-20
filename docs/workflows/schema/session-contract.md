@@ -18,21 +18,24 @@ Start every contract with this frame:
 **Master plan:** `docs/VERSION_X_Y_PLAN.md` §X.Y.N
 **UX gate:** No
 **Execution profile:** Frontier autonomous coding agent
-**Delivery unit:** One agent session, one shared sub-version branch, one sub-version PR
+**Delivery unit:** One agent session, land each Ordered work step on development
 **Roadmap coverage:** §X.Y.N outcome or ordered outcome set
-**Internal phases:** 1. First outcome; 2. Second outcome; 3. Integration and proof
+**Internal phases:** 1. First lookable slice on development; 2. Next slice; 3. Later slice
 **Split triggers:** Only the rare concrete conditions that invalidate the bundle
 ```
 
 `UX gate` is exactly `Yes` or `No` (`Yes` when the session changes user-facing
 behavior or appearance). `Execution profile` uses the exact value above.
-`Delivery unit` is exactly
+`Delivery unit` for new contracts is exactly
+`One agent session, land each Ordered work step on development`.
+Completed 4.0 contracts may still carry
 `One agent session, one shared sub-version branch, one sub-version PR` or
-`One agent session, one shared sub-version branch, one PR per session`. Every
-session in a sub-version shares one lifecycle branch; the choice is
-sub-version-wide. `Roadmap coverage`, `Internal phases`, and `Split triggers`
-are non-empty. Split triggers name only rare invalidating conditions — not
-ordinary review or a resumable pause.
+`One agent session, one shared sub-version branch, one PR per session`.
+`start-session` cuts `lifecycle/<session>-ow-<n>` from `development` per
+Ordered work step. `Roadmap coverage`, `Internal phases`, and `Split triggers`
+are non-empty. Internal phases name slices the operator can look at on
+`development`, not a backend run with the interface last. Split triggers name
+only rare invalidating conditions, not ordinary review or a resumable pause.
 
 Version contract index: exactly three columns mapping identifiers to files:
 
@@ -101,8 +104,10 @@ exceptional gates. Do not copy mutable repository-wide commands.
 ## 10. UX/operator gates
 
 Restate the practical consequence of the `UX gate` marker. Name any additional
-explicit operator pause as a `G-N` item. When the marker is Yes, a dedicated
-Ordered work step under `start-session` invokes `ux-check`.
+explicit operator pause as a `G-N` item. After every app-facing land the
+operator looks at `development`. When the marker is Yes, a dedicated Ordered
+work step under `start-session` also invokes `ux-check` once there is
+something to look at. That step is not the first look.
 
 ## 11. Baseline/hotspot boundary
 
@@ -111,6 +116,8 @@ the version plan, and what planning must verify against the current baseline.
 
 ## 12. Close-out behavior
 
-Record the slice-relevant delivery fork: in-branch commit vs sub-version
-completion, and when the execution marker may become `Complete`. Close-out
-consumes a completed UX Ordered work disposition; it does not re-run that pause.
+Each Ordered work step already landed on `development`. Close-out does not
+open a land PR. Record when the plan marker may become `Complete`, and that
+promote waits until app-facing files versus `staging` are around 100.
+Close-out consumes recorded operator looks and any `ux-check` disposition;
+it does not re-run those pauses.
