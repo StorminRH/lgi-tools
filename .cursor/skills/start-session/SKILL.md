@@ -139,7 +139,7 @@ Done when the step's code is written against a Documentation brief, a
 Repository map, and `typescript-best-practices`.
 
 Before writing or editing code, launch `docs-researcher`, then `repo-mapper`.
-Name those seats and omit Task `model`. Generation waits on the
+Name those agents and omit Task `model`. Generation waits on the
 Documentation brief and the Repository map. Then invoke
 `typescript-best-practices`. Then write. A docs-only or policy-only step
 skips this prelude.
@@ -152,7 +152,7 @@ handoff reports the app-facing count versus `staging`, and any visual look
 the plan or the land required has an operator disposition.
 
 1. After the step's focused proof, invoke `test-runner` with the local test
-   suite from AGENTS.md Seats plus those focused evidence commands. Require
+   suite from AGENTS.md plus those focused evidence commands. Require
    green test results for every command. Failures return `BLOCKED`.
 2. On a green suite, launch a fresh `structure-reviewer` and a fresh
    `behavior-reviewer` in parallel against this step's working-tree diff.

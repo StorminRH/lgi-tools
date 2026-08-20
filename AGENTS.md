@@ -9,10 +9,10 @@ EVE Online multi-tool. Work lands in slices.
 - Planned lifecycle work starts only through `start-session`. Use the
   resolver-selected branch and handler.
 
-## Seats
+## Agents
 
-Use a listed seat when the work isolates to it. Other subagents are fine when
-they help.
+Use a listed agent when the work isolates to it. Other sub-agents are fine
+when they help.
 
 Launch `docs-researcher` before writing or editing production or test code that
 touches React, Next.js, Convex, Base UI, React Flow, Vitest, or peers.
@@ -27,12 +27,12 @@ needs test results: `pnpm typecheck`, `pnpm lint`, Fallow
 `dead-code`, `dupes`, and `health` (CRAP, no `--coverage`), plus
 caller-supplied focused tests for the diff.
 
-Name those seats and omit Task `model` so the agent file pin applies. `inherit`
+Name those agents and omit Task `model` so the agent file pin applies. `inherit`
 and model slugs override the pin.
 
 ## Done
 
-Land on Origin `development` with the local test suite from Seats. Promote
+Land on Origin `development` with the local test suite. Promote
 (`development` → `staging`) and release (`staging` → `main`) wait on
 that Origin PR's Depot pipeline with `origin pr checks --watch`.
 

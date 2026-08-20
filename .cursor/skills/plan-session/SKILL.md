@@ -47,7 +47,7 @@ Done when every contract `DEP-N`, `IS-N`, `OOS-N`, `HC-N`, `PD-N`, `AC-N`,
 Launch `repo-mapper` when the contract implies a code change whose callers,
 callees, or blast radius are unknown. Launch `docs-researcher` when a claim
 depends on React, Next.js, Convex, Base UI, React Flow, Vitest, or a peer.
-Name those seats and omit Task `model`.
+Name those agents and omit Task `model`.
 
 ## 2. Co-author the plan
 

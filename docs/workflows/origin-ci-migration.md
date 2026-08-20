@@ -152,7 +152,7 @@ happen on the stack you will keep.
   (`.cursor/environment.json`, committed `.cursor/skills/` and
   `.cursor/agents/`, Origin remotes, `depot ci run`, Preview URLs).
   Do not add laptop-only or cloud-only workarounds. Do not ignore
-  skills, seats, or docs that both environments need. Keep ignoring
+  skills, agents, or docs that both environments need. Keep ignoring
   secrets (`.env*`), cookie jars, coverage, `node_modules`, and
   machine-local `local-only/` trees. `CONVEX_AGENT_MODE=anonymous` is
   the official Cloud Agent Convex default — keep it; do not copy a
@@ -201,7 +201,7 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 | Daily GrokBots | Schedule runners | They run on a schedule. When they need to write code they spawn a Cloud Agent in the build environment. **Update watch:** GrokBot itself files an issue (no Cloud Agent). **Refactor:** standing issue documents the process; work lives as a draft PR the agent updates. **Test cleanup:** draft PR only (rebased/updated daily); not an issue. Live GitHub: [#444](https://github.com/StorminRH/lgi-tools/issues/444), [#449](https://github.com/StorminRH/lgi-tools/issues/449) | OW-16 retargets: Linear for issues the bots file; Origin draft PRs for the two accumulators |
 | Linear | Intended tracker | Free plan + API. Cursor app, Cloud Agents, and GrokBots each have a Linear connector. Linear `@cursor` repo picker is still documented as GitHub-shaped `owner/repo` | OW-14 proves those connectors on the Origin repo; do not hunt a peer unless that proof fails |
 | Depot Developer plan | Purchased intent | Depot CI minutes and results. Unused: Mac runners, Registry, GHA runner minutes, extra-billed Agent sandboxes | Buy Depot CI only |
-| Local vs Cloud Agent | Two workflows | Laptop: `pnpm dev:all` (Docker). Cloud: committed `.cursor/environment.json` + native Postgres on `:5433` + `CONVEX_AGENT_MODE=anonymous`. Skills/seats are tracked; `.gitignore` also ignores `local-only/` trees and `.codegraph/`. AGENTS.md carries a long Cloud-specific caveat list | OW-18 last: one Cursor-native path; audit ignore rules; shrink caveats to platform facts |
+| Local vs Cloud Agent | Two workflows | Laptop: `pnpm dev:all` (Docker). Cloud: committed `.cursor/environment.json` + native Postgres on `:5433` + `CONVEX_AGENT_MODE=anonymous`. Skills and agents are tracked; `.gitignore` also ignores `local-only/` trees and `.codegraph/`. AGENTS.md carries a long Cloud-specific caveat list | OW-18 last: one Cursor-native path; audit ignore rules; shrink caveats to platform facts |
 | This plan PR | In progress | This file on `stormin/origin-ci-migration-4df8` | This chat only publishes the plan |
 
 ## Why now
@@ -251,7 +251,7 @@ When the last Ordered work step is done:
   stays issue-only (no Cloud Agent).
 - Each lifecycle skill has been visited in isolation against this
   model.
-- Laptop Cursor and Cloud Agents run the same skills, seats, Origin
+- Laptop Cursor and Cloud Agents run the same skills, agents, Origin
   remotes, Depot `verify`, and Preview-or-optional-`pnpm dev` loop.
   Required files are tracked on Origin. Cloud install/start follow
   Cursor’s environment schema, not a second undocumented stack.
@@ -709,7 +709,7 @@ Do not implement a later step in an earlier chat.
     `start.sh`, and `AGENTS.md` so they describe **one** workflow
     using Cursor’s environment schema
     (`https://cursor.com/docs/cloud-agent/setup`). Audit
-    `.gitignore`: track every skill, seat, and doc both sides need;
+    `.gitignore`: track every skill, agent, and doc both sides need;
     keep ignoring `.env*`, cookie jars, coverage, `node_modules`,
     and true machine-local `local-only/` trees. Remove skill
     branches that say “do this locally, do that on Cloud” unless
@@ -729,7 +729,7 @@ share Origin, Depot, and Preview as the daily loop.
 
 Leave ignored: secrets, Playwright cookie jars, coverage,
 `node_modules`, `.next`, and directories named `local-only/` that
-are truly one-machine scratch. Do not ignore a skill or seat because
+are truly one-machine scratch. Do not ignore a skill or agent because
 “Cloud does not need it.”
 
 `CONVEX_AGENT_MODE=anonymous` and a Cloud VM without Docker are
@@ -942,7 +942,7 @@ mutation IssueCreate {
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
-  | `SC-11.1` | Compare laptop clone and Cloud Agent tree | Same tracked skills, seats, and docs; required files are not gitignored |
+  | `SC-11.1` | Compare laptop clone and Cloud Agent tree | Same tracked skills, agents, and docs; required files are not gitignored |
   | `SC-11.2` | Cloud Agent dry-run of land-on-`development` | Origin remote + `depot ci run --job verify` + same close-out steps as laptop |
   | `SC-11.3` | Read `AGENTS.md` + `environment.json` | One workflow; remaining Cloud notes are platform facts only |
 
