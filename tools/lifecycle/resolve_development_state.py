@@ -14,6 +14,11 @@ from pathlib import Path
 
 
 from tools._lib.repository import ROOT
+from tools.lifecycle.count_app_facing import (
+    PROMOTE_BAR,
+    PROMOTE_TRIGGER,
+    try_app_facing_count,
+)
 
 DEFAULT_ROOT = ROOT
 CONTRACT_SCHEMA_RELPATH = "docs/workflows/schema/session-contract.md"
@@ -123,6 +128,14 @@ class WorkflowDirective:
 
 
 LIFECYCLE_BRANCH_PREFIX = "lifecycle/"
+PROMOTE_INTERRUPT_STAGES = frozenset(
+    {
+        "contracts-needed",
+        "session-plan-needed",
+        "session-ready",
+        "as-built-needed",
+    }
+)
 
 
 def lifecycle_branch(subversion: str) -> str:
@@ -1268,6 +1281,22 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
     version = str(state.get("activeVersion", "the active version"))
     session = str(state.get("session", "the selected session"))
 
+    if stage == "promote-needed":
+        return WorkflowDirective(
+            action="Promote development onto staging",
+            handler="close-out",
+            mode="execute",
+            authority=(
+                "Promote only. Merge Origin development onto staging. "
+                "Do not cut a release or change Production."
+            ),
+            primary_artifact=str(state["masterPlan"]) if "masterPlan" in state else None,
+            pause=(
+                "After the promote, return to start-session for the next "
+                "Ordered work step or plan."
+            ),
+            branch="development",
+        )
     if stage == "master-plan-needed":
         return WorkflowDirective(
             action="Request product direction for the next master version",
@@ -1476,8 +1505,34 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     return warnings
 
 
-def resolve(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[str]]:
+def apply_promote_interrupt(
+    state: dict[str, object],
+    count: int | None,
+) -> dict[str, object]:
+    """Send building stages to promote when the app-facing pile hits 80."""
+    if count is None or count < PROMOTE_TRIGGER:
+        return state
+    if str(state.get("stage")) not in PROMOTE_INTERRUPT_STAGES:
+        return state
+    return {
+        **state,
+        "stage": "promote-needed",
+        "appFacing": count,
+        "reason": (
+            f"App-facing count versus staging is {count}/{PROMOTE_BAR}. "
+            "Promote development onto staging before more Ordered work or planning."
+        ),
+    }
+
+
+def resolve(
+    root: Path = DEFAULT_ROOT,
+    *,
+    app_facing: int | None = None,
+) -> tuple[dict[str, object], list[str]]:
     state, errors = resolve_state(root)
+    count = try_app_facing_count(root) if app_facing is None else app_facing
+    state = apply_promote_interrupt(state, count)
     directive = directive_for(state).as_dict(str(state["reason"]))
     # UX gate is directive input, not a new top-level payload field; keeping it
     # internal preserves the frozen default resolver output for UX gate: No.

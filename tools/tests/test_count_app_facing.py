@@ -3,13 +3,17 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import tempfile
 import unittest
 
 from tools.lifecycle.count_app_facing import (
     PROMOTE_BAR,
+    PROMOTE_TRIGGER,
     classify_paths,
     path_is_excluded,
     render_count,
+    try_app_facing_count,
 )
 
 
@@ -62,10 +66,22 @@ class CountAppFacingTests(unittest.TestCase):
             "app-facing 1/100\nsrc 1\nexcluded 0",
             render_count(under),
         )
-        over = classify_paths([f"src/f{index}.ts" for index in range(PROMOTE_BAR)])
-        text = render_count(over)
-        self.assertTrue(text.startswith(f"app-facing {PROMOTE_BAR}/{PROMOTE_BAR}"))
-        self.assertIn("promote is due", text)
+        just_under = classify_paths(
+            [f"src/f{index}.ts" for index in range(PROMOTE_TRIGGER - 1)]
+        )
+        just_under_text = render_count(just_under)
+        self.assertTrue(
+            just_under_text.startswith(f"app-facing {PROMOTE_TRIGGER - 1}/{PROMOTE_BAR}")
+        )
+        self.assertNotIn("promote is due", just_under_text)
+        due = classify_paths([f"src/f{index}.ts" for index in range(PROMOTE_TRIGGER)])
+        due_text = render_count(due)
+        self.assertTrue(due_text.startswith(f"app-facing {PROMOTE_TRIGGER}/{PROMOTE_BAR}"))
+        self.assertIn("promote is due", due_text)
+
+    def test_unmeasurable_tree_returns_none(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(try_app_facing_count(Path(tmp)))
 
     def test_list_appends_included_paths(self) -> None:
         count = classify_paths(["src/a.ts", "docs/x.md"])

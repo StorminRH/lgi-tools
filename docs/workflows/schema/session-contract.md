@@ -121,6 +121,7 @@ the version plan, and what planning must verify against the current baseline.
 
 Each Ordered work step already landed on `development`. Close-out does not
 open a land PR. Record when the plan marker may become `Complete`, and that
-promote waits until app-facing files versus `staging` are around 100.
-Close-out consumes recorded operator looks and any `ux-check` disposition;
-it does not re-run those pauses.
+promote starts at 80 app-facing files versus `staging` (shown as n/100).
+The resolver then sends Start Session to close-out. Close-out consumes
+recorded operator looks and any `ux-check` disposition; it does not re-run
+those pauses.

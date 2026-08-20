@@ -2,8 +2,8 @@
 """Count app-facing files on development that staging does not have yet.
 
 Run after a land onto ``development``. That is when ``origin/development``
-includes this Ordered work step. The promote bar is 100. Documentation,
-policy, and agent files do not count.
+includes this Ordered work step. Display is ``n/100``. Promote is due at
+80. Documentation, policy, and agent files do not count.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from tools._lib.repository import ROOT
 
 
 PROMOTE_BAR = 100
+PROMOTE_TRIGGER = 80
 DEFAULT_BASE = "origin/staging"
 DEFAULT_HEAD = "origin/development"
 
@@ -99,6 +100,23 @@ def classify_paths(relpaths: list[str]) -> AppFacingCount:
     return AppFacingCount(included=tuple(included), excluded=tuple(excluded))
 
 
+def measure(
+    root: Path,
+    base: str = DEFAULT_BASE,
+    head: str = DEFAULT_HEAD,
+) -> AppFacingCount:
+    """Classify ``base...head`` names under ``root``."""
+    return classify_paths(list_changed_paths(root, base, head))
+
+
+def try_app_facing_count(root: Path) -> int | None:
+    """Return the app-facing count, or None when git cannot measure it."""
+    try:
+        return measure(root).app_facing
+    except (RuntimeError, OSError):
+        return None
+
+
 def list_changed_paths(root: Path, base: str, head: str) -> list[str]:
     """Return ``git diff --name-only base...head`` paths."""
     result = subprocess.run(
@@ -120,7 +138,7 @@ def render_count(count: AppFacingCount, *, list_files: bool = False) -> str:
     for directory, total in count.by_directory:
         lines.append(f"{directory} {total}")
     lines.append(f"excluded {len(count.excluded)}")
-    if count.app_facing >= PROMOTE_BAR:
+    if count.app_facing >= PROMOTE_TRIGGER:
         lines.append("promote is due")
     if list_files:
         lines.append("files")

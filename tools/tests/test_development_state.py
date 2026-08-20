@@ -15,6 +15,7 @@ import unittest
 from tools.lifecycle.resolve_development_state import (
     DELIVERY_UNITS,
     RELEASE_CONSISTENCY_GATE,
+    apply_promote_interrupt,
     atomic_plan_binds,
     as_built_binds,
     execution_receipt_binds,
@@ -1636,6 +1637,76 @@ class DevelopmentStateTests(unittest.TestCase):
         state, errors = resolve(self.fixture.root)
         self.assertEqual("invalid", state["stage"])
         self.assertTrue(errors)
+
+    def test_session_ready_stays_when_app_facing_is_under_trigger(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract)
+        state, errors = resolve(self.fixture.root, app_facing=79)
+        self.assertEqual([], errors)
+        self.assertEqual("session-ready", state["stage"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("start-session", directive["handler"])
+        self.assertEqual("lifecycle/9.9.1.1", directive["branch"])
+
+    def test_session_ready_promotes_when_app_facing_hits_trigger(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract)
+        state, errors = resolve(self.fixture.root, app_facing=80)
+        self.assertEqual([], errors)
+        self.assertEqual("promote-needed", state["stage"])
+        self.assertEqual(80, state["appFacing"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("Promote development onto staging", directive["action"])
+        self.assertEqual("close-out", directive["handler"])
+        self.assertEqual("execute", directive["mode"])
+        self.assertEqual("development", directive["branch"])
+        self.assertEqual(RELEASE_CONSISTENCY_GATE, directive["preDispatchGate"])
+
+    def test_session_plan_needed_promotes_when_app_facing_hits_trigger(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        self.fixture.write_contract()
+        state, errors = resolve(self.fixture.root, app_facing=80)
+        self.assertEqual([], errors)
+        self.assertEqual("promote-needed", state["stage"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("close-out", directive["handler"])
+        self.assertEqual("development", directive["branch"])
+
+    def test_contracts_needed_promotes_when_app_facing_hits_trigger(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        state, errors = resolve(self.fixture.root, app_facing=80)
+        self.assertEqual([], errors)
+        self.assertEqual("promote-needed", state["stage"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("close-out", directive["handler"])
+
+    def test_audit_ready_does_not_promote_on_app_facing_count(self) -> None:
+        self.fixture.write_audit("Approved")
+        state, errors = resolve(self.fixture.root, app_facing=80)
+        self.assertEqual([], errors)
+        self.assertEqual("audit-ready", state["stage"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("version-audit", directive["handler"])
+
+    def test_invalid_does_not_promote_on_app_facing_count(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        self.fixture.write_audit("Remediation required", "Open")
+        self.fixture.write_contract()
+        state, errors = resolve(self.fixture.root, app_facing=80)
+        self.assertEqual("invalid", state["stage"])
+        self.assertTrue(errors)
+
+    def test_as_built_needed_promotes_when_app_facing_hits_trigger(self) -> None:
+        state = apply_promote_interrupt({"stage": "as-built-needed", "reason": "gap"}, 80)
+        self.assertEqual("promote-needed", state["stage"])
+        self.assertEqual(80, state["appFacing"])
 
 
 if __name__ == "__main__":

@@ -22,8 +22,9 @@ Output: one dispatched handler result followed by a fresh resolver directive,
 or a stop at the directive's named pause. Planning outcomes are terminal
 unless the operator approved a one-time bootstrap transition. When the
 handler is `start-session`, output is one OW step landed on `development`
-plus `OW_HANDOFF`, or a pause/block. Close-out is a later promote or
-release chat. It is not this path.
+plus `OW_HANDOFF`, or a pause/block. When the handler is `close-out`,
+dispatch that skill from `development` as a promote. After the promote,
+the next Start Session continues Ordered work or planning.
 
 ## 1. Resolve and select the branch
 
@@ -46,6 +47,7 @@ directive is the dispatch contract, and `preDispatchGate` passed.
      and is not yet landed. A landed step has its commit on
      `origin/development` and no leftover source branch; take the next
      incomplete step.
+   - Handler `close-out`: stay on `development`.
    - Planning and other handlers: persist on `development`, or on a
      short-lived branch cut from `origin/development`. After approval, land
      and clean onto `development`. The next OW branch is cut from that tip.
@@ -67,6 +69,8 @@ stopped at a null handler.
    rerun the resolver, and stop. Execution begins with a fresh start-session
    unless the operator authorized a bootstrap transition in the approved
    session plan.
+4. Handler `close-out` runs the promote ritual to `PROMOTED` or `BLOCKED`,
+   then stop. The next Start Session continues Ordered work or planning.
 
 ## 3. Land and clean
 
@@ -155,8 +159,8 @@ the plan or the land required has an operator disposition.
    `python3 tools/cli.py lifecycle count-app-facing`. That command
    compares `origin/staging...origin/development` after this land, so
    this step is in the number. Paste its `app-facing <n>/100` line into
-   the handoff. When it prints `promote is due`, say a promote is due
-   before more app-facing work.
+   the handoff. When it prints `promote is due`, the next Start Session
+   promotes `development` onto `staging`. Say that in the handoff.
 7. Pause for a visual look when the plan marked this step for one, or when
    the land presents something the operator can see on `development`
    (Preview, or laptop `pnpm dev` when they choose). That is about every
@@ -173,6 +177,7 @@ Continue planned session <id> via start-session. Next branch: `lifecycle/<id>-ow
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 Landed OW 1..<k> on development (<sha>). Source branch cleaned. App-facing vs staging: <n>/100.
+<Promote line when the count printed promote is due: Next Start Session promotes development onto staging.>
 Next: Ordered work step <k+1> — <title from plan>.
 Next-agent notes: <gotchas, open operator dispositions, paths to reopen, or None>.
 Execute only that step, then local test suite + structure-reviewer + behavior-reviewer + commit + land and clean onto development + handoff.
@@ -185,8 +190,9 @@ Planned session <id> Ordered work is complete. Last OW landed on development (<s
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 App-facing vs staging: <n>/100.
-Return to start-session and plan the next session. Do not promote for a
-small leftover. Promote when the operator asks, around 100 app-facing files.
+Return to start-session. When the count printed promote is due, that run
+promotes development onto staging, then the next session can be planned.
+When the count is still under 80, plan the next session.
 Next-agent notes: <gotchas, open operator dispositions, or None>.
 ```
 

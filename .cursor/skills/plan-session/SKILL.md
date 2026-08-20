@@ -80,9 +80,10 @@ Iterative discussion with the operator is the default. Research in the open.
    Surface choices that change behavior, ownership, risk, or scope.
 6. Record delivery as land-on-`development`. The plan's `Branch` is the land
    line `development` and `ends in PR` is `no`. `start-session` cuts
-   `lifecycle/<session>-ow-<n>` from that tip at execute time. Promote when
-   app-facing files versus `staging` are around 100. That promote is
-   close-out, not this session's land.
+   `lifecycle/<session>-ow-<n>` from that tip at execute time. Promote
+   starts at 80 app-facing files versus `staging`. The resolver then
+   sends Start Session to close-out. That promote is not this session's
+   land.
 
 ## 3. Assemble and review
 

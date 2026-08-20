@@ -6,22 +6,22 @@ description: Promote development onto staging, or cut a staging-to-main release.
 # Close out work
 
 Two rituals. Promote merges Origin `development` onto `staging`. Release
-merges Origin `staging` onto `main`. Pick the ritual from the ask. Ordered
-work stays on `development` through `start-session`. A finished session
-returns there to plan the next one. It does not open a PR.
+merges Origin `staging` onto `main`. Pick the ritual from the ask, or from
+a start-session dispatch whose resolver stage is `promote-needed`. Ordered
+work stays on `development` through `start-session`. After a promote, the
+next Start Session continues Ordered work or planning.
 
 When talking with the operator, write in plain English and invoke `unslop`
 on what you say.
 
 ## 1. Select the ritual
 
-Done when this chat is one ritual, named from the ask.
+Done when this chat is one ritual, named from the ask or the resolver.
 
 - **Promote** when the operator asked to promote, close out a review
-  chunk, or merge `development` onto `staging`. The usual reason is an
-  app-facing count versus `staging` approaching 100. The count does not
-  start this skill by itself. A session that landed two files is not a
-  promote.
+  chunk, or merge `development` onto `staging`, or when start-session
+  dispatched this skill for resolver stage `promote-needed`. That
+  happens at 80 app-facing files versus `staging`.
 - **Release** when the operator asked to cut a release, ship production,
   or merge `staging` onto `main`.
 
