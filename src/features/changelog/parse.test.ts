@@ -86,6 +86,32 @@ describe('parseChangelog', () => {
     ]);
   });
 
+  it('flushes a summary when the next entry heading arrives without a group', () => {
+    const md = [
+      '### v3.7.0 — 2026-05-25',
+      'Ships Atlas.',
+      '### v3.6.0 — 2026-05-23',
+      '#### Fixed',
+      '- older',
+    ].join('\n');
+    expect(parseChangelog(md)).toEqual([
+      { version: '3.7.0', date: '2026-05-25', summary: ['Ships Atlas.'], groups: [] },
+      { version: '3.6.0', date: '2026-05-23', summary: [], groups: [{ type: 'Fixed', items: ['older'] }] },
+    ]);
+  });
+
+  it('flushes a trailing summary at end of file when the entry has no group', () => {
+    const md = ['### v3.7.0 — 2026-05-25', 'Ships Atlas.', 'Still the same paragraph.'].join('\n');
+    expect(parseChangelog(md)).toEqual([
+      {
+        version: '3.7.0',
+        date: '2026-05-25',
+        summary: ['Ships Atlas. Still the same paragraph.'],
+        groups: [],
+      },
+    ]);
+  });
+
   it('returns [] for input that has no entry headings', () => {
     expect(parseChangelog('# Just a title\n\nSome words.\n- a stray bullet')).toEqual([]);
   });

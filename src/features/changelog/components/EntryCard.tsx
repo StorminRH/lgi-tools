@@ -3,9 +3,6 @@ import type { PillTone } from '@/components/ui/tones';
 import { formatUtcDate } from '@/lib/format/time';
 import type { ChangeType, ChangelogEntry } from '../parse';
 
-// One node in the changelog timeline (handoff §6): the version + date in the
-// left rail, an ISK-green node dot on the connecting line, and the release's
-// changes grouped by type, each tagged with an existing pill tone.
 const TYPE_TONE: Record<ChangeType, PillTone> = {
   Added: 'green',
   Changed: 'blue',
@@ -13,7 +10,7 @@ const TYPE_TONE: Record<ChangeType, PillTone> = {
   Removed: 'red',
 };
 
-/** Renders one changelog entry's date, type, title, and structured detail content. */
+/** Renders one dated changelog entry, overview prose, and grouped bullets. */
 export function EntryCard({ entry }: { entry: ChangelogEntry }) {
   return (
     <div className="grid grid-cols-1 gap-0 sm:grid-cols-[116px_1fr]">
