@@ -22,7 +22,8 @@ Output: one dispatched handler result followed by a fresh resolver directive,
 or a stop at the directive's named pause. Planning outcomes are terminal
 unless the operator approved a one-time bootstrap transition. When the
 handler is `start-session`, output is one OW step landed on `development`
-plus `OW_HANDOFF`, or a pause/block. Close-out is a later chat.
+plus `OW_HANDOFF`, or a pause/block. Close-out is a later promote or
+release chat. It is not this path.
 
 ## 1. Resolve and select the branch
 
@@ -108,15 +109,14 @@ not default to backlog or deferral. Those cuts are rare and operator-driven
 only.
 
 If the last Ordered work handoff, or the operator, already says Ordered work
-is complete and close-out should run, return `OW_HANDOFF` with the close-out
-handoff prompt below.
+is complete, return `OW_HANDOFF` with the last-OW handoff prompt below.
 
 Otherwise take the next incomplete Ordered work step from `### Ordered work`
 (1-based; absent a handoff prompt, start at step 1 unless the operator names
 a later step). Execute only that step plus any attached operator pause.
 When the contract or plan `UX gate` is Yes, the plan must include a dedicated
 Ordered work step that invokes `ux-check` and completes the operator pause
-before awaiting close-out. Close-out consumes that disposition. Maintain an
+before the next Ordered work step or the last-OW handoff. Maintain an
 in-context proof ledger with one result for every atomic proof row owned by
 that step.
 
@@ -187,7 +187,8 @@ Planned session <id> Ordered work is complete. Last OW landed on development (<s
 Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 App-facing vs staging: <n>/100.
-Run close-out in planned mode only (no further OW).
+Continue planned work from origin/development. Close-out waits until the
+operator asks to promote development onto staging.
 Next-agent notes: <gotchas, open operator dispositions, or None>.
 ```
 
