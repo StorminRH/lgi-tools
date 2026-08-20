@@ -39,7 +39,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
-import { queryByMapSignature, takeIndexedOrThrow } from './lib/indexedQuery';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
 import {
   requireMapAccess,
   requireMapAccessForUser,
@@ -264,15 +264,13 @@ async function requireLiveSystem(ctx: MutationCtx, mapId: string, systemId: numb
   }
 }
 
-async function readByMapSignature<T extends 'mapSignatures' | 'mapSignatureActivity'>(
-  ctx: QueryCtx,
-  table: T,
-  mapId: string,
-  systemId: number,
+async function readBoundedSignatureRows<T>(
+  query: { take: (limit: number) => Promise<T[]> },
   noun: string,
-): Promise<Doc<T>[]> {
+  systemId: number,
+): Promise<T[]> {
   return takeIndexedOrThrow(
-    queryByMapSignature(ctx, table, mapId, systemId),
+    query,
     MAP_SCAN_ROW_LIMIT,
     {
       code: 'MAP_SIGNATURE_SCAN_LIMIT',
@@ -282,10 +280,26 @@ async function readByMapSignature<T extends 'mapSignatures' | 'mapSignatureActiv
 }
 
 const readSystemSignatures = (ctx: QueryCtx, mapId: string, systemId: number) =>
-  readByMapSignature(ctx, 'mapSignatures', mapId, systemId, 'signature');
+  readBoundedSignatureRows(
+    ctx.db
+      .query('mapSignatures')
+      .withIndex('by_map_signature', (q) =>
+        q.eq('mapId', mapId).eq('systemId', systemId),
+      ),
+    'signature',
+    systemId,
+  );
 
 const readSystemActivities = (ctx: QueryCtx, mapId: string, systemId: number) =>
-  readByMapSignature(ctx, 'mapSignatureActivity', mapId, systemId, 'activity');
+  readBoundedSignatureRows(
+    ctx.db
+      .query('mapSignatureActivity')
+      .withIndex('by_map_signature', (q) =>
+        q.eq('mapId', mapId).eq('systemId', systemId),
+      ),
+    'activity',
+    systemId,
+  );
 
 async function readScanState(
   ctx: MutationCtx,

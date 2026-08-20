@@ -131,18 +131,21 @@ function trackedLocationPayload(location: Doc<'characterLocation'>) {
   };
 }
 
+function findCharacterLocation(
+  ctx: QueryCtx,
+  userId: string,
+  characterId: number,
+): Promise<Doc<'characterLocation'> | null> {
+  return uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId);
+}
+
 async function readTrackedLocations(
   ctx: QueryCtx,
   rows: readonly Doc<'mapTracking'>[],
 ) {
   const tracked = [];
   for (const row of rows) {
-    const location = await uniqueByUserCharacter(
-      ctx,
-      'characterLocation',
-      row.userId,
-      row.characterId,
-    );
+    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
     tracked.push({
       userId: row.userId,
       characterId: row.characterId,
@@ -243,12 +246,6 @@ export const coverage = query({
   },
 });
 
-/**
- * Solar systems currently holding at least one tracked pilot on one map — the
- * presence input the collapse triggers feed the shared collapse core. Joins
- * exactly like `forMap`: each tracking row to its own (userId, characterId)
- * location document, so a forged row still discloses and retains nothing.
- */
 export async function readTrackedPilotSystemIds(
   ctx: QueryCtx,
   mapId: string,
@@ -257,9 +254,6 @@ export async function readTrackedPilotSystemIds(
     .query('mapTracking')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
     .take(TRACKING_MAP_SCAN_CAP + 1);
-  // Fail closed rather than truncate: this set feeds the collapse core's
-  // pilot-present retention, and a silently dropped pilot could let a sweep
-  // collapse a branch that still holds a tracked character.
   if (rows.length > TRACKING_MAP_SCAN_CAP) {
     throw new ConvexError({
       code: 'TRACKING_SCAN_LIMIT',
@@ -268,12 +262,7 @@ export async function readTrackedPilotSystemIds(
   }
   const systemIds = new Set<number>();
   for (const row of rows) {
-    const location = await uniqueByUserCharacter(
-      ctx,
-      'characterLocation',
-      row.userId,
-      row.characterId,
-    );
+    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
     if (location !== null) systemIds.add(location.solarSystemId);
   }
   return systemIds;

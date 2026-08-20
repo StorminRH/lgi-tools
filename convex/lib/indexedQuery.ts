@@ -3,112 +3,175 @@ import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader, QueryCtx } from '../_generated/server';
 import { authenticatedSubject } from './characterSync';
 
-type UserIndexedTable = 'characterLocation' | 'characterOnline' | 'characterLocationAccess';
+type UserIndexedTable =
+  | 'characterLocation'
+  | 'characterOnline'
+  | 'characterLocationAccess';
+type UserCharacterIndexedTable =
+  | 'characterLocation'
+  | 'characterLocationCovered';
+type UserDatasetTable = 'syncSubjects' | 'syncPresence';
+type PurgeAfterTable = 'mapSystems' | 'mapConnections';
+type StoredDataset = Doc<'syncSubjects'>['dataset'];
 
-type IndexRange = {
-  eq: (field: string, value: unknown) => IndexRange;
-  gt: (field: string, value: unknown) => IndexRange;
-  lte: (field: string, value: unknown) => IndexRange;
-};
-
-type IndexedQuery<TDoc> = {
-  withIndex: (
-    name: string,
-    fn: (q: IndexRange) => IndexRange,
-  ) => {
-    collect: () => Promise<TDoc[]>;
-    take: (n: number) => Promise<TDoc[]>;
-    unique: () => Promise<TDoc | null>;
-  };
-};
-
-function asIndexed<TDoc>(query: unknown): IndexedQuery<TDoc> {
-  return query as IndexedQuery<TDoc>;
-}
-
-/** Collects every `by_user` row for one user on a user-keyed table. */
-export async function collectByUser<T extends UserIndexedTable>(
+export function collectByUser(
   ctx: Pick<QueryCtx, 'db'>,
-  table: T,
+  table: 'characterLocation',
   userId: string,
-): Promise<Doc<T>[]> {
-  return asIndexed<Doc<T>>(ctx.db.query(table))
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .collect();
+): Promise<Doc<'characterLocation'>[]>;
+export function collectByUser(
+  ctx: Pick<QueryCtx, 'db'>,
+  table: 'characterOnline',
+  userId: string,
+): Promise<Doc<'characterOnline'>[]>;
+export function collectByUser(
+  ctx: Pick<QueryCtx, 'db'>,
+  table: 'characterLocationAccess',
+  userId: string,
+): Promise<Doc<'characterLocationAccess'>[]>;
+export function collectByUser(
+  ctx: Pick<QueryCtx, 'db'>,
+  table: UserIndexedTable,
+  userId: string,
+) {
+  switch (table) {
+    case 'characterLocation':
+      return ctx.db
+        .query('characterLocation')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .collect();
+    case 'characterOnline':
+      return ctx.db
+        .query('characterOnline')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .collect();
+    case 'characterLocationAccess':
+      return ctx.db
+        .query('characterLocationAccess')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .collect();
+  }
 }
 
-/**
- * Viewer queries that return null for an anonymous subject, otherwise the
- * caller's `by_user` docs mapped into the published character list.
- */
-export async function viewerUserDocs<T extends UserIndexedTable, TCharacter>(
+export async function viewerUserDocs<TDoc, TCharacter>(
   ctx: QueryCtx,
-  table: T,
-  mapDoc: (doc: Doc<T>) => TCharacter,
+  loadDocs: (userId: string) => Promise<readonly TDoc[]>,
+  mapDoc: (doc: TDoc) => TCharacter,
 ): Promise<{ characters: TCharacter[] } | null> {
   const userId = await authenticatedSubject(ctx);
   if (userId === null) return null;
-  const docs = await collectByUser(ctx, table, userId);
+  const docs = await loadDocs(userId);
   return { characters: docs.map(mapDoc) };
 }
 
-type UserDatasetTable = 'syncSubjects' | 'syncPresence';
-type UserCharacterIndexedTable = 'characterLocation' | 'characterLocationCovered';
-type PurgeAfterTable = 'mapSystems' | 'mapConnections';
-type MapSignatureTable = 'mapSignatures' | 'mapSignatureActivity';
-type StoredDataset = Doc<'syncSubjects'>['dataset'];
-
-/** Reads the unique row for one user and character from a live location table. */
-export function uniqueByUserCharacter<T extends UserCharacterIndexedTable>(
+export function uniqueByUserCharacter(
   ctx: Pick<QueryCtx, 'db'>,
-  table: T,
+  table: 'characterLocation',
   userId: string,
   characterId: number,
-): Promise<Doc<T> | null> {
-  return asIndexed<Doc<T>>(ctx.db.query(table))
-    .withIndex('by_user_character', (q) =>
-      q.eq('userId', userId).eq('characterId', characterId),
-    )
-    .unique();
+): Promise<Doc<'characterLocation'> | null>;
+export function uniqueByUserCharacter(
+  ctx: Pick<QueryCtx, 'db'>,
+  table: 'characterLocationCovered',
+  userId: string,
+  characterId: number,
+): Promise<Doc<'characterLocationCovered'> | null>;
+export function uniqueByUserCharacter(
+  ctx: Pick<QueryCtx, 'db'>,
+  table: UserCharacterIndexedTable,
+  userId: string,
+  characterId: number,
+) {
+  switch (table) {
+    case 'characterLocation':
+      return ctx.db
+        .query('characterLocation')
+        .withIndex('by_user_character', (q) =>
+          q.eq('userId', userId).eq('characterId', characterId),
+        )
+        .unique();
+    case 'characterLocationCovered':
+      return ctx.db
+        .query('characterLocationCovered')
+        .withIndex('by_user_character', (q) =>
+          q.eq('userId', userId).eq('characterId', characterId),
+        )
+        .unique();
+  }
 }
 
-/** Reads the unique subject or presence row for one user and stored dataset. */
-export function uniqueByUserDataset<T extends UserDatasetTable>(
+export function uniqueByUserDataset(
   db: DatabaseReader,
-  table: T,
+  table: 'syncSubjects',
   dataset: StoredDataset,
   userId: string,
-): Promise<Doc<T> | null> {
-  return asIndexed<Doc<T>>(db.query(table))
-    .withIndex('by_user_dataset', (q) => q.eq('userId', userId).eq('dataset', dataset))
-    .unique();
+): Promise<Doc<'syncSubjects'> | null>;
+export function uniqueByUserDataset(
+  db: DatabaseReader,
+  table: 'syncPresence',
+  dataset: StoredDataset,
+  userId: string,
+): Promise<Doc<'syncPresence'> | null>;
+export function uniqueByUserDataset(
+  db: DatabaseReader,
+  table: UserDatasetTable,
+  dataset: StoredDataset,
+  userId: string,
+) {
+  switch (table) {
+    case 'syncSubjects':
+      return db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) =>
+          q.eq('userId', userId).eq('dataset', dataset),
+        )
+        .unique();
+    case 'syncPresence':
+      return db
+        .query('syncPresence')
+        .withIndex('by_user_dataset', (q) =>
+          q.eq('userId', userId).eq('dataset', dataset),
+        )
+        .unique();
+  }
 }
 
-/** Takes expired purgeAfter rows for one chain-cleanup table. */
-export function takeExpiredByPurgeAfter<T extends PurgeAfterTable>(
+export function takeExpiredByPurgeAfter(
   ctx: Pick<QueryCtx, 'db'>,
-  table: T,
+  table: 'mapSystems',
   now: number,
   limit: number,
-): Promise<Doc<T>[]> {
-  return asIndexed<Doc<T>>(ctx.db.query(table))
-    .withIndex('by_purge_after', (q) => q.gt('purgeAfter', null).lte('purgeAfter', now))
-    .take(limit);
-}
-
-/** Indexed map-signature or activity rows for one system. */
-export function queryByMapSignature<T extends MapSignatureTable>(
+): Promise<Doc<'mapSystems'>[]>;
+export function takeExpiredByPurgeAfter(
   ctx: Pick<QueryCtx, 'db'>,
-  table: T,
-  mapId: string,
-  systemId: number,
+  table: 'mapConnections',
+  now: number,
+  limit: number,
+): Promise<Doc<'mapConnections'>[]>;
+export function takeExpiredByPurgeAfter(
+  ctx: Pick<QueryCtx, 'db'>,
+  table: PurgeAfterTable,
+  now: number,
+  limit: number,
 ) {
-  return asIndexed<Doc<T>>(ctx.db.query(table)).withIndex('by_map_signature', (q) =>
-    q.eq('mapId', mapId).eq('systemId', systemId),
-  );
+  switch (table) {
+    case 'mapSystems':
+      return ctx.db
+        .query('mapSystems')
+        .withIndex('by_purge_after', (q) =>
+          q.gt('purgeAfter', null).lte('purgeAfter', now),
+        )
+        .take(limit);
+    case 'mapConnections':
+      return ctx.db
+        .query('mapConnections')
+        .withIndex('by_purge_after', (q) =>
+          q.gt('purgeAfter', null).lte('purgeAfter', now),
+        )
+        .take(limit);
+  }
 }
 
-/** Takes one extra indexed row and throws when the caller-supplied cap is exceeded. */
 export async function takeIndexedOrThrow<T>(
   query: { take: (n: number) => Promise<T[]> },
   cap: number,

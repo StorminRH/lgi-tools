@@ -49,17 +49,21 @@ export const JUMP_CONTINUITY_MS = 45_000;
 export const forViewer = query({
   args: {},
   handler: async (ctx) =>
-    viewerUserDocs(ctx, 'characterLocation', (doc) => ({
-      characterId: doc.characterId,
-      solarSystemId: doc.solarSystemId,
-      stationId: doc.stationId,
-      structureId: doc.structureId,
-      shipTypeId: doc.shipTypeId,
-      prevSolarSystemId: doc.prevSolarSystemId,
-      prevFresh: doc.prevFresh,
-      transitionObservedAt: doc.transitionObservedAt ?? null,
-      observedAt: doc.observedAt,
-    })),
+    viewerUserDocs(
+      ctx,
+      (userId) => collectByUser(ctx, 'characterLocation', userId),
+      (doc) => ({
+        characterId: doc.characterId,
+        solarSystemId: doc.solarSystemId,
+        stationId: doc.stationId,
+        structureId: doc.structureId,
+        shipTypeId: doc.shipTypeId,
+        prevSolarSystemId: doc.prevSolarSystemId,
+        prevFresh: doc.prevFresh,
+        transitionObservedAt: doc.transitionObservedAt ?? null,
+        observedAt: doc.observedAt,
+      }),
+    ),
 });
 
 /**
