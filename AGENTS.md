@@ -22,8 +22,8 @@ Launch `repo-mapper` for relationship, consumer, dependency, or blast-radius
 questions. It uses Codegraph (`callers`, `callees`, `impact`, `query`;
 `status`/`sync` if needed) and returns a Repository map.
 
-Launch `gate-runner` before commits, and whenever the local test suite
-needs a Gate result packet: `pnpm typecheck`, `pnpm lint`, Fallow
+Launch `test-runner` before commits, and whenever the local test suite
+needs test results: `pnpm typecheck`, `pnpm lint`, Fallow
 `dead-code`, `dupes`, and `health` (CRAP, no `--coverage`), plus
 caller-supplied focused tests for the diff.
 

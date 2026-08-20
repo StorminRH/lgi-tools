@@ -151,9 +151,9 @@ branch is gone, the local test suite was green after the last review, the
 handoff reports the app-facing count versus `staging`, and any visual look
 the plan or the land required has an operator disposition.
 
-1. After the step's focused proof, invoke `gate-runner` with the local test
-   suite from AGENTS.md Seats plus those focused evidence commands. Require a
-   green Gate result packet for every command. Failures return `BLOCKED`.
+1. After the step's focused proof, invoke `test-runner` with the local test
+   suite from AGENTS.md Seats plus those focused evidence commands. Require
+   green test results for every command. Failures return `BLOCKED`.
 2. On a green suite, launch a fresh `structure-reviewer` and a fresh
    `behavior-reviewer` in parallel against this step's working-tree diff.
    Launch them by those type names and omit Task `model`.
