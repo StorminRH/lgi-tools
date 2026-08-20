@@ -111,21 +111,16 @@ PROMOTE_INTERRUPT_STAGES = frozenset(
         "contracts-needed",
         "session-plan-needed",
         "session-ready",
-        "as-built-needed",
         "archive-needed",
     }
 )
 
 
 def lifecycle_branch(subversion: str) -> str:
-    """Return the deterministic lifecycle branch for a planned sub-version.
+    """Return the as-built Branch marker for a sub-version.
 
-    One stable branch carries a sub-version's planning and every session until
-    its final PR merges, e.g. ``lifecycle/3.10.0.4``; under a per-session
-    delivery unit it is recreated from origin/main after each intermediate
-    squash merge. The name is a pure function of the sub-version with no
-    runtime prefix or slug, so any session resolves the same branch and a
-    fresh clone can rediscover in-flight work.
+    Live work lands on ``development``. Frozen as-builts still record
+    ``lifecycle/<subversion>``.
     """
     return f"{LIFECYCLE_BRANCH_PREFIX}{subversion}"
 
@@ -635,7 +630,7 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
 
 
 def as_built_binds(subversion: str) -> bool:
-    """Return whether a completed session in this sub-version needs an as-built."""
+    """Return whether an as-built for this sub-version uses the bound schema."""
     return session_key(subversion) >= AS_BUILT_BINDING_FLOOR
 
 
@@ -756,66 +751,6 @@ def as_built_schema_violations(
     return violations
 
 
-def missing_as_built(
-    contracts: dict[str, tuple[str, Path]],
-    version: str,
-    docs: Path,
-    root: Path,
-) -> dict[str, object] | None:
-    """Return the first completed session whose as-built record is absent or invalid.
-
-    Sweeps every indexed session, not only the incomplete sub-version's, so a
-    final session whose roadmap row turned terminal in the same close-out still
-    has its record enforced.
-    """
-    ordered = sorted(
-        contracts.items(),
-        key=lambda item: tuple(int(part) for part in item[0].split(".")),
-    )
-    final_by_subversion = {subversion: session for session, (subversion, _) in ordered}
-    # Delivery is a sub-version choice. A later per-session split must not force
-    # edits to an earlier contract after that frozen prompt has been consumed.
-    per_session_subversions = {
-        subversion
-        for _, (subversion, contract) in ordered
-        if contract.is_file() and marker(contract, "Delivery unit") == DELIVERY_UNITS[0]
-    }
-    for session, (subversion, contract) in ordered:
-        if not as_built_binds(subversion):
-            continue
-        plan = docs / "session-plans" / version / f"{session}.md"
-        if not execution_complete(plan):
-            continue
-        as_built = docs / "session-as-built" / version / f"{session}.md"
-        if not as_built.is_file():
-            return {
-                "subversion": subversion,
-                "session": session,
-                "asBuilt": str(as_built.relative_to(root)),
-                "asBuiltViolations": [],
-                "reason": "The completed session has no as-built record.",
-            }
-        if not contract.is_file():
-            continue
-        violations = as_built_schema_violations(
-            as_built,
-            contract,
-            plan,
-            root,
-            per_session_delivery=subversion in per_session_subversions,
-            final_session=final_by_subversion[subversion],
-        )
-        if violations:
-            return {
-                "subversion": subversion,
-                "session": session,
-                "asBuilt": str(as_built.relative_to(root)),
-                "asBuiltViolations": violations,
-                "reason": "The as-built record does not conform to the canonical schema.",
-            }
-    return None
-
-
 def vocabulary_binds(version: str) -> bool:
     """Return whether active artifacts must satisfy the 3.9 marker schema."""
     major, minor = (int(part) for part in version.split(".", maxsplit=1))
@@ -925,10 +860,6 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
         "masterPlan": str(roadmap.relative_to(root)),
         "contractIndex": str(contract_index.relative_to(root)),
     }
-    as_built_gap = missing_as_built(contracts, version, docs, root)
-    if as_built_gap is not None:
-        return {**common, "stage": "as-built-needed", **as_built_gap}, errors
-
     incomplete = next((row for row in rows if not row.terminal), None)
     if incomplete:
         sessions = sorted(
@@ -1114,7 +1045,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Read-only until the contract decomposition is approved.",
             primary_artifact=str(state["masterPlan"]),
             pause="Contract decomposition approval is required.",
-            branch=lifecycle_branch(str(state["subversion"])),
+            branch="development",
         )
     if stage == "contract-repair-needed":
         violations = "; ".join(str(item) for item in state.get("contractSchemaViolations", []))
@@ -1122,10 +1053,10 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             action=f"Repair contract {state['contract']} to the canonical schema: {violations}",
             handler=None,
             mode="report",
-            authority="Limited to restoring the named contract's required schema on the lifecycle branch.",
+            authority="Limited to restoring the named contract's required schema on development.",
             primary_artifact=str(state["contract"]),
             pause="Contract repair is required before the session can be planned or executed.",
-            branch=lifecycle_branch(str(state["subversion"])),
+            branch="development",
         )
     if stage == "session-plan-needed":
         return WorkflowDirective(
@@ -1135,7 +1066,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Read-only until the session implementation plan is approved.",
             primary_artifact=str(state["contract"]),
             pause="Session-plan approval is required.",
-            branch=lifecycle_branch(str(state["subversion"])),
+            branch="development",
         )
     if stage == "session-ready":
         pause = (
@@ -1160,27 +1091,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             ),
             primary_artifact=str(state["sessionPlan"]),
             pause=pause,
-            branch=lifecycle_branch(str(state["subversion"])),
-        )
-    if stage == "as-built-needed":
-        violations = "; ".join(str(item) for item in state.get("asBuiltViolations", []))
-        detail = f": {violations}" if violations else ""
-        return WorkflowDirective(
-            action=f"Restore a valid as-built record for completed session {session}{detail}",
-            handler=None,
-            mode="report",
-            authority=(
-                "Limited to authoring the named session's as-built record to the "
-                "canonical schema on the lifecycle branch."
-            ),
-            pause=(
-                "A valid as-built record is required before the lifecycle advances. "
-                "A digest mismatch means a frozen prompt changed after the record "
-                "sealed it: investigate and restore the prompt bytes rather than "
-                "re-stamping the record."
-            ),
-            primary_artifact=str(state["asBuilt"]),
-            branch=lifecycle_branch(str(state["subversion"])),
+            branch="development",
         )
     if stage == "archive-needed":
         return WorkflowDirective(
@@ -1225,12 +1136,11 @@ def _run_git(root: Path, *args: str) -> str | None:
 def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     """Return non-blocking warnings from the current local git snapshot.
 
-    Execute directives check that the checkout is the deterministic lifecycle
-    branch the directive names, plan directives check worktree cleanliness, and
-    every state checks whether local main trails the existing origin/main ref.
-    Branch names carry no lifecycle meaning: an unexpected branch only warns and
-    never changes the resolved stage or authorizes a bypass. Missing git state
-    degrades to no warning.
+    Execute directives accept ``development`` or ``lifecycle/<session>-ow-<n>``.
+    Plan directives check worktree cleanliness. Every state checks whether
+    local ``development`` or ``main`` trails the matching origin ref. An
+    unexpected branch only warns and never changes the resolved stage.
+    Missing git state degrades to no warning.
     """
 
     if _run_git(root, "rev-parse", "--is-inside-work-tree") != "true":
@@ -1239,17 +1149,17 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     warnings: list[str] = []
     directive = state.get("directive")
     mode = directive.get("mode") if isinstance(directive, dict) else None
-    directive_branch = directive.get("branch") if isinstance(directive, dict) else None
     branch = _run_git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
 
-    if mode == "execute" and branch and isinstance(directive_branch, str):
-        if branch == "main":
+    if mode == "execute" and branch:
+        ow_branch = re.fullmatch(r"lifecycle/.+-ow-\d+", branch) is not None
+        if branch in {"main", "staging"}:
             warnings.append(
-                f"current branch is main; check out the {directive_branch} lifecycle branch"
+                f"current branch is {branch}; work from development or the OW lifecycle branch"
             )
-        elif branch != directive_branch:
+        elif branch != "development" and not ow_branch:
             warnings.append(
-                f"current branch {branch!r} is not the {directive_branch} lifecycle branch"
+                f"current branch {branch!r} is not development or an OW lifecycle branch"
             )
 
     if mode == "plan":
@@ -1257,17 +1167,20 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
         if worktree:
             warnings.append("plan-mode directive has a dirty worktree")
 
-    local_main = _run_git(root, "rev-parse", "--verify", "refs/heads/main")
-    origin_main = _run_git(root, "rev-parse", "--verify", "refs/remotes/origin/main")
-    if local_main and origin_main and local_main != origin_main:
-        behind_count = _run_git(
-            root,
-            "rev-list",
-            "--count",
-            "refs/heads/main..refs/remotes/origin/main",
-        )
-        if behind_count and behind_count.isdigit() and int(behind_count) > 0:
-            warnings.append(f"local main is behind origin/main by {behind_count} commit(s)")
+    for line in ("development", "main"):
+        local_ref = _run_git(root, "rev-parse", "--verify", f"refs/heads/{line}")
+        origin_ref = _run_git(root, "rev-parse", "--verify", f"refs/remotes/origin/{line}")
+        if local_ref and origin_ref and local_ref != origin_ref:
+            behind_count = _run_git(
+                root,
+                "rev-list",
+                "--count",
+                f"refs/heads/{line}..refs/remotes/origin/{line}",
+            )
+            if behind_count and behind_count.isdigit() and int(behind_count) > 0:
+                warnings.append(
+                    f"local {line} is behind origin/{line} by {behind_count} commit(s)"
+                )
 
     return warnings
 

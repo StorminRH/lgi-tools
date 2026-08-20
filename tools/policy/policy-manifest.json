@@ -7,7 +7,6 @@
       "contract-repair-needed",
       "session-plan-needed",
       "session-ready",
-      "as-built-needed",
       "promote-needed",
       "archive-needed",
       "invalid"

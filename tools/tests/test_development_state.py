@@ -18,6 +18,7 @@ from tools.lifecycle.resolve_development_state import (
     apply_promote_interrupt,
     atomic_plan_binds,
     as_built_binds,
+    as_built_schema_violations,
     execution_receipt_binds,
     lifecycle_branch,
     required_contract_sections,
@@ -961,8 +962,8 @@ class DevelopmentStateTests(unittest.TestCase):
         assert isinstance(directive, dict)
         subversion = str(state["subversion"])
         # The branch is a pure function of the sub-version: no runtime prefix, no slug.
-        self.assertEqual(f"lifecycle/{subversion}", directive["branch"])
-        self.assertEqual(lifecycle_branch(subversion), directive["branch"])
+        self.assertEqual("development", directive["branch"])
+        self.assertEqual(lifecycle_branch(subversion), f"lifecycle/{subversion}")
 
     def test_lifecycle_branch_helper_is_prefix_free(self) -> None:
         self.assertEqual("lifecycle/3.10.0.4", lifecycle_branch("3.10.0.4"))
@@ -977,7 +978,7 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual("session-plan-needed", state["stage"])
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertEqual("lifecycle/9.9.1.1", directive["branch"])
+        self.assertEqual("development", directive["branch"])
 
     def test_resolver_output_ignores_the_checked_out_branch(self) -> None:
         # Branch names carry no lifecycle meaning: every checkout — including a
@@ -990,7 +991,7 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual("session-ready", baseline["stage"])
         baseline_directive = baseline["directive"]
         assert isinstance(baseline_directive, dict)
-        self.assertEqual("lifecycle/9.9.1.1", baseline_directive["branch"])
+        self.assertEqual("development", baseline_directive["branch"])
         self.fixture.init_git("main")
         for branch in ("main", "feature/x", "codex/x", "rider/quick-fix", "misc"):
             self.fixture.set_head(branch)
@@ -1014,7 +1015,7 @@ class DevelopmentStateTests(unittest.TestCase):
         directive = state["directive"]
         assert isinstance(directive, dict)
         self.assertEqual("start-session", directive["handler"])
-        self.assertEqual("lifecycle/9.9.1.1", directive["branch"])
+        self.assertEqual("development", directive["branch"])
         self.assertEqual(RELEASE_CONSISTENCY_GATE, directive["preDispatchGate"])
 
     def test_resolver_has_no_flow_track_bypass(self) -> None:
@@ -1054,9 +1055,9 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual("9.9.1.2", state["subversion"])
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertEqual("lifecycle/9.9.1.2", directive["branch"])
+        self.assertEqual("development", directive["branch"])
 
-    def test_completed_session_without_as_built_blocks(self) -> None:
+    def test_completed_session_without_as_built_advances(self) -> None:
         (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
             "# Version 9.9\n\n## Status\n\n"
             "| Sub-version | Theme | Sessions | Status |\n"
@@ -1070,41 +1071,33 @@ class DevelopmentStateTests(unittest.TestCase):
 
         state, errors = resolve(self.fixture.root)
         self.assertEqual([], errors)
-        self.assertEqual("as-built-needed", state["stage"])
-        self.assertEqual("9.9.1.1.1", state["session"])
-        self.assertEqual("docs/session-as-built/9.9/9.9.1.1.1.md", state["asBuilt"])
+        self.assertEqual("contracts-needed", state["stage"])
+        self.assertEqual("9.9.1.2", state["subversion"])
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertIsNone(directive["handler"])
-        self.assertEqual("lifecycle/9.9.1.1", directive["branch"])
+        self.assertEqual("plan-version", directive["handler"])
+        self.assertEqual("development", directive["branch"])
 
     def test_malformed_as_built_reports_violations(self) -> None:
-        (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
-            "# Version 9.9\n\n## Status\n\n"
-            "| Sub-version | Theme | Sessions | Status |\n"
-            "| --- | --- | --- | --- |\n"
-            "| 9.9.1.1 | Shipped work | 1 | SHIPPED |\n"
-            "| 9.9.1.2 | Next work | 1 | PLANNED |\n",
-            encoding="utf-8",
-        )
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract, execution_status="Complete")
-        self.fixture.write_as_built(
+        record = self.fixture.write_as_built(
             contract,
             pr="Pending",
             empty_section="Successor notes",
         )
-
-        state, errors = resolve(self.fixture.root)
-        self.assertEqual([], errors)
-        self.assertEqual("as-built-needed", state["stage"])
-        violations = state["asBuiltViolations"]
-        assert isinstance(violations, list)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        violations = as_built_schema_violations(
+            record,
+            contract,
+            plan,
+            self.fixture.root,
+            per_session_delivery=False,
+        )
         self.assertTrue(any("Successor notes" in item for item in violations))
         self.assertTrue(any(item.startswith("PR must be") for item in violations))
 
     def test_as_built_requires_structured_divergence_authority(self) -> None:
-        self.fixture.write_roadmap("PLANNED")
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract, execution_status="Complete")
         record = self.fixture.write_as_built(contract)
@@ -1119,13 +1112,15 @@ class DevelopmentStateTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-
-        state, _ = resolve(self.fixture.root)
-
-        self.assertEqual("as-built-needed", state["stage"])
-        self.assertTrue(
-            any("Authority must begin" in item for item in state["asBuiltViolations"])
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        violations = as_built_schema_violations(
+            record,
+            contract,
+            plan,
+            self.fixture.root,
+            per_session_delivery=False,
         )
+        self.assertTrue(any("Authority must begin" in item for item in violations))
 
     def test_as_built_accepts_structured_evidence_divergence(self) -> None:
         (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
@@ -1194,10 +1189,14 @@ class DevelopmentStateTests(unittest.TestCase):
         )
         record.write_text(text, encoding="utf-8")
 
-        state, _ = resolve(self.fixture.root)
-
-        self.assertEqual("as-built-needed", state["stage"])
-        violations = state["asBuiltViolations"]
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        violations = as_built_schema_violations(
+            record,
+            contract,
+            plan,
+            self.fixture.root,
+            per_session_delivery=False,
+        )
         self.assertTrue(any("one ordered Passed line" in item for item in violations))
         self.assertTrue(any("adversarial-review receipt" in item for item in violations))
 
@@ -1213,18 +1212,19 @@ class DevelopmentStateTests(unittest.TestCase):
         )
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract, execution_status="Complete")
-        self.fixture.write_as_built(contract)
+        record = self.fixture.write_as_built(contract)
         plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
         plan.write_text(
             plan.read_text(encoding="utf-8") + "\nedited after seal\n",
             encoding="utf-8",
         )
-
-        state, errors = resolve(self.fixture.root)
-        self.assertEqual([], errors)
-        self.assertEqual("as-built-needed", state["stage"])
-        violations = state["asBuiltViolations"]
-        assert isinstance(violations, list)
+        violations = as_built_schema_violations(
+            record,
+            contract,
+            plan,
+            self.fixture.root,
+            per_session_delivery=False,
+        )
         self.assertTrue(any(item.startswith("Plan digest must be") for item in violations))
 
     def test_delivery_unit_accepts_per_session_prs(self) -> None:
@@ -1286,16 +1286,24 @@ class DevelopmentStateTests(unittest.TestCase):
             "| 9.9.1.1.2 | 9.9.1.1 | `9.9.1.1.2.md` |\n",
             encoding="utf-8",
         )
-        self.fixture.write_as_built(first, pr="#299")
-
-        state, errors = resolve(self.fixture.root)
-
-        self.assertEqual([], errors)
-        self.assertEqual("as-built-needed", state["stage"])
+        record = self.fixture.write_as_built(first, pr="#299")
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        violations = as_built_schema_violations(
+            record,
+            first,
+            plan,
+            self.fixture.root,
+            per_session_delivery=False,
+            final_session="9.9.1.1.2",
+        )
         self.assertIn(
             "PR must defer to the final session under the one-sub-version-PR delivery unit",
-            state["asBuiltViolations"],
+            violations,
         )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("session-ready", state["stage"])
+        self.assertEqual("9.9.1.1.2", state["session"])
 
     def test_as_built_binding_floor(self) -> None:
         self.assertFalse(as_built_binds("3.10.1.2"))
@@ -1357,38 +1365,42 @@ class DevelopmentStateTests(unittest.TestCase):
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract)
 
-        # Execute mode off the deterministic lifecycle branch warns and names the
-        # exact lifecycle/<sub-version> branch to check out.
+        # Execute mode off development or an OW branch warns.
         misc_payload = json.loads(self.cli("--git").stdout)
         self.assertTrue(
             any(
-                "is not the lifecycle/9.9.1.1 lifecycle branch" in warning
+                "is not development or an OW lifecycle branch" in warning
                 for warning in misc_payload["warnings"]
             )
         )
 
-        # A codex/* branch has no special meaning any more: it warns like any other.
+        # A codex/* branch has no special meaning: it warns like any other.
         self.fixture.set_head("codex/tooling")
         codex_payload = json.loads(self.cli("--git").stdout)
         self.assertTrue(
             any(
-                "is not the lifecycle/9.9.1.1 lifecycle branch" in warning
+                "is not development or an OW lifecycle branch" in warning
                 for warning in codex_payload["warnings"]
             )
         )
 
-        # On the correct lifecycle branch there is no branch-drift warning.
-        self.fixture.set_head("lifecycle/9.9.1.1")
+        # development and an OW lifecycle branch are silent.
+        self.fixture.set_head("development")
         on_branch_payload = json.loads(self.cli("--git").stdout)
         self.assertFalse(
-            any("lifecycle branch" in warning for warning in on_branch_payload["warnings"])
+            any("OW lifecycle branch" in warning for warning in on_branch_payload["warnings"])
+        )
+        self.fixture.set_head("lifecycle/9.9.1.1.1-ow-1")
+        ow_payload = json.loads(self.cli("--git").stdout)
+        self.assertFalse(
+            any("OW lifecycle branch" in warning for warning in ow_payload["warnings"])
         )
 
-        # main gets the explicit check-out-the-lifecycle-branch message.
+        # main names the land line.
         self.fixture.set_head("main")
         main_payload = json.loads(self.cli("--git").stdout)
         self.assertIn(
-            "current branch is main; check out the lifecycle/9.9.1.1 lifecycle branch",
+            "current branch is main; work from development or the OW lifecycle branch",
             main_payload["warnings"],
         )
 
@@ -1570,7 +1582,7 @@ class DevelopmentStateTests(unittest.TestCase):
         directive = state["directive"]
         assert isinstance(directive, dict)
         self.assertEqual("start-session", directive["handler"])
-        self.assertEqual("lifecycle/9.9.1.1", directive["branch"])
+        self.assertEqual("development", directive["branch"])
 
     def test_session_ready_promotes_when_app_facing_hits_trigger(self) -> None:
         self.fixture.write_roadmap("PLANNED")
@@ -1632,8 +1644,8 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual("invalid", state["stage"])
         self.assertTrue(errors)
 
-    def test_as_built_needed_promotes_when_app_facing_hits_trigger(self) -> None:
-        state = apply_promote_interrupt({"stage": "as-built-needed", "reason": "gap"}, 80)
+    def test_session_ready_stage_promotes_when_app_facing_hits_trigger(self) -> None:
+        state = apply_promote_interrupt({"stage": "session-ready", "reason": "ready"}, 80)
         self.assertEqual("promote-needed", state["stage"])
         self.assertEqual(80, state["appFacing"])
 
