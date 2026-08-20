@@ -10,19 +10,6 @@ import { account, characters, corpAccessAudit } from '@/db/auth-schema';
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
-// ---------------------------------------------------------------------------
-// Corp-affiliation cache (3.7.3.2). The Neon read/write half of the membership
-// primitive — the pure verdicts live in membership.ts, the orchestration in
-// affiliation.ts. Affiliation is character-intrinsic public data on `characters`
-// (a sibling of name/portrait), so these reuse the same account→characters join
-// helpers (eve-account-shared) as the linked-character readers.
-// ---------------------------------------------------------------------------
-
-/**
- * One account→characters row shaped into the cached-affiliation record, loosely
- * coalescing every field to null (an un-refreshed character reads fail-closed).
- * Shared by the per-user and per-character affiliation reads. Pure.
- */
 function rowToCachedAffiliation(
   characterId: number,
   row: {
@@ -103,7 +90,10 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
         ),
       ),
     );
-  return rows.map((r) => Number(r.accountId)).filter((id) => Number.isFinite(id));
+  return rows.flatMap((r) => {
+    const characterId = parseLinkedAccountId(r.accountId);
+    return characterId === null ? [] : [characterId];
+  });
 }
 
 /**

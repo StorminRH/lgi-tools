@@ -23,6 +23,7 @@ export const SDE_SEED_TABLES = [
 
 /** Source files whose contents change the rows a seed dump must represent. */
 export const SDE_SEED_SOURCE_FILES = [
+  'src/data/eve-data/coerce.ts',
   'src/data/eve-data/constants.ts',
   'src/data/eve-data/ingest.ts',
   'src/data/eve-data/meta.ts',
@@ -30,6 +31,9 @@ export const SDE_SEED_SOURCE_FILES = [
   'src/data/eve-data/source.ts',
   'src/data/eve-data/universe.ts',
 ] as const;
+
+/** Dump-format token hashed with the table list so a restore key cannot reuse an old layout. */
+export const SDE_SEED_DUMP_FORMAT = 'pg-dump-Fc-data-only-v1';
 
 const DUMP_PREFIX = 'sde-';
 const DUMP_SUFFIX = '.dump';
@@ -92,11 +96,21 @@ export function parseSdeSeedArgs(
   return { cacheDir, forceIngest };
 }
 
-/** SHA-256 prefix of the ingest sources, stable for the same file set. */
+/** SHA-256 prefix of dump format, table list, and ingest sources. */
 export function hashSdeSeedSources(
   contents: Readonly<Record<string, string>>,
+  identity: {
+    tables: readonly string[];
+    format: string;
+  } = { tables: SDE_SEED_TABLES, format: SDE_SEED_DUMP_FORMAT },
 ): string {
   const hash = createHash('sha256');
+  hash.update(identity.format);
+  hash.update('\n');
+  for (const table of identity.tables) {
+    hash.update(table);
+    hash.update('\n');
+  }
   for (const path of SDE_SEED_SOURCE_FILES) {
     const body = contents[path];
     if (body === undefined) {

@@ -5,17 +5,6 @@ import { portraitUrl } from './eve-sso';
 import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 
-// ---------------------------------------------------------------------------
-// Multi-character platform (3.4.2). A user can link several EVE characters
-// (each an `account` row); these helpers list them, resolve the active one, and
-// move the active pointer. The user↔character join is `account` (providerId
-// 'eve', accountId = character id); per-character name/portrait live on
-// `characters` and are joined in (LEFT, since a profile row can lag a fresh
-// link). Ordered oldest-first by `account.createdAt` so "oldest linked" is
-// deterministic — this is the fallback active character and the unlink re-point
-// target.
-// ---------------------------------------------------------------------------
-
 interface UpsertInput {
   characterId: number;
   name: string;
@@ -56,37 +45,26 @@ export interface LinkedCharacter {
   characterId: number;
   name: string;
   portraitUrl: string;
-  // Raw granted-scope string off the account row (comma-joined). Fed to
-  // deriveCharacterHealth — never surfaced to the client verbatim.
   scope: string | null;
-  // Whether an encrypted refresh token is still on file. The 3.4.1b "dead"
-  // refresh path NULLs the token columns, so a missing token == "reconnect".
   hasRefreshToken: boolean;
   linkedAt: Date;
-  // Cached corp affiliation (3.7.3.2). corporationId feeds the Convex corp sync
-  // (resolveCorpSubjects reads it instead of an inline ESI call);
-  // affiliationRefreshedAt lets the enumeration route stale-gate its on-view
-  // refresh. NULL until the first affiliation refresh.
   corporationId: number | null;
   affiliationRefreshedAt: Date | null;
 }
 
-/**
- * Shape one account→characters join row into a LinkedCharacter: fall back to a
- * synthesised name/portrait when the profile row is missing, and flag whether a
- * usable refresh token is still on file. Pure — the join lives in the query.
- */
-function toLinkedCharacter(r: {
-  accountId: string;
-  scope: string | null;
-  refreshToken: string | null;
-  createdAt: Date;
-  name: string | null;
-  portraitUrl: string | null;
-  corporationId: number | null;
-  affiliationRefreshedAt: Date | null;
-}): LinkedCharacter {
-  const characterId = Number(r.accountId);
+function toLinkedCharacter(
+  characterId: number,
+  r: {
+    accountId: string;
+    scope: string | null;
+    refreshToken: string | null;
+    createdAt: Date;
+    name: string | null;
+    portraitUrl: string | null;
+    corporationId: number | null;
+    affiliationRefreshedAt: Date | null;
+  },
+): LinkedCharacter {
   return {
     characterId,
     name: r.name ?? `Character ${r.accountId}`,
@@ -121,16 +99,15 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
     .where(eveAccountsForUser(userId))
     .orderBy(asc(account.createdAt));
 
-  return rows.flatMap((r) =>
-    parseLinkedAccountId(r.accountId) === null ? [] : [toLinkedCharacter(r)],
-  );
+  return rows.flatMap((r) => {
+    const characterId = parseLinkedAccountId(r.accountId);
+    return characterId === null ? [] : [toLinkedCharacter(characterId, r)];
+  });
 }
 
 /** Linked character selected for active account operations. */
 export interface ActiveCharacter {
   characterId: number;
-  // From the joined `characters` row; null when the profile hasn't been written
-  // yet (the caller coalesces to the user's own name/image).
   name: string | null;
   portraitUrl: string | null;
 }
@@ -159,13 +136,12 @@ export async function resolveActiveCharacter(
     .where(eveAccountsForUser(userId))
     .orderBy(asc(account.createdAt));
 
-  const linked = rows
-    .map((r) => ({
-      characterId: Number(r.accountId),
-      name: r.name,
-      portraitUrl: r.portraitUrl,
-    }))
-    .filter((r) => Number.isFinite(r.characterId));
+  const linked = rows.flatMap((r) => {
+    const characterId = parseLinkedAccountId(r.accountId);
+    return characterId === null
+      ? []
+      : [{ characterId, name: r.name, portraitUrl: r.portraitUrl }];
+  });
 
   const [first] = linked;
   if (first === undefined) return null;
@@ -218,8 +194,7 @@ export async function repointActiveToOldest(userId: string): Promise<number | nu
     .orderBy(asc(account.createdAt))
     .limit(1);
 
-  const parsed = row ? Number(row.accountId) : null;
-  const next = parsed !== null && Number.isFinite(parsed) ? parsed : null;
+  const next = row ? parseLinkedAccountId(row.accountId) : null;
   await db
     .update(user)
     .set({ activeCharacterId: next, updatedAt: new Date() })

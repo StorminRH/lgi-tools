@@ -110,7 +110,6 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
       corporationId: null,
       affiliationRefreshedAt: null,
     });
-    // Missing profile portrait falls back to the EVE image-server URL.
     expect(rows[0]!.portraitUrl).toContain(`/characters/${FIRST_CHAR}/portrait`);
     expect(rows[1]).toMatchObject({
       name: `Character ${SECOND_CHAR}`,
@@ -158,6 +157,22 @@ describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', 
     await expect(accountBelongsToUser(USER_ID, SECOND_CHAR)).resolves.toBe(false);
     await setActiveCharacter(USER_ID, FIRST_CHAR);
     await expect(getStoredActiveCharacterId(USER_ID)).resolves.toBe(FIRST_CHAR);
+  });
+
+  it('drops a non-numeric EVE account id without failing the list', async () => {
+    await seedEveAccount('good', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
+    await seedEveAccount('bad', FIRST_CHAR, new Date('2026-07-02T00:00:00Z'), {
+      id: 'bad',
+      accountId: 'not-a-number',
+    });
+
+    await expect(listLinkedCharacters(USER_ID)).resolves.toEqual([
+      expect.objectContaining({ characterId: FIRST_CHAR }),
+    ]);
+    await expect(resolveActiveCharacter(USER_ID, null)).resolves.toMatchObject({
+      characterId: FIRST_CHAR,
+    });
+    await expect(repointActiveToOldest(USER_ID)).resolves.toBe(FIRST_CHAR);
   });
 
   it('repoints deterministically to the oldest survivor and stores null when empty', async () => {
