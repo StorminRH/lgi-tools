@@ -59,14 +59,18 @@ unmerged.
    changelog fragment.
 5. Open the Origin PR (`development` → `staging`) per **Origin PR**.
    Wait until Depot is green.
-6. Dump that range to GitHub for bots. Add a `github` remote to
-   `https://github.com/StorminRH/lgi-tools.git` when it is missing.
-   Push Origin `staging` to GitHub `staging` so the dump base matches
-   the already-reviewed line. Push Origin `development` to
-   `dump/<YYYY-MM-DD>-<shortsha>`. Open a draft GitHub PR on
-   `StorminRH/lgi-tools` (`dump/...` → `staging`) with `gh pr create`
-   or the GitHub MCP. Request Greptile and CodeRabbit by hand. Origin
-   `main` stays off GitHub `main`.
+6. Dump the app-facing files in that range to GitHub for bots. Add a
+   `github` remote to `https://github.com/StorminRH/lgi-tools.git` when
+   it is missing. Push Origin `staging` to GitHub `staging` so the dump
+   base matches the already-reviewed line. List the packet with
+   `python3 tools/cli.py lifecycle count-app-facing --list`. Build
+   `dump/<YYYY-MM-DD>-<shortsha>` from that base with only those paths
+   at the head SHA. Skills, standing docs, and other excluded paths stay
+   off the dump. The isolation matches adversarial review. Open the
+   GitHub PR ready for review on `StorminRH/lgi-tools`
+   (`dump/...` → `staging`) with `gh pr create` or the GitHub MCP.
+   Request Greptile and CodeRabbit by hand. Origin `main` stays off
+   GitHub `main`.
 7. Iterate dump findings until they are resolved. **Fix** in-scope
    items on Origin and comment the fix on the Origin PR. Re-push the
    dump branch. Wait until the Origin PR is Depot-green again.
@@ -125,11 +129,15 @@ those as-builts, and production proof passed.
 
 ## 4. Origin PR
 
-Done when the draft Origin PR exists and Depot is green.
+Done when the Origin PR is ready for review and Depot is green.
 
-1. Open one draft Origin PR via ManagePullRequest. Head and base are
-   the ritual's two lines. Headings in order: `## What this does`,
-   `## Why`, `## Notes`, `## Test plan`.
+`origin pr create` defaults to draft. A draft that is later marked ready
+runs Depot twice. Open it ready.
+
+1. Open one Origin PR ready for review
+   (`origin pr create --status open`). Head and base are the ritual's
+   two lines. Headings in order: `## What this does`, `## Why`,
+   `## Notes`, `## Test plan`.
 2. Scrub title and body:
 
    ```bash
@@ -143,7 +151,6 @@ Done when the draft Origin PR exists and Depot is green.
    running, use
    `depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4` and
    `depot ci status <run-id> --org k2f4dzqwd4`. Re-scrub after publish.
-   Mark ready for review once.
 
 ## 5. Merge the Origin PR
 

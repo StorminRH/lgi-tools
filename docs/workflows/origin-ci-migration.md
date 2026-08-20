@@ -54,11 +54,14 @@ happen on the stack you will keep.
 <hard_constraints>
 
 - **Plan:** After cutover, Origin is source of truth. GitHub is a
-  disposable dump used only for review bots when promoting a
-  **~100-file** chunk from `development` to `staging`. Never merge
-  the dump PR. Never accept bot-apply commits. Never push Origin
-  `main` to GitHub `main`. Do not dump a larger-than-bar diff to
-  Greptile/CodeRabbit — they are not reliable past that size.
+  disposable dump of the app-facing files in a promote chunk, used
+  only for review bots. The packet is
+  `lifecycle count-app-facing --list`, the same isolation as
+  adversarial review. Skills and standing docs stay off that dump.
+  Never merge the dump PR. Never accept bot-apply commits. Never push
+  Origin `main` to GitHub `main`. A dump well over the ~100-file bar
+  stays off Greptile and CodeRabbit. They are not reliable past that
+  size.
 - **Plan:** Do not rehearse CI on GitHub Actions and migrate later.
   Create or detach an Origin-hosted repo, then prove Depot there. Depot
   and Origin Apps do not run on an inbound GitHub mirror.
@@ -93,9 +96,9 @@ happen on the stack you will keep.
   ingest / warm-neon stay deploy-time on the environment that is
   actually going live (`staging` or Production).
 - **Plan:** Greptile and CodeRabbit are **manual request only**, and
-  only on a GitHub dump whose file count vs `staging` is at or under
-  **~100**. That dump is the `development` → `staging` promote, not
-  every Origin PR and not the eventual `staging` → `main` release
+  only on a GitHub dump of the app-facing files vs `staging` at or
+  under **~100**. That dump is the `development` → `staging` promote,
+  not every Origin PR and not the eventual `staging` → `main` release
   unless that release is itself still under the bar. They are not the
   merge gate.
 - **Plan:** A merge to `development` or `staging` is not a release.
@@ -300,9 +303,10 @@ When the last Ordered work step is done:
   past what Greptile/CodeRabbit can read, then one dump of the whole
   pile.
 - **Promote at 80 app-facing files vs `staging`.** Measure with
-  `python3 tools/cli.py lifecycle count-app-facing`. Dump that range
-  to GitHub, request bots manually, fix on Origin, merge the Origin
-  PR onto `staging`. A dump well over **100** files is blocked.
+  `python3 tools/cli.py lifecycle count-app-facing`. Dump those
+  app-facing files to GitHub, request bots manually, fix on Origin,
+  merge the Origin PR onto `staging`. A dump well over **100** files
+  is blocked.
   You may cut a smaller chunk. Repeat until `staging` holds
   everything you want in the next release.
   **Rejected:** bots on every land; bots as the merge gate; one
@@ -391,7 +395,7 @@ Four layers. They stay separate:
 | Layer | What it is | When it moves |
 | --- | --- | --- |
 | **Work package** | Session contract → plan → ordered work (or ordinary work) | Fast-forward onto Origin `development` when that step is proven. No land PR. |
-| **Review chunk** | App-facing files on `development` that `staging` does not have yet | At **80** (`lifecycle count-app-facing`). Dump that range to GitHub, request bots, merge the Origin PR onto `staging`. A dump well over **100** is blocked. |
+| **Review chunk** | App-facing files on `development` that `staging` does not have yet | At **80** (`lifecycle count-app-facing`). Dump those files to GitHub, request bots, merge the Origin PR onto `staging`. A dump well over **100** is blocked. |
 | **Release** | One public number + one changelog entry + `APP_VERSION` | Merge Origin `staging` → `main`. Write the changelog from the as-builts on that range. |
 | **Production** | Users on `lgi.tools` | That same `staging` → `main` merge (Vercel auto-deploys) |
 
@@ -506,16 +510,19 @@ product behavior.
 
 - Local test suite on land: typecheck, lint, Fallow dead-code +
   dupes + health, focused tests.
-- Full Depot workflow on a promote or release Origin PR —
+- Full Depot workflow on a promote or release Origin PR.
   `verify` + `build` + `e2e`. Wait with `origin pr checks --watch`.
+  Open that PR ready for review so Depot runs once
+  (`origin pr create --status open`).
 - Origin `development` push → short-lived Vercel Preview — usual look
   instead of laptop `pnpm dev`. Feature-branch Preview is manual.
 - Fast-forward onto `development` (`git push origin HEAD:development`)
   — daily land. No land PR. Does not promote or release.
-- GitHub dump of `staging...development` at **80** app-facing files +
-  **manual** bot request — promote only. Never merge the dump. Then
-  merge the Origin PR onto `staging`. A dump well over **100** is
-  blocked.
+- GitHub dump of the app-facing files in `staging...development` at
+  **80**, listed by `lifecycle count-app-facing --list`, plus a
+  **manual** bot request. Promote only. Open that dump PR ready for
+  review. Never merge the dump. Then merge the Origin PR onto
+  `staging`. A dump well over **100** is blocked.
 - `origin pr merge` (`staging` → `main`) — release and Production
   auto-deploy.
 - Feedback: today `POST /repos/StorminRH/lgi-tools/issues`. After
@@ -537,10 +544,10 @@ Target daily path after OW-5:
    is manual when you want one.
 4. Repeat Ordered work. After each land run
    `python3 tools/cli.py lifecycle count-app-facing`. At **80**,
-   `close-out` promotes: dump that range to GitHub, request Greptile
-   and CodeRabbit, fix on Origin, wait for Depot on the Origin PR,
-   merge onto `staging`. Write as-builts on that PR. A dump well
-   over **100** is blocked.
+   `close-out` promotes: dump the app-facing files to GitHub, request
+   Greptile and CodeRabbit, fix on Origin, wait for Depot on the
+   Origin PR, merge onto `staging`. Write as-builts on that PR. A dump
+   well over **100** is blocked.
 5. Repeat promotes until `staging` holds the next release.
 
 When you ask for a release:

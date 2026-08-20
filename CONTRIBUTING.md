@@ -41,6 +41,13 @@ feat: add API endpoints for browsing and filtering wormhole sites
    pipeline (`verify` on every PR, plus `build` and `e2e` on PRs) with
    **`origin pr checks --watch`**. Laptop `pnpm verify` is not done.
 3. Fill in the PR template's **test plan** — what you verified and how.
+4. Open Origin PRs and GitHub dump PRs ready for review so Depot runs once.
+   `origin pr create` defaults to draft; pass `--status open`.
+5. A GitHub dump is the app-facing files from
+   `python3 tools/cli.py lifecycle count-app-facing --list`. Pass `--base`
+   and `--head` for the two lines of that PR. Defaults are
+   `origin/staging` and `origin/development`. Same isolation as the review.
+   Skills and standing docs stay off that packet.
 
 ## Conduct, security & license
 
