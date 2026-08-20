@@ -1,134 +1,88 @@
-# LGI.tools repository guide
+# LGI.tools
 
-LGI.tools is an incremental EVE Online multi-tool platform.
+EVE Online multi-tool. Work lands in slices.
 
 ## Workflow
 
-- **Ordinary work** begins from a direct request, never consults lifecycle
-  state, and never runs the lifecycle resolver.
-- **Planned lifecycle work** begins only through `start-session`; use its
+- Ordinary work starts from a direct request. Skip lifecycle state and the
+  resolver.
+- Planned lifecycle work starts only through `start-session`. Use the
   resolver-selected branch and handler.
 
-## Subagents
+## Seats
 
-Prefer a subagent when the work isolates well. If a listed seat fits, use
-it; other subagents are fine when they help.
+Use a listed seat when the work isolates to it. Other subagents are fine when
+they help.
 
-Before writing or editing production or test code, launch `docs-researcher` for
-every material external technology in the change (React, Next.js, Convex, Base
-UI, React Flow, Vitest, and peers). Require a Documentation brief before
-generation; do not implement from training memory.
+Launch `docs-researcher` before writing or editing production or test code that
+touches React, Next.js, Convex, Base UI, React Flow, Vitest, or peers.
+Generation waits on a Documentation brief.
 
-Use `repo-mapper` for material relationship, consumer, dependency, or
-blast-radius questions; it must use Codegraph CLI (`callers`, `callees`,
-`impact`, `query`, plus `status`/`sync` if needed) and return a Repository map.
+Launch `repo-mapper` for relationship, consumer, dependency, or blast-radius
+questions. It uses Codegraph (`callers`, `callees`, `impact`, `query`;
+`status`/`sync` if needed) and returns a Repository map.
 
-Use `gate-runner` for the local cheap gate when a Gate result packet is
-needed and before commits: `pnpm typecheck`, `pnpm lint`, Fallow
-`dead-code`, `dupes`, and `health` (CRAP, no `--coverage`), and
-caller-supplied focused tests for the diff.
+Launch `gate-runner` before commits, and whenever a Gate result packet is
+needed: `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`, `dupes`, and
+`health` (CRAP, no `--coverage`), plus caller-supplied focused tests for the
+diff.
 
-Launch those seats by name and omit Task `model` so the agent file pin
-applies. Do not pass `inherit` or a slug; those override the pin.
+Name those seats and omit Task `model` so the agent file pin applies. `inherit`
+and model slugs override the pin.
 
-## Commands and definition of done
+## Done
 
-Standing definition of done: an Origin PR whose Depot pipeline is green.
-Wait with `origin pr checks --watch`.
+Done is an Origin PR whose Depot pipeline is green. Wait with
+`origin pr checks --watch`.
 
 Depot org `k2f4dzqwd4`, repo `stormin/lgi-tools`, workflow
-`.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4` when the account is
-in more than one org. `run list` defaults to queued/running. PR runs use
-a merge SHA (`refs/changes/N/merge`), not always `HEAD`. Skip
-`auth-storage.json` if it appears in an artifact list.
+`.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4` when the account is in
+more than one org. `run list` defaults to queued and running. PR runs use a
+merge SHA (`refs/changes/N/merge`), not always `HEAD`. Skip `auth-storage.json`
+in artifacts.
 
-```text
-origin pr checks
-origin pr checks --watch
+## Architecture
 
-depot ci run list --repo stormin/lgi-tools --pr N --org k2f4dzqwd4 -n 8
-depot ci run list --repo stormin/lgi-tools --pr N --org k2f4dzqwd4 --status finished --status failed -n 8
-depot ci status <run-id> --org k2f4dzqwd4
-depot ci diagnose --job <job-id> --org k2f4dzqwd4
-depot ci logs <attempt-id> --org k2f4dzqwd4
-depot ci logs <job-id> --follow --org k2f4dzqwd4
-depot ci logs <attempt-id> --timestamps --output-file logs.txt --org k2f4dzqwd4
-depot ci metrics --job <job-id> --org k2f4dzqwd4
-depot ci metrics --run <run-id> --org k2f4dzqwd4 -o json
-depot ci ssh <run-id> --job test.yml:verify --org k2f4dzqwd4
-depot ci retry <run-id> --job <job-id> --org k2f4dzqwd4
-depot ci artifacts list <run-id> --org k2f4dzqwd4
-depot ci artifacts download <artifact-id> --org k2f4dzqwd4
-```
+Neon holds durable account, character, and ESI data. Convex holds live
+projections plus the mapper collaborative-chain exception in `docs/CONVEX.md`.
 
-## Architecture and engineering
+Production source lives in the deny-by-default Fallow zones. `.fallowrc.json`
+is the boundary. No new cross-layer exceptions.
 
-Neon is the source of truth for durable account, character, and ESI data.
-Convex holds live projections plus the mapper collaborative-chain exception in
-`docs/CONVEX.md`.
+Use existing primitives and configuration. Extract shared code only for a real
+second consumer.
 
-Production source belongs to the existing deny-by-default Fallow zones.
-`.fallowrc.json` is the mechanical boundary authority. Do not add cross-layer
-exceptions.
-
-Always use existing primitives and configuration. Extract shared code only for
-a real second consumer.
-
-## Atlas wormhole language
+## Atlas connections
 
 When discussing Atlas connections, use the glossary at the top of
-`src/data/maps/connection-door-types.ts`. Talk about a system (and its class
-when it matters), the wormholes in that system, outgoing named holes vs
+`src/data/maps/connection-door-types.ts`. Talk about a system and its class
+when the class matters, the wormholes in that system, outgoing named holes vs
 incoming K162s. Example: jump a P060, land in a C1, the way back is the K162.
-Do not call systems origin or far side. Stored `from`/`to` are document ends,
-not incoming vs outgoing.
+Stored `from`/`to` are document ends, not incoming vs outgoing. Call them
+systems, not origin or far side.
 
-## Delivery and authorization
+## Delivery
 
-Feature work lands on Origin `development` through a PR. Merge there
-auto-deploys a Vercel Preview. That Preview is the test stand-in: Neon
-`preview/development` (3-day TTL) and Convex `preview/development`. When
-the test cycle is done, delete that Neon branch, the Convex preview, and
-the Vercel Preview. The next push to `development` spins them up again.
+Feature work lands on Origin `development` through a PR. Merge auto-deploys a
+Vercel Preview: Neon `preview/development` (3-day TTL, 0.25-1 CU from
+`neon.ts`) and Convex `preview/development`. Delete that Neon branch, Convex
+preview, and Vercel Preview when the test cycle ends. The next push to
+`development` creates them again.
 
-When `development` has accumulated a reviewable pile, open a PR onto
-`staging`. Merge there updates the long-lived Preview: Neon `staging` and
-Convex `staging` (`proper-squid-200`).
+A reviewable pile on `development` opens a PR onto `staging`. Merge updates the
+long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
 
-`main` is the only Production auto-deploy. When asked to wrap up or ship,
-invoke the `close-out` skill, the sole merge-to-production procedure.
+`main` is the only Production auto-deploy. Wrap up or ship through `close-out`.
 
-`vercel.json` auto-deploys `main`, `development`, and `staging` only.
-Neon project `lively-mode-73649525`. Convex team `stormin-s-projects`,
-project `lgi-tools`. Policy for Neon names and compute is repo-root
-`neon.ts`; apply with the CLI (nothing auto-applies it).
+`vercel.json` auto-deploys `main`, `development`, and `staging` only. Neon
+project `lively-mode-73649525`. Convex team `stormin-s-projects`, project
+`lgi-tools`. Apply `neon.ts` with the CLI; nothing auto-applies it. Protected
+Neon `main` needs `--allow-protected`. Connection strings use role
+`neondb_owner`.
 
-```text
-vercel env ls
-vercel env add NAME preview <git-branch>
-vercel ls
-vercel remove <preview-url-or-id>
-
-neon branches list --project-id lively-mode-73649525
-neon branches get 'preview/development' --project-id lively-mode-73649525
-neon branches create --name 'preview/development' --project-id lively-mode-73649525 --cu 0.25-1
-neon branches delete 'preview/development' --project-id lively-mode-73649525
-neon config plan --project-id lively-mode-73649525 --branch 'preview/development' --config ./neon.ts
-neon config apply --project-id lively-mode-73649525 --branch 'preview/development' --config ./neon.ts --update-existing
-neon connection-string 'preview/development' --project-id lively-mode-73649525 --role-name neondb_owner --pooled
-
-npx convex deployment create staging --type prod
-npx convex insights --deployment preview/development
-npx convex insights --deployment proper-squid-200
-```
-
-Neon API: `GET` / `DELETE`
-`https://console.neon.tech/api/v2/projects/lively-mode-73649525/branches[/{branch_id}]`.
-Do not delete protected `main`. Apply to `main` needs `--allow-protected`.
-
-Convex has no CLI list or delete. Vercel ending a Preview does not delete
-Convex. List and delete with a team access token or PAT (not
-`CONVEX_DEPLOY_KEY`) against `https://api.convex.dev/v1`:
+Convex has no CLI list or delete. Ending a Vercel Preview leaves Convex
+running. List and delete with a team access token or PAT, never
+`CONVEX_DEPLOY_KEY`, against `https://api.convex.dev/v1`:
 
 ```text
 GET  /teams/stormin-s-projects/projects/lgi-tools
@@ -136,12 +90,15 @@ GET  /projects/<numeric-id>/list_deployments?deploymentType=preview
 POST /deployments/<animal-name>/delete
 ```
 
-Delete path is the animal name (`robust-puffin-832`), not
-`preview/development`. Dashboard delete: that deployment → Settings →
-Delete deployment. Preview Convex expires 5d or 14d from create.
+The delete path is the animal name (`robust-puffin-832`), not
+`preview/development`. Preview Convex expires 5d or 14d from create.
 
 MCP: Neon `list_projects` / `describe_project` / `create_branch` /
 `delete_branch`. Convex `status` / `logs`. Vercel is CLI (`vercel api`).
+
+## Cloud Agent
+
+Cloud Agent (this VM, Cloud secrets, e2e on the VM): `.cursor/cloud-agent.md`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -152,55 +109,3 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
-
-## Cursor Cloud specific instructions
-
-The Cloud Agent environment provisions the local stack itself; standard commands
-still live in the README/`package.json`. Non-obvious caveats:
-
-- **Postgres runs natively, not via Docker.** The VM has no Docker daemon or
-  systemd, so `.cursor/install.sh` provisions a self-contained PostgreSQL 16
-  cluster (owned by the agent user, `trust` auth) on `localhost:5433` — the same
-  URL as `docker-compose.yml`. It runs in the foreground in the `postgres`
-  terminal (see `.cursor/environment.json`) so it stays up for the session; a
-  background daemon started in a `start` phase does not reliably survive boot.
-  The migrated schema and the ingested EVE SDE are baked into the environment
-  snapshot, so a normal boot needs no migration/ingest and no CCP network call.
-- **Use `pnpm dev`, not `pnpm dev:all`.** `dev:all` runs `docker compose up -d`
-  (no Docker here). Convex is a sibling terminal: `.cursor/convex.sh` runs
-  `CONVEX_AGENT_MODE=anonymous pnpm exec convex dev` on `:3210`. Do not copy a
-  laptop `local:` pair, a hosted `*.convex.cloud` URL, or `CONVEX_DEPLOY_KEY`.
-  Fixture probes call `convex run` against the selected `local:` or
-  `anonymous:` deployment and refuse a hosted URL.
-- **`.env.local` is auto-generated** with dev-only session/crypto secrets and
-  the local DB URLs. Any Cloud Agent Secret you upload is injected as a real env
-  var and overrides the `.env.local` fallback at runtime — do not upload a
-  production `DATABASE_URL`, or the app will talk to prod.
-- **Real-Postgres `*.db.test.ts` suites need the `:5433` cluster** with
-  migrations and SDE applied: they clone the live `public` schema, and some
-  (wormhole codex / `sde_version`) fail rather than skip without SDE data. A
-  cold/unreachable DB makes the harness skip those suites instead. `pnpm verify`
-  is green in this environment.
-- **`DATABASE_URL_UNPOOLED` must be non-empty.** The lock-holder scripts
-  (`db:refresh-sde`, `db:refresh-prices`) resolve it with `??`, so the blank
-  value shipped in `.env.example` does *not* fall back to `DATABASE_URL`; the
-  install script points it at the same local cluster.
-- **Project skills live in `.cursor/skills/`.** Review skills here include
-  `thermos`, `thermo-nuclear-review`, `thermo-nuclear-code-quality-review`,
-  and `deslop`.
-- **Custom subagents live in `.cursor/agents/`.**
-- **Playwright Chromium is installed by `.cursor/install.sh`.** Use
-  `http://localhost:3000` (the `next-dev` terminal). Seed auth with
-  `pnpm e2e:seed` on this VM; do not upload `auth-storage.json` or cookie jars.
-- **Anonymous Convex lives on `:3210`.** After Next is up, `.cursor/start.sh`
-  reconciles `AUTH_ISSUER_URL`, `SITE_URL`, `AUTH_JWKS` (from
-  `/api/auth/jwks`), and a VM-generated `CONVEX_SERVICE_SECRET` onto the local
-  deployment. Atlas `atlas-*` probes need both terminals; `pnpm verify`,
-  public e2e, and synthetic-auth smoke do not.
-- **Codegraph CLI** (`@colbymchenry/codegraph@1.5.0`) is installed globally
-  and `.codegraph/` is snapshotted. `repo-mapper` can run `codegraph sync`
-  after material source edits; a token is not required.
-- **Do not upload** production `DATABASE_URL` / `DATABASE_URL_UNPOOLED` /
-  `DATABASE_MIGRATION_URL`, hosted Convex URL/deployment, `CONVEX_DEPLOY_KEY`,
-  or a `~/.convex` access token. Preview log probes may use
-  `VERCEL_AUTOMATION_BYPASS_SECRET` only.

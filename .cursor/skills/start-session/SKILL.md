@@ -94,15 +94,14 @@ pnpm exec fallow health --fail-on-issues
 Require a green Gate result packet for every command. Failures return
 `BLOCKED`. Do not launch `adversarial-review` here — that belongs to close-out.
 
-On green gates, launch a fresh `primitive-checker` and a fresh
-`holistic-reviewer` in parallel against this step's working-tree diff. Launch
-them the same way as `adversarial-review` §3: named `subagent_type`, omit Task
-`model` (do not pass `inherit` or a slug). On `FINDINGS`, fix, re-prove,
-re-run `gate-runner`, and re-launch both reviewers. On `CLEAN` from both (or every accepted finding
-corrected and re-reviewed clean), commit the verified OW scope
-(implementation and tests). Do not push from the OW chat. Do not rewrite the
-frozen session plan. Do not change `Execution status`. Do not start the next
-Ordered work step or close-out in this chat.
+On green gates, launch a fresh `structure-reviewer` and a fresh
+`behavior-reviewer` in parallel against this step's working-tree diff. Launch
+them by those type names and omit Task `model`. On `FINDINGS`, fix, re-prove,
+re-run `gate-runner`, and re-launch both reviewers. On `CLEAN` from both (or
+every accepted finding corrected and re-reviewed clean), commit the verified
+OW scope (implementation and tests). Do not push from the OW chat. Do not
+rewrite the frozen session plan. Do not change `Execution status`. Do not
+start the next Ordered work step or close-out in this chat.
 
 Stop with `OW_HANDOFF` and a copy-paste handoff prompt. Mid-session progress
 and next-agent notes live in that prompt, not in git. When more Ordered work
@@ -114,7 +113,7 @@ Plan: docs/session-plans/...
 Contract: docs/session-contracts/...
 Completed OW 1..<k> (commit <sha>). Next: Ordered work step <k+1> — <title from plan>.
 Next-agent notes: <gotchas, open operator dispositions, paths to reopen, or None>.
-Do not replan; do not close-out; execute only that step, then gate-runner + primitive-checker + holistic-reviewer + commit + handoff.
+Do not replan; do not close-out; execute only that step, then gate-runner + structure-reviewer + behavior-reviewer + commit + handoff.
 ```
 
 When this was the last Ordered work step:

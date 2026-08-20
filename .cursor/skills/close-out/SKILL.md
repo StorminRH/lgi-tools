@@ -78,7 +78,8 @@ one PR per session.
 Sole design-and-independent-review stage before full verify. Do not launch a
 second adversarial round after it.
 
-1. Invoke `adversarial-review` against `origin/main...HEAD` plus any
+1. Invoke `adversarial-review` against the merge this close-out is about to
+   open: `development` onto `staging`, or `staging` onto `main`. Include any
    uncommitted patch. Keep the worktree stable. Contested items surface in
    chat. Continue only with `PASS`.
 2. Finalize delivery records before gates and before opening a PR:
@@ -145,7 +146,8 @@ head is unchanged. Standing done is the Origin PR Depot pipeline in
 
 1. Reuse the cheap-gate packet when the head is unchanged since **Finalize and
    verify the current head**.
-2. Open one **draft** PR to `main` (or reuse the open review-only PR). Headings
+2. Open one **draft** PR to `staging` or `main`, matching the merge just
+   reviewed (or reuse the open review-only PR). Headings
    in order: `## What this does`, `## Why`, `## Notes`, `## Test plan`.
    Planned: with the PR number known, author the as-built, commit, push while
    still draft. After the PR exists, standing done is the Depot pipeline.
@@ -188,7 +190,9 @@ head is unchanged. Standing done is the Origin PR Depot pipeline in
 
 1. Clean the local feature branch and any manual preview or ephemeral data
    branch.
-2. Wait for the merge-SHA production deployment:
+2. A `staging` merge stops here (`MERGED`). Production proof is only for
+   `main`.
+3. Wait for the merge-SHA production deployment:
 
    ```bash
    python3 tools/cli.py delivery wait-prod-deploy <merge-sha>
@@ -196,12 +200,12 @@ head is unchanged. Standing done is the Origin PR Depot pipeline in
 
    Fail closed on timeout, failed/inactive deploy, or when Production tip
    moves to a different commit.
-3. Agent production proof is log-driven Playwright, not a visual pass. Browser
+4. Agent production proof is log-driven Playwright, not a visual pass. Browser
    cache and origin-scoped bypass live in the `ux-check` skill. Always run
    `pnpm verify:prod` (or `pnpm verify:site-routes -- <url>`).
    Account-adjacent: also `pnpm ux-check <routes> --base-url=<prod-url>` with
    operator `--cookie-jar` / `--storage-state`. Pass/fail from JSON.
-4. Ordinary: `MERGED`. Pending fragment is the only lifecycle record.
+5. Ordinary: `MERGED`. Pending fragment is the only lifecycle record.
    Planned: update from `origin/main`, run
    `python3 tools/cli.py lifecycle resolve --pretty`, return to
    `start-session`.

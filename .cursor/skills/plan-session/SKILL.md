@@ -62,8 +62,7 @@ and present a complete schema plan for approval.
    settled conversation. No Blocking prerequisite or unresolved placeholder may
    remain.
 2. Invoke `adversarial-review` against the complete draft, contract, schema, and
-   source evidence. That invocation uses `holistic-reviewer` as the integrative
-   seat for one review pass. Continue only with `PASS`. Do not persist reviewer
+   source evidence. Continue only with `PASS`. Do not persist reviewer
    transcripts or superseded drafts.
 
 ## 4. Approve, persist, and stop

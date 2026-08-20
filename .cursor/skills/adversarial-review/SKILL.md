@@ -1,105 +1,124 @@
 ---
 name: adversarial-review
-description: Review a plan, implementation diff, working tree, or pull request with independent subagents. Use before approving a plan, before opening a PR, or when asked to find verified defects.
+description: Use before opening a PR to staging or main. Adversarial review with independent structure and behavior seats, plus thermos and no-comments, on a frozen plan or a development-to-staging or staging-to-main merge.
 ---
 
-# Run the adversarial review
+# Adversarial review
 
-Review one complete plan or implementation diff with independent subagents.
-Verify every reported defect and return one concise reconciled result.
+One frozen subject. Independent seats. Then `thermos` and `no-comments` on
+code. Every accepted finding checked. One reconciled verdict.
 
-## Execution contract
+Return `PASS`, `CORRECTIONS_REQUIRED`, or `BLOCKED`. One review round.
 
-One review round. Return `PASS`, `CORRECTIONS_REQUIRED`, or `BLOCKED`. Do not
-auto-relaunch.
+`BLOCKED` when a selected seat or skill returns no verdict, or load-bearing
+evidence cannot be established.
 
-Return `BLOCKED` when a selected reviewer fails to return a verdict or
-load-bearing evidence cannot be established.
+Check every accepted seat finding against the verdict form in that seat's
+agent file. Two seats agreeing is not proof. Fix clear in-scope defects on
+code. Report contested, out-of-scope, or product-judgment items in chat. Plans
+are report-only.
 
-Verify every accepted finding against the reviewer-verdict form inlined in each
-reviewer. Reviewer agreement is not proof. Do not defer, backlog, or justify
-findings away — fix clear in-scope defects on code, or report contested /
-out-of-scope / product-judgment items in chat. Plan subjects are report-only.
+Prefer small deep interfaces, one owner per decision, current callers only,
+edge cases absorbed below stable seams, behavior-preserving refactors, and
+metrics as signals not design instructions.
 
-**Design creed (code).** Prefer small deep interfaces, one owner per decision,
-current callers only, edge cases absorbed below stable seams, behavior-preserving
-refactors, and metrics as signals not design instructions.
+Work lands on `development`. This skill is the review gate before merging
+`development` onto `staging`, and before merging `staging` onto `main`.
 
 ## 1. Freeze
 
-1. Record authority and any operator emphasis.
-2. Freeze identity: plan path digests; or base/head SHAs; or working-tree base +
-   patch digest (worktree stable until verdicts return); or PR + head SHA.
-3. Stop if any logical change group lacks authority.
-4. Inventory touched surfaces. Note verification status (or not-run).
+Done when the subject has a frozen identity and every change group has
+authority.
 
-## 2. Select roles
+Use the caller's subject when one is supplied. Otherwise pick the identity
+that matches the ask:
 
-Launch each selected role once. Do not launch a role just because it exists.
+- A plan. Path digest of the draft and its contract.
+- Merge to staging. The PR onto `staging`, or `development` and `staging`
+SHAs. Keep the tree still until verdicts return.
+- Merge to main. The PR onto `main`, or `staging` and `main` SHAs. Keep the
+tree still until verdicts return.
+- Verified defects on a named diff or working tree. Base plus head or patch
+digest, tree still until verdicts return.
 
-| Context | Integrative seat (exactly one) |
-| --- | --- |
-| Ordinary / small one-off code | `primitive-checker` |
-| Plans, large diffs, and other non-ordinary work | `holistic-reviewer` |
+Record authority and any operator emphasis. Stop if a change group has no
+authority. List the files and areas the subject touches. Note which
+verification ran, and which did not.
 
-Plans: integrative only, unless operator emphasis names one scoped seat.
+## 2. Select and launch seats
 
-Code: integrative + up to two scoped seats; a third only when three distinct
-judgment risks are present. Prefer `ownership-reviewer` for application or
-backend behavior, `interface-reviewer` for user-facing UI, then
-`architecture-reviewer` / `contract-reviewer` / `reliability-reviewer` only when
-that risk is the material one.
+Done when every selected seat has returned its verdict form.
 
-Brief each role with: frozen subject identity, authority, operator emphasis,
-and current evidence. For a scoped seat, name the primary path/symbol slice.
-Do not hint expected defects or share other reviewers' output.
 
-## 3. Launch
+| Subject                                        | Launch                                       |
+| ---------------------------------------------- | -------------------------------------------- |
+| A plan                                         | `behavior-reviewer`                          |
+| Merge to staging, merge to main, or other code | `structure-reviewer` and `behavior-reviewer` |
 
-Launch one designed subagent per selected role.
 
-- **Type.** `subagent_type` is the role name (`primitive-checker`,
-  `holistic-reviewer`, `ownership-reviewer`, `interface-reviewer`,
-  `architecture-reviewer`, `contract-reviewer`, or `reliability-reviewer`).
-  Do not use `generalPurpose` or another built-in with a copied review prompt.
-- **Model.** Omit Task `model` so the agent file pin applies. Do not pass
-  `inherit` or a slug; those override the pin.
-- **Retry.** If the first launch ran this chat's model, retry once the same
-  way (named type, omit `model`). A second wrong-model or format failure is
-  `BLOCKED`.
+Add the other seat when the operator names it. Brief each seat with frozen
+identity, authority, operator emphasis, and current evidence. Name a path or
+symbol slice when one area is the point. Each seat gets a fresh brief. No
+other seat's output.
 
-Deduplicate by root cause. If reviewers disagree on security, identity,
-destructive data, migration, concurrency, or public contract and evidence
-cannot settle it, return `BLOCKED` and report the dispute in chat.
+Launch `structure-reviewer` or `behavior-reviewer` by those type names. Omit
+Task `model` so the agent file pin applies.
+
+If the first launch ran this chat's model, retry once the same way. Named
+type, no `model`. A second wrong-model or format failure is `BLOCKED`.
+
+## 3. Thermos and no-comments
+
+Skip this step on a plan.
+
+Done when `thermos` has returned its synthesized verdict and `no-comments`
+has returned its report.
+
+Run them on the same frozen subject. Read and follow
+`.cursor/skills/thermos/SKILL.md`, then `.cursor/skills/no-comments/SKILL.md`.
+Those files own their steps, seats, and pass rules. Treat their accepted
+findings as this review's findings.
+
+`thermos` first. It is read-only discovery. `no-comments` after accepted
+code fixes from the seats and thermos, so its scope is the tree those fixes
+left.
 
 ## 4. Verify
 
-1. Reproduce or disprove every reported failure.
-2. Accept or reject each root cause once (`BLOCKER` / `MAJOR` / `MINOR`).
-3. Report false positives and anything needing operator judgment in chat.
+Done when every reported failure from the seats, `thermos`, and
+`no-comments` is reproduced or disproved, and each root cause is accepted or
+rejected once as `BLOCKER`, `MAJOR`, or `MINOR`.
 
-Do not re-run a second discovery pass that duplicates selected seats.
+Deduplicate by root cause. If seats or skills disagree on security, identity,
+destructive data, migration, concurrency, or a public contract, and the
+evidence cannot settle it, return `BLOCKED` and report the dispute in chat.
 
-**Plans:** `PASS` if clean; `CORRECTIONS_REQUIRED` if verified defects remain.
-**Code:** continue to §5.
+Report false positives and anything that needs operator judgment in chat.
 
-## 5. Fix and close (code)
+Plans. `PASS` if clean. `CORRECTIONS_REQUIRED` if verified defects remain.
+Code continues to the next step.
 
-Fix accepted in-scope findings on the branch. Re-check with the focused test
-that covers the fix. If a fix would change product scope, architecture, or
-policy, stop and report it in chat (`BLOCKED` or `CORRECTIONS_REQUIRED`).
+## 5. Fix code
+
+Done when every accepted in-scope finding is fixed on the branch and the
+focused test that covers the fix has been re-run, and `no-comments` has
+finished on that tree.
+
+If a fix would change product scope, structure, or policy, stop and report it
+in chat as `BLOCKED` or `CORRECTIONS_REQUIRED`.
 
 ## Return
 
-Render this form in chat. Use exactly these four bullets. Do not wrap the
-result in a code fence or prepend a second summary.
+Render this form in chat. Exactly these four bullets. No fence, no second
+summary above them.
 
 ## Adversarial review: `PASS` | `CORRECTIONS_REQUIRED` | `BLOCKED`
 
-- **Subject:** <frozen identity>
-- **Result:** <roles; clean or what remains; ≤2 sentences>
+- **Subject:** 
+- **Result:** 
 - **Action:** <continue, fix listed items, or operator decision>
 - **Blocker:** <exact blocker or `None`>
 
-`PASS` for code only when every accepted finding is fixed and nothing
-contested remains in chat. `PASS` does not authorize opening a PR.
+`PASS` for code only when every accepted finding is fixed, `no-comments` has
+reported, and nothing contested remains in chat. `PASS` is the review gate
+for the named merge. It does not merge.
