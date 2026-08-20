@@ -52,7 +52,7 @@ Done when every selected seat has returned its verdict form.
 
 | Subject                                        | Launch                                       |
 | ---------------------------------------------- | -------------------------------------------- |
-| A plan                                         | `behavior-reviewer`                          |
+| A plan                                         | `structure-reviewer` and `behavior-reviewer` |
 | Merge to staging, merge to main, or other code | `structure-reviewer` and `behavior-reviewer` |
 
 

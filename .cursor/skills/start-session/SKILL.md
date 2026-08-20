@@ -133,8 +133,9 @@ skips this prelude.
 ### Prove, review, and land
 
 Done when the OW commit is on `origin/development`, the source lifecycle
-branch is gone, the local test suite was green after the last review, and
-the handoff reports the app-facing count versus `staging`.
+branch is gone, the local test suite was green after the last review, the
+handoff reports the app-facing count versus `staging`, and any app-facing
+land has an operator look disposition.
 
 1. After the step's focused proof, invoke `gate-runner` with the local test
    suite from AGENTS.md Seats plus those focused evidence commands. Require a
@@ -157,6 +158,10 @@ the handoff reports the app-facing count versus `staging`.
    unless those files are the ask. Report `app-facing <n>/100` in the
    handoff. At or over 100, the handoff names that a promote is due before
    more app-facing work.
+7. After an app-facing land, pause for the operator to look at
+   `development` (Preview, or laptop `pnpm dev` when they choose). Record
+   their disposition in the handoff. That look is the gate to the next
+   Ordered work step.
 
 Stop with `OW_HANDOFF` and a copy-paste handoff prompt. Mid-session progress
 and next-agent notes live in that prompt, not in git. When more Ordered work

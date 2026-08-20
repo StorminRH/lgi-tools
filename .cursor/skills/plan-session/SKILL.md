@@ -60,33 +60,44 @@ Iterative discussion with the operator is the default. Research in the open.
 2. Walk the plan one logical section at a time with the operator. Suggested
    order: destination and scope; key decisions; interfaces and control flow;
    ordered work; success criteria and proof; delivery and handoff.
-3. Size each Ordered work step for one `start-session` execute chat: the
-   work, the local test suite, `structure-reviewer` and `behavior-reviewer`,
-   then land and clean onto `development`. Close-out, `adversarial-review`,
-   and promote stay out of Ordered work. When `UX gate` is Yes, size a
-   dedicated UX Ordered work step that invokes `ux-check` and completes the
-   operator pause.
-4. Resolve every contract planning decision (`PD-N`) during this walk.
+3. Size Ordered work as many thin steps as the bundle needs (five, ten,
+   twenty). Each step is one `start-session` execute chat: the work, the
+   local test suite, `structure-reviewer` and `behavior-reviewer`, then land
+   and clean onto `development`. Sequence those steps as lookable slices.
+   The operator should be able to exercise a change on `development` often,
+   not after a long backend run with the interface last. A step that has no
+   user-facing result yet still lands; the next step that does is the next
+   look. Close-out, promote, `thermos`, and `no-comments` stay out of
+   Ordered work. When `UX gate` is Yes, include `ux-check` after there is
+   something on `development` to look at. That step is not the first look.
+4. After every app-facing land, the execute chat pauses for the operator to
+   look at `development` (Preview, or laptop `pnpm dev` when they choose).
+   Their disposition is the gate to the next Ordered work step.
+5. Resolve every contract planning decision (`PD-N`) during this walk.
    Surface choices that change behavior, ownership, risk, or scope.
-5. Record delivery as land-on-`development`. The plan's `Branch` is the land
+6. Record delivery as land-on-`development`. The plan's `Branch` is the land
    line `development` and `ends in PR` is `no`. `start-session` cuts
-   `lifecycle/<session>-ow-<n>` from that tip at execute time. A later
-   promote or release is close-out, not this session's land.
+   `lifecycle/<session>-ow-<n>` from that tip at execute time. Promote when
+   app-facing files versus `staging` are around 100. That promote is
+   close-out, not this session's land.
 
 ## 3. Assemble and review
 
 Done when the draft matches the schema, every section from the walk is
-filled, and `adversarial-review` returned `PASS`.
+filled, and both reviewers returned `CLEAN` on that draft.
 
 1. Assemble the fixed-schema plan from the settled conversation. Every
    prerequisite is `Verified`. Every placeholder is resolved.
-2. Invoke `adversarial-review` against the complete draft, contract, schema,
-   and source evidence. Continue only with `PASS`. Plans are report-only.
-   Leave reviewer transcripts and superseded drafts unpersisted.
+2. Launch a fresh `structure-reviewer` and a fresh `behavior-reviewer` in
+   parallel against the draft, contract, schema, and source evidence. Launch
+   them by those type names and omit Task `model`. Plans are report-only:
+   revise the draft on `FINDINGS`, then re-launch both. Continue when both
+   return `CLEAN`, or every accepted finding is corrected and re-reviewed
+   clean. Leave reviewer transcripts and superseded drafts unpersisted.
 
 ## 4. Approve, persist, and land
 
-Done when the operator has approved the `PASS` plan, the file is on
+Done when the operator has approved the reviewed plan, the file is on
 `origin/development`, and any short-lived source branch is gone.
 
 1. Present a short summary with the complete reviewed plan and obtain
