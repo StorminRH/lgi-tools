@@ -36,8 +36,8 @@ describe('parseChangelogMasters', () => {
         title: null,
         summary: [],
         subVersions: [
-          { version: '3.6.2', date: '2026-06-02', groups: [{ type: 'Added', items: ['newer'] }] },
-          { version: '3.6.1', date: '2026-06-01', groups: [{ type: 'Fixed', items: ['older'] }] },
+          { version: '3.6.2', date: '2026-06-02', summary: [], groups: [{ type: 'Added', items: ['newer'] }] },
+          { version: '3.6.1', date: '2026-06-01', summary: [], groups: [{ type: 'Fixed', items: ['older'] }] },
         ],
       },
     ]);

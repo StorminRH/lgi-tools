@@ -3,6 +3,7 @@ import { isIsoCalendarDate } from '@/lib/iso-date';
 // Tiny markdown parser for the restricted changelog format (content/changelog/*.md,
 // reassembled by the loader — a version timeline):
 //   ### v<version> — <YYYY-MM-DD>   → new entry
+//   prose before the first ####     → entry summary paragraphs
 //   #### <Added|Changed|Fixed|Removed>  → a change-type group in the entry
 //   - <line>                        → a bullet under the current group
 //   anything else                   → ignored
@@ -26,10 +27,11 @@ export type ChangelogGroup = {
   items: string[];
 };
 
-/** One dated sub-version changelog entry with type, title, lead, and grouped details. */
+/** One dated sub-version changelog entry with overview prose and grouped details. */
 export type ChangelogEntry = {
   version: string;
   date: string;
+  summary: string[];
   groups: ChangelogGroup[];
 };
 
@@ -87,13 +89,22 @@ export function parseChangelog(md: string): ChangelogEntry[] {
   const entries: ChangelogEntry[] = [];
   let currentEntry: ChangelogEntry | null = null;
   let currentGroup: ChangelogGroup | null = null;
+  let para: string[] = [];
+
+  const flushPara = () => {
+    if (currentEntry && currentGroup === null && para.length > 0) {
+      currentEntry.summary.push(para.join(' '));
+    }
+    para = [];
+  };
 
   for (const rawLine of md.split('\n')) {
     const line = rawLine.trim();
 
     const entryHeading = parseEntryHeading(line);
     if (entryHeading) {
-      currentEntry = { ...entryHeading, groups: [] };
+      flushPara();
+      currentEntry = { ...entryHeading, summary: [], groups: [] };
       currentGroup = null;
       entries.push(currentEntry);
       continue;
@@ -101,6 +112,7 @@ export function parseChangelog(md: string): ChangelogEntry[] {
 
     const groupMatch = line.match(GROUP_HEADING);
     if (groupMatch && currentEntry) {
+      flushPara();
       currentGroup = { type: groupMatch[1] as ChangeType, items: [] };
       currentEntry.groups.push(currentGroup);
       continue;
@@ -109,9 +121,19 @@ export function parseChangelog(md: string): ChangelogEntry[] {
     const bulletMatch = line.match(BULLET);
     if (bulletMatch && currentGroup) {
       currentGroup.items.push(bulletMatch[1] ?? '');
+      continue;
+    }
+
+    if (currentEntry && currentGroup === null) {
+      if (line === '') {
+        flushPara();
+      } else if (!BULLET.test(line)) {
+        para.push(line);
+      }
     }
   }
 
+  flushPara();
   return entries;
 }
 

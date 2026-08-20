@@ -18,6 +18,7 @@ function master(
     subVersions: entryVersions.map((entryVersion) => ({
       version: entryVersion,
       date: '2026-07-12',
+      summary: [],
       groups: [],
     })),
   };

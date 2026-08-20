@@ -9,7 +9,7 @@ describe('parseChangelog', () => {
   it('parses a single entry with one group and bullet', () => {
     const md = ['### v3.7.0 — 2026-05-25', '', '#### Added', '- Added a thing.'].join('\n');
     expect(parseChangelog(md)).toEqual([
-      { version: '3.7.0', date: '2026-05-25', groups: [{ type: 'Added', items: ['Added a thing.'] }] },
+      { version: '3.7.0', date: '2026-05-25', summary: [], groups: [{ type: 'Added', items: ['Added a thing.'] }] },
     ]);
   });
 
@@ -26,6 +26,7 @@ describe('parseChangelog', () => {
       {
         version: '3.7.0',
         date: '2026-05-25',
+        summary: [],
         groups: [
           { type: 'Added', items: ['new A', 'new B'] },
           { type: 'Removed', items: ['gone C'] },
@@ -45,30 +46,43 @@ describe('parseChangelog', () => {
       '- older',
     ].join('\n');
     expect(parseChangelog(md)).toEqual([
-      { version: '3.7.0', date: '2026-05-25', groups: [{ type: 'Changed', items: ['newer'] }] },
-      { version: '3.6.0', date: '2026-05-23', groups: [{ type: 'Fixed', items: ['older'] }] },
+      { version: '3.7.0', date: '2026-05-25', summary: [], groups: [{ type: 'Changed', items: ['newer'] }] },
+      { version: '3.6.0', date: '2026-05-23', summary: [], groups: [{ type: 'Fixed', items: ['older'] }] },
     ]);
   });
 
   it('accepts multi-segment versions and a hyphen separator', () => {
     const md = ['### v3.0.3.1 - 2026-05-27', '#### Added', '- thing'].join('\n');
     expect(parseChangelog(md)).toEqual([
-      { version: '3.0.3.1', date: '2026-05-27', groups: [{ type: 'Added', items: ['thing'] }] },
+      { version: '3.0.3.1', date: '2026-05-27', summary: [], groups: [{ type: 'Added', items: ['thing'] }] },
     ]);
   });
 
-  it('ignores prose and bullets that appear before any group', () => {
+  it('collects prose between the entry heading and the first group as summary', () => {
     const md = [
       '# Changelog',
       'Some prose to ignore.',
       '- orphan bullet before any entry',
       '### v3.7.0 — 2026-05-25',
+      '',
+      'This version ships Atlas.',
+      'More of the same paragraph.',
+      '',
+      'A second paragraph.',
       '- orphan bullet before any group',
       '#### Added',
       '- real one',
     ].join('\n');
     expect(parseChangelog(md)).toEqual([
-      { version: '3.7.0', date: '2026-05-25', groups: [{ type: 'Added', items: ['real one'] }] },
+      {
+        version: '3.7.0',
+        date: '2026-05-25',
+        summary: [
+          'This version ships Atlas. More of the same paragraph.',
+          'A second paragraph.',
+        ],
+        groups: [{ type: 'Added', items: ['real one'] }],
+      },
     ]);
   });
 

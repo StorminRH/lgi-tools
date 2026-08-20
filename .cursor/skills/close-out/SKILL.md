@@ -52,9 +52,12 @@ unmerged.
    `start-session` land and clean, then continue.
 4. Author as-builts for the work this PR delivers to `staging`, per
    `docs/workflows/schema/session-as-built.md`. One record per session
-   in the range. A session that still has work only on `development`
-   waits for a later promote. Put the records on the Origin PR. Do not
-   write an as-built after an Ordered work step.
+   in the range, and one for ordinary work in the same PR. A session
+   that still has work only on `development` waits for a later promote.
+   Put the records on the Origin PR. The Delivered outcome carries the
+   player-facing bullets the release changelog will lift. Do not write
+   an as-built after an Ordered work step. Do not write a pending
+   changelog fragment.
 5. Open the Origin PR (`development` → `staging`) per **Origin PR**.
    Wait until Depot is green.
 6. Dump that range to GitHub for bots. Add a `github` remote to
@@ -93,8 +96,11 @@ those as-builts, and production proof passed.
    Ordered work number this train delivered (session `4.0.5`, first
    Ordered work `4.0.5.1`). Do not ask for a number.
 4. Write the public changelog from the as-builts in `staging...main`.
-   Invoke `unslop` so players can read it. Form:
-   `docs/workflows/schema/changelog-entry.md`. Run
+   Form: `docs/workflows/schema/changelog-entry.md`. The overview is
+   the as-built Delivered paragraphs, invoked through `unslop`. The
+   bullets are those records' `Added:` / `Changed:` / `Fixed:` /
+   `Removed:` lines, grouped in that order. Do not write or fold
+   pending fragments. Run
    `python3 tools/cli.py lifecycle check-release --check --expect reconciled`.
    Land that commit onto `staging`.
 5. Bots already saw this work at promote. Open the Origin PR

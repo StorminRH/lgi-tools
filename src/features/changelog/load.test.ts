@@ -32,10 +32,9 @@ describe('readChangelogSource', () => {
     expect(documents.flatMap((document) => document.master.subVersions)).toEqual(entries);
   });
 
-  // The pending inbox (content/changelog/pending/) holds out-of-band release notes that
-  // must never reach the live site until a planned release folds them in. The loader's
-  // non-recursive readdir + vX.Y.md filter already excludes the subdirectory; this pins
-  // that guarantee so a future loader change can't silently start rendering fragments.
+  // Fragments are retired. The loader's non-recursive readdir + vX.Y.md filter
+  // still excludes content/changelog/pending/, so a leftover file there cannot
+  // reach the live site.
   it('renders exactly the top-level vX.Y.md masters and never the pending inbox', async () => {
     const dir = join(process.cwd(), 'content', 'changelog');
     const entries = await readdir(dir, { withFileTypes: true });
