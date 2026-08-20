@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Wait until the merge SHA is live on GitHub's Production deployment.
 
-Close-out needs a fail-closed Ready signal for the exact squash-merge commit,
-not a hand-rolled Vercel CLI poll. This helper uses the same git-credential
-GitHub REST path as `merge-clean-pr`, lists Deployments for the SHA in the
-Production environment, and treats the newest deployment status `success` as
-Ready (GitHub has no `ready` state). It then confirms that SHA is still the
-newest Production tip so `pnpm verify:prod` is not racing a later commit.
+Close-out needs a fail-closed Ready signal for the exact merge commit,
+not a hand-rolled Vercel CLI poll. This helper uses git-credential
+GitHub REST, lists Deployments for the SHA in the Production environment,
+and treats the newest deployment status `success` as Ready (GitHub has no
+`ready` state). It then confirms that SHA is still the newest Production
+tip so `pnpm verify:prod` is not racing a later commit.
 
 Usage:
   python3 tools/cli.py delivery wait-prod-deploy <merge-sha>

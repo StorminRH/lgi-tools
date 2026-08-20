@@ -794,11 +794,7 @@ def render_summary(
     # never instruct opening an issue — that reads as a second digest. Keyed on
     # the final outcome, not the raw verdict, so a refused run can never
     # advertise a write that did not happen.
-    action = (
-        "Hand the opened digest issue to resolve-update-watch"
-        if outcome == "REPORT"
-        else "None"
-    )
+    action = "None"
     result = (
         f"{counted(source_count, 'source')}, "
         f"{counted(dep_count, 'dependency', 'dependencies')}, "
