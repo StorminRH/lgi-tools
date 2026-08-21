@@ -126,4 +126,3 @@ function readStored(): StoredRecent[] {
 function isStoredRecent(value: unknown): value is StoredRecent {
   return storedRecentSchema.safeParse(value).success;
 }
-

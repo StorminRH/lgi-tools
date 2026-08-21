@@ -421,7 +421,7 @@ const bareFetchSelectors = [
   {
     selector: "CallExpression[callee.name='fetch']",
     message:
-      "No bare `fetch` in production source — call fetchWithTimeout (@/lib/fetch-with-timeout) so the request carries an explicit timeout, or apiFetch for a first-party route. The declared policy per integration lives in src/composition/vendor-resilience-registry.ts.",
+      "No bare `fetch` in production source — call fetchWithTimeout (@/lib/fetch-with-timeout) so the request carries an explicit timeout, or apiFetch for a first-party route. The declared policy per integration lives in src/composition/__tests__/vendor-resilience-registry.ts.",
   },
 ];
 
