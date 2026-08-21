@@ -2,10 +2,11 @@
 # Cloud Agent install phase for LGI.tools.
 #
 # Idempotent, source-derived bootstrap that runs after checkout. It refreshes
-# node dependencies, installs Playwright Chromium and Codegraph, provisions a
-# self-contained local PostgreSQL 16 cluster on :5433, writes a dev .env.local,
-# applies migrations, seeds the EVE SDE the first time, and runs one anonymous
-# `convex dev --once` so `:3210` is ready for the convex-dev terminal.
+# node dependencies, installs Playwright Chromium and the user-global CLIs
+# (Codegraph, Depot, Vercel, Neon), provisions a self-contained local
+# PostgreSQL 16 cluster on :5433, writes a dev .env.local, applies migrations,
+# seeds the EVE SDE the first time, and runs one anonymous `convex dev --once`
+# so `:3210` is ready for the convex-dev terminal.
 #
 # No long-running process is started here; postgres is a transient the snapshot
 # preserves on disk and the `postgres` terminal in `.cursor/environment.json`
@@ -41,16 +42,12 @@ pnpm install --frozen-lockfile
 # the test runner actually launches. Idempotent: skips downloads when current.
 pnpm exec playwright install --with-deps chromium
 
-# User-global CLIs (Codegraph). Keep them off the system prefix so install
-# does not need root.
-NPM_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.npm-global}"
-mkdir -p "$NPM_PREFIX"
-npm config set prefix "$NPM_PREFIX"
-export PATH="$NPM_PREFIX/bin:$PATH"
-if ! grep -q '.npm-global/bin' "$HOME/.profile" 2>/dev/null; then
-  printf '\nexport PATH="%s/bin:$PATH"\n' "$NPM_PREFIX" >> "$HOME/.profile"
-fi
-npm install -g --no-fund --no-audit @colbymchenry/codegraph@1.5.0
+# User-global CLIs. Keep them off the system prefix so install does not
+# need root. LGI_CLI_REFRESH forces the pins even when a binary is already
+# on PATH (snapshot rebuild). start.sh sources the same file without refresh.
+LGI_CLI_REFRESH=1
+# shellcheck source=clis.sh
+source "$REPO_ROOT/.cursor/clis.sh"
 export CODEGRAPH_TELEMETRY=0
 if [ -d .codegraph ]; then
   codegraph sync

@@ -32,15 +32,66 @@ and model slugs override the pin.
 
 ## Done
 
-Land on Origin `development` with the local test suite. Promote
-(`development` → `staging`) and release (`staging` → `main`) wait on
-that Origin PR's Depot pipeline with `origin pr checks --watch`.
+Land on Origin `development` with the local test suite. A finding on
+an Origin PR is a thread on that version. Promote (`development` →
+`staging`) and release (`staging` → `main`) wait on that Origin PR's
+Depot pipeline.
 
-Depot org `k2f4dzqwd4`, repo `stormin/lgi-tools`, workflow
-`.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4` when the account is in
-more than one org. `run list` defaults to queued and running. PR runs use a
-merge SHA (`refs/changes/N/merge`), not always `HEAD`. Skip `auth-storage.json`
-in artifacts.
+## Tools
+
+Origin is the land forge. GitHub is the dump remote for bot review.
+Linear is the ticket home. GitHub issues are not in use. Update watch
+comments on standing `LGI-6`.
+
+**origin** — Origin PRs and Checks. Create defaults to draft, so pass
+`--status open`. A push snapshots a new version; `refresh` if `view`
+or `checks` still show the previous head. A finding is a thread on
+that version. Reply with the fix. The push cuts the next version.
+`origin pr create --status open`
+`origin pr checks --watch`
+`origin pr refresh`
+`origin pr view --json version`
+`origin pr review --comment --change-version <n>`
+`origin pr thread list --unresolved`
+`origin pr thread reply <id>`
+`origin pr thread resolve <id>`
+`origin pr merge`
+`origin pr view` / `list` / `diff`
+
+**gh** — GitHub dump PRs only. Add a `github` remote to
+`https://github.com/StorminRH/lgi-tools.git` when it is missing.
+`gh pr create` (`dump/...` → `staging`)
+
+**depot** — Origin PR pipeline. Org `k2f4dzqwd4`, repo `stormin/lgi-tools`,
+workflow `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4`. `run list`
+defaults to queued and running. PR runs use a merge SHA
+(`refs/changes/N/merge`), not always `HEAD`. `status` returns immediately.
+Skip `auth-storage.json` in artifacts.
+
+Watch Checks with `origin pr checks --watch`. When that list is empty,
+`run list` then poll `status`. On red, `diagnose` first — it groups
+failures and suggests a fix. Confirm against `logs` before acting.
+`depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4`
+`depot ci status <run-id> --org k2f4dzqwd4`
+`depot ci diagnose --run <run-id> --org k2f4dzqwd4`
+`depot ci logs <run-id> --job <job> --org k2f4dzqwd4`
+
+**vercel** — Manual `development` Preview and the Vercel API.
+`vercel deploy`
+`vercel ls`
+`vercel api`
+
+**neon** — Branch policy. Nothing auto-applies `neon.ts`. Protected `main`
+needs `--allow-protected`.
+`neon config plan`
+`pnpm neon:apply`
+`neon branches delete preview/<branch>`
+
+**convex** — Local and anonymous stay `pnpm exec convex`. Hosted preview
+delete is the HTTP path under Delivery.
+`pnpm exec convex dev`
+`pnpm exec convex run`
+`pnpm exec convex env set`
 
 ## Architecture
 
@@ -64,11 +115,10 @@ systems, not origin or far side.
 
 ## Delivery
 
-Feature work lands on Origin `development`. A push auto-deploys a
-Vercel Preview: Neon `preview/development` (3-day TTL, 0.25-1 CU from
-`neon.ts`) and Convex `preview/development`. Delete that Neon branch, Convex
-preview, and Vercel Preview when the test cycle ends. The next push to
-`development` creates them again.
+Feature work lands on Origin `development`. A `development` Preview is
+manual (Vercel dashboard or CLI): Neon `preview/development` (3-day TTL,
+0.25-1 CU from `neon.ts`) and Convex `preview/development`. Delete that
+Neon branch, Convex preview, and Vercel Preview when the test cycle ends.
 
 Promote at 80 app-facing files versus `staging`. That Origin PR updates the
 long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
@@ -76,11 +126,9 @@ long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
 `main` is the only Production auto-deploy. Every merge onto `staging`
 or `main` goes through `close-out`.
 
-`vercel.json` auto-deploys `main`, `development`, and `staging` only. Neon
+`vercel.json` auto-deploys `main` and `staging` only. Neon
 project `lively-mode-73649525`. Convex team `stormin-s-projects`, project
-`lgi-tools`. Apply `neon.ts` with `pnpm neon:apply`; nothing auto-applies it. Protected
-Neon `main` needs `--allow-protected`. Connection strings use role
-`neondb_owner`.
+`lgi-tools`. Connection strings use role `neondb_owner`.
 
 Convex has no CLI list or delete. Ending a Vercel Preview leaves Convex
 running. List and delete with a team access token or PAT, never
@@ -94,9 +142,6 @@ POST /deployments/<animal-name>/delete
 
 The delete path is the animal name (`robust-puffin-832`), not
 `preview/development`. Preview Convex expires 5d or 14d from create.
-
-MCP: Neon `list_projects` / `describe_project` / `create_branch` /
-`delete_branch`. Convex `status` / `logs`. Vercel is CLI (`vercel api`).
 
 ## Cloud Agent
 

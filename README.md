@@ -160,8 +160,8 @@ Contributions are welcome. Work lands on Origin `development`. See
 
 Depot runs typecheck, lint, the coverage suite with real Postgres, and
 Fallow on every Origin PR; `build` and `e2e` run on PRs too. A red check
-blocks merge. `development` and `staging` auto-deploy Previews. `main`
-auto-deploys Production.
+blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
+Production. A `development` Preview is manual.
 
 ## License
 
