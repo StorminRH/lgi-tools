@@ -1896,6 +1896,7 @@ describe('map authoring', () => {
       expect(selectionSource).not.toContain('decideCollapse');
       expect(applySource).not.toContain('runCollapse(');
       expect(selectionSource).toContain('runCollapse(');
+      expect(scanSource).not.toContain('runCollapse(');
       expect(authoringSource).toContain('runCollapse(ctx, {');
       expect(authoringSource).toContain('gatedConnectionEdit');
       expect(cronSource).toContain("'map ceiling collapse'");
