@@ -1,8 +1,8 @@
 # Cloud Agent
 
 Read when running or setting up a Cloud Agent. This environment provisions the
-stack. Commands still live in the README and `package.json`. The caveats below
-are the ones those files do not state.
+stack. CLI commands live in AGENTS.md Tools. The caveats below are the ones
+those files do not state.
 
 ## Postgres
 

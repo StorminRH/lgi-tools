@@ -34,13 +34,47 @@ and model slugs override the pin.
 
 Land on Origin `development` with the local test suite. Promote
 (`development` → `staging`) and release (`staging` → `main`) wait on
-that Origin PR's Depot pipeline with `origin pr checks --watch`.
+that Origin PR's Depot pipeline.
 
-Depot org `k2f4dzqwd4`, repo `stormin/lgi-tools`, workflow
-`.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4` when the account is in
-more than one org. `run list` defaults to queued and running. PR runs use a
-merge SHA (`refs/changes/N/merge`), not always `HEAD`. Skip `auth-storage.json`
-in artifacts.
+## Tools
+
+Origin is the land forge. GitHub is the dump remote for bot review.
+
+**origin** — Origin PRs and Checks.
+`origin pr create --status open`
+`origin pr checks --watch`
+`origin pr merge`
+`origin pr view` / `list` / `diff`
+
+**gh** — GitHub dump PRs and update-watch issues. Add a `github` remote
+to `https://github.com/StorminRH/lgi-tools.git` when it is missing.
+`gh pr create` (`dump/...` → `staging`)
+`gh issue create`
+
+**depot** — Origin PR pipeline. Org `k2f4dzqwd4`, repo `stormin/lgi-tools`,
+workflow `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4`. `run list`
+defaults to queued and running. PR runs use a merge SHA
+(`refs/changes/N/merge`), not always `HEAD`. Skip `auth-storage.json` in
+artifacts.
+`depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4`
+`depot ci status <run-id> --org k2f4dzqwd4`
+
+**vercel** — Manual `development` Preview and the Vercel API.
+`vercel deploy`
+`vercel ls`
+`vercel api`
+
+**neon** — Branch policy. Nothing auto-applies `neon.ts`. Protected `main`
+needs `--allow-protected`.
+`neon config plan`
+`pnpm neon:apply`
+`neon branches delete preview/<branch>`
+
+**convex** — Local and anonymous stay `pnpm exec convex`. Hosted preview
+delete is the HTTP path under Delivery.
+`pnpm exec convex dev`
+`pnpm exec convex run`
+`pnpm exec convex env set`
 
 ## Architecture
 
@@ -77,9 +111,7 @@ or `main` goes through `close-out`.
 
 `vercel.json` auto-deploys `main` and `staging` only. Neon
 project `lively-mode-73649525`. Convex team `stormin-s-projects`, project
-`lgi-tools`. Apply `neon.ts` with `pnpm neon:apply`; nothing auto-applies it. Protected
-Neon `main` needs `--allow-protected`. Connection strings use role
-`neondb_owner`.
+`lgi-tools`. Connection strings use role `neondb_owner`.
 
 Convex has no CLI list or delete. Ending a Vercel Preview leaves Convex
 running. List and delete with a team access token or PAT, never
@@ -93,9 +125,6 @@ POST /deployments/<animal-name>/delete
 
 The delete path is the animal name (`robust-puffin-832`), not
 `preview/development`. Preview Convex expires 5d or 14d from create.
-
-MCP: Neon `list_projects` / `describe_project` / `create_branch` /
-`delete_branch`. Convex `status` / `logs`. Vercel is CLI (`vercel api`).
 
 ## Cloud Agent
 
