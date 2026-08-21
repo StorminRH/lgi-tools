@@ -56,9 +56,7 @@ describe('authClient OAuth failures', () => {
   });
 });
 
-// Executable contract evidence for the jwt client plugin against the installed
-// better-auth: the real client issues the mint request and the bridge helper
-// maps its outcomes to Convex's null-on-failure contract.
+// better-auth jwt plugin: the real client mints, and the bridge maps failures to null.
 describe('fetchConvexAccessToken', () => {
   beforeEach(() => {
     vi.resetModules();

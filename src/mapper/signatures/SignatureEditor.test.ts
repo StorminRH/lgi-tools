@@ -86,7 +86,6 @@ it('parks one titled scanner-anchored window without resolution chrome', () => {
   expect(markup).toContain('data-map-window-placement="scanner-anchored"');
   expect(markup).toContain('Signature Editor');
   expect(markup).toContain('data-map-connection-fields');
-  // Not an edge-anchored follower any more — no canvas transform to ride.
   expect(markup).not.toContain('--map-window-transform');
 
   for (const mode of ['edit', 'restore'] as const) {

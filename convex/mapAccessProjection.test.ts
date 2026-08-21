@@ -267,9 +267,6 @@ describe('purgeUserClaims', () => {
   });
 
   it("sweeps the user's mapTracking rows as the account-purge backstop", async () => {
-    // The dedicated best-effort /purge-location-tracking door can fail
-    // silently; this door must still clear the deleted account's tracking so
-    // forMap never serves a purged user's location to remaining members.
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['viewer'] });

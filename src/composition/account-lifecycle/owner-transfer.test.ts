@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
-// Only the branch the real-Postgres twin (owner-transfer.db.test.ts) cannot
-// reach lives here: a multi-character prior owner left untouched when the freed
-// character is neither their identity email nor their active character. The
-// chainable thenable emulates Drizzle's builder (FIFO results, counted writes).
+// The chainable thenable emulates Drizzle's builder: FIFO results, counted writes.
 const hooks = vi.hoisted(() => ({
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 }));
@@ -87,15 +84,13 @@ beforeEach(() => {
 describe('purgeTransferredCharacter', () => {
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
-      [{ id: 'acc-1' }], // deleteLinkedCharacter .returning
-      undefined, // characters.preferences reset
-      undefined, // direct map-grant delete
-      [{ accountId: String(OTHER_CHAR) }], // remaining → one survivor
-      // identity email + active point at a DIFFERENT surviving character
+      [{ id: 'acc-1' }],
+      undefined,
+      undefined,
+      [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await purgeTransferredCharacter(USER, CHAR);
-    // Account + direct grant deleted; only the character reset update runs.
     expect(state.calls).toEqual({ delete: 2, update: 1 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: USER,

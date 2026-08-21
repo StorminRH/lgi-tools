@@ -1,11 +1,3 @@
-// Coverage rail for capability telemetry.
-//
-// The two shells take a required `capability` option, so their 24 operations
-// cannot ship unnamed — omitting one is a compile error. This census covers
-// everything else: every POST-bearing route file must either run through a
-// shell, call `capabilityRoute`/`recordCapabilityOutcome` itself, or appear
-// in the pinned exclusion allowlist below. A new POST route that does none of
-// those fails here rather than going unrecorded in production.
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -13,10 +5,6 @@ import { CAPABILITIES } from '@/data/telemetry/capability';
 
 const API_ROOT = path.join(process.cwd(), 'src/app/api');
 
-/**
- * POST surfaces deliberately left uninstrumented, each for a stated reason. Pinned exactly: adding
- * a route here is a visible decision, not a silent omission.
- */
 const EXCLUSIONS = new Map<string, string>([
   [
     'src/app/api/auth/[...all]/route.ts',
@@ -59,7 +47,6 @@ const postRoutes = routeFiles(API_ROOT)
 function capabilityIdsIn(source: string): string[] {
   return [
     ...[...source.matchAll(/capability: ["']([^"']+)["']/g)],
-    // Matches both the direct `capabilityRoute` wrapper and `runCapabilityRoute`.
     ...[...source.matchAll(/\bcapabilityRoute\(\s*["']([^"']+)["']/g)],
     ...[...source.matchAll(/\bmarketRefreshRoute\(\s*["']([^"']+)["']/g)],
   ].map((match) => match[1] ?? '');

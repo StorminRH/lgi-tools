@@ -122,9 +122,6 @@ async function seedTracking(t: TestConvex<typeof schema>, characterId = 101) {
   });
 }
 
-// A held online-probe row. The default (online, window still open) makes the
-// probe a zero-ESI held-reuse, so location-focused tests keep their exact
-// pre-probe ESI expectations.
 async function seedOnline(
   t: TestConvex<typeof schema>,
   overrides: Partial<{ online: boolean; etagOnline: string | null; onlineExpiresAt: number }> = {},
@@ -259,8 +256,6 @@ describe('characterLocationSync.syncUser', () => {
         etagShip: 'ship0',
       }),
     );
-    // Snapshot before the run — comparing against a post-run re-read would be
-    // a tautology and could not detect a delete+reinsert.
     const createdAt = (await t.run((ctx) => ctx.db.get(before)))?._creationTime;
     stubFetch({
       esi: () => new Response(null, { status: 304, headers: { Expires: EXP } }),
@@ -281,8 +276,6 @@ describe('characterLocationSync.syncUser', () => {
 
   it('fetches ship and stamps prev on a system change', async () => {
     const t = convexTest(schema, modules);
-    // Continuity uses Date.now() at apply — keep lastFinishedAt inside JUMP_CONTINUITY_MS.
-    // prevFresh requires the previous run's covered set, not the tracked set.
     const recentFinish = Date.now() - 5_000;
     await seedSubject(t, {
       lastFinishedAt: recentFinish,
@@ -382,7 +375,6 @@ describe('characterLocationSync.syncUser', () => {
   it('skips untracked characters entirely (no token vend)', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
-    // No mapTracking row.
     const fetchFn = stubFetch({
       esi: () => {
         throw new Error('should not call ESI');
@@ -416,9 +408,39 @@ describe('characterLocationSync.syncUser', () => {
         )
         .unique(),
     );
-    // Per-character error clears the subject window (null minExpiresAt).
     expect(subject?.minExpiresAt).toBeNull();
     expect(subject?.syncedCharacterIds).toEqual([101]);
+  });
+
+  it('clears a freshly vended lease when ESI returns 403', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    await seedTracking(t);
+    await seedOnline(t);
+    await t.run((ctx) =>
+      ctx.db.insert('characterLocation', {
+        userId: USER,
+        characterId: 101,
+        solarSystemId: SYSTEM_A,
+        stationId: null,
+        structureId: null,
+        shipTypeId: SHIP_A,
+        prevSolarSystemId: null,
+        prevFresh: false,
+        observedAt: GEN - 1_000,
+        etagLocation: 'loc0',
+        etagShip: 'ship0',
+      }),
+    );
+    const fetchFn = stubFetch({ esi: () => new Response(null, { status: 403 }) });
+
+    await run(t);
+
+    const doc = await readDoc(t);
+    expect(doc?.solarSystemId).toBe(SYSTEM_A);
+    expect(doc?.etagLocation).toBe('loc0');
+    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
+    expect(await readLease(t)).toBeNull();
   });
 
   it('keeps the last-known doc on ESI 403, drops a held lease, and does not vend', async () => {
@@ -470,7 +492,6 @@ describe('characterLocationSync.syncUser', () => {
     await run(t);
 
     expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/online'))).toBe(false);
-    // Held-reuse stores nothing — the row is untouched.
     expect((await readOnlineRow(t))?.etagOnline).toBe('on0');
   });
 
@@ -498,13 +519,11 @@ describe('characterLocationSync.syncUser', () => {
 
     await run(t);
 
-    // The conditional read carried the held ETag and the row's window moved.
     const onlineCall = fetchFn.mock.calls.find(([u]) => String(u).includes('/online'));
     expect(onlineCall).toBeDefined();
     const row = await readOnlineRow(t);
     expect(row?.online).toBe(true);
     expect(row?.onlineExpiresAt).toBeGreaterThan(lapsed);
-    // Still online → the location loop ran.
     expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
   });
 
@@ -530,11 +549,6 @@ describe('characterLocationSync.syncUser', () => {
     const row = await readOnlineRow(t);
     expect(row?.online).toBe(false);
     expect(row?.etagOnline).toBe('on1');
-    // The subject window IS the online expiry: the engine re-arms at the
-    // ~60s probe cadence, never the 5s location floor — and the covered set
-    // EXCLUDES the offline character (no location observed → no continuity
-    // evidence; a probe-only "covered" entry could fabricate jump provenance
-    // for a pilot who logged in and moved inside the held window).
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')

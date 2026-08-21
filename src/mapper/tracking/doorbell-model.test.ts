@@ -69,8 +69,6 @@ describe('pendingDoorbells', () => {
       ),
     ).toEqual([{ characterId: 101, transitionObservedAt: 5_000 }]);
 
-    // A dock/undock advances observedAt but not transitionObservedAt: the
-    // settled entry must keep the doorbell silent across those updates.
     const settled = new Map<number, DoorbellMemoryEntry>([
       [101, { transitionObservedAt: 5_000, attempts: 1, settled: true, inFlight: false }],
     ]);
@@ -125,7 +123,6 @@ describe('ring bookkeeping', () => {
       inFlight: false,
     });
     expect(ringAnswered(entry, 5_000, null).settled).toBe(false);
-    // An answer for a superseded transition leaves the newer entry untouched.
     const newer = { ...entry, transitionObservedAt: 6_000 };
     expect(ringAnswered(newer, 5_000, 'processed')).toBe(newer);
   });
@@ -154,8 +151,7 @@ describe('ringPendingTransitions', () => {
     expect(retryRing).toHaveBeenCalledTimes(DOORBELL_ATTEMPT_CAP + 1);
 
     const overlapMemory = new Map<number, DoorbellMemoryEntry>();
-    // Collect every resolver so a regression that double-rings still resolves
-    // both promises and fails on the call-count assertion, not by timeout.
+    // Collect every resolver so a Strict Mode double-enter still resolves both promises.
     const releases: Array<(value: JumpResolverResponse | null) => void> = [];
     const overlapRing = vi.fn(
       () =>
@@ -164,7 +160,7 @@ describe('ringPendingTransitions', () => {
         }),
     );
     const firstPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
-    // The double-invoked development effect re-enters before any response.
+    // React Strict Mode re-enters the development effect before any response.
     const secondPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
     for (const release of releases) {
       release(response('processed'));

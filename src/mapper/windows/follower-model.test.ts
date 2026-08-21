@@ -21,7 +21,6 @@ function node(x = 10, y = 20, width = 72, height = 72) {
   };
 }
 
-/** A chain node before its first measurement: declared frame dims only. */
 function declaredNode(x: number, y: number, width = 44, height = 44) {
   return {
     measured: {},
@@ -93,13 +92,10 @@ describe('placeAnchoredCard', () => {
       viewport,
       side: right.side,
     });
-    // Sticky right would prefer 740; clamp pushes to the padded max instead of
-    // flipping to the left-of-anchor seat (700 - 40 - 288 = 372).
     expect(pushed.side).toBe('right');
     expect(pushed.left).toBe(800 - 288 - 16);
     expect(pushed.left).not.toBe(700 - 40 - 288);
 
-    // Preferred left-of-anchor seat overflows a narrow viewport → pin to padding.
     const clamped = placeAnchoredCard({
       anchor: { x: 300, y: 10 },
       card,
@@ -162,8 +158,6 @@ describe('node follower model', () => {
   it('writes a viewport-aware transform on first arm and skips an identical frame', () => {
     const layer = { width: 800, height: 600 };
     const card = NODE_CARD_FALLBACK;
-    // Anchor center at tx+(x+w/2)*zoom = 100+(10+36)*2 = 192, ty+(y+h/2)*zoom = 50+(20+36)*2 = 162
-    // Card sits past the zoomed disc rim: 192 + 27.5*2 + 40 = 287.
     const first = computeFollowerTransform(
       null,
       '2',
@@ -243,7 +237,6 @@ describe('node follower model', () => {
   it('positions from declared frame dimensions before measurement lands', () => {
     const layer = { width: 800, height: 600 };
     const card = NODE_CARD_FALLBACK;
-    // Declared widget frame: center sits at half the frame; identity camera.
     const first = computeFollowerTransform(
       null,
       '2',

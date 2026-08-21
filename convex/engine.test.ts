@@ -13,10 +13,6 @@ import { api, internal } from './_generated/api';
 import { SCAN_DISPATCH_BATCH } from './engine';
 import schema from './schema';
 
-// Make the dispatch path inert in convex-test: the rate limiter always admits,
-// and tests never flush scheduled syncUser actions, so a dispatched subject
-// just flips to 'running' without touching ESI (same posture as the existing
-// rate-limited-dispatch sweep test, which mocks the limiter to refuse).
 function stubDispatch() {
   vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: true, retryAfter: 0 } as never);
 }
@@ -166,10 +162,6 @@ describe('engine.heartbeat', () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     stubDispatch();
-    // A hidden tab suspended past the cold window: the scan retired the
-    // subject (nextDueAt null) and beats resumed with the tab still hidden —
-    // no visible beat is coming. The first beat after the gap must not stop
-    // at the presence write or tracking silently stalls until Pass B's cron.
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({
         nextDueAt: null, syncedCharacterIds: [101], minExpiresAt: null,
@@ -194,8 +186,6 @@ describe('engine.heartbeat', () => {
 
   it('no-ops entirely for a retired dataset beat (pre-deploy tab)', async () => {
     const t = convexTest(schema, modules);
-    // The stored union still accepts the literal, but even a presence write
-    // would keep drain-GC rows alive — nothing may be written.
     await t
       .withIdentity({ subject: USER })
       .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'mount' });
@@ -210,15 +200,12 @@ describe('engine.heartbeat', () => {
   it('stamps lastVisibleAt on visible and legacy beats but never on hidden ones', async () => {
     const t = convexTest(schema, modules);
     const authed = t.withIdentity({ subject: USER });
-    // First beat inserts — a fresh tab gets a fresh visibility budget.
     await authed.mutation(api.engine.heartbeat, {
       dataset: 'characterLocation', characterIdsHint: [], reason: 'mount', visible: false,
     });
     const inserted = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(typeof inserted?.lastVisibleAt).toBe('number');
 
-    // Pin both stamps to a known past instant, then beat hidden: only
-    // lastSeenAt may advance.
     await t.run((ctx) => ctx.db.patch(inserted!._id, { lastSeenAt: 123, lastVisibleAt: 123 }));
     await authed.mutation(api.engine.heartbeat, {
       dataset: 'characterLocation', characterIdsHint: [], reason: 'interval', visible: false,
@@ -227,8 +214,6 @@ describe('engine.heartbeat', () => {
     expect(afterHidden?.lastSeenAt).toBeGreaterThan(123);
     expect(afterHidden?.lastVisibleAt).toBe(123);
 
-    // A beat WITHOUT the arg is a pre-field client, which only ever beat while
-    // visible — it must refresh the visibility stamp.
     await authed.mutation(api.engine.heartbeat, {
       dataset: 'characterLocation', characterIdsHint: [], reason: 'interval',
     });
@@ -416,8 +401,6 @@ describe('engine.scan', () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     stubDispatch();
-    // 2 min without a beat — cold under the old 60s visible-tab window, warm
-    // under characterLocation's 5-min window (sized for ~1/min hidden beats).
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({ nextDueAt: now - 1000, syncedCharacterIds: [101] }));
       await ctx.db.insert('syncPresence', {
@@ -435,7 +418,6 @@ describe('engine.scan', () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     stubDispatch();
-    // A drain-window leftover: due, hot presence — and no registered syncRef.
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({
         dataset: 'onlineStatus', nextDueAt: now - 1000, syncedCharacterIds: [101],
@@ -457,7 +439,6 @@ describe('engine.scan', () => {
       await ctx.db.insert('syncSubjects', subjectRow({
         dataset: 'characterLocation', nextDueAt: now - 1000, syncedCharacterIds: [101],
       }));
-      // Beats still arriving (hidden tab), but no visible beat inside the cap.
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: USER,
@@ -560,8 +541,6 @@ describe('engine.scan', () => {
     const total = SCAN_DISPATCH_BATCH + 1;
     await t.run(async (ctx) => {
       for (let i = 0; i < total; i++) {
-        // Distinct, all-past nextDueAt so the by_next_due take order is
-        // deterministic: the oldest SCAN_DISPATCH_BATCH dispatch first.
         await ctx.db.insert('syncSubjects', subjectRow({
           userId: `u${i}`,
           nextDueAt: now - total + i,
@@ -588,7 +567,7 @@ describe('engine.scan', () => {
       (await ctx.db.query('syncSubjects').collect()).filter((s) => s.status === 'running').length,
     );
     expect(tick2Running).toBe(total);
-    expect(warn).toHaveBeenCalledTimes(1); // the sub-cap second tick logs nothing
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -774,7 +753,6 @@ describe('engine chain-on-success', () => {
     );
     expect(afterHop?.status).toBe('running');
     expect(afterHop?.workId).toBe(String(Date.now()));
-    // dispatch parks nextDueAt one cadence floor out — the next hop's arm.
     expect(afterHop?.nextDueAt).toBe(Date.now() + 5_000);
     expect(await scheduledSyncUsers(t)).toHaveLength(1);
   });
@@ -880,10 +858,8 @@ describe('engine chain-on-success', () => {
         workId: 'w1',
         minExpiresAt: now + 5_000,
         syncedCharacterIds: [101],
-        // Covered set present so COLD PRESENCE is the only reason not to chain.
         coveredCharacterIds: [101],
       }));
-      // Presence older than the dataset's cold window — completion must not chain.
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: USER,
@@ -900,15 +876,10 @@ describe('engine chain-on-success', () => {
         .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
         .unique(),
     );
-    // Cold success still re-arms onto the scan (jittered), never schedules a hop.
     expect(typeof subject?.nextDueAt).toBe('number');
   });
 
   it('never chains a poisoned (null-window) completion — the 5s floor is unreachable', async () => {
-    // One errored character null-poisons minCacheWindow while another's clean
-    // location keeps the run yielded; chaining would collapse the boundary to
-    // the cadence floor and hammer the partly-broken roster at 5s. The run
-    // must fall to the jittered scan re-arm instead.
     const t = convexTest(schema, modules);
     const now = Date.now();
     await t.run(async (ctx) => {
@@ -931,9 +902,6 @@ describe('engine chain-on-success', () => {
   });
 
   it('never chains a zero-yield success (empty covered set or run-level error)', async () => {
-    // A "success" that observed nothing cleanly — budget stop, all-reauth
-    // roster — must fall back to the jittered scan re-arm, not hammer a
-    // protective state at the 5s floor.
     const t = convexTest(schema, modules);
     const now = Date.now();
     for (const overrides of [
@@ -983,7 +951,6 @@ describe('engine chain-on-success', () => {
           )
           .unique(),
       );
-      // Still re-arms onto the scan set (the retry owner), just without a hop.
       expect(typeof subject?.nextDueAt).toBe('number');
     }
   });
@@ -1022,23 +989,19 @@ describe('engine.sweep', () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     await t.run(async (ctx) => {
-      // S1 — overdue, no presence → delete.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u1', nextDueAt: now - 1000 }));
-      // S2 — overdue, cold-within-retention presence → retire.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u2', nextDueAt: now - 1000 }));
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: 'u2',
         lastSeenAt: now - SYNC_DATASET_CONFIG.characterLocation.coldAfterMs - 5000,
       });
-      // S3 — past-retention presence, not due → reaped in Pass C.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u3', nextDueAt: null }));
       await ctx.db.insert('syncPresence', {
         dataset: 'characterLocation',
         userId: 'u3',
         lastSeenAt: now - RETENTION_MS - 5000,
       });
-      // S5 — hot presence, idle, no target → Pass B touches it, no dispatch.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u5', nextDueAt: null }));
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u5', lastSeenAt: now - 1000 });
     });
@@ -1049,14 +1012,12 @@ describe('engine.sweep', () => {
     const remaining = await t.run(async (ctx) =>
       (await ctx.db.query('syncSubjects').collect()).map((s) => s.userId).sort(),
     );
-    // u1 deleted (Pass A), u3 deleted (Pass C); u2 retired, u5 untouched remain.
     expect(remaining).toEqual(['u2', 'u5']);
   });
 
   it('does not count a rate-limited dispatch toward the watchdog signal', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
-    // A hot, overdue, idle subject classifies as 'dispatch' in Pass A.
     await t.run(async (ctx) => {
       await ctx.db.insert(
         'syncSubjects',
@@ -1064,19 +1025,12 @@ describe('engine.sweep', () => {
       );
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u1', lastSeenAt: now });
     });
-    // Force the per-token-group limiter to refuse: dispatch parks the row and
-    // returns without scheduling the sync action.
     vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: false, retryAfter: 1000 });
 
     const counts = await t.mutation(internal.engine.sweep, {});
 
-    // The refused dispatch must NOT inflate `dispatched` — that count is the
-    // sync-sweeper cron's "is the 30s scan dead?" alarm.
     expect(counts.dispatched).toBe(0);
 
-    // ...and the subject was re-parked retryAfter out (the mutation stamps its
-    // own Date.now() ≥ the test's, so assert against the retryAfter floor),
-    // proving the rate-limited branch ran rather than enqueuing.
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
@@ -1093,7 +1047,6 @@ describe('engine.sweep', () => {
     const total = SCAN_DISPATCH_BATCH + 1;
     await t.run(async (ctx) => {
       for (let i = 0; i < total; i++) {
-        // Overdue with NO presence → classifyDueSubject(null,…) === 'delete'.
         await ctx.db.insert('syncSubjects', subjectRow({ userId: `u${i}`, nextDueAt: now - total + i }));
       }
     });
@@ -1109,7 +1062,7 @@ describe('engine.sweep', () => {
     expect(run2.deleted).toBe(1);
     const remaining2 = await t.run((ctx) => ctx.db.query('syncSubjects').collect());
     expect(remaining2).toHaveLength(0);
-    expect(warn).toHaveBeenCalledTimes(1); // the sub-cap second run logs nothing
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("caps Pass B's hot-set read and logs without dispatching", async () => {
@@ -1119,9 +1072,6 @@ describe('engine.sweep', () => {
     const total = SCAN_DISPATCH_BATCH + 1;
     await t.run(async (ctx) => {
       for (let i = 0; i < total; i++) {
-        // Hot presence + an idle, no-target, unscheduled subject: Pass B reads it
-        // but hasSyncTarget is false, so it skips dispatch — exercising the read
-        // cap, not the dispatch path. (Pass A skips these: nextDueAt is null.)
         await ctx.db.insert('syncSubjects', subjectRow({
           userId: `u${i}`,
           nextDueAt: null,
@@ -1141,10 +1091,6 @@ describe('engine.sweep', () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
     stubDispatch();
-    // Both presences are hot and inside the widened index range, but only the
-    // registered dataset's idle, unscheduled, lapsed-window subject re-arms —
-    // the retired dataset's row is Pass D's to delete, never Pass B's to
-    // dispatch. Distinct users so each (dataset × user) key stays unique.
     const lastSeenAt = now - 2 * 60_000;
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow({
@@ -1166,7 +1112,6 @@ describe('engine.sweep', () => {
       return Object.fromEntries(rows.map((row) => [row.dataset, row]));
     });
     expect(byDataset.characterLocation?.status).toBe('running');
-    // The retired row was never dispatched; Pass D deleted it in the same sweep.
     expect(byDataset.onlineStatus).toBeUndefined();
   });
 
@@ -1181,7 +1126,6 @@ describe('engine.sweep', () => {
       await ctx.db.insert('characterOnline', {
         userId: 'u-old', characterId: 101, online: true, etag: 'e1',
       });
-      // Live-dataset rows survive the drain untouched.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u-live', nextDueAt: null }));
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-live', lastSeenAt: now });
     });

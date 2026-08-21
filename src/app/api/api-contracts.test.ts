@@ -255,11 +255,9 @@ function classifyV2Route(source: string): V2Classification {
 }
 
 interface DeclaredEndpoint {
-  /** The exported binding name callers and routes import. */
   name: string;
   method: string;
   path: string;
-  /** Repo-relative contract module that declares it. */
   contract: string;
 }
 
@@ -277,7 +275,6 @@ function stringProperty(literal: ts.ObjectLiteralExpression, key: string): strin
   return undefined;
 }
 
-/** Every `defineEndpoint` declaration in the repository, with its exported name. */
 function collectDeclaredEndpoints(): DeclaredEndpoint[] {
   const declared: DeclaredEndpoint[] = [];
   for (const file of findFiles(SRC_DIR, (name) => name === 'api-contract.ts')) {
@@ -313,10 +310,6 @@ function collectDeclaredEndpoints(): DeclaredEndpoint[] {
   return declared;
 }
 
-/**
- * An endpoint's declared path → the route file that must serve it. Template
- * segments pass through verbatim, matching `scripts/route-presence.mjs`.
- */
 function routeFileForPath(path: string): string {
   return join(API_DIR, path.replace(/^\/api\/?/, ''), 'route.ts');
 }
@@ -438,10 +431,6 @@ describe('API route inventories', () => {
   });
 });
 
-// Route → contract association proves every route has an owner. This is the
-// other direction: every declared contract must be served by a real route file
-// that imports it and exports its method, so an endpoint whose route was
-// renamed or deleted fails instead of lingering as an orphan.
 describe('endpoint → route association', () => {
   it.each(DECLARED_ENDPOINTS.map((endpoint) => [endpoint.name, endpoint] as const))(
     '%s is served by the route file its path derives',
