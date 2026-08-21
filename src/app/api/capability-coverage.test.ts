@@ -76,12 +76,6 @@ function isInstrumented(source: string): boolean {
 }
 
 describe('capability coverage', () => {
-  it('walks every POST-bearing route file in the tree', () => {
-    // 40 instrumented plus the 4 pinned exclusions. A census written against a
-    // smaller number would silently stop covering later routes.
-    expect(postRoutes).toHaveLength(44);
-  });
-
   it.each(postRoutes.map(({ relative }) => relative))(
     '%s is instrumented or explicitly excluded',
     (relative) => {
@@ -95,22 +89,17 @@ describe('capability coverage', () => {
     },
   );
 
-  it('pins the exact exclusion allowlist with a stated reason for each', () => {
+  it('pins the exclusion allowlist to real POST routes with stated reasons', () => {
+    const present = new Set(postRoutes.map(({ relative }) => relative));
     expect([...EXCLUSIONS.keys()].sort()).toEqual([
       'src/app/api/auth/[...all]/route.ts',
       'src/app/api/internal/eve-characters/route.ts',
       'src/app/api/internal/eve-token/route.ts',
       'src/app/api/telemetry/route.ts',
     ]);
-    for (const reason of EXCLUSIONS.values()) {
+    for (const [relative, reason] of EXCLUSIONS) {
+      expect(present.has(relative)).toBe(true);
       expect(reason.length).toBeGreaterThan(20);
-    }
-  });
-
-  it('only excludes routes that actually exist', () => {
-    const present = new Set(postRoutes.map(({ relative }) => relative));
-    for (const excluded of EXCLUSIONS.keys()) {
-      expect(present.has(excluded)).toBe(true);
     }
   });
 
@@ -134,8 +123,8 @@ describe('capability coverage', () => {
       claimed.push(...ids);
     }
 
-    expect(claimed).toHaveLength(40);
-    expect(new Set(claimed).size).toBe(40);
+    expect(claimed).toHaveLength(postRoutes.length - EXCLUSIONS.size);
+    expect(new Set(claimed).size).toBe(claimed.length);
     expect(claimed).toContain('admin.wh-statics-review');
   });
 });

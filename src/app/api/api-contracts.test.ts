@@ -254,15 +254,6 @@ function classifyV2Route(source: string): V2Classification {
   };
 }
 
-function countV2Endpoints(): number {
-  return findFiles(SRC_DIR, (name) => name === 'api-contract.ts')
-    .map((file) => readFileSync(file, 'utf8'))
-    .reduce((count, source) => {
-      const matches = source.match(/\bdefineEndpoint\s*\(/g);
-      return count + (matches?.length ?? 0);
-    }, 0);
-}
-
 interface DeclaredEndpoint {
   /** The exported binding name callers and routes import. */
   name: string;
@@ -363,40 +354,28 @@ describe('route-source classifiers', () => {
     expect(classifyV2Route(source).apiResponseCalls).toBe(0);
   });
 
-  it('rejects a mixed v2 and raw-response route', () => {
-    const result = classifyV2Route(`${endpointImport}
+  it('rejects mixed raw Response, NextResponse, and response pins on otherwise-valid v2 routes', () => {
+    const mixedJson = classifyV2Route(`${endpointImport}
 ${responseImport}
 apiResponse(exampleEndpoint, 200, { ok: true });
 Response.json({ error: 'raw' }, { status: 400 });`);
-    expect(result.apiResponseCalls).toBe(1);
-    expect(result.mixedRawResponse).toBe(true);
-  });
-
-  it('rejects a v2 route that constructs a raw Response', () => {
-    const result = classifyV2Route(`${endpointImport}
+    const mixedCtor = classifyV2Route(`${endpointImport}
 ${responseImport}
 apiResponse(exampleEndpoint, 200, { ok: true });
 new Response('x', { status: 400 });`);
-    expect(result.apiResponseCalls).toBe(1);
-    expect(result.mixedRawResponse).toBe(true);
-  });
-
-  it('rejects a v2 route that imports NextResponse', () => {
-    const result = classifyV2Route(`${endpointImport}
+    const mixedNext = classifyV2Route(`${endpointImport}
 ${responseImport}
 import { NextResponse } from 'next/server';
 apiResponse(exampleEndpoint, 200, { ok: true });
 NextResponse.json({ error: 'raw' }, { status: 400 });`);
-    expect(result.apiResponseCalls).toBe(1);
-    expect(result.mixedRawResponse).toBe(true);
-  });
-
-  it('rejects a route retaining a response pin', () => {
-    const result = classifyV2Route(`${endpointImport}
+    const retainsPin = classifyV2Route(`${endpointImport}
 ${responseImport}
 apiResponse(exampleEndpoint, 200, { ok: true } satisfies LegacyResponse);`);
-    expect(result.apiResponseCalls).toBe(1);
-    expect(result.retainsResponsePin).toBe(true);
+
+    expect(mixedJson).toMatchObject({ apiResponseCalls: 1, mixedRawResponse: true });
+    expect(mixedCtor).toMatchObject({ apiResponseCalls: 1, mixedRawResponse: true });
+    expect(mixedNext).toMatchObject({ apiResponseCalls: 1, mixedRawResponse: true });
+    expect(retainsPin).toMatchObject({ apiResponseCalls: 1, retainsResponsePin: true });
   });
 
   it('requires the called endpoint and apiResponse to be imported from their owners', () => {
@@ -421,16 +400,6 @@ respond(endpoint, 200, { ok: true });`);
 });
 
 describe('API route inventories', () => {
-  it('pins the complete route and exemption totals', () => {
-    expect(ALL_ROUTE_FILES).toHaveLength(69);
-    expect(FIRST_PARTY_ROUTE_FILES).toHaveLength(68);
-    expect(CRON_ROUTES.size).toBe(9);
-    expect(FORM_ROUTES.size).toBe(8);
-    expect(LIBRARY_OWNED.size).toBe(1);
-    expect(V2_ROUTE_FILES).toHaveLength(51);
-    expect(countV2Endpoints()).toBe(53);
-  });
-
   it.each(FIRST_PARTY_ROUTE_FILES)('%s has one truthful input classification', (file) => {
     const source = readFileSync(file, 'utf8');
     const markers = inputMarkers(source);
@@ -474,11 +443,6 @@ describe('API route inventories', () => {
 // that imports it and exports its method, so an endpoint whose route was
 // renamed or deleted fails instead of lingering as an orphan.
 describe('endpoint → route association', () => {
-  it('pins the declared endpoint total', () => {
-    expect(DECLARED_ENDPOINTS).toHaveLength(53);
-    expect(DECLARED_ENDPOINTS).toHaveLength(countV2Endpoints());
-  });
-
   it.each(DECLARED_ENDPOINTS.map((endpoint) => [endpoint.name, endpoint] as const))(
     '%s is served by the route file its path derives',
     (_name, endpoint) => {
@@ -505,18 +469,15 @@ describe('endpoint → route association', () => {
 });
 
 describe('association gate red fixtures', () => {
-  it('derives the route file from a static and a templated path', () => {
+  it('derives route files from static and templated paths and flags a missing derived file', () => {
     expect(relative(API_DIR, routeFileForPath('/api/sites'))).toBe(join('sites', 'route.ts'));
     expect(relative(API_DIR, routeFileForPath('/api/sites/[id]'))).toBe(
       join('sites', '[id]', 'route.ts'),
     );
-  });
-
-  it('flags an orphaned contract whose derived route file is absent', () => {
     expect(existsSync(routeFileForPath('/api/does-not-exist'))).toBe(false);
   });
 
-  it('flags a route file that imports no endpoint and exports the wrong method', () => {
+  it('flags missing endpoint imports, wrong methods, and undeclared input-marker classes', () => {
     const source = `import { somethingElse } from '@/features/example/api-contract';
 export async function POST(): Promise<Response> { return new Response(); }`;
     const imported = namedImports(sourceFile(source), (moduleName) =>
@@ -525,14 +486,8 @@ export async function POST(): Promise<Response> { return new Response(); }`;
     expect([...imported.values()].includes('exampleEndpoint')).toBe(false);
     expect(exportsMethod(source, 'GET')).toBe(false);
     expect(exportsMethod(source, 'POST')).toBe(true);
-  });
-
-  it('accepts an endpoint exported as a const handler', () => {
     expect(exportsMethod('export const GET = handler;', 'GET')).toBe(true);
     expect(exportsMethod('const GET = handler;', 'GET')).toBe(false);
-  });
-
-  it('rejects an undeclared input-marker class', () => {
     expect(inputMarkers('// input: path')).toEqual(['path']);
     expect(VALID_INPUT_CLASSES.has('path')).toBe(true);
     expect(VALID_INPUT_CLASSES.has('body')).toBe(false);

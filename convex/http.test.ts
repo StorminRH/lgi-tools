@@ -34,38 +34,21 @@ afterEach(() => {
 });
 
 describe('POST /purge-online', () => {
-  it('rejects a request without the service bearer token', async () => {
+  it('rejects missing bearer and malformed bodies before purge work', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-
-    const res = await post(
-      '/purge-online',
-      JSON.stringify({ userId: 'user-1', characterId: null }),
-      false,
-    );
-
-    expect(res.status).toBe(401);
-  });
-
-  it('returns a clean 400 for a malformed JSON body', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-
-    const res = await post('/purge-online', 'not json');
-
-    expect(res.status).toBe(400);
-  });
-
-  it('returns a clean 400 for well-formed JSON with wrong-typed fields', async () => {
-    // Old behavior: the mutation's arg validators threw, surfacing a 500 plus a
-    // stack trace in the deployment logs. The purge stays best-effort either
-    // way — the online-status contributor swallows any non-2xx response.
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-
-    const res = await post(
-      '/purge-online',
-      JSON.stringify({ userId: 42, characterId: 'nope' }),
-    );
-
-    expect(res.status).toBe(400);
+    expect(
+      (
+        await post(
+          '/purge-online',
+          JSON.stringify({ userId: 'user-1', characterId: null }),
+          false,
+        )
+      ).status,
+    ).toBe(401);
+    expect((await post('/purge-online', 'not json')).status).toBe(400);
+    expect(
+      (await post('/purge-online', JSON.stringify({ userId: 42, characterId: 'nope' }))).status,
+    ).toBe(400);
   });
 
   it('purges for a valid body', async () => {
@@ -83,20 +66,11 @@ describe('POST /purge-online', () => {
 
 describe('jump resolver doors', () => {
   it.each(['/jump-evidence', '/resolve-jump'] as const)(
-    'rejects %s before parsing without the service bearer token',
+    'rejects %s without a bearer and returns clean malformed JSON',
     async (path) => {
       vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-      const res = await post(path, 'not json', false);
-      expect(res.status).toBe(401);
-    },
-  );
-
-  it.each(['/jump-evidence', '/resolve-jump'] as const)(
-    'returns a clean 400 for malformed %s JSON',
-    async (path) => {
-      vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-      const res = await post(path, 'not json');
-      expect(res.status).toBe(400);
+      expect((await post(path, 'not json', false)).status).toBe(401);
+      expect((await post(path, 'not json')).status).toBe(400);
     },
   );
 
@@ -273,62 +247,57 @@ describe('signature elimination door', () => {
 });
 
 describe('POST /project-map-access', () => {
-  it('rejects a request without the service bearer token', async () => {
+  it('rejects unauthorized, malformed, and invalid claim payloads before reconcile', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post(
-      '/project-map-access',
-      JSON.stringify({ mapId: 'map-1', claims: [{ userId: 'u1', roles: ['admin'] }] }),
-      false,
-    );
-    expect(res.status).toBe(401);
-  });
-
-  it('returns a clean 400 for malformed JSON', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post('/project-map-access', 'not json');
-    expect(res.status).toBe(400);
-  });
-
-  it('rejects the legacy owner role at the current writer boundary', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post(
-      '/project-map-access',
-      JSON.stringify({
-        mapId: 'map-1',
-        revision: 1,
-        claims: [{ userId: 'u1', roles: ['owner'] }],
-      }),
-    );
-    expect(res.status).toBe(400);
-  });
-
-  it('returns a clean 400 for empty roles', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post(
-      '/project-map-access',
-      JSON.stringify({
-        mapId: 'map-1',
-        revision: 1,
-        claims: [{ userId: 'u1', roles: [] }],
-      }),
-    );
-    expect(res.status).toBe(400);
-  });
-
-  it('returns a clean 400 for a repeated userId', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post(
-      '/project-map-access',
-      JSON.stringify({
-        mapId: 'map-1',
-        revision: 1,
-        claims: [
-          { userId: 'u1', roles: ['viewer'] },
-          { userId: 'u1', roles: ['editor'] },
-        ],
-      }),
-    );
-    expect(res.status).toBe(400);
+    expect(
+      (
+        await post(
+          '/project-map-access',
+          JSON.stringify({ mapId: 'map-1', claims: [{ userId: 'u1', roles: ['admin'] }] }),
+          false,
+        )
+      ).status,
+    ).toBe(401);
+    expect((await post('/project-map-access', 'not json')).status).toBe(400);
+    expect(
+      (
+        await post(
+          '/project-map-access',
+          JSON.stringify({
+            mapId: 'map-1',
+            revision: 1,
+            claims: [{ userId: 'u1', roles: ['owner'] }],
+          }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await post(
+          '/project-map-access',
+          JSON.stringify({
+            mapId: 'map-1',
+            revision: 1,
+            claims: [{ userId: 'u1', roles: [] }],
+          }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await post(
+          '/project-map-access',
+          JSON.stringify({
+            mapId: 'map-1',
+            revision: 1,
+            claims: [
+              { userId: 'u1', roles: ['viewer'] },
+              { userId: 'u1', roles: ['editor'] },
+            ],
+          }),
+        )
+      ).status,
+    ).toBe(400);
   });
 
   it('reconciles a valid body and returns counts', async () => {
@@ -505,24 +474,22 @@ describe('POST /purge-map-chain', () => {
 });
 
 describe('POST /leave-sync', () => {
-  it('rejects a request without the service bearer token', async () => {
+  it('rejects missing bearer and malformed bodies before retire work', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post(
-      '/leave-sync',
-      JSON.stringify({
-        userId: 'user-1',
-        dataset: 'characterLocation',
-        tabId: 'tab-aaaa-bbbb',
-      }),
-      false,
-    );
-    expect(res.status).toBe(401);
-  });
-
-  it('returns a clean 400 for a malformed body', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await post('/leave-sync', 'not json');
-    expect(res.status).toBe(400);
+    expect(
+      (
+        await post(
+          '/leave-sync',
+          JSON.stringify({
+            userId: 'user-1',
+            dataset: 'characterLocation',
+            tabId: 'tab-aaaa-bbbb',
+          }),
+          false,
+        )
+      ).status,
+    ).toBe(401);
+    expect((await post('/leave-sync', 'not json')).status).toBe(400);
   });
 
   it('retires a matching tab and ignores a stale close', async () => {
