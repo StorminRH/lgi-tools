@@ -16,7 +16,7 @@ export function requireSoftFailLockClient(
   missingDatabaseMessage: string,
   lockFailurePrefix: string,
 ): Sql {
-  if (!readEnv('DATABASE_URL')) {
+  if (!readEnv('DATABASE_URL') && !readEnv('DATABASE_URL_UNPOOLED')) {
     console.log(missingDatabaseMessage);
     process.exit(0);
   }

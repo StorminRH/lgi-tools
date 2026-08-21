@@ -1,5 +1,6 @@
 import {
   projectStagedMapAccess,
+  requireCurrentProjection,
   teardownMapAccessProjection,
 } from '@/composition/map-access-projection';
 import type { CreateMapRequest } from '@/data/maps/api-contract';
@@ -132,7 +133,7 @@ export async function createProjectedMap(
     return { ok: true, mapId };
   } catch (cause) {
     try {
-      await teardown(mapId);
+      requireCurrentProjection(await teardown(mapId));
     } catch (teardownCause) {
       return {
         ok: false,
