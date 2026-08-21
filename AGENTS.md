@@ -32,9 +32,10 @@ and model slugs override the pin.
 
 ## Done
 
-Land on Origin `development` with the local test suite. Promote
-(`development` → `staging`) and release (`staging` → `main`) wait on
-that Origin PR's Depot pipeline.
+Land on Origin `development` with the local test suite. A finding on
+that PR is a thread on that version. Promote (`development` →
+`staging`) and release (`staging` → `main`) wait on that Origin PR's
+Depot pipeline.
 
 ## Tools
 
@@ -44,11 +45,16 @@ comments on standing `LGI-6`.
 
 **origin** — Origin PRs and Checks. Create defaults to draft, so pass
 `--status open`. A push snapshots a new version; `refresh` if `view`
-or `checks` still show the previous head. Review comments are threads.
+or `checks` still show the previous head. A finding is a thread on
+that version. Reply with the fix. The push cuts the next version.
 `origin pr create --status open`
 `origin pr checks --watch`
 `origin pr refresh`
+`origin pr view --json version`
+`origin pr review --comment --change-version <n>`
 `origin pr thread list --unresolved`
+`origin pr thread reply <id>`
+`origin pr thread resolve <id>`
 `origin pr merge`
 `origin pr view` / `list` / `diff`
 

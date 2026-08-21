@@ -43,16 +43,16 @@ Done when the Origin PR has merged to the destination.
   when that PR is ready for review.
 7. Watch Depot on that PR per **Depot**. Done when the pipeline is
   green or a failure is in hand.
-8. Fix each Depot failure on the head, push, and return to step 7.
-  Done when Depot is green.
+8. Record each Depot failure per **Findings**, then return to
+  step 7. Done when Depot is green.
 9. When the destination is `main`, merge per **Merge**. Done when
   Origin `main` holds the head. Return `RELEASED`.
 10. Dump the isolated packet per **Dump**. Done when the dump PR is
   open ready and Greptile and CodeRabbit have been requested.
-11. Address every dump finding on the head. Pause in chat with the
-  reasoning when leaving a finding unfixed. Re-push the dump branch
-    after each Origin fix. Done when every finding is fixed, or the
-    operator has that pause.
+11. Copy each dump finding onto the Origin PR per **Findings**.
+  Re-push the dump branch after each Origin fix. Done when every
+    finding is a resolved Origin thread, or the operator has that
+    pause.
 12. Author as-builts for the work this PR delivers to `staging`, per
   `docs/workflows/schema/session-as-built.md`. One record per session
     in the range, and one for ordinary work in the same PR. A session
@@ -61,9 +61,9 @@ Done when the Origin PR has merged to the destination.
     the changelog will lift. Run the local test suite on that head.
     Push the as-builts and any dump fixes to the Origin PR. Done when
     those commits are on that PR.
-13. Watch Depot per **Depot**. Merge per **Merge**. Close the dump PR
-  unmerged. Done when Origin `staging` holds the head. Return
-    `PROMOTED`.
+13. Watch Depot per **Depot**. Findings threads resolved. Merge per
+  **Merge**. Close the dump PR unmerged. Done when Origin `staging`
+    holds the head. Return `PROMOTED`.
 
 Outputs. Exactly one:
 
@@ -99,6 +99,33 @@ Wait with `origin pr checks --watch`. If Checks are empty while Depot
 is running, list then poll status per Tools. On red, diagnose then
 logs. Confirm a suggested fix against the logs before acting.
 
+## Findings
+
+Done when every finding is a thread on the version that failed it,
+the fix is a reply that names the new version, and
+`origin pr thread list --unresolved` is empty, or the operator has
+the pause.
+
+A finding is a red Depot job, a dump bot comment, or a review note
+on the Origin PR.
+
+1. Read the version (`origin pr view --json version`).
+2. Open a thread on that version:
+   `origin pr review --comment --change-version <n> -b "..."`.
+   The body is what failed and the evidence.
+3. Take the thread id from
+   `origin pr thread list --unresolved --json id`.
+4. Fix on the head. Push. `refresh` if `view` or `checks` still
+   show the previous head.
+5. Reply on that thread with what changed and the new version
+   number.
+6. Resolve the thread when the finding is gone. Reply again if
+   the next check still fails.
+
+Dump comments start on GitHub. Copy each accepted finding onto an
+Origin thread on the Origin PR version that was dumped. The Origin
+thread is the log.
+
 ## Dump
 
 Done when the dump PR holds only the isolated packet at the current
@@ -116,9 +143,10 @@ the GitHub MCP. Request Greptile and CodeRabbit by hand.
 
 Done when the Origin PR is merged to its base line.
 
-Merge with `origin pr merge`. That merge is what moves the work onto
-the destination. A push or fast-forward onto `staging` or `main` is
-the same merge. It waits for this step. Delete leftover source
+Unresolved Origin threads are empty, or the operator paused. Merge
+with `origin pr merge`. That merge is what moves the work onto the
+destination. A push or fast-forward onto `staging` or `main` is the
+same merge. It waits for this step. Delete leftover source
 branches. Leave `development`, `staging`, and `main`.
 
 ## Return
