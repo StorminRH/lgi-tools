@@ -11,7 +11,14 @@ operator named another. A named feature head is fine.
 
 ## Process
 
-Done when the Origin PR has merged to the destination.
+Done when the destination holds the head and the other integration
+line contains that tip.
+
+Write this process as a todo list before naming the lines. One item
+per numbered step. Give each Depot wait its own item named
+`origin pr checks --watch`. Keep that item in progress until the
+command has returned green on the current PR version. Done when the
+list exists and step 1 is in progress.
 
 1. Name the two lines. Fetch `origin/<head>` and
   `origin/<destination>`. Work from the head tip. Uncommitted Ordered
@@ -42,12 +49,14 @@ Done when the Origin PR has merged to the destination.
 6. Open the Origin PR (`<head>` → destination) per **Origin PR**.
   Post any leftover accepted review finding per **Findings**. Done
   when that PR is ready for review.
-7. Watch Depot on that PR per **Depot**. Done when the pipeline is
-  green or a failure is in hand.
+7. Run `origin pr checks --watch` on that PR per **Depot**. That
+  command is the watch todo. Done when the pipeline is green or a
+   failure is in hand.
 8. Record and fix each Depot failure per **Findings**, then return
-  to step 7. Done when Depot is green.
-9. When the destination is `main`, merge per **Merge**. Done when
-  Origin `main` holds the head. Return `RELEASED`.
+   to step 7. Done when Depot is green.
+9. When the destination is `main`, merge per **Merge**. Resync per
+  **Resync**. Done when Origin `main` holds the head and `staging`
+   and `development` contain `main`. Return `RELEASED`.
 10. Dump the isolated packet per **Dump**. Done when the dump PR is
   open ready and Greptile and CodeRabbit have been requested.
 11. Copy each dump finding onto the Origin PR per **Findings**.
@@ -62,15 +71,18 @@ Done when the Origin PR has merged to the destination.
     the changelog will lift. Run the local test suite on that head.
     Push the as-builts and any dump fixes to the Origin PR. Done when
     those commits are on that PR.
-13. Watch Depot per **Depot**. Findings threads resolved. Merge per
-  **Merge**. Close the dump PR unmerged. Done when Origin `staging`
-    holds the head. Return `PROMOTED`.
+13. Run `origin pr checks --watch` on the current version per
+  **Depot**. Findings threads resolved. Merge per **Merge**. Close
+    the dump PR unmerged. Done when Origin `staging` holds the head.
+14. Resync per **Resync**. Done when `development` contains `staging`.
+    Return `PROMOTED`.
 
 Outputs. Exactly one:
 
 - `PROMOTED`. Destination `staging`. Origin PR merged. Dump PR closed
-unmerged.
+unmerged. `development` contains `staging`.
 - `RELEASED`. Destination `main`. Origin `main` holds the cut.
+`staging` and `development` contain `main`.
 - `BLOCKED`. Named gate, oversize packet, failed check, missing
 destination, or work already on the destination before this process
 finished.
@@ -96,9 +108,13 @@ Re-scrub after publish.
 
 Done when that Origin PR's Depot pipeline is green.
 
-Wait with `origin pr checks --watch`. If Checks are empty while Depot
-is running, list then poll status per Tools. On red, diagnose then
-logs. Confirm a suggested fix against the logs before acting.
+Run `origin pr checks --watch`. That command is the watch todo. Keep
+the todo in progress until watch returns. A subscription or a
+one-shot status read is extra, not the wait.
+
+If Checks are empty while Depot is running, list then poll status per
+Tools. On red, diagnose then logs. Confirm a suggested fix against
+the logs before acting.
 
 ## Findings
 
@@ -150,7 +166,24 @@ Unresolved Origin threads are empty, or the operator paused. Merge
 with `origin pr merge`. That merge is what moves the work onto the
 destination. A push or fast-forward onto `staging` or `main` is the
 same merge. It waits for this step. Delete leftover source
-branches. Leave `development`, `staging`, and `main`.
+branches. Leave `development`, `staging`, and `main`. Return after
+**Resync**.
+
+## Resync
+
+Done when the other integration line contains the destination tip.
+
+Fetch `origin/development`, `origin/staging`, and `origin/main`.
+
+Destination `staging`: update `origin/development` so it contains
+`origin/staging`. Fast-forward when development has no unique
+commits (`git push origin origin/staging:development`). Merge
+`staging` into `development` and push when it does. Done when
+`git merge-base --is-ancestor origin/staging origin/development`.
+Check out `development` at that tip.
+
+Destination `main`: the same onto `origin/main` for both `staging`
+and `development`. Done when both contain `origin/main`.
 
 ## Return
 
