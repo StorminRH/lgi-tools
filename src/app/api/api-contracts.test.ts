@@ -87,18 +87,28 @@ function hasContractImport(source: string): boolean {
   return namedImports(sourceFile(source), (moduleName) => moduleName.endsWith('api-contract')).size > 0;
 }
 
+const SCHEMA_SHELLS = new Map([
+  ['runMapLifecycleRoute', '@/app/api/maps/lifecycle-route'],
+  ['marketRefreshRoute', '@/app/api/market-refresh-route'],
+]);
+
 function hasSchemaConsumption(source: string): boolean {
   const file = sourceFile(source);
   const imports = namedImports(file, (moduleName) => moduleName === ROUTE_BODY_MODULE);
   const helperNames = new Set(
     [...imports].filter(([, imported]) => SCHEMA_HELPERS.has(imported)).map(([local]) => local),
   );
+  const shellNames = new Set(
+    [...namedImports(file, (moduleName) => [...SCHEMA_SHELLS.values()].includes(moduleName))]
+      .filter(([, imported]) => SCHEMA_SHELLS.has(imported))
+      .map(([local]) => local),
+  );
   let consumed = false;
   const visit = (node: ts.Node): void => {
     if (
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
-      helperNames.has(node.expression.text)
+      (helperNames.has(node.expression.text) || shellNames.has(node.expression.text))
     ) {
       consumed = true;
       return;
@@ -122,6 +132,77 @@ interface V2Classification {
   retainsResponsePin: boolean;
 }
 
+function isRawResponseNode(node: ts.Node): boolean {
+  if (ts.isIdentifier(node) && node.text === 'NextResponse') return true;
+  return (
+    ts.isNewExpression(node) &&
+    ts.isIdentifier(node.expression) &&
+    node.expression.text === 'Response'
+  );
+}
+
+function isResponseJsonCall(node: ts.CallExpression): boolean {
+  return (
+    ts.isPropertyAccessExpression(node.expression) &&
+    ts.isIdentifier(node.expression.expression) &&
+    node.expression.expression.text === 'Response' &&
+    node.expression.name.text === 'json'
+  );
+}
+
+function calledIdentifier(node: ts.CallExpression): string | null {
+  return ts.isIdentifier(node.expression) ? node.expression.text : null;
+}
+
+function firstArgIdentifier(node: ts.CallExpression): string | null {
+  const argument = node.arguments[0];
+  return argument && ts.isIdentifier(argument) ? argument.text : null;
+}
+
+function secondArgIdentifier(node: ts.CallExpression): string | null {
+  const argument = node.arguments[1];
+  return argument && ts.isIdentifier(argument) ? argument.text : null;
+}
+
+function lifecycleEndpointName(node: ts.CallExpression): string | null {
+  const options = node.arguments[1];
+  if (!options || !ts.isObjectLiteralExpression(options)) return null;
+  for (const property of options.properties) {
+    if (
+      ts.isPropertyAssignment(property) &&
+      ts.isIdentifier(property.name) &&
+      property.name.text === 'endpoint' &&
+      ts.isIdentifier(property.initializer)
+    ) {
+      return property.initializer.text;
+    }
+  }
+  return null;
+}
+
+function boundEndpointCalls(
+  node: ts.CallExpression,
+  apiResponseNames: ReadonlySet<string>,
+  endpointImports: ReadonlySet<string>,
+  lifecycleNames: ReadonlySet<string>,
+  marketNames: ReadonlySet<string>,
+): number {
+  const callee = calledIdentifier(node);
+  if (callee !== null && apiResponseNames.has(callee)) {
+    const endpoint = firstArgIdentifier(node);
+    return endpoint !== null && endpointImports.has(endpoint) ? 1 : 0;
+  }
+  if (callee !== null && lifecycleNames.has(callee)) {
+    const endpoint = lifecycleEndpointName(node);
+    return endpoint !== null && endpointImports.has(endpoint) ? 1 : 0;
+  }
+  if (callee !== null && marketNames.has(callee)) {
+    const endpoint = secondArgIdentifier(node);
+    return endpoint !== null && endpointImports.has(endpoint) ? 1 : 0;
+  }
+  return 0;
+}
+
 function classifyV2Route(source: string): V2Classification {
   const file = sourceFile(source);
   const contractImports = namedImports(file, (moduleName) => moduleName.endsWith('api-contract'));
@@ -136,36 +217,30 @@ function classifyV2Route(source: string): V2Classification {
       .filter(([, imported]) => imported === 'apiResponse')
       .map(([local]) => local),
   );
+  const lifecycleNames = new Set(
+    [...namedImports(file, (moduleName) => moduleName === '@/app/api/maps/lifecycle-route')]
+      .filter(([, imported]) => imported === 'runMapLifecycleRoute')
+      .map(([local]) => local),
+  );
+  const marketNames = new Set(
+    [...namedImports(file, (moduleName) => moduleName === '@/app/api/market-refresh-route')]
+      .filter(([, imported]) => imported === 'marketRefreshRoute')
+      .map(([local]) => local),
+  );
   let apiResponseCalls = 0;
   let mixedRawResponse = false;
 
   const visit = (node: ts.Node): void => {
-    if (
-      (ts.isNewExpression(node) &&
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === 'Response') ||
-      (ts.isIdentifier(node) && node.text === 'NextResponse')
-    ) {
-      mixedRawResponse = true;
-    }
+    if (isRawResponseNode(node)) mixedRawResponse = true;
     if (ts.isCallExpression(node)) {
-      if (
-        ts.isIdentifier(node.expression) &&
-        apiResponseNames.has(node.expression.text) &&
-        node.arguments[0] &&
-        ts.isIdentifier(node.arguments[0]) &&
-        endpointImports.has(node.arguments[0].text)
-      ) {
-        apiResponseCalls += 1;
-      }
-      if (
-        ts.isPropertyAccessExpression(node.expression) &&
-        ts.isIdentifier(node.expression.expression) &&
-        node.expression.expression.text === 'Response' &&
-        node.expression.name.text === 'json'
-      ) {
-        mixedRawResponse = true;
-      }
+      apiResponseCalls += boundEndpointCalls(
+        node,
+        apiResponseNames,
+        endpointImports,
+        lifecycleNames,
+        marketNames,
+      );
+      if (isResponseJsonCall(node)) mixedRawResponse = true;
     }
     ts.forEachChild(node, visit);
   };

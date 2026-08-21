@@ -29,41 +29,41 @@ describe('isRouteFile', () => {
   });
 });
 
+const pageRoot = ['page.tsx', '/'];
+const sitesIdPage = ['sites/[id]/page.tsx', '/sites/[id]'];
+const apiStructures = ['api/account/structures/route.ts', '/api/account/structures'];
+const groupedSitesId = ['(site)/sites/[id]/page.tsx', '/sites/[id]'];
+const groupedSiteRoot = ['(site)/page.tsx', '/'];
+const sitemapRoot = ['sitemap.ts', '/sitemap.xml'];
+const robotsRoot = ['robots.tsx', '/robots.txt'];
+const docsSitemap = ['docs/sitemap.ts', '/docs/sitemap.xml'];
+const opengraphRoot = ['opengraph-image.tsx', '/opengraph-image'];
+const sitesOpengraph = ['sites/[id]/opengraph-image.tsx', '/sites/[id]/opengraph-image'];
+const docsTwitter = ['docs/twitter-image.js', '/docs/twitter-image'];
+const groupedSitesOpengraph = ['(site)/sites/[id]/opengraph-image.tsx', '/sites/[id]/opengraph-image-38dcjp'];
+const groupedAtlasOpengraph = ['(map)/atlas/opengraph-image.tsx', '/atlas/opengraph-image-ci9ouf'];
+const iconSvg = ['icon.svg', '/icon.svg'];
+const docsIcon = ['docs/icon.png', '/docs/icon.png'];
+
 describe('routeKey', () => {
-  it('maps pages, API routes, and route groups to their served paths', () => {
-    expect(routeKey('page.tsx')).toBe('/');
-    expect(routeKey('sites/[id]/page.tsx')).toBe('/sites/[id]');
-    expect(routeKey('api/account/structures/route.ts')).toBe('/api/account/structures');
-    expect(routeKey('(site)/sites/[id]/page.tsx')).toBe('/sites/[id]');
-    expect(routeKey('(site)/page.tsx')).toBe('/');
-    expect(routeKey('sitemap.ts')).toBe('/sitemap.xml');
-    expect(routeKey('robots.tsx')).toBe('/robots.txt');
-    expect(routeKey('docs/sitemap.ts')).toBe('/docs/sitemap.xml');
-  });
-
-  it('maps social-image and icon metadata files, including route-group hashes', () => {
-    expect(routeKey('opengraph-image.tsx')).toBe('/opengraph-image');
-    expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe('/sites/[id]/opengraph-image');
-    expect(routeKey('docs/twitter-image.js')).toBe('/docs/twitter-image');
-
-    // A group is invisible in the served path but not in the built route id:
-    // Next appends djb2Hash of the grouped parent so two handlers sharing a
-    // public path stay distinct. This key must match the id the build manifest
-    // reports, or the presence check and the render-mode check disagree — which
-    // is exactly what broke the deploy when /sites/[id] moved under (site).
-    expect(routeKey('(site)/sites/[id]/opengraph-image.tsx')).toBe(
-      '/sites/[id]/opengraph-image-38dcjp',
-    );
-    expect(routeKey('(map)/atlas/opengraph-image.tsx')).toBe(
-      '/atlas/opengraph-image-ci9ouf',
-    );
-    // Ungrouped parents keep the plain served path.
-    expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe(
-      '/sites/[id]/opengraph-image',
-    );
-
-    expect(routeKey('icon.svg')).toBe('/icon.svg');
-    expect(routeKey('docs/icon.png')).toBe('/docs/icon.png');
+  it.each([
+    pageRoot,
+    sitesIdPage,
+    apiStructures,
+    groupedSitesId,
+    groupedSiteRoot,
+    sitemapRoot,
+    robotsRoot,
+    docsSitemap,
+    opengraphRoot,
+    sitesOpengraph,
+    docsTwitter,
+    groupedSitesOpengraph,
+    groupedAtlasOpengraph,
+    iconSvg,
+    docsIcon,
+  ])('maps %s to %s', (rel, key) => {
+    expect(routeKey(rel)).toBe(key);
   });
 });
 

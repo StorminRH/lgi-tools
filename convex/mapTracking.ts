@@ -15,6 +15,8 @@ import {
   query,
   type QueryCtx,
 } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { requireMapAccess, tryMapAccess } from './lib/mapAccess';
 import { findCoverage } from './lib/locationCoverage';
 
@@ -31,17 +33,34 @@ export const TRACKED_CHARACTERS_PER_MAP_USER_CAP = 32;
 // read budget on a hot reactive query.
 const TRACKING_MAP_SCAN_CAP = 256;
 
-function findCharacterLocation(
-  ctx: QueryCtx,
-  userId: string,
-  characterId: number,
-) {
-  return ctx.db
-    .query('characterLocation')
-    .withIndex('by_user_character', (q) =>
-      q.eq('userId', userId).eq('characterId', characterId),
-    )
-    .unique();
+interface TrackingIdentity {
+  mapId: string;
+  userId: string;
+  characterId: number;
+}
+
+async function enableTracking(
+  ctx: MutationCtx,
+  identity: TrackingIdentity,
+  existing: readonly Doc<'mapTracking'>[],
+  match: Doc<'mapTracking'> | undefined,
+): Promise<void> {
+  if (match !== undefined) return;
+  if (existing.length >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
+    throw new ConvexError({
+      code: 'TRACKING_CAP_EXCEEDED',
+      detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
+    });
+  }
+  await ctx.db.insert('mapTracking', identity);
+}
+
+async function disableTracking(
+  ctx: MutationCtx,
+  match: Doc<'mapTracking'> | undefined,
+): Promise<void> {
+  if (match === undefined) return;
+  await ctx.db.delete(match._id);
 }
 
 /**
@@ -81,28 +100,60 @@ export const setTracking = mutation({
     const match = existing.find((row) => row.characterId === characterId);
 
     if (tracked) {
-      if (match === undefined) {
-        if (existing.length >= TRACKED_CHARACTERS_PER_MAP_USER_CAP) {
-          throw new ConvexError({
-            code: 'TRACKING_CAP_EXCEEDED',
-            detail: `At most ${TRACKED_CHARACTERS_PER_MAP_USER_CAP} tracked characters per map.`,
-          });
-        }
-        await ctx.db.insert('mapTracking', {
+      await enableTracking(
+        ctx,
+        {
           mapId,
           userId: principal.userId,
           characterId,
-        });
-      }
+        },
+        existing,
+        match,
+      );
       return { tracked: true };
     }
 
-    if (match !== undefined) {
-      await ctx.db.delete(match._id);
-    }
+    await disableTracking(ctx, match);
     return { tracked: false };
   },
 });
+
+function trackedLocationPayload(location: Doc<'characterLocation'>) {
+  return {
+    solarSystemId: location.solarSystemId,
+    stationId: location.stationId,
+    structureId: location.structureId,
+    shipTypeId: location.shipTypeId,
+    prevSolarSystemId: location.prevSolarSystemId,
+    prevFresh: location.prevFresh,
+    transitionObservedAt: location.transitionObservedAt ?? null,
+    observedAt: location.observedAt,
+  };
+}
+
+function findCharacterLocation(
+  ctx: QueryCtx,
+  userId: string,
+  characterId: number,
+): Promise<Doc<'characterLocation'> | null> {
+  return uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId);
+}
+
+async function readTrackedLocations(
+  ctx: QueryCtx,
+  rows: readonly Doc<'mapTracking'>[],
+) {
+  const tracked = [];
+  for (const row of rows) {
+    const location = await findCharacterLocation(ctx, row.userId, row.characterId);
+    tracked.push({
+      userId: row.userId,
+      characterId: row.characterId,
+      location: location === null ? null : trackedLocationPayload(location),
+    });
+  }
+  return tracked;
+}
 
 /**
  * Tracking rows for one map, joined to location by each row's own
@@ -128,27 +179,7 @@ export const forMap = query({
       .withIndex('by_map', (q) => q.eq('mapId', mapId))
       .take(TRACKING_MAP_SCAN_CAP);
 
-    const tracked = [];
-    for (const row of rows) {
-      const location = await findCharacterLocation(ctx, row.userId, row.characterId);
-      tracked.push({
-        userId: row.userId,
-        characterId: row.characterId,
-        location:
-          location === null
-            ? null
-            : {
-                solarSystemId: location.solarSystemId,
-                stationId: location.stationId,
-                structureId: location.structureId,
-                shipTypeId: location.shipTypeId,
-                prevSolarSystemId: location.prevSolarSystemId,
-                prevFresh: location.prevFresh,
-                transitionObservedAt: location.transitionObservedAt ?? null,
-                observedAt: location.observedAt,
-              },
-      });
-    }
+    const tracked = await readTrackedLocations(ctx, rows);
     return {
       tracked,
       ownTrackedCharacterIds: rows
@@ -215,12 +246,6 @@ export const coverage = query({
   },
 });
 
-/**
- * Solar systems currently holding at least one tracked pilot on one map — the
- * presence input the collapse triggers feed the shared collapse core. Joins
- * exactly like `forMap`: each tracking row to its own (userId, characterId)
- * location document, so a forged row still discloses and retains nothing.
- */
 export async function readTrackedPilotSystemIds(
   ctx: QueryCtx,
   mapId: string,
@@ -229,9 +254,6 @@ export async function readTrackedPilotSystemIds(
     .query('mapTracking')
     .withIndex('by_map', (q) => q.eq('mapId', mapId))
     .take(TRACKING_MAP_SCAN_CAP + 1);
-  // Fail closed rather than truncate: this set feeds the collapse core's
-  // pilot-present retention, and a silently dropped pilot could let a sweep
-  // collapse a branch that still holds a tracked character.
   if (rows.length > TRACKING_MAP_SCAN_CAP) {
     throw new ConvexError({
       code: 'TRACKING_SCAN_LIMIT',

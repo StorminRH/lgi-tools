@@ -22,7 +22,13 @@ describe('map lifecycle composition', () => {
     });
     const teardownAccess = vi.fn(async () => {
       order.push('projection');
-      return { inserted: 0, updated: 0, deleted: 1, unchanged: 0 };
+      return {
+        inserted: 0,
+        updated: 0,
+        deleted: 1,
+        unchanged: 0,
+        outcome: 'applied' as const,
+      };
     });
 
     await expect(
@@ -72,6 +78,23 @@ describe('map lifecycle composition', () => {
       }),
     ).resolves.toEqual({ ok: true, projectionPending: true });
     expect(console.error).toHaveBeenCalledTimes(2);
+  });
+
+  it('marks projection pending when teardown is stale', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(
+      deleteMapForUser('user', INPUT, {
+        resolvePrincipals: vi.fn().mockResolvedValue(PRINCIPALS),
+        archiveMap: vi.fn().mockResolvedValue(true),
+        teardownAccess: vi.fn().mockResolvedValue({
+          inserted: 0,
+          updated: 0,
+          deleted: 0,
+          unchanged: 0,
+          outcome: 'stale' as const,
+        }),
+      }),
+    ).resolves.toEqual({ ok: true, projectionPending: true });
   });
 
   it('rethrows unexpected projection failures', async () => {

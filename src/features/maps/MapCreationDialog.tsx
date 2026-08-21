@@ -16,6 +16,7 @@ import {
   Dialog,
   DialogClose,
   DialogDescription,
+  DialogHeader,
   DialogTitle,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
@@ -229,25 +230,12 @@ function CreationForm({
         void submit();
       }}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
-        <div className="flex flex-col gap-1">
-          <DialogTitle
-            id={titleId}
-            className="font-display text-h2 font-semibold tracking-copy uppercase text-name"
-          >
-            Create map
-          </DialogTitle>
-          <DialogDescription className="font-ui text-ui text-muted">
-            Name the chain and explicitly assign any delegated access.
-          </DialogDescription>
-        </div>
-        <DialogClose
-          render={<Button variant="ghost" size="sm" />}
-          aria-label="Close map creation"
-        >
-          ×
-        </DialogClose>
-      </header>
+      <DialogHeader
+        titleId={titleId}
+        title="Create map"
+        description="Name the chain and explicitly assign any delegated access."
+        closeLabel="Close map creation"
+      />
 
       <div className="flex flex-col gap-5 px-4 py-4">
         <Field label="Map name">

@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { MAP_ROLES } from '@/data/maps/access-contract';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { httpAction } from './_generated/server';
+import { httpAction, type ActionCtx } from './_generated/server';
 import { bearerMatches } from './lib/bearerAuth';
 
 const http = httpRouter();
@@ -45,11 +45,10 @@ const leaveSyncBodySchema = z.object({
 
 const mapRoleSchema = z.enum(MAP_ROLES);
 
-// Full-state projection body: one map, the complete desired claim set. Zod rejects
-// empty roles and repeated userIds as clean 400s before the mutation runs.
 const projectMapAccessBodySchema = z
   .object({
     mapId: z.string(),
+    revision: z.number().int().positive(),
     claims: z.array(
       z.object({
         userId: z.string(),
@@ -184,11 +183,32 @@ async function readJsonBody(req: Request): Promise<unknown | null> {
   }
 }
 
+function authorizedAction(
+  handle: (ctx: ActionCtx, req: Request) => Promise<Response>,
+) {
+  return httpAction(async (ctx, req) => {
+    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+    return handle(ctx, req);
+  });
+}
+
+function authorizedJsonAction<T>(
+  schema: z.ZodType<T>,
+  handle: (ctx: ActionCtx, body: T) => Promise<Response>,
+) {
+  return authorizedAction(async (ctx, req) => {
+    const raw = await readJsonBody(req);
+    if (raw === null) return new Response('Bad Request', { status: 400 });
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) return new Response('Bad Request', { status: 400 });
+    return handle(ctx, parsed.data);
+  });
+}
+
 http.route({
   path: '/sweep',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
+  handler: authorizedAction(async (ctx) => {
     const counts = await ctx.runMutation(internal.engine.sweep, {});
     return Response.json(counts);
   }),
@@ -197,26 +217,21 @@ http.route({
 http.route({
   path: '/jump-evidence',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
-    const raw = await readJsonBody(req);
-    if (raw === null) return new Response('Bad Request', { status: 400 });
-    const body = jumpEvidenceBodySchema.safeParse(raw);
-    if (!body.success) return new Response('Bad Request', { status: 400 });
-    if (body.data.mode === 'connection') {
+  handler: authorizedJsonAction(jumpEvidenceBodySchema, async (ctx, body) => {
+    if (body.mode === 'connection') {
       return Response.json(
         await ctx.runQuery(internal.mapJump.connectionEvidence, {
-          userId: body.data.userId,
-          mapId: body.data.mapId,
-          connectionId: body.data.connectionId as Id<'mapConnections'>,
+          userId: body.userId,
+          mapId: body.mapId,
+          connectionId: body.connectionId as Id<'mapConnections'>,
         }),
       );
     }
     return Response.json(
       await ctx.runQuery(internal.mapJump.jumpEvidence, {
-        userId: body.data.userId,
-        mapId: body.data.mapId,
-        characterId: body.data.characterId,
+        userId: body.userId,
+        mapId: body.mapId,
+        characterId: body.characterId,
       }),
     );
   }),
@@ -225,56 +240,48 @@ http.route({
 http.route({
   path: '/resolve-jump',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
-    const raw = await readJsonBody(req);
-    if (raw === null) return new Response('Bad Request', { status: 400 });
-    const body = resolveJumpBodySchema.safeParse(raw);
-    if (!body.success) return new Response('Bad Request', { status: 400 });
-
-    if (body.data.operation === 'confirm') {
+  handler: authorizedJsonAction(resolveJumpBodySchema, async (ctx, body) => {
+    if (body.operation === 'confirm') {
       return Response.json(
         await ctx.runMutation(internal.mapJump.confirmJumpIdentity, {
-          userId: body.data.userId,
-          mapId: body.data.mapId,
-          connectionId: body.data.connectionId as Id<'mapConnections'>,
+          userId: body.userId,
+          mapId: body.mapId,
+          connectionId: body.connectionId as Id<'mapConnections'>,
         }),
       );
     }
-    if (body.data.operation === 'reassociate') {
+    if (body.operation === 'reassociate') {
       return Response.json(
         await ctx.runMutation(internal.mapJump.reassociateJumpDestination, {
-          userId: body.data.userId,
-          mapId: body.data.mapId,
-          connectionId: body.data.connectionId as Id<'mapConnections'>,
-          targetConnectionId:
-            body.data.targetConnectionId as Id<'mapConnections'>,
+          userId: body.userId,
+          mapId: body.mapId,
+          connectionId: body.connectionId as Id<'mapConnections'>,
+          targetConnectionId: body.targetConnectionId as Id<'mapConnections'>,
         }),
       );
     }
-    const decision = body.data.decision.kind === 'resolve'
+    const decision = body.decision.kind === 'resolve'
       ? {
-          ...body.data.decision,
-          candidateId:
-            body.data.decision.candidateId as Id<'mapConnections'>,
-          candidateIds: body.data.decision.candidateIds as Id<'mapConnections'>[],
-          survivors: body.data.decision.survivors as Id<'mapConnections'>[],
+          ...body.decision,
+          candidateId: body.decision.candidateId as Id<'mapConnections'>,
+          candidateIds: body.decision.candidateIds as Id<'mapConnections'>[],
+          survivors: body.decision.survivors as Id<'mapConnections'>[],
         }
       : {
-          ...body.data.decision,
-          candidateIds: body.data.decision.candidateIds as Id<'mapConnections'>[],
-          survivors: body.data.decision.survivors as Id<'mapConnections'>[],
+          ...body.decision,
+          candidateIds: body.decision.candidateIds as Id<'mapConnections'>[],
+          survivors: body.decision.survivors as Id<'mapConnections'>[],
         };
     return Response.json(
       await ctx.runMutation(internal.mapJump.resolveJumpAuthoring, {
-        userId: body.data.userId,
-        mapId: body.data.mapId,
-        characterId: body.data.characterId,
-        fromSolarSystemId: body.data.fromSolarSystemId,
-        toSolarSystemId: body.data.toSolarSystemId,
-        transitionObservedAt: body.data.transitionObservedAt,
-        observedShipMassKg: body.data.observedShipMassKg,
-        observationKey: body.data.observationKey,
+        userId: body.userId,
+        mapId: body.mapId,
+        characterId: body.characterId,
+        fromSolarSystemId: body.fromSolarSystemId,
+        toSolarSystemId: body.toSolarSystemId,
+        transitionObservedAt: body.transitionObservedAt,
+        observedShipMassKg: body.observedShipMassKg,
+        observationKey: body.observationKey,
         decision,
       }),
     );
@@ -284,27 +291,22 @@ http.route({
 http.route({
   path: '/signature-elimination',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
-    const raw = await readJsonBody(req);
-    if (raw === null) return new Response('Bad Request', { status: 400 });
-    const body = signatureEliminationBodySchema.safeParse(raw);
-    if (!body.success) return new Response('Bad Request', { status: 400 });
-    if (body.data.operation === 'evidence') {
+  handler: authorizedJsonAction(signatureEliminationBodySchema, async (ctx, body) => {
+    if (body.operation === 'evidence') {
       return Response.json(
         await ctx.runQuery(internal.mapScan.eliminationEvidence, {
-          userId: body.data.userId,
-          mapId: body.data.mapId,
-          systemId: body.data.systemId,
+          userId: body.userId,
+          mapId: body.mapId,
+          systemId: body.systemId,
         }),
       );
     }
     return Response.json(
       await ctx.runMutation(internal.mapScan.applyEliminationDeductions, {
-        userId: body.data.userId,
-        mapId: body.data.mapId,
-        systemId: body.data.systemId,
-        deductions: body.data.deductions.map((deduction) =>
+        userId: body.userId,
+        mapId: body.mapId,
+        systemId: body.systemId,
+        deductions: body.deductions.map((deduction) =>
           'connectionId' in deduction
             ? {
                 ...deduction,
@@ -320,21 +322,14 @@ http.route({
 http.route({
   path: '/purge-online',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
-    // Both a JSON.parse failure and a wrong-typed field return the same clean
-    // 400 the route already intended, instead of letting the mutation's arg
-    // validators throw a 500 with a stack trace into the deployment logs. The
-    // Neon purge does NOT depend on either: the online-status contributor
-    // swallows any non-2xx response (best-effort), so a bad body here can never
-    // abort the sweep.
-    const raw = await readJsonBody(req);
-    if (raw === null) return new Response('Bad Request', { status: 400 });
-    const body = purgeOnlineBodySchema.safeParse(raw);
-    if (!body.success) {
-      return new Response('Bad Request', { status: 400 });
-    }
-    const counts = await ctx.runMutation(internal.onlineStatus.purgeForUser, body.data);
+  // Both a JSON.parse failure and a wrong-typed field return the same clean
+  // 400 the route already intended, instead of letting the mutation's arg
+  // validators throw a 500 with a stack trace into the deployment logs. The
+  // Neon purge does NOT depend on either: the online-status contributor
+  // swallows any non-2xx response (best-effort), so a bad body here can never
+  // abort the sweep.
+  handler: authorizedJsonAction(purgeOnlineBodySchema, async (ctx, body) => {
+    const counts = await ctx.runMutation(internal.onlineStatus.purgeForUser, body);
     return Response.json(counts);
   }),
 });
@@ -356,15 +351,8 @@ http.route({
 http.route({
   path: '/purge-location-tracking',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
-    const raw = await readJsonBody(req);
-    if (raw === null) return new Response('Bad Request', { status: 400 });
-    const body = purgeLocationTrackingBodySchema.safeParse(raw);
-    if (!body.success) {
-      return new Response('Bad Request', { status: 400 });
-    }
-    const counts = await ctx.runMutation(internal.characterLocation.purgeForUser, body.data);
+  handler: authorizedJsonAction(purgeLocationTrackingBodySchema, async (ctx, body) => {
+    const counts = await ctx.runMutation(internal.characterLocation.purgeForUser, body);
     return Response.json(counts);
   }),
 });
@@ -372,25 +360,15 @@ http.route({
 http.route({
   path: '/project-map-access',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
-    const raw = await readJsonBody(req);
-    if (raw === null) return new Response('Bad Request', { status: 400 });
-    const body = projectMapAccessBodySchema.safeParse(raw);
-    if (!body.success) {
-      return new Response('Bad Request', { status: 400 });
-    }
+  handler: authorizedJsonAction(projectMapAccessBodySchema, async (ctx, body) => {
     const counts = await ctx.runMutation(
       internal.mapAccessProjection.reconcileMapClaims,
-      body.data,
+      body,
     );
-    if (body.data.claims.length === 0) {
-      // Map teardown owns durable exactly-once stamps, but drains them in
-      // bounded transactions. A 503 remains idempotently retryable after any
-      // completed batches instead of making a large map permanently undeletable.
+    if (body.claims.length === 0 && counts.outcome !== 'stale') {
       for (let batchIndex = 0; batchIndex < MAX_PURGE_BATCHES; batchIndex += 1) {
         const batch = await ctx.runMutation(internal.mapJumpBookkeeping.purgeForMap, {
-          mapId: body.data.mapId,
+          mapId: body.mapId,
         });
         if (!batch.hasMore) return Response.json(counts);
       }
@@ -403,21 +381,13 @@ http.route({
 http.route({
   path: '/purge-map-access',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
-    const raw = await readJsonBody(req);
-    if (raw === null) return new Response('Bad Request', { status: 400 });
-    const body = purgeMapAccessBodySchema.safeParse(raw);
-    if (!body.success) {
-      return new Response('Bad Request', { status: 400 });
-    }
-
+  handler: authorizedJsonAction(purgeMapAccessBodySchema, async (ctx, body) => {
     // Cap iterations so a concurrent writer that keeps re-inserting claims cannot
     // hang the HTTP action; purge remains idempotent and safe to retry.
     let deleted = 0;
     for (let batchIndex = 0; batchIndex < MAX_PURGE_BATCHES; batchIndex += 1) {
       const batch = await ctx.runMutation(internal.mapAccessProjection.purgeUserClaims, {
-        userId: body.data.userId,
+        userId: body.userId,
       });
       deleted += batch.deleted;
       if (!batch.hasMore) {
@@ -431,17 +401,11 @@ http.route({
 http.route({
   path: '/purge-map-chain',
   method: 'POST',
-  handler: httpAction(async (ctx, req) => {
-    if (!(await bearerOk(req))) return new Response('Unauthorized', { status: 401 });
-    const raw = await readJsonBody(req);
-    if (raw === null) return new Response('Bad Request', { status: 400 });
-    const body = purgeMapChainBodySchema.safeParse(raw);
-    if (!body.success) return new Response('Bad Request', { status: 400 });
-
+  handler: authorizedJsonAction(purgeMapChainBodySchema, async (ctx, body) => {
     let deleted = 0;
     for (let batchIndex = 0; batchIndex < MAX_PURGE_BATCHES; batchIndex += 1) {
       const batch = await ctx.runMutation(internal.mapPurge.purgeMapBatch, {
-        mapId: body.data.mapId,
+        mapId: body.mapId,
       });
       deleted += batch.deleted;
       if (!batch.hasMore) return Response.json({ deleted, remaining: false });

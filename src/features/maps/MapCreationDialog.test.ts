@@ -21,6 +21,21 @@ vi.mock('@/components/ui/dialog', () => ({
     createElement('p', props, children),
   DialogTitle: ({ children, ...props }: { children: React.ReactNode }) =>
     createElement('h2', props, children),
+  DialogHeader: ({
+    titleId,
+    title,
+    description,
+  }: {
+    titleId: string;
+    title: React.ReactNode;
+    description: React.ReactNode;
+  }) =>
+    createElement(
+      'header',
+      null,
+      createElement('h2', { id: titleId }, title),
+      createElement('p', null, description),
+    ),
 }));
 
 vi.mock('./CharacterSearchControl', () => ({

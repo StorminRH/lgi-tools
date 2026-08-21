@@ -12,6 +12,7 @@
 import type { WithoutSystemFields } from 'convex/server';
 import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader } from '../_generated/server';
+import { uniqueByUserDataset } from './indexedQuery';
 
 // The dataset values that can be STORED — the schema's dataset union (a superset of
 // the active SyncDataset during a future drain window).
@@ -54,10 +55,7 @@ export function getSyncSubject(
   dataset: StoredDataset,
   userId: string,
 ): Promise<Doc<'syncSubjects'> | null> {
-  return db
-    .query('syncSubjects')
-    .withIndex('by_user_dataset', (q) => q.eq('userId', userId).eq('dataset', dataset))
-    .unique();
+  return uniqueByUserDataset(db, 'syncSubjects', dataset, userId);
 }
 
 /**
@@ -69,8 +67,5 @@ export function getPresence(
   dataset: StoredDataset,
   userId: string,
 ): Promise<Doc<'syncPresence'> | null> {
-  return db
-    .query('syncPresence')
-    .withIndex('by_user_dataset', (q) => q.eq('userId', userId).eq('dataset', dataset))
-    .unique();
+  return uniqueByUserDataset(db, 'syncPresence', dataset, userId);
 }

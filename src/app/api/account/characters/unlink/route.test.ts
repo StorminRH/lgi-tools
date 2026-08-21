@@ -113,6 +113,7 @@ describe('POST /api/account/characters/unlink', () => {
       updated: 0,
       deleted: 0,
       unchanged: 0,
+      outcome: 'applied',
     });
   });
 

@@ -1,7 +1,4 @@
-// One-way Neon → Convex access projection. Computes the complete desired claim set
-// for one map from durable Neon state and posts it through the bearer-gated service
-// door. Convex claims are regenerable and never authoritative; this module is the
-// only place that knows both the durable rule and the projection transport.
+import { z } from 'zod';
 import { resolveMatchedMapRoles } from '@/data/maps/access';
 import type { MapRole } from '@/data/maps/access-contract';
 import {
@@ -9,6 +6,7 @@ import {
   getMapGrants,
   getUserIdsInCorporations,
   getUserIdsOwningCharacters,
+  reserveMapAccessProjectionRevision,
 } from '@/data/maps/queries';
 import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
@@ -23,12 +21,47 @@ export interface MapAccessClaim {
   readonly roles: readonly MapRole[];
 }
 
-/** Counts returned by Convex's reconcile mutation for one projection. */
-export interface ProjectionResult {
+interface ProjectionCounts {
   readonly inserted: number;
   readonly updated: number;
   readonly deleted: number;
   readonly unchanged: number;
+}
+
+export type ProjectionResult = ProjectionCounts & {
+  readonly outcome: 'applied' | 'duplicate' | 'stale';
+};
+
+const projectionCountFields = {
+  inserted: z.number().int().nonnegative(),
+  updated: z.number().int().nonnegative(),
+  deleted: z.number().int().nonnegative(),
+  unchanged: z.number().int().nonnegative(),
+};
+const projectionResultSchema = z.discriminatedUnion('outcome', [
+  z.strictObject({ ...projectionCountFields, outcome: z.literal('applied') }),
+  z.strictObject({ ...projectionCountFields, outcome: z.literal('duplicate') }),
+  z.strictObject({ ...projectionCountFields, outcome: z.literal('stale') }),
+]);
+
+function decodeProjectionResult(raw: unknown): ProjectionResult {
+  const parsed = projectionResultSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new ProjectionUnavailableError(
+      'Map access projection unavailable: response contract drifted',
+      { cause: parsed.error },
+    );
+  }
+  return parsed.data;
+}
+
+export function requireCurrentProjection(result: ProjectionResult): ProjectionResult {
+  if (result.outcome === 'stale') {
+    throw new ProjectionUnavailableError(
+      'Map access projection unavailable: a newer projection already won',
+    );
+  }
+  return result;
 }
 
 /**
@@ -197,17 +230,18 @@ async function projectMapAccessState(
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before computation');
   }
+  const revision = await reserveMapAccessProjectionRevision();
   const claims = await computeMapAccessClaimsForState(mapId, allowArchived);
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
   }
   const result = await postProjection(
     '/project-map-access',
-    { mapId, claims },
+    { mapId, revision, claims },
     options.timeoutMs,
     options.signal,
   );
-  return result as ProjectionResult;
+  return decodeProjectionResult(result);
 }
 
 /**
@@ -229,13 +263,14 @@ export function projectStagedMapAccess(
   return projectMapAccessState(mapId, options, true);
 }
 
-/**
- * Tears down every projected claim for one map by posting an empty desired set.
- * Used when the durable map is already gone and compute would also return [].
- */
 export async function teardownMapAccessProjection(mapId: string): Promise<ProjectionResult> {
-  const result = await postProjection('/project-map-access', { mapId, claims: [] });
-  return result as ProjectionResult;
+  const revision = await reserveMapAccessProjectionRevision();
+  const result = await postProjection('/project-map-access', {
+    mapId,
+    revision,
+    claims: [],
+  });
+  return requireCurrentProjection(decodeProjectionResult(result));
 }
 
 /**

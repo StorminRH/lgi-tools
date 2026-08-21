@@ -73,7 +73,7 @@ stopped at a null handler.
    rerun the resolver, and stop. Execution begins with a fresh start-session
    unless the operator authorized a bootstrap transition in the approved
    session plan.
-4. Handler `close-out` runs the promote ritual to `PROMOTED` or `BLOCKED`,
+4. Handler `close-out` runs the process onto `staging` to `PROMOTED` or `BLOCKED`,
    then stop. The next Start Session continues Ordered work, planning, or
    archive.
 5. Stage `archive-needed` runs Archive a completed version, then stop.
@@ -83,8 +83,8 @@ stopped at a null handler.
 Done when the named commit is on `origin/<line>`, this worktree is on that
 tip, and the source branch is gone from origin and this worktree.
 
-`<line>` is `development` for this skill. The same cleanup runs after a land
-onto `staging` or `main`.
+`<line>` is `development` for this skill. Close-out reuses this cleanup
+after its merge onto `staging` or `main`.
 
 1. Fetch `origin/<line>`. Rebase the source branch onto it when the line has
    moved. Re-run the local test suite after a rebase that carries

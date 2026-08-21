@@ -8,8 +8,7 @@ import { adminReassignFormSchema } from '@/platform/auth/api-contract';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
 import { reassignCharacter } from '@/platform/auth/admin-users';
-import { checkAdmin } from '@/platform/auth/route-guards';
-import { requireSameOrigin } from '@/platform/auth/same-origin';
+import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 
 /**
@@ -25,12 +24,10 @@ import { parseFormBody } from '@/transport/route-body';
 export const POST = capabilityRoute('admin.reassign-character', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
-  const gate = await checkAdmin();
-  if (!gate.ok) return problemResponse(gate.failure);
+  const gate = await adminMutationGate(request);
+  if (!gate.ok) return gate.response;
   const session = gate.session;
   const toUserId = session.user.id;
-  const originCheck = requireSameOrigin(request);
-  if (!originCheck.ok) return problemResponse(originCheck.failure);
 
   const parsed = await parseFormBody(
     request,

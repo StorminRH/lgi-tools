@@ -57,6 +57,7 @@ beforeEach(() => {
     updated: 0,
     deleted: 0,
     unchanged: 0,
+    outcome: 'applied',
   });
   mocks.purgeMapChain.mockResolvedValue({ deleted: 0, remaining: false });
   mocks.purgeUserMapAccessProjection.mockResolvedValue({ deleted: 0 });
@@ -74,7 +75,13 @@ describe('map-access-identity', () => {
 
     mocks.projectMapAccess
       .mockRejectedValueOnce(new Error('convex down'))
-      .mockResolvedValueOnce({ inserted: 0, updated: 0, deleted: 1, unchanged: 0 });
+      .mockResolvedValueOnce({
+        inserted: 0,
+        updated: 0,
+        deleted: 1,
+        unchanged: 0,
+        outcome: 'applied',
+      });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await reprojectMapsForCharacter(100);
     expect(mocks.projectMapAccess).toHaveBeenCalledWith('map-a');

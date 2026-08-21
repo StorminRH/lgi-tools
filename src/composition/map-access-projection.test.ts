@@ -4,6 +4,7 @@ import type { CachedAffiliation } from '@/platform/auth/membership';
 const mocks = vi.hoisted(() => ({
   getMapAccessSubject: vi.fn(),
   getMapGrants: vi.fn(),
+  reserveMapAccessProjectionRevision: vi.fn(),
   getUserIdsOwningCharacters: vi.fn(),
   getUserIdsInCorporations: vi.fn(),
   getUserAffiliations: vi.fn(),
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/data/maps/queries', () => ({
   getMapAccessSubject: mocks.getMapAccessSubject,
   getMapGrants: mocks.getMapGrants,
+  reserveMapAccessProjectionRevision: mocks.reserveMapAccessProjectionRevision,
   getUserIdsOwningCharacters: mocks.getUserIdsOwningCharacters,
   getUserIdsInCorporations: mocks.getUserIdsInCorporations,
 }));
@@ -49,6 +51,8 @@ import {
   projectMapAccess,
   projectStagedMapAccess,
   ProjectionUnavailableError,
+  requireCurrentProjection,
+  teardownMapAccessProjection,
 } from './map-access-projection';
 
 function affiliation(
@@ -82,6 +86,7 @@ beforeEach(() => {
     archivedAt: null,
   });
   mocks.getMapGrants.mockResolvedValue([]);
+  mocks.reserveMapAccessProjectionRevision.mockResolvedValue(41);
   mocks.getUserIdsOwningCharacters.mockResolvedValue(new Map());
   mocks.getUserIdsInCorporations.mockResolvedValue(new Set());
   mocks.deriveConvexSiteUrl.mockReturnValue('http://127.0.0.1:3211');
@@ -276,9 +281,16 @@ describe('computeMapAccessClaims', () => {
 describe('projectMapAccess transport', () => {
   it('posts the computed claim set and returns reconcile counts', async () => {
     mocks.fetchWithTimeout.mockResolvedValue(
-      new Response(JSON.stringify({ inserted: 1, updated: 0, deleted: 0, unchanged: 0 }), {
-        status: 200,
-      }),
+      new Response(
+        JSON.stringify({
+          inserted: 1,
+          updated: 0,
+          deleted: 0,
+          unchanged: 0,
+          outcome: 'applied',
+        }),
+        { status: 200 },
+      ),
     );
 
     await expect(projectMapAccess('map-1')).resolves.toEqual({
@@ -286,6 +298,7 @@ describe('projectMapAccess transport', () => {
       updated: 0,
       deleted: 0,
       unchanged: 0,
+      outcome: 'applied',
     });
     expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
       'http://127.0.0.1:3211/project-map-access',
@@ -296,6 +309,7 @@ describe('projectMapAccess transport', () => {
         }),
         body: JSON.stringify({
           mapId: 'map-1',
+          revision: 41,
           claims: [{ userId: 'creator', roles: ['admin'] }],
         }),
       }),
@@ -313,7 +327,13 @@ describe('projectMapAccess transport', () => {
       archivedAt: new Date('2026-08-12T00:00:00.000Z'),
     });
     mocks.fetchWithTimeout.mockResolvedValue(
-      Response.json({ inserted: 0, updated: 0, deleted: 1, unchanged: 0 }),
+      Response.json({
+        inserted: 0,
+        updated: 0,
+        deleted: 1,
+        unchanged: 0,
+        outcome: 'applied',
+      }),
     );
 
     await projectMapAccess('map-1');
@@ -321,7 +341,7 @@ describe('projectMapAccess transport', () => {
     expect(mocks.fetchWithTimeout).toHaveBeenCalledWith(
       'http://127.0.0.1:3211/project-map-access',
       expect.objectContaining({
-        body: JSON.stringify({ mapId: 'map-1', claims: [] }),
+        body: JSON.stringify({ mapId: 'map-1', revision: 41, claims: [] }),
       }),
     );
   });
@@ -332,7 +352,13 @@ describe('projectMapAccess transport', () => {
       archivedAt: new Date('2026-08-12T00:00:00.000Z'),
     });
     mocks.fetchWithTimeout.mockResolvedValue(
-      Response.json({ inserted: 1, updated: 0, deleted: 0, unchanged: 0 }),
+      Response.json({
+        inserted: 1,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'applied',
+      }),
     );
 
     await projectStagedMapAccess('map-1');
@@ -342,6 +368,7 @@ describe('projectMapAccess transport', () => {
       expect.objectContaining({
         body: JSON.stringify({
           mapId: 'map-1',
+          revision: 41,
           claims: [{ userId: 'creator', roles: ['admin'] }],
         }),
       }),
@@ -369,5 +396,52 @@ describe('projectMapAccess transport', () => {
 
     await expect(projection).rejects.toBeInstanceOf(ProjectionUnavailableError);
     expect(mocks.fetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale teardown as unavailable', async () => {
+    mocks.fetchWithTimeout.mockResolvedValue(
+      Response.json({
+        inserted: 0,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'stale',
+      }),
+    );
+    await expect(teardownMapAccessProjection('map-1')).rejects.toBeInstanceOf(
+      ProjectionUnavailableError,
+    );
+  });
+});
+
+describe('requireCurrentProjection', () => {
+  const counts = {
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+  };
+
+  it('returns applied and duplicate results', () => {
+    expect(requireCurrentProjection({ ...counts, outcome: 'applied' })).toEqual({
+      ...counts,
+      outcome: 'applied',
+    });
+    expect(requireCurrentProjection({ ...counts, outcome: 'duplicate' })).toEqual({
+      ...counts,
+      outcome: 'duplicate',
+    });
+  });
+
+  it('throws when a newer projection already won', () => {
+    try {
+      requireCurrentProjection({ ...counts, outcome: 'stale' });
+      expect.unreachable('expected stale projection to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProjectionUnavailableError);
+      expect(error).toEqual(
+        expect.objectContaining({ message: expect.stringMatching(/newer projection already won/) }),
+      );
+    }
   });
 });

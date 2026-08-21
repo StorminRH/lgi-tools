@@ -12,6 +12,7 @@ export const MAP_PURGE_BATCH = 128;
 /** Single census-backed registry of every Convex table keyed by mapId. */
 export const MAP_PURGE_TABLES = [
   'mapAccess',
+  'mapAccessProjectionWatermarks',
   'mapSystems',
   'mapConnections',
   'mapJumpBookkeeping',

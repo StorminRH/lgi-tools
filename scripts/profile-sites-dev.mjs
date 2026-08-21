@@ -585,21 +585,18 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   });
 }
 
-process.on('uncaughtException', (error) => {
-  const stopReason = reason('uncaught-exception', 'profiler hit an uncaught exception', {
-    error: error instanceof Error ? error.stack ?? error.message : String(error),
+function abortOnProcessFault(event, code, message) {
+  process.on(event, (error) => {
+    const stopReason = reason(code, message, {
+      error: error instanceof Error ? error.stack ?? error.message : String(error),
+    });
+    requestAbort(stopReason);
+    void finish('aborted', stopReason);
   });
-  requestAbort(stopReason);
-  void finish('aborted', stopReason);
-});
+}
 
-process.on('unhandledRejection', (error) => {
-  const stopReason = reason('unhandled-rejection', 'profiler hit an unhandled rejection', {
-    error: error instanceof Error ? error.stack ?? error.message : String(error),
-  });
-  requestAbort(stopReason);
-  void finish('aborted', stopReason);
-});
+abortOnProcessFault('uncaughtException', 'uncaught-exception', 'profiler hit an uncaught exception');
+abortOnProcessFault('unhandledRejection', 'unhandled-rejection', 'profiler hit an unhandled rejection');
 
 try {
   await main();

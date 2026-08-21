@@ -16,6 +16,7 @@ const CHAR = 90_000_001;
 const CHAR_B = 90_000_002;
 
 type Chain = TestConvex<typeof schema>;
+let nextRevision = 1;
 
 function asUser(t: Chain, userId: string) {
   return t.withIdentity({ subject: userId });
@@ -26,7 +27,13 @@ async function grant(
   mapId: string,
   claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }>,
 ) {
-  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, { mapId, claims });
+  const revision = nextRevision;
+  nextRevision += 1;
+  return t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+    mapId,
+    revision,
+    claims,
+  });
 }
 
 async function readTracking(t: Chain, mapId?: string) {

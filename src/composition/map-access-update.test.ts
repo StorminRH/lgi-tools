@@ -25,7 +25,13 @@ describe('applyMapAccessUpdate', () => {
     });
     const projectAccess = vi.fn(async () => {
       order.push('projection');
-      return { inserted: 0, updated: 1, deleted: 0, unchanged: 0 };
+      return {
+        inserted: 0,
+        updated: 1,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'applied' as const,
+      };
     });
 
     await expect(
@@ -62,6 +68,7 @@ describe('applyMapAccessUpdate', () => {
           updated: 0,
           deleted: 1,
           unchanged: 0,
+          outcome: 'applied',
         }),
       }),
     ).resolves.toEqual({ ok: true });

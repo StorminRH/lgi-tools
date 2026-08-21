@@ -1,5 +1,6 @@
 import { boolean, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
+import { ownedRowIdentityColumns } from '@/lib/db-columns';
 import type { PlanSnapshotWire } from './template-snapshot';
 
 /**
@@ -17,17 +18,11 @@ import type { PlanSnapshotWire } from './template-snapshot';
  * renders (icon + name) without ever opening snapshots.
  */
 export const savedPlans = pgTable('saved_plans', {
-  // App-generated (crypto.randomUUID) — opaque, never an ESI/SDE id.
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
+  ...ownedRowIdentityColumns(() => user.id),
   favorite: boolean('favorite').notNull().default(false),
   blueprintTypeId: integer('blueprint_type_id').notNull(),
   productTypeId: integer('product_type_id').notNull(),
   productName: text('product_name').notNull(),
   snapshot: jsonb('snapshot').$type<PlanSnapshotWire>().notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

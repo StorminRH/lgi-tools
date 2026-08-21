@@ -103,6 +103,12 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
         data_type: 'timestamp with time zone',
         is_nullable: 'YES',
       },
+      {
+        table_name: 'maps',
+        column_name: 'purge_claimed_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'YES',
+      },
     ]);
 
     const constraints = await harness.sql<{

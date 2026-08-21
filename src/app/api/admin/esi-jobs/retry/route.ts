@@ -6,7 +6,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/transport/api-response';
 import { parseRange } from '@/composition/admin-period';
-import { checkAdminMutation } from '@/platform/auth/route-guards';
+import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 
 /**
@@ -18,8 +18,8 @@ import { parseFormBody } from '@/transport/route-body';
 export const POST = capabilityRoute('admin.requeue-esi-job', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
-  const gate = await checkAdminMutation(request);
-  if (!gate.ok) return problemResponse(gate.failure);
+  const gate = await adminMutationGate(request);
+  if (!gate.ok) return gate.response;
 
   const parsed = await parseFormBody(
     request,
