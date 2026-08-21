@@ -58,6 +58,7 @@
     "test:coverage": "vitest run --coverage",
     "fallow": "fallow dead-code --fail-on-issues && fallow dupes --fail-on-issues && fallow health --fail-on-issues --coverage coverage/coverage-final.json",
     "fallow:health": "fallow health --coverage coverage/coverage-final.json",
+    "fallow:health:local": "fallow health --fail-on-issues --max-crap 10000",
     "verify": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm fallow"
   },
   "dependencies": {

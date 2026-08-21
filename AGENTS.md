@@ -24,15 +24,15 @@ questions. It uses Codegraph (`callers`, `callees`, `impact`, `query`;
 
 Launch `test-runner` before commits, and whenever the local test suite
 needs test results: `pnpm typecheck`, `pnpm lint`, Fallow
-`dead-code`, `dupes`, and `health` (CRAP, no `--coverage`), plus
-caller-supplied focused tests for the diff.
+`dead-code`, `dupes`, and `health`, plus caller-supplied focused tests
+for the diff.
 
 Name those agents and omit Task `model` so the agent file pin applies. `inherit`
 and model slugs override the pin.
 
 ## Done
 
-Land on Origin `development` with the local test suite. A finding on
+Land on Origin `development` when the local test suite is green. A finding on
 an Origin PR is a thread on that version. Promote (`development` →
 `staging`) and release (`staging` → `main`) wait on that Origin PR's
 Depot pipeline.
