@@ -64,6 +64,9 @@ Project skills live in `.cursor/skills/`. Review skills here include
 `thermos`, `thermo-nuclear-review`, `thermo-nuclear-code-quality-review`, and
 `deslop`. Custom subagents live in `.cursor/agents/`.
 
-Codegraph CLI (`@colbymchenry/codegraph@1.5.0`) is installed globally and
-`.codegraph/` is snapshotted. `repo-mapper` can run `codegraph sync` after
-material source edits. A token is not required.
+`.cursor/clis.sh` (install + start) puts Codegraph (`@colbymchenry/codegraph@1.5.0`),
+Depot, Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
+`convex` and `fallow` stay `pnpm exec`. `.codegraph/` is snapshotted.
+`repo-mapper` can run `codegraph sync` after material source edits.
+Codegraph does not need a token. Depot, Vercel, and Neon use Cloud Agent
+Secrets when a command needs them.
