@@ -148,39 +148,20 @@ export function takeExpiredByPurgeAfter(
   now: number,
   limit: number,
 ): Promise<Doc<'mapConnections'>[]>;
-
-function takeExpiredMapSystems(
-  ctx: Pick<QueryCtx, 'db'>,
-  now: number,
-  limit: number,
-) {
-  return ctx.db.query('mapSystems').withIndex('by_purge_after', (q) =>
-    q.gt('purgeAfter', null).lte('purgeAfter', now),
-  ).take(limit);
-}
-
-function takeExpiredMapConnections(
-  ctx: Pick<QueryCtx, 'db'>,
-  now: number,
-  limit: number,
-) {
-  return ctx.db.query('mapConnections').withIndex('by_purge_after', (q) =>
-    q.gt('purgeAfter', null).lte('purgeAfter', now),
-  ).take(limit);
-}
-
 export function takeExpiredByPurgeAfter(
   ctx: Pick<QueryCtx, 'db'>,
   table: PurgeAfterTable,
   now: number,
   limit: number,
 ) {
-  switch (table) {
-    case 'mapSystems':
-      return takeExpiredMapSystems(ctx, now, limit);
-    case 'mapConnections':
-      return takeExpiredMapConnections(ctx, now, limit);
-  }
+  const query = table === 'mapSystems'
+    ? ctx.db.query('mapSystems').withIndex('by_purge_after', (q) =>
+        q.gt('purgeAfter', null).lte('purgeAfter', now),
+      )
+    : ctx.db.query('mapConnections').withIndex('by_purge_after', (q) =>
+        q.gt('purgeAfter', null).lte('purgeAfter', now),
+      );
+  return query.take(limit);
 }
 
 export function queryMapSignatures(ctx: Pick<QueryCtx, 'db'>, mapId: string, systemId: number) {
