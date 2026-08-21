@@ -202,17 +202,14 @@ describe('computeMapAccessClaims', () => {
     ]);
   });
 
-  it('returns an empty set for a missing map', async () => {
+  it('returns an empty set for a missing or archived map', async () => {
     mocks.getMapAccessSubject.mockResolvedValue(null);
     await expect(computeMapAccessClaims('missing')).resolves.toEqual([]);
-  });
 
-  it('returns an empty set for archived maps', async () => {
     mocks.getMapAccessSubject.mockResolvedValue({
       userId: 'creator',
       archivedAt: new Date('2026-08-12T00:00:00.000Z'),
     });
-
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([]);
     expect(mocks.getMapGrants).not.toHaveBeenCalled();
   });
@@ -314,9 +311,35 @@ describe('projectMapAccess transport', () => {
     );
   });
 
-  it('throws when the door answers non-2xx', async () => {
+  it('throws when the door, env, stale teardown, or drifted purge cannot apply', async () => {
     mocks.fetchWithTimeout.mockResolvedValue(new Response('nope', { status: 503 }));
     await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+
+    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
+    mocks.readEnv.mockReturnValue(undefined);
+    await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
+    mocks.readEnv.mockImplementation((name: string) =>
+      name === 'CONVEX_SERVICE_SECRET' ? 'svc-secret' : undefined,
+    );
+    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'http://127.0.0.1:3210');
+
+    mocks.fetchWithTimeout.mockResolvedValue(
+      Response.json({
+        inserted: 0,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'stale',
+      }),
+    );
+    await expect(teardownMapAccessProjection('map-1')).rejects.toBeInstanceOf(
+      ProjectionUnavailableError,
+    );
+
+    mocks.fetchWithTimeout.mockResolvedValue(Response.json({ deleted: 'nope' }));
+    await expect(purgeUserMapAccessProjection('user-1')).rejects.toBeInstanceOf(
+      ProjectionUnavailableError,
+    );
   });
 
   it('reconciles archived maps to an empty claim set during ordinary reprojection', async () => {
@@ -373,12 +396,6 @@ describe('projectMapAccess transport', () => {
     );
   });
 
-  it('throws when Convex env is unset', async () => {
-    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
-    mocks.readEnv.mockReturnValue(undefined);
-    await expect(projectMapAccess('map-1')).rejects.toBeInstanceOf(ProjectionUnavailableError);
-  });
-
   it('does not deliver claims when computation finishes after cancellation', async () => {
     let releaseSubject: ((value: { userId: string; archivedAt: null }) => void) | undefined;
     mocks.getMapAccessSubject.mockReturnValue(
@@ -394,28 +411,6 @@ describe('projectMapAccess transport', () => {
 
     await expect(projection).rejects.toBeInstanceOf(ProjectionUnavailableError);
     expect(mocks.fetchWithTimeout).not.toHaveBeenCalled();
-  });
-
-  it('rejects a stale teardown as unavailable', async () => {
-    mocks.fetchWithTimeout.mockResolvedValue(
-      Response.json({
-        inserted: 0,
-        updated: 0,
-        deleted: 0,
-        unchanged: 0,
-        outcome: 'stale',
-      }),
-    );
-    await expect(teardownMapAccessProjection('map-1')).rejects.toBeInstanceOf(
-      ProjectionUnavailableError,
-    );
-  });
-
-  it('rejects a drifted user-purge response', async () => {
-    mocks.fetchWithTimeout.mockResolvedValue(Response.json({ deleted: 'nope' }));
-    await expect(purgeUserMapAccessProjection('user-1')).rejects.toBeInstanceOf(
-      ProjectionUnavailableError,
-    );
   });
 });
 

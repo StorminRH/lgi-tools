@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
-// Only the branch the real-Postgres twin (owner-transfer.db.test.ts) cannot
-// reach lives here: a multi-character prior owner left untouched when the freed
-// character is neither their identity email nor their active character. The
-// chainable thenable emulates Drizzle's builder (FIFO results, counted writes).
+// The chainable thenable emulates Drizzle's builder: FIFO results, counted writes.
 const hooks = vi.hoisted(() => ({
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 }));
@@ -87,15 +84,13 @@ beforeEach(() => {
 describe('purgeTransferredCharacter', () => {
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
-      [{ id: 'acc-1' }], // deleteLinkedCharacter .returning
-      undefined, // characters.preferences reset
-      undefined, // direct map-grant delete
-      [{ accountId: String(OTHER_CHAR) }], // remaining → one survivor
-      // identity email + active point at a DIFFERENT surviving character
+      [{ id: 'acc-1' }],
+      undefined,
+      undefined,
+      [{ accountId: String(OTHER_CHAR) }],
       [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
     ];
     await purgeTransferredCharacter(USER, CHAR);
-    // Account + direct grant deleted; only the character reset update runs.
     expect(state.calls).toEqual({ delete: 2, update: 1 });
     expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({
       userId: USER,
@@ -105,15 +100,13 @@ describe('purgeTransferredCharacter', () => {
 });
 
 describe('reconcileCharacterOwner', () => {
-  it('no-ops without a JWT owner hash or a matching account row', async () => {
+  it('no-ops missing hash or row, backfills a blank hash, and purges when the stored hash disagrees', async () => {
     await reconcileCharacterOwner(CHAR, null);
     await reconcileCharacterOwner(CHAR, undefined);
     state.results = [[]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
     expect(state.calls).toEqual({ delete: 0, update: 0 });
-  });
 
-  it('backfills a missing stored hash and no-ops when the stored hash already matches', async () => {
     state.results = [[{ userId: USER, ownerHash: null }]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
     expect(state.calls.update).toBe(1);
@@ -122,9 +115,7 @@ describe('reconcileCharacterOwner', () => {
     state.results = [[{ userId: USER, ownerHash: 'owner-one' }]];
     await reconcileCharacterOwner(CHAR, 'owner-one');
     expect(state.calls).toEqual({ delete: 0, update: 0 });
-  });
 
-  it('purges the prior owner when the stored hash disagrees', async () => {
     state.results = [
       [{ userId: USER, ownerHash: 'owner-old' }],
       [{ id: 'acc-1' }],

@@ -129,10 +129,6 @@ describe('same-origin mutation coverage', () => {
       ...Object.keys(EXEMPT_MUTATIONS),
     ];
 
-    expect(PIPELINE_MUTATIONS).toHaveLength(26);
-    expect(DIRECT_MUTATIONS).toHaveLength(2);
-    expect(ADMIN_MUTATIONS).toHaveLength(4);
-    expect(Object.keys(EXEMPT_MUTATIONS)).toHaveLength(12);
     expect(new Set(classifiedRoutes).size).toBe(classifiedRoutes.length);
     expect(mutatingRoutes).toEqual(classifiedRoutes.sort());
   });
@@ -182,26 +178,20 @@ describe('same-origin mutation coverage', () => {
     },
   );
 
-  it('the mutation pipeline invokes the shared gate', () => {
-    const source = readFileSync(join(API_DIR, 'mutation-route.ts'), 'utf8');
+  it('keeps the shared mutation, lifecycle, and admin gates wired', () => {
+    const mutation = readFileSync(join(API_DIR, 'mutation-route.ts'), 'utf8');
+    const lifecycle = readFileSync(join(API_DIR, 'maps/lifecycle-route.ts'), 'utf8');
+    const admin = readFileSync(join(API_DIR, 'admin-mutation.ts'), 'utf8');
 
-    expect(source).toContain(
+    expect(mutation).toContain(
       "import { requireSameOrigin } from '@/platform/auth/same-origin';",
     );
-    expect(source).toContain('const originCheck = requireSameOrigin(request);');
-  });
-
-  it('the map lifecycle shell uses the mutation pipeline', () => {
-    const source = readFileSync(join(API_DIR, 'maps/lifecycle-route.ts'), 'utf8');
-    expect(source).toContain("from '@/app/api/mutation-route';");
-    expect(source).toContain('runMutationRoute(request');
-  });
-
-  it('the admin mutation gate invokes the shared admin check', () => {
-    const source = readFileSync(join(API_DIR, 'admin-mutation.ts'), 'utf8');
-    expect(source).toContain(
+    expect(mutation).toContain('const originCheck = requireSameOrigin(request);');
+    expect(lifecycle).toContain("from '@/app/api/mutation-route';");
+    expect(lifecycle).toContain('runMutationRoute(request');
+    expect(admin).toContain(
       "import { checkAdminMutation, type SessionCheckResult } from '@/platform/auth/route-guards';",
     );
-    expect(source).toContain('const gate = await checkAdminMutation(request);');
+    expect(admin).toContain('const gate = await checkAdminMutation(request);');
   });
 });

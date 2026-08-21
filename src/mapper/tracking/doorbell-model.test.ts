@@ -24,14 +24,11 @@ function response(
   return { status, reason: 'x' } as JumpResolverResponse;
 }
 
-describe('ownTrackedDoorbellRows', () => {
-  it('stays quiet until both the feed and the own-id list have arrived', () => {
+describe('own-character doorbell filter', () => {
+  it('waits for feed + own ids, keeps only this client\'s rows, and rings only those characters', async () => {
     expect(ownTrackedDoorbellRows(undefined, [101])).toBeNull();
     expect(ownTrackedDoorbellRows([tracked(101, 5_000)], undefined)).toBeNull();
     expect(ownTrackedDoorbellRows(undefined, undefined)).toBeNull();
-  });
-
-  it('keeps only this client\'s tracked characters from the shared map feed', () => {
     expect(
       ownTrackedDoorbellRows(
         [tracked(101, 5_000), tracked(202, 6_000), tracked(303, 7_000)],
@@ -39,11 +36,7 @@ describe('ownTrackedDoorbellRows', () => {
       ),
     ).toEqual([tracked(101, 5_000), tracked(303, 7_000)]);
     expect(ownTrackedDoorbellRows([tracked(101, 5_000)], [])).toEqual([]);
-  });
-});
 
-describe('ringOwnDoorbells', () => {
-  it('does not ring until memory and a loaded feed exist, then only own characters', async () => {
     const ring = vi.fn(async () => response('processed'));
     const memory = new Map<number, DoorbellMemoryEntry>();
     const feed = {
@@ -76,8 +69,6 @@ describe('pendingDoorbells', () => {
       ),
     ).toEqual([{ characterId: 101, transitionObservedAt: 5_000 }]);
 
-    // A dock/undock advances observedAt but not transitionObservedAt: the
-    // settled entry must keep the doorbell silent across those updates.
     const settled = new Map<number, DoorbellMemoryEntry>([
       [101, { transitionObservedAt: 5_000, attempts: 1, settled: true, inFlight: false }],
     ]);
@@ -132,7 +123,6 @@ describe('ring bookkeeping', () => {
       inFlight: false,
     });
     expect(ringAnswered(entry, 5_000, null).settled).toBe(false);
-    // An answer for a superseded transition leaves the newer entry untouched.
     const newer = { ...entry, transitionObservedAt: 6_000 };
     expect(ringAnswered(newer, 5_000, 'processed')).toBe(newer);
   });
@@ -161,8 +151,7 @@ describe('ringPendingTransitions', () => {
     expect(retryRing).toHaveBeenCalledTimes(DOORBELL_ATTEMPT_CAP + 1);
 
     const overlapMemory = new Map<number, DoorbellMemoryEntry>();
-    // Collect every resolver so a regression that double-rings still resolves
-    // both promises and fails on the call-count assertion, not by timeout.
+    // Collect every resolver so a Strict Mode double-enter still resolves both promises.
     const releases: Array<(value: JumpResolverResponse | null) => void> = [];
     const overlapRing = vi.fn(
       () =>
@@ -171,7 +160,7 @@ describe('ringPendingTransitions', () => {
         }),
     );
     const firstPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
-    // The double-invoked development effect re-enters before any response.
+    // React Strict Mode re-enters the development effect before any response.
     const secondPass = ringPendingTransitions(overlapMemory, [tracked(101, 5_000)], overlapRing);
     for (const release of releases) {
       release(response('processed'));

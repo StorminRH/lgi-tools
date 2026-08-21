@@ -116,7 +116,7 @@ describe('purgeEligibleMaps', () => {
     expect(tombstoneMap).not.toHaveBeenCalled();
   });
 
-  it('does not tombstone when the empty-claim fence is stale', async () => {
+  it('does not tombstone when the empty-claim fence is stale or unavailable', async () => {
     const tombstoneMap = vi.fn();
     await expect(
       purgeEligibleMaps({
@@ -133,10 +133,7 @@ describe('purgeEligibleMaps', () => {
       }),
     ).rejects.toBeInstanceOf(MapPurgeUnavailableError);
     expect(tombstoneMap).not.toHaveBeenCalled();
-  });
 
-  it('does not tombstone when the empty-claim fence is unavailable', async () => {
-    const tombstoneMap = vi.fn();
     await expect(
       purgeEligibleMaps({
         claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
