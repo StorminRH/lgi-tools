@@ -38,6 +38,7 @@ None.
 - `LOCATION_SYNC_SCOPES` lost its file banner. The live token-vend reauth path still owns the real gate. Do not grow a second production helper to replace the pin.
 - `fallow dead-code --production` warns that zone `esi-datasets` matched 0 reachable files. Those modules now live under test trees. Exit is still 0.
 - Origin #14 remains open against `development`. This record is the staging promote on #15.
+- This Cloud Agent Origin token cannot open review threads. Depot version 2 failed `walks the whole mapper zone` because the walker still treated `layout/__tests__/determinism-fixture.ts` as the mapper zone. Diagnose blamed a warm-neon timeout. The verify log is the assertion. The walker now skips `__tests__`. The disposition lives here and in chat.
 
 ## Verification summary
 
