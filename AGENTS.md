@@ -64,11 +64,10 @@ systems, not origin or far side.
 
 ## Delivery
 
-Feature work lands on Origin `development`. A push auto-deploys a
-Vercel Preview: Neon `preview/development` (3-day TTL, 0.25-1 CU from
-`neon.ts`) and Convex `preview/development`. Delete that Neon branch, Convex
-preview, and Vercel Preview when the test cycle ends. The next push to
-`development` creates them again.
+Feature work lands on Origin `development`. A `development` Preview is
+manual (Vercel dashboard or CLI): Neon `preview/development` (3-day TTL,
+0.25-1 CU from `neon.ts`) and Convex `preview/development`. Delete that
+Neon branch, Convex preview, and Vercel Preview when the test cycle ends.
 
 Promote at 80 app-facing files versus `staging`. That Origin PR updates the
 long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
@@ -76,7 +75,7 @@ long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
 `main` is the only Production auto-deploy. Every merge onto `staging`
 or `main` goes through `close-out`.
 
-`vercel.json` auto-deploys `main`, `development`, and `staging` only. Neon
+`vercel.json` auto-deploys `main` and `staging` only. Neon
 project `lively-mode-73649525`. Convex team `stormin-s-projects`, project
 `lgi-tools`. Apply `neon.ts` with `pnpm neon:apply`; nothing auto-applies it. Protected
 Neon `main` needs `--allow-protected`. Connection strings use role
