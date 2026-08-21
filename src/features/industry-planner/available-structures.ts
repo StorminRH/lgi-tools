@@ -35,7 +35,7 @@ export interface StructureTypeRow {
   groupId: number;
 }
 
-type DogmaMap = ReadonlyMap<number, Record<string, number>>;
+export type DogmaMap = ReadonlyMap<number, Record<string, number>>;
 
 /**
  * Every structure + rig type referenced by either source — the one batched

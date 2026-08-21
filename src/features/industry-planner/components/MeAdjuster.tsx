@@ -21,7 +21,7 @@ import type { OwnedComponentDetail } from '../types';
 // label). The owner/location readout (`ProvenanceRows`) appears in that icon popover,
 // after the adjusters.
 
-interface MeProps {
+export interface MeProps {
   // The producing blueprint's type id — the key the override map and `meOf` use.
   blueprintTypeId: number;
   // For the field's accessible name.
@@ -32,7 +32,7 @@ interface MeProps {
   resetMeOverride: (blueprintTypeId: number) => void;
 }
 
-interface TeProps {
+export interface TeProps {
   blueprintTypeId: number;
   name: string;
   ownedTe: Map<number, number> | null;
@@ -60,7 +60,7 @@ function deriveAdjust(owned: Map<number, number> | null, overrides: Map<number, 
 // hero card's compact bonus readout (the green the old readout pills wore) —
 // and 'reaction' — the reaction-purple hourglass in the build-character skills
 // readout (3.7.19.1), telling reaction time apart from manufacturing time.
-type IconState = NodeMeState | 'bonus' | 'reaction';
+export type IconState = NodeMeState | 'bonus' | 'reaction';
 
 /**
  * EVE's material-efficiency gem. Sized by its container. Exported so the UX sandbox

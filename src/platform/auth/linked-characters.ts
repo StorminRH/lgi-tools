@@ -6,7 +6,7 @@ import { account, characters, user } from '@/db/auth-schema';
 import type { Character } from './types';
 
 /** Login-owned character columns. Role and preferences are not in this write. */
-interface CharacterLoginIdentity {
+export interface CharacterLoginIdentity {
   characterId: number;
   name: string;
   portraitUrl: string;

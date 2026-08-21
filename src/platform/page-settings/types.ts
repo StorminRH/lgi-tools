@@ -13,7 +13,7 @@ import type { FeatureControlId } from './feature-controls';
 
 // Where a control sits: the always-present global half of the menu, a per-page
 // section, or inline on the page.
-type SettingsPlacement = 'global' | 'section' | 'inline';
+export type SettingsPlacement = 'global' | 'section' | 'inline';
 
 /**
  * A reference to ONE setting, in two kinds (ACCOUNT.6 grew the union):

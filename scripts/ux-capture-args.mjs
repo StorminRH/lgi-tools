@@ -17,7 +17,7 @@ export const VIEWPORTS = {
 
 // --- args -------------------------------------------------------------------
 // Positionals are route paths; `--flag=value` are options. No args → smoke `/`.
-export function applyFlag(opts, key, value) {
+function applyFlag(opts, key, value) {
   if (key === 'base-url') opts.baseUrl = value;
   else if (key === 'settle') {
     const n = Number(value);
@@ -65,7 +65,7 @@ export function parseArgs(argv) {
 }
 
 // `/` → home; `/sites/[id]` → sites-id; trailing/leading slashes collapsed.
-export function slugify(route) {
+function slugify(route) {
   const s = route.replace(/^\/+|\/+$/g, '').replace(/[^a-zA-Z0-9]+/g, '-');
   return s || 'home';
 }
@@ -89,7 +89,7 @@ export function assignSlugs(routes) {
 // --- report row shaping -----------------------------------------------------
 // One network line per result: the first 4xx/5xx if any, else the first failed
 // request. Callers only reach this when a result has at least one of the two.
-export function networkFirst(r) {
+function networkFirst(r) {
   return r.httpErrors[0]
     ? `${r.httpErrors[0].status} ${r.httpErrors[0].url}`
     : `${r.failedRequests[0].error} ${r.failedRequests[0].url}`;

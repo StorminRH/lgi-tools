@@ -25,7 +25,7 @@ export { tickIndices } from './chart/chart-geometry';
 const formatNumber = (value: number): string => String(value);
 const identity = (label: string): string => label;
 
-type TrendChartProps = {
+export type TrendChartProps = {
   data: { x: number; y: number }[];
   /** Category label per ordinal x — tooltip shows it in full. */
   labels: string[];

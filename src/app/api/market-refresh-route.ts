@@ -7,8 +7,8 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-type MarketRefreshEndpoint = typeof refreshHistoryEndpoint | typeof refreshPricesEndpoint;
-type MarketRefreshCapability = Extract<
+export type MarketRefreshEndpoint = typeof refreshHistoryEndpoint | typeof refreshPricesEndpoint;
+export type MarketRefreshCapability = Extract<
   CapabilityId,
   'market.refresh-market-history' | 'market.refresh-market-prices'
 >;

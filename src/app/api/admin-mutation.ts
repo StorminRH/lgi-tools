@@ -1,7 +1,7 @@
 import { checkAdminMutation, type SessionCheckResult } from '@/platform/auth/route-guards';
 import { problemResponse } from '@/transport/api-response';
 
-type AdminSession = Extract<SessionCheckResult, { ok: true }>['session'];
+export type AdminSession = Extract<SessionCheckResult, { ok: true }>['session'];
 
 /**
  * Admin form-mutation gate for routes that stay outside `runMutationRoute`.

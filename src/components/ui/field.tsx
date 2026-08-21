@@ -5,7 +5,7 @@ import { cloneElement, useId, type ReactElement, type ReactNode } from 'react';
 import { cn } from './cn';
 import { eyebrow } from './type-roles';
 
-type FieldControlElement = ReactElement<{
+export type FieldControlElement = ReactElement<{
   id?: string;
   disabled?: boolean;
   'aria-describedby'?: string;

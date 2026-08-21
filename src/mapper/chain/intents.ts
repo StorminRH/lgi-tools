@@ -13,71 +13,54 @@ export interface ChainPosition {
   readonly y: number;
 }
 
-/** A system became visible on the map, parked at its first assigned position. */
-interface SystemAppeared {
-  readonly kind: 'system-appeared';
-  readonly systemId: number;
-  readonly position: ChainPosition;
-}
-
-/** A system left the map. Emitted only from a complete snapshot, never from a draining page. */
-interface SystemDeparted {
-  readonly kind: 'system-departed';
-  readonly systemId: number;
-}
-
-/**
- * An existing, unprotected system was repositioned because the placement seam proposed a new
- * position.
- *
- * This session's grid assigner never proposes one in production — it returns an already-placed
- * node's current position unchanged — so this kind exists for 4.0.3.1's deterministic layout engine
- * and is proven now by driving the seam directly in tests. An incoming server change alone can never
- * produce it (contract HC-1).
- */
-interface SystemMoved {
-  readonly kind: 'system-moved';
-  readonly systemId: number;
-  readonly from: ChainPosition;
-  readonly to: ChainPosition;
-}
-
-/**
- * A connection became visible, meaning both of its endpoint systems are on the map.
- *
- * Visibility, not document existence: a connection whose endpoint has not arrived yet is withheld
- * silently and emits this only once that endpoint appears.
- */
-interface ConnectionAppeared {
-  readonly kind: 'connection-appeared';
-  readonly connectionId: string;
-  readonly fromSystemId: number;
-  readonly toSystemId: number;
-}
-
-/**
- * A connection stopped being visible — either its document left a complete snapshot, or one of its
- * endpoint systems departed while the document itself persists server-side.
- */
-interface ConnectionDeparted {
-  readonly kind: 'connection-departed';
-  readonly connectionId: string;
-}
-
 /**
  * Everything the reconciler can say about one merge. Exhaustive: switch on `kind`.
  *
- * The union is the public surface; its five members are deliberately NOT exported, because no caller
- * needs one in isolation today. A consumer that later wants a single kind narrows the union rather
- * than importing a variant — `Extract<MapChainIntent, { kind: 'system-moved' }>` — which keeps the
- * vocabulary frozen (PD-1) without publishing five types nothing names.
+ * The union is the public surface. A consumer that wants one kind narrows it
+ * with `Extract<MapChainIntent, { kind: 'system-moved' }>`, so the vocabulary
+ * stays frozen (PD-1) without five named variants.
+ *
+ * `system-appeared`: became visible, parked at its first assigned position.
+ * `system-departed`: left the map. Emitted only from a complete snapshot, never
+ * from a draining page.
+ * `system-moved`: an unprotected system was repositioned because the placement
+ * seam proposed a new position. This session's grid assigner never proposes one
+ * in production. It returns an already-placed node's current position unchanged,
+ * so this kind exists for 4.0.3.1's deterministic layout engine and is proven
+ * now by driving the seam directly in tests. An incoming server change alone can
+ * never produce it (contract HC-1).
+ * `connection-appeared`: both endpoint systems are on the map. Visibility, not
+ * document existence: a connection whose endpoint has not arrived yet is
+ * withheld silently and emits this only once that endpoint appears.
+ * `connection-departed`: either its document left a complete snapshot, or one of
+ * its endpoint systems departed while the document itself persists server-side.
  */
 export type MapChainIntent =
-  | SystemAppeared
-  | SystemDeparted
-  | SystemMoved
-  | ConnectionAppeared
-  | ConnectionDeparted;
+  | {
+      readonly kind: 'system-appeared';
+      readonly systemId: number;
+      readonly position: ChainPosition;
+    }
+  | {
+      readonly kind: 'system-departed';
+      readonly systemId: number;
+    }
+  | {
+      readonly kind: 'system-moved';
+      readonly systemId: number;
+      readonly from: ChainPosition;
+      readonly to: ChainPosition;
+    }
+  | {
+      readonly kind: 'connection-appeared';
+      readonly connectionId: string;
+      readonly fromSystemId: number;
+      readonly toSystemId: number;
+    }
+  | {
+      readonly kind: 'connection-departed';
+      readonly connectionId: string;
+    };
 
 /** True when two positions are the same point; the no-op test that suppresses a `system-moved`. */
 export function samePosition(a: ChainPosition, b: ChainPosition): boolean {

@@ -6,8 +6,8 @@ import {
   findWrittenTables,
   resolveImportPath,
   type WriteSite,
-} from './write-sites';
-import type { DataOwnershipEntry } from '@/composition/data-ownership-registry';
+} from './__tests__/write-sites';
+import type { DataOwnershipEntry } from '@/composition/__tests__/data-ownership-registry';
 
 const ownedAssetsTable = pgTable('owned_assets', { id: text('id').primaryKey() });
 const marketPricesTable = pgTable('market_prices', { id: text('id').primaryKey() });

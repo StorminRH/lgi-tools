@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { getBlueprintActivities, readShipMassByType } from './queries';
 import { eveTypes, industryBlueprints } from './schema';
 import { INV_683, MFG_681, RXN_46175 } from './__fixtures__/blueprint-activities';

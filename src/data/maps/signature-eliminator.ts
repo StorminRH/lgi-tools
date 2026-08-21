@@ -25,7 +25,7 @@ export interface EliminationInput {
   readonly codex: readonly WormholeCodexEntry[];
 }
 
-interface AssumedDeduction {
+export interface AssumedDeduction {
   readonly signatureId: string;
   readonly provenance: 'assumed';
 }

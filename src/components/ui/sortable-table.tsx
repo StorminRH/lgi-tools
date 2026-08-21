@@ -21,7 +21,7 @@ export interface SortableColumn<Row> {
   render: (row: Row) => ReactNode;
 }
 
-interface RenderRowArg<Row> {
+export interface RenderRowArg<Row> {
   row: Row;
   cells: ReactNode;
   key: string | number;
@@ -30,7 +30,7 @@ interface RenderRowArg<Row> {
   gridColsClass: string;
 }
 
-interface Props<Row> {
+export interface Props<Row> {
   columns: SortableColumn<Row>[];
   rows: Row[];
   // Tailwind `grid-cols-[…]` class shared by the header and every row so their

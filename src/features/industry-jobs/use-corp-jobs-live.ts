@@ -8,9 +8,7 @@
 import { useMemo } from 'react';
 import { useLiveDataset } from '@/components/use-live-dataset';
 import { type CorpJobsResponse, corpIndustryJobsEndpoint } from './api-contract';
-import { deriveCorpJobs } from './live-derive';
-
-type ViewerCorpJobs = CorpJobsResponse['corporations'][number];
+import { deriveCorpJobs, type ViewerCorpJobs } from './live-derive';
 
 // Module-level cold predicate (stable identity for the shell's effect dep).
 //

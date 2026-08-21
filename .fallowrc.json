@@ -3,28 +3,12 @@
 
   "ignoreExportsUsedInFile": false,
 
-  "entry": [
-    "src/scripts/migrate.ts",
-    "src/scripts/backfill-users-if-empty.ts",
-    "src/scripts/ingest-sde-if-empty.ts",
-    "src/scripts/warm-neon.ts",
-    "src/scripts/ingest-sde.ts",
-    "src/scripts/ci-sde-seed.ts",
-    "src/scripts/refresh-prices.ts",
-    "src/scripts/refresh-sde.ts",
-    "src/scripts/generate-architecture-map.ts",
-    "scripts/validate-resolver-output.ts",
-    "scripts/assert-route-classification.mjs",
-    "scripts/ux-capture.mjs",
-    "scripts/ux-remote-auth.mjs",
-    "scripts/run-e2e.mjs",
-    "scripts/verify-site-detail-routes.mjs",
-    "scripts/apply-neon-config.ts",
-    "src/scripts/map-replay.ts",
-    "src/scripts/project-map-access.ts",
-    "drizzle.config.ts",
-    "neon.ts"
-  ],
+  "typeAware": {
+    "enabled": true,
+    "require": "best-effort"
+  },
+
+  "entry": [],
 
   "ignorePatterns": [
     "convex/_generated/**",
@@ -40,12 +24,20 @@
     "convex/**/*.test.ts"
   ],
 
-  "ignoreDependencies": ["convex-test", "@edge-runtime/vm", "playwright", "@playwright/test", "@next/playwright"],
+  "ignoreDependencies": [
+    "convex-test",
+    "@edge-runtime/vm",
+    "playwright",
+    "@playwright/test",
+    "@next/playwright",
+    "tailwindcss"
+  ],
 
   "rules": {
     "unused-files": "error",
     "unused-exports": "error",
     "unused-types": "error",
+    "private-type-leaks": "error",
     "unused-dependencies": "error",
     "unlisted-dependencies": "error",
     "unused-enum-members": "error",
@@ -56,9 +48,21 @@
     "re-export-cycle": "error",
     "boundary-violation": "error",
     "coverage-gaps": "off",
-    "stale-suppressions": "warn",
+    "stale-suppressions": "error",
+    "unused-dev-dependencies": "error",
+    "unused-optional-dependencies": "error",
+    "type-only-dependencies": "error",
+    "test-only-dependencies": "error",
+    "unused-catalog-entries": "error",
+    "empty-catalog-groups": "error",
+    "unused-dependency-overrides": "error",
+    "unused-component-props": "error",
+    "unused-server-actions": "error",
+    "invalid-client-export": "error",
+    "mixed-client-server-barrel": "error",
+    "misplaced-directive": "error",
     "feature-flags": "off",
-    "dev-dependencies-in-production": "off"
+    "dev-dependencies-in-production": "error"
   },
 
   "health": {

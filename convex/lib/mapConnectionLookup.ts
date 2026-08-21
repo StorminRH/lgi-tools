@@ -7,7 +7,7 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 /** Maximum origin- or destination-side connections one scan transaction may inspect. */
 export const MAP_CONNECTION_SIGNATURE_SCAN_LIMIT = 128;
 
-type ConnectionScanOptions = {
+export type ConnectionScanOptions = {
   readonly limit?: number;
   readonly errorCode?: string;
   readonly errorDetail?: string;

@@ -18,7 +18,7 @@ export const PROFILE_THRESHOLDS = Object.freeze({
   minMemoryPressureFreePercent: 10,
 });
 
-export const EXPECTED_FULL_SITE_COUNT = 69;
+const EXPECTED_FULL_SITE_COUNT = 69;
 
 export function profileReason(code, message, details = {}) {
   return { code, message, ...details };
@@ -38,7 +38,7 @@ function parseByteSize(raw) {
   return Number.isFinite(value) && multiplier !== undefined ? value * multiplier : null;
 }
 
-export function parseDurationMs(raw) {
+function parseDurationMs(raw) {
   const match = String(raw).trim().match(/^(\d+(?:\.\d+)?)(µs|ms|s|min)$/);
   if (!match) return null;
   const value = Number(match[1]);
@@ -322,7 +322,7 @@ export function countDetailSentinels(html) {
   };
 }
 
-export function renderedTagsWithAttribute(html, attribute) {
+function renderedTagsWithAttribute(html, attribute) {
   const rendered = String(html).replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
   const escapedAttribute = attribute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(
@@ -347,7 +347,7 @@ export function extractDevSampleMarker(html) {
   };
 }
 
-export function assessModeExpectation({
+function assessModeExpectation({
   cardCount,
   marker,
   sampleEnv,

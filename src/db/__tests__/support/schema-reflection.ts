@@ -1,15 +1,15 @@
 import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
-import { normalizeModulePath } from '@/lib/module-path';
+import { normalizeModulePath } from '@/lib/__tests__/module-path';
 
 const schemaLoaders = import.meta.glob([
-  '../../**/schema.ts',
-  '../auth-schema.ts',
-  '../../composition/drizzle-schema.ts',
+  '../../../**/schema.ts',
+  '../../auth-schema.ts',
+  '../../../composition/drizzle-schema.ts',
 ]) as Record<string, () => Promise<unknown>>;
 
 // The glob keys are relative to this file, so they normalize against its own directory.
-const REFLECTION_DIR = 'src/db/test-support';
+const REFLECTION_DIR = 'src/db/__tests__/support';
 
 function normalizeGlobKey(key: string): string {
   return normalizeModulePath(`${REFLECTION_DIR}/${key}`);

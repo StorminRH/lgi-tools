@@ -1,7 +1,7 @@
 import { drizzle as drizzlePg, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, vi } from 'vitest';
-import { db as requestDb } from '@/db';
+import { db as requestDb, type Sql } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { readEnv } from '@/lib/env';
 
@@ -11,8 +11,6 @@ import { readEnv } from '@/lib/env';
 // Schema, table, and foreign-key identifiers come only from in-repo suite
 // constants. postgres-js cannot parameterize identifiers, so the lifecycle
 // helpers use `unsafe` strictly for that trusted DDL/reset boundary.
-
-type Sql = ReturnType<typeof postgres>;
 
 const LOCAL_DB_URL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
 

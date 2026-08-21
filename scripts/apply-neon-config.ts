@@ -2,7 +2,11 @@
 // branch `expiresAt`, so standing previews get a follow-up PATCH to null.
 import { spawn } from 'node:child_process';
 import { config } from 'dotenv';
-import { clearStandingPreviewExpirations } from '../neon';
+import neonConfig, { clearStandingPreviewExpirations } from '../neon';
+
+if (neonConfig == null) {
+  throw new Error('neon.ts did not export a branch policy');
+}
 
 config({ path: process.env.DOTENV_PATH ?? '.env.local' });
 

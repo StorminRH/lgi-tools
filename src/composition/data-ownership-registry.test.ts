@@ -5,7 +5,7 @@ import {
   DATA_CLASS_DECISIONS,
   describeDbInvariants,
   sliceOfPath,
-} from './data-ownership-registry';
+} from './__tests__/data-ownership-registry';
 import { user } from '@/db/auth-schema';
 import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { ownedAssets } from '@/features/owned-assets/schema';

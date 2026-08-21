@@ -18,13 +18,13 @@ import type {
 } from '@/transport/endpoint';
 
 /** Server-to-server call context: the trusted deployment base URL and the service secret. */
-interface ServiceCallInit {
+export interface ServiceCallInit {
   baseUrl: string;
   secret: string;
 }
 
 /** Request body argument inferred from whether the endpoint declares a request schema. */
-type ServiceBodyArgs<TEndpoint extends EndpointContract> = TEndpoint['request'] extends null
+export type ServiceBodyArgs<TEndpoint extends EndpointContract> = TEndpoint['request'] extends null
   ? { body?: never }
   : { body: RequestInputOf<TEndpoint> };
 

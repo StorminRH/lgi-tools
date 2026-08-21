@@ -12,7 +12,7 @@ import { useLiveDataset } from '@/components/use-live-dataset';
 import { anyEligibleCold, eligibleIdsKey } from '@/lib/live-dataset';
 import { skillsEndpoint, type SkillsResponse } from './api-contract';
 
-type ViewerSkills = SkillsResponse['characters'][number];
+export type ViewerSkills = SkillsResponse['characters'][number];
 
 // Module-level cold predicate (stable identity for the shell's effect dep): any
 // scope-eligible character still un-synced (data:null) means the write-behind hasn't

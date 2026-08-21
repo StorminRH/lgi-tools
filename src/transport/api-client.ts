@@ -16,15 +16,15 @@ import type {
   UrlInputOf,
 } from './endpoint';
 
-type CallInit = Pick<RequestInit, 'signal' | 'cache' | 'keepalive'>;
+export type CallInit = Pick<RequestInit, 'signal' | 'cache' | 'keepalive'>;
 
 /** Body argument inferred from whether an endpoint declares a request schema. */
-type BodyArg<TEndpoint extends EndpointContract> = TEndpoint['request'] extends null
+export type BodyArg<TEndpoint extends EndpointContract> = TEndpoint['request'] extends null
   ? { body?: never }
   : { body: RequestInputOf<TEndpoint> };
 
 /** Everything one call site may supply: transport options, URL input, and a request body. */
-type EndpointCallInit<TEndpoint extends EndpointContract> = CallInit &
+export type EndpointCallInit<TEndpoint extends EndpointContract> = CallInit &
   UrlInputOf<TEndpoint> &
   BodyArg<TEndpoint>;
 

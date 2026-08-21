@@ -4,29 +4,22 @@ import {
   compareCanonical,
   groupFlatByBlueprint,
   sortTree,
-  stableStringify,
 } from './resolver-fixtures.ts';
 
-describe('stableStringify', () => {
+describe('compareCanonical shaping', () => {
   it('serialises primitives like JSON.stringify', () => {
-    expect(stableStringify(1)).toBe('1');
-    expect(stableStringify('x')).toBe('"x"');
-    expect(stableStringify(null)).toBe('null');
-    expect(stableStringify(true)).toBe('true');
+    expect(compareCanonical(1, 1)).toEqual({ equal: true, expected: '1', actual: '1' });
+    expect(compareCanonical('x', 'x').expected).toBe('"x"');
+    expect(compareCanonical(null, null).expected).toBe('null');
+    expect(compareCanonical(true, true).expected).toBe('true');
   });
 
-  it('sorts object keys recursively', () => {
-    expect(stableStringify({ b: 1, a: 2 })).toBe('{"a":2,"b":1}');
-    expect(stableStringify({ b: { d: 1, c: 2 }, a: 3 })).toBe('{"a":3,"b":{"c":2,"d":1}}');
-  });
-
-  it('preserves array order (arrays are pre-sorted by callers)', () => {
-    expect(stableStringify([3, 1, 2])).toBe('[3,1,2]');
-    expect(stableStringify([{ b: 1, a: 2 }])).toBe('[{"a":2,"b":1}]');
-  });
-
-  it('is key-order independent for equal objects', () => {
-    expect(stableStringify({ a: 1, b: 2 })).toBe(stableStringify({ b: 2, a: 1 }));
+  it('sorts object keys recursively and preserves array order', () => {
+    expect(compareCanonical({ b: 1, a: 2 }, { a: 2, b: 1 }).expected).toBe('{"a":2,"b":1}');
+    expect(compareCanonical({ b: { d: 1, c: 2 }, a: 3 }, { a: 3, b: { c: 2, d: 1 } }).expected)
+      .toBe('{"a":3,"b":{"c":2,"d":1}}');
+    expect(compareCanonical([3, 1, 2], [3, 1, 2]).expected).toBe('[3,1,2]');
+    expect(compareCanonical([{ b: 1, a: 2 }], [{ a: 2, b: 1 }]).expected).toBe('[{"a":2,"b":1}]');
   });
 });
 

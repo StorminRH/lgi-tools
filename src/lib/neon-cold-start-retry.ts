@@ -26,13 +26,13 @@ const MAX_CHAIN_DEPTH = 10;
  * One Neon cold-start retry observation with attempt count and elapsed milliseconds; it contains
  * no query text or user identity.
  */
-interface NeonColdStartMetric {
+export interface NeonColdStartMetric {
   outcome: 'recovered' | 'exhausted';
   attempts: number;
   totalDelayMs: number;
 }
 
-type NeonColdStartMetricSink = (metric: NeonColdStartMetric) => void | Promise<void>;
+export type NeonColdStartMetricSink = (metric: NeonColdStartMetric) => void | Promise<void>;
 
 let metricSink: NeonColdStartMetricSink | null = null;
 

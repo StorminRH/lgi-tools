@@ -2,7 +2,7 @@ import { formatIskHeader } from './format';
 import { deriveSiteMeta } from './site-meta';
 import type { SiteDetail } from './types';
 
-interface SiteSocialCardContent {
+export interface SiteSocialCardContent {
   name: string;
   classification: string;
   value: string;

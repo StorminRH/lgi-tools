@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { asc } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import type { PostgresJsDb } from '@/lib/db-types';
 import type { SdeJsonlPaths } from './source';
 import type { UniverseDataset } from './universe';

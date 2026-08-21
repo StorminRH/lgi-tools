@@ -7,7 +7,7 @@ import { readEnv, requireEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { withQueryTiming } from './timed-postgres';
 
-type Db = ReturnType<typeof drizzleHttp>;
+export type Db = ReturnType<typeof drizzleHttp>;
 type HttpClient = ReturnType<typeof neon>;
 
 /** Owned alias for the postgres-js client handle; downstream modules type against this, never the vendor package. */

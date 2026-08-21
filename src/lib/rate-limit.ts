@@ -28,7 +28,7 @@ export interface RateLimitDenied {
 /** Closed rate-limit result requiring callers to handle allowed and denied outcomes explicitly. */
 export type RateLimitResult = RateLimitOk | RateLimitDenied;
 
-interface RateLimitOptions {
+export interface RateLimitOptions {
   perMinute: number;
   name: string;
 }

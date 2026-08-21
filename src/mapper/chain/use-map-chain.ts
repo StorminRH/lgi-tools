@@ -103,7 +103,7 @@ const TOMBSTONE_TICK_MS = 60_000;
 /** Whether the caller holds access, or `undefined` until the access subscription first answers. */
 export type MapAccessState = boolean | undefined;
 
-interface NormalizedMapAccess {
+export interface NormalizedMapAccess {
   readonly access: MapAccessState;
   readonly canEdit: boolean | undefined;
 }
@@ -237,13 +237,13 @@ export function unresolvedHolesFromRows(
     .map((row) => connectionEditorDetail(row) as UnresolvedHoleSummary);
 }
 
-interface StubLayoutRow extends UnresolvedHoleSummary {
+export interface StubLayoutRow extends UnresolvedHoleSummary {
   readonly fromSignatureId: string;
   /** Negative kernel-only id; EVE system ids are positive, so it cannot collide. */
   readonly layoutSystemId: number;
 }
 
-type AccountedStubLayoutRow = PlannedStub & {
+export type AccountedStubLayoutRow = PlannedStub & {
   readonly layoutSystemId: number;
 };
 
@@ -362,7 +362,7 @@ export function placedStubs(
 }
 
 /** The row shapes the signature summarizes, kept minimal so the function stays pure and testable. */
-interface SignatureInput {
+export interface SignatureInput {
   readonly systems: { readonly rows: readonly { readonly systemId: number }[]; readonly complete: boolean };
   readonly connections: {
     readonly rows: readonly {

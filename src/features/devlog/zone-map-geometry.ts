@@ -14,20 +14,20 @@
 
 import { architectureMap } from './architecture-map.generated';
 
-type GeneratedMap = typeof architectureMap;
+export type GeneratedMap = typeof architectureMap;
 
 // How a zone earns its files, as classified by the generator.
-type ZoneNodeKind = GeneratedMap['nodes'][number]['kind'];
+export type ZoneNodeKind = GeneratedMap['nodes'][number]['kind'];
 
 // The generator's three relation classes.
-type ZoneEdgeKind = GeneratedMap['edges'][number]['kind'];
+export type ZoneEdgeKind = GeneratedMap['edges'][number]['kind'];
 
 // The relation classes that become matrix cells. A carve-out is classification
 // precedence, not a permission, so it annotates a row label instead.
-type ZoneCellKind = Exclude<ZoneEdgeKind, 'carve-out'>;
+export type ZoneCellKind = Exclude<ZoneEdgeKind, 'carve-out'>;
 
-type ZoneMapNode = { id: string; label: string; layer: number; kind: ZoneNodeKind };
-type ZoneMapEdge = { from: string; to: string; kind: ZoneEdgeKind };
+export type ZoneMapNode = { id: string; label: string; layer: number; kind: ZoneNodeKind };
+export type ZoneMapEdge = { from: string; to: string; kind: ZoneEdgeKind };
 
 /** The generated graph as this module consumes it. */
 export type ZoneMapGraph = {
@@ -36,7 +36,7 @@ export type ZoneMapGraph = {
 };
 
 // One lit cell: the row zone holds a declared permission on the column zone.
-type ZoneMapCell = {
+export type ZoneMapCell = {
   from: string;
   to: string;
   kind: ZoneCellKind;
@@ -45,10 +45,10 @@ type ZoneMapCell = {
 };
 
 // One axis label, positioned for its row or column.
-type ZoneMapLabel = { id: string; label: string; x: number; y: number };
+export type ZoneMapLabel = { id: string; label: string; x: number; y: number };
 
 // A marker beside the row label of a zone carved out of a later zone's patterns.
-type ZoneMapMarker = { id: string; x: number; y: number };
+export type ZoneMapMarker = { id: string; x: number; y: number };
 
 /**
  * What a legend row explains. `forbidden` is an empty cell between two different zones —
@@ -58,7 +58,7 @@ type ZoneMapMarker = { id: string; x: number; y: number };
 export type ZoneMapLegendKind = ZoneCellKind | 'carve-out' | 'same-zone' | 'forbidden';
 
 // One legend row: its swatch kind, its text, and where both sit.
-type ZoneMapLegendEntry = {
+export type ZoneMapLegendEntry = {
   kind: ZoneMapLegendKind;
   label: string;
   x: number;

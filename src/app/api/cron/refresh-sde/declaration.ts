@@ -14,7 +14,7 @@ import {
   summarizeMarketPricesRowCount,
 } from '@/composition/pipelines/sde-pipeline';
 
-type SdePreLock = {
+export type SdePreLock = {
   db: ReturnType<typeof drizzle>;
   storedVersion: string | null;
   remoteVersion: string | null;

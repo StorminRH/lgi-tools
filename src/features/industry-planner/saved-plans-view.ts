@@ -41,7 +41,7 @@ export function savedEmptyLine(args: { listFailed: boolean; signedOut: boolean }
  * render shell over the shared list hook. File-local because only the view
  * builder consumes this verdict.
  */
-type SavedPlansViewState =
+export type SavedPlansViewState =
   | { kind: 'blank' }
   | { kind: 'empty'; line: string }
   | { kind: 'list' };

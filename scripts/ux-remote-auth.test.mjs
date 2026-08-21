@@ -7,22 +7,18 @@ afterEach(() => {
 });
 
 describe('ux-remote-auth bypass', () => {
-  it('vercelBypassHeaders resolves empty, explicit, and env secrets', async () => {
-    process.env.VERCEL_AUTOMATION_BYPASS_SECRET = 'must-not-be-used';
-    const { vercelBypassHeaders } = await import('./ux-remote-auth.mjs');
-    expect(vercelBypassHeaders('')).toBeUndefined();
-
-    expect(vercelBypassHeaders('test-secret')).toEqual({
-      'x-vercel-protection-bypass': 'test-secret',
-      'x-vercel-set-bypass-cookie': 'true',
-    });
-
+  it('loadRemoteAuthOptions reports bypass from env and not from an empty secret', async () => {
     process.env.VERCEL_AUTOMATION_BYPASS_SECRET = 'from-env-secret';
-    vi.resetModules();
-    const envMod = await import('./ux-remote-auth.mjs');
-    expect(envMod.vercelBypassHeaders()).toEqual({
-      'x-vercel-protection-bypass': 'from-env-secret',
-      'x-vercel-set-bypass-cookie': 'true',
+    const { installOriginScopedBypass, loadRemoteAuthOptions } = await import(
+      './ux-remote-auth.mjs'
+    );
+    expect(await installOriginScopedBypass({ route: vi.fn() }, 'https://lgi.tools', '')).toBe(
+      false,
+    );
+    await expect(loadRemoteAuthOptions({})).resolves.toEqual({
+      storageState: undefined,
+      cookies: [],
+      bypassConfigured: true,
     });
   });
 

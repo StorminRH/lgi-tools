@@ -4,7 +4,7 @@ import { readEnv } from '@/lib/env';
 import { forbiddenFailure, type AppFailure } from '@/lib/failure';
 
 type OriginSource = 'origin' | 'referer';
-type SameOriginResult = { ok: true } | { ok: false; failure: AppFailure };
+export type SameOriginResult = { ok: true } | { ok: false; failure: AppFailure };
 
 function normalizeOrigin(value: string, addHttps = false): string | null {
   try {

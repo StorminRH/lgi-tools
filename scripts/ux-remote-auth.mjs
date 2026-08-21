@@ -13,7 +13,7 @@ import { readFile } from 'node:fs/promises';
 let dotenvLoaded = false;
 
 /** Load `.env.local` once when the bypass secret is not already in the environment. */
-export function ensureBypassSecretFromEnvLocal() {
+function ensureBypassSecretFromEnvLocal() {
   if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET || dotenvLoaded) return;
   loadDotenv({ path: process.env.DOTENV_PATH ?? '.env.local' });
   dotenvLoaded = true;
@@ -25,7 +25,7 @@ export function ensureBypassSecretFromEnvLocal() {
  * once). Pass `''` to force "no bypass". Never log the secret value.
  * Do not pass this object to `browser.newContext({ extraHTTPHeaders })`.
  */
-export function vercelBypassHeaders(secret) {
+function vercelBypassHeaders(secret) {
   let resolved = secret;
   if (resolved === undefined) {
     ensureBypassSecretFromEnvLocal();
@@ -92,7 +92,7 @@ function parseCookieLine(line) {
 }
 
 /** Parses a Netscape-format cookie jar into Playwright `addCookies` objects. */
-export async function readNetscapeCookies(filePath) {
+async function readNetscapeCookies(filePath) {
   if (!filePath) return [];
   const contents = await readFile(filePath, 'utf8');
   return contents

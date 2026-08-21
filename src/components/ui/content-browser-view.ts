@@ -8,7 +8,7 @@ export type ContentNavItem = {
 };
 
 /** One titled content-navigation group with ordered document links ready for the shared browser sidebar. */
-type ContentNavGroup = {
+export type ContentNavGroup = {
   slug: string;
   title: string;
   items: ContentNavItem[];

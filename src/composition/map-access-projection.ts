@@ -19,7 +19,7 @@ export interface MapAccessClaim {
   readonly roles: readonly MapRole[];
 }
 
-interface ProjectionCounts {
+export interface ProjectionCounts {
   readonly inserted: number;
   readonly updated: number;
   readonly deleted: number;
@@ -135,7 +135,7 @@ export function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]>
   return computeMapAccessClaimsForState(mapId, false);
 }
 
-interface ProjectMapAccessOptions {
+export interface ProjectMapAccessOptions {
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
 }

@@ -2,7 +2,7 @@
 // produce byte-identical positions, within a process and across processes.
 import { describe, expect, it } from 'vitest';
 import { compassKernel } from './compass';
-import { DETERMINISM_DIGESTS } from './determinism-fixture';
+import { DETERMINISM_DIGESTS } from './__tests__/determinism-fixture';
 import { DEFAULT_LAYOUT_CONFIG } from './layout-contract';
 import { generateChain, positionDigest, PROOF_CORPUS } from './proof-kit';
 

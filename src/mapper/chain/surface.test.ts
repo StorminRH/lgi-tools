@@ -100,7 +100,12 @@ describe('mapper source contract', () => {
 
   function mapperFiles(): string[] {
     return readdirSync(ROOT, { recursive: true, encoding: 'utf8' })
-      .filter((name) => /\.tsx?$/.test(name) && !name.includes('.test.'))
+      .filter(
+        (name) =>
+          /\.tsx?$/.test(name) &&
+          !name.includes('.test.') &&
+          !name.includes('__tests__/'),
+      )
       .map((name) => name.replaceAll('\\', '/'));
   }
 
@@ -164,7 +169,6 @@ describe('mapper source contract', () => {
       'index.ts',
       'jump-client.ts',
       'layout/compass.ts',
-      'layout/determinism-fixture.ts',
       'layout/facts.ts',
       'layout/geometry.ts',
       'layout/kernel-requests.ts',

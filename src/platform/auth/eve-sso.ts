@@ -86,7 +86,7 @@ function buildTokenRequestInit(
   };
 }
 
-interface ExchangeCodeInput {
+export interface ExchangeCodeInput {
   code: string;
   codeVerifier: string;
   clientId: string;
@@ -129,7 +129,7 @@ export async function exchangeCodeForToken({
   return parsed.data;
 }
 
-interface RefreshTokenInput {
+export interface RefreshTokenInput {
   refreshToken: string;
   clientId: string;
   clientSecret: string;
@@ -227,7 +227,7 @@ export async function refreshEveToken({
   };
 }
 
-interface RevokeTokenInput {
+export interface RevokeTokenInput {
   refreshToken: string;
   clientId: string;
   clientSecret: string;
@@ -282,7 +282,7 @@ export async function verifyEveJwt(accessToken: string): Promise<EveJwtClaims> {
   return payload as unknown as EveJwtClaims;
 }
 
-interface CharacterIdentity {
+export interface CharacterIdentity {
   characterId: number;
   name: string;
   portraitUrl: string;

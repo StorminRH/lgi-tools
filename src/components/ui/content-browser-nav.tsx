@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { ContentNavItem, ContentNavModel } from './content-browser-view';
 import { contentBrowserHref, deriveActiveContentSlug } from './content-browser-view';
 
-type ContentBrowserNavProps = {
+export type ContentBrowserNavProps = {
   basePath: `/${string}`;
   navigationLabel: string;
   landingSlug: string | null;

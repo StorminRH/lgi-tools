@@ -5,7 +5,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { cn } from './cn';
 import { panelSurface } from './dropdown-panel';
 
-type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
+export type TooltipPositionerProps = React.ComponentProps<typeof Base.Positioner>;
 
 /**
  * Renders the domain-neutral tooltip with house behavior and tokens; callers own semantic meaning
@@ -21,8 +21,8 @@ export function Tooltip({
 }: {
   content: ReactNode;
   children: ReactElement;
-  side?: PositionerProps['side'];
-  align?: PositionerProps['align'];
+  side?: TooltipPositionerProps['side'];
+  align?: TooltipPositionerProps['align'];
   disabled?: boolean;
   className?: string;
 }) {

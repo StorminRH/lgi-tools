@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { canSyncLocation, LOCATION_SYNC_SCOPES } from './sync-eligibility';
+import { canSyncLocation, LOCATION_SYNC_SCOPES } from './__tests__/sync-eligibility';
 
 test('LOCATION_SYNC_SCOPES pins verified location and ship-type scopes', () => {
   // These exact strings are pinned ∈ EVE_SCOPES by the auth feature's own pin

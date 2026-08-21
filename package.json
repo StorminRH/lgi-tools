@@ -56,8 +56,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "fallow": "fallow dead-code --fail-on-issues && fallow dupes --fail-on-issues && fallow health --fail-on-issues --coverage coverage/coverage-final.json",
+    "fallow": "fallow dead-code --fail-on-issues && fallow dead-code --production --fail-on-issues && fallow dupes --fail-on-issues && fallow health --fail-on-issues --coverage coverage/coverage-final.json",
     "fallow:health": "fallow health --coverage coverage/coverage-final.json",
+    "fallow:health:local": "fallow health --fail-on-issues --max-crap 10000",
     "verify": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm fallow"
   },
   "dependencies": {
@@ -112,7 +113,7 @@
     "eslint-config-next": "16.3.0",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-tsdoc": "0.5.2",
-    "fallow": "3.14.0",
+    "fallow": "3.16.0",
     "playwright": "^1.61.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.1",

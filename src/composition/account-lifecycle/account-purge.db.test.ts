@@ -8,7 +8,7 @@ import {
   seedCharacter as insertCharacter,
   seedEveAccount as insertEveAccount,
   seedUser,
-} from '@/db/test-support/db-test-harness';
+} from '@/db/__tests__/support/db-test-harness';
 
 const revokeMock = vi.hoisted(() => vi.fn());
 const mapPurge = vi.hoisted(() => ({

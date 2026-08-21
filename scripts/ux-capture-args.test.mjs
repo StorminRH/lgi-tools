@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  applyFlag,
   assignSlugs,
-  networkFirst,
   parseArgs,
-  slugify,
   summariseResults,
 } from './ux-capture-args.mjs';
 
@@ -13,28 +10,33 @@ afterEach(() => {
 });
 
 describe('ux-capture args helpers', () => {
-  it('applyFlag sets known options and ignores junk', () => {
-    const opts = {};
-    applyFlag(opts, 'base-url', 'http://localhost:4000');
-    applyFlag(opts, 'settle', '2500');
-    expect(opts).toEqual({ baseUrl: 'http://localhost:4000', settle: 2500 });
+  it('parseArgs sets known options and ignores junk', () => {
+    const flagged = parseArgs([
+      '/',
+      '--base-url=http://localhost:4000',
+      '--settle=2500',
+    ]);
+    expect(flagged.opts).toMatchObject({
+      baseUrl: 'http://localhost:4000',
+      settle: 2500,
+    });
 
     // Junk against a non-zero prior — "preserve" must be distinguishable from
     // "reset to 0", so the parseable-0 case comes after.
-    applyFlag(opts, 'settle', 'soon');
-    expect(opts.settle).toBe(2500);
-    applyFlag(opts, 'settle', '0');
-    expect(opts.settle).toBe(0);
+    expect(parseArgs(['/', '--settle=2500', '--settle=soon']).opts.settle).toBe(2500);
+    expect(parseArgs(['/', '--settle=2500', '--settle=0']).opts.settle).toBe(0);
 
-    applyFlag(opts, 'viewport', 'desktop, mobile, tablet');
-    expect(opts.viewports).toEqual(['desktop', 'mobile', 'tablet']);
-    applyFlag(opts, 'viewports', 'wide, cinema');
-    expect(opts.viewports).toEqual(['wide']);
+    expect(parseArgs(['/', '--viewport=desktop, mobile, tablet']).opts.viewports).toEqual([
+      'desktop',
+      'mobile',
+      'tablet',
+    ]);
+    expect(parseArgs(['/', '--viewports=wide, cinema']).opts.viewports).toEqual(['wide']);
 
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const before = { ...opts };
-    applyFlag(opts, 'wat', 'x');
-    expect(opts).toEqual(before);
+    const before = parseArgs(['/', '--settle=2500']);
+    const ignored = parseArgs(['/', '--settle=2500', '--wat=x']);
+    expect(ignored.opts.settle).toBe(before.opts.settle);
     expect(spy).toHaveBeenCalledWith('  (ignoring unknown flag --wat)');
   });
 
@@ -78,8 +80,8 @@ describe('ux-capture args helpers', () => {
     ['/sites/[id]', 'sites-id-'],
     ['/a/b', 'a-b'],
     ['/industry/templates/', 'industry-templates'],
-  ])('slugify %s → %s', (route, expected) => {
-    expect(slugify(route)).toBe(expected);
+  ])('assignSlugs %s → %s', (route, expected) => {
+    expect(assignSlugs([route])[0].slug).toBe(expected);
   });
 
   it('assignSlugs pairs routes and suffixes collisions', () => {
@@ -95,19 +97,35 @@ describe('ux-capture args helpers', () => {
     ]);
   });
 
-  it('networkFirst prefers http errors then failed requests', () => {
+  it('summariseResults prefers http errors then failed requests', () => {
+    const clean = {
+      route: '/',
+      viewport: 'desktop',
+      failureArtifacts: [],
+      screenshots: [],
+      loadError: null,
+      consoleErrors: [],
+      pageErrors: [],
+      failedRequests: [],
+      httpErrors: [],
+    };
     expect(
-      networkFirst({
-        httpErrors: [{ url: 'http://x/y', status: 500 }],
-        failedRequests: [{ url: 'http://x/z', error: 'net::ERR' }],
-      }),
-    ).toBe('500 http://x/y');
+      summariseResults([
+        {
+          ...clean,
+          failedRequests: [{ url: 'http://x/z', error: 'net::ERR' }],
+          httpErrors: [{ url: 'http://x/y', status: 500 }],
+        },
+      ]).networkRows,
+    ).toEqual(['/ [desktop]: 2 — 500 http://x/y']);
     expect(
-      networkFirst({
-        httpErrors: [],
-        failedRequests: [{ url: 'http://x/z', error: 'net::ERR_FAILED' }],
-      }),
-    ).toBe('net::ERR_FAILED http://x/z');
+      summariseResults([
+        {
+          ...clean,
+          failedRequests: [{ url: 'http://x/z', error: 'net::ERR_FAILED' }],
+        },
+      ]).networkRows,
+    ).toEqual(['/ [desktop]: 1 — net::ERR_FAILED http://x/z']);
   });
 
   it('summariseResults shapes artifact counts and failure rows', () => {

@@ -186,9 +186,7 @@ describe('connection authoring dispatchers', () => {
   });
 
   it('deletes unresolved stubs through removeSignatures, not sever', async () => {
-    const { connectionLifecycleActions, removeStubAndAnnounce } = await import(
-      './connection-authoring-api'
-    );
+    const { connectionLifecycleActions } = await import('./connection-authoring-api');
     const api = authoring();
     api.removeSignatures.mockResolvedValueOnce({ changed: 1 });
     const onDone = vi.fn();
@@ -210,13 +208,13 @@ describe('connection authoring dispatchers', () => {
 
     api.removeSignatures.mockResolvedValueOnce(undefined);
     toastError.mockClear();
-    await removeStubAndAnnounce({
+    connectionLifecycleActions({
       mapId: 'map-a',
-      systemId: 7,
-      signatureId: 'ABC-123',
+      connectionId: 'stub-1' as Id<'mapConnections'>,
       authoring: api,
       onDone: vi.fn(),
-    });
-    expect(toastError).toHaveBeenCalledOnce();
+      stub: { systemId: 7, signatureId: 'ABC-123' },
+    }).remove();
+    await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
   });
 });

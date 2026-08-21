@@ -11,7 +11,7 @@ export const CLIENT_USAGE_ACTIONS = ['page_view', 'terminal_search'] as const;
  * never accepted from a client. The auth/admin/feedback audit trail plus the
  * 3.0.10 observability health signals.
  */
-type ServerUsageAction =
+export type ServerUsageAction =
   | 'auth_login'
   | 'auth_logout'
   | 'role_change'

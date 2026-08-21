@@ -1,5 +1,5 @@
 import { describe, it } from 'vitest';
-import { createEslintRail } from './eslint-rail.mjs';
+import { createEslintRail } from './__tests__/eslint-rail.mjs';
 
 const {
   expectSyntax,
@@ -41,7 +41,7 @@ const allowRateLimit = ['src/lib/rate-limit.ts', '@upstash/ratelimit'];
 const allowNeonDb = ['src/db/index.ts', '@neondatabase/serverless'];
 const allowPostgresDb = ['src/db/index.ts', 'postgres'];
 const allowPostgresMigrate = ['src/scripts/migrate.ts', 'postgres'];
-const allowPostgresHarness = ['src/db/test-support/db-test-harness.ts', 'postgres'];
+const allowPostgresHarness = ['src/db/__tests__/support/db-test-harness.ts', 'postgres'];
 const allowPostgresAdvisory = ['src/db/advisory-lock.concurrency.test.ts', 'postgres'];
 const allowBetterAuthDrizzle = ['src/platform/auth/auth.ts', 'better-auth/adapters/drizzle'];
 const allowBetterAuthReact = ['src/platform/auth/auth-client.ts', 'better-auth/react'];

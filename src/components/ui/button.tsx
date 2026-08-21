@@ -43,11 +43,11 @@ export const buttonVariants = cva(
   },
 );
 
-type StyledButtonProps = Omit<VariantProps<typeof buttonVariants>, 'variant'> & {
+export type StyledButtonProps = Omit<VariantProps<typeof buttonVariants>, 'variant'> & {
   variant?: NonNullable<VariantProps<typeof buttonVariants>['variant']>;
 };
 
-type BareButtonProps = Omit<VariantProps<typeof buttonVariants>, 'variant' | 'size'> & {
+export type BareButtonProps = Omit<VariantProps<typeof buttonVariants>, 'variant' | 'size'> & {
   variant: 'bare';
   size?: never;
 };

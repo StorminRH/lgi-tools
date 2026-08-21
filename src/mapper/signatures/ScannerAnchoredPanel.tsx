@@ -27,11 +27,11 @@ function rowElement(signatureId: string | null): Element | null {
   );
 }
 
-type MeasuredBox = {
+export type MeasuredBox = {
   getBoundingClientRect(): DOMRect;
 };
 
-type MeasuredRow = MeasuredBox & {
+export type MeasuredRow = MeasuredBox & {
   closest(selector: string): MeasuredBox | null;
 };
 

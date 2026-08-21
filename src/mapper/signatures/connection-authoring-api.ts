@@ -173,7 +173,7 @@ export function connectionLifecycleActions(input: {
 }
 
 /** Tombstones one unresolved stub and offers the signature-restore undo. */
-export async function removeStubAndAnnounce(input: {
+async function removeStubAndAnnounce(input: {
   readonly mapId: string;
   readonly systemId: number;
   readonly signatureId: string;

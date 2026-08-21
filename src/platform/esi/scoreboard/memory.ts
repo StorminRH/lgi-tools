@@ -120,13 +120,13 @@ class MemoryScoreboard implements EsiScoreboard {
  * Creates the process-local scoreboard used when Redis is unavailable, with bounded maps and the
  * same dispatch contract as the Redis implementation.
  */
-export function createMemoryScoreboard(): MemoryScoreboard {
+export function createMemoryScoreboard(): EsiScoreboard {
   return new MemoryScoreboard();
 }
 
 /** Returns a point-in-time budget snapshot from the in-memory scoreboard. */
 export function readMemoryBudgetSnapshot(
-  scoreboard: MemoryScoreboard,
+  scoreboard: EsiScoreboard,
 ): Promise<EsiBudgetSnapshot> {
   return scoreboard.budgetSnapshot();
 }

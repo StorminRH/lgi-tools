@@ -10,12 +10,20 @@ Run each command as its own execution in the supplied order along with any suppl
 pnpm typecheck
 pnpm lint
 pnpm exec fallow dead-code --fail-on-issues
+pnpm exec fallow dead-code --production --fail-on-issues
 pnpm exec fallow dupes --fail-on-issues
-pnpm exec fallow health --fail-on-issues
+pnpm fallow:health:local
 ```
 
-Do not pass `--coverage`. A focused-test `coverage/coverage-final.json`
-makes unmatched functions look untested and fails the rest of the tree.
+`pnpm fallow:health:local` gates cyclomatic and cognitive. It raises
+`--max-crap` because this run has no Istanbul map. Without that map,
+Fallow estimates coverage from the graph and the default CRAP 30 stays
+red. CI `pnpm fallow` feeds `coverage/coverage-final.json` and keeps
+that CRAP gate.
+
+A focused-test coverage map makes unmatched functions look untested
+and fails the rest of the tree. The suite is green when every command
+exits 0. The caller lands after that.
 
 - Do not prepend or append shell instrumentation, and never modify a command to
 manufacture an exit code.

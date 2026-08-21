@@ -7,7 +7,7 @@ import { loadDevlog } from '@/features/devlog/load';
 import { flattenDocuments, introDocument } from '@/features/devlog/parse';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
-type SitemapInputs = {
+export type SitemapInputs = {
   sites: { id: number }[];
   changelog: { slug: string; updated: string }[];
   devlog: { slug: string; updated: string }[];

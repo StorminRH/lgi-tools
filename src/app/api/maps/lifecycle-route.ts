@@ -12,17 +12,17 @@ import { checkUserId } from '@/platform/auth/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-type MapLifecycleEndpoint =
+export type MapLifecycleEndpoint =
   | typeof deleteMapEndpoint
   | typeof restoreMapEndpoint
   | typeof purgeMapNowEndpoint;
 
-type MapLifecycleCapability = Extract<
+export type MapLifecycleCapability = Extract<
   CapabilityId,
   'maps.delete-map' | 'maps.restore-map' | 'maps.request-map-purge'
 >;
 
-type MapLifecycleDenial = {
+export type MapLifecycleDenial = {
   readonly code: 'map_admin_required' | 'map_restore_unavailable' | 'map_creator_required';
   readonly detail: string;
 };

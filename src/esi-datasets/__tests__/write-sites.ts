@@ -21,9 +21,9 @@
 // The census pins a positive found-set against these, so a scanner that silently
 // stops finding writes fails the suite instead of passing it.
 import { readdirSync, readFileSync } from 'node:fs';
-import type { DataOwnershipEntry } from '@/composition/data-ownership-registry';
-import { sliceOfPath } from '@/composition/data-ownership-registry';
-import { normalizeModulePath } from '@/lib/module-path';
+import type { DataOwnershipEntry } from '@/composition/__tests__/data-ownership-registry';
+import { sliceOfPath } from '@/composition/__tests__/data-ownership-registry';
+import { normalizeModulePath } from '@/lib/__tests__/module-path';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 
 /** One production write: the file that makes it, that file's slice, and the SQL table it targets. */
@@ -33,7 +33,13 @@ export interface WriteSite {
   readonly table: string;
 }
 
-const SKIPPED_DIRECTORIES = new Set(['test-support', 'node_modules', '__fixtures__']);
+const SKIPPED_DIRECTORIES = new Set([
+  'test-support',
+  '__tests__',
+  '__mocks__',
+  'node_modules',
+  '__fixtures__',
+]);
 const SKIPPED_SUFFIXES = ['.test.ts', '.db.test.ts', '.d.ts'];
 
 function isProductionSource(fileName: string): boolean {
@@ -223,7 +229,7 @@ export function findUndeclaredCrossOwnerWrites(
       (entry.writers ?? []).some((writer) => writer.by === site.slice);
     if (permitted) return [];
     return [
-      `${site.file} (slice ${site.slice}) writes ${site.table}, owned by ${entry.owner}. Declare it as a cross-owner writer on that table in src/composition/data-ownership-registry.ts, or move the write into the owning slice.`,
+      `${site.file} (slice ${site.slice}) writes ${site.table}, owned by ${entry.owner}. Declare it as a cross-owner writer on that table in src/composition/__tests__/data-ownership-registry.ts, or move the write into the owning slice.`,
     ];
   });
 }

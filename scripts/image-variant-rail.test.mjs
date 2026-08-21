@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEslintRail } from './eslint-rail.mjs';
+import { createEslintRail } from './__tests__/eslint-rail.mjs';
 
 describe('EVE image variant rail', () => {
   const { expectSyntax, messagesFor } = createEslintRail(import.meta.url);

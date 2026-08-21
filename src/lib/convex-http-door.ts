@@ -3,7 +3,7 @@ import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
 
-type ConvexHttpDoorError = new (
+export type ConvexHttpDoorError = new (
   message: string,
   options?: { cause?: unknown },
 ) => Error;

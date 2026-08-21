@@ -304,7 +304,7 @@ const QUEUE_ENTRIES: readonly IdempotencyEntry[] = [
   {
     id: 'sync/insert-esi-snapshot',
     workKind: 'queue',
-    module: 'src/composition/sync/owned-assets-sync.ts',
+    module: 'src/composition/sync/owned-assets-source-save.ts',
     redeliverySource: 'A recovered or retried owned-assets job re-running after a partial attempt.',
     verdict: 'accepted-risk',
     evidence:

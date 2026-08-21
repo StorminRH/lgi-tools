@@ -3,7 +3,7 @@
 import Image, { type ImageLoaderProps, type ImageProps } from 'next/image';
 import { snapEveImageSize, type EveImageFamily } from '@/lib/eve-image';
 
-type SharedImageProps = Omit<
+export type SharedImageProps = Omit<
   ImageProps,
   'src' | 'alt' | 'width' | 'height' | 'fill' | 'loader' | 'unoptimized' | 'priority'
 > & {
@@ -13,12 +13,12 @@ type SharedImageProps = Omit<
   height: number;
 };
 
-type RemoteEveImageProps = SharedImageProps & {
+export type RemoteEveImageProps = SharedImageProps & {
   source: 'eve';
   family: EveImageFamily;
 };
 
-type StaticEveImageProps = SharedImageProps & {
+export type StaticEveImageProps = SharedImageProps & {
   source: 'static';
   family?: never;
 };

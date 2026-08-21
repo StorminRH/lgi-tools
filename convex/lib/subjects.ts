@@ -16,7 +16,7 @@ import { uniqueByUserDataset } from './indexedQuery';
 
 // The dataset values that can be STORED — the schema's dataset union (a superset of
 // the active SyncDataset during a future drain window).
-type StoredDataset = Doc<'syncSubjects'>['dataset'];
+export type StoredDataset = Doc<'syncSubjects'>['dataset'];
 
 /**
  * The canonical freshly-created idle subject row — one shape shared by every

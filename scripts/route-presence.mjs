@@ -36,7 +36,7 @@ export function isRouteFile(base) {
 const withoutGroups = (parts) => parts.filter((part) => !/^\(.+\)$/.test(part));
 
 // src/app-relative posix path → the route key the classification JSON uses.
-export function routeKey(relPosix) {
+function routeKey(relPosix) {
   const parts = relPosix.split('/');
   const base = parts.pop();
   const routeParts = withoutGroups(parts);

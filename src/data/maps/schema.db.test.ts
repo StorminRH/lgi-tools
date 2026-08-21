@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createDbTestHarness,
   seedUser,
-} from '@/db/test-support/db-test-harness';
+} from '@/db/__tests__/support/db-test-harness';
 import { getMapAccessSubject, getMapGrants } from './queries';
 import { mapAccess, maps } from './schema';
 
