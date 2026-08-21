@@ -8,9 +8,7 @@ import {
   getUserIdsOwningCharacters,
   reserveMapAccessProjectionRevision,
 } from '@/data/maps/queries';
-import { readEnv } from '@/lib/env';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { deriveConvexSiteUrl } from '@/lib/sync-engine';
+import { postConvexHttpDoor } from '@/lib/convex-http-door';
 import { refreshAffiliationsWithOutcome } from '@/platform/auth/affiliation';
 import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
 import { resolveMapPrincipalsWithOutcome } from './map-access';
@@ -44,16 +42,9 @@ const projectionResultSchema = z.discriminatedUnion('outcome', [
   z.strictObject({ ...projectionCountFields, outcome: z.literal('stale') }),
 ]);
 
-function decodeProjectionResult(raw: unknown): ProjectionResult {
-  const parsed = projectionResultSchema.safeParse(raw);
-  if (!parsed.success) {
-    throw new ProjectionUnavailableError(
-      'Map access projection unavailable: response contract drifted',
-      { cause: parsed.error },
-    );
-  }
-  return parsed.data;
-}
+const userPurgeResultSchema = z.strictObject({
+  deleted: z.number().int().nonnegative(),
+});
 
 export function requireCurrentProjection(result: ProjectionResult): ProjectionResult {
   if (result.outcome === 'stale') {
@@ -64,11 +55,6 @@ export function requireCurrentProjection(result: ProjectionResult): ProjectionRe
   return result;
 }
 
-/**
- * Thrown when a projection cannot be computed or delivered safely. Callers own
- * retry/resync policy: grant-change and resync callers surface it; purge callers
- * swallow it best-effort.
- */
 export class ProjectionUnavailableError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
@@ -76,22 +62,6 @@ export class ProjectionUnavailableError extends Error {
   }
 }
 
-/**
- * Computes the complete desired claim set for one map from durable Neon state.
- * Creator resolves to ['admin']; every candidate user reached by a character or
- * corporation grant is resolved through resolveMapPrincipals and the single
- * resolveMatchedMapRoles rule. Users with an empty role set are omitted. A
- * missing map returns the empty set (its projection tears down). Deterministic:
- * results are sorted by userId and roles are in MAP_ROLE_PRECEDENCE order.
- * Corporation-grant discovery refreshes every linked character whose affiliation
- * is missing or stale before the cached-corp lookup, so a newly entitled member
- * is not omitted solely because the cache still shows null or a prior corp.
- * Refresh-shortfall guard: throws ProjectionUnavailableError when that discovery
- * refresh or a candidate's stale-affiliation refresh fails transiently
- * (5xx/budget/thrown). Still-stale ids after a completed refresh (including ESI's
- * definitive 404 for deleted characters) contribute no corp roles via
- * memberCorpIds fail-closed and do not block convergence.
- */
 async function computeMapAccessClaimsForState(
   mapId: string,
   allowArchived: boolean,
@@ -165,61 +135,24 @@ export function computeMapAccessClaims(mapId: string): Promise<MapAccessClaim[]>
   return computeMapAccessClaimsForState(mapId, false);
 }
 
-async function postProjection(
-  path: '/project-map-access' | '/purge-map-access',
-  body: unknown,
-  timeoutMs?: number,
-  signal?: AbortSignal,
-): Promise<unknown> {
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  const secret = readEnv('CONVEX_SERVICE_SECRET');
-  if (!convexUrl || !secret) {
-    throw new ProjectionUnavailableError(
-      'Map access projection unavailable: Convex URL or service secret is unset',
-    );
-  }
-
-  const siteUrl = deriveConvexSiteUrl(convexUrl);
-  if (siteUrl === null) {
-    throw new ProjectionUnavailableError(
-      'Map access projection unavailable: Convex site URL could not be derived',
-    );
-  }
-
-  let response: Response;
-  try {
-    const init = {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${secret}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-      signal,
-    };
-    response =
-      timeoutMs === undefined
-        ? await fetchWithTimeout(`${siteUrl}${path}`, init)
-        : await fetchWithTimeout(`${siteUrl}${path}`, init, timeoutMs);
-  } catch (cause) {
-    throw new ProjectionUnavailableError(
-      `Map access projection unavailable: ${path} request failed`,
-      { cause },
-    );
-  }
-
-  if (!response.ok) {
-    throw new ProjectionUnavailableError(
-      `Map access projection unavailable: ${path} answered ${response.status}`,
-    );
-  }
-
-  return response.json();
-}
-
 interface ProjectMapAccessOptions {
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
+}
+
+function postMapAccessProjection(
+  body: unknown,
+  options: ProjectMapAccessOptions = {},
+): Promise<ProjectionResult> {
+  return postConvexHttpDoor({
+    path: '/project-map-access',
+    body,
+    schema: projectionResultSchema,
+    error: ProjectionUnavailableError,
+    label: 'Map access projection unavailable',
+    timeoutMs: options.timeoutMs,
+    signal: options.signal,
+  });
 }
 
 async function projectMapAccessState(
@@ -235,13 +168,7 @@ async function projectMapAccessState(
   if (options.signal?.aborted) {
     throw new ProjectionUnavailableError('Map access projection cancelled before delivery');
   }
-  const result = await postProjection(
-    '/project-map-access',
-    { mapId, revision, claims },
-    options.timeoutMs,
-    options.signal,
-  );
-  return decodeProjectionResult(result);
+  return postMapAccessProjection({ mapId, revision, claims }, options);
 }
 
 /**
@@ -265,12 +192,13 @@ export function projectStagedMapAccess(
 
 export async function teardownMapAccessProjection(mapId: string): Promise<ProjectionResult> {
   const revision = await reserveMapAccessProjectionRevision();
-  const result = await postProjection('/project-map-access', {
-    mapId,
-    revision,
-    claims: [],
-  });
-  return requireCurrentProjection(decodeProjectionResult(result));
+  return requireCurrentProjection(
+    await postMapAccessProjection({
+      mapId,
+      revision,
+      claims: [],
+    }),
+  );
 }
 
 /**
@@ -280,6 +208,11 @@ export async function teardownMapAccessProjection(mapId: string): Promise<Projec
 export async function purgeUserMapAccessProjection(
   userId: string,
 ): Promise<{ deleted: number }> {
-  const result = await postProjection('/purge-map-access', { userId });
-  return result as { deleted: number };
+  return postConvexHttpDoor({
+    path: '/purge-map-access',
+    body: { userId },
+    schema: userPurgeResultSchema,
+    error: ProjectionUnavailableError,
+    label: 'Map access projection unavailable',
+  });
 }

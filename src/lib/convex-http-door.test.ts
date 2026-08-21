@@ -96,4 +96,27 @@ describe('postConvexHttpDoor', () => {
       message: 'Sample door unavailable: /sample-door returned an invalid contract',
     });
   });
+
+  it('forwards an explicit timeout and abort signal', async () => {
+    const signal = new AbortController().signal;
+    h.fetchWithTimeout.mockResolvedValueOnce(Response.json({ ok: true }));
+
+    await expect(
+      postConvexHttpDoor({
+        path: '/sample-door',
+        body: { ping: true },
+        schema: payloadSchema,
+        error: DoorUnavailableError,
+        label: 'Sample door unavailable',
+        timeoutMs: 2_000,
+        signal,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(h.fetchWithTimeout).toHaveBeenCalledWith(
+      'https://example.convex.site/sample-door',
+      expect.objectContaining({ signal }),
+      2_000,
+    );
+  });
 });

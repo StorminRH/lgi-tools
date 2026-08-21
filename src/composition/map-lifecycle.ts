@@ -67,7 +67,9 @@ export async function restoreMapForUser(
   );
   if (!restored) return { ok: false };
   try {
-    await (dependencies.projectAccess ?? projectMapAccess)(input.mapId);
+    requireCurrentProjection(
+      await (dependencies.projectAccess ?? projectMapAccess)(input.mapId),
+    );
     return { ok: true, projectionPending: false };
   } catch (cause) {
     if (!(cause instanceof ProjectionUnavailableError)) throw cause;

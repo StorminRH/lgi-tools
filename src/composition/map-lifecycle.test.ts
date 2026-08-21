@@ -80,19 +80,27 @@ describe('map lifecycle composition', () => {
     expect(console.error).toHaveBeenCalledTimes(2);
   });
 
-  it('marks projection pending when teardown is stale', async () => {
+  it('marks projection pending when teardown or restore is stale', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    const stale = {
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      unchanged: 0,
+      outcome: 'stale' as const,
+    };
     await expect(
       deleteMapForUser('user', INPUT, {
         resolvePrincipals: vi.fn().mockResolvedValue(PRINCIPALS),
         archiveMap: vi.fn().mockResolvedValue(true),
-        teardownAccess: vi.fn().mockResolvedValue({
-          inserted: 0,
-          updated: 0,
-          deleted: 0,
-          unchanged: 0,
-          outcome: 'stale' as const,
-        }),
+        teardownAccess: vi.fn().mockResolvedValue(stale),
+      }),
+    ).resolves.toEqual({ ok: true, projectionPending: true });
+    await expect(
+      restoreMapForUser('user', INPUT, {
+        resolvePrincipals: vi.fn().mockResolvedValue(PRINCIPALS),
+        restoreMap: vi.fn().mockResolvedValue(true),
+        projectAccess: vi.fn().mockResolvedValue(stale),
       }),
     ).resolves.toEqual({ ok: true, projectionPending: true });
   });
