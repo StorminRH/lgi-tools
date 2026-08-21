@@ -5,6 +5,7 @@
 // ship to production Convex.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readEnv } from '@/lib/env';
 
 export const STAGING_GIT_REF = 'staging';
 export const STAGING_PREVIEW_LINE = 'staging';
@@ -60,9 +61,9 @@ function runConvexDeploy(env: ConvexDeployEnv): Promise<number> {
 
 async function main(): Promise<void> {
   const code = await runConvexDeploy({
-    VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF,
-    VERCEL_TARGET_ENV: process.env.VERCEL_TARGET_ENV,
-    LGI_PREVIEW_LINE: process.env.LGI_PREVIEW_LINE,
+    VERCEL_GIT_COMMIT_REF: readEnv('VERCEL_GIT_COMMIT_REF'),
+    VERCEL_TARGET_ENV: readEnv('VERCEL_TARGET_ENV'),
+    LGI_PREVIEW_LINE: readEnv('LGI_PREVIEW_LINE'),
   });
   if (code !== 0) process.exit(code);
 }

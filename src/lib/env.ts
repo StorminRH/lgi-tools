@@ -63,6 +63,11 @@ const VERBATIM_ENV = {
   GOOGLE_SITE_VERIFICATION: verbatim,
   VERCEL_ENV: verbatim,
   VERCEL_URL: verbatim,
+  // Vercel injects these on hosted builds. Staging Preview uses them (plus
+  // LGI_PREVIEW_LINE) to pick the standing Convex backend.
+  VERCEL_GIT_COMMIT_REF: verbatim,
+  VERCEL_TARGET_ENV: verbatim,
+  LGI_PREVIEW_LINE: verbatim,
   NEXT_RUNTIME: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,
   LGI_SITES_SAMPLE: verbatim,
