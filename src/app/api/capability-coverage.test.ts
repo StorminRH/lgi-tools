@@ -61,12 +61,15 @@ function capabilityIdsIn(source: string): string[] {
     ...[...source.matchAll(/capability: ["']([^"']+)["']/g)],
     // Matches both the direct `capabilityRoute` wrapper and `runCapabilityRoute`.
     ...[...source.matchAll(/\bcapabilityRoute\(\s*["']([^"']+)["']/g)],
+    ...[...source.matchAll(/\bmarketRefreshRoute\(\s*["']([^"']+)["']/g)],
   ].map((match) => match[1] ?? '');
 }
 
 function isInstrumented(source: string): boolean {
   return (
     source.includes('runMutationRoute')
+    || (source.includes("from '@/app/api/maps/lifecycle-route'") && source.includes('runMapLifecycleRoute'))
+    || (source.includes("from '@/app/api/market-refresh-route'") && source.includes('marketRefreshRoute'))
     || source.includes('capabilityRoute')
     || source.includes('recordCapabilityOutcome')
   );

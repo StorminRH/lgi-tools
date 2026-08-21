@@ -179,6 +179,11 @@ export default defineSchema({
     // Per-user claim teardown for account purge (/purge-map-access).
     .index('by_user', ['userId']),
 
+  mapAccessProjectionWatermarks: defineTable({
+    mapId: v.string(),
+    revision: v.number(),
+  }).index('by_map', ['mapId']),
+
   // One document per system placed on one map. Soft deletion mirrors
   // mapSignatures: optional because live rows may predate the fields, both
   // null/absent while active, and both finite with purgeAfter > deletedAt when

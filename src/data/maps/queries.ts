@@ -22,6 +22,7 @@ import {
 } from './access';
 import type { MapRole } from './access-contract';
 import {
+  MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
   maps,
   type MapAccessOwnerType,
@@ -41,7 +42,23 @@ export interface CreateMapGrant {
   readonly role: Extract<MapRole, 'viewer' | 'editor'>;
 }
 
-/** One exact durable grant change before the full access projection reconverges. */
+export async function reserveMapAccessProjectionRevision(
+  database: AnyPgDb = db,
+): Promise<number> {
+  const result = await database.execute(sql`
+    SELECT nextval(
+      ${MAP_ACCESS_PROJECTION_REVISION_SEQUENCE}::regclass
+    )::text AS revision
+  `);
+  const row = mapAuthorizationRows(result)[0];
+  const raw = row?.revision;
+  const revision = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isSafeInteger(revision) || revision <= 0) {
+    throw new Error('Map access projection sequence returned an invalid revision.');
+  }
+  return revision;
+}
+
 export type MapGrantChange =
   | {
       readonly operation: 'upsert';
@@ -292,7 +309,6 @@ export async function createMapAtomic(
   return mapId;
 }
 
-/** Publishes a projected staged map by clearing its hidden recovery markers. */
 export async function publishCreatedMap(
   mapId: string,
   database: AnyPgDb = db,
@@ -305,6 +321,7 @@ export async function publishCreatedMap(
         eq(maps.id, mapId),
         isNotNull(maps.archivedAt),
         isNotNull(maps.purgeRequestedAt),
+        isNull(maps.purgeClaimedAt),
         isNull(maps.tombstonedAt),
       ),
     )
@@ -314,18 +331,25 @@ export async function publishCreatedMap(
   }
 }
 
-/** Deletes one just-created map after projection exhaustion; grants cascade with it. */
 export async function compensateFailedMapCreation(
   mapId: string,
   database: AnyPgDb = db,
-): Promise<void> {
+): Promise<{ readonly outcome: 'deleted' | 'purge-owned' }> {
   const deleted = await database
     .delete(maps)
-    .where(eq(maps.id, mapId))
+    .where(and(eq(maps.id, mapId), isNull(maps.purgeClaimedAt)))
     .returning({ id: maps.id });
-  if (deleted.length !== 1) {
-    throw new Error(`Map creation compensation expected one row, deleted ${deleted.length}.`);
+  if (deleted.length === 1) return { outcome: 'deleted' };
+
+  const [retained] = await database
+    .select({ purgeClaimedAt: maps.purgeClaimedAt })
+    .from(maps)
+    .where(eq(maps.id, mapId))
+    .limit(1);
+  if (retained?.purgeClaimedAt !== null && retained?.purgeClaimedAt !== undefined) {
+    return { outcome: 'purge-owned' };
   }
+  throw new Error('Map creation compensation found neither its row nor a purge claim.');
 }
 
 /**
@@ -366,6 +390,7 @@ export async function listDeletedRestorableMapsForPrincipals(
       isNotNull(maps.archivedAt),
       isNull(maps.tombstonedAt),
       isNull(maps.purgeRequestedAt),
+      isNull(maps.purgeClaimedAt),
       gt(maps.archivedAt, new Date(now.getTime() - MAP_DELETE_GRACE_MS)),
     ),
     database,

@@ -6,7 +6,14 @@
 // enum across features), so the enum is a parameter; the returned column object is
 // spread into each pgTable, per Drizzle's documented reusable-columns pattern. The
 // evaluated schema is byte-identical to the inline columns it replaces — no migration.
-import { bigint, jsonb, type PgEnum, timestamp } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  jsonb,
+  text,
+  timestamp,
+  type AnyPgColumn,
+  type PgEnum,
+} from 'drizzle-orm/pg-core';
 
 /**
  * Fresh column builders per call (Drizzle column builders are single-use — a table
@@ -18,5 +25,20 @@ export function ownerSyncStateColumns<T extends [string, ...string[]]>(ownerType
     ownerId: bigint('owner_id', { mode: 'number' }).notNull(),
     lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull(),
     pageEtags: jsonb('page_etags').$type<string[]>().default([]).notNull(),
+  };
+}
+
+/**
+ * Fresh identity columns for an app-authored per-user row (id, owner, name,
+ * created-at). Callers pass the user-id reference so lib never imports db.
+ */
+export function ownedRowIdentityColumns(userIdReferences: () => AnyPgColumn) {
+  return {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(userIdReferences, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   };
 }

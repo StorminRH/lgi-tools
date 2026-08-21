@@ -1,4 +1,4 @@
-import type { ScannedRow, ScannerPasteResult } from './scan-parse';
+import type { ScannedRow, ScannerPasteResult, SigGroup } from './scan-parse';
 
 /** One operator-supplied raw paste and its exact normalized parser result. */
 export interface ScannerPasteFixture {
@@ -10,6 +10,54 @@ export interface ScannerPasteFixture {
 function unresolved(signatureId: string): ScannedRow {
   return { signatureId, kind: 'signature', group: null, name: null, signalPct: 0 };
 }
+
+function sig(
+  signatureId: string,
+  group: SigGroup | null,
+  name: string | null,
+  signalPct: number,
+): ScannedRow {
+  return { signatureId, kind: 'signature', group, name, signalPct };
+}
+
+function anom(signatureId: string, group: SigGroup, name: string): ScannedRow {
+  return { signatureId, kind: 'anomaly', group, name, signalPct: 100 };
+}
+
+function wh(signatureId: string, signalPct: number): ScannedRow {
+  return { signatureId, kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct };
+}
+
+function gas(signatureId: string, name: string): ScannedRow {
+  return { signatureId, kind: 'signature', group: 'Gas Site', name, signalPct: 100 };
+}
+
+const oreTfz = anom('TFZ-437', 'Ore Site', 'Ordinary Perimeter Deposit');
+const oreWgv = anom('WGV-890', 'Ore Site', 'Ordinary Perimeter Deposit');
+const oreMpr = anom('MPR-090', 'Ore Site', 'Ordinary Perimeter Deposit');
+const oreBxm = anom('BXM-155', 'Ore Site', 'Average Frontier Deposit');
+const oreNtf = anom('NTF-389', 'Ore Site', 'Unexceptional Frontier Deposit');
+const oreDan = anom('DAN-497', 'Ore Site', 'Unusual Core Deposit');
+const oreZuv = anom('ZUV-807', 'Ore Site', 'Unexceptional Frontier Deposit');
+const oreFro = anom('FRO-820', 'Ore Site', 'Common Perimeter Deposit');
+const combatKuo = anom('KUO-916', 'Combat Site', 'Frontier Command Post');
+const combatPru = anom('PRU-055', 'Combat Site', 'Frontier Command Post');
+const combatUpj = anom('UPJ-590', 'Combat Site', 'Integrated Terminus');
+const combatJca = anom('JCA-892', 'Combat Site', 'Integrated Terminus');
+const combatVib = anom('VIB-206', 'Combat Site', 'Frontier Command Post');
+const combatWfg = anom('WFG-088', 'Combat Site', 'Frontier Barracks');
+const whFld = wh('FLD-047', 100);
+const whCba = wh('CBA-120', 100);
+const whXkw = wh('XKW-981', 100);
+const whLxx = wh('LXX-844', 100);
+const whUmi = wh('UMI-744', 100);
+const gasIhj = gas('IHJ-610', 'Barren Perimeter Reservoir');
+const gasYot = gas('YOT-768', 'Ordinary Perimeter Reservoir');
+const unresolvedEar = unresolved('EAR-696');
+const unresolvedFld = unresolved('FLD-047');
+const unresolvedXkw = unresolved('XKW-981');
+const unresolvedCnn = unresolved('CNN-648');
+const unresolvedUmi = unresolved('UMI-744');
 
 /** Exact normalized expectations for the four operator-supplied raw paste blocks. */
 export const SCANNER_PASTE_FIXTURES: readonly ScannerPasteFixture[] = [
@@ -40,29 +88,29 @@ CNN-648\tCosmic Signature\t\t\t0.0%\t13.01 AU
 UMI-744\tCosmic Signature\t\t\t0.0%\t13.04 AU`,
     expected: {
       rows: [
-        { signatureId: 'CBA-120', kind: 'signature', group: 'Wormhole', name: null, signalPct: 28.4 },
-        { signatureId: 'LXX-844', kind: 'signature', group: 'Wormhole', name: null, signalPct: 58.6 },
-        { signatureId: 'TFZ-437', kind: 'anomaly', group: 'Ore Site', name: 'Ordinary Perimeter Deposit', signalPct: 100 },
-        { signatureId: 'WGV-890', kind: 'anomaly', group: 'Ore Site', name: 'Ordinary Perimeter Deposit', signalPct: 100 },
-        { signatureId: 'MPR-090', kind: 'anomaly', group: 'Ore Site', name: 'Ordinary Perimeter Deposit', signalPct: 100 },
-        { signatureId: 'BXM-155', kind: 'anomaly', group: 'Ore Site', name: 'Average Frontier Deposit', signalPct: 100 },
-        { signatureId: 'NTF-389', kind: 'anomaly', group: 'Ore Site', name: 'Unexceptional Frontier Deposit', signalPct: 100 },
-        { signatureId: 'DAN-497', kind: 'anomaly', group: 'Ore Site', name: 'Unusual Core Deposit', signalPct: 100 },
-        { signatureId: 'ZUV-807', kind: 'anomaly', group: 'Ore Site', name: 'Unexceptional Frontier Deposit', signalPct: 100 },
-        { signatureId: 'FRO-820', kind: 'anomaly', group: 'Ore Site', name: 'Common Perimeter Deposit', signalPct: 100 },
-        { signatureId: 'IHJ-610', kind: 'signature', group: 'Gas Site', name: 'Barren Perimeter Reservoir', signalPct: 100 },
-        { signatureId: 'YOT-768', kind: 'signature', group: 'Gas Site', name: 'Ordinary Perimeter Reservoir', signalPct: 100 },
-        { signatureId: 'KUO-916', kind: 'anomaly', group: 'Combat Site', name: 'Frontier Command Post', signalPct: 100 },
-        { signatureId: 'PRU-055', kind: 'anomaly', group: 'Combat Site', name: 'Frontier Command Post', signalPct: 100 },
-        { signatureId: 'UPJ-590', kind: 'anomaly', group: 'Combat Site', name: 'Integrated Terminus', signalPct: 100 },
-        { signatureId: 'JCA-892', kind: 'anomaly', group: 'Combat Site', name: 'Integrated Terminus', signalPct: 100 },
-        { signatureId: 'VIB-206', kind: 'anomaly', group: 'Combat Site', name: 'Frontier Command Post', signalPct: 100 },
-        { signatureId: 'WFG-088', kind: 'anomaly', group: 'Combat Site', name: 'Frontier Barracks', signalPct: 100 },
-        unresolved('EAR-696'),
-        unresolved('FLD-047'),
-        unresolved('XKW-981'),
-        unresolved('CNN-648'),
-        unresolved('UMI-744'),
+        sig('CBA-120', 'Wormhole', null, 28.4),
+        sig('LXX-844', 'Wormhole', null, 58.6),
+        oreTfz,
+        oreWgv,
+        oreMpr,
+        oreBxm,
+        oreNtf,
+        oreDan,
+        oreZuv,
+        oreFro,
+        gasIhj,
+        gasYot,
+        combatKuo,
+        combatPru,
+        combatUpj,
+        combatJca,
+        combatVib,
+        combatWfg,
+        unresolvedEar,
+        unresolvedFld,
+        unresolvedXkw,
+        unresolvedCnn,
+        unresolvedUmi,
       ],
       rejects: [],
     },
@@ -80,15 +128,15 @@ CNN-648\tCosmic Signature\t\t\t0.0%\t13.01 AU
 UMI-744\tCosmic Signature\t\t\t0.0%\t13.04 AU`,
     expected: {
       rows: [
-        { signatureId: 'CBA-120', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'LXX-844', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'EAR-696', kind: 'signature', group: 'Relic Site', name: null, signalPct: 49.1 },
-        { signatureId: 'IHJ-610', kind: 'signature', group: 'Gas Site', name: 'Barren Perimeter Reservoir', signalPct: 100 },
-        { signatureId: 'YOT-768', kind: 'signature', group: 'Gas Site', name: 'Ordinary Perimeter Reservoir', signalPct: 100 },
-        unresolved('FLD-047'),
-        unresolved('XKW-981'),
-        unresolved('CNN-648'),
-        unresolved('UMI-744'),
+        whCba,
+        whLxx,
+        sig('EAR-696', 'Relic Site', null, 49.1),
+        gasIhj,
+        gasYot,
+        unresolvedFld,
+        unresolvedXkw,
+        unresolvedCnn,
+        unresolvedUmi,
       ],
       rejects: [],
     },
@@ -106,15 +154,15 @@ IHJ-610\tCosmic Signature\tGas Site\tBarren Perimeter Reservoir\t100.0%\t7.69 AU
 YOT-768\tCosmic Signature\tGas Site\tOrdinary Perimeter Reservoir\t100.0%\t6.20 AU`,
     expected: {
       rows: [
-        { signatureId: 'FLD-047', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'CBA-120', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'XKW-981', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'LXX-844', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'CNN-648', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 0 },
-        { signatureId: 'UMI-744', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'EAR-696', kind: 'signature', group: 'Relic Site', name: 'Forgotten Frontier Evacuation Center', signalPct: 100 },
-        { signatureId: 'IHJ-610', kind: 'signature', group: 'Gas Site', name: 'Barren Perimeter Reservoir', signalPct: 100 },
-        { signatureId: 'YOT-768', kind: 'signature', group: 'Gas Site', name: 'Ordinary Perimeter Reservoir', signalPct: 100 },
+        whFld,
+        whCba,
+        whXkw,
+        whLxx,
+        wh('CNN-648', 0),
+        whUmi,
+        sig('EAR-696', 'Relic Site', 'Forgotten Frontier Evacuation Center', 100),
+        gasIhj,
+        gasYot,
       ],
       rejects: [],
     },
@@ -128,11 +176,11 @@ IHJ-610\tCosmic Signature\tGas Site\tBarren Perimeter Reservoir\t100.0%\t5.17 AU
 YOT-768\tCosmic Signature\tGas Site\tOrdinary Perimeter Reservoir\t100.0%\t5.09 AU`,
     expected: {
       rows: [
-        { signatureId: 'FLD-047', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'CBA-120', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'XKW-981', kind: 'signature', group: 'Wormhole', name: 'Unstable Wormhole', signalPct: 100 },
-        { signatureId: 'IHJ-610', kind: 'signature', group: 'Gas Site', name: 'Barren Perimeter Reservoir', signalPct: 100 },
-        { signatureId: 'YOT-768', kind: 'signature', group: 'Gas Site', name: 'Ordinary Perimeter Reservoir', signalPct: 100 },
+        whFld,
+        whCba,
+        whXkw,
+        gasIhj,
+        gasYot,
       ],
       rejects: [],
     },

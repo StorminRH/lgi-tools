@@ -24,7 +24,6 @@ config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
 import {
   ADVISORY_LOCK_SDE_INGEST,
   SDE_META_KEY_VERSION,
@@ -33,32 +32,15 @@ import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import { resolveAllTrees } from '../data/eve-data/tree-resolver';
 import { withAdvisoryLock } from '@/db/advisory-lock';
-import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl } from '@/db';
-import { runScript } from './script-runtime';
+import { requireSoftFailLockClient, runScript } from './script-runtime';
 import { describeSdeStandDown, hasCompleteSdeData } from './sde-bootstrap';
 import { readSdeSentinelCounts } from './sde-ingest-io';
 import { runSdePipeline } from '@/composition/pipelines/sde-pipeline';
 
-if (!readEnv('DATABASE_URL')) {
-  console.log('Skipping SDE auto-ingest (DATABASE_URL is not set).');
-  process.exit(0);
-}
-
-// Direct (unpooled) endpoint — the SDE ingest advisory lock is
-// session-scoped and won't hold through the `-pooler` endpoint. Resolved
-// here (not inside main) so the fail-closed throw soft-skips the
-// build-time ingest rather than failing the build.
-let lockUrl: string;
-try {
-  lockUrl = resolveLockConnectionUrl();
-} catch (err) {
-  console.error('Skipping SDE auto-ingest (build continues):', err);
-  process.exit(0);
-}
-
-// max: 2 — one connection holds the advisory lock, the other runs the
-// data ops. Same pattern as src/scripts/refresh-prices.ts.
-const client = postgres(lockUrl, { max: 2, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
+const client = requireSoftFailLockClient(
+  'Skipping SDE auto-ingest (DATABASE_URL is not set).',
+  'Skipping SDE auto-ingest (build continues):',
+);
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
 // Reads the SDE row-count sentinels + versions, then either bootstraps the full

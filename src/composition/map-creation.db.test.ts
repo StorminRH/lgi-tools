@@ -12,6 +12,14 @@ import {
 import { mapAccess, maps } from '@/data/maps/schema';
 import { createProjectedMap } from './map-creation';
 
+const PROJECTION_RESULT = {
+  inserted: 0,
+  updated: 0,
+  deleted: 0,
+  unchanged: 0,
+  outcome: 'applied' as const,
+};
+
 const harness = await createDbTestHarness({
   schema: 'test_map_creation',
   tables: ['user', 'maps', 'map_access'],
@@ -37,7 +45,7 @@ const harness = await createDbTestHarness({
 describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)', () => {
   it('publishes a successfully projected staged map', async () => {
     await seedUser(harness.db, 'creator');
-    const project = vi.fn().mockResolvedValue(undefined);
+    const project = vi.fn().mockResolvedValue(PROJECTION_RESULT);
 
     const result = await createProjectedMap(
       'creator',
@@ -85,6 +93,7 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
             createMapAtomic(userId, name, grants, harness.db),
           compensate: (mapId) => compensateFailedMapCreation(mapId, harness.db),
           project,
+          teardown: vi.fn().mockResolvedValue(PROJECTION_RESULT),
           now: () => now,
           pause: async (delayMs) => {
             now += delayMs;
@@ -110,6 +119,7 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
         compensate: vi.fn().mockRejectedValue(new Error('database unavailable')),
         publish: (mapId) => publishCreatedMap(mapId, harness.db),
         project: vi.fn().mockRejectedValue(new Error('projection unavailable')),
+        teardown: vi.fn().mockResolvedValue(PROJECTION_RESULT),
         now: vi.fn().mockReturnValue(0),
         pause: vi.fn().mockResolvedValue(undefined),
       },

@@ -17,29 +17,14 @@ import { config } from 'dotenv';
 import { readEnv } from '@/lib/env';
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
-import postgres from 'postgres';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { withAdvisoryLock, type ReservedConnection } from '@/db/advisory-lock';
-import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl } from '@/db';
-import { runScript } from './script-runtime';
+import { requireSoftFailLockClient, runScript } from './script-runtime';
 
-if (!readEnv('DATABASE_URL')) {
-  console.log('Skipping auth backfill (DATABASE_URL is not set).');
-  process.exit(0);
-}
-
-// Direct (unpooled) endpoint — the advisory lock is session-scoped and won't
-// hold through the `-pooler` endpoint. Resolved here so the fail-closed throw
-// soft-skips rather than failing the build.
-let lockUrl: string;
-try {
-  lockUrl = resolveLockConnectionUrl();
-} catch (err) {
-  console.error('Skipping auth backfill (build continues):', err);
-  process.exit(0);
-}
-
-const client = postgres(lockUrl, { max: 2, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
+const client = requireSoftFailLockClient(
+  'Skipping auth backfill (DATABASE_URL is not set).',
+  'Skipping auth backfill (build continues):',
+);
 // Distinct from the SDE ingest lock (8273619013) — guards against two preview
 // builds racing the same branch DB. Session-scoped; released in finally.
 const LOCK_KEY_NUM = 8419273051;

@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { internal } from './_generated/api';
 import { MAP_JUMP_BOOKKEEPING_PURGE_BATCH } from './mapJumpBookkeeping';
 import schema from './schema';
 
@@ -292,7 +293,11 @@ describe('POST /project-map-access', () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
     const res = await post(
       '/project-map-access',
-      JSON.stringify({ mapId: 'map-1', claims: [{ userId: 'u1', roles: ['owner'] }] }),
+      JSON.stringify({
+        mapId: 'map-1',
+        revision: 1,
+        claims: [{ userId: 'u1', roles: ['owner'] }],
+      }),
     );
     expect(res.status).toBe(400);
   });
@@ -301,7 +306,11 @@ describe('POST /project-map-access', () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
     const res = await post(
       '/project-map-access',
-      JSON.stringify({ mapId: 'map-1', claims: [{ userId: 'u1', roles: [] }] }),
+      JSON.stringify({
+        mapId: 'map-1',
+        revision: 1,
+        claims: [{ userId: 'u1', roles: [] }],
+      }),
     );
     expect(res.status).toBe(400);
   });
@@ -312,6 +321,7 @@ describe('POST /project-map-access', () => {
       '/project-map-access',
       JSON.stringify({
         mapId: 'map-1',
+        revision: 1,
         claims: [
           { userId: 'u1', roles: ['viewer'] },
           { userId: 'u1', roles: ['editor'] },
@@ -327,6 +337,7 @@ describe('POST /project-map-access', () => {
       '/project-map-access',
       JSON.stringify({
         mapId: 'map-1',
+        revision: 1,
         claims: [{ userId: 'u1', roles: ['admin'] }],
       }),
     );
@@ -336,6 +347,7 @@ describe('POST /project-map-access', () => {
       updated: 0,
       deleted: 0,
       unchanged: 0,
+      outcome: 'applied',
     });
   });
 
@@ -360,13 +372,45 @@ describe('POST /project-map-access', () => {
     const res = await t.fetch('/project-map-access', {
       method: 'POST',
       headers: { authorization: `Bearer ${SECRET}` },
-      body: JSON.stringify({ mapId: 'map-large', claims: [] }),
+      body: JSON.stringify({ mapId: 'map-large', revision: 1, claims: [] }),
     });
 
     expect(res.status).toBe(200);
     expect(await t.run(async (ctx) => ctx.db.query('mapJumpBookkeeping').collect())).toEqual([
       expect.objectContaining({ mapId: 'map-other', characterId: 91_000_000 }),
     ]);
+  });
+
+  it('does not drain bookkeeping for an older teardown delivery', async () => {
+    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+      mapId: 'map-current',
+      revision: 2,
+      claims: [{ userId: 'u1', roles: ['admin'] }],
+    });
+    await t.run((ctx) =>
+      ctx.db.insert('mapJumpBookkeeping', {
+        mapId: 'map-current',
+        characterId: 90_000_001,
+        lastProcessedTransitionAt: 1,
+      }),
+    );
+
+    const res = await t.fetch('/project-map-access', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${SECRET}` },
+      body: JSON.stringify({
+        mapId: 'map-current',
+        revision: 1,
+        claims: [],
+      }),
+    });
+
+    expect(await res.json()).toMatchObject({ outcome: 'stale' });
+    await expect(
+      t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect()),
+    ).resolves.toHaveLength(1);
   });
 });
 

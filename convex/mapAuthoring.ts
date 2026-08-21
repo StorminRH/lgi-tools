@@ -11,6 +11,7 @@ import {
   type MutationCtx,
 } from './_generated/server';
 import type { Doc, Id } from './_generated/dataModel';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { requireMapAccess } from './lib/mapAccess';
 import {
   requireConnectionOnMap,
@@ -212,26 +213,23 @@ async function readIncidentConnections(
   mapId: string,
   systemId: number,
 ): Promise<Doc<'mapConnections'>[]> {
-  const fromRows = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_map_from', (q) => q.eq('mapId', mapId).eq('fromSystemId', systemId))
-    .take(LIVE_CONNECTION_SCAN_CAP + 1);
-  if (fromRows.length > LIVE_CONNECTION_SCAN_CAP) {
-    throw new ConvexError({
-      code: 'MAP_TOO_LARGE',
-      detail: `Map ${mapId} exceeds the ${LIVE_CONNECTION_SCAN_CAP}-connection liveness proof bound for system ${systemId}.`,
-    });
-  }
-  const toRows = await ctx.db
-    .query('mapConnections')
-    .withIndex('by_map_to', (q) => q.eq('mapId', mapId).eq('toSystemId', systemId))
-    .take(LIVE_CONNECTION_SCAN_CAP + 1);
-  if (toRows.length > LIVE_CONNECTION_SCAN_CAP) {
-    throw new ConvexError({
-      code: 'MAP_TOO_LARGE',
-      detail: `Map ${mapId} exceeds the ${LIVE_CONNECTION_SCAN_CAP}-connection liveness proof bound for system ${systemId}.`,
-    });
-  }
+  const incidentBound = {
+    code: 'MAP_TOO_LARGE',
+    detail: `Map ${mapId} exceeds the ${LIVE_CONNECTION_SCAN_CAP}-connection liveness proof bound for system ${systemId}.`,
+  };
+  const takeIncident = (
+    index: 'by_map_from' | 'by_map_to',
+    field: 'fromSystemId' | 'toSystemId',
+  ) =>
+    takeIndexedOrThrow(
+      ctx.db
+        .query('mapConnections')
+        .withIndex(index, (q) => q.eq('mapId', mapId).eq(field, systemId)),
+      LIVE_CONNECTION_SCAN_CAP,
+      incidentBound,
+    );
+  const fromRows = await takeIncident('by_map_from', 'fromSystemId');
+  const toRows = await takeIncident('by_map_to', 'toSystemId');
   return [...new Map([...fromRows, ...toRows].map((row) => [row._id, row])).values()];
 }
 

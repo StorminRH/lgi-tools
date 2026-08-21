@@ -1,15 +1,10 @@
-# Depot CI — Origin train PRs and pushes.
+# Depot CI — Origin PRs onto the train.
 # GitHub Actions YAML on Depot compute. Not a GitHub Actions workflow.
-# `verify` on every PR and train push. `build` and `e2e` are PR-only.
+# `verify`, `build`, and `e2e` run on PRs onto development, staging, or main.
 
 name: Verify
 on:
   pull_request:
-    branches:
-      - development
-      - staging
-      - main
-  push:
     branches:
       - development
       - staging
@@ -71,12 +66,11 @@ jobs:
       # boundaries, health). Inherited findings fail the same as new ones.
       - run: pnpm fallow
 
-  # PR-only production compile + render-mode classification. Laptops and
+  # Production compile + render-mode classification. Laptops and
   # agents do not run `next build`. Cache `.next/cache` across PRs; do not
   # run `build:vercel` (no SDE ingest / warm-neon). Sidecar + migrate are
   # required because `generateStaticParams` for /sites/[id] reads `sites`.
   build:
-    if: github.event_name == 'pull_request'
     runs-on: depot-ubuntu-24.04
     services:
       postgres:
@@ -127,15 +121,14 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # PR-only Playwright against `next start`. Reuses the `build` job's
-  # `.next`. Playwright image already has OS deps + headless shell
+  # Playwright against `next start`. Reuses the `build` job's `.next`.
+  # Playwright image already has OS deps + headless shell
   # (matches @playwright/test 1.61.1). Job-in-container reaches the
   # sidecar at hostname `postgres`, not localhost. LOCAL_DB_DRIVER selects
   # the TCP driver for `next start`; Redis degrade is the hosted-Vercel
   # predicate, so this flag is not a Redis signal. Leave it unset on
   # `verify` so neon-http timing tests keep seeing an unset driver.
   e2e:
-    if: github.event_name == 'pull_request'
     needs: [build]
     runs-on: depot-ubuntu-24.04
     container:

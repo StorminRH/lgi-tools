@@ -9,8 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogClose,
-  DialogDescription,
-  DialogTitle,
+  DialogHeader,
   type DialogFocusTarget,
 } from '@/components/ui/dialog';
 import type { DeletedRestorableMapRow } from '@/data/maps/queries';
@@ -164,22 +163,12 @@ export function TrashWindow({
         finalFocus={finalFocus}
         className="max-h-[calc(100dvh-2rem)] w-[min(38rem,calc(100vw-2rem))] overflow-y-auto"
       >
-        <header className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
-          <div className="flex flex-col gap-1">
-            <DialogTitle
-              id={titleId}
-              className="font-display text-h2 font-semibold tracking-copy uppercase text-name"
-            >
-              Deleted maps
-            </DialogTitle>
-            <DialogDescription className="font-ui text-ui text-muted">
-              Restore maps during their 30-day undo window.
-            </DialogDescription>
-          </div>
-          <DialogClose render={<Button variant="ghost" size="sm" />} aria-label="Close trash">
-            ×
-          </DialogClose>
-        </header>
+        <DialogHeader
+          titleId={titleId}
+          title="Deleted maps"
+          description="Restore maps during their 30-day undo window."
+          closeLabel="Close trash"
+        />
 
         <div className="flex flex-col gap-2 px-4 py-4">
           <TrashMapRows

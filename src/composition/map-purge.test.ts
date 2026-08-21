@@ -71,12 +71,18 @@ describe('purgeEligibleMaps', () => {
     });
     const teardownAccess = vi.fn(async (mapId: string) => {
       order.push(`teardown:${mapId}`);
-      return { inserted: 0, updated: 0, deleted: 0, unchanged: 0 };
+      return {
+        inserted: 0,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'applied' as const,
+      };
     });
 
     await expect(
       purgeEligibleMaps({
-        listMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }, { id: 'map-b' }]),
+        claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }, { id: 'map-b' }]),
         purgeChain,
         tombstoneMap,
         teardownAccess,
@@ -102,7 +108,7 @@ describe('purgeEligibleMaps', () => {
     const tombstoneMap = vi.fn();
     await expect(
       purgeEligibleMaps({
-        listMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
+        claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
         purgeChain: vi.fn().mockRejectedValue(failure),
         tombstoneMap,
       }),
@@ -114,7 +120,7 @@ describe('purgeEligibleMaps', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(
       purgeEligibleMaps({
-        listMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
+        claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
         purgeChain: vi.fn().mockResolvedValue({ deleted: 4, remaining: false }),
         tombstoneMap: vi.fn().mockResolvedValue(true),
         teardownAccess: vi.fn().mockRejectedValue(new Error('offline')),

@@ -22,7 +22,13 @@ describe('map lifecycle composition', () => {
     });
     const teardownAccess = vi.fn(async () => {
       order.push('projection');
-      return { inserted: 0, updated: 0, deleted: 1, unchanged: 0 };
+      return {
+        inserted: 0,
+        updated: 0,
+        deleted: 1,
+        unchanged: 0,
+        outcome: 'applied' as const,
+      };
     });
 
     await expect(

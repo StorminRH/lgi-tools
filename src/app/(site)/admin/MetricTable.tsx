@@ -2,6 +2,7 @@ import { StaticSparkline } from '@/components/ui/chart/static-sparkline';
 import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StaticTable, type StaticTableColumn } from '@/components/ui/static-table';
+import { metricLabelColumn } from './metric-label-column';
 import { DeltaBadge } from './DeltaBadge';
 import type { MetricRow } from './metric-view';
 
@@ -17,13 +18,7 @@ import type { MetricRow } from './metric-view';
  */
 export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }) {
   const columns = [
-    {
-      key: 'metric',
-      label: 'Metric',
-      rowHeader: true,
-      render: (row) => row.label,
-      className: 'text-text',
-    },
+    metricLabelColumn<MetricRow>(),
     { key: 'current', label: 'Current', align: 'right', render: (row) => row.value, className: 'text-name' },
     { key: 'average', label: 'Avg / day', align: 'right', render: (row) => row.avg ?? '—', className: 'text-muted' },
     {

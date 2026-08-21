@@ -36,6 +36,7 @@ describe('map purge declaration', () => {
         });
       }
       await ctx.db.insert('mapAccess', { mapId, userId: 'user', roles: ['admin'] });
+      await ctx.db.insert('mapAccessProjectionWatermarks', { mapId, revision: 1 });
       await ctx.db.insert('mapSystems', { mapId, systemId: 30_000_142 });
       await ctx.db.insert('mapConnections', {
         mapId,
@@ -90,7 +91,7 @@ describe('map purge declaration', () => {
 
     await expect(
       t.mutation(internal.mapPurge.purgeMapBatch, { mapId }),
-    ).resolves.toEqual({ deleted: MAP_PURGE_BATCH + 8, hasMore: true });
+    ).resolves.toEqual({ deleted: MAP_PURGE_BATCH + 9, hasMore: true });
 
     const interrupted = await t.run(async (ctx) => ({
       notes: await ctx.db
