@@ -9,7 +9,6 @@ import type { MutationCtx } from '../_generated/server';
 import {
   findLocalSignatureConnection,
   findPasteConnection,
-  readTouchingConnections,
 } from './mapConnectionLookup';
 import {
   applyKnownSignatureTombstone,
@@ -556,7 +555,7 @@ export async function identifyScannedSignature(
   if (signature === undefined || isTombstoned(signature)) {
     if (group === 'Wormhole') {
       const existing = findLocalSignatureConnection(
-        await readTouchingConnections(ctx, mapId, systemId),
+        state.connections,
         systemId,
         normalizedId,
       );
