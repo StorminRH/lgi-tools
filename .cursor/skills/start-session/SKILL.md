@@ -74,7 +74,8 @@ stopped at a null handler.
    unless the operator authorized a bootstrap transition in the approved
    session plan.
 4. Handler `close-out` runs the process onto `staging` to `PROMOTED` or `BLOCKED`,
-   then stop. The next Start Session continues Ordered work, planning, or
+   then stop. A `PROMOTED` return leaves `development` containing
+   `staging`. The next Start Session continues Ordered work, planning, or
    archive.
 5. Stage `archive-needed` runs Archive a completed version, then stop.
 
