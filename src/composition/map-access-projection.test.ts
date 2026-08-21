@@ -52,6 +52,7 @@ import {
   projectStagedMapAccess,
   ProjectionUnavailableError,
   requireCurrentProjection,
+  purgeUserMapAccessProjection,
   teardownMapAccessProjection,
 } from './map-access-projection';
 
@@ -217,8 +218,6 @@ describe('computeMapAccessClaims', () => {
   });
 
   it('converges when a completed refresh leaves a biomassed character stale (404 omissions)', async () => {
-    // ESI 404-poisoned batch: refresh completed without transient failure, but the
-    // dead character's refreshedAt stays stale — corp roles fail closed, compute continues.
     mocks.getMapGrants.mockResolvedValue([
       { ownerType: 'corporation', ownerId: 990, role: 'viewer' },
     ]);
@@ -270,7 +269,6 @@ describe('computeMapAccessClaims', () => {
       affiliation(42, 99, new Date(Date.now() - 2 * 60 * 60 * 1000)),
     ]);
 
-    // Character principal still matches; only corp membership is fail-closed on staleness.
     await expect(computeMapAccessClaims('map-1')).resolves.toEqual([
       { userId: 'creator', roles: ['admin'] },
       { userId: 'stale', roles: ['viewer'] },
@@ -409,6 +407,13 @@ describe('projectMapAccess transport', () => {
       }),
     );
     await expect(teardownMapAccessProjection('map-1')).rejects.toBeInstanceOf(
+      ProjectionUnavailableError,
+    );
+  });
+
+  it('rejects a drifted user-purge response', async () => {
+    mocks.fetchWithTimeout.mockResolvedValue(Response.json({ deleted: 'nope' }));
+    await expect(purgeUserMapAccessProjection('user-1')).rejects.toBeInstanceOf(
       ProjectionUnavailableError,
     );
   });
