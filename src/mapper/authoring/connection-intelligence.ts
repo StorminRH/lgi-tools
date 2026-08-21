@@ -141,7 +141,7 @@ type LifetimeSource =
   | { readonly kind: 'ceiling'; readonly remainingMs: number; readonly ceilingAt: number }
   | { readonly kind: 'unset' };
 
-type LifetimeConnection = Pick<
+export type LifetimeConnection = Pick<
   ConnectionDetail,
   '_creationTime' | 'deathEarliestAt' | 'deathLatestAt' | 'lifeStage'
 >;

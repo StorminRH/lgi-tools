@@ -5,7 +5,7 @@
  * window and freshness comes from its response Expires header. Non-ESI
  * upstreams are exempt from ESI cache-time rules, but not placement rules.
  */
-type EsiUpstream =
+export type EsiUpstream =
   | {
       kind: 'esi';
       specPaths: readonly string[];
@@ -26,7 +26,7 @@ export type EsiGateRuleId =
   | 'personal-names-owner'
   | 'ttl-at-least-upstream';
 
-type EsiDatasetCommon = {
+export type EsiDatasetCommon = {
   name: string;
   upstream: EsiUpstream;
   mirrorTables: readonly string[];
@@ -47,7 +47,7 @@ type EsiDatasetCommon = {
   notes?: string;
 };
 
-type GlobalCronDataset = EsiDatasetCommon & {
+export type GlobalCronDataset = EsiDatasetCommon & {
   store: 'neon';
   shape: 'global-cron';
   freshnessModel: 'row-stale-after' | 'expires-boundary' | 'cron-cadence';
@@ -57,7 +57,7 @@ type GlobalCronDataset = EsiDatasetCommon & {
   };
 };
 
-type PersonalOnViewDataset = EsiDatasetCommon & {
+export type PersonalOnViewDataset = EsiDatasetCommon & {
   store: 'neon';
   shape: 'personal-on-view';
   freshnessModel: 'caller-ttl';
@@ -73,7 +73,7 @@ type PersonalOnViewDataset = EsiDatasetCommon & {
   cronBackstopRoute?: string;
 };
 
-type LiveDataset = EsiDatasetCommon & {
+export type LiveDataset = EsiDatasetCommon & {
   store: 'convex';
   shape: 'live';
   freshnessModel: 'engine-cadence';

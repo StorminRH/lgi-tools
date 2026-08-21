@@ -14,7 +14,7 @@ import type { NodeMeState } from './me-overrides';
 // healthy (green). A rough cut for at-a-glance scanning, not a trading signal.
 const THIN_MARGIN_PCT = 5;
 
-type EfficiencyToneState = NodeMeState | 'bonus' | 'reaction';
+export type EfficiencyToneState = NodeMeState | 'bonus' | 'reaction';
 
 /**
  * Shared planner disclosure treatment: the same recessed black well and neutral border as search

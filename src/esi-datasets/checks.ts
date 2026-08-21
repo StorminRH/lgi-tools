@@ -5,7 +5,7 @@ import {
   type EsiGateRuleId,
 } from '@/lib/esi-datasets/types';
 
-type EsiDatasetCheckContext = {
+export type EsiDatasetCheckContext = {
   cronRoutes: ReadonlySet<string>;
   deferredDatasets: ReadonlySet<string>;
   personalEntryPoints: ReadonlySet<string>;

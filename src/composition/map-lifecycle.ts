@@ -12,11 +12,11 @@ import {
   restoreAuthorizedMap,
 } from '@/data/maps/lifecycle';
 
-type LifecycleResult =
+export type LifecycleResult =
   | { readonly ok: true; readonly projectionPending: boolean }
   | { readonly ok: false };
 
-interface MapLifecycleDependencies {
+export interface MapLifecycleDependencies {
   readonly resolvePrincipals?: typeof resolveMapPrincipals;
   readonly archiveMap?: typeof archiveAuthorizedMap;
   readonly restoreMap?: typeof restoreAuthorizedMap;

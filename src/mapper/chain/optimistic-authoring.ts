@@ -202,7 +202,7 @@ export function optimisticAddSystemFromNode(
   });
 }
 
-type ConnectionFieldPatch = Partial<
+export type ConnectionFieldPatch = Partial<
   Pick<
     OptimisticConnectionRow,
     | 'wormholeTypeCode'

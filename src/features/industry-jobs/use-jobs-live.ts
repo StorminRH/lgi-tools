@@ -11,9 +11,7 @@ import { useMemo } from 'react';
 import { useLiveDataset } from '@/components/use-live-dataset';
 import { anyEligibleCold, eligibleIdsKey } from '@/lib/live-dataset';
 import { industryJobsEndpoint, type JobsResponse } from './api-contract';
-import { deriveJobsByCharacter } from './live-derive';
-
-type ViewerJobs = JobsResponse['characters'][number];
+import { deriveJobsByCharacter, type ViewerJobs } from './live-derive';
 
 // Module-level cold predicate (stable identity for the shell's effect dep): any
 // scope-eligible character still un-synced (data:null) means the write-behind hasn't

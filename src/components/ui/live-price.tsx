@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { cn } from './cn';
 
-type LivePriceSnapshot = { value: string; pending: boolean };
+export type LivePriceSnapshot = { value: string; pending: boolean };
 
 /**
  * Classifies a live-price commit without depending on the DOM so the first-mount and confirmation

@@ -287,7 +287,7 @@ export interface SignatureKnowledge {
 
 const TEXT_KNOWLEDGE_FIELDS = ['group', 'typeName', 'wormholeTypeCode'] as const;
 
-interface SignatureKnowledgePatch {
+export interface SignatureKnowledgePatch {
   group?: string | null;
   typeName?: string | null;
   wormholeTypeCode?: string | null;

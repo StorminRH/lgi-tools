@@ -51,7 +51,7 @@ export interface OwnedDatasetPort<TRow> {
 }
 
 /** The per-dataset knobs — everything that genuinely differs between the twins. */
-interface OwnedDatasetSpec<TRow> {
+export interface OwnedDatasetSpec<TRow> {
   // The ESI path segment: 'assets' | 'blueprints'.
   resource: string;
   // The staleness gate, closing over the slice's TTL.
@@ -67,7 +67,7 @@ interface OwnedDatasetSpec<TRow> {
 }
 
 // The save payload the engine carries from fetchAndPlan to save (per-owner replace-all).
-interface OwnedSave<TRow> {
+export interface OwnedSave<TRow> {
   rows: TRow[];
   etags: string[];
   source: { endpoint: string; items: unknown[]; responseHeaders: EsiResponseHeaders };

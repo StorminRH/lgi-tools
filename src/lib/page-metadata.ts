@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-type PageMetadataInput = {
+export type PageMetadataInput = {
   title: string;
   description: string;
   canonical: string;

@@ -32,7 +32,7 @@ import { corpEntityIds, corpGroupState, jobRowFrameData, runnerName } from '../j
 import { useCorpJobsLive } from '../use-corp-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
 
-type CorpEntry = CorpJobsResponse['corporations'][number];
+export type CorpEntry = CorpJobsResponse['corporations'][number];
 
 /**
  * The scope-missing gate copy, exported so the /industry dashboard coordinator

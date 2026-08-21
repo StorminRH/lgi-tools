@@ -3,11 +3,11 @@
 // waking Neon for an idle logged-in tab. A miss still loads from the adapter.
 import type { Jwk } from 'better-auth/plugins/jwt';
 
-type JwksAdapter = {
+export type JwksAdapter = {
   findMany: (opts: { model: string }) => Promise<unknown[] | null | undefined>;
 };
 
-type JwksCtx = {
+export type JwksCtx = {
   context: { adapter: JwksAdapter };
 };
 

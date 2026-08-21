@@ -6,8 +6,8 @@
 import type { CorpJobsResponse, JobsResponse } from './api-contract';
 import { deriveJobStatus } from './job-state';
 
-type ViewerJobs = JobsResponse['characters'][number];
-type ViewerCorpJobs = CorpJobsResponse['corporations'][number];
+export type ViewerJobs = JobsResponse['characters'][number];
+export type ViewerCorpJobs = CorpJobsResponse['corporations'][number];
 type JobBoard = NonNullable<ViewerJobs['data']>;
 
 // Re-derive one board's job statuses against the render clock: a job past its absolute

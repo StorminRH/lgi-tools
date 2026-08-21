@@ -26,9 +26,9 @@ function excluded(column: string) {
 
 // ── Pure transforms (API row → DB row) — the unit-tested core ────────────
 
-type SearchAnalyticsRecord = typeof gscSearchAnalytics.$inferInsert;
-type SitemapRecord = typeof gscSitemaps.$inferInsert;
-type UrlInspectionRecord = typeof gscUrlInspection.$inferInsert;
+export type SearchAnalyticsRecord = typeof gscSearchAnalytics.$inferInsert;
+export type SitemapRecord = typeof gscSitemaps.$inferInsert;
+export type UrlInspectionRecord = typeof gscUrlInspection.$inferInsert;
 
 // int64 counts arrive as JSON strings; coerce defensively to a number.
 function coerceCount(v: string | number | undefined): number {
@@ -182,7 +182,7 @@ export function missingInspectionUrls(urls: string[], storedUrls: Iterable<strin
   return urls.filter((url) => !completed.has(url));
 }
 
-type InspectionBatchResult = { records: UrlInspectionRecord[]; errors: string[] };
+export type InspectionBatchResult = { records: UrlInspectionRecord[]; errors: string[] };
 
 /**
  * Upserts one inspection batch and advances its sync run atomically, preserving partial success

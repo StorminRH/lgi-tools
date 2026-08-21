@@ -15,13 +15,13 @@ const CREATION_PROJECTION_ATTEMPT_TIMEOUT_MS = 2_000;
 const CREATION_PROJECTION_DEADLINE_MS = 20_000;
 const COMPENSATION_RETRY_OFFSETS_MS = [0, 250, 1_000] as const;
 
-type CreateMap = typeof createMapAtomic;
-type Compensate = typeof compensateFailedMapCreation;
-type Project = typeof projectStagedMapAccess;
-type Publish = typeof publishCreatedMap;
-type Teardown = typeof teardownMapAccessProjection;
+export type CreateMap = typeof createMapAtomic;
+export type Compensate = typeof compensateFailedMapCreation;
+export type Project = typeof projectStagedMapAccess;
+export type Publish = typeof publishCreatedMap;
+export type Teardown = typeof teardownMapAccessProjection;
 
-interface MapCreationDependencies {
+export interface MapCreationDependencies {
   readonly createMap?: CreateMap;
   readonly compensate?: Compensate;
   readonly project?: Project;

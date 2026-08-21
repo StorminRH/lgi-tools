@@ -6,11 +6,11 @@ import {
 import type { UpdateMapAccessRequest } from '@/data/maps/api-contract';
 import { applyAuthorizedMapGrantChange } from '@/data/maps/queries';
 
-type ResolvePrincipals = typeof resolveMapPrincipals;
-type ApplyGrantChange = typeof applyAuthorizedMapGrantChange;
-type ProjectAccess = typeof projectMapAccess;
+export type ResolvePrincipals = typeof resolveMapPrincipals;
+export type ApplyGrantChange = typeof applyAuthorizedMapGrantChange;
+export type ProjectAccess = typeof projectMapAccess;
 
-interface MapAccessUpdateDependencies {
+export interface MapAccessUpdateDependencies {
   readonly resolvePrincipals?: ResolvePrincipals;
   readonly applyGrantChange?: ApplyGrantChange;
   readonly projectAccess?: ProjectAccess;

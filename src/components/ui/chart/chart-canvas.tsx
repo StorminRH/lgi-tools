@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from 'react';
 import { cn } from '../cn';
 
-type ChartCanvasProps = {
+export type ChartCanvasProps = {
   svgRef: RefObject<SVGSVGElement | null>;
   width: number;
   height: number;

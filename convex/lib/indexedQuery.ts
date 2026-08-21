@@ -3,16 +3,16 @@ import type { Doc } from '../_generated/dataModel';
 import type { DatabaseReader, QueryCtx } from '../_generated/server';
 import { authenticatedSubject } from './characterSync';
 
-type UserIndexedTable =
+export type UserIndexedTable =
   | 'characterLocation'
   | 'characterOnline'
   | 'characterLocationAccess';
-type UserCharacterIndexedTable =
+export type UserCharacterIndexedTable =
   | 'characterLocation'
   | 'characterLocationCovered';
-type UserDatasetTable = 'syncSubjects' | 'syncPresence';
-type PurgeAfterTable = 'mapSystems' | 'mapConnections';
-type StoredDataset = Doc<'syncSubjects'>['dataset'];
+export type UserDatasetTable = 'syncSubjects' | 'syncPresence';
+export type PurgeAfterTable = 'mapSystems' | 'mapConnections';
+export type StoredDataset = Doc<'syncSubjects'>['dataset'];
 
 export function collectByUser(
   ctx: Pick<QueryCtx, 'db'>,

@@ -13,12 +13,12 @@ import {
 } from '@/platform/auth/constants';
 import * as schema from './drizzle-schema';
 
-interface ManagedTableName {
+export interface ManagedTableName {
   readonly schema: string;
   readonly name: string;
 }
 
-type RegisteredTable = PgTable | ManagedTableName;
+export type RegisteredTable = PgTable | ManagedTableName;
 
 interface PrunedGrowthStory {
   readonly kind: 'pruned';

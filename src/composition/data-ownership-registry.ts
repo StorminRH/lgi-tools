@@ -17,7 +17,7 @@ import * as schema from './drizzle-schema';
  * permitted cross-owner writer. Deliberately narrower than the repository's Fallow zone map, which
  * remains the mechanical authority for file-to-zone ownership.
  */
-type SliceId =
+export type SliceId =
   | 'data/domain-events'
   | 'data/esi-refresh-jobs'
   | 'data/esi-snapshots'
@@ -72,7 +72,7 @@ export function sliceOfPath(filePath: string): string {
  * row-level-security decision is recorded per class rather than per table so the actual decision
  * axes stay visible.
  */
-type DataClassId =
+export type DataClassId =
   | 'global-reference'
   | 'identity-credential'
   | 'personal'
@@ -80,7 +80,7 @@ type DataClassId =
   | 'operational';
 
 /** One data class's recorded authorization decision, its justification, and what would reopen it. */
-interface DataClassDecision {
+export interface DataClassDecision {
   readonly decision: 'application-authorization-only' | 'application-plus-rls';
   readonly justification: string;
   readonly reviewTrigger: string;
@@ -179,7 +179,7 @@ export function describeDbInvariants(table: PgTable): string[] {
 }
 
 /** How a write to one table reaches Postgres, and therefore what atomicity its callers may assume. */
-interface TransactionBoundary {
+export interface TransactionBoundary {
   readonly kind:
     | 'single-statement'
     | 'transactional-batch'
@@ -190,13 +190,13 @@ interface TransactionBoundary {
 }
 
 /** A slice permitted to read a table it does not own, and the purpose that permits it. */
-interface CrossOwnerRead {
+export interface CrossOwnerRead {
   readonly by: SliceId;
   readonly purpose: string;
 }
 
 /** A slice permitted to write a table it does not own, and the reason that permits it. */
-interface CrossOwnerWrite {
+export interface CrossOwnerWrite {
   readonly by: SliceId;
   readonly reason: string;
 }

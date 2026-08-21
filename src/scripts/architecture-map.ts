@@ -21,16 +21,16 @@ const REGENERATE_COMMAND = 'pnpm generate:architecture-map';
 
 // How a zone earns its files: an explicit pattern list, an `autoDiscover` group whose
 // child directories each become a slice, or a referenced child of such a group.
-type ZoneKind = 'zone' | 'group' | 'reference-core';
+export type ZoneKind = 'zone' | 'group' | 'reference-core';
 
 // The three mechanically derived relations. `allow` is a declared permission between two
 // zones; `exception` is a permission naming a child of an `autoDiscover` group rather than
 // a declared zone; `carve-out` is not a permission at all but first-match classification
 // precedence, where an earlier zone's patterns are fully covered by a later zone's.
-type EdgeKind = 'allow' | 'exception' | 'carve-out';
+export type EdgeKind = 'allow' | 'exception' | 'carve-out';
 
 // One zone in the graph, with its longest-path layer above the sinks.
-type ArchitectureNode = {
+export type ArchitectureNode = {
   id: string;
   label: string;
   layer: number;
@@ -38,7 +38,7 @@ type ArchitectureNode = {
 };
 
 // One classified relation between two zones, addressed by node id.
-type ArchitectureEdge = { from: string; to: string; kind: EdgeKind };
+export type ArchitectureEdge = { from: string; to: string; kind: EdgeKind };
 
 /** The complete derived zone graph: nodes in declaration order, edges grouped by class. */
 export type ArchitectureMap = {

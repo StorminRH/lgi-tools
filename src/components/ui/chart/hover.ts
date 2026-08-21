@@ -3,7 +3,7 @@ import { localPoint } from '@visx/event';
 import { continuousHoverTarget } from './chart-geometry';
 
 /** A d3/visx numeric scale used for a continuous axis: callable + `.invert`. */
-type InvertibleScale = ((value: number) => number) & { invert: (x: number) => number };
+export type InvertibleScale = ((value: number) => number) & { invert: (x: number) => number };
 
 /**
  * Build the `onMouseMove` handler for a continuous-x line chart (Sparkline,

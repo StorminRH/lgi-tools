@@ -30,7 +30,7 @@ export type ResponseCodec =
   | EmptyCodec
   | TextCodec;
 
-type EndpointResponseMap = Record<number, ResponseCodec>;
+export type EndpointResponseMap = Record<number, ResponseCodec>;
 
 /** First-party endpoint contract owning method, path, request, and every response status. */
 export interface EndpointContract<
@@ -47,7 +47,7 @@ export interface EndpointContract<
   params?: z.ZodObject;
 }
 
-type EndpointDefinition =
+export type EndpointDefinition =
   | (EndpointContract<null> & { method: 'GET'; request: null })
   | (EndpointContract & { method: 'POST' });
 
@@ -57,7 +57,7 @@ export type PathParamKeys<TPath extends string> =
     ? TKey | PathParamKeys<TRest>
     : never;
 
-type ParamsKeysOf<TEndpoint> = TEndpoint extends { params: z.ZodObject<infer TShape> }
+export type ParamsKeysOf<TEndpoint> = TEndpoint extends { params: z.ZodObject<infer TShape> }
   ? keyof TShape & string
   : never;
 
@@ -66,7 +66,7 @@ type ParamsKeysOf<TEndpoint> = TEndpoint extends { params: z.ZodObject<infer TSh
  * directions, so a dynamic path without a matching schema — or a schema key the
  * path never uses — fails to compile at the declaration site.
  */
-type PathParamsBinding<TEndpoint extends EndpointContract> =
+export type PathParamsBinding<TEndpoint extends EndpointContract> =
   PathParamKeys<TEndpoint['path']> extends ParamsKeysOf<TEndpoint>
     ? ParamsKeysOf<TEndpoint> extends PathParamKeys<TEndpoint['path']>
       ? unknown
@@ -108,11 +108,11 @@ export function defineEndpoint<const TEndpoint extends EndpointDefinition>(
   return endpoint;
 }
 
-type ProblemBodyFor<TCode extends string> = Omit<ProblemBody, 'code'> & {
+export type ProblemBodyFor<TCode extends string> = Omit<ProblemBody, 'code'> & {
   code: TCode;
 };
 
-type BodyOfCodec<TCodec extends ResponseCodec> =
+export type BodyOfCodec<TCodec extends ResponseCodec> =
   TCodec extends JsonCodec<infer TBody>
     ? TBody
     : TCodec extends ProblemCodec<infer TCode>
@@ -131,10 +131,10 @@ export type ResponseBodyFor<
   TStatus extends DeclaredStatus<TEndpoint>,
 > = BodyOfCodec<TEndpoint['responses'][TStatus]>;
 
-type IsSuccessStatus<TStatus extends number> =
+export type IsSuccessStatus<TStatus extends number> =
   `${TStatus}` extends `2${string}` ? true : false;
 
-type DeclaredOutcome<TEndpoint extends EndpointContract> = {
+export type DeclaredOutcome<TEndpoint extends EndpointContract> = {
   [TStatus in DeclaredStatus<TEndpoint>]: IsSuccessStatus<TStatus> extends true
     ? {
         ok: true;
@@ -171,12 +171,12 @@ export type RequestInputOf<TEndpoint extends EndpointContract> =
     ? z.input<TEndpoint['request']>
     : never;
 
-type PathParamsOf<TEndpoint extends EndpointContract> =
+export type PathParamsOf<TEndpoint extends EndpointContract> =
   [PathParamKeys<TEndpoint['path']>] extends [never]
     ? { params?: never }
     : { params: Record<PathParamKeys<TEndpoint['path']>, string | number> };
 
-type QueryInputOf<TEndpoint extends EndpointContract> =
+export type QueryInputOf<TEndpoint extends EndpointContract> =
   TEndpoint['query'] extends z.ZodObject
     ? { query?: z.input<TEndpoint['query']> }
     : { query?: never };

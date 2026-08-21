@@ -1,4 +1,4 @@
-type CharacterOwnerReconciler = (
+export type CharacterOwnerReconciler = (
   characterId: number,
   jwtOwnerHash: string | null | undefined,
 ) => Promise<void>;

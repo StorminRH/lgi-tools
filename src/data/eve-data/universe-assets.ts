@@ -102,7 +102,7 @@ export interface WormholeCodexAsset {
   types: WormholeCodexEntry[];
 }
 
-interface WormholeTypeRow {
+export interface WormholeTypeRow {
   id: number;
   name: string;
   attributes: unknown;

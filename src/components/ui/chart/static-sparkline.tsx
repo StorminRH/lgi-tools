@@ -9,7 +9,7 @@ import { extent } from './chart-geometry';
 // stroke colour comes from the shared tones map, like the other charts. A flat
 // series draws a centred line; a single point draws just the end dot.
 
-type StaticSparklineProps = {
+export type StaticSparklineProps = {
   values: number[];
   width?: number;
   height?: number;

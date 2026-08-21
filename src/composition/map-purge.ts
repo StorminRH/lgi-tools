@@ -35,7 +35,7 @@ export async function purgeMapChain(
   });
 }
 
-interface MapPurgeDependencies {
+export interface MapPurgeDependencies {
   readonly claimMaps?: typeof claimPurgeableMaps;
   readonly purgeChain?: typeof purgeMapChain;
   readonly tombstoneMap?: typeof tombstonePurgedMap;

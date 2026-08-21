@@ -30,9 +30,9 @@ const popup = cva(cn('flex flex-col outline-none', panelSurface), {
   defaultVariants: { tone: 'neutral' },
 });
 
-type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
-type PopupProps = React.ComponentProps<typeof Base.Popup>;
-type DataAttributes = {
+export type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
+export type PopupProps = React.ComponentProps<typeof Base.Popup>;
+export type DataAttributes = {
   [key: `data-${string}`]: string | number | boolean | undefined;
 };
 

@@ -35,7 +35,7 @@ import type {
   UsageAction,
 } from './types';
 
-interface LogEventInput {
+export interface LogEventInput {
   action: UsageAction;
   characterId?: number | null;
   metadata?: Record<string, unknown>;
