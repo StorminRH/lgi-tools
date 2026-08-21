@@ -96,9 +96,8 @@ Re-scrub after publish.
 Done when that Origin PR's Depot pipeline is green.
 
 Wait with `origin pr checks --watch`. If Checks are empty while Depot
-is running, use
-`depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4` and
-`depot ci status <run-id> --org k2f4dzqwd4`.
+is running, list then poll status per Tools. On red, diagnose then
+logs. Confirm a suggested fix against the logs before acting.
 
 ## Dump
 

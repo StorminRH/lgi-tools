@@ -55,10 +55,16 @@ comments on standing `LGI-6`.
 **depot** — Origin PR pipeline. Org `k2f4dzqwd4`, repo `stormin/lgi-tools`,
 workflow `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4`. `run list`
 defaults to queued and running. PR runs use a merge SHA
-(`refs/changes/N/merge`), not always `HEAD`. Skip `auth-storage.json` in
-artifacts.
+(`refs/changes/N/merge`), not always `HEAD`. `status` returns immediately.
+Skip `auth-storage.json` in artifacts.
+
+Watch Checks with `origin pr checks --watch`. When that list is empty,
+`run list` then poll `status`. On red, `diagnose` first — it groups
+failures and suggests a fix. Confirm against `logs` before acting.
 `depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4`
 `depot ci status <run-id> --org k2f4dzqwd4`
+`depot ci diagnose --run <run-id> --org k2f4dzqwd4`
+`depot ci logs <run-id> --job <job> --org k2f4dzqwd4`
 
 **vercel** — Manual `development` Preview and the Vercel API.
 `vercel deploy`
