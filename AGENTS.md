@@ -39,6 +39,8 @@ that Origin PR's Depot pipeline.
 ## Tools
 
 Origin is the land forge. GitHub is the dump remote for bot review.
+Linear is the ticket home. GitHub issues are not in use. Update watch
+comments on standing `LGI-6`.
 
 **origin** — Origin PRs and Checks.
 `origin pr create --status open`
@@ -46,10 +48,9 @@ Origin is the land forge. GitHub is the dump remote for bot review.
 `origin pr merge`
 `origin pr view` / `list` / `diff`
 
-**gh** — GitHub dump PRs and update-watch issues. Add a `github` remote
-to `https://github.com/StorminRH/lgi-tools.git` when it is missing.
+**gh** — GitHub dump PRs only. Add a `github` remote to
+`https://github.com/StorminRH/lgi-tools.git` when it is missing.
 `gh pr create` (`dump/...` → `staging`)
-`gh issue create`
 
 **depot** — Origin PR pipeline. Org `k2f4dzqwd4`, repo `stormin/lgi-tools`,
 workflow `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4`. `run list`

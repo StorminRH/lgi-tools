@@ -3,9 +3,9 @@
 This file records what the operator has **acknowledged**, never what is
 installed — `package.json` remains the sole owner of installed state. The
 daily report-only update-watch routine compares live state against this
-baseline through `tools/update_watch/update_watch_collect.py` and opens a GitHub
-digest issue only for deltas that are neither acknowledged here nor already
-reported in an open digest issue. The routine has no write path to this file;
+baseline through `tools/update_watch/update_watch_collect.py` and comments a
+digest on Linear `LGI-6` only for deltas that are neither acknowledged here
+nor already on that ticket. The routine has no write path to this file;
 every update is manual absorption during a normal session.
 
 ## Delta model (identity-first)
@@ -18,7 +18,7 @@ every update is manual absorption during a normal session.
   from the recorded `appliesTo` — a vulnerability reintroduced by downgrade or
   dependency change surfaces again instead of staying suppressed.
 - A service/EVE announcement is a delta iff its canonical id is not in its
-  source's `acknowledgedItems` and not reported in an open digest issue.
+  source's `acknowledgedItems` and not already on Linear `LGI-6`.
   Dates never decide identity.
 - `idRule` names the per-source canonical-id extraction from the shared source
   registry owned by the collector (`tools/update_watch/update_watch_collect.py`);
@@ -35,12 +35,12 @@ appearance still surfaces.
 
 **Absorption invariant:** `scanSince` may advance only when every currently
 in-window item for that source is in `acknowledgedItems`. Partial absorption
-keeps the window. To absorb a digest issue: add each reported item's canonical
+keeps the window. To absorb a digest: add each reported item's canonical
 id to its source's `acknowledgedItems` (or raise the relevant
-`acknowledgedMajor` / add the advisory with its observed applicability), close
-the issue, and only advance `scanSince` after confirming nothing in-window
-remains unacknowledged. This invariant cannot be verified against live pages
-by the checker; it is owned by this procedure.
+`acknowledgedMajor` / add the advisory with its observed applicability).
+Do not edit or close `LGI-6`. Only advance `scanSince` after confirming
+nothing in-window remains unacknowledged. This invariant cannot be
+verified against live pages by the checker; it is owned by this procedure.
 
 The baseline below was seeded from a manual sweep of every registry source on
 2026-07-19. The feed-backed sources' items all predate the sweep and are
