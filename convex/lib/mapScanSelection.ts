@@ -1,6 +1,3 @@
-// Selection tombstone/restore and confident-missing removal. Both stamp
-// independent stubs before resolved collapses so those stubs stay outside the
-// collapse core's shared-stamp restore set.
 import { ConvexError } from 'convex/values';
 import { chainTombstoneStamps, isTombstoned } from '@/data/maps/chain-contract';
 import { isConfidentMissingRemoval } from '@/data/maps/signature-lifecycle';
@@ -13,6 +10,7 @@ import {
   writeMapEvent,
   type CollapsePilotsPresent,
 } from '../mapAuthoring';
+import { readTrackedPilotSystemIds } from '../mapTracking';
 import { findLocalSignatureConnection, readTouchingConnections } from './mapConnectionLookup';
 import {
   applyKnownSignatureTombstone,
@@ -25,11 +23,20 @@ import {
   requireLiveSystem,
   rowMaps,
   tombstoneConnectionRow,
-  trackedPresenceReader,
   type ScanState,
 } from './mapScanState';
 
-/** Operator selection: tombstone confirmed rows or restore them inside the undo window. */
+function trackedPresenceReader(
+  ctx: MutationCtx,
+  mapId: string,
+): () => Promise<CollapsePilotsPresent> {
+  let held: CollapsePilotsPresent | undefined;
+  return async () => {
+    held ??= { trackedInSystemIds: await readTrackedPilotSystemIds(ctx, mapId) };
+    return held;
+  };
+}
+
 export type SignatureSelectionMode = 'remove' | 'restore';
 
 interface SelectionWrite {
@@ -40,11 +47,6 @@ interface SelectionWrite {
   readonly at: number;
 }
 
-/**
- * Removes or restores one selected resolved wormhole row through the shared
- * collapse core and its shared-stamp branch undo. Unresolved stubs never reach
- * this arm — they tombstone as single rows in the caller's first pass.
- */
 async function changeSelectedResolvedConnection(
   ctx: MutationCtx,
   mapId: string,
@@ -52,8 +54,6 @@ async function changeSelectedResolvedConnection(
   write: SelectionWrite,
   pilots: () => Promise<CollapsePilotsPresent>,
 ): Promise<boolean> {
-  // Re-read: an earlier selection in this loop may already have collapsed or
-  // restored this row as shared-stamp branch collateral.
   const fresh = await ctx.db.get(connection._id);
   if (fresh === null) return false;
   if (write.mode === 'remove') {
@@ -77,13 +77,6 @@ interface SingleRowPass {
   readonly resolved: Doc<'mapConnections'>[];
 }
 
-/**
- * First selection pass: stamps list rows and unresolved stubs, deferring
- * resolved connections. Single-row tombstones must stamp before resolved
- * collapses/restores — the collapse core mints its shared undo stamp against
- * a fresh topology read, so stamping first keeps independent rows outside the
- * branch's shared-stamp restore set.
- */
 async function tombstoneSingleRows(
   ctx: MutationCtx,
   state: ScanState,
@@ -157,9 +150,6 @@ async function tombstoneSelected(
     if (didChange) changed += 1;
   }
   if (pass.changedRowIds.length > 0) {
-    // Resolved rows ledger through the collapse core; list rows and stubs
-    // record their own restorable event so every removal (and its undo)
-    // leaves a 24-hour paper trail.
     await writeMapEvent(ctx, {
       mapId,
       at: write.at,
@@ -209,12 +199,6 @@ function requireUndoWindow(
   }
 }
 
-/**
- * Resolves only the requested identities through their exact compound indexes.
- * Removal and restore stay available even when a system exceeds the
- * whole-system scan bound — cleanup is the remedy for an over-bound system,
- * so it must never be gated behind the bound it relieves.
- */
 async function readSelectionState(
   ctx: MutationCtx,
   mapId: string,
@@ -241,7 +225,6 @@ async function readSelectionState(
   };
 }
 
-/** Tombstones or restores the named identities after the system is confirmed live. */
 export async function changeSignatureSelection(
   ctx: MutationCtx,
   mapId: string,
@@ -266,7 +249,6 @@ export async function changeSignatureSelection(
   });
 }
 
-/** Lifecycle owner in this system for confident-missing; never the incoming mouth of a hallway. */
 function findOriginLifecycleConnection(
   rows: readonly Doc<'mapConnections'>[],
   systemId: number,
@@ -304,7 +286,6 @@ async function removeConfidentRow(
   if (activity !== undefined) await ctx.db.delete(activity._id);
 }
 
-/** Tombstones confident-missing origin doors; resolved holes go through collapse. */
 export async function removeConfidentRows(
   ctx: MutationCtx,
   state: ScanState,
@@ -317,9 +298,6 @@ export async function removeConfidentRows(
   const removed = new Set<string>();
   const removedStubIds: string[] = [];
   const pilots = trackedPresenceReader(ctx, mapId);
-  // Stubs stamp before resolved collapses: the collapse core mints its shared
-  // undo stamp against a fresh topology read, so stamping independent stub
-  // tombstones first keeps them outside the branch's shared-stamp restore set.
   const ordered = [...missingIds].sort((left, right) => {
     const leftResolved = findOriginLifecycleConnection(
       state.connections,
@@ -336,8 +314,6 @@ export async function removeConfidentRows(
   for (const signatureId of ordered) {
     const known = findOriginLifecycleConnection(state.connections, systemId, signatureId);
     if (known === undefined) continue;
-    // Re-read: an earlier collapse in this loop may already have tombstoned
-    // this row as branch collateral.
     const connection = await ctx.db.get(known._id);
     if (
       connection === null
@@ -358,9 +334,6 @@ export async function removeConfidentRows(
     if (connection.toSystemId === null) removedStubIds.push(signatureId);
   }
   if (removedStubIds.length > 0) {
-    // Resolved removals ledger through the collapse core; silent stub
-    // removals record their own restorable event so nothing disappears
-    // without a 24-hour paper trail.
     await writeMapEvent(ctx, {
       mapId,
       at: now,

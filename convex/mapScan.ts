@@ -1,5 +1,3 @@
-// Production scanner-paste boundary. Gate-first registered handlers for paste,
-// identify, elimination, selection, watch, and purge. Internals live in lib.
 import {
   paginationOptsValidator,
   type PaginationOptions,
@@ -82,8 +80,6 @@ const eliminationOutcomeValidator = v.object({
     v.literal('protected'),
     v.literal('stale'),
   ),
-  // The row's stable per-hole observation key, so the caller can log or repair
-  // the identification this outcome settled. Null when no live row owns one.
   observationKey: v.union(v.string(), v.null()),
 });
 
@@ -114,7 +110,6 @@ const scanRowValidator = v.object({
   signalPct: v.union(v.number(), v.null()),
 });
 
-/** A complete empty page for a caller without current map access. */
 function deniedPage<Row>(): PaginationResult<Row> {
   return { page: [], isDone: true, continueCursor: '' };
 }
@@ -126,7 +121,6 @@ function boundedPageOptions(options: PaginationOptions): PaginationOptions {
   };
 }
 
-/** Reads bounded live endpoint facts for server-owned signature elimination. */
 export const eliminationEvidence = internalQuery({
   args: { userId: v.string(), mapId: v.string(), systemId: v.number() },
   returns: eliminationEvidenceValidator,
@@ -139,7 +133,6 @@ export const eliminationEvidence = internalQuery({
   },
 });
 
-/** Atomically revalidates and applies one assumed-tier deduction batch. */
 export const applyEliminationDeductions = internalMutation({
   args: {
     userId: v.string(),
@@ -154,13 +147,6 @@ export const applyEliminationDeductions = internalMutation({
   },
 });
 
-/**
- * Attaches one unresolved scanned stub to a known incoming hallway the
- * operator picked in Leads to. Reuses the elimination link writer so mass,
- * size, and lifetime carry the same way a deduced link would — without
- * inferring which K162 is incoming from that system. A human pick may
- * replace an occupied mouth and restore the previous signature as a stub.
- */
 export const linkStubToResolvedConnection = mutation({
   args: {
     mapId: v.string(),
@@ -198,7 +184,6 @@ export const linkStubToResolvedConnection = mutation({
   },
 });
 
-/** Applies one parsed scan only to the caller's live tracked map system. */
 export const applyScan = mutation({
   args: { mapId: v.string(), systemId: v.number(), rows: v.array(scanRowValidator) },
   handler: async (ctx, { mapId, systemId, rows }) => {
@@ -237,10 +222,6 @@ export const applyScan = mutation({
   },
 });
 
-/**
- * Identifies one unresolved list row. Wormhole identification reuses the same
- * signature-to-connection convergence path as scanner paste.
- */
 export const identifySignature = mutation({
   args: {
     mapId: v.string(),
@@ -272,13 +253,10 @@ function signatureSelectionMutation(mode: SignatureSelectionMode) {
   });
 }
 
-/** Tombstones confirmed signature rows for the canonical 24-hour undo window. */
 export const removeSignatures = signatureSelectionMutation('remove');
 
-/** Restores selected signature or unresolved-stub tombstones inside the undo window. */
 export const restoreSignatures = signatureSelectionMutation('restore');
 
-/** Watches one access-gated page of active signature-list rows for a map. */
 export const watchMapSignatures = query({
   args: { mapId: v.string(), paginationOpts: paginationOptsValidator },
   handler: async (ctx, { mapId, paginationOpts }) => {
@@ -292,11 +270,9 @@ export const watchMapSignatures = query({
   },
 });
 
-/** Drains one bounded batch of expired signature tombstones. */
 export const purgeExpiredSignatureTombstones = internalMutation({
   args: {},
   handler: async (ctx) => await purgeExpiredSignatures(ctx, Date.now()),
 });
 
-/** Re-export of the cleanup owner's batch cap. */
 export { SIGNATURE_PURGE_BATCH };

@@ -1,4 +1,3 @@
-// Signature-elimination deductions and the shared stub-to-hallway link writer.
 import { ConvexError } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import {
@@ -23,13 +22,13 @@ import {
   leadsNotePatch,
 } from './mapScanState';
 
-type EliminationOutcome = {
+export type EliminationOutcome = {
   readonly signatureId: string;
   readonly outcome: 'applied' | 'unchanged' | 'protected' | 'stale';
   readonly observationKey: string | null;
 };
 
-type EliminationEvidence = {
+export type EliminationEvidence = {
   readonly canEdit: true;
   readonly signatures: {
     readonly signatureId: string;
@@ -82,7 +81,6 @@ async function readEliminationConnections(
   return { from, touching: [...touching.values()] };
 }
 
-/** Reads bounded live endpoint facts after the caller has already authorized edit. */
 export async function collectEliminationEvidence(
   ctx: QueryCtx,
   mapId: string,
@@ -173,8 +171,6 @@ async function applyTypeDeduction(
   ) {
     return { signatureId, outcome: 'protected', observationKey };
   }
-  // Deduced identity is observation-eligible: stamp the row's dedupe key
-  // through the same owner the manual setter uses.
   const stamped = stampObservationKey(source.observationKey);
   await ctx.db.patch(source._id, {
     ...connectionTypePatch(source, 'from', typeCode),
@@ -184,7 +180,6 @@ async function applyTypeDeduction(
   return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
 }
 
-/** Mouth-scoped Destination note on one stored end, rewritten onto a stub. */
 function occupiedDestinationNote(
   target: Doc<'mapConnections'>,
   side: 'from' | 'to',
@@ -204,7 +199,6 @@ function occupiedDestinationNote(
   };
 }
 
-/** Drops the occupied mouth's Destination note so it cannot stick to the new hole. */
 function clearOccupiedDestinationNote(side: 'from' | 'to'): {
   readonly fromDestinationSystemId?: undefined;
   readonly toDestinationSystemId?: undefined;
@@ -216,12 +210,6 @@ function clearOccupiedDestinationNote(side: 'from' | 'to'): {
     : { toDestinationSystemId: undefined, toDestinationHint: undefined };
 }
 
-/**
- * Recreates the signature currently occupying a resolved door as an unresolved
- * stub in this system. Door type and that mouth's Destination note ride with
- * the ID; hallway mass, size, and lifetime stay on the surviving connection.
- * No jump observation key.
- */
 async function recreateOccupiedDoorAsStub(
   ctx: MutationCtx,
   target: Doc<'mapConnections'>,
@@ -246,7 +234,6 @@ async function recreateOccupiedDoorAsStub(
   });
 }
 
-/** Attaches one unresolved stub to a resolved hallway, or reports stale/protected. */
 export async function applyLinkDeduction(
   ctx: MutationCtx,
   source: Doc<'mapConnections'> | undefined,
@@ -267,8 +254,6 @@ export async function applyLinkDeduction(
     return { signatureId, outcome: 'stale', observationKey: null };
   }
   const observationKey = source.observationKey ?? null;
-  // Evidence was read in a prior transaction. Refuse when the stub's type no
-  // longer matches the decision — a concurrent human retype must win.
   if ((source.wormholeTypeCode ?? null) !== expectedTypeCode) {
     return { signatureId, outcome: 'stale', observationKey };
   }
@@ -280,8 +265,6 @@ export async function applyLinkDeduction(
   }
   let surviving = target;
   if (current !== undefined) {
-    // Machine deductions never evict a joined signature. A human Leads-to
-    // pick may rehome the hallway onto this stub and restore the occupant.
     if (!replaceOccupied) {
       return { signatureId, outcome: 'protected', observationKey };
     }
@@ -292,8 +275,6 @@ export async function applyLinkDeduction(
       ...clearOccupiedDestinationNote(side),
     };
   }
-  // Carry human-entered stub knowledge onto the resolved row before the stub
-  // document dies — inference must not erase a person's mass/size/lifetime.
   const knowledge = linkKnowledgePatch(source, surviving, side);
   const attached = {
     ...(side === 'from'
@@ -313,17 +294,10 @@ export async function applyLinkDeduction(
     leftover === null ? attached : { ...attached, ...leftover.patch },
   );
   if (leftover !== null) await ctx.db.delete(leftover.id);
-  // The stub row and its dedupe key die here: the identity now belongs to the
-  // resolved connection, which carries its own key through the jump channel.
   await ctx.db.delete(source._id);
   return { signatureId, outcome: 'applied', observationKey };
 }
 
-/**
- * When the other system's mouth still has no scanner ID, fold in the unique
- * leftover stub in that system so both scanners share one hallway. Returns
- * the leftover patch so the caller can write the surviving row once.
- */
 async function leftoverOriginStubAbsorb(
   ctx: MutationCtx,
   target: Doc<'mapConnections'>,
@@ -362,11 +336,6 @@ async function leftoverOriginStubAbsorb(
   };
 }
 
-/**
- * A named type on the other mouth fills this mouth as K162. Otherwise the
- * stub type is written on the attached mouth. Never invents a named type.
- * Also copies only unset hallway facts from the dying stub.
- */
 function linkKnowledgePatch(
   source: Doc<'mapConnections'>,
   target: Doc<'mapConnections'>,
@@ -378,7 +347,7 @@ function linkKnowledgePatch(
   };
 }
 
-type EliminationDeduction =
+export type EliminationDeduction =
   | {
       readonly signatureId: string;
       readonly typeCode: string;
@@ -391,7 +360,6 @@ type EliminationDeduction =
       readonly expectedTypeCode: string | null;
     };
 
-/** Revalidates and applies one assumed-tier deduction batch after authorization. */
 export async function applyEliminationDeductionBatch(
   ctx: MutationCtx,
   mapId: string,

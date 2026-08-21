@@ -1,5 +1,3 @@
-// Clipboard apply: paste merge, wormhole write/migration/stub-absorb, and
-// wormhole identify through the same paste writer.
 import { ConvexError, type Infer } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
@@ -37,18 +35,13 @@ import {
   type ScanState,
 } from './mapScanState';
 
-type ApplyOutcome = 'inserted' | 'updated' | 'unchanged' | 'migrated' | 'conflicted';
+export type ApplyOutcome = 'inserted' | 'updated' | 'unchanged' | 'migrated' | 'conflicted';
 
 type WormholeWrite = {
   readonly outcome: ApplyOutcome;
   readonly connectionId: Id<'mapConnections'> | undefined;
 };
 
-/**
- * Confirms the paste system is live on the map and one of the caller's
- * tracked characters is there. Live-feed / online-pilot coverage is a client
- * offer rule; this mutation checks tracked location only.
- */
 export async function requireTrackedSystem(
   ctx: MutationCtx,
   mapId: string,
@@ -118,11 +111,6 @@ function scanKnowledge(row: ScannedRow) {
   return knowledge;
 }
 
-/**
- * Applies one clipboard row using signatureId as the only identity join.
- * Storage shape (list vs wormhole connection) and clipboard group are decided
- * after that lookup — group/name/signal are payload, not the match key.
- */
 export async function applyScannedRow(
   ctx: MutationCtx,
   state: ScanState,
@@ -132,11 +120,9 @@ export async function applyScannedRow(
   now: number,
 ): Promise<ApplyOutcome> {
   const connection = findPasteConnection(state.connections, systemId, row.signatureId);
-  // A live door or revivable stub already owns this id.
   if (connection !== undefined) {
     return (await applyWormholeRow(ctx, state, row, mapId, systemId, now)).outcome;
   }
-  // No connection yet: Wormhole group creates/migrates; otherwise list upsert/revive.
   if (row.group === 'Wormhole') {
     return (await applyWormholeRow(ctx, state, row, mapId, systemId, now)).outcome;
   }
@@ -164,7 +150,6 @@ async function applyListRow(
       purgeAfter: null,
     });
   } else if (isTombstoned(existing)) {
-    // Re-paste within the undo window revives the same document identity.
     await applyKnownSignatureTombstone(ctx, existing, null, null, null);
     const merged = mergeSignatureKnowledge(existing, knowledge);
     if (merged.outcome === 'enriched') {
@@ -177,8 +162,6 @@ async function applyListRow(
       await ctx.db.patch(existing._id, merged.patch);
       outcome = 'updated';
     } else {
-      // A refused contradiction is reported, not silently absorbed: the row
-      // keeps the map's stored knowledge and the caller counts the conflict.
       outcome = merged.outcome === 'conflict' ? 'conflicted' : 'unchanged';
     }
   }
@@ -305,11 +288,6 @@ async function writeWormholeConnection(
   };
 }
 
-/**
- * Deletes a leftover stub in this system that duplicates an incoming mouth
- * already carrying this scanner ID. Re-paste after linking a K162 must not
- * leave a second ghost.
- */
 async function absorbDuplicateOriginStub(
   ctx: MutationCtx,
   state: ScanState,
@@ -339,12 +317,6 @@ async function absorbDuplicateOriginStub(
   return true;
 }
 
-/**
- * Whether an ID-matched re-paste may revive one tombstoned unresolved stub.
- * A resolved collapse returns only through ledger branch undo; paste skips
- * that corpse so the same id can start a new stub. A passed ceiling, an
- * expired undo window, or a conflicting non-wormhole group refuses revive.
- */
 function mayReviveTombstonedConnection(
   connection: Doc<'mapConnections'>,
   row: ScannedRow,
@@ -366,14 +338,11 @@ async function revivePasteConnection(
   now: number,
 ): Promise<Doc<'mapConnections'> | 'unchanged'> {
   if (!isTombstoned(connection)) return connection;
-  // Inert corpse: no write and no activity touch (collapse already cleared
-  // the companions), so the paste leaves the tombstone byte-identical.
   if (!mayReviveTombstonedConnection(connection, row, now)) return 'unchanged';
   await tombstoneConnectionRow(ctx, connection, undefined, null, null);
   return { ...connection, deletedAt: null, purgeAfter: null };
 }
 
-/** Re-paste against an incoming mouth: keep one hallway row, drop a leftover stub. */
 async function applyInboundPaste(
   ctx: MutationCtx,
   state: ScanState,
@@ -400,7 +369,6 @@ async function applyInboundPaste(
   };
 }
 
-/** Writes or migrates one wormhole paste row, including inbound stub absorb. */
 async function applyWormholeRow(
   ctx: MutationCtx,
   state: ScanState,
@@ -484,7 +452,6 @@ async function writeFreshWormholeRow(
   return written;
 }
 
-/** Live list rows plus origin-side wormhole doors used for missing classification. */
 export function liveLifecycleRows(state: ScanState, systemId: number) {
   const signatures = state.signatures
     .filter((row) => !isTombstoned(row))
@@ -571,10 +538,6 @@ async function identifyWormholeRow(
   };
 }
 
-/**
- * Identifies one unresolved list row. Wormhole identification reuses the same
- * signature-to-connection convergence path as scanner paste.
- */
 export async function identifyScannedSignature(
   ctx: MutationCtx,
   mapId: string,

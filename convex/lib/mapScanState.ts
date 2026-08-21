@@ -1,6 +1,3 @@
-// Shared scan-boundary primitives used by clipboard apply, identify, elimination,
-// and selection. Caps and readers live here so those writers share one bound
-// and one ScanState shape.
 import { ConvexError } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import {
@@ -10,7 +7,6 @@ import {
 import { isScannerSignatureId, type ScannedRow } from '@/data/maps/scan-parse';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
-import type { CollapsePilotsPresent } from '../mapAuthoring';
 import {
   queryMapSignatureActivity,
   queryMapSignatures,
@@ -18,29 +14,19 @@ import {
 } from './indexedQuery';
 import { readTouchingConnections } from './mapConnectionLookup';
 import { findSystem, requireSystemId } from './mapSystemLookup';
-import { readTrackedPilotSystemIds } from '../mapTracking';
 
-/** Maximum rows accepted or read for one system-level scanner transaction. */
 export const MAP_SCAN_ROW_LIMIT = 256;
 
-/** Maximum rows returned by one live signature page. */
 export const MAP_SIGNATURE_PAGE_SIZE = 100;
 
-/** Maximum hallway rows touching this system one elimination transaction may inspect. */
 export const MAP_ELIMINATION_CONNECTION_LIMIT = 128;
 
-/**
- * Signature, connection, and activity rows a scan-boundary writer already loaded.
- * `readScanState` loads one system; selection loads only the requested
- * identities plus touching connections.
- */
 export interface ScanState {
   readonly signatures: Doc<'mapSignatures'>[];
   readonly connections: Doc<'mapConnections'>[];
   readonly activities: Doc<'mapSignatureActivity'>[];
 }
 
-/** Rejects an empty, oversized, invalid, or duplicate clipboard paste. */
 export function requireBoundedRows(rows: readonly ScannedRow[]): ScannedRow[] {
   if (rows.length === 0 || rows.length > MAP_SCAN_ROW_LIMIT) {
     throw new ConvexError({
@@ -68,7 +54,6 @@ export function requireBoundedRows(rows: readonly ScannedRow[]): ScannedRow[] {
   return normalized;
 }
 
-/** Rejects an empty, oversized, or invalid selected-id list and de-duplicates it. */
 export function requireBoundedSignatureIds(signatureIds: readonly string[]): string[] {
   if (signatureIds.length === 0 || signatureIds.length > MAP_SCAN_ROW_LIMIT) {
     throw new ConvexError({
@@ -83,7 +68,6 @@ export function requireBoundedSignatureIds(signatureIds: readonly string[]): str
   return normalized;
 }
 
-/** Requires the named system to exist and not be tombstoned on this map. */
 export async function requireLiveSystem(
   ctx: MutationCtx,
   mapId: string,
@@ -125,7 +109,6 @@ const readSystemActivities = (ctx: QueryCtx, mapId: string, systemId: number) =>
     systemId,
   );
 
-/** Loads one system's bounded signatures, touching connections, and activities. */
 export async function readScanState(
   ctx: MutationCtx,
   mapId: string,
@@ -139,14 +122,12 @@ export async function readScanState(
   return { signatures, connections, activities };
 }
 
-/** Indexes rows by scanner signature id. */
 export function rowMaps<Row extends { signatureId: string }>(
   rows: readonly Row[],
 ): Map<string, Row> {
   return new Map(rows.map((row) => [row.signatureId, row]));
 }
 
-/** Which stored end of the hallway sits in this system, or null if neither. */
 export function endpointSide(
   connection: Doc<'mapConnections'>,
   systemId: number,
@@ -155,7 +136,6 @@ export function endpointSide(
   return connection.toSystemId === systemId ? 'to' : null;
 }
 
-/** Keep a mismatched typed Leads-to on the mouth being attached. */
 export function leadsNotePatch(
   surviving: Doc<'mapConnections'>,
   stubTyped: number | undefined,
@@ -175,7 +155,6 @@ export function leadsNotePatch(
     : { toDestinationSystemId: kept };
 }
 
-/** Whether the requested tombstone or revive would change this row. */
 export function needsTombstoneChange(
   row: { readonly deletedAt?: number | null },
   deletedAt: number | null,
@@ -183,7 +162,6 @@ export function needsTombstoneChange(
   return deletedAt === null ? isTombstoned(row) : !isTombstoned(row);
 }
 
-/** Patches one connection's tombstone pair and deletes its activity on remove. */
 export async function tombstoneConnectionRow(
   ctx: MutationCtx,
   connection: Doc<'mapConnections'> | undefined,
@@ -195,16 +173,4 @@ export async function tombstoneConnectionRow(
   await ctx.db.patch(connection._id, { deletedAt, purgeAfter });
   if (deletedAt !== null && activity !== undefined) await ctx.db.delete(activity._id);
   return true;
-}
-
-/** Memoizes the tracked-pilot presence read across one removal transaction. */
-export function trackedPresenceReader(
-  ctx: MutationCtx,
-  mapId: string,
-): () => Promise<CollapsePilotsPresent> {
-  let held: CollapsePilotsPresent | undefined;
-  return async () => {
-    held ??= { trackedInSystemIds: await readTrackedPilotSystemIds(ctx, mapId) };
-    return held;
-  };
 }
