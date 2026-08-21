@@ -39,7 +39,11 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
-import { takeIndexedOrThrow } from './lib/indexedQuery';
+import {
+  queryMapSignatureActivity,
+  queryMapSignatures,
+  takeIndexedOrThrow,
+} from './lib/indexedQuery';
 import {
   requireMapAccess,
   requireMapAccessForUser,
@@ -281,22 +285,14 @@ async function readBoundedSignatureRows<T>(
 
 const readSystemSignatures = (ctx: QueryCtx, mapId: string, systemId: number) =>
   readBoundedSignatureRows(
-    ctx.db
-      .query('mapSignatures')
-      .withIndex('by_map_signature', (q) =>
-        q.eq('mapId', mapId).eq('systemId', systemId),
-      ),
+    queryMapSignatures(ctx, mapId, systemId),
     'signature',
     systemId,
   );
 
 const readSystemActivities = (ctx: QueryCtx, mapId: string, systemId: number) =>
   readBoundedSignatureRows(
-    ctx.db
-      .query('mapSignatureActivity')
-      .withIndex('by_map_signature', (q) =>
-        q.eq('mapId', mapId).eq('systemId', systemId),
-      ),
+    queryMapSignatureActivity(ctx, mapId, systemId),
     'activity',
     systemId,
   );

@@ -11,8 +11,16 @@
 //   - drainCharacterOnline: the sweep's temporary Pass D delegates the
 //     table's teardown here so characterOnline keeps ONE owner.
 import { internalMutation, type MutationCtx, query } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
 import { collectByUser, viewerUserDocs } from './lib/indexedQuery';
 import { purgeScopeArgs } from './lib/syncFields';
+
+function viewerOnline(doc: Doc<'characterOnline'>) {
+  return {
+    characterId: doc.characterId,
+    online: doc.online,
+  };
+}
 
 /**
  * The calling user's per-character online flags — kept only for pre-deploy
@@ -25,10 +33,7 @@ export const forViewer = query({
     viewerUserDocs(
       ctx,
       (userId) => collectByUser(ctx, 'characterOnline', userId),
-      (doc) => ({
-        characterId: doc.characterId,
-        online: doc.online,
-      }),
+      viewerOnline,
     ),
 });
 

@@ -158,18 +158,34 @@ export function takeExpiredByPurgeAfter(
     case 'mapSystems':
       return ctx.db
         .query('mapSystems')
-        .withIndex('by_purge_after', (q) =>
-          q.gt('purgeAfter', null).lte('purgeAfter', now),
-        )
+        .withIndex('by_purge_after', (q) => q.gt('purgeAfter', null).lte('purgeAfter', now))
         .take(limit);
     case 'mapConnections':
       return ctx.db
         .query('mapConnections')
-        .withIndex('by_purge_after', (q) =>
-          q.gt('purgeAfter', null).lte('purgeAfter', now),
-        )
+        .withIndex('by_purge_after', (q) => q.gt('purgeAfter', null).lte('purgeAfter', now))
         .take(limit);
   }
+}
+
+export function queryMapSignatures(
+  ctx: Pick<QueryCtx, 'db'>,
+  mapId: string,
+  systemId: number,
+) {
+  return ctx.db
+    .query('mapSignatures')
+    .withIndex('by_map_signature', (q) => q.eq('mapId', mapId).eq('systemId', systemId));
+}
+
+export function queryMapSignatureActivity(
+  ctx: Pick<QueryCtx, 'db'>,
+  mapId: string,
+  systemId: number,
+) {
+  return ctx.db
+    .query('mapSignatureActivity')
+    .withIndex('by_map_signature', (q) => q.eq('mapId', mapId).eq('systemId', systemId));
 }
 
 export async function takeIndexedOrThrow<T>(

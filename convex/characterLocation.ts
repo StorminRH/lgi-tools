@@ -40,6 +40,20 @@ import { purgeScopeArgs } from './lib/syncFields';
  */
 export const JUMP_CONTINUITY_MS = 45_000;
 
+function viewerLocation(doc: Doc<'characterLocation'>) {
+  return {
+    characterId: doc.characterId,
+    solarSystemId: doc.solarSystemId,
+    stationId: doc.stationId,
+    structureId: doc.structureId,
+    shipTypeId: doc.shipTypeId,
+    prevSolarSystemId: doc.prevSolarSystemId,
+    prevFresh: doc.prevFresh,
+    transitionObservedAt: doc.transitionObservedAt ?? null,
+    observedAt: doc.observedAt,
+  };
+}
+
 /**
  * The calling user's own location docs. Map members join through
  * mapTracking.forMap; this is the personal mirror of onlineStatus.forViewer.
@@ -52,17 +66,7 @@ export const forViewer = query({
     viewerUserDocs(
       ctx,
       (userId) => collectByUser(ctx, 'characterLocation', userId),
-      (doc) => ({
-        characterId: doc.characterId,
-        solarSystemId: doc.solarSystemId,
-        stationId: doc.stationId,
-        structureId: doc.structureId,
-        shipTypeId: doc.shipTypeId,
-        prevSolarSystemId: doc.prevSolarSystemId,
-        prevFresh: doc.prevFresh,
-        transitionObservedAt: doc.transitionObservedAt ?? null,
-        observedAt: doc.observedAt,
-      }),
+      viewerLocation,
     ),
 });
 
