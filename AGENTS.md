@@ -122,6 +122,8 @@ Neon branch, Convex preview, and Vercel Preview when the test cycle ends.
 
 Promote at 80 app-facing files versus `staging`. That Origin PR updates the
 long-lived Preview: Neon `staging` and Convex `staging` (`proper-squid-200`).
+Durable origin `https://staging.lgi.tools`. EVE SSO callback is
+`https://staging.lgi.tools/api/auth/oauth2/callback/eve`.
 
 `main` is the only Production auto-deploy. Every merge onto `staging`
 or `main` goes through `close-out`.
