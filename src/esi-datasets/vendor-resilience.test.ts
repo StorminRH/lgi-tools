@@ -9,18 +9,6 @@ import {
   type VendorResiliencePolicy,
 } from '@/composition/__tests__/vendor-resilience-registry';
 
-// Binds src/composition/vendor-resilience-registry.ts to the tree it describes.
-// The registry is prose about live behavior, so it can only stay true if
-// something checks it: every declared wrapper must exist and export what it
-// claims, and every vendor-client construction must sit in a declared home.
-//
-// Two of the three scans are pinned positive found-sets rather than "zero
-// matches outside X" assertions, following the 3.10.2.3 census: a scanner that
-// silently stopped matching would otherwise report a clean result while
-// checking nothing.
-//
-// This file is a `.test.ts`, so the source scans below never read its own text.
-
 /** The eight resilience fields every call-surface entry must populate. */
 const POLICY_FIELDS: readonly (keyof VendorResiliencePolicy)[] = [
   'wrapper',

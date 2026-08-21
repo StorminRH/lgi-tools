@@ -42,7 +42,7 @@ export function compareCanonical(
 
 // ---- Flat-material grouping ----------------------------------------
 
-export type FlatMap = Record<string, number>; // rawTypeId(string) -> qty
+export type FlatMap = Record<string, number>;
 
 // Group resolved flat-material rows into per-blueprint maps, keyed by the
 // reference name. Every reference blueprint appears in the output (empty map when

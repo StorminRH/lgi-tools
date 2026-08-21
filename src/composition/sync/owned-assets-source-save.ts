@@ -10,12 +10,6 @@ import type { EsiSnapshotSource } from '@/data/esi-snapshots/types';
 import { saveOwnedAssets } from '@/features/owned-assets/queries';
 import type { OwnerKey } from '@/platform/owner-sync';
 
-/**
- * Persists one validated owned-assets source snapshot and replaces the owner's current projection.
- * The snapshot insert and the projection write are NOT atomic — the request path has no transaction
- * — so this compensates instead: if the projection write does not stand, the snapshot row it was
- * retained for is deleted and no domain event is emitted.
- */
 export async function saveOwnedAssetsFromSource(
   owner: OwnerKey,
   rows: Parameters<typeof saveOwnedAssets>[1],
@@ -44,9 +38,6 @@ export async function saveOwnedAssetsFromSource(
     await discardSnapshot(snapshotId);
     throw error;
   }
-  // A concurrent refresh already replaced this owner's set, so these rows never
-  // landed and this snapshot documents nothing: drop it and stay silent. Emitting
-  // the event here would claim a pull that the winner already reported.
   if (outcome === 'superseded') {
     await discardSnapshot(snapshotId);
     return;
@@ -63,9 +54,6 @@ export async function saveOwnedAssetsFromSource(
   });
 }
 
-// Cleanup is best-effort on purpose: the caller's own outcome (a thrown error or
-// a superseded write) is the real result, and the retention prune sweeps any row
-// this fails to remove.
 async function discardSnapshot(snapshotId: number): Promise<void> {
   try {
     await deleteEsiSnapshot(snapshotId);
