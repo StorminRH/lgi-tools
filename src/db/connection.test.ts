@@ -75,6 +75,28 @@ describe('resolveLockConnectionUrl', () => {
   it('throws when no connection string is set at all', () => {
     expect(() => resolveLockConnectionUrl({})).toThrow(/DATABASE_URL is not set/);
   });
+
+  it('prefers LGI_DATABASE_URL_UNPOOLED over the integration unpooled URL', () => {
+    const stagingDirect =
+      'postgres://u:p@ep-staging-123456.us-east-2.aws.neon.tech/db?sslmode=require';
+    const url = resolveLockConnectionUrl({
+      DATABASE_URL: POOLED,
+      DATABASE_URL_UNPOOLED: DIRECT,
+      LGI_DATABASE_URL: POOLED,
+      LGI_DATABASE_URL_UNPOOLED: stagingDirect,
+    });
+    expect(url).toBe(stagingDirect);
+  });
+
+  it('fails closed when only a pooled LGI_DATABASE_URL override is set', () => {
+    expect(() =>
+      resolveLockConnectionUrl({
+        DATABASE_URL: DIRECT,
+        DATABASE_URL_UNPOOLED: DIRECT,
+        LGI_DATABASE_URL: POOLED,
+      }),
+    ).toThrow(/-pooler/);
+  });
 });
 
 describe('request-path db (Neon HTTP driver)', () => {
@@ -96,6 +118,15 @@ describe('request-path db (Neon HTTP driver)', () => {
     expect(neonMock).toHaveBeenCalledTimes(1);
     expect(neonMock).toHaveBeenCalledWith(POOLED);
     expect(drizzleHttpMock).toHaveBeenCalledWith({ client: { httpClient: true } });
+  });
+
+  it('constructs the neon-http client off LGI_DATABASE_URL when set', async () => {
+    vi.stubEnv('LOCAL_DB_DRIVER', '');
+    vi.stubEnv('DATABASE_URL', POOLED);
+    vi.stubEnv('LGI_DATABASE_URL', DIRECT);
+    const { db } = await import('./index');
+    void db.select;
+    expect(neonMock).toHaveBeenCalledWith(DIRECT);
   });
 
   it('installs the per-query timeout bound lazily, not on import', async () => {
