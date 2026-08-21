@@ -42,9 +42,13 @@ Origin is the land forge. GitHub is the dump remote for bot review.
 Linear is the ticket home. GitHub issues are not in use. Update watch
 comments on standing `LGI-6`.
 
-**origin** — Origin PRs and Checks.
+**origin** — Origin PRs and Checks. Create defaults to draft, so pass
+`--status open`. A push snapshots a new version; `refresh` if `view`
+or `checks` still show the previous head. Review comments are threads.
 `origin pr create --status open`
 `origin pr checks --watch`
+`origin pr refresh`
+`origin pr thread list --unresolved`
 `origin pr merge`
 `origin pr view` / `list` / `diff`
 
