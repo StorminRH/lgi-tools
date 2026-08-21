@@ -33,7 +33,7 @@ and model slugs override the pin.
 ## Done
 
 Land on Origin `development` with the local test suite. A finding on
-that PR is a thread on that version. Promote (`development` →
+an Origin PR is a thread on that version. Promote (`development` →
 `staging`) and release (`staging` → `main`) wait on that Origin PR's
 Depot pipeline.
 

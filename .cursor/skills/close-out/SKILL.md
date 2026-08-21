@@ -39,12 +39,13 @@ Done when the Origin PR has merged to the destination.
 5. Run the local test suite through `test-runner` until it passes.
   Done when `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`,
    `dupes`, and `health`, plus focused tests for the diff, are green.
-6. Open the Origin PR (`<head>` → destination) per **Origin PR**. Done
+6. Open the Origin PR (`<head>` → destination) per **Origin PR**.
+  Post any leftover accepted review finding per **Findings**. Done
   when that PR is ready for review.
 7. Watch Depot on that PR per **Depot**. Done when the pipeline is
   green or a failure is in hand.
-8. Record each Depot failure per **Findings**, then return to
-  step 7. Done when Depot is green.
+8. Record and fix each Depot failure per **Findings**, then return
+  to step 7. Done when Depot is green.
 9. When the destination is `main`, merge per **Merge**. Done when
   Origin `main` holds the head. Return `RELEASED`.
 10. Dump the isolated packet per **Dump**. Done when the dump PR is
@@ -107,14 +108,16 @@ the fix is a reply that names the new version, and
 the pause.
 
 A finding is a red Depot job, a dump bot comment, or a review note
-on the Origin PR.
+on the Origin PR. One finding, one thread.
 
 1. Read the version (`origin pr view --json version`).
-2. Open a thread on that version:
+2. List unresolved thread ids first.
+3. Open a thread on that version:
    `origin pr review --comment --change-version <n> -b "..."`.
-   The body is what failed and the evidence.
-3. Take the thread id from
-   `origin pr thread list --unresolved --json id`.
+   The body is what failed and the evidence. The new id is the one
+   that was not in the earlier list. If a later review would
+   replace an earlier thread, file the next finding with
+   `origin pr comment` and name the version in the body.
 4. Fix on the head. Push. `refresh` if `view` or `checks` still
    show the previous head.
 5. Reply on that thread with what changed and the new version
