@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { teardownMapAccessProjection } from '@/composition/map-access-projection';
+import {
+  requireCurrentProjection,
+  teardownMapAccessProjection,
+} from '@/composition/map-access-projection';
 import {
   claimPurgeableMaps,
   tombstonePurgedMap,
@@ -124,7 +127,7 @@ export async function purgeEligibleMaps(
     tombstoned += 1;
     deletedDocuments += purge.deleted;
     try {
-      await teardownAccess(map.id);
+      requireCurrentProjection(await teardownAccess(map.id));
     } catch (cause) {
       projectionPending += 1;
       console.error('[maps] post-tombstone access teardown pending resync', {

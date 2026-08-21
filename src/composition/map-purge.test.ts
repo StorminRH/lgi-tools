@@ -116,6 +116,29 @@ describe('purgeEligibleMaps', () => {
     expect(tombstoneMap).not.toHaveBeenCalled();
   });
 
+  it('counts a stale teardown as pending after tombstone', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(
+      purgeEligibleMaps({
+        claimMaps: vi.fn().mockResolvedValue([{ id: 'map-a' }]),
+        purgeChain: vi.fn().mockResolvedValue({ deleted: 4, remaining: false }),
+        tombstoneMap: vi.fn().mockResolvedValue(true),
+        teardownAccess: vi.fn().mockResolvedValue({
+          inserted: 0,
+          updated: 0,
+          deleted: 0,
+          unchanged: 0,
+          outcome: 'stale' as const,
+        }),
+      }),
+    ).resolves.toEqual({
+      selected: 1,
+      tombstoned: 1,
+      deletedDocuments: 4,
+      projectionPending: 1,
+    });
+  });
+
   it('keeps a completed tombstone successful if redundant access teardown is unavailable', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await expect(

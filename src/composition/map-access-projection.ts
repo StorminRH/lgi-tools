@@ -55,6 +55,15 @@ function decodeProjectionResult(raw: unknown): ProjectionResult {
   return parsed.data;
 }
 
+export function requireCurrentProjection(result: ProjectionResult): ProjectionResult {
+  if (result.outcome === 'stale') {
+    throw new ProjectionUnavailableError(
+      'Map access projection unavailable: a newer projection already won',
+    );
+  }
+  return result;
+}
+
 /**
  * Thrown when a projection cannot be computed or delivered safely. Callers own
  * retry/resync policy: grant-change and resync callers surface it; purge callers
@@ -261,7 +270,7 @@ export async function teardownMapAccessProjection(mapId: string): Promise<Projec
     revision,
     claims: [],
   });
-  return decodeProjectionResult(result);
+  return requireCurrentProjection(decodeProjectionResult(result));
 }
 
 /**

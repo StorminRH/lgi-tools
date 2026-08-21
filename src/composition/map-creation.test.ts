@@ -126,6 +126,25 @@ describe('createProjectedMap', () => {
 
     await expect(
       createProjectedMap('user-1', INPUT, {
+        createMap: vi.fn().mockResolvedValue('map-3'),
+        project: vi.fn().mockRejectedValue(new Error('projection unavailable')),
+        publish: vi.fn(),
+        teardown: vi.fn().mockResolvedValue({
+          inserted: 0,
+          updated: 0,
+          deleted: 0,
+          unchanged: 0,
+          outcome: 'stale' as const,
+        }),
+        compensate: compensateAfterTeardownFailure,
+        pause: vi.fn().mockResolvedValue(undefined),
+        now: vi.fn().mockReturnValue(0),
+      }),
+    ).resolves.toMatchObject({ ok: false, cleanup: 'queued' });
+    expect(compensateAfterTeardownFailure).not.toHaveBeenCalled();
+
+    await expect(
+      createProjectedMap('user-1', INPUT, {
         createMap: vi.fn().mockResolvedValue('map-2'),
         project: vi.fn().mockRejectedValue(new Error('projection unavailable')),
         publish: vi.fn(),

@@ -51,6 +51,8 @@ import {
   projectMapAccess,
   projectStagedMapAccess,
   ProjectionUnavailableError,
+  requireCurrentProjection,
+  teardownMapAccessProjection,
 } from './map-access-projection';
 
 function affiliation(
@@ -394,5 +396,52 @@ describe('projectMapAccess transport', () => {
 
     await expect(projection).rejects.toBeInstanceOf(ProjectionUnavailableError);
     expect(mocks.fetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale teardown as unavailable', async () => {
+    mocks.fetchWithTimeout.mockResolvedValue(
+      Response.json({
+        inserted: 0,
+        updated: 0,
+        deleted: 0,
+        unchanged: 0,
+        outcome: 'stale',
+      }),
+    );
+    await expect(teardownMapAccessProjection('map-1')).rejects.toBeInstanceOf(
+      ProjectionUnavailableError,
+    );
+  });
+});
+
+describe('requireCurrentProjection', () => {
+  const counts = {
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+  };
+
+  it('returns applied and duplicate results', () => {
+    expect(requireCurrentProjection({ ...counts, outcome: 'applied' })).toEqual({
+      ...counts,
+      outcome: 'applied',
+    });
+    expect(requireCurrentProjection({ ...counts, outcome: 'duplicate' })).toEqual({
+      ...counts,
+      outcome: 'duplicate',
+    });
+  });
+
+  it('throws when a newer projection already won', () => {
+    try {
+      requireCurrentProjection({ ...counts, outcome: 'stale' });
+      expect.unreachable('expected stale projection to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ProjectionUnavailableError);
+      expect(error).toEqual(
+        expect.objectContaining({ message: expect.stringMatching(/newer projection already won/) }),
+      );
+    }
   });
 });
