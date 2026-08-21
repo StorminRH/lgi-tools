@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createDbTestHarness,
   seedEveAccount,
-} from '@/db/test-support/db-test-harness';
+} from '@/db/__tests__/support/db-test-harness';
 import {
   getFreshAccessTokenForCharacter,
   INVALID_GRANT_CONFIRMATION_GRACE_MS,

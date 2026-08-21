@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   dgmAttributeTypes,
   eveCategories,

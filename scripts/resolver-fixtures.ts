@@ -10,7 +10,7 @@ import type { TreeNode } from '@/data/eve-data/tree-resolver';
 
 // Deterministic JSON with recursively sorted object keys; array order preserved
 // (callers pre-sort arrays whose order is not meaningful).
-export function stableStringify(value: unknown): string {
+function stableStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
   const obj = value as Record<string, unknown>;

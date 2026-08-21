@@ -24,7 +24,7 @@ import {
   ESI_INFRASTRUCTURE_TABLES,
   findUnregisteredMirrors,
   isEsiMirrorTable,
-} from './checks';
+} from './__tests__/checks';
 
 const tables = (Object.values(schema) as unknown[]).filter((value): value is PgTable =>
   is(value, PgTable),

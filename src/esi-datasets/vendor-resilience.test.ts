@@ -7,7 +7,7 @@ import {
   type VendorIntegrationId,
   type VendorResilienceEntry,
   type VendorResiliencePolicy,
-} from '@/composition/vendor-resilience-registry';
+} from '@/composition/__tests__/vendor-resilience-registry';
 
 // Binds src/composition/vendor-resilience-registry.ts to the tree it describes.
 // The registry is prose about live behavior, so it can only stay true if
@@ -73,7 +73,7 @@ const PRODUCTION_POSTGRES_SITES = [
  * The test harness is a declared non-production seam: it owns disposable-schema steering for the
  * real-Postgres suites and is outside the explicit-bound requirement.
  */
-const TEST_SUPPORT_POSTGRES_SITES = ['src/db/test-support/db-test-harness.ts'];
+const TEST_SUPPORT_POSTGRES_SITES = ['src/db/__tests__/support/db-test-harness.ts'];
 
 const SKIPPED_DIRECTORIES = new Set(['node_modules', '__fixtures__', '_generated']);
 const SKIPPED_SUFFIXES = ['.test.ts', '.test.tsx', '.d.ts'];

@@ -20,30 +20,30 @@ import { describe, expect, it } from 'vitest';
 import {
   ESI_INFRASTRUCTURE_TABLES,
   isEsiMirrorTable,
-} from '@/esi-datasets/checks';
+} from '@/esi-datasets/__tests__/checks';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   findIdentityFkLeaks,
   isUserDataTable,
-} from '@/platform/purge/coverage';
+} from '@/platform/purge/__tests__/coverage';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
 import {
   TABLE_GROWTH_STORIES,
   tableGrowthKey,
-} from '@/composition/table-growth-registry';
+} from '@/composition/__tests__/table-growth-registry';
 import {
   DATA_CLASS_DECISIONS,
   DATA_OWNERSHIP,
   describeDbInvariants,
-} from '@/composition/data-ownership-registry';
+} from '@/composition/__tests__/data-ownership-registry';
 import {
   findUndeclaredCrossOwnerWrites,
   scanProductionWriteSites,
-} from '@/esi-datasets/write-sites';
+} from '@/esi-datasets/__tests__/write-sites';
 import {
   reflectedSchemaExports,
   reflectedSchemaTables,
-} from '@/db/test-support/schema-reflection';
+} from '@/db/__tests__/support/schema-reflection';
 
 const GROWTH_DECLARATION =
   'growth story -> src/composition/table-growth-registry.ts';

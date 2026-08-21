@@ -5,7 +5,7 @@ import {
   seedCharacter as insertCharacter,
   seedEveAccount as insertEveAccount,
   seedUser as insertUser,
-} from '@/db/test-support/db-test-harness';
+} from '@/db/__tests__/support/db-test-harness';
 import {
   accountBelongsToUser,
   getStoredActiveCharacterId,

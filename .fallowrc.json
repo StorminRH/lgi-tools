@@ -8,28 +8,7 @@
     "require": "best-effort"
   },
 
-  "entry": [
-    "src/scripts/migrate.ts",
-    "src/scripts/backfill-users-if-empty.ts",
-    "src/scripts/ingest-sde-if-empty.ts",
-    "src/scripts/warm-neon.ts",
-    "src/scripts/ingest-sde.ts",
-    "src/scripts/ci-sde-seed.ts",
-    "src/scripts/refresh-prices.ts",
-    "src/scripts/refresh-sde.ts",
-    "src/scripts/generate-architecture-map.ts",
-    "scripts/validate-resolver-output.ts",
-    "scripts/assert-route-classification.mjs",
-    "scripts/ux-capture.mjs",
-    "scripts/ux-remote-auth.mjs",
-    "scripts/run-e2e.mjs",
-    "scripts/verify-site-detail-routes.mjs",
-    "scripts/apply-neon-config.ts",
-    "src/scripts/map-replay.ts",
-    "src/scripts/project-map-access.ts",
-    "drizzle.config.ts",
-    "neon.ts"
-  ],
+  "entry": [],
 
   "ignorePatterns": [
     "convex/_generated/**",
@@ -45,7 +24,14 @@
     "convex/**/*.test.ts"
   ],
 
-  "ignoreDependencies": ["convex-test", "@edge-runtime/vm", "playwright", "@playwright/test", "@next/playwright"],
+  "ignoreDependencies": [
+    "convex-test",
+    "@edge-runtime/vm",
+    "playwright",
+    "@playwright/test",
+    "@next/playwright",
+    "tailwindcss"
+  ],
 
   "rules": {
     "unused-files": "error",
@@ -76,7 +62,7 @@
     "mixed-client-server-barrel": "error",
     "misplaced-directive": "error",
     "feature-flags": "off",
-    "dev-dependencies-in-production": "off"
+    "dev-dependencies-in-production": "error"
   },
 
   "health": {

@@ -1,5 +1,5 @@
-import type { TemplatePlannerState } from './components/planner-contexts';
-import type { ApplyCtx, TemplateStructureView } from './template-manifest';
+import type { TemplatePlannerState } from '../components/planner-contexts';
+import type { ApplyCtx, TemplateStructureView } from '../template-manifest';
 
 // The shared mock-planner harness for template tests: a getter-based ctx view
 // over a mutable state store whose setters mimic the provider's public surface

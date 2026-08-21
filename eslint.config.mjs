@@ -362,12 +362,12 @@ const directPostgresSelectors = [
   {
     selector: "ImportDeclaration[source.value='postgres']",
     message:
-      "DB suites use createDbTestHarness (@/db/test-support/db-test-harness); importing postgres-js directly bypasses the shared lifecycle even when the import is aliased.",
+      "DB suites use createDbTestHarness (@/db/__tests__/support/db-test-harness); importing postgres-js directly bypasses the shared lifecycle even when the import is aliased.",
   },
   {
     selector: "CallExpression[callee.name='postgres']",
     message:
-      "DB suites use createDbTestHarness (@/db/test-support/db-test-harness); direct postgres() construction duplicates reachability, schema steering, and teardown.",
+      "DB suites use createDbTestHarness (@/db/__tests__/support/db-test-harness); direct postgres() construction duplicates reachability, schema steering, and teardown.",
   },
 ];
 
@@ -1024,7 +1024,7 @@ const eslintConfig = defineConfig([
     files: [
       "src/db/index.ts",
       "src/scripts/**/*.{ts,mts}",
-      "src/db/test-support/db-test-harness.ts",
+      "src/db/__tests__/support/db-test-harness.ts",
       "src/db/advisory-lock.concurrency.test.ts",
     ],
     rules: {

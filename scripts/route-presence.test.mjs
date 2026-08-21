@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diffRoutes, discoveredKeys, isRouteFile, routeKey } from './route-presence.mjs';
+import { diffRoutes, discoveredKeys, isRouteFile } from './route-presence.mjs';
 
 describe('isRouteFile', () => {
   it('accepts page/route and supported metadata files and rejects non-routes', () => {
@@ -45,7 +45,7 @@ const groupedAtlasOpengraph = ['(map)/atlas/opengraph-image.tsx', '/atlas/opengr
 const iconSvg = ['icon.svg', '/icon.svg'];
 const docsIcon = ['docs/icon.png', '/docs/icon.png'];
 
-describe('routeKey', () => {
+describe('discoveredKeys route mapping', () => {
   it.each([
     pageRoot,
     sitesIdPage,
@@ -63,7 +63,7 @@ describe('routeKey', () => {
     iconSvg,
     docsIcon,
   ])('maps %s to %s', (rel, key) => {
-    expect(routeKey(rel)).toBe(key);
+    expect([...discoveredKeys([`src/app/${rel}`], 'src/app')]).toEqual([key]);
   });
 });
 

@@ -5,8 +5,8 @@
 // online read joined this gate when the location sync absorbed the in-game
 // online probe as its pause/resume signal. A tracked character under an old
 // consent missing read_online records reauth_required rather than silently
-// tracking without a stop condition. Runtime-light — the Convex action
-// imports this too.
+// tracking without a stop condition. Test-only: the live sync records
+// reauth from the token vend, and this helper pins the scope set.
 
 /**
  * Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must

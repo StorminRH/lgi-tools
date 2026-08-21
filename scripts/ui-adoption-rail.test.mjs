@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEslintRail } from './eslint-rail.mjs';
+import { createEslintRail } from './__tests__/eslint-rail.mjs';
 
 const { messagesFor, expectSyntax } = createEslintRail(import.meta.url);
 const productionProbe = 'src/features/industry-planner/ui-adoption-probe.tsx';

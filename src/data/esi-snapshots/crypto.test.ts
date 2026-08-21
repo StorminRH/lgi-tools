@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { decodeAes256Key, decryptAes256Gcm } from '@/lib/aes-gcm';
 
 const KEY = Buffer.alloc(32, 19).toString('base64');
 const RAW_ASSETS = [
@@ -22,6 +23,20 @@ const RAW_ASSETS = [
   },
 ];
 
+function decryptSnapshotBody(ciphertext: string): unknown[] | null {
+  const plaintext = decryptAes256Gcm(
+    ciphertext,
+    decodeAes256Key(KEY, 'ESI_SNAPSHOT_ENCRYPTION_KEY'),
+  );
+  if (plaintext === null) return null;
+  try {
+    const parsed = JSON.parse(plaintext) as unknown;
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 beforeEach(() => {
   vi.resetModules();
   vi.stubEnv('ESI_SNAPSHOT_ENCRYPTION_KEY', KEY);
@@ -33,7 +48,7 @@ afterEach(() => {
 
 describe('ESI snapshot body crypto', () => {
   it('round-trips a raw response', async () => {
-    const { decryptSnapshotBody, encryptSnapshotBody } = await import('./crypto');
+    const { encryptSnapshotBody } = await import('./crypto');
 
     const storedBody = encryptSnapshotBody(RAW_ASSETS);
     const replayed = decryptSnapshotBody(storedBody);
@@ -42,7 +57,7 @@ describe('ESI snapshot body crypto', () => {
   });
 
   it('rejects tampered ciphertext and non-array plaintext', async () => {
-    const { decryptSnapshotBody, encryptSnapshotBody } = await import('./crypto');
+    const { encryptSnapshotBody } = await import('./crypto');
     const ciphertext = encryptSnapshotBody(RAW_ASSETS);
     const parts = ciphertext.split(':');
     parts[3] = (parts[3]![0] === 'A' ? 'B' : 'A') + parts[3]!.slice(1);

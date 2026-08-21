@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 import {
   IDEMPOTENCY_REGISTRY,
   type IdempotencyEntry,
-} from '@/composition/idempotency-registry';
-import { vendorResilienceRegistry } from '@/composition/vendor-resilience-registry';
+} from '@/composition/__tests__/idempotency-registry';
+import { vendorResilienceRegistry } from '@/composition/__tests__/vendor-resilience-registry';
 
 const ROOT = process.cwd();
 

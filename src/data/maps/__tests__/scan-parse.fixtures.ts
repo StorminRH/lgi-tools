@@ -1,4 +1,4 @@
-import type { ScannedRow, ScannerPasteResult, SigGroup } from './scan-parse';
+import type { ScannedRow, ScannerPasteResult, SigGroup } from '../scan-parse';
 
 /** One operator-supplied raw paste and its exact normalized parser result. */
 export interface ScannerPasteFixture {

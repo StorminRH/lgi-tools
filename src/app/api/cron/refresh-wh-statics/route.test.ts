@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { readSystemStatics } from '@/data/wh-statics/queries';
 import {
   whStaticsSnapshots,

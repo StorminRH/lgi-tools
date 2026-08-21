@@ -24,8 +24,8 @@ questions. It uses Codegraph (`callers`, `callees`, `impact`, `query`;
 
 Launch `test-runner` before commits, and whenever the local test suite
 needs test results: `pnpm typecheck`, `pnpm lint`, Fallow
-`dead-code`, `dupes`, and `health`, plus caller-supplied focused tests
-for the diff.
+`dead-code` (default and `--production`), `dupes`, and `health`, plus
+caller-supplied focused tests for the diff.
 
 Name those agents and omit Task `model` so the agent file pin applies. `inherit`
 and model slugs override the pin.

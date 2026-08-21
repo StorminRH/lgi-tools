@@ -10,6 +10,7 @@ Run each command as its own execution in the supplied order along with any suppl
 pnpm typecheck
 pnpm lint
 pnpm exec fallow dead-code --fail-on-issues
+pnpm exec fallow dead-code --production --fail-on-issues
 pnpm exec fallow dupes --fail-on-issues
 pnpm fallow:health:local
 ```

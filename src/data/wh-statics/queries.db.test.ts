@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { asc, eq } from 'drizzle-orm';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import {
   promoteSnapshot,
   pruneWhStaticsSnapshots,

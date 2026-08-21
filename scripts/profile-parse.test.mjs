@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  EXPECTED_FULL_SITE_COUNT,
   PROFILE_THRESHOLDS,
-  assessModeExpectation,
   buildCatalogueModeEvidence,
   countDetailSentinels,
   evaluateAbort,
@@ -13,13 +11,11 @@ import {
   isValidProfileLabel,
   parseDatabaseTarget,
   parseDevRequestLine,
-  parseDurationMs,
   parseMemoryPressure,
   parseProfileArgs,
   parsePsGroup,
   parseSwapUsage,
   parseVmStat,
-  renderedTagsWithAttribute,
   resolveProfileOutcome,
   selectPreflightRefusal,
   shapeProfileResult,
@@ -27,19 +23,19 @@ import {
   summarisePhaseSamples,
 } from './profile-parse.mjs';
 
-describe('parseDurationMs', () => {
+describe('parseDevRequestLine durations', () => {
   it.each([
     ['750µs', 0.75],
     ['12ms', 12],
     ['1.25s', 1250],
     ['2min', 120000],
   ])('parses %s', (raw, expected) => {
-    expect(parseDurationMs(raw)).toBe(expected);
+    expect(parseDevRequestLine(` GET /sites 200 in ${raw}`)?.durationMs).toBe(expected);
   });
 
   it('rejects unsupported or malformed durations', () => {
-    expect(parseDurationMs('1h')).toBeNull();
-    expect(parseDurationMs('fast')).toBeNull();
+    expect(parseDevRequestLine(' GET /sites 200 in 1h')).toBeNull();
+    expect(parseDevRequestLine(' GET /sites 200 in fast')).toBeNull();
   });
 });
 
@@ -353,13 +349,10 @@ describe('catalogue markup extraction', () => {
     expect(extractCardCount(html)).toBe(2);
   });
 
-  it('treats regex metacharacters in attribute names literally', () => {
+  it('treats regex metacharacters in lazy-details markers literally', () => {
     expect(
-      renderedTagsWithAttribute(
-        '<div data.probe></div><div dataXprobe></div>',
-        'data.probe',
-      ),
-    ).toHaveLength(1);
+      extractCardCount('<article data-lazy-details></article><article dataXlazy-details></article>'),
+    ).toBe(1);
   });
 
   it('extracts the rendered sample marker and ignores script content', () => {
@@ -380,19 +373,22 @@ describe('catalogue markup extraction', () => {
 describe('catalogue mode expectation', () => {
   const marker = (shown, total) => ({ present: true, shown, total });
   const absent = { present: false, shown: null, total: null };
-  const assess = (overrides = {}) => assessModeExpectation({
-    cardCount: EXPECTED_FULL_SITE_COUNT,
-    marker: absent,
-    sampleEnv: false,
-    expectedFullCount: EXPECTED_FULL_SITE_COUNT,
-    ...overrides,
-  });
+  const assess = (overrides = {}) => buildCatalogueModeEvidence(
+    {
+      cardCount: overrides.cardCount ?? 69,
+      devSampleMarker: overrides.marker ?? absent,
+    },
+    {
+      sampleEnv: overrides.sampleEnv ?? false,
+      expectedFullCount: overrides.expectedFullCount ?? 69,
+    },
+  ).modeCheck;
 
   it('passes the normal full catalogue and the labeled reduced sample', () => {
     expect(assess()).toBe('pass');
     expect(assess({
       cardCount: 20,
-      marker: marker(20, EXPECTED_FULL_SITE_COUNT),
+      marker: marker(20, 69),
       sampleEnv: true,
     })).toBe('pass');
   });

@@ -64,10 +64,9 @@ const {
   writePreferenceCookie,
   readPreferenceCookieValue,
   reconcilePreferences,
-  __TEST_ONLY__,
 } = await import('./preferences');
 
-const lsKey = (key: string) => __TEST_ONLY__.LS_PREFIX + key;
+const lsKey = (key: string) => `lgi:pref:${key}`;
 
 beforeEach(() => {
   window.localStorage.clear();

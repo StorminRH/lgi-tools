@@ -7,7 +7,7 @@
 // the migrated `public` schema, so an un-migrated database would clone shapes
 // without the constraints and enums these seeds rely on.
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createDbTestHarness } from '@/db/test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { usageLogs } from './schema';
 import {
   getCriticalLatencyP95,

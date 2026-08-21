@@ -10,7 +10,7 @@
 // (src/esi-datasets/dataset-declarations.test.ts) is its only consumer.
 import { is, SQL } from 'drizzle-orm';
 import { getTableConfig, PgDialect, PgTable } from 'drizzle-orm/pg-core';
-import * as schema from './drizzle-schema';
+import * as schema from '../drizzle-schema';
 
 /**
  * The slices this registry reasons about: every table owner plus every slice declared as a

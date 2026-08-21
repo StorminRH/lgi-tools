@@ -6,7 +6,7 @@ import {
   seedCharacter,
   seedEveAccount,
   seedUser,
-} from '@/db/test-support/db-test-harness';
+} from '@/db/__tests__/support/db-test-harness';
 import {
   applyAuthorizedMapGrantChange,
   compensateFailedMapCreation,

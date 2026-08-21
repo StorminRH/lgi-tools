@@ -1,6 +1,6 @@
 /** Pure remote-auth guard for `scripts/run-e2e.mjs` (unit-tested). */
 
-export function isLocalBaseUrl(baseUrl) {
+function isLocalBaseUrl(baseUrl) {
   try {
     const { hostname } = new URL(baseUrl);
     return hostname === 'localhost' || hostname === '127.0.0.1';
