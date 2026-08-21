@@ -85,7 +85,7 @@ function isScannedSource(fileName: string): boolean {
 
 /**
  * Every non-test TypeScript file under the given roots. Unlike the write-site scanner this keeps
- * `test-support`, because the DB harness is one of the declared postgres-js homes.
+ * `__tests__/support`, because the DB harness is one of the declared postgres-js homes.
  */
 function collectSources(roots: readonly string[]): string[] {
   const found: string[] = [];

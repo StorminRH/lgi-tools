@@ -33,7 +33,13 @@ export interface WriteSite {
   readonly table: string;
 }
 
-const SKIPPED_DIRECTORIES = new Set(['test-support', 'node_modules', '__fixtures__']);
+const SKIPPED_DIRECTORIES = new Set([
+  'test-support',
+  '__tests__',
+  '__mocks__',
+  'node_modules',
+  '__fixtures__',
+]);
 const SKIPPED_SUFFIXES = ['.test.ts', '.db.test.ts', '.d.ts'];
 
 function isProductionSource(fileName: string): boolean {
@@ -223,7 +229,7 @@ export function findUndeclaredCrossOwnerWrites(
       (entry.writers ?? []).some((writer) => writer.by === site.slice);
     if (permitted) return [];
     return [
-      `${site.file} (slice ${site.slice}) writes ${site.table}, owned by ${entry.owner}. Declare it as a cross-owner writer on that table in src/composition/data-ownership-registry.ts, or move the write into the owning slice.`,
+      `${site.file} (slice ${site.slice}) writes ${site.table}, owned by ${entry.owner}. Declare it as a cross-owner writer on that table in src/composition/__tests__/data-ownership-registry.ts, or move the write into the owning slice.`,
     ];
   });
 }
