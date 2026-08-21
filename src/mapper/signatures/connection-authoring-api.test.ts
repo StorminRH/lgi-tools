@@ -5,6 +5,7 @@ import {
   answerAndAnnounce,
   answerJumpResolution,
   applyWormholeType,
+  connectionLifecycleActions,
   severAndAnnounce,
 } from './connection-authoring-api';
 
@@ -175,9 +176,6 @@ it('announces successful severs, skips swallowed refusals, and deletes unresolve
   expect(onDone).not.toHaveBeenCalled();
   expect(announce).not.toHaveBeenCalled();
 
-  const { connectionLifecycleActions, removeStubAndAnnounce } = await import(
-    './connection-authoring-api'
-  );
   const stubApi = authoring();
   stubApi.removeSignatures.mockResolvedValueOnce({ changed: 1 });
   const stubDone = vi.fn();
@@ -199,12 +197,12 @@ it('announces successful severs, skips swallowed refusals, and deletes unresolve
 
   stubApi.removeSignatures.mockResolvedValueOnce(undefined);
   toastError.mockClear();
-  await removeStubAndAnnounce({
+  connectionLifecycleActions({
     mapId: 'map-a',
-    systemId: 7,
-    signatureId: 'ABC-123',
+    connectionId: 'stub-1' as Id<'mapConnections'>,
     authoring: stubApi,
     onDone: vi.fn(),
-  });
-  expect(toastError).toHaveBeenCalledOnce();
+    stub: { systemId: 7, signatureId: 'ABC-123' },
+  }).remove();
+  await vi.waitFor(() => expect(toastError).toHaveBeenCalledOnce());
 });
