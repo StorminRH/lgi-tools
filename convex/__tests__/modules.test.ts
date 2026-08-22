@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { modules } from './modules';
+import { modules } from './modules.setup';
 
 const SKIPPED_DIRECTORIES = new Set(['_generated', '__tests__', 'node_modules']);
 
@@ -32,5 +32,31 @@ describe('convex-test module map', () => {
         '../_generated/server.js',
       ].sort(),
     );
+  });
+
+  it('names non-test helpers so Convex deploy skips them', () => {
+    const helpers: string[] = [];
+    const walk = (current: string): void => {
+      for (const entry of readdirSync(current, { withFileTypes: true })) {
+        const path = `${current}/${entry.name}`;
+        if (entry.isDirectory()) {
+          walk(path);
+          continue;
+        }
+        if (
+          !entry.name.endsWith('.ts') ||
+          entry.name.includes('.test.') ||
+          entry.name.endsWith('.d.ts')
+        ) {
+          continue;
+        }
+        helpers.push(entry.name);
+      }
+    };
+    walk('convex/__tests__');
+    expect(helpers.length).toBeGreaterThan(0);
+    for (const name of helpers) {
+      expect((name.match(/\./g) ?? []).length).toBeGreaterThan(1);
+    }
   });
 });

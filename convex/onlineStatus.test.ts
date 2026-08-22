@@ -5,7 +5,7 @@ import { api, internal } from './_generated/api';
 import { drainCharacterOnline } from './onlineStatus';
 import schema from './schema';
 
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 const USER = 'user_online_1';
 
@@ -31,8 +31,6 @@ describe('onlineStatus.forViewer', () => {
 });
 
 describe('onlineStatus.purgeForUser', () => {
-  // The explicit teardown a Neon account/character purge calls — the lazy orphan-clean
-  // can't cover a removed account, so this is its only reaper for that case.
   it('deletes all of a user\'s online docs when characterId is null (account-nuke)', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -45,7 +43,7 @@ describe('onlineStatus.purgeForUser', () => {
     expect(out).toEqual({ deleted: 2 });
 
     const remaining = await t.run((ctx) => ctx.db.query('characterOnline').collect());
-    expect(remaining.map((d) => d.userId)).toEqual(['other']); // a different user's doc survives
+    expect(remaining.map((d) => d.userId)).toEqual(['other']);
   });
 
   it('deletes only the named character when characterId is set (single character-purge)', async () => {
@@ -61,7 +59,7 @@ describe('onlineStatus.purgeForUser', () => {
     const remaining = await t.run((ctx) =>
       ctx.db.query('characterOnline').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
     );
-    expect(remaining.map((d) => d.characterId)).toEqual([102]); // the sibling survives
+    expect(remaining.map((d) => d.characterId)).toEqual([102]);
   });
 
   it('is a no-op when there is nothing to delete (idempotent — a retried best-effort purge is safe)', async () => {

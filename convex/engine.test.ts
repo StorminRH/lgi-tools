@@ -12,7 +12,7 @@ import {
 import { api, internal } from './_generated/api';
 import { SCAN_DISPATCH_BATCH } from './engine';
 import schema from './schema';
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 function stubDispatch() {
   vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: true, retryAfter: 0 } as never);
