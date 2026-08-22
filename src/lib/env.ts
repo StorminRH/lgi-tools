@@ -38,6 +38,10 @@ const REQUIRED_ENV = {
   EVE_TOKEN_ENCRYPTION_KEY: required,
   ESI_SNAPSHOT_ENCRYPTION_KEY: required,
   CONVEX_SERVICE_SECRET: required,
+  // Convex staging (and any Preview behind Vercel SSO) sends this as
+  // x-vercel-protection-bypass on serviceFetch so token vend reaches the app.
+  // Empty ≡ missing — serviceFetch only attaches the header when set.
+  VERCEL_AUTOMATION_BYPASS_SECRET: required,
   CRON_SECRET: required,
   GITHUB_FEEDBACK_TOKEN: required,
   DISCORD_ALERT_WEBHOOK_URL: required,
