@@ -12,6 +12,7 @@ import {
 import { api, internal } from './_generated/api';
 import { SCAN_DISPATCH_BATCH } from './engine';
 import schema from './schema';
+import { modules } from './__tests__/modules';
 
 function stubDispatch() {
   vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: true, retryAfter: 0 } as never);
@@ -34,8 +35,6 @@ async function scheduledChainDispatches(t: ReturnType<typeof convexTest>) {
 async function scheduledSyncUsers(t: ReturnType<typeof convexTest>) {
   return scheduledFunctionsNamed(t, 'syncUser');
 }
-
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
 
 const USER = 'user_engine_1';
 

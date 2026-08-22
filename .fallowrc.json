@@ -20,8 +20,7 @@
     "**/*.generated.ts",
     "drizzle/**",
     "docs/**",
-    "e2e/**",
-    "convex/**/*.test.ts"
+    "e2e/**"
   ],
 
   "ignoreDependencies": [
@@ -47,7 +46,7 @@
     "circular-dependencies": "error",
     "re-export-cycle": "error",
     "boundary-violation": "error",
-    "coverage-gaps": "off",
+    "coverage-gaps": "error",
     "stale-suppressions": "error",
     "unused-dev-dependencies": "error",
     "unused-optional-dependencies": "error",

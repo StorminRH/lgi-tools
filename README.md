@@ -114,7 +114,7 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
 | `pnpm test` | Run the non-coverage Vitest suite once; focused Vitest arguments are supported |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm lint` | ESLint |
-| `pnpm fallow` | Whole-repo static-analysis gate (dead code, duplication, boundaries, health) |
+| `pnpm fallow` | Whole-repo static-analysis gate (dead code, duplication, boundaries, health, coverage gaps) |
 | `pnpm db:migrate` | Apply Drizzle migrations against the local DB |
 | `pnpm db:generate` | Generate a new migration from schema changes |
 | `pnpm db:studio` | Open Drizzle Studio against the local DB |

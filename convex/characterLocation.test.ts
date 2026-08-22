@@ -5,7 +5,7 @@ import { api, internal } from './_generated/api';
 import { JUMP_CONTINUITY_MS } from './characterLocation';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules';
 
 const USER = 'user-location-1';
 const OTHER = 'user-location-other';
