@@ -42,6 +42,24 @@ describe('classifyFeatureUiImports', () => {
     ]);
   });
 
+  it('flags a dynamic import of a hosted feature component that is not the slice widget', () => {
+    const hits = classifyFeatureUiImports({
+      host: MAPPER_HOST,
+      source: `const { SiteCard } = await import('@/features/wormhole-sites/components/SiteCard');`,
+      resolve: resolveMap({
+        [`${MAPPER_HOST}::@/features/wormhole-sites/components/SiteCard`]:
+          'src/features/wormhole-sites/components/SiteCard.tsx',
+      }),
+    });
+    expect(hits).toEqual([
+      {
+        kind: 'illegal',
+        host: MAPPER_HOST,
+        module: 'src/features/wormhole-sites/components/SiteCard.tsx',
+      },
+    ]);
+  });
+
   it('flags a hosted feature component that is not the slice widget', () => {
     const hits = classifyFeatureUiImports({
       host: MAPPER_HOST,

@@ -32,6 +32,7 @@ const EXTENSION = /\.(?:tsx|ts|jsx|js)$/;
 
 const IMPORT_PATTERN = /import\s+([^;'"]*?)\s+from\s*['"]([^'"]+)['"]/g;
 const EXPORT_FROM_PATTERN = /export\s+[^;'"]*?\s+from\s*['"]([^'"]+)['"]/g;
+const DYNAMIC_IMPORT_PATTERN = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
 /** Resolves an import specifier to a repository-relative source file, or null. */
 export type ModuleResolver = (fromFile: string, specifier: string) => string | null;
@@ -104,6 +105,10 @@ function importSpecifiers(source: string): string[] {
     specifiers.push(specifier);
   }
   for (const match of source.matchAll(EXPORT_FROM_PATTERN)) {
+    const specifier = match[1];
+    if (specifier !== undefined) specifiers.push(specifier);
+  }
+  for (const match of source.matchAll(DYNAMIC_IMPORT_PATTERN)) {
     const specifier = match[1];
     if (specifier !== undefined) specifiers.push(specifier);
   }
