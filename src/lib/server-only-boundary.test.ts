@@ -59,9 +59,9 @@ const SERVER_ROOTS: readonly ServerRoot[] = [
     lintPatterns: ['@/data/gsc/source'],
   },
   {
-    path: 'src/features/feedback/create-github-issue.ts',
+    path: 'src/features/feedback/create-linear-issue.ts',
     kind: 'file',
-    lintPatterns: ['@/features/feedback/create-github-issue'],
+    lintPatterns: ['@/features/feedback/create-linear-issue'],
   },
   {
     path: 'src/data/wh-statics/source.ts',
@@ -85,7 +85,7 @@ const SERVER_ROOTS: readonly ServerRoot[] = [
 const EXPECTED_MARKERS = [
   'src/data/gsc/source.ts',
   'src/data/wh-statics/source.ts',
-  'src/features/feedback/create-github-issue.ts',
+  'src/features/feedback/create-linear-issue.ts',
   'src/lib/rate-limit.ts',
   'src/platform/auth/auth.ts',
   'src/platform/auth/eve-sso.ts',

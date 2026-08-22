@@ -656,7 +656,7 @@ const serverRootImportPatterns = [
       "@/platform/auth/eve-sso",
       "@/lib/rate-limit",
       "@/data/gsc/source",
-      "@/features/feedback/create-github-issue",
+      "@/features/feedback/create-linear-issue",
       "@/data/wh-statics/source",
       "@/data/eve-data/source",
       "@/data/esi-refresh-jobs/pending-signal",

@@ -9,7 +9,7 @@ import {
 import { SIGNATURE_PURGE_BATCH } from './mapScan';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';

@@ -92,6 +92,9 @@ hardcode duplicates.
   (`resolveActiveCharacter` stays off this path; JWKS is process-cached).
 - **Env split.** `CONVEX_SERVICE_SECRET` in Convex env — never EVE credentials.
   Identity and token secrets stay Neon-side. `CONVEX_DEPLOY_KEY` in Vercel.
+  Staging Convex `SITE_URL` / `AUTH_ISSUER_URL` are `https://staging.lgi.tools`,
+  not `lgi.tools`. Vercel Preview `staging` uses a deploy key for
+  `proper-squid-200`, not the default production key and not a preview key.
 - **CSP:** Convex origin in `connect-src` only — https + wss, exact
   per-deployment origin, never `*.convex.cloud` (`src/proxy.ts`).
 

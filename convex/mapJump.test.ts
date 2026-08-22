@@ -5,7 +5,7 @@ import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules';
 
 const MAP = 'map-jump';
 const EDITOR = 'user-editor';

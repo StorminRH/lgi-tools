@@ -19,9 +19,11 @@ export default {
     const dialog = page.getByRole('dialog').first();
     await dialog.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
     check(`${viewport === 'mobile' ? 'tap' : 'Enter'} opens the dialog`, await dialog.isVisible());
-    const textarea = page.getByRole('textbox', { name: 'Feedback' });
-    const focused = await textarea.evaluate((element) => element === document.activeElement);
-    check('Field label moves focus into the textarea', focused);
+    const title = dialog.getByRole('textbox', { name: 'Title' });
+    const textarea = dialog.getByRole('textbox', { name: 'Feedback' });
+    const focused = await title.evaluate((element) => element === document.activeElement);
+    check('Field label moves focus into the title field', focused);
+    check('Title field is present', (await title.count()) === 1);
     const category = dialog.getByRole('combobox', { name: 'Category' });
     check('Category select is present', (await category.count()) === 1);
     check('Category defaults to Bug', ((await category.textContent()) ?? '').includes('Bug'));
@@ -34,7 +36,8 @@ export default {
       'Category trigger shows Feature request',
       ((await category.textContent()) ?? '').includes('Feature request'),
     );
-    await textarea.fill('UI system probe');
+    await title.fill('UI system probe');
+    await textarea.fill('The category control should stay usable after a title is entered.');
     await shot('open');
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});

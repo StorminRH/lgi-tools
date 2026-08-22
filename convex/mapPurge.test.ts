@@ -6,7 +6,7 @@ import { internal } from './_generated/api';
 import schema from './schema';
 import { MAP_PURGE_BATCH, MAP_PURGE_TABLES } from './mapPurge';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules';
 
 function schemaMapTables(): string[] {
   const source = readFileSync(resolve(process.cwd(), 'convex/schema.ts'), 'utf8');

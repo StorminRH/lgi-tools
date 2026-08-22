@@ -578,7 +578,7 @@ const feedbackRoute = mutationRoute({
   route: 'src/app/api/feedback/route.ts',
   verdict: 'accepted-risk',
   evidence:
-    'A double submit can open a second GitHub Issue and telemetry row. Rate-limited per client, no durable state is corrupted, and deduplicating free-text feedback would suppress genuine repeat reports.',
+    'A double submit can open a second Linear issue and telemetry row. Rate-limited per client, no durable state is corrupted, and deduplicating free-text feedback would suppress genuine repeat reports.',
 });
 const adminCharactersReassignRoute = mutationRoute({
   route: 'src/app/api/admin/characters/reassign/route.ts',
