@@ -5,7 +5,7 @@ import { api, internal } from './_generated/api';
 import { drainCharacterOnline } from './onlineStatus';
 import schema from './schema';
 
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 const USER = 'user_online_1';
 

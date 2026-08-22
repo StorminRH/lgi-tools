@@ -10,7 +10,7 @@ import type { Id } from './_generated/dataModel';
 import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
 import schema from './schema';
 
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 const MAP = 'map-a';
 const EDITOR = 'user-editor';
