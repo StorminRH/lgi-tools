@@ -49,13 +49,11 @@ async function expectConvexError(call: Promise<unknown>, code: string): Promise<
   await expect(call).rejects.toThrow(code);
 }
 
-/** Empty map with editor + viewer claims. */
 async function seedEmpty(t: Chain): Promise<void> {
   await grant(t, MAP_A, EDITOR, ['editor']);
   await grant(t, MAP_A, VIEWER, ['viewer']);
 }
 
-/** Map with home system already placed. */
 async function seedHome(t: Chain, systemId = JITA): Promise<Id<'mapSystems'>> {
   await seedEmpty(t);
   return await asUser(t).mutation(api.mapAuthoring.setHomeSystem, {
@@ -64,7 +62,6 @@ async function seedHome(t: Chain, systemId = JITA): Promise<Id<'mapSystems'>> {
   });
 }
 
-/** Home + one add-from-node connection. */
 async function seedJump(t: Chain): Promise<{
   systemId: Id<'mapSystems'>;
   connectionId: Id<'mapConnections'>;
@@ -149,7 +146,6 @@ afterEach(() => {
 });
 
 describe('map authoring', () => {
-  // ── SC-3.1 role matrix ────────────────────────────────────────────────────
   describe('gates every public mutation', () => {
     const PUBLIC_MUTATIONS = [
       'setHomeSystem',
@@ -224,8 +220,6 @@ describe('map authoring', () => {
       async (name) => {
         const t = convexTest(schema, modules);
         const args = await argsFor(t, name);
-        // argsFor builds the exact shape for `name`; the indexed public API is
-        // a union Convex cannot refine from the string key alone.
         await expectConvexError(
           t.mutation(api.mapAuthoring[name], args as never),
           'UNAUTHENTICATED',
@@ -417,7 +411,6 @@ describe('map authoring', () => {
     });
   });
 
-  // ── SC-1.3 / home refusals ────────────────────────────────────────────────
   describe('setHomeSystem', () => {
     it('refuses when a live system already exists (MAP_NOT_EMPTY)', async () => {
       const t = convexTest(schema, modules);
@@ -452,7 +445,6 @@ describe('map authoring', () => {
     });
   });
 
-  // ── SC-2.2 origin/destination refusals ────────────────────────────────────
   describe('addSystemFromNode', () => {
     it('refuses an origin absent from the map (UNKNOWN_ORIGIN)', async () => {
       const t = convexTest(schema, modules);
@@ -539,7 +531,6 @@ describe('map authoring', () => {
     });
   });
 
-  // ── SC-3.2 equality-skip ──────────────────────────────────────────────────
   describe('field setters equality-skip', () => {
     it.each([
       {
@@ -682,9 +673,6 @@ describe('map authoring', () => {
         typedSide: 'to',
       });
       expect((await readConnection(t, connectionId))?.pendingCandidates).toBeUndefined();
-      // Typing a never-jump-authored hole mints its observation dedupe key so
-      // the human-tier D16 channel can emit for manually drawn chains; a
-      // second typing keeps the same key (stable per hole lifetime).
       const mintedKey = (await readConnection(t, connectionId))?.observationKey;
       expect(mintedKey).toEqual(expect.any(String));
       await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
@@ -1002,7 +990,6 @@ describe('map authoring', () => {
     });
   });
 
-  // ── SC-4.3 / SC-4.4 tombstone + restore ───────────────────────────────────
   describe('tombstone and restore', () => {
     it('round-trips system identity including _id and _creationTime', async () => {
       const t = convexTest(schema, modules);
@@ -1573,7 +1560,6 @@ describe('map authoring', () => {
     });
   });
 
-  // ── OW6 collapse triggers: the grace-buffered ceiling sweep ───────────────
   describe('collapse triggers', () => {
     const EXPIRED = NOW - CEILING_COLLAPSE_GRACE_MS - 1_000;
     const PILOT = 9_001;
@@ -1635,8 +1621,6 @@ describe('map authoring', () => {
         readSystem(t, WH_A),
         readSystem(t, WH_B),
       ]);
-      // One shared stamp pair across the whole branch — the same write shape
-      // the manual severConnection suite pins above.
       expect(new Set(tombstoned.map((row) => row?.deletedAt))).toEqual(new Set([NOW]));
       expect(new Set(tombstoned.map((row) => row?.purgeAfter))).toEqual(
         new Set([NOW + MAP_CHAIN_UNDO_WINDOW_MS]),
@@ -1774,7 +1758,6 @@ describe('map authoring', () => {
           .collect(),
       );
       expect(activities).toEqual([]);
-      // A silently removed stub leaves a restorable paper trail.
       expect(await readEvents(t)).toEqual([
         expect.objectContaining({
           kind: 'signatures_removed',
@@ -1783,8 +1766,6 @@ describe('map authoring', () => {
         }),
       ]);
 
-      // Idempotent repeat: tombstoned rows have left the live-only candidate
-      // range entirely, so the sweep sees an empty batch.
       expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
       expect(await readConnection(t, stubId)).toMatchObject({ deletedAt: NOW });
@@ -1800,9 +1781,6 @@ describe('map authoring', () => {
           deletedAt: null,
           purgeAfter: null,
         });
-        // Nine already-collapsed rows with the OLDEST ceilings: under a
-        // deathLatestAt-only range these owned the batch head for their whole
-        // undo window and starved the live row below.
         for (let i = 0; i < 9; i += 1) {
           await ctx.db.insert('mapConnections', {
             mapId: MAP_A,
@@ -1855,8 +1833,6 @@ describe('map authoring', () => {
           deletedAt: null,
           purgeAfter: null,
         });
-        // Push MAP_A over the bounded-topology cap so every resolved collapse
-        // on it throws MAP_TOO_LARGE.
         for (let i = 0; i < 128; i += 1) {
           await ctx.db.insert('mapConnections', {
             mapId: MAP_A,
@@ -1910,8 +1886,6 @@ describe('map authoring', () => {
         return { poisonedA: a, poisonedB: b, otherStub: stub };
       });
 
-      // First MAP_A row fails live (MAP_TOO_LARGE), the second via the per-map
-      // failure memo; the other map's expired stub is still swept.
       expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 2, hasMore: false });
       expect(await readConnection(t, poisonedA)).toMatchObject({ deletedAt: null });
@@ -1940,29 +1914,24 @@ describe('map authoring', () => {
     });
   });
 
-  // ── purge bounds ──────────────────────────────────────────────────────────
   describe('purgeExpiredChainTombstones', () => {
     it('deletes expired rows, spares active and not-yet-expired, and reports hasMore', async () => {
       const t = convexTest(schema, modules);
       await seedEmpty(t);
 
       await t.run(async (ctx) => {
-        // Active — must never enter the purge range.
         await ctx.db.insert('mapSystems', {
           mapId: MAP_A,
           systemId: JITA,
           deletedAt: null,
           purgeAfter: null,
         });
-        // Not yet expired.
         await ctx.db.insert('mapSystems', {
           mapId: MAP_A,
           systemId: AMARR,
           deletedAt: NOW - 1_000,
           purgeAfter: NOW + 60_000,
         });
-        // Expired systems: one more than the batch so hasMore is true when
-        // connections are empty — seed CHAIN_PURGE_BATCH + 1 expired systems.
         for (let i = 0; i < CHAIN_PURGE_BATCH + 1; i += 1) {
           await ctx.db.insert('mapSystems', {
             mapId: MAP_A,
@@ -1971,7 +1940,6 @@ describe('map authoring', () => {
             purgeAfter: NOW - 10_000,
           });
         }
-        // Expired connection + active connection.
         await ctx.db.insert('mapConnections', {
           mapId: MAP_A,
           fromSystemId: JITA,
@@ -1999,8 +1967,6 @@ describe('map authoring', () => {
       });
 
       const result = await t.mutation(internal.mapAuthoring.purgeExpiredChainTombstones, {});
-      // Per-table budgets: the full system batch AND the expired connection
-      // progress in one call; only the leftover expired system waits.
       expect(result.deletedSystems).toBe(CHAIN_PURGE_BATCH);
       expect(result.deletedConnections).toBe(1);
       expect(result.hasMore).toBe(true);
@@ -2023,7 +1989,6 @@ describe('map authoring', () => {
       );
       expect(connections).toHaveLength(1);
 
-      // Second call drains the leftover expired system.
       const second = await t.mutation(internal.mapAuthoring.purgeExpiredChainTombstones, {});
       expect(second.deletedSystems).toBe(1);
       expect(second.deletedConnections).toBe(0);

@@ -586,8 +586,6 @@ describe('automatic jump authoring', () => {
     const t = convexTest(schema, modules);
     await grant(t, EDITOR, ['editor']);
     await seedTrackedTransition(t);
-    // A view-only user can write a tracking row naming any characterId; a row
-    // that joins to no characterLocation doc must not veto the genuine one.
     await t.run(async (ctx) => {
       await ctx.db.insert('mapTracking', {
         mapId: MAP,
@@ -605,7 +603,6 @@ describe('automatic jump authoring', () => {
       transition: { fromSolarSystemId: ORIGIN, toSolarSystemId: DESTINATION },
     });
 
-    // Two JOINABLE rows are genuine ambiguity and stay fail-closed.
     await t.run(async (ctx) => {
       await ctx.db.insert('characterLocation', {
         userId: 'user-forger',

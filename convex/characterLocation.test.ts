@@ -73,9 +73,6 @@ type ApplyResult = {
   etagShip: string | null;
   expiresAt: number | null;
   error: string | null;
-  // Probe trio, defaulted by apply(): null-null-null = "probe not exercised",
-  // which leaves characterLocationOnline untouched — existing location cases
-  // stay byte-identical.
   online?: boolean | null;
   etagOnline?: string | null;
   onlineExpiresAt?: number | null;
@@ -155,8 +152,6 @@ describe('characterLocation.purgeForUser', () => {
         userId: OTHER,
         characterId: CHAR_A,
       });
-      // Character-keyed exactly-once stamps: the account purge must drain the
-      // purged characters' stamps across maps (no userId column to key on).
       await ctx.db.insert('mapJumpBookkeeping', {
         mapId: 'map-a',
         characterId: CHAR_A,
@@ -193,7 +188,6 @@ describe('characterLocation.purgeForUser', () => {
     const remainingCovered = await t.run((ctx) => ctx.db.query('characterLocationCovered').collect());
     expect(remainingLocations.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingTracking.map((doc) => doc.userId)).toEqual([OTHER]);
-    // Held probe rows leave with the account — same door, same cascade.
     expect(remainingOnline.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingLeases.map((doc) => doc.userId)).toEqual([OTHER]);
     expect(remainingCovered.map((doc) => doc.userId)).toEqual([OTHER]);
@@ -430,7 +424,6 @@ describe('characterLocation.heldState', () => {
         etagOnline: 'on',
         onlineExpiresAt: GEN + 60_000,
       });
-      // Another user's rows never leak into the read seam.
       await ctx.db.insert('characterLocationOnline', {
         userId: OTHER,
         characterId: CHAR_B,
@@ -555,9 +548,6 @@ describe('characterLocation.applySyncResults', () => {
   });
 
   it('stamps prevFresh true when the previous covered run finished 17s ago', async () => {
-    // Live sitting-then-jump: lastFinishedAt was 17s before apply, character
-    // still in coveredCharacterIds. The old 15s window stamped prevFresh
-    // false and the doorbell skipped re-anchor.
     const t = convexTest(schema, modules);
     expect(JUMP_CONTINUITY_MS).toBeGreaterThan(17_000);
     await t.run(async (ctx) => {
@@ -604,7 +594,6 @@ describe('characterLocation.applySyncResults', () => {
         subjectRow({
           lastFinishedAt: Date.now() - 60_000,
           syncedCharacterIds: [CHAR_A],
-          // Covered too — proving the stale WINDOW alone forces the re-anchor.
           coveredCharacterIds: [CHAR_A],
         }),
       );
@@ -637,10 +626,6 @@ describe('characterLocation.applySyncResults', () => {
   });
 
   it('stamps prevFresh false when the previous run did not cover the character', async () => {
-    // Recent finish AND tracked, but the character's last sample was an error /
-    // unpolled (not in coveredCharacterIds): the transition must re-anchor —
-    // PD-2's "no invented path" — never inherit jump provenance from the
-    // tracked set.
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert(
@@ -690,8 +675,6 @@ describe('characterLocation.applySyncResults', () => {
       trackedCharacterIds: [CHAR_A, CHAR_B],
       results: [
         {
-          // 304 with the pilot online — a clean LOCATION observation, counts
-          // as covered despite writing nothing.
           characterId: CHAR_A,
           solarSystemId: null,
           stationId: null,
@@ -705,7 +688,6 @@ describe('characterLocation.applySyncResults', () => {
           online: true,
         },
         {
-          // Errored — excluded from the covered set.
           characterId: CHAR_B,
           solarSystemId: null,
           stationId: null,
@@ -740,8 +722,6 @@ describe('characterLocation.applySyncResults', () => {
   });
 
   it('keeps last-known location for a character missing from this run\'s tracked set', async () => {
-    // Untrack is a toggle: apply must not destroy last-known when the poll set
-    // shrinks. Unlink/reassign teardown is purgeForUser, not this path.
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', subjectRow());
@@ -775,10 +755,6 @@ describe('characterLocation.applySyncResults', () => {
   });
 
   it('excludes an offline probe result from the covered set (no fabricated continuity)', async () => {
-    // Two tracked pilots: A online (location observed), B logged off under a
-    // held probe. B must NOT enter coveredCharacterIds — if it did, a login +
-    // multi-hop move inside the held ~60s window would satisfy isPrevFresh on
-    // the next run and author a fabricated jump on the shared map.
     const t = convexTest(schema, modules);
     await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));
 
@@ -881,7 +857,6 @@ describe('characterLocation.applySyncResults', () => {
       error: null,
     };
 
-    // Fresh read → insert.
     await apply(t, {
       results: [{ ...offlineResult, online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 }],
     });
@@ -904,11 +879,9 @@ describe('characterLocation.applySyncResults', () => {
     const inserted = await readRow();
     expect(inserted).toMatchObject({ online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 });
 
-    // Held-reuse (null trio) → untouched.
     await apply(t, { results: [{ ...offlineResult }] });
     expect((await readRow())?.onlineExpiresAt).toBe(WINDOW + 55_000);
 
-    // A later fresh read with a moved window → patched in place.
     await apply(t, {
       results: [{ ...offlineResult, online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 }],
     });

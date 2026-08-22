@@ -1,6 +1,4 @@
-// One convex-test module map. Tests that each globbed `./**/*.ts` formed a
-// cycle with every other test once Fallow could see them. The two-dot
-// basename keeps Convex deploy from treating this Vite helper as an entry.
+// The two-dot basename keeps Convex deploy from treating this Vite helper as an entry.
 export const modules = import.meta.glob([
   '../auth.config.ts',
   '../characterLocation.ts',

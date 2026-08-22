@@ -38,7 +38,6 @@ async function grant(
   });
 }
 
-/** Places systems directly: these suites prove the READ path, so seeding stays out of the way. */
 async function placeSystems(t: Chain, mapId: string, systemIds: number[]): Promise<void> {
   await t.run(async (ctx) => {
     for (const systemId of systemIds) {
@@ -66,13 +65,6 @@ async function connect(
   });
 }
 
-/**
- * Asserts the rejection carries the exact ConvexError data code, not merely a matching message.
- *
- * Only `code` is asserted: it is the machine-readable half of the contract that clients branch on
- * (the calm no-access state keys off `FORBIDDEN`), while `detail` is operator prose some fixture
- * errors add and no consumer parses.
- */
 async function expectErrorCode(call: Promise<unknown>, code: string): Promise<void> {
   try {
     await call;
@@ -87,7 +79,6 @@ function page(numItems: number, cursor: string | null = null) {
   return { numItems, cursor };
 }
 
-/** Deletes one caller's claim, the durable revocation the projection performs. */
 async function revokeClaim(t: Chain, mapId: string, userId: string): Promise<void> {
   await t.run(async (ctx) => {
     const claim = await ctx.db
@@ -99,11 +90,7 @@ async function revokeClaim(t: Chain, mapId: string, userId: string): Promise<voi
 }
 
 describe('map chain read path', () => {
-  // ── Gate-first authorization ───────────────────────────────────────────────
   describe('gate', () => {
-    // The chain reads answer a denial with an empty page rather than a throw, because a thrown error
-    // inside a live subscription is an uncaught error in the client's socket callback rather than a
-    // state the UI can simply render. `watchMapAccess` is the authority on revoked-versus-empty.
     it.each(['watchMapSystems', 'watchMapConnections', 'watchUnresolvedHoles'] as const)(
       'serves a signed-out caller of %s an empty, complete page and no rows',
       async (fn) => {
@@ -236,7 +223,6 @@ describe('map chain read path', () => {
       ]);
     });
 
-    // SC-4 · DC-4 / AC-4 — the server half of the calm no-access state, with no error path.
     it('flips access to not granted after claim revocation, without throwing', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, EDITOR, ['editor']);
@@ -266,7 +252,6 @@ describe('map chain read path', () => {
       expect(after.page).toEqual([]);
     });
 
-    // Recovery is live: re-granting the claim restores the map with no reload and no user action.
     it('restores access and rows when the claim is granted again', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, EDITOR, ['editor']);
@@ -292,7 +277,6 @@ describe('map chain read path', () => {
       await placeSystems(t, MAP_A, [JITA, AMARR]);
       await connect(t, MAP_A, JITA, AMARR);
 
-      // No claim was ever granted: both collections must come back empty despite holding rows.
       const systems = await asUser(t, STRANGER).query(api.mapChain.watchMapSystems, {
         mapId: MAP_A,
         paginationOpts: page(100),
@@ -307,7 +291,6 @@ describe('map chain read path', () => {
     });
   });
 
-  // ── Map isolation and pagination ───────────────────────────────────────────
   describe('reads', () => {
     it('returns only the requested map’s rows', async () => {
       const t = convexTest(schema, modules);
@@ -341,8 +324,6 @@ describe('map chain read path', () => {
       let pages = 0;
 
       for (;;) {
-        // Annotated because `cursor` is fed back from the result: without it TypeScript treats the
-        // page type as circular through its own initializer.
         const result: PaginationResult<Doc<'mapSystems'>> = await asUser(t).query(
           api.mapChain.watchMapSystems,
           { mapId: MAP_A, paginationOpts: page(2, cursor) },
@@ -410,7 +391,6 @@ describe('map chain read path', () => {
     });
   });
 
-  // ── Departure seams ───────────────────────────────────────────────────────
   describe('removal fixtures', () => {
     it('removes an unreferenced system and reports the removal', async () => {
       const t = convexTest(schema, modules);
@@ -507,13 +487,6 @@ describe('map chain read path', () => {
     });
   });
 
-  // ── SC-6 · DC-6 / AC-6 / V-2 ──────────────────────────────────────────────
-  //
-  // The deterministic half of the subscription-split proof. Convex reactivity is read-set-precise,
-  // so if each handler's CODE touches exactly one chain table through one indexed range, a write to
-  // the other table provably cannot overlap this handler's read set. That is a structural argument
-  // about the source rather than an observation of a running deployment, which is what AC-6 asks
-  // for. Comments are stripped first: prose naming a table creates no read set.
   describe('source contract', () => {
     const SOURCE = readFileSync('convex/mapChain.ts', 'utf8');
 
@@ -535,7 +508,6 @@ describe('map chain read path', () => {
       return haystack.split(needle).length - 1;
     }
 
-    /** Whitespace-stripped code, so a formatter's line breaks cannot hide a chained call. */
     function dense(code: string): string {
       return code.replace(/\s+/g, '');
     }
@@ -557,8 +529,6 @@ describe('map chain read path', () => {
       return codeOnly(SOURCE.slice(start, end));
     }
 
-    // HC-2's deterministic evidence: each handler delegates to one range-owned helper, and those
-    // helpers touch only their named table/range — without observing a deployment.
     it.each([
       { fn: 'watchMapSystems', helper: 'readSystemPage' },
       { fn: 'watchMapConnections', helper: 'readConnectionPage', mode: 'resolved' },
