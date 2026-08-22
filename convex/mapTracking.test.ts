@@ -6,7 +6,7 @@ import { api, internal } from './_generated/api';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';

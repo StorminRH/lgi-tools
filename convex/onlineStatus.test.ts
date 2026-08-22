@@ -5,7 +5,7 @@ import { api, internal } from './_generated/api';
 import { drainCharacterOnline } from './onlineStatus';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules';
 
 const USER = 'user_online_1';
 

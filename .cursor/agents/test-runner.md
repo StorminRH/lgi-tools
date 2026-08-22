@@ -15,11 +15,12 @@ pnpm exec fallow dupes --fail-on-issues
 pnpm fallow:health:local
 ```
 
-`pnpm fallow:health:local` gates cyclomatic and cognitive. It raises
-`--max-crap` because this run has no Istanbul map. Without that map,
-Fallow estimates coverage from the graph and the default CRAP 30 stays
+`pnpm fallow:health:local` gates cyclomatic, cognitive, and coverage-gaps.
+It raises `--max-crap` because this run has no Istanbul map. Without that
+map, Fallow estimates coverage from the graph and the default CRAP 30 stays
 red. CI `pnpm fallow` feeds `coverage/coverage-final.json` and keeps
-that CRAP gate.
+that CRAP gate. Coverage-gaps is a test-dependency walk, not Istanbul, so
+the local command can fail it without a coverage map.
 
 A focused-test coverage map makes unmatched functions look untested
 and fails the rest of the tree. The suite is green when every command

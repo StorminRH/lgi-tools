@@ -5,7 +5,7 @@ import { internal } from './_generated/api';
 import { MAP_JUMP_BOOKKEEPING_PURGE_BATCH } from './mapJumpBookkeeping';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules';
 
 const SECRET = 'svc-secret';
 
