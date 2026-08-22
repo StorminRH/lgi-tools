@@ -35,9 +35,25 @@ describe('convex-test module map', () => {
   });
 
   it('names non-test helpers so Convex deploy skips them', () => {
-    const helpers = readdirSync('convex/__tests__').filter(
-      (name) => name.endsWith('.ts') && !name.includes('.test.') && !name.endsWith('.d.ts'),
-    );
+    const helpers: string[] = [];
+    const walk = (current: string): void => {
+      for (const entry of readdirSync(current, { withFileTypes: true })) {
+        const path = `${current}/${entry.name}`;
+        if (entry.isDirectory()) {
+          walk(path);
+          continue;
+        }
+        if (
+          !entry.name.endsWith('.ts') ||
+          entry.name.includes('.test.') ||
+          entry.name.endsWith('.d.ts')
+        ) {
+          continue;
+        }
+        helpers.push(entry.name);
+      }
+    };
+    walk('convex/__tests__');
     expect(helpers.length).toBeGreaterThan(0);
     for (const name of helpers) {
       expect((name.match(/\./g) ?? []).length).toBeGreaterThan(1);
