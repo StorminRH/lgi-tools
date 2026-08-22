@@ -43,7 +43,7 @@ const REQUIRED_ENV = {
   // Empty ≡ missing — serviceFetch only attaches the header when set.
   VERCEL_AUTOMATION_BYPASS_SECRET: required,
   CRON_SECRET: required,
-  GITHUB_FEEDBACK_TOKEN: required,
+  LINEAR_API_KEY: required,
   DISCORD_ALERT_WEBHOOK_URL: required,
   GSC_SERVICE_ACCOUNT_JSON: required,
   GSC_SITE_URL: required,

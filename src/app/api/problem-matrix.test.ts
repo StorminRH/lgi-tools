@@ -168,7 +168,7 @@ async function expectProblem(
 
 beforeEach(() => {
   vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-  vi.stubEnv('GITHUB_FEEDBACK_TOKEN', 'ghp_test_token');
+  vi.stubEnv('LINEAR_API_KEY', 'lin_api_test_token');
   h.checkAdmin.mockReset().mockResolvedValue({ ok: true, session: ADMIN_SESSION });
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.getSession.mockReset().mockResolvedValue(null);
@@ -215,6 +215,7 @@ describe('route-level problem status matrix', () => {
     await expectProblem(
       await postFeedback(
         jsonRequest('/api/feedback', {
+          title: 'hello',
           message: 'hello',
           path: 'not-a-path',
           category: 'bug',
@@ -333,6 +334,7 @@ describe('route-level problem status matrix', () => {
     });
     const response = await postFeedback(
       jsonRequest('/api/feedback', {
+        title: 'hello',
         message: 'hello',
         path: '/sites',
         category: 'bug',
@@ -355,21 +357,23 @@ describe('route-level problem status matrix', () => {
     await expectProblem(
       await postFeedback(
         jsonRequest('/api/feedback', {
+          title: 'hello',
           message: 'hello',
           path: '/sites',
           category: 'bug',
         }),
       ),
       502,
-      'github_failed',
+      'linear_failed',
     );
   });
 
   it('covers a 503 feedback dependency', async () => {
-    vi.stubEnv('GITHUB_FEEDBACK_TOKEN', '');
+    vi.stubEnv('LINEAR_API_KEY', '');
     await expectProblem(
       await postFeedback(
         jsonRequest('/api/feedback', {
+          title: 'hello',
           message: 'hello',
           path: '/sites',
           category: 'bug',
@@ -395,20 +399,21 @@ describe('route-level problem status matrix', () => {
     expect(text).toContain('Safe dependency failure');
   });
 
-  it('never leaks a rejected feedback GitHub cause through the real route', async () => {
-    const seededSecret = 'seeded-feedback-github-secret';
+  it('never leaks a rejected feedback Linear cause through the real route', async () => {
+    const seededSecret = 'seeded-feedback-linear-secret';
     h.fetchWithTimeout.mockRejectedValueOnce(new Error(seededSecret));
 
     const response = await postFeedback(
       jsonRequest('/api/feedback', {
+        title: 'hello',
         message: 'hello',
         path: '/sites',
         category: 'bug',
       }),
     );
-    const text = await expectProblem(response, 502, 'github_failed');
+    const text = await expectProblem(response, 502, 'linear_failed');
 
     expect(text).not.toContain(seededSecret);
-    expect(text).toContain('Could not reach GitHub');
+    expect(text).toContain('Could not reach Linear');
   });
 });

@@ -8,7 +8,7 @@ import { useAuth } from '@/platform/auth/components/AuthProvider';
 /**
  * Floating feedback affordance. Fixed to the bottom-right corner so it's
  * reachable at any scroll position. Click opens the feedback modal in
- * place; submissions POST to /api/feedback which opens a GitHub Issue and
+ * place; submissions POST to /api/feedback which opens a Linear issue and
  * logs to usage_logs.
  *
  * Reads login state here (the shared component layer may import the auth

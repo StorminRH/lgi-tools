@@ -5,16 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Banner } from '@/components/ui/banner';
 import { Dialog } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
-import { Textarea } from '@/components/ui/input';
+import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import type { Session } from '@/platform/auth/types';
 import { apiFetch } from '@/transport/api-client';
 import { feedbackEndpoint } from '../api-contract';
 import {
   FEEDBACK_CATEGORY_SELECT_ITEMS,
+  isFeedbackCategory,
   type FeedbackCategory,
 } from '../categories';
-import { FEEDBACK_MESSAGE_MAX_LENGTH } from '../constants';
+import { FEEDBACK_MESSAGE_MAX_LENGTH, FEEDBACK_TITLE_MAX_LENGTH } from '../constants';
 import {
   FEEDBACK_NETWORK_ERROR_MESSAGE,
   feedbackErrorMessage,
@@ -25,13 +26,14 @@ import {
 // Fire the feedback request and map the outcome to the next state — the friendly
 // error copy per status lives in {@link feedbackErrorMessage}.
 async function submitFeedback(
+  title: string,
   message: string,
   path: string,
   category: FeedbackCategory,
 ): Promise<SubmitState> {
   try {
     const result = await apiFetch(feedbackEndpoint, {
-      body: { message, path, category },
+      body: { title, message, path, category },
     });
     if (!result.ok) return { kind: 'error', message: feedbackErrorMessage(result) };
     return { kind: 'success' };
@@ -98,6 +100,34 @@ function FeedbackCategoryField({
   );
 }
 
+function FeedbackTitleField({
+  title,
+  disabled,
+  error,
+  titleRef,
+  onTitleChange,
+}: {
+  title: string;
+  disabled: boolean;
+  error?: string;
+  titleRef: RefObject<HTMLInputElement | null>;
+  onTitleChange: (e: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <Field label="Title" error={error}>
+      <Input
+        ref={titleRef}
+        value={title}
+        onChange={onTitleChange}
+        disabled={disabled}
+        maxLength={FEEDBACK_TITLE_MAX_LENGTH}
+        placeholder="Short summary"
+        autoComplete="off"
+      />
+    </Field>
+  );
+}
+
 // The success confirmation, or the message textarea + chars-left / inline error.
 function FeedbackBody({
   state,
@@ -125,7 +155,7 @@ function FeedbackBody({
     <Field
       label="Feedback"
       hint={`${charsLeft} chars left`}
-      error={state.kind === 'error' ? state.message : undefined}
+      error={state.kind === 'error' && state.field !== 'title' ? state.message : undefined}
     >
       <Textarea
         ref={textareaRef}
@@ -190,7 +220,9 @@ export function FeedbackModal({
   loading: boolean;
 }) {
   const titleId = useId();
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [category, setCategory] = useState<FeedbackCategory>('bug');
   const [path, setPath] = useState('');
@@ -207,6 +239,7 @@ export function FeedbackModal({
     if (!open) return;
     /* eslint-disable react-hooks/set-state-in-effect */
     setPath(window.location.pathname + window.location.search);
+    setTitle('');
     setMessage('');
     setCategory('bug');
     setState({ kind: 'idle' });
@@ -215,22 +248,32 @@ export function FeedbackModal({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const gate = feedbackSubmitGate(message, category, state);
+    const gate = feedbackSubmitGate(title, message, category, state);
     if (gate !== 'ok') {
-      if (gate === 'empty') {
-        setState({ kind: 'error', message: 'Please enter a message before sending.' });
+      if (gate === 'empty_title') {
+        setState({
+          kind: 'error',
+          message: 'Please enter a title before sending.',
+          field: 'title',
+        });
+      } else if (gate === 'empty') {
+        setState({
+          kind: 'error',
+          message: 'Please enter a message before sending.',
+          field: 'message',
+        });
       } else if (gate === 'no_category') {
         setState({ kind: 'error', message: 'Please choose a category before sending.' });
       }
       return;
     }
     setState({ kind: 'submitting' });
-    setState(await submitFeedback(message, path, category));
+    setState(await submitFeedback(title, message, path, category));
   }
 
   const charsLeft = FEEDBACK_MESSAGE_MAX_LENGTH - message.length;
   const disabled = state.kind === 'submitting';
-  const canSend = message.trim().length > 0;
+  const canSend = title.trim().length > 0 && message.trim().length > 0;
 
   return (
     <Dialog
@@ -239,7 +282,7 @@ export function FeedbackModal({
         if (!next) onClose();
       }}
       labelledBy={titleId}
-      initialFocus={textareaRef}
+      initialFocus={titleInputRef}
       className="flex max-h-[calc(100dvh-2rem)] min-h-0 w-[min(560px,calc(100vw-2rem))] flex-col"
     >
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
@@ -264,11 +307,22 @@ export function FeedbackModal({
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-3">
           <FeedbackMeta loading={loading} session={session} path={path} />
           {state.kind !== 'success' && (
-            <FeedbackCategoryField
-              category={category}
-              disabled={disabled}
-              onCategoryChange={(value) => setCategory(value as FeedbackCategory)}
-            />
+            <>
+              <FeedbackTitleField
+                title={title}
+                disabled={disabled}
+                error={state.kind === 'error' && state.field === 'title' ? state.message : undefined}
+                titleRef={titleInputRef}
+                onTitleChange={(e) => setTitle(e.target.value)}
+              />
+              <FeedbackCategoryField
+                category={category}
+                disabled={disabled}
+                onCategoryChange={(value) => {
+                  if (isFeedbackCategory(value)) setCategory(value);
+                }}
+              />
+            </>
           )}
           <FeedbackBody
             state={state}
