@@ -11,6 +11,15 @@ const SESSION: Session = {
   role: 'USER',
 };
 
+const LINEAR_SUCCESS = {
+  data: {
+    issueCreate: {
+      success: true,
+      issue: { id: 'issue-1', title: 'sites browser is broken on C3 relic' },
+    },
+  },
+};
+
 const getSessionMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const fetchMock = vi.fn();
@@ -78,10 +87,24 @@ async function expectProblem(
   return body;
 }
 
+function linearPayload(init: RequestInit | undefined) {
+  return JSON.parse((init as RequestInit).body as string) as {
+    query: string;
+    variables: {
+      input: {
+        title: string;
+        description: string;
+        teamId: string;
+        labelIds?: string[];
+      };
+    };
+  };
+}
+
 describe('POST /api/feedback', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv('GITHUB_FEEDBACK_TOKEN', 'ghp_test_token');
+    vi.stubEnv('LINEAR_API_KEY', 'lin_api_test_token');
     getSessionMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
@@ -96,17 +119,18 @@ describe('POST /api/feedback', () => {
     vi.unstubAllGlobals();
   });
 
-  it('opens GitHub issues for logged-in and anonymous submissions and sanitises control characters', async () => {
+  it('opens Linear issues for logged-in and anonymous submissions and sanitises control characters', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ number: 42 }), { status: 201 }),
+      new Response(JSON.stringify(LINEAR_SUCCESS), { status: 200 }),
     );
 
     const { POST } = await importRoute();
     const res = await POST(
       buildRequest(
         {
-          message: 'sites browser is broken on C3 relic',
+          title: 'sites browser is broken on C3 relic',
+          message: 'Relic sites on C3 lose their filter after refresh.',
           path: '/sites?class=c3',
           category: 'bug',
         },
@@ -118,79 +142,96 @@ describe('POST /api/feedback', () => {
     expect(res.body).toBeNull();
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe('https://api.github.com/repos/StorminRH/lgi-tools/issues');
+    expect(url).toBe('https://api.linear.app/graphql');
     const headers = new Headers((init as RequestInit).headers);
     expect(headers.get('User-Agent')).toBe(OUTBOUND_USER_AGENT);
-    expect(headers.get('Authorization')).toBe('Bearer ghp_test_token');
-    expect(headers.get('Accept')).toBe('application/vnd.github+json');
-    const payload = JSON.parse((init as RequestInit).body as string);
-    expect(payload.title).toBe('[Bug] sites browser is broken on C3 relic');
-    expect(payload.labels).toEqual(['bug']);
-    expect(payload.body).toContain('sites browser is broken on C3 relic');
-    expect(payload.body).toContain('**Submitted by:** Test Pilot');
-    expect(payload.body).toContain('`/sites?class=c3`');
-    expect(payload.body).not.toContain('#1000000000');
+    expect(headers.get('Authorization')).toBe('lin_api_test_token');
+    expect(headers.get('Content-Type')).toBe('application/json');
+    const payload = linearPayload(init as RequestInit);
+    expect(payload.query).toContain('issueCreate');
+    expect(payload.variables.input.title).toBe('sites browser is broken on C3 relic');
+    expect(payload.variables.input.teamId).toBe('d6e910f7-a117-4358-896a-6ef20b13e117');
+    expect(payload.variables.input.labelIds).toEqual([
+      'a567bd23-7df3-46aa-aad9-0ba7c908e918',
+    ]);
+    expect(payload.variables.input.description).toContain(
+      'Relic sites on C3 lose their filter after refresh.',
+    );
+    expect(payload.variables.input.description).toContain('**Submitted by:** Test Pilot');
+    expect(payload.variables.input.description).toContain('`/sites?class=c3`');
+    expect(payload.variables.input.description).not.toContain('#1000000000');
+    expect(payload.variables.input.title).not.toBe(
+      'Relic sites on C3 lose their filter after refresh.',
+    );
 
     expect(logUsageEventMock).toHaveBeenCalledOnce();
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'feedback_submitted',
       characterId: 1000000000,
       metadata: {
-        messageLength: 'sites browser is broken on C3 relic'.length,
+        titleLength: 'sites browser is broken on C3 relic'.length,
+        messageLength: 'Relic sites on C3 lose their filter after refresh.'.length,
         path: '/sites?class=c3',
         category: 'bug',
       },
     });
 
     getSessionMock.mockResolvedValue(null);
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ number: 1 }), { status: 201 }));
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(LINEAR_SUCCESS), { status: 200 }),
+    );
     logUsageEventMock.mockClear();
     fetchMock.mockClear();
 
     const anon = await POST(
       buildRequest({
-        message: 'love the changelog',
+        title: 'love the changelog',
+        message: 'The latest notes were easy to scan.',
         path: '/changelog',
         category: 'other',
       }),
     );
     expect(anon.status).toBe(204);
-    const anonPayload = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
-    expect(anonPayload.title).toBe('[Other] love the changelog');
-    expect(anonPayload.labels).toBeUndefined();
-    expect(anonPayload.body).toContain('**Submitted by:** Anonymous');
+    const anonPayload = linearPayload(fetchMock.mock.calls[0]![1] as RequestInit);
+    expect(anonPayload.variables.input.title).toBe('love the changelog');
+    expect(anonPayload.variables.input.labelIds).toBeUndefined();
+    expect(anonPayload.variables.input.description).toContain('**Submitted by:** Anonymous');
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'feedback_submitted',
       characterId: null,
       metadata: {
-        messageLength: 'love the changelog'.length,
+        titleLength: 'love the changelog'.length,
+        messageLength: 'The latest notes were easy to scan.'.length,
         path: '/changelog',
         category: 'other',
       },
     });
 
     getSessionMock.mockResolvedValue(SESSION);
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ number: 1 }), { status: 201 }));
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(LINEAR_SUCCESS), { status: 200 }),
+    );
     fetchMock.mockClear();
 
     const scrubbed = await POST(
       buildRequest({
-        message: 'hello\u0000world\u0007',
+        title: 'hello\u0000world\u0007',
+        message: 'please\u0000add export',
         path: '/sites\u0000?q=test',
         category: 'feature',
       }),
     );
     expect(scrubbed.status).toBe(204);
-    const scrubbedPayload = JSON.parse(
-      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
-    );
-    expect(scrubbedPayload.title).toBe('[Feature request] helloworld');
-    expect(scrubbedPayload.body).toContain('helloworld');
-    expect(scrubbedPayload.body).toContain('`/sites?q=test`');
-    expect(scrubbedPayload.labels).toEqual(['enhancement']);
+    const scrubbedPayload = linearPayload(fetchMock.mock.calls[0]![1] as RequestInit);
+    expect(scrubbedPayload.variables.input.title).toBe('helloworld');
+    expect(scrubbedPayload.variables.input.description).toContain('pleaseadd export');
+    expect(scrubbedPayload.variables.input.description).toContain('`/sites?q=test`');
+    expect(scrubbedPayload.variables.input.labelIds).toEqual([
+      '2f9442ba-c519-4c1c-9b9b-202335d2de73',
+    ]);
   });
 
-  it('rejects empty, malformed, oversized, and invalid path or category bodies before GitHub', async () => {
+  it('rejects empty, malformed, oversized, and invalid path or category bodies before Linear', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     const { POST } = await importRoute();
 
@@ -209,7 +250,19 @@ describe('POST /api/feedback', () => {
     );
     await expectProblem(
       await POST(
-        buildRequest({ message: 'x'.repeat(8001), path: '/sites', category: 'bug' }),
+        buildRequest({
+          title: 'x'.repeat(481),
+          message: 'hi',
+          path: '/sites',
+          category: 'bug',
+        }),
+      ),
+      400,
+      'invalid_body',
+    );
+    await expectProblem(
+      await POST(
+        buildRequest({ title: 'hi', message: 'x'.repeat(8001), path: '/sites', category: 'bug' }),
       ),
       400,
       'invalid_body',
@@ -217,6 +270,7 @@ describe('POST /api/feedback', () => {
     await expectProblem(
       await POST(
         buildRequest({
+          title: 'hi',
           message: 'hi',
           path: '/' + 'x'.repeat(2049),
           category: 'bug',
@@ -226,21 +280,27 @@ describe('POST /api/feedback', () => {
       'invalid_body',
     );
     await expectProblem(
-      await POST(buildRequest({ message: 42, path: '/sites', category: 'bug' })),
+      await POST(buildRequest({ title: 'hi', message: 42, path: '/sites', category: 'bug' })),
       400,
       'invalid_body',
     );
     expect(checkRateLimitMock).not.toHaveBeenCalled();
 
     await expectProblem(
-      await POST(buildRequest({ message: '    ', path: '/sites', category: 'bug' })),
+      await POST(buildRequest({ title: '   ', message: 'hi', path: '/sites', category: 'bug' })),
+      400,
+      'title_empty',
+      'title must not be empty',
+    );
+    await expectProblem(
+      await POST(buildRequest({ title: 'hi', message: '    ', path: '/sites', category: 'bug' })),
       400,
       'message_empty',
       'message must not be empty',
     );
     await expectProblem(
       await POST(
-        buildRequest({ message: 'hi', path: 'not-a-path', category: 'bug' }),
+        buildRequest({ title: 'hi', message: 'hi', path: 'not-a-path', category: 'bug' }),
       ),
       400,
       'path_invalid',
@@ -251,12 +311,12 @@ describe('POST /api/feedback', () => {
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
-  it('blocks cross-origin posts and maps unset token or GitHub failure without telemetry', async () => {
+  it('blocks cross-origin posts and maps unset token or Linear failure without telemetry', async () => {
     const { POST } = await importRoute();
     await expectProblem(
       await POST(
         buildRequest(
-          { message: 'hello', path: '/sites', category: 'bug' },
+          { title: 'hello', message: 'hello', path: '/sites', category: 'bug' },
           'https://foreign.example',
         ),
       ),
@@ -271,17 +331,34 @@ describe('POST /api/feedback', () => {
     fetchMock.mockResolvedValue(new Response('rate limited', { status: 429 }));
     logUsageEventMock.mockClear();
     await expectProblem(
-      await POST(buildRequest({ message: 'hi', path: '/sites', category: 'bug' })),
+      await POST(
+        buildRequest({ title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
+      ),
       502,
-      'github_failed',
-      'GitHub rejected the feedback',
+      'linear_failed',
+      'Linear rejected the feedback',
     );
     expect(logUsageEventMock).not.toHaveBeenCalled();
 
-    vi.stubEnv('GITHUB_FEEDBACK_TOKEN', '');
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ errors: [{ message: 'denied' }] }), { status: 200 }),
+    );
+    await expectProblem(
+      await POST(
+        buildRequest({ title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
+      ),
+      502,
+      'linear_failed',
+      'Linear rejected the feedback',
+    );
+    expect(logUsageEventMock).not.toHaveBeenCalled();
+
+    vi.stubEnv('LINEAR_API_KEY', '');
     fetchMock.mockClear();
     await expectProblem(
-      await POST(buildRequest({ message: 'hi', path: '/sites', category: 'bug' })),
+      await POST(
+        buildRequest({ title: 'hi', message: 'hi', path: '/sites', category: 'bug' }),
+      ),
       503,
       'feedback_unconfigured',
       'Feedback channel is not configured',

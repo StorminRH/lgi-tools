@@ -10,22 +10,26 @@ import {
 } from './feedback-view';
 
 describe('feedbackSubmitGate', () => {
-  it('blocks busy, missing category, and empty message before allowing submit', () => {
-    expect(feedbackSubmitGate('hi', 'bug', { kind: 'submitting' })).toBe('busy');
-    expect(feedbackSubmitGate('hi', '', { kind: 'idle' })).toBe('no_category');
-    expect(feedbackSubmitGate('hi', 'nope', { kind: 'idle' })).toBe('no_category');
-    expect(feedbackSubmitGate('', 'bug', { kind: 'idle' })).toBe('empty');
-    expect(feedbackSubmitGate('   ', 'feature', { kind: 'idle' })).toBe('empty');
-    expect(feedbackSubmitGate('found a bug', 'bug', { kind: 'idle' })).toBe('ok');
+  it('blocks busy, missing category, and empty title or message before allowing submit', () => {
+    expect(feedbackSubmitGate('title', 'hi', 'bug', { kind: 'submitting' })).toBe('busy');
+    expect(feedbackSubmitGate('title', 'hi', '', { kind: 'idle' })).toBe('no_category');
+    expect(feedbackSubmitGate('title', 'hi', 'nope', { kind: 'idle' })).toBe('no_category');
+    expect(feedbackSubmitGate('', 'hi', 'bug', { kind: 'idle' })).toBe('empty_title');
+    expect(feedbackSubmitGate('   ', 'hi', 'bug', { kind: 'idle' })).toBe('empty_title');
+    expect(feedbackSubmitGate('title', '', 'bug', { kind: 'idle' })).toBe('empty');
+    expect(feedbackSubmitGate('title', '   ', 'feature', { kind: 'idle' })).toBe('empty');
+    expect(feedbackSubmitGate('sites filter', 'found a bug', 'bug', { kind: 'idle' })).toBe(
+      'ok',
+    );
     expect(
-      feedbackSubmitGate('found a bug', 'ux', { kind: 'error', message: 'x' }),
+      feedbackSubmitGate('sites filter', 'found a bug', 'ux', { kind: 'error', message: 'x' }),
     ).toBe('ok');
   });
 });
 
 describe('feedbackErrorMessage', () => {
   const problem400 = (
-    code: 'invalid_json' | 'invalid_body' | 'message_empty' | 'path_invalid',
+    code: 'invalid_json' | 'invalid_body' | 'title_empty' | 'message_empty' | 'path_invalid',
     detail?: string,
   ) => ({
     ok: false as const,
@@ -60,9 +64,9 @@ describe('feedbackErrorMessage', () => {
       type: 'https://lgi.tools/problems/test',
       title: 'Test',
       status: 502,
-      code: 'github_failed' as const,
+      code: 'linear_failed' as const,
       correlationId: 'correlation-id',
-    }) as ProblemBody & { code: 'github_failed' },
+    }) as ProblemBody & { code: 'linear_failed' },
   };
 
   it('maps validation, rate-limit, dependency, network, and protocol failures to user copy', () => {

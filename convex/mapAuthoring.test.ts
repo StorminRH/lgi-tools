@@ -14,7 +14,7 @@ import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
 import schema from './schema';
 
-const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
+import { modules } from './__tests__/modules';
 
 const MAP_A = 'map-a';
 const EDITOR = 'user-editor';
@@ -266,114 +266,150 @@ describe('map authoring', () => {
       );
     });
 
-    it.each(PUBLIC_MUTATIONS)('lets an editor call %s successfully', async (name) => {
+    it('lets an editor call setHomeSystem successfully', async () => {
       const t = convexTest(schema, modules);
+      await seedEmpty(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setHomeSystem, {
+          mapId: MAP_A,
+          systemId: JITA,
+        }),
+      ).resolves.toBeDefined();
+    });
 
-      if (name === 'setHomeSystem') {
-        await seedEmpty(t);
-        await expect(
-          asUser(t).mutation(api.mapAuthoring.setHomeSystem, {
-            mapId: MAP_A,
-            systemId: JITA,
-          }),
-        ).resolves.toBeDefined();
-        return;
-      }
+    it('lets an editor call addSystemFromNode successfully', async () => {
+      const t = convexTest(schema, modules);
+      await seedHome(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
+          mapId: MAP_A,
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+        }),
+      ).resolves.toMatchObject({
+        systemId: expect.anything(),
+        connectionId: expect.anything(),
+      });
+    });
 
-      if (name === 'addSystemFromNode') {
-        await seedHome(t);
-        await expect(
-          asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
-            mapId: MAP_A,
-            fromSystemId: JITA,
-            toSystemId: AMARR,
-          }),
-        ).resolves.toMatchObject({
-          systemId: expect.anything(),
-          connectionId: expect.anything(),
-        });
-        return;
-      }
-
-      if (
-        name === 'setConnectionWormholeType'
-        || name === 'setConnectionTypedSide'
-        || name === 'setConnectionDestinationHint'
-        || name === 'setConnectionDestination'
-        || name === 'setConnectionShipSize'
-        || name === 'setConnectionMassState'
-        || name === 'setConnectionLifeStage'
-      ) {
-        const { connectionId } = await seedJump(t);
-        if (name === 'setConnectionTypedSide') {
-          await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
-            mapId: MAP_A,
-            connectionId,
-            value: 'C247',
-          });
-          await expect(
-            asUser(t).mutation(api.mapAuthoring.setConnectionTypedSide, {
-              mapId: MAP_A,
-              connectionId,
-              value: 'to',
-            }),
-          ).resolves.toEqual({ changed: true });
-          return;
-        }
-        if (name === 'setConnectionDestinationHint') {
-          await expect(
-            asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
-              mapId: MAP_A,
-              connectionId,
-              side: 'from',
-              value: 'dangerous',
-            }),
-          ).resolves.toEqual({ changed: true });
-          return;
-        }
-        if (name === 'setConnectionDestination') {
-          await expect(
-            asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
-              mapId: MAP_A,
-              connectionId,
-              side: 'from',
-              value: DODIXIE,
-            }),
-          ).resolves.toEqual({ changed: true });
-          return;
-        }
-        const value =
-          name === 'setConnectionWormholeType'
-            ? 'C247'
-            : name === 'setConnectionShipSize'
-              ? 'M'
-              : name === 'setConnectionMassState'
-                ? 'stable'
-                : 'under_1_day';
-        await expect(
-          asUser(t).mutation(api.mapAuthoring[name], {
-            mapId: MAP_A,
-            connectionId,
-            value,
-          }),
-        ).resolves.toEqual({ changed: true });
-        return;
-      }
-
-      if (name === 'severConnection') {
-        const { connectionId } = await seedJump(t);
-        await expect(
-          asUser(t).mutation(api.mapAuthoring.severConnection, {
-            mapId: MAP_A,
-            connectionId,
-          }),
-        ).resolves.toEqual({ outcome: 'removed', systemIds: [AMARR] });
-        return;
-      }
-
+    it('lets an editor call setConnectionWormholeType successfully', async () => {
+      const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring[name], {
+        asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'C247',
+        }),
+      ).resolves.toEqual({ changed: true });
+    });
+
+    it('lets an editor call setConnectionTypedSide successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        mapId: MAP_A,
+        connectionId,
+        value: 'C247',
+      });
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionTypedSide, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'to',
+        }),
+      ).resolves.toEqual({ changed: true });
+    });
+
+    it('lets an editor call setConnectionDestinationHint successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'from',
+          value: 'dangerous',
+        }),
+      ).resolves.toEqual({ changed: true });
+    });
+
+    it('lets an editor call setConnectionDestination successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+          mapId: MAP_A,
+          connectionId,
+          side: 'from',
+          value: DODIXIE,
+        }),
+      ).resolves.toEqual({ changed: true });
+    });
+
+    it('lets an editor call setConnectionShipSize successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionShipSize, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'M',
+        }),
+      ).resolves.toEqual({ changed: true });
+    });
+
+    it('lets an editor call setConnectionMassState successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionMassState, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'stable',
+        }),
+      ).resolves.toEqual({ changed: true });
+    });
+
+    it('lets an editor call setConnectionLifeStage successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+          mapId: MAP_A,
+          connectionId,
+          value: 'under_1_day',
+        }),
+      ).resolves.toEqual({ changed: true });
+    });
+
+    it('lets an editor call severConnection successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.severConnection, {
+          mapId: MAP_A,
+          connectionId,
+        }),
+      ).resolves.toEqual({ outcome: 'removed', systemIds: [AMARR] });
+    });
+
+    it('lets an editor call restoreSeveredBranch successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+          mapId: MAP_A,
+          connectionId,
+        }),
+      ).resolves.toEqual({ restored: true });
+    });
+
+    it('lets an editor call restoreConnection successfully', async () => {
+      const t = convexTest(schema, modules);
+      const { connectionId } = await seedJump(t);
+      await expect(
+        asUser(t).mutation(api.mapAuthoring.restoreConnection, {
           mapId: MAP_A,
           connectionId,
         }),

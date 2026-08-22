@@ -27,7 +27,7 @@ export type VendorIntegrationId =
   | 'neon-postgres'
   | 'vercel-platform'
   | 'github-tooling'
-  | 'github-issues'
+  | 'linear-issues'
   | 'google-search-console'
   | 'discord-webhooks'
   | 'fuzzwork'
@@ -192,20 +192,20 @@ const githubTooling = policy({
     'Fail-closed: a missing binary, an unreadable repo identity, or a failed request is a refusal, never a crash and never a silently-clean result.',
   telemetryFields: "None; outcomes are the routine's own reported verdict.",
 });
-const githubIssues = policy({
+const linearIssues = policy({
   wrapper: {
-    module: 'src/features/feedback/create-github-issue.ts',
-    symbol: 'createFeedbackGithubIssue',
+    module: 'src/features/feedback/create-linear-issue.ts',
+    symbol: 'createFeedbackLinearIssue',
   },
   timeout: '10s per request (OUTBOUND_FETCH_TIMEOUT_MS via fetchWithTimeout).',
   retryableErrors: 'None.',
   backoff: 'None.',
   rateLimit:
-    "GitHub's authenticated REST limits; delivery volume is user feedback submissions already capped at 5/min per IP.",
+    "Linear's authenticated GraphQL limits; delivery volume is user feedback submissions already capped at 5/min per IP.",
   idempotency:
     'Non-idempotent — a retry would open a duplicate issue, which is why none is attempted.',
   degradation:
-    'Unset GITHUB_FEEDBACK_TOKEN surfaces 503 feedback_unconfigured; GitHub transport or rejection surfaces 502 github_failed to the submitter and skips telemetry.',
+    'Unset LINEAR_API_KEY surfaces 503 feedback_unconfigured; Linear transport or rejection surfaces 502 linear_failed to the submitter and skips telemetry.',
   telemetryFields: "'feedback_submitted'.",
 });
 const googleSearchConsole = policy({
@@ -322,7 +322,7 @@ export const vendorResilienceRegistry: Record<
   'neon-postgres': neonPostgres,
   'vercel-platform': vercelPlatform,
   'github-tooling': githubTooling,
-  'github-issues': githubIssues,
+  'linear-issues': linearIssues,
   'google-search-console': googleSearchConsole,
   'discord-webhooks': discordWebhooks,
   fuzzwork: fuzzworkPrices,

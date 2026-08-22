@@ -1,4 +1,3 @@
-// API wire contract owned by the feedback feature (3.4.T).
 import { z } from 'zod';
 import {
   defineEndpoint,
@@ -6,13 +5,8 @@ import {
   problem,
 } from '@/transport/endpoint';
 import { FEEDBACK_CATEGORIES } from './categories';
-import { FEEDBACK_MESSAGE_MAX_LENGTH } from './constants';
+import { FEEDBACK_MESSAGE_MAX_LENGTH, FEEDBACK_TITLE_MAX_LENGTH } from './constants';
 
-/**
- * Sanity cap on the captured page URL. Real-world paths on this site stay
- * well under 200 chars; 512 leaves room for stacked filter params without
- * admitting outright abuse.
- */
 export const FEEDBACK_PATH_MAX_LENGTH = 512;
 
 const feedbackCategorySchema = z.enum(
@@ -22,28 +16,29 @@ const feedbackCategorySchema = z.enum(
   ],
 );
 
-/**
- * Bounded loose — the route's post-parse sanitiseUserText() trims and slices
- * to the real caps; the *4 multiplier here just rejects runaway 100KB bodies
- * before we spend cycles cleaning them up.
- */
 export const feedbackRequestSchema = z.object({
+  title: z.string().min(1).max(FEEDBACK_TITLE_MAX_LENGTH * 4),
   message: z.string().min(1).max(FEEDBACK_MESSAGE_MAX_LENGTH * 4),
   path: z.string().max(FEEDBACK_PATH_MAX_LENGTH * 4),
   category: feedbackCategorySchema,
 });
 
-/** Complete request and per-status response contract for feedback submission. */
 export const feedbackEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/feedback',
   request: feedbackRequestSchema,
   responses: {
     204: emptyBody(),
-    400: problem('invalid_json', 'invalid_body', 'message_empty', 'path_invalid'),
+    400: problem(
+      'invalid_json',
+      'invalid_body',
+      'title_empty',
+      'message_empty',
+      'path_invalid',
+    ),
     403: problem('cross_origin'),
     429: problem('rate_limited'),
-    502: problem('github_failed'),
+    502: problem('linear_failed'),
     503: problem('feedback_unconfigured'),
   },
 });
