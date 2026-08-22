@@ -655,7 +655,7 @@ Do not implement a later step in an earlier chat.
     ordinary work when the operator asks. Issue create may stay
     GitHub until OW-14.
 
-11. **Done.** `plan-version`, `adversarial-review`, and `deslop` match
+11. **Done.** `plan-version` and `adversarial-review` match
     the settled loop. There is no `triage-issue` skill.
 
 12. **Done.** `poll_pr_gate.py` and `merge_clean_pr.py` are gone.

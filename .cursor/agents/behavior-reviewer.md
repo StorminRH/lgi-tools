@@ -1,6 +1,6 @@
 ---
 name: behavior-reviewer
-model: gpt-5.6-sol[context=1m,reasoning=medium,fast=false]
+model: grok-4.5[effort=high,fast=false]
 description: Behavior. Authorized outcomes, contracts, failures, and recovery on a frozen plan or diff.
 readonly: true
 ---

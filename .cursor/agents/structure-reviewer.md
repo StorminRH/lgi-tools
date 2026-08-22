@@ -1,6 +1,6 @@
 ---
 name: structure-reviewer
-model: gpt-5.6-sol[context=1m,reasoning=medium,fast=false]
+model: grok-4.5[effort=high,fast=false]
 description: Structure. Owners, existing controls, layer boundaries, and UI chrome on a frozen subject.
 readonly: true
 ---

@@ -92,8 +92,10 @@ finished.
 Done when the Origin PR is open ready.
 
 `origin pr create` defaults to draft. A draft that is later marked ready
-runs Depot twice. Open it ready (`origin pr create --status open`).
-Head and base are the two lines. Headings in order: `## What this does`,
+runs Depot twice. Open it ready. Always pass `--head` and `--base`;
+after `test-runner` the checkout can be detached and inference misses.
+`origin pr create --head <head> --base <destination> --status open`.
+Headings in order: `## What this does`,
 `## Why`, `## Notes`, `## Test plan`. Scrub title and body:
 
 ```bash
@@ -126,7 +128,7 @@ the pause.
 A finding is a red Depot job, a dump bot comment, or a review note
 on the Origin PR. One finding, one thread.
 
-1. Read the version (`origin pr view --json version`).
+1. Read the version (`origin pr view --json latestVersion`).
 2. List unresolved thread ids first.
 3. Open a thread on that version:
    `origin pr review --comment --change-version <n> -b "..."`.

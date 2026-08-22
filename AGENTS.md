@@ -44,13 +44,15 @@ Linear is the ticket home. GitHub issues are not in use. Update watch
 comments on standing `LGI-6`.
 
 **origin** — Origin PRs and Checks. Create defaults to draft, so pass
-`--status open`. A push snapshots a new version; `refresh` if `view`
-or `checks` still show the previous head. A finding is a thread on
-that version. Reply with the fix. The push cuts the next version.
-`origin pr create --status open`
+`--status open`. Always pass `--head` and `--base`; after
+`test-runner` the checkout can be detached and inference misses.
+A push snapshots a new version; `refresh` if `view` or `checks`
+still show the previous head. A finding is a thread on that
+version. Reply with the fix. The push cuts the next version.
+`origin pr create --head <head> --base <destination> --status open`
 `origin pr checks --watch`
 `origin pr refresh`
-`origin pr view --json version`
+`origin pr view --json latestVersion`
 `origin pr review --comment --change-version <n>`
 `origin pr thread list --unresolved`
 `origin pr thread reply <id>`
