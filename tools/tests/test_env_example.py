@@ -60,7 +60,10 @@ class EnvExampleTests(unittest.TestCase):
     def test_commented_keys_and_explicit_allowlists_are_clean(self) -> None:
         self.fixture.write_registry(
             "  DATABASE_URL: required,\n",
-            "  VERCEL_ENV: verbatim,\n  NEXT_RUNTIME: verbatim,\n",
+            "  VERCEL_ENV: verbatim,\n"
+            "  VERCEL_GIT_COMMIT_REF: verbatim,\n"
+            "  VERCEL_TARGET_ENV: verbatim,\n"
+            "  NEXT_RUNTIME: verbatim,\n",
         )
         self.fixture.write_example(
             "# DATABASE_URL=\n"

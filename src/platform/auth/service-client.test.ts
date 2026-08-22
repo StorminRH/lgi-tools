@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { problemBodySchema } from '@/lib/problem';
 import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
@@ -36,8 +36,13 @@ const jsonResponse = (body: unknown, status = 200) =>
 
 const init = { baseUrl: 'https://app.test', secret: 'service-secret' };
 
+beforeEach(() => {
+  vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', '');
+});
+
 afterEach(() => {
   vi.resetAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe('serviceFetch', () => {
@@ -66,6 +71,24 @@ describe('serviceFetch', () => {
           Authorization: 'Bearer service-secret',
         },
         body: JSON.stringify({ userId: 'user-1' }),
+      },
+    );
+  });
+
+  it('attaches the Vercel protection-bypass header when the automation secret is set', async () => {
+    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
+    fetchWithTimeout.mockResolvedValue(jsonResponse({ accessToken: 'fresh' }));
+
+    await serviceFetch(bodylessEndpoint, init);
+
+    expect(fetchWithTimeout).toHaveBeenCalledWith(
+      'https://app.test/api/internal/test-status',
+      {
+        method: 'GET',
+        headers: {
+          Authorization: 'Bearer service-secret',
+          'x-vercel-protection-bypass': 'bypass-secret',
+        },
       },
     );
   });

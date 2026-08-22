@@ -21,6 +21,24 @@ describe('readEnv', () => {
     expect(readEnv('DATABASE_URL')).toBeUndefined();
   });
 
+  it('prefers a non-empty LGI_DATABASE_URL over DATABASE_URL', () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://integration/db');
+    vi.stubEnv('LGI_DATABASE_URL', 'postgres://staging/db');
+    expect(readEnv('DATABASE_URL')).toBe('postgres://staging/db');
+  });
+
+  it('ignores an empty LGI_DATABASE_URL override', () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://integration/db');
+    vi.stubEnv('LGI_DATABASE_URL', '');
+    expect(readEnv('DATABASE_URL')).toBe('postgres://integration/db');
+  });
+
+  it('prefers a non-empty LGI_DATABASE_URL_UNPOOLED over DATABASE_URL_UNPOOLED', () => {
+    vi.stubEnv('DATABASE_URL_UNPOOLED', 'postgres://integration-direct/db');
+    vi.stubEnv('LGI_DATABASE_URL_UNPOOLED', 'postgres://staging-direct/db');
+    expect(readEnv('DATABASE_URL_UNPOOLED')).toBe('postgres://staging-direct/db');
+  });
+
   it("passes '' through on a verbatim (nullish/comparison) variable", () => {
     // Parity with `process.env.BETTER_AUTH_SECRET ?? process.env.SESSION_SECRET`:
     // a set-but-empty first var must keep winning the ?? chain.
@@ -45,6 +63,12 @@ describe('requireEnv', () => {
   it('throws when set but empty', () => {
     vi.stubEnv('DATABASE_URL', '');
     expect(() => requireEnv('DATABASE_URL')).toThrowError('DATABASE_URL is not set');
+  });
+
+  it('returns LGI_DATABASE_URL when DATABASE_URL is empty', () => {
+    vi.stubEnv('DATABASE_URL', '');
+    vi.stubEnv('LGI_DATABASE_URL', 'postgres://staging/db');
+    expect(requireEnv('DATABASE_URL')).toBe('postgres://staging/db');
   });
 });
 

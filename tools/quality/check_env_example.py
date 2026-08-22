@@ -16,7 +16,13 @@ from pathlib import Path
 from tools._lib.checker_common import Finding, run_checker
 
 
-_PLATFORM_INJECTED = {"VERCEL_ENV", "VERCEL_URL", "NEXT_RUNTIME"}
+_PLATFORM_INJECTED = {
+    "VERCEL_ENV",
+    "VERCEL_URL",
+    "NEXT_RUNTIME",
+    "VERCEL_GIT_COMMIT_REF",
+    "VERCEL_TARGET_ENV",
+}
 _NEXT_PUBLIC_ALLOWLIST = {"NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_SITE_URL"}
 _TOOLING_KEYS = {"CONVEX_DEPLOYMENT"}
 

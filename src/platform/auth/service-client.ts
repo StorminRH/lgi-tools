@@ -9,6 +9,7 @@
 // may import platform/auth but not transport, and the contracts it executes
 // already live in this slice. Keep it free of `next/server` — Convex bundles
 // this chain into its isolate.
+import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { decodeEndpointResponse, networkFailure } from '@/transport/decode';
 import type {
@@ -35,6 +36,14 @@ export async function serviceFetch<const TEndpoint extends EndpointContract>(
 ): Promise<OutcomeOf<TEndpoint>> {
   const { baseUrl, secret, body } = init;
   const bodyless = endpoint.request === null;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${secret}`,
+  };
+  if (!bodyless) headers['Content-Type'] = 'application/json';
+  const protectionBypass = readEnv('VERCEL_AUTOMATION_BYPASS_SECRET');
+  if (protectionBypass) {
+    headers['x-vercel-protection-bypass'] = protectionBypass;
+  }
 
   let response: Response;
   try {
@@ -42,10 +51,7 @@ export async function serviceFetch<const TEndpoint extends EndpointContract>(
       `${baseUrl}${endpoint.path}`,
       {
         method: endpoint.method,
-        headers: {
-          ...(bodyless ? {} : { 'Content-Type': 'application/json' }),
-          Authorization: `Bearer ${secret}`,
-        },
+        headers,
         ...(bodyless ? {} : { body: JSON.stringify(body) }),
       },
     );

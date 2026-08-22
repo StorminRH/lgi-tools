@@ -27,11 +27,21 @@ const verbatim = z.string(); // '' passes through (nullish / `===` call sites)
 // Empty-as-missing variables — readEnv maps '' to undefined; requireEnv-eligible.
 const REQUIRED_ENV = {
   DATABASE_URL: required,
+  // Staging Preview only. Neon Connect injects production DATABASE_URL onto
+  // Preview and custom-env deploys; these keys are not store-managed, so they
+  // survive that injection. Empty ≡ missing — readEnv('DATABASE_URL') then
+  // returns the real DATABASE_URL.
+  LGI_DATABASE_URL: required,
+  LGI_DATABASE_URL_UNPOOLED: required,
   EVE_CLIENT_ID: required,
   EVE_CLIENT_SECRET: required,
   EVE_TOKEN_ENCRYPTION_KEY: required,
   ESI_SNAPSHOT_ENCRYPTION_KEY: required,
   CONVEX_SERVICE_SECRET: required,
+  // Convex staging (and any Preview behind Vercel SSO) sends this as
+  // x-vercel-protection-bypass on serviceFetch so token vend reaches the app.
+  // Empty ≡ missing — serviceFetch only attaches the header when set.
+  VERCEL_AUTOMATION_BYPASS_SECRET: required,
   CRON_SECRET: required,
   GITHUB_FEEDBACK_TOKEN: required,
   DISCORD_ALERT_WEBHOOK_URL: required,
@@ -63,6 +73,11 @@ const VERBATIM_ENV = {
   GOOGLE_SITE_VERIFICATION: verbatim,
   VERCEL_ENV: verbatim,
   VERCEL_URL: verbatim,
+  // Vercel injects these on hosted builds. Staging Preview uses them (plus
+  // LGI_PREVIEW_LINE) to pick the standing Convex backend.
+  VERCEL_GIT_COMMIT_REF: verbatim,
+  VERCEL_TARGET_ENV: verbatim,
+  LGI_PREVIEW_LINE: verbatim,
   NEXT_RUNTIME: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,
   LGI_SITES_SAMPLE: verbatim,
@@ -84,6 +99,12 @@ export type ServerEnvName = RequiredEnvName | keyof typeof VERBATIM_ENV;
  * no-op / `??` chain) — this only replaces the raw read.
  */
 export function readEnv(name: ServerEnvName): string | undefined {
+  if (name === 'DATABASE_URL' || name === 'DATABASE_URL_UNPOOLED') {
+    const overrideName =
+      name === 'DATABASE_URL' ? 'LGI_DATABASE_URL' : 'LGI_DATABASE_URL_UNPOOLED';
+    const override = SERVER_ENV[overrideName].safeParse(process.env[overrideName]);
+    if (override.success) return override.data;
+  }
   const parsed = SERVER_ENV[name].safeParse(process.env[name]);
   return parsed.success ? parsed.data : undefined;
 }

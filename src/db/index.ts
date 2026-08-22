@@ -107,7 +107,9 @@ export function isPooledHost(url: string): boolean {
 /**
  * Resolves the connection string for session-scoped lock holders. Prefers the
  * direct (unpooled) endpoint and falls back to DATABASE_URL — which on local
- * Docker has no `-pooler`, so dev works without the extra var.
+ * Docker has no `-pooler`, so dev works without the extra var. Staging Preview
+ * sets LGI_DATABASE_URL_UNPOOLED so Neon Connect's production unpooled inject
+ * cannot win the lock path.
  *
  * Fail-closed: if the resolved URL is still a pooled host (unpooled var missing
  * in production), throw rather than silently run a lock that won't hold. The
@@ -116,7 +118,11 @@ export function isPooledHost(url: string): boolean {
 export function resolveLockConnectionUrl(
   env: Record<string, string | undefined> = process.env,
 ): string {
-  const url = env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL;
+  const url =
+    env.LGI_DATABASE_URL_UNPOOLED ??
+    env.LGI_DATABASE_URL ??
+    env.DATABASE_URL_UNPOOLED ??
+    env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not set');
   if (isPooledHost(url)) {
     throw new Error(
