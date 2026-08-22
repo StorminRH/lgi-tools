@@ -34,10 +34,8 @@ const IMPORT_PATTERN = /import\s+([^;'"]*?)\s+from\s*['"]([^'"]+)['"]/g;
 const EXPORT_FROM_PATTERN = /export\s+[^;'"]*?\s+from\s*['"]([^'"]+)['"]/g;
 const DYNAMIC_IMPORT_PATTERN = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
-/** Resolves an import specifier to a repository-relative source file, or null. */
 export type ModuleResolver = (fromFile: string, specifier: string) => string | null;
 
-/** A legal widget import or an illegal feature `.tsx` import from a host. */
 export type HostedFeatureUi =
   | { kind: 'widget'; host: string; widget: string }
   | { kind: 'illegal'; host: string; module: string };
@@ -47,9 +45,6 @@ function isProductionSource(fileName: string): boolean {
   return !fileName.includes('.test.');
 }
 
-/**
- * Every production TypeScript file under `rootDir`, excluding tests, fixtures, and test support.
- */
 export function collectHostSources(rootDir: string): string[] {
   const found: string[] = [];
   const walk = (directory: string): void => {
@@ -84,9 +79,6 @@ function isFile(path: string): boolean {
   return existsSync(path) && statSync(path).isFile();
 }
 
-/**
- * Resolves `@/` and relative specifiers to an on-disk `.ts`/`.tsx` module.
- */
 function resolveHostSpecifier(fromFile: string, specifier: string): string | null {
   const base = specifierBase(fromFile, specifier);
   if (base === null) return null;
@@ -115,9 +107,6 @@ function importSpecifiers(source: string): string[] {
   return specifiers;
 }
 
-/**
- * Classifies feature `.tsx` imports from one host file as legal widgets or illegal UI.
- */
 export function classifyFeatureUiImports(options: {
   host: string;
   source: string;
@@ -136,9 +125,6 @@ export function classifyFeatureUiImports(options: {
   return hits;
 }
 
-/**
- * Walks mapper and the widget preview and classifies every feature `.tsx` import.
- */
 export function scanWidgetHosts(resolve: ModuleResolver = resolveHostSpecifier): HostedFeatureUi[] {
   return WIDGET_HOST_ROOTS.flatMap((root) =>
     collectHostSources(root).flatMap((host) =>

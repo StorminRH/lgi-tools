@@ -52,7 +52,8 @@ const REQUIRED_ENV = {
 // Pass-through variables — '' is a valid present value (nullish/`===` sites).
 // readEnv-only: their empty value is meaningful, so requireEnv must not accept them.
 const VERBATIM_ENV = {
-  // Read via the injectable param of resolveLockConnectionUrl (db/index.ts).
+  // Lock resolver reads this through readEnv after the LGI overrides.
+  // Empty stays present so it wins `??` over DATABASE_URL.
   DATABASE_URL_UNPOOLED: verbatim,
   // Schema-owner credential for migrations only (scripts/migrate-url.ts). Empty ≡
   // unset there — it falls back to DATABASE_URL, so single-role envs are

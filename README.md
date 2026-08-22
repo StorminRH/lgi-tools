@@ -59,7 +59,7 @@ You need Node 22+, pnpm, and Docker. (CI runs on Node 24.)
    cp .env.example .env.local
    ```
 
-   For a no-auth local boot you can leave the EVE/GitHub-feedback/session/cron
+   For a no-auth local boot you can leave the EVE/Linear-feedback/session/cron
    variables blank — the app will run; login and feedback won't. To
    exercise the full surface:
    - Register a dev app at

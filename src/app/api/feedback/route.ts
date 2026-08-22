@@ -24,18 +24,8 @@ import { sanitiseUserText } from '@/lib/sanitise';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-// Per-IP rate limit. Feedback POSTs open Linear issues, so an unthrottled
-// endpoint is an issue-spam vector. 5/min is generous for a real user typing
-// thoughtfully but cuts a scripted flood off fast.
 const FEEDBACK_LIMIT_PER_MINUTE = 5;
 
-/**
- * POST-only. Accepts JSON `{ title, message, path, category }`. Reads session
- * server-side so character attribution can't be forged. Opens a Linear issue;
- * on success, logs `feedback_submitted` to usage_logs (per the 2.8.4 audit
- * pattern — one operational record, not a separate feedback table). Linear
- * failure returns 502 and does NOT log telemetry; the action didn't happen.
- */
 // authz: public
 export const POST = capabilityRoute('feedback.submit-feedback', handlePost);
 
@@ -82,7 +72,6 @@ async function handlePost(request: NextRequest): Promise<Response> {
   }
 
   const session = await getSession();
-  // Name only in the public issue body — character ids stay out of Linear.
   const authorName = session ? session.name : 'Anonymous';
   const category = parsed.data.category;
 

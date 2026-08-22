@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from 'react';
+import { useId, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Banner } from '@/components/ui/banner';
 import { Dialog } from '@/components/ui/dialog';
@@ -23,8 +23,6 @@ import {
   type SubmitState,
 } from './feedback-view';
 
-// Fire the feedback request and map the outcome to the next state — the friendly
-// error copy per status lives in {@link feedbackErrorMessage}.
 async function submitFeedback(
   title: string,
   message: string,
@@ -42,8 +40,6 @@ async function submitFeedback(
   }
 }
 
-// Who the feedback submits as (loading / signed-in name / anonymous) and the
-// captured page it's about.
 function FeedbackMeta({
   loading,
   session,
@@ -128,7 +124,6 @@ function FeedbackTitleField({
   );
 }
 
-// The success confirmation, or the message textarea + chars-left / inline error.
 function FeedbackBody({
   state,
   message,
@@ -171,7 +166,6 @@ function FeedbackBody({
   );
 }
 
-// The footer buttons: a single Close after success, else Cancel + Send.
 function FeedbackFooter({
   state,
   disabled,
@@ -202,12 +196,6 @@ function FeedbackFooter({
   );
 }
 
-/**
- * Feedback modal. Captures the URL the user was viewing when the modal
- * opened (not at submit time — feedback is reactive, so the page they
- * were reacting to is the relevant one even if they navigate after).
- * Server reads the session itself; client doesn't pass character info.
- */
 export function FeedbackModal({
   open,
   onClose,
@@ -225,26 +213,10 @@ export function FeedbackModal({
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [category, setCategory] = useState<FeedbackCategory>('bug');
-  const [path, setPath] = useState('');
+  const [path] = useState(() =>
+    typeof window === 'undefined' ? '' : window.location.pathname + window.location.search,
+  );
   const [state, setState] = useState<SubmitState>({ kind: 'idle' });
-
-  // Capture the URL at the moment the modal opens. Stays stable for the
-  // life of the open modal even if the user navigates underneath (rare
-  // but possible via keyboard shortcuts on routes that handle them).
-  // The React-blessed alternative to setState-in-effect for "reset state
-  // when a prop flips" is a `key` remount in the parent, but that would
-  // require coordinating with FeedbackButton and adds more surface area
-  // than this single open-flip handler is worth.
-  useEffect(() => {
-    if (!open) return;
-    /* eslint-disable react-hooks/set-state-in-effect */
-    setPath(window.location.pathname + window.location.search);
-    setTitle('');
-    setMessage('');
-    setCategory('bug');
-    setState({ kind: 'idle' });
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [open]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

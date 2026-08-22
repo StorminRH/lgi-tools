@@ -24,7 +24,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-/** True when Linear reports a successful `issueCreate` and no GraphQL errors. */
 function isLinearIssueCreateSuccess(payload: unknown): boolean {
   if (!isRecord(payload)) return false;
   const errors = payload.errors;
@@ -35,9 +34,9 @@ function isLinearIssueCreateSuccess(payload: unknown): boolean {
 }
 
 /**
- * Creates one Linear issue for a feedback submission. Returns the raw Response
- * so the route can map non-2xx to `linear_failed` without swallowing detail.
- * HTTP 200 with a GraphQL error or `success: false` is rewritten to 502.
+ * Creates one Linear issue. Returns the raw Response so the route can map
+ * non-2xx to `linear_failed`. Linear GraphQL still returns HTTP 200 when
+ * `errors` is present or `success` is false; those are rewritten to 502.
  * Callers must 503 when `LINEAR_API_KEY` is unset before invoking this.
  */
 export async function createFeedbackLinearIssue({
