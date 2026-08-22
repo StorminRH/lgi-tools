@@ -6,7 +6,7 @@ import { internal } from '../_generated/api';
 import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
 import schema from '../schema';
 
-import { modules } from '../__tests__/modules';
+import { modules } from '../__tests__/modules.setup';
 
 const NOW = 1_800_000_000_000;
 const MAP_ID = 'map-cleanup';
@@ -172,8 +172,6 @@ describe('map chain cleanup', () => {
     });
     expect(await t.run(async (ctx) => await ctx.db.get(ids.danglingConnection))).toBeNull();
     expect(await t.run(async (ctx) => await ctx.db.get(ids.expiredEvent))).toBeNull();
-    // The persisted boundary, not just the counters: exactly the one
-    // over-batch system survives the bounded pass.
     const remainingSystems = await t.run(async (ctx) =>
       await ctx.db.query('mapSystems').collect(),
     );

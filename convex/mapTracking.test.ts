@@ -6,7 +6,7 @@ import { api, internal } from './_generated/api';
 import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTracking';
 import schema from './schema';
 
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -146,13 +146,11 @@ describe('mapTracking.setTracking', () => {
       }),
     ).rejects.toThrow(ConvexError);
 
-    // Re-opting an already-tracked character at the cap stays idempotent-ok.
     await caller.mutation(api.mapTracking.setTracking, {
       mapId: MAP_A,
       characterId: 91_000_000,
       tracked: true,
     });
-    // Freeing one slot re-admits a new character.
     await caller.mutation(api.mapTracking.setTracking, {
       mapId: MAP_A,
       characterId: 91_000_000,
@@ -191,9 +189,6 @@ describe('mapTracking.forMap', () => {
       tracked: true,
     });
 
-    // Forged row: EDITOR's mapTracking names OWNER's character id. The join key
-    // is the row's own (userId, characterId), so it must not surface OWNER's
-    // location document.
     await t.run(async (ctx) => {
       await ctx.db.insert('mapTracking', {
         mapId: MAP_A,
@@ -321,7 +316,6 @@ describe('mapTracking revocation cascade', () => {
       tracked: true,
     });
 
-    // Revoke EDITOR — OWNER's tracking must survive; EDITOR's must vanish.
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
 
     expect(await readTracking(t, MAP_A)).toEqual([
@@ -337,7 +331,6 @@ describe('mapTracking revocation cascade', () => {
       characterId: CHAR,
       tracked: true,
     });
-    // Orphan tracking with no claim — map purge must still clear it.
     await t.run(async (ctx) => {
       await ctx.db.insert('mapTracking', {
         mapId: MAP_A,
