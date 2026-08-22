@@ -5,7 +5,7 @@ import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
 
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 const MAP = 'map-jump';
 const EDITOR = 'user-editor';

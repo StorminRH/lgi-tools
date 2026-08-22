@@ -14,7 +14,7 @@ import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
 import schema from './schema';
 
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 const MAP_A = 'map-a';
 const EDITOR = 'user-editor';

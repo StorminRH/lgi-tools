@@ -8,7 +8,7 @@ import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
 import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
 
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';

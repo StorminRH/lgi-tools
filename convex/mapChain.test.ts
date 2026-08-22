@@ -10,7 +10,7 @@ import { MAP_CHAIN_MAX_PAGE_SIZE, MAP_EVENT_READ_LIMIT } from './mapChain';
 import { FIXTURE_CONNECTION_SCAN_LIMIT } from './mapFixtures';
 import schema from './schema';
 
-import { modules } from './__tests__/modules';
+import { modules } from './__tests__/modules.setup';
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
