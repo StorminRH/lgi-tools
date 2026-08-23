@@ -175,29 +175,34 @@ export const restoreSystem = internalMutation({
     clearSystemTombstone(ctx, mapId, systemId),
 });
 
+async function gatedAuthoringEdit<T>(
+  ctx: Parameters<typeof requireMapAccess>[0],
+  mapId: string,
+  run: (actor: string) => Promise<T>,
+): Promise<T> {
+  await requireMapAccess(ctx, mapId, 'edit');
+  return run(await eventActor(ctx));
+}
+
 export const severConnection = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    await requireMapAccess(ctx, mapId, 'edit');
-    return runCollapse(ctx, {
-      mapId,
-      connectionId,
-      actor: await eventActor(ctx),
-      pilotsPresent: 'unknown',
-    });
-  },
+  handler: (ctx, { mapId, connectionId }) =>
+    gatedAuthoringEdit(ctx, mapId, (actor) =>
+      runCollapse(ctx, {
+        mapId,
+        connectionId,
+        actor,
+        pilotsPresent: 'unknown',
+      }),
+    ),
 });
 
 export const restoreSeveredBranch = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    await requireMapAccess(ctx, mapId, 'edit');
-    return runBranchRestore(ctx, {
-      mapId,
-      connectionId,
-      actor: await eventActor(ctx),
-    });
-  },
+  handler: (ctx, { mapId, connectionId }) =>
+    gatedAuthoringEdit(ctx, mapId, (actor) =>
+      runBranchRestore(ctx, { mapId, connectionId, actor }),
+    ),
 });
 
 export const restoreConnection = mutation({

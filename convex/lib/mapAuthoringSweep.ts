@@ -7,11 +7,6 @@ import {
   runCollapse,
 } from './mapAuthoringCollapse';
 
-type TrackedPresenceReader = (
-  ctx: MutationCtx,
-  mapId: string,
-) => Promise<ReadonlySet<number>>;
-
 export const CEILING_COLLAPSE_GRACE_MS = 4 * 60 * 60 * 1000;
 
 export const CEILING_SWEEP_BATCH = 8;
@@ -49,7 +44,10 @@ async function collapseDueRow(
   ctx: MutationCtx,
   row: Doc<'mapConnections'>,
   trackedByMap: Map<string, ReadonlySet<number>>,
-  readTrackedInSystemIds: TrackedPresenceReader,
+  readTrackedInSystemIds: (
+    ctx: MutationCtx,
+    mapId: string,
+  ) => Promise<ReadonlySet<number>>,
 ): Promise<boolean> {
   try {
     let tracked = trackedByMap.get(row.mapId);
@@ -89,7 +87,10 @@ function recordRemovedStub(events: RemovedStubEvents, stub: Doc<'mapConnections'
 export async function sweepExpiredCeilings(
   ctx: MutationCtx,
   now: number,
-  readTrackedInSystemIds: TrackedPresenceReader,
+  readTrackedInSystemIds: (
+    ctx: MutationCtx,
+    mapId: string,
+  ) => Promise<ReadonlySet<number>>,
 ): Promise<{
   collapsed: number;
   removedStubs: number;

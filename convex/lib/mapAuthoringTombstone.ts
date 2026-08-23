@@ -124,7 +124,7 @@ async function requireLiveEndpoint(
   }
 }
 
-export async function clearConnectionTombstone(
+async function clearConnectionTombstone(
   ctx: MutationCtx,
   mapId: string,
   connectionId: Id<'mapConnections'>,
