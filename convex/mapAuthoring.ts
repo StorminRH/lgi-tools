@@ -1,5 +1,5 @@
 import { v } from 'convex/values';
-import { internalMutation, mutation } from './_generated/server';
+import { internalMutation, mutation, type MutationCtx } from './_generated/server';
 import {
   destinationHintValidator,
   lifeStageValidator,
@@ -176,7 +176,7 @@ export const restoreSystem = internalMutation({
 });
 
 async function gatedAuthoringEdit<T>(
-  ctx: Parameters<typeof requireMapAccess>[0],
+  ctx: MutationCtx,
   mapId: string,
   run: (actor: string) => Promise<T>,
 ): Promise<T> {
