@@ -1,0 +1,139 @@
+import { ConvexError } from 'convex/values';
+import {
+  chainTombstoneStamps,
+  isTombstoned,
+} from '@/data/maps/chain-contract';
+import type { Doc, Id } from '../_generated/dataModel';
+import type { MutationCtx } from '../_generated/server';
+import { takeIndexedOrThrow } from './indexedQuery';
+import { requireMapAccess } from './mapAccess';
+import { requireConnectionOnMap } from './mapConnectionLookup';
+import { findSystem, requireSystemId } from './mapSystemLookup';
+
+const LIVE_CONNECTION_SCAN_CAP = 32;
+
+async function gatedConnection(
+  ctx: MutationCtx,
+  mapId: string,
+  connectionId: Id<'mapConnections'>,
+): Promise<Doc<'mapConnections'>> {
+  await requireMapAccess(ctx, mapId, 'edit');
+  return requireConnectionOnMap(ctx, mapId, connectionId);
+}
+
+async function gatedSystem(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+): Promise<Doc<'mapSystems'>> {
+  await requireMapAccess(ctx, mapId, 'edit');
+  requireSystemId(systemId);
+  const system = await findSystem(ctx, mapId, systemId);
+  if (system === null) {
+    throw new ConvexError({
+      code: 'UNKNOWN_SYSTEM',
+      detail: `System ${systemId} is not on map ${mapId}.`,
+    });
+  }
+  return system;
+}
+
+async function readIncidentConnections(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+): Promise<Doc<'mapConnections'>[]> {
+  const incidentBound = {
+    code: 'MAP_TOO_LARGE',
+    detail: `Map ${mapId} exceeds the ${LIVE_CONNECTION_SCAN_CAP}-connection liveness proof bound for system ${systemId}.`,
+  };
+  const takeIncident = (
+    index: 'by_map_from' | 'by_map_to',
+    field: 'fromSystemId' | 'toSystemId',
+  ) =>
+    takeIndexedOrThrow(
+      ctx.db
+        .query('mapConnections')
+        .withIndex(index, (q) => q.eq('mapId', mapId).eq(field, systemId)),
+      LIVE_CONNECTION_SCAN_CAP,
+      incidentBound,
+    );
+  const fromRows = await takeIncident('by_map_from', 'fromSystemId');
+  const toRows = await takeIncident('by_map_to', 'toSystemId');
+  return [...new Map([...fromRows, ...toRows].map((row) => [row._id, row])).values()];
+}
+
+export async function stampSystemTombstone(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+): Promise<{ tombstoned: true }> {
+  const system = await gatedSystem(ctx, mapId, systemId);
+  if (isTombstoned(system)) return { tombstoned: true };
+  const incidentConnections = await readIncidentConnections(ctx, mapId, systemId);
+  if (incidentConnections.some((connection) => !isTombstoned(connection))) {
+    throw new ConvexError({
+      code: 'SYSTEM_IN_USE',
+      detail: `System ${systemId} still has a live connection on map ${mapId}.`,
+    });
+  }
+  const stamps = chainTombstoneStamps(Date.now());
+  await ctx.db.patch(system._id, stamps);
+  for (const connection of incidentConnections) {
+    if (connection.purgeAfter !== stamps.purgeAfter) {
+      await ctx.db.patch(connection._id, { purgeAfter: stamps.purgeAfter });
+    }
+  }
+  return { tombstoned: true };
+}
+
+export async function stampConnectionTombstone(
+  ctx: MutationCtx,
+  mapId: string,
+  connectionId: Id<'mapConnections'>,
+): Promise<{ tombstoned: true }> {
+  const connection = await gatedConnection(ctx, mapId, connectionId);
+  if (isTombstoned(connection)) return { tombstoned: true };
+  await ctx.db.patch(connectionId, chainTombstoneStamps(Date.now()));
+  return { tombstoned: true };
+}
+
+export async function clearSystemTombstone(
+  ctx: MutationCtx,
+  mapId: string,
+  systemId: number,
+): Promise<{ restored: true }> {
+  const system = await gatedSystem(ctx, mapId, systemId);
+  if (!isTombstoned(system)) return { restored: true };
+  await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
+  return { restored: true };
+}
+
+async function requireLiveEndpoint(
+  ctx: MutationCtx,
+  mapId: string,
+  endpointId: number,
+): Promise<void> {
+  const endpoint = await findSystem(ctx, mapId, endpointId);
+  if (endpoint === null || isTombstoned(endpoint)) {
+    throw new ConvexError({
+      code: 'ENDPOINT_TOMBSTONED',
+      detail: `Endpoint system ${endpointId} is missing or tombstoned on map ${mapId}.`,
+    });
+  }
+}
+
+export async function clearConnectionTombstone(
+  ctx: MutationCtx,
+  mapId: string,
+  connectionId: Id<'mapConnections'>,
+): Promise<{ restored: true; changed: boolean }> {
+  const connection = await gatedConnection(ctx, mapId, connectionId);
+  if (!isTombstoned(connection)) return { restored: true, changed: false };
+  await requireLiveEndpoint(ctx, mapId, connection.fromSystemId);
+  if (connection.toSystemId !== null) {
+    await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
+  }
+  await ctx.db.patch(connectionId, { deletedAt: null, purgeAfter: null });
+  return { restored: true, changed: true };
+}

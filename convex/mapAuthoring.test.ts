@@ -1895,12 +1895,14 @@ describe('map authoring', () => {
 
     it('keeps one collapse-decision owner and registers the sweep cron', () => {
       const authoringSource = readFileSync('convex/mapAuthoring.ts', 'utf8');
+      const collapseSource = readFileSync('convex/lib/mapAuthoringCollapse.ts', 'utf8');
       const scanSource = readFileSync('convex/mapScan.ts', 'utf8');
       const applySource = readFileSync('convex/lib/mapScanApply.ts', 'utf8');
       const selectionSource = readFileSync('convex/lib/mapScanSelection.ts', 'utf8');
       const cronSource = readFileSync('convex/crons.ts', 'utf8');
 
-      expect(authoringSource.match(/decideCollapse\(/g)).toHaveLength(1);
+      expect(collapseSource.match(/decideCollapse\(/g)).toHaveLength(1);
+      expect(authoringSource).not.toContain('decideCollapse');
       expect(scanSource).not.toContain('decideCollapse');
       expect(applySource).not.toContain('decideCollapse');
       expect(selectionSource).not.toContain('decideCollapse');
