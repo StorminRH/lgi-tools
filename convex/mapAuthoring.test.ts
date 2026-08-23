@@ -1910,7 +1910,7 @@ describe('map authoring', () => {
       expect(selectionSource).toContain('runCollapse(');
       expect(scanSource).not.toContain('runCollapse(');
       expect(authoringSource).toContain('runCollapse(ctx, {');
-      expect(authoringSource).toContain('gatedConnectionEdit');
+      expect(authoringSource).toContain('requireMapAccess');
       expect(cronSource).toContain("'map ceiling collapse'");
       expect(cronSource).toContain('internal.mapAuthoring.collapseExpiredConnections');
     });

@@ -9,6 +9,7 @@ import { takeIndexedOrThrow } from './indexedQuery';
 import { requireMapAccess } from './mapAccess';
 import { requireConnectionOnMap } from './mapConnectionLookup';
 import { findSystem, requireSystemId } from './mapSystemLookup';
+import { writeMapEvent } from './mapAuthoringEvents';
 
 const LIVE_CONNECTION_SCAN_CAP = 32;
 
@@ -136,4 +137,23 @@ export async function clearConnectionTombstone(
   }
   await ctx.db.patch(connectionId, { deletedAt: null, purgeAfter: null });
   return { restored: true, changed: true };
+}
+
+export async function restoreLiveConnection(
+  ctx: MutationCtx,
+  mapId: string,
+  connectionId: Id<'mapConnections'>,
+  actor: string,
+): Promise<{ restored: true }> {
+  const result = await clearConnectionTombstone(ctx, mapId, connectionId);
+  if (result.changed) {
+    await writeMapEvent(ctx, {
+      mapId,
+      at: Date.now(),
+      kind: 'connection_restored',
+      actor,
+      payload: { connectionId: String(connectionId) },
+    });
+  }
+  return { restored: true as const };
 }

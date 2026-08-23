@@ -10,7 +10,6 @@ import {
 } from '@/data/maps/chain-collapse';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
-import { requireMapAccess } from './mapAccess';
 import { deleteSignatureActivity } from './mapSignatures';
 import { writeMapEvent } from './mapAuthoringEvents';
 
@@ -293,15 +292,6 @@ export async function runCollapse(
     return await writeRetainedSever(writeContext);
   }
   return await writeRemovedSever(writeContext, decision);
-}
-
-export async function gatedConnectionEdit<T>(
-  ctx: MutationCtx,
-  mapId: string,
-  run: () => Promise<T>,
-): Promise<T> {
-  await requireMapAccess(ctx, mapId, 'edit');
-  return await run();
 }
 
 async function requireRestorableEndpoints(

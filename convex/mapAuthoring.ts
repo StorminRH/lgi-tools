@@ -13,6 +13,7 @@ import {
   CHAIN_PURGE_BATCH,
   purgeExpiredChainTombstones as purgeExpiredChainTombstonesCore,
 } from './lib/mapChainCleanup';
+import { requireMapAccess } from './lib/mapAccess';
 import { eventActor, writeMapEvent } from './lib/mapAuthoringEvents';
 import {
   addFromNode,
@@ -29,16 +30,18 @@ import {
   applyConnectionWormholeType,
 } from './lib/mapAuthoringFields';
 import {
-  clearConnectionTombstone,
   clearSystemTombstone,
+  restoreLiveConnection,
   stampConnectionTombstone,
   stampSystemTombstone,
 } from './lib/mapAuthoringTombstone';
 import {
   COLLAPSE_MAP_SCAN_CAP,
-  gatedConnectionEdit,
   runBranchRestore,
   runCollapse,
+  type CollapsePilotsPresent,
+  type RunCollapseInput,
+  type RunCollapseResult,
 } from './lib/mapAuthoringCollapse';
 import {
   CEILING_COLLAPSE_GRACE_MS,
@@ -47,12 +50,15 @@ import {
   CEILING_SWEEP_SCAN,
   sweepExpiredCeilings,
 } from './lib/mapAuthoringSweep';
+import { readTrackedPilotSystemIds } from './mapTracking';
 
 export {
   eventActor,
   writeMapEvent,
   upsertLiveDestination,
   COLLAPSE_MAP_SCAN_CAP,
+  runCollapse,
+  runBranchRestore,
   CEILING_COLLAPSE_GRACE_MS,
   CEILING_SWEEP_ACTOR,
   CEILING_SWEEP_BATCH,
@@ -61,13 +67,7 @@ export {
   CHAIN_PURGE_BATCH,
 };
 
-export type {
-  CollapsePilotsPresent,
-  RunCollapseInput,
-  RunCollapseResult,
-} from './lib/mapAuthoringCollapse';
-
-export { runCollapse, runBranchRestore };
+export type { CollapsePilotsPresent, RunCollapseInput, RunCollapseResult };
 
 export const setHomeSystem = mutation({
   args: { mapId: v.string(), systemId: v.number() },
@@ -93,7 +93,7 @@ export const setConnectionWormholeType = mutation({
     deathEarliestAt: optionalTimestampValidator,
     deathLatestAt: optionalTimestampValidator,
   },
-  handler: async (ctx, args) => await applyConnectionWormholeType(ctx, args),
+  handler: (ctx, args) => applyConnectionWormholeType(ctx, args),
 });
 
 export const setConnectionTypedSide = mutation({
@@ -102,8 +102,8 @@ export const setConnectionTypedSide = mutation({
     connectionId: v.id('mapConnections'),
     value: typedSideValidator,
   },
-  handler: async (ctx, { mapId, connectionId, value }) =>
-    await applyConnectionTypedSide(ctx, mapId, connectionId, value),
+  handler: (ctx, { mapId, connectionId, value }) =>
+    applyConnectionTypedSide(ctx, mapId, connectionId, value),
 });
 
 export const setConnectionDestinationHint = mutation({
@@ -113,7 +113,7 @@ export const setConnectionDestinationHint = mutation({
     side: typedSideValidator,
     value: v.union(destinationHintValidator, v.null()),
   },
-  handler: async (ctx, args) => await applyConnectionDestinationHint(ctx, args),
+  handler: (ctx, args) => applyConnectionDestinationHint(ctx, args),
 });
 
 export const setConnectionDestination = mutation({
@@ -123,7 +123,7 @@ export const setConnectionDestination = mutation({
     side: typedSideValidator,
     value: v.union(v.number(), v.null()),
   },
-  handler: async (ctx, args) => await applyConnectionDestination(ctx, args),
+  handler: (ctx, args) => applyConnectionDestination(ctx, args),
 });
 
 export const setConnectionShipSize = mutation({
@@ -132,8 +132,8 @@ export const setConnectionShipSize = mutation({
     connectionId: v.id('mapConnections'),
     value: shipSizeValidator,
   },
-  handler: async (ctx, { mapId, connectionId, value }) =>
-    await applyConnectionShipSize(ctx, mapId, connectionId, value),
+  handler: (ctx, { mapId, connectionId, value }) =>
+    applyConnectionShipSize(ctx, mapId, connectionId, value),
 });
 
 export const setConnectionMassState = mutation({
@@ -142,8 +142,8 @@ export const setConnectionMassState = mutation({
     connectionId: v.id('mapConnections'),
     value: massStateValidator,
   },
-  handler: async (ctx, { mapId, connectionId, value }) =>
-    await applyConnectionMassState(ctx, mapId, connectionId, value),
+  handler: (ctx, { mapId, connectionId, value }) =>
+    applyConnectionMassState(ctx, mapId, connectionId, value),
 });
 
 export const setConnectionLifeStage = mutation({
@@ -154,7 +154,7 @@ export const setConnectionLifeStage = mutation({
     deathEarliestAt: optionalTimestampValidator,
     deathLatestAt: optionalTimestampValidator,
   },
-  handler: async (ctx, args) => await applyConnectionLifeStage(ctx, args),
+  handler: (ctx, args) => applyConnectionLifeStage(ctx, args),
 });
 
 export const tombstoneSystem = internalMutation({
@@ -177,50 +177,39 @@ export const restoreSystem = internalMutation({
 
 export const severConnection = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) =>
-    await gatedConnectionEdit(ctx, mapId, async () =>
-      runCollapse(ctx, {
-        mapId,
-        connectionId,
-        actor: await eventActor(ctx),
-        pilotsPresent: 'unknown',
-      }),
-    ),
+  handler: async (ctx, { mapId, connectionId }) => {
+    await requireMapAccess(ctx, mapId, 'edit');
+    return runCollapse(ctx, {
+      mapId,
+      connectionId,
+      actor: await eventActor(ctx),
+      pilotsPresent: 'unknown',
+    });
+  },
 });
 
 export const restoreSeveredBranch = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) =>
-    await gatedConnectionEdit(ctx, mapId, async () =>
-      runBranchRestore(ctx, {
-        mapId,
-        connectionId,
-        actor: await eventActor(ctx),
-      }),
-    ),
+  handler: async (ctx, { mapId, connectionId }) => {
+    await requireMapAccess(ctx, mapId, 'edit');
+    return runBranchRestore(ctx, {
+      mapId,
+      connectionId,
+      actor: await eventActor(ctx),
+    });
+  },
 });
 
 export const restoreConnection = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) => {
-    const result = await clearConnectionTombstone(ctx, mapId, connectionId);
-    if (result.changed) {
-      const at = Date.now();
-      await writeMapEvent(ctx, {
-        mapId,
-        at,
-        kind: 'connection_restored',
-        actor: await eventActor(ctx),
-        payload: { connectionId: String(connectionId) },
-      });
-    }
-    return { restored: true as const };
-  },
+  handler: async (ctx, { mapId, connectionId }) =>
+    restoreLiveConnection(ctx, mapId, connectionId, await eventActor(ctx)),
 });
 
 export const collapseExpiredConnections = internalMutation({
   args: {},
-  handler: async (ctx) => await sweepExpiredCeilings(ctx, Date.now()),
+  handler: async (ctx) =>
+    await sweepExpiredCeilings(ctx, Date.now(), readTrackedPilotSystemIds),
 });
 
 export const purgeExpiredChainTombstones = internalMutation({
