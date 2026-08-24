@@ -46,9 +46,11 @@ comments on standing `LGI-6`.
 `--status open`. Always pass `--head` and `--base`; after
 `test-runner` the checkout can be detached and inference misses.
 A push is a version, Origin's index for that head. `refresh` when
-`view` or `checks` still show the previous one. Write a comment for a
-finding; Origin assigns a thread id, the index for later replies on
-that conversation. A review is a verdict on a version.
+`view` or `checks` still show the previous one. A Findings round
+waits for dump review, Origin review, and Origin checks to
+settle, then one comment and one push. One commit per fix is
+fine. Origin assigns a thread id, the index for later replies.
+A review is a verdict on a version.
 `origin pr create --head <head> --base <destination> --status open`
 `origin pr checks --watch`
 `origin pr refresh`

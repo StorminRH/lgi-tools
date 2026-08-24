@@ -47,21 +47,19 @@ list exists and step 1 is in progress.
   Done when `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`,
    `dupes`, and `health`, plus focused tests for the diff, are green.
 6. Open the Origin PR (`<head>` → destination) per **Origin PR**.
-  Post any leftover accepted review finding per **Findings**. Done
-  when that PR is ready for review.
+  Done when that PR is ready for review.
 7. Run `origin pr checks --watch` on that PR per **Depot**. That
-  command is the watch todo. Done when the pipeline is green or a
-   failure is in hand.
-8. Record and fix each Depot failure per **Findings**, then return
-   to step 7. Done when Depot is green.
+  command is the watch todo. Done when the pipeline has settled
+   (green or finished red).
+8. When Depot is red, run one **Findings** round, then return to
+   step 7. Done when Depot is green.
 9. When the destination is `main`, merge per **Merge**. Resync per
   **Resync**. Done when Origin `main` holds the head and `staging`
    and `development` contain `main`. Return `RELEASED`.
 10. Dump the isolated packet per **Dump**. Done when the dump PR is
   open ready and Greptile and CodeRabbit have been requested.
-11. Copy each dump finding onto the Origin PR per **Findings**.
-  Re-push the dump branch after each Origin fix. Done when
-    `origin pr thread list --unresolved` is empty, or the operator
+11. Wait for dump review to settle, then one **Findings** round.
+  Done when that round's comment is resolved, or the operator
     has that pause.
 12. Author as-builts for the work this PR delivers to `staging`, per
   `docs/workflows/schema/session-as-built.md`. One record per session
@@ -116,31 +114,39 @@ the todo in progress until watch returns. A subscription or a
 one-shot status read is extra, not the wait.
 
 If Checks are empty while Depot is running, list then poll status per
-Tools. On red, diagnose then logs. Confirm a suggested fix against
-the logs before acting.
+Tools. On red, diagnose then logs. The fix is a Findings round.
 
 ## Findings
 
-Done when every finding is a comment, the reply names the version
-that fixed it, and `origin pr thread list --unresolved` is empty, or
-the operator has the pause.
+Done when Origin checks are idle, Origin reviews are idle, dump
+review is idle when a dump exists, one comment records the
+round, that comment's thread is resolved or the operator paused,
+and the dump branch matches the Origin head when a dump exists.
 
 A finding is a red Depot job, a dump bot comment, or a review note
-on the Origin PR. One finding, one comment.
+on the Origin PR. Drive ready PRs in batched rounds: wait for
+reviews to settle, then one comment and one push.
 
-1. Read the current version (`origin pr view --json latestVersion`).
-2. List unresolved thread ids.
-3. Write the finding: `origin pr comment -b "..."`. Origin assigns
-   the thread id. The body is what failed and the evidence. Name the
-   version in the body when that head matters.
-4. Fix on the head. Push. `refresh` if `view` or `checks` still
-   show the previous version.
-5. Reply on that thread id with what changed and the new version.
-6. Resolve that thread id when the finding is gone. Reply again if
-   the next check still fails.
+1. Wait until Origin checks have finished (`origin pr checks
+   --watch`, or Depot list/status when Checks are empty), Origin
+   reviews on that version have finished posting (`origin pr view
+   --comments`), and, when a dump PR exists, Greptile and
+   CodeRabbit have finished posting.
+2. Collect every finding from that settled state: Depot
+   diagnose/logs, dump PR comments, and Origin review notes.
+3. Fix in-scope findings. One commit per fix is fine. Justify on
+   the dump PR when a dump finding is wrong. Defer only on an
+   explicit operator cut. Run the local test suite on the batch.
+4. One push to the Origin head. One re-push of the dump branch
+   when a dump exists. `refresh` if `view` or `checks` still show
+   the previous version.
+5. One Origin comment (`origin pr comment`) naming the version and
+   every finding's disposition. Origin assigns the thread id.
+6. Resolve that thread id when the round is the log. Another round
+   after the next settle if Depot is still red or new review lands.
 
-Dump comments start on GitHub. Copy each accepted finding onto an
-Origin comment. That comment and its thread id are the log.
+Dump comments start on GitHub. The Origin comment and its thread
+id are the log.
 
 ## Dump
 
