@@ -60,9 +60,9 @@ list exists and step 1 is in progress.
 10. Dump the isolated packet per **Dump**. Done when the dump PR is
   open ready and Greptile and CodeRabbit have been requested.
 11. Copy each dump finding onto the Origin PR per **Findings**.
-  Re-push the dump branch after each Origin fix. Done when every
-    finding's Origin comment is resolved, or the operator has that
-    pause.
+  Re-push the dump branch after each Origin fix. Done when
+    `origin pr thread list --unresolved` is empty, or the operator
+    has that pause.
 12. Author as-builts for the work this PR delivers to `staging`, per
   `docs/workflows/schema/session-as-built.md`. One record per session
     in the range, and one for ordinary work in the same PR. A session
@@ -72,8 +72,9 @@ list exists and step 1 is in progress.
     Push the as-builts and any dump fixes to the Origin PR. Done when
     those commits are on that PR.
 13. Run `origin pr checks --watch` on the current version per
-  **Depot**. Finding comments resolved. Merge per **Merge**. Close
-    the dump PR unmerged. Done when Origin `staging` holds the head.
+  **Depot**. `origin pr thread list --unresolved` empty. Merge per
+  **Merge**. Close the dump PR unmerged. Done when Origin `staging`
+  holds the head.
 14. Resync per **Resync**. Done when `development` contains `staging`.
     Return `PROMOTED`.
 
@@ -158,8 +159,8 @@ the GitHub MCP. Request Greptile and CodeRabbit by hand.
 
 Done when the Origin PR is merged to its base line.
 
-Finding comments are resolved (`origin pr thread list --unresolved`
-empty), or the operator paused. Merge with `origin pr merge`. That
+`origin pr thread list --unresolved` is empty, or the operator
+paused. Merge with `origin pr merge`. That
 merge is what moves the work onto the destination. A push or
 fast-forward onto `staging` or `main` is the same merge. It waits
 for this step. Delete leftover source branches. Leave
