@@ -32,10 +32,9 @@ and model slugs override the pin.
 
 ## Done
 
-Land on Origin `development` when the local test suite is green. A finding on
-an Origin PR is a thread on that version. Promote (`development` →
-`staging`) and release (`staging` → `main`) wait on that Origin PR's
-Depot pipeline.
+Land on Origin `development` when the local test suite is green. Promote
+(`development` → `staging`) and release (`staging` → `main`) wait on that
+Origin PR's Depot pipeline.
 
 ## Tools
 
@@ -46,14 +45,15 @@ comments on standing `LGI-6`.
 **origin** — Origin PRs and Checks. Create defaults to draft, so pass
 `--status open`. Always pass `--head` and `--base`; after
 `test-runner` the checkout can be detached and inference misses.
-A push snapshots a new version; `refresh` if `view` or `checks`
-still show the previous head. A finding is a thread on that
-version. Reply with the fix. The push cuts the next version.
+A push is a version, Origin's index for that head. `refresh` when
+`view` or `checks` still show the previous one. Write a comment for a
+finding; Origin assigns a thread id, the index for later replies on
+that conversation. A review is a verdict on a version.
 `origin pr create --head <head> --base <destination> --status open`
 `origin pr checks --watch`
 `origin pr refresh`
 `origin pr view --json latestVersion`
-`origin pr review --comment --change-version <n>`
+`origin pr comment -b "..."`
 `origin pr thread list --unresolved`
 `origin pr thread reply <id>`
 `origin pr thread resolve <id>`

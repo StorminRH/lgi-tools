@@ -51,9 +51,8 @@ feat: add API endpoints for browsing and filtering wormhole sites
    and `--head` for the two lines of that PR. Defaults are
    `origin/staging` and `origin/development`. Same isolation as the review.
    Skills and standing docs stay off that packet.
-6. CI failures and review findings go on Origin threads for the
-   version that failed. Reply with the fix. A push cuts the next
-   version.
+6. CI failures and review findings are Origin comments on the head
+   that failed. Reply on the same thread id. A push is a new version.
 
 ## Conduct, security & license
 

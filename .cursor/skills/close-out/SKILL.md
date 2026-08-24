@@ -61,7 +61,7 @@ list exists and step 1 is in progress.
   open ready and Greptile and CodeRabbit have been requested.
 11. Copy each dump finding onto the Origin PR per **Findings**.
   Re-push the dump branch after each Origin fix. Done when every
-    finding is a resolved Origin thread, or the operator has that
+    finding's Origin comment is resolved, or the operator has that
     pause.
 12. Author as-builts for the work this PR delivers to `staging`, per
   `docs/workflows/schema/session-as-built.md`. One record per session
@@ -72,7 +72,7 @@ list exists and step 1 is in progress.
     Push the as-builts and any dump fixes to the Origin PR. Done when
     those commits are on that PR.
 13. Run `origin pr checks --watch` on the current version per
-  **Depot**. Findings threads resolved. Merge per **Merge**. Close
+  **Depot**. Finding comments resolved. Merge per **Merge**. Close
     the dump PR unmerged. Done when Origin `staging` holds the head.
 14. Resync per **Resync**. Done when `development` contains `staging`.
     Return `PROMOTED`.
@@ -120,32 +120,26 @@ the logs before acting.
 
 ## Findings
 
-Done when every finding is a thread on the version that failed it,
-the fix is a reply that names the new version, and
-`origin pr thread list --unresolved` is empty, or the operator has
-the pause.
+Done when every finding is a comment, the reply names the version
+that fixed it, and `origin pr thread list --unresolved` is empty, or
+the operator has the pause.
 
 A finding is a red Depot job, a dump bot comment, or a review note
-on the Origin PR. One finding, one thread.
+on the Origin PR. One finding, one comment.
 
-1. Read the version (`origin pr view --json latestVersion`).
-2. List unresolved thread ids first.
-3. Open a thread on that version:
-   `origin pr review --comment --change-version <n> -b "..."`.
-   The body is what failed and the evidence. The new id is the one
-   that was not in the earlier list. If a later review would
-   replace an earlier thread, file the next finding with
-   `origin pr comment` and name the version in the body.
+1. Read the current version (`origin pr view --json latestVersion`).
+2. List unresolved thread ids.
+3. Write the finding: `origin pr comment -b "..."`. Origin assigns
+   the thread id. The body is what failed and the evidence. Name the
+   version in the body when that head matters.
 4. Fix on the head. Push. `refresh` if `view` or `checks` still
-   show the previous head.
-5. Reply on that thread with what changed and the new version
-   number.
-6. Resolve the thread when the finding is gone. Reply again if
+   show the previous version.
+5. Reply on that thread id with what changed and the new version.
+6. Resolve that thread id when the finding is gone. Reply again if
    the next check still fails.
 
 Dump comments start on GitHub. Copy each accepted finding onto an
-Origin thread on the Origin PR version that was dumped. The Origin
-thread is the log.
+Origin comment. That comment and its thread id are the log.
 
 ## Dump
 
@@ -164,12 +158,12 @@ the GitHub MCP. Request Greptile and CodeRabbit by hand.
 
 Done when the Origin PR is merged to its base line.
 
-Unresolved Origin threads are empty, or the operator paused. Merge
-with `origin pr merge`. That merge is what moves the work onto the
-destination. A push or fast-forward onto `staging` or `main` is the
-same merge. It waits for this step. Delete leftover source
-branches. Leave `development`, `staging`, and `main`. Return after
-**Resync**.
+Finding comments are resolved (`origin pr thread list --unresolved`
+empty), or the operator paused. Merge with `origin pr merge`. That
+merge is what moves the work onto the destination. A push or
+fast-forward onto `staging` or `main` is the same merge. It waits
+for this step. Delete leftover source branches. Leave
+`development`, `staging`, and `main`. Return after **Resync**.
 
 ## Resync
 
