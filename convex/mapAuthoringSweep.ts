@@ -47,12 +47,6 @@ async function readDueCeilings(
   };
 }
 
-/**
- * Collapses one due resolved row and reports failure instead of throwing.
- * Presence read and `runCollapse` throw only before this row's first write,
- * so a caught failure has committed nothing for this row and it stays live
- * for a later sweep.
- */
 async function collapseDueRow(
   ctx: MutationCtx,
   row: Doc<'mapConnections'>,
