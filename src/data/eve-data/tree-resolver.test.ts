@@ -180,32 +180,34 @@ describe('computeHeights', () => {
 
 describe('TreeResolver — reference-blueprint fixture is well-formed', () => {
   it('pins Rifter minerals, Archon floors, and Legion marginal gas', () => {
-    const fixture = flatMaterialsFixture as Record<
-      string,
-      { blueprintTypeId: number; outputTypeId: number; materials: Record<string, number> }
-    >;
+    type FixtureEntry = {
+      blueprintTypeId: number;
+      outputTypeId: number;
+      materials: Record<string, number>;
+    };
+    const fixture = flatMaterialsFixture as Record<string, unknown>;
+    const entryOf = (name: string): FixtureEntry => fixture[name] as FixtureEntry;
     for (const name of ['Rifter', 'Drake', 'Archon', 'Legion'] as const) {
-      const entry = fixture[name];
+      const entry = entryOf(name);
       expect(entry).toBeDefined();
-      if (!entry) continue;
       expect(entry.blueprintTypeId).toBeGreaterThan(0);
       expect(entry.outputTypeId).toBeGreaterThan(0);
       expect(Object.keys(entry.materials).length).toBeGreaterThan(0);
     }
-    const rifter = fixture.Rifter;
-    const archon = fixture.Archon;
-    const legion = fixture.Legion;
-    expect(rifter?.materials).toEqual({
+    const rifter = entryOf('Rifter');
+    const archon = entryOf('Archon');
+    const legion = entryOf('Legion');
+    expect(rifter.materials).toEqual({
       '34': 32000,
       '35': 6000,
       '36': 2500,
       '37': 500,
     });
-    expect(archon?.materials['34']).toBeGreaterThan(2_000_000);
-    expect(archon?.materials['35']).toBeGreaterThan(7_000_000);
-    expect(legion?.blueprintTypeId).toBe(29987);
-    expect(legion?.materials['30370']).toBeLessThan(2_000);
-    expect(legion?.materials['30251']).toBe(452);
+    expect(archon.materials['34']).toBeGreaterThan(2_000_000);
+    expect(archon.materials['35']).toBeGreaterThan(7_000_000);
+    expect(legion.blueprintTypeId).toBe(29987);
+    expect(legion.materials['30370']).toBeLessThan(2_000);
+    expect(legion.materials['30251']).toBe(452);
   });
 });
 
