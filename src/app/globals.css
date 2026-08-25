@@ -757,12 +757,7 @@ a:hover {
  * these blocks. Descriptive prose uses the interface role; labels, values, and
  * version tags stay mono. No new tokens. */
 
-/* Shared long-form reading surface; the Prose primitive selects only the
- * measure and the few descendant recipes that genuinely differ by document. */
 .prose-copy {
-  max-width: 768px;
-}
-.prose-copy-legal {
   max-width: 760px;
   margin-inline: auto;
 }
@@ -772,10 +767,9 @@ a:hover {
   line-height: 1.72;
   letter-spacing: 0.01em;
   color: var(--color-text);
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   text-wrap: pretty;
 }
-.prose-copy-legal p { margin-bottom: 12px; }
 .prose-copy p:last-child { margin-bottom: 0; }
 .prose-copy strong { color: var(--color-name); font-weight: 600; }
 .prose-copy a {
@@ -788,13 +782,12 @@ a:hover {
 .prose-copy ul,
 .prose-copy ol {
   list-style: none;
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.prose-copy-legal ul { margin-bottom: 12px; }
 .prose-copy li {
   position: relative;
   padding-left: 18px;

@@ -46,7 +46,7 @@ export default function LegalPage() {
       />
 
       <div className="pb-16">
-        <Prose variant="legal">
+        <Prose>
           <h2 className="mb-3 font-display text-h3 font-bold uppercase leading-none tracking-optical text-name">Site Usage</h2>
           <p className="mb-7">What the site records about your visit.</p>
 
