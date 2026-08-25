@@ -109,10 +109,13 @@ Re-scrub after publish.
 
 Done when that Origin PR's Depot pipeline is green.
 
-Run `origin pr checks <N> --watch`. `<N>` is the change number. That
-command is the watch todo. Keep the todo in progress until watch
-returns. `--head` and `--base` are create flags; checks rejects them.
-A subscription or a one-shot status read is extra, not the wait.
+Run `origin pr checks <N> --watch` in the foreground until it
+returns. `<N>` is the change number. That command is the watch
+todo. Keep the todo in progress until watch returns. After
+`test-runner` the checkout can be detached, so pass `<N>` (or
+`--branch <head>`). `--head` and `--base` are create flags;
+checks rejects them. A subscription or a one-shot `--json` read
+is extra, not the wait.
 
 If Checks are empty while Depot is running, list then poll status per
 Tools. On red, diagnose then logs. The fix is a Findings round.

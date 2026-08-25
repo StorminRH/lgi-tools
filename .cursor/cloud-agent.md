@@ -75,3 +75,8 @@ This Cloud Agent Origin token has been refused for `origin pr merge`
 and `origin ruleset list` with "not scoped for this operation". Close-out
 still runs `origin pr merge <N>`. That refusal is `BLOCKED`, not a git
 push onto `staging` or `main`.
+
+Origin Checks wait is `origin pr checks <N> --watch` in the foreground
+until it returns. After `test-runner` pass `<N>` or `--branch <head>`.
+`--head` and `--base` are create flags. A subscription or `--json`
+snapshot is extra.

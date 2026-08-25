@@ -46,8 +46,10 @@ comments on standing `LGI-6`.
 `--status open`. Always pass `--head` and `--base` on
 `origin pr create`; after `test-runner` the checkout can be
 detached and inference misses. `origin pr checks` takes a change
-number or `--branch`. It rejects `--head` and `--base`. A push is
-a version, Origin's index for that head. `refresh` when `view` or
+number or `--branch`. It rejects `--head` and `--base`. Run
+`origin pr checks <N> --watch` in the foreground until it
+returns. A push is a version, Origin's index for that head.
+`refresh` when `view` or
 `checks` still show the previous one. A Findings round waits for
 dump review, Origin review, and Origin checks to settle, then one
 comment and one push. One commit per fix is fine. Origin assigns
