@@ -53,31 +53,16 @@ describe('POST /api/admin/sessions/revoke', () => {
     logUsageEventMock.mockResolvedValue(undefined);
   });
 
-  it('returns 403 for a non-admin', async () => {
+  it('refuses non-admins, a malformed form, self-logout, and a missing user', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_SESSION, isAdmin: false });
-    const res = await POST(buildRequest({ userId: 'eve-user-2' }));
-    expect(res.status).toBe(403);
-    expect(revokeUserSessionsMock).not.toHaveBeenCalled();
-  });
+    expect((await POST(buildRequest({ userId: 'eve-user-2' }))).status).toBe(403);
 
-  it('returns 400 on a malformed form', async () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    const res = await POST(buildRequest({}));
-    expect(res.status).toBe(400);
-  });
+    expect((await POST(buildRequest({}))).status).toBe(400);
+    expect((await POST(buildRequest({ userId: 'admin-1' }))).status).toBe(400);
 
-  it('refuses to force-logout your own session', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    const res = await POST(buildRequest({ userId: 'admin-1' }));
-    expect(res.status).toBe(400);
-    expect(revokeUserSessionsMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 404 when the user does not exist', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
     getUserByIdMock.mockResolvedValue(null);
-    const res = await POST(buildRequest({ userId: 'eve-user-2' }));
-    expect(res.status).toBe(404);
+    expect((await POST(buildRequest({ userId: 'eve-user-2' }))).status).toBe(404);
     expect(revokeUserSessionsMock).not.toHaveBeenCalled();
   });
 

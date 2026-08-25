@@ -70,31 +70,22 @@ describe('POST /api/admin/characters/reassign', () => {
     errorSpy.mockRestore();
   });
 
-  it('returns 403 for a non-admin', async () => {
+  it('refuses non-admins, a malformed form, a no-op self-move, and an unowned character', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_SESSION, isAdmin: false });
-    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
-    expect(res.status).toBe(403);
-    expect(reassignCharacterMock).not.toHaveBeenCalled();
-  });
+    expect(
+      (await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }))).status,
+    ).toBe(403);
 
-  it('returns 400 on a malformed form', async () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    const res = await POST(buildRequest({ characterId: '200' }));
-    expect(res.status).toBe(400);
-  });
+    expect((await POST(buildRequest({ characterId: '200' }))).status).toBe(400);
+    expect((await POST(buildRequest({ fromUserId: 'admin-1', characterId: '200' }))).status).toBe(
+      400,
+    );
 
-  it('refuses a no-op move onto the same account', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    const res = await POST(buildRequest({ fromUserId: 'admin-1', characterId: '200' }));
-    expect(res.status).toBe(400);
-    expect(reassignCharacterMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 404 when the character is not linked to the source user', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
     accountBelongsToUserMock.mockResolvedValue(false);
-    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
-    expect(res.status).toBe(404);
+    expect(
+      (await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }))).status,
+    ).toBe(404);
     expect(reassignCharacterMock).not.toHaveBeenCalled();
   });
 

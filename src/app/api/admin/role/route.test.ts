@@ -85,32 +85,21 @@ describe('POST /api/admin/role', () => {
     expect(setUserRoleMock).not.toHaveBeenCalled();
   });
 
-  it('returns 400 when the caller tries to toggle their own role', async () => {
+  it('returns 400 for self-toggle or an unknown role, and 404 when the target is missing', async () => {
     getSessionMock.mockResolvedValue(ADMIN_VIEWER);
     const { POST } = await importRoute();
-    const res = await POST(
-      buildRequest({ userId: ADMIN_VIEWER.user.id, nextRole: 'USER' }),
-    );
-    expect(res.status).toBe(400);
-    expect(setUserRoleMock).not.toHaveBeenCalled();
-  });
 
-  it('returns 400 when nextRole is not in CHARACTER_ROLES', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_VIEWER);
-    const { POST } = await importRoute();
-    const res = await POST(
-      buildRequest({ userId: 'eve-user-12345', nextRole: 'SUPERADMIN' }),
-    );
-    expect(res.status).toBe(400);
-    expect(setUserRoleMock).not.toHaveBeenCalled();
-  });
+    expect(
+      (await POST(buildRequest({ userId: ADMIN_VIEWER.user.id, nextRole: 'USER' }))).status,
+    ).toBe(400);
+    expect(
+      (await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'SUPERADMIN' }))).status,
+    ).toBe(400);
 
-  it('returns 404 when the target user does not exist', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_VIEWER);
     getUserByIdMock.mockResolvedValue(null);
-    const { POST } = await importRoute();
-    const res = await POST(buildRequest({ userId: 'eve-user-99999', nextRole: 'ADMIN' }));
-    expect(res.status).toBe(404);
+    expect(
+      (await POST(buildRequest({ userId: 'eve-user-99999', nextRole: 'ADMIN' }))).status,
+    ).toBe(404);
     expect(setUserRoleMock).not.toHaveBeenCalled();
   });
 
