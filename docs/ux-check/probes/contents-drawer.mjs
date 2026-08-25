@@ -59,7 +59,7 @@ export default {
     ({ trigger, popup } = await openDrawer(page));
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
-    check('Escape closes the documents drawer', !(await popup.isVisible()));
+    check('Escape closes the versions drawer', !(await popup.isVisible()));
     check('Escape restores focus to the chapter bar', await trigger.evaluate((element) => element === document.activeElement));
   },
 };
