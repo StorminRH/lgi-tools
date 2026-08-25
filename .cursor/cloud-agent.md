@@ -71,10 +71,13 @@ Depot, Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
 Codegraph does not need a token. Depot, Vercel, and Neon use Cloud Agent
 Secrets when a command needs them.
 
-This Cloud Agent Origin token has been refused for `origin pr merge`
-and `origin ruleset list` with "not scoped for this operation". Close-out
-still runs `origin pr merge <N>`. That refusal is `BLOCKED`, not a git
-push onto `staging` or `main`.
+This Cloud Agent Origin token can create, comment, and watch. It is
+not scoped for `origin pr merge` or `origin ruleset list`. Default
+merge, `--merge`, `--squash`, `--auto`, and `--branch` all return
+"not scoped for this operation". `origin api` merge calls 401. The
+PR can still be mergeable. Close-out runs `origin pr merge <N>` and
+returns `BLOCKED` on that error. The operator merges or upgrades the
+token.
 
 Origin Checks wait is `origin pr checks <N> --watch` in the foreground
 until it returns. After `test-runner` pass `<N>` or `--branch <head>`.

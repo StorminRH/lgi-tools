@@ -83,8 +83,8 @@ unmerged. `development` contains `staging`.
 - `RELEASED`. Destination `main`. Origin `main` holds the cut.
 `staging` and `development` contain `main`.
 - `BLOCKED`. Named gate, oversize packet, failed check, missing
-destination, or work already on the destination before this process
-finished.
+destination, work already on the destination before this process
+finished, or an Origin token that is not scoped for merge.
 
 ## Origin PR
 
@@ -171,10 +171,12 @@ Done when the Origin PR is merged to its base line.
 
 `origin pr thread list --unresolved` is empty, or the operator
 paused. Merge with `origin pr merge <N>`. That merge is what
-moves the work onto the destination. It waits for this step. A
-token refusal or other merge failure is `BLOCKED` with that error.
-Delete leftover source branches. Leave `development`, `staging`,
-and `main`. Return after **Resync**.
+moves the work onto the destination. It waits for this step.
+`--merge`, `--squash`, `--auto`, and `--branch` hit the same
+merge gate. A Cloud Agent token that is not scoped for merge
+returns `BLOCKED` with that error. The operator merges or
+upgrades the token. Delete leftover source branches. Leave
+`development`, `staging`, and `main`. Return after **Resync**.
 
 ## Resync
 
