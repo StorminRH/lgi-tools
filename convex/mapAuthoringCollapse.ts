@@ -256,22 +256,19 @@ async function writeRemovedSever(
   return { outcome: 'removed', systemIds };
 }
 
-interface RunCollapseInput {
-  readonly mapId: string;
-  readonly connectionId: Id<'mapConnections'>;
-  readonly actor: string;
-  readonly pilotsPresent: CollapsePilotsPresent;
-}
-
-type RunCollapseResult =
-  | { readonly outcome: 'retained' }
-  | { readonly outcome: 'already_applied' }
-  | { readonly outcome: 'removed'; readonly systemIds: number[] };
-
 export async function runCollapse(
   ctx: MutationCtx,
-  input: RunCollapseInput,
-): Promise<RunCollapseResult> {
+  input: {
+    readonly mapId: string;
+    readonly connectionId: Id<'mapConnections'>;
+    readonly actor: string;
+    readonly pilotsPresent: CollapsePilotsPresent;
+  },
+): Promise<
+  | { readonly outcome: 'retained' }
+  | { readonly outcome: 'already_applied' }
+  | { readonly outcome: 'removed'; readonly systemIds: number[] }
+> {
   const topology = await readBoundedMapTopology(ctx, input.mapId);
   const cut = requireTopologyConnection(topology, input.mapId, input.connectionId);
   if (isTombstoned(cut)) {
