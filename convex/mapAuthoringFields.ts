@@ -1,4 +1,4 @@
-import { ConvexError } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import { doorDestination } from '@/data/maps/connection-door-destinations';
 import { connectionTypePatch } from '@/data/maps/connection-door-types';
 import {
@@ -11,16 +11,23 @@ import {
   type ConnectionMassState,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
-import type { Doc, Id } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
-import { requireMapAccess } from './mapAccess';
-import { requireLiveConnectionOnMap } from './mapConnectionLookup';
+import type { Doc, Id } from './_generated/dataModel';
+import { mutation, type MutationCtx } from './_generated/server';
+import { requireMapAccess } from './lib/mapAccess';
+import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
 import {
+  destinationHintValidator,
+  lifeStageValidator,
+  massStateValidator,
+  optionalTimestampValidator,
+  shipSizeValidator,
+  typedSideValidator,
   validateDeathWindowInput,
+  wormholeTypeCodeValidator,
   type WormholeLifeStage,
-} from './mapEntityContracts';
-import { stampObservationKey } from './observationKey';
-import { requireSystemId } from './mapSystemLookup';
+} from './lib/mapEntityContracts';
+import { stampObservationKey } from './lib/observationKey';
+import { requireSystemId } from './lib/mapSystemLookup';
 
 async function requireLiveConnection(
   ctx: MutationCtx,
@@ -115,7 +122,7 @@ function sameDeathWindow(
     && current.deathLatestAt === next.deathLatestAt;
 }
 
-export async function applyConnectionWormholeType(
+async function applyConnectionWormholeType(
   ctx: MutationCtx,
   input: {
     readonly mapId: string;
@@ -178,7 +185,7 @@ export async function applyConnectionWormholeType(
   return { changed: true };
 }
 
-export async function applyConnectionTypedSide(
+async function applyConnectionTypedSide(
   ctx: MutationCtx,
   mapId: string,
   connectionId: Id<'mapConnections'>,
@@ -208,7 +215,7 @@ export async function applyConnectionTypedSide(
   return { changed: true };
 }
 
-export async function applyConnectionDestinationHint(
+async function applyConnectionDestinationHint(
   ctx: MutationCtx,
   input: {
     readonly mapId: string;
@@ -240,7 +247,7 @@ export async function applyConnectionDestinationHint(
   return { changed: true };
 }
 
-export async function applyConnectionDestination(
+async function applyConnectionDestination(
   ctx: MutationCtx,
   input: {
     readonly mapId: string;
@@ -289,7 +296,7 @@ export async function applyConnectionDestination(
   return { changed: true };
 }
 
-export async function applyConnectionShipSize(
+async function applyConnectionShipSize(
   ctx: MutationCtx,
   mapId: string,
   connectionId: Id<'mapConnections'>,
@@ -304,7 +311,7 @@ export async function applyConnectionShipSize(
   );
 }
 
-export async function applyConnectionMassState(
+async function applyConnectionMassState(
   ctx: MutationCtx,
   mapId: string,
   connectionId: Id<'mapConnections'>,
@@ -325,7 +332,7 @@ export async function applyConnectionMassState(
   return { changed: true };
 }
 
-export async function applyConnectionLifeStage(
+async function applyConnectionLifeStage(
   ctx: MutationCtx,
   input: {
     readonly mapId: string;
@@ -355,3 +362,77 @@ export async function applyConnectionLifeStage(
   });
   return { changed: true as const };
 }
+
+export const setConnectionWormholeType = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    value: wormholeTypeCodeValidator,
+    side: v.optional(typedSideValidator),
+    deathEarliestAt: optionalTimestampValidator,
+    deathLatestAt: optionalTimestampValidator,
+  },
+  handler: (ctx, args) => applyConnectionWormholeType(ctx, args),
+});
+
+export const setConnectionTypedSide = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    value: typedSideValidator,
+  },
+  handler: (ctx, { mapId, connectionId, value }) =>
+    applyConnectionTypedSide(ctx, mapId, connectionId, value),
+});
+
+export const setConnectionDestinationHint = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    side: typedSideValidator,
+    value: v.union(destinationHintValidator, v.null()),
+  },
+  handler: (ctx, args) => applyConnectionDestinationHint(ctx, args),
+});
+
+export const setConnectionDestination = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    side: typedSideValidator,
+    value: v.union(v.number(), v.null()),
+  },
+  handler: (ctx, args) => applyConnectionDestination(ctx, args),
+});
+
+export const setConnectionShipSize = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    value: shipSizeValidator,
+  },
+  handler: (ctx, { mapId, connectionId, value }) =>
+    applyConnectionShipSize(ctx, mapId, connectionId, value),
+});
+
+export const setConnectionMassState = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    value: massStateValidator,
+  },
+  handler: (ctx, { mapId, connectionId, value }) =>
+    applyConnectionMassState(ctx, mapId, connectionId, value),
+});
+
+export const setConnectionLifeStage = mutation({
+  args: {
+    mapId: v.string(),
+    connectionId: v.id('mapConnections'),
+    value: lifeStageValidator,
+    deathEarliestAt: optionalTimestampValidator,
+    deathLatestAt: optionalTimestampValidator,
+  },
+  handler: (ctx, args) => applyConnectionLifeStage(ctx, args),
+});
+

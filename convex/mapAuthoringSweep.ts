@@ -1,11 +1,12 @@
 import { chainTombstoneStamps, isTombstoned } from '@/data/maps/chain-contract';
-import type { Doc } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { internalMutation, type MutationCtx } from './_generated/server';
 import { writeMapEvent } from './mapAuthoringEvents';
 import {
   deleteConnectionActivity,
   runCollapse,
 } from './mapAuthoringCollapse';
+import { readTrackedPilotSystemIds } from './mapTracking';
 
 export const CEILING_COLLAPSE_GRACE_MS = 4 * 60 * 60 * 1000;
 
@@ -44,15 +45,11 @@ async function collapseDueRow(
   ctx: MutationCtx,
   row: Doc<'mapConnections'>,
   trackedByMap: Map<string, ReadonlySet<number>>,
-  readTrackedInSystemIds: (
-    ctx: MutationCtx,
-    mapId: string,
-  ) => Promise<ReadonlySet<number>>,
 ): Promise<boolean> {
   try {
     let tracked = trackedByMap.get(row.mapId);
     if (tracked === undefined) {
-      tracked = await readTrackedInSystemIds(ctx, row.mapId);
+      tracked = await readTrackedPilotSystemIds(ctx, row.mapId);
       trackedByMap.set(row.mapId, tracked);
     }
     await runCollapse(ctx, {
@@ -84,13 +81,9 @@ function recordRemovedStub(events: RemovedStubEvents, stub: Doc<'mapConnections'
   events.set(key, entry);
 }
 
-export async function sweepExpiredCeilings(
+async function sweepExpiredCeilings(
   ctx: MutationCtx,
   now: number,
-  readTrackedInSystemIds: (
-    ctx: MutationCtx,
-    mapId: string,
-  ) => Promise<ReadonlySet<number>>,
 ): Promise<{
   collapsed: number;
   removedStubs: number;
@@ -124,7 +117,7 @@ export async function sweepExpiredCeilings(
       await deleteConnectionActivity(ctx, fresh);
       recordRemovedStub(stubEvents, fresh);
       removedStubs += 1;
-    } else if (await collapseDueRow(ctx, fresh, trackedByMap, readTrackedInSystemIds)) {
+    } else if (await collapseDueRow(ctx, fresh, trackedByMap)) {
       collapsed += 1;
     } else {
       failedMapIds.add(fresh.mapId);
@@ -148,3 +141,9 @@ export async function sweepExpiredCeilings(
     hasMore: processed < due.length || overflow,
   };
 }
+
+export const collapseExpiredConnections = internalMutation({
+  args: {},
+  handler: async (ctx) => await sweepExpiredCeilings(ctx, Date.now()),
+});
+

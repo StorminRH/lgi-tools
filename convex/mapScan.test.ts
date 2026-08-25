@@ -320,7 +320,7 @@ describe('mapScan paste application and lifecycle', () => {
       { signatureId: 'AAA-111', outcome: 'unchanged', observationKey },
     ]);
 
-    await asEditor(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+    await asEditor(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
       mapId: MAP,
       connectionId: assumed._id,
       value: 'H296',

@@ -1,15 +1,15 @@
-import { ConvexError } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import {
   chainTombstoneStamps,
   isTombstoned,
 } from '@/data/maps/chain-contract';
-import type { Doc, Id } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
-import { takeIndexedOrThrow } from './indexedQuery';
-import { requireMapAccess } from './mapAccess';
-import { requireConnectionOnMap } from './mapConnectionLookup';
-import { findSystem, requireSystemId } from './mapSystemLookup';
-import { writeMapEvent } from './mapAuthoringEvents';
+import type { Doc, Id } from './_generated/dataModel';
+import { internalMutation, mutation, type MutationCtx } from './_generated/server';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
+import { requireMapAccess } from './lib/mapAccess';
+import { requireConnectionOnMap } from './lib/mapConnectionLookup';
+import { findSystem, requireSystemId } from './lib/mapSystemLookup';
+import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 
 const LIVE_CONNECTION_SCAN_CAP = 32;
 
@@ -64,7 +64,7 @@ async function readIncidentConnections(
   return [...new Map([...fromRows, ...toRows].map((row) => [row._id, row])).values()];
 }
 
-export async function stampSystemTombstone(
+async function stampSystemTombstone(
   ctx: MutationCtx,
   mapId: string,
   systemId: number,
@@ -88,7 +88,7 @@ export async function stampSystemTombstone(
   return { tombstoned: true };
 }
 
-export async function stampConnectionTombstone(
+async function stampConnectionTombstone(
   ctx: MutationCtx,
   mapId: string,
   connectionId: Id<'mapConnections'>,
@@ -99,7 +99,7 @@ export async function stampConnectionTombstone(
   return { tombstoned: true };
 }
 
-export async function clearSystemTombstone(
+async function clearSystemTombstone(
   ctx: MutationCtx,
   mapId: string,
   systemId: number,
@@ -139,7 +139,7 @@ async function clearConnectionTombstone(
   return { restored: true, changed: true };
 }
 
-export async function restoreLiveConnection(
+async function restoreLiveConnection(
   ctx: MutationCtx,
   mapId: string,
   connectionId: Id<'mapConnections'>,
@@ -157,3 +157,28 @@ export async function restoreLiveConnection(
   }
   return { restored: true as const };
 }
+
+export const tombstoneSystem = internalMutation({
+  args: { mapId: v.string(), systemId: v.number() },
+  handler: (ctx, { mapId, systemId }) =>
+    stampSystemTombstone(ctx, mapId, systemId),
+});
+
+export const tombstoneConnection = internalMutation({
+  args: { mapId: v.string(), connectionId: v.id('mapConnections') },
+  handler: (ctx, { mapId, connectionId }) =>
+    stampConnectionTombstone(ctx, mapId, connectionId),
+});
+
+export const restoreSystem = internalMutation({
+  args: { mapId: v.string(), systemId: v.number() },
+  handler: (ctx, { mapId, systemId }) =>
+    clearSystemTombstone(ctx, mapId, systemId),
+});
+
+export const restoreConnection = mutation({
+  args: { mapId: v.string(), connectionId: v.id('mapConnections') },
+  handler: async (ctx, { mapId, connectionId }) =>
+    restoreLiveConnection(ctx, mapId, connectionId, await eventActor(ctx)),
+});
+

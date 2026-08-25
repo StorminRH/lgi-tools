@@ -4,15 +4,15 @@
 // nonempty queue progressing each call — a sustained backlog in one table can
 // never starve the others. Active rows store null/undefined purgeAfter and can
 // never enter the `> null` range.
-import type { MutationCtx } from '../_generated/server';
+import { internalMutation, type MutationCtx } from './_generated/server';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { takeExpiredByPurgeAfter } from './indexedQuery';
+import { takeExpiredByPurgeAfter } from './lib/indexedQuery';
 
 /** Maximum rows one cleanup call processes per table (systems, connections, events). */
 export const CHAIN_PURGE_BATCH = 128;
 
 /** The outcome of one bounded cleanup call, including exact continuation truth. */
-export interface ChainPurgeResult {
+interface ChainPurgeResult {
   readonly deletedSystems: number;
   readonly deletedConnections: number;
   readonly retainedConnections: number;
@@ -52,7 +52,7 @@ async function endpointIsLive(
  * One row past each table's budget makes `hasMore` exact. Endpoint liveness is
  * memoized per call, after this call's own system deletions.
  */
-export async function purgeExpiredChainTombstones(
+async function purgeExpiredChainTombstonesAt(
   ctx: MutationCtx,
   now: number,
 ): Promise<ChainPurgeResult> {
@@ -112,3 +112,8 @@ export async function purgeExpiredChainTombstones(
       || expiredEvents.length > eventsToDelete.length,
   };
 }
+
+export const purgeExpiredChainTombstones = internalMutation({
+  args: {},
+  handler: async (ctx) => await purgeExpiredChainTombstonesAt(ctx, Date.now()),
+});

@@ -4,17 +4,29 @@ import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import {
-  CEILING_COLLAPSE_GRACE_MS,
-  CEILING_SWEEP_ACTOR,
-  CHAIN_PURGE_BATCH,
-  COLLAPSE_MAP_SCAN_CAP,
-} from './mapAuthoring';
+import { COLLAPSE_MAP_SCAN_CAP } from './mapAuthoringCollapse';
+import { CEILING_COLLAPSE_GRACE_MS, CEILING_SWEEP_ACTOR } from './mapAuthoringSweep';
+import { CHAIN_PURGE_BATCH } from './mapChainCleanup';
 import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+
+const publicAuthoring = {
+  setHomeSystem: api.mapAuthoringHome.setHomeSystem,
+  addSystemFromNode: api.mapAuthoringHome.addSystemFromNode,
+  setConnectionWormholeType: api.mapAuthoringFields.setConnectionWormholeType,
+  setConnectionTypedSide: api.mapAuthoringFields.setConnectionTypedSide,
+  setConnectionDestinationHint: api.mapAuthoringFields.setConnectionDestinationHint,
+  setConnectionDestination: api.mapAuthoringFields.setConnectionDestination,
+  setConnectionShipSize: api.mapAuthoringFields.setConnectionShipSize,
+  setConnectionMassState: api.mapAuthoringFields.setConnectionMassState,
+  setConnectionLifeStage: api.mapAuthoringFields.setConnectionLifeStage,
+  severConnection: api.mapAuthoringCollapse.severConnection,
+  restoreSeveredBranch: api.mapAuthoringCollapse.restoreSeveredBranch,
+  restoreConnection: api.mapAuthoringTombstone.restoreConnection,
+} as const;
 
 const MAP_A = 'map-a';
 const EDITOR = 'user-editor';
@@ -56,7 +68,7 @@ async function seedEmpty(t: Chain): Promise<void> {
 
 async function seedHome(t: Chain, systemId = JITA): Promise<Id<'mapSystems'>> {
   await seedEmpty(t);
-  return await asUser(t).mutation(api.mapAuthoring.setHomeSystem, {
+  return await asUser(t).mutation(api.mapAuthoringHome.setHomeSystem, {
     mapId: MAP_A,
     systemId,
   });
@@ -67,7 +79,7 @@ async function seedJump(t: Chain): Promise<{
   connectionId: Id<'mapConnections'>;
 }> {
   await seedHome(t);
-  return await asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
+  return await asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
     mapId: MAP_A,
     fromSystemId: JITA,
     toSystemId: AMARR,
@@ -188,7 +200,7 @@ describe('map authoring', () => {
             return { mapId: MAP_A, connectionId, value: 'C247' };
           }
           if (name === 'setConnectionTypedSide') {
-            await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+            await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
               mapId: MAP_A,
               connectionId,
               value: 'C247',
@@ -221,7 +233,7 @@ describe('map authoring', () => {
         const t = convexTest(schema, modules);
         const args = await argsFor(t, name);
         await expectConvexError(
-          t.mutation(api.mapAuthoring[name], args as never),
+          t.mutation(publicAuthoring[name], args as never),
           'UNAUTHENTICATED',
         );
       },
@@ -233,7 +245,7 @@ describe('map authoring', () => {
         const t = convexTest(schema, modules);
         const args = await argsFor(t, name);
         await expectConvexError(
-          asUser(t, VIEWER).mutation(api.mapAuthoring[name], args as never),
+          asUser(t, VIEWER).mutation(publicAuthoring[name], args as never),
           'FORBIDDEN',
         );
       },
@@ -243,7 +255,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expectConvexError(
-        asUser(t, VIEWER).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        asUser(t, VIEWER).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
           mapId: MAP_A,
           connectionId,
           value: 'not-a-code',
@@ -251,7 +263,7 @@ describe('map authoring', () => {
         'FORBIDDEN',
       );
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
           mapId: MAP_A,
           connectionId,
           value: 'not-a-code',
@@ -264,7 +276,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       await seedEmpty(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setHomeSystem, {
+        asUser(t).mutation(api.mapAuthoringHome.setHomeSystem, {
           mapId: MAP_A,
           systemId: JITA,
         }),
@@ -275,7 +287,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
+        asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
           mapId: MAP_A,
           fromSystemId: JITA,
           toSystemId: AMARR,
@@ -290,7 +302,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
           mapId: MAP_A,
           connectionId,
           value: 'C247',
@@ -301,13 +313,13 @@ describe('map authoring', () => {
     it('lets an editor call setConnectionTypedSide successfully', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
-      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
         mapId: MAP_A,
         connectionId,
         value: 'C247',
       });
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionTypedSide, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionTypedSide, {
           mapId: MAP_A,
           connectionId,
           value: 'to',
@@ -319,7 +331,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestinationHint, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -332,7 +344,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -345,7 +357,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionShipSize, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionShipSize, {
           mapId: MAP_A,
           connectionId,
           value: 'M',
@@ -357,7 +369,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionMassState, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionMassState, {
           mapId: MAP_A,
           connectionId,
           value: 'stable',
@@ -369,7 +381,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
           mapId: MAP_A,
           connectionId,
           value: 'under_1_day',
@@ -381,7 +393,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.severConnection, {
+        asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId,
         }),
@@ -392,7 +404,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+        asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
           mapId: MAP_A,
           connectionId,
         }),
@@ -403,7 +415,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.restoreConnection, {
+        asUser(t).mutation(api.mapAuthoringTombstone.restoreConnection, {
           mapId: MAP_A,
           connectionId,
         }),
@@ -416,7 +428,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.setHomeSystem, {
+        asUser(t).mutation(api.mapAuthoringHome.setHomeSystem, {
           mapId: MAP_A,
           systemId: AMARR,
         }),
@@ -428,11 +440,11 @@ describe('map authoring', () => {
     it('allows a new home when only tombstoned systems remain', async () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
-      const id = await asUser(t).mutation(api.mapAuthoring.setHomeSystem, {
+      const id = await asUser(t).mutation(api.mapAuthoringHome.setHomeSystem, {
         mapId: MAP_A,
         systemId: AMARR,
       });
@@ -450,7 +462,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
+        asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
           mapId: MAP_A,
           fromSystemId: AMARR,
           toSystemId: DODIXIE,
@@ -463,7 +475,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
+        asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
           mapId: MAP_A,
           fromSystemId: JITA,
           toSystemId: JITA,
@@ -475,15 +487,15 @@ describe('map authoring', () => {
     it('authors a new line when the destination is already in trash', async () => {
       const t = convexTest(schema, modules);
       const { connectionId: trashedId } = await seedJump(t);
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneConnection, {
         mapId: MAP_A,
         connectionId: trashedId,
       });
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
         mapId: MAP_A,
         systemId: AMARR,
       });
-      const added = await asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
+      const added = await asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
         mapId: MAP_A,
         fromSystemId: JITA,
         toSystemId: AMARR,
@@ -509,7 +521,7 @@ describe('map authoring', () => {
           .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
           .collect(),
       );
-      await asUser(t).mutation(api.mapAuthoring.addSystemFromNode, {
+      await asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
         mapId: MAP_A,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -557,7 +569,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
 
-      await asUser(t).mutation(api.mapAuthoring[mutation], {
+      await asUser(t).mutation(publicAuthoring[mutation], {
         mapId: MAP_A,
         connectionId,
         value,
@@ -565,7 +577,7 @@ describe('map authoring', () => {
       const afterFirst = await readConnection(t, connectionId);
       expect(afterFirst).toMatchObject({ [field]: value });
 
-      const result = await asUser(t).mutation(api.mapAuthoring[mutation], {
+      const result = await asUser(t).mutation(publicAuthoring[mutation], {
         mapId: MAP_A,
         connectionId,
         value,
@@ -580,7 +592,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
 
-      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
         mapId: MAP_A,
         connectionId,
         value: 'under_1_hour',
@@ -589,14 +601,14 @@ describe('map authoring', () => {
       expect(stamped?.lifeStageObservedAt).toBe(NOW);
 
       vi.setSystemTime(NOW + 60_000);
-      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
         mapId: MAP_A,
         connectionId,
         value: 'under_1_hour',
       });
       expect(await readConnection(t, connectionId)).toEqual(stamped);
 
-      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
         mapId: MAP_A,
         connectionId,
         value: 'expired',
@@ -614,7 +626,7 @@ describe('map authoring', () => {
       });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionMassState, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionMassState, {
           mapId: MAP_A,
           connectionId,
           value: 'reduced',
@@ -629,7 +641,7 @@ describe('map authoring', () => {
         await ctx.db.patch(connectionId, { observedMassKg: 25_000_000 });
       });
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionMassState, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionMassState, {
           mapId: MAP_A,
           connectionId,
           value: 'reduced',
@@ -648,7 +660,7 @@ describe('map authoring', () => {
         await ctx.db.patch(connectionId, { pendingCandidates: [connectionId] });
       });
 
-      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
         mapId: MAP_A,
         connectionId,
         value: 'C247',
@@ -660,7 +672,7 @@ describe('map authoring', () => {
         fromWormholeTypeCode: 'C247',
         toWormholeTypeCode: 'K162',
       });
-      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
         mapId: MAP_A,
         connectionId,
         value: 'B274',
@@ -675,19 +687,19 @@ describe('map authoring', () => {
       expect((await readConnection(t, connectionId))?.pendingCandidates).toBeUndefined();
       const mintedKey = (await readConnection(t, connectionId))?.observationKey;
       expect(mintedKey).toEqual(expect.any(String));
-      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
         mapId: MAP_A,
         connectionId,
         value: 'B274',
       });
       expect((await readConnection(t, connectionId))?.observationKey).toBe(mintedKey);
 
-      await asUser(t).mutation(api.mapAuthoring.setConnectionTypedSide, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionTypedSide, {
         mapId: MAP_A,
         connectionId,
         value: 'to',
       });
-      await asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionDestinationHint, {
         mapId: MAP_A,
         connectionId,
         side: 'to',
@@ -700,7 +712,7 @@ describe('map authoring', () => {
         toDestinationHint: 'dangerous',
       });
 
-      await asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionDestinationHint, {
         mapId: MAP_A,
         connectionId,
         side: 'to',
@@ -716,7 +728,7 @@ describe('map authoring', () => {
       const { connectionId } = await seedJump(t);
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -732,7 +744,7 @@ describe('map authoring', () => {
       ).toBeUndefined();
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -754,7 +766,7 @@ describe('map authoring', () => {
       });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'to',
@@ -769,7 +781,7 @@ describe('map authoring', () => {
       });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -778,7 +790,7 @@ describe('map authoring', () => {
       ).rejects.toThrow('SELF_LOOP');
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -790,7 +802,7 @@ describe('map authoring', () => {
       expect(cleared?.fromDestinationSystemId).toBeUndefined();
       expect(cleared?.toDestinationSystemId).toBe(DODIXIE);
 
-      await asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionDestinationHint, {
         mapId: MAP_A,
         connectionId,
         side: 'from',
@@ -814,7 +826,7 @@ describe('map authoring', () => {
       });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -829,7 +841,7 @@ describe('map authoring', () => {
       });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestinationHint, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestinationHint, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -846,7 +858,7 @@ describe('map authoring', () => {
       expect(afterHint?.fromDestinationSystemId).toBeUndefined();
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionDestination, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
           mapId: MAP_A,
           connectionId,
           side: 'from',
@@ -868,7 +880,7 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
 
-      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
         mapId: MAP_A,
         connectionId,
         value: 'under_1_day',
@@ -884,7 +896,7 @@ describe('map authoring', () => {
 
       vi.setSystemTime(NOW + HOUR_MS);
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
           mapId: MAP_A,
           connectionId,
           value: 'under_1_day',
@@ -900,7 +912,7 @@ describe('map authoring', () => {
       });
 
       vi.setSystemTime(NOW + 2 * HOUR_MS);
-      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
         mapId: MAP_A,
         connectionId,
         value: 'expired',
@@ -918,7 +930,7 @@ describe('map authoring', () => {
     it('intersects a type-pick ceiling and skips only the true no-op', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
-      await asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
         mapId: MAP_A,
         connectionId,
         value: 'under_1_day',
@@ -927,7 +939,7 @@ describe('map authoring', () => {
       });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
           mapId: MAP_A,
           connectionId,
           value: 'C247',
@@ -943,7 +955,7 @@ describe('map authoring', () => {
       });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
           mapId: MAP_A,
           connectionId,
           value: 'C247',
@@ -959,7 +971,7 @@ describe('map authoring', () => {
       const { connectionId } = await seedJump(t);
 
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
           mapId: MAP_A,
           connectionId,
           value: 'under_1_day',
@@ -968,7 +980,7 @@ describe('map authoring', () => {
         'INVALID_DEATH_WINDOW',
       );
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
           mapId: MAP_A,
           connectionId,
           value: 'under_1_day',
@@ -978,7 +990,7 @@ describe('map authoring', () => {
         'INVALID_DEATH_WINDOW',
       );
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.setConnectionLifeStage, {
+        asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
           mapId: MAP_A,
           connectionId,
           value: 'under_1_day',
@@ -997,7 +1009,7 @@ describe('map authoring', () => {
       const before = await readSystem(t, JITA);
       expect(before).not.toBeNull();
 
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
@@ -1012,7 +1024,7 @@ describe('map authoring', () => {
         MAP_CHAIN_UNDO_WINDOW_MS,
       );
 
-      await asUser(t).mutation(internal.mapAuthoring.restoreSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.restoreSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
@@ -1027,7 +1039,7 @@ describe('map authoring', () => {
     it('round-trips connection identity including _id and _creationTime', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
-      await asUser(t).mutation(api.mapAuthoring.setConnectionWormholeType, {
+      await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
         mapId: MAP_A,
         connectionId,
         value: 'C247',
@@ -1035,7 +1047,7 @@ describe('map authoring', () => {
       const before = await readConnection(t, connectionId);
       expect(before).not.toBeNull();
 
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneConnection, {
         mapId: MAP_A,
         connectionId,
       });
@@ -1048,7 +1060,7 @@ describe('map authoring', () => {
         purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
       });
 
-      await asUser(t).mutation(api.mapAuthoring.restoreConnection, {
+      await asUser(t).mutation(api.mapAuthoringTombstone.restoreConnection, {
         mapId: MAP_A,
         connectionId,
       });
@@ -1063,14 +1075,14 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       await seedJump(t);
       await expectConvexError(
-        asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+        asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
           mapId: MAP_A,
           systemId: JITA,
         }),
         'SYSTEM_IN_USE',
       );
       await expectConvexError(
-        asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+        asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
           mapId: MAP_A,
           systemId: AMARR,
         }),
@@ -1082,12 +1094,12 @@ describe('map authoring', () => {
     it('allows tombstone after the referencing connection is itself tombstoned', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneConnection, {
         mapId: MAP_A,
         connectionId,
       });
       await expect(
-        asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+        asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
           mapId: MAP_A,
           systemId: AMARR,
         }),
@@ -1097,16 +1109,16 @@ describe('map authoring', () => {
     it('refuses to restore a connection whose endpoint is tombstoned', async () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneConnection, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneConnection, {
         mapId: MAP_A,
         connectionId,
       });
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
         mapId: MAP_A,
         systemId: AMARR,
       });
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.restoreConnection, {
+        asUser(t).mutation(api.mapAuthoringTombstone.restoreConnection, {
           mapId: MAP_A,
           connectionId,
         }),
@@ -1117,24 +1129,24 @@ describe('map authoring', () => {
     it('writes nothing on repeated tombstone or restore of the current state', async () => {
       const t = convexTest(schema, modules);
       await seedHome(t);
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
       const tombstoned = await readSystem(t, JITA);
 
-      await asUser(t).mutation(internal.mapAuthoring.tombstoneSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
       expect(await readSystem(t, JITA)).toEqual(tombstoned);
 
-      await asUser(t).mutation(internal.mapAuthoring.restoreSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.restoreSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
       const restored = await readSystem(t, JITA);
-      await asUser(t).mutation(internal.mapAuthoring.restoreSystem, {
+      await asUser(t).mutation(internal.mapAuthoringTombstone.restoreSystem, {
         mapId: MAP_A,
         systemId: JITA,
       });
@@ -1144,9 +1156,15 @@ describe('map authoring', () => {
 
   describe('collapse and ledger mutations', () => {
     it('internalizes the .1 helpers and exposes only the unified destructive surface', () => {
-      const source = readFileSync('convex/mapAuthoring.ts', 'utf8');
-      const publicMutations = [...source.matchAll(/export const (\w+) = mutation\(/g)]
-        .map((match) => match[1]);
+      const publicMutations = [
+        'convex/mapAuthoringHome.ts',
+        'convex/mapAuthoringFields.ts',
+        'convex/mapAuthoringCollapse.ts',
+        'convex/mapAuthoringTombstone.ts',
+      ].flatMap((path) =>
+        [...readFileSync(path, 'utf8').matchAll(/export const (\w+) = mutation\(/g)]
+          .map((match) => match[1]),
+      );
       expect(publicMutations).toEqual([
         'setHomeSystem',
         'addSystemFromNode',
@@ -1161,12 +1179,13 @@ describe('map authoring', () => {
         'restoreSeveredBranch',
         'restoreConnection',
       ]);
+      const tombstoneSource = readFileSync('convex/mapAuthoringTombstone.ts', 'utf8');
       for (const name of [
         'tombstoneSystem',
         'tombstoneConnection',
         'restoreSystem',
       ]) {
-        expect(source).toContain(`export const ${name} = internalMutation(`);
+        expect(tombstoneSource).toContain(`export const ${name} = internalMutation(`);
       }
     });
 
@@ -1183,7 +1202,7 @@ describe('map authoring', () => {
       const cut = ids.cut!;
 
       await expect(
-        asUser(t, EDITOR, 'Scout One').mutation(api.mapAuthoring.severConnection, {
+        asUser(t, EDITOR, 'Scout One').mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId: cut,
         }),
@@ -1208,7 +1227,7 @@ describe('map authoring', () => {
 
       vi.setSystemTime(NOW + 1_000);
       await asUser(t, EDITOR, 'Scout Two').mutation(
-        api.mapAuthoring.restoreConnection,
+        api.mapAuthoringTombstone.restoreConnection,
         { mapId: MAP_A, connectionId: cut },
       );
       expect(await readConnection(t, cut)).toMatchObject({
@@ -1233,7 +1252,7 @@ describe('map authoring', () => {
       );
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.severConnection, {
+        asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId: ids.cut!,
         }),
@@ -1263,7 +1282,7 @@ describe('map authoring', () => {
       ]);
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.severConnection, {
+        asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId: cut,
         }),
@@ -1286,7 +1305,7 @@ describe('map authoring', () => {
       });
 
       vi.setSystemTime(NOW + 1_000);
-      await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
         mapId: MAP_A,
         connectionId: cut,
       });
@@ -1333,7 +1352,7 @@ describe('map authoring', () => {
       });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.severConnection, {
+        asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId: ids.cut!,
         }),
@@ -1344,7 +1363,7 @@ describe('map authoring', () => {
         purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
       });
 
-      await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
         mapId: MAP_A,
         connectionId: ids.cut!,
       });
@@ -1353,7 +1372,7 @@ describe('map authoring', () => {
         purgeAfter: null,
       });
 
-      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
         mapId: MAP_A,
         connectionId: ids.cut!,
       });
@@ -1395,7 +1414,7 @@ describe('map authoring', () => {
       );
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.severConnection, {
+        asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId: ids['island-cut']!,
         }),
@@ -1422,11 +1441,11 @@ describe('map authoring', () => {
       );
       const cutA = ids['cut-a']!;
       const cutB = ids['cut-b']!;
-      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
         mapId: MAP_A,
         connectionId: cutA,
       });
-      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
         mapId: MAP_A,
         connectionId: cutB,
       });
@@ -1434,7 +1453,7 @@ describe('map authoring', () => {
       expect(await readConnection(t, cutB)).toMatchObject({ deletedAt: NOW + 1 });
 
       await expect(
-        asUser(t).mutation(api.mapAuthoring.severConnection, {
+        asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId: cutA,
         }),
@@ -1442,7 +1461,7 @@ describe('map authoring', () => {
       expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: NOW });
       expect(await readEvents(t)).toHaveLength(2);
 
-      await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
         mapId: MAP_A,
         connectionId: cutA,
       });
@@ -1451,7 +1470,7 @@ describe('map authoring', () => {
       expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW + 1 });
       expect(await readConnection(t, cutB)).toMatchObject({ deletedAt: NOW + 1 });
 
-      await asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
         mapId: MAP_A,
         connectionId: cutA,
       });
@@ -1469,18 +1488,18 @@ describe('map authoring', () => {
         ],
       );
       const cut = ids.cut!;
-      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
         mapId: MAP_A,
         connectionId: cut,
       });
-      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
         mapId: MAP_A,
         connectionId: ids['root-a']!,
       });
       expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: NOW + 1 });
 
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.restoreSeveredBranch, {
+        asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
           mapId: MAP_A,
           connectionId: cut,
         }),
@@ -1516,7 +1535,7 @@ describe('map authoring', () => {
       });
 
       await expectConvexError(
-        asUser(t).mutation(api.mapAuthoring.severConnection, {
+        asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
           mapId: MAP_A,
           connectionId,
         }),
@@ -1549,7 +1568,7 @@ describe('map authoring', () => {
         }),
       );
 
-      await asUser(t).mutation(api.mapAuthoring.severConnection, {
+      await asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
         mapId: MAP_A,
         connectionId: ids.cut!,
       });
@@ -1612,7 +1631,7 @@ describe('map authoring', () => {
         deathLatestAt: EXPIRED,
       });
 
-      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
 
       const tombstoned = await Promise.all([
@@ -1658,7 +1677,7 @@ describe('map authoring', () => {
         deathLatestAt: NOW - CEILING_COLLAPSE_GRACE_MS + 60_000,
       });
 
-      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
       for (const key of ['alive', 'in-grace', 'windowless'] as const) {
         expect(await readConnection(t, ids[key]!)).toMatchObject({ deletedAt: null });
@@ -1682,7 +1701,7 @@ describe('map authoring', () => {
       });
       await trackPilotAt(t, WH_B);
 
-      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
 
       expect(await readConnection(t, ids.cut!)).toMatchObject({ deletedAt: NOW });
@@ -1744,7 +1763,7 @@ describe('map authoring', () => {
         return { stubId: stub, deadId: dead };
       });
 
-      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 0, hasMore: false });
       expect(await readConnection(t, stubId)).toMatchObject({
         deletedAt: NOW,
@@ -1766,7 +1785,7 @@ describe('map authoring', () => {
         }),
       ]);
 
-      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
       expect(await readConnection(t, stubId)).toMatchObject({ deletedAt: NOW });
     });
@@ -1812,7 +1831,7 @@ describe('map authoring', () => {
         });
       });
 
-      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 0, hasMore: false });
       expect(await readConnection(t, stubId)).toMatchObject({ deletedAt: NOW });
     });
@@ -1886,7 +1905,7 @@ describe('map authoring', () => {
         return { poisonedA: a, poisonedB: b, otherStub: stub };
       });
 
-      expect(await t.mutation(internal.mapAuthoring.collapseExpiredConnections, {}))
+      expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 2, hasMore: false });
       expect(await readConnection(t, poisonedA)).toMatchObject({ deletedAt: null });
       expect(await readConnection(t, poisonedB)).toMatchObject({ deletedAt: null });
@@ -1894,25 +1913,23 @@ describe('map authoring', () => {
     });
 
     it('keeps one collapse-decision owner and registers the sweep cron', () => {
-      const authoringSource = readFileSync('convex/mapAuthoring.ts', 'utf8');
-      const collapseSource = readFileSync('convex/lib/mapAuthoringCollapse.ts', 'utf8');
+      const collapseSource = readFileSync('convex/mapAuthoringCollapse.ts', 'utf8');
       const scanSource = readFileSync('convex/mapScan.ts', 'utf8');
       const applySource = readFileSync('convex/lib/mapScanApply.ts', 'utf8');
       const selectionSource = readFileSync('convex/lib/mapScanSelection.ts', 'utf8');
       const cronSource = readFileSync('convex/crons.ts', 'utf8');
 
       expect(collapseSource.match(/decideCollapse\(/g)).toHaveLength(1);
-      expect(authoringSource).not.toContain('decideCollapse');
       expect(scanSource).not.toContain('decideCollapse');
       expect(applySource).not.toContain('decideCollapse');
       expect(selectionSource).not.toContain('decideCollapse');
       expect(applySource).not.toContain('runCollapse(');
       expect(selectionSource).toContain('runCollapse(');
       expect(scanSource).not.toContain('runCollapse(');
-      expect(authoringSource).toContain('runCollapse(ctx, {');
-      expect(authoringSource).toContain('gatedAuthoringEdit');
+      expect(collapseSource).toContain('runCollapse(ctx, {');
+      expect(collapseSource).toContain('gatedAuthoringEdit');
       expect(cronSource).toContain("'map ceiling collapse'");
-      expect(cronSource).toContain('internal.mapAuthoring.collapseExpiredConnections');
+      expect(cronSource).toContain('internal.mapAuthoringSweep.collapseExpiredConnections');
     });
   });
 
@@ -1968,7 +1985,7 @@ describe('map authoring', () => {
         });
       });
 
-      const result = await t.mutation(internal.mapAuthoring.purgeExpiredChainTombstones, {});
+      const result = await t.mutation(internal.mapChainCleanup.purgeExpiredChainTombstones, {});
       expect(result.deletedSystems).toBe(CHAIN_PURGE_BATCH);
       expect(result.deletedConnections).toBe(1);
       expect(result.hasMore).toBe(true);
@@ -1991,7 +2008,7 @@ describe('map authoring', () => {
       );
       expect(connections).toHaveLength(1);
 
-      const second = await t.mutation(internal.mapAuthoring.purgeExpiredChainTombstones, {});
+      const second = await t.mutation(internal.mapChainCleanup.purgeExpiredChainTombstones, {});
       expect(second.deletedSystems).toBe(1);
       expect(second.deletedConnections).toBe(0);
       expect(second.hasMore).toBe(false);

@@ -4,12 +4,11 @@ import { isConfidentMissingRemoval } from '@/data/maps/signature-lifecycle';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import {
-  eventActor,
   runBranchRestore,
   runCollapse,
-  writeMapEvent,
   type CollapsePilotsPresent,
-} from '../mapAuthoring';
+} from '../mapAuthoringCollapse';
+import { eventActor, writeMapEvent } from '../mapAuthoringEvents';
 import { readTrackedPilotSystemIds } from '../mapTracking';
 import { findLocalSignatureConnection, readTouchingConnections } from './mapConnectionLookup';
 import {

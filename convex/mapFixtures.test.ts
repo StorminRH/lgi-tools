@@ -1063,7 +1063,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, OWNER, ['admin', 'viewer']);
       await expect(
-        asEditor(t, OWNER).mutation(api.mapAuthoring.setHomeSystem, {
+        asEditor(t, OWNER).mutation(api.mapAuthoringHome.setHomeSystem, {
           mapId: MAP_A,
           systemId: JITA,
         }),

@@ -1,9 +1,9 @@
-import { ConvexError } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import type { Id } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
-import { requireMapAccess } from './mapAccess';
-import { beginSystemEdit, findSystem, requireSystemId } from './mapSystemLookup';
+import type { Id } from './_generated/dataModel';
+import { mutation, type MutationCtx } from './_generated/server';
+import { requireMapAccess } from './lib/mapAccess';
+import { beginSystemEdit, findSystem, requireSystemId } from './lib/mapSystemLookup';
 
 const HOME_SYSTEM_SCAN_CAP = 128;
 
@@ -29,7 +29,7 @@ async function assertMapEmptyOfLiveSystems(
   }
 }
 
-export async function insertHomeSystem(
+async function insertHomeSystem(
   ctx: MutationCtx,
   mapId: string,
   systemId: number,
@@ -90,7 +90,7 @@ export async function upsertLiveDestination(
   });
 }
 
-export async function addFromNode(
+async function addFromNode(
   ctx: MutationCtx,
   mapId: string,
   fromSystemId: number,
@@ -124,3 +124,19 @@ export async function addFromNode(
   });
   return { systemId, connectionId };
 }
+
+export const setHomeSystem = mutation({
+  args: { mapId: v.string(), systemId: v.number() },
+  handler: (ctx, { mapId, systemId }) => insertHomeSystem(ctx, mapId, systemId),
+});
+
+export const addSystemFromNode = mutation({
+  args: {
+    mapId: v.string(),
+    fromSystemId: v.number(),
+    toSystemId: v.number(),
+  },
+  handler: (ctx, { mapId, fromSystemId, toSystemId }) =>
+    addFromNode(ctx, mapId, fromSystemId, toSystemId),
+});
+

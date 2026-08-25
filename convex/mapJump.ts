@@ -22,7 +22,7 @@ import {
   requireLiveConnectionOnMap,
 } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
-import { upsertLiveDestination } from './mapAuthoring';
+import { upsertLiveDestination } from './mapAuthoringHome';
 import {
   chainTombstoneState,
   isTombstoned,

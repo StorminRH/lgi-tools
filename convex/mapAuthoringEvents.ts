@@ -1,4 +1,4 @@
-import type { MutationCtx } from '../_generated/server';
+import type { MutationCtx } from './_generated/server';
 import {
   MAP_EVENT_RETENTION_MS,
   type MapEventKind,

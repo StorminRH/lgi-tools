@@ -563,57 +563,57 @@ function optimisticConnectionField(
  */
 export function useChainAuthoringMutations() {
   const setHomeSystem = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setHomeSystem).withOptimisticUpdate(
+    useMutation(api.mapAuthoringHome.setHomeSystem).withOptimisticUpdate(
       optimisticSetHomeSystem,
     ),
   );
   const addSystemFromNode = swallowMutationRejection(
-    useMutation(api.mapAuthoring.addSystemFromNode).withOptimisticUpdate(
+    useMutation(api.mapAuthoringHome.addSystemFromNode).withOptimisticUpdate(
       optimisticAddSystemFromNode,
     ),
   );
   const setConnectionWormholeType = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setConnectionWormholeType).withOptimisticUpdate(
+    useMutation(api.mapAuthoringFields.setConnectionWormholeType).withOptimisticUpdate(
       optimisticSetConnectionWormholeType,
     ),
   );
   const setConnectionShipSize = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setConnectionShipSize).withOptimisticUpdate(
+    useMutation(api.mapAuthoringFields.setConnectionShipSize).withOptimisticUpdate(
       optimisticConnectionField('shipSize'),
     ),
   );
   const setConnectionMassState = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setConnectionMassState).withOptimisticUpdate(
+    useMutation(api.mapAuthoringFields.setConnectionMassState).withOptimisticUpdate(
       optimisticConnectionField('massState'),
     ),
   );
   const setConnectionLifeStage = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setConnectionLifeStage).withOptimisticUpdate(
+    useMutation(api.mapAuthoringFields.setConnectionLifeStage).withOptimisticUpdate(
       optimisticSetConnectionLifeStage,
     ),
   );
   const setConnectionDestinationHint = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setConnectionDestinationHint).withOptimisticUpdate(
+    useMutation(api.mapAuthoringFields.setConnectionDestinationHint).withOptimisticUpdate(
       optimisticSetConnectionDestinationHint,
     ),
   );
   const setConnectionDestination = swallowMutationRejection(
-    useMutation(api.mapAuthoring.setConnectionDestination).withOptimisticUpdate(
+    useMutation(api.mapAuthoringFields.setConnectionDestination).withOptimisticUpdate(
       optimisticSetConnectionDestination,
     ),
   );
   const severConnection = swallowMutationRejection(
-    useMutation(api.mapAuthoring.severConnection).withOptimisticUpdate(
+    useMutation(api.mapAuthoringCollapse.severConnection).withOptimisticUpdate(
       optimisticSeverConnection,
     ),
   );
   const restoreSeveredBranch = swallowMutationRejection(
-    useMutation(api.mapAuthoring.restoreSeveredBranch).withOptimisticUpdate(
+    useMutation(api.mapAuthoringCollapse.restoreSeveredBranch).withOptimisticUpdate(
       optimisticRestoreSeveredBranch,
     ),
   );
   const restoreConnection = swallowMutationRejection(
-    useMutation(api.mapAuthoring.restoreConnection).withOptimisticUpdate(
+    useMutation(api.mapAuthoringTombstone.restoreConnection).withOptimisticUpdate(
       optimisticRestoreConnection,
     ),
   );

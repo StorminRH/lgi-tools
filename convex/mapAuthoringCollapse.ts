@@ -1,4 +1,4 @@
-import { ConvexError } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import {
   chainTombstoneStamps,
   isTombstoned,
@@ -8,10 +8,11 @@ import {
   type CollapseDecision,
   type PilotsPresent,
 } from '@/data/maps/chain-collapse';
-import type { Doc, Id } from '../_generated/dataModel';
-import type { MutationCtx } from '../_generated/server';
-import { deleteSignatureActivity } from './mapSignatures';
-import { writeMapEvent } from './mapAuthoringEvents';
+import type { Doc, Id } from './_generated/dataModel';
+import { mutation, type MutationCtx } from './_generated/server';
+import { requireMapAccess } from './lib/mapAccess';
+import { deleteSignatureActivity } from './lib/mapSignatures';
+import { eventActor, writeMapEvent } from './mapAuthoringEvents';
 
 export const COLLAPSE_MAP_SCAN_CAP = 128;
 
@@ -255,14 +256,14 @@ async function writeRemovedSever(
   return { outcome: 'removed', systemIds };
 }
 
-export interface RunCollapseInput {
+interface RunCollapseInput {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'>;
   readonly actor: string;
   readonly pilotsPresent: CollapsePilotsPresent;
 }
 
-export type RunCollapseResult =
+type RunCollapseResult =
   | { readonly outcome: 'retained' }
   | { readonly outcome: 'already_applied' }
   | { readonly outcome: 'removed'; readonly systemIds: number[] };
@@ -367,3 +368,34 @@ export async function runBranchRestore(
   });
   return { restored: true as const };
 }
+
+async function gatedAuthoringEdit<T>(
+  ctx: MutationCtx,
+  mapId: string,
+  run: (actor: string) => Promise<T>,
+): Promise<T> {
+  await requireMapAccess(ctx, mapId, 'edit');
+  return run(await eventActor(ctx));
+}
+
+export const severConnection = mutation({
+  args: { mapId: v.string(), connectionId: v.id('mapConnections') },
+  handler: (ctx, { mapId, connectionId }) =>
+    gatedAuthoringEdit(ctx, mapId, (actor) =>
+      runCollapse(ctx, {
+        mapId,
+        connectionId,
+        actor,
+        pilotsPresent: 'unknown',
+      }),
+    ),
+});
+
+export const restoreSeveredBranch = mutation({
+  args: { mapId: v.string(), connectionId: v.id('mapConnections') },
+  handler: (ctx, { mapId, connectionId }) =>
+    gatedAuthoringEdit(ctx, mapId, (actor) =>
+      runBranchRestore(ctx, { mapId, connectionId, actor }),
+    ),
+});
+
