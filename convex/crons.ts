@@ -12,7 +12,7 @@ crons.interval('sync engine scan', { seconds: 30 }, internal.engine.scan, {});
 crons.interval(
   'map chain purge',
   { minutes: 15 },
-  internal.mapAuthoring.purgeExpiredChainTombstones,
+  internal.mapChainCleanup.purgeExpiredChainTombstones,
   {},
 );
 crons.interval(
@@ -24,7 +24,7 @@ crons.interval(
 crons.interval(
   'map ceiling collapse',
   { minutes: 15 },
-  internal.mapAuthoring.collapseExpiredConnections,
+  internal.mapAuthoringSweep.collapseExpiredConnections,
   {},
 );
 

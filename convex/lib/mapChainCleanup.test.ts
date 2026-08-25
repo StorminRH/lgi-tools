@@ -105,7 +105,7 @@ describe('map chain cleanup', () => {
     });
 
     const result = await t.mutation(
-      internal.mapAuthoring.purgeExpiredChainTombstones,
+      internal.mapChainCleanup.purgeExpiredChainTombstones,
       {},
     );
     expect(result).toEqual({
@@ -126,7 +126,7 @@ describe('map chain cleanup', () => {
   });
 
   it('purges connections and events even under a full system-tombstone backlog', async () => {
-    const { CHAIN_PURGE_BATCH } = await import('./mapChainCleanup');
+    const { CHAIN_PURGE_BATCH } = await import('../mapChainCleanup');
     const t = convexTest(schema, modules);
     const ids = await t.run(async (ctx) => {
       for (let index = 0; index <= CHAIN_PURGE_BATCH; index += 1) {
@@ -160,7 +160,7 @@ describe('map chain cleanup', () => {
     });
 
     const result = await t.mutation(
-      internal.mapAuthoring.purgeExpiredChainTombstones,
+      internal.mapChainCleanup.purgeExpiredChainTombstones,
       {},
     );
     expect(result).toEqual({
@@ -181,6 +181,6 @@ describe('map chain cleanup', () => {
   it('registers the bounded purge on the production Convex cron registry', () => {
     const source = readFileSync('convex/crons.ts', 'utf8');
     expect(source).toContain("'map chain purge'");
-    expect(source).toContain('internal.mapAuthoring.purgeExpiredChainTombstones');
+    expect(source).toContain('internal.mapChainCleanup.purgeExpiredChainTombstones');
   });
 });

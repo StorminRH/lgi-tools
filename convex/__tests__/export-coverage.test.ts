@@ -46,14 +46,10 @@ import {
 } from '../lib/mapEntityContracts';
 import { purgeUserClaims, reconcileMapClaims } from '../mapAccessProjection';
 import {
-  CEILING_SWEEP_BATCH,
-  CEILING_SWEEP_SCAN,
-  addSystemFromNode,
-  collapseExpiredConnections,
-  purgeExpiredChainTombstones,
-  restoreConnection,
   restoreSeveredBranch,
-  restoreSystem,
+  severConnection,
+} from '../mapAuthoringCollapse';
+import {
   setConnectionDestination,
   setConnectionDestinationHint,
   setConnectionLifeStage,
@@ -61,13 +57,20 @@ import {
   setConnectionShipSize,
   setConnectionTypedSide,
   setConnectionWormholeType,
-  setHomeSystem,
-  severConnection,
-  sweepExpiredCeilings,
+} from '../mapAuthoringFields';
+import { addSystemFromNode, setHomeSystem, upsertLiveDestination } from '../mapAuthoringHome';
+import {
+  CEILING_SWEEP_BATCH,
+  CEILING_SWEEP_SCAN,
+  collapseExpiredConnections,
+} from '../mapAuthoringSweep';
+import {
+  restoreConnection,
+  restoreSystem,
   tombstoneConnection,
   tombstoneSystem,
-  upsertLiveDestination,
-} from '../mapAuthoring';
+} from '../mapAuthoringTombstone';
+import { purgeExpiredChainTombstones } from '../mapChainCleanup';
 import {
   watchMapAccess,
   watchMapConnections,
@@ -173,7 +176,6 @@ describe('convex runtime exports', () => {
       setConnectionWormholeType,
       setHomeSystem,
       severConnection,
-      sweepExpiredCeilings,
       tombstoneConnection,
       tombstoneSystem,
       upsertLiveDestination,

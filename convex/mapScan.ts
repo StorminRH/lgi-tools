@@ -20,7 +20,7 @@ import {
   tryMapAccessForUser,
 } from './lib/mapAccess';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
-import { eventActor } from './mapAuthoring';
+import { eventActor } from './mapAuthoringEvents';
 import {
   connectionProvenanceValidator,
   scannedKindValidator,
