@@ -13,10 +13,6 @@ export const uiAdoptionRegistry = {
   ],
   rawDetails: [
     {
-      file: 'src/features/devlog/components/CodeExcerpt.tsx',
-      reason: 'A standalone code excerpt owns a native disclosure surface rather than list chrome.',
-    },
-    {
       file: 'src/features/wormhole-sites/components/SitesTable.tsx',
       reason: "SortableTable's expandable-row API requires the native details owner.",
     },

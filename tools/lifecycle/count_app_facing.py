@@ -29,7 +29,6 @@ EXCLUDED_PREFIXES = (
     "docs/",
     "scripts/",
     "content/changelog/",
-    "content/devlog/",
     ".github/PULL_REQUEST_TEMPLATE",
     ".github/ISSUE_TEMPLATE/",
 )

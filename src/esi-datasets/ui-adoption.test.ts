@@ -93,6 +93,7 @@ describe('UI adoption CSS-family census', () => {
       'changelog-',
       'contact-',
       'content-browser',
+      'devlog-excerpt',
       'devlog-prose',
       'hero-wordmark',
       'industry-hint',

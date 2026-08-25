@@ -4,7 +4,7 @@ import { APP_VERSION } from '@/config/app-version';
 
 /**
  * Application-shell footer. The left slot owns the Fenris Creations trademark
- * notice; policy, project-history, and version references share the right slot.
+ * notice; policy, changelog, and version references share the right slot.
  * The Feedback affordance lives in `<FeedbackButton>` as a separate fixed
  * element reachable at any scroll position.
  */
@@ -31,9 +31,6 @@ export function Footer() {
           </Link>
           <Link href="/changelog" className="text-muted">
             Changelog
-          </Link>
-          <Link href="/devlog" className="text-muted">
-            Under the Hood
           </Link>
           <span className="text-faint">v{APP_VERSION}</span>
         </span>

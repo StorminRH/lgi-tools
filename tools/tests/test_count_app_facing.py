@@ -26,7 +26,6 @@ class CountAppFacingTests(unittest.TestCase):
             ".agents/unused.md",
             "scripts/route-classification.json",
             "content/changelog/v4.0.md",
-            "content/devlog/00-introduction.md",
             "AGENTS.md",
             "src/AGENTS.md",
             "CONTRIBUTING.md",
@@ -43,6 +42,7 @@ class CountAppFacingTests(unittest.TestCase):
             "tools/lifecycle/count_app_facing.py",
             ".depot/workflows/test.yml",
             "package.json",
+            "content/devlog/00-introduction.md",
         ):
             self.assertFalse(path_is_excluded(path), path)
 

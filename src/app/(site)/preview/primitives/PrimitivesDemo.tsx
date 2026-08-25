@@ -348,7 +348,7 @@ export function PrimitivesDemo() {
       <DemoSection
         index="14"
         title="Prose"
-        why="Long-form legal and development writing shares one readable descendant-style vocabulary."
+        why="Long-form legal writing shares one readable descendant-style vocabulary."
       >
         <Card className="p-5">
           <Prose>

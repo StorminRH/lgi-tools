@@ -65,38 +65,6 @@ export function ContentBrowserNavTree({
           </li>
         ))}
       </ul>
-      {model.groups.map((group) => (
-        <details
-          key={group.slug}
-          data-collapsible
-          data-content-browser-nav-group
-          open
-          className="group mb-1 rounded-ctl py-1 has-[[aria-current=page]]:bg-nav-wash"
-        >
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-2 py-1.5 font-ui text-label tracking-label uppercase text-faint hover:text-muted [&::-webkit-details-marker]:hidden">
-            <span
-              data-chevron
-              className="inline-block w-2 text-micro text-faint transition-transform group-open:rotate-90 motion-reduce:transition-none"
-              aria-hidden
-            >
-              ▸
-            </span>
-            <span>{group.title}</span>
-          </summary>
-          <ul className="ml-4 list-none border-l border-nav-guide">
-            {group.items.map((item) => (
-              <li key={item.slug}>
-                <ContentItemLink
-                  item={item}
-                  basePath={basePath}
-                  landingSlug={landingSlug}
-                  activeSlug={activeSlug}
-                />
-              </li>
-            ))}
-          </ul>
-        </details>
-      ))}
     </nav>
   );
 }
