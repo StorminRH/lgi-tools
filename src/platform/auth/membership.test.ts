@@ -35,8 +35,10 @@ test('freshness gate treats null and older-than-TTL as stale; inclusive TTL and 
 });
 
 test('membership predicates fail closed on stale, never-refreshed, empty, and null corp', () => {
-  const stale = [aff({ corporationId: 2000, refreshedAt: STALE })];
-  const never = [aff({ corporationId: 2000, refreshedAt: null })];
+  const staleRow = aff({ corporationId: 2000, refreshedAt: STALE });
+  const neverRow = aff({ corporationId: 2000, refreshedAt: null });
+  const stale = [staleRow];
+  const never = [neverRow];
   const empty: CachedAffiliation[] = [];
   const nullCorp = [aff({ corporationId: null })];
 
@@ -54,7 +56,7 @@ test('membership predicates fail closed on stale, never-refreshed, empty, and nu
   expect(memberCorpIds(nullCorp, NOW)).toEqual([]);
   expect(memberCorpIds(empty, NOW)).toEqual([]);
 
-  expect(characterIsInCorp(stale[0], 2000, NOW)).toBe(false);
+  expect(characterIsInCorp(staleRow, 2000, NOW)).toBe(false);
   expect(characterIsInCorp(null, 2000, NOW)).toBe(false);
 });
 
