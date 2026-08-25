@@ -59,91 +59,56 @@ describe('orderSections', () => {
   });
 });
 
-describe('recentsStatus', () => {
-  it('is pending before the localStorage read lands', () => {
+describe('section status + render', () => {
+  it('classifies recents, saved, active, and corp from the live loading states', () => {
     expect(recentsStatus(null)).toBe('pending');
-  });
-  it('is empty on a read with nothing there', () => {
     expect(recentsStatus([])).toBe('empty');
-  });
-  it('is populated with entries', () => {
     expect(recentsStatus([{ typeId: 691 }])).toBe('populated');
-  });
-});
 
-describe('savedStatus', () => {
-  it('is pending before the list fetch settles', () => {
     expect(savedStatus(null, false)).toBe('pending');
-  });
-  it('sinks on a failed read instead of holding a slot open', () => {
     expect(savedStatus(null, true)).toBe('empty');
-  });
-  it('is empty on a settled empty list (incl. the anonymous {plans: []})', () => {
     expect(savedStatus([], false)).toBe('empty');
-  });
-  it('is populated with plans', () => {
     expect(savedStatus([{ id: 'a' }], false)).toBe('populated');
-  });
-});
 
-describe('activeStatus', () => {
-  it('is pending while the jobs read is in flight', () => {
     expect(activeStatus({ loading: true, rosterSize: 0, jobCount: 0 })).toBe('pending');
-  });
-  it('is empty signed out (empty roster)', () => {
     expect(activeStatus({ loading: false, rosterSize: 0, jobCount: 0 })).toBe('empty');
-  });
-  it('is empty with a roster but no jobs', () => {
     expect(activeStatus({ loading: false, rosterSize: 2, jobCount: 0 })).toBe('empty');
-  });
-  it('is populated with jobs', () => {
     expect(activeStatus({ loading: false, rosterSize: 2, jobCount: 3 })).toBe('populated');
-  });
-});
 
-describe('corpStatus', () => {
-  it('is empty (and silent) with no linked characters — no double prompt', () => {
     expect(
       corpStatus({ hasLinkedCharacters: false, eligibleCount: 0, loading: false, corpCount: 0 }),
     ).toBe('empty');
-  });
-  it('is populated when the scope-missing AccessGate applies (actionable CTA)', () => {
     expect(
       corpStatus({ hasLinkedCharacters: true, eligibleCount: 0, loading: true, corpCount: 0 }),
     ).toBe('populated');
-  });
-  it('is pending while eligible and loading', () => {
     expect(
       corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: true, corpCount: 0 }),
     ).toBe('pending');
-  });
-  it('is empty when settled with no corp rows', () => {
     expect(
       corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: false, corpCount: 0 }),
     ).toBe('empty');
-  });
-  it('is populated with corp rows (incl. needs_role rows — they render in-card)', () => {
     expect(
       corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: false, corpCount: 2 }),
     ).toBe('populated');
   });
-});
 
-describe('deriveSectionRender', () => {
-  it('populated: meta shown, no hint, body shown', () => {
-    expect(deriveSectionRender('populated', 'unused hint')).toEqual({ meta: true, hint: null, body: true });
-  });
-
-  it('pending: no meta, no hint, body still shown (optimistic)', () => {
+  it('shows meta on populated, keeps the body while pending, and swaps in a hint when empty', () => {
+    expect(deriveSectionRender('populated', 'unused hint')).toEqual({
+      meta: true,
+      hint: null,
+      body: true,
+    });
     expect(deriveSectionRender('pending', 'h')).toEqual({ meta: false, hint: null, body: true });
-  });
-
-  it('empty with a hint: no meta, hint shown, no body', () => {
-    expect(deriveSectionRender('empty', 'the hint')).toEqual({ meta: false, hint: 'the hint', body: false });
-  });
-
-  it('empty without a hint: silent (no meta/hint/body)', () => {
-    expect(deriveSectionRender('empty', undefined)).toEqual({ meta: false, hint: null, body: false });
+    expect(deriveSectionRender('empty', 'the hint')).toEqual({
+      meta: false,
+      hint: 'the hint',
+      body: false,
+    });
+    expect(deriveSectionRender('empty', undefined)).toEqual({
+      meta: false,
+      hint: null,
+      body: false,
+    });
   });
 });
 

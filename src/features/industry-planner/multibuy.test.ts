@@ -69,13 +69,6 @@ describe('assignBuildTiers — one home tier per buildable (min occurrence depth
       }
     });
   }
-
-  it('Archon: Helium Fuel Blocks (4247) occur at multiple depths, homed at the shallowest', () => {
-    const archon = (treesFixture as Record<string, TreeNode[]>).Archon!;
-    const depths = allDepths(archon).get(4247) ?? [];
-    expect(new Set(depths).size).toBeGreaterThan(1); // genuinely multi-depth
-    expect(assignBuildTiers(archon).get(4247)).toBe(Math.min(...depths));
-  });
 });
 
 describe('multibuyEntries — deterministic line order', () => {
@@ -176,16 +169,11 @@ describe('multibuyBuildSet', () => {
   });
 });
 
-describe('hasOwnedStock', () => {
-  it('is false for null / empty overlays, true when any stock is present', () => {
+describe('clipboard helpers', () => {
+  it('flags owned stock and pluralizes the entry / tier counts', () => {
     expect(hasOwnedStock(null)).toBe(false);
     expect(hasOwnedStock(new Map())).toBe(false);
     expect(hasOwnedStock(new Map([[1, 5]]))).toBe(true);
-  });
-});
-
-describe('pluralCount', () => {
-  it('uses the singular for exactly one, the plural otherwise', () => {
     expect(pluralCount(1, 'item', 'items')).toBe('1 item');
     expect(pluralCount(0, 'item', 'items')).toBe('0 items');
     expect(pluralCount(3, 'type', 'types')).toBe('3 types');

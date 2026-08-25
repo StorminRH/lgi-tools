@@ -63,13 +63,11 @@ describe('parseAssetsBody', () => {
     expect(out?.map((r) => r.type_id)).toEqual([34, 35]);
   });
 
-  it('produces an identical array regardless of input order (deep-equal cold-skip relies on this)', () => {
+  it('is order-independent for both distinct types and summed stacks', () => {
     const a = { ...trit, item_id: 1, type_id: 34, quantity: 5 };
     const b = { ...trit, item_id: 2, type_id: 35, quantity: 9 };
     expect(parseAssetsBody([a, b])).toEqual(parseAssetsBody([b, a]));
-  });
 
-  it('aggregates order-independently (the summed row is the same either way)', () => {
     const x = { ...trit, item_id: 1, quantity: 10 };
     const y = { ...trit, item_id: 2, quantity: 90 };
     expect(parseAssetsBody([x, y])).toEqual(parseAssetsBody([y, x]));

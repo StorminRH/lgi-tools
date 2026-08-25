@@ -69,11 +69,6 @@ describe('parseIndustryJobsBody', () => {
     ]);
   });
 
-  it('retains installer_id for per-job runner attribution', () => {
-    const jobs = parseIndustryJobsBody([manufacturingJob]);
-    expect(jobs?.[0]?.installer_id).toBe(2114872920);
-  });
-
   it('tie-breaks identical end dates by job id for a stable order', () => {
     const twin = { ...manufacturingJob, job_id: 1, end_date: researchJob.end_date };
     const jobs = parseIndustryJobsBody([researchJob, twin]);

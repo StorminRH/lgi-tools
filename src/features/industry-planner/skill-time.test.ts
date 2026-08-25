@@ -9,6 +9,7 @@ import {
   skillTimeBreakdown,
   skillTimeFactorsFor,
 } from './skill-time';
+import { timeLeverRows } from './time-lever-rows';
 
 // bp 1 manufactures, bp 2 reacts, bp 3 is unknown to the maps.
 const MFG_BP = 1;
@@ -173,19 +174,10 @@ describe('buildSkillsView', () => {
   const character = { name: 'Ryan' };
   const trainedIndustry = { [String(INDUSTRY_SKILL_ID)]: 5 };
 
-  it('is null with no build character', () => {
+  it('is null until a named character, active lever, and trained levels all land', () => {
     expect(buildSkillsView(null, true, trainedIndustry, structure({}))).toBeNull();
-  });
-
-  it('is null when the lever is inactive', () => {
     expect(buildSkillsView(character, false, trainedIndustry, structure({}))).toBeNull();
-  });
-
-  it('is null when the levels map is not loaded', () => {
     expect(buildSkillsView(character, true, null, structure({}))).toBeNull();
-  });
-
-  it('is null when nothing is trained for the plan activities', () => {
     expect(buildSkillsView(character, true, {}, structure({}))).toBeNull();
   });
 
@@ -225,5 +217,41 @@ describe('buildSkillsView', () => {
     expect(view).not.toBeNull();
     expect(view!.showRxn).toBe(true);
     expect(view!.showMfg).toBe(false);
+  });
+});
+
+describe('timeLeverRows', () => {
+  const base = {
+    topBlueprintTypeId: 1,
+    buildCharacterName: null,
+    skillTimeFactors: NO_SKILL_FACTORS,
+    structureTeFactorOf: () => 1,
+  };
+
+  it('reads none-applied, named skill reduction, fail-open, untrained identity, and structure TE', () => {
+    expect(timeLeverRows(base)).toEqual({ skills: 'none applied', structure: 'none applied' });
+    expect(
+      timeLeverRows({
+        ...base,
+        buildCharacterName: 'Alice',
+        skillTimeFactors: { skillTimeFactorOf: () => 0.68, active: true },
+      }).skills,
+    ).toBe('−32.0% time (Alice)');
+    expect(
+      timeLeverRows({
+        ...base,
+        skillTimeFactors: { skillTimeFactorOf: () => 0.68, active: true },
+      }).skills,
+    ).toBe('none applied');
+    expect(
+      timeLeverRows({
+        ...base,
+        buildCharacterName: 'Alice',
+        skillTimeFactors: { skillTimeFactorOf: () => 1, active: true },
+      }).skills,
+    ).toBe('none applied');
+    expect(timeLeverRows({ ...base, structureTeFactorOf: () => 0.85 }).structure).toBe(
+      '−15.0% time',
+    );
   });
 });

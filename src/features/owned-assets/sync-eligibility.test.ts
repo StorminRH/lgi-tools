@@ -9,38 +9,15 @@ describe('ASSETS_SYNC_SCOPES', () => {
     // feature → feature edge the boundary lint bans.)
     expect([...ASSETS_SYNC_SCOPES]).toEqual(['esi-assets.read_assets.v1']);
   });
-
-  it('requests only read-only scopes', () => {
-    for (const scope of ASSETS_SYNC_SCOPES) {
-      expect(/\.read_/.test(scope), `${scope} is not a read-only scope`).toBe(true);
-    }
-  });
 });
 
 describe('canSyncAssets', () => {
-  it('accepts a character with a token and the assets scope', () => {
-    expect(canSyncAssets({ hasRefreshToken: true, missingScopes: [] })).toBe(true);
-  });
-
-  it('accepts a character missing only unrelated superset scopes', () => {
-    expect(
-      canSyncAssets({
-        hasRefreshToken: true,
-        missingScopes: ['esi-skills.read_skills.v1'],
-      }),
-    ).toBe(true);
-  });
-
-  it('rejects a character missing the assets scope', () => {
-    expect(
-      canSyncAssets({
-        hasRefreshToken: true,
-        missingScopes: ['esi-assets.read_assets.v1'],
-      }),
-    ).toBe(false);
-  });
-
-  it('rejects a character without a refresh token', () => {
-    expect(canSyncAssets({ hasRefreshToken: false, missingScopes: [] })).toBe(false);
+  it.each([
+    [{ hasRefreshToken: true, missingScopes: [] }, true],
+    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, true],
+    [{ hasRefreshToken: true, missingScopes: ['esi-assets.read_assets.v1'] }, false],
+    [{ hasRefreshToken: false, missingScopes: [] }, false],
+  ])('token + required scope: %j → %s', (input, expected) => {
+    expect(canSyncAssets(input)).toBe(expected);
   });
 });

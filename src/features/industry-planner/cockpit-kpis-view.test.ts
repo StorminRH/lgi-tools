@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { selectNet } from './cockpit-margin';
 import {
   cockpitMarginView,
   indefiniteArticleForPct,
   inputCostView,
   sellTileView,
 } from './cockpit-kpis-view';
-import type { BlueprintPricing } from './types';
+import type { BlueprintPricing, NetMarginView } from './types';
 
 // Minimal pricing — only the fields the views read. A healthy product (best sell
 // == pct5 sell, no regional discount) so both Sell·Jita badges stay off.
@@ -93,5 +94,20 @@ describe('indefiniteArticleForPct', () => {
     for (const pct of [5, 10, 15, 20, 79, 90]) {
       expect(indefiniteArticleForPct(pct)).toBe('a');
     }
+  });
+});
+
+describe('selectNet', () => {
+  const netView = (netCost: number) => ({ netCost }) as unknown as NetMarginView;
+  const pricingWith = (net: NetMarginView | null) => ({ net }) as unknown as BlueprintPricing;
+
+  it('exposes net only for manufacturing or a reaction with a fee source, and only in net mode', () => {
+    const nv = netView(120);
+    expect(selectNet(pricingWith(nv), 1, true, 'net')).toEqual({ net: nv, netAvailable: true });
+    expect(selectNet(pricingWith(nv), 11, true, 'net')).toEqual({ net: nv, netAvailable: true });
+    expect(selectNet(pricingWith(nv), 11, false, 'net')).toEqual({ net: null, netAvailable: false });
+    expect(selectNet(pricingWith(nv), 8, true, 'net')).toEqual({ net: null, netAvailable: false });
+    expect(selectNet(pricingWith(nv), 1, false, 'net')).toEqual({ net: null, netAvailable: false });
+    expect(selectNet(pricingWith(nv), 1, true, 'gross')).toEqual({ net: null, netAvailable: true });
   });
 });

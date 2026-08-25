@@ -15,32 +15,12 @@ describe('SKILL_SYNC_SCOPES', () => {
 });
 
 describe('canSyncSkillQueue', () => {
-  it('accepts a character with a token and both skill scopes', () => {
-    expect(canSyncSkillQueue({ hasRefreshToken: true, missingScopes: [] })).toBe(true);
-  });
-
-  it('accepts a character missing only NON-skill superset scopes', () => {
-    // The old-consent case: missing an unrelated scope (the industry-jobs read,
-    // ∉ SKILL_SYNC_SCOPES) but still covering skills — the sitewide health says
-    // reconnect, the skill sync works.
-    expect(
-      canSyncSkillQueue({
-        hasRefreshToken: true,
-        missingScopes: ['esi-industry.read_character_jobs.v1'],
-      }),
-    ).toBe(true);
-  });
-
-  it('rejects a character missing a skill scope', () => {
-    expect(
-      canSyncSkillQueue({
-        hasRefreshToken: true,
-        missingScopes: ['esi-skills.read_skillqueue.v1'],
-      }),
-    ).toBe(false);
-  });
-
-  it('rejects a character with a dead refresh token', () => {
-    expect(canSyncSkillQueue({ hasRefreshToken: false, missingScopes: [] })).toBe(false);
+  it.each([
+    [{ hasRefreshToken: true, missingScopes: [] }, true],
+    [{ hasRefreshToken: true, missingScopes: ['esi-industry.read_character_jobs.v1'] }, true],
+    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skillqueue.v1'] }, false],
+    [{ hasRefreshToken: false, missingScopes: [] }, false],
+  ])('token + both skill scopes: %j → %s', (input, expected) => {
+    expect(canSyncSkillQueue(input)).toBe(expected);
   });
 });

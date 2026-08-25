@@ -6,6 +6,7 @@ import {
   tierColumnView,
   unitPriceMap,
 } from './build-plan-view';
+import { batchedCostOfRows } from './cost-basis-view';
 import { REACTION_NODE_LABEL } from './industry-styles';
 
 const item = (over: Partial<ConsolidatedItem> & { typeId: number }): ConsolidatedItem => ({
@@ -104,5 +105,18 @@ describe('levelAt', () => {
     // focus at depth 2, tier at depth 3 → relative depth 1.
     expect(levelAt(map, { depth: 2, typeId: 1 }, 3)).toEqual(new Set([7]));
     expect(levelAt(map, { depth: 2, typeId: 1 }, 9)).toBeNull();
+  });
+});
+
+describe('batchedCostOfRows', () => {
+  it('sums the batched rows, treating unpriced lines as 0', () => {
+    expect(
+      batchedCostOfRows([
+        { extendedCost: 100 },
+        { extendedCost: null },
+        { extendedCost: 2.5 },
+      ]),
+    ).toBe(102.5);
+    expect(batchedCostOfRows([])).toBe(0);
   });
 });

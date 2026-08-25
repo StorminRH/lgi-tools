@@ -12,32 +12,12 @@ describe('INDUSTRY_JOBS_SYNC_SCOPES', () => {
 });
 
 describe('canSyncIndustryJobs', () => {
-  it('accepts a character with a token and the industry-jobs scope', () => {
-    expect(canSyncIndustryJobs({ hasRefreshToken: true, missingScopes: [] })).toBe(true);
-  });
-
-  it('accepts a character missing only unrelated superset scopes', () => {
-    // The old-consent case: missing an unrelated scope (a skills read, ∉
-    // INDUSTRY_JOBS_SYNC_SCOPES) but still covering industry jobs — the sitewide
-    // health says reconnect, the industry-jobs sync works.
-    expect(
-      canSyncIndustryJobs({
-        hasRefreshToken: true,
-        missingScopes: ['esi-skills.read_skills.v1'],
-      }),
-    ).toBe(true);
-  });
-
-  it('rejects a character missing the industry-jobs scope', () => {
-    expect(
-      canSyncIndustryJobs({
-        hasRefreshToken: true,
-        missingScopes: ['esi-industry.read_character_jobs.v1'],
-      }),
-    ).toBe(false);
-  });
-
-  it('rejects a character without a refresh token', () => {
-    expect(canSyncIndustryJobs({ hasRefreshToken: false, missingScopes: [] })).toBe(false);
+  it.each([
+    [{ hasRefreshToken: true, missingScopes: [] }, true],
+    [{ hasRefreshToken: true, missingScopes: ['esi-skills.read_skills.v1'] }, true],
+    [{ hasRefreshToken: true, missingScopes: ['esi-industry.read_character_jobs.v1'] }, false],
+    [{ hasRefreshToken: false, missingScopes: [] }, false],
+  ])('token + required scope: %j → %s', (input, expected) => {
+    expect(canSyncIndustryJobs(input)).toBe(expected);
   });
 });

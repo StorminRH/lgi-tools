@@ -92,19 +92,12 @@ describe('summarizeQueue', () => {
   });
 });
 
-describe('romanLevel', () => {
-  it('renders in-game roman numerals', () => {
-    expect(romanLevel(5)).toBe('V');
-    expect(romanLevel(1)).toBe('I');
-  });
-});
-
 describe('currentTraining', () => {
   it('reports an empty queue', () => {
     expect(currentTraining([], NOW)).toEqual({ kind: 'empty' });
   });
 
-  it('surfaces the actively-training head with its finish time', () => {
+  it('surfaces the actively-training head with its finish time and roman level', () => {
     const result = currentTraining([active], NOW);
     expect(result).toMatchObject({
       kind: 'training',
@@ -113,6 +106,8 @@ describe('currentTraining', () => {
       finishesAt: Date.parse('2026-06-12T00:00:00Z'),
     });
     if (result.kind === 'training') expect(result.pct).toBeCloseTo(50);
+    expect(romanLevel(5)).toBe('V');
+    expect(romanLevel(1)).toBe('I');
   });
 
   it('skips a finished head ESI has not advanced and reports the next trainee', () => {

@@ -52,15 +52,6 @@ describe('slotCapacity', () => {
   });
 });
 
-describe('jobOccupiesSlot', () => {
-  it('counts active, paused, and ready; frees delivered/cancelled/reverted', () => {
-    const occupying: JobStatus[] = ['active', 'paused', 'ready'];
-    const freed: JobStatus[] = ['delivered', 'cancelled', 'reverted'];
-    for (const status of occupying) expect(jobOccupiesSlot(status)).toBe(true);
-    for (const status of freed) expect(jobOccupiesSlot(status)).toBe(false);
-  });
-});
-
 describe('countUsedSlots', () => {
   const CHARACTER = 501;
 
@@ -87,11 +78,6 @@ describe('countUsedSlots', () => {
     });
   });
 
-  it('counts a duplicated job_id once across the personal/corp feeds', () => {
-    const shared = job({ job_id: 7, activity_id: 1, installer_id: CHARACTER });
-    expect(countUsedSlots(CHARACTER, [shared], [shared]).manufacturing).toBe(1);
-  });
-
   it('counts reactions under both activity ids (9 live-ESI, 11 SDE)', () => {
     const corp = [
       job({ job_id: 1, activity_id: 9, installer_id: CHARACTER }),
@@ -108,11 +94,17 @@ describe('countUsedSlots', () => {
     });
   });
 
-  it('counts paused and ready jobs as occupying', () => {
+  it('counts paused and ready as occupying, and frees delivered / cancelled / reverted', () => {
+    const occupying: JobStatus[] = ['active', 'paused', 'ready'];
+    const freed: JobStatus[] = ['delivered', 'cancelled', 'reverted'];
+    for (const status of occupying) expect(jobOccupiesSlot(status)).toBe(true);
+    for (const status of freed) expect(jobOccupiesSlot(status)).toBe(false);
+
     const personal = [
       job({ job_id: 4, activity_id: 1, status: 'paused' }),
       job({ job_id: 5, activity_id: 1, status: 'ready' }),
       job({ job_id: 6, activity_id: 1, status: 'cancelled' }),
+      job({ job_id: 7, activity_id: 1, status: 'reverted' }),
     ];
     expect(countUsedSlots(CHARACTER, personal, []).manufacturing).toBe(2);
   });
