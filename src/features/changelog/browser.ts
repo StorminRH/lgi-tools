@@ -20,14 +20,13 @@ export function toChangelogDocuments(masters: ChangelogMaster[]): ChangelogDocum
   return masters.map((master) => ({ slug: changelogMasterSlug(master.version), master }));
 }
 
-/** Builds ordered changelog navigation groups and active-document state from parsed masters. */
+/** Builds ordered changelog navigation from parsed masters. */
 export function toChangelogNavModel(documents: ChangelogDocument[]): ContentNavModel {
   return {
     items: documents.map(({ slug, master }) => ({
       slug,
       title: master.title ? `v${master.version} — ${master.title}` : `v${master.version}`,
     })),
-    groups: [],
   };
 }
 

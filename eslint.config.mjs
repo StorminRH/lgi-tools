@@ -1612,10 +1612,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: [
-      "src/components/ui/collapsible.tsx",
-      "src/components/ui/content-browser-nav.tsx",
-    ],
+    files: ["src/components/ui/collapsible.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",

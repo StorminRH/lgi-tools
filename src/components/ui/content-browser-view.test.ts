@@ -7,39 +7,21 @@ import {
   titleForSlug,
 } from './content-browser-view';
 
-const mixedModel: ContentNavModel = {
-  items: [{ slug: 'intro', title: 'Introduction' }],
-  groups: [
-    {
-      slug: 'platform',
-      title: 'Platform',
-      items: [{ slug: 'vercel', title: 'Vercel' }],
-    },
+const flatModel: ContentNavModel = {
+  items: [
+    { slug: 'intro', title: 'Introduction' },
+    { slug: 'vercel', title: 'Vercel' },
   ],
 };
 
-test('landingContentSlug and titleForSlug resolve flat, grouped, and empty navigation', () => {
-  expect(landingContentSlug({ items: [{ slug: 'newest', title: 'Newest' }], groups: [] })).toBe(
-    'newest',
-  );
-  expect(
-    landingContentSlug({
-      items: [],
-      groups: [
-        {
-          slug: 'platform',
-          title: 'Platform',
-          items: [{ slug: 'vercel', title: 'Vercel' }],
-        },
-      ],
-    }),
-  ).toBe('vercel');
-  expect(landingContentSlug({ items: [], groups: [] })).toBeNull();
+test('landingContentSlug and titleForSlug resolve flat and empty navigation', () => {
+  expect(landingContentSlug({ items: [{ slug: 'newest', title: 'Newest' }] })).toBe('newest');
+  expect(landingContentSlug({ items: [] })).toBeNull();
 
-  expect(titleForSlug(mixedModel, 'intro')).toBe('Introduction');
-  expect(titleForSlug(mixedModel, 'vercel')).toBe('Vercel');
-  expect(titleForSlug(mixedModel, 'missing')).toBeNull();
-  expect(titleForSlug(mixedModel, null)).toBeNull();
+  expect(titleForSlug(flatModel, 'intro')).toBe('Introduction');
+  expect(titleForSlug(flatModel, 'vercel')).toBe('Vercel');
+  expect(titleForSlug(flatModel, 'missing')).toBeNull();
+  expect(titleForSlug(flatModel, null)).toBeNull();
 });
 
 test('deriveActiveContentSlug and contentBrowserHref keep landing and child routes honest', () => {

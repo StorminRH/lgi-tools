@@ -35,7 +35,6 @@ describe('changelog browser model', () => {
         { slug: 'v3.8', title: 'v3.8 — Undock Checklist' },
         { slug: 'v3.7', title: 'v3.7' },
       ],
-      groups: [],
     });
   });
 

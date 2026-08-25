@@ -16,11 +16,6 @@ const exemptionHomes = [
   ],
   ['src/components/ui/collapsible.tsx', '<details><summary>Open</summary></details>', 'No raw <details>'],
   [
-    'src/components/ui/content-browser-nav.tsx',
-    '<details><summary>Group</summary></details>',
-    'No raw <details>',
-  ],
-  [
     'src/components/ui/confirm-dialog.tsx',
     '<p role="alert">Problem</p>',
     'No hand-built alert/status region',
