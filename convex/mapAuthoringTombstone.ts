@@ -178,7 +178,9 @@ export const restoreSystem = internalMutation({
 
 export const restoreConnection = mutation({
   args: { mapId: v.string(), connectionId: v.id('mapConnections') },
-  handler: async (ctx, { mapId, connectionId }) =>
-    restoreLiveConnection(ctx, mapId, connectionId, await eventActor(ctx)),
+  handler: async (ctx, { mapId, connectionId }) => {
+    await requireMapAccess(ctx, mapId, 'edit');
+    return restoreLiveConnection(ctx, mapId, connectionId, await eventActor(ctx));
+  },
 });
 
