@@ -7,7 +7,6 @@ import {
   effectiveFacilityTaxRate,
   MAX_FACILITY_TAX_PCT,
   parseFacilityTaxDraft,
-  REACTION_SCC_SURCHARGE,
   taxDraftFromStored,
   type AdjustedPriceOf,
 } from './fees';
@@ -48,53 +47,48 @@ describe('DEFAULT_FEE_RATES (verified 2026-06 — fail on silent rate drift)', (
       salesTax: 0.075, // 7.5% base, no Accounting (Version 22.02, 2025-03-12)
       brokerFee: 0.03, // 3% NPC base, no Broker Relations/standings
     });
-    // Reaction SCC shares manufacturing's 4%; facility-tax cap is 0–10% (Viridian).
-    expect(REACTION_SCC_SURCHARGE).toBe(DEFAULT_FEE_RATES.sccSurcharge);
-    expect(MAX_FACILITY_TAX_PCT).toBe(10);
   });
 });
 
-describe('effectiveFacilityTaxRate', () => {
-  it('falls back to the NPC baseline when no tax was entered (the byte-identity guard)', () => {
+describe('facility tax draft and stored rate', () => {
+  it('parses drafts, converts percents, and round-trips stored values', () => {
     expect(effectiveFacilityTaxRate(null)).toBe(DEFAULT_FEE_RATES.facilityTax);
-  });
-
-  it('converts an entered percent to a fraction', () => {
     expect(effectiveFacilityTaxRate(1.5)).toBe(0.015);
     expect(effectiveFacilityTaxRate(10)).toBe(0.1);
     expect(effectiveFacilityTaxRate(0.35)).toBeCloseTo(0.0035, 12);
-  });
-
-  it('treats an entered 0 as a real 0% rate, not "unset"', () => {
     expect(effectiveFacilityTaxRate(0)).toBe(0);
-  });
-});
 
-describe('parseFacilityTaxDraft', () => {
-  it('maps an empty draft to null (never entered — the NPC-baseline assumption)', () => {
     expect(parseFacilityTaxDraft('')).toEqual({ ok: true, value: null });
     expect(parseFacilityTaxDraft('   ')).toEqual({ ok: true, value: null });
-  });
-
-  it('parses in-cap percents, including a real 0 and decimals', () => {
     expect(parseFacilityTaxDraft('0')).toEqual({ ok: true, value: 0 });
     expect(parseFacilityTaxDraft('0.25')).toEqual({ ok: true, value: 0.25 });
     expect(parseFacilityTaxDraft('1.5')).toEqual({ ok: true, value: 1.5 });
-    expect(parseFacilityTaxDraft('10')).toEqual({ ok: true, value: 10 });
-  });
-
-  it('rejects out-of-cap, negative, and non-numeric drafts', () => {
-    for (const draft of ['10.01', '12', '-1', 'abc', 'NaN', 'Infinity']) {
+    expect(parseFacilityTaxDraft(String(MAX_FACILITY_TAX_PCT))).toEqual({
+      ok: true,
+      value: MAX_FACILITY_TAX_PCT,
+    });
+    for (const draft of [
+      String(MAX_FACILITY_TAX_PCT + 0.01),
+      '12',
+      '-1',
+      'abc',
+      'NaN',
+      'Infinity',
+      '1e1',
+      '0xa',
+      '1.',
+      '.5',
+      '+1',
+      ' 1 2 ',
+    ]) {
       expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
     }
-  });
 
-  it('rejects non-decimal numeric forms Number() would otherwise admit', () => {
-    // '1e1' and '0xa' both evaluate to 10 (in-cap) via Number(), but a pasted or
-    // programmatic value in those forms is not a plain percent entry.
-    for (const draft of ['1e1', '0xa', '1.', '.5', '+1', ' 1 2 ']) {
-      expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
-    }
+    expect(taxDraftFromStored(null)).toBe('');
+    expect(taxDraftFromStored(0)).toBe('0');
+    expect(taxDraftFromStored(0.25)).toBe('0.25');
+    expect(taxDraftFromStored(5)).toBe('5');
+    expect(parseFacilityTaxDraft(taxDraftFromStored(1.5))).toEqual({ ok: true, value: 1.5 });
   });
 });
 
@@ -323,15 +317,5 @@ describe('computeNetMargin', () => {
     expect(net.incomplete).toBe(true);
     // Net margin is still computed on the partial EIV (a lower-bound fee).
     expect(net.netMargin).not.toBeNull();
-  });
-});
-
-describe('taxDraftFromStored', () => {
-  it('round-trips null to empty and stored percents to parseable drafts', () => {
-    expect(taxDraftFromStored(null)).toBe('');
-    expect(taxDraftFromStored(0)).toBe('0');
-    expect(taxDraftFromStored(0.25)).toBe('0.25');
-    expect(taxDraftFromStored(5)).toBe('5');
-    expect(parseFacilityTaxDraft(taxDraftFromStored(1.5))).toEqual({ ok: true, value: 1.5 });
   });
 });

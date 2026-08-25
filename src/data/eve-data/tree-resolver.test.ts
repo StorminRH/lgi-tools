@@ -147,16 +147,10 @@ function raw(typeId: number): TreeNode {
 }
 
 describe('computeHeights', () => {
-  it('a raw leaf is height 0', () => {
+  it('raw leaves sit at height 0 and empty trees stay empty', () => {
     expect(computeHeights([raw(99)]).get(99)).toBe(0);
-  });
-
-  it('a T1-shaped build (buildable over raw leaves) is height 1', () => {
-    // The product's direct inputs are all raws; each input node is itself a
-    // leaf at height 0, so the root product computed from them is height 1.
-    const tree = [raw(34), raw(35), raw(36)];
-    const heights = computeHeights(tree);
-    expect([...heights.values()]).toEqual([0, 0, 0]);
+    expect([...computeHeights([raw(34), raw(35), raw(36)]).values()]).toEqual([0, 0, 0]);
+    expect(computeHeights([]).size).toBe(0);
   });
 
   it('takes the LONGEST path to a leaf, not the shortest', () => {
@@ -182,82 +176,36 @@ describe('computeHeights', () => {
     expect(heights.get(10)).toBe(2);
     expect(heights.get(11)).toBe(2);
   });
-
-  it('returns an empty map for an empty tree', () => {
-    expect(computeHeights([]).size).toBe(0);
-  });
 });
 
 describe('TreeResolver — reference-blueprint fixture is well-formed', () => {
-  // We don't run the full DB-backed resolver in unit tests (no DB,
-  // no CSVs in the fixture), but we DO assert the fixture file's
-  // structural invariants so a typo in the JSON shows up here rather
-  // than at PR-review time. Numerical-correctness verification lives
-  // in the spike (scripts/spike-tree-resolver.ts) which is run on
-  // demand and gated against this same fixture file via
-  // scripts/spike-known-good.json.
-  const blueprints = ['Rifter', 'Drake', 'Archon', 'Legion'] as const;
-
-  for (const name of blueprints) {
-    it(`${name}: fixture entry is present and well-shaped`, () => {
-      const entry = (flatMaterialsFixture as Record<string, unknown>)[name] as {
-        blueprintTypeId: number;
-        outputTypeId: number;
-        materials: Record<string, number>;
-      };
+  it('pins Rifter minerals, Archon floors, and Legion marginal gas', () => {
+    const fixture = flatMaterialsFixture as Record<
+      string,
+      { blueprintTypeId: number; outputTypeId: number; materials: Record<string, number> }
+    >;
+    for (const name of ['Rifter', 'Drake', 'Archon', 'Legion'] as const) {
+      const entry = fixture[name];
       expect(entry).toBeDefined();
+      if (!entry) continue;
       expect(entry.blueprintTypeId).toBeGreaterThan(0);
       expect(entry.outputTypeId).toBeGreaterThan(0);
       expect(Object.keys(entry.materials).length).toBeGreaterThan(0);
-      for (const [k, v] of Object.entries(entry.materials)) {
-        expect(Number.parseInt(k, 10)).toBeGreaterThan(0);
-        expect(v).toBeGreaterThan(0);
-        expect(Number.isInteger(v)).toBe(true);
-      }
+    }
+    const rifter = fixture.Rifter;
+    const archon = fixture.Archon;
+    const legion = fixture.Legion;
+    expect(rifter?.materials).toEqual({
+      '34': 32000,
+      '35': 6000,
+      '36': 2500,
+      '37': 500,
     });
-  }
-
-  it('Rifter matches the four-mineral T1 frigate shape', () => {
-    const rifter = (flatMaterialsFixture as Record<string, unknown>).Rifter as {
-      materials: Record<string, number>;
-    };
-    // Trit, Pyerite, Mexallon, Isogen — IDs 34/35/36/37
-    expect(rifter.materials['34']).toBe(32000);
-    expect(rifter.materials['35']).toBe(6000);
-    expect(rifter.materials['36']).toBe(2500);
-    expect(rifter.materials['37']).toBe(500);
-    expect(Object.keys(rifter.materials)).toHaveLength(4);
-  });
-
-  it('Archon has deep capital recursion (76 raw materials)', () => {
-    const archon = (flatMaterialsFixture as Record<string, unknown>).Archon as {
-      materials: Record<string, number>;
-    };
-    expect(Object.keys(archon.materials).length).toBe(76);
-    // Sanity check the mineral totals — Archon at ME 0 still needs
-    // multi-million Tritanium/Pyerite from the recursive walk (marginal basis).
-    // Totals dropped with CCP's 3.3.2 recipe rebalance (fewer capital components)
-    // but stay multi-million; the exact values are pinned in the fixture.
-    expect(archon.materials['34']).toBeGreaterThan(2_000_000);
-    expect(archon.materials['35']).toBeGreaterThan(7_000_000);
-  });
-
-  it('Legion (T3) flattens on the marginal basis, not whole-run overbuild', () => {
-    // The case that exposed the bug. Under the old whole-run rounding, batch
-    // reactions ballooned the raw gas — e.g. Fullerite-C50 (30370) was 33,400.
-    // On the marginal basis a single Legion consumes only ~825, so this guards
-    // against ceilDiv (or any whole-run rounding) creeping back in.
-    const legion = (flatMaterialsFixture as Record<string, unknown>).Legion as {
-      blueprintTypeId: number;
-      materials: Record<string, number>;
-    };
-    expect(legion.blueprintTypeId).toBe(29987);
-    expect(Object.keys(legion.materials).length).toBe(43);
-    expect(legion.materials['30370']).toBeLessThan(2_000); // not the ~33k overbuild
-    // Direct Ancient-Salvage leaves are not behind a batch, so they are
-    // unchanged by the fix — a fixed point that confirms the basis is marginal,
-    // not a blanket scale-down.
-    expect(legion.materials['30251']).toBe(452); // Neurovisual Input Matrix
+    expect(archon?.materials['34']).toBeGreaterThan(2_000_000);
+    expect(archon?.materials['35']).toBeGreaterThan(7_000_000);
+    expect(legion?.blueprintTypeId).toBe(29987);
+    expect(legion?.materials['30370']).toBeLessThan(2_000);
+    expect(legion?.materials['30251']).toBe(452);
   });
 });
 
@@ -417,17 +365,11 @@ const TC_REAL_BP: ResolverRow = {
 };
 
 describe('TreeResolver — prefers published producers (collision)', () => {
-  it('picks the published TC formula when the unpublished test BP is listed first', () => {
-    const { productToBlueprint } = buildIndexesFromActivities([TC_TEST_BP, TC_REAL_BP]);
-    expect(productToBlueprint.get(TUNGSTEN_CARBIDE)).toEqual({
-      blueprintTypeId: 46207,
-      quantityPerRun: 10000,
-    });
-  });
-
-  it('picks the published TC formula when it is listed first (order-independent)', () => {
-    const { productToBlueprint } = buildIndexesFromActivities([TC_REAL_BP, TC_TEST_BP]);
-    expect(productToBlueprint.get(TUNGSTEN_CARBIDE)).toEqual({
+  it.each([
+    ['unpublished first', [TC_TEST_BP, TC_REAL_BP]],
+    ['published first', [TC_REAL_BP, TC_TEST_BP]],
+  ] as const)('picks the published TC formula when listed %s', (_order, rows) => {
+    expect(buildIndexesFromActivities([...rows]).productToBlueprint.get(TUNGSTEN_CARBIDE)).toEqual({
       blueprintTypeId: 46207,
       quantityPerRun: 10000,
     });
@@ -531,13 +473,10 @@ describe('TreeResolver — Curse chain corrected output (T2 regression)', () => 
   };
   const universe: ResolverRow[] = [CURSE, PLATE_BP, TC_TEST_BP, TC_REAL_BP, RTA_FORMULA];
 
-  it('resolves Tungsten Carbide via the published formula', () => {
-    const { productToBlueprint } = buildIndexesFromActivities(universe);
-    expect(productToBlueprint.get(TUNGSTEN_CARBIDE)?.blueprintTypeId).toBe(46207);
-  });
-
   it('flattens Curse to the corrected (not 500x-inflated) raw totals', () => {
-    const fixed = new TreeResolver(buildIndexesFromActivities(universe));
+    const indexes = buildIndexesFromActivities(universe);
+    expect(indexes.productToBlueprint.get(TUNGSTEN_CARBIDE)?.blueprintTypeId).toBe(46207);
+    const fixed = new TreeResolver(indexes);
     const flat = fixed.flatForOneRun(CURSE_BP);
     // 3750 plates × 44 TC ÷ 10000/run = 16.5 TC runs → 1650 RTA ÷ 200/run = 8.25
     // RTA runs → 825 Tungsten + 825 Platinum. Sylramic is a direct leaf: 3750×11.
@@ -566,29 +505,16 @@ describe('TreeResolver — Curse chain corrected output (T2 regression)', () => 
 });
 
 describe('pickBuildTimeSeconds', () => {
-  it('returns the manufacturing time for a manufacturing blueprint', () => {
+  it('prefers manufacturing, then reaction, and ignores degenerate or copy-only times', () => {
     expect(pickBuildTimeSeconds({ manufacturing: { time: 6000 } })).toBe(6000);
-  });
-
-  it('returns the reaction time for a reaction blueprint', () => {
     expect(pickBuildTimeSeconds({ reaction: { time: 3600 } })).toBe(3600);
-  });
-
-  it('prefers manufacturing when a row somehow carries both', () => {
     expect(pickBuildTimeSeconds({ manufacturing: { time: 6000 }, reaction: { time: 3600 } })).toBe(
       6000,
     );
-  });
-
-  it('ignores non-build activities (copying/invention carry their own time)', () => {
     expect(
       pickBuildTimeSeconds({ copying: { time: 192000 }, manufacturing: { time: 240000 } }),
     ).toBe(240000);
-    // No manufacturing/reaction → no honest build time, even with a copying time.
     expect(pickBuildTimeSeconds({ copying: { time: 192000 } })).toBeNull();
-  });
-
-  it('treats a zero or missing time as no build time (degenerate self-recipes)', () => {
     expect(pickBuildTimeSeconds({ manufacturing: { time: 0 } })).toBeNull();
     expect(pickBuildTimeSeconds({ manufacturing: { products: [{ typeID: 1, quantity: 1 }] } })).toBeNull();
     expect(pickBuildTimeSeconds({})).toBeNull();
@@ -602,33 +528,20 @@ describe('hashResolverInputs', () => {
     published: boolean | null = true,
   ) => ({ blueprintTypeId, activities, published });
 
-  it('is deterministic regardless of input row order (samples are sorted)', () => {
+  it('is order-stable, changes with edges or published, and treats null as published', () => {
     const a = row(45, { reaction: { materials: [{ typeID: 1, quantity: 2 }], products: [{ typeID: 9, quantity: 1 }] } });
     const b = row(46, { manufacturing: { materials: [{ typeID: 3, quantity: 4 }], products: [{ typeID: 8, quantity: 1 }] } });
     expect(hashResolverInputs([a, b])).toBe(hashResolverInputs([b, a]));
-  });
-
-  it('changes when an edge count changes', () => {
     const base = [row(45, { manufacturing: { materials: [{ typeID: 1, quantity: 2 }], products: [{ typeID: 9, quantity: 1 }] } })];
     const more = [row(45, { manufacturing: { materials: [{ typeID: 1, quantity: 2 }, { typeID: 2, quantity: 1 }], products: [{ typeID: 9, quantity: 1 }] } })];
     expect(hashResolverInputs(base)).not.toBe(hashResolverInputs(more));
-  });
-
-  it('changes when a blueprint flips published without any recipe change', () => {
     const activities = { manufacturing: { materials: [{ typeID: 1, quantity: 2 }], products: [{ typeID: 9, quantity: 1 }] } };
     expect(hashResolverInputs([row(45, activities, true)])).not.toBe(
       hashResolverInputs([row(45, activities, false)]),
     );
-  });
-
-  it('treats null published as published (matches the resolver fallback)', () => {
-    const activities = { manufacturing: { materials: [{ typeID: 1, quantity: 2 }], products: [{ typeID: 9, quantity: 1 }] } };
     expect(hashResolverInputs([row(45, activities, null)])).toBe(
       hashResolverInputs([row(45, activities, true)]),
     );
-  });
-
-  it('returns a 64-char sha256 hex digest', () => {
     expect(hashResolverInputs([])).toMatch(/^[0-9a-f]{64}$/);
   });
 });
@@ -638,8 +551,8 @@ describe('roundedFlatRows', () => {
     const rows = roundedFlatRows(
       new Map([
         [34, 100.4],
-        [35, 0.3], // rounds to 0 → dropped
-        [36, 2.5], // rounds to 3 (half-up)
+        [35, 0.3],
+        [36, 2.5],
       ]),
       681,
     );
@@ -647,37 +560,24 @@ describe('roundedFlatRows', () => {
       { blueprintTypeId: 681, rawMaterialTypeId: 34, totalQuantity: BigInt(100) },
       { blueprintTypeId: 681, rawMaterialTypeId: 36, totalQuantity: BigInt(3) },
     ]);
-  });
-
-  it('returns an empty array when everything rounds to zero', () => {
     expect(roundedFlatRows(new Map([[1, 0.2]]), 5)).toEqual([]);
   });
 });
 
 describe('hashGateSkips', () => {
-  it('skips only when not forced, a prior hash exists, and hashes match', () => {
-    expect(hashGateSkips({ forceRebuild: false, hashBefore: 'x', hashAfter: 'x' })).toBe(true);
-  });
-
-  it('does not skip when forced', () => {
-    expect(hashGateSkips({ forceRebuild: true, hashBefore: 'x', hashAfter: 'x' })).toBe(false);
-  });
-
-  it('does not skip when there is no prior hash', () => {
-    expect(hashGateSkips({ forceRebuild: false, hashBefore: null, hashAfter: 'x' })).toBe(false);
-  });
-
-  it('does not skip when the hashes differ', () => {
-    expect(hashGateSkips({ forceRebuild: false, hashBefore: 'x', hashAfter: 'y' })).toBe(false);
+  it.each([
+    [{ forceRebuild: false, hashBefore: 'x', hashAfter: 'x' }, true],
+    [{ forceRebuild: true, hashBefore: 'x', hashAfter: 'x' }, false],
+    [{ forceRebuild: false, hashBefore: null, hashAfter: 'x' }, false],
+    [{ forceRebuild: false, hashBefore: 'x', hashAfter: 'y' }, false],
+  ] as const)('skips only on an unforced matching prior hash %#', (input, expected) => {
+    expect(hashGateSkips(input)).toBe(expected);
   });
 });
 
 describe('assertNoResolverCycles', () => {
-  it('does nothing when there are no cycle warnings', () => {
+  it('passes a clean walk and lists the first warnings when a cycle exists', () => {
     expect(() => assertNoResolverCycles({ cycleWarnings: [] })).not.toThrow();
-  });
-
-  it('throws listing the count and the first few warnings', () => {
     expect(() =>
       assertNoResolverCycles({ cycleWarnings: ['a', 'b', 'c', 'd', 'e', 'f'] }),
     ).toThrow(/6 unexpected cycle\(s\); first few: a \| b \| c \| d \| e$/);

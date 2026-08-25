@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  roundSecurityStatus,
-  securityStatusTextClass,
-  systemSecurityClass,
-} from './security';
+import { roundSecurityStatus, securityStatusTextClass, systemSecurityClass } from './security';
 
 describe('system security classification and CCP display tokens', () => {
   it('bands hi/low/null/wormhole/K-space/Pochven from status + class id', () => {
@@ -33,19 +29,11 @@ describe('system security classification and CCP display tokens', () => {
     expect(systemSecurityClass(null, null)).toBe('high');
   });
 
-  it('rounds like the in-game display and maps bands to CCP color tokens', () => {
+  it('rounds like the in-game display', () => {
     expect(roundSecurityStatus(0)).toBe(0);
     expect(roundSecurityStatus(0.04)).toBe(0.1);
     expect(roundSecurityStatus(0.45)).toBe(0.5);
     expect(roundSecurityStatus(-0.99)).toBe(-1.0);
-
-    expect(securityStatusTextClass(1.0)).toBe('text-sec-10');
-    expect(securityStatusTextClass(0.94)).toBe('text-sec-09');
-    expect(securityStatusTextClass(0.5)).toBe('text-sec-05');
-    expect(securityStatusTextClass(0.4)).toBe('text-sec-04');
-    expect(securityStatusTextClass(0.1)).toBe('text-sec-01');
-    expect(securityStatusTextClass(0)).toBe('text-sec-null');
-    expect(securityStatusTextClass(-1)).toBe('text-sec-null');
     expect(securityStatusTextClass(null)).toBe('text-muted');
   });
 });

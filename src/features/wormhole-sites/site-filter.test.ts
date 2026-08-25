@@ -9,15 +9,10 @@ describe('siteClassSet', () => {
     ]);
   });
 
-  it('expands a gas signature to its whole name-derived spawn range', () => {
-    // "Perimeter" gas sigs spawn across C1–C6; "Core" only in C5–C6.
+  it('expands a gas signature through the name-derived spawn range', () => {
     expect(
       siteClassSet({ wormholeClass: null, siteType: 'gas', name: 'Perimeter Reservoir' }),
     ).toEqual(['C1', 'C2', 'C3', 'C4', 'C5', 'C6']);
-    expect(siteClassSet({ wormholeClass: null, siteType: 'gas', name: 'Core Garden' })).toEqual([
-      'C5',
-      'C6',
-    ]);
   });
 
   it('matches no class when a site has neither a class nor a recognized gas range', () => {

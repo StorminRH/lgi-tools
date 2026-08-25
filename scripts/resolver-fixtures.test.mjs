@@ -6,23 +6,6 @@ import {
   sortTree,
 } from './resolver-fixtures.ts';
 
-describe('compareCanonical shaping', () => {
-  it('serialises primitives like JSON.stringify', () => {
-    expect(compareCanonical(1, 1)).toEqual({ equal: true, expected: '1', actual: '1' });
-    expect(compareCanonical('x', 'x').expected).toBe('"x"');
-    expect(compareCanonical(null, null).expected).toBe('null');
-    expect(compareCanonical(true, true).expected).toBe('true');
-  });
-
-  it('sorts object keys recursively and preserves array order', () => {
-    expect(compareCanonical({ b: 1, a: 2 }, { a: 2, b: 1 }).expected).toBe('{"a":2,"b":1}');
-    expect(compareCanonical({ b: { d: 1, c: 2 }, a: 3 }, { a: 3, b: { c: 2, d: 1 } }).expected)
-      .toBe('{"a":3,"b":{"c":2,"d":1}}');
-    expect(compareCanonical([3, 1, 2], [3, 1, 2]).expected).toBe('[3,1,2]');
-    expect(compareCanonical([{ b: 1, a: 2 }], [{ a: 2, b: 1 }]).expected).toBe('[{"a":2,"b":1}]');
-  });
-});
-
 describe('sortTree', () => {
   it('sorts sibling nodes by typeId', () => {
     const sorted = sortTree([
@@ -62,22 +45,20 @@ describe('sortTree', () => {
 });
 
 describe('compareCanonical', () => {
-  it('is equal when only object key order differs', () => {
-    const out = compareCanonical({ a: 1, b: 2 }, { b: 2, a: 1 });
-    expect(out.equal).toBe(true);
-    expect(out.expected).toBe(out.actual);
-  });
-
-  it('detects a difference when array order differs', () => {
-    const out = compareCanonical([1, 2], [2, 1]);
-    expect(out.equal).toBe(false);
-    expect(out.expected).toBe('[1,2]');
-    expect(out.actual).toBe('[2,1]');
-  });
-
-  it('detects unequal values', () => {
-    const out = compareCanonical({ a: 1 }, { a: 2 });
-    expect(out.equal).toBe(false);
+  it('serialises, sorts keys, and compares equality', () => {
+    expect(compareCanonical(1, 1)).toEqual({ equal: true, expected: '1', actual: '1' });
+    expect(compareCanonical('x', 'x').expected).toBe('"x"');
+    expect(compareCanonical(null, null).expected).toBe('null');
+    expect(compareCanonical({ b: 1, a: 2 }, { a: 2, b: 1 }).expected).toBe('{"a":2,"b":1}');
+    expect(compareCanonical([3, 1, 2], [3, 1, 2]).expected).toBe('[3,1,2]');
+    const sameKeys = compareCanonical({ a: 1, b: 2 }, { b: 2, a: 1 });
+    expect(sameKeys.equal).toBe(true);
+    expect(sameKeys.expected).toBe(sameKeys.actual);
+    const reordered = compareCanonical([1, 2], [2, 1]);
+    expect(reordered.equal).toBe(false);
+    expect(reordered.expected).toBe('[1,2]');
+    expect(reordered.actual).toBe('[2,1]');
+    expect(compareCanonical({ a: 1 }, { a: 2 }).equal).toBe(false);
   });
 });
 

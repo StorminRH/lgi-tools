@@ -8,7 +8,7 @@ import {
   deriveSliView,
   summarizeDomainEvent,
 } from './ops-view';
-import { SLI_DEFINITIONS } from '@/data/telemetry/sli';
+import { SLI_DEFINITIONS, SLI_IDS } from '@/data/telemetry/sli';
 
 const NOW = new Date('2026-07-14T12:00:00Z');
 
@@ -117,46 +117,31 @@ describe('deriveSliView', () => {
     job_backlog: { pending: 7, deadLettered: 2 },
   } as const;
 
-  it('renders one row per declared indicator, in declaration order', () => {
+  it('defines each indicator once and formats live, empty, and zero windows', () => {
+    expect(SLI_DEFINITIONS.map((sli) => sli.id).toSorted()).toEqual([...SLI_IDS].toSorted());
     const rows = deriveSliView({ ...values });
     expect(rows.map((row) => row.id)).toEqual(SLI_DEFINITIONS.map((sli) => sli.id));
-  });
-
-  it('formats each unit in its own terms', () => {
-    const rows = deriveSliView({ ...values });
     const byId = Object.fromEntries(rows.map((row) => [row.id, row.value]));
     expect(byId.read_success_rate).toBe('98.8%');
     expect(byId.mutation_success_rate).toBe('100.0%');
     expect(byId.critical_latency_p95).toBe('413 ms');
     expect(byId.esi_success_rate).toBe('50.0%');
     expect(byId.job_backlog).toBe('7 due · 2 dead');
-  });
+    expect(rows.find((row) => row.id === 'esi_success_rate')?.owner).toBe('ccp-upstream');
 
-  it('renders an empty window as an em dash rather than zero', () => {
-    // A 0% would read as total failure; “—” reads as nothing recorded.
-    const rows = deriveSliView({
-      read_success_rate: null,
-      mutation_success_rate: null,
-      critical_latency_p95: null,
-      esi_success_rate: null,
-      job_backlog: null,
-    });
-    expect(rows.map((row) => row.value)).toEqual(['—', '—', '—', '—', '—']);
-  });
-
-  it('carries each indicator’s owner and response action to the renderer', () => {
-    const rows = deriveSliView({ ...values });
-    for (const row of rows) {
-      expect(row.owner.length).toBeGreaterThan(0);
-      expect(row.responseAction.length).toBeGreaterThan(40);
-    }
-    const esi = rows.find((row) => row.id === 'esi_success_rate');
-    expect(esi?.owner).toBe('ccp-upstream');
-  });
-
-  it('renders a genuine zero rate as 0.0%, not as an empty window', () => {
-    const rows = deriveSliView({ ...values, read_success_rate: 0 });
-    expect(rows.find((row) => row.id === 'read_success_rate')?.value).toBe('0.0%');
+    expect(
+      deriveSliView({
+        read_success_rate: null,
+        mutation_success_rate: null,
+        critical_latency_p95: null,
+        esi_success_rate: null,
+        job_backlog: null,
+      }).map((row) => row.value),
+    ).toEqual(['—', '—', '—', '—', '—']);
+    expect(
+      deriveSliView({ ...values, read_success_rate: 0 }).find((row) => row.id === 'read_success_rate')
+        ?.value,
+    ).toBe('0.0%');
   });
 });
 

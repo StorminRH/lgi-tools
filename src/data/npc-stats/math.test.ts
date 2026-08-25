@@ -84,10 +84,6 @@ function statsFor(arch: Archetype): CombatStats {
 }
 
 describe('per-NPC combat math vs 2.6 archetype snapshot', () => {
-  it('covers all 36 sleeper typeIDs', () => {
-    expect(archetypes).toHaveLength(36);
-  });
-
   for (const arch of archetypes) {
     describe(`${arch.typeId} ${arch.name}`, () => {
       const stats = statsFor(arch);

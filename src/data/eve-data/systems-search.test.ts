@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { SearchContext } from '@/platform/search';
+import { z } from 'zod';
+import { systemSearchEntrySchema } from './api-contract';
 import { formatSec, matchSystem, type SystemSearchEntry } from './systems-search';
 
 const { apiFetchMock } = vi.hoisted(() => ({ apiFetchMock: vi.fn() }));
@@ -28,6 +30,12 @@ async function freshModule() {
   vi.resetModules();
   return await import('./systems-search');
 }
+
+describe('system search contract', () => {
+  it('pins the system search entry to SystemSearchEntry exactly (both directions)', () => {
+    expectTypeOf<z.infer<typeof systemSearchEntrySchema>>().toEqualTypeOf<SystemSearchEntry>();
+  });
+});
 
 describe('matchSystem', () => {
   it('prefers exact names, fuzzy-ranks prefixes, and returns null for misses', () => {

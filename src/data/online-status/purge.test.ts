@@ -30,12 +30,9 @@ afterEach(() => {
 });
 
 describe('onlineStatusPurgeContributor', () => {
-  it('is a cache-tier contributor that claims no Neon table (its home lives in Convex)', () => {
+  it('purgeCharacter POSTs the one-character teardown to /purge-online with the bearer secret', async () => {
     expect(onlineStatusPurgeContributor.tier).toBe('cache');
     expect(onlineStatusPurgeContributor.claims).toEqual([]);
-  });
-
-  it('purgeCharacter POSTs the one-character teardown to /purge-online with the bearer secret', async () => {
     await onlineStatusPurgeContributor.purgeCharacter?.({
       kind: 'character',
       userId: USER,
