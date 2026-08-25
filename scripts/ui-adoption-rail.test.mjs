@@ -62,11 +62,6 @@ const exemptionHomes = [
     'No native title forwarded through Button',
   ]),
   [
-    'src/features/devlog/components/CodeExcerpt.tsx',
-    '<details><summary>Code</summary></details>',
-    'No raw <details>',
-  ],
-  [
     'src/features/wormhole-sites/components/SitesTable.tsx',
     '<details><summary>Site</summary></details>',
     'No raw <details>',

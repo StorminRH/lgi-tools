@@ -3,18 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   ARCHITECTURE_MAP_ARTIFACTS,
   buildArchitectureMap,
-  renderGeneratedModule,
   renderMermaid,
   type ArchitectureMap,
 } from './architecture-map';
 
-// The drift lock. Both committed artifacts are read as BYTES and compared against a
-// fresh generation from the live `.fallowrc.json`, so a boundary change that skips
-// `pnpm generate:architecture-map` fails here instead of publishing a stale map.
-//
-// The generated module is deliberately never imported: `src/features/**` is off-limits
-// to the `scripts` zone, and an import edge here would violate the very allow graph the
-// map draws. Reading the file as text keeps the test honest about that boundary.
+// The drift lock. The committed mermaid artifact is read as BYTES and compared
+// against a fresh generation from the live `.fallowrc.json`, so a boundary
+// change that skips `pnpm generate:architecture-map` fails here instead of
+// publishing a stale map.
 
 const readArtifact = (path: string) => readFileSync(path, 'utf8');
 const liveConfig = () => JSON.parse(readArtifact(ARCHITECTURE_MAP_ARTIFACTS.config)) as unknown;
@@ -49,10 +45,6 @@ describe('architecture map — committed artifacts match the live configuration'
     expect(renderMermaid(liveMap())).toBe(readArtifact(ARCHITECTURE_MAP_ARTIFACTS.mermaid));
   });
 
-  it('regenerates the devlog data module byte-for-byte', () => {
-    expect(renderGeneratedModule(liveMap())).toBe(readArtifact(ARCHITECTURE_MAP_ARTIFACTS.module));
-  });
-
   it('turns red when a seeded allow edge is not regenerated', () => {
     // Proves the byte-compare above is load-bearing: change one rule and the emitted
     // text must diverge from the committed file.
@@ -67,9 +59,6 @@ describe('architecture map — committed artifacts match the live configuration'
 
     expect(renderMermaid(buildArchitectureMap(seeded))).not.toBe(
       readArtifact(ARCHITECTURE_MAP_ARTIFACTS.mermaid),
-    );
-    expect(renderGeneratedModule(buildArchitectureMap(seeded))).not.toBe(
-      readArtifact(ARCHITECTURE_MAP_ARTIFACTS.module),
     );
   });
 });
@@ -152,7 +141,7 @@ describe('architecture map — the pinned edge taxonomy', () => {
   });
 
   it('carries no style directive, timestamp, or absolute path', () => {
-    const emitted = renderMermaid(liveMap()) + renderGeneratedModule(liveMap());
+    const emitted = renderMermaid(liveMap());
     expect(emitted).not.toMatch(/classDef|linkStyle|style /);
     expect(emitted).not.toMatch(/\d{4}-\d{2}-\d{2}T|\/Users\/|\/home\//);
   });
@@ -212,8 +201,8 @@ describe('architecture map — malformed configuration fails loudly', () => {
 
   it('refuses two zone names that reduce to one node id', () => {
     // zoneId maps every non-word character to '_', so these two distinct zones would both
-    // become "owner_sync". The devlog indexes the matrix by id, so a collision would draw
-    // one zone's permissions on the other zone's row.
+    // become "owner_sync". The flowchart addresses zones by id, so a collision would draw
+    // one zone's permissions on the other zone's node.
     const config = {
       boundaries: {
         zones: [
@@ -248,8 +237,8 @@ describe('architecture map — malformed configuration fails loudly', () => {
 
   it('rejects an allow target that could not survive the emitters intact', () => {
     // A target naming no declared zone becomes a reference-core node whose label is that
-    // raw text, so an apostrophe would emit a generated module that does not parse and a
-    // quote would break the Mermaid label. Both are refused at the boundary.
+    // raw text, so a quote would break the Mermaid label. Those characters are refused
+    // at the boundary.
     for (const target of ["data/it's", 'data/say"hi"', 'data/semi;colon']) {
       const config = {
         boundaries: {
@@ -261,14 +250,14 @@ describe('architecture map — malformed configuration fails loudly', () => {
     }
   });
 
-  it('still emits a valid module and flowchart for every live label', () => {
+  it('still emits a valid flowchart for every live label', () => {
     // The positive half of the boundary check: nothing the live config produces needs
-    // escaping, so both emitted texts stay parseable.
+    // escaping, so the emitted mermaid stays parseable.
     const map = liveMap();
     for (const node of map.nodes) {
       expect(node.label).not.toMatch(/['"`;]/);
     }
-    expect(renderGeneratedModule(map)).not.toMatch(/label: '[^']*'[^,]/);
+    expect(renderMermaid(map)).toContain('```mermaid');
   });
 });
 

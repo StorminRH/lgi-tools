@@ -80,9 +80,6 @@ import AppSiteChangelogLayout from '@/app/(site)/changelog/layout';
 import AppSiteChangelogPage, { metadata as AppSiteChangelogPageMetadata } from '@/app/(site)/changelog/page';
 import AppSiteCharactersPage from '@/app/(site)/characters/page';
 import AppSiteContactPage, { metadata as AppSiteContactPageMetadata } from '@/app/(site)/contact/page';
-import AppSiteDevlogSlugPage, { generateMetadata as AppSiteDevlogSlugPageGenerateMetadata, generateStaticParams as AppSiteDevlogSlugPageGenerateStaticParams } from '@/app/(site)/devlog/[slug]/page';
-import AppSiteDevlogLayout from '@/app/(site)/devlog/layout';
-import AppSiteDevlogPage, { metadata as AppSiteDevlogPageMetadata } from '@/app/(site)/devlog/page';
 import AppSiteError from '@/app/(site)/error';
 import { IndustryDashboardGrid } from '@/app/(site)/industry/IndustryDashboardGrid';
 import AppSiteIndustryIdPage, { generateMetadata as AppSiteIndustryIdPageGenerateMetadata } from '@/app/(site)/industry/[id]/page';
@@ -143,12 +140,6 @@ describe('coverage-gaps', () => {
       AppSiteCharactersPage,
       AppSiteContactPageMetadata,
       AppSiteContactPage,
-      AppSiteDevlogSlugPageGenerateMetadata,
-      AppSiteDevlogSlugPageGenerateStaticParams,
-      AppSiteDevlogSlugPage,
-      AppSiteDevlogLayout,
-      AppSiteDevlogPageMetadata,
-      AppSiteDevlogPage,
       AppSiteError,
       IndustryDashboardGrid,
       AppSiteIndustryIdPageGenerateMetadata,

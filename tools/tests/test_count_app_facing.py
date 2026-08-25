@@ -26,7 +26,6 @@ class CountAppFacingTests(unittest.TestCase):
             ".agents/unused.md",
             "scripts/route-classification.json",
             "content/changelog/v4.0.md",
-            "content/devlog/00-introduction.md",
             "AGENTS.md",
             "src/AGENTS.md",
             "CONTRIBUTING.md",

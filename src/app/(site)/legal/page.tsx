@@ -40,7 +40,7 @@ export default function LegalPage() {
         title="Privacy"
         meta={
           <span className={eyebrow()}>
-            Last updated <b className="text-name font-semibold">28 Jul 2026</b>
+            Last updated <b className="text-name font-semibold">25 Aug 2026</b>
           </span>
         }
       />
@@ -224,10 +224,7 @@ export default function LegalPage() {
               >
                 github.com/StorminRH/lgi-tools
               </a>
-              , so every claim on this page is auditable. You may also visit the dev log{' '}
-              <Link href="/devlog">Under the Hood</Link> for a guided walkthrough on how this app is
-              being built and a more technical overview of all the privacy-related features. The dev
-              log is not always current; I update it as I build periodically.
+              , so every claim on this page is auditable.
             </p>
           </LegalSection>
 

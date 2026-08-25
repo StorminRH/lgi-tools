@@ -1739,7 +1739,6 @@ const eslintConfig = defineConfig([
   },
   {
     files: [
-      "src/features/devlog/components/CodeExcerpt.tsx",
       "src/features/wormhole-sites/components/SitesTable.tsx",
     ],
     rules: {

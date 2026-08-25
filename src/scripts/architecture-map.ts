@@ -10,11 +10,10 @@
 // every path in the emitted text is repo-relative — so a second run against an
 // unchanged config is byte-identical and the drift test can compare bytes.
 
-/** Where the generator reads from and the two artifacts it owns, all repo-relative. */
+/** Where the generator reads from and the mermaid artifact it owns, all repo-relative. */
 export const ARCHITECTURE_MAP_ARTIFACTS = {
   config: '.fallowrc.json',
   mermaid: 'docs/architecture-map.md',
-  module: 'src/features/devlog/architecture-map.generated.ts',
 } as const;
 
 const REGENERATE_COMMAND = 'pnpm generate:architecture-map';
@@ -128,9 +127,8 @@ function parseBoundaries(config: unknown): { zones: ZoneDeclaration[]; rules: Ru
   return { zones, rules };
 }
 
-// Mermaid node ids and the generated module's keys share one identity, so both
-// artifacts address a zone the same way. `/` becomes `__` to keep the band visible
-// in the id; every other non-word character collapses to `_`.
+// Mermaid node ids are the zone identity in the flowchart. `/` becomes `__` to
+// keep the band visible in the id; every other non-word character collapses to `_`.
 function zoneId(name: string): string {
   return name.replace(/\//g, '__').replace(/[^A-Za-z0-9_]/g, '_');
 }
@@ -158,8 +156,8 @@ function classifyTarget(zones: ZoneDeclaration[], declared: Set<string>, from: s
 }
 
 // zoneId is lossy, so two different names can reduce to one id. Every node id has to stay
-// unique: the devlog indexes the matrix by id, so a collision would silently draw one
-// zone's permissions on another zone's row instead of failing.
+// unique: the flowchart addresses zones by id, so a collision would silently draw one
+// zone's permissions on another zone's node instead of failing.
 function assertUniqueIds(drafts: NodeDraft[]): void {
   const owner = new Map<string, string>();
   for (const draft of drafts) {
@@ -341,8 +339,7 @@ export function renderMermaid(map: ArchitectureMap): string {
     '     Do not edit by hand: a drift test byte-compares this file against a fresh run. -->',
     '',
     'The zone-level dependency graph LGI.tools enforces, derived from the `boundaries`',
-    'block of the Fallow configuration. This file is its generated picture, and the',
-    'public devlog renders it as a permission matrix.',
+    'block of the Fallow configuration. This file is its generated picture.',
     '',
     countsLine(map),
     '',
@@ -354,33 +351,3 @@ export function renderMermaid(map: ArchitectureMap): string {
   return lines.join('\n');
 }
 
-function moduleEntry(fields: string): string {
-  return `    { ${fields} },`;
-}
-
-/**
- * Emit `src/features/devlog/architecture-map.generated.ts`: the same graph as a typed,
- * import-free data module carrying structure, names, layers, and class kinds only —
- * never a colour, which the devlog resolves from theme tokens at render time.
- */
-export function renderGeneratedModule(map: ArchitectureMap): string {
-  const lines = [
-    `// Generated from \`${ARCHITECTURE_MAP_ARTIFACTS.config}\` by \`${REGENERATE_COMMAND}\`.`,
-    '// Do not edit by hand: a drift test byte-compares this file against a fresh run,',
-    '// so an edit here fails the suite instead of shipping a map the rules disagree with.',
-    '',
-    '/** Zone-level dependency graph derived from the `boundaries` block of `.fallowrc.json`. */',
-    'export const architectureMap = {',
-    '  nodes: [',
-    ...map.nodes.map((node) =>
-      moduleEntry(`id: '${node.id}', label: '${node.label}', layer: ${node.layer}, kind: '${node.kind}'`),
-    ),
-    '  ],',
-    '  edges: [',
-    ...map.edges.map((edge) => moduleEntry(`from: '${edge.from}', to: '${edge.to}', kind: '${edge.kind}'`)),
-    '  ],',
-    '} as const;',
-    '',
-  ];
-  return lines.join('\n');
-}

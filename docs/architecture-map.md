@@ -4,8 +4,7 @@
      Do not edit by hand: a drift test byte-compares this file against a fresh run. -->
 
 The zone-level dependency graph LGI.tools enforces, derived from the `boundaries`
-block of the Fallow configuration. This file is its generated picture, and the
-public devlog renders it as a permission matrix.
+block of the Fallow configuration. This file is its generated picture.
 
 Zones: 24. Declared permissions: 117 (reference-core exceptions: 1). First-match carve-outs: 1.
 

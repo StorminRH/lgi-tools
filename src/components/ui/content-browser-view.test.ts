@@ -43,18 +43,18 @@ test('landingContentSlug and titleForSlug resolve flat, grouped, and empty navig
 });
 
 test('deriveActiveContentSlug and contentBrowserHref keep landing and child routes honest', () => {
-  expect(deriveActiveContentSlug('/devlog', '/devlog', 'introduction')).toBe('introduction');
-  expect(deriveActiveContentSlug('/devlog/', '/devlog/', 'introduction')).toBe('introduction');
-  expect(deriveActiveContentSlug('/devlog/vercel', '/devlog', 'introduction')).toBe('vercel');
-  expect(deriveActiveContentSlug('/devlog/vercel/', '/devlog', 'introduction')).toBe('vercel');
+  expect(deriveActiveContentSlug('/changelog', '/changelog', 'v4.0')).toBe('v4.0');
+  expect(deriveActiveContentSlug('/changelog/', '/changelog/', 'v4.0')).toBe('v4.0');
+  expect(deriveActiveContentSlug('/changelog/v3.8', '/changelog', 'v4.0')).toBe('v3.8');
+  expect(deriveActiveContentSlug('/changelog/v3.8/', '/changelog', 'v4.0')).toBe('v3.8');
 
-  expect(deriveActiveContentSlug('/skills', '/devlog', 'introduction')).toBeNull();
-  expect(deriveActiveContentSlug('/devlog/a/b', '/devlog', 'introduction')).toBeNull();
-  expect(deriveActiveContentSlug('/', '/devlog', 'introduction')).toBeNull();
+  expect(deriveActiveContentSlug('/skills', '/changelog', 'v4.0')).toBeNull();
+  expect(deriveActiveContentSlug('/changelog/a/b', '/changelog', 'v4.0')).toBeNull();
+  expect(deriveActiveContentSlug('/', '/changelog', 'v4.0')).toBeNull();
 
   expect(deriveActiveContentSlug('/docs.v2/item', '/docs.v2', 'intro')).toBe('item');
   expect(deriveActiveContentSlug('/docsXv2/item', '/docs.v2', 'intro')).toBeNull();
 
-  expect(contentBrowserHref('/devlog/', 'introduction', 'introduction')).toBe('/devlog');
-  expect(contentBrowserHref('/devlog', 'vercel', 'introduction')).toBe('/devlog/vercel');
+  expect(contentBrowserHref('/changelog/', 'v4.0', 'v4.0')).toBe('/changelog');
+  expect(contentBrowserHref('/changelog', 'v3.8', 'v4.0')).toBe('/changelog/v3.8');
 });
