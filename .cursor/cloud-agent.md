@@ -70,3 +70,8 @@ Depot, Vercel, and Neon on PATH. `origin` is the Cloud Agent runtime.
 `repo-mapper` can run `codegraph sync` after material source edits.
 Codegraph does not need a token. Depot, Vercel, and Neon use Cloud Agent
 Secrets when a command needs them.
+
+This Cloud Agent Origin token has been refused for `origin pr merge`
+and `origin ruleset list` with "not scoped for this operation". Close-out
+still runs `origin pr merge <N>`. That refusal is `BLOCKED`, not a git
+push onto `staging` or `main`.

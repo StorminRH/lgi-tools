@@ -42,7 +42,7 @@ feat: add API endpoints for browsing and filtering wormhole sites
    `pnpm lint`, Fallow `dead-code`, `dupes`, and `health`, and focused tests
    for your diff. A promote or release waits on that Origin PR's Depot
    pipeline (`verify` on every PR, plus `build` and `e2e` on PRs) with
-   **`origin pr checks --watch`**. Laptop `pnpm verify` is not done.
+   **`origin pr checks <N> --watch`**. Laptop `pnpm verify` is not done.
 3. Fill in the PR template's **test plan** — what you verified and how.
 4. Open Origin PRs and GitHub dump PRs ready for review so Depot runs once.
    `origin pr create` defaults to draft; pass `--status open`.
