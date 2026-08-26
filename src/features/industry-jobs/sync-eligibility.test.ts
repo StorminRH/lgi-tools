@@ -3,10 +3,7 @@ import { canSyncIndustryJobs, INDUSTRY_JOBS_SYNC_SCOPES } from './sync-eligibili
 
 describe('INDUSTRY_JOBS_SYNC_SCOPES', () => {
   it('pins the verified industry-jobs scope string', () => {
-    // This exact string is pinned ∈ EVE_SCOPES by the auth feature's own pin
-    // test (eve-sso.test.ts) — together the two tests guarantee the sync
-    // never demands a scope sign-in doesn't request. (A direct EVE_SCOPES
-    // import here would be a feature → feature edge the boundary lint bans.)
+
     expect([...INDUSTRY_JOBS_SYNC_SCOPES]).toEqual(['esi-industry.read_character_jobs.v1']);
   });
 });

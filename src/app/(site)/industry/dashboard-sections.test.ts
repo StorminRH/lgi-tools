@@ -20,7 +20,7 @@ function status(
 }
 
 describe('orderSections', () => {
-  // The three review-example states the rank model is pinned on.
+
   it('keeps the preferred order when every section is populated', () => {
     expect(orderSections(status())).toEqual(['recents', 'saved', 'active', 'corp']);
   });

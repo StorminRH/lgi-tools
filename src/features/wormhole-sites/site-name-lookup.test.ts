@@ -11,7 +11,6 @@ afterEach(() => {
   setSiteNameIndex([]);
 });
 
-/** Canonical public ids 1–69 from the historical seed (offset −70). */
 function catalogueFromSeed(): readonly { id: number; name: string }[] {
   const text = readFileSync('drizzle/0006_historical_seed.sql', 'utf8');
   const pat =
@@ -20,7 +19,7 @@ function catalogueFromSeed(): readonly { id: number; name: string }[] {
   for (const match of text.matchAll(pat)) {
     const seededId = Number(match[1]);
     if (seededId < 71 || seededId > 139) continue;
-    // Capture group 2 is required by `pat` (quoted name column).
+
     const name = match[2];
     if (name == null) continue;
     rows.push({

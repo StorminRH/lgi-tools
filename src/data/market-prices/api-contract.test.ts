@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { refreshPricesRequestSchema, wirePriceSchema } from './api-contract';
+import type { PriceSource } from './types';
 
 describe('market-prices contract', () => {
+  it('pins the wire source enum to PriceSource exactly (both directions)', () => {
+    expectTypeOf<(typeof wirePriceSchema.shape.source)['options'][number]>().toEqualTypeOf<PriceSource>();
+  });
+
   it('accepts a bounded typeId batch', () => {
     expect(refreshPricesRequestSchema.safeParse({ typeIds: [34, 35, 36] }).success).toBe(true);
   });
@@ -25,12 +30,11 @@ describe('market-prices contract', () => {
       updatedAt: '2026-07-01T00:00:00.000Z',
       staleAfter: '2026-07-02T00:00:00.000Z',
       source: 'esi',
-      // no regionalDiscount key at all
+
     };
     const parsed = wirePriceSchema.safeParse(preReleaseRow);
     expect(parsed.success).toBe(true);
 
-    // And a populated one round-trips.
     expect(
       wirePriceSchema.safeParse({
         ...preReleaseRow,

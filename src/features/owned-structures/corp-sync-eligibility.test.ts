@@ -17,8 +17,7 @@ describe('canSyncCorpStructures', () => {
     for (const scope of CORP_STRUCTURES_SYNC_SCOPES) {
       expect(canSyncCorpStructures({ hasRefreshToken: true, missingScopes: [scope] })).toBe(false);
     }
-    // The in-game Station_Manager ROLE is gated in the refresh layer (a graceful
-    // skip), never here — only scope membership belongs in this predicate.
+
     expect([...CORP_STRUCTURES_SYNC_SCOPES]).toEqual([
       'esi-characters.read_corporation_roles.v1',
       'esi-corporations.read_structures.v1',

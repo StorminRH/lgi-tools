@@ -1,14 +1,10 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// The route removes a linked character and re-points the active one if needed.
-// Mock auth + the query layer so these exercise the last-character guard, the
-// re-point, and the error mapping without a DB or a real EVE call.
-
 const SESSION = {
   user: { id: 'eve-user-1' },
   session: {},
-  characterId: 100, // active character
+  characterId: 100,
   name: 'Alice',
   portraitUrl: 'a',
   role: 'USER' as const,
@@ -69,8 +65,6 @@ vi.mock('@/data/location-tracking/purge', () => ({
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
-// Real identity wiring: map-access-identity registers hooks; the route uses the
-// never-throw runner. Static import after mocks are hoisted.
 import { POST } from './route';
 
 function buildRequest(form: Record<string, string>): NextRequest {

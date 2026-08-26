@@ -7,10 +7,7 @@ import {
 
 describe('CORP_INDUSTRY_JOBS_SYNC_SCOPES', () => {
   it('pins the verified corp industry-jobs scopes and Factory_Manager / Director roles', () => {
-    // These exact strings are pinned ∈ EVE_SCOPES by the auth feature's own pin
-    // test (eve-sso.test.ts) — together the two tests guarantee the sync never
-    // demands a scope sign-in doesn't request. (A direct EVE_SCOPES import here
-    // would be a feature → feature edge the boundary lint bans.)
+
     expect([...CORP_INDUSTRY_JOBS_SYNC_SCOPES]).toEqual([
       'esi-characters.read_corporation_roles.v1',
       'esi-industry.read_corporation_jobs.v1',

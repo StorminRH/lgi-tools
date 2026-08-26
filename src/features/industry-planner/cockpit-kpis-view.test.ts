@@ -8,8 +8,6 @@ import {
 } from './cockpit-kpis-view';
 import type { BlueprintPricing, NetMarginView } from './types';
 
-// Minimal pricing — only the fields the views read. A healthy product (best sell
-// == pct5 sell, no regional discount) so both Sell·Jita badges stay off.
 const pricing = (over: {
   inputCost?: number;
   revenue?: number | null;
@@ -44,7 +42,7 @@ describe('cockpitMarginView', () => {
   });
 
   it('names the reaction system as the fee source for a reaction blueprint', () => {
-    // activity 11 = reaction: the reaction system wins over the build location.
+
     const view = cockpitMarginView(null, 11, { systemName: 'Amarr' }, { systemName: 'Jita' }, false, 'net');
     expect(view.feeSystemName).toBe('Jita');
   });

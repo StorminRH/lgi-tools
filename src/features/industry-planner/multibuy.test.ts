@@ -13,7 +13,7 @@ import {
 
 describe('assignBuildTiers — one home tier per buildable (min occurrence depth)', () => {
   it('a type consumed at two depths is assigned the shallower one', () => {
-    // C appears at depth 1 (direct product input) and depth 2 (under A).
+
     const c = (qty: number): TreeNode => ({
       typeId: 200,
       quantity: qty,
@@ -31,7 +31,7 @@ describe('assignBuildTiers — one home tier per buildable (min occurrence depth
     ];
     expect(assignBuildTiers(tree)).toEqual(
       new Map([
-        [200, 1], // min(1, 2)
+        [200, 1],
         [100, 1],
       ]),
     );
@@ -42,9 +42,6 @@ describe('assignBuildTiers — one home tier per buildable (min occurrence depth
     expect(assignBuildTiers(tree)).toEqual(new Map());
   });
 
-  // Property pin over every committed tree: the assignment IS the minimum of a
-  // type's occurrence depths (independent all-depths oracle), and only
-  // buildables are assigned.
   const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
   const allDepths = (tree: TreeNode[]): Map<number, number[]> => {
     const depths = new Map<number, number[]>();
@@ -79,10 +76,10 @@ describe('multibuyEntries — deterministic line order', () => {
 
   it('bought intermediates first (tier, then name); raws last (by name)', () => {
     const buy = new Map([
-      [34, 2556], // raw
-      [200, 5], // tier 2
-      [35, 100], // raw
-      [100, 8], // tier 1
+      [34, 2556],
+      [200, 5],
+      [35, 100],
+      [100, 8],
     ]);
     const tierOf = (id: number) => ({ 100: 1, 200: 2 })[id];
     expect(multibuyEntries(buy, nameOf, tierOf)).toEqual([
@@ -140,7 +137,7 @@ describe('buildMultibuyText — the in-game clipboard string', () => {
 
 describe('tierRowsFromTierOf', () => {
   it('counts buildables per tier, ascending by depth', () => {
-    // typeIds 10,11 at tier 1; 20 at tier 2.
+
     const tierOf = new Map<number, number>([
       [10, 1],
       [11, 1],

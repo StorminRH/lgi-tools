@@ -27,7 +27,6 @@ afterEach(() => {
 
 const ids = Object.keys(CAPABILITIES) as CapabilityId[];
 
-/** Records one outcome and returns the metadata that reached the telemetry writer. */
 function recordedMetadata(
   id: CapabilityId,
   outcome: CapabilityOutcomeInput,
@@ -161,11 +160,6 @@ describe('recordCapabilityOutcome', () => {
   });
 });
 
-// HC-2: no high-cardinality identifier may become a metric label. `action`,
-// `feature`, and `operation` are the only values grouped on, and all three come
-// from closed `as const` vocabularies. Everything else in the record —
-// correlation ids, durations, per-dependency timings — is a value, and grouping
-// on any of them would create one series per request.
 describe('metric label cardinality', () => {
   const HIGH_CARDINALITY_FIELDS = ['correlationId', 'durationMs', 'dependencies', 'retry'];
 
@@ -189,11 +183,11 @@ describe('metric label cardinality', () => {
       durationMs: 5,
       retry: null,
     });
-    // Present in the record...
+
     for (const field of HIGH_CARDINALITY_FIELDS) {
       expect(Object.keys(metadata)).toContain(field);
     }
-    // ...but never part of the identity the record is grouped by.
+
     expect(Object.keys(CAPABILITIES[ 'planner.create-saved-plan' ])).toEqual([
       'feature',
       'operation',

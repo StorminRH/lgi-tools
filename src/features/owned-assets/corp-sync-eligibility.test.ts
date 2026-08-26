@@ -7,9 +7,7 @@ import {
 
 describe('CORP_ASSETS_SYNC_SCOPES', () => {
   it('pins the verified corp assets scopes and Director as the sole admitting role', () => {
-    // These exact strings are pinned ∈ EVE_SCOPES by eve-sso.test.ts. The roles
-    // read is shared with corp industry jobs + corp blueprints; the corp-assets
-    // read lives under `esi-assets`, NOT `esi-corporations`.
+
     expect([...CORP_ASSETS_SYNC_SCOPES]).toEqual([
       'esi-characters.read_corporation_roles.v1',
       'esi-assets.read_corporation_assets.v1',

@@ -33,9 +33,7 @@ describe('clampMe', () => {
 
 describe('effectiveMeOf', () => {
   it('is byte-identical to the owned map when no override is set', () => {
-    // THE anchor for the planner wiring: empty overrides ⇒ the effective lookup
-    // equals owned.get for EVERY blueprint (present or absent), so the ledger is
-    // unchanged from the owned-only path.
+
     const owned = new Map([
       [10, 5],
       [20, 10],

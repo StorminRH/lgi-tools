@@ -171,7 +171,7 @@ describe('deriveJobBacklog', () => {
   });
 
   it('excludes terminal statuses from the backlog', () => {
-    // A succeeded or permanently failed job is finished work, not a backlog.
+
     expect(deriveJobBacklog([stat('succeeded', 50), stat('failed_permanent', 3)])).toEqual({
       pending: 0,
       deadLettered: 0,

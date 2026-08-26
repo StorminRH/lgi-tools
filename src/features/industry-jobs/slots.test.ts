@@ -22,9 +22,7 @@ function job(
 
 describe('slotCapacity', () => {
   it('computes 1 + the two slot skills per activity', () => {
-    // The hand-computed anchor's capacity half: Mass Production IV + Advanced
-    // Mass Production III → 1+4+3 = 8; Laboratory Operation V (advanced
-    // untrained) → 1+5+0 = 6; Mass Reactions II → 1+2+0 = 3.
+
     expect(
       slotCapacity({ '3387': 4, '24625': 3, '3406': 5, '45748': 2 }),
     ).toEqual({ manufacturing: 8, science: 6, reactions: 3 });
@@ -55,11 +53,6 @@ describe('slotCapacity', () => {
 describe('countUsedSlots', () => {
   const CHARACTER = 501;
 
-  // The hand-computed anchor's usage half. Personal: job 101 (manufacturing,
-  // active), job 102 (copying, active), job 103 (manufacturing, delivered —
-  // freed). Corp: job 101 again (the dedup case — counted once), job 201
-  // (activity 9, ready — the id live ESI actually sends for reactions), job
-  // 202 installed by someone else (excluded). Expected: 1 / 1 / 1.
   it('matches the hand-computed anchor: dedup, installer filter, activity 9', () => {
     const personal = [
       job({ job_id: 101, activity_id: 1 }),
@@ -141,9 +134,7 @@ describe('slotMetaTotals', () => {
   });
 
   it('sums used/total across characters, base 1/1/1 for an unsynced one', () => {
-    // Character 1 carries the anchor capacity (8/6/3) and one active
-    // manufacturing job; character 2 never synced skills (server sent the base
-    // 1/1/1) and runs one corp-installed reaction job (activity 9).
+
     const model = slotMetaTotals({
       loading: false,
       eligibleCharacterIds: [1, 2],
@@ -165,9 +156,7 @@ describe('slotMetaTotals', () => {
   });
 
   it('excludes a character whose jobs the boards cannot see (scope-ineligible)', () => {
-    // Character 9 has trained slots but lacks the industry-job scopes and has
-    // no visible corp jobs: nothing of theirs is countable, so their capacity
-    // must not inflate the total.
+
     const model = slotMetaTotals({
       loading: false,
       eligibleCharacterIds: [1],
@@ -186,8 +175,7 @@ describe('slotMetaTotals', () => {
   });
 
   it('does not admit a character on terminal corp jobs alone (freed slots)', () => {
-    // Character 7's only visible corp job is delivered — it occupies nothing,
-    // so it must not add their capacity to the denominator either.
+
     const model = slotMetaTotals({
       loading: false,
       eligibleCharacterIds: [1],
@@ -206,9 +194,7 @@ describe('slotMetaTotals', () => {
   });
 
   it('includes a personally-ineligible character who installed a visible corp job', () => {
-    // Character 7 lacks the personal-jobs scope but their corp-installed job
-    // is visible through a corp-eligible reader: the header must count it, or
-    // it would show fewer used slots than the corp section below it.
+
     const model = slotMetaTotals({
       loading: false,
       eligibleCharacterIds: [1],

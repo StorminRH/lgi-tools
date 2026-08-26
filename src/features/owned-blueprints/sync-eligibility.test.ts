@@ -3,10 +3,7 @@ import { BLUEPRINTS_SYNC_SCOPES, canSyncBlueprints } from './sync-eligibility';
 
 describe('BLUEPRINTS_SYNC_SCOPES', () => {
   it('pins the verified character blueprints scope string', () => {
-    // This exact string is pinned ∈ EVE_SCOPES by the auth feature's own pin test
-    // (eve-sso.test.ts) — together the two tests guarantee the sync never demands
-    // a scope sign-in doesn't request. (A direct EVE_SCOPES import here would be a
-    // feature → feature edge the boundary lint bans.)
+
     expect([...BLUEPRINTS_SYNC_SCOPES]).toEqual(['esi-characters.read_blueprints.v1']);
   });
 });

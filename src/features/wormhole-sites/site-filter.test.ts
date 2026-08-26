@@ -41,7 +41,7 @@ describe('matchesClassFilter', () => {
 
 describe('matchesFilter', () => {
   const combatC5: { type: SiteType; clsSet: WormholeClass[] } = { type: 'combat', clsSet: ['C5'] };
-  // A gas signature spanning the whole C1–C6 range (see siteClassSet).
+
   const gasWide: { type: SiteType; clsSet: WormholeClass[] } = {
     type: 'gas',
     clsSet: ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'],
@@ -53,9 +53,9 @@ describe('matchesFilter', () => {
 
   it('requires BOTH axes when both are selected (intersection)', () => {
     expect(matchesFilter(combatC5, { cls: ['C5'], types: ['combat'] })).toBe(true);
-    // class matches but type does not
+
     expect(matchesFilter(combatC5, { cls: ['C5'], types: ['ore'] })).toBe(false);
-    // type matches but class does not
+
     expect(matchesFilter(combatC5, { cls: ['C1'], types: ['combat'] })).toBe(false);
   });
 
@@ -65,7 +65,7 @@ describe('matchesFilter', () => {
   });
 
   it('treats a null type as matching only when no type is selected', () => {
-    // The table reads rowType from a DOM attribute that can be absent.
+
     expect(matchesFilter({ type: null, clsSet: ['C5'] }, { cls: ['C5'], types: [] })).toBe(true);
     expect(matchesFilter({ type: null, clsSet: ['C5'] }, { cls: [], types: ['combat'] })).toBe(
       false,

@@ -3,10 +3,7 @@ import { ASSETS_SYNC_SCOPES, canSyncAssets } from './sync-eligibility';
 
 describe('ASSETS_SYNC_SCOPES', () => {
   it('pins the verified character assets scope string', () => {
-    // This exact string is pinned ∈ EVE_SCOPES by the auth feature's own pin test
-    // (eve-sso.test.ts) — together the two tests guarantee the sync never demands
-    // a scope sign-in doesn't request. (A direct EVE_SCOPES import here would be a
-    // feature → feature edge the boundary lint bans.)
+
     expect([...ASSETS_SYNC_SCOPES]).toEqual(['esi-assets.read_assets.v1']);
   });
 });

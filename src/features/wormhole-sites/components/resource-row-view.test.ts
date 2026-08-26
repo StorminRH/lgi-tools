@@ -27,11 +27,17 @@ describe('resource row view', () => {
     expect(formatM3(4000)).toBe('4,000 m³');
     expect(formatM3(null)).toBe('—');
 
-    expect(deriveResourceRowView(resource(), 'relic').dotTone).toBe('orange');
+    expect(deriveResourceRowView(resource(), 'relic')).toEqual({
+      colsClass: 'grid-cols-[1fr_auto]',
+      meta: null,
+      dotTone: 'orange',
+    });
     expect(deriveResourceRowView(resource(), 'data').dotTone).toBe('blue');
-    expect(deriveResourceRowView(resource({ units: 250, volumeM3: 4000 }), 'ore').meta).toBe(
-      '250 rocks · 4,000 m³',
-    );
+    expect(deriveResourceRowView(resource({ units: 250, volumeM3: 4000 }), 'ore')).toEqual({
+      colsClass: 'grid-cols-[1fr_auto_auto]',
+      meta: '250 rocks · 4,000 m³',
+      dotTone: null,
+    });
     expect(deriveResourceRowView(resource({ units: 30, volumeM3: 600 }), 'gas').meta).toBe(
       '30 units · 600 m³',
     );

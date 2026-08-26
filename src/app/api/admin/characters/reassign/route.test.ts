@@ -1,10 +1,6 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Admin reassign. Mock auth + the query layer so these exercise the admin gate,
-// the self-guard, the ownership check, and that the destination is fixed to the
-// caller — without a DB.
-
 const ADMIN_SESSION = {
   user: { id: 'admin-1' },
   characterId: 1,

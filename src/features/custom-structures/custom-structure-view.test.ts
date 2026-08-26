@@ -14,7 +14,7 @@ import type { CustomStructureRow } from './types';
 
 const AZBEL: StructureTypeOption = { typeId: 35827, name: 'Azbel', groupId: 1404, rigSize: 3 };
 const RAITARU: StructureTypeOption = { typeId: 35825, name: 'Raitaru', groupId: 1404, rigSize: 2 };
-// A large manufacturing rig — fits the Azbel (group 1404, size 3), not the Raitaru (size 2).
+
 const LARGE_RIG: StructureRigOption = { typeId: 1, name: 'L Rig', canFitGroups: [1404, 1406, 1657], rigSize: 3 };
 const MED_RIG: StructureRigOption = { typeId: 2, name: 'M Rig', canFitGroups: [1404], rigSize: 2 };
 
@@ -28,7 +28,7 @@ describe('deriveBuilderView', () => {
       busy: false,
     });
     expect(view.structure).toBe(AZBEL);
-    expect(view.validRigs).toEqual([LARGE_RIG]); // only the L rig fits the Azbel
+    expect(view.validRigs).toEqual([LARGE_RIG]);
     expect(view.canSave).toBe(true);
   });
 

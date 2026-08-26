@@ -1,9 +1,6 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Admin force-logout. Mock auth + the query layer so these exercise the admin
-// gate, the self-guard, the not-found check, and the redirect without a DB.
-
 const ADMIN_SESSION = {
   user: { id: 'admin-1' },
   characterId: 1,

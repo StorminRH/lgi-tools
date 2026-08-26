@@ -2,10 +2,6 @@ import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminUser } from '@/platform/auth/admin-users';
 
-// The route reads the viewer (admin gate + own userId) straight off the Better
-// Auth session and mutates per-user roles. Mock the auth instance + query layer
-// so these exercise the guards without a DB.
-
 const ADMIN_VIEWER = {
   user: { id: 'eve-user-1000000000' },
   session: {},
@@ -77,8 +73,6 @@ describe('POST /api/admin/role', () => {
     const res = await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'ADMIN' }));
     expect(res.status).toBe(403);
 
-    // The null-session arm is the security-salient one: a guard refactor like
-    // `session && !session.isAdmin` would wave anonymous callers through.
     getSessionMock.mockResolvedValue(null);
     const anonymous = await POST(buildRequest({ userId: 'eve-user-12345', nextRole: 'ADMIN' }));
     expect(anonymous.status).toBe(403);

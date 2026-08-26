@@ -7,9 +7,7 @@ import {
 
 describe('CORP_BLUEPRINTS_SYNC_SCOPES', () => {
   it('pins the verified corp blueprints scopes and Director as the sole admitting role', () => {
-    // These exact strings are pinned ∈ EVE_SCOPES by eve-sso.test.ts. The roles
-    // read is shared with corp industry jobs; the corp-blueprints read lives under
-    // `esi-corporations`, not `esi-characters`.
+
     expect([...CORP_BLUEPRINTS_SYNC_SCOPES]).toEqual([
       'esi-characters.read_corporation_roles.v1',
       'esi-corporations.read_blueprints.v1',

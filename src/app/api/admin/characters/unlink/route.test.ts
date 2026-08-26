@@ -1,10 +1,6 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Admin force-unlink. Mock auth + the query layer so these exercise the admin
-// gate, the ownership + last-character guards, the re-point, and the redirect
-// without a DB.
-
 const ADMIN_SESSION = {
   user: { id: 'admin-1' },
   characterId: 1,

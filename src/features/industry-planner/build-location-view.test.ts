@@ -121,7 +121,7 @@ describe('deriveBuildLocationView', () => {
     const view = deriveBuildLocationView(corpJita, [corpJita, portable], SYSTEMS, null);
     expect(view.lockedStructure).toBe(corpJita);
     expect(view.deducedSystem).toEqual({ id: 30000142, name: 'Jita', security: 0.9 });
-    // Locked to Jita → the Basgerin-less portable still shows (portables show everywhere).
+
     expect(view.visibleStructures).toEqual([corpJita, portable]);
     expect(view.stations).toEqual([]);
   });
@@ -136,7 +136,7 @@ describe('deriveBuildLocationView', () => {
   it('carries the current location stations and falls back to its system for segmentation', () => {
     const loc = { ...seededBuildLocation(SYSTEMS[0]!), stations: [station({ id: 60003760 })] };
     const view = deriveBuildLocationView(portable, [corpJita, portable], SYSTEMS, loc);
-    // No lock → the picked location's system scopes the list (corpJita is in Jita).
+
     expect(view.lockedStructure).toBeNull();
     expect(view.stations).toHaveLength(1);
     expect(view.visibleStructures).toEqual([corpJita, portable]);

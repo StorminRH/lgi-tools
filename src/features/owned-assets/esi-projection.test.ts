@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseAssetsBody } from './esi-projection';
 
-// A realistic ESI asset element — including the fields the projection drops
-// (item_id, is_singleton, is_blueprint_copy).
 const trit = {
   item_id: 1039392583913,
   type_id: 34,
@@ -32,8 +30,7 @@ describe('parseAssetsBody', () => {
   });
 
   it('sums quantity across stacks of the same type at the same location/flag/type', () => {
-    // Three separate ESI stacks (distinct item_ids) of the same type in the same
-    // hangar collapse to one aggregated row carrying the summed quantity.
+
     const out = parseAssetsBody([
       { ...trit, item_id: 1, quantity: 1000 },
       { ...trit, item_id: 2, quantity: 500 },
@@ -49,8 +46,7 @@ describe('parseAssetsBody', () => {
       { ...trit, item_id: 3, quantity: 300, location_id: 61000001, location_flag: 'Hangar' },
       { ...trit, item_id: 4, quantity: 400, location_id: 61000001, location_flag: 'Hangar', location_type: 'item' },
     ]);
-    // Four distinct (location_id, location_flag, location_type) tuples → four rows,
-    // nothing merged (assert sort-independently: count + total preserved).
+
     expect(out).toHaveLength(4);
     expect(out?.reduce((sum, r) => sum + r.quantity, 0)).toBe(1000);
   });

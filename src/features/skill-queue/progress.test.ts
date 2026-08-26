@@ -9,8 +9,8 @@ function entry(overrides: Partial<SkillQueueEntry>): SkillQueueEntry {
 }
 
 const active = entry({
-  start_date: '2026-06-11T00:00:00Z', // 12h ago
-  finish_date: '2026-06-12T00:00:00Z', // 12h ahead
+  start_date: '2026-06-11T00:00:00Z',
+  finish_date: '2026-06-12T00:00:00Z',
   level_start_sp: 0,
   level_end_sp: 1000,
   training_start_sp: 0,
@@ -18,8 +18,7 @@ const active = entry({
 
 describe('entryProgress', () => {
   it('marks a finished entry done even though ESI still lists it queued', () => {
-    // The login-staleness gotcha: completion is timestamp math, never the
-    // endpoint having ticked over.
+
     const finished = entry({
       start_date: '2026-06-01T00:00:00Z',
       finish_date: '2026-06-10T00:00:00Z',
@@ -34,8 +33,7 @@ describe('entryProgress', () => {
   });
 
   it('weights progress by SP when training resumed mid-level', () => {
-    // Half the level was already banked; the remaining half trains over this
-    // window, so at the halfway timestamp the level is 75% complete.
+
     const resumed = entry({
       ...active,
       level_start_sp: 0,

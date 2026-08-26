@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-// The module is TypeScript; vitest transpiles it on import from this .mjs test.
+
 import {
   compareCanonical,
   groupFlatByBlueprint,

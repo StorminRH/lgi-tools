@@ -11,7 +11,6 @@ import {
 } from './skill-time';
 import { timeLeverRows } from './time-lever-rows';
 
-// bp 1 manufactures, bp 2 reacts, bp 3 is unknown to the maps.
 const MFG_BP = 1;
 const REACTION_BP = 2;
 const nodeActivityByBlueprint = { [MFG_BP]: 1, [REACTION_BP]: 11 };
@@ -49,9 +48,9 @@ describe('skillTimeFactorsFor', () => {
   });
 
   it('applies Industry −4%/lvl and Advanced Industry −3%/lvl to manufacturing nodes', () => {
-    // Industry III alone: 1 − 0.04·3 = 0.88.
+
     expect(factors({ [INDUSTRY_SKILL_ID]: 3 }).skillTimeFactorOf(MFG_BP)).toBeCloseTo(0.88, 10);
-    // Industry V × Advanced Industry V: 0.8 × 0.85 = 0.68.
+
     expect(
       factors({ [INDUSTRY_SKILL_ID]: 5, [ADVANCED_INDUSTRY_SKILL_ID]: 5 }).skillTimeFactorOf(MFG_BP),
     ).toBeCloseTo(0.68, 10);
@@ -72,8 +71,7 @@ describe('skillTimeFactorsFor', () => {
   });
 
   it('multiplies the per-item required-skill terms (attr 1982) into manufacturing nodes only', () => {
-    // A −1%/lvl science skill at V on top of Industry V + Adv Industry V:
-    // 0.8 × 0.85 × 0.95 = 0.646.
+
     const f = factors(
       { [INDUSTRY_SKILL_ID]: 5, [ADVANCED_INDUSTRY_SKILL_ID]: 5, 11441: 5 },
       { [MFG_BP]: [{ skillTypeId: 11441, timePctPerLevel: -1 }] },
@@ -82,7 +80,7 @@ describe('skillTimeFactorsFor', () => {
   });
 
   it('handles a −2%/lvl per-item skill (Mutagenic Stabilization) and multiple per-item skills', () => {
-    // 81896 at IV: 1 − 0.02·4 = 0.92; plus 11450 (−1%/lvl) at III: × 0.97.
+
     const f = factors(
       { 81896: 4, 11450: 3 },
       {
@@ -98,7 +96,7 @@ describe('skillTimeFactorsFor', () => {
   it('a blueprint absent from nodeTimeSkills gets only the activity-wide skills', () => {
     const f = factors(
       { [INDUSTRY_SKILL_ID]: 5, 11441: 5 },
-      { [REACTION_BP]: [{ skillTypeId: 11441, timePctPerLevel: -1 }] }, // wrong node on purpose
+      { [REACTION_BP]: [{ skillTypeId: 11441, timePctPerLevel: -1 }] },
     );
     expect(f.skillTimeFactorOf(MFG_BP)).toBeCloseTo(0.8, 10);
   });
@@ -122,7 +120,7 @@ describe('skillTimeBreakdown', () => {
       { name: 'Industry', level: 5, reductionPct: 20 },
       { name: 'Advanced Industry', level: 4, reductionPct: 12 },
     ]);
-    // 1 − 0.8 × 0.88 = 0.296 compound manufacturing reduction.
+
     expect(b.manufacturing.totalPct).toBeCloseTo(29.6, 10);
     expect(b.reaction.skills).toEqual([{ name: 'Reactions', level: 4, reductionPct: 16 }]);
     expect(b.reaction.totalPct).toBeCloseTo(16, 10);
@@ -159,7 +157,7 @@ describe('skillTimeBreakdown', () => {
 });
 
 describe('buildSkillsView', () => {
-  // A minimal structure — only the fields buildSkillsView reads.
+
   const structure = (over: {
     activityId?: number;
     nodeActivityByBlueprint?: Record<number, number>;
@@ -187,7 +185,7 @@ describe('buildSkillsView', () => {
     expect(view!.showMfg).toBe(true);
     expect(view!.showRxn).toBe(false);
     expect(view!.characterName).toBe('Ryan');
-    // Industry V = −4%/lvl × 5 = −20%.
+
     expect(view!.mfgHeadline).toBe('−20%');
   });
 
@@ -195,7 +193,7 @@ describe('buildSkillsView', () => {
     const view = buildSkillsView(
       character,
       true,
-      { '81896': 4 }, // a per-item T2 skill trained to IV
+      { '81896': 4 },
       structure({
         nodeActivityByBlueprint: { 1: 1 },
         nodeTimeSkills: { 1: [{ skillTypeId: 81896, skillName: 'Mutagenic Stabilization', timePctPerLevel: -2 }] },
@@ -203,7 +201,7 @@ describe('buildSkillsView', () => {
     );
     expect(view).not.toBeNull();
     expect(view!.showMfg).toBe(true);
-    // −2%/lvl × 4 = −8%, phrased as an "up to" (applies only to jobs needing it).
+
     expect(view!.mfgHeadline).toBe('up to −8.0%');
   });
 

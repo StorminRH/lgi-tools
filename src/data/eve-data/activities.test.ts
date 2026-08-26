@@ -81,15 +81,15 @@ describe('parseBlueprintActivities — normalization & defensiveness', () => {
       manufacturing: {
         time: 'oops',
         materials: [
-          { typeID: 'x', quantity: 5 }, // bad typeId
-          { typeID: 7 }, // missing quantity
-          null, // not an object
-          { typeID: 7, quantity: 3 }, // the one valid row
+          { typeID: 'x', quantity: 5 },
+          { typeID: 7 },
+          null,
+          { typeID: 7, quantity: 3 },
         ],
       },
     });
     const mfg = byName(set, 'manufacturing');
     expect(mfg?.materials).toEqual([{ typeId: 7, quantity: 3 }]);
-    expect(mfg?.time).toBeNull(); // non-numeric time coerces to null
+    expect(mfg?.time).toBeNull();
   });
 });

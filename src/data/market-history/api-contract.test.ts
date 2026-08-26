@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { refreshHistoryRequestSchema, wireHistoryInputsSchema } from './api-contract';
 import { ON_DEMAND_HISTORY_MAX_TYPE_IDS } from './constants';
+import type { MarketHistoryInputs } from './types';
 
 describe('market-history contract', () => {
+  it('pins the wire inputs shape to MarketHistoryInputs exactly', () => {
+    expectTypeOf<typeof wireHistoryInputsSchema._output>().toEqualTypeOf<MarketHistoryInputs>();
+  });
+
   it('accepts a bounded typeId batch', () => {
     expect(refreshHistoryRequestSchema.safeParse({ typeIds: [34] }).success).toBe(true);
     expect(
