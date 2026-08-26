@@ -1,5 +1,5 @@
 import { ConvexError } from 'convex/values';
-import type { Doc, Id } from './_generated/dataModel';
+import type { Doc } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 import {
   connectionDoorTypes,
@@ -14,18 +14,6 @@ export const JUMP_CONNECTION_SCAN_CAP = 64;
 export interface TrackedLocation {
   readonly tracking: Doc<'mapTracking'>;
   readonly location: Doc<'characterLocation'>;
-}
-
-interface EmissionFacts {
-  readonly connectionId: Id<'mapConnections'>;
-  readonly fromSystemId: number;
-  readonly toSystemId: number | null;
-  readonly wormholeTypeCode: string | null;
-  readonly typedSide: 'from' | 'to' | null;
-  readonly destinationProvenance:
-    | Doc<'mapConnections'>['destinationProvenance']
-    | null;
-  readonly observationKey: string | null;
 }
 
 /** Reads one bounded tracking row and its row-owned location document. */
@@ -71,7 +59,7 @@ export function unresolvedCandidatesOf(
   return rows.filter((row) => row.toSystemId === null && !isTombstoned(row));
 }
 
-export function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
+export function emissionFacts(connection: Doc<'mapConnections'>) {
   const snapshot = legacyTypeSnapshot(
     connectionDoorTypes(connection),
     connection.typedSide ?? undefined,
