@@ -7,7 +7,6 @@ import {
 } from '@/data/maps/connection-door-types';
 import { isTombstoned } from '@/data/maps/chain-contract';
 
-/** Fail-closed bounds for one map's hot tracking and candidate ranges. */
 const JUMP_TRACKING_SCAN_CAP = 256;
 export const JUMP_CONNECTION_SCAN_CAP = 64;
 
@@ -16,7 +15,6 @@ export interface TrackedLocation {
   readonly location: Doc<'characterLocation'>;
 }
 
-/** Reads one bounded tracking row and its row-owned location document. */
 export async function readTrackedLocation(
   ctx: QueryCtx,
   mapId: string,
@@ -33,11 +31,6 @@ export async function readTrackedLocation(
     });
   }
   const matches = rows.filter((row) => row.characterId === characterId);
-  // Only rows that join to a location document participate: `setTracking`
-  // accepts any characterId from any viewer, so a forged row naming someone
-  // else's character (which joins to nothing under the forger's userId) must
-  // not be able to veto the genuine owner's tracking. More than one JOINABLE
-  // row is real ambiguity and stays fail-closed.
   const joined: TrackedLocation[] = [];
   for (const tracking of matches) {
     const location = await ctx.db
@@ -52,7 +45,6 @@ export async function readTrackedLocation(
   return joined[0]!;
 }
 
-/** Live unresolved candidate rows within an origin-side read. */
 export function unresolvedCandidatesOf(
   rows: readonly Doc<'mapConnections'>[],
 ): Doc<'mapConnections'>[] {

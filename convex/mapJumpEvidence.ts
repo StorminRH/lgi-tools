@@ -13,12 +13,6 @@ import {
   unresolvedCandidatesOf,
 } from './mapJumpReads';
 
-/**
- * Named types of every live scanned hole on this system's `from` mouth —
- * resolved hallways included, so an already-linked outgoing static still
- * counts. The `from` mouth is where stubs store this system's type; a blank
- * `from` mouth is omitted.
- */
 function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
   return rows.flatMap((row) => {
     if (isTombstoned(row)) return [];
@@ -27,10 +21,6 @@ function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
   });
 }
 
-/**
- * One consistent evidence snapshot for the server jump resolver. An absent or
- * insufficient edit claim returns `canEdit: false` and no map facts.
- */
 export const jumpEvidence = internalQuery({
   args: {
     userId: v.string(),
@@ -118,11 +108,6 @@ export const jumpEvidence = internalQuery({
   },
 });
 
-/**
- * Reads one edit-authorized resolved connection for post-mutation observation
- * emission. The client supplies only the id; both live endpoints and all
- * attributable facts are re-read from Convex truth.
- */
 export const connectionEvidence = internalQuery({
   args: {
     userId: v.string(),

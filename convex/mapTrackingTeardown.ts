@@ -1,12 +1,5 @@
 import type { MutationCtx } from './_generated/server';
 
-// Map-scoped teardown home. mapAccessProjection (revocation cascade, map
-// teardown, account claims door) calls these instead of restating the queries.
-// The bearer purge door (characterLocation.purgeForUser) keeps its own
-// per-(user, character) delete: its key shape spans both tables at once and
-// does not fit these map-scoped helpers.
-
-/** Deletes every mapTracking row for one user on one map (revocation cascade). */
 export async function deleteTrackingForUser(
   ctx: MutationCtx,
   mapId: string,
@@ -21,7 +14,6 @@ export async function deleteTrackingForUser(
   }
 }
 
-/** Full-map tracking sweep used when claims: [] tears the map down. */
 export async function deleteAllTrackingForMap(
   ctx: MutationCtx,
   mapId: string,
@@ -35,11 +27,6 @@ export async function deleteAllTrackingForMap(
   }
 }
 
-/**
- * Batch-deletes one user's tracking rows across all maps (account purge).
- * Returns hasMore so a calling door can loop without an unbounded
- * single-transaction scan.
- */
 export async function purgeTrackingForUserBatch(
   ctx: MutationCtx,
   userId: string,

@@ -4,7 +4,6 @@ import { requireMapAccessForUser } from './lib/mapAccess';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
 import { emissionFacts } from './mapJumpReads';
 
-/** Accepts an assumed automatic association and clears its pending prompt. */
 export const confirmJumpIdentity = internalMutation({
   args: {
     userId: v.string(),
@@ -43,11 +42,6 @@ export const confirmJumpIdentity = internalMutation({
   },
 });
 
-/**
- * Corrects an automatic association by moving its destination facts to one
- * unresolved candidate. The vacated row remains the same signature identity
- * and becomes an unresolved slot again; a second call can reverse the move.
- */
 export const reassociateJumpDestination = internalMutation({
   args: {
     userId: v.string(),

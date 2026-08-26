@@ -1,6 +1,3 @@
-// Live tracking overlay reads. Rows live only on mapTracking; viewers join
-// through forMap to characterLocation by the row's own (userId, characterId).
-// Coverage is a sibling query so a flip cannot invalidate the location overlay.
 import { ConvexError, v } from 'convex/values';
 import { query, type QueryCtx } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
@@ -8,10 +5,6 @@ import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { tryMapAccess } from './lib/mapAccess';
 import { findCoverage } from './lib/locationCoverage';
 
-// forMap's registry read bound: cap × a generous member count. With the
-// per-(map, user) cap enforced at every insert, a legitimate map cannot reach
-// this; hitting it truncates the overlay rather than blowing the transaction
-// read budget on a hot reactive query.
 const TRACKING_MAP_SCAN_CAP = 256;
 
 function trackedLocationPayload(location: Doc<'characterLocation'>) {
@@ -51,17 +44,6 @@ async function readTrackedLocations(
   return tracked;
 }
 
-/**
- * Tracking rows for one map, joined to location by each row's own
- * (userId, characterId). Access is answered as a value: missing/revoked claim
- * returns an empty list (4.0.2.3.1 subscription doctrine). A forged row that
- * names another user's character joins to no document and discloses nothing.
- * observedAt is LAST-CHANGE time (the 304 zero-write path never touches it),
- * so this read set changes only on real location/tracking/claim writes — the
- * doorbell's retry sizing and the map's push rate both rest on that.
- * Present+online coverage lives on the sibling `coverage` query, which reads
- * the flip-only `characterLocationCovered` rows so this one never has to.
- */
 export const forMap = query({
   args: { mapId: v.string() },
   handler: async (ctx, { mapId }) => {
@@ -92,7 +74,6 @@ interface CoverageRow {
   covered: boolean;
 }
 
-/** Stable wire order without adding another decision to the reactive query. */
 function compareCoverageRows(left: CoverageRow, right: CoverageRow): number {
   return (
     left.userId.localeCompare(right.userId)
@@ -100,13 +81,6 @@ function compareCoverageRows(left: CoverageRow, right: CoverageRow): number {
   );
 }
 
-/**
- * Per-owner-character present+online coverage for one map's tracked pilots.
- * Split from `forMap` so a coverage flip cannot invalidate the location
- * overlay. Reads only flip-only `characterLocationCovered` rows — never
- * syncSubjects or the online-probe expiry table. Output is sorted by owner
- * then character id.
- */
 export const coverage = query({
   args: { mapId: v.string() },
   handler: async (ctx, { mapId }) => {

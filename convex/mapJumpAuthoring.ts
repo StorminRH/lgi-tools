@@ -1,10 +1,3 @@
-// Transactional Convex owner for automatic wormhole-jump authoring.
-//
-// The public Next.js route is the cross-store composition owner. It obtains one
-// evidence snapshot through jumpEvidence, classifies and matches outside
-// Convex, then calls exactly one mutation here. That mutation treats the prior
-// evidence as advisory and revalidates access, tracking, location, topology,
-// candidates, and the exactly-once stamp before any write.
 import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import {
@@ -353,11 +346,6 @@ async function insertJumpTopology(
   return { outcome: 'authored', connection };
 }
 
-/**
- * A remapped jump authors a new live pair. The collapsed corpse stays
- * tombstoned (HC-3: jump does not undo the old hole) but its dying window
- * closes so the canvas does not underline the new line with the old undo.
- */
 async function supersedeDyingPairConnections(
   ctx: MutationCtx,
   pairRows: readonly Doc<'mapConnections'>[],
@@ -394,11 +382,6 @@ async function authorNewTopology(
   return authored;
 }
 
-/**
- * Revalidates and authors one tracked transition atomically. Repeated requests
- * converge through the durable per-(map,character) transition stamp; separate
- * scouts crossing the same pair still add their own observed mass.
- */
 export const resolveJumpAuthoring = internalMutation({
   args: {
     userId: v.string(),

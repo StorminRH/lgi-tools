@@ -85,14 +85,6 @@ import {
   type ChainState,
 } from './reconciler';
 
-/**
- * Rows this client asks for per page.
- *
- * Independent of the server's own cap by design, not coupled to it: the handler clamps whatever
- * arrives, so this value only decides how many round trips a large map costs. It is not imported from
- * `convex/mapChainPage` — that module pulls in Convex's server runtime and does not belong in a browser
- * bundle — and a mismatch is harmless rather than a bug.
- */
 const PAGE_SIZE = 100;
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();

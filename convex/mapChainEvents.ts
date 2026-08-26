@@ -5,10 +5,6 @@ import { tryMapAccess } from './lib/mapAccess';
 /** Maximum retained ledger rows one live map subscription may read. */
 export const MAP_EVENT_READ_LIMIT = 100;
 
-/**
- * Watches the retained basic ledger newest-first through one bounded map/time
- * index range. Access denial is the same calm empty value as the chain pages.
- */
 export const watchMapEvents = query({
   args: { mapId: v.string() },
   handler: async (ctx, { mapId }) => {

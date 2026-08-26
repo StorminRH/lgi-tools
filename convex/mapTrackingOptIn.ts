@@ -1,7 +1,3 @@
-// Per-(map, character) tracking opt-in write — the registry half of 4.0.4.2.1.
-// Ownership is structural: setTracking always writes under the caller's JWT
-// subject. A forged tracking row naming someone else's character joins to no
-// location document.
 import { ConvexError, v } from 'convex/values';
 import { type MutationCtx, mutation } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
