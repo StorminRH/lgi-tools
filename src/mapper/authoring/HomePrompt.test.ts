@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     | {
         ownTrackedCharacterIds: readonly number[];
         tracked: readonly {
+          userId: string;
           characterId: number;
           location: { solarSystemId: number } | null;
         }[];
@@ -128,7 +129,7 @@ describe('HomePrompt', () => {
 
     mocks.tracking = {
       ownTrackedCharacterIds: [101],
-      tracked: [{ characterId: 101, location: { solarSystemId: 30_000_142 } }],
+      tracked: [{ userId: 'owner', characterId: 101, location: { solarSystemId: 30_000_142 } }],
     };
     mocks.coverage = { coverage: [{ characterId: 101, covered: false }] };
     const offline = renderPrompt();
@@ -138,7 +139,7 @@ describe('HomePrompt', () => {
 
     mocks.tracking = {
       ownTrackedCharacterIds: [101],
-      tracked: [{ characterId: 101, location: { solarSystemId: 30_000_142 } }],
+      tracked: [{ userId: 'owner', characterId: 101, location: { solarSystemId: 30_000_142 } }],
     };
     mocks.coverage = { coverage: [{ characterId: 101, covered: true }] };
     mocks.systemName = 'Jita';
@@ -168,8 +169,8 @@ describe('HomePrompt', () => {
     mocks.tracking = {
       ownTrackedCharacterIds: [101, 202],
       tracked: [
-        { characterId: 101, location: null },
-        { characterId: 202, location: { solarSystemId: 31_001_677 } },
+        { userId: 'owner', characterId: 101, location: null },
+        { userId: 'owner', characterId: 202, location: { solarSystemId: 31_001_677 } },
       ],
     };
     mocks.coverage = {
