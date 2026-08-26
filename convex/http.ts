@@ -209,7 +209,7 @@ http.route({
   path: '/sweep',
   method: 'POST',
   handler: authorizedAction(async (ctx) => {
-    const counts = await ctx.runMutation(internal.engine.sweep, {});
+    const counts = await ctx.runMutation(internal.engineSweep.sweep, {});
     return Response.json(counts);
   }),
 });
@@ -343,7 +343,7 @@ http.route({
     if (raw === null) return new Response('Bad Request', { status: 400 });
     const body = leaveSyncBodySchema.safeParse(raw);
     if (!body.success) return new Response('Bad Request', { status: 400 });
-    const result = await ctx.runMutation(internal.engine.leave, body.data);
+    const result = await ctx.runMutation(internal.engineLeave.leave, body.data);
     return Response.json(result);
   }),
 });

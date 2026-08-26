@@ -66,13 +66,13 @@ or aggregate components only after logs show real OCC retries.
 
 ## The sync engine
 
-Live ≤2-min data joins the existing engine (`convex/engine.ts`;
-`src/lib/sync-engine.ts`) through the 4-step registration seam: dataset +
-cadence in the schema union, `syncRef` to the internal sync action,
-generation-guarded apply, `useSyncSubject`. No feature-local presence,
-scheduler, or always-on sync. Heartbeats must not invalidate watched payload
-(`syncPresence` vs `syncSubjects`). Read constants from source; do not
-hardcode duplicates.
+Live ≤2-min data joins the existing engine (`convex/lib/engineCore.ts`
+registration + `convex/engine.ts` heartbeat; `src/lib/sync-engine.ts`)
+through the 4-step registration seam: dataset + cadence in the schema union,
+`syncRef` to the internal sync action, generation-guarded apply,
+`useSyncSubject`. No feature-local presence, scheduler, or always-on sync.
+Heartbeats must not invalidate watched payload (`syncPresence` vs
+`syncSubjects`). Read constants from source; do not hardcode duplicates.
 
 ## Secrets, env, and deploy
 

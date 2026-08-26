@@ -167,7 +167,7 @@ async function insertLayoutEdge(
 }
 
 const insertConnection = (mapId: string, edge: LayoutEdge) =>
-  insertLayoutEdge('connection', 'mapFixtures:insertConnectionFixture', mapId, edge);
+  insertLayoutEdge('connection', 'mapFixturePlace:insertConnectionFixture', mapId, edge);
 
 /**
  * One jump: the revealed system and its discovering connection land in a
@@ -175,7 +175,7 @@ const insertConnection = (mapId: string, edge: LayoutEdge) =>
  * canvas births the node already attached to the tree, never elsewhere first.
  */
 const insertJump = (mapId: string, edge: LayoutEdge) =>
-  insertLayoutEdge('jump', 'mapFixtures:placeJumpFixture', mapId, edge);
+  insertLayoutEdge('jump', 'mapFixturePlace:placeJumpFixture', mapId, edge);
 
 /** Narrates one step's skipped self-loops and freshly deferred edges. */
 function logStepNotes(step: SpawnStep): void {
@@ -214,7 +214,7 @@ async function executeSpawnStep(mapId: string, step: SpawnStep): Promise<SpawnRe
   let attachingConnectionId: string | null = null;
   if (attaching === undefined) {
     console.log(`+ system ${step.systemId}`);
-    await convexRun('mapFixtures:placeSystemFixture', { mapId, systemId: step.systemId });
+    await convexRun('mapFixturePlace:placeSystemFixture', { mapId, systemId: step.systemId });
   } else {
     attachingConnectionId = await insertJump(mapId, attaching);
   }
@@ -265,15 +265,15 @@ async function despawnChain(
   for (const record of [...records].reverse()) {
     for (const connectionId of [...record.otherConnectionIds].reverse()) {
       console.log(`- connection ${connectionId}`);
-      await convexRun('mapFixtures:removeConnectionFixture', { connectionId });
+      await convexRun('mapFixtureRemove:removeConnectionFixture', { connectionId });
       await pace(intervalMs);
     }
     if (record.attachingConnectionId === null) {
       console.log(`- system ${record.systemId}`);
-      await convexRun('mapFixtures:removeSystemFixture', { mapId, systemId: record.systemId });
+      await convexRun('mapFixtureRemove:removeSystemFixture', { mapId, systemId: record.systemId });
     } else {
       console.log(`- collapse ${record.systemId} (with its connection)`);
-      await convexRun('mapFixtures:collapseJumpFixture', {
+      await convexRun('mapFixtureRemove:collapseJumpFixture', {
         mapId,
         connectionId: record.attachingConnectionId,
         systemId: record.systemId,

@@ -140,7 +140,7 @@ export default {
     // Track the pilot into the origin so paste has a verified target system.
     const seededTransitionAt = Date.now();
     await doorbellAfter(page, async () => {
-      await convexRun('mapFixtures:seedTrackedLocationFixture', {
+      await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
         userId,
         characterId: CHARACTER_ID,
@@ -155,7 +155,7 @@ export default {
     // before each later paste so the gate sees honest coverage, exactly as a
     // real pilot's clean engine run would provide.
     const restampFreshness = () =>
-      convexRun('mapFixtures:seedTrackedLocationFixture', {
+      convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
         userId,
         characterId: CHARACTER_ID,
@@ -350,7 +350,7 @@ export default {
     // Jump through the typed hole: the stub resolves into the authored system
     // on the same row — no duplicate, no leftover stub, no ambiguity prompt.
     const jump = await doorbellAfter(page, async () => {
-      await convexRun('mapFixtures:advanceTrackedLocationFixture', {
+      await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
         mapId,
         userId,
         characterId: CHARACTER_ID,

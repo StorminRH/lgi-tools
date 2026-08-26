@@ -2,10 +2,8 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
-import {
-  FIXTURE_CONNECTION_SCAN_LIMIT,
-  MAP_FIXTURE_PAGE_SIZE,
-} from './mapFixtures';
+import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
+import { FIXTURE_CONNECTION_SCAN_LIMIT } from './mapFixtureRemove';
 import { SIGNATURE_PURGE_BATCH } from './mapScan';
 import schema from './schema';
 
@@ -42,7 +40,7 @@ async function grant(
 async function seedMap(t: Chain, mapId = MAP_A, systemId = JITA): Promise<void> {
   await grant(t, mapId, EDITOR, ['editor']);
   await grant(t, mapId, VIEWER, ['viewer']);
-  await t.mutation(internal.mapFixtures.placeSystemFixture, { mapId, systemId });
+  await t.mutation(internal.mapFixturePlace.placeSystemFixture, { mapId, systemId });
 }
 
 function observe(
@@ -58,7 +56,7 @@ function observe(
     signalPct: number | null;
   }> = {},
 ) {
-  return t.mutation(internal.mapFixtures.upsertSignatureObservation, {
+  return t.mutation(internal.mapFixtureSignatures.upsertSignatureObservation, {
     mapId: MAP_A,
     systemId: JITA,
     signatureId: 'ABC-123',
@@ -269,18 +267,18 @@ describe('map chain fixtures', () => {
 
     it('placeSystemFixture upserts without an access gate (internal/admin-key only)', async () => {
       const t = convexTest(schema, modules);
-      const first = await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      const first = await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_A,
         systemId: JITA,
       });
-      const second = await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      const second = await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_A,
         systemId: JITA,
       });
       expect(second).toBe(first);
 
       await expectConvexError(
-        t.mutation(internal.mapFixtures.placeSystemFixture, {
+        t.mutation(internal.mapFixturePlace.placeSystemFixture, {
           mapId: MAP_A,
           systemId: 0,
         }),
@@ -294,7 +292,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
 
-      await t.mutation(internal.mapFixtures.placeJumpFixture, {
+      await t.mutation(internal.mapFixturePlace.placeJumpFixture, {
         mapId: MAP_A,
         fromSystemId: JITA,
         toSystemId: AMARR,
@@ -326,7 +324,7 @@ describe('map chain fixtures', () => {
       await grant(t, MAP_A, EDITOR, ['editor']);
 
       await expectConvexError(
-        t.mutation(internal.mapFixtures.placeJumpFixture, {
+        t.mutation(internal.mapFixturePlace.placeJumpFixture, {
           mapId: MAP_A,
           fromSystemId: JITA,
           toSystemId: AMARR,
@@ -342,12 +340,12 @@ describe('map chain fixtures', () => {
     it('degrades to a plain connection insert when both endpoints already exist', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_A,
         systemId: AMARR,
       });
 
-      await t.mutation(internal.mapFixtures.placeJumpFixture, {
+      await t.mutation(internal.mapFixturePlace.placeJumpFixture, {
         mapId: MAP_A,
         fromSystemId: JITA,
         toSystemId: AMARR,
@@ -371,7 +369,7 @@ describe('map chain fixtures', () => {
       await seedMap(t);
 
       await expectConvexError(
-        t.mutation(internal.mapFixtures.placeJumpFixture, {
+        t.mutation(internal.mapFixturePlace.placeJumpFixture, {
           mapId: MAP_A,
           fromSystemId: JITA,
           toSystemId: 0.5,
@@ -398,11 +396,11 @@ describe('map chain fixtures', () => {
       };
 
       const first = await t.mutation(
-        internal.mapFixtures.seedTrackedLocationFixture,
+        internal.mapFixtureTracking.seedTrackedLocationFixture,
         seed,
       );
       const repeated = await t.mutation(
-        internal.mapFixtures.seedTrackedLocationFixture,
+        internal.mapFixtureTracking.seedTrackedLocationFixture,
         seed,
       );
       expect(repeated).toEqual(first);
@@ -428,7 +426,7 @@ describe('map chain fixtures', () => {
       });
 
       await expect(
-        t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
+        t.mutation(internal.mapFixtureTracking.advanceTrackedLocationFixture, {
           mapId: MAP_A,
           userId: EDITOR,
           characterId: seed.characterId,
@@ -440,7 +438,7 @@ describe('map chain fixtures', () => {
       ).rejects.toThrow('FIXTURE_LOCATION_STALE');
 
       const advanced = await t.mutation(
-        internal.mapFixtures.advanceTrackedLocationFixture,
+        internal.mapFixtureTracking.advanceTrackedLocationFixture,
         {
           mapId: MAP_A,
           userId: EDITOR,
@@ -487,7 +485,7 @@ describe('map chain fixtures', () => {
             .unique(),
         );
 
-      await t.mutation(internal.mapFixtures.seedTrackedLocationFixture, {
+      await t.mutation(internal.mapFixtureTracking.seedTrackedLocationFixture, {
         mapId: MAP_A,
         userId: EDITOR,
         characterId: 90_404_222,
@@ -504,7 +502,7 @@ describe('map chain fixtures', () => {
         coveredCharacterIds: [90_404_222],
       });
 
-      await t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
+      await t.mutation(internal.mapFixtureTracking.advanceTrackedLocationFixture, {
         mapId: MAP_A,
         userId: EDITOR,
         characterId: 90_404_222,
@@ -518,7 +516,7 @@ describe('map chain fixtures', () => {
       expect(advanced?.lastFinishedAt).toBe(NOW + 60_000);
       expect(advanced?.coveredCharacterIds).toEqual([90_404_222]);
 
-      await t.mutation(internal.mapFixtures.advanceTrackedLocationFixture, {
+      await t.mutation(internal.mapFixtureTracking.advanceTrackedLocationFixture, {
         mapId: MAP_A,
         userId: EDITOR,
         characterId: 90_404_222,
@@ -535,7 +533,7 @@ describe('map chain fixtures', () => {
   describe('collapses one jump atomically', () => {
     async function seedJump(t: Chain) {
       await seedMap(t);
-      return await t.mutation(internal.mapFixtures.placeJumpFixture, {
+      return await t.mutation(internal.mapFixturePlace.placeJumpFixture, {
         mapId: MAP_A,
         fromSystemId: JITA,
         toSystemId: AMARR,
@@ -550,7 +548,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       const connectionId = await seedJump(t);
 
-      const result = await t.mutation(internal.mapFixtures.collapseJumpFixture, {
+      const result = await t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
         mapId: MAP_A,
         connectionId,
         systemId: AMARR,
@@ -577,7 +575,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       const connectionId = await seedJump(t);
       const third = 30_002_659;
-      await t.mutation(internal.mapFixtures.placeJumpFixture, {
+      await t.mutation(internal.mapFixturePlace.placeJumpFixture, {
         mapId: MAP_A,
         fromSystemId: AMARR,
         toSystemId: third,
@@ -588,7 +586,7 @@ describe('map chain fixtures', () => {
       });
 
       await expectConvexError(
-        t.mutation(internal.mapFixtures.collapseJumpFixture, {
+        t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
           mapId: MAP_A,
           connectionId,
           systemId: AMARR,
@@ -609,13 +607,13 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       const connectionId = await seedJump(t);
       await grant(t, MAP_B, EDITOR, ['editor']);
-      await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,
       });
 
       await expectConvexError(
-        t.mutation(internal.mapFixtures.collapseJumpFixture, {
+        t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
           mapId: MAP_B,
           connectionId,
           systemId: AMARR,
@@ -643,13 +641,13 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       const connectionId = await seedJump(t);
       const bystander = 30_002_659;
-      await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_A,
         systemId: bystander,
       });
 
       await expectConvexError(
-        t.mutation(internal.mapFixtures.collapseJumpFixture, {
+        t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
           mapId: MAP_A,
           connectionId,
           systemId: bystander,
@@ -661,13 +659,13 @@ describe('map chain fixtures', () => {
     it('is idempotent: repeating a completed collapse changes nothing', async () => {
       const t = convexTest(schema, modules);
       const connectionId = await seedJump(t);
-      await t.mutation(internal.mapFixtures.collapseJumpFixture, {
+      await t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
         mapId: MAP_A,
         connectionId,
         systemId: AMARR,
       });
 
-      const repeat = await t.mutation(internal.mapFixtures.collapseJumpFixture, {
+      const repeat = await t.mutation(internal.mapFixtureRemove.collapseJumpFixture, {
         mapId: MAP_A,
         connectionId,
         systemId: AMARR,
@@ -680,13 +678,13 @@ describe('map chain fixtures', () => {
     it('stores join keys and observation state only, with no codex facts', async () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_A,
         systemId: AMARR,
       });
 
       const eolAt = NOW + 3_600_000;
-      await t.mutation(internal.mapFixtures.insertConnectionFixture, {
+      await t.mutation(internal.mapFixturePlace.insertConnectionFixture, {
         mapId: MAP_A,
         fromSystemId: JITA,
         toSystemId: AMARR,
@@ -744,17 +742,17 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
 
-      const inserted = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+      const inserted = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
         mapId: MAP_A,
         fromSystemId: JITA,
         fromSignatureId: 'ABC-123',
       });
-      const unchanged = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+      const unchanged = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
         mapId: MAP_A,
         fromSystemId: JITA,
         fromSignatureId: ' ABC-123 ',
       });
-      const updated = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+      const updated = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
         mapId: MAP_A,
         fromSystemId: JITA,
         fromSignatureId: 'ABC-123',
@@ -804,7 +802,7 @@ describe('map chain fixtures', () => {
         }
       });
 
-      await expect(t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+      await expect(t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
         mapId: MAP_A,
         fromSystemId: JITA,
         fromSignatureId: 'NEW-001',
@@ -873,7 +871,7 @@ describe('map chain fixtures', () => {
         ['system', systemId],
         ['signature', signature!._id as string],
       ] as const) {
-        await t.mutation(internal.mapFixtures.insertNoteFixture, {
+        await t.mutation(internal.mapFixtureNotes.insertNoteFixture, {
           mapId: MAP_A,
           targetKind,
           targetId,
@@ -928,13 +926,13 @@ describe('map chain fixtures', () => {
     ])('rejects $label before any write', async ({ code, args }) => {
       const t = convexTest(schema, modules);
       await seedMap(t);
-      await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_A,
         systemId: AMARR,
       });
 
       await expectConvexError(
-        t.mutation(internal.mapFixtures.insertConnectionFixture, {
+        t.mutation(internal.mapFixturePlace.insertConnectionFixture, {
           mapId: MAP_A,
           massState: 'stable',
           shipSize: null,
@@ -962,13 +960,13 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
       await grant(t, MAP_B, EDITOR, ['editor']);
-      const foreign = await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      const foreign = await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,
       });
 
       await expectConvexError(
-        t.mutation(internal.mapFixtures.insertNoteFixture, {
+        t.mutation(internal.mapFixtureNotes.insertNoteFixture, {
           mapId: MAP_A,
           targetKind: 'system',
           targetId: foreign as string,
@@ -977,7 +975,7 @@ describe('map chain fixtures', () => {
         'INVALID_NOTE_TARGET',
       );
       await expectConvexError(
-        t.mutation(internal.mapFixtures.insertNoteFixture, {
+        t.mutation(internal.mapFixtureNotes.insertNoteFixture, {
           mapId: MAP_A,
           targetKind: 'map',
           targetId: MAP_B,
@@ -1004,7 +1002,7 @@ describe('map chain fixtures', () => {
         { deletedAt: NOW, purgeAfter: NOW - 1 },
       ]) {
         await expectConvexError(
-          t.mutation(internal.mapFixtures.setSignatureTombstone, {
+          t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, {
             mapId: MAP_A,
             systemId: JITA,
             signatureId: 'ABC-123',
@@ -1074,7 +1072,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
       await grant(t, MAP_B, EDITOR, ['editor']);
-      await t.mutation(internal.mapFixtures.placeSystemFixture, {
+      await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
         mapId: MAP_B,
         systemId: AMARR,
       });
@@ -1183,7 +1181,7 @@ describe('map chain fixtures', () => {
 
       vi.setSystemTime(NOW + 59_000);
       expect(
-        await t.mutation(internal.mapFixtures.recordSignatureSeen, {
+        await t.mutation(internal.mapFixtureSignatures.recordSignatureSeen, {
           mapId: MAP_A,
           systemId: JITA,
           signatureId: 'ABC-123',
@@ -1201,7 +1199,7 @@ describe('map chain fixtures', () => {
 
       vi.setSystemTime(NOW + 61_000);
       expect(
-        await t.mutation(internal.mapFixtures.recordSignatureSeen, {
+        await t.mutation(internal.mapFixtureSignatures.recordSignatureSeen, {
           mapId: MAP_A,
           systemId: JITA,
           signatureId: 'ABC-123',
@@ -1221,7 +1219,7 @@ describe('map chain fixtures', () => {
       const before = await readSignature(t);
       expect(await readActivity(t)).not.toBeNull();
 
-      await t.mutation(internal.mapFixtures.setSignatureTombstone, {
+      await t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, {
         mapId: MAP_A,
         systemId: JITA,
         signatureId: 'ABC-123',
@@ -1234,7 +1232,7 @@ describe('map chain fixtures', () => {
       expect(await observe(t, { group: 'wormhole' })).toEqual({ outcome: 'tombstoned' });
       expect(await readActivity(t)).toBeNull();
 
-      await t.mutation(internal.mapFixtures.setSignatureTombstone, {
+      await t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, {
         mapId: MAP_A,
         systemId: JITA,
         signatureId: 'ABC-123',
@@ -1352,22 +1350,22 @@ describe('map chain fixtures', () => {
         deletedAt: NOW,
         purgeAfter: NOW + 600_000,
       };
-      await t.mutation(internal.mapFixtures.setSignatureTombstone, tombstone);
+      await t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, tombstone);
       const after = await readSignature(t);
 
-      expect(await t.mutation(internal.mapFixtures.setSignatureTombstone, tombstone)).toEqual({
+      expect(await t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, tombstone)).toEqual({
         tombstoned: true,
       });
       expect(await readSignature(t)).toEqual(after);
 
-      await t.mutation(internal.mapFixtures.setSignatureTombstone, {
+      await t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, {
         ...tombstone,
         deletedAt: null,
         purgeAfter: null,
       });
       const restored = await readSignature(t);
       expect(
-        await t.mutation(internal.mapFixtures.setSignatureTombstone, {
+        await t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, {
           ...tombstone,
           deletedAt: null,
           purgeAfter: null,
@@ -1385,7 +1383,7 @@ describe('map chain fixtures', () => {
 
       if (tombstone) {
         await observe(t, { group: 'wormhole' });
-        await t.mutation(internal.mapFixtures.setSignatureTombstone, {
+        await t.mutation(internal.mapFixtureSignatures.setSignatureTombstone, {
           mapId: MAP_A,
           systemId: JITA,
           signatureId: 'ABC-123',
@@ -1395,7 +1393,7 @@ describe('map chain fixtures', () => {
       }
 
       expect(
-        await t.mutation(internal.mapFixtures.recordSignatureSeen, {
+        await t.mutation(internal.mapFixtureSignatures.recordSignatureSeen, {
           mapId: MAP_A,
           systemId: JITA,
           signatureId: ' ABC-123 ',

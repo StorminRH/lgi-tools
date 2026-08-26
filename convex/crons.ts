@@ -8,7 +8,7 @@ import { internal } from './_generated/api';
 
 const crons = cronJobs();
 
-crons.interval('sync engine scan', { seconds: 30 }, internal.engine.scan, {});
+crons.interval('sync engine scan', { seconds: 30 }, internal.engineScan.scan, {});
 crons.interval(
   'map chain purge',
   { minutes: 15 },

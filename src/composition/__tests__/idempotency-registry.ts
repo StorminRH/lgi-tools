@@ -214,28 +214,28 @@ const convexSyncEngineScan = convexEntry({
   redeliverySource:
     'The 30-second Convex interval cron, plus the external 15-minute Vercel sweeper that dispatches the same due subjects.',
   evidence:
-    'internal.engine.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.',
+    'internal.engineScan.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.',
 });
 const convexEngineScan = convexEntry({
-  id: 'convex/engine:scan',
+  id: 'convex/engineScan:scan',
   workKind: 'convex-mutation',
-  module: 'convex/engine.ts',
+  module: 'convex/engineScan.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
     'Declared internalMutation, so a retry re-runs the whole transaction atomically and cannot half-apply.',
 });
 const convexEngineSweep = convexEntry({
-  id: 'convex/engine:sweep',
+  id: 'convex/engineSweep:sweep',
   workKind: 'convex-mutation',
-  module: 'convex/engine.ts',
+  module: 'convex/engineSweep.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
     'Declared internalMutation reclaiming stranded in-flight subjects; reclaiming an already-reclaimed subject is a no-op within the same transaction.',
 });
 const convexEngineOnSyncComplete = convexEntry({
-  id: 'convex/engine:onSyncComplete',
+  id: 'convex/engineComplete:onSyncComplete',
   workKind: 'convex-mutation',
-  module: 'convex/engine.ts',
+  module: 'convex/engineComplete.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
     'Declared internalMutation whose workId ownership guard makes a late or repeated completion a no-op, so it cannot clear a newer run’s status.',
@@ -247,7 +247,7 @@ const convexLocationSyncUser = convexEntry({
   redeliverySource:
     'A single scheduled Convex action (engine dispatch via scheduler.runAfter). Scheduled actions execute at most once and are not retried.',
   evidence:
-    'convex/engine.ts declares the safety condition: only transient failures throw, and the generation guard on apply plus the workId guard on onSyncComplete make a duplicate write a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId.',
+    'convex/lib/engineCore.ts declares the safety condition: only transient failures throw, and the generation guard on apply plus the workId guard on onSyncComplete make a duplicate write a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId.',
 });
 
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [

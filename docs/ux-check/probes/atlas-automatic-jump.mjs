@@ -31,7 +31,7 @@ async function advanceLocation({
   prevFresh,
   transitionObservedAt,
 }) {
-  await convexRun('mapFixtures:advanceTrackedLocationFixture', {
+  await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
     mapId,
     userId,
     characterId: CHARACTER_ID,
@@ -81,7 +81,7 @@ export default {
 
     const baseTime = Date.now();
     const initial = await doorbellAfter(page, async () => {
-      await convexRun('mapFixtures:seedTrackedLocationFixture', {
+      await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
         userId,
         characterId: CHARACTER_ID,
@@ -169,14 +169,14 @@ export default {
     await page.keyboard.press('Escape');
     await accountMenu.waitFor({ state: 'hidden', timeout: 10_000 });
 
-    await convexRun('mapFixtures:upsertUnresolvedHole', {
+    await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
       mapId,
       fromSystemId: ORIGIN_SYSTEM_ID,
       fromSignatureId: 'AAA-111',
       wormholeTypeCode: 'C247',
       shipSize: 'L',
     });
-    await convexRun('mapFixtures:upsertUnresolvedHole', {
+    await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
       mapId,
       fromSystemId: ORIGIN_SYSTEM_ID,
       fromSignatureId: 'AAA-112',
@@ -253,7 +253,7 @@ export default {
     );
 
     for (const signatureId of ['BBB-221', 'BBB-222']) {
-      await convexRun('mapFixtures:upsertUnresolvedHole', {
+      await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
         mapId,
         fromSystemId: ORIGIN_SYSTEM_ID,
         fromSignatureId: signatureId,

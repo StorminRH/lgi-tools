@@ -112,7 +112,7 @@ export const syncUser = internalAction({
         error: error instanceof Error ? error.message : String(error),
       };
     }
-    await ctx.runMutation(internal.engine.onSyncComplete, {
+    await ctx.runMutation(internal.engineComplete.onSyncComplete, {
       workId: String(generation),
       context: { dataset: 'characterLocation', userId },
       result,
