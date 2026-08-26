@@ -206,6 +206,20 @@ function clearOccupiedDestinationNote(
   return replaceDoor(target, side, { ...door, leadsTo: { kind: 'unset' } });
 }
 
+function vacateOccupiedDoor(
+  target: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+): Doc<'mapConnections'> {
+  const afterType = {
+    ...target,
+    ...connectionTypePatch(target, side, null, null),
+  };
+  return {
+    ...afterType,
+    ...clearOccupiedDestinationNote(afterType, side),
+  };
+}
+
 async function recreateOccupiedDoorAsStub(
   ctx: MutationCtx,
   target: Doc<'mapConnections'>,
@@ -263,14 +277,10 @@ export async function applyLinkDeduction(
       return { signatureId, outcome: 'protected', observationKey };
     }
     await recreateOccupiedDoorAsStub(ctx, target, systemId, current, side);
-    surviving = {
-      ...target,
-      ...connectionTypePatch(target, side, null, null),
-      ...clearOccupiedDestinationNote(target, side),
-    };
+    surviving = vacateOccupiedDoor(target, side);
   }
   let next = applyLinkKnowledge(surviving, source, side);
-  next = applyDoorSignature(next, side, signatureId, current !== null);
+  next = applyDoorSignature(next, side, signatureId);
   const leftover = await findLeftoverOriginStub(ctx, next, source._id, side);
   if (leftover !== null) {
     next = absorbLeftoverOriginStub(next, leftover.row, side);
@@ -297,16 +307,11 @@ function applyDoorSignature(
   hallway: Doc<'mapConnections'>,
   side: 'from' | 'to',
   signatureId: string,
-  clearLeads: boolean,
 ): Doc<'mapConnections'> {
   const door = hallwayDoor(hallway, side);
   return {
     ...hallway,
-    ...replaceDoor(hallway, side, {
-      ...door,
-      signatureId,
-      ...(clearLeads ? { leadsTo: { kind: 'unset' as const } } : {}),
-    }),
+    ...replaceDoor(hallway, side, { ...door, signatureId }),
   };
 }
 

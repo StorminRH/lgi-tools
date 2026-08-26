@@ -6,6 +6,7 @@ import { absorbDoorKnowledge } from '@/data/maps/connection-door-destinations';
 import { connectionTypePatch, typedDoorsFrom } from '@/data/maps/connection-door-types';
 import {
   blankHallway,
+  clearPendingResolution,
   doorSystemNote,
   identityFromDoors,
   lifetimeDeathWindow,
@@ -512,9 +513,7 @@ async function stampIdentifiedWormholeType(
   }
   await ctx.db.patch(connectionId, {
     ...typePatch,
-    resolution: connection.resolution.kind === 'pending'
-      ? { kind: 'open' as const }
-      : connection.resolution,
+    resolution: clearPendingResolution(connection.resolution),
     ...stampObservationKey(connection.observationKey).patch,
   });
 }

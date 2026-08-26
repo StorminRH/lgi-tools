@@ -261,6 +261,15 @@ export function destinationProvenanceOf(
   return resolution.kind === 'open' ? null : resolution.provenance;
 }
 
+/** Drop the pending prompt. Keep destination provenance when pending owned one. */
+export function clearPendingResolution(
+  resolution: ConnectionResolution,
+): ConnectionResolution {
+  const provenance = destinationProvenanceOf(resolution);
+  if (provenance === null) return { kind: 'open' };
+  return { kind: 'destination', provenance };
+}
+
 export function isConnectionRemoved(tombstone: ConnectionTombstone): boolean {
   return tombstone.kind === 'removed';
 }

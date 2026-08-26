@@ -252,6 +252,40 @@ describe('mapScan paste application and lifecycle', () => {
     ).toEqual({ changed: false, connectionId: migrated.connectionId });
   });
 
+  it('keeps assumed destination provenance when scan stamps a pending type', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WHL-002', { group: 'Wormhole' })]);
+    const connectionId = await t.run(async (ctx) => {
+      const row = (await ctx.db.query('mapConnections').collect())[0];
+      if (row === undefined) {
+        throw new Error('expected the pasted wormhole stub before identify');
+      }
+      await ctx.db.patch(row._id, {
+        resolution: {
+          kind: 'pending',
+          provenance: 'assumed',
+          candidateIds: [row._id, row._id],
+          characterId: CHARACTER,
+        },
+      });
+      return row._id;
+    });
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'WHL-002',
+        group: 'Wormhole',
+        wormholeTypeCode: 'C247',
+      }),
+    ).toEqual({ changed: false, connectionId });
+    expect(await t.run(async (ctx) => await ctx.db.get(connectionId))).toMatchObject({
+      from: expect.objectContaining({ signatureId: 'WHL-002', typeCode: 'C247' }),
+      resolution: { kind: 'destination', provenance: 'assumed' },
+    });
+  });
+
   it('projects live elimination evidence and tier-gates one atomic deduction batch', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
@@ -663,6 +697,65 @@ describe('mapScan paste application and lifecycle', () => {
     });
     expect(restored?._id).not.toBe(firstStubId);
     expect(restored?.observationKey).toBeUndefined();
+  });
+
+  it('clears the vacated door type and keeps the new stub leads-to', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    let stubId = '' as Id<'mapConnections'>;
+    let inboundId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      inboundId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        fromSignatureId: 'ABC-123',
+        fromWormholeTypeCode: 'B274',
+        toWormholeTypeCode: 'K162',
+        typeProvenance: 'human',
+        massState: 'stable',
+        shipSize: 'M',
+        deletedAt: null,
+        purgeAfter: null,
+      }));
+      stubId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: null,
+        fromSignatureId: 'DEF-456',
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typeProvenance: 'assumed',
+        fromDestinationSystemId: DODIXIE,
+        deletedAt: null,
+        purgeAfter: null,
+      }));
+    });
+    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: stubId,
+      resolvedConnectionId: inboundId,
+    })).resolves.toEqual({ outcome: 'applied' });
+    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+      from: expect.objectContaining({
+        signatureId: 'DEF-456',
+        typeCode: 'C247',
+        leadsTo: { kind: 'system', systemId: DODIXIE },
+      }),
+      to: expect.objectContaining({ typeCode: 'K162' }),
+      massState: 'stable',
+      shipSize: 'M',
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toBeNull();
+    expect(await t.run(async (ctx) =>
+      (await ctx.db.query('mapConnections').collect()).find(
+        (row) => row.from.signatureId === 'ABC-123' && row.toSystemId === null,
+      ),
+    )).toMatchObject({
+      fromSystemId: JITA,
+      from: expect.objectContaining({ typeCode: 'B274' }),
+    });
   });
 
   it('absorbs a unique leftover origin stub when a Leads-to pick rehomes the hallway', async () => {

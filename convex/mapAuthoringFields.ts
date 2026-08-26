@@ -2,8 +2,8 @@ import { ConvexError, v } from 'convex/values';
 import { doorDestination } from '@/data/maps/connection-door-destinations';
 import { connectionTypePatch } from '@/data/maps/connection-door-types';
 import {
+  clearPendingResolution,
   connectionLifetimeFrom,
-  destinationProvenanceOf,
   hallwayDoor,
   identityEquals,
   leadsToEquals,
@@ -123,14 +123,6 @@ function sameDeathWindow(
     && current.latestAt === window.latestAt;
 }
 
-function clearPendingResolution(
-  connection: Doc<'mapConnections'>,
-): Doc<'mapConnections'>['resolution'] {
-  const provenance = destinationProvenanceOf(connection.resolution);
-  if (provenance === null) return { kind: 'open' };
-  return { kind: 'destination', provenance };
-}
-
 async function applyConnectionWormholeType(
   ctx: MutationCtx,
   input: {
@@ -169,7 +161,7 @@ async function applyConnectionWormholeType(
     observedAt: lifetimeObservedAt(connection.lifetime),
     death: window,
   });
-  const resolution = clearPendingResolution(connection);
+  const resolution = clearPendingResolution(connection.resolution);
   if (
     connection.from.typeCode === typePatch.from.typeCode
     && connection.to.typeCode === typePatch.to.typeCode

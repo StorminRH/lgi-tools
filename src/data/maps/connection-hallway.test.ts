@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { foldLegacyConnection } from './__tests__/connection-fold';
 import {
   blankHallway,
+  clearPendingResolution,
   connectionLifetimeFrom,
   doorHint,
   doorSystemNote,
@@ -86,6 +87,18 @@ describe('connection hallway', () => {
     expect(leadsToEquals({ kind: 'hint', hint: 'hisec' }, { kind: 'hint', hint: 'lowsec' })).toBe(
       false,
     );
+  });
+
+  it('clears a pending prompt into destination provenance, not open', () => {
+    expect(clearPendingResolution({ kind: 'open' })).toEqual({ kind: 'open' });
+    expect(clearPendingResolution({ kind: 'destination', provenance: 'human' })).toEqual({
+      kind: 'destination',
+      provenance: 'human',
+    });
+    expect(clearPendingResolution(pendingResolution(['a', 'b'], 1))).toEqual({
+      kind: 'destination',
+      provenance: 'assumed',
+    });
   });
 });
 
