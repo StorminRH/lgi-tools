@@ -31,6 +31,10 @@ import {
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import {
+  doorHint,
+  lifetimeStage,
+} from '@/data/maps/connection-hallway';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import {
   ConnectionFieldGroup,
@@ -91,6 +95,10 @@ const LIFE_ITEMS = [
     label: LIFE_LABELS[value],
   })),
 ];
+
+function lifeStageReadout(stage: WormholeLifeStage | null): string {
+  return stage === null ? 'Unset' : LIFE_LABELS[stage];
+}
 
 const HINT_LABELS: Record<WormholeDestinationHint, string> = {
   hisec: 'High-sec',
@@ -251,13 +259,14 @@ function TypeField({
     lenient: !codexReady,
     preferredCodes,
   });
-  const typeInitial = encodeOptionalField(connection.wormholeTypeCode);
+  const typeCode = connection.from.typeCode;
+  const typeInitial = encodeOptionalField(typeCode);
   return (
     <ConnectionFieldGroup label="Wormhole type">
       {readOnly ? (
         <FieldReadout
           attr="data-map-connection-type-readout"
-          text={connection.wormholeTypeCode ?? 'Unset'}
+          text={typeCode ?? 'Unset'}
         />
       ) : (
         <TerminalSearch<WormholeTypeParams, WormholeTypeErr>
@@ -429,17 +438,13 @@ function LifetimeSection({
       {readOnly ? (
         <FieldReadout
           attr="data-map-connection-life-readout"
-          text={
-            connection.lifeStage === null
-              ? 'Unset'
-              : LIFE_LABELS[connection.lifeStage]
-          }
+          text={lifeStageReadout(lifetimeStage(connection.lifetime))}
         />
       ) : (
         <Select
           ariaLabel="Reliable Lifetime"
           align="center"
-          value={encodeOptionalField(connection.lifeStage)}
+          value={encodeOptionalField(lifetimeStage(connection.lifetime))}
           items={LIFE_ITEMS}
           onValueChange={(next) =>
             onChange(next === UNSET_FIELD ? null : (next as WormholeLifeStage))
@@ -510,7 +515,7 @@ function LeadsToField({
   readonly onLinkOrigin: (resolvedConnectionId: string) => void;
 }) {
   const search = useSystemSearch();
-  const hint = connection.fromDestinationHint;
+  const hint = doorHint(connection.from);
   if (readOnly) {
     return (
       <ConnectionFieldGroup label="Leads to">

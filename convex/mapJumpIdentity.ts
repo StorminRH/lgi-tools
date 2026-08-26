@@ -1,4 +1,6 @@
 import { ConvexError, v } from 'convex/values';
+import { destinationResolution } from '@/data/maps/connection-hallway';
+import { blankDoor } from '@/data/maps/connection-hallway';
 import { internalMutation } from './_generated/server';
 import { requireMapAccessForUser } from './lib/mapAccess';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
@@ -16,28 +18,22 @@ export const confirmJumpIdentity = internalMutation({
     if (connection.toSystemId === null) {
       throw new ConvexError({ code: 'UNRESOLVED_CONNECTION' });
     }
-    if (
-      connection.destinationProvenance !== 'assumed'
-      && connection.destinationProvenance !== 'confirmed'
-    ) {
+    const provenance = connection.resolution.kind === 'open'
+      ? null
+      : connection.resolution.provenance;
+    if (provenance !== 'assumed' && provenance !== 'confirmed') {
       throw new ConvexError({ code: 'INVALID_CONFIRMATION' });
     }
+    const confirmed = destinationResolution('confirmed');
     if (
-      connection.destinationProvenance !== 'confirmed'
-      || connection.pendingCandidates !== undefined
-      || connection.pendingResolutionCharacterId !== undefined
+      connection.resolution.kind !== 'destination'
+      || connection.resolution.provenance !== 'confirmed'
     ) {
-      await ctx.db.patch(connectionId, {
-        destinationProvenance: 'confirmed',
-        pendingCandidates: undefined,
-        pendingResolutionCharacterId: undefined,
-      });
+      await ctx.db.patch(connectionId, { resolution: confirmed });
     }
     const facts: EmissionFacts = emissionFacts({
       ...connection,
-      destinationProvenance: 'confirmed',
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
+      resolution: confirmed,
     });
     return facts;
   },
@@ -74,28 +70,31 @@ export const reassociateJumpDestination = internalMutation({
       throw new ConvexError({ code: 'TARGET_HAS_JUMP_FACTS' });
     }
 
+    const movedTo = {
+      ...target.to,
+      signatureId: source.to.signatureId,
+      leadsTo: source.to.leadsTo,
+    };
+    const clearedTo = {
+      ...blankDoor(),
+      typeCode: source.to.typeCode,
+    };
     const moved = {
       toSystemId: source.toSystemId,
-      toSignatureId: source.toSignatureId,
-      toDestinationHint: source.toDestinationHint,
-      destinationProvenance: 'human' as const,
+      to: movedTo,
+      resolution: destinationResolution('human'),
       observedMassKg: source.observedMassKg,
       observedMassAtStateKg: source.observedMassAtStateKg,
       observationKey: source.observationKey,
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
     };
     await ctx.db.patch(target._id, moved);
     await ctx.db.patch(source._id, {
       toSystemId: null,
-      toSignatureId: undefined,
-      toDestinationHint: undefined,
-      destinationProvenance: undefined,
+      to: clearedTo,
+      resolution: { kind: 'open' as const },
       observedMassKg: undefined,
       observedMassAtStateKg: undefined,
       observationKey: undefined,
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
     });
     const facts: EmissionFacts = emissionFacts({ ...target, ...moved });
     return facts;

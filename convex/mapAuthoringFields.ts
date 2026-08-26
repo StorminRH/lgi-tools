@@ -2,13 +2,26 @@ import { ConvexError, v } from 'convex/values';
 import { doorDestination } from '@/data/maps/connection-door-destinations';
 import { connectionTypePatch } from '@/data/maps/connection-door-types';
 import {
-  deathWindowFrom,
+  clearPendingResolution,
+  connectionLifetimeFrom,
+  hallwayDoor,
+  identityEquals,
+  leadsToEquals,
+  leadsToFromHint,
+  leadsToFromSystem,
+  lifetimeDeathWindow,
+  lifetimeObservedAt,
+  lifetimeStage,
+  replaceDoor,
+} from '@/data/maps/connection-hallway';
+import {
   intersectOrReset,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
 import {
   isWormholeTypeCode,
   type ConnectionMassState,
+  type WormholeDestinationHint,
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { Doc, Id } from './_generated/dataModel';
@@ -16,12 +29,12 @@ import { mutation, type MutationCtx } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
 import {
+  connectionDoorSideValidator,
   destinationHintValidator,
   lifeStageValidator,
   massStateValidator,
   optionalTimestampValidator,
   shipSizeValidator,
-  typedSideValidator,
   validateDeathWindowInput,
   wormholeTypeCodeValidator,
   type WormholeLifeStage,
@@ -60,10 +73,7 @@ interface DeathWindowArgs {
 function storedDeathWindow(
   connection: Doc<'mapConnections'>,
 ): ConnectionDeathWindow | null {
-  return deathWindowFrom(
-    connection.deathEarliestAt ?? null,
-    connection.deathLatestAt ?? null,
-  );
+  return lifetimeDeathWindow(connection.lifetime);
 }
 
 function resolveDeathWindow(
@@ -102,24 +112,15 @@ function resolveDeathWindow(
   });
 }
 
-function deathWindowPatch(window: ConnectionDeathWindow | null): {
-  readonly deathEarliestAt: number | null;
-  readonly deathLatestAt: number | null;
-} {
-  return {
-    deathEarliestAt: window?.earliestAt ?? null,
-    deathLatestAt: window?.latestAt ?? null,
-  };
-}
-
 function sameDeathWindow(
   connection: Doc<'mapConnections'>,
   window: ConnectionDeathWindow | null,
 ): boolean {
-  const current = deathWindowPatch(storedDeathWindow(connection));
-  const next = deathWindowPatch(window);
-  return current.deathEarliestAt === next.deathEarliestAt
-    && current.deathLatestAt === next.deathLatestAt;
+  const current = storedDeathWindow(connection);
+  if (current === null && window === null) return true;
+  if (current === null || window === null) return false;
+  return current.earliestAt === window.earliestAt
+    && current.latestAt === window.latestAt;
 }
 
 async function applyConnectionWormholeType(
@@ -149,68 +150,34 @@ async function applyConnectionWormholeType(
     deathLatestAt: input.deathLatestAt,
   });
   const door = input.side ?? 'from';
-  const typePatch = connectionTypePatch(connection, door, input.value);
-  const identityPatch = input.value === null
-    ? {
-        ...typePatch,
-        typeProvenance: undefined,
-        pendingCandidates: undefined,
-        pendingResolutionCharacterId: undefined,
-      }
-    : {
-        ...typePatch,
-        typeProvenance: 'human' as const,
-        pendingCandidates: undefined,
-        pendingResolutionCharacterId: undefined,
-      };
+  const typePatch = connectionTypePatch(
+    connection,
+    door,
+    input.value,
+    input.value === null ? null : 'human',
+  );
+  const lifetime = connectionLifetimeFrom({
+    lifeStage: lifetimeStage(connection.lifetime),
+    observedAt: lifetimeObservedAt(connection.lifetime),
+    death: window,
+  });
+  const resolution = clearPendingResolution(connection.resolution);
   if (
-    connection.fromWormholeTypeCode === typePatch.fromWormholeTypeCode
-    && connection.toWormholeTypeCode === typePatch.toWormholeTypeCode
-    && connection.wormholeTypeCode === typePatch.wormholeTypeCode
-    && connection.typedSide === typePatch.typedSide
-    && connection.typeProvenance === (input.value === null ? undefined : 'human')
-    && connection.pendingCandidates === undefined
-    && connection.pendingResolutionCharacterId === undefined
+    connection.from.typeCode === typePatch.from.typeCode
+    && connection.to.typeCode === typePatch.to.typeCode
+    && identityEquals(connection.identity, typePatch.identity)
+    && connection.resolution.kind === resolution.kind
     && sameDeathWindow(connection, window)
   ) {
     return { changed: false };
   }
   await ctx.db.patch(input.connectionId, {
-    ...identityPatch,
+    ...typePatch,
+    resolution,
+    lifetime,
     ...(input.value === null
       ? {}
       : stampObservationKey(connection.observationKey).patch),
-    ...deathWindowPatch(window),
-  });
-  return { changed: true };
-}
-
-async function applyConnectionTypedSide(
-  ctx: MutationCtx,
-  mapId: string,
-  connectionId: Id<'mapConnections'>,
-  value: 'from' | 'to',
-): Promise<{ changed: boolean }> {
-  const connection = await requireLiveConnection(ctx, mapId, connectionId);
-  if (connection.wormholeTypeCode === null) {
-    throw new ConvexError({
-      code: 'UNTYPED_CONNECTION',
-      detail: 'An unidentified connection has no attributable typed side.',
-    });
-  }
-  if (
-    connection.typedSide === value
-    && connection.typeProvenance === 'human'
-    && connection.pendingCandidates === undefined
-    && connection.pendingResolutionCharacterId === undefined
-  ) {
-    return { changed: false };
-  }
-  await ctx.db.patch(connectionId, {
-    typedSide: value,
-    typeProvenance: 'human',
-    pendingCandidates: undefined,
-    pendingResolutionCharacterId: undefined,
   });
   return { changed: true };
 }
@@ -221,7 +188,7 @@ async function applyConnectionDestinationHint(
     readonly mapId: string;
     readonly connectionId: Id<'mapConnections'>;
     readonly side: 'from' | 'to';
-    readonly value: Doc<'mapConnections'>['fromDestinationHint'] | null;
+    readonly value: WormholeDestinationHint | null;
   },
 ): Promise<{ changed: boolean }> {
   const connection = await requireLiveConnection(
@@ -229,21 +196,12 @@ async function applyConnectionDestinationHint(
     input.mapId,
     input.connectionId,
   );
-  const field = input.side === 'from' ? 'fromDestinationHint' : 'toDestinationHint';
-  const destField = input.side === 'from'
-    ? 'fromDestinationSystemId'
-    : 'toDestinationSystemId';
-  const normalized = input.value ?? undefined;
-  if (
-    connection[field] === normalized
-    && (normalized === undefined || connection[destField] === undefined)
-  ) {
+  const door = hallwayDoor(connection, input.side);
+  const next = { ...door, leadsTo: leadsToFromHint(input.value) };
+  if (leadsToEquals(door.leadsTo, next.leadsTo)) {
     return { changed: false };
   }
-  await ctx.db.patch(input.connectionId, {
-    [field]: normalized,
-    [destField]: undefined,
-  });
+  await ctx.db.patch(input.connectionId, replaceDoor(connection, input.side, next));
   return { changed: true };
 }
 
@@ -261,17 +219,14 @@ async function applyConnectionDestination(
     input.mapId,
     input.connectionId,
   );
-  const destField = input.side === 'from'
-    ? 'fromDestinationSystemId'
-    : 'toDestinationSystemId';
-  const hintField = input.side === 'from' ? 'fromDestinationHint' : 'toDestinationHint';
+  const door = hallwayDoor(connection, input.side);
   const here = input.side === 'from' ? connection.fromSystemId : connection.toSystemId;
   const derived = doorDestination(
     connection.fromSystemId,
     connection.toSystemId,
     input.side,
   );
-  let next: number | undefined;
+  let nextSystem: number | null = null;
   if (input.value !== null) {
     requireSystemId(input.value);
     if (here !== null && input.value === here) {
@@ -280,19 +235,13 @@ async function applyConnectionDestination(
         detail: 'A connection must join two distinct systems.',
       });
     }
-    next = input.value === derived ? undefined : input.value;
+    nextSystem = input.value === derived ? null : input.value;
   }
-  const already = connection[destField];
-  if (
-    already === next
-    && (input.value !== null || connection[hintField] === undefined)
-  ) {
+  const next = { ...door, leadsTo: leadsToFromSystem(nextSystem) };
+  if (leadsToEquals(door.leadsTo, next.leadsTo)) {
     return { changed: false };
   }
-  await ctx.db.patch(input.connectionId, {
-    [destField]: next,
-    [hintField]: undefined,
-  });
+  await ctx.db.patch(input.connectionId, replaceDoor(connection, input.side, next));
   return { changed: true };
 }
 
@@ -347,19 +296,22 @@ async function applyConnectionLifeStage(
     input.mapId,
     input.connectionId,
   );
-  const current = connection.lifeStage ?? null;
   const window = resolveDeathWindow(connection, {
     deathEarliestAt: input.deathEarliestAt,
     deathLatestAt: input.deathLatestAt,
   });
-  if (current === input.value && sameDeathWindow(connection, window)) {
+  const lifetime = connectionLifetimeFrom({
+    lifeStage: input.value,
+    observedAt: Date.now(),
+    death: window,
+  });
+  if (
+    lifetimeStage(connection.lifetime) === input.value
+    && sameDeathWindow(connection, window)
+  ) {
     return { changed: false as const };
   }
-  await ctx.db.patch(input.connectionId, {
-    lifeStage: input.value satisfies WormholeLifeStage | null,
-    lifeStageObservedAt: Date.now(),
-    ...deathWindowPatch(window),
-  });
+  await ctx.db.patch(input.connectionId, { lifetime });
   return { changed: true as const };
 }
 
@@ -368,28 +320,18 @@ export const setConnectionWormholeType = mutation({
     mapId: v.string(),
     connectionId: v.id('mapConnections'),
     value: wormholeTypeCodeValidator,
-    side: v.optional(typedSideValidator),
+    side: v.optional(connectionDoorSideValidator),
     deathEarliestAt: optionalTimestampValidator,
     deathLatestAt: optionalTimestampValidator,
   },
   handler: (ctx, args) => applyConnectionWormholeType(ctx, args),
 });
 
-export const setConnectionTypedSide = mutation({
-  args: {
-    mapId: v.string(),
-    connectionId: v.id('mapConnections'),
-    value: typedSideValidator,
-  },
-  handler: (ctx, { mapId, connectionId, value }) =>
-    applyConnectionTypedSide(ctx, mapId, connectionId, value),
-});
-
 export const setConnectionDestinationHint = mutation({
   args: {
     mapId: v.string(),
     connectionId: v.id('mapConnections'),
-    side: typedSideValidator,
+    side: connectionDoorSideValidator,
     value: v.union(destinationHintValidator, v.null()),
   },
   handler: (ctx, args) => applyConnectionDestinationHint(ctx, args),
@@ -399,7 +341,7 @@ export const setConnectionDestination = mutation({
   args: {
     mapId: v.string(),
     connectionId: v.id('mapConnections'),
-    side: typedSideValidator,
+    side: connectionDoorSideValidator,
     value: v.union(v.number(), v.null()),
   },
   handler: (ctx, args) => applyConnectionDestination(ctx, args),
@@ -435,4 +377,3 @@ export const setConnectionLifeStage = mutation({
   },
   handler: (ctx, args) => applyConnectionLifeStage(ctx, args),
 });
-

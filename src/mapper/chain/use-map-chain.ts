@@ -20,13 +20,6 @@ import {
   type DrainedPages,
 } from '@/data/convex/use-drained-pages';
 import { useLiveValue } from '@/data/convex/use-live-value';
-import type {
-  ConnectionMassState,
-  ConnectionProvenance,
-  WormholeDestinationHint,
-  WormholeLifeStage,
-  WormholeSizeClass,
-} from '@/data/eve-data/wormhole-contract';
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
   loadUniverseAssets,
@@ -35,11 +28,20 @@ import {
 import {
   chainTombstoneState,
   isTombstoned,
+  tombstoneDeletedAt,
 } from '@/data/maps/chain-contract';
-import {
-  connectionDoorTypes,
-  legacyTypeSnapshot,
-} from '@/data/maps/connection-door-types';
+import { doorHint } from '@/data/maps/connection-hallway';
+import type {
+  ConnectionDoorValue,
+  ConnectionIdentity,
+  ConnectionLifetime,
+  ConnectionResolution,
+  ConnectionTombstone,
+} from '@/data/maps/connection-hallway';
+import type {
+  ConnectionMassState,
+  WormholeSizeClass,
+} from '@/data/eve-data/wormhole-contract';
 import {
   appendHaloFacts,
   deriveHalo,
@@ -114,40 +116,20 @@ function mapSubscriptionArgs(mapId: string | null): 'skip' | { mapId: string } {
   return { mapId };
 }
 
-/**
- * Live connection fields the authoring card edits. Topology stays in reconciled
- * state; these travel beside it so a field patch never forces a layout merge.
- */
 export interface ConnectionEditorDetail {
   readonly connectionId: Id<'mapConnections'>;
   readonly _creationTime: number;
   readonly fromSystemId: number;
   readonly toSystemId: number | null;
-  readonly fromSignalPct: number | null;
-  readonly firstSeenAt: number | null;
-  readonly wormholeTypeCode: string | null;
-  readonly fromWormholeTypeCode?: string | null;
-  readonly toWormholeTypeCode?: string | null;
-  readonly typedSide?: 'from' | 'to' | null;
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
-  readonly lifeStage: WormholeLifeStage | null;
-  readonly lifeStageObservedAt: number | null;
-  readonly deathEarliestAt: number | null;
-  readonly deathLatestAt: number | null;
-  readonly deletedAt: number | null;
-  readonly purgeAfter: number | null;
-  readonly fromSignatureId: string | null;
-  readonly toSignatureId: string | null;
-  readonly fromDestinationHint: WormholeDestinationHint | null;
-  readonly toDestinationHint?: WormholeDestinationHint | null;
-  readonly fromDestinationSystemId?: number | null;
-  readonly toDestinationSystemId?: number | null;
-  readonly destinationProvenance: ConnectionProvenance | null;
-  /** The recorded survivor list an `assumed` auto-link left for confirm/correct. */
-  readonly pendingCandidates: readonly Id<'mapConnections'>[] | null;
-  /** Tracked character that owes the answer for a pending assumed prompt. */
-  readonly pendingResolutionCharacterId: number | null;
+  readonly identity: ConnectionIdentity;
+  readonly lifetime: ConnectionLifetime;
+  readonly resolution: ConnectionResolution;
+  readonly tombstone: ConnectionTombstone;
+  readonly firstSeenAt: number | null;
   readonly observedMassKg: number | null;
   readonly observedMassAtStateKg: number | null;
 }
@@ -160,38 +142,20 @@ export interface ConnectionDetail extends ConnectionEditorDetail {
 function connectionEditorDetail(
   row: Doc<'mapConnections'>,
 ): ConnectionEditorDetail {
-  const doors = connectionDoorTypes(row);
-  const snapshot = legacyTypeSnapshot(doors, row.typedSide ?? undefined);
   return {
     connectionId: row._id,
     _creationTime: row._creationTime,
     fromSystemId: row.fromSystemId,
     toSystemId: row.toSystemId,
-    fromSignalPct: optionalOrNull(row.fromSignalPct),
-    firstSeenAt: optionalOrNull(row.firstSeenAt),
-    wormholeTypeCode: snapshot.wormholeTypeCode,
-    fromWormholeTypeCode: doors.from,
-    toWormholeTypeCode: doors.to,
-    typedSide: snapshot.typedSide ?? null,
+    from: row.from,
+    to: row.to,
     massState: row.massState,
     shipSize: row.shipSize,
-    lifeStage: optionalOrNull(row.lifeStage),
-    lifeStageObservedAt: optionalOrNull(row.lifeStageObservedAt),
-    deathEarliestAt: optionalOrNull(row.deathEarliestAt),
-    deathLatestAt: optionalOrNull(row.deathLatestAt),
-    deletedAt: optionalOrNull(row.deletedAt),
-    purgeAfter: optionalOrNull(row.purgeAfter),
-    fromSignatureId: optionalOrNull(row.fromSignatureId),
-    toSignatureId: optionalOrNull(row.toSignatureId),
-    fromDestinationHint: optionalOrNull(row.fromDestinationHint),
-    toDestinationHint: optionalOrNull(row.toDestinationHint),
-    fromDestinationSystemId: optionalOrNull(row.fromDestinationSystemId),
-    toDestinationSystemId: optionalOrNull(row.toDestinationSystemId),
-    destinationProvenance: optionalOrNull(row.destinationProvenance),
-    pendingCandidates: optionalOrNull(row.pendingCandidates),
-    pendingResolutionCharacterId: optionalOrNull(
-      row.pendingResolutionCharacterId,
-    ),
+    identity: row.identity,
+    lifetime: row.lifetime,
+    resolution: row.resolution,
+    tombstone: row.tombstone,
+    firstSeenAt: optionalOrNull(row.firstSeenAt),
     observedMassKg: optionalOrNull(row.observedMassKg),
     observedMassAtStateKg: optionalOrNull(row.observedMassAtStateKg),
   };
@@ -230,7 +194,6 @@ export function unresolvedHolesFromRows(
 }
 
 export interface StubLayoutRow extends UnresolvedHoleSummary {
-  readonly fromSignatureId: string;
   /** Negative kernel-only id; EVE system ids are positive, so it cannot collide. */
   readonly layoutSystemId: number;
 }
@@ -253,9 +216,8 @@ export function stubLayoutRows(
   const resolved = new Set(resolvedConnections.map((row) => row._id));
   const stubs: StubLayoutRow[] = [];
   for (const [index, row] of rows.entries()) {
-    const signatureId = row.fromSignatureId;
     if (
-      signatureId === null ||
+      row.from.signatureId === null ||
       !authored.has(row.fromSystemId) ||
       resolved.has(row.connectionId)
     ) {
@@ -263,7 +225,6 @@ export function stubLayoutRows(
     }
     stubs.push({
       ...row,
-      fromSignatureId: signatureId,
       layoutSystemId: -(index + 1),
     });
   }
@@ -627,16 +588,20 @@ function useMapChainPages(mapId: string | null) {
   const plannedStubs = useMemo(
     () => planStubNodes({
       systemIds: systems.rows.map((row) => row.systemId),
-      signatures: scannedStubLayout.map((row) => ({
-        connectionId: row.connectionId,
-        fromSystemId: row.fromSystemId,
-        signatureId: row.fromSignatureId,
-        wormholeTypeCode: row.wormholeTypeCode,
-        destinationHint: row.fromDestinationHint,
-        whClassId: row.wormholeTypeCode === null
-          ? null
-          : destinationClassIdForCode(row.wormholeTypeCode, staticSlots.codex),
-      })),
+      signatures: scannedStubLayout.flatMap((row) => {
+        const signatureId = row.from.signatureId;
+        if (signatureId === null) return [];
+        return [{
+          connectionId: row.connectionId,
+          fromSystemId: row.fromSystemId,
+          signatureId,
+          wormholeTypeCode: row.from.typeCode,
+          destinationHint: doorHint(row.from),
+          whClassId: row.from.typeCode === null
+            ? null
+            : destinationClassIdForCode(row.from.typeCode, staticSlots.codex),
+        }];
+      }),
       connections: connections.rows,
       staticsBySystem: staticSlots.bySystem,
       rootSystemId: systems.rows[0]?.systemId ?? null,
@@ -788,8 +753,9 @@ function useMapChainMerge(
           connectionId: row._id,
           fromSystemId: row.fromSystemId,
           toSystemId: row.toSystemId,
-          deletedAt: row.deletedAt ?? null,
-          purgeAfter: row.purgeAfter ?? null,
+          deletedAt: tombstoneDeletedAt(row),
+          purgeAfter:
+            row.tombstone.kind === 'removed' ? row.tombstone.purgeAfter : null,
         })),
         complete: connections.complete,
       },

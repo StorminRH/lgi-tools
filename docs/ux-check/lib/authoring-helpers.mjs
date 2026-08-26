@@ -268,7 +268,6 @@ export async function ensureJumpEdge(
     wormholeTypeCode: null,
     massState: null,
     shipSize: null,
-    eolAt: null,
   });
   await page.waitForFunction(
     () => document.querySelectorAll('.react-flow__edge').length >= 1,

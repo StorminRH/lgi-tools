@@ -159,7 +159,7 @@ export function takeExpiredByPurgeAfter(
         q.gt('purgeAfter', null).lte('purgeAfter', now),
       )
     : ctx.db.query('mapConnections').withIndex('by_purge_after', (q) =>
-        q.gt('purgeAfter', null).lte('purgeAfter', now),
+        q.gt('tombstone.purgeAfter', null).lte('tombstone.purgeAfter', now),
       );
   return query.take(limit);
 }

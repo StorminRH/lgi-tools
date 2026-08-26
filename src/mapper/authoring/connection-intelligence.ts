@@ -4,8 +4,9 @@ import {
   type WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import { lifetimeDeathWindow } from '@/data/maps/connection-hallway';
+import type { ConnectionLifetime } from '@/data/maps/connection-hallway';
 import {
-  deathWindowFrom,
   lifetimeDisplay,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
@@ -141,10 +142,9 @@ type LifetimeSource =
   | { readonly kind: 'ceiling'; readonly remainingMs: number; readonly ceilingAt: number }
   | { readonly kind: 'unset' };
 
-export type LifetimeConnection = Pick<
-  ConnectionDetail,
-  '_creationTime' | 'deathEarliestAt' | 'deathLatestAt' | 'lifeStage'
->;
+export type LifetimeConnection = Pick<ConnectionDetail, '_creationTime'> & {
+  readonly lifetime: ConnectionLifetime;
+};
 
 function lifetimeSource(
   connection: LifetimeConnection,
@@ -218,10 +218,9 @@ export function lifetimeUpperBoundLabel(
 }
 
 function storedDeathWindow(connection: {
-  readonly deathEarliestAt: number | null;
-  readonly deathLatestAt: number | null;
+  readonly lifetime: ConnectionLifetime;
 }): ConnectionDeathWindow | null {
-  return deathWindowFrom(connection.deathEarliestAt, connection.deathLatestAt);
+  return lifetimeDeathWindow(connection.lifetime);
 }
 
 function countdownTitle(earliestMs: number, latestMs: number): string {

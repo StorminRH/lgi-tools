@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { blankDoor, blankHallway, hallwayDoorTypes, identityFromDoors } from './connection-hallway';
 import {
   applyDoorType,
   applyReturnDoorType,
-  connectionDoorTypes,
   connectionTypePatch,
   isEntranceType,
-  legacyTypeSnapshot,
+  namedDoorType,
   returnDoorTypePatch,
-  storedDoorTypes,
+  typedDoorsFrom,
 } from './connection-door-types';
+
+const empty = blankHallway({ mapId: 'm', fromSystemId: 1, toSystemId: 2 });
 
 describe('connection door types', () => {
   it('treats a named code as an entrance and K162 as an exit', () => {
@@ -17,47 +19,32 @@ describe('connection door types', () => {
     expect(isEntranceType(null)).toBe(false);
   });
 
-  it('expands a legacy named type into an entrance plus a K162 exit', () => {
-    expect(
-      connectionDoorTypes({ wormholeTypeCode: 'C247', typedSide: 'from' }),
-    ).toEqual({ from: 'C247', to: 'K162' });
-    expect(
-      connectionDoorTypes({ wormholeTypeCode: 'B274', typedSide: 'to' }),
-    ).toEqual({ from: 'K162', to: 'B274' });
+  it('prefers the named mouth when the other mouth is a K162', () => {
+    expect(namedDoorType({ from: 'C247', to: 'K162' })).toEqual({
+      typeCode: 'C247',
+      side: 'from',
+    });
+    expect(namedDoorType({ from: 'K162', to: 'P060' })).toEqual({
+      typeCode: 'P060',
+      side: 'to',
+    });
+    expect(namedDoorType({ from: 'K162', to: null })).toEqual({
+      typeCode: 'K162',
+      side: 'from',
+    });
+    expect(namedDoorType({ from: null, to: null })).toEqual({
+      typeCode: null,
+      side: null,
+    });
   });
 
-  it('does not invent a K162 on a legacy one-code row for layout and census', () => {
-    expect(
-      storedDoorTypes({ wormholeTypeCode: 'C247', typedSide: 'from' }),
-    ).toEqual({ from: 'C247', to: null });
-  });
-
-  it('leaves the other door blank when the legacy row is only a K162', () => {
-    expect(
-      connectionDoorTypes({ wormholeTypeCode: 'K162', typedSide: 'from' }),
-    ).toEqual({ from: 'K162', to: null });
-  });
-
-  it('ignores blank door fields so a later one-code write still counts', () => {
-    expect(
-      connectionDoorTypes({
-        fromWormholeTypeCode: null,
-        toWormholeTypeCode: null,
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-      }),
-    ).toEqual({ from: 'C247', to: 'K162' });
-  });
-
-  it('prefers stored door fields over the one-code snapshot', () => {
-    expect(
-      connectionDoorTypes({
-        fromWormholeTypeCode: 'K162',
-        toWormholeTypeCode: 'C247',
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-      }),
-    ).toEqual({ from: 'K162', to: 'C247' });
+  it('reads types from the two door values', () => {
+    const hallway = {
+      ...empty,
+      from: { ...blankDoor(), typeCode: 'C247' },
+      to: { ...blankDoor(), typeCode: 'K162' },
+    };
+    expect(hallwayDoorTypes(hallway)).toEqual({ from: 'C247', to: 'K162' });
   });
 
   it('fills a blank opposite door with K162 only when this door becomes an entrance', () => {
@@ -96,43 +83,31 @@ describe('connection door types', () => {
     ).toEqual({ from: 'K162', to: null });
   });
 
-  it('keeps the one-code snapshot on the entrance door when one exists', () => {
-    expect(legacyTypeSnapshot({ from: 'C247', to: 'K162' })).toEqual({
-      wormholeTypeCode: 'C247',
-      typedSide: 'from',
+  it('patches both doors and identity together, with no one-code snapshot', () => {
+    expect(typedDoorsFrom('from', 'C247')).toEqual({
+      from: { ...blankDoor(), typeCode: 'C247' },
+      to: { ...blankDoor(), typeCode: 'K162' },
     });
-    expect(connectionTypePatch({}, 'to', 'C247')).toEqual({
-      fromWormholeTypeCode: 'K162',
-      toWormholeTypeCode: 'C247',
-      wormholeTypeCode: 'C247',
-      typedSide: 'to',
-    });
-    expect(
-      returnDoorTypePatch({ wormholeTypeCode: 'C247', typedSide: 'from' }, 'to', null),
-    ).toEqual({
-      fromWormholeTypeCode: 'C247',
-      toWormholeTypeCode: 'K162',
-      wormholeTypeCode: 'C247',
-      typedSide: 'from',
-    });
-  });
-
-  it('keeps a named far-side type in the one-code snapshot', () => {
-    expect(legacyTypeSnapshot({ from: 'C247', to: 'B274' }, 'to')).toEqual({
-      wormholeTypeCode: 'B274',
-      typedSide: 'to',
+    expect(connectionTypePatch(empty, 'to', 'C247', 'human')).toEqual({
+      from: { ...blankDoor(), typeCode: 'K162' },
+      to: { ...blankDoor(), typeCode: 'C247' },
+      identity: { kind: 'typed', provenance: 'human' },
     });
     expect(
-      connectionTypePatch(
-        { fromWormholeTypeCode: 'C247', toWormholeTypeCode: 'K162' },
+      returnDoorTypePatch(
+        {
+          ...empty,
+          from: { ...blankDoor(), typeCode: 'C247' },
+          identity: identityFromDoors('C247', null, 'human'),
+        },
         'to',
-        'B274',
+        null,
+        'human',
       ),
     ).toEqual({
-      fromWormholeTypeCode: 'C247',
-      toWormholeTypeCode: 'B274',
-      wormholeTypeCode: 'B274',
-      typedSide: 'to',
+      from: { ...blankDoor(), typeCode: 'C247' },
+      to: { ...blankDoor(), typeCode: 'K162' },
+      identity: { kind: 'typed', provenance: 'human' },
     });
   });
 });
