@@ -30,18 +30,7 @@ import {
   isTombstoned,
   tombstoneDeletedAt,
 } from '@/data/maps/chain-contract';
-import { doorHint } from '@/data/maps/connection-hallway';
-import type {
-  ConnectionDoorValue,
-  ConnectionIdentity,
-  ConnectionLifetime,
-  ConnectionResolution,
-  ConnectionTombstone,
-} from '@/data/maps/connection-hallway';
-import type {
-  ConnectionMassState,
-  WormholeSizeClass,
-} from '@/data/eve-data/wormhole-contract';
+import { doorHint, type ConnectionHallway } from '@/data/maps/connection-hallway';
 import {
   appendHaloFacts,
   deriveHalo,
@@ -116,23 +105,22 @@ function mapSubscriptionArgs(mapId: string | null): 'skip' | { mapId: string } {
   return { mapId };
 }
 
-export interface ConnectionEditorDetail {
+export type ConnectionEditorDetail = Readonly<
+  Omit<
+    ConnectionHallway,
+    | 'mapId'
+    | 'observationKey'
+    | 'firstSeenAt'
+    | 'observedMassKg'
+    | 'observedMassAtStateKg'
+  >
+> & {
   readonly connectionId: Id<'mapConnections'>;
   readonly _creationTime: number;
-  readonly fromSystemId: number;
-  readonly toSystemId: number | null;
-  readonly from: ConnectionDoorValue;
-  readonly to: ConnectionDoorValue;
-  readonly massState: ConnectionMassState | null;
-  readonly shipSize: WormholeSizeClass | null;
-  readonly identity: ConnectionIdentity;
-  readonly lifetime: ConnectionLifetime;
-  readonly resolution: ConnectionResolution;
-  readonly tombstone: ConnectionTombstone;
   readonly firstSeenAt: number | null;
   readonly observedMassKg: number | null;
   readonly observedMassAtStateKg: number | null;
-}
+};
 
 /** A resolved connection whose destination can anchor the canvas details card. */
 export interface ConnectionDetail extends ConnectionEditorDetail {
