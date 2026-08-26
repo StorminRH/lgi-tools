@@ -286,6 +286,45 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
+  it('clears pending on same-code re-identify after a human type stamp', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WHL-003')]);
+    const identified = await asEditor(t).mutation(api.mapScan.identifySignature, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureId: 'WHL-003',
+      group: 'Wormhole',
+      wormholeTypeCode: 'C247',
+    });
+    expect(identified.connectionId).not.toBeNull();
+    const connectionId = identified.connectionId;
+    if (connectionId === null) {
+      throw new Error('expected identify to migrate WHL-003 onto a hallway');
+    }
+    await t.run(async (ctx) => {
+      await ctx.db.patch(connectionId, {
+        resolution: {
+          kind: 'pending',
+          provenance: 'assumed',
+          candidateIds: [connectionId, connectionId],
+          characterId: CHARACTER,
+        },
+      });
+    });
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'WHL-003',
+        group: 'Wormhole',
+        wormholeTypeCode: 'C247',
+      }),
+    ).toEqual({ changed: false, connectionId });
+    const after = await t.run(async (ctx) => await ctx.db.get(connectionId));
+    expect(after?.resolution).toEqual({ kind: 'destination', provenance: 'assumed' });
+  });
+
   it('projects live elimination evidence and tier-gates one atomic deduction batch', async () => {
     const t = convexTest(schema, modules);
     await seed(t);

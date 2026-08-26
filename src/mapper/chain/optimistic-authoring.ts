@@ -37,6 +37,7 @@ import { eliminateSignaturesAndAnnounce } from '../signatures/signature-eliminat
 import { connectionTypePatch, namedDoorType } from '@/data/maps/connection-door-types';
 import {
   blankHallway,
+  clearPendingResolution,
   connectionLifetimeFrom,
   hallwayDoor,
   hallwayDoorTypes,
@@ -353,6 +354,7 @@ export function optimisticSetConnectionWormholeType(
         observedAt: lifetimeObservedAt(row.lifetime),
         death: deathWindowFromArgs(args),
       }),
+      resolution: clearPendingResolution(row.resolution),
     };
   };
   optimisticallyUpdateValueInPaginatedQuery(

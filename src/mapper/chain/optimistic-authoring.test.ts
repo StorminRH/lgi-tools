@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { getFunctionName } from 'convex/server';
 import { api } from '@/data/convex/api';
 import type { Id } from '@/data/convex/data-model';
-import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
+import {
+  blankDoor,
+  blankHallway,
+  pendingResolution,
+  type ConnectionRowId,
+} from '@/data/maps/connection-hallway';
 import type { OptimisticLocalStore } from '@/data/convex/use-mutation';
 import {
   lifeStageWindowProposal,
@@ -473,6 +478,25 @@ describe('explicit lifetime proposals', () => {
         lifeStage: 'under_1_day',
         observedAt: 5,
       },
+    });
+  });
+
+  it('clears a pending jump prompt on the optimistic type write', () => {
+    const store = mockStore({
+      connections: [
+        connectionRow('c1', JITA, AMARR, {
+          resolution: pendingResolution(['c1' as ConnectionRowId], 101),
+        }),
+      ],
+    });
+    optimisticSetConnectionWormholeType(store, {
+      mapId: MAP,
+      connectionId: 'c1',
+      value: 'B274',
+    });
+    expect(store.connections[0]?.resolution).toEqual({
+      kind: 'destination',
+      provenance: 'assumed',
     });
   });
 });

@@ -502,18 +502,20 @@ async function stampIdentifiedWormholeType(
   const connection = await ctx.db.get(connectionId);
   if (connection === null) return;
   const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode, 'human');
+  const resolution = clearPendingResolution(connection.resolution);
   if (
     connection.from.typeCode === typePatch.from.typeCode
     && connection.to.typeCode === typePatch.to.typeCode
     && connection.identity.kind === 'typed'
     && connection.identity.provenance === 'human'
     && connection.observationKey !== undefined
+    && connection.resolution.kind === resolution.kind
   ) {
     return;
   }
   await ctx.db.patch(connectionId, {
     ...typePatch,
-    resolution: clearPendingResolution(connection.resolution),
+    resolution,
     ...stampObservationKey(connection.observationKey).patch,
   });
 }
