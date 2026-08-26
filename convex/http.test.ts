@@ -6,7 +6,7 @@ import { MAP_JUMP_BOOKKEEPING_PURGE_BATCH } from './mapJumpBookkeeping';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
-import { connectionInsert } from './__tests__/connection-doc';
+import { connectionInsert } from './__tests__/connection-doc.setup';
 
 
 const SECRET = 'svc-secret';

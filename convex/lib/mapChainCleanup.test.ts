@@ -7,7 +7,7 @@ import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
 import schema from '../schema';
 
 import { modules } from '../__tests__/modules.setup';
-import { connectionInsert } from '../__tests__/connection-doc';
+import { connectionInsert } from '../__tests__/connection-doc.setup';
 
 
 const NOW = 1_800_000_000_000;

@@ -7,7 +7,7 @@ import type { Id } from './_generated/dataModel';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
-import { connectionInsert } from './__tests__/connection-doc';
+import { connectionInsert } from './__tests__/connection-doc.setup';
 
 
 const jump = {

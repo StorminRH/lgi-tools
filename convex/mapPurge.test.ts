@@ -7,7 +7,7 @@ import schema from './schema';
 import { MAP_PURGE_BATCH, MAP_PURGE_TABLES } from './mapPurge';
 
 import { modules } from './__tests__/modules.setup';
-import { connectionInsert } from './__tests__/connection-doc';
+import { connectionInsert } from './__tests__/connection-doc.setup';
 
 
 function schemaMapTables(): string[] {

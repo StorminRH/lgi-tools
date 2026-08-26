@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Id } from '../_generated/dataModel';
-import { connectionTestDoc } from '../__tests__/connection-doc';
+import { connectionTestDoc } from '../__tests__/connection-doc.setup';
 import {
   connectionOwnsLocalSignature,
   findLocalSignatureConnection,
