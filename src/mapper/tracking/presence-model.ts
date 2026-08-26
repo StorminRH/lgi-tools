@@ -107,7 +107,6 @@ export interface CoveragePayload {
   }[];
 }
 
-/** Args for the flip-only coverage query, or skip until `forMap` names identities. */
 export type CoverageQueryArgs =
   | {
       mapId: string;
