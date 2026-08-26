@@ -129,14 +129,15 @@ round, that comment's thread is resolved or the operator paused,
 and the dump branch matches the Origin head when a dump exists.
 
 A finding is a red Depot job, a dump bot comment, or a review note
-on the Origin PR. Drive ready PRs in batched rounds: wait for
-reviews to settle, then one comment and one push.
+on the Origin PR, including Bugbot. Drive ready PRs in batched
+rounds: wait for reviews to settle, then one comment and one push.
 
 1. Wait until Origin checks have finished (`origin pr checks <N>
    --watch`, or Depot list/status when Checks are empty), Origin
    reviews on that version have finished posting (`origin pr view
    --comments`), and, when a dump PR exists, Greptile and
-   CodeRabbit have finished posting.
+   CodeRabbit have finished posting. Bugbot auto-reviews the
+   Origin PR once, on open.
 2. Collect every finding from that settled state: Depot
    diagnose/logs, dump PR comments, and Origin review notes.
 3. Fix in-scope findings. One commit per fix is fine. Justify on

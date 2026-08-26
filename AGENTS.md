@@ -51,10 +51,11 @@ number or `--branch`. It rejects `--head` and `--base`. Run
 returns. A push is a version, Origin's index for that head.
 `refresh` when `view` or
 `checks` still show the previous one. A Findings round waits for
-dump review, Origin review, and Origin checks to settle, then one
-comment and one push. One commit per fix is fine. Origin assigns
-a thread id, the index for later replies. A review is a verdict
-on a version.
+dump review, Origin review including Bugbot, and Origin checks
+to settle, then one comment and one push. Bugbot auto-reviews
+the Origin PR once, on open. One commit per fix is fine. Origin
+assigns a thread id, the index for later replies. A review is a
+verdict on a version.
 `origin pr create --head <head> --base <destination> --status open`
 `origin pr checks <N> --watch`
 `origin pr refresh`
