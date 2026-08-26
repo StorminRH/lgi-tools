@@ -43,24 +43,33 @@ Linear is the ticket home. GitHub issues are not in use. Update watch
 comments on standing `LGI-6`.
 
 **origin** — Origin PRs and Checks. Create defaults to draft, so pass
-`--status open`. Always pass `--head` and `--base`; after
-`test-runner` the checkout can be detached and inference misses.
-A push is a version, Origin's index for that head. `refresh` when
-`view` or `checks` still show the previous one. A Findings round
-waits for dump review, Origin review, and Origin checks to
-settle, then one comment and one push. One commit per fix is
-fine. Origin assigns a thread id, the index for later replies.
-A review is a verdict on a version.
+`--status open`. Always pass `--head` and `--base` on
+`origin pr create`; after `test-runner` the checkout can be
+detached and inference misses. `origin pr checks` takes a change
+number or `--branch`. It rejects `--head` and `--base`. Run
+`origin pr checks <N> --watch` in the foreground until it
+returns. A push is a version, Origin's index for that head.
+`refresh` when `view` or
+`checks` still show the previous one. A Findings round waits for
+dump review, Origin review including Bugbot, and Origin checks
+to settle, then one comment and one push. Bugbot auto-reviews
+the Origin PR once, on open. One commit per fix is fine. Origin
+assigns a thread id, the index for later replies. A review is a
+verdict on a version.
 `origin pr create --head <head> --base <destination> --status open`
-`origin pr checks --watch`
+`origin pr checks <N> --watch`
 `origin pr refresh`
 `origin pr view --json latestVersion`
 `origin pr comment -b "..."`
 `origin pr thread list --unresolved`
 `origin pr thread reply <id>`
 `origin pr thread resolve <id>`
-`origin pr merge`
+`origin pr merge <N>`
 `origin pr view` / `list` / `diff`
+
+Merge is `origin pr merge <N>`. A Cloud Agent token that refuses
+that call is BLOCKED. Leave the Origin PR open. The operator
+reviews and merges. Token limits live in `.cursor/cloud-agent.md`.
 
 **gh** — GitHub dump PRs only. Add a `github` remote to
 `https://github.com/StorminRH/lgi-tools.git` when it is missing.
@@ -72,7 +81,7 @@ defaults to queued and running. PR runs use a merge SHA
 (`refs/changes/N/merge`), not always `HEAD`. `status` returns immediately.
 Skip `auth-storage.json` in artifacts.
 
-Watch Checks with `origin pr checks --watch`. When that list is empty,
+Watch Checks with `origin pr checks <N> --watch`. When that list is empty,
 `run list` then poll `status`. On red, `diagnose` first — it groups
 failures and suggests a fix. Confirm against `logs` before acting.
 `depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4`
