@@ -610,6 +610,8 @@ describe('engine.onSyncComplete', () => {
   });
 
   it('the one-deploy engine.chainDispatch path still dispatches a due hop', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
     const t = convexTest(schema, modules);
     stubDispatch();
     const now = Date.now();
