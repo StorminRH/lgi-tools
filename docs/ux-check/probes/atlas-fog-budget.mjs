@@ -54,19 +54,19 @@ const jumpArgs = (mapId, fromSystemId, toSystemId) => ({
 
 /** Seeds the ceiling-sized chain: a J-space line plus three k-space exits. */
 async function seedCeilingChain(mapId) {
-  await convexRun('mapFixtures:placeSystemFixture', {
+  await convexRun('mapFixturePlace:placeSystemFixture', {
     mapId,
     systemId: JSPACE_BASE_SYSTEM_ID,
   });
   for (let index = 1; index < JSPACE_CHAIN_LENGTH; index += 1) {
     await convexRun(
-      'mapFixtures:placeJumpFixture',
+      'mapFixturePlace:placeJumpFixture',
       jumpArgs(mapId, JSPACE_BASE_SYSTEM_ID + index - 1, JSPACE_BASE_SYSTEM_ID + index),
     );
   }
   for (const exit of KSPACE_EXITS) {
     await convexRun(
-      'mapFixtures:placeJumpFixture',
+      'mapFixturePlace:placeJumpFixture',
       jumpArgs(mapId, JSPACE_BASE_SYSTEM_ID + exit.atChainIndex, exit.systemId),
     );
   }

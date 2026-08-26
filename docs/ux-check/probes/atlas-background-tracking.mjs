@@ -134,7 +134,7 @@ export default {
 
     // ── Seed: pilot at the origin, feed fresh, one scanned C247 slot ────────
     const seed = await doorbellAfter(page, async () => {
-      await convexRun('mapFixtures:seedTrackedLocationFixture', {
+      await convexRun('mapFixtureTracking:seedTrackedLocationFixture', {
         mapId,
         userId,
         characterId: CHARACTER_ID,
@@ -162,7 +162,7 @@ export default {
       (await dockRow.locator('[data-presence-status]').getAttribute('data-presence-status'))
         === 'In space',
     );
-    await convexRun('mapFixtures:upsertUnresolvedHole', {
+    await convexRun('mapFixtureHoles:upsertUnresolvedHole', {
       mapId,
       fromSystemId: ORIGIN_SYSTEM_ID,
       fromSignatureId: 'AAA-111',
@@ -177,7 +177,7 @@ export default {
     await page.clock.fastForward('00:02:30');
 
     const jump = await doorbellAfter(page, async () => {
-      await convexRun('mapFixtures:advanceTrackedLocationFixture', {
+      await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
         mapId,
         userId,
         characterId: CHARACTER_ID,
@@ -255,7 +255,7 @@ export default {
 
     // ── Return jump: presence comes home; the dock row is live again ────────
     const returned = await doorbellAfter(page, async () => {
-      await convexRun('mapFixtures:advanceTrackedLocationFixture', {
+      await convexRun('mapFixtureTracking:advanceTrackedLocationFixture', {
         mapId,
         userId,
         characterId: CHARACTER_ID,
@@ -307,7 +307,7 @@ export default {
 
     // Flip-only coverage drops when the feed is done; last-known stays for
     // collapse. The pin join hides without touching the map document.
-    await convexRun('mapFixtures:clearTrackedCoverage', {
+    await convexRun('mapFixtureTracking:clearTrackedCoverage', {
       userId,
       characterId: CHARACTER_ID,
     });

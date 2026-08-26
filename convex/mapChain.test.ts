@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { MAP_CHAIN_MAX_PAGE_SIZE, MAP_EVENT_READ_LIMIT } from './mapChain';
-import { FIXTURE_CONNECTION_SCAN_LIMIT } from './mapFixtures';
+import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -191,7 +191,7 @@ describe('map chain read path', () => {
       await grant(t, MAP_A, VIEWER, ['viewer']);
       await placeSystems(t, MAP_A, [JITA, AMARR]);
       await connect(t, MAP_A, JITA, AMARR);
-      const unresolved = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+      const unresolved = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
         mapId: MAP_A,
         fromSystemId: JITA,
         fromSignatureId: 'ABC-123',
@@ -396,7 +396,7 @@ describe('map chain read path', () => {
       const t = convexTest(schema, modules);
       await placeSystems(t, MAP_A, [JITA]);
 
-      const outcome = await t.mutation(internal.mapFixtures.removeSystemFixture, {
+      const outcome = await t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
         mapId: MAP_A,
         systemId: JITA,
       });
@@ -415,7 +415,7 @@ describe('map chain read path', () => {
       const t = convexTest(schema, modules);
       await placeSystems(t, MAP_A, [JITA]);
 
-      const outcome = await t.mutation(internal.mapFixtures.removeSystemFixture, {
+      const outcome = await t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
         mapId: MAP_A,
         systemId: AMARR,
       });
@@ -436,7 +436,7 @@ describe('map chain read path', () => {
       await connect(t, MAP_A, JITA, AMARR);
 
       await expectErrorCode(
-        t.mutation(internal.mapFixtures.removeSystemFixture, {
+        t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
           mapId: MAP_A,
           systemId: AMARR,
         }),
@@ -462,7 +462,7 @@ describe('map chain read path', () => {
       });
 
       await expectErrorCode(
-        t.mutation(internal.mapFixtures.removeSystemFixture, {
+        t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
           mapId: MAP_A,
           systemId: JITA,
         }),
@@ -475,10 +475,10 @@ describe('map chain read path', () => {
       await placeSystems(t, MAP_A, [JITA, AMARR]);
       const connectionId = await connect(t, MAP_A, JITA, AMARR);
 
-      const first = await t.mutation(internal.mapFixtures.removeConnectionFixture, {
+      const first = await t.mutation(internal.mapFixtureRemove.removeConnectionFixture, {
         connectionId,
       });
-      const second = await t.mutation(internal.mapFixtures.removeConnectionFixture, {
+      const second = await t.mutation(internal.mapFixtureRemove.removeConnectionFixture, {
         connectionId,
       });
 

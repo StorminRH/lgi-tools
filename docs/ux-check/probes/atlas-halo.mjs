@@ -116,7 +116,7 @@ export default {
     await waitForEditableMap(page);
 
     // ── Seed one authored k-space anchor; the halo is pure derivation ───────
-    await convexRun('mapFixtures:placeSystemFixture', {
+    await convexRun('mapFixturePlace:placeSystemFixture', {
       mapId,
       systemId: ANCHOR_SYSTEM_ID,
     });
@@ -168,7 +168,7 @@ export default {
     );
     await armEnterWitness(page);
     await armEnterWitness(second.page);
-    await convexRun('mapFixtures:placeJumpFixture', {
+    await convexRun('mapFixturePlace:placeJumpFixture', {
       mapId,
       fromSystemId: ANCHOR_SYSTEM_ID,
       toSystemId: HALO_TARGET_SYSTEM_ID,

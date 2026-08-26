@@ -203,7 +203,7 @@ export default {
     await waitForEditableMap(page);
 
     // One authored k-space anchor; halo and fog are pure derivation.
-    await convexRun('mapFixtures:placeSystemFixture', {
+    await convexRun('mapFixturePlace:placeSystemFixture', {
       mapId,
       systemId: ANCHOR_SYSTEM_ID,
     });

@@ -1,26 +1,3 @@
-// Tracked-location sync action (4.0.4.2.1) — runs on the DEFAULT Convex runtime
-// (no "use node"; the shared ESI gate is runtime-portable). One run refreshes
-// location for the caller's tracked characters:
-//
-//   heldState (system + dual etags + held online probe) →
-//   mapTracking.trackedCharacterIds → access lease (vend only when missing
-//   or past Neon's expiresAt) → per character: online probe (held-reuse
-//   inside its ~60s window, else conditional /online) →
-//   ONLINE: /location (+ /ship on system change); OFFLINE: no location read,
-//   the online expiry becomes the character's window → ONE applySyncResults.
-//
-// The probe is the pause/resume signal: an all-offline run stamps ~60s
-// windows and an EMPTY covered set (no location observed — covered is
-// continuity evidence, never probe bookkeeping), so the run is chain-
-// ineligible and the 30s scan re-arms the subject at the probe window
-// instead of the 5s location floor. The next login's probe resumes the fast
-// loop automatically.
-//
-// Throw = transient (network, ESI 5xx, Neon 5xx); the action completes the
-// subject as failed (does not rethrow) and the engine schedules a 5s hop
-// while presence is fresh. Everything else becomes a recorded per-character
-// or run-level error. Clean-yield success still chains (~5s while watched);
-// the 30s scan is the backup if a hop never fires.
 import { v } from 'convex/values';
 import {
   parseLocationBody,
@@ -43,13 +20,8 @@ import {
   vendCharacterToken,
 } from './lib/characterSync';
 
-// Fallback when a response carries no parseable Expires — pegged to the
-// verified location cache (5s). The header is preferred whenever present.
 const FALLBACK_TTL_MS = 5_000;
 
-// Fallback for the /online probe — pegged to its verified ~60s cache. Also
-// the offline pacing floor: an offline character's window is its online
-// expiry, so the subject re-arms at the probe cadence, never the 5s floor.
 const ONLINE_FALLBACK_TTL_MS = 60_000;
 
 interface AccessLease {
@@ -74,31 +46,18 @@ interface CharacterResult {
   etagShip: string | null;
   expiresAt: number | null;
   error: string | null;
-  // Probe outcome. online null = the probe never resolved (per-character
-  // error before/at the probe). onlineExpiresAt non-null = a fresh probe read
-  // happened and the apply should upsert the held row; null = held-reuse or
-  // error, nothing to store.
   online: boolean | null;
   etagOnline: string | null;
   onlineExpiresAt: number | null;
 }
 
-// The location/ship half of a result — the probe wrapper stamps the three
-// online fields on top, so the read helpers below stay probe-agnostic.
 type LocationReadResult = Omit<CharacterResult, 'online' | 'etagOnline' | 'onlineExpiresAt'>;
 
-// What one character's processing resolves to inside the loop: skipped
-// silently (unlinked mid-run), a recorded result, or a run-stopping
-// protective state (budget exhaustion) carrying its own result row.
 type CharacterOutcome =
   | { kind: 'skip' }
   | { kind: 'result'; result: CharacterResult }
   | { kind: 'stop'; runError: string; result: CharacterResult };
 
-/**
- * Runs the authenticated location sync for one user through the shared Convex
- * engine; the engine owns scheduling and persisted run state.
- */
 export const syncUser = internalAction({
   args: { userId: v.string(), generation: v.number() },
   handler: async (ctx, { userId, generation }) => {
@@ -112,7 +71,7 @@ export const syncUser = internalAction({
         error: error instanceof Error ? error.message : String(error),
       };
     }
-    await ctx.runMutation(internal.engine.onSyncComplete, {
+    await ctx.runMutation(internal.engineComplete.onSyncComplete, {
       workId: String(generation),
       context: { dataset: 'characterLocation', userId },
       result,
@@ -128,8 +87,6 @@ async function runLocationSync(
   const env = requireSyncEnv();
 
   const held = await ctx.runQuery(internal.characterLocation.heldState, { userId });
-  // The heldState rows already carry exactly the HeldState / HeldOnlineState
-  // shapes (plus the key) — index them as-is.
   const heldByCharacter = new Map(held.locations.map((h) => [h.characterId, h]));
   const heldOnlineByCharacter = new Map(held.online.map((h) => [h.characterId, h]));
   const trackedIds = await ctx.runQuery(internal.mapTracking.trackedCharacterIds, {
@@ -232,10 +189,6 @@ async function syncLocationCharacter(
   }
 }
 
-// The resolved online answer for one character this run. onlineExpiresAt is
-// non-null only when a fresh read happened (the apply's upsert gate);
-// windowExpiresAt is always the answer's remaining validity — the offline
-// character's pacing window.
 interface ProbeResolution {
   online: boolean;
   etagOnline: string | null;
@@ -243,9 +196,6 @@ interface ProbeResolution {
   windowExpiresAt: number;
 }
 
-// Probe first, then location only for a pilot who is actually logged in — an
-// offline character costs at most one conditional /online per ~60s window
-// and never a location/ship read.
 async function readProbeThenLocation(
   characterId: number,
   accessToken: string,
@@ -266,8 +216,6 @@ async function readProbeThenLocation(
       systemChanged: false,
       etagLocation: held.etagLocation,
       etagShip: held.etagShip,
-      // The online expiry IS the offline window: the subject re-arms at the
-      // probe cadence and the next login resumes the fast loop.
       expiresAt: probe.windowExpiresAt,
       error: null,
       online: false,
@@ -285,8 +233,6 @@ async function readProbeThenLocation(
   };
 }
 
-// Resolve the online answer: held-reuse inside the window (zero ESI), else a
-// conditional read. Returns an error code string on a non-transient failure.
 async function resolveOnlineProbe(
   characterId: number,
   accessToken: string,
@@ -299,7 +245,6 @@ async function resolveOnlineProbe(
       online: decision.online,
       etagOnline: heldOnline?.etagOnline ?? null,
       onlineExpiresAt: null,
-      // heldOnline exists by construction of the 'held' decision.
       windowExpiresAt: heldOnline!.onlineExpiresAt,
     };
   }
@@ -416,7 +361,6 @@ async function finishWithOptionalShip(
 
   if (shipRead.kind === 'unchanged') {
     shipExpiresAt = shipRead.expiresAt;
-    // shipTypeId stays null — apply reuses the held doc's shipTypeId.
   } else {
     shipTypeId = parseShipBody(shipRead.body);
     if (shipTypeId === null) return errorResult(characterId, 'contract_error', held);

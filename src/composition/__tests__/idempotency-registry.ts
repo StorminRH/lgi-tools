@@ -1,21 +1,3 @@
-// IDEMPOTENCY REGISTRY (3.10.3.2) — the third test-only sibling of
-// data-ownership-registry.ts and vendor-resilience-registry.ts.
-//
-// The growth registry answers "why is this table bounded". The ownership
-// registry answers "who may write it". The vendor registry answers "what bounds
-// our outbound calls". This one answers the remaining question: when our own
-// work runs twice, what breaks.
-//
-// Every entry records live behavior rather than an aspiration, and its census
-// (src/esi-datasets/idempotency.test.ts) fails when the description and the tree
-// disagree. Test-only, exactly like its siblings: no runtime module imports it,
-// and nothing here configures behavior — a registry that did would become the
-// only place a guarantee existed.
-//
-// The recorded outcome of the 3.10.3.1.1 sweep is that NO entry is at-risk. That
-// empty set is a terminal outcome, not an omission: contract DC-6 accepts a
-// recorded no-at-risk verdict, and HC-4 forbids adding an idempotency key where
-// the duplicate or loss risk is not real.
 import type { VendorIntegrationId } from './vendor-resilience-registry';
 
 /**
@@ -214,28 +196,28 @@ const convexSyncEngineScan = convexEntry({
   redeliverySource:
     'The 30-second Convex interval cron, plus the external 15-minute Vercel sweeper that dispatches the same due subjects.',
   evidence:
-    'internal.engine.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.',
+    'internal.engineScan.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.',
 });
 const convexEngineScan = convexEntry({
-  id: 'convex/engine:scan',
+  id: 'convex/engineScan:scan',
   workKind: 'convex-mutation',
-  module: 'convex/engine.ts',
+  module: 'convex/engineScan.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
     'Declared internalMutation, so a retry re-runs the whole transaction atomically and cannot half-apply.',
 });
 const convexEngineSweep = convexEntry({
-  id: 'convex/engine:sweep',
+  id: 'convex/engineSweep:sweep',
   workKind: 'convex-mutation',
-  module: 'convex/engine.ts',
+  module: 'convex/engineSweep.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
     'Declared internalMutation reclaiming stranded in-flight subjects; reclaiming an already-reclaimed subject is a no-op within the same transaction.',
 });
 const convexEngineOnSyncComplete = convexEntry({
-  id: 'convex/engine:onSyncComplete',
+  id: 'convex/engineComplete:onSyncComplete',
   workKind: 'convex-mutation',
-  module: 'convex/engine.ts',
+  module: 'convex/engineComplete.ts',
   redeliverySource: 'Convex transactional retry of a transient error inside the mutation.',
   evidence:
     'Declared internalMutation whose workId ownership guard makes a late or repeated completion a no-op, so it cannot clear a newer run’s status.',
@@ -247,7 +229,7 @@ const convexLocationSyncUser = convexEntry({
   redeliverySource:
     'A single scheduled Convex action (engine dispatch via scheduler.runAfter). Scheduled actions execute at most once and are not retried.',
   evidence:
-    'convex/engine.ts declares the safety condition: only transient failures throw, and the generation guard on apply plus the workId guard on onSyncComplete make a duplicate write a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId.',
+    'convex/lib/engineCore.ts declares the safety condition: only transient failures throw, and the generation guard on apply plus the workId guard on onSyncComplete make a duplicate write a no-op. Location and held-probe upserts are replace-shaped keyed by userId+characterId.',
 });
 
 const CONVEX_ENTRIES: readonly IdempotencyEntry[] = [
@@ -346,11 +328,6 @@ const ALERT_ENTRIES: readonly IdempotencyEntry[] = [
   },
 ];
 
-// Every POST-bearing route. Nothing redelivers a browser mutation:
-// src/transport/api-client.ts contains no retry, and Vercel does not replay a
-// request. A repeated submit is therefore user-initiated, which is why the
-// default mutation verdict is accepted-risk rather than a manufactured key —
-// HC-4 bars adding one where the risk is not real.
 const NO_PLATFORM_REDELIVERY =
   'User-initiated repeat submit only — src/transport/api-client.ts contains no retry and no platform replays the request.';
 

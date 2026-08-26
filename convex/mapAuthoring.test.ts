@@ -1345,7 +1345,7 @@ describe('map authoring', () => {
           { key: 'a-b', fromSystemId: WH_A, toSystemId: WH_B },
         ],
       );
-      const stub = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+      const stub = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
         mapId: MAP_A,
         fromSystemId: WH_B,
         fromSignatureId: 'ABC-123',
