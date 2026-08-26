@@ -1,6 +1,3 @@
-// External watchdog (POST /sweep). Three bounded indexed passes plus the
-// temporary onlineStatus drain GC. A runs first so its writes are visible
-// to B/C (read-your-writes).
 import {
   classifyDueSubject,
   hasSyncTarget,
@@ -47,6 +44,8 @@ export const sweep = internalMutation({
   },
 });
 
+// Temporary drain GC: unindexed on purpose — no by_dataset index, throwaway
+// ahead of the wipe deploy.
 function takeRetiredRows(ctx: MutationCtx, table: 'syncSubjects' | 'syncPresence') {
   return ctx.db
     .query(table)

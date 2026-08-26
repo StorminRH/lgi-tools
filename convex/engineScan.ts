@@ -1,6 +1,3 @@
-// 30s due-set dispatcher (convex/crons.ts). Cold rows leave the scan set;
-// fresh-running rows wait for completion; a running row past STALE_RUNNING_MS
-// is taken over here.
 import {
   isColdFromPresence,
   isRegisteredDataset,

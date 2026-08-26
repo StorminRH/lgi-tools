@@ -1,6 +1,3 @@
-// Internal placement fixtures: system upsert, connection insert, and the
-// atomic jump (system + discovering connection). Admin-key convex run and
-// tests — production writes go through mapAuthoring.
 import { ConvexError, v } from 'convex/values';
 import { internalMutation } from './_generated/server';
 import {

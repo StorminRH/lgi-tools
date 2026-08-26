@@ -1,5 +1,4 @@
-// Shared dispatch core for the presence-gated sync engine. Registration
-// seam — all a consumer does to join:
+// Registration seam — all a consumer does to join:
 //   1. Add the dataset + cadence floor + token group to SYNC_DATASETS /
 //      SYNC_DATASET_CONFIG in src/lib/sync-engine.ts and to the schema's
 //      dataset union.
@@ -8,7 +7,6 @@
 //   3. Its applySyncResults guards on generation and stamps run results
 //      onto the syncSubjects row.
 //   4. Its view mounts useSyncSubject (src/data/convex/).
-// No Convex wrappers — nothing here lands on the deployed API surface.
 import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { v } from 'convex/values';
 import {
@@ -26,8 +24,7 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
 });
 
 // Stored union is a SUPERSET of the active registry while onlineStatus drains
-// (docs/CONVEX.md). No syncRef is registered for retired datasets;
-// isRegisteredDataset keeps every dispatch path off them.
+// (docs/CONVEX.md). No syncRef is registered for retired datasets.
 export const syncDatasetValidator = v.union(
   v.literal('onlineStatus'),
   v.literal('characterLocation'),
@@ -64,13 +61,10 @@ export async function retireFromScan(
   }
 }
 
-// lastRequestedAt is the generation token; workId pairs the run with its
-// completion (String(generation)). A superseding dispatch overwrites
-// lastRequestedAt only after isRunningFresh is false (≥STALE_RUNNING_MS), so
-// the new token cannot equal the run it supersedes. Concurrent same-subject
-// dispatches are OCC-serialized on this row: keep the schedule transactional
-// with — and before — the patch, and keep isRunningFresh inside the handler
-// so OCC retries re-check it.
+// lastRequestedAt is the generation token. A superseding dispatch overwrites
+// it only after isRunningFresh is false, so the new token cannot equal the
+// run it supersedes. Keep the schedule transactional with — and before —
+// the patch; keep isRunningFresh inside the handler so OCC retries re-check it.
 export async function dispatch(
   ctx: MutationCtx,
   subject: Doc<'syncSubjects'>,

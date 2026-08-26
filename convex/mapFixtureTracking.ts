@@ -1,5 +1,3 @@
-// Internal tracked-location fixtures: seed/advance subscribed location
-// evidence and stamp the owner's characterLocation subject freshness.
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { internalMutation, type MutationCtx } from './_generated/server';

@@ -609,6 +609,35 @@ describe('engine.onSyncComplete', () => {
     expect(typeof subject?.nextDueAt).toBe('number');
   });
 
+  it('the one-deploy engine.onSyncComplete path still completes a run', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        status: 'running',
+        lastRequestedAt: now,
+        workId: 'w1',
+        nextDueAt: now + 60_000,
+        syncedCharacterIds: [101],
+      }));
+    });
+
+    await t.mutation(internal.engine.onSyncComplete, {
+      workId: 'w1',
+      context: { dataset: 'characterLocation', userId: USER },
+      result: { kind: 'success' },
+    });
+
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('idle');
+    expect(subject?.workId).toBeNull();
+  });
+
   it('arms the next due time off the cache window on success with targets', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();

@@ -1,6 +1,3 @@
-// Tab-close leave: retire the location loop when this tab is still the live
-// beater. A newer tabId is a no-op. Crash / killed process still wait for
-// coldAfterMs.
 import { v } from 'convex/values';
 import { isRegisteredDataset, SYNC_DATASET_CONFIG } from '@/lib/sync-engine';
 import { internalMutation } from './_generated/server';

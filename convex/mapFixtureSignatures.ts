@@ -1,5 +1,3 @@
-// Internal signature fixtures: observation merge, activity-only sighting,
-// and reversible tombstone. Bookkeeping never writes a watched payload row.
 import { ConvexError, v } from 'convex/values';
 import { internalMutation } from './_generated/server';
 import {

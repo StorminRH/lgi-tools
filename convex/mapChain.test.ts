@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { MAP_CHAIN_MAX_PAGE_SIZE, MAP_EVENT_READ_LIMIT } from './mapChain';
-import { FIXTURE_CONNECTION_SCAN_LIMIT } from './mapFixtureRemove';
+import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';

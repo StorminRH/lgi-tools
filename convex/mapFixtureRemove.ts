@@ -1,10 +1,7 @@
-// Internal removal fixtures. System and jump collapse must prove orphanhood
-// under a bounded scan; a connection delete is unconditional.
 import { ConvexError, v } from 'convex/values';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import { findSystem } from './lib/mapSystemLookup';
-
-export const FIXTURE_CONNECTION_SCAN_LIMIT = 128;
 
 async function findReferencingConnection(
   ctx: MutationCtx,

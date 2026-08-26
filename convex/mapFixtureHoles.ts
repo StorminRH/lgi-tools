@@ -1,5 +1,3 @@
-// Internal unresolved-hole fixture: seed or enrich one active scanned
-// wormhole slot without inventing a far endpoint.
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { connectionTypePatch } from '@/data/maps/connection-door-types';
@@ -15,8 +13,8 @@ import {
   validateUnresolvedHoleInput,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
+import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import { findSystem } from './lib/mapSystemLookup';
-import { FIXTURE_CONNECTION_SCAN_LIMIT } from './mapFixtureRemove';
 
 interface UnresolvedHoleFixtureArgs {
   readonly mapId: string;

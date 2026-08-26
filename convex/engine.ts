@@ -1,6 +1,3 @@
-// Public presence door for the sync engine. Interval beats stop at the
-// presence write; mount/visible (and a recovery interval after a cold gap)
-// dispatch when stale. Registration and dispatch live in lib/engineCore.
 import { v } from 'convex/values';
 import {
   computeNextDueAt,
@@ -12,7 +9,8 @@ import {
   SYNC_DATASET_CONFIG,
   type SyncDataset,
 } from '@/lib/sync-engine';
-import { mutation, type MutationCtx } from './_generated/server';
+import { internalMutation, mutation, type MutationCtx } from './_generated/server';
+import { completeSyncRun, onSyncCompleteArgs } from './engineComplete';
 import { dispatch, syncDatasetValidator } from './lib/engineCore';
 import { getPresence, getSyncSubject, newIdleSubject } from './lib/subjects';
 
@@ -103,3 +101,9 @@ async function upsertPresence(
 function isLeftTab(leftTabId: string | undefined, tabId: string | undefined): boolean {
   return leftTabId !== undefined && leftTabId !== '' && (tabId === undefined || tabId === leftTabId);
 }
+
+// One-deploy drain: in-flight syncUser still calls engine:onSyncComplete.
+export const onSyncComplete = internalMutation({
+  args: onSyncCompleteArgs,
+  handler: completeSyncRun,
+});

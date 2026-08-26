@@ -1,6 +1,3 @@
-// Public gated chain read. Convex publishes every public function in this
-// directory, so import-graph reasoning must never declare one dead.
-// requireMapAccess is the first call. Production watches live on mapChain.
 import { v } from 'convex/values';
 import { query } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';

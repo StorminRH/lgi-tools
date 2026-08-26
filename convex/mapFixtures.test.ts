@@ -2,8 +2,8 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
+import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
-import { FIXTURE_CONNECTION_SCAN_LIMIT } from './mapFixtureRemove';
 import { SIGNATURE_PURGE_BATCH } from './mapScan';
 import schema from './schema';
 
