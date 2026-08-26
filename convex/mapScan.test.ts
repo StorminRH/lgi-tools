@@ -1202,14 +1202,23 @@ describe('mapScan paste application and lifecycle', () => {
   });
 
   it('read set stays separated from mapChain across an unchanged re-paste', () => {
-    const chainCode = readFileSync('convex/mapChain.ts', 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
+    const chainFiles = [
+      'convex/mapChainAccess.ts',
+      'convex/mapChainConnections.ts',
+      'convex/mapChainEvents.ts',
+      'convex/mapChainPage.ts',
+      'convex/mapChainSystems.ts',
+    ];
     const scanCode = readFileSync('convex/mapScan.ts', 'utf8');
 
-    expect(chainCode).not.toContain("'mapSignatures'");
-    expect(chainCode).not.toContain("'mapSignatureActivity'");
-    expect(scanCode).not.toContain("from './mapChain'");
+    for (const path of chainFiles) {
+      const chainCode = readFileSync(path, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+      expect(chainCode, path).not.toContain("'mapSignatures'");
+      expect(chainCode, path).not.toContain("'mapSignatureActivity'");
+    }
+    expect(scanCode).not.toContain("from './mapChain");
   });
 
   it('debounce writes nothing at 59s and only activity after 61s', async () => {

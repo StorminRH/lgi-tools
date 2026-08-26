@@ -1243,7 +1243,7 @@ describe('map authoring', () => {
         });
       });
 
-      const candidates = await asUser(t).query(api.mapChain.watchUnresolvedHoles, {
+      const candidates = await asUser(t).query(api.mapChainConnections.watchUnresolvedHoles, {
         mapId: MAP_A,
         paginationOpts: { cursor: null, numItems: 10 },
       });

@@ -236,7 +236,7 @@ function useSignatureJumpFlow(
   unresolvedHoles: readonly UnresolvedHoleSummary[],
 ) {
   const assets = useUniverseAssets();
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const ownCharacterIds = useMemo(
     () => new Set(tracking?.ownTrackedCharacterIds ?? []),
     [tracking?.ownTrackedCharacterIds],

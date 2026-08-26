@@ -40,7 +40,7 @@ interface TrackingControlsViewProps {
  * switch), and dismissing the waiting dialog resumes syncing with an immediate mount beat.
  */
 export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
   const afk = useMapPresenceAfk();
 
@@ -50,14 +50,14 @@ export function TrackingHeartbeat({ mapId }: { readonly mapId: string }) {
 
 /** Client mutation for this map's per-character tracking opt-in. */
 export function useSetMapTracking() {
-  return useMutation(api.mapTracking.setTracking);
+  return useMutation(api.mapTrackingOptIn.setTracking);
 }
 
 /** Lists the signed-in pilot's linked characters as map-menu tracking controls. */
 export function TrackingControls({ mapId }: { readonly mapId: string }) {
   const characters = useAccountCharacters();
-  const access = useLiveValue(api.mapChain.watchMapAccess, { mapId });
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const access = useLiveValue(api.mapChainAccess.watchMapAccess, { mapId });
+  const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const setTracking = useSetMapTracking();
   const trackedIds = tracking?.ownTrackedCharacterIds ?? [];
 

@@ -2,7 +2,7 @@
 
 // The presence host for one map: the single place the tracked-location
 // subscription becomes derived per-system presence for the frame badges and
-// the intelligence body. Reads the SAME `mapTracking.forMap` subscription the
+// the intelligence body. Reads the SAME `forMap` subscription the
 // tracking controls and doorbell use, plus the flip-only `coverage` sibling
 // so a pin hide does not invalidate the location overlay.
 //
@@ -13,7 +13,7 @@ import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useAfkState } from './AfkGate';
 import { MapPresenceContext } from './presence-context';
-import { derivePresenceFromPayload } from './presence-model';
+import { coverageQueryArgs, derivePresenceFromPayload } from './presence-model';
 
 /** Hosts presence derivation + the AFK gate for everything under the canvas shell. */
 export function MapPresenceProvider({
@@ -23,8 +23,11 @@ export function MapPresenceProvider({
   readonly mapId: string;
   readonly children: ReactNode;
 }) {
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const coverage = useLiveValue(api.mapTracking.coverage, { mapId });
+  const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
+  const coverage = useLiveValue(
+    api.mapTrackingLive.coverage,
+    coverageQueryArgs(mapId, tracking),
+  );
   const afk = useAfkState();
   const presence = useMemo(
     () => derivePresenceFromPayload(tracking, coverage),

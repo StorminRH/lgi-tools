@@ -89,7 +89,7 @@ async function runLocationSync(
   const held = await ctx.runQuery(internal.characterLocation.heldState, { userId });
   const heldByCharacter = new Map(held.locations.map((h) => [h.characterId, h]));
   const heldOnlineByCharacter = new Map(held.online.map((h) => [h.characterId, h]));
-  const trackedIds = await ctx.runQuery(internal.mapTracking.trackedCharacterIds, {
+  const trackedIds = await ctx.runQuery(internal.mapTrackingIds.trackedCharacterIds, {
     userId,
   });
   const leases = await ctx.runQuery(internal.characterLocation.accessLeases, { userId });

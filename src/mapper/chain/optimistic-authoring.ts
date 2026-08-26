@@ -95,7 +95,7 @@ function insertOptimisticSystemIfAbsent(
 ): void {
   if (liveSystemPresent(localStore, mapId, systemId)) return;
   insertAtBottomIfLoaded({
-    paginatedQuery: api.mapChain.watchMapSystems,
+    paginatedQuery: api.mapChainSystems.watchMapSystems,
     argsToMatch: { mapId },
     localQueryStore: localStore,
     item: {
@@ -114,7 +114,7 @@ function liveSystemPresent(
   mapId: string,
   systemId: number,
 ): boolean {
-  for (const { args, value } of localStore.getAllQueries(api.mapChain.watchMapSystems)) {
+  for (const { args, value } of localStore.getAllQueries(api.mapChainSystems.watchMapSystems)) {
     if (value === undefined) continue;
     if (args.mapId !== mapId) continue;
     if (value.page.some((row) => row.systemId === systemId && row.deletedAt == null)) {
@@ -133,7 +133,7 @@ export function optimisticSetHomeSystem(
   if (liveSystemPresent(localStore, args.mapId, args.systemId)) return;
   // Skip when any live system already exists — server will refuse MAP_NOT_EMPTY.
   for (const { args: pageArgs, value } of localStore.getAllQueries(
-    api.mapChain.watchMapSystems,
+    api.mapChainSystems.watchMapSystems,
   )) {
     if (value === undefined || pageArgs.mapId !== args.mapId) continue;
     if (value.page.some((row) => row.deletedAt == null)) return;
@@ -149,7 +149,7 @@ export function optimisticSetHomeSystem(
   } satisfies OptimisticSystemRow;
 
   insertAtTop({
-    paginatedQuery: api.mapChain.watchMapSystems,
+    paginatedQuery: api.mapChainSystems.watchMapSystems,
     argsToMatch: { mapId: args.mapId },
     localQueryStore: localStore,
     item: item as never,
@@ -179,7 +179,7 @@ export function optimisticAddSystemFromNode(
   );
 
   insertAtTop({
-    paginatedQuery: api.mapChain.watchMapConnections,
+    paginatedQuery: api.mapChainConnections.watchMapConnections,
     argsToMatch: { mapId: args.mapId },
     localQueryStore: localStore,
     item: {
@@ -235,14 +235,14 @@ export function optimisticPatchConnection(
 ): void {
   optimisticallyUpdateValueInPaginatedQuery(
     localStore,
-    api.mapChain.watchMapConnections,
+    api.mapChainConnections.watchMapConnections,
     { mapId: args.mapId },
     (row) =>
       row._id === args.connectionId ? { ...row, ...args.patch } : row,
   );
   optimisticallyUpdateValueInPaginatedQuery(
     localStore,
-    api.mapChain.watchUnresolvedHoles,
+    api.mapChainConnections.watchUnresolvedHoles,
     { mapId: args.mapId },
     (row) =>
       row._id === args.connectionId ? { ...row, ...args.patch } : row,
@@ -269,7 +269,7 @@ function severStamp(
   connectionId: string,
 ): number | null {
   for (const { args, value } of localStore.getAllQueries(
-    api.mapChain.watchMapConnections,
+    api.mapChainConnections.watchMapConnections,
   )) {
     if (value === undefined || args.mapId !== mapId) continue;
     const connection = value.page.find((row) => row._id === connectionId);
@@ -293,7 +293,7 @@ export function optimisticRestoreSeveredBranch(
   if (deletedAt === null) return;
   optimisticallyUpdateValueInPaginatedQuery(
     localStore,
-    api.mapChain.watchMapSystems,
+    api.mapChainSystems.watchMapSystems,
     { mapId: args.mapId },
     (row) =>
       row.deletedAt === deletedAt
@@ -302,7 +302,7 @@ export function optimisticRestoreSeveredBranch(
   );
   optimisticallyUpdateValueInPaginatedQuery(
     localStore,
-    api.mapChain.watchMapConnections,
+    api.mapChainConnections.watchMapConnections,
     { mapId: args.mapId },
     (row) =>
       row.deletedAt === deletedAt
@@ -370,13 +370,13 @@ export function optimisticSetConnectionWormholeType(
   };
   optimisticallyUpdateValueInPaginatedQuery(
     localStore,
-    api.mapChain.watchMapConnections,
+    api.mapChainConnections.watchMapConnections,
     { mapId: args.mapId },
     apply,
   );
   optimisticallyUpdateValueInPaginatedQuery(
     localStore,
-    api.mapChain.watchUnresolvedHoles,
+    api.mapChainConnections.watchUnresolvedHoles,
     { mapId: args.mapId },
     apply,
   );

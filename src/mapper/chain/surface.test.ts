@@ -233,15 +233,15 @@ describe('mapper source contract', () => {
     // never one aggregate read. The unresolved-slot feed is the third split.
     const hook = sourceOf('chain/use-map-chain.ts');
 
-    expect(hook).toContain('api.mapChain.watchMapSystems');
-    expect(hook).toContain('api.mapChain.watchMapConnections');
-    expect(hook).toContain('api.mapChain.watchUnresolvedHoles');
+    expect(hook).toContain('api.mapChainSystems.watchMapSystems');
+    expect(hook).toContain('api.mapChainConnections.watchMapConnections');
+    expect(hook).toContain('api.mapChainConnections.watchUnresolvedHoles');
     expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(3);
   });
 
   it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
     const hook = sourceOf('chain/use-map-chain.ts');
-    expect(hook).toContain('api.mapChain.watchMapEvents');
+    expect(hook).toContain('api.mapChainEvents.watchMapEvents');
     expect(hook).toContain('filterChainConnections');
     expect(hook).toMatch(/const systems = useMemo\(/);
     expect(hook).toMatch(/const connections = useMemo\(/);
