@@ -19,7 +19,7 @@ import {
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
 import { useSetMapTracking } from '../tracking/TrackingControls';
-import { coverageQueryArgs } from '../tracking/presence-model';
+import { useMapCoverage } from '../tracking/use-map-coverage';
 import { homeCurrentSystem, type HomeCurrentSystem } from './home-prompt-model';
 
 /** Props for the empty-map home-system prompt. */
@@ -43,10 +43,7 @@ export function HomePrompt({ mapId, onPick }: HomePromptProps) {
   const characterId = useActiveCharacterId();
   const characters = useAccountCharacters();
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
-  const coverage = useLiveValue(
-    api.mapTrackingLive.coverage,
-    coverageQueryArgs(mapId, tracking),
-  );
+  const coverage = useMapCoverage(mapId, tracking);
   const setTracking = useSetMapTracking();
   const current = homeCurrentSystem({ characterId, tracking, coverage });
   const currentSystemId = current.kind === 'ready' ? current.systemId : null;

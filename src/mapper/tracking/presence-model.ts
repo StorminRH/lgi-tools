@@ -114,6 +114,13 @@ export type CoverageQueryArgs =
     }
   | 'skip';
 
+export function holdDefined<T>(
+  previous: T | undefined,
+  next: T | undefined,
+): T | undefined {
+  return next !== undefined ? next : previous;
+}
+
 /**
  * Coverage args from a loaded `forMap` payload. Sorted so a location tick
  * (same identities, new location facts) keeps one subscription.
