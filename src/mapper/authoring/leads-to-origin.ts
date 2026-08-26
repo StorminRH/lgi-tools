@@ -44,7 +44,6 @@ export interface OriginLeadConnection {
   readonly from: { readonly signatureId: string | null };
   readonly to: { readonly signatureId: string | null };
   readonly tombstone?: ConnectionTombstone;
-  readonly deletedAt?: number | null;
 }
 
 function otherEndpoint(

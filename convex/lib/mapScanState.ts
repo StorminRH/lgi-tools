@@ -139,13 +139,13 @@ export function endpointSide(
 
 export function leadsNotePatch(
   surviving: Doc<'mapConnections'>,
-  stubTyped: number | undefined,
+  stubTyped: number | null,
   attachedSide: 'from' | 'to',
 ): Partial<Doc<'mapConnections'>> {
   const door = hallwayDoor(surviving, attachedSide);
   const kept = absorbDoorLeadsNote(
     door.leadsTo,
-    stubTyped === undefined ? { kind: 'unset' } : leadsToFromSystem(stubTyped),
+    stubTyped === null ? { kind: 'unset' } : leadsToFromSystem(stubTyped),
     doorDestination(surviving.fromSystemId, surviving.toSystemId, attachedSide),
   );
   if (kept.kind === 'unset' && door.leadsTo.kind === 'unset') return {};

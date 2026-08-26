@@ -9,7 +9,7 @@ import {
 } from '@/data/maps/scan-parse';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { connectionDoorTypes } from '@/data/maps/connection-door-types';
+import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
 import {
   isCodexSizeLocked,
   lifetimeRowDisplay,
@@ -77,7 +77,7 @@ function localWormholeTypeCode(
   row: ConnectionSignatureInput,
   side: 'from' | 'to',
 ): string | null {
-  return connectionDoorTypes(row)[side];
+  return hallwayDoorTypes(row)[side];
 }
 
 function connectionSideRow(

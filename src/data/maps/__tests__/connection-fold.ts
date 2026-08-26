@@ -19,7 +19,7 @@ import {
 } from '@/data/maps/connection-hallway';
 import { applyDoorType } from '@/data/maps/connection-door-types';
 
-/** Pre-fold bag. Expand-migrate-contract reads this once, then drops it. */
+/** Pre-fold bag used by Convex test inserts. Production writers speak hallway. */
 export interface LegacyConnectionBag {
   readonly mapId: string;
   readonly fromSystemId: number;

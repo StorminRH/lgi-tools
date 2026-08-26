@@ -5,6 +5,8 @@ import {
   connectionLifetimeFrom,
   destinationProvenanceOf,
   hallwayDoor,
+  identityEquals,
+  leadsToEquals,
   leadsToFromHint,
   leadsToFromSystem,
   lifetimeDeathWindow,
@@ -171,10 +173,7 @@ async function applyConnectionWormholeType(
   if (
     connection.from.typeCode === typePatch.from.typeCode
     && connection.to.typeCode === typePatch.to.typeCode
-    && connection.identity.kind === typePatch.identity.kind
-    && (connection.identity.kind !== 'typed'
-      || (typePatch.identity.kind === 'typed'
-        && connection.identity.provenance === typePatch.identity.provenance))
+    && identityEquals(connection.identity, typePatch.identity)
     && connection.resolution.kind === resolution.kind
     && sameDeathWindow(connection, window)
   ) {
@@ -207,26 +206,11 @@ async function applyConnectionDestinationHint(
   );
   const door = hallwayDoor(connection, input.side);
   const next = { ...door, leadsTo: leadsToFromHint(input.value) };
-  if (
-    door.leadsTo.kind === next.leadsTo.kind
-    && doorHintEquals(door.leadsTo, next.leadsTo)
-  ) {
+  if (leadsToEquals(door.leadsTo, next.leadsTo)) {
     return { changed: false };
   }
   await ctx.db.patch(input.connectionId, replaceDoor(connection, input.side, next));
   return { changed: true };
-}
-
-function doorHintEquals(
-  left: Doc<'mapConnections'>['from']['leadsTo'],
-  right: Doc<'mapConnections'>['from']['leadsTo'],
-): boolean {
-  if (left.kind !== right.kind) return false;
-  if (left.kind === 'hint' && right.kind === 'hint') return left.hint === right.hint;
-  if (left.kind === 'system' && right.kind === 'system') {
-    return left.systemId === right.systemId;
-  }
-  return true;
 }
 
 async function applyConnectionDestination(
@@ -262,10 +246,7 @@ async function applyConnectionDestination(
     nextSystem = input.value === derived ? null : input.value;
   }
   const next = { ...door, leadsTo: leadsToFromSystem(nextSystem) };
-  if (doorHintEquals(door.leadsTo, next.leadsTo) && input.value !== null) {
-    return { changed: false };
-  }
-  if (doorHintEquals(door.leadsTo, next.leadsTo) && input.value === null) {
+  if (leadsToEquals(door.leadsTo, next.leadsTo)) {
     return { changed: false };
   }
   await ctx.db.patch(input.connectionId, replaceDoor(connection, input.side, next));

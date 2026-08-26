@@ -6,6 +6,7 @@ import { absorbDoorKnowledge } from '@/data/maps/connection-door-destinations';
 import { connectionTypePatch, typedDoorsFrom } from '@/data/maps/connection-door-types';
 import {
   blankHallway,
+  doorSystemNote,
   identityFromDoors,
   lifetimeDeathWindow,
   liveTombstone,
@@ -317,7 +318,7 @@ async function absorbDuplicateOriginStub(
       ...absorbDoorKnowledge(inbound, duplicate, side),
       ...leadsNotePatch(
         inbound,
-        duplicate.from.leadsTo.kind === 'system' ? duplicate.from.leadsTo.systemId : undefined,
+        doorSystemNote(duplicate.from),
         side,
       ),
     };

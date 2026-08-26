@@ -4,7 +4,7 @@ import { internalQuery } from './_generated/server';
 import { tryMapAccessForUser } from './lib/mapAccess';
 import { findSystem } from './lib/mapSystemLookup';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { storedDoorTypes } from '@/data/maps/connection-door-types';
+import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
 import {
   emissionFacts,
   type EmissionFacts,
@@ -16,7 +16,7 @@ import {
 function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
   return rows.flatMap((row) => {
     if (isTombstoned(row)) return [];
-    const originType = storedDoorTypes(row).from;
+    const originType = hallwayDoorTypes(row).from;
     return originType === null ? [] : [originType];
   });
 }

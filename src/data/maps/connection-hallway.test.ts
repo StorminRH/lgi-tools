@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { foldLegacyConnection } from './connection-fold';
+import { foldLegacyConnection } from './__tests__/connection-fold';
 import {
   blankHallway,
   connectionLifetimeFrom,
   doorHint,
   doorSystemNote,
   identityFromDoors,
+  hasAnswerablePrompt,
   isPendingResolution,
+  leadsToEquals,
   pendingResolution,
   leadsToFromHint,
   leadsToFromSystem,
@@ -75,9 +77,15 @@ describe('connection hallway', () => {
     ).toBe('under_1_day');
   });
 
-  it('requires a character together with a multi-survivor pending list', () => {
+  it('treats any pending arm as pending and requires two survivors for a prompt', () => {
     expect(isPendingResolution(pendingResolution(['a', 'b'], 1))).toBe(true);
-    expect(isPendingResolution(pendingResolution(['a'], 1))).toBe(false);
+    expect(isPendingResolution(pendingResolution(['a'], 1))).toBe(true);
+    expect(hasAnswerablePrompt(pendingResolution(['a', 'b'], 1))).toBe(true);
+    expect(hasAnswerablePrompt(pendingResolution(['a'], 1))).toBe(false);
+    expect(leadsToEquals({ kind: 'unset' }, { kind: 'unset' })).toBe(true);
+    expect(leadsToEquals({ kind: 'hint', hint: 'hisec' }, { kind: 'hint', hint: 'lowsec' })).toBe(
+      false,
+    );
   });
 });
 

@@ -44,22 +44,6 @@ export function isEntranceType(code: string | null | undefined): boolean {
   return code != null && code !== FAR_SIDE_WORMHOLE_CODE && isWormholeTypeCode(code);
 }
 
-/** Types stored on each mouth. */
-export function storedDoorTypes(hallway: {
-  readonly from: ConnectionDoorValue;
-  readonly to: ConnectionDoorValue;
-}): ConnectionDoorTypes {
-  return hallwayDoorTypes(hallway);
-}
-
-/** Mouth types for scanner display and type writes. Stored codes are the truth. */
-export function connectionDoorTypes(hallway: {
-  readonly from: ConnectionDoorValue;
-  readonly to: ConnectionDoorValue;
-}): ConnectionDoorTypes {
-  return hallwayDoorTypes(hallway);
-}
-
 /**
  * Writes one mouth. A newly set named type fills a blank other mouth as K162.
  * Clearing a mouth, writing K162, or finding the other mouth already set

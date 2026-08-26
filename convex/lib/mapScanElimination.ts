@@ -6,12 +6,13 @@ import {
 } from '@/data/maps/connection-door-destinations';
 import {
   connectionTypePatch,
-  storedDoorTypes,
   typedDoorsFrom,
 } from '@/data/maps/connection-door-types';
 import {
   blankHallway,
+  doorSystemNote,
   hallwayDoor,
+  hallwayDoorTypes,
   identityFromDoors,
   replaceDoor,
 } from '@/data/maps/connection-hallway';
@@ -60,7 +61,7 @@ function endpointTypeCode(
   connection: Doc<'mapConnections'>,
   side: 'from' | 'to',
 ): string | null {
-  return storedDoorTypes(connection)[side];
+  return hallwayDoorTypes(connection)[side];
 }
 
 function endpointOwnsSignature(
@@ -111,7 +112,7 @@ export async function collectEliminationEvidence(
       ? []
       : [{
           signatureId,
-          wormholeTypeCode: storedDoorTypes(connection).from,
+          wormholeTypeCode: hallwayDoorTypes(connection).from,
           typeProvenance:
             connection.identity.kind === 'typed'
               ? connection.identity.provenance
@@ -212,7 +213,7 @@ async function recreateOccupiedDoorAsStub(
   occupant: string,
   side: 'from' | 'to',
 ): Promise<void> {
-  const doorType = storedDoorTypes(target)[side];
+  const doorType = hallwayDoorTypes(target)[side];
   const doors = typedDoorsFrom('from', doorType);
   const provenance = target.identity.kind === 'typed' ? target.identity.provenance : null;
   await ctx.db.insert('mapConnections', {
@@ -268,89 +269,102 @@ export async function applyLinkDeduction(
       ...clearOccupiedDestinationNote(target, side),
     };
   }
-  const knowledge = linkKnowledgePatch(source, surviving, side);
-  const afterKnowledge = { ...surviving, ...knowledge };
-  const signedDoor = {
-    ...hallwayDoor(afterKnowledge, side),
-    signatureId,
-    ...(current !== null ? { leadsTo: { kind: 'unset' as const } } : {}),
-  };
-  const attached = {
-    ...afterKnowledge,
-    ...replaceDoor(afterKnowledge, side, signedDoor),
-  };
-  const leftover = await leftoverOriginStubAbsorb(
-    ctx,
-    { ...surviving, ...attached },
-    source._id,
-    side,
-  );
-  await ctx.db.patch(
-    target._id,
-    leftover === null ? attached : { ...attached, ...leftover.patch },
-  );
+  let next = applyLinkKnowledge(surviving, source, side);
+  next = applyDoorSignature(next, side, signatureId, current !== null);
+  const leftover = await findLeftoverOriginStub(ctx, next, source._id, side);
+  if (leftover !== null) {
+    next = absorbLeftoverOriginStub(next, leftover.row, side);
+  }
+  await ctx.db.patch(target._id, linkedHallwayPatch(next));
   if (leftover !== null) await ctx.db.delete(leftover.id);
   await ctx.db.delete(source._id);
   return { signatureId, outcome: 'applied', observationKey };
 }
 
-async function leftoverOriginStubAbsorb(
+function applyLinkKnowledge(
+  surviving: Doc<'mapConnections'>,
+  stub: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+): Doc<'mapConnections'> {
+  const afterTypes = { ...surviving, ...absorbDoorKnowledge(surviving, stub, side) };
+  return {
+    ...afterTypes,
+    ...leadsNotePatch(afterTypes, doorSystemNote(stub.from), side),
+  };
+}
+
+function applyDoorSignature(
+  hallway: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+  signatureId: string,
+  clearLeads: boolean,
+): Doc<'mapConnections'> {
+  const door = hallwayDoor(hallway, side);
+  return {
+    ...hallway,
+    ...replaceDoor(hallway, side, {
+      ...door,
+      signatureId,
+      ...(clearLeads ? { leadsTo: { kind: 'unset' as const } } : {}),
+    }),
+  };
+}
+
+function linkedHallwayPatch(
+  hallway: Doc<'mapConnections'>,
+): Partial<Doc<'mapConnections'>> {
+  return {
+    from: hallway.from,
+    to: hallway.to,
+    identity: hallway.identity,
+    lifetime: hallway.lifetime,
+    massState: hallway.massState,
+    shipSize: hallway.shipSize,
+    ...(hallway.observedMassAtStateKg === undefined
+      ? {}
+      : { observedMassAtStateKg: hallway.observedMassAtStateKg }),
+    ...(hallway.firstSeenAt === undefined ? {} : { firstSeenAt: hallway.firstSeenAt }),
+  };
+}
+
+async function findLeftoverOriginStub(
   ctx: MutationCtx,
   target: Doc<'mapConnections'>,
   sourceId: Id<'mapConnections'>,
   attachedSide: 'from' | 'to',
-): Promise<{
-  patch: Partial<Doc<'mapConnections'>>;
-  id: Id<'mapConnections'>;
-} | null> {
+): Promise<{ row: Doc<'mapConnections'>; id: Id<'mapConnections'> } | null> {
   const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
   const oppositeSystemId = oppositeSide === 'from'
     ? target.fromSystemId
     : target.toSystemId;
-  const oppositeSignature = hallwayDoor(target, oppositeSide).signatureId;
-  if (oppositeSystemId === null || oppositeSignature !== null) return null;
+  if (oppositeSystemId === null || hallwayDoor(target, oppositeSide).signatureId !== null) {
+    return null;
+  }
   const leftover = uniqueCounterpartStub(
     await readOriginConnections(ctx, target.mapId, oppositeSystemId),
     new Set([sourceId, target._id]),
   );
-  if (leftover === null) return null;
-  const knowledge = absorbDoorKnowledge(target, leftover, oppositeSide);
-  const afterKnowledge = { ...target, ...knowledge };
-  const leads = leadsNotePatch(
-    afterKnowledge,
-    leftover.from.leadsTo.kind === 'system' ? leftover.from.leadsTo.systemId : undefined,
-    oppositeSide,
-  );
-  const afterLeads = { ...afterKnowledge, ...leads };
-  return {
-    id: leftover._id,
-    patch: {
-      ...knowledge,
-      ...leads,
-      ...(leftover.firstSeenAt === undefined ? {} : { firstSeenAt: leftover.firstSeenAt ?? target.firstSeenAt }),
-      ...replaceDoor(afterLeads, oppositeSide, {
-        ...hallwayDoor(afterLeads, oppositeSide),
-        signatureId: leftover.from.signatureId,
-        signalPct: oppositeSide === 'from'
-          ? leftover.from.signalPct
-          : hallwayDoor(afterLeads, oppositeSide).signalPct,
-      }),
-    },
-  };
+  return leftover === null ? null : { row: leftover, id: leftover._id };
 }
 
-function linkKnowledgePatch(
-  source: Doc<'mapConnections'>,
+function absorbLeftoverOriginStub(
   target: Doc<'mapConnections'>,
+  leftover: Doc<'mapConnections'>,
   attachedSide: 'from' | 'to',
-): Partial<Doc<'mapConnections'>> {
+): Doc<'mapConnections'> {
+  const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
+  const afterKnowledge = applyLinkKnowledge(target, leftover, oppositeSide);
+  const door = hallwayDoor(afterKnowledge, oppositeSide);
   return {
-    ...absorbDoorKnowledge(target, source, attachedSide),
-    ...leadsNotePatch(
-      target,
-      source.from.leadsTo.kind === 'system' ? source.from.leadsTo.systemId : undefined,
-      attachedSide,
-    ),
+    ...afterKnowledge,
+    ...replaceDoor(afterKnowledge, oppositeSide, {
+      ...door,
+      signatureId: leftover.from.signatureId,
+      signalPct: oppositeSide === 'from' ? leftover.from.signalPct : door.signalPct,
+    }),
+    ...(leftover.firstSeenAt === undefined
+      ? {}
+      : { firstSeenAt: leftover.firstSeenAt ?? afterKnowledge.firstSeenAt }),
   };
 }
 

@@ -227,7 +227,32 @@ export function destinationResolution(
 export function isPendingResolution(
   resolution: ConnectionResolution,
 ): resolution is Extract<ConnectionResolution, { kind: 'pending' }> {
-  return resolution.kind === 'pending' && resolution.candidateIds.length > 1;
+  return resolution.kind === 'pending';
+}
+
+/** Whether a pending row still has more than one survivor to answer. */
+export function hasAnswerablePrompt(resolution: ConnectionResolution): boolean {
+  return isPendingResolution(resolution) && resolution.candidateIds.length > 1;
+}
+
+export function leadsToEquals(left: DoorLeadsTo, right: DoorLeadsTo): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === 'hint' && right.kind === 'hint') return left.hint === right.hint;
+  if (left.kind === 'system' && right.kind === 'system') {
+    return left.systemId === right.systemId;
+  }
+  return true;
+}
+
+export function identityEquals(
+  left: ConnectionIdentity,
+  right: ConnectionIdentity,
+): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === 'typed' && right.kind === 'typed') {
+    return left.provenance === right.provenance;
+  }
+  return true;
 }
 
 export function destinationProvenanceOf(

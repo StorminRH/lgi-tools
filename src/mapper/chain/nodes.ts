@@ -14,7 +14,7 @@ import {
   chainTombstoneState,
   type ChainTombstoneState,
 } from '@/data/maps/chain-contract';
-import { storedDoorTypes } from '@/data/maps/connection-door-types';
+import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
 import type { ConnectionDoorValue, ConnectionTombstone } from '@/data/maps/connection-hallway';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import {
@@ -120,7 +120,6 @@ export interface StubPlanningConnection {
   readonly from: ConnectionDoorValue;
   readonly to: ConnectionDoorValue;
   readonly tombstone?: ConnectionTombstone;
-  readonly deletedAt?: number | null;
 }
 
 /** One derived leaf before the layout kernel assigns its position. */
@@ -133,7 +132,7 @@ function localConnectionFacts(
   systemId: number,
 ): { readonly wormholeTypeCode: string | null; readonly linkedSignature: boolean } {
   const fromSide = connection.fromSystemId === systemId;
-  const doors = storedDoorTypes(connection);
+  const doors = hallwayDoorTypes(connection);
   return {
     wormholeTypeCode: fromSide ? doors.from : doors.to,
     linkedSignature: fromSide

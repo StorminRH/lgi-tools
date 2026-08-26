@@ -4,6 +4,7 @@ import { connectionTypePatch, typedDoorsFrom } from '@/data/maps/connection-door
 import {
   blankHallway,
   identityFromDoors,
+  leadsToEquals,
   leadsToFromHint,
 } from '@/data/maps/connection-hallway';
 import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
@@ -120,11 +121,7 @@ function unresolvedHoleHintPatch(
 ): Partial<Doc<'mapConnections'>> {
   if (input.fromDestinationHint === undefined) return {};
   const leadsTo = leadsToFromHint(normalized.fromDestinationHint);
-  if (leadsTo.kind === 'hint' && existing.from.leadsTo.kind === 'hint') {
-    if (existing.from.leadsTo.hint === leadsTo.hint) return {};
-  } else if (existing.from.leadsTo.kind === leadsTo.kind) {
-    return {};
-  }
+  if (leadsToEquals(existing.from.leadsTo, leadsTo)) return {};
   return { from: { ...existing.from, leadsTo } };
 }
 

@@ -1,4 +1,4 @@
-import { foldLegacyConnection, type LegacyConnectionBag } from '@/data/maps/connection-fold';
+import { foldLegacyConnection, type LegacyConnectionBag } from '@/data/maps/__tests__/connection-fold';
 import type { Doc, Id } from '../_generated/dataModel';
 
 /** Folds a pre-hallway bag into an in-memory connection document. */

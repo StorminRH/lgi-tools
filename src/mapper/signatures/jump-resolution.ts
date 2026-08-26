@@ -7,7 +7,7 @@ import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 import {
   isConnectionRemoved,
-  isPendingResolution,
+  hasAnswerablePrompt,
 } from '@/data/maps/connection-hallway';
 import type {
   ConnectionDetail,
@@ -41,7 +41,7 @@ export function jumpAnswerTarget(
 /** Whether one connection row still carries an answerable assumed auto-link. */
 export function hasPendingResolution(connection: ConnectionDetail): boolean {
   return (
-    isPendingResolution(connection.resolution) &&
+    hasAnswerablePrompt(connection.resolution) &&
     !isConnectionRemoved(connection.tombstone)
   );
 }

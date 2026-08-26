@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { blankDoor, blankHallway, identityFromDoors } from './connection-hallway';
+import { blankDoor, blankHallway, hallwayDoorTypes, identityFromDoors } from './connection-hallway';
 import {
   applyDoorType,
   applyReturnDoorType,
-  connectionDoorTypes,
   connectionTypePatch,
   isEntranceType,
   returnDoorTypePatch,
-  storedDoorTypes,
   typedDoorsFrom,
 } from './connection-door-types';
 
@@ -26,8 +24,7 @@ describe('connection door types', () => {
       from: { ...blankDoor(), typeCode: 'C247' },
       to: { ...blankDoor(), typeCode: 'K162' },
     };
-    expect(connectionDoorTypes(hallway)).toEqual({ from: 'C247', to: 'K162' });
-    expect(storedDoorTypes(hallway)).toEqual({ from: 'C247', to: 'K162' });
+    expect(hallwayDoorTypes(hallway)).toEqual({ from: 'C247', to: 'K162' });
   });
 
   it('fills a blank opposite door with K162 only when this door becomes an entrance', () => {

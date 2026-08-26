@@ -9,8 +9,11 @@ import { requireMapAccessForUser } from './lib/mapAccess';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoringHome';
 import { chainTombstoneState, isTombstoned } from '@/data/maps/chain-contract';
-import { foldLegacyConnection } from '@/data/maps/connection-fold';
-import { destinationResolution, pendingResolution } from '@/data/maps/connection-hallway';
+import {
+  blankHallway,
+  destinationResolution,
+  pendingResolution,
+} from '@/data/maps/connection-hallway';
 import {
   emissionFacts,
   type EmissionFacts,
@@ -153,13 +156,11 @@ function connectionBase(
   observedMassKg: number | null,
   observationKey: string,
 ): Omit<Doc<'mapConnections'>, '_id' | '_creationTime'> {
-  return foldLegacyConnection({
-    mapId,
-    fromSystemId,
-    toSystemId,
-    observedMassKg: observedMassKg ?? undefined,
+  return {
+    ...blankHallway({ mapId, fromSystemId, toSystemId }),
     observationKey,
-  });
+    ...(observedMassKg === null ? {} : { observedMassKg }),
+  };
 }
 
 interface ValidJumpInput {
