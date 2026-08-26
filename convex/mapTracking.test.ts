@@ -293,7 +293,7 @@ describe('mapTrackingLive.forMap', () => {
     expect(result.coverage).toEqual([]);
   });
 
-  it('answers named identities without walking mapTracking', async () => {
+  it('answers coverage only for identities tracked on the map', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     await t.run(async (ctx) => {
@@ -303,14 +303,29 @@ describe('mapTrackingLive.forMap', () => {
       });
     });
 
-    const result = await asUser(t, OWNER).query(tracking.coverage, {
+    const identities = [
+      { userId: OWNER, characterId: CHAR },
+      { userId: OWNER, characterId: CHAR_B },
+    ];
+    const untracked = await asUser(t, OWNER).query(tracking.coverage, {
       mapId: MAP_A,
-      identities: [
-        { userId: OWNER, characterId: CHAR },
-        { userId: OWNER, characterId: CHAR_B },
-      ],
+      identities,
     });
-    expect(result.coverage).toEqual([
+    expect(untracked.coverage).toEqual([
+      { userId: OWNER, characterId: CHAR, covered: false },
+      { userId: OWNER, characterId: CHAR_B, covered: false },
+    ]);
+
+    await asUser(t, OWNER).mutation(tracking.setTracking, {
+      mapId: MAP_A,
+      characterId: CHAR,
+      tracked: true,
+    });
+    const tracked = await asUser(t, OWNER).query(tracking.coverage, {
+      mapId: MAP_A,
+      identities,
+    });
+    expect(tracked.coverage).toEqual([
       { userId: OWNER, characterId: CHAR, covered: true },
       { userId: OWNER, characterId: CHAR_B, covered: false },
     ]);

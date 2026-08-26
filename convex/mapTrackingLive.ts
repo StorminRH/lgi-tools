@@ -4,6 +4,7 @@ import type { Doc } from './_generated/dataModel';
 import { uniqueByUserCharacter } from './lib/indexedQuery';
 import { tryMapAccess } from './lib/mapAccess';
 import { findCoverage } from './lib/locationCoverage';
+import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
 
 const TRACKING_MAP_SCAN_CAP = 256;
 
@@ -81,6 +82,18 @@ function compareCoverageRows(left: CoverageRow, right: CoverageRow): number {
   );
 }
 
+async function trackedCharacterIdsOnMap(
+  ctx: QueryCtx,
+  mapId: string,
+  userId: string,
+): Promise<ReadonlySet<number>> {
+  const rows = await ctx.db
+    .query('mapTracking')
+    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', userId))
+    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP + 1);
+  return new Set(rows.map((row) => row.characterId));
+}
+
 export const coverage = query({
   args: {
     mapId: v.string(),
@@ -109,9 +122,17 @@ export const coverage = query({
       });
     }
 
+    const trackedByUser = new Map<string, ReadonlySet<number>>();
     const coverageRows: CoverageRow[] = [];
     for (const identity of identities) {
-      const held = await findCoverage(ctx, identity.userId, identity.characterId);
+      let tracked = trackedByUser.get(identity.userId);
+      if (tracked === undefined) {
+        tracked = await trackedCharacterIdsOnMap(ctx, mapId, identity.userId);
+        trackedByUser.set(identity.userId, tracked);
+      }
+      const held = tracked.has(identity.characterId)
+        ? await findCoverage(ctx, identity.userId, identity.characterId)
+        : null;
       coverageRows.push({
         userId: identity.userId,
         characterId: identity.characterId,
