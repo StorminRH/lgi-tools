@@ -67,8 +67,8 @@ on a version.
 `origin pr view` / `list` / `diff`
 
 Merge is `origin pr merge <N>`. A Cloud Agent token that refuses
-that call is BLOCKED. The operator merges. Token limits live in
-`.cursor/cloud-agent.md`.
+that call is BLOCKED. Leave the Origin PR open. The operator
+reviews and merges. Token limits live in `.cursor/cloud-agent.md`.
 
 **gh** — GitHub dump PRs only. Add a `github` remote to
 `https://github.com/StorminRH/lgi-tools.git` when it is missing.

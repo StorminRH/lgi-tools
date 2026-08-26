@@ -75,9 +75,9 @@ This Cloud Agent Origin token can create, comment, and watch. It is
 not scoped for `origin pr merge` or `origin ruleset list`. Default
 merge, `--merge`, `--squash`, `--auto`, and `--branch` all return
 "not scoped for this operation". `origin api` merge calls 401. The
-PR can still be mergeable. Close-out runs `origin pr merge <N>` and
-returns `BLOCKED` on that error. The operator merges or upgrades the
-token.
+PR can still be mergeable. `origin pr merge <N>` returns `BLOCKED`
+on that error. Leave the Origin PR open. The operator reviews and
+merges, or upgrades the token.
 
 Origin Checks wait is `origin pr checks <N> --watch` in the foreground
 until it returns. After `test-runner` pass `<N>` or `--branch <head>`.
