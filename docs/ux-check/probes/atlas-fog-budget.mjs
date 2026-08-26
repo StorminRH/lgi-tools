@@ -49,7 +49,6 @@ const jumpArgs = (mapId, fromSystemId, toSystemId) => ({
   wormholeTypeCode: null,
   massState: null,
   shipSize: null,
-  eolAt: null,
 });
 
 /** Seeds the ceiling-sized chain: a J-space line plus three k-space exits. */

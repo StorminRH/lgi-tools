@@ -2,6 +2,8 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import { blankDoor } from '@/data/maps/connection-hallway';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import { editorLeader } from './editor-leader';
 import { measureEditorLeader } from './ScannerAnchoredPanel';
@@ -26,33 +28,13 @@ vi.mock('@/components/ui/terminal-search', () => ({
   TerminalSearch: () => createElement('div', { 'data-terminal-search': '' }),
 }));
 
-const CONNECTION: ConnectionEditorDetail = {
+const CONNECTION: ConnectionEditorDetail = connectionEditorFixture({
   connectionId: 'connection-1' as Id<'mapConnections'>,
-  _creationTime: 1,
   fromSystemId: 31_000_001,
   toSystemId: null,
-  fromSignalPct: 100,
+  from: { ...blankDoor(), signatureId: 'ABC-123', signalPct: 100 },
   firstSeenAt: 1,
-  wormholeTypeCode: null,
-  typedSide: null,
-  massState: null,
-  shipSize: null,
-  lifeStage: null,
-  lifeStageObservedAt: null,
-  deathEarliestAt: null,
-  deathLatestAt: null,
-  deletedAt: null,
-  purgeAfter: null,
-  fromSignatureId: 'ABC-123',
-  toSignatureId: null,
-  fromDestinationHint: null,
-  toDestinationHint: null,
-  destinationProvenance: null,
-  pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-  observedMassKg: null,
-  observedMassAtStateKg: null,
-};
+});
 
 const SETTERS = {
   setWormholeType: vi.fn(),

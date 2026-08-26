@@ -8,6 +8,8 @@ import {
   encodeOptionalField,
   UNSET_FIELD,
 } from './connection-field-group';
+import { blankDoor } from '@/data/maps/connection-hallway';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import { ConnectionFields, parseDestinationSystem } from './connection-fields';
 
 const selectHandlers = new Map<string, (next: string) => void>();
@@ -75,33 +77,16 @@ const K162: WormholeCodexEntry = {
   farSide: true,
 };
 
-const CONNECTION = {
+const CONNECTION = connectionEditorFixture({
   connectionId: 'c1' as Id<'mapConnections'>,
-  _creationTime: 1,
   fromSystemId: 30_000_142,
   toSystemId: 30_002_187,
-  fromSignalPct: null,
-  firstSeenAt: null,
-  wormholeTypeCode: 'B274',
-  typedSide: 'from' as const,
-  massState: null,
-  shipSize: 'M' as const,
-  lifeStage: 'under_1_day' as const,
-  lifeStageObservedAt: 1,
-  deathEarliestAt: null,
-  deathLatestAt: null,
-  deletedAt: null,
-  purgeAfter: null,
-    fromSignatureId: null,
-    toSignatureId: null,
-    fromDestinationHint: null,
-  toDestinationHint: null,
-  destinationProvenance: null,
-  pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-  observedMassKg: null,
-  observedMassAtStateKg: null,
-};
+  from: { ...blankDoor(), typeCode: 'B274' },
+  to: { ...blankDoor(), typeCode: 'K162' },
+  identity: { kind: 'typed', provenance: 'human' },
+  shipSize: 'M',
+  lifetime: { kind: 'stage', lifeStage: 'under_1_day', observedAt: 1 },
+});
 
 const SETTERS = {
   setWormholeType: vi.fn(),
@@ -209,7 +194,7 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
       connection: {
         ...CONNECTION,
         toSystemId: null,
-        wormholeTypeCode: 'K162',
+        from: { ...blankDoor(), typeCode: 'K162' },
         shipSize: null,
       },
       codexReady: true,
@@ -325,8 +310,11 @@ it('locks type-derived size and Leads to, and offers Delete vs Restore by mode',
       connection: {
         ...CONNECTION,
         toSystemId: null,
-        deletedAt: 100,
-        purgeAfter: 100 + 24 * 60 * 60 * 1000,
+        tombstone: {
+          kind: 'removed',
+          deletedAt: 100,
+          purgeAfter: 100 + 24 * 60 * 60 * 1000,
+        },
       },
       codexReady: true,
       codes: ['B274'],

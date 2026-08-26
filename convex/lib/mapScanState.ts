@@ -4,6 +4,7 @@ import {
   absorbDoorLeadsNote,
   doorDestination,
 } from '@/data/maps/connection-door-destinations';
+import { hallwayDoor, leadsToFromSystem, replaceDoor } from '@/data/maps/connection-hallway';
 import { isScannerSignatureId, type ScannedRow } from '@/data/maps/scan-parse';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
@@ -138,25 +139,24 @@ export function endpointSide(
 
 export function leadsNotePatch(
   surviving: Doc<'mapConnections'>,
-  stubTyped: number | undefined,
+  stubTyped: number | null,
   attachedSide: 'from' | 'to',
 ): Partial<Doc<'mapConnections'>> {
-  const survivingTyped = attachedSide === 'from'
-    ? surviving.fromDestinationSystemId
-    : surviving.toDestinationSystemId;
+  const door = hallwayDoor(surviving, attachedSide);
   const kept = absorbDoorLeadsNote(
-    survivingTyped,
-    stubTyped,
+    door.leadsTo,
+    stubTyped === null ? { kind: 'unset' } : leadsToFromSystem(stubTyped),
     doorDestination(surviving.fromSystemId, surviving.toSystemId, attachedSide),
   );
-  if (kept === undefined) return {};
-  return attachedSide === 'from'
-    ? { fromDestinationSystemId: kept }
-    : { toDestinationSystemId: kept };
+  if (kept.kind === 'unset' && door.leadsTo.kind === 'unset') return {};
+  return replaceDoor(surviving, attachedSide, { ...door, leadsTo: kept });
 }
 
 export function needsTombstoneChange(
-  row: { readonly deletedAt?: number | null },
+  row: {
+    readonly deletedAt?: number | null;
+    readonly tombstone?: { readonly kind: 'live' | 'removed' };
+  },
   deletedAt: number | null,
 ): boolean {
   return deletedAt === null ? isTombstoned(row) : !isTombstoned(row);
@@ -170,7 +170,15 @@ export async function tombstoneConnectionRow(
   purgeAfter: number | null,
 ): Promise<boolean> {
   if (connection === undefined || !needsTombstoneChange(connection, deletedAt)) return false;
-  await ctx.db.patch(connection._id, { deletedAt, purgeAfter });
+  await ctx.db.patch(connection._id, deletedAt === null
+    ? { tombstone: { kind: 'live' as const } }
+    : {
+        tombstone: {
+          kind: 'removed' as const,
+          deletedAt,
+          purgeAfter,
+        },
+      });
   if (deletedAt !== null && activity !== undefined) await ctx.db.delete(activity._id);
   return true;
 }

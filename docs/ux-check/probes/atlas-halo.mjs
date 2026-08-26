@@ -175,7 +175,6 @@ export default {
       wormholeTypeCode: null,
       massState: null,
       shipSize: null,
-      eolAt: null,
     });
     for (const target of [page, second.page]) {
       await target

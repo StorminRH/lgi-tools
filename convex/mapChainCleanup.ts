@@ -65,7 +65,11 @@ async function purgeExpiredChainTombstonesAt(
       await endpointIsLive(ctx, livenessCache, connection.mapId, connection.fromSystemId)
       && await endpointIsLive(ctx, livenessCache, connection.mapId, connection.toSystemId);
     if (bothEndpointsLive) {
-      await ctx.db.patch(connection._id, { purgeAfter: null });
+      if (connection.tombstone.kind === 'removed') {
+        await ctx.db.patch(connection._id, {
+          tombstone: { ...connection.tombstone, purgeAfter: null },
+        });
+      }
       retainedConnections += 1;
     } else {
       await ctx.db.delete(connection._id);

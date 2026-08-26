@@ -55,12 +55,12 @@ export function SignatureEditor({
 }: SignatureEditorProps) {
   const { codes, preferredCodes, entry, codexReady } = useWormholeEditorData(
     connection.fromSystemId,
-    connection.wormholeTypeCode,
+    connection.from.typeCode,
   );
 
   return (
     <ScannerAnchoredPanel
-      signatureId={anchorSignatureId ?? connection.fromSignatureId}
+      signatureId={anchorSignatureId ?? connection.from.signatureId}
       windowId="signature-editor"
       title="Signature Editor"
       onClose={onClose}

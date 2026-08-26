@@ -9,6 +9,8 @@ import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc.setup';
+
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -349,15 +351,14 @@ describe('read-set cost', () => {
         await ctx.db.insert('mapSystems', { mapId: MAP_A, systemId: 30_000_000 + index });
       }
       for (let index = 0; index < 30; index += 1) {
-        await ctx.db.insert('mapConnections', {
+        await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP_A,
           fromSystemId: 30_000_000 + index,
           toSystemId: 30_000_100 + index,
           wormholeTypeCode: null,
           shipSize: null,
           massState: 'stable',
-          eolAt: null,
-        });
+        }));
       }
       for (let index = 0; index < 60; index += 1) {
         await ctx.db.insert('mapSignatures', {

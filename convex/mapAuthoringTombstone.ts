@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import {
   chainTombstoneStamps,
+  connectionRemovedTombstone,
   isTombstoned,
 } from '@/data/maps/chain-contract';
 import type { Doc, Id } from './_generated/dataModel';
@@ -81,8 +82,13 @@ async function stampSystemTombstone(
   const stamps = chainTombstoneStamps(Date.now());
   await ctx.db.patch(system._id, stamps);
   for (const connection of incidentConnections) {
-    if (connection.purgeAfter !== stamps.purgeAfter) {
-      await ctx.db.patch(connection._id, { purgeAfter: stamps.purgeAfter });
+    if (
+      connection.tombstone.kind === 'removed'
+      && connection.tombstone.purgeAfter !== stamps.purgeAfter
+    ) {
+      await ctx.db.patch(connection._id, {
+        tombstone: { ...connection.tombstone, purgeAfter: stamps.purgeAfter },
+      });
     }
   }
   return { tombstoned: true };
@@ -95,7 +101,7 @@ async function stampConnectionTombstone(
 ): Promise<{ tombstoned: true }> {
   const connection = await gatedConnection(ctx, mapId, connectionId);
   if (isTombstoned(connection)) return { tombstoned: true };
-  await ctx.db.patch(connectionId, chainTombstoneStamps(Date.now()));
+  await ctx.db.patch(connectionId, connectionRemovedTombstone(Date.now()));
   return { tombstoned: true };
 }
 
@@ -135,7 +141,7 @@ async function clearConnectionTombstone(
   if (connection.toSystemId !== null) {
     await requireLiveEndpoint(ctx, mapId, connection.toSystemId);
   }
-  await ctx.db.patch(connectionId, { deletedAt: null, purgeAfter: null });
+  await ctx.db.patch(connectionId, { tombstone: { kind: 'live' } });
   return { restored: true, changed: true };
 }
 
