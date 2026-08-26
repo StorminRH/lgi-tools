@@ -91,41 +91,33 @@ async function revokeClaim(t: Chain, mapId: string, userId: string): Promise<voi
 
 describe('map chain read path', () => {
   describe('gate', () => {
-    it.each(['watchMapSystems', 'watchMapConnections', 'watchUnresolvedHoles'] as const)(
-      'serves a signed-out caller of %s an empty, complete page and no rows',
-      async (fn) => {
-        const t = convexTest(schema, modules);
-        await grant(t, MAP_A, EDITOR, ['editor']);
-        await placeSystems(t, MAP_A, [JITA]);
-        await connect(t, MAP_A, JITA, AMARR);
+    it.each(
+      (
+        ['watchMapSystems', 'watchMapConnections', 'watchUnresolvedHoles'] as const
+      ).flatMap((fn) =>
+        (
+          [
+            ['a signed-out caller', undefined],
+            ['a caller holding no claim', STRANGER],
+          ] as const
+        ).map(([label, subject]) => ({ fn, label, subject })),
+      ),
+    )('serves $label of $fn an empty, complete page', async ({ fn, subject }) => {
+      const t = convexTest(schema, modules);
+      await grant(t, MAP_A, EDITOR, ['editor']);
+      await placeSystems(t, MAP_A, [JITA]);
+      await connect(t, MAP_A, JITA, AMARR);
 
-        const result = await t.query(api.mapChain[fn], {
-          mapId: MAP_A,
-          paginationOpts: page(10),
-        });
+      const result = await (subject === undefined
+        ? t.query(api.mapChain[fn], { mapId: MAP_A, paginationOpts: page(10) })
+        : asUser(t, subject).query(api.mapChain[fn], {
+            mapId: MAP_A,
+            paginationOpts: page(10),
+          }));
 
-        expect(result.page).toEqual([]);
-        expect(result.isDone).toBe(true);
-      },
-    );
-
-    it.each(['watchMapSystems', 'watchMapConnections', 'watchUnresolvedHoles'] as const)(
-      'serves a caller holding no claim an empty page for %s',
-      async (fn) => {
-        const t = convexTest(schema, modules);
-        await grant(t, MAP_A, EDITOR, ['editor']);
-        await placeSystems(t, MAP_A, [JITA]);
-        await connect(t, MAP_A, JITA, AMARR);
-
-        const result = await asUser(t, STRANGER).query(api.mapChain[fn], {
-          mapId: MAP_A,
-          paginationOpts: page(10),
-        });
-
-        expect(result.page).toEqual([]);
-        expect(result.isDone).toBe(true);
-      },
-    );
+      expect(result.page).toEqual([]);
+      expect(result.isDone).toBe(true);
+    });
 
     it.each([
       ['a signed-out caller', undefined],
@@ -164,26 +156,18 @@ describe('map chain read path', () => {
       expect(events).toEqual([]);
     });
 
-    it('reports access as granted for a viewer without edit', async () => {
+    it('reports granted access for a viewer and canEdit for an editor', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, VIEWER, ['viewer']);
-
-      const result = await asUser(t, VIEWER).query(api.mapChain.watchMapAccess, {
-        mapId: MAP_A,
-      });
-
-      expect(result).toEqual({ granted: true, canEdit: false });
-    });
-
-    it('reports canEdit for an editor', async () => {
-      const t = convexTest(schema, modules);
       await grant(t, MAP_A, EDITOR, ['editor']);
 
-      const result = await asUser(t).query(api.mapChain.watchMapAccess, {
-        mapId: MAP_A,
+      expect(
+        await asUser(t, VIEWER).query(api.mapChain.watchMapAccess, { mapId: MAP_A }),
+      ).toEqual({ granted: true, canEdit: false });
+      expect(await asUser(t).query(api.mapChain.watchMapAccess, { mapId: MAP_A })).toEqual({
+        granted: true,
+        canEdit: true,
       });
-
-      expect(result).toEqual({ granted: true, canEdit: true });
     });
 
     it('gives a viewer disjoint resolved and unresolved connection feeds', async () => {
@@ -223,7 +207,7 @@ describe('map chain read path', () => {
       ]);
     });
 
-    it('flips access to not granted after claim revocation, without throwing', async () => {
+    it('flips access off on revocation and restores rows when the claim returns', async () => {
       const t = convexTest(schema, modules);
       await grant(t, MAP_A, EDITOR, ['editor']);
       await placeSystems(t, MAP_A, [JITA]);
@@ -232,62 +216,37 @@ describe('map chain read path', () => {
         mapId: MAP_A,
         paginationOpts: page(10),
       });
-      const accessBefore = await asUser(t).query(api.mapChain.watchMapAccess, {
-        mapId: MAP_A,
-      });
       expect(before.page).toHaveLength(1);
-      expect(accessBefore).toEqual({ granted: true, canEdit: true });
+      expect(await asUser(t).query(api.mapChain.watchMapAccess, { mapId: MAP_A })).toEqual({
+        granted: true,
+        canEdit: true,
+      });
 
       await revokeClaim(t, MAP_A, EDITOR);
 
-      const accessAfter = await asUser(t).query(api.mapChain.watchMapAccess, {
-        mapId: MAP_A,
+      expect(await asUser(t).query(api.mapChain.watchMapAccess, { mapId: MAP_A })).toEqual({
+        granted: false,
+        canEdit: false,
       });
-      const after = await asUser(t).query(api.mapChain.watchMapSystems, {
-        mapId: MAP_A,
-        paginationOpts: page(10),
-      });
-
-      expect(accessAfter).toEqual({ granted: false, canEdit: false });
-      expect(after.page).toEqual([]);
-    });
-
-    it('restores access and rows when the claim is granted again', async () => {
-      const t = convexTest(schema, modules);
-      await grant(t, MAP_A, EDITOR, ['editor']);
-      await placeSystems(t, MAP_A, [JITA]);
-      await revokeClaim(t, MAP_A, EDITOR);
+      expect(
+        (await asUser(t).query(api.mapChain.watchMapSystems, {
+          mapId: MAP_A,
+          paginationOpts: page(10),
+        })).page,
+      ).toEqual([]);
 
       await grant(t, MAP_A, EDITOR, ['editor']);
 
-      const access = await asUser(t).query(api.mapChain.watchMapAccess, {
-        mapId: MAP_A,
+      expect(await asUser(t).query(api.mapChain.watchMapAccess, { mapId: MAP_A })).toEqual({
+        granted: true,
+        canEdit: true,
       });
-      const systems = await asUser(t).query(api.mapChain.watchMapSystems, {
-        mapId: MAP_A,
-        paginationOpts: page(10),
-      });
-
-      expect(access).toEqual({ granted: true, canEdit: true });
-      expect(systems.page).toHaveLength(1);
-    });
-
-    it('never reads a chain row for a caller holding no claim', async () => {
-      const t = convexTest(schema, modules);
-      await placeSystems(t, MAP_A, [JITA, AMARR]);
-      await connect(t, MAP_A, JITA, AMARR);
-
-      const systems = await asUser(t, STRANGER).query(api.mapChain.watchMapSystems, {
-        mapId: MAP_A,
-        paginationOpts: page(100),
-      });
-      const connections = await asUser(t, STRANGER).query(
-        api.mapChain.watchMapConnections,
-        { mapId: MAP_A, paginationOpts: page(100) },
-      );
-
-      expect(systems.page).toEqual([]);
-      expect(connections.page).toEqual([]);
+      expect(
+        (await asUser(t).query(api.mapChain.watchMapSystems, {
+          mapId: MAP_A,
+          paginationOpts: page(10),
+        })).page,
+      ).toHaveLength(1);
     });
   });
 
