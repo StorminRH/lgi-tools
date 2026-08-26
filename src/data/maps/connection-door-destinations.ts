@@ -50,7 +50,6 @@ export function keepTypedLeadsTo(
   return typedSystem;
 }
 
-/** Leads-to system for the hole you are looking at. */
 export function doorLeadsTo(
   fromSystemId: number,
   toSystemId: number | null,

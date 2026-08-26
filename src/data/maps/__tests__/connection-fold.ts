@@ -20,7 +20,6 @@ import {
 } from '@/data/maps/connection-hallway';
 import { applyDoorType } from '@/data/maps/connection-door-types';
 
-/** Pre-fold bag used by Convex test inserts. Production writers speak hallway. */
 export interface LegacyConnectionBag {
   readonly mapId: string;
   readonly fromSystemId: number;
@@ -102,7 +101,6 @@ function foldedTombstone(bag: LegacyConnectionBag) {
   return { kind: 'live' as const };
 }
 
-/** Maps one pre-fold bag onto the contracted hallway. Old names do not remain. */
 export function foldLegacyConnection(bag: LegacyConnectionBag): ConnectionHallway {
   const types = foldedDoorTypes(bag);
   const hallway = blankHallway({

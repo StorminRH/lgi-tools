@@ -80,7 +80,6 @@ const MAP_ROLE_LITERALS = {
 // New writers derive from MAP_ROLES and therefore cannot emit this literal.
 const legacyMapOwnerRoleValidator = v.literal('owner');
 
-/** Schema validator for one stored hallway end. */
 export const connectionDoorSideValidator = v.union(v.literal('from'), v.literal('to'));
 
 /** Schema validator derived from the parser-owned scan-kind vocabulary. */
@@ -120,7 +119,6 @@ export const lifeStageValidator = v.union(
   v.null(),
 );
 
-/** Schema validator for a canonical wormhole code, null while the type is unidentified. */
 export const wormholeTypeCodeValidator = v.union(v.string(), v.null());
 
 /**
@@ -135,7 +133,6 @@ const doorLeadsToValidator = v.union(
   v.object({ kind: v.literal('system'), systemId: v.number() }),
 );
 
-/** One mouth: type, scan identity, exclusive leads-to. */
 export const connectionDoorValidator = v.object({
   typeCode: wormholeTypeCodeValidator,
   signatureId: v.union(v.string(), v.null()),
@@ -143,7 +140,6 @@ export const connectionDoorValidator = v.object({
   leadsTo: doorLeadsToValidator,
 });
 
-/** Type provenance. Door codes live on the doors. */
 export const connectionIdentityValidator = v.union(
   v.object({ kind: v.literal('unknown') }),
   v.object({
@@ -152,7 +148,6 @@ export const connectionIdentityValidator = v.union(
   }),
 );
 
-/** Remaining life. Window carries both bounds; there is no `eolAt`. */
 export const connectionLifetimeValidator = v.union(
   v.object({ kind: v.literal('unknown') }),
   v.object({
@@ -174,7 +169,6 @@ export const connectionLifetimeValidator = v.union(
   }),
 );
 
-/** Jump-destination knowledge. Pending always names the answering character. */
 export const connectionResolutionValidator = v.union(
   v.object({ kind: v.literal('open') }),
   v.object({
@@ -189,7 +183,6 @@ export const connectionResolutionValidator = v.union(
   }),
 );
 
-/** Live or removed. Removed always carries the delete stamp. */
 export const connectionTombstoneValidator = v.union(
   v.object({ kind: v.literal('live') }),
   v.object({
@@ -255,11 +248,6 @@ export function isPositiveId(value: number): boolean {
   return Number.isSafeInteger(value) && value > 0;
 }
 
-/**
- * Validates one absolute timestamp field. Chain documents store absolute instants only —
- * remaining lifetime derives from the lifetime union's death window and no
- * mutation or scheduler flips a state.
- */
 function requireAbsoluteTimestamp(label: string, value: number | null): void {
   if (value !== null && !Number.isFinite(value)) {
     reject('INVALID_TIMESTAMP', `${label} must be an absolute finite timestamp or null.`);
@@ -306,11 +294,6 @@ export function validateDeathWindowInput(input: DeathWindowInput): void {
   }
 }
 
-/**
- * The authoritative connection boundary: endpoints must be distinct positive system IDs and a
- * non-null wormhole code must be canonical. Endpoint *existence* and same-map ownership are
- * checked by the calling mutation, which alone can read the database.
- */
 export function validateConnectionInput(input: ConnectionInput): void {
   if (!isPositiveId(input.fromSystemId) || !isPositiveId(input.toSystemId)) {
     reject('INVALID_SYSTEM_ID', 'Connection endpoints must be positive safe integers.');

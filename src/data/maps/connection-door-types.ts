@@ -33,7 +33,6 @@ import { blankDoor, hallwayDoorTypes, identityFromDoors } from '@/data/maps/conn
 
 export type { ConnectionDoorSide as ConnectionDoor };
 
-/** The two stored mouth types. */
 export interface ConnectionDoorTypes {
   readonly from: string | null;
   readonly to: string | null;
@@ -44,7 +43,6 @@ export function isEntranceType(code: string | null | undefined): boolean {
   return code != null && code !== FAR_SIDE_WORMHOLE_CODE && isWormholeTypeCode(code);
 }
 
-/** Named mouth when one exists. Otherwise the first stored code, or none. */
 export function namedDoorType(doors: ConnectionDoorTypes): {
   readonly typeCode: string | null;
   readonly side: ConnectionDoorSide | null;
@@ -105,7 +103,6 @@ function doorsWithTypes(
   };
 }
 
-/** Patch that writes both mouths and hallway identity together. */
 export function connectionTypePatch(
   hallway: {
     readonly from: ConnectionDoorValue;
@@ -156,7 +153,6 @@ export function returnDoorTypePatch(
   };
 }
 
-/** Writes one mouth's type onto a blank hallway (scan/fixture insert). */
 export function typedDoorsFrom(
   side: ConnectionDoorSide,
   value: string | null,

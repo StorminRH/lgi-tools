@@ -116,10 +116,6 @@ function mapSubscriptionArgs(mapId: string | null): 'skip' | { mapId: string } {
   return { mapId };
 }
 
-/**
- * Live hallway the authoring card edits. Topology stays in reconciled
- * state; these travel beside it so a field patch never forces a layout merge.
- */
 export interface ConnectionEditorDetail {
   readonly connectionId: Id<'mapConnections'>;
   readonly _creationTime: number;

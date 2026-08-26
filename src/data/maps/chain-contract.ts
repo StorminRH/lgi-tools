@@ -9,7 +9,6 @@ import { connectionTombstoneStamps } from '@/data/maps/connection-hallway';
 /** Standard reversible-undo window for chain system and connection tombstones. */
 export const MAP_CHAIN_UNDO_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** The stamp pair a tombstone mutation writes onto one mapSystems document. */
 export interface ChainTombstoneStamps {
   readonly deletedAt: number;
   readonly purgeAfter: number;
@@ -18,7 +17,6 @@ export interface ChainTombstoneStamps {
 /** The presentation stage of one active or tombstoned chain row. */
 export type ChainTombstoneState = 'active' | 'dying' | 'skeleton';
 
-/** Builds the paired tombstone stamps for one absolute system deletion instant. */
 export function chainTombstoneStamps(deletedAt: number): ChainTombstoneStamps {
   return {
     deletedAt,
@@ -26,7 +24,6 @@ export function chainTombstoneStamps(deletedAt: number): ChainTombstoneStamps {
   };
 }
 
-/** Removed-hallway tombstone with the same undo window as a system pair. */
 export function connectionRemovedTombstone(deletedAt: number): {
   readonly tombstone: ConnectionTombstone;
 } {
@@ -47,17 +44,13 @@ export type ChainTombstoneRow = {
   readonly purgeAfter?: number | null;
 } | null | undefined;
 
-/**
- * Whether a chain row is tombstoned. Connections store a tombstone union.
- * Systems still store the stamp pair (`undefined`/`null` = live).
- */
+/** Connections store a tombstone union. Systems still store the stamp pair. */
 export function isTombstoned(row: ChainTombstoneRow): boolean {
   if (row == null) return false;
   if (row.tombstone !== undefined) return row.tombstone.kind === 'removed';
   return typeof row.deletedAt === 'number' && Number.isFinite(row.deletedAt);
 }
 
-/** Absolute delete stamp, or null when the row is live. */
 export function tombstoneDeletedAt(row: ChainTombstoneRow): number | null {
   if (row == null) return null;
   if (row.tombstone !== undefined) {
@@ -72,7 +65,6 @@ export function tombstoneDeletedAt(row: ChainTombstoneRow): number | null {
     : null;
 }
 
-/** Undo-window purge stamp, or null when the row is live or already skeleton. */
 export function tombstonePurgeAfter(row: ChainTombstoneRow): number | null {
   if (row == null) return null;
   if (row.tombstone !== undefined) {

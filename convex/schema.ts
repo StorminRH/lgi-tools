@@ -201,18 +201,6 @@ export default defineSchema({
     .index('by_map_system', ['mapId', 'systemId'])
     .index('by_purge_after', ['purgeAfter']),
 
-  // One document per wormhole hallway on one map. Each row has a mouth in
-  // two systems once both ends are known: outgoing named type or incoming
-  // K162, independent of the stored `from`/`to` labels. A scanned-but-still
-  // unidentified hole keeps `toSystemId` null until a jump or a human link
-  // fills the other system on this same row. Endpoints are system IDs, never
-  // document references. Door codes, signatures, and leads-to live on `from`
-  // and `to`. Identity, lifetime, resolution, and tombstone are exclusive
-  // unions. One narrow sanctioned scheduler exception exists by 4.0.4.3.1
-  // operator ruling: the 15-minute ceiling sweep collapses a connection only
-  // past `lifetime.latestAt + CEILING_COLLAPSE_GRACE_MS` — death already
-  // certain — through the same collapse core every manual trigger uses; every
-  // other countdown remains client-derived display.
   mapConnections: defineTable({
     mapId: v.string(),
     fromSystemId: v.number(),
