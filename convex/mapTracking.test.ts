@@ -255,8 +255,13 @@ describe('mapTrackingLive.forMap', () => {
       });
     });
 
+    const overlay = await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A });
     const result = await asUser(t, OWNER).query(tracking.coverage, {
       mapId: MAP_A,
+      identities: overlay.tracked.map((row) => ({
+        userId: row.userId,
+        characterId: row.characterId,
+      })),
     });
     const byOwnerCharacter = new Map(
       result.coverage.map((entry) => [
@@ -272,7 +277,6 @@ describe('mapTrackingLive.forMap', () => {
       [OWNER, CHAR],
       [OWNER, CHAR_B],
     ]);
-    const overlay = await asUser(t, OWNER).query(tracking.forMap, { mapId: MAP_A });
     const anyRow = overlay.tracked[0];
     expect(anyRow).toBeDefined();
     if (anyRow === undefined) throw new Error('expected a tracked overlay row');
@@ -284,8 +288,32 @@ describe('mapTrackingLive.forMap', () => {
     await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
     const result = await asUser(t, EDITOR).query(tracking.coverage, {
       mapId: MAP_A,
+      identities: [{ userId: OWNER, characterId: CHAR }],
     });
     expect(result.coverage).toEqual([]);
+  });
+
+  it('answers named identities without walking mapTracking', async () => {
+    const t = convexTest(schema, modules);
+    await grant(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterLocationCovered', {
+        userId: OWNER,
+        characterId: CHAR,
+      });
+    });
+
+    const result = await asUser(t, OWNER).query(tracking.coverage, {
+      mapId: MAP_A,
+      identities: [
+        { userId: OWNER, characterId: CHAR },
+        { userId: OWNER, characterId: CHAR_B },
+      ],
+    });
+    expect(result.coverage).toEqual([
+      { userId: OWNER, characterId: CHAR, covered: true },
+      { userId: OWNER, characterId: CHAR_B, covered: false },
+    ]);
   });
 
   it('returns an empty tracked list when access is revoked (subscription doctrine)', async () => {

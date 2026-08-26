@@ -82,8 +82,16 @@ function compareCoverageRows(left: CoverageRow, right: CoverageRow): number {
 }
 
 export const coverage = query({
-  args: { mapId: v.string() },
-  handler: async (ctx, { mapId }) => {
+  args: {
+    mapId: v.string(),
+    identities: v.array(
+      v.object({
+        userId: v.string(),
+        characterId: v.number(),
+      }),
+    ),
+  },
+  handler: async (ctx, { mapId, identities }) => {
     const principal = await tryMapAccess(ctx, mapId, 'view');
     if (principal === null) {
       return {
@@ -94,18 +102,19 @@ export const coverage = query({
         }[],
       };
     }
-
-    const rows = await ctx.db
-      .query('mapTracking')
-      .withIndex('by_map', (q) => q.eq('mapId', mapId))
-      .take(TRACKING_MAP_SCAN_CAP);
+    if (identities.length > TRACKING_MAP_SCAN_CAP) {
+      throw new ConvexError({
+        code: 'TRACKING_SCAN_LIMIT',
+        detail: `Coverage identities exceed the ${TRACKING_MAP_SCAN_CAP}-row tracked-presence bound.`,
+      });
+    }
 
     const coverageRows: CoverageRow[] = [];
-    for (const row of rows) {
-      const held = await findCoverage(ctx, row.userId, row.characterId);
+    for (const identity of identities) {
+      const held = await findCoverage(ctx, identity.userId, identity.characterId);
       coverageRows.push({
-        userId: row.userId,
-        characterId: row.characterId,
+        userId: identity.userId,
+        characterId: identity.characterId,
         covered: held !== null,
       });
     }

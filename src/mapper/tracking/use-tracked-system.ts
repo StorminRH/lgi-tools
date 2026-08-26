@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { api } from '@/data/convex/api';
 import { useLiveValue } from '@/data/convex/use-live-value';
-import { coverageIndex } from './presence-model';
+import { coverageIndex, coverageQueryArgs } from './presence-model';
 import {
   trackedSystemTarget,
   type TrackedSystemTarget,
@@ -18,7 +18,10 @@ const LOADING_TARGET: TrackedSystemTarget = { kind: 'loading' };
  */
 export function useTrackedSystemTarget(mapId: string): TrackedSystemTarget {
   const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
-  const coverage = useLiveValue(api.mapTrackingLive.coverage, { mapId });
+  const coverage = useLiveValue(
+    api.mapTrackingLive.coverage,
+    coverageQueryArgs(mapId, tracking),
+  );
   return useMemo(
     () =>
       tracking === undefined || coverage === undefined

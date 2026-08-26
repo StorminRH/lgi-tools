@@ -107,6 +107,35 @@ export interface CoveragePayload {
   }[];
 }
 
+/** Args for the flip-only coverage query, or skip until `forMap` names identities. */
+export type CoverageQueryArgs =
+  | {
+      mapId: string;
+      identities: { userId: string; characterId: number }[];
+    }
+  | 'skip';
+
+/**
+ * Coverage args from a loaded `forMap` payload. Sorted so a location tick
+ * (same identities, new location facts) keeps one subscription.
+ */
+export function coverageQueryArgs(
+  mapId: string,
+  tracking: TrackingPayload | undefined,
+): CoverageQueryArgs {
+  if (tracking === undefined) return 'skip';
+  return {
+    mapId,
+    identities: tracking.tracked
+      .map((row) => ({ userId: row.userId, characterId: row.characterId }))
+      .sort(
+        (left, right) =>
+          left.userId.localeCompare(right.userId)
+          || left.characterId - right.characterId,
+      ),
+  };
+}
+
 /**
  * Indexes the coverage payload by owner then character id. An unloaded
  * payload yields an empty index, which hides everyone — the honest verdict

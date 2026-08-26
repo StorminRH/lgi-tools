@@ -7,7 +7,7 @@ export interface HomePromptTracking {
   }[];
 }
 
-/** Coverage overlay the home prompt reads from `mapTracking.coverage`. */
+/** Coverage overlay the home prompt reads from `mapTrackingLive.coverage`. */
 export interface HomePromptCoverage {
   readonly coverage: readonly {
     readonly characterId: number;
