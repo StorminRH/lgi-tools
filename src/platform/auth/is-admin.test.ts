@@ -1,7 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 
-// isAdmin() is pure; stub the auth instance so importing it through session.ts
-// doesn't construct the real Better Auth client (DB/env it doesn't need).
 vi.mock('./auth', () => ({ auth: { api: { getSession: vi.fn() } } }));
 
 import { isAdmin } from './session';
@@ -28,56 +26,23 @@ const superSession: Session = {
   role: 'USER',
 };
 
-describe('isAdmin', () => {
-  beforeEach(() => {
-    vi.stubEnv('SUPERADMIN_CHARACTER_ID', '1000000000');
-  });
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
+test('isAdmin grants DB-ADMIN and env superadmin, never via unset or garbage SUPERADMIN_CHARACTER_ID', () => {
+  expect(isAdmin(null)).toBe(false);
 
-  it('returns false for a null session', () => {
-    expect(isAdmin(null)).toBe(false);
-  });
+  vi.stubEnv('SUPERADMIN_CHARACTER_ID', '1000000000');
+  expect(isAdmin(userSession)).toBe(false);
+  expect(isAdmin(adminSession)).toBe(true);
+  expect(isAdmin(superSession)).toBe(true);
 
-  it('returns false for a plain USER who is not the superadmin', () => {
-    expect(isAdmin(userSession)).toBe(false);
-  });
+  vi.stubEnv('SUPERADMIN_CHARACTER_ID', '');
+  expect(isAdmin(userSession)).toBe(false);
+  expect(isAdmin(adminSession)).toBe(true);
 
-  it('returns true for a DB-ADMIN', () => {
-    expect(isAdmin(adminSession)).toBe(true);
-  });
-
-  it('returns true for the env superadmin even with a USER DB role', () => {
-    expect(isAdmin(superSession)).toBe(true);
-  });
-
-  describe('with SUPERADMIN_CHARACTER_ID unset', () => {
-    beforeEach(() => {
-      vi.stubEnv('SUPERADMIN_CHARACTER_ID', '');
-    });
-
-    it('still returns false for a plain USER (no env fallback to grant)', () => {
-      expect(isAdmin(userSession)).toBe(false);
-    });
-
-    it('still returns true for a DB-ADMIN', () => {
-      expect(isAdmin(adminSession)).toBe(true);
-    });
-  });
-
-  describe('with SUPERADMIN_CHARACTER_ID set to garbage', () => {
-    beforeEach(() => {
-      vi.stubEnv('SUPERADMIN_CHARACTER_ID', 'not-a-number');
-    });
-
-    it('returns false for a USER — Number() yields NaN, which never matches', () => {
-      expect(isAdmin(userSession)).toBe(false);
-    });
-
-    it('still grants ADMIN via the DB-role path', () => {
-      expect(isAdmin(adminSession)).toBe(true);
-    });
-  });
+  vi.stubEnv('SUPERADMIN_CHARACTER_ID', 'not-a-number');
+  expect(isAdmin(userSession)).toBe(false);
+  expect(isAdmin(adminSession)).toBe(true);
 });

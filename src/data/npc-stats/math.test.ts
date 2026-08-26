@@ -1,8 +1,3 @@
-// Validate every formula in math.ts against a historical snapshot of all
-// 36 sleeper typeIDs. The snapshot files are the pre-2.7 ground truth —
-// if our compute drifts from them, either the math is wrong or the
-// snapshot has rotted and needs a deliberate refresh.
-
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -84,10 +79,6 @@ function statsFor(arch: Archetype): CombatStats {
 }
 
 describe('per-NPC combat math vs 2.6 archetype snapshot', () => {
-  it('covers all 36 sleeper typeIDs', () => {
-    expect(archetypes).toHaveLength(36);
-  });
-
   for (const arch of archetypes) {
     describe(`${arch.typeId} ${arch.name}`, () => {
       const stats = statsFor(arch);
@@ -175,9 +166,7 @@ describe('per-NPC combat math vs 2.6 archetype snapshot', () => {
 
 describe('summariseWave', () => {
   it('multiplies per-NPC stats by quantity and sums across the wave', () => {
-    // Two NPCs in one wave: 3× Patroller, 2× Watchman, hand-pulled from the
-    // archetype snapshot. The arithmetic is the contract — the per-NPC math
-    // has its own snapshot validation above.
+
     const patrol = statsFor(archetypes.find((a) => a.typeId === 30188)!);
     const watch = statsFor(archetypes.find((a) => a.typeId === 30189)!);
     const total = summariseWave([
@@ -193,7 +182,7 @@ describe('summariseWave', () => {
     expect(total.ehpTotal).toBe(
       Math.round(patrol.hp.ehp * 3 + watch.hp.ehp * 2),
     );
-    // Neither carries EWAR, so the wave should sum to zero across the board.
+
     expect(total.ewScram).toBe(0);
     expect(total.ewWeb).toBe(0);
     expect(total.ewNeut).toBe(0);

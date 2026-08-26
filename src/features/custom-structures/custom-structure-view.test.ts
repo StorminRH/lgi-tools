@@ -14,7 +14,7 @@ import type { CustomStructureRow } from './types';
 
 const AZBEL: StructureTypeOption = { typeId: 35827, name: 'Azbel', groupId: 1404, rigSize: 3 };
 const RAITARU: StructureTypeOption = { typeId: 35825, name: 'Raitaru', groupId: 1404, rigSize: 2 };
-// A large manufacturing rig — fits the Azbel (group 1404, size 3), not the Raitaru (size 2).
+
 const LARGE_RIG: StructureRigOption = { typeId: 1, name: 'L Rig', canFitGroups: [1404, 1406, 1657], rigSize: 3 };
 const MED_RIG: StructureRigOption = { typeId: 2, name: 'M Rig', canFitGroups: [1404], rigSize: 2 };
 
@@ -28,7 +28,7 @@ describe('deriveBuilderView', () => {
       busy: false,
     });
     expect(view.structure).toBe(AZBEL);
-    expect(view.validRigs).toEqual([LARGE_RIG]); // only the L rig fits the Azbel
+    expect(view.validRigs).toEqual([LARGE_RIG]);
     expect(view.canSave).toBe(true);
   });
 
@@ -46,14 +46,24 @@ describe('deriveBuilderView', () => {
   });
 });
 
-describe('readyBuildInput', () => {
-  it('returns the trimmed name + id when ready', () => {
+describe('builder helpers', () => {
+  it('gates save, fit read, slot fill, and fit-name fallback together', () => {
     expect(readyBuildInput(5, '  Name  ', false)).toEqual({ structureTypeId: 5, name: 'Name' });
-  });
-  it('returns null when no type, blank name, or busy', () => {
     expect(readyBuildInput(null, 'Name', false)).toBeNull();
     expect(readyBuildInput(5, '   ', false)).toBeNull();
     expect(readyBuildInput(5, 'Name', true)).toBeNull();
+
+    expect(canReadFit('[Azbel]', false)).toBe(true);
+    expect(canReadFit('   ', false)).toBe(false);
+    expect(canReadFit('', false)).toBe(false);
+    expect(canReadFit('[Azbel]', true)).toBe(false);
+
+    expect(slotsFromParsedFit([10, 20], [0, 1, 2])).toEqual([10, 20, null]);
+
+    const names = new Map([[35827, 'Azbel']]);
+    expect(resolveFitName('Mine', 35827, names)).toBe('Mine');
+    expect(resolveFitName('   ', 35827, names)).toBe('Azbel');
+    expect(resolveFitName('', 999, names)).toBe('');
   });
 });
 
@@ -86,32 +96,6 @@ describe('buildCreateStructurePayload', () => {
     });
     expect(p.systemId).toBeNull();
     expect(p.taxPct).toBeNull();
-  });
-});
-
-describe('canReadFit', () => {
-  it('true only for non-blank text while not busy', () => {
-    expect(canReadFit('[Azbel]', false)).toBe(true);
-    expect(canReadFit('   ', false)).toBe(false);
-    expect(canReadFit('', false)).toBe(false);
-    expect(canReadFit('[Azbel]', true)).toBe(false);
-  });
-});
-
-describe('slotsFromParsedFit', () => {
-  it('fills fixed slots from a parsed fit, missing rigs → empty slot', () => {
-    expect(slotsFromParsedFit([10, 20], [0, 1, 2])).toEqual([10, 20, null]);
-  });
-});
-
-describe('resolveFitName', () => {
-  const names = new Map([[35827, 'Azbel']]);
-  it('keeps the user name when they typed one', () => {
-    expect(resolveFitName('Mine', 35827, names)).toBe('Mine');
-  });
-  it('falls back to the type name (or empty) when the name is blank', () => {
-    expect(resolveFitName('   ', 35827, names)).toBe('Azbel');
-    expect(resolveFitName('', 999, names)).toBe('');
   });
 });
 

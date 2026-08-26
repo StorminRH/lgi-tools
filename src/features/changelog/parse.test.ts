@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { parseChangelog } from './parse';
 
 describe('parseChangelog', () => {
-  it('returns [] for empty input', () => {
-    expect(parseChangelog('')).toEqual([]);
-  });
-
   it('parses a single entry with one group and bullet', () => {
+    expect(parseChangelog('')).toEqual([]);
+    expect(parseChangelog('# Just a title\n\nSome words.\n- a stray bullet')).toEqual([]);
     const md = ['### v3.7.0 — 2026-05-25', '', '#### Added', '- Added a thing.'].join('\n');
     expect(parseChangelog(md)).toEqual([
       { version: '3.7.0', date: '2026-05-25', summary: [], groups: [{ type: 'Added', items: ['Added a thing.'] }] },
@@ -110,10 +108,6 @@ describe('parseChangelog', () => {
         groups: [],
       },
     ]);
-  });
-
-  it('returns [] for input that has no entry headings', () => {
-    expect(parseChangelog('# Just a title\n\nSome words.\n- a stray bullet')).toEqual([]);
   });
 
   it('rejects a calendar-invalid release date', () => {

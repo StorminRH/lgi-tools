@@ -6,23 +6,18 @@ import {
 } from './corp-sync-eligibility';
 
 describe('canSyncCorpStructures', () => {
-  it('admits a member with a refresh token and both corp-structures sync scopes', () => {
-    expect(canSyncCorpStructures({ hasRefreshToken: true, missingScopes: [] })).toBe(true);
+  it.each([
+    [{ hasRefreshToken: true, missingScopes: [] }, true],
+    [{ hasRefreshToken: false, missingScopes: [] }, false],
+  ])('token required: %j → %s', (input, expected) => {
+    expect(canSyncCorpStructures(input)).toBe(expected);
   });
 
-  it('rejects a member without a refresh token (the reconnect path)', () => {
-    expect(canSyncCorpStructures({ hasRefreshToken: false, missingScopes: [] })).toBe(false);
-  });
-
-  it('rejects a member missing either corp-structures sync scope', () => {
+  it('rejects a missing roles or structures scope, and pins Station_Manager on the refresh layer', () => {
     for (const scope of CORP_STRUCTURES_SYNC_SCOPES) {
       expect(canSyncCorpStructures({ hasRefreshToken: true, missingScopes: [scope] })).toBe(false);
     }
-  });
 
-  it('gates the read on the roles read + the structures read, NOT the role itself', () => {
-    // The in-game Station_Manager ROLE is gated in the refresh layer (a graceful
-    // skip), never here — only scope membership belongs in this predicate.
     expect([...CORP_STRUCTURES_SYNC_SCOPES]).toEqual([
       'esi-characters.read_corporation_roles.v1',
       'esi-corporations.read_structures.v1',

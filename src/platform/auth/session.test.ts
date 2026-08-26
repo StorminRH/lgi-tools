@@ -1,10 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-
-// session.ts is a thin shim over Better Auth: getSession()/getSessionCharacterId()
-// read auth.api.getSession() and reshape the customSession enrichment into the
-// legacy Session contract. Mock the auth instance + next/headers so these tests
-// exercise the reshaping logic without a DB or the real Better Auth construction.
-// (The full isAdmin() matrix lives in is-admin.test.ts.)
+import { afterEach, expect, test, vi } from 'vitest';
 
 const getSessionApiMock = vi.fn();
 vi.mock('./auth', () => ({
@@ -28,36 +22,21 @@ afterEach(() => {
   getSessionApiMock.mockReset();
 });
 
-describe('getSession', () => {
-  it('returns null when there is no Better Auth session', async () => {
-    getSessionApiMock.mockResolvedValue(null);
-    await expect(getSession()).resolves.toBeNull();
+test('getSession and getSessionCharacterId reshape enrichment, and both null out when logged out', async () => {
+  getSessionApiMock.mockResolvedValue(ENRICHED);
+  await expect(getSession()).resolves.toEqual({
+    characterId: 90000001,
+    name: 'Test Pilot',
+    portraitUrl: 'https://images.evetech.net/characters/90000001/portrait?size=128',
+    role: 'ADMIN',
   });
+  await expect(getSessionCharacterId()).resolves.toBe(90000001);
 
-  it('maps the enriched session to the legacy Session shape', async () => {
-    getSessionApiMock.mockResolvedValue(ENRICHED);
-    await expect(getSession()).resolves.toEqual({
-      characterId: 90000001,
-      name: 'Test Pilot',
-      portraitUrl: 'https://images.evetech.net/characters/90000001/portrait?size=128',
-      role: 'ADMIN',
-    });
-  });
+  getSessionApiMock.mockResolvedValue({ ...ENRICHED, characterId: null });
+  await expect(getSession()).resolves.toBeNull();
+  await expect(getSessionCharacterId()).resolves.toBeNull();
 
-  it('returns null when the user has no linked character', async () => {
-    getSessionApiMock.mockResolvedValue({ ...ENRICHED, characterId: null });
-    await expect(getSession()).resolves.toBeNull();
-  });
-});
-
-describe('getSessionCharacterId', () => {
-  it('returns the active character id', async () => {
-    getSessionApiMock.mockResolvedValue(ENRICHED);
-    await expect(getSessionCharacterId()).resolves.toBe(90000001);
-  });
-
-  it('returns null when logged out', async () => {
-    getSessionApiMock.mockResolvedValue(null);
-    await expect(getSessionCharacterId()).resolves.toBeNull();
-  });
+  getSessionApiMock.mockResolvedValue(null);
+  await expect(getSession()).resolves.toBeNull();
+  await expect(getSessionCharacterId()).resolves.toBeNull();
 });

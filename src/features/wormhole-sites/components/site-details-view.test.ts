@@ -18,15 +18,13 @@ const site = (over: Partial<SiteDetail> = {}): SiteDetail => ({
 });
 
 describe('deriveSiteDetailsView', () => {
-  it('marks combat and hackable sites wave-driven', () => {
+  it('flags wave-driven sites and gas/resource/wave presence', () => {
     expect(deriveSiteDetailsView(site({ siteType: 'combat' })).isWaveDriven).toBe(true);
     expect(deriveSiteDetailsView(site({ siteType: 'relic' })).isWaveDriven).toBe(true);
     expect(deriveSiteDetailsView(site({ siteType: 'data' })).isWaveDriven).toBe(true);
     expect(deriveSiteDetailsView(site({ siteType: 'ore' })).isWaveDriven).toBe(false);
     expect(deriveSiteDetailsView(site({ siteType: 'gas' })).isWaveDriven).toBe(false);
-  });
 
-  it('flags gas, resource presence, and wave presence', () => {
     const view = deriveSiteDetailsView(
       site({ siteType: 'gas', resources: [{} as never], waves: [{} as never] }),
     );
@@ -34,5 +32,4 @@ describe('deriveSiteDetailsView', () => {
     expect(view.hasResources).toBe(true);
     expect(view.hasWaves).toBe(true);
   });
-
 });

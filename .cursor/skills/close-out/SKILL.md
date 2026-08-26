@@ -16,7 +16,7 @@ line contains that tip.
 
 Write this process as a todo list before naming the lines. One item
 per numbered step. Give each Depot wait its own item named
-`origin pr checks --watch`. Keep that item in progress until the
+`origin pr checks <N> --watch`. Keep that item in progress until the
 command has returned green on the current PR version. Done when the
 list exists and step 1 is in progress.
 
@@ -48,7 +48,7 @@ list exists and step 1 is in progress.
    `dupes`, and `health`, plus focused tests for the diff, are green.
 6. Open the Origin PR (`<head>` → destination) per **Origin PR**.
   Done when that PR is ready for review.
-7. Run `origin pr checks --watch` on that PR per **Depot**. That
+7. Run `origin pr checks <N> --watch` on that PR per **Depot**. That
   command is the watch todo. Done when the pipeline has settled
    (green or finished red).
 8. When Depot is red, run one **Findings** round, then return to
@@ -69,7 +69,7 @@ list exists and step 1 is in progress.
     the changelog will lift. Run the local test suite on that head.
     Push the as-builts and any dump fixes to the Origin PR. Done when
     those commits are on that PR.
-13. Run `origin pr checks --watch` on the current version per
+13. Run `origin pr checks <N> --watch` on the current version per
   **Depot**. `origin pr thread list --unresolved` empty. Merge per
   **Merge**. Close the dump PR unmerged. Done when Origin `staging`
   holds the head.
@@ -83,8 +83,9 @@ unmerged. `development` contains `staging`.
 - `RELEASED`. Destination `main`. Origin `main` holds the cut.
 `staging` and `development` contain `main`.
 - `BLOCKED`. Named gate, oversize packet, failed check, missing
-destination, or work already on the destination before this process
-finished.
+destination, work already on the destination before this process
+finished, or an Origin token that is not scoped for merge. The
+Origin PR stays open.
 
 ## Origin PR
 
@@ -109,9 +110,13 @@ Re-scrub after publish.
 
 Done when that Origin PR's Depot pipeline is green.
 
-Run `origin pr checks --watch`. That command is the watch todo. Keep
-the todo in progress until watch returns. A subscription or a
-one-shot status read is extra, not the wait.
+Run `origin pr checks <N> --watch` in the foreground until it
+returns. `<N>` is the change number. That command is the watch
+todo. Keep the todo in progress until watch returns. After
+`test-runner` the checkout can be detached, so pass `<N>` (or
+`--branch <head>`). `--head` and `--base` are create flags;
+checks rejects them. A subscription or a one-shot `--json` read
+is extra, not the wait.
 
 If Checks are empty while Depot is running, list then poll status per
 Tools. On red, diagnose then logs. The fix is a Findings round.
@@ -124,14 +129,15 @@ round, that comment's thread is resolved or the operator paused,
 and the dump branch matches the Origin head when a dump exists.
 
 A finding is a red Depot job, a dump bot comment, or a review note
-on the Origin PR. Drive ready PRs in batched rounds: wait for
-reviews to settle, then one comment and one push.
+on the Origin PR, including Bugbot. Drive ready PRs in batched
+rounds: wait for reviews to settle, then one comment and one push.
 
-1. Wait until Origin checks have finished (`origin pr checks
+1. Wait until Origin checks have finished (`origin pr checks <N>
    --watch`, or Depot list/status when Checks are empty), Origin
    reviews on that version have finished posting (`origin pr view
    --comments`), and, when a dump PR exists, Greptile and
-   CodeRabbit have finished posting.
+   CodeRabbit have finished posting. Bugbot auto-reviews the
+   Origin PR once, on open.
 2. Collect every finding from that settled state: Depot
    diagnose/logs, dump PR comments, and Origin review notes.
 3. Fix in-scope findings. One commit per fix is fine. Justify on
@@ -166,11 +172,14 @@ the GitHub MCP. Request Greptile and CodeRabbit by hand.
 Done when the Origin PR is merged to its base line.
 
 `origin pr thread list --unresolved` is empty, or the operator
-paused. Merge with `origin pr merge`. That
-merge is what moves the work onto the destination. A push or
-fast-forward onto `staging` or `main` is the same merge. It waits
-for this step. Delete leftover source branches. Leave
-`development`, `staging`, and `main`. Return after **Resync**.
+paused. Merge with `origin pr merge <N>`. That merge is what
+moves the work onto the destination. It waits for this step.
+`--merge`, `--squash`, `--auto`, and `--branch` hit the same
+merge gate. A Cloud Agent token that is not scoped for merge
+returns `BLOCKED` with that error. Leave the Origin PR open.
+The operator reviews and merges, or upgrades the token. Delete
+leftover source branches. Leave `development`, `staging`, and
+`main`. Return after **Resync**.
 
 ## Resync
 

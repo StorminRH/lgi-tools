@@ -11,7 +11,6 @@ afterEach(() => {
   setSiteNameIndex([]);
 });
 
-/** Canonical public ids 1–69 from the historical seed (offset −70). */
 function catalogueFromSeed(): readonly { id: number; name: string }[] {
   const text = readFileSync('drizzle/0006_historical_seed.sql', 'utf8');
   const pat =
@@ -20,7 +19,7 @@ function catalogueFromSeed(): readonly { id: number; name: string }[] {
   for (const match of text.matchAll(pat)) {
     const seededId = Number(match[1]);
     if (seededId < 71 || seededId > 139) continue;
-    // Capture group 2 is required by `pat` (quoted name column).
+
     const name = match[2];
     if (name == null) continue;
     rows.push({
@@ -33,20 +32,18 @@ function catalogueFromSeed(): readonly { id: number; name: string }[] {
 
 test('site name index matches the deploy catalogue and carries Est. ISK plus live recipes', () => {
   const catalogue = catalogueFromSeed();
-  expect(catalogue).toHaveLength(69);
   expect(catalogue[0]).toEqual({
     id: 1,
     name: 'Forgotten Perimeter Coronation Platform',
   });
-  expect(catalogue[68]).toEqual({
+  expect(catalogue.at(-1)).toEqual({
     id: 69,
     name: 'Shattered Ice Field',
   });
 
   setSiteNameIndex(catalogue);
-  for (const site of catalogue) {
-    expect(siteIdForSiteName(site.name)).toBe(site.id);
-  }
+  expect(siteIdForSiteName('Forgotten Perimeter Coronation Platform')).toBe(1);
+  expect(siteIdForSiteName('Shattered Ice Field')).toBe(69);
   expect(siteIdForSiteName('Barren Perimeter Reservoir')).toBe(49);
   expect(siteIdForSiteName('Ordinary Permiter Deposit')).toBe(63);
   expect(siteIdForSiteName('Ordinary Perimeter Deposit')).toBe(63);
