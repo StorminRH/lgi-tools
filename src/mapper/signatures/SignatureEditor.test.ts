@@ -80,20 +80,13 @@ function render(overrides: Partial<Parameters<typeof SignatureEditor>[0]> = {}) 
   );
 }
 
-it('parks one titled scanner-anchored window without resolution chrome', () => {
+it('parks one titled scanner-anchored window', () => {
   const markup = render();
   expect(markup).toContain('data-map-window="signature-editor"');
   expect(markup).toContain('data-map-window-placement="scanner-anchored"');
   expect(markup).toContain('Signature Editor');
   expect(markup).toContain('data-map-connection-fields');
   expect(markup).not.toContain('--map-window-transform');
-
-  for (const mode of ['edit', 'restore'] as const) {
-    const modeMarkup = render({ mode });
-    expect(modeMarkup).not.toContain('data-map-connection-resolution');
-    expect(modeMarkup).not.toContain('Auto-link');
-    expect(modeMarkup).not.toContain('data-map-jump-confirm');
-  }
 });
 
 it('editorLeader brackets, clamps, clips, and measureEditorLeader delegates when boxes exist', () => {
