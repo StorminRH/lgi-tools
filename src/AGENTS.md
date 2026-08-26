@@ -29,12 +29,11 @@ that lint, Fallow, and nearby code do not catch. Do not grow it.
 - When replacing an interaction, ship the new one and delete the old in the
   same change.
 - Atlas jump-answer prompts stay scoped to the tracked character that jumped
-  (`pendingResolutionCharacterId` + `ownTrackedCharacterIds`). Doorbells ring
+  (`resolution.characterId` + `ownTrackedCharacterIds`). Doorbells ring
   only that client's own tracked characters — never every feed row on the map.
 - Leads-to notes (`setConnectionDestination` / `setConnectionDestinationHint`)
-  write only that door's note or class hint. Do not stamp
-  `destinationProvenance` or clear `pendingCandidates` — those belong to jump
-  identity, not a typed system or class note.
+  write only that door's note or class hint. Jump identity owns
+  `resolution` destination provenance and pending candidate ids.
 - Unresolved wormhole stubs delete through `removeSignatures`, not
   `severConnection` (null destinations have no branch to collapse).
 - `AuthProvider` must publish `session: null` through SSR and the first client
