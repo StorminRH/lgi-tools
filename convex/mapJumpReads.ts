@@ -1,14 +1,27 @@
 import { ConvexError } from 'convex/values';
-import type { Doc } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 import {
   connectionDoorTypes,
+  type ConnectionDoor,
   legacyTypeSnapshot,
 } from '@/data/maps/connection-door-types';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import type { ConnectionProvenance } from './lib/mapEntityContracts';
+import { readOriginConnections } from './lib/mapConnectionLookup';
 
 const JUMP_TRACKING_SCAN_CAP = 256;
 export const JUMP_CONNECTION_SCAN_CAP = 64;
+
+export interface EmissionFacts {
+  readonly connectionId: Id<'mapConnections'>;
+  readonly fromSystemId: number;
+  readonly toSystemId: number | null;
+  readonly wormholeTypeCode: string | null;
+  readonly typedSide: ConnectionDoor | null;
+  readonly destinationProvenance: ConnectionProvenance | null;
+  readonly observationKey: string | null;
+}
 
 export interface TrackedLocation {
   readonly tracking: Doc<'mapTracking'>;
@@ -51,7 +64,20 @@ export function unresolvedCandidatesOf(
   return rows.filter((row) => row.toSystemId === null && !isTombstoned(row));
 }
 
-export function emissionFacts(connection: Doc<'mapConnections'>) {
+export async function readConnectionsFrom(
+  ctx: QueryCtx,
+  mapId: string,
+  fromSystemId: number,
+  purpose: 'candidate' | 'pair',
+): Promise<Doc<'mapConnections'>[]> {
+  return await readOriginConnections(ctx, mapId, fromSystemId, {
+    limit: JUMP_CONNECTION_SCAN_CAP,
+    errorCode: 'MAP_TOO_LARGE',
+    errorDetail: `Map ${mapId} exceeds the jump-${purpose} read bound.`,
+  });
+}
+
+export function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
   const snapshot = legacyTypeSnapshot(
     connectionDoorTypes(connection),
     connection.typedSide ?? undefined,

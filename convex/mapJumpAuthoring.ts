@@ -6,13 +6,14 @@ import {
   type QueryCtx,
 } from './_generated/server';
 import { requireMapAccessForUser } from './lib/mapAccess';
-import { readOriginConnections } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoringHome';
 import { chainTombstoneState, isTombstoned } from '@/data/maps/chain-contract';
 import {
   emissionFacts,
+  type EmissionFacts,
   JUMP_CONNECTION_SCAN_CAP,
+  readConnectionsFrom,
   readTrackedLocation,
   type TrackedLocation,
   unresolvedCandidatesOf,
@@ -80,19 +81,6 @@ interface TopologyResult {
 
 function stale(reason: StaleReason): StaleResult {
   return { status: 'stale', reason };
-}
-
-async function readConnectionsFrom(
-  ctx: QueryCtx,
-  mapId: string,
-  fromSystemId: number,
-  purpose: 'candidate' | 'pair',
-): Promise<Doc<'mapConnections'>[]> {
-  return await readOriginConnections(ctx, mapId, fromSystemId, {
-    limit: JUMP_CONNECTION_SCAN_CAP,
-    errorCode: 'MAP_TOO_LARGE',
-    errorDetail: `Map ${mapId} exceeds the jump-${purpose} read bound.`,
-  });
 }
 
 async function readUnresolvedCandidates(
@@ -436,9 +424,10 @@ export const resolveJumpAuthoring = internalMutation({
       args.transitionObservedAt,
       stamp,
     );
+    const emission: EmissionFacts = emissionFacts(topology.connection);
     return {
       status: topology.outcome,
-      emission: emissionFacts(topology.connection),
+      emission,
     };
   },
 });

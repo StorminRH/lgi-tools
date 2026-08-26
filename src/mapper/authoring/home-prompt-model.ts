@@ -1,4 +1,4 @@
-/** Tracking overlay the home prompt reads from `mapTracking.forMap`. */
+/** Tracking overlay the home prompt reads from `mapTrackingLive.forMap`. */
 export interface HomePromptTracking {
   readonly ownTrackedCharacterIds: readonly number[];
   readonly tracked: readonly {

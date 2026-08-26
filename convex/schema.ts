@@ -411,7 +411,7 @@ export default defineSchema({
 
   // Per-character held state for the location sync's online probe: is the
   // pilot logged into EVE, and until when is that answer cached. Deliberately
-  // its OWN table, not fields on characterLocation — mapTracking.forMap joins
+  // its OWN table, not fields on characterLocation — mapTrackingLive.forMap joins
   // characterLocation docs, and the probe refreshes onlineExpiresAt every
   // ~60s while all pilots are offline; writing that onto a subscribed doc
   // would re-run every watching map's forMap each probe (docs/CONVEX.md

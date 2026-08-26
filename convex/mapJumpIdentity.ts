@@ -2,7 +2,7 @@ import { ConvexError, v } from 'convex/values';
 import { internalMutation } from './_generated/server';
 import { requireMapAccessForUser } from './lib/mapAccess';
 import { requireLiveConnectionOnMap } from './lib/mapConnectionLookup';
-import { emissionFacts } from './mapJumpReads';
+import { emissionFacts, type EmissionFacts } from './mapJumpReads';
 
 export const confirmJumpIdentity = internalMutation({
   args: {
@@ -33,12 +33,13 @@ export const confirmJumpIdentity = internalMutation({
         pendingResolutionCharacterId: undefined,
       });
     }
-    return emissionFacts({
+    const facts: EmissionFacts = emissionFacts({
       ...connection,
       destinationProvenance: 'confirmed',
       pendingCandidates: undefined,
       pendingResolutionCharacterId: undefined,
     });
+    return facts;
   },
 });
 
@@ -96,6 +97,7 @@ export const reassociateJumpDestination = internalMutation({
       pendingCandidates: undefined,
       pendingResolutionCharacterId: undefined,
     });
-    return emissionFacts({ ...target, ...moved });
+    const facts: EmissionFacts = emissionFacts({ ...target, ...moved });
+    return facts;
   },
 });

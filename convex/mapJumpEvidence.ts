@@ -2,13 +2,13 @@ import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { internalQuery } from './_generated/server';
 import { tryMapAccessForUser } from './lib/mapAccess';
-import { readOriginConnections } from './lib/mapConnectionLookup';
 import { findSystem } from './lib/mapSystemLookup';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import { storedDoorTypes } from '@/data/maps/connection-door-types';
 import {
   emissionFacts,
-  JUMP_CONNECTION_SCAN_CAP,
+  type EmissionFacts,
+  readConnectionsFrom,
   readTrackedLocation,
   unresolvedCandidatesOf,
 } from './mapJumpReads';
@@ -77,11 +77,7 @@ export const jumpEvidence = internalQuery({
       : await findSystem(ctx, mapId, fromSolarSystemId);
     const originLive = origin !== null && !isTombstoned(origin);
     const originRows = originLive && fromSolarSystemId !== null
-      ? await readOriginConnections(ctx, mapId, fromSolarSystemId, {
-          limit: JUMP_CONNECTION_SCAN_CAP,
-          errorCode: 'MAP_TOO_LARGE',
-          errorDetail: `Map ${mapId} exceeds the jump-candidate read bound.`,
-        })
+      ? await readConnectionsFrom(ctx, mapId, fromSolarSystemId, 'candidate')
       : [];
     const candidates = unresolvedCandidatesOf(originRows);
 
@@ -140,6 +136,7 @@ export const connectionEvidence = internalQuery({
     ) {
       return { canEdit: true as const, connection: null };
     }
-    return { canEdit: true as const, connection: emissionFacts(connection) };
+    const facts: EmissionFacts = emissionFacts(connection);
+    return { canEdit: true as const, connection: facts };
   },
 });

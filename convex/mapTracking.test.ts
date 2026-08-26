@@ -181,7 +181,7 @@ describe('mapTracking.setTracking', () => {
   });
 });
 
-describe('mapTracking.forMap', () => {
+describe('mapTrackingLive.forMap', () => {
   it('joins tracking rows to location by (userId, characterId) and discloses nothing for a forged row', async () => {
     const t = convexTest(schema, modules);
     await grant(t, MAP_A, [
