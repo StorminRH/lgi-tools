@@ -6,11 +6,20 @@ import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { MAP_CHAIN_MAX_PAGE_SIZE, MAP_EVENT_READ_LIMIT } from './mapChain';
+import { MAP_EVENT_READ_LIMIT } from './mapChainEvents';
+import { MAP_CHAIN_MAX_PAGE_SIZE } from './mapChainPage';
 import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+
+const chain = {
+  watchMapAccess: api.mapChainAccess.watchMapAccess,
+  watchMapSystems: api.mapChainSystems.watchMapSystems,
+  watchMapConnections: api.mapChainConnections.watchMapConnections,
+  watchUnresolvedHoles: api.mapChainConnections.watchUnresolvedHoles,
+  watchMapEvents: api.mapChainEvents.watchMapEvents,
+} as const;
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -109,8 +118,8 @@ describe('map chain read path', () => {
       await connect(t, MAP_A, JITA, AMARR);
 
       const result = await (subject === undefined
-        ? t.query(api.mapChain[fn], { mapId: MAP_A, paginationOpts: page(10) })
-        : asUser(t, subject).query(api.mapChain[fn], {
+        ? t.query(chain[fn], { mapId: MAP_A, paginationOpts: page(10) })
+        : asUser(t, subject).query(chain[fn], {
             mapId: MAP_A,
             paginationOpts: page(10),
           }));
@@ -127,8 +136,8 @@ describe('map chain read path', () => {
       await grant(t, MAP_A, EDITOR, ['editor']);
 
       const result = await (subject === undefined
-        ? t.query(api.mapChain.watchMapAccess, { mapId: MAP_A })
-        : asUser(t, subject).query(api.mapChain.watchMapAccess, { mapId: MAP_A }));
+        ? t.query(chain.watchMapAccess, { mapId: MAP_A })
+        : asUser(t, subject).query(chain.watchMapAccess, { mapId: MAP_A }));
 
       expect(result).toEqual({ granted: false, canEdit: false });
     });
@@ -151,8 +160,8 @@ describe('map chain read path', () => {
       });
 
       const events = await (subject === undefined
-        ? t.query(api.mapChain.watchMapEvents, { mapId: MAP_A })
-        : asUser(t, subject).query(api.mapChain.watchMapEvents, { mapId: MAP_A }));
+        ? t.query(chain.watchMapEvents, { mapId: MAP_A })
+        : asUser(t, subject).query(chain.watchMapEvents, { mapId: MAP_A }));
       expect(events).toEqual([]);
     });
 
@@ -162,9 +171,9 @@ describe('map chain read path', () => {
       await grant(t, MAP_A, EDITOR, ['editor']);
 
       expect(
-        await asUser(t, VIEWER).query(api.mapChain.watchMapAccess, { mapId: MAP_A }),
+        await asUser(t, VIEWER).query(chain.watchMapAccess, { mapId: MAP_A }),
       ).toEqual({ granted: true, canEdit: false });
-      expect(await asUser(t).query(api.mapChain.watchMapAccess, { mapId: MAP_A })).toEqual({
+      expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: true,
         canEdit: true,
       });
@@ -181,15 +190,15 @@ describe('map chain read path', () => {
         fromSignatureId: 'ABC-123',
       });
 
-      const systems = await asUser(t, VIEWER).query(api.mapChain.watchMapSystems, {
+      const systems = await asUser(t, VIEWER).query(chain.watchMapSystems, {
         mapId: MAP_A,
         paginationOpts: page(10),
       });
-      const connections = await asUser(t, VIEWER).query(api.mapChain.watchMapConnections, {
+      const connections = await asUser(t, VIEWER).query(chain.watchMapConnections, {
         mapId: MAP_A,
         paginationOpts: page(10),
       });
-      const holes = await asUser(t, VIEWER).query(api.mapChain.watchUnresolvedHoles, {
+      const holes = await asUser(t, VIEWER).query(chain.watchUnresolvedHoles, {
         mapId: MAP_A,
         paginationOpts: page(10),
       });
@@ -212,24 +221,24 @@ describe('map chain read path', () => {
       await grant(t, MAP_A, EDITOR, ['editor']);
       await placeSystems(t, MAP_A, [JITA]);
 
-      const before = await asUser(t).query(api.mapChain.watchMapSystems, {
+      const before = await asUser(t).query(chain.watchMapSystems, {
         mapId: MAP_A,
         paginationOpts: page(10),
       });
       expect(before.page).toHaveLength(1);
-      expect(await asUser(t).query(api.mapChain.watchMapAccess, { mapId: MAP_A })).toEqual({
+      expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: true,
         canEdit: true,
       });
 
       await revokeClaim(t, MAP_A, EDITOR);
 
-      expect(await asUser(t).query(api.mapChain.watchMapAccess, { mapId: MAP_A })).toEqual({
+      expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: false,
         canEdit: false,
       });
       expect(
-        (await asUser(t).query(api.mapChain.watchMapSystems, {
+        (await asUser(t).query(chain.watchMapSystems, {
           mapId: MAP_A,
           paginationOpts: page(10),
         })).page,
@@ -237,12 +246,12 @@ describe('map chain read path', () => {
 
       await grant(t, MAP_A, EDITOR, ['editor']);
 
-      expect(await asUser(t).query(api.mapChain.watchMapAccess, { mapId: MAP_A })).toEqual({
+      expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
         granted: true,
         canEdit: true,
       });
       expect(
-        (await asUser(t).query(api.mapChain.watchMapSystems, {
+        (await asUser(t).query(chain.watchMapSystems, {
           mapId: MAP_A,
           paginationOpts: page(10),
         })).page,
@@ -259,11 +268,11 @@ describe('map chain read path', () => {
       await placeSystems(t, MAP_B, [AMARR]);
       await connect(t, MAP_B, AMARR, AMARR + 1);
 
-      const systems = await asUser(t).query(api.mapChain.watchMapSystems, {
+      const systems = await asUser(t).query(chain.watchMapSystems, {
         mapId: MAP_A,
         paginationOpts: page(50),
       });
-      const connections = await asUser(t).query(api.mapChain.watchMapConnections, {
+      const connections = await asUser(t).query(chain.watchMapConnections, {
         mapId: MAP_A,
         paginationOpts: page(50),
       });
@@ -284,7 +293,7 @@ describe('map chain read path', () => {
 
       for (;;) {
         const result: PaginationResult<Doc<'mapSystems'>> = await asUser(t).query(
-          api.mapChain.watchMapSystems,
+          chain.watchMapSystems,
           { mapId: MAP_A, paginationOpts: page(2, cursor) },
         );
         collected.push(...result.page.map((row) => row.systemId));
@@ -307,7 +316,7 @@ describe('map chain read path', () => {
         Array.from({ length: MAP_CHAIN_MAX_PAGE_SIZE + 5 }, (_, index) => JITA + index),
       );
 
-      const result = await asUser(t).query(api.mapChain.watchMapSystems, {
+      const result = await asUser(t).query(chain.watchMapSystems, {
         mapId: MAP_A,
         paginationOpts: page(MAP_CHAIN_MAX_PAGE_SIZE * 5),
       });
@@ -340,7 +349,7 @@ describe('map chain read path', () => {
         });
       });
 
-      const events = await asUser(t, VIEWER).query(api.mapChain.watchMapEvents, {
+      const events = await asUser(t, VIEWER).query(chain.watchMapEvents, {
         mapId: MAP_A,
       });
       expect(events).toHaveLength(MAP_EVENT_READ_LIMIT);
@@ -447,7 +456,10 @@ describe('map chain read path', () => {
   });
 
   describe('source contract', () => {
-    const SOURCE = readFileSync('convex/mapChain.ts', 'utf8');
+    const ACCESS = readFileSync('convex/mapChainAccess.ts', 'utf8');
+    const SYSTEMS = readFileSync('convex/mapChainSystems.ts', 'utf8');
+    const CONNECTIONS = readFileSync('convex/mapChainConnections.ts', 'utf8');
+    const EVENTS = readFileSync('convex/mapChainEvents.ts', 'utf8');
 
     const CHAIN_TABLES = [
       'mapAccess',
@@ -471,29 +483,39 @@ describe('map chain read path', () => {
       return code.replace(/\s+/g, '');
     }
 
-    function handlerCode(name: string): string {
-      const start = SOURCE.indexOf(`export const ${name} = query({`);
+    function handlerCode(source: string, name: string): string {
+      const start = source.indexOf(`export const ${name} = query({`);
       expect(start, `${name} must be a public query`).toBeGreaterThanOrEqual(0);
-      const rest = SOURCE.slice(start);
+      const rest = source.slice(start);
       const end = rest.indexOf('\n});');
       expect(end, `${name} must be a closed declaration`).toBeGreaterThan(0);
       return codeOnly(rest.slice(0, end));
     }
 
-    function helperCode(startMarker: string, endMarker: string): string {
-      const start = SOURCE.indexOf(startMarker);
-      const end = SOURCE.indexOf(endMarker, start);
+    function helperCode(source: string, startMarker: string, endMarker: string): string {
+      const start = source.indexOf(startMarker);
+      const end = source.indexOf(endMarker, start);
       expect(start, `${startMarker} must exist`).toBeGreaterThanOrEqual(0);
       expect(end, `${endMarker} must follow ${startMarker}`).toBeGreaterThan(start);
-      return codeOnly(SOURCE.slice(start, end));
+      return codeOnly(source.slice(start, end));
     }
 
     it.each([
-      { fn: 'watchMapSystems', helper: 'readSystemPage' },
-      { fn: 'watchMapConnections', helper: 'readConnectionPage', mode: 'resolved' },
-      { fn: 'watchUnresolvedHoles', helper: 'readConnectionPage', mode: 'unresolved' },
-    ])('pins $fn to its owned page helper', ({ fn, helper, mode }) => {
-      const code = dense(handlerCode(fn));
+      { source: SYSTEMS, fn: 'watchMapSystems', helper: 'readSystemPage' },
+      {
+        source: CONNECTIONS,
+        fn: 'watchMapConnections',
+        helper: 'readConnectionPage',
+        mode: 'resolved',
+      },
+      {
+        source: CONNECTIONS,
+        fn: 'watchUnresolvedHoles',
+        helper: 'readConnectionPage',
+        mode: 'unresolved',
+      },
+    ])('pins $fn to its owned page helper', ({ source, fn, helper, mode }) => {
+      const code = dense(handlerCode(source, fn));
 
       expect(countOccurrences(code, `${helper}(ctx,mapId,paginationOpts`)).toBe(1);
       if (mode !== undefined) expect(code).toContain(`'${mode}'`);
@@ -501,8 +523,16 @@ describe('map chain read path', () => {
     });
 
     it('pins the gated helpers to their disjoint indexed ranges', () => {
-      const systems = dense(helperCode('async function readSystemPage', '/**\n * Reads one access-gated connection'));
-      const connections = dense(helperCode('async function readConnectionPage', '/**\n * Subscribes to whether'));
+      const systems = dense(
+        helperCode(SYSTEMS, 'async function readSystemPage', 'export const watchMapSystems'),
+      );
+      const connections = dense(
+        helperCode(
+          CONNECTIONS,
+          'async function readConnectionPage',
+          'export const watchMapConnections',
+        ),
+      );
 
       expect(countOccurrences(systems, "ctx.db.query('mapSystems')")).toBe(1);
       expect(systems).toContain("withIndex('by_map'");
@@ -524,7 +554,7 @@ describe('map chain read path', () => {
     });
 
     it('keeps the access authority off the chain tables entirely', () => {
-      const code = dense(handlerCode('watchMapAccess'));
+      const code = dense(handlerCode(ACCESS, 'watchMapAccess'));
 
       for (const table of CHAIN_TABLES) {
         expect(code, `watchMapAccess must not query ${table}`).not.toContain(
@@ -535,7 +565,7 @@ describe('map chain read path', () => {
     });
 
     it('pins the event ledger to one bounded newest-first indexed read', () => {
-      const code = dense(handlerCode('watchMapEvents'));
+      const code = dense(handlerCode(EVENTS, 'watchMapEvents'));
 
       expect(countOccurrences(code, "ctx.db.query('mapEvents')")).toBe(1);
       expect(code).toContain("withIndex('by_map'");

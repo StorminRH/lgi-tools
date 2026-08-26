@@ -358,7 +358,7 @@ export default defineSchema({
   // the purge-map-access door's tracking sweep).
   // DURABLE user-authored state (the header's mapTracking carve-out): not
   // derivable from Neon/ESI — a wipe loses pilots' opt-ins. Growth is bounded
-  // by TRACKED_CHARACTERS_PER_MAP_USER_CAP in convex/mapTracking.ts.
+  // by TRACKED_CHARACTERS_PER_MAP_USER_CAP in convex/mapTrackingOptIn.ts.
   mapTracking: defineTable({
     mapId: v.string(),
     userId: v.string(),

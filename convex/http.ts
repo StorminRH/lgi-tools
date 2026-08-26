@@ -201,7 +201,7 @@ http.route({
   handler: authorizedJsonAction(jumpEvidenceBodySchema, async (ctx, body) => {
     if (body.mode === 'connection') {
       return Response.json(
-        await ctx.runQuery(internal.mapJump.connectionEvidence, {
+        await ctx.runQuery(internal.mapJumpEvidence.connectionEvidence, {
           userId: body.userId,
           mapId: body.mapId,
           connectionId: body.connectionId as Id<'mapConnections'>,
@@ -209,7 +209,7 @@ http.route({
       );
     }
     return Response.json(
-      await ctx.runQuery(internal.mapJump.jumpEvidence, {
+      await ctx.runQuery(internal.mapJumpEvidence.jumpEvidence, {
         userId: body.userId,
         mapId: body.mapId,
         characterId: body.characterId,
@@ -224,7 +224,7 @@ http.route({
   handler: authorizedJsonAction(resolveJumpBodySchema, async (ctx, body) => {
     if (body.operation === 'confirm') {
       return Response.json(
-        await ctx.runMutation(internal.mapJump.confirmJumpIdentity, {
+        await ctx.runMutation(internal.mapJumpIdentity.confirmJumpIdentity, {
           userId: body.userId,
           mapId: body.mapId,
           connectionId: body.connectionId as Id<'mapConnections'>,
@@ -233,7 +233,7 @@ http.route({
     }
     if (body.operation === 'reassociate') {
       return Response.json(
-        await ctx.runMutation(internal.mapJump.reassociateJumpDestination, {
+        await ctx.runMutation(internal.mapJumpIdentity.reassociateJumpDestination, {
           userId: body.userId,
           mapId: body.mapId,
           connectionId: body.connectionId as Id<'mapConnections'>,
@@ -254,7 +254,7 @@ http.route({
           survivors: body.decision.survivors as Id<'mapConnections'>[],
         };
     return Response.json(
-      await ctx.runMutation(internal.mapJump.resolveJumpAuthoring, {
+      await ctx.runMutation(internal.mapJumpAuthoring.resolveJumpAuthoring, {
         userId: body.userId,
         mapId: body.mapId,
         characterId: body.characterId,

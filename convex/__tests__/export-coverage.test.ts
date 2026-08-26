@@ -72,13 +72,13 @@ import {
   tombstoneSystem,
 } from '../mapAuthoringTombstone';
 import { purgeExpiredChainTombstones } from '../mapChainCleanup';
+import { watchMapAccess } from '../mapChainAccess';
 import {
-  watchMapAccess,
   watchMapConnections,
-  watchMapEvents,
-  watchMapSystems,
   watchUnresolvedHoles,
-} from '../mapChain';
+} from '../mapChainConnections';
+import { watchMapEvents } from '../mapChainEvents';
+import { watchMapSystems } from '../mapChainSystems';
 import { upsertUnresolvedHole } from '../mapFixtureHoles';
 import { insertNoteFixture } from '../mapFixtureNotes';
 import {
@@ -102,13 +102,12 @@ import {
   seedTrackedLocationFixture,
 } from '../mapFixtureTracking';
 import { readMapCollection } from '../mapFixtures';
+import { resolveJumpAuthoring } from '../mapJumpAuthoring';
+import { connectionEvidence, jumpEvidence } from '../mapJumpEvidence';
 import {
   confirmJumpIdentity,
-  connectionEvidence,
-  jumpEvidence,
   reassociateJumpDestination,
-  resolveJumpAuthoring,
-} from '../mapJump';
+} from '../mapJumpIdentity';
 import { purgeForMap } from '../mapJumpBookkeeping';
 import { purgeMapBatch } from '../mapPurge';
 import {
@@ -125,12 +124,9 @@ import {
   restoreSignatures,
   watchMapSignatures,
 } from '../mapScan';
-import {
-  coverage,
-  forMap,
-  setTracking,
-  trackedCharacterIds,
-} from '../mapTracking';
+import { trackedCharacterIds } from '../mapTrackingIds';
+import { coverage, forMap } from '../mapTrackingLive';
+import { setTracking } from '../mapTrackingOptIn';
 import {
   forViewer as onlineForViewer,
   purgeForUser as purgeOnlineForUser,

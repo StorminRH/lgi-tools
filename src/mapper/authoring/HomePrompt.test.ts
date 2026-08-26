@@ -56,10 +56,9 @@ vi.mock('../tracking/TrackingControls', () => ({
 
 vi.mock('@/data/convex/api', () => ({
   api: {
-    mapTracking: {
+    mapTrackingLive: {
       forMap: 'map-tracking',
       coverage: 'map-tracking-coverage',
-      setTracking: 'set-tracking',
     },
   },
 }));

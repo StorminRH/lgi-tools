@@ -9,33 +9,21 @@ import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
-  internalQuery,
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
-import {
-  requireMapAccessForUser,
-  tryMapAccessForUser,
-} from './lib/mapAccess';
-import {
-  readOriginConnections,
-  requireLiveConnectionOnMap,
-} from './lib/mapConnectionLookup';
+import { requireMapAccessForUser } from './lib/mapAccess';
+import { readOriginConnections } from './lib/mapConnectionLookup';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoringHome';
+import { chainTombstoneState, isTombstoned } from '@/data/maps/chain-contract';
 import {
-  chainTombstoneState,
-  isTombstoned,
-} from '@/data/maps/chain-contract';
-import {
-  connectionDoorTypes,
-  legacyTypeSnapshot,
-  storedDoorTypes,
-} from '@/data/maps/connection-door-types';
-
-/** Fail-closed bounds for one map's hot tracking and candidate ranges. */
-const JUMP_TRACKING_SCAN_CAP = 256;
-const JUMP_CONNECTION_SCAN_CAP = 64;
+  emissionFacts,
+  JUMP_CONNECTION_SCAN_CAP,
+  readTrackedLocation,
+  type TrackedLocation,
+  unresolvedCandidatesOf,
+} from './mapJumpReads';
 
 const jumpDecisionValidator = v.union(
   v.object({
@@ -51,23 +39,6 @@ const jumpDecisionValidator = v.union(
     survivors: v.array(v.id('mapConnections')),
   }),
 );
-
-interface TrackedLocation {
-  readonly tracking: Doc<'mapTracking'>;
-  readonly location: Doc<'characterLocation'>;
-}
-
-interface EmissionFacts {
-  readonly connectionId: Id<'mapConnections'>;
-  readonly fromSystemId: number;
-  readonly toSystemId: number | null;
-  readonly wormholeTypeCode: string | null;
-  readonly typedSide: 'from' | 'to' | null;
-  readonly destinationProvenance:
-    | Doc<'mapConnections'>['destinationProvenance']
-    | null;
-  readonly observationKey: string | null;
-}
 
 type JumpDecision =
   | {
@@ -118,44 +89,6 @@ function stale(reason: StaleReason): StaleResult {
   return { status: 'stale', reason };
 }
 
-/** Reads one bounded tracking row and its row-owned location document. */
-async function readTrackedLocation(
-  ctx: QueryCtx,
-  mapId: string,
-  characterId: number,
-): Promise<TrackedLocation | null> {
-  const rows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map', (q) => q.eq('mapId', mapId))
-    .take(JUMP_TRACKING_SCAN_CAP + 1);
-  if (rows.length > JUMP_TRACKING_SCAN_CAP) {
-    throw new ConvexError({
-      code: 'MAP_TOO_LARGE',
-      detail: `Map ${mapId} exceeds the jump-tracking read bound.`,
-    });
-  }
-  const matches = rows.filter((row) => row.characterId === characterId);
-  // Only rows that join to a location document participate: `setTracking`
-  // accepts any characterId from any viewer, so a forged row naming someone
-  // else's character (which joins to nothing under the forger's userId) must
-  // not be able to veto the genuine owner's tracking. More than one JOINABLE
-  // row is real ambiguity and stays fail-closed.
-  const joined: TrackedLocation[] = [];
-  for (const tracking of matches) {
-    const location = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) =>
-        q.eq('userId', tracking.userId).eq('characterId', characterId),
-      )
-      .unique();
-    if (location !== null) joined.push({ tracking, location });
-  }
-  if (joined.length !== 1) return null;
-  // Exactly one joinable row was proved above.
-  return joined[0]!;
-}
-
-/** Reads one bounded origin-side connection range. */
 async function readConnectionsFrom(
   ctx: QueryCtx,
   mapId: string,
@@ -169,14 +102,6 @@ async function readConnectionsFrom(
   });
 }
 
-/** Live unresolved candidate rows within an origin-side read. */
-function unresolvedCandidatesOf(
-  rows: readonly Doc<'mapConnections'>[],
-): Doc<'mapConnections'>[] {
-  return rows.filter((row) => row.toSystemId === null && !isTombstoned(row));
-}
-
-/** Reads one bounded active unresolved candidate pool for an origin. */
 async function readUnresolvedCandidates(
   ctx: QueryCtx,
   mapId: string,
@@ -187,21 +112,6 @@ async function readUnresolvedCandidates(
   );
 }
 
-/**
- * Named types of every live scanned hole on this system's `from` mouth —
- * resolved hallways included, so an already-linked outgoing static still
- * counts. The `from` mouth is where stubs store this system's type; a blank
- * `from` mouth is omitted.
- */
-function scannedTypeCodes(rows: readonly Doc<'mapConnections'>[]): string[] {
-  return rows.flatMap((row) => {
-    if (isTombstoned(row)) return [];
-    const originType = storedDoorTypes(row).from;
-    return originType === null ? [] : [originType];
-  });
-}
-
-/** Reads both exact endpoint directions within explicit per-range bounds. */
 async function readPairRows(
   ctx: QueryCtx,
   mapId: string,
@@ -232,150 +142,6 @@ function validObservedMass(value: number | null): number | null {
   }
   return value;
 }
-
-function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
-  const snapshot = legacyTypeSnapshot(
-    connectionDoorTypes(connection),
-    connection.typedSide ?? undefined,
-  );
-  return {
-    connectionId: connection._id,
-    fromSystemId: connection.fromSystemId,
-    toSystemId: connection.toSystemId,
-    wormholeTypeCode: snapshot.wormholeTypeCode,
-    typedSide: snapshot.typedSide ?? null,
-    destinationProvenance: connection.destinationProvenance ?? null,
-    observationKey: connection.observationKey ?? null,
-  };
-}
-
-/**
- * One consistent evidence snapshot for the server jump resolver. An absent or
- * insufficient edit claim returns `canEdit: false` and no map facts.
- */
-export const jumpEvidence = internalQuery({
-  args: {
-    userId: v.string(),
-    mapId: v.string(),
-    characterId: v.number(),
-  },
-  handler: async (ctx, { userId, mapId, characterId }) => {
-    const principal = await tryMapAccessForUser(ctx, mapId, userId, 'edit');
-    if (principal === null) {
-      return {
-        canEdit: false as const,
-        tracked: false as const,
-        transition: null,
-        lastProcessedTransitionAt: null,
-        originLive: false,
-        scannedTypeCodes: [],
-        candidates: [],
-      };
-    }
-
-    const tracked = await readTrackedLocation(ctx, mapId, characterId);
-    if (tracked === null) {
-      return {
-        canEdit: true as const,
-        tracked: false as const,
-        transition: null,
-        lastProcessedTransitionAt: null,
-        originLive: false,
-        scannedTypeCodes: [],
-        candidates: [],
-      };
-    }
-    const { location } = tracked;
-    if (location.transitionObservedAt === undefined) {
-      return {
-        canEdit: true as const,
-        tracked: true as const,
-        transition: null,
-        lastProcessedTransitionAt: null,
-        originLive: false,
-        scannedTypeCodes: [],
-        candidates: [],
-      };
-    }
-    const stamp = await ctx.db
-      .query('mapJumpBookkeeping')
-      .withIndex('by_map_character', (q) =>
-        q.eq('mapId', mapId).eq('characterId', characterId),
-      )
-      .unique();
-    const fromSolarSystemId = location.prevSolarSystemId;
-    const origin = fromSolarSystemId === null
-      ? null
-      : await findSystem(ctx, mapId, fromSolarSystemId);
-    const originLive = origin !== null && !isTombstoned(origin);
-    const originRows = originLive && fromSolarSystemId !== null
-      ? await readConnectionsFrom(ctx, mapId, fromSolarSystemId, 'candidate')
-      : [];
-    const candidates = unresolvedCandidatesOf(originRows);
-
-    return {
-      canEdit: true as const,
-      tracked: true as const,
-      transition: {
-        fromSolarSystemId: location.prevSolarSystemId,
-        toSolarSystemId: location.solarSystemId,
-        shipTypeId: location.shipTypeId,
-        prevFresh: location.prevFresh,
-        transitionObservedAt: location.transitionObservedAt,
-      },
-      lastProcessedTransitionAt: stamp?.lastProcessedTransitionAt ?? null,
-      originLive,
-      scannedTypeCodes: scannedTypeCodes(originRows),
-      candidates: candidates.map((candidate) => ({
-        id: candidate._id,
-        wormholeTypeCode: candidate.wormholeTypeCode,
-        destinationHint: candidate.fromDestinationHint,
-        sizeClass: candidate.shipSize,
-      })),
-    };
-  },
-});
-
-/**
- * Reads one edit-authorized resolved connection for post-mutation observation
- * emission. The client supplies only the id; both live endpoints and all
- * attributable facts are re-read from Convex truth.
- */
-export const connectionEvidence = internalQuery({
-  args: {
-    userId: v.string(),
-    mapId: v.string(),
-    connectionId: v.id('mapConnections'),
-  },
-  handler: async (ctx, { userId, mapId, connectionId }) => {
-    const principal = await tryMapAccessForUser(ctx, mapId, userId, 'edit');
-    if (principal === null) {
-      return { canEdit: false as const, connection: null };
-    }
-    const connection = await ctx.db.get(connectionId);
-    if (
-      connection === null
-      || connection.mapId !== mapId
-      || connection.toSystemId === null
-      || isTombstoned(connection)
-    ) {
-      return { canEdit: true as const, connection: null };
-    }
-    const [fromSystem, toSystem] = await Promise.all([
-      findSystem(ctx, mapId, connection.fromSystemId),
-      findSystem(ctx, mapId, connection.toSystemId),
-    ]);
-    if (
-      fromSystem === null
-      || toSystem === null
-      || isTombstoned(fromSystem)
-      || isTombstoned(toSystem)
-    ) {
-      return { canEdit: true as const, connection: null };
-    }
-    return { canEdit: true as const, connection: emissionFacts(connection) };
-  },
-});
 
 async function stampTransition(
   ctx: MutationCtx,
@@ -668,7 +434,7 @@ export const resolveJumpAuthoring = internalMutation({
       args.fromSolarSystemId,
       args.toSolarSystemId,
     );
-    const existingPair = await selectExistingPair(pairRows);
+    const existingPair = selectExistingPair(pairRows);
     const now = Date.now();
     const topology = existingPair === null
       ? await authorNewTopology(ctx, args, validated.observedShipMassKg, pairRows, now)
@@ -691,107 +457,5 @@ export const resolveJumpAuthoring = internalMutation({
       status: topology.outcome,
       emission: emissionFacts(topology.connection),
     };
-  },
-});
-
-/** Accepts an assumed automatic association and clears its pending prompt. */
-export const confirmJumpIdentity = internalMutation({
-  args: {
-    userId: v.string(),
-    mapId: v.string(),
-    connectionId: v.id('mapConnections'),
-  },
-  handler: async (ctx, { userId, mapId, connectionId }) => {
-    await requireMapAccessForUser(ctx, mapId, userId, 'edit');
-    const connection = await requireLiveConnectionOnMap(ctx, mapId, connectionId);
-    if (connection.toSystemId === null) {
-      throw new ConvexError({ code: 'UNRESOLVED_CONNECTION' });
-    }
-    if (
-      connection.destinationProvenance !== 'assumed'
-      && connection.destinationProvenance !== 'confirmed'
-    ) {
-      throw new ConvexError({ code: 'INVALID_CONFIRMATION' });
-    }
-    if (
-      connection.destinationProvenance !== 'confirmed'
-      || connection.pendingCandidates !== undefined
-      || connection.pendingResolutionCharacterId !== undefined
-    ) {
-      await ctx.db.patch(connectionId, {
-        destinationProvenance: 'confirmed',
-        pendingCandidates: undefined,
-        pendingResolutionCharacterId: undefined,
-      });
-    }
-    return emissionFacts({
-      ...connection,
-      destinationProvenance: 'confirmed',
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
-    });
-  },
-});
-
-/**
- * Corrects an automatic association by moving its destination facts to one
- * unresolved candidate. The vacated row remains the same signature identity
- * and becomes an unresolved slot again; a second call can reverse the move.
- */
-export const reassociateJumpDestination = internalMutation({
-  args: {
-    userId: v.string(),
-    mapId: v.string(),
-    connectionId: v.id('mapConnections'),
-    targetConnectionId: v.id('mapConnections'),
-  },
-  handler: async (
-    ctx,
-    { userId, mapId, connectionId, targetConnectionId },
-  ) => {
-    await requireMapAccessForUser(ctx, mapId, userId, 'edit');
-    if (connectionId === targetConnectionId) {
-      throw new ConvexError({ code: 'SAME_CONNECTION' });
-    }
-    const source = await requireLiveConnectionOnMap(ctx, mapId, connectionId);
-    const target = await requireLiveConnectionOnMap(ctx, mapId, targetConnectionId);
-    if (source.toSystemId === null || target.toSystemId !== null) {
-      throw new ConvexError({ code: 'INVALID_REASSOCIATION' });
-    }
-    if (source.fromSystemId !== target.fromSystemId) {
-      throw new ConvexError({ code: 'DIFFERENT_ORIGIN' });
-    }
-    if (
-      target.observedMassKg !== undefined
-      || target.observedMassAtStateKg !== undefined
-      || target.observationKey !== undefined
-    ) {
-      throw new ConvexError({ code: 'TARGET_HAS_JUMP_FACTS' });
-    }
-
-    const moved = {
-      toSystemId: source.toSystemId,
-      toSignatureId: source.toSignatureId,
-      toDestinationHint: source.toDestinationHint,
-      destinationProvenance: 'human' as const,
-      observedMassKg: source.observedMassKg,
-      observedMassAtStateKg: source.observedMassAtStateKg,
-      observationKey: source.observationKey,
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
-    };
-    await ctx.db.patch(target._id, moved);
-    await ctx.db.patch(source._id, {
-      toSystemId: null,
-      toSignatureId: undefined,
-      toDestinationHint: undefined,
-      destinationProvenance: undefined,
-      observedMassKg: undefined,
-      observedMassAtStateKg: undefined,
-      observationKey: undefined,
-      pendingCandidates: undefined,
-      pendingResolutionCharacterId: undefined,
-    });
-    return emissionFacts({ ...target, ...moved });
   },
 });

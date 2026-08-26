@@ -19,7 +19,7 @@ import {
 export function JumpDoorbellObserver({ mapId }: { readonly mapId: string }) {
   // Shares the TrackingControls subscription: identical query + args dedupe to
   // one server subscription inside the Convex client.
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
+  const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
   const memoryRef = useRef<Map<number, DoorbellMemoryEntry> | null>(null);
   if (memoryRef.current === null) memoryRef.current = new Map();
 

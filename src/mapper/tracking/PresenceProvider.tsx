@@ -2,7 +2,7 @@
 
 // The presence host for one map: the single place the tracked-location
 // subscription becomes derived per-system presence for the frame badges and
-// the intelligence body. Reads the SAME `mapTracking.forMap` subscription the
+// the intelligence body. Reads the SAME `forMap` subscription the
 // tracking controls and doorbell use, plus the flip-only `coverage` sibling
 // so a pin hide does not invalidate the location overlay.
 //
@@ -23,8 +23,8 @@ export function MapPresenceProvider({
   readonly mapId: string;
   readonly children: ReactNode;
 }) {
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const coverage = useLiveValue(api.mapTracking.coverage, { mapId });
+  const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
+  const coverage = useLiveValue(api.mapTrackingLive.coverage, { mapId });
   const afk = useAfkState();
   const presence = useMemo(
     () => derivePresenceFromPayload(tracking, coverage),

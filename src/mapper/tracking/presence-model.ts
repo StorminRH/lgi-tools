@@ -3,7 +3,7 @@
 // Last-known location is kept for collapse retention. Pins and friendlies
 // only surface a pilot when the flip-only coverage row says they are
 // present and ESI-online. The map document and the location row stay
-// untouched; React joins `forMap` to `mapTracking.coverage`.
+// untouched; React joins `forMap` to `coverage`.
 //
 // There is no in-between map state. A shown pilot is online; otherwise they
 // are absent. Docked vs In space is location, not presence.

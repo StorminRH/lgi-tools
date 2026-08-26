@@ -17,8 +17,8 @@ const LOADING_TARGET: TrackedSystemTarget = { kind: 'loading' };
  * persistent windows consume the result through their own policies.
  */
 export function useTrackedSystemTarget(mapId: string): TrackedSystemTarget {
-  const tracking = useLiveValue(api.mapTracking.forMap, { mapId });
-  const coverage = useLiveValue(api.mapTracking.coverage, { mapId });
+  const tracking = useLiveValue(api.mapTrackingLive.forMap, { mapId });
+  const coverage = useLiveValue(api.mapTrackingLive.coverage, { mapId });
   return useMemo(
     () =>
       tracking === undefined || coverage === undefined

@@ -6,7 +6,7 @@ import {
   deleteConnectionActivity,
   runCollapse,
 } from './mapAuthoringCollapse';
-import { readTrackedPilotSystemIds } from './mapTracking';
+import { readTrackedPilotSystemIds } from './mapTrackingLive';
 
 /**
  * Grace past a stored `deathLatestAt` ceiling before the sweep may collapse.
