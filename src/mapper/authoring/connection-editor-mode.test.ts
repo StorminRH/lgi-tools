@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blankDoor } from '@/data/maps/connection-hallway';
-import { connectionEditorFixture } from '../chain/connection-editor-fixture';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import { connectionEditorMode } from './connection-editor-mode';
 

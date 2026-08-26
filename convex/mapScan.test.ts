@@ -4,7 +4,6 @@ import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAP_CHAIN_UNDO_WINDOW_MS, tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
-import { lifetimeObservedAt, lifetimeStage } from '@/data/maps/connection-hallway';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -1076,20 +1075,19 @@ describe('mapScan paste application and lifecycle', () => {
           throw new Error('expected the pasted wormhole stub before linking');
         }
         await ctx.db.patch(stub._id, {
-          lifetime: {
-            kind: stubLife.lifeStage == null ? 'window' as const : 'stage' as const,
-            ...(stubLife.lifeStage == null
-              ? {
-                  earliestAt: stubLife.lifeStageObservedAt,
-                  latestAt: stubLife.lifeStageObservedAt,
-                  lifeStage: null,
-                  observedAt: stubLife.lifeStageObservedAt,
-                }
-              : {
-                  lifeStage: stubLife.lifeStage,
-                  observedAt: stubLife.lifeStageObservedAt,
-                }),
-          },
+          lifetime: stubLife.lifeStage == null
+            ? {
+                kind: 'window' as const,
+                earliestAt: stubLife.lifeStageObservedAt,
+                latestAt: stubLife.lifeStageObservedAt,
+                lifeStage: null,
+                observedAt: stubLife.lifeStageObservedAt,
+              }
+            : {
+                kind: 'stage' as const,
+                lifeStage: stubLife.lifeStage,
+                observedAt: stubLife.lifeStageObservedAt,
+              },
         });
         targetId = await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP,

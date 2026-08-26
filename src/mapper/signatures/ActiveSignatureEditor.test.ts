@@ -4,7 +4,7 @@ import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 import { blankDoor } from '@/data/maps/connection-hallway';
-import { connectionEditorFixture } from '../chain/connection-editor-fixture';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,

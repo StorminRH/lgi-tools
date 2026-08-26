@@ -1,6 +1,6 @@
 import type { Id } from '@/data/convex/data-model';
 import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
-import type { ConnectionEditorDetail } from './use-map-chain';
+import type { ConnectionEditorDetail } from '../use-map-chain';
 
 /** Blank hallway-shaped editor detail for unit tests. */
 export function connectionEditorFixture(

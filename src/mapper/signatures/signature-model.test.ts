@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Doc, Id } from '@/data/convex/data-model';
 import { blankDoor } from '@/data/maps/connection-hallway';
 import { isScannerPasteCandidate } from '@/data/maps/scan-parse';
-import { connectionEditorFixture } from '../chain/connection-editor-fixture';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import {
   buildSignatureRows,

@@ -1,4 +1,5 @@
 import { isTombstoned } from '@/data/maps/chain-contract';
+import type { ConnectionTombstone } from '@/data/maps/connection-hallway';
 
 /** Select value prefix for another system already on this hallway. */
 const ORIGIN_LEAD_PREFIX = 'origin:';
@@ -42,7 +43,7 @@ export interface OriginLeadConnection {
   readonly toSystemId: number | null;
   readonly from: { readonly signatureId: string | null };
   readonly to: { readonly signatureId: string | null };
-  readonly tombstone?: { readonly kind: 'live' | 'removed' };
+  readonly tombstone?: ConnectionTombstone;
   readonly deletedAt?: number | null;
 }
 

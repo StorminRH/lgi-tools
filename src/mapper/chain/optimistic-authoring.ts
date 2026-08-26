@@ -28,10 +28,8 @@ import {
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
 import type {
-  ConnectionMassState,
   WormholeDestinationHint,
   WormholeLifeStage,
-  WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
@@ -51,10 +49,9 @@ import {
 } from '@/data/maps/connection-hallway';
 import type {
   ConnectionDoorValue,
-  ConnectionIdentity,
+  ConnectionHallway,
   ConnectionLifetime,
-  ConnectionResolution,
-  ConnectionTombstone,
+  DoorLeadsTo,
 } from '@/data/maps/connection-hallway';
 import type { ConnectionEditorDetail } from './use-map-chain';
 
@@ -69,25 +66,10 @@ export interface OptimisticSystemRow {
 }
 
 /** One optimistic connection page row — structural match for `watchMapConnections`. */
-export interface OptimisticConnectionRow {
+export type OptimisticConnectionRow = ConnectionHallway & {
   readonly _id: string;
   readonly _creationTime: number;
-  readonly mapId: string;
-  readonly fromSystemId: number;
-  readonly toSystemId: number | null;
-  readonly from: ConnectionDoorValue;
-  readonly to: ConnectionDoorValue;
-  readonly massState: ConnectionMassState | null;
-  readonly shipSize: WormholeSizeClass | null;
-  readonly identity: ConnectionIdentity;
-  readonly lifetime: ConnectionLifetime;
-  readonly resolution: ConnectionResolution;
-  readonly tombstone: ConnectionTombstone;
-  readonly firstSeenAt?: number;
-  readonly observedMassKg?: number;
-  readonly observedMassAtStateKg?: number;
-  readonly observationKey?: string;
-}
+};
 
 /**
  * Prefix marking a client-only optimistic temp id. The reconciler's swap
@@ -506,24 +488,22 @@ type ConnectionFieldArgs = {
   value: OptimisticConnectionRow['shipSize'] | OptimisticConnectionRow['massState'];
 };
 
-/** Optimistic Leads-to note on one door. Does not spawn a system or move the line. */
-export function optimisticSetConnectionDestination(
+function optimisticPatchDoorLeadsTo(
   localStore: OptimisticLocalStore,
   args: {
     mapId: string;
     connectionId: string;
     side: 'from' | 'to';
-    value: number | null;
+    leadsTo: DoorLeadsTo;
   },
 ): void {
   const apply = <Row extends OptimisticConnectionRow>(row: Row): Row => {
     if (row._id !== args.connectionId) return row;
-    const door = hallwayDoor(row, args.side);
     return {
       ...row,
       ...replaceDoor(row, args.side, {
-        ...door,
-        leadsTo: leadsToFromSystem(args.value),
+        ...hallwayDoor(row, args.side),
+        leadsTo: args.leadsTo,
       }),
     };
   };
@@ -541,6 +521,24 @@ export function optimisticSetConnectionDestination(
   );
 }
 
+/** Optimistic Leads-to note on one door. Does not spawn a system or move the line. */
+export function optimisticSetConnectionDestination(
+  localStore: OptimisticLocalStore,
+  args: {
+    mapId: string;
+    connectionId: string;
+    side: 'from' | 'to';
+    value: number | null;
+  },
+): void {
+  optimisticPatchDoorLeadsTo(localStore, {
+    mapId: args.mapId,
+    connectionId: args.connectionId,
+    side: args.side,
+    leadsTo: leadsToFromSystem(args.value),
+  });
+}
+
 /** Optimistic patch for one side's destination hint (null clears the field). */
 function optimisticSetConnectionDestinationHint(
   localStore: OptimisticLocalStore,
@@ -551,29 +549,12 @@ function optimisticSetConnectionDestinationHint(
     value: WormholeDestinationHint | null;
   },
 ): void {
-  const apply = <Row extends OptimisticConnectionRow>(row: Row): Row => {
-    if (row._id !== args.connectionId) return row;
-    const door = hallwayDoor(row, args.side);
-    return {
-      ...row,
-      ...replaceDoor(row, args.side, {
-        ...door,
-        leadsTo: leadsToFromHint(args.value),
-      }),
-    };
-  };
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchMapConnections,
-    { mapId: args.mapId },
-    apply,
-  );
-  optimisticallyUpdateValueInPaginatedQuery(
-    localStore,
-    api.mapChainConnections.watchUnresolvedHoles,
-    { mapId: args.mapId },
-    apply,
-  );
+  optimisticPatchDoorLeadsTo(localStore, {
+    mapId: args.mapId,
+    connectionId: args.connectionId,
+    side: args.side,
+    leadsTo: leadsToFromHint(args.value),
+  });
 }
 
 /** Wires one field-scoped connection setter to a single-key optimistic patch. */

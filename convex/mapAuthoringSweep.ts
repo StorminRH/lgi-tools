@@ -31,7 +31,6 @@ async function readDueCeilings(
     .withIndex('by_tombstone_death_latest', (q) =>
       q
         .eq('tombstone.kind', 'live')
-        .gt('lifetime.latestAt', null)
         .lte('lifetime.latestAt', cutoff),
     )
     .take(CEILING_SWEEP_SCAN + 1);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { blankDoor, pendingResolution } from '@/data/maps/connection-hallway';
-import { connectionEditorFixture } from '../chain/connection-editor-fixture';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,

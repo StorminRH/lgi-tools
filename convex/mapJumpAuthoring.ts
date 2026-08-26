@@ -9,7 +9,8 @@ import { requireMapAccessForUser } from './lib/mapAccess';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoringHome';
 import { chainTombstoneState, isTombstoned } from '@/data/maps/chain-contract';
-import { blankHallway, destinationResolution, pendingResolution } from '@/data/maps/connection-hallway';
+import { foldLegacyConnection } from '@/data/maps/connection-fold';
+import { destinationResolution, pendingResolution } from '@/data/maps/connection-hallway';
 import {
   emissionFacts,
   type EmissionFacts,
@@ -152,11 +153,13 @@ function connectionBase(
   observedMassKg: number | null,
   observationKey: string,
 ): Omit<Doc<'mapConnections'>, '_id' | '_creationTime'> {
-  return {
-    ...blankHallway({ mapId, fromSystemId, toSystemId }),
+  return foldLegacyConnection({
+    mapId,
+    fromSystemId,
+    toSystemId,
     observedMassKg: observedMassKg ?? undefined,
     observationKey,
-  };
+  });
 }
 
 interface ValidJumpInput {
@@ -296,7 +299,7 @@ async function resolveCandidateTopology(
       : destinationResolution(selection.provenance),
     observedMassKg: nextObservedMass(candidate, observedShipMassKg),
     observationKey: candidate.observationKey ?? args.observationKey,
-  } as const;
+  };
   await ctx.db.patch(candidate._id, patch);
   return { outcome: 'authored', connection: { ...candidate, ...patch } };
 }

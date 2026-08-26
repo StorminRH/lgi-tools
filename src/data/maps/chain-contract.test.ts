@@ -4,6 +4,8 @@ import {
   chainTombstoneStamps,
   isTombstoned,
   MAP_CHAIN_UNDO_WINDOW_MS,
+  tombstoneDeletedAt,
+  tombstonePurgeAfter,
 } from './chain-contract';
 import { MAP_EVENT_RETENTION_MS } from './chain-events';
 
@@ -22,6 +24,10 @@ describe('chain-contract', () => {
   });
 
   it('normalizes tombstone detection and presentation stages', () => {
+    expect(isTombstoned(null)).toBe(false);
+    expect(isTombstoned(undefined)).toBe(false);
+    expect(tombstoneDeletedAt(null)).toBeNull();
+    expect(tombstonePurgeAfter(null)).toBeNull();
     expect(isTombstoned({})).toBe(false);
     expect(isTombstoned({ deletedAt: null })).toBe(false);
     expect(isTombstoned({ deletedAt: undefined })).toBe(false);
@@ -37,6 +43,10 @@ describe('chain-contract', () => {
     expect(
       isTombstoned({ tombstone: { kind: 'removed', deletedAt: 1, purgeAfter: 2 } }),
     ).toBe(true);
+    expect(
+      tombstonePurgeAfter({ tombstone: { kind: 'removed', deletedAt: 1, purgeAfter: 2 } }),
+    ).toBe(2);
+    expect(tombstonePurgeAfter({ tombstone: { kind: 'live' } })).toBeNull();
     expect(
       chainTombstoneState(
         { tombstone: { kind: 'removed', deletedAt: now, purgeAfter: now + 1 } },

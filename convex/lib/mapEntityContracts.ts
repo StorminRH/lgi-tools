@@ -83,8 +83,6 @@ const legacyMapOwnerRoleValidator = v.literal('owner');
 /** Schema validator for one stored hallway end. */
 export const connectionDoorSideValidator = v.union(v.literal('from'), v.literal('to'));
 
-export const typedSideValidator = connectionDoorSideValidator;
-
 /** Schema validator derived from the parser-owned scan-kind vocabulary. */
 export const scannedKindValidator = v.union(
   ...SCANNED_KINDS.map((kind) => v.literal(kind)),

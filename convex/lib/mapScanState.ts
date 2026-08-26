@@ -153,7 +153,10 @@ export function leadsNotePatch(
 }
 
 export function needsTombstoneChange(
-  row: { readonly deletedAt?: number | null },
+  row: {
+    readonly deletedAt?: number | null;
+    readonly tombstone?: { readonly kind: 'live' | 'removed' };
+  },
   deletedAt: number | null,
 ): boolean {
   return deletedAt === null ? isTombstoned(row) : !isTombstoned(row);

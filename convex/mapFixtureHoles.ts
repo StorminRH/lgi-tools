@@ -120,10 +120,9 @@ function unresolvedHoleHintPatch(
 ): Partial<Doc<'mapConnections'>> {
   if (input.fromDestinationHint === undefined) return {};
   const leadsTo = leadsToFromHint(normalized.fromDestinationHint);
-  if (
-    existing.from.leadsTo.kind === leadsTo.kind
-    && (leadsTo.kind !== 'hint' || existing.from.leadsTo.hint === leadsTo.hint)
-  ) {
+  if (leadsTo.kind === 'hint' && existing.from.leadsTo.kind === 'hint') {
+    if (existing.from.leadsTo.hint === leadsTo.hint) return {};
+  } else if (existing.from.leadsTo.kind === leadsTo.kind) {
     return {};
   }
   return { from: { ...existing.from, leadsTo } };

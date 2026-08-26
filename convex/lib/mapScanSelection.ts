@@ -3,6 +3,7 @@ import {
   chainTombstoneStamps,
   connectionRemovedTombstone,
   isTombstoned,
+  tombstonePurgeAfter,
 } from '@/data/maps/chain-contract';
 import { lifetimeDeathWindow } from '@/data/maps/connection-hallway';
 import { isConfidentMissingRemoval } from '@/data/maps/signature-lifecycle';
@@ -193,11 +194,7 @@ function requireUndoWindow(
   for (const signatureId of signatureIds) {
     const row = signatures.get(signatureId)
       ?? findLocalSignatureConnection(state.connections, systemId, signatureId);
-    const purgeAfter = row === undefined
-      ? null
-      : row.tombstone !== undefined
-        ? (row.tombstone.kind === 'removed' ? row.tombstone.purgeAfter : null)
-        : row.purgeAfter;
+    const purgeAfter = tombstonePurgeAfter(row);
     if (
       row !== undefined
       && isTombstoned(row)

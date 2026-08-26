@@ -36,38 +36,47 @@ export function connectionRemovedTombstone(deletedAt: number): {
   );
 }
 
+/** Connection tombstone union or the system stamp pair. Missing row is live. */
+export type ChainTombstoneRow = {
+  readonly tombstone?: {
+    readonly kind: 'live' | 'removed';
+    readonly deletedAt?: number;
+    readonly purgeAfter?: number | null;
+  };
+  readonly deletedAt?: number | null;
+  readonly purgeAfter?: number | null;
+} | null | undefined;
+
 /**
  * Whether a chain row is tombstoned. Connections store a tombstone union.
  * Systems still store the stamp pair (`undefined`/`null` = live).
  */
-export function isTombstoned(row: {
-  readonly tombstone?: ConnectionTombstone;
-  readonly deletedAt?: number | null;
-}): boolean {
-  return tombstoneDeletedAt(row) !== null;
+export function isTombstoned(row: ChainTombstoneRow): boolean {
+  if (row == null) return false;
+  if (row.tombstone !== undefined) return row.tombstone.kind === 'removed';
+  return typeof row.deletedAt === 'number' && Number.isFinite(row.deletedAt);
 }
 
 /** Absolute delete stamp, or null when the row is live. */
-export function tombstoneDeletedAt(row: {
-  readonly tombstone?: ConnectionTombstone;
-  readonly deletedAt?: number | null;
-}): number | null {
+export function tombstoneDeletedAt(row: ChainTombstoneRow): number | null {
+  if (row == null) return null;
   if (row.tombstone !== undefined) {
-    return row.tombstone.kind === 'removed' ? row.tombstone.deletedAt : null;
+    if (row.tombstone.kind !== 'removed') return null;
+    return typeof row.tombstone.deletedAt === 'number'
+      && Number.isFinite(row.tombstone.deletedAt)
+      ? row.tombstone.deletedAt
+      : null;
   }
   return typeof row.deletedAt === 'number' && Number.isFinite(row.deletedAt)
     ? row.deletedAt
     : null;
 }
 
-function purgeStamp(
-  row: {
-    readonly tombstone?: ConnectionTombstone;
-    readonly purgeAfter?: number | null;
-  },
-): number | null {
+/** Undo-window purge stamp, or null when the row is live or already skeleton. */
+export function tombstonePurgeAfter(row: ChainTombstoneRow): number | null {
+  if (row == null) return null;
   if (row.tombstone !== undefined) {
-    return row.tombstone.kind === 'removed' ? row.tombstone.purgeAfter : null;
+    return row.tombstone.kind === 'removed' ? (row.tombstone.purgeAfter ?? null) : null;
   }
   return row.purgeAfter ?? null;
 }
@@ -78,15 +87,11 @@ function purgeStamp(
  * stamp is a structural skeleton even before the cleanup sweep catches up.
  */
 export function chainTombstoneState(
-  row: {
-    readonly tombstone?: ConnectionTombstone;
-    readonly deletedAt?: number | null;
-    readonly purgeAfter?: number | null;
-  },
+  row: ChainTombstoneRow,
   now: number,
 ): ChainTombstoneState {
   if (!isTombstoned(row)) return 'active';
-  const purgeAfter = purgeStamp(row);
+  const purgeAfter = tombstonePurgeAfter(row);
   return typeof purgeAfter === 'number' &&
     Number.isFinite(purgeAfter) &&
     purgeAfter > now

@@ -7,6 +7,7 @@ import {
   doorSystemNote,
   identityFromDoors,
   isPendingResolution,
+  pendingResolution,
   leadsToFromHint,
   leadsToFromSystem,
   lifetimeDeathWindow,
@@ -75,22 +76,8 @@ describe('connection hallway', () => {
   });
 
   it('requires a character together with a multi-survivor pending list', () => {
-    expect(
-      isPendingResolution({
-        kind: 'pending',
-        provenance: 'assumed',
-        candidateIds: ['a', 'b'],
-        characterId: 1,
-      }),
-    ).toBe(true);
-    expect(
-      isPendingResolution({
-        kind: 'pending',
-        provenance: 'assumed',
-        candidateIds: ['a'],
-        characterId: 1,
-      }),
-    ).toBe(false);
+    expect(isPendingResolution(pendingResolution(['a', 'b'], 1))).toBe(true);
+    expect(isPendingResolution(pendingResolution(['a'], 1))).toBe(false);
   });
 });
 

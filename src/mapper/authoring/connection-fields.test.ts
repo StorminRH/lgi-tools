@@ -9,7 +9,7 @@ import {
   UNSET_FIELD,
 } from './connection-field-group';
 import { blankDoor } from '@/data/maps/connection-hallway';
-import { connectionEditorFixture } from '../chain/connection-editor-fixture';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import { ConnectionFields, parseDestinationSystem } from './connection-fields';
 
 const selectHandlers = new Map<string, (next: string) => void>();

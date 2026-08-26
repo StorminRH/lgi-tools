@@ -6,7 +6,11 @@ import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { COLLAPSE_MAP_SCAN_CAP } from './mapAuthoringCollapse';
 import { CEILING_COLLAPSE_GRACE_MS, CEILING_SWEEP_ACTOR } from './mapAuthoringSweep';
-import { MAP_CHAIN_UNDO_WINDOW_MS, tombstoneDeletedAt } from '@/data/maps/chain-contract';
+import {
+  MAP_CHAIN_UNDO_WINDOW_MS,
+  tombstoneDeletedAt,
+  tombstonePurgeAfter,
+} from '@/data/maps/chain-contract';
 import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
 import {
   lifetimeObservedAt,
@@ -588,10 +592,9 @@ describe('map authoring', () => {
         fromSystemId: JITA,
         toSystemId: AMARR,
       });
+      const afterSame = await readConnection(t, connectionId);
       expect(
-        (await readConnection(t, connectionId))?.from.leadsTo.kind === 'system'
-          ? (await readConnection(t, connectionId))!.from.leadsTo.systemId
-          : undefined,
+        afterSame?.from.leadsTo.kind === 'system' ? afterSame.from.leadsTo.systemId : undefined,
       ).toBeUndefined();
 
       await expect(
@@ -607,10 +610,9 @@ describe('map authoring', () => {
         toSystemId: AMARR,
         from: expect.objectContaining({ leadsTo: { kind: 'system', systemId: DODIXIE } }),
       });
+      const afterNote = await readConnection(t, connectionId);
       expect(
-        (await readConnection(t, connectionId))?.resolution.kind === 'open'
-          ? undefined
-          : (await readConnection(t, connectionId))!.resolution.provenance,
+        afterNote?.resolution.kind === 'open' ? undefined : afterNote?.resolution.provenance,
       ).toBeUndefined();
       expect(await readSystem(t, DODIXIE)).toBeNull();
       expect(await readSystem(t, AMARR)).toMatchObject({
@@ -1521,13 +1523,7 @@ describe('map authoring', () => {
       expect(new Set(tombstoned.map((row) => (
         row == null ? null : tombstoneDeletedAt(row)
       )))).toEqual(new Set([NOW]));
-      expect(new Set(tombstoned.map((row) => {
-        if (row == null) return null;
-        if (row.tombstone !== undefined) {
-          return row.tombstone.kind === 'removed' ? row.tombstone.purgeAfter : null;
-        }
-        return row.purgeAfter ?? null;
-      }))).toEqual(
+      expect(new Set(tombstoned.map((row) => tombstonePurgeAfter(row)))).toEqual(
         new Set([NOW + MAP_CHAIN_UNDO_WINDOW_MS]),
       );
       expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: null });

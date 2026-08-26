@@ -1,3 +1,4 @@
+import type { Id } from '@/data/convex/data-model';
 import type {
   ConnectionMassState,
   ConnectionProvenance,
@@ -15,37 +16,37 @@ export type ConnectionDoorSide = 'from' | 'to';
  * on the same door; unset means show the other system when it is known.
  */
 export type DoorLeadsTo =
-  | { readonly kind: 'unset' }
-  | { readonly kind: 'hint'; readonly hint: WormholeDestinationHint }
-  | { readonly kind: 'system'; readonly systemId: number };
+  | { kind: 'unset' }
+  | { kind: 'hint'; hint: WormholeDestinationHint }
+  | { kind: 'system'; systemId: number };
 
 /** One mouth of a hallway: type, scan identity, and the exclusive leads-to. */
 export interface ConnectionDoorValue {
-  readonly typeCode: string | null;
-  readonly signatureId: string | null;
-  readonly signalPct: number | null;
-  readonly leadsTo: DoorLeadsTo;
+  typeCode: string | null;
+  signatureId: string | null;
+  signalPct: number | null;
+  leadsTo: DoorLeadsTo;
 }
 
 /** Type provenance for the hallway. Door codes live on the doors. */
 export type ConnectionIdentity =
-  | { readonly kind: 'unknown' }
-  | { readonly kind: 'typed'; readonly provenance: ConnectionProvenance };
+  | { kind: 'unknown' }
+  | { kind: 'typed'; provenance: ConnectionProvenance };
 
 /** Remaining life. A death window is both bounds; `eolAt` is gone. */
 export type ConnectionLifetime =
-  | { readonly kind: 'unknown' }
+  | { kind: 'unknown' }
   | {
-      readonly kind: 'stage';
-      readonly lifeStage: WormholeLifeStage;
-      readonly observedAt: number;
+      kind: 'stage';
+      lifeStage: WormholeLifeStage;
+      observedAt: number;
     }
   | {
-      readonly kind: 'window';
-      readonly earliestAt: number;
-      readonly latestAt: number;
-      readonly lifeStage: WormholeLifeStage | null;
-      readonly observedAt: number | null;
+      kind: 'window';
+      earliestAt: number;
+      latestAt: number;
+      lifeStage: WormholeLifeStage | null;
+      observedAt: number | null;
     };
 
 /**
@@ -53,41 +54,41 @@ export type ConnectionLifetime =
  * with the character that owes the answer — never a bare id list.
  */
 export type ConnectionResolution =
-  | { readonly kind: 'open' }
-  | { readonly kind: 'destination'; readonly provenance: ConnectionProvenance }
+  | { kind: 'open' }
+  | { kind: 'destination'; provenance: ConnectionProvenance }
   | {
-      readonly kind: 'pending';
-      readonly provenance: 'assumed';
-      readonly candidateIds: readonly string[];
-      readonly characterId: number;
+      kind: 'pending';
+      provenance: 'assumed';
+      candidateIds: Id<'mapConnections'>[];
+      characterId: number;
     };
 
 /** Live or removed. Removed always carries the delete stamp. */
 export type ConnectionTombstone =
-  | { readonly kind: 'live' }
+  | { kind: 'live' }
   | {
-      readonly kind: 'removed';
-      readonly deletedAt: number;
-      readonly purgeAfter: number | null;
+      kind: 'removed';
+      deletedAt: number;
+      purgeAfter: number | null;
     };
 
 /** Insertable hallway document (no Convex system fields). */
 export interface ConnectionHallway {
-  readonly mapId: string;
-  readonly fromSystemId: number;
-  readonly toSystemId: number | null;
-  readonly from: ConnectionDoorValue;
-  readonly to: ConnectionDoorValue;
-  readonly massState: ConnectionMassState | null;
-  readonly shipSize: WormholeSizeClass | null;
-  readonly identity: ConnectionIdentity;
-  readonly lifetime: ConnectionLifetime;
-  readonly resolution: ConnectionResolution;
-  readonly tombstone: ConnectionTombstone;
-  readonly firstSeenAt?: number;
-  readonly observedMassKg?: number;
-  readonly observedMassAtStateKg?: number;
-  readonly observationKey?: string;
+  mapId: string;
+  fromSystemId: number;
+  toSystemId: number | null;
+  from: ConnectionDoorValue;
+  to: ConnectionDoorValue;
+  massState: ConnectionMassState | null;
+  shipSize: WormholeSizeClass | null;
+  identity: ConnectionIdentity;
+  lifetime: ConnectionLifetime;
+  resolution: ConnectionResolution;
+  tombstone: ConnectionTombstone;
+  firstSeenAt?: number;
+  observedMassKg?: number;
+  observedMassAtStateKg?: number;
+  observationKey?: string;
 }
 
 /** Empty mouth: unidentified, no signature, no leads-to note. */
@@ -209,7 +210,7 @@ export function pendingResolution(
   return {
     kind: 'pending',
     provenance: 'assumed',
-    candidateIds,
+    candidateIds: [...candidateIds] as Id<'mapConnections'>[],
     characterId,
   };
 }

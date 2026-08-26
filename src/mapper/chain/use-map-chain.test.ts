@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Doc, Id } from '@/data/convex/data-model';
 import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
-import { connectionEditorFixture } from './connection-editor-fixture';
+import { connectionEditorFixture } from './__tests__/connection-editor-fixture';
 import {
   accountedStubLayoutRows,
   appendStubFacts,
