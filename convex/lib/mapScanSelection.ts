@@ -9,7 +9,7 @@ import {
   type CollapsePilotsPresent,
 } from '../mapAuthoringCollapse';
 import { eventActor, writeMapEvent } from '../mapAuthoringEvents';
-import { readTrackedPilotSystemIds } from '../mapTracking';
+import { readTrackedPilotSystemIds } from '../mapTrackingLive';
 import { findLocalSignatureConnection, readTouchingConnections } from './mapConnectionLookup';
 import {
   applyKnownSignatureTombstone,

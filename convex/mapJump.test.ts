@@ -7,6 +7,14 @@ import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
 
+const jump = {
+  jumpEvidence: internal.mapJumpEvidence.jumpEvidence,
+  connectionEvidence: internal.mapJumpEvidence.connectionEvidence,
+  resolveJumpAuthoring: internal.mapJumpAuthoring.resolveJumpAuthoring,
+  confirmJumpIdentity: internal.mapJumpIdentity.confirmJumpIdentity,
+  reassociateJumpDestination: internal.mapJumpIdentity.reassociateJumpDestination,
+} as const;
+
 const MAP = 'map-jump';
 const EDITOR = 'user-editor';
 const VIEWER = 'user-viewer';
@@ -148,7 +156,7 @@ describe('automatic jump authoring', () => {
     await seedTrackedTransition(t);
     const candidateId = await seedCandidate(t, 'ABC', 'C247');
 
-    const denied = await t.query(internal.mapJump.jumpEvidence, {
+    const denied = await t.query(jump.jumpEvidence, {
       userId: VIEWER,
       mapId: MAP,
       characterId: CHARACTER,
@@ -163,7 +171,7 @@ describe('automatic jump authoring', () => {
       candidates: [],
     });
 
-    const evidence = await t.query(internal.mapJump.jumpEvidence, {
+    const evidence = await t.query(jump.jumpEvidence, {
       userId: EDITOR,
       mapId: MAP,
       characterId: CHARACTER,
@@ -192,8 +200,8 @@ describe('automatic jump authoring', () => {
       },
     });
     const concurrentShaped = await Promise.all([
-      t.mutation(internal.mapJump.resolveJumpAuthoring, args),
-      t.mutation(internal.mapJump.resolveJumpAuthoring, args),
+      t.mutation(jump.resolveJumpAuthoring, args),
+      t.mutation(jump.resolveJumpAuthoring, args),
     ]);
     expect(concurrentShaped.map((result) => result.status).sort()).toEqual([
       'authored',
@@ -201,7 +209,7 @@ describe('automatic jump authoring', () => {
     ]);
 
     const repeated = await t.mutation(
-      internal.mapJump.resolveJumpAuthoring,
+      jump.resolveJumpAuthoring,
       args,
     );
     expect(repeated).toEqual({ status: 'converged', reason: 'processed' });
@@ -241,12 +249,12 @@ describe('automatic jump authoring', () => {
       });
     });
     expect(
-      await t.mutation(internal.mapJump.resolveJumpAuthoring, args),
+      await t.mutation(jump.resolveJumpAuthoring, args),
     ).toEqual({ status: 'converged', reason: 'processed' });
     expect((await mapState(t)).connections[0]?.observedMassKg).toBe(10_000_000);
 
     const connectionEvidence = await t.query(
-      internal.mapJump.connectionEvidence,
+      jump.connectionEvidence,
       { userId: EDITOR, mapId: MAP, connectionId: candidateId },
     );
     expect(connectionEvidence).toMatchObject({
@@ -261,7 +269,7 @@ describe('automatic jump authoring', () => {
       },
     });
     await expect(
-      t.query(internal.mapJump.connectionEvidence, {
+      t.query(jump.connectionEvidence, {
         userId: VIEWER,
         mapId: MAP,
         connectionId: candidateId,
@@ -277,7 +285,7 @@ describe('automatic jump authoring', () => {
     const secondId = await seedCandidate(t, 'BBB', null);
 
     await t.mutation(
-      internal.mapJump.resolveJumpAuthoring,
+      jump.resolveJumpAuthoring,
       authorArgs({
         decision: {
           kind: 'resolve',
@@ -295,7 +303,7 @@ describe('automatic jump authoring', () => {
       pendingResolutionCharacterId: CHARACTER,
     });
 
-    const confirmed = await t.mutation(internal.mapJump.confirmJumpIdentity, {
+    const confirmed = await t.mutation(jump.confirmJumpIdentity, {
       userId: EDITOR,
       mapId: MAP,
       connectionId: firstId,
@@ -315,7 +323,7 @@ describe('automatic jump authoring', () => {
         ?.pendingResolutionCharacterId,
     ).toBeUndefined();
 
-    await t.mutation(internal.mapJump.reassociateJumpDestination, {
+    await t.mutation(jump.reassociateJumpDestination, {
       userId: EDITOR,
       mapId: MAP,
       connectionId: firstId,
@@ -334,7 +342,7 @@ describe('automatic jump authoring', () => {
       observationKey: 'observation-key',
     });
 
-    await t.mutation(internal.mapJump.reassociateJumpDestination, {
+    await t.mutation(jump.reassociateJumpDestination, {
       userId: EDITOR,
       mapId: MAP,
       connectionId: secondId,
@@ -359,7 +367,7 @@ describe('automatic jump authoring', () => {
     const candidateId = await seedCandidate(t, 'AAA', null);
 
     await t.mutation(
-      internal.mapJump.resolveJumpAuthoring,
+      jump.resolveJumpAuthoring,
       authorArgs({
         decision: {
           kind: 'resolve',
@@ -383,7 +391,7 @@ describe('automatic jump authoring', () => {
     await grant(t, EDITOR, ['editor']);
     await seedTrackedTransition(t);
     const first = await t.mutation(
-      internal.mapJump.resolveJumpAuthoring,
+      jump.resolveJumpAuthoring,
       authorArgs({
         observedShipMassKg: 5_000_000,
         decision: { kind: 'insert', candidateIds: [], survivors: [] },
@@ -401,7 +409,7 @@ describe('automatic jump authoring', () => {
       transitionObservedAt: returnAt,
     });
     const reverse = await t.mutation(
-      internal.mapJump.resolveJumpAuthoring,
+      jump.resolveJumpAuthoring,
       authorArgs({
         characterId: returnCharacter,
         fromSolarSystemId: DESTINATION,
@@ -433,7 +441,7 @@ describe('automatic jump authoring', () => {
     const args = authorArgs({
       decision: { kind: 'insert', candidateIds: [], survivors: [] },
     });
-    await t.mutation(internal.mapJump.resolveJumpAuthoring, args);
+    await t.mutation(jump.resolveJumpAuthoring, args);
 
     await t.run(async (ctx) => {
       const tracking = await ctx.db
@@ -448,12 +456,12 @@ describe('automatic jump authoring', () => {
       });
     });
     expect(
-      await t.mutation(internal.mapJump.resolveJumpAuthoring, args),
+      await t.mutation(jump.resolveJumpAuthoring, args),
     ).toEqual({ status: 'converged', reason: 'processed' });
     expect((await mapState(t)).connections[0]?.observedMassKg).toBe(10_000_000);
 
     await expect(
-      t.mutation(internal.mapJump.resolveJumpAuthoring, {
+      t.mutation(jump.resolveJumpAuthoring, {
         ...args,
         userId: VIEWER,
         transitionObservedAt: OBSERVED_AT + 1,
@@ -467,7 +475,7 @@ describe('automatic jump authoring', () => {
     await seedTrackedTransition(offMap, { placeOrigin: false });
     expect(
       await offMap.mutation(
-        internal.mapJump.resolveJumpAuthoring,
+        jump.resolveJumpAuthoring,
         authorArgs({
           decision: { kind: 'insert', candidateIds: [], survivors: [] },
         }),
@@ -507,7 +515,7 @@ describe('automatic jump authoring', () => {
       });
     });
     const authored = await t.mutation(
-      internal.mapJump.resolveJumpAuthoring,
+      jump.resolveJumpAuthoring,
       authorArgs({
         decision: { kind: 'insert', candidateIds: [], survivors: [] },
       }),
@@ -557,7 +565,7 @@ describe('automatic jump authoring', () => {
 
     expect(
       await t.mutation(
-        internal.mapJump.resolveJumpAuthoring,
+        jump.resolveJumpAuthoring,
         authorArgs({
           decision: {
             kind: 'resolve',
@@ -593,7 +601,7 @@ describe('automatic jump authoring', () => {
         characterId: CHARACTER,
       });
     });
-    const evidence = await t.query(internal.mapJump.jumpEvidence, {
+    const evidence = await t.query(jump.jumpEvidence, {
       userId: EDITOR,
       mapId: MAP,
       characterId: CHARACTER,
@@ -619,7 +627,7 @@ describe('automatic jump authoring', () => {
         etagShip: null,
       });
     });
-    const ambiguous = await t.query(internal.mapJump.jumpEvidence, {
+    const ambiguous = await t.query(jump.jumpEvidence, {
       userId: EDITOR,
       mapId: MAP,
       characterId: CHARACTER,

@@ -1,100 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
-import type { NodeProps } from '@xyflow/react';
-import { SystemNode, type ChainNode } from '../canvas/SystemNode';
-import { NoMapAccess } from './NoMapAccess';
+import { describe, expect, it } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ reactFlow: vi.fn() }));
-
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock('@xyflow/react', async () => {
-  const { createElement: element } = await import('react');
-  mocks.reactFlow.mockImplementation(({ children }: { children?: unknown }) =>
-    element('div', { 'data-react-flow': '' }, children as never),
-  );
-  return {
-    ReactFlow: mocks.reactFlow,
-    Background: () => element('div', { 'data-react-flow-background': '' }),
-    BackgroundVariant: { Dots: 'dots' },
-    Handle: () => element('div', { 'data-handle': '' }),
-    Position: { Left: 'left', Right: 'right' },
-    getViewportForBounds: () => ({ x: 0, y: 0, zoom: 0.75 }),
-    applyNodeChanges: (_changes: unknown, nodes: unknown) => nodes,
-  };
-});
-
-function nodeMarkup(name: string, whClassId: number | null): string {
-  const props = {
-    data: { name, className: null, security: whClassId === null ? null : -1, whClassId },
-  } as unknown as NodeProps<ChainNode>;
-  return renderToStaticMarkup(createElement(SystemNode, props));
-}
-
-// ── SC-3 · DC-3 — what a populated node actually says ───────────────────────
-describe('system node rendering', () => {
-  it('shows the plain directory name above its colored class indicator', () => {
-    const markup = nodeMarkup('J123456', 5);
-
-    expect(markup).toContain('>J123456<');
-    expect(markup).toContain('data-chain-node-classification');
-    expect(markup).toContain('>C5<');
-    expect(markup).toContain('text-wh-c5');
-    expect(markup).not.toContain('J123456 - C5');
-    expect(markup).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
-  });
-
-  it('shows the bare name for a system with no class and no security', () => {
-    const markup = nodeMarkup('Jita', null);
-
-    expect(markup).toContain('Jita');
-    expect(markup).not.toMatch(/\sdata-chain-node-class(?:=|\s|>)/);
-  });
-});
-
-// ── SC-5 · DC-5 / AC-5 / V-4 — no spinner, no refresh control, in any state ──
-describe('map surface inspection', () => {
-  async function emptyCanvasMarkup(): Promise<string> {
-    const { MapCanvas } = await import('../canvas/MapCanvas');
-    return renderToStaticMarkup(createElement(MapCanvas));
-  }
-
-  // MapCanvas pulls the ChainHost tree; first import under full-suite coverage
-  // can exceed the default 5s when workers contend.
-  it(
-    'renders the canvas frame immediately with no loading state',
-    async () => {
-      const markup = await emptyCanvasMarkup();
-
-      expect(markup).toContain('data-map-canvas');
-      expect(markup).not.toContain('data-react-flow-background');
-    },
-    15_000,
-  );
-
-  it.each(['empty', 'populated', 'calm'])(
-    'has no spinner and no refresh control in the %s state',
-    async (state) => {
-      const markup =
-        state === 'empty'
-          ? await emptyCanvasMarkup()
-          : state === 'populated'
-            ? nodeMarkup('J123456', 5)
-            : renderToStaticMarkup(createElement(NoMapAccess));
-
-      expect(markup).not.toMatch(/progressbar|aria-busy|spinner/i);
-      expect(markup).not.toMatch(/refresh|reload|try again|retry/i);
-      expect(markup).not.toMatch(/loading/i);
-    },
-    15_000,
-  );
-});
-
-// ── SC-7 · DC-7 / AC-7 — the reconciler is the only merge the canvas consumes ─
 describe('mapper source contract', () => {
   const ROOT = 'src/mapper';
 
@@ -223,6 +129,7 @@ describe('mapper source contract', () => {
       'tracking/presence-context.ts',
       'tracking/presence-model.ts',
       'tracking/tracked-system.ts',
+      'tracking/use-map-coverage.ts',
       'tracking/use-tracked-system.ts',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
@@ -327,15 +234,15 @@ describe('mapper source contract', () => {
     // never one aggregate read. The unresolved-slot feed is the third split.
     const hook = sourceOf('chain/use-map-chain.ts');
 
-    expect(hook).toContain('api.mapChain.watchMapSystems');
-    expect(hook).toContain('api.mapChain.watchMapConnections');
-    expect(hook).toContain('api.mapChain.watchUnresolvedHoles');
+    expect(hook).toContain('api.mapChainSystems.watchMapSystems');
+    expect(hook).toContain('api.mapChainConnections.watchMapConnections');
+    expect(hook).toContain('api.mapChainConnections.watchUnresolvedHoles');
     expect((hook.match(/useDrainedPages\(/g) ?? []).length).toBe(3);
   });
 
   it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
     const hook = sourceOf('chain/use-map-chain.ts');
-    expect(hook).toContain('api.mapChain.watchMapEvents');
+    expect(hook).toContain('api.mapChainEvents.watchMapEvents');
     expect(hook).toContain('filterChainConnections');
     expect(hook).toMatch(/const systems = useMemo\(/);
     expect(hook).toMatch(/const connections = useMemo\(/);

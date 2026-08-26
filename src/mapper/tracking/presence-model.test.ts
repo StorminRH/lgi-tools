@@ -1,9 +1,11 @@
 import { expect, test } from 'vitest';
 import {
   coverageIndex,
+  coverageQueryArgs,
   derivePresence,
   derivePresenceFromPayload,
   friendlyRows,
+  holdDefined,
   presenceStatusWord,
   type TrackedPresenceRow,
 } from './presence-model';
@@ -155,4 +157,34 @@ test('payload path indexes coverage and hides while coverage is cold', () => {
   expect(index.get(OWNER)?.get(4)).toBe(false);
   expect(index.get('other')?.get(3)).toBe(false);
   expect(coverageIndex(undefined).size).toBe(0);
+});
+
+test('holdDefined keeps the last defined payload and stays cold when both are missing', () => {
+  const payload = { coverage: [{ userId: OWNER, characterId: 7, covered: true }] };
+  const later = { coverage: [{ userId: OWNER, characterId: 8, covered: false }] };
+  expect(holdDefined(undefined, undefined)).toBeUndefined();
+  expect(holdDefined(undefined, payload)).toBe(payload);
+  expect(holdDefined(payload, undefined)).toBe(payload);
+  expect(holdDefined(payload, later)).toBe(later);
+});
+
+test('coverage query args skip until forMap names identities, then sort them', () => {
+  expect(coverageQueryArgs('map-a', undefined)).toBe('skip');
+  expect(
+    coverageQueryArgs('map-a', {
+      ownTrackedCharacterIds: [2],
+      tracked: [
+        row({ userId: 'zeta', characterId: 2 }),
+        row({ userId: OWNER, characterId: 9 }),
+        row({ userId: OWNER, characterId: 1 }),
+      ],
+    }),
+  ).toEqual({
+    mapId: 'map-a',
+    identities: [
+      { userId: OWNER, characterId: 1 },
+      { userId: OWNER, characterId: 9 },
+      { userId: 'zeta', characterId: 2 },
+    ],
+  });
 });

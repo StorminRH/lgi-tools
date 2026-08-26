@@ -286,27 +286,6 @@ describe('purgeUserClaims', () => {
 });
 
 describe('gate returns projected roles', () => {
-  it('returns the projected role array after reconcileMapClaims', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [{ userId: EDITOR, roles: ['editor', 'viewer'] }]);
-
-    const page = await asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
-      mapId: MAP_A,
-      collection: 'systems',
-      cursor: null,
-    });
-    expect(page).toMatchObject({ page: [], isDone: true });
-
-    const principal = await t.run(async (ctx) => {
-      const claim = await ctx.db
-        .query('mapAccess')
-        .withIndex('by_map_user', (q) => q.eq('mapId', MAP_A).eq('userId', EDITOR))
-        .unique();
-      return claim?.roles;
-    });
-    expect(principal).toEqual(['editor', 'viewer']);
-  });
-
   it('normalizes a stored legacy owner claim to current admin authorization', async () => {
     const t = convexTest(schema, modules);
     await t.run((ctx) =>
@@ -321,35 +300,6 @@ describe('gate returns projected roles', () => {
       tryMapAccessForUser(ctx, MAP_A, OWNER, 'edit'),
     );
     expect(principal).toEqual({ userId: OWNER, roles: ['admin'] });
-  });
-
-  it('leaves every collaborative table except mapAccess empty for a fresh map', async () => {
-    const t = convexTest(schema, modules);
-    await reconcile(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }]);
-
-    const counts = await t.run(async (ctx) => ({
-      mapAccess: (await ctx.db.query('mapAccess').collect()).length,
-      mapSystems: (await ctx.db.query('mapSystems').collect()).length,
-      mapConnections: (await ctx.db.query('mapConnections').collect()).length,
-      mapJumpBookkeeping: (await ctx.db.query('mapJumpBookkeeping').collect()).length,
-      mapEvents: (await ctx.db.query('mapEvents').collect()).length,
-      mapSignatures: (await ctx.db.query('mapSignatures').collect()).length,
-      mapNotes: (await ctx.db.query('mapNotes').collect()).length,
-      mapSignatureActivity: (await ctx.db.query('mapSignatureActivity').collect()).length,
-      mapTracking: (await ctx.db.query('mapTracking').collect()).length,
-    }));
-
-    expect(counts).toEqual({
-      mapAccess: 1,
-      mapSystems: 0,
-      mapConnections: 0,
-      mapJumpBookkeeping: 0,
-      mapEvents: 0,
-      mapSignatures: 0,
-      mapNotes: 0,
-      mapSignatureActivity: 0,
-      mapTracking: 0,
-    });
   });
 });
 

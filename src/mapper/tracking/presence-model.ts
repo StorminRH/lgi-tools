@@ -3,7 +3,7 @@
 // Last-known location is kept for collapse retention. Pins and friendlies
 // only surface a pilot when the flip-only coverage row says they are
 // present and ESI-online. The map document and the location row stay
-// untouched; React joins `forMap` to `mapTracking.coverage`.
+// untouched; React joins `forMap` to `coverage`.
 //
 // There is no in-between map state. A shown pilot is online; otherwise they
 // are absent. Docked vs In space is location, not presence.
@@ -105,6 +105,41 @@ export interface CoveragePayload {
     characterId: number;
     covered: boolean;
   }[];
+}
+
+export type CoverageQueryArgs =
+  | {
+      mapId: string;
+      identities: { userId: string; characterId: number }[];
+    }
+  | 'skip';
+
+export function holdDefined<T>(
+  previous: T | undefined,
+  next: T | undefined,
+): T | undefined {
+  return next !== undefined ? next : previous;
+}
+
+/**
+ * Coverage args from a loaded `forMap` payload. Sorted so a location tick
+ * (same identities, new location facts) keeps one subscription.
+ */
+export function coverageQueryArgs(
+  mapId: string,
+  tracking: TrackingPayload | undefined,
+): CoverageQueryArgs {
+  if (tracking === undefined) return 'skip';
+  return {
+    mapId,
+    identities: tracking.tracked
+      .map((row) => ({ userId: row.userId, characterId: row.characterId }))
+      .sort(
+        (left, right) =>
+          left.userId.localeCompare(right.userId)
+          || left.characterId - right.characterId,
+      ),
+  };
 }
 
 /**
