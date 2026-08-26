@@ -26,7 +26,11 @@ import {
 import { syncUser } from '../characterLocationSync';
 import convexApp from '../convex.config';
 import crons from '../crons';
-import { heartbeat, onSyncComplete as engineOnSyncComplete } from '../engine';
+import {
+  chainDispatch as engineChainDispatch,
+  heartbeat,
+  onSyncComplete as engineOnSyncComplete,
+} from '../engine';
 import { chainDispatch, onSyncComplete } from '../engineComplete';
 import { leave } from '../engineLeave';
 import { scan } from '../engineScan';
@@ -148,6 +152,7 @@ describe('convex runtime exports', () => {
       purgeLocationForUser,
       putAccessLease,
       chainDispatch,
+      engineChainDispatch,
       heartbeat,
       engineOnSyncComplete,
       leave,

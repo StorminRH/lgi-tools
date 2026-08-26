@@ -13,22 +13,29 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 import { dispatch, syncDatasetValidator } from './lib/engineCore';
 import { getPresence, getSyncSubject } from './lib/subjects';
 
+export const chainDispatchArgs = {
+  dataset: syncDatasetValidator,
+  userId: v.string(),
+};
+
+export async function runChainDispatch(
+  ctx: MutationCtx,
+  { dataset, userId }: { dataset: 'onlineStatus' | 'characterLocation'; userId: string },
+): Promise<void> {
+  if (!isRegisteredDataset(dataset)) return;
+  const subject = await getSyncSubject(ctx.db, dataset, userId);
+  if (subject === null) return;
+  const now = Date.now();
+  if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
+  if (subject.nextDueAt === null || subject.nextDueAt > now) return;
+  const presence = await getPresence(ctx.db, dataset, userId);
+  if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return;
+  await dispatch(ctx, subject, now);
+}
+
 export const chainDispatch = internalMutation({
-  args: {
-    dataset: syncDatasetValidator,
-    userId: v.string(),
-  },
-  handler: async (ctx, { dataset, userId }) => {
-    if (!isRegisteredDataset(dataset)) return;
-    const subject = await getSyncSubject(ctx.db, dataset, userId);
-    if (subject === null) return;
-    const now = Date.now();
-    if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
-    if (subject.nextDueAt === null || subject.nextDueAt > now) return;
-    const presence = await getPresence(ctx.db, dataset, userId);
-    if (isColdFromPresence(presence, SYNC_DATASET_CONFIG[dataset].coldAfterMs, now)) return;
-    await dispatch(ctx, subject, now);
-  },
+  args: chainDispatchArgs,
+  handler: runChainDispatch,
 });
 
 type CompletionSchedule = { nextDueAt: number | null; chainAt: number | null };

@@ -609,6 +609,41 @@ describe('engine.onSyncComplete', () => {
     expect(typeof subject?.nextDueAt).toBe('number');
   });
 
+  it('the one-deploy engine.chainDispatch path still dispatches a due hop', async () => {
+    const t = convexTest(schema, modules);
+    stubDispatch();
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation',
+        status: 'idle',
+        lastRequestedAt: 0,
+        nextDueAt: now,
+        syncedCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+      });
+    });
+
+    await t.mutation(internal.engine.chainDispatch, {
+      dataset: 'characterLocation',
+      userId: USER,
+    });
+
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('running');
+    expect(subject?.workId).toBe(String(now));
+    expect(await scheduledSyncUsers(t)).toHaveLength(1);
+  });
+
   it('the one-deploy engine.onSyncComplete path still completes a run', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();

@@ -10,7 +10,12 @@ import {
   type SyncDataset,
 } from '@/lib/sync-engine';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
-import { completeSyncRun, onSyncCompleteArgs } from './engineComplete';
+import {
+  chainDispatchArgs,
+  completeSyncRun,
+  onSyncCompleteArgs,
+  runChainDispatch,
+} from './engineComplete';
 import { dispatch, syncDatasetValidator } from './lib/engineCore';
 import { getPresence, getSyncSubject, newIdleSubject } from './lib/subjects';
 
@@ -106,4 +111,10 @@ function isLeftTab(leftTabId: string | undefined, tabId: string | undefined): bo
 export const onSyncComplete = internalMutation({
   args: onSyncCompleteArgs,
   handler: completeSyncRun,
+});
+
+// One-deploy drain: in-flight hops still call engine:chainDispatch.
+export const chainDispatch = internalMutation({
+  args: chainDispatchArgs,
+  handler: runChainDispatch,
 });
