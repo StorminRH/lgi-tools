@@ -1,4 +1,3 @@
-// Shared ungated connection lookup for already-authorized Convex mutations.
 import { ConvexError } from 'convex/values';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { QueryCtx } from '../_generated/server';

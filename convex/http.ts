@@ -1,17 +1,3 @@
-// HTTP actions — the service door into the deployment (served on the
-// .convex.site origin; API port + 1 on a local backend). Bearer-gated by the
-// same service secret the deployment already uses to call the Next internal
-// endpoints (here verified in the opposite direction):
-//   POST /sweep               — the Vercel watchdog cron's sweep trigger.
-//   POST /purge-online             — explicit characterOnline teardown for a Neon-side purge.
-//   POST /purge-location-tracking  — characterLocation + mapTracking teardown for a Neon-side purge.
-//   POST /project-map-access       — one-way Neon→Convex mapAccess claim reconcile.
-//   POST /purge-map-access         — per-user mapAccess claim teardown for account purge.
-//   POST /purge-map-chain          — complete bounded collaborative map teardown.
-//   POST /jump-evidence            — one consistent tracked-transition evidence packet.
-//   POST /resolve-jump             — one transactional automatic-jump write/answer.
-//   POST /signature-elimination    — bounded evidence read or atomic assumed deduction batch.
-//   POST /leave-sync               — tab-close retire of one user's location subject.
 import { httpRouter } from 'convex/server';
 import { z } from 'zod';
 import { MAP_ROLES } from '@/data/maps/access-contract';
@@ -23,10 +9,8 @@ import { bearerMatches } from './lib/bearerAuth';
 const http = httpRouter();
 const MAX_PURGE_BATCHES = 10_000;
 
-// The inbound purge body's wire contract. The mutation's own arg validators
-// would also reject a wrong-typed body, but only by throwing — which surfaced
-// as a 500 plus a stack trace in the deployment logs. Validating here returns
-// the clean 400 this route already intended for a malformed body.
+// Mutation arg validators throw, and Convex HTTP maps that throw to 500.
+// Zod here returns the 400 this door intended for a malformed body.
 const purgeOnlineBodySchema = z.object({
   userId: z.string(),
   characterId: z.number().nullable(),
@@ -166,9 +150,6 @@ const signatureEliminationBodySchema = z.discriminatedUnion('operation', [
   }),
 ]);
 
-// Shared service-auth guard: HTTP actions are bearer-gated by the same secret
-// the deployment already holds (verified here in the opposite direction from the
-// Next internal endpoints). True only on a valid Bearer match.
 async function bearerOk(req: Request): Promise<boolean> {
   const secret = process.env.CONVEX_SERVICE_SECRET;
   if (!secret) return false;
@@ -322,12 +303,6 @@ http.route({
 http.route({
   path: '/purge-online',
   method: 'POST',
-  // Both a JSON.parse failure and a wrong-typed field return the same clean
-  // 400 the route already intended, instead of letting the mutation's arg
-  // validators throw a 500 with a stack trace into the deployment logs. The
-  // Neon purge does NOT depend on either: the online-status contributor
-  // swallows any non-2xx response (best-effort), so a bad body here can never
-  // abort the sweep.
   handler: authorizedJsonAction(purgeOnlineBodySchema, async (ctx, body) => {
     const counts = await ctx.runMutation(internal.onlineStatus.purgeForUser, body);
     return Response.json(counts);
@@ -382,8 +357,6 @@ http.route({
   path: '/purge-map-access',
   method: 'POST',
   handler: authorizedJsonAction(purgeMapAccessBodySchema, async (ctx, body) => {
-    // Cap iterations so a concurrent writer that keeps re-inserting claims cannot
-    // hang the HTTP action; purge remains idempotent and safe to retry.
     let deleted = 0;
     for (let batchIndex = 0; batchIndex < MAX_PURGE_BATCHES; batchIndex += 1) {
       const batch = await ctx.runMutation(internal.mapAccessProjection.purgeUserClaims, {

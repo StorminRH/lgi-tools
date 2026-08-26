@@ -1,21 +1,3 @@
-// Dev-only paced corpus replay into the local Convex deployment.
-//
-// Seeds a Neon map (or reuses `--map`), projects its access claim, then replays
-// a proof-kit corpus timeline through the internal fixture mutations — one
-// pause per JUMP (a system and its attaching connection land together, the way
-// the game reveals wormholes). `--loop` grows the chain, holds, tears it down
-// newest-first (the departure cascade), and repeats until interrupted. The
-// skip/defer policy for the corpus's deliberate degenerate edges lives in
-// `map-replay-plan.ts`, where it is unit-tested.
-//
-// Run:
-//   pnpm map:replay -- --user <better-auth-user-id> --chain 12
-//   pnpm map:replay -- --map <uuid> --chain 33 --interval-ms 1500 --loop
-//
-// Known dev-tool limitation: connection inserts are not idempotent, so reuse
-// `--map` only on a map whose last run completed (or fully tore down). After
-// an interrupted run, seed a fresh map with `--user` — replay maps are
-// disposable by design.
 import { config } from 'dotenv';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -95,13 +77,11 @@ async function ensureMap(mapId: string | null, userId: string | null): Promise<s
   return id;
 }
 
-/** Prints whatever a convex run emitted; kept apart so `convexRun` stays narrow. */
 function report(stdout: string, stderr: string): void {
   if (stdout.trim()) console.log(stdout.trim());
   if (stderr.trim()) console.error(stderr.trim());
 }
 
-/** The human-readable failure detail buried in an execFile rejection. */
 function errorDetail(error: unknown): string {
   if (error instanceof Error && 'stderr' in error) {
     return String((error as { stderr?: Buffer | string }).stderr ?? error.message);
@@ -127,17 +107,14 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** One pause per jump; zero-interval runs never touch the timer. */
 function pace(intervalMs: number): Promise<void> {
   return intervalMs > 0 ? sleep(intervalMs) : Promise.resolve();
 }
 
-/** How long a looping replay rests between grown and empty states. */
 function holdMs(intervalMs: number): number {
   return Math.max(2000, intervalMs * 3);
 }
 
-/** Parses the connection doc id a fixture mutation prints last. */
 function parseConnectionId(output: string, path: string): string {
   // Convex CLI may emit progress lines before the JSON id; take the last line.
   const lastLine = output.split('\n').at(-1)?.trim() ?? '';
@@ -169,15 +146,9 @@ async function insertLayoutEdge(
 const insertConnection = (mapId: string, edge: LayoutEdge) =>
   insertLayoutEdge('connection', 'mapFixturePlace:insertConnectionFixture', mapId, edge);
 
-/**
- * One jump: the revealed system and its discovering connection land in a
- * single transaction, the way real mapping learns about a system — so the
- * canvas births the node already attached to the tree, never elsewhere first.
- */
 const insertJump = (mapId: string, edge: LayoutEdge) =>
   insertLayoutEdge('jump', 'mapFixturePlace:placeJumpFixture', mapId, edge);
 
-/** Narrates one step's skipped self-loops and freshly deferred edges. */
 function logStepNotes(step: SpawnStep): void {
   for (const edge of step.skippedSelfLoops) {
     console.log(`~ skipping self-loop ${edge.fromSystemId} (kernel-only degenerate)`);
@@ -189,26 +160,12 @@ function logStepNotes(step: SpawnStep): void {
   }
 }
 
-/**
- * One executed spawn step, as the teardown must undo it: the system, the
- * connection it jumped in with (null for a bare root spawn), and every other
- * connection inserted at this step (loop closures, newly placeable deferred
- * edges).
- */
 interface SpawnRecord {
   readonly systemId: number;
   readonly attachingConnectionId: string | null;
   readonly otherConnectionIds: readonly string[];
 }
 
-/**
- * Executes one spawn step. The edge that discovered this system jumps in
- * atomically with it; only a root (or a system whose attaching edge the
- * corpus deferred until this landing) spawns bare. Prefer a current-step
- * discovering edge over a drained deferred edge that merely became placeable
- * because this system arrived — otherwise teardown collapses the wrong pair.
- * Loop closures and remaining drained edges follow as ordinary scans.
- */
 async function executeSpawnStep(mapId: string, step: SpawnStep): Promise<SpawnRecord> {
   const attaching = attachingEdgeOf(step);
   let attachingConnectionId: string | null = null;
@@ -227,7 +184,6 @@ async function executeSpawnStep(mapId: string, step: SpawnStep): Promise<SpawnRe
   return { systemId: step.systemId, attachingConnectionId, otherConnectionIds };
 }
 
-/** Executes the precomputed spawn plan; returns one record per step, in order. */
 async function spawnChain(
   mapId: string,
   timeline: ReturnType<typeof generateChainTimeline>,
@@ -248,15 +204,6 @@ async function spawnChain(
   return records;
 }
 
-/**
- * Tears the chain down for the loop, newest-first, undoing each spawn step the
- * way it happened: loop-closure scans drop as plain connection removals, then
- * the step's wormhole COLLAPSES — connection and the system it had discovered
- * leave in one transaction, because a severed hole makes the far side
- * unreachable and an orphaned system must never linger on the map. Reverse
- * order guarantees every later-inserted connection referencing a system is
- * gone before that system's collapse, so the orphan proof never refuses.
- */
 async function despawnChain(
   mapId: string,
   records: readonly SpawnRecord[],
