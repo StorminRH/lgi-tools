@@ -85,14 +85,6 @@ import {
   type ChainState,
 } from './reconciler';
 
-/**
- * Rows this client asks for per page.
- *
- * Independent of the server's own cap by design, not coupled to it: the handler clamps whatever
- * arrives, so this value only decides how many round trips a large map costs. It is not imported from
- * `convex/mapChain` — that module pulls in Convex's server runtime and does not belong in a browser
- * bundle — and a mismatch is harmless rather than a bug.
- */
 const PAGE_SIZE = 100;
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
@@ -578,27 +570,27 @@ function useMapChainPages(mapId: string | null) {
   const args = mapSubscriptionArgs(mapId);
   // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
   // the map returns without a reload. `canEdit` shares that claim row.
-  const accessResult = useLiveValue(api.mapChain.watchMapAccess, args);
+  const accessResult = useLiveValue(api.mapChainAccess.watchMapAccess, args);
   const { access, canEdit } = normalizeMapAccess(accessResult);
 
   const subscribedSystems = useDrainedPages(
-    api.mapChain.watchMapSystems,
+    api.mapChainSystems.watchMapSystems,
     args,
     PAGE_SIZE,
   );
   const subscribedConnections = useDrainedPages(
-    api.mapChain.watchMapConnections,
+    api.mapChainConnections.watchMapConnections,
     args,
     PAGE_SIZE,
   );
   // The unresolved-slot feed is its own subscription by the same HC-2 split:
   // resolved-canvas writes and unresolved-slot writes re-read disjoint ranges.
   const subscribedUnresolved = useDrainedPages(
-    api.mapChain.watchUnresolvedHoles,
+    api.mapChainConnections.watchUnresolvedHoles,
     args,
     PAGE_SIZE,
   );
-  const subscribedEvents = useLiveValue(api.mapChain.watchMapEvents, args);
+  const subscribedEvents = useLiveValue(api.mapChainEvents.watchMapEvents, args);
   // Memoizing the normalized page objects keeps field-only/timer renders from
   // rebuilding connectionDetails or reposting layout work.
   const systems = useMemo(

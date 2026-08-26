@@ -6,7 +6,7 @@
 // ~60s) → scheduler → characterLocationSync.syncUser (action: mapTracking
 // poll set, access lease, online probe + location + ship-on-change) → applySyncResults
 // (ONE batched mutation, generation-guarded) → forViewer /
-// mapTracking.forMap. The client never calls the action directly.
+// mapTrackingLive.forMap. The client never calls the action directly.
 //
 // Purge remains the Neon→Convex teardown door for removed accounts/characters.
 import { type Infer, v } from 'convex/values';
@@ -56,7 +56,7 @@ function viewerLocation(doc: Doc<'characterLocation'>) {
 
 /**
  * The calling user's own location docs. Map members join through
- * mapTracking.forMap; this is the personal mirror of onlineStatus.forViewer.
+ * mapTrackingLive.forMap; this is the personal mirror of onlineStatus.forViewer.
  * observedAt is LAST-CHANGE time (304s never touch the doc); freshness
  * consumers read the subject row's lastFinishedAt.
  */

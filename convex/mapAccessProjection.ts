@@ -10,7 +10,7 @@ import {
   deleteAllTrackingForMap,
   deleteTrackingForUser,
   purgeTrackingForUserBatch,
-} from './mapTracking';
+} from './mapTrackingTeardown';
 
 export const MAP_ACCESS_PURGE_BATCH = 128;
 

@@ -745,7 +745,7 @@ describe('mapScan paste application and lifecycle', () => {
     )).toMatchObject({ fromSystemId: JITA, fromWormholeTypeCode: 'K162' });
   });
 
-  it('re-paste of a linked way-home keeps the inbound door and does not spawn a stub', async () => {
+  it('re-paste keeps a linked way-home, then absorbs a leftover stub onto that inbound', async () => {
     const t = convexTest(schema, modules);
     await seed(t);
     await apply(t, [signature('WDE-796', { group: 'Wormhole' })]);
@@ -788,43 +788,9 @@ describe('mapScan paste application and lifecycle', () => {
     });
     expect(await t.run(async (ctx) => (await ctx.db.query('mapConnections').collect())
       .filter((row) => row.toSystemId === null))).toEqual([]);
-  });
 
-  it('re-paste absorbs a leftover way-home stub onto the inbound door', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('WDE-796', { group: 'Wormhole' })]);
-    let stubId = '' as Id<'mapConnections'>;
-    let inboundId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const stub = (await ctx.db.query('mapConnections').collect())[0];
-      if (stub === undefined) {
-        throw new Error('expected the pasted wormhole stub before linking');
-      }
-      stubId = stub._id;
-      inboundId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: JITA,
-        wormholeTypeCode: 'B274',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-    });
-    await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
-      mapId: MAP,
-      stubConnectionId: stubId,
-      resolvedConnectionId: inboundId,
-    });
-    let leftoverId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      leftoverId = await ctx.db.insert('mapConnections', {
+    const leftoverId = await t.run(async (ctx) =>
+      await ctx.db.insert('mapConnections', {
         mapId: MAP,
         fromSystemId: JITA,
         toSystemId: null,
@@ -838,8 +804,8 @@ describe('mapScan paste application and lifecycle', () => {
         eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
-    });
+      }),
+    );
 
     expect(await apply(t, [signature('WDE-796', { group: 'Wormhole' })])).toMatchObject({
       updated: 1,
@@ -853,208 +819,134 @@ describe('mapScan paste application and lifecycle', () => {
     });
   });
 
-  it('folds a unique leftover origin stub onto the resolved inbound', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('STA-001', { group: 'Wormhole', name: 'C247' })]);
-    let leftoverId = '' as Id<'mapConnections'>;
-    let stubId = '' as Id<'mapConnections'>;
-    let inboundId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const leftover = (await ctx.db.query('mapConnections').collect())[0];
-      if (leftover === undefined) {
-        throw new Error('expected the origin static stub before linking');
-      }
-      leftoverId = leftover._id;
-      await ctx.db.patch(leftover._id, {
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        fromWormholeTypeCode: 'C247',
-        toWormholeTypeCode: 'K162',
-        fromDestinationHint: 'unknown',
+  it('absorbs leftover origin stubs without downgrading human types or spawning Leads-to systems', async () => {
+    async function leftoverLink(input: {
+      leftover: {
+        typeProvenance: 'human' | 'assumed';
+        fromDestinationHint?: 'unknown';
+        fromDestinationSystemId?: number;
+      };
+      inbound: {
+        wormholeTypeCode: string | null;
+        typeProvenance?: 'human';
+        fromWormholeTypeCode?: string | null;
+        toWormholeTypeCode?: string | null;
+        typedSide?: 'from';
+      };
+    }) {
+      const t = convexTest(schema, modules);
+      await seed(t);
+      await apply(t, [signature('STA-001', { group: 'Wormhole', name: 'C247' })]);
+      let leftoverId = '' as Id<'mapConnections'>;
+      let stubId = '' as Id<'mapConnections'>;
+      let inboundId = '' as Id<'mapConnections'>;
+      await t.run(async (ctx) => {
+        await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+        const leftover = (await ctx.db.query('mapConnections').collect())[0];
+        if (leftover === undefined) {
+          throw new Error('expected the origin static stub before linking');
+        }
+        leftoverId = leftover._id;
+        await ctx.db.patch(leftover._id, {
+          wormholeTypeCode: 'C247',
+          typedSide: 'from',
+          fromWormholeTypeCode: 'C247',
+          toWormholeTypeCode: 'K162',
+          ...input.leftover,
+        });
+        inboundId = await ctx.db.insert('mapConnections', {
+          mapId: MAP,
+          fromSystemId: JITA,
+          toSystemId: AMARR,
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          deletedAt: null,
+          purgeAfter: null,
+          fromWormholeTypeCode: null,
+          toWormholeTypeCode: null,
+          ...input.inbound,
+        });
+        stubId = await ctx.db.insert('mapConnections', {
+          mapId: MAP,
+          fromSystemId: AMARR,
+          toSystemId: null,
+          fromSignatureId: 'RET-001',
+          wormholeTypeCode: null,
+          fromWormholeTypeCode: null,
+          toWormholeTypeCode: null,
+          massState: null,
+          shipSize: null,
+          eolAt: null,
+          deletedAt: null,
+          purgeAfter: null,
+        });
       });
-      inboundId = await ctx.db.insert('mapConnections', {
+      await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
         mapId: MAP,
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-        wormholeTypeCode: null,
-        fromWormholeTypeCode: null,
-        toWormholeTypeCode: null,
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-      stubId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: null,
-        fromSignatureId: 'RET-001',
-        wormholeTypeCode: null,
-        fromWormholeTypeCode: null,
-        toWormholeTypeCode: null,
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
+        stubConnectionId: stubId,
+        resolvedConnectionId: inboundId,
+      })).resolves.toEqual({ outcome: 'applied' });
+      return {
+        leftoverId,
+        stubId,
+        inboundId,
+        t,
+        joined: await t.run(async (ctx) => await ctx.db.get(inboundId)),
+      };
+    }
+
+    const folded = await leftoverLink({
+      leftover: { typeProvenance: 'human', fromDestinationHint: 'unknown' },
+      inbound: { wormholeTypeCode: null },
     });
-    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
-      mapId: MAP,
-      stubConnectionId: stubId,
-      resolvedConnectionId: inboundId,
-    })).resolves.toEqual({ outcome: 'applied' });
-    const joined = await t.run(async (ctx) => await ctx.db.get(inboundId));
-    expect(joined).toMatchObject({
+    expect(folded.joined).toMatchObject({
       fromSignatureId: 'STA-001',
       toSignatureId: 'RET-001',
       fromWormholeTypeCode: 'C247',
       toWormholeTypeCode: 'K162',
       typeProvenance: 'human',
     });
-    expect(joined?.fromDestinationSystemId).toBeUndefined();
+    expect(folded.joined?.fromDestinationSystemId).toBeUndefined();
     expect(doorLeadsTo(
-      joined!.fromSystemId,
-      joined!.toSystemId,
+      folded.joined!.fromSystemId,
+      folded.joined!.toSystemId,
       'from',
-      joined?.fromDestinationSystemId,
-      joined?.toDestinationSystemId,
+      folded.joined?.fromDestinationSystemId,
+      folded.joined?.toDestinationSystemId,
     )).toBe(AMARR);
     expect(doorLeadsTo(
-      joined!.fromSystemId,
-      joined!.toSystemId,
+      folded.joined!.fromSystemId,
+      folded.joined!.toSystemId,
       'to',
-      joined?.fromDestinationSystemId,
-      joined?.toDestinationSystemId,
+      folded.joined?.fromDestinationSystemId,
+      folded.joined?.toDestinationSystemId,
     )).toBe(JITA);
-    expect(await t.run(async (ctx) => await ctx.db.get(leftoverId))).toBeNull();
-    expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toBeNull();
-  });
+    expect(await folded.t.run(async (ctx) => await ctx.db.get(folded.leftoverId))).toBeNull();
+    expect(await folded.t.run(async (ctx) => await ctx.db.get(folded.stubId))).toBeNull();
 
-  it('does not downgrade a human type on the surviving inbound when the leftover is assumed', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('STA-001', { group: 'Wormhole', name: 'C247' })]);
-    let leftoverId = '' as Id<'mapConnections'>;
-    let stubId = '' as Id<'mapConnections'>;
-    let inboundId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const leftover = (await ctx.db.query('mapConnections').collect())[0];
-      if (leftover === undefined) {
-        throw new Error('expected the origin static stub before linking');
-      }
-      leftoverId = leftover._id;
-      await ctx.db.patch(leftover._id, {
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        typeProvenance: 'assumed',
-        fromWormholeTypeCode: 'C247',
-        toWormholeTypeCode: 'K162',
-      });
-      inboundId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: JITA,
-        toSystemId: AMARR,
+    const keptHuman = await leftoverLink({
+      leftover: { typeProvenance: 'assumed' },
+      inbound: {
         wormholeTypeCode: 'B274',
         typedSide: 'from',
         typeProvenance: 'human',
         fromWormholeTypeCode: 'B274',
         toWormholeTypeCode: 'K162',
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-      stubId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: null,
-        fromSignatureId: 'RET-001',
-        wormholeTypeCode: null,
-        fromWormholeTypeCode: null,
-        toWormholeTypeCode: null,
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
+      },
     });
-    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
-      mapId: MAP,
-      stubConnectionId: stubId,
-      resolvedConnectionId: inboundId,
-    })).resolves.toEqual({ outcome: 'applied' });
-    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+    expect(keptHuman.joined).toMatchObject({
       typeProvenance: 'human',
       fromWormholeTypeCode: 'B274',
     });
-    expect(await t.run(async (ctx) => await ctx.db.get(leftoverId))).toBeNull();
-  });
+    expect(await keptHuman.t.run(async (ctx) => await ctx.db.get(keptHuman.leftoverId)))
+      .toBeNull();
 
-  it('keeps a mismatched typed Leads-to on the leftover face and does not spawn that system', async () => {
-    const t = convexTest(schema, modules);
-    await seed(t);
-    await apply(t, [signature('STA-001', { group: 'Wormhole', name: 'C247' })]);
-    let leftoverId = '' as Id<'mapConnections'>;
-    let stubId = '' as Id<'mapConnections'>;
-    let inboundId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      const leftover = (await ctx.db.query('mapConnections').collect())[0];
-      if (leftover === undefined) {
-        throw new Error('expected the origin static stub before linking');
-      }
-      leftoverId = leftover._id;
-      await ctx.db.patch(leftover._id, {
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        fromWormholeTypeCode: 'C247',
-        toWormholeTypeCode: 'K162',
-        fromDestinationSystemId: DODIXIE,
-      });
-      inboundId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-        wormholeTypeCode: null,
-        fromWormholeTypeCode: null,
-        toWormholeTypeCode: null,
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
-      stubId = await ctx.db.insert('mapConnections', {
-        mapId: MAP,
-        fromSystemId: AMARR,
-        toSystemId: null,
-        fromSignatureId: 'RET-001',
-        wormholeTypeCode: null,
-        fromWormholeTypeCode: null,
-        toWormholeTypeCode: null,
-        massState: null,
-        shipSize: null,
-        eolAt: null,
-        deletedAt: null,
-        purgeAfter: null,
-      });
+    const leadsTo = await leftoverLink({
+      leftover: { typeProvenance: 'human', fromDestinationSystemId: DODIXIE },
+      inbound: { wormholeTypeCode: null },
     });
-    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
-      mapId: MAP,
-      stubConnectionId: stubId,
-      resolvedConnectionId: inboundId,
-    })).resolves.toEqual({ outcome: 'applied' });
-    const joined = await t.run(async (ctx) => await ctx.db.get(inboundId));
-    expect(joined).toMatchObject({
+    expect(leadsTo.joined).toMatchObject({
       fromSystemId: JITA,
       toSystemId: AMARR,
       fromSignatureId: 'STA-001',
@@ -1062,25 +954,25 @@ describe('mapScan paste application and lifecycle', () => {
       fromDestinationSystemId: DODIXIE,
     });
     expect(doorLeadsTo(
-      joined!.fromSystemId,
-      joined!.toSystemId,
+      leadsTo.joined!.fromSystemId,
+      leadsTo.joined!.toSystemId,
       'from',
-      joined?.fromDestinationSystemId,
-      joined?.toDestinationSystemId,
+      leadsTo.joined?.fromDestinationSystemId,
+      leadsTo.joined?.toDestinationSystemId,
     )).toBe(DODIXIE);
     expect(doorLeadsTo(
-      joined!.fromSystemId,
-      joined!.toSystemId,
+      leadsTo.joined!.fromSystemId,
+      leadsTo.joined!.toSystemId,
       'to',
-      joined?.fromDestinationSystemId,
-      joined?.toDestinationSystemId,
+      leadsTo.joined?.fromDestinationSystemId,
+      leadsTo.joined?.toDestinationSystemId,
     )).toBe(JITA);
-    expect(await t.run(async (ctx) =>
+    expect(await leadsTo.t.run(async (ctx) =>
       await ctx.db.query('mapSystems')
         .withIndex('by_map_system', (q) => q.eq('mapId', MAP).eq('systemId', DODIXIE))
         .unique(),
     )).toBeNull();
-    expect(await t.run(async (ctx) => await ctx.db.get(leftoverId))).toBeNull();
+    expect(await leadsTo.t.run(async (ctx) => await ctx.db.get(leadsTo.leftoverId))).toBeNull();
   });
 
   it('keeps a named inbound type and adopts a named stub when the inbound is K162', async () => {
@@ -1310,14 +1202,23 @@ describe('mapScan paste application and lifecycle', () => {
   });
 
   it('read set stays separated from mapChain across an unchanged re-paste', () => {
-    const chainCode = readFileSync('convex/mapChain.ts', 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
+    const chainFiles = [
+      'convex/mapChainAccess.ts',
+      'convex/mapChainConnections.ts',
+      'convex/mapChainEvents.ts',
+      'convex/mapChainPage.ts',
+      'convex/mapChainSystems.ts',
+    ];
     const scanCode = readFileSync('convex/mapScan.ts', 'utf8');
 
-    expect(chainCode).not.toContain("'mapSignatures'");
-    expect(chainCode).not.toContain("'mapSignatureActivity'");
-    expect(scanCode).not.toContain("from './mapChain'");
+    for (const path of chainFiles) {
+      const chainCode = readFileSync(path, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+      expect(chainCode, path).not.toContain("'mapSignatures'");
+      expect(chainCode, path).not.toContain("'mapSignatureActivity'");
+    }
+    expect(scanCode).not.toContain("from './mapChain");
   });
 
   it('debounce writes nothing at 59s and only activity after 61s', async () => {

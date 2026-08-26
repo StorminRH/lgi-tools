@@ -25,9 +25,9 @@ const JITA = 30_000_142;
 const AMARR = 30_002_187;
 const MAP = 'map-a';
 
-const SYSTEMS_NAME = getFunctionName(api.mapChain.watchMapSystems);
-const CONNECTIONS_NAME = getFunctionName(api.mapChain.watchMapConnections);
-const UNRESOLVED_NAME = getFunctionName(api.mapChain.watchUnresolvedHoles);
+const SYSTEMS_NAME = getFunctionName(api.mapChainSystems.watchMapSystems);
+const CONNECTIONS_NAME = getFunctionName(api.mapChainConnections.watchMapConnections);
+const UNRESOLVED_NAME = getFunctionName(api.mapChainConnections.watchUnresolvedHoles);
 
 type PageResult<Row> = {
   page: Row[];
