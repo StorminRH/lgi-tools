@@ -20,7 +20,9 @@ function job(overrides: Partial<IndustryJob>): IndustryJob {
 }
 
 describe('deriveJobsByCharacter', () => {
-  it('keys by characterId and re-derives a past-end active job to ready', () => {
+  it('keys by character, re-derives past-end to ready, and leaves running / never-synced / null alone', () => {
+    expect(deriveJobsByCharacter(null, NOW).size).toBe(0);
+
     const response: JobsResponse = {
       characters: [
         {
@@ -28,38 +30,26 @@ describe('deriveJobsByCharacter', () => {
           data: { jobs: [job({ end_date: '2026-06-12T11:00:00Z' })] },
           lastRefreshedAt: null,
         },
+        { characterId: 9, data: null, lastRefreshedAt: null },
+        {
+          characterId: 1,
+          data: { jobs: [job({ end_date: '2026-06-12T13:00:00Z' })] },
+          lastRefreshedAt: null,
+        },
       ],
       names: {},
     };
     const map = deriveJobsByCharacter(response, NOW);
     expect(map.get(5)?.data?.jobs[0]!.status).toBe('ready');
-  });
-
-  it('passes a never-synced character (data:null) through untouched', () => {
-    const response: JobsResponse = {
-      characters: [{ characterId: 9, data: null, lastRefreshedAt: null }],
-      names: {},
-    };
-    expect(deriveJobsByCharacter(response, NOW).get(9)?.data).toBeNull();
-  });
-
-  it('leaves a still-running active job active', () => {
-    const response: JobsResponse = {
-      characters: [
-        { characterId: 1, data: { jobs: [job({ end_date: '2026-06-12T13:00:00Z' })] }, lastRefreshedAt: null },
-      ],
-      names: {},
-    };
-    expect(deriveJobsByCharacter(response, NOW).get(1)?.data?.jobs[0]!.status).toBe('active');
-  });
-
-  it('returns an empty map for a null response', () => {
-    expect(deriveJobsByCharacter(null, NOW).size).toBe(0);
+    expect(map.get(9)?.data).toBeNull();
+    expect(map.get(1)?.data?.jobs[0]!.status).toBe('active');
   });
 });
 
 describe('deriveCorpJobs', () => {
-  it('re-derives each corp board and preserves order + syncError', () => {
+  it('re-derives each corp board, preserves order + syncError, and treats a null response as empty', () => {
+    expect(deriveCorpJobs(null, NOW)).toEqual([]);
+
     const response: CorpJobsResponse = {
       corporations: [
         {
@@ -76,9 +66,5 @@ describe('deriveCorpJobs', () => {
     expect(corps[0]!.data?.jobs[0]!.status).toBe('ready');
     expect(corps[1]!.data).toBeNull();
     expect(corps[1]!.syncError).toBe('needs_role');
-  });
-
-  it('returns an empty list for a null response', () => {
-    expect(deriveCorpJobs(null, NOW)).toEqual([]);
   });
 });

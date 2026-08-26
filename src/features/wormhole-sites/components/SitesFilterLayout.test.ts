@@ -29,30 +29,17 @@ function markup(initialView: 'cards' | 'table' = 'cards') {
 }
 
 describe('SitesFilterLayout a11y', () => {
-  it('puts aria-pressed on every toggle (6 class chips + 5 type rows + 2 view + 2 detail-mode toggles)', () => {
+  it('labels the filter rail, presses toggles, and announces the result count', () => {
     const html = markup();
-    // The detail-mode toggle (lightbox/expand) only renders in the cards view,
-    // which markup() defaults to, so all four segmented buttons are present.
     expect((html.match(/aria-pressed=/g) ?? []).length).toBe(15);
-    // The default view ('cards') reports its pressed state; the rest are off.
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-pressed="false"');
-  });
-
-  it('labels every filter and segmented-control group', () => {
-    const html = markup();
     expect((html.match(/role="group"/g) ?? []).length).toBe(4);
     expect(html).toContain('aria-label="Filter by class"');
     expect(html).toContain('aria-label="Filter by site type"');
     expect(html).toContain('aria-label="Site detail behavior"');
     expect(html).toContain('aria-label="Sites view"');
-  });
-
-  it('makes the result count a polite live region', () => {
-    expect(markup()).toContain('aria-live="polite"');
-  });
-
-  it('uses the server-readable view preference for the first rendered result mode', () => {
+    expect(html).toContain('aria-live="polite"');
     expect(markup('cards')).not.toContain('data-sites-table="true"');
     expect(markup('table')).toContain('data-sites-table="true"');
   });

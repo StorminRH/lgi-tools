@@ -13,10 +13,6 @@ import {
 } from './fees';
 import type { MaterialQty } from './profitability';
 
-// Rifter direct ME0 base materials (Tritanium/Pyerite/Mexallon/Isogen). The
-// Rifter builds directly from minerals with no intermediate components, so its
-// direct base materials equal its flat materials — the same firm anchor used in
-// profitability.test.ts.
 const RIFTER_BASE: Record<number, number> = {
   34: 32000,
   35: 6000,
@@ -35,66 +31,60 @@ function adjustedFrom(prices: Record<number, number>): AdjustedPriceOf {
   return (typeId) => (typeId in prices ? prices[typeId]! : null);
 }
 
-// Round adjusted prices, deliberately a DIFFERENT series from the build-cost buy
-// prices below — CCP's adjusted_price is its own daily series, not market
-// buy/sell. Chosen so EIV is hand-verifiable.
 const RIFTER_ADJUSTED: Record<number, number> = { 34: 6, 35: 11, 36: 120, 37: 250 };
 
 describe('DEFAULT_FEE_RATES (verified 2026-06 — fail on silent rate drift)', () => {
   it('pins the current EVE rates', () => {
     expect(DEFAULT_FEE_RATES).toEqual({
-      facilityTax: 0.0025, // 0.25% NPC station (Viridian 2023-06)
-      sccSurcharge: 0.04, // 4% manufacturing (Version 21.06, 2024-02)
-      salesTax: 0.075, // 7.5% base, no Accounting (Version 22.02, 2025-03-12)
-      brokerFee: 0.03, // 3% NPC base, no Broker Relations/standings
+      facilityTax: 0.0025,
+      sccSurcharge: 0.04,
+      salesTax: 0.075,
+      brokerFee: 0.03,
     });
-    // Reaction SCC shares manufacturing's 4%; facility-tax cap is 0–10% (Viridian).
     expect(REACTION_SCC_SURCHARGE).toBe(DEFAULT_FEE_RATES.sccSurcharge);
     expect(MAX_FACILITY_TAX_PCT).toBe(10);
   });
 });
 
-describe('effectiveFacilityTaxRate', () => {
-  it('falls back to the NPC baseline when no tax was entered (the byte-identity guard)', () => {
+describe('facility tax draft and stored rate', () => {
+  it('parses drafts, converts percents, and round-trips stored values', () => {
     expect(effectiveFacilityTaxRate(null)).toBe(DEFAULT_FEE_RATES.facilityTax);
-  });
-
-  it('converts an entered percent to a fraction', () => {
     expect(effectiveFacilityTaxRate(1.5)).toBe(0.015);
     expect(effectiveFacilityTaxRate(10)).toBe(0.1);
     expect(effectiveFacilityTaxRate(0.35)).toBeCloseTo(0.0035, 12);
-  });
-
-  it('treats an entered 0 as a real 0% rate, not "unset"', () => {
     expect(effectiveFacilityTaxRate(0)).toBe(0);
-  });
-});
 
-describe('parseFacilityTaxDraft', () => {
-  it('maps an empty draft to null (never entered — the NPC-baseline assumption)', () => {
     expect(parseFacilityTaxDraft('')).toEqual({ ok: true, value: null });
     expect(parseFacilityTaxDraft('   ')).toEqual({ ok: true, value: null });
-  });
-
-  it('parses in-cap percents, including a real 0 and decimals', () => {
     expect(parseFacilityTaxDraft('0')).toEqual({ ok: true, value: 0 });
     expect(parseFacilityTaxDraft('0.25')).toEqual({ ok: true, value: 0.25 });
     expect(parseFacilityTaxDraft('1.5')).toEqual({ ok: true, value: 1.5 });
-    expect(parseFacilityTaxDraft('10')).toEqual({ ok: true, value: 10 });
-  });
-
-  it('rejects out-of-cap, negative, and non-numeric drafts', () => {
-    for (const draft of ['10.01', '12', '-1', 'abc', 'NaN', 'Infinity']) {
+    expect(parseFacilityTaxDraft(String(MAX_FACILITY_TAX_PCT))).toEqual({
+      ok: true,
+      value: MAX_FACILITY_TAX_PCT,
+    });
+    for (const draft of [
+      String(MAX_FACILITY_TAX_PCT + 0.01),
+      '12',
+      '-1',
+      'abc',
+      'NaN',
+      'Infinity',
+      '1e1',
+      '0xa',
+      '1.',
+      '.5',
+      '+1',
+      ' 1 2 ',
+    ]) {
       expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
     }
-  });
 
-  it('rejects non-decimal numeric forms Number() would otherwise admit', () => {
-    // '1e1' and '0xa' both evaluate to 10 (in-cap) via Number(), but a pasted or
-    // programmatic value in those forms is not a plain percent entry.
-    for (const draft of ['1e1', '0xa', '1.', '.5', '+1', ' 1 2 ']) {
-      expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
-    }
+    expect(taxDraftFromStored(null)).toBe('');
+    expect(taxDraftFromStored(0)).toBe('0');
+    expect(taxDraftFromStored(0.25)).toBe('0.25');
+    expect(taxDraftFromStored(5)).toBe('5');
+    expect(parseFacilityTaxDraft(taxDraftFromStored(1.5))).toEqual({ ok: true, value: 1.5 });
   });
 });
 
@@ -105,34 +95,34 @@ describe('computeJobInstallationFee', () => {
       adjustedFrom(RIFTER_ADJUSTED),
       0.05,
     );
-    // EIV = 32000·6 + 6000·11 + 2500·120 + 500·250 = 192000 + 66000 + 300000 + 125000
+
     expect(fee.estimatedItemValue).toBe(683_000);
-    expect(fee.jobGrossCost).toBe(34_150); // 683000 × 0.05
-    expect(fee.facilityTax).toBeCloseTo(1707.5, 6); // 683000 × 0.0025
-    expect(fee.sccSurcharge).toBe(27_320); // 683000 × 0.04
-    expect(fee.total).toBeCloseTo(63_177.5, 6); // 34150 + 1707.5 + 27320
+    expect(fee.jobGrossCost).toBe(34_150);
+    expect(fee.facilityTax).toBeCloseTo(1707.5, 6);
+    expect(fee.sccSurcharge).toBe(27_320);
+    expect(fee.total).toBeCloseTo(63_177.5, 6);
     expect(fee.missingAdjustedPriceTypeIds).toEqual([]);
     expect(fee.missingSystemCostIndex).toBe(false);
   });
 
   it('flags a missing adjusted price with a partial EIV instead of undercounting silently', () => {
-    // Drop type 37 entirely (no adjusted price).
+
     const adjusted: AdjustedPriceOf = (typeId) =>
       typeId === 37 ? null : (RIFTER_ADJUSTED[typeId] ?? null);
     const fee = computeJobInstallationFee(toMaterials(RIFTER_BASE), adjusted, 0.05);
-    // EIV without 37: 192000 + 66000 + 300000 = 558000.
+
     expect(fee.estimatedItemValue).toBe(558_000);
     expect(fee.missingAdjustedPriceTypeIds).toEqual([37]);
-    // The fee total is still computed on the partial EIV; the caller marks it incomplete.
+
     expect(fee.total).toBeCloseTo(558_000 * (0.05 + 0.0025 + 0.04), 6);
   });
 
   it('treats an adjusted price of 0 as a known price, not as missing', () => {
-    // Type 34 has a real adjusted price of 0 (distinct from absent).
+
     const adjusted = adjustedFrom({ ...RIFTER_ADJUSTED, 34: 0 });
     const fee = computeJobInstallationFee(toMaterials(RIFTER_BASE), adjusted, 0.05);
     expect(fee.missingAdjustedPriceTypeIds).toEqual([]);
-    // EIV drops the 34 contribution (32000·0 = 0): 66000 + 300000 + 125000 = 491000.
+
     expect(fee.estimatedItemValue).toBe(491_000);
   });
 
@@ -146,7 +136,7 @@ describe('computeJobInstallationFee', () => {
     expect(fee.jobGrossCost).toBeNull();
     expect(fee.total).toBeNull();
     expect(fee.missingSystemCostIndex).toBe(true);
-    // facilityTax and sccSurcharge depend on EIV alone — still known.
+
     expect(fee.facilityTax).toBeCloseTo(1707.5, 6);
     expect(fee.sccSurcharge).toBe(27_320);
   });
@@ -155,7 +145,7 @@ describe('computeJobInstallationFee', () => {
     const fee = computeJobInstallationFee(toMaterials(RIFTER_BASE), adjustedFrom(RIFTER_ADJUSTED), 0);
     expect(fee.missingSystemCostIndex).toBe(false);
     expect(fee.jobGrossCost).toBe(0);
-    expect(fee.total).toBeCloseTo(1707.5 + 27_320, 6); // facility + scc only
+    expect(fee.total).toBeCloseTo(1707.5 + 27_320, 6);
   });
 
   it('returns a zero, complete fee for empty base materials', () => {
@@ -175,12 +165,12 @@ describe('computeJobInstallationFee', () => {
       adjustedFrom(RIFTER_ADJUSTED),
       0.05,
       DEFAULT_FEE_RATES,
-      4, // a 4% structure cost reduction (an Azbel role bonus)
+      4,
     );
     expect(fee.estimatedItemValue).toBe(683_000);
-    // jobGrossCost = 683000 × 0.05 × (1 − 0.04) = 34150 × 0.96 = 32784
+
     expect(fee.jobGrossCost).toBeCloseTo(32_784, 6);
-    // facility tax + SCC are EIV-only — the structure bonus must NOT touch them
+
     expect(fee.facilityTax).toBeCloseTo(1707.5, 6);
     expect(fee.sccSurcharge).toBe(27_320);
     expect(fee.total).toBeCloseTo(32_784 + 1707.5 + 27_320, 6);
@@ -206,8 +196,8 @@ describe('computeJobInstallationFee', () => {
 describe('computeSellSideFees', () => {
   it('computes sales tax and broker fee on the sell revenue', () => {
     const fees = computeSellSideFees(700_000);
-    expect(fees.salesTax).toBe(52_500); // 700000 × 0.075
-    expect(fees.brokerFee).toBe(21_000); // 700000 × 0.03
+    expect(fees.salesTax).toBe(52_500);
+    expect(fees.brokerFee).toBe(21_000);
     expect(fees.total).toBe(73_500);
   });
 
@@ -227,11 +217,7 @@ describe('computeSellSideFees', () => {
 });
 
 describe('computeNetMargin', () => {
-  // The Rifter worked example end to end. NOTE: buildCost (570000, a Jita-buy
-  // basis identical to profitability.test.ts's ANCHOR_BUY) and the EIV
-  // (683000, a CCP adjusted-price basis) are intentionally DIFFERENT price
-  // series for the same Rifter — the negative net margin is an artifact of that
-  // gap, not a claim that Rifters are unprofitable.
+
   it('subtracts the job fee and sell-side fees from gross margin (worked example)', () => {
     const net = computeNetMargin({
       buildCost: 570_000,
@@ -244,15 +230,15 @@ describe('computeNetMargin', () => {
 
     expect(net.revenue).toBe(700_000);
     expect(net.buildCost).toBe(570_000);
-    expect(net.grossMargin).toBe(130_000); // 700000 − 570000
+    expect(net.grossMargin).toBe(130_000);
 
     expect(net.jobFee.estimatedItemValue).toBe(683_000);
     expect(net.jobFee.total).toBeCloseTo(63_177.5, 6);
     expect(net.sellSide.total).toBe(73_500);
 
-    expect(net.netCost).toBeCloseTo(633_177.5, 6); // 570000 + 63177.5
-    expect(net.netMargin).toBeCloseTo(-6677.5, 6); // 700000 − 73500 − 633177.5
-    expect(net.netMarginPct).toBeCloseTo((-6677.5 / 700_000) * 100, 6); // ≈ −0.9539286
+    expect(net.netCost).toBeCloseTo(633_177.5, 6);
+    expect(net.netMargin).toBeCloseTo(-6677.5, 6);
+    expect(net.netMarginPct).toBeCloseTo((-6677.5 / 700_000) * 100, 6);
     expect(net.incomplete).toBe(false);
   });
 
@@ -265,7 +251,7 @@ describe('computeNetMargin', () => {
       adjustedPriceOf: adjustedFrom(RIFTER_ADJUSTED),
       systemCostIndex: null,
     });
-    expect(net.grossMargin).toBe(130_000); // still known
+    expect(net.grossMargin).toBe(130_000);
     expect(net.jobFee.missingSystemCostIndex).toBe(true);
     expect(net.netCost).toBeNull();
     expect(net.netMargin).toBeNull();
@@ -288,7 +274,7 @@ describe('computeNetMargin', () => {
     expect(net.netMargin).toBeNull();
     expect(net.netMarginPct).toBeNull();
     expect(net.incomplete).toBe(true);
-    // The build-side fee is still computed (it doesn't depend on revenue).
+
     expect(net.jobFee.total).toBeCloseTo(63_177.5, 6);
   });
 
@@ -304,7 +290,7 @@ describe('computeNetMargin', () => {
     expect(net.revenue).toBe(0);
     expect(net.sellSide.total).toBe(0);
     expect(net.netMarginPct).toBeNull();
-    // netMargin is still a real number: 0 − 0 − (570000 + 63177.5).
+
     expect(net.netMargin).toBeCloseTo(-633_177.5, 6);
   });
 
@@ -321,17 +307,7 @@ describe('computeNetMargin', () => {
     });
     expect(net.jobFee.missingAdjustedPriceTypeIds).toEqual([37]);
     expect(net.incomplete).toBe(true);
-    // Net margin is still computed on the partial EIV (a lower-bound fee).
-    expect(net.netMargin).not.toBeNull();
-  });
-});
 
-describe('taxDraftFromStored', () => {
-  it('round-trips null to empty and stored percents to parseable drafts', () => {
-    expect(taxDraftFromStored(null)).toBe('');
-    expect(taxDraftFromStored(0)).toBe('0');
-    expect(taxDraftFromStored(0.25)).toBe('0.25');
-    expect(taxDraftFromStored(5)).toBe('5');
-    expect(parseFacilityTaxDraft(taxDraftFromStored(1.5))).toEqual({ ok: true, value: 1.5 });
+    expect(net.netMargin).not.toBeNull();
   });
 });

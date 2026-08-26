@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ getSessionMock: vi.fn(), redirectMock: vi.fn() }));
+const h = vi.hoisted(() => ({
+  getSessionMock: vi.fn(),
+  redirectMock: vi.fn(),
+  requireSameOriginMock: vi.fn(),
+}));
 
 vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));
 vi.mock('next/navigation', () => ({
@@ -12,9 +16,13 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: h.getSessionMock } },
 }));
+vi.mock('./same-origin', () => ({
+  requireSameOrigin: (...args: unknown[]) => h.requireSameOriginMock(...args),
+}));
 
 import {
   checkAdmin,
+  checkAdminMutation,
   checkSession,
   checkUserId,
   requireAdminPage,
@@ -22,78 +30,82 @@ import {
 
 const MEMBER = { user: { id: 'user-1' }, characterId: 90000001, isAdmin: false };
 const ADMIN = { user: { id: 'admin-1' }, characterId: 90000002, isAdmin: true };
+const REQUEST = new Request('https://lgi.tools/api/admin/role', { method: 'POST' });
 
 beforeEach(() => {
   h.getSessionMock.mockReset();
   h.redirectMock.mockReset();
+  h.requireSameOriginMock.mockReset();
 });
 
-describe('checkSession', () => {
-  it('returns a typed unauthenticated failure without a response', async () => {
-    h.getSessionMock.mockResolvedValue(null);
-    await expect(checkSession()).resolves.toEqual({
-      ok: false,
-      failure: { category: 'unauthenticated', code: 'unauthenticated' },
-    });
+test('checkSession and checkUserId return typed unauthenticated failures or the signed-in identity', async () => {
+  h.getSessionMock.mockResolvedValue(null);
+  await expect(checkSession()).resolves.toEqual({
+    ok: false,
+    failure: { category: 'unauthenticated', code: 'unauthenticated' },
+  });
+  await expect(checkUserId()).resolves.toEqual({
+    ok: false,
+    failure: { category: 'unauthenticated', code: 'unauthenticated' },
   });
 
-  it('hands back the Better Auth session for a signed-in caller', async () => {
-    h.getSessionMock.mockResolvedValue(MEMBER);
-    await expect(checkSession()).resolves.toEqual({ ok: true, session: MEMBER });
-  });
+  h.getSessionMock.mockResolvedValue(MEMBER);
+  await expect(checkSession()).resolves.toEqual({ ok: true, session: MEMBER });
+  await expect(checkUserId()).resolves.toEqual({ ok: true, userId: 'user-1' });
 });
 
-describe('checkAdmin', () => {
-  it('uses the forbidden category for anonymous and non-admin callers', async () => {
-    h.getSessionMock.mockResolvedValueOnce(null).mockResolvedValueOnce(MEMBER);
-    await expect(checkAdmin()).resolves.toEqual({
-      ok: false,
-      failure: { category: 'forbidden', code: 'forbidden' },
-    });
-    await expect(checkAdmin()).resolves.toEqual({
-      ok: false,
-      failure: { category: 'forbidden', code: 'forbidden' },
-    });
+test('checkAdmin uses forbidden for anonymous and non-admin callers and hands back an admin session', async () => {
+  h.getSessionMock.mockResolvedValueOnce(null).mockResolvedValueOnce(MEMBER).mockResolvedValueOnce(ADMIN);
+  await expect(checkAdmin()).resolves.toEqual({
+    ok: false,
+    failure: { category: 'forbidden', code: 'forbidden' },
   });
-
-  it('hands back the session for an admin', async () => {
-    h.getSessionMock.mockResolvedValue(ADMIN);
-    await expect(checkAdmin()).resolves.toEqual({ ok: true, session: ADMIN });
+  await expect(checkAdmin()).resolves.toEqual({
+    ok: false,
+    failure: { category: 'forbidden', code: 'forbidden' },
   });
+  await expect(checkAdmin()).resolves.toEqual({ ok: true, session: ADMIN });
 });
 
-describe('checkUserId', () => {
-  it('returns a typed unauthenticated failure without a response', async () => {
-    h.getSessionMock.mockResolvedValue(null);
-    await expect(checkUserId()).resolves.toEqual({
-      ok: false,
-      failure: { category: 'unauthenticated', code: 'unauthenticated' },
-    });
+test('checkAdminMutation refuses non-admins, then applies the same-origin gate', async () => {
+  h.getSessionMock.mockResolvedValueOnce(null).mockResolvedValueOnce(MEMBER);
+  await expect(checkAdminMutation(REQUEST)).resolves.toEqual({
+    ok: false,
+    failure: { category: 'forbidden', code: 'forbidden' },
   });
+  await expect(checkAdminMutation(REQUEST)).resolves.toEqual({
+    ok: false,
+    failure: { category: 'forbidden', code: 'forbidden' },
+  });
+  expect(h.requireSameOriginMock).not.toHaveBeenCalled();
 
-  it('hands back the Better Auth user id for a signed-in caller', async () => {
-    h.getSessionMock.mockResolvedValue(MEMBER);
-    await expect(checkUserId()).resolves.toEqual({ ok: true, userId: 'user-1' });
+  h.getSessionMock.mockResolvedValue(ADMIN);
+  h.requireSameOriginMock.mockReturnValueOnce({
+    ok: false,
+    failure: { category: 'forbidden', code: 'cross_origin' },
   });
+  await expect(checkAdminMutation(REQUEST)).resolves.toEqual({
+    ok: false,
+    failure: { category: 'forbidden', code: 'cross_origin' },
+  });
+  expect(h.requireSameOriginMock).toHaveBeenCalledWith(REQUEST);
+
+  h.requireSameOriginMock.mockReturnValueOnce({ ok: true });
+  await expect(checkAdminMutation(REQUEST)).resolves.toEqual({ ok: true, session: ADMIN });
 });
 
-describe('requireAdminPage', () => {
-  it('redirects an anonymous caller to the auth-error landing', async () => {
-    h.getSessionMock.mockResolvedValue(null);
-    await expect(requireAdminPage()).rejects.toThrow('NEXT_REDIRECT');
-    expect(h.redirectMock).toHaveBeenCalledWith('/?auth_error=admin_required');
-  });
+test('requireAdminPage redirects anonymous and non-admin callers and returns an admin session', async () => {
+  h.getSessionMock.mockResolvedValue(null);
+  await expect(requireAdminPage()).rejects.toThrow('NEXT_REDIRECT');
+  expect(h.redirectMock).toHaveBeenCalledWith('/?auth_error=admin_required');
 
-  it('redirects a signed-in non-admin', async () => {
-    h.getSessionMock.mockResolvedValue(MEMBER);
-    await expect(requireAdminPage()).rejects.toThrow('NEXT_REDIRECT');
-    expect(h.redirectMock).toHaveBeenCalledWith('/?auth_error=admin_required');
-  });
+  h.redirectMock.mockClear();
+  h.getSessionMock.mockResolvedValue(MEMBER);
+  await expect(requireAdminPage()).rejects.toThrow('NEXT_REDIRECT');
+  expect(h.redirectMock).toHaveBeenCalledWith('/?auth_error=admin_required');
 
-  it('returns the session for an admin without redirecting', async () => {
-    h.getSessionMock.mockResolvedValue(ADMIN);
-    const session = await requireAdminPage();
-    expect(session).toEqual(ADMIN);
-    expect(h.redirectMock).not.toHaveBeenCalled();
-  });
+  h.redirectMock.mockClear();
+  h.getSessionMock.mockResolvedValue(ADMIN);
+  await expect(requireAdminPage()).resolves.toEqual(ADMIN);
+  expect(h.redirectMock).not.toHaveBeenCalled();
 });

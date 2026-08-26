@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { SearchContext } from '@/platform/search';
+import { z } from 'zod';
+import { systemSearchEntrySchema } from './api-contract';
 import { formatSec, matchSystem, type SystemSearchEntry } from './systems-search';
 
 const { apiFetchMock } = vi.hoisted(() => ({ apiFetchMock: vi.fn() }));
@@ -9,8 +11,7 @@ vi.mock('@/transport/api-client', () => ({
 }));
 
 const SYSTEMS: SystemSearchEntry[] = [
-  // Digits sort before letters, so the J-code deliberately precedes Jita in
-  // name order — the trap the fuzzy-ranked prefix fallback exists for.
+
   { id: 31000001, name: 'J100001', security: -0.99 },
   { id: 30000142, name: 'Jita', security: 0.9 },
   { id: 2, name: 'Jarizza', security: -0.4 },
@@ -21,25 +22,24 @@ const SYSTEMS: SystemSearchEntry[] = [
 
 const ctx = (signal?: AbortSignal): SearchContext => ({ session: null, isAdmin: false, recents: [], signal });
 
-// The loader memoizes at module scope, so loader/source tests import a FRESH
-// module instance per test (vi.resetModules) — no cross-test order coupling.
-// The pure matchers above use the static import; they never touch the loader.
 async function freshModule() {
   vi.resetModules();
   return await import('./systems-search');
 }
 
+describe('system search contract', () => {
+  it('pins the system search entry to SystemSearchEntry exactly (both directions)', () => {
+    expectTypeOf<z.infer<typeof systemSearchEntrySchema>>().toEqualTypeOf<SystemSearchEntry>();
+  });
+});
+
 describe('matchSystem', () => {
   it('prefers exact names, fuzzy-ranks prefixes, and returns null for misses', () => {
     expect(matchSystem(SYSTEMS, 'jita')?.id).toBe(30000142);
     expect(matchSystem(SYSTEMS, '  AMARR ')?.id).toBe(3);
-    // Exact beats the fuzzy-ranked prefix pool even when prefixes exist.
+
     expect(matchSystem(SYSTEMS, 'j100001')?.id).toBe(31000001);
 
-    // 'j' prefixes J100001, Jita, and Jarizza. J100001 sorts FIRST (digits
-    // before letters), so a first-prefix-wins rule would silently send
-    // `j` + Enter to a wormhole system; the fuzzy rank picks the short
-    // K-space name instead.
     expect(matchSystem(SYSTEMS, 'j')?.name).toBe('Jita');
     expect(matchSystem(SYSTEMS, 'jar')?.id).toBe(2);
     expect(matchSystem(SYSTEMS, 'j1')?.name).toBe('J100001');
@@ -75,9 +75,7 @@ describe('systemsSource', () => {
       id: 'system:30000142',
       label: 'Jita',
       sub: '0.9',
-      // No system page exists — the scoped picker consumers read label/id
-      // only. Pinned so letting systems into the global bar forces a real
-      // destination decision.
+
       href: '#',
       matchIndices: [0, 1, 2, 3],
     });

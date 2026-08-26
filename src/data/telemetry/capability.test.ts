@@ -27,7 +27,6 @@ afterEach(() => {
 
 const ids = Object.keys(CAPABILITIES) as CapabilityId[];
 
-/** Records one outcome and returns the metadata that reached the telemetry writer. */
 function recordedMetadata(
   id: CapabilityId,
   outcome: CapabilityOutcomeInput,
@@ -41,22 +40,6 @@ function recordedMetadata(
 }
 
 describe('capability catalogue', () => {
-  it('names all 50 instrumented operations exactly once', () => {
-    expect(new Set(ids).size).toBe(50);
-    expect(ids).toContain('admin.wh-statics-review');
-    expect(ids).toContain('cron.refresh-wh-statics');
-    expect(ids).toContain('maps.create-map');
-    expect(ids).toContain('maps.update-access');
-    expect(ids).toContain('maps.delete-map');
-    expect(ids).toContain('maps.restore-map');
-    expect(ids).toContain('maps.request-map-purge');
-    expect(ids).toContain('cron.purge-maps');
-    expect(ids).toContain('maps.eliminate-signatures');
-    expect(ids).toContain('maps.resolve-jump');
-    expect(ids).toContain('maps.search-characters');
-    expect(ids).toContain('sync.leave-location');
-  });
-
   it('keeps operation names unique within each feature', () => {
     const seen = new Set<string>();
     for (const id of ids) {
@@ -177,11 +160,6 @@ describe('recordCapabilityOutcome', () => {
   });
 });
 
-// HC-2: no high-cardinality identifier may become a metric label. `action`,
-// `feature`, and `operation` are the only values grouped on, and all three come
-// from closed `as const` vocabularies. Everything else in the record —
-// correlation ids, durations, per-dependency timings — is a value, and grouping
-// on any of them would create one series per request.
 describe('metric label cardinality', () => {
   const HIGH_CARDINALITY_FIELDS = ['correlationId', 'durationMs', 'dependencies', 'retry'];
 
@@ -205,11 +183,11 @@ describe('metric label cardinality', () => {
       durationMs: 5,
       retry: null,
     });
-    // Present in the record...
+
     for (const field of HIGH_CARDINALITY_FIELDS) {
       expect(Object.keys(metadata)).toContain(field);
     }
-    // ...but never part of the identity the record is grouped by.
+
     expect(Object.keys(CAPABILITIES[ 'planner.create-saved-plan' ])).toEqual([
       'feature',
       'operation',

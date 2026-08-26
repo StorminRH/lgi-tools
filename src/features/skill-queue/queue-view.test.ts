@@ -16,37 +16,29 @@ function entry(overrides: Partial<SkillQueueEntry>): SkillQueueEntry {
 }
 
 describe('queueCardModel', () => {
-  it('is inert for a never-synced character (data:null)', () => {
+  it('walks never-synced, empty, training, and paused cards', () => {
     expect(queueCardModel(null, NOW)).toEqual({ isEmpty: false, subtitle: null, header: null });
-  });
 
-  it('builds the SP subtitle, appending unallocated only when present', () => {
-    expect(queueCardModel({ entries: [], totalSp: 5_000_000 }, NOW).subtitle).toMatch(/SP$/);
+    const empty = queueCardModel({ entries: [], totalSp: 5_000_000 }, NOW);
+    expect(empty.isEmpty).toBe(true);
+    expect(empty.header).toBeNull();
+    expect(empty.subtitle).toMatch(/SP$/);
     expect(
       queueCardModel({ entries: [], totalSp: 5_000_000, unallocatedSp: 10_000 }, NOW).subtitle,
     ).toMatch(/unallocated$/);
-  });
 
-  it('marks a synced-but-zero queue empty and gives no header', () => {
-    const model = queueCardModel({ entries: [], totalSp: 1 }, NOW);
-    expect(model.isEmpty).toBe(true);
-    expect(model.header).toBeNull();
-  });
-
-  it('reports an ends-in header while actively training', () => {
-    const model = queueCardModel(
-      { entries: [entry({ finish_date: '2026-06-12T13:00:00Z' })], totalSp: 1 },
-      NOW,
-    );
-    expect(model.header).toEqual({ kind: 'ends-in', ms: 3_600_000 });
-  });
-
-  it('reports a paused header when the whole queue is paused', () => {
-    const model = queueCardModel(
-      { entries: [entry({ start_date: undefined, finish_date: undefined })], totalSp: 1 },
-      NOW,
-    );
-    expect(model.header).toEqual({ kind: 'paused' });
+    expect(
+      queueCardModel(
+        { entries: [entry({ finish_date: '2026-06-12T13:00:00Z' })], totalSp: 1 },
+        NOW,
+      ).header,
+    ).toEqual({ kind: 'ends-in', ms: 3_600_000 });
+    expect(
+      queueCardModel(
+        { entries: [entry({ start_date: undefined, finish_date: undefined })], totalSp: 1 },
+        NOW,
+      ).header,
+    ).toEqual({ kind: 'paused' });
   });
 });
 

@@ -1,10 +1,6 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Admin force-unlink. Mock auth + the query layer so these exercise the admin
-// gate, the ownership + last-character guards, the re-point, and the redirect
-// without a DB.
-
 const ADMIN_SESSION = {
   user: { id: 'admin-1' },
   characterId: 1,
@@ -68,59 +64,45 @@ describe('POST /api/admin/characters/unlink', () => {
     logUsageEventMock.mockResolvedValue(undefined);
   });
 
-  it('returns 403 for a non-admin', async () => {
+  it('refuses non-admins, a malformed form, an unowned character, and the last character', async () => {
     getSessionMock.mockResolvedValue({ ...ADMIN_SESSION, isAdmin: false });
-    const res = await POST(buildRequest({ userId: 'eve-user-2', characterId: '200' }));
-    expect(res.status).toBe(403);
-    expect(deleteLinkedCharacterMock).not.toHaveBeenCalled();
-  });
+    expect(
+      (await POST(buildRequest({ userId: 'eve-user-2', characterId: '200' }))).status,
+    ).toBe(403);
 
-  it('returns 400 on a malformed form', async () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    const res = await POST(buildRequest({ userId: 'eve-user-2' }));
-    expect(res.status).toBe(400);
-  });
+    expect((await POST(buildRequest({ userId: 'eve-user-2' }))).status).toBe(400);
 
-  it('returns 404 when the character is not linked to that user', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
     accountBelongsToUserMock.mockResolvedValue(false);
-    const res = await POST(buildRequest({ userId: 'eve-user-2', characterId: '999' }));
-    expect(res.status).toBe(404);
-    expect(deleteLinkedCharacterMock).not.toHaveBeenCalled();
-  });
+    expect(
+      (await POST(buildRequest({ userId: 'eve-user-2', characterId: '999' }))).status,
+    ).toBe(404);
 
-  it('refuses to remove the user\'s last character', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
     accountBelongsToUserMock.mockResolvedValue(true);
     listLinkedCharactersMock.mockResolvedValue([{ characterId: 100 }]);
-    const res = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
-    expect(res.status).toBe(303);
-    expect(locationOf(res)).toContain('error=last_character');
+    const last = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
+    expect(last.status).toBe(303);
+    expect(locationOf(last)).toContain('error=last_character');
     expect(deleteLinkedCharacterMock).not.toHaveBeenCalled();
   });
 
-  it('unlinks and re-points the active character when it was the one removed', async () => {
+  it('unlinks and re-points only when the removed character was active', async () => {
     getSessionMock.mockResolvedValue(ADMIN_SESSION);
     accountBelongsToUserMock.mockResolvedValue(true);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
     deleteLinkedCharacterMock.mockResolvedValue(true);
     getStoredActiveCharacterIdMock.mockResolvedValue(100);
-    const res = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
-    expect(res.status).toBe(303);
-    expect(locationOf(res)).toBe('http://localhost:3000/admin/access/eve-user-2');
+
+    const active = await POST(buildRequest({ userId: 'eve-user-2', characterId: '100' }));
+    expect(active.status).toBe(303);
+    expect(locationOf(active)).toBe('http://localhost:3000/admin/access/eve-user-2');
     expect(deleteLinkedCharacterMock).toHaveBeenCalledWith('eve-user-2', 100);
     expect(repointActiveToOldestMock).toHaveBeenCalledWith('eve-user-2');
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-  });
 
-  it('does not re-point when the removed character was not active', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_SESSION);
-    accountBelongsToUserMock.mockResolvedValue(true);
-    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    deleteLinkedCharacterMock.mockResolvedValue(true);
-    getStoredActiveCharacterIdMock.mockResolvedValue(100);
-    const res = await POST(buildRequest({ userId: 'eve-user-2', characterId: '200' }));
-    expect(res.status).toBe(303);
+    repointActiveToOldestMock.mockClear();
+    const inactive = await POST(buildRequest({ userId: 'eve-user-2', characterId: '200' }));
+    expect(inactive.status).toBe(303);
     expect(repointActiveToOldestMock).not.toHaveBeenCalled();
   });
 });

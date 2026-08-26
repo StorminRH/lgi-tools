@@ -1,27 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { masterVersionOf, parseChangelogMasters } from './parse';
 
-describe('masterVersionOf', () => {
-  it('keeps the first two dot-segments', () => {
+describe('parseChangelogMasters', () => {
+  it('groups sub-versions that share a master', () => {
     expect(masterVersionOf('3.6.28')).toBe('3.6');
     expect(masterVersionOf('2.9.1')).toBe('2.9');
-  });
-
-  it('collapses a 4-segment version to its master', () => {
     expect(masterVersionOf('3.0.3.1')).toBe('3.0');
-  });
-
-  it('returns a two-segment version unchanged', () => {
     expect(masterVersionOf('3.7')).toBe('3.7');
-  });
-});
-
-describe('parseChangelogMasters', () => {
-  it('returns [] for empty input', () => {
     expect(parseChangelogMasters('')).toEqual([]);
-  });
-
-  it('groups sub-versions that share a master', () => {
     const md = [
       '### v3.6.2 — 2026-06-02',
       '#### Added',
