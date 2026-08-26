@@ -129,6 +129,7 @@ describe('mapper source contract', () => {
       'tracking/presence-context.ts',
       'tracking/presence-model.ts',
       'tracking/tracked-system.ts',
+      'tracking/use-map-coverage.ts',
       'tracking/use-tracked-system.ts',
       'windows/MapWindow.tsx',
       'windows/MapWindowLayer.tsx',
