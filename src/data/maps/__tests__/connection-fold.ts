@@ -16,6 +16,7 @@ import {
   leadsToFromSystem,
   pendingResolution,
   type ConnectionHallway,
+  type ConnectionRowId,
 } from '@/data/maps/connection-hallway';
 import { applyDoorType } from '@/data/maps/connection-door-types';
 
@@ -79,7 +80,7 @@ function foldedResolution(bag: LegacyConnectionBag) {
   const candidates = bag.pendingCandidates ?? [];
   const characterId = bag.pendingResolutionCharacterId;
   if (candidates.length > 1 && characterId != null) {
-    return pendingResolution(candidates, characterId);
+    return pendingResolution(candidates as ConnectionRowId[], characterId);
   }
   if (bag.destinationProvenance != null) {
     return destinationResolution(bag.destinationProvenance);

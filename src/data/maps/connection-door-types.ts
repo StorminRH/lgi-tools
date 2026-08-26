@@ -44,6 +44,18 @@ export function isEntranceType(code: string | null | undefined): boolean {
   return code != null && code !== FAR_SIDE_WORMHOLE_CODE && isWormholeTypeCode(code);
 }
 
+/** Named mouth when one exists. Otherwise the first stored code, or none. */
+export function namedDoorType(doors: ConnectionDoorTypes): {
+  readonly typeCode: string | null;
+  readonly side: ConnectionDoorSide | null;
+} {
+  if (isEntranceType(doors.from)) return { typeCode: doors.from, side: 'from' };
+  if (isEntranceType(doors.to)) return { typeCode: doors.to, side: 'to' };
+  if (doors.from !== null) return { typeCode: doors.from, side: 'from' };
+  if (doors.to !== null) return { typeCode: doors.to, side: 'to' };
+  return { typeCode: null, side: null };
+}
+
 /**
  * Writes one mouth. A newly set named type fills a blank other mouth as K162.
  * Clearing a mouth, writing K162, or finding the other mouth already set

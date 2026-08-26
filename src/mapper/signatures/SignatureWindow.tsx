@@ -28,6 +28,7 @@ import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
 import { useUniverseAssets } from '../chain/use-map-chain';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import { namedDoorType } from '@/data/maps/connection-door-types';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
   MAP_SCANNER_DOCK_STACK_CLASS,
@@ -60,7 +61,7 @@ import {
   scannerMassReadout,
 } from './scanner-inline-cells';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
-import { doorHint, lifetimeStage } from '@/data/maps/connection-hallway';
+import { doorHint, hallwayDoorTypes, lifetimeStage } from '@/data/maps/connection-hallway';
 import { originLeadOptions } from './origin-leads';
 import { destinationReadout } from './system-readout';
 import type { OpenSignatureEditor } from './signature-context';
@@ -719,7 +720,7 @@ function ScannerSections({
         destinationReadout(connection.toSystemId, systemInfo),
       bindConnectionSetters,
       entryOf: (connection) => {
-        const code = connection.from.typeCode;
+        const code = namedDoorType(hallwayDoorTypes(connection)).typeCode;
         if (code === null) return null;
         return editorData.codex?.byCode(code) ?? null;
       },

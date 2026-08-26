@@ -34,11 +34,12 @@ import type {
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
 import { eliminateSignaturesAndAnnounce } from '../signatures/signature-elimination-client';
-import { connectionTypePatch } from '@/data/maps/connection-door-types';
+import { connectionTypePatch, namedDoorType } from '@/data/maps/connection-door-types';
 import {
   blankHallway,
   connectionLifetimeFrom,
   hallwayDoor,
+  hallwayDoorTypes,
   leadsToFromHint,
   leadsToFromSystem,
   lifetimeDeathWindow,
@@ -398,7 +399,7 @@ function namedTypeCode(connection: {
   readonly from: ConnectionDoorValue;
   readonly to: ConnectionDoorValue;
 }): string | null {
-  return connection.from.typeCode ?? connection.to.typeCode;
+  return namedDoorType(hallwayDoorTypes(connection)).typeCode;
 }
 
 /** Explicit type-pick proposal: typed ceilings narrow; K162/unset preserve. */

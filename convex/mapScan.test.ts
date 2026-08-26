@@ -791,6 +791,7 @@ describe('mapScan paste application and lifecycle', () => {
     });
     let leftoverId = '' as Id<'mapConnections'>;
     await t.run(async (ctx) => {
+      await ctx.db.patch(inboundId, { firstSeenAt: 1_000 });
       leftoverId = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
@@ -802,6 +803,7 @@ describe('mapScan paste application and lifecycle', () => {
         fromWormholeTypeCode: 'B274',
         massState: null,
         shipSize: null,
+        firstSeenAt: 9_000,
         deletedAt: null,
         purgeAfter: null,
       }));
@@ -827,6 +829,7 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
       from: expect.objectContaining({ signatureId: 'STA-001', typeCode: 'B274' }),
       to: expect.objectContaining({ signatureId: 'DEF-456', typeCode: 'K162' }),
+      firstSeenAt: 1_000,
       massState: 'stable',
       shipSize: 'M',
     });

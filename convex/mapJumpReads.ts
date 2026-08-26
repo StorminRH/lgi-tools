@@ -2,7 +2,7 @@ import { ConvexError } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 import {
-  isEntranceType,
+  namedDoorType,
   type ConnectionDoor,
 } from '@/data/maps/connection-door-types';
 import { isTombstoned } from '@/data/maps/chain-contract';
@@ -81,16 +81,8 @@ function emissionTypeSnapshot(connection: Doc<'mapConnections'>): {
   readonly wormholeTypeCode: string | null;
   readonly typedSide: ConnectionDoor | null;
 } {
-  const doors = hallwayDoorTypes(connection);
-  if (isEntranceType(doors.from)) {
-    return { wormholeTypeCode: doors.from, typedSide: 'from' };
-  }
-  if (isEntranceType(doors.to)) {
-    return { wormholeTypeCode: doors.to, typedSide: 'to' };
-  }
-  if (doors.from !== null) return { wormholeTypeCode: doors.from, typedSide: 'from' };
-  if (doors.to !== null) return { wormholeTypeCode: doors.to, typedSide: 'to' };
-  return { wormholeTypeCode: null, typedSide: null };
+  const named = namedDoorType(hallwayDoorTypes(connection));
+  return { wormholeTypeCode: named.typeCode, typedSide: named.side };
 }
 
 export function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {

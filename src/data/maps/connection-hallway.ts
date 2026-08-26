@@ -206,13 +206,13 @@ export function lifetimeObservedAt(lifetime: ConnectionLifetime): number | null 
 
 /** Assumed multi-survivor prompt, or open/destination. */
 export function pendingResolution(
-  candidateIds: readonly string[],
+  candidateIds: readonly ConnectionRowId[],
   characterId: number,
 ): ConnectionResolution {
   return {
     kind: 'pending',
     provenance: 'assumed',
-    candidateIds: [...candidateIds] as ConnectionRowId[],
+    candidateIds: [...candidateIds],
     characterId,
   };
 }

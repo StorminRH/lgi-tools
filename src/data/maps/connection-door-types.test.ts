@@ -5,6 +5,7 @@ import {
   applyReturnDoorType,
   connectionTypePatch,
   isEntranceType,
+  namedDoorType,
   returnDoorTypePatch,
   typedDoorsFrom,
 } from './connection-door-types';
@@ -16,6 +17,25 @@ describe('connection door types', () => {
     expect(isEntranceType('C247')).toBe(true);
     expect(isEntranceType('K162')).toBe(false);
     expect(isEntranceType(null)).toBe(false);
+  });
+
+  it('prefers the named mouth when the other mouth is a K162', () => {
+    expect(namedDoorType({ from: 'C247', to: 'K162' })).toEqual({
+      typeCode: 'C247',
+      side: 'from',
+    });
+    expect(namedDoorType({ from: 'K162', to: 'P060' })).toEqual({
+      typeCode: 'P060',
+      side: 'to',
+    });
+    expect(namedDoorType({ from: 'K162', to: null })).toEqual({
+      typeCode: 'K162',
+      side: 'from',
+    });
+    expect(namedDoorType({ from: null, to: null })).toEqual({
+      typeCode: null,
+      side: null,
+    });
   });
 
   it('reads types from the two door values', () => {

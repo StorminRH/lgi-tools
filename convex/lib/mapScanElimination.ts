@@ -285,7 +285,8 @@ export async function applyLinkDeduction(
   if (leftover !== null) {
     next = absorbLeftoverOriginStub(next, leftover.row, side);
   }
-  await ctx.db.patch(target._id, linkedHallwayPatch(next));
+  const { _id: _targetId, _creationTime: _createdAt, ...fields } = next;
+  await ctx.db.patch(target._id, fields);
   if (leftover !== null) await ctx.db.delete(leftover.id);
   await ctx.db.delete(source._id);
   return { signatureId, outcome: 'applied', observationKey };
@@ -315,21 +316,13 @@ function applyDoorSignature(
   };
 }
 
-function linkedHallwayPatch(
-  hallway: Doc<'mapConnections'>,
-): Partial<Doc<'mapConnections'>> {
-  return {
-    from: hallway.from,
-    to: hallway.to,
-    identity: hallway.identity,
-    lifetime: hallway.lifetime,
-    massState: hallway.massState,
-    shipSize: hallway.shipSize,
-    ...(hallway.observedMassAtStateKg === undefined
-      ? {}
-      : { observedMassAtStateKg: hallway.observedMassAtStateKg }),
-    ...(hallway.firstSeenAt === undefined ? {} : { firstSeenAt: hallway.firstSeenAt }),
-  };
+function earliestFirstSeenAt(
+  hallway: number | undefined,
+  leftover: number | undefined,
+): number | undefined {
+  if (hallway === undefined) return leftover;
+  if (leftover === undefined) return hallway;
+  return Math.min(hallway, leftover);
 }
 
 async function findLeftoverOriginStub(
@@ -360,6 +353,10 @@ function absorbLeftoverOriginStub(
   const oppositeSide = attachedSide === 'from' ? 'to' : 'from';
   const afterKnowledge = applyLinkKnowledge(target, leftover, oppositeSide);
   const door = hallwayDoor(afterKnowledge, oppositeSide);
+  const firstSeenAt = earliestFirstSeenAt(
+    afterKnowledge.firstSeenAt,
+    leftover.firstSeenAt,
+  );
   return {
     ...afterKnowledge,
     ...replaceDoor(afterKnowledge, oppositeSide, {
@@ -367,9 +364,7 @@ function absorbLeftoverOriginStub(
       signatureId: leftover.from.signatureId,
       signalPct: oppositeSide === 'from' ? leftover.from.signalPct : door.signalPct,
     }),
-    ...(leftover.firstSeenAt === undefined
-      ? {}
-      : { firstSeenAt: leftover.firstSeenAt ?? afterKnowledge.firstSeenAt }),
+    ...(firstSeenAt === undefined ? {} : { firstSeenAt }),
   };
 }
 

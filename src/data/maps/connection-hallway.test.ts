@@ -15,6 +15,7 @@ import {
   leadsToFromSystem,
   lifetimeDeathWindow,
   lifetimeStage,
+  type ConnectionRowId,
 } from './connection-hallway';
 
 describe('connection hallway', () => {
@@ -79,10 +80,12 @@ describe('connection hallway', () => {
   });
 
   it('treats any pending arm as pending and requires two survivors for a prompt', () => {
-    expect(isPendingResolution(pendingResolution(['a', 'b'], 1))).toBe(true);
-    expect(isPendingResolution(pendingResolution(['a'], 1))).toBe(true);
-    expect(hasAnswerablePrompt(pendingResolution(['a', 'b'], 1))).toBe(true);
-    expect(hasAnswerablePrompt(pendingResolution(['a'], 1))).toBe(false);
+    const one = ['a'] as ConnectionRowId[];
+    const two = ['a', 'b'] as ConnectionRowId[];
+    expect(isPendingResolution(pendingResolution(two, 1))).toBe(true);
+    expect(isPendingResolution(pendingResolution(one, 1))).toBe(true);
+    expect(hasAnswerablePrompt(pendingResolution(two, 1))).toBe(true);
+    expect(hasAnswerablePrompt(pendingResolution(one, 1))).toBe(false);
     expect(leadsToEquals({ kind: 'unset' }, { kind: 'unset' })).toBe(true);
     expect(leadsToEquals({ kind: 'hint', hint: 'hisec' }, { kind: 'hint', hint: 'lowsec' })).toBe(
       false,
@@ -95,7 +98,7 @@ describe('connection hallway', () => {
       kind: 'destination',
       provenance: 'human',
     });
-    expect(clearPendingResolution(pendingResolution(['a', 'b'], 1))).toEqual({
+    expect(clearPendingResolution(pendingResolution(['a', 'b'] as ConnectionRowId[], 1))).toEqual({
       kind: 'destination',
       provenance: 'assumed',
     });
