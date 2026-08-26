@@ -5,6 +5,7 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import {
   findConnectionForSignature,
+  FIXTURE_CONNECTION_SCAN_LIMIT,
   readOriginConnections,
 } from './lib/mapConnectionLookup';
 import {
@@ -13,7 +14,6 @@ import {
   validateUnresolvedHoleInput,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
-import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import { findSystem } from './lib/mapSystemLookup';
 
 interface UnresolvedHoleFixtureArgs {
