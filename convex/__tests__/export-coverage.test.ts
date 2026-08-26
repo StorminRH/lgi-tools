@@ -27,13 +27,14 @@ import { syncUser } from '../characterLocationSync';
 import convexApp from '../convex.config';
 import crons from '../crons';
 import {
-  chainDispatch,
+  chainDispatch as engineChainDispatch,
   heartbeat,
-  leave,
-  onSyncComplete,
-  scan,
-  sweep,
+  onSyncComplete as engineOnSyncComplete,
 } from '../engine';
+import { chainDispatch, onSyncComplete } from '../engineComplete';
+import { leave } from '../engineLeave';
+import { scan } from '../engineScan';
+import { sweep } from '../engineSweep';
 import http from '../http';
 import { requireSyncEnv } from '../lib/characterSync';
 import { MAP_CONNECTION_SIGNATURE_SCAN_LIMIT } from '../lib/mapConnectionLookup';
@@ -78,23 +79,29 @@ import {
   watchMapSystems,
   watchUnresolvedHoles,
 } from '../mapChain';
+import { upsertUnresolvedHole } from '../mapFixtureHoles';
+import { insertNoteFixture } from '../mapFixtureNotes';
+import {
+  insertConnectionFixture,
+  placeJumpFixture,
+  placeSystemFixture,
+} from '../mapFixturePlace';
+import {
+  collapseJumpFixture,
+  removeConnectionFixture,
+  removeSystemFixture,
+} from '../mapFixtureRemove';
+import {
+  recordSignatureSeen,
+  setSignatureTombstone,
+  upsertSignatureObservation,
+} from '../mapFixtureSignatures';
 import {
   advanceTrackedLocationFixture,
   clearTrackedCoverage,
-  collapseJumpFixture,
-  insertConnectionFixture,
-  insertNoteFixture,
-  placeJumpFixture,
-  placeSystemFixture,
-  readMapCollection,
-  recordSignatureSeen,
-  removeConnectionFixture,
-  removeSystemFixture,
   seedTrackedLocationFixture,
-  setSignatureTombstone,
-  upsertSignatureObservation,
-  upsertUnresolvedHole,
-} from '../mapFixtures';
+} from '../mapFixtureTracking';
+import { readMapCollection } from '../mapFixtures';
 import {
   confirmJumpIdentity,
   connectionEvidence,
@@ -145,7 +152,9 @@ describe('convex runtime exports', () => {
       purgeLocationForUser,
       putAccessLease,
       chainDispatch,
+      engineChainDispatch,
       heartbeat,
+      engineOnSyncComplete,
       leave,
       onSyncComplete,
       scan,

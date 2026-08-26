@@ -10,7 +10,7 @@ import {
   SYNC_DATASET_CONFIG,
 } from '@/lib/sync-engine';
 import { api, internal } from './_generated/api';
-import { SCAN_DISPATCH_BATCH } from './engine';
+import { SCAN_DISPATCH_BATCH } from './lib/engineCore';
 import schema from './schema';
 import { modules } from './__tests__/modules.setup';
 
@@ -257,7 +257,7 @@ describe('engine.leave', () => {
       });
     });
 
-    const ignored = await t.mutation(internal.engine.leave, {
+    const ignored = await t.mutation(internal.engineLeave.leave, {
       userId: USER,
       dataset: 'characterLocation',
       tabId: 'tab-b',
@@ -270,7 +270,7 @@ describe('engine.leave', () => {
     expect(stillHot.subject?.nextDueAt).toBe(now + 5_000);
     expect(stillHot.covered).toHaveLength(1);
 
-    const retired = await t.mutation(internal.engine.leave, {
+    const retired = await t.mutation(internal.engineLeave.leave, {
       userId: USER,
       dataset: 'characterLocation',
       tabId: 'tab-a',
@@ -313,7 +313,7 @@ describe('engine.leave', () => {
         tabId: 'tab-a',
       });
     });
-    await t.mutation(internal.engine.leave, {
+    await t.mutation(internal.engineLeave.leave, {
       userId: USER,
       dataset: 'characterLocation',
       tabId: 'tab-a',
@@ -373,7 +373,7 @@ describe('engine.leave', () => {
     const lastBeater = await t.run((ctx) => ctx.db.query('syncPresence').unique());
     expect(lastBeater?.tabId).toBe('tab-a');
 
-    expect(await t.mutation(internal.engine.leave, {
+    expect(await t.mutation(internal.engineLeave.leave, {
       userId: USER,
       dataset: 'characterLocation',
       tabId: 'tab-a',
@@ -407,7 +407,7 @@ describe('engine.scan', () => {
       });
     });
 
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
 
     const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
     expect(subject?.status).toBe('running');
@@ -424,7 +424,7 @@ describe('engine.scan', () => {
       await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt: now });
     });
 
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
 
     const subject = await t.run((ctx) => ctx.db.query('syncSubjects').unique());
     expect(subject?.status).toBe('idle');
@@ -446,7 +446,7 @@ describe('engine.scan', () => {
       });
     });
 
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
 
     const subject = await t.run((ctx) =>
       ctx.db
@@ -467,7 +467,7 @@ describe('engine.scan', () => {
         characterId: 9_000_001,
       });
     });
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
@@ -496,7 +496,7 @@ describe('engine.scan', () => {
       }));
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: USER, lastSeenAt: now });
     });
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
@@ -523,7 +523,7 @@ describe('engine.scan', () => {
       }
     });
 
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
 
     const statuses = await t.run(async (ctx) =>
       (await ctx.db.query('syncSubjects').collect()).map((s) => s.status).sort(),
@@ -549,7 +549,7 @@ describe('engine.scan', () => {
       }
     });
 
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
     const tick1 = await t.run(async (ctx) => {
       const rows = await ctx.db.query('syncSubjects').collect();
       return {
@@ -561,7 +561,7 @@ describe('engine.scan', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]![0]).toContain('scan_batch_capped');
 
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
     const tick2Running = await t.run(async (ctx) =>
       (await ctx.db.query('syncSubjects').collect()).filter((s) => s.status === 'running').length,
     );
@@ -572,7 +572,7 @@ describe('engine.scan', () => {
 
 describe('engine.onSyncComplete', () => {
   function callComplete(t: ReturnType<typeof convexTest>, result: unknown, workId = 'w1') {
-    return t.mutation(internal.engine.onSyncComplete, {
+    return t.mutation(internal.engineComplete.onSyncComplete, {
       workId: workId as never,
       context: { dataset: 'characterLocation', userId: USER },
       result: result as never,
@@ -607,6 +607,72 @@ describe('engine.onSyncComplete', () => {
     expect(subject?.minExpiresAt).toBeNull();
     expect(subject?.lastError?.startsWith('sync_failed:')).toBe(true);
     expect(typeof subject?.nextDueAt).toBe('number');
+  });
+
+  it('the one-deploy engine.chainDispatch path still dispatches a due hop', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
+    const t = convexTest(schema, modules);
+    stubDispatch();
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        dataset: 'characterLocation',
+        status: 'idle',
+        lastRequestedAt: 0,
+        nextDueAt: now,
+        syncedCharacterIds: [101],
+      }));
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation',
+        userId: USER,
+        lastSeenAt: now,
+      });
+    });
+
+    await t.mutation(internal.engine.chainDispatch, {
+      dataset: 'characterLocation',
+      userId: USER,
+    });
+
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('running');
+    expect(subject?.workId).toBe(String(now));
+    expect(await scheduledSyncUsers(t)).toHaveLength(1);
+  });
+
+  it('the one-deploy engine.onSyncComplete path still completes a run', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('syncSubjects', subjectRow({
+        status: 'running',
+        lastRequestedAt: now,
+        workId: 'w1',
+        nextDueAt: now + 60_000,
+        syncedCharacterIds: [101],
+      }));
+    });
+
+    await t.mutation(internal.engine.onSyncComplete, {
+      workId: 'w1',
+      context: { dataset: 'characterLocation', userId: USER },
+      result: { kind: 'success' },
+    });
+
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('idle');
+    expect(subject?.workId).toBeNull();
   });
 
   it('arms the next due time off the cache window on success with targets', async () => {
@@ -690,7 +756,7 @@ describe('engine chain-on-success', () => {
     result: unknown,
     workId = 'w1',
   ) {
-    return t.mutation(internal.engine.onSyncComplete, {
+    return t.mutation(internal.engineComplete.onSyncComplete, {
       workId: workId as never,
       context: { dataset: 'characterLocation', userId: USER },
       result: result as never,
@@ -739,7 +805,7 @@ describe('engine chain-on-success', () => {
     expect(pending[0]?.args).toEqual([{ dataset: 'characterLocation', userId: USER }]);
 
     vi.setSystemTime(boundary);
-    await t.mutation(internal.engine.chainDispatch, {
+    await t.mutation(internal.engineComplete.chainDispatch, {
       dataset: 'characterLocation',
       userId: USER,
     });
@@ -799,7 +865,7 @@ describe('engine chain-on-success', () => {
     expect(pending[0]?.scheduledTime).toBe(boundary);
 
     vi.setSystemTime(boundary);
-    await fresh.mutation(internal.engine.chainDispatch, {
+    await fresh.mutation(internal.engineComplete.chainDispatch, {
       dataset: 'characterLocation',
       userId: USER,
     });
@@ -973,7 +1039,7 @@ describe('engine chain-on-success', () => {
       });
     });
 
-    await t.mutation(internal.engine.scan, {});
+    await t.mutation(internal.engineScan.scan, {});
 
     expect(limit).toHaveBeenCalledWith(
       expect.anything(),
@@ -1005,7 +1071,7 @@ describe('engine.sweep', () => {
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u5', lastSeenAt: now - 1000 });
     });
 
-    const counts = await t.mutation(internal.engine.sweep, {});
+    const counts = await t.mutation(internal.engineSweep.sweep, {});
     expect(counts).toEqual({ dispatched: 0, retired: 1, deleted: 2 });
 
     const remaining = await t.run(async (ctx) =>
@@ -1026,7 +1092,7 @@ describe('engine.sweep', () => {
     });
     vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: false, retryAfter: 1000 });
 
-    const counts = await t.mutation(internal.engine.sweep, {});
+    const counts = await t.mutation(internal.engineSweep.sweep, {});
 
     expect(counts.dispatched).toBe(0);
 
@@ -1050,14 +1116,14 @@ describe('engine.sweep', () => {
       }
     });
 
-    const run1 = await t.mutation(internal.engine.sweep, {});
+    const run1 = await t.mutation(internal.engineSweep.sweep, {});
     expect(run1.deleted).toBe(SCAN_DISPATCH_BATCH);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]![0]).toContain('overdue_batch_capped');
     const remaining1 = await t.run((ctx) => ctx.db.query('syncSubjects').collect());
     expect(remaining1).toHaveLength(1);
 
-    const run2 = await t.mutation(internal.engine.sweep, {});
+    const run2 = await t.mutation(internal.engineSweep.sweep, {});
     expect(run2.deleted).toBe(1);
     const remaining2 = await t.run((ctx) => ctx.db.query('syncSubjects').collect());
     expect(remaining2).toHaveLength(0);
@@ -1080,7 +1146,7 @@ describe('engine.sweep', () => {
       }
     });
 
-    const counts = await t.mutation(internal.engine.sweep, {});
+    const counts = await t.mutation(internal.engineSweep.sweep, {});
     expect(counts.dispatched).toBe(0);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]![0]).toContain('dropped_batch_capped');
@@ -1103,7 +1169,7 @@ describe('engine.sweep', () => {
       await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u-retired', lastSeenAt });
     });
 
-    const counts = await t.mutation(internal.engine.sweep, {});
+    const counts = await t.mutation(internal.engineSweep.sweep, {});
 
     expect(counts.dispatched).toBe(1);
     const byDataset = await t.run(async (ctx) => {
@@ -1129,7 +1195,7 @@ describe('engine.sweep', () => {
       await ctx.db.insert('syncPresence', { dataset: 'characterLocation', userId: 'u-live', lastSeenAt: now });
     });
 
-    await t.mutation(internal.engine.sweep, {});
+    await t.mutation(internal.engineSweep.sweep, {});
 
     const { subjects, presence, online } = await t.run(async (ctx) => ({
       subjects: await ctx.db.query('syncSubjects').collect(),

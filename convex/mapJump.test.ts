@@ -45,7 +45,7 @@ async function seedTrackedTransition(
   const toSystemId = input.toSystemId ?? DESTINATION;
   const transitionObservedAt = input.transitionObservedAt ?? OBSERVED_AT;
   if (input.placeOrigin !== false) {
-    await t.mutation(internal.mapFixtures.placeSystemFixture, {
+    await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
       mapId: MAP,
       systemId: fromSystemId,
     });
@@ -78,7 +78,7 @@ async function seedCandidate(
   signatureId: string,
   wormholeTypeCode: string | null = null,
 ): Promise<Id<'mapConnections'>> {
-  const result = await t.mutation(internal.mapFixtures.upsertUnresolvedHole, {
+  const result = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
     mapId: MAP,
     fromSystemId: ORIGIN,
     fromSignatureId: signatureId,
