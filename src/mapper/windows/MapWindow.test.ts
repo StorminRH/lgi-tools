@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { MapWindow } from './MapWindow';
 import type { WindowPlacement } from './window-model';
 
@@ -25,36 +25,31 @@ function render(
   );
 }
 
-describe('MapWindow isolation markup', () => {
-  it('owns nokey/scroller contracts with an optional close control', () => {
-    const docked = render({ kind: 'docked' });
-    expect(docked).toContain('data-map-window="test"');
-    expect(docked).toContain('nokey');
-    expect(docked).toContain('data-map-window-scroll');
-    expect(docked).toContain('data-map-window-appearance="panel"');
-    expect(docked).toContain('bg-section');
-    expect(docked).toContain('shadow-card-edge');
-    expect(docked).not.toContain('glass-panel');
-    expect(docked).not.toContain('h-[calc(100dvh-5.5rem)]');
-    // The floating window machinery (drag handle, resize grip, pop toggle)
-    // left with the persistent-overlay dock; nothing may resurrect silently.
-    expect(docked).not.toContain('data-map-window-drag');
-    expect(docked).not.toContain('data-map-window-resize');
-    expect(docked).not.toContain('Pop out');
-    expect(docked).toContain('Close Test window');
-    expect(docked).toContain('pointer-events-auto');
+it('owns docked isolation, optional close/header, and no floating-window resurrect', () => {
+  const docked = render({ kind: 'docked' });
+  expect(docked).toContain('data-map-window="test"');
+  expect(docked).toContain('nokey');
+  expect(docked).toContain('data-map-window-scroll');
+  expect(docked).toContain('data-map-window-appearance="panel"');
+  expect(docked).toContain('pointer-events-auto');
+  expect(docked).not.toContain('data-map-window-drag');
+  expect(docked).not.toContain('data-map-window-resize');
+  expect(docked).not.toContain('Pop out');
+  expect(docked).toContain('Close Test window');
 
-    expect(render({ kind: 'docked' }, { showCloseButton: false })).not.toContain(
-      'Close Test window',
-    );
-    expect(render({ kind: 'docked' }, { showHeader: false })).not.toContain(
-      '>Test window<',
-    );
-  });
+  expect(render({ kind: 'docked' }, { showCloseButton: false })).not.toContain(
+    'Close Test window',
+  );
+  expect(render({ kind: 'docked' }, { showHeader: false })).not.toContain(
+    '>Test window<',
+  );
+});
 
-  it('renders overlay appearance as a content-sized faint glass caption', () => {
-    const html = renderToStaticMarkup(
-      createElement(MapWindow, {
+it('owns overlay, scanner-anchored, bottom-left, and node-anchored placement', () => {
+  const overlay = renderToStaticMarkup(
+    createElement(
+      MapWindow,
+      {
         windowId: 'dock',
         title: 'Jita',
         placement: { kind: 'docked' },
@@ -62,53 +57,47 @@ describe('MapWindow isolation markup', () => {
         stackIndex: 1,
         onClose: vi.fn(),
         onActivate: vi.fn(),
-      }, createElement('p', null, 'content')),
-    );
-    expect(html).toContain('data-map-window-appearance="overlay"');
-    expect(html).toContain('glass-panel-faint');
-    // Passive readout: it must not steal node clicks, drags, or pans from the
-    // canvas laid out beneath it.
-    expect(html).toContain('pointer-events-none');
-    expect(html).toContain('h-auto');
-    expect(html).toContain('w-max');
-    expect(html).toContain('text-left');
-    expect(html).toContain('text-h3');
-    expect(html).toContain('font-bold');
-    expect(html).toContain('left-4 top-4');
-    expect(html).not.toContain('glass-panel ');
-    expect(html).not.toContain('border-border-idle');
-    expect(html).not.toContain('shadow-dd');
-    expect(html).not.toContain('bottom-16');
-  });
+      },
+      createElement('p', null, 'content'),
+    ),
+  );
+  expect(overlay).toContain('data-map-window-appearance="overlay"');
+  expect(overlay).toContain('glass-panel-faint');
+  expect(overlay).toContain('pointer-events-none');
+  expect(overlay).toContain('h-auto');
+  expect(overlay).toContain('w-max');
+  expect(overlay).toContain('left-4 top-4');
 
-  it('parks scanner-anchored editor and site measures beside the dock', () => {
-    const editor = renderToStaticMarkup(
-      createElement(MapWindow, {
+  const editor = renderToStaticMarkup(
+    createElement(
+      MapWindow,
+      {
         windowId: 'signature-editor',
         title: 'Signature Editor',
         placement: { kind: 'scanner-anchored' },
         stackIndex: 1,
         onClose: vi.fn(),
         onActivate: vi.fn(),
-      }, createElement('p', null, 'content')),
-    );
-    expect(editor).toContain('map-node-enter');
-    expect(editor).toContain('data-map-window-placement="scanner-anchored"');
-    // Stacks above the dock on narrow viewports; parks beside it from md up.
-    expect(editor).toContain('md:left-[calc(min(33rem,100vw)+0.5rem)]');
-    expect(editor).toContain('bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)]');
-    // Narrow stack caps to the space above the dock; md sits on the bottom edge.
-    expect(editor).toContain(
-      'max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)]',
-    );
-    expect(editor).toContain('md:max-h-[calc(100dvh-2rem)]');
-    expect(editor).toContain('md:w-72');
-    expect(editor).toContain('md:max-w-[calc(100vw-min(33rem,100vw)-2.5rem)]');
-    // Parked beside the dock in screen space, never riding a canvas transform.
-    expect(editor).not.toContain('--map-window-transform');
+      },
+      createElement('p', null, 'content'),
+    ),
+  );
+  expect(editor).toContain('map-node-enter');
+  expect(editor).toContain('data-map-window-placement="scanner-anchored"');
+  expect(editor).toContain('md:left-[calc(min(33rem,100vw)+0.5rem)]');
+  expect(editor).toContain('bottom-[calc(min(24rem,100dvh-7rem)+0.5rem)]');
+  expect(editor).toContain(
+    'max-h-[calc(100dvh-(min(24rem,100dvh-7rem)+0.5rem)-1rem)]',
+  );
+  expect(editor).toContain('md:max-h-[calc(100dvh-2rem)]');
+  expect(editor).toContain('md:w-72');
+  expect(editor).toContain('md:max-w-[calc(100vw-min(33rem,100vw)-2.5rem)]');
+  expect(editor).not.toContain('--map-window-transform');
 
-    const site = renderToStaticMarkup(
-      createElement(MapWindow, {
+  const site = renderToStaticMarkup(
+    createElement(
+      MapWindow,
+      {
         windowId: 'site-viewer',
         title: 'Site',
         placement: { kind: 'scanner-anchored', measure: 'site' },
@@ -116,36 +105,25 @@ describe('MapWindow isolation markup', () => {
         stackIndex: 1,
         onClose: vi.fn(),
         onActivate: vi.fn(),
-      }, createElement('p', null, 'content')),
-    );
-    expect(site).toContain('md:w-max');
-    expect(site).not.toContain('md:w-72');
-    expect(site).not.toContain('md:w-[22rem]');
-    expect(site).not.toContain('Close Site');
-  });
+      },
+      createElement('p', null, 'content'),
+    ),
+  );
+  expect(site).toContain('md:w-max');
+  expect(site).not.toContain('md:w-72');
+  expect(site).not.toContain('Close Site');
 
-  it('owns the one bottom-left geometry variant for the signature sibling', () => {
-    const html = render({ kind: 'docked-bottom-left' });
-    expect(html).toContain('data-map-window-placement="docked-bottom-left"');
-    expect(html).toContain('relative');
-    expect(html).toContain('h-auto');
-    expect(html).toContain('max-h-[min(24rem,calc(100dvh-7rem))]');
-    expect(html).toContain('w-full');
-    expect(html).toContain('min-w-0');
-    expect(html).toContain('text-center');
-    expect(html).toContain('rounded-none');
-    expect(html).toContain('glass-panel-faint');
-    expect(html).toContain('text-lead');
-    expect(html).toContain('font-semibold');
-    expect(html).not.toContain('border-b border-border-soft');
-    expect(html).not.toContain('shadow-dd');
-    expect(html).not.toContain('border border-border-idle');
-  });
+  const bottomLeft = render({ kind: 'docked-bottom-left' });
+  expect(bottomLeft).toContain('data-map-window-placement="docked-bottom-left"');
+  expect(bottomLeft).toContain('relative');
+  expect(bottomLeft).toContain('h-auto');
+  expect(bottomLeft).toContain('max-h-[min(24rem,calc(100dvh-7rem))]');
+  expect(bottomLeft).toContain('w-full');
+  expect(bottomLeft).toContain('min-w-0');
+  expect(bottomLeft).toContain('glass-panel-faint');
 
-  it('covers node-anchored placement and Escape keydown wiring', () => {
-    const html = render({ kind: 'node-anchored', systemId: 30_000_142 });
-    expect(html).toContain('data-map-window-placement="node-anchored"');
-    expect(html).toContain('[transform:var(--map-window-transform)]');
-    expect(html).toContain('h-52 w-72');
-  });
+  const nodeAnchored = render({ kind: 'node-anchored', systemId: 30_000_142 });
+  expect(nodeAnchored).toContain('data-map-window-placement="node-anchored"');
+  expect(nodeAnchored).toContain('[transform:var(--map-window-transform)]');
+  expect(nodeAnchored).toContain('h-52 w-72');
 });

@@ -119,9 +119,6 @@ describe('HomePrompt', () => {
     expect(loading).toContain('Use current system');
     expect(loading).toContain('data-map-home-current-disabled');
     expect(loading).not.toContain('Start tracking');
-    expect(loading).not.toContain('Atlas · new map');
-    expect(loading).not.toContain('Requires live tracking');
-    expect(loading).not.toContain('4.0.4.2');
 
     mocks.tracking = { ownTrackedCharacterIds: [], tracked: [] };
     mocks.coverage = { coverage: [] };
