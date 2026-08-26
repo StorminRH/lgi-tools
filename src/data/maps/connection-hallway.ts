@@ -1,4 +1,3 @@
-import type { Id } from '@/data/convex/data-model';
 import type {
   ConnectionMassState,
   ConnectionProvenance,
@@ -10,6 +9,9 @@ import type { ConnectionDeathWindow } from '@/data/maps/connection-lifetime';
 
 /** One stored end of a hallway — not incoming/outgoing, not named/K162. */
 export type ConnectionDoorSide = 'from' | 'to';
+
+/** Pending-survivor id. Same brand as a `mapConnections` document id. */
+export type ConnectionRowId = string & { __tableName: 'mapConnections' };
 
 /**
  * Leads-to on one mouth. A class note and a typed system cannot both sit
@@ -59,7 +61,7 @@ export type ConnectionResolution =
   | {
       kind: 'pending';
       provenance: 'assumed';
-      candidateIds: Id<'mapConnections'>[];
+      candidateIds: ConnectionRowId[];
       characterId: number;
     };
 
@@ -210,7 +212,7 @@ export function pendingResolution(
   return {
     kind: 'pending',
     provenance: 'assumed',
-    candidateIds: [...candidateIds] as Id<'mapConnections'>[],
+    candidateIds: [...candidateIds] as ConnectionRowId[],
     characterId,
   };
 }
