@@ -26,16 +26,10 @@ vi.mock('@/lib/fetch-with-timeout', () => ({
 }));
 
 describe('isPooledHost', () => {
-  it('flags a `-pooler` host', () => {
+  it('flags a pooler host and rejects a malformed string', () => {
     expect(isPooledHost(POOLED)).toBe(true);
-  });
-
-  it('passes a direct Neon host and a local host', () => {
     expect(isPooledHost(DIRECT)).toBe(false);
     expect(isPooledHost(LOCAL)).toBe(false);
-  });
-
-  it('throws a readable error on a malformed connection string', () => {
     expect(() => isPooledHost('not-a-url')).toThrow(/not a valid URL/);
   });
 });

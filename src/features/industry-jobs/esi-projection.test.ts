@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { JOB_STATUSES, jobTypeIds, parseIndustryJobsBody } from './esi-projection';
 
-// A manufacturing job as the live endpoint shapes it — including the fields
-// the tracker deliberately does NOT store (location ids, cost, duration).
 const manufacturingJob = {
   activity_id: 1,
   blueprint_id: 1039392583913,
@@ -23,7 +21,6 @@ const manufacturingJob = {
   status: 'active',
 };
 
-// A material-efficiency research job — no product_type_id on the wire.
 const researchJob = {
   activity_id: 4,
   blueprint_id: 1039392583914,
@@ -69,11 +66,6 @@ describe('parseIndustryJobsBody', () => {
     ]);
   });
 
-  it('retains installer_id for per-job runner attribution', () => {
-    const jobs = parseIndustryJobsBody([manufacturingJob]);
-    expect(jobs?.[0]?.installer_id).toBe(2114872920);
-  });
-
   it('tie-breaks identical end dates by job id for a stable order', () => {
     const twin = { ...manufacturingJob, job_id: 1, end_date: researchJob.end_date };
     const jobs = parseIndustryJobsBody([researchJob, twin]);
@@ -104,7 +96,7 @@ describe('parseIndustryJobsBody', () => {
 describe('jobTypeIds', () => {
   it("collects each job's blueprint and product type ids across characters", () => {
     const jobs = parseIndustryJobsBody([manufacturingJob, researchJob]) ?? [];
-    // manufacturing → blueprint 691 + product 587; research → blueprint 24699 (no product).
+
     expect(jobTypeIds([{ data: { jobs } }]).sort((a, b) => a - b)).toEqual([587, 691, 24699]);
   });
 

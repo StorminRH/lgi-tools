@@ -1,9 +1,6 @@
 import { NextRequest } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { rateLimitedFailure } from '@/lib/failure';
-
-// The route logs the caller out everywhere (revokes all their sessions). Mock auth +
-// the revoke query so these exercise the session gate + the act-on-self wiring.
 
 const SESSION = {
   user: { id: 'eve-user-1' },
@@ -39,49 +36,42 @@ function buildRequest(): NextRequest {
   return new NextRequest('http://localhost:3000/api/account/sessions/revoke', { method: 'POST' });
 }
 
-describe('POST /api/account/sessions/revoke', () => {
-  beforeEach(() => {
-    getSessionMock.mockReset();
-    revokeUserSessionsMock.mockReset();
-    checkRateLimitMock.mockReset().mockResolvedValue({ ok: true });
+beforeEach(() => {
+  getSessionMock.mockReset();
+  revokeUserSessionsMock.mockReset();
+  checkRateLimitMock.mockReset().mockResolvedValue({ ok: true });
+});
+
+test('rate-limits before the session, refuses anonymous callers, and revokes the signed-in user', async () => {
+  checkRateLimitMock.mockResolvedValue({
+    ok: false,
+    failure: rateLimitedFailure(10),
   });
-
-  it('returns the rate-limit response before reading the session', async () => {
-    checkRateLimitMock.mockResolvedValue({
-      ok: false,
-      failure: rateLimitedFailure(10),
-    });
-
-    const res = await POST(buildRequest());
-
-    expect(res.status).toBe(429);
-    expect(res.headers.get('Retry-After')).toBe('10');
-    expect(await res.json()).toMatchObject({
-      status: 429,
-      code: 'rate_limited',
-      retryAfterSeconds: 10,
-    });
-    expect(checkRateLimitMock).toHaveBeenCalledWith(expect.any(Request), {
-      name: 'account-logout-everywhere',
-      perMinute: 10,
-    });
-    expect(getSessionMock).not.toHaveBeenCalled();
-    expect(revokeUserSessionsMock).not.toHaveBeenCalled();
+  const limited = await POST(buildRequest());
+  expect(limited.status).toBe(429);
+  expect(limited.headers.get('Retry-After')).toBe('10');
+  expect(await limited.json()).toMatchObject({
+    status: 429,
+    code: 'rate_limited',
+    retryAfterSeconds: 10,
   });
-
-  it('returns 401 when there is no session', async () => {
-    getSessionMock.mockResolvedValue(null);
-    const res = await POST(buildRequest());
-    expect(res.status).toBe(401);
-    expect(revokeUserSessionsMock).not.toHaveBeenCalled();
+  expect(checkRateLimitMock).toHaveBeenCalledWith(expect.any(Request), {
+    name: 'account-logout-everywhere',
+    perMinute: 10,
   });
+  expect(getSessionMock).not.toHaveBeenCalled();
+  expect(revokeUserSessionsMock).not.toHaveBeenCalled();
 
-  it('revokes the caller\'s own sessions and returns the count', async () => {
-    getSessionMock.mockResolvedValue(SESSION);
-    revokeUserSessionsMock.mockResolvedValue(3);
-    const res = await POST(buildRequest());
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ revoked: 3 });
-    expect(revokeUserSessionsMock).toHaveBeenCalledWith('eve-user-1');
-  });
+  checkRateLimitMock.mockResolvedValue({ ok: true });
+  getSessionMock.mockResolvedValue(null);
+  const unauthenticated = await POST(buildRequest());
+  expect(unauthenticated.status).toBe(401);
+  expect(revokeUserSessionsMock).not.toHaveBeenCalled();
+
+  getSessionMock.mockResolvedValue(SESSION);
+  revokeUserSessionsMock.mockResolvedValue(3);
+  const res = await POST(buildRequest());
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ revoked: 3 });
+  expect(revokeUserSessionsMock).toHaveBeenCalledWith('eve-user-1');
 });

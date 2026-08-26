@@ -6,6 +6,7 @@ import {
   tierColumnView,
   unitPriceMap,
 } from './build-plan-view';
+import { batchedCostOfRows } from './cost-basis-view';
 import { REACTION_NODE_LABEL } from './industry-styles';
 
 const item = (over: Partial<ConsolidatedItem> & { typeId: number }): ConsolidatedItem => ({
@@ -23,7 +24,7 @@ describe('tierColumnView', () => {
   const prices = new Map<number, number | null>([
     [1, 100],
     [2, 50],
-    [3, null], // unpriced
+    [3, null],
   ]);
 
   it('shows whole-run batched quantities and a summed subtotal with no focus', () => {
@@ -35,7 +36,7 @@ describe('tierColumnView', () => {
     });
     expect(view.rows.map((r) => r.qty)).toEqual([10, 4]);
     expect(view.rows.every((r) => !r.selected && !r.related && !r.faded)).toBe(true);
-    // 10×100 + 4×50 = 1200.
+
     expect(view.subtotal).toBe(1200);
   });
 
@@ -54,13 +55,13 @@ describe('tierColumnView', () => {
     const view = tierColumnView(tier(2, [item({ typeId: 1 }), item({ typeId: 2, quantity: 10 }), item({ typeId: 9 })]), {
       focus: { depth: 2, typeId: 1 },
       inChain: new Set([2]),
-      actualLevel: new Map([[2, 3]]), // the related node actually consumes 3, not its batch 10
+      actualLevel: new Map([[2, 3]]),
       unitPriceOf: prices,
     });
     const [a, b, c] = view.rows;
     expect(a!.selected).toBe(true);
     expect(b!.related).toBe(true);
-    expect(b!.qty).toBe(3); // actual consumed, not the batch quantity
+    expect(b!.qty).toBe(3);
     expect(c!.faded).toBe(true);
   });
 });
@@ -101,8 +102,21 @@ describe('levelAt', () => {
   });
 
   it('reads the relative depth (tierDepth − focusDepth) slice, or null when absent', () => {
-    // focus at depth 2, tier at depth 3 → relative depth 1.
+
     expect(levelAt(map, { depth: 2, typeId: 1 }, 3)).toEqual(new Set([7]));
     expect(levelAt(map, { depth: 2, typeId: 1 }, 9)).toBeNull();
+  });
+});
+
+describe('batchedCostOfRows', () => {
+  it('sums the batched rows, treating unpriced lines as 0', () => {
+    expect(
+      batchedCostOfRows([
+        { extendedCost: 100 },
+        { extendedCost: null },
+        { extendedCost: 2.5 },
+      ]),
+    ).toBe(102.5);
+    expect(batchedCostOfRows([])).toBe(0);
   });
 });

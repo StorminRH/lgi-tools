@@ -1,79 +1,54 @@
-import { describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { encryptAccountTokens } from './account-token-encryption';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import { TOKEN_CRYPTO_VERSION } from './token-crypto';
 
 const enc = (s: string) => `ENC(${s})`;
-// A value that already carries the crypto-version prefix — must be left alone.
 const CIPHERTEXT = `${TOKEN_CRYPTO_VERSION}:already-at-rest`;
 
-describe('encryptAccountTokens', () => {
-  it('encrypts a present access + refresh token via the injected encrypt', () => {
-    const out = encryptAccountTokens(
-      { providerId: EVE_PROVIDER_ID, accessToken: 'at', refreshToken: 'rt' },
-      enc,
-    );
-    expect(out.accessToken).toBe('ENC(at)');
-    expect(out.refreshToken).toBe('ENC(rt)');
-    expect(out.refreshTokenInvalidGrantCount).toBe(0);
-    expect(out.refreshTokenInvalidGrantFirstAt).toBeNull();
-  });
+test('encrypts EVE access and refresh independently, resets strike state, and does not mutate input', () => {
+  const input = { providerId: EVE_PROVIDER_ID, accessToken: 'at', refreshToken: 'rt' };
+  const out = encryptAccountTokens(input, enc);
+  expect(out.accessToken).toBe('ENC(at)');
+  expect(out.refreshToken).toBe('ENC(rt)');
+  expect(out.refreshTokenInvalidGrantCount).toBe(0);
+  expect(out.refreshTokenInvalidGrantFirstAt).toBeNull();
+  expect(out).not.toBe(input);
+  expect(input.accessToken).toBe('at');
 
-  it('still encrypts when providerId is absent (the EVE re-login update path)', () => {
-    const out = encryptAccountTokens({ accessToken: 'at', refreshToken: 'rt' }, enc);
-    expect(out.accessToken).toBe('ENC(at)');
-    expect(out.refreshToken).toBe('ENC(rt)');
-    expect(out.refreshTokenInvalidGrantCount).toBe(0);
-    expect(out.refreshTokenInvalidGrantFirstAt).toBeNull();
-  });
+  const noProvider = encryptAccountTokens({ accessToken: 'at', refreshToken: 'rt' }, enc);
+  expect(noProvider.accessToken).toBe('ENC(at)');
+  expect(noProvider.refreshToken).toBe('ENC(rt)');
+  expect(noProvider.refreshTokenInvalidGrantCount).toBe(0);
 
-  it('returns the data untouched for a positively non-EVE provider', () => {
-    const spy = vi.fn(enc);
-    const input = { providerId: 'github', accessToken: 'at', refreshToken: 'rt' };
-    const out = encryptAccountTokens(input, spy);
-    expect(out).toBe(input); // same reference — no copy, no encryption
-    expect(spy).not.toHaveBeenCalled();
-  });
+  const partial = encryptAccountTokens({ accessToken: '', refreshToken: 'rt' }, enc);
+  expect(partial.accessToken).toBe('');
+  expect(partial.refreshToken).toBe('ENC(rt)');
 
-  it('skips an empty-string token but still encrypts the other', () => {
-    const out = encryptAccountTokens({ accessToken: '', refreshToken: 'rt' }, enc);
-    expect(out.accessToken).toBe('');
-    expect(out.refreshToken).toBe('ENC(rt)');
-    expect(out.refreshTokenInvalidGrantCount).toBe(0);
-    expect(out.refreshTokenInvalidGrantFirstAt).toBeNull();
-  });
+  const accessOnly = encryptAccountTokens({ accessToken: 'at', refreshToken: null }, enc);
+  expect(accessOnly.accessToken).toBe('ENC(at)');
+  expect(accessOnly.refreshToken).toBeNull();
+  expect(accessOnly).not.toHaveProperty('refreshTokenInvalidGrantCount');
+});
 
-  it('is idempotent — leaves an already-ciphertext value alone', () => {
-    const out = encryptAccountTokens({ accessToken: CIPHERTEXT, refreshToken: CIPHERTEXT }, enc);
-    expect(out.accessToken).toBe(CIPHERTEXT);
-    expect(out.refreshToken).toBe(CIPHERTEXT);
-  });
+test('leaves non-EVE, already-ciphertext, and absent tokens untouched', () => {
+  const spy = vi.fn(enc);
+  const github = { providerId: 'github', accessToken: 'at', refreshToken: 'rt' };
+  expect(encryptAccountTokens(github, spy)).toBe(github);
+  expect(spy).not.toHaveBeenCalled();
 
-  it('leaves null / undefined tokens untouched', () => {
-    const out = encryptAccountTokens({ accessToken: null, refreshToken: undefined }, enc);
-    expect(out.accessToken).toBeNull();
-    expect(out.refreshToken).toBeUndefined();
-    expect(out).not.toHaveProperty('refreshTokenInvalidGrantCount');
-    expect(out).not.toHaveProperty('refreshTokenInvalidGrantFirstAt');
-  });
+  const already = encryptAccountTokens({ accessToken: CIPHERTEXT, refreshToken: CIPHERTEXT }, enc);
+  expect(already.accessToken).toBe(CIPHERTEXT);
+  expect(already.refreshToken).toBe(CIPHERTEXT);
 
-  it('handles access and refresh independently', () => {
-    const out = encryptAccountTokens({ accessToken: 'at', refreshToken: null }, enc);
-    expect(out.accessToken).toBe('ENC(at)');
-    expect(out.refreshToken).toBeNull();
-    expect(out).not.toHaveProperty('refreshTokenInvalidGrantCount');
-    expect(out).not.toHaveProperty('refreshTokenInvalidGrantFirstAt');
-  });
+  const absent = encryptAccountTokens({ accessToken: null, refreshToken: undefined }, enc);
+  expect(absent.accessToken).toBeNull();
+  expect(absent.refreshToken).toBeUndefined();
+  expect(absent).not.toHaveProperty('refreshTokenInvalidGrantCount');
+  expect(absent).not.toHaveProperty('refreshTokenInvalidGrantFirstAt');
 
-  it('leaves strike state untouched on an unrelated account update', () => {
-    const out = encryptAccountTokens({ scope: 'publicData', refreshToken: undefined }, enc);
-    expect(out).toEqual({ scope: 'publicData', refreshToken: undefined });
-  });
-
-  it('does not mutate the input object when it encrypts', () => {
-    const input = { accessToken: 'at', refreshToken: 'rt' };
-    const out = encryptAccountTokens(input, enc);
-    expect(out).not.toBe(input);
-    expect(input.accessToken).toBe('at'); // original left plaintext
+  expect(encryptAccountTokens({ scope: 'publicData', refreshToken: undefined }, enc)).toEqual({
+    scope: 'publicData',
+    refreshToken: undefined,
   });
 });

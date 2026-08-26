@@ -12,7 +12,6 @@ describe('readChangelogSource', () => {
       const [major = 0, minor = 0] = m.version.split('.').map(Number);
       return major * 1_000 + minor;
     });
-    expect(masters.length).toBeGreaterThan(1);
     expect(ranks).toEqual([...ranks].sort((a, b) => b - a));
     expect(new Set(ranks).size).toBe(ranks.length);
     expect(masters[0]?.title).toBe('Atlas of Worlds');

@@ -4,8 +4,6 @@ import type { PriceSource } from './types';
 
 describe('market-prices contract', () => {
   it('pins the wire source enum to PriceSource exactly (both directions)', () => {
-    // The schema carries `satisfies z.ZodType<PriceSource>` (no extra members);
-    // this catches the reverse drift — a PriceSource member the wire enum lacks.
     expectTypeOf<(typeof wirePriceSchema.shape.source)['options'][number]>().toEqualTypeOf<PriceSource>();
   });
 
@@ -32,12 +30,11 @@ describe('market-prices contract', () => {
       updatedAt: '2026-07-01T00:00:00.000Z',
       staleAfter: '2026-07-02T00:00:00.000Z',
       source: 'esi',
-      // no regionalDiscount key at all
+
     };
     const parsed = wirePriceSchema.safeParse(preReleaseRow);
     expect(parsed.success).toBe(true);
 
-    // And a populated one round-trips.
     expect(
       wirePriceSchema.safeParse({
         ...preReleaseRow,
