@@ -6,17 +6,26 @@ import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { COLLAPSE_MAP_SCAN_CAP } from './mapAuthoringCollapse';
 import { CEILING_COLLAPSE_GRACE_MS, CEILING_SWEEP_ACTOR } from './mapAuthoringSweep';
-import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
+import {
+  MAP_CHAIN_UNDO_WINDOW_MS,
+  tombstoneDeletedAt,
+  tombstonePurgeAfter,
+} from '@/data/maps/chain-contract';
 import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
+import {
+  lifetimeObservedAt,
+  lifetimeStage,
+} from '@/data/maps/connection-hallway';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc.setup';
+
 
 const publicAuthoring = {
   setHomeSystem: api.mapAuthoringHome.setHomeSystem,
   addSystemFromNode: api.mapAuthoringHome.addSystemFromNode,
   setConnectionWormholeType: api.mapAuthoringFields.setConnectionWormholeType,
-  setConnectionTypedSide: api.mapAuthoringFields.setConnectionTypedSide,
   setConnectionDestinationHint: api.mapAuthoringFields.setConnectionDestinationHint,
   setConnectionDestination: api.mapAuthoringFields.setConnectionDestination,
   setConnectionShipSize: api.mapAuthoringFields.setConnectionShipSize,
@@ -128,19 +137,18 @@ async function seedTopology(
     }
     const ids: Record<string, Id<'mapConnections'>> = {};
     for (const connection of connections) {
-      const id = await ctx.db.insert('mapConnections', {
+      const id = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP_A,
         fromSystemId: connection.fromSystemId,
         toSystemId: connection.toSystemId,
         wormholeTypeCode: null,
         massState: null,
         shipSize: null,
-        eolAt: null,
         lifeStage: null,
         lifeStageObservedAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
       ids[connection.key] = id;
     }
     return ids;
@@ -162,7 +170,6 @@ describe('map authoring', () => {
       'setHomeSystem',
       'addSystemFromNode',
       'setConnectionWormholeType',
-      'setConnectionTypedSide',
       'setConnectionDestinationHint',
       'setConnectionDestination',
       'setConnectionShipSize',
@@ -185,7 +192,6 @@ describe('map authoring', () => {
           await seedHome(t);
           return { mapId: MAP_A, fromSystemId: JITA, toSystemId: AMARR };
         case 'setConnectionWormholeType':
-        case 'setConnectionTypedSide':
         case 'setConnectionDestinationHint':
         case 'setConnectionDestination':
         case 'setConnectionShipSize':
@@ -197,14 +203,6 @@ describe('map authoring', () => {
           const { connectionId } = await seedJump(t);
           if (name === 'setConnectionWormholeType') {
             return { mapId: MAP_A, connectionId, value: 'C247' };
-          }
-          if (name === 'setConnectionTypedSide') {
-            await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
-              mapId: MAP_A,
-              connectionId,
-              value: 'C247',
-            });
-            return { mapId: MAP_A, connectionId, value: 'to' };
           }
           if (name === 'setConnectionDestinationHint') {
             return { mapId: MAP_A, connectionId, side: 'from', value: 'dangerous' };
@@ -352,13 +350,11 @@ describe('map authoring', () => {
       });
       expect(added.connectionId).not.toBe(trashedId);
       expect(await readSystem(t, AMARR)).toMatchObject({ deletedAt: null });
-      expect(await readConnection(t, trashedId)).toMatchObject({
-        deletedAt: expect.any(Number),
-      });
+      expect(tombstoneDeletedAt(await readConnection(t, trashedId))).toEqual(expect.any(Number));
       expect(await readConnection(t, added.connectionId)).toMatchObject({
         fromSystemId: JITA,
         toSystemId: AMARR,
-        deletedAt: null,
+        tombstone: { kind: 'live' },
       });
     });
 
@@ -398,24 +394,24 @@ describe('map authoring', () => {
       {
         mutation: 'setConnectionWormholeType' as const,
         value: 'C247',
-        field: 'wormholeTypeCode',
+        stored: { from: expect.objectContaining({ typeCode: 'C247' }) },
       },
       {
         mutation: 'setConnectionShipSize' as const,
         value: 'L' as const,
-        field: 'shipSize',
+        stored: { shipSize: 'L' },
       },
       {
         mutation: 'setConnectionMassState' as const,
         value: 'reduced' as const,
-        field: 'massState',
+        stored: { massState: 'reduced' },
       },
       {
         mutation: 'setConnectionLifeStage' as const,
         value: 'under_4_hours' as const,
-        field: 'lifeStage',
+        stored: { lifetime: { kind: 'stage', lifeStage: 'under_4_hours' } },
       },
-    ])('$mutation writes once then no-ops on the same value', async ({ mutation, value, field }) => {
+    ])('$mutation writes once then no-ops on the same value', async ({ mutation, value, stored }) => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
 
@@ -425,7 +421,7 @@ describe('map authoring', () => {
         value,
       });
       const afterFirst = await readConnection(t, connectionId);
-      expect(afterFirst).toMatchObject({ [field]: value });
+      expect(afterFirst).toMatchObject(stored);
 
       const result = await asUser(t).mutation(publicAuthoring[mutation], {
         mapId: MAP_A,
@@ -448,7 +444,7 @@ describe('map authoring', () => {
         value: 'under_1_hour',
       });
       const stamped = await readConnection(t, connectionId);
-      expect(stamped?.lifeStageObservedAt).toBe(NOW);
+      expect(lifetimeObservedAt(stamped!.lifetime)).toBe(NOW);
 
       vi.setSystemTime(NOW + 60_000);
       await asUser(t).mutation(api.mapAuthoringFields.setConnectionLifeStage, {
@@ -464,8 +460,8 @@ describe('map authoring', () => {
         value: 'expired',
       });
       const restamped = await readConnection(t, connectionId);
-      expect(restamped?.lifeStage).toBe('expired');
-      expect(restamped?.lifeStageObservedAt).toBe(NOW + 60_000);
+      expect(lifetimeStage(restamped!.lifetime)).toBe('expired');
+      expect(lifetimeObservedAt(restamped!.lifetime)).toBe(NOW + 60_000);
     });
 
     it('re-stamps the mass odometer anchor after new travel even for the same shake state', async () => {
@@ -507,7 +503,14 @@ describe('map authoring', () => {
       const t = convexTest(schema, modules);
       const { connectionId } = await seedJump(t);
       await t.run(async (ctx) => {
-        await ctx.db.patch(connectionId, { pendingCandidates: [connectionId] });
+        await ctx.db.patch(connectionId, {
+          resolution: {
+            kind: 'pending',
+            provenance: 'assumed',
+            candidateIds: [connectionId],
+            characterId: 1,
+          },
+        });
       });
 
       await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
@@ -516,11 +519,9 @@ describe('map authoring', () => {
         value: 'C247',
       });
       expect(await readConnection(t, connectionId)).toMatchObject({
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        typeProvenance: 'human',
-        fromWormholeTypeCode: 'C247',
-        toWormholeTypeCode: 'K162',
+        from: expect.objectContaining({ typeCode: 'C247' }),
+        to: expect.objectContaining({ typeCode: 'K162' }),
+        identity: { kind: 'typed', provenance: 'human' },
       });
       await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
         mapId: MAP_A,
@@ -528,27 +529,27 @@ describe('map authoring', () => {
         value: 'B274',
         side: 'to',
       });
-      expect(await readConnection(t, connectionId)).toMatchObject({
-        fromWormholeTypeCode: 'C247',
-        toWormholeTypeCode: 'B274',
-        wormholeTypeCode: 'B274',
-        typedSide: 'to',
+      const afterTo = await readConnection(t, connectionId);
+      expect(afterTo).toMatchObject({
+        from: expect.objectContaining({ typeCode: 'C247' }),
+        to: expect.objectContaining({ typeCode: 'B274' }),
+        identity: { kind: 'typed', provenance: 'human' },
       });
-      expect((await readConnection(t, connectionId))?.pendingCandidates).toBeUndefined();
-      const mintedKey = (await readConnection(t, connectionId))?.observationKey;
+      expect(
+        afterTo?.resolution.kind === 'pending'
+          ? afterTo.resolution.candidateIds
+          : undefined,
+      ).toBeUndefined();
+      const mintedKey = afterTo?.observationKey;
       expect(mintedKey).toEqual(expect.any(String));
       await asUser(t).mutation(api.mapAuthoringFields.setConnectionWormholeType, {
         mapId: MAP_A,
         connectionId,
         value: 'B274',
+        side: 'to',
       });
       expect((await readConnection(t, connectionId))?.observationKey).toBe(mintedKey);
 
-      await asUser(t).mutation(api.mapAuthoringFields.setConnectionTypedSide, {
-        mapId: MAP_A,
-        connectionId,
-        value: 'to',
-      });
       await asUser(t).mutation(api.mapAuthoringFields.setConnectionDestinationHint, {
         mapId: MAP_A,
         connectionId,
@@ -556,10 +557,9 @@ describe('map authoring', () => {
         value: 'dangerous',
       });
       expect(await readConnection(t, connectionId)).toMatchObject({
-        typedSide: 'to',
-        typeProvenance: 'human',
+        identity: { kind: 'typed', provenance: 'human' },
         toSystemId: AMARR,
-        toDestinationHint: 'dangerous',
+        to: expect.objectContaining({ leadsTo: { kind: 'hint', hint: 'dangerous' } }),
       });
 
       await asUser(t).mutation(api.mapAuthoringFields.setConnectionDestinationHint, {
@@ -568,7 +568,10 @@ describe('map authoring', () => {
         side: 'to',
         value: null,
       });
-      expect((await readConnection(t, connectionId))?.toDestinationHint).toBeUndefined();
+      const clearedHint = await readConnection(t, connectionId);
+      expect(
+        clearedHint?.to.leadsTo.kind === 'hint' ? clearedHint.to.leadsTo.hint : undefined,
+      ).toBeUndefined();
     });
   });
 
@@ -589,8 +592,9 @@ describe('map authoring', () => {
         fromSystemId: JITA,
         toSystemId: AMARR,
       });
+      const afterSame = await readConnection(t, connectionId);
       expect(
-        (await readConnection(t, connectionId))?.fromDestinationSystemId,
+        afterSame?.from.leadsTo.kind === 'system' ? afterSame.from.leadsTo.systemId : undefined,
       ).toBeUndefined();
 
       await expect(
@@ -604,10 +608,11 @@ describe('map authoring', () => {
       expect(await readConnection(t, connectionId)).toMatchObject({
         fromSystemId: JITA,
         toSystemId: AMARR,
-        fromDestinationSystemId: DODIXIE,
+        from: expect.objectContaining({ leadsTo: { kind: 'system', systemId: DODIXIE } }),
       });
+      const afterNote = await readConnection(t, connectionId);
       expect(
-        (await readConnection(t, connectionId))?.destinationProvenance,
+        afterNote?.resolution.kind === 'open' ? undefined : afterNote?.resolution.provenance,
       ).toBeUndefined();
       expect(await readSystem(t, DODIXIE)).toBeNull();
       expect(await readSystem(t, AMARR)).toMatchObject({
@@ -626,8 +631,8 @@ describe('map authoring', () => {
       expect(await readConnection(t, connectionId)).toMatchObject({
         fromSystemId: JITA,
         toSystemId: AMARR,
-        fromDestinationSystemId: DODIXIE,
-        toDestinationSystemId: DODIXIE,
+        from: expect.objectContaining({ leadsTo: { kind: 'system', systemId: DODIXIE } }),
+        to: expect.objectContaining({ leadsTo: { kind: 'system', systemId: DODIXIE } }),
       });
 
       await expect(
@@ -649,8 +654,8 @@ describe('map authoring', () => {
       ).resolves.toEqual({ changed: true });
       const cleared = await readConnection(t, connectionId);
       expect(cleared?.toSystemId).toBe(AMARR);
-      expect(cleared?.fromDestinationSystemId).toBeUndefined();
-      expect(cleared?.toDestinationSystemId).toBe(DODIXIE);
+      expect(cleared?.from.leadsTo.kind).toBe('unset');
+      expect(cleared?.to.leadsTo).toEqual({ kind: 'system', systemId: DODIXIE });
 
       await asUser(t).mutation(api.mapAuthoringFields.setConnectionDestinationHint, {
         mapId: MAP_A,
@@ -660,7 +665,7 @@ describe('map authoring', () => {
       });
       expect(await readConnection(t, connectionId)).toMatchObject({
         toSystemId: AMARR,
-        fromDestinationHint: 'dangerous',
+        from: expect.objectContaining({ leadsTo: { kind: 'hint', hint: 'dangerous' } }),
       });
     });
 
@@ -669,9 +674,12 @@ describe('map authoring', () => {
       const { connectionId } = await seedJump(t);
       await t.run(async (ctx) => {
         await ctx.db.patch(connectionId, {
-          destinationProvenance: 'assumed',
-          pendingCandidates: [connectionId],
-          pendingResolutionCharacterId: 21_198_055_274,
+          resolution: {
+            kind: 'pending',
+            provenance: 'assumed',
+            candidateIds: [connectionId],
+            characterId: 21_198_055_274,
+          },
         });
       });
 
@@ -684,10 +692,13 @@ describe('map authoring', () => {
         }),
       ).resolves.toEqual({ changed: true });
       expect(await readConnection(t, connectionId)).toMatchObject({
-        fromDestinationSystemId: DODIXIE,
-        destinationProvenance: 'assumed',
-        pendingCandidates: [connectionId],
-        pendingResolutionCharacterId: 21_198_055_274,
+        from: expect.objectContaining({ leadsTo: { kind: 'system', systemId: DODIXIE } }),
+        resolution: {
+          kind: 'pending',
+          provenance: 'assumed',
+          candidateIds: [connectionId],
+          characterId: 21_198_055_274,
+        },
       });
 
       await expect(
@@ -700,12 +711,16 @@ describe('map authoring', () => {
       ).resolves.toEqual({ changed: true });
       const afterHint = await readConnection(t, connectionId);
       expect(afterHint).toMatchObject({
-        fromDestinationHint: 'dangerous',
-        destinationProvenance: 'assumed',
-        pendingCandidates: [connectionId],
-        pendingResolutionCharacterId: 21_198_055_274,
+        from: expect.objectContaining({ leadsTo: { kind: 'hint', hint: 'dangerous' } }),
+        resolution: {
+          kind: 'pending',
+          provenance: 'assumed',
+          candidateIds: [connectionId],
+          characterId: 21_198_055_274,
+        },
       });
-      expect(afterHint?.fromDestinationSystemId).toBeUndefined();
+      expect(afterHint?.from.leadsTo.kind === 'system' ? afterHint.from.leadsTo.systemId : undefined)
+        .toBeUndefined();
 
       await expect(
         asUser(t).mutation(api.mapAuthoringFields.setConnectionDestination, {
@@ -716,9 +731,12 @@ describe('map authoring', () => {
         }),
       ).resolves.toEqual({ changed: true });
       expect(await readConnection(t, connectionId)).toMatchObject({
-        destinationProvenance: 'assumed',
-        pendingCandidates: [connectionId],
-        pendingResolutionCharacterId: 21_198_055_274,
+        resolution: {
+          kind: 'pending',
+          provenance: 'assumed',
+          candidateIds: [connectionId],
+          characterId: 21_198_055_274,
+        },
       });
     });
   });
@@ -738,10 +756,13 @@ describe('map authoring', () => {
         deathLatestAt: NOW + 16 * HOUR_MS,
       });
       expect(await readConnection(t, connectionId)).toMatchObject({
-        lifeStage: 'under_1_day',
-        lifeStageObservedAt: NOW,
-        deathEarliestAt: NOW + 4 * HOUR_MS,
-        deathLatestAt: NOW + 16 * HOUR_MS,
+        lifetime: {
+          kind: 'window',
+          lifeStage: 'under_1_day',
+          observedAt: NOW,
+          earliestAt: NOW + 4 * HOUR_MS,
+          latestAt: NOW + 16 * HOUR_MS,
+        },
       });
 
       vi.setSystemTime(NOW + HOUR_MS);
@@ -755,10 +776,13 @@ describe('map authoring', () => {
         }),
       ).resolves.toEqual({ changed: true });
       expect(await readConnection(t, connectionId)).toMatchObject({
-        lifeStage: 'under_1_day',
-        lifeStageObservedAt: NOW + HOUR_MS,
-        deathEarliestAt: NOW + 5 * HOUR_MS,
-        deathLatestAt: NOW + 16 * HOUR_MS,
+        lifetime: {
+          kind: 'window',
+          lifeStage: 'under_1_day',
+          observedAt: NOW + HOUR_MS,
+          earliestAt: NOW + 5 * HOUR_MS,
+          latestAt: NOW + 16 * HOUR_MS,
+        },
       });
 
       vi.setSystemTime(NOW + 2 * HOUR_MS);
@@ -770,10 +794,13 @@ describe('map authoring', () => {
         deathLatestAt: NOW + 2 * HOUR_MS,
       });
       expect(await readConnection(t, connectionId)).toMatchObject({
-        lifeStage: 'expired',
-        lifeStageObservedAt: NOW + 2 * HOUR_MS,
-        deathEarliestAt: NOW + 2 * HOUR_MS,
-        deathLatestAt: NOW + 2 * HOUR_MS,
+        lifetime: {
+          kind: 'window',
+          lifeStage: 'expired',
+          observedAt: NOW + 2 * HOUR_MS,
+          earliestAt: NOW + 2 * HOUR_MS,
+          latestAt: NOW + 2 * HOUR_MS,
+        },
       });
     });
 
@@ -799,9 +826,12 @@ describe('map authoring', () => {
       ).resolves.toEqual({ changed: true });
       const typed = await readConnection(t, connectionId);
       expect(typed).toMatchObject({
-        wormholeTypeCode: 'C247',
-        deathEarliestAt: NOW + 4 * HOUR_MS,
-        deathLatestAt: NOW + 16 * HOUR_MS,
+        from: expect.objectContaining({ typeCode: 'C247' }),
+        lifetime: expect.objectContaining({
+          kind: 'window',
+          earliestAt: NOW + 4 * HOUR_MS,
+          latestAt: NOW + 16 * HOUR_MS,
+        }),
       });
 
       await expect(
@@ -905,20 +935,19 @@ describe('map authoring', () => {
       expect(tombstoned).toMatchObject({
         _id: before!._id,
         _creationTime: before!._creationTime,
-        wormholeTypeCode: 'C247',
-        deletedAt: NOW,
-        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        from: expect.objectContaining({ typeCode: 'C247' }),
+        tombstone: {
+          kind: 'removed',
+          deletedAt: NOW,
+          purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        },
       });
 
       await asUser(t).mutation(api.mapAuthoringTombstone.restoreConnection, {
         mapId: MAP_A,
         connectionId,
       });
-      expect(await readConnection(t, connectionId)).toEqual({
-        ...before,
-        deletedAt: null,
-        purgeAfter: null,
-      });
+      expect(await readConnection(t, connectionId)).toEqual(before);
     });
 
     it('refuses to tombstone a system while a live connection references it', async () => {
@@ -1019,7 +1048,6 @@ describe('map authoring', () => {
         'setHomeSystem',
         'addSystemFromNode',
         'setConnectionWormholeType',
-        'setConnectionTypedSide',
         'setConnectionDestinationHint',
         'setConnectionDestination',
         'setConnectionShipSize',
@@ -1058,12 +1086,13 @@ describe('map authoring', () => {
         }),
       ).resolves.toEqual({ outcome: 'retained' });
       expect(await readConnection(t, cut)).toMatchObject({
-        deletedAt: NOW,
-        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        tombstone: {
+          kind: 'removed',
+          deletedAt: NOW,
+          purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        },
       });
-      expect(await readConnection(t, ids.other!)).toMatchObject({
-        deletedAt: null,
-      });
+      expect(tombstoneDeletedAt(await readConnection(t, ids.other!))).toBeNull();
       expect(await readEvents(t)).toEqual([
         expect.objectContaining({
           mapId: MAP_A,
@@ -1081,8 +1110,7 @@ describe('map authoring', () => {
         { mapId: MAP_A, connectionId: cut },
       );
       expect(await readConnection(t, cut)).toMatchObject({
-        deletedAt: null,
-        purgeAfter: null,
+        tombstone: { kind: 'live' },
       });
       expect((await readEvents(t)).map((event) => [event.kind, event.actor])).toEqual([
         ['connection_severed_retained', 'Scout One'],
@@ -1143,12 +1171,12 @@ describe('map authoring', () => {
         readConnection(t, cut),
         readConnection(t, ids['b-c']!),
       ]);
-      expect(new Set(tombstonedRows.map((row) => row?.deletedAt))).toEqual(
+      expect(new Set(tombstonedRows.map((row) => (
+        row == null ? null : tombstoneDeletedAt(row)
+      )))).toEqual(
         new Set([NOW]),
       );
-      expect(await readConnection(t, ids['root-a']!)).toMatchObject({
-        deletedAt: null,
-      });
+      expect(tombstoneDeletedAt(await readConnection(t, ids['root-a']!))).toBeNull();
       expect((await readEvents(t))[0]).toMatchObject({
         kind: 'branch_removed',
         payload: { connectionId: String(cut), systemIds: [WH_B, WH_C] },
@@ -1171,13 +1199,11 @@ describe('map authoring', () => {
       });
       expect(await readConnection(t, cut)).toEqual({
         ...beforeConnections[0]!,
-        deletedAt: null,
-        purgeAfter: null,
+        tombstone: { kind: 'live' },
       });
       expect(await readConnection(t, ids['b-c']!)).toEqual({
         ...beforeConnections[1]!,
-        deletedAt: null,
-        purgeAfter: null,
+        tombstone: { kind: 'live' },
       });
       expect((await readEvents(t)).at(-1)).toMatchObject({
         kind: 'branch_restored',
@@ -1209,8 +1235,11 @@ describe('map authoring', () => {
       ).resolves.toEqual({ outcome: 'removed', systemIds: [WH_A, WH_B] });
       expect(await readConnection(t, stub.connectionId)).toMatchObject({
         toSystemId: null,
-        deletedAt: NOW,
-        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        tombstone: {
+          kind: 'removed',
+          deletedAt: NOW,
+          purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        },
       });
 
       await asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
@@ -1218,8 +1247,7 @@ describe('map authoring', () => {
         connectionId: ids.cut!,
       });
       expect(await readConnection(t, stub.connectionId)).toMatchObject({
-        deletedAt: null,
-        purgeAfter: null,
+        tombstone: { kind: 'live' },
       });
 
       await asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
@@ -1248,7 +1276,7 @@ describe('map authoring', () => {
         paginationOpts: { cursor: null, numItems: 10 },
       });
       expect(candidates.page).toEqual([]);
-      expect(await readConnection(t, stub.connectionId)).toMatchObject({ deletedAt: NOW });
+      expect(tombstoneDeletedAt(await readConnection(t, stub.connectionId))).toBe(NOW);
     });
 
     it('removes a known-space exit and its wormhole-only children together', async () => {
@@ -1271,12 +1299,8 @@ describe('map authoring', () => {
       ).resolves.toEqual({ outcome: 'removed', systemIds: [JITA, WH_B] });
       expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: NOW });
       expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW });
-      expect(await readConnection(t, ids['island-cut']!)).toMatchObject({
-        deletedAt: NOW,
-      });
-      expect(await readConnection(t, ids.interior!)).toMatchObject({
-        deletedAt: NOW,
-      });
+      expect(tombstoneDeletedAt(await readConnection(t, ids['island-cut']!))).toBe(NOW);
+      expect(tombstoneDeletedAt(await readConnection(t, ids.interior!))).toBe(NOW);
     });
 
     it('uses unique stamps so restores cannot cross two same-millisecond severs', async () => {
@@ -1299,8 +1323,8 @@ describe('map authoring', () => {
         mapId: MAP_A,
         connectionId: cutB,
       });
-      expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: NOW });
-      expect(await readConnection(t, cutB)).toMatchObject({ deletedAt: NOW + 1 });
+      expect(tombstoneDeletedAt(await readConnection(t, cutA))).toBe(NOW);
+      expect(tombstoneDeletedAt(await readConnection(t, cutB))).toBe(NOW + 1);
 
       await expect(
         asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
@@ -1308,7 +1332,7 @@ describe('map authoring', () => {
           connectionId: cutA,
         }),
       ).resolves.toEqual({ outcome: 'already_applied' });
-      expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: NOW });
+      expect(tombstoneDeletedAt(await readConnection(t, cutA))).toBe(NOW);
       expect(await readEvents(t)).toHaveLength(2);
 
       await asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
@@ -1316,9 +1340,9 @@ describe('map authoring', () => {
         connectionId: cutA,
       });
       expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: null });
-      expect(await readConnection(t, cutA)).toMatchObject({ deletedAt: null });
+      expect(tombstoneDeletedAt(await readConnection(t, cutA))).toBe(null);
       expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW + 1 });
-      expect(await readConnection(t, cutB)).toMatchObject({ deletedAt: NOW + 1 });
+      expect(tombstoneDeletedAt(await readConnection(t, cutB))).toBe(NOW + 1);
 
       await asUser(t).mutation(api.mapAuthoringCollapse.restoreSeveredBranch, {
         mapId: MAP_A,
@@ -1356,7 +1380,7 @@ describe('map authoring', () => {
         'ENDPOINT_TOMBSTONED',
       );
       expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: NOW });
-      expect(await readConnection(t, cut)).toMatchObject({ deletedAt: NOW });
+      expect(tombstoneDeletedAt(await readConnection(t, cut))).toBe(NOW);
     });
 
     it('fails closed before mutation or ledger write when the map exceeds the bound', async () => {
@@ -1371,17 +1395,16 @@ describe('map authoring', () => {
             purgeAfter: null,
           });
         }
-        return await ctx.db.insert('mapConnections', {
+        return await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP_A,
           fromSystemId: WH_ROOT,
           toSystemId: WH_A,
           wormholeTypeCode: null,
           massState: null,
           shipSize: null,
-          eolAt: null,
           deletedAt: null,
           purgeAfter: null,
-        });
+        }));
       });
 
       await expectConvexError(
@@ -1391,7 +1414,7 @@ describe('map authoring', () => {
         }),
         'MAP_TOO_LARGE',
       );
-      expect(await readConnection(t, connectionId)).toMatchObject({ deletedAt: null });
+      expect(tombstoneDeletedAt(await readConnection(t, connectionId))).toBe(null);
       expect(await readEvents(t)).toEqual([]);
     });
 
@@ -1403,19 +1426,18 @@ describe('map authoring', () => {
         [{ key: 'cut', fromSystemId: WH_ROOT, toSystemId: WH_A }],
       );
       const skeletonId = await t.run(async (ctx) =>
-        await ctx.db.insert('mapConnections', {
+        await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP_A,
           fromSystemId: WH_A,
           toSystemId: WH_B,
           wormholeTypeCode: null,
           massState: null,
           shipSize: null,
-          eolAt: null,
           lifeStage: null,
           lifeStageObservedAt: null,
           deletedAt: NOW - MAP_CHAIN_UNDO_WINDOW_MS,
           purgeAfter: null,
-        }),
+        })),
       );
 
       await asUser(t).mutation(api.mapAuthoringCollapse.severConnection, {
@@ -1423,8 +1445,11 @@ describe('map authoring', () => {
         connectionId: ids.cut!,
       });
       expect(await readConnection(t, skeletonId)).toMatchObject({
-        deletedAt: NOW - MAP_CHAIN_UNDO_WINDOW_MS,
-        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        tombstone: {
+          kind: 'removed',
+          deletedAt: NOW - MAP_CHAIN_UNDO_WINDOW_MS,
+          purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        },
       });
     });
   });
@@ -1477,8 +1502,13 @@ describe('map authoring', () => {
         ],
       );
       await patchConnection(t, ids.cut!, {
-        deathEarliestAt: EXPIRED - 60_000,
-        deathLatestAt: EXPIRED,
+        lifetime: {
+          kind: 'window',
+          earliestAt: EXPIRED - 60_000,
+          latestAt: EXPIRED,
+          lifeStage: null,
+          observedAt: null,
+        },
       });
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
@@ -1490,8 +1520,10 @@ describe('map authoring', () => {
         readSystem(t, WH_A),
         readSystem(t, WH_B),
       ]);
-      expect(new Set(tombstoned.map((row) => row?.deletedAt))).toEqual(new Set([NOW]));
-      expect(new Set(tombstoned.map((row) => row?.purgeAfter))).toEqual(
+      expect(new Set(tombstoned.map((row) => (
+        row == null ? null : tombstoneDeletedAt(row)
+      )))).toEqual(new Set([NOW]));
+      expect(new Set(tombstoned.map((row) => tombstonePurgeAfter(row)))).toEqual(
         new Set([NOW + MAP_CHAIN_UNDO_WINDOW_MS]),
       );
       expect(await readSystem(t, JITA)).toMatchObject({ deletedAt: null });
@@ -1519,18 +1551,28 @@ describe('map authoring', () => {
         ],
       );
       await patchConnection(t, ids.alive!, {
-        deathEarliestAt: NOW + 30_000,
-        deathLatestAt: NOW + 60_000,
+        lifetime: {
+          kind: 'window',
+          earliestAt: NOW + 30_000,
+          latestAt: NOW + 60_000,
+          lifeStage: null,
+          observedAt: null,
+        },
       });
       await patchConnection(t, ids['in-grace']!, {
-        deathEarliestAt: NOW - CEILING_COLLAPSE_GRACE_MS,
-        deathLatestAt: NOW - CEILING_COLLAPSE_GRACE_MS + 60_000,
+        lifetime: {
+          kind: 'window',
+          earliestAt: NOW - CEILING_COLLAPSE_GRACE_MS,
+          latestAt: NOW - CEILING_COLLAPSE_GRACE_MS + 60_000,
+          lifeStage: null,
+          observedAt: null,
+        },
       });
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
       for (const key of ['alive', 'in-grace', 'windowless'] as const) {
-        expect(await readConnection(t, ids[key]!)).toMatchObject({ deletedAt: null });
+        expect(tombstoneDeletedAt(await readConnection(t, ids[key]!))).toBe(null);
       }
       expect(await readEvents(t)).toEqual([]);
     });
@@ -1546,16 +1588,21 @@ describe('map authoring', () => {
         ],
       );
       await patchConnection(t, ids.cut!, {
-        deathEarliestAt: EXPIRED - 60_000,
-        deathLatestAt: EXPIRED,
+        lifetime: {
+          kind: 'window',
+          earliestAt: EXPIRED - 60_000,
+          latestAt: EXPIRED,
+          lifeStage: null,
+          observedAt: null,
+        },
       });
       await trackPilotAt(t, WH_B);
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 1, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
 
-      expect(await readConnection(t, ids.cut!)).toMatchObject({ deletedAt: NOW });
-      expect(await readConnection(t, ids['a-b']!)).toMatchObject({ deletedAt: null });
+      expect(tombstoneDeletedAt(await readConnection(t, ids.cut!))).toBe(NOW);
+      expect(tombstoneDeletedAt(await readConnection(t, ids['a-b']!))).toBe(null);
       expect(await readSystem(t, WH_A)).toMatchObject({ deletedAt: null });
       expect(await readSystem(t, WH_B)).toMatchObject({ deletedAt: null });
       expect(await readEvents(t)).toEqual([
@@ -1577,7 +1624,7 @@ describe('map authoring', () => {
           deletedAt: null,
           purgeAfter: null,
         });
-        const stub = await ctx.db.insert('mapConnections', {
+        const stub = await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP_A,
           fromSystemId: JITA,
           toSystemId: null,
@@ -1585,41 +1632,42 @@ describe('map authoring', () => {
           wormholeTypeCode: null,
           massState: null,
           shipSize: null,
-          eolAt: null,
           deathEarliestAt: EXPIRED - 60_000,
           deathLatestAt: EXPIRED,
           deletedAt: null,
           purgeAfter: null,
-        });
+        }));
         await ctx.db.insert('mapSignatureActivity', {
           mapId: MAP_A,
           systemId: JITA,
           signatureId: 'WHL-009',
           lastSeenAt: NOW - 60_000,
         });
-        const dead = await ctx.db.insert('mapConnections', {
+        const dead = await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP_A,
           fromSystemId: JITA,
           toSystemId: null,
           wormholeTypeCode: null,
           massState: null,
           shipSize: null,
-          eolAt: null,
           deathEarliestAt: EXPIRED - 60_000,
           deathLatestAt: EXPIRED,
           deletedAt: NOW - 120_000,
           purgeAfter: NOW + 60_000,
-        });
+        }));
         return { stubId: stub, deadId: dead };
       });
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 0, hasMore: false });
       expect(await readConnection(t, stubId)).toMatchObject({
-        deletedAt: NOW,
-        purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        tombstone: {
+          kind: 'removed',
+          deletedAt: NOW,
+          purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+        },
       });
-      expect(await readConnection(t, deadId)).toMatchObject({ deletedAt: NOW - 120_000 });
+      expect(tombstoneDeletedAt(await readConnection(t, deadId))).toBe(NOW - 120_000);
       const activities = await t.run(async (ctx) =>
         await ctx.db
           .query('mapSignatureActivity')
@@ -1637,7 +1685,7 @@ describe('map authoring', () => {
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 0, skipped: 0, failed: 0, hasMore: false });
-      expect(await readConnection(t, stubId)).toMatchObject({ deletedAt: NOW });
+      expect(tombstoneDeletedAt(await readConnection(t, stubId))).toBe(NOW);
     });
 
     it('tombstoned expired rows never occupy the sweep batch', async () => {
@@ -1651,21 +1699,20 @@ describe('map authoring', () => {
           purgeAfter: null,
         });
         for (let i = 0; i < 9; i += 1) {
-          await ctx.db.insert('mapConnections', {
+          await ctx.db.insert('mapConnections', connectionInsert({
             mapId: MAP_A,
             fromSystemId: JITA,
             toSystemId: null,
             wormholeTypeCode: null,
             massState: null,
             shipSize: null,
-            eolAt: null,
             deathEarliestAt: EXPIRED - 120_000,
             deathLatestAt: EXPIRED - 60_000 + i,
             deletedAt: NOW - 120_000,
             purgeAfter: NOW + 60_000,
-          });
+          }));
         }
-        return await ctx.db.insert('mapConnections', {
+        return await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP_A,
           fromSystemId: JITA,
           toSystemId: null,
@@ -1673,17 +1720,16 @@ describe('map authoring', () => {
           wormholeTypeCode: null,
           massState: null,
           shipSize: null,
-          eolAt: null,
           deathEarliestAt: EXPIRED - 60_000,
           deathLatestAt: EXPIRED,
           deletedAt: null,
           purgeAfter: null,
-        });
+        }));
       });
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 0, hasMore: false });
-      expect(await readConnection(t, stubId)).toMatchObject({ deletedAt: NOW });
+      expect(tombstoneDeletedAt(await readConnection(t, stubId))).toBe(NOW);
     });
 
     it('isolates a failing map and still sweeps the rest of the batch', async () => {
@@ -1703,19 +1749,18 @@ describe('map authoring', () => {
           purgeAfter: null,
         });
         for (let i = 0; i < 128; i += 1) {
-          await ctx.db.insert('mapConnections', {
+          await ctx.db.insert('mapConnections', connectionInsert({
             mapId: MAP_A,
             fromSystemId: JITA,
             toSystemId: null,
             wormholeTypeCode: null,
             massState: null,
             shipSize: null,
-            eolAt: null,
             deathEarliestAt: null,
             deathLatestAt: null,
             deletedAt: null,
             purgeAfter: null,
-          });
+          }));
         }
         const resolvedShape = {
           mapId: MAP_A,
@@ -1724,21 +1769,20 @@ describe('map authoring', () => {
           wormholeTypeCode: null,
           massState: null,
           shipSize: null,
-          eolAt: null,
           deletedAt: null,
           purgeAfter: null,
         };
-        const a = await ctx.db.insert('mapConnections', {
+        const a = await ctx.db.insert('mapConnections', connectionInsert({
           ...resolvedShape,
           deathEarliestAt: EXPIRED - 60_000,
           deathLatestAt: EXPIRED,
-        });
-        const b = await ctx.db.insert('mapConnections', {
+        }));
+        const b = await ctx.db.insert('mapConnections', connectionInsert({
           ...resolvedShape,
           deathEarliestAt: EXPIRED - 60_000,
           deathLatestAt: EXPIRED + 100,
-        });
-        const stub = await ctx.db.insert('mapConnections', {
+        }));
+        const stub = await ctx.db.insert('mapConnections', connectionInsert({
           mapId: 'map-elsewhere',
           fromSystemId: AMARR,
           toSystemId: null,
@@ -1746,20 +1790,19 @@ describe('map authoring', () => {
           wormholeTypeCode: null,
           massState: null,
           shipSize: null,
-          eolAt: null,
           deathEarliestAt: EXPIRED - 60_000,
           deathLatestAt: EXPIRED + 200,
           deletedAt: null,
           purgeAfter: null,
-        });
+        }));
         return { poisonedA: a, poisonedB: b, otherStub: stub };
       });
 
       expect(await t.mutation(internal.mapAuthoringSweep.collapseExpiredConnections, {}))
         .toEqual({ collapsed: 0, removedStubs: 1, skipped: 0, failed: 2, hasMore: false });
-      expect(await readConnection(t, poisonedA)).toMatchObject({ deletedAt: null });
-      expect(await readConnection(t, poisonedB)).toMatchObject({ deletedAt: null });
-      expect(await readConnection(t, otherStub)).toMatchObject({ deletedAt: NOW });
+      expect(tombstoneDeletedAt(await readConnection(t, poisonedA))).toBe(null);
+      expect(tombstoneDeletedAt(await readConnection(t, poisonedB))).toBe(null);
+      expect(tombstoneDeletedAt(await readConnection(t, otherStub))).toBe(NOW);
     });
 
     it('keeps one collapse-decision owner and registers the sweep cron', () => {

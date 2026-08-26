@@ -2,11 +2,11 @@ import { ConvexError } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 import {
-  connectionDoorTypes,
+  namedDoorType,
   type ConnectionDoor,
-  legacyTypeSnapshot,
 } from '@/data/maps/connection-door-types';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { destinationProvenanceOf, hallwayDoorTypes } from '@/data/maps/connection-hallway';
 import type { ConnectionProvenance } from './lib/mapEntityContracts';
 import { readOriginConnections } from './lib/mapConnectionLookup';
 
@@ -77,18 +77,23 @@ export async function readConnectionsFrom(
   });
 }
 
+function emissionTypeSnapshot(connection: Doc<'mapConnections'>): {
+  readonly wormholeTypeCode: string | null;
+  readonly typedSide: ConnectionDoor | null;
+} {
+  const named = namedDoorType(hallwayDoorTypes(connection));
+  return { wormholeTypeCode: named.typeCode, typedSide: named.side };
+}
+
 export function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
-  const snapshot = legacyTypeSnapshot(
-    connectionDoorTypes(connection),
-    connection.typedSide ?? undefined,
-  );
+  const snapshot = emissionTypeSnapshot(connection);
   return {
     connectionId: connection._id,
     fromSystemId: connection.fromSystemId,
     toSystemId: connection.toSystemId,
     wormholeTypeCode: snapshot.wormholeTypeCode,
-    typedSide: snapshot.typedSide ?? null,
-    destinationProvenance: connection.destinationProvenance ?? null,
+    typedSide: snapshot.typedSide,
+    destinationProvenance: destinationProvenanceOf(connection.resolution),
     observationKey: connection.observationKey ?? null,
   };
 }

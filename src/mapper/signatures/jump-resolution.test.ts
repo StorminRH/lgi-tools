@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import { blankDoor, pendingResolution } from '@/data/maps/connection-hallway';
+import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
@@ -16,29 +18,12 @@ function detail(
   partial: Partial<ConnectionDetail> & { connectionId: Id<'mapConnections'> },
 ): ConnectionDetail {
   return {
-    _creationTime: 1,
-    fromSystemId: 1,
-    toSystemId: 2,
-    fromSignalPct: null,
-    firstSeenAt: null,
-    wormholeTypeCode: null,
-    massState: null,
-    shipSize: null,
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deathEarliestAt: null,
-    deathLatestAt: null,
-    deletedAt: null,
-    purgeAfter: null,
-    fromSignatureId: null,
-    toSignatureId: null,
-    fromDestinationHint: null,
-    destinationProvenance: null,
-    pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-    observedMassKg: null,
-    observedMassAtStateKg: null,
-    ...partial,
+    ...connectionEditorFixture({
+      fromSystemId: 1,
+      toSystemId: 2,
+      ...partial,
+    }),
+    toSystemId: partial.toSystemId ?? 2,
   };
 }
 
@@ -47,42 +32,22 @@ const STUB = 'stub-2' as Id<'mapConnections'>;
 
 const HOLES: readonly UnresolvedHoleSummary[] = [
   {
-    connectionId: STUB,
-    _creationTime: 1,
-    fromSystemId: 1,
-    fromSignatureId: 'DEF-456',
-    toSignatureId: null,
-    fromSignalPct: null,
-    firstSeenAt: null,
-    wormholeTypeCode: null,
+    ...connectionEditorFixture({
+      connectionId: STUB,
+      fromSystemId: 1,
+      toSystemId: null,
+      from: { ...blankDoor(), signatureId: 'DEF-456' },
+    }),
     toSystemId: null,
-    typedSide: null,
-    massState: null,
-    shipSize: null,
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deathEarliestAt: null,
-    deathLatestAt: null,
-    deletedAt: null,
-    purgeAfter: null,
-    fromDestinationHint: null,
-    toDestinationHint: null,
-    destinationProvenance: null,
-    pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-    observedMassKg: null,
-    observedMassAtStateKg: null,
   },
 ];
 
 function pending(partial: Partial<ConnectionDetail> = {}): ConnectionDetail {
   return detail({
     connectionId: C1,
-    fromSignatureId: 'ABC-123',
-    wormholeTypeCode: 'K162',
-    destinationProvenance: 'assumed',
-    pendingCandidates: [C1, STUB],
-    pendingResolutionCharacterId: 101,
+    from: { ...blankDoor(), typeCode: 'K162', signatureId: 'ABC-123' },
+    identity: { kind: 'typed', provenance: 'human' },
+    resolution: pendingResolution([C1, STUB], 101),
     ...partial,
   });
 }
@@ -92,11 +57,19 @@ const OWN = new Set([101]);
 describe('jump resolution', () => {
   it('requires exact multi-survivor ambiguity and preserves matcher order', () => {
     expect(hasPendingResolution(pending())).toBe(true);
-    expect(hasPendingResolution(pending({ destinationProvenance: 'jump-verified' }))).toBe(false);
-    expect(hasPendingResolution(pending({ pendingCandidates: null }))).toBe(false);
-    expect(hasPendingResolution(pending({ pendingCandidates: [] }))).toBe(false);
-    expect(hasPendingResolution(pending({ pendingCandidates: [C1] }))).toBe(false);
-    expect(hasPendingResolution(pending({ deletedAt: 5 }))).toBe(false);
+    expect(hasPendingResolution(pending({
+      resolution: { kind: 'destination', provenance: 'jump-verified' },
+    }))).toBe(false);
+    expect(hasPendingResolution(pending({ resolution: { kind: 'open' } }))).toBe(false);
+    expect(hasPendingResolution(pending({
+      resolution: { kind: 'destination', provenance: 'assumed' },
+    }))).toBe(false);
+    expect(hasPendingResolution(pending({
+      resolution: pendingResolution([C1], 101),
+    }))).toBe(false);
+    expect(hasPendingResolution(pending({
+      tombstone: { kind: 'removed', deletedAt: 5, purgeAfter: null },
+    }))).toBe(false);
 
     const candidates = jumpResolutionCandidates(pending(), HOLES);
     if (candidates === null) throw new Error('expected exact survivor candidates');
@@ -122,7 +95,7 @@ describe('jump resolution', () => {
     expect(jumpResolutionCandidates(pending(), [])).toBeNull();
     expect(
       jumpResolutionCandidates(
-        pending({ pendingCandidates: [STUB, C1] }),
+        pending({ resolution: pendingResolution([STUB, C1], 101) }),
         HOLES,
       )?.map((candidate) => candidate.connectionId),
     ).toEqual([STUB, C1]);
@@ -133,7 +106,7 @@ describe('jump resolution', () => {
     const newer = pending({
       connectionId: 'c9' as Id<'mapConnections'>,
       _creationTime: 9,
-      pendingCandidates: ['c9' as Id<'mapConnections'>, STUB],
+      resolution: pendingResolution(['c9' as Id<'mapConnections'>, STUB], 101),
     });
     const details = new Map([
       [older.connectionId, older],
@@ -157,7 +130,10 @@ describe('jump resolution', () => {
       pendingJumpResolution(details, HOLES, new Set(['c1', 'c9']), systemInfo, OWN),
     ).toBeNull();
 
-    const settled = detail({ connectionId: C1, destinationProvenance: 'jump-verified' });
+    const settled = detail({
+      connectionId: C1,
+      resolution: { kind: 'destination', provenance: 'jump-verified' },
+    });
     expect(
       pendingJumpResolution(new Map([[C1, settled]]), HOLES, new Set(), systemInfo, OWN),
     ).toBeNull();
@@ -174,7 +150,9 @@ describe('jump resolution', () => {
     ).toBeNull();
     expect(
       pendingJumpResolution(
-        new Map([[C1, pending({ pendingResolutionCharacterId: null })]]),
+        new Map([[C1, pending({
+          resolution: { kind: 'destination', provenance: 'assumed' },
+        })]]),
         HOLES,
         new Set(),
         systemInfo,

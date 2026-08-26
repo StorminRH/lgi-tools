@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
+import { MAP_CHAIN_UNDO_WINDOW_MS, tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { api, internal } from './_generated/api';
@@ -11,6 +11,8 @@ import { SIGNATURE_ACTIVITY_STALE_MS } from './lib/mapSignatures';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc.setup';
+
 
 const MAP = 'map-a';
 const EDITOR = 'user-editor';
@@ -165,8 +167,7 @@ describe('mapScan paste application and lifecycle', () => {
     });
     expect(state.connections).toHaveLength(1);
     expect(state.connections[0]).toMatchObject({
-      fromSignatureId: 'WHL-001',
-      fromSignalPct: 42.5,
+      from: expect.objectContaining({ signatureId: 'WHL-001', signalPct: 42.5 }),
       firstSeenAt: NOW,
       toSystemId: null,
     });
@@ -186,8 +187,7 @@ describe('mapScan paste application and lifecycle', () => {
     expect(state.signatures).toEqual([]);
     expect(state.connections).toHaveLength(1);
     expect(state.connections[0]).toMatchObject({
-      fromSignatureId: 'WHL-001',
-      fromSignalPct: 100,
+      from: expect.objectContaining({ signatureId: 'WHL-001', signalPct: 100 }),
       firstSeenAt: before!._creationTime,
       toSystemId: null,
     });
@@ -233,12 +233,10 @@ describe('mapScan paste application and lifecycle', () => {
     expect((await readState(t)).connections).toEqual([
       expect.objectContaining({
         _id: migrated.connectionId,
-        fromSignatureId: 'WHL-001',
+        from: expect.objectContaining({ signatureId: 'WHL-001', typeCode: 'C247' }),
         firstSeenAt: before?._creationTime,
         toSystemId: null,
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        typeProvenance: 'human',
+        identity: { kind: 'typed' as const, provenance: 'human' },
         observationKey: expect.any(String),
       }),
     ]);
@@ -252,6 +250,79 @@ describe('mapScan paste application and lifecycle', () => {
         wormholeTypeCode: 'C247',
       }),
     ).toEqual({ changed: false, connectionId: migrated.connectionId });
+  });
+
+  it('keeps assumed destination provenance when scan stamps a pending type', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WHL-002', { group: 'Wormhole' })]);
+    const connectionId = await t.run(async (ctx) => {
+      const row = (await ctx.db.query('mapConnections').collect())[0];
+      if (row === undefined) {
+        throw new Error('expected the pasted wormhole stub before identify');
+      }
+      await ctx.db.patch(row._id, {
+        resolution: {
+          kind: 'pending',
+          provenance: 'assumed',
+          candidateIds: [row._id, row._id],
+          characterId: CHARACTER,
+        },
+      });
+      return row._id;
+    });
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'WHL-002',
+        group: 'Wormhole',
+        wormholeTypeCode: 'C247',
+      }),
+    ).toEqual({ changed: false, connectionId });
+    expect(await t.run(async (ctx) => await ctx.db.get(connectionId))).toMatchObject({
+      from: expect.objectContaining({ signatureId: 'WHL-002', typeCode: 'C247' }),
+      resolution: { kind: 'destination', provenance: 'assumed' },
+    });
+  });
+
+  it('clears pending on same-code re-identify after a human type stamp', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    await apply(t, [signature('WHL-003')]);
+    const identified = await asEditor(t).mutation(api.mapScan.identifySignature, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureId: 'WHL-003',
+      group: 'Wormhole',
+      wormholeTypeCode: 'C247',
+    });
+    expect(identified.connectionId).not.toBeNull();
+    const connectionId = identified.connectionId;
+    if (connectionId === null) {
+      throw new Error('expected identify to migrate WHL-003 onto a hallway');
+    }
+    await t.run(async (ctx) => {
+      await ctx.db.patch(connectionId, {
+        resolution: {
+          kind: 'pending',
+          provenance: 'assumed',
+          candidateIds: [connectionId, connectionId],
+          characterId: CHARACTER,
+        },
+      });
+    });
+    expect(
+      await asEditor(t).mutation(api.mapScan.identifySignature, {
+        mapId: MAP,
+        systemId: JITA,
+        signatureId: 'WHL-003',
+        group: 'Wormhole',
+        wormholeTypeCode: 'C247',
+      }),
+    ).toEqual({ changed: false, connectionId });
+    const after = await t.run(async (ctx) => await ctx.db.get(connectionId));
+    expect(after?.resolution).toEqual({ kind: 'destination', provenance: 'assumed' });
   });
 
   it('projects live elimination evidence and tier-gates one atomic deduction batch', async () => {
@@ -297,13 +368,12 @@ describe('mapScan paste application and lifecycle', () => {
     ]);
     expect(observationKey).toEqual(expect.any(String));
     const assumed = (await readState(t)).connections.find(
-      (row) => row.fromSignatureId === 'AAA-111',
+      (row) => row.from.signatureId === 'AAA-111',
     );
     if (assumed === undefined) throw new Error('missing assumed deduction row');
     expect(assumed).toMatchObject({
-      wormholeTypeCode: 'B274',
-      typedSide: 'from',
-      typeProvenance: 'assumed',
+      from: expect.objectContaining({ typeCode: 'B274' }),
+      identity: { kind: 'typed' as const, provenance: 'assumed' },
       observationKey,
     });
 
@@ -338,8 +408,8 @@ describe('mapScan paste application and lifecycle', () => {
       { signatureId: 'AAA-111', outcome: 'protected', observationKey },
     ]);
     expect((await readState(t)).connections.find(
-      (row) => row.fromSignatureId === 'AAA-111',
-    )).toMatchObject({ wormholeTypeCode: 'H296', typeProvenance: 'human' });
+      (row) => row.from.signatureId === 'AAA-111',
+    )).toMatchObject({ from: expect.objectContaining({ typeCode: 'H296' }), identity: { kind: 'typed' as const, provenance: 'human' } });
 
     await asEditor(t).mutation(api.mapScan.removeSignatures, {
       mapId: MAP,
@@ -367,7 +437,7 @@ describe('mapScan paste application and lifecycle', () => {
     let linkedTarget = '' as Id<'mapConnections'>;
     await linked.run(async (ctx) => {
       await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
-      linkedTarget = await ctx.db.insert('mapConnections', {
+      linkedTarget = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -376,10 +446,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeProvenance: 'human',
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
     });
     expect(await linked.mutation(internal.mapScan.applyEliminationDeductions, {
       userId: EDITOR,
@@ -398,7 +467,7 @@ describe('mapScan paste application and lifecycle', () => {
       .query('mapConnections')
       .withIndex('by_map', (q) => q.eq('mapId', MAP))
       .collect())).toEqual([
-      expect.objectContaining({ _id: linkedTarget, toSignatureId: 'KSI-162' }),
+      expect.objectContaining({ _id: linkedTarget, to: expect.objectContaining({ signatureId: 'KSI-162' }) }),
     ]);
     expect(await linked.run(async (ctx) => await ctx.db.query('mapEvents').collect()))
       .toEqual([]);
@@ -413,11 +482,11 @@ describe('mapScan paste application and lifecycle', () => {
       const stub = (await ctx.db.query('mapConnections').collect())[0]!;
       stubId = stub._id;
       await ctx.db.patch(stubId, {
-        wormholeTypeCode: 'B274',
-        typedSide: 'from',
-        typeProvenance: 'human',
+        from: { ...stub.from, typeCode: 'B274' },
+        to: { ...stub.to, typeCode: 'K162' },
+        identity: { kind: 'typed', provenance: 'human' },
       });
-      staleTarget = await ctx.db.insert('mapConnections', {
+      staleTarget = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -426,10 +495,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeProvenance: 'human',
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
     });
     expect(await stale.mutation(internal.mapScan.applyEliminationDeductions, {
       userId: EDITOR,
@@ -445,12 +513,12 @@ describe('mapScan paste application and lifecycle', () => {
       { signatureId: 'KSI-162', outcome: 'stale', observationKey: null },
     ]);
     expect(await stale.run(async (ctx) => await ctx.db.get(stubId))).toMatchObject({
-      wormholeTypeCode: 'B274',
-      typeProvenance: 'human',
+      from: expect.objectContaining({ typeCode: 'B274' }),
+      identity: { kind: 'typed' as const, provenance: 'human' },
     });
     expect(
-      (await stale.run(async (ctx) => await ctx.db.get(staleTarget)))?.toSignatureId,
-    ).toBeUndefined();
+      (await stale.run(async (ctx) => await ctx.db.get(staleTarget)))?.to.signatureId,
+    ).toBeNull();
 
     const carried = convexTest(schema, modules);
     await seed(carried);
@@ -463,12 +531,15 @@ describe('mapScan paste application and lifecycle', () => {
         massState: 'stable',
         observedMassAtStateKg: 1_000_000_000,
         shipSize: 'M',
-        lifeStage: 'under_1_day',
-        lifeStageObservedAt: 1_500,
-        deathEarliestAt: 1_000,
-        deathLatestAt: 2_000,
+        lifetime: {
+          kind: 'window',
+          earliestAt: 1_000,
+          latestAt: 2_000,
+          lifeStage: 'under_1_day',
+          observedAt: 1_500,
+        },
       });
-      carriedTarget = await ctx.db.insert('mapConnections', {
+      carriedTarget = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -477,10 +548,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeProvenance: 'human',
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
     });
     expect(await carried.mutation(internal.mapScan.applyEliminationDeductions, {
       userId: EDITOR,
@@ -496,14 +566,17 @@ describe('mapScan paste application and lifecycle', () => {
       { signatureId: 'KSI-162', outcome: 'applied', observationKey: null },
     ]);
     expect(await carried.run(async (ctx) => await ctx.db.get(carriedTarget))).toMatchObject({
-      toSignatureId: 'KSI-162',
+      to: expect.objectContaining({ signatureId: 'KSI-162' }),
       massState: 'stable',
       observedMassAtStateKg: 1_000_000_000,
       shipSize: 'M',
-      lifeStage: 'under_1_day',
-      lifeStageObservedAt: 1_500,
-      deathEarliestAt: 1_000,
-      deathLatestAt: 2_000,
+      lifetime: expect.objectContaining({
+        kind: 'window',
+        lifeStage: 'under_1_day',
+        observedAt: 1_500,
+        earliestAt: 1_000,
+        latestAt: 2_000,
+      }),
     });
   });
 
@@ -520,7 +593,7 @@ describe('mapScan paste application and lifecycle', () => {
         throw new Error('expected the pasted wormhole stub before linking');
       }
       stubId = stub._id;
-      inboundId = await ctx.db.insert('mapConnections', {
+      inboundId = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -529,10 +602,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeProvenance: 'human',
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
     });
     await expect(
       t.withIdentity({ subject: VIEWER, name: 'Viewer' }).mutation(
@@ -550,7 +622,7 @@ describe('mapScan paste application and lifecycle', () => {
       resolvedConnectionId: inboundId,
     })).resolves.toEqual({ outcome: 'applied' });
     expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
-      toSignatureId: 'ABC-123',
+      to: expect.objectContaining({ signatureId: 'ABC-123' }),
     });
     expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toBeNull();
 
@@ -572,11 +644,11 @@ describe('mapScan paste application and lifecycle', () => {
       { signatureId: 'DEF-456', outcome: 'protected', observationKey: null },
     ]);
     expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
-      toSignatureId: 'ABC-123',
+      to: expect.objectContaining({ signatureId: 'ABC-123' }),
     });
     expect(await t.run(async (ctx) =>
       (await ctx.db.query('mapConnections').collect()).find(
-        (row) => row.fromSignatureId === 'DEF-456' && row.toSystemId === null,
+        (row) => row.from.signatureId === 'DEF-456' && row.toSystemId === null,
       ),
     )).toMatchObject({ fromSystemId: JITA });
   });
@@ -594,7 +666,7 @@ describe('mapScan paste application and lifecycle', () => {
         throw new Error('expected the pasted wormhole stub before linking');
       }
       firstStubId = stub._id;
-      inboundId = await ctx.db.insert('mapConnections', {
+      inboundId = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -603,10 +675,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeProvenance: 'human',
         massState: 'stable',
         shipSize: 'M',
-        eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
     });
     await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
       mapId: MAP,
@@ -614,7 +685,12 @@ describe('mapScan paste application and lifecycle', () => {
       resolvedConnectionId: inboundId,
     });
     await t.run(async (ctx) => {
-      await ctx.db.patch(inboundId, { toDestinationSystemId: DODIXIE });
+      await ctx.db.patch(inboundId, {
+        to: {
+          ...(await ctx.db.get(inboundId))!.to,
+          leadsTo: { kind: 'system', systemId: DODIXIE },
+        },
+      });
     });
     await apply(t, [
       signature('ABC-123', { group: 'Wormhole', name: 'K162' }),
@@ -622,7 +698,7 @@ describe('mapScan paste application and lifecycle', () => {
     ]);
     const secondStubId = await t.run(async (ctx) => {
       const stub = (await ctx.db.query('mapConnections').collect()).find(
-        (row) => row.fromSignatureId === 'DEF-456' && row.toSystemId === null,
+        (row) => row.from.signatureId === 'DEF-456' && row.toSystemId === null,
       );
       if (stub === undefined) {
         throw new Error('expected the second wormhole stub before reassigning');
@@ -636,28 +712,89 @@ describe('mapScan paste application and lifecycle', () => {
     })).resolves.toEqual({ outcome: 'applied' });
     const rehomed = await t.run(async (ctx) => await ctx.db.get(inboundId));
     expect(rehomed).toMatchObject({
-      toSignatureId: 'DEF-456',
+      to: expect.objectContaining({ signatureId: 'DEF-456' }),
       toSystemId: JITA,
       fromSystemId: AMARR,
       massState: 'stable',
       shipSize: 'M',
     });
-    expect(rehomed?.toDestinationSystemId).toBeUndefined();
+    expect(rehomed?.to.leadsTo.kind).toBe('unset');
     expect(await t.run(async (ctx) => await ctx.db.get(secondStubId))).toBeNull();
     const restored = await t.run(async (ctx) =>
       (await ctx.db.query('mapConnections').collect()).find(
-        (row) => row.fromSignatureId === 'ABC-123' && row.toSystemId === null,
+        (row) => row.from.signatureId === 'ABC-123' && row.toSystemId === null,
       ),
     );
     expect(restored).toMatchObject({
       fromSystemId: JITA,
-      fromWormholeTypeCode: 'K162',
+      from: expect.objectContaining({
+        typeCode: 'K162',
+        leadsTo: { kind: 'system', systemId: DODIXIE },
+      }),
       massState: null,
       shipSize: null,
-      fromDestinationSystemId: DODIXIE,
     });
     expect(restored?._id).not.toBe(firstStubId);
     expect(restored?.observationKey).toBeUndefined();
+  });
+
+  it('clears the vacated door type and keeps the new stub leads-to', async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    let stubId = '' as Id<'mapConnections'>;
+    let inboundId = '' as Id<'mapConnections'>;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapSystems', { mapId: MAP, systemId: AMARR });
+      inboundId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        fromSignatureId: 'ABC-123',
+        fromWormholeTypeCode: 'B274',
+        toWormholeTypeCode: 'K162',
+        typeProvenance: 'human',
+        massState: 'stable',
+        shipSize: 'M',
+        deletedAt: null,
+        purgeAfter: null,
+      }));
+      stubId = await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP,
+        fromSystemId: JITA,
+        toSystemId: null,
+        fromSignatureId: 'DEF-456',
+        wormholeTypeCode: 'C247',
+        typedSide: 'from',
+        typeProvenance: 'assumed',
+        fromDestinationSystemId: DODIXIE,
+        deletedAt: null,
+        purgeAfter: null,
+      }));
+    });
+    await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
+      mapId: MAP,
+      stubConnectionId: stubId,
+      resolvedConnectionId: inboundId,
+    })).resolves.toEqual({ outcome: 'applied' });
+    expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
+      from: expect.objectContaining({
+        signatureId: 'DEF-456',
+        typeCode: 'C247',
+        leadsTo: { kind: 'system', systemId: DODIXIE },
+      }),
+      to: expect.objectContaining({ typeCode: 'K162' }),
+      massState: 'stable',
+      shipSize: 'M',
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get(stubId))).toBeNull();
+    expect(await t.run(async (ctx) =>
+      (await ctx.db.query('mapConnections').collect()).find(
+        (row) => row.from.signatureId === 'ABC-123' && row.toSystemId === null,
+      ),
+    )).toMatchObject({
+      fromSystemId: JITA,
+      from: expect.objectContaining({ typeCode: 'B274' }),
+    });
   });
 
   it('absorbs a unique leftover origin stub when a Leads-to pick rehomes the hallway', async () => {
@@ -673,7 +810,7 @@ describe('mapScan paste application and lifecycle', () => {
         throw new Error('expected the pasted wormhole stub before linking');
       }
       firstStubId = stub._id;
-      inboundId = await ctx.db.insert('mapConnections', {
+      inboundId = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -682,10 +819,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeProvenance: 'human',
         massState: 'stable',
         shipSize: 'M',
-        eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
     });
     await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
       mapId: MAP,
@@ -694,7 +830,8 @@ describe('mapScan paste application and lifecycle', () => {
     });
     let leftoverId = '' as Id<'mapConnections'>;
     await t.run(async (ctx) => {
-      leftoverId = await ctx.db.insert('mapConnections', {
+      await ctx.db.patch(inboundId, { firstSeenAt: 1_000 });
+      leftoverId = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: null,
@@ -705,10 +842,10 @@ describe('mapScan paste application and lifecycle', () => {
         fromWormholeTypeCode: 'B274',
         massState: null,
         shipSize: null,
-        eolAt: null,
+        firstSeenAt: 9_000,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
     });
     await apply(t, [
       signature('ABC-123', { group: 'Wormhole', name: 'K162' }),
@@ -716,7 +853,7 @@ describe('mapScan paste application and lifecycle', () => {
     ]);
     const secondStubId = await t.run(async (ctx) => {
       const stub = (await ctx.db.query('mapConnections').collect()).find(
-        (row) => row.fromSignatureId === 'DEF-456' && row.toSystemId === null,
+        (row) => row.from.signatureId === 'DEF-456' && row.toSystemId === null,
       );
       if (stub === undefined) {
         throw new Error('expected the second wormhole stub before reassigning');
@@ -729,10 +866,9 @@ describe('mapScan paste application and lifecycle', () => {
       resolvedConnectionId: inboundId,
     })).resolves.toEqual({ outcome: 'applied' });
     expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
-      fromSignatureId: 'STA-001',
-      toSignatureId: 'DEF-456',
-      fromWormholeTypeCode: 'B274',
-      toWormholeTypeCode: 'K162',
+      from: expect.objectContaining({ signatureId: 'STA-001', typeCode: 'B274' }),
+      to: expect.objectContaining({ signatureId: 'DEF-456', typeCode: 'K162' }),
+      firstSeenAt: 1_000,
       massState: 'stable',
       shipSize: 'M',
     });
@@ -740,9 +876,9 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await t.run(async (ctx) => await ctx.db.get(secondStubId))).toBeNull();
     expect(await t.run(async (ctx) =>
       (await ctx.db.query('mapConnections').collect()).find(
-        (row) => row.fromSignatureId === 'ABC-123' && row.toSystemId === null,
+        (row) => row.from.signatureId === 'ABC-123' && row.toSystemId === null,
       ),
-    )).toMatchObject({ fromSystemId: JITA, fromWormholeTypeCode: 'K162' });
+    )).toMatchObject({ fromSystemId: JITA, from: expect.objectContaining({ typeCode: 'K162' }) });
   });
 
   it('re-paste keeps a linked way-home, then absorbs a leftover stub onto that inbound', async () => {
@@ -758,7 +894,7 @@ describe('mapScan paste application and lifecycle', () => {
         throw new Error('expected the pasted wormhole stub before linking');
       }
       stubId = stub._id;
-      inboundId = await ctx.db.insert('mapConnections', {
+      inboundId = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: AMARR,
         toSystemId: JITA,
@@ -767,10 +903,9 @@ describe('mapScan paste application and lifecycle', () => {
         typeProvenance: 'human',
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      });
+      }));
     });
     await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
       mapId: MAP,
@@ -783,14 +918,14 @@ describe('mapScan paste application and lifecycle', () => {
       inserted: 0,
     });
     expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
-      toSignatureId: 'WDE-796',
+      to: expect.objectContaining({ signatureId: 'WDE-796' }),
       toSystemId: JITA,
     });
     expect(await t.run(async (ctx) => (await ctx.db.query('mapConnections').collect())
       .filter((row) => row.toSystemId === null))).toEqual([]);
 
     const leftoverId = await t.run(async (ctx) =>
-      await ctx.db.insert('mapConnections', {
+      await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: JITA,
         toSystemId: null,
@@ -801,10 +936,9 @@ describe('mapScan paste application and lifecycle', () => {
         fromWormholeTypeCode: 'K162',
         massState: 'stable',
         shipSize: 'M',
-        eolAt: null,
         deletedAt: null,
         purgeAfter: null,
-      }),
+      })),
     );
 
     expect(await apply(t, [signature('WDE-796', { group: 'Wormhole' })])).toMatchObject({
@@ -812,8 +946,7 @@ describe('mapScan paste application and lifecycle', () => {
     });
     expect(await t.run(async (ctx) => await ctx.db.get(leftoverId))).toBeNull();
     expect(await t.run(async (ctx) => await ctx.db.get(inboundId))).toMatchObject({
-      toSignatureId: 'WDE-796',
-      toWormholeTypeCode: 'K162',
+      to: expect.objectContaining({ signatureId: 'WDE-796', typeCode: 'K162' }),
       massState: 'stable',
       shipSize: 'M',
     });
@@ -847,27 +980,30 @@ describe('mapScan paste application and lifecycle', () => {
           throw new Error('expected the origin static stub before linking');
         }
         leftoverId = leftover._id;
-        await ctx.db.patch(leftover._id, {
+        await ctx.db.patch(leftover._id, connectionInsert({
+          mapId: leftover.mapId,
+          fromSystemId: leftover.fromSystemId,
+          toSystemId: leftover.toSystemId,
+          fromSignatureId: leftover.from.signatureId,
           wormholeTypeCode: 'C247',
           typedSide: 'from',
           fromWormholeTypeCode: 'C247',
           toWormholeTypeCode: 'K162',
           ...input.leftover,
-        });
-        inboundId = await ctx.db.insert('mapConnections', {
+        }));
+        inboundId = await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP,
           fromSystemId: JITA,
           toSystemId: AMARR,
           massState: null,
           shipSize: null,
-          eolAt: null,
           deletedAt: null,
           purgeAfter: null,
           fromWormholeTypeCode: null,
           toWormholeTypeCode: null,
           ...input.inbound,
-        });
-        stubId = await ctx.db.insert('mapConnections', {
+        }));
+        stubId = await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP,
           fromSystemId: AMARR,
           toSystemId: null,
@@ -877,10 +1013,9 @@ describe('mapScan paste application and lifecycle', () => {
           toWormholeTypeCode: null,
           massState: null,
           shipSize: null,
-          eolAt: null,
           deletedAt: null,
           purgeAfter: null,
-        });
+        }));
       });
       await expect(asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
         mapId: MAP,
@@ -901,26 +1036,22 @@ describe('mapScan paste application and lifecycle', () => {
       inbound: { wormholeTypeCode: null },
     });
     expect(folded.joined).toMatchObject({
-      fromSignatureId: 'STA-001',
-      toSignatureId: 'RET-001',
-      fromWormholeTypeCode: 'C247',
-      toWormholeTypeCode: 'K162',
-      typeProvenance: 'human',
+      from: expect.objectContaining({ signatureId: 'STA-001', typeCode: 'C247' }),
+      to: expect.objectContaining({ signatureId: 'RET-001', typeCode: 'K162' }),
+      identity: { kind: 'typed' as const, provenance: 'human' },
     });
-    expect(folded.joined?.fromDestinationSystemId).toBeUndefined();
+    expect(folded.joined?.from.leadsTo.kind).not.toBe('system');
     expect(doorLeadsTo(
       folded.joined!.fromSystemId,
       folded.joined!.toSystemId,
       'from',
-      folded.joined?.fromDestinationSystemId,
-      folded.joined?.toDestinationSystemId,
+      folded.joined!.from,
     )).toBe(AMARR);
     expect(doorLeadsTo(
       folded.joined!.fromSystemId,
       folded.joined!.toSystemId,
       'to',
-      folded.joined?.fromDestinationSystemId,
-      folded.joined?.toDestinationSystemId,
+      folded.joined!.to,
     )).toBe(JITA);
     expect(await folded.t.run(async (ctx) => await ctx.db.get(folded.leftoverId))).toBeNull();
     expect(await folded.t.run(async (ctx) => await ctx.db.get(folded.stubId))).toBeNull();
@@ -936,8 +1067,8 @@ describe('mapScan paste application and lifecycle', () => {
       },
     });
     expect(keptHuman.joined).toMatchObject({
-      typeProvenance: 'human',
-      fromWormholeTypeCode: 'B274',
+      identity: { kind: 'typed' as const, provenance: 'human' },
+      from: expect.objectContaining({ typeCode: 'B274' }),
     });
     expect(await keptHuman.t.run(async (ctx) => await ctx.db.get(keptHuman.leftoverId)))
       .toBeNull();
@@ -949,23 +1080,23 @@ describe('mapScan paste application and lifecycle', () => {
     expect(leadsTo.joined).toMatchObject({
       fromSystemId: JITA,
       toSystemId: AMARR,
-      fromSignatureId: 'STA-001',
-      toSignatureId: 'RET-001',
-      fromDestinationSystemId: DODIXIE,
+      from: expect.objectContaining({
+        signatureId: 'STA-001',
+        leadsTo: { kind: 'system', systemId: DODIXIE },
+      }),
+      to: expect.objectContaining({ signatureId: 'RET-001' }),
     });
     expect(doorLeadsTo(
       leadsTo.joined!.fromSystemId,
       leadsTo.joined!.toSystemId,
       'from',
-      leadsTo.joined?.fromDestinationSystemId,
-      leadsTo.joined?.toDestinationSystemId,
+      leadsTo.joined!.from,
     )).toBe(DODIXIE);
     expect(doorLeadsTo(
       leadsTo.joined!.fromSystemId,
       leadsTo.joined!.toSystemId,
       'to',
-      leadsTo.joined?.fromDestinationSystemId,
-      leadsTo.joined?.toDestinationSystemId,
+      leadsTo.joined!.to,
     )).toBe(JITA);
     expect(await leadsTo.t.run(async (ctx) =>
       await ctx.db.query('mapSystems')
@@ -994,12 +1125,12 @@ describe('mapScan paste application and lifecycle', () => {
         stubId = stub._id;
         if (stubType !== null) {
           await ctx.db.patch(stub._id, {
-            wormholeTypeCode: stubType,
-            typedSide: 'from',
-            typeProvenance: 'human',
+            from: { ...stub.from, typeCode: stubType },
+            to: { ...stub.to, typeCode: stubType === 'K162' ? stub.to.typeCode : 'K162' },
+            identity: { kind: 'typed', provenance: 'human' },
           });
         }
-        inboundId = await ctx.db.insert('mapConnections', {
+        inboundId = await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP,
           fromSystemId: AMARR,
           toSystemId: JITA,
@@ -1008,10 +1139,9 @@ describe('mapScan paste application and lifecycle', () => {
           typeProvenance: inboundType.wormholeTypeCode === null ? undefined : 'human',
           massState: null,
           shipSize: null,
-          eolAt: null,
           deletedAt: null,
           purgeAfter: null,
-        });
+        }));
       });
       expect(await asEditor(t).mutation(api.mapScan.linkStubToResolvedConnection, {
         mapId: MAP,
@@ -1028,11 +1158,8 @@ describe('mapScan paste application and lifecycle', () => {
       typedSide: 'from',
     })).toMatchObject({
       inbound: {
-        toSignatureId: 'RET-001',
-        wormholeTypeCode: 'C247',
-        typedSide: 'to',
-        fromWormholeTypeCode: 'K162',
-        toWormholeTypeCode: 'C247',
+        from: expect.objectContaining({ typeCode: 'K162' }),
+        to: expect.objectContaining({ signatureId: 'RET-001', typeCode: 'C247' }),
       },
     });
     expect(await linkTypedStub(null, {
@@ -1040,9 +1167,8 @@ describe('mapScan paste application and lifecycle', () => {
       typedSide: 'from',
     })).toMatchObject({
       inbound: {
-        toSignatureId: 'RET-001',
-        wormholeTypeCode: 'K162',
-        typedSide: 'from',
+        from: expect.objectContaining({ typeCode: 'K162' }),
+        to: expect.objectContaining({ signatureId: 'RET-001' }),
       },
     });
     expect(await linkTypedStub(null, {
@@ -1050,11 +1176,8 @@ describe('mapScan paste application and lifecycle', () => {
       typedSide: 'from',
     })).toMatchObject({
       inbound: {
-        toSignatureId: 'RET-001',
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        fromWormholeTypeCode: 'C247',
-        toWormholeTypeCode: 'K162',
+        from: expect.objectContaining({ typeCode: 'C247' }),
+        to: expect.objectContaining({ signatureId: 'RET-001', typeCode: 'K162' }),
       },
     });
     expect(await linkTypedStub('C247', {
@@ -1062,9 +1185,8 @@ describe('mapScan paste application and lifecycle', () => {
       typedSide: 'from',
     })).toMatchObject({
       inbound: {
-        toSignatureId: 'RET-001',
-        wormholeTypeCode: 'B274',
-        typedSide: 'from',
+        from: expect.objectContaining({ typeCode: 'B274' }),
+        to: expect.objectContaining({ signatureId: 'RET-001' }),
       },
     });
   });
@@ -1087,8 +1209,22 @@ describe('mapScan paste application and lifecycle', () => {
         if (stub === undefined) {
           throw new Error('expected the pasted wormhole stub before linking');
         }
-        await ctx.db.patch(stub._id, stubLife);
-        targetId = await ctx.db.insert('mapConnections', {
+        await ctx.db.patch(stub._id, {
+          lifetime: stubLife.lifeStage == null
+            ? {
+                kind: 'window' as const,
+                earliestAt: stubLife.lifeStageObservedAt,
+                latestAt: stubLife.lifeStageObservedAt,
+                lifeStage: null,
+                observedAt: stubLife.lifeStageObservedAt,
+              }
+            : {
+                kind: 'stage' as const,
+                lifeStage: stubLife.lifeStage,
+                observedAt: stubLife.lifeStageObservedAt,
+              },
+        });
+        targetId = await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP,
           fromSystemId: AMARR,
           toSystemId: JITA,
@@ -1097,11 +1233,21 @@ describe('mapScan paste application and lifecycle', () => {
           typeProvenance: 'human',
           massState: null,
           shipSize: null,
-          eolAt: null,
           deletedAt: null,
           purgeAfter: null,
-          ...targetLife,
-        });
+          ...('lifeStage' in targetLife
+            ? {
+                lifeStage: targetLife.lifeStage,
+                lifeStageObservedAt: targetLife.lifeStageObservedAt,
+                ...(targetLife.lifeStage == null
+                  ? {
+                      deathEarliestAt: targetLife.lifeStageObservedAt,
+                      deathLatestAt: targetLife.lifeStageObservedAt,
+                    }
+                  : {}),
+              }
+            : {}),
+        }));
       });
       expect(await t.mutation(internal.mapScan.applyEliminationDeductions, {
         userId: EDITOR,
@@ -1127,9 +1273,8 @@ describe('mapScan paste application and lifecycle', () => {
     expect(
       await keepsResolved.t.run(async (ctx) => await ctx.db.get(keepsResolved.targetId)),
     ).toMatchObject({
-      toSignatureId: 'KSI-163',
-      lifeStage: 'expired',
-      lifeStageObservedAt: 9_000,
+      to: expect.objectContaining({ signatureId: 'KSI-163' }),
+      lifetime: expect.objectContaining({ lifeStage: 'expired', observedAt: 9_000 }),
     });
 
     const keepsUnset = await linkStub(
@@ -1140,9 +1285,8 @@ describe('mapScan paste application and lifecycle', () => {
     expect(
       await keepsUnset.t.run(async (ctx) => await ctx.db.get(keepsUnset.targetId)),
     ).toMatchObject({
-      toSignatureId: 'KSI-164',
-      lifeStage: null,
-      lifeStageObservedAt: 9_000,
+      to: expect.objectContaining({ signatureId: 'KSI-164' }),
+      lifetime: expect.objectContaining({ lifeStage: null, observedAt: 9_000 }),
     });
 
     const carriesStubUnset = await linkStub(
@@ -1155,9 +1299,8 @@ describe('mapScan paste application and lifecycle', () => {
         async (ctx) => await ctx.db.get(carriesStubUnset.targetId),
       ),
     ).toMatchObject({
-      toSignatureId: 'KSI-165',
-      lifeStage: null,
-      lifeStageObservedAt: 1_500,
+      to: expect.objectContaining({ signatureId: 'KSI-165' }),
+      lifetime: expect.objectContaining({ lifeStage: null, observedAt: 1_500 }),
     });
   });
 
@@ -1176,7 +1319,7 @@ describe('mapScan paste application and lifecycle', () => {
     ])).toMatchObject({ updated: 1 });
     const connections = (await readState(t)).connections;
     expect(connections).toHaveLength(1);
-    expect(connections[0]).toMatchObject({ toSystemId: AMARR, fromSignalPct: 75 });
+    expect(connections[0]).toMatchObject({ toSystemId: AMARR, from: expect.objectContaining({ signalPct: 75 }) });
   });
 
   it('unchanged re-paste writes nothing and keeps payload/activity rows byte-identical', async () => {
@@ -1299,8 +1442,7 @@ describe('mapScan paste application and lifecycle', () => {
     })).toEqual({ changed: 1 });
     const removed = await readSignature(t, 'SIG-002');
     expect(removed).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
     });
 
     vi.setSystemTime(NOW + MAP_CHAIN_UNDO_WINDOW_MS - 1);
@@ -1345,10 +1487,10 @@ describe('mapScan paste application and lifecycle', () => {
     })).toEqual({ changed: 2 });
 
     const afterRemove = await readState(t);
-    expect(afterRemove.signatures.filter((row) => row.deletedAt == null)).toEqual([]);
-    expect(afterRemove.connections.filter((row) => row.deletedAt == null)).toHaveLength(1);
-    expect(afterRemove.connections.find((row) => row.deletedAt == null)).toMatchObject({
-      fromSignatureId: 'WHL-001',
+    expect(afterRemove.signatures.filter((row) => tombstoneDeletedAt(row) == null)).toEqual([]);
+    expect(afterRemove.connections.filter((row) => tombstoneDeletedAt(row) == null)).toHaveLength(1);
+    expect(afterRemove.connections.find((row) => tombstoneDeletedAt(row) == null)).toMatchObject({
+      from: expect.objectContaining({ signatureId: 'WHL-001' }),
     });
 
     expect(await apply(t, rows)).toMatchObject({
@@ -1357,8 +1499,8 @@ describe('mapScan paste application and lifecycle', () => {
       missing: [],
     });
     const restored = await readState(t);
-    expect(restored.signatures.filter((row) => row.deletedAt == null)).toHaveLength(2);
-    expect(restored.connections.filter((row) => row.deletedAt == null)).toHaveLength(1);
+    expect(restored.signatures.filter((row) => tombstoneDeletedAt(row) == null)).toHaveLength(2);
+    expect(restored.connections.filter((row) => tombstoneDeletedAt(row) == null)).toHaveLength(1);
   });
 
   it('list-group re-paste revives a tombstoned wormhole connection identity', async () => {
@@ -1376,9 +1518,8 @@ describe('mapScan paste application and lifecycle', () => {
       missing: [],
     });
     expect((await readState(t)).connections[0]).toMatchObject({
-      fromSignatureId: 'WHL-001',
-      deletedAt: null,
-      purgeAfter: null,
+      from: expect.objectContaining({ signatureId: 'WHL-001' }),
+      tombstone: { kind: 'live' as const },
     });
     expect(await readSignature(t, 'WHL-001')).toBeNull();
   });
@@ -1395,9 +1536,8 @@ describe('mapScan paste application and lifecycle', () => {
     expect(state.signatures).toEqual([]);
     expect(state.connections).toHaveLength(1);
     expect(state.connections[0]).toMatchObject({
-      fromSignatureId: 'WHL-001',
-      fromSignalPct: 55,
-      deletedAt: null,
+      from: expect.objectContaining({ signatureId: 'WHL-001', signalPct: 55 }),
+      tombstone: { kind: 'live' as const },
     });
   });
 
@@ -1415,12 +1555,10 @@ describe('mapScan paste application and lifecycle', () => {
       signatureIds: ['SIG-002', 'WHL-001'],
     })).toEqual({ changed: 2 });
     expect(await readSignature(t, 'SIG-002')).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
     });
     expect((await readState(t)).connections[0]).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
     });
 
     expect(await apply(t, [
@@ -1438,9 +1576,8 @@ describe('mapScan paste application and lifecycle', () => {
       purgeAfter: null,
     });
     expect((await readState(t)).connections[0]).toMatchObject({
-      deletedAt: null,
-      purgeAfter: null,
-      fromSignatureId: 'WHL-001',
+      tombstone: { kind: 'live' as const },
+      from: expect.objectContaining({ signatureId: 'WHL-001' }),
     });
   });
 
@@ -1451,8 +1588,13 @@ describe('mapScan paste application and lifecycle', () => {
     await t.run(async (ctx) => {
       const connection = (await ctx.db.query('mapConnections').collect())[0]!;
       await ctx.db.patch(connection._id, {
-        deathEarliestAt: NOW - 1000,
-        deathLatestAt: NOW,
+        lifetime: {
+          kind: 'window',
+          earliestAt: NOW - 1000,
+          latestAt: NOW,
+          lifeStage: null,
+          observedAt: null,
+        },
       });
     });
 
@@ -1461,8 +1603,7 @@ describe('mapScan paste application and lifecycle', () => {
       missing: [],
     });
     expect((await readState(t)).connections[0]).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
     });
     const events = await t.run(async (ctx) => await ctx.db
       .query('mapEvents')
@@ -1494,8 +1635,7 @@ describe('mapScan paste application and lifecycle', () => {
     })).toEqual({ changed: 1 });
     const removed = await readState(t);
     expect(removed.connections[0]).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
     });
     expect(removed.activities).toEqual([]);
     const farSystem = await t.run(async (ctx) => (await ctx.db
@@ -1523,8 +1663,7 @@ describe('mapScan paste application and lifecycle', () => {
     })).toEqual({ changed: 1 });
     expect((await readState(t)).connections[0]).toMatchObject({
       toSystemId: WH_FAR,
-      deletedAt: null,
-      purgeAfter: null,
+      tombstone: { kind: 'live' as const },
     });
     expect(await t.run(async (ctx) => (await ctx.db
       .query('mapSystems')
@@ -1541,8 +1680,13 @@ describe('mapScan paste application and lifecycle', () => {
       const connection = (await ctx.db.query('mapConnections').collect())[0]!;
       await ctx.db.patch(connection._id, {
         toSystemId: WH_FAR,
-        deathEarliestAt: NOW - 2_000,
-        deathLatestAt: NOW - 1_000,
+        lifetime: {
+          kind: 'window',
+          earliestAt: NOW - 2_000,
+          latestAt: NOW - 1_000,
+          lifeStage: null,
+          observedAt: null,
+        },
       });
     });
 
@@ -1551,8 +1695,7 @@ describe('mapScan paste application and lifecycle', () => {
       missing: [],
     });
     expect((await readState(t)).connections[0]).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
     });
     const events = await t.run(async (ctx) => await ctx.db
       .query('mapEvents')
@@ -1579,8 +1722,7 @@ describe('mapScan paste application and lifecycle', () => {
       signatureIds: ['WHL-001'],
     })).toEqual({ changed: 1 });
     expect((await readState(t)).connections[0]).toMatchObject({
-      deletedAt: NOW,
-      purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
+      tombstone: { kind: 'removed' as const, deletedAt: NOW, purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS },
     });
 
     vi.setSystemTime(NOW + MAP_CHAIN_UNDO_WINDOW_MS - 1);
@@ -1615,14 +1757,14 @@ describe('mapScan paste application and lifecycle', () => {
       missing: [],
     });
     expect(await t.run(async (ctx) => await ctx.db.get(corpseId))).toMatchObject({
-      deletedAt: NOW,
+      tombstone: { kind: 'removed' as const, deletedAt: NOW },
       toSystemId: WH_FAR,
-      fromSignatureId: 'WHL-001',
+      from: expect.objectContaining({ signatureId: 'WHL-001' }),
     });
     const live = await t.run(async (ctx) => (await ctx.db.query('mapConnections').collect())
-      .filter((row) => row.deletedAt == null));
+      .filter((row) => tombstoneDeletedAt(row) == null));
     expect(live).toEqual([expect.objectContaining({
-      fromSignatureId: 'WHL-001',
+      from: expect.objectContaining({ signatureId: 'WHL-001' }),
       fromSystemId: JITA,
       toSystemId: null,
     })]);
@@ -1639,8 +1781,13 @@ describe('mapScan paste application and lifecycle', () => {
     await t.run(async (ctx) => {
       const connection = (await ctx.db.query('mapConnections').collect())[0]!;
       await ctx.db.patch(connection._id, {
-        deathEarliestAt: NOW - 2_000,
-        deathLatestAt: NOW - 1_000,
+        lifetime: {
+          kind: 'window',
+          earliestAt: NOW - 2_000,
+          latestAt: NOW - 1_000,
+          lifeStage: null,
+          observedAt: null,
+        },
       });
     });
     await asEditor(t).mutation(api.mapScan.removeSignatures, {
@@ -1652,7 +1799,9 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await apply(t, [signature('WHL-001', { group: 'Wormhole' })])).toMatchObject({
       unchanged: 1,
     });
-    expect((await readState(t)).connections[0]).toMatchObject({ deletedAt: NOW });
+    expect((await readState(t)).connections[0]).toMatchObject({
+      tombstone: { kind: 'removed' as const, deletedAt: NOW },
+    });
   });
 
   it('a conflicting non-wormhole group never revives a stub tombstone', async () => {
@@ -1668,7 +1817,9 @@ describe('mapScan paste application and lifecycle', () => {
     expect(await apply(t, [signature('WHL-001', { group: 'Data Site' })])).toMatchObject({
       unchanged: 1,
     });
-    expect((await readState(t)).connections[0]).toMatchObject({ deletedAt: NOW });
+    expect((await readState(t)).connections[0]).toMatchObject({
+      tombstone: { kind: 'removed' as const, deletedAt: NOW },
+    });
   });
 
   it('reports a refused contradiction as conflicted, keeping stored knowledge', async () => {
@@ -1759,7 +1910,7 @@ describe('mapScan paste application and lifecycle', () => {
     await t.run(async (ctx) => {
       await ctx.db.insert('mapSystems', { mapId: MAP, systemId: WH_FAR });
       const resolved = (await ctx.db.query('mapConnections').collect())
-        .find((row) => row.fromSignatureId === 'WHL-002')!;
+        .find((row) => row.from.signatureId === 'WHL-002')!;
       await ctx.db.patch(resolved._id, { toSystemId: WH_FAR });
     });
 
@@ -1769,11 +1920,11 @@ describe('mapScan paste application and lifecycle', () => {
       signatureIds: ['WHL-002', 'WHL-001'],
     });
     const removed = await readState(t);
-    const stubStamp = removed.connections.find((row) => row.fromSignatureId === 'WHL-001')!;
-    const branchStamp = removed.connections.find((row) => row.fromSignatureId === 'WHL-002')!;
-    expect(stubStamp.deletedAt).not.toBeNull();
-    expect(branchStamp.deletedAt).not.toBeNull();
-    expect(stubStamp.deletedAt).not.toBe(branchStamp.deletedAt);
+    const stubStamp = removed.connections.find((row) => row.from.signatureId === 'WHL-001')!;
+    const branchStamp = removed.connections.find((row) => row.from.signatureId === 'WHL-002')!;
+    expect(tombstoneDeletedAt(stubStamp)).not.toBeNull();
+    expect(tombstoneDeletedAt(branchStamp)).not.toBeNull();
+    expect(tombstoneDeletedAt(stubStamp)).not.toBe(tombstoneDeletedAt(branchStamp));
 
     await asEditor(t).mutation(api.mapScan.restoreSignatures, {
       mapId: MAP,
@@ -1781,10 +1932,12 @@ describe('mapScan paste application and lifecycle', () => {
       signatureIds: ['WHL-002'],
     });
     const restored = await readState(t);
-    expect(restored.connections.find((row) => row.fromSignatureId === 'WHL-002'))
-      .toMatchObject({ deletedAt: null });
-    expect(restored.connections.find((row) => row.fromSignatureId === 'WHL-001'))
-      .toMatchObject({ deletedAt: stubStamp.deletedAt });
+    expect(tombstoneDeletedAt(
+      restored.connections.find((row) => row.from.signatureId === 'WHL-002')!,
+    )).toBeNull();
+    expect(tombstoneDeletedAt(
+      restored.connections.find((row) => row.from.signatureId === 'WHL-001')!,
+    )).toBe(tombstoneDeletedAt(stubStamp));
   });
 
   it('pages active signatures behind live map access', async () => {

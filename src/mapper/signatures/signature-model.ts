@@ -8,7 +8,8 @@ import {
   type SigGroup,
 } from '@/data/maps/scan-parse';
 import { signatureKind } from '@/data/maps/signature-lifecycle';
-import { connectionDoorTypes } from '@/data/maps/connection-door-types';
+import { isTombstoned } from '@/data/maps/chain-contract';
+import { hallwayDoorTypes } from '@/data/maps/connection-hallway';
 import {
   isCodexSizeLocked,
   lifetimeRowDisplay,
@@ -76,7 +77,7 @@ function localWormholeTypeCode(
   row: ConnectionSignatureInput,
   side: 'from' | 'to',
 ): string | null {
-  return connectionDoorTypes(row)[side];
+  return hallwayDoorTypes(row)[side];
 }
 
 function connectionSideRow(
@@ -84,7 +85,7 @@ function connectionSideRow(
   side: 'from' | 'to',
   classLabelOf: (code: string) => string | null,
 ): SignatureWindowRow | null {
-  const signatureId = side === 'from' ? row.fromSignatureId : row.toSignatureId;
+  const signatureId = side === 'from' ? row.from.signatureId : row.to.signatureId;
   const systemId = side === 'from' ? row.fromSystemId : row.toSystemId;
   if (signatureId === null || systemId === null) return null;
   const name = localWormholeTypeCode(row, side);
@@ -95,7 +96,7 @@ function connectionSideRow(
     kind: 'signature',
     group: 'Wormhole',
     name,
-    signalPct: side === 'from' ? row.fromSignalPct : null,
+    signalPct: side === 'from' ? row.from.signalPct : null,
     firstSeenAt: row.firstSeenAt ?? row._creationTime,
     connection: row,
     className: name === null ? null : classLabelOf(name),
@@ -107,7 +108,7 @@ function connectionRowsForScanner(
   row: ConnectionSignatureInput,
   classLabelOf: (code: string) => string | null,
 ): readonly SignatureWindowRow[] {
-  if (row.deletedAt != null) return [];
+  if (isTombstoned(row)) return [];
   return [
     connectionSideRow(row, 'from', classLabelOf),
     connectionSideRow(row, 'to', classLabelOf),
@@ -267,10 +268,7 @@ export function scannerWormholeSize(
  * editor (death-window range, typed SDE ceiling, or unset).
  */
 export function scannerWormholeLifetime(
-  connection: Pick<
-    ConnectionEditorDetail,
-    '_creationTime' | 'deathEarliestAt' | 'deathLatestAt' | 'lifeStage'
-  > | null,
+  connection: Pick<ConnectionEditorDetail, '_creationTime' | 'lifetime'> | null,
   entry: WormholeCodexEntry | null,
   now: number,
 ): string {
@@ -281,10 +279,7 @@ export function scannerWormholeLifetime(
 
 /** Scanner Life cell: remaining-life upper bound, or an honest placeholder. */
 export function scannerLifeUpperBound(
-  connection: Pick<
-    ConnectionEditorDetail,
-    '_creationTime' | 'deathEarliestAt' | 'deathLatestAt' | 'lifeStage'
-  > | null,
+  connection: Pick<ConnectionEditorDetail, '_creationTime' | 'lifetime'> | null,
   entry: WormholeCodexEntry | null,
   now: number,
 ): string {

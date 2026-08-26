@@ -1,7 +1,9 @@
 import { ConvexError, v } from 'convex/values';
 import {
   chainTombstoneStamps,
+  connectionRemovedTombstone,
   isTombstoned,
+  tombstoneDeletedAt,
 } from '@/data/maps/chain-contract';
 import {
   decideCollapse,
@@ -67,9 +69,8 @@ function uniqueTombstoneStamp(
 ): number {
   const used = new Set<number>();
   for (const row of [...topology.systems, ...topology.connections]) {
-    if (typeof row.deletedAt === 'number' && Number.isFinite(row.deletedAt)) {
-      used.add(row.deletedAt);
-    }
+    const deletedAt = tombstoneDeletedAt(row);
+    if (deletedAt !== null) used.add(deletedAt);
   }
   let deletedAt = proposedAt;
   while (used.has(deletedAt)) deletedAt += 1;
@@ -179,18 +180,18 @@ export async function deleteConnectionActivity(
   ctx: MutationCtx,
   connection: Doc<'mapConnections'>,
 ): Promise<void> {
-  if (connection.fromSignatureId === undefined) return;
+  if (connection.from.signatureId === null) return;
   await deleteSignatureActivity(ctx, {
     mapId: connection.mapId,
     systemId: connection.fromSystemId,
-    signatureId: connection.fromSignatureId,
+    signatureId: connection.from.signatureId,
   });
 }
 
 async function writeRetainedSever(
   input: SeverWriteContext,
 ): Promise<{ outcome: 'retained' }> {
-  await input.ctx.db.patch(input.cut._id, input.stamps);
+  await input.ctx.db.patch(input.cut._id, connectionRemovedTombstone(input.deletedAt));
   await deleteConnectionActivity(input.ctx, input.cut);
   await writeMapEvent(input.ctx, {
     mapId: input.mapId,
@@ -226,17 +227,22 @@ async function stampRemovedRows(
   for (const system of systems) {
     await input.ctx.db.patch(system._id, input.stamps);
   }
+  const connectionStamp = connectionRemovedTombstone(input.deletedAt);
   for (const connection of connections) {
-    await input.ctx.db.patch(connection._id, input.stamps);
+    await input.ctx.db.patch(connection._id, connectionStamp);
     await deleteConnectionActivity(input.ctx, connection);
   }
   for (const stub of incidentStubs) {
-    await input.ctx.db.patch(stub._id, input.stamps);
+    await input.ctx.db.patch(stub._id, connectionStamp);
     await deleteConnectionActivity(input.ctx, stub);
   }
   for (const connection of skeletonsToRearm) {
+    if (connection.tombstone.kind !== 'removed') continue;
     await input.ctx.db.patch(connection._id, {
-      purgeAfter: input.stamps.purgeAfter,
+      tombstone: {
+        ...connection.tombstone,
+        purgeAfter: input.stamps.purgeAfter,
+      },
     });
   }
 }
@@ -339,12 +345,13 @@ export async function runBranchRestore(
   const connection = requireTopologyConnection(topology, mapId, connectionId);
   if (!isTombstoned(connection)) return { restored: true as const };
 
-  const deletedAt = connection.deletedAt;
+  const deletedAt = tombstoneDeletedAt(connection);
+  if (deletedAt === null) return { restored: true as const };
   const systems = topology.systems.filter(
     (row) => row.deletedAt === deletedAt,
   );
   const connections = topology.connections.filter(
-    (row) => row.deletedAt === deletedAt,
+    (row) => tombstoneDeletedAt(row) === deletedAt,
   );
   const restoredSystemIds = new Set(systems.map((row) => row.systemId));
   await requireRestorableEndpoints(
@@ -358,7 +365,7 @@ export async function runBranchRestore(
     await ctx.db.patch(system._id, { deletedAt: null, purgeAfter: null });
   }
   for (const row of connections) {
-    await ctx.db.patch(row._id, { deletedAt: null, purgeAfter: null });
+    await ctx.db.patch(row._id, { tombstone: { kind: 'live' } });
   }
   const at = Date.now();
   await writeMapEvent(ctx, {

@@ -5,6 +5,10 @@
 import type { Id } from '@/data/convex/data-model';
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import {
+  isConnectionRemoved,
+  hasAnswerablePrompt,
+} from '@/data/maps/connection-hallway';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
@@ -37,10 +41,8 @@ export function jumpAnswerTarget(
 /** Whether one connection row still carries an answerable assumed auto-link. */
 export function hasPendingResolution(connection: ConnectionDetail): boolean {
   return (
-    connection.destinationProvenance === 'assumed' &&
-    connection.pendingCandidates !== null &&
-    connection.pendingCandidates.length > 1 &&
-    connection.deletedAt === null
+    hasAnswerablePrompt(connection.resolution) &&
+    !isConnectionRemoved(connection.tombstone)
   );
 }
 
@@ -53,12 +55,16 @@ export function jumpResolutionCandidates(
   unresolvedHoles: readonly UnresolvedHoleSummary[],
 ): readonly JumpResolutionCandidate[] | null {
   const candidates: JumpResolutionCandidate[] = [];
-  for (const candidateId of connection.pendingCandidates ?? []) {
+  const candidateIds =
+    connection.resolution.kind === 'pending'
+      ? connection.resolution.candidateIds
+      : [];
+  for (const candidateId of candidateIds) {
     if (candidateId === connection.connectionId) {
       candidates.push({
         connectionId: candidateId,
-        signatureId: connection.fromSignatureId,
-        wormholeTypeCode: connection.wormholeTypeCode,
+        signatureId: connection.from.signatureId,
+        wormholeTypeCode: connection.from.typeCode,
         isCurrent: true,
       });
       continue;
@@ -70,8 +76,8 @@ export function jumpResolutionCandidates(
     if (hole === undefined) return null;
     candidates.push({
       connectionId: hole.connectionId,
-      signatureId: hole.fromSignatureId,
-      wormholeTypeCode: hole.wormholeTypeCode,
+      signatureId: hole.from.signatureId,
+      wormholeTypeCode: hole.from.typeCode,
       isCurrent: false,
     });
   }
@@ -95,7 +101,10 @@ export function pendingJumpResolution(
   let newestCreatedAt = Number.NEGATIVE_INFINITY;
   for (const connection of details.values()) {
     if (!hasPendingResolution(connection)) continue;
-    const ownerId = connection.pendingResolutionCharacterId;
+    const ownerId =
+      connection.resolution.kind === 'pending'
+        ? connection.resolution.characterId
+        : null;
     if (ownerId === null || !ownCharacterIds.has(ownerId)) continue;
     if (dismissed.has(connection.connectionId)) continue;
     const candidates = jumpResolutionCandidates(connection, unresolvedHoles);

@@ -1,4 +1,10 @@
 import { ConvexError, v } from 'convex/values';
+import type {
+  ConnectionMassState,
+  WormholeSizeClass,
+} from '@/data/eve-data/wormhole-contract';
+import { blankHallway, identityFromDoors } from '@/data/maps/connection-hallway';
+import { typedDoorsFrom } from '@/data/maps/connection-door-types';
 import { internalMutation } from './_generated/server';
 import {
   massStateValidator,
@@ -26,8 +32,34 @@ const connectionArgs = {
   wormholeTypeCode: wormholeTypeCodeValidator,
   massState: massStateValidator,
   shipSize: shipSizeValidator,
-  eolAt: v.union(v.number(), v.null()),
 };
+
+function hallwayFromFixture(args: {
+  readonly mapId: string;
+  readonly fromSystemId: number;
+  readonly toSystemId: number;
+  readonly wormholeTypeCode: string | null;
+  readonly massState: ConnectionMassState | null;
+  readonly shipSize: WormholeSizeClass | null;
+}) {
+  const doors = typedDoorsFrom('from', args.wormholeTypeCode);
+  return {
+    ...blankHallway({
+      mapId: args.mapId,
+      fromSystemId: args.fromSystemId,
+      toSystemId: args.toSystemId,
+    }),
+    from: doors.from,
+    to: doors.to,
+    identity: identityFromDoors(
+      doors.from.typeCode,
+      doors.to.typeCode,
+      args.wormholeTypeCode === null ? null : 'human',
+    ),
+    massState: args.massState,
+    shipSize: args.shipSize,
+  };
+}
 
 export const insertConnectionFixture = internalMutation({
   args: connectionArgs,
@@ -43,7 +75,7 @@ export const insertConnectionFixture = internalMutation({
       }
     }
 
-    return await ctx.db.insert('mapConnections', args);
+    return await ctx.db.insert('mapConnections', hallwayFromFixture(args));
   },
 });
 
@@ -68,6 +100,6 @@ export const placeJumpFixture = internalMutation({
       }
     }
 
-    return await ctx.db.insert('mapConnections', args);
+    return await ctx.db.insert('mapConnections', hallwayFromFixture(args));
   },
 });

@@ -19,9 +19,9 @@ function line(
   return {
     fromSystemId: ORIGIN_SYSTEM,
     toSystemId: STUB_SYSTEM,
-    fromSignatureId: null,
-    toSignatureId: null,
-    deletedAt: null,
+    from: { signatureId: null },
+    to: { signatureId: null },
+    tombstone: { kind: 'live' },
     ...overrides,
   };
 }
@@ -64,21 +64,24 @@ describe('originLeadCandidates', () => {
           connectionId: 'from-here',
           fromSystemId: STUB_SYSTEM,
           toSystemId: ORIGIN_SYSTEM,
-          fromSignatureId: null,
+          from: { signatureId: null },
         }),
       ]),
     ).toEqual([{ connectionId: 'from-here', systemId: ORIGIN_SYSTEM }]);
 
     expect(
       originLeadCandidates(STUB_SYSTEM, 'stub-2', [
-        line({ connectionId: 'linked', toSignatureId: 'ABC-123' }),
+        line({ connectionId: 'linked', to: { signatureId: 'ABC-123' } }),
       ]),
     ).toEqual([{ connectionId: 'linked', systemId: ORIGIN_SYSTEM }]);
 
     expect(
       originLeadCandidates(STUB_SYSTEM, 'stub-1', [
         line({ connectionId: 'stub-1', fromSystemId: STUB_SYSTEM, toSystemId: null }),
-        line({ connectionId: 'dead', deletedAt: 1 }),
+        line({
+          connectionId: 'dead',
+          tombstone: { kind: 'removed', deletedAt: 1, purgeAfter: null },
+        }),
         line({ connectionId: 'ghost', toSystemId: null, fromSystemId: STUB_SYSTEM }),
         line({
           connectionId: 'elsewhere',

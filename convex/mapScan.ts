@@ -161,8 +161,8 @@ export const linkStubToResolvedConnection = mutation({
       mapId,
       resolvedConnectionId,
     );
-    const signatureId = stub.fromSignatureId;
-    if (signatureId === undefined) {
+    const signatureId = stub.from.signatureId;
+    if (signatureId === null) {
       throw new ConvexError({ code: 'UNKNOWN_SIGNATURE' });
     }
     const outcome = await applyLinkDeduction(
@@ -171,7 +171,7 @@ export const linkStubToResolvedConnection = mutation({
       target,
       stub.fromSystemId,
       signatureId,
-      stub.wormholeTypeCode ?? null,
+      stub.from.typeCode,
       true,
     );
     if (outcome.outcome !== 'applied' && outcome.outcome !== 'unchanged') {

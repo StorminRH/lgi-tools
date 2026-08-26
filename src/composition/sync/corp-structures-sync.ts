@@ -10,7 +10,7 @@
 // src/composition/sync/corp-industry-jobs-sync.ts, with the KEY divergence that the store is keyed
 // by corporation ALONE (shared across members), so the read scope comes from the
 // viewer's corp membership (the 3.7.3 corp-access gate), not their own sync rows.
-import { after } from 'next/server';
+import { after, connection } from 'next/server';
 import { refreshStaleAffiliationsForUser } from '@/platform/auth/affiliation';
 import { decideCorpAccess } from '@/platform/auth/corp-access';
 import { memberCharacterIdsInCorp, memberCorpIds } from '@/platform/auth/membership';
@@ -86,6 +86,14 @@ function scheduleCorpStructuresRefresh(userId: string): void {
   after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
 }
 
+// headers() still resolves during the session App Shell. Affiliation ESI must
+// wait for a real request so Next does not abort the fetch at prerender end.
+async function loadFreshUserAffiliations(userId: string) {
+  await connection();
+  await refreshStaleAffiliationsForUser(userId);
+  return getUserAffiliations(userId);
+}
+
 // Each corp's last-refreshed epoch ms, keyed by corp id, for the freshness readout.
 function freshnessMapOf(
   syncStates: { corporationId: number; lastRefreshedAt: Date }[],
@@ -98,8 +106,7 @@ function freshnessMapOf(
  * owners for refresh.
  */
 export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
-  await refreshStaleAffiliationsForUser(userId);
-  const affiliations = await getUserAffiliations(userId);
+  const affiliations = await loadFreshUserAffiliations(userId);
   const corporationIds = memberCorpIds(affiliations, new Date());
   const [structuresByCorp, syncStates, sharings] = await Promise.all([
     getCorpStructures(corporationIds),
@@ -176,8 +183,7 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
  * the sharing state, and (when enabled) the shared structures joined with authored rigs.
  */
 export async function getCorpStructuresPageData(userId: string): Promise<CorpStructurePageView[]> {
-  await refreshStaleAffiliationsForUser(userId);
-  const affiliations = await getUserAffiliations(userId);
+  const affiliations = await loadFreshUserAffiliations(userId);
   const corporationIds = memberCorpIds(affiliations, new Date());
   if (corporationIds.length === 0) return [];
 

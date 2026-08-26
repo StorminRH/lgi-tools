@@ -95,8 +95,8 @@ export function connectionOwnsLocalSignature(
   signatureId: string,
 ): boolean {
   return (
-    (row.fromSystemId === systemId && row.fromSignatureId === signatureId)
-    || (row.toSystemId === systemId && row.toSignatureId === signatureId)
+    (row.fromSystemId === systemId && row.from.signatureId === signatureId)
+    || (row.toSystemId === systemId && row.to.signatureId === signatureId)
   );
 }
 
@@ -111,7 +111,7 @@ export function findConnectionForSignature(
   rows: readonly Doc<'mapConnections'>[],
   signatureId: string,
 ): Doc<'mapConnections'> | undefined {
-  return rows.find((row) => row.fromSignatureId === signatureId);
+  return rows.find((row) => row.from.signatureId === signatureId);
 }
 
 /**

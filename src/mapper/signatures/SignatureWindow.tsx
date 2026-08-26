@@ -28,6 +28,7 @@ import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
 import { useUniverseAssets } from '../chain/use-map-chain';
 import type { ConnectionEditorDetail } from '../chain/use-map-chain';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
+import { namedDoorType } from '@/data/maps/connection-door-types';
 import { mapFrostedSurface } from '../map-frosted-surface';
 import {
   MAP_SCANNER_DOCK_STACK_CLASS,
@@ -60,6 +61,7 @@ import {
   scannerMassReadout,
 } from './scanner-inline-cells';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
+import { doorHint, hallwayDoorTypes, lifetimeStage } from '@/data/maps/connection-hallway';
 import { originLeadOptions } from './origin-leads';
 import { destinationReadout } from './system-readout';
 import type { OpenSignatureEditor } from './signature-context';
@@ -325,8 +327,7 @@ function scannerRowDestination(
       connection.fromSystemId,
       connection.toSystemId,
       row.endpoint ?? 'from',
-      connection.fromDestinationSystemId,
-      connection.toDestinationSystemId,
+      row.endpoint === 'to' ? connection.to : connection.from,
     ),
   });
 }
@@ -336,9 +337,7 @@ function scannerRowHint(
   farSide: boolean,
 ) {
   if (connection === null) return null;
-  return farSide
-    ? (connection.toDestinationHint ?? null)
-    : (connection.fromDestinationHint ?? null);
+  return farSide ? doorHint(connection.to) : doorHint(connection.from);
 }
 
 function ReadOnlyWormholeCells({
@@ -401,7 +400,9 @@ function wormholeCells(
   const lifeEstimate = scannerLifeUpperBound(connection, entry, ctx.now);
   const lifeText =
     lifeEstimate === '—'
-      ? scannerLifeReadout(connection?.lifeStage ?? null)
+      ? scannerLifeReadout(
+          connection === null ? null : lifetimeStage(connection.lifetime),
+        )
       : lifeEstimate;
   const hint = scannerRowHint(connection, farSide);
   if (setters === undefined || connection === null) {
@@ -437,7 +438,7 @@ function wormholeCells(
         onChange={setters.setMassState}
       />
       <ScannerLifeSelect
-        value={connection.lifeStage}
+        value={lifetimeStage(connection.lifetime)}
         connection={connection}
         entry={entry}
         now={ctx.now}
@@ -719,7 +720,7 @@ function ScannerSections({
         destinationReadout(connection.toSystemId, systemInfo),
       bindConnectionSetters,
       entryOf: (connection) => {
-        const code = connection.wormholeTypeCode;
+        const code = namedDoorType(hallwayDoorTypes(connection)).typeCode;
         if (code === null) return null;
         return editorData.codex?.byCode(code) ?? null;
       },
