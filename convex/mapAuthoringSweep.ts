@@ -1,4 +1,4 @@
-import { chainTombstoneStamps, isTombstoned } from '@/data/maps/chain-contract';
+import { connectionRemovedTombstone, isTombstoned } from '@/data/maps/chain-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { writeMapEvent } from './mapAuthoringEvents';
@@ -26,24 +26,18 @@ async function readDueCeilings(
   ctx: MutationCtx,
   cutoff: number,
 ): Promise<{ due: Doc<'mapConnections'>[]; overflow: boolean }> {
-  // Convex index equality matches exactly one of field-absent vs explicit null.
-  // `.gt('deathLatestAt', null)` excludes windowless rows (undefined/null sort below numbers).
-  const range = (deletedAt: null | undefined) =>
-    ctx.db
-      .query('mapConnections')
-      .withIndex('by_deleted_death_latest', (q) =>
-        q
-          .eq('deletedAt', deletedAt)
-          .gt('deathLatestAt', null)
-          .lte('deathLatestAt', cutoff),
-      )
-      .take(CEILING_SWEEP_SCAN + 1);
-  const [unset, nulled] = await Promise.all([range(undefined), range(null)]);
+  const due = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_tombstone_death_latest', (q) =>
+      q
+        .eq('tombstone.kind', 'live')
+        .gt('lifetime.latestAt', null)
+        .lte('lifetime.latestAt', cutoff),
+    )
+    .take(CEILING_SWEEP_SCAN + 1);
   return {
-    due: [...unset, ...nulled].sort(
-      (left, right) => (left.deathLatestAt ?? 0) - (right.deathLatestAt ?? 0),
-    ),
-    overflow: unset.length > CEILING_SWEEP_SCAN || nulled.length > CEILING_SWEEP_SCAN,
+    due,
+    overflow: due.length > CEILING_SWEEP_SCAN,
   };
 }
 
@@ -76,14 +70,14 @@ type RemovedStubEvents = Map<
 >;
 
 function recordRemovedStub(events: RemovedStubEvents, stub: Doc<'mapConnections'>): void {
-  if (stub.fromSignatureId === undefined) return;
+  if (stub.from.signatureId === null) return;
   const key = `${stub.mapId}:${stub.fromSystemId}`;
   const entry = events.get(key) ?? {
     mapId: stub.mapId,
     systemId: stub.fromSystemId,
     signatureIds: [],
   };
-  entry.signatureIds.push(stub.fromSignatureId);
+  entry.signatureIds.push(stub.from.signatureId);
   events.set(key, entry);
 }
 
@@ -119,7 +113,7 @@ async function sweepExpiredCeilings(
       continue;
     }
     if (fresh.toSystemId === null) {
-      await ctx.db.patch(fresh._id, chainTombstoneStamps(now));
+      await ctx.db.patch(fresh._id, connectionRemovedTombstone(now));
       await deleteConnectionActivity(ctx, fresh);
       recordRemovedStub(stubEvents, fresh);
       removedStubs += 1;

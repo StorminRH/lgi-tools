@@ -1,9 +1,11 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 import {
-  connectionProvenanceValidator,
-  destinationHintValidator,
-  lifeStageValidator,
+  connectionDoorValidator,
+  connectionIdentityValidator,
+  connectionLifetimeValidator,
+  connectionResolutionValidator,
+  connectionTombstoneValidator,
   mapEventKindValidator,
   mapEventPayloadValidator,
   mapRoleValidator,
@@ -12,7 +14,6 @@ import {
   optionalTimestampValidator,
   scannedKindValidator,
   shipSizeValidator,
-  typedSideValidator,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
 import { runObservabilityFields } from './lib/syncFields';
@@ -205,63 +206,35 @@ export default defineSchema({
   // K162, independent of the stored `from`/`to` labels. A scanned-but-still
   // unidentified hole keeps `toSystemId` null until a jump or a human link
   // fills the other system on this same row. Endpoints are system IDs, never
-  // document references. Remaining lifetime is the death window
-  // pair `deathEarliestAt`/`deathLatestAt` (absolute instants; clients derive
-  // the countdown). One narrow sanctioned scheduler exception exists by
-  // 4.0.4.3.1 operator ruling: the 15-minute ceiling sweep collapses a
-  // connection only past `deathLatestAt + CEILING_COLLAPSE_GRACE_MS` — death
-  // already certain — through the same collapse core every manual trigger
-  // uses; every other countdown remains client-derived display. `eolAt` is
-  // vestigial — a
-  // superseded mark-EOL design with no production writer; it stays null.
-  // lifeStage is the human-observed Reliable Lifetime bucket; estimates that
-  // consume lifeStageObservedAt belong to a later session.
+  // document references. Door codes, signatures, and leads-to live on `from`
+  // and `to`. Identity, lifetime, resolution, and tombstone are exclusive
+  // unions. One narrow sanctioned scheduler exception exists by 4.0.4.3.1
+  // operator ruling: the 15-minute ceiling sweep collapses a connection only
+  // past `lifetime.latestAt + CEILING_COLLAPSE_GRACE_MS` — death already
+  // certain — through the same collapse core every manual trigger uses; every
+  // other countdown remains client-derived display.
   mapConnections: defineTable({
     mapId: v.string(),
     fromSystemId: v.number(),
     toSystemId: v.union(v.number(), v.null()),
-    wormholeTypeCode: wormholeTypeCodeValidator,
+    from: connectionDoorValidator,
+    to: connectionDoorValidator,
     massState: massStateValidator,
     shipSize: shipSizeValidator,
-    eolAt: v.union(v.number(), v.null()),
-    // Additive rollout fields stay optional until every live document has
-    // passed through the merged-model writers.
-    fromSignatureId: v.optional(v.string()),
-    toSignatureId: v.optional(v.string()),
-    fromWormholeTypeCode: v.optional(wormholeTypeCodeValidator),
-    toWormholeTypeCode: v.optional(wormholeTypeCodeValidator),
-    typedSide: v.optional(typedSideValidator),
-    fromDestinationHint: v.optional(destinationHintValidator),
-    toDestinationHint: v.optional(destinationHintValidator),
-    fromDestinationSystemId: v.optional(v.number()),
-    toDestinationSystemId: v.optional(v.number()),
-    typeProvenance: v.optional(connectionProvenanceValidator),
-    destinationProvenance: v.optional(connectionProvenanceValidator),
+    identity: connectionIdentityValidator,
+    lifetime: connectionLifetimeValidator,
+    resolution: connectionResolutionValidator,
+    tombstone: connectionTombstoneValidator,
     observedMassKg: v.optional(v.number()),
     observedMassAtStateKg: v.optional(v.number()),
     observationKey: v.optional(v.string()),
-    pendingCandidates: v.optional(v.array(v.id('mapConnections'))),
-    // Which tracked character created an assumed multi-survivor prompt. The
-    // scanner answers surface only to clients that track this character so a
-    // jump by one pilot does not ask every editor on the map.
-    pendingResolutionCharacterId: v.optional(v.number()),
-    fromSignalPct: v.optional(v.union(v.number(), v.null())),
     firstSeenAt: v.optional(v.number()),
-    lifeStage: v.optional(lifeStageValidator),
-    lifeStageObservedAt: optionalTimestampValidator,
-    deathEarliestAt: optionalTimestampValidator,
-    deathLatestAt: optionalTimestampValidator,
-    deletedAt: optionalTimestampValidator,
-    purgeAfter: optionalTimestampValidator,
   })
     .index('by_map', ['mapId'])
     .index('by_map_from', ['mapId', 'fromSystemId'])
     .index('by_map_to', ['mapId', 'toSystemId'])
-    // Ceiling-sweep range: leading with the tombstone field keeps every
-    // already-collapsed row out of the sweep's candidate range by construction,
-    // so the bounded batch never head-of-line-blocks on its own prior work.
-    .index('by_deleted_death_latest', ['deletedAt', 'deathLatestAt'])
-    .index('by_purge_after', ['purgeAfter']),
+    .index('by_tombstone_death_latest', ['tombstone.kind', 'lifetime.latestAt'])
+    .index('by_purge_after', ['tombstone.purgeAfter']),
 
   // Exactly-once jump-processing state is deliberately separate from the
   // deletable tracking opt-in so an untrack/retrack cycle cannot erase it.

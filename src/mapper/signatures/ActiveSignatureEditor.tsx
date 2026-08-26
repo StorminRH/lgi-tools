@@ -50,7 +50,7 @@ function editedConnection(
 export interface ActiveSignatureEditorProps {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'> | null;
-  /** Scanner row the leader should bracket; null falls back to fromSignatureId. */
+  /** Scanner row the leader should bracket; null falls back to the from mouth. */
   readonly anchorSignatureId?: string | null;
   readonly connectionDetails: ReadonlyMap<string, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
@@ -85,8 +85,7 @@ export function ActiveSignatureEditor({
           connection.fromSystemId,
           connection.toSystemId,
           'from',
-          connection.fromDestinationSystemId,
-          connection.toDestinationSystemId,
+          connection.from,
         ),
     systemInfo,
   );
@@ -145,10 +144,10 @@ function ActiveSignatureEditorView({
     authoring,
     onDone: onClose,
     stub:
-      edited.toSystemId === null && edited.fromSignatureId !== null
+      edited.toSystemId === null && edited.from.signatureId !== null
         ? {
             systemId: edited.fromSystemId,
-            signatureId: edited.fromSignatureId,
+            signatureId: edited.from.signatureId,
           }
         : null,
   });

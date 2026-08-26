@@ -33,5 +33,15 @@ describe('chain-contract', () => {
     expect(chainTombstoneState({ deletedAt: now, purgeAfter: now + 1 }, now)).toBe('dying');
     expect(chainTombstoneState({ deletedAt: now, purgeAfter: now }, now)).toBe('skeleton');
     expect(chainTombstoneState({ deletedAt: now, purgeAfter: null }, now)).toBe('skeleton');
+    expect(isTombstoned({ tombstone: { kind: 'live' } })).toBe(false);
+    expect(
+      isTombstoned({ tombstone: { kind: 'removed', deletedAt: 1, purgeAfter: 2 } }),
+    ).toBe(true);
+    expect(
+      chainTombstoneState(
+        { tombstone: { kind: 'removed', deletedAt: now, purgeAfter: now + 1 } },
+        now,
+      ),
+    ).toBe('dying');
   });
 });

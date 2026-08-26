@@ -12,6 +12,8 @@ import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc';
+
 
 const chain = {
   watchMapAccess: api.mapChainAccess.watchMapAccess,
@@ -62,15 +64,14 @@ async function connect(
   toSystemId: number,
 ): Promise<Id<'mapConnections'>> {
   return await t.run(async (ctx) => {
-    return await ctx.db.insert('mapConnections', {
+    return await ctx.db.insert('mapConnections', connectionInsert({
       mapId,
       fromSystemId,
       toSystemId,
       wormholeTypeCode: null,
       massState: 'stable',
       shipSize: 'M',
-      eolAt: null,
-    });
+    }));
   });
 }
 
@@ -211,7 +212,7 @@ describe('map chain read path', () => {
           _id: unresolved.connectionId,
           fromSystemId: JITA,
           toSystemId: null,
-          fromSignatureId: 'ABC-123',
+          from: expect.objectContaining({ signatureId: 'ABC-123' }),
         }),
       ]);
     });
@@ -417,15 +418,14 @@ describe('map chain read path', () => {
       await placeSystems(t, MAP_A, [JITA]);
       await t.run(async (ctx) => {
         for (let index = 0; index <= FIXTURE_CONNECTION_SCAN_LIMIT; index += 1) {
-          await ctx.db.insert('mapConnections', {
+          await ctx.db.insert('mapConnections', connectionInsert({
             mapId: MAP_A,
             fromSystemId: AMARR + index,
             toSystemId: AMARR + index + 1,
             wormholeTypeCode: null,
             massState: 'stable',
             shipSize: 'M',
-            eolAt: null,
-          });
+          }));
         }
       });
 

@@ -4,8 +4,21 @@ import {
   absorbDoorKnowledge,
   uniqueCounterpartStub,
 } from '@/data/maps/connection-door-destinations';
-import { connectionTypePatch, storedDoorTypes } from '@/data/maps/connection-door-types';
-import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
+import {
+  connectionTypePatch,
+  storedDoorTypes,
+  typedDoorsFrom,
+} from '@/data/maps/connection-door-types';
+import {
+  blankHallway,
+  hallwayDoor,
+  identityFromDoors,
+  replaceDoor,
+} from '@/data/maps/connection-hallway';
+import {
+  isWormholeTypeCode,
+  type ConnectionProvenance,
+} from '@/data/eve-data/wormhole-contract';
 import { isScannerSignatureId } from '@/data/maps/scan-parse';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
@@ -33,7 +46,7 @@ export type EliminationEvidence = {
   readonly signatures: {
     readonly signatureId: string;
     readonly wormholeTypeCode: string | null;
-    readonly typeProvenance: NonNullable<Doc<'mapConnections'>['typeProvenance']> | null;
+    readonly typeProvenance: ConnectionProvenance | null;
     readonly observationKey: string | null;
   }[];
   readonly connections: {
@@ -54,9 +67,7 @@ function endpointOwnsSignature(
   connection: Doc<'mapConnections'>,
   side: 'from' | 'to',
 ): boolean {
-  return side === 'from'
-    ? connection.fromSignatureId !== undefined
-    : connection.toSignatureId !== undefined;
+  return hallwayDoor(connection, side).signatureId !== null;
 }
 
 async function readEliminationConnections(
@@ -95,13 +106,16 @@ export async function collectEliminationEvidence(
   const rows = await readEliminationConnections(ctx, mapId, systemId);
   const liveFrom = rows.from.filter((connection) => !isTombstoned(connection));
   const signatures = liveFrom.flatMap((connection) => {
-    const signatureId = connection.fromSignatureId;
-    return connection.toSystemId !== null || signatureId === undefined
+    const signatureId = connection.from.signatureId;
+    return connection.toSystemId !== null || signatureId === null
       ? []
       : [{
           signatureId,
           wormholeTypeCode: storedDoorTypes(connection).from,
-          typeProvenance: connection.typeProvenance ?? null,
+          typeProvenance:
+            connection.identity.kind === 'typed'
+              ? connection.identity.provenance
+              : null,
           observationKey: connection.observationKey ?? null,
         }];
   });
@@ -159,55 +173,36 @@ async function applyTypeDeduction(
   }
   const observationKey = source.observationKey ?? null;
   if (
-    source.wormholeTypeCode === typeCode
-    && source.typeProvenance === 'assumed'
-    && source.typedSide === 'from'
+    source.from.typeCode === typeCode
+    && source.identity.kind === 'typed'
+    && source.identity.provenance === 'assumed'
   ) {
     return { signatureId, outcome: 'unchanged', observationKey };
   }
   if (
-    source.wormholeTypeCode !== null
-    && source.typeProvenance !== 'assumed'
+    source.from.typeCode !== null
+    && (source.identity.kind !== 'typed' || source.identity.provenance !== 'assumed')
   ) {
     return { signatureId, outcome: 'protected', observationKey };
   }
   const stamped = stampObservationKey(source.observationKey);
   await ctx.db.patch(source._id, {
-    ...connectionTypePatch(source, 'from', typeCode),
-    typeProvenance: 'assumed',
+    ...connectionTypePatch(source, 'from', typeCode, 'assumed'),
     ...stamped.patch,
   });
   return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
 }
 
-function occupiedDestinationNote(
-  target: Doc<'mapConnections'>,
-  side: 'from' | 'to',
-): {
-  readonly fromDestinationSystemId?: number;
-  readonly fromDestinationHint?: Doc<'mapConnections'>['fromDestinationHint'];
-} {
-  const systemId = side === 'from'
-    ? target.fromDestinationSystemId
-    : target.toDestinationSystemId;
-  const hint = side === 'from'
-    ? target.fromDestinationHint
-    : target.toDestinationHint;
-  return {
-    ...(systemId !== undefined ? { fromDestinationSystemId: systemId } : {}),
-    ...(hint !== undefined ? { fromDestinationHint: hint } : {}),
-  };
+function occupiedLeadsTo(target: Doc<'mapConnections'>, side: 'from' | 'to') {
+  return hallwayDoor(target, side).leadsTo;
 }
 
-function clearOccupiedDestinationNote(side: 'from' | 'to'): {
-  readonly fromDestinationSystemId?: undefined;
-  readonly toDestinationSystemId?: undefined;
-  readonly fromDestinationHint?: undefined;
-  readonly toDestinationHint?: undefined;
-} {
-  return side === 'from'
-    ? { fromDestinationSystemId: undefined, fromDestinationHint: undefined }
-    : { toDestinationSystemId: undefined, toDestinationHint: undefined };
+function clearOccupiedDestinationNote(
+  target: Doc<'mapConnections'>,
+  side: 'from' | 'to',
+): Partial<Doc<'mapConnections'>> {
+  const door = hallwayDoor(target, side);
+  return replaceDoor(target, side, { ...door, leadsTo: { kind: 'unset' } });
 }
 
 async function recreateOccupiedDoorAsStub(
@@ -218,19 +213,17 @@ async function recreateOccupiedDoorAsStub(
   side: 'from' | 'to',
 ): Promise<void> {
   const doorType = storedDoorTypes(target)[side];
+  const doors = typedDoorsFrom('from', doorType);
+  const provenance = target.identity.kind === 'typed' ? target.identity.provenance : null;
   await ctx.db.insert('mapConnections', {
-    mapId: target.mapId,
-    fromSystemId: systemId,
-    toSystemId: null,
-    fromSignatureId: occupant,
-    massState: null,
-    shipSize: null,
-    eolAt: null,
-    deletedAt: null,
-    purgeAfter: null,
-    ...connectionTypePatch({}, 'from', doorType),
-    typeProvenance: doorType === null ? undefined : target.typeProvenance,
-    ...occupiedDestinationNote(target, side),
+    ...blankHallway({ mapId: target.mapId, fromSystemId: systemId, toSystemId: null }),
+    from: {
+      ...doors.from,
+      signatureId: occupant,
+      leadsTo: occupiedLeadsTo(target, side),
+    },
+    to: doors.to,
+    identity: identityFromDoors(doors.from.typeCode, doors.to.typeCode, provenance),
   });
 }
 
@@ -254,34 +247,37 @@ export async function applyLinkDeduction(
     return { signatureId, outcome: 'stale', observationKey: null };
   }
   const observationKey = source.observationKey ?? null;
-  if ((source.wormholeTypeCode ?? null) !== expectedTypeCode) {
+  if (source.from.typeCode !== expectedTypeCode) {
     return { signatureId, outcome: 'stale', observationKey };
   }
   const side = endpointSide(target, systemId);
   if (side === null) return { signatureId, outcome: 'stale', observationKey };
-  const current = side === 'from' ? target.fromSignatureId : target.toSignatureId;
+  const current = hallwayDoor(target, side).signatureId;
   if (current === signatureId) {
     return { signatureId, outcome: 'unchanged', observationKey };
   }
   let surviving = target;
-  if (current !== undefined) {
+  if (current !== null) {
     if (!replaceOccupied) {
       return { signatureId, outcome: 'protected', observationKey };
     }
     await recreateOccupiedDoorAsStub(ctx, target, systemId, current, side);
     surviving = {
       ...target,
-      ...connectionTypePatch(target, side, null),
-      ...clearOccupiedDestinationNote(side),
+      ...connectionTypePatch(target, side, null, null),
+      ...clearOccupiedDestinationNote(target, side),
     };
   }
   const knowledge = linkKnowledgePatch(source, surviving, side);
+  const afterKnowledge = { ...surviving, ...knowledge };
+  const signedDoor = {
+    ...hallwayDoor(afterKnowledge, side),
+    signatureId,
+    ...(current !== null ? { leadsTo: { kind: 'unset' as const } } : {}),
+  };
   const attached = {
-    ...(side === 'from'
-      ? { fromSignatureId: signatureId }
-      : { toSignatureId: signatureId }),
-    ...(current !== undefined ? clearOccupiedDestinationNote(side) : {}),
-    ...knowledge,
+    ...afterKnowledge,
+    ...replaceDoor(afterKnowledge, side, signedDoor),
   };
   const leftover = await leftoverOriginStubAbsorb(
     ctx,
@@ -311,27 +307,34 @@ async function leftoverOriginStubAbsorb(
   const oppositeSystemId = oppositeSide === 'from'
     ? target.fromSystemId
     : target.toSystemId;
-  const oppositeSignature = oppositeSide === 'from'
-    ? target.fromSignatureId
-    : target.toSignatureId;
-  if (oppositeSystemId === null || oppositeSignature !== undefined) return null;
+  const oppositeSignature = hallwayDoor(target, oppositeSide).signatureId;
+  if (oppositeSystemId === null || oppositeSignature !== null) return null;
   const leftover = uniqueCounterpartStub(
     await readOriginConnections(ctx, target.mapId, oppositeSystemId),
     new Set([sourceId, target._id]),
   );
   if (leftover === null) return null;
+  const knowledge = absorbDoorKnowledge(target, leftover, oppositeSide);
+  const afterKnowledge = { ...target, ...knowledge };
+  const leads = leadsNotePatch(
+    afterKnowledge,
+    leftover.from.leadsTo.kind === 'system' ? leftover.from.leadsTo.systemId : undefined,
+    oppositeSide,
+  );
+  const afterLeads = { ...afterKnowledge, ...leads };
   return {
     id: leftover._id,
     patch: {
-      ...(oppositeSide === 'from'
-        ? {
-            fromSignatureId: leftover.fromSignatureId,
-            fromSignalPct: leftover.fromSignalPct,
-            firstSeenAt: leftover.firstSeenAt ?? target.firstSeenAt,
-          }
-        : { toSignatureId: leftover.fromSignatureId }),
-      ...absorbDoorKnowledge(target, leftover, oppositeSide),
-      ...leadsNotePatch(target, leftover.fromDestinationSystemId, oppositeSide),
+      ...knowledge,
+      ...leads,
+      ...(leftover.firstSeenAt === undefined ? {} : { firstSeenAt: leftover.firstSeenAt ?? target.firstSeenAt }),
+      ...replaceDoor(afterLeads, oppositeSide, {
+        ...hallwayDoor(afterLeads, oppositeSide),
+        signatureId: leftover.from.signatureId,
+        signalPct: oppositeSide === 'from'
+          ? leftover.from.signalPct
+          : hallwayDoor(afterLeads, oppositeSide).signalPct,
+      }),
     },
   };
 }
@@ -343,7 +346,11 @@ function linkKnowledgePatch(
 ): Partial<Doc<'mapConnections'>> {
   return {
     ...absorbDoorKnowledge(target, source, attachedSide),
-    ...leadsNotePatch(target, source.fromDestinationSystemId, attachedSide),
+    ...leadsNotePatch(
+      target,
+      source.from.leadsTo.kind === 'system' ? source.from.leadsTo.systemId : undefined,
+      attachedSide,
+    ),
   };
 }
 
@@ -379,8 +386,8 @@ export async function applyEliminationDeductionBatch(
   const rows = await readEliminationConnections(ctx, mapId, systemId);
   const bySignature = new Map(
     rows.from.flatMap((connection) => {
-      const signatureId = connection.fromSignatureId;
-      return signatureId === undefined ? [] : [[signatureId, connection] as const];
+      const signatureId = connection.from.signatureId;
+      return signatureId === null ? [] : [[signatureId, connection] as const];
     }),
   );
   const byId = new Map(rows.touching.map((connection) => [connection._id, connection]));

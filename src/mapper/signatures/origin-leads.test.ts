@@ -14,9 +14,9 @@ describe('originLeadOptions', () => {
       connectionId: 'inbound' as Id<'mapConnections'>,
       fromSystemId: 31_000_002,
       toSystemId: 31_000_001,
-      fromSignatureId: null,
-      toSignatureId: null,
-      deletedAt: null,
+      from: { signatureId: null },
+      to: { signatureId: null },
+      tombstone: { kind: 'live' as const },
     };
     expect(
       originLeadOptions(STUB, [inbound], (id) =>
@@ -37,9 +37,9 @@ describe('originLeadOptions', () => {
       connectionId: 'inbound' as Id<'mapConnections'>,
       fromSystemId: 31_000_002,
       toSystemId: 31_000_001,
-      fromSignatureId: null,
-      toSignatureId: 'ABC-123',
-      deletedAt: null,
+      from: { signatureId: null },
+      to: { signatureId: 'ABC-123' },
+      tombstone: { kind: 'live' as const },
     };
     expect(originLeadOptions(STUB, [occupied], null)).toEqual([{
       connectionId: 'inbound',

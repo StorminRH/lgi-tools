@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { blankHallway } from '@/data/maps/connection-hallway';
 import type { Id } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { requireMapAccess } from './lib/mapAccess';
@@ -114,19 +115,7 @@ async function addFromNode(
   await requireLiveOrigin(ctx, mapId, fromSystemId);
   const systemId = await upsertLiveDestination(ctx, mapId, toSystemId);
   const connectionId = await ctx.db.insert('mapConnections', {
-    mapId,
-    fromSystemId,
-    toSystemId,
-    wormholeTypeCode: null,
-    fromWormholeTypeCode: null,
-    toWormholeTypeCode: null,
-    massState: null,
-    shipSize: null,
-    eolAt: null,
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deletedAt: null,
-    purgeAfter: null,
+    ...blankHallway({ mapId, fromSystemId, toSystemId }),
   });
   return { systemId, connectionId };
 }

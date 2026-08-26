@@ -96,8 +96,10 @@ export const jumpEvidence = internalQuery({
       scannedTypeCodes: scannedTypeCodes(originRows),
       candidates: candidates.map((candidate) => ({
         id: candidate._id,
-        wormholeTypeCode: candidate.wormholeTypeCode,
-        destinationHint: candidate.fromDestinationHint,
+        wormholeTypeCode: candidate.from.typeCode,
+        destinationHint: candidate.from.leadsTo.kind === 'hint'
+          ? candidate.from.leadsTo.hint
+          : undefined,
         sizeClass: candidate.shipSize,
       })),
     };

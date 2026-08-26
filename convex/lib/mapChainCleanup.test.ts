@@ -7,6 +7,8 @@ import { MAP_EVENT_RETENTION_MS } from '@/data/maps/chain-events';
 import schema from '../schema';
 
 import { modules } from '../__tests__/modules.setup';
+import { connectionInsert } from '../__tests__/connection-doc';
+
 
 const NOW = 1_800_000_000_000;
 const MAP_ID = 'map-cleanup';
@@ -45,29 +47,27 @@ describe('map chain cleanup', () => {
         deletedAt: NOW - 2_000,
         purgeAfter: NOW - 1_000,
       });
-      const retainedConnection = await ctx.db.insert('mapConnections', {
+      const retainedConnection = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP_ID,
         fromSystemId: ROOT,
         toSystemId: LIVE_ISLAND,
         wormholeTypeCode: null,
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: NOW - 2_000,
         purgeAfter: NOW - 1_000,
-      });
-      const danglingConnection = await ctx.db.insert('mapConnections', {
+      }));
+      const danglingConnection = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP_ID,
         fromSystemId: ROOT,
         toSystemId: DANGLING,
         wormholeTypeCode: null,
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: NOW - 2_000,
         purgeAfter: NOW - 1_000,
-      });
-      const unresolvedConnection = await ctx.db.insert('mapConnections', {
+      }));
+      const unresolvedConnection = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP_ID,
         fromSystemId: ROOT,
         toSystemId: null,
@@ -75,10 +75,9 @@ describe('map chain cleanup', () => {
         wormholeTypeCode: null,
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: NOW - 2_000,
         purgeAfter: NOW - 1_000,
-      });
+      }));
       const expiredEvent = await ctx.db.insert('mapEvents', {
         mapId: MAP_ID,
         at: NOW - MAP_EVENT_RETENTION_MS - 1,
@@ -116,8 +115,7 @@ describe('map chain cleanup', () => {
       hasMore: false,
     });
     expect(await t.run(async (ctx) => await ctx.db.get(ids.retainedConnection))).toMatchObject({
-      deletedAt: NOW - 2_000,
-      purgeAfter: null,
+      tombstone: { kind: 'removed', deletedAt: NOW - 2_000, purgeAfter: null },
     });
     expect(await t.run(async (ctx) => await ctx.db.get(ids.danglingConnection))).toBeNull();
     expect(await t.run(async (ctx) => await ctx.db.get(ids.unresolvedConnection))).toBeNull();
@@ -137,17 +135,16 @@ describe('map chain cleanup', () => {
           purgeAfter: NOW - 1_000,
         });
       }
-      const danglingConnection = await ctx.db.insert('mapConnections', {
+      const danglingConnection = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP_ID,
         fromSystemId: ROOT,
         toSystemId: DANGLING,
         wormholeTypeCode: null,
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: NOW - 2_000,
         purgeAfter: NOW - 1_000,
-      });
+      }));
       const expiredEvent = await ctx.db.insert('mapEvents', {
         mapId: MAP_ID,
         at: NOW - MAP_EVENT_RETENTION_MS - 1,

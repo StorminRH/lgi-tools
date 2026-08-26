@@ -4,16 +4,27 @@
 import type {
   ConnectionMassState,
   ConnectionProvenance,
-  WormholeLifeStage,
   WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import {
-  connectionDoorTypes,
   returnDoorTypePatch,
   type ConnectionDoor,
-  type ConnectionTypeFields,
 } from '@/data/maps/connection-door-types';
+import type {
+  ConnectionDoorValue,
+  ConnectionIdentity,
+  ConnectionLifetime,
+  DoorLeadsTo,
+} from '@/data/maps/connection-hallway';
+import {
+  connectionLifetimeFrom,
+  doorSystemNote,
+  leadsToFromSystem,
+  lifetimeDeathWindow,
+  lifetimeObservedAt,
+  lifetimeStage,
+} from '@/data/maps/connection-hallway';
 
 /** The other system's id on this hallway, or null until both systems are known. */
 export function doorDestination(
@@ -39,17 +50,16 @@ export function keepTypedLeadsTo(
   return typedSystem;
 }
 
-/** Leads-to for the hole you are looking at. */
+/** Leads-to system for the hole you are looking at. */
 export function doorLeadsTo(
   fromSystemId: number,
   toSystemId: number | null,
   side: ConnectionDoor,
-  fromOverride?: number | null,
-  toOverride?: number | null,
+  door: ConnectionDoorValue,
 ): number | null {
   return keepTypedLeadsTo(
     doorDestination(fromSystemId, toSystemId, side),
-    side === 'from' ? fromOverride : toOverride,
+    doorSystemNote(door),
   );
 }
 
@@ -59,41 +69,35 @@ export function doorLeadsTo(
  * class note or matched the other system.
  */
 export function absorbDoorLeadsNote(
-  survivingTyped: number | null | undefined,
-  stubTyped: number | null | undefined,
+  surviving: DoorLeadsTo,
+  stub: DoorLeadsTo,
   otherLocation: number | null,
-): number | undefined {
+): DoorLeadsTo {
+  const survivingTyped = surviving.kind === 'system' ? surviving.systemId : null;
+  const stubTyped = stub.kind === 'system' ? stub.systemId : null;
   const kept = keepTypedLeadsTo(otherLocation, survivingTyped ?? stubTyped);
-  if (kept === null || kept === otherLocation) return undefined;
-  return kept;
+  if (kept === null || kept === otherLocation) return { kind: 'unset' };
+  return leadsToFromSystem(kept);
 }
 
-/** Fields a dying stub can carry onto the surviving hallway. */
-export interface DoorKnowledgeFields extends ConnectionTypeFields {
-  readonly typeProvenance?: ConnectionProvenance | null;
+export interface DoorKnowledgeHallway {
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
+  readonly identity: ConnectionIdentity;
+  readonly lifetime: ConnectionLifetime;
   readonly massState: ConnectionMassState | null;
   readonly observedMassAtStateKg?: number;
   readonly shipSize: WormholeSizeClass | null;
-  readonly lifeStage?: WormholeLifeStage | null;
-  readonly lifeStageObservedAt?: number | null;
-  readonly deathEarliestAt?: number | null;
-  readonly deathLatestAt?: number | null;
 }
 
-/** Mutable hallway facts written onto the surviving row. */
 export interface DoorKnowledgePatch {
-  fromWormholeTypeCode?: string | null;
-  toWormholeTypeCode?: string | null;
-  wormholeTypeCode?: string | null;
-  typedSide?: ConnectionDoor;
-  typeProvenance?: ConnectionProvenance;
-  massState?: ConnectionMassState | null;
-  observedMassAtStateKg?: number;
-  shipSize?: WormholeSizeClass | null;
-  lifeStage?: WormholeLifeStage | null;
-  lifeStageObservedAt?: number | null;
-  deathEarliestAt?: number | null;
-  deathLatestAt?: number | null;
+  readonly from?: ConnectionDoorValue;
+  readonly to?: ConnectionDoorValue;
+  readonly identity?: ConnectionIdentity;
+  readonly lifetime?: ConnectionLifetime;
+  readonly massState?: ConnectionMassState | null;
+  readonly observedMassAtStateKg?: number;
+  readonly shipSize?: WormholeSizeClass | null;
 }
 
 const TYPE_PROVENANCE_RANK: Record<ConnectionProvenance, number> = {
@@ -117,6 +121,10 @@ export function winningTypeProvenance(
   return undefined;
 }
 
+function provenanceOf(identity: ConnectionIdentity): ConnectionProvenance | null {
+  return identity.kind === 'typed' ? identity.provenance : null;
+}
+
 /**
  * The one unresolved origin stub in a system, or null when none or more than
  * one remain. Atlas does not guess which hole is the other door.
@@ -125,6 +133,7 @@ export function uniqueCounterpartStub<
   T extends {
     readonly _id: string;
     readonly toSystemId: number | null;
+    readonly tombstone?: { readonly kind: 'live' | 'removed' };
     readonly deletedAt?: number | null;
   },
 >(rows: readonly T[], excludeIds: ReadonlySet<string>): T | null {
@@ -138,16 +147,29 @@ export function uniqueCounterpartStub<
 
 /** Copies only unset hallway facts from a stub that is about to be deleted. */
 export function absorbDoorKnowledge(
-  surviving: DoorKnowledgeFields,
-  stub: DoorKnowledgeFields,
+  surviving: DoorKnowledgeHallway,
+  stub: DoorKnowledgeHallway,
   attachedSide: ConnectionDoor,
 ): DoorKnowledgePatch {
-  const patch: DoorKnowledgePatch = {
-    ...returnDoorTypePatch(
-      surviving,
-      attachedSide,
-      connectionDoorTypes(stub).from,
-    ),
+  const typePatch = returnDoorTypePatch(
+    surviving,
+    attachedSide,
+    stub.from.typeCode,
+    winningTypeProvenance(provenanceOf(surviving.identity), provenanceOf(stub.identity))
+      ?? provenanceOf(surviving.identity),
+  );
+  const patch: {
+    from: ConnectionDoorValue;
+    to: ConnectionDoorValue;
+    identity: ConnectionIdentity;
+    lifetime?: ConnectionLifetime;
+    massState?: ConnectionMassState | null;
+    observedMassAtStateKg?: number;
+    shipSize?: WormholeSizeClass | null;
+  } = {
+    from: typePatch.from,
+    to: typePatch.to,
+    identity: typePatch.identity,
   };
   if (surviving.massState === null && stub.massState !== null) {
     patch.massState = stub.massState;
@@ -158,26 +180,17 @@ export function absorbDoorKnowledge(
   if (surviving.shipSize === null && stub.shipSize !== null) {
     patch.shipSize = stub.shipSize;
   }
-  if (
-    surviving.lifeStage == null
-    && surviving.lifeStageObservedAt == null
-    && (stub.lifeStage != null || stub.lifeStageObservedAt != null)
+  if (surviving.lifetime.kind === 'unknown' && stub.lifetime.kind !== 'unknown') {
+    patch.lifetime = stub.lifetime;
+  } else if (
+    lifetimeDeathWindow(surviving.lifetime) === null
+    && lifetimeDeathWindow(stub.lifetime) !== null
   ) {
-    patch.lifeStage = stub.lifeStage ?? null;
-    if (stub.lifeStageObservedAt !== undefined) {
-      patch.lifeStageObservedAt = stub.lifeStageObservedAt;
-    }
-  }
-  if (surviving.deathEarliestAt == null && stub.deathEarliestAt != null) {
-    patch.deathEarliestAt = stub.deathEarliestAt;
-    patch.deathLatestAt = stub.deathLatestAt;
-  }
-  const typeProvenance = winningTypeProvenance(
-    surviving.typeProvenance,
-    stub.typeProvenance,
-  );
-  if (typeProvenance !== undefined) {
-    patch.typeProvenance = typeProvenance;
+    patch.lifetime = connectionLifetimeFrom({
+      lifeStage: lifetimeStage(surviving.lifetime) ?? lifetimeStage(stub.lifetime),
+      observedAt: lifetimeObservedAt(surviving.lifetime) ?? lifetimeObservedAt(stub.lifetime),
+      death: lifetimeDeathWindow(stub.lifetime),
+    });
   }
   return patch;
 }

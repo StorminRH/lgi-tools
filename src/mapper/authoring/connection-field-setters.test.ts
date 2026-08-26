@@ -1,38 +1,17 @@
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import { blankDoor } from '@/data/maps/connection-hallway';
+import { connectionEditorFixture } from '../chain/connection-editor-fixture';
 import {
   connectionFieldSetters,
   type ConnectionFieldAuthoringApi,
 } from './connection-field-setters';
 
-const CONNECTION: ConnectionEditorDetail = {
+const CONNECTION = connectionEditorFixture({
   connectionId: 'connection-1' as Id<'mapConnections'>,
-  _creationTime: 1,
-  fromSystemId: 31_000_001,
-  toSystemId: null,
-  fromSignalPct: 100,
   firstSeenAt: 1,
-  wormholeTypeCode: null,
-  typedSide: null,
-  massState: null,
-  shipSize: null,
-  lifeStage: null,
-  lifeStageObservedAt: null,
-  deathEarliestAt: null,
-  deathLatestAt: null,
-  deletedAt: null,
-  purgeAfter: null,
-  fromSignatureId: 'ABC-123',
-  toSignatureId: null,
-  fromDestinationHint: null,
-  toDestinationHint: null,
-  destinationProvenance: null,
-  pendingCandidates: null,
-  pendingResolutionCharacterId: null,
-  observedMassKg: null,
-  observedMassAtStateKg: null,
-};
+  from: { ...blankDoor(), signatureId: 'ABC-123', signalPct: 100 },
+});
 
 function authoring(): ConnectionFieldAuthoringApi {
   return {

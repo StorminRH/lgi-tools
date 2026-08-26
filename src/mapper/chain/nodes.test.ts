@@ -618,11 +618,19 @@ describe('static wormhole stub projection', () => {
     const liveConnection = {
       fromSystemId: JITA,
       toSystemId: AMARR,
-      wormholeTypeCode: 'B274',
-      typedSide: 'from' as const,
-      fromSignatureId: 'ABC-123',
-      toSignatureId: null,
-      deletedAt: null,
+      from: {
+        typeCode: 'B274',
+        signatureId: 'ABC-123',
+        signalPct: null,
+        leadsTo: { kind: 'unset' as const },
+      },
+      to: {
+        typeCode: 'K162',
+        signatureId: null,
+        signalPct: null,
+        leadsTo: { kind: 'unset' as const },
+      },
+      tombstone: { kind: 'live' as const },
     };
     const input = {
       systemIds: [JITA],
@@ -640,7 +648,10 @@ describe('static wormhole stub projection', () => {
 
     const collapsed = placePlannedStubs(planStubNodes({
       ...input,
-      connections: [{ ...liveConnection, deletedAt: 1 }],
+      connections: [{
+        ...liveConnection,
+        tombstone: { kind: 'removed' as const, deletedAt: 1, purgeAfter: null },
+      }],
     }));
     expect(collapsed.map(stubNodeId)).toEqual([
       `${STATIC_STUB_NODE_ID_PREFIX}${JITA}:B274:1`,

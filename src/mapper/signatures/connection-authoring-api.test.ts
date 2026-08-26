@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import { connectionEditorFixture } from '../chain/connection-editor-fixture';
 import type { ConnectionDetail } from '../chain/use-map-chain';
 import {
   answerAndAnnounce,
@@ -32,29 +33,12 @@ function detail(
   partial: Partial<ConnectionDetail> & { connectionId: Id<'mapConnections'> },
 ): ConnectionDetail {
   return {
-    _creationTime: 1,
-    fromSystemId: 1,
-    toSystemId: 2,
-    fromSignalPct: null,
-    firstSeenAt: null,
-    wormholeTypeCode: null,
-    massState: null,
-    shipSize: null,
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deathEarliestAt: null,
-    deathLatestAt: null,
-    deletedAt: null,
-    purgeAfter: null,
-    fromSignatureId: null,
-    toSignatureId: null,
-    fromDestinationHint: null,
-    destinationProvenance: null,
-    pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-    observedMassKg: null,
-    observedMassAtStateKg: null,
-    ...partial,
+    ...connectionEditorFixture({
+      fromSystemId: 1,
+      toSystemId: 2,
+      ...partial,
+    }),
+    toSystemId: partial.toSystemId ?? 2,
   };
 }
 

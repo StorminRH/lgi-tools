@@ -80,8 +80,10 @@ const MAP_ROLE_LITERALS = {
 // New writers derive from MAP_ROLES and therefore cannot emit this literal.
 const legacyMapOwnerRoleValidator = v.literal('owner');
 
-/** Schema validator for the side whose wormhole type is attributable. */
-export const typedSideValidator = v.union(v.literal('from'), v.literal('to'));
+/** Schema validator for one stored hallway end. */
+export const connectionDoorSideValidator = v.union(v.literal('from'), v.literal('to'));
+
+export const typedSideValidator = connectionDoorSideValidator;
 
 /** Schema validator derived from the parser-owned scan-kind vocabulary. */
 export const scannedKindValidator = v.union(
@@ -120,11 +122,84 @@ export const lifeStageValidator = v.union(
   v.null(),
 );
 
+/** Schema validator for a canonical wormhole code, null while the type is unidentified. */
+export const wormholeTypeCodeValidator = v.union(v.string(), v.null());
+
 /**
  * Optional normalized tombstone stamp. Existing live rows may omit the field;
  * active rows may store explicit null; tombstoned rows store a finite number.
  */
 export const optionalTimestampValidator = v.optional(v.union(v.number(), v.null()));
+
+const doorLeadsToValidator = v.union(
+  v.object({ kind: v.literal('unset') }),
+  v.object({ kind: v.literal('hint'), hint: destinationHintValidator }),
+  v.object({ kind: v.literal('system'), systemId: v.number() }),
+);
+
+/** One mouth: type, scan identity, exclusive leads-to. */
+export const connectionDoorValidator = v.object({
+  typeCode: wormholeTypeCodeValidator,
+  signatureId: v.union(v.string(), v.null()),
+  signalPct: v.union(v.number(), v.null()),
+  leadsTo: doorLeadsToValidator,
+});
+
+/** Type provenance. Door codes live on the doors. */
+export const connectionIdentityValidator = v.union(
+  v.object({ kind: v.literal('unknown') }),
+  v.object({
+    kind: v.literal('typed'),
+    provenance: connectionProvenanceValidator,
+  }),
+);
+
+/** Remaining life. Window carries both bounds; there is no `eolAt`. */
+export const connectionLifetimeValidator = v.union(
+  v.object({ kind: v.literal('unknown') }),
+  v.object({
+    kind: v.literal('stage'),
+    lifeStage: v.union(
+      LIFE_STAGE_LITERALS.under_1_day,
+      LIFE_STAGE_LITERALS.under_4_hours,
+      LIFE_STAGE_LITERALS.under_1_hour,
+      LIFE_STAGE_LITERALS.expired,
+    ),
+    observedAt: v.number(),
+  }),
+  v.object({
+    kind: v.literal('window'),
+    earliestAt: v.number(),
+    latestAt: v.number(),
+    lifeStage: lifeStageValidator,
+    observedAt: v.union(v.number(), v.null()),
+  }),
+);
+
+/** Jump-destination knowledge. Pending always names the answering character. */
+export const connectionResolutionValidator = v.union(
+  v.object({ kind: v.literal('open') }),
+  v.object({
+    kind: v.literal('destination'),
+    provenance: connectionProvenanceValidator,
+  }),
+  v.object({
+    kind: v.literal('pending'),
+    provenance: v.literal('assumed'),
+    candidateIds: v.array(v.id('mapConnections')),
+    characterId: v.number(),
+  }),
+);
+
+/** Live or removed. Removed always carries the delete stamp. */
+export const connectionTombstoneValidator = v.union(
+  v.object({ kind: v.literal('live') }),
+  v.object({
+    kind: v.literal('removed'),
+    deletedAt: v.number(),
+    purgeAfter: v.union(v.number(), v.null()),
+  }),
+);
 
 /** Schema validator for a connection's shipped size, null while still unknown. */
 export const shipSizeValidator = v.union(
@@ -165,9 +240,6 @@ export const mapEventPayloadValidator = v.union(
   v.object({ systemId: v.number(), signatureIds: v.array(v.string()) }),
 );
 
-/** Schema validator for a canonical wormhole code, null while the type is unidentified. */
-export const wormholeTypeCodeValidator = v.union(v.string(), v.null());
-
 /** Schema validator for the kind of chain object a note targets. */
 export const noteTargetKindValidator = v.union(
   NOTE_TARGET_KIND_LITERALS.map,
@@ -187,9 +259,8 @@ export function isPositiveId(value: number): boolean {
 
 /**
  * Validates one absolute timestamp field. Chain documents store absolute instants only —
- * remaining lifetime derives from the `deathEarliestAt`/`deathLatestAt` window pair
- * (`eolAt` is a vestigial superseded field, always null) and no mutation or scheduler
- * flips a state.
+ * remaining lifetime derives from the lifetime union's death window and no
+ * mutation or scheduler flips a state.
  */
 function requireAbsoluteTimestamp(label: string, value: number | null): void {
   if (value !== null && !Number.isFinite(value)) {
@@ -204,7 +275,6 @@ export interface ConnectionInput {
   readonly wormholeTypeCode: string | null;
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
-  readonly eolAt: number | null;
   readonly deathEarliestAt?: number | null;
   readonly deathLatestAt?: number | null;
 }
@@ -239,9 +309,9 @@ export function validateDeathWindowInput(input: DeathWindowInput): void {
 }
 
 /**
- * The authoritative connection boundary: endpoints must be distinct positive system IDs, a non-null
- * wormhole code must be canonical, and `eolAt` must be an absolute timestamp. Endpoint *existence*
- * and same-map ownership are checked by the calling mutation, which alone can read the database.
+ * The authoritative connection boundary: endpoints must be distinct positive system IDs and a
+ * non-null wormhole code must be canonical. Endpoint *existence* and same-map ownership are
+ * checked by the calling mutation, which alone can read the database.
  */
 export function validateConnectionInput(input: ConnectionInput): void {
   if (!isPositiveId(input.fromSystemId) || !isPositiveId(input.toSystemId)) {
@@ -253,7 +323,8 @@ export function validateConnectionInput(input: ConnectionInput): void {
   if (input.wormholeTypeCode !== null && !isWormholeTypeCode(input.wormholeTypeCode)) {
     reject('INVALID_WORMHOLE_CODE', `Unknown wormhole code "${input.wormholeTypeCode}".`);
   }
-  requireAbsoluteTimestamp('eolAt', input.eolAt);
+  requireAbsoluteTimestamp('deathEarliestAt', input.deathEarliestAt ?? null);
+  requireAbsoluteTimestamp('deathLatestAt', input.deathLatestAt ?? null);
   validateDeathWindowInput(input);
 }
 

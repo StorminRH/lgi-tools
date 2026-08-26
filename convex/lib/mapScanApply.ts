@@ -3,7 +3,13 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 import { isWormholeTypeCode } from '@/data/eve-data/wormhole-contract';
 import type { ScannedRow } from '@/data/maps/scan-parse';
 import { absorbDoorKnowledge } from '@/data/maps/connection-door-destinations';
-import { connectionTypePatch } from '@/data/maps/connection-door-types';
+import { connectionTypePatch, typedDoorsFrom } from '@/data/maps/connection-door-types';
+import {
+  blankHallway,
+  identityFromDoors,
+  lifetimeDeathWindow,
+  liveTombstone,
+} from '@/data/maps/connection-hallway';
 import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import {
@@ -177,8 +183,8 @@ function connectionSignalPatch(
       kind: 'signature',
       group: 'Wormhole',
       typeName: null,
-      wormholeTypeCode: connection.wormholeTypeCode,
-      signalPct: connection.fromSignalPct,
+      wormholeTypeCode: connection.from.typeCode,
+      signalPct: connection.from.signalPct,
     }),
     normalizeSignatureKnowledge({
       kind: 'signature',
@@ -189,7 +195,9 @@ function connectionSignalPatch(
     }),
   );
   return merged.outcome === 'enriched' && merged.patch.signalPct !== undefined
-    ? { fromSignalPct: merged.patch.signalPct }
+    ? {
+        from: { ...connection.from, signalPct: merged.patch.signalPct },
+      }
     : {};
 }
 
@@ -201,20 +209,21 @@ async function insertWormholeConnection(
   firstSeenAt: number,
   wormholeTypeCode: string | null,
 ): Promise<Id<'mapConnections'>> {
+  const doors = typedDoorsFrom('from', wormholeTypeCode);
   return await ctx.db.insert('mapConnections', {
-    mapId,
-    fromSystemId: systemId,
-    toSystemId: null,
-    fromSignatureId: row.signatureId,
-    fromSignalPct: row.signalPct,
+    ...blankHallway({ mapId, fromSystemId: systemId, toSystemId: null }),
+    from: {
+      ...doors.from,
+      signatureId: row.signatureId,
+      signalPct: row.signalPct,
+    },
+    to: doors.to,
+    identity: identityFromDoors(
+      doors.from.typeCode,
+      doors.to.typeCode,
+      wormholeTypeCode === null ? null : 'human',
+    ),
     firstSeenAt,
-    ...connectionTypePatch({}, 'from', wormholeTypeCode),
-    massState: null,
-    shipSize: null,
-    eolAt: null,
-    typeProvenance: wormholeTypeCode === null ? undefined : 'human',
-    deletedAt: null,
-    purgeAfter: null,
   });
 }
 
@@ -297,7 +306,7 @@ async function absorbDuplicateOriginStub(
   const duplicate = state.connections.find((row) =>
     row._id !== inbound._id
     && row.fromSystemId === systemId
-    && row.fromSignatureId === signatureId
+    && row.from.signatureId === signatureId
     && row.toSystemId === null
     && !isTombstoned(row),
   );
@@ -306,7 +315,11 @@ async function absorbDuplicateOriginStub(
   if (side !== null) {
     const knowledge = {
       ...absorbDoorKnowledge(inbound, duplicate, side),
-      ...leadsNotePatch(inbound, duplicate.fromDestinationSystemId, side),
+      ...leadsNotePatch(
+        inbound,
+        duplicate.from.leadsTo.kind === 'system' ? duplicate.from.leadsTo.systemId : undefined,
+        side,
+      ),
     };
     if (Object.keys(knowledge).length > 0) {
       await ctx.db.patch(inbound._id, knowledge);
@@ -323,9 +336,11 @@ function mayReviveTombstonedConnection(
 ): boolean {
   if (connection.toSystemId !== null) return false;
   const ceilingPassed =
-    typeof connection.deathLatestAt === 'number' && connection.deathLatestAt <= now;
+    (lifetimeDeathWindow(connection.lifetime)?.latestAt ?? Number.POSITIVE_INFINITY) <= now;
   const undoExpired =
-    typeof connection.purgeAfter !== 'number' || connection.purgeAfter <= now;
+    connection.tombstone.kind !== 'removed'
+    || connection.tombstone.purgeAfter === null
+    || connection.tombstone.purgeAfter <= now;
   const conflictingGroup = row.group !== null && row.group !== 'Wormhole';
   return !ceilingPassed && !undoExpired && !conflictingGroup;
 }
@@ -339,7 +354,7 @@ async function revivePasteConnection(
   if (!isTombstoned(connection)) return connection;
   if (!mayReviveTombstonedConnection(connection, row, now)) return 'unchanged';
   await tombstoneConnectionRow(ctx, connection, undefined, null, null);
-  return { ...connection, deletedAt: null, purgeAfter: null };
+  return { ...connection, tombstone: liveTombstone() };
 }
 
 async function applyInboundPaste(
@@ -459,12 +474,12 @@ export function liveLifecycleRows(state: ScanState, systemId: number) {
     .filter((row) =>
       !isTombstoned(row)
       && row.fromSystemId === systemId
-      && row.fromSignatureId !== undefined,
+      && row.from.signatureId !== null,
     )
-    .flatMap((row) => row.fromSignatureId === undefined ? [] : [{
-      signatureId: row.fromSignatureId,
+    .flatMap((row) => row.from.signatureId === null ? [] : [{
+      signatureId: row.from.signatureId,
       kind: 'signature' as const,
-      deathLatestAt: row.deathLatestAt,
+      deathLatestAt: lifetimeDeathWindow(row.lifetime)?.latestAt,
     }]);
   const byId = new Map([...signatures, ...connections].map((row) => [row.signatureId, row]));
   return [...byId.values()];
@@ -484,20 +499,21 @@ async function stampIdentifiedWormholeType(
   }
   const connection = await ctx.db.get(connectionId);
   if (connection === null) return;
-  const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode);
+  const typePatch = connectionTypePatch(connection, 'from', wormholeTypeCode, 'human');
   if (
-    connection.fromWormholeTypeCode === typePatch.fromWormholeTypeCode
-    && connection.toWormholeTypeCode === typePatch.toWormholeTypeCode
-    && connection.typeProvenance === 'human'
+    connection.from.typeCode === typePatch.from.typeCode
+    && connection.to.typeCode === typePatch.to.typeCode
+    && connection.identity.kind === 'typed'
+    && connection.identity.provenance === 'human'
     && connection.observationKey !== undefined
   ) {
     return;
   }
   await ctx.db.patch(connectionId, {
     ...typePatch,
-    typeProvenance: 'human',
-    pendingCandidates: undefined,
-    pendingResolutionCharacterId: undefined,
+    resolution: connection.resolution.kind === 'pending'
+      ? { kind: 'open' as const }
+      : connection.resolution,
     ...stampObservationKey(connection.observationKey).patch,
   });
 }

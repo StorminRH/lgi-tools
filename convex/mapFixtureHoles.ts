@@ -1,6 +1,12 @@
 import { ConvexError, v } from 'convex/values';
 import { isTombstoned } from '@/data/maps/chain-contract';
-import { connectionTypePatch } from '@/data/maps/connection-door-types';
+import { connectionTypePatch, typedDoorsFrom } from '@/data/maps/connection-door-types';
+import {
+  blankHallway,
+  identityFromDoors,
+  leadsToFromHint,
+} from '@/data/maps/connection-hallway';
+import type { WormholeDestinationHint } from '@/data/eve-data/wormhole-contract';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import {
@@ -20,14 +26,14 @@ interface UnresolvedHoleFixtureArgs {
   readonly mapId: string;
   readonly fromSystemId: number;
   readonly fromSignatureId: string;
-  readonly wormholeTypeCode?: Doc<'mapConnections'>['wormholeTypeCode'];
+  readonly wormholeTypeCode?: string | null;
   readonly shipSize?: Doc<'mapConnections'>['shipSize'];
-  readonly fromDestinationHint?: Doc<'mapConnections'>['fromDestinationHint'];
+  readonly fromDestinationHint?: WormholeDestinationHint;
 }
 
 interface NormalizedUnresolvedHole extends UnresolvedHoleFixtureArgs {
   readonly fromSignatureId: string;
-  readonly wormholeTypeCode: Doc<'mapConnections'>['wormholeTypeCode'];
+  readonly wormholeTypeCode: string | null;
   readonly shipSize: Doc<'mapConnections'>['shipSize'];
 }
 
@@ -83,17 +89,19 @@ function unresolvedHoleTypePatch(
   normalized: NormalizedUnresolvedHole,
 ): Partial<Doc<'mapConnections'>> {
   if (input.wormholeTypeCode === undefined) return {};
-  const typePatch = connectionTypePatch(existing, 'from', normalized.wormholeTypeCode);
+  const typePatch = connectionTypePatch(
+    existing,
+    'from',
+    normalized.wormholeTypeCode,
+    normalized.wormholeTypeCode === null ? null : 'human',
+  );
   if (
-    existing.fromWormholeTypeCode === typePatch.fromWormholeTypeCode
-    && existing.toWormholeTypeCode === typePatch.toWormholeTypeCode
+    existing.from.typeCode === typePatch.from.typeCode
+    && existing.to.typeCode === typePatch.to.typeCode
   ) {
     return {};
   }
-  return {
-    ...typePatch,
-    typeProvenance: normalized.wormholeTypeCode === null ? undefined : 'human',
-  };
+  return typePatch;
 }
 
 function unresolvedHoleSizePatch(
@@ -111,8 +119,14 @@ function unresolvedHoleHintPatch(
   normalized: NormalizedUnresolvedHole,
 ): Partial<Doc<'mapConnections'>> {
   if (input.fromDestinationHint === undefined) return {};
-  if (existing.fromDestinationHint === normalized.fromDestinationHint) return {};
-  return { fromDestinationHint: normalized.fromDestinationHint };
+  const leadsTo = leadsToFromHint(normalized.fromDestinationHint);
+  if (
+    existing.from.leadsTo.kind === leadsTo.kind
+    && (leadsTo.kind !== 'hint' || existing.from.leadsTo.hint === leadsTo.hint)
+  ) {
+    return {};
+  }
+  return { from: { ...existing.from, leadsTo } };
 }
 
 function unresolvedHolePatch(
@@ -120,10 +134,16 @@ function unresolvedHolePatch(
   input: UnresolvedHoleFixtureArgs,
   normalized: NormalizedUnresolvedHole,
 ): Partial<Doc<'mapConnections'>> {
+  const typePatch = unresolvedHoleTypePatch(existing, input, normalized);
+  const sizePatch = unresolvedHoleSizePatch(existing, input, normalized);
+  const hintPatch = unresolvedHoleHintPatch(existing, input, normalized);
+  const from = hintPatch.from !== undefined
+    ? { ...(typePatch.from ?? existing.from), leadsTo: hintPatch.from.leadsTo }
+    : typePatch.from;
   return {
-    ...unresolvedHoleTypePatch(existing, input, normalized),
-    ...unresolvedHoleSizePatch(existing, input, normalized),
-    ...unresolvedHoleHintPatch(existing, input, normalized),
+    ...typePatch,
+    ...sizePatch,
+    ...(from === undefined ? {} : { from }),
   };
 }
 
@@ -131,19 +151,25 @@ async function insertUnresolvedHole(
   ctx: MutationCtx,
   args: NormalizedUnresolvedHole,
 ) {
+  const doors = typedDoorsFrom('from', args.wormholeTypeCode);
   return await ctx.db.insert('mapConnections', {
-    mapId: args.mapId,
-    fromSystemId: args.fromSystemId,
-    toSystemId: null,
-    fromSignatureId: args.fromSignatureId,
-    ...connectionTypePatch({}, 'from', args.wormholeTypeCode),
-    massState: null,
+    ...blankHallway({
+      mapId: args.mapId,
+      fromSystemId: args.fromSystemId,
+      toSystemId: null,
+    }),
+    from: {
+      ...doors.from,
+      signatureId: args.fromSignatureId,
+      leadsTo: leadsToFromHint(args.fromDestinationHint),
+    },
+    to: doors.to,
+    identity: identityFromDoors(
+      doors.from.typeCode,
+      doors.to.typeCode,
+      args.wormholeTypeCode === null ? null : 'human',
+    ),
     shipSize: args.shipSize,
-    eolAt: null,
-    typeProvenance: args.wormholeTypeCode === null ? undefined : 'human',
-    fromDestinationHint: args.fromDestinationHint,
-    deletedAt: null,
-    purgeAfter: null,
   });
 }
 

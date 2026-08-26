@@ -18,12 +18,12 @@ import {
   type OptimisticLocalStore,
 } from '@/data/convex/use-mutation';
 import {
-  chainTombstoneStamps,
+  connectionRemovedTombstone,
   isTombstoned,
+  tombstoneDeletedAt,
 } from '@/data/maps/chain-contract';
 import {
   deathWindowForReport,
-  deathWindowFrom,
   intersectOrReset,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
@@ -37,6 +37,25 @@ import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { loadWormholeCodex } from '@/data/eve-data/universe-assets-client';
 import { eliminateSignaturesAndAnnounce } from '../signatures/signature-elimination-client';
 import { connectionTypePatch } from '@/data/maps/connection-door-types';
+import {
+  blankHallway,
+  connectionLifetimeFrom,
+  hallwayDoor,
+  leadsToFromHint,
+  leadsToFromSystem,
+  lifetimeDeathWindow,
+  lifetimeObservedAt,
+  lifetimeStage,
+  liveTombstone,
+  replaceDoor,
+} from '@/data/maps/connection-hallway';
+import type {
+  ConnectionDoorValue,
+  ConnectionIdentity,
+  ConnectionLifetime,
+  ConnectionResolution,
+  ConnectionTombstone,
+} from '@/data/maps/connection-hallway';
 import type { ConnectionEditorDetail } from './use-map-chain';
 
 /** One optimistic system page row — structural match for `watchMapSystems`. */
@@ -56,23 +75,18 @@ export interface OptimisticConnectionRow {
   readonly mapId: string;
   readonly fromSystemId: number;
   readonly toSystemId: number | null;
-  readonly wormholeTypeCode: string | null;
-  readonly fromWormholeTypeCode?: string | null;
-  readonly toWormholeTypeCode?: string | null;
-  readonly typedSide?: 'from' | 'to';
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
   readonly massState: ConnectionMassState | null;
   readonly shipSize: WormholeSizeClass | null;
-  readonly eolAt: number | null;
-  readonly lifeStage?: WormholeLifeStage | null;
-  readonly lifeStageObservedAt?: number | null;
-  readonly fromDestinationHint?: WormholeDestinationHint;
-  readonly toDestinationHint?: WormholeDestinationHint;
-  readonly fromDestinationSystemId?: number;
-  readonly toDestinationSystemId?: number;
-  readonly deathEarliestAt?: number | null;
-  readonly deathLatestAt?: number | null;
-  readonly deletedAt?: number | null;
-  readonly purgeAfter?: number | null;
+  readonly identity: ConnectionIdentity;
+  readonly lifetime: ConnectionLifetime;
+  readonly resolution: ConnectionResolution;
+  readonly tombstone: ConnectionTombstone;
+  readonly firstSeenAt?: number;
+  readonly observedMassKg?: number;
+  readonly observedMassAtStateKg?: number;
+  readonly observationKey?: string;
 }
 
 /**
@@ -185,19 +199,11 @@ export function optimisticAddSystemFromNode(
     item: {
       _id: optimisticTempId('mapConnections'),
       _creationTime: now,
-      mapId: args.mapId,
-      fromSystemId: args.fromSystemId,
-      toSystemId: args.toSystemId,
-      wormholeTypeCode: null,
-      massState: null,
-      shipSize: null,
-      eolAt: null,
-      lifeStage: null,
-      lifeStageObservedAt: null,
-      deathEarliestAt: null,
-      deathLatestAt: null,
-      deletedAt: null,
-      purgeAfter: null,
+      ...blankHallway({
+        mapId: args.mapId,
+        fromSystemId: args.fromSystemId,
+        toSystemId: args.toSystemId,
+      }),
     } satisfies OptimisticConnectionRow as never,
   });
 }
@@ -205,22 +211,14 @@ export function optimisticAddSystemFromNode(
 export type ConnectionFieldPatch = Partial<
   Pick<
     OptimisticConnectionRow,
-    | 'wormholeTypeCode'
-    | 'fromWormholeTypeCode'
-    | 'toWormholeTypeCode'
-    | 'typedSide'
+    | 'from'
+    | 'to'
+    | 'identity'
+    | 'lifetime'
+    | 'resolution'
+    | 'tombstone'
     | 'shipSize'
     | 'massState'
-    | 'lifeStage'
-    | 'lifeStageObservedAt'
-    | 'fromDestinationHint'
-    | 'toDestinationHint'
-    | 'fromDestinationSystemId'
-    | 'toDestinationSystemId'
-    | 'deathEarliestAt'
-    | 'deathLatestAt'
-    | 'deletedAt'
-    | 'purgeAfter'
   >
 >;
 
@@ -258,7 +256,7 @@ export function optimisticSeverConnection(
   optimisticPatchConnection(localStore, {
     mapId: args.mapId,
     connectionId: args.connectionId,
-    patch: chainTombstoneStamps(now),
+    patch: connectionRemovedTombstone(now),
   });
 }
 
@@ -273,12 +271,8 @@ function severStamp(
   )) {
     if (value === undefined || args.mapId !== mapId) continue;
     const connection = value.page.find((row) => row._id === connectionId);
-    if (
-      connection !== undefined &&
-      isTombstoned(connection) &&
-      typeof connection.deletedAt === 'number'
-    ) {
-      return connection.deletedAt;
+    if (connection !== undefined && isTombstoned(connection)) {
+      return tombstoneDeletedAt(connection);
     }
   }
   return null;
@@ -305,8 +299,8 @@ export function optimisticRestoreSeveredBranch(
     api.mapChainConnections.watchMapConnections,
     { mapId: args.mapId },
     (row) =>
-      row.deletedAt === deletedAt
-        ? { ...row, deletedAt: null, purgeAfter: null }
+      tombstoneDeletedAt(row) === deletedAt
+        ? { ...row, tombstone: liveTombstone() }
         : row,
   );
 }
@@ -319,7 +313,7 @@ function optimisticRestoreConnection(
   optimisticPatchConnection(localStore, {
     mapId: args.mapId,
     connectionId: args.connectionId,
-    patch: { deletedAt: null, purgeAfter: null },
+    patch: { tombstone: liveTombstone() },
   });
 }
 
@@ -339,10 +333,11 @@ export function optimisticSetConnectionLifeStage(
     mapId: args.mapId,
     connectionId: args.connectionId,
     patch: {
-      lifeStage: args.value,
-      lifeStageObservedAt: now,
-      deathEarliestAt: args.deathEarliestAt ?? null,
-      deathLatestAt: args.deathLatestAt ?? null,
+      lifetime: connectionLifetimeFrom({
+        lifeStage: args.value,
+        observedAt: now,
+        death: deathWindowFromArgs(args),
+      }),
     },
   });
 }
@@ -361,11 +356,20 @@ export function optimisticSetConnectionWormholeType(
 ): void {
   const apply = <Row extends OptimisticConnectionRow>(row: Row): Row => {
     if (row._id !== args.connectionId) return row;
+    const typePatch = connectionTypePatch(
+      row,
+      args.side ?? 'from',
+      args.value,
+      args.value === null ? null : 'human',
+    );
     return {
       ...row,
-      ...connectionTypePatch(row, args.side ?? 'from', args.value),
-      deathEarliestAt: args.deathEarliestAt ?? null,
-      deathLatestAt: args.deathLatestAt ?? null,
+      ...typePatch,
+      lifetime: connectionLifetimeFrom({
+        lifeStage: lifetimeStage(row.lifetime),
+        observedAt: lifetimeObservedAt(row.lifetime),
+        death: deathWindowFromArgs(args),
+      }),
     };
   };
   optimisticallyUpdateValueInPaginatedQuery(
@@ -387,15 +391,32 @@ export interface ConnectionWindowSource {
   readonly connectionId: Id<'mapConnections'>;
   readonly _creationTime: number;
   readonly firstSeenAt: number | null;
-  readonly wormholeTypeCode: string | null;
-  readonly deathEarliestAt: number | null;
-  readonly deathLatestAt: number | null;
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
+  readonly lifetime: ConnectionLifetime;
 }
 
 function storedWindow(
   connection: ConnectionWindowSource,
 ): ConnectionDeathWindow | null {
-  return deathWindowFrom(connection.deathEarliestAt, connection.deathLatestAt);
+  return lifetimeDeathWindow(connection.lifetime);
+}
+
+function deathWindowFromArgs(args: {
+  readonly deathEarliestAt?: number | null;
+  readonly deathLatestAt?: number | null;
+}): ConnectionDeathWindow | null {
+  const earliestAt = args.deathEarliestAt ?? null;
+  const latestAt = args.deathLatestAt ?? null;
+  if (earliestAt === null || latestAt === null) return null;
+  return { earliestAt, latestAt };
+}
+
+function namedTypeCode(connection: {
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
+}): string | null {
+  return connection.from.typeCode ?? connection.to.typeCode;
 }
 
 /** Explicit type-pick proposal: typed ceilings narrow; K162/unset preserve. */
@@ -482,11 +503,7 @@ export function swallowMutationRejection<Args, Result>(
 type ConnectionFieldArgs = {
   mapId: string;
   connectionId: string;
-  value: OptimisticConnectionRow[
-    | 'wormholeTypeCode'
-    | 'shipSize'
-    | 'massState'
-    | 'lifeStage'];
+  value: OptimisticConnectionRow['shipSize'] | OptimisticConnectionRow['massState'];
 };
 
 /** Optimistic Leads-to note on one door. Does not spawn a system or move the line. */
@@ -499,20 +516,29 @@ export function optimisticSetConnectionDestination(
     value: number | null;
   },
 ): void {
-  const destField = args.side === 'from'
-    ? 'fromDestinationSystemId'
-    : 'toDestinationSystemId';
-  const hintField = args.side === 'from'
-    ? 'fromDestinationHint'
-    : 'toDestinationHint';
-  optimisticPatchConnection(localStore, {
-    mapId: args.mapId,
-    connectionId: args.connectionId,
-    patch: {
-      [destField]: args.value ?? undefined,
-      [hintField]: undefined,
-    },
-  });
+  const apply = <Row extends OptimisticConnectionRow>(row: Row): Row => {
+    if (row._id !== args.connectionId) return row;
+    const door = hallwayDoor(row, args.side);
+    return {
+      ...row,
+      ...replaceDoor(row, args.side, {
+        ...door,
+        leadsTo: leadsToFromSystem(args.value),
+      }),
+    };
+  };
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChainConnections.watchMapConnections,
+    { mapId: args.mapId },
+    apply,
+  );
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChainConnections.watchUnresolvedHoles,
+    { mapId: args.mapId },
+    apply,
+  );
 }
 
 /** Optimistic patch for one side's destination hint (null clears the field). */
@@ -525,25 +551,34 @@ function optimisticSetConnectionDestinationHint(
     value: WormholeDestinationHint | null;
   },
 ): void {
-  optimisticPatchConnection(localStore, {
-    mapId: args.mapId,
-    connectionId: args.connectionId,
-    patch:
-      args.side === 'from'
-        ? {
-            fromDestinationHint: args.value ?? undefined,
-            fromDestinationSystemId: undefined,
-          }
-        : {
-            toDestinationHint: args.value ?? undefined,
-            toDestinationSystemId: undefined,
-          },
-  });
+  const apply = <Row extends OptimisticConnectionRow>(row: Row): Row => {
+    if (row._id !== args.connectionId) return row;
+    const door = hallwayDoor(row, args.side);
+    return {
+      ...row,
+      ...replaceDoor(row, args.side, {
+        ...door,
+        leadsTo: leadsToFromHint(args.value),
+      }),
+    };
+  };
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChainConnections.watchMapConnections,
+    { mapId: args.mapId },
+    apply,
+  );
+  optimisticallyUpdateValueInPaginatedQuery(
+    localStore,
+    api.mapChainConnections.watchUnresolvedHoles,
+    { mapId: args.mapId },
+    apply,
+  );
 }
 
 /** Wires one field-scoped connection setter to a single-key optimistic patch. */
 function optimisticConnectionField(
-  field: 'wormholeTypeCode' | 'shipSize' | 'massState',
+  field: 'shipSize' | 'massState',
 ): (localStore: OptimisticLocalStore, args: ConnectionFieldArgs) => void {
   return (localStore, args) => {
     optimisticPatchConnection(localStore, {
@@ -672,7 +707,7 @@ export function useChainAuthoringMutations() {
       const proposal = lifeStageWindowProposal(
         args.value,
         Date.now(),
-        await lifetimeMinutesFor(args.connection.wormholeTypeCode),
+        await lifetimeMinutesFor(namedTypeCode(args.connection)),
       );
       return await setConnectionLifeStage({
         mapId: args.mapId,

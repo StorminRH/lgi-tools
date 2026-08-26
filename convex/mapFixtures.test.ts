@@ -8,6 +8,8 @@ import { SIGNATURE_PURGE_BATCH } from './mapScan';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc';
+
 
 const MAP_A = 'map-a';
 const MAP_B = 'map-b';
@@ -154,37 +156,21 @@ describe('map chain fixtures', () => {
         mapAccess: ['mapId', 'roles', 'userId'],
         mapSystems: ['deletedAt', 'mapId', 'purgeAfter', 'systemId'],
         mapConnections: [
-          'deathEarliestAt',
-          'deathLatestAt',
-          'deletedAt',
-          'destinationProvenance',
-          'eolAt',
           'firstSeenAt',
-          'fromDestinationHint',
-          'fromDestinationSystemId',
-          'fromSignalPct',
-          'fromSignatureId',
+          'from',
           'fromSystemId',
-          'fromWormholeTypeCode',
-          'lifeStage',
-          'lifeStageObservedAt',
+          'identity',
+          'lifetime',
           'mapId',
           'massState',
           'observationKey',
           'observedMassAtStateKg',
           'observedMassKg',
-          'pendingCandidates',
-          'pendingResolutionCharacterId',
-          'purgeAfter',
+          'resolution',
           'shipSize',
-          'toDestinationHint',
-          'toDestinationSystemId',
-          'toSignatureId',
+          'to',
           'toSystemId',
-          'toWormholeTypeCode',
-          'typeProvenance',
-          'typedSide',
-          'wormholeTypeCode',
+          'tombstone',
         ],
         mapJumpBookkeeping: ['characterId', 'lastProcessedTransitionAt', 'mapId'],
         mapSignatures: [
@@ -221,11 +207,11 @@ describe('map chain fixtures', () => {
           by_purge_after: ['purgeAfter'],
         },
         mapConnections: {
-          by_deleted_death_latest: ['deletedAt', 'deathLatestAt'],
+          by_tombstone_death_latest: ['tombstone.kind', 'lifetime.latestAt'],
           by_map: ['mapId'],
           by_map_from: ['mapId', 'fromSystemId'],
           by_map_to: ['mapId', 'toSystemId'],
-          by_purge_after: ['purgeAfter'],
+          by_purge_after: ['tombstone.purgeAfter'],
         },
         mapJumpBookkeeping: {
           by_map: ['mapId'],
@@ -298,7 +284,6 @@ describe('map chain fixtures', () => {
         wormholeTypeCode: 'C247',
         massState: 'stable',
         shipSize: null,
-        eolAt: null,
       });
 
       const systems = await t.run(async (ctx) =>
@@ -330,7 +315,6 @@ describe('map chain fixtures', () => {
           wormholeTypeCode: 'C247',
           massState: 'stable',
           shipSize: null,
-          eolAt: null,
         }),
         'NO_ORIGIN',
       );
@@ -351,7 +335,6 @@ describe('map chain fixtures', () => {
         wormholeTypeCode: 'C247',
         massState: 'stable',
         shipSize: null,
-        eolAt: null,
       });
 
       const systems = await t.run(async (ctx) =>
@@ -375,7 +358,6 @@ describe('map chain fixtures', () => {
           wormholeTypeCode: 'C247',
           massState: 'stable',
           shipSize: null,
-          eolAt: null,
         }),
         'INVALID_SYSTEM_ID',
       );
@@ -539,7 +521,6 @@ describe('map chain fixtures', () => {
         wormholeTypeCode: 'C247',
         massState: 'stable',
         shipSize: null,
-        eolAt: null,
       });
     }
 
@@ -581,7 +562,6 @@ describe('map chain fixtures', () => {
         wormholeTypeCode: null,
         massState: 'stable',
         shipSize: null,
-        eolAt: null,
       });
 
       await expectConvexError(
@@ -682,7 +662,6 @@ describe('map chain fixtures', () => {
         systemId: AMARR,
       });
 
-      const eolAt = NOW + 3_600_000;
       await t.mutation(internal.mapFixturePlace.insertConnectionFixture, {
         mapId: MAP_A,
         fromSystemId: JITA,
@@ -690,7 +669,6 @@ describe('map chain fixtures', () => {
         wormholeTypeCode: 'C247',
         massState: 'reduced',
         shipSize: null,
-        eolAt,
       });
 
       const [connection] = await t.run(async (ctx) =>
@@ -704,21 +682,26 @@ describe('map chain fixtures', () => {
         mapId: MAP_A,
         fromSystemId: JITA,
         toSystemId: AMARR,
-        wormholeTypeCode: 'C247',
+        from: expect.objectContaining({ typeCode: 'C247' }),
+        identity: { kind: 'typed', provenance: 'human' },
         massState: 'reduced',
         shipSize: null,
-        eolAt,
+        tombstone: { kind: 'live' },
       });
       expect(Object.keys(connection!).sort()).toEqual([
         '_creationTime',
         '_id',
-        'eolAt',
+        'from',
         'fromSystemId',
+        'identity',
+        'lifetime',
         'mapId',
         'massState',
+        'resolution',
         'shipSize',
+        'to',
         'toSystemId',
-        'wormholeTypeCode',
+        'tombstone',
       ]);
     });
 
@@ -772,14 +755,14 @@ describe('map chain fixtures', () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({
         toSystemId: null,
-        fromSignatureId: 'ABC-123',
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        typeProvenance: 'human',
+        from: expect.objectContaining({
+          signatureId: 'ABC-123',
+          typeCode: 'C247',
+          leadsTo: { kind: 'hint', hint: 'dangerous' },
+        }),
+        identity: { kind: 'typed', provenance: 'human' },
         shipSize: 'L',
-        fromDestinationHint: 'dangerous',
-        deletedAt: null,
-        purgeAfter: null,
+        tombstone: { kind: 'live' },
       });
     });
 
@@ -788,7 +771,7 @@ describe('map chain fixtures', () => {
       await seedMap(t);
       await t.run(async (ctx) => {
         for (let index = 0; index <= FIXTURE_CONNECTION_SCAN_LIMIT; index += 1) {
-          await ctx.db.insert('mapConnections', {
+          await ctx.db.insert('mapConnections', connectionInsert({
             mapId: MAP_A,
             fromSystemId: JITA,
             toSystemId: null,
@@ -796,8 +779,7 @@ describe('map chain fixtures', () => {
             wormholeTypeCode: null,
             massState: 'stable',
             shipSize: null,
-            eolAt: null,
-          });
+          }));
         }
       });
 
@@ -912,16 +894,6 @@ describe('map chain fixtures', () => {
         code: 'INVALID_SYSTEM_ID',
         args: { fromSystemId: JITA, toSystemId: -1, wormholeTypeCode: null },
       },
-      {
-        label: 'a non-finite EOL timestamp',
-        code: 'INVALID_TIMESTAMP',
-        args: {
-          fromSystemId: JITA,
-          toSystemId: AMARR,
-          wormholeTypeCode: null,
-          eolAt: Number.POSITIVE_INFINITY,
-        },
-      },
     ])('rejects $label before any write', async ({ code, args }) => {
       const t = convexTest(schema, modules);
       await seedMap(t);
@@ -935,7 +907,6 @@ describe('map chain fixtures', () => {
           mapId: MAP_A,
           massState: 'stable',
           shipSize: null,
-          eolAt: null,
           ...args,
         }),
         code,
@@ -1076,15 +1047,14 @@ describe('map chain fixtures', () => {
         systemId: AMARR,
       });
       await t.run(async (ctx) => {
-        await ctx.db.insert('mapConnections', {
+        await ctx.db.insert('mapConnections', connectionInsert({
           mapId: MAP_B,
           fromSystemId: JITA,
           toSystemId: AMARR,
           wormholeTypeCode: 'C247',
           massState: 'stable',
           shipSize: 'S',
-          eolAt: null,
-        });
+        }));
         await ctx.db.insert('mapSignatures', {
           mapId: MAP_B,
           systemId: AMARR,
@@ -1147,15 +1117,14 @@ describe('map chain fixtures', () => {
                 systemId: 40_000_000 + i,
               });
             } else {
-              await ctx.db.insert('mapConnections', {
+              await ctx.db.insert('mapConnections', connectionInsert({
                 mapId: MAP_A,
                 fromSystemId: JITA,
                 toSystemId: 40_000_000 + i,
                 wormholeTypeCode: null,
                 massState: 'stable',
                 shipSize: null,
-                eolAt: null,
-              });
+              }));
             }
           }
         });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Doc, Id } from '../_generated/dataModel';
+import type { Id } from '../_generated/dataModel';
+import { connectionTestDoc } from '../__tests__/connection-doc';
 import {
   connectionOwnsLocalSignature,
   findLocalSignatureConnection,
@@ -11,23 +12,21 @@ const HERE = 30_000_142;
 const THERE = 30_002_187;
 
 function connection(
-  partial: Partial<Doc<'mapConnections'>> & {
+  partial: {
+    readonly _id?: Id<'mapConnections'>;
     readonly fromSystemId: number;
+    readonly toSystemId?: number | null;
+    readonly fromSignatureId?: string | null;
+    readonly toSignatureId?: string | null;
+    readonly deletedAt?: number | null;
+    readonly purgeAfter?: number | null;
   },
-): Doc<'mapConnections'> {
-  return {
-    _id: (partial._id ?? 'c1') as Id<'mapConnections'>,
-    _creationTime: 1,
+) {
+  return connectionTestDoc({
     mapId: MAP,
     toSystemId: null,
-    wormholeTypeCode: null,
-    massState: null,
-    shipSize: null,
-    eolAt: null,
-    deletedAt: null,
-    purgeAfter: null,
     ...partial,
-  };
+  });
 }
 
 describe('local signature identity', () => {

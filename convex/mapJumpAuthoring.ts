@@ -9,6 +9,7 @@ import { requireMapAccessForUser } from './lib/mapAccess';
 import { findSystem, requireSystemId } from './lib/mapSystemLookup';
 import { upsertLiveDestination } from './mapAuthoringHome';
 import { chainTombstoneState, isTombstoned } from '@/data/maps/chain-contract';
+import { blankHallway, destinationResolution, pendingResolution } from '@/data/maps/connection-hallway';
 import {
   emissionFacts,
   type EmissionFacts,
@@ -152,21 +153,9 @@ function connectionBase(
   observationKey: string,
 ): Omit<Doc<'mapConnections'>, '_id' | '_creationTime'> {
   return {
-    mapId,
-    fromSystemId,
-    toSystemId,
-    wormholeTypeCode: null,
-    fromWormholeTypeCode: null,
-    toWormholeTypeCode: null,
-    massState: null,
-    shipSize: null,
-    eolAt: null,
+    ...blankHallway({ mapId, fromSystemId, toSystemId }),
     observedMassKg: observedMassKg ?? undefined,
     observationKey,
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deletedAt: null,
-    purgeAfter: null,
   };
 }
 
@@ -302,9 +291,9 @@ async function resolveCandidateTopology(
     selection.provenance === 'assumed' && selection.survivors.length > 1;
   const patch = {
     toSystemId: args.toSolarSystemId,
-    destinationProvenance: selection.provenance,
-    pendingCandidates: ambiguous ? [...selection.survivors] : undefined,
-    pendingResolutionCharacterId: ambiguous ? args.characterId : undefined,
+    resolution: ambiguous
+      ? pendingResolution([...selection.survivors], args.characterId)
+      : destinationResolution(selection.provenance),
     observedMassKg: nextObservedMass(candidate, observedShipMassKg),
     observationKey: candidate.observationKey ?? args.observationKey,
   } as const;
@@ -343,7 +332,10 @@ async function supersedeDyingPairConnections(
   for (const row of pairRows) {
     if (row._id === liveId) continue;
     if (chainTombstoneState(row, now) !== 'dying') continue;
-    await ctx.db.patch(row._id, { purgeAfter: now });
+    if (row.tombstone.kind !== 'removed') continue;
+    await ctx.db.patch(row._id, {
+      tombstone: { ...row.tombstone, purgeAfter: now },
+    });
   }
 }
 

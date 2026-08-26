@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Doc, Id } from '@/data/convex/data-model';
+import { blankDoor } from '@/data/maps/connection-hallway';
 import { isScannerPasteCandidate } from '@/data/maps/scan-parse';
+import { connectionEditorFixture } from '../chain/connection-editor-fixture';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import {
   buildSignatureRows,
@@ -46,34 +48,15 @@ function signature(
 function connection(
   partial: Partial<ConnectionSignatureInput> = {},
 ): ConnectionSignatureInput {
-  return {
+  return connectionEditorFixture({
     connectionId: 'connection-1' as Id<'mapConnections'>,
     _creationTime: 2_000,
     fromSystemId: SYSTEM,
     toSystemId: null,
-    fromSignatureId: 'WHL-001',
-    toSignatureId: null,
-    fromSignalPct: 75,
+    from: { ...blankDoor(), signatureId: 'WHL-001', signalPct: 75 },
     firstSeenAt: 1_500,
-    wormholeTypeCode: null,
-    typedSide: null,
-    massState: null,
-    shipSize: null,
-    lifeStage: null,
-    lifeStageObservedAt: null,
-    deathEarliestAt: null,
-    deathLatestAt: null,
-    deletedAt: null,
-    purgeAfter: null,
-    fromDestinationHint: null,
-    toDestinationHint: null,
-    destinationProvenance: null,
-    pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-    observedMassKg: null,
-    observedMassAtStateKg: null,
     ...partial,
-  };
+  });
 }
 
 describe('signature window tabs, filters, confirmation and refusal models', () => {
@@ -93,7 +76,11 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
           signalPct: 10,
         }),
       ],
-      [connection({ wormholeTypeCode: 'B274' })],
+      [connection({
+        from: { ...blankDoor(), typeCode: 'B274', signatureId: 'WHL-001', signalPct: 75 },
+        to: { ...blankDoor(), typeCode: 'K162' },
+        identity: { kind: 'typed', provenance: 'human' },
+      })],
       (code) => (code === 'B274' ? 'HS' : null),
     );
 
@@ -123,10 +110,9 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         connection({
           fromSystemId,
           toSystemId,
-          fromSignatureId: 'JNW-622',
-          toSignatureId: 'YXX-744',
-          wormholeTypeCode: 'P060',
-          typedSide: 'from',
+          from: { ...blankDoor(), typeCode: 'P060', signatureId: 'JNW-622' },
+          to: { ...blankDoor(), typeCode: 'K162', signatureId: 'YXX-744' },
+          identity: { kind: 'typed', provenance: 'human' },
         }),
       ],
       (code) => (code === 'P060' ? 'C1' : null),
@@ -143,7 +129,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       endpoint: 'from',
       connection: expect.objectContaining({
         connectionId: 'connection-1',
-        toSignatureId: 'YXX-744',
+        to: expect.objectContaining({ signatureId: 'YXX-744' }),
       }),
     });
     expect(
@@ -156,7 +142,9 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       group: 'Wormhole',
       name: 'K162',
       className: null,
-      connection: expect.objectContaining({ toSignatureId: 'YXX-744' }),
+      connection: expect.objectContaining({
+        to: expect.objectContaining({ signatureId: 'YXX-744' }),
+      }),
     });
     expect(
       filterSignatureRows(rows, toSystemId, 'signature').map((row) => row.signatureId),
@@ -172,12 +160,9 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         connection({
           fromSystemId,
           toSystemId,
-          fromSignatureId: 'JNW-622',
-          toSignatureId: 'YXX-744',
-          fromWormholeTypeCode: 'C247',
-          toWormholeTypeCode: 'K162',
-          wormholeTypeCode: 'C247',
-          typedSide: 'from',
+          from: { ...blankDoor(), typeCode: 'C247', signatureId: 'JNW-622' },
+          to: { ...blankDoor(), typeCode: 'K162', signatureId: 'YXX-744' },
+          identity: { kind: 'typed', provenance: 'human' },
         }),
       ],
     );
@@ -198,10 +183,9 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         connection({
           fromSystemId,
           toSystemId,
-          fromSignatureId: 'JNW-622',
-          toSignatureId: 'YXX-744',
-          wormholeTypeCode: 'K162',
-          typedSide: 'from',
+          from: { ...blankDoor(), typeCode: 'K162', signatureId: 'JNW-622' },
+          to: { ...blankDoor(), signatureId: 'YXX-744' },
+          identity: { kind: 'typed', provenance: 'human' },
         }),
       ],
     );
@@ -298,7 +282,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
         firstSeenAt: 1,
         connection: connection({
           shipSize: 'M',
-          lifeStage: 'under_4_hours',
+          lifetime: { kind: 'stage', lifeStage: 'under_4_hours', observedAt: 1 },
         }),
         className: 'HS',
       },
@@ -386,9 +370,7 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
     const base = connection({
       _creationTime: createdAt,
       shipSize: 'M',
-      lifeStage: null,
-      deathEarliestAt: null,
-      deathLatestAt: null,
+      lifetime: { kind: 'unknown' },
     });
 
     expect(scannerWormholeSize(base, typed)).toBe('L');
@@ -407,8 +389,13 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       scannerWormholeLifetime(
         {
           ...base,
-          deathEarliestAt: now + 60 * 60_000,
-          deathLatestAt: now + 4 * 60 * 60_000,
+          lifetime: {
+            kind: 'window',
+            earliestAt: now + 60 * 60_000,
+            latestAt: now + 4 * 60 * 60_000,
+            lifeStage: null,
+            observedAt: null,
+          },
         },
         typed,
         now,
@@ -418,8 +405,13 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       scannerLifeUpperBound(
         {
           ...base,
-          deathEarliestAt: now + 60 * 60_000,
-          deathLatestAt: now + 4 * 60 * 60_000,
+          lifetime: {
+            kind: 'window',
+            earliestAt: now + 60 * 60_000,
+            latestAt: now + 4 * 60 * 60_000,
+            lifeStage: null,
+            observedAt: null,
+          },
         },
         typed,
         now,
@@ -429,8 +421,13 @@ describe('signature window tabs, filters, confirmation and refusal models', () =
       scannerWormholeLifetime(
         {
           ...base,
-          deathEarliestAt: now - 1_000,
-          deathLatestAt: now - 1_000,
+          lifetime: {
+            kind: 'window',
+            earliestAt: now - 1_000,
+            latestAt: now - 1_000,
+            lifeStage: null,
+            observedAt: null,
+          },
         },
         typed,
         now,

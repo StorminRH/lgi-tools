@@ -29,7 +29,6 @@ const DEFAULT_CONNECTION = {
   wormholeTypeCode: 'C247',
   massState: 'stable' as const,
   shipSize: null,
-  eolAt: null,
 };
 
 function usage(): never {

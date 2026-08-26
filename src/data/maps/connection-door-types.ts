@@ -15,30 +15,28 @@
 // each system. `from`/`to` are the two stored ends of that row — usually
 // `from` is the system where the hole was first scanned — not incoming vs
 // outgoing and not named vs K162. A K162 can sit on `from`; a P060 can sit
-// on `to`. `typedSide` is only which end a legacy single code belongs to.
+// on `to`.
 //
 // Knowing a named mouth fills a blank other mouth as K162. Knowing only a
 // K162 never invents the named type.
+import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
 import {
   FAR_SIDE_WORMHOLE_CODE,
   isWormholeTypeCode,
 } from '@/data/eve-data/wormhole-contract';
+import type {
+  ConnectionDoorSide,
+  ConnectionDoorValue,
+  ConnectionIdentity,
+} from '@/data/maps/connection-hallway';
+import { blankDoor, hallwayDoorTypes, identityFromDoors } from '@/data/maps/connection-hallway';
 
-/** One stored end of a hallway row — not incoming/outgoing, not named/K162. */
-export type ConnectionDoor = 'from' | 'to';
+export type { ConnectionDoorSide as ConnectionDoor };
 
-/** The two stored mouth types after legacy rows are normalized. */
+/** The two stored mouth types. */
 export interface ConnectionDoorTypes {
   readonly from: string | null;
   readonly to: string | null;
-}
-
-/** Connection fields the mouth-type helpers can read. */
-export interface ConnectionTypeFields {
-  readonly fromWormholeTypeCode?: string | null;
-  readonly toWormholeTypeCode?: string | null;
-  readonly wormholeTypeCode?: string | null;
-  readonly typedSide?: ConnectionDoor | null;
 }
 
 /** Named outgoing type — never K162, never unidentified. */
@@ -46,51 +44,20 @@ export function isEntranceType(code: string | null | undefined): boolean {
   return code != null && code !== FAR_SIDE_WORMHOLE_CODE && isWormholeTypeCode(code);
 }
 
-function hasDoorFields(row: ConnectionTypeFields): boolean {
-  return typeof row.fromWormholeTypeCode === 'string'
-    || typeof row.toWormholeTypeCode === 'string';
+/** Types stored on each mouth. */
+export function storedDoorTypes(hallway: {
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
+}): ConnectionDoorTypes {
+  return hallwayDoorTypes(hallway);
 }
 
-function legacyDoorTypes(
-  code: string | null,
-  side: ConnectionDoor,
-): ConnectionDoorTypes {
-  if (code === null) return { from: null, to: null };
-  if (isEntranceType(code)) {
-    return side === 'from'
-      ? { from: code, to: FAR_SIDE_WORMHOLE_CODE }
-      : { from: FAR_SIDE_WORMHOLE_CODE, to: code };
-  }
-  return side === 'from' ? { from: code, to: null } : { from: null, to: code };
-}
-
-/**
- * Types actually stored on each mouth. Legacy rows expose only the coded
- * end — the other stays blank. Layout and census use this so a one-code
- * row does not suddenly grow a K162 on the other mouth.
- */
-export function storedDoorTypes(row: ConnectionTypeFields): ConnectionDoorTypes {
-  if (hasDoorFields(row)) {
-    return {
-      from: row.fromWormholeTypeCode ?? null,
-      to: row.toWormholeTypeCode ?? null,
-    };
-  }
-  const code = row.wormholeTypeCode ?? null;
-  const side = row.typedSide ?? 'from';
-  if (code === null) return { from: null, to: null };
-  return side === 'from' ? { from: code, to: null } : { from: null, to: code };
-}
-
-/**
- * Mouth types for scanner display and type writes. Legacy named codes still
- * show K162 on the other mouth; a stored K162 does not invent a named type.
- */
-export function connectionDoorTypes(row: ConnectionTypeFields): ConnectionDoorTypes {
-  if (hasDoorFields(row)) {
-    return storedDoorTypes(row);
-  }
-  return legacyDoorTypes(row.wormholeTypeCode ?? null, row.typedSide ?? 'from');
+/** Mouth types for scanner display and type writes. Stored codes are the truth. */
+export function connectionDoorTypes(hallway: {
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
+}): ConnectionDoorTypes {
+  return hallwayDoorTypes(hallway);
 }
 
 /**
@@ -100,7 +67,7 @@ export function connectionDoorTypes(row: ConnectionTypeFields): ConnectionDoorTy
  */
 export function applyDoorType(
   current: ConnectionDoorTypes,
-  side: ConnectionDoor,
+  side: ConnectionDoorSide,
   value: string | null,
 ): ConnectionDoorTypes {
   const next: ConnectionDoorTypes = side === 'from'
@@ -120,7 +87,7 @@ export function applyDoorType(
  */
 export function applyReturnDoorType(
   current: ConnectionDoorTypes,
-  attachedSide: ConnectionDoor,
+  attachedSide: ConnectionDoorSide,
   stubType: string | null,
 ): ConnectionDoorTypes {
   const other = attachedSide === 'from' ? current.to : current.from;
@@ -132,65 +99,72 @@ export function applyReturnDoorType(
   return applyDoorType(current, attachedSide, stubType);
 }
 
-/** One-code snapshot so jump census and older readers still see which end holds the code. */
-export function legacyTypeSnapshot(
-  doors: ConnectionDoorTypes,
-  preferredSide?: ConnectionDoor,
-): {
-  readonly wormholeTypeCode: string | null;
-  readonly typedSide: ConnectionDoor | undefined;
-} {
-  if (preferredSide !== undefined) {
-    const preferred = preferredSide === 'from' ? doors.from : doors.to;
-    if (isEntranceType(preferred)) {
-      return { wormholeTypeCode: preferred, typedSide: preferredSide };
-    }
-  }
-  if (isEntranceType(doors.from)) {
-    return { wormholeTypeCode: doors.from, typedSide: 'from' };
-  }
-  if (isEntranceType(doors.to)) {
-    return { wormholeTypeCode: doors.to, typedSide: 'to' };
-  }
-  if (doors.from !== null) return { wormholeTypeCode: doors.from, typedSide: 'from' };
-  if (doors.to !== null) return { wormholeTypeCode: doors.to, typedSide: 'to' };
-  return { wormholeTypeCode: null, typedSide: undefined };
+function doorsWithTypes(
+  hallway: { readonly from: ConnectionDoorValue; readonly to: ConnectionDoorValue },
+  types: ConnectionDoorTypes,
+): { readonly from: ConnectionDoorValue; readonly to: ConnectionDoorValue } {
+  return {
+    from: { ...hallway.from, typeCode: types.from },
+    to: { ...hallway.to, typeCode: types.to },
+  };
 }
 
-/** Patch that writes both mouths and keeps the one-code snapshot in sync. */
+/** Patch that writes both mouths and hallway identity together. */
 export function connectionTypePatch(
-  row: ConnectionTypeFields,
-  side: ConnectionDoor,
+  hallway: {
+    readonly from: ConnectionDoorValue;
+    readonly to: ConnectionDoorValue;
+    readonly identity: ConnectionIdentity;
+  },
+  side: ConnectionDoorSide,
   value: string | null,
+  provenance: ConnectionProvenance | null,
 ): {
-  readonly fromWormholeTypeCode: string | null;
-  readonly toWormholeTypeCode: string | null;
-  readonly wormholeTypeCode: string | null;
-  readonly typedSide: ConnectionDoor | undefined;
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
+  readonly identity: ConnectionIdentity;
 } {
-  const doors = applyDoorType(connectionDoorTypes(row), side, value);
+  const doors = doorsWithTypes(hallway, applyDoorType(hallwayDoorTypes(hallway), side, value));
   return {
-    fromWormholeTypeCode: doors.from,
-    toWormholeTypeCode: doors.to,
-    ...legacyTypeSnapshot(doors, side),
+    ...doors,
+    identity: identityFromDoors(doors.from.typeCode, doors.to.typeCode, provenance),
   };
 }
 
 /** Patch used when a stub is linked onto a resolved hallway. */
 export function returnDoorTypePatch(
-  row: ConnectionTypeFields,
-  attachedSide: ConnectionDoor,
+  hallway: {
+    readonly from: ConnectionDoorValue;
+    readonly to: ConnectionDoorValue;
+    readonly identity: ConnectionIdentity;
+  },
+  attachedSide: ConnectionDoorSide,
   stubType: string | null,
+  provenance: ConnectionProvenance | null,
 ): {
-  readonly fromWormholeTypeCode: string | null;
-  readonly toWormholeTypeCode: string | null;
-  readonly wormholeTypeCode: string | null;
-  readonly typedSide: ConnectionDoor | undefined;
+  readonly from: ConnectionDoorValue;
+  readonly to: ConnectionDoorValue;
+  readonly identity: ConnectionIdentity;
 } {
-  const doors = applyReturnDoorType(connectionDoorTypes(row), attachedSide, stubType);
+  const doors = doorsWithTypes(
+    hallway,
+    applyReturnDoorType(hallwayDoorTypes(hallway), attachedSide, stubType),
+  );
   return {
-    fromWormholeTypeCode: doors.from,
-    toWormholeTypeCode: doors.to,
-    ...legacyTypeSnapshot(doors, attachedSide),
+    ...doors,
+    identity: identityFromDoors(
+      doors.from.typeCode,
+      doors.to.typeCode,
+      provenance ?? (hallway.identity.kind === 'typed' ? hallway.identity.provenance : null),
+    ),
   };
+}
+
+/** Writes one mouth's type onto a blank hallway (scan/fixture insert). */
+export function typedDoorsFrom(
+  side: ConnectionDoorSide,
+  value: string | null,
+): { readonly from: ConnectionDoorValue; readonly to: ConnectionDoorValue } {
+  const types = applyDoorType({ from: null, to: null }, side, value);
+  return doorsWithTypes({ from: blankDoor(), to: blankDoor() }, types);
 }

@@ -56,7 +56,6 @@ import {
   setConnectionLifeStage,
   setConnectionMassState,
   setConnectionShipSize,
-  setConnectionTypedSide,
   setConnectionWormholeType,
 } from '../mapAuthoringFields';
 import { addSystemFromNode, setHomeSystem, upsertLiveDestination } from '../mapAuthoringHome';
@@ -177,7 +176,6 @@ describe('convex runtime exports', () => {
       setConnectionLifeStage,
       setConnectionMassState,
       setConnectionShipSize,
-      setConnectionTypedSide,
       setConnectionWormholeType,
       setHomeSystem,
       severConnection,

@@ -2,7 +2,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
+import { blankDoor } from '@/data/maps/connection-hallway';
 import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
+import { connectionEditorFixture } from '../chain/connection-editor-fixture';
 import {
   SignatureWindow,
   scannerLeadsCellKey,
@@ -121,33 +123,17 @@ const ROWS: readonly SignatureWindowRow[] = [
     name: 'B274',
     signalPct: 100,
     firstSeenAt: 0,
-    connection: {
+    connection: connectionEditorFixture({
       connectionId: 'connection-1' as Id<'mapConnections'>,
       _creationTime: 2_000,
       fromSystemId: 1,
       toSystemId: null,
-      fromSignatureId: 'WHL-001',
-      toSignatureId: null,
-      fromSignalPct: 100,
-      firstSeenAt: 0,
-      wormholeTypeCode: 'B274',
-      typedSide: null,
-      massState: null,
+      from: { ...blankDoor(), typeCode: 'B274', signatureId: 'WHL-001', signalPct: 100 },
+      to: { ...blankDoor(), typeCode: 'K162' },
+      identity: { kind: 'typed', provenance: 'human' },
       shipSize: 'M',
-      lifeStage: null,
-      lifeStageObservedAt: null,
-      deathEarliestAt: null,
-      deathLatestAt: null,
-      deletedAt: null,
-      purgeAfter: null,
-      fromDestinationHint: null,
-      toDestinationHint: null,
-      destinationProvenance: null,
-      pendingCandidates: null,
-    pendingResolutionCharacterId: null,
-      observedMassKg: null,
-      observedMassAtStateKg: null,
-    },
+      firstSeenAt: 0,
+    }),
     className: 'HS',
   },
   {
@@ -409,7 +395,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     const connection = {
       ...origin!.connection!,
       toSystemId: 2,
-      toSignatureId: 'FAR-001',
+      to: { ...origin!.connection!.to, signatureId: 'FAR-001' },
     };
     const originRow: SignatureWindowRow = {
       ...origin!,

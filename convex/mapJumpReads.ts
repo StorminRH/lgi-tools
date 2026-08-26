@@ -3,10 +3,11 @@ import type { Doc, Id } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
 import {
   connectionDoorTypes,
+  isEntranceType,
   type ConnectionDoor,
-  legacyTypeSnapshot,
 } from '@/data/maps/connection-door-types';
 import { isTombstoned } from '@/data/maps/chain-contract';
+import { destinationProvenanceOf } from '@/data/maps/connection-hallway';
 import type { ConnectionProvenance } from './lib/mapEntityContracts';
 import { readOriginConnections } from './lib/mapConnectionLookup';
 
@@ -77,18 +78,31 @@ export async function readConnectionsFrom(
   });
 }
 
+function emissionTypeSnapshot(connection: Doc<'mapConnections'>): {
+  readonly wormholeTypeCode: string | null;
+  readonly typedSide: ConnectionDoor | null;
+} {
+  const doors = connectionDoorTypes(connection);
+  if (isEntranceType(doors.from)) {
+    return { wormholeTypeCode: doors.from, typedSide: 'from' };
+  }
+  if (isEntranceType(doors.to)) {
+    return { wormholeTypeCode: doors.to, typedSide: 'to' };
+  }
+  if (doors.from !== null) return { wormholeTypeCode: doors.from, typedSide: 'from' };
+  if (doors.to !== null) return { wormholeTypeCode: doors.to, typedSide: 'to' };
+  return { wormholeTypeCode: null, typedSide: null };
+}
+
 export function emissionFacts(connection: Doc<'mapConnections'>): EmissionFacts {
-  const snapshot = legacyTypeSnapshot(
-    connectionDoorTypes(connection),
-    connection.typedSide ?? undefined,
-  );
+  const snapshot = emissionTypeSnapshot(connection);
   return {
     connectionId: connection._id,
     fromSystemId: connection.fromSystemId,
     toSystemId: connection.toSystemId,
     wormholeTypeCode: snapshot.wormholeTypeCode,
-    typedSide: snapshot.typedSide ?? null,
-    destinationProvenance: connection.destinationProvenance ?? null,
+    typedSide: snapshot.typedSide,
+    destinationProvenance: destinationProvenanceOf(connection.resolution),
     observationKey: connection.observationKey ?? null,
   };
 }

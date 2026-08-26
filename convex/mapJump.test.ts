@@ -1,11 +1,14 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
 import { describe, expect, it } from 'vitest';
+import { tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import { connectionInsert } from './__tests__/connection-doc';
+
 
 const jump = {
   jumpEvidence: internal.mapJumpEvidence.jumpEvidence,
@@ -222,11 +225,15 @@ describe('automatic jump authoring', () => {
     expect(state.connections[0]).toMatchObject({
       _id: candidateId,
       toSystemId: DESTINATION,
-      destinationProvenance: 'jump-verified',
+      resolution: { kind: 'destination', provenance: 'jump-verified' },
       observedMassKg: 10_000_000,
       observationKey: 'observation-key',
     });
-    expect(state.connections[0]?.pendingCandidates).toBeUndefined();
+    expect(
+      state.connections[0]?.resolution.kind === 'pending'
+        ? state.connections[0].resolution.candidateIds
+        : undefined,
+    ).toBeUndefined();
     expect(state.stamps).toEqual([
       expect.objectContaining({
         mapId: MAP,
@@ -298,9 +305,12 @@ describe('automatic jump authoring', () => {
     );
     expect(await t.run(async (ctx) => await ctx.db.get(firstId))).toMatchObject({
       toSystemId: DESTINATION,
-      destinationProvenance: 'assumed',
-      pendingCandidates: [firstId, secondId],
-      pendingResolutionCharacterId: CHARACTER,
+      resolution: {
+        kind: 'pending',
+        provenance: 'assumed',
+        candidateIds: [firstId, secondId],
+        characterId: CHARACTER,
+      },
     });
 
     const confirmed = await t.mutation(jump.confirmJumpIdentity, {
@@ -313,14 +323,13 @@ describe('automatic jump authoring', () => {
       destinationProvenance: 'confirmed',
     });
     expect(await t.run(async (ctx) => await ctx.db.get(firstId))).toMatchObject({
-      destinationProvenance: 'confirmed',
+      resolution: { kind: 'destination', provenance: 'confirmed' },
     });
+    const confirmedRow = await t.run(async (ctx) => await ctx.db.get(firstId));
     expect(
-      (await t.run(async (ctx) => await ctx.db.get(firstId)))?.pendingCandidates,
-    ).toBeUndefined();
-    expect(
-      (await t.run(async (ctx) => await ctx.db.get(firstId)))
-        ?.pendingResolutionCharacterId,
+      confirmedRow?.resolution.kind === 'pending'
+        ? confirmedRow.resolution.candidateIds
+        : undefined,
     ).toBeUndefined();
 
     await t.mutation(jump.reassociateJumpDestination, {
@@ -334,10 +343,14 @@ describe('automatic jump authoring', () => {
       second: await ctx.db.get(secondId),
     }));
     expect(moved.first).toMatchObject({ toSystemId: null });
-    expect(moved.first?.pendingCandidates).toBeUndefined();
+    expect(
+      moved.first?.resolution.kind === 'pending'
+        ? moved.first.resolution.candidateIds
+        : undefined,
+    ).toBeUndefined();
     expect(moved.second).toMatchObject({
       toSystemId: DESTINATION,
-      destinationProvenance: 'human',
+      resolution: { kind: 'destination', provenance: 'human' },
       observedMassKg: 10_000_000,
       observationKey: 'observation-key',
     });
@@ -354,7 +367,7 @@ describe('automatic jump authoring', () => {
     }));
     expect(restored.first).toMatchObject({
       toSystemId: DESTINATION,
-      destinationProvenance: 'human',
+      resolution: { kind: 'destination', provenance: 'human' },
       observedMassKg: 10_000_000,
     });
     expect(restored.second).toMatchObject({ toSystemId: null });
@@ -381,9 +394,13 @@ describe('automatic jump authoring', () => {
     const resolved = await t.run(async (ctx) => await ctx.db.get(candidateId));
     expect(resolved).toMatchObject({
       toSystemId: DESTINATION,
-      destinationProvenance: 'assumed',
+      resolution: { kind: 'destination', provenance: 'assumed' },
     });
-    expect(resolved?.pendingCandidates).toBeUndefined();
+    expect(
+      resolved?.resolution.kind === 'pending'
+        ? resolved.resolution.candidateIds
+        : undefined,
+    ).toBeUndefined();
   });
 
   it('inserts without candidates and converges a reverse crossing onto the same connection', async () => {
@@ -500,7 +517,7 @@ describe('automatic jump authoring', () => {
         deletedAt: OBSERVED_AT - 1_000,
         purgeAfter: OBSERVED_AT + 60_000,
       });
-      trashedPairId = await ctx.db.insert('mapConnections', {
+      trashedPairId = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: ORIGIN,
         toSystemId: DESTINATION,
@@ -509,10 +526,9 @@ describe('automatic jump authoring', () => {
         toWormholeTypeCode: null,
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: OBSERVED_AT - 1_000,
         purgeAfter: OBSERVED_AT + 60_000,
-      });
+      }));
     });
     const authored = await t.mutation(
       jump.resolveJumpAuthoring,
@@ -524,13 +540,15 @@ describe('automatic jump authoring', () => {
     const state = await mapState(t);
     const dest = state.systems.find((row) => row.systemId === DESTINATION);
     expect(dest?.deletedAt ?? null).toBeNull();
-    const livePairs = state.connections.filter((row) => row.deletedAt == null);
+    const livePairs = state.connections.filter((row) => tombstoneDeletedAt(row) == null);
     expect(livePairs).toHaveLength(1);
     expect(livePairs[0]?._id).not.toBe(trashedPairId);
     const corpse = await t.run(async (ctx) => await ctx.db.get(trashedPairId));
-    expect(corpse).toMatchObject({ deletedAt: OBSERVED_AT - 1_000 });
-    expect(corpse?.purgeAfter).not.toBe(OBSERVED_AT + 60_000);
-    expect(corpse?.purgeAfter).toBeLessThanOrEqual(Date.now());
+    expect(tombstoneDeletedAt(corpse!)).toBe(OBSERVED_AT - 1_000);
+    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+      .not.toBe(OBSERVED_AT + 60_000);
+    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+      .toBeLessThanOrEqual(Date.now());
     expect(state.stamps).toHaveLength(1);
   });
 
@@ -547,7 +565,7 @@ describe('automatic jump authoring', () => {
         deletedAt: OBSERVED_AT - 1_000,
         purgeAfter: OBSERVED_AT + 60_000,
       });
-      corpseId = await ctx.db.insert('mapConnections', {
+      corpseId = await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP,
         fromSystemId: ORIGIN,
         toSystemId: DESTINATION,
@@ -557,10 +575,9 @@ describe('automatic jump authoring', () => {
         toWormholeTypeCode: null,
         massState: null,
         shipSize: null,
-        eolAt: null,
         deletedAt: OBSERVED_AT - 1_000,
         purgeAfter: OBSERVED_AT + 60_000,
-      });
+      }));
     });
 
     expect(
@@ -578,16 +595,20 @@ describe('automatic jump authoring', () => {
       ),
     ).toMatchObject({ status: 'authored' });
 
-    const livePairs = (await mapState(t)).connections.filter((row) => row.deletedAt == null);
+    const livePairs = (await mapState(t)).connections.filter(
+      (row) => tombstoneDeletedAt(row) == null,
+    );
     expect(livePairs).toEqual([expect.objectContaining({
       _id: stubId,
-      fromSignatureId: 'ABS-420',
+      from: expect.objectContaining({ signatureId: 'ABS-420' }),
       toSystemId: DESTINATION,
     })]);
     const corpse = await t.run(async (ctx) => await ctx.db.get(corpseId));
-    expect(corpse).toMatchObject({ deletedAt: OBSERVED_AT - 1_000 });
-    expect(corpse?.purgeAfter).not.toBe(OBSERVED_AT + 60_000);
-    expect(corpse?.purgeAfter).toBeLessThanOrEqual(Date.now());
+    expect(tombstoneDeletedAt(corpse!)).toBe(OBSERVED_AT - 1_000);
+    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+      .not.toBe(OBSERVED_AT + 60_000);
+    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+      .toBeLessThanOrEqual(Date.now());
   });
 
   it('ignores forged tracking rows that join to no location document', async () => {

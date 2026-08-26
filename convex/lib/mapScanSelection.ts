@@ -1,5 +1,10 @@
 import { ConvexError } from 'convex/values';
-import { chainTombstoneStamps, isTombstoned } from '@/data/maps/chain-contract';
+import {
+  chainTombstoneStamps,
+  connectionRemovedTombstone,
+  isTombstoned,
+} from '@/data/maps/chain-contract';
+import { lifetimeDeathWindow } from '@/data/maps/connection-hallway';
 import { isConfidentMissingRemoval } from '@/data/maps/signature-lifecycle';
 import type { Doc } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
@@ -188,10 +193,15 @@ function requireUndoWindow(
   for (const signatureId of signatureIds) {
     const row = signatures.get(signatureId)
       ?? findLocalSignatureConnection(state.connections, systemId, signatureId);
+    const purgeAfter = row === undefined
+      ? null
+      : row.tombstone !== undefined
+        ? (row.tombstone.kind === 'removed' ? row.tombstone.purgeAfter : null)
+        : row.purgeAfter;
     if (
       row !== undefined
       && isTombstoned(row)
-      && (typeof row.purgeAfter !== 'number' || row.purgeAfter <= now)
+      && (typeof purgeAfter !== 'number' || purgeAfter <= now)
     ) {
       throw new ConvexError({ code: 'UNDO_WINDOW_EXPIRED' });
     }
@@ -254,7 +264,7 @@ function findOriginLifecycleConnection(
   signatureId: string,
 ): Doc<'mapConnections'> | undefined {
   const matches = rows.filter(
-    (row) => row.fromSystemId === systemId && row.fromSignatureId === signatureId,
+    (row) => row.fromSystemId === systemId && row.from.signatureId === signatureId,
   );
   return matches.find((row) => !isTombstoned(row)) ?? matches[0];
 }
@@ -280,7 +290,7 @@ async function removeConfidentRow(
     });
     return;
   }
-  await ctx.db.patch(connection._id, chainTombstoneStamps(input.now));
+  await ctx.db.patch(connection._id, connectionRemovedTombstone(input.now));
   const activity = state.activities.find((row) => row.signatureId === input.signatureId);
   if (activity !== undefined) await ctx.db.delete(activity._id);
 }
@@ -319,7 +329,7 @@ export async function removeConfidentRows(
       || isTombstoned(connection)
       || !isConfidentMissingRemoval({
         signatureId,
-        deathLatestAt: connection.deathLatestAt,
+        deathLatestAt: lifetimeDeathWindow(connection.lifetime)?.latestAt,
       }, now)
     ) continue;
     await removeConfidentRow(ctx, state, connection, {

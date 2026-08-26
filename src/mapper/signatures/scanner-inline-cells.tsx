@@ -414,7 +414,7 @@ export function ScannerLifeSelect({
   disabled,
   onChange,
 }: {
-  readonly value: ConnectionEditorDetail['lifeStage'];
+  readonly value: WormholeLifeStage | null;
   readonly connection: ConnectionEditorDetail | null;
   readonly entry: WormholeCodexEntry | null;
   readonly now: number;
@@ -840,7 +840,7 @@ export function scannerMassReadout(value: ConnectionEditorDetail['massState']): 
 }
 
 /** Read-only compact lifetime text when the row cannot be edited. */
-export function scannerLifeReadout(value: ConnectionEditorDetail['lifeStage']): string {
+export function scannerLifeReadout(value: WormholeLifeStage | null): string {
   return value === null ? '—' : LIFE_SHORT[value];
 }
 
