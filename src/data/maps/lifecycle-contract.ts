@@ -43,6 +43,24 @@ export function purgeQueuedMapLifecycle(enteredAt: Date, archivedAt: Date) {
   };
 }
 
+export function tombstonedMapLifecycle(
+  enteredAt: Date,
+  extras: {
+    readonly archivedAt?: Date | null;
+    readonly purgeRequestedAt?: Date | null;
+    readonly purgeClaimedAt?: Date | null;
+  } = {},
+) {
+  return {
+    lifecycleStatus: 'tombstoned' as const,
+    lifecycleEnteredAt: enteredAt,
+    archivedAt: extras.archivedAt ?? null,
+    purgeRequestedAt: extras.purgeRequestedAt ?? null,
+    purgeClaimedAt: extras.purgeClaimedAt ?? null,
+    tombstonedAt: enteredAt,
+  };
+}
+
 export function subjectArchivedAt(
   status: MapLifecycleStatus,
   archivedAt: Date | null,
