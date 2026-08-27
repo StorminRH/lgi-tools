@@ -153,14 +153,14 @@ Contributions are welcome. Work lands on Origin `development`. See
    is `staging` → `main`.
 3. Before you land, run the local test suite in CONTRIBUTING
    (typecheck, lint, Fallow, focused tests). A promote or release waits
-   on that Origin PR's Depot pipeline.
+   on one Depot `dispatch` after reviews.
 4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —
    plain English in the subject line, no file paths or function names.
 5. Be civil. Reviews are conversations.
 
 Depot runs typecheck, lint, the coverage suite with real Postgres, and
-Fallow on every Origin PR; `build` and `e2e` run on PRs too. A red check
-blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
+Fallow when dispatched; `build` and `e2e` run on that same run. A red
+run blocks merge. `staging` auto-deploys a Preview. `main` auto-deploys
 Production. A `development` Preview is manual.
 
 ## License

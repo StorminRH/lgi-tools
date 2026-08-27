@@ -1,5 +1,9 @@
 # Origin / Depot / ship-path migration — ordinary-work plan
 
+**Live process:** `AGENTS.md` and `close-out`. Depot starts with
+`depot ci dispatch` after reviews. This file is historical migration
+notes.
+
 **Plan status:** Draft (operator reshapes between chats)
 **Kind:** Ordinary work — not a numbered lifecycle session. Do not run
 `start-session` or the lifecycle resolver for this plan.

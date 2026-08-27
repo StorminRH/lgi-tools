@@ -121,12 +121,13 @@ Use exactly one ordered line per plan criterion and one review receipt:
 ```markdown
 - **SC-1:** `Passed` — <specific evidence covering every atomic proof row>
 - **SC-2:** `Passed` — <specific evidence covering every atomic proof row>
-- **Adversarial review:** Subject: <frozen identity>; Roles: <selected roles>; Runtime identity: requested=<requested selection>, observed=<observed identity or Not observable>; Verdict: <PASS, CLEAN, or CORRECTED>; Disposition: <accepted and rejected finding disposition>.
+- **Adversarial review:** Subject: Origin `<N>`; `origin pr diff <N>`; Roles: <selected roles>; Runtime identity: requested=<requested selection>, observed=<observed identity or Not observable>; Verdict: <PASS, CLEAN, or CORRECTED>; Disposition: <accepted and rejected finding disposition>.
 ```
 
 Every plan `SC-N` appears once, in order, and is `Passed`; grouped ranges and a
-bare command or suite name are invalid. Close-out adversarial-review writes
-`PASS`. Legacy `CLEAN` and `CORRECTED` remain accepted for earlier as-builts.
+bare command or suite name are invalid. Close-out writes `PASS` after the
+batch when every accepted finding is fixed. Legacy `CLEAN` and `CORRECTED`
+remain accepted for earlier as-builts.
 The review receipt records requested and observed runtime identity separately
 and never infers one from the other. Structured criterion and review receipts
 bind from session `4.0.2.2.1` onward; earlier as-built records remain a frozen

@@ -1,15 +1,16 @@
 ---
 name: structure-reviewer
 model: grok-4.5[effort=high,fast=false]
-description: Structure. Owners, existing controls, layer boundaries, and UI chrome on a frozen subject.
+description: Structure. Owners, existing controls, layer boundaries, and UI chrome on a freeze. Run origin pr diff when the brief is a change number.
 readonly: true
 ---
 
 # Structure
 
-Check how the frozen subject is put together. Work from the brief and the files
-already in context. Use nested `AGENTS.md` and established owners when they are
-already loaded.
+Check how the frozen subject is put together. When the brief is an Origin
+change number, run `origin pr diff <N>` and read those files on the
+branch. When the brief is a working tree or a plan, read that subject.
+Use nested `AGENTS.md` and established owners when they are already loaded.
 
 Look for:
 

@@ -1,12 +1,13 @@
 ---
 name: thermo-nuclear-code-quality-review-subagent
 model: claude-fable-5[thinking=true,context=1m,effort=high]
-description: Thermo-nuclear code quality audit (maintainability, structure, 1k-line rule, spaghetti, code-judo). Invoked via Task after a parent gathers diff and file contents. Loads rubric from the local thermo-nuclear-code-quality-review skill.
+description: Thermo-nuclear code quality audit (maintainability, structure, 1k-line rule, spaghetti, code-judo). Invoked via Task with a change number. Runs origin pr diff. Loads rubric from the local thermo-nuclear-code-quality-review skill.
 ---
 
 # Thermo-Nuclear Code Quality Review
 
-You are a **Task subagent**. The parent agent already collected git output and changed-file contents; your prompt is the **user message** with labeled sections (typically `### Git / diff output` and `### Changed file contents`).
+You are a **Task subagent**. The brief is an Origin change number.
+Run `origin pr diff <N>` and read those files on the branch.
 
 ## Rubric
 
@@ -21,4 +22,6 @@ You are a **Task subagent**. The parent agent already collected git output and c
 
 ## Parent orchestration
 
-Typical flow: in **one** message, run two `Task` calls in parallel — `subagent_type: "shell"` and `subagent_type: "explore"` — to collect `git diff <base>...HEAD` output and full contents of changed files (default base `main`). Then invoke this agent with `subagent_type: "thermo-nuclear-code-quality-review-subagent"` and a user prompt containing `### Git / diff output` and `### Changed file contents`.
+Invoke this agent with `subagent_type: "thermo-nuclear-code-quality-review-subagent"`
+and a user prompt that is the Origin change number. The seat runs
+`origin pr diff <N>`.

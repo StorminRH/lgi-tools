@@ -1,14 +1,10 @@
 # Depot CI — Origin PRs onto the train.
 # GitHub Actions YAML on Depot compute. Not a GitHub Actions workflow.
-# `verify`, `build`, and `e2e` run on PRs onto development, staging, or main.
+# `verify`, `build`, and `e2e` start from `depot ci dispatch` only.
 
 name: Verify
 on:
-  pull_request:
-    branches:
-      - development
-      - staging
-      - main
+  workflow_dispatch:
 jobs:
   verify:
     runs-on: depot-ubuntu-24.04

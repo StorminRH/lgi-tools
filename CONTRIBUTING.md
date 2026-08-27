@@ -40,20 +40,21 @@ feat: add API endpoints for browsing and filtering wormhole sites
    `staging` or `main`, run through close-out.
 2. Before you land, run the local test suite: `pnpm typecheck`,
    `pnpm lint`, Fallow `dead-code`, `dupes`, and `health`, and focused tests
-   for your diff. A promote or release waits on that Origin PR's Depot
-   pipeline (`verify` on every PR, plus `build` and `e2e` on PRs) with
-   **`origin pr checks <N> --watch`**. Laptop `pnpm verify` is not done.
+   for your diff. A promote or release waits on one Depot `dispatch` after
+   reviews (`verify`, `build`, and `e2e`). Laptop `pnpm verify` is not
+   done.
 3. Fill in the PR template's **test plan** — what you verified and how.
-4. Open Origin PRs and GitHub dump PRs ready for review so Depot runs once.
-   `origin pr create` defaults to draft; pass `--status open`.
+4. Open Origin PRs as drafts after a green local suite. Leave them draft
+   through reviews and fixes. Reviewers run `origin pr diff <N>`. Open
+   GitHub dump PRs ready so Greptile and CodeRabbit can post.
 5. A GitHub dump is the app-facing files from
    `python3 tools/cli.py lifecycle count-app-facing --list`. Pass `--base`
    and `--head` for the two lines of that PR. Defaults are
-   `origin/staging` and `origin/development`. Same isolation as the review.
-   Skills and standing docs stay off that packet.
-6. Wait until Origin CI, Origin reviews, and dump review have
-   settled. Fix accepted findings as commits, then one Origin
-   comment and one push.
+   `origin/staging` and `origin/development`. That list is dump isolation.
+   Skills and standing docs stay off it.
+6. Freeze the draft until every review seat has returned. Then one
+   batch: triage, dedupe, fix, note on the Origin PR. Dispatch Depot
+   once that batch is green.
 
 ## Conduct, security & license
 
