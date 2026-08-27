@@ -102,9 +102,8 @@ happen on the stack you will keep.
 - **Plan:** Greptile and CodeRabbit are **manual request only**, and
   only on a GitHub dump of the app-facing files vs `staging` at or
   under **~100**. That dump is the `development` → `staging` promote,
-  not every Origin PR and not the eventual `staging` → `main` release
-  unless that release is itself still under the bar. They are not the
-  merge gate.
+  not every Origin PR and not the `staging` → `main` release. They
+  are not the merge gate.
 - **Plan:** A merge to `development` or `staging` is not a release.
   Do not bump `APP_VERSION`, do not publish a `### vX.Y.N` heading,
   and do not write a public changelog until `staging` merges
