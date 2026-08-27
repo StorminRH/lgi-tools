@@ -3,22 +3,26 @@ import type { Doc, Id } from '@/data/convex/data-model';
 import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
 import { connectionEditorFixture } from './__tests__/connection-editor-fixture';
 import {
-  accountedStubLayoutRows,
-  appendStubFacts,
   chainSignature,
-  connectionDetailsFromRows,
   factsFromSnapshot,
   filterChainConnections,
   filterLivePages,
   layoutConfigKey,
   layoutPostKey,
-  normalizeMapAccess,
+} from './chain-signature';
+import {
+  connectionDetailsFromRows,
+  unresolvedHolesFromRows,
+} from './connection-detail';
+import {
+  accountedStubLayoutRows,
+  appendStubFacts,
   placedStubs,
   stubLayoutRows,
   stubLayoutSignature,
   stubPositionsFromLayout,
-  unresolvedHolesFromRows,
-} from './use-map-chain';
+} from './stub-layout';
+import { normalizeMapAccess } from './use-map-chain-pages';
 import {
   EMPTY_CHAIN_STATE,
   reconcileChain,

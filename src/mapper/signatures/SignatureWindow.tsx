@@ -25,8 +25,8 @@ import {
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
 import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
-import { useUniverseAssets } from '../chain/use-map-chain';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import { useUniverseAssets } from '../chain/use-universe-assets';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { WormholeCodexEntry } from '@/data/eve-data/universe-assets';
 import { namedDoorType } from '@/data/maps/connection-door-types';
 import { mapFrostedSurface } from '../map-frosted-surface';

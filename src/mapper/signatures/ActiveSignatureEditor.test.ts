@@ -8,7 +8,7 @@ import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fi
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
-} from '../chain/use-map-chain';
+} from '../chain/connection-detail';
 import { ActiveSignatureEditor } from './ActiveSignatureEditor';
 import { destinationReadout } from './system-readout';
 
@@ -16,7 +16,7 @@ const assets = vi.hoisted(() => ({
   systemInfo: vi.fn<(id: number) => SystemDirectoryEntry | null>(() => null),
 }));
 
-vi.mock('../chain/use-map-chain', () => ({
+vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
 }));
 

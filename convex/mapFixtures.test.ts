@@ -2,7 +2,7 @@
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
-import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
+import { MAP_CONNECTION_SIGNATURE_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
 import { SIGNATURE_PURGE_BATCH } from './mapScan';
 import schema from './schema';
@@ -770,7 +770,7 @@ describe('map chain fixtures', () => {
       const t = convexTest(schema, modules);
       await seedMap(t);
       await t.run(async (ctx) => {
-        for (let index = 0; index <= FIXTURE_CONNECTION_SCAN_LIMIT; index += 1) {
+        for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
           await ctx.db.insert('mapConnections', connectionInsert({
             mapId: MAP_A,
             fromSystemId: JITA,

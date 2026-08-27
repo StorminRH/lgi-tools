@@ -1,3 +1,14 @@
+// Character location payload — the Convex half of 4.0.4.2.1 tracked location.
+//
+// Canonical shape: client heartbeat (engine) → chain-on-success ~5s loop
+// while watched and a tracked pilot is online (30s scan is the retry/
+// watchdog; the sync's own /online probe paces an all-offline subject at
+// ~60s) → scheduler → characterLocationSync.syncUser (action: mapTracking
+// poll set, access lease, online probe + location + ship-on-change) → applySyncResults
+// (ONE batched mutation, generation-guarded) → forViewer /
+// mapTrackingLive.forMap. The client never calls the action directly.
+//
+// Purge remains the Neon→Convex teardown door for removed accounts/characters.
 import { v } from 'convex/values';
 import {
   parseLocationBody,
@@ -86,13 +97,13 @@ async function runLocationSync(
 ): Promise<void> {
   const env = requireSyncEnv();
 
-  const held = await ctx.runQuery(internal.characterLocation.heldState, { userId });
+  const held = await ctx.runQuery(internal.characterLocationReads.heldState, { userId });
   const heldByCharacter = new Map(held.locations.map((h) => [h.characterId, h]));
   const heldOnlineByCharacter = new Map(held.online.map((h) => [h.characterId, h]));
   const trackedIds = await ctx.runQuery(internal.mapTrackingIds.trackedCharacterIds, {
     userId,
   });
-  const leases = await ctx.runQuery(internal.characterLocation.accessLeases, { userId });
+  const leases = await ctx.runQuery(internal.characterLocationAccess.accessLeases, { userId });
   const leaseByCharacter = new Map(leases.map((row) => [row.characterId, row]));
   const now = Date.now();
 
@@ -127,7 +138,7 @@ async function runLocationSync(
     }
   }
 
-  await ctx.runMutation(internal.characterLocation.applySyncResults, {
+  await ctx.runMutation(internal.characterLocationApply.applySyncResults, {
     userId,
     generation,
     enumeratedCharacterIds: trackedIds,
@@ -160,7 +171,7 @@ async function syncLocationCharacter(
       return { kind: 'result', result: errorResult(characterId, code, held) };
     }
     accessToken = vend.accessToken;
-    await ctx.runMutation(internal.characterLocation.putAccessLease, {
+    await ctx.runMutation(internal.characterLocationAccess.putAccessLease, {
       userId,
       characterId,
       accessToken: vend.accessToken,
@@ -171,7 +182,7 @@ async function syncLocationCharacter(
   try {
     const result = await readProbeThenLocation(characterId, accessToken, held, heldOnline, rl);
     if (result.error === 'esi_401' || result.error === 'esi_403') {
-      await ctx.runMutation(internal.characterLocation.clearAccessLease, {
+      await ctx.runMutation(internal.characterLocationAccess.clearAccessLease, {
         userId,
         characterId,
       });

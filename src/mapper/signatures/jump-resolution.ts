@@ -12,7 +12,7 @@ import {
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
-} from '../chain/use-map-chain';
+} from '../chain/connection-detail';
 import { destinationReadout } from './system-readout';
 
 /** One selectable candidate for a pending auto-link resolution. */

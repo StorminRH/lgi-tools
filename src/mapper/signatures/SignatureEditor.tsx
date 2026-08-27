@@ -16,7 +16,7 @@ import {
   type OriginLeadOption,
 } from '../authoring/connection-fields';
 import { useWormholeEditorData } from '../authoring/use-wormhole-editor-data';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import { ScannerAnchoredPanel } from './ScannerAnchoredPanel';
 
 /** Props for the scanner-anchored Signature Editor pop-out. */

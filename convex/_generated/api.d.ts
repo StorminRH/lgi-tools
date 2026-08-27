@@ -8,7 +8,10 @@
  * @module
  */
 
-import type * as characterLocation from "../characterLocation.js";
+import type * as characterLocationAccess from "../characterLocationAccess.js";
+import type * as characterLocationApply from "../characterLocationApply.js";
+import type * as characterLocationPurge from "../characterLocationPurge.js";
+import type * as characterLocationReads from "../characterLocationReads.js";
 import type * as characterLocationSync from "../characterLocationSync.js";
 import type * as crons from "../crons.js";
 import type * as engine from "../engine.js";
@@ -17,9 +20,14 @@ import type * as engineLeave from "../engineLeave.js";
 import type * as engineScan from "../engineScan.js";
 import type * as engineSweep from "../engineSweep.js";
 import type * as http from "../http.js";
+import type * as httpEngine from "../httpEngine.js";
+import type * as httpJump from "../httpJump.js";
+import type * as httpLocation from "../httpLocation.js";
+import type * as httpMapAccess from "../httpMapAccess.js";
 import type * as lib_bearerAuth from "../lib/bearerAuth.js";
 import type * as lib_characterSync from "../lib/characterSync.js";
 import type * as lib_engineCore from "../lib/engineCore.js";
+import type * as lib_httpAuth from "../lib/httpAuth.js";
 import type * as lib_indexedQuery from "../lib/indexedQuery.js";
 import type * as lib_locationCoverage from "../lib/locationCoverage.js";
 import type * as lib_mapAccess from "../lib/mapAccess.js";
@@ -75,7 +83,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  characterLocation: typeof characterLocation;
+  characterLocationAccess: typeof characterLocationAccess;
+  characterLocationApply: typeof characterLocationApply;
+  characterLocationPurge: typeof characterLocationPurge;
+  characterLocationReads: typeof characterLocationReads;
   characterLocationSync: typeof characterLocationSync;
   crons: typeof crons;
   engine: typeof engine;
@@ -84,9 +95,14 @@ declare const fullApi: ApiFromModules<{
   engineScan: typeof engineScan;
   engineSweep: typeof engineSweep;
   http: typeof http;
+  httpEngine: typeof httpEngine;
+  httpJump: typeof httpJump;
+  httpLocation: typeof httpLocation;
+  httpMapAccess: typeof httpMapAccess;
   "lib/bearerAuth": typeof lib_bearerAuth;
   "lib/characterSync": typeof lib_characterSync;
   "lib/engineCore": typeof lib_engineCore;
+  "lib/httpAuth": typeof lib_httpAuth;
   "lib/indexedQuery": typeof lib_indexedQuery;
   "lib/locationCoverage": typeof lib_locationCoverage;
   "lib/mapAccess": typeof lib_mapAccess;

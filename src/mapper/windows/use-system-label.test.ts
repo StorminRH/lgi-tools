@@ -11,7 +11,7 @@ const assets = vi.hoisted(() => ({
   systemInfo: vi.fn<(id: number) => SystemDirectoryEntry | null>(() => null),
 }));
 
-vi.mock('../chain/use-map-chain', () => ({
+vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
 }));
 

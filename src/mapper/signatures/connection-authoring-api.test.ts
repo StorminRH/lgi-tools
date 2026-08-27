@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
-import type { ConnectionDetail } from '../chain/use-map-chain';
+import type { ConnectionDetail } from '../chain/connection-detail';
 import {
   answerAndAnnounce,
   answerJumpResolution,

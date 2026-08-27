@@ -570,7 +570,7 @@ describe('engine.scan', () => {
   });
 });
 
-describe('engine.onSyncComplete', () => {
+describe('engineComplete.onSyncComplete', () => {
   function callComplete(t: ReturnType<typeof convexTest>, result: unknown, workId = 'w1') {
     return t.mutation(internal.engineComplete.onSyncComplete, {
       workId: workId as never,
@@ -607,72 +607,6 @@ describe('engine.onSyncComplete', () => {
     expect(subject?.minExpiresAt).toBeNull();
     expect(subject?.lastError?.startsWith('sync_failed:')).toBe(true);
     expect(typeof subject?.nextDueAt).toBe('number');
-  });
-
-  it('the one-deploy engine.chainDispatch path still dispatches a due hop', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-08-04T12:00:00.000Z'));
-    const t = convexTest(schema, modules);
-    stubDispatch();
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        dataset: 'characterLocation',
-        status: 'idle',
-        lastRequestedAt: 0,
-        nextDueAt: now,
-        syncedCharacterIds: [101],
-      }));
-      await ctx.db.insert('syncPresence', {
-        dataset: 'characterLocation',
-        userId: USER,
-        lastSeenAt: now,
-      });
-    });
-
-    await t.mutation(internal.engine.chainDispatch, {
-      dataset: 'characterLocation',
-      userId: USER,
-    });
-
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('running');
-    expect(subject?.workId).toBe(String(now));
-    expect(await scheduledSyncUsers(t)).toHaveLength(1);
-  });
-
-  it('the one-deploy engine.onSyncComplete path still completes a run', async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-    await t.run(async (ctx) => {
-      await ctx.db.insert('syncSubjects', subjectRow({
-        status: 'running',
-        lastRequestedAt: now,
-        workId: 'w1',
-        nextDueAt: now + 60_000,
-        syncedCharacterIds: [101],
-      }));
-    });
-
-    await t.mutation(internal.engine.onSyncComplete, {
-      workId: 'w1',
-      context: { dataset: 'characterLocation', userId: USER },
-      result: { kind: 'success' },
-    });
-
-    const subject = await t.run((ctx) =>
-      ctx.db
-        .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'characterLocation'))
-        .unique(),
-    );
-    expect(subject?.status).toBe('idle');
-    expect(subject?.workId).toBeNull();
   });
 
   it('arms the next due time off the cache window on success with targets', async () => {

@@ -10,7 +10,7 @@ import {
   lifetimeDisplay,
   type ConnectionDeathWindow,
 } from '@/data/maps/connection-lifetime';
-import type { ConnectionDetail } from '../chain/use-map-chain';
+import type { ConnectionDetail } from '../chain/connection-detail';
 
 /** Codex facts shown as a read-only panel for one typed wormhole. */
 export interface CodexPanelFacts {

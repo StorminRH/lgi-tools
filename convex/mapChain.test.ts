@@ -8,7 +8,7 @@ import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { MAP_EVENT_READ_LIMIT } from './mapChainEvents';
 import { MAP_CHAIN_MAX_PAGE_SIZE } from './mapChainPage';
-import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
+import { MAP_CONNECTION_SIGNATURE_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -413,15 +413,46 @@ describe('map chain read path', () => {
       );
     });
 
-    it('fails closed rather than scanning an oversized map', async () => {
+    it('removes an unreferenced system even when the map already has many other doors', async () => {
       const t = convexTest(schema, modules);
       await placeSystems(t, MAP_A, [JITA]);
       await t.run(async (ctx) => {
-        for (let index = 0; index <= FIXTURE_CONNECTION_SCAN_LIMIT; index += 1) {
+        for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
           await ctx.db.insert('mapConnections', connectionInsert({
             mapId: MAP_A,
             fromSystemId: AMARR + index,
             toSystemId: AMARR + index + 1,
+            wormholeTypeCode: null,
+            massState: 'stable',
+            shipSize: 'M',
+          }));
+        }
+      });
+
+      const outcome = await t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
+        mapId: MAP_A,
+        systemId: JITA,
+      });
+
+      expect(outcome).toBe('removed');
+      const remaining = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapSystems')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
+      );
+      expect(remaining).toHaveLength(0);
+    });
+
+    it('refuses to remove a system that still has many doors', async () => {
+      const t = convexTest(schema, modules);
+      await placeSystems(t, MAP_A, [JITA]);
+      await t.run(async (ctx) => {
+        for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
+          await ctx.db.insert('mapConnections', connectionInsert({
+            mapId: MAP_A,
+            fromSystemId: JITA,
+            toSystemId: AMARR + index,
             wormholeTypeCode: null,
             massState: 'stable',
             shipSize: 'M',
@@ -434,7 +465,7 @@ describe('map chain read path', () => {
           mapId: MAP_A,
           systemId: JITA,
         }),
-        'FIXTURE_MAP_TOO_LARGE',
+        'SYSTEM_IN_USE',
       );
     });
 
