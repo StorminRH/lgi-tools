@@ -4,8 +4,20 @@ import { modules } from './modules.setup';
 
 export const CONVEX_HTTP_SECRET = 'svc-secret';
 
+type ConvexHttpPath =
+  | '/sweep'
+  | '/jump-evidence'
+  | '/resolve-jump'
+  | '/signature-elimination'
+  | '/purge-online'
+  | '/leave-sync'
+  | '/purge-location-tracking'
+  | '/project-map-access'
+  | '/purge-map-access'
+  | '/purge-map-chain';
+
 export const postConvexHttp = (
-  path: `/${string}`,
+  path: ConvexHttpPath,
   body: BodyInit | null,
   authorized = true,
 ) =>

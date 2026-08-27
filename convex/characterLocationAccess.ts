@@ -2,9 +2,6 @@ import { v } from 'convex/values';
 import { internalMutation, internalQuery } from './_generated/server';
 import { collectByUser } from './lib/indexedQuery';
 
-/**
- * Access-token leases for this user. Internal-only — never on forViewer / forMap.
- */
 export const accessLeases = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
@@ -17,9 +14,6 @@ export const accessLeases = internalQuery({
   },
 });
 
-/**
- * Upsert one character's EVE access-token lease. Stores Neon's expiresAt.
- */
 export const putAccessLease = internalMutation({
   args: {
     userId: v.string(),
@@ -28,10 +22,6 @@ export const putAccessLease = internalMutation({
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
-    // Same mutation as the write: unlink/transfer purge deletes tracking with
-    // the lease, so a late upsert cannot resurrect a credential after teardown.
-    // Untrack also removes tracking and skips this write; any already-held lease
-    // stays (CONVEX.md), and the next tracked run vends again.
     const tracking = await ctx.db
       .query('mapTracking')
       .withIndex('by_user_character', (q) =>
@@ -64,11 +54,6 @@ export const putAccessLease = internalMutation({
   },
 });
 
-/**
- * Drop one character's access lease. ESI 401/403 means the held token is dead;
- * the next sync vends again instead of replaying it until Neon expiresAt.
- * Idempotent when the row is already gone. Does not touch location or tracking.
- */
 export const clearAccessLease = internalMutation({
   args: {
     userId: v.string(),
