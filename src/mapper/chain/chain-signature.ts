@@ -1,4 +1,3 @@
-import type { DrainedPages } from '@/data/convex/use-drained-pages';
 import { isTombstoned } from '@/data/maps/chain-contract';
 import type { LayoutConfig, LayoutFacts } from '../layout/layout-contract';
 import type { ChainSnapshot } from './reconciler';
@@ -55,8 +54,8 @@ export function chainSignature(
  * canvas until an unrelated change.
  */
 export function filterLivePages<Row extends { readonly deletedAt?: number | null }>(
-  pages: DrainedPages<Row>,
-): DrainedPages<Row> {
+  pages: { readonly rows: readonly Row[]; readonly complete: boolean },
+): { readonly rows: readonly Row[]; readonly complete: boolean } {
   const live = pages.rows.filter((row) => !isTombstoned(row));
   if (live.length === pages.rows.length) return pages;
   return { rows: live, complete: pages.complete };
@@ -64,8 +63,8 @@ export function filterLivePages<Row extends { readonly deletedAt?: number | null
 
 /** Keeps every connection row, including structural dying/skeleton ties. */
 export function filterChainConnections<Row>(
-  pages: DrainedPages<Row>,
-): DrainedPages<Row> {
+  pages: { readonly rows: readonly Row[]; readonly complete: boolean },
+): { readonly rows: readonly Row[]; readonly complete: boolean } {
   return pages;
 }
 

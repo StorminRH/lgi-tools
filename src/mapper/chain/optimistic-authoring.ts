@@ -708,3 +708,5 @@ export function useChainAuthoringMutations() {
     linkStubToResolvedConnection,
   };
 }
+
+export type ChainAuthoringMutations = ReturnType<typeof useChainAuthoringMutations>;

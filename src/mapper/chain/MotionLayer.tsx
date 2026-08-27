@@ -12,7 +12,7 @@ import type { MapChainIntent } from './intents';
 import type { MapAccessState } from './use-map-chain-pages';
 
 /** What the motion layer needs beyond the surface's own props. */
-interface MotionLayerProps
+export interface MotionLayerProps
   extends Omit<ChainSurfaceProps, 'nodes' | 'edges' | 'motion'> {
   readonly truth: MotionTruth;
   readonly intents: readonly MapChainIntent[];

@@ -12,7 +12,7 @@ import {
   edgeMenuConnectionId,
 } from '../canvas/edge-menu';
 import { isStubNodeId } from './nodes';
-import type { useChainAuthoringMutations } from './optimistic-authoring';
+import type { ChainAuthoringMutations } from './optimistic-authoring';
 import type { AuthoringMenus } from './use-authoring-menus';
 
 export function useChainFocusMenus(
@@ -22,7 +22,7 @@ export function useChainFocusMenus(
   canEdit: boolean | undefined,
   menus: AuthoringMenus,
   mapId: string,
-  authoring: ReturnType<useChainAuthoringMutations>,
+  authoring: ChainAuthoringMutations,
   focusTokenRef: RefObject<number>,
   setFocusRequest: (request: CameraFocusRequest | null) => void,
 ) {
