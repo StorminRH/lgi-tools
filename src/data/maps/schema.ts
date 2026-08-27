@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import {
   bigint,
+  check,
   index,
   pgEnum,
   pgSequence,
@@ -16,6 +18,7 @@ import {
   type MapAccessOwnerType,
   type MapRole,
 } from './access-contract';
+import { MAP_LIFECYCLE_STATUSES } from './lifecycle-contract';
 
 // The role vocabulary itself lives in the pure ./access-contract owner so the Convex gate can share
 // it without importing Drizzle. This module remains its Postgres home and public re-export.
@@ -33,6 +36,12 @@ export const mapRoleEnum = pgEnum('map_role', MAP_ROLES);
 export const mapAccessOwnerTypeEnum = pgEnum(
   'map_access_owner_type',
   MAP_ACCESS_OWNER_TYPES,
+);
+
+/** Drizzle owner of the exclusive durable map lifecycle phase. */
+export const mapLifecycleStatusEnum = pgEnum(
+  'map_lifecycle_status',
+  MAP_LIFECYCLE_STATUSES,
 );
 
 export const MAP_ACCESS_PROJECTION_REVISION_SEQUENCE =
@@ -56,8 +65,52 @@ export const maps = pgTable(
     tombstonedAt: timestamp('tombstoned_at', { withTimezone: true }),
     purgeRequestedAt: timestamp('purge_requested_at', { withTimezone: true }),
     purgeClaimedAt: timestamp('purge_claimed_at', { withTimezone: true }),
+    lifecycleStatus: mapLifecycleStatusEnum('lifecycle_status')
+      .notNull()
+      .default('active'),
+    lifecycleEnteredAt: timestamp('lifecycle_entered_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
-  (table) => [index('maps_user_id_idx').on(table.userId)],
+  (table) => [
+    index('maps_user_id_idx').on(table.userId),
+    check(
+      'maps_lifecycle_status',
+      sql`
+        (
+          ${table.lifecycleStatus} = 'active'
+          AND ${table.archivedAt} IS NULL
+          AND ${table.purgeRequestedAt} IS NULL
+          AND ${table.purgeClaimedAt} IS NULL
+          AND ${table.tombstonedAt} IS NULL
+        ) OR (
+          ${table.lifecycleStatus} = 'archived'
+          AND ${table.archivedAt} IS NOT NULL
+          AND ${table.archivedAt} = ${table.lifecycleEnteredAt}
+          AND ${table.purgeRequestedAt} IS NULL
+          AND ${table.purgeClaimedAt} IS NULL
+          AND ${table.tombstonedAt} IS NULL
+        ) OR (
+          ${table.lifecycleStatus} = 'purge_queued'
+          AND ${table.archivedAt} IS NOT NULL
+          AND ${table.purgeRequestedAt} IS NOT NULL
+          AND ${table.purgeRequestedAt} = ${table.lifecycleEnteredAt}
+          AND ${table.purgeClaimedAt} IS NULL
+          AND ${table.tombstonedAt} IS NULL
+        ) OR (
+          ${table.lifecycleStatus} = 'purge_claimed'
+          AND ${table.archivedAt} IS NOT NULL
+          AND ${table.purgeClaimedAt} IS NOT NULL
+          AND ${table.purgeClaimedAt} = ${table.lifecycleEnteredAt}
+          AND ${table.tombstonedAt} IS NULL
+        ) OR (
+          ${table.lifecycleStatus} = 'tombstoned'
+          AND ${table.tombstonedAt} IS NOT NULL
+          AND ${table.tombstonedAt} = ${table.lifecycleEnteredAt}
+        )
+      `,
+    ),
+  ],
 );
 
 /**

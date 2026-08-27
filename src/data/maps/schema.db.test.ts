@@ -4,6 +4,7 @@ import {
   createDbTestHarness,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
+import { archivedMapLifecycle } from './lifecycle-contract';
 import { getMapAccessSubject, getMapGrants } from './queries';
 import { mapAccess, maps } from './schema';
 
@@ -109,6 +110,18 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
         data_type: 'timestamp with time zone',
         is_nullable: 'YES',
       },
+      {
+        table_name: 'maps',
+        column_name: 'lifecycle_status',
+        data_type: 'USER-DEFINED',
+        is_nullable: 'NO',
+      },
+      {
+        table_name: 'maps',
+        column_name: 'lifecycle_entered_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'NO',
+      },
     ]);
 
     const constraints = await harness.sql<{
@@ -184,6 +197,19 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
       { ownerType: 'character', ownerId: 42, role: 'viewer' },
       { ownerType: 'corporation', ownerId: 99, role: 'editor' },
     ]);
+  });
+
+  it('rejects archived plus tombstoned on one row', async () => {
+    await seedUser(harness.db, 'overlap-owner');
+    const archivedAt = new Date('2026-08-12T00:00:00.000Z');
+    await expect(
+      harness.db.insert(maps).values({
+        userId: 'overlap-owner',
+        name: 'Overlap',
+        ...archivedMapLifecycle(archivedAt),
+        tombstonedAt: archivedAt,
+      }),
+    ).rejects.toThrow();
   });
 
   it('renames the legacy owner role without rewriting a seeded access row', async () => {

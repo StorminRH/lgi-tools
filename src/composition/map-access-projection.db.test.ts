@@ -6,6 +6,7 @@ import {
   seedEveAccount,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
+import { archivedMapLifecycle } from '@/data/maps/lifecycle-contract';
 import { mapAccess, maps } from '@/data/maps/schema';
 import { computeMapAccessClaims } from './map-access-projection';
 
@@ -117,7 +118,7 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
 
     await harness.db
       .update(maps)
-      .set({ archivedAt: new Date('2026-08-12T00:00:00.000Z') })
+      .set(archivedMapLifecycle(new Date('2026-08-12T00:00:00.000Z')))
       .where(eq(maps.id, mapId));
     await expect(computeMapAccessClaims(mapId)).resolves.toEqual([]);
   });

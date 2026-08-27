@@ -128,7 +128,11 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
       ),
     ).resolves.toBe(false);
     const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
-    expect(stored?.archivedAt).toEqual(NOW);
+    expect(stored).toMatchObject({
+      archivedAt: NOW,
+      lifecycleStatus: 'archived',
+      lifecycleEnteredAt: NOW,
+    });
   });
 
   it('allows only the creator to fast-forward grace and never hard-deletes', async () => {
@@ -162,7 +166,8 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     if (
       staged?.createdAt === undefined ||
       staged.archivedAt === null ||
-      staged.purgeRequestedAt === null
+      staged.purgeRequestedAt === null ||
+      staged.lifecycleStatus !== 'purge_queued'
     ) {
       throw new Error('createMapAtomic did not persist a staged map with recovery markers');
     }
@@ -203,6 +208,8 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
       purgeRequestedAt: expect.any(Date),
       purgeClaimedAt: afterHold,
       tombstonedAt: null,
+      lifecycleStatus: 'purge_claimed',
+      lifecycleEnteredAt: afterHold,
     });
   });
 
@@ -217,6 +224,10 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     await expect(tombstonePurgedMap(MAP_ID, afterGrace, harness.db)).resolves.toBe(true);
     await expect(tombstonePurgedMap(MAP_ID, afterGrace, harness.db)).resolves.toBe(false);
     const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
-    expect(stored?.tombstonedAt).toEqual(afterGrace);
+    expect(stored).toMatchObject({
+      tombstonedAt: afterGrace,
+      lifecycleStatus: 'tombstoned',
+      lifecycleEnteredAt: afterGrace,
+    });
   });
 });

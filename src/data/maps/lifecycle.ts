@@ -4,8 +4,6 @@ import {
   eq,
   gte,
   inArray,
-  isNotNull,
-  isNull,
   lte,
   or,
   sql,
@@ -59,12 +57,16 @@ export async function archiveAuthorizedMap(
         userId,
         principals,
         [mapId],
-        sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
+        sql`${maps.lifecycleStatus} = 'active'`,
       )}
     )
     UPDATE ${maps}
     SET archived_at = ${nowIso}::timestamptz,
         purge_requested_at = NULL,
+        purge_claimed_at = NULL,
+        tombstoned_at = NULL,
+        lifecycle_status = 'archived',
+        lifecycle_entered_at = ${nowIso}::timestamptz,
         updated_at = ${nowIso}::timestamptz
     WHERE ${maps.id} IN (SELECT id FROM authorized_map)
     RETURNING ${maps.id}
@@ -92,15 +94,18 @@ export async function restoreAuthorizedMap(
         userId,
         principals,
         [mapId],
-        sql`${maps.archivedAt} IS NOT NULL
-          AND ${maps.archivedAt} > ${cutoffIso}::timestamptz
-          AND ${maps.purgeRequestedAt} IS NULL
-          AND ${maps.purgeClaimedAt} IS NULL
-          AND ${maps.tombstonedAt} IS NULL`,
+        sql`${maps.lifecycleStatus} = 'archived'
+          AND ${maps.lifecycleEnteredAt} > ${cutoffIso}::timestamptz`,
       )}
     )
     UPDATE ${maps}
-    SET archived_at = NULL, updated_at = ${nowIso}::timestamptz
+    SET archived_at = NULL,
+        purge_requested_at = NULL,
+        purge_claimed_at = NULL,
+        tombstoned_at = NULL,
+        lifecycle_status = 'active',
+        lifecycle_entered_at = ${nowIso}::timestamptz,
+        updated_at = ${nowIso}::timestamptz
     WHERE ${maps.id} IN (SELECT id FROM authorized_map)
     RETURNING ${maps.id}
   `);
@@ -117,16 +122,18 @@ export async function requestAuthorizedMapPurge(
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const updated = await database
     .update(maps)
-    .set({ purgeRequestedAt: now, updatedAt: now })
+    .set({
+      purgeRequestedAt: now,
+      lifecycleStatus: 'purge_queued',
+      lifecycleEnteredAt: now,
+      updatedAt: now,
+    })
     .where(
       and(
         eq(maps.id, mapId),
         eq(maps.userId, userId),
-        isNotNull(maps.archivedAt),
-        gte(maps.archivedAt, cutoff),
-        isNull(maps.tombstonedAt),
-        isNull(maps.purgeRequestedAt),
-        isNull(maps.purgeClaimedAt),
+        eq(maps.lifecycleStatus, 'archived'),
+        gte(maps.lifecycleEnteredAt, cutoff),
       ),
     )
     .returning({ id: maps.id });
@@ -137,14 +144,16 @@ function purgeEligibility(now: Date) {
   const graceCutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const stagedHoldCutoff = new Date(now.getTime() - MAP_STAGED_PURGE_HOLD_MS);
   return and(
-    isNotNull(maps.archivedAt),
-    isNull(maps.tombstonedAt),
+    inArray(maps.lifecycleStatus, ['archived', 'purge_queued', 'purge_claimed']),
     or(
       and(
-        isNotNull(maps.purgeRequestedAt),
+        inArray(maps.lifecycleStatus, ['purge_queued', 'purge_claimed']),
         lte(maps.createdAt, stagedHoldCutoff),
       ),
-      lte(maps.archivedAt, graceCutoff),
+      and(
+        eq(maps.lifecycleStatus, 'archived'),
+        lte(maps.lifecycleEnteredAt, graceCutoff),
+      ),
     ),
   );
 }
@@ -173,7 +182,12 @@ export async function claimPurgeableMaps(
 
   const claimed = await database
     .update(maps)
-    .set({ purgeClaimedAt: now, updatedAt: now })
+    .set({
+      purgeClaimedAt: now,
+      lifecycleStatus: 'purge_claimed',
+      lifecycleEnteredAt: now,
+      updatedAt: now,
+    })
     .where(
       and(
         inArray(
@@ -199,11 +213,16 @@ export async function tombstonePurgedMap(
 ): Promise<boolean> {
   const updated = await database
     .update(maps)
-    .set({ tombstonedAt: now, updatedAt: now })
+    .set({
+      tombstonedAt: now,
+      lifecycleStatus: 'tombstoned',
+      lifecycleEnteredAt: now,
+      updatedAt: now,
+    })
     .where(
       and(
         eq(maps.id, mapId),
-        isNotNull(maps.purgeClaimedAt),
+        eq(maps.lifecycleStatus, 'purge_claimed'),
         purgeEligibility(now),
       ),
     )

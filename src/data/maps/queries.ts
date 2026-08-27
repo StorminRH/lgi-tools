@@ -10,6 +10,7 @@ import {
   isNull,
   or,
   sql,
+  type SQL,
 } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
@@ -21,6 +22,7 @@ import {
   type MapPrincipals,
 } from './access';
 import type { MapRole } from './access-contract';
+import { activeMapLifecycle, subjectArchivedAt } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
@@ -133,7 +135,7 @@ function principalGrantCondition(principals: MapPrincipals) {
 async function readAuthorizedMapRows(
   userId: string,
   principals: MapPrincipals,
-  lifecycleCondition: ReturnType<typeof and>,
+  lifecycleCondition: SQL | undefined,
   database: AnyPgDb,
 ): Promise<RawAuthorizedMapRow[]> {
   const rows = await database
@@ -292,8 +294,14 @@ export async function createMapAtomic(
   );
   await database.execute(sql`
     WITH created_map AS (
-      INSERT INTO ${maps} (id, user_id, name, archived_at, purge_requested_at)
-      VALUES (${mapId}, ${userId}, ${name}, now(), now())
+      INSERT INTO ${maps} (
+        id, user_id, name, archived_at, purge_requested_at,
+        lifecycle_status, lifecycle_entered_at
+      )
+      VALUES (
+        ${mapId}, ${userId}, ${name}, now(), now(),
+        'purge_queued'::"public"."map_lifecycle_status", now()
+      )
       RETURNING id
     )
     INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
@@ -313,16 +321,14 @@ export async function publishCreatedMap(
   mapId: string,
   database: AnyPgDb = db,
 ): Promise<void> {
+  const now = new Date();
   const published = await database
     .update(maps)
-    .set({ archivedAt: null, purgeRequestedAt: null, updatedAt: new Date() })
+    .set({ ...activeMapLifecycle(now), updatedAt: now })
     .where(
       and(
         eq(maps.id, mapId),
-        isNotNull(maps.archivedAt),
-        isNotNull(maps.purgeRequestedAt),
-        isNull(maps.purgeClaimedAt),
-        isNull(maps.tombstonedAt),
+        eq(maps.lifecycleStatus, 'purge_queued'),
       ),
     )
     .returning({ id: maps.id });
@@ -337,16 +343,28 @@ export async function compensateFailedMapCreation(
 ): Promise<{ readonly outcome: 'deleted' | 'purge-owned' }> {
   const deleted = await database
     .delete(maps)
-    .where(and(eq(maps.id, mapId), isNull(maps.purgeClaimedAt)))
+    .where(
+      and(
+        eq(maps.id, mapId),
+        isNull(maps.purgeClaimedAt),
+        sql`${maps.lifecycleStatus} <> 'purge_claimed'`,
+      ),
+    )
     .returning({ id: maps.id });
   if (deleted.length === 1) return { outcome: 'deleted' };
 
   const [retained] = await database
-    .select({ purgeClaimedAt: maps.purgeClaimedAt })
+    .select({
+      purgeClaimedAt: maps.purgeClaimedAt,
+      lifecycleStatus: maps.lifecycleStatus,
+    })
     .from(maps)
     .where(eq(maps.id, mapId))
     .limit(1);
-  if (retained?.purgeClaimedAt !== null && retained?.purgeClaimedAt !== undefined) {
+  if (
+    retained?.lifecycleStatus === 'purge_claimed'
+    || (retained?.purgeClaimedAt !== null && retained?.purgeClaimedAt !== undefined)
+  ) {
     return { outcome: 'purge-owned' };
   }
   throw new Error('Map creation compensation found neither its row nor a purge claim.');
@@ -365,7 +383,7 @@ export async function listAuthorizedMapsForPrincipals(
   const rows = await readAuthorizedMapRows(
     userId,
     principals,
-    and(isNull(maps.archivedAt), isNull(maps.tombstonedAt)),
+    eq(maps.lifecycleStatus, 'active'),
     database,
   );
   return materializeAuthorizedMaps(rows, userId, principals).map(
@@ -387,11 +405,8 @@ export async function listDeletedRestorableMapsForPrincipals(
     userId,
     principals,
     and(
-      isNotNull(maps.archivedAt),
-      isNull(maps.tombstonedAt),
-      isNull(maps.purgeRequestedAt),
-      isNull(maps.purgeClaimedAt),
-      gt(maps.archivedAt, new Date(now.getTime() - MAP_DELETE_GRACE_MS)),
+      eq(maps.lifecycleStatus, 'archived'),
+      gt(maps.lifecycleEnteredAt, new Date(now.getTime() - MAP_DELETE_GRACE_MS)),
     ),
     database,
   );
@@ -414,11 +429,24 @@ export async function getMapAccessSubject(
   database: AnyPgDb = db,
 ): Promise<MapAccessSubject | null> {
   const [row] = await database
-    .select({ userId: maps.userId, archivedAt: maps.archivedAt })
+    .select({
+      userId: maps.userId,
+      archivedAt: maps.archivedAt,
+      lifecycleStatus: maps.lifecycleStatus,
+      lifecycleEnteredAt: maps.lifecycleEnteredAt,
+    })
     .from(maps)
     .where(eq(maps.id, mapId))
     .limit(1);
-  return row ?? null;
+  if (row === undefined) return null;
+  return {
+    userId: row.userId,
+    archivedAt: subjectArchivedAt(
+      row.lifecycleStatus,
+      row.archivedAt,
+      row.lifecycleEnteredAt,
+    ),
+  };
 }
 
 /** Reads every delegated grant for one map in the shape consumed by `resolveMapRole`. */
@@ -493,7 +521,7 @@ function activeMapsAdminSelection(
     userId,
     principals,
     mapIds,
-    sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
+    sql`${maps.lifecycleStatus} = 'active'`,
   );
 }
 
