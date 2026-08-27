@@ -4,6 +4,7 @@ import {
   createDbTestHarness,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
+import { activeMapLifecycle } from './lifecycle-contract';
 import { MAP_DELETE_GRACE_MS } from './queries';
 import {
   archiveAuthorizedMap,
@@ -89,15 +90,18 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
       expect.objectContaining({ id: MAP_ID, role: 'admin', archivedAt: NOW }),
     ]);
 
+    const restoreAt = new Date(NOW.getTime() + MAP_DELETE_GRACE_MS - 1);
     await expect(
       restoreAuthorizedMap(
         ADMIN,
         ADMIN_PRINCIPALS,
         MAP_ID,
-        new Date(NOW.getTime() + MAP_DELETE_GRACE_MS - 1),
+        restoreAt,
         harness.db,
       ),
     ).resolves.toBe(true);
+    const [restored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
+    expect(restored).toMatchObject(activeMapLifecycle(restoreAt));
     await expect(
       listAuthorizedMapsForPrincipals(ADMIN, ADMIN_PRINCIPALS, harness.db),
     ).resolves.toEqual([expect.objectContaining({ id: MAP_ID, role: 'admin' })]);
@@ -145,6 +149,8 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     await expect(
       requestAuthorizedMapPurge(CREATOR, MAP_ID, NOW, harness.db),
     ).resolves.toBe(true);
+    const [queued] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
+    expect(queued?.lifecycleStatus).toBe('purge_queued');
     await expect(claimPurgeableMaps(NOW, 25, harness.db)).resolves.toEqual([
       { id: MAP_ID },
     ]);
