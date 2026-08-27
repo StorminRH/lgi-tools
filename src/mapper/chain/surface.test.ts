@@ -256,9 +256,8 @@ describe('mapper source contract', () => {
   it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
     const hook = sourceOf('chain/use-map-chain-pages.ts');
     expect(hook).toContain('api.mapChainEvents.watchMapEvents');
-    expect(hook).toContain('filterChainConnections');
+    expect(hook).toContain('const connections = subscribedConnections');
     expect(hook).toMatch(/const systems = useMemo\(/);
-    expect(hook).toMatch(/const connections = useMemo\(/);
   });
 
   it('confines client-callable mutations to the three named mapper seams', () => {

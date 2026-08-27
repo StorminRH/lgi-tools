@@ -17,12 +17,6 @@ function viewerLocation(doc: Doc<'characterLocation'>) {
   };
 }
 
-/**
- * The calling user's own location docs. Map members join through
- * mapTrackingLive.forMap; this is the personal mirror of onlineStatus.forViewer.
- * observedAt is LAST-CHANGE time (304s never touch the doc); freshness
- * consumers read the subject row's lastFinishedAt.
- */
 export const forViewer = query({
   args: {},
   handler: async (ctx) =>

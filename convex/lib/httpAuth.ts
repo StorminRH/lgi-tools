@@ -3,9 +3,6 @@ import type { PublicHttpAction } from 'convex/server';
 import { httpAction, type ActionCtx } from '../_generated/server';
 import { bearerMatches } from './bearerAuth';
 
-// Mutation arg validators throw, and Convex HTTP maps that throw to 500.
-// Zod here returns the 400 this door intended for a malformed body.
-
 async function bearerOk(req: Request): Promise<boolean> {
   const secret = process.env.CONVEX_SERVICE_SECRET;
   if (!secret) return false;

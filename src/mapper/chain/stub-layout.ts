@@ -19,7 +19,7 @@ export function stubLayoutRows(
   const authored = new Set(systems.map((row) => row.systemId));
   const resolved = new Set(resolvedConnections.map((row) => row._id));
   const stubs: StubLayoutRow[] = [];
-  for (const [index, row] of rows.entries()) {
+  for (const row of rows) {
     if (
       row.from.signatureId === null ||
       !authored.has(row.fromSystemId) ||
@@ -29,7 +29,7 @@ export function stubLayoutRows(
     }
     stubs.push({
       ...row,
-      layoutSystemId: -(index + 1),
+      layoutSystemId: -(stubs.length + 1),
     });
   }
   return stubs;
