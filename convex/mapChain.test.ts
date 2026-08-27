@@ -413,7 +413,7 @@ describe('map chain read path', () => {
       );
     });
 
-    it('fails closed rather than scanning an oversized map', async () => {
+    it('removes an unreferenced system even when the map already has many other doors', async () => {
       const t = convexTest(schema, modules);
       await placeSystems(t, MAP_A, [JITA]);
       await t.run(async (ctx) => {
@@ -429,13 +429,19 @@ describe('map chain read path', () => {
         }
       });
 
-      await expectErrorCode(
-        t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
-          mapId: MAP_A,
-          systemId: JITA,
-        }),
-        'FIXTURE_MAP_TOO_LARGE',
+      const outcome = await t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
+        mapId: MAP_A,
+        systemId: JITA,
+      });
+
+      expect(outcome).toBe('removed');
+      const remaining = await t.run(async (ctx) =>
+        await ctx.db
+          .query('mapSystems')
+          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+          .collect(),
       );
+      expect(remaining).toHaveLength(0);
     });
 
     it('removes a connection once and reports unchanged on a repeat', async () => {

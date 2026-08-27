@@ -13,12 +13,12 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 import { dispatch, syncDatasetValidator } from './lib/engineCore';
 import { getPresence, getSyncSubject } from './lib/subjects';
 
-export const chainDispatchArgs = {
+const chainDispatchArgs = {
   dataset: syncDatasetValidator,
   userId: v.string(),
 };
 
-export async function runChainDispatch(
+async function runChainDispatch(
   ctx: MutationCtx,
   { dataset, userId }: { dataset: 'onlineStatus' | 'characterLocation'; userId: string },
 ): Promise<void> {
@@ -100,7 +100,7 @@ async function resolveCompletionSchedule(
   return jitteredScanReArm(subject.minExpiresAt, cadenceFloorMs, now);
 }
 
-export const onSyncCompleteArgs = {
+const onSyncCompleteArgs = {
   workId: v.string(),
   context: v.object({ dataset: syncDatasetValidator, userId: v.string() }),
   result: v.union(
@@ -109,7 +109,7 @@ export const onSyncCompleteArgs = {
   ),
 };
 
-export async function completeSyncRun(
+async function completeSyncRun(
   ctx: MutationCtx,
   { workId, context, result }: {
     workId: string;
