@@ -4473,12 +4473,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "maps_lifecycle_status": {
-          "name": "maps_lifecycle_status",
-          "value": "\n        (\n          \"maps\".\"lifecycle_status\" = 'active'\n          AND \"maps\".\"archived_at\" IS NULL\n          AND \"maps\".\"purge_requested_at\" IS NULL\n          AND \"maps\".\"purge_claimed_at\" IS NULL\n          AND \"maps\".\"tombstoned_at\" IS NULL\n        ) OR (\n          \"maps\".\"lifecycle_status\" = 'archived'\n          AND \"maps\".\"archived_at\" IS NOT NULL\n          AND \"maps\".\"archived_at\" = \"maps\".\"lifecycle_entered_at\"\n          AND \"maps\".\"purge_requested_at\" IS NULL\n          AND \"maps\".\"purge_claimed_at\" IS NULL\n          AND \"maps\".\"tombstoned_at\" IS NULL\n        ) OR (\n          \"maps\".\"lifecycle_status\" = 'purge_queued'\n          AND \"maps\".\"archived_at\" IS NOT NULL\n          AND \"maps\".\"purge_requested_at\" IS NOT NULL\n          AND \"maps\".\"purge_requested_at\" = \"maps\".\"lifecycle_entered_at\"\n          AND \"maps\".\"purge_claimed_at\" IS NULL\n          AND \"maps\".\"tombstoned_at\" IS NULL\n        ) OR (\n          \"maps\".\"lifecycle_status\" = 'purge_claimed'\n          AND \"maps\".\"archived_at\" IS NOT NULL\n          AND \"maps\".\"purge_claimed_at\" IS NOT NULL\n          AND \"maps\".\"purge_claimed_at\" = \"maps\".\"lifecycle_entered_at\"\n          AND \"maps\".\"tombstoned_at\" IS NULL\n        ) OR (\n          \"maps\".\"lifecycle_status\" = 'tombstoned'\n          AND \"maps\".\"tombstoned_at\" IS NOT NULL\n          AND \"maps\".\"tombstoned_at\" = \"maps\".\"lifecycle_entered_at\"\n        )\n      "
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.wh_statics_snapshots": {

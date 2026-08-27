@@ -694,11 +694,7 @@ export const DATA_OWNERSHIP = [
           'The dev-only map replay tool (src/scripts/map-replay.ts) seeds one disposable local map row so a generated corpus chain has a home to replay into; the user-facing creation path is owned separately by data/maps.',
       },
     ],
-    invariants: [
-      'check(maps_lifecycle_status)',
-      'fk(user_id→user.id)',
-      'pk(id)',
-    ],
+    invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
       note: 'User-facing creation inserts a hidden purge-queued map plus selected map_access grants in one atomic CTE before one-way access projection, then publishes by writing the exclusive active lifecycle. Delete and restore are atomic authorization-guarded lifecycle updates; creator-only permanent delete queues the map for the bounded daily purge, which tombstones only after all map-keyed Convex documents are gone. Compensation retries deletion and cascades grants; exhausted cleanup stays hidden for the later purge owner. Whole-account deletion uses the same full-chain purge before removing the Neon identity. The dev-only replay seed remains a separate owned path.',

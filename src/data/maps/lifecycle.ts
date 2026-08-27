@@ -4,6 +4,8 @@ import {
   eq,
   gte,
   inArray,
+  isNotNull,
+  isNull,
   lte,
   or,
   sql,
@@ -57,7 +59,7 @@ export async function archiveAuthorizedMap(
         userId,
         principals,
         [mapId],
-        sql`${maps.lifecycleStatus} = 'active'`,
+        sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
       )}
     )
     UPDATE ${maps}
@@ -94,8 +96,11 @@ export async function restoreAuthorizedMap(
         userId,
         principals,
         [mapId],
-        sql`${maps.lifecycleStatus} = 'archived'
-          AND ${maps.lifecycleEnteredAt} > ${cutoffIso}::timestamptz`,
+        sql`${maps.archivedAt} IS NOT NULL
+          AND ${maps.archivedAt} > ${cutoffIso}::timestamptz
+          AND ${maps.purgeRequestedAt} IS NULL
+          AND ${maps.purgeClaimedAt} IS NULL
+          AND ${maps.tombstonedAt} IS NULL`,
       )}
     )
     UPDATE ${maps}
@@ -132,8 +137,11 @@ export async function requestAuthorizedMapPurge(
       and(
         eq(maps.id, mapId),
         eq(maps.userId, userId),
-        eq(maps.lifecycleStatus, 'archived'),
-        gte(maps.lifecycleEnteredAt, cutoff),
+        isNotNull(maps.archivedAt),
+        gte(maps.archivedAt, cutoff),
+        isNull(maps.tombstonedAt),
+        isNull(maps.purgeRequestedAt),
+        isNull(maps.purgeClaimedAt),
       ),
     )
     .returning({ id: maps.id });
@@ -144,16 +152,14 @@ function purgeEligibility(now: Date) {
   const graceCutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const stagedHoldCutoff = new Date(now.getTime() - MAP_STAGED_PURGE_HOLD_MS);
   return and(
-    inArray(maps.lifecycleStatus, ['archived', 'purge_queued', 'purge_claimed']),
+    isNotNull(maps.archivedAt),
+    isNull(maps.tombstonedAt),
     or(
       and(
-        inArray(maps.lifecycleStatus, ['purge_queued', 'purge_claimed']),
+        isNotNull(maps.purgeRequestedAt),
         lte(maps.createdAt, stagedHoldCutoff),
       ),
-      and(
-        eq(maps.lifecycleStatus, 'archived'),
-        lte(maps.lifecycleEnteredAt, graceCutoff),
-      ),
+      lte(maps.archivedAt, graceCutoff),
     ),
   );
 }
@@ -222,7 +228,7 @@ export async function tombstonePurgedMap(
     .where(
       and(
         eq(maps.id, mapId),
-        eq(maps.lifecycleStatus, 'purge_claimed'),
+        isNotNull(maps.purgeClaimedAt),
         purgeEligibility(now),
       ),
     )

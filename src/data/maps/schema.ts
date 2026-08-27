@@ -1,7 +1,5 @@
-import { sql } from 'drizzle-orm';
 import {
   bigint,
-  check,
   index,
   pgEnum,
   pgSequence,
@@ -38,7 +36,6 @@ export const mapAccessOwnerTypeEnum = pgEnum(
   MAP_ACCESS_OWNER_TYPES,
 );
 
-/** Drizzle owner of the exclusive durable map lifecycle phase. */
 export const mapLifecycleStatusEnum = pgEnum(
   'map_lifecycle_status',
   MAP_LIFECYCLE_STATUSES,
@@ -72,45 +69,7 @@ export const maps = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (table) => [
-    index('maps_user_id_idx').on(table.userId),
-    check(
-      'maps_lifecycle_status',
-      sql`
-        (
-          ${table.lifecycleStatus} = 'active'
-          AND ${table.archivedAt} IS NULL
-          AND ${table.purgeRequestedAt} IS NULL
-          AND ${table.purgeClaimedAt} IS NULL
-          AND ${table.tombstonedAt} IS NULL
-        ) OR (
-          ${table.lifecycleStatus} = 'archived'
-          AND ${table.archivedAt} IS NOT NULL
-          AND ${table.archivedAt} = ${table.lifecycleEnteredAt}
-          AND ${table.purgeRequestedAt} IS NULL
-          AND ${table.purgeClaimedAt} IS NULL
-          AND ${table.tombstonedAt} IS NULL
-        ) OR (
-          ${table.lifecycleStatus} = 'purge_queued'
-          AND ${table.archivedAt} IS NOT NULL
-          AND ${table.purgeRequestedAt} IS NOT NULL
-          AND ${table.purgeRequestedAt} = ${table.lifecycleEnteredAt}
-          AND ${table.purgeClaimedAt} IS NULL
-          AND ${table.tombstonedAt} IS NULL
-        ) OR (
-          ${table.lifecycleStatus} = 'purge_claimed'
-          AND ${table.archivedAt} IS NOT NULL
-          AND ${table.purgeClaimedAt} IS NOT NULL
-          AND ${table.purgeClaimedAt} = ${table.lifecycleEnteredAt}
-          AND ${table.tombstonedAt} IS NULL
-        ) OR (
-          ${table.lifecycleStatus} = 'tombstoned'
-          AND ${table.tombstonedAt} IS NOT NULL
-          AND ${table.tombstonedAt} = ${table.lifecycleEnteredAt}
-        )
-      `,
-    ),
-  ],
+  (table) => [index('maps_user_id_idx').on(table.userId)],
 );
 
 /**

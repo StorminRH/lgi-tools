@@ -1,4 +1,3 @@
-/** Exclusive durable map phase. One row holds one of these, never a timestamp combination. */
 export const MAP_LIFECYCLE_STATUSES = [
   'active',
   'archived',
@@ -6,9 +5,6 @@ export const MAP_LIFECYCLE_STATUSES = [
   'purge_claimed',
   'tombstoned',
 ] as const;
-
-/** One exclusive Neon `maps` lifecycle phase. */
-export type MapLifecycleStatus = (typeof MAP_LIFECYCLE_STATUSES)[number];
 
 export function activeMapLifecycle(enteredAt: Date) {
   return {
@@ -45,26 +41,14 @@ export function purgeQueuedMapLifecycle(enteredAt: Date, archivedAt: Date) {
 
 export function tombstonedMapLifecycle(
   enteredAt: Date,
-  extras: {
-    readonly archivedAt?: Date | null;
-    readonly purgeRequestedAt?: Date | null;
-    readonly purgeClaimedAt?: Date | null;
-  } = {},
+  archivedAt: Date | null = null,
 ) {
   return {
     lifecycleStatus: 'tombstoned' as const,
     lifecycleEnteredAt: enteredAt,
-    archivedAt: extras.archivedAt ?? null,
-    purgeRequestedAt: extras.purgeRequestedAt ?? null,
-    purgeClaimedAt: extras.purgeClaimedAt ?? null,
+    archivedAt,
+    purgeRequestedAt: null,
+    purgeClaimedAt: null,
     tombstonedAt: enteredAt,
   };
-}
-
-export function subjectArchivedAt(
-  status: MapLifecycleStatus,
-  archivedAt: Date | null,
-  enteredAt: Date,
-): Date | null {
-  return status === 'active' ? null : (archivedAt ?? enteredAt);
 }

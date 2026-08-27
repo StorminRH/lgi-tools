@@ -22,7 +22,7 @@ import {
   type MapPrincipals,
 } from './access';
 import type { MapRole } from './access-contract';
-import { activeMapLifecycle, subjectArchivedAt } from './lifecycle-contract';
+import { activeMapLifecycle } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
@@ -328,7 +328,10 @@ export async function publishCreatedMap(
     .where(
       and(
         eq(maps.id, mapId),
-        eq(maps.lifecycleStatus, 'purge_queued'),
+        isNotNull(maps.archivedAt),
+        isNotNull(maps.purgeRequestedAt),
+        isNull(maps.purgeClaimedAt),
+        isNull(maps.tombstonedAt),
       ),
     )
     .returning({ id: maps.id });
@@ -343,28 +346,16 @@ export async function compensateFailedMapCreation(
 ): Promise<{ readonly outcome: 'deleted' | 'purge-owned' }> {
   const deleted = await database
     .delete(maps)
-    .where(
-      and(
-        eq(maps.id, mapId),
-        isNull(maps.purgeClaimedAt),
-        sql`${maps.lifecycleStatus} <> 'purge_claimed'`,
-      ),
-    )
+    .where(and(eq(maps.id, mapId), isNull(maps.purgeClaimedAt)))
     .returning({ id: maps.id });
   if (deleted.length === 1) return { outcome: 'deleted' };
 
   const [retained] = await database
-    .select({
-      purgeClaimedAt: maps.purgeClaimedAt,
-      lifecycleStatus: maps.lifecycleStatus,
-    })
+    .select({ purgeClaimedAt: maps.purgeClaimedAt })
     .from(maps)
     .where(eq(maps.id, mapId))
     .limit(1);
-  if (
-    retained?.lifecycleStatus === 'purge_claimed'
-    || (retained?.purgeClaimedAt !== null && retained?.purgeClaimedAt !== undefined)
-  ) {
+  if (retained?.purgeClaimedAt !== null && retained?.purgeClaimedAt !== undefined) {
     return { outcome: 'purge-owned' };
   }
   throw new Error('Map creation compensation found neither its row nor a purge claim.');
@@ -383,7 +374,7 @@ export async function listAuthorizedMapsForPrincipals(
   const rows = await readAuthorizedMapRows(
     userId,
     principals,
-    eq(maps.lifecycleStatus, 'active'),
+    and(isNull(maps.archivedAt), isNull(maps.tombstonedAt)),
     database,
   );
   return materializeAuthorizedMaps(rows, userId, principals).map(
@@ -405,8 +396,11 @@ export async function listDeletedRestorableMapsForPrincipals(
     userId,
     principals,
     and(
-      eq(maps.lifecycleStatus, 'archived'),
-      gt(maps.lifecycleEnteredAt, new Date(now.getTime() - MAP_DELETE_GRACE_MS)),
+      isNotNull(maps.archivedAt),
+      isNull(maps.tombstonedAt),
+      isNull(maps.purgeRequestedAt),
+      isNull(maps.purgeClaimedAt),
+      gt(maps.archivedAt, new Date(now.getTime() - MAP_DELETE_GRACE_MS)),
     ),
     database,
   );
@@ -429,24 +423,11 @@ export async function getMapAccessSubject(
   database: AnyPgDb = db,
 ): Promise<MapAccessSubject | null> {
   const [row] = await database
-    .select({
-      userId: maps.userId,
-      archivedAt: maps.archivedAt,
-      lifecycleStatus: maps.lifecycleStatus,
-      lifecycleEnteredAt: maps.lifecycleEnteredAt,
-    })
+    .select({ userId: maps.userId, archivedAt: maps.archivedAt })
     .from(maps)
     .where(eq(maps.id, mapId))
     .limit(1);
-  if (row === undefined) return null;
-  return {
-    userId: row.userId,
-    archivedAt: subjectArchivedAt(
-      row.lifecycleStatus,
-      row.archivedAt,
-      row.lifecycleEnteredAt,
-    ),
-  };
+  return row ?? null;
 }
 
 /** Reads every delegated grant for one map in the shape consumed by `resolveMapRole`. */
@@ -521,7 +502,7 @@ function activeMapsAdminSelection(
     userId,
     principals,
     mapIds,
-    sql`${maps.lifecycleStatus} = 'active'`,
+    sql`${maps.archivedAt} IS NULL AND ${maps.tombstonedAt} IS NULL`,
   );
 }
 

@@ -31,37 +31,4 @@ UPDATE "maps" SET
   "purge_claimed_at" = CASE
     WHEN "tombstoned_at" IS NOT NULL OR "purge_claimed_at" IS NOT NULL THEN "purge_claimed_at"
     ELSE NULL
-  END;--> statement-breakpoint
-ALTER TABLE "maps" ADD CONSTRAINT "maps_lifecycle_status" CHECK (
-        (
-          "maps"."lifecycle_status" = 'active'
-          AND "maps"."archived_at" IS NULL
-          AND "maps"."purge_requested_at" IS NULL
-          AND "maps"."purge_claimed_at" IS NULL
-          AND "maps"."tombstoned_at" IS NULL
-        ) OR (
-          "maps"."lifecycle_status" = 'archived'
-          AND "maps"."archived_at" IS NOT NULL
-          AND "maps"."archived_at" = "maps"."lifecycle_entered_at"
-          AND "maps"."purge_requested_at" IS NULL
-          AND "maps"."purge_claimed_at" IS NULL
-          AND "maps"."tombstoned_at" IS NULL
-        ) OR (
-          "maps"."lifecycle_status" = 'purge_queued'
-          AND "maps"."archived_at" IS NOT NULL
-          AND "maps"."purge_requested_at" IS NOT NULL
-          AND "maps"."purge_requested_at" = "maps"."lifecycle_entered_at"
-          AND "maps"."purge_claimed_at" IS NULL
-          AND "maps"."tombstoned_at" IS NULL
-        ) OR (
-          "maps"."lifecycle_status" = 'purge_claimed'
-          AND "maps"."archived_at" IS NOT NULL
-          AND "maps"."purge_claimed_at" IS NOT NULL
-          AND "maps"."purge_claimed_at" = "maps"."lifecycle_entered_at"
-          AND "maps"."tombstoned_at" IS NULL
-        ) OR (
-          "maps"."lifecycle_status" = 'tombstoned'
-          AND "maps"."tombstoned_at" IS NOT NULL
-          AND "maps"."tombstoned_at" = "maps"."lifecycle_entered_at"
-        )
-      );
+  END;
