@@ -19,8 +19,8 @@ execution chat)
 `staging`. A dump over 100 files is blocked. Release is
 `staging` → `main`. As-builts land on the promote PR. The public
 changelog is written at release from those as-builts. `close-out` is
-one process onto `staging` or `main`. Remaining work in this plan is `ux-check`, schemas,
-Linear/GrokBots, standing `staging` backends, and local/cloud parity.
+one process onto `staging` or `main`. Remaining work in this plan is
+`ux-check` and schemas.
 
 This file is the execution prompt for the migration. Publish it first.
 Then run each Ordered work step as a later ordinary-work chat. Origin
@@ -655,8 +655,7 @@ Do not implement a later step in an earlier chat.
    and agents still must not visually approve.
 
 10. **Done.** `update-watch` is report-only. Absorption is later
-    ordinary work when the operator asks. Issue create may stay
-    GitHub until OW-14.
+    ordinary work when the operator asks.
 
 11. **Done.** `plan-version` and `adversarial-review` match
     the settled loop. There is no `triage-issue` skill.
@@ -672,63 +671,19 @@ Do not implement a later step in an earlier chat.
     Preview is the usual look. `*.db.test.ts` is a Depot `verify`
     requirement. Prove `check-doc-refs` clean on touched files.
 
-14. **Linear connector proof.** Create (or reuse) a Linear workspace
-    on the Free plan. Confirm 250-issue headroom against the 31 open
-    GitHub issues (do not bulk-import closed history). Prove the
-    Cursor app, a Cloud Agent in the build environment, and a GrokBot
-    can each read/write that workspace. Point GrokBots at the Origin
-    repo for any spawned agent. Do not migrate production feedback in
-    this chat. Hunt a peer only if a connector cannot see Linear or
-    the spawned agent cannot work on Origin.
+14. **Done.** Linear is the ticket home. Cursor, Cloud Agents, and
+    GrokBots read and write that workspace.
 
-15. **Feedback button retarget.** After OW-14, change
-    `createFeedbackGithubIssue` and its route/env/registry/tests so
-    the site button creates a Linear issue. Keep server-only raw
-    `fetch` (GraphQL `issueCreate`). Map 503/502 to the new
-    dependency. Prove with a test that the old GitHub URL is gone and
-    a staging submit (or contract test) hits Linear.
+15. **Done.** Site feedback creates a Linear issue.
 
-16. **GrokBot retarget.** Point the three scheduled GrokBots at Origin
-    + Linear, matching how each one actually lives:
-    - Update watch: GrokBot writes the Linear issue (no Cloud Agent).
-    - Refactor: move `#449`’s process note to Linear; keep the
-      accumulating **draft Origin PR**; spawn a Cloud Agent when
-      code must be written.
-    - Test cleanup: keep the accumulating **draft Origin PR**
-      (rebase/update daily); spawn a Cloud Agent when code must be
-      written; **no Linear issue**.
-    Prove each with one scheduled or manual run.
+16. **Done.** Update-watch writes Linear. Refactor and test-cleanup
+    accumulate on Origin draft PRs.
 
-17. **Standing `staging` backends.** In `neon.ts`, add a
-    named `staging` arm: no `ttl`, cheap CU (0.25–1), short
-    `suspendTimeout` (1m or 5m). Create the Neon branch as `staging`
-    (not `preview/staging`). `neon config apply` with `updateExisting`
-    (today’s `if (branch.exists) return {}` would skip it). Create
-    one Convex `npx convex deployment create staging --type prod`.
-    Register EVE SSO on that stable URL only if signed-in Atlas is
-    in scope. Production path is merge to `main` (auto-deploy). Prove:
-    `staging` Preview stays up on the cheap pair; `development`
-    Preview backends are short-lived; Origin `main` auto-deploys
-    Production.
+17. **Done.** Standing `staging` is the cheap Neon arm plus Convex
+    `staging`.
 
-18. **Local / Cloud Agent parity (Cursor defaults).** Last step, only
-    after OW-1–17 are working. Walk laptop Cursor and a Cloud Agent
-    through the same loop: Origin remote, `depot ci run --job
-    verify`, Preview URL (laptop `pnpm dev` optional), land on
-    `development`. Change `.cursor/environment.json`, `install.sh`,
-    `start.sh`, and `AGENTS.md` so they describe **one** workflow
-    using Cursor’s environment schema
-    (`https://cursor.com/docs/cloud-agent/setup`). Audit
-    `.gitignore`: track every skill, agent, and doc both sides need;
-    keep ignoring `.env*`, cookie jars, coverage, `node_modules`,
-    and true machine-local `local-only/` trees. Remove skill
-    branches that say “do this locally, do that on Cloud” unless
-    they name a platform fact (no Docker daemon on the Cloud VM;
-    official `CONVEX_AGENT_MODE=anonymous`). Do not add new
-    workarounds. Do not upload production `DATABASE_URL` or a hosted
-    Convex URL. Prove: a Cloud Agent on the Origin repo can run the
-    rewritten start-session / close-out land-on-`development` path with the
-    same files a laptop clone has.
+18. **Done.** Laptop and Cloud Agent share one Cursor-native
+    workflow.
 
 ### Local / cloud parity (OW-18)
 
