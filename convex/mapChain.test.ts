@@ -8,7 +8,7 @@ import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { MAP_EVENT_READ_LIMIT } from './mapChainEvents';
 import { MAP_CHAIN_MAX_PAGE_SIZE } from './mapChainPage';
-import { FIXTURE_CONNECTION_SCAN_LIMIT } from './lib/mapConnectionLookup';
+import { MAP_CONNECTION_SIGNATURE_SCAN_LIMIT } from './lib/mapConnectionLookup';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -417,7 +417,7 @@ describe('map chain read path', () => {
       const t = convexTest(schema, modules);
       await placeSystems(t, MAP_A, [JITA]);
       await t.run(async (ctx) => {
-        for (let index = 0; index <= FIXTURE_CONNECTION_SCAN_LIMIT; index += 1) {
+        for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
           await ctx.db.insert('mapConnections', connectionInsert({
             mapId: MAP_A,
             fromSystemId: AMARR + index,
@@ -442,6 +442,31 @@ describe('map chain read path', () => {
           .collect(),
       );
       expect(remaining).toHaveLength(0);
+    });
+
+    it('refuses a system that still has more doors than the old scan bound', async () => {
+      const t = convexTest(schema, modules);
+      await placeSystems(t, MAP_A, [JITA]);
+      await t.run(async (ctx) => {
+        for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
+          await ctx.db.insert('mapConnections', connectionInsert({
+            mapId: MAP_A,
+            fromSystemId: JITA,
+            toSystemId: AMARR + index,
+            wormholeTypeCode: null,
+            massState: 'stable',
+            shipSize: 'M',
+          }));
+        }
+      });
+
+      await expectErrorCode(
+        t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
+          mapId: MAP_A,
+          systemId: JITA,
+        }),
+        'SYSTEM_IN_USE',
+      );
     });
 
     it('removes a connection once and reports unchanged on a repeat', async () => {

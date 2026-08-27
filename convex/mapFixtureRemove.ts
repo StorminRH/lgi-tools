@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { readTouchingConnections } from './lib/mapConnectionLookup';
+import { hasTouchingConnection } from './lib/mapConnectionLookup';
 import { findSystem } from './lib/mapSystemLookup';
 
 async function requireUnusedSystem(
@@ -8,8 +8,7 @@ async function requireUnusedSystem(
   mapId: string,
   systemId: number,
 ): Promise<void> {
-  const doors = await readTouchingConnections(ctx, mapId, systemId);
-  if (doors.length > 0) {
+  if (await hasTouchingConnection(ctx, mapId, systemId)) {
     throw new ConvexError({
       code: 'SYSTEM_IN_USE',
       detail: `System ${systemId} still has a connection on map ${mapId}.`,

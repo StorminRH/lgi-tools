@@ -6,8 +6,6 @@ import { isTombstoned } from '@/data/maps/chain-contract';
 /** Maximum origin- or destination-side connections one scan transaction may inspect. */
 export const MAP_CONNECTION_SIGNATURE_SCAN_LIMIT = 128;
 
-export const FIXTURE_CONNECTION_SCAN_LIMIT = MAP_CONNECTION_SIGNATURE_SCAN_LIMIT;
-
 export type ConnectionScanOptions = {
   readonly limit?: number;
   readonly errorCode?: string;
@@ -86,6 +84,24 @@ export async function readTouchingConnections(
     readInboundConnections(ctx, mapId, systemId, options),
   ]);
   return [...origin, ...inbound];
+}
+
+/** Whether any door on this map already touches the system. */
+export async function hasTouchingConnection(
+  ctx: QueryCtx,
+  mapId: string,
+  systemId: number,
+): Promise<boolean> {
+  const origin = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map_from', (q) => q.eq('mapId', mapId).eq('fromSystemId', systemId))
+    .first();
+  if (origin !== null) return true;
+  const inbound = await ctx.db
+    .query('mapConnections')
+    .withIndex('by_map_to', (q) => q.eq('mapId', mapId).eq('toSystemId', systemId))
+    .first();
+  return inbound !== null;
 }
 
 /** Whether this system's door already carries the signature identity. */
