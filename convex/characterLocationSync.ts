@@ -1,14 +1,3 @@
-// Character location payload — the Convex half of 4.0.4.2.1 tracked location.
-//
-// Canonical shape: client heartbeat (engine) → chain-on-success ~5s loop
-// while watched and a tracked pilot is online (30s scan is the retry/
-// watchdog; the sync's own /online probe paces an all-offline subject at
-// ~60s) → scheduler → characterLocationSync.syncUser (action: mapTracking
-// poll set, access lease, online probe + location + ship-on-change) → applySyncResults
-// (ONE batched mutation, generation-guarded) → forViewer /
-// mapTrackingLive.forMap. The client never calls the action directly.
-//
-// Purge remains the Neon→Convex teardown door for removed accounts/characters.
 import { v } from 'convex/values';
 import {
   parseLocationBody,

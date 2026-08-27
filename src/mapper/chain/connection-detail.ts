@@ -19,7 +19,6 @@ export type ConnectionEditorDetail = Readonly<
   readonly observedMassAtStateKg: number | null;
 };
 
-/** A resolved connection whose destination can anchor the canvas details card. */
 export interface ConnectionDetail extends ConnectionEditorDetail {
   readonly toSystemId: number;
 }
@@ -61,7 +60,6 @@ export function connectionDetailsFromRows(
   return details;
 }
 
-/** One scanned-but-unexplored wormhole slot, projected for prompt labeling. */
 export interface UnresolvedHoleSummary extends ConnectionEditorDetail {
   readonly toSystemId: null;
 }

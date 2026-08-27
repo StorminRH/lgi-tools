@@ -11,7 +11,7 @@ import {
   destinationClassIdForCode,
   useSystemStaticSlots,
 } from '../signatures/use-system-statics';
-import { filterChainConnections, filterLivePages } from './chain-signature';
+import { filterLivePages } from './chain-signature';
 import {
   connectionDetailsFromRows,
   unresolvedHolesFromRows,
@@ -23,7 +23,6 @@ const PAGE_SIZE = 100;
 const EMPTY_MAP_EVENTS: readonly Doc<'mapEvents'>[] = [];
 const TOMBSTONE_TICK_MS = 60_000;
 
-/** Whether the caller holds access, or `undefined` until the access subscription first answers. */
 export type MapAccessState = boolean | undefined;
 
 export interface NormalizedMapAccess {
@@ -31,7 +30,6 @@ export interface NormalizedMapAccess {
   readonly canEdit: boolean | undefined;
 }
 
-/** Normalizes the not-yet-answered access subscription without conflating it with denial. */
 export function normalizeMapAccess(
   result: { readonly granted: boolean; readonly canEdit: boolean } | undefined,
 ): NormalizedMapAccess {
@@ -73,14 +71,7 @@ export function useMapChainPages(mapId: string | null) {
       }),
     [subscribedSystems.rows, subscribedSystems.complete],
   );
-  const connections = useMemo(
-    () =>
-      filterChainConnections({
-        rows: subscribedConnections.rows,
-        complete: subscribedConnections.complete,
-      }),
-    [subscribedConnections.rows, subscribedConnections.complete],
-  );
+  const connections = subscribedConnections;
   const events = subscribedEvents ?? EMPTY_MAP_EVENTS;
   const connectionDetails = useMemo(
     () => connectionDetailsFromRows(connections.rows),

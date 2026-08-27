@@ -32,18 +32,13 @@ export function chainSignature(
   ].join('#');
 }
 
+// Drop tombstones here. chainSignature only fingerprints ids, so a later filter leaves a ghost.
 export function filterLivePages<Row extends { readonly deletedAt?: number | null }>(
   pages: { readonly rows: readonly Row[]; readonly complete: boolean },
 ): { readonly rows: readonly Row[]; readonly complete: boolean } {
   const live = pages.rows.filter((row) => !isTombstoned(row));
   if (live.length === pages.rows.length) return pages;
   return { rows: live, complete: pages.complete };
-}
-
-export function filterChainConnections<Row>(
-  pages: { readonly rows: readonly Row[]; readonly complete: boolean },
-): { readonly rows: readonly Row[]; readonly complete: boolean } {
-  return pages;
 }
 
 export function factsFromSnapshot(snapshot: ChainSnapshot): LayoutFacts {

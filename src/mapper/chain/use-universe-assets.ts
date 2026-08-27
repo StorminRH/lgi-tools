@@ -16,6 +16,7 @@ export function useUniverseAssets(): UniverseAssets | null {
         if (active) setAssets(loaded);
       },
       () => {
+        // HC-5: labels fall back to system id. The next mount retries.
       },
     );
     return () => {
