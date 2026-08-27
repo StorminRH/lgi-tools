@@ -12,7 +12,7 @@ import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import {
   findConnectionForSignature,
-  FIXTURE_CONNECTION_SCAN_LIMIT,
+  MAP_CONNECTION_SIGNATURE_SCAN_LIMIT,
   readOriginConnections,
 } from './lib/mapConnectionLookup';
 import {
@@ -75,9 +75,8 @@ async function findUnresolvedHole(
 ): Promise<Doc<'mapConnections'> | undefined> {
   const match = findConnectionForSignature(
     await readOriginConnections(ctx, args.mapId, args.fromSystemId, {
-      limit: FIXTURE_CONNECTION_SCAN_LIMIT,
       errorCode: 'FIXTURE_MAP_TOO_LARGE',
-      errorDetail: `Map ${args.mapId} exceeds the ${FIXTURE_CONNECTION_SCAN_LIMIT}-connection unresolved-hole bound.`,
+      errorDetail: `Map ${args.mapId} exceeds the ${MAP_CONNECTION_SIGNATURE_SCAN_LIMIT}-connection unresolved-hole bound.`,
     }),
     args.fromSignatureId,
   );
