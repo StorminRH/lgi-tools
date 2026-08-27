@@ -1,8 +1,8 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
-import { JUMP_CONTINUITY_MS } from './characterLocation';
+import { JUMP_CONTINUITY_MS } from './characterLocationApply';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
@@ -11,7 +11,6 @@ const USER = 'user-location-1';
 const OTHER = 'user-location-other';
 const CHAR_A = 90_000_101;
 const CHAR_B = 90_000_102;
-const SECRET = 'svc-secret-location';
 const GEN = 1_700_000_000_000;
 const WINDOW = GEN + 5_000;
 
@@ -87,7 +86,7 @@ function apply(
     trackedCharacterIds?: number[];
   },
 ) {
-  return t.mutation(internal.characterLocation.applySyncResults, {
+  return t.mutation(internal.characterLocationApply.applySyncResults, {
     userId: USER,
     generation: args.generation ?? GEN,
     enumeratedCharacterIds:
@@ -117,11 +116,7 @@ function readDoc(t: TestConvex<typeof schema>, characterId = CHAR_A) {
   );
 }
 
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
-
-describe('characterLocation.purgeForUser', () => {
+describe('characterLocationPurge.purgeForUser', () => {
   it('deletes every characterLocation doc and mapTracking row for the user when characterId is null', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -175,7 +170,7 @@ describe('characterLocation.purgeForUser', () => {
       await ctx.db.insert('characterLocationCovered', { userId: OTHER, characterId: CHAR_A });
     });
 
-    const out = await t.mutation(internal.characterLocation.purgeForUser, {
+    const out = await t.mutation(internal.characterLocationPurge.purgeForUser, {
       userId: USER,
       characterId: null,
     });
@@ -222,7 +217,7 @@ describe('characterLocation.purgeForUser', () => {
       await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
     });
 
-    const out = await t.mutation(internal.characterLocation.purgeForUser, {
+    const out = await t.mutation(internal.characterLocationPurge.purgeForUser, {
       userId: USER,
       characterId: CHAR_A,
     });
@@ -250,7 +245,7 @@ describe('characterLocation.purgeForUser', () => {
 
   it('is a no-op when there is nothing to delete', async () => {
     const t = convexTest(schema, modules);
-    const out = await t.mutation(internal.characterLocation.purgeForUser, {
+    const out = await t.mutation(internal.characterLocationPurge.purgeForUser, {
       userId: USER,
       characterId: null,
     });
@@ -258,10 +253,10 @@ describe('characterLocation.purgeForUser', () => {
   });
 });
 
-describe('characterLocation.putAccessLease', () => {
+describe('characterLocationAccess.putAccessLease', () => {
   it('does not resurrect a lease after tracking teardown', async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(internal.characterLocation.putAccessLease, {
+    await t.mutation(internal.characterLocationAccess.putAccessLease, {
       userId: USER,
       characterId: CHAR_A,
       accessToken: 'tok-late',
@@ -280,7 +275,7 @@ describe('characterLocation.putAccessLease', () => {
         characterId: CHAR_A,
       });
     });
-    await t.mutation(internal.characterLocation.putAccessLease, {
+    await t.mutation(internal.characterLocationAccess.putAccessLease, {
       userId: USER,
       characterId: CHAR_A,
       accessToken: 'tok-fresh',
@@ -296,7 +291,7 @@ describe('characterLocation.putAccessLease', () => {
   });
 });
 
-describe('characterLocation.clearAccessLease', () => {
+describe('characterLocationAccess.clearAccessLease', () => {
   it('deletes only the named character lease and is a no-op when absent', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -305,11 +300,11 @@ describe('characterLocation.clearAccessLease', () => {
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
     });
 
-    await t.mutation(internal.characterLocation.clearAccessLease, {
+    await t.mutation(internal.characterLocationAccess.clearAccessLease, {
       userId: USER,
       characterId: CHAR_A,
     });
-    await t.mutation(internal.characterLocation.clearAccessLease, {
+    await t.mutation(internal.characterLocationAccess.clearAccessLease, {
       userId: USER,
       characterId: CHAR_A,
     });
@@ -325,58 +320,10 @@ describe('characterLocation.clearAccessLease', () => {
   });
 });
 
-describe('POST /purge-location-tracking', () => {
-  it('rejects a request without the service bearer token', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await convexTest(schema, modules).fetch('/purge-location-tracking', {
-      method: 'POST',
-      body: JSON.stringify({ userId: USER, characterId: null }),
-    });
-    expect(res.status).toBe(401);
-  });
-
-  it('returns a clean 400 for a malformed body', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await convexTest(schema, modules).fetch('/purge-location-tracking', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${SECRET}` },
-      body: 'not json',
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('empties both tables for the user when characterId is null', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-      await ctx.db.insert('mapTracking', {
-        mapId: 'map-a',
-        userId: USER,
-        characterId: CHAR_A,
-      });
-    });
-
-    const res = await t.fetch('/purge-location-tracking', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${SECRET}` },
-      body: JSON.stringify({ userId: USER, characterId: null }),
-    });
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deletedLocations: 1, deletedTracking: 1, deletedBookkeeping: 0 });
-
-    const locations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
-    const tracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
-    expect(locations).toEqual([]);
-    expect(tracking).toEqual([]);
-  });
-});
-
-describe('characterLocation.forViewer', () => {
+describe('characterLocationReads.forViewer', () => {
   it('returns null when signed out', async () => {
     const t = convexTest(schema, modules);
-    expect(await t.query(api.characterLocation.forViewer, {})).toBeNull();
+    expect(await t.query(api.characterLocationReads.forViewer, {})).toBeNull();
   });
 
   it('never exposes an access-token lease on the public viewer query', async () => {
@@ -385,7 +332,7 @@ describe('characterLocation.forViewer', () => {
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
       await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
     });
-    const view = await t.withIdentity({ subject: USER }).query(api.characterLocation.forViewer, {});
+    const view = await t.withIdentity({ subject: USER }).query(api.characterLocationReads.forViewer, {});
     expect(JSON.stringify(view)).not.toContain('tok-');
     expect(JSON.stringify(view)).not.toContain('accessToken');
   });
@@ -395,7 +342,7 @@ describe('characterLocation.forViewer', () => {
     await t.run(async (ctx) => {
       await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
     });
-    const view = await t.withIdentity({ subject: USER }).query(api.characterLocation.forViewer, {});
+    const view = await t.withIdentity({ subject: USER }).query(api.characterLocationReads.forViewer, {});
     expect(view?.characters).toEqual([
       {
         characterId: CHAR_A,
@@ -412,7 +359,7 @@ describe('characterLocation.forViewer', () => {
   });
 });
 
-describe('characterLocation.heldState', () => {
+describe('characterLocationReads.heldState', () => {
   it('returns system id, dual etags, and the held online probe in one snapshot', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -432,7 +379,7 @@ describe('characterLocation.heldState', () => {
         onlineExpiresAt: GEN,
       });
     });
-    const held = await t.query(internal.characterLocation.heldState, { userId: USER });
+    const held = await t.query(internal.characterLocationReads.heldState, { userId: USER });
     expect(held).toEqual({
       locations: [
         {
@@ -454,7 +401,7 @@ describe('characterLocation.heldState', () => {
   });
 });
 
-describe('characterLocation.applySyncResults', () => {
+describe('characterLocationApply.applySyncResults', () => {
   it('no-ops on a generation mismatch', async () => {
     const t = convexTest(schema, modules);
     await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));

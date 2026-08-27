@@ -86,13 +86,13 @@ async function runLocationSync(
 ): Promise<void> {
   const env = requireSyncEnv();
 
-  const held = await ctx.runQuery(internal.characterLocation.heldState, { userId });
+  const held = await ctx.runQuery(internal.characterLocationReads.heldState, { userId });
   const heldByCharacter = new Map(held.locations.map((h) => [h.characterId, h]));
   const heldOnlineByCharacter = new Map(held.online.map((h) => [h.characterId, h]));
   const trackedIds = await ctx.runQuery(internal.mapTrackingIds.trackedCharacterIds, {
     userId,
   });
-  const leases = await ctx.runQuery(internal.characterLocation.accessLeases, { userId });
+  const leases = await ctx.runQuery(internal.characterLocationAccess.accessLeases, { userId });
   const leaseByCharacter = new Map(leases.map((row) => [row.characterId, row]));
   const now = Date.now();
 
@@ -127,7 +127,7 @@ async function runLocationSync(
     }
   }
 
-  await ctx.runMutation(internal.characterLocation.applySyncResults, {
+  await ctx.runMutation(internal.characterLocationApply.applySyncResults, {
     userId,
     generation,
     enumeratedCharacterIds: trackedIds,
@@ -160,7 +160,7 @@ async function syncLocationCharacter(
       return { kind: 'result', result: errorResult(characterId, code, held) };
     }
     accessToken = vend.accessToken;
-    await ctx.runMutation(internal.characterLocation.putAccessLease, {
+    await ctx.runMutation(internal.characterLocationAccess.putAccessLease, {
       userId,
       characterId,
       accessToken: vend.accessToken,
@@ -171,7 +171,7 @@ async function syncLocationCharacter(
   try {
     const result = await readProbeThenLocation(characterId, accessToken, held, heldOnline, rl);
     if (result.error === 'esi_401' || result.error === 'esi_403') {
-      await ctx.runMutation(internal.characterLocation.clearAccessLease, {
+      await ctx.runMutation(internal.characterLocationAccess.clearAccessLease, {
         userId,
         characterId,
       });
