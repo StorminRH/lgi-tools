@@ -5,7 +5,7 @@ import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fi
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
-} from '../chain/use-map-chain';
+} from '../chain/connection-detail';
 import {
   hasPendingResolution,
   jumpAnswerTarget,

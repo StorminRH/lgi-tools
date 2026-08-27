@@ -15,7 +15,7 @@ import {
   lifetimeRowDisplay,
   lifetimeUpperBoundLabel,
 } from '../authoring/connection-intelligence';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 
 /** One signature-window row, independent of its Convex storage owner. */

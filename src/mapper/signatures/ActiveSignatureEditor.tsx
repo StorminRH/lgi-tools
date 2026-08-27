@@ -16,12 +16,12 @@ import {
 import { connectionEditorMode } from '../authoring/connection-editor-mode';
 import { connectionFieldSetters } from '../authoring/connection-field-setters';
 import { originLeadOptions } from './origin-leads';
-import {
-  useUniverseAssets,
-  type ConnectionDetail,
-  type ConnectionEditorDetail,
-  type UnresolvedHoleSummary,
-} from '../chain/use-map-chain';
+import type {
+  ConnectionDetail,
+  ConnectionEditorDetail,
+  UnresolvedHoleSummary,
+} from '../chain/connection-detail';
+import { useUniverseAssets } from '../chain/use-universe-assets';
 import { SignatureEditor } from './SignatureEditor';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import { destinationReadout } from './system-readout';

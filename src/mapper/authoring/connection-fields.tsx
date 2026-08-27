@@ -35,7 +35,7 @@ import {
   doorHint,
   lifetimeStage,
 } from '@/data/maps/connection-hallway';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import {
   ConnectionFieldGroup,
   encodeOptionalField,

@@ -58,15 +58,28 @@ describe('mapper source contract', () => {
       'canvas/map-controls-model.ts',
       'canvas/use-camera-follow.ts',
       'chain/ChainHost.tsx',
+      'chain/ChainLive.tsx',
+      'chain/MotionLayer.tsx',
       'chain/NoMapAccess.tsx',
+      'chain/chain-signature.ts',
+      'chain/connection-detail.ts',
       'chain/intents.ts',
       'chain/labels.ts',
       'chain/nodes.ts',
       'chain/optimistic-authoring.ts',
       'chain/placement.ts',
       'chain/reconciler.ts',
+      'chain/stub-layout.ts',
       'chain/use-authoring-menus.ts',
+      'chain/use-chain-dials.ts',
+      'chain/use-chain-drag.ts',
+      'chain/use-chain-focus-menus.ts',
+      'chain/use-chain-node-sync.ts',
+      'chain/use-map-chain-halo.ts',
+      'chain/use-map-chain-merge.ts',
+      'chain/use-map-chain-pages.ts',
       'chain/use-map-chain.ts',
+      'chain/use-universe-assets.ts',
       'fog/FogLayer.tsx',
       'fog/fog-host.ts',
       'fog/fog-model.ts',
@@ -183,7 +196,7 @@ describe('mapper source contract', () => {
     // Titles come from the session directory, not node data, so off-map
     // k-space still names.
     const layer = sourceOf('windows/MapWindowLayer.tsx');
-    const host = sourceOf('chain/ChainHost.tsx');
+    const host = sourceOf('chain/ChainLive.tsx');
     expect(layer).not.toMatch(/readonly nodes:/);
     expect(layer).toContain('useSelectedSystemIds');
     expect(layer).toContain('useSystemLabel');
@@ -218,10 +231,10 @@ describe('mapper source contract', () => {
     );
 
     expect(consumers).toEqual([
-      'chain/use-map-chain.ts',
+      'chain/use-map-chain-pages.ts',
       'signatures/SignatureProvider.tsx',
     ]);
-    expect(sourceOf('chain/use-map-chain.ts')).not.toContain(
+    expect(sourceOf('chain/use-map-chain-pages.ts')).not.toContain(
       'api.mapScan.watchMapSignatures',
     );
     expect(sourceOf('signatures/SignatureProvider.tsx')).toContain(
@@ -232,7 +245,7 @@ describe('mapper source contract', () => {
   it('keeps the page subscriptions split so a connection write cannot re-read systems', () => {
     // HC-2's client half: one call per function over disjoint index ranges,
     // never one aggregate read. The unresolved-slot feed is the third split.
-    const hook = sourceOf('chain/use-map-chain.ts');
+    const hook = sourceOf('chain/use-map-chain-pages.ts');
 
     expect(hook).toContain('api.mapChainSystems.watchMapSystems');
     expect(hook).toContain('api.mapChainConnections.watchMapConnections');
@@ -241,7 +254,7 @@ describe('mapper source contract', () => {
   });
 
   it('subscribes to the bounded map ledger and memoizes normalized chain pages', () => {
-    const hook = sourceOf('chain/use-map-chain.ts');
+    const hook = sourceOf('chain/use-map-chain-pages.ts');
     expect(hook).toContain('api.mapChainEvents.watchMapEvents');
     expect(hook).toContain('filterChainConnections');
     expect(hook).toMatch(/const systems = useMemo\(/);
