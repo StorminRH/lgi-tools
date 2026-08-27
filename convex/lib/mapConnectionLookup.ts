@@ -86,7 +86,6 @@ export async function readTouchingConnections(
   return [...origin, ...inbound];
 }
 
-/** Whether any door on this map already touches the system. */
 export async function hasTouchingConnection(
   ctx: QueryCtx,
   mapId: string,

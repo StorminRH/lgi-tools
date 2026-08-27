@@ -444,7 +444,7 @@ describe('map chain read path', () => {
       expect(remaining).toHaveLength(0);
     });
 
-    it('refuses a system that still has more doors than the old scan bound', async () => {
+    it('refuses to remove a system that still has many doors', async () => {
       const t = convexTest(schema, modules);
       await placeSystems(t, MAP_A, [JITA]);
       await t.run(async (ctx) => {
