@@ -32,8 +32,6 @@ export function useChainDials() {
   const [locked] = usePreference(atlasAutoLayout);
   const [follow] = usePreference(atlasCameraFollow);
   const [focusOnClick] = usePreference(atlasClickFocus);
-  // Re-lock releases user placements only on transition to locked (not initial mount).
-  const wasLockedRef = useRef(locked);
   const [focusRequest, setFocusRequest] = useState<CameraFocusRequest | null>(null);
   const focusTokenRef = useRef(0);
   // Live dial state — local presentation only; never synchronized.
@@ -78,6 +76,5 @@ export function useChainDials() {
     setHaloLimits,
     setMotionConfig,
     shellRef,
-    wasLockedRef,
   };
 }

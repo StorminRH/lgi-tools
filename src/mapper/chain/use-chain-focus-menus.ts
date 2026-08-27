@@ -4,7 +4,7 @@ import {
   type EdgeMouseHandler,
   type NodeMouseHandler,
 } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, type RefObject } from 'react';
+import { useCallback, useMemo, type RefObject } from 'react';
 import type { ChainNode } from '../canvas/SystemNode';
 import type { CameraFocusRequest } from '../canvas/use-camera-follow';
 import {
@@ -16,9 +16,6 @@ import type { ChainAuthoringMutations } from './optimistic-authoring';
 import type { AuthoringMenus } from './use-authoring-menus';
 
 export function useChainFocusMenus(
-  locked: boolean,
-  wasLockedRef: RefObject<boolean>,
-  releasePlacements: () => void,
   canEdit: boolean | undefined,
   menus: AuthoringMenus,
   mapId: string,
@@ -26,11 +23,6 @@ export function useChainFocusMenus(
   focusTokenRef: RefObject<number>,
   setFocusRequest: (request: CameraFocusRequest | null) => void,
 ) {
-  useEffect(() => {
-    if (locked && !wasLockedRef.current) releasePlacements();
-    wasLockedRef.current = locked;
-  }, [locked, releasePlacements, wasLockedRef]);
-
   // Focus is additive to selection: this handler only records the click for
   // the camera host; React Flow's own selection behavior runs untouched.
   const onNodeClick = useCallback<NodeMouseHandler<ChainNode>>(

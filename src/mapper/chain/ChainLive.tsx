@@ -10,6 +10,7 @@
 // autosaved preferences. Tracking subscriptions here only retarget the dock
 // and scanner onto the live system.
 import { ReactFlowProvider } from '@xyflow/react';
+import { useEffect, useRef } from 'react';
 import { HomePrompt } from '../authoring/HomePrompt';
 import { MapAuthoringOverlay } from '../authoring/MapAuthoringOverlay';
 import { NodeAddMenu } from '../authoring/NodeAddMenu';
@@ -57,8 +58,8 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
     setHaloLimits,
     setMotionConfig,
     shellRef,
-    wasLockedRef,
   } = useChainDials();
+  const wasLockedRef = useRef(locked);
 
   const {
     access,
@@ -80,6 +81,10 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
     pinPlacement,
     releasePlacements,
   } = useMapChain(mapId, dragging, config, haloLimits);
+  useEffect(() => {
+    if (locked && !wasLockedRef.current) releasePlacements();
+    wasLockedRef.current = locked;
+  }, [locked, releasePlacements]);
   const authoring = useChainAuthoringMutations();
   const menus = useAuthoringMenus(canEdit);
   const {
@@ -110,9 +115,6 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
     onNodeClick,
     onNodeContextMenu,
   } = useChainFocusMenus(
-    locked,
-    wasLockedRef,
-    releasePlacements,
     canEdit,
     menus,
     mapId,
