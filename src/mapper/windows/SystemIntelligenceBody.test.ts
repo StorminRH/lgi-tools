@@ -23,7 +23,7 @@ vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => null }
 vi.mock('../signatures/signature-context', () => ({
   useSignatureCounts: () => ({ signatures: 3, anomalies: 2 }),
 }));
-vi.mock('../chain/use-map-chain', () => ({
+vi.mock('../chain/use-universe-assets', () => ({
   useUniverseAssets: () => ({ systemInfo: assets.systemInfo }),
 }));
 

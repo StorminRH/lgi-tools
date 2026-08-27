@@ -55,7 +55,7 @@ import type {
   ConnectionLifetime,
   DoorLeadsTo,
 } from '@/data/maps/connection-hallway';
-import type { ConnectionEditorDetail } from './use-map-chain';
+import type { ConnectionEditorDetail } from './connection-detail';
 
 /** One optimistic system page row — structural match for `watchMapSystems`. */
 export interface OptimisticSystemRow {

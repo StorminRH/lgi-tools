@@ -8,7 +8,7 @@ import type { ScannerPanelTarget } from './signature-context';
 import type {
   ConnectionDetail,
   UnresolvedHoleSummary,
-} from '../chain/use-map-chain';
+} from '../chain/connection-detail';
 
 /** Props for the live scanner panel body host. */
 export interface ActiveScannerPanelProps {
