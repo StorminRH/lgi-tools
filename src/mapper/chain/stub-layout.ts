@@ -4,7 +4,6 @@ import type { ChainPosition } from './intents';
 import type { PlacedStub, PlannedStub } from './nodes';
 
 export interface StubLayoutRow extends UnresolvedHoleSummary {
-  /** Negative kernel-only id; EVE system ids are positive, so it cannot collide. */
   readonly layoutSystemId: number;
 }
 
@@ -12,11 +11,6 @@ export type AccountedStubLayoutRow = PlannedStub & {
   readonly layoutSystemId: number;
 };
 
-/**
- * Selects scanned unresolved rows whose authored anchor is present and assigns
- * deterministic kernel-only ids in subscription order. A row already visible
- * in the resolved feed is excluded during a split-subscription handover.
- */
 export function stubLayoutRows(
   rows: readonly UnresolvedHoleSummary[],
   systems: readonly { readonly systemId: number }[],
@@ -41,10 +35,6 @@ export function stubLayoutRows(
   return stubs;
 }
 
-/**
- * Retains the scanned rows selected by accounting at their original surrogate
- * ids, then assigns non-colliding ids to the guaranteed-static leaves.
- */
 export function accountedStubLayoutRows(
   planned: readonly PlannedStub[],
   scanned: readonly StubLayoutRow[],
@@ -69,14 +59,12 @@ function stubKey(row: PlannedStub): string {
   return 'staticId' in row ? `static:${row.staticId}` : row.connectionId;
 }
 
-/** Content key for the unresolved rows that participate in kernel layout. */
 export function stubLayoutSignature(rows: readonly AccountedStubLayoutRow[]): string {
   return rows
     .map((row) => `${stubKey(row)}:${row.fromSystemId}>${row.layoutSystemId}`)
     .join(',');
 }
 
-/** Appends unresolved wormholes as leaf facts without changing authored identities. */
 export function appendStubFacts(
   facts: LayoutFacts,
   rows: readonly AccountedStubLayoutRow[],
@@ -98,7 +86,6 @@ export function appendStubFacts(
   };
 }
 
-/** Maps a kernel reply back from surrogate ids to durable connection ids. */
 export function stubPositionsFromLayout(
   rows: readonly AccountedStubLayoutRow[],
   positions: ReadonlyMap<number, ChainPosition>,
@@ -111,7 +98,6 @@ export function stubPositionsFromLayout(
   return placed;
 }
 
-/** Joins current display facts to the latest kernel-owned stub positions. */
 export function placedStubs(
   rows: readonly AccountedStubLayoutRow[],
   positions: ReadonlyMap<string, ChainPosition>,

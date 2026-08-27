@@ -15,7 +15,6 @@ import { useMapChainMerge } from './use-map-chain-merge';
 
 const EMPTY_DRAG_SET: ReadonlySet<number> = new Set();
 
-/** What the chain host needs to render and interact with one map. */
 export interface MapChain {
   /**
    * Live access. `false` means the calm no-access state; `undefined` means not yet known, which
@@ -47,21 +46,9 @@ export interface MapChain {
   /** Coarse client clock used only for dying-to-skeleton edge presentation. */
   readonly connectionPresentationNow: number;
   readonly state: ChainState;
-  /** The most recent merge's intents; sub-version 4.0.3.2 binds motion to these. */
   readonly intents: readonly MapChainIntent[];
   readonly labelOf: (systemId: number) => SystemLabel;
-  /**
-   * Child → parent for every tree-attached system, computed by re-running the
-   * kernel's own `deriveChainTree` on the exact facts object the worker laid
-   * out — the same pure function on the same input, so it cannot disagree with
-   * the drawn positions (measured ~8µs at 60 systems; a deliberate main-thread
-   * exception, recorded in the session as-built). Halo systems are ordinary
-   * facts entries, so their attachments appear here too. The canvas draws tree
-   * links solid and every other connection (loop closures) dashed, identically
-   * on every client.
-   */
   readonly treeParents: ReadonlyMap<number, number>;
-  /** The deterministic chain root used as the current-system stand-in until location tracking. */
   readonly rootSystemId: number | null;
   /**
    * The kernel-placed k-space gate halo, updated atomically with `state` on
@@ -83,24 +70,6 @@ export interface MapChain {
   readonly releasePlacements: () => void;
 }
 
-/**
- * Subscribes to one map's chain and returns the reconciled picture.
- *
- * `mapId` of `null` subscribes to nothing. That is NOT sufficient on its own when no Convex
- * deployment is configured — the underlying hooks still require a provider even when skipped — so the
- * caller must also keep this hook unmounted behind the null-client gate.
- *
- * `draggingIds` is the canvas's active-drag set. The reconciler additionally protects every
- * user-placed node from its own state, so omitting one here cannot move it (HC-1). The set is
- * mirrored into a ref and read at apply time so protection cannot go stale across the async window.
- *
- * `config` is the live dial state; changing it bumps the layout revision so the
- * pipeline re-posts.
- *
- * `haloLimits` is the development-only G-1 extent dial; omitted (or the
- * pinned object) it changes nothing — the halo fingerprint in the post key
- * re-posts layout when a dial commit changes the derivation.
- */
 export function useMapChain(
   mapId: string | null,
   draggingIds: ReadonlySet<number> = EMPTY_DRAG_SET,

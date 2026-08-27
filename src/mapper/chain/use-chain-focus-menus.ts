@@ -23,8 +23,6 @@ export function useChainFocusMenus(
   focusTokenRef: RefObject<number>,
   setFocusRequest: (request: CameraFocusRequest | null) => void,
 ) {
-  // Focus is additive to selection: this handler only records the click for
-  // the camera host; React Flow's own selection behavior runs untouched.
   const onNodeClick = useCallback<NodeMouseHandler<ChainNode>>(
     (_event, clicked) => {
       if (isStubNodeId(clicked.id)) return;
@@ -37,8 +35,6 @@ export function useChainFocusMenus(
   const onNodeContextMenu = useCallback<NodeMouseHandler<ChainNode>>(
     (event, node) => {
       if (canEdit !== true) return;
-      // Derived halo systems are rendered, never written (HC-2): no authoring
-      // menu may anchor to one until a jump upgrades it to authored truth.
       if (node.data.halo !== undefined || isStubNodeId(node.id)) return;
       event.preventDefault();
       menus.openNodeMenu({
@@ -58,8 +54,6 @@ export function useChainFocusMenus(
         canEdit: canEdit === true,
       });
       if (connectionId === null) return;
-      // React Flow forwards the event untouched — the native menu is ours to
-      // suppress (docs brief).
       event.preventDefault();
       menus.openEdgeMenu({
         connectionId,

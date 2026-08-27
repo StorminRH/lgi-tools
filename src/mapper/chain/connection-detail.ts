@@ -50,14 +50,11 @@ function optionalOrNull<Value>(value: Value | null | undefined): Value | null {
   return value ?? null;
 }
 
-/** Projects subscribed connection documents into the stable card-detail map. */
 export function connectionDetailsFromRows(
   rows: readonly Doc<'mapConnections'>[],
 ): ReadonlyMap<Id<'mapConnections'>, ConnectionDetail> {
   const details = new Map<Id<'mapConnections'>, ConnectionDetail>();
   for (const row of rows) {
-    // The public subscription is resolved-only; keep this projection guarded
-    // as a second boundary for direct/test callers holding a schema-wide Doc.
     if (row.toSystemId === null) continue;
     details.set(row._id, connectionEditorDetail(row) as ConnectionDetail);
   }
@@ -69,7 +66,6 @@ export interface UnresolvedHoleSummary extends ConnectionEditorDetail {
   readonly toSystemId: null;
 }
 
-/** Projects subscribed unresolved-slot documents into stable prompt summaries. */
 export function unresolvedHolesFromRows(
   rows: readonly Doc<'mapConnections'>[],
 ): readonly UnresolvedHoleSummary[] {

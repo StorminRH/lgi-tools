@@ -24,10 +24,6 @@ export function useMapChainHalo(
 ) {
   const assets = useUniverseAssets();
 
-  // The halo derivation is memoized on the authored-truth signature (never
-  // per render, never per frame — the PD-3 cost boundary). The authored ids
-  // are rebuilt FROM the key string so the dependency list is honest: the key
-  // and the loaded asset are the only inputs the derivation reads.
   const halo = useMemo(() => {
     if (assets === null || authoredKey.length === 0) return EMPTY_HALO;
     return deriveHalo({

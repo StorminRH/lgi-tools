@@ -1,9 +1,5 @@
 'use client';
 
-// Two split subscriptions and the unresolved-slot feed — contract HC-2.
-// Separate `useDrainedPages` calls against separate Convex functions so a
-// connection write does not re-read the systems range. Do not fold them into
-// one call over one aggregate query.
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/data/convex/api';
 import type { Doc } from '@/data/convex/data-model';
@@ -43,17 +39,13 @@ export function normalizeMapAccess(
   return { access: result.granted, canEdit: result.canEdit };
 }
 
-/** Builds the shared skip-or-map arguments for every chain subscription. */
 function mapSubscriptionArgs(mapId: string | null): 'skip' | { mapId: string } {
   if (mapId === null) return 'skip';
   return { mapId };
 }
 
-/** Subscribes and normalizes the split chain pages for one map. */
 export function useMapChainPages(mapId: string | null) {
   const args = mapSubscriptionArgs(mapId);
-  // The authority on revoked-versus-empty, and live: a re-granted claim flips this back to true and
-  // the map returns without a reload. `canEdit` shares that claim row.
   const accessResult = useLiveValue(api.mapChainAccess.watchMapAccess, args);
   const { access, canEdit } = normalizeMapAccess(accessResult);
 
@@ -67,16 +59,12 @@ export function useMapChainPages(mapId: string | null) {
     args,
     PAGE_SIZE,
   );
-  // The unresolved-slot feed is its own subscription by the same HC-2 split:
-  // resolved-canvas writes and unresolved-slot writes re-read disjoint ranges.
   const subscribedUnresolved = useDrainedPages(
     api.mapChainConnections.watchUnresolvedHoles,
     args,
     PAGE_SIZE,
   );
   const subscribedEvents = useLiveValue(api.mapChainEvents.watchMapEvents, args);
-  // Memoizing the normalized page objects keeps field-only/timer renders from
-  // rebuilding connectionDetails or reposting layout work.
   const systems = useMemo(
     () =>
       filterLivePages({

@@ -1,14 +1,5 @@
 'use client';
 
-// The live chain canvas: subscriptions in, React Flow nodes and edges out.
-//
-// Node positions are owned locally, and the server never sends one (contract
-// HC-1 / decision D1). Drag protection lives in `use-chain-drag` and
-// `use-chain-node-sync`. Everything drawn here comes from the reconciler
-// (contract DC-7). This module adds no mutation surface — layout/motion dials
-// are client-local only; map lock, camera follow, and click focus are
-// autosaved preferences. Tracking subscriptions here only retarget the dock
-// and scanner onto the live system.
 import { ReactFlowProvider } from '@xyflow/react';
 import { useEffect, useRef } from 'react';
 import { HomePrompt } from '../authoring/HomePrompt';
@@ -37,7 +28,6 @@ import { useChainFocusMenus } from './use-chain-focus-menus';
 import { useChainNodeSync } from './use-chain-node-sync';
 import { useMapChain } from './use-map-chain';
 
-/** Subscribes to one map and renders its live chain on the canvas surface. */
 export function ChainLive({ mapId }: { readonly mapId: string }) {
   const {
     config,
@@ -128,13 +118,8 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
   const trackedSystem = useTrackedSystemTarget(mapId);
   const windowSystemId = persistentWindowSystemId(trackedSystem, rootSystemId);
 
-  // Revoked-versus-empty comes from the access subscription, never from a row count (DC-4). It is
-  // live, so a re-granted claim brings the map back here without a reload. `undefined` is "not yet
-  // answered" and renders the ordinary empty canvas rather than a loading state (HC-5).
   if (access === false) return <NoMapAccess />;
 
-  // `canEdit` reaches the host here so OW4 authoring surfaces can gate
-  // affordances from the same live claim answer without a second subscription.
   return (
     <div
       ref={shellRef}
@@ -142,9 +127,6 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
       data-map-shell=""
       data-map-can-edit={canEdit === true ? 'true' : 'false'}
     >
-      {/* Presence (and the AFK gate it owns) must reach both the canvas
-          frames and the sibling window layer, so the provider sits above
-          the React Flow tree — context crosses it intact (docs brief). */}
       <MapPresenceProvider mapId={mapId}>
         <SignatureProvider
           mapId={mapId}
@@ -246,8 +228,6 @@ export function ChainLive({ mapId }: { readonly mapId: string }) {
           ) : null}
           </ReactFlowProvider>
         </SignatureProvider>
-        {/* Dialog portals to body at z-overlay; kept outside SignatureProvider
-            so a degraded in-tree fallback still paints after the scanner. */}
         {showHomePrompt ? (
           <HomePrompt
             mapId={mapId}

@@ -1,8 +1,5 @@
 'use client';
 
-// While a node is dragging, `syncNodes` keeps the LOCAL position for those
-// ids so a system arriving or leaving elsewhere cannot snap the node under
-// the pointer back to its reconciled position (HC-1).
 import {
   applyNodeChanges,
   type NodeChange,
@@ -39,8 +36,6 @@ export function useChainNodeSync(
     );
   }, [state.systems, labelOf, halo.systems, stubs, draggingRef]);
 
-  // Which halo systems sit under the fog — the edge builder truncates lines
-  // into the cloud, and the arrow derivation excludes them from the drawn set.
   const foggedSystemIds = useMemo(() => {
     const fogged = new Set<number>();
     for (const system of halo.systems) {
@@ -69,9 +64,6 @@ export function useChainNodeSync(
     ],
   );
 
-  // The non-fogged rendered set the outbound-arrow derivation walks from:
-  // authored systems plus drawn halo rings (fogged-ring systems excluded,
-  // so a pilot under fog resolves to the boundary arrow, never a hidden badge).
   const drawnSystemIds = useMemo(() => {
     const drawn = new Set<number>(state.systems.keys());
     for (const system of halo.systems) {
@@ -80,8 +72,6 @@ export function useChainNodeSync(
     return drawn;
   }, [state.systems, halo.systems]);
 
-  // The truth arrays the motion layer derives from — identity changes exactly
-  // when a member does, so the derivation re-runs per commit, not per render.
   const truth = useMemo<MotionTruth>(
     () => ({ nodes, edges, treeParents }),
     [nodes, edges, treeParents],
@@ -100,8 +90,6 @@ export function useChainNodeSync(
     });
   }, []);
 
-  // Id-derived (the join key), so per-frame drag renders reuse the same set
-  // and the camera host's effects don't churn (drag hardening, IS-5).
   const nodeIdsKey = nodes
     .flatMap((node) => isStubNodeId(node.id) ? [] : [node.id])
     .join(',');

@@ -11,7 +11,6 @@ import { BROWSER_MOTION_SEAMS, useMotion } from '../motion/use-motion';
 import type { MapChainIntent } from './intents';
 import type { MapAccessState } from './use-map-chain-pages';
 
-/** What the motion layer needs beyond the surface's own props. */
 export interface MotionLayerProps
   extends Omit<ChainSurfaceProps, 'nodes' | 'edges' | 'motion'> {
   readonly truth: MotionTruth;
@@ -24,14 +23,6 @@ export interface MotionLayerProps
   readonly children?: ReactNode;
 }
 
-/**
- * The per-frame render boundary between reconciled truth and the canvas.
- *
- * `useMotion`'s frame loop re-renders THIS component, not `ChainLive`: the
- * children (controls, camera host) are created by the parent, so their element
- * identity is stable across motion frames and React bails out of re-rendering
- * them — the per-frame commit stays proportional to actual movers.
- */
 export function MotionLayer({
   truth,
   intents,
@@ -62,8 +53,6 @@ export function MotionLayer({
       motion={motionConfig}
       {...surface}
     >
-      {/* Fog derives from the SAME presentation the surface renders, so the
-          cloud can never disagree with the drawn canvas (OW4). */}
       <FogLayer
         nodes={presentation.nodes}
         edges={edges}
