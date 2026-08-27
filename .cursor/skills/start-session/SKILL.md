@@ -96,8 +96,10 @@ after its merge onto `staging` or `main`.
    locally (`git push origin --delete <source>` when it was pushed, then
    `git branch -D <source>`). Leave `development`, `staging`, and `main`.
 
-A `development` land uses this push. `adversarial-review` belongs to
-close-out.
+A `development` land uses this push. An Origin draft uses the
+AGENTS.md freeze, `origin pr diff`, batch, and `dispatch` loop.
+`adversarial-review` runs on that draft. `close-out` owns promote
+and release.
 
 ## 4. Execute an approved session
 
@@ -155,14 +157,16 @@ the plan or the land required has an operator disposition.
 1. After the step's focused proof, invoke `test-runner` with the local test
    suite from AGENTS.md plus those focused evidence commands. Require
    green test results for every command. Failures return `BLOCKED`.
-2. On a green suite, launch a fresh `structure-reviewer` and a fresh
-   `behavior-reviewer` in parallel against this step's working-tree diff.
+2. On a green suite, freeze the working tree. Launch a fresh
+   `structure-reviewer` and a fresh `behavior-reviewer` in parallel.
+   Brief: this step's working tree. Each reviewer reads the tree.
    Launch them by those type names and omit Task `model`.
 3. After both reviewers return, run the local test suite again.
-4. On `FINDINGS`, fix, run the local test suite, re-launch both reviewers,
-   and run the local test suite again. Repeat until both return `CLEAN`, or
-   every accepted finding is corrected and re-reviewed clean, and the suite
-   after that last review is green.
+4. On `FINDINGS`, one batch: triage, dedupe, fix. Run the local test
+   suite, re-launch both reviewers, and run the local test suite again.
+   Repeat until both return `CLEAN`, or every accepted finding is
+   corrected and re-reviewed clean, and the suite after that last
+   review is green.
 5. Commit the verified OW scope, implementation and tests. Leave the frozen
    session plan untouched on every step except the last: on the last Ordered
    work step, set `Execution status` to `Complete` in that land so the

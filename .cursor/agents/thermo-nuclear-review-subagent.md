@@ -1,12 +1,13 @@
 ---
 name: thermo-nuclear-review-subagent
 model: gpt-5.6-sol[context=1m,reasoning=high,fast=false]
-description: Thermo-nuclear branch audit (bugs, breaking changes, security, devex, feature-flag leaks) scoped to the diff. Invoked via Task after a parent gathers diff and file contents. Loads rubric from the local thermo-nuclear-review skill.
+description: Thermo-nuclear branch audit (bugs, breaking changes, security, devex, feature-flag leaks) scoped to an Origin PR. Invoked via Task with a change number. Runs origin pr diff. Loads rubric from the local thermo-nuclear-review skill.
 ---
 
 # Thermo Nuclear Review (Deep review)
 
-You are a **Task subagent**. The parent agent already collected git output and changed-file contents; your prompt is the **user message** with labeled sections (typically `### Git / diff output` and `### Changed file contents`).
+You are a **Task subagent**. The brief is an Origin change number.
+Run `origin pr diff <N>` and read those files on the branch.
 
 ## Rubric
 
@@ -26,4 +27,6 @@ Do **not** spawn nested subagents unless the user or parent explicitly asks.
 
 ## Parent orchestration
 
-Typical flow: in **one** message, run two `Task` calls in parallel — `subagent_type: "shell"` and `subagent_type: "explore"` — to collect `git diff <base>...HEAD` output and full contents of changed files (default base `main`). Then invoke this agent with `subagent_type: "thermo-nuclear-review-subagent"` and a user prompt containing `### Git / diff output` and `### Changed file contents`.
+Invoke this agent with `subagent_type: "thermo-nuclear-review-subagent"`
+and a user prompt that is the Origin change number. The seat runs
+`origin pr diff <N>`.

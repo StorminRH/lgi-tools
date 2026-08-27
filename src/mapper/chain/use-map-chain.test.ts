@@ -3,22 +3,25 @@ import type { Doc, Id } from '@/data/convex/data-model';
 import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
 import { connectionEditorFixture } from './__tests__/connection-editor-fixture';
 import {
-  accountedStubLayoutRows,
-  appendStubFacts,
   chainSignature,
-  connectionDetailsFromRows,
   factsFromSnapshot,
-  filterChainConnections,
   filterLivePages,
   layoutConfigKey,
   layoutPostKey,
-  normalizeMapAccess,
+} from './chain-signature';
+import {
+  connectionDetailsFromRows,
+  unresolvedHolesFromRows,
+} from './connection-detail';
+import {
+  accountedStubLayoutRows,
+  appendStubFacts,
   placedStubs,
   stubLayoutRows,
   stubLayoutSignature,
   stubPositionsFromLayout,
-  unresolvedHolesFromRows,
-} from './use-map-chain';
+} from './stub-layout';
+import { normalizeMapAccess } from './use-map-chain-pages';
 import {
   EMPTY_CHAIN_STATE,
   reconcileChain,
@@ -261,6 +264,45 @@ describe('unresolved wormhole layout facts', () => {
     ).toEqual([]);
   });
 
+  it('allocates scanned layout ids over kept stubs so a skipped row cannot collide with a static', () => {
+    const scannedRows = stubLayoutRows(
+      unresolvedHolesFromRows([
+        unresolvedConnection({ _id: 'unscanned' }),
+        unresolvedConnection({
+          _id: 'kept',
+          from: { ...blankDoor(), signatureId: 'ABC-123' },
+        }),
+      ]),
+      [{ systemId: JITA }],
+      [],
+    );
+    expect(scannedRows).toEqual([
+      expect.objectContaining({ connectionId: 'kept', layoutSystemId: -1 }),
+    ]);
+    const layoutRows = accountedStubLayoutRows(
+      [
+        {
+          connectionId: 'kept',
+          fromSystemId: JITA,
+          signatureId: 'ABC-123',
+          wormholeTypeCode: null,
+          whClassId: null,
+        },
+        {
+          staticId: `${JITA}:C247:1`,
+          fromSystemId: JITA,
+          code: 'C247',
+          className: 'C3',
+          whClassId: 3,
+        },
+      ],
+      scannedRows,
+    );
+    expect(stubLayoutSignature(layoutRows)).toBe(
+      `kept:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
+    );
+  });
+
   it('fingerprints and places static ghosts beside selected scanned rows', () => {
     const scannedRows = stubLayoutRows(
       unresolvedHolesFromRows([
@@ -420,21 +462,6 @@ describe('live-row filter upstream of chainSignature', () => {
     expect(filterLivePages(pages)).toBe(pages);
   });
 
-  it('keeps tombstoned connections as structural layout facts', () => {
-    const pages = {
-      rows: [
-        {
-          _id: 'c1',
-          fromSystemId: JITA,
-          toSystemId: AMARR,
-          deletedAt: 42,
-          purgeAfter: null,
-        },
-      ],
-      complete: true,
-    };
-    expect(filterChainConnections(pages)).toBe(pages);
-  });
 });
 
 describe('client subscription projections', () => {

@@ -10,11 +10,11 @@ import { useMutation } from '@/data/convex/use-mutation';
 import { systemClassText } from '@/data/eve-data/system-identity';
 import type { ScannedRow, SigGroup } from '@/data/maps/scan-parse';
 import { useWormholeCodexData } from '../authoring/use-wormhole-editor-data';
-import {
-  useUniverseAssets,
-  type ConnectionDetail,
-  type UnresolvedHoleSummary,
-} from '../chain/use-map-chain';
+import type {
+  ConnectionDetail,
+  UnresolvedHoleSummary,
+} from '../chain/connection-detail';
+import { useUniverseAssets } from '../chain/use-universe-assets';
 import type { TrackedSystemTarget } from '../tracking/tracked-system';
 import { ActiveScannerPanel } from './ActiveScannerPanel';
 import {

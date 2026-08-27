@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { blankDoor } from '@/data/maps/connection-hallway';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import { connectionEditorMode } from './connection-editor-mode';
 
 const NOW = 10_000;

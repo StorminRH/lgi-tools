@@ -3,7 +3,7 @@ import {
   originLeadCandidates,
   type OriginLeadConnection,
 } from '../authoring/leads-to-origin';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import { destinationReadout } from './system-readout';
 import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
 

@@ -39,7 +39,7 @@ import {
   originLeadForTypedLabel,
 } from '../authoring/leads-to-origin';
 import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
 import { scannerGroupTypeLabel, scannerLifeUpperBound } from './signature-model';
 

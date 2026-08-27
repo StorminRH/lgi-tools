@@ -5,7 +5,7 @@ import type {
   WormholeLifeStage,
   WormholeSizeClass,
 } from '@/data/eve-data/wormhole-contract';
-import type { ConnectionEditorDetail } from '../chain/use-map-chain';
+import type { ConnectionEditorDetail } from '../chain/connection-detail';
 import type { ConnectionFieldSetters } from './connection-fields';
 
 /** Existing connection mutation surface shared by every connection-field host. */

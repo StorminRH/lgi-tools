@@ -79,7 +79,7 @@ PR can still be mergeable. `origin pr merge <N>` returns `BLOCKED`
 on that error. Leave the Origin PR open. The operator reviews and
 merges, or upgrades the token.
 
-Origin Checks wait is `origin pr checks <N> --watch` in the foreground
-until it returns. After `test-runner` pass `<N>` or `--branch <head>`.
-`--head` and `--base` are create flags. A subscription or `--json`
-snapshot is extra.
+Depot wait is `depot ci dispatch` on the head branch, then
+`depot ci status <run-id>` until it returns. Dispatch once reviews
+are idle and the local suite is green. `--head` and `--base` are
+create flags. `origin pr checks` stays empty on dispatch.

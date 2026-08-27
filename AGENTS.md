@@ -33,8 +33,8 @@ and model slugs override the pin.
 ## Done
 
 Land on Origin `development` when the local test suite is green. Promote
-(`development` → `staging`) and release (`staging` → `main`) wait on that
-Origin PR's Depot pipeline.
+(`development` → `staging`) and release (`staging` → `main`) wait on
+`close-out`, including one Depot `dispatch` after reviews.
 
 ## Tools
 
@@ -42,22 +42,19 @@ Origin is the land forge. GitHub is the dump remote for bot review.
 Linear is the ticket home. GitHub issues are not in use. Update watch
 comments on standing `LGI-6`.
 
-**origin** — Origin PRs and Checks. Create defaults to draft, so pass
-`--status open`. Always pass `--head` and `--base` on
-`origin pr create`; after `test-runner` the checkout can be
-detached and inference misses. `origin pr checks` takes a change
-number or `--branch`. It rejects `--head` and `--base`. Run
-`origin pr checks <N> --watch` in the foreground until it
-returns. A push is a version, Origin's index for that head.
-`refresh` when `view` or
-`checks` still show the previous one. A Findings round waits for
-dump review, Origin review including Bugbot, and Origin checks
-to settle, then one comment and one push. Bugbot auto-reviews
-the Origin PR once, on open. One commit per fix is fine. Origin
-assigns a thread id, the index for later replies. A review is a
+**origin** — Origin PRs stay draft. Local suite green, then create:
+`origin pr create --head <head> --base <destination>`
+Create defaults to draft. Leave it draft through reviews and fixes.
+Always pass `--head` and `--base`; after `test-runner` the checkout can
+be detached. Reviewers run `origin pr diff <N>`. The brief is the
+change number. Freeze that head until every seat has returned. Then
+one batch: triage, dedupe, fix, note on the PR. A push is a version.
+`refresh` when `view` still shows the previous one. Bugbot reviews
+once on open. Accumulating drafts stay draft; `dispatch` waits until
+that PR is finishing. Origin assigns a thread id. A review is a
 verdict on a version.
-`origin pr create --head <head> --base <destination> --status open`
-`origin pr checks <N> --watch`
+`origin pr create --head <head> --base <destination>`
+`origin pr diff <N>`
 `origin pr refresh`
 `origin pr view --json latestVersion`
 `origin pr comment -b "..."`
@@ -75,15 +72,15 @@ reviews and merges. Token limits live in `.cursor/cloud-agent.md`.
 `https://github.com/StorminRH/lgi-tools.git` when it is missing.
 `gh pr create` (`dump/...` → `staging`)
 
-**depot** — Origin PR pipeline. Org `k2f4dzqwd4`, repo `stormin/lgi-tools`,
-workflow `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4`. `run list`
-defaults to queued and running. PR runs use a merge SHA
-(`refs/changes/N/merge`), not always `HEAD`. `status` returns immediately.
-Skip `auth-storage.json` in artifacts.
-
-Watch Checks with `origin pr checks <N> --watch`. When that list is empty,
-`run list` then poll `status`. On red, `diagnose` first — it groups
-failures and suggests a fix. Confirm against `logs` before acting.
+**depot** — Manual last step. Org `k2f4dzqwd4`, repo `stormin/lgi-tools`,
+workflow `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4`. Dispatch
+once the reviews on that PR are idle and the local suite is green on
+that head. Depot starts only from `dispatch`. Dispatch runs
+the branch tip. Watch with `status`. `run list` defaults to queued
+and running. `origin pr checks` stays empty on dispatch. On red,
+`diagnose` then `logs`. The fix is a new batch, then one more
+`dispatch`. Skip `auth-storage.json` in artifacts.
+`depot ci dispatch --repo stormin/lgi-tools --workflow test.yml --ref <head-branch> --org k2f4dzqwd4`
 `depot ci run list --repo stormin/lgi-tools --org k2f4dzqwd4`
 `depot ci status <run-id> --org k2f4dzqwd4`
 `depot ci diagnose --run <run-id> --org k2f4dzqwd4`

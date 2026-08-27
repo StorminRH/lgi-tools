@@ -9,7 +9,7 @@
 // deterministic output either way, so the map can never sit silently empty
 // behind a healthy subscription.
 //
-// Posted-key / latest-wins sequencing lives in `use-map-chain` via
+// Posted-key / latest-wins sequencing lives in `use-map-chain-merge` via
 // `kernel-requests.ts`. This hook only correlates worker replies to the call
 // that posted them and owns degradation.
 import { useCallback, useEffect, useRef } from 'react';
