@@ -312,8 +312,8 @@ When the last Ordered work step is done:
   is blocked.
   You may cut a smaller chunk. Repeat until `staging` holds
   everything you want in the next release.
-  **Rejected:** bots on every land; bots as the merge gate; one
-  giant dump at release time if it exceeds the bar (split first).
+  **Rejected:** bots on every land; bots as the merge gate; a GitHub
+  dump on the `staging` → `main` release.
 - **Production:** merge Origin `staging` → `main`. Vercel auto-deploys
   Production from `main`. That merge is the deploy. No separate
   `vercel promote`.
