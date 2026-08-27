@@ -1,46 +1,21 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, internal } from './_generated/api';
-import { JUMP_CONTINUITY_MS } from './characterLocation';
+import { describe, expect, it } from 'vitest';
+import { internal } from './_generated/api';
+import { JUMP_CONTINUITY_MS } from './characterLocationApply';
 import schema from './schema';
 
 import { modules } from './__tests__/modules.setup';
+import {
+  CHAR_A,
+  CHAR_B,
+  GEN,
+  locationDoc,
+  readDoc,
+  USER,
+} from './__tests__/characterLocation.setup';
 
-const USER = 'user-location-1';
-const OTHER = 'user-location-other';
-const CHAR_A = 90_000_101;
-const CHAR_B = 90_000_102;
-const SECRET = 'svc-secret-location';
-const GEN = 1_700_000_000_000;
 const WINDOW = GEN + 5_000;
-
-function locationDoc(userId: string, characterId: number) {
-  return {
-    userId,
-    characterId,
-    solarSystemId: 30_000_142,
-    stationId: null as number | null,
-    structureId: null as number | null,
-    shipTypeId: 670 as number | null,
-    prevSolarSystemId: null as number | null,
-    prevFresh: false,
-    transitionObservedAt: 1_699_999_999_000,
-    observedAt: 1_700_000_000_000,
-    etagLocation: 'loc' as string | null,
-    etagShip: 'ship' as string | null,
-  };
-}
-
-function accessLease(userId: string, characterId: number) {
-  return {
-    userId,
-    characterId,
-    accessToken: `tok-${characterId}`,
-    expiresAt: GEN + 1_200_000,
-    updatedAt: GEN,
-  };
-}
 
 function subjectRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -87,7 +62,7 @@ function apply(
     trackedCharacterIds?: number[];
   },
 ) {
-  return t.mutation(internal.characterLocation.applySyncResults, {
+  return t.mutation(internal.characterLocationApply.applySyncResults, {
     userId: USER,
     generation: args.generation ?? GEN,
     enumeratedCharacterIds:
@@ -108,353 +83,7 @@ function apply(
   });
 }
 
-function readDoc(t: TestConvex<typeof schema>, characterId = CHAR_A) {
-  return t.run((ctx) =>
-    ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
-      .unique(),
-  );
-}
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
-
-describe('characterLocation.purgeForUser', () => {
-  it('deletes every characterLocation doc and mapTracking row for the user when characterId is null', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
-      await ctx.db.insert('characterLocation', locationDoc(OTHER, CHAR_A));
-      for (const [userId, characterId] of [[USER, CHAR_A], [USER, CHAR_B], [OTHER, CHAR_A]] as const) {
-        await ctx.db.insert('characterLocationOnline', {
-          userId,
-          characterId,
-          online: true,
-          etagOnline: null,
-          onlineExpiresAt: GEN + 60_000,
-        });
-      }
-      await ctx.db.insert('mapTracking', {
-        mapId: 'map-a',
-        userId: USER,
-        characterId: CHAR_A,
-      });
-      await ctx.db.insert('mapTracking', {
-        mapId: 'map-b',
-        userId: USER,
-        characterId: CHAR_B,
-      });
-      await ctx.db.insert('mapTracking', {
-        mapId: 'map-a',
-        userId: OTHER,
-        characterId: CHAR_A,
-      });
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: 'map-a',
-        characterId: CHAR_A,
-        lastProcessedTransitionAt: 1,
-      });
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: 'map-b',
-        characterId: CHAR_B,
-        lastProcessedTransitionAt: 2,
-      });
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: 'map-a',
-        characterId: 90_999_999,
-        lastProcessedTransitionAt: 3,
-      });
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
-      await ctx.db.insert('characterLocationAccess', accessLease(OTHER, CHAR_A));
-      await ctx.db.insert('characterLocationCovered', { userId: USER, characterId: CHAR_A });
-      await ctx.db.insert('characterLocationCovered', { userId: USER, characterId: CHAR_B });
-      await ctx.db.insert('characterLocationCovered', { userId: OTHER, characterId: CHAR_A });
-    });
-
-    const out = await t.mutation(internal.characterLocation.purgeForUser, {
-      userId: USER,
-      characterId: null,
-    });
-    expect(out).toEqual({ deletedLocations: 2, deletedTracking: 2, deletedBookkeeping: 2 });
-
-    const remainingLocations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
-    const remainingTracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
-    const remainingOnline = await t.run((ctx) => ctx.db.query('characterLocationOnline').collect());
-    const remainingLeases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
-    const remainingCovered = await t.run((ctx) => ctx.db.query('characterLocationCovered').collect());
-    expect(remainingLocations.map((doc) => doc.userId)).toEqual([OTHER]);
-    expect(remainingTracking.map((doc) => doc.userId)).toEqual([OTHER]);
-    expect(remainingOnline.map((doc) => doc.userId)).toEqual([OTHER]);
-    expect(remainingLeases.map((doc) => doc.userId)).toEqual([OTHER]);
-    expect(remainingCovered.map((doc) => doc.userId)).toEqual([OTHER]);
-  });
-
-  it('deletes only the named character\'s location and tracking rows', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
-      await ctx.db.insert('mapTracking', {
-        mapId: 'map-a',
-        userId: USER,
-        characterId: CHAR_A,
-      });
-      await ctx.db.insert('mapTracking', {
-        mapId: 'map-a',
-        userId: USER,
-        characterId: CHAR_B,
-      });
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: 'map-a',
-        characterId: CHAR_A,
-        lastProcessedTransitionAt: 1,
-      });
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: 'map-a',
-        characterId: CHAR_B,
-        lastProcessedTransitionAt: 2,
-      });
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
-    });
-
-    const out = await t.mutation(internal.characterLocation.purgeForUser, {
-      userId: USER,
-      characterId: CHAR_A,
-    });
-    expect(out).toEqual({ deletedLocations: 1, deletedTracking: 1, deletedBookkeeping: 1 });
-
-    const locations = await t.run((ctx) =>
-      ctx.db.query('characterLocation').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
-    );
-    const tracking = await t.run((ctx) =>
-      ctx.db
-        .query('mapTracking')
-        .withIndex('by_user_character', (q) => q.eq('userId', USER))
-        .collect(),
-    );
-    expect(locations.map((doc) => doc.characterId)).toEqual([CHAR_B]);
-    expect(tracking.map((doc) => doc.characterId)).toEqual([CHAR_B]);
-    const leases = await t.run((ctx) =>
-      ctx.db
-        .query('characterLocationAccess')
-        .withIndex('by_user', (q) => q.eq('userId', USER))
-        .collect(),
-    );
-    expect(leases.map((doc) => doc.characterId)).toEqual([CHAR_B]);
-  });
-
-  it('is a no-op when there is nothing to delete', async () => {
-    const t = convexTest(schema, modules);
-    const out = await t.mutation(internal.characterLocation.purgeForUser, {
-      userId: USER,
-      characterId: null,
-    });
-    expect(out).toEqual({ deletedLocations: 0, deletedTracking: 0, deletedBookkeeping: 0 });
-  });
-});
-
-describe('characterLocation.putAccessLease', () => {
-  it('does not resurrect a lease after tracking teardown', async () => {
-    const t = convexTest(schema, modules);
-    await t.mutation(internal.characterLocation.putAccessLease, {
-      userId: USER,
-      characterId: CHAR_A,
-      accessToken: 'tok-late',
-      expiresAt: GEN + 1_200_000,
-    });
-    const leases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
-    expect(leases).toEqual([]);
-  });
-
-  it('upserts when a mapTracking row still exists', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapTracking', {
-        mapId: 'map-a',
-        userId: USER,
-        characterId: CHAR_A,
-      });
-    });
-    await t.mutation(internal.characterLocation.putAccessLease, {
-      userId: USER,
-      characterId: CHAR_A,
-      accessToken: 'tok-fresh',
-      expiresAt: GEN + 1_200_000,
-    });
-    const lease = await t.run((ctx) =>
-      ctx.db
-        .query('characterLocationAccess')
-        .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', CHAR_A))
-        .unique(),
-    );
-    expect(lease).toMatchObject({ accessToken: 'tok-fresh', expiresAt: GEN + 1_200_000 });
-  });
-});
-
-describe('characterLocation.clearAccessLease', () => {
-  it('deletes only the named character lease and is a no-op when absent', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-    });
-
-    await t.mutation(internal.characterLocation.clearAccessLease, {
-      userId: USER,
-      characterId: CHAR_A,
-    });
-    await t.mutation(internal.characterLocation.clearAccessLease, {
-      userId: USER,
-      characterId: CHAR_A,
-    });
-
-    const leases = await t.run((ctx) =>
-      ctx.db
-        .query('characterLocationAccess')
-        .withIndex('by_user', (q) => q.eq('userId', USER))
-        .collect(),
-    );
-    expect(leases.map((doc) => doc.characterId)).toEqual([CHAR_B]);
-    expect(await readDoc(t, CHAR_A)).not.toBeNull();
-  });
-});
-
-describe('POST /purge-location-tracking', () => {
-  it('rejects a request without the service bearer token', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await convexTest(schema, modules).fetch('/purge-location-tracking', {
-      method: 'POST',
-      body: JSON.stringify({ userId: USER, characterId: null }),
-    });
-    expect(res.status).toBe(401);
-  });
-
-  it('returns a clean 400 for a malformed body', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const res = await convexTest(schema, modules).fetch('/purge-location-tracking', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${SECRET}` },
-      body: 'not json',
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('empties both tables for the user when characterId is null', async () => {
-    vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-      await ctx.db.insert('mapTracking', {
-        mapId: 'map-a',
-        userId: USER,
-        characterId: CHAR_A,
-      });
-    });
-
-    const res = await t.fetch('/purge-location-tracking', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${SECRET}` },
-      body: JSON.stringify({ userId: USER, characterId: null }),
-    });
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deletedLocations: 1, deletedTracking: 1, deletedBookkeeping: 0 });
-
-    const locations = await t.run((ctx) => ctx.db.query('characterLocation').collect());
-    const tracking = await t.run((ctx) => ctx.db.query('mapTracking').collect());
-    expect(locations).toEqual([]);
-    expect(tracking).toEqual([]);
-  });
-});
-
-describe('characterLocation.forViewer', () => {
-  it('returns null when signed out', async () => {
-    const t = convexTest(schema, modules);
-    expect(await t.query(api.characterLocation.forViewer, {})).toBeNull();
-  });
-
-  it('never exposes an access-token lease on the public viewer query', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_A));
-    });
-    const view = await t.withIdentity({ subject: USER }).query(api.characterLocation.forViewer, {});
-    expect(JSON.stringify(view)).not.toContain('tok-');
-    expect(JSON.stringify(view)).not.toContain('accessToken');
-  });
-
-  it('returns the viewer location facts when signed in', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-    });
-    const view = await t.withIdentity({ subject: USER }).query(api.characterLocation.forViewer, {});
-    expect(view?.characters).toEqual([
-      {
-        characterId: CHAR_A,
-        solarSystemId: 30_000_142,
-        stationId: null,
-        structureId: null,
-        shipTypeId: 670,
-        prevSolarSystemId: null,
-        prevFresh: false,
-        transitionObservedAt: 1_699_999_999_000,
-        observedAt: 1_700_000_000_000,
-      },
-    ]);
-  });
-});
-
-describe('characterLocation.heldState', () => {
-  it('returns system id, dual etags, and the held online probe in one snapshot', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-      await ctx.db.insert('characterLocationOnline', {
-        userId: USER,
-        characterId: CHAR_A,
-        online: true,
-        etagOnline: 'on',
-        onlineExpiresAt: GEN + 60_000,
-      });
-      await ctx.db.insert('characterLocationOnline', {
-        userId: OTHER,
-        characterId: CHAR_B,
-        online: false,
-        etagOnline: null,
-        onlineExpiresAt: GEN,
-      });
-    });
-    const held = await t.query(internal.characterLocation.heldState, { userId: USER });
-    expect(held).toEqual({
-      locations: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: 30_000_142,
-          etagLocation: 'loc',
-          etagShip: 'ship',
-        },
-      ],
-      online: [
-        {
-          characterId: CHAR_A,
-          online: true,
-          etagOnline: 'on',
-          onlineExpiresAt: GEN + 60_000,
-        },
-      ],
-    });
-  });
-});
-
-describe('characterLocation.applySyncResults', () => {
+describe('characterLocationApply.applySyncResults', () => {
   it('no-ops on a generation mismatch', async () => {
     const t = convexTest(schema, modules);
     await t.run((ctx) => ctx.db.insert('syncSubjects', subjectRow()));
@@ -919,5 +548,4 @@ describe('characterLocation.applySyncResults', () => {
     );
     expect(remaining.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
   });
-
 });

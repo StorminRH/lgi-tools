@@ -16,13 +16,15 @@ vi.mock('convex/server', async (importOriginal) => {
 import authConfig from '../auth.config';
 import {
   accessLeases,
-  applySyncResults,
   clearAccessLease,
+  putAccessLease,
+} from '../characterLocationAccess';
+import { applySyncResults, JUMP_CONTINUITY_MS } from '../characterLocationApply';
+import { purgeForUser as purgeLocationForUser } from '../characterLocationPurge';
+import {
   forViewer as locationForViewer,
   heldState,
-  purgeForUser as purgeLocationForUser,
-  putAccessLease,
-} from '../characterLocation';
+} from '../characterLocationReads';
 import { syncUser } from '../characterLocationSync';
 import convexApp from '../convex.config';
 import crons from '../crons';
@@ -36,6 +38,11 @@ import { leave } from '../engineLeave';
 import { scan } from '../engineScan';
 import { sweep } from '../engineSweep';
 import http from '../http';
+import { purgeOnline, sweep as httpSweep } from '../httpEngine';
+import { jumpEvidence as httpJumpEvidence, resolveJump, signatureElimination } from '../httpJump';
+import { leaveSync, purgeLocationTracking } from '../httpLocation';
+import { projectMapAccess, purgeMapAccess, purgeMapChain } from '../httpMapAccess';
+import { authorizedAction, authorizedJsonAction } from '../lib/httpAuth';
 import { requireSyncEnv } from '../lib/characterSync';
 import { MAP_CONNECTION_SIGNATURE_SCAN_LIMIT } from '../lib/mapConnectionLookup';
 import {
@@ -138,6 +145,19 @@ describe('convex runtime exports', () => {
       convexApp,
       crons,
       http,
+      httpSweep,
+      purgeOnline,
+      httpJumpEvidence,
+      resolveJump,
+      signatureElimination,
+      leaveSync,
+      purgeLocationTracking,
+      projectMapAccess,
+      purgeMapAccess,
+      purgeMapChain,
+      authorizedAction,
+      authorizedJsonAction,
+      JUMP_CONTINUITY_MS,
       syncUser,
       accessLeases,
       applySyncResults,
