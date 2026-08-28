@@ -16,6 +16,7 @@ export const WIDGET_HOST_FILES = [
   'src/app/(site)/preview/widgets/page.tsx',
   'src/mapper/signatures/ActiveSiteViewer.tsx',
   'src/mapper/signatures/SignatureWindow.tsx',
+  'src/mapper/signatures/scanner-section-table.tsx',
 ] as const;
 
 const SKIPPED_DIRECTORIES = new Set([

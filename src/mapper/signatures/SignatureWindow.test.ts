@@ -5,11 +5,11 @@ import type { Id } from '@/data/convex/data-model';
 import { blankDoor } from '@/data/maps/connection-hallway';
 import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
+import { SignatureWindow } from './SignatureWindow';
 import {
-  SignatureWindow,
   scannerLeadsCellKey,
   scannerTypeCellKey,
-} from './SignatureWindow';
+} from './scanner-wormhole-cells';
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
 import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';

@@ -1,75 +1,16 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
-import { FAR_SIDE_WORMHOLE_CODE } from '@/data/eve-data/wormhole-contract';
 import { UNSET_FIELD } from '../authoring/connection-field-group';
-import { wormholeTypeSearch } from '../authoring/wormhole-type-search';
 import {
-  commitScannerIdentifyQuery,
   commitScannerLeadsQuery,
   commitScannerLeadsValue,
-  ScannerIdentifyCombo,
   ScannerLeadsControl,
-  ScannerTypeCombo,
-  scannerIdentifySuggestionGroups,
   scannerLeadsSeed,
   scannerLeadsSuggestionGroups,
-  scannerLifeReadout,
-  scannerMassReadout,
-  scannerTypeSuggestionGroups,
-} from './scanner-inline-cells';
+} from './scanner-leads-control';
 
-const CODES = ['B274', 'N110', 'Z060', 'C247', 'P060'];
-
-it('groups type, identify, and destination suggestions from empty click through typed filters', () => {
-  expect(scannerTypeSuggestionGroups('', CODES, ['N110', 'Z060'])).toEqual([
-    { label: 'Statics', items: ['N110', 'Z060'] },
-    { label: 'Inbound', items: [FAR_SIDE_WORMHOLE_CODE] },
-  ]);
-  expect(scannerTypeSuggestionGroups('n', CODES, ['N110', 'Z060'])).toEqual([
-    { label: 'Matches', items: ['N110'] },
-  ]);
-  expect(scannerTypeSuggestionGroups('k', CODES, ['N110'])).toEqual([
-    { label: 'Matches', items: [FAR_SIDE_WORMHOLE_CODE] },
-  ]);
-
-  const classLabelOf = (code: string) => (code === 'N110' ? 'HS' : null);
-  expect(
-    scannerIdentifySuggestionGroups('', CODES, ['N110', 'Z060'], classLabelOf),
-  ).toEqual([
-    {
-      label: 'Statics',
-      items: [
-        { value: 'type:N110', text: 'N110', meta: 'HS' },
-        { value: 'type:Z060', text: 'Z060', meta: '' },
-      ],
-    },
-    {
-      label: 'Inbound',
-      items: [{ value: 'type:K162', text: 'K162', meta: '' }],
-    },
-    {
-      label: 'Identify',
-      items: [
-        { value: 'group:Wormhole', text: 'Wormhole', meta: '' },
-        { value: 'group:Combat Site', text: 'Combat', meta: '' },
-        { value: 'group:Ore Site', text: 'Ore', meta: '' },
-        { value: 'group:Gas Site', text: 'Gas', meta: '' },
-        { value: 'group:Data Site', text: 'Data', meta: '' },
-        { value: 'group:Relic Site', text: 'Relic', meta: '' },
-      ],
-    },
-  ]);
-  expect(
-    scannerIdentifySuggestionGroups('c', CODES, ['N110'], classLabelOf),
-  ).toEqual([
-    { label: 'Matches', items: [{ value: 'type:C247', text: 'C247', meta: '' }] },
-    {
-      label: 'Identify',
-      items: [{ value: 'group:Combat Site', text: 'Combat', meta: '' }],
-    },
-  ]);
-
+it('groups destination suggestions from empty click through typed filters', () => {
   const systems = [
     { id: 31_000_001, name: 'J120924', security: null },
     { id: 30_000_142, name: 'Jita', security: 0.9 },
@@ -125,18 +66,7 @@ it('groups type, identify, and destination suggestions from empty click through 
   expect(scannerLeadsSeed(null, null)).toBe('');
 });
 
-it('commits identify and destination picks, including unique/ambiguous inbound and no-ops on settled systems', () => {
-  const parseType = wormholeTypeSearch(CODES, { preferredCodes: ['N110'] }).parse;
-  const onIdentify = vi.fn();
-  commitScannerIdentifyQuery('C247', parseType, onIdentify);
-  expect(onIdentify).toHaveBeenCalledWith('Wormhole', 'C247');
-  onIdentify.mockClear();
-  commitScannerIdentifyQuery('gas', parseType, onIdentify);
-  expect(onIdentify).toHaveBeenCalledWith('Gas Site');
-  onIdentify.mockClear();
-  commitScannerIdentifyQuery('zzzz', parseType, onIdentify);
-  expect(onIdentify).not.toHaveBeenCalled();
-
+it('commits destination picks, including unique/ambiguous inbound and no-ops on settled systems', () => {
   const onChange = vi.fn();
   const onSetDestination = vi.fn();
   const onLinkOrigin = vi.fn();
@@ -293,37 +223,7 @@ it('commits identify and destination picks, including unique/ambiguous inbound a
   expect(onChange).not.toHaveBeenCalled();
 });
 
-it('labels scanner combo fields and uses compact mass/life selected-state text', () => {
-  const type = renderToStaticMarkup(
-    createElement(ScannerTypeCombo, {
-      code: 'C247',
-      className: 'C3',
-      codes: CODES,
-      preferredCodes: ['C247'],
-      classLabelOf: () => 'C3',
-      rowId: 'WHL-001',
-      disabled: false,
-      onCommit: vi.fn(),
-    }),
-  );
-  expect(type).toContain('aria-label="Type WHL-001"');
-  expect(type).toContain('placeholder="Unresolved"');
-  expect(type).toContain('data-signature-class');
-  expect(type).toContain('C3');
-
-  const identify = renderToStaticMarkup(
-    createElement(ScannerIdentifyCombo, {
-      codes: CODES,
-      preferredCodes: ['N110'],
-      classLabelOf: () => 'HS',
-      rowId: 'ABC-123',
-      disabled: false,
-      onIdentify: vi.fn(),
-    }),
-  );
-  expect(identify).toContain('aria-label="Name ABC-123"');
-  expect(identify).toContain('placeholder="Unresolved"');
-
+it('labels the destination combo field', () => {
   const leads = renderToStaticMarkup(
     createElement(ScannerLeadsControl, {
       hint: null,
@@ -339,14 +239,4 @@ it('labels scanner combo fields and uses compact mass/life selected-state text',
   );
   expect(leads).toContain('aria-label="Destination WHL-001"');
   expect(leads).toContain('J120924 - C2');
-
-  expect(scannerMassReadout('stable')).toBe('>50%');
-  expect(scannerMassReadout('reduced')).toBe('<50%');
-  expect(scannerMassReadout('critical')).toBe('<10%');
-  expect(scannerMassReadout(null)).toBe('—');
-  expect(scannerLifeReadout('under_1_day')).toBe('<1d');
-  expect(scannerLifeReadout('under_4_hours')).toBe('<4h');
-  expect(scannerLifeReadout('under_1_hour')).toBe('<1h');
-  expect(scannerLifeReadout('expired')).toBe('Exp');
-  expect(scannerLifeReadout(null)).toBe('—');
 });
