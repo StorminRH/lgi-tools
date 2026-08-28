@@ -19,10 +19,6 @@ import { scannerTypeSuggestionGroups } from './scanner-type-combo';
 const IDENTIFY_PREFIX = 'group:';
 const TYPE_PREFIX = 'type:';
 
-/**
- * Empty query lists statics, K162, then identify groups. Typing filters
- * hole codes and identify labels together.
- */
 export function scannerIdentifySuggestionGroups(
   query: string,
   codes: readonly string[],
@@ -64,7 +60,6 @@ export function scannerIdentifySuggestionGroups(
   ];
 }
 
-/** Commits typed identify-cell text as a wormhole type or a site group. */
 export function commitScannerIdentifyQuery(
   text: string,
   parse: ReturnType<typeof wormholeTypeSearch>['parse'],
@@ -84,7 +79,6 @@ export function commitScannerIdentifyQuery(
   if (group !== undefined) onIdentify(group);
 }
 
-/** Compact unknown-row combobox: same panel as type, plus identify groups. */
 export function ScannerIdentifyCombo({
   codes,
   preferredCodes,

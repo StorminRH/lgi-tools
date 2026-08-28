@@ -48,7 +48,6 @@ function signatureName(row: SignatureWindowRow): string {
   return row.name ?? 'Unresolved';
 }
 
-/** Screen-reader action verb prefixed ahead of the row's visible cells. */
 function rowActionPrefix(
   row: SignatureWindowRow,
   canEdit: boolean,
@@ -126,12 +125,7 @@ function SignatureRowContent({
   );
   if (!interactive) return <div className={className}>{children}</div>;
   return (
-    // Left-click only (ruling D-F): a wormhole row without inline cells opens
-    // the Signature Editor, and a catalogue-matched site opens the site
-    // viewer. Unresolved rows identify from the Name combobox. The duplicate
-    // right-click path is retired — the canvas owns right-click now.
-    // No aria-label: it would replace descendant ID / name / Est. ISK. A
-    // visually hidden action prefix keeps the verb while cells stay in the name.
+    // No aria-label: it would replace descendant ID / name / Est. ISK.
     <Button
       variant="bare"
       className={className}

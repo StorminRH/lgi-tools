@@ -24,23 +24,27 @@ import {
 } from './signature-model';
 import { destinationReadout } from './system-readout';
 
-/** Remount key for the Type combo — prefixed so an empty type cannot collide
- *  with Destination in the same wormhole row. */
+function scannerCellKey(
+  kind: 'type' | 'leads',
+  connectionId: string,
+  value: string,
+): string {
+  return `${kind}:${connectionId}:${value}`;
+}
+
 export function scannerTypeCellKey(
   connectionId: string,
   typeName: string | null,
 ): string {
-  return `type:${connectionId}:${typeName ?? ''}`;
+  return scannerCellKey('type', connectionId, typeName ?? '');
 }
 
-/** Remount key for the Destination combo — prefixed so an empty dest/hint
- *  cannot collide with Type in the same wormhole row. */
 export function scannerLeadsCellKey(
   connectionId: string,
   destinationLabel: string | null | undefined,
   hint: string | null | undefined,
 ): string {
-  return `leads:${connectionId}:${destinationLabel ?? hint ?? ''}`;
+  return scannerCellKey('leads', connectionId, destinationLabel ?? hint ?? '');
 }
 
 export interface WormholeCellContext {

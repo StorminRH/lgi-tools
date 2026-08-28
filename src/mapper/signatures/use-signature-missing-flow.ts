@@ -10,7 +10,7 @@ import { eliminateSignaturesAndAnnounce } from './signature-elimination-client';
 import { announceSignatureRemoval } from './signature-toast';
 import { useScannerPaste } from './use-scanner-paste';
 
-export const EMPTY_MISSING: ReadonlySet<string> = new Set();
+const EMPTY_MISSING: ReadonlySet<string> = new Set();
 
 interface MissingSignatures {
   readonly bySystem: ReadonlyMap<number, ReadonlySet<string>>;
@@ -100,14 +100,13 @@ export function useSignatureMissingFlow(
   pasteTarget: TrackedSystemTarget,
 ) {
   const { bySystem: missingBySystem, replace, clearAll } = useMissingSignatures();
-  // Missing confirmation follows the system the paste was applied to. When the
-  // window is on the chain-root fallback, a down-chain paste still surfaces
-  // its Dismiss/Remove prompt even if those rows are not listed.
-  const [missingSystemId, setMissingSystemId] = useState<number | null>(null);
+  const [pasteTargetSystemId, setPasteTargetSystemId] = useState<number | null>(
+    null,
+  );
   const replaceForPaste = useCallback(
     (systemId: number, signatureIds: readonly string[]) => {
       replace(systemId, signatureIds);
-      setMissingSystemId(systemId);
+      setPasteTargetSystemId(systemId);
     },
     [replace],
   );
@@ -115,12 +114,21 @@ export function useSignatureMissingFlow(
   useScannerPaste({ canEdit, pasteTarget, applyRows });
   const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
   const dismissMissing = useCallback(() => {
-    if (missingSystemId !== null) clearAll(missingSystemId);
-  }, [missingSystemId, clearAll]);
+    if (pasteTargetSystemId !== null) clearAll(pasteTargetSystemId);
+  }, [pasteTargetSystemId, clearAll]);
   return {
     dismissMissing,
     missingBySystem,
-    missingSystemId,
+    pasteTargetSystemId,
     removeMissing,
   };
+}
+
+export function listedMissingIds(
+  pasteTargetSystemId: number | null,
+  listedSystemId: number | null,
+  missingBySystem: ReadonlyMap<number, ReadonlySet<string>>,
+): ReadonlySet<string> {
+  if (pasteTargetSystemId !== listedSystemId) return EMPTY_MISSING;
+  return missingIdsForSystem(missingBySystem, pasteTargetSystemId);
 }

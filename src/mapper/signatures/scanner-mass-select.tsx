@@ -27,7 +27,6 @@ const MASS_LONG: Record<ConnectionMassState, string> = {
   critical: 'Less than 10% remaining',
 };
 
-/** Compact mass select using in-game wording in the list and short trigger text. */
 export function ScannerMassSelect({
   value,
   rowId,
@@ -66,7 +65,6 @@ export function ScannerMassSelect({
   );
 }
 
-/** Read-only compact mass text when the row cannot be edited. */
 export function scannerMassReadout(value: ConnectionEditorDetail['massState']): string {
   return value === null ? '—' : MASS_SHORT[value];
 }

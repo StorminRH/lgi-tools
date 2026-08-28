@@ -31,7 +31,6 @@ const LIFE_LONG: Record<WormholeLifeStage, string> = {
   expired: 'Expired, closure imminent',
 };
 
-/** Compact reliable-lifetime select. */
 export function ScannerLifeSelect({
   value,
   connection,
@@ -80,7 +79,6 @@ export function ScannerLifeSelect({
   );
 }
 
-/** Read-only compact lifetime text when the row cannot be edited. */
 export function scannerLifeReadout(value: WormholeLifeStage | null): string {
   return value === null ? '—' : LIFE_SHORT[value];
 }

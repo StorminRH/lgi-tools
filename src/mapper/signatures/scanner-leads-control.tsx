@@ -48,7 +48,6 @@ const HINT_LABELS: Record<WormholeDestinationHint, string> = {
   drifter: 'Drifter',
 };
 
-/** Seed text for the destination field: settled label, else the class hint. */
 export function scannerLeadsSeed(
   hint: WormholeDestinationHint | null,
   destination: SystemIdentityReadout | null,
@@ -57,10 +56,6 @@ export function scannerLeadsSeed(
   return hint === null ? '' : HINT_LABELS[hint];
 }
 
-/**
- * Empty or seed-equal query lists class hints. Typing filters hints and
- * system names together so a resolved hole can be retargeted in place.
- */
 export function scannerLeadsSuggestionGroups(
   query: string,
   systems: readonly SystemSearchEntry[],
@@ -127,7 +122,6 @@ export function scannerLeadsSuggestionGroups(
   ];
 }
 
-/** Commits a destination combo value as a class hint, system, or unset. */
 export function commitScannerLeadsValue(
   value: string,
   onChange: ConnectionFieldSetters['setLeadsTo'],
@@ -166,7 +160,6 @@ export function commitScannerLeadsValue(
   }
 }
 
-/** Commits typed destination-cell text as unset, origin, hint, or system. */
 export function commitScannerLeadsQuery(
   text: string,
   parse: (input: string) =>
@@ -232,7 +225,6 @@ export function commitScannerLeadsQuery(
   }
 }
 
-/** Compact destination combobox: class hints on click, systems on type. */
 export function ScannerLeadsControl({
   hint,
   destination,
@@ -331,7 +323,6 @@ export function ScannerLeadsControl({
   );
 }
 
-/** Read-only compact leads text when the row cannot be edited. */
 export function scannerLeadsReadout(
   hint: WormholeDestinationHint | null,
   destination: SystemIdentityReadout | null,

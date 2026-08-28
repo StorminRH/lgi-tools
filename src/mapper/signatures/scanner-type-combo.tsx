@@ -18,10 +18,6 @@ export interface ScannerTypeSuggestionGroup {
   readonly items: readonly string[];
 }
 
-/**
- * Empty query lists this system's statics, then K162. Typing prefix-filters
- * the remaining codex (statics still first).
- */
 export function scannerTypeSuggestionGroups(
   query: string,
   codes: readonly string[],
@@ -70,7 +66,6 @@ function typeGroupsAsComboItems(
   }));
 }
 
-/** Compact wormhole-type combobox: statics + K162 on click, search on type. */
 export function ScannerTypeCombo({
   code,
   className,

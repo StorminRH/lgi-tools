@@ -61,7 +61,7 @@ export function SignatureProvider({
   const {
     dismissMissing,
     missingBySystem,
-    missingSystemId,
+    pasteTargetSystemId,
     removeMissing,
   } = useSignatureMissingFlow(mapId, canEdit, pasteTarget);
   const identifyRow = useIdentifySignature(mapId);
@@ -75,7 +75,7 @@ export function SignatureProvider({
     onPanelTargetChange,
     rows.length > 0 || panelTarget !== null,
     missingBySystem,
-    missingSystemId,
+    pasteTargetSystemId,
     scannerSystemId,
     removeMissing,
   );
