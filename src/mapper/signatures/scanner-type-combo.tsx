@@ -13,7 +13,7 @@ import {
 import { scannerSelectedFieldClass } from './scanner-field-class';
 import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
 
-interface ScannerTypeSuggestionGroup {
+export interface ScannerTypeSuggestionGroup {
   readonly label: string;
   readonly items: readonly string[];
 }

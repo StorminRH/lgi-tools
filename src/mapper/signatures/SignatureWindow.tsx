@@ -27,7 +27,7 @@ import {
   type SignatureWindowRow,
 } from './signature-model';
 
-interface SignatureWindowProps {
+export interface SignatureWindowProps {
   /** Map chain root — same system scope as the dock scanner summary. */
   readonly scannerSystemId: number | null;
   readonly rows: readonly SignatureWindowRow[];

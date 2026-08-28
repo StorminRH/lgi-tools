@@ -11,7 +11,7 @@ import {
 } from './signature-model';
 import { scannerRowOpenAction } from './scanner-row-open';
 
-type OpenRowActions = (
+export type OpenRowActions = (
   trigger: HTMLElement,
   clientX: number,
   clientY: number,

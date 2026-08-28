@@ -86,7 +86,7 @@ function useRemoveMissingSignatures(
 }
 
 export function missingIdsForSystem(
-  bySystem: MissingSignatures['bySystem'],
+  bySystem: ReadonlyMap<number, ReadonlySet<string>>,
   systemId: number | null,
 ): ReadonlySet<string> {
   return systemId === null
