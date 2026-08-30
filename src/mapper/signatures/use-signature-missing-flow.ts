@@ -85,7 +85,7 @@ function useRemoveMissingSignatures(
   );
 }
 
-export function missingIdsForSystem(
+function missingIdsForSystem(
   bySystem: ReadonlyMap<number, ReadonlySet<string>>,
   systemId: number | null,
 ): ReadonlySet<string> {
