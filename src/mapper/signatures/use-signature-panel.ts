@@ -5,10 +5,6 @@ import {
   type OpenSignatureEditor,
   type ScannerPanelTarget,
 } from './signature-context';
-import {
-  listedMissingIds,
-  missingIdsForSystem,
-} from './use-signature-missing-flow';
 
 const SIGNATURE_AGE_TICK_MS = 60_000;
 
@@ -22,17 +18,13 @@ function useSignatureClock(active: boolean): number {
   return now;
 }
 
-export function useSignaturePanel(
-  onPanelTargetChange: (target: ScannerPanelTarget) => void,
-  clockActive: boolean,
-  missingBySystem: ReadonlyMap<number, ReadonlySet<string>>,
-  pasteTargetSystemId: number | null,
-  scannerSystemId: number | null,
-  removeMissing: (
-    systemId: number,
-    signatureIds: readonly string[],
-  ) => Promise<void>,
-) {
+export function useSignaturePanel({
+  onPanelTargetChange,
+  clockActive,
+}: {
+  readonly onPanelTargetChange: (target: ScannerPanelTarget) => void;
+  readonly clockActive: boolean;
+}) {
   const closePanel = useCallback(
     () => onPanelTargetChange(null),
     [onPanelTargetChange],
@@ -52,23 +44,10 @@ export function useSignaturePanel(
     [onPanelTargetChange],
   );
   const now = useSignatureClock(clockActive);
-  const missingIds = missingIdsForSystem(missingBySystem, pasteTargetSystemId);
-  const highlightIds = listedMissingIds(
-    pasteTargetSystemId,
-    scannerSystemId,
-    missingBySystem,
-  );
-  const removeMissingRows = useCallback(async () => {
-    if (pasteTargetSystemId === null || missingIds.size === 0) return;
-    await removeMissing(pasteTargetSystemId, [...missingIds]);
-  }, [missingIds, removeMissing, pasteTargetSystemId]);
   return {
     closePanel,
-    highlightIds,
-    missingIds,
     now,
     openEditor,
     openSite,
-    removeMissingRows,
   };
 }

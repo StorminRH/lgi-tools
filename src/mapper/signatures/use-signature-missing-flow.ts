@@ -94,11 +94,12 @@ export function missingIdsForSystem(
     : (bySystem.get(systemId) ?? EMPTY_MISSING);
 }
 
-export function useSignatureMissingFlow(
-  mapId: string,
-  canEdit: boolean,
-  pasteTarget: TrackedSystemTarget,
-) {
+export function useSignatureMissingFlow(input: {
+  readonly mapId: string;
+  readonly canEdit: boolean;
+  readonly pasteTarget: TrackedSystemTarget;
+  readonly scannerSystemId: number | null;
+}) {
   const { bySystem: missingBySystem, replace, clearAll } = useMissingSignatures();
   const [pasteTargetSystemId, setPasteTargetSystemId] = useState<number | null>(
     null,
@@ -110,17 +111,31 @@ export function useSignatureMissingFlow(
     },
     [replace],
   );
-  const applyRows = useApplySignatureScan(mapId, replaceForPaste);
-  useScannerPaste({ canEdit, pasteTarget, applyRows });
-  const removeMissing = useRemoveMissingSignatures(mapId, clearAll);
+  const applyRows = useApplySignatureScan(input.mapId, replaceForPaste);
+  useScannerPaste({
+    canEdit: input.canEdit,
+    pasteTarget: input.pasteTarget,
+    applyRows,
+  });
+  const removeMissing = useRemoveMissingSignatures(input.mapId, clearAll);
   const dismissMissing = useCallback(() => {
     if (pasteTargetSystemId !== null) clearAll(pasteTargetSystemId);
   }, [pasteTargetSystemId, clearAll]);
+  const missingIds = missingIdsForSystem(missingBySystem, pasteTargetSystemId);
+  const highlightIds = listedMissingIds(
+    pasteTargetSystemId,
+    input.scannerSystemId,
+    missingBySystem,
+  );
+  const removeMissingRows = useCallback(async () => {
+    if (pasteTargetSystemId === null || missingIds.size === 0) return;
+    await removeMissing(pasteTargetSystemId, [...missingIds]);
+  }, [missingIds, removeMissing, pasteTargetSystemId]);
   return {
     dismissMissing,
-    missingBySystem,
-    pasteTargetSystemId,
-    removeMissing,
+    highlightIds,
+    missingIds,
+    removeMissingRows,
   };
 }
 

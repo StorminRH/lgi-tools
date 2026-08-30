@@ -60,10 +60,15 @@ export function SignatureProvider({
   );
   const {
     dismissMissing,
-    missingBySystem,
-    pasteTargetSystemId,
-    removeMissing,
-  } = useSignatureMissingFlow(mapId, canEdit, pasteTarget);
+    highlightIds,
+    missingIds,
+    removeMissingRows,
+  } = useSignatureMissingFlow({
+    mapId,
+    canEdit,
+    pasteTarget,
+    scannerSystemId,
+  });
   const identifyRow = useIdentifySignature(mapId);
   const { jumpResolution, pickJumpCandidate } = useSignatureJumpFlow(
     mapId,
@@ -71,14 +76,10 @@ export function SignatureProvider({
     connectionDetails,
     unresolvedHoles,
   );
-  const panel = useSignaturePanel(
+  const panel = useSignaturePanel({
     onPanelTargetChange,
-    rows.length > 0 || panelTarget !== null,
-    missingBySystem,
-    pasteTargetSystemId,
-    scannerSystemId,
-    removeMissing,
-  );
+    clockActive: rows.length > 0 || panelTarget !== null,
+  });
 
   return (
     <SignatureRowsProvider value={rows}>
@@ -86,13 +87,13 @@ export function SignatureProvider({
       <SignatureWindow
         scannerSystemId={scannerSystemId}
         rows={rows}
-        missingIds={panel.highlightIds}
-        missingCount={panel.missingIds.size}
+        missingIds={highlightIds}
+        missingCount={missingIds.size}
         canEdit={canEdit}
         complete={complete}
         now={panel.now}
         onDismissMissing={dismissMissing}
-        onRemoveMissing={panel.removeMissingRows}
+        onRemoveMissing={removeMissingRows}
         jumpResolution={jumpResolution}
         onPickJumpCandidate={pickJumpCandidate}
         onIdentify={identifyRow}
