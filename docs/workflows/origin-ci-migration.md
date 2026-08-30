@@ -11,7 +11,8 @@ notes.
 only: Bottom line, hard constraints, ordered work, success criteria)
 **Proof standard:** Atomic (each Ordered work step is its own later
 execution chat)
-**Execution status:** Pending
+**Execution status:** Remaining Ordered work is OW-9 (`ux-check`) and
+OW-13 (schemas). OW-1–8, OW-10–12, and OW-14–18 are Done.
 **Baseline effect:** Neutral
 
 **Settled loop:** Land each Ordered work step on `development`
@@ -200,14 +201,14 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 | Depot CLI | Not present here | No `depot` on this VM or the operator laptop at last check | OW-2 installs CLI where the operator works |
 | Live DoD | Origin PR Depot pipeline | OW-4 landed on `stormin/depot-verify-dod` | Local test suite is typecheck / lint / Fallow dead-code+dupes / focused tests |
 | Live CI | GHA, no real SQL | `.github/workflows/test.yml` skips `*.db.test.ts` | OW-2/OW-3 replace this on Origin |
-| Preview/prod gaps | Known | Convex preview key unused; `SITE_URL` prod-shaped; `neon.ts` is never auto-applied; crons Production-only; shared Upstash. Convex cost is the preview concern (no scale-to-zero) | OW-5 / OW-17: ephemeral teardown + one cheap sleeping `staging` |
-| Neon branch policy | In-repo, apply is manual | Repo-root `neon.ts`: `preview/*` gets `ttl: '3d'`, 0.25–1 CU, `suspendTimeout: '1m'`. Other new branches get no TTL and inherit defaults. Existing non-default branches are left alone until `updateExisting` | OW-17 adds a named `staging` arm (no TTL, cheap CU, fast suspend) and applies it |
-| Issues | GitHub only | Origin has no tracker. 31 open issues on `StorminRH/lgi-tools` | OW-14 proves Linear; OW-15 migrates feedback |
-| Site feedback | GitHub REST | `createFeedbackGithubIssue` POSTs to `StorminRH/lgi-tools` with `GITHUB_FEEDBACK_TOKEN` | Do not retarget until OW-14 |
-| Daily GrokBots | Schedule runners | They run on a schedule. When they need to write code they spawn a Cloud Agent in the build environment. **Update watch:** GrokBot itself files an issue (no Cloud Agent). **Refactor:** standing issue documents the process; work lives as a draft PR the agent updates. **Test cleanup:** draft PR only (rebased/updated daily); not an issue. Live GitHub: [#444](https://github.com/StorminRH/lgi-tools/issues/444), [#449](https://github.com/StorminRH/lgi-tools/issues/449) | OW-16 retargets: Linear for issues the bots file; Origin draft PRs for the two accumulators |
-| Linear | Intended tracker | Free plan + API. Cursor app, Cloud Agents, and GrokBots each have a Linear connector. Linear `@cursor` repo picker is still documented as GitHub-shaped `owner/repo` | OW-14 proves those connectors on the Origin repo; do not hunt a peer unless that proof fails |
+| Preview/prod gaps | Known | Convex preview key unused; `SITE_URL` prod-shaped; `neon.ts` is never auto-applied; crons Production-only; shared Upstash. Convex cost is the preview concern (no scale-to-zero) | OW-5 and OW-17 are Done. |
+| Neon branch policy | In-repo, apply is manual | Repo-root `neon.ts`: `preview/*` gets `ttl: '3d'`, 0.25–1 CU, `suspendTimeout: '1m'`. Other new branches get no TTL and inherit defaults. Existing non-default branches are left alone until `updateExisting` | OW-17 is Done. Standing `staging` is the cheap named arm. |
+| Issues | Linear | Origin has no tracker. Tickets live in Linear. | OW-14 is Done. |
+| Site feedback | Linear GraphQL | Site feedback creates a Linear issue. | OW-15 is Done. |
+| Daily GrokBots | Origin + Linear | Update-watch writes Linear. Refactor and test-cleanup accumulate on Origin draft PRs. | OW-16 is Done. |
+| Linear | Ticket home | Cursor app, Cloud Agents, and GrokBots read and write Linear. | OW-14 is Done. |
 | Depot Developer plan | Purchased intent | Depot CI minutes and results. Unused: Mac runners, Registry, GHA runner minutes, extra-billed Agent sandboxes | Buy Depot CI only |
-| Local vs Cloud Agent | Two workflows | Laptop: `pnpm dev:all` (Docker). Cloud: committed `.cursor/environment.json` + native Postgres on `:5433` + `CONVEX_AGENT_MODE=anonymous`. Skills and agents are tracked; `.gitignore` also ignores `local-only/` trees and `.codegraph/`. AGENTS.md carries a long Cloud-specific caveat list | OW-18 last: one Cursor-native path; audit ignore rules; shrink caveats to platform facts |
+| Local vs Cloud Agent | One Cursor-native path | Committed `.cursor/environment.json` plus native Postgres on `:5433` and `CONVEX_AGENT_MODE=anonymous` on Cloud. Remaining Cloud notes are platform facts. | OW-18 is Done. |
 | This plan PR | In progress | This file on `stormin/origin-ci-migration-4df8` | This chat only publishes the plan |
 
 ## Why now
@@ -274,10 +275,10 @@ When the last Ordered work step is done:
 | Lifecycle rewrite | OW-6 through OW-11; one skill (or named pair) per chat |
 | Scripts | OW-12 |
 | Standing docs | OW-13 |
-| Linear + GrokBots | OW-14 prove connectors; OW-15 feedback; OW-16 retarget |
-| Standing staging backends | OW-17 |
-| GitHub bots-only | OW-8 writes the dump; OW-17/close-out keep it |
-| Local / cloud parity | OW-18 last, after the stack works |
+| Linear + GrokBots | Done (OW-14–16) |
+| Standing staging backends | Done (OW-17) |
+| GitHub bots-only | OW-8 writes the dump; close-out keeps it on the promote |
+| Local / cloud parity | Done (OW-18) |
 | This plan only | Current PR. Diff must not flip skills, CI, or `vercel.json` |
 
 ## Resolved implementation decisions
