@@ -17,6 +17,7 @@ import {
   authorizedAdminMapsSelection,
   mapAuthorizationRows,
 } from './authorization-sql';
+import { tombstonedMapLifecycle } from './lifecycle-contract';
 import { MAP_DELETE_GRACE_MS } from './queries';
 import { maps } from './schema';
 
@@ -220,9 +221,7 @@ export async function tombstonePurgedMap(
   const updated = await database
     .update(maps)
     .set({
-      tombstonedAt: now,
-      lifecycleStatus: 'tombstoned',
-      lifecycleEnteredAt: now,
+      ...tombstonedMapLifecycle(now),
       updatedAt: now,
     })
     .where(

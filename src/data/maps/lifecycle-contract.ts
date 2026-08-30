@@ -39,14 +39,11 @@ export function purgeQueuedMapLifecycle(enteredAt: Date, archivedAt: Date) {
   };
 }
 
-export function tombstonedMapLifecycle(
-  enteredAt: Date,
-  archivedAt: Date | null = null,
-) {
+export function tombstonedMapLifecycle(enteredAt: Date) {
   return {
     lifecycleStatus: 'tombstoned' as const,
     lifecycleEnteredAt: enteredAt,
-    archivedAt,
+    archivedAt: null,
     purgeRequestedAt: null,
     purgeClaimedAt: null,
     tombstonedAt: enteredAt,

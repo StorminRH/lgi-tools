@@ -417,7 +417,6 @@ export interface MapAccessSubject {
   readonly archivedAt: Date | null;
 }
 
-/** Reads one map's creator and archive marker, or null when the map is missing or tombstoned. */
 export async function getMapAccessSubject(
   mapId: string,
   database: AnyPgDb = db,

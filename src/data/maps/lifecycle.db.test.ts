@@ -231,6 +231,9 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     await expect(tombstonePurgedMap(MAP_ID, afterGrace, harness.db)).resolves.toBe(false);
     const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
     expect(stored).toMatchObject({
+      archivedAt: null,
+      purgeRequestedAt: null,
+      purgeClaimedAt: null,
       tombstonedAt: afterGrace,
       lifecycleStatus: 'tombstoned',
       lifecycleEnteredAt: afterGrace,
