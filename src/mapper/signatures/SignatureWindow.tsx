@@ -28,19 +28,15 @@ import {
 } from './signature-model';
 
 export interface SignatureWindowProps {
-  /** Map chain root — same system scope as the dock scanner summary. */
   readonly scannerSystemId: number | null;
   readonly rows: readonly SignatureWindowRow[];
-  /** Row-highlight IDs, already scoped to the listed scanner system. */
   readonly missingIds: ReadonlySet<string>;
-  /** Missing rows for the last paste-target system, which may differ from the listed one. */
   readonly missingCount: number;
   readonly canEdit: boolean;
   readonly complete: boolean;
   readonly now: number;
   readonly onDismissMissing: () => void;
   readonly onRemoveMissing: () => Promise<void>;
-  /** Newest exact multi-survivor jump awaiting a signature pick. */
   readonly jumpResolution: JumpResolutionModel | null;
   readonly onPickJumpCandidate: (candidate: JumpResolutionCandidate) => void;
   readonly onIdentify: (
@@ -48,20 +44,15 @@ export interface SignatureWindowProps {
     group: SigGroup,
     wormholeTypeCode?: string,
   ) => Promise<void>;
-  /** Opens the map's one Signature Editor on a wormhole row's connection. */
   readonly onOpenEditor: OpenSignatureEditor;
-  /** Opens the read-only site viewer for a catalogue-matched site row. */
   readonly onOpenSite: (siteId: number, signatureId: string) => void;
-  /** Binds inline wormhole cells to the existing connection-field setters. */
   readonly bindConnectionSetters?: (
     connection: ConnectionEditorDetail,
     side?: 'from' | 'to',
   ) => ConnectionFieldSetters;
-  /** Resolved inbound lines the Destination cell can offer as a return pick. */
   readonly originLeadConnections?: readonly OriginLeadConnection[];
 }
 
-/** Named harvestable rows in the listed scanner system (live Est. ISK scope). */
 function harvestableNamesForScanner(
   rows: readonly SignatureWindowRow[],
   scannerSystemId: number | null,
@@ -76,7 +67,6 @@ function harvestableNamesForScanner(
   return names;
 }
 
-/** Permanent bottom-left scanner window composed beside the managed map stack. */
 export function SignatureWindow(props: SignatureWindowProps) {
   const catalogue = useSiteCatalogue();
   const resolveSiteId = catalogue.siteIdForName;

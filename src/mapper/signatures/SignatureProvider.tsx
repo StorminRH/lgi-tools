@@ -24,10 +24,6 @@ import { useSignatureMissingFlow } from './use-signature-missing-flow';
 import { useSignaturePage } from './use-signature-page';
 import { useSignaturePanel } from './use-signature-panel';
 
-/**
- * Owns the signature page, tracked paste target, removal flow, and the shared
- * row context consumed by the permanent window and System Info cards.
- */
 export function SignatureProvider({
   mapId,
   scannerSystemId,
@@ -41,14 +37,12 @@ export function SignatureProvider({
   children,
 }: {
   readonly mapId: string;
-  /** Live tracked system when ready; otherwise the chain-root fallback. */
   readonly scannerSystemId: number | null;
   readonly pasteTarget: TrackedSystemTarget;
   readonly canEdit: boolean;
   readonly connectionDetails: ReadonlyMap<Id<'mapConnections'>, ConnectionDetail>;
   readonly unresolvedHoles: readonly UnresolvedHoleSummary[];
   readonly authoring: ConnectionAuthoringApi;
-  /** The scanner panel's single open target, owned by the host. */
   readonly panelTarget: ScannerPanelTarget;
   readonly onPanelTargetChange: (target: ScannerPanelTarget) => void;
   readonly children: ReactNode;

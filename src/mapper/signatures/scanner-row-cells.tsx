@@ -125,7 +125,6 @@ function SignatureRowContent({
   );
   if (!interactive) return <div className={className}>{children}</div>;
   return (
-    // No aria-label: it would replace descendant ID / name / Est. ISK.
     <Button
       variant="bare"
       className={className}
