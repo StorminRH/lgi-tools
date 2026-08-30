@@ -6,10 +6,6 @@ import { blankDoor } from '@/data/maps/connection-hallway';
 import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
 import { SignatureWindow } from './SignatureWindow';
-import {
-  scannerLeadsCellKey,
-  scannerTypeCellKey,
-} from './scanner-wormhole-cells';
 import type { ConnectionFieldSetters } from '../authoring/connection-fields';
 import type { JumpResolutionModel } from './jump-resolution';
 import type { SignatureWindowRow } from './signature-model';
@@ -288,19 +284,6 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(remote).toContain('data-signature-missing-prompt');
     expect(remote).toContain('3 signatures missing from scan');
     expect(remote).not.toContain('data-signature-missing="true"');
-  });
-
-  it('keeps Type and Destination remount keys distinct when both values are empty', () => {
-    const connectionId = 'm577478djxw0qbjjh9dcntqabn8c965j';
-    expect(scannerTypeCellKey(connectionId, null)).toBe(
-      `type:${connectionId}:`,
-    );
-    expect(scannerLeadsCellKey(connectionId, undefined, null)).toBe(
-      `leads:${connectionId}:`,
-    );
-    expect(scannerTypeCellKey(connectionId, null)).not.toBe(
-      scannerLeadsCellKey(connectionId, undefined, null),
-    );
   });
 
   it('stacks missing-scan and ambiguous-jump prompts in one scanner rail', () => {

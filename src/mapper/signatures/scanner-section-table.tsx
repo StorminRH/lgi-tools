@@ -19,7 +19,6 @@ import {
   type WormholeCellContext,
 } from './scanner-wormhole-cells';
 import {
-  groupSignatureSections,
   type ScannerSection,
   type ScannerSectionId,
   type SignatureWindowRow,
@@ -136,17 +135,17 @@ function ScannerSectionBlock({
   section,
   missingIds,
   canEdit,
+  canIdentify,
   resolveSiteId,
   cells,
-  onIdentify,
   onOpenActions,
 }: {
   readonly section: ScannerSection;
   readonly missingIds: ReadonlySet<string>;
   readonly canEdit: boolean;
+  readonly canIdentify: boolean;
   readonly resolveSiteId: (name: string) => number | null;
   readonly cells: (row: SignatureWindowRow) => ReactNode;
-  readonly onIdentify?: WormholeCellContext['onIdentify'];
   readonly onOpenActions: (
     row: SignatureWindowRow,
     trigger: HTMLElement,
@@ -200,7 +199,7 @@ function ScannerSectionBlock({
                 section.id === 'unknown'
                 && canEdit
                 && row.group === null
-                && onIdentify !== undefined;
+                && canIdentify;
               return (
                 <SignatureRow
                   key={row.key}
@@ -240,7 +239,7 @@ function ScannerRowsLoading() {
 }
 
 export function ScannerSections({
-  rows,
+  sections,
   scannerSystemId,
   missingIds,
   canEdit,
@@ -252,7 +251,7 @@ export function ScannerSections({
   onIdentify,
   onOpenActions,
 }: {
-  readonly rows: readonly SignatureWindowRow[];
+  readonly sections: readonly ScannerSection[];
   readonly scannerSystemId: number | null;
   readonly missingIds: ReadonlySet<string>;
   readonly canEdit: boolean;
@@ -277,7 +276,6 @@ export function ScannerSections({
     originLeadConnections,
     onIdentify,
   });
-  const sections = groupSignatureSections(rows, scannerSystemId);
   if (sections.length === 0) {
     return complete ? null : <ScannerRowsLoading />;
   }
@@ -289,9 +287,9 @@ export function ScannerSections({
           section={section}
           missingIds={missingIds}
           canEdit={canEdit}
+          canIdentify={ctx.onIdentify !== undefined}
           resolveSiteId={resolveSiteId}
           cells={(row) => sectionCells(section.id, row, ctx)}
-          onIdentify={onIdentify}
           onOpenActions={onOpenActions}
         />
       ))}

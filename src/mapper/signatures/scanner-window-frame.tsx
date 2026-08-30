@@ -132,8 +132,8 @@ export function ScannerWindowFrame({
     clientY: number,
   ) => void;
 }) {
-  const filled =
-    groupSignatureSections(rows, scannerSystemId).length > 0;
+  const sections = groupSignatureSections(rows, scannerSystemId);
+  const filled = sections.length > 0;
   const listOpen = filled || !complete;
   return (
     <ScannerScrollEpochProvider>
@@ -158,7 +158,7 @@ export function ScannerWindowFrame({
           {listOpen ? (
             <ScannerListScroller>
               <ScannerSections
-                rows={rows}
+                sections={sections}
                 scannerSystemId={scannerSystemId}
                 missingIds={missingIds}
                 canEdit={canEdit}
