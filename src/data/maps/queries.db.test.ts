@@ -17,6 +17,11 @@ import {
   listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals,
 } from './queries';
+import {
+  archivedMapLifecycle,
+  purgeQueuedMapLifecycle,
+  tombstonedMapLifecycle,
+} from './lifecycle-contract';
 import { mapAccess, maps } from './schema';
 
 const harness = await createDbTestHarness({
@@ -108,7 +113,11 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     expect(storedMaps).toHaveLength(2);
     expect(storedMaps).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ archivedAt: expect.any(Date), purgeRequestedAt: expect.any(Date) }),
+        expect.objectContaining({
+          archivedAt: expect.any(Date),
+          purgeRequestedAt: expect.any(Date),
+          lifecycleStatus: 'purge_queued',
+        }),
       ]),
     );
     await expect(harness.db.select().from(mapAccess)).resolves.toEqual(
@@ -148,8 +157,18 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
       { id: '10000000-0000-4000-8000-000000000001', userId: 'viewer', name: 'Created', createdAt: new Date(base.getTime() - 30_000) },
       { id: '10000000-0000-4000-8000-000000000002', userId: 'creator', name: 'Corporation', createdAt: new Date(base.getTime() - 20_000) },
       { id: '10000000-0000-4000-8000-000000000003', userId: 'creator', name: 'Direct', createdAt: new Date(base.getTime() - 10_000) },
-      { id: '10000000-0000-4000-8000-000000000004', userId: 'creator', name: 'Archived', archivedAt: base },
-      { id: '10000000-0000-4000-8000-000000000005', userId: 'creator', name: 'Tombstoned', tombstonedAt: base },
+      {
+        id: '10000000-0000-4000-8000-000000000004',
+        userId: 'creator',
+        name: 'Archived',
+        ...archivedMapLifecycle(base),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000005',
+        userId: 'creator',
+        name: 'Tombstoned',
+        ...tombstonedMapLifecycle(base, base),
+      },
     ]);
     await harness.db.insert(mapAccess).values([
       { mapId: '10000000-0000-4000-8000-000000000002', ownerType: 'corporation', ownerId: 99, role: 'viewer' },
@@ -176,12 +195,42 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     await seedUser(harness.db, 'creator');
     await seedUser(harness.db, 'viewer');
     await harness.db.insert(maps).values([
-      { id: '20000000-0000-4000-8000-000000000001', userId: 'viewer', name: 'Created', archivedAt: new Date(now.getTime() - 1_000) },
-      { id: '20000000-0000-4000-8000-000000000002', userId: 'creator', name: 'Delegated admin', archivedAt: new Date(now.getTime() - 2_000) },
-      { id: '20000000-0000-4000-8000-000000000003', userId: 'creator', name: 'Viewer only', archivedAt: new Date(now.getTime() - 3_000) },
-      { id: '20000000-0000-4000-8000-000000000004', userId: 'creator', name: 'Expired', archivedAt: new Date('2026-06-01T00:00:00.000Z') },
-      { id: '20000000-0000-4000-8000-000000000005', userId: 'creator', name: 'Purge requested', archivedAt: new Date(now.getTime() - 4_000), purgeRequestedAt: now },
-      { id: '20000000-0000-4000-8000-000000000006', userId: 'creator', name: 'Tombstoned', archivedAt: new Date(now.getTime() - 5_000), tombstonedAt: now },
+      {
+        id: '20000000-0000-4000-8000-000000000001',
+        userId: 'viewer',
+        name: 'Created',
+        ...archivedMapLifecycle(new Date(now.getTime() - 1_000)),
+      },
+      {
+        id: '20000000-0000-4000-8000-000000000002',
+        userId: 'creator',
+        name: 'Delegated admin',
+        ...archivedMapLifecycle(new Date(now.getTime() - 2_000)),
+      },
+      {
+        id: '20000000-0000-4000-8000-000000000003',
+        userId: 'creator',
+        name: 'Viewer only',
+        ...archivedMapLifecycle(new Date(now.getTime() - 3_000)),
+      },
+      {
+        id: '20000000-0000-4000-8000-000000000004',
+        userId: 'creator',
+        name: 'Expired',
+        ...archivedMapLifecycle(new Date('2026-06-01T00:00:00.000Z')),
+      },
+      {
+        id: '20000000-0000-4000-8000-000000000005',
+        userId: 'creator',
+        name: 'Purge requested',
+        ...purgeQueuedMapLifecycle(now, new Date(now.getTime() - 4_000)),
+      },
+      {
+        id: '20000000-0000-4000-8000-000000000006',
+        userId: 'creator',
+        name: 'Tombstoned',
+        ...tombstonedMapLifecycle(now, new Date(now.getTime() - 5_000)),
+      },
     ]);
     await harness.db.insert(mapAccess).values([
       { mapId: '20000000-0000-4000-8000-000000000002', ownerType: 'character', ownerId: 42, role: 'admin' },
@@ -291,7 +340,10 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
       }),
     ]);
 
-    await harness.db.update(maps).set({ archivedAt: new Date() }).where(eq(maps.id, mapId));
+    await harness.db
+      .update(maps)
+      .set(archivedMapLifecycle(new Date()))
+      .where(eq(maps.id, mapId));
     await expect(
       applyAuthorizedMapGrantChange(
         'creator',
@@ -306,7 +358,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     ).resolves.toBe(false);
     await harness.db
       .update(maps)
-      .set({ archivedAt: null, tombstonedAt: new Date() })
+      .set(tombstonedMapLifecycle(new Date(), new Date()))
       .where(eq(maps.id, mapId));
     await expect(
       applyAuthorizedMapGrantChange(
