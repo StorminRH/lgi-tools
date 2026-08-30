@@ -53,8 +53,8 @@ happen on the stack you will keep.
   - Buildkite native pipelines, Depot Mac runners, Depot Agent
     sandboxes.
   - Rewriting completed 4.0 as-builts or the Greptile devlog.
-  - Implementing Linear or GrokBot retargets in this plan PR — OW-14
-    proves the connectors; OW-15/16 do the cut.
+  - Implementing Linear or GrokBot retargets in the original plan
+    publish. Those cuts landed as OW-14–16.
 
 <hard_constraints>
 
@@ -122,12 +122,10 @@ happen on the stack you will keep.
   `NEXT_PUBLIC_CONVEX_URL` / `CONVEX_DEPLOYMENT` on Vercel Preview.
   Staging Convex `SITE_URL` / issuer must be the staging origin, not
   `lgi.tools`.
-- **Plan:** Origin has no issue tracker. Linear is the intended home
+- **Plan:** Origin has no issue tracker. Linear is the ticket home
   (Cursor app, Cloud Agents, and GrokBots all have Linear connectors).
-  Do not migrate `createFeedbackGithubIssue`, update-watch, close-out
-  `[Backlog]`, or the refactor process issue until OW-14 proves those
-  connectors against the Origin repo. Test-cleanup is a draft PR, not
-  an issue — do not invent an issue for it.
+  Site feedback, update-watch, and the refactor process note write
+  Linear. Test-cleanup is a draft PR, not an issue.
 - **Plan:** `poll_pr_gate.py` and `merge_clean_pr.py` are gone. Merge
   with `origin pr merge`. Keep `github_api.py`, `scrub_pr_body.py`,
   `repair_gh_auth.py` while the GitHub dump still needs them.
@@ -182,7 +180,7 @@ Later UX-facing steps pause at the rewritten `ux-check` skill.
 - `vercel.json` — live auto-prod on `main`; all other git deploys off
 - `.cursor/skills/close-out/SKILL.md` — live Greptile 5/5 + wait-prod
 - `.cursor/skills/start-session/SKILL.md` — first isolated skill visit
-- `src/features/feedback/create-github-issue.ts` — only in-app Issues POST
+- `src/features/feedback/create-linear-issue.ts` — in-app feedback create
 - `neon.ts` — Config-as-Code branch policy (`preview/` TTL + compute)
 - `playwright.config.ts` — always `pnpm dev` + `reuseExistingServer`
 - Official: [Origin](https://cursor.com/docs/origin),
@@ -279,7 +277,7 @@ When the last Ordered work step is done:
 | Standing staging backends | Done (OW-17) |
 | GitHub bots-only | OW-8 writes the dump; close-out keeps it on the promote |
 | Local / cloud parity | Done (OW-18) |
-| This plan only | Current PR. Diff must not flip skills, CI, or `vercel.json` |
+| This plan only | Original publish. Skills stayed off that first PR. |
 
 ## Resolved implementation decisions
 
@@ -340,25 +338,20 @@ When the last Ordered work step is done:
   The public number is the latest lifecycle identity already on
   `staging`. Git tags (`v4.0.6`) are optional later.
 - **Linear is the issue board.** Cursor, Cloud Agents, and GrokBots
-  already have Linear connectors. Origin still has no issues. Free
-  cap is **250 issues** — do not import closed GitHub history. OW-14
-  proves the connectors on the Origin repo; hunt a peer only if that
-  proof fails. Linear `@cursor` repo picker is still documented as
-  GitHub-shaped `owner/repo`.
-- **Feedback writer:** keep GitHub until OW-14. Then replace
-  `createFeedbackGithubIssue` (raw `fetch`, not Octokit) and the
-  `feedback_unconfigured` / `github_failed` codes. Do not add Octokit
-  on the way through.
+  read and write Linear. Origin still has no issues. Free cap is
+  **250 issues** — do not import closed GitHub history. OW-14 is Done.
+- **Feedback writer:** site feedback creates a Linear issue
+  (`createFeedbackLinearIssue`, raw `fetch`, GraphQL `issueCreate`).
+  OW-15 is Done.
 - **GrokBots are schedule runners, not the Cloud Agents.** They run
   the daily jobs. When the job must write code they spawn a Cloud
   Agent in the build environment.
   - **Update watch:** GrokBot files/updates a Linear issue. No Cloud
-    Agent. Today `#444`.
-  - **Refactor / slop:** Linear (today `#449`) documents the process.
-    Accumulated work is a **draft PR** the spawned agent updates and
-    rebases.
+    Agent. Standing ticket is LGI-6.
+  - **Refactor / slop:** Linear documents the process. Accumulated
+    work is a **draft PR** the spawned agent updates and rebases.
   - **Test cleanup:** **draft PR only** (updated/rebased daily). Not
-    an issue. Do not create a tracker ticket for it.
+    an issue.
 - **Neon preview vs `staging`:** policy lives in repo-root `neon.ts`.
   New `preview/*` → 3-day TTL, 0.25–1 CU, suspend in 1 minute. New
   unnamed branches inherit defaults (no TTL). `staging` gets its own
@@ -382,15 +375,10 @@ When the last Ordered work step is done:
 - **Developer plan utilization:** Depot CI minutes and results only.
 - **Cloud Agent / Origin CLI:** browser login on a machine you
   control. Do not paste keys in chat.
-- **Local / cloud parity last.** OW-18 runs only after Origin, Depot,
-  previews, release train, Linear, and GrokBots are working. Audit
-  `.gitignore`, `AGENTS.md` Cloud notes, `.cursor/install.sh` /
-  `start.sh` / `environment.json`, and any skill that says “locally
-  vs Cloud Agent.” Delete the second workflow. Use Cursor’s
-  environment schema and Origin-native remotes. A Cloud VM with no
-  Docker is a platform fact — express it as `environment.json`
-  terminals, not as a parallel `pnpm dev:all` path agents must
-  remember.
+- **Local / cloud parity.** OW-18 is Done. Laptop and Cloud Agent
+  share Origin, Depot, Preview, and the committed
+  `.cursor/environment.json`. Remaining Cloud notes are platform
+  facts (`CONVEX_AGENT_MODE=anonymous`, no Docker daemon).
 
 ### Release model
 
@@ -467,9 +455,8 @@ Not applicable — this is not an audit-remediation contract.
 
 - **Touched measured surfaces:** None in this plan PR (docs only).
 - **Live proximity evidence:** Later OWs will touch skills, workflows,
-  `vercel.json`, `playwright.config.ts`, `create-github-issue.ts`, and
-  contributing docs. Stay outside mapper / Convex engine unless a
-  later visit names them.
+  `vercel.json`, `playwright.config.ts`, and contributing docs.
+  Stay outside mapper / Convex engine unless a later visit names them.
 
 ### Preparatory refactor
 
@@ -491,24 +478,23 @@ product behavior.
 - Origin-hosted repository + remotes — OW-1.
 - `.depot/workflows/` — OW-2, OW-3.
 - `AGENTS.md`, CONTRIBUTING, PR template — OW-4, then OW-13.
-- `vercel.json` + Vercel project git settings — OW-5, OW-17.
-- `neon.ts` — preview TTL/compute and the `staging` cheap-sleep arm
-  (OW-5 / OW-17). Nothing applies until `neon config apply`.
+- `vercel.json` + Vercel project git settings — Done (OW-5, OW-17).
+- `neon.ts` — preview TTL/compute and the `staging` cheap-sleep arm.
+  Done (OW-5 / OW-17). Nothing applies until `neon config apply`.
 - `.cursor/skills/start-session/SKILL.md` — done.
 - `.cursor/skills/plan-session/SKILL.md` — done.
 - `.cursor/skills/close-out/SKILL.md` — done.
 - `.cursor/skills/ux-check/SKILL.md` — OW-9 only.
 - `.cursor/skills/update-watch/SKILL.md` — done.
 - `tools/delivery/poll_pr_gate.py`, `merge_clean_pr.py` — deleted.
-- `src/features/feedback/create-github-issue.ts`,
+- `src/features/feedback/create-linear-issue.ts`,
   `src/app/api/feedback/route.ts`, `src/features/feedback/categories.ts`,
-  `src/lib/env.ts`, `'github-issues'` in
-  `src/composition/vendor-resilience-registry.ts` — OW-15.
-- Cursor Automations for update-watch / test-cleanup / slop — OW-16
-  (platform, not this git tree).
+  `src/lib/env.ts`, vendor registry — Done (OW-15).
+- Cursor Automations for update-watch / test-cleanup / slop — Done
+  (OW-16; platform, not this git tree).
 - `playwright.config.ts` — OW-3 (`CI` vs local split).
 - `.cursor/environment.json`, `.cursor/install.sh`, `.cursor/start.sh`,
-  `.gitignore`, Cloud notes in `AGENTS.md` — OW-18.
+  `.gitignore`, Cloud notes in `AGENTS.md` — Done (OW-18).
 
 ### Interfaces and contracts
 
@@ -529,9 +515,8 @@ product behavior.
   `staging`. A dump well over **100** is blocked.
 - `origin pr merge` (`staging` → `main`) — release and Production
   auto-deploy.
-- Feedback: today `POST /repos/StorminRH/lgi-tools/issues`. After
-  OW-15: the chosen tracker’s create API (Linear:
-  `issueCreate` at `https://api.linear.app/graphql`).
+- Feedback: `POST /api/feedback` → `createFeedbackLinearIssue`
+  (`issueCreate` at `https://api.linear.app/graphql`).
 - This plan adds or changes no production export.
 
 ### Control and data flow
@@ -561,7 +546,7 @@ When you ask for a release:
    Origin `staging` → Origin `main`. Vercel auto-deploys Production.
    Bots already saw this work at promote.
 
-Issues and GrokBots (parallel, after OW-14):
+Issues and GrokBots (landed, OW-14–16):
 
 9. Site Feedback button → Linear.
 10. Update-watch GrokBot files a Linear issue (no Cloud Agent).
@@ -688,20 +673,10 @@ Do not implement a later step in an earlier chat.
 
 ### Local / cloud parity (OW-18)
 
-Cursor-intended Cloud setup is a committed `.cursor/environment.json`
-(`install`, `start`, `terminals`, `ports`) plus skills and agents in
-the git tree. That is the default to lean on. Laptop and Cloud then
-share Origin, Depot, and Preview as the daily loop.
-
-Leave ignored: secrets, Playwright cookie jars, coverage,
-`node_modules`, `.next`, and directories named `local-only/` that
-are truly one-machine scratch. Do not ignore a skill or agent because
-“Cloud does not need it.”
-
+Done. Laptop and Cloud Agent share the committed
+`.cursor/environment.json`, Origin, Depot, and Preview.
 `CONVEX_AGENT_MODE=anonymous` and a Cloud VM without Docker are
-platform defaults, not repo inventions. Express the latter as the
-`postgres` terminal in `environment.json`. Do not keep teaching
-agents `pnpm dev:all` (Docker Compose) as the Cloud path.
+platform facts. Live notes: `.cursor/cloud-agent.md`.
 
 ### Preview backends (Neon + Convex)
 
@@ -792,34 +767,16 @@ Live owner: `.cursor/skills/close-out/SKILL.md`. One process. Land is
 
 ### Feedback and issue writers (OW-15 / OW-16)
 
-Product path today (only in-app create):
+Done. Product path (only in-app create):
 
 `FeedbackButton` → `FeedbackModal` → `POST /api/feedback` →
-`createFeedbackGithubIssue` →
-`https://api.github.com/repos/StorminRH/lgi-tools/issues`
-(`GITHUB_FEEDBACK_TOKEN`, labels `bug` / `enhancement` only).
+`createFeedbackLinearIssue` → Linear `issueCreate`.
 
-Also GitHub-shaped today, skill- or GrokBot-owned:
+GrokBot-owned:
 
-- Update-watch GrokBot creates `Update watch — YYYY-MM-DD` (or
-  standing `#444`). No Cloud Agent.
-- Refactor GrokBot: `#449` is the process note; work is a draft PR.
-- Test-cleanup GrokBot: draft PR only.
-- `close-out` can open `[Backlog] …`.
-
-Linear create shape (OW-15, do not implement here):
-
-```graphql
-mutation IssueCreate {
-  issueCreate(input: { title: "...", description: "...", teamId: "..." }) {
-    success
-    issue { id title }
-  }
-}
-```
-
-`POST https://api.linear.app/graphql` with `Authorization: <api key>`
-(no `Bearer` prefix per Linear’s personal-key docs).
+- Update-watch writes a Linear issue (LGI-6). No Cloud Agent.
+- Refactor: Linear process note plus a draft Origin PR.
+- Test-cleanup: draft Origin PR only.
 
 ### Scripts
 
@@ -829,7 +786,7 @@ mutation IssueCreate {
 | `delivery repair-gh-auth` | `delivery merge-clean-pr` |
 | `delivery github-api` | `lifecycle fold-pending-changelog` |
 | `delivery wait-prod-deploy` on the release merge SHA | `lifecycle check-pending-changelog` |
-| `GITHUB_FEEDBACK_TOKEN` until OW-15 | `pnpm verify` as definition of done |
+| `LINEAR_API_KEY` on hosted staging and Production | `pnpm verify` as definition of done |
 
 ## Success criteria (agent-runnable — show the output)
 
@@ -886,7 +843,7 @@ mutation IssueCreate {
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
   | `SC-8.1` | OW-14 | Cursor app, one Cloud Agent, and one GrokBot can read/write Linear |
-  | `SC-8.2` | Read `create-github-issue.ts` / successor after OW-15 | No `api.github.com/repos/StorminRH/lgi-tools/issues` POST |
+  | `SC-8.2` | Read `create-linear-issue.ts` | No `api.github.com/repos/StorminRH/lgi-tools/issues` POST |
   | `SC-8.3` | After OW-16 | Update-watch writes Linear (no Cloud Agent); refactor has Linear process note + Origin draft PR; test-cleanup is Origin draft PR only |
 
 - **SC-9 — `staging` → `main` is the release and Production auto-deploy.**
@@ -898,11 +855,11 @@ mutation IssueCreate {
   | `SC-9.3` | Close-out + schemas after OW-8 / OW-13 | `APP_VERSION` and `### vX.Y.N` change only on cut release; as-builts land on the promote PR |
   | `SC-9.4` | Close-out + one dry-run | Promote starts at 80 app-facing files; a dump well over 100 is blocked; merge to `main` is the documented prod action |
 
-- **SC-10 — This plan PR stayed documentation-only.**
+- **SC-10 — The original plan publish stayed documentation-only.**
 
   | Proof | Evidence action | Required observable |
   | --- | --- | --- |
-  | `SC-10.1` | Diff vs `main` for this publish | Skills, workflows, `vercel.json`, and delivery scripts unchanged |
+  | `SC-10.1` | Diff vs `main` for that first publish | Skills, workflows, `vercel.json`, and delivery scripts unchanged on that PR |
 
 - **SC-11 — Laptop and Cloud Agent share one Cursor-native workflow.**
 
@@ -914,9 +871,7 @@ mutation IssueCreate {
 
 ## End of session
 
-- Confirm every `DONE =` item is evidenced and every `hard_constraints`
-  boundary held — for **this** PR, only SC-10 applies. SC-1–SC-9 and
-  SC-11 are later chats.
+- Remaining Ordered work is OW-9 (`ux-check`) then OW-13 (schemas).
 - **Delivery:** Land remaining ordinary-work steps on `development`.
 - **Lifecycle artifacts:** none for this ordinary-work plan. No version
   bump, no pending fragment, no roadmap row.
