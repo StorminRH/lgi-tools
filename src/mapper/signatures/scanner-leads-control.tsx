@@ -122,25 +122,30 @@ export function scannerLeadsSuggestionGroups(
   ];
 }
 
+export type ScannerLeadsCommit = Pick<
+  ConnectionFieldSetters,
+  'setLeadsTo' | 'setDestination' | 'linkToOrigin'
+> & {
+  readonly originSystemId?: number;
+  readonly originLeads?: readonly OriginLeadOption[];
+};
+
 export function commitScannerLeadsValue(
   value: string,
-  onChange: ConnectionFieldSetters['setLeadsTo'],
-  onSetDestination: ConnectionFieldSetters['setDestination'],
-  onLinkOrigin: ConnectionFieldSetters['linkToOrigin'],
-  originSystemId?: number,
-  originLeads: readonly OriginLeadOption[] = [],
+  commit: ScannerLeadsCommit,
 ): void {
+  const originLeads = commit.originLeads ?? [];
   const originId = decodeOriginLead(value);
   if (originId !== null) {
-    onLinkOrigin(originId);
+    commit.linkToOrigin(originId);
     return;
   }
   if (value === UNSET_FIELD) {
-    onSetDestination(null);
+    commit.setDestination(null);
     return;
   }
   if (value.startsWith(HINT_PREFIX)) {
-    onChange(value.slice(HINT_PREFIX.length) as WormholeDestinationHint);
+    commit.setLeadsTo(value.slice(HINT_PREFIX.length) as WormholeDestinationHint);
     return;
   }
   if (value.startsWith(SYSTEM_PREFIX)) {
@@ -148,14 +153,14 @@ export function commitScannerLeadsValue(
     if (
       Number.isSafeInteger(systemId)
       && systemId > 0
-      && systemId !== originSystemId
+      && systemId !== commit.originSystemId
     ) {
       const leadId = originLeadForSystem(systemId, originLeads);
       if (leadId !== null) {
-        onLinkOrigin(leadId);
+        commit.linkToOrigin(leadId);
         return;
       }
-      onSetDestination(systemId);
+      commit.setDestination(systemId);
     }
   }
 }
@@ -165,34 +170,17 @@ export function commitScannerLeadsQuery(
   parse: (input: string) =>
     | { ok: true; params: { system: { id: number } } }
     | { ok: false },
-  originLeads: readonly OriginLeadOption[],
-  onChange: ConnectionFieldSetters['setLeadsTo'],
-  onSetDestination: ConnectionFieldSetters['setDestination'],
-  onLinkOrigin: ConnectionFieldSetters['linkToOrigin'],
-  originSystemId?: number,
+  commit: ScannerLeadsCommit,
 ): void {
+  const originLeads = commit.originLeads ?? [];
   const trimmed = text.trim();
   if (trimmed.length === 0) {
-    commitScannerLeadsValue(
-      UNSET_FIELD,
-      onChange,
-      onSetDestination,
-      onLinkOrigin,
-      originSystemId,
-      originLeads,
-    );
+    commitScannerLeadsValue(UNSET_FIELD, commit);
     return;
   }
   const originId = originLeadForTypedLabel(trimmed, originLeads);
   if (originId !== null) {
-    commitScannerLeadsValue(
-      encodeOriginLead(originId),
-      onChange,
-      onSetDestination,
-      onLinkOrigin,
-      originSystemId,
-      originLeads,
-    );
+    commitScannerLeadsValue(encodeOriginLead(originId), commit);
     return;
   }
   const hintMatch = WORMHOLE_DESTINATION_HINTS.find((value) => {
@@ -202,25 +190,14 @@ export function commitScannerLeadsQuery(
     );
   });
   if (hintMatch !== undefined) {
-    commitScannerLeadsValue(
-      `${HINT_PREFIX}${hintMatch}`,
-      onChange,
-      onSetDestination,
-      onLinkOrigin,
-      originSystemId,
-      originLeads,
-    );
+    commitScannerLeadsValue(`${HINT_PREFIX}${hintMatch}`, commit);
     return;
   }
-  const parsed = parseDestinationSystem(parse, trimmed, originSystemId);
+  const parsed = parseDestinationSystem(parse, trimmed, commit.originSystemId);
   if (parsed.ok) {
     commitScannerLeadsValue(
       `${SYSTEM_PREFIX}${parsed.params.system.id}`,
-      onChange,
-      onSetDestination,
-      onLinkOrigin,
-      originSystemId,
-      originLeads,
+      commit,
     );
   }
 }
@@ -268,6 +245,12 @@ export function ScannerLeadsControl({
   const resolved = destination !== null || hint !== null;
   const popup = useCloseOnScannerScroll();
   const browsing = query.trim().length === 0 || query === seed;
+  const setters = {
+    setLeadsTo: onChange,
+    setDestination: onSetDestination,
+    linkToOrigin: onLinkOrigin,
+    originSystemId,
+  };
   return (
     <Combobox.Root
       open={popup.open}
@@ -275,14 +258,7 @@ export function ScannerLeadsControl({
       value={query}
       onValueChange={(next, details) => {
         if (details.reason === 'item-press') {
-          commitScannerLeadsValue(
-            next,
-            onChange,
-            onSetDestination,
-            onLinkOrigin,
-            originSystemId,
-            originLeads,
-          );
+          commitScannerLeadsValue(next, { ...setters, originLeads });
           return;
         }
         setQuery(next);
@@ -302,15 +278,10 @@ export function ScannerLeadsControl({
         )}
         onKeyDown={(event) => {
           if (!consumeScannerEnter(event)) return;
-          commitScannerLeadsQuery(
-            query,
-            parse,
-            offeredLeads,
-            onChange,
-            onSetDestination,
-            onLinkOrigin,
-            originSystemId,
-          );
+          commitScannerLeadsQuery(query, parse, {
+            ...setters,
+            originLeads: offeredLeads,
+          });
         }}
       />
       <ScannerComboPanel

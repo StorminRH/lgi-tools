@@ -67,62 +67,56 @@ it('groups destination suggestions from empty click through typed filters', () =
 });
 
 it('commits destination picks, including unique/ambiguous inbound and no-ops on settled systems', () => {
-  const onChange = vi.fn();
-  const onSetDestination = vi.fn();
-  const onLinkOrigin = vi.fn();
-  commitScannerLeadsValue(UNSET_FIELD, onChange, onSetDestination, onLinkOrigin);
-  expect(onSetDestination).toHaveBeenCalledWith(null);
-  expect(onChange).not.toHaveBeenCalled();
-  expect(onLinkOrigin).not.toHaveBeenCalled();
-  onChange.mockClear();
-  onSetDestination.mockClear();
-  commitScannerLeadsValue('hint:dangerous', onChange, onSetDestination, onLinkOrigin);
-  expect(onSetDestination).not.toHaveBeenCalled();
-  expect(onChange).toHaveBeenCalledWith('dangerous');
-  onChange.mockClear();
-  onSetDestination.mockClear();
-  commitScannerLeadsValue('system:31000001', onChange, onSetDestination, onLinkOrigin);
-  expect(onSetDestination).toHaveBeenCalledWith(31_000_001);
-  expect(onChange).not.toHaveBeenCalled();
-  onSetDestination.mockClear();
-  commitScannerLeadsValue('origin:inbound', onChange, onSetDestination, onLinkOrigin);
-  expect(onLinkOrigin).toHaveBeenCalledWith('inbound');
-  expect(onSetDestination).not.toHaveBeenCalled();
-  expect(onChange).not.toHaveBeenCalled();
-  onLinkOrigin.mockClear();
-  commitScannerLeadsValue(
-    'system:31000001',
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-    31_000_001,
-  );
-  expect(onSetDestination).not.toHaveBeenCalled();
-  onSetDestination.mockClear();
-  commitScannerLeadsValue(
-    'system:31000002',
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-    31_000_001,
-    [{ connectionId: 'inbound', label: 'J160650 - C3', systemId: 31_000_002 }],
-  );
-  expect(onLinkOrigin).toHaveBeenCalledWith('inbound');
-  expect(onSetDestination).not.toHaveBeenCalled();
-  onLinkOrigin.mockClear();
-  commitScannerLeadsValue(
-    'system:31000002',
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-    31_000_001,
-    [
+  const setLeadsTo = vi.fn();
+  const setDestination = vi.fn();
+  const linkToOrigin = vi.fn();
+  const commit = { setLeadsTo, setDestination, linkToOrigin };
+  commitScannerLeadsValue(UNSET_FIELD, commit);
+  expect(setDestination).toHaveBeenCalledWith(null);
+  expect(setLeadsTo).not.toHaveBeenCalled();
+  expect(linkToOrigin).not.toHaveBeenCalled();
+  setLeadsTo.mockClear();
+  setDestination.mockClear();
+  commitScannerLeadsValue('hint:dangerous', commit);
+  expect(setDestination).not.toHaveBeenCalled();
+  expect(setLeadsTo).toHaveBeenCalledWith('dangerous');
+  setLeadsTo.mockClear();
+  setDestination.mockClear();
+  commitScannerLeadsValue('system:31000001', commit);
+  expect(setDestination).toHaveBeenCalledWith(31_000_001);
+  expect(setLeadsTo).not.toHaveBeenCalled();
+  setDestination.mockClear();
+  commitScannerLeadsValue('origin:inbound', commit);
+  expect(linkToOrigin).toHaveBeenCalledWith('inbound');
+  expect(setDestination).not.toHaveBeenCalled();
+  expect(setLeadsTo).not.toHaveBeenCalled();
+  linkToOrigin.mockClear();
+  commitScannerLeadsValue('system:31000001', {
+    ...commit,
+    originSystemId: 31_000_001,
+  });
+  expect(setDestination).not.toHaveBeenCalled();
+  setDestination.mockClear();
+  commitScannerLeadsValue('system:31000002', {
+    ...commit,
+    originSystemId: 31_000_001,
+    originLeads: [
+      { connectionId: 'inbound', label: 'J160650 - C3', systemId: 31_000_002 },
+    ],
+  });
+  expect(linkToOrigin).toHaveBeenCalledWith('inbound');
+  expect(setDestination).not.toHaveBeenCalled();
+  linkToOrigin.mockClear();
+  commitScannerLeadsValue('system:31000002', {
+    ...commit,
+    originSystemId: 31_000_001,
+    originLeads: [
       { connectionId: 'inbound-a', label: 'J160650 - C3', systemId: 31_000_002 },
       { connectionId: 'inbound-b', label: 'J160650 - C3', systemId: 31_000_002 },
     ],
-  );
-  expect(onLinkOrigin).not.toHaveBeenCalled();
-  expect(onSetDestination).toHaveBeenCalledWith(31_000_002);
+  });
+  expect(linkToOrigin).not.toHaveBeenCalled();
+  expect(setDestination).toHaveBeenCalledWith(31_000_002);
 
   const parseSystem = (input: string) =>
     input.startsWith('J12')
@@ -133,94 +127,68 @@ it('commits destination picks, including unique/ambiguous inbound and no-ops on 
     label: 'J160650 - C3',
     systemId: 31_000_002,
   }];
-  onChange.mockClear();
-  onSetDestination.mockClear();
-  onLinkOrigin.mockClear();
-  commitScannerLeadsQuery('', parseSystem, leads, onChange, onSetDestination, onLinkOrigin);
-  expect(onSetDestination).toHaveBeenCalledWith(null);
-  expect(onChange).not.toHaveBeenCalled();
-  onChange.mockClear();
-  onSetDestination.mockClear();
-  commitScannerLeadsQuery(
-    'J160650',
-    parseSystem,
-    leads,
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-  );
-  expect(onLinkOrigin).toHaveBeenCalledWith('inbound');
-  onLinkOrigin.mockClear();
-  commitScannerLeadsQuery(
-    'Dangerous (C4–C5)',
-    parseSystem,
-    [],
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-  );
-  expect(onSetDestination).not.toHaveBeenCalled();
-  expect(onChange).toHaveBeenCalledWith('dangerous');
-  onChange.mockClear();
-  onSetDestination.mockClear();
-  commitScannerLeadsQuery(
-    'J120924 - C2',
-    parseSystem,
-    [],
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-  );
-  expect(onSetDestination).toHaveBeenCalledWith(31_000_001);
-  onSetDestination.mockClear();
-  commitScannerLeadsQuery(
-    'J120924 - C2',
-    parseSystem,
-    [{ connectionId: 'inbound', label: 'J160650 - C3', systemId: 31_000_001 }],
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-  );
-  expect(onLinkOrigin).toHaveBeenCalledWith('inbound');
-  expect(onSetDestination).not.toHaveBeenCalled();
-  onLinkOrigin.mockClear();
-  commitScannerLeadsQuery(
-    '  J120924 - C2  ',
-    parseSystem,
-    [],
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-  );
-  expect(onSetDestination).toHaveBeenCalledWith(31_000_001);
-  onSetDestination.mockClear();
-  commitScannerLeadsQuery(
-    'J120924 - C2',
-    parseSystem,
-    [],
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-    31_000_001,
-  );
-  expect(onSetDestination).not.toHaveBeenCalled();
-  onSetDestination.mockClear();
-  onLinkOrigin.mockClear();
-  onChange.mockClear();
-  commitScannerLeadsQuery(
-    'J160650',
-    () => ({ ok: false }),
-    [
+  setLeadsTo.mockClear();
+  setDestination.mockClear();
+  linkToOrigin.mockClear();
+  commitScannerLeadsQuery('', parseSystem, { ...commit, originLeads: leads });
+  expect(setDestination).toHaveBeenCalledWith(null);
+  expect(setLeadsTo).not.toHaveBeenCalled();
+  setLeadsTo.mockClear();
+  setDestination.mockClear();
+  commitScannerLeadsQuery('J160650', parseSystem, {
+    ...commit,
+    originLeads: leads,
+  });
+  expect(linkToOrigin).toHaveBeenCalledWith('inbound');
+  linkToOrigin.mockClear();
+  commitScannerLeadsQuery('Dangerous (C4–C5)', parseSystem, {
+    ...commit,
+    originLeads: [],
+  });
+  expect(setDestination).not.toHaveBeenCalled();
+  expect(setLeadsTo).toHaveBeenCalledWith('dangerous');
+  setLeadsTo.mockClear();
+  setDestination.mockClear();
+  commitScannerLeadsQuery('J120924 - C2', parseSystem, {
+    ...commit,
+    originLeads: [],
+  });
+  expect(setDestination).toHaveBeenCalledWith(31_000_001);
+  setDestination.mockClear();
+  commitScannerLeadsQuery('J120924 - C2', parseSystem, {
+    ...commit,
+    originLeads: [
+      { connectionId: 'inbound', label: 'J160650 - C3', systemId: 31_000_001 },
+    ],
+  });
+  expect(linkToOrigin).toHaveBeenCalledWith('inbound');
+  expect(setDestination).not.toHaveBeenCalled();
+  linkToOrigin.mockClear();
+  commitScannerLeadsQuery('  J120924 - C2  ', parseSystem, {
+    ...commit,
+    originLeads: [],
+  });
+  expect(setDestination).toHaveBeenCalledWith(31_000_001);
+  setDestination.mockClear();
+  commitScannerLeadsQuery('J120924 - C2', parseSystem, {
+    ...commit,
+    originLeads: [],
+    originSystemId: 31_000_001,
+  });
+  expect(setDestination).not.toHaveBeenCalled();
+  setDestination.mockClear();
+  linkToOrigin.mockClear();
+  setLeadsTo.mockClear();
+  commitScannerLeadsQuery('J160650', () => ({ ok: false }), {
+    ...commit,
+    originLeads: [
       { connectionId: 'first', label: 'J160650 - C3', systemId: 31_000_002 },
       { connectionId: 'second', label: 'J160650 - C3', systemId: 31_000_002 },
     ],
-    onChange,
-    onSetDestination,
-    onLinkOrigin,
-  );
-  expect(onLinkOrigin).not.toHaveBeenCalled();
-  expect(onSetDestination).not.toHaveBeenCalled();
-  expect(onChange).not.toHaveBeenCalled();
+  });
+  expect(linkToOrigin).not.toHaveBeenCalled();
+  expect(setDestination).not.toHaveBeenCalled();
+  expect(setLeadsTo).not.toHaveBeenCalled();
 });
 
 it('labels the destination combo field', () => {
