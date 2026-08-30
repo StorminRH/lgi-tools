@@ -167,7 +167,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         id: '10000000-0000-4000-8000-000000000005',
         userId: 'creator',
         name: 'Tombstoned',
-        ...tombstonedMapLifecycle(base),
+        ...tombstonedMapLifecycle(base, base),
       },
     ]);
     await harness.db.insert(mapAccess).values([
@@ -229,7 +229,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
         id: '20000000-0000-4000-8000-000000000006',
         userId: 'creator',
         name: 'Tombstoned',
-        ...tombstonedMapLifecycle(now),
+        ...tombstonedMapLifecycle(now, new Date(now.getTime() - 5_000)),
       },
     ]);
     await harness.db.insert(mapAccess).values([
@@ -358,7 +358,7 @@ describe.skipIf(!harness.reachable)('maps candidate queries (real Postgres)', ()
     ).resolves.toBe(false);
     await harness.db
       .update(maps)
-      .set(tombstonedMapLifecycle(new Date()))
+      .set(tombstonedMapLifecycle(new Date(), new Date()))
       .where(eq(maps.id, mapId));
     await expect(
       applyAuthorizedMapGrantChange(

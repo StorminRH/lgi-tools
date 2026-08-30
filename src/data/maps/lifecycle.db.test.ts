@@ -231,12 +231,18 @@ describe.skipIf(!harness.reachable)('map lifecycle (real Postgres)', () => {
     await expect(tombstonePurgedMap(MAP_ID, afterGrace, harness.db)).resolves.toBe(false);
     const [stored] = await harness.db.select().from(maps).where(eq(maps.id, MAP_ID));
     expect(stored).toMatchObject({
-      archivedAt: null,
+      archivedAt: NOW,
       purgeRequestedAt: null,
-      purgeClaimedAt: null,
+      purgeClaimedAt: afterGrace,
       tombstonedAt: afterGrace,
       lifecycleStatus: 'tombstoned',
       lifecycleEnteredAt: afterGrace,
     });
+    await expect(compensateFailedMapCreation(MAP_ID, harness.db)).resolves.toEqual({
+      outcome: 'purge-owned',
+    });
+    await expect(
+      harness.db.select().from(maps).where(eq(maps.id, MAP_ID)),
+    ).resolves.toHaveLength(1);
   });
 });

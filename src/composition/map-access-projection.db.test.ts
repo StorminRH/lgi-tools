@@ -6,10 +6,7 @@ import {
   seedEveAccount,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
-import {
-  archivedMapLifecycle,
-  tombstonedMapLifecycle,
-} from '@/data/maps/lifecycle-contract';
+import { archivedMapLifecycle } from '@/data/maps/lifecycle-contract';
 import { mapAccess, maps } from '@/data/maps/schema';
 import { computeMapAccessClaims } from './map-access-projection';
 
@@ -140,11 +137,15 @@ describe.skipIf(!harness.reachable)('computeMapAccessClaims (real Postgres)', ()
     });
 
     const mapId = '22222222-2222-4222-8222-222222222222';
+    const goneAt = new Date('2026-08-12T00:00:00.000Z');
     await harness.db.insert(maps).values({
       id: mapId,
       userId: 'creator',
       name: 'Gone Atlas',
-      ...tombstonedMapLifecycle(new Date('2026-08-12T00:00:00.000Z')),
+      lifecycleStatus: 'tombstoned',
+      lifecycleEnteredAt: goneAt,
+      archivedAt: null,
+      tombstonedAt: goneAt,
     });
     await harness.db.insert(mapAccess).values({
       mapId,

@@ -17,20 +17,18 @@ UPDATE "maps" SET
     ELSE "created_at"
   END,
   "archived_at" = CASE
-    WHEN "tombstoned_at" IS NOT NULL THEN NULL
+    WHEN "tombstoned_at" IS NOT NULL THEN "archived_at"
     WHEN "purge_claimed_at" IS NOT NULL THEN COALESCE("archived_at", "purge_claimed_at")
     WHEN "purge_requested_at" IS NOT NULL THEN COALESCE("archived_at", "purge_requested_at")
     WHEN "archived_at" IS NOT NULL THEN "archived_at"
     ELSE NULL
   END,
   "purge_requested_at" = CASE
-    WHEN "tombstoned_at" IS NOT NULL THEN NULL
-    WHEN "purge_claimed_at" IS NOT NULL OR "purge_requested_at" IS NOT NULL
+    WHEN "tombstoned_at" IS NOT NULL OR "purge_claimed_at" IS NOT NULL OR "purge_requested_at" IS NOT NULL
       THEN "purge_requested_at"
     ELSE NULL
   END,
   "purge_claimed_at" = CASE
-    WHEN "tombstoned_at" IS NOT NULL THEN NULL
-    WHEN "purge_claimed_at" IS NOT NULL THEN "purge_claimed_at"
+    WHEN "tombstoned_at" IS NOT NULL OR "purge_claimed_at" IS NOT NULL THEN "purge_claimed_at"
     ELSE NULL
   END;

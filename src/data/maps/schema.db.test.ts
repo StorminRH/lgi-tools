@@ -4,7 +4,6 @@ import {
   createDbTestHarness,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
-import { tombstonedMapLifecycle } from './lifecycle-contract';
 import { getMapAccessSubject, getMapGrants } from './queries';
 import { mapAccess, maps } from './schema';
 
@@ -202,11 +201,15 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
   it('omits a tombstoned map from the access subject even when archived_at is null', async () => {
     const mapId = randomUUID();
     await seedUser(harness.db, 'tombstone-owner');
+    const goneAt = new Date('2026-08-12T00:00:00.000Z');
     await harness.db.insert(maps).values({
       id: mapId,
       userId: 'tombstone-owner',
       name: 'Gone Chain',
-      ...tombstonedMapLifecycle(new Date('2026-08-12T00:00:00.000Z')),
+      lifecycleStatus: 'tombstoned',
+      lifecycleEnteredAt: goneAt,
+      archivedAt: null,
+      tombstonedAt: goneAt,
     });
 
     await expect(getMapAccessSubject(mapId, harness.db)).resolves.toBeNull();
