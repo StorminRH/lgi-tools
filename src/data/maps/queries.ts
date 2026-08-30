@@ -417,7 +417,7 @@ export interface MapAccessSubject {
   readonly archivedAt: Date | null;
 }
 
-/** Reads one map's creator and archive marker, or null when the map does not exist. */
+/** Reads one map's creator and archive marker, or null when the map is missing or tombstoned. */
 export async function getMapAccessSubject(
   mapId: string,
   database: AnyPgDb = db,
@@ -425,7 +425,7 @@ export async function getMapAccessSubject(
   const [row] = await database
     .select({ userId: maps.userId, archivedAt: maps.archivedAt })
     .from(maps)
-    .where(eq(maps.id, mapId))
+    .where(and(eq(maps.id, mapId), isNull(maps.tombstonedAt)))
     .limit(1);
   return row ?? null;
 }

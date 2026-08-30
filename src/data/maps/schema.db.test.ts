@@ -4,6 +4,7 @@ import {
   createDbTestHarness,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
+import { tombstonedMapLifecycle } from './lifecycle-contract';
 import { getMapAccessSubject, getMapGrants } from './queries';
 import { mapAccess, maps } from './schema';
 
@@ -196,6 +197,19 @@ describe.skipIf(!harness.reachable)('maps schema and queries (real Postgres)', (
       { ownerType: 'character', ownerId: 42, role: 'viewer' },
       { ownerType: 'corporation', ownerId: 99, role: 'editor' },
     ]);
+  });
+
+  it('omits a tombstoned map from the access subject even when archived_at is null', async () => {
+    const mapId = randomUUID();
+    await seedUser(harness.db, 'tombstone-owner');
+    await harness.db.insert(maps).values({
+      id: mapId,
+      userId: 'tombstone-owner',
+      name: 'Gone Chain',
+      ...tombstonedMapLifecycle(new Date('2026-08-12T00:00:00.000Z')),
+    });
+
+    await expect(getMapAccessSubject(mapId, harness.db)).resolves.toBeNull();
   });
 
   it('renames the legacy owner role without rewriting a seeded access row', async () => {
