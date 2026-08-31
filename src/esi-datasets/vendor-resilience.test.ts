@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { isNoProgrammaticSurface } from '@/composition/__tests__/vendor-resilience-census';
 import {
-  isNoProgrammaticSurface,
   vendorResilienceRegistry,
   type NoProgrammaticSurface,
   type VendorIntegrationId,

@@ -1,4 +1,6 @@
 import { db } from '@/db';
+import '@/composition/map-access-identity';
+import '@/composition/map-access-purge';
 import { runPurge } from '@/composition/purge/orchestrator';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountMatch } from '@/platform/auth/eve-account-shared';

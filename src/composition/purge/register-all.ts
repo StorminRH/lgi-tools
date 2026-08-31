@@ -1,9 +1,3 @@
-// Purge-contributor wiring manifest. Composition pulls each slice's exported
-// purge contributor into the one list the orchestrator runs and the CI gate
-// audits. Slices import only the platform-owned contributor contract.
-//
-// The PURGE_CONTRIBUTORS array below is listed in tier order for readability (the
-// imports are path-grouped); the orchestrator sorts by tier regardless.
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import { savedPlansPurgeContributor } from '@/features/industry-planner/purge';
 import { authPurgeContributor } from '@/platform/auth/purge';
@@ -17,15 +11,9 @@ import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
 import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
-import '@/composition/map-access-identity';
-import '@/composition/map-access-purge';
 import { mapsPurgeContributor } from '@/data/maps/purge';
 import type { PurgeContributor } from '@/platform/purge/types';
 
-/**
- * Complete personal-data purge contributor registry; every user or character-keyed table must be
- * claimed here or explicitly retained.
- */
 export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   authPurgeContributor,
   mapsPurgeContributor,

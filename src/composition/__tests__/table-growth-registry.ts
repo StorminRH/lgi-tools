@@ -1,5 +1,4 @@
-import { is } from 'drizzle-orm';
-import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
+import type { PgTable } from 'drizzle-orm/pg-core';
 import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
@@ -63,18 +62,6 @@ export const DRIZZLE_MIGRATIONS_TABLE = {
   name: '__drizzle_migrations',
 } as const;
 
-/**
- * Builds the schema-qualified key used by the table-growth registry so migrations and runtime
- * checks address one table consistently.
- */
-export function tableGrowthKey(table: RegisteredTable): string {
-  return is(table, PgTable) ? getTableConfig(table).name : `${table.schema}.${table.name}`;
-}
-
-/**
- * Test-only accounting for every durable Postgres table. This module is never
- * imported by the DB proxy or a runtime route; the gate consumes it directly.
- */
 export const TABLE_GROWTH_STORIES = [
   {
     kind: 'pruned',

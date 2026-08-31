@@ -59,6 +59,8 @@ vi.mock('@/composition/map-access-projection', () => ({
   purgeUserMapAccessProjection: vi.fn().mockResolvedValue({ deleted: 0 }),
 }));
 
+import '@/composition/map-access-identity';
+import '@/composition/map-access-purge';
 import { runPurge } from './orchestrator';
 
 const names = (): string[] => recorded.map((r) => getTableConfig(r.table as PgTable).name);

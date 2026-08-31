@@ -1,5 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
+import '@/composition/map-access-identity';
+import '@/composition/map-access-purge';
 import { runPurge } from '@/composition/purge/orchestrator';
 import { eveAccountsForUser } from '@/platform/auth/eve-account-shared';
 import { revokeCharacterToken } from '@/platform/auth/eve-token-service';

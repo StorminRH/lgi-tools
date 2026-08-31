@@ -1,7 +1,3 @@
-// Wires the composition-owned map-access projection into the maps data-slice
-// purge contributor. The contributor itself stays co-located with the maps tables;
-// these hooks are the explicit upward seam Fallow requires (data cannot import
-// composition, and re-projection needs resolveMapPrincipals).
 import {
   projectMapAccess,
   purgeUserMapAccessProjection,
