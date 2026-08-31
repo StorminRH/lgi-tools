@@ -5,7 +5,6 @@ const AUTH_SCHEMA_PATH = 'src/db/auth-schema.ts';
 const AUTH_SLICE = 'platform/auth';
 const ZONED_ROOTS = ['data', 'features', 'platform', 'composition'] as const;
 
-/** Slice id from a production path. Returns a structural id, not `SliceId`. */
 export function sliceOfPath(filePath: string): string {
   const normalized = filePath.replaceAll('\\', '/').replace(/^\.\//, '');
   if (normalized.endsWith(AUTH_SCHEMA_PATH) || normalized === 'db/auth-schema.ts') {
@@ -48,14 +47,14 @@ function foreignKeyInvariant(
   return `fk(${joinNames(reference.columns)}→${target}.${joinNames(reference.foreignColumns)})`;
 }
 
-/** Postgres-enforced invariants as `pk`/`unique`/`fk`/`check` strings, including column-level flags. */
 export function describeDbInvariants(table: PgTable): string[] {
   const config = getTableConfig(table);
-  const columnPrimaries = config.columns.filter((column) => column.primary);
+  const columnLevelPrimaries = config.columns.filter((column) => column.primary);
+  const columnLevelUniques = config.columns.filter((column) => column.isUnique);
   const invariants = [
-    ...columnPrimaries.map((column) => `pk(${column.name})`),
+    ...columnLevelPrimaries.map((column) => `pk(${column.name})`),
     ...config.primaryKeys.map((key) => `pk(${joinNames(key.columns)})`),
-    ...config.columns.filter((column) => column.isUnique).map((column) => `unique(${column.name})`),
+    ...columnLevelUniques.map((column) => `unique(${column.name})`),
     ...config.uniqueConstraints.map((constraint) => `unique(${joinNames(constraint.columns)})`),
     ...config.indexes.filter((index) => index.config.unique).map(uniqueIndexInvariant),
     ...config.foreignKeys.map(foreignKeyInvariant),

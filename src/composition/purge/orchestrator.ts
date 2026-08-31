@@ -13,7 +13,6 @@ async function runTier(tier: PurgeTier, subject: PurgeSubject): Promise<void> {
   }
 }
 
-/** `tiers` defaults to every PurgeTier. Transfer-purge passes `['credential']`. */
 export async function runPurge(
   subject: PurgeSubject,
   tiers: readonly PurgeTier[] = TIER_ORDER,
