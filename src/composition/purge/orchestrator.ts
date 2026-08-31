@@ -1,3 +1,5 @@
+import '@/composition/map-access-identity';
+import '@/composition/map-access-purge';
 import { PURGE_CONTRIBUTORS } from './register-all';
 import type { PurgeSubject, PurgeTier } from '@/platform/purge/types';
 
@@ -11,6 +13,7 @@ async function runTier(tier: PurgeTier, subject: PurgeSubject): Promise<void> {
   }
 }
 
+/** `tiers` defaults to every PurgeTier. Transfer-purge passes `['credential']`. */
 export async function runPurge(
   subject: PurgeSubject,
   tiers: readonly PurgeTier[] = TIER_ORDER,

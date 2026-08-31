@@ -1,3 +1,5 @@
+import type { VendorIntegrationId } from './vendor-resilience-registry';
+
 /**
  * What happens when this unit of work runs twice.
  *
@@ -42,7 +44,7 @@ export interface IdempotencyEntry {
   cronPath?: string;
   /** POST route file, resolved against the tree. */
   route?: string;
-  vendor?: string;
+  vendor?: VendorIntegrationId;
 }
 
 // Vercel does not automatically retry a failed cron job

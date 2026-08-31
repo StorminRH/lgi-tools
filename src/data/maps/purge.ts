@@ -18,6 +18,7 @@ export interface MapAccessProjectionPurgeHooks {
 
 let projectionHooks: MapAccessProjectionPurgeHooks | null = null;
 
+/** Call once before any maps purge runs. */
 export function registerMapAccessProjectionPurgeHooks(
   hooks: MapAccessProjectionPurgeHooks,
 ): void {
