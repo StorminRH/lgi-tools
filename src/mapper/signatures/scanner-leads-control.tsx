@@ -250,6 +250,7 @@ export function ScannerLeadsControl({
     setDestination: onSetDestination,
     linkToOrigin: onLinkOrigin,
     originSystemId,
+    originLeads,
   };
   return (
     <Combobox.Root
@@ -258,7 +259,7 @@ export function ScannerLeadsControl({
       value={query}
       onValueChange={(next, details) => {
         if (details.reason === 'item-press') {
-          commitScannerLeadsValue(next, { ...setters, originLeads });
+          commitScannerLeadsValue(next, setters);
           return;
         }
         setQuery(next);
@@ -278,10 +279,7 @@ export function ScannerLeadsControl({
         )}
         onKeyDown={(event) => {
           if (!consumeScannerEnter(event)) return;
-          commitScannerLeadsQuery(query, parse, {
-            ...setters,
-            originLeads: offeredLeads,
-          });
+          commitScannerLeadsQuery(query, parse, setters);
         }}
       />
       <ScannerComboPanel
