@@ -74,7 +74,9 @@ function atlasAccountSession(gate: SessionCheckResult | null): Session | null {
  * Resolves the signed-in map listing, then the site-framed catalogue or the
  * full-viewport canvas. The parent site layout already owns header and footer.
  *
- * Signed-out visitors get the empty catalogue. A thrown session check fails
+ * Signed-out visitors stay on the catalogue, including a shared `?map=` URL,
+ * so the site header login remains reachable. The canvas covers that chrome
+ * and omits AccountMenu when session is null. A thrown session check fails
  * closed to an unavailable listing rather than escaping: `error.tsx` covers a
  * segment's children, not its own layout, so an escaping throw here would
  * reach Next.js's built-in error page instead of the map's recovery surface.
@@ -107,6 +109,7 @@ export async function AtlasBound({
         } as const),
   ]);
   const chromeData = chromeSnapshot.data;
+  const showCanvas = mapSelected && gate?.ok === true;
 
   return (
     <SiteCatalogueProvider siteIndex={siteIndex}>
@@ -117,7 +120,7 @@ export async function AtlasBound({
         grantsByMapId={chromeData.grantsByMapId}
         listingAvailable={chromeSnapshot.listingAvailable}
       >
-        {mapSelected ? <AtlasCanvasFrame session={session} /> : <MapCatalogue />}
+        {showCanvas ? <AtlasCanvasFrame session={session} /> : <MapCatalogue />}
       </MapCatalogueDataProvider>
     </SiteCatalogueProvider>
   );

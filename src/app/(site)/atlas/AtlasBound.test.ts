@@ -133,8 +133,11 @@ describe('AtlasBound', () => {
     expect(signedOut).toContain('data-provider-listing-available="true"');
     expect(signedOut).not.toContain('data-map-canvas-frame');
     expect(signedOut).not.toContain('data-map-development-wall');
+    const signedOutMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    expect(signedOutMap).toContain('data-map-catalogue');
+    expect(signedOutMap).not.toContain('data-map-canvas-frame');
     expect(mocks.listMapChromeData).not.toHaveBeenCalled();
-    expect(mocks.connection).toHaveBeenCalledOnce();
+    expect(mocks.connection).toHaveBeenCalledTimes(2);
     expect(mocks.connection.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.checkSession.mock.invocationCallOrder[0]!,
     );
@@ -171,6 +174,9 @@ describe('AtlasBound', () => {
     expect(failed).toContain('data-map-catalogue');
     expect(failed).toContain('data-provider-listing-available="false"');
     expect(failed).not.toContain('data-map-development-wall');
+    const failedMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
+    expect(failedMap).toContain('data-map-catalogue');
+    expect(failedMap).not.toContain('data-map-canvas-frame');
     expect(mocks.rethrow).toHaveBeenCalledWith(err);
     expect(consoleError).toHaveBeenCalledWith(
       '[map] authorization check unavailable',

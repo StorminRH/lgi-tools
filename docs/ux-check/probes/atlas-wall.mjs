@@ -31,5 +31,27 @@ export default {
       'header tools include Atlas',
       (await page.locator('a[href="/atlas"]').count()) > 0,
     );
+    check(
+      'header login stays on the signed-out landing',
+      await page.getByRole('button', { name: /Log in with EVE Online/i }).isVisible(),
+    );
+
+    await page.goto(new URL('/atlas?map=shared-map', page.url()).href, {
+      waitUntil: 'domcontentloaded',
+      timeout: 60_000,
+    });
+    await page.locator('[data-map-catalogue]').waitFor({ state: 'visible', timeout: 60_000 });
+    check(
+      'a shared map link keeps signed-out visitors on the catalogue',
+      await page.locator('[data-map-catalogue]').isVisible(),
+    );
+    check(
+      'a shared map link does not cover the header with the canvas',
+      (await page.locator('[data-map-canvas-frame]').count()) === 0,
+    );
+    check(
+      'a shared map link still exposes header login',
+      await page.getByRole('button', { name: /Log in with EVE Online/i }).isVisible(),
+    );
   },
 };
