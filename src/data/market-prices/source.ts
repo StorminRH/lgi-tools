@@ -42,9 +42,7 @@ export { computeDepth, computeSide } from './book-math';
 // The Forge is the FETCH scope; Jita 4-4 is the PRICE scope (3.7.26.1).
 // Every stored figure — best/pct5/volume/depth, both sides — describes the
 // orders at JITA_44_STATION_ID only; the rest of the region dump feeds the
-// regional-discount fold and is then dropped. Hub buys then take the
-// of-ask spread floor (see constants.ts) so stored buy figures ignore
-// the 0.01 ISK walls dust cannot see.
+// regional-discount fold and is then dropped.
 
 // ESI's /markets/{region}/orders/ response item shape — only the fields
 // we actually use. Boundary schema: ESI sends more keys; z.object ignores
@@ -184,11 +182,6 @@ function absorbRemoteSell(
   book.orders.push(entry);
 }
 
-// Stored figures come from the HUB books only (the 3.7.26.1 price scope).
-// Sell first, then drop hub bids under the of-ask floor, then the same
-// computeSide/computeDepth walk on what remains — so every stored buy
-// figure (planner unitBuy, refresh JSON, cargo pct5) is the cleaned book.
-// The regional-discount fold still runs over what hub scoping excluded.
 function bucketToRawPrice(
   typeId: number,
   bucket: OrderBucket,

@@ -6,38 +6,17 @@ import {
 } from './constants';
 import type { DepthBand, RegionalDiscount } from './types';
 
-// Pure order-book math for the market-prices slice: the dust-filtered
-// best/pct5 walk, the buy/sell spread floor, the near-touch depth ladder,
-// and the regional-discount fold (3.7.26.1). No fetch, no DB — importable
-// by tests and one-off diagnosis scripts without dragging in the ESI gate.
-// source.ts re-exports the shared pieces so its consumers are unaffected
-// by the extraction.
-
 /** One market order-book entry with price in ISK and remaining volume in units. */
 export interface OrderEntry {
   price: number;
   volume: bigint;
 }
 
-/**
- * ISK floor a hub bid must clear: `BUY_SPREAD_FLOOR_RATIO` of the
- * dust-filtered ask. Null when there is no positive ask to measure
- * against — the buy book then stays as-is (no sell, no split).
- */
 function spreadFloorIsk(bestSell: number | null): number | null {
   if (bestSell === null || bestSell <= 0) return null;
   return bestSell * BUY_SPREAD_FLOOR_RATIO;
 }
 
-/**
- * Hub bids priced under the of-ask floor. Call after `computeSide` on
- * the sell book; pass the surviving orders into `computeSide` /
- * `computeDepth` for every stored buy figure. No ask → the input book
- * is returned unchanged (same reference).
- *
- * Exported for testing — the C320-shaped 1e9-at-0.01 wall is why this
- * exists, and a direct pin is cheaper than reconstructing it through ESI.
- */
 export function filterBuyOrdersBelowSpreadFloor(
   buyOrders: OrderEntry[],
   bestSell: number | null,
@@ -47,14 +26,6 @@ export function filterBuyOrdersBelowSpreadFloor(
   return buyOrders.filter((order) => order.price >= floor);
 }
 
-/**
- * Same of-ask floor for a source that has aggregates, not a book
- * (Fuzzwork). A failed bestBuy nulls the whole buy side — there is no
- * honest max to keep. A failed pct5Buy (diluted percentile, healthy
- * max) nulls only that figure.
- *
- * Exported for testing.
- */
 export function applySpreadFloorToBuyFigures(
   figures: {
     bestBuy: number | null;
@@ -104,9 +75,8 @@ export interface RemoteStationBook {
  *
  * `pct5` — the volume-weighted average price of the cheapest 5% of side
  * volume (Fuzzwork's definition; we match it so the stored percentile
- * does not flap when the source swaps). Site harvest totals do not read
- * this field. It is UNTOUCHED by the dust filter and still walks from
- * the raw front of the book. Buy side sorts descending
+ * does not flap when the source swaps). It is UNTOUCHED by the dust filter
+ * and still walks from the raw front of the book. Buy side sorts descending
  * (best bid first); sell side sorts ascending (best ask first). Empty side
  * returns nulls; zero-volume side returns the raw touch for both.
  *
