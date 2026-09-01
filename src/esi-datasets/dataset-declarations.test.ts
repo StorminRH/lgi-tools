@@ -27,14 +27,12 @@ import {
   isUserDataTable,
 } from '@/platform/purge/__tests__/coverage';
 import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
-import {
-  TABLE_GROWTH_STORIES,
-  tableGrowthKey,
-} from '@/composition/__tests__/table-growth-registry';
+import { tableGrowthKey } from '@/composition/__tests__/table-growth-census';
+import { TABLE_GROWTH_STORIES } from '@/composition/__tests__/table-growth-registry';
+import { describeDbInvariants } from '@/composition/__tests__/data-ownership-census';
 import {
   DATA_CLASS_DECISIONS,
   DATA_OWNERSHIP,
-  describeDbInvariants,
 } from '@/composition/__tests__/data-ownership-registry';
 import {
   findUndeclaredCrossOwnerWrites,

@@ -36,10 +36,12 @@ is green on that run. Done when the list exists and step 1 is in progress.
 2. Size gate. Run
    `python3 tools/cli.py lifecycle count-app-facing --list --base origin/<destination> --head origin/<head>`.
    Count is due at 80 versus `staging`. A smaller clean chunk is fine
-   when the operator asked for one. A pile over 100 is `BLOCKED`.
-   Split first. The `--list` is dump isolation. Reviewers run
-   `origin pr diff <N>` after the draft exists. Done when the count
-   is known and under the cap.
+   when the operator asked for one. Reviewers run
+   `origin pr diff <N>` after the draft exists. When the destination
+   is `staging`, the `--list` is dump isolation and a pile over 100
+   is `BLOCKED`. Split first. Destination `main` still runs the
+   count. It has no dump and no file cap. Done when the count is
+   known and, for `staging`, under the cap.
 3. Run the local test suite through `test-runner` until it passes.
    Done when `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`,
    `dupes`, and `health`, plus focused tests for the diff, are green
@@ -89,7 +91,7 @@ Outputs. Exactly one:
   unmerged. `development` contains `staging`.
 - `RELEASED`. Destination `main`. Origin `main` holds the cut.
   `staging` and `development` contain `main`.
-- `BLOCKED`. Named gate, oversize count, failed check, missing
+- `BLOCKED`. Named gate, oversize staging dump, failed check, missing
   destination, work already on the destination before this process
   finished, or an Origin token that is not scoped for merge. The
   Origin PR stays open.

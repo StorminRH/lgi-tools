@@ -1,18 +1,3 @@
-// VENDOR RESILIENCE REGISTRY (3.10.2.4) — the sibling of
-// data-ownership-registry.ts. The ownership registry answers "who owns this
-// table"; this one answers "when we call out of the process, what bounds the
-// call, what may be retried, and what happens when it fails".
-//
-// Every field records live behavior rather than an aspiration: the registry is a
-// description of the shipped code, and its census
-// (src/esi-datasets/vendor-resilience.test.ts) fails when the description and
-// the tree disagree. Adding a vendor means adding its entry here.
-//
-// Test-only, exactly like its sibling: no runtime module imports it. Timeout and
-// retry values are enforced at their call sites, not read from this file — a
-// registry that configured behavior could drift silently into being the only
-// place a bound existed.
-
 /**
  * Closed set of external integrations this app talks to. Adding a vendor means adding its policy
  * here; the census rejects a declared wrapper that does not exist and a construction site that no
@@ -63,16 +48,6 @@ export interface NoProgrammaticSurface {
 
 /** One registry entry: a declared policy, or the recorded absence of any call surface. */
 export type VendorResilienceEntry = VendorResiliencePolicy | NoProgrammaticSurface;
-
-/**
- * Narrows a registry entry to the recorded-absence shape; the census uses it to apply the
- * eight-field completeness rule only to entries that actually have a call surface.
- */
-export function isNoProgrammaticSurface(
-  entry: VendorResilienceEntry,
-): entry is NoProgrammaticSurface {
-  return 'noProgrammaticSurface' in entry;
-}
 
 function policy(entry: VendorResiliencePolicy): VendorResiliencePolicy {
   return entry;

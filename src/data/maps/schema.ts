@@ -16,6 +16,7 @@ import {
   type MapAccessOwnerType,
   type MapRole,
 } from './access-contract';
+import { MAP_LIFECYCLE_STATUSES } from './lifecycle-contract';
 
 // The role vocabulary itself lives in the pure ./access-contract owner so the Convex gate can share
 // it without importing Drizzle. This module remains its Postgres home and public re-export.
@@ -33,6 +34,11 @@ export const mapRoleEnum = pgEnum('map_role', MAP_ROLES);
 export const mapAccessOwnerTypeEnum = pgEnum(
   'map_access_owner_type',
   MAP_ACCESS_OWNER_TYPES,
+);
+
+export const mapLifecycleStatusEnum = pgEnum(
+  'map_lifecycle_status',
+  MAP_LIFECYCLE_STATUSES,
 );
 
 export const MAP_ACCESS_PROJECTION_REVISION_SEQUENCE =
@@ -56,6 +62,12 @@ export const maps = pgTable(
     tombstonedAt: timestamp('tombstoned_at', { withTimezone: true }),
     purgeRequestedAt: timestamp('purge_requested_at', { withTimezone: true }),
     purgeClaimedAt: timestamp('purge_claimed_at', { withTimezone: true }),
+    lifecycleStatus: mapLifecycleStatusEnum('lifecycle_status')
+      .notNull()
+      .default('active'),
+    lifecycleEnteredAt: timestamp('lifecycle_entered_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [index('maps_user_id_idx').on(table.userId)],
 );

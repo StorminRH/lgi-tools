@@ -654,7 +654,7 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
     vi.mocked(esiFetch).mockResolvedValue(
       ordersResponse([
         { type_id: 42, is_buy_order: false, price: 255_000, volume_remain: 5_000 },
-        { type_id: 42, is_buy_order: true, price: 20_000, volume_remain: 100 },
+        { type_id: 42, is_buy_order: true, price: 200_000, volume_remain: 100 },
         {
           type_id: 42, is_buy_order: false, price: 28_000, volume_remain: 19,
           location_id: NIYABAINEN_STATION, system_id: NIYABAINEN_SYSTEM,
@@ -666,7 +666,7 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
     const row = prices[0]!;
     expect(row.bestSell).toBe(255_000);
     expect(row.sellVolume).toBe(BigInt(5_000)); // hub volume only
-    expect(row.bestBuy).toBe(20_000);
+    expect(row.bestBuy).toBe(200_000);
     expect(row.regionalDiscount).toEqual({
       systemId: NIYABAINEN_SYSTEM,
       price: 28_000,
@@ -738,6 +738,42 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
     expect(prices[0]!.bestSell).toBeNull();
     expect(prices[0]!.sellVolume).toBeNull();
     expect(prices[0]!.regionalDiscount).toBeNull();
+  });
+});
+
+describe('fetchPricesFromSource — buy/sell spread floor', () => {
+  it('drops a 1e9-at-0.01 hub wall so stored buy figures come from the real book', async () => {
+    vi.mocked(esiFetch).mockResolvedValue(
+      ordersResponse([
+        { type_id: 42, is_buy_order: false, price: 31_000, volume_remain: 200 },
+        { type_id: 42, is_buy_order: true, price: 0.01, volume_remain: 1_000_000_000 },
+        { type_id: 42, is_buy_order: true, price: 1.01, volume_remain: 100_000 },
+        { type_id: 42, is_buy_order: true, price: 30_250, volume_remain: 80 },
+        { type_id: 42, is_buy_order: true, price: 30_200, volume_remain: 40 },
+      ]),
+    );
+
+    const { prices } = await fetchPricesFromSource([42]);
+    const row = prices[0]!;
+    expect(row.bestSell).toBe(31_000);
+    expect(row.bestBuy).toBe(30_250);
+    expect(row.pct5Buy).toBeCloseTo(30_250, 0);
+    expect(row.buyVolume).toBe(BigInt(120));
+  });
+
+  it('nulls the buy side when every hub bid fails the of-ask floor', async () => {
+    vi.mocked(esiFetch).mockResolvedValue(
+      ordersResponse([
+        { type_id: 42, is_buy_order: false, price: 31_000, volume_remain: 200 },
+        { type_id: 42, is_buy_order: true, price: 0.01, volume_remain: 1_000_000_000 },
+      ]),
+    );
+
+    const { prices } = await fetchPricesFromSource([42]);
+    expect(prices[0]!.bestSell).toBe(31_000);
+    expect(prices[0]!.bestBuy).toBeNull();
+    expect(prices[0]!.pct5Buy).toBeNull();
+    expect(prices[0]!.buyVolume).toBeNull();
   });
 });
 

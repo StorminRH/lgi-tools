@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CachedAffiliation } from '@/platform/auth/membership';
 
 const mocks = vi.hoisted(() => ({
-  getMapAccessSubject: vi.fn(),
-  getMapGrants: vi.fn(),
   getAuthorizedMapGrantsForMaps: vi.fn(),
   listAuthorizedMapsForPrincipals: vi.fn(),
   listDeletedRestorableMapsForPrincipals: vi.fn(),
@@ -13,8 +11,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/data/maps/queries', () => ({
-  getMapAccessSubject: mocks.getMapAccessSubject,
-  getMapGrants: mocks.getMapGrants,
   getAuthorizedMapGrantsForMaps: mocks.getAuthorizedMapGrantsForMaps,
   listAuthorizedMapsForPrincipals: mocks.listAuthorizedMapsForPrincipals,
   listDeletedRestorableMapsForPrincipals: mocks.listDeletedRestorableMapsForPrincipals,
@@ -30,9 +26,6 @@ vi.mock('@/data/eve-data/entity-names', () => ({
 }));
 
 import {
-  getMapAccess,
-  listAuthorizedMaps,
-  listDeletedRestorableMaps,
   listMapChromeData,
   resolveMapPrincipals,
 } from './map-access';
@@ -58,41 +51,10 @@ beforeEach(() => {
     transientFailure: false,
   });
   mocks.getUserAffiliations.mockResolvedValue([]);
-  mocks.getMapAccessSubject.mockResolvedValue({
-    userId: 'creator',
-    archivedAt: null,
-  });
-  mocks.getMapGrants.mockResolvedValue([]);
   mocks.getAuthorizedMapGrantsForMaps.mockResolvedValue([]);
   mocks.listAuthorizedMapsForPrincipals.mockResolvedValue([]);
   mocks.listDeletedRestorableMapsForPrincipals.mockResolvedValue([]);
   mocks.resolveEntityNames.mockResolvedValue({});
-});
-
-describe('map listings', () => {
-  it('resolves principals once and delegates the authorized listing to its data owner', async () => {
-    mocks.getUserAffiliations.mockResolvedValue([affiliation(42, 99, new Date())]);
-    const expected = [{ id: 'map-1' }];
-    mocks.listAuthorizedMapsForPrincipals.mockResolvedValue(expected);
-
-    await expect(listAuthorizedMaps('user-1')).resolves.toBe(expected);
-    expect(mocks.listAuthorizedMapsForPrincipals).toHaveBeenCalledWith('user-1', {
-      characterIds: [42],
-      corporationIds: [99],
-    });
-  });
-
-  it('resolves the same principals for the restorable listing owner', async () => {
-    mocks.getUserAffiliations.mockResolvedValue([affiliation(42, 99, new Date())]);
-    const expected = [{ id: 'map-deleted' }];
-    mocks.listDeletedRestorableMapsForPrincipals.mockResolvedValue(expected);
-
-    await expect(listDeletedRestorableMaps('user-1')).resolves.toBe(expected);
-    expect(mocks.listDeletedRestorableMapsForPrincipals).toHaveBeenCalledWith(
-      'user-1',
-      { characterIds: [42], corporationIds: [99] },
-    );
-  });
 });
 
 describe('map chrome data', () => {
@@ -215,73 +177,5 @@ describe('resolveMapPrincipals', () => {
       characterIds: [42],
       corporationIds: [],
     });
-  });
-});
-
-describe('getMapAccess', () => {
-  it.each([
-    {
-      label: 'creator',
-      userId: 'creator',
-      affiliations: [],
-      grants: [],
-      expected: { role: 'admin', canView: true, canEdit: true },
-    },
-    {
-      label: 'corporation editor',
-      userId: 'editor',
-      affiliations: [affiliation(42, 99, new Date())],
-      grants: [{ ownerType: 'corporation', ownerId: 99, role: 'editor' }],
-      expected: { role: 'editor', canView: true, canEdit: true },
-    },
-    {
-      label: 'character viewer',
-      userId: 'viewer',
-      affiliations: [affiliation(42, 99, new Date())],
-      grants: [{ ownerType: 'character', ownerId: 42, role: 'viewer' }],
-      expected: { role: 'viewer', canView: true, canEdit: false },
-    },
-    {
-      label: 'unrelated user',
-      userId: 'unrelated',
-      affiliations: [affiliation(7, 8, new Date())],
-      grants: [{ ownerType: 'character', ownerId: 42, role: 'admin' }],
-      expected: { role: null, canView: false, canEdit: false },
-    },
-  ] as const)(
-    'returns the authoritative role and capability pair for a $label',
-    async ({ userId, affiliations, grants, expected }) => {
-      mocks.getUserAffiliations.mockResolvedValue(affiliations);
-      mocks.getMapGrants.mockResolvedValue(grants);
-      await expect(getMapAccess(userId, 'map-1')).resolves.toEqual(expected);
-    },
-  );
-
-  it('denies a stale corporation grant while preserving a direct character grant', async () => {
-    mocks.getUserAffiliations.mockResolvedValue([
-      affiliation(42, 99, new Date(Date.now() - 2 * 60 * 60 * 1000)),
-    ]);
-    mocks.getMapGrants.mockResolvedValue([
-      { ownerType: 'corporation', ownerId: 99, role: 'editor' },
-      { ownerType: 'character', ownerId: 42, role: 'viewer' },
-    ]);
-
-    await expect(getMapAccess('viewer', 'map-1')).resolves.toEqual({
-      role: 'viewer',
-      canView: true,
-      canEdit: false,
-    });
-  });
-
-  it('short-circuits a missing map before principal or grant resolution', async () => {
-    mocks.getMapAccessSubject.mockResolvedValue(null);
-
-    await expect(getMapAccess('user-1', 'missing')).resolves.toEqual({
-      role: null,
-      canView: false,
-      canEdit: false,
-    });
-    expect(mocks.refreshStaleAffiliationsForUserWithOutcome).not.toHaveBeenCalled();
-    expect(mocks.getMapGrants).not.toHaveBeenCalled();
   });
 });

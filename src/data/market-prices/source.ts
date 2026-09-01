@@ -20,6 +20,7 @@ import {
   computeDepth,
   computeSide,
   computeRegionalDiscount,
+  filterBuyOrdersBelowSpreadFloor,
   isDiscountEligibleLocation,
   type OrderEntry,
   type RemoteStationBook,
@@ -41,8 +42,7 @@ export { computeDepth, computeSide } from './book-math';
 // The Forge is the FETCH scope; Jita 4-4 is the PRICE scope (3.7.26.1).
 // Every stored figure — best/pct5/volume/depth, both sides — describes the
 // orders at JITA_44_STATION_ID only; the rest of the region dump feeds the
-// regional-discount fold and is then dropped. See constants.ts for the
-// buy-side ruling.
+// regional-discount fold and is then dropped.
 
 // ESI's /markets/{region}/orders/ response item shape — only the fields
 // we actually use. Boundary schema: ESI sends more keys; z.object ignores
@@ -182,16 +182,13 @@ function absorbRemoteSell(
   book.orders.push(entry);
 }
 
-// Stored figures come from the HUB books only (the 3.7.26.1 price scope);
-// computeSide/computeDepth are unchanged — the pct5 walk stays Fuzzwork-
-// pinned, its input book is what shrank. The regional-discount fold runs
-// over what the scoping excluded.
 function bucketToRawPrice(
   typeId: number,
   bucket: OrderBucket,
 ): RawMarketPrice {
-  const buy = computeSide(bucket.hubBuy, 'desc');
   const sell = computeSide(bucket.hubSell, 'asc');
+  const hubBuy = filterBuyOrdersBelowSpreadFloor(bucket.hubBuy, sell.best);
+  const buy = computeSide(hubBuy, 'desc');
   return {
     typeId,
     bestBuy: buy.best,
@@ -200,7 +197,7 @@ function bucketToRawPrice(
     pct5Sell: sell.pct5,
     buyVolume: buy.volume,
     sellVolume: sell.volume,
-    buyDepth: computeDepth(bucket.hubBuy, 'desc', buy.best),
+    buyDepth: computeDepth(hubBuy, 'desc', buy.best),
     sellDepth: computeDepth(bucket.hubSell, 'asc', sell.best),
     regionalDiscount: computeRegionalDiscount(bucket.remoteSell, sell.best, {
       minPct: REGIONAL_DISCOUNT_MIN_PCT,

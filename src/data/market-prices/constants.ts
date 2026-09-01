@@ -124,3 +124,5 @@ export const DEPTH_BANDS_PCT = [0.5, 1, 2, 5, 10] as const;
  * [1,1,1,1,1] ladders on 4,000–10,000-unit books.
  */
 export const BEST_DUST_VOLUME_DIVISOR = BigInt(1000);
+
+export const BUY_SPREAD_FLOOR_RATIO = 0.35;

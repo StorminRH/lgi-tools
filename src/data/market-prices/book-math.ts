@@ -1,20 +1,52 @@
 import {
   BEST_DUST_VOLUME_DIVISOR,
+  BUY_SPREAD_FLOOR_RATIO,
   DEPTH_BANDS_PCT,
   NPC_STATION_ID_CEILING,
 } from './constants';
 import type { DepthBand, RegionalDiscount } from './types';
 
-// Pure order-book math for the market-prices slice: the dust-filtered
-// best/pct5 walk, the near-touch depth ladder, and the regional-discount
-// fold (3.7.26.1). No fetch, no DB — importable by tests and one-off
-// diagnosis scripts without dragging in the ESI gate. source.ts re-exports
-// the shared pieces so its consumers are unaffected by the extraction.
-
 /** One market order-book entry with price in ISK and remaining volume in units. */
 export interface OrderEntry {
   price: number;
   volume: bigint;
+}
+
+function spreadFloorIsk(bestSell: number | null): number | null {
+  if (bestSell === null || bestSell <= 0) return null;
+  return bestSell * BUY_SPREAD_FLOOR_RATIO;
+}
+
+export function filterBuyOrdersBelowSpreadFloor(
+  buyOrders: OrderEntry[],
+  bestSell: number | null,
+): OrderEntry[] {
+  const floor = spreadFloorIsk(bestSell);
+  if (floor === null) return buyOrders;
+  return buyOrders.filter((order) => order.price >= floor);
+}
+
+export function applySpreadFloorToBuyFigures(
+  figures: {
+    bestBuy: number | null;
+    pct5Buy: number | null;
+    buyVolume: bigint | null;
+  },
+  bestSell: number | null,
+): {
+  bestBuy: number | null;
+  pct5Buy: number | null;
+  buyVolume: bigint | null;
+} {
+  const floor = spreadFloorIsk(bestSell);
+  if (floor === null) return figures;
+  if (figures.bestBuy !== null && figures.bestBuy < floor) {
+    return { bestBuy: null, pct5Buy: null, buyVolume: null };
+  }
+  if (figures.pct5Buy !== null && figures.pct5Buy < floor) {
+    return { ...figures, pct5Buy: null };
+  }
+  return figures;
 }
 
 /**
@@ -42,9 +74,9 @@ export interface RemoteStationBook {
  * and provably wrong as a guard; see the hardening report §2.2).
  *
  * `pct5` — the volume-weighted average price of the cheapest 5% of side
- * volume (Fuzzwork's definition; we match it so wormhole-sites ISK totals
- * don't drift when the source swaps) — is UNTOUCHED by the dust filter and
- * still walks from the raw front of the book. Buy side sorts descending
+ * volume (Fuzzwork's definition; we match it so the stored percentile
+ * does not flap when the source swaps). It is UNTOUCHED by the dust filter
+ * and still walks from the raw front of the book. Buy side sorts descending
  * (best bid first); sell side sorts ascending (best ask first). Empty side
  * returns nulls; zero-volume side returns the raw touch for both.
  *

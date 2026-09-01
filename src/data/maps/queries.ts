@@ -10,6 +10,7 @@ import {
   isNull,
   or,
   sql,
+  type SQL,
 } from 'drizzle-orm';
 import { db } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
@@ -21,6 +22,7 @@ import {
   type MapPrincipals,
 } from './access';
 import type { MapRole } from './access-contract';
+import { activeMapLifecycle } from './lifecycle-contract';
 import {
   MAP_ACCESS_PROJECTION_REVISION_SEQUENCE,
   mapAccess,
@@ -133,7 +135,7 @@ function principalGrantCondition(principals: MapPrincipals) {
 async function readAuthorizedMapRows(
   userId: string,
   principals: MapPrincipals,
-  lifecycleCondition: ReturnType<typeof and>,
+  lifecycleCondition: SQL | undefined,
   database: AnyPgDb,
 ): Promise<RawAuthorizedMapRow[]> {
   const rows = await database
@@ -292,8 +294,14 @@ export async function createMapAtomic(
   );
   await database.execute(sql`
     WITH created_map AS (
-      INSERT INTO ${maps} (id, user_id, name, archived_at, purge_requested_at)
-      VALUES (${mapId}, ${userId}, ${name}, now(), now())
+      INSERT INTO ${maps} (
+        id, user_id, name, archived_at, purge_requested_at,
+        lifecycle_status, lifecycle_entered_at
+      )
+      VALUES (
+        ${mapId}, ${userId}, ${name}, now(), now(),
+        'purge_queued'::"public"."map_lifecycle_status", now()
+      )
       RETURNING id
     )
     INSERT INTO ${mapAccess} (map_id, owner_type, owner_id, role)
@@ -313,9 +321,10 @@ export async function publishCreatedMap(
   mapId: string,
   database: AnyPgDb = db,
 ): Promise<void> {
+  const now = new Date();
   const published = await database
     .update(maps)
-    .set({ archivedAt: null, purgeRequestedAt: null, updatedAt: new Date() })
+    .set({ ...activeMapLifecycle(now), updatedAt: now })
     .where(
       and(
         eq(maps.id, mapId),
@@ -408,7 +417,6 @@ export interface MapAccessSubject {
   readonly archivedAt: Date | null;
 }
 
-/** Reads one map's creator and archive marker, or null when the map does not exist. */
 export async function getMapAccessSubject(
   mapId: string,
   database: AnyPgDb = db,
@@ -416,7 +424,7 @@ export async function getMapAccessSubject(
   const [row] = await database
     .select({ userId: maps.userId, archivedAt: maps.archivedAt })
     .from(maps)
-    .where(eq(maps.id, mapId))
+    .where(and(eq(maps.id, mapId), isNull(maps.tombstonedAt)))
     .limit(1);
   return row ?? null;
 }
