@@ -98,6 +98,37 @@ describe('normalize', () => {
     expect(raw.sellVolume).toBe(BigInt(500_000));
   });
 
+  it('nulls the whole buy side when the aggregate max is under 35% of the ask', () => {
+    // C320-shaped Fuzzwork row: max walked the 1e9@0.01 wall. No book
+    // to drop, so every stored buy figure goes null.
+    const raw = normalize(
+      30370,
+      pair(
+        { max: '0.01', percentile: '0.01', volume: '1000000000', orderCount: '4' },
+        { min: '30250', percentile: '30500', volume: '200', orderCount: '6' },
+      ),
+    );
+    expect(raw.bestBuy).toBeNull();
+    expect(raw.pct5Buy).toBeNull();
+    expect(raw.buyVolume).toBeNull();
+    expect(raw.bestSell).toBe(30_250);
+  });
+
+  it('nulls only pct5Buy when the percentile is diluted but max clears the floor', () => {
+    // C50-shaped: Fuzzwork max is the real bid; percentile walked the wall.
+    const raw = normalize(
+      30375,
+      pair(
+        { max: '4604', percentile: '139', volume: '1000000100', orderCount: '8' },
+        { min: '4700', percentile: '4750', volume: '300', orderCount: '5' },
+      ),
+    );
+    expect(raw.bestBuy).toBe(4_604);
+    expect(raw.pct5Buy).toBeNull();
+    expect(raw.buyVolume).toBe(BigInt(1_000_000_100));
+    expect(raw.bestSell).toBe(4_700);
+  });
+
   it('attributes the source as "fuzzwork" before the dispatcher rewrites it', () => {
     // source-fallback.ts always emits 'fuzzwork'; the dispatcher in source.ts
     // rewrites to 'fuzzwork-fallback' when calling this file as a fallback.

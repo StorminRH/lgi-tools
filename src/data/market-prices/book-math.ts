@@ -1,20 +1,81 @@
 import {
   BEST_DUST_VOLUME_DIVISOR,
+  BUY_SPREAD_FLOOR_RATIO,
   DEPTH_BANDS_PCT,
   NPC_STATION_ID_CEILING,
 } from './constants';
 import type { DepthBand, RegionalDiscount } from './types';
 
 // Pure order-book math for the market-prices slice: the dust-filtered
-// best/pct5 walk, the near-touch depth ladder, and the regional-discount
-// fold (3.7.26.1). No fetch, no DB — importable by tests and one-off
-// diagnosis scripts without dragging in the ESI gate. source.ts re-exports
-// the shared pieces so its consumers are unaffected by the extraction.
+// best/pct5 walk, the buy/sell spread floor, the near-touch depth ladder,
+// and the regional-discount fold (3.7.26.1). No fetch, no DB — importable
+// by tests and one-off diagnosis scripts without dragging in the ESI gate.
+// source.ts re-exports the shared pieces so its consumers are unaffected
+// by the extraction.
 
 /** One market order-book entry with price in ISK and remaining volume in units. */
 export interface OrderEntry {
   price: number;
   volume: bigint;
+}
+
+/**
+ * ISK floor a hub bid must clear: `BUY_SPREAD_FLOOR_RATIO` of the
+ * dust-filtered ask. Null when there is no positive ask to measure
+ * against — the buy book then stays as-is (no sell, no split).
+ */
+function spreadFloorIsk(bestSell: number | null): number | null {
+  if (bestSell === null || bestSell <= 0) return null;
+  return bestSell * BUY_SPREAD_FLOOR_RATIO;
+}
+
+/**
+ * Hub bids priced under the of-ask floor. Call after `computeSide` on
+ * the sell book; pass the surviving orders into `computeSide` /
+ * `computeDepth` for every stored buy figure. No ask → the input book
+ * is returned unchanged (same reference).
+ *
+ * Exported for testing — the C320-shaped 1e9@0.01 wall is why this
+ * exists, and a direct pin is cheaper than reconstructing it through ESI.
+ */
+export function filterBuyOrdersBelowSpreadFloor(
+  buyOrders: OrderEntry[],
+  bestSell: number | null,
+): OrderEntry[] {
+  const floor = spreadFloorIsk(bestSell);
+  if (floor === null) return buyOrders;
+  return buyOrders.filter((order) => order.price >= floor);
+}
+
+/**
+ * Same of-ask floor for a source that has aggregates, not a book
+ * (Fuzzwork). A failed bestBuy nulls the whole buy side — there is no
+ * honest max to keep. A failed pct5Buy (diluted percentile, healthy
+ * max) nulls only that figure.
+ *
+ * Exported for testing.
+ */
+export function applySpreadFloorToBuyFigures(
+  figures: {
+    bestBuy: number | null;
+    pct5Buy: number | null;
+    buyVolume: bigint | null;
+  },
+  bestSell: number | null,
+): {
+  bestBuy: number | null;
+  pct5Buy: number | null;
+  buyVolume: bigint | null;
+} {
+  const floor = spreadFloorIsk(bestSell);
+  if (floor === null) return figures;
+  if (figures.bestBuy !== null && figures.bestBuy < floor) {
+    return { bestBuy: null, pct5Buy: null, buyVolume: null };
+  }
+  if (figures.pct5Buy !== null && figures.pct5Buy < floor) {
+    return { ...figures, pct5Buy: null };
+  }
+  return figures;
 }
 
 /**
