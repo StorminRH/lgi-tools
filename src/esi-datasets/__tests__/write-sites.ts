@@ -21,8 +21,8 @@
 // The census pins a positive found-set against these, so a scanner that silently
 // stops finding writes fails the suite instead of passing it.
 import { readdirSync, readFileSync } from 'node:fs';
+import { sliceOfPath } from '@/composition/__tests__/data-ownership-census';
 import type { DataOwnershipEntry } from '@/composition/__tests__/data-ownership-registry';
-import { sliceOfPath } from '@/composition/__tests__/data-ownership-registry';
 import { normalizeModulePath } from '@/lib/__tests__/module-path';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 

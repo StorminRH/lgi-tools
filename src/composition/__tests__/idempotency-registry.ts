@@ -44,7 +44,6 @@ export interface IdempotencyEntry {
   cronPath?: string;
   /** POST route file, resolved against the tree. */
   route?: string;
-  /** Cross-reference into the outbound resilience registry. */
   vendor?: VendorIntegrationId;
 }
 

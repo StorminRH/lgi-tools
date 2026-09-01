@@ -1,15 +1,4 @@
-// DATA OWNERSHIP REGISTRY (3.10.2.3) — the sibling of table-growth-registry.ts.
-// The growth registry answers "why does this table not grow without bound?";
-// this one answers "who owns it, who else may touch it, what does Postgres
-// itself enforce, what is the write's transaction boundary, and what
-// authorization model guards it". Two registries rather than one wide entry
-// shape because growth policy and ownership policy change on different axes.
-//
-// Test-only, exactly like its sibling: no runtime route, the DB proxy, or a
-// migration imports this module; the dataset-declaration census
-// (src/esi-datasets/dataset-declarations.test.ts) is its only consumer.
-import { is, SQL } from 'drizzle-orm';
-import { getTableConfig, PgDialect, PgTable } from 'drizzle-orm/pg-core';
+import type { PgTable } from 'drizzle-orm/pg-core';
 import * as schema from '../drizzle-schema';
 
 /**
@@ -43,29 +32,6 @@ export type SliceId =
   | 'composition/account-lifecycle'
   | 'composition/pipelines'
   | 'scripts';
-
-/** The auth tables live in one shared module rather than a slice directory; this is their owner. */
-const AUTH_SCHEMA_PATH = 'src/db/auth-schema.ts';
-const AUTH_SLICE: SliceId = 'platform/auth';
-const ZONED_ROOTS = ['data', 'features', 'platform', 'composition'] as const;
-
-/**
- * Derives a production file's owning slice from its path: `<root>/<slice>` inside the zoned roots,
- * the bare root elsewhere, with the shared auth schema aliased to its semantic owner. Returns the
- * structural id rather than a `SliceId` so an unrecognised slice fails the cross-owner-write check
- * loudly instead of forcing this module to mirror the Fallow zone map.
- */
-export function sliceOfPath(filePath: string): string {
-  const normalized = filePath.replaceAll('\\', '/').replace(/^\.\//, '');
-  if (normalized.endsWith(AUTH_SCHEMA_PATH) || normalized === 'db/auth-schema.ts') {
-    return AUTH_SLICE;
-  }
-  const segments = normalized.replace(/^src\//, '').split('/');
-  const [root, second] = segments;
-  if (root === undefined) return '';
-  const zoned = (ZONED_ROOTS as readonly string[]).includes(root);
-  return zoned && second !== undefined && segments.length > 1 ? `${root}/${second}` : root;
-}
 
 /**
  * The authorization data classes. Every persisted table resolves to exactly one, and the
@@ -125,58 +91,6 @@ export const DATA_CLASS_DECISIONS: Record<DataClassId, DataClassDecision> = {
     reviewTrigger: `${IDENTITY_CAMPAIGN}, or surfacing raw operational rows to non-admin users.`,
   },
 };
-
-const dialect = new PgDialect();
-
-function renderPredicate(predicate: SQL): string {
-  return dialect.sqlToQuery(predicate, 'indexes').sql.replaceAll(/\s+/g, ' ').trim();
-}
-
-function indexColumnName(column: unknown): string {
-  if (is(column, SQL)) return renderPredicate(column);
-  return (column as { name?: string }).name ?? '?';
-}
-
-function joinNames(columns: readonly { name: string }[]): string {
-  return columns.map((column) => column.name).join(',');
-}
-
-function uniqueIndexInvariant(index: ReturnType<typeof getTableConfig>['indexes'][number]): string {
-  const columns = index.config.columns.map(indexColumnName).join(',');
-  const predicate = index.config.where;
-  if (predicate === undefined) return `unique(${columns})`;
-  return `partial-unique(${columns}) where(${renderPredicate(predicate)})`;
-}
-
-function foreignKeyInvariant(
-  foreignKey: ReturnType<typeof getTableConfig>['foreignKeys'][number],
-): string {
-  const reference = foreignKey.reference();
-  const target = getTableConfig(reference.foreignTable).name;
-  return `fk(${joinNames(reference.columns)}→${target}.${joinNames(reference.foreignColumns)})`;
-}
-
-/**
- * The invariants Postgres itself enforces for one table, as normalized comparable strings
- * (`pk(...)`, `unique(...)`, `partial-unique(...) where(...)`, `fk(...)`, `check(...)`). Reads live
- * Drizzle metadata, including the column-level `.primaryKey()`/`.unique()` flags that never reach
- * `primaryKeys`/`uniqueConstraints`, so the census can diff declarations against the real schema in
- * both directions.
- */
-export function describeDbInvariants(table: PgTable): string[] {
-  const config = getTableConfig(table);
-  const columnPrimaries = config.columns.filter((column) => column.primary);
-  const invariants = [
-    ...columnPrimaries.map((column) => `pk(${column.name})`),
-    ...config.primaryKeys.map((key) => `pk(${joinNames(key.columns)})`),
-    ...config.columns.filter((column) => column.isUnique).map((column) => `unique(${column.name})`),
-    ...config.uniqueConstraints.map((constraint) => `unique(${joinNames(constraint.columns)})`),
-    ...config.indexes.filter((index) => index.config.unique).map(uniqueIndexInvariant),
-    ...config.foreignKeys.map(foreignKeyInvariant),
-    ...config.checks.map((check) => `check(${check.name})`),
-  ];
-  return [...invariants].sort();
-}
 
 /** How a write to one table reaches Postgres, and therefore what atomicity its callers may assume. */
 export interface TransactionBoundary {

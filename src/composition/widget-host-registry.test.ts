@@ -1,12 +1,14 @@
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  HOSTED_WIDGETS,
-  WIDGET_HOST_FILES,
   classifyFeatureUiImports,
   collectHostSources,
   scanWidgetHosts,
   type ModuleResolver,
+} from './__tests__/widget-host-census';
+import {
+  HOSTED_WIDGETS,
+  WIDGET_HOST_FILES,
 } from './__tests__/widget-host-registry';
 
 const MAPPER_HOST = 'src/mapper/signatures/ActiveSiteViewer.tsx';
