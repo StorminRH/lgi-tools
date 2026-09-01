@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applySpreadFloorToBuyFigures,
   computeRegionalDiscount,
+  filterBuyOrdersBelowSpreadFloor,
   isDiscountEligibleLocation,
   type RemoteStationBook,
 } from './book-math';
 
 // computeSide/computeDepth keep their long-standing regression suite in
 // source.test.ts (imported via source.ts's re-export — the extraction must
-// stay import-path-compatible). This file owns the 3.7.26.1 additions.
+// stay import-path-compatible). This file owns the 3.7.26.1 additions and
+// the buy/sell spread floor.
 
 const GATE = { minPct: 15, minUnits: 10 };
 
@@ -90,6 +93,88 @@ describe('computeRegionalDiscount', () => {
 
   it('returns null for an empty remote map', () => {
     expect(computeRegionalDiscount(new Map(), 100, GATE)).toBeNull();
+  });
+});
+
+describe('filterBuyOrdersBelowSpreadFloor', () => {
+  it('drops hub bids priced under 35% of the dust-filtered ask', () => {
+    // C320-shaped: a 1e9 @ 0.01 wall plus a penny-and-change bid sit
+    // under 0.35 × 31_000; the real 30_250 bid stays.
+    const kept = filterBuyOrdersBelowSpreadFloor(
+      [
+        { price: 0.01, volume: BigInt(1_000_000_000) },
+        { price: 30_250, volume: BigInt(100) },
+        { price: 1.01, volume: BigInt(100_000) },
+      ],
+      31_000,
+    );
+    expect(kept).toEqual([{ price: 30_250, volume: BigInt(100) }]);
+  });
+
+  it('keeps a bid exactly on the 35% floor', () => {
+    expect(
+      filterBuyOrdersBelowSpreadFloor([{ price: 35, volume: BigInt(1) }], 100),
+    ).toEqual([{ price: 35, volume: BigInt(1) }]);
+  });
+
+  it('drops a bid just under the 35% floor', () => {
+    expect(
+      filterBuyOrdersBelowSpreadFloor([{ price: 34.99, volume: BigInt(1) }], 100),
+    ).toEqual([]);
+  });
+
+  it('returns the buy book unchanged when there is no ask to measure against', () => {
+    const orders = [{ price: 0.01, volume: BigInt(1_000_000_000) }];
+    expect(filterBuyOrdersBelowSpreadFloor(orders, null)).toBe(orders);
+  });
+
+  it('returns the buy book unchanged when the ask is not a positive price', () => {
+    const orders = [{ price: 0.01, volume: BigInt(1) }];
+    expect(filterBuyOrdersBelowSpreadFloor(orders, 0)).toBe(orders);
+  });
+});
+
+describe('applySpreadFloorToBuyFigures', () => {
+  it('nulls the whole buy side when the best bid is under 35% of the ask', () => {
+    expect(
+      applySpreadFloorToBuyFigures(
+        { bestBuy: 0.01, pct5Buy: 0.01, buyVolume: BigInt(1_000_000_000) },
+        30_000,
+      ),
+    ).toEqual({ bestBuy: null, pct5Buy: null, buyVolume: null });
+  });
+
+  it('nulls only pct5 when the percentile is diluted but the max bid clears', () => {
+    // C50-shaped Fuzzwork aggregate: max is the real bid, percentile
+    // walked the 1e9 wall.
+    expect(
+      applySpreadFloorToBuyFigures(
+        { bestBuy: 4_604, pct5Buy: 139, buyVolume: BigInt(1_000_000_100) },
+        4_700,
+      ),
+    ).toEqual({
+      bestBuy: 4_604,
+      pct5Buy: null,
+      buyVolume: BigInt(1_000_000_100),
+    });
+  });
+
+  it('leaves healthy aggregates untouched', () => {
+    expect(
+      applySpreadFloorToBuyFigures(
+        { bestBuy: 5.2, pct5Buy: 5.0, buyVolume: BigInt(1_000_000) },
+        5.5,
+      ),
+    ).toEqual({ bestBuy: 5.2, pct5Buy: 5.0, buyVolume: BigInt(1_000_000) });
+  });
+
+  it('leaves buy figures untouched when there is no ask', () => {
+    const figures = {
+      bestBuy: 0.01,
+      pct5Buy: 0.01,
+      buyVolume: BigInt(10),
+    };
+    expect(applySpreadFloorToBuyFigures(figures, null)).toBe(figures);
   });
 });
 
