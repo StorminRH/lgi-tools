@@ -1,21 +1,16 @@
-import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { atlasMapQueryPresent } from '@/features/maps/map-navigation';
+import { buildPageMetadata } from '@/lib/page-metadata';
 import { AtlasBound } from './AtlasBound';
 import { AtlasLandingFallback } from './AtlasLandingFallback';
 
-/**
- * The administrator wall intentionally replaces this page for unauthorized
- * requests, so Next cannot validate the leaf in every staged render. Request-
- * time session work is separately bounded by `AtlasBound`.
- */
-export const instant = false;
-
-/** Static search and crawler metadata for the development-walled atlas route. */
-export const metadata: Metadata = {
-  title: 'Atlas — LGI.tools',
-  robots: { index: false },
-};
+/** Static search and social metadata for the public Atlas route. */
+export const metadata = buildPageMetadata({
+  title: 'Atlas',
+  description:
+    'Chart wormhole chains, paste scanner results, and share a live map with your corporation.',
+  canonical: '/atlas',
+});
 
 async function AtlasFromParams({
   searchParams,
