@@ -2,11 +2,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it } from 'vitest';
 import AtlasLoading from './loading';
-import AtlasPage, { instant } from './page';
+import AtlasPage from './page';
 
-it('keeps Atlas wall-replaceable with the same PageHead shell for page and loading', () => {
-  expect(instant).toBe(false);
-
+it('keeps Atlas streaming through the same PageHead shell for page and loading', () => {
   for (const markup of [
     renderToStaticMarkup(
       createElement(AtlasPage, { searchParams: Promise.resolve({}) }),

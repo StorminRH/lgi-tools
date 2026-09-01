@@ -39,9 +39,6 @@ export const TOOLS: Tool[] = [
     href: '/atlas',
     matchPrefix: '/atlas',
     description: 'Live · /atlas',
-    // DEP-8: no public navigation link until the development wall drops.
-    // Landing stays at /atlas and in tool search.
-    navHidden: true,
   },
   {
     label: 'Skill Queues',

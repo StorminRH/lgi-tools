@@ -85,7 +85,7 @@ test.describe('authenticated smoke', () => {
     await expect(accountMenuLocator(page)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Log in with EVE Online/i })).toHaveCount(0);
 
-    for (const route of ['/industry', '/skills', '/jobs', '/structures'] as const) {
+    for (const route of ['/industry', '/atlas', '/skills', '/jobs', '/structures'] as const) {
       await page.goto(route);
       await expect(page.locator('body')).toBeVisible();
       await expectAuthenticatedSession(page);
