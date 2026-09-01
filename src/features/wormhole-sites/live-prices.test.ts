@@ -107,7 +107,7 @@ describe('overlayLivePrices', () => {
     const original = structuredClone(sites);
 
     h.getPrices.mockResolvedValue(new Map([
-      [10, { pct5Buy: 5.5 }],
+      [10, { pct5Buy: 0.01, bestSell: 5.5 }],
     ]));
     h.getTypesByIds.mockResolvedValue([
       { id: 10, volume: 1 },

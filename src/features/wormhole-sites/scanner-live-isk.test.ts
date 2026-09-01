@@ -21,7 +21,7 @@ test('scanner live Est. ISK sums recipes, tracks pending, and keys unique type i
   expect(
     scannerLiveEstIsk(
       [RECIPE, { typeId: 1, units: 2, seedIsk: 100 }],
-      (typeId) => (typeId === 30370 ? { pct5Buy: 10 } : undefined),
+      (typeId) => (typeId === 30370 ? { bestSell: 10 } : undefined),
       () => false,
     ),
   ).toEqual({ total: 10_100, pending: false });

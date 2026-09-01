@@ -44,7 +44,6 @@ export interface IdempotencyEntry {
   cronPath?: string;
   /** POST route file, resolved against the tree. */
   route?: string;
-  /** Cross-reference into the outbound resilience registry. */
   vendor?: VendorIntegrationId;
 }
 
@@ -485,7 +484,7 @@ const mapsPurgeNowRoute = mutationRoute({
   route: 'src/app/api/maps/purge-now/route.ts',
   verdict: 'inherently-idempotent',
   evidence:
-    'The creator-only guarded update sets purge_requested_at only while it and purge_claimed_at are null; a repeat cannot advance the timestamp or invoke collaborative deletion directly.',
+    'The creator-only guarded update moves an archived map to purge_queued only while it is still archived; a repeat cannot advance lifecycle_entered_at or invoke collaborative deletion directly.',
 });
 const savedPlansDeleteRoute = mutationRoute({
   route: 'src/app/api/account/saved-plans/delete/route.ts',

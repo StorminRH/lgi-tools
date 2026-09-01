@@ -4,17 +4,20 @@ import { liveIskFor } from './live-isk';
 import type { SiteDetail, SiteResource } from './types';
 
 /**
- * Overlays live Jita 5%-percentile buy values onto a list of sites.
+ * Overlays live Jita dust-filtered best-sell values onto a list of sites.
  *
  * Strategy:
  * - Collect every non-null typeId across all sites' resources.
  * - Batch-fetch market prices and SDE volumes (parallel, one round-trip each).
- * - For each resource: liveIsk = round(units × pct5Buy). The Sheet stores
- *   `units` as the raw EVE unit count, and compressed-market prices are
- *   per-unit (1 compressed unit = 1 raw unit equivalent for the ores and
- *   gases this app cares about), so the formula needs no volume conversion.
- *   `type.volume` is read but is not part of the formula — it's retained as
- *   a sanity gate (skip the live overlay when the SDE row is missing).
+ * - For each resource: liveIsk = round(units × bestSell). Harvest is a
+ *   product you sell, so this is the same stored figure the Industry Planner
+ *   uses for product revenue — not pct5Buy, which a billion-unit junk bid
+ *   wall dilutes. The Sheet stores `units` as the raw EVE unit count, and
+ *   compressed-market prices are per-unit (1 compressed unit = 1 raw unit
+ *   equivalent for the ores and gases this app cares about), so the formula
+ *   needs no volume conversion. `type.volume` is read but is not part of
+ *   the formula — it's retained as a sanity gate (skip the live overlay
+ *   when the SDE row is missing).
  * - effectiveIsk = liveIsk ?? totalIsk per row.
  * - At the site level, resourceValueIsk is recomputed as sum(effectiveIsk)
  *   when the site has resources — keeps the header total and the footer
@@ -45,7 +48,7 @@ export async function overlayLivePrices(sites: SiteDetail[]): Promise<SiteDetail
     const newResources: SiteResource[] = site.resources.map((r) => {
       const liveEligible = isLiveEligible(r, typeById);
       const liveIsk = liveEligible
-        ? liveIskFor(r.units, prices.get(r.typeId!)?.pct5Buy ?? null)
+        ? liveIskFor(r.units, prices.get(r.typeId!)?.bestSell ?? null)
         : null;
       const effectiveIsk = liveIsk ?? r.totalIsk;
       return { ...r, liveIsk, effectiveIsk, liveEligible };

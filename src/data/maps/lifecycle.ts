@@ -65,6 +65,10 @@ export async function archiveAuthorizedMap(
     UPDATE ${maps}
     SET archived_at = ${nowIso}::timestamptz,
         purge_requested_at = NULL,
+        purge_claimed_at = NULL,
+        tombstoned_at = NULL,
+        lifecycle_status = 'archived',
+        lifecycle_entered_at = ${nowIso}::timestamptz,
         updated_at = ${nowIso}::timestamptz
     WHERE ${maps.id} IN (SELECT id FROM authorized_map)
     RETURNING ${maps.id}
@@ -100,7 +104,13 @@ export async function restoreAuthorizedMap(
       )}
     )
     UPDATE ${maps}
-    SET archived_at = NULL, updated_at = ${nowIso}::timestamptz
+    SET archived_at = NULL,
+        purge_requested_at = NULL,
+        purge_claimed_at = NULL,
+        tombstoned_at = NULL,
+        lifecycle_status = 'active',
+        lifecycle_entered_at = ${nowIso}::timestamptz,
+        updated_at = ${nowIso}::timestamptz
     WHERE ${maps.id} IN (SELECT id FROM authorized_map)
     RETURNING ${maps.id}
   `);
@@ -117,7 +127,12 @@ export async function requestAuthorizedMapPurge(
   const cutoff = new Date(now.getTime() - MAP_DELETE_GRACE_MS);
   const updated = await database
     .update(maps)
-    .set({ purgeRequestedAt: now, updatedAt: now })
+    .set({
+      purgeRequestedAt: now,
+      lifecycleStatus: 'purge_queued',
+      lifecycleEnteredAt: now,
+      updatedAt: now,
+    })
     .where(
       and(
         eq(maps.id, mapId),
@@ -173,7 +188,12 @@ export async function claimPurgeableMaps(
 
   const claimed = await database
     .update(maps)
-    .set({ purgeClaimedAt: now, updatedAt: now })
+    .set({
+      purgeClaimedAt: now,
+      lifecycleStatus: 'purge_claimed',
+      lifecycleEnteredAt: now,
+      updatedAt: now,
+    })
     .where(
       and(
         inArray(
@@ -199,7 +219,12 @@ export async function tombstonePurgedMap(
 ): Promise<boolean> {
   const updated = await database
     .update(maps)
-    .set({ tombstonedAt: now, updatedAt: now })
+    .set({
+      tombstonedAt: now,
+      lifecycleStatus: 'tombstoned',
+      lifecycleEnteredAt: now,
+      updatedAt: now,
+    })
     .where(
       and(
         eq(maps.id, mapId),

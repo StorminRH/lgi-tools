@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { chunk, dedupe } from '@/lib/array';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { applySpreadFloorToBuyFigures } from './book-math';
 import { JITA_44_STATION_ID } from './constants';
 import type { RawMarketPrice } from './types';
 
@@ -94,6 +95,8 @@ export function parseVolume(raw: string): bigint {
  * Buy side: "best" is the *highest* bid (`max`). Sell side: "best"
  * is the *lowest* ask (`min`). Both percentiles read the 5% column.
  * `orderCount == 0` on either side → NULL for that side's columns.
+ * Buy figures then take the same of-ask spread floor as the ESI book
+ * (`applySpreadFloorToBuyFigures`) — there is no order list to drop.
  *
  * Source attribution is 'fuzzwork' here. The dispatcher in source.ts
  * rewrites to 'fuzzwork-fallback' when calling this as a circuit-breaker
@@ -105,13 +108,22 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
   const sell = pair.sell;
   const buyOrderCount = Number.parseInt(buy.orderCount, 10);
   const sellOrderCount = Number.parseInt(sell.orderCount, 10);
+  const bestSell = sellOrderCount > 0 ? Number.parseFloat(sell.min) : null;
+  const floored = applySpreadFloorToBuyFigures(
+    {
+      bestBuy: buyOrderCount > 0 ? Number.parseFloat(buy.max) : null,
+      pct5Buy: buyOrderCount > 0 ? Number.parseFloat(buy.percentile) : null,
+      buyVolume: buyOrderCount > 0 ? parseVolume(buy.volume) : null,
+    },
+    bestSell,
+  );
   return {
     typeId,
-    bestBuy: buyOrderCount > 0 ? Number.parseFloat(buy.max) : null,
-    pct5Buy: buyOrderCount > 0 ? Number.parseFloat(buy.percentile) : null,
-    bestSell: sellOrderCount > 0 ? Number.parseFloat(sell.min) : null,
+    bestBuy: floored.bestBuy,
+    pct5Buy: floored.pct5Buy,
+    bestSell,
     pct5Sell: sellOrderCount > 0 ? Number.parseFloat(sell.percentile) : null,
-    buyVolume: buyOrderCount > 0 ? parseVolume(buy.volume) : null,
+    buyVolume: floored.buyVolume,
     sellVolume: sellOrderCount > 0 ? parseVolume(sell.volume) : null,
     // Fuzzwork serves aggregates, not an order book — no near-touch depth
     // and no regional-discount fold.

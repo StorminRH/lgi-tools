@@ -119,16 +119,32 @@ describe('mapper source contract', () => {
       'signatures/editor-leader.ts',
       'signatures/jump-resolution.ts',
       'signatures/origin-leads.ts',
-      'signatures/scanner-inline-cells.tsx',
+      'signatures/scanner-combo-panel.tsx',
+      'signatures/scanner-field-class.ts',
+      'signatures/scanner-identify-combo.tsx',
+      'signatures/scanner-leads-control.tsx',
+      'signatures/scanner-life-select.tsx',
+      'signatures/scanner-mass-select.tsx',
       'signatures/scanner-panel-body.ts',
+      'signatures/scanner-prompt-rail.tsx',
+      'signatures/scanner-row-cells.tsx',
       'signatures/scanner-row-open.ts',
       'signatures/scanner-scroll-dismiss.tsx',
+      'signatures/scanner-section-table.tsx',
+      'signatures/scanner-type-combo.tsx',
+      'signatures/scanner-window-frame.tsx',
+      'signatures/scanner-wormhole-cells.tsx',
       'signatures/signature-context.tsx',
       'signatures/signature-elimination-client.ts',
       'signatures/signature-model.ts',
       'signatures/signature-toast.ts',
       'signatures/system-readout.ts',
+      'signatures/use-identify-signature.ts',
       'signatures/use-scanner-paste.ts',
+      'signatures/use-signature-jump-flow.ts',
+      'signatures/use-signature-missing-flow.ts',
+      'signatures/use-signature-page.ts',
+      'signatures/use-signature-panel.ts',
       'signatures/use-system-statics.ts',
       'tracking/AfkGate.tsx',
       'tracking/JumpDoorbellObserver.tsx',
@@ -232,12 +248,12 @@ describe('mapper source contract', () => {
 
     expect(consumers).toEqual([
       'chain/use-map-chain-pages.ts',
-      'signatures/SignatureProvider.tsx',
+      'signatures/use-signature-page.ts',
     ]);
     expect(sourceOf('chain/use-map-chain-pages.ts')).not.toContain(
       'api.mapScan.watchMapSignatures',
     );
-    expect(sourceOf('signatures/SignatureProvider.tsx')).toContain(
+    expect(sourceOf('signatures/use-signature-page.ts')).toContain(
       'api.mapScan.watchMapSignatures',
     );
   });
@@ -268,7 +284,8 @@ describe('mapper source contract', () => {
     );
     expect(mutationFiles).toEqual([
       'chain/optimistic-authoring.ts',
-      'signatures/SignatureProvider.tsx',
+      'signatures/use-identify-signature.ts',
+      'signatures/use-signature-missing-flow.ts',
       'tracking/TrackingControls.tsx',
     ]);
     for (const file of mutationFiles) {

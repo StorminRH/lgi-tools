@@ -10,12 +10,6 @@ import {
 } from './queries';
 import { mapAccess, maps } from './schema';
 
-/**
- * Composition-owned Convex side-effects for maps purge. Composition registers
- * these because the data slice cannot import composition under Fallow. Whole-map
- * chain purge is required before Neon identity deletion; claim reconciliation
- * remains best effort after other durable credential changes.
- */
 export interface MapAccessProjectionPurgeHooks {
   readonly projectMap: (mapId: string) => Promise<void>;
   readonly purgeMapChain: (mapId: string) => Promise<void>;
@@ -24,10 +18,6 @@ export interface MapAccessProjectionPurgeHooks {
 
 let projectionHooks: MapAccessProjectionPurgeHooks | null = null;
 
-/**
- * Registers the composition-owned Convex projection side-effects for maps purge.
- * Call once from the purge wiring manifest before any purge runs.
- */
 export function registerMapAccessProjectionPurgeHooks(
   hooks: MapAccessProjectionPurgeHooks,
 ): void {

@@ -72,6 +72,7 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
       archivedAt: null,
       purgeRequestedAt: null,
       tombstonedAt: null,
+      lifecycleStatus: 'active',
     });
     await expect(harness.db.select().from(mapAccess)).resolves.toHaveLength(1);
   });
@@ -131,6 +132,7 @@ describe.skipIf(!harness.reachable)('map creation compensation (real Postgres)',
       archivedAt: expect.any(Date),
       purgeRequestedAt: expect.any(Date),
       tombstonedAt: null,
+      lifecycleStatus: 'purge_queued',
     });
     await expect(
       listAuthorizedMapsForPrincipals(

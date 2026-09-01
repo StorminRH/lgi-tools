@@ -7,11 +7,8 @@ import {
   resolvePageSettings,
 } from '@/platform/page-settings';
 import { FEATURE_CONTROL_IDS } from '@/platform/page-settings/feature-controls';
-import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/register-all';
+import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/specs';
 
-// Importing register-all (for PAGE_SETTINGS_SPECS) also runs its side-effect
-// registration once; reset before each test so the engine cases start clean. The
-// anti-drift case asserts on the EXPORTED list, so it is reset-independent.
 beforeEach(() => __resetPageSettings());
 
 describe('page-settings engine', () => {
