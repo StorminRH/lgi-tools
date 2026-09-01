@@ -743,8 +743,6 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
 
 describe('fetchPricesFromSource — buy/sell spread floor', () => {
   it('drops a 1e9-at-0.01 hub wall so stored buy figures come from the real book', async () => {
-    // C320-shaped: dust alone would walk the billion-unit wall and store
-    // 0.01. The of-ask floor drops that wall (and the 1.01 sliver) first.
     vi.mocked(esiFetch).mockResolvedValue(
       ordersResponse([
         { type_id: 42, is_buy_order: false, price: 31_000, volume_remain: 200 },

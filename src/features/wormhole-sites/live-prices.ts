@@ -3,29 +3,6 @@ import { getPrices } from '@/data/market-prices/queries';
 import { liveIskFor } from './live-isk';
 import type { SiteDetail, SiteResource } from './types';
 
-/**
- * Overlays live Jita dust-filtered best-sell values onto a list of sites.
- *
- * Strategy:
- * - Collect every non-null typeId across all sites' resources.
- * - Batch-fetch market prices and SDE volumes (parallel, one round-trip each).
- * - For each resource: liveIsk = round(units × bestSell). Harvest is a
- *   product you sell, so this is the same stored figure the Industry Planner
- *   uses for product revenue — not pct5Buy, which a billion-unit junk bid
- *   wall dilutes. The Sheet stores `units` as the raw EVE unit count, and
- *   compressed-market prices are per-unit (1 compressed unit = 1 raw unit
- *   equivalent for the ores and gases this app cares about), so the formula
- *   needs no volume conversion. `type.volume` is read but is not part of
- *   the formula — it's retained as a sanity gate (skip the live overlay
- *   when the SDE row is missing).
- * - effectiveIsk = liveIsk ?? totalIsk per row.
- * - At the site level, resourceValueIsk is recomputed as sum(effectiveIsk)
- *   when the site has resources — keeps the header total and the footer
- *   total derived from the same source. Sites with no resources are passed
- *   through unchanged.
- *
- * Pure — does not mutate the input array or its members.
- */
 export async function overlayLivePrices(sites: SiteDetail[]): Promise<SiteDetail[]> {
   const allTypeIds = new Set<number>();
   for (const s of sites) {
@@ -66,10 +43,6 @@ export async function overlayLivePrices(sites: SiteDetail[]): Promise<SiteDetail
   });
 }
 
-// Whether a resource can take a live value: a resolved typeId, a positive unit
-// count, and a present SDE volume (the sanity gate — skip the overlay when the
-// SDE row is missing). The same conditions gate the client island, which is fed
-// this verdict because the refresh API doesn't return SDE volume.
 function isLiveEligible(
   r: SiteResource,
   typeById: Map<number, { volume: number | null }>,

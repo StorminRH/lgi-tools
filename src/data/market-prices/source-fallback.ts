@@ -95,8 +95,6 @@ export function parseVolume(raw: string): bigint {
  * Buy side: "best" is the *highest* bid (`max`). Sell side: "best"
  * is the *lowest* ask (`min`). Both percentiles read the 5% column.
  * `orderCount == 0` on either side → NULL for that side's columns.
- * Buy figures then take the same of-ask spread floor as the ESI book
- * (`applySpreadFloorToBuyFigures`) — there is no order list to drop.
  *
  * Source attribution is 'fuzzwork' here. The dispatcher in source.ts
  * rewrites to 'fuzzwork-fallback' when calling this as a circuit-breaker

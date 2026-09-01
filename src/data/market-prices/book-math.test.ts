@@ -7,11 +7,6 @@ import {
   type RemoteStationBook,
 } from './book-math';
 
-// computeSide/computeDepth keep their long-standing regression suite in
-// source.test.ts (imported via source.ts's re-export — the extraction must
-// stay import-path-compatible). This file owns the 3.7.26.1 additions and
-// the buy/sell spread floor.
-
 const GATE = { minPct: 15, minUnits: 10 };
 
 function books(
@@ -98,8 +93,6 @@ describe('computeRegionalDiscount', () => {
 
 describe('filterBuyOrdersBelowSpreadFloor', () => {
   it('drops hub bids priced under 35% of the dust-filtered ask', () => {
-    // C320-shaped: a 1e9 @ 0.01 wall plus a penny-and-change bid sit
-    // under 0.35 × 31_000; the real 30_250 bid stays.
     const kept = filterBuyOrdersBelowSpreadFloor(
       [
         { price: 0.01, volume: BigInt(1_000_000_000) },
@@ -145,8 +138,6 @@ describe('applySpreadFloorToBuyFigures', () => {
   });
 
   it('nulls only pct5 when the percentile is diluted but the max bid clears', () => {
-    // C50-shaped Fuzzwork aggregate: max is the real bid, percentile
-    // walked the 1e9 wall.
     expect(
       applySpreadFloorToBuyFigures(
         { bestBuy: 4_604, pct5Buy: 139, buyVolume: BigInt(1_000_000_100) },
