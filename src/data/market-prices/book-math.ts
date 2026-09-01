@@ -42,9 +42,10 @@ export interface RemoteStationBook {
  * and provably wrong as a guard; see the hardening report §2.2).
  *
  * `pct5` — the volume-weighted average price of the cheapest 5% of side
- * volume (Fuzzwork's definition; we match it so wormhole-sites ISK totals
- * don't drift when the source swaps) — is UNTOUCHED by the dust filter and
- * still walks from the raw front of the book. Buy side sorts descending
+ * volume (Fuzzwork's definition; we match it so the stored percentile
+ * does not flap when the source swaps). Site harvest totals do not read
+ * this field. It is UNTOUCHED by the dust filter and still walks from
+ * the raw front of the book. Buy side sorts descending
  * (best bid first); sell side sorts ascending (best ask first). Empty side
  * returns nulls; zero-volume side returns the raw touch for both.
  *

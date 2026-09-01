@@ -10,7 +10,7 @@ import {
 const refresh = vi.hoisted(() => ({
   calls: [] as { typeIds: number[]; enabled: boolean }[],
   isPending: (_typeId: number) => false as boolean,
-  prices: new Map<number, { pct5Buy: number | null }>(),
+  prices: new Map<number, { bestSell: number | null }>(),
 }));
 
 vi.mock('@/data/market-prices/use-refresh-on-view', () => ({
@@ -97,7 +97,7 @@ test('scanner live prices enable for harvestable recipes, settle LivePrice, and 
   expect(pendingHtml).toContain('28.1M');
 
   refresh.isPending = () => false;
-  refresh.prices = new Map([[30370, { pct5Buy: 25_000 }]]);
+  refresh.prices = new Map([[30370, { bestSell: 25_000 }]]);
   const settledHtml = render(
     createElement(
       ScannerLivePricesProvider,

@@ -6,12 +6,12 @@
 import { liveIskFor } from './live-isk';
 import type { SiteLiveRecipe } from './site-name-lookup';
 
-/** One recipe's ISK given a live buy price, falling back to its catalogue seed. */
+/** One recipe's ISK given a live best-sell price, falling back to its catalogue seed. */
 export function recipeLiveIsk(
   recipe: SiteLiveRecipe,
-  pct5Buy: number | null | undefined,
+  bestSell: number | null | undefined,
 ): number | null {
-  return liveIskFor(recipe.units, pct5Buy ?? null) ?? recipe.seedIsk;
+  return liveIskFor(recipe.units, bestSell ?? null) ?? recipe.seedIsk;
 }
 
 /**
@@ -20,7 +20,7 @@ export function recipeLiveIsk(
  */
 export function scannerLiveEstIsk(
   recipes: readonly SiteLiveRecipe[],
-  priceOf: (typeId: number) => { pct5Buy: number | null } | undefined,
+  priceOf: (typeId: number) => { bestSell: number | null } | undefined,
   isPending: (typeId: number) => boolean,
 ): { readonly total: number | null; readonly pending: boolean } {
   if (recipes.length === 0) {
@@ -29,7 +29,7 @@ export function scannerLiveEstIsk(
   let total: number | null = null;
   let pending = false;
   for (const recipe of recipes) {
-    const value = recipeLiveIsk(recipe, priceOf(recipe.typeId)?.pct5Buy);
+    const value = recipeLiveIsk(recipe, priceOf(recipe.typeId)?.bestSell);
     if (value !== null) total = (total ?? 0) + value;
     if (isPending(recipe.typeId)) pending = true;
   }

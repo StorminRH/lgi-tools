@@ -21,16 +21,16 @@ function resource(overrides: Partial<SiteResource>): SiteResource {
   };
 }
 
-function live(pct5Buy: number | null): SiteLiveValue {
+function live(bestSell: number | null): SiteLiveValue {
   return {
-    priceOf: () => (pct5Buy === null ? undefined : ({ pct5Buy } as RefreshedPrice)),
+    priceOf: () => (bestSell === null ? undefined : ({ bestSell } as RefreshedPrice)),
     isPending: () => false,
     requestEnable: () => {},
   };
 }
 
 describe('resourceLiveIsk', () => {
-  it('uses live buy when eligible, otherwise the static seed', () => {
+  it('uses live best-sell when eligible, otherwise the static seed', () => {
     expect(resourceLiveIsk(resource({ liveEligible: false }), live(3))).toBe(5000);
     expect(resourceLiveIsk(resource({ typeId: null }), live(3))).toBe(5000);
     expect(resourceLiveIsk(resource({}), live(null))).toBe(5000);
