@@ -1,36 +1,35 @@
 /**
- * Instant Navigations guard: /atlas must show the site header and Atlas
- * PageHead rather than a blank viewport or the development wall while the
- * administrator gate resolves. Uses the initial-load form of instant() —
- * atlas is reachable by URL while remaining off the public tool strip.
+ * Instant Navigations guard: home → /atlas must show the site header and Atlas
+ * PageHead rather than a blank viewport while the listing resolves.
  */
 export default {
   name: 'instant-nav-atlas',
   route: '/',
   viewports: ['desktop'],
   settle: 800,
-  async run({ page, baseUrl, check, instant }) {
+  async run({ page, check, instant }) {
+    const atlasLink = page.locator('nav[aria-label="Tools"] a[href="/atlas"]').first();
+    check('home header exposes Atlas', (await atlasLink.count()) > 0);
+
     await instant(async () => {
-      await page.goto(new URL('/atlas', baseUrl).href, {
-        waitUntil: 'domcontentloaded',
-        timeout: 60000,
-      });
+      await atlasLink.click();
+      await page.waitForURL((url) => url.pathname === '/atlas', { timeout: 15000 });
       check(
         'atlas keeps the global site header in the instant shell',
         await page.locator('header.app-header').isVisible(),
       );
       const shell = page.locator('[data-page-shell]');
       check(
-        'atlas paints the PageHead shell while the gate resolves',
+        'atlas paints the PageHead shell while the listing resolves',
         await shell.isVisible(),
       );
       const shellText = (await shell.textContent()) ?? '';
       check(
-        'atlas paints lgi://atlas while the gate resolves',
+        'atlas paints lgi://atlas while the listing resolves',
         /lgi:\/\/atlas/i.test(shellText),
       );
       check(
-        'atlas paints the Atlas title while the gate resolves',
+        'atlas paints the Atlas title while the listing resolves',
         /Atlas/.test((await shell.locator('h1').textContent()) ?? ''),
       );
       check(
@@ -38,5 +37,7 @@ export default {
         (await page.locator('[data-map-development-wall]').count()) === 0,
       );
     });
+
+    check('landed on /atlas', new URL(page.url()).pathname === '/atlas');
   },
 };

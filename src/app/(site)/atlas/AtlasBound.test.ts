@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AtlasBound } from './AtlasBound';
 
 const mocks = vi.hoisted(() => ({
-  checkAdmin: vi.fn(),
+  checkSession: vi.fn(),
   connection: vi.fn(),
   rethrow: vi.fn(),
   getScannerSiteIndex: vi.fn(),
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
-  checkAdmin: mocks.checkAdmin,
+  checkSession: mocks.checkSession,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -95,12 +95,12 @@ const session = {
   characterId: 1,
   name: 'Mapper',
   portraitUrl: '/portrait.png',
-  role: 'ADMIN',
+  role: 'USER',
 };
 
 describe('AtlasBound', () => {
   beforeEach(() => {
-    mocks.checkAdmin.mockReset();
+    mocks.checkSession.mockReset();
     mocks.connection.mockReset();
     mocks.connection.mockResolvedValue(undefined);
     mocks.rethrow.mockReset();
@@ -125,19 +125,21 @@ describe('AtlasBound', () => {
     vi.restoreAllMocks();
   });
 
-  it('walls non-admins, admits the catalogue or canvas, fails closed on auth errors, and rethrows framework signals', async () => {
-    mocks.checkAdmin.mockResolvedValue({ ok: false, failure: { code: 'forbidden' } });
-    const wall = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
-    expect(wall).toContain('data-map-development-wall');
-    expect(wall).toContain('under development');
-    expect(wall).not.toContain('data-map-catalogue');
-    expect(wall).not.toContain('data-map-canvas-frame');
+  it('admits signed-out visitors and signed-in members, fails closed on auth errors, and rethrows framework signals', async () => {
+    mocks.checkSession.mockResolvedValue({ ok: false, failure: { code: 'unauthenticated' } });
+    const signedOut = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
+    expect(signedOut).toContain('data-map-catalogue');
+    expect(signedOut).toContain('data-provider-map-count="0"');
+    expect(signedOut).toContain('data-provider-listing-available="true"');
+    expect(signedOut).not.toContain('data-map-canvas-frame');
+    expect(signedOut).not.toContain('data-map-development-wall');
+    expect(mocks.listMapChromeData).not.toHaveBeenCalled();
     expect(mocks.connection).toHaveBeenCalledOnce();
     expect(mocks.connection.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.checkAdmin.mock.invocationCallOrder[0]!,
+      mocks.checkSession.mock.invocationCallOrder[0]!,
     );
 
-    mocks.checkAdmin.mockResolvedValue({ ok: true, session });
+    mocks.checkSession.mockResolvedValue({ ok: true, session });
     const landing = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
     expect(landing).toContain('data-map-catalogue');
     expect(landing).toContain('data-site-catalogue');
@@ -146,7 +148,6 @@ describe('AtlasBound', () => {
     expect(landing).toContain('data-provider-map-count="1"');
     expect(landing).toContain('data-provider-listing-available="true"');
     expect(landing).not.toContain('data-map-canvas-frame');
-    expect(landing).not.toContain('data-map-development-wall');
     expect(mocks.getScannerSiteIndex).toHaveBeenCalled();
     expect(mocks.listMapChromeData).toHaveBeenCalledOnce();
 
@@ -154,9 +155,8 @@ describe('AtlasBound', () => {
     expect(canvas).toContain('data-map-canvas-frame');
     expect(canvas).toContain('data-map-account-session="true"');
     expect(canvas).not.toContain('data-map-catalogue=""');
-    expect(canvas).not.toContain('data-map-development-wall');
 
-    mocks.checkAdmin.mockResolvedValue({
+    mocks.checkSession.mockResolvedValue({
       ok: true,
       session: { ...session, characterId: null },
     });
@@ -165,11 +165,12 @@ describe('AtlasBound', () => {
     expect(noCharacter).toContain('data-map-account-session="false"');
 
     const err = new Error('session store unavailable');
-    mocks.checkAdmin.mockRejectedValue(err);
+    mocks.checkSession.mockRejectedValue(err);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const failed = renderToStaticMarkup(await AtlasBound({ mapSelected: false }));
-    expect(failed).toContain('data-map-development-wall');
-    expect(failed).not.toContain('data-map-catalogue');
+    expect(failed).toContain('data-map-catalogue');
+    expect(failed).toContain('data-provider-listing-available="false"');
+    expect(failed).not.toContain('data-map-development-wall');
     expect(mocks.rethrow).toHaveBeenCalledWith(err);
     expect(consoleError).toHaveBeenCalledWith(
       '[map] authorization check unavailable',
@@ -177,7 +178,7 @@ describe('AtlasBound', () => {
     );
 
     const signal = new Error('NEXT_REDIRECT');
-    mocks.checkAdmin.mockRejectedValue(signal);
+    mocks.checkSession.mockRejectedValue(signal);
     mocks.rethrow.mockImplementation((rethrowErr: unknown) => {
       throw rethrowErr;
     });
@@ -187,7 +188,7 @@ describe('AtlasBound', () => {
   });
 
   it('keeps an authorized map up when the priced scanner catalogue fails', async () => {
-    mocks.checkAdmin.mockResolvedValue({ ok: true, session });
+    mocks.checkSession.mockResolvedValue({ ok: true, session });
     const pricedErr = new Error('prices unavailable');
     mocks.getScannerSiteIndex.mockRejectedValue(pricedErr);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -196,7 +197,6 @@ describe('AtlasBound', () => {
 
     expect(degraded).toContain('data-map-canvas-frame');
     expect(degraded).toContain('data-map-site-index="1"');
-    expect(degraded).not.toContain('data-map-development-wall');
     expect(mocks.getSiteSearchIndex).toHaveBeenCalled();
     expect(mocks.rethrow).toHaveBeenCalledWith(pricedErr);
     expect(consoleError).toHaveBeenCalledWith(
@@ -210,11 +210,10 @@ describe('AtlasBound', () => {
     const empty = renderToStaticMarkup(await AtlasBound({ mapSelected: true }));
     expect(empty).toContain('data-map-canvas-frame');
     expect(empty).toContain('data-map-site-index="0"');
-    expect(empty).not.toContain('data-map-development-wall');
   });
 
   it('marks a failed map listing as unavailable instead of a true empty catalogue', async () => {
-    mocks.checkAdmin.mockResolvedValue({ ok: true, session });
+    mocks.checkSession.mockResolvedValue({ ok: true, session });
     const listingError = new Error('map listing unavailable');
     mocks.listMapChromeData.mockRejectedValue(listingError);
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -224,7 +223,6 @@ describe('AtlasBound', () => {
     expect(degraded).toContain('data-map-catalogue');
     expect(degraded).toContain('data-provider-map-count="0"');
     expect(degraded).toContain('data-provider-listing-available="false"');
-    expect(degraded).not.toContain('data-map-development-wall');
     expect(mocks.rethrow).toHaveBeenCalledWith(listingError);
     expect(consoleError).toHaveBeenCalledWith(
       '[map] map listing unavailable; retry required',
