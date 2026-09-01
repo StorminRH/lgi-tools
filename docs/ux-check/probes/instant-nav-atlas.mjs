@@ -18,7 +18,7 @@ export default {
         'atlas keeps the global site header in the instant shell',
         await page.locator('header.app-header').isVisible(),
       );
-      const shell = page.locator('[data-page-shell]');
+      const shell = page.locator('[data-page-shell-mode="workspace"]').first();
       check(
         'atlas paints the PageHead shell while the listing resolves',
         await shell.isVisible(),
