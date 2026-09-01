@@ -115,7 +115,8 @@ tooling).
     { "id": "GHSA-v6wh-96g9-6wx3", "appliesTo": "vite@>=8.0.0 <=8.0.15" },
     { "id": "GHSA-h67p-54hq-rp68", "appliesTo": "js-yaml@>=4.0.0 <=4.1.1" },
     { "id": "GHSA-fx2h-pf6j-xcff", "appliesTo": "vite@>=8.0.0 <=8.0.15" },
-    { "id": "GHSA-4x5r-pxfx-6jf8", "appliesTo": "@babel/core@<=7.29.0" }
+    { "id": "GHSA-4x5r-pxfx-6jf8", "appliesTo": "@babel/core@<=7.29.0" },
+    { "id": "GHSA-2v37-7h3g-55p8", "appliesTo": "nanoid@<3.3.18" }
   ],
   "services": [
     {
