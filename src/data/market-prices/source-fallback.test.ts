@@ -99,7 +99,7 @@ describe('normalize', () => {
   });
 
   it('nulls the whole buy side when the aggregate max is under 35% of the ask', () => {
-    // C320-shaped Fuzzwork row: max walked the 1e9@0.01 wall. No book
+    // C320-shaped Fuzzwork row: max walked the 1e9-at-0.01 wall. No book
     // to drop, so every stored buy figure goes null.
     const raw = normalize(
       30370,

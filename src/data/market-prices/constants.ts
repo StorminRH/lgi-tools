@@ -132,7 +132,7 @@ export const BEST_DUST_VOLUME_DIVISOR = BigInt(1000);
  * billion-unit 0.01 ISK wall becomes the "real" book and the threshold
  * steps past every honest bid. 35% of the ask is the buy/sell split:
  * a Jita hub bid that far under the ask is not a market. Calibrated on
- * the 2026-09-01 gas books (C50/C320/C540 1e9@0.01 walls; C60/C70 and
+ * the 2026-09-01 gas books (C50/C320/C540 1e9-at-0.01 walls; C60/C70 and
  * ore unchanged). Fuzzwork has no book: the same ratio nulls stored buy
  * figures when the aggregate max fails, and nulls pct5Buy when only the
  * percentile is diluted.

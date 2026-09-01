@@ -35,7 +35,7 @@ function spreadFloorIsk(bestSell: number | null): number | null {
  * `computeDepth` for every stored buy figure. No ask → the input book
  * is returned unchanged (same reference).
  *
- * Exported for testing — the C320-shaped 1e9@0.01 wall is why this
+ * Exported for testing — the C320-shaped 1e9-at-0.01 wall is why this
  * exists, and a direct pin is cheaper than reconstructing it through ESI.
  */
 export function filterBuyOrdersBelowSpreadFloor(
