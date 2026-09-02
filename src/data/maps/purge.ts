@@ -10,18 +10,10 @@ import {
 } from './queries';
 import { mapAccess, maps } from './schema';
 
-export interface MapAccessProjectionPurgeHooks {
-  readonly projectMap: (mapId: string) => Promise<void>;
-  readonly purgeMapChain: (mapId: string) => Promise<void>;
-  readonly purgeUserClaims: (userId: string) => Promise<void>;
-}
-
-let projectionHooks: MapAccessProjectionPurgeHooks | null = null;
-
-export function registerMapAccessProjectionPurgeHooks(
-  hooks: MapAccessProjectionPurgeHooks,
-): void {
-  projectionHooks = hooks;
+interface MapAccessProjectionPurgeHooks {
+  readonly projectMap: (mapId: string) => Promise<unknown>;
+  readonly purgeMapChain: (mapId: string) => Promise<unknown>;
+  readonly purgeUserClaims: (userId: string) => Promise<unknown>;
 }
 
 /** Deletes every direct character grant for one character id. */
@@ -42,56 +34,50 @@ async function deleteOwnedMaps(userId: string): Promise<void> {
 }
 
 /**
- * Credential-tier teardown for durable map access. Character transfer destroys direct grants
- * before the character can resolve under a new human; whole-user purge deletes owned maps and
- * their cascading grants. Whole-user purge first removes each owned collaborative
- * chain through the required bearer door so a failed purge remains retryable;
- * other projection reconciliation stays best effort.
+ * Credential-tier teardown for durable map access. Character transfer destroys
+ * direct grants before the character can resolve under a new human; whole-user
+ * purge deletes owned maps and their cascading grants. Whole-user purge first
+ * removes each owned collaborative chain through the required bearer door so a
+ * failed purge remains retryable; other projection reconciliation stays best
+ * effort.
  */
-export const mapsPurgeContributor: PurgeContributor = {
-  name: 'maps',
-  tier: 'credential',
-  claims: [maps, mapAccess],
-  async purgeCharacter({ characterId }) {
-    const corporationId = await getCharacterCorporationId(characterId);
-    const characterMaps = await getMapIdsWithCharacterGrant(characterId);
-    const corporationMaps =
-      corporationId === null
-        ? []
-        : await getMapIdsWithCorporationGrants([corporationId]);
-    const affectedMapIds = [...new Set([...characterMaps, ...corporationMaps])];
+export function createMapsPurgeContributor(
+  hooks: MapAccessProjectionPurgeHooks,
+): PurgeContributor {
+  return {
+    name: 'maps',
+    tier: 'credential',
+    claims: [maps, mapAccess],
+    async purgeCharacter({ characterId }) {
+      const corporationId = await getCharacterCorporationId(characterId);
+      const characterMaps = await getMapIdsWithCharacterGrant(characterId);
+      const corporationMaps =
+        corporationId === null
+          ? []
+          : await getMapIdsWithCorporationGrants([corporationId]);
+      const affectedMapIds = [...new Set([...characterMaps, ...corporationMaps])];
 
-    await deleteCharacterMapGrants(characterId);
+      await deleteCharacterMapGrants(characterId);
 
-    const hooks = projectionHooks;
-    for (const mapId of affectedMapIds) {
-      await bestEffort(
-        'maps/purge',
-        'projection',
-        mapId,
-        hooks ? () => hooks.projectMap(mapId) : undefined,
+      for (const mapId of affectedMapIds) {
+        await bestEffort('maps/purge', 'projection', mapId, () =>
+          hooks.projectMap(mapId),
+        );
+      }
+    },
+    async purgeUser({ userId }) {
+      const ownedMapIds = await getOwnedMapIds(userId);
+      // Collaborative chain rows are primary user-authored data. Purge them
+      // before deleting their Neon map identity so a failed door remains
+      // retryable instead of creating an unreachable orphan.
+      for (const mapId of ownedMapIds) {
+        await hooks.purgeMapChain(mapId);
+      }
+      await deleteOwnedMaps(userId);
+
+      await bestEffort('maps/purge', 'user claim purge', userId, () =>
+        hooks.purgeUserClaims(userId),
       );
-    }
-  },
-  async purgeUser({ userId }) {
-    const ownedMapIds = await getOwnedMapIds(userId);
-    const hooks = projectionHooks;
-    if (ownedMapIds.length > 0 && hooks === null) {
-      throw new Error('Map chain purge hook is not registered');
-    }
-    // Collaborative chain rows are primary user-authored data. Purge them
-    // before deleting their Neon map identity so a failed door remains
-    // retryable instead of creating an unreachable orphan.
-    for (const mapId of ownedMapIds) {
-      await hooks?.purgeMapChain(mapId);
-    }
-    await deleteOwnedMaps(userId);
-
-    await bestEffort(
-      'maps/purge',
-      'user claim purge',
-      userId,
-      hooks ? () => hooks.purgeUserClaims(userId) : undefined,
-    );
-  },
-};
+    },
+  };
+}

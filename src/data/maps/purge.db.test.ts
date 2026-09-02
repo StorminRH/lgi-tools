@@ -5,10 +5,7 @@ import {
   seedCharacter,
   seedUser,
 } from '@/db/__tests__/support/db-test-harness';
-import {
-  mapsPurgeContributor,
-  registerMapAccessProjectionPurgeHooks,
-} from './purge';
+import { createMapsPurgeContributor } from './purge';
 import { mapAccess, maps } from './schema';
 
 const hooks = {
@@ -16,6 +13,8 @@ const hooks = {
   purgeMapChain: vi.fn(),
   purgeUserClaims: vi.fn(),
 };
+
+const mapsPurgeContributor = createMapsPurgeContributor(hooks);
 
 const harness = await createDbTestHarness({
   schema: 'test_maps_purge',
@@ -45,7 +44,6 @@ beforeEach(() => {
   hooks.projectMap.mockResolvedValue(undefined);
   hooks.purgeMapChain.mockResolvedValue(undefined);
   hooks.purgeUserClaims.mockResolvedValue(undefined);
-  registerMapAccessProjectionPurgeHooks(hooks);
 });
 
 afterEach(() => {
