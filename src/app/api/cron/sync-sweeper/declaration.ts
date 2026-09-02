@@ -7,9 +7,10 @@ import { deriveConvexSiteUrl } from '@/lib/sync-engine';
 import { isNoteworthySweep } from './noteworthy';
 
 /**
- * Declares the 15-minute sync watchdog as an idle-silent, lock-free route.
- * Healthy no-ops emit only the shell's boundary line; failures and re-armed
- * subjects are noteworthy and therefore write durable telemetry.
+ * Declares the sync watchdog as an idle-silent, lock-free route. Unscheduled
+ * on Hobby; a CRON_SECRET GET is the only invoke. Healthy no-ops emit only
+ * the shell's boundary line; failures and re-armed subjects are noteworthy
+ * and therefore write durable telemetry.
  */
 export const syncSweeperDeclaration: CronRouteDeclaration<CronSyncSweeperResponse> = {
   name: 'cron:sync-sweeper',
