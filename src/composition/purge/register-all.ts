@@ -1,3 +1,8 @@
+import {
+  projectMapAccess,
+  purgeUserMapAccessProjection,
+} from '@/composition/map-access-projection';
+import { purgeMapChain } from '@/composition/map-purge';
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import { savedPlansPurgeContributor } from '@/features/industry-planner/purge';
 import { authPurgeContributor } from '@/platform/auth/purge';
@@ -11,8 +16,14 @@ import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
 import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
-import { mapsPurgeContributor } from '@/data/maps/purge';
+import { createMapsPurgeContributor } from '@/data/maps/purge';
 import type { PurgeContributor } from '@/platform/purge/types';
+
+const mapsPurgeContributor = createMapsPurgeContributor({
+  projectMap: projectMapAccess,
+  purgeMapChain,
+  purgeUserClaims: purgeUserMapAccessProjection,
+});
 
 export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   authPurgeContributor,
