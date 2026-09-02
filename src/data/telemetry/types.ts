@@ -38,8 +38,8 @@ export type ServerUsageAction =
   | 'cron_industry_indices' // daily industry cost-index + adjusted-price cron outcome (3.5.1b)
   | 'cron_sde' // daily SDE-cron outcome (O-2, O-3)
   | 'cron_gsc' // daily Google-Search-Console sync outcome — synced / skipped / failed (3.3.3)
-  | 'cron_sync_sweeper' // unscheduled sync-engine watchdog — dispatched>0 means the Convex scan lagged (3.4.9)
-  | 'cron_esi_refresh_jobs' // unscheduled idle-silent drain of deferred owner-sync work
+  | 'cron_sync_sweeper'
+  | 'cron_esi_refresh_jobs'
   | 'cron_affiliations' // nightly corp-affiliation refresh outcome — busy / refreshed (3.7.3.2)
   | 'cron_wh_statics' // weekly community statics feed outcome — unchanged / unavailable / snapshot pending
   | 'cron_map_purge' // daily bounded collaborative map purge + durable tombstone outcome

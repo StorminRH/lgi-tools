@@ -47,9 +47,6 @@ export interface IdempotencyEntry {
   vendor?: VendorIntegrationId;
 }
 
-// Vercel does not automatically retry a failed cron job
-// (vercel.com/docs/cron-jobs, fetched 2026-07-25). Remaining jobs are daily or
-// weekly, so schedule overlap is only real if a run exceeds its interval.
 const VERCEL_CRON_REDELIVERY =
   'Schedule overlap only — Vercel does not automatically retry a failed cron run.';
 
