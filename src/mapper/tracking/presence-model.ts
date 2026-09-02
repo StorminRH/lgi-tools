@@ -1,13 +1,3 @@
-// Pure pilot-presence derivation for the Atlas canvas (4.0.4.2.3 OW2).
-//
-// Last-known location is kept for collapse retention. Pins and friendlies
-// only surface a pilot when the flip-only coverage row says they are
-// present and ESI-online. The map document and the location row stay
-// untouched; React joins `forMap` to `coverage`.
-//
-// There is no in-between map state. A shown pilot is online; otherwise they
-// are absent. Docked vs In space is location, not presence.
-
 /** The single-word status vocabulary the intelligence body renders. */
 export type PresenceStatusWord = 'Docked' | 'In space';
 

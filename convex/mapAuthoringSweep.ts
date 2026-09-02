@@ -8,12 +8,6 @@ import {
 } from './mapAuthoringCollapse';
 import { readTrackedPilotSystemIds } from './mapTrackingLive';
 
-/**
- * Grace past a stored `deathLatestAt` ceiling before the sweep may collapse.
- * The ceiling already overestimates remaining life (first-seen is a lower
- * bound on age), so ceiling + grace can never precede a hole's true death.
- * Expiry never removes a live connection.
- */
 export const CEILING_COLLAPSE_GRACE_MS = 4 * 60 * 60 * 1000;
 
 export const CEILING_SWEEP_BATCH = 8;

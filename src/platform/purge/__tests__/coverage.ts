@@ -1,6 +1,3 @@
-// The purge coverage map — the gate's pure logic plus the declared accounting for
-// data homes the schema-reflection gate can't see. DB-free: getTableConfig reads a
-// pgTable's metadata (name + columns) with no database connection.
 import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
 
 /**

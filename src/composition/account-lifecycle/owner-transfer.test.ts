@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
-// The chainable thenable emulates Drizzle's builder: FIFO results, counted writes.
 const hooks = vi.hoisted(() => ({
   runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
 }));

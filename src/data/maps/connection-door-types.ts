@@ -1,24 +1,3 @@
-// Atlas wormhole language (canonical). Stored field names stay `from`/`to`.
-//
-// You are in a system. That system has wormholes. Talk about the system (and
-// its class when it matters), the holes in it, and whether each hole is
-// outgoing or incoming. Do not call systems "origin" or "far side."
-//
-// Outgoing: this system's mouth is a named type (P060, C247, B274, …).
-// Statics are always outgoing. Jump the P060; the other system is whatever
-// that named hole leads to (a C1, for example).
-// Incoming: this system's mouth is a K162. The other system's mouth is the
-// named hole. More often than not the K162s you scan are incoming.
-// Unidentified: no type yet (`null`). That is not a K162.
-//
-// One map row is one hallway (shared mass, size, lifetime) with a mouth at
-// each system. `from`/`to` are the two stored ends of that row — usually
-// `from` is the system where the hole was first scanned — not incoming vs
-// outgoing and not named vs K162. A K162 can sit on `from`; a P060 can sit
-// on `to`.
-//
-// Knowing a named mouth fills a blank other mouth as K162. Knowing only a
-// K162 never invents the named type.
 import type { ConnectionProvenance } from '@/data/eve-data/wormhole-contract';
 import {
   FAR_SIDE_WORMHOLE_CODE,

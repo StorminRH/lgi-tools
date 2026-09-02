@@ -2,8 +2,6 @@ import { and, eq, sql } from 'drizzle-orm';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import { account, characters } from '@/db/auth-schema';
 
-// account_id is TEXT; characters.character_id is bigint. Cast only a digit
-// string so a malformed EVE account row cannot abort the join.
 /** @internal */
 export const characterProfileJoin = eq(
   characters.characterId,

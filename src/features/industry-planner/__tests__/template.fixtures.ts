@@ -1,13 +1,6 @@
 import type { TemplatePlannerState } from '../components/planner-contexts';
 import type { ApplyCtx, TemplateStructureView } from '../template-manifest';
 
-// The shared mock-planner harness for template tests: a getter-based ctx view
-// over a mutable state store whose setters mimic the provider's public surface
-// (including the #187 no-double-select guard). Lifted out of
-// template-manifest.test.ts so the loader tests (template-load.test.ts) drive
-// the REAL applyTemplate through the same surface. Test-only by intent — no
-// production module imports this.
-
 /** Deterministic structure fixture used by template application tests. */
 export interface TestStructure {
   id: string;
@@ -35,7 +28,6 @@ export interface MockState {
 /** Canonical deterministic structure fixture shared by template-manifest tests. */
 const STRUCTURE: TemplateStructureView = {
   blueprintTypeId: 999,
-  // Two build nodes; 999 (the top blueprint) is valid for overrides too.
   nodeActivityByBlueprint: { 111: 1, 222: 11 },
 };
 

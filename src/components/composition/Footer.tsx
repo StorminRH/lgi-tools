@@ -2,17 +2,9 @@ import Link from 'next/link';
 import { PageFooter } from '@/components/ui/page-footer';
 import { APP_VERSION } from '@/config/app-version';
 
-/**
- * Application-shell footer. The left slot owns the Fenris Creations trademark
- * notice; policy, changelog, and version references share the right slot.
- * The Feedback affordance lives in `<FeedbackButton>` as a separate fixed
- * element reachable at any scroll position.
- */
 export function Footer() {
   return (
     <PageFooter
-      // Extra right padding keeps the links clear of the fixed Feedback button
-      // anchored in the bottom-right corner (handoff §3).
       className="pr-[150px]"
       left={
         <span className="block max-w-[720px] text-muted tracking-[0.03em] leading-[1.7]">

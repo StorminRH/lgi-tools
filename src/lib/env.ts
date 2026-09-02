@@ -1,30 +1,8 @@
-// Typed, lazily-read server env (3.4.T). One registry of every server-side
-// variable; a read validates on access — never at import, never cached — so
-// module import stays side-effect-free (the lazy-DB-Proxy principle) and
-// vi.stubEnv keeps working in tests.
-//
-// Schemas are equivalence-preserving, not aspirational, and the required vs.
-// verbatim split is load-bearing at the TYPE level too:
-//   - REQUIRED (min(1)) — call sites that treat empty-as-missing (`if (!x)`,
-//     `||`). readEnv maps '' to undefined, so the same branch is taken either
-//     way. `requireEnv` accepts ONLY these keys.
-//   - VERBATIM — call sites that use nullish (`??`) or `===`, where a
-//     set-but-empty value must keep winning/losing exactly as before, so ''
-//     passes through. Passing one of these to `requireEnv` is a compile error
-//     (its empty value is meaningful — throwing on it would be a bug).
-// Tightening a schema (URL shape, base64 length, …) changes that variable's
-// soft-fail behavior — it needs its own review, not a drive-by edit.
-//
-// Deliberately NOT in the registry:
-//   - NODE_ENV — statically inlined by the bundlers; read it directly.
-//   - NEXT_PUBLIC_* — client env; must stay literal static reads for Next's
-//     build-time inlining (src/config/site-url.ts).
 import { z } from 'zod';
 
 const required = z.string().min(1); // '' ≡ missing (truthiness call sites)
 const verbatim = z.string(); // '' passes through (nullish / `===` call sites)
 
-// Empty-as-missing variables — readEnv maps '' to undefined; requireEnv-eligible.
 const REQUIRED_ENV = {
   DATABASE_URL: required,
   // Staging Preview only. Neon Connect injects production DATABASE_URL onto
@@ -49,15 +27,8 @@ const REQUIRED_ENV = {
   GSC_SITE_URL: required,
 } as const;
 
-// Pass-through variables — '' is a valid present value (nullish/`===` sites).
-// readEnv-only: their empty value is meaningful, so requireEnv must not accept them.
 const VERBATIM_ENV = {
-  // Lock resolver reads this through readEnv after the LGI overrides.
-  // Empty stays present so it wins `??` over DATABASE_URL.
   DATABASE_URL_UNPOOLED: verbatim,
-  // Schema-owner credential for migrations only (scripts/migrate-url.ts). Empty ≡
-  // unset there — it falls back to DATABASE_URL, so single-role envs are
-  // unaffected. Never read by the request path.
   DATABASE_MIGRATION_URL: verbatim,
   LOCAL_DB_DRIVER: verbatim,
   DOTENV_PATH: verbatim,
@@ -82,8 +53,6 @@ const VERBATIM_ENV = {
   NEXT_RUNTIME: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,
   LGI_SITES_SAMPLE: verbatim,
-  // Depot verify cache-disk path for the SDE seed dump. Empty ≡ unset; the
-  // seed entry falls back to --cache-dir or a CCP ingest with no dump write.
   SDE_SEED_CACHE_DIR: verbatim,
 } as const;
 

@@ -1,15 +1,3 @@
-// Corp owned-structures composition layer (3.7.9). Lives here, above the slices,
-// because it is the only point that touches BOTH the auth slice (per-character token
-// vend, affiliation/role reads) AND the owned-structures slice (the ESI→projection +
-// Neon storage) — a cross-slice join the feature boundary forbids inside either slice
-// (the sde-pipeline.ts pattern). This wires the real corp port the pure refresh runs
-// over (entirely from the SHARED owner-sync-port.ts helpers — a descriptor + port
-// wiring, NOT a clone), and exposes the on-view seam the corp-structures API route
-// consumes: read the member's corps' shared catalogues, fire a stale-gated
-// write-behind refresh behind the response (zero added latency). A direct mirror of
-// src/composition/sync/corp-industry-jobs-sync.ts, with the KEY divergence that the store is keyed
-// by corporation ALONE (shared across members), so the read scope comes from the
-// viewer's corp membership (the 3.7.3 corp-access gate), not their own sync rows.
 import { after, connection } from 'next/server';
 import { refreshStaleAffiliationsForUser } from '@/platform/auth/affiliation';
 import { decideCorpAccess } from '@/platform/auth/corp-access';

@@ -1,25 +1,3 @@
-// PRODUCTION WRITE-SITE SCAN (3.10.2.3). Attributes every Drizzle write in the
-// production source tree to the slice that makes it, so the dataset-declaration
-// census can reject a cross-owner write nobody declared.
-//
-// A source scan rather than a runtime trace because the invariant is structural:
-// "which slice may write this table" is a property of the code, not of one
-// request. Detection is deliberately receiver-agnostic — it keys off the table
-// SYMBOL, which must resolve to a real reflected Drizzle export, rather than off
-// a `db`/`tx` receiver name that a refactor could rename.
-//
-// Four documented blind spots, all failing quiet rather than loud, so they are
-// named here and in the affected tables' boundary notes rather than implied:
-//   1. Raw string-literal SQL that never mentions a schema symbol
-//      (src/scripts/backfill-users-if-empty.ts writes `user` and `account` this way).
-//   2. Adapter-internal writes — Better Auth reaches its own tables through its
-//      Drizzle adapter, which no source line in this repository expresses.
-//   3. Variable-table helper calls, e.g. `insertChunked(tx, eveRegions, rows)`
-//      in src/data/eve-data/universe.ts, where the table is an argument to a
-//      generic helper rather than the write call's own operand.
-//   4. A table symbol aliased through a value that is not an import binding.
-// The census pins a positive found-set against these, so a scanner that silently
-// stops finding writes fails the suite instead of passing it.
 import { readdirSync, readFileSync } from 'node:fs';
 import { sliceOfPath } from '@/composition/__tests__/data-ownership-census';
 import type { DataOwnershipEntry } from '@/composition/__tests__/data-ownership-registry';
@@ -76,10 +54,6 @@ export function resolveImportPath(fromFile: string, specifier: string): string |
   return `${normalizeModulePath(`${directory}/${specifier}`)}.ts`;
 }
 
-// The clause excludes quotes and semicolons so a side-effect import
-// (`import './globals.css';`) cannot be swallowed by the lazy match and joined to
-// the next statement's `from`. A real import clause never contains either
-// character, so multi-line named imports still match.
 const IMPORT_PATTERN = /import\s+([^;'"]*?)\s+from\s*['"]([^'"]+)['"]/g;
 const NAMESPACE_PATTERN = /^\*\s+as\s+([A-Za-z_$][\w$]*)$/;
 
@@ -128,16 +102,9 @@ export function buildSymbolTable(
   return symbols;
 }
 
-// Receiver-agnostic and whitespace/newline tolerant: the dominant live form is a
-// multi-line chain (`await db\n  .delete(ownedAssets)`), and binding to a `db`/`tx`
-// receiver name would miss a renamed handle. The operand must resolve to a real
-// reflected table symbol, so a `Set.delete(key)` can never match.
 const WRITE_CALL_PATTERN =
   /\.\s*(?:insert|update|delete)\s*\(\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\)/g;
 
-// A statement-leading write keyword: anchored to the template start, a newline,
-// a semicolon, or an opening paren, so a `updated_at` column reference can never
-// be read as an UPDATE.
 const RAW_WRITE_KEYWORD =
   /(^|[\n;(])\s*(?:insert\s+into|update|delete\s+from|truncate(?:\s+table)?)\b/i;
 const INTERPOLATION_PATTERN = /\$\{\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\}/g;

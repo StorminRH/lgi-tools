@@ -1,8 +1,3 @@
-// Corp-affiliation orchestration (3.7.3.2): the refresh (fetch → cache) and the
-// membership decisions (load → fail-closed verdict) that compose the ESI source
-// (affiliation-source.ts), the Neon cache readers/writer (affiliation-store.ts),
-// and the pure predicates (membership.ts). This module is the logic over those
-// data sources.
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { fetchAffiliations } from './affiliation-source';
 import { characterIsInCorp, isMemberOfCorp } from './membership';

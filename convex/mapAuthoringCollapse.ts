@@ -263,13 +263,6 @@ async function writeRemovedSever(
   return { outcome: 'removed', systemIds };
 }
 
-/**
- * The one identity-parameterized collapse core. Every destructive trigger
- * (manual sever, confirmed re-paste removal, confident removal, and the
- * ceiling sweep) resolves the same decision and commits the same shared-stamp
- * writes and ledger event in the caller's transaction. Callers authorize
- * first.
- */
 export async function runCollapse(
   ctx: MutationCtx,
   input: {

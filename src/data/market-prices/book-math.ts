@@ -49,12 +49,6 @@ export function applySpreadFloorToBuyFigures(
   return figures;
 }
 
-/**
- * One remote station's sell book, accumulated by the ingest while it scopes
- * the stored book to the hub. Keyed by location id in the bucket map; the
- * system id rides along because it's what the callout stores (system name is
- * the UI's resolution, never station names).
- */
 export interface RemoteStationBook {
   systemId: number;
   orders: OrderEntry[];
@@ -101,9 +95,6 @@ export function computeSide(
     return { best: front.price, pct5: front.price, volume: BigInt(0) };
   }
 
-  // Dust-filtered best: ceil-divide in bigint (no float), then take the price
-  // of the order that carries cumulative volume across the threshold. The
-  // threshold never exceeds totalVolume, so the walk always lands on an order.
   const dustThreshold =
     (totalVolume + BEST_DUST_VOLUME_DIVISOR - BigInt(1)) / BEST_DUST_VOLUME_DIVISOR;
   let best = front.price;
@@ -139,27 +130,6 @@ export function computeSide(
   return { best, pct5, volume: totalVolume };
 }
 
-/**
- * Near-touch depth ladder (3.5.3a): cumulative volume within each band of
- * DEPTH_BANDS_PCT measured from `best` on this side. One pass, no sort —
- * bands are nested, so an order within the tightest band it qualifies for is
- * counted in that band and every wider one. `best` comes from computeSide;
- * an empty side (best === null) has no depth.
- *
- * Anchored to `best` — the DUST-FILTERED best from computeSide (3.7.25.1),
- * not pct5 and not the raw touch; see DEPTH_BANDS_PCT for the manipulation
- * argument (the hardened anchor closes the mid-gap sliver case, where a
- * 1-unit ask under the real book used to window the bands around itself and
- * exclude the real sell wall). A buy order qualifies for band b when
- * price ≥ best·(1−b/100); a sell order when price ≤ best·(1+b/100). Volume
- * accumulates as a Number, like
- * computeSide's weighted sum (realistic cumulative volumes stay under
- * MAX_SAFE_INTEGER).
- *
- * Exported for testing — the manipulation-resistance is delicate enough that
- * direct adversarial fixtures (a 0.01-ISK spoof, a far-out whale order) are
- * worth the surface.
- */
 export function computeDepth(
   orders: OrderEntry[],
   direction: 'asc' | 'desc',
@@ -173,7 +143,6 @@ export function computeDepth(
         direction === 'desc'
           ? o.price >= best * (1 - band / 100)
           : o.price <= best * (1 + band / 100);
-      // `i` indexes the parallel `sums` (same length as DEPTH_BANDS_PCT), always in-bounds.
       if (within) sums[i] = (sums[i] ?? 0) + Number(o.volume);
     }
   }
@@ -189,28 +158,6 @@ export function isDiscountEligibleLocation(locationId: number): boolean {
   return locationId < NPC_STATION_ID_CEILING;
 }
 
-/**
- * The regional-discount fold (3.7.26.1): the best single non-hub sell
- * opportunity, computed from the remote books the hub scoping filters out
- * of the stored price. Guards, in order:
- *
- * - No hub best → no discount (the discount is measured against the hub
- *   price; with no hub book there is nothing to compare to — the row is
- *   null-priced and the callout stays silent).
- * - Each remote station's book gets the SAME dust walk as the hub book
- *   (computeSide over the station's FULL book) — a backwater [1,1,1,1,1]
- *   sliver ladder must not fake an opportunity; that is exactly the class
- *   hub scoping just removed from the headline.
- * - A station qualifies only when its dust-filtered best is strictly under
- *   the hub best; its `units` count the station's volume priced at-or-under
- *   the hub best (what a traveler could actually buy cheaper than Jita).
- * - Both gate thresholds must clear (see constants.ts for calibration).
- * - Winner = the lowest surviving station best; ONE opportunity per type,
- *   never a list.
- *
- * `units` is a plain number — this value rides a jsonb column and BigInt
- * throws at JSON serialization.
- */
 export function computeRegionalDiscount(
   remoteSell: Map<number, RemoteStationBook>,
   hubBestSell: number | null,
@@ -226,10 +173,6 @@ export function computeRegionalDiscount(
   return winner;
 }
 
-// One station's opportunity against the hub best: its dust-filtered best
-// (full-book walk, same semantics as the hub) and the units purchasable
-// at-or-under the hub price. Null when the station's real front isn't
-// actually cheaper than the hub.
 function stationOpportunity(
   book: RemoteStationBook,
   hubBestSell: number,

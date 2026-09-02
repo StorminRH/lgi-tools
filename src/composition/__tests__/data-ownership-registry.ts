@@ -52,8 +52,6 @@ export interface DataClassDecision {
   readonly reviewTrigger: string;
 }
 
-// Every class resolves the same way today for one measured reason, so the shared half of each
-// justification is declared once (docs/security/db-privilege-runbook.md §2, §5, §8).
 const NO_DB_IDENTITY =
   'the runtime holds one shared database role (today neondb_owner, post-cutover lgi_runtime) with no per-request database identity, so an RLS policy would have no subject to bind to';
 const IDENTITY_CAMPAIGN =
@@ -129,8 +127,6 @@ export interface DataOwnershipEntry {
   readonly dataClass: DataClassId;
 }
 
-// Boundary notes repeated across sibling tables are declared once so 56 entries stay a
-// declaration list rather than 56 near-identical prose blocks.
 const SDE_BATCH = {
   kind: 'transactional-batch',
   note: 'Rebuilt by the SDE ingest inside one postgres-js `db.transaction`: TRUNCATE … CASCADE then a chunked refill, so readers never observe a half-replaced corpus. Runs only from the scripts/cron path, never the neon-http request path.',
@@ -186,9 +182,6 @@ const WH_STATICS_PROMOTE_BATCH = {
  * directions, so a schema change that is not reflected here fails the suite.
  */
 export const DATA_OWNERSHIP = [
-  // ---------------------------------------------------------------------------
-  // data/eve-data — the shared EVE reference core every slice may read.
-  // ---------------------------------------------------------------------------
   {
     table: schema.eveCategories,
     owner: 'data/eve-data',
@@ -328,9 +321,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'global-reference',
   },
 
-  // ---------------------------------------------------------------------------
-  // features/wormhole-sites — the migration-seeded public catalogue.
-  // ---------------------------------------------------------------------------
   {
     table: schema.sites,
     owner: 'features/wormhole-sites',
@@ -372,9 +362,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'global-reference',
   },
 
-  // ---------------------------------------------------------------------------
-  // Global market and index snapshots — one latest row per external key.
-  // ---------------------------------------------------------------------------
   {
     table: schema.marketPrices,
     owner: 'data/market-prices',
@@ -426,9 +413,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'global-reference',
   },
 
-  // ---------------------------------------------------------------------------
-  // data/gsc — Search Console reporting, admin-only but tenant-free.
-  // ---------------------------------------------------------------------------
   {
     table: schema.gscSearchAnalytics,
     owner: 'data/gsc',
@@ -454,9 +438,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'global-reference',
   },
 
-  // ---------------------------------------------------------------------------
-  // data/wh-observations — privacy-safe retained D16 signal corpus.
-  // ---------------------------------------------------------------------------
   {
     table: schema.whObservations,
     owner: 'data/wh-observations',
@@ -470,9 +451,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'operational',
   },
 
-  // ---------------------------------------------------------------------------
-  // data/wh-statics — community reference data with an operational holding pen.
-  // ---------------------------------------------------------------------------
   {
     table: schema.whStaticsSnapshots,
     owner: 'data/wh-statics',
@@ -496,9 +474,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'global-reference',
   },
 
-  // ---------------------------------------------------------------------------
-  // platform/auth — the identity and credential core (src/db/auth-schema.ts).
-  // ---------------------------------------------------------------------------
   {
     table: schema.user,
     owner: 'platform/auth',
@@ -594,9 +569,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'identity-credential',
   },
 
-  // ---------------------------------------------------------------------------
-  // Personal per-character and per-user datasets.
-  // ---------------------------------------------------------------------------
   {
     table: schema.maps,
     owner: 'data/maps',
@@ -753,9 +725,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'personal',
   },
 
-  // ---------------------------------------------------------------------------
-  // Corporation-shared datasets, visible through role and sharing decisions.
-  // ---------------------------------------------------------------------------
   {
     table: schema.corpIndustryJobs,
     owner: 'features/industry-jobs',
@@ -808,9 +777,6 @@ export const DATA_OWNERSHIP = [
     dataClass: 'corp-shared',
   },
 
-  // ---------------------------------------------------------------------------
-  // Operational infrastructure — snapshots, queue, and events.
-  // ---------------------------------------------------------------------------
   {
     table: schema.esiSnapshots,
     owner: 'data/esi-snapshots',

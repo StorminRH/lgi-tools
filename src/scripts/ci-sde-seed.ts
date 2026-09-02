@@ -1,7 +1,3 @@
-// Depot verify seed: restore a versioned SDE dump from the cache disk, or
-// ingest from CCP and write that dump. Production ingest / cron / vercel-build
-// stay on ingest-sde and the pipeline entries.
-
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, rename, unlink } from 'node:fs/promises';

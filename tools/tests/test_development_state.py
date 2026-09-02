@@ -1365,7 +1365,6 @@ class DevelopmentStateTests(unittest.TestCase):
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract)
 
-        # Execute mode off development or an OW branch warns.
         misc_payload = json.loads(self.cli("--git").stdout)
         self.assertTrue(
             any(
@@ -1374,7 +1373,6 @@ class DevelopmentStateTests(unittest.TestCase):
             )
         )
 
-        # A codex/* branch has no special meaning: it warns like any other.
         self.fixture.set_head("codex/tooling")
         codex_payload = json.loads(self.cli("--git").stdout)
         self.assertTrue(
@@ -1384,7 +1382,6 @@ class DevelopmentStateTests(unittest.TestCase):
             )
         )
 
-        # development and an OW lifecycle branch are silent.
         self.fixture.set_head("development")
         on_branch_payload = json.loads(self.cli("--git").stdout)
         self.assertFalse(
@@ -1396,7 +1393,6 @@ class DevelopmentStateTests(unittest.TestCase):
             any("OW lifecycle branch" in warning for warning in ow_payload["warnings"])
         )
 
-        # main names the land line.
         self.fixture.set_head("main")
         main_payload = json.loads(self.cli("--git").stdout)
         self.assertIn(

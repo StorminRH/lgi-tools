@@ -1,11 +1,3 @@
-// Shared Drizzle column sets (lib zone — feature schema.ts → lib is boundary-legal;
-// drizzle-orm/pg-core is a package import, unconstrained by zones). The paged owned-*
-// twins (owned_asset_syncs, owned_blueprint_syncs) share the identical per-owner
-// sync-state column set — the staleness stamp + the replayed per-page etags. Each
-// slice keeps its OWN Postgres enum (the one-source-of-truth rule forbids sharing a pg
-// enum across features), so the enum is a parameter; the returned column object is
-// spread into each pgTable, per Drizzle's documented reusable-columns pattern. The
-// evaluated schema is byte-identical to the inline columns it replaces — no migration.
 import {
   bigint,
   jsonb,

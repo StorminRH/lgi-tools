@@ -160,8 +160,6 @@ export const TABLE_GROWTH_STORIES = [
     purgeContributor: 'saved-plans',
   },
 
-  // Imported reference/catalogue datasets replace or deterministically rebuild
-  // their finite source corpus rather than appending observations over time.
   { kind: 'bounded', table: schema.sites, reason: 'replaced from the finite sites catalogue' },
   { kind: 'bounded', table: schema.waves, reason: 'children of the replaced sites catalogue' },
   { kind: 'bounded', table: schema.npcs, reason: 'children of the replaced wave catalogue' },
@@ -207,8 +205,6 @@ export const TABLE_GROWTH_STORIES = [
     reason: 'one keyed marker per finite ingest pipeline concern',
   },
 
-  // Global snapshots are keyed by an external entity or configured source and
-  // overwrite that entity's latest state.
   {
     kind: 'bounded',
     table: schema.adjustedPrices,
@@ -237,8 +233,6 @@ export const TABLE_GROWTH_STORIES = [
       'replaced in full from one finite operator-promoted community snapshot',
   },
 
-  // Identity/framework rows are keyed by a finite identity; transient OAuth
-  // state is declared separately above under its expiry-based prune.
   { kind: 'bounded', table: schema.user, reason: 'at most one row per Better Auth human identity' },
   {
     kind: 'bounded',
@@ -252,9 +246,6 @@ export const TABLE_GROWTH_STORIES = [
     reason: 'one persisted signing key while JWT key rotation is disabled',
   },
 
-  // Owner/corporation tables replace a keyed snapshot or have a finite key
-  // vocabulary; repeated refreshes update that key-space rather than append time
-  // history.
   {
     kind: 'bounded',
     table: schema.characterSkills,

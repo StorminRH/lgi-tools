@@ -1,13 +1,3 @@
-// Reconciler output vocabulary: renderer-neutral nouns for what happened to the
-// chain (not the canvas). Motion binds surfacing/exit/glide to these kinds;
-// keep the union free of React Flow types and treat it as exhaustive.
-
-/**
- * A position in the canvas coordinate space.
- *
- * Intentionally not React Flow's `XYPosition`: positions cross the motion boundary, and the intent
- * vocabulary stays free of renderer types (PD-1).
- */
 export interface ChainPosition {
   readonly x: number;
   readonly y: number;

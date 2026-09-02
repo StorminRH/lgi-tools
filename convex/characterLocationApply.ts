@@ -9,27 +9,8 @@ import {
 import { applyCoverageSet } from './lib/locationCoverage';
 import { getSyncSubject } from './lib/subjects';
 
-/**
- * Two consecutive fresh samples must land within this window for a jump
- * verdict to trust the previous system. Larger gaps stamp prevFresh=false →
- * re-anchor. Classifier-side; not an engine cadence.
- *
- * Sized for three floors of the live location loop (~15s ESI cache + apply),
- * not the 5s cadence floor: a sitting then jumping pilot whose previous
- * covered run finished 17s ago is still watched. The 30s engine scan is the
- * watchdog when a sibling alt clears minExpiresAt; 45s still sits inside
- * that scan plus slack, and under the 60s unwatched-gap proof.
- */
 export const JUMP_CONTINUITY_MS = 45_000;
 
-// Per-character outcome the action hands back. `solarSystemId` null means a
-// 304, an offline probe, or an error (then `error` is set). Offline pilots
-// keep any held location (collapse retention / last-known); map presence
-// hides that pin unless the owner's feed currently covers the character. A
-// 304 (`online: true` + null system) still writes nothing to the payload
-// table. The probe trio: `online` null = probe never resolved;
-// `onlineExpiresAt` non-null = a fresh probe read to upsert into
-// characterLocationOnline (null = held-reuse).
 const characterResultValidator = v.object({
   ...characterSyncResultFields,
   solarSystemId: v.union(v.number(), v.null()),
@@ -46,13 +27,6 @@ const characterResultValidator = v.object({
 
 type CharacterResult = Infer<typeof characterResultValidator>;
 
-/**
- * The run's single batched write. Idempotent upserts keyed by
- * userId+characterId; the generation guard makes a superseded run's late apply
- * a no-op. Stamps syncedCharacterIds from the tracked poll set so a newly
- * tracked hint goes stale immediately. Unlinked characters are torn down by
- * purgeForUser, not this apply.
- */
 export const applySyncResults = internalMutation({
   args: {
     ...characterSyncApplyFields,
@@ -101,10 +75,6 @@ export const applySyncResults = internalMutation({
   },
 });
 
-// Index one payload table's rows by character. Unlinked characters are
-// removed by purgeForUser (unlink/reassign/user-delete/owner-hash), not here — feeding
-// the tracked set into a delete-if-missing pass would turn untrack into a
-// destroy of last-known location.
 function indexByCharacter<D extends { characterId: number }>(docs: D[]): Map<number, D> {
   const byCharacter = new Map<number, D>();
   for (const doc of docs) {
@@ -113,12 +83,6 @@ function indexByCharacter<D extends { characterId: number }>(docs: D[]): Map<num
   return byCharacter;
 }
 
-// The per-result loop, split from the handler: probe upsert + location apply
-// per character, accumulating the subject stamp inputs. The covered set is
-// this run's continuity truth — characters whose LOCATION was observed
-// cleanly (fresh 200 OR 304); offline probe results, per-character errors,
-// and unpolled characters are all excluded so they re-anchor on recovery
-// instead of inheriting an invented path from the tracked set.
 async function applyCharacterResults(
   ctx: MutationCtx,
   args: { userId: string; enumeratedCharacterIds: number[]; results: CharacterResult[] },
@@ -132,12 +96,6 @@ async function applyCharacterResults(
   const coveredCharacterIds: number[] = [];
   for (const result of args.results) {
     if (!enumerated.has(result.characterId)) continue;
-    // Covered = the LOCATION was observed this run (probe said online and the
-    // location path ran — fresh 200 OR 304). An offline probe "success" never
-    // enters: it observed no location, and continuity built on probe-only
-    // samples would let a pilot who logged in and moved inside the held ~60s
-    // window author a fabricated jump (prevFresh must mean "we watched the
-    // previous system", not "the run went cleanly").
     if (result.error === null && result.online === true) {
       coveredCharacterIds.push(result.characterId);
     }
@@ -155,11 +113,6 @@ async function applyCharacterResults(
   return { windows: [...windowsByCharacter.values()], coveredCharacterIds };
 }
 
-// Upsert one character's held online-probe state. Only a fresh probe read
-// carries a non-null onlineExpiresAt (held-reuse and errors carry null →
-// nothing to store). The table is unsubscribed, so the per-read expiry write
-// (~1/min) invalidates nothing; the write still happens only when something
-// actually changed.
 async function applyOnlineProbeResult(
   ctx: MutationCtx,
   userId: string,
@@ -199,9 +152,6 @@ async function applyLocationResult(
   now: number,
 ): Promise<number | null> {
   if (result.error !== null) return null;
-  // 304 / offline — location unchanged; write nothing (HC-3 zero-write path).
-  // Held last-known stays for collapse retention. Presence hides the pin
-  // unless the owner's feed currently covers this character.
   if (result.solarSystemId === null) return result.expiresAt;
 
   const prevFresh = isPrevFresh(subject, result.characterId, now);
@@ -225,7 +175,6 @@ async function applyLocationResult(
   }
 
   if (result.systemChanged) {
-    // shipTypeId null on a system change means the ship read 304'd — keep held.
     const shipTypeId = result.shipTypeId ?? existing.shipTypeId;
     const next = {
       solarSystemId: result.solarSystemId,
@@ -245,7 +194,6 @@ async function applyLocationResult(
     return result.expiresAt;
   }
 
-  // Same system — dock/undock/station fact only; keep prev* and held ship.
   const next = {
     stationId: result.stationId,
     structureId: result.structureId,
@@ -269,10 +217,6 @@ function isPrevFresh(
 ): boolean {
   if (subject.lastFinishedAt === null) return false;
   if (now - subject.lastFinishedAt > JUMP_CONTINUITY_MS) return false;
-  // Membership in the PREVIOUS run's covered set — not syncedCharacterIds
-  // (the tracked/hint set): a character whose last sample was an error or
-  // that went unpolled (budget stop) must re-anchor, never trust a stale
-  // prev-system as jump provenance (PD-2's "no invented path").
   return (subject.coveredCharacterIds ?? []).includes(characterId);
 }
 
