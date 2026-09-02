@@ -48,28 +48,29 @@ export interface IdempotencyEntry {
 }
 
 // Vercel does not automatically retry a failed cron job
-// (vercel.com/docs/cron-jobs, fetched 2026-07-25), so the only redelivery for a
-// scheduled route is schedule overlap on the two 15-minute jobs.
+// (vercel.com/docs/cron-jobs, fetched 2026-07-25). Remaining jobs are daily or
+// weekly, so schedule overlap is only real if a run exceeds its interval.
 const VERCEL_CRON_REDELIVERY =
   'Schedule overlap only — Vercel does not automatically retry a failed cron run.';
+
+const MANUAL_CRON_REDELIVERY =
+  'Manual CRON_SECRET GET only — these routes are not in vercel.json after the Hobby downgrade dropped sub-daily schedules.';
 
 const CRON_ENTRIES: readonly IdempotencyEntry[] = [
   {
     id: 'cron/drain-esi-refresh-jobs',
-    workKind: 'vercel-cron',
-    cronPath: '/api/cron/drain-esi-refresh-jobs',
+    workKind: 'http-route',
     module: 'src/app/api/cron/drain-esi-refresh-jobs/declaration.ts',
-    redeliverySource: `${VERCEL_CRON_REDELIVERY} Runs every 15 minutes, so overlap is real.`,
+    redeliverySource: MANUAL_CRON_REDELIVERY,
     verdict: 'key-protected',
     evidence:
       'defineCronRoute serializes the run under the ADVISORY_LOCK_ESI_REFRESH_QUEUE session advisory lock; a concurrent run short-circuits to the declared busy body without claiming a job.',
   },
   {
     id: 'cron/sync-sweeper',
-    workKind: 'vercel-cron',
-    cronPath: '/api/cron/sync-sweeper',
+    workKind: 'http-route',
     module: 'src/app/api/cron/sync-sweeper/declaration.ts',
-    redeliverySource: `${VERCEL_CRON_REDELIVERY} Runs every 15 minutes, so overlap is real.`,
+    redeliverySource: MANUAL_CRON_REDELIVERY,
     verdict: 'inherently-idempotent',
     evidence:
       'The watchdog declares lock mode none and calls Convex only; dispatching an already-due subject twice is absorbed by the engine’s own generation guard, and a healthy no-op touches zero Neon.',
@@ -193,7 +194,7 @@ const convexSyncEngineScan = convexEntry({
   workKind: 'convex-cron',
   module: 'convex/crons.ts',
   redeliverySource:
-    'The 30-second Convex interval cron, plus the external 15-minute Vercel sweeper that dispatches the same due subjects.',
+    'The 30-second Convex interval cron. The Vercel /api/cron/sync-sweeper watchdog is unscheduled on Hobby and only runs when an operator GETs it with CRON_SECRET.',
   evidence:
     'internal.engineScan.scan is an internalMutation. Convex scheduled mutations execute exactly once and retry transient errors inside the transaction (docs.convex.dev/scheduling/scheduled-functions, fetched 2026-07-25); dispatch is gated on syncSubjects.nextDueAt, which the same transaction advances.',
 });

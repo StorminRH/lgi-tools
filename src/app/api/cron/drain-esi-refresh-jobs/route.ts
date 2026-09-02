@@ -6,7 +6,9 @@ import { drainEsiRefreshJobsDeclaration } from './declaration';
 export const maxDuration = 300;
 
 /**
- * Vercel cron, scheduled every 15 minutes. The shared declaration shell owns
+ * Bearer-authed drain for deferred ESI refresh jobs. Unscheduled on Hobby
+ * (sub-daily Vercel crons are rejected); invoke with
+ * `Authorization: Bearer ${CRON_SECRET}`. The shared declaration shell owns
  * its Redis-only idle probe, authentication, advisory lock, work, and
  * noteworthy telemetry. No user input; body and query parameters are ignored.
  */

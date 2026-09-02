@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { CronWakeClass } from '@/composition/pipelines/cron-gate';
-import { drainEsiRefreshJobsDeclaration } from './drain-esi-refresh-jobs/declaration';
 import { refreshAffiliationsDeclaration } from './refresh-affiliations/declaration';
 import { refreshGscDeclaration } from './refresh-gsc/declaration';
 import { refreshIndustryIndicesDeclaration } from './refresh-industry-indices/declaration';
@@ -10,7 +9,6 @@ import { refreshPricesDeclaration } from './refresh-prices/declaration';
 import { refreshSdeDeclaration } from './refresh-sde/declaration';
 import { refreshWhStaticsDeclaration } from './refresh-wh-statics/declaration';
 import { purgeMapsDeclaration } from './purge-maps/declaration';
-import { syncSweeperDeclaration } from './sync-sweeper/declaration';
 
 type CronSpec = {
   path: string;
@@ -22,9 +20,6 @@ type CronRegistryEntry =
   | { justification: string };
 
 const cronRegistry = {
-  '/api/cron/drain-esi-refresh-jobs': {
-    declaration: drainEsiRefreshJobsDeclaration,
-  },
   '/api/cron/refresh-affiliations': {
     declaration: refreshAffiliationsDeclaration,
   },
@@ -38,7 +33,6 @@ const cronRegistry = {
     declaration: refreshWhStaticsDeclaration,
   },
   '/api/cron/purge-maps': { declaration: purgeMapsDeclaration },
-  '/api/cron/sync-sweeper': { declaration: syncSweeperDeclaration },
 } satisfies Record<string, CronRegistryEntry>;
 
 const vercelConfig = JSON.parse(
