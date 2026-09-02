@@ -25,21 +25,10 @@ function zeroSummary(
   };
 }
 
-/**
- * Returns true during the 12:00–12:14 UTC drain slot. A CRON_SECRET GET in
- * that window reaches Neon regardless of Redis hints so a manual invoke can
- * still recover lost signal state.
- */
 export function isDailyHealWindow(now: Date): boolean {
   return now.getUTCHours() === 12 && now.getUTCMinutes() < 15;
 }
 
-/**
- * Declares the deferred ESI drain as an idle-silent, lock-guarded route.
- * Unscheduled on Hobby; a CRON_SECRET GET is the only invoke. Its Redis-only
- * probe runs before any Neon access; due work, recent budget exhaustion,
- * unknown Redis state, and the daily heal slot all proceed.
- */
 export const drainEsiRefreshJobsDeclaration: CronRouteDeclaration<EsiRefreshWorkerSummary> = {
   name: 'cron:esi-refresh-jobs',
   action: 'cron_esi_refresh_jobs',
