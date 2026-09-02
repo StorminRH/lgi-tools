@@ -38,6 +38,7 @@ export const modules = import.meta.glob([
   '../mapFixtureSignatures.ts',
   '../mapFixtureTracking.ts',
   '../mapFixtures.ts',
+  '../mapHallwayBackfill.ts',
   '../mapJumpAuthoring.ts',
   '../mapJumpBookkeeping.ts',
   '../mapJumpEvidence.ts',

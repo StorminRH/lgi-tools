@@ -63,6 +63,7 @@ import type * as mapFixtureRemove from "../mapFixtureRemove.js";
 import type * as mapFixtureSignatures from "../mapFixtureSignatures.js";
 import type * as mapFixtureTracking from "../mapFixtureTracking.js";
 import type * as mapFixtures from "../mapFixtures.js";
+import type * as mapHallwayBackfill from "../mapHallwayBackfill.js";
 import type * as mapJumpAuthoring from "../mapJumpAuthoring.js";
 import type * as mapJumpBookkeeping from "../mapJumpBookkeeping.js";
 import type * as mapJumpEvidence from "../mapJumpEvidence.js";
@@ -138,6 +139,7 @@ declare const fullApi: ApiFromModules<{
   mapFixtureSignatures: typeof mapFixtureSignatures;
   mapFixtureTracking: typeof mapFixtureTracking;
   mapFixtures: typeof mapFixtures;
+  mapHallwayBackfill: typeof mapHallwayBackfill;
   mapJumpAuthoring: typeof mapJumpAuthoring;
   mapJumpBookkeeping: typeof mapJumpBookkeeping;
   mapJumpEvidence: typeof mapJumpEvidence;

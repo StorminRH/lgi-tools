@@ -111,6 +111,10 @@ import {
   reassociateJumpDestination,
 } from '../mapJumpIdentity';
 import { purgeForMap } from '../mapJumpBookkeeping';
+import {
+  HALLWAY_BACKFILL_BATCH,
+  backfillHallwayConnections,
+} from '../mapHallwayBackfill';
 import { purgeMapBatch } from '../mapPurge';
 import {
   MAP_ELIMINATION_CONNECTION_LIMIT,
@@ -222,6 +226,8 @@ describe('convex runtime exports', () => {
       reassociateJumpDestination,
       resolveJumpAuthoring,
       purgeForMap,
+      HALLWAY_BACKFILL_BATCH,
+      backfillHallwayConnections,
       purgeMapBatch,
       MAP_ELIMINATION_CONNECTION_LIMIT,
       MAP_SCAN_ROW_LIMIT,
