@@ -6,9 +6,7 @@ const sites = TOOLS.find((t) => t.label === 'Wormhole Sites')!;
 describe('nav tools', () => {
   it('hides unfinished tools and resolves active, soon, and disabled items', () => {
     const labels = visibleNavTools().map((t) => t.label);
-    expect(labels).toContain('Wormhole Sites');
-    expect(labels).toContain('Industry Planner');
-    expect(labels).not.toContain('Atlas');
+    expect(labels).toEqual(['Wormhole Sites', 'Industry Planner', 'Atlas']);
     expect(labels).not.toContain('Skill Queues');
     expect(labels).not.toContain('Industry Jobs');
 
