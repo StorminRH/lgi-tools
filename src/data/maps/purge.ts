@@ -10,7 +10,7 @@ import {
 } from './queries';
 import { mapAccess, maps } from './schema';
 
-interface MapAccessProjectionPurgeHooks {
+export interface MapAccessProjectionPurgeHooks {
   readonly projectMap: (mapId: string) => Promise<unknown>;
   readonly purgeMapChain: (mapId: string) => Promise<unknown>;
   readonly purgeUserClaims: (userId: string) => Promise<unknown>;
