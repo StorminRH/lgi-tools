@@ -36,14 +36,14 @@ function isDoorValue(value: unknown): boolean {
   return 'typeCode' in value && 'leadsTo' in value;
 }
 
-export function hasNestedDoors(row: {
+function hasNestedDoors(row: {
   readonly from?: unknown;
   readonly to?: unknown;
 }): boolean {
   return isDoorValue(row.from) && isDoorValue(row.to);
 }
 
-export function hallwayFromLegacyRow(row: ConnectionBackfillRow): ConnectionHallway {
+function hallwayFromLegacyRow(row: ConnectionBackfillRow): ConnectionHallway {
   const hallway = blankHallway({
     mapId: row.mapId,
     fromSystemId: row.fromSystemId,

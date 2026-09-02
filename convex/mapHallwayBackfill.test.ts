@@ -22,11 +22,7 @@ import {
   shipSizeValidator,
   wormholeTypeCodeValidator,
 } from './lib/mapEntityContracts';
-import {
-  HALLWAY_BACKFILL_BATCH,
-  hallwayFromLegacyRow,
-  hasNestedDoors,
-} from './mapHallwayBackfill';
+import { HALLWAY_BACKFILL_BATCH } from './mapHallwayBackfill';
 import schema from './schema';
 
 const expandedSchema = defineSchema({
@@ -90,60 +86,6 @@ const LIVE_FLAT = {
   deletedAt: null as number | null,
   purgeAfter: null as number | null,
 };
-
-describe('hallwayFromLegacyRow', () => {
-  it('maps a live flat row into blank hallway doors and a live tombstone', () => {
-    const hallway = hallwayFromLegacyRow({
-      mapId: LIVE_FLAT.mapId,
-      fromSystemId: LIVE_FLAT.fromSystemId,
-      toSystemId: LIVE_FLAT.toSystemId,
-      massState: LIVE_FLAT.massState,
-      shipSize: LIVE_FLAT.shipSize,
-      deletedAt: null,
-    });
-    const blank = blankHallway({
-      mapId: LIVE_FLAT.mapId,
-      fromSystemId: LIVE_FLAT.fromSystemId,
-      toSystemId: LIVE_FLAT.toSystemId,
-    });
-    expect(hallway.from).toEqual(blank.from);
-    expect(hallway.to).toEqual(blank.to);
-    expect(hallway.identity).toEqual({ kind: 'unknown' });
-    expect(hallway.lifetime).toEqual({ kind: 'unknown' });
-    expect(hallway.resolution).toEqual({ kind: 'open' });
-    expect(hallway.tombstone).toEqual({ kind: 'live' });
-    expect(hallway.massState).toBe('reduced');
-    expect(hallway.shipSize).toBe('M');
-    expect(hallway).not.toHaveProperty('fromWormholeTypeCode');
-    expect(hallway).not.toHaveProperty('eolAt');
-  });
-
-  it('stamps connectionRemovedTombstone when the flat row is tombstoned', () => {
-    const deletedAt = 1_800_000_000_000;
-    const hallway = hallwayFromLegacyRow({
-      mapId: LIVE_FLAT.mapId,
-      fromSystemId: LIVE_FLAT.fromSystemId,
-      toSystemId: LIVE_FLAT.toSystemId,
-      deletedAt,
-    });
-    expect(hallway.tombstone).toEqual({
-      kind: 'removed',
-      deletedAt,
-      purgeAfter: deletedAt + MAP_CHAIN_UNDO_WINDOW_MS,
-    });
-  });
-
-  it('treats nested doors as already rewritten', () => {
-    const nested = blankHallway({
-      mapId: 'm',
-      fromSystemId: 1,
-      toSystemId: 2,
-    });
-    expect(hasNestedDoors(nested)).toBe(true);
-    expect(hasNestedDoors({})).toBe(false);
-    expect(hasNestedDoors({ from: 'C247', to: 'K162' })).toBe(false);
-  });
-});
 
 describe('backfillHallwayConnections', () => {
   it('rewrites live and tombstoned flat rows and skips nested hallways', async () => {
