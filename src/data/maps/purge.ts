@@ -16,7 +16,6 @@ export interface MapAccessProjectionPurgeHooks {
   readonly purgeUserClaims: (userId: string) => Promise<unknown>;
 }
 
-/** Deletes every direct character grant for one character id. */
 async function deleteCharacterMapGrants(characterId: number): Promise<void> {
   await db
     .delete(mapAccess)
@@ -28,19 +27,21 @@ async function deleteCharacterMapGrants(characterId: number): Promise<void> {
     );
 }
 
-/** Deletes every map owned by one user (grants cascade with the map rows). */
 async function deleteOwnedMaps(userId: string): Promise<void> {
   await db.delete(maps).where(eq(maps.userId, userId));
 }
 
-/**
- * Credential-tier teardown for durable map access. Character transfer destroys
- * direct grants before the character can resolve under a new human; whole-user
- * purge deletes owned maps and their cascading grants. Whole-user purge first
- * removes each owned collaborative chain through the required bearer door so a
- * failed purge remains retryable; other projection reconciliation stays best
- * effort.
- */
+async function purgeOwnedMapChainsThenDeleteMaps(
+  userId: string,
+  purgeMapChain: MapAccessProjectionPurgeHooks['purgeMapChain'],
+): Promise<void> {
+  const ownedMapIds = await getOwnedMapIds(userId);
+  for (const mapId of ownedMapIds) {
+    await purgeMapChain(mapId);
+  }
+  await deleteOwnedMaps(userId);
+}
+
 export function createMapsPurgeContributor(
   hooks: MapAccessProjectionPurgeHooks,
 ): PurgeContributor {
@@ -66,15 +67,7 @@ export function createMapsPurgeContributor(
       }
     },
     async purgeUser({ userId }) {
-      const ownedMapIds = await getOwnedMapIds(userId);
-      // Collaborative chain rows are primary user-authored data. Purge them
-      // before deleting their Neon map identity so a failed door remains
-      // retryable instead of creating an unreachable orphan.
-      for (const mapId of ownedMapIds) {
-        await hooks.purgeMapChain(mapId);
-      }
-      await deleteOwnedMaps(userId);
-
+      await purgeOwnedMapChainsThenDeleteMaps(userId, hooks.purgeMapChain);
       await bestEffort('maps/purge', 'user claim purge', userId, () =>
         hooks.purgeUserClaims(userId),
       );
