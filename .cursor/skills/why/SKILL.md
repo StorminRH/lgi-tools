@@ -164,7 +164,7 @@ If your scope assessment suggests a single-commit trivial target where the PR de
 Spawn one synthesizer subagent:
 
 - `subagent_type`: `generalPurpose`
-- `model`: your configured why-synthesizer model (default `claude-fable-5-thinking-high`)
+- `model`: your configured why-synthesizer model (default `claude-opus-4.8-thinking-high`)
 - `readonly`: `false` (agent mode). The synthesizer's quality check spot-verifies citations, which can require MCP access. Readonly/Ask mode strips MCPs and defeats that.
 
 The synthesizer gets:
