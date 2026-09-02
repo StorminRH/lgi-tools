@@ -1,6 +1,6 @@
 ---
 name: thermo-nuclear-code-quality-review-subagent
-model: claude-fable-5[thinking=true,context=1m,effort=high]
+model: glm-5.2[effort=high,fast=false]
 description: Thermo-nuclear code quality audit (maintainability, structure, 1k-line rule, spaghetti, code-judo). Invoked via Task with a change number. Runs origin pr diff. Loads rubric from the local thermo-nuclear-code-quality-review skill.
 ---
 
