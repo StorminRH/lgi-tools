@@ -114,7 +114,7 @@ describe('backfillHallwayConnections', () => {
 
     await expect(
       t.mutation(internal.mapHallwayBackfill.backfillHallwayConnections, {}),
-    ).resolves.toEqual({ rewritten: 2, skipped: 1, hasMore: false });
+    ).resolves.toEqual({ rewritten: 2, skipped: 1 });
 
     const stored = await t.run(async (ctx) => ({
       live: await ctx.db.get(ids.liveId),
@@ -159,7 +159,7 @@ describe('backfillHallwayConnections', () => {
 
     await expect(
       t.mutation(internal.mapHallwayBackfill.backfillHallwayConnections, {}),
-    ).resolves.toEqual({ rewritten: 0, skipped: 3, hasMore: false });
+    ).resolves.toEqual({ rewritten: 0, skipped: 3 });
   });
 
   it('skips contracted hallway rows', async () => {
@@ -176,7 +176,7 @@ describe('backfillHallwayConnections', () => {
     });
     await expect(
       t.mutation(internal.mapHallwayBackfill.backfillHallwayConnections, {}),
-    ).resolves.toEqual({ rewritten: 0, skipped: 1, hasMore: false });
+    ).resolves.toEqual({ rewritten: 0, skipped: 1 });
     expect(HALLWAY_BACKFILL_BATCH).toBe(32);
   });
 });

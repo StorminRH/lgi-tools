@@ -12,7 +12,6 @@ export const HALLWAY_BACKFILL_BATCH = 32;
 const backfillResultValidator = v.object({
   rewritten: v.number(),
   skipped: v.number(),
-  hasMore: v.boolean(),
 });
 
 type ConnectionBackfillRow = {
@@ -40,7 +39,7 @@ function hasNestedDoors(row: {
   readonly from?: unknown;
   readonly to?: unknown;
 }): boolean {
-  return isDoorValue(row.from) && isDoorValue(row.to);
+  return isDoorValue(row.from) || isDoorValue(row.to);
 }
 
 function hallwayFromLegacyRow(row: ConnectionBackfillRow): ConnectionHallway {
@@ -71,14 +70,10 @@ export const backfillHallwayConnections = internalMutation({
   args: {},
   returns: backfillResultValidator,
   handler: async (ctx) => {
-    const rows = await ctx.db
-      .query('mapConnections')
-      .take(HALLWAY_BACKFILL_BATCH + 1);
-    const hasMore = rows.length > HALLWAY_BACKFILL_BATCH;
-    const batch = hasMore ? rows.slice(0, HALLWAY_BACKFILL_BATCH) : rows;
+    const rows = await ctx.db.query('mapConnections').take(HALLWAY_BACKFILL_BATCH);
     let rewritten = 0;
     let skipped = 0;
-    for (const row of batch) {
+    for (const row of rows) {
       if (hasNestedDoors(row)) {
         skipped += 1;
         continue;
@@ -86,6 +81,6 @@ export const backfillHallwayConnections = internalMutation({
       await ctx.db.replace(row._id, hallwayFromLegacyRow(row));
       rewritten += 1;
     }
-    return { rewritten, skipped, hasMore };
+    return { rewritten, skipped };
   },
 });
