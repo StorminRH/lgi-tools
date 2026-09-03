@@ -15,7 +15,6 @@ import { apiResponse } from '@/transport/api-response';
  */
 export const maxDuration = 60;
 
-// authz: public
 export const POST = marketRefreshRoute(
   'market.refresh-market-prices',
   refreshPricesEndpoint,

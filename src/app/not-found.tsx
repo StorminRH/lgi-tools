@@ -1,25 +1,16 @@
 import { NotFoundContent } from '@/components/composition/NotFoundContent';
 import { SiteFrame } from '@/components/composition/SiteFrame';
 
-/**
- * Framework-load-bearing: Next 16's not-found file convention honours a
- * `metadata` export to set the 404 page's head tags (the not-found.mdx docs),
- * the same metadata API page/layout use — so this title is consumed by Next,
- * not by app code. Fallow 3.8+ credits that convention, so no suppression.
- */
 export const metadata = {
   title: 'Not found',
   robots: { index: false, follow: false },
 };
 
-/**
- * Renders the / route surface and owns its page-level composition, metadata boundary, and fallback
- * presentation.
- */
 export default function NotFound() {
   return (
     <SiteFrame>
       <NotFoundContent />
     </SiteFrame>
+
   );
 }

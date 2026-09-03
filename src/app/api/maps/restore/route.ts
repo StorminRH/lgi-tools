@@ -2,8 +2,6 @@ import { runMapLifecycleRoute } from '@/app/api/maps/lifecycle-route';
 import { restoreMapForUser } from '@/composition/map-lifecycle';
 import { restoreMapEndpoint } from '@/data/maps/api-contract';
 
-/** Restores one admin-authorized map while its undo window is still open. */
-// authz: auth
 export async function POST(request: Request): Promise<Response> {
   return runMapLifecycleRoute(request, {
     capability: 'maps.restore-map',

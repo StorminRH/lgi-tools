@@ -112,7 +112,7 @@ describe('POST /api/internal/eve-token', () => {
       accessToken: 'fresh-access-token',
       expiresAt: 1_700_000_000_000,
     });
-    // The core custody guarantee: no refresh token key, and the word never appears.
+
     expect('refreshToken' in body).toBe(false);
     expect(text.toLowerCase()).not.toContain('refresh');
     expect(h.accountBelongsToUserMock).toHaveBeenCalledWith('user-1', 90000001);

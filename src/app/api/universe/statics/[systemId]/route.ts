@@ -5,9 +5,6 @@ import {
 import { getSystemStatics } from '@/data/wh-statics/queries';
 import { apiResponse } from '@/transport/api-response';
 
-/** Serves one system's promoted static wormhole codes from the shared tagged cache. */
-// authz: public
-// input: path
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ systemId: string }> },

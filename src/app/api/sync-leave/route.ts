@@ -7,12 +7,6 @@ import { checkUserId } from '@/platform/auth/route-guards';
 import { apiResponse, problemResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
-/**
- * Tab-close leave beacon. Session user id is the only identity; the body
- * names the dataset and the tab that is dying. sendBeacon ignores the
- * response, so success is 204.
- */
-// authz: auth
 export async function POST(request: Request): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'sync.leave-location',

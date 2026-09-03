@@ -27,10 +27,6 @@ export type MapLifecycleDenial = {
   readonly detail: string;
 };
 
-/**
- * Cookie-auth map archive / restore / purge-request shell. Composition owns the
- * work; this helper owns the shared mutation stages and the 204 / 403 pair.
- */
 export function runMapLifecycleRoute(
   request: Request,
   options: {

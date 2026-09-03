@@ -18,8 +18,6 @@ import { readJsonBody } from '@/transport/route-body';
 
 const MAP_CREATE_LIMIT_PER_MINUTE = 5;
 
-/** Authenticates, rate-limits, and atomically creates one durable map. */
-// authz: auth
 export async function POST(request: Request): Promise<Response> {
   let identityPromise: Promise<UserIdCheckResult> | undefined;
   const identity = () => {
