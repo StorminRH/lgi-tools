@@ -1,6 +1,3 @@
-// This suite deliberately never imports `@/transport/correlation`, so the module
-// under test is observed with no sink installed — the exact state it is in
-// inside the Convex isolate.
 import { describe, expect, it, vi } from 'vitest';
 import {
   addDependencyTiming,

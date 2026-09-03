@@ -1,8 +1,3 @@
-/**
- * Runs an optional async side-effect without letting its failure abort the
- * caller. Logs a breadcrumb when the action is unregistered so unwired entry
- * points are diagnosable.
- */
 export async function bestEffort(
   scope: string,
   label: string,

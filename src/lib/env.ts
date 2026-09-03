@@ -1,14 +1,11 @@
 import { z } from 'zod';
 
-const required = z.string().min(1); // '' ≡ missing (truthiness call sites)
-const verbatim = z.string(); // '' passes through (nullish / `===` call sites)
+const required = z.string().min(1);
+const verbatim = z.string();
 
 const REQUIRED_ENV = {
   DATABASE_URL: required,
-  // Staging Preview only. Neon Connect injects production DATABASE_URL onto
-  // Preview and custom-env deploys; these keys are not store-managed, so they
-  // survive that injection. Empty ≡ missing — readEnv('DATABASE_URL') then
-  // returns the real DATABASE_URL.
+
   LGI_DATABASE_URL: required,
   LGI_DATABASE_URL_UNPOOLED: required,
   EVE_CLIENT_ID: required,
@@ -16,9 +13,7 @@ const REQUIRED_ENV = {
   EVE_TOKEN_ENCRYPTION_KEY: required,
   ESI_SNAPSHOT_ENCRYPTION_KEY: required,
   CONVEX_SERVICE_SECRET: required,
-  // Convex staging (and any Preview behind Vercel SSO) sends this as
-  // x-vercel-protection-bypass on serviceFetch so token vend reaches the app.
-  // Empty ≡ missing — serviceFetch only attaches the header when set.
+
   VERCEL_AUTOMATION_BYPASS_SECRET: required,
   CRON_SECRET: required,
   LINEAR_API_KEY: required,
@@ -36,8 +31,7 @@ const VERBATIM_ENV = {
   SESSION_SECRET: verbatim,
   BETTER_AUTH_URL: verbatim,
   SUPERADMIN_CHARACTER_ID: verbatim,
-  // Rate limiting (Vercel-KV-style names from the marketplace integration,
-  // UPSTASH_* from a direct signup — rate-limit.ts accepts either)
+
   KV_REST_API_URL: verbatim,
   KV_REST_API_TOKEN: verbatim,
   UPSTASH_REDIS_REST_URL: verbatim,
@@ -45,8 +39,7 @@ const VERBATIM_ENV = {
   GOOGLE_SITE_VERIFICATION: verbatim,
   VERCEL_ENV: verbatim,
   VERCEL_URL: verbatim,
-  // Vercel injects these on hosted builds. Staging Preview uses them (plus
-  // LGI_PREVIEW_LINE) to pick the standing Convex backend.
+
   VERCEL_GIT_COMMIT_REF: verbatim,
   VERCEL_TARGET_ENV: verbatim,
   LGI_PREVIEW_LINE: verbatim,
@@ -58,16 +51,10 @@ const VERBATIM_ENV = {
 
 const SERVER_ENV = { ...REQUIRED_ENV, ...VERBATIM_ENV };
 
-/** Server environment names whose absence is always a configuration error at the read boundary. */
 export type RequiredEnvName = keyof typeof REQUIRED_ENV;
-/** Closed registry of server environment names permitted through the shared env reader. */
+
 export type ServerEnvName = RequiredEnvName | keyof typeof VERBATIM_ENV;
 
-/**
- * Returns the validated value, or undefined when unset / empty-on-a-required-var.
- * The caller keeps its existing fallback branch (503 / 500-with-message / silent
- * no-op / `??` chain) — this only replaces the raw read.
- */
 export function readEnv(name: ServerEnvName): string | undefined {
   if (name === 'DATABASE_URL' || name === 'DATABASE_URL_UNPOOLED') {
     const overrideName =
@@ -79,20 +66,12 @@ export function readEnv(name: ServerEnvName): string | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
-/**
- * Throwing read for sites where a missing var is a deployment error. Accepts
- * only REQUIRED keys: a verbatim key's empty value is meaningful, so the
- * `if (!value)` throw below would misfire on it — the type makes that a compile
- * error. The message matches the local helpers this replaces (auth,
- * eve-token-service, db scripts, …) byte-for-byte.
- */
 export function requireEnv(name: RequiredEnvName): string {
   const value = readEnv(name);
   if (!value) throw new Error(`${name} is not set`);
   return value;
 }
 
-/** Hosted Vercel production or preview. Local, CI `next start`, and `vercel dev` are not. */
 export function isHostedVercel(): boolean {
   const vercelEnv = readEnv('VERCEL_ENV');
   return vercelEnv === 'production' || vercelEnv === 'preview';
