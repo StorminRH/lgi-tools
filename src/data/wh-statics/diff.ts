@@ -1,6 +1,5 @@
 import type { WhStaticsDiff } from './schema';
 
-/** Minimal promoted or incoming assignment shape consumed by the pure differ. */
 export interface WhStaticAssignment {
   readonly systemId: number;
   readonly code: string;
@@ -30,10 +29,6 @@ function vocabulary(assignments: readonly WhStaticAssignment[]): Set<string> {
   return new Set(assignments.map((assignment) => assignment.code));
 }
 
-/**
- * Computes the complete system and code-vocabulary difference between the
- * promoted and incoming assignments without mutating either input.
- */
 export function diffStatics(
   promoted: readonly WhStaticAssignment[],
   incoming: readonly WhStaticAssignment[],
@@ -52,7 +47,7 @@ export function diffStatics(
     const before = promotedBySystem.get(systemId);
     const after = incomingBySystem.get(systemId);
     if (before === undefined) {
-      // `after` is defined by construction: the id came from one of the two maps.
+
       systemsAdded.push({ systemId, codes: sortedCodes(after!) });
     } else if (after === undefined) {
       systemsRemoved.push({ systemId, codes: sortedCodes(before) });

@@ -5,15 +5,13 @@ const PATHFINDER_FIXTURE = new URL(
   import.meta.url,
 );
 
-/** One original Pathfinder system-static assignment. */
 export interface PathfinderStaticRow {
   readonly systemId: number;
   readonly typeId: number;
 }
 
-/** Raised when the committed lineage CSV no longer matches its owned format. */
 export class PathfinderLineageError extends Error {
-  /** Creates a named fixture-format failure. */
+
   constructor(message: string) {
     super(message);
     this.name = 'PathfinderLineageError';
@@ -30,10 +28,6 @@ function positiveInteger(raw: string, field: string, lineNumber: number): number
   return value;
 }
 
-/**
- * Parses the semicolon-delimited Pathfinder lineage export after skipping its
- * auditable comment header, returning deterministic system/type ordering.
- */
 export function parsePathfinderLineage(csv: string): PathfinderStaticRow[] {
   const lines = csv
     .split(/\r?\n/)
@@ -62,7 +56,6 @@ export function parsePathfinderLineage(csv: string): PathfinderStaticRow[] {
   );
 }
 
-/** Reads and parses the committed MIT Pathfinder lineage fixture. */
 export async function readPathfinderLineage(): Promise<PathfinderStaticRow[]> {
   return parsePathfinderLineage(await readFile(PATHFINDER_FIXTURE, 'utf8'));
 }

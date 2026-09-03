@@ -23,7 +23,6 @@ export function toChangelogNavModel(documents: ChangelogDocument[]): ContentNavM
   };
 }
 
-/** Returns one changelog document by stable slug, or null when it does not exist. */
 export function findChangelogDocument(
   documents: ChangelogDocument[],
   slug: string,

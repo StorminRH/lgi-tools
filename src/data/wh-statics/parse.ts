@@ -22,25 +22,19 @@ const staticsPayloadSchema = z.object({
   wormholes: z.record(z.string(), wormholeSchema),
 });
 
-/** Validated and deterministically ordered community-feed data. */
 export interface ParsedStaticsFeed {
   readonly feedVersion: string;
   readonly entries: readonly WhStaticEntry[];
 }
 
-/** Boundary failure raised when a system names no matching wormhole definition. */
 export class UnknownStaticCodeError extends Error {
-  /** Creates a failure that retains both the offending system and code. */
+
   constructor(systemName: string, code: string) {
     super(`System ${systemName} lists unknown wormhole code ${code}`);
     this.name = 'UnknownStaticCodeError';
   }
 }
 
-/**
- * Validates the publisher payload and returns only normalized per-system statics,
- * sorted by system id and code. Publisher-only celestial and effect fields are discarded.
- */
 export function parseStaticsPayload(body: string): ParsedStaticsFeed {
   const parsed = staticsPayloadSchema.parse(JSON.parse(body));
   const entries: WhStaticEntry[] = [];

@@ -24,17 +24,11 @@ import {
   type WhStaticsSnapshotStatus,
 } from './schema';
 
-/**
- * Snapshot-table state observed by the pre-lock probe. The ETag conditions the
- * feed request; the newest snapshot id is the compare-and-swap baseline that
- * keeps a slow refresh from superseding a newer observation.
- */
 export interface WhStaticsProbeBaseline {
   readonly etag: string | null;
   readonly latestSnapshotId: number | null;
 }
 
-/** Complete validated material required to record one pending statics snapshot. */
 export interface RecordWhStaticsSnapshotInput {
   readonly feedVersion: string;
   readonly etag: string | null;
@@ -45,23 +39,17 @@ export interface RecordWhStaticsSnapshotInput {
   readonly crossCheck: WhStaticsCrossCheck;
 }
 
-/**
- * Outcome of one snapshot write: a new pending row, the identical observation
- * already on record, or a response older than the recorded snapshot table.
- */
 export type RecordWhStaticsSnapshotResult =
   | { readonly recorded: 'created'; readonly snapshotId: number }
   | { readonly recorded: 'duplicate'; readonly snapshotId: number }
   | { readonly recorded: 'stale'; readonly snapshotId: number };
 
-/** Summary of one operator-approved snapshot promotion. */
 export interface PromoteWhStaticsResult {
   readonly snapshotId: number;
   readonly systemCount: number;
   readonly assignmentCount: number;
 }
 
-/** Pending snapshot projection rendered by the operator review screen. */
 export interface PendingWhStaticsReview {
   readonly id: number;
   readonly feedVersion: string;
@@ -72,7 +60,6 @@ export interface PendingWhStaticsReview {
   readonly createdAt: Date;
 }
 
-/** Versioned serving projection returned to future statics consumers. */
 export interface PromotedStatics {
   readonly version: string;
   readonly systems: readonly {
@@ -81,9 +68,8 @@ export interface PromotedStatics {
   }[];
 }
 
-/** Typed refusal for a missing or no-longer-pending snapshot. */
 export class WhStaticsSnapshotStateError extends Error {
-  /** Snapshot id and observed state retained for route-level failure mapping. */
+
   constructor(
     readonly snapshotId: number,
     readonly status: WhStaticsSnapshotStatus | 'missing',
@@ -93,9 +79,8 @@ export class WhStaticsSnapshotStateError extends Error {
   }
 }
 
-/** Typed refusal to replace the promoted serving copy with no assignments. */
 export class WhStaticsEmptySnapshotError extends Error {
-  /** Retains the rejected snapshot id for route-level conflict reporting. */
+
   constructor(readonly snapshotId: number) {
     super(`Statics snapshot ${snapshotId} has no assignments to promote`);
     this.name = 'WhStaticsEmptySnapshotError';
@@ -159,10 +144,6 @@ interface LatestSnapshotRow {
   readonly status: WhStaticsSnapshotStatus;
 }
 
-/**
- * Whether the newest row already holds this observation. A rejected row never
- * matches, so the operator can reconsider the same feed body later.
- */
 function isSameObservation(
   latest: LatestSnapshotRow,
   etag: string | null,
@@ -172,11 +153,6 @@ function isSameObservation(
   return latest.etag === etag && latest.digest === digest;
 }
 
-/**
- * Decides whether the newest recorded row settles this write: the identical
- * observation is reused, and a row newer than the probe baseline means this
- * response was overtaken in flight. Null means the write should proceed.
- */
 function settledByLatestSnapshot(
   latest: LatestSnapshotRow,
   input: RecordWhStaticsSnapshotInput,
@@ -185,10 +161,7 @@ function settledByLatestSnapshot(
   if (isSameObservation(latest, input.etag, digest)) {
     return { recorded: 'duplicate', snapshotId: latest.id };
   }
-  // Snapshot ids are monotonic, so a higher id means another refresh recorded
-  // a newer observation while this response was in flight and this older body
-  // must not supersede it. A lower id only means retention pruned history,
-  // which leaves this observation current.
+
   const observed = input.baseline.latestSnapshotId ?? 0;
   if (latest.id > observed) {
     return { recorded: 'stale', snapshotId: latest.id };
@@ -203,11 +176,6 @@ function insertedSnapshotId(inserted: { id: number } | undefined): number {
   return inserted.id;
 }
 
-/**
- * Serializes writers, reuses an identical latest observation, refuses a
- * response older than the recorded table, or supersedes the prior pending
- * snapshot and inserts one canonical replacement atomically.
- */
 export function recordSnapshot(
   database: PostgresJsDb,
   input: RecordWhStaticsSnapshotInput,
@@ -254,11 +222,6 @@ export function recordSnapshot(
   });
 }
 
-/**
- * Reads the conditional-request ETag and the compare-and-swap baseline in one
- * pass. The ETag ignores rejected rows so a rejected feed stays reviewable,
- * while the baseline id tracks every row so any concurrent write is visible.
- */
 export async function getSnapshotProbeBaseline(
   database: AnyPgDb,
 ): Promise<WhStaticsProbeBaseline> {
@@ -283,7 +246,6 @@ export async function getSnapshotProbeBaseline(
   };
 }
 
-/** Returns the single pending snapshot, if any, for operator review. */
 export async function getPendingWhStaticsReview(
   database: AnyPgDb,
 ): Promise<PendingWhStaticsReview | null> {
@@ -303,7 +265,6 @@ export async function getPendingWhStaticsReview(
   return snapshot ?? null;
 }
 
-/** Returns the current promoted assignments without consulting a snapshot row. */
 export function readPromotedWhStaticsAssignments(
   database: AnyPgDb,
 ): Promise<Array<{ systemId: number; code: string }>> {
@@ -315,7 +276,6 @@ export function readPromotedWhStaticsAssignments(
     .from(whSystemStatics);
 }
 
-/** Reads the promoted static type codes for one system in deterministic code order. */
 export async function readSystemStaticsForSystem(
   database: AnyPgDb,
   systemId: number,
@@ -328,10 +288,6 @@ export async function readSystemStaticsForSystem(
   return rows.map((row) => row.code);
 }
 
-/**
- * Reads and groups the promoted serving table only, preserving deterministic
- * system-id and code order and carrying its denormalized feed version.
- */
 export async function readSystemStatics(
   database: AnyPgDb,
 ): Promise<PromotedStatics> {
@@ -355,7 +311,6 @@ export async function readSystemStatics(
   return { version: rows[0]?.feedVersion ?? '', systems };
 }
 
-/** Returns the tag-cached promoted statics copy without consulting the feed or snapshot table. */
 export async function getSystemStatics(): Promise<PromotedStatics> {
   'use cache';
   cacheLife('max');
@@ -363,10 +318,6 @@ export async function getSystemStatics(): Promise<PromotedStatics> {
   return withColdStartRetry(() => readSystemStatics(db));
 }
 
-/**
- * Replaces the serving copy from one pending snapshot and marks it promoted in
- * the same postgres-js transaction, then invalidates the read cache.
- */
 export async function promoteSnapshot(
   database: PostgresJsDb,
   snapshotId: number,
@@ -400,7 +351,6 @@ export async function promoteSnapshot(
   return result;
 }
 
-/** Marks one pending snapshot rejected without changing the promoted serving copy. */
 export function rejectSnapshot(
   database: PostgresJsDb,
   snapshotId: number,
@@ -414,10 +364,6 @@ export function rejectSnapshot(
   });
 }
 
-/**
- * Deletes reviewed or superseded snapshots older than the retention window,
- * always preserving pending rows and every snapshot referenced by the serving copy.
- */
 export async function pruneWhStaticsSnapshots(
   database: AnyPgDb,
   retentionDays: number,

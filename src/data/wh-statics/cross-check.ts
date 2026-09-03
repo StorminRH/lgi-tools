@@ -6,18 +6,16 @@ import type {
   WhStaticsDisagreement,
 } from './schema';
 
-/** Raised when the shipped wormhole codex cannot bridge a community code to a type id. */
 export class UnknownCodexStaticError extends Error {
-  /** Creates a named codex-coverage failure. */
+
   constructor(code: string) {
     super(`Wormhole codex has no type for static code ${code}`);
     this.name = 'UnknownCodexStaticError';
   }
 }
 
-/** Raised when a Pathfinder lineage type has no shipped wormhole-codex entry. */
 export class UnknownLineageTypeError extends Error {
-  /** Creates a named codex-coverage failure for one lineage type id. */
+
   constructor(typeId: number) {
     super(`Wormhole codex has no code for Pathfinder type ${typeId}`);
     this.name = 'UnknownLineageTypeError';
@@ -42,11 +40,6 @@ function equalSets(left: ReadonlySet<string>, right: ReadonlySet<string>): boole
   return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
-/**
- * Translates lineage type ids through the shipped codex and compares stable
- * per-system code sets without choosing a winner. Multiple SDE type ids may
- * legitimately carry the same code; type-id-to-code remains the unique bridge.
- */
 export function crossCheckStatics(
   entries: readonly WhStaticEntry[],
   lineageRows: readonly PathfinderStaticRow[],

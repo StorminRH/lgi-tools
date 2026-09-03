@@ -4,7 +4,6 @@ import type { DataOwnershipEntry } from '@/composition/__tests__/data-ownership-
 import { normalizeModulePath } from '@/lib/__tests__/module-path';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 
-/** One production write: the file that makes it, that file's slice, and the SQL table it targets. */
 export interface WriteSite {
   readonly file: string;
   readonly slice: string;
@@ -25,7 +24,6 @@ function isProductionSource(fileName: string): boolean {
   return !SKIPPED_SUFFIXES.some((suffix) => fileName.endsWith(suffix));
 }
 
-/** Every production TypeScript file under `rootDir`, excluding tests, fixtures, and test support. */
 function collectProductionSources(rootDir: string): string[] {
   const found: string[] = [];
   const walk = (directory: string): void => {
@@ -42,11 +40,6 @@ function collectProductionSources(rootDir: string): string[] {
   return found.sort();
 }
 
-/**
- * Resolves an import specifier to the repository-relative module path it names, covering the `@/`
- * source alias and relative specifiers. Returns the path with a `.ts` extension so it can be looked
- * up directly against reflected schema module keys.
- */
 export function resolveImportPath(fromFile: string, specifier: string): string | null {
   if (specifier.startsWith('@/')) return `${normalizeModulePath(`src/${specifier.slice(2)}`)}.ts`;
   if (!specifier.startsWith('.')) return null;
@@ -75,10 +68,6 @@ function addNamedBindings(
   }
 }
 
-/**
- * Maps the table symbols one source file has in scope to the SQL tables they name, resolving both
- * named imports (including aliases) and namespace imports, whose members resolve as `namespace.table`.
- */
 export function buildSymbolTable(
   file: string,
   source: string,
@@ -135,11 +124,6 @@ function tablesWrittenByRawSql(source: string, symbols: ReadonlyMap<string, stri
     );
 }
 
-/**
- * The SQL tables one source file writes, via Drizzle write-builder calls or raw `sql` templates whose
- * statement-leading keyword writes. Operands resolve through that file's own schema imports, so a
- * symbol the file never imported is never attributed to it.
- */
 export function findWrittenTables(
   file: string,
   source: string,
@@ -155,10 +139,6 @@ export function findWrittenTables(
   ];
 }
 
-/**
- * Every production write site under `rootDir`, deduplicated per file and table, with each file
- * attributed to the slice that owns its path.
- */
 export function scanProductionWriteSites(
   rootDir: string,
   exportsByModule: ReadonlyMap<string, Map<string, string>>,
@@ -174,11 +154,6 @@ export function scanProductionWriteSites(
   });
 }
 
-/**
- * The write sites no ownership declaration sanctions. A site passes when its slice owns the table or
- * appears in that table's declared cross-owner writers; every other site is reported with the exact
- * declaration that would sanction it.
- */
 export function findUndeclaredCrossOwnerWrites(
   sites: readonly WriteSite[],
   registry: readonly DataOwnershipEntry[],
