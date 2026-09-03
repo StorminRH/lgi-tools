@@ -12,7 +12,9 @@
 
 ## Delivered outcome
 
-None.
+Identity projection side effects take injected runners instead of a register cell.
+
+- Changed: Identity projection side effects take injected runners instead of a register cell.
 
 ## Divergences from plan
 

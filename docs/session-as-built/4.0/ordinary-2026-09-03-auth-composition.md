@@ -12,7 +12,9 @@
 
 ## Delivered outcome
 
-None.
+Login and session checks build in one composition layer.
+
+- Changed: Login and session checks build in one composition layer.
 
 ## Divergences from plan
 
