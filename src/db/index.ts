@@ -13,18 +13,10 @@ type HttpClient = ReturnType<typeof neon>;
 /** Owned alias for the postgres-js client handle; downstream modules type against this, never the vendor package. */
 export type Sql = ReturnType<typeof postgres>;
 
-/** Owned alias for a reserved direct connection held by advisory-lock holders; see `resolveLockConnectionUrl`. */
 export type ReservedConnection = Awaited<ReturnType<Sql['reserve']>>;
 
 const NEON_HTTP_TIMEOUT_MS = 30_000;
 
-/**
- * postgres-js connection-establishment bound in seconds, stated rather than inherited (the SDK's
- * silent default is the same 30s). Establishment only: lock holders and ingest legitimately run
- * long statements, so no statement timeout is set. Deliberately not tightened — the direct unpooled
- * endpoint these clients use is exactly where a suspended-compute wake is slowest. Exported so the
- * `src/scripts` CLI clients state the same bound without each re-deciding it.
- */
 export const PG_CONNECT_TIMEOUT_SECONDS = 30;
 
 function timedPostgres(url: string, options: Parameters<typeof postgres>[1]): Sql {
@@ -38,12 +30,6 @@ let _directClient: Sql | undefined;
 function getClient(): HttpClient {
   if (_client) return _client;
   const url = requireEnv('DATABASE_URL');
-  // The driver exposes no per-client fetch injection point (`fetchFunction` is
-  // global-only), so the bound is assigned here rather than at module scope:
-  // this module must stay import-side-effect-free, and there is exactly one
-  // `neon()` consumer in the tree, so the global's blast radius is this client.
-  // The same assignment is also the neon-http timing seam: one fetch per query
-  // means fetch duration is query duration.
   neonConfig.fetchFunction = async (input: string | URL, init?: RequestInit) => {
     const startedAt = performance.now();
     try {
@@ -52,22 +38,12 @@ function getClient(): HttpClient {
       addDependencyTiming('neon', performance.now() - startedAt);
     }
   };
-  // Neon HTTP driver: one `fetch` per query, no TCP connection held. A Neon
-  // compute that has scaled to zero slows the first query instead of erroring
-  // it on a dead socket — that's the production-outage fix.
   _client = neon(url);
   return _client;
 }
 
 function getDb(): Db {
   if (_db) return _db;
-  // Dev-only escape hatch: the neon-http driver speaks HTTP to a Neon SQL
-  // endpoint and cannot reach a plain local Postgres, so local `next dev`
-  // would 500 every request-path DB read. When LOCAL_DB_DRIVER=postgres-js is
-  // set (only ever in a developer's .env.local), build the request client over
-  // TCP postgres-js instead — the pre-3.2.1 behaviour, fully compatible since
-  // the request path uses no `db.batch`. Production never sets this var, so it
-  // always takes the neon-http path below.
   if (readEnv('LOCAL_DB_DRIVER') === 'postgres-js') {
     const url = requireEnv('DATABASE_URL');
     _db = drizzlePg(
@@ -79,12 +55,6 @@ function getDb(): Db {
   return _db;
 }
 
-/**
- * A Neon connection string is "pooled" when its host carries the `-pooler`
- * suffix — that endpoint is PgBouncer in transaction mode, which recycles the
- * underlying backend between statements and so cannot hold a session-scoped
- * advisory lock. Exported for the connection unit test.
- */
 export function isPooledHost(url: string): boolean {
   let hostname: string;
   try {
@@ -95,19 +65,6 @@ export function isPooledHost(url: string): boolean {
   return hostname.includes('-pooler');
 }
 
-/**
- * Resolves the connection string for session-scoped lock holders. Prefers the
- * direct (unpooled) endpoint and falls back to DATABASE_URL — which on local
- * Docker has no `-pooler`, so dev works without the extra var. Staging Preview
- * sets LGI_DATABASE_URL_UNPOOLED so Neon Connect's production unpooled inject
- * cannot win the lock path. Empty LGI overrides are missing. A pooled
- * LGI_DATABASE_URL without LGI_DATABASE_URL_UNPOOLED still fails closed
- * instead of falling through to Neon Connect's unpooled inject.
- *
- * Fail-closed: if the resolved URL is still a pooled host (unpooled var missing
- * in production), throw rather than silently run a lock that won't hold. The
- * request path never calls this, so this can't affect normal query throughput.
- */
 export function resolveLockConnectionUrl(): string {
   const url =
     readEnv('LGI_DATABASE_URL_UNPOOLED') ??
@@ -134,10 +91,6 @@ function getDirectClient(): Sql {
   return _directClient;
 }
 
-/**
- * Proxy preserves the `db.select(...)` call-site API while deferring
- * connection until the first actual database call at request time.
- */
 export const db: Db = new Proxy({} as Db, {
   get(_target, prop) {
     return (getDb() as unknown as Record<string | symbol, unknown>)[prop];

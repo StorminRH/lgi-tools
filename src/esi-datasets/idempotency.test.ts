@@ -1,7 +1,3 @@
-// Binds the idempotency registry to the tree. The registry is prose about live
-// behavior, so its failure mode is silent staleness: an entry describing a lock
-// that was removed, or a new cron with no entry at all. This census makes both
-// fail loudly.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -87,7 +83,7 @@ describe('idempotency registry', () => {
     for (const cronPath of vercelCronPaths) {
       expect(declared.has(cronPath), `no entry for cron ${cronPath}`).toBe(true);
     }
-    // And no entry claims a cron that vercel.json no longer schedules.
+
     for (const cronPath of declared) {
       expect(vercelCronPaths).toContain(cronPath);
     }
@@ -113,8 +109,7 @@ describe('idempotency registry', () => {
     for (const route of routes) {
       expect(declared.has(route), `no idempotency entry for ${route}`).toBe(true);
     }
-    // One-to-one: comparing the entry count rather than the deduplicated set
-    // catches a route declared twice, which a set comparison would hide.
+
     expect(routeEntries).toHaveLength(routes.length);
   });
 
@@ -136,7 +131,7 @@ describe('idempotency registry', () => {
   it('keeps the LGI-06 revocation outbox cited but unowned', () => {
     const lgi06 = IDEMPOTENCY_REGISTRY.find((entry) => entry.id.startsWith('LGI-06'));
     expect(lgi06?.verdict).toBe('coordinated-elsewhere');
-    // No owning module: an implementation must not be able to hide behind the entry.
+
     expect(lgi06?.module).toBeUndefined();
     expect(lgi06?.route).toBeUndefined();
   });
@@ -155,8 +150,7 @@ describe('idempotency registry verdicts', () => {
   });
 
   it('records an empty at-risk set as the terminal outcome', () => {
-    // Contract DC-6 and AC-5 accept a recorded no-at-risk verdict. The type has no
-    // `at-risk` member, so this asserts the recorded state rather than the type.
+
     const atRisk = IDEMPOTENCY_REGISTRY.filter(
       (entry) => (entry.verdict as string) === 'at-risk',
     );
@@ -189,7 +183,7 @@ describe('idempotency registry verdicts', () => {
       (entry: IdempotencyEntry) => entry.id === 'queue/enqueue',
     );
     expect(enqueue?.evidence).toMatch(/esi_refresh_jobs_live_key_unique/);
-    // The index the evidence names must still exist in the schema.
+
     const schema = readFileSync(
       path.join(ROOT, 'src/data/esi-refresh-jobs/schema.ts'),
       'utf8',
@@ -212,8 +206,7 @@ describe('idempotency registry verdicts', () => {
 
   it('rests the route verdicts on the absence of a retry in the API client', () => {
     const client = readFileSync(path.join(ROOT, 'src/transport/api-client.ts'), 'utf8');
-    // The route entries all claim nothing redelivers a browser mutation; that
-    // claim is only true while the shared client has no retry loop.
+
     expect(client).not.toMatch(/\bretry\b|\bretries\b|attempt\s*<|backoff/i);
     for (const entry of routeEntries) {
       expect(entry.redeliverySource).toMatch(/no retry/i);

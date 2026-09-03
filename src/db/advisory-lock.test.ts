@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { withAdvisoryLock } from './advisory-lock';
 
-// Reserved-connection stub: a tagged-template fn (the lock/unlock SQL) carrying
-// a `.release()`. `got` flips the acquisition; `sqlCalls` records each query so
-// the unlock is assertable.
 function makeClient(got: boolean, opts: { unlockThrows?: boolean } = {}) {
   const sqlCalls: string[] = [];
   const release = vi.fn();
@@ -37,7 +34,6 @@ describe('withAdvisoryLock', () => {
     const { client, sqlCalls, release } = makeClient(true);
     const outcome = await withAdvisoryLock(client, 42, async () => 'done');
     expect(outcome).toEqual({ busy: false, result: 'done' });
-    // Acquired then released.
     expect(sqlCalls.some((q) => q.includes('pg_try_advisory_lock'))).toBe(true);
     expect(sqlCalls.some((q) => q.includes('pg_advisory_unlock'))).toBe(true);
     expect(release).toHaveBeenCalledTimes(1);

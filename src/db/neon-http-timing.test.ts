@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DependencyKind } from '@/lib/dependency-timing';
 
-// The neon-http driver exposes no query hook, but it issues exactly one fetch per
-// query, so `neonConfig.fetchFunction` — already the timeout seam — is also the
-// timing seam. This suite drives that assigned function directly: the drivers are
-// mocked so nothing opens a connection.
-
 const NEON_URL = 'postgres://u:p@ep-x-123456.us-east-2.aws.neon.tech/db?sslmode=require';
 
 const { neonConfigMock, neonMock, fetchWithTimeoutMock } = vi.hoisted(() => ({
@@ -29,8 +24,6 @@ afterEach(() => {
   fetchWithTimeoutMock.mockClear();
 });
 
-// `vi.resetModules()` gives each case a fresh module graph, so the sink must be
-// installed on the same `dependency-timing` instance `./index` will import.
 async function installedFetchFunction() {
   vi.stubEnv('LOCAL_DB_DRIVER', '');
   vi.stubEnv('DATABASE_URL', NEON_URL);
@@ -41,7 +34,7 @@ async function installedFetchFunction() {
   });
 
   const { db } = await import('./index');
-  void db.select; // trigger the lazy Proxy → getDb() → getClient()
+  void db.select;
   const fetchFunction = neonConfigMock.fetchFunction;
   if (!fetchFunction) throw new Error('neonConfig.fetchFunction was not installed');
   return { fetchFunction, recorded };
