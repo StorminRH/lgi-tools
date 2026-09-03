@@ -1,6 +1,3 @@
-// The map's connection mutation seam and the dispatchers that announce its
-// outcomes. Split out of the retired edge-anchored card so the Signature
-// Editor, the canvas edge menu, and the ledger all reach one owner.
 import { toast } from '@/components/ui/toast';
 import type { Id } from '@/data/convex/data-model';
 import type { JumpResolverResponse } from '@/data/maps/api-contract';
@@ -10,7 +7,6 @@ import type { ConnectionFieldAuthoringApi } from '../authoring/connection-field-
 import { announceSeverOutcome } from '../authoring/sever-toast';
 import { announceSignatureRemoval } from './signature-toast';
 
-/** Full authoring surface: shared fields plus connection lifecycle. */
 export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
   readonly severConnection: (args: {
     mapId: string;
@@ -41,7 +37,6 @@ export interface ConnectionAuthoringApi extends ConnectionFieldAuthoringApi {
   }) => Promise<unknown>;
 }
 
-/** Sends one confirm (null target) or correct answer for a pending auto-link. */
 export function answerJumpResolution(input: {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'>;
@@ -55,12 +50,6 @@ export function answerJumpResolution(input: {
   });
 }
 
-/**
- * Answers a prompt and dismisses it only when the route delivered the answer.
- * A lost race or transport failure keeps the prompt and says so — a silently
- * swallowed correction would leave the user believing their override was
- * recorded.
- */
 export async function answerAndAnnounce(input: {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'>;
@@ -78,14 +67,6 @@ export async function answerAndAnnounce(input: {
   });
 }
 
-/**
- * Applies a manual type entry, then notifies the jump route on every HELD
- * mutation — a set emits at human tier, and a clear lets the server remove a
- * now-superseded observation under the preserved dedupe key. Only a refused
- * mutation (undefined result) skips the notification; the emit-or-delete
- * decision itself remains server-gated. Exported for focused proof of the
- * notify condition.
- */
 export async function applyWormholeType(input: {
   readonly mapId: string;
   readonly connection: ConnectionDetail;
@@ -107,31 +88,18 @@ export async function applyWormholeType(input: {
   });
 }
 
-/** Delete and Restore for one connection, already bound to their undo pathway. */
 export interface ConnectionLifecycleActions {
   readonly remove: () => void;
   readonly restore: () => void;
 }
 
-/**
- * The one place a UI surface gets connection destruction from.
- *
- * The editor's Delete and the edge menu's Delete are the same act for resolved
- * lines (sever + branch restore undo). Unresolved scanned stubs have no branch
- * to collapse — Delete tombstones them through removeSignatures, the same path
- * paste confirmation and the ceiling sweep use, so a restored expired stub can
- * actually leave the scanner again.
- */
 export function connectionLifecycleActions(input: {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'>;
   readonly authoring: ConnectionAuthoringApi;
-  /** Runs after a held removal or a restore — typically closing the editor. */
+
   readonly onDone: () => void;
-  /**
-   * When set, Delete tombstones this unresolved stub via removeSignatures
-   * instead of severConnection (which refuses null destinations).
-   */
+
   readonly stub?: {
     readonly systemId: number;
     readonly signatureId: string;
@@ -172,7 +140,6 @@ export function connectionLifecycleActions(input: {
   };
 }
 
-/** Tombstones one unresolved stub and offers the signature-restore undo. */
 async function removeStubAndAnnounce(input: {
   readonly mapId: string;
   readonly systemId: number;
@@ -211,7 +178,6 @@ async function removeStubAndAnnounce(input: {
   });
 }
 
-/** Announces one sever outcome; exported for focused proof of the toast path. */
 export async function severAndAnnounce(input: {
   readonly mapId: string;
   readonly connectionId: Id<'mapConnections'>;

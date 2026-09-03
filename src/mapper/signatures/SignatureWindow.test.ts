@@ -207,7 +207,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('Life');
     expect(html).toContain('Destination');
     expect(html).not.toContain('>Leads<');
-    // The typed code's destination class stays on the wormhole row.
+
     expect(html).toContain('data-signature-class');
     expect(html).toContain('>HS<');
     expect(html).toContain('Est. ISK');
@@ -278,8 +278,6 @@ describe('SignatureWindow component prompt and filter states', () => {
       '2 signatures missing from scan',
     );
 
-    // The pilot pasted down the chain: the prompt follows the paste target
-    // (missingCount) while row highlighting stays scoped to the listed system.
     const remote = render(1, new Set(), 3);
     expect(remote).toContain('data-signature-missing-prompt');
     expect(remote).toContain('3 signatures missing from scan');
@@ -318,7 +316,7 @@ describe('SignatureWindow component prompt and filter states', () => {
       {
         id: 49,
         name: 'Barren Perimeter Reservoir',
-        // Live-priced total (not the historical sheet 82.4M).
+
         estIsk: 28_100_000,
         liveRecipes: [{ typeId: 30370, units: 1_000, seedIsk: 28_100_000 }],
       },
@@ -343,9 +341,7 @@ describe('SignatureWindow component prompt and filter states', () => {
         onOpenSite: vi.fn(),
       }),
     );
-    // Catalogue-matched names (gas, combat, and data) open the read-only site
-    // viewer; wormholes stay inert for a viewer. Action verb is an sr-only
-    // prefix so ID / name / Est. ISK stay in the accessible name.
+
     expect(html.match(/sr-only">View site /g)?.length).toBe(3);
     expect(html).toContain('Barren Perimeter Reservoir');
     expect(html).toContain('Sansha Hideout');
@@ -356,7 +352,7 @@ describe('SignatureWindow component prompt and filter states', () => {
     expect(html).toContain('28.1M');
     expect(html).toContain('12.0M');
     expect(html).toContain('data-price-state="settled"');
-    // Combat headline is a plain span — only the harvestable cell uses LivePrice.
+
     expect(html.match(/data-price-state="/g)?.length).toBe(1);
     expect(html).not.toContain('aria-label="View site');
     expect(html).toContain('Mass WHL-001');

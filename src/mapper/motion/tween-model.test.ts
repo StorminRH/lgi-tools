@@ -11,7 +11,7 @@ import {
 } from './tween-model';
 
 const PLAN = tweenPlanOf(DEFAULT_MOTION_CONFIG, false);
-// Collapse-weight cases dial heavy explicitly: the shipped default is ordinary.
+
 const HEAVY_PLAN = tweenPlanOf(
   { ...DEFAULT_MOTION_CONFIG, collapseWeight: 'heavy' },
   false,
@@ -34,21 +34,19 @@ const departed = (systemId: number): MapChainIntent => ({
   systemId,
 });
 
-// ── SC-1.1 · DC-1 — births surface in place, never a positional tween ────────
 describe('appear path', () => {
   it('never creates a positional tween for an arrival', () => {
     const state = adoptIntents(createMotionState(), [appeared(31)], 1000, PLAN);
 
     expect(state.tweens.size).toBe(0);
     expect(state.entering.has(31)).toBe(true);
-    // No displacement write exists, so the node renders its exact kernel
-    // target from the first frame.
+
     const frame = stepMotion(state, 1000, EASE, NONE);
     expect(frame.displacements.size).toBe(0);
   });
 
   it('covers initial load and live insertion with the same vocabulary', () => {
-    // Initial load is just a larger batch of the same intent kind (DEP-6).
+
     const batch = [appeared(1), appeared(2), appeared(3)];
     const state = adoptIntents(createMotionState(), batch, 0, PLAN);
 
@@ -57,7 +55,6 @@ describe('appear path', () => {
   });
 });
 
-// ── SC-2.1 · DC-2 — glides adopt the intent's own from/to ────────────────────
 describe('move path', () => {
   it('adopts origin and target from the intent itself, not from any read-back', () => {
     const state = adoptIntents(
@@ -104,16 +101,13 @@ describe('move path', () => {
     const tween = state.tweens.get(31);
     expect(tween?.from.x).toBeCloseTo(midpoint, 6);
     expect(tween?.to).toEqual({ x: -40, y: 0 });
-    // The very next frame continues from the displaced value.
+
     const frame = stepMotion(state, PLAN.moveMs / 2, EASE, NONE);
     expect(frame.displacements.get(31)?.x).toBeCloseTo(midpoint, 6);
   });
 
   it('relocates instantly — no tween — when the move lands inside the birth window', () => {
-    // The split system/connection subscriptions reveal a system one merge
-    // before its attaching connection repositions it onto the tree; the node
-    // is still surfacing, so it must finish its birth at the tree position
-    // rather than zip over (operator direction 2026-08-02).
+
     let state = adoptIntents(createMotionState(), [appeared(31)], 0, PLAN);
     state = adoptIntents(
       state,
@@ -125,7 +119,6 @@ describe('move path', () => {
     expect(state.tweens.size).toBe(0);
     expect(state.entering.has(31)).toBe(true);
 
-    // After the birth window closes, an ordinary move glides again.
     const settled = stepMotion(state, PLAN.birthMs + 1, EASE, NONE).state;
     const gliding = adoptIntents(
       settled,
@@ -167,8 +160,6 @@ describe('move path', () => {
       PLAN,
     );
 
-    // The tab was hidden through the whole glide; the first resumed frame
-    // completes the tween rather than resuming from a stale frame count.
     const resumed = stepMotion(state, PLAN.moveMs * 10, EASE, NONE);
     expect(resumed.displacements.size).toBe(0);
     expect(resumed.state.tweens.size).toBe(0);
@@ -189,7 +180,6 @@ describe('move path', () => {
   });
 });
 
-// ── SC-3.1 · HC-2 — drag cancels, and dragged ids get no displacement ────────
 describe('drag path', () => {
   it('cancelForDrag drops the active tween at drag start', () => {
     const state = adoptIntents(
@@ -217,8 +207,7 @@ describe('drag path', () => {
     const frame = stepMotion(state, PLAN.moveMs / 2, EASE, new Set([31]));
     expect(frame.displacements.has(31)).toBe(false);
     expect(frame.displacements.has(32)).toBe(true);
-    // The dragged node's tween is gone, not paused: a later frame without the
-    // drag still writes nothing.
+
     const after = stepMotion(frame.state, PLAN.moveMs * 0.75, EASE, NONE);
     expect(after.displacements.has(31)).toBe(false);
   });
@@ -235,7 +224,6 @@ describe('drag path', () => {
   });
 });
 
-// ── Plan hard constraint — empty and repeated batches are inert ──────────────
 describe('batch discipline', () => {
   it('returns the same state for an empty batch (pin/release merges)', () => {
     const state = adoptIntents(
@@ -249,7 +237,6 @@ describe('batch discipline', () => {
   });
 });
 
-// ── Ghost lifecycle — clock-scheduled exits, supersession, collapse weight ───
 describe('departure path', () => {
   it('creates a clock-bounded ghost that expires on schedule', () => {
     const state = adoptIntents(createMotionState(), [departed(31)], 0, PLAN);
@@ -270,8 +257,7 @@ describe('departure path', () => {
   });
 
   it('weighs a wormhole collapse — system and connection departing together — as heavy', () => {
-    // The atomic collapse transaction's exact signature: one system leaves
-    // with its severed connection in one merge (operator direction 2026-08-02).
+
     const collapse = [
       departed(31),
       { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent,
@@ -295,7 +281,7 @@ describe('departure path', () => {
   });
 
   it('keeps a bare system removal ordinary, and everything ordinary at the shipped default', () => {
-    // No connection in the batch → not a wormhole collapse, whatever the dial.
+
     const single = adoptIntents(createMotionState(), [departed(31)], 0, HEAVY_PLAN);
     expect(single.ghosts.get(31)?.heavy).toBe(false);
 
@@ -307,7 +293,6 @@ describe('departure path', () => {
     );
     expect(bare.ghosts.get(31)?.heavy).toBe(false);
 
-    // The shipped default (collapse exit: ordinary) never weighs a collapse.
     const state = adoptIntents(
       createMotionState(),
       [departed(31), { kind: 'connection-departed', connectionId: 'c1' } as MapChainIntent],
@@ -318,7 +303,6 @@ describe('departure path', () => {
   });
 });
 
-// ── HC-5 — idle detection: the loop's stop condition ─────────────────────────
 describe('idle detection', () => {
   it('starts idle and returns to idle when the schedule drains', () => {
     expect(isIdle(createMotionState())).toBe(true);
@@ -346,7 +330,6 @@ describe('idle detection', () => {
   });
 });
 
-// ── DC-6 — the live reduced-motion flip mid-tween ────────────────────────────
 describe('finishAllTweens', () => {
   it('resolves every in-flight glide instantly and leaves windows alone', () => {
     const state = adoptIntents(

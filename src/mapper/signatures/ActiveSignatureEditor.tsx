@@ -1,11 +1,5 @@
 'use client';
 
-// Resolves what the one Signature Editor is currently editing.
-//
-// The provider holds only a connection id; everything else — which live row it
-// names, whether that row still admits an editor, the destination's identity
-// readout, and the mutation seam — is derived here so the editor component
-// stays presentation plus its drawn row tie.
 import { useEffect } from 'react';
 import type { Id } from '@/data/convex/data-model';
 import {
@@ -26,7 +20,6 @@ import { SignatureEditor } from './SignatureEditor';
 import { doorLeadsTo } from '@/data/maps/connection-door-destinations';
 import { destinationReadout } from './system-readout';
 
-/** Whether the row has a resolved destination (the card-parity type path). */
 function isResolvedConnection(
   connection: ConnectionEditorDetail,
 ): connection is ConnectionDetail {
@@ -92,8 +85,6 @@ export function ActiveSignatureEditor({
     systemInfo,
   );
 
-  // A row that tombstones past its undo window, or leaves the feed entirely,
-  // closes the editor rather than freezing a stale copy of itself on screen.
   useEffect(() => {
     if (connectionId !== null && selection === null) onClose();
   }, [connectionId, selection, onClose]);
@@ -157,13 +148,7 @@ function ActiveSignatureEditorView({
       destination={destination}
       originLeads={originLeads}
       setters={connectionFieldSetters(mapId, edited, authoring, (value) => {
-        // Parity with the retired connection card: type entry on a RESOLVED
-        // row runs the same typed-hole notification (observation emit plus
-        // superseded-row repair), so identical user intent cannot produce
-        // divergent Neon state. A scanned unresolved stub needs no second
-        // channel — its setter already cascades the elimination pass, which
-        // logs that row's identity at its own tier and corrects the key in
-        // place (ruling D-B).
+
         if (isResolvedConnection(edited)) {
           void applyWormholeType({ mapId, connection: edited, value, authoring });
           return;

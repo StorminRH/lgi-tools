@@ -132,5 +132,6 @@ export function SignatureProvider({
         onClose={panel.closePanel}
       />
     </SignatureRowsProvider>
+
   );
 }

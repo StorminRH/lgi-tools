@@ -1,8 +1,5 @@
 'use client';
 
-// Shared scanner-anchored panel chrome for the Signature Editor and the
-// read-only site viewer: bracket/leader to the originating row, Escape and
-// outside-click dismiss, and MapWindow geometry beside the scanner dock.
 import {
   useCallback,
   useEffect,
@@ -35,7 +32,6 @@ export type MeasuredRow = MeasuredBox & {
   closest(selector: string): MeasuredBox | null;
 };
 
-/** Turns live layer/panel/row boxes into the drawn leader, or null. */
 export function measureEditorLeader(
   layer: MeasuredBox | null,
   panel: MeasuredBox | null,
@@ -61,7 +57,6 @@ export function measureEditorLeader(
   });
 }
 
-/** Tracks the bracket/leader geometry joining the panel to its scanner row. */
 function useEditorLeader(
   signatureId: string | null,
   layerRef: React.RefObject<HTMLDivElement | null>,
@@ -78,13 +73,11 @@ function useEditorLeader(
   useLayoutEffect(() => {
     measure();
     window.addEventListener('resize', measure);
-    // Capture: the scanner list scrolls inside its own tab panel, which never
-    // bubbles a scroll event to the window.
+
     document.addEventListener('scroll', measure, true);
     const panel = panelRef.current;
     let observer: ResizeObserver | null = null;
-    // The panel grows when body content lands; the leader has to follow that
-    // reflow, not just window-level events.
+
     if (panel !== null && typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(measure);
       observer.observe(panel);
@@ -99,7 +92,6 @@ function useEditorLeader(
   return leader;
 }
 
-/** Dismisses on Escape or a true outside click; a map pan or drag leaves it open. */
 function useOutsideDismiss(
   panelRef: React.RefObject<HTMLDivElement | null>,
   onClose: () => void,
@@ -127,9 +119,7 @@ function useOutsideDismiss(
     };
 
     const handlePointerDown = (event: PointerEvent) => {
-      // Arm only when a click here would be eligible to dismiss — ignore
-      // starts on the panel or an open popup so a later up elsewhere cannot
-      // close it.
+
       const action = outsideDismissAction({
         ...containment(event.target),
         isClick: true,
@@ -155,8 +145,6 @@ function useOutsideDismiss(
       if (action === 'dismiss-card') onClose();
     };
 
-    // Document-level Escape matches MapWindowLayer's card dismissal: the
-    // panel's own onKeyDown only fires when focus is already inside it.
     const handleKeyDown = (event: KeyboardEvent) => {
       const action = keydownAction({
         key: event.key,
@@ -180,7 +168,6 @@ function useOutsideDismiss(
   }, [panelRef, onClose]);
 }
 
-/** How far the bracket arms reach back toward the row they embrace. */
 const BRACKET_ARM_PX = 4;
 
 function EditorLeaderLine({ leader }: { readonly leader: EditorLeader | null }) {
@@ -208,33 +195,25 @@ function EditorLeaderLine({ leader }: { readonly leader: EditorLeader | null }) 
         className="stroke-isk"
       />
     </svg>
+
   );
 }
 
-/** Props for the shared scanner-anchored panel host. */
 export interface ScannerAnchoredPanelProps {
-  /** Originating scanner row id for the bracket/leader; null draws no leader. */
+
   readonly signatureId: string | null;
   readonly windowId: string;
   readonly title: string;
   readonly onClose: () => void;
-  /**
-   * Panel measure: editor (compact fields) or site (catalogue-card width).
-   * Defaults to editor.
-   */
+
   readonly measure?: ScannerAnchoredMeasure;
-  /** When false, omit the title-bar × (Escape / outside-click still dismiss). */
+
   readonly showCloseButton?: boolean;
-  /** Extra attributes on the pointer-inert layer (e.g. connection mode). */
+
   readonly layerProps?: Record<string, string | undefined>;
   readonly children: ReactNode;
 }
 
-/**
- * Scanner-anchored pop-out chrome: window shell, drawn row tie, and shared
- * Escape / outside-click dismissal. Connection edit and site view swap only
- * the body.
- */
 export function ScannerAnchoredPanel({
   signatureId,
   windowId,
@@ -270,6 +249,8 @@ export function ScannerAnchoredPanel({
       >
         {children}
       </MapWindow>
+
     </div>
+
   );
 }

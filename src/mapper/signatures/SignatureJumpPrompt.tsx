@@ -9,13 +9,11 @@ import {
   type JumpResolutionModel,
 } from './jump-resolution';
 
-/** Props for the scanner-overlay ambiguous-jump prompt. */
 export interface SignatureJumpPromptProps {
   readonly resolution: JumpResolutionModel;
   readonly onPick: (candidate: JumpResolutionCandidate) => void;
 }
 
-/** Asks which exact matcher survivor carried one ambiguous jump. */
 export function SignatureJumpPrompt({
   resolution,
   onPick,
@@ -36,8 +34,10 @@ export function SignatureJumpPrompt({
         >
           {resolution.destination.label}
         </span>{' '}
+
         — Which signature did you jump through?
       </p>
+
       <div className="flex flex-col gap-1">
         {resolution.candidates.map((candidate) => (
           <Button
@@ -49,8 +49,11 @@ export function SignatureJumpPrompt({
           >
             {jumpCandidateLabel(candidate)}
           </Button>
+
         ))}
       </div>
+
     </div>
+
   );
 }

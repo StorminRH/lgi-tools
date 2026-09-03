@@ -26,7 +26,9 @@ function ScannerPasteHint() {
       <h3 className="px-2.5 py-1.5 text-center font-ui text-label font-semibold text-isk">
         Paste signatures anywhere on the page.
       </h3>
+
     </section>
+
   );
 }
 
@@ -81,7 +83,9 @@ function ScannerListScroller({
         )}
       >
         <div className="min-w-0 w-full max-w-full">{children}</div>
+
       </div>
+
       <div
         aria-hidden
         data-scanner-scroll-frost="start"
@@ -99,6 +103,7 @@ function ScannerListScroller({
         )}
       />
     </div>
+
   );
 }
 
@@ -171,9 +176,13 @@ export function ScannerWindowFrame({
                 onOpenActions={onOpenActions}
               />
             </ScannerListScroller>
+
           ) : null}
         </div>
+
       </MapWindow>
+
     </ScannerScrollEpochProvider>
+
   );
 }
