@@ -21,12 +21,6 @@ import { StatusStrip } from './StatusStrip';
 import { TrafficSection } from './TrafficSection';
 import { UsersSection } from './UsersSection';
 
-// The owner's single-page dashboard: headline KPIs with period-over-period
-// deltas, an is-anything-broken status strip, traffic & SEO, and user
-// engagement — every metric exactly once, no tabs. Role management lives on
-// /admin/access. Charts stay on one blue accent; green/amber/red are reserved
-// for status dots and KPI deltas.
-
 function RangeSelector({ range }: { range: RangeKey }) {
   return (
     <SegmentedControl
@@ -57,8 +51,10 @@ function SectionFallback() {
           <Skeleton className={row === 1 ? 'h-3 w-3/5' : 'h-3 w-2/5'} />
           <Skeleton className="h-3 w-16" />
         </div>
+
       ))}
     </Card>
+
   );
 }
 
@@ -81,6 +77,7 @@ async function AdminContent({
       <div className="print-only mb-1 font-data text-label tracking-wide uppercase text-muted">
         Admin report — {formatIsoDay(range.from)} to {formatIsoDay(range.to)}
       </div>
+
       <PageHead
         size="compact"
         crumb="admin"
@@ -89,6 +86,7 @@ async function AdminContent({
           <span className="font-data">
             {formatIsoDay(range.from)} → {formatIsoDay(range.to)}
           </span>
+
         }
         meta={
           <div className="flex items-center gap-3">
@@ -99,8 +97,10 @@ async function AdminContent({
             >
               Access →
             </Link>
+
             <PrintButton />
           </div>
+
         }
       />
 
@@ -111,33 +111,44 @@ async function AdminContent({
 
         <section>
           <GroupHeading>System health</GroupHeading>
+
           <Suspense fallback={<SectionFallback />}>
             <StatusStrip range={range} />
           </Suspense>
+
         </section>
 
         <section>
           <GroupHeading>ESI &amp; ops</GroupHeading>
+
           <Suspense fallback={<SectionFallback />}>
             <OpsSection rangeKey={rangeKey} range={range} />
           </Suspense>
+
         </section>
 
         <section>
           <GroupHeading>Traffic &amp; SEO</GroupHeading>
+
           <Suspense fallback={<SectionFallback />}>
             <TrafficSection rangeKey={rangeKey} range={range} />
           </Suspense>
+
         </section>
 
         <section>
           <GroupHeading>Users</GroupHeading>
+
           <Suspense fallback={<SectionFallback />}>
             <UsersSection range={range} />
           </Suspense>
+
         </section>
+
       </div>
+
     </>
+
   );
 }
 
@@ -147,10 +158,6 @@ function AdminLoading() {
   );
 }
 
-/**
- * Per-user, session-gated: the content (auth check, redirect, DB reads) is a
- * fully request-time dynamic hole. Only the page container prerenders.
- */
 export default function AdminPage({
   searchParams,
 }: {
@@ -162,7 +169,10 @@ export default function AdminPage({
         <Suspense fallback={<AdminLoading />}>
           <AdminContent searchParams={searchParams} />
         </Suspense>
+
       </div>
+
     </PageShell>
+
   );
 }

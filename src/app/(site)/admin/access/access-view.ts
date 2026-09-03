@@ -3,17 +3,10 @@ import { CHARACTER_SEARCH_LIMIT, type AdminUser } from '@/platform/auth/admin-us
 
 export type AuditRow = Awaited<ReturnType<typeof getRoleChangeAudit>>[number];
 
-/** Timestamp for the audit table: "YYYY-MM-DD HH:MM" in UTC. */
 export function formatDateTime(d: Date): string {
   return d.toISOString().replace('T', ' ').slice(0, 16);
 }
 
-/**
- * The Admins list: each DB admin, plus the env superadmin synthetically (when
- * their DB role isn't already ADMIN) so they're never invisible on the page they
- * govern. The superadmin is matched by the USER that owns the env character id
- * (a pilot can link several characters), passed in already resolved.
- */
 export function mergeAdminRows(
   dbAdmins: AdminUser[],
   superUser: AdminUser | null,
@@ -26,7 +19,6 @@ export function mergeAdminRows(
   return rows;
 }
 
-/** The role chip for an admin row: superadmin/admin are purple, a plain user blue. */
 export function adminRoleBadge(opts: { isSuperadmin: boolean; role: string }): {
   tone: 'purple' | 'blue';
   label: string;
@@ -36,7 +28,6 @@ export function adminRoleBadge(opts: { isSuperadmin: boolean; role: string }): {
   return { tone: 'blue', label: 'User' };
 }
 
-/** One audit row's rendered fields: labels (with id fallbacks) + role-pill tones. */
 export function deriveAuditRowView(row: AuditRow): {
   timestamp: string;
   actorLabel: string;
@@ -57,11 +48,6 @@ export function deriveAuditRowView(row: AuditRow): {
   };
 }
 
-/**
- * The Access page's derived view: the admin count + subtitle bits, the search
- * results with admins filtered out (and the truncation flag from the one-past-cap
- * probe), and the results-card hint.
- */
 export function deriveAccessView(opts: {
   adminRows: ReadonlyArray<{ user: { userId: string } }>;
   searchResults: AdminUser[];
@@ -76,8 +62,7 @@ export function deriveAccessView(opts: {
   resultsHint: string;
 } {
   const adminUserIds = new Set(opts.adminRows.map((r) => r.user.userId));
-  // The search fetches one row past the cap as a truncation probe; a full extra
-  // row means the match set was cut off (not naturally cap-sized).
+
   const searchTruncated = opts.searchResults.length > CHARACTER_SEARCH_LIMIT;
   const nonAdminMatches = opts.searchResults
     .slice(0, CHARACTER_SEARCH_LIMIT)

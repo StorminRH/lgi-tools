@@ -34,6 +34,7 @@ function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
       key: 'verdict',
       label: 'Verdict',
       render: (row) => <Pill tone={coverageTone(row.verdict)}>{row.verdict ?? 'UNKNOWN'}</Pill>,
+
     },
     { key: 'reason', label: 'Coverage reason', render: (row) => row.reason, className: 'text-muted' },
     {
@@ -59,13 +60,10 @@ function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
         getRowKey={(row) => row.url}
       />
     </div>
+
   );
 }
 
-/**
- * Renders the gsc coverage section surface; this component owns local presentation and interaction
- * wiring while callers own domain data.
- */
 export async function GscCoverageSection({ range }: { range: GscRange }) {
   if (!isGscConfigured()) {
     return (
@@ -75,7 +73,9 @@ export async function GscCoverageSection({ range }: { range: GscRange }) {
           Not connected — set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync index
           coverage.
         </EmptyState>
+
       </Card>
+
     );
   }
 
@@ -95,6 +95,7 @@ export async function GscCoverageSection({ range }: { range: GscRange }) {
       <SectionHeader size="md" label="Index coverage" hint="daily URL inspection" />
       {view.total === 0 ? (
         <EmptyState>No URL inspection history synced yet.</EmptyState>
+
       ) : (
         <>
           <MultiplesGrid columns={2}>
@@ -112,6 +113,7 @@ export async function GscCoverageSection({ range }: { range: GscRange }) {
                 ariaLabel="Indexed sitemap URLs by inspection day"
               />
             </MultiplesCell>
+
             <MultiplesCell
               title="Not indexed"
               value={view.notIndexed.toLocaleString()}
@@ -126,13 +128,17 @@ export async function GscCoverageSection({ range }: { range: GscRange }) {
                 ariaLabel="Not-indexed sitemap URLs by inspection day"
               />
             </MultiplesCell>
+
           </MultiplesGrid>
+
           <SectionHeader variant="sub" label="Latest coverage reasons" className="border-y border-border-soft px-3.5 py-2" />
           <DistributionBars rows={view.reasons} ariaLabel="Latest URL coverage reasons" />
           <SectionHeader variant="sub" label="Latest URL status · non-indexed first" className="border-t border-border-soft px-3.5 py-2" />
           <CoverageTable rows={view.rows} />
         </>
+
       )}
     </Card>
+
   );
 }

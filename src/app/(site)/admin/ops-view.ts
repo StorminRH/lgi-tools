@@ -12,10 +12,6 @@ import { SLI_DEFINITIONS, type SliId, type SliUnit } from '@/data/telemetry/sli'
 import { ESI_BUDGET_FLOOR } from '@/platform/esi';
 import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 
-/**
- * Display-ready ops metric row produced by App Router; values retain their domain units and
- * require no additional query by the renderer.
- */
 export interface OpsMetricRow {
   label: string;
   value: string;
@@ -30,10 +26,6 @@ function elapsedLabel(from: Date, now: Date): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-/**
- * Derives budget view under the App Router policy without transferring ownership of
- * caller-provided inputs.
- */
 export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
   if (snapshot === null) {
     return {
@@ -73,7 +65,6 @@ export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
   };
 }
 
-/** Derives queue view under the App Router policy without transferring ownership of caller-provided inputs. */
 export function deriveQueueView(stats: EsiRefreshQueueStat[], now: Date) {
   const rows = stats.map((row) => ({
     status: row.status,
@@ -89,10 +80,6 @@ export function deriveQueueView(stats: EsiRefreshQueueStat[], now: Date) {
   };
 }
 
-/**
- * Derives dead letter view under the App Router policy without transferring ownership of
- * caller-provided inputs.
- */
 export function deriveDeadLetterView(rows: DeadLetterRow[]) {
   return rows.map((row) => ({
     id: row.id,
@@ -104,10 +91,6 @@ export function deriveDeadLetterView(rows: DeadLetterRow[]) {
   }));
 }
 
-/**
- * Derives cost lens view under the App Router policy without transferring ownership of
- * caller-provided inputs.
- */
 export function deriveCostLensView(input: {
   prices: PriceSourceSplit;
   history: HistorySourceSplit;
@@ -169,10 +152,6 @@ export function deriveCostLensView(input: {
   };
 }
 
-/**
- * Derives domain event under the App Router policy without transferring ownership of
- * caller-provided inputs.
- */
 export function summarizeDomainEvent(event: DomainEventRow): string {
   switch (event.eventType) {
     case 'price_refresh_finished':
@@ -188,7 +167,6 @@ export function summarizeDomainEvent(event: DomainEventRow): string {
   }
 }
 
-/** One service indicator prepared for display: its live value, owner, and response action. */
 export interface SliRow {
   id: SliId;
   label: string;
@@ -197,37 +175,27 @@ export interface SliRow {
   responseAction: string;
 }
 
-/** Live backlog for the queued-work indicator. */
 export interface JobBacklog {
   pending: number;
   deadLettered: number;
 }
 
-/** Live value for one indicator: a ratio, a duration, the queue backlog, or nothing recorded. */
 export type SliValue = number | JobBacklog | null;
 
-/**
- * Reduces the queue's own status rollup to the backlog indicator's two numbers. This lives here
- * rather than in the telemetry slice because reading the refresh queue from `data/telemetry` would
- * be a peer-slice import; the admin page already owns both reads, so the composition belongs above
- * them.
- */
 export function deriveJobBacklog(stats: EsiRefreshQueueStat[]): JobBacklog {
   const countFor = (statuses: readonly string[]) =>
     stats
       .filter((stat) => statuses.includes(stat.status))
       .reduce((total, stat) => total + stat.count, 0);
   return {
-    // The live set is the queue's own declaration, so a status added there is
-    // counted here without a second edit.
+
     pending: countFor(LIVE_ESI_REFRESH_JOB_STATUSES),
     deadLettered: countFor(['dead_lettered']),
   };
 }
 
 function formatSliValue(unit: SliUnit, value: SliValue): string {
-  // An empty window renders as an em dash, never 0%, so an idle period is not
-  // misread as total failure.
+
   if (value === null) return '—';
   if (unit === 'count') {
     const backlog = value as JobBacklog;
@@ -238,11 +206,6 @@ function formatSliValue(unit: SliUnit, value: SliValue): string {
   return `${Math.round(value)} ms`;
 }
 
-/**
- * Derives the service-indicator view under the App Router policy without transferring ownership of
- * caller-provided inputs. Reads the declared indicator list rather than restating it, so an
- * indicator added to `sli.ts` appears here without a second edit.
- */
 export function deriveSliView(values: Record<SliId, SliValue>): SliRow[] {
   return SLI_DEFINITIONS.map((sli) => ({
     id: sli.id,

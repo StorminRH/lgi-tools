@@ -10,18 +10,10 @@ import type { DateRange } from '@/data/telemetry/types';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { SectionUnavailable } from './SectionUnavailable';
 
-// Aggregate-only user engagement — counts, never identities. The new-vs-
-// returning split (once a KPI sub) is now a labelled share bar; below it, "how
-// often do the people who sign in come back?" as a horizontal distribution.
-// Role management + audit live on /admin/access.
-
 function pluralUsers(n: number): string {
   return `${n.toLocaleString()} user${n === 1 ? '' : 's'}`;
 }
 
-/**
- * Loads and renders account-growth and engagement metrics for the selected admin date range.
- */
 export async function UsersSection({ range }: { range: DateRange }) {
   const fetched = await loadSection('users', () =>
     Promise.all([getLoginCountsPerUser(range), getReturningVsNew(range)]),
@@ -50,9 +42,11 @@ export async function UsersSection({ range }: { range: DateRange }) {
             ariaLabel="New versus returning signed-in users"
           />
         </div>
+
       )}
       {loginCounts.length === 0 ? (
         <EmptyState>No sign-ins in this range.</EmptyState>
+
       ) : (
         <div className="pt-1">
           <SectionHeader variant="sub" label="Users by login count" className="px-3.5 py-2" />
@@ -63,13 +57,17 @@ export async function UsersSection({ range }: { range: DateRange }) {
             ariaLabel="Users by login count"
           />
         </div>
+
       )}
       <div className="px-3.5 py-2 border-t border-border-soft text-ui text-muted">
         Admin roles and the role-change audit live on{' '}
         <Link href="/admin/access" className="text-isk hover:text-name transition-colors">
           Access →
         </Link>
+
       </div>
+
     </Card>
+
   );
 }
