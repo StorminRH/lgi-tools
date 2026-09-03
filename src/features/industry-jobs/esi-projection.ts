@@ -1,5 +1,3 @@
-// Wire shape verified against the live ESI OpenAPI spec
-
 import { z } from 'zod';
 
 export const JOB_STATUSES = [
@@ -15,17 +13,14 @@ export type JobStatus = (typeof JOB_STATUSES)[number];
 
 export const industryJobSchema = z.object({
   job_id: z.number().int(),
-
   installer_id: z.number().int().optional(),
   activity_id: z.number().int(),
   blueprint_type_id: z.number().int(),
-
   product_type_id: z.number().int().optional(),
   runs: z.number().int(),
   status: z.enum(JOB_STATUSES),
   start_date: z.string(),
   end_date: z.string(),
-
   pause_date: z.string().optional(),
 });
 const industryJobsBodySchema = z.array(industryJobSchema);
@@ -35,7 +30,6 @@ export type IndustryJob = z.infer<typeof industryJobSchema>;
 export function parseIndustryJobsBody(body: unknown): IndustryJob[] | null {
   const parsed = industryJobsBodySchema.safeParse(body);
   if (!parsed.success) return null;
-
   return [...parsed.data].sort(
     (a, b) => Date.parse(a.end_date) - Date.parse(b.end_date) || a.job_id - b.job_id,
   );

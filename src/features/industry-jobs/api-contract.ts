@@ -14,7 +14,6 @@ const viewerJobsSchema = z.object({
 
 const jobsResponseSchema = z.object({
   characters: z.array(viewerJobsSchema),
-
   names: z.record(z.string(), z.string()),
 });
 
@@ -69,7 +68,6 @@ const industrySlotsResponseSchema = z.object({
 });
 
 export type ViewerSlots = z.infer<typeof viewerSlotsSchema>;
-
 export type IndustrySlotsResponse = z.infer<typeof industrySlotsResponseSchema>;
 
 export const industrySlotsEndpoint = defineEndpoint({

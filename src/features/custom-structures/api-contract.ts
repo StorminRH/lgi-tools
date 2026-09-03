@@ -10,11 +10,8 @@ import type { CustomStructureRow } from './types';
 const PG_INT4_MAX = 2_147_483_647;
 
 export const MAX_CUSTOM_STRUCTURE_NAME_LEN = 80;
-
 export const MAX_CUSTOM_STRUCTURE_RIGS = 3;
-
 export const MAX_CUSTOM_STRUCTURES_PER_USER = 50;
-
 const MAX_STRUCTURE_FIT_LEN = 8000;
 
 const typeId = z.number().int().positive().max(PG_INT4_MAX);
@@ -33,17 +30,13 @@ const customStructureRowSchema = z.object({
 const customStructuresResponseSchema = z.object({
   structures: z.array(customStructureRowSchema),
 });
-
 export const createCustomStructureRequestSchema = z.object({
   name: z.string().trim().min(1).max(MAX_CUSTOM_STRUCTURE_NAME_LEN),
   structureTypeId: typeId,
   rigTypeIds: z.array(typeId).max(MAX_CUSTOM_STRUCTURE_RIGS),
-
   systemId: typeId.nullable().default(null),
-
   taxPct: facilityTaxPct.nullable().default(null),
 });
-
 export const createCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures',
@@ -60,7 +53,6 @@ export const createCustomStructureEndpoint = defineEndpoint({
 export const deleteCustomStructureRequestSchema = z.object({
   id: z.string().min(1).max(100),
 });
-
 export const deleteCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/delete',
@@ -77,7 +69,6 @@ export const setCustomStructurePinRequestSchema = z.object({
   id: z.string().min(1).max(100),
   systemId: typeId.nullable(),
 });
-
 export const setCustomStructurePinEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/set-pin',
@@ -94,7 +85,6 @@ export const setCustomStructureTaxRequestSchema = z.object({
   id: z.string().min(1).max(100),
   taxPct: facilityTaxPct.nullable(),
 });
-
 export const setCustomStructureTaxEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/set-tax',
@@ -110,13 +100,11 @@ export const setCustomStructureTaxEndpoint = defineEndpoint({
 export const parseStructureFitRequestSchema = z.object({
   fit: z.string().min(1).max(MAX_STRUCTURE_FIT_LEN),
 });
-
 const parseStructureFitResponseSchema = z.object({
   parsed: z
     .object({ structureTypeId: z.number(), rigTypeIds: z.array(z.number()) })
     .nullable(),
 });
-
 export const parseStructureFitEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/parse-fit',

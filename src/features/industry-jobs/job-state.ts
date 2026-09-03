@@ -28,7 +28,6 @@ export interface JobsSummary {
   total: number;
   readyCount: number;
   pausedCount: number;
-
   nextEndAt: number | null;
 }
 

@@ -48,26 +48,19 @@ export function IndustrySlotMeta({
         <b className="text-evb-bright font-semibold">
           {model.manufacturing.used}/{model.manufacturing.total}
         </b>
-
       </span>
-
       <span className={eyebrow()}>
         science{' '}
         <b className="text-evb-bright font-semibold">
           {model.science.used}/{model.science.total}
         </b>
-
       </span>
-
       <span className={eyebrow()}>
         reactions{' '}
         <b className="text-evb-bright font-semibold">
           {model.reactions.used}/{model.reactions.total}
         </b>
-
       </span>
-
     </>
-
   );
 }

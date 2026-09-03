@@ -37,7 +37,6 @@ function makeDescriptor(port: CorpJobsPort) {
           const jobs = parseIndustryJobsBody(fresh.body);
           return jobs === null ? null : { jobs, etag: fresh.etag };
         },
-
         (code) => (code === 'esi_403' ? { kind: 'needs_role' } : { kind: 'skip', code }),
       );
     },

@@ -27,6 +27,5 @@ export const customStructures = pgTable('custom_structures', {
   structureTypeId: integer('structure_type_id').notNull(),
   rigTypeIds: jsonb('rig_type_ids').$type<number[]>().notNull().default([]),
   systemId: integer('system_id'),
-
   taxPct: doublePrecision('tax_pct'),
 });

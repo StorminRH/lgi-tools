@@ -32,13 +32,9 @@ function job(overrides: Partial<IndustryJob> = {}): IndustryJob {
 interface FakeOptions {
   members: RefreshCorpMember[];
   now?: Date;
-
   tokens?: Record<number, string | null>;
-
   roles?: Record<number, string[] | null>;
-
   reads?: Record<number, JobsEsiRead>;
-
   syncStates?: Record<number, { lastRefreshedAt: Date | null; jobsEtag: string | null }>;
 }
 
@@ -215,7 +211,6 @@ describe('refreshCorpJobsForUser', () => {
     });
     const readJobs = vi.fn(port.readJobs);
     port.readJobs = (corporationId, accessToken, heldEtag) => {
-
       expect(accessToken).toBe('tok-2');
       return readJobs(corporationId, accessToken, heldEtag);
     };

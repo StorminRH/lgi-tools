@@ -29,26 +29,21 @@ export function CorpJobsBoard({
 }: {
   eligibleCharacterIds: number[];
   hasLinkedCharacters: boolean;
-
   reconnectAction: ReactNode;
 }) {
-
   if (!hasLinkedCharacters) return null;
 
   return (
     <section>
       <SectionLabel className="mb-cluster">Corporation industry jobs</SectionLabel>
-
       {eligibleCharacterIds.length === 0 ? (
         <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
           {null}
         </AccessGate>
-
       ) : (
         <LiveCorpJobs eligibleCharacterIds={eligibleCharacterIds} />
       )}
     </section>
-
   );
 }
 
@@ -63,9 +58,7 @@ function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[]
         <EmptyState>
           No corporation industry jobs yet — they’ll appear here once a sync completes.
         </EmptyState>
-
       </Card>
-
     );
   }
 
@@ -81,7 +74,6 @@ export function CorpJobsList({
   names: Record<string, string>;
   now: number;
 }) {
-
   const entityNames = useEntityNames(
     useMemo(() => corpEntityIds(corporations, ENTITY_NAMES_MAX_IDS), [corporations]),
   );
@@ -98,7 +90,6 @@ export function CorpJobsList({
         />
       ))}
     </div>
-
   );
 }
 
@@ -124,13 +115,9 @@ function CorpGroupHeader({ corpId, label }: { corpId: number; label: string }) {
       />
       <div className="min-w-0 flex-1">
         <div className="font-display font-bold text-h3 text-name truncate">{label}</div>
-
         <div className="text-label text-muted tracking-copy">Corporation industry jobs</div>
-
       </div>
-
     </div>
-
   );
 }
 
@@ -138,9 +125,7 @@ function CorpNotice({ label, children }: { label: string; children: ReactNode })
   return (
     <div className="p-3.5">
       <Callout label={label}>{children}</Callout>
-
     </div>
-
   );
 }
 
@@ -151,16 +136,13 @@ const CORP_GROUP_BODY: Record<ReturnType<typeof corpGroupState>, (props: CorpGro
       industry jobs can’t be read. Granting more access can’t fix this — an in-game role change is
       required.
     </CorpNotice>
-
   ),
   'sync-error': () => (
     <CorpNotice label="Sync trouble">
       Couldn’t read this corporation’s jobs on the last sync — the next one will retry.
     </CorpNotice>
-
   ),
   empty: () => <EmptyState>No corporation industry jobs running.</EmptyState>,
-
   rows: ({ corp, corpLabel, names, entityNames, now }) =>
     (corp.data?.jobs ?? []).map((job) => (
       <CorpJobRow
@@ -198,7 +180,6 @@ function CorpGroup({
       <CorpGroupHeader corpId={corp.corporationId} label={label} />
       <CorpGroupBody corp={corp} corpLabel={label} names={names} entityNames={entityNames} now={now} />
     </Card>
-
   );
 }
 
@@ -230,7 +211,6 @@ function CorpJobRow({
             corp={{ logo: corporationLogoUrl(corpId, 32), name: corpName }}
           />
         </div>
-
       }
     />
   );
@@ -269,13 +249,9 @@ function JobRunner({
           />
         )}
       </span>
-
       <span className="min-w-0 truncate text-ui text-muted">
         {name} <span className="text-muted">· {corp.name}</span>
-
       </span>
-
     </span>
-
   );
 }

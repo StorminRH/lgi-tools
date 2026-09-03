@@ -31,10 +31,8 @@ export function IndustryActiveJobs({
             <div className={complete ? 'font-semibold text-isk' : 'text-muted'}>
               {complete ? 'Complete ✓' : activeJobStatusText(job.status, remainingMs)}
             </div>
-
             <ProgressBar pct={complete ? 100 : jobProgress(job, now)} tone="evb" />
           </div>
-
         );
       },
     },
@@ -49,9 +47,7 @@ export function IndustryActiveJobs({
           <span className="flex min-w-0 items-center gap-2">
             <TypeIcon {...icon} size={26} mono={initials(name)} />
             <span className="truncate text-name">{name}</span>
-
           </span>
-
         );
       },
     },
@@ -61,7 +57,6 @@ export function IndustryActiveJobs({
       render: (job) => {
         const activity = jobActivityPill(job.activity_id);
         return <Pill tone={activity.tone} size="sm">{activity.label}</Pill>;
-
       },
     },
     { key: 'end', label: 'End date', render: (job) => formatEndDate(job.end_date), className: 'whitespace-nowrap text-muted' },

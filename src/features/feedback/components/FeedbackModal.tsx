@@ -53,30 +53,21 @@ function FeedbackMeta({
     <div className="flex flex-col gap-1 text-label tracking-label uppercase text-muted">
       {loading ? (
         <div>Submitting…</div>
-
       ) : session ? (
         <div>
           <span>Submitting as</span>{' '}
-
           <span className="text-text normal-case tracking-normal">{session.name}</span>
-
         </div>
-
       ) : (
         <div>Submitting anonymously</div>
-
       )}
       {path && (
         <div className="truncate">
           <span>From</span>{' '}
-
           <span className="font-data text-text normal-case tracking-normal">{path}</span>
-
         </div>
-
       )}
     </div>
-
   );
 }
 
@@ -92,7 +83,6 @@ function FeedbackCategoryField({
   return (
     <div className="flex flex-col gap-1">
       <span className="text-label uppercase tracking-wide text-muted">Category</span>
-
       <Select
         value={category}
         onValueChange={onCategoryChange}
@@ -101,7 +91,6 @@ function FeedbackCategoryField({
         disabled={disabled}
       />
     </div>
-
   );
 }
 
@@ -130,7 +119,6 @@ function FeedbackTitleField({
         autoComplete="off"
       />
     </Field>
-
   );
 }
 
@@ -154,7 +142,6 @@ function FeedbackBody({
       <Banner tone="info" className="my-4">
         Thanks — your feedback was sent.
       </Banner>
-
     );
   }
   return (
@@ -174,7 +161,6 @@ function FeedbackBody({
         className="resize-none disabled:opacity-50"
       />
     </Field>
-
   );
 }
 
@@ -194,7 +180,6 @@ function FeedbackFooter({
       <Button variant="secondary" size="sm" onClick={onClose}>
         Close
       </Button>
-
     );
   }
   return (
@@ -202,13 +187,10 @@ function FeedbackFooter({
       <Button variant="secondary" size="sm" onClick={onClose} disabled={disabled}>
         Cancel
       </Button>
-
       <Button type="submit" variant="primary" size="sm" disabled={disabled || !canSend}>
         {state.kind === 'submitting' ? 'Sending…' : 'Send'}
       </Button>
-
     </>
-
   );
 }
 
@@ -281,7 +263,6 @@ export function FeedbackModal({
           >
             Send feedback
           </h2>
-
           <Button
             variant="bare"
             type="button"
@@ -291,7 +272,6 @@ export function FeedbackModal({
           >
             ×
           </Button>
-
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-3">
@@ -313,7 +293,6 @@ export function FeedbackModal({
                 }}
               />
             </>
-
           )}
           <FeedbackBody
             state={state}
@@ -333,10 +312,7 @@ export function FeedbackModal({
             onClose={onClose}
           />
         </footer>
-
       </form>
-
     </Dialog>
-
   );
 }

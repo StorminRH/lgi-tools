@@ -20,7 +20,6 @@ function job(overrides: Partial<IndustryJob>): IndustryJob {
 
 describe('deriveJobStatus', () => {
   it("marks an 'active' job ready once its end date passes, despite ESI's lazy status", () => {
-
     expect(deriveJobStatus('active', '2026-06-12T11:00:00Z', NOW)).toBe('ready');
   });
 

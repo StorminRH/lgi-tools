@@ -76,7 +76,6 @@ function PinField({
         <Pill tone="blue">
           {pin.name} {formatSec(pin.security)}
         </Pill>
-
         <Button
           variant="bare"
           type="button"
@@ -85,9 +84,7 @@ function PinField({
         >
           Clear
         </Button>
-
       </div>
-
     );
   }
   return (
@@ -104,10 +101,8 @@ function PinField({
         hint="Pinned structures show only in that system's build list"
       />
     </div>
-
   );
 }
-
 function StructureMetaPills({ view }: { view: SavedStructureRowView }) {
   return (
     <>
@@ -115,16 +110,11 @@ function StructureMetaPills({ view }: { view: SavedStructureRowView }) {
         <Pill key={r.key} tone="blue">
           {r.label}
         </Pill>
-
       ))}
       {view.hasNoRigs && <span className="text-micro text-muted">no rigs</span>}
-
       {view.pinLabel !== null && <Pill tone="blue">Pinned · {view.pinLabel}</Pill>}
-
       {view.taxLabel !== null && <Pill tone="neutral">{view.taxLabel}</Pill>}
-
     </>
-
   );
 }
 
@@ -172,9 +162,7 @@ function InlineTaxEditor({
       >
         Set
       </Button>
-
     </div>
-
   );
 }
 
@@ -228,7 +216,6 @@ function SavedStructureRow({
         >
           Tax…
         </Button>
-
         {view.isPinned ? (
           <Button
             variant="bare"
@@ -580,7 +567,6 @@ export function CustomStructureBuilder({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        {}
         <Field
           label="Paste an in-game structure fit (optional)"
           hint="Use the in-game Copy to Clipboard format."
@@ -607,7 +593,6 @@ export function CustomStructureBuilder({
           </Button>
 
         </div>
-
         <StructureTypeSelect value={draft.structureTypeId} types={structureTypes} onChange={chooseStructure} />
 
         {structure && (
@@ -634,7 +619,6 @@ export function CustomStructureBuilder({
           />
         </div>
 
-        {}
         <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-wide text-muted">Pin to system (optional)</span>
 
@@ -647,12 +631,10 @@ export function CustomStructureBuilder({
           />
         </div>
 
-        {}
         <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-wide text-muted">
             Facility tax % (optional)
           </span>
-
           <Input
             type="number"
             min={0}
@@ -667,7 +649,6 @@ export function CustomStructureBuilder({
         </div>
 
         {draft.error && <Banner tone="warn">{draft.error}</Banner>}
-
         <Button variant="primary" onClick={onSave} disabled={!canSave} className="self-start">
           Save structure
         </Button>

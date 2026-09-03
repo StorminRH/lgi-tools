@@ -16,7 +16,6 @@ function job(
 }
 
 describe('flattenJobs', () => {
-
   it('flattens boards soonest-done first with job_id tie-break', () => {
     const boards = [
       {

@@ -31,25 +31,18 @@ export function JobRowFrame({
               <span className="text-muted">
                 ×{runs} · {activityLabel}
               </span>
-
             </span>
-
           </span>
-
         }
         trailing={<span className="font-data">{remainingLabel}</span>}
-
         chips={<Pill tone={meta.tone}>{meta.label}</Pill>}
-
       />
       {showBar && (
         <div className="mt-[4px]">
           <ProgressBar pct={pct} tone={barTone} />
         </div>
-
       )}
       {footer}
     </div>
-
   );
 }

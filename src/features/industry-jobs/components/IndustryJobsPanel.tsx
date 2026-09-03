@@ -23,7 +23,6 @@ export function IndustryJobsPanel({
   initialDimmed,
 }: {
   characters: PanelCharacter[];
-
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
@@ -35,12 +34,9 @@ export function IndustryJobsPanel({
           <a href="/characters" className="underline text-name">
             link one on the Characters page
           </a>{' '}
-
           to see live industry jobs.
         </EmptyState>
-
       </Card>
-
     );
   }
   return <LiveJobs characters={characters} strip={strip} initialDimmed={initialDimmed} />;
@@ -55,7 +51,6 @@ function LiveJobs({
   strip?: CharacterStripSpec;
   initialDimmed?: number[];
 }) {
-
   const eligibleIds = syncEligibleIds(characters);
   const { jobsByCharacter, names, now, loading } = useJobsLive(eligibleIds);
 
@@ -90,14 +85,11 @@ function LiveJobs({
               >
                 {rows}
               </LiveCharacterCard>
-
             );
           })
         }
       </CharacterStripSection>
-
     </div>
-
   );
 }
 
@@ -111,13 +103,11 @@ function renderJobsCard(
     isEmpty: model.isEmpty,
     subtitle: model.subtitle !== null && (
       <div className="text-label text-muted tracking-copy">{model.subtitle}</div>
-
     ),
     headerRight: model.nextDoneMs !== null && (
       <span className="shrink-0 font-data text-micro tracking-copy text-muted">
         next done in {formatRemaining(model.nextDoneMs)}
       </span>
-
     ),
     rows: data !== null && data.jobs.map((job) => <JobRow key={job.job_id} job={job} names={names} now={now} />),
   };
