@@ -1,5 +1,3 @@
-// and member corps, page an authed ESI read, replace-all per owner, and share the
-
 import { planRead } from './plan';
 import type { EnumeratedOwner, OwnerKey, OwnerSyncDescriptor, PagedOwnerSyncState } from './types';
 import type { EsiResponseHeaders } from '../esi/response-metadata';

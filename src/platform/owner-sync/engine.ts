@@ -98,7 +98,6 @@ async function runCorpPass<TOwner, TState, TSave>(
   );
 }
 
-// vends a token or hits ESI. The whole sequence is best-effort per owner.
 async function syncOwner<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   owner: TOwner,

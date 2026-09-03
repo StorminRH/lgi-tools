@@ -1,5 +1,3 @@
-//  - Side-effects: rows that need to do something other than navigate
-
 export type AppRouterInstance = {
   push: (href: string) => void;
 };
