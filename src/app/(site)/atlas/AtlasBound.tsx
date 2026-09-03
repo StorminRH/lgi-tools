@@ -18,6 +18,7 @@ import {
 } from '@/platform/auth/route-guards';
 import type { Session } from '@/platform/auth/types';
 import { AtlasCanvasFrame } from './AtlasCanvasFrame';
+import { AtlasGuestLanding } from './AtlasGuestLanding';
 
 const EMPTY_MAP_CHROME: MapChromeData = {
   maps: [],
@@ -80,15 +81,14 @@ export async function AtlasBound({
     console.error('[map] authorization check unavailable', err);
   }
 
+  if (gate?.ok === false) return <AtlasGuestLanding />;
+
   const session = atlasAccountSession(gate);
   const [siteIndex, chromeSnapshot] = await Promise.all([
     loadScannerCatalogue(),
-    gate?.ok
-      ? loadMapChromeData(gate.session.user.id)
-      : Promise.resolve({
-          data: EMPTY_MAP_CHROME,
-          listingAvailable: gate !== null,
-        } as const),
+    gate === null
+      ? Promise.resolve({ data: EMPTY_MAP_CHROME, listingAvailable: false } as const)
+      : loadMapChromeData(gate.session.user.id),
   ]);
   const chromeData = chromeSnapshot.data;
   const showCanvas = mapSelected && gate?.ok === true;
