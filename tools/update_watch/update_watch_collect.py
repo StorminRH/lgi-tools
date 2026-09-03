@@ -298,7 +298,7 @@ def _list_open_issues(repo_root: Path, failures: list[str]) -> list[dict]:
             request = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(request, timeout=_FETCH_TIMEOUT) as response:
                 batch = json.loads(response.read().decode("utf-8", "replace"))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - each failure is named, never guessed
             failures.append(f"issue-listing: page {page} failed: {exc}")
             return []
         if not isinstance(batch, list):
@@ -341,7 +341,7 @@ def run_collect(repo_root: Path, out_path: Path) -> int:
                 raise ValueError(f"HTTP {status}")
             version = json.loads(body)["version"]
             npm_latest[name] = {"version": version, "major": major_of(version)}
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - each failure is named, never guessed
             failures.append(f"registry-query:{name}: {exc}")
 
     try:
@@ -398,7 +398,7 @@ def run_collect(repo_root: Path, out_path: Path) -> int:
                 if status != 200:
                     raise ValueError(f"HTTP {status}")
                 pages[url] = {"status": status, "content": body}
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - each failure is named, never guessed
                 failures.append(f"watch:{source.slug}:{url}: {exc}")
 
     state["openIssues"] = _list_open_issues(repo_root, failures)
