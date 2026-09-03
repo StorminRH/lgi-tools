@@ -190,7 +190,7 @@ describe('same-origin mutation coverage', () => {
     expect(lifecycle).toContain("from '@/app/api/mutation-route';");
     expect(lifecycle).toContain('runMutationRoute(request');
     expect(admin).toContain(
-      "import { checkAdminMutation, type SessionCheckResult } from '@/platform/auth/route-guards';",
+      "import { checkAdminMutation, type SessionCheckResult } from '@/composition/route-guards';",
     );
     expect(admin).toContain('const gate = await checkAdminMutation(request);');
   });

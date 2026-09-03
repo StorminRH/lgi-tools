@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getSession, isAdmin } from '@/platform/auth/session';
+import { getSession, isAdmin } from '@/composition/session';
 import { PrimitivesDemo } from './PrimitivesDemo';
 
 export const metadata: Metadata = {

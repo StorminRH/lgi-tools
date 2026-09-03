@@ -8,7 +8,7 @@ const API_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(API_DIR, '..', '..', '..');
 
 const CORE_EXPORTS = new Map([
-  ['src/platform/auth/route-guards.ts', new Set(['checkSession', 'checkAdmin', 'checkUserId'])],
+  ['src/composition/route-guards.ts', new Set(['checkSession', 'checkAdmin', 'checkUserId'])],
   ['src/lib/service-auth.ts', new Set(['checkBearerSecret'])],
   ['src/lib/rate-limit.ts', new Set(['checkRateLimit'])],
   ['src/transport/route-body.ts', new Set(['readJsonBody', 'parseFormBody'])],

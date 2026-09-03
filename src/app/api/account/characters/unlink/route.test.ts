@@ -34,15 +34,6 @@ vi.mock('@/composition/auth', () => ({
   },
 }));
 
-vi.mock('@/platform/auth/auth', () => ({
-  auth: {
-    api: {
-      getSession: () => getSessionMock(),
-      unlinkAccount: (args: unknown) => unlinkAccountMock(args),
-    },
-  },
-}));
-
 vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
   repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),

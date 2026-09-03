@@ -16,7 +16,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { AdminForceLogoutForm } from '@/components/composition/account/AdminForceLogoutForm';
 import { AdminReassignCharacterForm } from '@/components/composition/account/AdminReassignCharacterForm';
 import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
-import { requireAdminPage } from '@/platform/auth/route-guards';
+import { requireAdminPage } from '@/composition/route-guards';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,

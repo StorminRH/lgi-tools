@@ -15,7 +15,7 @@ const getStoredActiveCharacterIdMock = vi.fn();
 const repointActiveToOldestMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
-vi.mock('@/platform/auth/auth', () => ({
+vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 

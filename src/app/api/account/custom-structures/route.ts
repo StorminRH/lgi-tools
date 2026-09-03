@@ -15,7 +15,7 @@ import {
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { validateCustomStructureSelection } from '@/features/custom-structures/validation';
 import { conflictFailure, validationFailure } from '@/lib/failure';
-import { checkUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/composition/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 

@@ -6,7 +6,7 @@ import {
   buildAvailableStructures,
   collectDogmaTypeIds,
 } from '@/features/industry-planner/available-structures';
-import { getCurrentUserId } from '@/platform/auth/session';
+import { getCurrentUserId } from '@/composition/session';
 import { apiResponse } from '@/transport/api-response';
 
 // authz: auth

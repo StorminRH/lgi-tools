@@ -14,7 +14,7 @@ const reconcileAfterCharacterRemovalMock = vi.fn();
 const logUsageEventMock = vi.fn();
 let errorSpy: ReturnType<typeof vi.spyOn>;
 
-vi.mock('@/platform/auth/auth', () => ({
+vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 

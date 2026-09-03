@@ -14,7 +14,7 @@ import {
   listLinkedCharacters,
   repointActiveToOldest,
 } from '@/platform/auth/linked-characters';
-import { checkSession } from '@/platform/auth/route-guards';
+import { checkSession } from '@/composition/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 function redirectWithError(request: NextRequest, code: string): Response {

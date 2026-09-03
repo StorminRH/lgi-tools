@@ -25,7 +25,7 @@ const getUserByIdMock = vi.fn();
 const setUserRoleMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
-vi.mock('@/platform/auth/auth', () => ({
+vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 

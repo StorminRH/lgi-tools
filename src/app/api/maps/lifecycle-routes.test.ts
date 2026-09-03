@@ -13,7 +13,7 @@ vi.mock('@/composition/map-lifecycle', () => ({
   restoreMapForUser: (...args: unknown[]) => h.restoreMapForUser(...args),
   requestMapPurgeForUser: (...args: unknown[]) => h.requestMapPurgeForUser(...args),
 }));
-vi.mock('@/platform/auth/route-guards', () => ({
+vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
 vi.mock('@/data/telemetry/queries', () => ({

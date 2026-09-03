@@ -1,9 +1,8 @@
 import { toNextJsHandler } from 'better-auth/next-js';
 import '@/composition/account-lifecycle/register-owner-reconciler';
-import '@/composition/map-access-identity';
+import { auth } from '@/composition/auth';
 import { runWithAbsorbTracking } from '@/platform/auth/absorb-context';
 import { decorateAbsorbRedirect } from '@/platform/auth/absorb-redirect';
-import { auth } from '@/platform/auth/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { problemResponse } from '@/transport/api-response';
 

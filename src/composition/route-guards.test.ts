@@ -13,10 +13,10 @@ vi.mock('next/navigation', () => ({
     throw new Error('NEXT_REDIRECT');
   },
 }));
-vi.mock('@/platform/auth/auth', () => ({
+vi.mock('@/composition/auth', () => ({
   auth: { api: { getSession: h.getSessionMock } },
 }));
-vi.mock('./same-origin', () => ({
+vi.mock('@/platform/auth/same-origin', () => ({
   requireSameOrigin: (...args: unknown[]) => h.requireSameOriginMock(...args),
 }));
 

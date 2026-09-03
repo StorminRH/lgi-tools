@@ -40,14 +40,14 @@ vi.mock('@/data/telemetry/queries', () => ({
 }));
 
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { createIdentityProjectionRunners } from './identity-projection-hooks';
+import type { IdentityProjectionRunners } from './identity-projection-hooks';
 import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { syntheticEmail } from './synthetic-email';
 
-const runners = createIdentityProjectionRunners({
-  beforeUserDelete: vi.fn().mockResolvedValue(undefined),
-  afterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
-});
+const runners: IdentityProjectionRunners = {
+  runBeforeUserDelete: vi.fn().mockResolvedValue(undefined),
+  runAfterCharacterLinkChanged: vi.fn().mockResolvedValue(undefined),
+};
 
 const CHARACTER = 100;
 

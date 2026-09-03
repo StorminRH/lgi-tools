@@ -9,7 +9,7 @@ const h = vi.hoisted(() => ({
 vi.mock('@/composition/map-access-update', () => ({
   applyMapAccessUpdate: (...args: unknown[]) => h.applyMapAccessUpdate(...args),
 }));
-vi.mock('@/platform/auth/route-guards', () => ({
+vi.mock('@/composition/route-guards', () => ({
   checkUserId: (...args: unknown[]) => h.checkUserId(...args),
 }));
 vi.mock('@/data/telemetry/queries', () => ({

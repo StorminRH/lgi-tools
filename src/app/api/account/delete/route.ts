@@ -4,7 +4,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { accountDeleteEndpoint } from '@/platform/auth/api-contract';
 import '@/composition/account-lifecycle/register-owner-reconciler';
 import { nukeAccount } from '@/composition/account-lifecycle/account-purge';
-import { checkSession } from '@/platform/auth/route-guards';
+import { checkSession } from '@/composition/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';
