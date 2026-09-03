@@ -44,8 +44,6 @@ function getClient(): HttpClient {
 
 function getDb(): Db {
   if (_db) return _db;
-  // Dev-only escape hatch: the neon-http driver speaks HTTP to a Neon SQL
-  // endpoint and cannot reach a plain local Postgres, so local `next dev`
   if (readEnv('LOCAL_DB_DRIVER') === 'postgres-js') {
     const url = requireEnv('DATABASE_URL');
     _db = drizzlePg(

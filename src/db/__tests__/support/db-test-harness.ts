@@ -5,9 +5,6 @@ import { db as requestDb, type Sql } from '@/db';
 import { account, characters, user } from '@/db/auth-schema';
 import { readEnv } from '@/lib/env';
 
-// postgres-js cannot parameterize identifiers, so the lifecycle helpers use
-// `unsafe` strictly for that trusted DDL/reset boundary.
-
 const LOCAL_DB_URL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
 
 /**
