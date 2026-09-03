@@ -135,7 +135,6 @@ function useCharacterSearch(selectedKeys: ReadonlySet<string>) {
   };
 }
 
-/** Search transport/controller consumed by the otherwise transport-free access editor. */
 export function CharacterSearchControl({
   disabled = false,
   selectedPrincipals,
@@ -169,6 +168,7 @@ export function CharacterSearchControl({
       <span className="font-ui text-label tracking-label uppercase text-muted">
         Add character
       </span>
+
       <Combobox.Root
         items={available}
         value={query}
@@ -189,6 +189,7 @@ export function CharacterSearchControl({
           trailing={
             busy ? (
               <span className="font-ui text-label text-muted">Searching…</span>
+
             ) : null
           }
         />
@@ -214,12 +215,17 @@ export function CharacterSearchControl({
                   <span className="min-w-0 flex-1 truncate font-ui text-ui text-text">
                     {result.name}
                   </span>
+
                 </Combobox.Item>
+
               ))}
             </Combobox.List>
+
           </Combobox.Panel>
+
         ) : null}
       </Combobox.Root>
+
       <span
         id={hintId}
         className={
@@ -230,6 +236,8 @@ export function CharacterSearchControl({
       >
         {hint}
       </span>
+
     </div>
+
   );
 }

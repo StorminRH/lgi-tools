@@ -1,13 +1,5 @@
 'use client';
 
-// The shared saved-plans list state (3.7.24) — one fetch + mutation surface
-// for every saved-templates consumer (the planner's TemplatesMenu popover, the
-// /industry dashboard's Saved section, the /industry/templates manager page).
-// Every mutating endpoint echoes the full updated list in the server's order
-// (favorites first, then most recently updated), so consumers re-render from
-// the echo without a refetch and never re-sort. Transient row UI (which row is
-// mid-rename, which delete is armed) stays in the components — this hook owns
-// only the data.
 import { useCallback, useRef, useState } from 'react';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/transport/api-client';
@@ -20,15 +12,13 @@ import {
 } from './api-contract';
 import { echoOutcome, type SavedPlansEchoResult } from './saved-plans-view';
 
-/** Client saved-plan controller state with rows, quota, loading, mutation, and error signals. */
 export interface SavedPlansState {
-  // null = not fetched yet; [] settles for an anonymous viewer too.
+
   plans: SavedPlanRow[] | null;
   listFailed: boolean;
   busyId: string | null;
   refresh: () => void;
-  // Shared completion for a mutating call: apply the echoed list on success,
-  // otherwise surface the endpoint-specific error copy. Returns success.
+
   applyEcho: (
     res: SavedPlansEchoResult | null,
     errorFor: (status: number) => string,
@@ -38,27 +28,18 @@ export interface SavedPlansState {
   deleteRow: (row: SavedPlanRow) => void;
 }
 
-/**
- * Encapsulates the saved plans subscription and state lifecycle; callers provide lookup keys where
- * required and render the returned state.
- */
 export function useSavedPlans(): SavedPlansState {
   const [plans, setPlans] = useState<SavedPlanRow[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  // Bumped every time a mutation echo lands. A refresh that started BEFORE the
-  // echo carries an older list — if the counter moved while its GET was in
-  // flight, its result is stale and must not overwrite the echo.
+
   const echoSeq = useRef(0);
 
-  // Keeps the stale list up while the read runs; a failure flags rather than
-  // clears, so an open panel degrades instead of blanking. Stable identity so
-  // a mount-fetch effect can depend on it.
   const refresh = useCallback(() => {
     const seqAtStart = echoSeq.current;
     apiFetch(savedPlansEndpoint, { cache: 'no-store' })
       .then((res) => {
-        if (echoSeq.current !== seqAtStart) return; // a newer echo applied mid-flight
+        if (echoSeq.current !== seqAtStart) return;
         setListFailed(!res.ok);
         if (res.ok) setPlans(res.data.plans);
       })

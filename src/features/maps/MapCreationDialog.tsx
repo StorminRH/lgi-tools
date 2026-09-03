@@ -60,7 +60,9 @@ function Compass({ failed = false }: { failed?: boolean }) {
         <path d="M30 18 26 26 18 30l4-8 8-4Z" fill="currentColor" />
         <circle cx="24" cy="24" r="2" fill="currentColor" />
       </svg>
+
     </div>
+
   );
 }
 
@@ -87,26 +89,31 @@ function CreationInterstitial({
         >
           {failed ? 'Map creation paused' : 'Creating your map'}
         </DialogTitle>
+
         <DialogDescription className="font-ui text-ui leading-relaxed text-muted">
           {failed
             ? phase.message
             : 'Committing the map and confirming access before the first jump.'}
         </DialogDescription>
+
       </div>
+
       {failed ? (
         <Button variant="primary" onClick={onRetry}>
           Try again
         </Button>
+
       ) : (
         <span className="font-data text-label tracking-label uppercase text-faint">
           Neon → access projection → Atlas
         </span>
+
       )}
     </div>
+
   );
 }
 
-/** Props for the controlled Atlas map-creation dialog. */
 export interface MapCreationDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
@@ -251,6 +258,7 @@ function CreationForm({
             }}
           />
         </Field>
+
         <AccessListEditor
           mode="create"
           currentGrants={grants}
@@ -274,25 +282,25 @@ function CreationForm({
           }
         />
         {formError !== null ? <Banner tone="warn">{formError}</Banner> : null}
+
       </div>
 
       <footer className="flex items-center justify-end gap-2.5 border-t border-border-soft px-4 py-3">
         <DialogClose render={<Button variant="secondary" size="sm" />}>
           Cancel
         </DialogClose>
+
         <Button type="submit" variant="primary" size="sm" disabled={!canSubmit}>
           Create map
         </Button>
+
       </footer>
+
     </form>
+
   );
 }
 
-/**
- * Creates one map through the existing atomic route, keeps the compass visible
- * for at least five seconds, and hands the successful map to the keyed Atlas
- * host through a push navigation.
- */
 export function MapCreationDialog({
   open,
   onOpenChange,
@@ -339,5 +347,6 @@ export function MapCreationDialog({
         />
       )}
     </Dialog>
+
   );
 }

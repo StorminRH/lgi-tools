@@ -2,10 +2,6 @@ import { REACTION_ACTIVITY } from './structure-bonus';
 import { hostsReactions } from './structure-factors';
 import type { AvailableStructure } from './types';
 
-/**
- * Previous non-reaction facility selection retained while reaction-only location policy
- * temporarily applies.
- */
 export interface ReactionLocationSnapshot {
   systemId: number;
   blueprintTypeId: number;
@@ -13,11 +9,6 @@ export interface ReactionLocationSnapshot {
   adjustedPrices: Map<number, number>;
 }
 
-/**
- * A structure cannot occupy both planner slots. The option lists prevent most
- * conflicts, but this state-level verdict also covers template/programmatic
- * selection so a stale reaction slot can never keep contributing.
- */
 export function buildSelectionVacatesReaction(
   buildStructure: AvailableStructure | null,
   reactionStructure: AvailableStructure | null,
@@ -29,11 +20,6 @@ export function buildSelectionVacatesReaction(
   );
 }
 
-/**
- * The fetched reaction fee inputs are valid only for the currently rendered
- * reaction blueprint and selected system. Mismatches resolve to absence rather
- * than requiring effect-body clearing, so late reads cannot revive stale data.
- */
 export function selectReactionLocation(args: {
   activityId: number;
   blueprintTypeId: number;
@@ -52,10 +38,6 @@ export function selectReactionLocation(args: {
   return fetched;
 }
 
-/**
- * A reaction blueprint can expose net margin when its dedicated location read
- * has settled, or when the build slot is itself a refinery with a build system.
- */
 export function isReactionNetAvailable(args: {
   activityId: number;
   reactionLocation: ReactionLocationSnapshot | null;

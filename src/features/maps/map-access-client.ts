@@ -4,12 +4,10 @@ import {
 } from '@/data/maps/api-contract';
 import { apiFetch } from '@/transport/api-client';
 
-/** Applies one idempotent grant change through the sole durable access route. */
 export function updateMapAccess(input: UpdateMapAccessRequest) {
   return apiFetch(updateMapAccessEndpoint, { body: input, cache: 'no-store' });
 }
 
-/** Calm operator-facing copy for a failed map-access update. */
 export function mapAccessFailureMessage(
   outcome: Awaited<ReturnType<typeof updateMapAccess>>,
 ): string {
