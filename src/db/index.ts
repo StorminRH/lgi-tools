@@ -30,7 +30,6 @@ let _directClient: Sql | undefined;
 function getClient(): HttpClient {
   if (_client) return _client;
   const url = requireEnv('DATABASE_URL');
-
   neonConfig.fetchFunction = async (input: string | URL, init?: RequestInit) => {
     const startedAt = performance.now();
     try {
@@ -39,16 +38,14 @@ function getClient(): HttpClient {
       addDependencyTiming('neon', performance.now() - startedAt);
     }
   };
-
   _client = neon(url);
   return _client;
 }
 
 function getDb(): Db {
   if (_db) return _db;
-
+  // Dev-only escape hatch: the neon-http driver speaks HTTP to a Neon SQL
   // endpoint and cannot reach a plain local Postgres, so local `next dev`
-
   if (readEnv('LOCAL_DB_DRIVER') === 'postgres-js') {
     const url = requireEnv('DATABASE_URL');
     _db = drizzlePg(

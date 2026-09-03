@@ -6,6 +6,7 @@ import { account, characters, user } from '@/db/auth-schema';
 import { readEnv } from '@/lib/env';
 
 // postgres-js cannot parameterize identifiers, so the lifecycle helpers use
+// `unsafe` strictly for that trusted DDL/reset boundary.
 
 const LOCAL_DB_URL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
 
@@ -22,11 +23,8 @@ export interface DbTestHarnessOptions {
   schema: string;
   tables: readonly string[];
   foreignKeys?: readonly DbForeignKey[];
-
   steerDbProxy?: boolean;
-
   env?: Readonly<Record<string, string>>;
-
   resetBetweenTests?: 'delete' | 'truncate';
 }
 
@@ -39,11 +37,8 @@ export interface DbForeignKey {
 }
 
 export interface DbTestHarness {
-
   readonly reachable: boolean;
-
   readonly sql: Sql;
-
   readonly db: PostgresJsDatabase;
 }
 

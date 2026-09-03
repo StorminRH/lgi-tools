@@ -16,7 +16,7 @@ function makeClient(got: boolean, opts: { unlockThrows?: boolean } = {}) {
   }) as unknown as { release: typeof release };
   (reservedTag as unknown as { release: typeof release }).release = release;
   const reserve = vi.fn(() => Promise.resolve(reservedTag));
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { client: { reserve } as any, sqlCalls, release, reserve };
 }
 
@@ -34,7 +34,6 @@ describe('withAdvisoryLock', () => {
     const { client, sqlCalls, release } = makeClient(true);
     const outcome = await withAdvisoryLock(client, 42, async () => 'done');
     expect(outcome).toEqual({ busy: false, result: 'done' });
-
     expect(sqlCalls.some((q) => q.includes('pg_try_advisory_lock'))).toBe(true);
     expect(sqlCalls.some((q) => q.includes('pg_advisory_unlock'))).toBe(true);
     expect(release).toHaveBeenCalledTimes(1);
