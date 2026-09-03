@@ -76,43 +76,26 @@ export default function RootLayout({
       lang="en"
       className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full`}
     >
-      {}
       <body className="min-h-full flex flex-col">
-        {}
         <div className="page-backdrop" aria-hidden="true" />
-        {}
         <div className="page-grain" aria-hidden="true" />
         <AuthProvider>
-          {}
           <PreferencesProvider>
             <ConvexClientProvider>
-              {}
-              {}
               <LoadingToastProvider>
-                {}
                 <PageMenuProvider>
                   {children}
                 </PageMenuProvider>
-
               </LoadingToastProvider>
-
             </ConvexClientProvider>
-
           </PreferencesProvider>
-
         </AuthProvider>
-
-        {}
         <Toaster />
         <Suspense fallback={null}>
           <TelemetryReporter />
         </Suspense>
-
-        {}
         {isHostedVercel() && <SpeedInsights />}
       </body>
-
     </html>
-
   );
 }
