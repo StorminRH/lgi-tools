@@ -5,6 +5,8 @@ import { slotCapacity } from '@/features/industry-jobs/slots';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 import { apiResponse } from '@/transport/api-response';
 
+// authz: auth
+// input: none
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {

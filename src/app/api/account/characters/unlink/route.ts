@@ -24,6 +24,7 @@ function redirectWithError(request: NextRequest, code: string): Response {
   return Response.redirect(url, 303);
 }
 
+// authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.unlink-character',

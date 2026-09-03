@@ -7,6 +7,7 @@ import { auth } from '@/platform/auth/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { problemResponse } from '@/transport/api-response';
 
+// authz: public
 const { GET: betterAuthGet, POST: betterAuthPost } = toNextJsHandler(auth);
 
 export async function GET(request: Request): Promise<Response> {

@@ -9,6 +9,7 @@ import { parseRange } from '@/composition/admin-period';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 
+// authz: admin
 export const POST = capabilityRoute('admin.requeue-esi-job', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

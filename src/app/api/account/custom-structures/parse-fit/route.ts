@@ -10,6 +10,7 @@ import { checkUserId } from '@/platform/auth/route-guards';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
+// authz: auth
 export const POST = capabilityRoute('structures.parse-structure-fit', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

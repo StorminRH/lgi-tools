@@ -24,6 +24,7 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
   return url;
 }
 
+// authz: admin
 export const POST = capabilityRoute('admin.set-user-role', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

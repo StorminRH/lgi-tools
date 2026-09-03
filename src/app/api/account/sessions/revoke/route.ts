@@ -6,6 +6,8 @@ import { checkSession } from '@/platform/auth/route-guards';
 import { rateLimitPreflight } from '@/app/api/rate-limit-preflight';
 import { apiResponse } from '@/transport/api-response';
 
+// authz: auth
+// input: none
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.revoke-own-sessions',

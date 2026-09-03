@@ -9,6 +9,7 @@ import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked
 import { checkSession } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
+// authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'account.switch-active-character',

@@ -21,6 +21,7 @@ function redirectTo(request: NextRequest, userId: string, error?: string): Respo
   return Response.redirect(url, 303);
 }
 
+// authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'admin.unlink-character',

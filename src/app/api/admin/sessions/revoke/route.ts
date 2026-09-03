@@ -8,6 +8,7 @@ import { getUserById, revokeUserSessions } from '@/platform/auth/admin-users';
 import { checkAdmin } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
+// authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     capability: 'admin.revoke-user-sessions',

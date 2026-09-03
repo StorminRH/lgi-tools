@@ -3,6 +3,8 @@ import { getCurrentUserId } from '@/platform/auth/session';
 import { corpStructuresEndpoint } from '@/features/owned-structures/api-contract';
 import { apiResponse } from '@/transport/api-response';
 
+// authz: auth
+// input: none
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {

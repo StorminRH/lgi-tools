@@ -9,6 +9,8 @@ import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { apiResponse } from '@/transport/api-response';
 
+// authz: auth
+// input: none
 export const POST = capabilityRoute('account.delete-account', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

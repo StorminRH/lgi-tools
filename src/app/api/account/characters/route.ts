@@ -1,3 +1,5 @@
+// authz: auth
+// input: none
 import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
 import { toPanelCharacter } from '@/platform/auth/panel-character';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';

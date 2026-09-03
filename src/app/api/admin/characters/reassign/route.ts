@@ -11,6 +11,7 @@ import { reassignCharacter } from '@/platform/auth/admin-users';
 import { adminMutationGate } from '@/app/api/admin-mutation';
 import { parseFormBody } from '@/transport/route-body';
 
+// authz: admin
 export const POST = capabilityRoute('admin.reassign-character', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {

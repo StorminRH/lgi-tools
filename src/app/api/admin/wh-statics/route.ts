@@ -21,6 +21,7 @@ function redirectToReview(request: NextRequest, outcome: string): Response {
   return Response.redirect(destination, 303);
 }
 
+// authz: admin
 export const POST = capabilityRoute('admin.wh-statics-review', handlePost);
 
 async function handlePost(request: NextRequest): Promise<Response> {
