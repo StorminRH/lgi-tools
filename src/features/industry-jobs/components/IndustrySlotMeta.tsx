@@ -1,17 +1,5 @@
 'use client';
 
-// The /industry header's slot readout (reworked 3.7.24): used/total per
-// activity — manufacturing / science / reactions — summed across the viewer's
-// job-eligible characters (the same set the used counts can actually see, so
-// the gauge never mixes rosters). Capacity comes from /api/account/industry-slots (1 base
-// + the two slot skills per activity, base 1/1/1 fail-open for a character
-// with no synced skills); usage counts each character's personal board plus
-// the corp jobs they INSTALLED (how the game charges slots), deduped by
-// job_id. The jobs reads are the same on-view reads the section grid uses (the
-// duplicate fetches dedup against the 300s server staleness gates — the
-// established pattern); all the branching lives in slotMetaTotals (slots.ts).
-// Renders nothing until every feed lands, or when the viewer has no characters
-// (signed out / none linked).
 import { useMemo } from 'react';
 import { eyebrow } from '@/components/ui/type-roles';
 import { flattenJobs } from '../flatten-jobs';
@@ -20,7 +8,6 @@ import { useCorpJobsLive } from '../use-corp-jobs-live';
 import { useJobsLive } from '../use-jobs-live';
 import { useSlotsLive } from '../use-slots-live';
 
-/** Renders used industry slots by activity from the viewer-visible personal and corporation jobs. */
 export function IndustrySlotMeta({
   characterIds,
   corpEligibleCharacterIds,
@@ -61,19 +48,26 @@ export function IndustrySlotMeta({
         <b className="text-evb-bright font-semibold">
           {model.manufacturing.used}/{model.manufacturing.total}
         </b>
+
       </span>
+
       <span className={eyebrow()}>
         science{' '}
         <b className="text-evb-bright font-semibold">
           {model.science.used}/{model.science.total}
         </b>
+
       </span>
+
       <span className={eyebrow()}>
         reactions{' '}
         <b className="text-evb-bright font-semibold">
           {model.reactions.used}/{model.reactions.total}
         </b>
+
       </span>
+
     </>
+
   );
 }

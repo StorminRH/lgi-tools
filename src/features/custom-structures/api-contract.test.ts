@@ -4,8 +4,6 @@ import {
   setCustomStructureTaxRequestSchema,
 } from './api-contract';
 
-// The facility-tax entry bound (0–10%, decimals, null = clear). The cap itself
-// is pinned in fees.test.ts; these pin the wire validation built from it.
 describe('setCustomStructureTaxRequestSchema', () => {
   it('accepts the full entry range: 0, decimals, the cap, and null (clear)', () => {
     for (const taxPct of [0, 0.25, 1.5, 10, null]) {

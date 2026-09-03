@@ -1,7 +1,3 @@
-// Industry-jobs purge contributor (ACCOUNT.1) — cache tier. Two axes: the personal
-// job board is character-keyed (purgeCharacter); the corp job board is per-(user,
-// corp) and private to the user, so its teardown is user-keyed (purgeUser). Both
-// are regenerable ESI mirrors.
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import type { PurgeContributor } from '@/platform/purge/types';
@@ -12,10 +8,6 @@ import {
   corpIndustryJobSyncs,
 } from './schema';
 
-/**
- * Personal-data purge contributor for industry jobs purge contributor; this data slice owns
- * deleting its user and character keyed rows.
- */
 export const industryJobsPurgeContributor: PurgeContributor = {
   name: 'industry-jobs',
   tier: 'cache',

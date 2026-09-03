@@ -1,16 +1,3 @@
-// The on-view personal industry-jobs refresh (MIGRATE.B.2; engine-backed since
-// MIGRATE.D.2). PURE orchestration: refreshJobsForUser builds an OwnerSyncDescriptor
-// from the injected port (types.ts) + this slice's pure helpers and hands it to the
-// shared per-owner sync engine (src/platform/owner-sync). It imports no auth and no DB, so
-// it stays inside the feature boundary and is unit-tested with a fake port. The real
-// port is wired in src/composition/sync/industry-jobs-sync.ts. Jobs is per-character only — one
-// parallel pass, no corp axis.
-//
-// The engine checks the staleness gate BEFORE any token vend or ESI call (a fresh
-// character does zero work). The refresh reconciles EXISTENCE (new / delivered jobs in
-// the next fresh body); a job's "ready" is derived client-side from its absolute
-// end_date — there is no scheduled completion flip. The shared planRead owns the
-// neutral single-read verdicts while this feature retains its projection and payload.
 import {
   makeCharacterDescriptor,
   type OwnerSyncDescriptor,
@@ -26,7 +13,6 @@ import type { CharacterJobsSyncState, JobsPort } from './types';
 
 const JOBS_FRESHNESS = freshnessGate('character_industry_jobs');
 
-// The save payload the engine carries from fetchAndPlan to save (the fresh board).
 interface JobsSave {
   jobs: IndustryJob[];
   etag: string | null;
@@ -47,10 +33,6 @@ function makeDescriptor(port: JobsPort): OwnerSyncDescriptor<number, CharacterJo
   });
 }
 
-/**
- * Refreshes eligible personal industry jobs for all linked characters and returns the merged
- * stored projection.
- */
 export function refreshJobsForUser(
   port: JobsPort,
   userId: string,

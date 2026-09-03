@@ -32,13 +32,13 @@ function job(overrides: Partial<IndustryJob> = {}): IndustryJob {
 interface FakeOptions {
   members: RefreshCorpMember[];
   now?: Date;
-  // per-character vended token (null = unavailable)
+
   tokens?: Record<number, string | null>;
-  // per-character roles (null = roles read failed)
+
   roles?: Record<number, string[] | null>;
-  // per-corp ESI read result
+
   reads?: Record<number, JobsEsiRead>;
-  // per-corp pre-existing sync state
+
   syncStates?: Record<number, { lastRefreshedAt: Date | null; jobsEtag: string | null }>;
 }
 
@@ -129,7 +129,7 @@ describe('refreshCorpJobsForUser', () => {
     expect(result).toEqual([
       { kind: 'failed_permanent', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'needs_role' },
     ]);
-    expect(calls.readJobs).toEqual([]); // no token spent on a guaranteed 403
+    expect(calls.readJobs).toEqual([]);
     expect(calls.saveNeedsRole).toEqual([2000]);
     expect(calls.saveJobs).toEqual([]);
   });
@@ -215,7 +215,7 @@ describe('refreshCorpJobsForUser', () => {
     });
     const readJobs = vi.fn(port.readJobs);
     port.readJobs = (corporationId, accessToken, heldEtag) => {
-      // The Director's token (character 2) reads the board.
+
       expect(accessToken).toBe('tok-2');
       return readJobs(corporationId, accessToken, heldEtag);
     };
@@ -232,7 +232,7 @@ describe('refreshCorpJobsForUser', () => {
       ],
     });
     await refreshCorpJobsForUser(port, 'user-1');
-    expect(calls.vend).toEqual([]); // all three filtered before any work
+    expect(calls.vend).toEqual([]);
     expect(calls.readJobs).toEqual([]);
   });
 

@@ -5,8 +5,6 @@ import type { CharacterJobsSyncState, JobsEsiRead, JobsPort, RefreshCharacter } 
 const NOW = new Date('2026-06-28T12:00:00Z');
 const JOBS_SCOPE = 'esi-industry.read_character_jobs.v1';
 
-// A valid ESI industry-jobs element — exactly the projected fields, so
-// parseIndustryJobsBody is an identity (modulo its soonest-done-first sort).
 function esiJob(jobId: number) {
   return {
     job_id: jobId,
@@ -41,7 +39,6 @@ const character = (id: number, extra: Partial<RefreshCharacter> = {}): RefreshCh
   ...extra,
 });
 
-// lastRefreshedAt 60s ago — inside the 300s TTL, so the character is fresh.
 const fresh = (): CharacterJobsSyncState => ({
   lastRefreshedAt: new Date(NOW.getTime() - 60_000),
   jobsEtag: null,
@@ -65,7 +62,7 @@ describe('refreshJobsForUser', () => {
   it('fetches and saves the board for a never-synced character', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
-      readSyncState: vi.fn(async () => null), // never synced → stale, no held etag
+      readSyncState: vi.fn(async () => null),
     });
 
     const result = await refreshJobsForUser(port, 'u1');

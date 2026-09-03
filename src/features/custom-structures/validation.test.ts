@@ -2,13 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { StructureRigOption, StructureTypeOption } from '@/data/eve-data/structures';
 import { validateCustomStructureSelection } from './validation';
 
-// SDE groups: 1404 Engineering Complex, 1406 Refinery, 1657 Citadel.
 const azbel: StructureTypeOption = { typeId: 35826, name: 'Azbel', groupId: 1404, rigSize: 3 };
 const athanor: StructureTypeOption = { typeId: 35835, name: 'Athanor', groupId: 1406, rigSize: 2 };
 const fortizar: StructureTypeOption = { typeId: 35833, name: 'Fortizar', groupId: 1657, rigSize: 3 };
 const TYPES = [azbel, athanor, fortizar];
 
-// Manufacturing rigs fit EC + Refinery + Citadel; reaction rigs fit Refinery only.
 const lMfgRig: StructureRigOption = {
   typeId: 37170,
   name: 'L-Set Equipment Mfg Eff I',

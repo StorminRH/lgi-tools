@@ -1,10 +1,5 @@
-// The Active-jobs table's board flattening, extracted pure from the component
-// (3.7.24) so the dashboard coordinator and the table share one definition —
-// and so the ordering is pinned by tests. ESI documents no ordering guarantee;
-// the board renders soonest-done first, job_id tie-breaking for stability.
 import type { IndustryJob } from './esi-projection';
 
-/** Flattens per-owner industry-job groups into one deterministically ordered job list. */
 export function flattenJobs(
   boards: Iterable<{ data: { jobs: IndustryJob[] } | null }>,
 ): IndustryJob[] {
@@ -17,10 +12,6 @@ export function flattenJobs(
   );
 }
 
-/**
- * The section header's "N complete · M in progress" counts. Statuses arrive
- * already derived by the live hook (a past-end_date active job is 'ready').
- */
 export function jobCounts(jobs: readonly IndustryJob[]): {
   complete: number;
   inProgress: number;
