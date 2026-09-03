@@ -13,8 +13,6 @@ vi.mock('./source', () => ({
 
 import { refreshIndustryIndices } from './ingest';
 
-// Records each insert().values(rows) batch so tests can assert chunking +
-// the single batch-stamped updatedAt. onConflictDoUpdate resolves to nothing.
 function fakeDb() {
   const valuesBatches: Array<Array<Record<string, unknown>>> = [];
   const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
@@ -49,7 +47,7 @@ describe('refreshIndustryIndices', () => {
 
     expect(summary.costIndices).toMatchObject({ ok: true, written: 2 });
     expect(summary.adjustedPrices).toMatchObject({ ok: true, written: 2 });
-    expect(db.insert).toHaveBeenCalledTimes(2); // one upsert per dataset
+    expect(db.insert).toHaveBeenCalledTimes(2);
   });
 
   it('stamps every row in the run with a single updatedAt', async () => {
@@ -68,13 +66,13 @@ describe('refreshIndustryIndices', () => {
   it('chunks a large upsert under the bind-param ceiling', async () => {
     const rows = Array.from({ length: UPSERT_CHUNK_SIZE + 500 }, (_, i) => costRow(i));
     fetchCostIndicesMock.mockResolvedValue(rows);
-    fetchAdjustedPricesMock.mockResolvedValue([]); // empty → no insert for prices
+    fetchAdjustedPricesMock.mockResolvedValue([]);
 
     const db = fakeDb();
     const summary = await refreshIndustryIndices(db.db as never);
 
     expect(summary.costIndices.written).toBe(UPSERT_CHUNK_SIZE + 500);
-    expect(db.insert).toHaveBeenCalledTimes(2); // ceil(1500 / 1000)
+    expect(db.insert).toHaveBeenCalledTimes(2);
   });
 
   it('isolates a dataset failure so the sibling still persists', async () => {
@@ -86,6 +84,6 @@ describe('refreshIndustryIndices', () => {
 
     expect(summary.costIndices).toEqual({ ok: false, written: 0, error: 'EsiServerError' });
     expect(summary.adjustedPrices).toMatchObject({ ok: true, written: 1 });
-    expect(db.insert).toHaveBeenCalledTimes(1); // only the prices upsert ran
+    expect(db.insert).toHaveBeenCalledTimes(1);
   });
 });

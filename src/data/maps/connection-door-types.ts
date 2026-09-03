@@ -17,7 +17,6 @@ export interface ConnectionDoorTypes {
   readonly to: string | null;
 }
 
-/** Named outgoing type — never K162, never unidentified. */
 export function isEntranceType(code: string | null | undefined): boolean {
   return code != null && code !== FAR_SIDE_WORMHOLE_CODE && isWormholeTypeCode(code);
 }
@@ -33,11 +32,6 @@ export function namedDoorType(doors: ConnectionDoorTypes): {
   return { typeCode: null, side: null };
 }
 
-/**
- * Writes one mouth. A newly set named type fills a blank other mouth as K162.
- * Clearing a mouth, writing K162, or finding the other mouth already set
- * leaves the other mouth alone.
- */
 export function applyDoorType(
   current: ConnectionDoorTypes,
   side: ConnectionDoorSide,
@@ -53,11 +47,6 @@ export function applyDoorType(
     : { from: FAR_SIDE_WORMHOLE_CODE, to: value };
 }
 
-/**
- * Attaches a scanned stub onto one mouth of a resolved hallway. If the other
- * mouth is already named, this mouth becomes K162. Otherwise the stub's type
- * is written here. An existing named type on this mouth is left alone.
- */
 export function applyReturnDoorType(
   current: ConnectionDoorTypes,
   attachedSide: ConnectionDoorSide,
@@ -103,7 +92,6 @@ export function connectionTypePatch(
   };
 }
 
-/** Patch used when a stub is linked onto a resolved hallway. */
 export function returnDoorTypePatch(
   hallway: {
     readonly from: ConnectionDoorValue;

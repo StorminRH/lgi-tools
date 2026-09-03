@@ -5,13 +5,12 @@ import { MAP_ACCESS_OWNER_TYPES, MAP_ROLES } from './access-contract';
 const mapIdSchema = z.string().trim().min(1).max(200);
 const connectionIdSchema = z.string().trim().min(1).max(200);
 
-/** Maximum durable display-name length accepted at the create boundary. */
 export const MAX_MAP_NAME_LENGTH = 120;
-/** Maximum number of explicit principal grants accepted in one create statement. */
+
 export const MAX_MAP_CREATE_GRANTS = 100;
-/** Minimum normalized character-search length accepted by both ESI search paths. */
+
 export const MIN_CHARACTER_SEARCH_LENGTH = 3;
-/** Maximum normalized character-search length accepted by the exact-name fallback. */
+
 export const MAX_CHARACTER_SEARCH_LENGTH = 100;
 
 const createMapGrantSchema = z.strictObject({
@@ -20,7 +19,6 @@ const createMapGrantSchema = z.strictObject({
   role: z.enum(['viewer', 'editor']),
 });
 
-/** Untrusted request to atomically create one durable map and its delegated grants. */
 export const createMapRequestSchema = z
   .strictObject({
     name: z.string().trim().min(1).max(MAX_MAP_NAME_LENGTH),
@@ -41,13 +39,10 @@ export const createMapRequestSchema = z
     }
   });
 
-/** Validated map-creation request accepted by the durable transaction owner. */
 export type CreateMapRequest = z.infer<typeof createMapRequestSchema>;
 
-/** Successful map creation response used by the first-run handoff. */
 const createMapResponseSchema = z.strictObject({ mapId: mapIdSchema });
 
-/** First-party endpoint for one authenticated atomic map creation. */
 export const createMapEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/maps/create',
@@ -62,7 +57,6 @@ export const createMapEndpoint = defineEndpoint({
   },
 });
 
-/** Untrusted character-search request normalized before any linked-token or ESI work. */
 export const searchCharactersRequestSchema = z.strictObject({
   search: z
     .string()
@@ -77,7 +71,6 @@ const characterSearchResultSchema = z.strictObject({
   portraitUrl: z.string().url(),
 });
 
-/** Character-search result with an explicit capability mode for the consuming typeahead. */
 const searchCharactersResponseSchema = z.discriminatedUnion('mode', [
   z.strictObject({
     mode: z.literal('typeahead'),
@@ -89,10 +82,8 @@ const searchCharactersResponseSchema = z.discriminatedUnion('mode', [
   }),
 ]);
 
-/** Typed scoped or exact character-search response consumed by the access editor. */
 export type SearchCharactersResponse = z.infer<typeof searchCharactersResponseSchema>;
 
-/** Authenticated first-party endpoint for scoped character search with exact fallback. */
 export const searchCharactersEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/maps/search-characters',
@@ -106,13 +97,11 @@ export const searchCharactersEndpoint = defineEndpoint({
   },
 });
 
-/** Untrusted request for one map/system signature-elimination pass. */
 export const signatureEliminationRequestSchema = z.strictObject({
   mapId: mapIdSchema,
   systemId: z.number().int().positive().safe(),
 });
 
-/** One honest elimination outcome returned to the acting mapper client. */
 const signatureEliminationResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({
     status: z.literal('applied'),
@@ -122,17 +111,14 @@ const signatureEliminationResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('statics-unavailable') }),
 ]);
 
-/** Typed signature-elimination request accepted by server composition. */
 export type SignatureEliminationRequest = z.infer<
   typeof signatureEliminationRequestSchema
 >;
 
-/** Closed signature-elimination result consumed by client triggers. */
 export type SignatureEliminationResponse = z.infer<
   typeof signatureEliminationResponseSchema
 >;
 
-/** First-party endpoint for one authenticated signature-elimination pass. */
 export const signatureEliminationEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/maps/signature-elimination',
@@ -150,7 +136,6 @@ const mapAccessPrincipalSchema = z.strictObject({
   ownerId: z.number().int().positive().safe(),
 });
 
-/** One admin-authored durable grant upsert or exact principal revocation. */
 export const updateMapAccessRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({
     operation: z.literal('upsert'),
@@ -164,10 +149,8 @@ export const updateMapAccessRequestSchema = z.discriminatedUnion('operation', [
   }),
 ]);
 
-/** Validated set-shaped map grant mutation accepted by the access authority path. */
 export type UpdateMapAccessRequest = z.infer<typeof updateMapAccessRequestSchema>;
 
-/** Authenticated admin-only endpoint for durable grant edits plus re-projection. */
 export const updateMapAccessEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/maps/access',
@@ -181,13 +164,10 @@ export const updateMapAccessEndpoint = defineEndpoint({
   },
 });
 
-/** One durable map lifecycle mutation target. */
 export const mapLifecycleRequestSchema = z.strictObject({ mapId: z.uuid() });
 
-/** Validated delete, restore, or purge-request target. */
 export type MapLifecycleRequest = z.infer<typeof mapLifecycleRequestSchema>;
 
-/** Wire response for the daily bounded map-purge cron. */
 export type CronPurgeMapsResponse =
   | { readonly status: 'busy' }
   | {
@@ -198,7 +178,6 @@ export type CronPurgeMapsResponse =
       readonly projectionPending: number;
     };
 
-/** Authenticated admin-only endpoint that begins the thirty-day undo window. */
 export const deleteMapEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/maps/delete',
@@ -211,7 +190,6 @@ export const deleteMapEndpoint = defineEndpoint({
   },
 });
 
-/** Authenticated admin-only endpoint that restores an in-grace archived map. */
 export const restoreMapEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/maps/restore',
@@ -224,7 +202,6 @@ export const restoreMapEndpoint = defineEndpoint({
   },
 });
 
-/** Creator-only endpoint that fast-forwards an archived map into the next sweep. */
 export const purgeMapNowEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/maps/purge-now',
@@ -237,7 +214,6 @@ export const purgeMapNowEndpoint = defineEndpoint({
   },
 });
 
-/** Untrusted jump-resolver request; identity and movement facts never enter through this body. */
 export const jumpResolverRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('doorbell'),
@@ -257,10 +233,8 @@ export const jumpResolverRequestSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
-/** One validated request accepted by the jump-resolver composition. */
 export type JumpResolverRequest = z.infer<typeof jumpResolverRequestSchema>;
 
-/** Closed workflow result returned to the doorbell observer and authoring UI. */
 const jumpResolverResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({
     status: z.literal('processed'),
@@ -272,10 +246,8 @@ const jumpResolverResponseSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('retry'), reason: z.string().min(1) }),
 ]);
 
-/** One jump-resolver workflow response. */
 export type JumpResolverResponse = z.infer<typeof jumpResolverResponseSchema>;
 
-/** Typed first-party contract for automatic jump authoring and its identity follow-ups. */
 export const jumpResolverEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/maps/jump',

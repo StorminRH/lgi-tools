@@ -7,14 +7,6 @@ import {
   type PriceOf,
 } from './profitability';
 
-// Known-good flattened material totals, copied verbatim from the 3.0.4 tree
-// resolver spike (scripts/spike-known-good.json — also the permanent eve-data
-// fixture). Inlined rather than imported so industry-math imports nothing from
-// another data slice (a cross-slice `data → data` import fails the boundaries
-// lint, and test files are linted too). Rifter + Drake are firm anchors (direct
-// CSV equality, no intermediate components). Archon is a regression sentinel
-// only — its totals are self-referential, not externally validated, so a future
-// Archon mismatch is not automatically a planner bug.
 const RIFTER_MATERIALS: Record<number, number> = {
   34: 32000,
   35: 6000,
@@ -55,8 +47,6 @@ function toMaterials(map: Record<number, number>): MaterialQty[] {
   }));
 }
 
-// A buy-only price map for the firm anchors. Round numbers so the expected
-// totals below are hand-verifiable.
 const ANCHOR_BUY: Record<number, number> = {
   34: 5, 35: 10, 36: 100, 37: 200, 38: 1000, 39: 2000, 40: 5000, 44: 10000,
 };
@@ -69,7 +59,7 @@ function priceOfFrom(buy: Record<number, number>): PriceOf {
 describe('computeBuildCost', () => {
   it('sums quantity × best buy for the Rifter (firm anchor)', () => {
     const cost = computeBuildCost(toMaterials(RIFTER_MATERIALS), priceOfFrom(ANCHOR_BUY));
-    // 32000·5 + 6000·10 + 2500·100 + 500·200 = 160000 + 60000 + 250000 + 100000
+
     expect(cost.total).toBe(570_000);
     expect(cost.missingTypeIds).toEqual([]);
     expect(cost.perMaterial).toHaveLength(4);
@@ -79,20 +69,20 @@ describe('computeBuildCost', () => {
 
   it('sums quantity × best buy for the Drake (firm anchor)', () => {
     const cost = computeBuildCost(toMaterials(DRAKE_MATERIALS), priceOfFrom(ANCHOR_BUY));
-    // 14M + 10M + 18M + 4M + 8M + 4M + 2M
+
     expect(cost.total).toBe(60_000_000);
     expect(cost.missingTypeIds).toEqual([]);
   });
 
   it('flags materials with no row or a null buy price instead of undercounting', () => {
-    // Drop type 37 entirely; give type 36 a present-but-null buy side.
+
     const priceOf: PriceOf = (typeId) => {
       if (typeId === 37) return undefined;
       if (typeId === 36) return { bestBuy: null, bestSell: 999 };
       return { bestBuy: ANCHOR_BUY[typeId] ?? null, bestSell: null };
     };
     const cost = computeBuildCost(toMaterials(RIFTER_MATERIALS), priceOf);
-    // Only 34 and 35 priced: 160000 + 60000.
+
     expect(cost.total).toBe(220_000);
     expect(cost.missingTypeIds.sort((a, b) => a - b)).toEqual([36, 37]);
     const isk = cost.perMaterial.find((m) => m.typeId === 36);
@@ -100,7 +90,7 @@ describe('computeBuildCost', () => {
   });
 
   it('handles the Archon material set without throwing (regression sentinel)', () => {
-    // Flat 10 ISK per unit across all 76 materials → total = 10 × Σ quantity.
+
     const flatBuy: PriceOf = () => ({ bestBuy: 10, bestSell: null });
     const cost = computeBuildCost(toMaterials(ARCHON_MATERIALS), flatBuy);
     const totalUnits = Object.values(ARCHON_MATERIALS).reduce((a, b) => a + b, 0);

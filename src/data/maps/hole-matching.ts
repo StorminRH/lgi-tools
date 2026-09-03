@@ -13,7 +13,6 @@ import type {
   WormholeCodexEntry,
 } from '@/data/eve-data/universe-assets';
 
-/** One unresolved hole in the system you jumped from, eligible for matching. */
 export interface HoleMatchCandidate {
   readonly id: string;
   readonly wormholeTypeCode: string | null;
@@ -21,26 +20,19 @@ export interface HoleMatchCandidate {
   readonly sizeClass: WormholeSizeClass | null;
 }
 
-/** Plain cross-store evidence consumed by the pure jump matcher. */
 export interface JumpEvidence {
-  /** System you jumped from. */
+
   readonly origin: WormholeSystemClassFacts;
-  /** System you landed in. */
+
   readonly destination: WormholeSystemClassFacts;
   readonly observedShipMassKg: number | null;
   readonly candidates: readonly HoleMatchCandidate[];
-  /**
-   * Named types of every scanned hole in the system you jumped from —
-   * resolved hallways included, so an outgoing static that already linked
-   * still counts (the census asks whether the system is fully scanned, not
-   * whether a hole is still unresolved).
-   */
+
   readonly scannedTypeCodes: readonly string[];
   readonly staticTypeCodes: readonly string[];
   readonly codex: readonly WormholeCodexEntry[];
 }
 
-/** The pure decision handed to transactional jump authoring. */
 export type JumpMatchOutcome =
   | {
       readonly kind: 'resolve';
@@ -131,11 +123,6 @@ function staticsCensusSatisfied(evidence: JumpEvidence): boolean {
   return true;
 }
 
-/**
- * Eliminates contradicted signatures, orders every credible survivor by its
- * evidence quality, and returns the one authoring decision. The matcher never
- * performs I/O and never asserts verified identity from ambiguity.
- */
 export function matchJump(evidence: JumpEvidence): JumpMatchOutcome {
   const codexByCode = new Map(evidence.codex.map((entry) => [entry.code, entry]));
   const destinationClassId = effectiveWormholeClassId(evidence.destination);

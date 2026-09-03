@@ -1,7 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// The queries read the `@/db` proxy via `select().from().where()` → rows. The
-// fake resolves `.where()` to whatever each test stages in `cannedRows`.
 let cannedRows: unknown[] = [];
 
 vi.mock('@/db', () => ({
@@ -58,8 +56,8 @@ describe('getAdjustedPrices', () => {
   it('builds Map<typeId, price>, skipping NULL-priced rows', async () => {
     cannedRows = [
       { typeId: 34, adjustedPrice: 2.9 },
-      { typeId: 41, adjustedPrice: 0 }, // a real 0.0 is kept
-      { typeId: 99, adjustedPrice: null }, // absent → skipped
+      { typeId: 41, adjustedPrice: 0 },
+      { typeId: 99, adjustedPrice: null },
     ];
     const out = await getAdjustedPrices([34, 41, 99]);
     expect(out.get(34)).toBe(2.9);

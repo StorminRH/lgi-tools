@@ -1,20 +1,16 @@
-/** Pilot knowledge supplied to the collapse core by the active trigger. */
 export type PilotsPresent = 'present' | 'absent' | 'unknown';
 
-/** One live system fact required by the pure collapse decision. */
 export interface CollapseSystem {
   readonly id: number;
   readonly isRoot?: boolean;
 }
 
-/** One live connection fact required by the pure collapse decision. */
 export interface CollapseConnection {
   readonly id: string;
   readonly fromSystemId: number;
   readonly toSystemId: number;
 }
 
-/** Inputs shared by manual severing and the later automatic collapse triggers. */
 export interface CollapseDecisionInput {
   readonly cutConnectionId: string;
   readonly systems: readonly CollapseSystem[];
@@ -22,7 +18,6 @@ export interface CollapseDecisionInput {
   readonly pilotsPresent: PilotsPresent;
 }
 
-/** The computed keep/remove result enforced by the server mutation. */
 export type CollapseDecision =
   | { readonly kind: 'retain' }
   | {
@@ -31,7 +26,6 @@ export type CollapseDecision =
       readonly connectionIds: readonly string[];
     };
 
-/** Collects the connected component containing one endpoint after the cut. */
 function componentFrom(
   start: number,
   adjacency: ReadonlyMap<number, readonly number[]>,
@@ -47,13 +41,6 @@ function componentFrom(
   return component;
 }
 
-/**
- * Computes the one collapse outcome for a cut edge. Only the cut endpoints'
- * components participate, so severing inside a retained island never
- * re-examines unrelated islands. A component is retained when it still holds
- * the map root or present pilots — a k-space system alone is not a keep
- * reason.
- */
 export function decideCollapse(input: CollapseDecisionInput): CollapseDecision {
   const cut = input.connections.find(
     (connection) => connection.id === input.cutConnectionId,
