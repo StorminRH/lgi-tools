@@ -38,9 +38,9 @@ is green on that run. Done when the list exists and step 1 is in progress.
    Count is due at 80 versus `staging`. A smaller clean chunk is fine
    when the operator asked for one. Reviewers run
    `origin pr diff <N>` after the draft exists. When the destination
-   is `staging`, the `--list` is dump isolation and a pile over 100
+   is `staging`, the `--list` is mirror isolation and a pile over 100
    is `BLOCKED`. Split first. Destination `main` still runs the
-   count. It has no dump and no file cap. Done when the count is
+   count. It has no mirror and no file cap. Done when the count is
    known and, for `staging`, under the cap.
 3. Run the local test suite through `test-runner` until it passes.
    Done when `pnpm typecheck`, `pnpm lint`, Fallow `dead-code`,
@@ -48,18 +48,18 @@ is green on that run. Done when the list exists and step 1 is in progress.
    on the head.
 4. Open the Origin draft (`<head>` → destination) per **Origin PR**.
    Done when that PR is draft and the change number is known.
-5. When the destination is `staging`, dump per **Dump**. Done when
-   the dump PR is open ready and Greptile and CodeRabbit have been
-   requested. Destination `main` skips dump.
-6. Comments. Invoke `no-comments` on that Origin change. It spawns
+5. Comments. Invoke `no-comments` on that Origin change. It spawns
    `comment-sicko`. Both write. Run the local test suite through
    `test-runner`. Done when accepted deletions and in-scope fixes
    are on the head and the suite is green.
+6. When the destination is `staging`, mirror per **Mirror**. Done when
+   the mirror PR is open ready and Greptile and CodeRabbit have been
+   requested. Destination `main` skips the mirror.
 7. Freeze and review. Invoke `adversarial-review` on that Origin
    change. Brief is the change number. Every Cursor seat runs
-   `origin pr diff <N>`. Bugbot on open. Dump bots when a dump
+   `origin pr diff <N>`. Bugbot on open. Mirror bots when a mirror
    exists. Done when every freeze seat has returned, Bugbot and
-   dump review have finished posting, and the tree is still the
+   mirror review have finished posting, and the tree is still the
    freeze head.
 8. One batch. Triage every finding from that settled window.
    Dedupe. Accept or reject. Fix the accepted set on the head.
@@ -73,7 +73,7 @@ is green on that run. Done when the list exists and step 1 is in progress.
    in the same PR. A session that still has work only on
    `development` waits for a later close-out. The Delivered
    outcome carries the player-facing bullets the changelog will
-   lift. Push the as-builts and any remaining dump fixes to the
+   lift. Push the as-builts and any remaining mirror fixes to the
    Origin draft. Run the local test suite on that head. Done when
    those commits are on that PR and the suite is green.
 10. Dispatch per **Depot**. That command is the watch todo. Done
@@ -84,18 +84,18 @@ is green on that run. Done when the list exists and step 1 is in progress.
     per **Resync**. Done when Origin `main` holds the head and
     `staging` and `development` contain `main`. Return `RELEASED`.
 13. When the destination is `staging`, `origin pr thread list
-    --unresolved` empty. Merge per **Merge**. Close the dump PR
+    --unresolved` empty. Merge per **Merge**. Close the mirror PR
     unmerged. Done when Origin `staging` holds the head.
 14. Resync per **Resync**. Done when `development` contains
     `staging`. Return `PROMOTED`.
 
 Outputs. Exactly one:
 
-- `PROMOTED`. Destination `staging`. Origin PR merged. Dump PR closed
+- `PROMOTED`. Destination `staging`. Origin PR merged. Mirror PR closed
   unmerged. `development` contains `staging`.
 - `RELEASED`. Destination `main`. Origin `main` holds the cut.
   `staging` and `development` contain `main`.
-- `BLOCKED`. Named gate, oversize staging dump, failed check, missing
+- `BLOCKED`. Named gate, oversize staging mirror, failed check, missing
   destination, work already on the destination before this process
   finished, or an Origin token that is not scoped for merge. The
   Origin PR stays open.
@@ -137,21 +137,21 @@ On red, diagnose then logs. The fix is a Findings cycle.
 ## Findings
 
 Done when Depot is idle, one comment records the cycle, that
-comment's thread is resolved or the operator paused, and the dump
-branch matches the Origin head when a dump exists.
+comment's thread is resolved or the operator paused, and the mirror
+branch matches the Origin head when a mirror exists.
 
-A finding is a red Depot job, a dump bot comment, or a review note
+A finding is a red Depot job, a mirror bot comment, or a review note
 on the Origin PR, including Bugbot. The first batch is step 8.
 A red dispatch is a new cycle on the same rule: diagnose, one
 batch, local suite, one `dispatch`.
 
 1. Collect every finding from that red run: Depot diagnose/logs
    and any new review notes.
-2. One batch. One commit per fix is fine. Justify on the dump PR
-   when a dump finding is wrong. Defer only on an explicit
+2. One batch. One commit per fix is fine. Justify on the mirror PR
+   when a mirror finding is wrong. Defer only on an explicit
    operator cut. Run the local test suite on the batch.
-3. One push to the Origin head. One re-push of the dump branch
-   when a dump exists. `refresh` if `view` still shows the
+3. One push to the Origin head. One re-push of the mirror branch
+   when a mirror exists. `refresh` if `view` still shows the
    previous version.
 4. One Origin comment (`origin pr comment`) naming the version and
    every finding's disposition. Origin assigns the thread id.
@@ -159,21 +159,22 @@ batch, local suite, one `dispatch`.
    cycle after the next settle if Depot is still red or new
    review lands.
 
-Dump comments start on GitHub. The Origin comment and its thread
+Mirror comments start on GitHub. The Origin comment and its thread
 id are the log.
 
-## Dump
+## Mirror
 
-Done when the dump PR holds only the size-gate paths at the
+Done when the GitHub mirror PR holds only the size-gate paths at the
 current head SHA, is open ready, and both bots have been requested.
 
-Add a `github` remote to `https://github.com/StorminRH/lgi-tools.git`
-when it is missing. Push Origin `staging` to GitHub `staging` so the
-dump base matches the already-reviewed line. Build
-`dump/<YYYY-MM-DD>-<shortsha>` from that base with only the isolated
-paths at the head SHA. Open the GitHub PR ready for review on
-`StorminRH/lgi-tools` (`dump/...` → `staging`) with `gh pr create` or
-the GitHub MCP. Request Greptile and CodeRabbit by hand.
+GitHub PRs and branches are a manual mirror. Add a `github` remote to
+`https://github.com/StorminRH/lgi-tools.git` when it is missing. Push
+Origin `staging` to GitHub `staging` so the mirror base matches the
+already-reviewed line. Build `dump/<YYYY-MM-DD>-<shortsha>` from that
+base with only the isolated paths at the head SHA. Open the GitHub PR
+ready for review on `StorminRH/lgi-tools` (`dump/...` → `staging`) with
+`gh pr create` or the GitHub MCP. Request Greptile and CodeRabbit by
+hand.
 
 ## Merge
 

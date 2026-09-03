@@ -24,8 +24,9 @@ refactors, and metrics as signals not design instructions.
 
 This skill is the freeze review on an Origin draft, including every
 merge onto `staging` or `main`. Close-out runs `no-comments` and
-`comment-sicko` before this freeze. Plans and Ordered work use
-`structure-reviewer` and `behavior-reviewer` from those skills.
+`comment-sicko` before the GitHub mirror and this freeze. Plans and
+Ordered work use `structure-reviewer` and `behavior-reviewer` from
+those skills.
 
 ## 1. Freeze
 
@@ -93,7 +94,7 @@ in chat.
 
 Render this form in chat. Exactly these four bullets. No fence,
 no second summary above them. The caller batches accepted
-findings after Bugbot and dump review on this PR are idle.
+findings after Bugbot and GitHub mirror review are idle.
 
 ## Adversarial review: `PASS` | `CORRECTIONS_REQUIRED` | `BLOCKED`
 

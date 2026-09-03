@@ -38,7 +38,7 @@ Land on Origin `development` when the local test suite is green. Promote
 
 ## Tools
 
-Origin is the land forge. GitHub is the dump remote for bot review.
+Origin is the land forge. GitHub is a manual mirror for bot review.
 Linear is the ticket home. GitHub issues are not in use. Update watch
 comments on standing `LGI-6`.
 
@@ -46,10 +46,11 @@ comments on standing `LGI-6`.
 `origin pr create --head <head> --base <destination>`
 Create defaults to draft. Leave it draft through reviews and fixes.
 Always pass `--head` and `--base`; after `test-runner` the checkout can
-be detached. `no-comments` and `comment-sicko` write first. Freeze that
-head. Reviewers run `origin pr diff <N>`. The brief is the change
-number. Keep that freeze until every seat has returned. Then one
-batch: triage, dedupe, fix, note on the PR. A push is a version.
+be detached. `no-comments` and `comment-sicko` write first. Then the
+GitHub mirror. Freeze that head. Reviewers run `origin pr diff <N>`.
+The brief is the change number. Keep that freeze until every seat
+has returned. Then one batch: triage, dedupe, fix, note on the PR.
+A push is a version.
 `refresh` when `view` still shows the previous one. Bugbot reviews
 once on open. Accumulating drafts stay draft; `dispatch` waits until
 that PR is finishing. Origin assigns a thread id. A review is a
@@ -69,9 +70,9 @@ Merge is `origin pr merge <N>`. A Cloud Agent token that refuses
 that call is BLOCKED. Leave the Origin PR open. The operator
 reviews and merges. Token limits live in `.cursor/cloud-agent.md`.
 
-**gh** — GitHub dump PRs only. Add a `github` remote to
-`https://github.com/StorminRH/lgi-tools.git` when it is missing.
-`gh pr create` (`dump/...` → `staging`)
+**gh** — GitHub mirror PRs and branches only. Manual. Add a `github`
+remote to `https://github.com/StorminRH/lgi-tools.git` when it is
+missing. `gh pr create` (`dump/...` → `staging`)
 
 **depot** — Manual last step. Org `k2f4dzqwd4`, repo `stormin/lgi-tools`,
 workflow `.depot/workflows/test.yml`. Pass `--org k2f4dzqwd4`. Dispatch

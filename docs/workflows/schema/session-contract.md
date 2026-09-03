@@ -122,5 +122,5 @@ The resolver then sends Start Session to close-out. The last Ordered work
 step of the version's last session archives the master plan after any due
 promote. Close-out consumes recorded operator looks and any `ux-check`
 disposition; it does not re-run those pauses. Promote and release open an
-Origin draft, comments, freeze, review with `origin pr diff`, batch, then one
+Origin draft, comments, GitHub mirror on promote, freeze, review with `origin pr diff`, batch, then one
 Depot `dispatch`.
